@@ -1,11 +1,14 @@
-amr.max_grid_size = 25
-max_step = 100
+amr.max_grid_size = 10000
+max_step = 2
 amr.plot_file = myoutput
-amr.plot_int = 10
+amr.plot_int = 1
 
 
 geometry.prob_lo = -1 -1
 geometry.prob_hi = 1 1
-amr.max_level = 2
-amr.n_cell = 100 100
+amr.max_level = 3
+amr.n_cell = 20 20
+#amr.max_grid_size = 100
+#amr.blocking_factor = 2
 
+geometry.is_periodic= 1 1 1

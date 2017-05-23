@@ -8,57 +8,32 @@ using namespace amrex;
 void
 AmrAdv::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 {
-    static bool first = true;
-    static Array<Real> phierr;
+  const Real* dx      = geom[lev].CellSize();
+  const Real* prob_lo = geom[lev].ProbLo();
 
-    if (first)
-    {
-	first = false;
-	ParmParse pp("adv");
-	int n = pp.countval("phierr");
-	if (n > 0) {
-	    pp.getarr("phierr", phierr, 0, n);
-	}
-    }
+  const MultiFab& state = *phi_new[lev];
 
-    if (lev >= phierr.size()) return;
-
-    const int clearval = TagBox::CLEAR;
-    const int   tagval = TagBox::SET;
-
-    const Real* dx      = geom[lev].CellSize();
-    const Real* prob_lo = geom[lev].ProbLo();
-
-    const MultiFab& state = *phi_new[lev];
-
-    {
-        Array<int>  itags;
+  {
+    Array<int>  itags;
 	
-	for (MFIter mfi(state,true); mfi.isValid(); ++mfi)
-	{
-	    const Box&  tilebx  = mfi.tilebox();
+    for (MFIter mfi(state,true); mfi.isValid(); ++mfi)
+      {
+	const Box&  bx  = mfi.tilebox();
 
-            TagBox&     tagfab  = tags[mfi];
+	TagBox&     tag  = tags[mfi];
 	    
-	    // We cannot pass tagfab to Fortran becuase it is BaseFab<char>.
-	    // So we are going to get a temporary integer array.
-	    tagfab.get_itags(itags, tilebx);
-	    
-            // data pointer and index space
-	    int*        tptr    = itags.dataPtr();
-	    const int*  tlo     = tilebx.loVect();
-	    const int*  thi     = tilebx.hiVect();
-	    
-	    // state_error(tptr,  ARLIM_3D(tlo), ARLIM_3D(thi),
-	    //  		BL_TO_FORTRAN_3D(state[mfi]),
-	    //  		&tagval, &clearval, 
-	    //  		ARLIM_3D(tilebx.loVect()), ARLIM_3D(tilebx.hiVect()), 
-	    //  		ZFILL(dx), ZFILL(prob_lo), &time, &phierr[lev]);
+	amrex::BaseFab<Real> &new_phi_box = (*phi_new[lev])[mfi];
 
-	    //
-	    // Now update the tags in the TagBox.
-	    //
-	    tagfab.tags_and_untags(itags, tilebx);
-	}
-    }
+	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+	  for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+	    {
+	      amrex::Real gradx = (new_phi_box(amrex::IntVect(i+1,j)) - new_phi_box(amrex::IntVect(i,j)))/dx[0]/dx[0];
+	      amrex::Real grady = (new_phi_box(amrex::IntVect(i,j+1)) - new_phi_box(amrex::IntVect(i,j)))/dx[1]/dx[1];
+	      if (dx[0]*sqrt(gradx*gradx + grady*grady)>1.1)
+		{
+		  tag(amrex::IntVect(i,j)) = TagBox::SET;
+		}
+	    }
+      }
+  }
 }

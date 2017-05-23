@@ -26,7 +26,7 @@ void AmrAdv::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
 				      const DistributionMapping& dm)
 {
     const int ncomp = 1;
-    const int nghost = 0;
+    const int nghost = 1;
 
     phi_new[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
     phi_old[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
@@ -34,19 +34,15 @@ void AmrAdv::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
     t_new[lev] = time;
     t_old[lev] = time - 1.e200;
 
-    if (lev > 0 && do_reflux) {
-	flux_reg[lev].reset(new FluxRegister(ba, dm, refRatio(lev-1), lev, ncomp));
-    }
-
     const Real* dx = geom[lev].CellSize();
     const Real* prob_lo = geom[lev].ProbLo();
     Real cur_time = t_new[lev];
 
     MultiFab& state = *phi_new[lev];
 
-    for (MFIter mfi(state); mfi.isValid(); ++mfi)
+    for (MFIter mfi(state,true); mfi.isValid(); ++mfi)
     {
-        const Box& box = mfi.validbox();
+        const Box& box = mfi.tilebox();
 
 	amrex::BaseFab<Real> &phi_box = state[mfi];
 
@@ -58,7 +54,9 @@ void AmrAdv::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
 	    {
 	      amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
 	      amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-	      phi_box(amrex::IntVect(i,j)) =  1. + exp(-( (x-offset_x)*(x-offset_x) + (y-offset_y)*(y-offset_y))/0.01);
+	      amrex::Real r = sqrt((x-offset_x)*(x-offset_x) + (y-offset_y)*(y-offset_y));
+	      if (r<0.5) phi_box(amrex::IntVect(i,j)) =  2.;
+	      else phi_box(amrex::IntVect(i,j)) =  1. + exp(-((r-0.5)*(r-0.5))/0.001);
 	    }
     }
 }
