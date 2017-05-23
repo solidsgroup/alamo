@@ -2,7 +2,6 @@
 #include <AMReX_ParmParse.H>
 
 #include <AmrAdv.H>
-#include <AmrAdv_F.H>
 
 using namespace amrex;
 
@@ -32,9 +31,6 @@ AmrAdv::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 
     const MultiFab& state = *phi_new[lev];
 
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
     {
         Array<int>  itags;
 	
@@ -53,11 +49,11 @@ AmrAdv::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 	    const int*  tlo     = tilebx.loVect();
 	    const int*  thi     = tilebx.hiVect();
 	    
-	    state_error(tptr,  ARLIM_3D(tlo), ARLIM_3D(thi),
-	     		BL_TO_FORTRAN_3D(state[mfi]),
-	     		&tagval, &clearval, 
-	     		ARLIM_3D(tilebx.loVect()), ARLIM_3D(tilebx.hiVect()), 
-	     		ZFILL(dx), ZFILL(prob_lo), &time, &phierr[lev]);
+	    // state_error(tptr,  ARLIM_3D(tlo), ARLIM_3D(thi),
+	    //  		BL_TO_FORTRAN_3D(state[mfi]),
+	    //  		&tagval, &clearval, 
+	    //  		ARLIM_3D(tilebx.loVect()), ARLIM_3D(tilebx.hiVect()), 
+	    //  		ZFILL(dx), ZFILL(prob_lo), &time, &phierr[lev]);
 
 	    //
 	    // Now update the tags in the TagBox.

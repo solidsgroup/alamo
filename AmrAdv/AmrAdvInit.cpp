@@ -1,6 +1,5 @@
 
 #include <AmrAdv.H>
-#include <AmrAdv_F.H>
 
 using namespace amrex;
 
@@ -61,8 +60,5 @@ void AmrAdv::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
 	      amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
 	      phi_box(amrex::IntVect(i,j)) =  1. + exp(-( (x-offset_x)*(x-offset_x) + (y-offset_y)*(y-offset_y))/0.01);
 	    }
-	// initdata(lev, cur_time, ARLIM_3D(lo), ARLIM_3D(hi),
-	// 	 BL_TO_FORTRAN_3D(state[mfi]), ZFILL(dx),
-	// 	 ZFILL(prob_lo));
     }
 }
