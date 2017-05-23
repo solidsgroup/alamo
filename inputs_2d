@@ -1,0 +1,11 @@
+amr.max_grid_size = 25
+max_step = 100
+amr.plot_file = myoutput
+amr.plot_int = 10
+
+
+geometry.prob_lo = -1 -1
+geometry.prob_hi = 1 1
+amr.max_level = 2
+amr.n_cell = 100 100
+
