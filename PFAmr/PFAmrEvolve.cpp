@@ -1,12 +1,13 @@
 
 #include <limits>
 
-#include <AmrAdv.H>
+#include <AMReX_MultiFabUtil.H>
+#include <PFAmr.H>
 
 using namespace amrex;
 
 void
-AmrAdv::Evolve ()
+PFAmr::Evolve ()
 {
   Real cur_time = t_new[0];
   int last_plot_file_step = 0;
@@ -47,7 +48,7 @@ AmrAdv::Evolve ()
 }
 
 void
-AmrAdv::timeStep (int lev, Real time, int iteration)
+PFAmr::timeStep (int lev, Real time, int iteration)
 {
   if (regrid_int > 0)  // We may need to regrid
     {
@@ -103,14 +104,17 @@ AmrAdv::timeStep (int lev, Real time, int iteration)
 	  timeStep(lev+1, time+(i-1)*dt[lev+1], i);
    	}
 
-      AverageDownTo(lev); // average lev+1 down to lev
+      amrex::average_down(*phi_new[lev+1], *phi_new[lev],
+			  geom[lev+1], geom[lev],
+			  0, phi_new[lev]->nComp(), refRatio(lev));
+
     }
     
 }
 
 void
-//AmrAdv::Advance (int lev, Real time, Real dt, int iteration, int ncycle)
-AmrAdv::Advance (int lev, Real time, Real dt )
+//PFAmr::Advance (int lev, Real time, Real dt, int iteration, int ncycle)
+PFAmr::Advance (int lev, Real time, Real dt )
 {
   dt = 0.000001;
 

@@ -2,19 +2,16 @@
 #include <fstream>
 #include <iomanip>
 
-#include "AmrAdv.H"
+#include "PFAmr.H"
 
 using namespace amrex;
 
 int main (int argc, char* argv[])
 {
   amrex::Initialize(argc,argv);
-  AmrAdv amradv;
-  amradv.InitData();
-  //amradv.MakeNewGrids();
-  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-  amradv.Evolve();
-  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+  PFAmr pfamr;
+  pfamr.InitData();
+  pfamr.Evolve();
   amrex::Finalize();
   return 0;
 }

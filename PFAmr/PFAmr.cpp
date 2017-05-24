@@ -4,12 +4,12 @@
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_FillPatchUtil.H>
 
-#include <AmrAdv.H>
-#include <AmrAdvBC.H>
+#include <PFAmr.H>
+#include <PFAmrBC.H>
 
 using namespace amrex;
 
-AmrAdv::AmrAdv ()
+PFAmr::PFAmr ()
 {
   ReadParameters();
 
@@ -34,13 +34,13 @@ AmrAdv::AmrAdv ()
   phi_old.resize(nlevs_max);
 }
 
-AmrAdv::~AmrAdv ()
+PFAmr::~PFAmr ()
 {
   
 }
 
 void
-AmrAdv::ReadParameters ()
+PFAmr::ReadParameters ()
 {
   {
     ParmParse pp;  // Traditionally, max_step and stop_time do not have prefix.
@@ -61,18 +61,10 @@ AmrAdv::ReadParameters ()
 
     pp.query("restart", restart_chkfile);
   }
-
-  {
-    ParmParse pp("adv");
-	
-    pp.query("cfl", cfl);
-	
-    pp.query("do_reflux", do_reflux);
-  }
 }
 
 void
-AmrAdv::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
+PFAmr::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
 				const DistributionMapping& dm)
 {
   const int ncomp = phi_new[lev-1]->nComp();
@@ -89,7 +81,7 @@ AmrAdv::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
 
 
 void
-AmrAdv::RemakeLevel (int lev, Real time, const BoxArray& ba,
+PFAmr::RemakeLevel (int lev, Real time, const BoxArray& ba,
 		     const DistributionMapping& dm)
 {
   const int ncomp = phi_new[lev]->nComp();
@@ -114,33 +106,14 @@ AmrAdv::RemakeLevel (int lev, Real time, const BoxArray& ba,
 }
 
 void
-AmrAdv::ClearLevel (int lev)
+PFAmr::ClearLevel (int lev)
 {
   phi_new[lev].reset(nullptr);
   phi_old[lev].reset(nullptr);
 }
 
-void
-AmrAdv::AverageDown ()
-{
-  for (int lev = finest_level-1; lev >= 0; --lev)
-    {
-      amrex::average_down(*phi_new[lev+1], *phi_new[lev],
-			  geom[lev+1], geom[lev],
-			  0, phi_new[lev]->nComp(), refRatio(lev));
-    }
-}
-
-void
-AmrAdv::AverageDownTo (int crse_lev)
-{
-  amrex::average_down(*phi_new[crse_lev+1], *phi_new[crse_lev],
-		      geom[crse_lev+1], geom[crse_lev],
-		      0, phi_new[crse_lev]->nComp(), refRatio(crse_lev));
-}
-
 long
-AmrAdv::CountCells (int lev)
+PFAmr::CountCells (int lev)
 {
   const int N = grids[lev].size();
 
@@ -155,7 +128,7 @@ AmrAdv::CountCells (int lev)
 }
 
 void
-AmrAdv::FillPatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
+PFAmr::FillPatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
 {
   if (lev == 0)
     {
@@ -163,7 +136,7 @@ AmrAdv::FillPatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
       Array<Real> stime;
       GetData(0, time, smf, stime);
 
-      AmrAdvPhysBC physbc;
+      PFAmrPhysBC physbc;
       amrex::FillPatchSingleLevel(mf, time, smf, stime, 0, icomp, ncomp,
 				  geom[lev], physbc);
     }
@@ -174,7 +147,7 @@ AmrAdv::FillPatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
       GetData(lev-1, time, cmf, ctime);
       GetData(lev  , time, fmf, ftime);
 
-      AmrAdvPhysBC cphysbc, fphysbc;
+      PFAmrPhysBC cphysbc, fphysbc;
       Interpolater* mapper = &cell_cons_interp;
 
       int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaryies
@@ -189,7 +162,7 @@ AmrAdv::FillPatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
 }
 
 void
-AmrAdv::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
+PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
 {
   BL_ASSERT(lev > 0);
 
@@ -201,7 +174,7 @@ AmrAdv::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
     amrex::Abort("FillCoarsePatch: how did this happen?");
   }
 
-  AmrAdvPhysBC cphysbc, fphysbc;
+  PFAmrPhysBC cphysbc, fphysbc;
   Interpolater* mapper = &cell_cons_interp;
     
   int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaryies
@@ -214,7 +187,7 @@ AmrAdv::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
 }
 
 void
-AmrAdv::GetData (int lev, Real time, Array<MultiFab*>& data, Array<Real>& datatime)
+PFAmr::GetData (int lev, Real time, Array<MultiFab*>& data, Array<Real>& datatime)
 {
   data.clear();
   datatime.clear();
@@ -240,39 +213,3 @@ AmrAdv::GetData (int lev, Real time, Array<MultiFab*>& data, Array<Real>& datati
     }
 }
 
-
-
-// void
-// AmrAdv::ManualTagsPlacement (int lev, TagBoxArray& tags,
-// 			     const Array<IntVect>& bf_lev)
-// {
-//   if (lev==0)
-//     {
-//       std::array<Real,2> n {1.0, 0.9};
-//       {
-//        	Real tmp = std::sqrt(n[0]*n[0] + n[1]*n[1]);
-//        	for (auto& x: n) x /= tmp;
-//       }
-//       for (MFIter mfi(tags); mfi.isValid(); ++mfi)
-//        	{
-//        	  TagBox& tag = tags[mfi];
-//        	  const Box& bx = tag.box();
-//        	  for (IntVect cell=bx.smallEnd(); cell <= bx.bigEnd(); bx.next(cell))
-//        	    {
-//        	      std::array<Real,2> p {cell[0]+0.5, cell[1]+0.5}; // cell center
-//        	      // Compute distance bwtween p and the line
-//        	      Real pdotn = p[0]*n[0] + p[1]*n[1];
-//        	      // ||p - (p dot n) n||^2
-//        	      Real d = 0.0;
-//        	      for (int dim = 0; dim < 2; ++dim) {
-//        		Real tmp = p[dim] - pdotn * n[dim];
-//        		d += tmp*tmp;
-//        	      }
-
-//        	      if (d < 3.0) {
-//        		tag(cell) = TagBox::SET;
-//        	      }
-//        	    }
-//        	}
-//     }
-// }

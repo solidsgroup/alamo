@@ -1,16 +1,22 @@
-
-#include <AmrAdv.H>
+#include <AMReX_MultiFabUtil.H>
+#include <PFAmr.H>
 
 using namespace amrex;
 
 void
-AmrAdv::InitData ()
+PFAmr::InitData ()
 {
     if (restart_chkfile.empty())
     {
 	const Real time = 0.0;
 	InitFromScratch(time);
-	AverageDown();
+
+	for (int lev = finest_level-1; lev >= 0; --lev)
+	  {
+	    amrex::average_down(*phi_new[lev+1], *phi_new[lev],
+				geom[lev+1], geom[lev],
+				0, phi_new[lev]->nComp(), refRatio(lev));
+	  }
 
 	if (plot_int > 0) {
 	    WritePlotFile();
@@ -22,7 +28,7 @@ AmrAdv::InitData ()
     }
 }
 
-void AmrAdv::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
+void PFAmr::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
 				      const DistributionMapping& dm)
 {
     const int ncomp = 1;

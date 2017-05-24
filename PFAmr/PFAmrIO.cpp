@@ -1,18 +1,18 @@
 
 #include <AMReX_PlotFileUtil.H>
 
-#include <AmrAdv.H>
+#include <PFAmr.H>
 
 using namespace amrex;
 
 std::string
-AmrAdv::PlotFileName (int lev) const
+PFAmr::PlotFileName (int lev) const
 {
     return amrex::Concatenate(plot_file, lev, 5);
 }
 
 Array<const MultiFab*>
-AmrAdv::PlotFileMF () const
+PFAmr::PlotFileMF () const
 {
     Array<const MultiFab*> r;
     for (int i = 0; i <= finest_level; ++i) {
@@ -22,13 +22,13 @@ AmrAdv::PlotFileMF () const
 }
 
 Array<std::string>
-AmrAdv::PlotFileVarNames () const
+PFAmr::PlotFileVarNames () const
 {
     return {"phi"};
 }
 
 void
-AmrAdv::WritePlotFile () const
+PFAmr::WritePlotFile () const
 {
     const std::string& plotfilename = PlotFileName(istep[0]);
     const auto& mf = PlotFileMF();
@@ -39,8 +39,8 @@ AmrAdv::WritePlotFile () const
 }
 
 void
-AmrAdv::InitFromCheckpoint ()
+PFAmr::InitFromCheckpoint ()
 {
-    amrex::Abort("AmrAdv::InitFromCheckpoint: todo");
+    amrex::Abort("PFAmr::InitFromCheckpoint: todo");
 }
 

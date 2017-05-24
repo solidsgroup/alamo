@@ -1,12 +1,12 @@
 
 #include <AMReX_ParmParse.H>
 
-#include <AmrAdv.H>
+#include <PFAmr.H>
 
 using namespace amrex;
 
 void
-AmrAdv::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
+PFAmr::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 {
   const Real* dx      = geom[lev].CellSize();
   const Real* prob_lo = geom[lev].ProbLo();

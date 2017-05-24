@@ -1,17 +1,17 @@
-#ifndef AmrAdvBC_H_
-#define AmrAdvBC_H_
+#ifndef PFAmrBC_H_
+#define PFAmrBC_H_
 
 #include <AMReX_PhysBCFunct.H>
 
 // In this tutorial, we assume the boundaries are all periodic.  
 // Thus there are no physical boundaries. And FillBoundary does nothing.
 
-class AmrAdvPhysBC
+class PFAmrPhysBC
   : public amrex::PhysBCFunctBase
 {
 public:
-  AmrAdvPhysBC () {}
-  virtual ~AmrAdvPhysBC () {}
+  PFAmrPhysBC () {}
+  virtual ~PFAmrPhysBC () {}
   virtual void FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real time) override { }
   using amrex::PhysBCFunctBase::FillBoundary;
 };

@@ -12,12 +12,12 @@
 #include <AMReX_AmrCore.H>
 #include <AMReX_FluxRegister.H>
 
-class AmrAdv
+class PFAmr
   : public amrex::AmrCore
 {
 public:
-  AmrAdv ();
-  virtual ~AmrAdv();
+  PFAmr ();
+  virtual ~PFAmr();
 
   void InitData ();
   void Evolve ();
@@ -37,8 +37,6 @@ private:
 
   void InitFromCheckpoint ();
 
-  void AverageDown ();
-  void AverageDownTo (int crse_lev);
   long CountCells (int lev);
 
   void timeStep (int lev, amrex::Real time, int iteration);
