@@ -29,7 +29,7 @@ AmrAdv::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 	    {
 	      amrex::Real gradx = (new_phi_box(amrex::IntVect(i+1,j)) - new_phi_box(amrex::IntVect(i,j)))/dx[0]/dx[0];
 	      amrex::Real grady = (new_phi_box(amrex::IntVect(i,j+1)) - new_phi_box(amrex::IntVect(i,j)))/dx[1]/dx[1];
-	      if (dx[0]*sqrt(gradx*gradx + grady*grady)>1.1)
+	      if (dx[0]*sqrt(gradx*gradx + grady*grady)>2.)
 		{
 		  tag(amrex::IntVect(i,j)) = TagBox::SET;
 		}

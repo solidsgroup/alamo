@@ -112,19 +112,23 @@ void
 //AmrAdv::Advance (int lev, Real time, Real dt, int iteration, int ncycle)
 AmrAdv::Advance (int lev, Real time, Real dt )
 {
-  dt = 0.00005;
+  dt = 0.000001;
 
   std::swap(phi_old[lev], phi_new[lev]);
 
   const Real* dx = geom[lev].CellSize();
 
-  (*phi_old[lev]).FillBoundary(geom[lev].periodicity());
+  //(*phi_old[lev]).FillBoundary(geom[lev].periodicity());
+  // tip from Ann
+  amrex::MultiFab Sborder(grids[lev], dmap[lev], 1,1); // Ann
+  FillPatch(lev,t_old[lev],Sborder,0,1); // Ann
 
   for ( MFIter mfi(*phi_new[lev],true); mfi.isValid(); ++mfi )
     {
       const Box& bx = mfi.tilebox();
     
-      amrex::BaseFab<Real> &old_phi_box = (*phi_old[lev])[mfi];
+      //amrex::BaseFab<Real> &old_phi_box = (*phi_old[lev])[mfi];
+      amrex::BaseFab<Real> &old_phi_box = Sborder[mfi]; // Ann
       amrex::BaseFab<Real> &new_phi_box = (*phi_new[lev])[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
