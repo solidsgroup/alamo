@@ -16,7 +16,7 @@ PFAmr::PlotFileMF () const
 {
     Array<const MultiFab*> r;
     for (int i = 0; i <= finest_level; ++i) {
-	r.push_back(phi_new[i].get());
+	r.push_back(phi_new[0][i].get());
     }
     return r;
 }

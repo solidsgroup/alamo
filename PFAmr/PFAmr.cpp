@@ -30,8 +30,14 @@ PFAmr::PFAmr ()
   t_old.resize(nlevs_max, -1.e100);
   dt.resize(nlevs_max, 1.e100);
 
-  phi_new.resize(nlevs_max);
-  phi_old.resize(nlevs_max);
+  phi_new.resize(number_of_grains); // <-- resize for number of order parameters
+  phi_old.resize(number_of_grains); //
+
+  for (int n = 0; n < number_of_grains; n++)
+    {
+      phi_new[n].resize(nlevs_max);
+      phi_old[n].resize(nlevs_max);
+    }
 }
 
 PFAmr::~PFAmr ()
@@ -67,16 +73,19 @@ void
 PFAmr::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
 				const DistributionMapping& dm)
 {
-  const int ncomp = phi_new[lev-1]->nComp();
-  const int nghost = phi_new[lev-1]->nGrow();
+  for (int n = 0; n < number_of_grains; n++)
+    {
+      const int ncomp = phi_new[n][lev-1]->nComp();
+      const int nghost = phi_new[n][lev-1]->nGrow();
     
-  phi_new[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
-  phi_old[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
+      phi_new[n][lev].reset(new MultiFab(ba, dm, ncomp, nghost));
+      phi_old[n][lev].reset(new MultiFab(ba, dm, ncomp, nghost));
 
-  t_new[lev] = time;
-  t_old[lev] = time - 1.e200;
+      t_new[lev] = time;
+      t_old[lev] = time - 1.e200;
 
-  FillCoarsePatch(lev, time, *phi_new[lev], 0, ncomp);
+      FillCoarsePatch(lev, time, *phi_new[n][lev], 0, ncomp);
+    }
 }
 
 
@@ -84,32 +93,39 @@ void
 PFAmr::RemakeLevel (int lev, Real time, const BoxArray& ba,
 		     const DistributionMapping& dm)
 {
-  const int ncomp = phi_new[lev]->nComp();
-  const int nghost = phi_new[lev]->nGrow();
+  amrex::Array<std::unique_ptr<MultiFab> > new_state(number_of_grains); 
+  amrex::Array<std::unique_ptr<MultiFab> > old_state(number_of_grains);
+  for (int n=0; n < number_of_grains; n++)
+    {
+      const int ncomp = phi_new[n][lev]->nComp();
+      const int nghost = phi_new[n][lev]->nGrow();
 
-#if __cplusplus >= 201402L
-  auto new_state = std::make_unique<MultiFab>(ba, dm, ncomp, nghost);
-  auto old_state = std::make_unique<MultiFab>(ba, dm, ncomp, nghost);
-#else
-  std::unique_ptr<MultiFab> new_state(new MultiFab(ba, dm, ncomp, nghost));
-  std::unique_ptr<MultiFab> old_state(new MultiFab(ba, dm, ncomp, nghost));
-#endif
+      new_state[n].reset(new MultiFab(ba, dm, ncomp, nghost));
+      old_state[n].reset(new MultiFab(ba, dm, ncomp, nghost));
+      //std::unique_ptr<MultiFab> new_state(new MultiFab(ba, dm, ncomp, nghost));
+      //std::unique_ptr<MultiFab> old_state(new MultiFab(ba, dm, ncomp, nghost));
+    }
 
-  FillPatch(lev, time, *new_state, 0, ncomp);
+  FillPatch(lev, time, new_state, 0); // <-- segfault is here
 
-  std::swap(new_state, phi_new[lev]);
-  std::swap(old_state, phi_old[lev]);
+  for (int n=0; n < number_of_grains; n++)
+    {
+      std::swap(new_state[n], phi_new[n][lev]);
+      std::swap(old_state[n], phi_old[n][lev]);
 
-  t_new[lev] = time;
-  t_old[lev] = time - 1.e200;
-
+      t_new[lev] = time;
+      t_old[lev] = time - 1.e200;
+    }
 }
 
 void
 PFAmr::ClearLevel (int lev)
 {
-  phi_new[lev].reset(nullptr);
-  phi_old[lev].reset(nullptr);
+  for (int n = 0; n < number_of_grains; n++)
+    {
+      phi_new[n][lev].reset(nullptr);
+      phi_old[n][lev].reset(nullptr);
+    }
 }
 
 long
@@ -128,21 +144,28 @@ PFAmr::CountCells (int lev)
 }
 
 void
-PFAmr::FillPatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
+PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int icomp)
 {
+  //const int ncomp = phi_new[n][lev]->nComp();
+  // FillPatch(lev, time, new_state, 0, ncomp);
+
   if (lev == 0)
     {
-      Array<MultiFab*> smf;
+      Array<Array<MultiFab*> > smf;
+      smf.resize(number_of_grains);
       Array<Real> stime;
       GetData(0, time, smf, stime);
 
       PFAmrPhysBC physbc;
-      amrex::FillPatchSingleLevel(mf, time, smf, stime, 0, icomp, ncomp,
-				  geom[lev], physbc);
+      for (int n = 0; n<number_of_grains; n++)
+	amrex::FillPatchSingleLevel(*mf[n], time, smf[n], stime, 0, icomp, mf[n]->nComp(),
+				    geom[lev], physbc);
     }
   else
     {
-      Array<MultiFab*> cmf, fmf;
+      Array<Array<MultiFab*> > cmf, fmf;
+      cmf.resize(number_of_grains);
+      fmf.resize(number_of_grains);
       Array<Real> ctime, ftime;
       GetData(lev-1, time, cmf, ctime);
       GetData(lev  , time, fmf, ftime);
@@ -150,14 +173,15 @@ PFAmr::FillPatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
       PFAmrPhysBC cphysbc, fphysbc;
       Interpolater* mapper = &cell_cons_interp;
 
-      int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaryies
+      int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaries
       int hi_bc[] = {INT_DIR, INT_DIR, INT_DIR};
       Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
 
-      amrex::FillPatchTwoLevels(mf, time, cmf, ctime, fmf, ftime,
-				0, icomp, ncomp, geom[lev-1], geom[lev],
-				cphysbc, fphysbc, refRatio(lev-1),
-				mapper, bcs);
+      for (int n = 0; n<number_of_grains; n++)
+	amrex::FillPatchTwoLevels(*mf[n], time, cmf[n], ctime, fmf[n], ftime,
+				  0, icomp, mf[n]->nComp(), geom[lev-1], geom[lev],
+				  cphysbc, fphysbc, refRatio(lev-1),
+				  mapper, bcs);
     }
 }
 
@@ -166,13 +190,14 @@ PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
 {
   BL_ASSERT(lev > 0);
 
-  Array<MultiFab*> cmf;
+  Array<Array<MultiFab*> > cmf;
   Array<Real> ctime;
   GetData(lev-1, time, cmf, ctime);
     
-  if (cmf.size() != 1) {
-    amrex::Abort("FillCoarsePatch: how did this happen?");
-  }
+  for (int n = 0; n < number_of_grains; n++)
+    if (cmf.size() != 1) 
+      amrex::Abort("FillCoarsePatch: how did this happen?");
+
 
   PFAmrPhysBC cphysbc, fphysbc;
   Interpolater* mapper = &cell_cons_interp;
@@ -181,33 +206,37 @@ PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
   int hi_bc[] = {INT_DIR, INT_DIR, INT_DIR};
   Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
 
-  amrex::InterpFromCoarseLevel(mf, time, *cmf[0], 0, icomp, ncomp, geom[lev-1], geom[lev],
-			       cphysbc, fphysbc, refRatio(lev-1),
-			       mapper, bcs);
+  for (int n = 0; n < number_of_grains; n++)
+    amrex::InterpFromCoarseLevel(mf, time, *cmf[n][0], 0, icomp, ncomp, geom[lev-1], geom[lev],
+				 cphysbc, fphysbc, refRatio(lev-1),
+				 mapper, bcs);
 }
 
 void
-PFAmr::GetData (int lev, Real time, Array<MultiFab*>& data, Array<Real>& datatime)
+PFAmr::GetData (int lev, Real time, Array<Array<MultiFab*> >& data, Array<Real>& datatime)
 {
-  data.clear();
+  for (int n = 0; n < number_of_grains; n++) data[n].clear();
   datatime.clear();
 
   const Real teps = (t_new[lev] - t_old[lev]) * 1.e-3;
 
   if (time > t_new[lev] - teps && time < t_new[lev] + teps)
     {
-      data.push_back(phi_new[lev].get());
+      for (int n = 0; n < number_of_grains; n++) data[n].push_back(phi_new[0][lev].get());
       datatime.push_back(t_new[lev]);
     }
   else if (time > t_old[lev] - teps && time < t_old[lev] + teps)
     {
-      data.push_back(phi_old[lev].get());
+      for (int n = 0; n < number_of_grains; n++) data[n].push_back(phi_old[0][lev].get());
       datatime.push_back(t_old[lev]);
     }
   else
     {
-      data.push_back(phi_old[lev].get());
-      data.push_back(phi_new[lev].get());
+      for (int n = 0; n < number_of_grains; n++)
+	{
+	  data[n].push_back(phi_old[0][lev].get());
+	  data[n].push_back(phi_new[0][lev].get());
+	}
       datatime.push_back(t_old[lev]);
       datatime.push_back(t_new[lev]);
     }

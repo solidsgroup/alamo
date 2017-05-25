@@ -42,9 +42,9 @@ private:
   void timeStep (int lev, amrex::Real time, int iteration);
   void Advance (int lev, amrex::Real time, amrex::Real dt);
 
-  void FillPatch (int lev, amrex::Real time, amrex::MultiFab& mf, int icomp, int ncomp);
+  void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> >& mf, int icomp);
   void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, int icomp, int ncomp);
-  void GetData (int lev, amrex::Real time, amrex::Array<amrex::MultiFab*>& data, amrex::Array<amrex::Real>& datatime);
+  void GetData (int lev, amrex::Real time, amrex::Array<amrex::Array<amrex::MultiFab*> >& data, amrex::Array<amrex::Real>& datatime);
 
   std::string PlotFileName (int lev) const;
   amrex::Array<const amrex::MultiFab*> PlotFileMF () const;
@@ -58,19 +58,15 @@ private:
   amrex::Array<amrex::Real> t_old;
   amrex::Array<amrex::Real> dt;
 
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > phi_new;
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > phi_old;
+  amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_new;
+  amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_old;
 
   // runtime parameters
 
   int max_step   = std::numeric_limits<int>::max();
   amrex::Real stop_time = std::numeric_limits<amrex::Real>::max();
 
-  amrex::Real cfl = 0.7;
-
   int regrid_int = 2;
-
-  int do_reflux = 1;
 
   std::string restart_chkfile;
 
@@ -78,6 +74,11 @@ private:
   std::string plot_file {"plt"};
   int check_int = -1;
   int plot_int = -1;
+
+  // Phase Field Parameters
+
+  int number_of_grains = 2;
+
 
 };
 

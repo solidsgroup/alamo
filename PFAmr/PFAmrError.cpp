@@ -11,7 +11,7 @@ PFAmr::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
   const Real* dx      = geom[lev].CellSize();
   const Real* prob_lo = geom[lev].ProbLo();
 
-  const MultiFab& state = *phi_new[lev];
+  const MultiFab& state = *phi_new[0][lev];
 
   {
     Array<int>  itags;
@@ -22,7 +22,7 @@ PFAmr::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 
 	TagBox&     tag  = tags[mfi];
 	    
-	amrex::BaseFab<Real> &new_phi_box = (*phi_new[lev])[mfi];
+	amrex::BaseFab<Real> &new_phi_box = (*phi_new[0][lev])[mfi];
 
 	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	  for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)

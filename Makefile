@@ -1,8 +1,7 @@
 
-INCLUDE=-I/opt/amrex/tmp_install_dir/include/ -I./PFAmr/ -I/usr/include/vtk-6.2
-LIB = /opt/amrex/tmp_install_dir/lib/libamrex.a 
+INCLUDE= -I./PFAmr/ 
 COMPILE_FLAGS = -std=c++11
-LINK_FLAGS = -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi -lgfortran -L/opt/Trelis-15.1/bin/ 
+LINK_FLAGS = -lamrex -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi -lgfortran 
 
 SRC = main.cpp PFAmr/PFAmr.cpp PFAmr/PFAmrError.cpp PFAmr/PFAmrEvolve.cpp PFAmr/PFAmrInit.cpp PFAmr/PFAmrIO.cpp 
 OBJ = ${SRC:.cpp=.o}
