@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <AMReX_MultiFabUtil.H>
 #include <PFAmr.H>
 
@@ -31,6 +32,7 @@ PFAmr::InitData ()
 void PFAmr::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
 				      const DistributionMapping& dm)
 {
+  srand(0);
     const int ncomp = 1;
     const int nghost = 1;
 
@@ -47,13 +49,14 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
     const Real* prob_lo = geom[lev].ProbLo();
     Real cur_time = t_new[lev];
 
-    MultiFab& state = *phi_new[0][lev];
-
-    for (MFIter mfi(state,true); mfi.isValid(); ++mfi)
+    MultiFab& state1 = *phi_new[0][lev];
+    MultiFab& state2 = *phi_new[1][lev];
+    for (MFIter mfi(state1,true); mfi.isValid(); ++mfi)
     {
         const Box& box = mfi.tilebox();
 
-	amrex::BaseFab<Real> &phi_box = state[mfi];
+	amrex::BaseFab<Real> &phi1_box = state1[mfi];
+	amrex::BaseFab<Real> &phi2_box = state2[mfi];
 
 	//double offset_x = 0.25, offset_y=0.25;
 	double offset_x = 0., offset_y=0.;
@@ -64,8 +67,19 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& ba,
 	      amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
 	      amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
 	      amrex::Real r = sqrt((x-offset_x)*(x-offset_x) + (y-offset_y)*(y-offset_y));
-	      if (r<0.5) phi_box(amrex::IntVect(i,j)) =  1.;
-	      else phi_box(amrex::IntVect(i,j)) =  0. + exp(-((r-0.5)*(r-0.5))/0.001);
+
+	      // // circular distribution
+	      // if (r<0.5) phi1_box(amrex::IntVect(i,j)) =  1.;
+	      // else phi1_box(amrex::IntVect(i,j)) =  0. + exp(-((r-0.5)*(r-0.5))/0.001);
+
+
+	      // random distribution
+	      phi1_box(amrex::IntVect(i,j)) = (amrex::Real)rand()/(amrex::Real)RAND_MAX;
+
+
+
+	      phi2_box(amrex::IntVect(i,j)) =  1. - phi1_box(amrex::IntVect(i,j));
+	      
 	    }
     }
 }

@@ -8,6 +8,12 @@ using namespace amrex;
 
 int main (int argc, char* argv[])
 {
+  if (argc < 2)
+    {
+      std::cout << "Missing input file" << std::endl;
+      exit(-1);
+    }
+
   amrex::Initialize(argc,argv);
   PFAmr pfamr;
   pfamr.InitData();

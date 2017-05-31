@@ -52,6 +52,7 @@ PFAmr::ReadParameters ()
     ParmParse pp;  // Traditionally, max_step and stop_time do not have prefix.
     pp.query("max_step", max_step);
     pp.query("stop_time", stop_time);
+    pp.query("timestep",timestep);
   }
 
   {
@@ -106,7 +107,7 @@ PFAmr::RemakeLevel (int lev, Real time, const BoxArray& ba,
       //std::unique_ptr<MultiFab> old_state(new MultiFab(ba, dm, ncomp, nghost));
     }
 
-  FillPatch(lev, time, new_state, 0); // <-- segfault is here
+  FillPatch(lev, time, new_state, 0);
 
   for (int n=0; n < number_of_grains; n++)
     {
@@ -146,9 +147,6 @@ PFAmr::CountCells (int lev)
 void
 PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int icomp)
 {
-  //const int ncomp = phi_new[n][lev]->nComp();
-  // FillPatch(lev, time, new_state, 0, ncomp);
-
   if (lev == 0)
     {
       Array<Array<MultiFab*> > smf;
@@ -202,7 +200,7 @@ PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
   PFAmrPhysBC cphysbc, fphysbc;
   Interpolater* mapper = &cell_cons_interp;
     
-  int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaryies
+  int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaries
   int hi_bc[] = {INT_DIR, INT_DIR, INT_DIR};
   Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
 
@@ -222,20 +220,20 @@ PFAmr::GetData (int lev, Real time, Array<Array<MultiFab*> >& data, Array<Real>&
 
   if (time > t_new[lev] - teps && time < t_new[lev] + teps)
     {
-      for (int n = 0; n < number_of_grains; n++) data[n].push_back(phi_new[0][lev].get());
+      for (int n = 0; n < number_of_grains; n++) data[n].push_back(phi_new[n][lev].get());
       datatime.push_back(t_new[lev]);
     }
   else if (time > t_old[lev] - teps && time < t_old[lev] + teps)
     {
-      for (int n = 0; n < number_of_grains; n++) data[n].push_back(phi_old[0][lev].get());
+      for (int n = 0; n < number_of_grains; n++) data[n].push_back(phi_old[n][lev].get());
       datatime.push_back(t_old[lev]);
     }
   else
     {
       for (int n = 0; n < number_of_grains; n++)
 	{
-	  data[n].push_back(phi_old[0][lev].get());
-	  data[n].push_back(phi_new[0][lev].get());
+	  data[n].push_back(phi_old[n][lev].get());
+	  data[n].push_back(phi_new[n][lev].get());
 	}
       datatime.push_back(t_old[lev]);
       datatime.push_back(t_new[lev]);

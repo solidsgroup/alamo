@@ -27,9 +27,14 @@ PFAmr::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	  for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 	    {
-	      amrex::Real gradx = (new_phi_box(amrex::IntVect(i+1,j)) - new_phi_box(amrex::IntVect(i,j)))/dx[0]/dx[0];
-	      amrex::Real grady = (new_phi_box(amrex::IntVect(i,j+1)) - new_phi_box(amrex::IntVect(i,j)))/dx[1]/dx[1];
-	      if (dx[0]*sqrt(gradx*gradx + grady*grady)>2.)
+	      // amrex::Real gradx = (new_phi_box(amrex::IntVect(i+1,j)) - new_phi_box(amrex::IntVect(i-1,j)))/(2.*dx[0]);
+	      // amrex::Real grady = (new_phi_box(amrex::IntVect(i,j+1)) - new_phi_box(amrex::IntVect(i,j-1)))/(2.*dx[1]);
+	      // if (dx[0]*sqrt(gradx*gradx + grady*grady)>0.1)
+	      // 	{
+	      // 	  tag(amrex::IntVect(i,j)) = TagBox::SET;
+	      // 	}
+
+	      if (new_phi_box(amrex::IntVect(i,j)) > 0.1 && new_phi_box(amrex::IntVect(i,j)) < 0.9)
 		{
 		  tag(amrex::IntVect(i,j)) = TagBox::SET;
 		}

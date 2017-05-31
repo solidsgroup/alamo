@@ -12,11 +12,11 @@ PFAmr::PlotFileName (int lev) const
 }
 
 Array<const MultiFab*>
-PFAmr::PlotFileMF () const
+PFAmr::PlotFileMF (int grain) const
 {
     Array<const MultiFab*> r;
     for (int i = 0; i <= finest_level; ++i) {
-	r.push_back(phi_new[0][i].get());
+	r.push_back(phi_new[grain][i].get());
     }
     return r;
 }
@@ -24,16 +24,16 @@ PFAmr::PlotFileMF () const
 Array<std::string>
 PFAmr::PlotFileVarNames () const
 {
-    return {"phi"};
+  return {"phi"};
 }
 
 void
 PFAmr::WritePlotFile () const
 {
     const std::string& plotfilename = PlotFileName(istep[0]);
-    const auto& mf = PlotFileMF();
+    const auto& mf = PlotFileMF(0);
     const auto& varnames = PlotFileVarNames();
-    
+
     amrex::WriteMultiLevelPlotfile(plotfilename, finest_level+1, mf, varnames,
 				    Geom(), t_new[0], istep, refRatio());
 }
