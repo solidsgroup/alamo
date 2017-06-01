@@ -33,13 +33,11 @@ public:
 
 private:
 
-  void ReadParameters();
-
   void InitFromCheckpoint ();
 
   long CountCells (int lev);
 
-  void timeStep (int lev, amrex::Real time, int iteration);
+  void TimeStep (int lev, amrex::Real time, int iteration);
   void Advance (int lev, amrex::Real time, amrex::Real dt);
 
   void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> >& mf, int icomp);
@@ -78,7 +76,7 @@ private:
   // Phase Field Parameters
   amrex::Real timestep;
   int number_of_grains = 2;
-
+  amrex::Real L, mu, gamma, kappa;
 
 };
 

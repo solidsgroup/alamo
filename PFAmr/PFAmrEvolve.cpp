@@ -19,12 +19,13 @@ PFAmr::Evolve ()
       }
       int lev = 0;
       int iteration = 1;
-      timeStep(lev, cur_time, iteration);
+      TimeStep(lev, cur_time, iteration);
 
       cur_time += dt[0];
 
       if (ParallelDescriptor::IOProcessor()) {
-	std::cout << "STEP " << step+1 << " ends." << " TIME = " << cur_time << " DT = " << dt[0]
+	std::cout << "STEP " << step+1 << " ends."
+		  << " TIME = " << cur_time << " DT = " << dt[0]
 		  << std::endl;
       }
 
@@ -47,7 +48,7 @@ PFAmr::Evolve ()
 }
 
 void
-PFAmr::timeStep (int lev, Real time, int iteration)
+PFAmr::TimeStep (int lev, Real time, int iteration)
 {
 
   if (regrid_int > 0)  // We may need to regrid
@@ -72,8 +73,7 @@ PFAmr::timeStep (int lev, Real time, int iteration)
   	}
     }
 
-  if (//Verbose() &&
-      ParallelDescriptor::IOProcessor()) {
+  if (Verbose() && ParallelDescriptor::IOProcessor()) {
     std::cout << "[Level " << lev 
 	      << " step " << istep[lev]+1 << "] ";
     std::cout << "ADVANCE with dt = "
@@ -85,8 +85,7 @@ PFAmr::timeStep (int lev, Real time, int iteration)
 
   ++istep[lev];
 
-  if (//Verbose() &&
-      ParallelDescriptor::IOProcessor())
+  if (Verbose() && ParallelDescriptor::IOProcessor())
     {
       std::cout << "[Level " << lev
 		<< " step " << istep[lev] << "] ";
@@ -100,9 +99,9 @@ PFAmr::timeStep (int lev, Real time, int iteration)
     {
       // for (int i = 1; i <= nsubsteps[lev+1]; ++i)
       // {
-      //    timeStep(lev+1, time+(i-1)*dt[lev+1], i);
+      //    TimeStep(lev+1, time+(i-1)*dt[lev+1], i);
       // }
-      timeStep(lev+1, time, 1);
+      TimeStep(lev+1, time, 1);
 
       for (int n = 0; n < number_of_grains; n++)
 	amrex::average_down(*phi_new[n][lev+1], *phi_new[n][lev],
@@ -135,39 +134,59 @@ PFAmr::Advance (int lev, Real time, Real dt)
 
       amrex::BaseFab<Real> &old_phi2 = (*Sborder[1])[mfi];
       amrex::BaseFab<Real> &new_phi2 = (*phi_new[1][lev])[mfi];
-      amrex::Real L=1.,mu=10.,gamma=1.,kappa=0.01;
+
+      amrex::Array<amrex::Real> Laplacian(number_of_grains);
+
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 	  {
-	    // //--- Heat Equation ----
-	    // new_phi1(amrex::IntVect(i,j)) = old_phi1(amrex::IntVect(i,j)) +
-	    //   dt*(old_phi1(amrex::IntVect(i+1,j)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
-	    //   dt*(old_phi1(amrex::IntVect(i,j+1)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
-	    // new_phi2(amrex::IntVect(i,j)) = old_phi2(amrex::IntVect(i,j)) +
-	    //   dt*(old_phi2(amrex::IntVect(i+1,j)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
-	    //   dt*(old_phi2(amrex::IntVect(i,j+1)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
+	    for (int m = 0; m < number_of_grains; m++)
+	      {
+		amrex::Real df = 0.;
 
+		amrex::BaseFab<Real> &old_phi_m = (*Sborder[m])[mfi];
+		amrex::BaseFab<Real> &new_phi_m = (*phi_new[m][lev])[mfi];
+		
+		amrex::Real laplacian = 
+		  (old_phi_m(amrex::IntVect(i+1,j)) - 2.*old_phi_m(amrex::IntVect(i,j)) + old_phi_m(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
+		  (old_phi_m(amrex::IntVect(i,j+1)) - 2.*old_phi_m(amrex::IntVect(i,j)) + old_phi_m(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
 
-	    // --- Allen Cahn ----
-	    amrex::Real
-	      Lap1 = 
-	      (old_phi1(amrex::IntVect(i+1,j)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
-	      (old_phi1(amrex::IntVect(i,j+1)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i,j-1)))/dx[1]/dx[1],
-	      Lap2 =
-	      (old_phi2(amrex::IntVect(i+1,j)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
-	      (old_phi2(amrex::IntVect(i,j+1)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
+		amrex::Real sum_of_squares = 0.;
+		for (int n = 0; n < number_of_grains; n++)
+		  {
+		    if (n==m) continue;
+		    amrex::BaseFab<Real> &old_phi_n = (*Sborder[n])[mfi];
+		    sum_of_squares += old_phi_n(amrex::IntVect(i,j))*old_phi_n(amrex::IntVect(i,j));
+		  }
+		
+		new_phi_m(amrex::IntVect(i,j)) =
+		  old_phi_m(amrex::IntVect(i,j)) -
+			    L*dt*(mu*(old_phi_m(amrex::IntVect(i,j))*old_phi_m(amrex::IntVect(i,j)) - 1.0 + 2.0*gamma*sum_of_squares)*old_phi_m(amrex::IntVect(i,j)) - kappa*laplacian);
+		
 
-	    new_phi1(amrex::IntVect(i,j)) = old_phi1(amrex::IntVect(i,j)) -
-	      L * dt * ( mu*( old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))
-	    		      - old_phi1(amrex::IntVect(i,j))
-	    		      + 2*gamma*old_phi1(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j)))
-	    		 - kappa*Lap1);
+	      }
+	    
+	    
 
-	    new_phi2(amrex::IntVect(i,j)) = old_phi2(amrex::IntVect(i,j)) -
-	      L * dt * ( mu*( old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))
-	    		      - old_phi2(amrex::IntVect(i,j))
-	    		      + 2*gamma*old_phi2(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j)))
-	    		 - kappa*Lap2);
+	    // amrex::Real
+	    //   Lap1 = 
+	    //   (old_phi1(amrex::IntVect(i+1,j)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
+	    //   (old_phi1(amrex::IntVect(i,j+1)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i,j-1)))/dx[1]/dx[1],
+	    //   Lap2 =
+	    //   (old_phi2(amrex::IntVect(i+1,j)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
+	    //   (old_phi2(amrex::IntVect(i,j+1)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
+
+	    // new_phi1(amrex::IntVect(i,j)) = old_phi1(amrex::IntVect(i,j)) -
+	    //   L * dt * ( mu*( old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))
+	    // 		      - old_phi1(amrex::IntVect(i,j))
+	    // 		      + 2*gamma*old_phi1(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j)))
+	    // 		 - kappa*Lap1);
+
+	    // new_phi2(amrex::IntVect(i,j)) = old_phi2(amrex::IntVect(i,j)) -
+	    //   L * dt * ( mu*( old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))
+	    // 		      - old_phi2(amrex::IntVect(i,j))
+	    // 		      + 2*gamma*old_phi2(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j)))
+	    // 		 - kappa*Lap2);
 
 	  }
     }

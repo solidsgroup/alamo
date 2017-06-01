@@ -11,12 +11,36 @@ using namespace amrex;
 
 PFAmr::PFAmr ()
 {
-  ReadParameters();
 
-  // Geometry on all levels has been defined already.
+  //
+  // READ INPUT PARAMETERS
+  //
+  
+  { 
+    ParmParse pp;   // Basic run parameters
+    pp.query("max_step", max_step);
+    pp.query("stop_time", stop_time);
+    pp.query("timestep",timestep);
+  }
 
-  // No valid BoxArray and DistributionMapping have been defined.
-  // But the arrays for them have been resized.
+  {
+    ParmParse pp("amr"); // AMR specific parameters
+    pp.query("regrid_int", regrid_int);
+    pp.query("check_file", check_file);
+    pp.query("check_int", check_int);
+    pp.query("plot_file", plot_file);
+    pp.query("plot_int", plot_int);
+    pp.query("restart", restart_chkfile);
+  }
+
+  {
+    ParmParse pp("pf"); // Phase-field model parameters
+    pp.query("number_of_grains", number_of_grains);
+    pp.query("L", L);
+    pp.query("mu", mu);
+    pp.query("gamma", gamma);
+    pp.query("kappa", kappa);
+  }
 
   int nlevs_max = maxLevel() + 1;
 
@@ -43,31 +67,6 @@ PFAmr::PFAmr ()
 PFAmr::~PFAmr ()
 {
   
-}
-
-void
-PFAmr::ReadParameters ()
-{
-  {
-    ParmParse pp;  // Traditionally, max_step and stop_time do not have prefix.
-    pp.query("max_step", max_step);
-    pp.query("stop_time", stop_time);
-    pp.query("timestep",timestep);
-  }
-
-  {
-    ParmParse pp("amr"); // Traditionally, these have prefix, amr.
-
-    pp.query("regrid_int", regrid_int);
-
-    pp.query("check_file", check_file);
-    pp.query("check_int", check_int);
-
-    pp.query("plot_file", plot_file);
-    pp.query("plot_int", plot_int);
-
-    pp.query("restart", restart_chkfile);
-  }
 }
 
 void

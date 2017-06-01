@@ -13,7 +13,7 @@ int main (int argc, char* argv[])
       std::cout << "Missing input file" << std::endl;
       exit(-1);
     }
-
+  srand(0);
   amrex::Initialize(argc,argv);
   PFAmr pfamr;
   pfamr.InitData();
