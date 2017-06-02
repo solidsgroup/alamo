@@ -58,6 +58,11 @@ private:
 
   amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_new;
   amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_old;
+  
+  // amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta_new;
+  // amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta_old;
+  
+
 
   // runtime parameters
 
@@ -75,6 +80,7 @@ private:
 
   // Phase Field Parameters
   amrex::Real timestep;
+  int number_of_fabs = 1;
   int number_of_grains = 2;
   amrex::Real L, mu, gamma, kappa;
 

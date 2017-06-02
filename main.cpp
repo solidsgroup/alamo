@@ -13,11 +13,11 @@ int main (int argc, char* argv[])
       std::cout << "Missing input file" << std::endl;
       exit(-1);
     }
-  srand(0);
   amrex::Initialize(argc,argv);
+  srand(1.0*ParallelDescriptor::MyProc());
   PFAmr pfamr;
   pfamr.InitData();
   pfamr.Evolve();
   amrex::Finalize();
   return 0;
-}
+} 
