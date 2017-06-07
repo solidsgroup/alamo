@@ -51,6 +51,8 @@ PFAmr::PFAmr ()
   t_new.resize(nlevs_max, 0.0);
   t_old.resize(nlevs_max, -1.e100);
   dt.resize(nlevs_max, 1.e100);
+  for (int i = 0; i < nlevs_max; i++)
+    dt[i] = timestep;
 
   phi_new.resize(number_of_fabs); // <-- resize for number of order parameters
   phi_old.resize(number_of_fabs); //
@@ -59,6 +61,28 @@ PFAmr::PFAmr ()
       phi_new[n].resize(nlevs_max);
       phi_old[n].resize(nlevs_max);
     }
+
+
+  // Voronoi
+  voronoi_x.resize(number_of_grains);
+  voronoi_y.resize(number_of_grains);
+  if(ParallelDescriptor::IOProcessor())
+    {
+      for (int n = 0; n<number_of_grains; n++)
+  	{
+  	  voronoi_x[n] = geom[0].ProbLo(0) +
+	    (geom[0].ProbHi(0)-geom[0].ProbLo(0))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+  	  voronoi_y[n] = geom[0].ProbLo(1) +
+	    (geom[0].ProbHi(1)-geom[0].ProbLo(1))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+  	}
+    }  
+  ParallelDescriptor::Barrier("Distributing voronoi information");
+  for (int n = 0; n<1; n++)
+    {
+      ParallelDescriptor::Bcast<amrex::Real>(&voronoi_x[n],sizeof(amrex::Real));
+      ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
+    }
+
 }
 
 PFAmr::~PFAmr ()
@@ -171,13 +195,17 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
 
       int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaries
       int hi_bc[] = {INT_DIR, INT_DIR, INT_DIR};
-      Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
+      //Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
 
       for (int n = 0; n<number_of_fabs; n++)
-	amrex::FillPatchTwoLevels(*mf[n], time, cmf[n], ctime, fmf[n], ftime,
-				  0, icomp, mf[n]->nComp(), geom[lev-1], geom[lev],
-				  cphysbc, fphysbc, refRatio(lev-1),
-				  mapper, bcs);
+	{
+	  Array<BCRec> bcs(mf[n]->nComp(), BCRec(lo_bc, hi_bc)); // todo
+	  amrex::FillPatchTwoLevels(*mf[n], time, cmf[n], ctime, fmf[n], ftime,
+				    0, icomp, mf[n]->nComp(), geom[lev-1], geom[lev],
+				    cphysbc, fphysbc, refRatio(lev-1),
+				    mapper, bcs);
+
+	}
     }
 }
 

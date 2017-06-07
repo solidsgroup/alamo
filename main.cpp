@@ -2,9 +2,9 @@
 #include <fstream>
 #include <iomanip>
 
+#include "AMReX.H"
+//#include "AMReX_ParallelDescriptor.H"
 #include "PFAmr.H"
-
-using namespace amrex;
 
 int main (int argc, char* argv[])
 {
@@ -14,10 +14,12 @@ int main (int argc, char* argv[])
       exit(-1);
     }
   amrex::Initialize(argc,argv);
-  srand(1.0*ParallelDescriptor::MyProc());
-  PFAmr pfamr;
-  pfamr.InitData();
-  pfamr.Evolve();
+  srand(1.0*amrex::ParallelDescriptor::MyProc());
+  {
+    PFAmr pfamr;
+    pfamr.InitData();
+    pfamr.Evolve();
+  }
+  
   amrex::Finalize();
-  return 0;
 } 

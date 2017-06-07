@@ -110,10 +110,7 @@ PFAmr::TimeStep (int lev, Real time, int iteration)
 void
 PFAmr::Advance (int lev, Real time, Real dt)
 {
- dt = timestep;
-
  std::swap(phi_old[0][lev], phi_new[0][lev]);
- //std::swap(phi_old[1][lev], phi_new[1][lev]);
  const Real* dx = geom[lev].CellSize();
 
  amrex::Array<std::unique_ptr<amrex::MultiFab> > Sborder(number_of_fabs);
@@ -122,12 +119,12 @@ PFAmr::Advance (int lev, Real time, Real dt)
  FillPatch(lev,t_old[lev],Sborder,0);
 
  for ( MFIter mfi(*phi_new[0][lev],true); mfi.isValid(); ++mfi )
+ //for ( MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
    {
      const Box& bx = mfi.tilebox();
 
      amrex::BaseFab<Real> &old_phi = (*Sborder[0])[mfi];
      amrex::BaseFab<Real> &new_phi = (*phi_new[0][lev])[mfi];
-
 
      amrex::Array<amrex::Real> Laplacian(number_of_fabs);
      for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
@@ -152,30 +149,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 			 2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 		     - kappa*laplacian);
 	   }
-
-	    
-	    
-
- 	    // amrex::Real
- 	    //   Lap1 = 
- 	    //   (old_phi1(amrex::IntVect(i+1,j)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
- 	    //   (old_phi1(amrex::IntVect(i,j+1)) - 2.*old_phi1(amrex::IntVect(i,j)) + old_phi1(amrex::IntVect(i,j-1)))/dx[1]/dx[1],
- 	    //   Lap2 =
- 	    //   (old_phi2(amrex::IntVect(i+1,j)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
- 	    //   (old_phi2(amrex::IntVect(i,j+1)) - 2.*old_phi2(amrex::IntVect(i,j)) + old_phi2(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
-
- 	    // new_phi1(amrex::IntVect(i,j)) = old_phi1(amrex::IntVect(i,j)) -
- 	    //   L * dt * ( mu*( old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))
- 	    // 		      - old_phi1(amrex::IntVect(i,j))
- 	    // 		      + 2*gamma*old_phi1(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j)))
- 	    // 		 - kappa*Lap1);
-
- 	    // new_phi2(amrex::IntVect(i,j)) = old_phi2(amrex::IntVect(i,j)) -
- 	    //   L * dt * ( mu*( old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))*old_phi2(amrex::IntVect(i,j))
- 	    // 		      - old_phi2(amrex::IntVect(i,j))
- 	    // 		      + 2*gamma*old_phi2(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j))*old_phi1(amrex::IntVect(i,j)))
- 	    // 		 - kappa*Lap2);
-
    }
 }
 
