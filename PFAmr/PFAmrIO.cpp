@@ -3,12 +3,15 @@
 
 #include <PFAmr.H>
 
+#include <fstream>
+
+
 using namespace amrex;
 
 std::string
 PFAmr::PlotFileName (int lev) const
 {
-    return amrex::Concatenate(plot_file, lev, 5);
+    return amrex::Concatenate(plot_file+"/", lev, 5);
 }
 
 Array<const MultiFab*>
@@ -27,6 +30,8 @@ PFAmr::PlotFileVarNames () const
   Array<std::string> names;
   for (int n = 0; n < number_of_grains; n++)
     names.push_back(amrex::Concatenate("phi",n));
+  names.push_back("phi_sum");
+  names.push_back("boundaries");
   return names;
 }
 
@@ -37,7 +42,12 @@ PFAmr::WritePlotFile () const
     const auto& mf = PlotFileMF(0);
     const auto& varnames = PlotFileVarNames();
     amrex::WriteMultiLevelPlotfile(plotfilename, finest_level+1, mf, varnames,
-				    Geom(), t_new[0], istep, refRatio());
+				   Geom(), t_new[0], istep, refRatio());
+
+    std::ofstream outfile;
+    if (istep[0]==0) outfile.open(plot_file+".visit",std::ios_base::out);
+    else outfile.open(plot_file+".visit",std::ios_base::app);
+    outfile << plotfilename + "/Header" << std::endl;
 }
 
 void

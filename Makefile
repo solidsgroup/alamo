@@ -7,8 +7,8 @@ HDR = PFAmr/PFAmr.H
 SRC = main.cpp PFAmr/PFAmr.cpp PFAmr/PFAmrError.cpp PFAmr/PFAmrEvolve.cpp PFAmr/PFAmrInit.cpp PFAmr/PFAmrIO.cpp 
 OBJ = ${SRC:.cpp=.o}
 
-a.out: ${OBJ} ${HDR}
-	mpicxx ${OBJ} -std=c++11 ${LIB} ${LINK_FLAGS}
+alamo: ${OBJ} ${HDR}
+	mpicxx ${OBJ} -std=c++11 ${LIB} ${LINK_FLAGS} -o alamo
 %.o: %.cpp ${HDR}
 	mpicxx -c $< -o $@ ${INCLUDE} ${COMPILE_FLAGS}
 

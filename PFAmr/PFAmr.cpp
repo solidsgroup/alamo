@@ -54,8 +54,8 @@ PFAmr::PFAmr ()
   for (int i = 0; i < nlevs_max; i++)
     dt[i] = timestep;
 
-  phi_new.resize(number_of_fabs); // <-- resize for number of order parameters
-  phi_old.resize(number_of_fabs); //
+  phi_new.resize(number_of_fabs + 1); // <-- resize for number of order parameters
+  phi_old.resize(number_of_fabs + 1); //
   for (int n = 0; n < number_of_fabs; n++)
     {
       phi_new[n].resize(nlevs_max);
@@ -77,7 +77,7 @@ PFAmr::PFAmr ()
   	}
     }  
   ParallelDescriptor::Barrier("Distributing voronoi information");
-  for (int n = 0; n<1; n++)
+  for (int n = 0; n<number_of_grains; n++)
     {
       ParallelDescriptor::Bcast<amrex::Real>(&voronoi_x[n],sizeof(amrex::Real));
       ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
@@ -174,7 +174,7 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
       Array<Real> stime;
       GetData(0, time, smf, stime);
 
-      PFAmrPhysBC physbc;
+      PFAmrPhysBC physbc(geom[lev]);
       for (int n = 0; n<number_of_fabs; n++)
 	{
 	  amrex::FillPatchSingleLevel(*mf[n], time, smf[n], stime, 0, icomp, mf[n]->nComp(),
@@ -190,7 +190,7 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
       GetData(lev-1, time, cmf, ctime);
       GetData(lev  , time, fmf, ftime);
 
-      PFAmrPhysBC cphysbc, fphysbc;
+      PFAmrPhysBC cphysbc(geom[lev]), fphysbc(geom[lev]);
       Interpolater* mapper = &cell_cons_interp;
 
       int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaries
@@ -223,16 +223,17 @@ PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
       amrex::Abort("FillCoarsePatch: how did this happen?");
 
 
-  PFAmrPhysBC cphysbc, fphysbc;
+  PFAmrPhysBC cphysbc(geom[lev]), fphysbc(geom[lev]);
+  //PhysBCFunct cphysbc, fphysbc;
   Interpolater* mapper = &cell_cons_interp;
     
   int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaries
   int hi_bc[] = {INT_DIR, INT_DIR, INT_DIR};
-  Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
+  //Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
 
   for (int n = 0; n < number_of_fabs; n++)
     {
-
+      Array<BCRec> bcs(ncomp, BCRec(lo_bc, hi_bc));
       amrex::InterpFromCoarseLevel(mf, time, *cmf[n][0], 0, icomp, ncomp, geom[lev-1], geom[lev],
 				   cphysbc, fphysbc, refRatio(lev-1),
 				   mapper, bcs);

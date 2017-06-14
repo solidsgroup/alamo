@@ -115,7 +115,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 
  amrex::Array<std::unique_ptr<amrex::MultiFab> > Sborder(number_of_fabs);
  for (int n=0; n<number_of_fabs; n++)
-   Sborder[n].reset(new amrex::MultiFab(grids[lev], dmap[lev], number_of_grains,1)); 
+   Sborder[n].reset(new amrex::MultiFab(grids[lev], dmap[lev], number_of_grains+2,1)); 
  FillPatch(lev,t_old[lev],Sborder,0);
 
  for ( MFIter mfi(*phi_new[0][lev],true); mfi.isValid(); ++mfi )
@@ -129,26 +129,43 @@ PFAmr::Advance (int lev, Real time, Real dt)
      amrex::Array<amrex::Real> Laplacian(number_of_fabs);
      for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
        for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-	 for (int m = 0; m < number_of_grains; m++)
-	   {
-	     amrex::Real laplacian = 
-	       (old_phi(amrex::IntVect(i+1,j),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i-1,j),m))/dx[0]/dx[0] +
-	       (old_phi(amrex::IntVect(i,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i,j-1),m))/dx[1]/dx[1];
+	 {
+	   new_phi(amrex::IntVect(i,j),number_of_grains) = 0.;
+	   new_phi(amrex::IntVect(i,j),number_of_grains+1) = 0.;
 
-	     amrex::Real sum_of_squares = 0.;
-	     for (int n = 0; n < number_of_grains; n++)
-	       {
-		 if (n==m) continue;
-		 sum_of_squares += old_phi(amrex::IntVect(i,j),n)*old_phi(amrex::IntVect(i,j),n);
-	       }
+	   for (int m = 0; m < number_of_grains; m++)
+	     {
+	       amrex::Real laplacian = 
+		 (old_phi(amrex::IntVect(i+1,j),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i-1,j),m))/dx[0]/dx[0] +
+		 (old_phi(amrex::IntVect(i,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i,j-1),m))/dx[1]/dx[1];
+
+	       amrex::Real sum_of_squares = 0.;
+	       for (int n = 0; n < number_of_grains; n++)
+		 {
+		   if (n==m) continue;
+		   sum_of_squares += old_phi(amrex::IntVect(i,j),n)*old_phi(amrex::IntVect(i,j),n);
+		 }
 		 
-	     new_phi(amrex::IntVect(i,j),m) =
-	       old_phi(amrex::IntVect(i,j),m) -
-	       L*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
-			 - 1.0 +
-			 2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
-		     - kappa*laplacian);
-	   }
+	       new_phi(amrex::IntVect(i,j),m) =
+		 old_phi(amrex::IntVect(i,j),m) -
+		 L*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
+			   - 1.0 +
+			   2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
+		       - kappa*laplacian);
+
+
+	       // Grain index field
+	       //new_phi(amrex::IntVect(i,j),number_of_grains) += (amrex::Real)m * new_phi(amrex::IntVect(i,j),n);
+	       if (new_phi(amrex::IntVect(i,j),m)>0.5) new_phi(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)m;
+
+	       // Boundary field
+	       amrex::Real gradx = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]);
+	       amrex::Real grady = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
+	       new_phi(amrex::IntVect(i,j),number_of_grains+1) += sqrt(gradx*gradx + grady*grady);
+
+	     }
+
+	 }
    }
 }
 
