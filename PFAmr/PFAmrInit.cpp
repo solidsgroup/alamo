@@ -51,15 +51,13 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
       const Box& box = mfi.tilebox();
 
       amrex::BaseFab<Real> &phi_box = (*phi_new[0][lev])[mfi];
-
-      double offset_x = 0., offset_y=0.;
+      amrex::BaseFab<Real> &phi_box_old = (*phi_old[0][lev])[mfi];
 
       for (int i = box.loVect()[0]-nghost; i<=box.hiVect()[0]+nghost; i++) // todo
        	for (int j = box.loVect()[1]-nghost; j<=box.hiVect()[1]+nghost; j++)
 	  {
 	    amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
 	    amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-	    amrex::Real r = sqrt((x-offset_x)*(x-offset_x) + (y-offset_y)*(y-offset_y));
 
 	    // // circular distribution
 	    // if (r<0.5) phi_box(amrex::IntVect(i,j),0) =  1.;
@@ -93,7 +91,8 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 	    int min_grain_id = -1;
 	    for (int n = 0; n<number_of_grains; n++)
 	      {
-	     	phi_box(amrex::IntVect(i,j),n) = 0.; // initialize
+	     	phi_box(amrex::IntVect(i,j),n) = 0.;     // initialize
+	     	phi_box_old(amrex::IntVect(i,j),n) = 0.; // good practice to initialize all new memory
 
 	     	amrex::Real d = sqrt((x-voronoi_x[n])*(x-voronoi_x[n]) + (y-voronoi_y[n])*(y-voronoi_y[n]));
 	     	amrex::Real d1 = sqrt((x-(voronoi_x[n]-width))*(x-(voronoi_x[n]-width)) + (y-voronoi_y[n])*(y-voronoi_y[n]));
@@ -120,6 +119,9 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 	    
 	    phi_box(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)min_grain_id;
 	    phi_box(amrex::IntVect(i,j),number_of_grains+1) = 0;
+
+	    phi_box_old(amrex::IntVect(i,j),number_of_grains) = 0;   // Good practice to initialize
+	    phi_box_old(amrex::IntVect(i,j),number_of_grains+1) = 0; // all newly created data
 	  }
     }
 

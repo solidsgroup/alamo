@@ -3,7 +3,6 @@
 #include <iomanip>
 
 #include "AMReX.H"
-//#include "AMReX_ParallelDescriptor.H"
 #include "PFAmr.H"
 
 int main (int argc, char* argv[])
