@@ -119,6 +119,7 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 	    phi_box(amrex::IntVect(i,j),min_grain_id) = 1.;
 	    
 	    phi_box(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)min_grain_id;
+	    phi_box(amrex::IntVect(i,j),number_of_grains+1) = 0;
 	  }
     }
 
