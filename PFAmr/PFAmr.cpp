@@ -13,7 +13,6 @@ PFAmr::PFAmr ()
   //
   // READ INPUT PARAMETERS
   //
-  
   { 
     ParmParse pp;   // Basic run parameters
     pp.query("max_step", max_step);
@@ -68,11 +67,12 @@ PFAmr::PFAmr ()
   voronoi_y.resize(number_of_grains);
   if(ParallelDescriptor::IOProcessor())
     {
+
       for (int n = 0; n<number_of_grains; n++)
   	{
-  	  voronoi_x[n] = geom[0].ProbLo(0) +
+	  voronoi_x[n] = geom[0].ProbLo(0) +
 	    (geom[0].ProbHi(0)-geom[0].ProbLo(0))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
-  	  voronoi_y[n] = geom[0].ProbLo(1) +
+	  voronoi_y[n] = geom[0].ProbLo(1) +
 	    (geom[0].ProbHi(1)-geom[0].ProbLo(1))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
   	}
     }  
@@ -87,7 +87,6 @@ PFAmr::PFAmr ()
 
 PFAmr::~PFAmr ()
 {
-  
 }
 
 void

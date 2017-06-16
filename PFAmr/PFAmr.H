@@ -12,7 +12,7 @@
 #include <AMReX_AmrCore.H>
 #include <AMReX_FluxRegister.H>
 
-#define DEBUG std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+#define DEBUG std::cout << "Proc " << amrex::ParallelDescriptor::MyProc() << " :: "<< __FILE__ << ":" << __LINE__ << std::endl;
 
 class PFAmr
   : public amrex::AmrCore

@@ -1,7 +1,7 @@
 amr.max_grid_size = 10000
-max_step = 1
+max_step = 100
 amr.plot_file = myoutput
-amr.plot_int = 1
+amr.plot_int = 10
 
 
 geometry.prob_lo = -1 -1
