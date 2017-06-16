@@ -44,10 +44,13 @@ PFAmr::WritePlotFile () const
     amrex::WriteMultiLevelPlotfile(plotfilename, finest_level+1, mf, varnames,
 				   Geom(), t_new[0], istep, refRatio());
 
-    std::ofstream outfile;
-    if (istep[0]==0) outfile.open(plot_file+".visit",std::ios_base::out);
-    else outfile.open(plot_file+".visit",std::ios_base::app);
-    outfile << plotfilename + "/Header" << std::endl;
+    if (ParallelDescriptor::IOProcessor())
+      {
+	std::ofstream outfile;
+	if (istep[0]==0) outfile.open(plot_file+".visit",std::ios_base::out);
+	else outfile.open(plot_file+".visit",std::ios_base::app);
+	outfile << plotfilename + "/Header" << std::endl;
+      }
 }
 
 void
