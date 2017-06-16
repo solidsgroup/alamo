@@ -1,16 +1,24 @@
 
+CC = g++
+MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro -I/usr/include/mpich -L/usr/lib/x86_64-linux-gnu -lmpichcxx -lmpich
+MPICXX_LINK_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro -I/usr/include/mpich -L/usr/lib/x86_64-linux-gnu -lmpichcxx -lmpich
+MPIFORT_LINK_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro -I/usr/include/mpich -I/usr/include/mpich -L/usr/lib/x86_64-linux-gnu -lmpichfort -lmpich
+
 INCLUDE= -I./PFAmr/ 
-COMPILE_FLAGS = -std=c++11 -ggdb -DDIM=2 -BL_SPACEDIM=2
-LINK_FLAGS = -lamrex -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi -lgfortran 
+CXX_COMPILE_FLAGS = -std=c++11 -DDIM=2 -BL_SPACEDIM=2
+CXX_LINK_FLAGS = -lamrex 
+#-lgfortran
+#-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh 
+
 
 HDR = PFAmr/PFAmr.H
 SRC = main.cpp PFAmr/PFAmr.cpp PFAmr/PFAmrError.cpp PFAmr/PFAmrEvolve.cpp PFAmr/PFAmrInit.cpp PFAmr/PFAmrIO.cpp 
 OBJ = ${SRC:.cpp=.o}
 
 alamo: ${OBJ} ${HDR}
-	mpicxx ${OBJ} -std=c++11 ${LIB} ${LINK_FLAGS} -o alamo
+	mpicxx -o alamo ${OBJ} ${LIB} ${CXX_LINK_FLAGS} ${MPICXX_LINK_FLAGS} -lgfortran ${MPIFORT_LINK_FLAGS}
 %.o: %.cpp ${HDR}
-	mpicxx -c $< -o $@ ${INCLUDE} ${COMPILE_FLAGS}
+	${CC} -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 clean:
 	find . -name "*.o" -exec rm {} \;
