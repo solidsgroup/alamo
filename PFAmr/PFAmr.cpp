@@ -37,6 +37,7 @@ PFAmr::PFAmr ()
     pp.query("mu", mu);
     pp.query("gamma", gamma);
     pp.query("kappa", kappa);
+    pp.query("anisotropy", anisotropy);
   }
 
   int nlevs_max = maxLevel() + 1;
@@ -65,6 +66,9 @@ PFAmr::PFAmr ()
   // Voronoi
   voronoi_x.resize(number_of_grains);
   voronoi_y.resize(number_of_grains);
+#if BL_SPACEDIM==3
+  voronoi_z.resize(number_of_grains);
+#endif
   if(ParallelDescriptor::IOProcessor())
     {
 
@@ -74,6 +78,10 @@ PFAmr::PFAmr ()
 	    (geom[0].ProbHi(0)-geom[0].ProbLo(0))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
 	  voronoi_y[n] = geom[0].ProbLo(1) +
 	    (geom[0].ProbHi(1)-geom[0].ProbLo(1))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+#if BL_SPACEDIM==3
+	  voronoi_z[n] = geom[0].ProbLo(2) +
+	    (geom[0].ProbHi(2)-geom[0].ProbLo(2))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+#endif
   	}
     }  
   ParallelDescriptor::Barrier("Distributing voronoi information");
@@ -81,6 +89,9 @@ PFAmr::PFAmr ()
     {
       ParallelDescriptor::Bcast<amrex::Real>(&voronoi_x[n],sizeof(amrex::Real));
       ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
+#if BL_SPACEDIM==3
+      ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
+#endif
     }
 
 }
