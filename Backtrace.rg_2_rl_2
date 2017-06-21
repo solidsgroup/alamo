@@ -1,0 +1,73 @@
+=== If no file names and line numbers are shown below, one can run
+            addr2line -Cfie my_exefile my_line_address
+    to convert `my_line_address` (e.g., 0x4a6b) into file name and line number.
+
+=== Please note that the line number reported by addr2line may not be accurate.
+    One can use
+            readelf -wl my_exefile | grep my_line_address'
+    to find out the offset for that line.
+
+ 0: ./alamo() [0x4bc36b]
+    amrex::BLBackTrace::print_backtrace_info(_IO_FILE*)
+    /opt/amrex/Src/Base/AMReX_BLBackTrace.cpp:89
+
+ 1: ./alamo() [0x4bd018]
+    amrex::BLBackTrace::handler(int)
+    /opt/amrex/Src/Base/AMReX_BLBackTrace.cpp:51
+
+ 2: /lib/x86_64-linux-gnu/libc.so.6(+0x354b0) [0x7f2ee22204b0]
+    ??
+    ??:0
+
+ 3: ./alamo() [0x40b6ba]
+    amrex::IntVect::operator[](int) const
+    ??:?
+
+ 4: ./alamo() [0x419deb]
+    amrex::Box::index(amrex::IntVect const&) const
+    ??:?
+
+ 5: ./alamo() [0x419ee5]
+    amrex::BaseFab<double>::operator()(amrex::IntVect const&, int)
+    ??:?
+
+ 6: ./alamo() [0x41b012]
+    PFAmr::Advance(int, double, double)
+    ??:?
+
+ 7: ./alamo() [0x41a5ba]
+    PFAmr::TimeStep(int, double, int)
+    ??:?
+
+ 8: ./alamo() [0x41a6e5]
+    PFAmr::TimeStep(int, double, int)
+    ??:?
+
+ 9: ./alamo() [0x41a6e5]
+    PFAmr::TimeStep(int, double, int)
+    ??:?
+
+10: ./alamo() [0x41a6e5]
+    PFAmr::TimeStep(int, double, int)
+    ??:?
+
+11: ./alamo() [0x41a6e5]
+    PFAmr::TimeStep(int, double, int)
+    ??:?
+
+12: ./alamo() [0x41a05b]
+    PFAmr::Evolve()
+    ??:?
+
+13: ./alamo() [0x408de5]
+    main
+    ??:?
+
+14: /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xf0) [0x7f2ee220b830]
+    ??
+    ??:0
+
+15: ./alamo() [0x408c59]
+    _start
+    ??:?
+

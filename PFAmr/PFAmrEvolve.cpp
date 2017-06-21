@@ -145,12 +145,41 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   if (n==m) continue;
 		   sum_of_squares += old_phi(amrex::IntVect(i,j),n)*old_phi(amrex::IntVect(i,j),n);
 		 }
+	       // no need for m, function of grain
+	       // amrex::Array<amrex::Real> gradx;
+	       //gradx.resize(bx.hiVect()[0],bx.hiVect()[1]);
+	       //gradx(i,j) = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]);
+
+	       amrex::Real gradx =(old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]);
+	       amrex::Real gradx_N =(old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j+1),m))/(2*dx[0]);
+	       amrex::Real gradx_S =(old_phi(amrex::IntVect(i+1,j-1),m) - old_phi(amrex::IntVect(i-1,j-1),m))/(2*dx[0]);
+	       	       
+	       amrex::Real grady = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
+	       amrex::Real grady_E = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))/(2*dx[1]);
+	       amrex::Real grady_W = (old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))/(2*dx[1]);
+	       
+	       amrex::Real Kappa = 0;
+	       
+	       amrex::Real d_Kappa = 0;
+	      
+	       //amrex::Real Term_x1;
+	       //Term_x1 = gradx*d_Kappa;
 		 
+	       //amrex::Real Term_x2;
+	       //Term_x2 = grady*d_Kappa;
+		 
+	       amrex::Real Numerical_diff_x1 =
+		 (grady_E-grady_W)*(d_Kappa)/(2*dx[0]);
+	       amrex::Real Numerical_diff_x2 =
+		 (gradx_N -gradx_S)*(d_Kappa)/(2*dx[0]);
+
+	       
 	       new_phi(amrex::IntVect(i,j),m) =
 		 old_phi(amrex::IntVect(i,j),m) -
 		 L*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
 			   - 1.0 +
 			   2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
+		       -Numerical_diff_x1 + Numerical_diff_x2
 		       - kappa*laplacian);
 
 
@@ -159,8 +188,8 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       if (new_phi(amrex::IntVect(i,j),m)>0.5) new_phi(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)m;
 
 	       // Boundary field
-	       amrex::Real gradx = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]);
-	       amrex::Real grady = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
+	    
+	      
 	       new_phi(amrex::IntVect(i,j),number_of_grains+1) += sqrt(gradx*gradx + grady*grady);
 
 	     }
