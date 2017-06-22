@@ -1,20 +1,20 @@
 
 amr.max_grid_size = 10000
-max_step = 10000
+max_step = 1
 amr.plot_file = myoutput
-amr.plot_int = 100
+amr.plot_int = 1
 
 
-geometry.prob_lo = -1 -1
-geometry.prob_hi = 1 1
+geometry.prob_lo = -1 -1 -1
+geometry.prob_hi = 1 1 1
 amr.max_level = 4
-amr.n_cell = 12 12 
+amr.n_cell = 12 12 12
 amr.max_grid_size =  50
 amr.blocking_factor = 1
 amr.regrid_int = 10        # Timestep frequency of regridding
 amr.grid_eff = 1.0         # Closeness of regrid patch to tagged region (default = 0.7) 
 
-geometry.is_periodic= 1 1
+geometry.is_periodic= 1 1 1
 timestep = 0.001
 
 pf.number_of_grains = 20
