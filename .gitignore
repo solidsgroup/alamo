@@ -12,5 +12,5 @@ lib.sh
 
 ./myoutput/*
 *.orig
-
+*.o
 
