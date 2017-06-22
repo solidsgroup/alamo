@@ -14,6 +14,8 @@
 
 #define DEBUG std::cout << "Proc " << amrex::ParallelDescriptor::MyProc() << " :: "<< __FILE__ << ":" << __LINE__ << std::endl;
 
+#define DIM3 
+
 class PFAmr
   : public amrex::AmrCore
 {
@@ -81,10 +83,14 @@ private:
   int number_of_grains = 2;
   amrex::Real L, mu, gamma, kappa;
 
+  int anisotropy = 0;
+
   // Voronoi
   amrex::Array<amrex::Real> voronoi_x;
   amrex::Array<amrex::Real> voronoi_y;
-
+#if BL_SPACEDIM==3
+  amrex::Array<amrex::Real> voronoi_z;
+#endif
 
 };
 

@@ -1,11 +1,12 @@
-
+DIM = 2
 CC = g++
+
 MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro -I/usr/include/mpich -L/usr/lib/x86_64-linux-gnu -lmpichcxx -lmpich
 MPICXX_LINK_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro -I/usr/include/mpich -L/usr/lib/x86_64-linux-gnu -lmpichcxx -lmpich
 MPIFORT_LINK_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro -I/usr/include/mpich -I/usr/include/mpich -L/usr/lib/x86_64-linux-gnu -lmpichfort -lmpich
 
 INCLUDE= -I./PFAmr/ 
-CXX_COMPILE_FLAGS = -std=c++11 -DDIM=2 -BL_SPACEDIM=2
+CXX_COMPILE_FLAGS = -std=c++11 -DDIM=${DIM} -DBL_SPACEDIM=${DIM}
 CXX_LINK_FLAGS = -lamrex 
 #-lgfortran
 #-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh 
