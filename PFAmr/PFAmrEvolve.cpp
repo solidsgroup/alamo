@@ -145,7 +145,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   if (n==m) continue;
 		   sum_of_squares += old_phi(amrex::IntVect(i,j),n)*old_phi(amrex::IntVect(i,j),n);
 		 }
-<<<<<<< HEAD
+
 	       // no need for m, function of grain
 	       // amrex::Array<amrex::Real> gradx;
 	       //gradx.resize(bx.hiVect()[0],bx.hiVect()[1]);
@@ -182,7 +182,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 			   2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 		       -Numerical_diff_x1 + Numerical_diff_x2
 		       - kappa*laplacian);
-=======
 
 	       if (anisotropy)
 		 {
@@ -233,7 +232,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 			   - kappa*laplacian);
 		 }
 >>>>>>> 85d4f8de732b7717bcea206ca0ccb00ff2cfd0eb
-
 
 	       if (new_phi(amrex::IntVect(i,j),m)>0.5) new_phi(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)m;
 
