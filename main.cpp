@@ -4,6 +4,8 @@
 
 #include "AMReX.H"
 #include "PFAmr.H"
+//#include "PFBoundary.H"
+#include "PFBoundarySin.H"
 
 int main (int argc, char* argv[])
 {

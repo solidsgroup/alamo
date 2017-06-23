@@ -187,6 +187,13 @@ PFAmr::Advance (int lev, Real time, Real dt)
 
 	       if (anisotropy)
 		 {
+
+		   // TEMP
+		   (*boundary)(Theta);
+		   // END TEMP
+		   
+
+
 		   // no need for m, function of grain
 		   // amrex::Array<amrex::Real> gradx;
 		   //gradx.resize(bx.hiVect()[0],bx.hiVect()[1]);
