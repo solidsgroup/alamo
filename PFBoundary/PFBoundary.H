@@ -7,7 +7,8 @@ class PFBoundary
 {
 public:
   PFBoundary() {};
-  virtual amrex::Real operator()(amrex::Real theta) = 0;
+  virtual amrex::Real W(amrex::Real theta) = 0;
+  virtual amrex::Real DW(amrex::Real theta) = 0;
 };
 
 

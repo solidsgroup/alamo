@@ -189,7 +189,8 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		 {
 
 		   // TEMP
-		   (*boundary)(Theta);
+		   amrex::Real gb= boundary->W(Theta);
+		   amrex::Real d_gb= boundary->DW(Theta);
 		   // END TEMP
 		   
 
@@ -207,9 +208,9 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real grady_E = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))/(2*dx[1]);
 		   amrex::Real grady_W = (old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))/(2*dx[1]);
 	       
-		   amrex::Real Kappa = 0;
+		   amrex::Real Kappa = gb*0.75;
 	       
-		   amrex::Real d_Kappa = 0;
+		   amrex::Real d_Kappa = d_gb;
 	      		 
 		   amrex::Real Numerical_diff_x1 =
 		     (grady_E-grady_W)*(d_Kappa)/(2*dx[0]);
