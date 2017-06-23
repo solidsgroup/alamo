@@ -40,6 +40,8 @@ PFAmr::PFAmr ()
     pp.query("anisotropy", anisotropy);
   }
 
+  boundary = new PFBoundarySin(1., 2., 3.);
+
   int nlevs_max = maxLevel() + 1;
 
   istep.resize(nlevs_max, 0);

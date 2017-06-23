@@ -12,6 +12,9 @@
 #include <AMReX_AmrCore.H>
 #include <AMReX_FluxRegister.H>
 
+#include "PFBoundary.H"
+#include "PFBoundarySin.H"
+
 #define DEBUG std::cout << "Proc " << amrex::ParallelDescriptor::MyProc() << " :: "<< __FILE__ << ":" << __LINE__ << std::endl;
 
 #define DIM3 
@@ -92,6 +95,8 @@ private:
   amrex::Array<amrex::Real> voronoi_z;
 #endif
 
+  // Boundary functor
+  PFBoundary *boundary;// = PFBoundarySin();
 };
 
 #endif
