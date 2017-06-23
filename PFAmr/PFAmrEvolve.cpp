@@ -158,6 +158,8 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       amrex::Real grady = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
 	       amrex::Real grady_E = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))/(2*dx[1]);
 	       amrex::Real grady_W = (old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))/(2*dx[1]);
+
+	       amrex::Real Theta = atan2(gradx,grady);
 	       
 	       amrex::Real Kappa = 0;
 	       
@@ -231,18 +233,13 @@ PFAmr::Advance (int lev, Real time, Real dt)
 			       2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 			   - kappa*laplacian);
 		 }
->>>>>>> 85d4f8de732b7717bcea206ca0ccb00ff2cfd0eb
+
 
 	       if (new_phi(amrex::IntVect(i,j),m)>0.5) new_phi(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)m;
 
-<<<<<<< HEAD
 	       // Boundary field
 	    
-	      
-=======
-	       amrex::Real gradx = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]);
-	       amrex::Real grady = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
->>>>>>> 85d4f8de732b7717bcea206ca0ccb00ff2cfd0eb
+
 	       new_phi(amrex::IntVect(i,j),number_of_grains+1) += sqrt(gradx*gradx + grady*grady);
 
 	     }
