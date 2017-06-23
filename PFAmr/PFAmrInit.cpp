@@ -71,49 +71,71 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 	      amrex::Real z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];
 #endif
 
-	      //
-	      // perturbed bar IC
-	      //
-	      
-	      
-	      
-	      //
-	      // voronoi tesselation IC
-	      //
-	      amrex::Real len_x = (geom[0].ProbHi(0)-geom[0].ProbLo(0));
-	      amrex::Real len_y = (geom[0].ProbHi(1)-geom[0].ProbLo(1));
-#if BL_SPACEDIM==3
-	      amrex::Real len_z = (geom[0].ProbHi(2)-geom[0].ProbLo(2));
-#endif
-	      amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
-	      int min_grain_id = -1;
-	      for (int n = 0; n<number_of_grains; n++)
+	      if (anisotropy)
 		{
-		  phi_box(INTVECT,n) = 0.;     // initialize
-		  phi_box_old(INTVECT,n) = 0.; // good practice to initialize all new memory
-		  for (amrex::Real offset_x = -len_x; offset_x <= len_x; offset_x += len_x)
-		    for (amrex::Real offset_y = -len_y; offset_y <= len_y; offset_y += len_y)
+		  //
+		  // perturbed bar IC
+		  //
+		  phi_box_old(INTVECT,0) = 0.; // good practice to initialize all new memory
+		  phi_box_old(INTVECT,1) = 0.; // good practice to initialize all new memory
+
+		  amrex::Real pi = 3.14159265359;
+		  amrex::Real bdry  = 0.1 * sin(2.*x*pi);
+
+		  if (y > -0.5+bdry && y < 0.5+bdry)
+
+		    {
+		      phi_box(INTVECT,0) = 1.;     
+		      phi_box(INTVECT,1) = 0.;     
+		    }
+		  else
+		    {
+		      phi_box(INTVECT,0) = 0.;     
+		      phi_box(INTVECT,1) = 1.;     
+		    }
+		      phi_box(INTVECT,number_of_grains) = 0.;
+		      phi_box(INTVECT,number_of_grains+1) = 0.;
+		}	      
+	      else
+		{
+		  //
+		  // voronoi tesselation IC
+		  //
+		  amrex::Real len_x = (geom[0].ProbHi(0)-geom[0].ProbLo(0));
+		  amrex::Real len_y = (geom[0].ProbHi(1)-geom[0].ProbLo(1));
 #if BL_SPACEDIM==3
-		      for (amrex::Real offset_z = -len_z; offset_z <= len_z; offset_z += len_z)
+		  amrex::Real len_z = (geom[0].ProbHi(2)-geom[0].ProbLo(2));
 #endif
-			{
+		  amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
+		  int min_grain_id = -1;
+		  for (int n = 0; n<number_of_grains; n++)
+		    {
+		      phi_box(INTVECT,n) = 0.;     // initialize
+		      phi_box_old(INTVECT,n) = 0.; // good practice to initialize all new memory
+		      for (amrex::Real offset_x = -len_x; offset_x <= len_x; offset_x += len_x)
+			for (amrex::Real offset_y = -len_y; offset_y <= len_y; offset_y += len_y)
+#if BL_SPACEDIM==3
+			  for (amrex::Real offset_z = -len_z; offset_z <= len_z; offset_z += len_z)
+#endif
+			    {
 #if BL_SPACEDIM==2
-			  amrex::Real d = sqrt((x-voronoi_x[n]-offset_x)*(x-voronoi_x[n]-offset_x) + (y-voronoi_y[n]-offset_y)*(y-voronoi_y[n]-offset_y));
+			      amrex::Real d = sqrt((x-voronoi_x[n]-offset_x)*(x-voronoi_x[n]-offset_x) + (y-voronoi_y[n]-offset_y)*(y-voronoi_y[n]-offset_y));
 #elif BL_SPACEDIM==3
-			  amrex::Real d = sqrt((x-voronoi_x[n]-offset_x)*(x-voronoi_x[n]-offset_x) + (y-voronoi_y[n]-offset_y)*(y-voronoi_y[n]-offset_y) + (z-voronoi_z[n]-offset_z)*(z-voronoi_z[n]-offset_z));
+			      amrex::Real d = sqrt((x-voronoi_x[n]-offset_x)*(x-voronoi_x[n]-offset_x) + (y-voronoi_y[n]-offset_y)*(y-voronoi_y[n]-offset_y) + (z-voronoi_z[n]-offset_z)*(z-voronoi_z[n]-offset_z));
 #endif
-			  if (d<min_distance )  {min_distance = d;  min_grain_id = n;}
-			}
-		}
-	      phi_box(INTVECT,min_grain_id) = 1.;
-	      
+			      if (d<min_distance )  {min_distance = d;  min_grain_id = n;}
+			    }
+		    }
+		  phi_box(INTVECT,min_grain_id) = 1.;
+
+		  phi_box(INTVECT,number_of_grains) = (amrex::Real)min_grain_id;
+		  phi_box(INTVECT,number_of_grains+1) = 0;
+		}	      
 
 
 
 
 
-	      phi_box(INTVECT,number_of_grains) = (amrex::Real)min_grain_id;
-	      phi_box(INTVECT,number_of_grains+1) = 0;
 	      phi_box_old(INTVECT,number_of_grains) = 0;   // Good practice to initialize
 	      phi_box_old(INTVECT,number_of_grains+1) = 0; // all newly created data
 	    }

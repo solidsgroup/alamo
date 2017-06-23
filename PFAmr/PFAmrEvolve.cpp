@@ -179,7 +179,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       
 	       new_phi(amrex::IntVect(i,j),m) =
 		 old_phi(amrex::IntVect(i,j),m) -
-		 L*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
+		 M*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
 			   - 1.0 +
 			   2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 		       -Numerical_diff_x1 + Numerical_diff_x2
@@ -208,11 +208,12 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real grady_E = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))/(2*dx[1]);
 		   amrex::Real grady_W = (old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))/(2*dx[1]);
 
+
 		   amrex::Real Theta = atan2(gradx,grady);
 		   
-		   amrex::Real Kappa = gb*0.75;
+		   amrex::Real Kappa = gb*0.75*l_gb;
 	       
-		   amrex::Real d_Kappa = d_gb;
+		   amrex::Real d_Kappa = d_gb*l_gb;
 	      		 
 		   amrex::Real Numerical_diff_x1 =
 		     (grady_E-grady_W)*(d_Kappa)/(2*dx[0]);
@@ -222,17 +223,17 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       
 		   new_phi(amrex::IntVect(i,j),m) =
 		     old_phi(amrex::IntVect(i,j),m) -
-		     L*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
+		     M*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
 			       - 1.0 +
 			       2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 			   -Numerical_diff_x1 + Numerical_diff_x2
-			   - kappa*laplacian);
+			   - Kappa*laplacian);
 		 }
 	       else
 		 {
 		   new_phi(amrex::IntVect(i,j),m) =
 		     old_phi(amrex::IntVect(i,j),m) -
-		     L*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
+		     M*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
 			       - 1.0 +
 			       2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 			   - kappa*laplacian);

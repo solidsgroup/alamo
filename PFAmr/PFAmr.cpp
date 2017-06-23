@@ -33,14 +33,23 @@ PFAmr::PFAmr ()
   {
     ParmParse pp("pf"); // Phase-field model parameters
     pp.query("number_of_grains", number_of_grains);
-    pp.query("L", L);
+    pp.query("M", M);
     pp.query("mu", mu);
     pp.query("gamma", gamma);
     pp.query("kappa", kappa);
-    pp.query("anisotropy", anisotropy);
+    pp.query("l_gb", l_gb);
   }
+  {
+    amrex::Real theta0,sigma0,sigma1;
 
-  boundary = new PFBoundarySin(1., 2., 3.);
+    ParmParse pp("anisotropy"); // Phase-field model parameters
+    pp.query("on", anisotropy);
+    pp.query("theta0", theta0);
+    theta0 *= 0.01745329251;
+    pp.query("sigma0", sigma0);
+    pp.query("sigma1", sigma1);
+    boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+  }
 
   int nlevs_max = maxLevel() + 1;
 
@@ -71,30 +80,30 @@ PFAmr::PFAmr ()
 #if BL_SPACEDIM==3
   voronoi_z.resize(number_of_grains);
 #endif
-  if(ParallelDescriptor::IOProcessor())
-    {
+//   if(ParallelDescriptor::IOProcessor())
+//     {
 
-      for (int n = 0; n<number_of_grains; n++)
-  	{
-	  voronoi_x[n] = geom[0].ProbLo(0) +
-	    (geom[0].ProbHi(0)-geom[0].ProbLo(0))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
-	  voronoi_y[n] = geom[0].ProbLo(1) +
-	    (geom[0].ProbHi(1)-geom[0].ProbLo(1))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
-#if BL_SPACEDIM==3
-	  voronoi_z[n] = geom[0].ProbLo(2) +
-	    (geom[0].ProbHi(2)-geom[0].ProbLo(2))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
-#endif
-  	}
-    }  
-  ParallelDescriptor::Barrier("Distributing voronoi information");
-  for (int n = 0; n<number_of_grains; n++)
-    {
-      ParallelDescriptor::Bcast<amrex::Real>(&voronoi_x[n],sizeof(amrex::Real));
-      ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
-#if BL_SPACEDIM==3
-      ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
-#endif
-    }
+//       for (int n = 0; n<number_of_grains; n++)
+//   	{
+// 	  voronoi_x[n] = geom[0].ProbLo(0) +
+// 	    (geom[0].ProbHi(0)-geom[0].ProbLo(0))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+// 	  voronoi_y[n] = geom[0].ProbLo(1) +
+// 	    (geom[0].ProbHi(1)-geom[0].ProbLo(1))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+// #if BL_SPACEDIM==3
+// 	  voronoi_z[n] = geom[0].ProbLo(2) +
+// 	    (geom[0].ProbHi(2)-geom[0].ProbLo(2))*((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+// #endif
+//   	}
+//     }  
+//   //  ParallelDescriptor::Barrier("Distributing voronoi information");
+//   for (int n = 0; n<number_of_grains; n++)
+//     {
+//       ParallelDescriptor::Bcast<amrex::Real>(&voronoi_x[n],sizeof(amrex::Real));
+//       ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
+// #if BL_SPACEDIM==3
+//       ParallelDescriptor::Bcast<amrex::Real>(&voronoi_y[n],sizeof(amrex::Real));
+// #endif
+//     }
 
 }
 
