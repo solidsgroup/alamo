@@ -13,17 +13,21 @@ public:
     sigma0 = _sigma0;
     sigma1 = _sigma1;
   };
-  virtual amrex::Real operator()(amrex::Real theta)
+  amrex::Real W(amrex::Real theta)
   {
-    amrex::Real gbenergy;
-    gbenergy = sin(2*(theta-theta0))*sin(2*(theta-theta0))*sigma1+sigma0;
-    return gbenergy;
+    
+    return sin(2*(theta-theta0))*sin(2*(theta-theta0))*sigma1+sigma0;
+  };
+  amrex::Real DW(amrex::Real theta)
+  {
+    
+    return 4*sin(2*(theta-theta0))*cos(2*(theta-theta0));;
   };
   
   //virtual amrex::Real operator()(amrex::Real theta)
   //{
   //amrex::Real d_gbenergy;
-  //d_gbenergy= 4*sin(2*(theta-theta0))*cos(2*(theta-theta0));
+  //d_gbenergy= 
   //return d_gbenergy;    
   //};
   
