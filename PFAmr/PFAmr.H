@@ -84,7 +84,7 @@ private:
   amrex::Real timestep;
   int number_of_fabs = 1;
   int number_of_grains = 2;
-  amrex::Real L, mu, gamma, kappa;
+  amrex::Real M, mu, gamma, kappa,l_gb;
 
   int anisotropy = 0;
 
