@@ -1,13 +1,13 @@
 
 amr.max_grid_size = 10000
-max_step = 1000
+max_step = 100000
 amr.plot_file = myoutput
-amr.plot_int = 10
+amr.plot_int = 1
 
 
 geometry.prob_lo = -1 -1 -1
 geometry.prob_hi = 1 1 1
-amr.max_level = 4
+amr.max_level = 3
 amr.n_cell = 12 12 12
 amr.max_grid_size =  50
 amr.blocking_factor = 1
@@ -18,9 +18,14 @@ geometry.is_periodic= 1 1 1
 timestep = 0.001
 
 pf.number_of_grains = 2
-pf.L = 1.0
+pf.M = 1.0 
 pf.mu = 10.0
 pf.gamma = 1.0
 pf.kappa=0.005
-pf.anisotropy=1
+pf.l_gb=0.1
+
+anisotropy.on=1
+anisotropy.theta0=45
+anisotropy.sigma0=0.00
+anisotropy.sigma1=0.75
 
