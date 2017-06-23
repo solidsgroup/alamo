@@ -210,13 +210,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real Kappa = 0;
 	       
 		   amrex::Real d_Kappa = 0;
-	      
-		   //amrex::Real Term_x1;
-		   //Term_x1 = gradx*d_Kappa;
-		 
-		   //amrex::Real Term_x2;
-		   //Term_x2 = grady*d_Kappa;
-		 
+	      		 
 		   amrex::Real Numerical_diff_x1 =
 		     (grady_E-grady_W)*(d_Kappa)/(2*dx[0]);
 		   amrex::Real Numerical_diff_x2 =
