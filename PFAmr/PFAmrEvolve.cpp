@@ -207,7 +207,9 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real grady = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
 		   amrex::Real grady_E = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))/(2*dx[1]);
 		   amrex::Real grady_W = (old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))/(2*dx[1]);
-	       
+
+		   amrex::Real Theta = atan2(gradx,grady);
+		   
 		   amrex::Real Kappa = gb*0.75;
 	       
 		   amrex::Real d_Kappa = d_gb;
