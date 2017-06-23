@@ -70,23 +70,27 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 #if BL_SPACEDIM==3
 	      amrex::Real z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];
 #endif
+
+	      //
+	      // perturbed bar IC
+	      //
 	      
-	      // voronoi
+	      
+	      
+	      //
+	      // voronoi tesselation IC
+	      //
 	      amrex::Real len_x = (geom[0].ProbHi(0)-geom[0].ProbLo(0));
 	      amrex::Real len_y = (geom[0].ProbHi(1)-geom[0].ProbLo(1));
 #if BL_SPACEDIM==3
 	      amrex::Real len_z = (geom[0].ProbHi(2)-geom[0].ProbLo(2));
 #endif
-
 	      amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
 	      int min_grain_id = -1;
 	      for (int n = 0; n<number_of_grains; n++)
 		{
 		  phi_box(INTVECT,n) = 0.;     // initialize
 		  phi_box_old(INTVECT,n) = 0.; // good practice to initialize all new memory
-
-
-		  
 		  for (amrex::Real offset_x = -len_x; offset_x <= len_x; offset_x += len_x)
 		    for (amrex::Real offset_y = -len_y; offset_y <= len_y; offset_y += len_y)
 #if BL_SPACEDIM==3
@@ -100,32 +104,16 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 #endif
 			  if (d<min_distance )  {min_distance = d;  min_grain_id = n;}
 			}
-
-		  // amrex::Real d = sqrt((x-voronoi_x[n])*(x-voronoi_x[n])                  + (y-voronoi_y[n])*(y-voronoi_y[n]));
-		  // amrex::Real d1 = sqrt((x-(voronoi_x[n]-len_x))*(x-(voronoi_x[n]-len_x)) + (y-voronoi_y[n])*(y-voronoi_y[n]));
-		  // amrex::Real d2 = sqrt((x-(voronoi_x[n]+len_x))*(x-(voronoi_x[n]+len_x)) + (y-voronoi_y[n])*(y-voronoi_y[n]));
-		  // amrex::Real d3 = sqrt((x-voronoi_x[n])*(x-voronoi_x[n])                 + (y-(voronoi_y[n]-len_y))*(y-(voronoi_y[n]-len_y)));
-		  // amrex::Real d4 = sqrt((x-voronoi_x[n])*(x-voronoi_x[n])                 + (y-(voronoi_y[n]+len_y))*(y-(voronoi_y[n]+len_y)));
-		  // amrex::Real d5 = sqrt((x-(voronoi_x[n]-len_x))*(x-(voronoi_x[n]-len_x)) + (y-(voronoi_y[n]-len_y))*(y-(voronoi_y[n]-len_y)));
-		  // amrex::Real d6 = sqrt((x-(voronoi_x[n]-len_x))*(x-(voronoi_x[n]-len_x)) + (y-(voronoi_y[n]+len_y))*(y-(voronoi_y[n]+len_y)));
-		  // amrex::Real d7 = sqrt((x-(voronoi_x[n]+len_x))*(x-(voronoi_x[n]+len_x)) + (y-(voronoi_y[n]-len_y))*(y-(voronoi_y[n]-len_y)));
-		  // amrex::Real d8 = sqrt((x-(voronoi_x[n]+len_x))*(x-(voronoi_x[n]+len_x)) + (y-(voronoi_y[n]+len_y))*(y-(voronoi_y[n]+len_y)));
-
-		  // if (d<min_distance )  {min_distance = d;  min_grain_id = n;}
-		  // if (d1<min_distance ) {min_distance = d1; min_grain_id = n;}
-		  // if (d2<min_distance ) {min_distance = d2; min_grain_id = n;}
-		  // if (d3<min_distance ) {min_distance = d3; min_grain_id = n;}
-		  // if (d4<min_distance ) {min_distance = d4; min_grain_id = n;}
-		  // if (d5<min_distance ) {min_distance = d5; min_grain_id = n;}
-		  // if (d6<min_distance ) {min_distance = d6; min_grain_id = n;}
-		  // if (d7<min_distance ) {min_distance = d7; min_grain_id = n;}
-		  // if (d8<min_distance ) {min_distance = d8; min_grain_id = n;}
 		}
 	      phi_box(INTVECT,min_grain_id) = 1.;
-	    
+	      
+
+
+
+
+
 	      phi_box(INTVECT,number_of_grains) = (amrex::Real)min_grain_id;
 	      phi_box(INTVECT,number_of_grains+1) = 0;
-
 	      phi_box_old(INTVECT,number_of_grains) = 0;   // Good practice to initialize
 	      phi_box_old(INTVECT,number_of_grains+1) = 0; // all newly created data
 	    }
