@@ -48,7 +48,10 @@ PFAmr::PFAmr ()
     theta0 *= 0.01745329251;
     pp.query("sigma0", sigma0);
     pp.query("sigma1", sigma1);
+    pp.query("tstart", tstart);
     boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+    // if(ParallelDescriptor::IOProcessor())
+    //   if (!boundary->Test()) amrex::Error("Boundary functor does not pass derivative test");
   }
 
   int nlevs_max = maxLevel() + 1;
