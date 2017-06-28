@@ -40,7 +40,7 @@ PFAmr::InitData ()
 void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 				      const DistributionMapping& dm)
 {
-  const int nghost = 1;
+  const int nghost = 2;
 
   phi_new[0][lev].reset(new MultiFab(ba, dm, number_of_grains+2, nghost));
   phi_old[0][lev].reset(new MultiFab(ba, dm, number_of_grains+2, nghost));
@@ -73,6 +73,24 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 
 	      if (anisotropy)
 		{
+		  // //
+		  // // circle IC
+		  // //
+		  // phi_box_old(INTVECT,0) = 0.; // good practice to initialize all new memory
+		  // phi_box_old(INTVECT,1) = 0.; // good practice to initialize all new memory
+
+		  // if (sqrt(x*x+y*y)<=0.5)
+
+		  //   {
+		  //     phi_box(INTVECT,0) = 1.;     
+		  //     phi_box(INTVECT,1) = 0.;     
+		  //   }
+		  // else
+		  //   {
+		  //     phi_box(INTVECT,0) = 0.;     
+		  //     phi_box(INTVECT,1) = 1.;     
+		  //   }
+
 		  //
 		  // perturbed bar IC
 		  //
@@ -93,8 +111,10 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 		      phi_box(INTVECT,0) = 0.;     
 		      phi_box(INTVECT,1) = 1.;     
 		    }
-		      phi_box(INTVECT,number_of_grains) = 0.;
-		      phi_box(INTVECT,number_of_grains+1) = 0.;
+
+
+		  phi_box(INTVECT,number_of_grains) = 0.;
+		  phi_box(INTVECT,number_of_grains+1) = 0.;
 		}	      
 	      else
 		{
