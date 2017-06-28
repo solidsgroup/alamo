@@ -71,6 +71,8 @@ private:
   int max_step   = std::numeric_limits<int>::max();
   amrex::Real stop_time = std::numeric_limits<amrex::Real>::max();
 
+  amrex::Real tstart = 0;
+
   int regrid_int = 2;
 
   std::string restart_chkfile;
