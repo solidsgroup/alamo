@@ -135,6 +135,10 @@ PFAmr::Advance (int lev, Real time, Real dt)
 
 	   for (int m = 0; m < number_of_grains; m++)
 	     {
+	       amrex::Real laplacian = 
+		 (old_phi(amrex::IntVect(i+1,j),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i-1,j),m))/dx[0]/dx[0] +
+		 (old_phi(amrex::IntVect(i,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i,j-1),m))/dx[1]/dx[1];
+
 	       amrex::Real sum_of_squares = 0.;
 	       for (int n = 0; n < number_of_grains; n++)
 		 {
