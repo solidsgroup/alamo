@@ -40,8 +40,6 @@ PFAmr::InitData ()
 void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 				      const DistributionMapping& dm)
 {
-  const int nghost = 2;
-
   phi_new[0][lev].reset(new MultiFab(ba, dm, number_of_grains+2, nghost));
   phi_old[0][lev].reset(new MultiFab(ba, dm, number_of_grains+2, nghost));
 

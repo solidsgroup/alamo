@@ -115,7 +115,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 
  amrex::Array<std::unique_ptr<amrex::MultiFab> > Sborder(number_of_fabs);
  for (int n=0; n<number_of_fabs; n++)
-   Sborder[n].reset(new amrex::MultiFab(grids[lev], dmap[lev], number_of_grains+2,1)); 
+   Sborder[n].reset(new amrex::MultiFab(grids[lev], dmap[lev], number_of_grains+2,nghost)); 
  FillPatch(lev,t_old[lev],Sborder,0);
 
  for ( MFIter mfi(*phi_new[0][lev],true); mfi.isValid(); ++mfi )
@@ -143,10 +143,10 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		 }
 
 	       // first order derivatives of eta
-	       //amrex::Real grad1  = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]); // 3 point
-	       //amrex::Real grad2  = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]); // 3 point
-	       amrex::Real grad1  = (old_phi(amrex::IntVect(i-2,j),m)/12.0 - 2.*old_phi(amrex::IntVect(i-1,j),m)/3. + 2.*old_phi(amrex::IntVect(i+1,j),m)/3. - old_phi(amrex::IntVect(i+2,j),m)/12.)/(dx[0]);
-	       amrex::Real grad2  = (old_phi(amrex::IntVect(i,j-2),m)/12.0 - 2.*old_phi(amrex::IntVect(i,j-1),m)/3. + 2.*old_phi(amrex::IntVect(i,j+1),m)/3. - old_phi(amrex::IntVect(i,j+2),m)/12.)/(dx[0]);
+	       amrex::Real grad1  = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]); // 3 point
+	       amrex::Real grad2  = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]); // 3 point
+	       //amrex::Real grad1  = (old_phi(amrex::IntVect(i-2,j),m)/12.0 - 2.*old_phi(amrex::IntVect(i-1,j),m)/3. + 2.*old_phi(amrex::IntVect(i+1,j),m)/3. - old_phi(amrex::IntVect(i+2,j),m)/12.)/(dx[0]);
+	       //amrex::Real grad2  = (old_phi(amrex::IntVect(i,j-2),m)/12.0 - 2.*old_phi(amrex::IntVect(i,j-1),m)/3. + 2.*old_phi(amrex::IntVect(i,j+1),m)/3. - old_phi(amrex::IntVect(i,j+2),m)/12.)/(dx[0]);
 
 	       // second order derivatives of eta
 	       amrex::Real grad11 = (old_phi(amrex::IntVect(i+1,j),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i-1,j),m))/dx[0]/dx[0]; // 3 point
@@ -154,8 +154,13 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       amrex::Real grad12 = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m) + old_phi(amrex::IntVect(i-1,j-1),m))/(4.*dx[0]*dx[1]);
 
 
+
+
+
 	       amrex::Real laplacian = grad11 + grad22;
 
+	       amrex::Real kappa = l_gb*0.75*sigma0;
+	       mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
 
 	       // amrex::Real Numerical_diff_x1 =
 	       // 	 (grady_E-grady_W)*(d_Kappa)/(2*dx[0]);
@@ -169,7 +174,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real Theta = atan2(grad2,grad1);
 
 	       
-		   
 		   amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
 		   amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
 		   amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
@@ -181,6 +185,8 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   // amrex::Real DDKappa2 = l_gb*0.75*(boundary->DW(Theta_N) - boundary->DW(Theta_S))/(2*dx[0]);
 
 
+
+
 		   if (time>tstart)
 		     {
 		       new_phi(amrex::IntVect(i,j),m) =
@@ -189,9 +195,11 @@ PFAmr::Advance (int lev, Real time, Real dt)
 				   - 1.0 +
 				   2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 			       - (Kappa*laplacian
-				  + DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-				  + 0.5*DDKappa*(grad12 - 0.5*sin(2.0*Theta)*(grad11+grad22))
+				  //+ DKappa*(DTheta1*grad1 + DTheta2*grad2)
+				  //+ DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
+				  + 0.5*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22)
 				  )
+			       //- 0.01*DKappa*(grad22+grad11)
 			       );
 		     }
 		   else
@@ -207,9 +215,15 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   //   new_phi(amrex::IntVect(i,j),m) += 
 		   //     M*dt*(DKappa1*grad1 + DKappa2*grad2);
 
-		   //new_phi(amrex::IntVect(i,j),number_of_grains) = (DKappa1*grad1 + DKappa2*grad2);
-		   new_phi(amrex::IntVect(i,j),number_of_grains) = Kappa;
-		   new_phi(amrex::IntVect(i,j),number_of_grains+1) = DKappa;//DKappa1*grad1 + DKappa2*grad2;
+		   // grad11*grad22 - grad12*grad12; // determinant
+
+		   // amrex::Real vec1 = -grad11*sin(Theta)+grad12*cos(Theta);
+		   // amrex::Real vec2 = -grad12*sin(Theta)+grad22*cos(Theta);
+		   new_phi(amrex::IntVect(i,j),number_of_grains) = 0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);
+
+		   new_phi(amrex::IntVect(i,j),number_of_grains+1) = (sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);
+
+		   //new_phi(amrex::IntVect(i,j),number_of_grains+1) = DTheta1*grad1 + DTheta2*grad2;//DKappa1*grad1 + DKappa2*grad2;
 		 }
 	       else
 		 {
@@ -225,7 +239,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       //if (new_phi(amrex::IntVect(i,j),m)>0.5) new_phi(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)m;
 
 	       // Boundary field
-	    
 
 	       //new_phi(amrex::IntVect(i,j),number_of_grains+1) += sqrt(grad1*grad1 + grad2*grad2);
 

@@ -1,6 +1,7 @@
 
 amr.max_grid_size = 10000
-max_step = 50000
+#max_step = 1000
+stop_time = 10.0
 amr.plot_file = myoutput
 amr.plot_int = 10
 
@@ -14,7 +15,7 @@ geometry.prob_hi = 1 1 1
 
 amr.max_level = 0
 amr.n_cell = 100 100 100
-timestep = 0.0001
+timestep = 0.001
 
 amr.max_grid_size =  50
 amr.blocking_factor = 5
@@ -27,12 +28,12 @@ pf.number_of_grains = 2
 pf.M = 1.0 
 pf.mu = 10.0
 pf.gamma = 1.0
-pf.kappa=0.005
-pf.l_gb=0.2
+pf.sigma0=0.01
+pf.l_gb=0.1
 
 anisotropy.on=1
 anisotropy.theta0=45
-anisotropy.sigma0=.01
-anisotropy.sigma1=.75
-anisotropy.tstart=.5
+anisotropy.sigma0=0.1
+anisotropy.sigma1=0.1
+anisotropy.tstart=3.0
 
