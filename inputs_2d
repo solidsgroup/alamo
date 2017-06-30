@@ -32,7 +32,7 @@ pf.sigma0=0.01
 pf.l_gb=0.1
 
 anisotropy.on=1
-anisotropy.theta0=45
+anisotropy.theta0=45 
 anisotropy.sigma0=0.1
 anisotropy.sigma1=0.1
 anisotropy.tstart=3.0
