@@ -41,15 +41,17 @@ PFAmr::PFAmr ()
   }
   {
     amrex::Real theta0,sigma0,sigma1;
-
+    std::string filename;
+    
     ParmParse pp("anisotropy"); // Phase-field model parameters
     pp.query("on", anisotropy);
     pp.query("theta0", theta0);
-    theta0 *= 0.01745329251;
+    pp.query("filename", filename);
     pp.query("sigma0", sigma0);
     pp.query("sigma1", sigma1);
     pp.query("tstart", tstart);
-    boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+    boundary = new PFBoundaryTab(filename);
+    //boundary = new PFBoundarySin(theta0,sigma0,sigma1);
     // if(ParallelDescriptor::IOProcessor())
     //   if (!boundary->Test()) amrex::Error("Boundary functor does not pass derivative test");
   }
