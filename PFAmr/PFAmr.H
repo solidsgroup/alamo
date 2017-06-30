@@ -86,9 +86,11 @@ private:
   amrex::Real timestep;
   int number_of_fabs = 1;
   int number_of_grains = 2;
-  amrex::Real M, mu, gamma, kappa,l_gb;
+  amrex::Real M, mu, gamma, sigma0, l_gb;
 
   int anisotropy = 0;
+
+  const int nghost = 2;
 
   // Voronoi
   amrex::Array<amrex::Real> voronoi_x;
