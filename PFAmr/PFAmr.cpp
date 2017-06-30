@@ -36,7 +36,7 @@ PFAmr::PFAmr ()
     pp.query("M", M);
     pp.query("mu", mu);
     pp.query("gamma", gamma);
-    pp.query("kappa", kappa);
+    pp.query("sigma0", sigma0);
     pp.query("l_gb", l_gb);
   }
   {
