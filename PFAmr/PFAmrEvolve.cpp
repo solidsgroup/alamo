@@ -163,9 +163,9 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       //amrex::Real grad22 = (old_phi(amrex::IntVect(i,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i,j-1),m))/dx[1]/dx[1]; // 3 point
 	       //amrex::Real grad12 = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m) + old_phi(amrex::IntVect(i-1,j-1),m))/(4.*dx[0]*dx[1]);
 	       
-	       amrex::Real grad11 = (-old_phi(amrex::IntVect(i+2,j),m)+16*old_phi(amrex::IntVect(i+1,j),m)+16*old_phi(amrex::IntVect(i-1,j),m)-old_phi(amrex::IntVect(i-2,j),m))/(12*dx[0]*dx[0]); // five point
+	       amrex::Real grad11 = (-old_phi(amrex::IntVect(i+2,j),m)+16*old_phi(amrex::IntVect(i+1,j),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j),m)-old_phi(amrex::IntVect(i-2,j),m))/(12*dx[0]*dx[0]); // five point
 
-	       amrex::Real grad22 = (-old_phi(amrex::IntVect(i,j+2),m)+16*old_phi(amrex::IntVect(i,j+1),m)+16*old_phi(amrex::IntVect(i,j-1),m)-old_phi(amrex::IntVect(i,j-2),m))/(12*dx[1]*dx[1]); // five point
+	       amrex::Real grad22 = (-old_phi(amrex::IntVect(i,j+2),m)+16*old_phi(amrex::IntVect(i,j+1),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i,j-1),m)-old_phi(amrex::IntVect(i,j-2),m))/(12*dx[1]*dx[1]); // five point
 	       
 	       amrex::Real grad12 =
 		 (8*(old_phi(amrex::IntVect(i+1,j-2),m)+old_phi(amrex::IntVect(i+2,j-1),m)+old_phi(amrex::IntVect(i-2,j+1),m)+old_phi(amrex::IntVect(i-1,j+2),m))
