@@ -71,43 +71,53 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 
 	      if (anisotropy)
 		{
-		  // //
-		  // // circle IC
-		  // //
-		  // phi_box_old(INTVECT,0) = 0.; // good practice to initialize all new memory
-		  // phi_box_old(INTVECT,1) = 0.; // good practice to initialize all new memory
-
-		  // if (sqrt(x*x+y*y)<=0.5)
-
-		  //   {
-		  //     phi_box(INTVECT,0) = 1.;     
-		  //     phi_box(INTVECT,1) = 0.;     
-		  //   }
-		  // else
-		  //   {
-		  //     phi_box(INTVECT,0) = 0.;     
-		  //     phi_box(INTVECT,1) = 1.;     
-		  //   }
-
-		  //
-		  // perturbed bar IC
-		  //
-		  phi_box_old(INTVECT,0) = 0.; // good practice to initialize all new memory
-		  phi_box_old(INTVECT,1) = 0.; // good practice to initialize all new memory
-
-		  amrex::Real pi = 3.14159265359;
-		  amrex::Real bdry  = 0.1 * sin(2.*x*pi);
-
-		  if (y > -0.5+bdry && y < 0.5+bdry)
-
+		  if (ic_type == "circle")
 		    {
-		      phi_box(INTVECT,0) = 1.;     
-		      phi_box(INTVECT,1) = 0.;     
+		      //
+		      // circle IC
+		      //
+		      phi_box_old(INTVECT,0) = 0.; // good practice to initialize all new memory
+		      phi_box_old(INTVECT,1) = 0.; // good practice to initialize all new memory
+
+		      if (sqrt(x*x+y*y)<=0.5)
+
+			{
+			  phi_box(INTVECT,0) = 1.;     
+			  phi_box(INTVECT,1) = 0.;     
+			}
+		      else
+			{
+			  phi_box(INTVECT,0) = 0.;     
+			  phi_box(INTVECT,1) = 1.;     
+			}
 		    }
-		  else
+		  else if (ic_type == "perturbed_bar")
 		    {
-		      phi_box(INTVECT,0) = 0.;     
-		      phi_box(INTVECT,1) = 1.;     
+		      //
+		      // perturbed bar IC
+		      //
+		      phi_box_old(INTVECT,0) = 0.; // good practice to initialize all new memory
+		      phi_box_old(INTVECT,1) = 0.; // good practice to initialize all new memory
+
+		      amrex::Real pi = 3.14159265359;
+		      amrex::Real bdry  = 0.25 * sin(2.*x*pi);
+
+		      if (y > -0.5+bdry && y < 0.5+bdry)
+
+			{
+			  phi_box(INTVECT,0) = 1.;     
+			  phi_box(INTVECT,1) = 0.;     
+			}
+		      else
+			{
+			  phi_box(INTVECT,0) = 0.;     
+			  phi_box(INTVECT,1) = 1.;     
+			}
+		    }
+		  else if (ic_type == "random")
+		    {
+		      phi_box(INTVECT,0) = ((amrex::Real)rand())/((amrex::Real)RAND_MAX);
+		      phi_box(INTVECT,1) = 1.0 - phi_box(INTVECT,0);
 		    }
 
 
