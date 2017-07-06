@@ -1,7 +1,7 @@
 
 amr.max_grid_size = 10000
 #max_step = 1000
-stop_time = 10.0
+stop_time = 20.0
 amr.plot_file = myoutput
 amr.plot_int = 10
 
@@ -28,12 +28,26 @@ pf.number_of_grains = 2
 pf.M = 1.0 
 pf.mu = 10.0
 pf.gamma = 1.0
-pf.sigma0=0.01
-pf.l_gb=0.1
+pf.sigma0=0.1
+pf.l_gb=0.05
 
 anisotropy.on=1
-anisotropy.theta0=45 
+anisotropy.theta0=10
 anisotropy.sigma0=0.1
-anisotropy.sigma1=0.1
-anisotropy.tstart=3.0
+anisotropy.sigma1=1.0
+anisotropy.tstart=1.0
+#anisotropy.damp=0.275 # works for 45
+#anisotropy.damp=0.2805 # works for 40
+#anisotropy.damp=0.29 # works for 30
+#anisotropy.damp=0.30 # works for 25
+#anisotropy.damp=0.4 # works for 25
+#anisotropy.damp=0.4 # works for 15
+#anisotropy.damp=0.36 # works for 10
+
+anisotropy.damp=0.38
+
+
+#ic.type=perturbed_bar
+ic.type=circle
+
 
