@@ -92,12 +92,16 @@ private:
 
   const int nghost = 2;
 
+  std::string ic_type;
+
   // Voronoi
   amrex::Array<amrex::Real> voronoi_x;
   amrex::Array<amrex::Real> voronoi_y;
 #if BL_SPACEDIM==3
   amrex::Array<amrex::Real> voronoi_z;
 #endif
+
+  amrex::Real damp;
 
   // Boundary functor
   PFBoundary *boundary;// = PFBoundarySin();
