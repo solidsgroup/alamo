@@ -170,7 +170,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       if (anisotropy)
 		 {
 		   amrex::Real Theta = atan2(grad2,grad1);
-
 		   amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
 		   amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
 		   amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
@@ -189,10 +188,8 @@ PFAmr::Advance (int lev, Real time, Real dt)
 			 M*dt*(Mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
 				   - 1.0 +
 				   2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
-			       - (
-				  Kappa*laplacian
-				  //+ DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-				  //+ damp*0.5*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22)
+			       - (Kappa*laplacian
+				  + DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
 				  + damp*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22)
 				  )
 			       );
@@ -202,14 +199,14 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		       new_phi(amrex::IntVect(i,j),m) =
 			 old_phi(amrex::IntVect(i,j),m) -
 			 M*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
-				   - 1.0 + 2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
+				   - 1.0
+				   + 2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 			       - kappa*laplacian);
 		     }
 
 
-		   new_phi(amrex::IntVect(i,j),number_of_grains) = DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);//DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11));
-		   //new_phi(amrex::IntVect(i,j),number_of_grains+1) = DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11));
-
+		   new_phi(amrex::IntVect(i,j),number_of_grains) = DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);//*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11));
+		   new_phi(amrex::IntVect(i,j),number_of_grains+1) = sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22;//*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);
 		 }
 	       else
 		 {
