@@ -103,6 +103,11 @@ private:
 
   amrex::Real damp;
 
+  int bc_hi[BL_SPACEDIM];
+  int bc_lo[BL_SPACEDIM];
+
+
+
   // Boundary functor
   PFBoundary *boundary;// = PFBoundarySin();
 };
