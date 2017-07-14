@@ -20,16 +20,16 @@ public:
   };
   amrex::Real W(amrex::Real theta)
   {
-    
-    return sin(2.0*(theta-theta0))*sin(2.0*(theta-theta0))*sigma1+sigma0;
+    //return sin(2.0*(theta-theta0))*sin(2.0*(theta-theta0))*sigma1+sigma0;
+    return sigma0 + 0.5*sigma1*(1.0 - cos(4.0*(theta-theta0)));
   };
   amrex::Real DW(amrex::Real theta)
   {
-    return 4.0*sigma1*sin(2.0*(theta-theta0))*cos(2.0*(theta-theta0));
+    //return 4.0*sigma1*sin(2.0*(theta-theta0))*cos(2.0*(theta-theta0));
+    return 2.0*sigma1*sin(4.0*(theta-theta0));
   };
   amrex::Real DDW(amrex::Real theta)
   {
-    
     return 8.0*sigma1*cos(4.0*(theta-theta0));
   };
   
