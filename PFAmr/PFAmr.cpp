@@ -2,9 +2,11 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_FillPatchUtil.H>
+#include <AMReX_BC_TYPES.H>
 
 #include <PFAmr.H>
 #include <PFAmrBC.H>
+
 
 using namespace amrex;
 
@@ -63,6 +65,38 @@ PFAmr::PFAmr ()
     pp.query("type", ic_type);
   }
 
+  {
+    ParmParse pp("bc");
+    Array<std::string> bc_hi_str(BL_SPACEDIM);
+    Array<std::string> bc_lo_str(BL_SPACEDIM);
+    pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+    pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+    for (int i=0;i<BL_SPACEDIM;i++)
+      {
+	if (bc_hi_str[i] == "REFLECT_ODD"  ) bc_hi[i] = REFLECT_ODD; 
+	if (bc_hi_str[i] == "INT_DIR"	   ) bc_hi[i] = INT_DIR;
+	if (bc_hi_str[i] == "REFLECT_EVEN" ) bc_hi[i] = REFLECT_EVEN;
+	if (bc_hi_str[i] == "FOEXTRAP"	   ) bc_hi[i] = FOEXTRAP;
+	if (bc_hi_str[i] == "EXT_DIR"	   ) bc_hi[i] = EXT_DIR;
+	if (bc_hi_str[i] == "HOEXTRAP"	   ) bc_hi[i] = HOEXTRAP;
+
+	if (bc_lo_str[i] == "REFLECT_ODD"  ) bc_lo[i] = REFLECT_ODD;
+	if (bc_lo_str[i] == "INT_DIR"	   ) bc_lo[i] = INT_DIR;
+	if (bc_lo_str[i] == "REFLECT_EVEN" ) bc_lo[i] = REFLECT_EVEN;
+	if (bc_lo_str[i] == "FOEXTRAP"	   ) bc_lo[i] = FOEXTRAP;
+	if (bc_lo_str[i] == "EXT_DIR"	   ) bc_lo[i] = EXT_DIR;
+	if (bc_lo_str[i] == "HOEXTRAP"	   ) bc_lo[i] = HOEXTRAP;
+      }
+    
+    // todo -- add ability to specify Dirichlet/Neumann BC values
+    Array<amrex::Real> bc_hi_val(BL_SPACEDIM);
+    Array<amrex::Real> bc_lo_val(BL_SPACEDIM);
+    for (int i=0;i<BL_SPACEDIM;i++)
+      {
+	pp.queryarr("hi_val",bc_hi_val,0,BL_SPACEDIM);
+	pp.queryarr("lo_val",bc_lo_val,0,BL_SPACEDIM);
+      }
+  }
 
 
   int nlevs_max = maxLevel() + 1;
@@ -209,7 +243,7 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
       Array<Real> stime;
       GetData(0, time, smf, stime);
 
-      PFAmrPhysBC physbc(geom[lev]);
+      PFAmrPhysBC physbc(geom[lev],bc_lo,bc_hi);
       for (int n = 0; n<number_of_fabs; n++)
 	{
 	  amrex::FillPatchSingleLevel(*mf[n], time, smf[n], stime, 0, icomp, mf[n]->nComp(),
@@ -225,21 +259,20 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
       GetData(lev-1, time, cmf, ctime);
       GetData(lev  , time, fmf, ftime);
 
-      PFAmrPhysBC cphysbc(geom[lev]), fphysbc(geom[lev]);
+      PFAmrPhysBC cphysbc(geom[lev],bc_lo,bc_hi), fphysbc(geom[lev],bc_lo,bc_hi);
       Interpolater* mapper = &cell_cons_interp;
 
-      int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaries
-      int hi_bc[] = {INT_DIR, INT_DIR, INT_DIR};
-      //Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
+      // int lo_bc[] = {INT_DIR, EXT_DIR, INT_DIR}; 
+      // int hi_bc[] = {INT_DIR, EXT_DIR, INT_DIR};
+      // Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
 
       for (int n = 0; n<number_of_fabs; n++)
 	{
-	  Array<BCRec> bcs(mf[n]->nComp(), BCRec(lo_bc, hi_bc)); // todo
+	  Array<BCRec> bcs(mf[n]->nComp(), BCRec(bc_lo, bc_hi)); // todo
 	  amrex::FillPatchTwoLevels(*mf[n], time, cmf[n], ctime, fmf[n], ftime,
 				    0, icomp, mf[n]->nComp(), geom[lev-1], geom[lev],
 				    cphysbc, fphysbc, refRatio(lev-1),
 				    mapper, bcs);
-
 	}
     }
 }
@@ -258,17 +291,17 @@ PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
       amrex::Abort("FillCoarsePatch: how did this happen?");
 
 
-  PFAmrPhysBC cphysbc(geom[lev]), fphysbc(geom[lev]);
+  PFAmrPhysBC cphysbc(geom[lev],bc_lo,bc_hi), fphysbc(geom[lev],bc_lo,bc_hi);
   //PhysBCFunct cphysbc, fphysbc;
   Interpolater* mapper = &cell_cons_interp;
     
-  int lo_bc[] = {INT_DIR, INT_DIR, INT_DIR}; // periodic boundaries
-  int hi_bc[] = {INT_DIR, INT_DIR, INT_DIR};
+  // int lo_bc[] = {INT_DIR, EXT_DIR, INT_DIR}; 
+  // int hi_bc[] = {INT_DIR, EXT_DIR, INT_DIR};
   //Array<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
 
   for (int n = 0; n < number_of_fabs; n++)
     {
-      Array<BCRec> bcs(ncomp, BCRec(lo_bc, hi_bc));
+      Array<BCRec> bcs(ncomp, BCRec(bc_lo, bc_hi));
       amrex::InterpFromCoarseLevel(mf, time, *cmf[n][0], 0, icomp, ncomp, geom[lev-1], geom[lev],
 				   cphysbc, fphysbc, refRatio(lev-1),
 				   mapper, bcs);
