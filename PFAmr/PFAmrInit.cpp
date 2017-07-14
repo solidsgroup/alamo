@@ -48,7 +48,7 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
   t_old[lev] = t - 1.e200;
 
   const Real* dx = geom[lev].CellSize();
-  const Real* prob_lo = geom[lev].ProbLo();
+  const amrex::Real width = geom[lev].ProbHi()[0] - geom[lev].ProbHi()[1];
   Real cur_time = t_new[lev];
   for (MFIter mfi(*phi_new[0][lev],true); mfi.isValid(); ++mfi)
     {
@@ -100,9 +100,20 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 		      phi_box_old(INTVECT,1) = 0.; // good practice to initialize all new memory
 
 		      amrex::Real pi = 3.14159265359;
-		      amrex::Real bdry  = 0.25 * sin(2.*x*pi);
+		      amrex::Real bdry  =
+			+ 0.1 * sin(x*(2*pi)/width)
+			+ 0.1 * cos(2.0*x*(2*pi)/width)
+			+ 0.1 * sin(3.0*x*(2*pi)/width)
+			+ 0.1 * cos(4.0*x*(2*pi)/width)
+			+ 0.1 * sin(5.0*x*(2*pi)/width)
+			+ 0.15 * cos(6.0*x*(2*pi)/width)
+			+ 0.15 * sin(7.0*x*(2*pi)/width)
+			+ 0.15 * cos(8.0*x*(2*pi)/width)
+			+ 0.15 * sin(9.0*x*(2*pi)/width)
+			+ 0.15 * cos(10.0*x*(2*pi)/width)
+			;
 
-		      if (y > -0.5+bdry && y < 0.5+bdry)
+		      if (y < bdry)
 
 			{
 			  phi_box(INTVECT,0) = 1.;     
@@ -160,16 +171,13 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 		  phi_box(INTVECT,number_of_grains+1) = 0;
 		}	      
 
-
-
-
-
 	      phi_box_old(INTVECT,number_of_grains) = 0;   // Good practice to initialize
 	      phi_box_old(INTVECT,number_of_grains+1) = 0; // all newly created data
+
 	    }
     }
 
-  PFAmrPhysBC physbc(geom[lev]);
+  PFAmrPhysBC physbc(geom[lev],bc_lo,bc_hi);
   physbc.FillBoundary(*phi_new[0][lev],0,0,t);
   physbc.FillBoundary(*phi_old[0][lev],0,0,t);
 }
