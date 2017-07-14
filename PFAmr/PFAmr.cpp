@@ -11,6 +11,7 @@
 using namespace amrex;
 
 PFAmr::PFAmr ()
+bc_hi(BL_SPACEDIM)
 {
   //
   // READ INPUT PARAMETERS
