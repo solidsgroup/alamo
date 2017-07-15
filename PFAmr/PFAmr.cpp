@@ -11,7 +11,7 @@
 using namespace amrex;
 
 PFAmr::PFAmr ()
-bc_hi(BL_SPACEDIM)
+  : physbc(geom)
 {
   //
   // READ INPUT PARAMETERS
@@ -64,39 +64,6 @@ bc_hi(BL_SPACEDIM)
   {
     ParmParse pp("ic"); // Phase-field model parameters
     pp.query("type", ic_type);
-  }
-
-  {
-    ParmParse pp("bc");
-    Array<std::string> bc_hi_str(BL_SPACEDIM);
-    Array<std::string> bc_lo_str(BL_SPACEDIM);
-    pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
-    pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
-    for (int i=0;i<BL_SPACEDIM;i++)
-      {
-	if (bc_hi_str[i] == "REFLECT_ODD"  ) bc_hi[i] = REFLECT_ODD; 
-	if (bc_hi_str[i] == "INT_DIR"	   ) bc_hi[i] = INT_DIR;
-	if (bc_hi_str[i] == "REFLECT_EVEN" ) bc_hi[i] = REFLECT_EVEN;
-	if (bc_hi_str[i] == "FOEXTRAP"	   ) bc_hi[i] = FOEXTRAP;
-	if (bc_hi_str[i] == "EXT_DIR"	   ) bc_hi[i] = EXT_DIR;
-	if (bc_hi_str[i] == "HOEXTRAP"	   ) bc_hi[i] = HOEXTRAP;
-
-	if (bc_lo_str[i] == "REFLECT_ODD"  ) bc_lo[i] = REFLECT_ODD;
-	if (bc_lo_str[i] == "INT_DIR"	   ) bc_lo[i] = INT_DIR;
-	if (bc_lo_str[i] == "REFLECT_EVEN" ) bc_lo[i] = REFLECT_EVEN;
-	if (bc_lo_str[i] == "FOEXTRAP"	   ) bc_lo[i] = FOEXTRAP;
-	if (bc_lo_str[i] == "EXT_DIR"	   ) bc_lo[i] = EXT_DIR;
-	if (bc_lo_str[i] == "HOEXTRAP"	   ) bc_lo[i] = HOEXTRAP;
-      }
-    
-    // todo -- add ability to specify Dirichlet/Neumann BC values
-    Array<amrex::Real> bc_hi_val(BL_SPACEDIM);
-    Array<amrex::Real> bc_lo_val(BL_SPACEDIM);
-    for (int i=0;i<BL_SPACEDIM;i++)
-      {
-	pp.queryarr("hi_val",bc_hi_val,0,BL_SPACEDIM);
-	pp.queryarr("lo_val",bc_lo_val,0,BL_SPACEDIM);
-      }
   }
 
 
@@ -244,7 +211,8 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
       Array<Real> stime;
       GetData(0, time, smf, stime);
 
-      PFAmrPhysBC physbc(geom[lev],bc_lo,bc_hi);
+      //PFAmrPhysBC physbc(geom);
+      physbc.SetLevel(lev);
       for (int n = 0; n<number_of_fabs; n++)
 	{
 	  amrex::FillPatchSingleLevel(*mf[n], time, smf[n], stime, 0, icomp, mf[n]->nComp(),
@@ -260,7 +228,10 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
       GetData(lev-1, time, cmf, ctime);
       GetData(lev  , time, fmf, ftime);
 
-      PFAmrPhysBC cphysbc(geom[lev],bc_lo,bc_hi), fphysbc(geom[lev],bc_lo,bc_hi);
+      //PFAmrPhysBC cphysbc(geom,bc_lo,bc_hi), fphysbc(geom,bc_lo,bc_hi);
+      // cphysbc.SetLevel(lev);
+      // fphysbc.SetLevel(lev);
+      physbc.SetLevel(lev);
       Interpolater* mapper = &cell_cons_interp;
 
       // int lo_bc[] = {INT_DIR, EXT_DIR, INT_DIR}; 
@@ -269,10 +240,13 @@ PFAmr::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int
 
       for (int n = 0; n<number_of_fabs; n++)
 	{
-	  Array<BCRec> bcs(mf[n]->nComp(), BCRec(bc_lo, bc_hi)); // todo
+	  //Array<BCRec> bcs(mf[n]->nComp(), BCRec(bc_lo, bc_hi)); 
+	  Array<BCRec> bcs(mf[n]->nComp(), physbc.GetBCRec()); // todo
 	  amrex::FillPatchTwoLevels(*mf[n], time, cmf[n], ctime, fmf[n], ftime,
 				    0, icomp, mf[n]->nComp(), geom[lev-1], geom[lev],
-				    cphysbc, fphysbc, refRatio(lev-1),
+				    //cphysbc, fphysbc,
+				    physbc, physbc,
+				    refRatio(lev-1),
 				    mapper, bcs);
 	}
     }
@@ -292,7 +266,10 @@ PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
       amrex::Abort("FillCoarsePatch: how did this happen?");
 
 
-  PFAmrPhysBC cphysbc(geom[lev],bc_lo,bc_hi), fphysbc(geom[lev],bc_lo,bc_hi);
+  // PFAmrPhysBC cphysbc(geom,bc_lo,bc_hi), fphysbc(geom,bc_lo,bc_hi);
+  // cphysbc.SetLevel(lev);
+  // fphysbc.SetLevel(lev);
+  physbc.SetLevel(lev);
   //PhysBCFunct cphysbc, fphysbc;
   Interpolater* mapper = &cell_cons_interp;
     
@@ -302,9 +279,12 @@ PFAmr::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
 
   for (int n = 0; n < number_of_fabs; n++)
     {
-      Array<BCRec> bcs(ncomp, BCRec(bc_lo, bc_hi));
+      //Array<BCRec> bcs(ncomp, BCRec(bc_lo, bc_hi));
+      Array<BCRec> bcs(ncomp, physbc.GetBCRec());
       amrex::InterpFromCoarseLevel(mf, time, *cmf[n][0], 0, icomp, ncomp, geom[lev-1], geom[lev],
-				   cphysbc, fphysbc, refRatio(lev-1),
+				   //cphysbc, fphysbc,
+				   physbc, physbc,
+				   refRatio(lev-1),
 				   mapper, bcs);
 
     }
