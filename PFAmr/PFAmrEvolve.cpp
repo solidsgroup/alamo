@@ -164,12 +164,18 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       
 	       // Rotated stencils (5 Points)
 	       
-	       amrex::Real grad1  = (0.5*(-old_phi(amrex::IntVect(i+2,j),m)+8*old_phi(amrex::IntVect(i+1,j),m) -8*old_phi(amrex::IntVect(i-1,j),m)+old_phi(amrex::IntVect(i-2,j),m))+0.25*(-old_phi(amrex::IntVect(i+2,j+2),m)+8*old_phi(amrex::IntVect(i+1,j+1),m) -8*old_phi(amrex::IntVect(i-1,j-1),m)+old_phi(amrex::IntVect(i-2,j-2),m)+old_phi(amrex::IntVect(i-2,j+2),m)-8*old_phi(amrex::IntVect(i-1,j+1),m) +8*old_phi(amrex::IntVect(i+1,j-1),m)-old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[0]); // 5 point
+	       amrex::Real grad1  =
+		 (0.5*(-old_phi(amrex::IntVect(i+2,j),m)+8*old_phi(amrex::IntVect(i+1,j),m) -8*old_phi(amrex::IntVect(i-1,j),m)+old_phi(amrex::IntVect(i-2,j),m))
+		  +0.25*(-old_phi(amrex::IntVect(i+2,j+2),m)+8*old_phi(amrex::IntVect(i+1,j+1),m) -8*old_phi(amrex::IntVect(i-1,j-1),m)+old_phi(amrex::IntVect(i-2,j-2),m)+old_phi(amrex::IntVect(i-2,j+2),m)-8*old_phi(amrex::IntVect(i-1,j+1),m) +8*old_phi(amrex::IntVect(i+1,j-1),m)-old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[0]); // 5 point
 	       
-	       amrex::Real grad2  = (0.5*(-old_phi(amrex::IntVect(i,j+2),m)+8*old_phi(amrex::IntVect(i,j+1),m) -8*old_phi(amrex::IntVect(i,j-1),m)+old_phi(amrex::IntVect(i,j-2),m))+0.25*(-old_phi(amrex::IntVect(i+2,j+2),m)+8*old_phi(amrex::IntVect(i+1,j+1),m) -8*old_phi(amrex::IntVect(i-1,j-1),m)+old_phi(amrex::IntVect(i-2,j-2),m)-old_phi(amrex::IntVect(i-2,j+2),m)+8*old_phi(amrex::IntVect(i-1,j+1),m) -8*old_phi(amrex::IntVect(i+1,j-1),m)+old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[0]); // 5 point
+	       amrex::Real grad2  =
+		 (0.5*(-old_phi(amrex::IntVect(i,j+2),m)+8*old_phi(amrex::IntVect(i,j+1),m) -8*old_phi(amrex::IntVect(i,j-1),m)+old_phi(amrex::IntVect(i,j-2),m))
+		  +0.25*(-old_phi(amrex::IntVect(i+2,j+2),m)+8*old_phi(amrex::IntVect(i+1,j+1),m) -8*old_phi(amrex::IntVect(i-1,j-1),m)+old_phi(amrex::IntVect(i-2,j-2),m)-old_phi(amrex::IntVect(i-2,j+2),m)+8*old_phi(amrex::IntVect(i-1,j+1),m) -8*old_phi(amrex::IntVect(i+1,j-1),m)+old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[0]); // 5 point
 	       
-	       amrex::Real grad11 = (0.5*(-old_phi(amrex::IntVect(i+2,j),m)+16*old_phi(amrex::IntVect(i+1,j),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j),m)-old_phi(amrex::IntVect(i-2,j),m))+0.25*sqrt(2)*(-old_phi(amrex::IntVect(i+2,j+2),m)+16*old_phi(amrex::IntVect(i+1,j+1),m)+16*old_phi(amrex::IntVect(i-1,j-1),m)-old_phi(amrex::IntVect(i-2,j-2),m)+old_phi(amrex::IntVect(i+2,j),m)-16*old_phi(amrex::IntVect(i+1,j),m)-16*old_phi(amrex::IntVect(i-1,j),m)+old_phi(amrex::IntVect(i-2,j),m)))/(12*dx[0]*dx[0]);
-	       amrex::Real grad22 = (0.5*(-old_phi(amrex::IntVect(i,j+2),m)+16*old_phi(amrex::IntVect(i,j+1),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i,j-1),m)-old_phi(amrex::IntVect(i,j-2),m))+0.25*sqrt(2)*(-old_phi(amrex::IntVect(i+2,j+2),m)+16*old_phi(amrex::IntVect(i+1,j+1),m)+16*old_phi(amrex::IntVect(i-1,j-1),m)-old_phi(amrex::IntVect(i-2,j-2),m)-old_phi(amrex::IntVect(i+2,j),m)+16*old_phi(amrex::IntVect(i+1,j),m)-60*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j),m)-old_phi(amrex::IntVect(i-2,j),m)))/(12*dx[1]*dx[1]); 
+	       amrex::Real grad11 =
+		 (0.5*(-old_phi(amrex::IntVect(i+2,j),m)+16*old_phi(amrex::IntVect(i+1,j),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j),m)-old_phi(amrex::IntVect(i-2,j),m))+0.25*sqrt(2)*(-old_phi(amrex::IntVect(i+2,j+2),m)+16*old_phi(amrex::IntVect(i+1,j+1),m)+16*old_phi(amrex::IntVect(i-1,j-1),m)-old_phi(amrex::IntVect(i-2,j-2),m)+old_phi(amrex::IntVect(i-2,j+2),m)-16*old_phi(amrex::IntVect(i-1,j+1),m)-16*old_phi(amrex::IntVect(i+1,j-1),m)+old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[0]*dx[0]);
+	       
+	       amrex::Real grad22 = (0.5*(-old_phi(amrex::IntVect(i,j+2),m)+16*old_phi(amrex::IntVect(i,j+1),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i,j-1),m)-old_phi(amrex::IntVect(i,j-2),m))+0.25*sqrt(2)*(-old_phi(amrex::IntVect(i+2,j+2),m)+16*old_phi(amrex::IntVect(i+1,j+1),m)+16*old_phi(amrex::IntVect(i-1,j-1),m)-old_phi(amrex::IntVect(i-2,j-2),m)-old_phi(amrex::IntVect(i-2,j+2),m)+16*old_phi(amrex::IntVect(i-1,j+1),m)-60*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i+1,j-1),m)-old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[1]*dx[1]); 
 	       
 	       amrex::Real laplacian = grad11 + grad22;
 
