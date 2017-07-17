@@ -101,7 +101,7 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 
 		      amrex::Real pi = 3.14159265359;
 		      amrex::Real bdry  =
-			+ 0.1 * sin(x*(2*pi)/width)
+			(+ 0.1 * sin(x*(2*pi)/width)
 			+ 0.1 * cos(2.0*x*(2*pi)/width)
 			+ 0.1 * sin(3.0*x*(2*pi)/width)
 			+ 0.1 * cos(4.0*x*(2*pi)/width)
@@ -110,7 +110,7 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 			+ 0.15 * sin(7.0*x*(2*pi)/width)
 			+ 0.15 * cos(8.0*x*(2*pi)/width)
 			+ 0.15 * sin(9.0*x*(2*pi)/width)
-			+ 0.15 * cos(10.0*x*(2*pi)/width)
+			 + 0.15 * cos(10.0*x*(2*pi)/width))*0.05
 			;
 
 		      if (y < bdry)
@@ -177,7 +177,9 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 	    }
     }
 
-  PFAmrPhysBC physbc(geom[lev],bc_lo,bc_hi);
+  
+  //PFAmrPhysBC physbc(geom,bc_lo,bc_hi);
+  physbc.SetLevel(lev);
   physbc.FillBoundary(*phi_new[0][lev],0,0,t);
   physbc.FillBoundary(*phi_old[0][lev],0,0,t);
 }
