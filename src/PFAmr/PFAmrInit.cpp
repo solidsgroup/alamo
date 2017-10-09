@@ -110,7 +110,7 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 			+ 0.15 * sin(7.0*x*(2*pi)/width)
 			+ 0.15 * cos(8.0*x*(2*pi)/width)
 			+ 0.15 * sin(9.0*x*(2*pi)/width)
-			 + 0.15 * cos(10.0*x*(2*pi)/width))*0.05
+			 + 0.15 * cos(10.0*x*(2*pi)/width))*0.1
 			;
 
 		      if (y < bdry)

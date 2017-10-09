@@ -43,7 +43,7 @@ PFAmr::PFAmr ()
     pp.query("l_gb", l_gb);
   }
   {
-    amrex::Real theta0,sigma0,sigma1;
+    amrex::Real theta0,sigma0,sigma1,beta;
     //std::string filename;
     
     ParmParse pp("anisotropy"); // Phase-field model parameters
@@ -53,6 +53,7 @@ PFAmr::PFAmr ()
     theta0 *= 0.01745329251; // convert degrees into radians
     pp.query("sigma0", sigma0);
     pp.query("sigma1", sigma1);
+    pp.query("beta", beta);
     pp.query("tstart", tstart);
     pp.query("damp", damp);
     //boundary = new PFBoundaryTab(filename);
