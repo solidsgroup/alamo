@@ -263,7 +263,9 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
 		   amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
 		   amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
-		   amrex::Real beta= 0.0000035;
+		   amrex::Real beta= 0.00002;
+		   amrex::Real beta2 = 1*beta;
+		   amrex::Real timebeta = 30;
 		   //amrex::Real Mu = mu;
 		   //amrex::Real beta = -beta; 
 
@@ -288,25 +290,33 @@ PFAmr::Advance (int lev, Real time, Real dt)
 				     +grad2222*(cos(Theta)*cos(Theta)*cos(Theta)*cos(Theta))) 
 			       );
 		     }
-		   else
+		   else if (time>timebeta)// beta change
 		     {
-		       new_phi(amrex::IntVect(i,j),m) =
+		    new_phi(amrex::IntVect(i,j),m) =
 			 old_phi(amrex::IntVect(i,j),m) -
-			 M*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
-				   - 1.0
-				   + 2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
-			       - kappa*laplacian);
+			 M*dt*(Mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
+				   - 1.0 +
+				   2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
+			       - (Kappa*laplacian
+				  + DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
+				  + damp*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22))+
+			       beta2*(grad1111*(sin(Theta)*sin(Theta)*sin(Theta)*sin(Theta))
+				     +grad1112*(-4*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
+				     +grad1122*(6*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
+				     +grad1222*(-4*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
+				     +grad2222*(cos(Theta)*cos(Theta)*cos(Theta)*cos(Theta))) 
+			       );
 		     }
-
-
+		 
+		 
 		   //  new_phi(amrex::IntVect(i,j),number_of_grains) = DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);//*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11));
 		   // new_phi(amrex::IntVect(i,j),number_of_grains+1) = sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22;//*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);
-		 }
+		 
 	       else
 		 {
 		   new_phi(amrex::IntVect(i,j),m) =
 		     old_phi(amrex::IntVect(i,j),m) -
-		     M*dt*(mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
+		     M*dt*(Mu*(old_phi(amrex::IntVect(i,j),m)*old_phi(amrex::IntVect(i,j),m)
 			       - 1.0 +
 			       2.0*gamma*sum_of_squares)*old_phi(amrex::IntVect(i,j),m)
 			   - kappa*laplacian);
@@ -318,7 +328,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       // Boundary field
 
 	       //new_phi(amrex::IntVect(i,j),number_of_grains+1) += sqrt(grad1*grad1 + grad2*grad2);
-
+		 }
 	     }
 
 	 }
