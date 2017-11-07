@@ -19,7 +19,7 @@ OBJ = ${SRC:.cpp=.o}
 alamo: ${OBJ}
 	mpicxx -o bin/alamo ${OBJ} ${LIB} ${CXX_LINK_FLAGS} ${MPICXX_LINK_FLAGS} -lgfortran ${MPIFORT_LINK_FLAGS}
 %.o: %.cpp ${HDR}
-	${CC} -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	mpicxx -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 clean:
 	find src/ -name "*.o" -exec rm {} \;
