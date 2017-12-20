@@ -13,8 +13,8 @@
 #include <AMReX_FluxRegister.H>
 
 #include "PFAmrBC.H"
-#include "PFBoundary.H"
-#include "PFBoundarySin.H"
+#include "../PFBoundary/PFBoundary.H"
+#include "../PFBoundary/PFBoundarySin.H"
 
 #define DEBUG std::cout << "Proc " << amrex::ParallelDescriptor::MyProc() << " :: "<< __FILE__ << ":" << __LINE__ << std::endl;
 
