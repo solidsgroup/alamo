@@ -16,8 +16,8 @@ HDR = src/PFAmr/PFAmr.H src/PFBoundary/PFBoundary.H src/PFBoundary/PFBoundarySin
 SRC = src/main.cpp src/PFAmr/PFAmr.cpp src/PFAmr/PFAmrError.cpp src/PFAmr/PFAmrEvolve.cpp src/PFAmr/PFAmrInit.cpp src/PFAmr/PFAmrIO.cpp 
 OBJ = ${SRC:.cpp=.o}
 
-alamo: ${OBJ}
-	mkdir bin
+bin/alamo: ${OBJ}
+	mkdir -p bin
 	mpicxx -o bin/alamo ${OBJ} ${LIB} ${CXX_LINK_FLAGS} ${MPICXX_LINK_FLAGS} -lgfortran ${MPIFORT_LINK_FLAGS}
 %.o: %.cpp ${HDR}
 	mpicxx -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
