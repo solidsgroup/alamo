@@ -5,11 +5,13 @@
 
 int main (int argc, char* argv[])
 {
+  std::cout << std::endl << "HERE" << std::endl << std::endl;
+
   amrex::Initialize(argc, argv);
 
   {
-    BL_PROFILE("main");
     MyTest mytest;
+    
     mytest.solve();
     mytest.writePlotfile();
   }

@@ -42,6 +42,7 @@ private:
     amrex::Vector<amrex::DistributionMapping> dmap;
 
     amrex::Vector<amrex::MultiFab> solution;
+    amrex::Vector<amrex::MultiFab> bcdata;
     amrex::Vector<amrex::MultiFab> rhs;
     amrex::Vector<amrex::MultiFab> exact_solution;
     amrex::Vector<amrex::MultiFab> acoef;
