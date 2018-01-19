@@ -18,8 +18,8 @@ PFAmr::Evolve ()
 	std::cout << "\nSTEP " << step+1 << " starts ..." << std::endl;
       }
       int lev = 0;
-      int iteration = 1;
-      TimeStep(lev, cur_time, iteration);
+      //int iteration = 1;
+      TimeStep(lev, cur_time/*, iteration*/);
       cur_time += dt[0];
 
       if (ParallelDescriptor::IOProcessor()) {
@@ -47,7 +47,7 @@ PFAmr::Evolve ()
 }
 
 void
-PFAmr::TimeStep (int lev, Real time, int iteration)
+PFAmr::TimeStep (int lev, Real time/*, int iteration*/)
 {
 
   if (regrid_int > 0)  // We may need to regrid
@@ -97,7 +97,7 @@ PFAmr::TimeStep (int lev, Real time, int iteration)
       // {
       //    TimeStep(lev+1, time+(i-1)*dt[lev+1], i);
       // }
-      TimeStep(lev+1, time, 1);
+      TimeStep(lev+1, time/*, 1*/);
       for (int n = 0; n < number_of_fabs; n++)
 	{
 	  amrex::average_down(*phi_new[n][lev+1], *phi_new[n][lev],
