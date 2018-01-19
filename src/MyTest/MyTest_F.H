@@ -7,11 +7,6 @@
 extern "C" {
 #endif
 
-    void actual_init_poisson(const int* lo, const int* hi,
-                             amrex_real* rhs, const int* rlo, const int* rhi,
-                             amrex_real* exact, const int* elo, const int* ehi,
-                             const amrex_real* problo, const amrex_real* probhi, const amrex_real* dx);
-
     void actual_init_abeclap(const int* lo, const int* hi, const int* glo, const int* ghi,
                              amrex_real* rhs, const int* rlo, const int* rhi,
                              amrex_real* exact, const int* elo, const int* ehi,
