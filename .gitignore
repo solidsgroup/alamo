@@ -1,0 +1,7 @@
+Backtrace*
+*.mpg
+*.o
+results
+bin
+*.mod
+.\#*
