@@ -51,11 +51,11 @@ public:
 
     }
   }
-  PFAmrPhysBC (amrex::Array<amrex::Geometry> &_geom, int *bc_lo, int *bc_hi) : geom(_geom)
-  {
-    std::cout << "WARNING -- USING AN EMPTY FUNCTION" << std::endl;
-  }
-  virtual ~PFAmrPhysBC () {}
+
+  // TODO - UPDATE THIS
+  //PFAmrPhysBC (amrex::Array<amrex::Geometry> &_geom, int *bc_lo, int *bc_hi) : geom(_geom)  {}
+  //virtual ~PFAmrPhysBC () {}
+
   virtual void FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real time) override
   {
     amrex::Box domain(geom[lev].Domain());
@@ -68,7 +68,6 @@ public:
 
 	amrex::BaseFab<amrex::Real> &phi_box = mf[mfi];
 
-	//bool print = true;
 	for (int i = box.loVect()[0] - mf.nGrow(); i<=box.hiVect()[0] + mf.nGrow(); i++)
 	  {
 	    for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++)

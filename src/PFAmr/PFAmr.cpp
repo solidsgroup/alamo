@@ -90,6 +90,8 @@ PFAmr::PFAmr ()
       phi_old[n].resize(nlevs_max);
     }
 
+  CreateCleanDirectory();
+
 
   // Voronoi
   voronoi_x.resize(number_of_grains);
@@ -97,6 +99,15 @@ PFAmr::PFAmr ()
 #if BL_SPACEDIM==3
   voronoi_z.resize(number_of_grains);
 #endif
+
+
+
+  //
+  
+
+
+
+
 //   if(ParallelDescriptor::IOProcessor())
 //     {
 
