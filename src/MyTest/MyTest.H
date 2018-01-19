@@ -16,9 +16,7 @@ private:
 
     void readParameters ();
     void initData ();
-    void initProbPoisson ();
     void initProbABecLaplacian ();
-    void solvePoisson ();
     void solveABecLaplacian ();
 
     int max_level = 1;
@@ -28,7 +26,7 @@ private:
     
     bool composite_solve = true;
 
-    int prob_type = 1;  // 1. Poisson,  2. ABecLaplacian
+    int prob_type = 2;  // 1. Poisson,  2. ABecLaplacian
 
     // For MLMG solver
     int verbose = 2;
