@@ -37,10 +37,10 @@ MyTest::solveABecLaplacian ()
       mlabec.setMaxOrder(linop_maxorder);
 
       // This is a 3d problem with homogeneous Neumann BC
-      mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,
+      mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Neumann,
 				       LinOpBCType::Dirichlet,
 				       LinOpBCType::Dirichlet)},
-			 {AMREX_D_DECL(LinOpBCType::Dirichlet,
+			 {AMREX_D_DECL(LinOpBCType::Neumann,
 				       LinOpBCType::Dirichlet,
 				       LinOpBCType::Dirichlet)});
 
@@ -71,12 +71,9 @@ MyTest::solveABecLaplacian ()
 	  // // for problem with pure homogeneous Neumann BC, we could pass a nullptr
 	  // mlabec.setLevelBC(ilev, nullptr);
 	  mlabec.setLevelBC(ilev,&bcdata[ilev]);
-      std::cout << __LINE__ << std::endl;
         }
 
-      std::cout << __LINE__ << std::endl;
       mlabec.setScalars(ascalar, bscalar);
-      std::cout << __LINE__ << std::endl;
 
       for (int ilev = 0; ilev < nlevels; ++ilev)
         {
@@ -86,7 +83,7 @@ MyTest::solveABecLaplacian ()
 	  for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
             {
 	      const BoxArray& ba = amrex::convert(bcoef[ilev].boxArray(),
-						  IntVect::TheDimensionVector(idim));
+						  IntVect::TheDimensionVector(idim)); 
 	      face_bcoef[idim].define(ba, bcoef[ilev].DistributionMap(), 1, 0);
             }
 	  amrex::average_cellcenter_to_face({AMREX_D_DECL(&face_bcoef[0],
