@@ -1,4 +1,4 @@
-
+#include <AMReX_Utility.H>
 #include <AMReX_PlotFileUtil.H>
 
 #include "PFAmr.H"
@@ -7,6 +7,12 @@
 
 
 using namespace amrex;
+
+void
+PFAmr::CreateCleanDirectory () const
+{
+  amrex::UtilCreateCleanDirectory(plot_file, false);
+}
 
 std::string
 PFAmr::PlotFileName (int lev) const
@@ -47,7 +53,7 @@ PFAmr::WritePlotFile () const
     if (ParallelDescriptor::IOProcessor())
       {
 	std::ofstream outfile;
-	if (istep[0]==0) outfile.open(plot_file+".visit",std::ios_base::out);
+	if (istep[0]==0) outfile.open(plot_file+"/output.visit",std::ios_base::out);
 	else outfile.open(plot_file+".visit",std::ios_base::app);
 	outfile << plotfilename + "/Header" << std::endl;
       }
