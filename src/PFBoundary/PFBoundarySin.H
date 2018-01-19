@@ -105,8 +105,9 @@ public:
  
     int i =(int)(2*theta);    
   
-    W= (energies[(i)%length_of_vector]);
+    W = (energies[(i)%length_of_vector]);
     
+    return W;
    // some interpolation function
 };
 
