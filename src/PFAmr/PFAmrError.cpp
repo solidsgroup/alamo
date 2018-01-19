@@ -9,7 +9,7 @@ void
 PFAmr::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
 {
   const Real* dx      = geom[lev].CellSize();
-  const Real* prob_lo = geom[lev].ProbLo();
+  //const Real* prob_lo = geom[lev].ProbLo();
 
   const MultiFab& state = *phi_new[0][lev];
   {

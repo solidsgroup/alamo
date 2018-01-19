@@ -91,9 +91,6 @@ public:
 	i++;
       }
     length_of_vector = thetas.size(); //or i, both should work
-
-
-
   };
 
   

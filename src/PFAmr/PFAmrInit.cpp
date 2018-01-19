@@ -47,9 +47,9 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
   t_new[lev] = t;
   t_old[lev] = t - 1.e200;
 
-  const Real* dx = geom[lev].CellSize();
+  //const Real* dx = geom[lev].CellSize();
   const amrex::Real width = geom[lev].ProbHi()[0] - geom[lev].ProbHi()[1];
-  Real cur_time = t_new[lev];
+  //Real cur_time = t_new[lev];
   for (MFIter mfi(*phi_new[0][lev],true); mfi.isValid(); ++mfi)
     {
       const Box& box = mfi.tilebox();
