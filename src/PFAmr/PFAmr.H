@@ -45,7 +45,7 @@ private:
 
   long CountCells (int lev);
 
-  void TimeStep (int lev, amrex::Real time, int iteration);
+  void TimeStep (int lev, amrex::Real time/*, int iteration*/);
   void Advance (int lev, amrex::Real time, amrex::Real dt);
 
   void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> >& mf, int icomp);
