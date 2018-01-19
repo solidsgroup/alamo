@@ -91,9 +91,6 @@ public:
 	i++;
       }
     length_of_vector = thetas.size(); //or i, both should work
-
-
-
   };
 
   
@@ -107,6 +104,7 @@ public:
   
     W= (energies[(i)%length_of_vector]);
     
+    return W;
    // some interpolation function
 };
 
