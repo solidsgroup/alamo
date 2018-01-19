@@ -52,6 +52,7 @@ private:
   void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, int icomp, int ncomp);
   void GetData (int lev, amrex::Real time, amrex::Array<amrex::Array<amrex::MultiFab*> >& data, amrex::Array<amrex::Real>& datatime);
 
+  void CreateCleanDirectory () const;
   std::string PlotFileName (int lev) const;
   amrex::Array<const amrex::MultiFab*> PlotFileMF (int grain) const;
   amrex::Array<std::string> PlotFileVarNames () const;
