@@ -1,9 +1,7 @@
-*.o
-alamo
 Backtrace*
-myoutput*
-*.session
-*.session.gui
-movie*
+*.mpg
+*.o
 results
-visit*
+bin
+*.mod
+.\#*
