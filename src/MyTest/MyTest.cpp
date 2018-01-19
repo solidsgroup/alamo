@@ -1,7 +1,6 @@
 #include "MyTest.H"
 
 #include <AMReX_MLABecLaplacian.H>
-#include <AMReX_MLPoisson.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
 
@@ -38,20 +37,46 @@ MyTest::solveABecLaplacian ()
       mlabec.setMaxOrder(linop_maxorder);
 
       // This is a 3d problem with homogeneous Neumann BC
-      mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Neumann,
-				       LinOpBCType::Neumann,
-				       LinOpBCType::Neumann)},
-	{AMREX_D_DECL(LinOpBCType::Neumann,
-		      LinOpBCType::Neumann,
-		      LinOpBCType::Neumann)});
+      mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,
+				       LinOpBCType::Dirichlet,
+				       LinOpBCType::Dirichlet)},
+			 {AMREX_D_DECL(LinOpBCType::Dirichlet,
+				       LinOpBCType::Dirichlet,
+				       LinOpBCType::Dirichlet)});
 
       for (int ilev = 0; ilev < nlevels; ++ilev)
         {
-	  // for problem with pure homogeneous Neumann BC, we could pass a nullptr
-	  mlabec.setLevelBC(ilev, nullptr);
+	  amrex::Box domain(geom[ilev].Domain());
+      
+	  for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
+	    {
+	      const Box& box = mfi.tilebox();
+
+	      amrex::BaseFab<amrex::Real> &bcdata_box = bcdata[ilev][mfi];
+
+	      for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
+		for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
+		  {
+		    if (j > domain.hiVect()[1]) // Top boundary
+		      {
+			bcdata_box(amrex::IntVect(i,j)) = 1.;
+		      }
+		    else
+		      bcdata_box(amrex::IntVect(i,j)) = 0.;
+		  }
+	    }
+
+	  solution[ilev].setVal(0.0);
+
+	  // // for problem with pure homogeneous Neumann BC, we could pass a nullptr
+	  // mlabec.setLevelBC(ilev, nullptr);
+	  mlabec.setLevelBC(ilev,&bcdata[ilev]);
+      std::cout << __LINE__ << std::endl;
         }
 
+      std::cout << __LINE__ << std::endl;
       mlabec.setScalars(ascalar, bscalar);
+      std::cout << __LINE__ << std::endl;
 
       for (int ilev = 0; ilev < nlevels; ++ilev)
         {
@@ -123,9 +148,9 @@ MyTest::initData ()
   dmap.resize(nlevels);
 
   solution.resize(nlevels);
+  bcdata.resize(nlevels);
   rhs.resize(nlevels);
   exact_solution.resize(nlevels);
-    
   acoef.resize(nlevels);
   bcoef.resize(nlevels);
 
@@ -154,6 +179,7 @@ MyTest::initData ()
       dmap[ilev].define(grids[ilev]);
       int nvar = 2;
       solution      [ilev].define(grids[ilev], dmap[ilev], nvar, 1);
+      bcdata        [ilev].define(grids[ilev], dmap[ilev], nvar, 1);
       rhs           [ilev].define(grids[ilev], dmap[ilev], nvar, 0);
       exact_solution[ilev].define(grids[ilev], dmap[ilev], nvar, 0);
       if (!acoef.empty()) {

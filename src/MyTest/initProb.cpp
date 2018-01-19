@@ -12,21 +12,24 @@ MyTest::initProbABecLaplacian ()
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
-      for (MFIter mfi(rhs[ilev], true); mfi.isValid(); ++mfi)
-        {
-	  const Box& bx = mfi.tilebox();
-	  const Box& gbx = mfi.growntilebox(1);
-	  actual_init_abeclap(BL_TO_FORTRAN_BOX(bx),
-			      BL_TO_FORTRAN_BOX(gbx),
-			      BL_TO_FORTRAN_ANYD(rhs[ilev][mfi]),
-			      BL_TO_FORTRAN_ANYD(exact_solution[ilev][mfi]),
-			      BL_TO_FORTRAN_ANYD(acoef[ilev][mfi]),
-			      BL_TO_FORTRAN_ANYD(bcoef[ilev][mfi]),
-			      ascalar, bscalar,
-			      geom[ilev].ProbLo(), geom[ilev].ProbHi(),
-			      geom[ilev].CellSize());
-        }
+      // for (MFIter mfi(rhs[ilev], true); mfi.isValid(); ++mfi)
+      //   {
+      // 	  const Box& bx = mfi.tilebox();
+      // 	  const Box& gbx = mfi.growntilebox(1);
+      // 	  actual_init_abeclap(BL_TO_FORTRAN_BOX(bx),
+      // 			      BL_TO_FORTRAN_BOX(gbx),
+      // 			      BL_TO_FORTRAN_ANYD(rhs[ilev][mfi]),
+      // 			      BL_TO_FORTRAN_ANYD(exact_solution[ilev][mfi]),
+      // 			      BL_TO_FORTRAN_ANYD(acoef[ilev][mfi]),
+      // 			      BL_TO_FORTRAN_ANYD(bcoef[ilev][mfi]),
+      // 			      ascalar, bscalar,
+      // 			      geom[ilev].ProbLo(), geom[ilev].ProbHi(),
+      // 			      geom[ilev].CellSize());
+      //   }
 
+      acoef[ilev].setVal(0.0);
+      bcoef[ilev].setVal(1.0);
+      rhs[ilev].setVal(0.0);
       solution[ilev].setVal(0.0);
     }
 }
