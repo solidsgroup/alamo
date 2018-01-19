@@ -11,7 +11,7 @@ MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
 MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
 #MPI_LINK_FLAGS =  -Wl,-Bsymbolic-functions -Wl,-z,relro 
 
-CXX_COMPILE_FLAGS = -std=c++11 -DDIM=${DIM} -DBL_SPACEDIM=${DIM}
+CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 -DDIM=${DIM} -DBL_SPACEDIM=${DIM} 
 
 INCLUDE = -I./src/ -I./src/PFAmr/ -I./src/PFBoundary/ -I/opt/amrex/tmp_install_dir/include/
 LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
