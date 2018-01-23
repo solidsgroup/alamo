@@ -1,7 +1,4 @@
-
-
 #include <AMReX_MultiFabUtil.H>
-
 #include "MLStiffnessMatrix.H"
 #include "AMReX_MLABecLap_F.H"
 #include "AMReX_ABec_F.H"
@@ -229,9 +226,6 @@ MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab&
 
   const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
   for (MFIter mfi(out, true); mfi.isValid(); ++mfi)
     {
       const Box& bx = mfi.tilebox();
@@ -483,23 +477,22 @@ MLStiffnessMatrix::Anorm (int amrlev, int mglev) const
 
 #if (BL_SPACEDIM == 2)
 amrex::Real
-K (amrex::IntVect m, amrex::IntVect n,
-   int i, int k)
+MLStiffnessMatrix::K (amrex::IntVect m, amrex::IntVect n,int i, int k)
 {
 
-  //  ____________________________
-  // |             |              |
-  // |		   |		  |
-  // |    Phi2	   |	Phi1	  |
-  // |		   |		  |
-  // |		   |		  |
-  // |_____________|______________|
-  // |		   |		  |
-  // |		   |		  |
-  // |	  Phi3	   |	Phi4	  |
-  // |		   |		  |
-  // |		   |		  |
-  // |_____________|______________|
+  //  ___________________________
+  // |             |             |
+  // |		   |	         |
+  // |    Phi2	   |	Phi1     |
+  // |		   |	         |
+  // |		   |	         |
+  // |_____________|_____________|
+  // |		   |	         |
+  // |		   |	         |
+  // |	  Phi3	   |	Phi4     |
+  // |		   |	         |
+  // |		   |	         |
+  // |_____________|_____________|
   //
   //
 
@@ -554,9 +547,7 @@ K (amrex::IntVect m, amrex::IntVect n,
   if (m == n)
     for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi1DPhi1[i][j] + DPhi2DPhi2[i][j] + DPhi3DPhi3[i][j] + DPhi4DPhi4[i][j];
 
-  
-
-  return 0.;
+  return mu * (i==k ? 1. : 0.) * (DPhiDPhi[0][0] + DPhiDPhi[1][1]) + (mu + lambda) * DPhiDPhi[i][k];
 
 }
 #endif

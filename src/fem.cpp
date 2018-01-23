@@ -5,8 +5,6 @@
 
 int main (int argc, char* argv[])
 {
-  std::cout << std::endl << "HERE" << std::endl << std::endl;
-
   amrex::Initialize(argc, argv);
 
   {
