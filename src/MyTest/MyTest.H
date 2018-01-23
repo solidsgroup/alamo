@@ -15,9 +15,6 @@ public:
 private:
 
     void readParameters ();
-    void initData ();
-    void initProbABecLaplacian ();
-    void solveABecLaplacian ();
 
     int max_level = 1;
     int ref_ratio = 2;
@@ -25,8 +22,6 @@ private:
     int max_grid_size = 64;
     
     bool composite_solve = true;
-
-    int prob_type = 2;  // 1. Poisson,  2. ABecLaplacian
 
     // For MLMG solver
     int verbose = 2;
@@ -44,7 +39,6 @@ private:
     amrex::Vector<amrex::MultiFab> solution;
     amrex::Vector<amrex::MultiFab> bcdata;
     amrex::Vector<amrex::MultiFab> rhs;
-    amrex::Vector<amrex::MultiFab> exact_solution;
     amrex::Vector<amrex::MultiFab> acoef;
     amrex::Vector<amrex::MultiFab> bcoef;
 
