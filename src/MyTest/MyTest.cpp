@@ -1,6 +1,7 @@
 #include "MyTest.H"
 
-#include <AMReX_MLABecLaplacian.H>
+#include "MLStiffnessMatrix.H"
+
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
 
@@ -32,7 +33,7 @@ MyTest::solveABecLaplacian ()
 
   // Composite Solve
     {
-      MLABecLaplacian mlabec(geom, grids, dmap, info);
+      MLStiffnessMatrix mlabec(geom, grids, dmap, info);
 
       mlabec.setMaxOrder(linop_maxorder);
 
