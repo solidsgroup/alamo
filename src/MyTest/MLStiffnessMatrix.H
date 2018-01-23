@@ -68,7 +68,7 @@ private:
   void averageDownCoeffsToCoarseAmrLevel (int flev);
   void applyMetricTermsCoeffs ();
 
-  amrex::Real K(amrex::IntVect m, amrex::IntVect n);
+  amrex::Real K(amrex::IntVect m, amrex::IntVect n, int i, int k);
 
   // Elastic constants for isotropic
   amrex::Real mu, lambda;
