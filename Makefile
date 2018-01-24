@@ -28,6 +28,8 @@ OBJ_F = ${SRC_F:.F90=.F90.o}
 
 #fem:bin/fem
 
+default: bin/alamo bin/fem
+
 bin/alamo: ${OBJ} ${OBJ_F} src/main.cpp.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
