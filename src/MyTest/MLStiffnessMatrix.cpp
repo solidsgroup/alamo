@@ -155,7 +155,6 @@ MLStiffnessMatrix::averageDownCoeffsToCoarseAmrLevel (int flev)
 void
 MLStiffnessMatrix::applyMetricTermsCoeffs ()
 {
-#if (AMREX_SPACEDIM != 3)
   for (int alev = 0; alev < m_num_amr_levels; ++alev)
     {
       for (int mglev = 0; mglev < m_num_mg_levels[alev]; ++mglev)
@@ -167,7 +166,6 @@ MLStiffnessMatrix::applyMetricTermsCoeffs ()
             }
         }
     }
-#endif
 }
 
 void
@@ -177,9 +175,7 @@ MLStiffnessMatrix::prepareForSolve ()
 
   MLLinOp::prepareForSolve();
 
-#if (AMREX_SPACEDIM != 3)
   applyMetricTermsCoeffs();
-#endif
 
   averageDownCoeffs();
 
@@ -220,28 +216,20 @@ MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab&
   BL_PROFILE("MLStiffnessMatrix::Fapply()");
 
   const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
-  AMREX_D_TERM(const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];,
-	       const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];,
-	       const MultiFab& bzcoef = m_b_coeffs[amrlev][mglev][2];);
+  const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];
+  const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];
 
   const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
   for (MFIter mfi(out, true); mfi.isValid(); ++mfi)
     {
       const Box& bx = mfi.tilebox();
-      //const FArrayBox& xfab = in[mfi];
-      //FArrayBox& yfab = out[mfi];
-      //const FArrayBox& afab = acoef[mfi];
-      // AMREX_D_TERM(const FArrayBox& bxfab = bxcoef[mfi];,
-      // 		   const FArrayBox& byfab = bycoef[mfi];,
-      // 		   const FArrayBox& bzfab = bzcoef[mfi];);
 
-      // FORTRAN CONVERSION
       amrex::Real alpha=m_a_scalar, beta=m_b_scalar;
       amrex::Real dhx = beta*dxinv[0]*dxinv[0], dhy = beta*dxinv[1]*dxinv[1];
 
       const amrex::BaseFab<amrex::Real> &xfab  = in[mfi];
-      amrex::BaseFab<amrex::Real> &yfab        = out[mfi];
+      amrex::BaseFab<amrex::Real>       &yfab  = out[mfi];
       const amrex::BaseFab<amrex::Real> &afab  = acoef[mfi];
       const amrex::BaseFab<amrex::Real> &bxfab = bxcoef[mfi];
       const amrex::BaseFab<amrex::Real> &byfab = bycoef[mfi];
@@ -336,21 +324,55 @@ MLStiffnessMatrix::FFlux (int amrlev, const MFIter& mfi,
   BL_PROFILE("MLStiffnessMatrix::FFlux()");
 
   const int mglev = 0;
-  AMREX_D_TERM(const auto& bx = m_b_coeffs[amrlev][mglev][0][mfi];,
-  	       const auto& by = m_b_coeffs[amrlev][mglev][1][mfi];,
-  	       const auto& bz = m_b_coeffs[amrlev][mglev][2][mfi];);
+  const auto& bx = m_b_coeffs[amrlev][mglev][0][mfi];
+  const auto& by = m_b_coeffs[amrlev][mglev][1][mfi];
+
   const Box& box = mfi.tilebox();
   const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-  amrex_mlabeclap_flux(BL_TO_FORTRAN_BOX(box),
-  		       AMREX_D_DECL(BL_TO_FORTRAN_ANYD(*flux[0]),
-  				    BL_TO_FORTRAN_ANYD(*flux[1]),
-  				    BL_TO_FORTRAN_ANYD(*flux[2])),
-  		       BL_TO_FORTRAN_ANYD(sol),
-  		       AMREX_D_DECL(BL_TO_FORTRAN_ANYD(bx),
-  				    BL_TO_FORTRAN_ANYD(by),
-  				    BL_TO_FORTRAN_ANYD(bz)),
-  		       dxinv, m_b_scalar, face_only);
+  amrex::Real beta=m_b_scalar;
+  
+  amrex::Real dhx = beta*dxinv[0], dhy = beta*dxinv[1];
+
+  amrex::BaseFab<amrex::Real> &fxfab = *flux[0];
+  amrex::BaseFab<amrex::Real> &fyfab = *flux[1];
+  const amrex::BaseFab<amrex::Real> &solfab = sol;
+
+  if (face_only)
+    {
+      for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i+= 1 + (box.hiVect()[0]-box.loVect()[0]))
+	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
+	  {
+	    fxfab(amrex::IntVect(i,j)) = -dhx *
+	      bx(amrex::IntVect(i,j)) *
+	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
+	  }
+      for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
+	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j+= 1 + (box.hiVect()[1]-box.loVect()[1]))
+	  {
+	    fyfab(amrex::IntVect(i,j)) = -dhy *
+	      by(amrex::IntVect(i,j)) *
+	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
+	  }
+    }
+  else
+    {
+      for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i++)
+	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
+	  {
+	    fxfab(amrex::IntVect(i,j)) = -dhx *
+	      bx(amrex::IntVect(i,j)) *
+	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
+	  }
+       
+      for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
+	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j++)
+	  {
+	    fyfab(amrex::IntVect(i,j)) = -dhy *
+	      by(amrex::IntVect(i,j)) *
+	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
+	  }
+    }
 }
 
 Real
@@ -383,29 +405,12 @@ MLStiffnessMatrix::Anorm (int amrlev, int mglev) const
 			 const FArrayBox& byfab = bycoef[mfi];,
 			 const FArrayBox& bzfab = bzcoef[mfi];);
 
-#if (BL_SPACEDIM == 1)
-	    FORT_NORMA(&tres,
-		       &m_a_scalar, &m_b_scalar,
-		       afab.dataPtr(),  ARLIM(afab.loVect()), ARLIM(afab.hiVect()),
-		       bxfab.dataPtr(), ARLIM(bxfab.loVect()), ARLIM(bxfab.hiVect()),
-		       tbx.loVect(), tbx.hiVect(), &nc, dx);
-#elif (BL_SPACEDIM==2)
 	    FORT_NORMA(&tres,
 		       &m_a_scalar, &m_b_scalar,
 		       afab.dataPtr(),  ARLIM(afab.loVect()), ARLIM(afab.hiVect()),
 		       bxfab.dataPtr(), ARLIM(bxfab.loVect()), ARLIM(bxfab.hiVect()),
 		       byfab.dataPtr(), ARLIM(byfab.loVect()), ARLIM(byfab.hiVect()),
 		       tbx.loVect(), tbx.hiVect(), &nc, dx);
-#elif (BL_SPACEDIM==3)
-                
-	    FORT_NORMA(&tres,
-		       &m_a_scalar, &m_b_scalar,
-		       afab.dataPtr(),  ARLIM(afab.loVect()), ARLIM(afab.hiVect()),
-		       bxfab.dataPtr(), ARLIM(bxfab.loVect()), ARLIM(bxfab.hiVect()),
-		       byfab.dataPtr(), ARLIM(byfab.loVect()), ARLIM(byfab.hiVect()),
-		       bzfab.dataPtr(), ARLIM(bzfab.loVect()), ARLIM(bzfab.hiVect()),
-		       tbx.loVect(), tbx.hiVect(), &nc, dx);
-#endif
                 
 	    res = std::max(res, tres);
 	  }
