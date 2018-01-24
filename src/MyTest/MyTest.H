@@ -2,6 +2,7 @@
 #define MY_TEST_H_
 
 #include <AMReX_MLMG.H>
+#include <AMReX_MLCGSolver.H>
 
 class MyTest
 {
