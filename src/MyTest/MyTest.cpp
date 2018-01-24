@@ -48,10 +48,9 @@ MyTest::MyTest ()
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
       dmap[ilev].define(grids[ilev]);
-      int nvar = 2;
-      solution      [ilev].define(grids[ilev], dmap[ilev], nvar, 1);
-      bcdata        [ilev].define(grids[ilev], dmap[ilev], nvar, 1);
-      rhs           [ilev].define(grids[ilev], dmap[ilev], nvar, 0);
+      solution      [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 1); 
+      bcdata        [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 1);
+      rhs           [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 0);
       acoef[ilev].define(grids[ilev], dmap[ilev], 1, 0);
       bcoef[ilev].define(grids[ilev], dmap[ilev], 1, 1);
     }
@@ -114,6 +113,10 @@ MyTest::solve ()
       mlabec.setLevelBC(ilev,&bcdata[ilev]);
     }
 
+  //
+  // SET COEFFICIENTS
+  //
+
   mlabec.setScalars(ascalar, bscalar);
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
@@ -134,13 +137,17 @@ MyTest::solve ()
       mlabec.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(face_bcoef));
     }
 
+  //
+  // CONFIGURE SOLVER
+  //
+
   MLMG mlmg(mlabec);
   mlmg.setMaxIter(max_iter);
   mlmg.setMaxFmgIter(max_fmg_iter);
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
-
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+
 }
 
 void
