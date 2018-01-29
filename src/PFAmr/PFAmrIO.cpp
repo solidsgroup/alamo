@@ -54,7 +54,7 @@ PFAmr::WritePlotFile () const
       {
 	std::ofstream outfile;
 	if (istep[0]==0) outfile.open(plot_file+"/output.visit",std::ios_base::out);
-	else outfile.open(plot_file+".visit",std::ios_base::app);
+	else outfile.open(plot_file+"/output.visit",std::ios_base::app);
 	outfile << plotfilename + "/Header" << std::endl;
       }
 }
