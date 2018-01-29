@@ -4,4 +4,6 @@ Backtrace*
 results
 bin
 *.mod
-.\#*
+*.\#*
+\#*
+myoutput*
