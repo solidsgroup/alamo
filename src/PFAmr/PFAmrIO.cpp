@@ -14,20 +14,23 @@ PFAmr::CreateCleanDirectory () const
   amrex::UtilCreateCleanDirectory(plot_file, false);
 }
 
-std::string
+std::vector<std::string>
 PFAmr::PlotFileName (int lev) const
 {
-    return amrex::Concatenate(plot_file+"/", lev, 5);
+  std::vector<std::string> name;
+  name.push_back(plot_file+"/");
+  name.push_back(amrex::Concatenate("", lev, 5));
+  return name;
 }
 
 Array<const MultiFab*>
 PFAmr::PlotFileMF (int fab) const
 {
-    Array<const MultiFab*> r;
-    for (int i = 0; i <= finest_level; ++i) {
-	r.push_back(phi_new[fab][i].get());
-    }
-    return r;
+  Array<const MultiFab*> r;
+  for (int i = 0; i <= finest_level; ++i) {
+    r.push_back(phi_new[fab][i].get());
+  }
+  return r;
 }
 
 Array<std::string>
@@ -44,24 +47,24 @@ PFAmr::PlotFileVarNames () const
 void
 PFAmr::WritePlotFile () const
 {
-    const std::string& plotfilename = PlotFileName(istep[0]);
-    const auto& mf = PlotFileMF(0);
-    const auto& varnames = PlotFileVarNames();
-    amrex::WriteMultiLevelPlotfile(plotfilename, finest_level+1, mf, varnames,
-				   Geom(), t_new[0], istep, refRatio());
+  const std::vector<std::string>& plotfilename = PlotFileName(istep[0]);
+  const auto& mf = PlotFileMF(0);
+  const auto& varnames = PlotFileVarNames();
+  amrex::WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], finest_level+1, mf, varnames,
+				 Geom(), t_new[0], istep, refRatio());
 
-    if (ParallelDescriptor::IOProcessor())
-      {
-	std::ofstream outfile;
-	if (istep[0]==0) outfile.open(plot_file+"/output.visit",std::ios_base::out);
-	else outfile.open(plot_file+".visit",std::ios_base::app);
-	outfile << plotfilename + "/Header" << std::endl;
-      }
+  if (ParallelDescriptor::IOProcessor())
+    {
+      std::ofstream outfile;
+      if (istep[0]==0) outfile.open(plot_file+"/output.visit",std::ios_base::out);
+      else outfile.open(plot_file+"/output.visit",std::ios_base::app);
+      outfile << plotfilename[1] + "/Header" << std::endl;
+}
 }
 
 void
 PFAmr::InitFromCheckpoint ()
 {
-    amrex::Abort("PFAmr::InitFromCheckpoint: todo");
+  amrex::Abort("PFAmr::InitFromCheckpoint: todo");
 }
 
