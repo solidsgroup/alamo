@@ -5,8 +5,12 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
+#include <AMReX_IndexType.H>
 
 using namespace amrex;
+
+#define DEBUG std::cout << "\033[34m" << "DEBUG:     " << "\033[0m" << __FILE__ << ":" << __LINE__ << std::endl;
+
 
 MyTest::MyTest ()
 {
@@ -25,11 +29,17 @@ MyTest::MyTest ()
 
   // define simulation domain
   RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
+
   // set periodicity
   std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL(0,0,0)};
   Geometry::Setup(&rb, 0, is_periodic.data());
+
   Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
+  // Box domain0(IntVect{AMREX_D_DECL(0,0,0)},
+  // 	      IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
+  // 	      IntVect(AMREX_D_DECL(IndexType::NODE,IndexType::NODE,IndexType::NODE)));
   Box domain = domain0;
+
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
       geom[ilev].define(domain);
@@ -47,16 +57,20 @@ MyTest::MyTest ()
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
-      dmap[ilev].define(grids[ilev]);
-      solution      [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 1); 
-      bcdata        [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 1);
-      rhs           [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 0);
-      acoef[ilev].define(grids[ilev], dmap[ilev], 1, 0);
-      bcoef[ilev].define(grids[ilev], dmap[ilev], 1, 1);
+      dmap     [ilev].define(grids[ilev]);
+      solution [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 1); 
+      bcdata   [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 1);
+      rhs      [ilev].define(grids[ilev], dmap[ilev], BL_SPACEDIM, 0);
+      acoef    [ilev].define(grids[ilev], dmap[ilev], 1, 0);
+      bcoef    [ilev].define(grids[ilev], dmap[ilev], 1, 1);
     }
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
+      //acoef[ilev].setVal(0.0,domain,0); // problem here when using nodes
+      //bcoef[ilev].setVal(1.0,domain,0);
+      //rhs[ilev].setVal(0.0,domain,0);
+      //solution[ilev].setVal(0.0,domain,0);
       acoef[ilev].setVal(0.0);
       bcoef[ilev].setVal(1.0);
       rhs[ilev].setVal(0.0);
@@ -80,7 +94,6 @@ MyTest::solve ()
 
   mlabec.setMaxOrder(linop_maxorder);
 
-
   //
   // SET BOUNDARY CONDITIONS
   //
@@ -91,13 +104,11 @@ MyTest::solve ()
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
       amrex::Box domain(geom[ilev].Domain());
-      
       for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
 	{
-	  const Box& box = mfi.tilebox();
-
+          const Box& box = mfi.tilebox();
+          //const Box& box = mfi.nodaltilebox();
 	  amrex::BaseFab<amrex::Real> &bcdata_box = bcdata[ilev][mfi];
-
 	  for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
 	    for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
 	      {
@@ -147,7 +158,6 @@ MyTest::solve ()
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-
 }
 
 void

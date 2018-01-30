@@ -35,6 +35,8 @@ public:
   void setACoeffs (int amrlev, const MultiFab& alpha);
   void setBCoeffs (int amrlev, const std::array<MultiFab const*,AMREX_SPACEDIM>& beta);
 
+  void setLevelBC (int amrlev, const MultiFab* a_levelbcdata);
+
 protected:
 
   virtual void prepareForSolve () final;
@@ -68,7 +70,7 @@ private:
   void averageDownCoeffsToCoarseAmrLevel (int flev);
   void applyMetricTermsCoeffs ();
 
-  amrex::Real K(amrex::IntVect m, amrex::IntVect n, int i, int k);
+  amrex::Real K(const amrex::IntVect m, const amrex::IntVect n, const int i, const int k) const;
 
   // Elastic constants for isotropic
   amrex::Real mu, lambda;
