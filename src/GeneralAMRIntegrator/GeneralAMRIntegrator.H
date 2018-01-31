@@ -33,7 +33,9 @@ public:
   virtual void ClearLevel (int lev) override;
   virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int /*ngrow*/) override;
 
-  void RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab, int ncomp, int nghost);
+  void RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab, GeneralAMRIntegratorPhysBC &new_bc, int ncomp, int nghost, std::string name);
+
+  virtual void Initialize (int lev) = 0;
 
 private:
 
@@ -43,14 +45,12 @@ private:
 
   void TimeStep (int lev, amrex::Real time, int iteration);
 protected:
-
   virtual void Advance (int lev, amrex::Real time, amrex::Real dt) = 0;
 
-
-  void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> >& mf, int icomp);
+  void FillPatch (int lev, amrex::Real time, amrex::MultiFab &mf, GeneralAMRIntegratorPhysBC &physbc, int icomp);
 private:
-  void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, int icomp, int ncomp);
-  void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::Array<amrex::MultiFab*> >& data, amrex::Array<amrex::Real>& datatime);
+  void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp);
+  void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::MultiFab*>& data, amrex::Array<amrex::Real>& datatime);
 
   void CreateCleanDirectory () const;
   std::vector<std::string> PlotFileName (int lev) const;
@@ -70,6 +70,7 @@ protected:
   amrex::Array<int> ncomp_array;  // Array containing number of components for each fab array
   amrex::Array<int> nghost_array; // Array containing number of ghost cells in each fab array
 
+  amrex::Array<std::string> name_array;
 private:
 
   int max_step   = std::numeric_limits<int>::max();
@@ -88,7 +89,8 @@ private:
   amrex::Real timestep;
   int number_of_fabs = 0;
 
-  GeneralAMRIntegratorPhysBC physbc;
+  amrex::Array<std::unique_ptr<GeneralAMRIntegratorPhysBC> > physbc_array;
+  //GeneralAMRIntegratorPhysBC physbc;
 };
 
 #endif
