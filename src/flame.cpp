@@ -21,12 +21,14 @@ public:
   }
 
 protected:
+
+  
   void
   Advance (int lev, Real time, Real dt)
   {
     std::swap(*Temp[lev], *Temp_old[lev]);
 
-    FillPatch(lev,t_old[lev],*Temp_old[lev],mybc,0);
+    FillPatch(lev,t_old[lev],Temp_old,*Temp_old[lev],mybc,0);
 
     const Real* dx = geom[lev].CellSize();
 
@@ -48,6 +50,8 @@ protected:
        }
   }
 
+
+
   void
   Initialize (int lev)
   {
@@ -60,7 +64,7 @@ protected:
 	for (int i = box.loVect()[0]-number_of_ghost_cells; i<=box.hiVect()[0]+number_of_ghost_cells; i++) 
 	  for (int j = box.loVect()[1]-number_of_ghost_cells; j<=box.hiVect()[1]+number_of_ghost_cells; j++)
      	    {
-	      Temp_box(amrex::IntVect(i,j),0) = width*i*j;
+	      Temp_box(amrex::IntVect(i,j),0) = 0; 
 	      Temp_old_box(amrex::IntVect(i,j),0) = Temp_box(amrex::IntVect(i,j),0);
      	    }
       }

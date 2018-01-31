@@ -50,15 +50,13 @@ protected:
   virtual void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) = 0;
   
 
-  void FillPatch (int lev, amrex::Real time, amrex::MultiFab &mf, GeneralAMRIntegratorPhysBC &physbc, int icomp);
+  void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> > &source_mf, amrex::MultiFab &destination_multifab, GeneralAMRIntegratorPhysBC &physbc, int icomp);
 private:
   void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp);
   void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::MultiFab*>& data, amrex::Array<amrex::Real>& datatime);
 
   void CreateCleanDirectory () const;
   std::vector<std::string> PlotFileName (int lev) const;
-  amrex::Array<const amrex::MultiFab*> PlotFileMF (int grain) const;
-  amrex::Array<std::string> PlotFileVarNames () const;
   void WritePlotFile () const;
 
   amrex::Array<int> istep;      // which step?
