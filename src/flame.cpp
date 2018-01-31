@@ -16,8 +16,8 @@ public:
     GeneralAMRIntegrator(), 
     mybc(geom)
   {
-    RegisterNewFab(Temp,     mybc, number_of_components, number_of_ghost_cells,"Temp");
-    RegisterNewFab(Temp_old, mybc, number_of_components, number_of_ghost_cells,"Temp old");
+    RegisterNewFab(Temp,     mybc, number_of_components, number_of_ghost_cells, "Temp");
+    RegisterNewFab(Temp_old, mybc, number_of_components, number_of_ghost_cells, "Temp old");
   }
 
 protected:
@@ -45,7 +45,7 @@ protected:
 		 Temp_box(amrex::IntVect(i,j))
 		   = Temp_old_box(amrex::IntVect(i,j))
 		   + dt * ((Temp_old_box(amrex::IntVect(i+1,j)) + Temp_old_box(amrex::IntVect(i-1,j)) - 2*Temp_old_box(amrex::IntVect(i,j))) / dx[0] / dx[0] +
-			   (Temp_old_box(amrex::IntVect(i,j+1)) + Temp_old_box(amrex::IntVect(i,j+1)) - 2*Temp_old_box(amrex::IntVect(i,j))) / dx[1] / dx[1]  );
+			   (Temp_old_box(amrex::IntVect(i,j+1)) + Temp_old_box(amrex::IntVect(i,j-1)) - 2*Temp_old_box(amrex::IntVect(i,j))) / dx[1] / dx[1]);
 	       }
        }
   }
@@ -83,13 +83,17 @@ protected:
 	const amrex::Box&  bx  = mfi.tilebox();
 	amrex::TagBox&     tag  = tags[mfi];
  	    
-	amrex::BaseFab<Real> &Temp_box = (*Temp[lev])[mfi];
+	amrex::BaseFab<Real> &Temp_old_box = (*Temp_old[lev])[mfi];
 
 	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	  for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 	    {
 	      //if (Temp_box(amrex::IntVect(i,j)) < 1.0) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
-	      if (i==0 && j==0) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
+	      amrex::Real grad1 = (Temp_old_box(amrex::IntVect(i+1,j)) - Temp_old_box(amrex::IntVect(i-1,j)))/(2*dx[0]);
+	      amrex::Real grad2 = (Temp_old_box(amrex::IntVect(i,j+1)) - Temp_old_box(amrex::IntVect(i,j-1)))/(2*dx[1]);
+
+ 	      if ((grad1*grad1 + grad2*grad2)*dx[0]*dx[1] > 0.01) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
+
 	    }
 
       }
