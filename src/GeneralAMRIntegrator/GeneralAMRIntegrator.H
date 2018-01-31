@@ -1,5 +1,5 @@
-#ifndef AMR_Adv_C_V2_Adv_H_
-#define AMR_Adv_C_V2_Adv_H_
+#ifndef GENERALAMRINTEGRATOR_H
+#define GENERALAMRINTEGRATOR_H
 
 #include <string>
 #include <limits>
@@ -12,20 +12,14 @@
 #include <AMReX_AmrCore.H>
 #include <AMReX_FluxRegister.H>
 
-#include "PFAmrBC.H"
-#include "../PFBoundary/PFBoundary.H"
-#include "../PFBoundary/PFBoundarySin.H"
+#include "GeneralAMRIntegratorBC.H"
 
-#define DEBUG std::cout << "Proc " << amrex::ParallelDescriptor::MyProc() << " :: "<< __FILE__ << ":" << __LINE__ << std::endl;
-
-#define DIM3 
-
-class PFAmr
+class GeneralAMRIntegrator
   : public amrex::AmrCore
 {
 public:
-  PFAmr ();
-  virtual ~PFAmr();
+  GeneralAMRIntegrator ();
+  virtual ~GeneralAMRIntegrator();
 
   void InitData ();
   void Evolve ();
@@ -39,19 +33,24 @@ public:
   virtual void ClearLevel (int lev) override;
   virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int /*ngrow*/) override;
 
+  void RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab, int ncomp, int nghost);
+
 private:
 
   void InitFromCheckpoint ();
 
   long CountCells (int lev);
 
-  void TimeStep (int lev, amrex::Real time/*, int iteration*/);
+  void TimeStep (int lev, amrex::Real time, int iteration);
 protected:
-  virtual void Advance (int lev, amrex::Real time, amrex::Real dt);
+
+  virtual void Advance (int lev, amrex::Real time, amrex::Real dt) = 0;
+
+
   void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> >& mf, int icomp);
 private:
   void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, int icomp, int ncomp);
-  void GetData (int lev, amrex::Real time, amrex::Array<amrex::Array<amrex::MultiFab*> >& data, amrex::Array<amrex::Real>& datatime);
+  void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::Array<amrex::MultiFab*> >& data, amrex::Array<amrex::Real>& datatime);
 
   void CreateCleanDirectory () const;
   std::vector<std::string> PlotFileName (int lev) const;
@@ -67,56 +66,29 @@ protected:
   amrex::Array<amrex::Real> t_old;
   amrex::Array<amrex::Real> dt;
 
-  amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_new;
-  amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_old;
+  amrex::Array<std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > > > fab_array;
+  amrex::Array<int> ncomp_array;  // Array containing number of components for each fab array
+  amrex::Array<int> nghost_array; // Array containing number of ghost cells in each fab array
 
 private:
-  // runtime parameters
 
   int max_step   = std::numeric_limits<int>::max();
   amrex::Real stop_time = std::numeric_limits<amrex::Real>::max();
 
   amrex::Real tstart = 0;
-
   int regrid_int = 2;
 
   std::string restart_chkfile;
-
   std::string check_file {"chk"};
-  std::string plot_file {"plt"};
   int check_int = -1;
+
+  std::string plot_file {"plt"};
   int plot_int = -1;
 
-  // Phase Field Parameters
   amrex::Real timestep;
-  int number_of_fabs = 1;
-  int number_of_grains = 2;
-  amrex::Real M, mu, gamma, sigma0, l_gb;
+  int number_of_fabs = 0;
 
-  int anisotropy = 0;
-
-  const int nghost = 2;
-
-  std::string ic_type;
-
-  // Voronoi
-  amrex::Array<amrex::Real> voronoi_x;
-  amrex::Array<amrex::Real> voronoi_y;
-#if BL_SPACEDIM==3
-  amrex::Array<amrex::Real> voronoi_z;
-#endif
-
-  amrex::Real damp;
-
-
-
-
-  // Boundary functor
-  PFBoundary *boundary;// = PFBoundarySin();
-
-  PFAmrPhysBC physbc;
-
-
+  GeneralAMRIntegratorPhysBC physbc;
 };
 
 #endif
