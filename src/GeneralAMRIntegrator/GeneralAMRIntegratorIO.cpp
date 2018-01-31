@@ -23,29 +23,6 @@ GeneralAMRIntegrator::PlotFileName (int lev) const
   return name;
 }
 
-Array<const MultiFab*>
-GeneralAMRIntegrator::PlotFileMF (int fab) const
-{
-  Array<const MultiFab*> r;
-  // TODO
-  for (int i = 0; i <= finest_level; ++i) {
-    //r.push_back(phi_new[fab][i].get());
-  }
-  return r;
-}
-
-Array<std::string>
-GeneralAMRIntegrator::PlotFileVarNames () const
-{
-  //Array<std::string> names;
-  // TODO
-  // for (int n = 0; n < number_of_grains; n++)
-  //   names.push_back(amrex::Concatenate("phi",n));
-  // names.push_back("phi_sum");
-  // names.push_back("boundaries");
-  //return names;
-}
-
 void
 GeneralAMRIntegrator::WritePlotFile () const
 {

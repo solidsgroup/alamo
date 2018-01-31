@@ -41,8 +41,9 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
   t_new.resize(nlevs_max, 0.0);
   t_old.resize(nlevs_max, -1.e100);
   dt.resize(nlevs_max, 1.e100);
-  for (int i = 0; i < nlevs_max; i++)
-    dt[i] = timestep;
+  dt[0] = timestep;
+  for (int i = 1; i < nlevs_max; i++)
+    dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 
   CreateCleanDirectory();
 }
@@ -93,25 +94,25 @@ GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray
 
 void // OVERRIDING PREVIOUS - DO NOT CHANGE
 GeneralAMRIntegrator::RemakeLevel (int lev, Real time, const BoxArray& ba,
-		     const DistributionMapping& dm)
+				   const DistributionMapping& dm)
 {
-  amrex::Array<std::unique_ptr<MultiFab> > new_state(number_of_fabs); 
   for (int n=0; n < number_of_fabs; n++)
     {
+
       const int ncomp = (*fab_array[n])[lev]->nComp();
       const int nghost = (*fab_array[n])[lev]->nGrow();
 
-      new_state[n].reset(new MultiFab(ba, dm, ncomp, nghost));
-      FillPatch(lev, time, *new_state[n], *physbc_array[n], 0);
+      MultiFab new_state(ba, dm, ncomp, nghost); 
+
+      //new_state.reset(new MultiFab(ba, dm, ncomp, nghost));
+
+      FillPatch(lev, time, *fab_array[n], new_state, *physbc_array[n], 0);
+
+      std::swap(new_state, *(*fab_array[n])[lev]);
     }
 
-
-  for (int n=0; n < number_of_fabs; n++) // TODO - combine this loop with previous maybe?
-    {
-      std::swap(new_state[n], (*fab_array[n])[lev]);
-      t_new[lev] = time;
-      t_old[lev] = time - 1.e200;
-    }
+  t_new[lev] = time;
+  t_old[lev] = time - 1.e200;
 }
 
 void // OVERRIDING PREVIOUS - DO NOT CHANGE 
@@ -139,31 +140,49 @@ GeneralAMRIntegrator::CountCells (int lev)
 }
 
 void  // CUSTOM METHOD - CHANGEABLE
-GeneralAMRIntegrator::FillPatch (int lev, Real time, MultiFab &mf, GeneralAMRIntegratorPhysBC &physbc, int icomp)
+GeneralAMRIntegrator::FillPatch (int lev, Real time,
+				 Array<std::unique_ptr<MultiFab> > &source_mf,
+				 MultiFab &destination_mf,
+				 GeneralAMRIntegratorPhysBC &physbc, int icomp)
 {
   if (lev == 0)
     {
+      
       Array<MultiFab*> smf;
+      smf.push_back(source_mf[lev].get());
       Array<Real> stime;
-      GetData(0, time, smf, stime); 
+      stime.push_back(time);
+
+      // GetData(lev, time, smf, stime);
 
       physbc.SetLevel(lev);
-      amrex::FillPatchSingleLevel(mf, time, smf, stime, 0, icomp, mf.nComp(),
-				  geom[lev], physbc);
+      amrex::FillPatchSingleLevel(destination_mf,		// Multifab
+				  time,                         // time
+				  smf,				// Vector<MultiFab*> &smf (CONST)
+				  stime,			// Vector<Real> &stime    (CONST)
+				  0,				// scomp - Source component 
+				  icomp,			// dcomp - Destination component
+				  destination_mf.nComp(),	// ncomp - Number of components
+				  geom[lev],			// Geometry (CONST)
+				  physbc);			// BC
     } 
   else
     {
       Array<MultiFab*> cmf, fmf;
+      cmf.push_back(source_mf[lev-1].get());
+      fmf.push_back(source_mf[lev].get());
       Array<Real> ctime, ftime;
-      GetData(lev-1, time, cmf, ctime);
-      GetData(lev  , time, fmf, ftime);
+      ctime.push_back(time);
+      ftime.push_back(time);
+      // GetData(lev-1, time, cmf, ctime);
+      // GetData(lev  , time, fmf, ftime);
 
       physbc.SetLevel(lev);
       Interpolater* mapper = &cell_cons_interp;
 
-      Array<BCRec> bcs(mf.nComp(), physbc.GetBCRec()); // todo
-      amrex::FillPatchTwoLevels(mf, time, cmf, ctime, fmf, ftime,
-				0, icomp, mf.nComp(), geom[lev-1], geom[lev],
+      Array<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
+      amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
+				0, icomp, destination_mf.nComp(), geom[lev-1], geom[lev],
 				physbc, physbc,
 				refRatio(lev-1),
 				mapper, bcs);
@@ -195,10 +214,11 @@ void // CUSTOM METHOD - CHANGEABLE
 GeneralAMRIntegrator::GetData (const int lev, const Real time,
 			       Array<MultiFab*>& data, Array<Real>& datatime)
 {
-  data.clear();
-  datatime.clear();
+  // data.clear();
+  // datatime.clear();
 
-  const Real teps = (t_new[lev] - t_old[lev]) * 1.e-3;
+  // TODO - Fix this
+  // const Real teps = (t_new[lev] - t_old[lev]) * 1.e-3;
 
   // TODO - Fix this
   // if (time > t_new[lev] - teps && time < t_new[lev] + teps)
@@ -212,14 +232,15 @@ GeneralAMRIntegrator::GetData (const int lev, const Real time,
   //     datatime.push_back(t_old[lev]);
   //   }
   // else
-    {
-      for (int n = 0; n < number_of_fabs; n++)
-	{
-	  data.push_back((*fab_array[n])[lev].get());
-	}
-      datatime.push_back(t_old[lev]);
-      datatime.push_back(t_new[lev]);
-    }
+    // {
+    //   for (int n = 0; n < number_of_fabs; n++)
+    // 	{
+    // 	  data.push_back((*fab_array[n])[lev].get());
+    // 	}
+    //   datatime.push_back(t_old[lev]);
+    //   datatime.push_back(t_new[lev]);
+    // }
+  amrex::Abort("GeneralAMRIntegrator::GetData: Used for time interpolation, which is not currently supported!");
 }
 
 void
