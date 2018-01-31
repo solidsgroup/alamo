@@ -47,7 +47,7 @@ public:
     }
   }
 
-  virtual void FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real time) override
+  virtual void FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) override
   {
     amrex::Box domain(geom[lev].Domain());
 
