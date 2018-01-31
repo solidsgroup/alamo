@@ -47,7 +47,7 @@ GeneralAMRIntegrator::Evolve ()
 }
 
 void
-GeneralAMRIntegrator::TimeStep (int lev, Real time, int iteration)
+GeneralAMRIntegrator::TimeStep (int lev, Real time, int /*iteration*/)
 {
 
   if (regrid_int > 0)  // We may need to regrid
@@ -71,17 +71,18 @@ GeneralAMRIntegrator::TimeStep (int lev, Real time, int iteration)
   	}
     }
 
-  if (Verbose() && ParallelDescriptor::IOProcessor()) {
+  if (/*Verbose() && */ParallelDescriptor::IOProcessor()) {
     std::cout << "[Level " << lev 
 	      << " step " << istep[lev]+1 << "] ";
     std::cout << "ADVANCE with dt = "
 	      << dt[lev]
 	      << std::endl;
   }
+
   Advance(lev, time, dt[lev]);
   ++istep[lev];
 
-  if (Verbose() && ParallelDescriptor::IOProcessor())
+  if (/*Verbose() && */ParallelDescriptor::IOProcessor())
     {
       std::cout << "[Level " << lev
 		<< " step " << istep[lev] << "] ";
