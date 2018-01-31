@@ -1,3 +1,8 @@
+///
+/// \file GeneralAMRIntegrator.cpp
+/// \brief Compute the volume integral of two multiplied Fourier series
+///
+
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
@@ -10,8 +15,17 @@
 
 using namespace amrex;
 
+///
+/// \function GeneralAMRIntegrator
+/// \brief Constructor
+///
+/// Do the following things:
+///    - Read in simulation TIME(STEP) information
+///    - Read in simulation output and AMR information
+///    - Initalize timestep substep information
+///    - Create a clean directory
+///
 GeneralAMRIntegrator::GeneralAMRIntegrator ()
-//  : physbc(geom)
 {
   { 
     ParmParse pp;   // Basic run parameters
@@ -48,6 +62,85 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
   CreateCleanDirectory();
 }
 
+///
+/// \func  ~GeneralAMRIntegrator
+/// \brief Does nothing -- check here first if there are memory leaks
+///
+GeneralAMRIntegrator::~GeneralAMRIntegrator ()
+{
+}
+
+/// 
+/// \func  MakeNewLevelFromCoarse
+/// \brief Wrapper to call FillCoarsePatch
+///
+/// Note: **THIS OVERRIDES A PURE VIRTUAL METHOD - DO NOT CHANGE**
+///
+void
+GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
+				const DistributionMapping& dm)
+{
+  for (int n = 0; n < number_of_fabs; n++)
+    {
+      const int ncomp = (*fab_array[n])[lev-1]->nComp();
+      const int nghost = (*fab_array[n])[lev-1]->nGrow();
+
+      (*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
+
+      t_new[lev] = time;
+      t_old[lev] = time - 1.e200;
+
+      FillCoarsePatch(lev, time, *(*fab_array[n])[lev], *physbc_array[n], 0, ncomp);
+    }
+}
+
+
+///
+/// RESETS ALL MULTIFABS AT A GIVEN LEVEL
+///
+/// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
+///
+void
+GeneralAMRIntegrator::RemakeLevel (int lev,       ///<[in] AMR Level
+				   Real time,     ///<[in] Simulation time
+				   const BoxArray& ba, 
+				   const DistributionMapping& dm)
+{
+  for (int n=0; n < number_of_fabs; n++)
+    {
+
+      const int ncomp = (*fab_array[n])[lev]->nComp();
+      const int nghost = (*fab_array[n])[lev]->nGrow();
+
+      MultiFab new_state(ba, dm, ncomp, nghost); 
+
+      FillPatch(lev, time, *fab_array[n], new_state, *physbc_array[n], 0);
+
+      std::swap(new_state, *(*fab_array[n])[lev]);
+    }
+
+  t_new[lev] = time;
+  t_old[lev] = time - 1.e200;
+}
+
+//
+// DELETE EVERYTHING
+//
+// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
+//
+void
+GeneralAMRIntegrator::ClearLevel (int lev)
+{
+  for (int n = 0; n < number_of_fabs; n++)
+    {
+      (*fab_array[n])[lev].reset(nullptr);
+    }
+}
+
+//
+//
+//
+
 void // CUSTOM METHOD - CHANGEABLE
 GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab,
 				     GeneralAMRIntegratorPhysBC &new_bc,
@@ -67,62 +160,6 @@ GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFa
   number_of_fabs++;
 }
 
-
-GeneralAMRIntegrator::~GeneralAMRIntegrator ()
-{
-}
-
-
-void // OVERRIDING PREVIOUS - DO NOT CHANGE
-GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
-				const DistributionMapping& dm)
-{
-  for (int n = 0; n < number_of_fabs; n++)
-    {
-      const int ncomp = (*fab_array[n])[lev-1]->nComp();
-      const int nghost = (*fab_array[n])[lev-1]->nGrow();
-
-      (*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
-
-      t_new[lev] = time;
-      t_old[lev] = time - 1.e200;
-
-      FillCoarsePatch(lev, time, *(*fab_array[n])[lev], *physbc_array[n], 0, ncomp);
-    }
-}
-
-
-void // OVERRIDING PREVIOUS - DO NOT CHANGE
-GeneralAMRIntegrator::RemakeLevel (int lev, Real time, const BoxArray& ba,
-				   const DistributionMapping& dm)
-{
-  for (int n=0; n < number_of_fabs; n++)
-    {
-
-      const int ncomp = (*fab_array[n])[lev]->nComp();
-      const int nghost = (*fab_array[n])[lev]->nGrow();
-
-      MultiFab new_state(ba, dm, ncomp, nghost); 
-
-      //new_state.reset(new MultiFab(ba, dm, ncomp, nghost));
-
-      FillPatch(lev, time, *fab_array[n], new_state, *physbc_array[n], 0);
-
-      std::swap(new_state, *(*fab_array[n])[lev]);
-    }
-
-  t_new[lev] = time;
-  t_old[lev] = time - 1.e200;
-}
-
-void // OVERRIDING PREVIOUS - DO NOT CHANGE 
-GeneralAMRIntegrator::ClearLevel (int lev)
-{
-  for (int n = 0; n < number_of_fabs; n++)
-    {
-      (*fab_array[n])[lev].reset(nullptr);
-    }
-}
 
 long // CUSTOM METHOD - CHANGEABLE
 GeneralAMRIntegrator::CountCells (int lev)
@@ -232,14 +269,14 @@ GeneralAMRIntegrator::GetData (const int lev, const Real time,
   //     datatime.push_back(t_old[lev]);
   //   }
   // else
-    // {
-    //   for (int n = 0; n < number_of_fabs; n++)
-    // 	{
-    // 	  data.push_back((*fab_array[n])[lev].get());
-    // 	}
-    //   datatime.push_back(t_old[lev]);
-    //   datatime.push_back(t_new[lev]);
-    // }
+  // {
+  //   for (int n = 0; n < number_of_fabs; n++)
+  // 	{
+  // 	  data.push_back((*fab_array[n])[lev].get());
+  // 	}
+  //   datatime.push_back(t_old[lev]);
+  //   datatime.push_back(t_new[lev]);
+  // }
   amrex::Abort("GeneralAMRIntegrator::GetData: Used for time interpolation, which is not currently supported!");
 }
 
@@ -247,4 +284,207 @@ void
 GeneralAMRIntegrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 {
   TagCellsForRefinement(lev,tags,time,ngrow);
+}
+
+
+void
+GeneralAMRIntegrator::InitData ()
+{
+    if (restart_chkfile.empty())
+    {
+	const Real time = 0.0;
+	InitFromScratch(time);
+	for (int lev = finest_level-1; lev >= 0; --lev)
+	  {
+	    for (int n = 0; n < number_of_fabs; n++)
+	      amrex::average_down(*(*fab_array[n])[lev+1], *(*fab_array[n])[lev],
+				geom[lev+1], geom[lev],
+				  0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
+	  }
+
+	if (plot_int > 0) {
+	    WritePlotFile();
+	}
+    }
+    else
+    {
+	InitFromCheckpoint();
+    }
+}
+
+void GeneralAMRIntegrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
+						    const DistributionMapping& dm)
+{
+  for (int n = 0 ; n < number_of_fabs; n++)
+    (*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp_array[n], nghost_array[n]));
+  
+  t_new[lev] = t;
+  t_old[lev] = t - 1.e200;
+
+  Initialize(lev);
+  
+  for (int n = 0 ; n < number_of_fabs; n++)
+    {
+      physbc_array[n]->SetLevel(lev);
+      physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t);
+    }
+}
+
+void
+GeneralAMRIntegrator::CreateCleanDirectory () const
+{
+  amrex::UtilCreateCleanDirectory(plot_file, false);
+}
+
+std::vector<std::string>
+GeneralAMRIntegrator::PlotFileName (int lev) const
+{
+  std::vector<std::string> name;
+  name.push_back(plot_file+"/");
+  name.push_back(amrex::Concatenate("", lev, 5));
+  return name;
+}
+
+void
+GeneralAMRIntegrator::WritePlotFile () const
+{
+  const int nlevels = finest_level+1;
+
+  int total_components = 0;
+  for (int i = 0; i < number_of_fabs; i++)
+    total_components += ncomp_array[i];
+
+  Vector<MultiFab> plotmf(nlevels);
+  
+  for (int ilev = 0; ilev < nlevels; ++ilev)
+    {
+      plotmf[ilev].define(grids[ilev], dmap[ilev], total_components, 0);
+
+      int n = 0;
+      for (int i = 0; i < number_of_fabs; i++)
+	{
+	  MultiFab::Copy(plotmf[ilev], *(*fab_array[i])[ilev], 0, n, ncomp_array[i], 0);
+	  n += ncomp_array[i];
+	}
+    }
+
+  const std::vector<std::string>& plotfilename = PlotFileName(istep[0]);
+  
+  WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), name_array,
+			  Geom(), t_new[0],istep, refRatio());
+
+
+  if (ParallelDescriptor::IOProcessor())
+    {
+      std::ofstream outfile;
+      if (istep[0]==0) outfile.open(plot_file+"/output.visit",std::ios_base::out);
+      else outfile.open(plot_file+"/output.visit",std::ios_base::app);
+      outfile << plotfilename[1] + "/Header" << std::endl;
+    }
+}
+
+void
+GeneralAMRIntegrator::InitFromCheckpoint ()
+{
+  amrex::Abort("GeneralAMRIntegrator::InitFromCheckpoint: todo");
+}
+
+void
+GeneralAMRIntegrator::Evolve ()
+{
+  Real cur_time = t_new[0];
+  int last_plot_file_step = 0;
+
+  for (int step = istep[0]; step < max_step && cur_time < stop_time; ++step)
+    {
+      if (ParallelDescriptor::IOProcessor()) {
+	std::cout << "\nSTEP " << step+1 << " starts ..." << std::endl;
+      }
+      int lev = 0;
+      int iteration = 1;
+      TimeStep(lev, cur_time, iteration);
+      cur_time += dt[0];
+
+      if (ParallelDescriptor::IOProcessor()) {
+	std::cout << "STEP " << step+1 << " ends."
+		  << " TIME = " << cur_time << " DT = " << dt[0]
+		  << std::endl;
+      }
+
+      // sync up time
+      for (int lev = 0; lev <= finest_level; ++lev) {
+	t_new[lev] = cur_time;
+      }
+
+      if (plot_int > 0 && (step+1) % plot_int == 0) {
+	last_plot_file_step = step+1;
+	WritePlotFile();
+      }
+
+      if (cur_time >= stop_time - 1.e-6*dt[0]) break;
+    }
+
+  if (plot_int > 0 && istep[0] > last_plot_file_step) {
+    WritePlotFile();
+  }
+}
+
+void
+GeneralAMRIntegrator::TimeStep (int lev, Real time, int /*iteration*/)
+{
+
+  if (regrid_int > 0)  // We may need to regrid
+    {
+      static Array<int> last_regrid_step(max_level+1, 0);
+
+      // regrid doesn't change the base level, so we don't regrid on max_level
+      if (lev < max_level && istep[lev] > last_regrid_step[lev])
+	{
+          if (istep[lev] % regrid_int == 0)
+	    {
+	      int old_finest = finest_level; // regrid changes finest_level
+	      regrid(lev, time, false); 
+	      for (int k = lev; k <= finest_level; ++k) {
+		last_regrid_step[k] = istep[k];
+	      }
+	      for (int k = old_finest+1; k <= finest_level; ++k) {
+		dt[k] = dt[k-1] / MaxRefRatio(k-1);
+	      }
+  	    }
+  	}
+    }
+
+  if (Verbose() && ParallelDescriptor::IOProcessor()) {
+    std::cout << "[Level " << lev 
+	      << " step " << istep[lev]+1 << "] ";
+    std::cout << "ADVANCE with dt = "
+	      << dt[lev]
+	      << std::endl;
+  }
+
+  Advance(lev, time, dt[lev]);
+  ++istep[lev];
+
+  if (Verbose() && ParallelDescriptor::IOProcessor())
+    {
+      std::cout << "[Level " << lev
+		<< " step " << istep[lev] << "] ";
+      std::cout << "Advanced "
+		<< CountCells(lev)
+		<< " cells"
+		<< std::endl;
+    }
+
+  if (lev < finest_level)
+    {
+      for (int i = 1; i <= nsubsteps[lev+1]; ++i)
+	TimeStep(lev+1, time+(i-1)*dt[lev+1], i);
+
+      for (int n = 0; n < number_of_fabs; n++)
+	{
+	  amrex::average_down(*(*fab_array[n])[lev+1], *(*fab_array[n])[lev],
+			      geom[lev+1], geom[lev],
+			      0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
+	}
+    }
 }
