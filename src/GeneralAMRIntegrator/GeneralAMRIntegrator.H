@@ -31,7 +31,7 @@ public:
   virtual void RemakeLevel (int lev, amrex::Real time, const amrex::BoxArray& ba,
 			    const amrex::DistributionMapping& dm) override;
   virtual void ClearLevel (int lev) override;
-  virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int /*ngrow*/) override;
+  virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
   void RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab, GeneralAMRIntegratorPhysBC &new_bc, int ncomp, int nghost, std::string name);
 
@@ -46,6 +46,9 @@ private:
   void TimeStep (int lev, amrex::Real time, int iteration);
 protected:
   virtual void Advance (int lev, amrex::Real time, amrex::Real dt) = 0;
+
+  virtual void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) = 0;
+  
 
   void FillPatch (int lev, amrex::Real time, amrex::MultiFab &mf, GeneralAMRIntegratorPhysBC &physbc, int icomp);
 private:

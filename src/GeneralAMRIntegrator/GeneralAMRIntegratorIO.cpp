@@ -67,7 +67,7 @@ GeneralAMRIntegrator::WritePlotFile () const
 
   int total_components = 0;
   for (int i = 0; i < number_of_fabs; i++)
-    total_components += (*fab_array[i])[0]->nComp();
+    total_components += ncomp_array[i];
 
   Vector<MultiFab> plotmf(nlevels);
   
@@ -86,8 +86,8 @@ GeneralAMRIntegrator::WritePlotFile () const
 	  //                   int             numcomp,
 	  //                   int             nghost);
 
-	  MultiFab::Copy(plotmf[ilev], *(*fab_array[i])[ilev], 0, n, (*fab_array[i])[ilev]->nComp(), 0);
-	  n += (*fab_array[i])[ilev]->nComp();
+	  MultiFab::Copy(plotmf[ilev], *(*fab_array[i])[ilev], 0, n, ncomp_array[i], 0);
+	  n += ncomp_array[i];
 	}
     }
 

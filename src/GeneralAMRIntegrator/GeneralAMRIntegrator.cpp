@@ -61,7 +61,8 @@ GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFa
   physbc_array.push_back((std::unique_ptr<GeneralAMRIntegratorPhysBC>)&new_bc); 
   ncomp_array.push_back(ncomp);
   nghost_array.push_back(nghost);
-  if (ncomp > 1) for (int i = 0; i < ncomp; i++) name_array.push_back(amrex::Concatenate(name, i,5));
+  if (ncomp > 1) for (int i = 1; i <= ncomp; i++) name_array.push_back(amrex::Concatenate(name, i, 3));
+  else name_array.push_back(name);
   number_of_fabs++;
 }
 
@@ -221,3 +222,8 @@ GeneralAMRIntegrator::GetData (const int lev, const Real time,
     }
 }
 
+void
+GeneralAMRIntegrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
+{
+  TagCellsForRefinement(lev,tags,time,ngrow);
+}
