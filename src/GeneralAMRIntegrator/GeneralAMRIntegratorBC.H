@@ -5,9 +5,6 @@
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
 
-// In this tutorial, we assume the boundaries are all periodic.  
-// Thus there are no physical boundaries. 
-
 class GeneralAMRIntegratorPhysBC
   : public amrex::PhysBCFunctBase
 {
@@ -47,14 +44,8 @@ public:
 #if BL_SPACEDIM > 2
       if (BC_lo[2] == EXT_DIR) pp.getarr("lo_3",bc_lo_3); if(bc_hi[2] == EXT_DIR) pp.getarr("hi_3",bc_hi_3);
 #endif
-
-
     }
   }
-
-  // TODO - UPDATE THIS
-  //GeneralAMRIntegratorPhysBC (amrex::Array<amrex::Geometry> &_geom, int *bc_lo, int *bc_hi) : geom(_geom)  {}
-  //virtual ~GeneralAMRIntegratorPhysBC () {}
 
   virtual void FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real time) override
   {
