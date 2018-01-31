@@ -11,7 +11,7 @@
 using namespace amrex;
 
 GeneralAMRIntegrator::GeneralAMRIntegrator ()
-  : physbc(geom)
+//  : physbc(geom)
 {
   { 
     ParmParse pp;   // Basic run parameters
@@ -47,28 +47,31 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
   CreateCleanDirectory();
 }
 
-void
+void // CUSTOM METHOD - CHANGEABLE
 GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab,
+				     GeneralAMRIntegratorPhysBC &new_bc,
 				     int ncomp,
-				     int nghost)
+				     int nghost,
+				     std::string name)
 {
   int nlevs_max = maxLevel() + 1;
 
   new_fab.resize(nlevs_max);
   fab_array.push_back((std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > >)&new_fab);
+  physbc_array.push_back((std::unique_ptr<GeneralAMRIntegratorPhysBC>)&new_bc); 
   ncomp_array.push_back(ncomp);
   nghost_array.push_back(nghost);
+  if (ncomp > 1) for (int i = 0; i < ncomp; i++) name_array.push_back(amrex::Concatenate(name, i,5));
   number_of_fabs++;
 }
 
 
 GeneralAMRIntegrator::~GeneralAMRIntegrator ()
 {
-  // TODO
 }
 
-// Part of REGRIDDING
-void
+
+void // OVERRIDING PREVIOUS - DO NOT CHANGE
 GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
 				const DistributionMapping& dm)
 {
@@ -82,38 +85,35 @@ GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray
       t_new[lev] = time;
       t_old[lev] = time - 1.e200;
 
-      FillCoarsePatch(lev, time, *(*fab_array[n])[lev], 0, ncomp);
+      FillCoarsePatch(lev, time, *(*fab_array[n])[lev], *physbc_array[n], 0, ncomp);
     }
 }
 
 
-// Part of REGRIDDING
-void
+void // OVERRIDING PREVIOUS - DO NOT CHANGE
 GeneralAMRIntegrator::RemakeLevel (int lev, Real time, const BoxArray& ba,
 		     const DistributionMapping& dm)
 {
   amrex::Array<std::unique_ptr<MultiFab> > new_state(number_of_fabs); 
-  amrex::Array<std::unique_ptr<MultiFab> > old_state(number_of_fabs);
   for (int n=0; n < number_of_fabs; n++)
     {
       const int ncomp = (*fab_array[n])[lev]->nComp();
       const int nghost = (*fab_array[n])[lev]->nGrow();
 
       new_state[n].reset(new MultiFab(ba, dm, ncomp, nghost));
+      FillPatch(lev, time, *new_state[n], *physbc_array[n], 0);
     }
 
-  FillPatch(lev, time, new_state, 0);
 
-  for (int n=0; n < number_of_fabs; n++)
+  for (int n=0; n < number_of_fabs; n++) // TODO - combine this loop with previous maybe?
     {
       std::swap(new_state[n], (*fab_array[n])[lev]);
-
       t_new[lev] = time;
       t_old[lev] = time - 1.e200;
     }
 }
 
-void
+void // OVERRIDING PREVIOUS - DO NOT CHANGE 
 GeneralAMRIntegrator::ClearLevel (int lev)
 {
   for (int n = 0; n < number_of_fabs; n++)
@@ -122,7 +122,7 @@ GeneralAMRIntegrator::ClearLevel (int lev)
     }
 }
 
-long
+long // CUSTOM METHOD - CHANGEABLE
 GeneralAMRIntegrator::CountCells (int lev)
 {
   const int N = grids[lev].size();
@@ -137,28 +137,22 @@ GeneralAMRIntegrator::CountCells (int lev)
   return cnt;
 }
 
-void
-GeneralAMRIntegrator::FillPatch (int lev, Real time, Array<std::unique_ptr<MultiFab> >& mf, int icomp)
+void  // CUSTOM METHOD - CHANGEABLE
+GeneralAMRIntegrator::FillPatch (int lev, Real time, MultiFab &mf, GeneralAMRIntegratorPhysBC &physbc, int icomp)
 {
   if (lev == 0)
     {
-      Array<Array<MultiFab*> > smf;
-      smf.resize(number_of_fabs);
+      Array<MultiFab*> smf;
       Array<Real> stime;
-      GetData(0, time, smf, stime);
+      GetData(0, time, smf, stime); 
 
       physbc.SetLevel(lev);
-      for (int n = 0; n<number_of_fabs; n++)
-	{
-	  amrex::FillPatchSingleLevel(*mf[n], time, smf[n], stime, 0, icomp, mf[n]->nComp(),
-				      geom[lev], physbc);
-	}
-    }
+      amrex::FillPatchSingleLevel(mf, time, smf, stime, 0, icomp, mf.nComp(),
+				  geom[lev], physbc);
+    } 
   else
     {
-      Array<Array<MultiFab*> > cmf, fmf;
-      cmf.resize(number_of_fabs);
-      fmf.resize(number_of_fabs);
+      Array<MultiFab*> cmf, fmf;
       Array<Real> ctime, ftime;
       GetData(lev-1, time, cmf, ctime);
       GetData(lev  , time, fmf, ftime);
@@ -166,48 +160,41 @@ GeneralAMRIntegrator::FillPatch (int lev, Real time, Array<std::unique_ptr<Multi
       physbc.SetLevel(lev);
       Interpolater* mapper = &cell_cons_interp;
 
-      for (int n = 0; n<number_of_fabs; n++)
-	{
-	  Array<BCRec> bcs(mf[n]->nComp(), physbc.GetBCRec()); // todo
-	  amrex::FillPatchTwoLevels(*mf[n], time, cmf[n], ctime, fmf[n], ftime,
-				    0, icomp, mf[n]->nComp(), geom[lev-1], geom[lev],
-				    physbc, physbc,
-				    refRatio(lev-1),
-				    mapper, bcs);
-	}
+      Array<BCRec> bcs(mf.nComp(), physbc.GetBCRec()); // todo
+      amrex::FillPatchTwoLevels(mf, time, cmf, ctime, fmf, ftime,
+				0, icomp, mf.nComp(), geom[lev-1], geom[lev],
+				physbc, physbc,
+				refRatio(lev-1),
+				mapper, bcs);
     }
 }
 
-void
-GeneralAMRIntegrator::FillCoarsePatch (int lev, Real time, MultiFab& mf, int icomp, int ncomp)
+void // CUSTOM METHOD - CHANGEABLE
+GeneralAMRIntegrator::FillCoarsePatch (int lev, Real time, MultiFab& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp)
 {
   BL_ASSERT(lev > 0);
 
-  Array<Array<MultiFab*> > cmf(number_of_fabs);
+  Array<MultiFab* > cmf(number_of_fabs);
   Array<Real> ctime;
   GetData(lev-1, time, cmf, ctime);
     
-  for (int n = 0; n < number_of_fabs; n++)
-    if (cmf.size() != 1) 
-      amrex::Abort("FillCoarsePatch: how did this happen?");
+  if (cmf.size() != 1) 
+    amrex::Abort("FillCoarsePatch: how did this happen?");
   physbc.SetLevel(lev);
   Interpolater* mapper = &cell_cons_interp;
     
-  for (int n = 0; n < number_of_fabs; n++)
-    {
-      Array<BCRec> bcs(ncomp, physbc.GetBCRec());
-      amrex::InterpFromCoarseLevel(mf, time, *cmf[n][0], 0, icomp, ncomp, geom[lev-1], geom[lev],
-				   physbc, physbc,
-				   refRatio(lev-1),
-				   mapper, bcs);
-    }
+  Array<BCRec> bcs(ncomp, physbc.GetBCRec());
+  amrex::InterpFromCoarseLevel(mf, time, *cmf[0], 0, icomp, ncomp, geom[lev-1], geom[lev],
+			       physbc, physbc,
+			       refRatio(lev-1),
+			       mapper, bcs);
 }
  
-void
+void // CUSTOM METHOD - CHANGEABLE
 GeneralAMRIntegrator::GetData (const int lev, const Real time,
-			       Array<Array<MultiFab*> >& data, Array<Real>& datatime)
+			       Array<MultiFab*>& data, Array<Real>& datatime)
 {
-  for (int n = 0; n < number_of_fabs; n++) data[n].clear();
+  data.clear();
   datatime.clear();
 
   const Real teps = (t_new[lev] - t_old[lev]) * 1.e-3;
@@ -227,10 +214,9 @@ GeneralAMRIntegrator::GetData (const int lev, const Real time,
     {
       for (int n = 0; n < number_of_fabs; n++)
 	{
-	  //data[n].push_back(phi_old[n][lev].get());
-	  data[n].push_back((*fab_array[n])[lev].get());
+	  data.push_back((*fab_array[n])[lev].get());
 	}
-      //datatime.push_back(t_old[lev]);
+      datatime.push_back(t_old[lev]);
       datatime.push_back(t_new[lev]);
     }
 }
