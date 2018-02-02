@@ -42,7 +42,7 @@ public:
       if (bc_lo[1] == EXT_DIR) pp.getarr("lo_2",bc_lo_2); if(bc_hi[1] == EXT_DIR) pp.getarr("hi_2",bc_hi_2);
 #endif
 #if BL_SPACEDIM > 2
-      if (BC_lo[2] == EXT_DIR) pp.getarr("lo_3",bc_lo_3); if(bc_hi[2] == EXT_DIR) pp.getarr("hi_3",bc_hi_3);
+      if (bc_lo[2] == EXT_DIR) pp.getarr("lo_3",bc_lo_3); if(bc_hi[2] == EXT_DIR) pp.getarr("hi_3",bc_hi_3);
 #endif
     }
   }
@@ -60,47 +60,39 @@ public:
 	amrex::BaseFab<amrex::Real> &phi_box = mf[mfi];
 
 	for (int i = box.loVect()[0] - mf.nGrow(); i<=box.hiVect()[0] + mf.nGrow(); i++)
-	  {
-	    for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++)
-	      for (int n = 0; n < mf.nComp(); n++)
-		{
-		  if (i < domain.loVect()[0]) // Left boundary
-		    {
-		      if (bc_lo[0] == EXT_DIR)
-			phi_box(amrex::IntVect(i,j),n) = bc_lo_1[n];
+	  for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++)
+#if BL_SPACEDIM>2
+	  for (int k = box.loVect()[2] - mf.nGrow(); k<=box.hiVect()[2] + mf.nGrow(); k++)
+#endif
+	    for (int n = 0; n < mf.nComp(); n++)
+	      {
+		if (i < domain.loVect()[0]) // Left boundary
+		  if (bc_lo[0] == EXT_DIR)
+		    phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_lo_1[n];
 
-		      // Nothing
-		    }
-		  if (i > domain.hiVect()[0]) // Right boundary
-		    {
-		      if (bc_hi[0] == EXT_DIR)
-			phi_box(amrex::IntVect(i,j),n) = bc_hi_1[n];
+		if (i > domain.hiVect()[0]) // Right boundary
+		  if (bc_hi[0] == EXT_DIR)
+		    phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_hi_1[n];
 
-		      // Nothing
-		    }
-		  if (j < domain.loVect()[1]) // Bottom boundary
-		    {
-		      if (bc_lo[1] == EXT_DIR)
-			phi_box(amrex::IntVect(i,j),n) = bc_lo_2[n];
-		      // if (n<2)
-		      // 	{
-		      // 	  if (j == domain.loVect()[1]-1) phi_box(amrex::IntVect(i,j),n) = (amrex::Real)(1-n);//phi_box(amrex::IntVect(i,j+1),n); //1.0;//
-		      // 	  if (j == domain.loVect()[1]-2) phi_box(amrex::IntVect(i,j),n) = (amrex::Real)(1-n);//phi_box(amrex::IntVect(i,j+3),n); //1.0;//
-		      // 	}
-		    }
-		  if (j > domain.hiVect()[1]) // Top boundary
-		    {
-		      if (bc_hi[1] == EXT_DIR)
-			phi_box(amrex::IntVect(i,j),n) = bc_hi_2[n];
+		if (j < domain.loVect()[1]) // Bottom boundary
+		  if (bc_lo[1] == EXT_DIR)
+		    phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_lo_2[n];
 
-		      // if (n<2)
-		      // 	{
-		      // 	  if (j == domain.hiVect()[1]+1) phi_box(amrex::IntVect(i,j),n) = (amrex::Real)(n);//phi_box(amrex::IntVect(i,j-1),n); //0.0;//
-		      // 	  if (j == domain.hiVect()[1]+2) phi_box(amrex::IntVect(i,j),n) = (amrex::Real)(n);//phi_box(amrex::IntVect(i,j-3),n); //0.0;//
-		      // 	}
-		    }
-		}
-	  }
+		if (j > domain.hiVect()[1]) // Top boundary
+		  if (bc_hi[1] == EXT_DIR)
+		    phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_hi_2[n];
+
+#if BL_SPACEDIM>2
+		if (k < domain.loVect()[2])
+		  if (bc_lo[2] == EXT_DIR)
+		    phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_lo_3[n];
+
+		if (k > domain.hiVect()[2])
+		  if (bc_hi[2] == EXT_DIR)
+		    phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_hi_3[n];
+#endif
+
+	      }
       }
   }
   void SetLevel(int _lev) {lev=_lev;}
