@@ -36,7 +36,7 @@ public:
       if (bc_lo[0] == EXT_DIR) pp.getarr("lo_1",bc_lo_1); if(bc_hi[0] == EXT_DIR) pp.getarr("hi_1",bc_hi_1);
       if (bc_lo[1] == EXT_DIR) pp.getarr("lo_2",bc_lo_2); if(bc_hi[1] == EXT_DIR) pp.getarr("hi_2",bc_hi_2);
 #if BL_SPACEDIM > 2
-      if (BC_lo[2] == EXT_DIR) pp.getarr("lo_3",bc_lo_3); if(bc_hi[2] == EXT_DIR) pp.getarr("hi_3",bc_hi_3);
+      if (bc_lo[2] == EXT_DIR) pp.getarr("lo_3",bc_lo_3); if(bc_hi[2] == EXT_DIR) pp.getarr("hi_3",bc_hi_3);
 #endif
     }
   }
@@ -59,41 +59,41 @@ public:
    	for (int i = box.loVect()[0] - mf.nGrow(); i<=box.hiVect()[0] + mf.nGrow(); i++)
    	  for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++)
 #if BL_SPACEDIM > 2
-   	  for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++)
+	    for (int k = box.loVect()[2] - mf.nGrow(); k<=box.hiVect()[2] + mf.nGrow(); k++)
 #endif
-   	    {
-	      if (bc_lo[0] == EXT_DIR)
-		if (i < domain.loVect()[0]) // Low 1 boundary
-		  for (int n = 0 ; n < mf.nComp() ; n++) 
-		    mf_box(amrex::IntVect(i,j),n) =  bc_lo_1[n];
+	      {
+		if (bc_lo[0] == EXT_DIR)
+		  if (i < domain.loVect()[0]) // Low 1 boundary
+		    for (int n = 0 ; n < mf.nComp() ; n++) 
+		      mf_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) =  bc_lo_1[n];
 
-	      if (bc_hi[0] == EXT_DIR)
-		if (i > domain.hiVect()[0]) // High 1 boundary
-		  for (int n = 0 ; n < mf.nComp() ; n++) 
-		      mf_box(amrex::IntVect(i,j),n) =  bc_hi_1[n];
+		if (bc_hi[0] == EXT_DIR)
+		  if (i > domain.hiVect()[0]) // High 1 boundary
+		    for (int n = 0 ; n < mf.nComp() ; n++) 
+		      mf_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) =  bc_hi_1[n];
 
-	      if (bc_lo[1] == EXT_DIR)
-		if (j < domain.loVect()[1]) // Low 2 boundary
-		  for (int n = 0 ; n < mf.nComp() ; n++) 
-		    mf_box(amrex::IntVect(i,j),n) =  bc_lo_2[n];
+		if (bc_lo[1] == EXT_DIR)
+		  if (j < domain.loVect()[1]) // Low 2 boundary
+		    for (int n = 0 ; n < mf.nComp() ; n++) 
+		      mf_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) =  bc_lo_2[n];
 
-	      if (bc_hi[1] == EXT_DIR)
-		if (j > domain.hiVect()[1]) // High 2 boundary
-		  for (int n = 0 ; n < mf.nComp() ; n++) 
-		    mf_box(amrex::IntVect(i,j),n) =  bc_hi_2[n];
+		if (bc_hi[1] == EXT_DIR)
+		  if (j > domain.hiVect()[1]) // High 2 boundary
+		    for (int n = 0 ; n < mf.nComp() ; n++) 
+		      mf_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) =  bc_hi_2[n];
 
 #if BL_SPACEDIM > 2
-	      if (bc_lo[2] == EXT_DIR)
-		if (k < domain.loVect()[2]) // Low 2 boundary
-		  for (int n = 0 ; n < mf.nComp() ; n++) 
-		    mf_box(amrex::IntVect(i,j),n) =  bc_lo_3[n];
+		if (bc_lo[2] == EXT_DIR)
+		  if (k < domain.loVect()[2]) // Low 2 boundary
+		    for (int n = 0 ; n < mf.nComp() ; n++) 
+		      mf_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) =  bc_lo_3[n];
 
-	      if (bc_hi[2] == EXT_DIR)
-		if (k > domain.hiVect()[2]) // High 2 boundary
-		  for (int n = 0 ; n < mf.nComp() ; n++) 
-		    mf_box(amrex::IntVect(i,j),n) =  bc_hi_3[n];
+		if (bc_hi[2] == EXT_DIR)
+		  if (k > domain.hiVect()[2]) // High 2 boundary
+		    for (int n = 0 ; n < mf.nComp() ; n++) 
+		      mf_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) =  bc_hi_3[n];
 #endif
-   	    }
+	      }
       }
   }
 
