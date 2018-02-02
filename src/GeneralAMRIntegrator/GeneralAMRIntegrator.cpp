@@ -15,16 +15,6 @@
 
 using namespace amrex;
 
-///
-/// \function GeneralAMRIntegrator
-/// \brief Constructor
-///
-/// Do the following things:
-///    - Read in simulation TIME(STEP) information
-///    - Read in simulation output and AMR information
-///    - Initalize timestep substep information
-///    - Create a clean directory
-///
 GeneralAMRIntegrator::GeneralAMRIntegrator ()
 {
   { 
@@ -248,8 +238,10 @@ GeneralAMRIntegrator::FillCoarsePatch (int lev, Real time, MultiFab& mf, General
 }
  
 void // CUSTOM METHOD - CHANGEABLE
-GeneralAMRIntegrator::GetData (const int lev, const Real time,
-			       Array<MultiFab*>& data, Array<Real>& datatime)
+GeneralAMRIntegrator::GetData (const int /*lev*/,
+			       const Real /*time*/,
+			       Array<MultiFab*>& /*data*/,
+			       Array<Real>& /*datatime*/)
 {
   // data.clear();
   // datatime.clear();
@@ -462,6 +454,8 @@ GeneralAMRIntegrator::TimeStep (int lev, Real time, int /*iteration*/)
 	      << std::endl;
   }
 
+  for (int n = 0 ; n < number_of_fabs ; n++)
+    FillPatch(lev,t_old[lev],*fab_array[n],*(*fab_array[n])[lev],*physbc_array[n],0);
   Advance(lev, time, dt[lev]);
   ++istep[lev];
 

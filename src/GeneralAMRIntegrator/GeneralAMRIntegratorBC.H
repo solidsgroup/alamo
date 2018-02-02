@@ -105,7 +105,7 @@ public:
   }
   void SetLevel(int _lev) {lev=_lev;}
   amrex::BCRec GetBCRec() {return amrex::BCRec(bc_lo,bc_hi);}
-private:
+protected:
   int bc_lo[BL_SPACEDIM];
   int bc_hi[BL_SPACEDIM];
   amrex::Array<amrex::Real> bc_lo_1, bc_hi_1;
