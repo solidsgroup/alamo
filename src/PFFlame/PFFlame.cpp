@@ -29,18 +29,21 @@ void PFFlame::Initialize (int lev)
        {
 	 const amrex::Box& box = mfi.tilebox();
 
-	 amrex::BaseFab<Real> &Eta_box  = (*Eta[lev])[mfi];
-	 amrex::BaseFab<Real> &Eta_old_box  = (*Eta_old[lev])[mfi];
-	 amrex::BaseFab<Real> &Temp_box = (*Temp[lev])[mfi];
-	 amrex::BaseFab<Real> &Temp_old_box = (*Temp_old[lev])[mfi];
+	 amrex::BaseFab<Real> &Eta_box		= (*Eta[lev])[mfi];
+	 amrex::BaseFab<Real> &Eta_old_box	= (*Eta_old[lev])[mfi];
+	 amrex::BaseFab<Real> &Temp_box		= (*Temp[lev])[mfi];
+	 amrex::BaseFab<Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
 
 	 for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++) 
 	   for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
+#if BL_SPACEDIM > 2
+	   for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++)
+#endif
 	     {
-	       Eta_box(amrex::IntVect(i,j)) =  1.0;
-	       Eta_old_box(amrex::IntVect(i,j)) =  1.0;
-	       Temp_box(amrex::IntVect(i,j)) =  0.0;
-	       Temp_old_box(amrex::IntVect(i,j)) =  0.0;
+	       Eta_box     (amrex::IntVect(AMREX_D_DECL(i,j,k))) =  1.0;
+	       Eta_old_box (amrex::IntVect(AMREX_D_DECL(i,j,k))) =  1.0;
+	       Temp_box    (amrex::IntVect(AMREX_D_DECL(i,j,k))) =  0.0;
+	       Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) =  0.0;
 	     }
     }
 }
@@ -62,24 +65,27 @@ void PFFlame::Advance (int lev, Real time, Real dt)
 
       amrex::BaseFab<Real> &Eta_box		= (*Eta[lev])[mfi];
       amrex::BaseFab<Real> &Eta_old_box		= (*Eta_old[lev])[mfi];
-      amrex::BaseFab<Real> &Temp_box		= (*Temp[lev])[mfi];
-      amrex::BaseFab<Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
+      // amrex::BaseFab<Real> &Temp_box		= (*Temp[lev])[mfi];
+      // amrex::BaseFab<Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
 
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+#if BL_SPACEDIM>2
+	for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+#endif
 	  {
 	    //
 	    // Phase field evolution
 	    //
 
 	    amrex::Real eta_lap = 
-	      (Eta_old_box(amrex::IntVect(i+1,j)) - 2.*Eta_old_box(amrex::IntVect(i,j)) + Eta_old_box(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
-	      (Eta_old_box(amrex::IntVect(i,j+1)) - 2.*Eta_old_box(amrex::IntVect(i,j)) + Eta_old_box(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
+	      (Eta_old_box(amrex::IntVect(AMREX_D_DECL(i+1,j,k))) - 2.*Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) + Eta_old_box(amrex::IntVect(AMREX_D_DECL(i-1,j,k))))/dx[0]/dx[0] +
+	      (Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j+1,k))) - 2.*Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) + Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j-1,k))))/dx[1]/dx[1];
 	     
 	     
-	    amrex::Real oldeta = Eta_old_box(amrex::IntVect(i,j));
-	    Eta_box(amrex::IntVect(i,j)) = oldeta -
+	    amrex::Real oldeta = Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)));
+	    Eta_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) = oldeta -
 	      M * dt * (a1 + 2*a2*oldeta + 3*a3*oldeta*oldeta + 4*a4*oldeta*oldeta*oldeta
 			- kappa*eta_lap);
 
@@ -87,38 +93,38 @@ void PFFlame::Advance (int lev, Real time, Real dt)
 	    // Temperature evolution
 	    //
 
-	    if (0) // todo ignore temperature for the time being
-	      //if (Eta_box(amrex::IntVect(i,j))>0.01)
-	      {
-		// amrex::Real temperature_delay = 0.05;
-		// if (time<temperature_delay) continue;
+	    // if (0) // todo ignore temperature for the time being
+	    //   //if (Eta_box(amrex::IntVect(i,j))>0.01)
+	    //   {
+	    // 	// amrex::Real temperature_delay = 0.05;
+	    // 	// if (time<temperature_delay) continue;
 
-		amrex::Real eta_gradx = (Eta_old_box(amrex::IntVect(i+1,j)) - Eta_old_box(amrex::IntVect(i-1,j)))/(2*dx[0]);
-		amrex::Real eta_grady = (Eta_old_box(amrex::IntVect(i,j+1)) - Eta_old_box(amrex::IntVect(i,j-1)))/(2*dx[1]);
-		amrex::Real T_gradx = (Temp_old_box(amrex::IntVect(i+1,j)) - Temp_old_box(amrex::IntVect(i-1,j)))/(2*dx[0]);
-		amrex::Real T_grady = (Temp_old_box(amrex::IntVect(i,j+1)) - Temp_old_box(amrex::IntVect(i,j-1)))/(2*dx[1]);
+	    // 	amrex::Real eta_gradx = (Eta_old_box(amrex::IntVect(i+1,j)) - Eta_old_box(amrex::IntVect(i-1,j)))/(2*dx[0]);
+	    // 	amrex::Real eta_grady = (Eta_old_box(amrex::IntVect(i,j+1)) - Eta_old_box(amrex::IntVect(i,j-1)))/(2*dx[1]);
+	    // 	amrex::Real T_gradx = (Temp_old_box(amrex::IntVect(i+1,j)) - Temp_old_box(amrex::IntVect(i-1,j)))/(2*dx[0]);
+	    // 	amrex::Real T_grady = (Temp_old_box(amrex::IntVect(i,j+1)) - Temp_old_box(amrex::IntVect(i,j-1)))/(2*dx[1]);
 
-		amrex::Real eta_grad_mag = sqrt(eta_gradx*eta_gradx + eta_grady*eta_grady);
+	    // 	amrex::Real eta_grad_mag = sqrt(eta_gradx*eta_gradx + eta_grady*eta_grady);
 
-		amrex::Real T_lap = 
-		  (Temp_old_box(amrex::IntVect(i+1,j)) - 2.*Temp_old_box(amrex::IntVect(i,j)) + Temp_old_box(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
-		  (Temp_old_box(amrex::IntVect(i,j+1)) - 2.*Temp_old_box(amrex::IntVect(i,j)) + Temp_old_box(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
+	    // 	amrex::Real T_lap = 
+	    // 	  (Temp_old_box(amrex::IntVect(i+1,j)) - 2.*Temp_old_box(amrex::IntVect(i,j)) + Temp_old_box(amrex::IntVect(i-1,j)))/dx[0]/dx[0] +
+	    // 	  (Temp_old_box(amrex::IntVect(i,j+1)) - 2.*Temp_old_box(amrex::IntVect(i,j)) + Temp_old_box(amrex::IntVect(i,j-1)))/dx[1]/dx[1];
 	     
-		amrex::Real rho = (rho1-rho0)*Eta_old_box(amrex::IntVect(i,j)) + rho0;
-		amrex::Real k   = (k1-k0)*Eta_old_box(amrex::IntVect(i,j)) + k0;
-		amrex::Real cp  = (cp1-cp0)*Eta_old_box(amrex::IntVect(i,j)) + cp0;
+	    // 	amrex::Real rho = (rho1-rho0)*Eta_old_box(amrex::IntVect(i,j)) + rho0;
+	    // 	amrex::Real k   = (k1-k0)*Eta_old_box(amrex::IntVect(i,j)) + k0;
+	    // 	amrex::Real cp  = (cp1-cp0)*Eta_old_box(amrex::IntVect(i,j)) + cp0;
 
 
-		Temp_box(amrex::IntVect(i,j)) = Temp_old_box(amrex::IntVect(i,j)) + (dt/rho/cp)
-		  * ((k1-k0)*(eta_gradx*T_gradx + eta_grady*T_grady)
-		     + k*T_lap
-		     + (w1 - w0 - qdotburn)*eta_grad_mag);
+	    // 	Temp_box(amrex::IntVect(i,j)) = Temp_old_box(amrex::IntVect(i,j)) + (dt/rho/cp)
+	    // 	  * ((k1-k0)*(eta_gradx*T_gradx + eta_grady*T_grady)
+	    // 	     + k*T_lap
+	    // 	     + (w1 - w0 - qdotburn)*eta_grad_mag);
 
-		if (std::isnan(Temp_box(amrex::IntVect(i,j))))
-		  amrex::Abort("NaN encountered");
-	      }
-	    else
-	      Temp_box(amrex::IntVect(i,j),0) = 0;
+	    // 	if (std::isnan(Temp_box(amrex::IntVect(i,j))))
+	    // 	  amrex::Abort("NaN encountered");
+	    //   }
+	    // else
+	    //   Temp_box(amrex::IntVect(i,j),0) = 0;
 	  }
      }
 }
@@ -134,22 +140,26 @@ void PFFlame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::R
   amrex::Array<int>  itags;
 	
   for (amrex::MFIter mfi(state,true); mfi.isValid(); ++mfi)
-       {
-	 const amrex::Box&  bx  = mfi.tilebox();
+    {
+      const amrex::Box&  bx  = mfi.tilebox();
 
-	 amrex::TagBox&     tag  = tags[mfi];
+      amrex::TagBox&     tag  = tags[mfi];
 	    
-	 //amrex::BaseFab<Real> &Eta_box = (*Temp[lev])[mfi];
-	 amrex::BaseFab<Real> &Eta_box = (*Eta[lev])[mfi];
+      //amrex::BaseFab<Real> &Eta_box = (*Temp[lev])[mfi];
+      amrex::BaseFab<Real> &Eta_box = (*Eta[lev])[mfi];
 
-	 for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-	   for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-	     {
-	       amrex::Real gradx = (Eta_box(amrex::IntVect(i+1,j)) - Eta_box(amrex::IntVect(i-1,j)))/(2.*dx[0]);
-	       amrex::Real grady = (Eta_box(amrex::IntVect(i,j+1)) - Eta_box(amrex::IntVect(i,j-1)))/(2.*dx[1]);
-	       if (dx[0]*dx[1]*(gradx*gradx + grady*grady)>0.01) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
-	     }
-       }
+      for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+#if BL_SPACEDIM>2
+	  for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+#endif
+	    {
+	      amrex::Real gradx = (Eta_box(amrex::IntVect(AMREX_D_DECL(i+1,j,k))) - Eta_box(amrex::IntVect(AMREX_D_DECL(i-1,j,k))))/(2.*dx[0]);
+	      amrex::Real grady = (Eta_box(amrex::IntVect(AMREX_D_DECL(i,j+1,k))) - Eta_box(amrex::IntVect(AMREX_D_DECL(i,j-1,k))))/(2.*dx[1]);
+	      amrex::Real gradz = (Eta_box(amrex::IntVect(AMREX_D_DECL(i,j,k+1))) - Eta_box(amrex::IntVect(AMREX_D_DECL(i,j,k-1))))/(2.*dx[2]);
+	      if (dx[0]*dx[1]*dx[2]*(gradx*gradx + grady*grady + gradz*gradz)>0.001) tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
+	    }
+    }
 
 }
 
