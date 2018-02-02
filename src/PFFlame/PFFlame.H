@@ -5,38 +5,33 @@
 #include <limits>
 #include <memory>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
-#include <AMReX_AmrCore.H>
-#include <AMReX_FluxRegister.H>
+#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
+#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
 
-#include "PFAmr.H"
+#include "PFFlameBC.H"
 
-
-#ifndef DEBUG
-#define DEBUG std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-#endif
-
-class PFFlame : public PFAmr
+class PFFlame : public GeneralAMRIntegrator
 {
 public:
   PFFlame ();
 
-  virtual void MakeNewLevelFromScratch (int lev, amrex::Real time, const amrex::BoxArray& ba,
-   					const amrex::DistributionMapping& dm);
-  virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int /*ngrow*/);
-
 protected:
-
-  virtual void Advance (int lev, amrex::Real time, amrex::Real dt);
+  void Initialize (int lev) ;
+  void Advance (int lev, Real time, Real dt);
+  void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
 
 private:
 
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > Temp;
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > Temp_old;
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > Eta;
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > Eta_old;
+  PFFlamePhysBC TempBC;
+  PFFlamePhysBC EtaBC;
 
-  int number_of_fabs = 1;
-  int number_of_components = 2;
+  // int number_of_fabs = 1;
+  // int number_of_components = 2;
 
   amrex::Real M;                  // Burn speed parameter
   amrex::Real kappa;              // Burn width parameter
