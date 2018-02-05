@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #ifndef MY_TEST_H_
 #define MY_TEST_H_
 
@@ -47,4 +48,5 @@ private:
     amrex::Real bscalar = 1.0;
 };
 
+#endif
 #endif
