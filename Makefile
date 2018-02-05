@@ -13,7 +13,7 @@ MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
 
 CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 -DDIM=${DIM} -DBL_SPACEDIM=${DIM} 
 
-INCLUDE = -I./src/ -I./src/PFAmr/ -I./src/PFBoundary/ -I/opt/amrex/tmp_install_dir/include/
+INCLUDE = -I./src/ -I./src/PFAmr/ -I./src/PFFem/ -I./src/GeneralAMRIntegrator/ -I./src/PFFlame/ -I./src/PFBoundary/ -I/opt/amrex/tmp_install_dir/include/
 LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
 
 
@@ -28,6 +28,8 @@ OBJ_F = ${SRC_F:.F90=.F90.o}
 
 #fem:bin/fem
 
+default: bin/alamo bin/fem bin/flame
+
 bin/alamo: ${OBJ} ${OBJ_F} src/main.cpp.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
@@ -41,6 +43,13 @@ bin/fem: ${OBJ} ${OBJ_F} src/fem.cpp.o
 	@echo "###"$(RESET)
 	mkdir -p bin/
 	mpicxx -o bin/fem $^ ${LIB} 
+
+bin/flame: ${OBJ} ${OBJ_F} src/flame.cpp.o
+	@echo $(B_ON)$(FG_BLUE)"###"
+	@echo "### LINKING $@" 
+	@echo "###"$(RESET)
+	mkdir -p bin/
+	mpicxx -o bin/flame $^ ${LIB} 
 
 %.cpp.o: %.cpp ${HDR}
 	@echo $(B_ON)$(FG_YELLOW)"###"
