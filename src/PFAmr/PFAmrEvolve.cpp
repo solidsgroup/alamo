@@ -143,27 +143,12 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   sum_of_squares += old_phi(amrex::IntVect(i,j),n)*old_phi(amrex::IntVect(i,j),n);
 		 }
 	       
-	       // THREE POINT STENCILS
-	       // amrex::Real grad1  = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]); // 3 point
-	       // amrex::Real grad2  = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]); // 3 point
-	       //amrex::Real grad11 = (old_phi(amrex::IntVect(i+1,j),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i-1,j),m))/dx[0]/dx[0]; // 3 point
-	       //amrex::Real grad22 = (old_phi(amrex::IntVect(i,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i,j-1),m))/dx[1]/dx[1]; // 3 point
-	       //amrex::Real grad12 = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m) + old_phi(amrex::IntVect(i-1,j-1),m))/(4.*dx[0]*dx[1]);
-
-	       // ROTATED STENCILS (3 POINT)
-
-	       //amrex::Real grad1  = (0.5*(old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))+0.25*((old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))-(old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))))/(2*dx[0]); // 3 point
 	       
-	       //amrex::Real grad2  = (0.5*(old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))+0.25*((old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))+(old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))))/(2*dx[1]); // 3 point
-
 	       amrex::Real grad1_normal = (old_phi(amrex::IntVect(i+1,j),m) - old_phi(amrex::IntVect(i-1,j),m))/(2*dx[0]);
 	       
 	       amrex::Real grad2_normal = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
 
-	       //amrex::Real grad1_rotated =(old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j-1),m))/(2*sqrt(2)*dx[0]);
-
-	       //amrex::Real grad2_rotated = (old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m))/(2*sqrt(2)*dx[1]);
-
+	       
 	       amrex::Real grad1 =  grad1_normal;//grad1_rotated;//0.5*grad1_normal+0.5*(grad1_rotated-grad2_rotated)/sqrt(2);//
 
 	       amrex::Real grad2 =  grad2_normal;//grad2_rotated;//0.5*grad1_normal+0.5*(grad1_rotated-grad2_rotated)/sqrt(2);//
@@ -171,14 +156,10 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       
 	       amrex::Real grad12_normal = (old_phi(amrex::IntVect(i+1,j+1),m) - old_phi(amrex::IntVect(i-1,j+1),m) - old_phi(amrex::IntVect(i+1,j-1),m) + old_phi(amrex::IntVect(i-1,j-1),m))/(4.*dx[0]*dx[1]);
 	       
-	       //amrex::Real grad12_rotated = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i-1,j),m) - old_phi(amrex::IntVect(i+1,j),m) + old_phi(amrex::IntVect(i,j-1),m))/(2.*dx[0]*dx[1]);
 	       
 	       amrex::Real grad11_normal =  (old_phi(amrex::IntVect(i+1,j),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i-1,j),m))/dx[0]/dx[0]; // 3 point
 	       
-	       //amrex::Real grad11_rotated = 0.5*(old_phi(amrex::IntVect(i+1,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i-1,j-1),m))/dx[0]/dx[1];// 3 point
 	       amrex::Real grad22_normal = (old_phi(amrex::IntVect(i,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i,j-1),m))/dx[1]/dx[1]; // 3 point
-	       
-	       //amrex::Real grad22_rotated = 0.5*(old_phi(amrex::IntVect(i-1,j+1),m) - 2.*old_phi(amrex::IntVect(i,j),m) + old_phi(amrex::IntVect(i+1,j-1),m))/dx[0]/dx[1]; // 3 point
 	       //Doing the change of basis and averaging them.
 	       amrex::Real grad11 = grad11_normal;//grad11_rotated; //0.5*grad11_normal+0.25*(grad11_rotated+grad22_rotated-2.*grad12_rotated);//
 	       amrex::Real grad22 = grad22_normal;//grad22_rotated;//0.5*grad22_normal+0.25*(grad11_rotated+grad22_rotated+2.*grad12_rotated);//
@@ -224,32 +205,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	          +16*old_phi(amrex::IntVect(i-1,j-1),m)-old_phi(amrex::IntVect(i-2,j-1),m))
 	        -(-old_phi(amrex::IntVect(i+2,j-2),m)+16*old_phi(amrex::IntVect(i+1,j-2),m)-30*old_phi(amrex::IntVect(i,j-2),m)
 	          +16*old_phi(amrex::IntVect(i-1,j-2),m)-old_phi(amrex::IntVect(i-2,j-2),m)));
-	       // // FIVE POINT STENCILS
-	       // amrex::Real grad1  = (-old_phi(amrex::IntVect(i+2,j),m)+8*old_phi(amrex::IntVect(i+1,j),m) -8*old_phi(amrex::IntVect(i-1,j),m)+old_phi(amrex::IntVect(i-2,j),m))/(12*dx[0]); // 5 point
-	       // amrex::Real grad2  = (-old_phi(amrex::IntVect(i,j+2),m)+8*old_phi(amrex::IntVect(i,j+1),m) -8*old_phi(amrex::IntVect(i,j-1),m)+old_phi(amrex::IntVect(i,j-2),m))/(12*dx[0]); // 5 point
-	       //amrex::Real grad11 = (-old_phi(amrex::IntVect(i+2,j),m)+16*old_phi(amrex::IntVect(i+1,j),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j),m)-old_phi(amrex::IntVect(i-2,j),m))/(12*dx[0]*dx[0]); 
-	       //amrex::Real grad22 = (-old_phi(amrex::IntVect(i,j+2),m)+16*old_phi(amrex::IntVect(i,j+1),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i,j-1),m)-old_phi(amrex::IntVect(i,j-2),m))/(12*dx[1]*dx[1]); 
-	       //amrex::Real grad12 =
-	       //(+ 8*(old_phi(amrex::IntVect(i+1,j-2),m)+old_phi(amrex::IntVect(i+2,j-1),m)+old_phi(amrex::IntVect(i-2,j+1),m)+old_phi(amrex::IntVect(i-1,j+2),m))
-	       // - 8*(old_phi(amrex::IntVect(i-1,j-2),m)+old_phi(amrex::IntVect(i-2,j-1),m)+old_phi(amrex::IntVect(i+1,j+2),m)+old_phi(amrex::IntVect(i+2,j+1),m))
-	       // - 1*(old_phi(amrex::IntVect(i+2,j-2),m)+old_phi(amrex::IntVect(i-2,j+2),m)-old_phi(amrex::IntVect(i-2,j-2),m)-old_phi(amrex::IntVect(i+2,j+2),m))
-	       // +64*(old_phi(amrex::IntVect(i-1,j-1),m)+old_phi(amrex::IntVect(i+1,j+1),m)-old_phi(amrex::IntVect(i+1,j-1),m)-old_phi(amrex::IntVect(i-1,j+1),m)))
-///(144*dx[0]*dx[1]);
-	       
-	       //Rotated stencils (5 Points)
-		  
-		  //amrex::Real grad1  =
-		  // (0.5*(-old_phi(amrex::IntVect(i+2,j),m)+8*old_phi(amrex::IntVect(i+1,j),m) -8*old_phi(amrex::IntVect(i-1,j),m)+old_phi(amrex::IntVect(i-2,j),m))
-		  //+0.25*(-old_phi(amrex::IntVect(i+2,j+2),m)+8*old_phi(amrex::IntVect(i+1,j+1),m) -8*old_phi(amrex::IntVect(i-1,j-1),m)+old_phi(amrex::IntVect(i-2,j-2),m)+old_phi(amrex::IntVect(i-2,j+2),m)-8*old_phi(amrex::IntVect(i-1,j+1),m) +8*old_phi(amrex::IntVect(i+1,j-1),m)-old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[0]); // 5 point
-		  
-		  //amrex::Real grad2  =
-		  //(0.5*(-old_phi(amrex::IntVect(i,j+2),m)+8*old_phi(amrex::IntVect(i,j+1),m) -8*old_phi(amrex::IntVect(i,j-1),m)+old_phi(amrex::IntVect(i,j-2),m))
-		  //+0.25*(-old_phi(amrex::IntVect(i+2,j+2),m)+8*old_phi(amrex::IntVect(i+1,j+1),m) -8*old_phi(amrex::IntVect(i-1,j-1),m)+old_phi(amrex::IntVect(i-2,j-2),m)-old_phi(amrex::IntVect(i-2,j+2),m)+8*old_phi(amrex::IntVect(i-1,j+1),m) -8*old_phi(amrex::IntVect(i+1,j-1),m)+old_phi(amrex::IntVect(i+2,j-2),m)))/(12*dx[0]); // 5 point
-		  
-		  // amrex::Real grad11 =
-		  // (0.5*(-old_phi(amrex::IntVect(i+2,j),m)+16*old_phi(amrex::IntVect(i+1,j),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j),m)-old_phi(amrex::IntVect(i-2,j),m))+0.25*((-old_phi(amrex::IntVect(i+2,j+2),m)+16*old_phi(amrex::IntVect(i+1,j+1),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j-1),m)-old_phi(amrex::IntVect(i-2,j-2),m))-(-old_phi(amrex::IntVect(i-2,j+2),m)+16*old_phi(amrex::IntVect(i-1,j+1),m)+16*old_phi(amrex::IntVect(i+1,j-1),m)-30*old_phi(amrex::IntVect(i,j),m)-old_phi(amrex::IntVect(i+2,j-2),m))))/(12*dx[0]*dx[0]);
-		  
-		  //amrex::Real grad22 = (0.5*(-old_phi(amrex::IntVect(i,j+2),m)+16*old_phi(amrex::IntVect(i,j+1),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i,j-1),m)-old_phi(amrex::IntVect(i,j-2),m))+0.25*(-(-old_phi(amrex::IntVect(i+2,j+2),m)+16*old_phi(amrex::IntVect(i+1,j+1),m)-30*old_phi(amrex::IntVect(i,j),m)+16*old_phi(amrex::IntVect(i-1,j-1),m)-old_phi(amrex::IntVect(i-2,j-2),m))+(-old_phi(amrex::IntVect(i-2,j+2),m)+16*old_phi(amrex::IntVect(i-1,j+1),m)+16*old_phi(amrex::IntVect(i+1,j-1),m)-30*old_phi(amrex::IntVect(i,j),m)-old_phi(amrex::IntVect(i+2,j-2),m))))/(12*dx[1]*dx[1]); 
+
 	       
 	       amrex::Real laplacian = grad11 + grad22;
 	       
@@ -263,14 +219,11 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
 		   amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
 		   amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
-		   amrex::Real beta= 0.00002;
+		   //amrex::Real beta= 0.00002;
 		   amrex::Real beta2 = 1*beta;
 		   amrex::Real timebeta = 30;
 		   //amrex::Real Mu = mu;
-		   //amrex::Real beta = -beta; 
 
-		   // amrex::Real DDKappa1 = l_gb*0.75*(boundary->DW(Theta_E) - boundary->DW(Theta_W))/(2*dx[0]);
-		   // amrex::Real DDKappa2 = l_gb*0.75*(boundary->DW(Theta_N) - boundary->DW(Theta_S))/(2*dx[0]);
 
 
 		   if (time>tstart)
@@ -309,8 +262,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		     }
 		 
 		 
-		   //  new_phi(amrex::IntVect(i,j),number_of_grains) = DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);//*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11));
-		   // new_phi(amrex::IntVect(i,j),number_of_grains+1) = sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22;//*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);
 		 
 	       else
 		 {
@@ -323,11 +274,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		 }
 
 
-	       //if (new_phi(amrex::IntVect(i,j),m)>0.5) new_phi(amrex::IntVect(i,j),number_of_grains) = (amrex::Real)m;
-
-	       // Boundary field
-
-	       //new_phi(amrex::IntVect(i,j),number_of_grains+1) += sqrt(grad1*grad1 + grad2*grad2);
 		 }
 	     }
 
