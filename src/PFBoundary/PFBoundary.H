@@ -1,7 +1,8 @@
 #ifndef PFBoundary_H
 #define PFBoundary_H
 
-#include "AMReX.H"
+#include <AMReX.H>
+#include <AMReX_AmrCore.H>
 
 class PFBoundary
 {

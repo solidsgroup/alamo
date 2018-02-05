@@ -1,8 +1,10 @@
+#include <iostream>
 
 #include <AMReX.H>
 #include "MyTest/MyTest.H"
 
 
+#if AMREX_SPACEDIM==2
 int main (int argc, char* argv[])
 {
   amrex::Initialize(argc, argv);
@@ -16,3 +18,9 @@ int main (int argc, char* argv[])
 
     amrex::Finalize();
 }
+#else
+int main()
+{
+    std::cout << "This program works in 2D only" << std::endl;
+}
+#endif

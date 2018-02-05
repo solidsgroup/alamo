@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #include <stdlib.h>
 #include <time.h>
 #include <AMReX_MultiFabUtil.H>
@@ -183,3 +184,4 @@ void PFAmr::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
   physbc.FillBoundary(*phi_new[0][lev],0,0,t);
   physbc.FillBoundary(*phi_old[0][lev],0,0,t);
 }
+#endif
