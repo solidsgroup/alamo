@@ -1,3 +1,5 @@
+#if BL_SPACEDIM == 2
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -105,3 +107,5 @@ private:
   amrex::Array<std::unique_ptr<amrex::MultiFab> > Temp_old;
   GeneralAMRIntegratorPhysBC mybc;
 };
+
+#endif

@@ -1,4 +1,4 @@
-
+#if AMREX_SPACEDIM==2
 module amrex_mlabeclap_2d_module
 
   use amrex_fort_module, only : amrex_real
@@ -61,3 +61,4 @@ contains
   end subroutine amrex_mlabeclap_flux
 
 end module amrex_mlabeclap_2d_module
+#endif
