@@ -3,6 +3,9 @@
 
 #include "AMReX.H"
 
+#include <iostream>
+#include <fstream>
+
 class PFBoundary
 {
 public:
@@ -14,7 +17,7 @@ public:
   {
     amrex::Real small = 1E-12;
     amrex::Real tolerance = 1E-3;
-    amrex::Real pi = 3.14159265359;
+   
     for (int i = 0; i<20; i++)
       {
 	amrex::Real theta = 2.0*pi*((amrex::Real)rand()/(amrex::Real)RAND_MAX);
@@ -33,13 +36,29 @@ public:
 	  {
 	    std::cout << "DDW Exact does not match DDW Numerical" << std::endl;
 	    std::cout << "       Theta:         " << theta << std::endl;
-	    std::cout << "       DDW Exact:     " << DW(theta) << std::endl;
+	    std::cout << "       DDW Exact:     " << DDW(theta) << std::endl;
 	    std::cout << "       DDW Numerical: " << numerical_DDW << std::endl;
 	    return false;
 	  }
       }
     return true;
   }
+
+  void ExportToFile(std::string filename, amrex::Real dTheta)
+  {
+    std::ofstream outFile;
+    outFile.open(filename);
+    
+    for(amrex::Real theta=0; theta<2*pi; theta=theta+dTheta)
+      {
+	outFile << theta << " " << W(theta) << std::endl;   
+      }
+    outFile.close();
+    
+  }
+
+private:
+  static constexpr amrex::Real pi = 3.14159265359;
 };
 
 
