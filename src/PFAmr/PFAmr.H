@@ -91,14 +91,13 @@ private:
   amrex::Real timestep;
   int number_of_fabs = 1;
   int number_of_grains = 2;
-  amrex::Real M, mu, gamma, sigma0, l_gb, beta;
+  amrex::Real M, mu, gamma, sigma0, l_gb;
 
   int anisotropy = 0;
 
   const int nghost = 2;
 
   std::string ic_type;
-  std::string newOld, filename;
 
   // Voronoi
   amrex::Array<amrex::Real> voronoi_x;
