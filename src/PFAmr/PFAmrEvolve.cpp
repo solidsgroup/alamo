@@ -2,7 +2,7 @@
 #include <limits>
 
 #include <AMReX_MultiFabUtil.H>
-#include <PFAmr.H>
+#include "PFAmr.H"
 
 using namespace amrex;
 
@@ -237,9 +237,9 @@ PFAmr::Advance (int lev, Real time, Real dt)
 				  + DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
 				  + damp*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22))+
 			       beta*(grad1111*(sin(Theta)*sin(Theta)*sin(Theta)*sin(Theta))
-				     +grad1112*(-4*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
-				     +grad1122*(6*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
-				     +grad1222*(-4*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
+				     +grad1112*(-6*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
+				     +grad1122*(10*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
+				     +grad1222*(-6*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
 				     +grad2222*(cos(Theta)*cos(Theta)*cos(Theta)*cos(Theta))) 
 			       );
 		     }
@@ -254,9 +254,9 @@ PFAmr::Advance (int lev, Real time, Real dt)
 				  + DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
 				  + damp*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22))+
 			       beta2*(grad1111*(sin(Theta)*sin(Theta)*sin(Theta)*sin(Theta))
-				     +grad1112*(-4*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
-				     +grad1122*(6*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
-				     +grad1222*(-4*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
+				     +grad1112*(-6*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
+				     +grad1122*(10*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
+				     +grad1222*(-6*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
 				     +grad2222*(cos(Theta)*cos(Theta)*cos(Theta)*cos(Theta))) 
 			       );
 		     }
