@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
@@ -332,3 +333,4 @@ PFAmr::GetData (int lev, Real time, Array<Array<MultiFab*> >& data, Array<Real>&
     }
 }
 
+#endif

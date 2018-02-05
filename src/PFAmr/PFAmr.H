@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #ifndef AMR_Adv_C_V2_Adv_H_
 #define AMR_Adv_C_V2_Adv_H_
 
@@ -119,4 +120,5 @@ private:
 
 };
 
+#endif
 #endif

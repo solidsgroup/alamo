@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 
 #include <AMReX_ParmParse.H>
 
@@ -52,3 +53,4 @@ PFAmr::ErrorEst (int lev, TagBoxArray& tags, Real time, int /*ngrow*/)
       }
   }
 }
+#endif

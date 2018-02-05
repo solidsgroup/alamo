@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #ifndef MY_TEST_F_H_
 #define MY_TEST_F_H_
 
@@ -19,4 +20,5 @@ extern "C" {
 }
 #endif
 
+#endif
 #endif

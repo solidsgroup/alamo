@@ -34,14 +34,14 @@ physics.cp1		= 1.0	      # Specific heat before burn
 physics.cp0		= 1.0	      # Specific heat after burn
 physics.qdotburn	= 0.0         # Rate of heat loss due to flame
 
-TempBC.hi	= EXT_DIR EXT_DIR EXT_DIR 
-TempBC.lo	= EXT_DIR EXT_DIR EXT_DIR 
+TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
+TempBC.lo	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo_1	= 0.0 
 TempBC.hi_1	= 0.0 
-TempBC.lo_2	= 0.0 
-TempBC.hi_2	= 0.0 
-TempBC.lo_3	= 0.0 
-TempBC.hi_3	= 0.0 
+# TempBC.lo_2	= 0.0 
+# TempBC.hi_2	= 0.0 
+# TempBC.lo_3	= 0.0 
+# TempBC.hi_3	= 0.0 
 
 EtaBC.hi	= EXT_DIR INT_DIR INT_DIR
 EtaBC.lo	= EXT_DIR INT_DIR INT_DIR
