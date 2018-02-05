@@ -1,3 +1,5 @@
+#if AMREX_SPACEDIM==2
+hello
 #include <AMReX_MultiFabUtil.H>
 #include "MLStiffnessMatrix.H"
 #include "AMReX_MLABecLap_F.H"
@@ -424,7 +426,7 @@ MLStiffnessMatrix::Anorm (int amrlev, int mglev) const
 }
 
 
-#if (BL_SPACEDIM == 2)
+#if (AMREX_SPACEDIM == 2)
 amrex::Real
 MLStiffnessMatrix::K (amrex::IntVect m, amrex::IntVect n,int i, int k)
 {
@@ -504,3 +506,4 @@ MLStiffnessMatrix::K (amrex::IntVect m, amrex::IntVect n,int i, int k)
 
 }
 
+#endif

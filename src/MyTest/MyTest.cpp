@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #include "MyTest.H"
 
 #include "MLStiffnessMatrix.H"
@@ -200,3 +201,4 @@ MyTest::writePlotfile () const
                             varname, geom, 0.0, Vector<int>(nlevels, 0),
                             Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 }
+#endif

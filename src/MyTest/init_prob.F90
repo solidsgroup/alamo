@@ -1,4 +1,4 @@
-
+#if AMREX_SPACEDIM==2
 module init_prob_module
   use amrex_fort_module, only : amrex_real
   implicit none
@@ -93,3 +93,4 @@ contains
   end subroutine actual_init_abeclap
 
 end module init_prob_module
+#endif

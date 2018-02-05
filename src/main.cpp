@@ -7,6 +7,7 @@
 //#include "PFBoundary.H"
 #include "PFBoundarySin.H"
 
+#if AMREX_SPACEDIM == 2
 int main (int argc, char* argv[])
 {
   if (argc < 2)
@@ -24,3 +25,9 @@ int main (int argc, char* argv[])
   
   amrex::Finalize();
 } 
+#else
+int main()
+{
+  std::cout << "This program works in 2D only" << std::endl;
+}
+#endif

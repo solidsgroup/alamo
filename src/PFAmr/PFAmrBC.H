@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #ifndef PFAmrBC_H_
 #define PFAmrBC_H_
 
@@ -129,4 +130,5 @@ private:
   int lev=0;
 };
 
+#endif
 #endif

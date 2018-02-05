@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #include <AMReX_Utility.H>
 #include <AMReX_PlotFileUtil.H>
 
@@ -68,3 +69,4 @@ PFAmr::InitFromCheckpoint ()
   amrex::Abort("PFAmr::InitFromCheckpoint: todo");
 }
 
+#endif

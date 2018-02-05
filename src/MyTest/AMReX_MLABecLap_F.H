@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #ifndef AMREX_MLABECLAP_F_H_
 #define AMREX_MLABECLAP_F_H_
 
@@ -29,4 +30,5 @@ extern "C" {
 }
 #endif
 
+#endif
 #endif

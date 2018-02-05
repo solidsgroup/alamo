@@ -1,4 +1,4 @@
-
+#if AMREX_SPACEDIM==2
 #include <limits>
 
 #include <AMReX_MultiFabUtil.H>
@@ -336,3 +336,4 @@ PFAmr::Advance (int lev, Real time, Real dt)
    }
 }
 
+#endif
