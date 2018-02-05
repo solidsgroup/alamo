@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #ifndef AMREX_ML_ABECLAPLACIAN_H_
 #define AMREX_ML_ABECLAPLACIAN_H_
 
@@ -78,4 +79,5 @@ private:
 
 }
 
+#endif
 #endif

@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM==2
 #ifndef _AABBEC_F_H_
 #define _AABBEC_F_H_
 
@@ -321,3 +322,4 @@ extern "C"
 #endif
 
 #endif /*_AABBEC_F_H_*/
+#endif
