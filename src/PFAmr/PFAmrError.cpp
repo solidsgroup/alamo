@@ -1,3 +1,4 @@
+#include <AMReX.H>
 #if AMREX_SPACEDIM==2
 
 #include <AMReX_ParmParse.H>

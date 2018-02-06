@@ -116,7 +116,7 @@ void PFFlame::Advance (int lev, Real time, Real dt)
 
 
 	    Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) =
-	      Temp_old_box(amrex::IntVect(i,j,k)) + (dt/rho/cp) * ((k1-k0)*(eta_gradx*T_gradx + eta_grady*T_grady)  + K*T_lap  + (w1 - w0 - qdotburn)*eta_grad_mag);
+	      Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) + (dt/rho/cp) * ((k1-k0)*(eta_gradx*T_gradx + eta_grady*T_grady)  + K*T_lap  + (w1 - w0 - qdotburn)*eta_grad_mag);
 
 	    if (std::isnan(Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))))
 	      amrex::Abort("NaN encountered");
