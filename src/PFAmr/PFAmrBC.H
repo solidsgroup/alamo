@@ -1,3 +1,4 @@
+#include <AMReX.H>
 #if AMREX_SPACEDIM==2
 #ifndef PFAmrBC_H_
 #define PFAmrBC_H_

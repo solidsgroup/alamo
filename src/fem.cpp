@@ -1,10 +1,11 @@
 #include <iostream>
 
+#if AMREX_SPACEDIM==2
+
 #include <AMReX.H>
 #include "MyTest/MyTest.H"
 
 
-#if AMREX_SPACEDIM==2
 int main (int argc, char* argv[])
 {
   amrex::Initialize(argc, argv);

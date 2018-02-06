@@ -3,11 +3,13 @@
 #include <iomanip>
 
 #include "AMReX.H"
+
+#if AMREX_SPACEDIM == 2
+
 #include "PFAmr.H"
 //#include "PFBoundary.H"
 #include "PFBoundarySin.H"
 
-#if AMREX_SPACEDIM == 2
 int main (int argc, char* argv[])
 {
   if (argc < 2)
@@ -28,6 +30,6 @@ int main (int argc, char* argv[])
 #else
 int main()
 {
-  std::cout << "This program works in 2D only" << std::endl;
+  std::cout << "This program works in 2D only, but AMREX_SPACEDIM=" << AMREX_SPACEDIM << std::endl;
 }
 #endif
