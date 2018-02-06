@@ -37,14 +37,7 @@ public:
     //n=2:
     return -4*sigma1*fabs(sin(2*(theta-theta0)));
   };
-  
-  //virtual amrex::Real operator()(amrex::Real theta)
-  //{
-  //amrex::Real d_gbenergy;
-  //d_gbenergy= 
-  //return d_gbenergy;    
-  //};
-  
+ 
 private:
   amrex::Real theta0, sigma0, sigma1;
 };
