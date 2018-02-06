@@ -57,7 +57,7 @@ public:
     
   }
 
-private:
+protected:
   static constexpr amrex::Real pi = 3.14159265359;
 };
 
