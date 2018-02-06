@@ -15,8 +15,11 @@
 #include <AMReX_FluxRegister.H>
 
 #include "PFAmrBC.H"
-#include "../PFBoundary/PFBoundary.H"
-#include "../PFBoundary/PFBoundarySin.H"
+#include "PFBoundary.H"
+#include "PFBoundarySin.H"
+#include "PFBoundaryAbsSin.H"
+#include "PFBoundaryRead.H"
+
 
 #define DEBUG std::cout << "Proc " << amrex::ParallelDescriptor::MyProc() << " :: "<< __FILE__ << ":" << __LINE__ << std::endl;
 
@@ -48,8 +51,8 @@ private:
   long CountCells (int lev);
 
   void TimeStep (int lev, amrex::Real time/*, int iteration*/);
-protected:
-  virtual void Advance (int lev, amrex::Real time, amrex::Real dt);
+  void Advance (int lev, amrex::Real time, amrex::Real dt);
+
   void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> >& mf, int icomp);
 private:
   void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, int icomp, int ncomp);
@@ -93,13 +96,14 @@ private:
   amrex::Real timestep;
   int number_of_fabs = 1;
   int number_of_grains = 2;
-  amrex::Real M, mu, gamma, sigma0, l_gb;
+  amrex::Real M, mu, gamma, sigma0, l_gb, beta;
 
   int anisotropy = 0;
 
   const int nghost = 2;
 
   std::string ic_type;
+  std::string newOld, filename;
 
   // Voronoi
   amrex::Array<amrex::Real> voronoi_x;
