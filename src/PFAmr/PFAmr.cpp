@@ -23,6 +23,8 @@ PFAmr::PFAmr ()
     pp.query("max_step", max_step);
     pp.query("stop_time", stop_time);
     pp.query("timestep",timestep);
+    pp.query("newOld",newOld);
+    pp.query("filename",filename);
   }
 
   {
@@ -45,7 +47,7 @@ PFAmr::PFAmr ()
     pp.query("l_gb", l_gb);
   }
   {
-    amrex::Real theta0,sigma0,sigma1,beta;
+    amrex::Real theta0,sigma0,sigma1;
     //std::string filename;
     
     ParmParse pp("anisotropy"); // Phase-field model parameters
@@ -58,8 +60,42 @@ PFAmr::PFAmr ()
     pp.query("beta", beta);
     pp.query("tstart", tstart);
     pp.query("damp", damp);
-    //boundary = new PFBoundaryTab(filename);
-    boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+    
+    if(filename == "no")
+      {
+	if(newOld=="new")
+	  {  
+	    std::cout << "\n**USING NEW VERSION**\n" << std::endl;
+	    boundary = new PFBoundaryAbsSin(theta0,sigma0,sigma1);
+	  }
+	else if(newOld=="old")
+	  {
+	    std::cout << "\n**USING OLD VERSION**\n" << std::endl;
+	    boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+	  }
+	else
+	  {
+	    std::cout << "\n**NO VERSION SELECTED**\n" << std::endl;
+	  }
+      }
+    else
+      {
+	std::cout << "\n**READING FILE "+filename+"**\n" << std::endl;
+	boundary = new PFBoundaryRead(filename);
+      }
+
+    bool a = boundary -> Test();
+    if (a==false)
+      {
+	std::cout << "\n**BOUNDARY DERIVATIVE TEST DID NOT PASS**\n" << std::endl;
+	//amrex::Abort("Boundary derivative test did not pass");
+      }
+    else
+      {
+	std::cout <<"\n**TEST SUCCESSFULLY PASSED**\n" << std::endl;
+      }
+
+    
     // if(ParallelDescriptor::IOProcessor())
     //   if (!boundary->Test()) amrex::Error("Boundary functor does not pass derivative test");
   }
