@@ -7,8 +7,12 @@
 #if AMREX_SPACEDIM == 2
 
 #include "PFAmr.H"
-//#include "PFBoundary.H"
+#include "PFBoundary.H"
 #include "PFBoundarySin.H"
+#include "PFBoundaryAbsSin.H"
+#include "PFBoundaryRead.H"
+
+
 
 int main (int argc, char* argv[])
 {
@@ -18,6 +22,11 @@ int main (int argc, char* argv[])
       exit(-1);
     }
   amrex::Initialize(argc,argv);
+
+
+  PFBoundaryAbsSin myBoundary(60, 0.025, 0.25);
+  myBoundary.ExportToFile("AbsSin.txt", 0.1);
+  
   srand(1.0*amrex::ParallelDescriptor::MyProc());
   {
     PFAmr pfamr;

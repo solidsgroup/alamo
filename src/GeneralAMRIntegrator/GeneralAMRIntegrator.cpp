@@ -379,7 +379,7 @@ GeneralAMRIntegrator::WritePlotFile () const
   for (int i = 0; i < number_of_fabs; i++)
     total_components += ncomp_array[i];
 
-  Vector<MultiFab> plotmf(nlevels);
+  amrex::Vector<MultiFab> plotmf(nlevels);
   
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
