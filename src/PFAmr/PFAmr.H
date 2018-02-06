@@ -52,6 +52,7 @@ private:
   void Advance (int lev, amrex::Real time, amrex::Real dt);
 
   void FillPatch (int lev, amrex::Real time, amrex::Array<std::unique_ptr<amrex::MultiFab> >& mf, int icomp);
+private:
   void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, int icomp, int ncomp);
   void GetData (int lev, amrex::Real time, amrex::Array<amrex::Array<amrex::MultiFab*> >& data, amrex::Array<amrex::Real>& datatime);
 
@@ -64,6 +65,7 @@ private:
   amrex::Array<int> istep;      // which step?
   amrex::Array<int> nsubsteps;  // how many substeps on each level?
 
+protected:
   amrex::Array<amrex::Real> t_new;
   amrex::Array<amrex::Real> t_old;
   amrex::Array<amrex::Real> dt;
@@ -71,6 +73,7 @@ private:
   amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_new;
   amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > > phi_old;
 
+private:
   // runtime parameters
 
   int max_step   = std::numeric_limits<int>::max();
