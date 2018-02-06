@@ -3,6 +3,9 @@
 /// \brief Compute the volume integral of two multiplied Fourier series
 ///
 
+#include <chrono>
+#include <ctime>
+
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_MultiFabUtil.H>
@@ -49,7 +52,8 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
   for (int i = 1; i < nlevs_max; i++)
     dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 
-  CreateCleanDirectory();
+  amrex::UtilCreateCleanDirectory(plot_file, false);
+  WriteMetaData();
 }
 
 ///
@@ -322,12 +326,6 @@ void GeneralAMRIntegrator::MakeNewLevelFromScratch (int lev, Real t, const BoxAr
     }
 }
 
-void
-GeneralAMRIntegrator::CreateCleanDirectory () const
-{
-  amrex::UtilCreateCleanDirectory(plot_file, false);
-}
-
 std::vector<std::string>
 GeneralAMRIntegrator::PlotFileName (int lev) const
 {
@@ -336,6 +334,41 @@ GeneralAMRIntegrator::PlotFileName (int lev) const
   name.push_back(amrex::Concatenate("", lev, 5));
   return name;
 }
+
+#define STR(a) #a
+void
+GeneralAMRIntegrator::WriteMetaData() const
+{
+  std::ofstream metadatafile;
+  metadatafile.open(plot_file+"/metadata",std::ios_base::out);
+  metadatafile << "COMPILATION DETAILS" << std::endl;
+  metadatafile << "===================" << std::endl;
+  metadatafile << "Git commit hash:         " << METADATA_GITHASH << std::endl;
+  metadatafile << "AMReX version:           " << amrex::Version() << std::endl;
+  metadatafile << "Dimension:               " << AMREX_SPACEDIM << std::endl;
+  metadatafile << "Compiled by:             " << METADATA_USER  << std::endl;
+  metadatafile << "Platform:                " << METADATA_PLATFORM  << std::endl;
+  metadatafile << "Compiler:                " << METADATA_COMPILER  << std::endl;
+  metadatafile << "Compilation Date:        " << METADATA_DATE  << std::endl;
+  metadatafile << "Compilation Time:        " << METADATA_TIME  << std::endl;
+  metadatafile << std::endl;
+
+  auto starttime = std::chrono::system_clock::now();
+  std::time_t now = std::chrono::system_clock::to_time_t(starttime);
+  metadatafile << "RUN DETAILS" << std::endl;
+  metadatafile << "===========" << std::endl;
+  metadatafile << "Simulation started:      " << std::ctime(&now);
+  metadatafile << "Number of processors:    " << amrex::ParallelDescriptor::NProcs() << std::endl;
+  metadatafile << std::endl;
+
+  metadatafile << "PARAMETERS" << std::endl;
+  metadatafile << "==========" << std::endl;
+  amrex::ParmParse pp;
+  pp.dumpTable(metadatafile,true);
+  
+  metadatafile.close();
+}
+
 
 void
 GeneralAMRIntegrator::WritePlotFile () const
