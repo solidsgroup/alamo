@@ -148,7 +148,6 @@ PFAmr::Advance (int lev, Real time, Real dt)
 	       
 	       amrex::Real grad2_normal = (old_phi(amrex::IntVect(i,j+1),m) - old_phi(amrex::IntVect(i,j-1),m))/(2*dx[1]);
 
-	       
 	       amrex::Real grad1 =  grad1_normal;//grad1_rotated;//0.5*grad1_normal+0.5*(grad1_rotated-grad2_rotated)/sqrt(2);//
 
 	       amrex::Real grad2 =  grad2_normal;//grad2_rotated;//0.5*grad1_normal+0.5*(grad1_rotated-grad2_rotated)/sqrt(2);//
@@ -223,8 +222,7 @@ PFAmr::Advance (int lev, Real time, Real dt)
 		   amrex::Real beta2 = 1*beta;
 		   amrex::Real timebeta = 30;
 		   //amrex::Real Mu = mu;
-
-
+	
 
 		   if (time>tstart)
 		     {
