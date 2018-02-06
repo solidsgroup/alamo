@@ -22,7 +22,8 @@ int main (int argc, char* argv[])
 
 
   PFBoundaryAbsSin myBoundary(60, 0.025, 0.25);
-  myBoundary.ExportToFile("AbsSin.txt", 0.1); 
+  myBoundary.ExportToFile("AbsSin.txt", 0.1);
+  
   srand(1.0*amrex::ParallelDescriptor::MyProc());
   {
     PFAmr pfamr;
