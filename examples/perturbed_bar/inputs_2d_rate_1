@@ -1,7 +1,7 @@
-timestep = 0.001
+timestep = 0.00001
 stop_time = 2000.0
-newOld = new
-filename = AbsSin.txt
+newOld = old
+filename = no
 
 amr.plot_int = 100
 amr.max_level = 3
@@ -32,8 +32,8 @@ pf.sigma0=0.075
 anisotropy.on=1
 anisotropy.tstart= 0.05
 anisotropy.theta0= 60
-anisotropy.sigma0=0.025
-anisotropy.sigma1=0.25
+anisotropy.sigma0=0.00025
+anisotropy.sigma1=0.0025
 anisotropy.beta= 0.000025
 anisotropy.damp=1.0
 
