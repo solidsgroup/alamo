@@ -35,6 +35,3 @@ anisotropy.sigma0=0.38
 anisotropy.sigma1=0.181191
 %anisotropy.beta= 0.0005*5;
 anisotropy.damp=1.0
-
-
-
