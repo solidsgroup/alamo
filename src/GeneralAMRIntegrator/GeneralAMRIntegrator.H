@@ -131,9 +131,9 @@ private:
   void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp);
   void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::MultiFab*>& data, amrex::Array<amrex::Real>& datatime);
 
-  void CreateCleanDirectory () const;
   std::vector<std::string> PlotFileName (int lev) const;
   void WritePlotFile () const;
+  void WriteMetaData () const;
 
   //
   // MEMBER VARIABLES
