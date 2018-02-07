@@ -1,4 +1,4 @@
-timestep = 0.0001
+timestep = 0.0008
 stop_time = 2000.0
 
 amr.plot_int = 100
@@ -32,7 +32,7 @@ anisotropy.tstart= 0.05
 anisotropy.theta0= 45
 anisotropy.sigma0=0.009
 anisotropy.sigma1=0.09
-%anisotropy.beta= 0.0005*5;
+anisotropy.beta= 0.00002;
 anisotropy.damp=1.0
 
 
