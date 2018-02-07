@@ -44,6 +44,8 @@ private:
   amrex::Real M, mu, gamma, sigma0, l_gb, beta;
   int anisotropy = 0;
 
+  amrex::Real anisotropy_tstart;
+
   std::string ic_type;
   std::string newOld, filename;
 
