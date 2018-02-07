@@ -47,13 +47,6 @@ bin/alamo: ${OBJ} ${OBJ_F} src/main.cpp.o
 	mkdir -p bin/
 	$(CC) -o bin/alamo $^ ${LIB} 
 
-bin/fem: ${OBJ} ${OBJ_F} src/fem.cpp.o
-	@echo $(B_ON)$(FG_BLUE)"###"
-	@echo "### LINKING $@" 
-	@echo "###"$(RESET)
-	mkdir -p bin/
-	$(CC) -o bin/fem $^ ${LIB} 
-
 bin/flame: ${OBJ} ${OBJ_F} src/flame.cpp.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 

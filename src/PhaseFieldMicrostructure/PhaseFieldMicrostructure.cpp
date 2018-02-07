@@ -37,6 +37,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     pp.query("sigma1", sigma1);
     pp.query("beta", beta);
     pp.query("damp", damp);
+    pp.query("tstart", anisotropy_tstart);
 
     boundary = new PFBoundarySin(theta0,sigma0,sigma1);    
 
@@ -63,16 +64,16 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     // 	boundary = new PFBoundaryRead(filename);
     //   }
 
-    bool a = boundary -> Test();
-    if (a==false)
-      {
-     	std::cout << "\n**BOUNDARY DERIVATIVE TEST DID NOT PASS**\n" << std::endl;
-     	//amrex::Abort("Boundary derivative test did not pass");
-      }
-    else
-      {
-     	std::cout <<"\n**TEST SUCCESSFULLY PASSED**\n" << std::endl;
-      }
+    // bool a = boundary -> Test();
+    // if (a==false)
+    //   {
+    //  	std::cout << "\n**BOUNDARY DERIVATIVE TEST DID NOT PASS**\n" << std::endl;
+    //  	//amrex::Abort("Boundary derivative test did not pass");
+    //   }
+    // else
+    //   {
+    //  	std::cout <<"\n**TEST SUCCESSFULLY PASSED**\n" << std::endl;
+    //   }
 
     
     // if(ParallelDescriptor::IOProcessor())
@@ -197,7 +198,7 @@ PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
 		    //amrex::Real Mu = mu;
 	
 
-		    if (time>0)
+		    if (time>anisotropy_tstart)
 		      {
 			eta_new_box(amrex::IntVect(i,j),m) =
 			  eta_old_box(amrex::IntVect(i,j),m) -
