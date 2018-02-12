@@ -17,6 +17,9 @@ int main (int argc, char* argv[])
     }
   amrex::Initialize(argc,argv);
 
+  PFBoundaryRead myboundary("AbsSin.txt");
+  myboundary.ExportToFile("AbsSin2.1.txt", 0.01);
+  
   srand(1.0*amrex::ParallelDescriptor::MyProc());
   {
     PhaseFieldMicrostructure model;

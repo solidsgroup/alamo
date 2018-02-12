@@ -10,10 +10,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   //
   // READ INPUT PARAMETERS
   //
-  { 
-    amrex::ParmParse pp;   // Basic run parameters
-    pp.query("newOld",newOld);
-  }
 
   {
     amrex::ParmParse pp("pf"); // Phase-field model parameters
@@ -26,12 +22,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   }
   {
     amrex::Real theta0,sigma0,sigma1;
-    //std::string filename;
     
     amrex::ParmParse pp("anisotropy"); // Phase-field model parameters
     pp.query("on", anisotropy);
     pp.query("theta0", theta0);
-    //pp.query("filename", filename);
+    pp.query("filename", filename);
+    pp.query("gb_type", gb_type);
     theta0 *= 0.01745329251; // convert degrees into radians
     pp.query("sigma0", sigma0);
     pp.query("sigma1", sigma1);
@@ -39,42 +35,29 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     pp.query("damp", damp);
     pp.query("tstart", anisotropy_tstart);
 
-    boundary = new PFBoundarySin(theta0,sigma0,sigma1);    
+    // if (amrex::Verbose()) std::cout << "should only print if run with -v flag" << std::cout;
+  
+    if(gb_type=="abssin") 
+      {  
+	std::cout << "\n**USING ABS SIN FUNCTION**\n" << std::endl;
+	boundary = new PFBoundaryAbsSin(theta0,sigma0,sigma1);
+      }
+    else if(gb_type=="sin")
+      {
+	std::cout << "\n**USING SIN FUNCTION**\n" << std::endl;
+        boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+      }
+    else if(gb_type=="read")
+      {
+	std::cout << "\n**READING FILE "+filename+"**\n" << std::endl;
+	boundary = new PFBoundaryRead(filename);
+      }
 
-    // if(filename == "no")
-    //   {
-    // 	if(newOld=="new")
-    // 	  {  
-    // 	    std::cout << "\n**USING NEW VERSION**\n" << std::endl;
-    // 	    boundary = new PFBoundaryAbsSin(theta0,sigma0,sigma1);
-    // 	  }
-    // 	else if(newOld=="old")
-    // 	  {
-    // 	    std::cout << "\n**USING OLD VERSION**\n" << std::endl;
-    // 	    boundary = new PFBoundarySin(theta0,sigma0,sigma1);
-    // 	  }
-    // 	else
-    // 	  {
-    // 	    std::cout << "\n**NO VERSION SELECTED**\n" << std::endl;
-    // 	  }
-    //   }
-    // else
-    //   {
-    // 	std::cout << "\n**READING FILE "+filename+"**\n" << std::endl;
-    // 	boundary = new PFBoundaryRead(filename);
-    //   }
-
-    // bool a = boundary -> Test();
-    // if (a==false)
-    //   {
-    //  	std::cout << "\n**BOUNDARY DERIVATIVE TEST DID NOT PASS**\n" << std::endl;
-    //  	//amrex::Abort("Boundary derivative test did not pass");
-    //   }
-    // else
-    //   {
-    //  	std::cout <<"\n**TEST SUCCESSFULLY PASSED**\n" << std::endl;
-    //   }
-
+    //bool a = boundary -> Test();
+    //if (a==false)
+    //{
+    //	amrex::Abort("\n**BOUNDARY DERIVATIVE TEST DID NOT PASS**\n");
+    //}
     
     // if(ParallelDescriptor::IOProcessor())
     //   if (!boundary->Test()) amrex::Error("Boundary functor does not pass derivative test");
