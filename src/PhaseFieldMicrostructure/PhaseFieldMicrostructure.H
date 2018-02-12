@@ -46,8 +46,7 @@ private:
 
   amrex::Real anisotropy_tstart;
 
-  std::string ic_type;
-  std::string newOld, filename;
+  std::string ic_type, gb_type, filename;
 
   // Voronoi
   amrex::Array<amrex::Real> voronoi_x;
