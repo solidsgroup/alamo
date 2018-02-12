@@ -9,16 +9,23 @@
 
 #define PI 3.14159265 
 
+/// Reads the data from a file and computes energies and its derivates
+///
 class PFBoundaryRead : public PFBoundary
 {
 public:
-  PFBoundaryRead(std::string fileName)
+  /// \brief Read in data
+  ///
+  /// Reads the data from a file and abort if it is not possible to open the file or if the range of thetas do not give a range between 0 and 2pi. It also computes the derivatives of the energy and stores them in vectors that will be used in W, DW, and DDW
+  ///
+  /// \f[ \int_0^1x^2dx = \frac{1}{3} \f]
+  ///
+  PFBoundaryRead(std::string fileName) ///<[in] Name of file containing data
   {
     //Define
     int i;
     std::string line;
-    amrex::Real data1, data2;
-    std::vector<amrex::Real> thetas, sigmasW, sigmasDW, sigmasDDW;    
+    amrex::Real data1, data2; 
     std::ifstream inFile;  
 
     //Open file
@@ -26,14 +33,10 @@ public:
     
     //Error Check
     if(inFile.fail()){
-      std::cout << "\n**UNABLE TO OPEN "+fileName+"**\n" << std::endl;
+      amrex::Abort ("\n**UNABLE TO OPEN THE FILE**\n");
     }
 
     //Read the file and fill out the vectors thetas and sigmasW with the read values
-    i=0;
-
-    thetas.push_back(0.0);
-    sigmasW.push_back(0.0);
     while(getline(inFile, line)){           
       int pos = line.find_first_of(' ');
       std::string second=line.substr(pos+1);
@@ -42,56 +45,45 @@ public:
       data1=stod(first);
       data2=stod(second);
       
-      thetas[i]=data1;        
-      sigmasW[i]=data2;
-      thetas.push_back(0.0);
-      sigmasW.push_back(0.0);
-      i++;
+      thetas.push_back(data1);
+      sigmasW.push_back(data2);
     }
 
-    thetas.pop_back();
-    sigmasW.pop_back();
-    
-    int size= thetas.size();
+    size= thetas.size();
 
     //Close file
     inFile.close();
+
+    //Check that the file we have read contains the whole range of thetas (from 0 to 2pi)
+    if((thetas[size-1]+(thetas[1]-thetas[0]))<2*pi){
+      amrex::Abort ("\n**FILE DID NOT CONTAIN THE WHOLE RANGES OF THETAS (FROM 0 TO 2PI)**\n");
+    }
     
     //Create vector sigmas DW    
-    sigmasDW.push_back(0.0);
     for(i=0; i<size; i++){
       if(i==(size-1)){
-     	sigmasDW[i]=(sigmasW[0]-sigmasW[i])/(2*pi + thetas[0]-thetas[i]);
-     	sigmasDW.push_back(0.0);
+     	sigmasDW.push_back((sigmasW[0]-sigmasW[i])/(2*pi + thetas[0]-thetas[i]));
       }
       else{
-	sigmasDW[i]=(sigmasW[i+1]-sigmasW[i])/(thetas[i+1]-thetas[i]);
-      sigmasDW.push_back(0.0);
+	sigmasDW.push_back((sigmasW[i+1]-sigmasW[i])/(thetas[i+1]-thetas[i]));
     }
   }
 
-    sigmasDW.pop_back();
-
     //Create vector sigmas DDW
-    sigmasDDW.push_back(0.0);
     for(i=0; i<size; i++){
       if(i==(size-1)){
-	sigmasDDW[i]=(sigmasDW[0]-sigmasDW[i])/(2*pi + thetas[0]-thetas[i]);
-	sigmasDDW.push_back(0.0);
+	sigmasDDW.push_back((sigmasDW[0]-sigmasDW[i])/(2*pi + thetas[0]-thetas[i]));
       }
       else{
-	sigmasDDW[i]=(sigmasDW[i+1]-sigmasDW[i])/(thetas[i+1]-thetas[i]);
-	sigmasDDW.push_back(0.0);
+	sigmasDDW.push_back((sigmasDW[i+1]-sigmasDW[i])/(thetas[i+1]-thetas[i]));
       }
     }
-
-    sigmasDDW.pop_back();
 
     //Print Thetas Sigmas Sigmas' and Sigmas''
     
     std::cout << "Thetas      Sigmas       Sigmas'        Sigmas''" << std::endl;
     for(i=0; i<size; i++){
-    std::cout << thetas[i] << "       " << sigmasW[i] << "       " << sigmasDW[i] << "       " << sigmasDDW[i] << std::endl;
+      std::cout << thetas[i] << "       " << sigmasW[i] << "       " << sigmasDW[i] << "       " << sigmasDDW[i] << std::endl;
     }
   };
   amrex::Real W(amrex::Real theta)
@@ -99,14 +91,14 @@ public:
     // put in code so that 0 <= theta < 2*pi
     if(theta>=2*pi)
       {
-	theta=theta-2*pi;
+	int div=theta/(2*pi);
+	theta=theta-(div*2*pi);
       }
     else if(theta<0)
       {
-	theta=theta+2*pi;
+	int div=fabs(theta)/(2*pi);
+	theta=theta+((div+1)*2*pi);
       }
-    
-    // use modulo operation on floating point numbers to adjust theta
     
     //Find out the value of theta inside our vector thetas
     
@@ -123,69 +115,72 @@ public:
 	  return ((theta-thetas[i])*(sigmasW[i+1]-sigmasW[i])/(thetas[i+1]-thetas[i]))+sigmasW[i];
 	}
       } 
-    }   
+    }
+    return 0;
   };
   amrex::Real DW(amrex::Real theta)
   {
-     // put in code so that 0 <= theta < 2*pi
+   // put in code so that 0 <= theta < 2*pi
     if(theta>=2*pi)
       {
-	theta=theta-2*pi;
+	int div=theta/(2*pi);
+	theta=theta-(div*2*pi);
       }
     else if(theta<0)
       {
-	theta=theta+2*pi;
+	int div=fabs(theta)/(2*pi);
+	theta=theta+((div+1)*2*pi);
       }
-    
-    // use modulo operation on floating point numbers to adjust theta
     
     //Find out the value of theta inside our vector thetas
     
     for(int i=0; i<size; i++){
       if(i==(size-1)){
 	if(theta >= thetas[i]){
-	  //Interpolate to get the value of sigma'
+	  //Interpolate to get the value of sigma
 	  return ((theta-thetas[i])*(sigmasDW[0]-sigmasDW[i])/(2*pi+thetas[0]-thetas[i]))+sigmasDW[i];
 	}
       }
       else{
 	if(theta >= thetas[i] && theta < thetas[i+1]){
-	  //Interpolate to get the value of sigma'	  
+	  //Interpolate to get the value of sigma	  
 	  return ((theta-thetas[i])*(sigmasDW[i+1]-sigmasDW[i])/(thetas[i+1]-thetas[i]))+sigmasDW[i];
 	}
       } 
-    }   
+    }
+    return 0;
   };
   amrex::Real DDW(amrex::Real theta)
   {
-     // put in code so that 0 <= theta < 2*pi
+    // put in code so that 0 <= theta < 2*pi
     if(theta>=2*pi)
       {
-	theta=theta-2*pi;
+	int div=theta/(2*pi);
+	theta=theta-(div*2*pi);
       }
     else if(theta<0)
       {
-	theta=theta+2*pi;
+	int div=fabs(theta)/(2*pi);
+	theta=theta+((div+1)*2*pi);
       }
     
-    // use modulo operation on floating point numbers to adjust theta
-    
-   //Find out the value of theta inside our vector thetas
+    //Find out the value of theta inside our vector thetas
     
     for(int i=0; i<size; i++){
       if(i==(size-1)){
 	if(theta >= thetas[i]){
-	  //Interpolate to get the value of sigma''
+	  //Interpolate to get the value of sigma
 	  return ((theta-thetas[i])*(sigmasDDW[0]-sigmasDDW[i])/(2*pi+thetas[0]-thetas[i]))+sigmasDDW[i];
 	}
       }
       else{
 	if(theta >= thetas[i] && theta < thetas[i+1]){
-	  //Interpolate to get the value of sigma''	  
+	  //Interpolate to get the value of sigma	  
 	  return ((theta-thetas[i])*(sigmasDDW[i+1]-sigmasDDW[i])/(thetas[i+1]-thetas[i]))+sigmasDDW[i];
 	}
       } 
-    }   
+    }
+    return 0;
   };
 
 private:
