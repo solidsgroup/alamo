@@ -9,5 +9,5 @@ bin
 myoutput*
 doc
 *~
-tests/*
+output*
 *.txt
