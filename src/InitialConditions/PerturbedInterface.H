@@ -3,6 +3,22 @@
 
 #include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
 
+/// \class PerturbedInterface
+/// \brief Initialize a perturbed interface using Fourier Modes
+///
+/// \todo Extend this class to allow for 3D perturbations, currently only 2D are allowed
+/// \todo Allow for cosine (or complex exponential) expansions rather than just sin.
+/// \note This is a **two grain only** initial condition.
+/// \note This replaces the depricated "perturbed_bar" initial condition from previous versions
+///
+/// The interface is defined as the \f$x=0\f$ plane (2D), or the \f$x=0,z=0\f$ plane (3D).
+/// The equation for the interface is given by
+/// \f[y(x,z) = \sum_{n\in \{n_1,\ldots,n_N\}} A_n \sin(n\pi x/L_x) \f]
+/// where \f$A_n\f$ are the amplitudes (stored in #wave_amplitudes),
+/// \f$n_1,\ldots,n_N\subset\mathbb{Z}_+\f$ are wave numbers (stored in #wave_numbers),
+/// and \f$L_x\f$ is the length in the x direction (obtained using the #geom object).
+///
+/// Grain 1 is defined as being above \f$y(x,z)\f$, Grain 2 is defined as being below.
 class PerturbedInterface : public GeneralAMRIntegratorIC
 {
 public:
@@ -19,9 +35,10 @@ public:
   }
   
 void Initialize(const int lev,
-			  amrex::Array<std::unique_ptr<amrex::MultiFab> > &field)
+		amrex::Array<std::unique_ptr<amrex::MultiFab> > &field)
   {
-    const amrex::Real width = geom[lev].ProbHi()[0] - geom[lev].ProbHi()[1];
+    const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
+    //const amrex::Real width = geom[0].ProbHi()[0] - geom[0].ProbHi()[1];
 
     for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
       {
@@ -74,7 +91,7 @@ void Initialize(const int lev,
   
 private:
   static constexpr amrex::Real pi = 3.14159265359;
-  amrex::Vector<int> wave_numbers;
+  amrex::Vector<int> wave_numbers; ///< Store mode amplitudes \f$A_n\f$
   amrex::Vector<amrex::Real> wave_amplitudes;
 };
 
