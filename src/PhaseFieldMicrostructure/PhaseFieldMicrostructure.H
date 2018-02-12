@@ -1,7 +1,9 @@
-#if BL_SPACEDIM == 2
+///
+/// \file PhaseFieldMicrostructure.H
+///
 #ifndef PHASEFIELDMICROSTRUCTURE_H
-
 #define PHASEFIELDMICROSTRUCTURE_H
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -13,11 +15,20 @@
 #include "GeneralAMRIntegrator.H"
 #include "GeneralAMRIntegratorBC.H"
 
+#include "InitialConditions/PerturbedInterface.H"
+
 #include "PFBoundary/PFBoundary.H"
 #include "PFBoundary/PFBoundarySin.H"
 #include "PFBoundary/PFBoundaryAbsSin.H"
 #include "PFBoundary/PFBoundaryRead.H"
 
+///
+/// \class PhaseFieldMicrostructure
+/// \brief Microstructure evolution with grain boundary anisotropy
+///
+/// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
+/// where n corresponds to the number of grains.
+///
 class PhaseFieldMicrostructure : public GeneralAMRIntegrator
 {
 public:
@@ -25,6 +36,8 @@ public:
 
 protected:
 
+  /// \fn    Advance
+  /// \brief Evolve phase field in time
   void Advance (int lev, Real time, Real dt);
 
   void Initialize (int lev);
@@ -36,8 +49,8 @@ private:
   int number_of_grains = 2;
   int number_of_ghost_cells = 2;
 
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_new;
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_old;
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 
   GeneralAMRIntegratorPhysBC mybc;
 
@@ -57,9 +70,10 @@ private:
 
   amrex::Real damp;
 
-  PFBoundary *boundary;// = PFBoundarySin();
+  PFBoundary *boundary;
+
+  GeneralAMRIntegratorIC *ic;
 
 };
 
-#endif
 #endif

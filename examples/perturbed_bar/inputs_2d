@@ -1,6 +1,5 @@
 timestep = 0.0025
 stop_time = 2000.0
-newOld = old
 
 amr.plot_int = 100
 amr.max_level = 3
@@ -8,7 +7,6 @@ amr.n_cell = 50 10
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = myoutput1
 
 ic.type=perturbed_bar
 
@@ -33,5 +31,5 @@ anisotropy.tstart= 0.05
 anisotropy.theta0= 35
 anisotropy.sigma0=0.38
 anisotropy.sigma1=0.181191
-%anisotropy.beta= 0.0005*5;
+anisotropy.beta= 0.00002;
 anisotropy.damp=1.0
