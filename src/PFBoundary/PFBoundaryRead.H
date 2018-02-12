@@ -80,11 +80,6 @@ public:
     }
 
     //Print Thetas Sigmas Sigmas' and Sigmas''
-    
-    std::cout << "Thetas      Sigmas       Sigmas'        Sigmas''" << std::endl;
-    for(i=0; i<size; i++){
-      std::cout << thetas[i] << "       " << sigmasW[i] << "       " << sigmasDW[i] << "       " << sigmasDDW[i] << std::endl;
-    }
   };
   amrex::Real W(amrex::Real theta)
   {
