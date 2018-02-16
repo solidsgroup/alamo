@@ -10,9 +10,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   //
   // READ INPUT PARAMETERS
   //
-  { 
-    amrex::ParmParse pp;   // Basic run parameters
-  }
 
   {
     amrex::ParmParse pp("pf"); // Phase-field model parameters
@@ -25,11 +22,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   }
   {
     amrex::Real theta0,sigma0,sigma1;
-    //std::string filename;
     
     amrex::ParmParse pp("anisotropy"); // Phase-field model parameters
     pp.query("on", anisotropy);
     pp.query("theta0", theta0);
+    pp.query("filename", filename);
+    pp.query("gb_type", gb_type);
     theta0 *= 0.01745329251; // convert degrees into radians
     pp.query("sigma0", sigma0);
     pp.query("sigma1", sigma1);
@@ -37,41 +35,17 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     pp.query("damp", damp);
     pp.query("tstart", anisotropy_tstart);
 
-    boundary = new PFBoundarySin(theta0,sigma0,sigma1);    
-
-    // if(filename == "no")
-    //   {
-    // 	if(newOld=="new")
-    // 	  {  
-    // 	    std::cout << "\n**USING NEW VERSION**\n" << std::endl;
-    // 	    boundary = new PFBoundaryAbsSin(theta0,sigma0,sigma1);
-    // 	  }
-    // 	else if(newOld=="old")
-    // 	  {
-    // 	    std::cout << "\n**USING OLD VERSION**\n" << std::endl;
-    // 	    boundary = new PFBoundarySin(theta0,sigma0,sigma1);
-    // 	  }
-    // 	else
-    // 	  {
-    // 	    std::cout << "\n**NO VERSION SELECTED**\n" << std::endl;
-    // 	  }
-    //   }
-    // else
-    //   {
-    // 	std::cout << "\n**READING FILE "+filename+"**\n" << std::endl;
-    // 	boundary = new PFBoundaryRead(filename);
-    //   }
-
-    // bool a = boundary -> Test();
-    // if (a==false)
-    //   {
-    //  	std::cout << "\n**BOUNDARY DERIVATIVE TEST DID NOT PASS**\n" << std::endl;
-    //  	//amrex::Abort("Boundary derivative test did not pass");
-    //   }
-    // else
-    //   {
-    //  	std::cout <<"\n**TEST SUCCESSFULLY PASSED**\n" << std::endl;
-    //   }
+    // if (amrex::Verbose()) std::cout << "should only print if run with -v flag" << std::cout;
+  
+    if(gb_type=="abssin") 
+ 	boundary = new PFBoundaryAbsSin(theta0,sigma0,sigma1);
+    else if(gb_type=="sin")
+	boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+    else if(gb_type=="read")
+	boundary = new PFBoundaryRead(filename);
+    else
+	boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+ 
 
     
     // if(ParallelDescriptor::IOProcessor())
@@ -87,14 +61,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 
   RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
   RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
-  RegisterNewFab(Lap, mybc, number_of_grains, number_of_ghost_cells, "Laplacian");
 }
 
 
 #define ETA(i,j,k,n) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n)
 
 void
-PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
+PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
 {
   std::swap(eta_old[lev], eta_new[lev]);
   const Real* dx = geom[lev].CellSize();
@@ -105,7 +78,6 @@ PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
 
       amrex::BaseFab<Real> &eta_new_box = (*eta_new[lev])[mfi];
       amrex::BaseFab<Real> &eta_old_box = (*eta_old[lev])[mfi];
-      amrex::BaseFab<Real> &Lap_box = (*Lap[lev])[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
@@ -179,12 +151,11 @@ PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
 		     +16*ETA(i-1,j-2,k,m)-ETA(i-2,j-2,k,m)));
 
 		amrex::Real laplacian = grad11 + grad22;
-		Lap_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) = laplacian;
-
+	       
 		amrex::Real kappa = l_gb*0.75*sigma0;
 		mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
 
-		if (anisotropy && time>anisotropy_tstart)
+		if (anisotropy)
 		  {
 		    amrex::Real Theta = atan2(grad2,grad1);
 		    amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);

@@ -39,6 +39,7 @@ public:
 	    std::cout << "       Theta:         " << theta << std::endl;
 	    std::cout << "       DDW Exact:     " << DDW(theta) << std::endl;
 	    std::cout << "       DDW Numerical: " << numerical_DDW << std::endl;
+	    std::cout << "       Difference:    " << fabs(numerical_DDW-DDW(theta)) << std::endl;
 	    return false;
 	  }
       }
