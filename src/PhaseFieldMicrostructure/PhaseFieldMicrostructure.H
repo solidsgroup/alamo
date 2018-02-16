@@ -52,8 +52,6 @@ private:
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Lap; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-
   GeneralAMRIntegratorPhysBC mybc;
 
   amrex::Real M, mu, gamma, sigma0, l_gb, beta;
@@ -61,7 +59,7 @@ private:
 
   amrex::Real anisotropy_tstart;
 
-  std::string ic_type;
+  std::string ic_type, gb_type, filename;
 
   // Voronoi
   amrex::Array<amrex::Real> voronoi_x;
@@ -72,7 +70,7 @@ private:
 
   amrex::Real damp;
 
-  PFBoundary *boundary;// = PFBoundarySin();
+  PFBoundary *boundary;
 
   GeneralAMRIntegratorIC *ic;
 
