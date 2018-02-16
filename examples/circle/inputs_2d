@@ -1,5 +1,6 @@
 timestep = 0.00005
 stop_time = 2000.0
+newOld = old
 
 amr.plot_int = 10
 amr.max_level = 0	

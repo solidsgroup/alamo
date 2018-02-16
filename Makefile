@@ -1,3 +1,5 @@
+CC = mpicxx
+
 RESET              = '\033[0m'
 B_ON               = '\033[1m'
 FG_RED             = '\033[31m'
@@ -9,11 +11,19 @@ DIM = 2
 
 MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
 MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
-#MPI_LINK_FLAGS =  -Wl,-Bsymbolic-functions -Wl,-z,relro 
 
-CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 -DDIM=${DIM} -DBL_SPACEDIM=${DIM} 
+METADATA_GITHASH  = $(shell git log --pretty=format:'%H' -n 1)
+METADATA_USER     = $(shell whoami)
+METADATA_PLATFORM = $(shell hostname)
+METADATA_COMPILER = $(CC)
+METADATA_DATE     = $(shell date +%x)
+METADATA_TIME     = $(shell date +%H:%M:%S)
 
-INCLUDE = -I./src/ -I./src/PFAmr/ -I./src/PFBoundary/ -I/opt/amrex/tmp_install_dir/include/
+METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" 
+
+CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 -DDIM=${DIM} -DBL_SPACEDIM=${DIM} $(METADATA_FLAGS)
+
+INCLUDE = -I./src/ -I./src/PFAmr/ -I./src/PFFem/ -I./src/GeneralAMRIntegrator/ -I./src/PFFlame/ -I./src/PFBoundary/ 
 LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
 
 
@@ -28,33 +38,34 @@ OBJ_F = ${SRC_F:.F90=.F90.o}
 
 #fem:bin/fem
 
-default: bin/alamo bin/fem
+default: bin/alamo bin/fem bin/flame
 
 bin/alamo: ${OBJ} ${OBJ_F} src/main.cpp.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
 	@echo "###"$(RESET)
 	mkdir -p bin/
-	mpicxx -o bin/alamo $^ ${LIB} 
+	$(CC) -o bin/alamo $^ ${LIB} 
 
-bin/fem: ${OBJ} ${OBJ_F} src/fem.cpp.o
+bin/flame: ${OBJ} ${OBJ_F} src/flame.cpp.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
 	@echo "###"$(RESET)
 	mkdir -p bin/
-	mpicxx -o bin/fem $^ ${LIB} 
+	$(CC) -o bin/flame $^ ${LIB} 
 
 %.cpp.o: %.cpp ${HDR}
 	@echo $(B_ON)$(FG_YELLOW)"###"
 	@echo "### COMPILING $<" 
 	@echo "###"$(RESET)
-	mpicxx -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 %.F90.o: %.F90 ${HDR}
 	@echo $(B_ON)$(FG_YELLOW)"###"
 	@echo "### COMPILING $<" 
 	@echo "###"$(RESET)
-	mpif90 -c $< -o $@ ${INCLUDE} 
+	mpif90 -c $< -o $@  ${INCLUDE}
+	rm *.mod -rf
 
 clean:
 	find src/ -name "*.o" -exec rm {} \;
