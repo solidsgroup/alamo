@@ -3,9 +3,10 @@
 #include <iomanip>
 
 #include "AMReX.H"
-#include "PFAmr.H"
-//#include "PFBoundary.H"
-#include "PFBoundarySin.H"
+
+#if AMREX_SPACEDIM == 2
+
+#include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
 
 int main (int argc, char* argv[])
 {
@@ -15,12 +16,19 @@ int main (int argc, char* argv[])
       exit(-1);
     }
   amrex::Initialize(argc,argv);
+
   srand(1.0*amrex::ParallelDescriptor::MyProc());
   {
-    PFAmr pfamr;
-    pfamr.InitData();
-    pfamr.Evolve();
+    PhaseFieldMicrostructure model;
+    model.InitData();
+    model.Evolve();
   }
   
   amrex::Finalize();
 } 
+#else
+int main()
+{
+  std::cout << "This program works in 2D only, but AMREX_SPACEDIM=" << AMREX_SPACEDIM << std::endl;
+}
+#endif
