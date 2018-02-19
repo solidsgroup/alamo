@@ -12,8 +12,8 @@
 #include "AMReX_ParmParse.H"
 #include "AMReX_ParallelDescriptor.H"
 
-#include "GeneralAMRIntegrator.H"
-#include "GeneralAMRIntegratorBC.H"
+#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
+#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
 
 #include "InitialConditions/PerturbedInterface.H"
 
