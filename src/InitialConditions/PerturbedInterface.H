@@ -55,24 +55,11 @@ void Initialize(const int lev,
 		amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
 		amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
 #if BL_SPACEDIM==3
-		amrex::Real z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];
+		// amrex::Real z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];
 #endif
 		amrex::Real bdry = 0.;
 		for (int n = 0; n < wave_numbers.size(); n++)
 		  bdry += wave_amplitudes[n] * sin((amrex::Real)(wave_numbers[n])*x*pi/width);
-
-		// amrex::Real bdry  =
-		//   (+ 0.1 * sin(x*(2*pi)/width)
-		//    + 0.1 * cos(2.0*x*(2*pi)/width)
-		//    + 0.1 * sin(3.0*x*(2*pi)/width)
-		//    + 0.1 * cos(4.0*x*(2*pi)/width)
-		//    + 0.1 * sin(5.0*x*(2*pi)/width)
-		//    + 0.15 * cos(6.0*x*(2*pi)/width)
-		//    + 0.15 * sin(7.0*x*(2*pi)/width)
-		//    + 0.15 * cos(8.0*x*(2*pi)/width)
-		//    + 0.15 * sin(9.0*x*(2*pi)/width)
-		//    + 0.15 * cos(10.0*x*(2*pi)/width))*0.1
-		//   ;
 
 		if (y < bdry)
 		  {
