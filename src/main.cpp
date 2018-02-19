@@ -6,7 +6,8 @@
 
 #if AMREX_SPACEDIM == 2
 
-#include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
+//#include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
+#include "DiffusionWater/Diffusion.H"
 
 int main (int argc, char* argv[])
 {
@@ -19,7 +20,8 @@ int main (int argc, char* argv[])
 
   srand(1.0*amrex::ParallelDescriptor::MyProc());
   {
-    PhaseFieldMicrostructure model;
+    //PhaseFieldMicrostructure model;
+    Diffusion model;
     model.InitData();
     model.Evolve();
   }
