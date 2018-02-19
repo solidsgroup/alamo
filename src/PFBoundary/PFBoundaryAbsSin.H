@@ -5,7 +5,7 @@
 #include <fstream>
 
 #include "AMReX.H"
-#include "PFBoundary.H"
+#include "PFBoundary/PFBoundary.H"
 
 #define PI 3.14159265 
 
