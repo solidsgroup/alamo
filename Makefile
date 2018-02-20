@@ -7,8 +7,6 @@ FG_GREEN           = '\033[32m'
 FG_YELLOW          = '\033[33m'
 FG_BLUE            = '\033[34m'
 
-DIM = 2
-
 MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
 MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
 
@@ -21,38 +19,32 @@ METADATA_TIME     = $(shell date +%H:%M:%S)
 
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" 
 
-CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 -DDIM=${DIM} -DBL_SPACEDIM=${DIM} $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 
-INCLUDE = -I./src/ -I./src/PFAmr/ -I./src/PFFem/ -I./src/GeneralAMRIntegrator/ -I./src/PFFlame/ -I./src/PFBoundary/ 
+INCLUDE = -I./src/ 
 LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
-
-
 
 HDR = $(shell find src/ -name *.H)
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
+SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cpp" )
+EXE = $(subst src/,bin/, $(SRC_MAIN:.cpp=)) 
 OBJ = ${SRC:.cpp=.cpp.o}
 OBJ_F = ${SRC_F:.F90=.F90.o}
 
-#alamo:bin/alamo
+.SECONDARY: 
 
-#fem:bin/fem
+default: $(EXE)
+	@echo $(B_ON)$(FG_GREEN)"###"
+	@echo "### DONE" 
+	@echo "###"$(RESET)
 
-default: bin/alamo bin/fem bin/flame
-
-bin/alamo: ${OBJ} ${OBJ_F} src/main.cpp.o
+bin/%: ${OBJ} ${OBJ_F} src/%.cpp.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
 	@echo "###"$(RESET)
 	mkdir -p bin/
-	$(CC) -o bin/alamo $^ ${LIB} 
-
-bin/flame: ${OBJ} ${OBJ_F} src/flame.cpp.o
-	@echo $(B_ON)$(FG_BLUE)"###"
-	@echo "### LINKING $@" 
-	@echo "###"$(RESET)
-	mkdir -p bin/
-	$(CC) -o bin/flame $^ ${LIB} 
+	$(CC) -o $@ $^ ${LIB} 
 
 %.cpp.o: %.cpp ${HDR}
 	@echo $(B_ON)$(FG_YELLOW)"###"
@@ -68,5 +60,10 @@ bin/flame: ${OBJ} ${OBJ_F} src/flame.cpp.o
 	rm *.mod -rf
 
 clean:
+	@echo $(B_ON)$(FG_RED)"###"
+	@echo "### CLEANING" 
+	@echo "###"$(RESET)
 	find src/ -name "*.o" -exec rm {} \;
+	rm -f bin/*
 	rm -f Backtrace*
+
