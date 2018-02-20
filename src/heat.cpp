@@ -3,15 +3,11 @@
 #include <iomanip>
 
 #include "AMReX.H"
-#include "AMReX_ParallelDescriptor.H"
-#include "PFFlame/PFFlame.H"
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
+#include "HeatConduction/Integrator.H"
 
 int main (int argc, char* argv[])
 {
-
   if (argc < 2)
     {
       std::cout << "Missing input file" << std::endl;
@@ -19,9 +15,12 @@ int main (int argc, char* argv[])
     }
   amrex::Initialize(argc,argv);
 
-  PFFlame pfamr;
-  pfamr.InitData();
-  pfamr.Evolve();
+  srand(1.0*amrex::ParallelDescriptor::MyProc());
+  {
+    HeatConduction::Integrator model;
+    model.InitData();
+    model.Evolve();
+  }
   
   amrex::Finalize();
 } 
