@@ -61,15 +61,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 
   RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
   RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
-  RegisterNewFab(Curvature, mybc, number_of_grains,0, "Curvature");
-  RegisterNewFab(Boundary_energy, mybc, number_of_grains,0 , "Boundary Energy");
 }
 
 
 #define ETA(i,j,k,n) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n)
 
 void
-PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
+PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
 {
   std::swap(eta_old[lev], eta_new[lev]);
   const Real* dx = geom[lev].CellSize();
@@ -80,8 +78,6 @@ PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
 
       amrex::BaseFab<Real> &eta_new_box = (*eta_new[lev])[mfi];
       amrex::BaseFab<Real> &eta_old_box = (*eta_old[lev])[mfi];
-      amrex::BaseFab<Real> &Curvature_box = (*Curvature[lev])[mfi];
-      amrex::BaseFab<Real> &Boundary_energy_box = (*Boundary_energy[lev])[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
@@ -155,55 +151,33 @@ PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
 		     +16*ETA(i-1,j-2,k,m)-ETA(i-2,j-2,k,m)));
 
 		amrex::Real laplacian = grad11 + grad22;
-		
+	       
 		amrex::Real kappa = l_gb*0.75*sigma0;
 		mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
-		
-		/// Anisotropic terms and parameters
-		amrex::Real Theta = atan2(grad2,grad1);
-		amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
-		amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
-		amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
-		amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
-		amrex::Real W =
-		  Mu*(ETA(i,j,k,m)*ETA(i,j,k,m)
-		      - 1.0 +
-		      2.0*gamma*sum_of_squares)*ETA(i,j,k,m);
-		
-		amrex::Real First_order_term =
-		  Kappa*laplacian
-		  + DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-		  + damp*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22);
 
-		Boundary_energy_box = First_order_term + W ;
-		
-		amrex::Real Curvature_term =
-		  grad1111*(sin(Theta)*sin(Theta)*sin(Theta)*sin(Theta))
-		  +grad1112*(-4*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
-		  +grad1122*(6*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
-		  +grad1222*(-4*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
-		  +grad2222*(cos(Theta)*cos(Theta)*cos(Theta)*cos(Theta));
-
-		Curvature_box = Curvature_term;
-		
 		if (anisotropy)
 		  {
-		    if(time > anisotropy_tstart)
-		      {
-			 eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
-		      ETA(i,j,k,m) - M*dt*(W - (First_order_term) +  beta*(Curvature_term) );
-		      }
-		    else
-		     
-		      {
-			eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
+		    amrex::Real Theta = atan2(grad2,grad1);
+		    amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
+		    amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
+		    amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
+		    amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
+
+
+		    eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
 		      ETA(i,j,k,m) -
-		      M*dt*(mu*(ETA(i,j,k,m)*ETA(i,j,k,m)
+		      M*dt*(Mu*(ETA(i,j,k,m)*ETA(i,j,k,m)
 				- 1.0 +
 				2.0*gamma*sum_of_squares)*ETA(i,j,k,m)
-			    - kappa*laplacian);
-		      }
-		   
+			    - (Kappa*laplacian
+			       + DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
+			       + damp*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 - 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22))+
+			    beta*(grad1111*(sin(Theta)*sin(Theta)*sin(Theta)*sin(Theta))
+				  +grad1112*(-6*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
+				  +grad1122*(10*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
+				  +grad1222*(-6*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
+				  +grad2222*(cos(Theta)*cos(Theta)*cos(Theta)*cos(Theta))) 
+			    );
 		  }
 		// Isotropic response if less than anisotropy_tstart
 		else 
@@ -215,9 +189,9 @@ PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
 				2.0*gamma*sum_of_squares)*ETA(i,j,k,m)
 			    - kappa*laplacian);
 		  }
-		
+
 	      }
-	    
+
 	  }
     }
 }

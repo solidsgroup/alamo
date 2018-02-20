@@ -51,9 +51,7 @@ private:
 
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Curvature; ///< Multicomponent field variable storing the curvature measure
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Boundary_energy; ///< Multicomponent field variable storing the Boundary energy + the chemical potential
-  
+
   GeneralAMRIntegratorPhysBC mybc;
 
   amrex::Real M, mu, gamma, sigma0, l_gb, beta;
