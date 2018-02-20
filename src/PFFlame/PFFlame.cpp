@@ -1,4 +1,4 @@
-#include "PFFlame.H"
+#include "PFFlame/PFFlame.H"
 
 PFFlame::PFFlame () : GeneralAMRIntegrator(), TempBC(geom,"TempBC"), EtaBC(geom,"EtaBC")
 {

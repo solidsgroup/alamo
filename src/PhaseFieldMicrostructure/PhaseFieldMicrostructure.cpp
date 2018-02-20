@@ -1,4 +1,4 @@
-#include "PhaseFieldMicrostructure.H"
+#include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
 
 #if BL_SPACEDIM == 2
 
