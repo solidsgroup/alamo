@@ -9,7 +9,7 @@
 #include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
 #include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
 
-#include "PFFlameBC.H"
+#include "PFFlame/PFFlameBC.H"
 
 class PFFlame : public GeneralAMRIntegrator
 {
