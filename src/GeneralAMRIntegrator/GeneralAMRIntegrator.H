@@ -14,7 +14,7 @@
 #include <AMReX_Utility.H>
 #include <AMReX_PlotFileUtil.H>
 
-#include "GeneralAMRIntegratorBC.H"
+#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
 
 
 ///
@@ -128,7 +128,7 @@ private:
   void InitFromCheckpoint ();
   long CountCells (int lev);
   void TimeStep (int lev, amrex::Real time, int iteration);
-  void FillCoarsePatch (int lev, amrex::Real time, amrex::MultiFab& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp);
+  void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp);
   void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::MultiFab*>& data, amrex::Array<amrex::Real>& datatime);
 
   std::vector<std::string> PlotFileName (int lev) const;

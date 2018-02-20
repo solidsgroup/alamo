@@ -12,8 +12,8 @@
 #include <AMReX_FillPatchUtil.H>
 #include <AMReX_BC_TYPES.H>
 
-#include "GeneralAMRIntegrator.H"
-#include "GeneralAMRIntegratorBC.H"
+#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
+#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
 
 
 using namespace amrex;
@@ -64,11 +64,9 @@ GeneralAMRIntegrator::~GeneralAMRIntegrator ()
 {
 }
 
-/// 
-/// \func  MakeNewLevelFromCoarse
+/// \fn    GeneralAMRIntegrator::MakeNewLevelFromCoarse
 /// \brief Wrapper to call FillCoarsePatch
-///
-/// Note: **THIS OVERRIDES A PURE VIRTUAL METHOD - DO NOT CHANGE**
+/// \note **THIS OVERRIDES A PURE VIRTUAL METHOD - DO NOT CHANGE**
 ///
 void
 GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
@@ -84,7 +82,7 @@ GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray
       t_new[lev] = time;
       t_old[lev] = time - 1.e200;
 
-      FillCoarsePatch(lev, time, *(*fab_array[n])[lev], *physbc_array[n], 0, ncomp);
+      FillCoarsePatch(lev, time, *fab_array[n], *physbc_array[n], 0, ncomp);
     }
 }
 
@@ -220,14 +218,26 @@ GeneralAMRIntegrator::FillPatch (int lev, Real time,
     }
 }
 
-void // CUSTOM METHOD - CHANGEABLE
-GeneralAMRIntegrator::FillCoarsePatch (int lev, Real time, MultiFab& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp)
+/// \fn    GeneralAMRIntegrator::FillCoarsePatch
+/// \brief Fill a fab at current level with the data from one level up
+///
+/// \note  This is a custom method and is changeable
+void
+GeneralAMRIntegrator::FillCoarsePatch (int lev, ///<[in] AMR level
+				       Real time, ///<[in] Simulatinon time
+				       amrex::Vector<std::unique_ptr<MultiFab> > &mf, ///<[in] Fab to fill
+				       GeneralAMRIntegratorPhysBC &physbc, ///<[in] BC object applying to Fab
+				       int icomp, ///<[in] start component
+				       int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
 {
-  BL_ASSERT(lev > 0);
+  AMREX_ASSERT(lev > 0);
 
-  Array<MultiFab* > cmf(number_of_fabs);
+  Array<MultiFab* > cmf;
+  cmf.push_back(mf[lev-1].get());
   Array<Real> ctime;
-  GetData(lev-1, time, cmf, ctime);
+  ctime.push_back(time);
+  
+  //GetData(lev-1, time, cmf, ctime);
     
   if (cmf.size() != 1) 
     amrex::Abort("FillCoarsePatch: how did this happen?");
@@ -235,7 +245,7 @@ GeneralAMRIntegrator::FillCoarsePatch (int lev, Real time, MultiFab& mf, General
   Interpolater* mapper = &cell_cons_interp;
     
   Array<BCRec> bcs(ncomp, physbc.GetBCRec());
-  amrex::InterpFromCoarseLevel(mf, time, *cmf[0], 0, icomp, ncomp, geom[lev-1], geom[lev],
+  amrex::InterpFromCoarseLevel(*mf[lev], time, *cmf[0], 0, icomp, ncomp, geom[lev-1], geom[lev],
 			       physbc, physbc,
 			       refRatio(lev-1),
 			       mapper, bcs);
