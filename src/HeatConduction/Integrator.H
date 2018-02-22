@@ -42,6 +42,7 @@ public:
 
   /// \brief Read in parameters and register field variables
   Integrator();
+  ~Integrator();
 
 protected:
 
