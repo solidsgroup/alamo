@@ -152,7 +152,7 @@ private:
 
   // KEEPING TRACK OF ALL EVOLVING VARIABLES
   int number_of_fabs = 0;									///< Number of evolving variables (updated automatically)
-  amrex::Array<std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > > > fab_array;	///< List of ptrs to all updated fabs
+  amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > *> fab_array;	                ///< List of ptrs to all updated fabs
   amrex::Array<int> ncomp_array;								///< Array containing number of components for each fab array
   amrex::Array<int> nghost_array;								///< Array containing number of ghost cells in each fab array
   amrex::Array<std::string> name_array;								///< Array containing names for each variable in the fab array
@@ -162,9 +162,9 @@ private:
   int regrid_int = 2; ///< Determine how often to regrid (default: 2)
 
   // RESTART CHECKFILE -- NOT CURRENTLY USED!
-  std::string restart_chkfile;     ///< Checkfile name __Not currently used__
-  std::string check_file {"chk"};  ///< Checkfiles __Not currently used__
-  int check_int = -1;              ///< How frequently to dump checkfile __Not currently used__
+  //std::string restart_chkfile;     ///< Checkfile name __Not currently used__
+  //std::string check_file {"chk"};  ///< Checkfiles __Not currently used__
+  //int check_int = -1;              ///< How frequently to dump checkfile __Not currently used__
 
   // PLOT FILES
   std::string plot_file {"plt"};   ///< Plotfile name
