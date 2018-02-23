@@ -21,7 +21,7 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 
 CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 
-INCLUDE = -I./src/ 
+INCLUDE = -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
 
 HDR = $(shell find src/ -name *.H)
@@ -52,11 +52,13 @@ bin/%: ${OBJ} ${OBJ_F} src/%.cpp.o
 	@echo "###"$(RESET)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
+FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
+
 %.F90.o: %.F90 ${HDR}
 	@echo $(B_ON)$(FG_YELLOW)"###"
 	@echo "### COMPILING $<" 
 	@echo "###"$(RESET)
-	mpif90 -c $< -o $@  ${INCLUDE}
+	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
 clean:
