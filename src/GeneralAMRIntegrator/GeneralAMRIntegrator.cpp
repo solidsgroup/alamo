@@ -20,21 +20,21 @@ using namespace amrex;
 
 GeneralAMRIntegrator::GeneralAMRIntegrator ()
 {
-  { 
+
+  {
     ParmParse pp;   // Basic run parameters
     pp.query("max_step", max_step);
     pp.query("stop_time", stop_time);
     pp.query("timestep",timestep);
   }
-
   {
     ParmParse pp("amr"); // AMR specific parameters
-    pp.query("regrid_int", regrid_int);
-    pp.query("check_file", check_file);
-    pp.query("check_int", check_int);
-    pp.query("plot_file", plot_file);
-    pp.query("plot_int", plot_int);
-    pp.query("restart", restart_chkfile);
+    pp.query("regrid_int", regrid_int);     // ALL processors
+    //pp.query("check_file", check_file);   // Not currently used
+    //pp.query("check_int", check_int);     // Not currently used
+    pp.query("plot_int", plot_int);         // ALL processors
+    pp.query("plot_file", plot_file);       // IO Processor only
+    //pp.query("restart", restart_chkfile); // Not currently used
   }
 
   int nlevs_max = maxLevel() + 1;
@@ -52,8 +52,13 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
   for (int i = 1; i < nlevs_max; i++)
     dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 
-  amrex::UtilCreateCleanDirectory(plot_file, false);
-  WriteMetaData();
+  
+
+  if (ParallelDescriptor::IOProcessor())
+    {
+      amrex::UtilCreateCleanDirectory(plot_file, false);
+      WriteMetaData();
+    }
 }
 
 ///
@@ -141,10 +146,10 @@ GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFa
 				     std::string name)
 {
   int nlevs_max = maxLevel() + 1;
-
   new_fab.resize(nlevs_max);
-  fab_array.push_back((std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > >)&new_fab);
-  physbc_array.push_back((std::unique_ptr<GeneralAMRIntegratorPhysBC>)&new_bc); 
+  //fab_array.push_back((std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > >)&new_fab);
+  fab_array.push_back(&new_fab);
+  physbc_array.push_back(&new_bc); 
   ncomp_array.push_back(ncomp);
   nghost_array.push_back(nghost);
   if (ncomp > 1) for (int i = 1; i <= ncomp; i++) name_array.push_back(amrex::Concatenate(name, i, 3));
@@ -210,11 +215,15 @@ GeneralAMRIntegrator::FillPatch (int lev, Real time,
       Interpolater* mapper = &cell_cons_interp;
 
       Array<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
+      amrex::ParallelDescriptor::Barrier();
+      
+      amrex::ParallelDescriptor::Barrier();
       amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
 				0, icomp, destination_mf.nComp(), geom[lev-1], geom[lev],
 				physbc, physbc,
 				refRatio(lev-1),
 				mapper, bcs);
+      amrex::ParallelDescriptor::Barrier();
     }
 }
 
@@ -296,26 +305,26 @@ GeneralAMRIntegrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow
 void
 GeneralAMRIntegrator::InitData ()
 {
-    if (restart_chkfile.empty())
+    // if (restart_chkfile.empty())
+    // {
+  const Real time = 0.0;
+  InitFromScratch(time);
+  for (int lev = finest_level-1; lev >= 0; --lev)
     {
-	const Real time = 0.0;
-	InitFromScratch(time);
-	for (int lev = finest_level-1; lev >= 0; --lev)
-	  {
-	    for (int n = 0; n < number_of_fabs; n++)
-	      amrex::average_down(*(*fab_array[n])[lev+1], *(*fab_array[n])[lev],
-				geom[lev+1], geom[lev],
-				  0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
-	  }
-
-	if (plot_int > 0) {
-	    WritePlotFile();
-	}
+      for (int n = 0; n < number_of_fabs; n++)
+	amrex::average_down(*(*fab_array[n])[lev+1], *(*fab_array[n])[lev],
+			    geom[lev+1], geom[lev],
+			    0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
     }
-    else
-    {
-	InitFromCheckpoint();
-    }
+  
+  if (plot_int > 0) {
+    WritePlotFile();
+  }
+    // }
+    // else
+    // {
+    // 	InitFromCheckpoint();
+    // }
 }
 
 void GeneralAMRIntegrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
@@ -408,7 +417,6 @@ GeneralAMRIntegrator::WritePlotFile () const
   WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), name_array,
 			  Geom(), t_new[0],istep, refRatio());
 
-
   if (ParallelDescriptor::IOProcessor())
     {
       std::ofstream outfile;
@@ -458,7 +466,6 @@ GeneralAMRIntegrator::Evolve ()
 
       if (cur_time >= stop_time - 1.e-6*dt[0]) break;
     }
-
   if (plot_int > 0 && istep[0] > last_plot_file_step) {
     WritePlotFile();
   }

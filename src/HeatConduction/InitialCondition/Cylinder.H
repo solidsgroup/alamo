@@ -1,6 +1,8 @@
 #ifndef HEATCONDUCTION_INITIALCONDITION_CYLINDER_H_
 #define HEATCONDUCTION_INITIALCONDITION_CYLINDER_H_
 
+#include <AMReX_ParallelDescriptor.H>
+
 #include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
 
 /// \class Cylinder
