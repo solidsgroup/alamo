@@ -33,7 +33,6 @@ HeatConduction::Integrator::Integrator() :
 
 HeatConduction::Integrator::~Integrator()
 {
-  std::cout << "destroying heat conduction integrator" << std::endl; 
 }
 
 /// \fn HeatConduction::Integrator::Initialize

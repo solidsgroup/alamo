@@ -18,12 +18,9 @@ public:
   Cylinder (amrex::Array<amrex::Geometry> &_geom) :
     GeneralAMRIntegratorIC(_geom)
   {
-    if (amrex::ParallelDescriptor::IOProcessor())
-      {
-	amrex::ParmParse pp("ic");
-	pp.query("Tin", Tin);
-	pp.query("Tout", Tout);
-      }
+    amrex::ParmParse pp("ic");
+    pp.query("Tin", Tin);
+    pp.query("Tout", Tout);
   }
   
 void Initialize(const int lev,
