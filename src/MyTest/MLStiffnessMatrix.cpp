@@ -1,8 +1,7 @@
 #include <AMReX_MultiFabUtil.H>
 #include "MLStiffnessMatrix.H"
+#include "AMReX_MLABecLap_F.H"
 #include "AMReX_ABec_F.H"
-
-#define DEBUG std::cout << "\033[34m" << "DEBUG:     " << "\033[0m" << __FILE__ << ":" << __LINE__ << std::endl;
 
 namespace amrex {
 
@@ -20,8 +19,6 @@ MLStiffnessMatrix::define (const Vector<Geometry>& a_geom,
 			   const Vector<DistributionMapping>& a_dmap,
 			   const LPInfo& a_info)
 {
-  BL_PROFILE("MLStiffnessMatrix::define()");
-
   MLLinOp::define(a_geom, a_grids, a_dmap, a_info);
 
   m_a_coeffs.resize(m_num_amr_levels);
@@ -81,7 +78,6 @@ MLStiffnessMatrix::setBCoeffs (int amrlev,
 void
 MLStiffnessMatrix::averageDownCoeffs ()
 {
-  BL_PROFILE("MLStiffnessMatrix::averageDownCoeffs()");
 
   for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
     {
@@ -214,52 +210,27 @@ MLStiffnessMatrix::prepareForSolve ()
 void
 MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const
 {
-
-  // for (MFIter mfi(out, true); mfi.isValid(); ++mfi)
-  //   {
-  //     const Box& box = mfi.tilebox();
-  //     const amrex::BaseFab<amrex::Real> &infab    = in[mfi];
-  //     amrex::BaseFab<amrex::Real>       &outfab   = out[mfi];
-
-  //     static int d = BL_SPACEDIM;
-      
-  //     for (int m1 = box.loVect()[0]; m1 <= box.hiVect()[0]; m1++)
-  // 	for (int m2 = box.loVect()[1]; m2 <= box.hiVect()[2]; m2++)
-  // 	  {
-  // 	    amrex::IntVect m(m1,m2);
-  // 	    for (int i=0; i<d; i++)
-  // 	      {
-  // 		outfab(m,i) = 0.;
-  // 		for (int n1 = m1-1; n1 <= m1+1; n1++)
-  // 		  for (int n2 = m2-1; n2 <= m2+1; n2++)
-  // 		    {
-  // 		      amrex::IntVect n(n1,n2);
-  // 		      for (int k=0; k<d; k++)
-  // 			{
-  // 			  outfab(m,i) += K(m,n,i,k) * infab(n,k);
-  // 			}
-  // 		    }
-  // 	      }
-  // 	  }
-  //   }
-
-
-
   BL_PROFILE("MLStiffnessMatrix::Fapply()");
+
   const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
   const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];
   const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];
+
   const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
+
   for (MFIter mfi(out, true); mfi.isValid(); ++mfi)
     {
       const Box& bx = mfi.tilebox();
+
       amrex::Real alpha=m_a_scalar, beta=m_b_scalar;
       amrex::Real dhx = beta*dxinv[0]*dxinv[0], dhy = beta*dxinv[1]*dxinv[1];
+
       const amrex::BaseFab<amrex::Real> &xfab  = in[mfi];
       amrex::BaseFab<amrex::Real>       &yfab  = out[mfi];
       const amrex::BaseFab<amrex::Real> &afab  = acoef[mfi];
       const amrex::BaseFab<amrex::Real> &bxfab = bxcoef[mfi];
       const amrex::BaseFab<amrex::Real> &byfab = bycoef[mfi];
+
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 	  {
@@ -270,10 +241,6 @@ MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab&
 		       - byfab(amrex::IntVect(i,j))*(xfab(amrex::IntVect(i,j)) - xfab(amrex::IntVect(i,j-1))));
 	  }
     }
-
-
-
-
 }
 
 void
@@ -326,22 +293,22 @@ MLStiffnessMatrix::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab
       const FArrayBox& f2fab = f2[mfi];
       const FArrayBox& f3fab = f3[mfi];
 
-       FORT_GSRB(solnfab.dataPtr(), ARLIM(solnfab.loVect()),ARLIM(solnfab.hiVect()),
-       		rhsfab.dataPtr(), ARLIM(rhsfab.loVect()), ARLIM(rhsfab.hiVect()),
-       		&m_a_scalar, &m_b_scalar,
-       		afab.dataPtr(), ARLIM(afab.loVect()),    ARLIM(afab.hiVect()),
-       		bxfab.dataPtr(), ARLIM(bxfab.loVect()),   ARLIM(bxfab.hiVect()),
-       		byfab.dataPtr(), ARLIM(byfab.loVect()),   ARLIM(byfab.hiVect()),
-       		f0fab.dataPtr(), ARLIM(f0fab.loVect()),   ARLIM(f0fab.hiVect()),
-       		m0.dataPtr(), ARLIM(m0.loVect()),   ARLIM(m0.hiVect()),
-       		f1fab.dataPtr(), ARLIM(f1fab.loVect()),   ARLIM(f1fab.hiVect()),
-       		m1.dataPtr(), ARLIM(m1.loVect()),   ARLIM(m1.hiVect()),
-       		f2fab.dataPtr(), ARLIM(f2fab.loVect()),   ARLIM(f2fab.hiVect()),
-       		m2.dataPtr(), ARLIM(m2.loVect()),   ARLIM(m2.hiVect()),
-       		f3fab.dataPtr(), ARLIM(f3fab.loVect()),   ARLIM(f3fab.hiVect()),
-       		m3.dataPtr(), ARLIM(m3.loVect()),   ARLIM(m3.hiVect()),
-       		tbx.loVect(), tbx.hiVect(), vbx.loVect(), vbx.hiVect(),
-       		&nc, h, &redblack);
+      FORT_GSRB(solnfab.dataPtr(), ARLIM(solnfab.loVect()),ARLIM(solnfab.hiVect()),
+		rhsfab.dataPtr(), ARLIM(rhsfab.loVect()), ARLIM(rhsfab.hiVect()),
+		&m_a_scalar, &m_b_scalar,
+		afab.dataPtr(), ARLIM(afab.loVect()),    ARLIM(afab.hiVect()),
+		bxfab.dataPtr(), ARLIM(bxfab.loVect()),   ARLIM(bxfab.hiVect()),
+		byfab.dataPtr(), ARLIM(byfab.loVect()),   ARLIM(byfab.hiVect()),
+		f0fab.dataPtr(), ARLIM(f0fab.loVect()),   ARLIM(f0fab.hiVect()),
+		m0.dataPtr(), ARLIM(m0.loVect()),   ARLIM(m0.hiVect()),
+		f1fab.dataPtr(), ARLIM(f1fab.loVect()),   ARLIM(f1fab.hiVect()),
+		m1.dataPtr(), ARLIM(m1.loVect()),   ARLIM(m1.hiVect()),
+		f2fab.dataPtr(), ARLIM(f2fab.loVect()),   ARLIM(f2fab.hiVect()),
+		m2.dataPtr(), ARLIM(m2.loVect()),   ARLIM(m2.hiVect()),
+		f3fab.dataPtr(), ARLIM(f3fab.loVect()),   ARLIM(f3fab.hiVect()),
+		m3.dataPtr(), ARLIM(m3.loVect()),   ARLIM(m3.hiVect()),
+		tbx.loVect(), tbx.hiVect(), vbx.loVect(), vbx.hiVect(),
+		&nc, h, &redblack);
 
     }
 }
@@ -421,25 +388,30 @@ MLStiffnessMatrix::Anorm (int amrlev, int mglev) const
       const int nc = 1;
       Real res = 0.0;
 
-      for (MFIter mfi(acoef,true); mfi.isValid(); ++mfi)
-	{
-	  Real tres;
+#ifdef _OPENMP
+#pragma omp parallel reduction(max:res)
+#endif
+      {
+	for (MFIter mfi(acoef,true); mfi.isValid(); ++mfi)
+	  {
+	    Real tres;
 	    
-	  const Box&       tbx  = mfi.tilebox();
-	  const FArrayBox& afab = acoef[mfi];
-	  AMREX_D_TERM(const FArrayBox& bxfab = bxcoef[mfi];,
-		       const FArrayBox& byfab = bycoef[mfi];,
-		       const FArrayBox& bzfab = bzcoef[mfi];);
+	    const Box&       tbx  = mfi.tilebox();
+	    const FArrayBox& afab = acoef[mfi];
+	    AMREX_D_TERM(const FArrayBox& bxfab = bxcoef[mfi];,
+			 const FArrayBox& byfab = bycoef[mfi];,
+			 const FArrayBox& bzfab = bzcoef[mfi];);
 
-	  FORT_NORMA(&tres,
-		     &m_a_scalar, &m_b_scalar,
-		     afab.dataPtr(),  ARLIM(afab.loVect()), ARLIM(afab.hiVect()),
-		     bxfab.dataPtr(), ARLIM(bxfab.loVect()), ARLIM(bxfab.hiVect()),
-		     byfab.dataPtr(), ARLIM(byfab.loVect()), ARLIM(byfab.hiVect()),
-		     tbx.loVect(), tbx.hiVect(), &nc, dx);
+	    FORT_NORMA(&tres,
+		       &m_a_scalar, &m_b_scalar,
+		       afab.dataPtr(),  ARLIM(afab.loVect()), ARLIM(afab.hiVect()),
+		       bxfab.dataPtr(), ARLIM(bxfab.loVect()), ARLIM(bxfab.hiVect()),
+		       byfab.dataPtr(), ARLIM(byfab.loVect()), ARLIM(byfab.hiVect()),
+		       tbx.loVect(), tbx.hiVect(), &nc, dx);
                 
-	  res = std::max(res, tres);
-	}
+	    res = std::max(res, tres);
+	  }
+      }
         
       ParallelAllReduce::Max(res, Communicator(amrlev,mglev));
       m_Anorm[amrlev][mglev] = res;
@@ -451,7 +423,7 @@ MLStiffnessMatrix::Anorm (int amrlev, int mglev) const
 
 #if (BL_SPACEDIM == 2)
 amrex::Real
-MLStiffnessMatrix::K (const amrex::IntVect m, const amrex::IntVect n, const int i, const int k) const
+MLStiffnessMatrix::K (amrex::IntVect m, amrex::IntVect n,int i, int k)
 {
 
   //  ___________________________
@@ -469,8 +441,6 @@ MLStiffnessMatrix::K (const amrex::IntVect m, const amrex::IntVect n, const int 
   // |_____________|_____________|
   //
   //
-
-  // NOTE (TODO) - missing dy/dx and dx/dy ratios in first and last components.
 
   amrex::Real DPhi1DPhi1[2][2] =  {{  1./3.,   1./4.  },{  1./4.,  1./3.  }};
   amrex::Real DPhi1DPhi2[2][2] =  {{ -1./3.,   1./4.  },{ -1./4.,  1./6.  }};
@@ -526,82 +496,8 @@ MLStiffnessMatrix::K (const amrex::IntVect m, const amrex::IntVect n, const int 
   return mu * (i==k ? 1. : 0.) * (DPhiDPhi[0][0] + DPhiDPhi[1][1]) + (mu + lambda) * DPhiDPhi[i][k];
 
 }
-
-
-void
-MLStiffnessMatrix::setLevelBC (int amrlev, const MultiFab* a_levelbcdata)
-{
-    BL_PROFILE("MLLinOp::setLevelBC()");
-
-    AMREX_ALWAYS_ASSERT(amrlev >= 0 && amrlev < m_num_amr_levels);
-
-    MultiFab zero;
-    if (a_levelbcdata == nullptr) {
-        zero.define(m_grids[amrlev][0], m_dmap[amrlev][0], 1, 1);
-        zero.setVal(0.0);
-    } else {
-        AMREX_ALWAYS_ASSERT(a_levelbcdata->nGrow() >= 1);
-    }
-    const MultiFab& bcdata = (a_levelbcdata == nullptr) ? zero : *a_levelbcdata;
-
-    int br_ref_ratio;
-
-    if (amrlev == 0)
-    {
-        if (needsCoarseDataForBC())
-        {
-            if (m_crse_sol_br[amrlev] == nullptr)
-            {
-                const int ncomp = 1;
-                const int in_rad = 0;
-                const int out_rad = 1;
-                const int extent_rad = 2;
-                const int crse_ratio = m_coarse_data_crse_ratio;
-                BoxArray cba = m_grids[amrlev][0];
-                cba.coarsen(crse_ratio);
-                m_crse_sol_br[amrlev].reset(new BndryRegister(cba, m_dmap[amrlev][0],
-                                                              in_rad, out_rad,
-                                                              extent_rad, ncomp));
-            }
-            if (m_coarse_data_for_bc != nullptr) {
-                const Box& cbx = amrex::coarsen(m_geom[0][0].Domain(), m_coarse_data_crse_ratio);
-                m_crse_sol_br[amrlev]->copyFrom(*m_coarse_data_for_bc, 0, 0, 0, 1,
-                                                Geometry::periodicity(cbx));
-            } else {
-                m_crse_sol_br[amrlev]->setVal(0.0);
-            }
-            m_bndry_sol[amrlev]->setBndryValues(*m_crse_sol_br[amrlev], 0,
-                                                bcdata, 0, 0, 1,
-                                                m_coarse_data_crse_ratio, BCRec());
-            br_ref_ratio = m_coarse_data_crse_ratio;
-        }
-        else
-        {
-            m_bndry_sol[amrlev]->setBndryValues(bcdata,0,0,1,BCRec());
-            br_ref_ratio = 1;
-        }
-    }
-    else
-    {
-        m_bndry_sol[amrlev]->setBndryValues(bcdata,0,0,1, m_amr_ref_ratio[amrlev-1], BCRec());
-        br_ref_ratio = m_amr_ref_ratio[amrlev-1];
-    }
-
-    m_bndry_sol[amrlev]->setLOBndryConds(m_lobc, m_hibc, br_ref_ratio);
-
-    const Real* dx = m_geom[amrlev][0].CellSize();
-    for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
-    {
-        m_bcondloc[amrlev][mglev]->setLOBndryConds(m_geom[amrlev][mglev], dx,
-                                                   m_lobc, m_hibc, br_ref_ratio);
-    }
-}
-
-
 #endif
 
 
 }
-
-
 
