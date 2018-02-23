@@ -67,22 +67,6 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
 ///
 GeneralAMRIntegrator::~GeneralAMRIntegrator ()
 {
-  // std::cout << "about to delete" << std::endl;
-  // std::cout << "numfabs=" << number_of_fabs << std::endl;
-  // std::cout << "numlevs=" << finest_level << std::endl;
-  // // for (int n = 0 ; n < number_of_fabs; n++)
-  // //   {
-  //     for (int lev = 0; lev <= finest_level; lev++)
-  // 	{
-	  
-  // 	  std::cout << "about to delete" << std::endl;
-  // 	  //ClearLevel(lev);
-  // 	  //(*fab_array[n])[lev].reset();
-  // 	  std::cout << "deleted" << std::endl;
-  // 	}
-  //   // }
-  // if (amrex::ParallelDescriptor::IOProcessor()) std::cout << "Destroying GeneralAMRIntegrator" << std::endl;
-    std::cout << "DEBUG " << __FILE__ << ":" << __LINE__ << std::endl;
 }
 
 /// \fn    GeneralAMRIntegrator::MakeNewLevelFromCoarse
@@ -165,7 +149,7 @@ GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFa
   new_fab.resize(nlevs_max);
   //fab_array.push_back((std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > >)&new_fab);
   fab_array.push_back(&new_fab);
-  physbc_array.push_back((std::unique_ptr<GeneralAMRIntegratorPhysBC>)&new_bc); 
+  physbc_array.push_back(&new_bc); 
   ncomp_array.push_back(ncomp);
   nghost_array.push_back(nghost);
   if (ncomp > 1) for (int i = 1; i <= ncomp; i++) name_array.push_back(amrex::Concatenate(name, i, 3));
@@ -482,11 +466,9 @@ GeneralAMRIntegrator::Evolve ()
 
       if (cur_time >= stop_time - 1.e-6*dt[0]) break;
     }
-  std::cout << "Done timestepping!"<< std::endl;
   if (plot_int > 0 && istep[0] > last_plot_file_step) {
     WritePlotFile();
   }
-  std::cout << "Done in Evolve!"<< std::endl;
 }
 
 void
