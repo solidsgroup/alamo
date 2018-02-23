@@ -1,6 +1,7 @@
 #ifndef GeneralAMRIntegratorBC_H_
 #define GeneralAMRIntegratorBC_H_
 
+#include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
@@ -23,25 +24,23 @@ public:
 	  if (bc_hi_str[i] == "REFLECT_ODD"	) bc_hi[i] = REFLECT_ODD; 
 	  if (bc_hi_str[i] == "INT_DIR"		) bc_hi[i] = INT_DIR;
 	  if (bc_hi_str[i] == "REFLECT_EVEN"	) bc_hi[i] = REFLECT_EVEN;
-	  if (bc_hi_str[i] == "FOEXTRAP"	) bc_hi[i] = FOEXTRAP;
+	  if (bc_hi_str[i] == "FOEXTRAP"		) bc_hi[i] = FOEXTRAP;
 	  if (bc_hi_str[i] == "EXT_DIR"		) bc_hi[i] = EXT_DIR;
-	  if (bc_hi_str[i] == "HOEXTRAP"	) bc_hi[i] = HOEXTRAP;
+	  if (bc_hi_str[i] == "HOEXTRAP"		) bc_hi[i] = HOEXTRAP;
 
 	  if (bc_lo_str[i] == "REFLECT_ODD"	) bc_lo[i] = REFLECT_ODD;
 	  if (bc_lo_str[i] == "INT_DIR"		) bc_lo[i] = INT_DIR;
 	  if (bc_lo_str[i] == "REFLECT_EVEN"	) bc_lo[i] = REFLECT_EVEN;
-	  if (bc_lo_str[i] == "FOEXTRAP"	) bc_lo[i] = FOEXTRAP;
+	  if (bc_lo_str[i] == "FOEXTRAP"		) bc_lo[i] = FOEXTRAP;
 	  if (bc_lo_str[i] == "EXT_DIR"		) bc_lo[i] = EXT_DIR;
-	  if (bc_lo_str[i] == "HOEXTRAP"	) bc_lo[i] = HOEXTRAP;
+	  if (bc_lo_str[i] == "HOEXTRAP"		) bc_lo[i] = HOEXTRAP;
 	}
     
       // todo -- add ability to specify Dirichlet/Neumann BC values
       
       if (bc_lo[0] == EXT_DIR) pp.getarr("lo_1",bc_lo_1); if(bc_hi[0] == EXT_DIR) pp.getarr("hi_1",bc_hi_1);
-#if BL_SPACEDIM > 1
       if (bc_lo[1] == EXT_DIR) pp.getarr("lo_2",bc_lo_2); if(bc_hi[1] == EXT_DIR) pp.getarr("hi_2",bc_hi_2);
-#endif
-#if BL_SPACEDIM > 2
+#if AMREX_SPACEDIM > 2
       if (bc_lo[2] == EXT_DIR) pp.getarr("lo_3",bc_lo_3); if(bc_hi[2] == EXT_DIR) pp.getarr("hi_3",bc_hi_3);
 #endif
     }
@@ -100,15 +99,13 @@ public:
 protected:
   int bc_lo[BL_SPACEDIM];
   int bc_hi[BL_SPACEDIM];
-  amrex::Array<amrex::Real> bc_lo_1, bc_hi_1;
-#if BL_SPACEDIM > 1
-  amrex::Array<amrex::Real> bc_lo_2, bc_hi_2;
-#endif
+  amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+  amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
 #if BL_SPACEDIM > 2
-  amrex::Array<amrex::Real> bc_lo_3, bc_hi_3;
+  amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
 #endif
 
-  amrex::Array<amrex::Geometry> &geom;
+  std::vector<amrex::Geometry> &geom;
   int lev=0;
 };
 
