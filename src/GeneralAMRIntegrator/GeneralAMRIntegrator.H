@@ -156,7 +156,7 @@ private:
   amrex::Array<int> ncomp_array;								///< Array containing number of components for each fab array
   amrex::Array<int> nghost_array;								///< Array containing number of ghost cells in each fab array
   amrex::Array<std::string> name_array;								///< Array containing names for each variable in the fab array
-  amrex::Array<std::unique_ptr<GeneralAMRIntegratorPhysBC> > physbc_array;			///< Array of pointers to BC objects
+  amrex::Array<GeneralAMRIntegratorPhysBC *> physbc_array;		                 	///< Array of pointers to BC objects
 
   // REGRIDDING
   int regrid_int = 2; ///< Determine how often to regrid (default: 2)
