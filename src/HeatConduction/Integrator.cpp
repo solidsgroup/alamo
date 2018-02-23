@@ -14,25 +14,26 @@ HeatConduction::Integrator::Integrator() :
   GeneralAMRIntegrator(), 
   mybc(geom)
 {
-  // Read in heat transfer parameters
-  {
-    amrex::ParmParse pp("heat");
-    pp.query("alpha", alpha);
-    pp.query("refinement_threshold", refinement_threshold);
-    pp.query("ic_type", ic_type);
-  }
+  amrex::ParmParse pp("heat");
+  pp.query("alpha", alpha);
+  pp.query("refinement_threshold", refinement_threshold);
+  pp.query("ic_type", ic_type);
 
-  // Determine initial condition
-  amrex::ParmParse pp("ic");
+  // // Determine initial condition
   if (ic_type == "cylinder")
     ic = new HeatConduction::InitialCondition::Cylinder(geom);
+  else if (ic_type == "constant")
+    ic = new HeatConduction::InitialCondition::Constant(geom);
   else
     ic = new HeatConduction::InitialCondition::Constant(geom);
-
+    
   RegisterNewFab(Temp,     mybc, number_of_components, number_of_ghost_cells, "Temp");
   RegisterNewFab(Temp_old, mybc, number_of_components, number_of_ghost_cells, "Temp old");
 }
 
+HeatConduction::Integrator::~Integrator()
+{
+}
 
 /// \fn HeatConduction::Integrator::Initialize
 ///

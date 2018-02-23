@@ -1,6 +1,8 @@
 #ifndef HEATCONDUCTION_INITIALCONDITION_CONSTANT_H_
 #define HEATCONDUCTION_INITIALCONDITION_CONSTANT_H_
 
+#include <AMReX_ParallelDescriptor.H>
+
 #include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
 
 /// \class Constant
@@ -16,8 +18,11 @@ public:
   Constant (amrex::Array<amrex::Geometry> &_geom) :
     GeneralAMRIntegratorIC(_geom)
   {
-    amrex::ParmParse pp("ic");
-    pp.query("T", T);
+    if (amrex::ParallelDescriptor::IOProcessor())
+      {
+	amrex::ParmParse pp("ic");
+	pp.query("T", T);
+      }
   }
   
 void Initialize(const int lev,

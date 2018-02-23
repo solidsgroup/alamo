@@ -3,8 +3,11 @@
 #include <iomanip>
 
 #include "AMReX.H"
+#include <AMReX_AmrCore.H>
 
 #include "HeatConduction/Integrator.H"
+#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
+
 
 int main (int argc, char* argv[])
 {
@@ -15,12 +18,13 @@ int main (int argc, char* argv[])
     }
   amrex::Initialize(argc,argv);
 
-  srand(1.0*amrex::ParallelDescriptor::MyProc());
   {
-    HeatConduction::Integrator model;
-    model.InitData();
-    model.Evolve();
+    HeatConduction::Integrator myamr;
+    myamr.InitData();
+    myamr.Evolve();
   }
-  
+
   amrex::Finalize();
+  return 0;
+
 } 
