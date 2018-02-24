@@ -197,7 +197,6 @@ int main (int argc, char* argv[])
   mlmg.setCGVerbose(cg_verbose);
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
-
   //
   // WRITE PLOT FILE
   //
@@ -229,14 +228,5 @@ int main (int argc, char* argv[])
 			  varname, geom, 0.0, Vector<int>(nlevels, 0),
 			  Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 
-
-
-  // {
-  //   MyTest mytest;
-    
-  //   mytest.solve();
-  //   mytest.writePlotfile();
-  // }
-
-    amrex::Finalize();
+  amrex::Finalize();
 }
