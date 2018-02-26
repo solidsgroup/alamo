@@ -1,11 +1,10 @@
 #include <AMReX_MultiFabUtil.H>
-#include "MLStiffnessMatrix.H"
+#include "MLHeatConduction.H"
 #include "AMReX_ABec_F.H"
-#include "eigen3/Eigen/Core"
 
 namespace amrex {
 
-MLStiffnessMatrix::MLStiffnessMatrix (const Vector<Geometry>& a_geom,
+MLHeatConduction::MLHeatConduction (const Vector<Geometry>& a_geom,
 				      const Vector<BoxArray>& a_grids,
 				      const Vector<DistributionMapping>& a_dmap,
 				      const LPInfo& a_info)
@@ -14,7 +13,7 @@ MLStiffnessMatrix::MLStiffnessMatrix (const Vector<Geometry>& a_geom,
 }
 
 void
-MLStiffnessMatrix::define (const Vector<Geometry>& a_geom,
+MLHeatConduction::define (const Vector<Geometry>& a_geom,
 			   const Vector<BoxArray>& a_grids,
 			   const Vector<DistributionMapping>& a_dmap,
 			   const LPInfo& a_info)
@@ -43,11 +42,11 @@ MLStiffnessMatrix::define (const Vector<Geometry>& a_geom,
     }
 }
 
-MLStiffnessMatrix::~MLStiffnessMatrix ()
+MLHeatConduction::~MLHeatConduction ()
 {}
 
 void
-MLStiffnessMatrix::setScalars (Real a, Real b)
+MLHeatConduction::setScalars (Real a, Real b)
 {
   m_a_scalar = a;
   m_b_scalar = b;
@@ -61,13 +60,13 @@ MLStiffnessMatrix::setScalars (Real a, Real b)
 }
 
 void
-MLStiffnessMatrix::setACoeffs (int amrlev, const MultiFab& alpha)
+MLHeatConduction::setACoeffs (int amrlev, const MultiFab& alpha)
 {
   MultiFab::Copy(m_a_coeffs[amrlev][0], alpha, 0, 0, 1, 0);
 }
 
 void
-MLStiffnessMatrix::setBCoeffs (int amrlev,
+MLHeatConduction::setBCoeffs (int amrlev,
 			       const std::array<MultiFab const*,AMREX_SPACEDIM>& beta)
 {
   for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
@@ -76,7 +75,7 @@ MLStiffnessMatrix::setBCoeffs (int amrlev,
 }
 
 void
-MLStiffnessMatrix::averageDownCoeffs ()
+MLHeatConduction::averageDownCoeffs ()
 {
 
   for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
@@ -92,7 +91,7 @@ MLStiffnessMatrix::averageDownCoeffs ()
 }
 
 void
-MLStiffnessMatrix::averageDownCoeffsSameAmrLevel (Vector<MultiFab>& a,
+MLHeatConduction::averageDownCoeffsSameAmrLevel (Vector<MultiFab>& a,
 						  Vector<std::array<MultiFab,AMREX_SPACEDIM> >& b)
 {
   int nmglevs = a.size();
@@ -119,7 +118,7 @@ MLStiffnessMatrix::averageDownCoeffsSameAmrLevel (Vector<MultiFab>& a,
 }
 
 void
-MLStiffnessMatrix::averageDownCoeffsToCoarseAmrLevel (int flev)
+MLHeatConduction::averageDownCoeffsToCoarseAmrLevel (int flev)
 {
   auto& fine_a_coeffs = m_a_coeffs[flev  ].back();
   auto& fine_b_coeffs = m_b_coeffs[flev  ].back();
@@ -150,7 +149,7 @@ MLStiffnessMatrix::averageDownCoeffsToCoarseAmrLevel (int flev)
 }
 
 void
-MLStiffnessMatrix::applyMetricTermsCoeffs ()
+MLHeatConduction::applyMetricTermsCoeffs ()
 {
 #if (AMREX_SPACEDIM != 3)
     for (int alev = 0; alev < m_num_amr_levels; ++alev)
@@ -166,9 +165,9 @@ MLStiffnessMatrix::applyMetricTermsCoeffs ()
 }
 
 void
-MLStiffnessMatrix::prepareForSolve ()
+MLHeatConduction::prepareForSolve ()
 {
-  BL_PROFILE("MLStiffnessMatrix::prepareForSolve()");
+  BL_PROFILE("MLHeatConduction::prepareForSolve()");
 
   MLCellLinOp::prepareForSolve();
 
@@ -202,68 +201,45 @@ MLStiffnessMatrix::prepareForSolve ()
 }
 
 void
-MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
+MLHeatConduction::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const
 {
-  BL_PROFILE("MLStiffnessMatrix::Fapply()");
+  BL_PROFILE("MLHeatConduction::Fapply()");
 
-  // const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
-  // const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];
-  // const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];
+  const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
+  const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];
+  const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];
 
-  // const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
-  const Real* dx = m_geom[amrlev][mglev].CellSize();
+  const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-  if (f.nComp() != AMREX_SPACEDIM)
-    amrex::Abort("ncomp not correct");
-
-  for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+  for (MFIter mfi(out, true); mfi.isValid(); ++mfi)
     {
       const Box& bx = mfi.tilebox();
 
-      //amrex::Real alpha=m_a_scalar, beta=m_b_scalar;
-      //amrex::Real dhx = beta*dxinv[0]*dxinv[0], dhy = beta*dxinv[1]*dxinv[1];
+      amrex::Real alpha=m_a_scalar, beta=m_b_scalar;
+      amrex::Real dhx = beta*dxinv[0]*dxinv[0], dhy = beta*dxinv[1]*dxinv[1];
 
-      const amrex::BaseFab<amrex::Real> &ufab  = u[mfi];
-      amrex::BaseFab<amrex::Real>       &ffab  = f[mfi];
-      // const amrex::BaseFab<amrex::Real> &afab  = acoef[mfi];
-      // const amrex::BaseFab<amrex::Real> &bxfab = bxcoef[mfi];
-      // const amrex::BaseFab<amrex::Real> &byfab = bycoef[mfi];
+      const amrex::BaseFab<amrex::Real> &xfab  = in[mfi];
+      amrex::BaseFab<amrex::Real>       &yfab  = out[mfi];
+      const amrex::BaseFab<amrex::Real> &afab  = acoef[mfi];
+      const amrex::BaseFab<amrex::Real> &bxfab = bxcoef[mfi];
+      const amrex::BaseFab<amrex::Real> &byfab = bycoef[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 	  {
-	    /// \todo This does **NOT** generalize to materials with non-constant \f$\mathbb{C}\f$! A more general finite difference scheme is needed.
-	    /// \note `gradepsilon[n](i,j) gives the ij component of epsilon differentiated with respect to \f$x_n\f$
-	    /// \note Using `AMREX_SPACEDIM` here--that does NOT mean this generalizes to 3D (yet)
-
-	    amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilon(AMREX_SPACEDIM);
-	    
-	    for (int n = 0; n < AMREX_SPACEDIM; n++)
-	    gradepsilon[n] <<
-	      (ufab(amrex::IntVect(i+1,j),n) + ufab(amrex::IntVect(i-1,j),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[0]/dx[0],
-	      (ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
-	      (ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
-	      (ufab(amrex::IntVect(i,j+1),n) + ufab(amrex::IntVect(i,j-1),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[1]/dx[1];
-	    
-	    for (int p = 0; p < AMREX_SPACEDIM; p++)
-	      {
-		ffab(amrex::IntVect(i,j),p) = 0.0;
-		for (int q = 0; q < AMREX_SPACEDIM; q++)
-		  {
-		    ffab(amrex::IntVect(i,j),p) += 2.0*mu*gradepsilon[0](p,0);
-		    if (p==q)
-		      for (int k=0; k<AMREX_SPACEDIM; k++)
-			ffab(amrex::IntVect(i,j)) += lambda * gradepsilon[q](k,k);
-		  }
-	      }	    
+	    yfab(amrex::IntVect(i,j)) = alpha*afab(amrex::IntVect(i,j))*xfab(amrex::IntVect(i,j))
+	      - dhx * (bxfab(amrex::IntVect(i+1,j))*(xfab(amrex::IntVect(i+1,j)) - xfab(amrex::IntVect(i,j)))
+		       - bxfab(amrex::IntVect(i,j))*(xfab(amrex::IntVect(i,j)) - xfab(amrex::IntVect(i-1,j))))
+	      - dhy * (byfab(amrex::IntVect(i,j+1))*(xfab(amrex::IntVect(i,j+1)) - xfab(amrex::IntVect(i,j)))
+		       - byfab(amrex::IntVect(i,j))*(xfab(amrex::IntVect(i,j)) - xfab(amrex::IntVect(i,j-1))));
 	  }
     }
 }
 
 void
-MLStiffnessMatrix::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs, int redblack) const
+MLHeatConduction::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs, int redblack) const
 {
-  BL_PROFILE("MLStiffnessMatrix::Fsmooth()");
+  BL_PROFILE("MLHeatConduction::Fsmooth()");
 
   const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
   AMREX_D_TERM(const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];,
@@ -285,7 +261,7 @@ MLStiffnessMatrix::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab
   const MultiMask& mm2 = maskvals[2];
   const MultiMask& mm3 = maskvals[3];
 
-  const int nComp = AMREX_SPACEDIM;
+  const int nc = 1;
   const Real* h = m_geom[amrlev][mglev].CellSize();
 
   for (MFIter mfi(sol,MFItInfo().EnableTiling().SetDynamic(true));
@@ -327,7 +303,7 @@ MLStiffnessMatrix::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab
  		f3fab.dataPtr(), ARLIM(f3fab.loVect()),   ARLIM(f3fab.hiVect()),
  		m3.dataPtr(), ARLIM(m3.loVect()),   ARLIM(m3.hiVect()),
  		tbx.loVect(), tbx.hiVect(), vbx.loVect(), vbx.hiVect(),
- 		&nComp, h, &redblack);
+ 		&nc, h, &redblack);
 
       // amrex::Real alpha = m_a_scalar, beta = m_b_scalar;
       // int lo[2] = {tbx.loVect()[0], tbx.loVect()[1]};
@@ -460,144 +436,69 @@ MLStiffnessMatrix::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab
 }
 
 void
-MLStiffnessMatrix::FFlux (int amrlev, const MFIter& mfi,
- 			  const std::array<FArrayBox*,AMREX_SPACEDIM>& sigma,
+MLHeatConduction::FFlux (int amrlev, const MFIter& mfi,
+ 			  const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
  			  const FArrayBox& sol, const int face_only) const
 {
-  /*
-  BL_PROFILE("MLStiffnessMatrix::FFlux()");
+  // std::cout << "in FFlux, face_only=" << face_only << std::endl;
+  // BL_PROFILE("MLHeatConduction::FFlux()");
 
-  const int mglev = 0;
-  const auto& bx = m_b_coeffs[amrlev][mglev][0][mfi];
-  const auto& by = m_b_coeffs[amrlev][mglev][1][mfi];
+  // const int mglev = 0;
+  // const auto& bx = m_b_coeffs[amrlev][mglev][0][mfi];
+  // const auto& by = m_b_coeffs[amrlev][mglev][1][mfi];
 
-  const Box& box = mfi.tilebox();
-  const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
+  // const Box& box = mfi.tilebox();
+  // const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-  amrex::Real beta=m_b_scalar;
+  // amrex::Real beta=m_b_scalar;
   
-  amrex::Real dhx = beta*dxinv[0], dhy = beta*dxinv[1];
+  // amrex::Real dhx = beta*dxinv[0], dhy = beta*dxinv[1];
 
-  amrex::BaseFab<amrex::Real> &fxfab = *sigma[0];
-  amrex::BaseFab<amrex::Real> &fyfab = *sigma[1];
-  const amrex::BaseFab<amrex::Real> &solfab = sol;
+  // amrex::BaseFab<amrex::Real> &fxfab = *flux[0];
+  // amrex::BaseFab<amrex::Real> &fyfab = *flux[1];
+  // const amrex::BaseFab<amrex::Real> &solfab = sol;
 
 
-  Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> epsilon;
 
-  if (face_only)
-    {
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i+= 1 + (box.hiVect()[0]-box.loVect()[0]))
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
-	  {
-	    fxfab(amrex::IntVect(i,j)) = -dhx *
-	      bx(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
-	  }
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j+= 1 + (box.hiVect()[1]-box.loVect()[1]))
-	  {
-	    fyfab(amrex::IntVect(i,j)) =
-	      -dhy *
-	      by(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
-	  }
-    }
-  else
-    {
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i++)
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
-	  {
-	    fxfab(amrex::IntVect(i,j)) = -dhx *
-	      bx(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
-	  }
+  // if (face_only)
+  //   {
+  //     for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i+= 1 + (box.hiVect()[0]-box.loVect()[0]))
+  // 	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
+  // 	  {
+  // 	    //fxfab(amrex::IntVect(i,j)) = 0.0;
+  // 	      // -dhx *
+  // 	      // bx(amrex::IntVect(i,j)) *
+  // 	      // (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
+  // 	  }
+  //     for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
+  // 	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j+= 1 + (box.hiVect()[1]-box.loVect()[1]))
+  // 	  {
+  // 	    //fyfab(amrex::IntVect(i,j)) = 0.0;
+  // 	      // -dhy *
+  // 	      // by(amrex::IntVect(i,j)) *
+  // 	      // (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
+  // 	  }
+  //   }
+  // else
+  //   {
+  //     for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i++)
+  // 	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
+  // 	  {
+  // 	    //fxfab(amrex::IntVect(i,j)) = 0.0;
+  // 	      // -dhx *
+  // 	      // bx(amrex::IntVect(i,j)) *
+  // 	      // (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
+  // 	  }
        
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j++)
-	  {
-	    fyfab(amrex::IntVect(i,j)) = -dhy *
-	      by(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
-	  }
-    }
-  */
-}
-
-/// \todo Currently planning to abandon FEM...but may want to hang onto this just in case
-amrex::Real
-MLStiffnessMatrix::K (amrex::IntVect m, amrex::IntVect n,int i, int k)
-{
-
-  //  ___________________________
-  // |             |             |
-  // |		   |	         |
-  // |    Phi2	   |	Phi1     |
-  // |		   |	         |
-  // |		   |	         |
-  // |_____________|_____________|
-  // |		   |	         |
-  // |		   |	         |
-  // |	  Phi3	   |	Phi4     |
-  // |		   |	         |
-  // |		   |	         |
-  // |_____________|_____________|
-  //
-  //
-
-  amrex::Real DPhi1DPhi1[2][2] =  {{  1./3.,   1./4.  },{  1./4.,  1./3.  }};
-  amrex::Real DPhi1DPhi2[2][2] =  {{ -1./3.,   1./4.  },{ -1./4.,  1./6.  }};
-  amrex::Real DPhi1DPhi3[2][2] =  {{ -1./6.,  -1./4.  },{ -1./4., -1./6.  }};
-  amrex::Real DPhi1DPhi4[2][2] =  {{  1./6.,  -1./4.  },{  1./4., -1./3.  }};
-  
-  amrex::Real DPhi2DPhi1[2][2] =  {{ -1./3.,  -1./4.  },{  1./4.,  1./6.  }};
-  amrex::Real DPhi2DPhi2[2][2] =  {{  1./3.,  -1./4.  },{ -1./4.,  1./3.  }};
-  amrex::Real DPhi2DPhi3[2][2] =  {{  1./6.,   1./4.  },{ -1./4., -1./3.  }};
-  amrex::Real DPhi2DPhi4[2][2] =  {{ -1./6.,   1./4.  },{  1./4., -1./6.  }};
-
-  amrex::Real DPhi3DPhi1[2][2] =  {{ -1./6.,  -1./4.  },{ -1./4., -1./6.  }};
-  amrex::Real DPhi3DPhi2[2][2] =  {{  1./6.,  -1./4.  },{  1./4., -1./3.  }};
-  amrex::Real DPhi3DPhi3[2][2] =  {{  1./3.,   1./4.  },{  1./4.,  1./3.  }};
-  amrex::Real DPhi3DPhi4[2][2] =  {{ -1./3.,   1./4.  },{ -1./4.,  1./6.  }};
-
-  amrex::Real DPhi4DPhi1[2][2] =  {{  1./6.,   1./4.  },{ -1./4., -1./3.  }};
-  amrex::Real DPhi4DPhi2[2][2] =  {{ -1./6.,   1./4.  },{  1./4., -1./6.  }};
-  amrex::Real DPhi4DPhi3[2][2] =  {{ -1./3.,  -1./4.  },{  1./4.,  1./6.  }};
-  amrex::Real DPhi4DPhi4[2][2] =  {{  1./3.,  -1./4.  },{ -1./4.,  1./3.  }};
-
-
-  amrex::Real DPhiDPhi[2][2] = {{0,0},{0,0}};
-
-
-  if (m - n == amrex::IntVect(1,1))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi1DPhi3[i][j];
-
-  if (m - n == amrex::IntVect(-1,1))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi2DPhi4[i][j];
-
-  if (m - n == amrex::IntVect(-1,-1))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi3DPhi1[i][j];
-
-  if (m - n == amrex::IntVect(1,-1))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi4DPhi2[i][j];
-
-  if (m - n == amrex::IntVect(1,0))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi1DPhi2[i][j] + DPhi4DPhi3[i][j];
-
-  if (m - n == amrex::IntVect(-1,0))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi2DPhi1[i][j] + DPhi3DPhi4[i][j];
-
-  if (m - n == amrex::IntVect(0,1))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi1DPhi4[i][j] + DPhi2DPhi3[i][j];
-
-  if (m - n == amrex::IntVect(0,-1))
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi4DPhi1[i][j] + DPhi3DPhi2[i][j];
-
-  if (m == n)
-    for (int i=0;i<2;i++) for (int j=0;j<2;j++) DPhiDPhi[i][j] = DPhi1DPhi1[i][j] + DPhi2DPhi2[i][j] + DPhi3DPhi3[i][j] + DPhi4DPhi4[i][j];
-
-  return mu * (i==k ? 1. : 0.) * (DPhiDPhi[0][0] + DPhiDPhi[1][1]) + (mu + lambda) * DPhiDPhi[i][k];
-
+  //     for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
+  // 	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j++)
+  // 	  {
+  // 	    //fyfab(amrex::IntVect(i,j)) = 0.0;
+  // 	      // -dhy *
+  // 	      // by(amrex::IntVect(i,j)) *
+  // 	      // (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
+  // 	  }
+  //   }
 }
 
 }
