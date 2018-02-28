@@ -1,16 +1,16 @@
 
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
-//#include <AMReX_MLMG.H>
-//#include <AMReX_MLCGSolver.H>
+#include <AMReX_MLMG.H>
+#include <AMReX_MLCGSolver.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
 
 //#include "MyTest/MyTest.H"
 #include "MyTest/MLStiffnessMatrix.H"
 //#include "MyTest/MLHeatConduction.H"
-#include "MyTest/MyMLMG.H"
-#include "MyTest/MyMLCGSolver.H"
+//#include "MyTest/MyMLMG.H"
+//#include "MyTest/MyMLCGSolver.H"
 
 using namespace amrex;
 
@@ -18,7 +18,7 @@ int main (int argc, char* argv[])
 {
   amrex::Initialize(argc, argv);
 
-  int max_level = 1;
+  int max_level = 1;//0;
   int ref_ratio = 2;
   int n_cell = 128;
   int max_grid_size = 64;
@@ -117,8 +117,14 @@ int main (int argc, char* argv[])
     {
       acoef[ilev].setVal(0.0);
       bcoef[ilev].setVal(1.0);
-      rhs[ilev].setVal(0.0);
+      // rhs[ilev].setVal(0.);
+      rhs[ilev].setVal(1.0,0,1);
+      rhs[ilev].setVal(0.0,1,1);
+      // rhs[ilev].setVal(0.0,0,1);
+      // rhs[ilev].setVal(0.0,1,1);
       solution[ilev].setVal(0.0);
+      // solution[ilev].setVal(0.0,0,1);
+      // solution[ilev].setVal(0.0,0,1);
     }
 
 
@@ -129,7 +135,8 @@ int main (int argc, char* argv[])
   LPInfo info;
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
-  const Real tol_rel = 1.e-10;
+  //const Real tol_rel = 1.e-10;
+  const Real tol_rel = 1.e-2;
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   MLStiffnessMatrix mlabec(geom, grids, dmap, info);
@@ -157,10 +164,10 @@ int main (int argc, char* argv[])
 	      {
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.;
-		    bcdata_box(amrex::IntVect(i,j),1) = 1;
+		    bcdata_box(amrex::IntVect(i,j),0) = 1.0;
+		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
-		else
+		else 
 		  {
 		    bcdata_box(amrex::IntVect(i,j),0) = 0.;
 		    bcdata_box(amrex::IntVect(i,j),1) = 0.;
@@ -195,47 +202,50 @@ int main (int argc, char* argv[])
 
   // configure solver
 
-  MLCGSolver mlcg(mlabec);
-  mlcg.setVerbose(verbose);
-  mlcg.solve(solution[0],rhs[0],tol_rel,tol_abs);
+  // MLCGSolver mlcg(mlabec);
+  // mlcg.setVerbose(verbose);
+  // mlcg.solve(solution[0],rhs[0],tol_rel,tol_abs);
 
-  // MLMG mlmg(mlabec);
-  // mlmg.setMaxIter(max_iter);
-  // mlmg.setMaxFmgIter(max_fmg_iter);
-  // mlmg.setVerbose(verbose);
-  // mlmg.setCGVerbose(cg_verbose);
-  // mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+  MLMG mlmg(mlabec);
+  mlmg.setMaxIter(max_iter);
+  mlmg.setMaxFmgIter(max_fmg_iter);
+  mlmg.setVerbose(verbose);
+  mlmg.setCGVerbose(cg_verbose);
+  mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+
 
   //
   // WRITE PLOT FILE
   //
 
-  // const int ncomp = (acoef.empty()) ? 4 : 6;
-  // Vector<std::string> varname = {"solution", "boundary", "rhs", "error"};
-  // if (!acoef.empty()) {
-  //   varname.emplace_back("acoef");
-  //   varname.emplace_back("bcoef");
-  // }
+   const int ncomp = (acoef.empty()) ? 4 : 6;
+   Vector<std::string> varname = {"solution01", "solution02", "rhs", "rhs2"};
+   if (!acoef.empty()) {
+     varname.emplace_back("acoef");
+     varname.emplace_back("bcoef");
+   }
 
-  // nlevels = max_level+1;
+   nlevels = max_level+1;
 
-  // Vector<MultiFab> plotmf(nlevels);
-  // for (int ilev = 0; ilev < nlevels; ++ilev)
-  //   {
-  //     plotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
-  //     MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 0, 1, 0);
-  //     MultiFab::Copy(plotmf[ilev], bcdata        [ilev], 0, 1, 1, 0);
-  //     MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 2, 1, 0);
-  //     MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 3, 1, 0);
-  //     if (!acoef.empty()) {
-  // 	MultiFab::Copy(plotmf[ilev], acoef[ilev], 0, 4, 1, 0);
-  // 	MultiFab::Copy(plotmf[ilev], bcoef[ilev], 0, 5, 1, 0);
-  //     }
-  //   }
+   Vector<MultiFab> plotmf(nlevels);
+   for (int ilev = 0; ilev < nlevels; ++ilev)
+     {
+       plotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
+       MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 0, 1, 0);
+       MultiFab::Copy(plotmf[ilev], solution      [ilev], 1, 1, 1, 0);
+       //MultiFab::Copy(plotmf[ilev], bcdata        [ilev], 0, 1, 1, 0);
+       MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 2, 1, 0);
+       MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 3, 1, 0);
+       //       MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 3, 1, 0);
+       if (!acoef.empty()) {
+   	MultiFab::Copy(plotmf[ilev], acoef[ilev], 0, 4, 1, 0);
+   	MultiFab::Copy(plotmf[ilev], bcoef[ilev], 0, 5, 1, 0);
+       }
+     }
 
-  // WriteMultiLevelPlotfile("output", nlevels, amrex::GetVecOfConstPtrs(plotmf),
-  // 			  varname, geom, 0.0, Vector<int>(nlevels, 0),
-  // 			  Vector<IntVect>(nlevels, IntVect{ref_ratio}));
+   WriteMultiLevelPlotfile("output", nlevels, amrex::GetVecOfConstPtrs(plotmf),
+   			  varname, geom, 0.0, Vector<int>(nlevels, 0),
+   			  Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 
   amrex::Finalize();
 }

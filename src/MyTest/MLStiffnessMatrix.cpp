@@ -5,12 +5,16 @@
 
 namespace amrex {
 
+
+
 MLStiffnessMatrix::MLStiffnessMatrix (const Vector<Geometry>& a_geom,
 				      const Vector<BoxArray>& a_grids,
 				      const Vector<DistributionMapping>& a_dmap,
 				      const LPInfo& a_info)
 {
+  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
   define(a_geom, a_grids, a_dmap, a_info);
+  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 }
 
 void
@@ -206,32 +210,43 @@ MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u
 {
   BL_PROFILE("MLStiffnessMatrix::Fapply()");
 
-  // const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
-  // const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];
-  // const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];
+  const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
+  const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];
+  const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];
 
-  // const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
+  const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
   const Real* dx = m_geom[amrlev][mglev].CellSize();
 
-  if (f.nComp() != AMREX_SPACEDIM)
-    amrex::Abort("ncomp not correct");
+  // if (f.nComp() != AMREX_SPACEDIM)
+  //   amrex::Abort("ncomp not correct");
 
   for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
     {
       const Box& bx = mfi.tilebox();
 
-      //amrex::Real alpha=m_a_scalar, beta=m_b_scalar;
-      //amrex::Real dhx = beta*dxinv[0]*dxinv[0], dhy = beta*dxinv[1]*dxinv[1];
+      amrex::Real alpha=m_a_scalar, beta=m_b_scalar;
+      amrex::Real dhx = beta*dxinv[0]*dxinv[0], dhy = beta*dxinv[1]*dxinv[1];
 
       const amrex::BaseFab<amrex::Real> &ufab  = u[mfi];
       amrex::BaseFab<amrex::Real>       &ffab  = f[mfi];
-      // const amrex::BaseFab<amrex::Real> &afab  = acoef[mfi];
-      // const amrex::BaseFab<amrex::Real> &bxfab = bxcoef[mfi];
-      // const amrex::BaseFab<amrex::Real> &byfab = bycoef[mfi];
+      const amrex::BaseFab<amrex::Real> &afab  = acoef[mfi];
+      const amrex::BaseFab<amrex::Real> &bxfab = bxcoef[mfi];
+      const amrex::BaseFab<amrex::Real> &byfab = bycoef[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 	  {
+	    /// \todo This is temporary! Just checking to see if I can get it to work with a Laplacian...
+
+	     for (int n = 0; n < u.nComp(); n++)
+	       ffab(amrex::IntVect(i,j),n) = 
+	     	- dhx * ((ufab(amrex::IntVect(i+1,j),n) - ufab(amrex::IntVect(i,j),n))
+	     		 - (ufab(amrex::IntVect(i,j),n) - ufab(amrex::IntVect(i-1,j),n)))
+	     	- dhy * ((ufab(amrex::IntVect(i,j+1),n) - ufab(amrex::IntVect(i,j),n))
+	     		 - (ufab(amrex::IntVect(i,j),n) - ufab(amrex::IntVect(i,j-1),n)));
+
+	     continue;
+
 	    /// \todo This does **NOT** generalize to materials with non-constant \f$\mathbb{C}\f$! A more general finite difference scheme is needed.
 	    /// \note `gradepsilon[n](i,j) gives the ij component of epsilon differentiated with respect to \f$x_n\f$
 	    /// \note Using `AMREX_SPACEDIM` here--that does NOT mean this generalizes to 3D (yet)
@@ -255,9 +270,9 @@ MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u
 		      for (int k=0; k<AMREX_SPACEDIM; k++)
 			ffab(amrex::IntVect(i,j)) += lambda * gradepsilon[q](k,k);
 		  }
-	      }	    
+		  }	    
 	  }
-    }
+	  }
 }
 
 void
@@ -523,6 +538,13 @@ MLStiffnessMatrix::FFlux (int amrlev, const MFIter& mfi,
     }
   */
 }
+
+int
+MLStiffnessMatrix::getNComp() const
+{
+  return AMREX_SPACEDIM;
+};
+
 
 /// \todo Currently planning to abandon FEM...but may want to hang onto this just in case
 amrex::Real
