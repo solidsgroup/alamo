@@ -1,22 +1,22 @@
 #
-# name:        HeatConduction01
-# author:      Brandon Runnels
-# date:        2018 Feb 19
+# name:        HeatConduction02
+# author:      Vinamra Agrawal
+# date:        2018 Feb 27
 #
 # description: Compute transient heat transfer simulation in 2D or 3D.
 #              In this example the 3rd dimension (if used) is periodic so
 #              the simulation is still 2D.
 #              The boundary conditions are:
-#                - Dirichlet in X and Y
-#                    o  T=1 at x=0, y=0
-#                    o  T=0 at x=1, y=1
+#                - Neumann in X and Y
+#                    o  flux=0 at y=0,y=1
+#		     o  flux=-1 at x=0
+#                    o  flux=1 at x=1
 #                - Periodic in Z
-#              The initial condition is a circle (in 2D) and a cylinder
-#              (in 3D) with Tin on the inside and Tout on the outside.
+#              The initial condition is a constant temperature
+#	       specified by ic.T
+# usage:       [alamo]$> bin/heat tests/HeatConduction02/input
 #
-# usage:       [alamo]$> bin/heat tests/HeatConduction01/input
-#
-# output:      tests/HeatConduction01/output
+# output:      tests/HeatConduction02/output
 #
 
 # Simulation lenght
@@ -44,23 +44,12 @@ heat.ic_type = constant
 
 # Specify initial conditions
 ic.T = 0.5
-ic.Tin = 1.0
-ic.Tout = 0.0
-
 
 # Boundary conditions
-bc.hi = EXT_DIR EXT_DIR INT_DIR
-bc.lo = EXT_DIR EXT_DIR INT_DIR
-bc.lo_1 = 1.0 
+bc.hi = NEUMANN NEUMANN INT_DIR
+bc.lo = NEUMANN NEUMANN INT_DIR
+bc.lo_1 = -1.0 
 bc.hi_1 = 1.0 
-bc.lo_2 = 1.0 
-bc.hi_2 = 1.0 
-# Added for Flux BC
-# Positive value means that the heat is leaving the domain.
-# This is temperature gradient rather than flux.
-bc.hiFlux = Y Y Y 
-bc.loFlux = Y Y Y 
-bc.hiFlux_1 = 0
-bc.hiFlux_2 = -4.0
-bc.loFlux_1 = 0
-bc.loFlux_2 = 4.0
+bc.lo_2 = 0 
+bc.hi_2 = 0 
+
