@@ -45,6 +45,7 @@ protected:
   virtual void FFlux (int amrlev, const MFIter& mfi,
 		      const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
 		      const FArrayBox& sol, const int face_only=0) const final;
+  virtual int getNComp() const;
   virtual Real getAScalar () const final { return m_a_scalar; }
   //virtual Real Anorm (int amrlev, int mglev) const final;
   virtual Real getBScalar () const final { return m_b_scalar; }
