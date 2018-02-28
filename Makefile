@@ -22,7 +22,8 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 
 INCLUDE = -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
+#LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
+LIB     = /opt/amrex-devel/lib/libamrex.a -lgfortran -lmpichfort -lmpich  
 
 HDR = $(shell find src/ -name *.H)
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
