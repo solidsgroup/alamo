@@ -27,7 +27,7 @@ int main (int argc, char* argv[])
 
   int verbose = 2;
   int cg_verbose = 0;
-  int max_iter = 100;
+  int max_iter = 100;//100;
   int max_fmg_iter = 0;
   int linop_maxorder = 2;
   bool agglomeration = true;
@@ -115,16 +115,11 @@ int main (int argc, char* argv[])
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
-      acoef[ilev].setVal(0.0);
+      acoef[ilev].setVal(1.0);
       bcoef[ilev].setVal(1.0);
-      // rhs[ilev].setVal(0.);
-      rhs[ilev].setVal(1.0,0,1);
-      rhs[ilev].setVal(0.0,1,1);
-      // rhs[ilev].setVal(0.0,0,1);
-      // rhs[ilev].setVal(0.0,1,1);
+      rhs[ilev].setVal(0.0,0,1);
+      rhs[ilev].setVal(-0.1,1,1);
       solution[ilev].setVal(0.0);
-      // solution[ilev].setVal(0.0,0,1);
-      // solution[ilev].setVal(0.0,0,1);
     }
 
 
@@ -136,10 +131,11 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
-  const Real tol_rel = 1.e-2;
+  const Real tol_rel = 1e-10;//1.e-10;
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   MLStiffnessMatrix mlabec(geom, grids, dmap, info);
+  //MLHeatConduction  mlabec(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
 
 
@@ -164,13 +160,13 @@ int main (int argc, char* argv[])
 	      {
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 1.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
 		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 		else 
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.;
-		    bcdata_box(amrex::IntVect(i,j),1) = 0.;
+		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 	      }
 	}
@@ -212,7 +208,6 @@ int main (int argc, char* argv[])
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-
 
   //
   // WRITE PLOT FILE
