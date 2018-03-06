@@ -18,6 +18,7 @@ int main (int argc, char* argv[])
 {
   amrex::Initialize(argc, argv);
 
+
   int max_level = 1;//0;
   int ref_ratio = 2;
   int n_cell = 128;
@@ -118,7 +119,7 @@ int main (int argc, char* argv[])
       acoef[ilev].setVal(1.0);
       bcoef[ilev].setVal(1.0);
       rhs[ilev].setVal(0.0,0,1);
-      rhs[ilev].setVal(-0.1,1,1);
+      rhs[ilev].setVal(0.0,1,1);
       solution[ilev].setVal(0.0);
     }
 
@@ -142,8 +143,10 @@ int main (int argc, char* argv[])
 
   // set boundary conditions
 
-  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)},
-		     {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
+   // mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)},
+   // 		     {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
+   mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Neumann,LinOpBCType::Dirichlet)},
+		      {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Neumann,LinOpBCType::Dirichlet)});
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
@@ -161,6 +164,11 @@ int main (int argc, char* argv[])
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
 		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		  }
+		else if (i > domain.hiVect()[0]) // Right boundary
+		  {
+		    bcdata_box(amrex::IntVect(i,j),0) = -0.01;
 		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 		else 
@@ -208,6 +216,12 @@ int main (int argc, char* argv[])
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+
+
+
+
+  
+
 
   //
   // WRITE PLOT FILE
