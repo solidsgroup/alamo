@@ -15,8 +15,14 @@ MLStiffnessMatrix::MLStiffnessMatrix (const Vector<Geometry>& a_geom,
 {
   define(a_geom, a_grids, a_dmap, a_info);
 
-  mu = 1.5;
-  lambda = 1.0;
+  amrex::Real E = 68;
+  amrex::Real nu = 0.45;//0.33;
+  
+  mu = E*nu / (1.0 - 2.0*nu) / (1.0 + nu);
+  lambda = E / 2.0 / (1.0 + nu);
+
+  // mu = 1.5;
+  // lambda = 1.0;
 
 }
 
@@ -239,6 +245,7 @@ MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 	  {
+
 	    amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilon(AMREX_SPACEDIM);
 	    
 	    for (int n = 0; n < AMREX_SPACEDIM; n++)
@@ -247,10 +254,6 @@ MLStiffnessMatrix::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u
 		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
 		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
 		(ufab(amrex::IntVect(i,j+1),n) + ufab(amrex::IntVect(i,j-1),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[1]/dx[1];
-	    
-	     // ffab(amrex::IntVect(i,j),0) = - (gradepsilon[0](0,0) + gradepsilon[0](1,1));
-	     // ffab(amrex::IntVect(i,j),1) = - (gradepsilon[1](0,0) + gradepsilon[1](1,1));
-	     // continue;
 
 	    for (int p = 0; p < AMREX_SPACEDIM; p++)
 	      {
@@ -348,21 +351,6 @@ MLStiffnessMatrix::Fsmooth (int amrlev,
        	    int ioffset = (tbx.loVect()[0] + j + redblack)%2;
        	    for (int i = tbx.loVect()[0] + ioffset; i <= tbx.hiVect()[0]; i+= 2)
        	      {
-
-		// amrex::Real rho =
-		//   - (solnfab(amrex::IntVect(i+1,j),n) + solnfab(amrex::IntVect(i-1,j),n))/dx[0]/dx[0]
-		//   - (solnfab(amrex::IntVect(i,j+1),n) + solnfab(amrex::IntVect(i,j-1),n))/dx[1]/dx[1];
-
-		// amrex::Real gamma =
-		//   2.0/dx[0]/dx[0] + 2.0/dx[1]/dx[1];
-
-
-		// solnfab(amrex::IntVect(i,j),n) =
-		//   (rhsfab(amrex::IntVect(i,j),n) - rho) / (gamma);
-
-
-
-
 		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonD(AMREX_SPACEDIM);
 		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonR(AMREX_SPACEDIM);
 	    
@@ -438,66 +426,6 @@ MLStiffnessMatrix::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 
   fxfab.setVal(0.0);
   fyfab.setVal(0.0);
-
-
-  /*
-  BL_PROFILE("MLStiffnessMatrix::FFlux()");
-
-  const int mglev = 0;
-  const auto& bx = m_b_coeffs[amrlev][mglev][0][mfi];
-  const auto& by = m_b_coeffs[amrlev][mglev][1][mfi];
-
-  const Box& box = mfi.tilebox();
-  const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
-
-  amrex::Real beta=m_b_scalar;
-  
-  amrex::Real dhx = beta*dxinv[0], dhy = beta*dxinv[1];
-
-  amrex::BaseFab<amrex::Real> &fxfab = *sigma[0];
-  amrex::BaseFab<amrex::Real> &fyfab = *sigma[1];
-  const amrex::BaseFab<amrex::Real> &solfab = sol;
-
-
-  Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> epsilon;
-
-  if (face_only)
-    {
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i+= 1 + (box.hiVect()[0]-box.loVect()[0]))
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
-	  {
-	    fxfab(amrex::IntVect(i,j)) = -dhx *
-	      bx(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
-	  }
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j+= 1 + (box.hiVect()[1]-box.loVect()[1]))
-	  {
-	    fyfab(amrex::IntVect(i,j)) =
-	      -dhy *
-	      by(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
-	  }
-    }
-  else
-    {
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i++)
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
-	  {
-	    fxfab(amrex::IntVect(i,j)) = -dhx *
-	      bx(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j)));
-	  }
-       
-      for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++)
-	for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j++)
-	  {
-	    fyfab(amrex::IntVect(i,j)) = -dhy *
-	      by(amrex::IntVect(i,j)) *
-	      (solfab(amrex::IntVect(i,j))-solfab(amrex::IntVect(i,j-1)));
-	  }
-    }
-  */
 }
 
 int
