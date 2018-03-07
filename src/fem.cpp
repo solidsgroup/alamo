@@ -43,10 +43,6 @@ int main (int argc, char* argv[])
   amrex::Vector<amrex::MultiFab> acoef;
   amrex::Vector<amrex::MultiFab> bcoef;
 
-  amrex::Real ascalar = 1.e-3;
-  amrex::Real bscalar = 1.0;
-
-
   //
   // READ PARAMETERS
   //
@@ -119,7 +115,7 @@ int main (int argc, char* argv[])
       acoef[ilev].setVal(1.0);
       bcoef[ilev].setVal(1.0);
       rhs[ilev].setVal(0.0,0,1);
-      rhs[ilev].setVal(0.0,1,1);
+      rhs[ilev].setVal(-0.1,1,1);
       solution[ilev].setVal(0.0);
     }
 
@@ -143,10 +139,9 @@ int main (int argc, char* argv[])
 
   // set boundary conditions
 
-   // mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)},
-   // 		     {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
-   mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Neumann,LinOpBCType::Dirichlet)},
-		      {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Neumann,LinOpBCType::Dirichlet)});
+  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)}, {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
+  //mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)}, {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
+  //mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Periodic,LinOpBCType::Dirichlet)}, {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Periodic,LinOpBCType::Dirichlet)});
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
@@ -160,7 +155,7 @@ int main (int argc, char* argv[])
 
 	  for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
 	    for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
-	      {
+	      { 
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
 		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
@@ -168,7 +163,7 @@ int main (int argc, char* argv[])
 		  }
 		else if (i > domain.hiVect()[0]) // Right boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = -0.01;
+		    bcdata_box(amrex::IntVect(i,j),0) = 0.1;
 		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 		else 
@@ -184,10 +179,10 @@ int main (int argc, char* argv[])
 
   // set coefficients
 
-  mlabec.setScalars(ascalar, bscalar);
+  //mlabec.setScalars(ascalar, bscalar);
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
-      mlabec.setACoeffs(ilev, acoef[ilev]);
+      //mlabec.setACoeffs(ilev, acoef[ilev]);
             
       std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
       for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
@@ -201,7 +196,7 @@ int main (int argc, char* argv[])
 					bcoef[ilev],
 					geom[ilev]);
 
-      mlabec.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(face_bcoef));
+      //mlabec.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(face_bcoef));
     }
 
   // configure solver
@@ -215,13 +210,8 @@ int main (int argc, char* argv[])
   mlmg.setMaxFmgIter(max_fmg_iter);
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
+
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-
-
-
-
-  
-
 
   //
   // WRITE PLOT FILE
