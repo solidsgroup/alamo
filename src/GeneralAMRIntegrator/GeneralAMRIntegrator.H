@@ -120,6 +120,16 @@ protected:
   virtual void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time,
 				      int ngrow) = 0;
 
+  /// \fn    TimeStepComplete
+  /// \brief Run another system calculation (e.g. implicit solve) after integration step
+  ///
+  /// This function is called at the end of every timestep. This function can be used
+  /// to complete additional global solves, e.g. a MLMG implicit solve.
+  ///
+  /// Overriding is optional; the default is to do nothing.
+  ///
+  virtual void TimeStepComplete(Real time) {};
+
   /// \fn    RegisterNewFab
   /// \brief Register a field variable for AMR with this class 
   ///
