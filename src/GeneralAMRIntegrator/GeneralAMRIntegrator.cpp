@@ -35,15 +35,32 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
     pp.query("plot_int", plot_int);         // ALL processors
     pp.query("plot_file", plot_file);       // IO Processor only
     //pp.query("restart", restart_chkfile); // Not currently used
+    pp.query("plot_file", plot_file);       // IO Processor only
+
+    nsubsteps.resize(maxLevel()+1,1);
+    int cnt = pp.countval("nsubsteps");
+    if (cnt != 0)
+      if (cnt == maxLevel()){
+	pp.queryarr("nsubsteps",nsubsteps);
+	nsubsteps.insert(nsubsteps.begin(),1);
+	nsubsteps.pop_back();
+      }
+      else if (cnt == 1)
+	{
+	  int nsubsteps_all;
+	  pp.query("nsubsteps",nsubsteps_all);
+	  for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
+	}
+      else
+	amrex::Abort("number of nsubsteps input must equal either 1 or amr.max_level");
+    else
+      for (int lev = 1; lev <= maxLevel(); ++lev) 
+	nsubsteps[lev] = MaxRefRatio(lev-1);
   }
 
   int nlevs_max = maxLevel() + 1;
 
   istep.resize(nlevs_max, 0);
-  nsubsteps.resize(nlevs_max, 1);
-  for (int lev = 1; lev <= maxLevel(); ++lev) {
-    nsubsteps[lev] = MaxRefRatio(lev-1);
-  }
 
   t_new.resize(nlevs_max, 0.0);
   t_old.resize(nlevs_max, -1.e100);
@@ -484,14 +501,15 @@ GeneralAMRIntegrator::TimeStep (int lev, Real time, int /*iteration*/)
 	{
           if (istep[lev] % regrid_int == 0)
 	    {
-	      int old_finest = finest_level; // regrid changes finest_level
+	      /// \todo Delete this section (except for the regrid call) once it is verified that it is no longer needed
+	      //int old_finest = finest_level; // regrid changes finest_level
 	      regrid(lev, time, false); 
-	      for (int k = lev; k <= finest_level; ++k) {
-		last_regrid_step[k] = istep[k];
-	      }
-	      for (int k = old_finest+1; k <= finest_level; ++k) {
-		dt[k] = dt[k-1] / MaxRefRatio(k-1);
-	      }
+	      // for (int k = lev; k <= finest_level; ++k) {
+	      // 	last_regrid_step[k] = istep[k];
+	      // }
+	      // for (int k = old_finest+1; k <= finest_level; ++k) {
+	      // 	dt[k] = dt[k-1] / MaxRefRatio(k-1);
+	      // }
   	    }
   	}
     }
