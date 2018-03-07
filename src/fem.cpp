@@ -132,7 +132,6 @@ int main (int argc, char* argv[])
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   MLStiffnessMatrix mlabec(geom, grids, dmap, info);
-  //MLHeatConduction  mlabec(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
 
 
