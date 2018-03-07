@@ -5,20 +5,33 @@
 #include <AMReX_Array.H>
 #include <limits>
 
-namespace amrex {
+using namespace amrex;
 
-// (alpha * a - beta * (del dot b grad)) phi
-
+/// \class MLStiffnessMatrix
+/// \brief Linear elasticity solver
+///
+/// This class will eventually be a pure abstract class that wraps the amrex MLCellLinOp
+/// in a wrapper that translates from the language of elasticity // to amrex language.
+// /// Currently, it is implemented as an instantiable class that implements 2D, isotropic
+// /// elasticity.
+// ///
+// /// \bug Currently, Neumann boundary conditions **do not work!**
+// ///
+/// \bug This is **not** yet generalized to 3D
+///
 class MLStiffnessMatrix
   : public MLCellLinOp
 {
 public:
 
+  /// \brief Base constructor
   MLStiffnessMatrix () {}
+  /// \brief Typical constructor
   MLStiffnessMatrix (const Vector<Geometry>& a_geom,
                      const Vector<BoxArray>& a_grids,
                      const Vector<DistributionMapping>& a_dmap,
                      const LPInfo& a_info = LPInfo());
+  /// \brief Destructor (does nothing)
   virtual ~MLStiffnessMatrix ();
 
   MLStiffnessMatrix (const MLStiffnessMatrix&) = delete;
@@ -26,34 +39,42 @@ public:
   MLStiffnessMatrix& operator= (const MLStiffnessMatrix&) = delete;
   MLStiffnessMatrix& operator= (MLStiffnessMatrix&&) = delete;
 
+  /// \brief Relay to call define for parent class
   void define (const Vector<Geometry>& a_geom,
 	       const Vector<BoxArray>& a_grids,
 	       const Vector<DistributionMapping>& a_dmap,
 	       const LPInfo& a_info = LPInfo());
 
-  void setScalars (Real a, Real b);
-  void setACoeffs (int amrlev, const MultiFab& alpha);
-  void setBCoeffs (int amrlev, const std::array<MultiFab const*,AMREX_SPACEDIM>& beta);
-
 protected:
 
+  /// \brief Relay to call prepareForSolve for parent class
   virtual void prepareForSolve () final;
-  virtual bool isSingular (int amrlev) const final { return m_is_singular[amrlev]; }
-  virtual bool isBottomSingular () const final { return m_is_singular[0]; }
+  /// \brief Required pure virtual function, but not used here
+  virtual bool isSingular (int /*amrlev*/) const final { return false; }
+  /// \brief Required pure virtual function, but not used here
+  virtual bool isBottomSingular () const final { return false; }
+  /// \brief Numerically implement \f$A\mathbf{x} = \mathbf{b}\f$
   virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
+  /// \brief Compute one half Gauss-Seidel iteration corresponding to the operation described in MLStiffnessMatrix::Fapply
   virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const final;
+  /// \brief Compute the flux corresponding to the operator described in MLStiffnessMatrix::Fapply. Not used here.
   virtual void FFlux (int amrlev, const MFIter& mfi,
 		      const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
 		      const FArrayBox& sol, const int face_only=0) const final;
+  /// \brief Tell how many fab components this operator is designed to work with
   virtual int getNComp() const;
-  virtual Real getAScalar () const final { return m_a_scalar; }
-  //virtual Real Anorm (int amrlev, int mglev) const final;
-  virtual Real getBScalar () const final { return m_b_scalar; }
-  virtual MultiFab const* getACoeffs (int amrlev, int mglev) const final
-  { return &(m_a_coeffs[amrlev][mglev]); }
-  virtual std::array<MultiFab const*,AMREX_SPACEDIM> getBCoeffs (int amrlev, int mglev) const final
-  { return amrex::GetArrOfConstPtrs(m_b_coeffs[amrlev][mglev]); }
-
+  /// \brief Required pure virtual function, not used here
+  virtual Real getAScalar () const final { return 0.0; }
+  /// \brief Required pure virtual function, not used here
+  virtual Real getBScalar () const final { return 0.0; }
+  /// \brief Required pure virtual function, not used here
+  virtual MultiFab const* getACoeffs (int /*amrlev*/, int /*mglev*/) const final { return nullptr;}
+  /// \brief Required pure virtual function, not used here
+  virtual std::array<MultiFab const*,AMREX_SPACEDIM> getBCoeffs (int /*amrlev*/, int /*mglev*/) const final {
+    std::array<MultiFab const*,AMREX_SPACEDIM> ret;
+    AMREX_D_TERM(ret[0] = nullptr;, ret[1] = nullptr;,ret[2] = nullptr;);
+    return ret;}
+  /// \brief Pointer cast utility
   virtual std::unique_ptr<MLLinOp> makeNLinOp (int /*grid_size*/) const final {
     amrex::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
     return std::unique_ptr<MLLinOp>{};
@@ -61,33 +82,9 @@ protected:
 
 private:
 
-  Real m_a_scalar = std::numeric_limits<Real>::quiet_NaN();
-  Real m_b_scalar = std::numeric_limits<Real>::quiet_NaN();
-  Vector<Vector<MultiFab> > m_a_coeffs;
-  Vector<Vector<std::array<MultiFab,AMREX_SPACEDIM> > > m_b_coeffs;
-
-  //mutable Vector<Vector<Real> > m_Anorm;
-
-  Vector<int> m_is_singular;
-
-  //
-  // functions
-  //
-
-  void averageDownCoeffsSameAmrLevel (Vector<MultiFab>& a,
-				      Vector<std::array<MultiFab,AMREX_SPACEDIM> >& b);
-  void averageDownCoeffs ();
-  void averageDownCoeffsToCoarseAmrLevel (int flev);
-  void applyMetricTermsCoeffs ();
-
-  amrex::Real K(amrex::IntVect m, amrex::IntVect n, int i, int k);
-
-  // Elastic constants for isotropic
-  amrex::Real mu, lambda;
-  amrex::Real dx1dx2=1.0, dx2dx1=1.0; 
+  amrex::Real mu;     ///< First Lame parameter
+  amrex::Real lambda; ///< Second Lame parameter
 
 };
-
-}
 
 #endif
