@@ -463,6 +463,7 @@ GeneralAMRIntegrator::Evolve ()
       int lev = 0;
       int iteration = 1;
       TimeStep(lev, cur_time, iteration);
+      TimeStepComplete(cur_time);
       cur_time += dt[0];
 
       if (ParallelDescriptor::IOProcessor()) {
