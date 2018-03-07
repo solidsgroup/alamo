@@ -11,6 +11,7 @@
 #include "AMReX.H"
 #include "AMReX_ParmParse.H"
 #include "AMReX_ParallelDescriptor.H"
+#include <AMReX_MLMG.H>
 
 #include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
 #include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
@@ -21,6 +22,8 @@
 #include "PFBoundary/PFBoundarySin.H"
 #include "PFBoundary/PFBoundaryAbsSin.H"
 #include "PFBoundary/PFBoundaryRead.H"
+
+#include "MyTest/MLStiffnessMatrix.H"
 
 ///
 /// \class PhaseFieldMicrostructure
@@ -44,6 +47,8 @@ protected:
 
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
 
+  void TimeStepComplete(amrex::Real time);
+
 private:
 
   int number_of_grains = 2;
@@ -51,6 +56,8 @@ private:
 
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
 
   GeneralAMRIntegratorPhysBC mybc;
 
@@ -73,6 +80,9 @@ private:
   PFBoundary *boundary;
 
   GeneralAMRIntegratorIC *ic;
+
+  LPInfo info;
+  MLStiffnessMatrix linop;
 
 };
 

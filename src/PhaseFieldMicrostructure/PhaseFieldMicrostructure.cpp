@@ -4,7 +4,8 @@
 
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   GeneralAMRIntegrator(), 
-  mybc(geom)
+  mybc(geom),
+  linop(geom,grids,dmap,info)
 {
 
   //
@@ -61,6 +62,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 
   RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
   RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
+  /// \todo Replace `mybc` with new BC object
+  RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
+  RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
 }
 
 
@@ -250,5 +254,83 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
     }
 
 }
+
+void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
+{
+  std::cout << "Starting Linear Solve now" << std::endl;
+  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+
+  // Hard code BCs for now.
+  LPInfo info;
+  info.setAgglomeration(true);
+  info.setConsolidation(true);
+  //const Real tol_rel = 1.e-10;
+  //const Real tol_rel = 1e-10;//1.e-10;
+  //const Real tol_abs = 0.0;
+  MLStiffnessMatrix linop(geom,grids,dmap,info);
+
+  linop.setMaxOrder(2);
+  
+  linop.setDomainBC(
+		    {AMREX_D_DECL(LinOpBCType::Periodic,
+				  LinOpBCType::Dirichlet,
+				  LinOpBCType::Dirichlet)},
+		    {AMREX_D_DECL(LinOpBCType::Periodic,
+				  LinOpBCType::Dirichlet,
+				  LinOpBCType::Dirichlet)});
+
+  /// \todo This is not really necessary, should be handled with BC object.
+  for (int ilev = 0; ilev < displacement.size(); ++ilev)
+    {
+      amrex::Box domain(geom[ilev].Domain());
+      for (amrex::MFIter mfi(*displacement[ilev], true); mfi.isValid(); ++mfi)
+	{
+	  const amrex::Box& box = mfi.tilebox();
+	  amrex::BaseFab<amrex::Real> &disp_box = (*displacement[ilev])[mfi];
+
+	  for (int i = box.loVect()[0] - displacement[ilev]->nGrow(); i<=box.hiVect()[0] + displacement[ilev]->nGrow(); i++)
+	    for (int j = box.loVect()[1] - displacement[ilev]->nGrow(); j<=box.hiVect()[1] + displacement[ilev]->nGrow(); j++)
+	      { 
+		if (j > domain.hiVect()[1]) // Top boundary
+		  {
+		    disp_box(amrex::IntVect(i,j),0) = 0.1;
+		    disp_box(amrex::IntVect(i,j),1) = 0.0;
+		  }
+		else if (i > domain.hiVect()[0]) // Right boundary
+		  {
+		    disp_box(amrex::IntVect(i,j),0) = 0.0;
+		    disp_box(amrex::IntVect(i,j),1) = 0.0;
+		  }
+		else if (j < domain.loVect()[1]) // Bottom
+		  {
+		    disp_box(amrex::IntVect(i,j),0) = 0.0;
+		    disp_box(amrex::IntVect(i,j),1) = 0.0;
+		  }
+		else if (i < domain.loVect()[0]) // Left boundary
+		  {
+		    disp_box(amrex::IntVect(i,j),0) = 0.0;
+		    disp_box(amrex::IntVect(i,j),1) = 0.0;
+		  }
+	      }
+	}
+      linop.setLevelBC(ilev,displacement[ilev].get());
+
+      /// \todo Replace with proper driving force initialization
+      body_force[ilev]->setVal(0.0);
+    }
+  
+  amrex::Real tol_rel = 0, tol_abs = 1E-10;
+  amrex::MLMG solver(linop);
+  solver.setMaxIter(20);
+  solver.setMaxFmgIter(0);
+  solver.setVerbose(1);
+  solver.solve(GetVecOfPtrs(displacement),
+   	       GetVecOfConstPtrs(body_force),
+   	       tol_rel,
+   	       tol_abs);
+  
+  std::cout << "Done with Linear Solve" << std::endl;
+}
+
 
 #endif
