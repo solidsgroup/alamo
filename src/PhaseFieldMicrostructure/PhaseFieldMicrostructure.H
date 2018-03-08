@@ -23,7 +23,7 @@
 #include "PFBoundary/PFBoundaryAbsSin.H"
 #include "PFBoundary/PFBoundaryRead.H"
 
-#include "MyTest/MLStiffnessMatrix.H"
+#include "MyTest/MLPFStiffnessMatrix.H"
 
 ///
 /// \class PhaseFieldMicrostructure
@@ -57,6 +57,7 @@ private:
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
   amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
   amrex::Array<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Array<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
 
   GeneralAMRIntegratorPhysBC mybc;
@@ -80,9 +81,6 @@ private:
   PFBoundary *boundary;
 
   GeneralAMRIntegratorIC *ic;
-
-  LPInfo info;
-  MLStiffnessMatrix linop;
 
 };
 
