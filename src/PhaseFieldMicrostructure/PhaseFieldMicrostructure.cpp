@@ -4,8 +4,7 @@
 
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   GeneralAMRIntegrator(), 
-  mybc(geom),
-  linop(geom,grids,dmap,info)
+  mybc(geom)
 {
 
   //
@@ -65,6 +64,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   /// \todo Replace `mybc` with new BC object
   RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
   RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
+  RegisterNewFab(strain, mybc, 3, 1, "eps");
 }
 
 
@@ -257,27 +257,31 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 
 void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
 {
-  std::cout << "Starting Linear Solve now" << std::endl;
-  std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-
   // Hard code BCs for now.
   LPInfo info;
   info.setAgglomeration(true);
   info.setConsolidation(true);
-  //const Real tol_rel = 1.e-10;
-  //const Real tol_rel = 1e-10;//1.e-10;
-  //const Real tol_abs = 0.0;
-  MLStiffnessMatrix linop(geom,grids,dmap,info);
+  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
+  MLPFStiffnessMatrix linop(geom,grids,dmap,info);
+  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
 
   linop.setMaxOrder(2);
   
-  linop.setDomainBC(
-		    {AMREX_D_DECL(LinOpBCType::Periodic,
+  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
+  linop.setDomainBC({AMREX_D_DECL(LinOpBCType::Periodic,
 				  LinOpBCType::Dirichlet,
 				  LinOpBCType::Dirichlet)},
 		    {AMREX_D_DECL(LinOpBCType::Periodic,
 				  LinOpBCType::Dirichlet,
 				  LinOpBCType::Dirichlet)});
+  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
+
+
+  for (int ilev=0; ilev < eta_new.size(); ilev++)
+    {
+      linop.setACoeffs(ilev, *eta_new[ilev].get());
+    }
+
 
   /// \todo This is not really necessary, should be handled with BC object.
   for (int ilev = 0; ilev < displacement.size(); ++ilev)
@@ -293,8 +297,8 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
 	      { 
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    disp_box(amrex::IntVect(i,j),0) = 0.1;
-		    disp_box(amrex::IntVect(i,j),1) = 0.0;
+		    disp_box(amrex::IntVect(i,j),0) = 0.0;
+		    disp_box(amrex::IntVect(i,j),1) = 0.01;
 		  }
 		else if (i > domain.hiVect()[0]) // Right boundary
 		  {
@@ -317,6 +321,8 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
 
       /// \todo Replace with proper driving force initialization
       body_force[ilev]->setVal(0.0);
+      /// \todo get rid of this line
+      //displacement[ilev]->setVal(0.0);
     }
   
   amrex::Real tol_rel = 0, tol_abs = 1E-10;
@@ -324,12 +330,33 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
   solver.setMaxIter(20);
   solver.setMaxFmgIter(0);
   solver.setVerbose(1);
+
   solver.solve(GetVecOfPtrs(displacement),
    	       GetVecOfConstPtrs(body_force),
    	       tol_rel,
    	       tol_abs);
-  
-  std::cout << "Done with Linear Solve" << std::endl;
+
+
+  for (int lev = 0; lev < displacement.size(); lev++)
+    {
+      const Real* dx = geom[lev].CellSize();
+      for ( amrex::MFIter mfi(*displacement[lev],true); mfi.isValid(); ++mfi )
+  	{
+  	  const Box& bx = mfi.tilebox();
+
+  	  amrex::BaseFab<amrex::Real> &ufab  = (*displacement[lev])[mfi];
+  	  amrex::BaseFab<amrex::Real> &epsfab  = (*strain[lev])[mfi];
+  	  for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+  	    for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+  	      {
+  		epsfab(amrex::IntVect(i,j),0) = (ufab(amrex::IntVect(i+1,j),0) - ufab(amrex::IntVect(i-1,j),0))/(2.0*dx[0]);
+  		epsfab(amrex::IntVect(i,j),1) = (ufab(amrex::IntVect(i,j+1),1) - ufab(amrex::IntVect(i,j-1),1))/(2.0*dx[1]);
+  		epsfab(amrex::IntVect(i,j),2) =
+		  0.5*(ufab(amrex::IntVect(i+1,j),1) - ufab(amrex::IntVect(i-1,j),1))/(2.0*dx[0]) + 
+		  0.5*(ufab(amrex::IntVect(i,j+1),0) - ufab(amrex::IntVect(i,j-1),0))/(2.0*dx[1]);
+  	      }
+  	}
+    }
 }
 
 

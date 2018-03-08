@@ -135,12 +135,9 @@ int main (int argc, char* argv[])
   mlabec.setMaxOrder(linop_maxorder);
 
 
-
   // set boundary conditions
 
   mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)}, {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
-  //mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)}, {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
-  //mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Periodic,LinOpBCType::Dirichlet)}, {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Periodic,LinOpBCType::Dirichlet)});
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
