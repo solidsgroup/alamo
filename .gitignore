@@ -11,3 +11,6 @@ doc
 *~
 output*
 *.txt
+*out*
+*.pdf
+*.png
