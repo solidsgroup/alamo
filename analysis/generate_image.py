@@ -6,7 +6,7 @@ def generate_image(path,output):
         sys.exit()
     ClearAllWindows()
     OpenDatabase(path, 0)
-    AddPlot("Pseudocolor", "phi00000", 1, 1)
+    AddPlot("Pseudocolor", "Eta001", 1, 1)
     DrawPlots()
     # Logging for SetAnnotationObjectOptions is not implemented yet.
     AnnotationAtts = AnnotationAttributes()
@@ -340,12 +340,14 @@ def generate_image(path,output):
 
 
 
-filename = "/home/josep/wheeler/output7.visit";
-output_base = "./out8"
+filename = "examples/perturbed_bar/PerturbedBar48/output/output.visit";
+output_base = "examples/perturbed_bar/PerturbedBar48/Images"
 i=50		
 for f in open(filename).readlines():
     if (i == 50) :
     	headerfile=os.path.dirname(filename)+"/"+f.replace("\n","");
+        print(headerfile);
+        print(open(headerfile).readlines()[7])
         timestep=float(open(headerfile).readlines()[7])
         timestep_formatted = '{num:4.02f}'.format(num=timestep).zfill(7)
     	outputfile=os.path.basename(os.path.dirname(f.replace("\n","")));
