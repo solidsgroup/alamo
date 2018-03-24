@@ -33,19 +33,23 @@ def frequency(filename):
         im = imread(filename)
         img = rgb2gray(im)
         contours = measure.find_contours(img, 0.5)
-        Fs=128.0
+        Fs=512.0
         Ts=1.0/Fs;
         t=np.arange(0,1,Ts)
         y = interp1d(contours[0][:,1]/max(contours[0][:,1]), contours[0][:,0])
         y=y(t)-np.mean(y(t))
-        y=y/max(y);
+        #y=y/max(y);
         n=len(y)
-        fourier = np.fft.rfft(y,128)
+        dx = 2.0
+        dy= np.gradient(y,dx);
+        
+        fourier = np.fft.rfft(y,512)
         k=np.arange(n)
         T = n/Fs
         frq= k/T
-        #print(frq)
-        #print(k)
+        # plt.plot(dy)
+        #print(n)
+        #print(mean_slope)
         frq=frq[range(n/2)]
         fourier=fourier[range(n/2)]
         #frequency Time of maximum and standard deviation
@@ -53,7 +57,7 @@ def frequency(filename):
 
         #array = np.array(frq , fourier)
         
-        return fourier,frq
+        return fourier,frq,dy
 
 
 def analysis(fourier,frq):
