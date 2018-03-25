@@ -128,7 +128,7 @@ protected:
   ///
   /// Overriding is optional; the default is to do nothing.
   ///
-  virtual void TimeStepComplete(Real time) {};
+  virtual void TimeStepComplete(Real time, int iter) {};
 
   /// \fn    RegisterNewFab
   /// \brief Register a field variable for AMR with this class 

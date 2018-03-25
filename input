@@ -1,14 +1,13 @@
-timestep = 0.005
-stop_time = 0.05
+timestep = 0.01
+stop_time = 0.1
 
 amr.plot_int = 1
-amr.max_level = 3
-amr.n_cell = 40 8
+amr.max_level = 1
+amr.n_cell = 160 32
 amr.blocking_factor = 1
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 amr.plot_file = outputPF
-amr.nsubsteps = 4
 
 ic.type=perturbed_interface
 ic.wave_numbers=8
@@ -17,9 +16,14 @@ ic.wave_amplitudes=0.1
 geometry.prob_lo = 0 -0.5
 geometry.prob_hi = 5 0.5
 geometry.is_periodic= 1 0 0
+#geometry.is_periodic= 0 0 0
 
 bc.hi = INT_DIR EXT_DIR INT_DIR
 bc.lo = INT_DIR EXT_DIR INT_DIR
+#bc.hi = EXT_DIR EXT_DIR INT_DIR
+#bc.lo = EXT_DIR EXT_DIR INT_DIR
+bc.lo_1 = 0.0 0.0 0.0 0.0
+bc.hi_1 = 0.0 0.0 0.0 0.0
 bc.lo_2 = 1.0 0.0 0.0 0.0
 bc.hi_2 = 0.0 1.0 0.0 0.0
 
@@ -30,7 +34,7 @@ pf.gamma = 1.0
 pf.l_gb=0.1
 pf.sigma0=0.075
 
-anisotropy.on=1
+anisotropy.on=0
 anisotropy.tstart= 1
 anisotropy.theta0= 30
 anisotropy.sigma0=0.075

@@ -255,27 +255,22 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 
 }
 
-void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
+void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 {
   // Hard code BCs for now.
   LPInfo info;
   info.setAgglomeration(true);
   info.setConsolidation(true);
-  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
   MLPFStiffnessMatrix linop(geom,grids,dmap,info);
-  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
 
   linop.setMaxOrder(2);
   
-  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
   linop.setDomainBC({AMREX_D_DECL(LinOpBCType::Periodic,
 				  LinOpBCType::Dirichlet,
 				  LinOpBCType::Dirichlet)},
 		    {AMREX_D_DECL(LinOpBCType::Periodic,
 				  LinOpBCType::Dirichlet,
 				  LinOpBCType::Dirichlet)});
-  std::cout << __FILE__<<__LINE__<<__FUNCTION__<<std::endl;
-
 
   for (int ilev=0; ilev < eta_new.size(); ilev++)
     {
@@ -297,8 +292,8 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
 	      { 
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    disp_box(amrex::IntVect(i,j),0) = 0.0;
-		    disp_box(amrex::IntVect(i,j),1) = 0.01;
+		    disp_box(amrex::IntVect(i,j),0) = 0.005;
+		    disp_box(amrex::IntVect(i,j),1) = 0.001;
 		  }
 		else if (i > domain.hiVect()[0]) // Right boundary
 		  {
@@ -307,7 +302,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
 		  }
 		else if (j < domain.loVect()[1]) // Bottom
 		  {
-		    disp_box(amrex::IntVect(i,j),0) = 0.0;
+		    disp_box(amrex::IntVect(i,j),0) = -0.005;
 		    disp_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 		else if (i < domain.loVect()[0]) // Left boundary
@@ -320,23 +315,33 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time)
       linop.setLevelBC(ilev,displacement[ilev].get());
 
       /// \todo Replace with proper driving force initialization
-      body_force[ilev]->setVal(0.0);
+      // body_force[ilev]->setVal(0.0,0);
+      // body_force[ilev]->setVal(0.1,1);
       /// \todo get rid of this line
-      //displacement[ilev]->setVal(0.0);
+      std::cout << "iteration = " << iter << std::endl;
+      if (iter==0)
+	{
+	  std::cout << "initialization" << std::endl;
+	  displacement[ilev]->setVal(0.0);
+	}
     }
   
   amrex::Real tol_rel = 0, tol_abs = 1E-10;
   amrex::MLMG solver(linop);
   solver.setMaxIter(20);
   solver.setMaxFmgIter(0);
-  solver.setVerbose(1);
+  solver.setVerbose(2);
 
-  solver.solve(GetVecOfPtrs(displacement),
-   	       GetVecOfConstPtrs(body_force),
-   	       tol_rel,
-   	       tol_abs);
+   solver.solve(GetVecOfPtrs(displacement),
+     	       GetVecOfConstPtrs(body_force), 
+     	       tol_rel,
+     	       tol_abs);
 
-
+  // for (int lev = 0; lev < displacement.size(); lev++)
+  //   {
+  //     linop.test(lev,1,*body_force[lev],*displacement[lev]);
+  //   }
+  
   for (int lev = 0; lev < displacement.size(); lev++)
     {
       const Real* dx = geom[lev].CellSize();
