@@ -47,7 +47,7 @@ protected:
 
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
 
-  void TimeStepComplete(amrex::Real time);
+  void TimeStepComplete(amrex::Real time, int iter);
 
 private:
 

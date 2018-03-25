@@ -47,6 +47,9 @@ public:
   
   void setACoeffs (int amrlev, const MultiFab& alpha);
 
+  void test(int amrlev, int mglev, MultiFab& out, const MultiFab& in)
+  {Fapply(amrlev, mglev, out, in);}
+
 protected:
 
   void averageDownCoeffs ();
