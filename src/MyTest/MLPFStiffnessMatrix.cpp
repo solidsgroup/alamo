@@ -17,20 +17,28 @@ MLPFStiffnessMatrix::MLPFStiffnessMatrix (const Vector<Geometry>& a_geom,
 {
   define(a_geom, a_grids, a_dmap, a_info);
 
-  amrex::Real E1 = 68.0, E2 = 5.0;
-  amrex::Real nu1 = 0.33, nu2 = 0.33;
-  
-  mu1 = E1*nu1 / (1.0 - 2.0*nu1) / (1.0 + nu1);
-  lambda1 = E1 / 2.0 / (1.0 + nu1);
+  // amrex::Real E1 = 1.0, E2 = 1.0;
+  // amrex::Real nu1 = 0.1, nu2 = 0.33;
+  // mu1 = E1*nu1 / (1.0 - 2.0*nu1) / (1.0 + nu1);
+  // lambda1 = E1 / 2.0 / (1.0 + nu1);
+  // mu2 = E2*nu2 / (1.0 - 2.0*nu2) / (1.0 + nu2);
+  // lambda2 = E2 / 2.0 / (1.0 + nu2);
 
-  mu2 = E2*nu2 / (1.0 - 2.0*nu2) / (1.0 + nu2);
-  lambda2 = E2 / 2.0 / (1.0 + nu2);
-
+  mu1 = 1.0; mu2=2.0;
+  lambda1 = 2.0; lambda2=1.0;
+   
+  // amrex::Real G1 = 2.0, G2 = 1.0;
+  // amrex::Real nu1 = 0.33, nu2 = 0.33;
+  // mu1 = G1;
+  // lambda1 = 2.0*G1*nu1/(1.0 - 2.0*nu1);
+  // mu2 = G2;
+  // lambda2 = 2.0*G2*nu2/(1.0 - 2.0*nu2);
 }
+
 
 /// \fn define
 ///
-/// Currently this is just a relay to call the parent class' define function
+/// (This documentation is depricated)
 /// However if there are operator-specific Fabs to be created, this is the place
 /// to do it.
 void
@@ -65,7 +73,6 @@ MLPFStiffnessMatrix::averageDownCoeffs ()
       auto& fine_a_coeffs = m_a_coeffs[amrlev];
 
       averageDownCoeffsSameAmrLevel(fine_a_coeffs);
-      //      averageDownCoeffsToCoarseAmrLevel(amrlev);
     }
 
   averageDownCoeffsSameAmrLevel(m_a_coeffs[0]);
@@ -96,8 +103,7 @@ MLPFStiffnessMatrix::~MLPFStiffnessMatrix ()
 
 /// \fn prepareForSolve
 ///
-/// Currently just a relay function. It exists because it overrides a pure
-/// virtual function.
+/// Relay function and distribute coefficients to all MG levels (?)
 void
 MLPFStiffnessMatrix::prepareForSolve ()
 {
@@ -159,19 +165,27 @@ MLPFStiffnessMatrix::Fapply (int amrlev, ///<[in] AMR Level
 		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
 		(ufab(amrex::IntVect(i,j+1),n) + ufab(amrex::IntVect(i,j-1),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[1]/dx[1];
 
+	    // amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
+	    // amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+	    // amrex::Real mu,lambda;
+	    // if (x>2.5) {mu = mu1; lambda=lambda1;}
+	    // else {mu = mu2; lambda=lambda2;}
 	    amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
 	    amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
 
+	    //if (mglev>2) std::cout << "mu = " << mu << " lambda = " << lambda << std::endl;
+	    // ffab(amrex::IntVect(i,j),0) = mu;
+	    // ffab(amrex::IntVect(i,j),1) = lambda;
+
 	    for (int p = 0; p < AMREX_SPACEDIM; p++)
 	      {
-		ffab(amrex::IntVect(i,j),p) = 0.0;
-		for (int q = 0; q < AMREX_SPACEDIM; q++)
-		  {
-		    ffab(amrex::IntVect(i,j),p) -= 2.0*mu*gradepsilon[p](q,q);
-		    if (p==q)
-		      for (int k=0; k<AMREX_SPACEDIM; k++)
-		      	ffab(amrex::IntVect(i,j),p) -= lambda * gradepsilon[k](k,q);
-		  }
+	    	ffab(amrex::IntVect(i,j),p) = 0.0;
+	    	for (int q = 0; q < AMREX_SPACEDIM; q++)
+	    	  {
+	    	    ffab(amrex::IntVect(i,j),p) -= 2.0*mu*gradepsilon[p](q,q);
+	    	    for (int k=0; k<AMREX_SPACEDIM; k++)
+	    	      ffab(amrex::IntVect(i,j),p) -= lambda * gradepsilon[k](k,p);
+	    	  }
 	      }	    
 	  }
     }
@@ -188,12 +202,12 @@ MLPFStiffnessMatrix::Fapply (int amrlev, ///<[in] AMR Level
 /// \todo Extend to 3D
 ///
 void
-MLPFStiffnessMatrix::Fsmooth (int amrlev,  ///<[in] AMR level
-			    int mglev, ///<[in] 
-			    MultiFab& sol, ///<[inout] Solution (displacement field)
-			    const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
-			    int redblack ///<[in] Variable to determine whether to smooth even or odd modes
-			    ) const
+MLPFStiffnessMatrix::Fsmooth (int amrlev,          ///<[in] AMR level
+			      int mglev,           ///<[in] 
+			      MultiFab& sol,       ///<[inout] Solution (displacement field)
+			      const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
+			      int redblack         ///<[in] Variable to determine whether to smooth even or odd modes
+			      ) const
 {
   BL_PROFILE("MLPFStiffnessMatrix::Fsmooth()");
 
@@ -207,81 +221,86 @@ MLPFStiffnessMatrix::Fsmooth (int amrlev,  ///<[in] AMR level
       FArrayBox&       solnfab = sol[mfi];
       const FArrayBox& rhsfab  = rhs[mfi];
       const amrex::BaseFab<amrex::Real> &etafab = m_a_coeffs[amrlev][mglev][mfi];
-      //const FArrayBox        &etafab  = (*((*eta)[amrlev]))[mfi];
 
-      for (int n = 0; n < nComp; n++)
       	for (int j = tbx.loVect()[1]; j<=tbx.hiVect()[1]; j++)
        	  {
        	    int ioffset = (tbx.loVect()[0] + j + redblack)%2;
        	    for (int i = tbx.loVect()[0] + ioffset; i <= tbx.hiVect()[0]; i+= 2)
        	      {
+
 		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonD(AMREX_SPACEDIM);
 		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonR(AMREX_SPACEDIM);
+
+		// amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
+		// amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+		// amrex::Real mu,lambda;
+		// if (x>2.5) {mu = mu1; lambda=lambda1;}
+		// else {mu = mu2; lambda=lambda2;}
 
 		amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
 		amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
 
 		for (int p = 0; p < AMREX_SPACEDIM; p++)
-		  if (p==n)
-		    {
-		      gradepsilonR[p] <<
-			(solnfab(amrex::IntVect(i+1,j),p) + solnfab(amrex::IntVect(i-1,j),p))/dx[0]/dx[0],
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i,j+1),p) + solnfab(amrex::IntVect(i,j-1),p))/dx[1]/dx[1];
-		
-		      gradepsilonD[p] <<
-			-2.0/dx[0]/dx[0],
-			0.0,
-			0.0,
-			-2.0/dx[1]/dx[1];
-		    }
-		  else
-		    {
-		      gradepsilonR[p] <<
-			(solnfab(amrex::IntVect(i+1,j),p) + solnfab(amrex::IntVect(i-1,j),p) - 2.*solnfab(amrex::IntVect(i,j),p))/dx[0]/dx[0],
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i,j+1),p) + solnfab(amrex::IntVect(i,j-1),p) - 2.*solnfab(amrex::IntVect(i,j),p))/dx[1]/dx[1];
-		
-		      gradepsilonD[p] <<
-			0.0,
-			0.0,
-			0.0,
-			0.0;
-		    }
-		
-		amrex::Real rho = 0.0;
-
-		for (int q = 0; q < AMREX_SPACEDIM; q++)
 		  {
-		    rho -= 2.0*mu*gradepsilonR[n](q,q);
-		    if (n==q)
-		      for (int k=0; k<AMREX_SPACEDIM; k++)
-			rho -= lambda * gradepsilonR[k](k,q);
+		    for (int q = 0; q < AMREX_SPACEDIM; q++)
+		      if (q==p)
+			{
+			  gradepsilonR[q] <<
+			    (solnfab(amrex::IntVect(i+1,j),q) + solnfab(amrex::IntVect(i-1,j),q))/dx[0]/dx[0],
+			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    (solnfab(amrex::IntVect(i,j+1),q) + solnfab(amrex::IntVect(i,j-1),q))/dx[1]/dx[1];
+		
+			  gradepsilonD[q] <<
+			    -2.0/dx[0]/dx[0],
+			    0.0,
+			    0.0,
+			    -2.0/dx[1]/dx[1];
+			}
+		      else
+			{
+			  gradepsilonR[q] <<
+			    (solnfab(amrex::IntVect(i+1,j),q) + solnfab(amrex::IntVect(i-1,j),q) - 2.*solnfab(amrex::IntVect(i,j),q))/dx[0]/dx[0],
+			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    (solnfab(amrex::IntVect(i,j+1),q) + solnfab(amrex::IntVect(i,j-1),q) - 2.*solnfab(amrex::IntVect(i,j),q))/dx[1]/dx[1];
+		
+			  gradepsilonD[q] <<
+			    0.0,
+			    0.0,
+			    0.0,
+			    0.0;
+			}
+		
+		    amrex::Real rho = 0.0;
+
+		    for (int q = 0; q < AMREX_SPACEDIM; q++)
+		      {
+			rho -= 2.0*mu*gradepsilonR[p](q,q);
+			for (int k=0; k<AMREX_SPACEDIM; k++)
+			  rho -= lambda * gradepsilonR[k](k,p);
+		      }
+
+		    amrex::Real aa = 0.0;
+		    for (int q = 0; q < AMREX_SPACEDIM; q++)
+		      {
+			aa -= 2.0*mu*gradepsilonD[p](q,q);
+			for (int k=0; k<AMREX_SPACEDIM; k++)
+			  aa -= lambda * gradepsilonD[k](k,p);
+		      }
+
+		    solnfab(amrex::IntVect(i,j),p) = (rhsfab(amrex::IntVect(i,j),p) - rho) / aa;
 		  }
-
-		amrex::Real aa = 0.0;
-		for (int q = 0; q < AMREX_SPACEDIM; q++)
-		  {
-		    aa -= 2.0*mu*gradepsilonD[n](q,q);
-		    if (n==q)
-		      for (int k=0; k<AMREX_SPACEDIM; k++)
-			aa -= lambda * gradepsilonD[k](k,q);
-		  }
-
-		solnfab(amrex::IntVect(i,j),n) = (rhsfab(amrex::IntVect(i,j),n) - rho) / aa;
-
        	      }
        	  }
     }
 }
 
-/// \fn MLPFStiffnessMatrix::Fsmooth
+/// \fn MLPFStiffnessMatrix::FFlux
 /// 
 /// Compute the "flux" corresponding to the operator in MLPFStiffnessMatrix::Fapply.
 /// Because the operator is self-adjoint and positive-definite, the flux is not
-/// required for adequate convergence.
+/// required for adequate convergence (?)
 /// Therefore, the fluxes are simply set to zero and returned.
 /// 
 /// \todo Extend to 3D
