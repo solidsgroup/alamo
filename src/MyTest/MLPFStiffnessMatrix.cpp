@@ -25,7 +25,7 @@ MLPFStiffnessMatrix::MLPFStiffnessMatrix (const Vector<Geometry>& a_geom,
   // lambda2 = E2 / 2.0 / (1.0 + nu2);
 
   mu1 = 1.0; mu2=2.0;
-  lambda1 = 2.0; lambda2=1.0;
+  lambda1 = 2.0; lambda2=2.0;
    
   // amrex::Real G1 = 2.0, G2 = 1.0;
   // amrex::Real nu1 = 0.33, nu2 = 0.33;
@@ -165,13 +165,15 @@ MLPFStiffnessMatrix::Fapply (int amrlev, ///<[in] AMR Level
 		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
 		(ufab(amrex::IntVect(i,j+1),n) + ufab(amrex::IntVect(i,j-1),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[1]/dx[1];
 
-	    // amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
-	    // amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+	    amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+	    amrex::Real mu,lambda;
+	    if (y>0.0) {mu = mu1; lambda=lambda1;}
+	    else {mu = mu2; lambda=lambda2;}
 	    // amrex::Real mu,lambda;
 	    // if (x>2.5) {mu = mu1; lambda=lambda1;}
 	    // else {mu = mu2; lambda=lambda2;}
-	    amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
-	    amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+	    // amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+	    // amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
 
 	    //if (mglev>2) std::cout << "mu = " << mu << " lambda = " << lambda << std::endl;
 	    // ffab(amrex::IntVect(i,j),0) = mu;
@@ -231,14 +233,14 @@ MLPFStiffnessMatrix::Fsmooth (int amrlev,          ///<[in] AMR level
 		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonD(AMREX_SPACEDIM);
 		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonR(AMREX_SPACEDIM);
 
-		// amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
-		// amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
-		// amrex::Real mu,lambda;
-		// if (x>2.5) {mu = mu1; lambda=lambda1;}
-		// else {mu = mu2; lambda=lambda2;}
+		amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
+		amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+		amrex::Real mu,lambda;
+		if (y>0.0) {mu = mu1; lambda=lambda1;}
+		else {mu = mu2; lambda=lambda2;}
 
-		amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
-		amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+		// amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+		// amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
 
 		for (int p = 0; p < AMREX_SPACEDIM; p++)
 		  {
