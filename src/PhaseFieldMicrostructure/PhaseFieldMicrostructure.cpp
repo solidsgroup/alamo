@@ -293,7 +293,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
 		    disp_box(amrex::IntVect(i,j),0) = 0.005;
-		    disp_box(amrex::IntVect(i,j),1) = 0.001;
+		    disp_box(amrex::IntVect(i,j),1) = 0.000;
 		  }
 		else if (i > domain.hiVect()[0]) // Right boundary
 		  {
