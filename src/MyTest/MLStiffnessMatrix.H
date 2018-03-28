@@ -82,8 +82,10 @@ protected:
 
 private:
 
-  amrex::Real mu;     ///< First Lame parameter
-  amrex::Real lambda; ///< Second Lame parameter
+  amrex::Real C(const int i, const int j, const int k, const int l, amrex::IntVect loc, int amrlev, int mglev) const;
+
+  amrex::Real mu1, mu2;     ///< First Lame parameter
+  amrex::Real lambda1, lambda2; ///< Second Lame parameter
 
 };
 
