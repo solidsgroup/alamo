@@ -19,7 +19,7 @@ int main (int argc, char* argv[])
   amrex::Initialize(argc, argv);
 
 
-  int max_level = 1;//0;
+  int max_level = 0;//0;
   int ref_ratio = 2;
   int n_cell = 128;
   int max_grid_size = 64;
@@ -128,16 +128,21 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
-  const Real tol_rel = 1e-10;//1.e-10;
+  const Real tol_rel = 1.e-10;
   const Real tol_abs = 0.0;
   nlevels = geom.size();
+  //info.setMaxCoarseningLevel(0);
   MLStiffnessMatrix mlabec(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
-
-
+  
   // set boundary conditions
 
-  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)}, {AMREX_D_DECL(LinOpBCType::Dirichlet,LinOpBCType::Dirichlet,LinOpBCType::Dirichlet)});
+  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Neumann,
+				   LinOpBCType::Dirichlet,
+				   LinOpBCType::Dirichlet)},
+		     {AMREX_D_DECL(LinOpBCType::Neumann,
+				   LinOpBCType::Dirichlet,
+				   LinOpBCType::Dirichlet)});
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
@@ -154,12 +159,12 @@ int main (int argc, char* argv[])
 	      { 
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = 0.1;
 		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 		else if (i > domain.hiVect()[0]) // Right boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.1;
+		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
 		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 		else 
@@ -206,6 +211,7 @@ int main (int argc, char* argv[])
   mlmg.setMaxFmgIter(max_fmg_iter);
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
+  mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
