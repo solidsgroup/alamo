@@ -17,11 +17,18 @@ MLStiffnessMatrix::MLStiffnessMatrix (const Vector<Geometry>& a_geom,
 {
   define(a_geom, a_grids, a_dmap, a_info);
 
-  amrex::Real E = 68;
-  amrex::Real nu = 0.45;//0.33;
+  // amrex::Real E1 = 1.0, E2=2.0;
+  // amrex::Real nu1 = 0.33, nu2=0.33;//0.33;
   
-  mu = E*nu / (1.0 - 2.0*nu) / (1.0 + nu);
-  lambda = E / 2.0 / (1.0 + nu);
+  // mu1 = E1*nu1 / (1.0 - 2.0*nu1) / (1.0 + nu1);
+  // lambda1 = E1 / 2.0 / (1.0 + nu1);
+
+  // mu2 = E2*nu2 / (1.0 - 2.0*nu2) / (1.0 + nu2);
+  // lambda2 = E2 / 2.0 / (1.0 + nu2);
+
+  mu1 = 1.0; mu2 = 2.0;
+  lambda1 = 1.0; lambda2 = 4.0;
+
 }
 
 /// \fn define
@@ -89,30 +96,41 @@ MLStiffnessMatrix::Fapply (int amrlev, ///<[in] AMR Level
       const amrex::BaseFab<amrex::Real> &ufab  = u[mfi];
       amrex::BaseFab<amrex::Real>       &ffab  = f[mfi];
 
-      for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+      for (int m = bx.loVect()[0]; m<=bx.hiVect()[0]; m++)
+	for (int n = bx.loVect()[1]; n<=bx.hiVect()[1]; n++)
 	  {
-
-	    amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilon(AMREX_SPACEDIM);
-	    
-	    for (int n = 0; n < AMREX_SPACEDIM; n++)
-	      gradepsilon[n] <<
-		(ufab(amrex::IntVect(i+1,j),n) + ufab(amrex::IntVect(i-1,j),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[0]/dx[0],
-		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
-		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
-		(ufab(amrex::IntVect(i,j+1),n) + ufab(amrex::IntVect(i,j-1),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[1]/dx[1];
-
-	    for (int p = 0; p < AMREX_SPACEDIM; p++)
+	    for (int i=0; i<AMREX_SPACEDIM; i++)
 	      {
-		ffab(amrex::IntVect(i,j),p) = 0.0;
-		for (int q = 0; q < AMREX_SPACEDIM; q++)
+		ffab(amrex::IntVect(m,n),i) = 0.0;
+		for (int k=0; k<AMREX_SPACEDIM; k++)
 		  {
-		    ffab(amrex::IntVect(i,j),p) -= 2.0*mu*gradepsilon[p](q,q);
-		    if (p==q)
-		      for (int k=0; k<AMREX_SPACEDIM; k++)
-		      	ffab(amrex::IntVect(i,j),p) -= lambda * gradepsilon[k](k,q);
+		    //ffab(amrex::IntVect(m,n),i) = 0.0;
+
+		    // C_{ijkl} u_{k,jl}
+
+		    ffab(amrex::IntVect(m,n),i) -= 
+		      C(i,0,k,0,amrex::IntVect(m,n),amrlev,mglev)
+		      *(ufab(amrex::IntVect(m+1,n),k) - 2.0*ufab(amrex::IntVect(m,n),k) + ufab(amrex::IntVect(m-1,n),k))/dx[0]/dx[0] 
+		      + 
+		      (C(i,0,k,1,amrex::IntVect(m,n),amrlev,mglev) + C(i,1,k,0,amrex::IntVect(m,n),amrlev,mglev))
+		      *(ufab(amrex::IntVect(m+1,n+1),k) + ufab(amrex::IntVect(m-1,n-1),k) - ufab(amrex::IntVect(m+1,n-1),k) - ufab(amrex::IntVect(m-1,n+1),k))/(2.0*dx[0])/(2.0*dx[1])
+		      +
+		      C(i,1,k,1,amrex::IntVect(m,n),amrlev,mglev)
+		      *(ufab(amrex::IntVect(m,n+1),k) - 2.0*ufab(amrex::IntVect(m,n),k) + ufab(amrex::IntVect(m,n-1),k))/dx[1]/dx[1];
+
+		    // C_{ijkl,j} u_{k,l}
+
+		    ffab(amrex::IntVect(m,n),i) -= 
+		      ((C(i,0,k,0,amrex::IntVect(m+1,n),amrlev,mglev) - C(i,0,k,0,amrex::IntVect(m-1,n),amrlev,mglev))/(2.0*dx[0]) +
+		       (C(i,1,k,0,amrex::IntVect(m,n+1),amrlev,mglev) - C(i,1,k,0,amrex::IntVect(m,n-1),amrlev,mglev))/(2.0*dx[1])) *
+		      ((ufab(amrex::IntVect(m+1,n),k) - ufab(amrex::IntVect(m-1,n),k))/(2.0*dx[0]))
+		      +
+		      ((C(i,0,k,1,amrex::IntVect(m+1,n),amrlev,mglev) - C(i,0,k,1,amrex::IntVect(m-1,n),amrlev,mglev))/(2.0*dx[0]) +
+		       (C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev) - C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev))/(2.0*dx[1])) *
+		      ((ufab(amrex::IntVect(m,n+1),k) - ufab(amrex::IntVect(m,n-1),k))/(2.0*dx[1]));
+		      
 		  }
-	      }	    
+	      }
 	  }
     }
 }
@@ -130,7 +148,7 @@ MLStiffnessMatrix::Fapply (int amrlev, ///<[in] AMR Level
 void
 MLStiffnessMatrix::Fsmooth (int amrlev,  ///<[in] AMR level
 			    int mglev, ///<[in] 
-			    MultiFab& sol, ///<[inout] Solution (displacement field)
+			    MultiFab& u, ///<[inout] Solution (displacement field)
 			    const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
 			    int redblack ///<[in] Variable to determine whether to smooth even or odd modes
 			    ) const
@@ -140,75 +158,62 @@ MLStiffnessMatrix::Fsmooth (int amrlev,  ///<[in] AMR level
   const int nComp = AMREX_SPACEDIM;
   const Real* dx = m_geom[amrlev][mglev].CellSize();
 
-  for (MFIter mfi(sol,MFItInfo().EnableTiling().SetDynamic(true));
+
+  for (MFIter mfi(u,MFItInfo().EnableTiling().SetDynamic(true));
        mfi.isValid(); ++mfi)
     {
       const Box&       tbx     = mfi.tilebox();
-      FArrayBox&       solnfab = sol[mfi];
+      FArrayBox&       ufab    = u[mfi];
       const FArrayBox& rhsfab  = rhs[mfi];
 
-      for (int n = 0; n < nComp; n++)
-      	for (int j = tbx.loVect()[1]; j<=tbx.hiVect()[1]; j++)
-       	  {
-       	    int ioffset = (tbx.loVect()[0] + j + redblack)%2;
-       	    for (int i = tbx.loVect()[0] + ioffset; i <= tbx.hiVect()[0]; i+= 2)
-       	      {
-		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonD(AMREX_SPACEDIM);
-		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonR(AMREX_SPACEDIM);
-	    
-		for (int p = 0; p < AMREX_SPACEDIM; p++)
-		  if (p==n)
+
+
+      for (int n = tbx.loVect()[1]; n<=tbx.hiVect()[1]; n++)
+	{
+	  int noffset = (tbx.loVect()[0] + n + redblack)%2;
+	  for (int m = tbx.loVect()[0] + noffset; m <= tbx.hiVect()[0]; m+= 2)
+	    {
+	      for (int i=0; i<AMREX_SPACEDIM; i++)
+		{
+		  amrex::Real rho = 0.0, aa = 0.0;
+		      
+		  for (int k=0; k<AMREX_SPACEDIM; k++)
 		    {
-		      gradepsilonR[p] <<
-			(solnfab(amrex::IntVect(i+1,j),p) + solnfab(amrex::IntVect(i-1,j),p))/dx[0]/dx[0],
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i,j+1),p) + solnfab(amrex::IntVect(i,j-1),p))/dx[1]/dx[1];
-		
-		      gradepsilonD[p] <<
-			-2.0/dx[0]/dx[0],
-			0.0,
-			0.0,
-			-2.0/dx[1]/dx[1];
+
+		      rho -= 
+			C(i,0,k,0,amrex::IntVect(m,n),amrlev,mglev)
+			*(ufab(amrex::IntVect(m+1,n),k) - (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k)) + ufab(amrex::IntVect(m-1,n),k))/dx[0]/dx[0]
+			+ 
+			(C(i,0,k,1,amrex::IntVect(m,n),amrlev,mglev) + C(i,1,k,0,amrex::IntVect(m,n),amrlev,mglev))
+			*(ufab(amrex::IntVect(m+1,n+1),k) + ufab(amrex::IntVect(m-1,n-1),k) - ufab(amrex::IntVect(m+1,n-1),k) - ufab(amrex::IntVect(m-1,n+1),k))/(2.0*dx[0])/(2.0*dx[1])
+			+
+			C(i,1,k,1,amrex::IntVect(m,n),amrlev,mglev)
+			*(ufab(amrex::IntVect(m,n+1),k) - (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k)) + ufab(amrex::IntVect(m,n-1),k))/dx[1]/dx[1];
+
+		      // C_{ijkl,j} u_{k,l}
+
+		      rho -= 
+		        ((C(i,0,k,0,amrex::IntVect(m+1,n),amrlev,mglev) - C(i,0,k,0,amrex::IntVect(m-1,n),amrlev,mglev))/(2.0*dx[0]) +
+		         (C(i,1,k,0,amrex::IntVect(m,n+1),amrlev,mglev) - C(i,1,k,0,amrex::IntVect(m,n-1),amrlev,mglev))/(2.0*dx[1])) *
+		        ((ufab(amrex::IntVect(m+1,n),k) - ufab(amrex::IntVect(m-1,n),k))/(2.0*dx[0]))
+		        +
+		        ((C(i,0,k,1,amrex::IntVect(m+1,n),amrlev,mglev) - C(i,0,k,1,amrex::IntVect(m-1,n),amrlev,mglev))/(2.0*dx[0]) +
+		         (C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev) - C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev))/(2.0*dx[1])) *
+		        ((ufab(amrex::IntVect(m,n+1),k) - ufab(amrex::IntVect(m,n-1),k))/(2.0*dx[1]));
+		      
 		    }
-		  else
-		    {
-		      gradepsilonR[p] <<
-			(solnfab(amrex::IntVect(i+1,j),p) + solnfab(amrex::IntVect(i-1,j),p) - 2.*solnfab(amrex::IntVect(i,j),p))/dx[0]/dx[0],
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i+1,j+1),p) + solnfab(amrex::IntVect(i-1,j-1),p) - solnfab(amrex::IntVect(i+1,j-1),p) - solnfab(amrex::IntVect(i-1,j+1),p))/(2.*dx[0])/(2.*dx[1]),
-			(solnfab(amrex::IntVect(i,j+1),p) + solnfab(amrex::IntVect(i,j-1),p) - 2.*solnfab(amrex::IntVect(i,j),p))/dx[1]/dx[1];
-		
-		      gradepsilonD[p] <<
-			0.0,
-			0.0,
-			0.0,
-			0.0;
-		    }
-		
-		amrex::Real rho = 0.0;
 
-		for (int q = 0; q < AMREX_SPACEDIM; q++)
-		  {
-		    rho -= 2.0*mu*gradepsilonR[n](q,q);
-		    if (n==q)
-		      for (int k=0; k<AMREX_SPACEDIM; k++)
-			rho -= lambda * gradepsilonR[k](k,q);
-		  }
+		  aa -= 
+		    -2.0*C(i,0,i,0,amrex::IntVect(m,n),amrlev,mglev)/dx[0]/dx[0]
+		    -2.0*C(i,1,i,1,amrex::IntVect(m,n),amrlev,mglev)/dx[1]/dx[1];
 
-		amrex::Real aa = 0.0;
-		for (int q = 0; q < AMREX_SPACEDIM; q++)
-		  {
-		    aa -= 2.0*mu*gradepsilonD[n](q,q);
-		    if (n==q)
-		      for (int k=0; k<AMREX_SPACEDIM; k++)
-			aa -= lambda * gradepsilonD[k](k,q);
-		  }
+		  if (rho != rho) amrex::Abort("nans detected");
+		  
+		  ufab(amrex::IntVect(m,n),i) = (rhsfab(amrex::IntVect(m,n),i) - rho) / aa;
+		}
+	    }
+	}
 
-		solnfab(amrex::IntVect(i,j),n) = (rhsfab(amrex::IntVect(i,j),n) - rho) / aa;
-
-       	      }
-       	  }
     }
 }
 
@@ -241,3 +246,20 @@ MLStiffnessMatrix::getNComp() const
 }
 
 
+amrex::Real
+MLStiffnessMatrix::C(const int i, const int j, const int k, const int l,
+		     const amrex::IntVect loc,
+		     int amrlev, int mglev) const
+{
+  amrex::Real mu, lambda;
+  amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(loc[1]) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+  //mu = mu1 + y*(mu2-mu1);
+  //lambda = lambda1 + y*(lambda2-lambda1);
+  if (y>0.5) {mu=mu1; lambda=lambda1; }
+  else {mu=mu2; lambda=lambda2;}
+
+  amrex::Real ret = 0.0;
+  if (i==k && j==l) ret += mu;
+  if (i==l && j==k) ret += mu;
+  if (i==j && k==l) ret += lambda;
+};

@@ -40,17 +40,18 @@ MyTest::initProbABecLaplacian ()
 	  amrex::BaseFab<amrex::Real> &sol_box = solution[ilev][mfi];
 	  amrex::Box domain(geom[ilev].Domain());
 
-	  for (int i = box.loVect()[0]-bcoef[ilev].nGrow(); i<=box.hiVect()[0]+bcoef[ilev].nGrow(); i++)
-	    for (int j = box.loVect()[1]-bcoef[ilev].nGrow(); j<=box.hiVect()[1]+bcoef[ilev].nGrow(); j++)
-	      { 
-		amrex::Real y = geom[ilev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[ilev].CellSize()[1];
-		if (y > 0.5)
-		  bcoef[ilev][mfi](amrex::IntVect(i,j)) = 2.0;
-		else
-		  bcoef[ilev][mfi](amrex::IntVect(i,j)) = 1.0;
-	      }
+	  // for (int i = box.loVect()[0]-bcoef[ilev].nGrow(); i<=box.hiVect()[0]+bcoef[ilev].nGrow(); i++)
+	  //   for (int j = box.loVect()[1]-bcoef[ilev].nGrow(); j<=box.hiVect()[1]+bcoef[ilev].nGrow(); j++)
+	  //     { 
+	  // 	amrex::Real y = geom[ilev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[ilev].CellSize()[1];
+	  // 	if (y > 0.5)
+	  // 	  bcoef[ilev][mfi](amrex::IntVect(i,j)) = 2.0;
+	  // 	else
+	  // 	  bcoef[ilev][mfi](amrex::IntVect(i,j)) = 1.0;
+	  //     }
 
 	   acoef[ilev].setVal(0.0);
+	   bcoef[ilev].setVal(1.0);
 	   // bcoef[ilev].setVal(1.0);
         }
 	ascalar = 1.0;
