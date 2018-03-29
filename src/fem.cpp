@@ -79,7 +79,7 @@ int main (int argc, char* argv[])
   // define simulation domain
   RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
   // set periodicity
-  std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL(0,0,0)};
+  std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL(1,0,0)};
   Geometry::Setup(&rb, 0, is_periodic.data());
   Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
   Box domain = domain0;
@@ -115,7 +115,7 @@ int main (int argc, char* argv[])
       acoef[ilev].setVal(1.0);
       bcoef[ilev].setVal(1.0);
       rhs[ilev].setVal(0.0,0,1);
-      rhs[ilev].setVal(-0.1,1,1);
+      rhs[ilev].setVal(0.0,1,1);
       solution[ilev].setVal(0.0);
     }
 
@@ -128,7 +128,7 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
-  const Real tol_rel = 1e-10;
+  const Real tol_rel = 1e-6;
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
@@ -137,10 +137,10 @@ int main (int argc, char* argv[])
   
   // set boundary conditions
 
-  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Neumann,
+  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Periodic,
 				   LinOpBCType::Dirichlet,
 				   LinOpBCType::Dirichlet)},
-		     {AMREX_D_DECL(LinOpBCType::Neumann,
+		     {AMREX_D_DECL(LinOpBCType::Periodic,
 				   LinOpBCType::Dirichlet,
 				   LinOpBCType::Dirichlet)});
 
