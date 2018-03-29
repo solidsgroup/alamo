@@ -252,6 +252,7 @@ MLStiffnessMatrix::C(const int i, const int j, const int k, const int l,
 		     int amrlev, int mglev) const
 {
   amrex::Real mu, lambda;
+  amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(loc[0]) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
   amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(loc[1]) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
   //mu = mu1 + y*(mu2-mu1);
   //lambda = lambda1 + y*(lambda2-lambda1);
