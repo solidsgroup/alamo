@@ -27,7 +27,7 @@ MLStiffnessMatrix::MLStiffnessMatrix (const Vector<Geometry>& a_geom,
   // lambda2 = E2 / 2.0 / (1.0 + nu2);
 
   mu1 = 1.0; mu2 = 2.0;
-  lambda1 = 1.0; lambda2 = 4.0;
+  lambda1 = 1.0; lambda2 = 1.0;
 
 }
 
@@ -263,3 +263,5 @@ MLStiffnessMatrix::C(const int i, const int j, const int k, const int l,
   if (i==l && j==k) ret += mu;
   if (i==j && k==l) ret += lambda;
 };
+
+

@@ -79,6 +79,8 @@ protected:
     amrex::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
     return std::unique_ptr<MLLinOp>{};
   }
+  
+  virtual bool isCrossStencil () const { return false; }
 
 private:
 

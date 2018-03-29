@@ -19,7 +19,7 @@ int main (int argc, char* argv[])
   amrex::Initialize(argc, argv);
 
 
-  int max_level = 0;//0;
+  int max_level = 1;//0;
   int ref_ratio = 2;
   int n_cell = 128;
   int max_grid_size = 64;
@@ -128,7 +128,7 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
-  const Real tol_rel = 1.e-10;
+  const Real tol_rel = 1e-10;
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
