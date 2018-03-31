@@ -340,8 +340,8 @@ def generate_image(path,output):
 
 
 
-filename = "examples/perturbed_bar/PerturbedBar48/output/output.visit";
-output_base = "examples/perturbed_bar/PerturbedBar48/Images"
+filename = "examples/perturbed_bar/PerturbedBar58/output/output.visit";
+output_base = "examples/perturbed_bar/PerturbedBar58/Images"
 i=50		
 for f in open(filename).readlines():
     if (i == 50) :
