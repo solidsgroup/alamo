@@ -8,27 +8,28 @@ from pylab import imshow,show,plot,pcolor
 from contours_frequency import frequency
 from contours_frequency import analysis
 
-filename = "examples/perturbed_bar/PerturbedBar43/"
+filename = "examples/perturbed_bar/PerturbedBar59/"
 output_base =filename + "/Images"
-i=50
+i=1
 header_images= []
 time_vector = []
 read_file = filename+"output/output.visit"
 for f in open(read_file).readlines():
-    if (i == 50) :
+    if (i == 1) :
         headerfile=os.path.dirname(read_file)+"/"+f.replace("\n","");
         timestep=float(open(headerfile).readlines()[7])
         timestep_formatted = '{num:4.02f}'.format(num=timestep).zfill(7)
         outputfile=os.path.basename(os.path.dirname(f.replace("\n","")));
         print(timestep_formatted)
-        i= 1     
+        i = 1    
         header_images.append(timestep_formatted)
         #print(header_images)
         time_vector.append(timestep)
-    else :
-	i=i+1
-        header_save = filename+"Images/header_images.txt"
-        np.savetxt(header_save ,header_images, fmt="%s")
+    else:
+        i=i+1
+
+header_save = filename+"Images/header_images.txt"
+np.savetxt(header_save ,header_images, fmt="%s")
     
     
     
@@ -60,7 +61,7 @@ np.savetxt(filename + "data_analysis/final_density_x.txt",xs)
         
 plt.plot(xs,density(xs), color=grey_intensity )
 plt.xlim([-1.2,1.2])
-plt.ylim([0,2])
+plt.ylim([0,3])
         
 np.savetxt(filename+ "data_analysis/max_freq_vector.txt",max_frequency_vector)
 plt.savefig(filename + "slope_analysis.png")
@@ -78,5 +79,5 @@ np.savetxt(filename + "data_analysis/density_dy",density_matrix)
     #plot(time_vector,frequency_vector,color='white')
     
 
-    #show()
+#show()
     
