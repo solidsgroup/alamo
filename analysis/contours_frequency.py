@@ -38,16 +38,19 @@ def frequency(filename):
         t=np.arange(0,1,Ts)
         y = interp1d(contours[0][:,1]/max(contours[0][:,1]), contours[0][:,0])
         y=y(t)-np.mean(y(t))
+        
         #y=y/max(y);
         n=len(y)
-        dx = 2.0
-        dy= np.gradient(y,dx);
+        #print(n)
+        y_slope =2.0*y/(208.0)
+        dx = 10.0/512.0;
+        dy= np.gradient(y_slope,dx);
         
         fourier = np.fft.rfft(y,512)
         k=np.arange(n)
         T = n/Fs
         frq= k/T
-        # plt.plot(dy)
+        #plt.plot(y)
         #print(n)
         #print(mean_slope)
         frq=frq[range(n/2)]
