@@ -22,7 +22,7 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 
 INCLUDE = -I./src/ 
-LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
+LIB     = -lamrex -lgfortran -lifcore
 
 HDR = $(shell find src/ -name *.H)
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
