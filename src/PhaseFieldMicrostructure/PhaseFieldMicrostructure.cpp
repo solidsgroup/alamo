@@ -292,7 +292,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 	      { 
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    disp_box(amrex::IntVect(i,j),0) = 0.005;
+		    disp_box(amrex::IntVect(i,j),0) = 0.1;
 		    disp_box(amrex::IntVect(i,j),1) = 0.000;
 		  }
 		else if (i > domain.hiVect()[0]) // Right boundary
@@ -302,7 +302,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 		  }
 		else if (j < domain.loVect()[1]) // Bottom
 		  {
-		    disp_box(amrex::IntVect(i,j),0) = -0.005;
+		    disp_box(amrex::IntVect(i,j),0) = 0.000;
 		    disp_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 		else if (i < domain.loVect()[0]) // Left boundary
@@ -315,8 +315,8 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
       linop.setLevelBC(ilev,displacement[ilev].get());
 
       /// \todo Replace with proper driving force initialization
-      // body_force[ilev]->setVal(0.0,0);
-      // body_force[ilev]->setVal(0.1,1);
+      body_force[ilev]->setVal(0.0,0);
+      body_force[ilev]->setVal(0.0,1);
       /// \todo get rid of this line
       std::cout << "iteration = " << iter << std::endl;
       if (iter==0)
@@ -328,9 +328,10 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
   
   amrex::Real tol_rel = 0, tol_abs = 1E-10;
   amrex::MLMG solver(linop);
-  solver.setMaxIter(20);
+  solver.setMaxIter(200);
   solver.setMaxFmgIter(0);
-  solver.setVerbose(2);
+  solver.setVerbose(3);
+  solver.setCGVerbose(3);
 
    solver.solve(GetVecOfPtrs(displacement),
      	       GetVecOfConstPtrs(body_force), 
