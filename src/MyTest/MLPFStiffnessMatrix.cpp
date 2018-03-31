@@ -152,44 +152,86 @@ MLPFStiffnessMatrix::Fapply (int amrlev, ///<[in] AMR Level
       amrex::BaseFab<amrex::Real>       &ffab  = f[mfi];
       const amrex::BaseFab<amrex::Real> &etafab = m_a_coeffs[amrlev][mglev][mfi];
 
-      for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+      for (int m = bx.loVect()[0]; m<=bx.hiVect()[0]; m++)
+	for (int n = bx.loVect()[1]; n<=bx.hiVect()[1]; n++)
 	  {
+	    for (int i=0; i<AMREX_SPACEDIM; i++)
+	      {
+		ffab(amrex::IntVect(m,n),i) = 0.0;
+		for (int k=0; k<AMREX_SPACEDIM; k++)
+		  {
+		    //ffab(amrex::IntVect(m,n),i) = 0.0;
 
-	    amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilon(AMREX_SPACEDIM);
+		    // C_{ijkl} u_{k,jl}
+
+		    ffab(amrex::IntVect(m,n),i) -= 
+		      C(i,0,k,0,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1))
+		      *(ufab(amrex::IntVect(m+1,n),k) - 2.0*ufab(amrex::IntVect(m,n),k) + ufab(amrex::IntVect(m-1,n),k))/dx[0]/dx[0] 
+		      + 
+		      (C(i,0,k,1,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1)) + 
+		      C(i,1,k,0,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1)))
+		      *(ufab(amrex::IntVect(m+1,n+1),k) + ufab(amrex::IntVect(m-1,n-1),k) - ufab(amrex::IntVect(m+1,n-1),k) - ufab(amrex::IntVect(m-1,n+1),k))/(2.0*dx[0])/(2.0*dx[1])
+		      +
+		      C(i,1,k,1,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1))
+		      *(ufab(amrex::IntVect(m,n+1),k) - 2.0*ufab(amrex::IntVect(m,n),k) + ufab(amrex::IntVect(m,n-1),k))/dx[1]/dx[1];
+
+		    // C_{ijkl,j} u_{k,l}
+
+		    ffab(amrex::IntVect(m,n),i) -= 
+		      ((C(i,0,k,0,amrex::IntVect(m+1,n),amrlev,mglev,etafab(amrex::IntVect(m+1,n),0),etafab(amrex::IntVect(m+1,n),1)) - 
+		      C(i,0,k,0,amrex::IntVect(m-1,n),amrlev,mglev,etafab(amrex::IntVect(m-1,n),0),etafab(amrex::IntVect(m-1,n),1)))/(2.0*dx[0]) +
+		       (C(i,1,k,0,amrex::IntVect(m,n+1),amrlev,mglev,etafab(amrex::IntVect(m,n+1),0),etafab(amrex::IntVect(m,n+1),1)) - 
+		      C(i,1,k,0,amrex::IntVect(m,n-1),amrlev,mglev,etafab(amrex::IntVect(m,n-1),0),etafab(amrex::IntVect(m,n-1),1)))/(2.0*dx[1])) *
+		      ((ufab(amrex::IntVect(m+1,n),k) - ufab(amrex::IntVect(m-1,n),k))/(2.0*dx[0]))
+		      +
+		      ((C(i,0,k,1,amrex::IntVect(m+1,n),amrlev,mglev,etafab(amrex::IntVect(m+1,n),0),etafab(amrex::IntVect(m+1,n),1)) - 
+		      C(i,0,k,1,amrex::IntVect(m-1,n),amrlev,mglev,etafab(amrex::IntVect(m-1,n),0),etafab(amrex::IntVect(m-1,n),1)))/(2.0*dx[0]) +
+		       (C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev,etafab(amrex::IntVect(m,n+1),0),etafab(amrex::IntVect(m,n+1),1)) - 
+		      C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev,etafab(amrex::IntVect(m,n-1),0),etafab(amrex::IntVect(m,n-1),1)))/(2.0*dx[1])) *
+		      ((ufab(amrex::IntVect(m,n+1),k) - ufab(amrex::IntVect(m,n-1),k))/(2.0*dx[1]));
+		      
+		  }
+	      }
+	  }
+
+      //for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+      //  for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+      //  {
+
+	    //amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilon(AMREX_SPACEDIM);
 	    
-	    for (int n = 0; n < AMREX_SPACEDIM; n++)
-	      gradepsilon[n] <<
-		(ufab(amrex::IntVect(i+1,j),n) + ufab(amrex::IntVect(i-1,j),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[0]/dx[0],
-		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
-		(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
-		(ufab(amrex::IntVect(i,j+1),n) + ufab(amrex::IntVect(i,j-1),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[1]/dx[1];
+	    //for (int n = 0; n < AMREX_SPACEDIM; n++)
+	    //  gradepsilon[n] <<
+	    //	(ufab(amrex::IntVect(i+1,j),n) + ufab(amrex::IntVect(i-1,j),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[0]/dx[0],
+	    //	(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
+	    //	(ufab(amrex::IntVect(i+1,j+1),n) + ufab(amrex::IntVect(i-1,j-1),n) - ufab(amrex::IntVect(i+1,j-1),n) - ufab(amrex::IntVect(i-1,j+1),n))/(2.*dx[0])/(2.*dx[1]),
+	    //	(ufab(amrex::IntVect(i,j+1),n) + ufab(amrex::IntVect(i,j-1),n) - 2.*ufab(amrex::IntVect(i,j),n))/dx[1]/dx[1];
 
-	    amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
-	    amrex::Real mu,lambda;
-	    if (y>0.0) {mu = mu1; lambda=lambda1;}
-	    else {mu = mu2; lambda=lambda2;}
+	    //amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+	    //amrex::Real mu,lambda;
+	    //if (y>0.0) {mu = mu1; lambda=lambda1;}
+	    //else {mu = mu2; lambda=lambda2;}
 	    // amrex::Real mu,lambda;
 	    // if (x>2.5) {mu = mu1; lambda=lambda1;}
 	    // else {mu = mu2; lambda=lambda2;}
-	    // amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
-	    // amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+	    //amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+	    //amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
 
 	    //if (mglev>2) std::cout << "mu = " << mu << " lambda = " << lambda << std::endl;
 	    // ffab(amrex::IntVect(i,j),0) = mu;
 	    // ffab(amrex::IntVect(i,j),1) = lambda;
 
-	    for (int p = 0; p < AMREX_SPACEDIM; p++)
-	      {
-	    	ffab(amrex::IntVect(i,j),p) = 0.0;
-	    	for (int q = 0; q < AMREX_SPACEDIM; q++)
-	    	  {
-	    	    ffab(amrex::IntVect(i,j),p) -= 2.0*mu*gradepsilon[p](q,q);
-	    	    for (int k=0; k<AMREX_SPACEDIM; k++)
-	    	      ffab(amrex::IntVect(i,j),p) -= lambda * gradepsilon[k](k,p);
-	    	  }
-	      }	    
-	  }
+	    //for (int p = 0; p < AMREX_SPACEDIM; p++)
+	      //{
+	    	//ffab(amrex::IntVect(i,j),p) = 0.0;
+	    	//for (int q = 0; q < AMREX_SPACEDIM; q++)
+	    	  //{
+	    	    //ffab(amrex::IntVect(i,j),p) -= 2.0*mu*gradepsilon[p](q,q);
+	    	    //for (int k=0; k<AMREX_SPACEDIM; k++)
+	    	      //ffab(amrex::IntVect(i,j),p) -= lambda * gradepsilon[k](k,p);
+	    	  //}
+	      //}	    
+	  //}
     }
 }
 
@@ -219,82 +261,157 @@ MLPFStiffnessMatrix::Fsmooth (int amrlev,          ///<[in] AMR level
   for (MFIter mfi(sol,MFItInfo().EnableTiling().SetDynamic(true));
        mfi.isValid(); ++mfi)
     {
-      const Box&       tbx     = mfi.tilebox();
-      FArrayBox&       solnfab = sol[mfi];
-      const FArrayBox& rhsfab  = rhs[mfi];
+      const Box&       tbx     	= mfi.tilebox();
+      FArrayBox&       ufab 	= sol[mfi];
+      const FArrayBox& rhsfab  	= rhs[mfi];
       const amrex::BaseFab<amrex::Real> &etafab = m_a_coeffs[amrlev][mglev][mfi];
 
-      	for (int j = tbx.loVect()[1]; j<=tbx.hiVect()[1]; j++)
-       	  {
-       	    int ioffset = (tbx.loVect()[0] + j + redblack)%2;
-       	    for (int i = tbx.loVect()[0] + ioffset; i <= tbx.hiVect()[0]; i+= 2)
-       	      {
+      for (int n = tbx.loVect()[1]; n<=tbx.hiVect()[1]; n++)
+	{
+	  int noffset = (tbx.loVect()[0] + n + redblack)%2;
+	  for (int m = tbx.loVect()[0] + noffset; m <= tbx.hiVect()[0]; m+= 2)
+	    {
+	      for (int i=0; i<AMREX_SPACEDIM; i++)
+		{
+		  amrex::Real rho = 0.0, aa = 0.0;
+		      
+		  for (int k=0; k<AMREX_SPACEDIM; k++)
+		    {
 
-		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonD(AMREX_SPACEDIM);
-		amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonR(AMREX_SPACEDIM);
+		      rho -= 
+			C(i,0,k,0,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1))
+			*(ufab(amrex::IntVect(m+1,n),k) - (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k)) + ufab(amrex::IntVect(m-1,n),k))/dx[0]/dx[0]
+			+ 
+			(C(i,0,k,1,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1)) + 
+		        C(i,1,k,0,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1)))
+			*(ufab(amrex::IntVect(m+1,n+1),k) + ufab(amrex::IntVect(m-1,n-1),k) - ufab(amrex::IntVect(m+1,n-1),k) - ufab(amrex::IntVect(m-1,n+1),k))/(2.0*dx[0])/(2.0*dx[1])
+			+
+			C(i,1,k,1,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1))
+			*(ufab(amrex::IntVect(m,n+1),k) - (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k)) + ufab(amrex::IntVect(m,n-1),k))/dx[1]/dx[1];
+			
 
-		amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
-		amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
-		amrex::Real mu,lambda;
-		if (y>0.0) {mu = mu1; lambda=lambda1;}
-		else {mu = mu2; lambda=lambda2;}
+		      // C_{ijkl,j} u_{k,l}
 
-		// amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
-		// amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+		      rho -= 
+		        ((C(i,0,k,0,amrex::IntVect(m+1,n),amrlev,mglev,etafab(amrex::IntVect(m+1,n),0),etafab(amrex::IntVect(m+1,n),1)) - 
+		        C(i,0,k,0,amrex::IntVect(m-1,n),amrlev,mglev,etafab(amrex::IntVect(m-1,n),0),etafab(amrex::IntVect(m-1,n),1)))/(2.0*dx[0]) +
+		         (C(i,1,k,0,amrex::IntVect(m,n+1),amrlev,mglev,etafab(amrex::IntVect(m,n+1),0),etafab(amrex::IntVect(m,n+1),1)) - 
+		        C(i,1,k,0,amrex::IntVect(m,n-1),amrlev,mglev,etafab(amrex::IntVect(m,n-1),0),etafab(amrex::IntVect(m,n-1),1)))/(2.0*dx[1])) *
+		        ((ufab(amrex::IntVect(m+1,n),k) - ufab(amrex::IntVect(m-1,n),k))/(2.0*dx[0]))
+		        +
+		        ((C(i,0,k,1,amrex::IntVect(m+1,n),amrlev,mglev,etafab(amrex::IntVect(m+1,n),0),etafab(amrex::IntVect(m+1,n),1)) - 
+		        C(i,0,k,1,amrex::IntVect(m-1,n),amrlev,mglev,etafab(amrex::IntVect(m-1,n),0),etafab(amrex::IntVect(m-1,n),1)))/(2.0*dx[0]) +
+		         (C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev,etafab(amrex::IntVect(m,n+1),0),etafab(amrex::IntVect(m,n+1),1)) - 
+			C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev,etafab(amrex::IntVect(m,n-1),0),etafab(amrex::IntVect(m,n-1),1)))/(2.0*dx[1])) *
+		        ((ufab(amrex::IntVect(m,n+1),k) - ufab(amrex::IntVect(m,n-1),k))/(2.0*dx[1]));
 
-		for (int p = 0; p < AMREX_SPACEDIM; p++)
+		if (rho != rho)
 		  {
-		    for (int q = 0; q < AMREX_SPACEDIM; q++)
-		      if (q==p)
-			{
-			  gradepsilonR[q] <<
-			    (solnfab(amrex::IntVect(i+1,j),q) + solnfab(amrex::IntVect(i-1,j),q))/dx[0]/dx[0],
-			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
-			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
-			    (solnfab(amrex::IntVect(i,j+1),q) + solnfab(amrex::IntVect(i,j-1),q))/dx[1]/dx[1];
-		
-			  gradepsilonD[q] <<
-			    -2.0/dx[0]/dx[0],
-			    0.0,
-			    0.0,
-			    -2.0/dx[1]/dx[1];
-			}
-		      else
-			{
-			  gradepsilonR[q] <<
-			    (solnfab(amrex::IntVect(i+1,j),q) + solnfab(amrex::IntVect(i-1,j),q) - 2.*solnfab(amrex::IntVect(i,j),q))/dx[0]/dx[0],
-			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
-			    (solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
-			    (solnfab(amrex::IntVect(i,j+1),q) + solnfab(amrex::IntVect(i,j-1),q) - 2.*solnfab(amrex::IntVect(i,j),q))/dx[1]/dx[1];
-		
-			  gradepsilonD[q] <<
-			    0.0,
-			    0.0,
-			    0.0,
-			    0.0;
-			}
-		
-		    amrex::Real rho = 0.0;
-
-		    for (int q = 0; q < AMREX_SPACEDIM; q++)
-		      {
-			rho -= 2.0*mu*gradepsilonR[p](q,q);
-			for (int k=0; k<AMREX_SPACEDIM; k++)
-			  rho -= lambda * gradepsilonR[k](k,p);
-		      }
-
-		    amrex::Real aa = 0.0;
-		    for (int q = 0; q < AMREX_SPACEDIM; q++)
-		      {
-			aa -= 2.0*mu*gradepsilonD[p](q,q);
-			for (int k=0; k<AMREX_SPACEDIM; k++)
-			  aa -= lambda * gradepsilonD[k](k,p);
-		      }
-
-		    solnfab(amrex::IntVect(i,j),p) = (rhsfab(amrex::IntVect(i,j),p) - rho) / aa;
+		    std::cout << "amrlev = " << amrlev << " mglev = " << mglev << " i = " << i << " k = " << k << " m = " << m << " n = " << n << std::endl;
+		    std::cout << "etafab(amrex::IntVect(" << m << "," << n << ") = " << etafab(amrex::IntVect(m,n),0) << " , " << etafab(amrex::IntVect(m,n),1) << std::endl;
+		    std::cout << "etafab(amrex::IntVect(" << m+1 << "," << n << ") = " << etafab(amrex::IntVect(m+1,n),0) << " , " << etafab(amrex::IntVect(m+1,n),1) << std::endl;
+		    std::cout << "etafab(amrex::IntVect(" << m-1 << "," << n << ") = " << etafab(amrex::IntVect(m-1,n),0) << " , " << etafab(amrex::IntVect(m-1,n),1) << std::endl;
+		    std::cout << "etafab(amrex::IntVect(" << m << "," << n+1 << ") = " << etafab(amrex::IntVect(m,n+1),0) << " , " << etafab(amrex::IntVect(m,n+1),1) << std::endl;
+		    std::cout << "etafab(amrex::IntVect(" << m << "," << n-1 << ") = " << etafab(amrex::IntVect(m,n-1),0) << " , " << etafab(amrex::IntVect(m,n-1),1) << std::endl;
+		    std::cout << C(i,0,k,0,amrex::IntVect(m+1,n),amrlev,mglev,etafab(amrex::IntVect(m+1,n),0),etafab(amrex::IntVect(m+1,n),1)) << std::endl;
+		    std::cout << C(i,0,k,0,amrex::IntVect(m-1,n),amrlev,mglev,etafab(amrex::IntVect(m-1,n),0),etafab(amrex::IntVect(m-1,n),1)) << std::endl;
+		    std::cout << C(i,1,k,0,amrex::IntVect(m,n+1),amrlev,mglev,etafab(amrex::IntVect(m,n+1),0),etafab(amrex::IntVect(m,n+1),1)) << std::endl;
+		    std::cout << C(i,1,k,0,amrex::IntVect(m,n-1),amrlev,mglev,etafab(amrex::IntVect(m,n-1),0),etafab(amrex::IntVect(m,n-1),1)) << std::endl;
+		    std::cout << C(i,0,k,1,amrex::IntVect(m+1,n),amrlev,mglev,etafab(amrex::IntVect(m+1,n),0),etafab(amrex::IntVect(m+1,n),1)) << std::endl;
+		    std::cout << C(i,0,k,1,amrex::IntVect(m-1,n),amrlev,mglev,etafab(amrex::IntVect(m-1,n),0),etafab(amrex::IntVect(m-1,n),1)) << std::endl;
+		    std::cout << C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev,etafab(amrex::IntVect(m,n+1),0),etafab(amrex::IntVect(m,n+1),1)) << std::endl;
+		    std::cout << C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev,etafab(amrex::IntVect(m,n-1),0),etafab(amrex::IntVect(m,n-1),1)) << std::endl;
+		    amrex::Abort("nans detected");
 		  }
-       	      }
-       	  }
+		      
+		    }
+
+		  aa -= 
+		    -2.0*C(i,0,i,0,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1))/dx[0]/dx[0]
+		    -2.0*C(i,1,i,1,amrex::IntVect(m,n),amrlev,mglev,etafab(amrex::IntVect(m,n),0),etafab(amrex::IntVect(m,n),1))/dx[1]/dx[1];
+
+		  if (rho != rho)
+		  {
+		    amrex::Abort("nans detected");
+		  }
+		  
+		  ufab(amrex::IntVect(m,n),i) = (rhsfab(amrex::IntVect(m,n),i) - rho) / aa;
+		}
+	    }
+	}
+
+      	//for (int j = tbx.loVect()[1]; j<=tbx.hiVect()[1]; j++)
+       	  //{
+       	    //int ioffset = (tbx.loVect()[0] + j + redblack)%2;
+       	    //for (int i = tbx.loVect()[0] + ioffset; i <= tbx.hiVect()[0]; i+= 2)
+       	      //{
+
+		//amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonD(AMREX_SPACEDIM);
+		//amrex::Array<Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM> > gradepsilonR(AMREX_SPACEDIM);
+
+		//amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
+		//amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+		//amrex::Real mu,lambda;
+		//if (y>0.0) {mu = mu1; lambda=lambda1;}
+		//else {mu = mu2; lambdSTEP 1 starts ...
+
+
+		//amrex::Real mu = (mu1*etafab(amrex::IntVect(i,j),0) + mu2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+		//amrex::Real lambda = (lambda1*etafab(amrex::IntVect(i,j),0) + lambda2*etafab(amrex::IntVect(i,j),1))/(etafab(amrex::IntVect(i,j),0) + etafab(amrex::IntVect(i,j),1));
+
+		//for (int p = 0; p < AMREX_SPACEDIM; p++)
+		  //{
+		    //for (int q = 0; q < AMREX_SPACEDIM; q++)
+		      //if (q==p)
+			//{
+			  //gradepsilonR[q] <<
+			    //(solnfab(amrex::IntVect(i+1,j),q) + solnfab(amrex::IntVect(i-1,j),q))/dx[0]/dx[0],
+			    //(solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    //(solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    //(solnfab(amrex::IntVect(i,j+1),q) + solnfab(amrex::IntVect(i,j-1),q))/dx[1]/dx[1];
+		
+			  //gradepsilonD[q] <<
+			    //-2.0/dx[0]/dx[0],
+			    //0.0,
+			    //0.0,
+			    //-2.0/dx[1]/dx[1];
+			//}
+		      //else
+			//{
+			  //gradepsilonR[q] <<
+			    //(solnfab(amrex::IntVect(i+1,j),q) + solnfab(amrex::IntVect(i-1,j),q) - 2.*solnfab(amrex::IntVect(i,j),q))/dx[0]/dx[0],
+			    //(solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    //(solnfab(amrex::IntVect(i+1,j+1),q) + solnfab(amrex::IntVect(i-1,j-1),q) - solnfab(amrex::IntVect(i+1,j-1),q) - solnfab(amrex::IntVect(i-1,j+1),q))/(2.*dx[0])/(2.*dx[1]),
+			    //(solnfab(amrex::IntVect(i,j+1),q) + solnfab(amrex::IntVect(i,j-1),q) - 2.*solnfab(amrex::IntVect(i,j),q))/dx[1]/dx[1];
+		
+			  //gradepsilonD[q] <<
+			    //0.0,
+			    //0.0,
+			    //0.0,
+			    //0.0;
+			//}
+		
+		    //amrex::Real rho = 0.0;
+
+		    //for (int q = 0; q < AMREX_SPACEDIM; q++)
+		      //{
+			//rho -= 2.0*mu*gradepsilonR[p](q,q);
+			//for (int k=0; k<AMREX_SPACEDIM; k++)
+			  //rho -= lambda * gradepsilonR[k](k,p);
+		      //}
+
+		    //amrex::Real aa = 0.0;
+		    //for (int q = 0; q < AMREX_SPACEDIM; q++)
+		      //{
+			//aa -= 2.0*mu*gradepsilonD[p](q,q);
+			//for (int k=0; k<AMREX_SPACEDIM; k++)
+			  //aa -= lambda * gradepsilonD[k](k,p);
+		      //}
+
+		    //solnfab(amrex::IntVect(i,j),p) = (rhsfab(amrex::IntVect(i,j),p) - rho) / aa;
+		  //}
+       	      //}
+       	  //}
     }
 }
 
@@ -326,4 +443,35 @@ MLPFStiffnessMatrix::getNComp() const
   return AMREX_SPACEDIM;
 }
 
+amrex::Real
+MLPFStiffnessMatrix::C(const int i, const int j, const int k, const int l,
+		     const amrex::IntVect loc,
+		     int amrlev, int mglev,
+		     const amrex::Real eta1, const amrex::Real eta2) const
+{
+  amrex::Real mu, lambda;
+  //amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(loc[0]) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
+  //amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(loc[1]) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+  //mu = mu1 + y*(mu2-mu1);
+  //lambda = lambda1 + y*(lambda2-lambda1);
+  //if (y>0.5) {mu=mu1; lambda=lambda1; }
+  //else {mu=mu2; lambda=lambda2;}
+  if(eta1 == 0 && eta2 == 0)
+  {
+    mu = 0; lambda = 0;
+  }
+  //else if(eta1 != eta1 || eta2 != eta2)
+  //{
+  //  mu = 0; lambda = 0;
+  //}
+  else
+  {
+    mu = (mu1*eta1 + mu2*eta2)/(eta1+eta2);
+    lambda = (lambda1*eta1 + lambda2*eta2)/(eta1+eta2);
+  }
 
+  amrex::Real ret = 0.0;
+  if (i==k && j==l) ret += mu;
+  if (i==l && j==k) ret += mu;
+  if (i==j && k==l) ret += lambda;
+};
