@@ -242,13 +242,49 @@ MLPFStiffnessMatrix::Fsmooth (int amrlev,          ///<[in] AMR level
 		         (C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev,mfi) - C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev,mfi))/(2.0*dx[1])) *
 		        ((ufab(amrex::IntVect(m,n+1),k) - ufab(amrex::IntVect(m,n-1),k))/(2.0*dx[1]));
 		      
+
+
+		      if (rho != rho){
+		      std::cout << __LINE__ << ": " << C(i,0,k,0,amrex::IntVect(m,n),amrlev,mglev,mfi) << std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m+1,n),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k))<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m-1,n),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,0,k,1,amrex::IntVect(m,n),amrlev,mglev,mfi) << std::endl;
+		      std::cout << __LINE__ << ": " << C(i,1,k,0,amrex::IntVect(m,n),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m+1,n+1),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m-1,n-1),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m+1,n-1),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m-1,n+1),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,1,k,1,amrex::IntVect(m,n),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m,n+1),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k))<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m,n-1),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,0,k,0,amrex::IntVect(m+1,n),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,0,k,0,amrex::IntVect(m-1,n),amrlev,mglev,mfi)<< std::endl; // NAN NAN
+		      std::cout << __LINE__ << ": " << C(i,1,k,0,amrex::IntVect(m,n+1),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,1,k,0,amrex::IntVect(m,n-1),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m+1,n),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m-1,n),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,0,k,1,amrex::IntVect(m+1,n),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,0,k,1,amrex::IntVect(m-1,n),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev,mfi)<< std::endl;
+		      std::cout << __LINE__ << ": " << C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev,mfi)<< std::endl; // NAN NAN
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m,n+1),k)<< std::endl;
+		      std::cout << __LINE__ << ": " << ufab(amrex::IntVect(m,n-1),k)<< std::endl;
+		      std::cout << std::endl;
+		      amrex::Abort("nans detected");}
+
+
+
+
 		    }
 
 		  aa -= 
 		    -2.0*C(i,0,i,0,amrex::IntVect(m,n),amrlev,mglev,mfi)/dx[0]/dx[0]
 		    -2.0*C(i,1,i,1,amrex::IntVect(m,n),amrlev,mglev,mfi)/dx[1]/dx[1];
 
-		  if (rho != rho) amrex::Abort("nans detected");
+		  //if (rho != rho) amrex::Abort("nans detected");
+		  //if (rho != rho) std::cout << "nans detetected" << std::endl;
 		  
 		  ufab(amrex::IntVect(m,n),i) = (rhsfab(amrex::IntVect(m,n),i) - rho) / aa;
 		}
@@ -294,21 +330,35 @@ MLPFStiffnessMatrix::C(const int i, const int j, const int k, const int l,
 {
   amrex::Real mu, lambda;
 
- amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(loc[0]) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
-   amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(loc[1]) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
-   if (y>0.0) {mu=mu1; lambda=lambda1; }
-   else {mu=mu2; lambda=lambda2;}
+  // amrex::Real x = m_geom[amrlev][mglev].ProbLo()[0] + ((amrex::Real)(loc[0]) + 0.5) * m_geom[amrlev][mglev].CellSize()[0];
+  //  amrex::Real y = m_geom[amrlev][mglev].ProbLo()[1] + ((amrex::Real)(loc[1]) + 0.5) * m_geom[amrlev][mglev].CellSize()[1];
+  //  if (y>0.0) {mu=mu1; lambda=lambda1; }
+  //  else {mu=mu2; lambda=lambda2;}
 
-  // const amrex::BaseFab<amrex::Real> &etafab = m_a_coeffs[amrlev][mglev][mfi];
-  // mu = (mu1*etafab(loc,0) + mu2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
-  // lambda = (lambda1*etafab(loc,0) + lambda2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
+  const amrex::BaseFab<amrex::Real> &etafab = m_a_coeffs[amrlev][mglev][mfi];
+  mu = (mu1*etafab(loc,0) + mu2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
+  lambda = (lambda1*etafab(loc,0) + lambda2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
  
+  // TODO: This is a hack, needs to be fixed.
+  if (mu != mu) mu = 0.5*(mu1+mu2);
+  if (lambda != lambda) lambda = 0.5*(lambda1+lambda2);
+
   //std::cout << "(" << mu << ","<<lambda << ") ";
 
   amrex::Real ret = 0.0;
   if (i==k && j==l) ret += mu;
   if (i==l && j==k) ret += mu;
   if (i==j && k==l) ret += lambda;
+
+  if (ret != ret)
+    {
+      //return 0.
+	//std::cout << "eta1 = " << etafab(loc,0) << " eta2 = " << etafab(loc,1) << std::endl;
+      //std::cout << "mu="<<mu<<" lambda="<<lambda<<std::endl;
+      amrex::Abort("NAN DETECTED");
+    }
+
+  return ret;
 };
 
 
