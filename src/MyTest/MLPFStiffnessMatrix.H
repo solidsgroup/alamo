@@ -89,8 +89,12 @@ protected:
     amrex::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
     return std::unique_ptr<MLLinOp>{};
   }
+  
+  virtual bool isCrossStencil () const { return false; }
 
 private:
+
+  amrex::Real C(const int i, const int j, const int k, const int l, amrex::IntVect loc, int amrlev, int mglev, amrex::MFIter &mfi) const;
 
   amrex::Real mu1, mu2;     ///< First Lame parameter
   amrex::Real lambda1, lambda2; ///< Second Lame parameter
