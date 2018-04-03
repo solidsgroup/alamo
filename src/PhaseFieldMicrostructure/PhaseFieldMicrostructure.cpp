@@ -66,6 +66,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
   RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
   RegisterNewFab(strain, mybc, 3, 1, "eps");
+  RegisterNewFab(stress, mybc, 3, 1, "sig");
 }
 
 
@@ -343,8 +344,8 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
   	{
   	  const Box& bx = mfi.tilebox();
 
-  	  amrex::BaseFab<amrex::Real> &ufab  = (*displacement[lev])[mfi];
-  	  amrex::BaseFab<amrex::Real> &epsfab  = (*strain[lev])[mfi];
+  	  FArrayBox &ufab  = (*displacement[lev])[mfi];
+  	  FArrayBox &epsfab  = (*strain[lev])[mfi];
   	  for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
   	    for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
   	      {
@@ -354,6 +355,9 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 		  0.5*(ufab(amrex::IntVect(i+1,j),1) - ufab(amrex::IntVect(i-1,j),1))/(2.0*dx[0]) + 
 		  0.5*(ufab(amrex::IntVect(i,j+1),0) - ufab(amrex::IntVect(i,j-1),0))/(2.0*dx[1]);
   	      }
+
+	  FArrayBox &sigmafab  = (*stress[lev])[mfi];
+	  linop.Stress(sigmafab,ufab,lev,mfi);
   	}
     }
 }
