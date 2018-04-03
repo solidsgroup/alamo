@@ -28,6 +28,11 @@ public:
   Elastic& operator= (const Elastic&) = delete;
   Elastic& operator= (Elastic&&) = delete;
 
+  void Stress (FArrayBox& sigmafab,
+	       const FArrayBox& ufab,
+	       int amrlev, const MFIter& mfi) const;
+
+
 protected:
   virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
   virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const final;

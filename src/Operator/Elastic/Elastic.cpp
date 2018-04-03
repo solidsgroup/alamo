@@ -165,8 +165,8 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 ///
 void
 Operator::Elastic::Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
-			  const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
-			  const FArrayBox& /*ufab*/, const int /*face_only*/) const
+				   const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
+				   const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
 
   amrex::BaseFab<amrex::Real> &fxfab = *sigmafab[0];
@@ -175,5 +175,45 @@ Operator::Elastic::Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
   fyfab.setVal(0.0);
 }
 
+void
+Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
+				    const FArrayBox& ufab,
+				    int amrlev, const MFIter& mfi) const
+{
+  /// \todo add assert for sigmafab.ncomp=3 (for SPACEDIM=2) and ncomp=6 (for SPACEDIM=3)
 
+  const amrex::Real* DX = m_geom[amrlev][0].CellSize();  
+
+  amrex::IntVect dx(1,0);
+  amrex::IntVect dy(0,1);
+
+  const Box& bx = mfi.tilebox();
+  for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+    for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+      {
+	amrex::IntVect m(m1,m2);
+
+	for (int i=0; i<AMREX_SPACEDIM; i++)
+	  for (int j=0; j<AMREX_SPACEDIM; j++)
+	    {
+	      int voigt;
+	      if (i==0 && j==0) voigt = 0;
+	      if (i==1 && j==1) voigt = 1;
+	      if (i==0 && j==1) voigt = 2;
+	      if (i==1 && j==0) continue;
+	      
+	      amrex::Real du1_dx1 = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+	      amrex::Real du1_dx2 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+	      amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
+	      amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+	      
+	      sigmafab(m,voigt) =
+		C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 +
+		C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 +
+		C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 +
+		C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
+	    }
+      }
+
+}
 
