@@ -67,6 +67,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
   RegisterNewFab(strain, mybc, 3, 1, "eps");
   RegisterNewFab(stress, mybc, 3, 1, "sig");
+  RegisterNewFab(energy, mybc, 1, 1, "W");
 }
 
 
@@ -358,6 +359,9 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 
 	  FArrayBox &sigmafab  = (*stress[lev])[mfi];
 	  linop.Stress(sigmafab,ufab,lev,mfi);
+
+	  FArrayBox &energyfab  = (*energy[lev])[mfi];
+	  linop.Energy(energyfab,ufab,lev,mfi);
   	}
     }
 }
