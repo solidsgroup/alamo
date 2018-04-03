@@ -193,6 +193,11 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
       {
 	amrex::IntVect m(m1,m2);
 
+	amrex::Real du1_dx1 = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+	amrex::Real du1_dx2 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+	amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
+	amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+
 	for (int i=0; i<AMREX_SPACEDIM; i++)
 	  for (int j=0; j<AMREX_SPACEDIM; j++)
 	    {
@@ -201,12 +206,7 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 	      if (i==1 && j==1) voigt = 1;
 	      if (i==0 && j==1) voigt = 2;
 	      if (i==1 && j==0) continue;
-	      
-	      amrex::Real du1_dx1 = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-	      amrex::Real du1_dx2 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
-	      amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
-	      amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-	      
+
 	      sigmafab(m,voigt) =
 		C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 +
 		C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 +
@@ -217,3 +217,34 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 
 }
 
+void
+Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
+				    const FArrayBox& ufab,
+				    int amrlev, const MFIter& mfi) const
+{
+  const amrex::Real* DX = m_geom[amrlev][0].CellSize();  
+
+  amrex::IntVect dx(1,0);
+  amrex::IntVect dy(0,1);
+
+  const Box& bx = mfi.tilebox();
+  for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+    for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+      {
+	amrex::IntVect m(m1,m2);
+
+	amrex::Real gradu[2][2] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
+				    (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
+				   {(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
+				    (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])}};
+
+	energyfab(m) = 0.0;
+	
+	for (int i=0; i<AMREX_SPACEDIM; i++)
+	  for (int j=0; j<AMREX_SPACEDIM; j++)
+	    for (int k=0; k<AMREX_SPACEDIM; k++)
+	      for (int l=0; l<AMREX_SPACEDIM; l++)
+		energyfab(m) += gradu[i][j] * C(i,j,k,l,m,amrlev,0,mfi) * gradu[k][l];
+      }
+
+}

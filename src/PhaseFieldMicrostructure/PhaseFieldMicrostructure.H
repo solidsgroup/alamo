@@ -60,6 +60,7 @@ private:
   amrex::Array<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Array<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Array<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > energy; ///< Multicomponent field variable storing pointwise displacements
 
   GeneralAMRIntegratorPhysBC mybc;
 

@@ -31,7 +31,9 @@ public:
   void Stress (FArrayBox& sigmafab,
 	       const FArrayBox& ufab,
 	       int amrlev, const MFIter& mfi) const;
-
+  void Energy (FArrayBox& energyfab,
+	       const FArrayBox& ufab,
+	       int amrlev, const MFIter& mfi) const;
 
 protected:
   virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
