@@ -1,4 +1,5 @@
 #include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
+#include "Operator/Elastic/Isotropic/Isotropic.H"
 
 #if BL_SPACEDIM == 2
 
@@ -261,7 +262,10 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
   LPInfo info;
   info.setAgglomeration(true);
   info.setConsolidation(true);
-  MLPFStiffnessMatrix linop(geom,grids,dmap,info);
+
+  Operator::Elastic::Isotropic linop; 
+
+  linop.define(geom,grids,dmap,info);
 
   linop.setMaxOrder(2);
   
@@ -272,13 +276,9 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 				  LinOpBCType::Dirichlet,
 				  LinOpBCType::Dirichlet)});
 
-  for (int ilev=0; ilev < eta_new.size(); ilev++)
-    {
-      linop.setACoeffs(ilev, *eta_new[ilev].get());
-    }
+  linop.SetEta(eta_new);
 
 
-  /// \todo This is not really necessary, should be handled with BC object.
   for (int ilev = 0; ilev < displacement.size(); ++ilev)
     {
       amrex::Box domain(geom[ilev].Domain());
@@ -317,11 +317,9 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
       /// \todo Replace with proper driving force initialization
       body_force[ilev]->setVal(0.0,0);
       body_force[ilev]->setVal(0.0,1);
-      /// \todo get rid of this line
-      std::cout << "iteration = " << iter << std::endl;
+
       if (iter==0)
 	{
-	  std::cout << "initialization" << std::endl;
 	  displacement[ilev]->setVal(0.0);
 	}
     }
@@ -331,17 +329,12 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
   solver.setMaxIter(200);
   solver.setMaxFmgIter(0);
   solver.setVerbose(3);
-  solver.setCGVerbose(3);
+  solver.setCGVerbose(0);
 
   solver.solve(GetVecOfPtrs(displacement),
      	       GetVecOfConstPtrs(body_force), 
      	       tol_rel,
      	       tol_abs);
-
-  // for (int lev = 0; lev < displacement.size(); lev++)
-  //   {
-  //     linop.test(lev,1,*body_force[lev],*displacement[lev]);
-  //   }
   
   for (int lev = 0; lev < displacement.size(); lev++)
     {
