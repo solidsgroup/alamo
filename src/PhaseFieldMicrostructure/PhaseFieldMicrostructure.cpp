@@ -259,8 +259,8 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
   info.setAgglomeration(true);
   info.setConsolidation(true);
 
-  //Operator::Elastic::Isotropic linop;
-  Operator::Elastic::Cubic linop;
+  Operator::Elastic::Isotropic linop;
+  //Operator::Elastic::Cubic linop;
 
   linop.define(geom,grids,dmap,info);
 
@@ -273,7 +273,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
 				  LinOpBCType::Dirichlet,
 				  LinOpBCType::Dirichlet)});
 
-  linop.SetEta(eta_new);
+  linop.SetEta(eta_new,mybc);
 
 
   for (int ilev = 0; ilev < displacement.size(); ++ilev)

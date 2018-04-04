@@ -3,8 +3,8 @@
 #include "eigen3/Eigen/Core"
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
-
 #include <AMReX_ArrayLim.H>
+
 
 Operator::Operator::Operator (const Vector<Geometry>& a_geom,
 		    const Vector<BoxArray>& a_grids,
@@ -24,7 +24,8 @@ Operator::Operator::define (const Vector<Geometry>& a_geom,
 }
 
 void
-Operator::Operator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &input)
+Operator::Operator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &input,
+				   GeneralAMRIntegratorPhysBC &new_bc)
 {
   /// \todo assertions here
   m_a_coeffs.resize(m_a_coeffs.size() + 1);
@@ -37,12 +38,15 @@ Operator::Operator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab>
 				m_dmap[amrlev][mglev],
 				input[amrlev].get()->nComp(),
 				input[amrlev].get()->nGrow());
-      MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
-				*input[amrlev].get(), 0, 0,
-				input[amrlev].get()->nComp(),
-				input[amrlev].get()->nGrow());
+
+		MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+			       *input[amrlev].get(), 0, 0,
+			       input[amrlev].get()->nComp(),
+			       input[amrlev].get()->nGrow());
 	}
   m_num_a_fabs++;
+
+  physbc_array.push_back(&new_bc); 
 }
 
 const amrex::FArrayBox &
@@ -62,6 +66,17 @@ Operator::Operator::averageDownCoeffs ()
 			averageDownCoeffsSameAmrLevel(fine_a_coeffs);
 		}
 		averageDownCoeffsSameAmrLevel(m_a_coeffs[i][0]);
+
+		for (int amrlev = 0; amrlev < m_num_amr_levels; amrlev++)
+		{
+			physbc_array[i]->SetLevel(amrlev);
+			for (int mglev = 0 ; mglev < m_num_mg_levels[amrlev]; mglev++)
+			{
+				/// \todo The last three arguments of FillBoundary are currently unused,
+				///       but we will need to modify them here if we ever use them
+				physbc_array[i]->FillBoundary(m_a_coeffs[i][amrlev][mglev],0,0,0.0);
+			}
+		}
 	}
 }
 
@@ -69,7 +84,7 @@ void
 Operator::Operator::averageDownCoeffsSameAmrLevel (Vector<MultiFab>& a)
 {
 	int nmglevs = a.size();
-  for (int mglev = 1; mglev < nmglevs; ++mglev)
+	for (int mglev = 1; mglev < nmglevs; ++mglev)
 	{
 		amrex::average_down(a[mglev-1], a[mglev], 0, a[0].nComp(), mg_coarsen_ratio);
 	}
