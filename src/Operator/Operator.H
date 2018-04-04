@@ -5,6 +5,8 @@
 #include <AMReX_Array.H>
 #include <limits>
 
+#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
+
 using namespace amrex;
 
 namespace Operator
@@ -37,7 +39,8 @@ public:
   
 protected:
 
-  void RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &input);
+  void RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &input,
+		      GeneralAMRIntegratorPhysBC &new_bc);
   const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
 
@@ -74,6 +77,7 @@ private:
   int current_amrlev = 0;
   int current_mglev = 0;
   amrex::MFIter *current_mfiter;
+  amrex::Array<GeneralAMRIntegratorPhysBC *> physbc_array;
 };
 }
 #endif

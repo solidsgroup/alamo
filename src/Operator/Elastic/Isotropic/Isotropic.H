@@ -27,7 +27,8 @@ public:
   /// \brief Destructor (does nothing)
   virtual ~Isotropic () {};
 
-  void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta);
+  void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta,
+	      GeneralAMRIntegratorPhysBC &eta_bc);
 
 protected:
 
