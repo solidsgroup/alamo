@@ -30,19 +30,19 @@ Operator::Operator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab>
   m_a_coeffs.resize(m_a_coeffs.size() + 1);
   m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
   for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
-    {
-      m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
-      for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
-	m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
-						       m_dmap[amrlev][mglev],
-						       input[amrlev].get()->nComp(),
-						       input[amrlev].get()->nGrow());
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+				m_dmap[amrlev][mglev],
+				input[amrlev].get()->nComp(),
+				input[amrlev].get()->nGrow());
       MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
-		     *input[amrlev].get(), 0, 0,
-		     input[amrlev].get()->nComp(),
-		     input[amrlev].get()->nGrow());
-    }
-  m_num_a_fabs++; 
+				*input[amrlev].get(), 0, 0,
+				input[amrlev].get()->nComp(),
+				input[amrlev].get()->nGrow());
+	}
+  m_num_a_fabs++;
 }
 
 const amrex::FArrayBox &
@@ -54,39 +54,39 @@ Operator::Operator::GetFab(const int num, const int amrlev, const int mglev, con
 void
 Operator::Operator::averageDownCoeffs ()
 {
-  for (int i = 0; i < m_num_a_fabs; i++)
-    {
-      for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+	for (int i = 0; i < m_num_a_fabs; i++)
 	{
-	  auto& fine_a_coeffs = m_a_coeffs[i][amrlev];
-
-	  averageDownCoeffsSameAmrLevel(fine_a_coeffs);
+		for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+		{
+			auto& fine_a_coeffs = m_a_coeffs[i][amrlev];
+			averageDownCoeffsSameAmrLevel(fine_a_coeffs);
+		}
+		averageDownCoeffsSameAmrLevel(m_a_coeffs[i][0]);
 	}
-
-      averageDownCoeffsSameAmrLevel(m_a_coeffs[i][0]);
-    }
 }
+
 void
 Operator::Operator::averageDownCoeffsSameAmrLevel (Vector<MultiFab>& a)
 {
-  int nmglevs = a.size();
+	int nmglevs = a.size();
   for (int mglev = 1; mglev < nmglevs; ++mglev)
-    {
-      amrex::average_down(a[mglev-1], a[mglev], 0, a[0].nComp(), mg_coarsen_ratio);
-    }
+	{
+		amrex::average_down(a[mglev-1], a[mglev], 0, a[0].nComp(), mg_coarsen_ratio);
+	}
 }
+
 void
 Operator::Operator::applyMetricTermsCoeffs ()
 {
 #if (AMREX_SPACEDIM != 3)
-  for (int i = 0; i < m_num_a_fabs; i++)
-    {
-      for (int alev = 0; alev < m_num_amr_levels; ++alev)
+	for (int i = 0; i < m_num_a_fabs; i++)
 	{
-	  const int mglev = 0;
-	  applyMetricTerm(alev, mglev, m_a_coeffs[i][alev][mglev]);
+		for (int alev = 0; alev < m_num_amr_levels; ++alev)
+		{
+			const int mglev = 0;
+			applyMetricTerm(alev, mglev, m_a_coeffs[i][alev][mglev]);
+		}
 	}
-    }
 #endif
 }
 
@@ -103,6 +103,3 @@ Operator::Operator::prepareForSolve ()
   applyMetricTermsCoeffs();
   averageDownCoeffs();
 }
-
-
-
