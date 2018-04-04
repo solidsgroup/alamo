@@ -14,9 +14,9 @@ Operator::Elastic::Cubic::Cubic()
 }
 
 void
-Operator::Elastic::Cubic::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta)
+Operator::Elastic::Cubic::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc)
 {
-  RegisterNewFab(eta);
+  RegisterNewFab(eta,eta_bc);
 }
 
 amrex::Real
