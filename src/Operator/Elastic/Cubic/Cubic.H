@@ -27,7 +27,7 @@ public:
   /// \brief Destructor (does nothing)
   virtual ~Cubic () {};
 
-  void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta);
+  void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc);
 
 protected:
 
