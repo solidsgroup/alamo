@@ -31,7 +31,7 @@ Operator::Elastic::Isotropic::C(const int i, const int j, const int k, const int
 
   mu = (mu1*etafab(loc,0) + mu2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
   lambda = (lambda1*etafab(loc,0) + lambda2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
- 
+
   // TODO: This is a hack, needs to be fixed.
 
   if (mu != mu) mu = 0.5*(mu1+mu2);
@@ -42,8 +42,6 @@ Operator::Elastic::Isotropic::C(const int i, const int j, const int k, const int
   if (i==l && j==k) ret += mu;
   if (i==j && k==l) ret += lambda;
 
-  //  std::cout << "(eta1="<<etafab(loc,0)<<",eta2="<<etafab(loc,1)<<")"; 
+  //  std::cout << "(eta1="<<etafab(loc,0)<<",eta2="<<etafab(loc,1)<<")";
   return ret;
 }
-
-
