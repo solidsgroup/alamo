@@ -2,7 +2,7 @@ timestep = 0.01
 stop_time = 0.1
 
 amr.plot_int = 1
-amr.max_level = 2
+amr.max_level = 3
 #amr.n_cell = 160 32
 amr.n_cell = 40 8
 amr.blocking_factor = 1
