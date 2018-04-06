@@ -13,32 +13,21 @@ Operator::Elastic::PolyCrystal::Cubic::Cubic()
   E2 = 1.0; nu2 = 0.25; mu2 = 2.0;
 }
 
-amrex::Real
-Operator::Elastic::PolyCrystal::Cubic::C(const int i, const int j, const int k, const int l,
-					 const amrex::IntVect loc,
-					 const int amrlev, const int mglev, const MFIter &mfi) const
+amrex::Vector<amrex::Real>
+Operator::Elastic::PolyCrystal::Cubic::C(const int i, const int j, const int k, const int l) const
 {
   amrex::Real C11, C12, C44;
   amrex::Real C11a = E1*(1-nu1)/(1-nu1-2.0*nu1*nu1);
   amrex::Real C11b = E2*(1-nu2)/(1-nu2-2.0*nu2*nu2);
   amrex::Real C12a = E1*nu1/(1-nu1-2.0*nu1*nu1);
   amrex::Real C12b = E2*nu2/(1-nu2-2.0*nu2*nu2);
+  amrex::Real C44a = mu1;
+  amrex::Real C44b = mu2;
 
-  const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
+  amrex::Vector<amrex::Real> Cs;
+  if(i == j && j == k && k == l) {Cs.push_back(C11a); Cs.push_back(C11b); }
+  else if (i==k && j==l) {Cs.push_back(C44a); Cs.push_back(C44b);}
+  else if (i==j && k==l) {Cs.push_back(C12a); Cs.push_back(C12b);} 
 
-  C11 = (C11a*etafab(loc,0) + C11b*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
-  C12 = (C12a*etafab(loc,0) + C12b*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
-  C44 = (mu1*etafab(loc,0) + mu2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
-
-  // TODO: This is a hack, needs to be fixed.
-
-  if (C11 != C11) C11 = 0.5*(C11a + C11b);
-  if (C12 != C12) C12 = 0.5*(C12a + C12b);
-  if (C44 != C44) C44 = 0.5*(mu1 + mu2);
-
-  if(i == j && j == k && k == l) return C11;
-  if (i==k && j==l) return C44;
-  if (i==j && k==l) return C12;
-
-  return 0.0;
+  return Cs;
 }
