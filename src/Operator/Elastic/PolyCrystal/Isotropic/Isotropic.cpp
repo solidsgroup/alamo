@@ -14,29 +14,15 @@ Operator::Elastic::PolyCrystal::Isotropic::Isotropic()
   mu2 = 2.0;
 }
 
-amrex::Real
-Operator::Elastic::PolyCrystal::Isotropic::C(const int i, const int j, const int k, const int l,
-					     const amrex::IntVect loc,
-					     const int amrlev, const int mglev, const MFIter &mfi) const
+amrex::Vector<amrex::Real>
+Operator::Elastic::PolyCrystal::Isotropic::C(const int i, const int j, const int k, const int l) const
 {
-  amrex::Real mu, lambda;
+  amrex::Vector<amrex::Real> Cs;
 
-  const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
+  Cs.push_back(0.0); Cs.push_back(0.0);
+  if (i==k && j==l) {Cs[0] += mu1; Cs[1] += mu2;} 
+  if (i==l && j==k) {Cs[0] += mu1; Cs[1] += mu2;}
+  if (i==j && k==l) {Cs[0] += lambda1; Cs[1] += lambda2;}
 
-  if (fabs(etafab(loc,0)) < 0.001 && fabs(etafab(loc,1)) < 0.001)
-    amrex::Abort("etas are zero");
-
-  mu = (mu1*etafab(loc,0) + mu2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
-  lambda = (lambda1*etafab(loc,0) + lambda2*etafab(loc,1)) / (etafab(loc,0) + etafab(loc,1));
-
-  // TODO: This is a hack, needs to be fixed.
-  if (mu != mu) mu = 0.5*(mu1+mu2);
-  if (lambda != lambda) lambda = 0.5*(lambda1+lambda2);
-
-  amrex::Real ret = 0.0;
-  if (i==k && j==l) ret += mu;
-  if (i==l && j==k) ret += mu;
-  if (i==j && k==l) ret += lambda;
-
-  return ret;
+  return Cs;
 }
