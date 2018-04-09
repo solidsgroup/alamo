@@ -1,5 +1,6 @@
 #include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 
 #if BL_SPACEDIM == 2
@@ -259,7 +260,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
   info.setAgglomeration(true);
   info.setConsolidation(true);
 
-  Operator::Elastic::Isotropic linop;
+  Operator::Elastic::PolyCrystal::Isotropic linop;
   //Operator::Elastic::Cubic linop;
 
   linop.define(geom,grids,dmap,info);
