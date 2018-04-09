@@ -29,6 +29,26 @@ Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const
 				const amrex::IntVect loc,
 				const int amrlev, const int mglev, const MFIter &mfi) const
 {
+  // Various constructor types
+  //   - Euler angles
+  //   - Axis/angle
+  //   - quaternions
+  //   - rotation matrix
+  // constructor should also take C11, C12, C44 as inputs (not hard coded)
+
+  // amrex::Real C[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
+  // 
+  // eigen.tuxfamily.org
+  //     #include "eigen3/Eigen/Core"
+  // https://eigen.tuxfamily.org/dox/group__TutorialGeometry.html
+  // eigen::Vector<amrex::Real,AMREX_SPACEDIM> R;
+  // R(i,j);
+
+  // src/PhaseFieldMicrostructure/PhaseFieldMicrostructure.cpp
+  //     ----> TimeStepComplete
+
+
+
   amrex::Real C1111, C2111, C3111, C1211, C2211, C3211, C1311, C2311, C3311;  //C elements should probably
   amrex::Real C1121, C2121, C3121, C1221, C2221, C3221, C1321, C2321, C3321;  //be declared and computed
   amrex::Real C1131, C2131, C3131, C1231, C2231, C3231, C1331, C2331, C3331;  //in constructor instead, but
