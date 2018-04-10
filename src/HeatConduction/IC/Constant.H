@@ -3,20 +3,18 @@
 
 #include <AMReX_ParallelDescriptor.H>
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
+#include "IC/IC.H"
 
 /// \class Constant
 /// \brief 
 ///
-namespace HeatConduction
+namespace IC
 {
-namespace InitialCondition
-{
-class Constant : public GeneralAMRIntegratorIC
+class Constant : public IC
 {
 public:
   Constant (amrex::Array<amrex::Geometry> &_geom) :
-    GeneralAMRIntegratorIC(_geom)
+    IC(_geom)
   {
     if (amrex::ParallelDescriptor::IOProcessor())
       {
@@ -49,6 +47,5 @@ void Initialize(const int lev,
 private:
   amrex::Real T=0.;
 };
-}
 }
 #endif

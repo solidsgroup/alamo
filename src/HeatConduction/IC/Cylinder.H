@@ -3,20 +3,18 @@
 
 #include <AMReX_ParallelDescriptor.H>
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
+#include "IC/IC.H"
 
 /// \class Cylinder
 /// \brief 
 ///
-namespace HeatConduction
+namespace IC
 {
-namespace InitialCondition
-{
-class Cylinder : public GeneralAMRIntegratorIC
+class Cylinder : public IC::IC
 {
 public:
   Cylinder (amrex::Array<amrex::Geometry> &_geom) :
-    GeneralAMRIntegratorIC(_geom)
+    IC::IC(_geom)
   {
     amrex::ParmParse pp("ic");
     pp.query("Tin", Tin);
@@ -60,6 +58,5 @@ void Initialize(const int lev,
 private:
   amrex::Real Tin, Tout;
 };
-}
 }
 #endif

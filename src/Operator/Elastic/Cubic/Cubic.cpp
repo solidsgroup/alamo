@@ -3,7 +3,7 @@
 #include <AMReX_MLCGSolver.H>
 #include <AMReX_ArrayLim.H>
 
-#include "Operator/Elastic/Cubic/Cubic.H"
+#include "Cubic.H"
 
 
 Operator::Elastic::Cubic::Cubic()
@@ -17,8 +17,8 @@ Operator::Elastic::Cubic::Cubic()
 
 amrex::Real
 Operator::Elastic::Cubic::C(const int i, const int j, const int k, const int l,
-				const amrex::IntVect loc,
-				const int amrlev, const int mglev, const MFIter &mfi) const
+			    const amrex::IntVect /*loc*/,
+			    const int /*amrlev*/, const int /*mglev*/, const MFIter &/*mfi*/) const
 {
   if(i == j && j == k && k == l) return C11;
   if (i==k && j==l) return C44;

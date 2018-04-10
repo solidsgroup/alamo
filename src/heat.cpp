@@ -6,7 +6,6 @@
 #include <AMReX_AmrCore.H>
 
 #include "HeatConduction/Integrator.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
 
 
 int main (int argc, char* argv[])
@@ -19,7 +18,7 @@ int main (int argc, char* argv[])
   amrex::Initialize(argc,argv);
 
   {
-    HeatConduction::Integrator myamr;
+    Integrator::HeatConduction myamr;
     myamr.InitData();
     myamr.Evolve();
   }

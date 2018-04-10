@@ -2,13 +2,13 @@
 #define PFFlameBC_H_
 
 #include <AMReX_PhysBCFunct.H>
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
+#include "BC/BC.H"
 
-class PFFlamePhysBC : public GeneralAMRIntegratorPhysBC
+class PFFlamePhysBC : public BC::BC
 {
 public:
   PFFlamePhysBC (amrex::Array<amrex::Geometry> &_geom, std::string name)
-    : GeneralAMRIntegratorPhysBC(_geom) 
+    : BC::BC(_geom) 
   {
     {
       amrex::ParmParse pp(name);
