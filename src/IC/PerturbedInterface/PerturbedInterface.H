@@ -1,7 +1,7 @@
-#ifndef PerturbedInterface_H_
-#define PerturbedInterface_H_
+#ifndef IC_PERTURBEDINTERFACE_H_
+#define IC_PERTURBEDINTERFACE_H_
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
+#include "IC/IC.H"
 
 /// \class PerturbedInterface
 /// \brief Initialize a perturbed interface using Fourier Modes
@@ -19,11 +19,13 @@
 /// and \f$L_x\f$ is the length in the x direction (obtained using the #geom object).
 ///
 /// Grain 1 is defined as being above \f$y(x,z)\f$, Grain 2 is defined as being below.
-class PerturbedInterface : public GeneralAMRIntegratorIC
+namespace IC
+{
+class PerturbedInterface : public IC
 {
 public:
   PerturbedInterface (amrex::Array<amrex::Geometry> &_geom) :
-    GeneralAMRIntegratorIC(_geom)
+    IC(_geom)
   {
       amrex::ParmParse pp("ic");
       pp.queryarr("wave_numbers",wave_numbers);
@@ -81,5 +83,5 @@ private:
   amrex::Vector<int> wave_numbers; ///< Store mode amplitudes \f$A_n\f$
   amrex::Vector<amrex::Real> wave_amplitudes;
 };
-
+}
 #endif

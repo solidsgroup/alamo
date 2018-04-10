@@ -6,8 +6,9 @@
 #include "AMReX_ParallelDescriptor.H"
 #include "PFFlame/PFFlame.H"
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
+#include "Integrator/Integrator.H"
+
+#include "BC/BC.H"
 
 int main (int argc, char* argv[])
 {
