@@ -16,7 +16,6 @@ Operator::Elastic::PolyCrystal::Cubic::Cubic()
 amrex::Vector<amrex::Real>
 Operator::Elastic::PolyCrystal::Cubic::C(const int i, const int j, const int k, const int l) const
 {
-  amrex::Real C11, C12, C44;
   amrex::Real C11a = E1*(1-nu1)/(1-nu1-2.0*nu1*nu1);
   amrex::Real C11b = E2*(1-nu2)/(1-nu2-2.0*nu2*nu2);
   amrex::Real C12a = E1*nu1/(1-nu1-2.0*nu1*nu1);

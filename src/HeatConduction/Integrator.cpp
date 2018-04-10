@@ -1,4 +1,4 @@
-#include "HeatConduction/Integrator.H"
+#include "Integrator.H"
 
 /// \fn    HeatConduction::Integrator::Integrator
 ///
@@ -10,8 +10,9 @@
 ///
 /// Initialize initial condition pointer #ic, and register
 /// the #Temp, #Temp_old Multifab arrays.
-HeatConduction::Integrator::Integrator() :
-  GeneralAMRIntegrator(), 
+
+Integrator::HeatConduction::HeatConduction() :
+  Integrator::Integrator(), 
   mybc(geom)
 {
   amrex::ParmParse pp("heat");
@@ -21,17 +22,17 @@ HeatConduction::Integrator::Integrator() :
 
   // // Determine initial condition
   if (ic_type == "cylinder")
-    ic = new HeatConduction::InitialCondition::Cylinder(geom);
+    ic = new IC::Cylinder(geom);
   else if (ic_type == "constant")
-    ic = new HeatConduction::InitialCondition::Constant(geom);
+    ic = new IC::Constant(geom);
   else
-    ic = new HeatConduction::InitialCondition::Constant(geom);
+    ic = new IC::Constant(geom);
     
   RegisterNewFab(Temp,     mybc, number_of_components, number_of_ghost_cells, "Temp");
   RegisterNewFab(Temp_old, mybc, number_of_components, number_of_ghost_cells, "Temp old");
 }
 
-HeatConduction::Integrator::~Integrator()
+Integrator::HeatConduction::~HeatConduction()
 {
 }
 
@@ -39,20 +40,20 @@ HeatConduction::Integrator::~Integrator()
 ///
 /// Use the #ic object to initialize #Temp
 void
-HeatConduction::Integrator::Initialize (int lev)
+Integrator::HeatConduction::Initialize (int lev)
 {
   ic->Initialize(lev,Temp);
 }
 
 
-/// \fn    HeatConduction::Integrator::Advance
+/// \fn    Integrator::HeatConduction::Advance
 ///
 /// Integrate the heat diffusion equation
 /// \f[\nabla^2T = \alpha \frac{\partial T}{\partial t}\f]
 /// using an explicit forward Euler method.
 /// \f$\alpha\f$ is stored in #alpha
 void
-HeatConduction::Integrator::Advance (int lev, Real /*time*/, Real dt)
+Integrator::HeatConduction::Advance (int lev, Real /*time*/, Real dt)
 {
   std::swap(*Temp[lev], *Temp_old[lev]);
 
@@ -81,7 +82,7 @@ HeatConduction::Integrator::Advance (int lev, Real /*time*/, Real dt)
 }
 
 
-/// \fn    HeatConduction::Integrator::TagCellsForRefinement
+/// \fn    Integrator::HeatConduction::TagCellsForRefinement
 ///
 /// The following criterion is used to determine if a cell should be refined:
 /// \f[|\nabla T|\,|\mathbf{r}| > h\f]
@@ -89,7 +90,7 @@ HeatConduction::Integrator::Advance (int lev, Real /*time*/, Real dt)
 /// \f[\mathbf{r} = \sqrt{\Delta x_1^2 + \Delta x_2^2 + \Delta x_3^2}\f]
 /// and \f$h\f$ is stored in #refinement_threshold
 void
-HeatConduction::Integrator::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+Integrator::HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
   const amrex::Real* dx      = geom[lev].CellSize();
 

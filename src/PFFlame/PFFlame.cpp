@@ -1,6 +1,6 @@
 #include "PFFlame/PFFlame.H"
 
-PFFlame::PFFlame () : GeneralAMRIntegrator(), TempBC(geom,"TempBC"), EtaBC(geom,"EtaBC")
+PFFlame::PFFlame () : Integrator::Integrator(), TempBC(geom,"TempBC"), EtaBC(geom,"EtaBC")
 {
   amrex::ParmParse pp("physics"); 
   pp.query("M",M);

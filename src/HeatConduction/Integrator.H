@@ -8,24 +8,23 @@
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_ParmParse.H"
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
+#include "Integrator/Integrator.H"
 
-#include "HeatConduction/InitialCondition/Cylinder.H"
-#include "HeatConduction/InitialCondition/Constant.H"
+#include "IC/IC.H"
+#include "BC/BC.H"
+
+#include "HeatConduction/IC/Cylinder.H"
+#include "HeatConduction/IC/Constant.H"
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 
 
-namespace HeatConduction
-{
 /// \class HeatConduction::Integrator
 /// \brief Solve the heat diffusion equation in 2D or 3D.
 ///
 /// This is a nontrivial example class that demonstrates how to write an explicit AMR
-/// code using the #GeneralAMRIntegrator virtual class that abstracts the AmrBase class
+/// code using the #Integrator virtual class that abstracts the AmrBase class
 /// from Amrex.
 ///
 /// For more details:
@@ -33,16 +32,18 @@ namespace HeatConduction
 ///    - See documentation on #Advance for equations and discretization
 ///    - See documentation on #TagCellsForRefinement for cell refinement criteria
 /// For boundary conditions:
-///    - See #GeneralAMRIntegratorBC
+///    - See #BC
 /// For initial conditions:
 ///    - See #Cylinder or #Constant
-class Integrator : public GeneralAMRIntegrator
+namespace Integrator
+{
+class HeatConduction : public Integrator::Integrator
 {
 public:
 
   /// \brief Read in parameters and register field variables
-  Integrator();
-  ~Integrator();
+  HeatConduction();
+  ~HeatConduction();
 
 protected:
 
@@ -66,8 +67,8 @@ private:
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
 
   std::string ic_type;						///< String to determine what kind of initial condition to use
-  GeneralAMRIntegratorIC *ic;					///< Pointer to abstract IC object
-  GeneralAMRIntegratorPhysBC mybc;				///< Stock generic boundary condition object
+  IC::IC *ic;            					///< Pointer to abstract IC object
+  BC::BC mybc;                   				///< Stock generic boundary condition object
 };
 }
 #endif

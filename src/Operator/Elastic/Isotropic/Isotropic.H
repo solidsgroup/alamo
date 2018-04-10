@@ -17,8 +17,7 @@ class Isotropic : public Elastic
 {
 public:
 
-  /// \brief Base constructor
-  Isotropic () {};
+  Isotropic ();
   /// \brief Destructor (does nothing)
   virtual ~Isotropic () {};
 
