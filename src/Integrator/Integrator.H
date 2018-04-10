@@ -1,6 +1,8 @@
-#ifndef GENERALAMRINTEGRATOR_H
-#define GENERALAMRINTEGRATOR_H
+#ifndef INTEGRATOR_INTEGRATOR_H
+#define INTEGRATOR_INTEGRATOR_H
 
+#include <chrono>
+#include <ctime>
 #include <string>
 #include <limits>
 #include <memory>
@@ -9,16 +11,20 @@
 #include <omp.h>
 #endif
 
+#include <AMReX_ParallelDescriptor.H>
+#include <AMReX_ParmParse.H>
+#include <AMReX_MultiFabUtil.H>
+#include <AMReX_FillPatchUtil.H>
+#include <AMReX_BC_TYPES.H>
 #include <AMReX_AmrCore.H>
 #include <AMReX_FluxRegister.H>
 #include <AMReX_Utility.H>
 #include <AMReX_PlotFileUtil.H>
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
-
+#include "BC/BC.H"
 
 ///
-/// \class GeneralAMRIntegrator
+/// \class Integrator
 /// \brief Pure abstract class for managing data structures, time integration (with substepping),
 ///        mesh refinement, and I/O. 
 ///
@@ -54,12 +60,14 @@
 ///     amr.check_input        = 
 ///
 
-class GeneralAMRIntegrator
+namespace Integrator
+{
+class Integrator
   : public amrex::AmrCore
 {
 public:
 
-  /// \function GeneralAMRIntegrator
+  /// \function Integrator
   /// \brief Constructor
   ///
   /// Does the following things:
@@ -69,15 +77,15 @@ public:
   ///    - Create a clean directory
   /// For derived classes this **must** be called for the derived constructor. For instance: `code`
   /// ```cpp
-  /// class MyDerivedClass : GeneralAMRIntegrator
+  /// class MyDerivedClass : Integrator
   /// {
-  ///    MyDerivedClass() : GeneralAMRIntegrator() { ... }
+  ///    MyDerivedClass() : Integrator() { ... }
   ///    ...
   /// }
   /// ```
-  GeneralAMRIntegrator ();
+  Integrator ();
 
-  virtual ~GeneralAMRIntegrator();
+  virtual ~Integrator();
 
   /// \fn    FrontData
   /// \brief Front-end method to initialize simulation
@@ -128,7 +136,7 @@ protected:
   ///
   /// Overriding is optional; the default is to do nothing.
   ///
-  virtual void TimeStepComplete(Real time, int iter) {};
+  virtual void TimeStepComplete(Real /*time*/, int /*iter*/) {};
 
   /// \fn    RegisterNewFab
   /// \brief Register a field variable for AMR with this class 
@@ -140,7 +148,7 @@ protected:
 		       ///<[in] Reference to field variable that you want to use.
 		       ///      **Note** `new_fab` must not fall out of scope! Should be a
 		       ///      private member variable.
-		       GeneralAMRIntegratorPhysBC &new_bc,
+		       BC::BC &new_bc,
 		       ///<[in] Boundary condition object. (Same BC object can be re-used 
 		       ///      if applicable
 		       int ncomp,
@@ -165,12 +173,12 @@ private:
 
   void FillPatch (int lev, amrex::Real time,
 		  amrex::Array<std::unique_ptr<amrex::MultiFab> > &source_mf,
-		  amrex::MultiFab &destination_multifab, GeneralAMRIntegratorPhysBC &physbc,
+		  amrex::MultiFab &destination_multifab, BC::BC &physbc,
 		  int icomp);
   void InitFromCheckpoint ();
   long CountCells (int lev);
   void TimeStep (int lev, amrex::Real time, int iteration);
-  void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, GeneralAMRIntegratorPhysBC &physbc, int icomp, int ncomp);
+  void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, BC::BC &physbc, int icomp, int ncomp);
   void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::MultiFab*>& data, amrex::Array<amrex::Real>& datatime);
 
   std::vector<std::string> PlotFileName (int lev) const;
@@ -198,7 +206,7 @@ private:
   amrex::Array<int> ncomp_array;								///< Array containing number of components for each fab array
   amrex::Array<int> nghost_array;								///< Array containing number of ghost cells in each fab array
   amrex::Array<std::string> name_array;								///< Array containing names for each variable in the fab array
-  amrex::Array<GeneralAMRIntegratorPhysBC *> physbc_array;		                 	///< Array of pointers to BC objects
+  amrex::Array<BC::BC *> physbc_array;                   		                 	///< Array of pointers to BC objects
 
   // REGRIDDING
   int regrid_int = 2; ///< Determine how often to regrid (default: 2)
@@ -212,5 +220,5 @@ private:
   std::string plot_file {"plt"};   ///< Plotfile name
   int plot_int = -1;               ///< How frequently to dump plot file (default: never)
 };
-
+}
 #endif

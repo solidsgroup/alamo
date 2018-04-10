@@ -3,13 +3,19 @@
 #include <AMReX_MLCGSolver.H>
 #include <AMReX_ArrayLim.H>
 
-#include "Operator/Elastic/Isotropic/Isotropic.H"
+#include "Isotropic.H"
 
+
+Operator::Elastic::Isotropic::Isotropic ()
+{
+  mu = 1.0;
+  lambda = 1.0;
+}
 
 amrex::Real
 Operator::Elastic::Isotropic::C(const int i, const int j, const int k, const int l,
-				const amrex::IntVect loc,
-				const int amrlev, const int mglev, const MFIter &mfi) const
+				const amrex::IntVect /*loc*/,
+				const int /*amrlev*/, const int /*mglev*/, const MFIter & /*mfi*/) const
 {
   amrex::Real ret = 0.0;
   if (i==k && j==l) ret += mu;

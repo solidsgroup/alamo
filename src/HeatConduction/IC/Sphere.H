@@ -1,20 +1,20 @@
 #ifndef PerturbedInterface_H_
 #define PerturbedInterface_H_
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorIC.H"
+#include "IC/IC.H"
 
 /// \class Cylinder
 /// \brief Prescribe a cylindrical (3D) / circular (2D) region at a certain temperature.
 ///
 namespace HeatConduction
 {
-namespace InitialCondition
+namespace IC
 {
-class Sphere : public GeneralAMRIntegratorIC
+class Sphere : public IC
 {
 public:
   PerturbedInterface (amrex::Array<amrex::Geometry> &_geom) :
-    GeneralAMRIntegratorIC(_geom)
+    IC::IC(_geom)
   {
       amrex::ParmParse pp("ic");
       pp.queryarr("Tin",Tin);
