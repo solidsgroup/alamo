@@ -1,12 +1,9 @@
 #include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
-#include "Operator/Elastic/Isotropic/Isotropic.H"
-#include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
-#include "Operator/Elastic/Cubic/Cubic.H"
 
 #if BL_SPACEDIM == 2
 
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
-  GeneralAMRIntegrator(),
+  Integrator::Integrator(),
   mybc(geom)
 {
 
@@ -50,8 +47,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     else
       boundary = new PFBoundarySin(theta0,sigma0,sigma1);
 
-
-
     // if(ParallelDescriptor::IOProcessor())
     //   if (!boundary->Test()) amrex::Error("Boundary functor does not pass derivative test");
   }
@@ -60,17 +55,36 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     amrex::ParmParse pp("ic"); // Phase-field model parameters
     pp.query("type", ic_type);
     if (ic_type == "perturbed_interface")
-      ic = new PerturbedInterface(geom);
+      ic = new IC::PerturbedInterface(geom);
   }
 
   RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
   RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
-  /// \todo Replace `mybc` with new BC object
-  RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
-  RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
-  RegisterNewFab(strain, mybc, 3, 1, "eps");
-  RegisterNewFab(stress, mybc, 3, 1, "sig");
-  RegisterNewFab(energy, mybc, 1, 1, "W");
+
+  
+  // Elasticity
+  {
+    amrex::ParmParse pp("elastic");
+    pp.query("on",elastic_on);
+
+    if (elastic_on)
+      {
+	pp.query("type",elastic_type);
+	pp.query("max_iter",elastic_max_iter);
+	pp.query("max_fmg_iter",elastic_max_fmg_iter);
+	pp.query("verbose",elastic_verbose);
+	pp.query("cgverbose",elastic_cgverbose);
+	pp.query("tol_rel",elastic_tol_rel);
+	pp.query("tol_abs",elastic_tol_abs);
+
+	RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
+	RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
+	RegisterNewFab(strain, mybc, 3, 1, "eps");
+	RegisterNewFab(stress, mybc, 3, 1, "sig");
+	RegisterNewFab(energy, mybc, 1, 1, "W");
+      }
+  }
+
 }
 
 
@@ -199,8 +213,6 @@ PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
   }
 }
 
-
-
 void
 PhaseFieldMicrostructure::Initialize (int lev)
 {
@@ -253,29 +265,31 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
   }
 }
 
-void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
+void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 {
-  // Hard code BCs for now.
+  if (!elastic_on) return;
+
   LPInfo info;
   info.setAgglomeration(true);
   info.setConsolidation(true);
 
-  Operator::Elastic::PolyCrystal::Isotropic linop;
-  //Operator::Elastic::Cubic linop;
+  if (elastic_type == "isotropic")
+    elastic_operator = new Operator::Elastic::PolyCrystal::Isotropic();
+  else
+    amrex::Abort("Elastic type not specified or incorrect");
+  
+  geom[0].isPeriodic(0);
+  elastic_operator->define(geom,grids,dmap,info);
+  elastic_operator->setMaxOrder(2);
+  elastic_operator->setDomainBC(
+				{AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet ,
+					      geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
+					      geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)},
+				{AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
+					      geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
+					      geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
 
-  linop.define(geom,grids,dmap,info);
-
-  linop.setMaxOrder(2);
-
-  linop.setDomainBC({AMREX_D_DECL(LinOpBCType::Periodic,
-				  LinOpBCType::Dirichlet,
-				  LinOpBCType::Dirichlet)},
-		    {AMREX_D_DECL(LinOpBCType::Periodic,
-				  LinOpBCType::Dirichlet,
-				  LinOpBCType::Dirichlet)});
-
-  linop.SetEta(eta_new,mybc);
-
+  elastic_operator->SetEta(eta_new,mybc);
 
   for (int ilev = 0; ilev < displacement.size(); ++ilev)
   {
@@ -310,7 +324,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
           }
         }
     }
-    linop.setLevelBC(ilev,displacement[ilev].get());
+    elastic_operator->setLevelBC(ilev,displacement[ilev].get());
 
     /// \todo Replace with proper driving force initialization
     body_force[ilev]->setVal(0.0,0);
@@ -322,17 +336,16 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
     }
   }
 
-  amrex::Real tol_rel = 0, tol_abs = 1E-10;
-  amrex::MLMG solver(linop);
-  solver.setMaxIter(200);
-  solver.setMaxFmgIter(0);
-  solver.setVerbose(3);
-  solver.setCGVerbose(0);
+  amrex::MLMG solver(*elastic_operator);
+  solver.setMaxIter(elastic_max_iter);
+  solver.setMaxFmgIter(elastic_max_fmg_iter);
+  solver.setVerbose(elastic_verbose);
+  solver.setCGVerbose(elastic_cgverbose);
 
   solver.solve(GetVecOfPtrs(displacement),
      	       GetVecOfConstPtrs(body_force),
-     	       tol_rel,
-     	       tol_abs);
+     	       elastic_tol_rel,
+     	       elastic_tol_abs);
 
   for (int lev = 0; lev < displacement.size(); lev++)
   {
@@ -353,10 +366,10 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real time, int iter)
         }
 
         FArrayBox &sigmafab  = (*stress[lev])[mfi];
-        linop.Stress(sigmafab,ufab,lev,mfi);
+        elastic_operator->Stress(sigmafab,ufab,lev,mfi);
 
         FArrayBox &energyfab  = (*energy[lev])[mfi];
-        linop.Energy(energyfab,ufab,lev,mfi);
+        elastic_operator->Energy(energyfab,ufab,lev,mfi);
     }
   }
 }
