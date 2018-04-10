@@ -66,16 +66,16 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   {
     amrex::ParmParse pp("elastic");
     pp.query("on",elastic_on);
+    pp.query("type",elastic_type);
+    pp.query("max_iter",elastic_max_iter);
+    pp.query("max_fmg_iter",elastic_max_fmg_iter);
+    pp.query("verbose",elastic_verbose);
+    pp.query("cgverbose",elastic_cgverbose);
+    pp.query("tol_rel",elastic_tol_rel);
+    pp.query("tol_abs",elastic_tol_abs);
 
     if (elastic_on)
       {
-	pp.query("type",elastic_type);
-	pp.query("max_iter",elastic_max_iter);
-	pp.query("max_fmg_iter",elastic_max_fmg_iter);
-	pp.query("verbose",elastic_verbose);
-	pp.query("cgverbose",elastic_cgverbose);
-	pp.query("tol_rel",elastic_tol_rel);
-	pp.query("tol_abs",elastic_tol_abs);
 
 	RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
 	RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");

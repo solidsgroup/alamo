@@ -93,8 +93,8 @@ private:
   int         elastic_max_fmg_iter = 0;
   int         elastic_verbose = 3;
   int         elastic_cgverbose = 3;
-  int         elastic_tol_rel = 0.0;
-  int         elastic_tol_abs = 1.0E-10;
+  amrex::Real elastic_tol_rel = 0.0;
+  amrex::Real elastic_tol_abs = 1.0E-10;
   Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 
 };
