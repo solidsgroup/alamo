@@ -5,6 +5,7 @@
 #include <AMReX_Array.H>
 #include <limits>
 
+#include "BC/BC.H"
 #include "Operator/Elastic/Elastic.H"
 
 using namespace amrex;
@@ -24,7 +25,7 @@ public:
   /// \brief Destructor (does nothing)
   virtual ~PolyCrystal () {};
 
-  void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc);
+  void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc);
 
   amrex::Vector<amrex::Real> DEnergyDEta (FArrayBox& energyfab,
 					  const FArrayBox& ufab,

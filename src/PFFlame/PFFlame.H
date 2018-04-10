@@ -6,12 +6,13 @@
 #include <memory>
 
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
+#include "Integrator/Integrator.H"
+
+#include "BC/BC.H"
 
 #include "PFFlame/PFFlameBC.H"
 
-class PFFlame : public GeneralAMRIntegrator
+class PFFlame : public Integrator::Integrator
 {
 public:
   PFFlame ();
