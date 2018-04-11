@@ -52,9 +52,10 @@ Operator::Elastic::PolyCrystal::PolyCrystal::C(const int i, const int j, const i
 }
 
 
-void Energies (FArrayBox& energyfab,
-	       const FArrayBox& ufab,
-	       int amrlev, const MFIter& mfi)
+void
+Operator::Elastic::PolyCrystal::PolyCrystal::Energies (FArrayBox& energyfab,
+						       const FArrayBox& ufab,
+						       int amrlev, const MFIter& mfi)
 {
   const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
@@ -78,7 +79,7 @@ void Energies (FArrayBox& energyfab,
 	    for (int j=0; j<AMREX_SPACEDIM; j++)
 	      for (int k=0; k<AMREX_SPACEDIM; k++)
 		for (int l=0; l<AMREX_SPACEDIM; l++)
-		  energyfab(m,n) += gradu[i][j] * C[n][i][j][k][l] * gradu[k][l];
+		  energyfab(m,n) += gradu[i][j] * Cs[n][i][j][k][l] * gradu[k][l];
 	  energyfab(m,n) *= 0.5;
 	}
 
