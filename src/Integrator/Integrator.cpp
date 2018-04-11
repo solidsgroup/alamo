@@ -453,6 +453,7 @@ Integrator::Integrator::Evolve ()
       }
       int lev = 0;
       int iteration = 1;
+      TimeStepBegin(cur_time,step);
       TimeStep(lev, cur_time, iteration);
       TimeStepComplete(cur_time,step);
       cur_time += dt[0];

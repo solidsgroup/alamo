@@ -27,9 +27,9 @@ public:
 
   void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc);
 
-  amrex::Vector<amrex::Real> DEnergyDEta (FArrayBox& energyfab,
-					  const FArrayBox& ufab,
-					  int amrlev, const MFIter& mfi);
+  void Energies (FArrayBox& energyfab,
+		 const FArrayBox& ufab,
+		 int amrlev, const MFIter& mfi);
 
 protected:
 
@@ -38,7 +38,7 @@ protected:
   virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 			const int amrlev, const int mglev, const MFIter &mfi) const;
 
-  int num_eta = 0.0;
+  int num_eta = 0;
 
   std::vector<std::array<std::array<std::array<std::array<amrex::Real,AMREX_SPACEDIM>,AMREX_SPACEDIM>,AMREX_SPACEDIM>,AMREX_SPACEDIM> > Cs;
 };

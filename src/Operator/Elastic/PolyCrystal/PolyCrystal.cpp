@@ -50,3 +50,36 @@ Operator::Elastic::PolyCrystal::PolyCrystal::C(const int i, const int j, const i
 
   return C;
 }
+
+
+void Energies (FArrayBox& energyfab,
+	       const FArrayBox& ufab,
+	       int amrlev, const MFIter& mfi)
+{
+  const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+
+  amrex::IntVect dx(1,0);
+  amrex::IntVect dy(0,1);
+
+  const Box& bx = mfi.tilebox();
+  for (int n = 0; n < num_eta; n++)
+    for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+      for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+  	{
+	  amrex::IntVect m(m1,m2);
+	  amrex::Real gradu[2][2] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
+				      (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
+				     {(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
+				      (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])}};
+
+	  energyfab(m,n) = 0.0;
+
+	  for (int i=0; i<AMREX_SPACEDIM; i++)
+	    for (int j=0; j<AMREX_SPACEDIM; j++)
+	      for (int k=0; k<AMREX_SPACEDIM; k++)
+		for (int l=0; l<AMREX_SPACEDIM; l++)
+		  energyfab(m,n) += gradu[i][j] * C[n][i][j][k][l] * gradu[k][l];
+	  energyfab(m,n) *= 0.5;
+	}
+
+}
