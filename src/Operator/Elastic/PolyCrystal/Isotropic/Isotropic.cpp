@@ -8,10 +8,10 @@
 
 Operator::Elastic::PolyCrystal::Isotropic::Isotropic()
 {
-  lambda1 = 1.0;
-  lambda2 = 1.0;
-  mu1 = 1.0;
-  mu2 = 2.0;
+  lambda1 = 1000.0;
+  lambda2 = 1000.0;
+  mu1 = 1000.0;
+  mu2 = 2000.0;
 }
 
 amrex::Vector<amrex::Real>
