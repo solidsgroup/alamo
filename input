@@ -45,6 +45,7 @@ anisotropy.damp=1.0
 
 
 elastic.on=1
+elastic.int=10
 elastic.type=isotropic
 elastic.cgverbose=0
 elastic.tol_rel=0.00000001
