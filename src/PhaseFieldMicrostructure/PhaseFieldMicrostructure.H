@@ -50,7 +50,7 @@ protected:
 
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
 
-  void TimeStepComplete(amrex::Real time, int iter);
+  void TimeStepBegin(amrex::Real time, int iter);
 
 private:
 
@@ -89,6 +89,7 @@ private:
   IC::IC *ic;
 
   bool        elastic_on = false;
+  int         elastic_int = 1;
   std::string elastic_type;
   int         elastic_max_iter = 200;
   int         elastic_max_fmg_iter = 0;
