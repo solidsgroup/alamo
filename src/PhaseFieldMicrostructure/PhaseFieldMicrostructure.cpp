@@ -76,12 +76,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 
     if (elastic_on)
       {
-
 	RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
 	RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
 	RegisterNewFab(strain, mybc, 3, 1, "eps");
 	RegisterNewFab(stress, mybc, 3, 1, "sig");
 	RegisterNewFab(energy, mybc, 1, 1, "W");
+	RegisterNewFab(energies, mybc, number_of_grains, 1, "W");
       }
   }
 
@@ -101,6 +101,13 @@ PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
     const amrex::Box& bx = mfi.tilebox();
     amrex::BaseFab<Real> &eta_new_box = (*eta_new[lev])[mfi];
     amrex::BaseFab<Real> &eta_old_box = (*eta_old[lev])[mfi];
+
+
+
+    elastic_operator->Energies(energies[lev][mfi],
+			       elastic_displacement[lev][mfi],
+			       lev, mfi);
+
 
     for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
       for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
@@ -265,7 +272,7 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
   }
 }
 
-void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
+void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
   if (!elastic_on) return;
 
