@@ -129,6 +129,16 @@ protected:
 				      int ngrow) = 0;
 
   /// \fn    TimeStepComplete
+  /// \brief Run another system calculation (e.g. implicit solve) before integration step
+  ///
+  /// This function is called at the beginning of every timestep. This function can be used
+  /// to complete additional global solves, e.g. a MLMG implicit solve.
+  ///
+  /// Overriding is optional; the default is to do nothing.
+  ///
+  virtual void TimeStepBegin(Real /*time*/, int /*iter*/) {};
+
+  /// \fn    TimeStepComplete
   /// \brief Run another system calculation (e.g. implicit solve) after integration step
   ///
   /// This function is called at the end of every timestep. This function can be used
