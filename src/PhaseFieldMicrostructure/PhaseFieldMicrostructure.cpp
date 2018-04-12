@@ -81,6 +81,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 	RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
 	RegisterNewFab(strain, mybc, 3, 1, "eps");
 	RegisterNewFab(stress, mybc, 3, 1, "sig");
+	RegisterNewFab(stress_vm, mybc, 1, 1, "sig_VM");
 	RegisterNewFab(energy, mybc, 1, 1, "W");
 	RegisterNewFab(energies, mybc, number_of_grains, 1, "W");
       }
@@ -92,7 +93,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 #define ETA(i,j,k,n) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n)
 
 void
-PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
+PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
 {
   std::swap(eta_old[lev], eta_new[lev]);
   const Real* dx = geom[lev].CellSize();
@@ -102,8 +103,6 @@ PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
       const amrex::Box& bx = mfi.tilebox();
       FArrayBox &eta_new_box     = (*eta_new[lev])[mfi];
       FArrayBox &eta_old_box     = (*eta_old[lev])[mfi];
-      FArrayBox &energiesfab     = (*energies[lev])[mfi];
-      FArrayBox &displacementfab = (*displacement[lev])[mfi];
 
       //FArrayBox &energiesfab = (*energy)
 
@@ -190,7 +189,7 @@ PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
 		  amrex::Real kappa = l_gb*0.75*sigma0;
 		  mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
 
-		  if (anisotropy)
+		  if (anisotropy && time > anisotropy_tstart)
 		    {
 		      amrex::Real Theta = atan2(grad2,grad1);
 		      amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
@@ -229,8 +228,10 @@ PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
 		  //
 		  if (elastic_on)
 		    {
+		      FArrayBox &energiesfab     = (*energies[lev])[mfi];
+
 		      eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
-			-= M*dt*( energiesfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),m));
+			+= M*dt*( energiesfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),m));
 		    }
 
 		}
@@ -378,22 +379,35 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real /*time*/, int iter)
   {
     const Real* dx = geom[lev].CellSize();
     for ( amrex::MFIter mfi(*displacement[lev],true); mfi.isValid(); ++mfi )
-    {
-      const Box& bx = mfi.tilebox();
+      {
+	const Box& bx = mfi.tilebox();
 
-  	  FArrayBox &ufab  = (*displacement[lev])[mfi];
-  	  FArrayBox &epsfab  = (*strain[lev])[mfi];
-  	  for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-  	    for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-        {
-          epsfab(amrex::IntVect(i,j),0) = (ufab(amrex::IntVect(i+1,j),0) - ufab(amrex::IntVect(i-1,j),0))/(2.0*dx[0]);
-          epsfab(amrex::IntVect(i,j),1) = (ufab(amrex::IntVect(i,j+1),1) - ufab(amrex::IntVect(i,j-1),1))/(2.0*dx[1]);
-          epsfab(amrex::IntVect(i,j),2) = 0.5*(ufab(amrex::IntVect(i+1,j),1) - ufab(amrex::IntVect(i-1,j),1))/(2.0*dx[0]) +
-            0.5*(ufab(amrex::IntVect(i,j+1),0) - ufab(amrex::IntVect(i,j-1),0))/(2.0*dx[1]);
-        }
-
+	FArrayBox &ufab  = (*displacement[lev])[mfi];
+	FArrayBox &epsfab  = (*strain[lev])[mfi];
         FArrayBox &sigmafab  = (*stress[lev])[mfi];
+        FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
+
         elastic_operator->Stress(sigmafab,ufab,lev,mfi);
+
+	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+	  for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+	    {
+	      epsfab(amrex::IntVect(i,j),0) = (ufab(amrex::IntVect(i+1,j),0) - ufab(amrex::IntVect(i-1,j),0))/(2.0*dx[0]);
+	      epsfab(amrex::IntVect(i,j),1) = (ufab(amrex::IntVect(i,j+1),1) - ufab(amrex::IntVect(i,j-1),1))/(2.0*dx[1]);
+	      epsfab(amrex::IntVect(i,j),2) = 0.5*(ufab(amrex::IntVect(i+1,j),1) - ufab(amrex::IntVect(i-1,j),1))/(2.0*dx[0]) +
+		0.5*(ufab(amrex::IntVect(i,j+1),0) - ufab(amrex::IntVect(i,j-1),0))/(2.0*dx[1]);
+
+	      sigmavmfab(amrex::IntVect(i,j)) =
+		sqrt(0.5*((sigmafab(amrex::IntVect(i,j),0) - sigmafab(amrex::IntVect(i,j),1)*(sigmafab(amrex::IntVect(i,j),0) - sigmafab(amrex::IntVect(i,j),1))
+			   + sigmafab(amrex::IntVect(i,j),0)*sigmafab(amrex::IntVect(i,j),0)
+			   + sigmafab(amrex::IntVect(i,j),1)*sigmafab(amrex::IntVect(i,j),1)
+			   + 6.0*sigmafab(amrex::IntVect(i,j),2)*sigmafab(amrex::IntVect(i,j),2))));
+
+	    }
+
+
+	
+
 
         FArrayBox &energyfab  = (*energy[lev])[mfi];
         elastic_operator->Energy(energyfab,ufab,lev,mfi);
