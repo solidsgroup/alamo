@@ -1,4 +1,4 @@
-timestep = 0.001
+timestep = 0.005
 stop_time = 100
 
 amr.plot_int = 10
@@ -32,11 +32,11 @@ pf.number_of_grains = 2
 pf.M = 1.0 
 pf.mu = 10.0
 pf.gamma = 1.0
-pf.l_gb=0.1
+pf.l_gb=0.05
 pf.sigma0=0.075
 
 anisotropy.on=1
-anisotropy.tstart= 0.0
+anisotropy.tstart= 0.05
 anisotropy.theta0= 30
 anisotropy.sigma0=0.075
 anisotropy.sigma1=0.15
@@ -50,3 +50,7 @@ elastic.type=isotropic
 elastic.cgverbose=0
 elastic.tol_rel=0.00000001
 elastic.tol_abs=0.00000001
+
+#elastic.tstart=1.0
+elastic.load_t=1.0 2.0
+elastic.load_disp=0.0 0.01

@@ -7,21 +7,19 @@
 
 
 void
-Operator::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc)
+Operator::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta,
+						    BC::BC &eta_bc,
+						    std::vector<PolyCrystalModel *> &models)
 {
   RegisterNewFab(eta,eta_bc);
   num_eta = eta[0].get()->nComp();
   Cs.resize(num_eta);
-  
   for (int i = 0; i < AMREX_SPACEDIM; i++)
     for (int j = 0; j < AMREX_SPACEDIM; j++)
       for (int k = 0; k < AMREX_SPACEDIM; k++)
 	for (int l = 0; l < AMREX_SPACEDIM; l++)
 	  for (int n = 0; n<num_eta; n++)
-	    {
-	      amrex::Vector<amrex::Real> C_tmp = C(i,j,k,l);
-	      Cs[n][i][j][k][l] = C_tmp[n];
-	    }
+	    Cs[n][i][j][k][l] = models[n]->C(i,j,k,l);
 }
 
 amrex::Real
