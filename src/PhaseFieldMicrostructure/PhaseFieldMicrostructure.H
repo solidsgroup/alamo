@@ -26,6 +26,7 @@
 #include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 
 ///
@@ -98,6 +99,9 @@ private:
   int         elastic_cgverbose = 3;
   amrex::Real elastic_tol_rel = 0.0;
   amrex::Real elastic_tol_abs = 1.0E-10;
+  amrex::Real elastic_tstart = 0.0;
+  amrex::Array<amrex::Real> elastic_load_t;
+  amrex::Array<amrex::Real> elastic_load_disp;
   Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 
 };
