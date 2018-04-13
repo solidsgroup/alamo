@@ -6,27 +6,37 @@
 #include "Cubic.H"
 
 
-Operator::Elastic::PolyCrystal::Cubic::Cubic()
+
+Operator::Elastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44,
+					      amrex::Real phi1=0.0, amrex::Real Phi=0.0, amrex::Real phi2=0.0):
+  C11(_C11), C12(_C12), C44(_C44)
 {
-  // Default values hard coded for now
-  E1 = 1.0; nu1 = 0.25; mu1 = 2.0;
-  E2 = 1.0; nu2 = 0.25; mu2 = 2.0;
+  R = 
+    Eigen::AngleAxisd(phi2,Eigen::Vector3d::UnitZ()) *
+    Eigen::AngleAxisd(Phi,Eigen::Vector3d::UnitX()) *
+    Eigen::AngleAxisd(phi1,Eigen::Vector3d::UnitZ());
 }
 
-amrex::Vector<amrex::Real>
-Operator::Elastic::PolyCrystal::Cubic::C(const int i, const int j, const int k, const int l) const
+amrex::Real
+Operator::Elastic::PolyCrystal::Cubic::C(const int p, const int q, const int s, const int t) const
 {
-  amrex::Real C11a = E1*(1-nu1)/(1-nu1-2.0*nu1*nu1);
-  amrex::Real C11b = E2*(1-nu2)/(1-nu2-2.0*nu2*nu2);
-  amrex::Real C12a = E1*nu1/(1-nu1-2.0*nu1*nu1);
-  amrex::Real C12b = E2*nu2/(1-nu2-2.0*nu2*nu2);
-  amrex::Real C44a = mu1;
-  amrex::Real C44b = mu2;
 
-  amrex::Vector<amrex::Real> Cs;
-  if(i == j && j == k && k == l) {Cs.push_back(C11a); Cs.push_back(C11b); }
-  else if (i==k && j==l) {Cs.push_back(C44a); Cs.push_back(C44b);}
-  else if (i==j && k==l) {Cs.push_back(C12a); Cs.push_back(C12b);} 
+  amrex::Real Crot = 0.0;
 
-  return Cs;
+  for (int i = 0; i < 3; i++)
+    for (int j = 0; j < 3; j++)
+      for (int k = 0; k < 3; k++)
+	for (int l = 0; l < 3; l++)
+	  {
+	    amrex::Real C = 0.0;
+	    if (i==j && j==k && k==l) C = C11;
+	    else if (i==j && k==l)    C = C12;
+	    else if (i==k && j==l)    C = C44;
+
+	    Crot += R.transpose()(i,p) * R.transpose()(k,s) * C * R(q,j) * R(t,l);
+
+	  }
+	  
+  return Crot;
+
 }
