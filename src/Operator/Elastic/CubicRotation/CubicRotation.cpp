@@ -5,17 +5,33 @@
 
 #include "eigen3/Eigen/Core" //not sure if this import is necessary
 
-#include "Operator/Elastic/Cubic/CubicRotation.H"
+#include "Operator/Elastic/CubicRotation/CubicRotation.H"
 //#include "Operator/Elastic/Cubic/Cubic.H"  //allows use of Cijkl internally
 
 
-Operator::Elastic::CubicRotation::CubicRotation(eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
-						amrex::Real C11, amrex::Real C12, amrex::Real C44)
+Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
+						amrex::Real C11in, amrex::Real C12in, amrex::Real C44in)
 {
   // Default values hard coded for now
   E1 = 1.0; nu1 = 0.25; mu1 = 2.0;
   E2 = 1.0; nu2 = 0.25; mu2 = 2.0;
+  C11 = C11in;
+  C12 = C12in;
+  C44 = C44in;
+}
 
+void
+Operator::Elastic::CubicRotation::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc)
+{
+  RegisterNewFab(eta,eta_bc);
+}
+
+amrex::Real
+Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const int l,
+				    const amrex::IntVect loc,
+				    const int amrlev, const int mglev, const MFIter &mfi) //const
+{
+  //begin "move to constructor once figured out"
   amrex::Real C11a = E1*(1-nu1)/(1-nu1-2.0*nu1*nu1);  //taken from Cubic
   amrex::Real C11b = E2*(1-nu2)/(1-nu2-2.0*nu2*nu2);
   amrex::Real C12a = E1*nu1/(1-nu1-2.0*nu1*nu1);
@@ -61,22 +77,7 @@ Operator::Elastic::CubicRotation::CubicRotation(eigen::Matrix<amrex::Real, AMREX
     }
   }
 
-
-}
-
-void
-Operator::Elastic::CubicRotation::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc)
-{
-  RegisterNewFab(eta,eta_bc);
-}
-
-amrex::Real
-Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const int l,
-				    const amrex::IntVect loc,
-				    const int amrlev, const int mglev, const MFIter &mfi) const
-{
-
-  const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
+  //end of "move to constructor once figured out"
 
   return C[i][j][k][l];
 }
