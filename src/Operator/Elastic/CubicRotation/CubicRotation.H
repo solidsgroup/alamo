@@ -5,6 +5,8 @@
 #include <AMReX_Array.H>
 #include <limits>
 
+#include "eigen3/Eigen/Core"
+
 #include "Operator/Elastic/Elastic.H"
 
 using namespace amrex;
@@ -37,10 +39,8 @@ protected:
   amrex::Real E1, E2;       ///< Young's modulus
   amrex::Real nu1, nu2;     ///< Poisson's ratio
   amrex::Real mu1, mu2;     ///< Shear modulus
-  amrex::Real R11, R12, R13;
-  amrex::Real R21, R22, R23; 
-  amrex::Real R31, R32, R33; 
-  amrex::Real Cijkl;  //really need to get rid of this hard-coding once reference to Cubic works
+  eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R;
+  amrex::Real C11, C12, C44;
 };
 }
 }
