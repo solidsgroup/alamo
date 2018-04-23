@@ -33,7 +33,6 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
   
   Element<Q4> element(DX[0], DX[1]);
 
-  //std::array<std::array<amrex::Real,2> 2> 
   // DPhi[shape function #][quadrature point #][dimension #]
   std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = 
     {{{element.DPhi<1>(element.QPoint<1>()),
@@ -56,7 +55,7 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
     {element.QWeight<1>(), 
      element.QWeight<2>(), 
      element.QWeight<3>(), 
-     element.QWeight<4>()}
+     element.QWeight<4>()};
 
 
   static amrex::IntVect dx(1,0), dy(0,1);
@@ -71,23 +70,31 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
       for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
 	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
 	  {
-	    amrex::IntVect m(mx,my);//,  m2 = m1+dx, m3 = m1+dy, m4 = m1+dx+dy;
+	    amrex::IntVect O(mx,my);
 
-	    for (int _n=0; _n<4;n++)
+	    for (int _m=0; _m<4; _m++)
 	      {
-		amrex::IntVect n = m + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
+		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
 
-		for (int i=0; i < 2; i++)
-		  for (int j=0; j < 2; j++)
-		    for (int p=0; p < 2; p++)
-		      for (int q=0; q < 2; q++)
-			for (int Q=0; Q<4; Q++)
-			  {			    
-			    
+		for (int _n=0; _n<4; _n++)
+		  {
+		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
 
-			  }
+		    for (int i=0; i < 2; i++)
+		      for (int j=0; j < 2; j++)
+			for (int p=0; p < 2; p++)
+			  for (int q=0; q < 2; q++)
+			    for (int Q=0; Q<4; Q++)
+			      {			    
+				ffab(m,i) -=
+				  W[Q] *
+				  C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C
+				  DPhi[_m][Q][p] *
+				  DPhi[_n][Q][q] *
+				  ufab(n,j);
+			      }
+		  }
 	      }
-
 	  }
     }
 
@@ -114,6 +121,84 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
 {
   BL_PROFILE("Operator::FEM::Fsmooth()");
 
+
+  const Real* DX = m_geom[amrlev][mglev].CellSize();
+  
+  Element<Q4> element(DX[0], DX[1]);
+
+  // DPhi[shape function #][quadrature point #][dimension #]
+  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = 
+    {{{element.DPhi<1>(element.QPoint<1>()),
+       element.DPhi<1>(element.QPoint<2>()),
+       element.DPhi<1>(element.QPoint<3>()),
+       element.DPhi<1>(element.QPoint<4>())},
+      {element.DPhi<2>(element.QPoint<1>()),
+       element.DPhi<2>(element.QPoint<2>()),
+       element.DPhi<2>(element.QPoint<3>()),
+       element.DPhi<2>(element.QPoint<4>())},
+      {element.DPhi<3>(element.QPoint<1>()),
+       element.DPhi<3>(element.QPoint<2>()),
+       element.DPhi<3>(element.QPoint<3>()),
+       element.DPhi<3>(element.QPoint<4>())},
+      {element.DPhi<4>(element.QPoint<1>()),
+       element.DPhi<4>(element.QPoint<2>()),
+       element.DPhi<4>(element.QPoint<3>()),
+       element.DPhi<4>(element.QPoint<4>())}}};
+  std::array<amrex::Real,4> W =
+    {element.QWeight<1>(), 
+     element.QWeight<2>(), 
+     element.QWeight<3>(), 
+     element.QWeight<4>()};
+
+
+  amrex::Copy(u,rhs,0,0,ufab.nComp(),ufab.nGrow());
+
+  static amrex::IntVect dx(1,0), dy(0,1);
+  for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+    {
+      const Box& bx = mfi.tilebox();
+      const FArrayBox &rhsfab  = rhs[mfi];
+      FArrayBox       &ufab  = u[mfi];
+
+      for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
+	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
+	  {
+	    amrex::IntVect O(mx,my);
+
+	    for (int _m=0; _m<4; _m++)
+	      {
+		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
+
+		if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black
+
+		for (int _n=0; _n<4; _n++)
+		  {
+		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
+
+		    if (m == n) continue; 
+
+		    for (int i=0; i < 2; i++)
+		      for (int j=0; j < 2; j++)
+			for (int p=0; p < 2; p++)
+			  for (int q=0; q < 2; q++)
+			    for (int Q=0; Q<4; Q++)
+			      {			    
+				ufab(m,i) -=
+				  W[Q] *
+				  C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C
+				  DPhi[_m][Q][p] *
+				  DPhi[_n][Q][q] *
+				  rhsfab(n,j);
+			      }
+		  }
+	      }
+	  }
+    }
+
+
+
+
+
   const Real* dx = m_geom[amrlev][mglev].CellSize();
 
   for (MFIter mfi(u,MFItInfo().EnableTiling().SetDynamic(true));
@@ -133,35 +218,14 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
 		  amrex::Real rho = 0.0, aa = 0.0;
 		  for (int k=0; k<AMREX_SPACEDIM; k++)
 		    {
-		      rho -=
-			C(i,0,k,0,amrex::IntVect(m,n),amrlev,mglev,mfi)
-			*(ufab(amrex::IntVect(m+1,n),k) - (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k)) + ufab(amrex::IntVect(m-1,n),k))/dx[0]/dx[0]
-			+
-			(C(i,0,k,1,amrex::IntVect(m,n),amrlev,mglev,mfi) + C(i,1,k,0,amrex::IntVect(m,n),amrlev,mglev,mfi))
-			*(ufab(amrex::IntVect(m+1,n+1),k) + ufab(amrex::IntVect(m-1,n-1),k) - ufab(amrex::IntVect(m+1,n-1),k) - ufab(amrex::IntVect(m-1,n+1),k))/(2.0*dx[0])/(2.0*dx[1])
-			+
-			C(i,1,k,1,amrex::IntVect(m,n),amrlev,mglev,mfi)
-			*(ufab(amrex::IntVect(m,n+1),k) - (i==k ? 0.0 : 2.0*ufab(amrex::IntVect(m,n),k)) + ufab(amrex::IntVect(m,n-1),k))/dx[1]/dx[1];
-
-		      // C_{ijkl,j} u_{k,l}
-
-		      rho -=
-			((C(i,0,k,0,amrex::IntVect(m+1,n),amrlev,mglev,mfi) - C(i,0,k,0,amrex::IntVect(m-1,n),amrlev,mglev,mfi))/(2.0*dx[0]) +
-			 (C(i,1,k,0,amrex::IntVect(m,n+1),amrlev,mglev,mfi) - C(i,1,k,0,amrex::IntVect(m,n-1),amrlev,mglev,mfi))/(2.0*dx[1])) *
-			((ufab(amrex::IntVect(m+1,n),k) - ufab(amrex::IntVect(m-1,n),k))/(2.0*dx[0]))
-			+
-			((C(i,0,k,1,amrex::IntVect(m+1,n),amrlev,mglev,mfi) - C(i,0,k,1,amrex::IntVect(m-1,n),amrlev,mglev,mfi))/(2.0*dx[0]) +
-			 (C(i,1,k,1,amrex::IntVect(m,n+1),amrlev,mglev,mfi) - C(i,1,k,1,amrex::IntVect(m,n-1),amrlev,mglev,mfi))/(2.0*dx[1])) *
-			((ufab(amrex::IntVect(m,n+1),k) - ufab(amrex::IntVect(m,n-1),k))/(2.0*dx[1]));
 		    }
 
 		  aa -=
 		    -2.0*C(i,0,i,0,amrex::IntVect(m,n),amrlev,mglev,mfi)/dx[0]/dx[0]
 		    -2.0*C(i,1,i,1,amrex::IntVect(m,n),amrlev,mglev,mfi)/dx[1]/dx[1];
 
-		  //std::cout << "nans not detetected, rho=" << rho << ", aa=" << aa << std::endl;
-		  if (rho != rho) std::cout << "nans detetected, rho=" << rho << ", aa=" << aa << std::endl;
-		  if (rho != rho) amrex::Abort("nans detected");
+
+
 
 		  ufab(amrex::IntVect(m,n),i) = (rhsfab(amrex::IntVect(m,n),i) - rho) / aa;
 		}
@@ -267,4 +331,17 @@ Operator::FEM::FEM::Energy (FArrayBox& energyfab,
 	energyfab(m) *= 0.5;
       }
 
+}
+
+amrex::Real
+Operator::FEM::FEM::C(const int i, const int j, const int k, const int l,
+				const amrex::IntVect /*loc*/, const int /*amrlev*/,const int /*mglev*/, const MFIter & /*mfi*/) const
+{
+  amrex::Real mu = 1.0, lambda=1.0;
+  amrex::Real ret = 0.0;
+  if (i==k && j==l) ret += mu;
+  if (i==l && j==k) ret += mu;
+  if (i==j && k==l) ret += lambda;
+
+  return ret;
 }
