@@ -6,11 +6,8 @@
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
 
-//#include "MyTest/MyTest.H"
-#include "MyTest/MLStiffnessMatrix.H"
-//#include "MyTest/MLHeatConduction.H"
-//#include "MyTest/MyMLMG.H"
-//#include "MyTest/MyMLCGSolver.H"
+//#include "MyTest/MLStiffnessMatrix.H"
+#include "Operator/Elastic/Isotropic/Isotropic.H"
 
 using namespace amrex;
 
@@ -132,7 +129,8 @@ int main (int argc, char* argv[])
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
-  MLStiffnessMatrix mlabec(geom, grids, dmap, info);
+  Operator::Elastic::Isotropic mlabec;
+  mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   
   // set boundary conditions
