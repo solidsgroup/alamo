@@ -14,6 +14,67 @@ namespace Operator
 {
 namespace FEM
 {
+enum ShapeFunctionType
+  {
+    Q4
+  };
+
+template<ShapeFunctionType sftype> struct Element{};
+
+
+template <> struct Element<Q4>
+{
+public:
+  Element<Q4>(amrex::Real _dx, amrex::Real _dy): dx(_dx), dy(_dy) {} ;
+
+  template<int n>
+  inline amrex::Real Phi(std::array<amrex::Real,2>);
+
+  template<int n>
+  inline std::array<amrex::Real,2> DPhi(std::array<amrex::Real,2>);
+
+  template<int n>
+  inline std::array<amrex::Real,2> QPoint();
+
+  template<int n>
+  inline amrex::Real QWeight();
+
+
+private:
+  amrex::Real dx, dy;
+};
+
+template <>
+inline amrex::Real Element<Q4>::Phi<1>(std::array<amrex::Real,2> x)
+{return (x[0]-0.0)*(x[1]-0.0)/dx/dy;} 
+ 
+template <> inline amrex::Real Element<Q4>::Phi<2>(std::array<amrex::Real,2> x)
+{return (dx-x[0])*(x[1]-0.0)/dx/dy;} 
+
+template <> inline amrex::Real Element<Q4>::Phi<3>(std::array<amrex::Real,2> x)
+{return (x[0]-0.0)*(dy-x[1])/dx/dy;} 
+
+template <> inline amrex::Real Element<Q4>::Phi<4>(std::array<amrex::Real,2> x)
+{return (dx-x[0])*(dy-x[1])/dx/dy;}
+
+template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<1>(std::array<amrex::Real,2> x)
+{return {x[1]/dx/dy, x[0]/dx/dy};} 
+
+template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<2>(std::array<amrex::Real,2> x)
+{return {-x[1]/dx/dy,(dx-x[0])/dx/dy};} 
+
+template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<3>(std::array<amrex::Real,2> x)
+{return {(dy-x[1])/dx/dy,-x[0]/dx/dy};} 
+
+template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<4>(std::array<amrex::Real,2> x) 
+{return {-(dy-x[1])/dx/dy,-(dx-x[0])/dx/dy};}
+
+template <> amrex::Real Element<Q4>::QWeight<1>() {return 0.25*dx*dy; }
+template <> amrex::Real Element<Q4>::QWeight<2>() {return 0.25*dx*dy; }
+template <> amrex::Real Element<Q4>::QWeight<3>() {return 0.25*dx*dy; }
+template <> amrex::Real Element<Q4>::QWeight<4>() {return 0.25*dx*dy; }
+
+
 class FEM : public Operator
 {
 public:
@@ -47,17 +108,6 @@ protected:
 private:
   virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 			const int amrlev, const int mglev, const MFIter &mfi) const = 0;
-
-  constexpr static amrex::Real GradPhiQ[4][2][4] = // GradPhiQ[phi_n][d/dx_i][quadrature point]
-    {{{0.2113248655, -0.2113248655, 0.7886751345, -0.7886751345}, {0.2113248655, 0.7886751345, -0.2113248655, -0.7886751345}},
-     {{0.2113248655, -0.2113248655, 0.7886751345, -0.7886751345}, {0.7886751345, 0.2113248655, -0.7886751345, -0.2113248655}},
-     {{0.7886751345, -0.7886751345, 0.2113248655, -0.2113248655}, {0.2113248655, 0.7886751345, -0.2113248655, -0.7886751345}},
-     {{0.7886751345, -0.7886751345, 0.2113248655, -0.2113248655}, {0.7886751345, 0.2113248655, -0.7886751345, -0.2113248655}}};
-
-  constexpr static amrex::Real WeightQ[4] = // GradPhiQ[phi_n][d/dx_i][quadrature point]
-    {0.25, 0.25, 0.25, 0.25};
-
-
 };
 }
 }
