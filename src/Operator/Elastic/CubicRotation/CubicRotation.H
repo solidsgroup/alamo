@@ -37,7 +37,7 @@ namespace Elastic
   protected:
 
     amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
-		  const int amrlev, const int mglev, const MFIter &mfi) ;//const;
+		  const int amrlev, const int mglev, const MFIter &mfi) const;
 
     amrex::Real E1, E2;       ///< Young's modulus
     amrex::Real nu1, nu2;     ///< Poisson's ratio
