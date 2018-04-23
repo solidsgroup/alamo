@@ -31,6 +31,34 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 {
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
+  Element<Q4> element(DX[0], DX[1]);
+
+  //std::array<std::array<amrex::Real,2> 2> 
+  // DPhi[shape function #][quadrature point #][dimension #]
+  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = 
+    {{{element.DPhi<1>(element.QPoint<1>()),
+       element.DPhi<1>(element.QPoint<2>()),
+       element.DPhi<1>(element.QPoint<3>()),
+       element.DPhi<1>(element.QPoint<4>())},
+      {element.DPhi<2>(element.QPoint<1>()),
+       element.DPhi<2>(element.QPoint<2>()),
+       element.DPhi<2>(element.QPoint<3>()),
+       element.DPhi<2>(element.QPoint<4>())},
+      {element.DPhi<3>(element.QPoint<1>()),
+       element.DPhi<3>(element.QPoint<2>()),
+       element.DPhi<3>(element.QPoint<3>()),
+       element.DPhi<3>(element.QPoint<4>())},
+      {element.DPhi<4>(element.QPoint<1>()),
+       element.DPhi<4>(element.QPoint<2>()),
+       element.DPhi<4>(element.QPoint<3>()),
+       element.DPhi<4>(element.QPoint<4>())}}};
+  std::array<amrex::Real,4> W =
+    {element.QWeight<1>(), 
+     element.QWeight<2>(), 
+     element.QWeight<3>(), 
+     element.QWeight<4>()}
+
+
   static amrex::IntVect dx(1,0), dy(0,1);
   for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
     {
@@ -40,29 +68,30 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 
       ffab.setVal(0.0);
 
-      for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0] - 1; m1++)
-	for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1] - 1; m2++)
+      for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
+	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
 	  {
-	    amrex::IntVect m(m1,m2);
-	    for (int n1 = 0; n1 < 2; n1++)
-	      for (int n2 = 0; n2 < 2; n2++)
-		{
-		  amrex::IntVect n(n1,n2);
-		  for (int i=0; i<AMREX_SPACEDIM; i++)
-		    for (int j=0; j<AMREX_SPACEDIM; j++)
-		      {
+	    amrex::IntVect m(mx,my);//,  m2 = m1+dx, m3 = m1+dy, m4 = m1+dx+dy;
 
-			  
-			  
-			  
-			  
+	    for (int _n=0; _n<4;n++)
+	      {
+		amrex::IntVect n = m + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
 
-		      }
-		}
+		for (int i=0; i < 2; i++)
+		  for (int j=0; j < 2; j++)
+		    for (int p=0; p < 2; p++)
+		      for (int q=0; q < 2; q++)
+			for (int Q=0; Q<4; Q++)
+			  {			    
+			    
+
+			  }
+	      }
+
 	  }
-
-
     }
+
+
 }
 
 
