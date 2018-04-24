@@ -29,6 +29,8 @@ Operator::Elastic::Elastic::Fapply (int amrlev, ///<[in] AMR Level
 			     const MultiFab& u ///<[in] The displacements vector
 			     ) const
 {
+  BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
+
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
   static amrex::IntVect dx(1,0), dy(0,1);
@@ -94,7 +96,7 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 			      int redblack         ///<[in] Smooth even vs. odd modes
 			      ) const
 {
-	BL_PROFILE("Operator::Elastic::Fsmooth()");
+	BL_PROFILE("Operator::Elastic::Elastic::Fsmooth()");
 
 	const Real* dx = m_geom[amrlev][mglev].CellSize();
 
