@@ -7,7 +7,6 @@
 
 #include "Operator/Elastic/CubicRotation/CubicRotation.H"
 //#include "Operator/Elastic/Cubic/Cubic.H"  //allows use of Cijkl internally
-amrex::Real Cpqst[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
 
 Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
 						amrex::Real C11in, amrex::Real C12in, amrex::Real C44in)
@@ -39,14 +38,14 @@ Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX
     }
   }
   
-  //amrex::Real Cpqst[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
+  //amrex::Real Ctmp[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
   amrex::Real SumStore;
   
   for(int p = 0; p < AMREX_SPACEDIM; p++) {
     for(int q = 0; q < AMREX_SPACEDIM; q++) {
       for(int s = 0; s < AMREX_SPACEDIM; s++) {
         for(int t = 0; t < AMREX_SPACEDIM; t++) {
-	  SumStore = 0.0;
+	  SumStore = 0.0; //replace with C that has stuff added to it
 	  for(int i = 0; i < AMREX_SPACEDIM; i++) {
 	    for(int j = 0; j < AMREX_SPACEDIM; j++) {
 	      for(int k = 0; k < AMREX_SPACEDIM; k++) {
@@ -56,7 +55,7 @@ Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX
 	      }
 	    }
 	  }
-	  Cpqst[p][q][s][t] = SumStore;
+	  Ctmp[p][q][s][t] = SumStore;
 	}
       }
     }
@@ -75,5 +74,5 @@ Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const
 				    const amrex::IntVect loc,
 				    const int amrlev, const int mglev, const MFIter &mfi) const
 {
-  return Cpqst[i][j][k][l];
+  return Ctmp[i][j][k][l];
 }
