@@ -15,7 +15,7 @@ namespace Elastic
 {
 namespace PolyCrystal
 {
-class Isotropic : public PolyCrystal
+class Isotropic : public PolyCrystalModel
 {
 public:
 
@@ -26,7 +26,7 @@ public:
 
 protected:
 
-  amrex::Vector<amrex::Real> C(const int i, const int j, const int k, const int l) const;
+  amrex::Real C(const int i, const int j, const int k, const int l) const;
 
   amrex::Real mu1, mu2;     ///< First Lame parameter
   amrex::Real lambda1, lambda2; ///< Second Lame parameter

@@ -74,6 +74,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     pp.query("cgverbose",elastic_cgverbose);
     pp.query("tol_rel",elastic_tol_rel);
     pp.query("tol_abs",elastic_tol_abs);
+    pp.query("tstart",elastic_tstart);
+
+    pp.queryarr("load_t",elastic_load_t);
+    pp.queryarr("load_disp",elastic_load_disp);
+    if (elastic_load_t.size() != elastic_load_disp.size())
+      amrex::Abort("load_t and load_disp must have the same number of entries");
 
     if (elastic_on)
       {
@@ -245,6 +251,15 @@ PhaseFieldMicrostructure::Initialize (int lev)
 {
   ic->Initialize(lev,eta_new);
   ic->Initialize(lev,eta_old);
+  
+  displacement[lev].get()->setVal(0.0);
+  strain[lev].get()->setVal(0.0); 
+  stress[lev].get()->setVal(0.0); 
+  stress_vm[lev].get()->setVal(0.0);
+  body_force[lev].get()->setVal(0.0);
+  energy[lev].get()->setVal(0.0); 
+  energies[lev].get()->setVal(0.0); 
+
 }
 
 
@@ -292,19 +307,17 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
   }
 }
 
-void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real /*time*/, int iter)
+void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
   if (!elastic_on) return;
   if (iter%elastic_int) return;
+  if (time < elastic_tstart) return;
 
   LPInfo info;
   info.setAgglomeration(true);
   info.setConsolidation(true);
 
-  if (elastic_type == "isotropic")
-    elastic_operator = new Operator::Elastic::PolyCrystal::Isotropic();
-  else
-    amrex::Abort("Elastic type not specified or incorrect");
+  elastic_operator = new Operator::Elastic::PolyCrystal::PolyCrystal();
   
   geom[0].isPeriodic(0);
   elastic_operator->define(geom,grids,dmap,info);
@@ -317,7 +330,40 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real /*time*/, int iter)
 					      geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
 					      geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
 
-  elastic_operator->SetEta(eta_new,mybc);
+  std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
+  // for (int n = 0; n <  number_of_grains; n++) {} <<<<<< need to replace with this!
+  models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
+							     2.49, 2.49, 4.328));
+  models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
+							     0.99, 0.511, 1.39));
+  //models.push_back(&g2);
+
+  elastic_operator->SetEta(eta_new,mybc,models);
+
+  amrex::Real ushear = 0.0;
+
+  for (int i = 0; i<elastic_load_t.size(); i++)
+    {
+      if (time < elastic_load_t[0])
+	{
+	  ushear = elastic_load_disp[0];
+	  break;
+	}
+      if (i < elastic_load_t.size()-1 &&  elastic_load_t[i] < time && time < elastic_load_t[i+1])
+	{
+	  ushear = elastic_load_disp[i] +
+	    (time - elastic_load_t[i]) * (elastic_load_disp[i+1] - elastic_load_disp[i]) /
+	    (elastic_load_t[i+1] - elastic_load_t[i]);
+	  break;
+	}
+      else
+	{
+	  ushear = elastic_load_disp[elastic_load_t.size()-1];
+	  break;
+	}
+    }
+  std::cout << "ushear = " << ushear << std::endl;
+
 
   for (int ilev = 0; ilev < displacement.size(); ++ilev)
   {
@@ -332,8 +378,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real /*time*/, int iter)
         {
           if (j > domain.hiVect()[1]) // Top boundary
           {
-            disp_box(amrex::IntVect(i,j),0) = 0.005;
-            disp_box(amrex::IntVect(i,j),1) = 0.000;
+            disp_box(amrex::IntVect(i,j),0) = ushear;
+            disp_box(amrex::IntVect(i,j),1) = 0.0;
           }
           else if (i > domain.hiVect()[0]) // Right boundary
           {
@@ -342,7 +388,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real /*time*/, int iter)
           }
           else if (j < domain.loVect()[1]) // Bottom
           {
-            disp_box(amrex::IntVect(i,j),0) = -0.005;
+            disp_box(amrex::IntVect(i,j),0) = 0.0;
             disp_box(amrex::IntVect(i,j),1) = 0.0;
           }
           else if (i < domain.loVect()[0]) // Left boundary
