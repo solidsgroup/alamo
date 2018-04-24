@@ -29,6 +29,8 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 			    const MultiFab& u ///<[in] The displacements vector
 			    ) const
 {
+  BL_PROFILE("Operator::FEM::FEM::Fapply()");
+
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
   Element<Q4> element(DX[0], DX[1]);
@@ -76,6 +78,9 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 	      {
 		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
 
+		if (fabs(ufab(m,0)) > 0.0000001)
+		  std::cout << ufab(m,0) << std::endl;
+
 		for (int _n=0; _n<4; _n++)
 		  {
 		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
@@ -92,6 +97,7 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 				  DPhi[_m][Q][p] *
 				  DPhi[_n][Q][q] *
 				  ufab(n,j);
+				
 			      }
 		  }
 	      }
@@ -119,9 +125,9 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
 			     int redblack         ///<[in] Smooth even vs. odd modes
 			     ) const
 {
-  BL_PROFILE("Operator::FEM::Fsmooth()");
+  BL_PROFILE("Operator::FEM::FEM::Fsmooth()");
 
-
+  std::cout << "in fsmooth?" << std::endl;
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
   Element<Q4> element(DX[0], DX[1]);
@@ -151,14 +157,14 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
      element.QWeight<4>()};
 
 
-  amrex::Copy(u,rhs,0,0,ufab.nComp(),ufab.nGrow());
-
   static amrex::IntVect dx(1,0), dy(0,1);
-  for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+  for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
     {
       const Box& bx = mfi.tilebox();
       const FArrayBox &rhsfab  = rhs[mfi];
       FArrayBox       &ufab  = u[mfi];
+
+      ufab.copy(rhsfab,bx,0,bx,0,rhsfab.nComp());
 
       for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
 	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
@@ -193,44 +199,37 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
 		  }
 	      }
 	  }
+
+      for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
+	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
+	  {
+	    amrex::IntVect O(mx,my);
+
+	    for (int _m=0; _m<4; _m++)
+	      {
+		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
+
+		if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black
+
+		for (int i=0; i < 2; i++)
+		  {
+		    amrex::Real diag = 0;
+
+		    for (int j=0; j < 2; j++)
+		      for (int p=0; p < 2; p++)
+			for (int q=0; q < 2; q++)
+			  for (int Q=0; Q<4; Q++)
+			    {			    
+			      diag += 
+				W[Q] *
+				C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C
+				DPhi[_m][Q][p] *
+				DPhi[_m][Q][q];
+			    }
+		    ufab(m,i) /= diag;		    
+		  }
+	  }
     }
-
-
-
-
-
-  const Real* dx = m_geom[amrlev][mglev].CellSize();
-
-  for (MFIter mfi(u,MFItInfo().EnableTiling().SetDynamic(true));
-       mfi.isValid(); ++mfi)
-    {
-      const Box&       tbx     = mfi.tilebox();
-      FArrayBox&       ufab    = u[mfi];
-      const FArrayBox& rhsfab  = rhs[mfi];
-
-      for (int n = tbx.loVect()[1]; n<=tbx.hiVect()[1]; n++)
-	{
-	  int noffset = (tbx.loVect()[0] + n + redblack)%2;
-	  for (int m = tbx.loVect()[0] + noffset; m <= tbx.hiVect()[0]; m+= 2)
-	    {
-	      for (int i=0; i<AMREX_SPACEDIM; i++)
-		{
-		  amrex::Real rho = 0.0, aa = 0.0;
-		  for (int k=0; k<AMREX_SPACEDIM; k++)
-		    {
-		    }
-
-		  aa -=
-		    -2.0*C(i,0,i,0,amrex::IntVect(m,n),amrlev,mglev,mfi)/dx[0]/dx[0]
-		    -2.0*C(i,1,i,1,amrex::IntVect(m,n),amrlev,mglev,mfi)/dx[1]/dx[1];
-
-
-
-
-		  ufab(amrex::IntVect(m,n),i) = (rhsfab(amrex::IntVect(m,n),i) - rho) / aa;
-		}
-	    }
-	}
     }
 }
 
@@ -244,9 +243,9 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
 /// \todo Extend to 3D
 ///
 void
-Operator::FEM::FEM::FFlux (int amrlev, const MFIter& mfi,
+Operator::FEM::FEM::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 			   const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
-			   const FArrayBox& ufab, const int face_only) const
+			   const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
   // THIS ONLY HAPPENS WHEN MULTIPLE AMR LEVELS ARE USED...
 
@@ -254,8 +253,6 @@ Operator::FEM::FEM::FFlux (int amrlev, const MFIter& mfi,
   amrex::BaseFab<amrex::Real> &fyfab = *sigmafab[1];
   fxfab.setVal(0.0);
   fyfab.setVal(0.0);
-
-
 }
 
 
