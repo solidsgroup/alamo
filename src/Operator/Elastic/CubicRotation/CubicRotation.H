@@ -44,6 +44,7 @@ namespace Elastic
     amrex::Real mu1, mu2;     ///< Shear modulus
     Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R;
     amrex::Real C11, C12, C44;
+    amrex::Real Ctmp[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
   };
 }
 }
