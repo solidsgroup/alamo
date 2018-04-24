@@ -8,6 +8,7 @@
 
 //#include "MyTest/MLStiffnessMatrix.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
+#include "Operator/FEM/FEM.H"
 
 using namespace amrex;
 
@@ -129,7 +130,8 @@ int main (int argc, char* argv[])
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
-  Operator::Elastic::Isotropic mlabec;
+  Operator::FEM::FEM mlabec;
+  //Operator::Elastic::Isotropic mlabec;
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   
