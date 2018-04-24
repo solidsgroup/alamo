@@ -69,10 +69,22 @@ template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<3>(std::array<amr
 template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<4>(std::array<amrex::Real,2> x) 
 {return {-(dy-x[1])/dx/dy,-(dx-x[0])/dx/dy};}
 
-template <> amrex::Real Element<Q4>::QWeight<1>() {return 0.25*dx*dy; }
-template <> amrex::Real Element<Q4>::QWeight<2>() {return 0.25*dx*dy; }
-template <> amrex::Real Element<Q4>::QWeight<3>() {return 0.25*dx*dy; }
-template <> amrex::Real Element<Q4>::QWeight<4>() {return 0.25*dx*dy; }
+template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<1>()
+{return {dx*(sqrt(3.0)-1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)-1.0)/2.0/sqrt(3.0)};}
+
+template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<2>()
+{return {dx*(sqrt(3.0)+1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)-1.0)/2.0/sqrt(3.0)};}
+
+template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<3>()
+{return {dx*(sqrt(3.0)-1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)+1.0)/2.0/sqrt(3.0)};}
+
+template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<4>()
+{return {dx*(sqrt(3.0)+1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)+1.0)/2.0/sqrt(3.0)};}
+
+template <> inline amrex::Real Element<Q4>::QWeight<1>() {return 0.25*dx*dy; }
+template <> inline amrex::Real Element<Q4>::QWeight<2>() {return 0.25*dx*dy; }
+template <> inline amrex::Real Element<Q4>::QWeight<3>() {return 0.25*dx*dy; }
+template <> inline amrex::Real Element<Q4>::QWeight<4>() {return 0.25*dx*dy; }
 
 
 class FEM : public Operator
