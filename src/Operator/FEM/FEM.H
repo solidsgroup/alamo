@@ -108,6 +108,9 @@ public:
 	       const FArrayBox& ufab,
 	       int amrlev, const MFIter& mfi) const;
 
+  virtual void apply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const;
+  virtual void smooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const;
+
 protected:
   virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
   virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const final;
@@ -121,6 +124,10 @@ private:
   virtual amrex::Real C(const int i, const int j, const int k, const int l,
 			const amrex::IntVect loc, const int amrlev, const int mglev, const MFIter &mfi)
     const;
+
+
+  mutable amrex::Vector<amrex::Vector<amrex::MultiFab> > rho,aa;
+
 };
 }
 }
