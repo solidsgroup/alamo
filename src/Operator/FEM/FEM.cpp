@@ -18,18 +18,18 @@ Operator::FEM::FEM::FEM (const Vector<Geometry>& a_geom,
 {
   define(a_geom, a_grids, a_dmap, a_info);
 
-  rho.resize(m_num_amr_levels);
-  aa.resize(m_num_amr_levels);
-  for (int amrlev=0; amrlev < m_num_amr_levels; amrlev++)
-    {
-      rho[amrlev].resize(m_num_mg_levels[amrlev]);
-      aa[amrlev].resize(m_num_mg_levels[amrlev]);
-      for (int mglev=0; mglev < m_num_mg_levels[amrlev]; mglev++)
-	{
-	  rho[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
-	  aa[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
-	}
-    }
+  // rho.resize(m_num_amr_levels);
+  // aa.resize(m_num_amr_levels);
+  // for (int amrlev=0; amrlev < m_num_amr_levels; amrlev++)
+  //   {
+  //     rho[amrlev].resize(m_num_mg_levels[amrlev]);
+  //     aa[amrlev].resize(m_num_mg_levels[amrlev]);
+  //     for (int mglev=0; mglev < m_num_mg_levels[amrlev]; mglev++)
+  // 	{
+  // 	  rho[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
+  // 	  aa[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
+  // 	}
+  //   }
 }
 
 Operator::FEM::FEM::~FEM ()
@@ -164,6 +164,10 @@ Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
      element.QWeight<4>()};
 
 
+  MultiFab rho, aa;
+  rho.define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
+  aa.define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
+
   static amrex::IntVect dx(1,0), dy(0,1);
   for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
     {
@@ -171,8 +175,8 @@ Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
       const FArrayBox &rhsfab  = rhs[mfi];
       FArrayBox       &ufab  = u[mfi];
 
-      FArrayBox &rhofab = rho[amrlev][mglev][mfi];
-      FArrayBox &aafab = aa[amrlev][mglev][mfi];
+      FArrayBox &rhofab = rho[mfi];
+      FArrayBox &aafab = aa[mfi];
 
       aafab.setVal(0.0);
       rhofab.setVal(0.0);
