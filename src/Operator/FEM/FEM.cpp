@@ -17,19 +17,34 @@ Operator::FEM::FEM::FEM (const Vector<Geometry>& a_geom,
 			 const LPInfo& a_info)
 {
   define(a_geom, a_grids, a_dmap, a_info);
+
+  rho.resize(m_num_amr_levels);
+  aa.resize(m_num_amr_levels);
+  for (int amrlev=0; amrlev < m_num_amr_levels; amrlev++)
+    {
+      rho[amrlev].resize(m_num_mg_levels[amrlev]);
+      aa[amrlev].resize(m_num_mg_levels[amrlev]);
+      for (int mglev=0; mglev < m_num_mg_levels[amrlev]; mglev++)
+	{
+	  rho[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
+	  aa[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
+	}
+    }
 }
 
 Operator::FEM::FEM::~FEM ()
 {}
 
+
+
 void
-Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
+Operator::FEM::FEM::apply (int amrlev, ///<[in] AMR Level
 			    int mglev,  ///<[in]
 			    MultiFab& f,///<[out] The force vector
 			    const MultiFab& u ///<[in] The displacements vector
 			    ) const
 {
-  BL_PROFILE("Operator::FEM::FEM::Fapply()");
+  BL_PROFILE("Operator::FEM::FEM::apply()");
 
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
@@ -69,8 +84,8 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 
       ffab.setVal(0.0);
 
-      for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
-	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
+      for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
+	for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
 	  {
 	    amrex::IntVect O(mx,my);
 
@@ -78,12 +93,14 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 	      {
 		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
 
-		if (fabs(ufab(m,0)) > 0.0000001)
-		  std::cout << ufab(m,0) << std::endl;
+		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
+		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
 
 		for (int _n=0; _n<4; _n++)
 		  {
 		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
+
+		    //if (fabs(ufab(n,0)) > 0) std::cout << ufab(n,0) << std::endl;
 
 		    for (int i=0; i < 2; i++)
 		      for (int j=0; j < 2; j++)
@@ -97,37 +114,27 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 				  DPhi[_m][Q][p] *
 				  DPhi[_n][Q][q] *
 				  ufab(n,j);
-				
 			      }
+		    // if (fabs(ffab(m,0)) > 0 || fabs(ffab(m,1)) > 0)
+		    //   std::cout << "Fapply, ffab:" << ffab(m,0)<< "," << ffab(m,1) << std::endl;
 		  }
 	      }
 	  }
     }
-
-
 }
 
-
-/// \fn Operator::FEM::Fsmooth
-///
-/// Perform one half Gauss-Seidel iteration corresponding to the operator specified
-/// in Operator::FEM::Fapply.
-/// The variable redblack corresponds to whether to smooth "red" nodes or "black"
-/// nodes, where red and black nodes are distributed in a checkerboard pattern.
-///
-/// \todo Extend to 3D
-///
 void
-Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
+Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
 			     int mglev,           ///<[in]
-			     MultiFab& u,       ///<[inout] Solution (displacement field)
+			     MultiFab& u,         ///<[inout] Solution (displacement field)
 			     const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
 			     int redblack         ///<[in] Smooth even vs. odd modes
 			     ) const
 {
-  BL_PROFILE("Operator::FEM::FEM::Fsmooth()");
+  BL_PROFILE("Operator::FEM::FEM::smooth()");
 
-  std::cout << "in fsmooth?" << std::endl;
+  //if (!redblack) return;
+
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
   Element<Q4> element(DX[0], DX[1]);
@@ -164,81 +171,112 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
       const FArrayBox &rhsfab  = rhs[mfi];
       FArrayBox       &ufab  = u[mfi];
 
-      ufab.copy(rhsfab,bx,0,bx,0,rhsfab.nComp());
+      FArrayBox &rhofab = rho[amrlev][mglev][mfi];
+      FArrayBox &aafab = aa[amrlev][mglev][mfi];
 
-      for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
-	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
+      aafab.setVal(0.0);
+      rhofab.setVal(0.0);
+
+      for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
+	for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
 	  {
 	    amrex::IntVect O(mx,my);
 
 	    for (int _m=0; _m<4; _m++)
 	      {
 		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
+		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
+		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
 
-		if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black
+
+		if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black bit
 
 		for (int _n=0; _n<4; _n++)
 		  {
 		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
 
-		    if (m == n) continue; 
+		    // if (n[0] < bx.loVect()[0] || n[0] > bx.hiVect()[0] ||
+		    // 	n[1] < bx.loVect()[1] || n[1] > bx.hiVect()[1]) continue;
 
 		    for (int i=0; i < 2; i++)
 		      for (int j=0; j < 2; j++)
-			for (int p=0; p < 2; p++)
-			  for (int q=0; q < 2; q++)
-			    for (int Q=0; Q<4; Q++)
-			      {			    
-				ufab(m,i) -=
-				  W[Q] *
-				  C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C
-				  DPhi[_m][Q][p] *
-				  DPhi[_n][Q][q] *
-				  rhsfab(n,j);
-			      }
+			{
+			  for (int p=0; p < 2; p++)
+			    for (int q=0; q < 2; q++)
+			      for (int Q=0; Q < 4; Q++)
+				{			    
+				  if (m==n && i==j)
+				    aafab(m,i) +=
+				      -W[Q] *
+				      C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C  
+				      DPhi[_m][Q][p] *
+				      DPhi[_n][Q][q];
+				  else 
+				    rhofab(m,i) +=
+				      -W[Q] *
+				      C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C  
+				      DPhi[_m][Q][p] *
+				      DPhi[_n][Q][q] *
+				      ufab(n,j);
+				}
+			}
 		  }
 	      }
 	  }
 
-      for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0] - 1; mx++)
-	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1] - 1; my++)
+      for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0]; mx++)
+	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1]; my++)
 	  {
-	    amrex::IntVect O(mx,my);
-
-	    for (int _m=0; _m<4; _m++)
-	      {
-		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
-
-		if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black
-
-		for (int i=0; i < 2; i++)
-		  {
-		    amrex::Real diag = 0;
-
-		    for (int j=0; j < 2; j++)
-		      for (int p=0; p < 2; p++)
-			for (int q=0; q < 2; q++)
-			  for (int Q=0; Q<4; Q++)
-			    {			    
-			      diag += 
-				W[Q] *
-				C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C
-				DPhi[_m][Q][p] *
-				DPhi[_m][Q][q];
-			    }
-		    ufab(m,i) /= diag;		    
-		  }
+	    amrex::IntVect m(mx,my);
+	    if ( (m[0] + m[1])%2 == redblack) continue;
+	    for (int i = 0; i<AMREX_SPACEDIM; i++)
+	      ufab(m,i) = (rhsfab(m,i) - rhofab(m,i))/aafab(m,i);
 	  }
     }
-    }
+  // MultiFab::Copy(u, rhs, 0, 0, u.nComp(), 0);
+  // u.minus(rho,0,u.nComp(),0);
+  // u.divide(aa,0,u.nComp(),0);
+
+}
+
+
+void
+Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
+			    int mglev,  ///<[in]
+			    MultiFab& f,///<[out] The force vector
+			    const MultiFab& u ///<[in] The displacements vector
+			    ) const
+{
+  BL_PROFILE("Operator::FEM::FEM::Fapply()");
+  apply(amrlev,mglev,f,u);
+}
+
+
+/// \fn Operator::FEM::Fsmooth
+///
+/// Perform one half Gauss-Seidel iteration corresponding to the operator specified
+/// in Operator::FEM::Fapply.
+/// The variable redblack corresponds to whether to smooth "red" nodes or "black"
+/// nodes, where red and black nodes are distributed in a checkerboard pattern.
+///
+/// \todo Extend to 3D
+///
+void
+Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
+			     int mglev,           ///<[in]
+			     MultiFab& u,         ///<[inout] Solution (displacement field)
+			     const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
+			     int redblack         ///<[in] Smooth even vs. odd modes
+			     ) const
+{
+  BL_PROFILE("Operator::FEM::FEM::Fsmooth()");
+  //std::cout << "IN FSMOOTH"<< std::endl;
+  smooth(amrlev,mglev,u,rhs,redblack);
 }
 
 /// \fn Operator::FEM::FFlux
 ///
-/// Compute the "flux" corresponding to the operator in Operator::FEM::Fapply.
-/// Because the operator is self-adjoint and positive-definite, the flux is not
-/// required for adequate convergence (?)
-/// Therefore, the fluxes are simply set to zero and returned.
+/// The fluxes are simply set to zero and returned.
 ///
 /// \todo Extend to 3D
 ///
