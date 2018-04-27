@@ -126,7 +126,7 @@ private:
     const;
 
 
-  mutable amrex::Vector<amrex::Vector<amrex::MultiFab> > rho,aa;
+  //mutable amrex::Vector<amrex::Vector<amrex::MultiFab> > rho,aa;
 
 };
 }
