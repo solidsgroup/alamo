@@ -6,7 +6,7 @@
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
 
-#include "Operator/Elastic/Cubic/Cubic.H"
+#include "Operator/Elastic/CubicRotation/CubicRotation.H"
 //#include "MyTest/MyTest.H"
 //#include "MyTest/MLStiffnessMatrix.H"
 //#include "MyTest/MLHeatConduction.H"
@@ -133,7 +133,12 @@ int main (int argc, char* argv[])
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
-  Operator::Elastic::Cubic mlabec;
+  Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R;
+  R << 0.866025404, -0.5,
+       0.5, 0.866025404;  //2d rotation matrix for 30 deg rotation angle
+  //R << 1.0, 0.0,
+  //     0.0, 1.0;  //2d rotation matrix for 30 deg rotation angle
+  Operator::Elastic::CubicRotation mlabec(R);
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   
