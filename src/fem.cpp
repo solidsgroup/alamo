@@ -138,7 +138,14 @@ int main (int argc, char* argv[])
        0.5, 0.866025404;  //2d rotation matrix for 30 deg rotation angle
   //R << 1.0, 0.0,
   //     0.0, 1.0;  //2d rotation matrix for 30 deg rotation angle
-  Operator::Elastic::CubicRotation mlabec(R);
+  amrex::Real E,nu,mu;
+  E = 1.0; nu = 0.25; mu = 2.0;
+  amrex::Real C11, C12, C44;
+  C11 = E*(1-nu)/(1-nu-2.0*nu*nu);
+  C12 = E*nu/(1-nu-2.0*nu*nu);
+  C44 = mu;
+  
+  Operator::Elastic::CubicRotation mlabec(R, C11, C12, C44);
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   
