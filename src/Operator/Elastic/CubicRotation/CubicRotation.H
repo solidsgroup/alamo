@@ -27,7 +27,8 @@ namespace Elastic
 		   const Vector<DistributionMapping>& a_dmap,
 		   const LPInfo& a_info);
     /// \brief Typical constructor, using rotation matrix
-    CubicRotation (const Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM>);
+    CubicRotation (const Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM>,
+	       amrex::Real, amrex::Real, amrex::Real);
 		   /// \brief Typical constructor, using Bunge Euler angles
     //CubicRotation (const Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM>,
 	//	   amrex::Real, amrex::Real, amrex::Real);
@@ -41,7 +42,6 @@ namespace Elastic
     amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 		  const int amrlev, const int mglev, const MFIter &mfi) const;
 
-    amrex::Real E,nu,mu;
     Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R;
     amrex::Real C11, C12, C44;
     amrex::Real Ctmp[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
