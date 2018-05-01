@@ -26,11 +26,11 @@ namespace Elastic
 		   const Vector<BoxArray>& a_grids,
 		   const Vector<DistributionMapping>& a_dmap,
 		   const LPInfo& a_info);
-    /// \brief Typical constructor, using rotation matrix
-    CubicRotation (const Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM>,
+    /// \brief Constructor, using rotation matrix
+    CubicRotation (const Eigen::Matrix<amrex::Real, 3, 3>,
 	       amrex::Real, amrex::Real, amrex::Real);
-		   /// \brief Typical constructor, using Bunge Euler angles
-    //CubicRotation (const Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM>,
+	/// \brief Constructor, using Bunge Euler angles (in degrees)
+    //CubicRotation (const amrex::Real, const amrex::Real, const amrex::Real,
 	//	   amrex::Real, amrex::Real, amrex::Real);
     /// \brief Destructor (does nothing)
     virtual ~CubicRotation () {};
@@ -42,9 +42,9 @@ namespace Elastic
     amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 		  const int amrlev, const int mglev, const MFIter &mfi) const;
 
-    Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R;
+    Eigen::Matrix<amrex::Real, 3, 3> R;
     amrex::Real C11, C12, C44;
-    amrex::Real Ctmp[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
+    amrex::Real Ctmp[3][3][3][3];
   };
 }
 }

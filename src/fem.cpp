@@ -133,11 +133,16 @@ int main (int argc, char* argv[])
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
-  Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R;
-  R << 0.866025404, -0.5,
-       0.5, 0.866025404;  //2d rotation matrix for 30 deg rotation angle
-  //R << 1.0, 0.0,
-  //     0.0, 1.0;  //2d rotation matrix for 30 deg rotation angle
+  Eigen::Matrix<amrex::Real, 3, 3> R;
+  R << 0.8755949, -0.3817528,  0.2959702,
+       0.4200312,  0.9043038, -0.0762129,
+       -0.2385525,  0.1910484, 0.9521519;  //3d rotation matrix for 30 deg rotation angle about [1,2,3]
+  //R << 0.866025404, -0.5, 0,
+  //     0.5, 0.866025404, 0,
+  //     0.0, 0.0, 1.0;  //3d rotation matrix for 30 deg rotation angle
+  //R << 1.0, 0.0, 0.0,
+  //     0.0, 1.0, 0.0,
+  //     0.0, 0.0, 1.0;  //3d rotation matrix with 0 deg rotation angle
   amrex::Real E,nu,mu;
   E = 1.0; nu = 0.25; mu = 2.0;
   amrex::Real C11, C12, C44;
