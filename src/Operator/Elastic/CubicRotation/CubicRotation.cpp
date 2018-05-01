@@ -1,28 +1,26 @@
+//add proper Doxygen comments
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
 #include <AMReX_ArrayLim.H>
-//#include <iostream>
 
 #include "eigen3/Eigen/Core" //not sure if this import is necessary
 
 #include "Operator/Elastic/CubicRotation/CubicRotation.H"
 
-Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
+Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, 3, 3> R,
          amrex::Real C11in, amrex::Real C12in, amrex::Real C44in)
 {
   C11 = C11in;
   C12 = C12in;
   C44 = C44in;
   
-  //std::cout << "this is C11: " << C11 << "  this is C12: " << C12 << "  this is C44: " << C44 << "\n";
-  //std::cout << "this is R: " << R(0,0) << " " << R(0,1) << " " << R(1,0) << " " << R(1,1) << "\n";
-  amrex::Real C[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];  //may create naming conflict w/ C()
+  amrex::Real C[3][3][3][3];  //may create naming conflict w/ C()
   
-  for(int i = 0; i < AMREX_SPACEDIM; i++) {
-    for(int j = 0; j < AMREX_SPACEDIM; j++) {
-      for(int k = 0; k < AMREX_SPACEDIM; k++) {
-        for(int l = 0; l < AMREX_SPACEDIM; l++) {
+  for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 3; j++) {
+      for(int k = 0; k < 3; k++) {
+        for(int l = 0; l < 3; l++) {
           if(i == j && j == k && k == l) {
             C[i][j][k][l] = C11;
           } else if (i==k && j==l) {
@@ -38,23 +36,21 @@ Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX
   }
   
   
-  for(int p = 0; p < AMREX_SPACEDIM; p++) {
-    for(int q = 0; q < AMREX_SPACEDIM; q++) {
-      for(int s = 0; s < AMREX_SPACEDIM; s++) {
-        for(int t = 0; t < AMREX_SPACEDIM; t++) {
+  for(int p = 0; p < 3; p++) {
+    for(int q = 0; q < 3; q++) {
+      for(int s = 0; s < 3; s++) {
+        for(int t = 0; t < 3; t++) {
 	  Ctmp[p][q][s][t] = 0.0;
-	  for(int i = 0; i < AMREX_SPACEDIM; i++) {
-	    for(int j = 0; j < AMREX_SPACEDIM; j++) {
-	      for(int k = 0; k < AMREX_SPACEDIM; k++) {
-		for(int l = 0; l < AMREX_SPACEDIM; l++) {
+	  for(int i = 0; i < 3; i++) {
+	    for(int j = 0; j < 3; j++) {
+	      for(int k = 0; k < 3; k++) {
+		for(int l = 0; l < 3; l++) {
 		  Ctmp[p][q][s][t] += R(p,i)*R(s,k)*C[i][j][k][l]*R(q,j)*R(t,l);
-		  //std::cout << "this is Ctmp: " << Ctmp[p][q][s][t] << " with " << p << q << s << t;
 		}
 	      }
 	    }
 	  }
-	  //std::cout << "this is Ctmp: " << Ctmp[p][q][s][t] << " with " << p << q << s << t << "\n";
-	  //std::cout << "this is C: " << C[p][q][s][t] << " with " << p << q << s << t << "\n";
+	  
 	}
       }
     }
