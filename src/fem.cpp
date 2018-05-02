@@ -24,28 +24,26 @@ int main (int argc, char* argv[])
   std::array<amrex::Real,2> disp_bc_right  = {0.0, 0.0};
   std::array<amrex::Real,2> disp_bc_bottom = {0.0, 0.0};
 
-  LinOpBCType bc_x = LinOpBCType::Dirichlet; //LinOpBCType::Periodic; LinOpBCType::Neumann;
+  LinOpBCType bc_x = LinOpBCType::Periodic; //LinOpBCType::Periodic; LinOpBCType::Neumann;
   LinOpBCType bc_y = LinOpBCType::Dirichlet;
 
-
+  bool use_fsmooth = false; 
 
   int max_level = 1;//0;
   int ref_ratio = 2;//2
   int n_cell = 32;//128;
   int max_grid_size = 64;//64;
     
-  bool composite_solve = true;
-
   int verbose = 2;
-  int cg_verbose = 0;
+  int cg_verbose = 2;
   int max_iter = 1000;//100;
   int max_fmg_iter = 0;
   int linop_maxorder = 2;
   bool agglomeration = true;
-  bool consolidation = true;
+  bool consolidation = false;
 
-  const Real tol_rel = 1e-6;
-  const Real tol_abs = 0.0;
+  const Real tol_rel = 0.0;
+  const Real tol_abs = 1.0e-6;
 
 
   amrex::Vector<amrex::Geometry> geom;
@@ -65,7 +63,6 @@ int main (int argc, char* argv[])
   pp.query("ref_ratio", ref_ratio);
   pp.query("n_cell", n_cell);
   pp.query("max_grid_size", max_grid_size);
-  pp.query("composite_solve", composite_solve);
   pp.query("verbose", verbose);
   pp.query("cg_verbose", cg_verbose);
   pp.query("max_iter", max_iter);
@@ -161,7 +158,7 @@ int main (int argc, char* argv[])
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
   nlevels = geom.size();
-  info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
+  if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
   Operator::FEM::FEM mlabec;
   //Operator::Elastic::Isotropic mlabec;
   mlabec.define(geom, grids, dmap, info);
@@ -239,8 +236,8 @@ int main (int argc, char* argv[])
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
   mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-  mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
-  mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
+  if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
+  if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
   //
