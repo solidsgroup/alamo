@@ -17,10 +17,22 @@ int main (int argc, char* argv[])
   amrex::Initialize(argc, argv);
 
 
-  int max_level = 0;//0;
-  int ref_ratio = 2;
-  int n_cell = 128;
-  int max_grid_size = 64;
+  std::array<amrex::Real,2> body_force = {0.0, 0.0};
+
+  std::array<amrex::Real,2> disp_bc_top    = {0.1, 0.0};
+  std::array<amrex::Real,2> disp_bc_left   = {0.0, 0.0};
+  std::array<amrex::Real,2> disp_bc_right  = {0.0, 0.0};
+  std::array<amrex::Real,2> disp_bc_bottom = {0.0, 0.0};
+
+  LinOpBCType bc_x = LinOpBCType::Dirichlet; //LinOpBCType::Periodic; LinOpBCType::Neumann;
+  LinOpBCType bc_y = LinOpBCType::Dirichlet;
+
+
+
+  int max_level = 1;//0;
+  int ref_ratio = 2;//2
+  int n_cell = 32;//128;
+  int max_grid_size = 64;//64;
     
   bool composite_solve = true;
 
@@ -31,6 +43,10 @@ int main (int argc, char* argv[])
   int linop_maxorder = 2;
   bool agglomeration = true;
   bool consolidation = true;
+
+  const Real tol_rel = 1e-6;
+  const Real tol_abs = 0.0;
+
 
   amrex::Vector<amrex::Geometry> geom;
   amrex::Vector<amrex::BoxArray> grids;
@@ -58,7 +74,22 @@ int main (int argc, char* argv[])
   pp.query("agglomeration", agglomeration);
   pp.query("consolidation", consolidation);
 
-
+  // Operator::FEM::Element<Operator::FEM::Q4> element(1.0,1.0);
+  // std::ofstream out("file.dat");
+  // for (amrex::Real x = 0; x<=1.0; x+=0.01)
+  //   for (amrex::Real y = 0; y<=1.0; y+=0.01)
+  //     {
+  // 	out << x << " ";
+  // 	out << y << " ";
+  // 	out << element.Phi<4>({x,y}) << " ";
+  // 	out << element.DPhi<4>({x,y})[0] << " ";
+  // 	out << element.DPhi<4>({x,y})[1] << " ";
+  // 	// out << element.Phi<2>({x,y}) << " ";
+  // 	// out << element.Phi<3>({x,y}) << " ";
+  // 	// out << element.Phi<4>({x,y}) << " ";
+  // 	out << std::endl;
+  //     }
+  // exit(0);
 
   //
   // CONSTRUCTOR
@@ -77,7 +108,9 @@ int main (int argc, char* argv[])
   // define simulation domain
   RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
   // set periodicity
-  std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL(0,0,0)};
+  std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL((bc_x == LinOpBCType::Periodic ? 1 : 0),
+							  (bc_y == LinOpBCType::Periodic ? 1 : 0),
+							  1)};
   Geometry::Setup(&rb, 0, is_periodic.data());
   Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
   Box domain = domain0;
@@ -112,8 +145,9 @@ int main (int argc, char* argv[])
     {
       acoef[ilev].setVal(1.0);
       bcoef[ilev].setVal(1.0);
-      rhs[ilev].setVal(0.0,0,1);
-      rhs[ilev].setVal(0.0,1,1);
+      const Real* dx = geom[ilev].CellSize();
+      rhs[ilev].setVal(body_force[0]*dx[0]*dx[1],0,1);
+      rhs[ilev].setVal(body_force[1]*dx[0]*dx[1],1,1);
       solution[ilev].setVal(0.0);
     }
 
@@ -126,10 +160,8 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
-  const Real tol_rel = 1e-3;
-  const Real tol_abs = 0.0;
   nlevels = geom.size();
-  //info.setMaxCoarseningLevel(0); // <<<<< PUT IN TO AVOID Fsm
+  info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
   Operator::FEM::FEM mlabec;
   //Operator::Elastic::Isotropic mlabec;
   mlabec.define(geom, grids, dmap, info);
@@ -137,12 +169,12 @@ int main (int argc, char* argv[])
   
   // set boundary conditions
 
-  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Dirichlet,
-				   LinOpBCType::Dirichlet,
-				   LinOpBCType::Dirichlet)},
-		     {AMREX_D_DECL(LinOpBCType::Dirichlet,
-				   LinOpBCType::Dirichlet,
-				   LinOpBCType::Dirichlet)});
+  mlabec.setDomainBC({AMREX_D_DECL(bc_x,
+				   bc_y,
+				   LinOpBCType::Periodic)},
+		     {AMREX_D_DECL(bc_x,
+				   bc_y,
+				   LinOpBCType::Periodic)});
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
@@ -161,23 +193,23 @@ int main (int argc, char* argv[])
 	      { 
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.1;
-		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_top[0];
+		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_top[1];
 		  }
 		else if (j < domain.loVect()[1]) // Bottom boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
-		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_bottom[0];
+		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_bottom[1];
 		  }
 		else if (i > domain.hiVect()[0]) // Right boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
-		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_right[0];
+		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_right[1];
 		  }
 		else if (i < domain.loVect()[0]) // Left boundary 
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
-		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_left[0];
+		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_left[1];
 		  }
 	      }
 
@@ -207,21 +239,9 @@ int main (int argc, char* argv[])
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
   mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-  //mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
-  //mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
+  mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
+  mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-
-
-  
-  
-  // for (int amrlev = 0; amrlev <= max_level; amrlev++)
-  //   {
-  //     mlabec.apply(amrlev,0,rhs[amrlev],solution[amrlev]);
-  //     mlabec.smooth(amrlev,0,solution[amrlev],rhs[amrlev],0);
-  //     //mlabec.smooth(amrlev,0,solution[amrlev],rhs[amrlev],1);
-  //   }
-
-
 
   //
   // WRITE PLOT FILE
