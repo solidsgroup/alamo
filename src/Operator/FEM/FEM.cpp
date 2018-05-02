@@ -38,10 +38,10 @@ Operator::FEM::FEM::~FEM ()
 
 
 void
-Operator::FEM::FEM::apply (int amrlev, ///<[in] AMR Level
-			    int mglev,  ///<[in]
-			    MultiFab& f,///<[out] The force vector
-			    const MultiFab& u ///<[in] The displacements vector
+Operator::FEM::FEM::apply (int amrlev,		///<[in] AMR Level
+			    int mglev,		///<[in]
+			    MultiFab& f,	///<[out] The force vector
+			    const MultiFab& u	///<[in] The displacements vector
 			    ) const
 {
   BL_PROFILE("Operator::FEM::FEM::apply()");
@@ -75,6 +75,8 @@ Operator::FEM::FEM::apply (int amrlev, ///<[in] AMR Level
      element.QWeight<4>()};
 
 
+  // std::array<std::array<std::array<std::array<amrex::Real,2>,4>,2>,4> K;
+
   static amrex::IntVect dx(1,0), dy(0,1);
   for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
     {
@@ -84,11 +86,18 @@ Operator::FEM::FEM::apply (int amrlev, ///<[in] AMR Level
 
       ffab.setVal(0.0);
 
-      for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
-	for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
+      // std::cout << "Bounds x " << bx.loVect()[0] << ", " << bx.hiVect()[0] << std::endl;
+      // std::cout << "Bounds y " << bx.loVect()[1] << ", " << bx.hiVect()[1] << std::endl;
+
+      for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
+	for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
 	  {
 	    amrex::IntVect O(mx,my);
 
+	    // for (int m=0;m<4;m++) for (int i=0; i<2; i++) for (int n=0;n<4;n++) for (int j=0; j<2; j++) K[m][i][n][j] = 0.0;
+
+
+	    //std::cout << "O = " << O << std::endl;
 	    for (int _m=0; _m<4; _m++)
 	      {
 		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
@@ -100,27 +109,43 @@ Operator::FEM::FEM::apply (int amrlev, ///<[in] AMR Level
 		  {
 		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
 
-		    //if (fabs(ufab(n,0)) > 0) std::cout << ufab(n,0) << std::endl;
-
 		    for (int i=0; i < 2; i++)
 		      for (int j=0; j < 2; j++)
-			for (int p=0; p < 2; p++)
-			  for (int q=0; q < 2; q++)
-			    for (int Q=0; Q<4; Q++)
-			      {			    
-				ffab(m,i) -=
-				  W[Q] *
-				  C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C
-				  DPhi[_m][Q][p] *
-				  DPhi[_n][Q][q] *
-				  ufab(n,j);
+			{
+			  amrex::Real K_minj = 0.0;
+			  //K[_m][i][_n][j] = 0.0;
+
+			  for (int p=0; p < 2; p++)
+			    for (int q=0; q < 2; q++)
+			      {
+				for (int Q=0; Q < 4; Q++)
+				  {
+				    K_minj +=
+				      W[Q] *
+				      C(i,p,j,q,m,amrlev,mglev,mfi) * 
+				      DPhi[_m][Q][p] *
+				      DPhi[_n][Q][q];
+				  }
 			      }
-		    // if (fabs(ffab(m,0)) > 0 || fabs(ffab(m,1)) > 0)
-		    //   std::cout << "Fapply, ffab:" << ffab(m,0)<< "," << ffab(m,1) << std::endl;
+			  ffab(m,i) -= K_minj * ufab(n,j);
+			}
 		  }
 	      }
+	    // std::cout.setf(std::ios::fixed,std::ios::floatfield);
+	    // std::cout.precision(4);
+	    // for (int m=0;m<4;m++)
+	    //   for (int i=0; i<2; i++)
+	    // 	{
+	    // 	  for (int n=0;n<4;n++)
+	    // 	    for (int j=0; j<2; j++)
+	    // 	      std::cout << std::setw(8) << K[m][i][n][j] << " ";
+	    // 	  std::cout << std::endl;
+	    // 	}
+	    // std::cout << std::endl;
 	  }
+	      
     }
+  //exit(0);
 }
 
 void
@@ -141,27 +166,17 @@ Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
 
   // DPhi[shape function #][quadrature point #][dimension #]
   std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = 
-    {{{element.DPhi<1>(element.QPoint<1>()),
-       element.DPhi<1>(element.QPoint<2>()),
-       element.DPhi<1>(element.QPoint<3>()),
-       element.DPhi<1>(element.QPoint<4>())},
-      {element.DPhi<2>(element.QPoint<1>()),
-       element.DPhi<2>(element.QPoint<2>()),
-       element.DPhi<2>(element.QPoint<3>()),
-       element.DPhi<2>(element.QPoint<4>())},
-      {element.DPhi<3>(element.QPoint<1>()),
-       element.DPhi<3>(element.QPoint<2>()),
-       element.DPhi<3>(element.QPoint<3>()),
-       element.DPhi<3>(element.QPoint<4>())},
-      {element.DPhi<4>(element.QPoint<1>()),
-       element.DPhi<4>(element.QPoint<2>()),
-       element.DPhi<4>(element.QPoint<3>()),
-       element.DPhi<4>(element.QPoint<4>())}}};
+    {{{element.DPhi<1>(element.QPoint<1>()),    element.DPhi<1>(element.QPoint<2>()),    element.DPhi<1>(element.QPoint<3>()),    element.DPhi<1>(element.QPoint<4>())},
+      {element.DPhi<2>(element.QPoint<1>()),    element.DPhi<2>(element.QPoint<2>()),    element.DPhi<2>(element.QPoint<3>()),    element.DPhi<2>(element.QPoint<4>())},
+      {element.DPhi<3>(element.QPoint<1>()),    element.DPhi<3>(element.QPoint<2>()),    element.DPhi<3>(element.QPoint<3>()),    element.DPhi<3>(element.QPoint<4>())},
+      {element.DPhi<4>(element.QPoint<1>()),    element.DPhi<4>(element.QPoint<2>()),    element.DPhi<4>(element.QPoint<3>()),    element.DPhi<4>(element.QPoint<4>())}}};
   std::array<amrex::Real,4> W =
     {element.QWeight<1>(), 
      element.QWeight<2>(), 
      element.QWeight<3>(), 
      element.QWeight<4>()};
+
+  
 
 
   MultiFab rho, aa;
@@ -188,41 +203,40 @@ Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
 
 	    for (int _m=0; _m<4; _m++)
 	      {
-		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
+		amrex::IntVect m = O + dx*((_m/1)%2) + dy*((_m/2)%2); // dz*((_m/4)%2)
 		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
 		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
 
 
 		if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black bit
 
+
 		for (int _n=0; _n<4; _n++)
 		  {
 		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
 
-		    // if (n[0] < bx.loVect()[0] || n[0] > bx.hiVect()[0] ||
-		    // 	n[1] < bx.loVect()[1] || n[1] > bx.hiVect()[1]) continue;
-
 		    for (int i=0; i < 2; i++)
 		      for (int j=0; j < 2; j++)
 			{
+			  amrex::Real K_minj = 0.0;
+			  //K[_m][i][_n][j] = 0.0;
+
 			  for (int p=0; p < 2; p++)
 			    for (int q=0; q < 2; q++)
-			      for (int Q=0; Q < 4; Q++)
-				{			    
-				  if (m==n && i==j)
-				    aafab(m,i) +=
-				      -W[Q] *
-				      C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C  
+			      {
+				for (int Q=0; Q < 4; Q++)
+				  {
+				    K_minj +=
+				      W[Q] *
+				      C(i,p,j,q,m,amrlev,mglev,mfi) * 
 				      DPhi[_m][Q][p] *
 				      DPhi[_n][Q][q];
-				  else 
-				    rhofab(m,i) +=
-				      -W[Q] *
-				      C(i,p,j,q,m,amrlev,mglev,mfi) * //TODO need averaged C  
-				      DPhi[_m][Q][p] *
-				      DPhi[_n][Q][q] *
-				      ufab(n,j);
-				}
+				  }
+			      }
+			  if (m==n && i==j)
+			    aafab(m,i) -= K_minj;
+			  else
+			    rhofab(m,i) -= K_minj * ufab(n,j);
 			}
 		  }
 	      }
@@ -237,10 +251,6 @@ Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
 	      ufab(m,i) = (rhsfab(m,i) - rhofab(m,i))/aafab(m,i);
 	  }
     }
-  // MultiFab::Copy(u, rhs, 0, 0, u.nComp(), 0);
-  // u.minus(rho,0,u.nComp(),0);
-  // u.divide(aa,0,u.nComp(),0);
-
 }
 
 
