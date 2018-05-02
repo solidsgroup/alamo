@@ -44,30 +44,29 @@ private:
   amrex::Real dx, dy;
 };
 
-template <>
-inline amrex::Real Element<Q4>::Phi<1>(std::array<amrex::Real,2> x)
-{return (x[0]-0.0)*(x[1]-0.0)/dx/dy;} 
+template <> inline amrex::Real Element<Q4>::Phi<1>(std::array<amrex::Real,2> x)
+{return (dx-x[0])*(dy-x[1])/dx/dy;}
  
 template <> inline amrex::Real Element<Q4>::Phi<2>(std::array<amrex::Real,2> x)
-{return (dx-x[0])*(x[1]-0.0)/dx/dy;} 
-
-template <> inline amrex::Real Element<Q4>::Phi<3>(std::array<amrex::Real,2> x)
 {return (x[0]-0.0)*(dy-x[1])/dx/dy;} 
 
+template <> inline amrex::Real Element<Q4>::Phi<3>(std::array<amrex::Real,2> x)
+{return (dx-x[0])*(x[1]-0.0)/dx/dy;} 
+
 template <> inline amrex::Real Element<Q4>::Phi<4>(std::array<amrex::Real,2> x)
-{return (dx-x[0])*(dy-x[1])/dx/dy;}
+{return (x[0]-0.0)*(x[1]-0.0)/dx/dy;} 
 
 template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<1>(std::array<amrex::Real,2> x)
-{return {x[1]/dx/dy, x[0]/dx/dy};} 
+{return {-(dy-x[1])/dx/dy,-(dx-x[0])/dx/dy};}
 
 template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<2>(std::array<amrex::Real,2> x)
-{return {-x[1]/dx/dy,(dx-x[0])/dx/dy};} 
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<3>(std::array<amrex::Real,2> x)
 {return {(dy-x[1])/dx/dy,-x[0]/dx/dy};} 
 
+template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<3>(std::array<amrex::Real,2> x)
+{return {-x[1]/dx/dy,(dx-x[0])/dx/dy};} 
+
 template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<4>(std::array<amrex::Real,2> x) 
-{return {-(dy-x[1])/dx/dy,-(dx-x[0])/dx/dy};}
+{return {x[1]/dx/dy, x[0]/dx/dy};} 
 
 template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<1>()
 {return {dx*(sqrt(3.0)-1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)-1.0)/2.0/sqrt(3.0)};}
