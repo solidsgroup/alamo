@@ -6,7 +6,9 @@
 #include <limits>
 
 #include "Operator/Operator.H"
+#include "Model/Solid/Solid.H"
 
+#include "Element/Q4.H"
 
 using namespace amrex;
 
@@ -14,86 +16,15 @@ namespace Operator
 {
 namespace FEM
 {
-enum ShapeFunctionType
-  {
-    Q4
-  };
-
-template<ShapeFunctionType sftype> struct Element{};
-
-
-template <> struct Element<Q4>
-{
-public:
-  Element<Q4>(amrex::Real _dx, amrex::Real _dy): dx(_dx), dy(_dy) {} ;
-
-  template<int n>
-  inline amrex::Real Phi(std::array<amrex::Real,2>);
-
-  template<int n>
-  inline std::array<amrex::Real,2> DPhi(std::array<amrex::Real,2>);
-
-  template<int n>
-  inline std::array<amrex::Real,2> QPoint();
-
-  template<int n>
-  inline amrex::Real QWeight();
-
-
-private:
-  amrex::Real dx, dy;
-};
-
-template <> inline amrex::Real Element<Q4>::Phi<1>(std::array<amrex::Real,2> x)
-{return (dx-x[0])*(dy-x[1])/dx/dy;}
- 
-template <> inline amrex::Real Element<Q4>::Phi<2>(std::array<amrex::Real,2> x)
-{return (x[0]-0.0)*(dy-x[1])/dx/dy;} 
-
-template <> inline amrex::Real Element<Q4>::Phi<3>(std::array<amrex::Real,2> x)
-{return (dx-x[0])*(x[1]-0.0)/dx/dy;} 
-
-template <> inline amrex::Real Element<Q4>::Phi<4>(std::array<amrex::Real,2> x)
-{return (x[0]-0.0)*(x[1]-0.0)/dx/dy;} 
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<1>(std::array<amrex::Real,2> x)
-{return {-(dy-x[1])/dx/dy,-(dx-x[0])/dx/dy};}
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<2>(std::array<amrex::Real,2> x)
-{return {(dy-x[1])/dx/dy,-x[0]/dx/dy};} 
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<3>(std::array<amrex::Real,2> x)
-{return {-x[1]/dx/dy,(dx-x[0])/dx/dy};} 
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::DPhi<4>(std::array<amrex::Real,2> x) 
-{return {x[1]/dx/dy, x[0]/dx/dy};} 
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<1>()
-{return {dx*(sqrt(3.0)-1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)-1.0)/2.0/sqrt(3.0)};}
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<2>()
-{return {dx*(sqrt(3.0)+1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)-1.0)/2.0/sqrt(3.0)};}
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<3>()
-{return {dx*(sqrt(3.0)-1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)+1.0)/2.0/sqrt(3.0)};}
-
-template <> inline std::array<amrex::Real,2> Element<Q4>::QPoint<4>()
-{return {dx*(sqrt(3.0)+1.0)/2.0/sqrt(3.0), dy*(sqrt(3.0)+1.0)/2.0/sqrt(3.0)};}
-
-template <> inline amrex::Real Element<Q4>::QWeight<1>() {return 0.25*dx*dy; }
-template <> inline amrex::Real Element<Q4>::QWeight<2>() {return 0.25*dx*dy; }
-template <> inline amrex::Real Element<Q4>::QWeight<3>() {return 0.25*dx*dy; }
-template <> inline amrex::Real Element<Q4>::QWeight<4>() {return 0.25*dx*dy; }
-
 
 class FEM : public Operator
 {
 public:
-  FEM () {}
-  FEM (const Vector<Geometry>& a_geom,
-	   const Vector<BoxArray>& a_grids,
-	   const Vector<DistributionMapping>& a_dmap,
-	   const LPInfo& a_info);
+  FEM (Model::Solid::Solid &);
+  // FEM (const Vector<Geometry>& a_geom,
+  // 	   const Vector<BoxArray>& a_grids,
+  // 	   const Vector<DistributionMapping>& a_dmap,
+  // 	   const LPInfo& a_info);
   virtual ~FEM ();
   FEM (const FEM&) = delete;
   FEM (FEM&&) = delete;
@@ -103,11 +34,10 @@ public:
   void Stress (FArrayBox& sigmafab,
 	       const FArrayBox& ufab,
 	       int amrlev, const MFIter& mfi) const;
-  void Energy (FArrayBox& energyfab,
-	       const FArrayBox& ufab,
-	       int amrlev, const MFIter& mfi) const;
 
-  virtual void apply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const;
+  template<int n>
+  void Energy (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const;
+
   virtual void smooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const;
 
 protected:
@@ -124,7 +54,7 @@ private:
 			const amrex::IntVect loc, const int amrlev, const int mglev, const MFIter &mfi)
     const;
 
-
+  Model::Solid::Solid &model;
   //mutable amrex::Vector<amrex::Vector<amrex::MultiFab> > rho,aa;
 
 };
