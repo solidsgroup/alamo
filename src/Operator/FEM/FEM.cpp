@@ -7,42 +7,26 @@
 
 #include "FEM.H"
 
-/// \fn Operator::FEM::MLPFStiffnessMatrix
-///
-/// Relay to the define function
-/// Also define elastic constants here.
-Operator::FEM::FEM::FEM (const Vector<Geometry>& a_geom,
-			 const Vector<BoxArray>& a_grids,
-			 const Vector<DistributionMapping>& a_dmap,
-			 const LPInfo& a_info)
+namespace Operator
 {
-  define(a_geom, a_grids, a_dmap, a_info);
+namespace FEM
+{
 
-  // rho.resize(m_num_amr_levels);
-  // aa.resize(m_num_amr_levels);
-  // for (int amrlev=0; amrlev < m_num_amr_levels; amrlev++)
-  //   {
-  //     rho[amrlev].resize(m_num_mg_levels[amrlev]);
-  //     aa[amrlev].resize(m_num_mg_levels[amrlev]);
-  //     for (int mglev=0; mglev < m_num_mg_levels[amrlev]; mglev++)
-  // 	{
-  // 	  rho[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
-  // 	  aa[amrlev][mglev].define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
-  // 	}
-  //   }
+FEM::FEM (Model::Solid::Solid &_model)
+  : model(_model)
+{
 }
 
-Operator::FEM::FEM::~FEM ()
+
+FEM::~FEM ()
 {}
 
-
-
-void
-Operator::FEM::FEM::apply (int amrlev,		///<[in] AMR Level
-			    int mglev,		///<[in]
-			    MultiFab& f,	///<[out] The force vector
-			    const MultiFab& u	///<[in] The displacements vector
-			    ) const
+template<> 
+void FEM::Energy<1> (int amrlev,		///<[in] AMR Level
+			int mglev,		///<[in]
+			MultiFab& dw,	///<[out] The force vector
+			const MultiFab& u	///<[in] The displacements vector
+			) const
 {
   BL_PROFILE("Operator::FEM::FEM::apply()");
 
@@ -51,31 +35,71 @@ Operator::FEM::FEM::apply (int amrlev,		///<[in] AMR Level
   Element<Q4> element(DX[0], DX[1]);
 
   // DPhi[shape function #][quadrature point #][dimension #]
-  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = 
-    {{{element.DPhi<1>(element.QPoint<1>()),
-       element.DPhi<1>(element.QPoint<2>()),
-       element.DPhi<1>(element.QPoint<3>()),
-       element.DPhi<1>(element.QPoint<4>())},
-      {element.DPhi<2>(element.QPoint<1>()),
-       element.DPhi<2>(element.QPoint<2>()),
-       element.DPhi<2>(element.QPoint<3>()),
-       element.DPhi<2>(element.QPoint<4>())},
-      {element.DPhi<3>(element.QPoint<1>()),
-       element.DPhi<3>(element.QPoint<2>()),
-       element.DPhi<3>(element.QPoint<3>()),
-       element.DPhi<3>(element.QPoint<4>())},
-      {element.DPhi<4>(element.QPoint<1>()),
-       element.DPhi<4>(element.QPoint<2>()),
-       element.DPhi<4>(element.QPoint<3>()),
-       element.DPhi<4>(element.QPoint<4>())}}};
-  std::array<amrex::Real,4> W =
-    {element.QWeight<1>(), 
-     element.QWeight<2>(), 
-     element.QWeight<3>(), 
-     element.QWeight<4>()};
+  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi;// = element.DPhis();
+  std::array<amrex::Real,4> W = element.Ws();
 
 
-  // std::array<std::array<std::array<std::array<amrex::Real,2>,4>,2>,4> K;
+  static amrex::IntVect dx(1,0), dy(0,1);
+  for (MFIter mfi(dw, true); mfi.isValid(); ++mfi)
+    {
+      const Box& bx = mfi.tilebox();
+      const FArrayBox &ufab  = u[mfi];
+      FArrayBox       &dwfab  = dw[mfi];
+
+      dwfab.setVal(0.0);
+
+      for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
+	for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
+	  {
+	    amrex::IntVect O(mx,my);
+	    for (int _m=0; _m<4; _m++)
+	      {
+		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
+
+		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
+		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
+
+		for (int i=0; i < 2; i++)
+		  {
+		    amrex::Real K_minj = 0.0;
+		    //K[_m][i][_n][j] = 0.0;
+
+		    for (int p=0; p < 2; p++)
+		      for (int Q=0; Q < 4; Q++)
+			{
+			  K_minj +=
+			    W[Q] *
+			    //C(i,p,j,q,m,amrlev,mglev,mfi) * 
+			    DPhi[_m][Q][p];// *
+			    //DPhi[_n][Q][q];
+			}
+		    //dwfab(m,i) -= K_minj * ufab(n,j);
+
+		  }
+		
+	      }
+	  }
+    }
+}
+
+
+
+template<>
+void FEM::Energy<2> (int amrlev,		///<[in] AMR Level
+		     int mglev,		///<[in]
+		     MultiFab& f,	///<[out] The force vector
+		     const MultiFab& u	///<[in] The displacements vector
+		     ) const
+{
+  BL_PROFILE("Operator::FEM::FEM::Energy<2>()");
+
+  const Real* DX = m_geom[amrlev][mglev].CellSize();
+  
+  Element<Q4> element(DX[0], DX[1]);
+
+  // DPhi[shape function #][quadrature point #][dimension #]
+  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = element.DPhis();
+  std::array<amrex::Real,4> W = element.Ws();
 
   static amrex::IntVect dx(1,0), dy(0,1);
   for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
@@ -86,98 +110,77 @@ Operator::FEM::FEM::apply (int amrlev,		///<[in] AMR Level
 
       ffab.setVal(0.0);
 
-      // std::cout << "Bounds x " << bx.loVect()[0] << ", " << bx.hiVect()[0] << std::endl;
-      // std::cout << "Bounds y " << bx.loVect()[1] << ", " << bx.hiVect()[1] << std::endl;
-
       for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
 	for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
 	  {
 	    amrex::IntVect O(mx,my);
 
-	    // for (int m=0;m<4;m++) for (int i=0; i<2; i++) for (int n=0;n<4;n++) for (int j=0; j<2; j++) K[m][i][n][j] = 0.0;
-
-
-	    //std::cout << "O = " << O << std::endl;
-	    for (int _m=0; _m<4; _m++)
+	    for (int Q=0; Q < 4; Q++)
 	      {
-		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
+		std::array<std::array<amrex::Real,2>,2> gradu = {{{0.0, 0.0},{0.0,0.0}}};
+		for (int i=0; i<2; i++)
+		  for (int j=0; i<2; i++)
+		    gradu[i][j] +=
+		      ufab(O,i) * DPhi[0][Q][j] +
+		      ufab(O+dx,i) * DPhi[1][Q][j] + 
+		      ufab(O+dy,i) * DPhi[2][Q][j] + 
+		      ufab(O+dx+dy,i) * DPhi[3][Q][j];
+		
+		std::array<std::array<std::array<std::array<amrex::Real,2>,2>,2>,2> ddw;
+		model.DDW(ddw,gradu);
 
-		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
-		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
-
-		for (int _n=0; _n<4; _n++)
+		for (int _m=0; _m<4; _m++)
 		  {
-		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
+		    amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); 
 
-		    for (int i=0; i < 2; i++)
-		      for (int j=0; j < 2; j++)
-			{
-			  amrex::Real K_minj = 0.0;
-			  //K[_m][i][_n][j] = 0.0;
+		    if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
+			m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
 
-			  for (int p=0; p < 2; p++)
-			    for (int q=0; q < 2; q++)
-			      {
-				for (int Q=0; Q < 4; Q++)
+		    for (int _n=0; _n<4; _n++)
+		      {
+			amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2);
+
+			for (int i=0; i < 2; i++)
+			  for (int j=0; j < 2; j++)
+			    {
+			      amrex::Real K_minj = 0.0;
+
+			      for (int p=0; p < 2; p++)
+				for (int q=0; q < 2; q++)
 				  {
-				    K_minj +=
-				      W[Q] *
-				      C(i,p,j,q,m,amrlev,mglev,mfi) * 
-				      DPhi[_m][Q][p] *
-				      DPhi[_n][Q][q];
+				    {
+				      K_minj +=
+					W[Q] *
+					ddw[i][p][j][q] * 
+					DPhi[_m][Q][p] *
+					DPhi[_n][Q][q];
+				    }
 				  }
-			      }
-			  ffab(m,i) -= K_minj * ufab(n,j);
-			}
+			      ffab(m,i) += K_minj * ufab(n,j);
+			    }
+		      }
 		  }
 	      }
-	    // std::cout.setf(std::ios::fixed,std::ios::floatfield);
-	    // std::cout.precision(4);
-	    // for (int m=0;m<4;m++)
-	    //   for (int i=0; i<2; i++)
-	    // 	{
-	    // 	  for (int n=0;n<4;n++)
-	    // 	    for (int j=0; j<2; j++)
-	    // 	      std::cout << std::setw(8) << K[m][i][n][j] << " ";
-	    // 	  std::cout << std::endl;
-	    // 	}
-	    // std::cout << std::endl;
 	  }
 	      
     }
-  //exit(0);
 }
-
-void
-Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
-			     int mglev,           ///<[in]
-			     MultiFab& u,         ///<[inout] Solution (displacement field)
-			     const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
-			     int redblack         ///<[in] Smooth even vs. odd modes
-			     ) const
+void FEM::smooth (int amrlev,          ///<[in] AMR level
+		  int mglev,           ///<[in]
+		  MultiFab& u,         ///<[inout] Solution (displacement field)
+		  const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
+		  int redblack         ///<[in] Smooth even vs. odd modes
+		  ) const
 {
   BL_PROFILE("Operator::FEM::FEM::smooth()");
-
-  //if (!redblack) return;
 
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
   Element<Q4> element(DX[0], DX[1]);
 
   // DPhi[shape function #][quadrature point #][dimension #]
-  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = 
-    {{{element.DPhi<1>(element.QPoint<1>()),    element.DPhi<1>(element.QPoint<2>()),    element.DPhi<1>(element.QPoint<3>()),    element.DPhi<1>(element.QPoint<4>())},
-      {element.DPhi<2>(element.QPoint<1>()),    element.DPhi<2>(element.QPoint<2>()),    element.DPhi<2>(element.QPoint<3>()),    element.DPhi<2>(element.QPoint<4>())},
-      {element.DPhi<3>(element.QPoint<1>()),    element.DPhi<3>(element.QPoint<2>()),    element.DPhi<3>(element.QPoint<3>()),    element.DPhi<3>(element.QPoint<4>())},
-      {element.DPhi<4>(element.QPoint<1>()),    element.DPhi<4>(element.QPoint<2>()),    element.DPhi<4>(element.QPoint<3>()),    element.DPhi<4>(element.QPoint<4>())}}};
-  std::array<amrex::Real,4> W =
-    {element.QWeight<1>(), 
-     element.QWeight<2>(), 
-     element.QWeight<3>(), 
-     element.QWeight<4>()};
-
-  
-
+  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = element.DPhis();
+  std::array<amrex::Real,4> W = element.Ws();
 
   MultiFab rho, aa;
   rho.define(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], getNComp(),0);
@@ -255,14 +258,14 @@ Operator::FEM::FEM::smooth (int amrlev,          ///<[in] AMR level
 
 
 void
-Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
-			    int mglev,  ///<[in]
-			    MultiFab& f,///<[out] The force vector
-			    const MultiFab& u ///<[in] The displacements vector
-			    ) const
+FEM::Fapply (int amrlev, ///<[in] AMR Level
+	     int mglev,  ///<[in]
+	     MultiFab& f,///<[out] The force vector
+	     const MultiFab& u ///<[in] The displacements vector
+	     ) const
 {
   BL_PROFILE("Operator::FEM::FEM::Fapply()");
-  apply(amrlev,mglev,f,u);
+  Energy<2>(amrlev,mglev,f,u);
 }
 
 
@@ -276,7 +279,7 @@ Operator::FEM::FEM::Fapply (int amrlev, ///<[in] AMR Level
 /// \todo Extend to 3D
 ///
 void
-Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
+FEM::Fsmooth (int amrlev,          ///<[in] AMR level
 			     int mglev,           ///<[in]
 			     MultiFab& u,         ///<[inout] Solution (displacement field)
 			     const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
@@ -295,7 +298,7 @@ Operator::FEM::FEM::Fsmooth (int amrlev,          ///<[in] AMR level
 /// \todo Extend to 3D
 ///
 void
-Operator::FEM::FEM::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
+FEM::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 			   const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
 			   const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
@@ -309,7 +312,7 @@ Operator::FEM::FEM::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 
 
 void
-Operator::FEM::FEM::Stress (FArrayBox& sigmafab,
+FEM::Stress (FArrayBox& sigmafab,
 			    const FArrayBox& ufab,
 			    int amrlev, const MFIter& mfi) const
 {
@@ -350,41 +353,45 @@ Operator::FEM::FEM::Stress (FArrayBox& sigmafab,
 
 }
 
-void
-Operator::FEM::FEM::Energy (FArrayBox& energyfab,
-			    const FArrayBox& ufab,
-			    int amrlev, const MFIter& mfi) const
+template<>
+void FEM::Energy<0> (int /*amrlev*/,
+		     int /*mglev*/,
+		     MultiFab & /*w*/,
+		     const MultiFab &/*u*/) const
+// FArrayBox& energyfab,
+// 			    const FArrayBox& ufab,
+// 			    int amrlev, const MFIter& mfi) const
 {
-  const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+  // const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-  amrex::IntVect dx(1,0);
-  amrex::IntVect dy(0,1);
+  // amrex::IntVect dx(1,0);
+  // amrex::IntVect dy(0,1);
 
-  const Box& bx = mfi.tilebox();
-  for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-    for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-      {
-	amrex::IntVect m(m1,m2);
-	amrex::Real gradu[2][2] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
-				    (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
-				   {(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
-				    (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])}};
+  // const Box& bx = mfi.tilebox();
+  // for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+  //   for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+  //     {
+  // 	amrex::IntVect m(m1,m2);
+  // 	amrex::Real gradu[2][2] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
+  // 				    (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
+  // 				   {(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
+  // 				    (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])}};
 
-	energyfab(m) = 0.0;
+  // 	energyfab(m) = 0.0;
 
-	for (int i=0; i<AMREX_SPACEDIM; i++)
-	  for (int j=0; j<AMREX_SPACEDIM; j++)
-	    for (int k=0; k<AMREX_SPACEDIM; k++)
-	      for (int l=0; l<AMREX_SPACEDIM; l++)
-		energyfab(m) += gradu[i][j] * C(i,j,k,l,m,amrlev,0,mfi) * gradu[k][l];
-	energyfab(m) *= 0.5;
-      }
+  // 	for (int i=0; i<AMREX_SPACEDIM; i++)
+  // 	  for (int j=0; j<AMREX_SPACEDIM; j++)
+  // 	    for (int k=0; k<AMREX_SPACEDIM; k++)
+  // 	      for (int l=0; l<AMREX_SPACEDIM; l++)
+  // 		energyfab(m) += gradu[i][j] * C(i,j,k,l,m,amrlev,0,mfi) * gradu[k][l];
+  // 	energyfab(m) *= 0.5;
+  //     }
 
 }
 
 amrex::Real
-Operator::FEM::FEM::C(const int i, const int j, const int k, const int l,
-				const amrex::IntVect /*loc*/, const int /*amrlev*/,const int /*mglev*/, const MFIter & /*mfi*/) const
+FEM::C(const int i, const int j, const int k, const int l,
+		      const amrex::IntVect /*loc*/, const int /*amrlev*/,const int /*mglev*/, const MFIter & /*mfi*/) const
 {
   amrex::Real mu = 1.0, lambda=1.0;
   amrex::Real ret = 0.0;
@@ -393,4 +400,6 @@ Operator::FEM::FEM::C(const int i, const int j, const int k, const int l,
   if (i==j && k==l) ret += lambda;
 
   return ret;
+}
+}
 }
