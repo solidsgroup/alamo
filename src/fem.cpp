@@ -9,6 +9,7 @@
 //#include "MyTest/MLStiffnessMatrix.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Operator/FEM/FEM.H"
+#include "Model/Solid/Elastic/Elastic.H"
 
 using namespace amrex;
 
@@ -42,8 +43,8 @@ int main (int argc, char* argv[])
   bool agglomeration = true;
   bool consolidation = false;
 
-  const Real tol_rel = 0.0;
-  const Real tol_abs = 1.0e-6;
+  const Real tol_rel = 1.0e-4;
+  const Real tol_abs = 1.0e-4;
 
 
   amrex::Vector<amrex::Geometry> geom;
@@ -159,7 +160,8 @@ int main (int argc, char* argv[])
   //const Real tol_rel = 1.e-10;
   nlevels = geom.size();
   if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
-  Operator::FEM::FEM mlabec;
+  Model::Solid::Elastic model;
+  Operator::FEM::FEM mlabec(model);
   //Operator::Elastic::Isotropic mlabec;
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
