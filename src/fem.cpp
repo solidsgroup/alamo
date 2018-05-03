@@ -133,11 +133,12 @@ int main (int argc, char* argv[])
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
-  Eigen::Matrix<amrex::Real, 3, 3> R;
+  
+  /*Eigen::Matrix<amrex::Real, 3, 3> R;
   R << 0.8755949, -0.3817528,  0.2959702,
        0.4200312,  0.9043038, -0.0762129,
        -0.2385525,  0.1910484, 0.9521519;  //3d rotation matrix for 30 deg rotation angle about [1,2,3]
-  //R << 0.866025404, -0.5, 0,
+  *///R << 0.866025404, -0.5, 0,
   //     0.5, 0.866025404, 0,
   //     0.0, 0.0, 1.0;  //3d rotation matrix for 30 deg rotation angle
   //R << 1.0, 0.0, 0.0,
@@ -150,7 +151,8 @@ int main (int argc, char* argv[])
   C12 = E*nu/(1-nu-2.0*nu*nu);
   C44 = mu;
   
-  Operator::Elastic::CubicRotation mlabec(R, C11, C12, C44);
+  //Operator::Elastic::CubicRotation mlabec(R, C11, C12, C44);
+  Operator::Elastic::CubicRotation mlabec(0.9, 0.2, 0.1, C11, C12, C44);  //Bunge Euler angles in radians
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   

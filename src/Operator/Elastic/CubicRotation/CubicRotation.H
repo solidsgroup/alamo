@@ -30,8 +30,8 @@ namespace Elastic
     CubicRotation (const Eigen::Matrix<amrex::Real, 3, 3>,
 	       amrex::Real, amrex::Real, amrex::Real);
 	/// \brief Constructor, using Bunge Euler angles (in degrees)
-    //CubicRotation (const amrex::Real, const amrex::Real, const amrex::Real,
-	//	   amrex::Real, amrex::Real, amrex::Real);
+    CubicRotation (const amrex::Real, const amrex::Real, const amrex::Real,
+		   amrex::Real, amrex::Real, amrex::Real);
     /// \brief Destructor (does nothing)
     virtual ~CubicRotation () {};
 
@@ -43,8 +43,7 @@ namespace Elastic
 		  const int amrlev, const int mglev, const MFIter &mfi) const;
 
     Eigen::Matrix<amrex::Real, 3, 3> R;
-    amrex::Real C11, C12, C44;
-    amrex::Real Ctmp[3][3][3][3];
+    amrex::Real Cc[3][3][3][3];
   };
 }
 }
