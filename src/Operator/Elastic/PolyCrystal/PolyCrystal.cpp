@@ -7,7 +7,7 @@
 
 
 void
-Operator::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta,
+Operator::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta,
 						    BC::BC &eta_bc,
 						    std::vector<PolyCrystalModel *> &models)
 {

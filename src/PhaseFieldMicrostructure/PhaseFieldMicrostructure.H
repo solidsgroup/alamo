@@ -58,15 +58,15 @@ private:
   int number_of_grains = 2;
   int number_of_ghost_cells = 2;
 
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
   BC::BC mybc;
 
@@ -78,10 +78,10 @@ private:
   std::string ic_type, gb_type, filename;
 
   // Voronoi
-  amrex::Array<amrex::Real> voronoi_x;
-  amrex::Array<amrex::Real> voronoi_y;
+  amrex::Vector<amrex::Real> voronoi_x;
+  amrex::Vector<amrex::Real> voronoi_y;
 #if BL_SPACEDIM==3
-  amrex::Array<amrex::Real> voronoi_z;
+  amrex::Vector<amrex::Real> voronoi_z;
 #endif
 
   amrex::Real damp;
@@ -100,8 +100,8 @@ private:
   amrex::Real elastic_tol_rel = 0.0;
   amrex::Real elastic_tol_abs = 1.0E-10;
   amrex::Real elastic_tstart = 0.0;
-  amrex::Array<amrex::Real> elastic_load_t;
-  amrex::Array<amrex::Real> elastic_load_disp;
+  amrex::Vector<amrex::Real> elastic_load_t;
+  amrex::Vector<amrex::Real> elastic_load_disp;
   Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 
 };

@@ -99,10 +99,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 #define ETA(i,j,k,n) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n)
 
 void
-PhaseFieldMicrostructure::Advance (int lev, Real time, Real dt)
+PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
   std::swap(eta_old[lev], eta_new[lev]);
-  const Real* dx = geom[lev].CellSize();
+  const amrex::Real* dx = geom[lev].CellSize();
 
   for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
     {
@@ -268,13 +268,13 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 {
   const amrex::Real* dx      = geom[lev].CellSize();
 
-  amrex::Array<int>  itags;
+  amrex::Vector<int>  itags;
 
   for (amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi)
   {
     const amrex::Box&  bx  = mfi.tilebox();
     amrex::TagBox&     tag  = tags[mfi];
-    amrex::BaseFab<Real> &eta_new_box = (*eta_new[lev])[mfi];
+    amrex::BaseFab<amrex::Real> &eta_new_box = (*eta_new[lev])[mfi];
 
 #if BL_SPACEDIM==2
     for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
@@ -423,7 +423,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
   for (int lev = 0; lev < displacement.size(); lev++)
   {
-    const Real* dx = geom[lev].CellSize();
+    const amrex::Real* dx = geom[lev].CellSize();
     for ( amrex::MFIter mfi(*displacement[lev],true); mfi.isValid(); ++mfi )
       {
 	const Box& bx = mfi.tilebox();

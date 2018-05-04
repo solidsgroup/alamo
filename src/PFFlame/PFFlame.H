@@ -19,15 +19,15 @@ public:
 
 protected:
   void Initialize (int lev) ;
-  void Advance (int lev, Real time, Real dt);
+  void Advance (int lev, amrex::Real time, amrex::Real dt);
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
 
 private:
 
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Temp;
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Temp_old;
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Eta;
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Eta_old;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > Eta;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > Eta_old;
   PFFlamePhysBC TempBC;
   PFFlamePhysBC EtaBC;
 
