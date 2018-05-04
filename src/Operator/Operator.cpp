@@ -25,7 +25,7 @@ Operator::Operator::define (const Vector<Geometry>& a_geom,
 
 void
 Operator::Operator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &input,
-				   GeneralAMRIntegratorPhysBC &new_bc)
+				   BC::BC &new_bc)
 {
   /// \todo assertions here
   m_a_coeffs.resize(m_a_coeffs.size() + 1);

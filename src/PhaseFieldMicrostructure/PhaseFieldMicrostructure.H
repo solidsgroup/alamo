@@ -13,17 +13,21 @@
 #include "AMReX_ParallelDescriptor.H"
 #include <AMReX_MLMG.H>
 
-#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
+#include "Integrator/Integrator.H"
 
-#include "InitialConditions/PerturbedInterface.H"
+#include "BC/BC.H"
+#include "IC/PerturbedInterface/PerturbedInterface.H"
 
 #include "PFBoundary/PFBoundary.H"
 #include "PFBoundary/PFBoundarySin.H"
 #include "PFBoundary/PFBoundaryAbsSin.H"
 #include "PFBoundary/PFBoundaryRead.H"
 
-#include "MyTest/MLPFStiffnessMatrix.H"
+#include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
+#include "Operator/Elastic/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
+#include "Operator/Elastic/Cubic/Cubic.H"
 
 ///
 /// \class PhaseFieldMicrostructure
@@ -32,7 +36,7 @@
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
-class PhaseFieldMicrostructure : public GeneralAMRIntegrator
+class PhaseFieldMicrostructure : public Integrator::Integrator
 {
 public:
   PhaseFieldMicrostructure();
@@ -47,7 +51,7 @@ protected:
 
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
 
-  void TimeStepComplete(amrex::Real time, int iter);
+  void TimeStepBegin(amrex::Real time, int iter);
 
 private:
 
@@ -59,10 +63,12 @@ private:
   amrex::Array<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
   amrex::Array<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Array<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Array<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > energy; ///< Multicomponent field variable storing pointwise displacements
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
+  amrex::Array<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-  GeneralAMRIntegratorPhysBC mybc;
+  BC::BC mybc;
 
   amrex::Real M, mu, gamma, sigma0, l_gb, beta;
   int anisotropy = 0;
@@ -82,7 +88,21 @@ private:
 
   PFBoundary *boundary;
 
-  GeneralAMRIntegratorIC *ic;
+  IC::IC *ic;
+
+  bool        elastic_on = false;
+  int         elastic_int = 1;
+  std::string elastic_type;
+  int         elastic_max_iter = 200;
+  int         elastic_max_fmg_iter = 0;
+  int         elastic_verbose = 3;
+  int         elastic_cgverbose = 3;
+  amrex::Real elastic_tol_rel = 0.0;
+  amrex::Real elastic_tol_abs = 1.0E-10;
+  amrex::Real elastic_tstart = 0.0;
+  amrex::Array<amrex::Real> elastic_load_t;
+  amrex::Array<amrex::Real> elastic_load_disp;
+  Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 
 };
 
