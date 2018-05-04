@@ -24,7 +24,7 @@ namespace IC
 class PerturbedInterface : public IC
 {
 public:
-  PerturbedInterface (amrex::Array<amrex::Geometry> &_geom) :
+  PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
     IC(_geom)
   {
       amrex::ParmParse pp("ic");
@@ -37,7 +37,7 @@ public:
   }
   
 void Initialize(const int lev,
-		amrex::Array<std::unique_ptr<amrex::MultiFab> > &field)
+		amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
   {
     const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
     //const amrex::Real width = geom[0].ProbHi()[0] - geom[0].ProbHi()[1];
@@ -46,7 +46,7 @@ void Initialize(const int lev,
       {
 	const amrex::Box& box = mfi.tilebox();
 
-	amrex::BaseFab<Real> &field_box = (*field[lev])[mfi];
+	amrex::BaseFab<amrex::Real> &field_box = (*field[lev])[mfi];
 
 	for (int i = box.loVect()[0]-field[lev]->nGrow(); i<=box.hiVect()[0]+field[lev]->nGrow(); i++) 
 	  for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++)

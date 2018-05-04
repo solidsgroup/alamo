@@ -7,7 +7,7 @@
 
 
 void
-Operator::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc)
+Operator::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc)
 {
   RegisterNewFab(eta,eta_bc);
   num_eta = eta[0].get()->nComp();

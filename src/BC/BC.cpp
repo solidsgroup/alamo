@@ -1,12 +1,12 @@
 #include "BC.H"
 
-BC::BC::BC (amrex::Array<amrex::Geometry> &_geom)
+BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom)
   : geom(_geom)
 {
   {
     amrex::ParmParse pp("bc");
-    amrex::Array<std::string> bc_hi_str(BL_SPACEDIM);
-    amrex::Array<std::string> bc_lo_str(BL_SPACEDIM);
+    amrex::Vector<std::string> bc_hi_str(BL_SPACEDIM);
+    amrex::Vector<std::string> bc_lo_str(BL_SPACEDIM);
     pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
     pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
 
@@ -58,7 +58,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
   mf.FillBoundary(geom[lev].periodicity());
 
   // Added for Neumann BC
-  const Real* dx = geom[lev].CellSize();
+  const amrex::Real* dx = geom[lev].CellSize();
 
   for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
     {
