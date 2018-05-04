@@ -1,4 +1,8 @@
-//add proper Doxygen comments
+///
+/// \file CubicRotatation.cpp
+/// \brief Apply a rotation to the elastic modulus tensor \f$\mathbb{C}_{ijkl}\f$
+///
+
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
