@@ -53,18 +53,18 @@ Integrator::HeatConduction::Initialize (int lev)
 /// using an explicit forward Euler method.
 /// \f$\alpha\f$ is stored in #alpha
 void
-Integrator::HeatConduction::Advance (int lev, Real /*time*/, Real dt)
+Integrator::HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
   std::swap(*Temp[lev], *Temp_old[lev]);
 
-  const Real* dx = geom[lev].CellSize();
+  const amrex::Real* dx = geom[lev].CellSize();
 
   for ( amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi )
     {
       const amrex::Box& bx = mfi.tilebox();
 
-      amrex::BaseFab<Real> &Temp_old_box = (*Temp_old[lev])[mfi];
-      amrex::BaseFab<Real> &Temp_box = (*Temp[lev])[mfi];
+      amrex::FArrayBox &Temp_old_box = (*Temp_old[lev])[mfi];
+      amrex::FArrayBox &Temp_box = (*Temp[lev])[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
@@ -94,13 +94,13 @@ Integrator::HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& 
 {
   const amrex::Real* dx      = geom[lev].CellSize();
 
-  amrex::Array<int>  itags;
+  //amrex::Array<int>  itags;
   for (amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi)
     {
       const amrex::Box&  bx  = mfi.tilebox();
       amrex::TagBox&     tag  = tags[mfi];
  	    
-      amrex::BaseFab<Real> &Temp_box = (*Temp[lev])[mfi];
+      amrex::FArrayBox &Temp_box = (*Temp[lev])[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
