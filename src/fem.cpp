@@ -30,21 +30,21 @@ int main (int argc, char* argv[])
 
   bool use_fsmooth = false; 
 
-  int max_level = 1;//0;
+  int max_level = 2;//0;
   int ref_ratio = 2;//2
   int n_cell = 32;//128;
   int max_grid_size = 64;//64;
     
   int verbose = 2;
-  int cg_verbose = 2;
+  int cg_verbose = 0;
   int max_iter = 1000;//100;
   int max_fmg_iter = 0;
   int linop_maxorder = 2;
   bool agglomeration = true;
   bool consolidation = false;
 
-  const Real tol_rel = 1.0e-4;
-  const Real tol_abs = 1.0e-4;
+  const Real tol_rel = 1.0e-5;
+  const Real tol_abs = 1.0e-5;
 
 
   amrex::Vector<amrex::Geometry> geom;
@@ -166,6 +166,7 @@ int main (int argc, char* argv[])
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   
+
   // set boundary conditions
 
   mlabec.setDomainBC({AMREX_D_DECL(bc_x,
@@ -237,7 +238,8 @@ int main (int argc, char* argv[])
   mlmg.setMaxFmgIter(max_fmg_iter);
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
-  mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+  //mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+  mlmg.setBottomSolver(MLMG::BottomSolver::cg);
   if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
   if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
