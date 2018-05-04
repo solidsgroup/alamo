@@ -8,7 +8,6 @@
 
 #include "Operator/Elastic/CubicRotation/CubicRotation.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
-#include "Operator/FEM/FEM.H"
 
 using namespace amrex;
 

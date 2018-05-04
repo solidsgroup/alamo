@@ -15,7 +15,7 @@ class BC
 {
 
 public:
-  BC (amrex::Array<amrex::Geometry> &_geom);
+  BC (amrex::Vector<amrex::Geometry> &_geom);
   virtual void FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) override;
   void SetLevel(int _lev);
   amrex::BCRec GetBCRec() ;

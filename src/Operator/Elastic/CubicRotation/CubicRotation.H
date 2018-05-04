@@ -55,8 +55,6 @@ namespace Elastic
     /// \brief Destructor (does nothing)
     virtual ~CubicRotation () {};
 
-    void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc);
-
   protected:
 
     amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
