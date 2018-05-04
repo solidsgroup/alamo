@@ -141,9 +141,6 @@ int main (int argc, char* argv[])
   *///R << 0.866025404, -0.5, 0,
   //     0.5, 0.866025404, 0,
   //     0.0, 0.0, 1.0;  //3d rotation matrix for 30 deg rotation angle
-  //R << 1.0, 0.0, 0.0,
-  //     0.0, 1.0, 0.0,
-  //     0.0, 0.0, 1.0;  //3d rotation matrix with 0 deg rotation angle
   amrex::Real E,nu,mu;
   E = 1.0; nu = 0.25; mu = 2.0;
   amrex::Real C11, C12, C44;
