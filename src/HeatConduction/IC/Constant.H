@@ -13,7 +13,7 @@ namespace IC
 class Constant : public IC
 {
 public:
-  Constant (amrex::Array<amrex::Geometry> &_geom) :
+  Constant (amrex::Vector<amrex::Geometry> &_geom) :
     IC(_geom)
   {
     if (amrex::ParallelDescriptor::IOProcessor())
@@ -24,13 +24,13 @@ public:
   }
   
 void Initialize(const int lev,
-		amrex::Array<std::unique_ptr<amrex::MultiFab> > &field)
+		amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
   {
     for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
       {
 	const amrex::Box& box = mfi.tilebox();
 
-	amrex::BaseFab<Real> &field_box = (*field[lev])[mfi];
+	amrex::FArrayBox &field_box = (*field[lev])[mfi];
 
 	for (int i = box.loVect()[0]-field[lev]->nGrow(); i<=box.hiVect()[0]+field[lev]->nGrow(); i++) 
 	  for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++)

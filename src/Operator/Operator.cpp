@@ -24,7 +24,7 @@ Operator::Operator::define (const Vector<Geometry>& a_geom,
 }
 
 void
-Operator::Operator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &input,
+Operator::Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input,
 				   BC::BC &new_bc)
 {
   /// \todo assertions here

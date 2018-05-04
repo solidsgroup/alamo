@@ -25,7 +25,7 @@ public:
   /// \brief Destructor (does nothing)
   virtual ~PolyCrystal () {};
 
-  void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc);
+  void SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc);
 
   void Energies (FArrayBox& energyfab,
 		 const FArrayBox& ufab,
