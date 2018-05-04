@@ -136,7 +136,7 @@ protected:
   ///
   /// Overriding is optional; the default is to do nothing.
   ///
-  virtual void TimeStepBegin(Real /*time*/, int /*iter*/) {};
+  virtual void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) {};
 
   /// \fn    TimeStepComplete
   /// \brief Run another system calculation (e.g. implicit solve) after integration step
@@ -146,7 +146,7 @@ protected:
   ///
   /// Overriding is optional; the default is to do nothing.
   ///
-  virtual void TimeStepComplete(Real /*time*/, int /*iter*/) {};
+  virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
 
   /// \fn    RegisterNewFab
   /// \brief Register a field variable for AMR with this class 
@@ -154,7 +154,7 @@ protected:
   /// You **must** call this function, typically in the constructor, for every field variable 
   /// that you use in any inherited class.
   /// 
-  void RegisterNewFab (amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab,
+  void RegisterNewFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 		       ///<[in] Reference to field variable that you want to use.
 		       ///      **Note** `new_fab` must not fall out of scope! Should be a
 		       ///      private member variable.
@@ -182,14 +182,14 @@ private:
   virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
   void FillPatch (int lev, amrex::Real time,
-		  amrex::Array<std::unique_ptr<amrex::MultiFab> > &source_mf,
+		  amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
 		  amrex::MultiFab &destination_multifab, BC::BC &physbc,
 		  int icomp);
   void InitFromCheckpoint ();
   long CountCells (int lev);
   void TimeStep (int lev, amrex::Real time, int iteration);
   void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, BC::BC &physbc, int icomp, int ncomp);
-  void GetData (const int lev, const amrex::Real time, amrex::Array<amrex::MultiFab*>& data, amrex::Array<amrex::Real>& datatime);
+  void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
   std::vector<std::string> PlotFileName (int lev) const;
   void WritePlotFile () const;
@@ -201,22 +201,22 @@ private:
 
   // TIME (STEP) KEEPING
   amrex::Real timestep;							///< Timestep for the base level of refinement
-  amrex::Array<amrex::Real> dt;						///< Timesteps for each level of refinement
-  amrex::Array<int> nsubsteps;						///< how many substeps on each level?
-  amrex::Array<int> istep;						///< Keep track of where each level is
-  amrex::Array<amrex::Real> t_new;					///< Keep track of current old simulation time on each level
-  amrex::Array<amrex::Real> t_old;					///< Keep track of current old simulation time on each level
+  amrex::Vector<amrex::Real> dt;						///< Timesteps for each level of refinement
+  amrex::Vector<int> nsubsteps;						///< how many substeps on each level?
+  amrex::Vector<int> istep;						///< Keep track of where each level is
+  amrex::Vector<amrex::Real> t_new;					///< Keep track of current old simulation time on each level
+  amrex::Vector<amrex::Real> t_old;					///< Keep track of current old simulation time on each level
   int max_step = std::numeric_limits<int>::max();			///< Maximum allowable timestep
   amrex::Real tstart = 0;						///< Default start time (default: 0)
   amrex::Real stop_time = std::numeric_limits<amrex::Real>::max();	///< Default stop time (default: max)
 
   // KEEPING TRACK OF ALL EVOLVING VARIABLES
   int number_of_fabs = 0;									///< Number of evolving variables (updated automatically)
-  amrex::Array<amrex::Array<std::unique_ptr<amrex::MultiFab> > *> fab_array;	                ///< List of ptrs to all updated fabs
-  amrex::Array<int> ncomp_array;								///< Array containing number of components for each fab array
-  amrex::Array<int> nghost_array;								///< Array containing number of ghost cells in each fab array
-  amrex::Array<std::string> name_array;								///< Array containing names for each variable in the fab array
-  amrex::Array<BC::BC *> physbc_array;                   		                 	///< Array of pointers to BC objects
+  amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;	                ///< List of ptrs to all updated fabs
+  amrex::Vector<int> ncomp_array;								///< Array containing number of components for each fab array
+  amrex::Vector<int> nghost_array;								///< Array containing number of ghost cells in each fab array
+  amrex::Vector<std::string> name_array;								///< Array containing names for each variable in the fab array
+  amrex::Vector<BC::BC *> physbc_array;                   		                 	///< Array of pointers to BC objects
 
   // REGRIDDING
   int regrid_int = 2; ///< Determine how often to regrid (default: 2)
