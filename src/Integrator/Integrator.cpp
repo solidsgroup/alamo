@@ -1,24 +1,14 @@
 ///
-/// \file GeneralAMRIntegrator.cpp
+/// \file Integrator.cpp
 /// \brief Compute the volume integral of two multiplied Fourier series
 ///
 
-#include <chrono>
-#include <ctime>
-
-#include <AMReX_ParallelDescriptor.H>
-#include <AMReX_ParmParse.H>
-#include <AMReX_MultiFabUtil.H>
-#include <AMReX_FillPatchUtil.H>
-#include <AMReX_BC_TYPES.H>
-
-#include "GeneralAMRIntegrator/GeneralAMRIntegrator.H"
-#include "GeneralAMRIntegrator/GeneralAMRIntegratorBC.H"
+#include "Integrator.H"
 
 
 using namespace amrex;
 
-GeneralAMRIntegrator::GeneralAMRIntegrator ()
+Integrator::Integrator::Integrator ()
 {
 
   {
@@ -79,19 +69,19 @@ GeneralAMRIntegrator::GeneralAMRIntegrator ()
 }
 
 ///
-/// \func  ~GeneralAMRIntegrator
+/// \func  ~Integrator
 /// \brief Does nothing -- check here first if there are memory leaks
 ///
-GeneralAMRIntegrator::~GeneralAMRIntegrator ()
+Integrator::Integrator::~Integrator ()
 {
 }
 
-/// \fn    GeneralAMRIntegrator::MakeNewLevelFromCoarse
+/// \fn    Integrator::MakeNewLevelFromCoarse
 /// \brief Wrapper to call FillCoarsePatch
 /// \note **THIS OVERRIDES A PURE VIRTUAL METHOD - DO NOT CHANGE**
 ///
 void
-GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
+Integrator::Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
 				const DistributionMapping& dm)
 {
   for (int n = 0; n < number_of_fabs; n++)
@@ -115,7 +105,7 @@ GeneralAMRIntegrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray
 /// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 ///
 void
-GeneralAMRIntegrator::RemakeLevel (int lev,       ///<[in] AMR Level
+Integrator::Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 				   Real time,     ///<[in] Simulation time
 				   const BoxArray& ba, 
 				   const DistributionMapping& dm)
@@ -143,7 +133,7 @@ GeneralAMRIntegrator::RemakeLevel (int lev,       ///<[in] AMR Level
 // (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 //
 void
-GeneralAMRIntegrator::ClearLevel (int lev)
+Integrator::Integrator::ClearLevel (int lev)
 {
   for (int n = 0; n < number_of_fabs; n++)
     {
@@ -156,8 +146,8 @@ GeneralAMRIntegrator::ClearLevel (int lev)
 //
 
 void // CUSTOM METHOD - CHANGEABLE
-GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab,
-				     GeneralAMRIntegratorPhysBC &new_bc,
+Integrator::Integrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab,
+				     BC::BC &new_bc,
 				     int ncomp,
 				     int nghost,
 				     std::string name)
@@ -176,7 +166,7 @@ GeneralAMRIntegrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFa
 
 
 long // CUSTOM METHOD - CHANGEABLE
-GeneralAMRIntegrator::CountCells (int lev)
+Integrator::Integrator::CountCells (int lev)
 {
   const int N = grids[lev].size();
 
@@ -191,10 +181,10 @@ GeneralAMRIntegrator::CountCells (int lev)
 }
 
 void  // CUSTOM METHOD - CHANGEABLE
-GeneralAMRIntegrator::FillPatch (int lev, Real time,
+Integrator::Integrator::FillPatch (int lev, Real time,
 				 Array<std::unique_ptr<MultiFab> > &source_mf,
 				 MultiFab &destination_mf,
-				 GeneralAMRIntegratorPhysBC &physbc, int icomp)
+				 BC::BC &physbc, int icomp)
 {
   if (lev == 0)
     {
@@ -244,15 +234,15 @@ GeneralAMRIntegrator::FillPatch (int lev, Real time,
     }
 }
 
-/// \fn    GeneralAMRIntegrator::FillCoarsePatch
+/// \fn    Integrator::FillCoarsePatch
 /// \brief Fill a fab at current level with the data from one level up
 ///
 /// \note  This is a custom method and is changeable
 void
-GeneralAMRIntegrator::FillCoarsePatch (int lev, ///<[in] AMR level
+Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 				       Real time, ///<[in] Simulatinon time
 				       amrex::Vector<std::unique_ptr<MultiFab> > &mf, ///<[in] Fab to fill
-				       GeneralAMRIntegratorPhysBC &physbc, ///<[in] BC object applying to Fab
+				       BC::BC &physbc, ///<[in] BC object applying to Fab
 				       int icomp, ///<[in] start component
 				       int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
 {
@@ -278,7 +268,7 @@ GeneralAMRIntegrator::FillCoarsePatch (int lev, ///<[in] AMR level
 }
  
 void // CUSTOM METHOD - CHANGEABLE
-GeneralAMRIntegrator::GetData (const int /*lev*/,
+Integrator::Integrator::GetData (const int /*lev*/,
 			       const Real /*time*/,
 			       Array<MultiFab*>& /*data*/,
 			       Array<Real>& /*datatime*/)
@@ -309,18 +299,18 @@ GeneralAMRIntegrator::GetData (const int /*lev*/,
   //   datatime.push_back(t_old[lev]);
   //   datatime.push_back(t_new[lev]);
   // }
-  amrex::Abort("GeneralAMRIntegrator::GetData: Used for time interpolation, which is not currently supported!");
+  amrex::Abort("Integrator::GetData: Used for time interpolation, which is not currently supported!");
 }
 
 void
-GeneralAMRIntegrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
+Integrator::Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 {
   TagCellsForRefinement(lev,tags,time,ngrow);
 }
 
 
 void
-GeneralAMRIntegrator::InitData ()
+Integrator::Integrator::InitData ()
 {
     // if (restart_chkfile.empty())
     // {
@@ -344,8 +334,9 @@ GeneralAMRIntegrator::InitData ()
     // }
 }
 
-void GeneralAMRIntegrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
-						    const DistributionMapping& dm)
+void
+Integrator::Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
+						 const DistributionMapping& dm)
 {
   for (int n = 0 ; n < number_of_fabs; n++)
     (*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp_array[n], nghost_array[n]));
@@ -363,7 +354,7 @@ void GeneralAMRIntegrator::MakeNewLevelFromScratch (int lev, Real t, const BoxAr
 }
 
 std::vector<std::string>
-GeneralAMRIntegrator::PlotFileName (int lev) const
+Integrator::Integrator::PlotFileName (int lev) const
 {
   std::vector<std::string> name;
   name.push_back(plot_file+"/");
@@ -373,7 +364,7 @@ GeneralAMRIntegrator::PlotFileName (int lev) const
 
 #define STR(a) #a
 void
-GeneralAMRIntegrator::WriteMetaData() const
+Integrator::Integrator::WriteMetaData() const
 {
   std::ofstream metadatafile;
   metadatafile.open(plot_file+"/metadata",std::ios_base::out);
@@ -407,7 +398,7 @@ GeneralAMRIntegrator::WriteMetaData() const
 
 
 void
-GeneralAMRIntegrator::WritePlotFile () const
+Integrator::Integrator::WritePlotFile () const
 {
   const int nlevels = finest_level+1;
 
@@ -444,13 +435,13 @@ GeneralAMRIntegrator::WritePlotFile () const
 }
 
 void
-GeneralAMRIntegrator::InitFromCheckpoint ()
+Integrator::Integrator::InitFromCheckpoint ()
 {
-  amrex::Abort("GeneralAMRIntegrator::InitFromCheckpoint: todo");
+  amrex::Abort("Integrator::InitFromCheckpoint: todo");
 }
 
 void
-GeneralAMRIntegrator::Evolve ()
+Integrator::Integrator::Evolve ()
 {
   Real cur_time = t_new[0];
   int last_plot_file_step = 0;
@@ -462,6 +453,7 @@ GeneralAMRIntegrator::Evolve ()
       }
       int lev = 0;
       int iteration = 1;
+      TimeStepBegin(cur_time,step);
       TimeStep(lev, cur_time, iteration);
       TimeStepComplete(cur_time,step);
       cur_time += dt[0];
@@ -490,7 +482,7 @@ GeneralAMRIntegrator::Evolve ()
 }
 
 void
-GeneralAMRIntegrator::TimeStep (int lev, Real time, int /*iteration*/)
+Integrator::Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 {
 
   if (regrid_int > 0)  // We may need to regrid

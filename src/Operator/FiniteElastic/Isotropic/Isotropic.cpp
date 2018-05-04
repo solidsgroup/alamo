@@ -6,14 +6,14 @@
 #include "Isotropic.H"
 
 
-Operator::Elastic::Isotropic::Isotropic ()
+Operator::FiniteElastic::Isotropic::Isotropic ()
 {
   mu = 1.0;
   lambda = 1.0;
 }
 
 amrex::Real
-Operator::Elastic::Isotropic::C(const int i, const int j, const int k, const int l,
+Operator::FiniteElastic::Isotropic::C(const int i, const int j, const int k, const int l,
 				const amrex::IntVect /*loc*/,
 				const int /*amrlev*/, const int /*mglev*/, const MFIter & /*mfi*/) const
 {

@@ -8,13 +8,13 @@
 
 Operator::Elastic::PolyCrystal::Isotropic::Isotropic()
 {
-  lambda1 = 1.0;
-  lambda2 = 1.0;
-  mu1 = 1.0;
-  mu2 = 2.0;
+  lambda1 = 1000.0;
+  lambda2 = 1000.0;
+  mu1 = 1000.0;
+  mu2 = 2000.0;
 }
 
-amrex::Vector<amrex::Real>
+amrex::Real
 Operator::Elastic::PolyCrystal::Isotropic::C(const int i, const int j, const int k, const int l) const
 {
   amrex::Vector<amrex::Real> Cs;
@@ -24,5 +24,5 @@ Operator::Elastic::PolyCrystal::Isotropic::C(const int i, const int j, const int
   if (i==l && j==k) {Cs[0] += mu1; Cs[1] += mu2;}
   if (i==j && k==l) {Cs[0] += lambda1; Cs[1] += lambda2;}
 
-  return Cs;
+  return 0.0;//Cs;
 }

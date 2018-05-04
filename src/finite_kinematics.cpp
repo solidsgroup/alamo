@@ -6,9 +6,8 @@
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
 
-#include "Operator/Elastic/CubicRotation/CubicRotation.H"
-#include "Operator/Elastic/Isotropic/Isotropic.H"
-#include "Operator/FEM/FEM.H"
+//#include "MyTest/MLStiffnessMatrix.H"
+#include "Operator/FiniteElastic/Isotropic/Isotropic.H"
 
 using namespace amrex;
 
@@ -130,23 +129,7 @@ int main (int argc, char* argv[])
   const Real tol_abs = 0.0;
   nlevels = geom.size();
   //info.setMaxCoarseningLevel(0);
-  
-  /*Eigen::Matrix<amrex::Real, 3, 3> R;
-  R << 0.8755949, -0.3817528,  0.2959702,
-       0.4200312,  0.9043038, -0.0762129,
-       -0.2385525,  0.1910484, 0.9521519;  //3d rotation matrix for 30 deg rotation angle about [1,2,3]
-  *///R << 0.866025404, -0.5, 0,
-  //     0.5, 0.866025404, 0,
-  //     0.0, 0.0, 1.0;  //3d rotation matrix for 30 deg rotation angle
-  amrex::Real E,nu,mu;
-  E = 1.0; nu = 0.25; mu = 2.0;
-  amrex::Real C11, C12, C44;
-  C11 = E*(1-nu)/(1-nu-2.0*nu*nu);
-  C12 = E*nu/(1-nu-2.0*nu*nu);
-  C44 = mu;
-  
-  //Operator::Elastic::CubicRotation mlabec(R, C11, C12, C44);
-  Operator::Elastic::CubicRotation mlabec(0.9, 0.2, 0.1, C11, C12, C44);  //Bunge Euler angles in radians
+  Operator::FiniteElastic::Isotropic mlabec;
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   
@@ -172,19 +155,22 @@ int main (int argc, char* argv[])
 	  for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
 	    for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
 	      { 
+		amrex::Real x = geom[ilev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[ilev].CellSize()[0];
+	  
+
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.1;
-		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = x;
+		    bcdata_box(amrex::IntVect(i,j),1) = 1.0;
 		  }
-		else if (i > domain.hiVect()[0]) // Right boundary
-		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
-		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
-		  }
+		// else if (i > domain.hiVect()[0]) // Right boundary
+		//   {
+		//     bcdata_box(amrex::IntVect(i,j),0) = x;
+		//     bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		//   }
 		else 
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = 0.0;
+		    bcdata_box(amrex::IntVect(i,j),0) = x;
 		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 	      }

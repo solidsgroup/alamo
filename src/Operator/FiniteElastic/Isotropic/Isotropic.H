@@ -1,19 +1,19 @@
-#ifndef OPERATOR_ELASTIC_ISOTROPIC_H_
-#define OPERATOR_ELASTIC_ISOTROPIC_H_
+#ifndef OPERATOR_FINITEELASTIC_ISOTROPIC_H_
+#define OPERATOR_FINITEELASTIC_ISOTROPIC_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
 
-#include "Operator/Elastic/Elastic.H"
+#include "Operator/FiniteElastic/FiniteElastic.H"
 
 using namespace amrex;
 
 namespace Operator
 {
-namespace Elastic
+namespace FiniteElastic
 {
-class Isotropic : public Elastic
+class Isotropic : public FiniteElastic
 {
 public:
 
