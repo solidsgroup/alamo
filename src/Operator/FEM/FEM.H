@@ -6,6 +6,7 @@
 #include <limits>
 
 #include "Operator/Operator.H"
+
 #include "Model/Solid/Solid.H"
 
 #include "Element/Q4.H"
