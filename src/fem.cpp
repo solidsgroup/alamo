@@ -36,7 +36,7 @@ int main (int argc, char* argv[])
   int max_grid_size = 64;//64;
     
   int verbose = 2;
-  int cg_verbose = 0;
+  int cg_verbose = 4;
   int max_iter = 1000;//100;
   int max_fmg_iter = 0;
   int linop_maxorder = 2;
