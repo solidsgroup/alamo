@@ -17,7 +17,6 @@ FEM::FEM (Model::Solid::Solid &_model)
 {
 }
 
-
 FEM::~FEM ()
 {}
 
@@ -30,56 +29,56 @@ void FEM::Energy<1> (int amrlev,		///<[in] AMR Level
 {
   BL_PROFILE("Operator::FEM::FEM::apply()");
 
-  const Real* DX = m_geom[amrlev][mglev].CellSize();
+  // const Real* DX = m_geom[amrlev][mglev].CellSize();
   
-  Element<Q4> element(DX[0], DX[1]);
+  // Element<Q4> element(DX[0], DX[1]);
 
-  // DPhi[shape function #][quadrature point #][dimension #]
-  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi;// = element.DPhis();
-  std::array<amrex::Real,4> W = element.Ws();
+  // // DPhi[shape function #][quadrature point #][dimension #]
+  // std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi;// = element.DPhis();
+  // std::array<amrex::Real,4> W = element.Ws();
 
 
-  static amrex::IntVect dx(1,0), dy(0,1);
-  for (MFIter mfi(dw, true); mfi.isValid(); ++mfi)
-    {
-      const Box& bx = mfi.tilebox();
-      const FArrayBox &ufab  = u[mfi];
-      FArrayBox       &dwfab  = dw[mfi];
+  // static amrex::IntVect dx(1,0), dy(0,1);
+  // for (MFIter mfi(dw, true); mfi.isValid(); ++mfi)
+  //   {
+  //     const Box& bx = mfi.tilebox();
+  //     const FArrayBox &ufab  = u[mfi];
+  //     FArrayBox       &dwfab  = dw[mfi];
 
-      dwfab.setVal(0.0);
+  //     dwfab.setVal(0.0);
 
-      for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
-	for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
-	  {
-	    amrex::IntVect O(mx,my);
-	    for (int _m=0; _m<4; _m++)
-	      {
-		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
+  //     for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
+  // 	for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
+  // 	  {
+  // 	    amrex::IntVect O(mx,my);
+  // 	    for (int _m=0; _m<4; _m++)
+  // 	      {
+  // 		amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); // dz*((_n/4)%2)
 
-		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
-		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
+  // 		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
+  // 		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
 
-		for (int i=0; i < 2; i++)
-		  {
-		    amrex::Real K_minj = 0.0;
-		    //K[_m][i][_n][j] = 0.0;
+  // 		for (int i=0; i < 2; i++)
+  // 		  {
+  // 		    amrex::Real K_minj = 0.0;
+  // 		    //K[_m][i][_n][j] = 0.0;
 
-		    for (int p=0; p < 2; p++)
-		      for (int Q=0; Q < 4; Q++)
-			{
-			  K_minj +=
-			    W[Q] *
-			    //C(i,p,j,q,m,amrlev,mglev,mfi) * 
-			    DPhi[_m][Q][p];// *
-			    //DPhi[_n][Q][q];
-			}
-		    //dwfab(m,i) -= K_minj * ufab(n,j);
+  // 		    for (int p=0; p < 2; p++)
+  // 		      for (int Q=0; Q < 4; Q++)
+  // 			{
+  // 			  K_minj +=
+  // 			    W[Q] *
+  // 			    //C(i,p,j,q,m,amrlev,mglev,mfi) * 
+  // 			    DPhi[_m][Q][p];// *
+  // 			    //DPhi[_n][Q][q];
+  // 			}
+  // 		    //dwfab(m,i) -= K_minj * ufab(n,j);
 
-		  }
+  // 		  }
 		
-	      }
-	  }
-    }
+  // 	      }
+  // 	  }
+  //   }
 }
 
 
@@ -98,7 +97,7 @@ void FEM::Energy<2> (int amrlev,		///<[in] AMR Level
   Element<Q4> element(DX[0], DX[1]);
 
   // DPhi[shape function #][quadrature point #][dimension #]
-  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = element.DPhis();
+  std::array<std::array<Set::Vector,4>,4> DPhi = element.DPhis();
   std::array<amrex::Real,4> W = element.Ws();
 
   static amrex::IntVect dx(1,0), dy(0,1);
@@ -117,17 +116,14 @@ void FEM::Energy<2> (int amrlev,		///<[in] AMR Level
 
 	    for (int Q=0; Q < 4; Q++)
 	      {
-		std::array<std::array<amrex::Real,2>,2> gradu = {{{0.0, 0.0},{0.0,0.0}}};
+		Set::Matrix gradu = Set::Matrix::Zero();
 		for (int i=0; i<2; i++)
 		  for (int j=0; i<2; i++)
-		    gradu[i][j] +=
+		    gradu(i,j) +=
 		      ufab(O,i) * DPhi[0][Q][j] +
 		      ufab(O+dx,i) * DPhi[1][Q][j] + 
 		      ufab(O+dy,i) * DPhi[2][Q][j] + 
 		      ufab(O+dx+dy,i) * DPhi[3][Q][j];
-		
-		std::array<std::array<std::array<std::array<amrex::Real,2>,2>,2>,2> ddw;
-		model.DDW(ddw,gradu);
 
 		for (int _m=0; _m<4; _m++)
 		  {
@@ -140,24 +136,11 @@ void FEM::Energy<2> (int amrlev,		///<[in] AMR Level
 		      {
 			amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2);
 
+			Set::Matrix ddw = W[Q]*model.DDW(gradu,DPhi[_m][Q],DPhi[_n][Q]);
+
 			for (int i=0; i < 2; i++)
 			  for (int j=0; j < 2; j++)
-			    {
-			      amrex::Real K_minj = 0.0;
-
-			      for (int p=0; p < 2; p++)
-				for (int q=0; q < 2; q++)
-				  {
-				    {
-				      K_minj +=
-					W[Q] *
-					ddw[i][p][j][q] * 
-					DPhi[_m][Q][p] *
-					DPhi[_n][Q][q];
-				    }
-				  }
-			      ffab(m,i) += K_minj * ufab(n,j);
-			    }
+			    ffab(m,i) += ddw(i,j) * ufab(n,j);
 		      }
 		  }
 	      }
@@ -173,13 +156,16 @@ void FEM::smooth (int amrlev,          ///<[in] AMR level
 		  ) const
 {
   BL_PROFILE("Operator::FEM::FEM::smooth()");
+  return;
+
+  amrex::Abort("Does not work if using smooth");
 
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
   Element<Q4> element(DX[0], DX[1]);
 
-  // DPhi[shape function #][quadrature point #][dimension #]
-  std::array<std::array<std::array<amrex::Real,2>,4>,4> DPhi = element.DPhis();
+  // // DPhi[shape function #][quadrature point #][dimension #]
+  std::array<std::array<Set::Vector,4>,4> DPhi = element.DPhis();
   std::array<amrex::Real,4> W = element.Ws();
 
   MultiFab rho, aa;
@@ -192,7 +178,6 @@ void FEM::smooth (int amrlev,          ///<[in] AMR level
       const Box& bx = mfi.tilebox();
       const FArrayBox &rhsfab  = rhs[mfi];
       FArrayBox       &ufab  = u[mfi];
-
       FArrayBox &rhofab = rho[mfi];
       FArrayBox &aafab = aa[mfi];
 
@@ -204,51 +189,46 @@ void FEM::smooth (int amrlev,          ///<[in] AMR level
 	  {
 	    amrex::IntVect O(mx,my);
 
-	    for (int _m=0; _m<4; _m++)
+	    for (int Q=0; Q < 4; Q++)
 	      {
-		amrex::IntVect m = O + dx*((_m/1)%2) + dy*((_m/2)%2); // dz*((_m/4)%2)
-		if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
-		    m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
+		Set::Matrix gradu = Set::Matrix::Zero();
+		for (int i=0; i<2; i++)
+		  for (int j=0; i<2; i++)
+		    gradu(i,j) +=
+		      ufab(O,i) * DPhi[0][Q][j] +
+		      ufab(O+dx,i) * DPhi[1][Q][j] + 
+		      ufab(O+dy,i) * DPhi[2][Q][j] + 
+		      ufab(O+dx+dy,i) * DPhi[3][Q][j];
 
-
-		if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black bit
-
-
-		for (int _n=0; _n<4; _n++)
+		for (int _m=0; _m<4; _m++)
 		  {
-		    amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
+		    amrex::IntVect m = O + dx*((_m/1)%2) + dy*((_m/2)%2); // dz*((_m/4)%2)
+		    if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
+			m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
 
-		    for (int i=0; i < 2; i++)
-		      for (int j=0; j < 2; j++)
-			{
-			  amrex::Real K_minj = 0.0;
-			  //K[_m][i][_n][j] = 0.0;
+		    if ( (m[0] + m[1])%2 == redblack) continue; // Red-Black bit
 
-			  for (int p=0; p < 2; p++)
-			    for (int q=0; q < 2; q++)
-			      {
-				for (int Q=0; Q < 4; Q++)
-				  {
-				    K_minj +=
-				      W[Q] *
-				      C(i,p,j,q,m,amrlev,mglev,mfi) * 
-				      DPhi[_m][Q][p] *
-				      DPhi[_n][Q][q];
-				  }
-			      }
-			  if (m==n && i==j)
-			    aafab(m,i) -= K_minj;
-			  else
-			    rhofab(m,i) -= K_minj * ufab(n,j);
-			}
+
+		    for (int _n=0; _n<4; _n++)
+		      {
+			amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2); // dz*((_n/4)%2)
+
+			Set::Matrix ddw = W[Q]*model.DDW(gradu,DPhi[_m][Q],DPhi[_n][Q]);
+
+			for (int i=0; i < 2; i++)
+			  for (int j=0; j < 2; j++)
+			    if (m==n && i==j)
+			      aafab(m,i) = ddw(i,j);
+			    else
+			      rhofab(m,i) += ddw(i,j) * ufab(n,j);
+		      }
 		  }
 	      }
 	  }
-
       for (int mx = bx.loVect()[0]; mx<=bx.hiVect()[0]; mx++)
 	for (int my = bx.loVect()[1]; my<=bx.hiVect()[1]; my++)
-	  {
-	    amrex::IntVect m(mx,my);
+   	  {
+   	    amrex::IntVect m(mx,my);
 	    if ( (m[0] + m[1])%2 == redblack) continue;
 	    for (int i = 0; i<AMREX_SPACEDIM; i++)
 	      ufab(m,i) = (rhsfab(m,i) - rhofab(m,i))/aafab(m,i);
