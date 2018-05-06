@@ -39,13 +39,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     // if (amrex::Verbose()) std::cout << "should only print if run with -v flag" << std::cout;
 
     if(gb_type=="abssin")
-      boundary = new PFBoundaryAbsSin(theta0,sigma0,sigma1);
+      boundary = new Model::Interface::GrainBoundary::AbsSin(theta0,sigma0,sigma1);
     else if(gb_type=="sin")
-      boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+      boundary = new Model::Interface::GrainBoundary::Sin(theta0,sigma0,sigma1);
     else if(gb_type=="read")
-      boundary = new PFBoundaryRead(filename);
+      boundary = new Model::Interface::GrainBoundary::Read(filename);
     else
-      boundary = new PFBoundarySin(theta0,sigma0,sigma1);
+      boundary = new Model::Interface::GrainBoundary::Sin(theta0,sigma0,sigma1);
 
     // if(ParallelDescriptor::IOProcessor())
     //   if (!boundary->Test()) amrex::Error("Boundary functor does not pass derivative test");
