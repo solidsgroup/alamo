@@ -1,18 +1,24 @@
-#ifndef PFBoundarySin_H
-#define PFBoundarySin_H
+#ifndef MODEL_INTERFACE_GRAINBOUNDARY_SIN_H
+#define MODEL_INTERFACE_GRAINBOUNDARY_SIN_H
 
 #include <iostream>
 #include <fstream>
 
 #include "AMReX.H"
-#include "PFBoundary/PFBoundary.H"
+#include "GrainBoundary.H"
 
 #define PI 3.14159265 
 
-class PFBoundarySin : public PFBoundary
+namespace Model
+{
+namespace Interface
+{
+namespace GrainBoundary
+{
+class Sin : public GrainBoundary
 {
 public:
-  PFBoundarySin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
+  Sin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
   {
     theta0 = _theta0;
     sigma0 = _sigma0;
@@ -49,5 +55,7 @@ public:
 private:
   amrex::Real theta0, sigma0, sigma1;
 };
-
+}
+}
+}
 #endif
