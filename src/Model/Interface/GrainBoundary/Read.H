@@ -1,17 +1,23 @@
-#ifndef PFBoundaryRead_H
-#define PFBoundaryRead_H
+#ifndef MODEL_INTERFACE_GRAINBOUNDARY_READ_H
+#define MODEL_INTERFACE_GRAINBOUNDARY_READ_H
 
 #include <iostream>
 #include <fstream>
 
 #include "AMReX.H"
-#include "PFBoundary/PFBoundary.H"
+#include "GrainBoundary.H"
 
 #define PI 3.14159265 
 
+namespace Model
+{
+namespace Interface
+{
+namespace GrainBoundary
+{
 /// Reads the data from a file and computes energies and its derivates
 ///
-class PFBoundaryRead : public PFBoundary
+class Read : public GrainBoundary
 {
 public:
   /// \brief Read in data
@@ -20,7 +26,7 @@ public:
   ///
   /// \f[ \int_0^1x^2dx = \frac{1}{3} \f]
   ///
-  PFBoundaryRead(std::string fileName) ///<[in] Name of file containing data
+  Read(std::string fileName) ///<[in] Name of file containing data
   {
     //Define
     int i;
@@ -182,5 +188,7 @@ private:
   std::vector<amrex::Real> thetas, sigmasW, sigmasDW, sigmasDDW;
   int size;
 };
-
+}
+}
+}
 #endif
