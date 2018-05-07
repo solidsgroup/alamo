@@ -33,7 +33,7 @@ def frequency(filename):
         im = imread(filename)
         img = rgb2gray(im)
         contours = measure.find_contours(img, 0.5)
-        Fs=512.0
+        Fs=1024.0
         Ts=1.0/Fs;
         t=np.arange(0,1,Ts)
         y = interp1d(contours[0][:,1]/max(contours[0][:,1]), contours[0][:,0])
@@ -43,10 +43,10 @@ def frequency(filename):
         n=len(y)
         #print(n)
         y_slope =2.0*y/(208.0)
-        dx = 10.0/512.0;
+        dx = 10.0/1024.0;
         dy= np.gradient(y_slope,dx);
         
-        fourier = np.fft.rfft(y,512)
+        fourier = np.fft.rfft(y,1024)
         k=np.arange(n)
         T = n/Fs
         frq= k/T
