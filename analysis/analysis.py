@@ -8,7 +8,7 @@ from pylab import imshow,show,plot,pcolor
 from contours_frequency import frequency
 from contours_frequency import analysis
 
-filename = "examples/perturbed_bar/PerturbedBar59/"
+filename = "examples/perturbed_bar/PerturbedBar163/"
 output_base =filename + "/Images"
 i=1
 header_images= []
@@ -37,6 +37,8 @@ header_txt = filename + "Images/header_images.txt"
 max_frequency_vector= []
 fourier_matrix=[]
 density_matrix = []
+av_slope = []
+max_freq = []
 i=0
 for f in open(header_txt).readlines():
     headerfile=os.path.dirname(header_txt)+"/"+f.replace("\n","")+".png";
@@ -56,12 +58,24 @@ for f in open(header_txt).readlines():
     grey_intensity = str(0.9-0.9*float((i/num_lines)))
     i=i+1
         
+slope_density = slope_density[:]
+max_slope_density = max(slope_density)
+max_slope = xs[slope_density.argmax()]
+av_slope.append(max_slope)
+print(av_slope)
+max_frequency =  analysis(fourier,frq)
+print(max_frequency)
+max_freq.append(max_frequency)
 np.savetxt(filename + "data_analysis/final_density.txt",density(xs))
 np.savetxt(filename + "data_analysis/final_density_x.txt",xs)
-        
+np.savetxt(filename + "data_analysis/av_slope.txt",av_slope)
+np.savetxt(filename + "data_analysis/final_freq.txt",max_freq)
+
 plt.plot(xs,density(xs), color=grey_intensity )
 plt.xlim([-1.2,1.2])
-plt.ylim([0,3])
+plt.ylim([0,2])
+plt.xlabel('Slope')
+plt.ylabel('Probability density')
         
 np.savetxt(filename+ "data_analysis/max_freq_vector.txt",max_frequency_vector)
 plt.savefig(filename + "slope_analysis.png")
@@ -70,7 +84,10 @@ plt.savefig(filename + "slope_analysis.pdf")
 
 plt.figure(2)
 pcolor(np.transpose(np.array(fourier_matrix)))
-plt.ylim([0,32])
+plt.ylim([0,40])
+plt.xlabel('t')
+h =plt.ylabel(r'$\omega$')
+h.set_rotation(0)
 plt.savefig(filename + "Frequency_plot.pdf")
 plt.savefig(filename + "Frequency_plot.png")
 
