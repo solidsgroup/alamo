@@ -340,11 +340,11 @@ def generate_image(path,output):
 
 
 
-filename = "examples/perturbed_bar/PerturbedBar58/output/output.visit";
-output_base = "examples/perturbed_bar/PerturbedBar58/Images"
-i=50		
+filename = "examples/perturbed_bar/PerturbedBar178/output/output.visit";
+output_base = "examples/perturbed_bar/PerturbedBar178/Images"
+i=1		
 for f in open(filename).readlines():
-    if (i == 50) :
+    if (i == 1) :
     	headerfile=os.path.dirname(filename)+"/"+f.replace("\n","");
         print(headerfile);
         print(open(headerfile).readlines()[7])
