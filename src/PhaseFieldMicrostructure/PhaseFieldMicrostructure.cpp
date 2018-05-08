@@ -21,13 +21,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     pp.query("l_gb", l_gb);
   }
   {
-<<<<<<< HEAD
-=======
     amrex::ParmParse pp("amr");
     pp.query("max_level",max_level);
   }
   {
->>>>>>> 06104ccb15e9aa1c6751bcc60d75da17334e9db0
     amrex::Real theta0,sigma0,sigma1;
     
     amrex::ParmParse pp("anisotropy"); // Phase-field model parameters
@@ -68,7 +65,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 
   RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
   RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
-<<<<<<< HEAD
+<<<<<<< Temporary merge branch 1
 }
 
 
@@ -86,6 +83,7 @@ PhaseFieldMicrostructure::Advance (int lev, Real /*time*/, Real dt)
 
       amrex::BaseFab<Real> &eta_new_box = (*eta_new[lev])[mfi];
       amrex::BaseFab<Real> &eta_old_box = (*eta_old[lev])[mfi];
+
 =======
   //  RegisterNewFab(Curvature, mybc, number_of_grains, 0, "Curvature");
   //  RegisterNewFab(Boundary_energy, mybc, number_of_grains, 0, "Boundary Energy");
@@ -116,14 +114,13 @@ PhaseFieldMicrostructure::Advance ( int lev , Real time, Real dt)
 	  // amrex::BaseFab<Real> &Curvature_box = (*Curvature[lev])[mfi];
 	  // amrex::BaseFab<Real> &Boundary_energy_box = (*Boundary_energy[lev])[mfi];
       
->>>>>>> 06104ccb15e9aa1c6751bcc60d75da17334e9db0
-
+>>>>>>> Temporary merge branch 2
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 #if AMREX_SPACEDIM > 2
 	  for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
 #endif
-<<<<<<< HEAD
+<<<<<<< Temporary merge branch 1
 	  {
 	    for (int m = 0; m < number_of_grains; m++)
 	      {
@@ -374,7 +371,8 @@ PhaseFieldMicrostructure::Advance ( int lev , Real time, Real dt)
   
 }
 
->>>>>>> 06104ccb15e9aa1c6751bcc60d75da17334e9db0
+ 
+>>>>>>> Temporary merge branch 2
 void
 PhaseFieldMicrostructure::Initialize (int lev)
 {
@@ -406,12 +404,11 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 	      {
 		amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j),n) - eta_new_box(amrex::IntVect(i-1,j),n))/(2.*dx[0]);
 		amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1),n) - eta_new_box(amrex::IntVect(i,j-1),n))/(2.*dx[1]);
-<<<<<<< HEAD
+<<<<<<< Temporary merge branch 1
 		if (dx[0]*sqrt(gradx*gradx + grady*grady)>0.1) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
 =======
 		if (dx[0]*sqrt(gradx*gradx + grady*grady)>0.005) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
-
->>>>>>> 06104ccb15e9aa1c6751bcc60d75da17334e9db0
+>>>>>>> Temporary merge branch 2
 	      }
 	  }
 #elif BL_SPACEDIM==3
