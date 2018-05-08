@@ -15,3 +15,6 @@ output*
 *.pdf
 *.png
 *dy
+*matrix*
+*slope*
+*freq*
