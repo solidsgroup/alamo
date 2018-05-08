@@ -94,6 +94,7 @@ PhaseFieldMicrostructure::Advance ( int lev , Real time, Real dt)
 	  // amrex::BaseFab<Real> &Curvature_box = (*Curvature[lev])[mfi];
 	  // amrex::BaseFab<Real> &Boundary_energy_box = (*Boundary_energy[lev])[mfi];
       
+
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
 #if AMREX_SPACEDIM > 2
@@ -234,7 +235,6 @@ PhaseFieldMicrostructure::Advance ( int lev , Real time, Real dt)
   
 }
 
- 
 void
 PhaseFieldMicrostructure::Initialize (int lev)
 {
@@ -267,6 +267,7 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 		amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j),n) - eta_new_box(amrex::IntVect(i-1,j),n))/(2.*dx[0]);
 		amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1),n) - eta_new_box(amrex::IntVect(i,j-1),n))/(2.*dx[1]);
 		if (dx[0]*sqrt(gradx*gradx + grady*grady)>0.005) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
+
 	      }
 	  }
 #elif BL_SPACEDIM==3
