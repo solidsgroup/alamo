@@ -1,6 +1,6 @@
 #include "PFFlame/PFFlame.H"
 
-PFFlame::PFFlame () : GeneralAMRIntegrator(), TempBC(geom,"TempBC"), EtaBC(geom,"EtaBC")
+PFFlame::PFFlame () : Integrator::Integrator(), TempBC(geom,"TempBC"), EtaBC(geom,"EtaBC")
 {
   amrex::ParmParse pp("physics"); 
   pp.query("M",M);
@@ -29,10 +29,10 @@ void PFFlame::Initialize (int lev)
        {
 	 const amrex::Box& box = mfi.tilebox();
 
-	 amrex::BaseFab<Real> &Eta_box		= (*Eta[lev])[mfi];
-	 amrex::BaseFab<Real> &Eta_old_box	= (*Eta_old[lev])[mfi];
-	 amrex::BaseFab<Real> &Temp_box		= (*Temp[lev])[mfi];
-	 amrex::BaseFab<Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
+	 amrex::BaseFab<amrex::Real> &Eta_box		= (*Eta[lev])[mfi];
+	 amrex::BaseFab<amrex::Real> &Eta_old_box	= (*Eta_old[lev])[mfi];
+	 amrex::BaseFab<amrex::Real> &Temp_box		= (*Temp[lev])[mfi];
+	 amrex::BaseFab<amrex::Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
 
 	 for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++) 
 	   for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++)
@@ -50,12 +50,12 @@ void PFFlame::Initialize (int lev)
 
 
 
-void PFFlame::Advance (int lev, Real time, Real dt)
+void PFFlame::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
   std::swap(Eta_old [lev], Eta [lev]);
   std::swap(Temp_old[lev], Temp[lev]);
 
-  const Real* dx = geom[lev].CellSize();
+  const amrex::Real* dx = geom[lev].CellSize();
 
   amrex::Real a0=w0, a1=0.0, a2= -5*w1 + 16*w12 - 11*a0, a3=14*w1 - 32*w12 + 18*a0, a4=-8*w1 + 16*w12 - 8*a0;
 
@@ -63,10 +63,10 @@ void PFFlame::Advance (int lev, Real time, Real dt)
     {
       const amrex::Box& bx = mfi.tilebox();
 
-      amrex::BaseFab<Real> &Eta_box		= (*Eta[lev])[mfi];
-      amrex::BaseFab<Real> &Eta_old_box		= (*Eta_old[lev])[mfi];
-      amrex::BaseFab<Real> &Temp_box		= (*Temp[lev])[mfi];
-      amrex::BaseFab<Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
+      amrex::BaseFab<amrex::Real> &Eta_box		= (*Eta[lev])[mfi];
+      amrex::BaseFab<amrex::Real> &Eta_old_box		= (*Eta_old[lev])[mfi];
+      amrex::BaseFab<amrex::Real> &Temp_box		= (*Temp[lev])[mfi];
+      amrex::BaseFab<amrex::Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
 
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
@@ -129,10 +129,10 @@ void PFFlame::Advance (int lev, Real time, Real dt)
 void PFFlame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 
-  const Real* dx      = geom[lev].CellSize();
+  const amrex::Real* dx      = geom[lev].CellSize();
 
   const amrex::MultiFab& state = *Temp[lev];
-  amrex::Array<int>  itags;
+  //amrex::Array<int>  itags;
 	
   for (amrex::MFIter mfi(state,true); mfi.isValid(); ++mfi)
     {
@@ -141,7 +141,7 @@ void PFFlame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::R
       amrex::TagBox&     tag  = tags[mfi];
 	    
       //amrex::BaseFab<Real> &Eta_box = (*Temp[lev])[mfi];
-      amrex::BaseFab<Real> &Eta_box = (*Eta[lev])[mfi];
+      amrex::BaseFab<amrex::Real> &Eta_box = (*Eta[lev])[mfi];
 
       for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
