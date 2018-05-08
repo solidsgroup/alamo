@@ -7,13 +7,13 @@
 class PFFlamePhysBC : public BC::BC
 {
 public:
-  PFFlamePhysBC (amrex::Array<amrex::Geometry> &_geom, std::string name)
+  PFFlamePhysBC (amrex::Vector<amrex::Geometry> &_geom, std::string name)
     : BC::BC(_geom) 
   {
     {
       amrex::ParmParse pp(name);
-      amrex::Array<std::string> bc_hi_str(BL_SPACEDIM);
-      amrex::Array<std::string> bc_lo_str(BL_SPACEDIM);
+      amrex::Vector<std::string> bc_hi_str(BL_SPACEDIM);
+      amrex::Vector<std::string> bc_lo_str(BL_SPACEDIM);
       pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
       pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
       for (int i=0;i<BL_SPACEDIM;i++)
@@ -99,10 +99,10 @@ public:
 
 
 private:
-  amrex::Array<amrex::Real> bc_lo_1, bc_hi_1;
-  amrex::Array<amrex::Real> bc_lo_2, bc_hi_2;
+  amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+  amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
 #if BL_SPACEDIM > 2
-  amrex::Array<amrex::Real> bc_lo_3, bc_hi_3;
+  amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
 #endif
   
 
