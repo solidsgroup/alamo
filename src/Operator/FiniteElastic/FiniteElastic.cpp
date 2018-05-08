@@ -5,13 +5,13 @@
 
 #include <AMReX_ArrayLim.H>
 
-#include "Elastic.H"
+#include "FiniteElastic.H"
 
-/// \fn Operator::Elastic::MLPFStiffnessMatrix
+/// \fn Operator::FiniteElastic::MLPFStiffnessMatrix
 ///
 /// Relay to the define function
 /// Also define elastic constants here.
-Operator::Elastic::Elastic::Elastic (const Vector<Geometry>& a_geom,
+Operator::FiniteElastic::FiniteElastic::FiniteElastic (const Vector<Geometry>& a_geom,
 					  const Vector<BoxArray>& a_grids,
 					  const Vector<DistributionMapping>& a_dmap,
 					  const LPInfo& a_info)
@@ -19,18 +19,16 @@ Operator::Elastic::Elastic::Elastic (const Vector<Geometry>& a_geom,
   define(a_geom, a_grids, a_dmap, a_info);
 }
 
-Operator::Elastic::Elastic::~Elastic ()
+Operator::FiniteElastic::FiniteElastic::~FiniteElastic ()
 {}
 
 void
-Operator::Elastic::Elastic::Fapply (int amrlev, ///<[in] AMR Level
+Operator::FiniteElastic::FiniteElastic::Fapply (int amrlev, ///<[in] AMR Level
 			     int mglev,  ///<[in]
 			     MultiFab& f,///<[out] The force vector
 			     const MultiFab& u ///<[in] The displacements vector
 			     ) const
 {
-  BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
-
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   
   static amrex::IntVect dx(1,0), dy(0,1);
@@ -79,24 +77,24 @@ Operator::Elastic::Elastic::Fapply (int amrlev, ///<[in] AMR Level
 }
 
 
-/// \fn Operator::Elastic::Fsmooth
+/// \fn Operator::FiniteElastic::Fsmooth
 ///
 /// Perform one half Gauss-Seidel iteration corresponding to the operator specified
-/// in Operator::Elastic::Fapply.
+/// in Operator::FiniteElastic::Fapply.
 /// The variable redblack corresponds to whether to smooth "red" nodes or "black"
 /// nodes, where red and black nodes are distributed in a checkerboard pattern.
 ///
 /// \todo Extend to 3D
 ///
 void
-Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
+Operator::FiniteElastic::FiniteElastic::Fsmooth (int amrlev,          ///<[in] AMR level
 			      int mglev,           ///<[in]
 			      MultiFab& u,       ///<[inout] Solution (displacement field)
 			      const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
 			      int redblack         ///<[in] Smooth even vs. odd modes
 			      ) const
 {
-	BL_PROFILE("Operator::Elastic::Elastic::Fsmooth()");
+	BL_PROFILE("Operator::FiniteElastic::Fsmooth()");
 
 	const Real* dx = m_geom[amrlev][mglev].CellSize();
 
@@ -154,9 +152,9 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 	}
 }
 
-/// \fn Operator::Elastic::FFlux
+/// \fn Operator::FiniteElastic::FFlux
 ///
-/// Compute the "flux" corresponding to the operator in Operator::Elastic::Fapply.
+/// Compute the "flux" corresponding to the operator in Operator::FiniteElastic::Fapply.
 /// Because the operator is self-adjoint and positive-definite, the flux is not
 /// required for adequate convergence (?)
 /// Therefore, the fluxes are simply set to zero and returned.
@@ -164,20 +162,57 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 /// \todo Extend to 3D
 ///
 void
-Operator::Elastic::Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
+Operator::FiniteElastic::FiniteElastic::FFlux (int amrlev, const MFIter& mfi,
 				   const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
-				   const FArrayBox& /*ufab*/, const int /*face_only*/) const
+				   const FArrayBox& ufab, const int face_only) const
 {
+  // THIS ONLY HAPPENS WHEN MULTIPLE AMR LEVELS ARE USED...
 
   amrex::BaseFab<amrex::Real> &fxfab = *sigmafab[0];
   amrex::BaseFab<amrex::Real> &fyfab = *sigmafab[1];
   fxfab.setVal(0.0);
   fyfab.setVal(0.0);
+
+  const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+
+  amrex::IntVect dx(1,0);
+  amrex::IntVect dy(0,1);
+
+  const Box& bx = mfi.tilebox();
+  for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+    for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+		{
+			amrex::IntVect m(m1,m2);
+
+			amrex::Real du1_dx1 = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0])  - 1.0;
+			amrex::Real du1_dx2 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+			amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
+			amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])  - 1.0;
+
+
+			
+			int i,j;
+
+			i=0; j=0;
+			fxfab(m,j) = 
+			  C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 + C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 + C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 + C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
+			
+			i=0; j=1;
+			fxfab(m,j) = 
+			  C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 + C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 + C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 + C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
+			fyfab(m,0) = fxfab(m,1);
+
+			i=1; j=1;
+			fyfab(m,j) = 
+			  C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 + C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 + C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 + C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
+
+
+		}  
 }
 
 
 void
-Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
+Operator::FiniteElastic::FiniteElastic::Stress (FArrayBox& sigmafab,
 				    const FArrayBox& ufab,
 				    int amrlev, const MFIter& mfi) const
 {
@@ -219,7 +254,7 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 }
 
 void
-Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
+Operator::FiniteElastic::FiniteElastic::Energy (FArrayBox& energyfab,
 				    const FArrayBox& ufab,
 				    int amrlev, const MFIter& mfi) const
 {

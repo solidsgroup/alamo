@@ -51,7 +51,7 @@ protected:
   void Initialize (int lev);
 
   /// \brief Integrate the heat equation
-  void Advance (int lev, Real /*time*/, Real dt);
+  void Advance (int lev, amrex::Real /*time*/, amrex::Real dt);
 
   /// \brief Tag cells for mesh refinement based on temperature gradient
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
@@ -60,8 +60,8 @@ private:
   int number_of_components = 1;					///< Number of components
   int number_of_ghost_cells = 1;				///< Number of ghost cells
 
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Temp;		///< Temperature field variable (current timestep)
-  amrex::Array<std::unique_ptr<amrex::MultiFab> > Temp_old;	///< Temperature field variable (previous timestep)
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;		///< Temperature field variable (current timestep)
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;	///< Temperature field variable (previous timestep)
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
