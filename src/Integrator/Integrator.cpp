@@ -146,7 +146,7 @@ Integrator::Integrator::ClearLevel (int lev)
 //
 
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::Integrator::RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &new_fab,
+Integrator::Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 				     BC::BC &new_bc,
 				     int ncomp,
 				     int nghost,
@@ -182,16 +182,16 @@ Integrator::Integrator::CountCells (int lev)
 
 void  // CUSTOM METHOD - CHANGEABLE
 Integrator::Integrator::FillPatch (int lev, Real time,
-				 Array<std::unique_ptr<MultiFab> > &source_mf,
+				 Vector<std::unique_ptr<MultiFab> > &source_mf,
 				 MultiFab &destination_mf,
 				 BC::BC &physbc, int icomp)
 {
   if (lev == 0)
     {
       
-      Array<MultiFab*> smf;
+      Vector<MultiFab*> smf;
       smf.push_back(source_mf[lev].get());
-      Array<Real> stime;
+      Vector<Real> stime;
       stime.push_back(time);
 
       // GetData(lev, time, smf, stime);
@@ -209,10 +209,10 @@ Integrator::Integrator::FillPatch (int lev, Real time,
     } 
   else
     {
-      Array<MultiFab*> cmf, fmf;
+      amrex::Vector<MultiFab*> cmf, fmf;
       cmf.push_back(source_mf[lev-1].get());
       fmf.push_back(source_mf[lev].get());
-      Array<Real> ctime, ftime;
+      amrex::Vector<Real> ctime, ftime;
       ctime.push_back(time);
       ftime.push_back(time);
       // GetData(lev-1, time, cmf, ctime);
@@ -221,7 +221,7 @@ Integrator::Integrator::FillPatch (int lev, Real time,
       physbc.SetLevel(lev);
       Interpolater* mapper = &cell_cons_interp;
 
-      Array<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
+      amrex::Vector<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
       amrex::ParallelDescriptor::Barrier();
       
       amrex::ParallelDescriptor::Barrier();
@@ -248,9 +248,9 @@ Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 {
   AMREX_ASSERT(lev > 0);
 
-  Array<MultiFab* > cmf;
+  amrex::Vector<amrex::MultiFab* > cmf;
   cmf.push_back(mf[lev-1].get());
-  Array<Real> ctime;
+  amrex::Vector<amrex::Real> ctime;
   ctime.push_back(time);
   
   //GetData(lev-1, time, cmf, ctime);
@@ -260,7 +260,7 @@ Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
   physbc.SetLevel(lev);
   Interpolater* mapper = &cell_cons_interp;
     
-  Array<BCRec> bcs(ncomp, physbc.GetBCRec());
+  amrex::Vector<BCRec> bcs(ncomp, physbc.GetBCRec());
   amrex::InterpFromCoarseLevel(*mf[lev], time, *cmf[0], 0, icomp, ncomp, geom[lev-1], geom[lev],
 			       physbc, physbc,
 			       refRatio(lev-1),
@@ -270,8 +270,8 @@ Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::Integrator::GetData (const int /*lev*/,
 			       const Real /*time*/,
-			       Array<MultiFab*>& /*data*/,
-			       Array<Real>& /*datatime*/)
+			       Vector<MultiFab*>& /*data*/,
+			       Vector<Real>& /*datatime*/)
 {
   // data.clear();
   // datatime.clear();
@@ -487,7 +487,7 @@ Integrator::Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 
   if (regrid_int > 0)  // We may need to regrid
     {
-      static Array<int> last_regrid_step(max_level+1, 0);
+      static Vector<int> last_regrid_step(max_level+1, 0);
 
       // regrid doesn't change the base level, so we don't regrid on max_level
       if (lev < max_level && istep[lev] > last_regrid_step[lev])
