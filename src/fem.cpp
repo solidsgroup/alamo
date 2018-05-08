@@ -6,7 +6,7 @@
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
 
-//#include "MyTest/MLStiffnessMatrix.H"
+#include "Operator/Elastic/Cubic/Cubic.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Operator/FEM/FEM.H"
 #include "Model/Solid/Elastic/Elastic.H"
@@ -16,7 +16,6 @@ using namespace amrex;
 int main (int argc, char* argv[])
 {
   amrex::Initialize(argc, argv);
-
 
   std::array<amrex::Real,2> body_force = {0.0, 0.0};
 
@@ -35,6 +34,8 @@ int main (int argc, char* argv[])
   int n_cell = 32;//128;
   int max_grid_size = 64;//64;
     
+  bool composite_solve = true;
+
   int verbose = 2;
   int cg_verbose = 4;
   int max_iter = 1000;//100;
@@ -64,6 +65,7 @@ int main (int argc, char* argv[])
   pp.query("ref_ratio", ref_ratio);
   pp.query("n_cell", n_cell);
   pp.query("max_grid_size", max_grid_size);
+  pp.query("composite_solve", composite_solve);
   pp.query("verbose", verbose);
   pp.query("cg_verbose", cg_verbose);
   pp.query("max_iter", max_iter);
@@ -72,22 +74,7 @@ int main (int argc, char* argv[])
   pp.query("agglomeration", agglomeration);
   pp.query("consolidation", consolidation);
 
-  // Operator::FEM::Element<Operator::FEM::Q4> element(1.0,1.0);
-  // std::ofstream out("file.dat");
-  // for (amrex::Real x = 0; x<=1.0; x+=0.01)
-  //   for (amrex::Real y = 0; y<=1.0; y+=0.01)
-  //     {
-  // 	out << x << " ";
-  // 	out << y << " ";
-  // 	out << element.Phi<4>({x,y}) << " ";
-  // 	out << element.DPhi<4>({x,y})[0] << " ";
-  // 	out << element.DPhi<4>({x,y})[1] << " ";
-  // 	// out << element.Phi<2>({x,y}) << " ";
-  // 	// out << element.Phi<3>({x,y}) << " ";
-  // 	// out << element.Phi<4>({x,y}) << " ";
-  // 	out << std::endl;
-  //     }
-  // exit(0);
+
 
   //
   // CONSTRUCTOR
@@ -158,6 +145,8 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
+  const Real tol_rel = 1e-6;
+  const Real tol_abs = 0.0;
   nlevels = geom.size();
   if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
   Model::Solid::Elastic model;
@@ -218,8 +207,13 @@ int main (int argc, char* argv[])
       mlabec.setLevelBC(ilev,&bcdata[ilev]);
     }
 
+  // set coefficients
+
+  //mlabec.setScalars(ascalar, bscalar);
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
+      //mlabec.setACoeffs(ilev, acoef[ilev]);
+            
       std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
       for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
    	{
@@ -233,6 +227,11 @@ int main (int argc, char* argv[])
     }
 
   // configure solver
+
+  // MLCGSolver mlcg(mlabec);
+  // mlcg.setVerbose(verbose);
+  // mlcg.solve(solution[0],rhs[0],tol_rel,tol_abs);
+
   MLMG mlmg(mlabec);
   mlmg.setMaxIter(max_iter);
   mlmg.setMaxFmgIter(max_fmg_iter);
