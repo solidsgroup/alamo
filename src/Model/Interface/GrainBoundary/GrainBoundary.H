@@ -1,5 +1,5 @@
-#ifndef PFBoundary_H
-#define PFBoundary_H
+#ifndef MODEL_INTERFACE_GRAINBOUNDARY_H
+#define MODEL_INTERFACE_GRAINBOUNDARY_H
 
 #include <AMReX.H>
 #include <AMReX_AmrCore.H>
@@ -7,10 +7,16 @@
 #include <iostream>
 #include <fstream>
 
-class PFBoundary
+namespace Model
+{
+namespace Interface
+{
+namespace GrainBoundary
+{
+class GrainBoundary
 {
 public:
-  PFBoundary() {};
+  GrainBoundary() {};
   virtual amrex::Real W(amrex::Real theta) = 0;
   virtual amrex::Real DW(amrex::Real theta) = 0;
   virtual amrex::Real DDW(amrex::Real theta) = 0;
@@ -62,6 +68,8 @@ public:
 protected:
   static constexpr amrex::Real pi = 3.14159265359;
 };
-
+}
+}
+}
 
 #endif

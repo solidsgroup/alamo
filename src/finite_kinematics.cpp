@@ -7,9 +7,7 @@
 #include <AMReX_PlotFileUtil.H>
 
 //#include "MyTest/MLStiffnessMatrix.H"
-#include "Operator/Elastic/Isotropic/Isotropic.H"
-#include "Operator/FEM/FEM.H"
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Operator/FiniteElastic/Isotropic/Isotropic.H"
 
 using namespace amrex;
 
@@ -18,34 +16,20 @@ int main (int argc, char* argv[])
   amrex::Initialize(argc, argv);
 
 
-  std::array<amrex::Real,2> body_force = {0.0, 0.0};
-
-  std::array<amrex::Real,2> disp_bc_top    = {0.1, 0.0};
-  std::array<amrex::Real,2> disp_bc_left   = {0.0, 0.0};
-  std::array<amrex::Real,2> disp_bc_right  = {0.0, 0.0};
-  std::array<amrex::Real,2> disp_bc_bottom = {0.0, 0.0};
-
-  LinOpBCType bc_x = LinOpBCType::Periodic; //LinOpBCType::Periodic; LinOpBCType::Neumann;
-  LinOpBCType bc_y = LinOpBCType::Dirichlet;
-
-  bool use_fsmooth = false; 
-
-  int max_level = 2;//0;
-  int ref_ratio = 2;//2
-  int n_cell = 32;//128;
-  int max_grid_size = 64;//64;
+  int max_level = 1;//0;
+  int ref_ratio = 2;
+  int n_cell = 128;
+  int max_grid_size = 64;
     
+  bool composite_solve = true;
+
   int verbose = 2;
-  int cg_verbose = 4;
-  int max_iter = 1000;//100;
+  int cg_verbose = 0;
+  int max_iter = 100;//100;
   int max_fmg_iter = 0;
   int linop_maxorder = 2;
   bool agglomeration = true;
-  bool consolidation = false;
-
-  const Real tol_rel = 1.0e-5;
-  const Real tol_abs = 1.0e-5;
-
+  bool consolidation = true;
 
   amrex::Vector<amrex::Geometry> geom;
   amrex::Vector<amrex::BoxArray> grids;
@@ -64,6 +48,7 @@ int main (int argc, char* argv[])
   pp.query("ref_ratio", ref_ratio);
   pp.query("n_cell", n_cell);
   pp.query("max_grid_size", max_grid_size);
+  pp.query("composite_solve", composite_solve);
   pp.query("verbose", verbose);
   pp.query("cg_verbose", cg_verbose);
   pp.query("max_iter", max_iter);
@@ -72,22 +57,7 @@ int main (int argc, char* argv[])
   pp.query("agglomeration", agglomeration);
   pp.query("consolidation", consolidation);
 
-  // Operator::FEM::Element<Operator::FEM::Q4> element(1.0,1.0);
-  // std::ofstream out("file.dat");
-  // for (amrex::Real x = 0; x<=1.0; x+=0.01)
-  //   for (amrex::Real y = 0; y<=1.0; y+=0.01)
-  //     {
-  // 	out << x << " ";
-  // 	out << y << " ";
-  // 	out << element.Phi<4>({x,y}) << " ";
-  // 	out << element.DPhi<4>({x,y})[0] << " ";
-  // 	out << element.DPhi<4>({x,y})[1] << " ";
-  // 	// out << element.Phi<2>({x,y}) << " ";
-  // 	// out << element.Phi<3>({x,y}) << " ";
-  // 	// out << element.Phi<4>({x,y}) << " ";
-  // 	out << std::endl;
-  //     }
-  // exit(0);
+
 
   //
   // CONSTRUCTOR
@@ -106,9 +76,7 @@ int main (int argc, char* argv[])
   // define simulation domain
   RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
   // set periodicity
-  std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL((bc_x == LinOpBCType::Periodic ? 1 : 0),
-							  (bc_y == LinOpBCType::Periodic ? 1 : 0),
-							  1)};
+  std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL(1,0,0)};
   Geometry::Setup(&rb, 0, is_periodic.data());
   Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
   Box domain = domain0;
@@ -143,9 +111,8 @@ int main (int argc, char* argv[])
     {
       acoef[ilev].setVal(1.0);
       bcoef[ilev].setVal(1.0);
-      const Real* dx = geom[ilev].CellSize();
-      rhs[ilev].setVal(body_force[0]*dx[0]*dx[1],0,1);
-      rhs[ilev].setVal(body_force[1]*dx[0]*dx[1],1,1);
+      rhs[ilev].setVal(0.0,0,1);
+      rhs[ilev].setVal(0.0,1,1);
       solution[ilev].setVal(0.0);
     }
 
@@ -158,30 +125,27 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
+  const Real tol_rel = 1e-6;
+  const Real tol_abs = 0.0;
   nlevels = geom.size();
-  if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
-  Model::Solid::Elastic model;
-  Operator::FEM::FEM mlabec(model);
-  //Operator::Elastic::Isotropic mlabec;
+  //info.setMaxCoarseningLevel(0);
+  Operator::FiniteElastic::Isotropic mlabec;
   mlabec.define(geom, grids, dmap, info);
   mlabec.setMaxOrder(linop_maxorder);
   
-
   // set boundary conditions
 
-  mlabec.setDomainBC({AMREX_D_DECL(bc_x,
-				   bc_y,
-				   LinOpBCType::Periodic)},
-		     {AMREX_D_DECL(bc_x,
-				   bc_y,
-				   LinOpBCType::Periodic)});
+  mlabec.setDomainBC({AMREX_D_DECL(LinOpBCType::Periodic,
+				   LinOpBCType::Dirichlet,
+				   LinOpBCType::Dirichlet)},
+		     {AMREX_D_DECL(LinOpBCType::Periodic,
+				   LinOpBCType::Dirichlet,
+				   LinOpBCType::Dirichlet)});
 
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
       amrex::Box domain(geom[ilev].Domain());
       
-      solution[ilev].setVal(0.0);
-
       for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
 	{
 	  const Box& box = mfi.tilebox();
@@ -191,57 +155,65 @@ int main (int argc, char* argv[])
 	  for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
 	    for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
 	      { 
+		amrex::Real x = geom[ilev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[ilev].CellSize()[0];
+	  
+
 		if (j > domain.hiVect()[1]) // Top boundary
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_top[0];
-		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_top[1];
+		    bcdata_box(amrex::IntVect(i,j),0) = x;
+		    bcdata_box(amrex::IntVect(i,j),1) = 1.0;
 		  }
-		else if (j < domain.loVect()[1]) // Bottom boundary
+		// else if (i > domain.hiVect()[0]) // Right boundary
+		//   {
+		//     bcdata_box(amrex::IntVect(i,j),0) = x;
+		//     bcdata_box(amrex::IntVect(i,j),1) = 0.0;
+		//   }
+		else 
 		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_bottom[0];
-		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_bottom[1];
-		  }
-		else if (i > domain.hiVect()[0]) // Right boundary
-		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_right[0];
-		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_right[1];
-		  }
-		else if (i < domain.loVect()[0]) // Left boundary 
-		  {
-		    bcdata_box(amrex::IntVect(i,j),0) = disp_bc_left[0];
-		    bcdata_box(amrex::IntVect(i,j),1) = disp_bc_left[1];
+		    bcdata_box(amrex::IntVect(i,j),0) = x;
+		    bcdata_box(amrex::IntVect(i,j),1) = 0.0;
 		  }
 	      }
-
 	}
-      //solution[ilev].setVal(0.0);
+      solution[ilev].setVal(0.0);
       mlabec.setLevelBC(ilev,&bcdata[ilev]);
     }
 
+  // set coefficients
+
+  //mlabec.setScalars(ascalar, bscalar);
   for (int ilev = 0; ilev < nlevels; ++ilev)
     {
+      //mlabec.setACoeffs(ilev, acoef[ilev]);
+            
       std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
       for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-   	{
-   	  const BoxArray& ba = amrex::convert(bcoef[ilev].boxArray(),
-   					      IntVect::TheDimensionVector(idim)); 
-   	  face_bcoef[idim].define(ba, bcoef[ilev].DistributionMap(), 1, 0);
-   	}
+	{
+	  const BoxArray& ba = amrex::convert(bcoef[ilev].boxArray(),
+					      IntVect::TheDimensionVector(idim)); 
+	  face_bcoef[idim].define(ba, bcoef[ilev].DistributionMap(), 1, 0);
+	}
+
       amrex::average_cellcenter_to_face({AMREX_D_DECL(&face_bcoef[0],&face_bcoef[1],&face_bcoef[2])},
-   					bcoef[ilev],
-   					geom[ilev]);
+					bcoef[ilev],
+					geom[ilev]);
+
+      //mlabec.setBCoeffs(ilev, amrex::GetArrOfConstPtrs(face_bcoef));
     }
 
   // configure solver
+
+  // MLCGSolver mlcg(mlabec);
+  // mlcg.setVerbose(verbose);
+  // mlcg.solve(solution[0],rhs[0],tol_rel,tol_abs);
+
   MLMG mlmg(mlabec);
   mlmg.setMaxIter(max_iter);
   mlmg.setMaxFmgIter(max_fmg_iter);
   mlmg.setVerbose(verbose);
   mlmg.setCGVerbose(cg_verbose);
-  //mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-  mlmg.setBottomSolver(MLMG::BottomSolver::cg);
-  if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
-  if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
+  mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
   //

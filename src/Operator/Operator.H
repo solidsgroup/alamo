@@ -39,7 +39,7 @@ public:
   
 protected:
 
-  void RegisterNewFab(amrex::Array<std::unique_ptr<amrex::MultiFab> > &input,
+  void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input,
 		      BC::BC &new_bc);
   const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
@@ -77,7 +77,7 @@ private:
   int current_amrlev = 0;
   int current_mglev = 0;
   amrex::MFIter *current_mfiter;
-  amrex::Array<BC::BC *> physbc_array;
+  amrex::Vector<BC::BC *> physbc_array;
 };
 }
 #endif
