@@ -46,7 +46,11 @@ public:
 	  if (bc_lo_str[i] == "EXT_DIR"		) bc_lo[i] = EXT_DIR;
 	  if (bc_lo_str[i] == "HOEXTRAP"		) bc_lo[i] = HOEXTRAP;
 
+<<<<<<< HEAD
 	  // Added for Neumann BC.
+=======
+    // Added for Neumann BC.
+>>>>>>> 06104ccb15e9aa1c6751bcc60d75da17334e9db0
 	  if (bc_hi_str[i] == "NEUMANN"		) bc_hi[i] = NEUMANN;
 	  if (bc_lo_str[i] == "NEUMANN"		) bc_lo[i] = NEUMANN;
 	}
@@ -93,6 +97,10 @@ public:
 	    for (int n = 0; n < mf.nComp(); n++)
 	      {
 		if (i < domain.loVect()[0]) // Left boundary
+<<<<<<< HEAD
+=======
+
+>>>>>>> 06104ccb15e9aa1c6751bcc60d75da17334e9db0
 		{
 		  if (bc_lo[0] == EXT_DIR)
                   {
@@ -186,7 +194,10 @@ protected:
 
   std::vector<amrex::Geometry> &geom;
   int lev=0;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 06104ccb15e9aa1c6751bcc60d75da17334e9db0
 };
 
 #endif
