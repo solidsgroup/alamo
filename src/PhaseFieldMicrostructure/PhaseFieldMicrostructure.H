@@ -17,6 +17,7 @@
 
 #include "BC/BC.H"
 #include "IC/PerturbedInterface/PerturbedInterface.H"
+#include "IC/Voronoi/Voronoi.H"
 
 #include "Model/Interface/GrainBoundary/GrainBoundary.H"
 #include "Model/Interface/GrainBoundary/Sin.H"
@@ -76,13 +77,6 @@ private:
   amrex::Real anisotropy_tstart;
 
   std::string ic_type, gb_type, filename;
-
-  // Voronoi
-  amrex::Vector<amrex::Real> voronoi_x;
-  amrex::Vector<amrex::Real> voronoi_y;
-#if BL_SPACEDIM==3
-  amrex::Vector<amrex::Real> voronoi_z;
-#endif
 
   amrex::Real damp;
 

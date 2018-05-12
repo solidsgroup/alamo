@@ -145,8 +145,6 @@ int main (int argc, char* argv[])
   info.setAgglomeration(agglomeration);
   info.setConsolidation(consolidation);
   //const Real tol_rel = 1.e-10;
-  const Real tol_rel = 1e-6;
-  const Real tol_abs = 0.0;
   nlevels = geom.size();
   if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
   Model::Solid::Elastic model;
