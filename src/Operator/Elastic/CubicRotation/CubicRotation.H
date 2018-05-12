@@ -32,7 +32,7 @@ namespace Elastic
     /// \brief Destructor (does nothing)
     virtual ~CubicRotation () {};
 
-    void SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc);
+    // void SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc);
 
   protected:
 

@@ -24,6 +24,9 @@ class Cubic : public PolyCrystalModel
 {
 public:
 
+  /// \brief Constructor with randomized orientation
+  Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44);
+
   /// \brief Base constructor
   Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44,
 	 amrex::Real phi1, amrex::Real Phi, amrex::Real phi2);
