@@ -64,11 +64,11 @@ Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX
 
 }
 
-void
-Operator::Elastic::CubicRotation::SetEta(amrex::Array<std::unique_ptr<amrex::MultiFab> > &eta, GeneralAMRIntegratorPhysBC &eta_bc)
-{
-  RegisterNewFab(eta,eta_bc);
-}
+// void
+// Operator::Elastic::CubicRotation::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc)
+// {
+//   RegisterNewFab(eta,eta_bc);
+// }
 
 amrex::Real
 Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const int l,
