@@ -28,8 +28,8 @@ LIB     = -lamrex -lgfortran -lmpichfort -lmpich
 HDR = $(shell find src/ -name *.H)
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
-SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cpp" )
-EXE = $(subst src/,bin/, $(SRC_MAIN:.cpp=)) 
+SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
+EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=)) 
 OBJ = ${SRC:.cpp=.cpp.o}
 OBJ_F = ${SRC_F:.F90=.F90.o}
 
@@ -40,12 +40,18 @@ default: $(EXE)
 	@echo "### DONE" 
 	@echo "###"$(RESET)
 
-bin/%: ${OBJ} ${OBJ_F} src/%.cpp.o
+bin/%: ${OBJ} ${OBJ_F} src/%.cc.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
 	@echo "###"$(RESET)
 	mkdir -p bin/
 	$(CC) -o $@ $^ ${LIB} 
+
+%.cc.o: %.cc ${HDR}
+	@echo $(B_ON)$(FG_YELLOW)"###"
+	@echo "### COMPILING $<" 
+	@echo "###"$(RESET)
+	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 %.cpp.o: %.cpp ${HDR}
 	@echo $(B_ON)$(FG_YELLOW)"###"

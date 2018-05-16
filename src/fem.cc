@@ -1,4 +1,4 @@
-
+ 
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_MLMG.H>
@@ -237,6 +237,7 @@ int main (int argc, char* argv[])
   mlmg.setCGVerbose(cg_verbose);
   //mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
   mlmg.setBottomSolver(MLMG::BottomSolver::cg);
+  //mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
   if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
   if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
   mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);

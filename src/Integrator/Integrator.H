@@ -21,6 +21,8 @@
 #include <AMReX_Utility.H>
 #include <AMReX_PlotFileUtil.H>
 
+//#define METADATA_GITHASH "@METADATA_GITHASH@"
+
 #include "BC/BC.H"
 
 ///
