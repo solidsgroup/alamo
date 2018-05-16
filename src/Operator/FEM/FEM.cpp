@@ -100,22 +100,35 @@ void FEM::Energy<2> (int amrlev,		///<[in] AMR Level
   std::array<std::array<Set::Vector,4>,4> DPhi = element.DPhis();
   std::array<amrex::Real,4> W = element.Ws();
 
+  // Grid dimensions
   static amrex::IntVect dx(1,0), dy(0,1);
+  // Iterating over patches in a single AMR level
+  //   *** mfi = "multi fab iterator"
   for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
     {
+      // Variable for each patch
       const Box& bx = mfi.tilebox();
       const FArrayBox &ufab  = u[mfi];
       FArrayBox       &ffab  = f[mfi];
 
+      // Initialize the result to zero
       ffab.setVal(0.0);
 
+      // Iterate over the grid
+      // - INCLUDE x=0,y=0,(z=0) ghost cells
+      // - DON'T INCLUDE x=xmax, y=ymax, (z=zmax) ghost cells
+      // actually iterating over CELLS
       for (int my = bx.loVect()[1]-1; my<=bx.hiVect()[1]; my++)
 	for (int mx = bx.loVect()[0]-1; mx<=bx.hiVect()[0]; mx++)
 	  {
+	    // O is the origin for the cell that we're on
 	    amrex::IntVect O(mx,my);
 
+	    // Iterate over every quadrature point
 	    for (int Q=0; Q < 4; Q++)
 	      {
+		// Compute gradient of u at this quadrature point
+		// using shape functions to interpolate
 		Set::Matrix gradu = Set::Matrix::Zero();
 		for (int i=0; i<2; i++)
 		  for (int j=0; i<2; i++)
@@ -125,19 +138,34 @@ void FEM::Energy<2> (int amrlev,		///<[in] AMR Level
 		      ufab(O+dy,i) * DPhi[2][Q][j] + 
 		      ufab(O+dx+dy,i) * DPhi[3][Q][j];
 
+		// Iterate over every node in the cell
 		for (int _m=0; _m<4; _m++)
 		  {
+		    // Computes the IntVect for the node we're on
 		    amrex::IntVect m = O + dx*(_m%2) + dy*((_m/2)%2); 
 
+		    // Safety: abort if we're outside the domain
+		    // because m indexes the node whose value we're setting
+		    // and the output FAB does not have ghost cells
 		    if (m[0] < bx.loVect()[0] || m[0] > bx.hiVect()[0] ||
 			m[1] < bx.loVect()[1] || m[1] > bx.hiVect()[1]) continue;
 
+		    // Iterate over every node in the cell
 		    for (int _n=0; _n<4; _n++)
 		      {
+			// Compute the IntVect for node n
 			amrex::IntVect n = O + dx*(_n%2) + dy*((_n/2)%2);
 
+			// Compute the quantity
+			// ddw(i,j) = [quadrature weight]  *  DDW(i,p,j,q)*DPhi(m,p)*DPhi(n,q)
 			Set::Matrix ddw = W[Q]*model.DDW(gradu,DPhi[_m][Q],DPhi[_n][Q]);
 
+			// Matrix multiplcation
+			// f(m,i) = ddw(i,j) * ufab(n,j)
+			// NOTE: here we are actually APPLYING the stiffness matrix to
+			// the input, ufab.
+			// (as opposed to some FEM implementation where you calculate
+			// the stiffness matrix only)
 			for (int i=0; i < 2; i++)
 			  for (int j=0; j < 2; j++)
 			    ffab(m,i) += ddw(i,j) * ufab(n,j);
