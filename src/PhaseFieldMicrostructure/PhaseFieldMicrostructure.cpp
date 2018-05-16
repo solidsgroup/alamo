@@ -60,6 +60,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
     pp.query("type", ic_type);
     if (ic_type == "perturbed_interface")
       ic = new IC::PerturbedInterface(geom);
+    if (ic_type == "voronoi")
+      ic = new IC::Voronoi(geom,number_of_grains);
   }
 
   RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
@@ -261,13 +263,17 @@ PhaseFieldMicrostructure::Initialize (int lev)
   ic->Initialize(lev,eta_new);
   ic->Initialize(lev,eta_old);
   
-  displacement[lev].get()->setVal(0.0);
-  strain[lev].get()->setVal(0.0); 
-  stress[lev].get()->setVal(0.0); 
-  stress_vm[lev].get()->setVal(0.0);
-  body_force[lev].get()->setVal(0.0);
-  energy[lev].get()->setVal(0.0); 
-  energies[lev].get()->setVal(0.0); 
+  
+  if (elastic_on)
+    {
+      displacement[lev].get()->setVal(0.0);
+      strain[lev].get()->setVal(0.0); 
+      stress[lev].get()->setVal(0.0); 
+      stress_vm[lev].get()->setVal(0.0);
+      body_force[lev].get()->setVal(0.0);
+      energy[lev].get()->setVal(0.0); 
+      energies[lev].get()->setVal(0.0); 
+    }
 }
 
 
@@ -339,11 +345,14 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					      geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
 
   std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
-  // for (int n = 0; n <  number_of_grains; n++) {} <<<<<< need to replace with this!
-  models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
-							     2.49, 2.49, 4.328));
-  models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
-							     0.99, 0.511, 1.39));
+  for (int n = 0; n <  number_of_grains; n++) 
+    models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
+
+  // models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
+  // 							     2.49, 2.49, 4.328));
+  // models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
+  // 							     0.99, 0.511, 1.39));
+
   //models.push_back(&g2);
 
   elastic_operator->SetEta(eta_new,mybc,models);

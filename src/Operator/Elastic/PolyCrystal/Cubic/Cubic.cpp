@@ -7,6 +7,15 @@
 
 
 
+Operator::Elastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44):
+  C11(_C11), C12(_C12), C44(_C44)
+{
+  R = 
+    Eigen::AngleAxisd(2.0*3.14159*((amrex::Real)rand())/((amrex::Real)RAND_MAX),Eigen::Vector3d::UnitZ()) *
+    Eigen::AngleAxisd(2.0*3.14159*((amrex::Real)rand())/((amrex::Real)RAND_MAX),Eigen::Vector3d::UnitX()) *
+    Eigen::AngleAxisd(2.0*3.14159*((amrex::Real)rand())/((amrex::Real)RAND_MAX),Eigen::Vector3d::UnitZ());
+}
+
 Operator::Elastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44,
 					      amrex::Real phi1=0.0, amrex::Real Phi=0.0, amrex::Real phi2=0.0):
   C11(_C11), C12(_C12), C44(_C44)
