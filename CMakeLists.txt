@@ -25,7 +25,8 @@ endif(NOT AMREX)
 find_package(MPI REQUIRED)
 
 # Include and Link
-include_directories(${AMREX}/include/ ${MPI_INCLUDE_PATH} "src/")
+include_directories(SYSTEM ${AMREX}/include/ ${MPI_INCLUDE_PATH})
+include_directories("src/")
 link_directories(${AMREX}/lib/)
 link_libraries(${MPI_LIBRARIES} amrex gfortran)
 

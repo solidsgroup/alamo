@@ -15,7 +15,7 @@ class BC
 {
 
 public:
-  BC (amrex::Vector<amrex::Geometry> &_geom);
+  //BC (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
   BC (amrex::Vector<amrex::Geometry> &_geom,
       amrex::Vector<std::string> bc_hi_str,
       amrex::Vector<std::string> bc_lo_str,
@@ -30,6 +30,7 @@ public:
   amrex::BCRec GetBCRec() ;
 
 protected:
+  std::vector<amrex::Geometry> &geom;
   int bc_lo[BL_SPACEDIM];
   int bc_hi[BL_SPACEDIM];
   int bc_hi_flux[BL_SPACEDIM];
@@ -38,7 +39,6 @@ protected:
   amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
   amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
 
-  std::vector<amrex::Geometry> &geom;
   int lev=0;
 
 };

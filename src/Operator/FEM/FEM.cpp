@@ -21,11 +21,11 @@ FEM::~FEM ()
 {}
 
 template<> 
-void FEM::Energy<1> (int amrlev,		///<[in] AMR Level
-			int mglev,		///<[in]
-			MultiFab& dw,	///<[out] The force vector
-			const MultiFab& u	///<[in] The displacements vector
-			) const
+void FEM::Energy<1> (int /*amrlev*/,		///<[in] AMR Level
+		     int /*mglev*/,		///<[in]
+		     MultiFab& /*dw*/,	///<[out] The force vector
+		     const MultiFab& /*u*/	///<[in] The displacements vector
+		     ) const
 {
   BL_PROFILE("Operator::FEM::FEM::apply()");
 

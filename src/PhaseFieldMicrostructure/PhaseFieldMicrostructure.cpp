@@ -205,7 +205,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 		      amrex::Real Sine_theta = sin(Theta);
 		      amrex::Real Cos_theta = cos(Theta);
 		
-		      amrex::Real norm_grad = grad1*grad1+grad2*grad2;
+		      // amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
 		
 		      amrex::Real grad1111=(1/(dx[0]*dx[0]*dx[0]*dx[0])) * ((ETA(i+2,j,k,m)) - 4*(ETA(i+1,j,k,m))+6*(ETA(i,j,k,m)) - 4*(ETA(i-1,j,k,m)) + (ETA(i-2,j,k,m)));
 			
