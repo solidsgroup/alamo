@@ -16,6 +16,15 @@ class BC
 
 public:
   BC (amrex::Vector<amrex::Geometry> &_geom);
+  BC (amrex::Vector<amrex::Geometry> &_geom,
+      amrex::Vector<std::string> bc_hi_str,
+      amrex::Vector<std::string> bc_lo_str,
+      amrex::Vector<amrex::Real> _bc_lo_1,
+      amrex::Vector<amrex::Real> _bc_hi_1,
+      amrex::Vector<amrex::Real> _bc_lo_2,
+      amrex::Vector<amrex::Real> _bc_hi_2,
+      amrex::Vector<amrex::Real> _bc_lo_3,
+      amrex::Vector<amrex::Real> _bc_hi_3);
   virtual void FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) override;
   void SetLevel(int _lev);
   amrex::BCRec GetBCRec() ;
@@ -27,10 +36,7 @@ protected:
   int bc_lo_flux[BL_SPACEDIM];
   amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
   amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-
-#if BL_SPACEDIM > 2
   amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-#endif
 
   std::vector<amrex::Geometry> &geom;
   int lev=0;

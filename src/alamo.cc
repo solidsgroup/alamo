@@ -17,7 +17,8 @@ int main (int argc, char* argv[])
     }
   amrex::Initialize(argc,argv);
 
-  srand(1.0*amrex::ParallelDescriptor::MyProc());
+  srand(1);
+  //srand(1.0*amrex::ParallelDescriptor::MyProc());
   {
     PhaseFieldMicrostructure model;
     model.InitData();

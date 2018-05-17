@@ -147,14 +147,16 @@ Integrator::Integrator::ClearLevel (int lev)
 
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-				     BC::BC &new_bc,
-				     int ncomp,
-				     int nghost,
-				     std::string name)
+				       BC::BC &new_bc,
+				       int ncomp,
+				       int nghost,
+				       std::string name)
 {
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
   int nlevs_max = maxLevel() + 1;
-  new_fab.resize(nlevs_max);
-  //fab_array.push_back((std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > >)&new_fab);
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
+  new_fab.resize(nlevs_max); // <<<< Problem occurs here?
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
   fab_array.push_back(&new_fab);
   physbc_array.push_back(&new_bc); 
   ncomp_array.push_back(ncomp);
