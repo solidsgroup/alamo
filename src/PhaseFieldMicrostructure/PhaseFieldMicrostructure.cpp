@@ -3,14 +3,11 @@
 #if BL_SPACEDIM == 2
 
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
-  Integrator::Integrator(),
-  mybc(geom)
+  Integrator::Integrator()
 {
-
   //
   // READ INPUT PARAMETERS
   //
-
   {
     amrex::ParmParse pp("pf"); // Phase-field model parameters
     pp.query("number_of_grains", number_of_grains);
@@ -56,16 +53,52 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
   }
 
   {
+    amrex::ParmParse pp("bc");
+    amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
+    amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
+    pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+    pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+    amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+    if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
+    if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
+    amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
+    if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
+    if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
+    amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
+    if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
+    if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+
+    mybc = new BC::BC(geom,
+		      bc_hi_str, bc_lo_str,
+		      bc_lo_1, bc_hi_1,
+		      bc_lo_2, bc_hi_2,
+		      bc_lo_3, bc_hi_3);
+  }
+
+
+  {
     amrex::ParmParse pp("ic"); // Phase-field model parameters
     pp.query("type", ic_type);
     if (ic_type == "perturbed_interface")
       ic = new IC::PerturbedInterface(geom);
-    if (ic_type == "voronoi")
+    else if (ic_type == "voronoi")
       ic = new IC::Voronoi(geom,number_of_grains);
+    else
+      amrex::Abort("No valid initial condition specified");
   }
+  /*
+  */
+  
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
+  eta_new.resize(maxLevel()+1);
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
 
-  RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
-  RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
+  // amrex::ParallelDescriptor::Barrier();
+  // amrex::Abort("No error, just exiting here");
+
+  RegisterNewFab(eta_new, *mybc, number_of_grains, number_of_ghost_cells, "Eta");
+  //eta_old.resize(maxLevel()+1);
+  RegisterNewFab(eta_old, *mybc, number_of_grains, number_of_ghost_cells, "Eta old");
 
   
   // Elasticity
@@ -89,13 +122,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 
     if (elastic_on)
       {
-	RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
-	RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
-	RegisterNewFab(strain, mybc, 3, 1, "eps");
-	RegisterNewFab(stress, mybc, 3, 1, "sig");
-	RegisterNewFab(stress_vm, mybc, 1, 1, "sig_VM");
-	RegisterNewFab(energy, mybc, 1, 1, "W");
-	RegisterNewFab(energies, mybc, number_of_grains, 1, "W");
+	RegisterNewFab(displacement, *mybc, AMREX_SPACEDIM, 1, "u");
+	RegisterNewFab(body_force, *mybc, AMREX_SPACEDIM, 1, "b");
+	RegisterNewFab(strain, *mybc, 3, 1, "eps");
+	RegisterNewFab(stress, *mybc, 3, 1, "sig");
+	RegisterNewFab(stress_vm, *mybc, 1, 1, "sig_VM");
+	RegisterNewFab(energy, *mybc, 1, 1, "W");
+	RegisterNewFab(energies, *mybc, number_of_grains, 1, "W");
       }
   }
 
@@ -107,6 +140,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 void
 PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
+
   /// TODO Make this optional
   if (lev != max_level) return;
   std::swap(eta_old[lev], eta_new[lev]);
@@ -255,6 +289,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 	      
 	    }
     }
+
 }
 
 void
@@ -355,7 +390,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
   //models.push_back(&g2);
 
-  elastic_operator->SetEta(eta_new,mybc,models);
+  elastic_operator->SetEta(eta_new,*mybc,models);
 
   amrex::Real ushear = 0.0;
 

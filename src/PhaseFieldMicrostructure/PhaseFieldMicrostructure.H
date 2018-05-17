@@ -69,7 +69,7 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-  BC::BC mybc;
+  BC::BC *mybc;
 
   amrex::Real M, mu, gamma, sigma0, l_gb, beta;
   int anisotropy = 0;
