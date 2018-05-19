@@ -1,0 +1,16 @@
+Backtrace*
+*.mpg
+*.o
+results
+bin
+*.mod
+*.\#*
+\#*
+myoutput*
+doc
+*~
+output*
+*.txt
+plot*
+bl_prof*
+build

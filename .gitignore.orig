@@ -1,0 +1,20 @@
+Backtrace*
+*.mpg
+*.o
+results
+bin
+*.mod
+*.\#*
+\#*
+myoutput*
+doc
+*~
+output*
+*.txt
+plot*
+<<<<<<< HEAD
+bl_prof*
+=======
+bl_prof*
+build
+>>>>>>> fem
