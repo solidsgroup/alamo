@@ -17,11 +17,12 @@
 
 #include "BC/BC.H"
 #include "IC/PerturbedInterface/PerturbedInterface.H"
+#include "IC/Voronoi/Voronoi.H"
 
-#include "PFBoundary/PFBoundary.H"
-#include "PFBoundary/PFBoundarySin.H"
-#include "PFBoundary/PFBoundaryAbsSin.H"
-#include "PFBoundary/PFBoundaryRead.H"
+#include "Model/Interface/GrainBoundary/GrainBoundary.H"
+#include "Model/Interface/GrainBoundary/Sin.H"
+#include "Model/Interface/GrainBoundary/AbsSin.H"
+#include "Model/Interface/GrainBoundary/Read.H"
 
 #include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
@@ -68,7 +69,7 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-  BC::BC mybc;
+  BC::BC *mybc;
 
   amrex::Real M, mu, gamma, sigma0, l_gb, beta;
   int anisotropy = 0;
@@ -77,16 +78,9 @@ private:
 
   std::string ic_type, gb_type, filename;
 
-  // Voronoi
-  amrex::Vector<amrex::Real> voronoi_x;
-  amrex::Vector<amrex::Real> voronoi_y;
-#if BL_SPACEDIM==3
-  amrex::Vector<amrex::Real> voronoi_z;
-#endif
-
   amrex::Real damp;
 
-  PFBoundary *boundary;
+  Model::Interface::GrainBoundary::GrainBoundary *boundary;
 
   IC::IC *ic;
 

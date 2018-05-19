@@ -13,3 +13,4 @@ output*
 *.txt
 plot*
 bl_prof*
+build

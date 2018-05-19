@@ -68,7 +68,7 @@ private:
 
   std::string ic_type;						///< String to determine what kind of initial condition to use
   IC::IC *ic;            					///< Pointer to abstract IC object
-  BC::BC mybc;                   				///< Stock generic boundary condition object
+  BC::BC *mybc;                   				///< Stock generic boundary condition object
 };
 }
 #endif
