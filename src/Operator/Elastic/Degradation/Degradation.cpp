@@ -75,7 +75,7 @@ Operator::Elastic::Degradation::Degradation::M(const int i, const int j, const i
 	return 0;
 }
 
-std::Vector<amrex::Real>
+std::vector<amrex::Real>
 Operator::Elastic::Degradation::Degradation::dMdEta(const int i, const int j, const int k, const int l,
 									const amrex::IntVect loc, const int amrlev, const int mglev, const MFIter &mfi) const
 {
@@ -83,7 +83,7 @@ Operator::Elastic::Degradation::Degradation::dMdEta(const int i, const int j, co
 	int m = i*(i==j ? 1:0) + (1- (i==j ? 1:0))*(9 - i - j);
 	int n = k*(k==l ? 1:0) + (1- (k==l ? 1:0))*(9 - k - l);
 
-	std::Vector<amrex::Real> dMdE = {0.0,0.0,0.0}; //assuming num_eta = 3 here.
+	std::vector<amrex::Real> dMdE = {0.0,0.0,0.0}; //assuming num_eta = 3 here.
 
 	if (m != n) return dMdE;
 	if (m == 1) return {1.0,0.0,0.0};
@@ -129,14 +129,14 @@ Operator::Elastic::Degradation::Degradation::N(const int i, const int j, const a
 	return 0;
 }
 
-std::Vector<amrex::Real>
+std::vector<amrex::Real>
 Operator::Elastic::Degradation::Degradation::dNdEta(const int i, const int j, const amrex::IntVect loc,
 								const int amrlev, const int mglev, const MFIter &mfi) const
 {
 	const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
 	int m = i*(i==j ? 1:0) + (1- (i==j ? 1:0))*(9 - i - j);
 
-	std::Vector<amrex::Real> dNdE = {0.0,0.0,0.0}; //assuming num_eta = 3 here.
+	std::vector<amrex::Real> dNdE = {0.0,0.0,0.0}; //assuming num_eta = 3 here.
 	if(m==1) dNdE[0] = -2.0*etafab(loc,0);
 	if(m==2) dNdE[1] = -2.0*etafab(loc,1);
 	if(m==3) dNdE[2] = -2.0*etafab(loc,2);
@@ -213,8 +213,8 @@ Operator::Elastic::Degradation::Degradation::Energies (FArrayBox& energyfab,
 										for (int r=0; r<AMREX_SPACEDIM; r++)
 											for (int s=0; s<AMREX_SPACEDIM; s++)
 											{
-												std::Vector<amrex::Real> dMdE1 = dMdEta(p,q,i,j,m,amrlev,mglev,mfi);
-												std::Vector<amrex::Real> dMdE2 = dMdEta(r,s,k,l,m,amrlev,mglev,mfi);
+												std::vector<amrex::Real> dMdE1 = dMdEta(p,q,i,j,m,amrlev,mglev,mfi);
+												std::vector<amrex::Real> dMdE2 = dMdEta(r,s,k,l,m,amrlev,mglev,mfi);
 												energyfab(m,n) += gradu[i][j]*(dMdE1[n]*Cs[0][p][q][r][s]*M(r,s,k,l,m,amrlev,mglev,mfi) +
 													M(p,q,i,j,m,amrlev,mglev,mfi)*Cs[0][p][q][r][s]*dMdE2[n])*gradu[k][l];
 												energyfab(m,n) *= 0.5;
