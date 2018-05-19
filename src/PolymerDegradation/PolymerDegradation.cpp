@@ -51,9 +51,7 @@ PolymerDegradation::PolymerDegradation() :
 	}
 
 	amrex::ParmParse pp("ic"); // Phase-field model parameters
-	pp.query("type", ic_type);
-	if (ic_type == "perturbed_interface")
-		ic = new IC::PerturbedInterface(geom);
+	ic = new IC::Constant(geom);
 
   RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
   RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
@@ -96,7 +94,7 @@ PolymerDegradation::PolymerDegradation() :
 #define ETA(i,j,k,n) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n)
 
 void
-PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
+PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
   std::swap(eta_old[lev], eta_new[lev]);
   const amrex::Real* dx = geom[lev].CellSize();
@@ -244,7 +242,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 }
 
 void
-PhaseFieldMicrostructure::Initialize (int lev)
+PolymerDegradation::Initialize (int lev)
 {
   ic->Initialize(lev,eta_new);
   ic->Initialize(lev,eta_old);
@@ -261,7 +259,7 @@ PhaseFieldMicrostructure::Initialize (int lev)
 
 
 void
-PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
   const amrex::Real* dx      = geom[lev].CellSize();
 
@@ -304,7 +302,7 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
   }
 }
 
-void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
+void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 {
   if (!elastic_on) return;
   if (iter%elastic_int) return;
