@@ -1,0 +1,13 @@
+Backtrace*
+*.mpg
+*.o
+results
+bin
+*.mod
+*.\#*
+\#*
+myoutput*
+doc
+*~
+output*
+*.txt
