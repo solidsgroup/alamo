@@ -44,9 +44,9 @@ protected:
 		const int amrlev, const int mglev, const MFIter &mfi) const;
 	virtual amrex::Real N(const int i, const int j, const amrex::IntVect loc, const int amrlev,
 		const int mglev, const MFIter &mfi) const;
-	virtual std::Vector<amrex::Real> dMdEta(const int i, const int j, const int k, const int l,
+	virtual std::vector<amrex::Real> dMdEta(const int i, const int j, const int k, const int l,
 		const amrex::IntVect loc, const int amrlev, const int mglev, const MFIter &mfi) const;
-	virtual std::Vector<amrex::Real> dNdEta(const int i, const int j, const amrex::IntVect loc,
+	virtual std::vector<amrex::Real> dNdEta(const int i, const int j, const amrex::IntVect loc,
 		const int amrlev, const int mglev, const MFIter &mfi) const;
 
 	std::vector<std::array<std::array<std::array<std::array<amrex::Real,AMREX_SPACEDIM>,AMREX_SPACEDIM>,AMREX_SPACEDIM>,AMREX_SPACEDIM> > Cs;
