@@ -36,13 +36,13 @@ Operator::Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
 				m_dmap[amrlev][mglev],
-				input[amrlev].get()->nComp(),
-				input[amrlev].get()->nGrow());
+				input[amrlev]->nComp(),
+				input[amrlev]->nGrow());
 
 		MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
-			       *input[amrlev].get(), 0, 0,
-			       input[amrlev].get()->nComp(),
-			       input[amrlev].get()->nGrow());
+			       *input[amrlev], 0, 0,
+			       input[amrlev]->nComp(),
+			       input[amrlev]->nGrow());
 	}
   m_num_a_fabs++;
 
