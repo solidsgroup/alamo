@@ -20,18 +20,46 @@ PolymerDegradation::PolymerDegradation() :
 		pp.query("ic_type", water_ic_type);
 
 		// // Determine initial condition
-		if (water_ic_type == "cylinder")
-			water_ic = new IC::Cylinder(geom);
-		else if (water_ic_type == "constant")
-			water_ic = new IC::Constant(geom);
+		if (water_ic_type == "constant")
+		{
+			amrex::ParmParse pp("water.ic");
+			amrex::Vector<amrex::Real> value;
+			pp.query("value",value);
+			water_ic = new IC::Constant(geom,value);
+		}
 		else
-			water_ic = new IC::Constant(geom);
+			amrex::Abort("This kind of IC has not been implemented yet");
 		
-		RegisterNewFab(water_conc,     water_bc, number_of_components, number_of_ghost_cells, "Water Concentration");
-		RegisterNewFab(water_conc_old, water_bc, number_of_components, number_of_ghost_cells, "Water Concentration Old");
+
+		amrex::ParmParse pp("water.bc");
+
+		amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
+		amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
+
+		pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+		pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+		amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+		amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
+		amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
+
+		if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
+		if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
+		
+		if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
+		if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
+		
+		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
+		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+
+		water_bc = new BC::BC(geom, bc_hi_str, bc_lo_str,
+		      bc_lo_1, bc_hi_1, bc_lo_2, bc_hi_2,
+		      bc_lo_3, bc_hi_3);
+
+		RegisterNewFab(water_conc,     water_bc, 1, number_of_ghost_cells, "Water Concentration");
+		RegisterNewFab(water_conc_old, water_bc, 1, number_of_ghost_cells, "Water Concentration Old");
 	}
 
-	amrex::ParmParse pp("heat"); //Heat diffusion parameters
+	amrex::ParmParse pp("thermal"); //Heat diffusion parameters
 	pp.query("on",heat_diffusion_on);
 	if(heat_diffusion_on)
 	{
@@ -39,55 +67,121 @@ PolymerDegradation::PolymerDegradation() :
 		pp.query("refinement_threshold",thermal_refinement_threshold);
 		pp.query("ic_type",thermal_ic_type);
 	
-		if (thermal_ic_type == "cylinder")
-			thermal_ic = new IC::Cylinder(geom);
-		else if (thermal_ic_type == "constant")
-			thermal_ic = new IC::Constant(geom);
+		if (thermal_ic_type == "constant")
+		{
+			amrex::ParmParse pp("thermal.ic");
+			amrex::Vector<amrex::Real> T;
+			pp.query("value",T);
+			thermal_ic = new IC::Constant(geom,T);
+		}
 		else
-			thermal_ic = new IC::Constant(geom);
+			amrex::Abort("This kind of IC has not been implemented yet");
 
-		RegisterNewFab(Temp,     thermal_bc, number_of_components, number_of_ghost_cells, "Temperature");
-		RegisterNewFab(Temp_old, thermal_bc, number_of_components, number_of_ghost_cells, "Temperature Old");
+		amrex::ParmParse pp("thermal.bc");
+
+		amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
+		amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
+
+		pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+		pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+		amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+		amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
+		amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
+
+		if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
+		if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
+		
+		if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
+		if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
+		
+		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
+		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+
+		thermal_bc = new BC::BC(geom, bc_hi_str, bc_lo_str,
+		      bc_lo_1, bc_hi_1, bc_lo_2, bc_hi_2,
+		      bc_lo_3, bc_hi_3);
+
+		RegisterNewFab(Temp,     thermal_bc, 1, number_of_ghost_cells, "Temperature");
+		RegisterNewFab(Temp_old, thermal_bc, 1, number_of_ghost_cells, "Temperature Old");
 	}
 
-	amrex::ParmParse pp("ic"); // Phase-field model parameters
-	ic = new IC::Constant(geom);
+	amrex::ParmParse pp("damage"); // Phase-field model parameters
+	pp.query("type",damage_type);
 
-  RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
-  RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
+	if(damage_type == "isotropic")
+		number_of_eta = 1;
+	else if (damage_type == "anisotropic")
+		number_of_eta = BL_SPACEDIM;
+	else
+		amrex::Abort("This kind of damage has not been implemented yet");
+
+	pp.query("ic_type",eta_ic_type)
+	if(eta_ic_type == "constant")
+	{
+		amrex::ParmParse pp("damage.ic");
+		amrex::Vector<amrex::Real> eta_init;
+		pp.qeury("value",eta_init);
+		eta_ic = new IC::Constant(geom,eta_init);
+	}
+	else
+		amrex::Abort("This kind of IC has not been implemented yet");
+	
+	amrex::ParmParse pp("damage.bc");
+
+	amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
+	amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
+
+	pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+	pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+	amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+	amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
+	amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
+
+	if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
+	if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
+	
+	if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
+	if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
+		
+	if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
+	if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+
+	damage_bc = new BC::BC(geom, bc_hi_str, bc_lo_str,
+	      bc_lo_1, bc_hi_1, bc_lo_2, bc_hi_2,
+	      bc_lo_3, bc_hi_3);
+
+	RegisterNewFab(eta_new, damage_bc, number_of_eta, number_of_ghost_cells, "Eta");
+	RegisterNewFab(eta_old, damage_bc, number_of_eta, number_of_ghost_cells, "Eta old");
 
   
-  // Elasticity
-  {
-    amrex::ParmParse pp("elastic");
-    pp.query("on",elastic_on);
-    pp.query("int",elastic_int);
-    pp.query("type",elastic_type);
-    pp.query("max_iter",elastic_max_iter);
-    pp.query("max_fmg_iter",elastic_max_fmg_iter);
-    pp.query("verbose",elastic_verbose);
-    pp.query("cgverbose",elastic_cgverbose);
-    pp.query("tol_rel",elastic_tol_rel);
-    pp.query("tol_abs",elastic_tol_abs);
-    pp.query("tstart",elastic_tstart);
+	// Elasticity
+	amrex::ParmParse pp("elastic");
+	pp.query("on",elastic_on);
+	pp.query("int",elastic_int);
+	pp.query("type",elastic_type);
+	pp.query("max_iter",elastic_max_iter);
+	pp.query("max_fmg_iter",elastic_max_fmg_iter);
+	pp.query("verbose",elastic_verbose);
+	pp.query("cgverbose",elastic_cgverbose);
+	pp.query("tol_rel",elastic_tol_rel);
+	pp.query("tol_abs",elastic_tol_abs);
+	pp.query("tstart",elastic_tstart);
 
-    pp.queryarr("load_t",elastic_load_t);
-    pp.queryarr("load_disp",elastic_load_disp);
-    if (elastic_load_t.size() != elastic_load_disp.size())
-      amrex::Abort("load_t and load_disp must have the same number of entries");
+	pp.queryarr("load_t",elastic_load_t);
+	pp.queryarr("load_disp",elastic_load_disp);
+	if (elastic_load_t.size() != elastic_load_disp.size())
+		amrex::Abort("load_t and load_disp must have the same number of entries");
 
-    if (elastic_on)
-      {
-	RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
-	RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
-	RegisterNewFab(strain, mybc, 3, 1, "eps");
-	RegisterNewFab(stress, mybc, 3, 1, "sig");
-	RegisterNewFab(stress_vm, mybc, 1, 1, "sig_VM");
-	RegisterNewFab(energy, mybc, 1, 1, "W");
-	RegisterNewFab(energies, mybc, number_of_grains, 1, "W");
-      }
-  }
-
+	if (elastic_on)
+	{
+		RegisterNewFab(displacement, mybc, AMREX_SPACEDIM, 1, "u");
+		RegisterNewFab(body_force, mybc, AMREX_SPACEDIM, 1, "b");
+		RegisterNewFab(strain, mybc, 3, 1, "eps");
+		RegisterNewFab(stress, mybc, 3, 1, "sig");
+		RegisterNewFab(stress_vm, mybc, 1, 1, "sig_VM");
+		RegisterNewFab(energy, mybc, 1, 1, "W");
+		RegisterNewFab(energies, mybc, number_of_grains, 1, "W");
+	}
 }
 
 
