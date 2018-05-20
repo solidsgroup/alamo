@@ -94,7 +94,7 @@ private:
 	amrex::Real 	water_refinement_threshold =	0.01;
 	std::string 	water_ic_type;
 	IC::IC		*water_ic;
-	BC::BC		water_bc;
+	BC::BC		*water_bc;
 
 	// Thermal diffusion parameters
 	bool		heat_diffusion_on =		false;
@@ -102,7 +102,14 @@ private:
 	amrex::Real 	thermal_refinement_threshold =	0.01;
 	std::string	thermal_ic_type;
 	IC::IC		*thermal_ic;
-	BC::BC		thermal_bc;
+	BC::BC		*thermal_bc;
+
+	// Damage parameters
+	std::string	damage_type;
+	int		number_of_eta;
+	std::string 	eta_ic_type;
+	IC::IC		*eta_ic;
+	BC::BC		*eta_bc;
 
 	// Elasticity parameters
 	bool        elastic_on = false;
