@@ -32,7 +32,7 @@ int main (int argc, char* argv[])
   int max_level = 2;//0;
   int ref_ratio = 2;//2
   int n_cell = 32;//128;
-  int max_grid_size = 3;//64;
+  int max_grid_size = 644;//64;
     
   bool composite_solve = true;
 
