@@ -106,14 +106,34 @@ PolymerDegradation::PolymerDegradation() :
 	}
 
 	amrex::ParmParse pp("damage"); // Phase-field model parameters
-	pp.query("type",damage_type);
+	pp.query("anisotropy",damage_anisotropy);
 
-	if(damage_type == "isotropic")
+	if(damage_anisotropy == 0)
 		number_of_eta = 1;
-	else if (damage_type == "anisotropic")
-		number_of_eta = BL_SPACEDIM;
 	else
-		amrex::Abort("This kind of damage has not been implemented yet");
+		number_of_eta = BL_SPACEDIM;
+
+	pp.query("type",damage_type);
+	if(damage_type == "relaxation") //meant for isotropic right now.
+	{
+		pp.qeury("E0",E0); // to be replaced to get the value from elastic operator
+		pp.query("number_of_terms",number_of_terms);
+		pp.queryarr("E_i",E_i);
+		pp.queryarr("tau_i",tau_i);
+		pp.queryarr("t_start_i",t_start_i);
+
+		if(E_i.size() != number_of_terms || tau_i.size() != number_of_terms || t_start_i.size() != number_of_terms)
+			amrex::Abort("missing entries in E_i, tau_i or t_start_i");
+
+		amrex::Real sum = 0;		
+		for (int temp = 0; temp < E_i.size(); temp++)
+			sum += E_i[temp];
+
+		if(sum != E0) //need to replace this in the future
+			amrex::Abort("E0 is not equal to the sum of E_i");
+	}
+	else
+		amrex::Abort("This kind of damage model has not been implemented yet");
 
 	pp.query("ic_type",eta_ic_type)
 	if(eta_ic_type == "constant")
@@ -191,7 +211,59 @@ void
 PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
 	std::swap(eta_old[lev], eta_new[lev]);
+
+	if(water_diffusion_on) std::swap(water_conc_old[lev],water_conc[lev]);
+	if(heat_diffusion_on) std::swap(Temp_old[lev], Temp[lev]);
+
 	const amrex::Real* dx = geom[lev].CellSize();
+
+	if(water_diffusion_on)
+	{
+		for ( amrex::MFIter mfi(*water_conc[lev],true); mfi.isValid(); ++mfi )
+		{
+			const amrex::Box& bx = mfi.tilebox();
+
+			amrex::FArrayBox &water_conc_old_box = (*water_conc_old[lev])[mfi];
+			amrex::FArrayBox &water_conc_box = (*water_conc[lev])[mfi];
+
+			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+#if AMREX_SPACEDIM>2
+				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+#endif
+				{
+					WATER(i,j,k) =
+						WATER_OLD(i,j,k)
+						+ dt * water_diffusivity * (AMREX_D_TERM((WATER_OLD(i+1,j,k) + WATER_OLD(i-1,j,k) - 2.0*WATER_OLD(i,j,k)) / dx[0] / dx[0],
+						+ (WATER_OLD(i,j+1,k) + WATER_OLD(i,j-1,k) - 2.0*WATER_OLD(i,j,k)) / dx[1] / dx[1],
+						+ (WATER_OLD(i,j,k+1) + WATER_OLD(i,j,k-1) - 2.0*WATER_OLD(i,j,k)) / dx[2] / dx[2]));
+				}
+		}
+	}
+
+	if(heat_diffusion_on)
+	{
+		for ( amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi )
+		{
+			const amrex::Box& bx = mfi.tilebox();
+
+			amrex::FArrayBox &Temp_old_box = (*Temp_old[lev])[mfi];
+			amrex::FArrayBox &Temp_box = (*Temp[lev])[mfi];
+
+			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+#if AMREX_SPACEDIM>2
+				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+#endif
+				{
+					TEMP(i,j,k) =
+						TEMP_OLD(i,j,k)
+						+ dt * thermal_diffusivity * (AMREX_D_TERM((TEMP_OLD(i+1,j,k) + TEMP_OLD(i-1,j,k) - 2.0*TEMP_OLD(i,j,k)) / dx[0] / dx[0],
+						+ (TEMP_OLD(i,j+1,k) + TEMP_OLD(i,j-1,k) - 2.0*TEMP_OLD(i,j,k)) / dx[1] / dx[1],
+						+ (TEMP_OLD(i,j,k+1) + TEMP_OLD(i,j,k-1) - 2.0*TEMP_OLD(i,j,k)) / dx[2] / dx[2]));
+				}
+		}
+	}
 
 	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
 	{
@@ -207,49 +279,18 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
 #endif
 			{
-				for (int m = 0; m < number_of_grains; m++)
+				for (int m = 0; m < number_of_eta; m++)
 				{
-					amrex::Real sum_of_squares = 0.;
-					for (int n = 0; n < number_of_grains; n++)
+					if(damage_type == "relaxation") // Need to replace this with more sophisticated check
 					{
-						if (n==m) continue;
-						sum_of_squares += ETA(i,j,k,n)*ETA(i,j,k,n);
-					}
-
-					if (anisotropy && time > anisotropy_tstart)
-					{
-						amrex::Real Theta = atan2(grad2,grad1);
-						amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
-						amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
-						amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
-						amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
+						amrex::Real rhs = 0.0;
+						for (int l = 0; l<number_of_terms; l++)
+							rhs += E_i[l]*std::exp(-std::max(0.0,time-t_start_i[l])/tau_i[l])/(E0*tau_i[l]);
 
 						eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
-							ETA(i,j,k,m) -
-							M*dt*(Mu*(ETA(i,j,k,m)*ETA(i,j,k,m)
-							- 1.0 +
-							2.0*gamma*sum_of_squares)*ETA(i,j,k,m)
-							- (Kappa*laplacian
-							+ DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-							+ damp*0.5*DDKappa*(sin(Theta)*sin(Theta)*grad11 
-							- 2.*sin(Theta)*cos(Theta)*grad12 + cos(Theta)*cos(Theta)*grad22))+
-							beta*(grad1111*(sin(Theta)*sin(Theta)*sin(Theta)*sin(Theta))
-							+grad1112*(-6*sin(Theta)*sin(Theta)*sin(Theta)*cos(Theta))
-							+grad1122*(10*sin(Theta)*sin(Theta)*cos(Theta)*cos(Theta))
-							+grad1222*(-6*sin(Theta)*cos(Theta)*cos(Theta)*cos(Theta))
-							+grad2222*(cos(Theta)*cos(Theta)*cos(Theta)*cos(Theta)))
-							);
+							ETA(i,j,k,m) +
+							dt*rhs;
 					}
-					else // Isotropic response if less than anisotropy_tstart
-					{
-						eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
-							ETA(i,j,k,m) -
-							M*dt*(mu*(ETA(i,j,k,m)*ETA(i,j,k,m)
-							- 1.0 +
-							2.0*gamma*sum_of_squares)*ETA(i,j,k,m)
-							- kappa*laplacian);
-					}
-
 
 					//
 					// ELASTIC DRIVING FORCE

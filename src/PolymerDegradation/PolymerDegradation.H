@@ -23,6 +23,13 @@
 #include "Operator/Elastic/Degradation/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Degradation/Cubic/Cubic.H"
 
+
+#define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
+#define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
+#define WATER_OLD(i,j,k) water_conc_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
+#define WATER(i,j,k) water_conc_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
+
+
 ///
 /// \class PhaseFieldMicrostructure
 /// \brief Microstructure evolution with grain boundary anisotropy
@@ -106,10 +113,18 @@ private:
 
 	// Damage parameters
 	std::string	damage_type;
+	int		damage_anisotropy = 0;
 	int		number_of_eta;
 	std::string 	eta_ic_type;
 	IC::IC		*eta_ic;
 	BC::BC		*eta_bc;
+
+	// Damage model: relaxation
+	int number_of_terms = 4;
+	amrex::Vector<amrex::Real> E_i;
+	amrex::Real E0;
+	amrex::Vector<amrex::Real> tau_i;
+	amrex::Vector<amrex::Real> t_start_i;
 
 	// Elasticity parameters
 	bool        elastic_on = false;
