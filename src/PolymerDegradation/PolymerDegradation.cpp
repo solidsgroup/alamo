@@ -207,10 +207,11 @@ PolymerDegradation::PolymerDegradation():
 void
 PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
-	std::swap(eta_old[lev], eta_new[lev]);
+	std::swap(*eta_old[lev], *eta_new[lev]);
 
-	if(water_diffusion_on) std::swap(water_conc_old[lev],water_conc[lev]);
-	if(heat_diffusion_on) std::swap(Temp_old[lev], Temp[lev]);
+	if(water_diffusion_on) std::swap(*water_conc_old[lev],*water_conc[lev]);
+
+	if(heat_diffusion_on) std::swap(*Temp_old[lev], *Temp[lev]);
 
 	const amrex::Real* dx = geom[lev].CellSize();
 
@@ -267,6 +268,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 		const amrex::Box& bx = mfi.tilebox();
 		FArrayBox &eta_new_box     = (*eta_new[lev])[mfi];
 		FArrayBox &eta_old_box     = (*eta_old[lev])[mfi];
+		amrex::FArrayBox &water_conc_box = (*water_conc[lev])[mfi];
 
 		//FArrayBox &energiesfab = (*energy)
 
@@ -281,8 +283,11 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 					if(damage_type == "relaxation") // Need to replace this with more sophisticated check
 					{
 						amrex::Real rhs = 0.0;
-						for (int l = 0; l<number_of_terms; l++)
-							rhs += E_i[l]*std::exp(-std::max(0.0,time-t_start_i[l])/tau_i[l])/(E0*tau_i[l]);
+						if (WATER(i,j,k) >0)
+						{
+							for (int l = 0; l<number_of_terms; l++)
+								rhs += E_i[l]*std::exp(-std::max(0.0,time-t_start_i[l])/tau_i[l])/(E0*tau_i[l]);
+						}
 
 						eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
 							ETA(i,j,k,m) +
@@ -308,16 +313,31 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 void
 PolymerDegradation::Initialize (int lev)
 {
+	if(water_diffusion_on)
+	{
+		water_ic->Initialize(lev,water_conc);
+		water_ic->Initialize(lev,water_conc_old);
+	}
+
+	if(heat_diffusion_on)
+	{
+		thermal_ic->Initialize(lev,Temp);
+		thermal_ic->Initialize(lev,Temp_old);
+	}
+	
+	if(elastic_on)
+	{  
+		displacement[lev].get()->setVal(0.0);
+		strain[lev].get()->setVal(0.0); 
+		stress[lev].get()->setVal(0.0); 
+		stress_vm[lev].get()->setVal(0.0);
+		body_force[lev].get()->setVal(0.0);
+		energy[lev].get()->setVal(0.0); 
+		energies[lev].get()->setVal(0.0); 
+	}
 	eta_ic->Initialize(lev,eta_new);
 	eta_ic->Initialize(lev,eta_old);
-  
-	displacement[lev].get()->setVal(0.0);
-	strain[lev].get()->setVal(0.0); 
-	stress[lev].get()->setVal(0.0); 
-	stress_vm[lev].get()->setVal(0.0);
-	body_force[lev].get()->setVal(0.0);
-	energy[lev].get()->setVal(0.0); 
-	energies[lev].get()->setVal(0.0); 
+
 }
 
 
@@ -342,10 +362,10 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 					for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
 #endif
 				{
-					amrex::Real grad1 = (WATER(i+1,j,k) - WATER(i-1,j,k));
-					amrex::Real grad2 = (WATER(i,j+1,k) - WATER(i,j-1,k));
+					amrex::Real grad1 = (WATER(i+1,j,k) - WATER(i-1,j,k))/(2.*dx[0]);
+					amrex::Real grad2 = (WATER(i,j+1,k) - WATER(i,j-1,k))/(2.*dx[1]);
 #if AMREX_SPACEDIM>2
-					amrex::Real grad3 = (WATER(i,j,k+1) - WATER(i,j,k-1));
+					amrex::Real grad3 = (WATER(i,j,k+1) - WATER(i,j,k-1))/(2.*dx[2]);
 #endif
 					amrex::Real grad = sqrt(AMREX_D_TERM(grad1*grad1,
 						+ grad2*grad2,
