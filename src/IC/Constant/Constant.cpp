@@ -1,5 +1,5 @@
 #include <AMReX_ParallelDescriptor.H>
-#include <Constant.H>
+#include "Constant.H"
 
 namespace IC
 {
@@ -7,7 +7,7 @@ namespace IC
 Constant::Constant(amrex::Vector<amrex::Geometry> &_geom, amrex::Vector<amrex::Real> _value)
 	: IC(_geom), value(_value) {}
 
-void Initialize(const int lev,
+void Constant::Initialize(const int lev,
 		amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
 {
 	for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)

@@ -17,11 +17,17 @@
 
 #include "BC/BC.H"
 #include "IC/IC.H"
+#include "IC/Constant/Constant.H"
 #include "IC/PerturbedInterface/PerturbedInterface.H"
 
 #include "Operator/Elastic/Degradation/Degradation.H"
 #include "Operator/Elastic/Degradation/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Degradation/Cubic/Cubic.H"
+#include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
+#include "Operator/Elastic/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
+#include "Operator/Elastic/Cubic/Cubic.H"
 
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -67,8 +73,8 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > water_conc_old;	///< Water concentration for the __previous__timestep
 
 	// For temperature induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp			///< Temperature for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old		///< Temperature for the __previous__timestep		
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;			///< Temperature for the __current__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;		///< Temperature for the __previous__timestep		
 
 	// For mechanical degradation to be studied later
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
@@ -80,7 +86,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-	BC::BC mybc;
+	BC::BC *mybc;
 
 	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
 	int anisotropy = 0;
@@ -90,10 +96,6 @@ private:
 	std::string ic_type, gb_type, filename;
 
 	amrex::Real damp;
-
-	PFBoundary *boundary;
-
-	IC::IC *ic;
 
 	// Water diffusion parameters
 	bool 		water_diffusion_on =		false;
