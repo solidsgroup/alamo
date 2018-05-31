@@ -72,4 +72,5 @@ add_library(alamo_lib OBJECT ${alamo_SOURCES})
 add_executable (alamo "src/alamo.cc" $<TARGET_OBJECTS:alamo_lib>)
 add_executable (fem "src/fem.cc" $<TARGET_OBJECTS:alamo_lib>)
 add_executable (flame "src/flame.cc" $<TARGET_OBJECTS:alamo_lib>)
+add_executable (degradation "src/degradation.cc" $<TARGET_OBJECTS:alamo_lib>)
 
