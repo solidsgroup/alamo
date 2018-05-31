@@ -286,7 +286,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 						if (WATER(i,j,k) >0)
 						{
 							for (int l = 0; l<number_of_terms; l++)
-								rhs += E_i[l]*std::exp(-std::max(0.0,time-t_start_i[l])/tau_i[l])/(E0*tau_i[l]);
+								rhs += WATER(i,j,k)*E_i[l]*std::exp(-std::max(0.0,time-t_start_i[l])/tau_i[l])/(E0*tau_i[l]);
 						}
 
 						eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
