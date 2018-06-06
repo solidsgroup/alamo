@@ -25,7 +25,8 @@ endif(NOT AMREX)
 find_package(MPI REQUIRED)
 
 # Include and Link
-include_directories(${AMREX}/include/ ${MPI_INCLUDE_PATH} "src/")
+include_directories(SYSTEM ${AMREX}/include/ ${MPI_INCLUDE_PATH})
+include_directories("src/")
 link_directories(${AMREX}/lib/)
 link_libraries(${MPI_LIBRARIES} amrex gfortran)
 
@@ -64,7 +65,12 @@ add_definitions("-DMETADATA_COMPILER=\"${METADATA_COMPILER}\"")
 add_definitions("-DMETADATA_DATE=\"${METADATA_DATE}\"")
 add_definitions("-DMETADATA_TIME=\"${METADATA_TIME}\"")
 
+# Compile source
+add_library(alamo_lib OBJECT ${alamo_SOURCES})
+
 # Specify Executables
-add_executable (alamo "src/alamo.cc" ${alamo_SOURCES})
-add_executable (fem "src/fem.cc" ${alamo_SOURCES})
+add_executable (alamo "src/alamo.cc" $<TARGET_OBJECTS:alamo_lib>)
+add_executable (fem "src/fem.cc" $<TARGET_OBJECTS:alamo_lib>)
+add_executable (flame "src/flame.cc" $<TARGET_OBJECTS:alamo_lib>)
+add_executable (degradation "src/degradation.cc" $<TARGET_OBJECTS:alamo_lib>)
 
