@@ -11,7 +11,3 @@ doc
 *~
 output*
 *.txt
-plot*
-bl_prof*
-build
-*.orig

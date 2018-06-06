@@ -1,5 +1,5 @@
-#ifndef PFFLAME_H
-#define PFFLAME_H
+#ifndef INTEGRATOR_FLAME_H
+#define INTEGRATOR_FLAME_H
 
 #include <string>
 #include <limits>
@@ -7,15 +7,14 @@
 
 
 #include "Integrator/Integrator.H"
-
 #include "BC/BC.H"
 
-#include "PFFlame/PFFlameBC.H"
-
-class PFFlame : public Integrator::Integrator
+namespace Integrator
+{
+class Flame : public Integrator::Integrator
 {
 public:
-  PFFlame ();
+  Flame ();
 
 protected:
   void Initialize (int lev) ;
@@ -28,8 +27,8 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > Eta;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > Eta_old;
-  PFFlamePhysBC TempBC;
-  PFFlamePhysBC EtaBC;
+  BC::BC *TempBC;
+  BC::BC *EtaBC;
 
   // int number_of_fabs = 1;
   // int number_of_components = 2;
@@ -43,5 +42,6 @@ private:
   amrex::Real qdotburn;           // Heat lost in flame
 
 };
+}
 
 #endif

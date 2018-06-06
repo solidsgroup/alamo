@@ -72,8 +72,8 @@ Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX
 
 amrex::Real
 Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const int l,
-				    const amrex::IntVect loc,
-				    const int amrlev, const int mglev, const MFIter &mfi) const
+				    const amrex::IntVect /*loc*/,
+				    const int /*amrlev*/, const int /*mglev*/, const MFIter &/*mfi*/) const
 {
   return Cpqst[i][j][k][l];
 }

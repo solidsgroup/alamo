@@ -163,8 +163,8 @@ Operator::FiniteElastic::FiniteElastic::Fsmooth (int amrlev,          ///<[in] A
 ///
 void
 Operator::FiniteElastic::FiniteElastic::FFlux (int amrlev, const MFIter& mfi,
-				   const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
-				   const FArrayBox& ufab, const int face_only) const
+					       const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
+					       const FArrayBox& ufab, const int /*face_only*/) const
 {
   // THIS ONLY HAPPENS WHEN MULTIPLE AMR LEVELS ARE USED...
 
