@@ -3,6 +3,7 @@
 #include <AMReX_MLCGSolver.H>
 #include <AMReX_ArrayLim.H>
 
+#include "Set/Set.H"
 #include "PolyCrystal.H"
 
 
@@ -53,32 +54,46 @@ Operator::Elastic::PolyCrystal::PolyCrystal::C(const int i, const int j, const i
 void
 Operator::Elastic::PolyCrystal::PolyCrystal::Energies (FArrayBox& energyfab,
 						       const FArrayBox& ufab,
-						       int amrlev, const MFIter& mfi)
+													   int amrlev, const MFIter& mfi)
 {
-  const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+  
+#if AMREX_SPACEDIM == 2
+	amrex::IntVect dx(1,0), dy(0,1);
+#elif AMREX_SPACEDIM == 3
+	amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
+#endif 
 
-  amrex::IntVect dx(1,0);
-  amrex::IntVect dy(0,1);
+	const Box& bx = mfi.tilebox();
+	for (int n = 0; n < num_eta; n++)
+		for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+#if AMREX_SPACEDIM == 3
+				for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
+#endif
+					{
+						amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-  const Box& bx = mfi.tilebox();
-  for (int n = 0; n < num_eta; n++)
-    for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-      for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-  	{
-	  amrex::IntVect m(m1,m2);
-	  amrex::Real gradu[2][2] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
-				      (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
-				     {(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
-				      (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])}};
+						Set::Matrix gradu;
+						gradu(0,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+						gradu(0,1) = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+						gradu(1,0) = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
+						gradu(1,1) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+#if AMREX_SPACEDIM == 3
+						gradu(0,2) = (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]);
+						gradu(1,2) = (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
+						gradu(2,0) = (ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]);
+						gradu(2,1) = (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]);
+						gradu(2,2) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
+#endif
 
-	  energyfab(m,n) = 0.0;
+						energyfab(m,n) = 0.0;
 
-	  for (int i=0; i<AMREX_SPACEDIM; i++)
-	    for (int j=0; j<AMREX_SPACEDIM; j++)
-	      for (int k=0; k<AMREX_SPACEDIM; k++)
-		for (int l=0; l<AMREX_SPACEDIM; l++)
-		  energyfab(m,n) += gradu[i][j] * Cs[n][i][j][k][l] * gradu[k][l];
-	  energyfab(m,n) *= 0.5;
-	}
-
+						for (int i=0; i<AMREX_SPACEDIM; i++)
+							for (int j=0; j<AMREX_SPACEDIM; j++)
+								for (int k=0; k<AMREX_SPACEDIM; k++)
+									for (int l=0; l<AMREX_SPACEDIM; l++)
+										energyfab(m,n) += gradu(i,j) * Cs[n][i][j][k][l] * gradu(k,l);
+						energyfab(m,n) *= 0.5;
+					}
 }

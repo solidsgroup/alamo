@@ -1,3 +1,4 @@
+#if AMREX_SPACEDIM == 2
 #include <AMReX_MultiFabUtil.H>
 #include "eigen3/Eigen/Core"
 #include <AMReX_REAL.H>
@@ -411,3 +412,4 @@ FEM::C(const int i, const int j, const int k, const int l,
 }
 }
 }
+#endif
