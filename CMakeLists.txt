@@ -24,6 +24,8 @@ endif(NOT AMREX)
 # Locate MPI
 find_package(MPI REQUIRED)
 
+set (SPACEDIM 3 CACHE STRING "Dimensionality of the system")
+
 # Include and Link
 include_directories(SYSTEM ${AMREX}/include/ ${MPI_INCLUDE_PATH})
 include_directories("src/")
@@ -64,6 +66,7 @@ add_definitions("-DMETADATA_PLATFORM=\"${METADATA_PLATFORM}\"")
 add_definitions("-DMETADATA_COMPILER=\"${METADATA_COMPILER}\"")
 add_definitions("-DMETADATA_DATE=\"${METADATA_DATE}\"")
 add_definitions("-DMETADATA_TIME=\"${METADATA_TIME}\"")
+add_definitions("-DAMREX_SPACEDIM=${SPACEDIM}")
 
 # Compile source
 add_library(alamo_lib OBJECT ${alamo_SOURCES})
