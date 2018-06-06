@@ -188,8 +188,8 @@ Operator::Elastic::Degradation::Degradation::Energies (FArrayBox& energyfab,
 					(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
 					{(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
 					(ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])}};
-#elif AMREX_SPACEDIM > 2
-				amrex::IntVect m(m1,m2,m3)
+#elif AMREX_SPACEDIM == 3
+				amrex::IntVect m(m1,m2,m3);
 				amrex::Real gradu[3][3] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
 					(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]),
 					(ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2])},

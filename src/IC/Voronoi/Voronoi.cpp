@@ -42,7 +42,7 @@ void Voronoi::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::Mul
 
       for (int i = box.loVect()[0]-field[lev]->nGrow(); i<=box.hiVect()[0]+field[lev]->nGrow(); i++) 
 	for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++)
-#if BL_SPACEDIM==3
+#if AMREX_SPACEDIM>2
 	  for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++)
 #endif
 	    {
@@ -54,7 +54,7 @@ void Voronoi::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::Mul
 	      int min_grain_id = -1;
 	      for (int n = 0; n<number_of_grains; n++)
 		{
-		  field_box(amrex::IntVect(i,j),n) = 0.; // initialize
+		  field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 0.; // initialize
 		  amrex::Real d = sqrt(AMREX_D_TERM((x-voronoi_x[n])*(x-voronoi_x[n]), + (y-voronoi_y[n])*(y-voronoi_y[n]), + (z-voronoi_z[n])*(z-voronoi_z[n])));
 
 		  if (geom[0].isPeriodic(0))
@@ -81,7 +81,7 @@ void Voronoi::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::Mul
 		      min_grain_id = n;
 		    }
 		}
-	      field_box(amrex::IntVect(i,j),min_grain_id) = 1.;
+	      field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),min_grain_id) = 1.;
 	    }
     }
 }
