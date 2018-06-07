@@ -17,12 +17,19 @@ int main (int argc, char* argv[])
 {
 	amrex::Initialize(argc, argv);
 
-	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 0.0, 0.1)};
+	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 0.0, 10.0)}; 
 
 	Set::Vector disp_bc_top    	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_left   	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_right  	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_bottom 	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
+	Set::Vector disp_bc_front  	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
+	Set::Vector disp_bc_back 	= {AMREX_D_DECL(0.0, 0.0, 0.0)};	// configure solver
+
+	// MLCGSolver mlcg(mlabec);
+	// mlcg.setVerbose(verbose);
+	// mlcg.solve(solution[0],rhs[0],tol_rel,tol_abs);
+
 
 	LinOpBCType bc_x = LinOpBCType::Dirichlet; //LinOpBCType::Periodic; LinOpBCType::Neumann;
 	LinOpBCType bc_y = LinOpBCType::Dirichlet;
@@ -30,15 +37,15 @@ int main (int argc, char* argv[])
 
 	//bool use_fsmooth = true; 
 
-	int max_level = 2;//0;
+	int max_level = 1;//0;
 	int ref_ratio = 2;//2
 	int n_cell = 32;//128;
 	int max_grid_size = 64;//64;
     
 	bool composite_solve = true;
 
-	int verbose 		= 4;
-	int cg_verbose 		= 10;
+	int verbose 		= 2;
+	int cg_verbose 		= 0;
 	int max_iter		= 1000;//100;
 	int max_fmg_iter 	= 0;
 	int linop_maxorder 	= 2;
@@ -55,8 +62,6 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::MultiFab> 			solution;
 	amrex::Vector<amrex::MultiFab> 			bcdata;	
 	amrex::Vector<amrex::MultiFab> 			rhs;
-	amrex::Vector<amrex::MultiFab> 			acoef;
-	amrex::Vector<amrex::MultiFab> 			bcoef;
 
 	//
 	// READ PARAMETERS
@@ -86,8 +91,6 @@ int main (int argc, char* argv[])
 	solution.resize(nlevels);
 	bcdata.resize(nlevels);
 	rhs.resize(nlevels);
-	acoef.resize(nlevels);
-	bcoef.resize(nlevels);
 
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
@@ -122,18 +125,20 @@ int main (int argc, char* argv[])
 		solution      [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
 		bcdata        [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
 		rhs           [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-		acoef[ilev].define(grids[ilev], dmap[ilev], 1, 0);
-		bcoef[ilev].define(grids[ilev], dmap[ilev], 1, 1);
 	}
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		acoef[ilev].setVal(1.0);
-		bcoef[ilev].setVal(1.0);
 		const Real* dx = geom[ilev].CellSize();
-		AMREX_D_TERM (	rhs[ilev].setVal(body_force[0]AMREX_D_TERM(*dx[0],*dx[1],*dx[2]),0,1);,
-				rhs[ilev].setVal(body_force[1]AMREX_D_TERM(*dx[0],*dx[1],*dx[2]),1,1);,
-				rhs[ilev].setVal(body_force[2]AMREX_D_TERM(*dx[0],*dx[1],*dx[2]),2,1);)
+		Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
+
+		rhs[ilev].setVal(body_force[0]*volume,0,1);
+#if AMREX_SPACEDIM > 1
+		rhs[ilev].setVal(body_force[1]*volume,1,1);
+#if AMREX_SPACEDIM > 2
+		rhs[ilev].setVal(body_force[2]*volume,2,1);
+#endif
+#endif
 		solution[ilev].setVal(0.0);
 	}
 
@@ -163,8 +168,6 @@ int main (int argc, char* argv[])
 	{
 		amrex::Box domain(geom[ilev].Domain());
       
-		solution[ilev].setVal(0.0);
-
 		for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
 		{
 			const Box& box = mfi.tilebox();
@@ -202,30 +205,22 @@ int main (int argc, char* argv[])
 										 bcdata_box(x,1) = disp_bc_left[1];,
 										 bcdata_box(x,2) = disp_bc_left[2];)
 						}
+						else if (k > domain.hiVect()[2]) // Front boundary
+						{
+							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_front[0];,
+										 bcdata_box(x,1) = disp_bc_front[1];,
+										 bcdata_box(x,2) = disp_bc_front[2];)
+						}
+						else if (k < domain.loVect()[2]) // Back boundary 
+						{
+							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_back[0];,
+										 bcdata_box(x,1) = disp_bc_back[1];,
+										 bcdata_box(x,2) = disp_bc_back[2];)
+						}
 					}
 
 		}
-		//solution[ilev].setVal(0.0);
 		mlabec.setLevelBC(ilev,&bcdata[ilev]);
-	}
-
-	// set coefficients
-
-	//mlabec.setScalars(ascalar, bscalar);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		//mlabec.setACoeffs(ilev, acoef[ilev]);
-            
-		std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
-		for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-		{
-			const BoxArray& ba = amrex::convert(bcoef[ilev].boxArray(),
-   					      IntVect::TheDimensionVector(idim)); 
-			face_bcoef[idim].define(ba, bcoef[ilev].DistributionMap(), 1, 0);
-		}
-		amrex::average_cellcenter_to_face({AMREX_D_DECL(&face_bcoef[0],&face_bcoef[1],&face_bcoef[2])},
-   					bcoef[ilev],
-   					geom[ilev]);
 	}
 
 	// configure solver
@@ -239,8 +234,8 @@ int main (int argc, char* argv[])
 	mlmg.setMaxFmgIter(max_fmg_iter);
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
-	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	//mlmg.setBottomSolver(MLMG::BottomSolver::cg);
+	//mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	mlmg.setBottomSolver(MLMG::BottomSolver::cg);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
 	// if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
 	// if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
@@ -264,16 +259,19 @@ int main (int argc, char* argv[])
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		plotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
+#if AMREX_SPACEDIM == 2
 		MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 0, 1, 0);
 		MultiFab::Copy(plotmf[ilev], solution      [ilev], 1, 1, 1, 0);
-		//MultiFab::Copy(plotmf[ilev], bcdata        [ilev], 0, 1, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 2, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 3, 1, 0);
-		// MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 3, 1, 0);
-		if (!acoef.empty()) {
-			MultiFab::Copy(plotmf[ilev], acoef[ilev], 0, 4, 1, 0);
-			MultiFab::Copy(plotmf[ilev], bcoef[ilev], 0, 5, 1, 0);
-		}
+#elif AMREX_SPACEDIM == 3
+		MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 0, 1, 0);
+		MultiFab::Copy(plotmf[ilev], solution      [ilev], 1, 1, 1, 0);
+		MultiFab::Copy(plotmf[ilev], solution      [ilev], 2, 2, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 3, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 4, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 2, 5, 1, 0);
+#endif 
 	}
 
 	WriteMultiLevelPlotfile("output", nlevels, amrex::GetVecOfConstPtrs(plotmf),
