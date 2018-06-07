@@ -17,7 +17,7 @@ int main (int argc, char* argv[])
 {
 	amrex::Initialize(argc, argv);
 
-	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 0.0, 10.0)}; 
+	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 10.0, 0.0)}; 
 
 	Set::Vector disp_bc_top    	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_left   	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
@@ -205,6 +205,7 @@ int main (int argc, char* argv[])
 										 bcdata_box(x,1) = disp_bc_left[1];,
 										 bcdata_box(x,2) = disp_bc_left[2];)
 						}
+#if AMREX_SPACEDIM>2
 						else if (k > domain.hiVect()[2]) // Front boundary
 						{
 							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_front[0];,
@@ -217,6 +218,7 @@ int main (int argc, char* argv[])
 										 bcdata_box(x,1) = disp_bc_back[1];,
 										 bcdata_box(x,2) = disp_bc_back[2];)
 						}
+#endif
 					}
 
 		}
