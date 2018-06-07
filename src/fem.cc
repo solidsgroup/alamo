@@ -8,7 +8,6 @@
 
 #include "Operator/Elastic/Cubic/Cubic.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
-#include "Operator/FEM/FEM.H"
 #include "Model/Solid/Elastic/Elastic.H"
 #include "Set/Set.H"
 
@@ -18,17 +17,18 @@ int main (int argc, char* argv[])
 {
 	amrex::Initialize(argc, argv);
 
-	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 0.0, 0.0)};
+	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 0.0, 0.1)};
 
-	Set::Vector disp_bc_top    	= {AMREX_D_DECL(0.1, 0.0, 0.0)};
+	Set::Vector disp_bc_top    	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_left   	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_right  	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
-	Set::Vector disp_bc_bottom 	= {AMREX_D_TERM(0.0, 0.0, 0.0)};
+	Set::Vector disp_bc_bottom 	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 
-	LinOpBCType bc_x = LinOpBCType::Periodic; //LinOpBCType::Periodic; LinOpBCType::Neumann;
+	LinOpBCType bc_x = LinOpBCType::Dirichlet; //LinOpBCType::Periodic; LinOpBCType::Neumann;
 	LinOpBCType bc_y = LinOpBCType::Dirichlet;
+	LinOpBCType bc_z = LinOpBCType::Dirichlet;
 
-	bool use_fsmooth = false; 
+	//bool use_fsmooth = true; 
 
 	int max_level = 2;//0;
 	int ref_ratio = 2;//2
@@ -37,8 +37,8 @@ int main (int argc, char* argv[])
     
 	bool composite_solve = true;
 
-	int verbose 		= 2;
-	int cg_verbose 		= 4;
+	int verbose 		= 4;
+	int cg_verbose 		= 10;
 	int max_iter		= 1000;//100;
 	int max_fmg_iter 	= 0;
 	int linop_maxorder 	= 2;
@@ -75,8 +75,6 @@ int main (int argc, char* argv[])
 	pp.query("agglomeration", agglomeration);
 	pp.query("consolidation", consolidation);
 
-
-
 	//
 	// CONSTRUCTOR
 	//
@@ -94,9 +92,9 @@ int main (int argc, char* argv[])
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	// set periodicity
-	std::array<int,AMREX_SPACEDIM> is_periodic{AMREX_D_DECL((bc_x == LinOpBCType::Periodic ? 1 : 0),
-							  (bc_y == LinOpBCType::Periodic ? 1 : 0),
-							  1)};
+	std::array<int,AMREX_SPACEDIM> is_periodic = {AMREX_D_DECL(bc_x == LinOpBCType::Periodic ? 1 : 0,
+															   bc_y == LinOpBCType::Periodic ? 1 : 0,
+															   bc_z == LinOpBCType::Periodic ? 1 : 0)};
 	Geometry::Setup(&rb, 0, is_periodic.data());
 	Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
 	Box domain = domain0;
@@ -148,22 +146,18 @@ int main (int argc, char* argv[])
 	info.setConsolidation(consolidation);
 	//const Real tol_rel = 1.e-10;
 	nlevels = geom.size();
-	if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
-	Model::Solid::Elastic model;
-	Operator::FEM::FEM mlabec(model);
-	//Operator::Elastic::Isotropic mlabec;
+	//if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
+	//Model::Solid::Elastic model;
+	//Operator::FEM::FEM mlabec(model);
+	Operator::Elastic::Isotropic mlabec;
 	mlabec.define(geom, grids, dmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
   
 
 	// set boundary conditions
 
-	mlabec.setDomainBC({AMREX_D_DECL(bc_x,
-			bc_y,
-			LinOpBCType::Periodic)},
-			{AMREX_D_DECL(bc_x,
-			bc_y,
-			LinOpBCType::Periodic)});
+	mlabec.setDomainBC({AMREX_D_DECL(bc_x, bc_y, bc_z)},
+					   {AMREX_D_DECL(bc_x, bc_y, bc_z)});
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -186,27 +180,27 @@ int main (int argc, char* argv[])
 						amrex::IntVect x(AMREX_D_DECL(i,j,k));
 						if (j > domain.hiVect()[1]) // Top boundary
 						{
-							AMREX_D_TERM(	bcdata_box(x,0) = disp_bc_top[0];,
-									bcdata_box(x,1) = disp_bc_top[1];,
-									bcdata_box(x,2) = disp_bc_top[2];)
+							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_top[0];,
+										 bcdata_box(x,1) = disp_bc_top[1];,
+										 bcdata_box(x,2) = disp_bc_top[2];)
 						}
 						else if (j < domain.loVect()[1]) // Bottom boundary
 						{
-							AMREX_D_TERM(	bcdata_box(x,0) = disp_bc_bottom[0];,
-									bcdata_box(x,1) = disp_bc_bottom[1];,
-									bcdata_box(x,2) = disp_bc_bottom[2];)
+							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_bottom[0];,
+										 bcdata_box(x,1) = disp_bc_bottom[1];,
+										 bcdata_box(x,2) = disp_bc_bottom[2];)
 						}
 						else if (i > domain.hiVect()[0]) // Right boundary
 						{
-							AMREX_D_TERM(	bcdata_box(x,0) = disp_bc_right[0];,
-									bcdata_box(x,1) = disp_bc_right[1];,
-									bcdata_box(x,,2) = disp_bc_right[2];)
+							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_right[0];,
+										 bcdata_box(x,1) = disp_bc_right[1];,
+										 bcdata_box(x,2) = disp_bc_right[2];)
 						}
 						else if (i < domain.loVect()[0]) // Left boundary 
 						{
-							AMREX_D_TERM(	bcdata_box(amrex::IntVect(i,j,k),0) = disp_bc_left[0];,
-									bcdata_box(amrex::IntVect(i,j,k),1) = disp_bc_left[1];,
-									bcdata_box(amrex::IntVect(i,j,k),2) = disp_bc_left[2];)
+							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_left[0];,
+										 bcdata_box(x,1) = disp_bc_left[1];,
+										 bcdata_box(x,2) = disp_bc_left[2];)
 						}
 					}
 
@@ -245,11 +239,11 @@ int main (int argc, char* argv[])
 	mlmg.setMaxFmgIter(max_fmg_iter);
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
-	//mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	mlmg.setBottomSolver(MLMG::BottomSolver::cg);
+	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	//mlmg.setBottomSolver(MLMG::BottomSolver::cg);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
-	if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
-	if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
+	// if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
+	// if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
 	mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	//
