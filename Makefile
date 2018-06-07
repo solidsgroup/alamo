@@ -1,5 +1,7 @@
 CC = mpicxx
 
+DIM ?= 2
+
 RESET              = '\033[0m'
 B_ON               = '\033[1m'
 FG_RED             = '\033[31m'
@@ -7,8 +9,8 @@ FG_GREEN           = '\033[32m'
 FG_YELLOW          = '\033[33m'
 FG_BLUE            = '\033[34m'
 
-MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
-MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
+MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro  -DAMREX_SPACEDIM=$(DIM)
+MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro  -DAMREX_SPACEDIM=$(DIM)
 
 METADATA_GITHASH  = $(shell git log --pretty=format:'%H' -n 1)
 METADATA_USER     = $(shell whoami)
@@ -17,9 +19,11 @@ METADATA_COMPILER = $(CC)
 METADATA_DATE     = $(shell date +%x)
 METADATA_TIME     = $(shell date +%H:%M:%S)
 
+
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" 
 
 CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
+
 
 INCLUDE = -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
