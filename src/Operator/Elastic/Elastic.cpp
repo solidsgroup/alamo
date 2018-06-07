@@ -153,7 +153,7 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 					for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
 #endif
 						{
-							if ((m1 + m2 + m3)%2 == redblack) continue;
+							if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 							amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
 							for (int i=0; i<AMREX_SPACEDIM; i++)
@@ -170,9 +170,10 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 												*(ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1])
 												+
 												C(i,1,k,1,m,amrlev,mglev,mfi)
-												*(ufab(m+dy,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dy,k))/dx[1]/dx[1]
-#if AMREX_SPACEDIM > 2
-												+
+												*(ufab(m+dy,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dy,k))/DX[1]/DX[1]
+												;
+#if AMREX_SPACEDIM == 3
+											rho -=
 												(C(i,0,k,2,m,amrlev,mglev,mfi) + C(i,2,k,0,m,amrlev,mglev,mfi))
 												*(ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2])
 												+
@@ -180,12 +181,12 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 												*(ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2])
 												+
 												C(i,2,k,2,m,amrlev,mglev,mfi)
-												*(ufab(m+dz,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dz,k))/DX[2]/DX[2]
+												*(ufab(m+dz,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dz,k))/DX[2]/DX[2];
 #endif
-												;
+											
+
 
 											// C_{ijkl,j} u_{k,l}
-
 #if AMREX_SPACEDIM == 2
 											rho -=
 												((C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]) +
@@ -212,7 +213,6 @@ Operator::Elastic::Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 												 (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])) *
 												((ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]));
 #endif
-
 
 										}
 
