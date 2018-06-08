@@ -93,6 +93,8 @@ int main (int argc, char* argv[])
 	solution.resize(nlevels);
 	bcdata.resize(nlevels);
 	rhs.resize(nlevels);
+	stress.resize(nlevels);
+	energy.resize(nlevels);
 
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
