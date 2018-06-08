@@ -265,38 +265,61 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 
 	sigmafab.setVal(0.0);
 
-	// const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-	// amrex::IntVect dx(1,0);
-	// amrex::IntVect dy(0,1);
+#if AMREX_SPACEDIM==2
+	amrex::IntVect dx(1,0);
+	amrex::IntVect dy(0,1);
+#elif AMREX_SPACEDIM==3
+	amrex::IntVect dx(1,0,0);
+	amrex::IntVect dy(0,1,0);
+	amrex::IntVect dz(0,0,1);
+#endif
+	const Box& bx = mfi.tilebox();
+	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+#if AMREX_SPACEDIM==3
+			for(int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
+#endif
+		{
+				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-	// const Box& bx = mfi.tilebox();
-	// for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-	// 	for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-	// 		{
-	// 			amrex::IntVect m(m1,m2);
+	 			amrex::Real du1_dx1 = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+	 			amrex::Real du1_dx2 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+#if AMREX_SPACEDIM==3
+				amrex::Real du1_dx3 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[2]);
+#endif
+	 			amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
+	 			amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+#if AMREX_SPACEDIM==3
+				amrex::Real du2_dx3 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[2]);
+				amrex::Real du3_dx1 = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[0]);
+				amrex::Real du3_dx2 = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[1]);
+				amrex::Real du3_dx3 = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
+#endif
 
-	// 			amrex::Real du1_dx1 = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-	// 			amrex::Real du1_dx2 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
-	// 			amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
-	// 			amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+	 			for (int i=0; i<AMREX_SPACEDIM; i++)
+	 				for (int j=0; j<AMREX_SPACEDIM; j++)
+					{
+						int voigt = (i+1)*(i==j ? 1:0) + (1- (i==j ? 1:0))*
+							(AMREX_SPACEDIM*AMREX_SPACEDIM - (i+1) - (j+1)) - 1;
 
-	// 			for (int i=0; i<AMREX_SPACEDIM; i++)
-	// 				for (int j=0; j<AMREX_SPACEDIM; j++)
-	// 					{
-	// 						int voigt;
-	// 						if (i==0 && j==0) voigt = 0;
-	// 						if (i==1 && j==1) voigt = 1;
-	// 						if (i==0 && j==1) voigt = 2;
-	// 						if (i==1 && j==0) continue;
-
-	// 						sigmafab(m,voigt) =
-	// 							C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 +
-	// 							C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 +
-	// 							C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 +
-	// 							C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
-	// 					}
-	// 		}
+						sigmafab(m,voigt) =
+							C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 +
+							C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 +
+							C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 +
+							C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
+#if AMREX_SPACEDIM == 3
+						sigmafab(m,voigt) += 
+							C(i,j,0,2,m,amrlev,0,mfi)*du1_dx3 + 
+							C(i,j,1,2,m,amrlev,0,mfi)*du2_dx3 + 
+							C(i,j,2,0,m,amrlev,0,mfi)*du3_dx1 + 
+							C(i,j,2,1,m,amrlev,0,mfi)*du3_dx2 + 
+							C(i,j,2,2,m,amrlev,0,mfi)*du3_dx3;
+							
+#endif
+					}
+		}
 
 }
 
@@ -309,29 +332,49 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 
 	energyfab.setVal(0.0);
 
-	// const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-	// amrex::IntVect dx(1,0);
-	// amrex::IntVect dy(0,1);
+#if AMREX_SPACEDIM==2
+	amrex::IntVect dx(1,0);
+	amrex::IntVect dy(0,1);
+#elif AMREX_SPACEDIM==3
+	amrex::IntVect dx(1,0,0);
+	amrex::IntVect dy(0,1,0);
+	amrex::IntVect dz(0,0,1);
+#endif
 
-	// const Box& bx = mfi.tilebox();
-	// for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-	// 	for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-	// 		{
-	// 			amrex::IntVect m(m1,m2);
-	// 			amrex::Real gradu[2][2] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
-	// 										(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
-	// 									   {(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
-	// 										(ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1])}};
+	const Box& bx = mfi.tilebox();
+	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+#if AMREX_SPACEDIM>1
+		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+#if AMREX_SPACEDIM==3
+			for (int m3 = bx.loVect()[2]; m2<=bx.hiVect()[2]; m3++)
+#endif
+#endif
+		{
+	 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+				amrex::Real gradu[AMREX_SPACEDIM][AMREX_SPACEDIM] = 
+					{
+					AMREX_D_DECL(	{AMREX_D_DECL	((ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
+	 								(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]),
+									(ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]))},
+	 				 		{AMREX_D_DECL	((ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
+			 						(ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]),
+									(ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]))},
+	 				 		{AMREX_D_DECL	((ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]),
+			 						(ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]),
+									(ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]))}
+					)
+					};
 
-	// 			energyfab(m) = 0.0;
+	 			energyfab(m) = 0.0;
 
-	// 			for (int i=0; i<AMREX_SPACEDIM; i++)
-	// 				for (int j=0; j<AMREX_SPACEDIM; j++)
-	// 					for (int k=0; k<AMREX_SPACEDIM; k++)
-	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 							energyfab(m) += gradu[i][j] * C(i,j,k,l,m,amrlev,0,mfi) * gradu[k][l];
-	// 			energyfab(m) *= 0.5;
-	// 		}
+	 			for (int i=0; i<AMREX_SPACEDIM; i++)
+	 				for (int j=0; j<AMREX_SPACEDIM; j++)
+	 					for (int k=0; k<AMREX_SPACEDIM; k++)
+	 						for (int l=0; l<AMREX_SPACEDIM; l++)
+	 							energyfab(m) += gradu[i][j] * C(i,j,k,l,m,amrlev,0,mfi) * gradu[k][l];
+	 			energyfab(m) *= 0.5;
+		}
 
 }
