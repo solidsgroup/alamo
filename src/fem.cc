@@ -62,6 +62,8 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::MultiFab> 			solution;
 	amrex::Vector<amrex::MultiFab> 			bcdata;	
 	amrex::Vector<amrex::MultiFab> 			rhs;
+	amrex::Vector<amrex::MultiFab>			stress;
+	amrex::Vector<amrex::MultiFab>			energy;
 
 	//
 	// READ PARAMETERS
@@ -118,13 +120,16 @@ int main (int argc, char* argv[])
 	}
 
 	int number_of_components = AMREX_SPACEDIM;
+	int number_of_stress_components = AMREX_SPACEDIM > 1 ? (AMREX_SPACEDIM > 2 ? 6 : 3 ): 1;
 	int number_of_ghost_cells = 2;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		dmap[ilev].define(grids[ilev]);
-		solution      [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
-		bcdata        [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-		rhs           [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+		solution	[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
+		bcdata		[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+		rhs		[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+		stress		[ilev].define(grids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
+		energy		[ilev].define(grids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 	}
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -145,7 +150,8 @@ int main (int argc, char* argv[])
 	//
 	// SOLVE
 	//
-  
+
+	
 	LPInfo info;
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
@@ -224,6 +230,7 @@ int main (int argc, char* argv[])
 		}
 		mlabec.setLevelBC(ilev,&bcdata[ilev]);
 	}
+  
 
 	// configure solver
 
@@ -243,15 +250,33 @@ int main (int argc, char* argv[])
 	// if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
 	mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
+
+	// Computing stress and energy
+	for (int lev = 0; lev < nlevels; lev++)
+	{
+		for ( amrex::MFIter mfi(solution[lev],true); mfi.isValid(); ++mfi )
+		{
+			FArrayBox &ufab  = (solution[lev])[mfi];
+			FArrayBox &sigmafab  = (stress[lev])[mfi];
+			FArrayBox &energyfab  = (energy[lev])[mfi];
+			
+			mlabec.Energy(energyfab,ufab,lev,mfi);
+			mlabec.Stress(sigmafab,ufab,lev,mfi);
+		}
+	}
+		
+
+
 	//
 	// WRITE PLOT FILE
 	//
 
-	const int ncomp = AMREX_SPACEDIM > 2 ? 6 : 4;
+	const int ncomp = AMREX_SPACEDIM > 2 ? 13 : 8;
 #if AMREX_SPACEDIM==2
-	Vector<std::string> varname = {"solution01", "solution02", "rhs01", "rhs02"};
+	Vector<std::string> varname = {"solution01", "solution02", "rhs01", "rhs02", "stress11", "stress22", "stress12", "energy"};
 #elif AMREX_SPACEDIM>2
-	Vector<std::string> varname = {"solution01", "solution02", "solution03", "rhs01", "rhs02", "rhs03"};
+	Vector<std::string> varname = {"solution01", "solution02", "solution03", "rhs01", "rhs02", "rhs03",
+					"stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
 #endif
 
 
@@ -266,6 +291,10 @@ int main (int argc, char* argv[])
 		MultiFab::Copy(plotmf[ilev], solution      [ilev], 1, 1, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 2, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 3, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 4, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 5, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 6, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	   [ilev], 0, 7, 1, 0);
 #elif AMREX_SPACEDIM == 3
 		MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 0, 1, 0);
 		MultiFab::Copy(plotmf[ilev], solution      [ilev], 1, 1, 1, 0);
@@ -273,6 +302,13 @@ int main (int argc, char* argv[])
 		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 3, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 4, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 2, 5, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 6, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 7, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 8, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 3, 9, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 4, 10, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 5, 11, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	   [ilev], 0, 12, 1, 0);
 #endif 
 	}
 
