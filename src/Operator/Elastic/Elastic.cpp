@@ -264,8 +264,6 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 {
 	/// \todo add assert for sigmafab.ncomp=3 (for SPACEDIM=2) and ncomp=6 (for SPACEDIM=3)
 
-	sigmafab.setVal(0.0);
-
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
 #if AMREX_SPACEDIM==2
@@ -309,14 +307,13 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 							C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 +
 							C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 +
 							C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
-#if AMREX_SPACEDIM == 3
+#if AMREX_SPACEDIM==3
 						sigmafab(m,voigt) += 
 							C(i,j,0,2,m,amrlev,0,mfi)*du1_dx3 + 
 							C(i,j,1,2,m,amrlev,0,mfi)*du2_dx3 + 
 							C(i,j,2,0,m,amrlev,0,mfi)*du3_dx1 + 
 							C(i,j,2,1,m,amrlev,0,mfi)*du3_dx2 + 
 							C(i,j,2,2,m,amrlev,0,mfi)*du3_dx3;
-							
 #endif
 					}
 		}
@@ -332,8 +329,6 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-	energyfab.setVal(0.0);
-	
 #if AMREX_SPACEDIM==2
 	amrex::IntVect dx(1,0);
 	amrex::IntVect dy(0,1);
@@ -367,13 +362,11 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 
 	 			energyfab(m) = 0.0;
 
-	 			for (int i=0; i<AMREX_SPACEDIM; i++)
-	 				for (int j=0; j<AMREX_SPACEDIM; j++)
-	 					for (int k=0; k<AMREX_SPACEDIM; k++)
-	 						for (int l=0; l<AMREX_SPACEDIM; l++)
-								energyfab(m) += gradu(i,j) * C(i,j,k,l,m,amrlev,0,mfi) * gradu(k,l);
-				
-	 			energyfab(m) *= 0.5;
-		}
+				for (int i=0; i<AMREX_SPACEDIM; i++)
+	 			  	for (int j=0; j<AMREX_SPACEDIM; j++)
+	 			  		for (int k=0; k<AMREX_SPACEDIM; k++)
+	 			  			for (int l=0; l<AMREX_SPACEDIM; l++)
+				  				energyfab(m) += 0.5 * gradu(i,j) * C(i,j,k,l,m,amrlev,0,mfi) * gradu(k,l);
 
+		}
 }
