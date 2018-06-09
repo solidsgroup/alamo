@@ -263,8 +263,6 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 {
 	/// \todo add assert for sigmafab.ncomp=3 (for SPACEDIM=2) and ncomp=6 (for SPACEDIM=3)
 
-	sigmafab.setVal(0.0);
-
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
 #if AMREX_SPACEDIM==2
@@ -303,7 +301,6 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 					{
 						int voigt = (i+1)*(i==j ? 1:0) + (1- (i==j ? 1:0))*
 							(AMREX_SPACEDIM*AMREX_SPACEDIM - (i+1) - (j+1)) - 1;
-
 						sigmafab(m,voigt) =
 							C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 +
 							C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 +
@@ -329,8 +326,6 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 									int amrlev, const MFIter& mfi) const
 {
 	/// \todo RE-IMPLEMENT in 2D and 3D
-
-	energyfab.setVal(0.0);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
