@@ -17,9 +17,9 @@ int main (int argc, char* argv[])
 {
 	amrex::Initialize(argc, argv);
 
-	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 10.0, 0.0)}; 
+	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
 
-	Set::Vector disp_bc_top    	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
+	Set::Vector disp_bc_top    	= {AMREX_D_DECL(0.0, 0.0, 0.1)};
 	Set::Vector disp_bc_left   	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_right  	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
 	Set::Vector disp_bc_bottom 	= {AMREX_D_DECL(0.0, 0.0, 0.0)};

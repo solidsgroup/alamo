@@ -2,6 +2,7 @@
 #include "eigen3/Eigen/Core"
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
+#include "Set/Set.H"
 
 #include <AMReX_ArrayLim.H>
 
@@ -263,6 +264,8 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 {
 	/// \todo add assert for sigmafab.ncomp=3 (for SPACEDIM=2) and ncomp=6 (for SPACEDIM=3)
 
+	sigmafab.setVal(0.0);
+
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
 #if AMREX_SPACEDIM==2
@@ -329,6 +332,8 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
+	energyfab.setVal(0.0);
+	
 #if AMREX_SPACEDIM==2
 	amrex::IntVect dx(1,0);
 	amrex::IntVect dy(0,1);
@@ -348,19 +353,17 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 #endif
 		{
 	 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-				amrex::Real gradu[AMREX_SPACEDIM][AMREX_SPACEDIM] = 
-					{
-					AMREX_D_DECL(	{AMREX_D_DECL	((ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
-	 								(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]),
-									(ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]))},
-	 				 		{AMREX_D_DECL	((ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]),
-			 						(ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]),
-									(ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]))},
-	 				 		{AMREX_D_DECL	((ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]),
-			 						(ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]),
-									(ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]))}
-					)
-					};
+				Set::Matrix gradu;
+#if AMREX_SPACEDIM==2
+				gradu <<
+					(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]),
+					(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]), (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+#elif AMREX_SPACEDIM==3
+				gradu << 
+					(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]), (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]),
+					(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]), (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]), (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]),
+					(ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]), (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]), (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
+#endif
 
 	 			energyfab(m) = 0.0;
 
@@ -368,7 +371,8 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 	 				for (int j=0; j<AMREX_SPACEDIM; j++)
 	 					for (int k=0; k<AMREX_SPACEDIM; k++)
 	 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	 							energyfab(m) += gradu[i][j] * C(i,j,k,l,m,amrlev,0,mfi) * gradu[k][l];
+								energyfab(m) += gradu(i,j) * C(i,j,k,l,m,amrlev,0,mfi) * gradu(k,l);
+				
 	 			energyfab(m) *= 0.5;
 		}
 
