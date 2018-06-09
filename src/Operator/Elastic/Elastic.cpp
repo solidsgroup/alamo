@@ -348,7 +348,7 @@ Operator::Elastic::Elastic::Energy (FArrayBox& energyfab,
 #if AMREX_SPACEDIM>1
 		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
 #if AMREX_SPACEDIM==3
-			for (int m3 = bx.loVect()[2]; m2<=bx.hiVect()[2]; m3++)
+			for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
 #endif
 #endif
 		{
