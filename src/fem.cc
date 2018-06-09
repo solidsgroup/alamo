@@ -129,7 +129,7 @@ int main (int argc, char* argv[])
 		dmap[ilev].define(grids[ilev]);
 		solution	[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
 		bcdata		[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-		rhs		[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+		rhs		    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
 		stress		[ilev].define(grids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
 		energy		[ilev].define(grids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 	}
