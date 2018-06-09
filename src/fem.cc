@@ -39,7 +39,7 @@ int main (int argc, char* argv[])
 
 	int max_level = 1;//0;
 	int ref_ratio = 2;//2
-	int n_cell = 32;//128;
+	int n_cell = 16;//128;
 	int max_grid_size = 64;//64;
     
 	bool composite_solve = true;
@@ -166,7 +166,6 @@ int main (int argc, char* argv[])
 	mlabec.define(geom, grids, dmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
   
-
 	// set boundary conditions
 
 	mlabec.setDomainBC({AMREX_D_DECL(bc_x, bc_y, bc_z)},
@@ -298,19 +297,19 @@ int main (int argc, char* argv[])
 		MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 6, 1, 0);
 		MultiFab::Copy(plotmf[ilev], energy	   [ilev], 0, 7, 1, 0);
 #elif AMREX_SPACEDIM == 3
-		MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 0, 1, 0);
-		MultiFab::Copy(plotmf[ilev], solution      [ilev], 1, 1, 1, 0);
-		MultiFab::Copy(plotmf[ilev], solution      [ilev], 2, 2, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 3, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 4, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 2, 5, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 6, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 7, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 8, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 3, 9, 1, 0);
+		MultiFab::Copy(plotmf[ilev], solution      [ilev], 0, 0,  1, 0);
+		MultiFab::Copy(plotmf[ilev], solution      [ilev], 1, 1,  1, 0);
+		MultiFab::Copy(plotmf[ilev], solution      [ilev], 2, 2,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 3,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 4,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 2, 5,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 6,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 7,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 8,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress        [ilev], 3, 9,  1, 0);
 		MultiFab::Copy(plotmf[ilev], stress        [ilev], 4, 10, 1, 0);
 		MultiFab::Copy(plotmf[ilev], stress        [ilev], 5, 11, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	   [ilev], 0, 12, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	       [ilev], 0, 12, 1, 0);
 #endif 
 	}
 
