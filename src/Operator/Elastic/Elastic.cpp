@@ -292,9 +292,9 @@ Operator::Elastic::Elastic::Stress (FArrayBox& sigmafab,
 	 			amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
 	 			amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
 #if AMREX_SPACEDIM==3
-				amrex::Real du2_dx3 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[2]);
-				amrex::Real du3_dx1 = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[0]);
-				amrex::Real du3_dx2 = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[1]);
+				amrex::Real du2_dx3 = (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
+				amrex::Real du3_dx1 = (ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]);
+				amrex::Real du3_dx2 = (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]);
 				amrex::Real du3_dx3 = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
 #endif
 
