@@ -426,7 +426,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					amrex::BaseFab<amrex::Real> &disp_box = (*displacement[ilev])[mfi];
 
 					for (int i = box.loVect()[0] - displacement[ilev]->nGrow(); i<=box.hiVect()[0] + displacement[ilev]->nGrow(); i++)
-x						for (int j = box.loVect()[1] - displacement[ilev]->nGrow(); j<=box.hiVect()[1] + displacement[ilev]->nGrow(); j++)
+						for (int j = box.loVect()[1] - displacement[ilev]->nGrow(); j<=box.hiVect()[1] + displacement[ilev]->nGrow(); j++)
 							{
 								if (j > domain.hiVect()[1]) // Top boundary
 									{
