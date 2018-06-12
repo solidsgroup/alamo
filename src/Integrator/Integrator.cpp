@@ -4,6 +4,8 @@
 ///
 
 #include "Integrator.H"
+#include "IO/FileNameParse.H"
+#include <numeric>
 
 
 using namespace amrex;
@@ -26,6 +28,8 @@ Integrator::Integrator::Integrator ()
     pp.query("plot_file", plot_file);       // IO Processor only
     //pp.query("restart", restart_chkfile); // Not currently used
     pp.query("plot_file", plot_file);       // IO Processor only
+
+	IO::FileNameParse(plot_file);
 
     nsubsteps.resize(maxLevel()+1,1);
     int cnt = pp.countval("nsubsteps");
