@@ -12,7 +12,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 		amrex::ParmParse pp("pf"); // Phase-field model parameters
 		pp.query("number_of_grains", number_of_grains);
 		pp.query("M", M);
-		pp.query("mu", mu);
+		if (pp.contains("mu")) pp.query("mu", mu);
 		pp.query("gamma", gamma);
 		pp.query("sigma0", sigma0);
 		pp.query("l_gb", l_gb);
@@ -131,7 +131,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 				RegisterNewFab(energies, *mybc, number_of_grains, 1, "W");
 			}
 	}
-
 }
 
 
