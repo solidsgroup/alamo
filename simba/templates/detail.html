@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h3>Simulation Information</h3>
+<table class="table" style="width:100%;">
+  <thead>
+	<tr>
+	  <th>Field</th><th>Value</th>
+	</tr>
+  </thead>
+  {% for i in range (0,columns|length) %}
+  <tr>
+	<td> {{ columns[i] }}</td>
+	<td> {{ data[i] }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h3>Simulation Analysis</h3>
+
+{% for i in range(0,imgfiles|length) %}
+<div class="thumbnail">
+  <img src="/img/{{i}}" class="img-thumbnail"></img>
+  <div class="caption">
+	<p>
+	  <a href="/img/{{i}}">{{imgfiles[i]}}</a>
+	</p>
+  </div>
+</div>
+{% endfor %}
+
+
+{% endblock %}
