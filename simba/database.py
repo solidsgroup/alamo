@@ -2,6 +2,7 @@
 import argparse
 import sqlite3
 import hashlib
+import os
 
 parser = argparse.ArgumentParser(description='Sift through outputs');
 parser.add_argument('directories', nargs='*', help='List of directories containing ALAMO output');
@@ -44,7 +45,7 @@ for directory in args.directories:
     sim_hash = hashlib.sha224(directory).hexdigest()
     f = open(directory+'/metadata')
     cols = ['HASH','ID']
-    vals = ['"'+sim_hash+'"', '"'+directory+'"']
+    vals = ['"'+sim_hash+'"', '"'+os.path.abspath(directory)+'"']
     for line in f.readlines():
         if line.startswith('#'): continue;
         if '::' in line: continue; # TODO: need to replace this to be more robust!

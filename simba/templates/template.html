@@ -1,23 +1,25 @@
 {% extends "layout.html" %}
 {% block content %}
-  <div class="list-group">
-	  {% for t in tables %}
-	  <a href="#" class="list-group-item"> {{t}} </a>
-	  {% endfor %}
-  </div>
+
+<h1> {{ table_name }} </h1>
   
   <p>
-	  {% for i in range (0,columns|length) %}
-	  <label class="checkbox-inline" ><input type="checkbox" class="toggle-vis" data-column="{{i}}"  checked> {{columns[i]}}</label>
+	<button type="button" class="btn btn-info" data-toggle="collapse" data-target="#column-list">Select columns to show/hide</button>
+	<div id="column-list" class="collapse out">
+	  {% for i in range (1,columns|length) %}
+	  <label class="checkbox-inline" ><input type="checkbox" class="toggle-vis" data-column="{{i-1}}"  checked> {{columns[i]}}</label>
 	  {% endfor %}
+	  </div>
   </p>
 
+  <br/>
+  
   <div class="table-responsive">
-	<table id="example" class="table" style="width:100%;">
+	<table id="bigtable" class="table" style="width:100%;">
 	  <thead>
 		<tr>
-		  {% for column in columns %}
-		  <th>{{column}}</th>
+		  {% for i in range(1,columns|length) %}
+		  <th>{{columns[i]}}</th>
 		  {% endfor %}
 		</tr>
 	  </thead>
@@ -26,7 +28,7 @@
 		{% for i in range (1,row|length) %}
 		<td>
 		  {% if columns[i] == "ID" %}
-		  <a href="/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
+		  <a href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
 		  {% else %}
 		  {{row[i]}}
 		  {% endif %}
