@@ -1,5 +1,7 @@
+#!/usr/bin/python
 import argparse
 import sqlite3
+import hashlib
 
 parser = argparse.ArgumentParser(description='Sift through outputs');
 parser.add_argument('directories', nargs='*', help='List of directories containing ALAMO output');
@@ -36,12 +38,13 @@ for directory in args.directories:
         if key not in types:
             types[key] = 'VARCHAR(1000)'
 
-cur.execute('CREATE TABLE IF NOT EXISTS ' + args.table + ' (ID VARCHAR(255) UNIQUE,' + ','.join([key+' '+types[key] for key in types]) + ');')
+cur.execute('CREATE TABLE IF NOT EXISTS ' + args.table + ' (HASH VARCHAR(255) UNIQUE, ID VARCHAR(255) UNIQUE,' + ','.join([key+' '+types[key] for key in types]) + ');')
 
 for directory in args.directories:
+    sim_hash = hashlib.sha224(directory).hexdigest()
     f = open(directory+'/metadata')
-    cols = ['ID']
-    vals = ['"'+directory+'"']
+    cols = ['HASH','ID']
+    vals = ['"'+sim_hash+'"', '"'+directory+'"']
     for line in f.readlines():
         if line.startswith('#'): continue;
         if '::' in line: continue; # TODO: need to replace this to be more robust!
