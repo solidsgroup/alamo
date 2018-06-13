@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="list-group">
+	  {% for t in tables %}
+	  <a href="#" class="list-group-item"> {{t}} </a>
+	  {% endfor %}
+  </div>
+  
+  <p>
+	  {% for i in range (0,columns|length) %}
+	  <label class="checkbox-inline" ><input type="checkbox" class="toggle-vis" data-column="{{i}}"  checked> {{columns[i]}}</label>
+	  {% endfor %}
+  </p>
+
+  <div class="table-responsive">
+	<table id="example" class="table" style="width:100%;">
+	  <thead>
+		<tr>
+		  {% for column in columns %}
+		  <th>{{column}}</th>
+		  {% endfor %}
+		</tr>
+	  </thead>
+	  {% for row in table %}
+	  <tr>
+		{% for i in range (1,row|length) %}
+		<td>
+		  {% if columns[i] == "ID" %}
+		  <a href="/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
+		  {% else %}
+		  {{row[i]}}
+		  {% endif %}
+		</td>
+		{% endfor %}
+	  </tr>
+	  {% endfor %}
+	</table>
+  </div>
+  <ul>
+    {% for n in my_list %}
+    <li>{{n}}</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
