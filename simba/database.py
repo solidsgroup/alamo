@@ -39,7 +39,13 @@ for directory in args.directories:
         if key not in types:
             types[key] = 'VARCHAR(1000)'
 
-cur.execute('CREATE TABLE IF NOT EXISTS ' + args.table + ' (HASH VARCHAR(255) UNIQUE, ID VARCHAR(255) UNIQUE,' + ','.join([key+' '+types[key] for key in types]) + ');')
+cur.execute('CREATE TABLE IF NOT EXISTS ' + args.table + '('
+            'HASH VARCHAR(255) UNIQUE, ' +
+            'ID VARCHAR(255) UNIQUE,' +
+            'Description VARCHAR(8000),' +
+            'Tags VARCHAR(1000),'
+            +','.join([key+' '+types[key] for key in types]) + ');')
+
 
 for directory in args.directories:
     sim_hash = hashlib.sha224(directory).hexdigest()
@@ -53,8 +59,9 @@ for directory in args.directories:
         cols.append(line.split(' = ')[0].replace('.','_'))
         vals.append('"' + line.split(' = ')[1].replace('  ','').replace('\n','') + '"')
 
-    cur.execute('REPLACE INTO ' + args.table + ' (' + ','.join(cols) + ') ' +
+    cur.execute('INSERT OR IGNORE INTO ' + args.table + ' (' + ','.join(cols) + ') ' +
                 'VALUES (' + ','.join(vals) + ')')
+
     print('Added/updated entry ' + directory)
 db.commit()
 db.close()

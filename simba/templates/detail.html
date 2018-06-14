@@ -11,23 +11,55 @@
   {% for i in range (0,columns|length) %}
   <tr>
 	<td> {{ columns[i] }}</td>
+	{% if columns[i] == "Description" %}
+	<td>
+	  <div width="100%">
+		{{data[i]}}
+		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-description">Edit Description</button>
+	  </div>
+	  <br/>
+	  <div width="100%">
+		<form width="100%" class="form-group collapse out" id="form-description" action="/table/{{table}}/entry/{{entry}}" method="post">
+		  <textarea class="form-control" rows="5" name='description'>{{data[i]}}</textarea>
+		  <button class="btn btn-success pull-right" type="Update">Update</button>
+		</form>
+	  </div>
+	</td>
+	{% elif columns[i] == "Tags" %}
+	<td>
+	  <div width="100%">
+		{{data[i]}}
+		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-tags">Edit Tags</button>
+	  </div>
+	  <br/>
+	  <div width="100%">
+		<form width="100%" class="form-group collapse out" id="form-tags" action="/table/{{table}}/entry/{{entry}}" method="post">
+		  <textarea class="form-control" rows="5" name="tags">{{data[i]}}</textarea>
+		  <button class="btn btn-success pull-right" type="Update">Update</button>
+		</form>
+	  </div>
+	</td>
+	{% else %}
 	<td> {{ data[i] }}</td>
+	{% endif %}
   </tr>
   {% endfor %}
 </table>
 
 <h3>Simulation Analysis</h3>
 
-{% for i in range(0,imgfiles|length) %}
-<div class="thumbnail">
-  <img src="/img/{{i}}" class="img-thumbnail"></img>
-  <div class="caption">
-	<p>
-	  <a href="/img/{{i}}">{{imgfiles[i]}}</a>
-	</p>
-  </div>
+<div class="row">
+	{% for i in range(0,imgfiles|length) %}
+	<div class="thumbnail col-xs-8 col-sm-3 col-md-2">
+	  <img src="/img/{{i}}" ></img>
+	  <div class="caption">
+		<p>
+		  <a href="/img/{{i}}" style="word-wrap:break-word;">{{imgfiles[i]}}</a>
+		</p>
+	  </div>
+	</div>
+	{% endfor %}
 </div>
-{% endfor %}
 
 
 {% endblock %}
