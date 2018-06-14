@@ -1,6 +1,6 @@
 $(document).ready(function() {
     var table = $('#bigtable').DataTable( {
-		"scrollX":true
+		"scrollX": true,
     } );
 	
     $('input.toggle-vis').on( 'change', function (e) {
