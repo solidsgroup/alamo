@@ -1,46 +1,48 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<h1> {{ table_name }} </h1>
-  
-  <p>
-	<button type="button" class="btn btn-info" data-toggle="collapse" data-target="#column-list">Select columns to show/hide</button>
-	<div id="column-list" class="collapse out">
-	  {% for i in range (1,columns|length) %}
-	  <label class="checkbox-inline" ><input type="checkbox" class="toggle-vis" data-column="{{i-1}}"  checked> {{columns[i]}}</label>
-	  {% endfor %}
-	  </div>
-  </p>
+{% include 'tables.html' %}
 
-  <br/>
-  
-  <div class="table-responsive">
-	<table id="bigtable" class="table" style="width:100%;">
-	  <thead>
-		<tr>
-		  {% for i in range(1,columns|length) %}
-		  <th>{{columns[i]}}</th>
-		  {% endfor %}
-		</tr>
-	  </thead>
-	  {% for row in table %}
+<br/>
+
+<div class="table-responsive">
+  <table id="bigtable" class="table" style="width:100%;">
+	<thead>
 	  <tr>
-		{% for i in range (1,row|length) %}
-		<td>
-		  {% if columns[i] == "ID" %}
-		  <a href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
-		  {% else %}
-		  {{row[i]}}
-		  {% endif %}
-		</td>
+		{% for i in range(1,columns|length) %}
+		<th> {{columns[i]}} </th> 
 		{% endfor %}
 	  </tr>
+	</thead>
+	{% for row in table %}
+	<tr>
+	  {% for i in range (1,row|length) %}
+	  <td>
+		{% if columns[i] == "ID" %}
+		<a target="_blank" href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
+		{% else %}
+		{{row[i]}}
+		{% endif %}
+	  </td>
 	  {% endfor %}
-	</table>
+	</tr>
+	{% endfor %}
+  </table>
+</div>
+
+<p>
+  <button type="button" class="btn btn-info" data-toggle="collapse" data-target="#column-list">Select columns to show/hide</button>
+  <div id="column-list" class="collapse out">
+	<ul class="list-group row ">
+	  <li class="list-group-item col-xs-6 col-sm-4 col-md-3"><label><input type="checkbox" class="all " checked /> Select/Deselect All</label><br/></li>
+	  {% for i in range (2,columns|length) %}
+	  <li class="list-group-item col-xs-6 col-sm-4 col-md-3"><label><input type="checkbox" class="toggle-vis" data-column="{{i-1}}"  checked> {{columns[i]}}</label></li>
+	  {% endfor %}
+	</ul>
   </div>
-  <ul>
-    {% for n in my_list %}
-    <li>{{n}}</li>
-    {% endfor %}
-  </ul>
+</p>
+
+
+
+
 {% endblock %}
