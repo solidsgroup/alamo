@@ -16,3 +16,4 @@ bl_prof*
 build
 *.orig
 *.pyc
+*.db
