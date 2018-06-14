@@ -6,15 +6,26 @@ import sqlite3
 import argparse
 from flask import Flask, request, render_template, send_file, redirect
 
-print("==================================")
+print("====================================")
 print("SIMBA: SIMulation Browser Analysis")
-print("==================================")
+print("====================================")
 
 parser = argparse.ArgumentParser(description='Start a webserver to brows database entries');
 parser.add_argument('-i','--ip', default='127.0.0.1', help='IP address of server (default: localhost)');
 parser.add_argument('-p','--port', default='5000', help='Port (default: 5000)');
 parser.add_argument('-d','--database',default='results.db',help='Name of database to read from')
-args=parser.parse_args();
+parser.add_argument('-s','--safe',dest='safe',action='store_true',help='Safe mode - disallow permanent record deletion')
+args=parser.parse_args()
+
+if not args.safe and not args.ip == '127.0.0.1' or args.ip == 'localhost':
+    print("=============  WARNING =============")
+    print("It appears that you are starting    ")
+    print("SIMBA on a public server NOT in SAFE")
+    print("mode. This could allow malicious    ")
+    print("users to alter your records. It is  ")
+    print("strongly recommended that you run   ")
+    print("with the --safe or -s flags enabled!")
+    print("====================================")
 
 script_directory = os.path.realpath(__file__)
 
@@ -33,7 +44,7 @@ def root():
     return render_template('root.html',
                            tables=tables)
 
-@app.route("/table/<table>")
+@app.route("/table/<table>", methods=['GET','POST'])
 def table(table):
     db = sqlite3.connect(args.database)
     db.text_factory = str
@@ -43,6 +54,13 @@ def table(table):
 
     if not table: table_name = tables[0]
     else: table_name = table
+
+    if request.method == 'POST':
+        if request.form.get('delete-entry') and args.safe:
+            cur.execute("SELECT ID FROM " + table + " WHERE HASH = ?",(request.form.get('delete-entry'),))
+            os.system('rm -rf ' + cur.fetchall()[0][0])
+            cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('delete-entry'),))
+            
 
     cur.execute("SELECT * FROM " + table_name )
     data = cur.fetchall()
@@ -66,16 +84,18 @@ def find_images(path):
     global imgfiles
     img_fmts = ['.jpg', '.jpeg', '.png', '.pdf']
     imgfiles = []
+
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
     imgfiles.sort()
 
 @app.route('/img/<number>')
 def serve_image(number):
     global imgfiles
-    return send_file(imgfiles[int(number)])
+    return send_file(imgfiles[int(number)],cache_timeout=-1)
 
 @app.route('/table/<table>/entry/<entry>', methods=['GET','POST'])
 def table_entry(table,entry):
+
     global imgfiles
 
     db = sqlite3.connect('results.db')
@@ -97,7 +117,7 @@ def table_entry(table,entry):
     data = cur.fetchall()[0]
 
     find_images(data[1])
-
+    
     db.commit()
     db.close()
     
