@@ -4,7 +4,7 @@ import glob
 import fnmatch
 import sqlite3
 import argparse
-from flask import Flask, request, render_template, send_file
+from flask import Flask, request, render_template, send_file, redirect
 
 print("==================================")
 print("SIMBA: SIMulation Browser Analysis")
@@ -28,6 +28,8 @@ def root():
     cur= db.cursor()
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in cur.fetchall()]
+    if len(tables) > 0:
+        return redirect('/table/'+tables[0])
     return render_template('root.html',
                            tables=tables)
 
@@ -65,6 +67,7 @@ def find_images(path):
     img_fmts = ['.jpg', '.jpeg', '.png', '.pdf']
     imgfiles = []
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
+    imgfiles.sort()
 
 @app.route('/img/<number>')
 def serve_image(number):
@@ -103,7 +106,7 @@ def table_entry(table,entry):
                            entry=entry,
                            columns=columns,
                            data=data,
-                           imgfiles=imgfiles)
+                           imgfiles=[os.path.split(im)[1] for im in imgfiles])
 
 if __name__ == '__main__':
     app.run(debug=True,

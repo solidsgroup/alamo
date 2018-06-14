@@ -50,12 +50,12 @@
 
 <div class="row">
 	{% for i in range(0,imgfiles|length) %}
-	<div class="thumbnail col-xs-8 col-sm-3 col-md-2">
+	<div class="thumbnail col-md-4 ml-auto">
+	  <a class="thumbnail" href="/img/{{i}}" style="word-wrap:break-word;">
 	  <img src="/img/{{i}}" ></img>
-	  <div class="caption">
-		<p>
-		  <a href="/img/{{i}}" style="word-wrap:break-word;">{{imgfiles[i]}}</a>
-		</p>
+	  </a>
+	  <div class="caption text-center">
+		<a href="/img/{{i}}"> {{imgfiles[i]}}</a>
 	  </div>
 	</div>
 	{% endfor %}
