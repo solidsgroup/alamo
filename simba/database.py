@@ -54,12 +54,14 @@ for directory in args.directories:
 cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
 tables = [r[0] for r in cur.fetchall()]
 if args.table not in tables:
-    cur.execute('CREATE TABLE ' + args.table + '('
+    cur.execute('CREATE TABLE ' + args.table + ' ('
                 'HASH VARCHAR(255) UNIQUE, ' +
                 'ID VARCHAR(255) UNIQUE,' +
                 'Description VARCHAR(8000),' +
-                'Tags VARCHAR(1000),'
-                +','.join([key+' '+types[key] for key in sorted(types)]) + ');')
+                'Tags VARCHAR(1000)' +
+                (',' if len(types)>0 else '') +
+                ','.join([key+' '+types[key] for key in sorted(types)]) +
+                ');')
     print('\033[1;32mADDED TABLE\033[1;0m: ' + args.table)
 else:
     print('\033[1;34mUSING TABLE\033[1;0m: ' + args.table)
@@ -80,7 +82,7 @@ for key in types:
 # records that already exist.
 #
 for directory in args.directories:
-    sim_hash = str(hashlib.sha224(os.path.abspath(directory)).hexdigest())
+    sim_hash = str(hashlib.sha224(os.path.abspath(directory).encode('utf-8')).hexdigest())
     if not os.path.isfile(directory+'/metadata'):
         print(u'  \u251C\u2574\033[1;31mSkipping\033[1;0m:  ' + directory + ' (no metadata) ')
         continue
@@ -99,7 +101,10 @@ for directory in args.directories:
     cur.execute('SELECT HASH FROM ' + args.table + ' WHERE HASH = ?',(sim_hash,))
 
     if (len(cur.fetchall()) != 0):
-        print(u'  \u251C\u2574'+'\033[1;33mIgnoring\033[1;0m:  ' + directory + ' ( record already exists )')
+        cur.execute('UPDATE ' + args.table +
+                    ' SET ' + ','.join([col+' = '+val for col,val in zip(cols,vals)]) +
+                    ' WHERE HASH = ' + vals[0])
+        print(u'  \u251C\u2574'+'\033[1;33mUpdating\033[1;0m:  ' + directory + ' ( record already exists )')
     else:
         cur.execute('INSERT INTO ' + args.table + ' (' + ','.join(cols) + ') ' +
                     'VALUES (' + ','.join(vals) + ')')

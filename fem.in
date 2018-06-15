@@ -1,0 +1,15 @@
+
+solver.max_level		= 1;
+solver.ref_ratio		= 2;
+solver.n_cell			= 16;
+solver.max_grid_size	= 64;
+solver.composite_solve	= 1
+solver.verbose			= 2;
+solver.cg_verbose 		= 0;
+solver.max_iter			= 2000;
+solver.max_fmg_iter 	= 0;
+solver.linop_maxorder 	= 2;
+solver.agglomeration 	= 1;
+solver.consolidation 	= 0;
+solver.tol_rel			= 1.0e-5;
+solver.tol_abs			= 1.0e-5;

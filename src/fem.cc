@@ -10,6 +10,8 @@
 #include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Model/Solid/Elastic/Elastic.H"
 #include "Set/Set.H"
+#include "IO/WriteMetaData.H"
+#include "IO/FileNameParse.H"
 
 using namespace amrex;
 
@@ -17,23 +19,47 @@ int main (int argc, char* argv[])
 {
 	amrex::Initialize(argc, argv);
 
-	Set::Vector body_force 		= {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
+	amrex::Vector<amrex::Real> body_force = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
+	amrex::Vector<amrex::Real> disp_bc_top = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
+	amrex::Vector<amrex::Real> disp_bc_left = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
+	amrex::Vector<amrex::Real> disp_bc_right = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
+	amrex::Vector<amrex::Real> disp_bc_bottom = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
+	LinOpBCType AMREX_D_DECL(bc_x,bc_y,bc_z);
 
-	Set::Vector disp_bc_top    	= {AMREX_D_DECL(0.0, 0.0, 0.1)};
-	Set::Vector disp_bc_left   	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
-	Set::Vector disp_bc_right  	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
-	Set::Vector disp_bc_bottom 	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
-	Set::Vector disp_bc_front  	= {AMREX_D_DECL(0.0, 0.0, 0.0)};
-	Set::Vector disp_bc_back 	= {AMREX_D_DECL(0.0, 0.0, 0.0)};	// configure solver
+#if AMREX_SPACEDIM > 2
+	amrex::Vector<amrex::Real> disp_bc_front;
+	amrex::Vector<amrex::Real> disp_bc_back;
+#endif
 
-	// MLCGSolver mlcg(mlabec);
-	// mlcg.setVerbose(verbose);
-	// mlcg.solve(solution[0],rhs[0],tol_rel,tol_abs);
+	{
+		ParmParse pp("bc");
+		pp.queryarr("body_force",     body_force     );
+		pp.queryarr("disp_bc_top",    disp_bc_top     );
+		pp.queryarr("disp_bc_left",   disp_bc_left    );
+		pp.queryarr("disp_bc_right",  disp_bc_right   );
+		pp.queryarr("disp_bc_bottom", disp_bc_bottom  );
+		std::string AMREX_D_DECL(bc_x_str, bc_y_str, bc_z_str);
+		pp.query("bc_x",bc_x_str);
+		pp.query("bc_y",bc_y_str);
 
+		if (bc_x_str == "dirichlet")    bc_x = amrex::LinOpBCType::Dirichlet;
+		else if (bc_x_str == "neumann") bc_x = amrex::LinOpBCType::Neumann;
+		else                            bc_x = amrex::LinOpBCType::Periodic;
 
-	LinOpBCType bc_x = LinOpBCType::Dirichlet; //LinOpBCType::Periodic; LinOpBCType::Neumann;
-	LinOpBCType bc_y = LinOpBCType::Dirichlet;
-	LinOpBCType bc_z = LinOpBCType::Dirichlet;
+		if (bc_y_str == "dirichlet")    bc_y = amrex::LinOpBCType::Dirichlet;
+		else if (bc_y_str == "neumann") bc_y = amrex::LinOpBCType::Neumann;
+		else                            bc_y = amrex::LinOpBCType::Periodic;
+
+#if AMREX_SPACEDIM > 2
+		pp.queryarr("disp_bc_front",  disp_bc_front   );
+		pp.queryarr("disp_bc_back",   disp_bc_back    );
+		pp.query("bc_z",bc_z_str);
+		if (bc_z_str == "dirichlet")    bc_z = amrex::LinOpBCType::Dirichlet;
+		else if (bc_z_str == "neumann") bc_z = amrex::LinOpBCType::Neumann;
+		else                            bc_z = amrex::LinOpBCType::Periodic;
+#endif
+	}
+	
 
 	//bool use_fsmooth = true; 
 
@@ -41,9 +67,7 @@ int main (int argc, char* argv[])
 	int ref_ratio = 2;//2
 	int n_cell = 16;//128;
 	int max_grid_size = 64;//64;
-    
 	bool composite_solve = true;
-
 	int verbose 		= 2;
 	int cg_verbose 		= 0;
 	int max_iter		= 1000;//100;
@@ -51,36 +75,41 @@ int main (int argc, char* argv[])
 	int linop_maxorder 	= 2;
 	bool agglomeration 	= true;
 	bool consolidation 	= false;
+	Real tol_rel 	= 1.0e-5;
+	Real tol_abs 	= 1.0e-5;
+	{
+		ParmParse pp("solver");
+		pp.query("max_level", max_level);
+		pp.query("ref_ratio", ref_ratio);
+		pp.query("n_cell", n_cell);
+		pp.query("max_grid_size", max_grid_size);
+		pp.query("composite_solve", composite_solve);
+		pp.query("verbose", verbose);
+		pp.query("cg_verbose", cg_verbose);
+		pp.query("max_iter", max_iter);
+		pp.query("max_fmg_iter", max_fmg_iter);
+		pp.query("linop_maxorder", linop_maxorder);
+		pp.query("agglomeration", agglomeration);
+		pp.query("consolidation", consolidation);
+		pp.query("tol_rel", tol_rel);
+		pp.query("tol_abs", tol_abs);
+	}
 
-	const Real tol_rel 	= 1.0e-5;
-	const Real tol_abs 	= 1.0e-5;
+	std::string plot_file = "output";
+	{
+		amrex::ParmParse pp;
+		pp.query("plot_file",plot_file);
+	}
 
 
 	amrex::Vector<amrex::Geometry> 			geom;
 	amrex::Vector<amrex::BoxArray> 			grids;
-	amrex::Vector<amrex::DistributionMapping> 	dmap;
+	amrex::Vector<amrex::DistributionMapping> dmap;
 	amrex::Vector<amrex::MultiFab> 			solution;
 	amrex::Vector<amrex::MultiFab> 			bcdata;	
 	amrex::Vector<amrex::MultiFab> 			rhs;
 	amrex::Vector<amrex::MultiFab>			stress;
 	amrex::Vector<amrex::MultiFab>			energy;
-
-	//
-	// READ PARAMETERS
-	//
-	ParmParse pp;
-	pp.query("max_level", max_level);
-	pp.query("ref_ratio", ref_ratio);
-	pp.query("n_cell", n_cell);
-	pp.query("max_grid_size", max_grid_size);
-	pp.query("composite_solve", composite_solve);
-	pp.query("verbose", verbose);
-	pp.query("cg_verbose", cg_verbose);
-	pp.query("max_iter", max_iter);
-	pp.query("max_fmg_iter", max_fmg_iter);
-	pp.query("linop_maxorder", linop_maxorder);
-	pp.query("agglomeration", agglomeration);
-	pp.query("consolidation", consolidation);
 
 	//
 	// CONSTRUCTOR
@@ -313,9 +342,13 @@ int main (int argc, char* argv[])
 #endif 
 	}
 
-	WriteMultiLevelPlotfile("output", nlevels, amrex::GetVecOfConstPtrs(plotmf),
+	IO::FileNameParse(plot_file);
+
+	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 		varname, geom, 0.0, Vector<int>(nlevels, 0),
 		Vector<IntVect>(nlevels, IntVect{ref_ratio}));
+	
+	IO::WriteMetaData(plot_file);
 
 	amrex::Finalize();
 }

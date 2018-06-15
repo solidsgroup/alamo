@@ -1,9 +1,42 @@
+<div class="modal fade" id="confirm-delete" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+		<b>Delete Record Confirmation</b>
+      </div>
+      <div class="modal-body">
+		Support for renaming and deleting tables has not yet been added.
+      </div>
+      <div class="modal-footer">
+		<form>
+		  <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-ok" ><span class="glyphicon glyphicon-trash"></span> Delete Table</a>
+		</form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  $('#confirm-delete').on('show.bs.modal', function(e) {
+  alert(e);
+    $(this).find('.btn-ok').attr('href', $(e.relatedTarget).data('href'));
+  });
+</script>
+
 <div class="list-group">
   {% for tab in tables %}
   {% if table_name == tab %}
-  <a href="/table/{{tab}}" class="list-group-item active">{{tab}}</a>
+  <a href="/table/{{tab}}" class="list-group-item active">
+	{{tab}}
+	<form class="pull-right" action="/table/{{table}}" method="post">
+	<button type="button" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#confirm-delete">Rename</button>
+	<button type="button" class="btn btn-danger btn-xs" data-toggle="modal" data-target="#confirm-delete">Delete</button>
+	</form>
+  </a>
   {% else %}
-  <a href="/table/{{tab}}" class="list-group-item">{{tab}}</a>
+  <a href="/table/{{tab}}" class="list-group-item">
+	{{tab}}
+  </a>
   {% endif %}
   {% endfor %}
 </div>
