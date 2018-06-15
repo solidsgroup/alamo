@@ -44,7 +44,7 @@ default: $(EXE)
 	@echo "### DONE" 
 	@echo "###"$(RESET)
 
-bin/%: ${OBJ} ${OBJ_F} src/%.cc.o
+bin/%: ${OBJ} ${OBJ_F} src/%.cc.o 
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
 	@echo "###"$(RESET)
@@ -57,11 +57,19 @@ bin/%: ${OBJ} ${OBJ_F} src/%.cc.o
 	@echo "###"$(RESET)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
+src/IO/WriteMetaData.cpp.o: .FORCE
+	@echo $(B_ON)$(FG_YELLOW)"###"
+	@echo "### COMPILING $@" 
+	@echo "###"$(RESET)
+	$(CC) -c ${@:.cpp.o=.cpp} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+.PHONY: .FORCE
+
 %.cpp.o: %.cpp ${HDR}
 	@echo $(B_ON)$(FG_YELLOW)"###"
 	@echo "### COMPILING $<" 
 	@echo "###"$(RESET)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+
 
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 

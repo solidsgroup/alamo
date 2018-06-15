@@ -25,13 +25,15 @@ endif(NOT AMREX)
 find_package(MPI REQUIRED)
 
 set (SPACEDIM 3 CACHE STRING "Dimensionality of the system")
-
+ 
 # Include and Link
 include_directories(SYSTEM ${AMREX}/include/ ${MPI_INCLUDE_PATH})
 include_directories("src/")
 link_directories(${AMREX}/lib/)
 link_libraries(${MPI_LIBRARIES} amrex gfortran)
 
+#add_custom_target(update_metadata ALL COMMAND ${CMAKE_COMMAND} -E touch src/IO/WriteMetaData.cpp)
+add_custom_target(update_metadata ALL COMMAND ${CMAKE_COMMAND} -E touch ${PROJECT_SOURCE_DIR}/src/IO/WriteMetaData.cpp)
 
 # Determine git hash, username, etc for metadata
 execute_process(
@@ -70,10 +72,12 @@ add_definitions("-DAMREX_SPACEDIM=${SPACEDIM}")
 
 # Compile source
 add_library(alamo_lib OBJECT ${alamo_SOURCES})
+add_dependencies(alamo_lib update_metadata)
 
 # Specify Executables
-add_executable (alamo "src/alamo.cc" $<TARGET_OBJECTS:alamo_lib>)
+add_executable (alamo "src/alamo.cc" $<TARGET_OBJECTS:alamo_lib> )
 add_executable (fem "src/fem.cc" $<TARGET_OBJECTS:alamo_lib>)
 add_executable (flame "src/flame.cc" $<TARGET_OBJECTS:alamo_lib>)
 add_executable (degradation "src/degradation.cc" $<TARGET_OBJECTS:alamo_lib>)
+
 

@@ -61,9 +61,11 @@ def table(table):
         if request.form.get('action')=="delete-entry-only" and not args.safe:
             cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
         if request.form.get('action')=='delete-everything' and not args.safe:
+            print('HASH ENTRY ' + str(request.form.get('entry-hash')))
             cur.execute("SELECT ID FROM " + table + " WHERE HASH = ?",(request.form.get('entry-hash'),))
             os.system('rm -rf ' + cur.fetchall()[0][0])
-            cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('hashentry'),))
+            cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
+            print("DELETE FROM " + table + " WHERE HASH = " + request.form.get('entry-hash') + ";")
             
 
     cur.execute("SELECT * FROM " + table_name )
