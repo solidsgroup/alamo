@@ -71,7 +71,7 @@ def table(table):
     cur.execute("SELECT * FROM " + table_name )
     data = cur.fetchall()
 
-    cur.execute("PRAGMA table_info("+tables[0]+")")
+    cur.execute("PRAGMA table_info("+table_name+")")
     columns=[a[1] for a in cur.fetchall()]
 
     db.commit()

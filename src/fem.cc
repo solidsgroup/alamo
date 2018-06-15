@@ -60,7 +60,6 @@ int main (int argc, char* argv[])
 #endif
 	}
 	
-
 	//bool use_fsmooth = true; 
 
 	int max_level = 1;//0;

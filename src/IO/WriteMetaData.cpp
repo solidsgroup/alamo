@@ -1,5 +1,7 @@
 #include "WriteMetaData.H"
 
+/// \todo We need to update ParmParse so that the FORMATTED input file gets recorded permanently.
+
 void IO::WriteMetaData(std::string plot_file) 
 {
   std::ofstream metadatafile;
