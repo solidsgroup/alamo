@@ -1,7 +1,16 @@
+plot_file = %Y%m%d_%H%M%S_output
+
+bc.body_force = 0 100.0
+bc.disp_bc_top = 0.0 0.1
+bc.disp_bc_left = 0 0
+bc.disp_bc_right = 0 0
+bc.disp_bc_bottom = 0 0
+bc.bc_x = neumann
+bc.bc_y = dirichlet
 
 solver.max_level		= 1;
 solver.ref_ratio		= 2;
-solver.n_cell			= 16;
+solver.n_cell			= 32;
 solver.max_grid_size	= 64;
 solver.composite_solve	= 1
 solver.verbose			= 2;
