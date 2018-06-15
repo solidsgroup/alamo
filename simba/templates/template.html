@@ -5,8 +5,9 @@
 
 <br/>
 
+
 <div class="table-responsive">
-  <table id="bigtable" class="table" style="width:100%;">
+  <table id="bigtable" class="table table-striped table-bordered" style="width:100%;">
 	<thead>
 	  <tr>
 		{% for i in range(1,columns|length) %}
@@ -19,7 +20,7 @@
 	  {% for i in range (1,row|length) %}
 	  <td>
 		{% if columns[i] == "ID" %}
-		<a target="_blank" href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
+		<a href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
 		{% else %}
 		{{row[i]}}
 		{% endif %}
@@ -30,17 +31,6 @@
   </table>
 </div>
 
-<p>
-  <button type="button" class="btn btn-info" data-toggle="collapse" data-target="#column-list">Select columns to show/hide</button>
-  <div id="column-list" class="collapse out">
-	<ul class="list-group row ">
-	  <li class="list-group-item col-xs-6 col-sm-4 col-md-3"><label><input type="checkbox" class="all " checked /> Select/Deselect All</label><br/></li>
-	  {% for i in range (2,columns|length) %}
-	  <li class="list-group-item col-xs-6 col-sm-4 col-md-3"><label><input type="checkbox" class="toggle-vis" data-column="{{i-1}}"  checked> {{columns[i]}}</label></li>
-	  {% endfor %}
-	</ul>
-  </div>
-</p>
 
 
 
