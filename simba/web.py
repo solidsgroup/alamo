@@ -56,13 +56,10 @@ def table(table):
     else: table_name = table
 
     if request.method == 'POST':
-        print(request.form.get('action'))
-        print(request.form.get('action'))
         if request.form.get('action')=="delete-entry-only" and not args.safe:
             cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
         if request.form.get('action')=='delete-everything' and not args.safe:
-            print('HASH ENTRY ' + str(request.form.get('entry-hash')))
-            cur.execute("SELECT ID FROM " + table + " WHERE HASH = ?",(request.form.get('entry-hash'),))
+            cur.execute("SELECT DIR FROM " + table + " WHERE HASH = ?",(request.form.get('entry-hash'),))
             os.system('rm -rf ' + cur.fetchall()[0][0])
             cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
             print("DELETE FROM " + table + " WHERE HASH = " + request.form.get('entry-hash') + ";")
