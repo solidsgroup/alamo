@@ -30,7 +30,7 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::Real> disp_bc_front;
 	amrex::Vector<amrex::Real> disp_bc_back;
 #endif
-
+	std::string AMREX_D_DECL(bc_x_str, bc_y_str, bc_z_str);
 	{
 		ParmParse pp("bc");
 		pp.queryarr("body_force",     body_force     );
@@ -38,7 +38,7 @@ int main (int argc, char* argv[])
 		pp.queryarr("disp_bc_left",   disp_bc_left    );
 		pp.queryarr("disp_bc_right",  disp_bc_right   );
 		pp.queryarr("disp_bc_bottom", disp_bc_bottom  );
-		std::string AMREX_D_DECL(bc_x_str, bc_y_str, bc_z_str);
+		
 		pp.query("bc_x",bc_x_str);
 		pp.query("bc_y",bc_y_str);
 
@@ -126,8 +126,8 @@ int main (int argc, char* argv[])
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	// set periodicity
 	std::array<int,AMREX_SPACEDIM> is_periodic = {AMREX_D_DECL(bc_x == LinOpBCType::Periodic ? 1 : 0,
-															   bc_y == LinOpBCType::Periodic ? 1 : 0,
-															   bc_z == LinOpBCType::Periodic ? 1 : 0)};
+									   bc_y == LinOpBCType::Periodic ? 1 : 0,
+									   bc_z == LinOpBCType::Periodic ? 1 : 0)};
 	Geometry::Setup(&rb, 0, is_periodic.data());
 	Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
 	Box domain = domain0;
@@ -200,6 +200,7 @@ int main (int argc, char* argv[])
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		amrex::Box domain(geom[ilev].Domain());
+		const amrex::Real* dx = geom[ilev].CellSize();
       
 		for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
 		{
@@ -216,40 +217,100 @@ int main (int argc, char* argv[])
 						amrex::IntVect x(AMREX_D_DECL(i,j,k));
 						if (j > domain.hiVect()[1]) // Top boundary
 						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_top[0];,
+							if(bc_y_str == "dirichlet")
+							{
+								AMREX_D_TERM(bcdata_box(x,0) = disp_bc_top[0];,
 										 bcdata_box(x,1) = disp_bc_top[1];,
 										 bcdata_box(x,2) = disp_bc_top[2];)
+							}
+							else if(bc_y_str == "neumann")
+							{
+								amrex::IntVect xd(AMREX_D_DECL(i,j-1,k));
+								AMREX_D_TERM(bcdata_box(x,0) = bcdata_box(xd,0) - disp_bc_top[0]*dx[1];,
+										 bcdata_box(x,1) = bcdata_box(xd,1) - disp_bc_top[1]*dx[1];,
+										 bcdata_box(x,2) = bcdata_box(xd,1) - disp_bc_top[2]*dx[1];)
+							}
 						}
 						else if (j < domain.loVect()[1]) // Bottom boundary
 						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_bottom[0];,
+							if(bc_y_str == "dirichlet")
+							{
+								AMREX_D_TERM(bcdata_box(x,0) = disp_bc_bottom[0];,
 										 bcdata_box(x,1) = disp_bc_bottom[1];,
 										 bcdata_box(x,2) = disp_bc_bottom[2];)
+							}
+							else if(bc_y_str == "neumann")
+							{
+								amrex::IntVect xu(AMREX_D_DECL(i,j+1,k));
+								AMREX_D_TERM(bcdata_box(x,0) = bcdata_box(xu,0) - disp_bc_bottom[0]*dx[1];,
+										 bcdata_box(x,1) = bcdata_box(xu,1) - disp_bc_bottom[1]*dx[1];,
+										 bcdata_box(x,2) = bcdata_box(xu,1) - disp_bc_bottom[2]*dx[1];)
+							}
 						}
 						else if (i > domain.hiVect()[0]) // Right boundary
 						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_right[0];,
+							if(bc_x_str == "dirichlet")
+							{
+								AMREX_D_TERM(bcdata_box(x,0) = disp_bc_right[0];,
 										 bcdata_box(x,1) = disp_bc_right[1];,
 										 bcdata_box(x,2) = disp_bc_right[2];)
+							}
+							else if(bc_x_str == "neumann")
+							{
+								amrex::IntVect xl(AMREX_D_DECL(i-1,j,k));
+								AMREX_D_TERM(bcdata_box(x,0) = bcdata_box(xl,0) - disp_bc_right[0]*dx[0];,
+										 bcdata_box(x,1) = bcdata_box(xl,1) - disp_bc_right[1]*dx[0];,
+										 bcdata_box(x,2) = bcdata_box(xl,1) - disp_bc_right[2]*dx[0];)
+							}
 						}
 						else if (i < domain.loVect()[0]) // Left boundary 
 						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_left[0];,
+							if(bc_x_str == "dirichlet")
+							{
+								AMREX_D_TERM(bcdata_box(x,0) = disp_bc_left[0];,
 										 bcdata_box(x,1) = disp_bc_left[1];,
 										 bcdata_box(x,2) = disp_bc_left[2];)
+							}
+							else if(bc_x_str == "neumann")
+							{
+								amrex::IntVect xr(AMREX_D_DECL(i+1,j,k));
+								AMREX_D_TERM(bcdata_box(x,0) = bcdata_box(xr,0) - disp_bc_left[0]*dx[0];,
+										 bcdata_box(x,1) = bcdata_box(xr,1) - disp_bc_left[1]*dx[0];,
+										 bcdata_box(x,2) = bcdata_box(xr,1) - disp_bc_left[2]*dx[0];)
+							}
 						}
 #if AMREX_SPACEDIM>2
 						else if (k > domain.hiVect()[2]) // Front boundary
 						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_front[0];,
+							if(bc_z_str == "dirichlet")
+							{
+								AMREX_D_TERM(bcdata_box(x,0) = disp_bc_front[0];,
 										 bcdata_box(x,1) = disp_bc_front[1];,
 										 bcdata_box(x,2) = disp_bc_front[2];)
+							}
+							else if(bc_z_str == "neumann")
+							{
+								amrex::IntVect xb(AMREX_D_DECL(i,j,k-1));
+								AMREX_D_TERM(bcdata_box(x,0) = bcdata_box(xb,0) - disp_bc_front[0]*dx[2];,
+										 bcdata_box(x,1) = bcdata_box(xb,1) - disp_bc_front[1]*dx[2];,
+										 bcdata_box(x,2) = bcdata_box(xb,1) - disp_bc_front[2]*dx[2];)
+							}
 						}
 						else if (k < domain.loVect()[2]) // Back boundary 
 						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_back[0];,
+							if(bc_z_str == "dirichlet")
+							{
+								AMREX_D_TERM(bcdata_box(x,0) = disp_bc_back[0];,
 										 bcdata_box(x,1) = disp_bc_back[1];,
 										 bcdata_box(x,2) = disp_bc_back[2];)
+							}
+							else if(bc_z_str == "neumann")
+							{
+								amrex::IntVect xf(AMREX_D_DECL(i,j,k+1));
+								AMREX_D_TERM(bcdata_box(x,0) = bcdata_box(xf,0) - disp_bc_back[0]*dx[2];,
+										 bcdata_box(x,1) = bcdata_box(xf,1) - disp_bc_back[1]*dx[2];,
+										 bcdata_box(x,2) = bcdata_box(xf,1) - disp_bc_back[2]*dx[2];)
+							}
 						}
 #endif
 					}
