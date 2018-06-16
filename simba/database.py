@@ -32,7 +32,7 @@ for directory in args.directories:
             line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','')
         if len(line.split(' = ')) != 2: continue;
         key = line.split(' = ')[0].replace('.','_').replace(' ','')
-        val = line.split(' = ')[1].replace('  ','')
+        val = line.split(' = ')[1].replace('  ','').replace(';','')
         if key not in types:
             try:
                 int(val)
@@ -56,7 +56,7 @@ tables = [r[0] for r in cur.fetchall()]
 if args.table not in tables:
     cur.execute('CREATE TABLE ' + args.table + ' ('
                 'HASH VARCHAR(255) UNIQUE, ' +
-                'ID VARCHAR(255) UNIQUE,' +
+                'DIR,' +
                 'Description VARCHAR(8000),' +
                 'Tags VARCHAR(1000)' +
                 (',' if len(types)>0 else '') +
@@ -82,12 +82,15 @@ for key in types:
 # records that already exist.
 #
 for directory in args.directories:
-    sim_hash = str(hashlib.sha224(os.path.abspath(directory).encode('utf-8')).hexdigest())
     if not os.path.isfile(directory+'/metadata'):
         print(u'  \u251C\u2574\033[1;31mSkipping\033[1;0m:  ' + directory + ' (no metadata) ')
         continue
+
     f = open(directory+'/metadata')
-    cols = ['HASH','ID']
+    sim_hash = str(hashlib.sha224(f.read().encode('utf-8')).hexdigest())
+    f.seek(0)
+
+    cols = ['HASH','DIR']
     vals = ['"'+sim_hash+'"', '"'+os.path.abspath(directory)+'"']
     for line in f.readlines():
         if line.startswith('#'): continue;
@@ -96,7 +99,7 @@ for directory in args.directories:
             line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','')
         if len(line.split(' = ')) != 2: continue;
         cols.append(line.split(' = ')[0].replace('.','_'))
-        vals.append('"' + line.split(' = ')[1].replace('  ','').replace('\n','') + '"')
+        vals.append('"' + line.split(' = ')[1].replace('  ','').replace('\n','').replace(';','') + '"')
 
     cur.execute('SELECT HASH FROM ' + args.table + ' WHERE HASH = ?',(sim_hash,))
 

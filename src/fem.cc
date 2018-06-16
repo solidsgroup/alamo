@@ -60,8 +60,6 @@ int main (int argc, char* argv[])
 #endif
 	}
 	
-	//bool use_fsmooth = true; 
-
 	int max_level = 1;//0;
 	int ref_ratio = 2;//2
 	int n_cell = 16;//128;
@@ -272,17 +270,20 @@ int main (int argc, char* argv[])
 	mlmg.setMaxFmgIter(max_fmg_iter);
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
-	//mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	mlmg.setBottomSolver(MLMG::BottomSolver::cg);
+	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	//mlmg.setBottomSolver(MLMG::BottomSolver::cg);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
 	// if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
 	// if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
 	mlmg.solve(GetVecOfPtrs(solution), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
+	
 
 	// Computing stress and energy
 	for (int lev = 0; lev < nlevels; lev++)
 	{
+		//solution[lev].FillBoundary(0,AMREX_SPACEDIM, geom[lev].periodicity(),0);
+
 		for ( amrex::MFIter mfi(solution[lev],true); mfi.isValid(); ++mfi )
 		{
 			FArrayBox &ufab  = (solution[lev])[mfi];

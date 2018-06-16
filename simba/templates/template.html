@@ -19,7 +19,7 @@
 	<tr>
 	  {% for i in range (1,row|length) %}
 	  <td>
-		{% if columns[i] == "ID" %}
+		{% if columns[i] == "DIR" %}
 		<a href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
 		{% else %}
 		{{row[i]}}
