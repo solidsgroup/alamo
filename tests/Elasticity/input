@@ -1,13 +1,13 @@
-plot_file = output
+plot_file = tests/Elasticity/output
 
-bc.body_force = 0 100.0 0
-bc.disp_bc_top = 0.1 0.0 0
+bc.body_force = 0 0.0 0
+bc.disp_bc_top = 0.0 0.1 0
 bc.disp_bc_left = 0 0 0
 bc.disp_bc_right = 0 0 0
 bc.disp_bc_bottom = 0 0 0
 bc.disp_bc_front = 0 0 0
 bc.disp_bc_back = 0 0 0
-bc.bc_x = dirichlet
+bc.bc_x = neumann
 bc.bc_y = dirichlet
 bc.bc_z = neumann
 

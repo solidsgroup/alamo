@@ -271,6 +271,7 @@ int main (int argc, char* argv[])
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
 	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	mlmg.setFinalFillBC(true);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::cg);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
 	// if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
