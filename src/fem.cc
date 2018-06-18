@@ -1,3 +1,4 @@
+#include <streambuf>
  
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
@@ -17,6 +18,9 @@ using namespace amrex;
 
 int main (int argc, char* argv[])
 {
+	// std::ofstream out("out.txt");
+	// std::cout.rdbuf(out.rdbuf());
+
 	amrex::Initialize(argc, argv);
 
 	amrex::Vector<amrex::Real> body_force = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
@@ -67,23 +71,23 @@ int main (int argc, char* argv[])
 
 		if(bc_x_lo == amrex::LinOpBCType::Periodic ||
 			bc_x_hi == amrex::LinOpBCType::Periodic)
-		{
-			std::cout << "Warning: BC for x should be periodic for both ends. Resetting to periodic." << std::endl;
-			bc_x_lo_str = "PERIODIC";
-			bc_x_hi_str = "PERIODIC";
-			bc_x_hi = amrex::LinOpBCType::Periodic;
-			bc_x_lo = amrex::LinOpBCType::Periodic;
-		}
+			{
+				std::cout << "Warning: BC for x should be periodic for both ends. Resetting to periodic." << std::endl;
+				bc_x_lo_str = "PERIODIC";
+				bc_x_hi_str = "PERIODIC";
+				bc_x_hi = amrex::LinOpBCType::Periodic;
+				bc_x_lo = amrex::LinOpBCType::Periodic;
+			}
 
 		if(bc_y_lo == amrex::LinOpBCType::Periodic ||
 			bc_y_hi == amrex::LinOpBCType::Periodic)
-		{
-			std::cout << "Warning: BC for y should be periodic for both ends. Resetting to periodic." << std::endl;
-			bc_y_lo_str = "PERIODIC";
-			bc_y_hi_str = "PERIODIC";
-			bc_y_hi = amrex::LinOpBCType::Periodic;
-			bc_y_lo = amrex::LinOpBCType::Periodic;
-		}
+			{
+				std::cout << "Warning: BC for y should be periodic for both ends. Resetting to periodic." << std::endl;
+				bc_y_lo_str = "PERIODIC";
+				bc_y_hi_str = "PERIODIC";
+				bc_y_hi = amrex::LinOpBCType::Periodic;
+				bc_y_lo = amrex::LinOpBCType::Periodic;
+			}
 
 
 #if AMREX_SPACEDIM > 2
@@ -102,16 +106,17 @@ int main (int argc, char* argv[])
 
 		if(bc_z_lo == amrex::LinOpBCType::Periodic ||
 			bc_z_hi == amrex::LinOpBCType::Periodic)
-		{
-			std::cout << "Warning: BC for z should be periodic for both ends. Resetting to periodic." << std::endl;
-			bc_z_lo_str = "PERIODIC";
-			bc_z_hi_str = "PERIODIC";
-			bc_z_hi = amrex::LinOpBCType::Periodic;
-			bc_z_lo = amrex::LinOpBCType::Periodic;
-		}
+			{
+				std::cout << "Warning: BC for z should be periodic for both ends. Resetting to periodic." << std::endl;
+				bc_z_lo_str = "PERIODIC";
+				bc_z_hi_str = "PERIODIC";
+				bc_z_hi = amrex::LinOpBCType::Periodic;
+				bc_z_lo = amrex::LinOpBCType::Periodic;
+			}
 #endif
 	}
 	
+	std::string bottom_solver = "cg";
 	int max_level = 1;//0;
 	int ref_ratio = 2;//2
 	int n_cell = 16;//128;
@@ -119,15 +124,17 @@ int main (int argc, char* argv[])
 	bool composite_solve = true;
 	int verbose 		= 2;
 	int cg_verbose 		= 0;
-	int max_iter		= 1000;//100;
+	int max_iter		= 100;
 	int max_fmg_iter 	= 0;
 	int linop_maxorder 	= 2;
 	bool agglomeration 	= true;
 	bool consolidation 	= false;
 	Real tol_rel 	= 1.0e-5;
 	Real tol_abs 	= 1.0e-5;
+	bool use_fsmooth = false;
 	{
 		ParmParse pp("solver");
+		pp.query("bottom_solver",bottom_solver);
 		pp.query("max_level", max_level);
 		pp.query("ref_ratio", ref_ratio);
 		pp.query("n_cell", n_cell);
@@ -142,6 +149,7 @@ int main (int argc, char* argv[])
 		pp.query("consolidation", consolidation);
 		pp.query("tol_rel", tol_rel);
 		pp.query("tol_abs", tol_abs);
+		pp.query("use_fsmooth", use_fsmooth);
 	}
 
 	std::string plot_file = "output";
@@ -154,11 +162,13 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::Geometry> 			geom;
 	amrex::Vector<amrex::BoxArray> 			grids;
 	amrex::Vector<amrex::DistributionMapping> dmap;
-	amrex::Vector<amrex::MultiFab> 			u;
-	amrex::Vector<amrex::MultiFab> 			bcdata;	
-	amrex::Vector<amrex::MultiFab> 			rhs;
-	amrex::Vector<amrex::MultiFab>			stress;
-	amrex::Vector<amrex::MultiFab>			energy;
+
+	amrex::Vector<amrex::MultiFab>  u;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >  eps0;
+	amrex::Vector<amrex::MultiFab>  bcdata;	
+	amrex::Vector<amrex::MultiFab>  rhs;
+	amrex::Vector<amrex::MultiFab>  stress;
+	amrex::Vector<amrex::MultiFab>  energy;
 
 	//
 	// CONSTRUCTOR
@@ -169,6 +179,7 @@ int main (int argc, char* argv[])
 	dmap.resize(nlevels);
 
 	u.resize(nlevels);
+	eps0.resize(nlevels);
 	bcdata.resize(nlevels);
 	rhs.resize(nlevels);
 	stress.resize(nlevels);
@@ -178,54 +189,76 @@ int main (int argc, char* argv[])
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	// set periodicity
 	std::array<int,AMREX_SPACEDIM> is_periodic = {AMREX_D_DECL(	bc_x_lo == LinOpBCType::Periodic ? 1 : 0,
-									bc_y_lo == LinOpBCType::Periodic ? 1 : 0,
-									bc_z_lo == LinOpBCType::Periodic ? 1 : 0)};
+																					bc_y_lo == LinOpBCType::Periodic ? 1 : 0,
+																					bc_z_lo == LinOpBCType::Periodic ? 1 : 0)};
 	Geometry::Setup(&rb, 0, is_periodic.data());
 	Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
 	Box domain = domain0;
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		geom[ilev].define(domain);
-		domain.refine(ref_ratio);
-	}
+		{
+			geom[ilev].define(domain);
+			domain.refine(ref_ratio);
+		}
 
 	domain = domain0;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		grids[ilev].define(domain);
-		grids[ilev].maxSize(max_grid_size);
-		domain.grow(-n_cell/4);   // fine level cover the middle of the coarse domain
-		domain.refine(ref_ratio); 
-	}
+		{
+			grids[ilev].define(domain);
+			grids[ilev].maxSize(max_grid_size);
+			domain.grow(-n_cell/4);   // fine level cover the middle of the coarse domain
+			domain.refine(ref_ratio); 
+		}
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM > 1 ? (AMREX_SPACEDIM > 2 ? 6 : 3 ): 1;
 	int number_of_ghost_cells = 2;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		dmap[ilev].define(grids[ilev]);
-		u	[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
-		bcdata		[ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-		rhs		    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-		stress		[ilev].define(grids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
-		energy		[ilev].define(grids[ilev], dmap[ilev], 1, number_of_ghost_cells);
-	}
+		{
+			dmap   [ilev].define(grids[ilev]);
+			u      [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
+			eps0[ilev].reset(new amrex::MultiFab(grids[ilev], dmap[ilev], AMREX_SPACEDIM * AMREX_SPACEDIM, number_of_ghost_cells)); 
+			bcdata [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+			rhs    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+			stress [ilev].define(grids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
+			energy [ilev].define(grids[ilev], dmap[ilev], 1, number_of_ghost_cells);
+		}
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		const Real* dx = geom[ilev].CellSize();
-		Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
+		{
+			const Real* dx = geom[ilev].CellSize();
+			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
-		rhs[ilev].setVal(body_force[0]*volume,0,1);
+			rhs[ilev].setVal(body_force[0]*volume,0,1);
 #if AMREX_SPACEDIM > 1
-		rhs[ilev].setVal(body_force[1]*volume,1,1);
+			rhs[ilev].setVal(body_force[1]*volume,1,1);
 #if AMREX_SPACEDIM > 2
-		rhs[ilev].setVal(body_force[2]*volume,2,1);
+			rhs[ilev].setVal(body_force[2]*volume,2,1);
 #endif
 #endif
-		u[ilev].setVal(0.0);
-	}
+			u[ilev].setVal(0.0);
+			
+			eps0[ilev]->setVal(0.0);
+		}
+
+
+
+	BC::BC *mybc;
+	mybc = new BC::BC(geom,
+							{AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
+							{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)}
+							,disp_bc_left
+							,disp_bc_right
+							,disp_bc_bottom
+							,disp_bc_top
+#if AMREX_SPACEDIM>2
+							,disp_bc_back
+							,disp_bc_front
+#endif
+							);
+
+
+
 
 	//
 	// SOLVE
@@ -237,38 +270,28 @@ int main (int argc, char* argv[])
 	info.setConsolidation(consolidation);
 	//const Real tol_rel = 1.e-10;
 	nlevels = geom.size();
-	//if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require FSmooth
+
+	//if (!use_fsmooth) info.setMaxCoarseningLevel(0); //  <<< put in to NOT require multigrid
 	//Model::Solid::Elastic model;
 	//Operator::FEM::FEM mlabec(model);
 	Operator::Elastic::Isotropic mlabec;
 	mlabec.define(geom, grids, dmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
   
+	mlabec.SetEigenstrain(eps0,*mybc);
+
 	// set boundary conditions
 
 	mlabec.setDomainBC({AMREX_D_DECL(bc_x_lo, bc_y_lo, bc_z_lo)},
-					   {AMREX_D_DECL(bc_x_hi, bc_y_hi, bc_z_hi)});
+							 {AMREX_D_DECL(bc_x_hi, bc_y_hi, bc_z_hi)});
 
-	BC::BC *mybc;
-	mybc = new BC::BC(geom,
-					  {AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
-					  {AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)}
-					  ,disp_bc_left
-					  ,disp_bc_right
-					  ,disp_bc_bottom
-					  ,disp_bc_top
-#if AMREX_SPACEDIM>2
-					  ,disp_bc_back
-					  ,disp_bc_front
-#endif
-					  );
 	
 				
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		mybc->FillBoundary(u[ilev],0,0,0.0);
-		mlabec.setLevelBC(ilev,&u[ilev]);
-	}
+		{
+			mybc->FillBoundary(u[ilev],0,0,0.0);
+			mlabec.setLevelBC(ilev,&u[ilev]);
+		}
   
 
 	// configure solver
@@ -282,31 +305,36 @@ int main (int argc, char* argv[])
 	mlmg.setMaxFmgIter(max_fmg_iter);
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
-	//mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	mlmg.setFinalFillBC(true);	
-	mlmg.setBottomSolver(MLMG::BottomSolver::cg);
+	if (bottom_solver == "cg")
+		mlmg.setBottomSolver(MLMG::BottomSolver::cg);
+	else if (bottom_solver == "bicgstab")
+		mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
-	// if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth
-	// if (!use_fsmooth) mlmg.setBottomSmooth(0);  // <<< put in to NOT require FSmooth
+	if (!use_fsmooth)// <<< put in to NOT require FSmooth
+		{
+			mlmg.setFinalSmooth(0); 
+			mlmg.setBottomSmooth(0); 
+		}
 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	
 
 	// Computing stress and energy
 	for (int lev = 0; lev < nlevels; lev++)
-	{
-		//u[lev].FillBoundary(0,AMREX_SPACEDIM, geom[lev].periodicity(),0);
-
-		for ( amrex::MFIter mfi(u[lev],true); mfi.isValid(); ++mfi )
 		{
-			FArrayBox &ufab  = (u[lev])[mfi];
-			FArrayBox &sigmafab  = (stress[lev])[mfi];
-			FArrayBox &energyfab  = (energy[lev])[mfi];
+			//u[lev].FillBoundary(0,AMREX_SPACEDIM, geom[lev].periodicity(),0);
+
+			for ( amrex::MFIter mfi(u[lev],true); mfi.isValid(); ++mfi )
+				{
+					FArrayBox &ufab  = (u[lev])[mfi];
+					FArrayBox &sigmafab  = (stress[lev])[mfi];
+					FArrayBox &energyfab  = (energy[lev])[mfi];
 			
-			mlabec.Energy(energyfab,ufab,lev,mfi);
-			mlabec.Stress(sigmafab,ufab,lev,mfi);
+					mlabec.Energy(energyfab,ufab,lev,mfi);
+					mlabec.Stress(sigmafab,ufab,lev,mfi);
+				}
 		}
-	}
 		
 
 
@@ -319,7 +347,7 @@ int main (int argc, char* argv[])
 	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12", "energy"};
 #elif AMREX_SPACEDIM>2
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03",
-					"stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
+											 "stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
 #endif
 
 
@@ -327,39 +355,39 @@ int main (int argc, char* argv[])
 
 	Vector<MultiFab> plotmf(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		plotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
+		{
+			plotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
 #if AMREX_SPACEDIM == 2
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0, 1, 0);
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 2, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 3, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 4, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 5, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 6, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	   [ilev], 0, 7, 1, 0);
+			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0, 1, 0);
+			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
+			MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 2, 1, 0);
+			MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 3, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 4, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 5, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 6, 1, 0);
+			MultiFab::Copy(plotmf[ilev], energy	   [ilev], 0, 7, 1, 0);
 #elif AMREX_SPACEDIM == 3
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0,  1, 0);
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1,  1, 0);
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 2, 2,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 3,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 4,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs           [ilev], 2, 5,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 6,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 7,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 8,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 3, 9,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 4, 10, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress        [ilev], 5, 11, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	       [ilev], 0, 12, 1, 0);
+			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0,  1, 0);
+			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1,  1, 0);
+			MultiFab::Copy(plotmf[ilev], u      [ilev], 2, 2,  1, 0);
+			MultiFab::Copy(plotmf[ilev], rhs           [ilev], 0, 3,  1, 0);
+			MultiFab::Copy(plotmf[ilev], rhs           [ilev], 1, 4,  1, 0);
+			MultiFab::Copy(plotmf[ilev], rhs           [ilev], 2, 5,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 0, 6,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 1, 7,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 2, 8,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 3, 9,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 4, 10, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress        [ilev], 5, 11, 1, 0);
+			MultiFab::Copy(plotmf[ilev], energy	       [ilev], 0, 12, 1, 0);
 #endif 
-	}
+		}
 
 	IO::FileNameParse(plot_file);
 
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-		varname, geom, 0.0, Vector<int>(nlevels, 0),
-		Vector<IntVect>(nlevels, IntVect{ref_ratio}));
+									varname, geom, 0.0, Vector<int>(nlevels, 0),
+									Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	
 	IO::WriteMetaData(plot_file);
 
