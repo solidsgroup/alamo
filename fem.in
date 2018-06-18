@@ -1,7 +1,7 @@
 plot_file = output
 
 bc.body_force = 0 0 0
-bc.disp_bc_top = 0.1 0.0 0
+bc.disp_bc_top = 0.0 0.1 0
 bc.disp_bc_left = 0 0 0
 bc.disp_bc_right = 0 0 0
 bc.disp_bc_bottom = 0 0 0

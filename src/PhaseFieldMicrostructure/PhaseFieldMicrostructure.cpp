@@ -68,11 +68,14 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
 		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-		mybc = new BC::BC(geom,
-						  bc_hi_str, bc_lo_str,
-						  bc_lo_1, bc_hi_1,
-						  bc_lo_2, bc_hi_2,
-						  bc_lo_3, bc_hi_3);
+		mybc = new BC::BC(geom
+						  ,bc_hi_str, bc_lo_str
+						  ,bc_lo_1, bc_hi_1
+						  ,bc_lo_2, bc_hi_2
+#if AMREX_SPACEDIM > 2
+						  ,bc_lo_3, bc_hi_3
+#endif
+						  );
 	}
 
 
