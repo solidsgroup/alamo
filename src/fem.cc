@@ -268,64 +268,6 @@ int main (int argc, char* argv[])
 	{
 		mybc->FillBoundary(u[ilev],0,0,0.0);
 		mlabec.setLevelBC(ilev,&u[ilev]);
-
-//		amrex::Box domain(geom[ilev].Domain());
-//      
-//		for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
-//		{
-//			const Box& box = mfi.tilebox();
-//
-//			amrex::BaseFab<amrex::Real> &bcdata_box = bcdata[ilev][mfi];
-//
-//			for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
-//				for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
-//#if AMREX_SPACEDIM>2
-//					for (int k = box.loVect()[2] - bcdata[ilev].nGrow(); k<=box.hiVect()[2] + bcdata[ilev].nGrow(); k++)
-//#endif
-//					{ 
-//						amrex::IntVect x(AMREX_D_DECL(i,j,k));
-//						if (j > domain.hiVect()[1]) // Top boundary
-//						{
-//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_top[0];,
-//										 bcdata_box(x,1) = disp_bc_top[1];,
-//										 bcdata_box(x,2) = disp_bc_top[2];)
-//						}
-//						else if (j < domain.loVect()[1]) // Bottom boundary
-//						{
-//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_bottom[0];,
-//										 bcdata_box(x,1) = disp_bc_bottom[1];,
-//										 bcdata_box(x,2) = disp_bc_bottom[2];)
-//						}
-//						else if (i > domain.hiVect()[0]) // Right boundary
-//						{
-//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_right[0];,
-//										 bcdata_box(x,1) = disp_bc_right[1];,
-//										 bcdata_box(x,2) = disp_bc_right[2];)
-//						}
-//						else if (i < domain.loVect()[0]) // Left boundary 
-//						{
-//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_left[0];,
-//										 bcdata_box(x,1) = disp_bc_left[1];,
-//										 bcdata_box(x,2) = disp_bc_left[2];)
-//						}
-//#if AMREX_SPACEDIM>2
-//						else if (k > domain.hiVect()[2]) // Front boundary
-//						{
-//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_front[0];,
-//										 bcdata_box(x,1) = disp_bc_front[1];,
-//										 bcdata_box(x,2) = disp_bc_front[2];)
-//						}
-//						else if (k < domain.loVect()[2]) // Back boundary 
-//						{
-//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_back[0];,
-//										 bcdata_box(x,1) = disp_bc_back[1];,
-//										 bcdata_box(x,2) = disp_bc_back[2];)
-//						}
-//#endif
-//					}
-//
-//		}
-
 	}
   
 
@@ -341,6 +283,7 @@ int main (int argc, char* argv[])
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	mlmg.setFinalFillBC(true);	
 	mlmg.setBottomSolver(MLMG::BottomSolver::cg);
 	//mlmg.setBottomSolver(MLMG::BottomSolver::hypre);
 	// if (!use_fsmooth) mlmg.setFinalSmooth(0); // <<< put in to NOT require FSmooth

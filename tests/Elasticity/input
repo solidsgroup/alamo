@@ -1,4 +1,4 @@
-plot_file = output
+plot_file = tests/Elasticity/output
 
 bc.body_force = 0 0 0
 bc.disp_bc_top = 0.0 0.1 0
