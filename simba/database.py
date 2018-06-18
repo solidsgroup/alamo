@@ -104,14 +104,20 @@ for directory in args.directories:
     cur.execute('SELECT HASH FROM ' + args.table + ' WHERE HASH = ?',(sim_hash,))
 
     if (len(cur.fetchall()) != 0):
+        cur.execute('SELECT DIR FROM ' + args.table + ' WHERE HASH = ?',(sim_hash,))
+        old_dir = cur.fetchall()[0][0]
+        new_dir = os.path.abspath(directory)
         cur.execute('UPDATE ' + args.table +
                     ' SET ' + ','.join([col+' = '+val for col,val in zip(cols,vals)]) +
                     ' WHERE HASH = ' + vals[0])
-        print(u'  \u251C\u2574'+'\033[1;33mUpdating\033[1;0m:  ' + directory + ' ( record already exists )')
+        if (old_dir == new_dir):
+            print(u'  \u251C\u2574'+'\033[1;33mUpdating\033[1;0m:  ' + directory + ' ( record already exists )')
+        else:
+            print(u'  \u251C\u2574'+'\033[1;36mMoving\033[1;0m:    ' + old_dir + ' --> ' + new_dir)
     else:
         cur.execute('INSERT INTO ' + args.table + ' (' + ','.join(cols) + ') ' +
                     'VALUES (' + ','.join(vals) + ')')
-        print(u'  \u251C\u2574'+'\033[1;32mInserting\033[1;0m: ' + directory + ' --> ' + '\033[1;34m' + args.table + '\033[1;0m')
+        print(u'  \u251C\u2574'+'\033[1;32mInserting\033[1;0m: ' + directory)
 print(u'  \u2514\u2574' + 'Done')
 
 
