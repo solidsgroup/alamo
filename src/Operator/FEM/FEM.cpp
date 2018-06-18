@@ -1,5 +1,5 @@
-#if AMREX_SPACEDIM == 2
 #include <AMReX_MultiFabUtil.H>
+#if AMREX_SPACEDIM == 2
 #include "eigen3/Eigen/Core"
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
