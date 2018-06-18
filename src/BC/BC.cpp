@@ -22,7 +22,7 @@ BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom,
       if (bc_hi_str[i] == "REFLECT_EVEN"	) bc_hi[i] = REFLECT_EVEN;
       if (bc_hi_str[i] == "FOEXTRAP"		) bc_hi[i] = FOEXTRAP;
       if (bc_hi_str[i] == "EXT_DIR"		) bc_hi[i] = EXT_DIR;
-      if (bc_hi_str[i] == "DIRICHLET"		) bc_hi[i] = EXT_DIR
+      if (bc_hi_str[i] == "DIRICHLET"		) bc_hi[i] = EXT_DIR;
       if (bc_hi_str[i] == "HOEXTRAP"		) bc_hi[i] = HOEXTRAP;
 
       if (bc_lo_str[i] == "REFLECT_ODD"	) bc_lo[i] = REFLECT_ODD;
@@ -31,7 +31,7 @@ BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom,
       if (bc_lo_str[i] == "REFLECT_EVEN"	) bc_lo[i] = REFLECT_EVEN;
       if (bc_lo_str[i] == "FOEXTRAP"		) bc_lo[i] = FOEXTRAP;
       if (bc_lo_str[i] == "EXT_DIR"		) bc_lo[i] = EXT_DIR;
-      if (bc_lo_str[i] == "DIRICHLET"		) bc_lo[i] = EXT_DIR
+      if (bc_lo_str[i] == "DIRICHLET"		) bc_lo[i] = EXT_DIR;
       if (bc_lo_str[i] == "HOEXTRAP"		) bc_lo[i] = HOEXTRAP;
 
       // Added for Neumann BC.
@@ -85,7 +85,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
                     else if(bc_lo[0] == INT_DIR)
 		      {
 			phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
-				phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVecto()[0]+box.hiVect()[0],j,k)),n);
+				phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
 		      }
 		  }
 
@@ -102,7 +102,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
                     else if(bc_hi[0] == INT_DIR)
 		      {
 			phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
-				phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVecto()[0]+box.hiVect()[0],j,k)),n);
+				phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
 		      }
 		  }
 
@@ -119,7 +119,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
                     else if(bc_lo[1] == INT_DIR)
 		      {
 			phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
-				phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVecto()[1]+box.hiVect()[1],k)),n);
+				phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
 		      }
 		  }
 
@@ -136,7 +136,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
                     else if(bc_hi[1] == INT_DIR)
 		      {
 			phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
-				phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVecto()[1]+box.hiVect()[1],k)),n);
+				phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
 		      }
 		  }
 
@@ -155,7 +155,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
                     else if(bc_lo[2] == INT_DIR)
 		      {
 			phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
-				phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVecto()[2]+box.hiVect()[2])),n);
+				phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
 		      }
 		  }
 
@@ -172,7 +172,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
                     else if(bc_hi[2] == INT_DIR)
 		      {
 			phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
-				phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVecto()[2]+box.hiVect()[2])),n);
+				phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
 		      }
 		  }
 #endif

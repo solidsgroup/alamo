@@ -32,6 +32,8 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::Real> disp_bc_front;
 	amrex::Vector<amrex::Real> disp_bc_back;
 #endif
+	std::string AMREX_D_DECL(bc_x_lo_str, bc_y_lo_str, bc_z_lo_str);
+	std::string AMREX_D_DECL(bc_x_hi_str, bc_y_hi_str, bc_z_hi_str);
 
 	{
 		ParmParse pp("bc");
@@ -40,27 +42,26 @@ int main (int argc, char* argv[])
 		pp.queryarr("disp_bc_left",   disp_bc_left    );
 		pp.queryarr("disp_bc_right",  disp_bc_right   );
 		pp.queryarr("disp_bc_bottom", disp_bc_bottom  );
-		std::string AMREX_D_DECL(bc_x_lo_str, bc_y_lo_str, bc_z_lo_str);
-		std::string AMREX_D_DECL(bc_x_hi_str, bc_y_hi_str, bc_z_hi_str);
+		
 		pp.query("bc_x_lo",bc_x_lo_str);
 		pp.query("bc_y_lo",bc_y_lo_str);
 
-		if (bc_x_lo_str == "EXT_DIR")    bc_x_lo = amrex::LinOpBCType::Dirichlet;
+		if (bc_x_lo_str == "EXT_DIR" || bc_x_lo_str == "DIRICHLET")    bc_x_lo = amrex::LinOpBCType::Dirichlet;
 		else if (bc_x_lo_str == "NEUMANN") bc_x_lo = amrex::LinOpBCType::Neumann;
 		else                               bc_x_lo = amrex::LinOpBCType::Periodic;
 
-		if (bc_y_lo_str == "EXT_DIR")    bc_y_lo = amrex::LinOpBCType::Dirichlet;
+		if (bc_y_lo_str == "EXT_DIR" || bc_y_lo_str == "DIRICHLET")    bc_y_lo = amrex::LinOpBCType::Dirichlet;
 		else if (bc_y_lo_str == "NEUMANN") bc_y_lo = amrex::LinOpBCType::Neumann;
 		else                               bc_y_lo = amrex::LinOpBCType::Periodic;
 
 		pp.query("bc_x_hi",bc_x_hi_str);
 		pp.query("bc_y_hi",bc_y_hi_str);
 
-		if (bc_x_hi_str == "EXT_DIR")    bc_x_hi = amrex::LinOpBCType::Dirichlet;
+		if (bc_x_hi_str == "EXT_DIR" || bc_x_hi_str == "DIRICHLET")    bc_x_hi = amrex::LinOpBCType::Dirichlet;
 		else if (bc_x_hi_str == "NEUMANN") bc_x_hi = amrex::LinOpBCType::Neumann;
 		else                        	   bc_x_hi = amrex::LinOpBCType::Periodic;
 
-		if (bc_y_hi_str == "EXT_DIR")    bc_y_hi = amrex::LinOpBCType::Dirichlet;
+		if (bc_y_hi_str == "EXT_DIR" || bc_y_hi_str == "DIRICHLET")    bc_y_hi = amrex::LinOpBCType::Dirichlet;
 		else if (bc_y_hi_str == "NEUMANN") bc_y_hi = amrex::LinOpBCType::Neumann;
 		else                               bc_y_hi = amrex::LinOpBCType::Periodic;
 
@@ -90,12 +91,12 @@ int main (int argc, char* argv[])
 		pp.queryarr("disp_bc_back",   disp_bc_back    );
 		
 		pp.query("bc_z_lo",bc_z_lo_str);
-		if (bc_z_lo_str == "EXT_DIR")    bc_z_lo = amrex::LinOpBCType::Dirichlet;
+		if (bc_z_lo_str == "EXT_DIR" || bc_z_lo_str == "DIRICHLET")    bc_z_lo = amrex::LinOpBCType::Dirichlet;
 		else if (bc_z_lo_str == "NEUMANN") bc_z_lo = amrex::LinOpBCType::Neumann;
 		else				   bc_z_lo = amrex::LinOpBCType::Periodic;
 
 		pp.query("bc_z_hi",bc_z_lo_str);
-		if (bc_z_hi_str == "EXT_DIR")    bc_z_hi = amrex::LinOpBCType::Dirichlet;
+		if (bc_z_hi_str == "EXT_DIR" || bc_z_hi_str == "DIRICHLET")    bc_z_hi = amrex::LinOpBCType::Dirichlet;
 		else if (bc_z_hi_str == "NEUMANN") bc_z_hi = amrex::LinOpBCType::Neumann;
 		else				   bc_z_hi = amrex::LinOpBCType::Periodic;
 
@@ -248,14 +249,15 @@ int main (int argc, char* argv[])
 	mlabec.setDomainBC({AMREX_D_DECL(bc_x_lo, bc_y_lo, bc_z_lo)},
 					   {AMREX_D_DECL(bc_x_hi, bc_y_hi, bc_z_hi)});
 
-	BC::BC mybc = new BC::BC(geom,
-				{AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
-				{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
-				disp_bc_left,disp_bc_right,
-				disp_bc_bottom,disp_bc_top,
-				disp_bc_back, disp_bc_front);
+	BC::BC *mybc;
+	mybc = new BC::BC(geom,
+			{AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
+			{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
+			disp_bc_left,disp_bc_right,
+			disp_bc_bottom,disp_bc_top,
+			disp_bc_back, disp_bc_front);
 
-	mybc->FillBoundary(u,0,0,0);
+	mybc->FillBoundary(u,0,0,0.0);
 				
 //	for (int ilev = 0; ilev < nlevels; ++ilev)
 //	{
