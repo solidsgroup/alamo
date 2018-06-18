@@ -24,7 +24,9 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::Real> disp_bc_left = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
 	amrex::Vector<amrex::Real> disp_bc_right = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
 	amrex::Vector<amrex::Real> disp_bc_bottom = {AMREX_D_DECL(0.0, 0.0, 0.0)}; 
-	LinOpBCType AMREX_D_DECL(bc_x,bc_y,bc_z);
+	LinOpBCType AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo);
+	LinOpBCType AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi);
+
 
 #if AMREX_SPACEDIM > 2
 	amrex::Vector<amrex::Real> disp_bc_front;
@@ -38,25 +40,74 @@ int main (int argc, char* argv[])
 		pp.queryarr("disp_bc_left",   disp_bc_left    );
 		pp.queryarr("disp_bc_right",  disp_bc_right   );
 		pp.queryarr("disp_bc_bottom", disp_bc_bottom  );
-		std::string AMREX_D_DECL(bc_x_str, bc_y_str, bc_z_str);
-		pp.query("bc_x",bc_x_str);
-		pp.query("bc_y",bc_y_str);
+		std::string AMREX_D_DECL(bc_x_lo_str, bc_y_lo_str, bc_z_lo_str);
+		std::string AMREX_D_DECL(bc_x_hi_str, bc_y_hi_str, bc_z_hi_str);
+		pp.query("bc_x_lo",bc_x_lo_str);
+		pp.query("bc_y_lo",bc_y_lo_str);
 
-		if (bc_x_str == "dirichlet")    bc_x = amrex::LinOpBCType::Dirichlet;
-		else if (bc_x_str == "neumann") bc_x = amrex::LinOpBCType::Neumann;
-		else                            bc_x = amrex::LinOpBCType::Periodic;
+		if (bc_x_lo_str == "EXT_DIR")    bc_x_lo = amrex::LinOpBCType::Dirichlet;
+		else if (bc_x_lo_str == "NEUMANN") bc_x_lo = amrex::LinOpBCType::Neumann;
+		else                               bc_x_lo = amrex::LinOpBCType::Periodic;
 
-		if (bc_y_str == "dirichlet")    bc_y = amrex::LinOpBCType::Dirichlet;
-		else if (bc_y_str == "neumann") bc_y = amrex::LinOpBCType::Neumann;
-		else                            bc_y = amrex::LinOpBCType::Periodic;
+		if (bc_y_lo_str == "EXT_DIR")    bc_y_lo = amrex::LinOpBCType::Dirichlet;
+		else if (bc_y_lo_str == "NEUMANN") bc_y_lo = amrex::LinOpBCType::Neumann;
+		else                               bc_y_lo = amrex::LinOpBCType::Periodic;
+
+		pp.query("bc_x_hi",bc_x_hi_str);
+		pp.query("bc_y_hi",bc_y_hi_str);
+
+		if (bc_x_hi_str == "EXT_DIR")    bc_x_hi = amrex::LinOpBCType::Dirichlet;
+		else if (bc_x_hi_str == "NEUMANN") bc_x_hi = amrex::LinOpBCType::Neumann;
+		else                        	   bc_x_hi = amrex::LinOpBCType::Periodic;
+
+		if (bc_y_hi_str == "EXT_DIR")    bc_y_hi = amrex::LinOpBCType::Dirichlet;
+		else if (bc_y_hi_str == "NEUMANN") bc_y_hi = amrex::LinOpBCType::Neumann;
+		else                               bc_y_hi = amrex::LinOpBCType::Periodic;
+
+		if(bc_x_lo == amrex::LinOpBCType::Periodic ||
+			bc_x_hi == amrex::LinOpBCType::Periodic)
+		{
+			std::cout << "Warning: BC for x should be periodic for both ends. Resetting to periodic." << std::endl;
+			bc_x_lo_str = "PERIODIC";
+			bc_x_hi_str = "PERIODIC";
+			bc_x_hi = amrex::LinOpBCType::Periodic;
+			bc_x_lo = amrex::LinOpBCType::Periodic;
+		}
+
+		if(bc_y_lo == amrex::LinOpBCType::Periodic ||
+			bc_y_hi == amrex::LinOpBCType::Periodic)
+		{
+			std::cout << "Warning: BC for y should be periodic for both ends. Resetting to periodic." << std::endl;
+			bc_y_lo_str = "PERIODIC";
+			bc_y_hi_str = "PERIODIC";
+			bc_y_hi = amrex::LinOpBCType::Periodic;
+			bc_y_lo = amrex::LinOpBCType::Periodic;
+		}
+
 
 #if AMREX_SPACEDIM > 2
 		pp.queryarr("disp_bc_front",  disp_bc_front   );
 		pp.queryarr("disp_bc_back",   disp_bc_back    );
-		pp.query("bc_z",bc_z_str);
-		if (bc_z_str == "dirichlet")    bc_z = amrex::LinOpBCType::Dirichlet;
-		else if (bc_z_str == "neumann") bc_z = amrex::LinOpBCType::Neumann;
-		else                            bc_z = amrex::LinOpBCType::Periodic;
+		
+		pp.query("bc_z_lo",bc_z_lo_str);
+		if (bc_z_lo_str == "EXT_DIR")    bc_z_lo = amrex::LinOpBCType::Dirichlet;
+		else if (bc_z_lo_str == "NEUMANN") bc_z_lo = amrex::LinOpBCType::Neumann;
+		else				   bc_z_lo = amrex::LinOpBCType::Periodic;
+
+		pp.query("bc_z_hi",bc_z_lo_str);
+		if (bc_z_hi_str == "EXT_DIR")    bc_z_hi = amrex::LinOpBCType::Dirichlet;
+		else if (bc_z_hi_str == "NEUMANN") bc_z_hi = amrex::LinOpBCType::Neumann;
+		else				   bc_z_hi = amrex::LinOpBCType::Periodic;
+
+		if(bc_z_lo == amrex::LinOpBCType::Periodic ||
+			bc_z_hi == amrex::LinOpBCType::Periodic)
+		{
+			std::cout << "Warning: BC for z should be periodic for both ends. Resetting to periodic." << std::endl;
+			bc_z_lo_str = "PERIODIC";
+			bc_z_hi_str = "PERIODIC";
+			bc_z_hi = amrex::LinOpBCType::Periodic;
+			bc_z_lo = amrex::LinOpBCType::Periodic;
+		}
 #endif
 	}
 	
@@ -125,9 +176,9 @@ int main (int argc, char* argv[])
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	// set periodicity
-	std::array<int,AMREX_SPACEDIM> is_periodic = {AMREX_D_DECL(bc_x == LinOpBCType::Periodic ? 1 : 0,
-															   bc_y == LinOpBCType::Periodic ? 1 : 0,
-															   bc_z == LinOpBCType::Periodic ? 1 : 0)};
+	std::array<int,AMREX_SPACEDIM> is_periodic = {AMREX_D_DECL(	bc_x_lo == LinOpBCType::Periodic ? 1 : 0,
+									bc_y_lo == LinOpBCType::Periodic ? 1 : 0,
+									bc_z_lo == LinOpBCType::Periodic ? 1 : 0)};
 	Geometry::Setup(&rb, 0, is_periodic.data());
 	Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
 	Box domain = domain0;
@@ -194,69 +245,78 @@ int main (int argc, char* argv[])
   
 	// set boundary conditions
 
-	mlabec.setDomainBC({AMREX_D_DECL(bc_x, bc_y, bc_z)},
-					   {AMREX_D_DECL(bc_x, bc_y, bc_z)});
+	mlabec.setDomainBC({AMREX_D_DECL(bc_x_lo, bc_y_lo, bc_z_lo)},
+					   {AMREX_D_DECL(bc_x_hi, bc_y_hi, bc_z_hi)});
 
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		amrex::Box domain(geom[ilev].Domain());
-      
-		for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
-		{
-			const Box& box = mfi.tilebox();
+	BC::BC mybc = new BC::BC(geom,
+				{AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
+				{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
+				disp_bc_left,disp_bc_right,
+				disp_bc_bottom,disp_bc_top,
+				disp_bc_back, disp_bc_front);
 
-			amrex::BaseFab<amrex::Real> &bcdata_box = bcdata[ilev][mfi];
-
-			for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
-				for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
-#if AMREX_SPACEDIM>2
-					for (int k = box.loVect()[2] - bcdata[ilev].nGrow(); k<=box.hiVect()[2] + bcdata[ilev].nGrow(); k++)
-#endif
-					{ 
-						amrex::IntVect x(AMREX_D_DECL(i,j,k));
-						if (j > domain.hiVect()[1]) // Top boundary
-						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_top[0];,
-										 bcdata_box(x,1) = disp_bc_top[1];,
-										 bcdata_box(x,2) = disp_bc_top[2];)
-						}
-						else if (j < domain.loVect()[1]) // Bottom boundary
-						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_bottom[0];,
-										 bcdata_box(x,1) = disp_bc_bottom[1];,
-										 bcdata_box(x,2) = disp_bc_bottom[2];)
-						}
-						else if (i > domain.hiVect()[0]) // Right boundary
-						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_right[0];,
-										 bcdata_box(x,1) = disp_bc_right[1];,
-										 bcdata_box(x,2) = disp_bc_right[2];)
-						}
-						else if (i < domain.loVect()[0]) // Left boundary 
-						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_left[0];,
-										 bcdata_box(x,1) = disp_bc_left[1];,
-										 bcdata_box(x,2) = disp_bc_left[2];)
-						}
-#if AMREX_SPACEDIM>2
-						else if (k > domain.hiVect()[2]) // Front boundary
-						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_front[0];,
-										 bcdata_box(x,1) = disp_bc_front[1];,
-										 bcdata_box(x,2) = disp_bc_front[2];)
-						}
-						else if (k < domain.loVect()[2]) // Back boundary 
-						{
-							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_back[0];,
-										 bcdata_box(x,1) = disp_bc_back[1];,
-										 bcdata_box(x,2) = disp_bc_back[2];)
-						}
-#endif
-					}
-
-		}
-		mlabec.setLevelBC(ilev,&bcdata[ilev]);
-	}
+	mybc->FillBoundary(u,0,0,0);
+				
+//	for (int ilev = 0; ilev < nlevels; ++ilev)
+//	{
+//		amrex::Box domain(geom[ilev].Domain());
+//      
+//		for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
+//		{
+//			const Box& box = mfi.tilebox();
+//
+//			amrex::BaseFab<amrex::Real> &bcdata_box = bcdata[ilev][mfi];
+//
+//			for (int i = box.loVect()[0] - bcdata[ilev].nGrow(); i<=box.hiVect()[0] + bcdata[ilev].nGrow(); i++)
+//				for (int j = box.loVect()[1] - bcdata[ilev].nGrow(); j<=box.hiVect()[1] + bcdata[ilev].nGrow(); j++)
+//#if AMREX_SPACEDIM>2
+//					for (int k = box.loVect()[2] - bcdata[ilev].nGrow(); k<=box.hiVect()[2] + bcdata[ilev].nGrow(); k++)
+//#endif
+//					{ 
+//						amrex::IntVect x(AMREX_D_DECL(i,j,k));
+//						if (j > domain.hiVect()[1]) // Top boundary
+//						{
+//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_top[0];,
+//										 bcdata_box(x,1) = disp_bc_top[1];,
+//										 bcdata_box(x,2) = disp_bc_top[2];)
+//						}
+//						else if (j < domain.loVect()[1]) // Bottom boundary
+//						{
+//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_bottom[0];,
+//										 bcdata_box(x,1) = disp_bc_bottom[1];,
+//										 bcdata_box(x,2) = disp_bc_bottom[2];)
+//						}
+//						else if (i > domain.hiVect()[0]) // Right boundary
+//						{
+//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_right[0];,
+//										 bcdata_box(x,1) = disp_bc_right[1];,
+//										 bcdata_box(x,2) = disp_bc_right[2];)
+//						}
+//						else if (i < domain.loVect()[0]) // Left boundary 
+//						{
+//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_left[0];,
+//										 bcdata_box(x,1) = disp_bc_left[1];,
+//										 bcdata_box(x,2) = disp_bc_left[2];)
+//						}
+//#if AMREX_SPACEDIM>2
+//						else if (k > domain.hiVect()[2]) // Front boundary
+//						{
+//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_front[0];,
+//										 bcdata_box(x,1) = disp_bc_front[1];,
+//										 bcdata_box(x,2) = disp_bc_front[2];)
+//						}
+//						else if (k < domain.loVect()[2]) // Back boundary 
+//						{
+//							AMREX_D_TERM(bcdata_box(x,0) = disp_bc_back[0];,
+//										 bcdata_box(x,1) = disp_bc_back[1];,
+//										 bcdata_box(x,2) = disp_bc_back[2];)
+//						}
+//#endif
+//					}
+//
+//		}
+//		mlabec.setLevelBC(ilev,&bcdata[ilev]);
+//	}
   
 
 	// configure solver
