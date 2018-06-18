@@ -1,18 +1,23 @@
 #include "BC.H"
 
-BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom,
-	    amrex::Vector<std::string> bc_hi_str,
-	    amrex::Vector<std::string> bc_lo_str,
-	    amrex::Vector<amrex::Real> _bc_lo_1,
-	    amrex::Vector<amrex::Real> _bc_hi_1,
-	    amrex::Vector<amrex::Real> _bc_lo_2,
-	    amrex::Vector<amrex::Real> _bc_hi_2,
-	    amrex::Vector<amrex::Real> _bc_lo_3,
-	    amrex::Vector<amrex::Real> _bc_hi_3)
-  : geom(_geom),
-    bc_lo_1(_bc_lo_1), bc_hi_1(_bc_hi_1), 
-    bc_lo_2(_bc_lo_2), bc_hi_2(_bc_hi_2), 
-    bc_lo_3(_bc_lo_3), bc_hi_3(_bc_hi_3)
+BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom
+			,amrex::Vector<std::string> bc_hi_str
+			,amrex::Vector<std::string> bc_lo_str
+			,amrex::Vector<amrex::Real> _bc_lo_1
+			,amrex::Vector<amrex::Real> _bc_hi_1
+			,amrex::Vector<amrex::Real> _bc_lo_2
+			,amrex::Vector<amrex::Real> _bc_hi_2
+#if AMREX_SPACEDIM > 2
+			,amrex::Vector<amrex::Real> _bc_lo_3
+			,amrex::Vector<amrex::Real> _bc_hi_3
+#endif
+			)
+  : geom(_geom)
+  ,bc_lo_1(_bc_lo_1), bc_hi_1(_bc_hi_1)
+  ,bc_lo_2(_bc_lo_2), bc_hi_2(_bc_hi_2)
+#if AMREX_SPACEDIM > 2
+  ,bc_lo_3(_bc_lo_3), bc_hi_3(_bc_hi_3)
+#endif
 {
   for (int i=0;i<BL_SPACEDIM;i++)
     {
@@ -141,7 +146,7 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 		  }
 
 
-#if BL_SPACEDIM>2
+#if AMREX_SPACEDIM>2
 		if (k < domain.loVect()[2])
 		  {
 		    if (bc_lo[2] == EXT_DIR)

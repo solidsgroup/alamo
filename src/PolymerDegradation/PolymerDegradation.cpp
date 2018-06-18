@@ -48,9 +48,13 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_water_bc.countval("lo_3")) pp_water_bc.getarr("lo_3",bc_lo_3);
 		if (pp_water_bc.countval("hi_3")) pp_water_bc.getarr("hi_3",bc_hi_3);
 
-		water_bc = new BC::BC(geom, bc_hi_str, bc_lo_str,
-		      bc_lo_1, bc_hi_1, bc_lo_2, bc_hi_2,
-		      bc_lo_3, bc_hi_3);
+		water_bc = new BC::BC(geom, bc_hi_str, bc_lo_str
+							  ,bc_lo_1, bc_hi_1
+							  ,bc_lo_2, bc_hi_2
+#if AMREX_SPACEDIM > 2
+							  ,bc_lo_3, bc_hi_3
+#endif
+							  );
 
 		RegisterNewFab(water_conc,     *water_bc, 1, number_of_ghost_cells, "Water Concentration");
 		RegisterNewFab(water_conc_old, *water_bc, 1, number_of_ghost_cells, "Water Concentration Old");
@@ -94,9 +98,13 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_heat_bc.countval("lo_3")) pp_heat_bc.getarr("lo_3",bc_lo_3);
 		if (pp_heat_bc.countval("hi_3")) pp_heat_bc.getarr("hi_3",bc_hi_3);
 
-		thermal_bc = new BC::BC(geom, bc_hi_str, bc_lo_str,
-		      bc_lo_1, bc_hi_1, bc_lo_2, bc_hi_2,
-		      bc_lo_3, bc_hi_3);
+		thermal_bc = new BC::BC(geom, bc_hi_str, bc_lo_str
+								,bc_lo_1,bc_hi_1
+								,bc_lo_2,bc_hi_2
+#if AMREX_SPACEDIM > 2
+								,bc_lo_3,bc_hi_3
+#endif
+								);
 
 		RegisterNewFab(Temp,     *thermal_bc, 1, number_of_ghost_cells, "Temperature");
 		RegisterNewFab(Temp_old, *thermal_bc, 1, number_of_ghost_cells, "Temperature Old");
@@ -163,9 +171,13 @@ PolymerDegradation::PolymerDegradation():
 	if (pp_damage_bc.countval("lo_3")) pp_damage_bc.getarr("lo_3",bc_lo_3);
 	if (pp_damage_bc.countval("hi_3")) pp_damage_bc.getarr("hi_3",bc_hi_3);
 
-	eta_bc = new BC::BC(geom, bc_hi_str, bc_lo_str,
-	      bc_lo_1, bc_hi_1, bc_lo_2, bc_hi_2,
-	      bc_lo_3, bc_hi_3);
+	eta_bc = new BC::BC(geom, bc_hi_str, bc_lo_str
+						,bc_lo_1, bc_hi_1
+						,bc_lo_2, bc_hi_2
+#if AMREX_SPACEDIM>2
+						,bc_lo_3, bc_hi_3
+#endif
+						);
 
 	RegisterNewFab(eta_new, *eta_bc, number_of_eta, number_of_ghost_cells, "Eta");
 	RegisterNewFab(eta_old, *eta_bc, number_of_eta, number_of_ghost_cells, "Eta old");

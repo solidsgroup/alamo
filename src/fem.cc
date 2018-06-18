@@ -251,16 +251,24 @@ int main (int argc, char* argv[])
 
 	BC::BC *mybc;
 	mybc = new BC::BC(geom,
-			{AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
-			{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
-			disp_bc_left,disp_bc_right,
-			disp_bc_bottom,disp_bc_top,
-			disp_bc_back, disp_bc_front);
-
-	mybc->FillBoundary(u,0,0,0.0);
+					  {AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
+					  {AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)}
+					  ,disp_bc_left
+					  ,disp_bc_right
+					  ,disp_bc_bottom
+					  ,disp_bc_top
+#if AMREX_SPACEDIM>2
+					  ,disp_bc_back
+					  ,disp_bc_front
+#endif
+					  );
+	
 				
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
+		mybc->FillBoundary(u[ilev],0,0,0.0);
+		mlabec.setLevelBC(ilev,&u[ilev]);
+
 //		amrex::Box domain(geom[ilev].Domain());
 //      
 //		for (MFIter mfi(bcdata[ilev], true); mfi.isValid(); ++mfi)
@@ -317,7 +325,7 @@ int main (int argc, char* argv[])
 //					}
 //
 //		}
-		mlabec.setLevelBC(ilev,&u[ilev]);
+
 	}
   
 
