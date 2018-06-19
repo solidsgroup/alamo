@@ -1,9 +1,10 @@
-#include "PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
+#include "PhaseFieldMicrostructure.H"
 
 #if BL_SPACEDIM == 2
 
-PhaseFieldMicrostructure::PhaseFieldMicrostructure() :
-	Integrator::Integrator()
+using namespace Integrator
+{
+PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 {
 	//
 	// READ INPUT PARAMETERS
@@ -513,5 +514,5 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				}
 		}
 }
-
+}
 #endif
