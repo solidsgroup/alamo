@@ -1,5 +1,7 @@
-#include "Integrator.H"
+#include "HeatConduction.H"
 
+namespace Integrator
+{
 /// \fn    HeatConduction::Integrator::Integrator
 ///
 /// Read in the following simulation parameters
@@ -11,8 +13,8 @@
 /// Initialize initial condition pointer #ic, and register
 /// the #Temp, #Temp_old Multifab arrays.
 
-Integrator::HeatConduction::HeatConduction() :
-  Integrator::Integrator()
+HeatConduction::HeatConduction() :
+	Integrator()
 {
   amrex::ParmParse pp("heat");
   pp.query("alpha", alpha);
@@ -58,7 +60,7 @@ Integrator::HeatConduction::HeatConduction() :
   RegisterNewFab(Temp_old, *mybc, number_of_components, number_of_ghost_cells, "Temp old");
 }
 
-Integrator::HeatConduction::~HeatConduction()
+HeatConduction::~HeatConduction()
 {
 }
 
@@ -66,7 +68,7 @@ Integrator::HeatConduction::~HeatConduction()
 ///
 /// Use the #ic object to initialize #Temp
 void
-Integrator::HeatConduction::Initialize (int lev)
+HeatConduction::Initialize (int lev)
 {
   ic->Initialize(lev,Temp);
 }
@@ -79,7 +81,7 @@ Integrator::HeatConduction::Initialize (int lev)
 /// using an explicit forward Euler method.
 /// \f$\alpha\f$ is stored in #alpha
 void
-Integrator::HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
+HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
   std::swap(*Temp[lev], *Temp_old[lev]);
 
@@ -116,7 +118,7 @@ Integrator::HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real 
 /// \f[\mathbf{r} = \sqrt{\Delta x_1^2 + \Delta x_2^2 + \Delta x_3^2}\f]
 /// and \f$h\f$ is stored in #refinement_threshold
 void
-Integrator::HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
   const amrex::Real* dx      = geom[lev].CellSize();
 
@@ -153,3 +155,4 @@ Integrator::HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& 
     }
 }
 
+}
