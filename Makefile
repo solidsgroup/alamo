@@ -1,7 +1,5 @@
 CC = mpicxx
 
-DIM ?= 2
-
 RESET              = '\033[0m'
 B_ON               = '\033[1m'
 FG_RED             = '\033[31m'
@@ -9,8 +7,8 @@ FG_GREEN           = '\033[32m'
 FG_YELLOW          = '\033[33m'
 FG_BLUE            = '\033[34m'
 
-MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro  -DAMREX_SPACEDIM=$(DIM)
-MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro  -DAMREX_SPACEDIM=$(DIM)
+MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
+MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
 
 METADATA_GITHASH  = $(shell git log --pretty=format:'%H' -n 1)
 METADATA_USER     = $(shell whoami)
