@@ -1,16 +1,21 @@
+<!--  ===================================   -->
+<!--  DELETE TABLE DIALOG                   -->
+<!--  ===================================   -->
 <div class="modal fade" id="confirm-delete" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-		<b>Delete Record Confirmation</b>
+		<b>Delete Record Confirmation: {{table_name}}</b>
       </div>
       <div class="modal-body">
-		Support for renaming and deleting tables has not yet been added.
+		  If you delete the table, <b>all tags and descriptions will be permanently lost</b>.
+		  The files and directories will not be deleted; you must do that manually.
       </div>
       <div class="modal-footer">
-		<form>
+		<form action="/" method="post">
 		  <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger btn-ok" ><span class="glyphicon glyphicon-trash"></span> Delete Table</a>
+		  <input type="hidden" value="{{table_name}}" name="table-name" />
+		  <button type="submit" class="btn btn-danger btn-ok" name="action" value="delete-table"><span class="glyphicon glyphicon-trash"></span> Delete Table</button>
 		</form>
       </div>
     </div>
@@ -23,6 +28,39 @@
   });
 </script>
 
+<!--  ===================================   -->
+<!--  RENAME TABLE DIALOG                   -->
+<!--  ===================================   -->
+
+<div class="modal fade" id="confirm-rename" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+		<b>Rename Record Confirmation: {{table_name}}</b>
+      </div>
+        <div class="modal-body">
+			 <form action="/" method="post">
+				<label for="usr">Enter new table name:</label>
+				<input type="text" class="form-control" id="usr" name="table-name-new" value="{{table_name}}">
+				<div class="modal-footer">
+				  <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+				  <input type="hidden" value="{{table_name}}" name="table-name-old" />
+				  <button type="submit" class="btn btn-warning btn-ok" name="action" value="rename-table"> Rename Table</button>
+				</div>
+			 </form>
+        </div>
+    </div>
+  </div>
+</div>
+<script>
+  $('#confirm-delete').on('show.bs.modal', function(e) {
+  alert(e);
+    $(this).find('.btn-ok').attr('href', $(e.relatedTarget).data('href'));
+  });
+</script>
+
+
+
 <div class="col-sm-4">
 <div class="row">
 <h2>Tables</h2>
@@ -32,7 +70,7 @@
   <a href="/table/{{tab}}" class="list-group-item active">
 	{{tab}}
 	<form class="pull-right" action="/table/{{table}}" method="post">
-	<button type="button" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#confirm-delete">Rename</button>
+	<button type="button" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#confirm-rename">Rename</button>
 	<button type="button" class="btn btn-danger btn-xs" data-toggle="modal" data-target="#confirm-delete">Delete</button>
 	</form>
   </a>
