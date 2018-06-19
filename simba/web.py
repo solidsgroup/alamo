@@ -32,13 +32,25 @@ script_directory = os.path.realpath(__file__)
 app = Flask(__name__)
 
 
-@app.route("/")
+@app.route("/", methods=['GET','POST'])
 def root():
     db = sqlite3.connect(args.database)
     db.text_factory = str
     cur= db.cursor()
+
+    if request.method == 'POST':
+        if request.form.get('action')=="delete-table" and not args.safe:
+            print("deleting table " + request.form.get('table-name'))
+            cur.execute("DROP TABLE " + request.form.get('table-name'))
+        if request.form.get('action')=="rename-table" and not args.safe:
+            print(request.form.get('table-name-old'))
+            print(request.form.get('table-name-new'))
+            cur.execute("ALTER TABLE " + str(request.form.get('table-name-old')) + " RENAME TO " + str(request.form.get('table-name-new')))
+            
+
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in cur.fetchall()]
+
     if len(tables) > 0:
         return redirect('/table/'+tables[0])
     return render_template('root.html',
