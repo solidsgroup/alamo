@@ -18,14 +18,17 @@
 		{% endfor %}
 	  </tr>
 	</thead>
-	{% for row in table %}
+	{% for j in range(0,table|length) %}
 	<tr>
-	  {% for i in range (1,row|length) %}
+	  {% for i in range (1,table[j]|length) %}
 	  <td>
 		{% if columns[i] == "DIR" %}
-		<a href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
+		<a href="/table/{{table_name}}/entry/{{table[j][0]}}"{{table[j][i]}}\"">{{table[j][i]}} </a>
+		{% if numfiles|length > 0 %}{% if numfiles[j] > 0 %}
+		<span class="label label-primary"> {{numfiles[j]}} files </span>
+		{% endif %}{% endif %}
 		{% else %}
-		{{row[i]}}
+		{{table[j][i]}}
 		{% endif %}
 	  </td>
 	  {% endfor %}
