@@ -4,6 +4,8 @@
 ///
 
 #include "Integrator.H"
+#include "IO/FileNameParse.H"
+#include <numeric>
 
 
 using namespace amrex;
@@ -26,6 +28,8 @@ Integrator::Integrator::Integrator ()
     pp.query("plot_file", plot_file);       // IO Processor only
     //pp.query("restart", restart_chkfile); // Not currently used
     pp.query("plot_file", plot_file);       // IO Processor only
+
+	IO::FileNameParse(plot_file);
 
     nsubsteps.resize(maxLevel()+1,1);
     int cnt = pp.countval("nsubsteps");
@@ -64,7 +68,6 @@ Integrator::Integrator::Integrator ()
   if (ParallelDescriptor::IOProcessor())
     {
       amrex::UtilCreateCleanDirectory(plot_file, false);
-      WriteMetaData();
     }
 }
 
@@ -74,6 +77,7 @@ Integrator::Integrator::Integrator ()
 ///
 Integrator::Integrator::~Integrator ()
 {
+	IO::WriteMetaData(plot_file);
 }
 
 /// \fn    Integrator::MakeNewLevelFromCoarse
@@ -147,14 +151,16 @@ Integrator::Integrator::ClearLevel (int lev)
 
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-				     BC::BC &new_bc,
-				     int ncomp,
-				     int nghost,
-				     std::string name)
+				       BC::BC &new_bc,
+				       int ncomp,
+				       int nghost,
+				       std::string name)
 {
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
   int nlevs_max = maxLevel() + 1;
-  new_fab.resize(nlevs_max);
-  //fab_array.push_back((std::unique_ptr<amrex::Array<std::unique_ptr<amrex::MultiFab> > >)&new_fab);
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
+  new_fab.resize(nlevs_max); // <<<< Problem occurs here?
+  if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
   fab_array.push_back(&new_fab);
   physbc_array.push_back(&new_bc); 
   ncomp_array.push_back(ncomp);
@@ -361,41 +367,6 @@ Integrator::Integrator::PlotFileName (int lev) const
   name.push_back(amrex::Concatenate("", lev, 5));
   return name;
 }
-
-#define STR(a) #a
-void
-Integrator::Integrator::WriteMetaData() const
-{
-  std::ofstream metadatafile;
-  metadatafile.open(plot_file+"/metadata",std::ios_base::out);
-  metadatafile << "COMPILATION DETAILS" << std::endl;
-  metadatafile << "===================" << std::endl;
-  metadatafile << "Git commit hash:         " << METADATA_GITHASH << std::endl;
-  metadatafile << "AMReX version:           " << amrex::Version() << std::endl;
-  metadatafile << "Dimension:               " << AMREX_SPACEDIM << std::endl;
-  metadatafile << "Compiled by:             " << METADATA_USER  << std::endl;
-  metadatafile << "Platform:                " << METADATA_PLATFORM  << std::endl;
-  metadatafile << "Compiler:                " << METADATA_COMPILER  << std::endl;
-  metadatafile << "Compilation Date:        " << METADATA_DATE  << std::endl;
-  metadatafile << "Compilation Time:        " << METADATA_TIME  << std::endl;
-  metadatafile << std::endl;
-
-  auto starttime = std::chrono::system_clock::now();
-  std::time_t now = std::chrono::system_clock::to_time_t(starttime);
-  metadatafile << "RUN DETAILS" << std::endl;
-  metadatafile << "===========" << std::endl;
-  metadatafile << "Simulation started:      " << std::ctime(&now);
-  metadatafile << "Number of processors:    " << amrex::ParallelDescriptor::NProcs() << std::endl;
-  metadatafile << std::endl;
-
-  metadatafile << "PARAMETERS" << std::endl;
-  metadatafile << "==========" << std::endl;
-  amrex::ParmParse pp;
-  pp.dumpTable(metadatafile,true);
-  
-  metadatafile.close();
-}
-
 
 void
 Integrator::Integrator::WritePlotFile () const

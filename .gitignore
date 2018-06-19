@@ -14,3 +14,7 @@ output*
 plot*
 bl_prof*
 build
+*.orig
+*.pyc
+*.db
+simba.sh

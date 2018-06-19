@@ -1,4 +1,5 @@
 #include <AMReX_MultiFabUtil.H>
+#if AMREX_SPACEDIM == 2
 #include "eigen3/Eigen/Core"
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
@@ -21,11 +22,11 @@ FEM::~FEM ()
 {}
 
 template<> 
-void FEM::Energy<1> (int amrlev,		///<[in] AMR Level
-			int mglev,		///<[in]
-			MultiFab& dw,	///<[out] The force vector
-			const MultiFab& u	///<[in] The displacements vector
-			) const
+void FEM::Energy<1> (int /*amrlev*/,		///<[in] AMR Level
+		     int /*mglev*/,		///<[in]
+		     MultiFab& /*dw*/,	///<[out] The force vector
+		     const MultiFab& /*u*/	///<[in] The displacements vector
+		     ) const
 {
   BL_PROFILE("Operator::FEM::FEM::apply()");
 
@@ -411,3 +412,4 @@ FEM::C(const int i, const int j, const int k, const int l,
 }
 }
 }
+#endif

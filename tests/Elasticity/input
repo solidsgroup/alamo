@@ -1,0 +1,30 @@
+plot_file = tests/Elasticity/output
+
+bc.body_force = 0 0 0
+bc.disp_bc_top = 0.0 0.1 0
+bc.disp_bc_left = 0 0 0
+bc.disp_bc_right = 0 0 0
+bc.disp_bc_bottom = 0 0 0
+bc.disp_bc_front = 0 0 0
+bc.disp_bc_back = 0 0 0
+bc.bc_x_lo = NEUMANN
+bc.bc_y_lo = EXT_DIR
+bc.bc_z_lo = PERIODIC
+bc.bc_x_hi = NEUMANN
+bc.bc_y_hi = EXT_DIR
+bc.bc_z_hi = PERIODIC
+
+solver.max_level		= 1;
+solver.ref_ratio		= 2;
+solver.n_cell			= 32;
+solver.max_grid_size	= 64;
+solver.composite_solve	= 1
+solver.verbose			= 2;
+solver.cg_verbose 		= 0;
+solver.max_iter			= 2000;
+solver.max_fmg_iter 	= 0;
+solver.linop_maxorder 	= 2;
+solver.agglomeration 	= 1;
+solver.consolidation 	= 0;
+solver.tol_rel			= 1.0e-5;
+solver.tol_abs			= 1.0e-5;

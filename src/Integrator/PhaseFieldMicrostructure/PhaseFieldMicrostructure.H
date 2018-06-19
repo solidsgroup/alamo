@@ -30,6 +30,8 @@
 #include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 
+namespace Integrator
+{
 ///
 /// \class PhaseFieldMicrostructure
 /// \brief Microstructure evolution with grain boundary anisotropy
@@ -37,7 +39,7 @@
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
-class PhaseFieldMicrostructure : public Integrator::Integrator
+class PhaseFieldMicrostructure : public Integrator
 {
 public:
   PhaseFieldMicrostructure();
@@ -69,7 +71,7 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-  BC::BC mybc;
+  BC::BC *mybc;
 
   amrex::Real M, mu, gamma, sigma0, l_gb, beta;
   int anisotropy = 0;
@@ -99,5 +101,5 @@ private:
   Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 
 };
-
+}
 #endif

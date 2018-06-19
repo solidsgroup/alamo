@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block content %}
+
+{% include 'tables.html' %}
+
+<br/>
+
+
+<div class="row">
+<div class="col-sm-12">
+<h2>Table Entries</h2>
+<div class="table-responsive">
+  <table id="bigtable" class="table table-striped table-bordered" style="width:100%;">
+	<thead>
+	  <tr>
+		{% for i in range(1,columns|length) %}
+		<th> {{columns[i]}} </th> 
+		{% endfor %}
+	  </tr>
+	</thead>
+	{% for row in table %}
+	<tr>
+	  {% for i in range (1,row|length) %}
+	  <td>
+		{% if columns[i] == "DIR" %}
+		<a href="/table/{{table_name}}/entry/{{row[0]}}"{{row[i]}}\"">{{row[i]}}</a>
+		{% else %}
+		{{row[i]}}
+		{% endif %}
+	  </td>
+	  {% endfor %}
+	</tr>
+	{% endfor %}
+  </table>
+</div>
+</div>
+</div>
+
+
+
+{% endblock %}
