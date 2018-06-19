@@ -36,6 +36,13 @@ Elastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigens
 	RegisterNewFab(eigenstrain,es_bc);
 }
 
+void
+Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain, BC::BC &es_bc)
+{
+	usingEigenstrain = true;
+	AMREX_ASSERT(eigenstrain[0].nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
+	RegisterNewFab(eigenstrain,es_bc);
+}
 
 void
 Elastic::Fapply (int amrlev, ///<[in] AMR Level
@@ -307,19 +314,19 @@ Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 	fyfab.setVal(0.0);
 }
 
-void Elastic::GetEigenstrainRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
+void Elastic::AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
 {
 	for (int amrlev=0; amrlev < rhsfab.size(); amrlev ++)
 		{
 			for (amrex::MFIter mfi(rhsfab[amrlev], true); mfi.isValid(); ++mfi)
 				{
 					amrex::FArrayBox       &rhs    = rhsfab[amrlev][mfi];
-					GetEigenstrainRHS(rhs,amrlev,mfi);
+					AddEigenstrainToRHS(rhs,amrlev,mfi);
 				}
 		}
 }
 
-void Elastic::GetEigenstrainRHS (FArrayBox& rhsfab,
+void Elastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
 											int amrlev, const MFIter& mfi) const
 {
 	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
@@ -346,9 +353,6 @@ void Elastic::GetEigenstrainRHS (FArrayBox& rhsfab,
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 					for (int i=0; i<AMREX_SPACEDIM; i++)
 						{
-							rhsfab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) = 0.0;
-
-
 							for (int k=0; k<AMREX_SPACEDIM; k++)
 								{
 

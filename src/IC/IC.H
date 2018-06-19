@@ -13,7 +13,7 @@ public:
     : geom(_geom) {} ;
   
   virtual void Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::MultiFab> > &fab) = 0;
-  
+
 protected:
   amrex::Vector<amrex::Geometry> &geom;
 };

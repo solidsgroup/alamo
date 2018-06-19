@@ -39,8 +39,8 @@ public:
   
 protected:
 
-  void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input,
-		      BC::BC &new_bc);
+  void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input, BC::BC &new_bc);
+  void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input, BC::BC &new_bc);
   const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
 

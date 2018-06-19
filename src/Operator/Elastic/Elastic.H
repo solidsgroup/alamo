@@ -28,12 +28,12 @@ public:
 	Elastic& operator= (const Elastic&) = delete;
 	Elastic& operator= (Elastic&&) = delete;
 
-	void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &,
-						BC::BC &);
+	void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &, BC::BC &);
+	void SetEigenstrain(amrex::Vector<amrex::MultiFab> &, BC::BC &);
 
-	void GetEigenstrainRHS (FArrayBox& esrhs,
+	void AddEigenstrainToRHS (FArrayBox& esrhs,
 									int amrlev, const MFIter& mfi) const;
-	void GetEigenstrainRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
+	void AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
 
 	void Stress (FArrayBox& sigmafab,
 				 const FArrayBox& ufab,

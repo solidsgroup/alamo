@@ -24,6 +24,31 @@ Operator::Operator::define (const Vector<Geometry>& a_geom,
 }
 
 void
+Operator::Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input, BC::BC &new_bc)
+{
+  /// \todo assertions here
+  m_a_coeffs.resize(m_a_coeffs.size() + 1);
+  m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+  for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+				m_dmap[amrlev][mglev],
+				input[amrlev].nComp(),
+				input[amrlev].nGrow());
+
+		MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+			       input[amrlev], 0, 0,
+			       input[amrlev].nComp(),
+			       input[amrlev].nGrow());
+	}
+  m_num_a_fabs++;
+
+  physbc_array.push_back(&new_bc); 
+}
+
+void
 Operator::Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input,
 				   BC::BC &new_bc)
 {
