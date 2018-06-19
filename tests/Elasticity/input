@@ -29,4 +29,4 @@ solver.agglomeration 	= 1
 solver.consolidation 	= 0
 solver.tol_rel			= 1.0e-5
 solver.tol_abs			= 1.0e-5
-
+solver.use_fsmooth = 1

@@ -329,7 +329,9 @@ void Elastic::AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
 void Elastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
 											int amrlev, const MFIter& mfi) const
 {
-	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
+	BL_PROFILE("Operator::Elastic::AddEigenstrainToRHS()");
+
+	if (!usingEigenstrain) return;
 
 	const Real* DX = m_geom[amrlev][0].CellSize();
   
@@ -434,6 +436,8 @@ Elastic::Stress (FArrayBox& sigmafab,
 	amrex::IntVect dz(0,0,1);
 #endif
 	const Box& bx = mfi.tilebox();
+	
+
 	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
 		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
 #if AMREX_SPACEDIM==3
@@ -441,42 +445,38 @@ Elastic::Stress (FArrayBox& sigmafab,
 #endif
 				{
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					Set::Matrix gradu;
+#if AMREX_SPACEDIM==2
+					gradu <<
+						(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]),
+						(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]), (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+							
+#elif AMREX_SPACEDIM==3
+					gradu << 
+						(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]), (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]),
+						(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]), (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]), (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]),
+						(ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]), (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]), (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
+#endif
 
-					amrex::Real du1_dx1 = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-					amrex::Real du1_dx2 = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
-#if AMREX_SPACEDIM==3
-					amrex::Real du1_dx3 = (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]);
+					Set::Matrix eps0 = Set::Matrix::Zero();
+					if (usingEigenstrain)
+						{
+							const FArrayBox &eps0fab = GetFab(0,amrlev,0,mfi);
+#if AMREX_SPACEDIM ==2
+							eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3);
+#elif AMREX_SPACEDIM ==3
+							eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3), eps0fab(m,4), eps0fab(m,5), eps0fab(m,6), eps0fab(m,7), eps0fab(m,8);
 #endif
-					amrex::Real du2_dx1 = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
-					amrex::Real du2_dx2 = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-#if AMREX_SPACEDIM==3
-					amrex::Real du2_dx3 = (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
-					amrex::Real du3_dx1 = (ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]);
-					amrex::Real du3_dx2 = (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]);
-					amrex::Real du3_dx3 = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
-#endif
+						}
 
 					for (int i=0; i<AMREX_SPACEDIM; i++)
 						for (int j=0; j<AMREX_SPACEDIM; j++)
 							{
-								int voigt = (i+1)*(i==j ? 1:0) + (1- (i==j ? 1:0))*
-									(AMREX_SPACEDIM*AMREX_SPACEDIM - (i+1) - (j+1)) - 1;
-								sigmafab(m,voigt) =
-									C(i,j,0,0,m,amrlev,0,mfi)*du1_dx1 +
-									C(i,j,0,1,m,amrlev,0,mfi)*du1_dx2 +
-									C(i,j,1,0,m,amrlev,0,mfi)*du2_dx1 +
-									C(i,j,1,1,m,amrlev,0,mfi)*du2_dx2;
-#if AMREX_SPACEDIM==3
-								sigmafab(m,voigt) += 
-									C(i,j,0,2,m,amrlev,0,mfi)*du1_dx3 + 
-									C(i,j,1,2,m,amrlev,0,mfi)*du2_dx3 + 
-									C(i,j,2,0,m,amrlev,0,mfi)*du3_dx1 + 
-									C(i,j,2,1,m,amrlev,0,mfi)*du3_dx2 + 
-									C(i,j,2,2,m,amrlev,0,mfi)*du3_dx3;
-#endif
+								for (int k=0; k<AMREX_SPACEDIM; k++)
+									for (int l=0; l<AMREX_SPACEDIM; l++)
+										sigmafab(m,i*AMREX_SPACEDIM + j) += C(i,j,k,l,m,amrlev,0,mfi) * (gradu(k,l) - eps0(k,l));
 							}
 				}
-
 }
 
 void
@@ -512,6 +512,7 @@ Elastic::Energy (FArrayBox& energyfab,
 					gradu <<
 						(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]),
 						(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]), (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+							
 #elif AMREX_SPACEDIM==3
 					gradu << 
 						(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]), (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]),
@@ -519,14 +520,24 @@ Elastic::Energy (FArrayBox& energyfab,
 						(ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]), (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]), (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
 #endif
 
+					Set::Matrix eps0 = Set::Matrix::Zero();
+					if (usingEigenstrain)
+						{
+							const FArrayBox &eps0fab = GetFab(0,amrlev,0,mfi);
+#if AMREX_SPACEDIM ==2
+							eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3);
+#elif AMREX_SPACEDIM ==3
+							eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3), eps0fab(m,4), eps0fab(m,5), eps0fab(m,6), eps0fab(m,7), eps0fab(m,8);
+#endif
+						}
+
 					energyfab(m) = 0.0;
 
 					for (int i=0; i<AMREX_SPACEDIM; i++)
 						for (int j=0; j<AMREX_SPACEDIM; j++)
 							for (int k=0; k<AMREX_SPACEDIM; k++)
 								for (int l=0; l<AMREX_SPACEDIM; l++)
-									energyfab(m) += 0.5 * gradu(i,j) * C(i,j,k,l,m,amrlev,0,mfi) * gradu(k,l);
-
+									energyfab(m) += 0.5 * (gradu(i,j) - eps0(i,j)) * C(i,j,k,l,m,amrlev,0,mfi) * (gradu(k,l) - eps0(k,l));
 				}
 }
 }

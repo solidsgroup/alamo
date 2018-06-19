@@ -36,8 +36,6 @@ public:
 	{
 		return {{{AMREX_D_DECL((T)bc_lo[0],(T)bc_lo[1],(T)bc_lo[2])},
 		 			{AMREX_D_DECL((T)bc_lo[0],(T)bc_lo[1],(T)bc_lo[2])}}};
-		// return {{{AMREX_D_DECL((T)0,(T)0,(T)0)},
-		// 			{AMREX_D_DECL((T)0,(T)0,(T)0)}}};
 	}
 
 
