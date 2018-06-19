@@ -1,6 +1,8 @@
-#include "PFFlame/PFFlame.H"
+#include "Flame.H"
 
-PFFlame::PFFlame () : Integrator::Integrator(), TempBC(geom,"TempBC"), EtaBC(geom,"EtaBC")
+namespace Integrator
+{
+Flame::Flame () : Integrator()
 {
   amrex::ParmParse pp("physics"); 
   pp.query("M",M);
@@ -16,14 +18,70 @@ PFFlame::PFFlame () : Integrator::Integrator(), TempBC(geom,"TempBC"), EtaBC(geo
   pp.query("cp0",cp0);
   pp.query("qdotburn",qdotburn);
 
-  RegisterNewFab(Temp,     TempBC, 1, 1, "Temp");
-  RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old");
-  RegisterNewFab(Eta,      EtaBC,  1, 1, "Eta");
-  RegisterNewFab(Eta_old,  EtaBC,  1, 1, "Eta_old");
+
+
+  {
+    amrex::ParmParse pp("TempBC");
+    amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
+    amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
+    pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+    pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+    amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+    if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
+    if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
+    amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
+    if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
+    if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
+    amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
+    if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
+    if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+
+    TempBC = new BC::BC(geom
+						,bc_hi_str, bc_lo_str
+						,bc_lo_1, bc_hi_1
+						,bc_lo_2, bc_hi_2
+#if AMREX_SPACEDIM>2
+						,bc_lo_3, bc_hi_3
+#endif
+						);
+  }
+  {
+    amrex::ParmParse pp("EtaBC");
+    amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
+    amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
+    pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+    pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+    amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+    if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
+    if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
+    amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
+    if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
+    if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
+    amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
+    if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
+    if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+
+    EtaBC = new BC::BC(geom
+					   ,bc_hi_str, bc_lo_str
+					   ,bc_lo_1, bc_hi_1
+					   ,bc_lo_2, bc_hi_2
+#if AMREX_SPACEDIM>2
+					   ,bc_lo_3, bc_hi_3
+#endif
+					   );
+  }
+
+  
+
+
+  RegisterNewFab(Temp,     *TempBC, 1, 1, "Temp");
+  RegisterNewFab(Temp_old, *TempBC, 1, 1, "Temp_old");
+  RegisterNewFab(Eta,      *EtaBC,  1, 1, "Eta");
+  RegisterNewFab(Eta_old,  *EtaBC,  1, 1, "Eta_old");
 
 }
 
-void PFFlame::Initialize (int lev)
+void Flame::Initialize (int lev)
 {
   for (amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi)
        {
@@ -50,7 +108,7 @@ void PFFlame::Initialize (int lev)
 
 
 
-void PFFlame::Advance (int lev, amrex::Real time, amrex::Real dt)
+void Flame::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
   std::swap(Eta_old [lev], Eta [lev]);
   std::swap(Temp_old[lev], Temp[lev]);
@@ -126,7 +184,7 @@ void PFFlame::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 
 
-void PFFlame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+void Flame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 
   const amrex::Real* dx      = geom[lev].CellSize();
@@ -157,4 +215,4 @@ void PFFlame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::R
     }
 
 }
-
+}

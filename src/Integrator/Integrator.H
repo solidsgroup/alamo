@@ -22,6 +22,7 @@
 #include <AMReX_PlotFileUtil.H>
 
 #include "BC/BC.H"
+#include "IO/WriteMetaData.H"
 
 ///
 /// \class Integrator
@@ -193,7 +194,6 @@ private:
 
   std::vector<std::string> PlotFileName (int lev) const;
   void WritePlotFile () const;
-  void WriteMetaData () const;
 
   //
   // MEMBER VARIABLES

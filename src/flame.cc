@@ -4,11 +4,8 @@
 
 #include "AMReX.H"
 #include "AMReX_ParallelDescriptor.H"
-#include "PFFlame/PFFlame.H"
 
-#include "Integrator/Integrator.H"
-
-#include "BC/BC.H"
+#include "Integrator/Flame/Flame.H"
 
 int main (int argc, char* argv[])
 {
@@ -20,7 +17,7 @@ int main (int argc, char* argv[])
     }
   amrex::Initialize(argc,argv);
 
-  PFFlame pfamr;
+  Integrator::Flame pfamr;
   pfamr.InitData();
   pfamr.Evolve();
   

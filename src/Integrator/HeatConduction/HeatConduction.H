@@ -13,8 +13,8 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 
-#include "HeatConduction/IC/Cylinder.H"
-#include "HeatConduction/IC/Constant.H"
+#include "IC/HeatConduction/Cylinder.H"
+#include "IC/HeatConduction/Constant.H"
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -37,7 +37,7 @@
 ///    - See #Cylinder or #Constant
 namespace Integrator
 {
-class HeatConduction : public Integrator::Integrator
+class HeatConduction : public Integrator
 {
 public:
 
@@ -68,7 +68,7 @@ private:
 
   std::string ic_type;						///< String to determine what kind of initial condition to use
   IC::IC *ic;            					///< Pointer to abstract IC object
-  BC::BC mybc;                   				///< Stock generic boundary condition object
+  BC::BC *mybc;                   				///< Stock generic boundary condition object
 };
 }
 #endif

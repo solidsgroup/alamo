@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<a href="/table/{{table}}"><button type="button" class="btn btn-primary"><span class="glyphicon glyphicon-arrow-left"></span> Back </button></a>
+
+<div class="modal fade" id="confirm-delete" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+		<b>Delete Record Confirmation</b>
+      </div>
+      <div class="modal-body">
+		Are you sure you want to delete this record?
+      </div>
+      <div class="modal-footer">
+		<form action="/table/{{table}}" method="post">
+		  <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+		  <input type="hidden" value="{{entry}}" name="entry-hash" />
+          <button type="submit" class="btn btn-warning btn-ok" name="action" value="delete-entry-only"><span class="glyphicon glyphicon-trash"></span> Delete Database Entry Only</a>
+		  <!--input type="hidden" value="{{entry}}" name="delete-entry-dir" /-->
+          <button type="submit" class="btn btn-danger btn-ok" name="action" value="delete-everything"><span class="glyphicon glyphicon-trash"></span> Delete Everything</a>
+		</form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  $('#confirm-delete').on('show.bs.modal', function(e) {
+  alert(e);
+    $(this).find('.btn-ok').attr('href', $(e.relatedTarget).data('href'));
+  });
+</script>
+
+
+
+<h3>Simulation Information</h3>
+<button type="button" class="btn btn-danger pull-right" data-href="/delete.php?id=54" data-toggle="modal" data-target="#confirm-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+<table class="table" style="width:100%;">
+  <thead>
+	<tr>
+	  <th>Field</th><th>Value</th>
+	</tr>
+  </thead>
+  {% for i in range (0,columns|length) %}
+  <tr>
+	<td> {{ columns[i] }}</td>
+	{% if columns[i] == "Description" %}
+	<td>
+	  <div width="100%">
+		{{data[i]}}
+		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-description">Edit Description</button>
+	  </div>
+	  <br/>
+	  <div width="100%">
+		<form width="100%" class="form-group collapse out" id="form-description" action="/table/{{table}}/entry/{{entry}}" method="post">
+		  <textarea class="form-control" rows="5" name='description'>{{data[i]}}</textarea>
+		  <button class="btn btn-success pull-right" type="Update">Update</button>
+		</form>
+	  </div>
+	</td>
+	{% elif columns[i] == "Tags" %}
+	<td>
+	  <div width="100%">
+		{{data[i]}}
+		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-tags">Edit Tags</button>
+	  </div>
+	  <br/>
+	  <div width="100%">
+		<form width="100%" class="form-group collapse out" id="form-tags" action="/table/{{table}}/entry/{{entry}}" method="post">
+		  <textarea class="form-control" rows="5" name="tags">{{data[i]}}</textarea>
+		  <button class="btn btn-success pull-right" type="Update">Update</button>
+		</form>
+	  </div>
+	</td>
+	{% else %}
+	<td> {{ data[i] }}</td>
+	{% endif %}
+  </tr>
+  {% endfor %}
+</table>
+
+<h3>Simulation Analysis</h3>
+
+<div class="row">
+	{% for i in range(0,imgfiles|length) %}
+	<div class="thumbnail col-md-4 ml-auto">
+	  <a class="thumbnail" href="/img/{{i}}" style="word-wrap:break-word;">
+	  <img src="/img/{{i}}" ></img>
+	  </a>
+	  <div class="caption text-center">
+		<a href="/img/{{i}}"> {{imgfiles[i]}}</a>
+	  </div>
+	</div>
+	{% endfor %}
+</div>
+
+
+{% endblock %}
