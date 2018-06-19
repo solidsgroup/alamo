@@ -1,9 +1,11 @@
-#include "PolymerDegradation/PolymerDegradation.H"
+#include "PolymerDegradation.H"
 
 #if BL_SPACEDIM == 2
 
+namespace Integrator
+{
 PolymerDegradation::PolymerDegradation():
-	Integrator::Integrator()
+	Integrator()
 {
 
 	//
@@ -620,6 +622,6 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		}
 	}
 }
-
+}
 
 #endif

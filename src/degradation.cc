@@ -6,7 +6,7 @@
 
 #if AMREX_SPACEDIM == 2
 
-#include "PolymerDegradation/PolymerDegradation.H"
+#include "Integrator/PolymerDegradation/PolymerDegradation.H"
 
 int main (int argc, char* argv[])
 {
@@ -19,7 +19,7 @@ int main (int argc, char* argv[])
 
 	srand(1.0*amrex::ParallelDescriptor::MyProc());
 	{
-		PolymerDegradation model;
+		Integrator::PolymerDegradation model;
 		model.InitData();
 		model.Evolve();
 	}

@@ -35,6 +35,8 @@
 #define WATER_OLD(i,j,k) water_conc_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define WATER(i,j,k) water_conc_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 
+namespace Integrator
+{
 
 ///
 /// \class PhaseFieldMicrostructure
@@ -144,5 +146,5 @@ private:
 	Operator::Elastic::Degradation::Degradation *elastic_operator;
 
 };
-
+}
 #endif
