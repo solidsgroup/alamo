@@ -2,7 +2,7 @@
 
 #if BL_SPACEDIM == 2
 
-using namespace Integrator
+namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 {

@@ -307,6 +307,110 @@ Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 	fyfab.setVal(0.0);
 }
 
+void Elastic::GetEigenstrainRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
+{
+	for (int amrlev=0; amrlev < rhsfab.size(); amrlev ++)
+		{
+			for (amrex::MFIter mfi(rhsfab[amrlev], true); mfi.isValid(); ++mfi)
+				{
+					amrex::FArrayBox       &rhs    = rhsfab[amrlev][mfi];
+					GetEigenstrainRHS(rhs,amrlev,mfi);
+				}
+		}
+}
+
+void Elastic::GetEigenstrainRHS (FArrayBox& rhsfab,
+											int amrlev, const MFIter& mfi) const
+{
+	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
+
+	const Real* DX = m_geom[amrlev][0].CellSize();
+  
+#if AMREX_SPACEDIM == 1
+	static amrex::IntVect dx(1);
+#elif AMREX_SPACEDIM == 2
+	static amrex::IntVect dx(1,0), dy(0,1);
+#elif AMREX_SPACEDIM == 3
+	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
+#endif 
+
+	const Box& bx = mfi.tilebox();
+	const amrex::FArrayBox &eps0fab = GetFab(0,amrlev,0,mfi);
+
+	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+#if AMREX_SPACEDIM > 2
+			for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
+#endif
+				{
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					for (int i=0; i<AMREX_SPACEDIM; i++)
+						{
+							rhsfab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) = 0.0;
+
+
+							for (int k=0; k<AMREX_SPACEDIM; k++)
+								{
+
+									Set::Matrix gradeps0_k; //  gradeps0_k(l,j) == eps0_{kl,j}
+									gradeps0_k(0,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 0) - eps0fab(m-dx,k*AMREX_SPACEDIM + 0)) / (2.0*DX[0]); // eps0_{k0,0}
+									gradeps0_k(0,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 0) - eps0fab(m-dy,k*AMREX_SPACEDIM + 0)) / (2.0*DX[1]); // eps0_{k0,1}
+									gradeps0_k(1,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 1) - eps0fab(m-dx,k*AMREX_SPACEDIM + 1)) / (2.0*DX[0]); // eps0_{k1,0}
+									gradeps0_k(1,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 1) - eps0fab(m-dy,k*AMREX_SPACEDIM + 1)) / (2.0*DX[1]); // eps0_{k1,1}
+#if AMREX_SPACEDIM > 2
+									gradeps0_k(0,2) = (eps0fab(m+dz,k*AMREX_SPACEDIM + 0) - eps0fab(m-dz,k*AMREX_SPACEDIM + 0)) / (2.0*DX[2]); // eps0_{k0,1}
+									gradeps0_k(1,2) = (eps0fab(m+dz,k*AMREX_SPACEDIM + 1) - eps0fab(m-dz,k*AMREX_SPACEDIM + 1)) / (2.0*DX[2]); // eps0_{k0,1}
+									gradeps0_k(2,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 2) - eps0fab(m-dx,k*AMREX_SPACEDIM + 2)) / (2.0*DX[0]); // eps0_{k0,0}
+									gradeps0_k(2,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 2) - eps0fab(m-dy,k*AMREX_SPACEDIM + 2)) / (2.0*DX[1]); // eps0_{k0,1}
+									gradeps0_k(2,2) = (eps0fab(m+dz,k*AMREX_SPACEDIM + 2) - eps0fab(m-dz,k*AMREX_SPACEDIM + 2)) / (2.0*DX[2]); // eps0_{k0,1}
+#endif
+
+									Set::Vector eps0_k; // eps0_k(l) = eps0_{kl}
+									eps0_k(0) = eps0fab(m,k*AMREX_SPACEDIM + 0);
+									eps0_k(1) = eps0fab(m,k*AMREX_SPACEDIM + 1);
+#if AMREX_SPACEDIM > 2
+									eps0_k(2) = eps0fab(m,k*AMREX_SPACEDIM + 2);
+#endif
+
+
+									// C_{ijkl} (u_{k,lj} - eps0_{kl,j})
+
+									for (int j=0; j<AMREX_SPACEDIM; j++)
+										for (int l=0; l<AMREX_SPACEDIM; l++)
+											rhsfab(m,i) -= C(i,j,k,l,m,amrlev,0,mfi) * (gradeps0_k(j,l));
+
+
+									// C_{ijkl,j} (u_{k,l} - eps0_{k,l}
+#if AMREX_SPACEDIM == 2
+									rhsfab(m,i) -=
+										((C(i,0,k,0,m+dx,amrlev,0,mfi) - C(i,0,k,0,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
+										 (C(i,1,k,0,m+dy,amrlev,0,mfi) - C(i,1,k,0,m-dy,amrlev,0,mfi))/(2.0*DX[1])) *
+										(eps0_k(0))
+										+
+										((C(i,0,k,1,m+dx,amrlev,0,mfi) - C(i,0,k,1,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
+										 (C(i,1,k,1,m+dy,amrlev,0,mfi) - C(i,1,k,1,m-dy,amrlev,0,mfi))/(2.0*DX[1])) *
+										(eps0_k(1));
+#elif AMREX_SPACEIM == 3
+									rhsfab(m,i) -=
+										((C(i,0,k,0,m+dx,amrlev,0,mfi) - C(i,0,k,0,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
+										 (C(i,1,k,0,m+dy,amrlev,0,mfi) - C(i,1,k,0,m-dy,amrlev,0,mfi))/(2.0*DX[1]) +
+										 (C(i,2,k,0,m+dz,amrlev,0,mfi) - C(i,2,k,0,m-dz,amrlev,0,mfi))/(2.0*DX[2])) *
+										(eps0_k(0))
+										+
+										((C(i,0,k,1,m+dx,amrlev,0,mfi) - C(i,0,k,1,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
+										 (C(i,1,k,1,m+dy,amrlev,0,mfi) - C(i,1,k,1,m-dy,amrlev,0,mfi))/(2.0*DX[1]) +
+										 (C(i,2,k,1,m+dz,amrlev,0,mfi) - C(i,2,k,1,m-dz,amrlev,0,mfi))/(2.0*DX[2])) *
+										(eps0_k(1))
+										+
+										((C(i,0,k,2,m+dx,amrlev,0,mfi) - C(i,0,k,2,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
+										 (C(i,1,k,2,m+dy,amrlev,0,mfi) - C(i,1,k,2,m-dy,amrlev,0,mfi))/(2.0*DX[1]) +
+										 (C(i,2,k,2,m+dz,amrlev,0,mfi) - C(i,2,k,2,m-dz,amrlev,0,mfi))/(2.0*DX[2])) *
+										(eps0_k(2));
+#endif
+								}
+						}
+				}
+}
 
 void
 Elastic::Stress (FArrayBox& sigmafab,

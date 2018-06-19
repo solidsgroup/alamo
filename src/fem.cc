@@ -229,16 +229,50 @@ int main (int argc, char* argv[])
 			const Real* dx = geom[ilev].CellSize();
 			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
-			rhs[ilev].setVal(body_force[0]*volume,0,1);
-#if AMREX_SPACEDIM > 1
-			rhs[ilev].setVal(body_force[1]*volume,1,1);
-#if AMREX_SPACEDIM > 2
-			rhs[ilev].setVal(body_force[2]*volume,2,1);
-#endif
-#endif
+// 			rhs[ilev].setVal(body_force[0]*volume,0,1);
+// #if AMREX_SPACEDIM > 1
+// 			rhs[ilev].setVal(body_force[1]*volume,1,1);
+// #if AMREX_SPACEDIM > 2
+// 			rhs[ilev].setVal(body_force[2]*volume,2,1);
+// #endif
+// #endif
+
 			u[ilev].setVal(0.0);
 			
+
+
 			eps0[ilev]->setVal(0.0);
+
+			const amrex::Real L1 = geom[ilev].ProbHi()[0] - geom[ilev].ProbLo()[0];
+			const amrex::Real L2 = geom[ilev].ProbHi()[1] - geom[ilev].ProbLo()[1];
+			for (amrex::MFIter mfi(*eps0[ilev],true); mfi.isValid(); ++mfi)
+				{
+					const amrex::Box& box = mfi.tilebox();
+
+					amrex::FArrayBox &eps0fab = (*eps0[ilev])[mfi];
+
+					for (int i = box.loVect()[0]-eps0[ilev]->nGrow(); i<=box.hiVect()[0]+eps0[ilev]->nGrow(); i++) 
+						for (int j = box.loVect()[1]-eps0[ilev]->nGrow(); j<=box.hiVect()[1]+eps0[ilev]->nGrow(); j++)
+#if BL_SPACEDIM==3
+							for (int k = box.loVect()[2]-eps0[ilev]->nGrow(); k<=box.hiVect()[2]+eps0[ilev]->nGrow(); k++)
+#endif
+								{
+									amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
+									amrex::Real x = geom[ilev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[ilev].CellSize()[0];
+									amrex::Real y = geom[ilev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[ilev].CellSize()[1];
+
+									amrex::Real eX = (x - (geom[ilev].ProbLo()[0] + 0.5*L1))/(0.25*L1);
+									amrex::Real eY = (y - (geom[ilev].ProbLo()[1] + 0.5*L2))/(0.25*L2);
+
+
+									if (eX*eX + eY*eY < 1.0)
+										eps0fab(m,0) = 1.0;     
+									// else
+									// 	eps0fab(amrex::IntVect(AMREX_D_DECL(i,j,k))) = 0.0;     
+								}
+				}
+
 		}
 
 
@@ -279,6 +313,7 @@ int main (int argc, char* argv[])
 	mlabec.setMaxOrder(linop_maxorder);
   
 	mlabec.SetEigenstrain(eps0,*mybc);
+	mlabec.GetEigenstrainRHS(rhs);
 
 	// set boundary conditions
 
