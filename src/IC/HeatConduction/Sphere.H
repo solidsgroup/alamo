@@ -1,5 +1,5 @@
-#ifndef PerturbedInterface_H_
-#define PerturbedInterface_H_
+#ifndef IC_HEATCONDUCTION_SPHERE_H_
+#define IC_HEATCONDUCTION_SPHERE_H_
 
 #include "IC/IC.H"
 
