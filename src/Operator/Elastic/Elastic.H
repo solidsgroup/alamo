@@ -31,6 +31,10 @@ public:
 	void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &,
 						BC::BC &);
 
+	void GetEigenstrainRHS (FArrayBox& esrhs,
+									int amrlev, const MFIter& mfi) const;
+	void GetEigenstrainRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
+
 	void Stress (FArrayBox& sigmafab,
 				 const FArrayBox& ufab,
 				 int amrlev, const MFIter& mfi) const;
