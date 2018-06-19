@@ -15,6 +15,7 @@ parser.add_argument('-i','--ip', default='127.0.0.1', help='IP address of server
 parser.add_argument('-p','--port', default='5000', help='Port (default: 5000)');
 parser.add_argument('-d','--database',default='results.db',help='Name of database to read from')
 parser.add_argument('-s','--safe',dest='safe',action='store_true',help='Safe mode - disallow permanent record deletion')
+parser.add_argument('-f','--fast',dest='fast',action='store_true',help='Fast mode - fewer features for working with large datasets')
 args=parser.parse_args()
 
 if not args.safe and not args.ip == '127.0.0.1' or args.ip == 'localhost':
@@ -75,7 +76,7 @@ def table(table):
             os.system('rm -rf ' + cur.fetchall()[0][0])
             cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
             print("DELETE FROM " + table + " WHERE HASH = " + request.form.get('entry-hash') + ";")
-            
+    
 
     cur.execute("SELECT * FROM " + table_name )
     data = cur.fetchall()
@@ -88,10 +89,18 @@ def table(table):
     
     if table==None or table not in tables: table = tables[0];
 
+    numfiles = []
+    if not args.fast:
+        for d in data:
+            find_images(d[columns.index("DIR")])
+            numfiles.append(len(imgfiles))
+
+    print(numfiles)
     return render_template('template.html',
                            tables=tables,
                            table_name=table,
                            table=data,
+                           numfiles=numfiles,
                            columns=columns)
 imgfiles = []
 
@@ -99,7 +108,6 @@ def find_images(path):
     global imgfiles
     img_fmts = ['.jpg', '.jpeg', '.png', '.pdf']
     imgfiles = []
-
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
     imgfiles.sort()
 
