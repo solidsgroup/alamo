@@ -30,6 +30,8 @@
 #include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 
+namespace Integrator
+{
 ///
 /// \class PhaseFieldMicrostructure
 /// \brief Microstructure evolution with grain boundary anisotropy
@@ -37,7 +39,7 @@
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
-class PhaseFieldMicrostructure : public Integrator::Integrator
+class PhaseFieldMicrostructure : public Integrator
 {
 public:
   PhaseFieldMicrostructure();
@@ -99,5 +101,5 @@ private:
   Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 
 };
-
+}
 #endif
