@@ -66,9 +66,7 @@ Integrator::Integrator::Integrator ()
   
 
   if (ParallelDescriptor::IOProcessor())
-    {
-      amrex::UtilCreateCleanDirectory(plot_file, false);
-    }
+	  amrex::UtilCreateCleanDirectory(plot_file, false);
 }
 
 ///
@@ -77,7 +75,8 @@ Integrator::Integrator::Integrator ()
 ///
 Integrator::Integrator::~Integrator ()
 {
-	IO::WriteMetaData(plot_file);
+  if (ParallelDescriptor::IOProcessor())
+	  IO::WriteMetaData(plot_file);
 }
 
 /// \fn    Integrator::MakeNewLevelFromCoarse

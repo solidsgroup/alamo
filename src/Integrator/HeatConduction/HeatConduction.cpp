@@ -84,8 +84,9 @@ HeatConduction::Initialize (int lev)
 void
 HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
-	static amrex::IntVect
-		AMREX_D_DECL(dx(1,0,0), dy(0,1,0), dz(0,0,1));
+	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+												  dy(AMREX_D_DECL(0,1,0)),
+												  dz(AMREX_D_DECL(0,0,1)));
 
 	std::swap(*TempFab[lev], *TempOldFab[lev]);
 
@@ -125,8 +126,9 @@ HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex:
 {
 	const amrex::Real* DX      = geom[lev].CellSize();
 
-	static amrex::IntVect
-		AMREX_D_DECL(dx(1,0,0), dy(0,1,0), dz(0,0,1));
+	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+												  dy(AMREX_D_DECL(0,1,0)),
+												  dz(AMREX_D_DECL(0,0,1)));
 
 	for (amrex::MFIter mfi(*TempFab[lev],true); mfi.isValid(); ++mfi)
 		{
