@@ -5,14 +5,17 @@
 
 #include "Integrator.H"
 #include "IO/FileNameParse.H"
+#include "Util/Util.H"
 #include <numeric>
 
 
 using namespace amrex;
 
-Integrator::Integrator::Integrator ()
+namespace Integrator
 {
 
+Integrator::Integrator ()
+{
 	{
 		ParmParse pp;   // Basic run parameters
 		pp.query("max_step", max_step);
@@ -25,11 +28,7 @@ Integrator::Integrator::Integrator ()
 		//pp.query("check_file", check_file);   // Not currently used
 		//pp.query("check_int", check_int);     // Not currently used
 		pp.query("plot_int", plot_int);         // ALL processors
-		pp.query("plot_file", plot_file);       // IO Processor only
 		//pp.query("restart", restart_chkfile); // Not currently used
-		pp.query("plot_file", plot_file);       // IO Processor only
-
-		IO::FileNameParse(plot_file);
 
 		nsubsteps.resize(maxLevel()+1,1);
 		int cnt = pp.countval("nsubsteps");
@@ -46,7 +45,7 @@ Integrator::Integrator::Integrator ()
 					for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
 				}
 			else
-				amrex::Abort("number of nsubsteps input must equal either 1 or amr.max_level");
+				Util::Abort("number of nsubsteps input must equal either 1 or amr.max_level");
 		else
 			for (int lev = 1; lev <= maxLevel(); ++lev) 
 				nsubsteps[lev] = MaxRefRatio(lev-1);
@@ -63,20 +62,16 @@ Integrator::Integrator::Integrator ()
 	for (int i = 1; i < nlevs_max; i++)
 		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 
-  
-
-	if (ParallelDescriptor::IOProcessor())
-		amrex::UtilCreateCleanDirectory(plot_file, false);
+	plot_file = Util::GetFileName();
+	IO::WriteMetaData(plot_file);
 }
 
 ///
 /// \func  ~Integrator
 /// \brief Does nothing -- check here first if there are memory leaks
 ///
-Integrator::Integrator::~Integrator ()
+Integrator::~Integrator ()
 {
-	if (ParallelDescriptor::IOProcessor())
-		IO::WriteMetaData(plot_file);
 }
 
 /// \fn    Integrator::MakeNewLevelFromCoarse
@@ -84,8 +79,7 @@ Integrator::Integrator::~Integrator ()
 /// \note **THIS OVERRIDES A PURE VIRTUAL METHOD - DO NOT CHANGE**
 ///
 void
-Integrator::Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
-																const DistributionMapping& dm)
+Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba, const DistributionMapping& dm)
 {
 	for (int n = 0; n < number_of_fabs; n++)
 		{
@@ -108,7 +102,7 @@ Integrator::Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArr
 /// (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 ///
 void
-Integrator::Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
+Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 												 Real time,     ///<[in] Simulation time
 												 const BoxArray& ba, 
 												 const DistributionMapping& dm)
@@ -136,7 +130,7 @@ Integrator::Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 // (OVERRIDES PURE VIRTUAL METHOD - DO NOT CHANGE)
 //
 void
-Integrator::Integrator::ClearLevel (int lev)
+Integrator::ClearLevel (int lev)
 {
 	for (int n = 0; n < number_of_fabs; n++)
 		{
@@ -149,17 +143,14 @@ Integrator::Integrator::ClearLevel (int lev)
 //
 
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 													BC::BC &new_bc,
 													int ncomp,
 													int nghost,
 													std::string name)
 {
-	if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
 	int nlevs_max = maxLevel() + 1;
-	if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
-	new_fab.resize(nlevs_max); // <<<< Problem occurs here?
-	if (amrex::ParallelDescriptor::MyProc()==1) std::cout << amrex::ParallelDescriptor::MyProc()<< " " << __FILE__ << ":" << __LINE__ << std::endl;  
+	new_fab.resize(nlevs_max);
 	fab_array.push_back(&new_fab);
 	physbc_array.push_back(&new_bc); 
 	ncomp_array.push_back(ncomp);
@@ -171,7 +162,7 @@ Integrator::Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::Mult
 
 
 long // CUSTOM METHOD - CHANGEABLE
-Integrator::Integrator::CountCells (int lev)
+Integrator::CountCells (int lev)
 {
 	const int N = grids[lev].size();
 
@@ -186,7 +177,7 @@ Integrator::Integrator::CountCells (int lev)
 }
 
 void  // CUSTOM METHOD - CHANGEABLE
-Integrator::Integrator::FillPatch (int lev, Real time,
+Integrator::FillPatch (int lev, Real time,
 											  Vector<std::unique_ptr<MultiFab> > &source_mf,
 											  MultiFab &destination_mf,
 											  BC::BC &physbc, int icomp)
@@ -244,7 +235,7 @@ Integrator::Integrator::FillPatch (int lev, Real time,
 ///
 /// \note  This is a custom method and is changeable
 void
-Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
+Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 													  Real time, ///<[in] Simulatinon time
 													  amrex::Vector<std::unique_ptr<MultiFab> > &mf, ///<[in] Fab to fill
 													  BC::BC &physbc, ///<[in] BC object applying to Fab
@@ -261,7 +252,7 @@ Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 	//GetData(lev-1, time, cmf, ctime);
     
 	if (cmf.size() != 1) 
-		amrex::Abort("FillCoarsePatch: how did this happen?");
+		Util::Abort("FillCoarsePatch: how did this happen?");
 	physbc.SetLevel(lev);
 	Interpolater* mapper = &cell_cons_interp;
     
@@ -273,7 +264,7 @@ Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 }
  
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::Integrator::GetData (const int /*lev*/,
+Integrator::GetData (const int /*lev*/,
 											const Real /*time*/,
 											Vector<MultiFab*>& /*data*/,
 											Vector<Real>& /*datatime*/)
@@ -304,18 +295,18 @@ Integrator::Integrator::GetData (const int /*lev*/,
 	//   datatime.push_back(t_old[lev]);
 	//   datatime.push_back(t_new[lev]);
 	// }
-	amrex::Abort("Integrator::GetData: Used for time interpolation, which is not currently supported!");
+	Util::Abort("Integrator::GetData: Used for time interpolation, which is not currently supported!");
 }
 
 void
-Integrator::Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
+Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 {
 	TagCellsForRefinement(lev,tags,time,ngrow);
 }
 
 
 void
-Integrator::Integrator::InitData ()
+Integrator::InitData ()
 {
 	// if (restart_chkfile.empty())
 	// {
@@ -340,7 +331,7 @@ Integrator::Integrator::InitData ()
 }
 
 void
-Integrator::Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
+Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 																 const DistributionMapping& dm)
 {
 	for (int n = 0 ; n < number_of_fabs; n++)
@@ -359,7 +350,7 @@ Integrator::Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray
 }
 
 std::vector<std::string>
-Integrator::Integrator::PlotFileName (int lev) const
+Integrator::PlotFileName (int lev) const
 {
 	std::vector<std::string> name;
 	name.push_back(plot_file+"/");
@@ -368,7 +359,7 @@ Integrator::Integrator::PlotFileName (int lev) const
 }
 
 void
-Integrator::Integrator::WritePlotFile () const
+Integrator::WritePlotFile () const
 {
 	const int nlevels = finest_level+1;
 
@@ -405,13 +396,13 @@ Integrator::Integrator::WritePlotFile () const
 }
 
 void
-Integrator::Integrator::InitFromCheckpoint ()
+Integrator::InitFromCheckpoint ()
 {
-	amrex::Abort("Integrator::InitFromCheckpoint: todo");
+	Util::Abort("Integrator::InitFromCheckpoint: todo");
 }
 
 void
-Integrator::Integrator::Evolve ()
+Integrator::Evolve ()
 {
 	Real cur_time = t_new[0];
 	int last_plot_file_step = 0;
@@ -452,7 +443,7 @@ Integrator::Integrator::Evolve ()
 }
 
 void
-Integrator::Integrator::TimeStep (int lev, Real time, int /*iteration*/)
+Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 {
 
 	if (regrid_int > 0)  // We may need to regrid
@@ -512,4 +503,5 @@ Integrator::Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 											  0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
 				}
 		}
+}
 }

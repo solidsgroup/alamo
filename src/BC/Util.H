@@ -9,7 +9,7 @@
 
 namespace BC
 {
-namespace Util
+namespace BCUtil
 {
 int ReadString(std::string bcstring)
 {

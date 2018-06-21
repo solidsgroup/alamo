@@ -285,7 +285,7 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 										;
 
 									if (rho != rho) std::cout << "nans detetected, rho=" << rho << ", aa=" << aa << std::endl;
-									if (rho != rho) amrex::Abort("nans detected");
+									if (rho != rho) Util::Abort("nans detected");
 
 									ufab(m,i) = (rhsfab(m,i) - rho) / aa;
 								}

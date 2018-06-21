@@ -2,24 +2,17 @@
 #include <fstream>
 #include <iomanip>
 
-#include "AMReX.H"
-#include "AMReX_ParallelDescriptor.H"
-
+#include "Util/Util.H"
 #include "Integrator/Flame/Flame.H"
 
 int main (int argc, char* argv[])
 {
 
-  if (argc < 2)
-    {
-      std::cout << "Missing input file" << std::endl;
-      exit(-1);
-    }
-  amrex::Initialize(argc,argv);
+	Util::Initialize(argc,argv);
 
-  Integrator::Flame pfamr;
-  pfamr.InitData();
-  pfamr.Evolve();
+	Integrator::Flame flame;
+	flame.InitData();
+	flame.Evolve();
   
-  amrex::Finalize();
+	Util::Finalize();
 } 

@@ -2,6 +2,7 @@
 #define IC_PERTURBEDINTERFACE_H_
 
 #include "IC/IC.H"
+#include "Util/Util.H"
 
 /// \class PerturbedInterface
 /// \brief Initialize a perturbed interface using Fourier Modes
@@ -32,7 +33,7 @@ public:
       pp.queryarr("wave_amplitudes",wave_amplitudes);
 
       if (wave_numbers.size() != wave_amplitudes.size())
-	amrex::Abort("Number of wave numbers and amplitudes must match");
+	Util::Abort("Number of wave numbers and amplitudes must match");
 
   }
   

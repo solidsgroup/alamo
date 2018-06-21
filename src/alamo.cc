@@ -2,30 +2,27 @@
 #include <fstream>
 #include <iomanip>
 
-#include "AMReX.H"
+
+
+#include "Util/Util.H"
+#include "Integrator/PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
+#include "IO/FileNameParse.H"
+#include "IO/WriteMetaData.H"
 
 #if AMREX_SPACEDIM == 2
 
-#include "Integrator/PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
+
 
 int main (int argc, char* argv[])
 {
-	if (argc < 2)
-		{
-			std::cout << "Missing input file" << std::endl;
-			exit(-1);
-		}
-	amrex::Initialize(argc,argv);
-
+	Util::Initialize(argc,argv);
+	
 	srand(1);
-	//srand(1.0*amrex::ParallelDescriptor::MyProc());
-	{
-		Integrator::PhaseFieldMicrostructure model;
-		model.InitData();
-		model.Evolve();
-	}
+	Integrator::PhaseFieldMicrostructure model;
+	model.InitData();
+	model.Evolve();
   
-	amrex::Finalize();
+	Util::Finalize();
 } 
 #else
 int main()

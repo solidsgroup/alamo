@@ -1,9 +1,8 @@
 #include "BC.H"
 #include "BC/Util.H"
+#include "Util/Util.H"
 
-namespace BC
-{
-BC::BC (amrex::Vector<amrex::Geometry> &_geom
+BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom
 				,amrex::Vector<std::string> bc_hi_str
 				,amrex::Vector<std::string> bc_lo_str
 				,amrex::Vector<amrex::Real> _bc_lo_1
@@ -24,24 +23,24 @@ BC::BC (amrex::Vector<amrex::Geometry> &_geom
 {
 	for (int i=0;i<BL_SPACEDIM;i++)
 		{
-			bc_hi[i] = Util::ReadString(bc_hi_str[i]);
-			bc_lo[i] = Util::ReadString(bc_lo_str[i]);
+			bc_hi[i] = BCUtil::ReadString(bc_hi_str[i]);
+			bc_lo[i] = BCUtil::ReadString(bc_lo_str[i]);
 
-			if (Util::IsPeriodic(bc_lo[i]) != Util::IsPeriodic(bc_hi[i]))
-				amrex::Abort("Invalid BCs cannot be periodic on one side and not the other");
+			if (BCUtil::IsPeriodic(bc_lo[i]) != BCUtil::IsPeriodic(bc_hi[i]))
+				Util::Abort("Invalid BCs cannot be periodic on one side and not the other");
 		}
 }
 
 void
-BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) 
+BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) 
 {
-	if ((Util::IsNeumann(bc_lo[0]) || Util::IsDirichlet(bc_lo[0])) && bc_lo_1.size() < mf.nComp()) amrex::Abort("Not enough values specified for bc_lo_1");
-	if ((Util::IsNeumann(bc_hi[0]) || Util::IsDirichlet(bc_hi[0])) && bc_hi_1.size() < mf.nComp()) amrex::Abort("Not enough values specified for bc_hi_1");
-	if ((Util::IsNeumann(bc_lo[1]) || Util::IsDirichlet(bc_lo[1])) && bc_lo_2.size() < mf.nComp()) amrex::Abort("Not enough values specified for bc_lo_2");
-	if ((Util::IsNeumann(bc_hi[1]) || Util::IsDirichlet(bc_hi[1])) && bc_hi_2.size() < mf.nComp()) amrex::Abort("Not enough values specified for bc_hi_2");
+	if ((BCUtil::IsNeumann(bc_lo[0]) || BCUtil::IsDirichlet(bc_lo[0])) && bc_lo_1.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_lo_1");
+	if ((BCUtil::IsNeumann(bc_hi[0]) || BCUtil::IsDirichlet(bc_hi[0])) && bc_hi_1.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_hi_1");
+	if ((BCUtil::IsNeumann(bc_lo[1]) || BCUtil::IsDirichlet(bc_lo[1])) && bc_lo_2.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_lo_2");
+	if ((BCUtil::IsNeumann(bc_hi[1]) || BCUtil::IsDirichlet(bc_hi[1])) && bc_hi_2.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_hi_2");
 #if AMREX_SPACEDIM>2
-	if ((Util::IsNeumann(bc_lo[2]) || Util::IsDirichlet(bc_lo[2])) && bc_lo_3.size() < mf.nComp()) amrex::Abort("Not enough values specified for bc_lo_3");
-	if ((Util::IsNeumann(bc_hi[2]) || Util::IsDirichlet(bc_hi[2])) && bc_hi_3.size() < mf.nComp()) amrex::Abort("Not enough values specified for bc_hi_3");
+	if ((BCUtil::IsNeumann(bc_lo[2]) || BCUtil::IsDirichlet(bc_lo[2])) && bc_lo_3.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_lo_3");
+	if ((BCUtil::IsNeumann(bc_hi[2]) || BCUtil::IsDirichlet(bc_hi[2])) && bc_hi_3.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_hi_3");
 #endif
 
 	amrex::Box domain(geom[lev].Domain());
@@ -66,15 +65,15 @@ BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 							{
 								if (i < domain.loVect()[0]) // Left boundary
 									{
-										if (Util::IsDirichlet(bc_lo[0]))
+										if (BCUtil::IsDirichlet(bc_lo[0]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_lo_1[n];
 											}
-										else if(Util::IsNeumann(bc_lo[0]))
+										else if(BCUtil::IsNeumann(bc_lo[0]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = phi_box(amrex::IntVect(AMREX_D_DECL(i+1,j,k)),n) - bc_lo_1[n]*dx[0];
 											}
-										else if(Util::IsPeriodic(bc_lo[0]))
+										else if(BCUtil::IsPeriodic(bc_lo[0]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 													phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
@@ -83,15 +82,15 @@ BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 
 								if (i > domain.hiVect()[0]) // Right boundary
 									{
-										if (Util::IsDirichlet(bc_hi[0]))
+										if (BCUtil::IsDirichlet(bc_hi[0]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_hi_1[n];
 											}
-										else if(Util::IsNeumann(bc_hi[0]))
+										else if(BCUtil::IsNeumann(bc_hi[0]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = phi_box(amrex::IntVect(AMREX_D_DECL(i-1,j,k)),n) - bc_hi_1[n]*dx[0];
 											}
-										else if(Util::IsPeriodic(bc_hi[0]))
+										else if(BCUtil::IsPeriodic(bc_hi[0]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 													phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
@@ -100,15 +99,15 @@ BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 
 								if (j < domain.loVect()[1]) // Bottom boundary
 									{
-										if (Util::IsDirichlet(bc_lo[1]))
+										if (BCUtil::IsDirichlet(bc_lo[1]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_lo_2[n];
 											}
-										else if (Util::IsNeumann(bc_lo[1]))
+										else if (BCUtil::IsNeumann(bc_lo[1]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = phi_box(amrex::IntVect(AMREX_D_DECL(i,j+1,k)),n) - bc_lo_2[n]*dx[1];
 											}
-										else if(Util::IsPeriodic(bc_lo[1]))
+										else if(BCUtil::IsPeriodic(bc_lo[1]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 													phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
@@ -117,15 +116,15 @@ BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 
 								if (j > domain.hiVect()[1]) // Top boundary
 									{
-										if (Util::IsDirichlet(bc_hi[1]))
+										if (BCUtil::IsDirichlet(bc_hi[1]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_hi_2[n];
 											}
-										else if (Util::IsNeumann(bc_hi[1]))
+										else if (BCUtil::IsNeumann(bc_hi[1]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = phi_box(amrex::IntVect(AMREX_D_DECL(i,j-1,k)),n) - bc_hi_2[n]*dx[1];
 											}
-										else if(Util::IsPeriodic(bc_hi[1]))
+										else if(BCUtil::IsPeriodic(bc_hi[1]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 													phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
@@ -136,15 +135,15 @@ BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 #if AMREX_SPACEDIM>2
 								if (k < domain.loVect()[2])
 									{
-										if (Util::IsDirichlet(bc_lo[2]))
+										if (BCUtil::IsDirichlet(bc_lo[2]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_lo_3[n];
 											}
-										else if (Util::IsNeumann(bc_lo[2]))
+										else if (BCUtil::IsNeumann(bc_lo[2]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k+1)),n) - bc_lo_3[n]*dx[2];
 											}
-										else if(Util::IsPeriodic(bc_lo[2]))
+										else if(BCUtil::IsPeriodic(bc_lo[2]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 													phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
@@ -153,15 +152,15 @@ BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 
 								if (k > domain.hiVect()[2])
 									{
-										if (Util::IsDirichlet(bc_hi[2]))
+										if (BCUtil::IsDirichlet(bc_hi[2]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = bc_hi_3[n];
 											}
-										else if(Util::IsNeumann(bc_hi[2]))
+										else if(BCUtil::IsNeumann(bc_hi[2]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k-1)),n) - bc_hi_3[n]*dx[2];
 											}
-										else if(Util::IsPeriodic(bc_hi[2]))
+										else if(BCUtil::IsPeriodic(bc_hi[2]))
 											{
 												phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 													phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
@@ -174,16 +173,16 @@ BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 }
 
 void
-BC::SetLevel(int _lev) {lev=_lev;}
+BC::BC::SetLevel(int _lev) {lev=_lev;}
 
 amrex::BCRec
-BC::GetBCRec() {return amrex::BCRec(bc_lo,bc_hi);}
+BC::BC::GetBCRec() {return amrex::BCRec(bc_lo,bc_hi);}
 
 amrex::Array<int,AMREX_SPACEDIM>
-BC::IsPeriodic()
+BC::BC::IsPeriodic()
 {
-	return {AMREX_D_DECL(Util::IsPeriodic(bc_lo[0]),Util::IsPeriodic(bc_lo[1]),Util::IsPeriodic(bc_lo[2]))};
+	return {AMREX_D_DECL(BCUtil::IsPeriodic(bc_lo[0]),BCUtil::IsPeriodic(bc_lo[1]),BCUtil::IsPeriodic(bc_lo[2]))};
 }
 
 
-}
+

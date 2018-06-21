@@ -14,7 +14,16 @@
 
 namespace IO
 {
-void WriteMetaData(std::string plot_file);
+
+enum Status{
+	Running,
+	Complete,
+	Segfault,
+	Interrupt,
+	Abort
+};
+
+void WriteMetaData(std::string plot_file, Status status = Status::Running);
 }
 
 #endif

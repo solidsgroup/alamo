@@ -18,21 +18,40 @@ db.text_factory = str
 cur= db.cursor()
 types = dict()
 
+def parse(filename):
+    f = open(filename)
+
+    things = dict()
+
+    for line in f.readlines():
+        if line.startswith('#'): continue;
+        if '::' in line:
+            line = re.sub(r'\([^)]*\)', '',line)
+            line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
+        if len(line.split(' = ')) != 2: continue;
+        col = line.split(' = ')[0].replace('.','_')
+        val = line.split(' = ')[1].replace('  ','').replace('\n','').replace(';','')
+        
+        things[col] = val
+
+    return things
+    
+
+
+
+
 #
 # Scan metadata files to determine columns
 #
 for directory in args.directories:
     if not os.path.isfile(directory+'/metadata'):
         continue
-    f = open(directory+'/metadata')
-    for line in f.readlines():
-        if line.startswith('#'): continue;
-        if '::' in line:
-            line = re.sub(r'\([^)]*\)', '',line)
-            line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','')
-        if len(line.split(' = ')) != 2: continue;
-        key = line.split(' = ')[0].replace('.','_').replace(' ','')
-        val = line.split(' = ')[1].replace('  ','').replace(';','')
+
+    data = parse(directory+'/metadata')
+
+    for key in data:
+        val = data[key]
+        if (key == 'HASH'): continue
         if key not in types:
             try:
                 int(val)
@@ -86,37 +105,32 @@ for directory in args.directories:
         print(u'  \u251C\u2574\033[1;31mSkipping\033[1;0m:  ' + directory + ' (no metadata) ')
         continue
 
-    f = open(directory+'/metadata')
-    sim_hash = str(hashlib.sha224(f.read().encode('utf-8')).hexdigest())
-    f.seek(0)
-
-    cols = ['HASH','DIR']
-    vals = ['"'+sim_hash+'"', '"'+os.path.abspath(directory)+'"']
-    for line in f.readlines():
-        if line.startswith('#'): continue;
-        if '::' in line:
-            line = re.sub(r'\([^)]*\)', '',line)
-            line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','')
-        if len(line.split(' = ')) != 2: continue;
-        cols.append(line.split(' = ')[0].replace('.','_'))
-        vals.append('"' + line.split(' = ')[1].replace('  ','').replace('\n','').replace(';','') + '"')
-
+    data = parse(directory+'/metadata')
+    data['DIR'] = os.path.abspath(directory);
+    if 'HASH' in data:
+        sim_hash = data['HASH']
+    else:
+        f = open(directory+'/metadata')
+        sim_hash = str(hashlib.sha224(f.read().encode('utf-8')).hexdigest())
+        f.close()
+        data['HASH'] = sim_hash
+    
+    
     cur.execute('SELECT HASH FROM ' + args.table + ' WHERE HASH = ?',(sim_hash,))
-
     if (len(cur.fetchall()) != 0):
         cur.execute('SELECT DIR FROM ' + args.table + ' WHERE HASH = ?',(sim_hash,))
         old_dir = cur.fetchall()[0][0]
         new_dir = os.path.abspath(directory)
         cur.execute('UPDATE ' + args.table +
-                    ' SET ' + ','.join([col+' = '+val for col,val in zip(cols,vals)]) +
-                    ' WHERE HASH = ' + vals[0])
+                    ' SET ' + ','.join([col+' = ' + '"' + data[col] + '"' for col in data]) +
+                    ' WHERE HASH = ' + '"' + sim_hash + '"')
         if (old_dir == new_dir):
             print(u'  \u251C\u2574'+'\033[1;33mUpdating\033[1;0m:  ' + directory + ' ( record already exists )')
         else:
             print(u'  \u251C\u2574'+'\033[1;36mMoving\033[1;0m:    ' + old_dir + ' --> ' + new_dir)
     else:
-        cur.execute('INSERT INTO ' + args.table + ' (' + ','.join(cols) + ') ' +
-                    'VALUES (' + ','.join(vals) + ')')
+        cur.execute('INSERT INTO ' + args.table + ' (' + ','.join([c for c in data]) + ') ' +
+                    'VALUES (' + ','.join(['"'+data[c]+'"' for c in data]) + ')')
         print(u'  \u251C\u2574'+'\033[1;32mInserting\033[1;0m: ' + directory)
 print(u'  \u2514\u2574' + 'Done')
 

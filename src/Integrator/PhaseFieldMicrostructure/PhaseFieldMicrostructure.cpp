@@ -88,7 +88,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		else if (ic_type == "voronoi")
 			ic = new IC::Voronoi(geom,number_of_grains);
 		else
-			amrex::Abort("No valid initial condition specified");
+			Util::Abort("No valid initial condition specified");
 	}
 	/*
 	 */
@@ -122,7 +122,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.queryarr("load_t",elastic_load_t);
 		pp.queryarr("load_disp",elastic_load_disp);
 		if (elastic_load_t.size() != elastic_load_disp.size())
-			amrex::Abort("load_t and load_disp must have the same number of entries");
+			Util::Abort("load_t and load_disp must have the same number of entries");
 
 		if (elastic_on)
 			{

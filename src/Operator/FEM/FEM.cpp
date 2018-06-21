@@ -187,7 +187,7 @@ void FEM::smooth (int amrlev,          ///<[in] AMR level
   BL_PROFILE("Operator::FEM::FEM::smooth()");
   return;
 
-  amrex::Abort("Does not work if using smooth");
+  Util::Abort("Does not work if using smooth");
 
   const Real* DX = m_geom[amrlev][mglev].CellSize();
   

@@ -5,6 +5,8 @@
 #include <sstream>
 #include <chrono>
 
+std::time_t t = 0;
+
 int ReplaceAll(std::string &str, const std::string before, const std::string after)
 {
   while(str.find(before) != std::string::npos)
@@ -14,7 +16,7 @@ int ReplaceAll(std::string &str, const std::string before, const std::string aft
 
 void IO::FileNameParse(std::string &filename)
 {
-	std::time_t t = std::time(0);
+	if (!t) t = std::time(0);
 	std::tm * now = std::localtime(&t);
 	int year = now->tm_year+1900;
 	int month = now->tm_mon+1;
