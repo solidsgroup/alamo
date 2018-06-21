@@ -28,7 +28,7 @@ PolymerDegradation::PolymerDegradation():
 			water_ic = new IC::Constant(geom,value);
 		}
 		else
-			amrex::Abort("This kind of IC has not been implemented yet");
+			Util::Abort("This kind of IC has not been implemented yet");
 		
 		amrex::ParmParse pp_water_bc("water.bc");
 
@@ -78,7 +78,7 @@ PolymerDegradation::PolymerDegradation():
 			thermal_ic = new IC::Constant(geom,T);
 		}
 		else
-			amrex::Abort("This kind of IC has not been implemented yet");
+			Util::Abort("This kind of IC has not been implemented yet");
 
 		amrex::ParmParse pp_heat_bc("thermal.bc");
 
@@ -130,17 +130,17 @@ PolymerDegradation::PolymerDegradation():
 		pp_damage.queryarr("t_start_i",t_start_i);
 
 		if(E_i.size() != number_of_terms || tau_i.size() != number_of_terms || t_start_i.size() != number_of_terms)
-			amrex::Abort("missing entries in E_i, tau_i or t_start_i");
+			Util::Abort("missing entries in E_i, tau_i or t_start_i");
 
 		amrex::Real sum = 0;		
 		for (int temp = 0; temp < E_i.size(); temp++)
 			sum += E_i[temp];
 
 		if(sum != E0) //need to replace this in the future
-			amrex::Abort("E0 is not equal to the sum of E_i");
+			Util::Abort("E0 is not equal to the sum of E_i");
 	}
 	else
-		amrex::Abort("This kind of damage model has not been implemented yet");
+		Util::Abort("This kind of damage model has not been implemented yet");
 
 	pp_damage.query("ic_type",eta_ic_type);
 	if(eta_ic_type == "constant")
@@ -151,7 +151,7 @@ PolymerDegradation::PolymerDegradation():
 		eta_ic = new IC::Constant(geom,eta_init);
 	}
 	else
-		amrex::Abort("This kind of IC has not been implemented yet");
+		Util::Abort("This kind of IC has not been implemented yet");
 	
 	amrex::ParmParse pp_damage_bc("damage.bc");
 
@@ -201,7 +201,7 @@ PolymerDegradation::PolymerDegradation():
 	pp_elastic.queryarr("load_t",elastic_load_t);
 	pp_elastic.queryarr("load_disp",elastic_load_disp);
 	if (elastic_load_t.size() != elastic_load_disp.size())
-		amrex::Abort("load_t and load_disp must have the same number of entries");
+		Util::Abort("load_t and load_disp must have the same number of entries");
 
 	if (elastic_on)
 	{

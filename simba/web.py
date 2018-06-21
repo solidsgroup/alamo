@@ -75,7 +75,6 @@ def table(table):
             cur.execute("SELECT DIR FROM " + table + " WHERE HASH = ?",(request.form.get('entry-hash'),))
             os.system('rm -rf ' + cur.fetchall()[0][0])
             cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
-            print("DELETE FROM " + table + " WHERE HASH = " + request.form.get('entry-hash') + ";")
     
 
     cur.execute("SELECT * FROM " + table_name )
@@ -83,6 +82,10 @@ def table(table):
 
     cur.execute("PRAGMA table_info("+table_name+")")
     columns=[a[1] for a in cur.fetchall()]
+
+    status = []
+    if ("Status" in columns):
+        status = [d[columns.index("Status")] for d in data]
 
     db.commit()
     db.close()
@@ -95,11 +98,11 @@ def table(table):
             find_images(d[columns.index("DIR")])
             numfiles.append(len(imgfiles))
 
-    print(numfiles)
     return render_template('template.html',
                            tables=tables,
                            table_name=table,
                            table=data,
+                           status=status,
                            numfiles=numfiles,
                            columns=columns)
 imgfiles = []

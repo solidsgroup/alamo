@@ -6,6 +6,7 @@
 #include <limits>
 
 #include "BC/BC.H"
+#include "Util/Util.H"
 
 using namespace amrex;
 
@@ -66,7 +67,7 @@ protected:
     return ret;}
   /// \brief Pointer cast utility
   virtual std::unique_ptr<MLLinOp> makeNLinOp (int /*grid_size*/) const final {
-    amrex::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
+	  Util::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
     return std::unique_ptr<MLLinOp>{};
   }
 

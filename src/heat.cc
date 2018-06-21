@@ -5,25 +5,18 @@
 #include "AMReX.H"
 #include <AMReX_AmrCore.H>
 
+#include "Util/Util.H"
 #include "Integrator/HeatConduction/HeatConduction.H"
 
 
 int main (int argc, char* argv[])
 {
-  if (argc < 2)
-    {
-      std::cout << "Missing input file" << std::endl;
-      exit(-1);
-    }
-  amrex::Initialize(argc,argv);
+	Util::Initialize(argc,argv);
 
-  {
-    Integrator::HeatConduction myamr;
-    myamr.InitData();
-    myamr.Evolve();
-  }
+	Integrator::HeatConduction heatconduction;
+	heatconduction.InitData();
+	heatconduction.Evolve();
 
-  amrex::Finalize();
-  return 0;
-
+	Util::Finalize();
+	return 0;
 } 
