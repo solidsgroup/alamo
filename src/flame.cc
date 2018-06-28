@@ -10,9 +10,11 @@ int main (int argc, char* argv[])
 
 	Util::Initialize(argc,argv);
 
-	Integrator::Flame flame;
-	flame.InitData();
-	flame.Evolve();
-  
+	Integrator::Integrator *flame =
+		new Integrator::Flame();
+	flame->InitData();
+	flame->Evolve();
+	delete flame;
+
 	Util::Finalize();
 } 
