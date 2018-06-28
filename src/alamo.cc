@@ -2,8 +2,6 @@
 #include <fstream>
 #include <iomanip>
 
-
-
 #include "Util/Util.H"
 #include "Integrator/PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
 #include "IO/FileNameParse.H"
@@ -11,17 +9,17 @@
 
 #if AMREX_SPACEDIM == 2
 
-
-
 int main (int argc, char* argv[])
 {
 	Util::Initialize(argc,argv);
-	
+
 	srand(1);
-	Integrator::PhaseFieldMicrostructure model;
-	model.InitData();
-	model.Evolve();
-  
+	Integrator::Integrator *model =
+		new Integrator::PhaseFieldMicrostructure();
+	model->InitData();
+	model->Evolve();
+	delete model;
+
 	Util::Finalize();
 } 
 #else
