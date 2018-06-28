@@ -7,7 +7,6 @@
 #include "IO/FileNameParse.H"
 #include <numeric>
 
-
 using namespace amrex;
 
 Integrator::Integrator::Integrator ()
@@ -103,7 +102,7 @@ Integrator::Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArr
 		}
 		else // Do nothing
 		{
-			
+			std::cout << "DOING NOTHING" << std::endl;
 		}
 	}
 }
@@ -126,12 +125,17 @@ Integrator::Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 		const int ncomp = (*fab_array[n])[lev]->nComp();
 		const int nghost = (*fab_array[n])[lev]->nGrow();
 
+
 		MultiFab new_state(ba, dm, ncomp, nghost); 
-
-		if (physbc_array[n]) /// \todo
+		if (physbc_array[n]) /// \todo /// THIS IS THE PROBLEM
+		{
 			FillPatch(lev, time, *fab_array[n], new_state, *physbc_array[n], 0);
-
+		}
+		else
+		{
+		}
 		std::swap(new_state, *(*fab_array[n])[lev]);
+
 	}
 
 	t_new[lev] = time;
@@ -192,7 +196,6 @@ Integrator::Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::Mult
 long // CUSTOM METHOD - CHANGEABLE
 Integrator::Integrator::CountCells (int lev)
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	const int N = grids[lev].size();
 
 	long cnt = 0;
@@ -211,7 +214,6 @@ Integrator::Integrator::FillPatch (int lev, Real time,
 				   MultiFab &destination_mf,
 				   BC::BC &physbc, int icomp)
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	if (lev == 0)
 	{
       
@@ -268,7 +270,6 @@ Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 					 int icomp, ///<[in] start component
 					 int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	AMREX_ASSERT(lev > 0);
 
 	amrex::Vector<amrex::MultiFab* > cmf;
@@ -289,7 +290,6 @@ Integrator::Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 void
 Integrator::Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	TagCellsForRefinement(lev,tags,time,ngrow);
 }
 
@@ -297,7 +297,6 @@ Integrator::Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngr
 void
 Integrator::Integrator::InitData ()
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	const Real time = 0.0;
 	InitFromScratch(time);
 	for (int lev = finest_level-1; lev >= 0; --lev)
@@ -317,7 +316,6 @@ void
 Integrator::Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 						 const DistributionMapping& dm)
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	for (int n = 0 ; n < number_of_fabs; n++)
 	{
 		(*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp_array[n], nghost_array[n]));
@@ -330,18 +328,18 @@ Integrator::Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray
   
 	for (int n = 0 ; n < number_of_fabs; n++)
 	{
-		if (physbc_array[n])
+		if (physbc_array[n]) // NO PROBLEM
 		{
 			physbc_array[n]->SetLevel(lev);
 			physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t);
 		}
+
 	}
 }
 
 std::vector<std::string>
 Integrator::Integrator::PlotFileName (int lev) const
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	std::vector<std::string> name;
 	name.push_back(plot_file+"/");
 	name.push_back(amrex::Concatenate("", lev, 5));
@@ -351,7 +349,6 @@ Integrator::Integrator::PlotFileName (int lev) const
 void
 Integrator::Integrator::WritePlotFile () const
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	const int nlevels = finest_level+1;
 
 	int total_components = 0;
@@ -362,6 +359,8 @@ Integrator::Integrator::WritePlotFile () const
 		if (ncomp_array[i] > 1)
 			for (int j = 1; j <= ncomp_array[i]; j++)
 				complete_name_array.push_back(amrex::Concatenate(name_array[i], j, 3));
+		else
+			complete_name_array.push_back(name_array[i]);
 	}
 
 	amrex::Vector<MultiFab> plotmf(nlevels);
@@ -380,7 +379,6 @@ Integrator::Integrator::WritePlotFile () const
 
 	const std::vector<std::string>& plotfilename = PlotFileName(istep[0]);
   
-
 	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), complete_name_array,
 				Geom(), t_new[0],istep, refRatio());
 
@@ -396,14 +394,12 @@ Integrator::Integrator::WritePlotFile () const
 void
 Integrator::Integrator::InitFromCheckpoint ()
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	amrex::Abort("Integrator::InitFromCheckpoint: todo");
 }
 
 void
 Integrator::Integrator::Evolve ()
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
 	Real cur_time = t_new[0];
 	int last_plot_file_step = 0;
 
@@ -445,8 +441,6 @@ Integrator::Integrator::Evolve ()
 void
 Integrator::Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 {
-	std::cout << __FILE__ <<":" << __LINE__ << std::endl;
-
 	if (regrid_int > 0)  // We may need to regrid
 	{
 		static Vector<int> last_regrid_step(max_level+1, 0);

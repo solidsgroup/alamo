@@ -39,7 +39,7 @@ public:
 	}
 
 
-		protected:
+private:
 	std::vector<amrex::Geometry> &geom;
 	int bc_lo[BL_SPACEDIM];
 	int bc_hi[BL_SPACEDIM];

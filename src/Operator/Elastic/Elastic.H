@@ -36,8 +36,9 @@ public:
 	void AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
 
 	void Stress (FArrayBox& sigmafab,
-				 const FArrayBox& ufab,
-				 int amrlev, const MFIter& mfi) const;
+		     const FArrayBox& ufab,
+		     int amrlev, const MFIter& mfi,
+		     bool voigt = false) const;
 	void Energy (FArrayBox& energyfab,
 				 const FArrayBox& ufab,
 				 int amrlev, const MFIter& mfi) const;
