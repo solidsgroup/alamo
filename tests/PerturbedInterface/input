@@ -29,7 +29,7 @@ pf.gamma = 1.0
 pf.l_gb=0.1
 pf.sigma0=0.075
 
-anisotropy.on=1
+anisotropy.on=0
 anisotropy.tstart= 1
 anisotropy.theta0= 45
 anisotropy.sigma0=0.075
@@ -38,3 +38,12 @@ anisotropy.beta= 0.00002;
 anisotropy.damp=1.0
 
 
+elastic.on=1
+elastic.int=10
+elastic.type=isotropic
+elastic.cgverbose=0
+elastic.tol_rel=0.00000001
+elastic.tol_abs=0.00000001
+elastic.tstart=0.01
+elastic.load_t=0.0 
+elastic.load_disp=0.01
