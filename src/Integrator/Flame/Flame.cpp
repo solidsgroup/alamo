@@ -175,12 +175,12 @@ void Flame::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 				amrex::Real T_lap = 
 					AMREX_D_TERM((Temp_old_box(m+dx) - 2.*Temp_old_box(m) + Temp_old_box(m-dx))/DX[0]/DX[0],
-									 + (Temp_old_box(m+dy) - 2.*Temp_old_box(m) + Temp_old_box(m-dy))/DX[1]/DX[1],
-									 + (Temp_old_box(m+dz) - 2.*Temp_old_box(m) + Temp_old_box(m-dz))/DX[2]/DX[2];)
+						     + (Temp_old_box(m+dy) - 2.*Temp_old_box(m) + Temp_old_box(m-dy))/DX[1]/DX[1],
+						     + (Temp_old_box(m+dz) - 2.*Temp_old_box(m) + Temp_old_box(m-dz))/DX[2]/DX[2]);
 	    
-				amrex::Real rho = (rho1-rho0)*Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) + rho0;
-				amrex::Real K   = (k1-k0)*Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) + k0;
-				amrex::Real cp  = (cp1-cp0)*Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) + cp0;
+				amrex::Real rho = (rho1-rho0)*Eta_old_box(m) + rho0;
+				amrex::Real K   = (k1-k0)*Eta_old_box(m) + k0;
+				amrex::Real cp  = (cp1-cp0)*Eta_old_box(m) + cp0;
 
 
 				Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) =
