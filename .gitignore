@@ -18,3 +18,5 @@ build
 *.pyc
 *.db
 simba.sh
+bin2d
+bin3d
