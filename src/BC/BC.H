@@ -5,6 +5,9 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
+#include <AMReX_LO_BCTYPES.H>
+
+#include "Util/Util.H"
 
 namespace BC
 {
@@ -27,9 +30,18 @@ public:
 	// template<class T>
 	// virtual const amrex::Array<amrex::Array<T,AMREX_SPACEDIM>,2> GetBCTypes() = 0;
 
-private:
+protected:
 	std::vector<amrex::Geometry> &geom;
 	int lev=0;
 };
+
+namespace BCUtil
+{
+int ReadString(std::string bcstring);
+bool IsPeriodic(int bctype);
+bool IsNeumann(int bctype);
+bool IsDirichlet(int bctype);
+}
+
 }
 #endif

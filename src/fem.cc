@@ -14,6 +14,7 @@
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
 #include "IC/Eigenstrain/Sphere.H"
+#include "BC/Constant.H"
 
 using namespace amrex;
 
@@ -102,8 +103,8 @@ int main (int argc, char* argv[])
 	energy.resize(nlevels);
 
 
-	BC::BC *mybc;
-	mybc = new BC::BC(geom,
+	BC::Constant *mybc;
+	mybc = new BC::Constant(geom,
 							{AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
 							{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)}
 							,disp_bc_left
@@ -188,7 +189,7 @@ int main (int argc, char* argv[])
 	mlabec.SetEigenstrain(eps0,*mybc);
 	mlabec.AddEigenstrainToRHS(rhs);
 	mlabec.setDomainBC(mybc->GetBCTypes<amrex::LinOpBCType>()[0],
-	 						 mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
+			   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{

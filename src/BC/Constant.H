@@ -5,6 +5,7 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_BCRec.H>
 #include <AMReX_PhysBCFunct.H>
+#include <AMReX_Array.H>
 
 #include "BC/BC.H"
 
@@ -41,7 +42,6 @@ public:
 
 
 private:
-	std::vector<amrex::Geometry> &geom;
 	int bc_lo[BL_SPACEDIM];
 	int bc_hi[BL_SPACEDIM];
 	int bc_hi_flux[BL_SPACEDIM];

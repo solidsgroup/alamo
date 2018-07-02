@@ -100,8 +100,8 @@ Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba, cons
 		t_new[lev] = time;
 		t_old[lev] = time - 1.e200;
 
-		if (physbc_array[n]) // only do this if there is a BC object
-			FillCoarsePatch(lev, time, *fab_array[n], *physbc_array[n], 0, ncomp);
+		//if (physbc_array[n]) // only do this if there is a BC object
+		FillCoarsePatch(lev, time, *fab_array[n], *physbc_array[n], 0, ncomp);
 	}
 }
 
@@ -125,8 +125,8 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 
 		MultiFab new_state(ba, dm, ncomp, nghost); 
 
-		if (physbc_array[n]) 
-			FillPatch(lev, time, *fab_array[n], new_state, *physbc_array[n], 0);
+		//if (physbc_array[n]) 
+		FillPatch(lev, time, *fab_array[n], new_state, *physbc_array[n], 0);
 		std::swap(new_state, *(*fab_array[n])[lev]);
 	}
 
@@ -177,7 +177,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	fab_array.push_back(&new_fab);
-	physbc_array.push_back(NULL); 
+	physbc_array.push_back(new BC::Nothing(geom)); 
 	ncomp_array.push_back(ncomp);
 	nghost_array.push_back(0);
 	name_array.push_back(name);
@@ -321,11 +321,11 @@ Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
   
 	for (int n = 0 ; n < number_of_fabs; n++)
 	{
-		if (physbc_array[n]) // NO PROBLEM
-		{
-			physbc_array[n]->SetLevel(lev);
-			physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t);
-		}
+		// if (physbc_array[n]) // NO PROBLEM
+		// {
+		physbc_array[n]->SetLevel(lev);
+		physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t);
+		// }
 
 	}
 }
@@ -465,8 +465,8 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 	}
 
 	for (int n = 0 ; n < number_of_fabs ; n++)
-		if (physbc_array[n])
-			FillPatch(lev,t_old[lev],*fab_array[n],*(*fab_array[n])[lev],*physbc_array[n],0);
+		//if (physbc_array[n])
+		FillPatch(lev,t_old[lev],*fab_array[n],*(*fab_array[n])[lev],*physbc_array[n],0);
 	Advance(lev, time, dt[lev]);
 	++istep[lev];
 

@@ -9,12 +9,13 @@
 namespace BC
 {
 class Nothing
-	: public amrex::PhysBCFunctBase
+	: public BC
 {
 
 public:
-	Nothing () {};
+	Nothing (amrex::Vector<amrex::Geometry> &_geom) : BC(_geom) {};
 	virtual void FillBoundary (amrex::MultiFab&, int, int, amrex::Real /*time*/) override {};
+	virtual amrex::BCRec GetBCRec() {return amrex::BCRec();}
 };
 }
 #endif

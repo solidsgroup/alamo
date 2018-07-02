@@ -478,12 +478,12 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < displacement.size(); lev++)
 	{
 
-		(*displacement[lev]).setVal(lev);
-		(*strain[lev]).setVal(lev);
-		(*stress[lev]).setVal(lev);
-		(*energy[lev]).setVal(lev);
-		(*energies[lev]).setVal(lev);
-		(*stress_vm[lev]).setVal(lev);
+		// (*displacement[lev]).setVal(lev);
+		// (*strain[lev]).setVal(lev);
+		// (*stress[lev]).setVal(lev);
+		// (*energy[lev]).setVal(lev);
+		// (*energies[lev]).setVal(lev);
+		// (*stress_vm[lev]).setVal(lev);
 
 
 		const amrex::Real* DX = geom[lev].CellSize();
@@ -499,31 +499,30 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			FArrayBox &energiesfab  = (*energies[lev])[mfi];
 			FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
 
+			elastic_operator->Stress(sigmafab,ufab,lev,mfi);
 
-			// elastic_operator->Stress(sigmafab,ufab,lev,mfi);
+			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+			 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+			 	{
+			 		amrex::IntVect m(i,j);
 
-			// for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-			// 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-			// 	{
-			// 		amrex::IntVect m(i,j);
+			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+			 		epsfab(m,1) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+			 		epsfab(m,2) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
+			 		 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
 
-			// 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-			// 		epsfab(m,1) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-			// 		epsfab(m,2) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
-			// 		 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+			 		sigmavmfab(m,0) = 0.0;
 
-			// 		sigmavmfab(m,0) = 0.0;
+			 		sigmavmfab(m) =
+			 		 	sqrt(0.5*(sigmafab(m,0) - sigmafab(m,1)*(sigmafab(m,0) - sigmafab(m,1))
+			 		 		  + sigmafab(m,0)*sigmafab(m,0)
+			 		 		  + sigmafab(m,1)*sigmafab(m,1)
+			 		 		  + 6.0*sigmafab(m,2)*sigmafab(m,2)));
 
-			// 		sigmavmfab(m) =
-			// 		 	sqrt(0.5*(sigmafab(m,0) - sigmafab(m,1)*(sigmafab(m,0) - sigmafab(m,1))
-			// 		 		  + sigmafab(m,0)*sigmafab(m,0)
-			// 		 		  + sigmafab(m,1)*sigmafab(m,1)
-			// 		 		  + 6.0*sigmafab(m,2)*sigmafab(m,2)));
+			 	}
 
-			// 	}
-
-			// elastic_operator->Energy(energyfab,ufab,lev,mfi);
-			// elastic_operator->Energies(energiesfab,ufab,lev,mfi);
+			elastic_operator->Energy(energyfab,ufab,lev,mfi);
+			elastic_operator->Energies(energiesfab,ufab,lev,mfi);
 		}
 	}
 }
