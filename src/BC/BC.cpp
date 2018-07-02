@@ -1,11 +1,4 @@
-#ifndef BC_READSTRING_H
-#define BC_READSTRING_H
-
-#include <string>
-
-#include <AMReX_BC_TYPES.H>
-#include <AMReX_LO_BCTYPES.H>
-
+#include "BC.H"
 
 namespace BC
 {
@@ -62,7 +55,5 @@ bool IsDirichlet(int bctype)
 	if (bctype == (int)amrex::LinOpBCType::Dirichlet) return true;
 	else return false;
 }
-
 }
 }
-#endif
