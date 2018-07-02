@@ -1,4 +1,6 @@
+
 #include "Flame.H"
+#include "BC/Constant.H"
 
 namespace Integrator
 {
@@ -37,7 +39,7 @@ Flame::Flame () : Integrator()
     if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
     if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-    TempBC = new BC::BC(geom
+    TempBC = new BC::Constant(geom
 						,bc_hi_str, bc_lo_str
 						,bc_lo_1, bc_hi_1
 						,bc_lo_2, bc_hi_2
@@ -62,7 +64,7 @@ Flame::Flame () : Integrator()
     if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
     if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-    EtaBC = new BC::BC(geom
+    EtaBC = new BC::Constant(geom
 					   ,bc_hi_str, bc_lo_str
 					   ,bc_lo_1, bc_hi_1
 					   ,bc_lo_2, bc_hi_2
@@ -75,11 +77,11 @@ Flame::Flame () : Integrator()
   VoronoiIC = new IC::Flame::Voronoi(geom,fs_number);
 
 
-  RegisterNewFab(Temp,     *TempBC, 1, 1, "Temp");
-  RegisterNewFab(Temp_old, *TempBC, 1, 1, "Temp_old");
-  RegisterNewFab(Eta,      *EtaBC,  1, 1, "Eta");
-  RegisterNewFab(Eta_old,  *EtaBC,  1, 1, "Eta_old");
-  RegisterNewFab(FlameSpeedFab, *EtaBC,  1, 1, "FlameSpeed");
+  RegisterNewFab(Temp,     TempBC, 1, 1, "Temp");
+  RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old");
+  RegisterNewFab(Eta,      EtaBC,  1, 1, "Eta");
+  RegisterNewFab(Eta_old,  EtaBC,  1, 1, "Eta_old");
+  RegisterNewFab(FlameSpeedFab, EtaBC,  1, 1, "FlameSpeed");
 }
 
 void Flame::Initialize (int lev)
