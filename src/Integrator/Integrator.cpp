@@ -6,6 +6,7 @@
 #include "Integrator.H"
 #include "IO/FileNameParse.H"
 #include "Util/Util.H"
+#include "BC/Nothing.H"
 #include <numeric>
 
 
@@ -93,13 +94,14 @@ Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba, cons
 		const int nghost = (*fab_array[n])[lev-1]->nGrow();
 
 		(*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
+		
+		(*fab_array[n])[lev]->setVal(0.0);
 
 		t_new[lev] = time;
 		t_old[lev] = time - 1.e200;
 
 		if (physbc_array[n]) // only do this if there is a BC object
 			FillCoarsePatch(lev, time, *fab_array[n], *physbc_array[n], 0, ncomp);
-
 	}
 }
 
@@ -111,9 +113,9 @@ Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba, cons
 ///
 void
 Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
-				     Real time,     ///<[in] Simulation time
-				     const BoxArray& ba, 
-				     const DistributionMapping& dm)
+			 Real time,     ///<[in] Simulation time
+			 const BoxArray& ba, 
+			 const DistributionMapping& dm)
 {
 	for (int n=0; n < number_of_fabs; n++)
 	{
@@ -152,15 +154,15 @@ Integrator::ClearLevel (int lev)
 
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-				       BC::BC &new_bc,
-				       int ncomp,
-				       int nghost,
-				       std::string name)
+			   BC::BC *new_bc,
+			   int ncomp,
+			   int nghost,
+			   std::string name)
 {
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	fab_array.push_back(&new_fab);
-	physbc_array.push_back(&new_bc); 
+	physbc_array.push_back(new_bc); 
 	ncomp_array.push_back(ncomp);
 	nghost_array.push_back(nghost);
 	name_array.push_back(name);
@@ -169,8 +171,8 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-				       int ncomp,
-				       std::string name)
+			   int ncomp,
+			   std::string name)
 {
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
@@ -200,9 +202,9 @@ Integrator::CountCells (int lev)
 
 void  // CUSTOM METHOD - CHANGEABLE
 Integrator::FillPatch (int lev, Real time,
-				   Vector<std::unique_ptr<MultiFab> > &source_mf,
-				   MultiFab &destination_mf,
-				   BC::BC &physbc, int icomp)
+		       Vector<std::unique_ptr<MultiFab> > &source_mf,
+		       MultiFab &destination_mf,
+		       BC::BC &physbc, int icomp)
 {
 	if (lev == 0)
 	{
@@ -254,11 +256,11 @@ Integrator::FillPatch (int lev, Real time,
 /// \note  This is a custom method and is changeable
 void
 Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
-					 Real time, ///<[in] Simulatinon time
-					 amrex::Vector<std::unique_ptr<MultiFab> > &mf, ///<[in] Fab to fill
-					 BC::BC &physbc, ///<[in] BC object applying to Fab
-					 int icomp, ///<[in] start component
-					 int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
+			     Real time, ///<[in] Simulatinon time
+			     amrex::Vector<std::unique_ptr<MultiFab> > &mf, ///<[in] Fab to fill
+			     BC::BC &physbc, ///<[in] BC object applying to Fab
+			     int icomp, ///<[in] start component
+			     int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
 {
 	AMREX_ASSERT(lev > 0);
 
@@ -304,11 +306,12 @@ Integrator::InitData ()
 
 void
 Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
-						 const DistributionMapping& dm)
+				     const DistributionMapping& dm)
 {
 	for (int n = 0 ; n < number_of_fabs; n++)
 	{
 		(*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp_array[n], nghost_array[n]));
+		(*fab_array[n])[lev]->setVal(0.0);
 	}
 
 	t_new[lev] = t;
@@ -488,6 +491,6 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 					    geom[lev+1], geom[lev],
 					    0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
 		}
-		}
 	}
+}
 }

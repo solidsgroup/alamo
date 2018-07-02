@@ -1,4 +1,5 @@
 #include "HeatConduction.H"
+#include "BC/Constant.H"
 
 namespace Integrator
 {
@@ -46,7 +47,7 @@ HeatConduction::HeatConduction() :
 		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-		mybc = new BC::BC(geom
+		mybc = new BC::Constant(geom
 								,bc_hi_str, bc_lo_str
 								,bc_lo_1, bc_hi_1
 								,bc_lo_2, bc_hi_2
@@ -57,8 +58,8 @@ HeatConduction::HeatConduction() :
 	}
 
 
-	RegisterNewFab(TempFab,     *mybc, number_of_components, number_of_ghost_cells, "Temp");
-	RegisterNewFab(TempOldFab, *mybc, number_of_components, number_of_ghost_cells, "Temp old");
+	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp");
+	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
 }
 
 HeatConduction::~HeatConduction()

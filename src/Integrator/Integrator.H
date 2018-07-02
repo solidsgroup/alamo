@@ -162,7 +162,7 @@ protected:
 		       ///<[in] Reference to field variable that you want to use.
 		       ///      **Note** `new_fab` must not fall out of scope! Should be a
 		       ///      private member variable.
-		       BC::BC &new_bc,
+		       BC::BC *new_bc,
 		       ///<[in] Boundary condition object. (Same BC object can be re-used 
 		       ///      if applicable
 		       int ncomp,

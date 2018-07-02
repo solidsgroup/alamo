@@ -1,4 +1,5 @@
 #include "PhaseFieldMicrostructure.H"
+#include "BC/Constant.H"
 
 #if BL_SPACEDIM == 2
 
@@ -69,14 +70,14 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-		mybc = new BC::BC(geom
-				  ,bc_hi_str, bc_lo_str
-				  ,bc_lo_1, bc_hi_1
-				  ,bc_lo_2, bc_hi_2
+		mybc = new BC::Constant(geom
+					,bc_hi_str, bc_lo_str
+					,bc_lo_1, bc_hi_1
+					,bc_lo_2, bc_hi_2
 #if AMREX_SPACEDIM > 2
-				  ,bc_lo_3, bc_hi_3
+					,bc_lo_3, bc_hi_3
 #endif
-				  );
+					);
 	}
 
 
@@ -98,9 +99,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	// amrex::ParallelDescriptor::Barrier();
 	// amrex::Abort("No error, just exiting here");
 
-	RegisterNewFab(eta_new, *mybc, number_of_grains, number_of_ghost_cells, "Eta");
+	RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
 	//eta_old.resize(maxLevel()+1);
-	RegisterNewFab(eta_old, *mybc, number_of_grains, number_of_ghost_cells, "Eta old");
+	RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
 
   
 	// Elasticity
@@ -122,15 +123,16 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (elastic_load_t.size() != elastic_load_disp.size())
 			Util::Abort("load_t and load_disp must have the same number of entries");
 
+		//BC::Nothing emptybc;
 		if (elastic_on)
 		{
-			RegisterNewFab(displacement, *mybc,2,1,"u");
-			RegisterNewFab(body_force,2,"b");
-			RegisterNewFab(strain,    4,"eps");
-			RegisterNewFab(stress,    4,"sig");
-			RegisterNewFab(stress_vm, 1,"sig_VM");
-			RegisterNewFab(energy,    1,"W");
-			RegisterNewFab(energies,  number_of_grains,"W");
+			RegisterNewFab(displacement, mybc,2,1,"u");
+			RegisterNewFab(body_force,mybc,2,0,"b");
+			RegisterNewFab(strain,    mybc,4,0,"eps");
+			RegisterNewFab(stress,    mybc,4,0,"sig");
+			RegisterNewFab(stress_vm, mybc,1,0,"sig_VM");
+			RegisterNewFab(energy,    mybc,1,0,"W");
+			RegisterNewFab(energies,  mybc,number_of_grains,0,"W");
 		}
 	}
 }
@@ -475,9 +477,18 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int lev = 0; lev < displacement.size(); lev++)
 	{
+
+		(*displacement[lev]).setVal(lev);
+		(*strain[lev]).setVal(lev);
+		(*stress[lev]).setVal(lev);
+		(*energy[lev]).setVal(lev);
+		(*energies[lev]).setVal(lev);
+		(*stress_vm[lev]).setVal(lev);
+
+
 		const amrex::Real* DX = geom[lev].CellSize();
 		const amrex::IntVect dx(1,0), dy(0,1);
-		for ( amrex::MFIter mfi(*displacement[lev],true); mfi.isValid(); ++mfi )
+		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
 		{
 			const Box& bx = mfi.tilebox();
 
@@ -488,30 +499,31 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			FArrayBox &energiesfab  = (*energies[lev])[mfi];
 			FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
 
-			elastic_operator->Stress(sigmafab,ufab,lev,mfi);
 
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-				{
-					amrex::IntVect m(i,j);
+			// elastic_operator->Stress(sigmafab,ufab,lev,mfi);
 
-					epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-					epsfab(m,1) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-					epsfab(m,2) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
-					 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+			// for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
+			// 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+			// 	{
+			// 		amrex::IntVect m(i,j);
 
-					sigmavmfab(m,0) = 0.0;
+			// 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+			// 		epsfab(m,1) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+			// 		epsfab(m,2) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
+			// 		 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
 
-					sigmavmfab(m) =
-					 	sqrt(0.5*(sigmafab(m,0) - sigmafab(m,1)*(sigmafab(m,0) - sigmafab(m,1))
-					 		  + sigmafab(m,0)*sigmafab(m,0)
-					 		  + sigmafab(m,1)*sigmafab(m,1)
-					 		  + 6.0*sigmafab(m,2)*sigmafab(m,2)));
+			// 		sigmavmfab(m,0) = 0.0;
 
-				}
+			// 		sigmavmfab(m) =
+			// 		 	sqrt(0.5*(sigmafab(m,0) - sigmafab(m,1)*(sigmafab(m,0) - sigmafab(m,1))
+			// 		 		  + sigmafab(m,0)*sigmafab(m,0)
+			// 		 		  + sigmafab(m,1)*sigmafab(m,1)
+			// 		 		  + 6.0*sigmafab(m,2)*sigmafab(m,2)));
 
-			elastic_operator->Energy(energyfab,ufab,lev,mfi);
-			elastic_operator->Energies(energiesfab,ufab,lev,mfi);
+			// 	}
+
+			// elastic_operator->Energy(energyfab,ufab,lev,mfi);
+			// elastic_operator->Energies(energiesfab,ufab,lev,mfi);
 		}
 	}
 }

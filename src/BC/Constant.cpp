@@ -1,8 +1,8 @@
-#include "BC.H"
-#include "BC/Util.H"
-#include "Util/Util.H"
+#include "Constant.H"
 
-BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom
+namespace BC
+{
+Constant (amrex::Vector<amrex::Geometry> &_geom
 				,amrex::Vector<std::string> bc_hi_str
 				,amrex::Vector<std::string> bc_lo_str
 				,amrex::Vector<amrex::Real> _bc_lo_1
@@ -32,7 +32,7 @@ BC::BC::BC (amrex::Vector<amrex::Geometry> &_geom
 }
 
 void
-BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) 
+Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) 
 {
 	if ((BCUtil::IsNeumann(bc_lo[0]) || BCUtil::IsDirichlet(bc_lo[0])) && bc_lo_1.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_lo_1");
 	if ((BCUtil::IsNeumann(bc_hi[0]) || BCUtil::IsDirichlet(bc_hi[0])) && bc_hi_1.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_hi_1");
@@ -173,16 +173,16 @@ BC::BC::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 }
 
 void
-BC::BC::SetLevel(int _lev) {lev=_lev;}
+Constant::SetLevel(int _lev) {lev=_lev;}
 
 amrex::BCRec
-BC::BC::GetBCRec() {return amrex::BCRec(bc_lo,bc_hi);}
+Constant::GetBCRec() {return amrex::BCRec(bc_lo,bc_hi);}
 
 amrex::Array<int,AMREX_SPACEDIM>
-BC::BC::IsPeriodic()
+Constant::IsPeriodic()
 {
 	return {AMREX_D_DECL(BCUtil::IsPeriodic(bc_lo[0]),BCUtil::IsPeriodic(bc_lo[1]),BCUtil::IsPeriodic(bc_lo[2]))};
 }
-
+}
 
 
