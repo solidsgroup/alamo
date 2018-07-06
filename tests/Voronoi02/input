@@ -1,4 +1,4 @@
-timestep = 0.05
+timestep = 0.001
 stop_time = 400
 
 amr.plot_int = 10
@@ -30,21 +30,20 @@ pf.gamma = 1.0
 pf.l_gb=0.05
 pf.sigma0=0.075
 
-anisotropy.on=0
+anisotropy.on=1
 anisotropy.tstart= 1
 anisotropy.theta0= 30
 anisotropy.sigma0=0.075
 anisotropy.sigma1=0.15
-anisotropy.beta= 0.0001;
+anisotropy.beta= 0.000005;
 anisotropy.damp=1.0
 
-elastic.on=0
-elastic.int=1
+elastic.on=1
+elastic.int=10
 elastic.type=cubic
 elastic.cgverbose=0
 elastic.tol_rel=0.000001
 elastic.tol_abs=0.000001
-
-elastic.tstart=5.0
+elastic.tstart=0.25
 elastic.load_t=0.0 
 elastic.load_disp=0.01
