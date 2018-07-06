@@ -134,6 +134,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			RegisterNewFab(energy,    mybc,1,0,"W");
 			RegisterNewFab(energies,  mybc,number_of_grains,0,"W");
 		}
+
+		//
+		// Initialize elastic models
+		//
+		for (int n = 0; n <  number_of_grains; n++) 
+			models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
+
 	}
 }
 
@@ -285,7 +292,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 							FArrayBox &energiesfab     = (*energies[lev])[mfi];
 
 							eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
-								+= M*dt*( energiesfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),m));
+								-= M*dt*( energiesfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),m));
 						}
 
 					}
@@ -381,9 +388,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						    geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
 						    geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
 
-	std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
-	for (int n = 0; n <  number_of_grains; n++) 
-		models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
 
 	// models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
 	// 							     2.49, 2.49, 4.328));

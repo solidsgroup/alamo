@@ -101,6 +101,8 @@ private:
   amrex::Vector<amrex::Real> elastic_load_disp;
   Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 
+	std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
+
 };
 }
 #endif
