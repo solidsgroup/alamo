@@ -3,24 +3,24 @@
 #amr.max_grid_size	= 10000       # * Maximum grid size 
 #max_step		= 100000      # Maximum number of timesteps
 amr.plot_file		= tests/Flame/output # The name of the output file 
-amr.plot_int		= 10           # How frequently to dump output
+amr.plot_int		= 100           # How frequently to dump output
 
 amr.max_level		= 3           # How many levels of grid refinement are allowed
-amr.n_cell		= 20 10 2      # Number of cells in the x,y,z directions
+amr.n_cell		= 30 10 2      # Number of cells in the x,y,z directions
 #amr.max_grid_size	= 50          # * Maximum allowable grid size
 amr.blocking_factor	= 1           # * Minimum size of each block
 amr.regrid_int		= 10          # * How frequently (in number of timesteps) to regrid
 amr.grid_eff		= 1.0         # * Closeness of regrid patch to tagged region (default = 0.7) 
 
-geometry.prob_lo	= -1 -0.5 -0.1     # Problem domain: furthest point to the lower left
-geometry.prob_hi	= 1 0.5 0.1       # Problem domain: furthest point to the upper right
+geometry.prob_lo	= -1.5 -0.5 -0.1     # Problem domain: furthest point to the lower left
+geometry.prob_hi	= 1.5 0.5 0.1       # Problem domain: furthest point to the upper right
 geometry.is_periodic	= 0 1 1         # * Boundary conditions - currently under construction 
 
-timestep		= 0.0025     # Timestep
-stop_time               = 8
+timestep		= 0.001     # Timestep
+stop_time               = 50
 
 physics.M		= 1.0         # Mobility - controls flame speed
-physics.kappa		= 0.025	      # Width of burn region
+physics.kappa		= 0.01	      # Width of burn region
 physics.w1		= 1.0	      # Chemical energy before burn
 physics.w12		= 2.0	      # Chemical energy during burn
 #physics.w2		= 0.0	      # Chemical energy after burn
@@ -49,7 +49,7 @@ TempBC.hi_1	= 0.0
 
 EtaBC.hi	= EXT_DIR INT_DIR INT_DIR
 EtaBC.lo	= EXT_DIR INT_DIR INT_DIR
-EtaBC.lo_1	= 1.0 
-EtaBC.hi_1	= 0.0 
+EtaBC.lo_1	= 0.0 
+EtaBC.hi_1	= 1.0 
 #EtaBC.lo_2	= 0.0 
 #EtaBC.hi_2	= 0.0 
