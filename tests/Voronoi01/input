@@ -35,10 +35,10 @@ anisotropy.tstart= 0.5
 anisotropy.theta0= 45
 anisotropy.sigma0=0.075
 anisotropy.sigma1=0.15
-anisotropy.beta= 0.00002;
+anisotropy.beta= 0.00001;
 anisotropy.damp=1.0
 
-elastic.on=1
+elastic.on=0
 elastic.int=10
 elastic.type=cubic
 elastic.cgverbose=0

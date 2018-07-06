@@ -10,6 +10,7 @@
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
 #include "IC/Flame/Voronoi.H"
+#include "IC/Flame/Wedge.H"
 
 namespace Integrator
 {
@@ -49,6 +50,8 @@ private:
 	amrex::Real fs_min = -1.0;
 	amrex::Real fs_max = 1.0;
 	
+	IC::IC *eta_ic;
+
 };
 }
 
