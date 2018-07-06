@@ -1,4 +1,3 @@
-
 #include "Flame.H"
 #include "BC/Constant.H"
 
