@@ -1,5 +1,5 @@
-timestep = 0.005
-stop_time = 10
+timestep = 0.05
+stop_time = 400
 
 amr.plot_int = 10
 amr.max_level = 2
@@ -30,15 +30,15 @@ pf.gamma = 1.0
 pf.l_gb=0.05
 pf.sigma0=0.075
 
-anisotropy.on=1
+anisotropy.on=0
 anisotropy.tstart= 1
 anisotropy.theta0= 30
 anisotropy.sigma0=0.075
 anisotropy.sigma1=0.15
-anisotropy.beta= 0.00002;
+anisotropy.beta= 0.0001;
 anisotropy.damp=1.0
 
-elastic.on=1
+elastic.on=0
 elastic.int=1
 elastic.type=cubic
 elastic.cgverbose=0
