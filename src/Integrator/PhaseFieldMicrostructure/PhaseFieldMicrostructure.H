@@ -62,8 +62,8 @@ private:
   int number_of_grains = 2;
   int number_of_ghost_cells = 2;
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
@@ -104,5 +104,17 @@ private:
 	std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
 
 };
+}
+
+#include <AMReX_BLFort.H>
+
+namespace Fortran
+{
+extern "C" {
+	void Advance(const int* lo, const int* hi,
+		     amrex_real* etanew, const int* etanew_lo, const int* etanew_hi,
+		     const amrex_real* etaold, const int* etaold_lo, const int* etaold_hi,
+		     const int* number_of_grains);
+}
 }
 #endif

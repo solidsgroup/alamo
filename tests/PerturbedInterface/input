@@ -2,7 +2,7 @@ timestep = 0.005
 stop_time = 2.0
 
 amr.plot_int = 10
-amr.max_level = 3
+amr.max_level = 2
 amr.n_cell = 64 8
 amr.blocking_factor = 1
 amr.regrid_int = 10
@@ -29,8 +29,8 @@ pf.gamma = 1.0
 pf.l_gb=0.1
 pf.sigma0=0.075
 
-anisotropy.on=0
-anisotropy.tstart= 1
+anisotropy.on=1
+anisotropy.tstart= 0.5
 anisotropy.theta0= 45
 anisotropy.sigma0=0.075
 anisotropy.sigma1=0.15
@@ -38,7 +38,7 @@ anisotropy.beta= 0.00002;
 anisotropy.damp=1.0
 
 
-elastic.on=1
+elastic.on=0
 elastic.int=10
 elastic.type=isotropic
 elastic.cgverbose=0

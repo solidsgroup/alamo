@@ -39,12 +39,13 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 .SECONDARY: 
 
 
+
 default: $(EXE)
 	@echo $(B_ON)$(FG_GREEN)"###"
 	@echo "### DONE" 
 	@echo "###"$(RESET)
 
-bin/%: ${OBJ} ${OBJ_F} obj/%.cc.o
+bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
 	@echo "###"$(RESET)
@@ -65,6 +66,7 @@ obj/%.cpp.o: src/%.cpp ${HDR}
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
+
 obj/IO/WriteMetaData.cpp.o: .FORCE
 	@echo $(B_ON)$(FG_CYAN)"###"
 	@echo "### COMPILING $@" 
@@ -77,7 +79,8 @@ obj/IO/WriteMetaData.cpp.o: .FORCE
 
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
-%.F90.o: %.F90 ${HDR}
+
+obj/%.F90.o: src/%.F90 
 	@echo $(B_ON)$(FG_YELLOW)"###"
 	@echo "### COMPILING $<" 
 	@echo "###"$(RESET)
