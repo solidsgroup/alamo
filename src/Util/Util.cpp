@@ -1,8 +1,12 @@
 #include "Util.H"
 #include "Color.H"
 
+#include "AMReX_ParallelDescriptor.H"
+#include "AMReX_Utility.H"
+
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
+#include <chrono>
 
 namespace Util
 {
@@ -71,7 +75,7 @@ void Initialize (int argc, char* argv[])
 
 	if (amrex::ParallelDescriptor::IOProcessor())
 	{
-		amrex::UtilCreateCleanDirectory(filename, false);
+		Util::CreateCleanDirectory(filename, false);
 		IO::WriteMetaData(filename);
 	}
 }
@@ -96,5 +100,41 @@ Terminate(const char * msg, int signal, bool backtrace)
 	amrex::write_to_stderr_without_buffering(msg);
 	SignalHandler(signal);
 }
+
+void
+CreateCleanDirectory (const std::string &path, bool callbarrier)
+{
+	if(amrex::ParallelDescriptor::IOProcessor()) {
+		if(amrex::FileExists(path)) {
+			std::time_t t = std::time(0);
+			std::tm * now = std::localtime(&t);
+			int year = now->tm_year+1900;
+			int month = now->tm_mon+1;
+			int day = now->tm_mday;
+			int hour = now->tm_hour;
+			int minute = now->tm_min;
+			int second = now->tm_sec;
+
+			std::stringstream ss;
+			ss << year << month << day << hour << minute << second;
+
+			std::string newoldname(path + ".old." + ss.str());
+			if (amrex::system::verbose) {
+				amrex::Print() << "Util::CreateCleanDirectory():  " << path
+					       << " exists.  Renaming to:  " << newoldname << std::endl;
+			}
+			std::rename(path.c_str(), newoldname.c_str());
+		}
+		if( ! amrex::UtilCreateDirectory(path, 0755)) {
+			amrex::CreateDirectoryFailed(path);
+		}
+	}
+	if(callbarrier) {
+		// Force other processors to wait until directory is built.
+		amrex::ParallelDescriptor::Barrier("amrex::UtilCreateCleanDirectory");
+	}
+}
+
+
 
 }
