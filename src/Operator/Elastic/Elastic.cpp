@@ -126,6 +126,9 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 			}
 		}
 	}
+	if (f.contains_nan())
+		Util::Abort("Fapply: Nan Detected in f fab");
+
 }
 
 
@@ -249,6 +252,9 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 			}
 		}
 	}
+	if (u.contains_nan())
+		Util::Abort("FSmooth: Nan Detected in u fab");
+
 }
 
 /// \fn Operator::Elastic::FFlux
@@ -265,11 +271,18 @@ Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
+	// amrex::BaseFab<amrex::Real> &fxfab = *sigmafab[0];
+	// amrex::BaseFab<amrex::Real> &fyfab = *sigmafab[1];
+	// fxfab.setVal(0.0);
+	// fyfab.setVal(0.0);
 
-	amrex::BaseFab<amrex::Real> &fxfab = *sigmafab[0];
-	amrex::BaseFab<amrex::Real> &fyfab = *sigmafab[1];
-	fxfab.setVal(0.0);
-	fyfab.setVal(0.0);
+	amrex::BaseFab<amrex::Real> AMREX_D_DECL( &fxfab = *sigmafab[0],
+	 					  &fyfab = *sigmafab[1],
+	 					  &fzfab = *sigmafab[2] ) ;
+	AMREX_D_TERM(fxfab.setVal(0.0);,
+	 	     fyfab.setVal(0.0);,
+	 	     fzfab.setVal(0.0););
+
 }
 
 void Elastic::AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const

@@ -78,6 +78,10 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 								phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 									phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
 							}
+							else
+							{
+								Util::Abort("Incorrect boundary conditions");
+							}
 						}
 
 						if (i > domain.hiVect()[0]) // Right boundary
@@ -94,6 +98,10 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 							{
 								phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 									phi_box(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
+							}
+							else
+							{
+								Util::Abort("Incorrect boundary conditions");
 							}
 						}
 
@@ -112,6 +120,10 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 								phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 									phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
 							}
+							else
+							{
+								Util::Abort("Incorrect boundary conditions");
+							}
 						}
 
 						if (j > domain.hiVect()[1]) // Top boundary
@@ -128,6 +140,10 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 							{
 								phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 									phi_box(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
+							}
+							else
+							{
+								Util::Abort("Incorrect boundary conditions");
 							}
 						}
 
@@ -148,6 +164,10 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 								phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 									phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
 							}
+							else
+							{
+								Util::Abort("Incorrect boundary conditions");
+							}
 						}
 
 						if (k > domain.hiVect()[2])
@@ -164,6 +184,10 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 							{
 								phi_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 
 									phi_box(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
+							}
+							else
+							{
+								Util::Abort("Incorrect boundary conditions");
 							}
 						}
 #endif

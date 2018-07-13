@@ -170,8 +170,8 @@ int main (int argc, char* argv[])
 
 			u[ilev].setVal(0.0);
 			
-			IC::Eigenstrain::Sphere eigenstrain_ic(geom);
-			eigenstrain_ic.Initialize(ilev,eps0);
+			// IC::Eigenstrain::Sphere eigenstrain_ic(geom);
+			// eigenstrain_ic.Initialize(ilev,eps0);
 		}
 
 	//
@@ -186,8 +186,8 @@ int main (int argc, char* argv[])
 	Operator::Elastic::Isotropic mlabec;
 	mlabec.define(geom, grids, dmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
-	mlabec.SetEigenstrain(eps0,*mybc);
-	mlabec.AddEigenstrainToRHS(rhs);
+	// mlabec.SetEigenstrain(eps0,*mybc);
+	// mlabec.AddEigenstrainToRHS(rhs);
 	mlabec.setDomainBC(mybc->GetBCTypes<amrex::LinOpBCType>()[0],
 			   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
 
@@ -200,6 +200,8 @@ int main (int argc, char* argv[])
 	//
 	// Solver
 	//
+
+	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
 	MLMG mlmg(mlabec);
 	mlmg.setMaxIter(max_iter);
@@ -218,6 +220,8 @@ int main (int argc, char* argv[])
 		}
 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
+	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+
 	//
 	// Compute post-solve values
 	//
@@ -235,6 +239,7 @@ int main (int argc, char* argv[])
 				}
 		}
 		
+	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
 
 	//
@@ -249,6 +254,7 @@ int main (int argc, char* argv[])
 											 "stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
 #endif
 
+	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
 	nlevels = max_level+1;
 
@@ -282,13 +288,19 @@ int main (int argc, char* argv[])
 #endif 
 		}
 
+	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+
 	IO::FileNameParse(plot_file);
 
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 									varname, geom, 0.0, Vector<int>(nlevels, 0),
 									Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	
+	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+
 	IO::WriteMetaData(plot_file);
+
+	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
 	amrex::Finalize();
 }
