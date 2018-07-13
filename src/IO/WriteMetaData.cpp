@@ -44,9 +44,9 @@ void WriteMetaData(std::string plot_file, Status status)
 			metadatafile << "Compilation_Time = " << METADATA_TIME  << std::endl;
 			metadatafile << std::endl;
 
-
 			metadatafile << "# PARAMETERS" << std::endl;
 			metadatafile << "# ==========" << std::endl;
+
 			pp.dumpTable(metadatafile,true);
   
 			metadatafile << "# RUN DETAILS" << std::endl;
@@ -65,7 +65,6 @@ void WriteMetaData(std::string plot_file, Status status)
 					metadatafile << "Simulation_end_time = " << std::ctime(&starttime);
 					metadatafile << "Simulation_run_time = " << std::difftime(now,starttime) << " seconds " << std::endl;
 				}
-
 
 
 			metadatafile.close();
