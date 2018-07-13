@@ -511,9 +511,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			 		amrex::IntVect m(i,j);
 
 			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-			 		epsfab(m,1) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-			 		epsfab(m,2) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
+			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
 			 		 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+					epsfab(m,2) = epsfab(m,1);
+			 		epsfab(m,3) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
 
 			 		sigmavmfab(m,0) = 0.0;
 
