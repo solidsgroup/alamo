@@ -7,6 +7,7 @@
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
 
+#include "Util/Util.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Model/Solid/Elastic/Elastic.H"
@@ -20,7 +21,7 @@ using namespace amrex;
 
 int main (int argc, char* argv[])
 {
-	amrex::Initialize(argc, argv);
+	Util::Initialize(argc, argv);
 
 	//
 	//
@@ -147,7 +148,7 @@ int main (int argc, char* argv[])
 		{
 			dmap   [ilev].define(grids[ilev]);
 			u      [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
-		   eps0   [ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
+			eps0   [ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
 			bcdata [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
 			rhs    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
 			stress [ilev].define(grids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
@@ -302,5 +303,5 @@ int main (int argc, char* argv[])
 
 	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
-	amrex::Finalize();
+	Util::Finalize();
 }

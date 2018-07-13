@@ -23,9 +23,12 @@ std::string GetFileName()
 			if (amrex::ParallelDescriptor::IOProcessor())
 				amrex::Warning("amr.plot_file will be depricated; use plot_file instead");
 			pp_amr.query("plot_file", filename);
+
 		}
 		else if (pp.contains("plot_file"))
-			pp_amr.query("plot_file", filename);
+		{
+			pp.query("plot_file", filename);
+		}
 		else
 			if (amrex::ParallelDescriptor::IOProcessor())
 				Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
@@ -57,17 +60,19 @@ void Initialize (int argc, char* argv[])
 		exit(-1);
 	}
 
+	amrex::Initialize(argc, argv);
+
 	amrex::ParmParse pp_amrex("amrex");
 	pp_amrex.add("throw_exception",1);
 	//amrex.throw_exception=1
 	
-	amrex::Initialize(argc, argv);
 
 	signal(SIGSEGV, Util::SignalHandler); 
 	signal(SIGINT,  Util::SignalHandler);
 	signal(SIGABRT, Util::SignalHandler);
 
 	std::string filename = GetFileName();
+
 
 	if (amrex::ParallelDescriptor::IOProcessor())
 	{
