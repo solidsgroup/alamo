@@ -94,14 +94,14 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	/*
 	 */
   
-	eta_new.resize(maxLevel()+1);
+	eta_new_mf.resize(maxLevel()+1);
 
 	// amrex::ParallelDescriptor::Barrier();
 	// amrex::Abort("No error, just exiting here");
 
-	RegisterNewFab(eta_new, mybc, number_of_grains, number_of_ghost_cells, "Eta");
-	//eta_old.resize(maxLevel()+1);
-	RegisterNewFab(eta_old, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
+	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta");
+	//eta_old_mf.resize(maxLevel()+1);
+	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
 
   
 	// Elasticity
@@ -145,7 +145,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 }
 
 
-#define ETA(i,j,k,n) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n)
+#define ETA(i,j,k,n) eta_old(amrex::IntVect(AMREX_D_DECL(i,j,k)),n)
 
 void
 PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
@@ -153,151 +153,153 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 	/// TODO Make this optional
 	if (lev != max_level) return;
-	std::swap(eta_old[lev], eta_new[lev]);
-	const amrex::Real* dx = geom[lev].CellSize();
+	std::swap(eta_old_mf[lev], eta_new_mf[lev]);
+	const amrex::Real* DX = geom[lev].CellSize();
 
-	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
+	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+					   dy(AMREX_D_DECL(0,1,0)),
+					   dz(AMREX_D_DECL(0,0,1)));
+
+	for ( amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi )
 	{
 		const amrex::Box& bx = mfi.tilebox();
-		FArrayBox &eta_new_box     = (*eta_new[lev])[mfi];
-		FArrayBox &eta_old_box     = (*eta_old[lev])[mfi];
+		FArrayBox &eta_new_box     = (*eta_new_mf[lev])[mfi];
+		FArrayBox &eta_old     = (*eta_old_mf[lev])[mfi];
 
-
-		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-			for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM > 2
-				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-#endif
-				{
-					for (int m = 0; m < number_of_grains; m++)
-					{
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			
+			for (int i = 0; i < number_of_grains; i++)
+			{
 		  
-						//
-						// CHEMICAL POTENTIAL
-						//
+				//
+				// CHEMICAL POTENTIAL
+				//
 
-						amrex::Real sum_of_squares = 0.;
-						for (int n = 0; n < number_of_grains; n++)
-						{
-							if (n==m) continue;
-							sum_of_squares += ETA(i,j,k,n)*ETA(i,j,k,n);
-						}
-
-						//
-						// BOUNDARY TERM
-						// and
-						// CURVATURE PENALTY
-						//
-
-						amrex::Real grad1_normal = (ETA(i+1,j,k,m) - ETA(i-1,j,k,m))/(2*dx[0]);
-						amrex::Real grad2_normal = (ETA(i,j+1,k,m) - ETA(i,j-1,k,m))/(2*dx[1]);
-						amrex::Real grad1 =  grad1_normal;
-						amrex::Real grad2 =  grad2_normal;
-						amrex::Real grad12 = (ETA(i+1,j+1,k,m) - ETA(i-1,j+1,k,m)
-								      - ETA(i+1,j-1,k,m) + ETA(i-1,j-1,k,m))/(4.*dx[0]*dx[1]);
-						amrex::Real grad11 =  (ETA(i+1,j,k,m) - 2.*ETA(i,j,k,m)
-								       + ETA(i-1,j,k,m))/dx[0]/dx[0]; // 3 point
-						amrex::Real grad22 = (ETA(i,j+1,k,m) - 2.*ETA(i,j,k,m)
-								      + ETA(i,j-1,k,m))/dx[1]/dx[1]; // 3 point
-		      
-						amrex::Real laplacian = grad11 + grad22;
-
-						amrex::Real kappa = l_gb*0.75*sigma0;
-						mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
-
-						if (anisotropy && time > anisotropy_tstart)
-						{
-							amrex::Real Theta = atan2(grad2,grad1);
-							amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
-							amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
-							amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
-							amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
-							amrex::Real Sine_theta = sin(Theta);
-							amrex::Real Cos_theta = cos(Theta);
-		
-							// amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
-		
-							amrex::Real grad1111=(1/(dx[0]*dx[0]*dx[0]*dx[0])) * ((ETA(i+2,j,k,m)) - 4*(ETA(i+1,j,k,m))+6*(ETA(i,j,k,m)) - 4*(ETA(i-1,j,k,m)) + (ETA(i-2,j,k,m)));
-			
-							amrex::Real grad2222=(1/(dx[1]*dx[1]*dx[1]*dx[1])) * ((ETA(i,j+2,k,m)) - 4*(ETA(i,j+1,k,m))+6*(ETA(i,j,k,m)) - 4*(ETA(i,j-1,k,m)) + (ETA(i,j-2,k,m)));
-			
-							amrex::Real grad1112= (1/(24*dx[0]*dx[0]*dx[0]*dx[1]))*
-								((-ETA(i+2,j+2,k,m)+8*ETA(i+2,j+1,k,m)
-								  -8*ETA(i+2,j-1,k,m)+ETA(i+2,j-2,k,m))
-								 -2*(-ETA(i+1,j+2,k,m)+8*ETA(i+1,j+1,k,m)
-								     -8*ETA(i+1,j-1,k,m)+ETA(i+1,j-2,k,m))
-								 +2*(-ETA(i-1,j+2,k,m)+8*ETA(i-1,j+1,k,m)
-								     -8*ETA(i-1,j-1,k,m)+ETA(i-1,j-2,k,m))
-								 -(-ETA(i-2,j+2,k,m)+8*ETA(i-2,j+1,k,m)
-								   -8*ETA(i-2,j-1,k,m)+ETA(i-2,j-2,k,m)));
-			
-							amrex::Real grad1222= (1/(24*dx[0]*dx[1]*dx[1]*dx[1]))*
-								((-ETA(i+2,j+2,k,m)+8*ETA(i+1,j+2,k,m)
-								  -8*ETA(i-1,j+2,k,m)+ETA(i-2,j+2,k,m))
-								 -2*(-ETA(i+2,j+1,k,m)+8*ETA(i+1,j+1,k,m)
-								     -8*ETA(i-1,j+1,k,m)+ETA(i-2,j+1,k,m))
-								 +2*(-ETA(i+2,j-1,k,m)+8*ETA(i+1,j-1,k,m)
-								     -8*ETA(i-1,j-1,k,m)+ETA(i-2,j-1,k,m))
-								 -(-ETA(i+2,j-2,k,m)+8*ETA(i+1,j-2,k,m)
-								   -8*ETA(i-1,j-2,k,m)+ETA(i-2,j-2,k,m)));
-			
-							amrex::Real grad1122= (1/(144*dx[0]*dx[0]*dx[1]*dx[1]))*
-								(-(-ETA(i+2,j+2,k,m)+16*ETA(i+1,j+2,k,m)-30*ETA(i,j+2,k,m)
-								   +16*ETA(i-1,j+2,k,m)-ETA(i-2,j+2,k,m))
-								 +16*(-ETA(i+2,j+1,k,m)+16*ETA(i+1,j+1,k,m)-30*ETA(i,j+1,k,m)
-								      +16*ETA(i-1,j+1,k,m)-ETA(i-2,j+1,k,m))
-								 -30*(-ETA(i+2,j,k,m)+16*ETA(i+1,j,k,m)-30*ETA(i,j,k,m)
-								      +16*ETA(i-1,j,k,m)-ETA(i-2,j,k,m))
-								 +16*(-ETA(i+2,j-1,k,m)+16*ETA(i+1,j-1,k,m)-30*ETA(i,j-1,k,m)
-								      +16*ETA(i-1,j-1,k,m)-ETA(i-2,j-1,k,m))
-								 -(-ETA(i+2,j-2,k,m)+16*ETA(i+1,j-2,k,m)-30*ETA(i,j-2,k,m)
-								   +16*ETA(i-1,j-2,k,m)-ETA(i-2,j-2,k,m)));
-			
-							amrex::Real Curvature_term =
-								grad1111*(Sine_theta*Sine_theta*Sine_theta*Sine_theta)
-								+grad1112*(-4*Sine_theta*Sine_theta*Sine_theta*Cos_theta)
-								+grad1122*(6*Sine_theta*Sine_theta*Cos_theta*Cos_theta)
-								+grad1222*(-4*Sine_theta*Cos_theta*Cos_theta*Cos_theta)
-								+grad2222*(Cos_theta*Cos_theta*Cos_theta*Cos_theta);
-
-							amrex::Real W =
-								Mu*(ETA(i,j,k,m)*ETA(i,j,k,m)
-								    - 1.0 + 2.0*gamma*sum_of_squares)*ETA(i,j,k,m);
-
-							amrex::Real Boundary_term =
-								Kappa*laplacian +
-								DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-								+ damp*0.5*DDKappa*(Sine_theta*Sine_theta*grad11 - 2.*Sine_theta*Cos_theta*grad12 + Cos_theta*Cos_theta*grad22);
-			
-			
-							eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
-								ETA(i,j,k,m) -
-								M*dt*(W - (Boundary_term) + beta*(Curvature_term));
-						}
-						else // Isotropic response if less than anisotropy_tstart
-						{
-							eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) =
-								ETA(i,j,k,m) -
-								M*dt*(mu*(ETA(i,j,k,m)*ETA(i,j,k,m)
-									  - 1.0 +
-									  2.0*gamma*sum_of_squares)*ETA(i,j,k,m)
-								      - kappa*laplacian);
-						}
-
-						//
-						// ELASTIC DRIVING FORCE
-						//
-						if (elastic_on && time > elastic_tstart)
-						{
-							FArrayBox &energiesfab     = (*energies[lev])[mfi];
-
-							eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
-								-= M*dt*( energiesfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),m));
-						}
-
-					}
-	      
+				amrex::Real sum_of_squares = 0.;
+				for (int j = 0; j < number_of_grains; j++)
+				{
+					if (i==j) continue;
+					sum_of_squares += eta_old(m,j)*eta_old(m,j);
 				}
+
+				//
+				// BOUNDARY TERM
+				// and
+				// CURVATURE PENALTY
+				//
+
+				// amrex::Real grad1_normal = (ETA(m1+1,m2,m3,i) - ETA(m1-1,m2,m3,i))/(2*DX[0]);
+				// amrex::Real grad2_normal = (ETA(m1,m2+1,m3,i) - ETA(m1,m2-1,m3,i))/(2*DX[1]);
+				amrex::Real grad1 = (eta_old(m+dx,i) - eta_old(m-dx,i))/(2*DX[0]);
+				amrex::Real grad2 = (eta_old(m+dy,i) - eta_old(m-dy,i))/(2*DX[1]);
+				// amrex::Real grad1 =  grad1_normal;
+				// amrex::Real grad2 =  grad2_normal;
+				amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
+				amrex::Real grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0]; // 3 point
+				amrex::Real grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1]; // 3 point
+		      
+				amrex::Real laplacian = grad11 + grad22;
+
+				amrex::Real kappa = l_gb*0.75*sigma0;
+				mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
+
+				if (anisotropy && time > anisotropy_tstart)
+				{
+					amrex::Real Theta = atan2(grad2,grad1);
+					amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
+					amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
+					amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
+					amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
+					amrex::Real Sine_theta = sin(Theta);
+					amrex::Real Cos_theta = cos(Theta);
+		
+					// amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
+		
+					amrex::Real grad1111=(1/(DX[0]*DX[0]*DX[0]*DX[0])) * ((ETA(m1+2,m2,m3,i)) - 4*(ETA(m1+1,m2,m3,i))+6*(ETA(m1,m2,m3,i)) - 4*(ETA(m1-1,m2,m3,i)) + (ETA(m1-2,m2,m3,i)));
+			
+					amrex::Real grad2222=(1/(DX[1]*DX[1]*DX[1]*DX[1])) * ((ETA(m1,m2+2,m3,i)) - 4*(ETA(m1,m2+1,m3,i))+6*(ETA(m1,m2,m3,i)) - 4*(ETA(m1,m2-1,m3,i)) + (ETA(m1,m2-2,m3,i)));
+			
+					amrex::Real grad1112= (1/(24*DX[0]*DX[0]*DX[0]*DX[1]))*
+						((-ETA(m1+2,m2+2,m3,i)+8*ETA(m1+2,m2+1,m3,i)
+						  -8*ETA(m1+2,m2-1,m3,i)+ETA(m1+2,m2-2,m3,i))
+						 -2*(-ETA(m1+1,m2+2,m3,i)+8*ETA(m1+1,m2+1,m3,i)
+						     -8*ETA(m1+1,m2-1,m3,i)+ETA(m1+1,m2-2,m3,i))
+						 +2*(-ETA(m1-1,m2+2,m3,i)+8*ETA(m1-1,m2+1,m3,i)
+						     -8*ETA(m1-1,m2-1,m3,i)+ETA(m1-1,m2-2,m3,i))
+						 -(-ETA(m1-2,m2+2,m3,i)+8*ETA(m1-2,m2+1,m3,i)
+						   -8*ETA(m1-2,m2-1,m3,i)+ETA(m1-2,m2-2,m3,i)));
+			
+					amrex::Real grad1222= (1/(24*DX[0]*DX[1]*DX[1]*DX[1]))*
+						((-ETA(m1+2,m2+2,m3,i)+8*ETA(m1+1,m2+2,m3,i)
+						  -8*ETA(m1-1,m2+2,m3,i)+ETA(m1-2,m2+2,m3,i))
+						 -2*(-ETA(m1+2,m2+1,m3,i)+8*ETA(m1+1,m2+1,m3,i)
+						     -8*ETA(m1-1,m2+1,m3,i)+ETA(m1-2,m2+1,m3,i))
+						 +2*(-ETA(m1+2,m2-1,m3,i)+8*ETA(m1+1,m2-1,m3,i)
+						     -8*ETA(m1-1,m2-1,m3,i)+ETA(m1-2,m2-1,m3,i))
+						 -(-ETA(m1+2,m2-2,m3,i)+8*ETA(m1+1,m2-2,m3,i)
+						   -8*ETA(m1-1,m2-2,m3,i)+ETA(m1-2,m2-2,m3,i)));
+			
+					amrex::Real grad1122= (1/(144*DX[0]*DX[0]*DX[1]*DX[1]))*
+						(-(-ETA(m1+2,m2+2,m3,i)+16*ETA(m1+1,m2+2,m3,i)-30*ETA(m1,m2+2,m3,i)
+						   +16*ETA(m1-1,m2+2,m3,i)-ETA(m1-2,m2+2,m3,i))
+						 +16*(-ETA(m1+2,m2+1,m3,i)+16*ETA(m1+1,m2+1,m3,i)-30*ETA(m1,m2+1,m3,i)
+						      +16*ETA(m1-1,m2+1,m3,i)-ETA(m1-2,m2+1,m3,i))
+						 -30*(-ETA(m1+2,m2,m3,i)+16*ETA(m1+1,m2,m3,i)-30*ETA(m1,m2,m3,i)
+						      +16*ETA(m1-1,m2,m3,i)-ETA(m1-2,m2,m3,i))
+						 +16*(-ETA(m1+2,m2-1,m3,i)+16*ETA(m1+1,m2-1,m3,i)-30*ETA(m1,m2-1,m3,i)
+						      +16*ETA(m1-1,m2-1,m3,i)-ETA(m1-2,m2-1,m3,i))
+						 -(-ETA(m1+2,m2-2,m3,i)+16*ETA(m1+1,m2-2,m3,i)-30*ETA(m1,m2-2,m3,i)
+						   +16*ETA(m1-1,m2-2,m3,i)-ETA(m1-2,m2-2,m3,i)));
+			
+					amrex::Real Curvature_term =
+						grad1111*(Sine_theta*Sine_theta*Sine_theta*Sine_theta)
+						+grad1112*(-4*Sine_theta*Sine_theta*Sine_theta*Cos_theta)
+						+grad1122*(6*Sine_theta*Sine_theta*Cos_theta*Cos_theta)
+						+grad1222*(-4*Sine_theta*Cos_theta*Cos_theta*Cos_theta)
+						+grad2222*(Cos_theta*Cos_theta*Cos_theta*Cos_theta);
+
+					amrex::Real W =
+						Mu*(ETA(m1,m2,m3,i)*ETA(m1,m2,m3,i)
+						    - 1.0 + 2.0*gamma*sum_of_squares)*ETA(m1,m2,m3,i);
+
+					amrex::Real Boundary_term =
+						Kappa*laplacian +
+						DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
+						+ damp*0.5*DDKappa*(Sine_theta*Sine_theta*grad11 - 2.*Sine_theta*Cos_theta*grad12 + Cos_theta*Cos_theta*grad22);
+			
+			
+					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) =
+						ETA(m1,m2,m3,i) -
+						M*dt*(W - (Boundary_term) + beta*(Curvature_term));
+				}
+				else // Isotropic response if less than anisotropy_tstart
+				{
+					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) =
+						ETA(m1,m2,m3,i) -
+						M*dt*(mu*(ETA(m1,m2,m3,i)*ETA(m1,m2,m3,i)
+							  - 1.0 +
+							  2.0*gamma*sum_of_squares)*ETA(m1,m2,m3,i)
+						      - kappa*laplacian);
+				}
+
+				//
+				// ELASTIC DRIVING FORCE
+				//
+				if (elastic_on && time > elastic_tstart)
+				{
+					FArrayBox &energiesfab     = (*energies[lev])[mfi];
+
+					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i)
+						-= M*dt*( energiesfab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i));
+				}
+
+			}
+	      
+		}
 	}
 
 }
@@ -305,8 +307,8 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 void
 PhaseFieldMicrostructure::Initialize (int lev)
 {
-	ic->Initialize(lev,eta_new);
-	ic->Initialize(lev,eta_old);
+	ic->Initialize(lev,eta_new_mf);
+	ic->Initialize(lev,eta_old_mf);
   
   
 	if (elastic_on)
@@ -325,15 +327,15 @@ PhaseFieldMicrostructure::Initialize (int lev)
 void
 PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
-	const amrex::Real* dx      = geom[lev].CellSize();
+	const amrex::Real* DX      = geom[lev].CellSize();
 
 	amrex::Vector<int>  itags;
 
-	for (amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi)
+	for (amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box&  bx  = mfi.tilebox();
 		amrex::TagBox&     tag  = tags[mfi];
-		amrex::BaseFab<amrex::Real> &eta_new_box = (*eta_new[lev])[mfi];
+		amrex::BaseFab<amrex::Real> &eta_new_box = (*eta_new_mf[lev])[mfi];
 
 #if BL_SPACEDIM==2
 		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
@@ -341,9 +343,9 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 			{
 				for (int n = 0; n < number_of_grains; n++)
 				{
-					amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j),n) - eta_new_box(amrex::IntVect(i-1,j),n))/(2.*dx[0]);
-					amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1),n) - eta_new_box(amrex::IntVect(i,j-1),n))/(2.*dx[1]);
-					if (dx[0]*sqrt(gradx*gradx + grady*grady)>0.1) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
+					amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j),n) - eta_new_box(amrex::IntVect(i-1,j),n))/(2.*DX[0]);
+					amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1),n) - eta_new_box(amrex::IntVect(i,j-1),n))/(2.*DX[1]);
+					if (DX[0]*sqrt(gradx*gradx + grady*grady)>0.1) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
 				}
 			}
 
@@ -355,10 +357,10 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 				{
 					for (int n = 0; n < number_of_grains; n++)
 					{
-						amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j,k),n) - eta_new_box(amrex::IntVect(i-1,j,k),n))/(2.*dx[0]);
-						amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1,k),n) - eta_new_box(amrex::IntVect(i,j-1,k),n))/(2.*dx[1]);
-						amrex::Real gradz = (eta_new_box(amrex::IntVect(i,j,k+1),n) - eta_new_box(amrex::IntVect(i,j,k-1),n))/(2.*dx[2]);
-						if (dx[0]*sqrt(gradx*gradx + grady*grady + gradz*gradz)>0.1) tag(amrex::IntVect(i,j,k)) = amrex::TagBox::SET;
+						amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j,k),n) - eta_new_box(amrex::IntVect(i-1,j,k),n))/(2.*DX[0]);
+						amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1,k),n) - eta_new_box(amrex::IntVect(i,j-1,k),n))/(2.*DX[1]);
+						amrex::Real gradz = (eta_new_box(amrex::IntVect(i,j,k+1),n) - eta_new_box(amrex::IntVect(i,j,k-1),n))/(2.*DX[2]);
+						if (DX[0]*sqrt(gradx*gradx + grady*grady + gradz*gradz)>0.1) tag(amrex::IntVect(i,j,k)) = amrex::TagBox::SET;
 					}
 				}
 #endif
@@ -384,9 +386,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elastic_operator->setDomainBC({AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
 						    geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
 						    geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)},
-				      {AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
-						    geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
-						    geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
+		{AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
+			      geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
+			      geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
 
 
 	// models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
@@ -396,7 +398,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	//models.push_back(&g2);
 
-	elastic_operator->SetEta(eta_new,*mybc,models);
+	elastic_operator->SetEta(eta_new_mf,*mybc,models);
 
 	amrex::Real ushear = 0.0;
 
