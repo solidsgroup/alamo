@@ -15,7 +15,7 @@ bc.bc_y_hi = dirichlet
 bc.bc_z_hi = periodic
 
 solver.bottom_solver = bicgstab
-solver.max_level		= 0
+solver.max_level		= 1
 solver.ref_ratio		= 2
 solver.n_cell			= 16
 solver.max_grid_size	= 64
