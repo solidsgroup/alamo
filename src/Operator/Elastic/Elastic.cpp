@@ -126,9 +126,6 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 			}
 		}
 	}
-	if (f.contains_nan())
-		Util::Abort("Fapply: Nan Detected in f fab");
-
 }
 
 
@@ -252,9 +249,6 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 			}
 		}
 	}
-	if (u.contains_nan())
-		Util::Abort("FSmooth: Nan Detected in u fab");
-
 }
 
 /// \fn Operator::Elastic::FFlux
