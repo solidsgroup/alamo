@@ -224,8 +224,6 @@ int main (int argc, char* argv[])
 		}
 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
-	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-
 	//
 	// Compute post-solve values
 	//
@@ -243,8 +241,6 @@ int main (int argc, char* argv[])
 				}
 		}
 		
-	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-
 
 	//
 	// WRITE PLOT FILE
@@ -292,19 +288,13 @@ int main (int argc, char* argv[])
 #endif 
 		}
 
-	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-
 	IO::FileNameParse(plot_file);
 
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 									varname, geom, 0.0, Vector<int>(nlevels, 0),
 									Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	
-	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
-
 	IO::WriteMetaData(plot_file);
-
-	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
 	Util::Finalize();
 }
