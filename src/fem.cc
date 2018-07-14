@@ -180,6 +180,9 @@ int main (int argc, char* argv[])
 	//
 
 	LPInfo info;
+	std::cout << "Processor " << ParallelDescriptor::MyProc() << " here at line " << __LINE__ << "where agglomeration = " << agglomeration << std::endl; ParallelDescriptor::Barrier();
+	std::cout << "Processor " << ParallelDescriptor::MyProc() << " here at line " << __LINE__ << "where consolidation = " << consolidation << std::endl; ParallelDescriptor::Barrier();
+
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
 	nlevels = geom.size();
