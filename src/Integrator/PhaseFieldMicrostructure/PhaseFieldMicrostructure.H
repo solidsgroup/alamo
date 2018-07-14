@@ -62,8 +62,8 @@ private:
   int number_of_grains = 2;
   int number_of_ghost_cells = 2;
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
