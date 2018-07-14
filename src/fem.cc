@@ -180,8 +180,6 @@ int main (int argc, char* argv[])
 	//
 
 	LPInfo info;
-	std::cout << "Processor " << ParallelDescriptor::MyProc() << " here at line " << __LINE__ << "where agglomeration = " << agglomeration << std::endl; ParallelDescriptor::Barrier();
-	std::cout << "Processor " << ParallelDescriptor::MyProc() << " here at line " << __LINE__ << "where consolidation = " << consolidation << std::endl; ParallelDescriptor::Barrier();
 
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
@@ -204,8 +202,6 @@ int main (int argc, char* argv[])
 	//
 	// Solver
 	//
-
-	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
 	MLMG mlmg(mlabec);
 	mlmg.setMaxIter(max_iter);
@@ -253,8 +249,6 @@ int main (int argc, char* argv[])
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03",
 											 "stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
 #endif
-
-	std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 
 	nlevels = max_level+1;
 
