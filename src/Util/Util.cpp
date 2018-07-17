@@ -116,7 +116,12 @@ CreateCleanDirectory (const std::string &path, bool callbarrier)
 			int second = now->tm_sec;
 
 			std::stringstream ss;
-			ss << year << month << day << hour << minute << second;
+			ss << year
+			   << std::setfill('0') << std::setw(2) << month
+			   << std::setfill('0') << std::setw(2) << day
+			   << std::setfill('0') << std::setw(2) << hour
+			   << std::setfill('0') << std::setw(2) << minute
+			   << std::setfill('0') << std::setw(2) << second;
 
 			std::string newoldname(path + ".old." + ss.str());
 			if (amrex::system::verbose) {
