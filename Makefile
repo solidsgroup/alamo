@@ -44,7 +44,7 @@ default: $(EXE)
 	@echo "### DONE" 
 	@echo "###"$(RESET)
 
-bin/%: ${OBJ} ${OBJ_F} obj/%.cc.o
+bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 	@echo $(B_ON)$(FG_BLUE)"###"
 	@echo "### LINKING $@" 
 	@echo "###"$(RESET)
@@ -77,7 +77,7 @@ obj/IO/WriteMetaData.cpp.o: .FORCE
 
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
-%.F90.o: %.F90 ${HDR}
+obj/%.F90.o: src/%.F90 
 	@echo $(B_ON)$(FG_YELLOW)"###"
 	@echo "### COMPILING $<" 
 	@echo "###"$(RESET)
