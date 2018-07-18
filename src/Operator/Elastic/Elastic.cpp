@@ -8,6 +8,9 @@
 #include "Set/Set.H"
 #include "Elastic.H"
 
+#include <AMReX_MLLinOp_F.H>
+
+
 namespace Operator
 {
 namespace Elastic
@@ -43,6 +46,17 @@ Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain, BC::BC &es_
 	AMREX_ASSERT(eigenstrain[0].nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
 	RegisterNewFab(eigenstrain,es_bc);
 }
+
+void
+Elastic::temp_Fapply (int amrlev, ///<[in] AMR Level
+		      int mglev,  ///<[in]
+		      MultiFab& f,///<[out] The force vector
+		      const MultiFab& u ///<[in] The displacements vector
+		      ) const
+{
+	Fapply(amrlev, mglev, f, u);
+}
+
 
 void
 Elastic::Fapply (int amrlev, ///<[in] AMR Level
@@ -85,9 +99,9 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
 					AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
 						     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
-						     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[1]);)
+						     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]);)
 
-					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
+						Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
 						     ,// 2D
 						     gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
@@ -509,5 +523,71 @@ Elastic::Energy (FArrayBox& energyfab,
 								energyfab(m) += 0.5 * (gradu(i,j) - eps0(i,j)) * C(i,j,k,l,m,amrlev,0,mfi) * (gradu(k,l) - eps0(k,l));
 			}
 }
+
+
+void
+Elastic::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode,
+		  const MLMGBndry* bndry, bool skip_fillboundary) const
+{
+	BL_PROFILE("MLCellLinOp::applyBC()");
+	// No coarsened boundary values, cannot apply inhomog at mglev>0.
+	BL_ASSERT(mglev == 0 || bc_mode == BCMode::Homogeneous);
+	BL_ASSERT(bndry != nullptr || bc_mode == BCMode::Homogeneous);
+
+	std::cout << "in applybc!" << std::endl;
+
+
+	const int ncomp = getNComp();
+	const int cross = isCrossStencil();
+	if (!skip_fillboundary) {
+		in.FillBoundary(0, ncomp, m_geom[amrlev][mglev].periodicity(),cross); 
+	}
+
+	int flagbc = (bc_mode == BCMode::Homogeneous) ? 0 : 1;
+
+	const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
+
+	const auto& maskvals = m_maskvals[amrlev][mglev];
+	const auto& bcondloc = *m_bcondloc[amrlev][mglev];
+
+	FArrayBox foo(Box::TheUnitBox(),ncomp);
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (MFIter mfi(in, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
+	{
+		const Box& vbx   = mfi.validbox();
+		FArrayBox& iofab = in[mfi];
+
+		const RealTuple & bdl = bcondloc.bndryLocs(mfi);
+		const BCTuple   & bdc = bcondloc.bndryConds(mfi);
+
+		for (OrientationIter oitr; oitr; ++oitr)
+		{
+			const Orientation ori = oitr();
+
+			int  cdr = ori;
+			Real bcl = bdl[ori]; 
+			int  bct = bdc[ori]; // BC Type variable
+
+			foo.setVal(10.0);
+			const FArrayBox& fsfab = (bndry != nullptr) ? bndry->bndryValues(ori)[mfi] : foo;
+
+			const Mask& m = maskvals[ori][mfi];
+
+			amrex_mllinop_apply_bc(BL_TO_FORTRAN_BOX(vbx),
+					       BL_TO_FORTRAN_ANYD(iofab),
+					       BL_TO_FORTRAN_ANYD(m),
+					       cdr, bct, bcl,
+					       BL_TO_FORTRAN_ANYD(fsfab),
+					       maxorder, dxinv, flagbc, ncomp, cross);
+		}
+	}
+}
+
+
+
+
 }
 }
