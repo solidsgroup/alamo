@@ -43,7 +43,14 @@ public:
 				 const FArrayBox& ufab,
 				 int amrlev, const MFIter& mfi) const;
 
+	void temp_Fapply (int amrlev, 
+		     int mglev,
+		     MultiFab& f,
+		     const MultiFab& u
+			  ) const;
+
 protected:
+
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
 	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
@@ -51,6 +58,10 @@ protected:
 						const FArrayBox& sol, const int face_only=0) const final;
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
+
+	virtual void applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode,
+			      const MLMGBndry* bndry, bool skip_fillboundary) const override;
+
 
 private:
 	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,

@@ -122,6 +122,7 @@ int main (int argc, char* argv[])
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	std::array<int,AMREX_SPACEDIM> is_periodic = mybc->IsPeriodic();
+	std::cout << "periodicity = " << is_periodic[0] << " " << is_periodic[1] << std::endl;
 	Geometry::Setup(&rb, 0, is_periodic.data());
 	Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
 	Box domain = domain0;
@@ -191,7 +192,7 @@ int main (int argc, char* argv[])
 	// mlabec.SetEigenstrain(eps0,*mybc);
 	// mlabec.AddEigenstrainToRHS(rhs);
 	mlabec.setDomainBC(mybc->GetBCTypes<amrex::LinOpBCType>()[0],
-			   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
+	 		   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
@@ -237,6 +238,10 @@ int main (int argc, char* argv[])
 				}
 		}
 		
+	// RECOMPUTE RHS
+	for (int lev = 0; lev <= max_level; lev++)
+		mlabec.temp_Fapply(lev, 0, rhs[lev], u[lev]);
+
 
 	//
 	// WRITE PLOT FILE
