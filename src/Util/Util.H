@@ -1,3 +1,6 @@
+#ifndef UTIL_UTIL_H
+#define UTIL_UTIL_H
+
 #include <string>
 
 #include "AMReX.H"
@@ -20,4 +23,7 @@ void Terminate(const char * msg, int signal, bool backtrace);
 void Abort (const std::string& msg);
 void Abort (const char * msg);
 
+void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
+
 }
+#endif
