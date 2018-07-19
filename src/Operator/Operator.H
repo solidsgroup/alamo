@@ -8,12 +8,14 @@
 #include "BC/BC.H"
 #include "Util/Util.H"
 
+#include "Operator2.H"
+
 using namespace amrex;
 
 namespace Operator
 {
 class Operator
-	: public amrex::MLCellLinOp
+	: public Operator2
 {
 public:
 
@@ -23,6 +25,7 @@ public:
 	Operator (const Vector<Geometry>& a_geom,
 		  const Vector<BoxArray>& a_grids,
 		  const Vector<DistributionMapping>& a_dmap,
+		  BC::BC& a_bc,
 		  const LPInfo& a_info);
 	/// \brief Destructor (does nothing)
 	virtual ~Operator ();
@@ -36,6 +39,7 @@ public:
 	void define (const Vector<Geometry>& a_geom,
 		     const Vector<BoxArray>& a_grids,
 		     const Vector<DistributionMapping>& a_dmap,
+		     BC::BC& a_bc,
 		     const LPInfo& a_info = LPInfo());
   
 protected:
@@ -70,9 +74,6 @@ protected:
 		Util::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
 		return std::unique_ptr<MLLinOp>{};
 	}
-
-	virtual void applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode,
-			      const MLMGBndry* bndry=nullptr, bool skip_fillboundary=false) const override = 0;
 
 private:
 	int m_num_a_fabs = 0;

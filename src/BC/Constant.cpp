@@ -34,13 +34,19 @@ Constant::Constant (amrex::Vector<amrex::Geometry> & _geom
 void
 Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/) 
 {
-	if ((BCUtil::IsNeumann(bc_lo[0]) || BCUtil::IsDirichlet(bc_lo[0])) && bc_lo_1.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_lo_1");
-	if ((BCUtil::IsNeumann(bc_hi[0]) || BCUtil::IsDirichlet(bc_hi[0])) && bc_hi_1.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_hi_1");
-	if ((BCUtil::IsNeumann(bc_lo[1]) || BCUtil::IsDirichlet(bc_lo[1])) && bc_lo_2.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_lo_2");
-	if ((BCUtil::IsNeumann(bc_hi[1]) || BCUtil::IsDirichlet(bc_hi[1])) && bc_hi_2.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_hi_2");
+	if ((BCUtil::IsNeumann(bc_lo[0]) || BCUtil::IsDirichlet(bc_lo[0])) && bc_lo_1.size() < mf.nComp())
+		Util::Abort("Not enough values specified for bc_lo_1");
+	if ((BCUtil::IsNeumann(bc_hi[0]) || BCUtil::IsDirichlet(bc_hi[0])) && bc_hi_1.size() < mf.nComp())
+		Util::Abort("Not enough values specified for bc_hi_1");
+	if ((BCUtil::IsNeumann(bc_lo[1]) || BCUtil::IsDirichlet(bc_lo[1])) && bc_lo_2.size() < mf.nComp())
+		Util::Abort("Not enough values specified for bc_lo_2");
+	if ((BCUtil::IsNeumann(bc_hi[1]) || BCUtil::IsDirichlet(bc_hi[1])) && bc_hi_2.size() < mf.nComp())
+		Util::Abort("Not enough values specified for bc_hi_2");
 #if AMREX_SPACEDIM>2
-	if ((BCUtil::IsNeumann(bc_lo[2]) || BCUtil::IsDirichlet(bc_lo[2])) && bc_lo_3.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_lo_3");
-	if ((BCUtil::IsNeumann(bc_hi[2]) || BCUtil::IsDirichlet(bc_hi[2])) && bc_hi_3.size() < mf.nComp()) Util::Abort("Not enough values specified for bc_hi_3");
+	if ((BCUtil::IsNeumann(bc_lo[2]) || BCUtil::IsDirichlet(bc_lo[2])) && bc_lo_3.size() < mf.nComp())
+		Util::Abort("Not enough values specified for bc_lo_3");
+	if ((BCUtil::IsNeumann(bc_hi[2]) || BCUtil::IsDirichlet(bc_hi[2])) && bc_hi_3.size() < mf.nComp())
+		Util::Abort("Not enough values specified for bc_hi_3");
 #endif
 
 	amrex::Box domain(geom[lev].Domain());
