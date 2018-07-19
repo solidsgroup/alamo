@@ -187,7 +187,7 @@ int main (int argc, char* argv[])
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
-	mlabec.define(geom, grids, dmap, info);
+	mlabec.define(geom, grids, dmap, *mybc, info);
 	mlabec.setMaxOrder(linop_maxorder);
 	// mlabec.SetEigenstrain(eps0,*mybc);
 	// mlabec.AddEigenstrainToRHS(rhs);
@@ -238,9 +238,9 @@ int main (int argc, char* argv[])
 				}
 		}
 		
-	// RECOMPUTE RHS
-	for (int lev = 0; lev <= max_level; lev++)
-		mlabec.temp_Fapply(lev, 0, rhs[lev], u[lev]);
+	// // RECOMPUTE RHS
+	// for (int lev = 0; lev <= max_level; lev++)
+	// 	mlabec.temp_Fapply(lev, 0, rhs[lev], u[lev]);
 
 
 	//

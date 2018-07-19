@@ -19,9 +19,10 @@ class Elastic : public Operator
 public:
 	Elastic () {}
 	Elastic (const Vector<Geometry>& a_geom,
-			 const Vector<BoxArray>& a_grids,
-			 const Vector<DistributionMapping>& a_dmap,
-			 const LPInfo& a_info);
+		 const Vector<BoxArray>& a_grids,
+		 const Vector<DistributionMapping>& a_dmap,
+		 BC::BC& a_bc,
+		 const LPInfo& a_info);
 	virtual ~Elastic ();
 	Elastic (const Elastic&) = delete;
 	Elastic (Elastic&&) = delete;
@@ -42,13 +43,6 @@ public:
 	void Energy (FArrayBox& energyfab,
 				 const FArrayBox& ufab,
 				 int amrlev, const MFIter& mfi) const;
-
-	void temp_Fapply (int amrlev, 
-		     int mglev,
-		     MultiFab& f,
-		     const MultiFab& u
-			  ) const;
-
 protected:
 
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
@@ -58,10 +52,6 @@ protected:
 						const FArrayBox& sol, const int face_only=0) const final;
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
-
-	virtual void applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode,
-			      const MLMGBndry* bndry, bool skip_fillboundary) const override;
-
 
 private:
 	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
