@@ -1,5 +1,12 @@
 CC = mpicxx
 
+COMP ?= GCC
+ifeq ($(COMP),INTEL)
+ MPI_LIB = -lifcore
+else ifeq ($(COMP),GCC)
+ MPI_LIB = -lgfortran -lmpichfort -lmpich
+endif
+
 RESET              = '\033[0m'
 B_ON               = '\033[1m'
 FG_RED             = '\033[31m'
@@ -24,8 +31,8 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
 
 
-INCLUDE = -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     = -lamrex -lgfortran -lmpichfort -lmpich  
+INCLUDE = -I${EIGEN} -I${AMREX}/include/ -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+LIB     = -L${AMREX}/lib/ -lamrex 
 
 HDR = $(shell find src/ -name *.H)
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
@@ -40,35 +47,37 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 
 
 default: $(EXE)
-	@echo $(B_ON)$(FG_GREEN)"###"
-	@echo "### DONE" 
-	@echo "###"$(RESET)
+	@echo -e $(B_ON)$(FG_GREEN)"###"
+	@echo -e "### DONE" 
+	@echo -e "###"$(RESET)
 
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
-	@echo $(B_ON)$(FG_BLUE)"###"
-	@echo "### LINKING $@" 
-	@echo "###"$(RESET)
+	@echo -e $(B_ON)$(FG_BLUE)"###"
+	@echo -e "### LINKING $@" 
+	@echo -e "###"$(RESET)
 	mkdir -p bin/
-	$(CC) -o $@ $^ ${LIB} 
+	$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}
 
 obj/%.cc.o: src/%.cc ${HDR}
-	@echo $(B_ON)$(FG_YELLOW)"###"
-	@echo "### COMPILING $<" 
-	@echo "###"$(RESET)
+	@echo -e $(B_ON)$(FG_YELLOW)"###"
+	@echo -e "### COMPILING $<" 
+	@echo -e "###"$(RESET)
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/%.cpp.o: src/%.cpp ${HDR}
-	@echo $(B_ON)$(FG_YELLOW)"###"
-	@echo "### COMPILING $<" 
-	@echo "###"$(RESET)
+	@echo -e $(B_ON)$(FG_YELLOW)"###"
+	@echo -e "### COMPILING $<" 
+	@echo -e "###"$(RESET)
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
-	@echo $(B_ON)$(FG_CYAN)"###"
-	@echo "### COMPILING $@" 
-	@echo "###"$(RESET)
+	@echo $(TEST_VAR)
+	@echo $(AMREX)
+	@echo -e $(B_ON)$(FG_CYAN)"###"
+	@echo -e "### COMPILING $@" 
+	@echo -e "###"$(RESET)
 	@mkdir -p $(dir $@)
 	$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 .PHONY: .FORCE
@@ -78,17 +87,17 @@ obj/IO/WriteMetaData.cpp.o: .FORCE
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
 obj/%.F90.o: src/%.F90 
-	@echo $(B_ON)$(FG_YELLOW)"###"
-	@echo "### COMPILING $<" 
-	@echo "###"$(RESET)
+	@echo -e $(B_ON)$(FG_YELLOW)"###"
+	@echo -e "### COMPILING $<" 
+	@echo -e "###"$(RESET)
 	@mkdir -p $(dir $@)
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
 clean:
-	@echo $(B_ON)$(FG_RED)"###"
-	@echo "### CLEANING" 
-	@echo "###"$(RESET)
+	@echo -e $(B_ON)$(FG_RED)"###"
+	@echo -e "### CLEANING" 
+	@echo -e "###"$(RESET)
 	find src/ -name "*.o" -exec rm {} \;
 	rm -f bin/*
 	rm -rf obj/
