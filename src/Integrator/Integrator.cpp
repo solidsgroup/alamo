@@ -68,7 +68,7 @@ Integrator::Integrator ()
 		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 
 	plot_file = Util::GetFileName();
-	IO::WriteMetaData(plot_file);
+	IO::WriteMetaData(plot_file,IO::Status::Running,0);
 }
 
 ///
@@ -78,7 +78,7 @@ Integrator::Integrator ()
 Integrator::~Integrator ()
 {
 	if (ParallelDescriptor::IOProcessor())
-		IO::WriteMetaData(plot_file);
+	  IO::WriteMetaData(plot_file,IO::Status::Complete);
 }
 
 /// \fn    Integrator::MakeNewLevelFromCoarse
@@ -422,6 +422,7 @@ Integrator::Evolve ()
 		if (plot_int > 0 && (step+1) % plot_int == 0) {
 			last_plot_file_step = step+1;
 			WritePlotFile();
+			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));
 		}
 
 		if (cur_time >= stop_time - 1.e-6*dt[0]) break;

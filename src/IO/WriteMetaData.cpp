@@ -11,7 +11,7 @@ namespace IO
 unsigned long hash = 0;
 std::time_t starttime = 0;
 
-void WriteMetaData(std::string plot_file, Status status) 
+void WriteMetaData(std::string plot_file, Status status, int percent) 
 {
 	if (amrex::ParallelDescriptor::IOProcessor())
 		{
@@ -55,7 +55,12 @@ void WriteMetaData(std::string plot_file, Status status)
 			metadatafile << "Simulation_start_time = " << std::ctime(&starttime);
 			metadatafile << "Number_of_processors = " << amrex::ParallelDescriptor::NProcs() << std::endl;
 			if (status == Status::Running)        metadatafile << "Status = Running" << std::endl;
-			else if (status == Status::Complete)  metadatafile << "Status = Complete" << std::endl;
+			else if (status == Status::Complete)  
+			  {
+			    metadatafile << "Status = Complete";
+			    if (percent>0) metadatafile << "(" << percent << "%)";
+			    metadatafile << std::endl;
+			  }
 			else if (status == Status::Abort)     metadatafile << "Status = Abort" << std::endl;
 			else if (status == Status::Segfault)  metadatafile << "Status = Segfault" << std::endl;
 			else if (status == Status::Interrupt) metadatafile << "Status = Interrupt" << std::endl;

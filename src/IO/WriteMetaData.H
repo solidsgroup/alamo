@@ -23,7 +23,9 @@ enum Status{
 	Abort
 };
 
-void WriteMetaData(std::string plot_file, Status status = Status::Running);
+  void WriteMetaData(std::string plot_file, Status status = Status::Running, int percent = -1);
+
+
 }
 
 #endif
