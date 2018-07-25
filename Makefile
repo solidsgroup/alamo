@@ -47,37 +47,37 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 
 
 default: $(EXE)
-	@echo -e $(B_ON)$(FG_GREEN)"###"
-	@echo -e "### DONE" 
-	@echo -e "###"$(RESET)
+	@printf $(B_ON)$(FG_GREEN)"###\n"
+	@printf "### DONE\n" 
+	@printf "###"$(RESET)"\n"
 
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
-	@echo -e $(B_ON)$(FG_BLUE)"###"
-	@echo -e "### LINKING $@" 
-	@echo -e "###"$(RESET)
+	@printf $(B_ON)$(FG_BLUE)"###\n"
+	@printf "### LINKING $@\n" 
+	@printf "###"$(RESET)"\n"
 	mkdir -p bin/
 	$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}
 
 obj/%.cc.o: src/%.cc ${HDR}
-	@echo -e $(B_ON)$(FG_YELLOW)"###"
-	@echo -e "### COMPILING $<" 
-	@echo -e "###"$(RESET)
+	@printf $(B_ON)$(FG_YELLOW)"###\n"
+	@printf "### COMPILING $<\n" 
+	@printf "###"$(RESET)"\n"
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/%.cpp.o: src/%.cpp ${HDR}
-	@echo -e $(B_ON)$(FG_YELLOW)"###"
-	@echo -e "### COMPILING $<" 
-	@echo -e "###"$(RESET)
+	@printf $(B_ON)$(FG_YELLOW)"###\n"
+	@printf "### COMPILING $<\n" 
+	@printf "###"$(RESET)"\n"
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
 	@echo $(TEST_VAR)
 	@echo $(AMREX)
-	@echo -e $(B_ON)$(FG_CYAN)"###"
-	@echo -e "### COMPILING $@" 
-	@echo -e "###"$(RESET)
+	@printf $(B_ON)$(FG_CYAN)"###\n"
+	@printf "### COMPILING $@\n" 
+	@printf "###"$(RESET)"\n"
 	@mkdir -p $(dir $@)
 	$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 .PHONY: .FORCE
@@ -87,17 +87,17 @@ obj/IO/WriteMetaData.cpp.o: .FORCE
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
 obj/%.F90.o: src/%.F90 
-	@echo -e $(B_ON)$(FG_YELLOW)"###"
-	@echo -e "### COMPILING $<" 
-	@echo -e "###"$(RESET)
+	@printf $(B_ON)$(FG_YELLOW)"###\n"
+	@printf "### COMPILING $<\n" 
+	@printf "###"$(RESET)"\n"
 	@mkdir -p $(dir $@)
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
 clean:
-	@echo -e $(B_ON)$(FG_RED)"###"
-	@echo -e "### CLEANING" 
-	@echo -e "###"$(RESET)
+	@printf $(B_ON)$(FG_RED)"###\n"
+	@printf "### CLEANING\n" 
+	@printf "###"$(RESET)"\n"
 	find src/ -name "*.o" -exec rm {} \;
 	rm -f bin/*
 	rm -rf obj/
