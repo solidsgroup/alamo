@@ -1,8 +1,6 @@
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
 
-#if BL_SPACEDIM == 2
-
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -192,23 +190,25 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 				// CURVATURE PENALTY
 				//
 
-				// amrex::Real grad1_normal = (ETA(m1+1,m2,m3,i) - ETA(m1-1,m2,m3,i))/(2*DX[0]);
-				// amrex::Real grad2_normal = (ETA(m1,m2+1,m3,i) - ETA(m1,m2-1,m3,i))/(2*DX[1]);
-				amrex::Real grad1 = (eta_old(m+dx,i) - eta_old(m-dx,i))/(2*DX[0]);
-				amrex::Real grad2 = (eta_old(m+dy,i) - eta_old(m-dy,i))/(2*DX[1]);
 				// amrex::Real grad1 =  grad1_normal;
 				// amrex::Real grad2 =  grad2_normal;
-				amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
-				amrex::Real grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0]; // 3 point
-				amrex::Real grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1]; // 3 point
+				amrex::Real AMREX_D_DECL(grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0],
+							 grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1],
+							 grad33 = (eta_old(m+dz,i) - 2.*eta_old(m,i) + eta_old(m-dz,i))/DX[2]/DX[2]);
 		      
-				amrex::Real laplacian = grad11 + grad22;
+				amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
 
 				amrex::Real kappa = l_gb*0.75*sigma0;
 				mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
 
 				if (anisotropy && time > anisotropy_tstart)
 				{
+#if AMREX_SPACEDIM == 2
+					amrex::Real grad1 = (eta_old(m+dx,i) - eta_old(m-dx,i))/(2*DX[0]);
+					amrex::Real grad2 = (eta_old(m+dy,i) - eta_old(m-dy,i))/(2*DX[1]);
+
+					amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
+
 					amrex::Real Theta = atan2(grad2,grad1);
 					amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
 					amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
@@ -275,6 +275,9 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) =
 						ETA(m1,m2,m3,i) -
 						M*dt*(W - (Boundary_term) + beta*(Curvature_term));
+#else
+					Util::Abort("Anisotropy is enabled but works in 2D ONLY");
+#endif
 				}
 				else // Isotropic response if less than anisotropy_tstart
 				{
@@ -433,30 +436,52 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			const amrex::Box& box = mfi.tilebox();
 			amrex::BaseFab<amrex::Real> &disp_box = (*displacement[ilev])[mfi];
 
-			for (int i = box.loVect()[0] - displacement[ilev]->nGrow(); i<=box.hiVect()[0] + displacement[ilev]->nGrow(); i++)
-				for (int j = box.loVect()[1] - displacement[ilev]->nGrow(); j<=box.hiVect()[1] + displacement[ilev]->nGrow(); j++)
+			AMREX_D_TERM(for (int i = box.loVect()[0] - displacement[ilev]->nGrow(); i<=box.hiVect()[0] + displacement[ilev]->nGrow(); i++),
+				     for (int j = box.loVect()[1] - displacement[ilev]->nGrow(); j<=box.hiVect()[1] + displacement[ilev]->nGrow(); j++),
+				     for (int k = box.loVect()[2] - displacement[ilev]->nGrow(); k<=box.hiVect()[2] + displacement[ilev]->nGrow(); k++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
+				if (i > domain.hiVect()[0]) // Right 
 				{
-					if (j > domain.hiVect()[1]) // Top boundary
-					{
-						disp_box(amrex::IntVect(i,j),0) = ushear;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
-					else if (i > domain.hiVect()[0]) // Right boundary
-					{
-						disp_box(amrex::IntVect(i,j),0) = 0.0;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
-					else if (j < domain.loVect()[1]) // Bottom
-					{
-						disp_box(amrex::IntVect(i,j),0) = 0.0;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
-					else if (i < domain.loVect()[0]) // Left boundary
-					{
-						disp_box(amrex::IntVect(i,j),0) = 0.0;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
+					AMREX_D_TERM(disp_box(m,0) = 0.0;,
+						     disp_box(m,1) = 0.0;,
+						     disp_box(m,2) = 0.0;)
 				}
+				else if (i < domain.loVect()[0]) // Left
+				{
+					AMREX_D_TERM(disp_box(m,0) = 0.0;,
+						     disp_box(m,1) = 0.0;,
+						     disp_box(m,2) = 0.0;)
+				}
+				else if (j < domain.loVect()[1]) // Bottom
+				{
+					AMREX_D_TERM(disp_box(m,0) = 0.0;,
+						     disp_box(m,1) = 0.0;,
+						     disp_box(m,2) = 0.0;)
+				}
+				else if (j > domain.hiVect()[1]) // Top 
+				{
+					AMREX_D_TERM(disp_box(m,0) = ushear;,
+						     disp_box(m,1) = 0.0;,
+						     disp_box(m,2) = 0.0;)
+				}
+#if AMREX_SPACEDIM == 3
+				else if (k < domain.loVect()[2]) // Front
+				{
+					AMREX_D_TERM(disp_box(m,0) = 0.0;,
+						     disp_box(m,1) = 0.0;,
+						     disp_box(m,2) = 0.0;)
+				}
+				else if (k > domain.hiVect()[2]) // Back
+				{
+					AMREX_D_TERM(disp_box(m,0) = 0.0;,
+						     disp_box(m,1) = 0.0;,
+						     disp_box(m,2) = 0.0;)
+				}
+#endif
+			}
+
 		}
 		elastic_operator->setLevelBC(ilev,displacement[ilev].get());
 
@@ -493,7 +518,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 
 		const amrex::Real* DX = geom[lev].CellSize();
-		const amrex::IntVect dx(1,0), dy(0,1);
+		const amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+						  dy(AMREX_D_DECL(0,1,0)),
+						  dz(AMREX_D_DECL(0,0,1)));
 		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
 		{
 			const Box& bx = mfi.tilebox();
@@ -507,24 +534,45 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 			elastic_operator->Stress(sigmafab,ufab,lev,mfi);
 
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-			 	for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
+			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+				     for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+				     for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
 			 	{
-			 		amrex::IntVect m(i,j);
+			 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
+#if AMREX_SPACEDIM == 2
 			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
-			 		 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) + 0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
 					epsfab(m,2) = epsfab(m,1);
 			 		epsfab(m,3) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-
+#elif AMREX_SPACEDIM == 3
+			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) + 0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+			 		epsfab(m,2) = 0.5*(ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]) + 0.5*(ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]);
+					epsfab(m,3) = epsfab(m,1);
+					epsfab(m,4) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+					epsfab(m,5) = 0.5*(ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]) + 0.5*(ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
+					epsfab(m,6) = epsfab(m,2);
+					epsfab(m,7) = epsfab(m,5);
+			 		epsfab(m,8) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
+#endif
 			 		sigmavmfab(m,0) = 0.0;
 
+#if AMREX_SPACEDIM == 2
 			 		sigmavmfab(m) =
 			 		 	sqrt(0.5*(sigmafab(m,0) - sigmafab(m,1)*(sigmafab(m,0) - sigmafab(m,1))
 			 		 		  + sigmafab(m,0)*sigmafab(m,0)
 			 		 		  + sigmafab(m,1)*sigmafab(m,1)
 			 		 		  + 6.0*sigmafab(m,2)*sigmafab(m,2)));
+#elif AMREX_SPACEDIM == 3
+			 		sigmavmfab(m) =
+			 		 	sqrt(0.5*((sigmafab(m,0) - sigmafab(m,4))*(sigmafab(m,0) - sigmafab(m,4)) +
+							  (sigmafab(m,4) - sigmafab(m,8))*(sigmafab(m,4) - sigmafab(m,8)) +
+							  (sigmafab(m,8) - sigmafab(m,0))*(sigmafab(m,8) - sigmafab(m,0)))+
+						     + 3.0 * (sigmafab(m,1)*sigmafab(m,1) +
+							      sigmafab(m,2)*sigmafab(m,2) +
+							      sigmafab(m,5)*sigmafab(m,5)));
+#endif
 
 			 	}
 
@@ -534,4 +582,3 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	}
 }
 }
-#endif
