@@ -73,7 +73,6 @@ obj/%.cpp.o: src/%.cpp ${HDR}
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
-	@echo $(TEST_VAR)
 	@echo $(AMREX)
 	@printf $(B_ON)$(FG_CYAN)"###\n"
 	@printf "### COMPILING $@\n" 
