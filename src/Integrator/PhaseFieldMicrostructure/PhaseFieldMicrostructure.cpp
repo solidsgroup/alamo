@@ -124,10 +124,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		//BC::Nothing emptybc;
 		if (elastic_on)
 		{
-			RegisterNewFab(displacement, mybc,2,1,"u");
-			RegisterNewFab(body_force,mybc,2,0,"b");
-			RegisterNewFab(strain,    mybc,4,0,"eps");
-			RegisterNewFab(stress,    mybc,4,0,"sig");
+			RegisterNewFab(displacement, mybc,AMREX_SPACEDIM,1,"u");
+			RegisterNewFab(body_force,mybc,AMREX_SPACEDIM,0,"b");
+			RegisterNewFab(strain,    mybc,AMREX_SPACEDIM*AMREX_SPACEDIM,0,"eps");
+			RegisterNewFab(stress,    mybc,AMREX_SPACEDIM*AMREX_SPACEDIM,0,"sig");
 			RegisterNewFab(stress_vm, mybc,1,0,"sig_VM");
 			RegisterNewFab(energy,    mybc,1,0,"W");
 			RegisterNewFab(energies,  mybc,number_of_grains,0,"W");
