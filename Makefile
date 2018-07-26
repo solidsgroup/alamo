@@ -7,13 +7,18 @@ else ifeq ($(COMP),GCC)
  MPI_LIB = -lgfortran -lmpichfort -lmpich
 endif
 
-RESET              = '\033[0m'
-B_ON               = '\033[1m'
-FG_RED             = '\033[31m'
-FG_GREEN           = '\033[32m'
-FG_YELLOW          = '\033[33m'
-FG_BLUE            = '\033[34m'
-FG_CYAN            = '\033[36m'
+RESET              = \033[0m
+B_ON               = \033[1m
+FG_RED             = \033[31m
+FG_LIGHTRED        = \033[91m
+FG_GREEN           = \033[32m
+FG_LIGHTGREEN      = \033[92m
+FG_YELLOW          = \033[33m
+FG_BLUE            = \033[34m
+FG_LIGHTBLUE       = \033[94m
+FG_CYAN            = \033[36m
+
+
 
 MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
 MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
@@ -47,36 +52,35 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 
 
 default: $(EXE)
-	@printf $(B_ON)$(FG_GREEN)"###\n"
+	@printf "$(B_ON)$(FG_GREEN)###\n"
 	@printf "### DONE\n" 
-	@printf "###"$(RESET)"\n"
+	@printf "###$(RESET)\n"
 
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
-	@printf $(B_ON)$(FG_BLUE)"###\n"
+	@printf "$(B_ON)$(FG_BLUE)###\n"
 	@printf "### LINKING $@\n" 
-	@printf "###"$(RESET)"\n"
+	@printf "###$(RESET)\n"
 	mkdir -p bin/
 	$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}
 
 obj/%.cc.o: src/%.cc ${HDR}
-	@printf $(B_ON)$(FG_YELLOW)"###\n"
+	@printf "$(B_ON)$(FG_YELLOW)###\n"
 	@printf "### COMPILING $<\n" 
-	@printf "###"$(RESET)"\n"
+	@printf "###$(RESET)\n"
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/%.cpp.o: src/%.cpp ${HDR}
-	@printf $(B_ON)$(FG_YELLOW)"###\n"
+	@printf "$(B_ON)$(FG_YELLOW)###\n"
 	@printf "### COMPILING $<\n" 
-	@printf "###"$(RESET)"\n"
+	@printf "###$(RESET)\n"
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
-	@echo $(AMREX)
-	@printf $(B_ON)$(FG_CYAN)"###\n"
+	@printf "$(B_ON)$(FG_CYAN)###\n"
 	@printf "### COMPILING $@\n" 
-	@printf "###"$(RESET)"\n"
+	@printf "###$(RESET)\n"
 	@mkdir -p $(dir $@)
 	$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 .PHONY: .FORCE
@@ -86,17 +90,17 @@ obj/IO/WriteMetaData.cpp.o: .FORCE
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
 obj/%.F90.o: src/%.F90 
-	@printf $(B_ON)$(FG_YELLOW)"###\n"
+	@printf "$(B_ON)$(FG_YELLOW)###\n"
 	@printf "### COMPILING $<\n" 
-	@printf "###"$(RESET)"\n"
+	@printf "###$(RESET)\n"
 	@mkdir -p $(dir $@)
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
 clean:
-	@printf $(B_ON)$(FG_RED)"###\n"
+	@printf "$(B_ON)$(FG_RED)###\n"
 	@printf "### CLEANING\n" 
-	@printf "###"$(RESET)"\n"
+	@printf "###$(RESET)\n"
 	find src/ -name "*.o" -exec rm {} \;
 	rm -f bin/*
 	rm -rf obj/
@@ -109,3 +113,30 @@ clean:
 %.F90: $(HDR)
 
 %.H :
+
+
+help:
+	@printf "$(B_ON)$(FG_YELLOW)\n\n========== ALAMO Makefile help ==========$(RESET)""\n\n"
+	@printf "$(B_ON)Overview: \n$(RESET)"
+	@printf "   This makefile automatically compiles all .cpp and .F90 files in \n"
+	@printf "   the src directory, and compiles AND LINKS all .cc files into an \n"
+	@printf "   executable in the bin directory. \n"
+	@printf "   Any modification to a .H file causes everything to recompile. \n"
+	@printf "   The file WriteMetaData.cpp recompiles every time to ensure that \n"
+	@printf "   all metadata macros are up-to-date. \n"
+	@printf "$(B_ON)Usage: $(RESET)\n"
+	@printf "$(FG_LIGHTGREEN)   make [exe name] [COMP=INTEL/GCC] [EIGEN=/path/to/eigen]$(RESET)\n"
+	@printf "$(FG_LIGHTGREEN)        [ALAMO=/path/to/alamo] [-jNUM]$(RESET) \n"
+	@printf "$(B_ON)Examples: $(RESET)\n"
+	@printf "$(FG_LIGHTGREEN)   make                      $(RESET) (makes everything using default options)\n"
+	@printf "$(FG_LIGHTGREEN)   make bin/alamo            $(RESET) (makes bin/alamo only)\n"
+	@printf "$(FG_LIGHTGREEN)   make COMP=INTEL           $(RESET) (make using Intel compiler options)\n"
+	@printf "$(FG_LIGHTGREEN)   make AMREX=/path/to/amrex $(RESET) (specify location of AMReX)\n"
+	@printf "$(FG_LIGHTGREEN)   make EIGEN=/path/to/eigen $(RESET) (specify location of Eigen)\n"
+	@printf "$(FG_LIGHTGREEN)   make -j8                  $(RESET) (compile in parallel with 8 processors)\n"
+	@printf "$(B_ON)Notes: $(RESET)\n"
+	@printf "   - Specifying AMREX and EIGEN paths $(FG_LIGHTRED)does not$(RESET) override libraries\n"
+	@printf "     that are already loaded in path.   \n"
+	@printf "   - The AMREX path must contain directories called $(FG_LIGHTBLUE)lib/ include/$(RESET)   \n"
+	@printf "   - The EIGEN path must contain a directory called $(FG_LIGHTBLUE)eigen3$(RESET)   \n"
+	@printf "\n"
