@@ -1,6 +1,6 @@
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
-
+#include "Set/Set.H"
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -100,6 +100,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta");
 	//eta_old_mf.resize(maxLevel()+1);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
+	RegisterNewFab(etas_mf, 1, "Etas");
 
   
 	// Elasticity
@@ -371,8 +372,38 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 	}
 }
 
+
+void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
+{
+	if (!(iter % plot_int))
+	{
+		for (int ilev = 0; ilev < displacement.size(); ilev++)
+		{
+			for ( amrex::MFIter mfi(*strain[ilev],true); mfi.isValid(); ++mfi )
+			{
+				const amrex::Box& box = mfi.tilebox();
+				amrex::FArrayBox &etas  = (*etas_mf[ilev])[mfi];
+				amrex::FArrayBox &eta_new  = (*eta_new_mf[ilev])[mfi];
+				AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+					     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+					     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+				{
+					amrex::IntVect m(AMREX_D_DECL(i,j,k));
+					
+					etas(m) = 0.0;
+					for (int n = 0; n < number_of_grains; n++)
+						etas(m) += ((Set::Scalar)n)*eta_new(m,n);
+				}
+			}
+		}
+
+	}
+}
+
+
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+
 	if (!elastic_on) return;
 	if (iter%elastic_int) return;
 	if (time < elastic_tstart) return;
@@ -425,8 +456,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			break;
 		}
 	}
-	std::cout << "ushear = " << ushear << std::endl;
-
 
 	for (int ilev = 0; ilev < displacement.size(); ++ilev)
 	{

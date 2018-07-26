@@ -12,15 +12,15 @@ amr.plot_file = tests/PolyCrystal/output
 ic.type=voronoi
 
 geometry.prob_lo = 0.0 0.0 0.0
-geometry.prob_hi = 2.0 2.0 2.0
-geometry.is_periodic= 1 0 0
+geometry.prob_hi = 4.0 4.0 4.0
+geometry.is_periodic= 1 0 1
 
 bc.hi = INT_DIR EXT_DIR INT_DIR
 bc.lo = INT_DIR EXT_DIR INT_DIR
 bc.lo_2 = 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 bc.hi_2 = 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 
-pf.number_of_grains = 20
+pf.number_of_grains = 10
 pf.M = 1.0 
 pf.mu = 10.0
 pf.gamma = 1.0

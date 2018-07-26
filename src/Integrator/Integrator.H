@@ -235,6 +235,7 @@ private:
 
   // PLOT FILES
   std::string plot_file {"plt"};   ///< Plotfile name
+protected:
   int plot_int = -1;               ///< How frequently to dump plot file (default: never)
 };
 }
