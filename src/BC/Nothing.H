@@ -13,7 +13,7 @@ class Nothing
 {
 
 public:
-	Nothing (amrex::Vector<amrex::Geometry> &_geom) : BC(_geom) {};
+	Nothing () {};
 	virtual void FillBoundary (amrex::MultiFab&, int, int, amrex::Real /*time*/) override {};
 	virtual amrex::BCRec GetBCRec() {return amrex::BCRec();}
 };

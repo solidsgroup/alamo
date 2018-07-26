@@ -177,7 +177,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	fab_array.push_back(&new_fab);
-	physbc_array.push_back(new BC::Nothing(geom)); 
+	physbc_array.push_back(new BC::Nothing); 
 	ncomp_array.push_back(ncomp);
 	nghost_array.push_back(0);
 	name_array.push_back(name);
@@ -214,7 +214,7 @@ Integrator::FillPatch (int lev, Real time,
 		Vector<Real> stime;
 		stime.push_back(time);
 
-		physbc.SetLevel(lev);
+		physbc.define(geom[lev]);
 		amrex::FillPatchSingleLevel(destination_mf,		// Multifab
 					    time,                         // time
 					    smf,				// Vector<MultiFab*> &smf (CONST)
@@ -234,7 +234,7 @@ Integrator::FillPatch (int lev, Real time,
 		ctime.push_back(time);
 		ftime.push_back(time);
 
-		physbc.SetLevel(lev);
+		physbc.define(geom[lev]);
 		Interpolater* mapper = &cell_cons_interp;
 
 		amrex::Vector<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
@@ -269,7 +269,7 @@ Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 	amrex::Vector<amrex::Real> ctime;
 	ctime.push_back(time);
   
-	physbc.SetLevel(lev);
+	physbc.define(geom[lev]);
 	Interpolater* mapper = &cell_cons_interp;
     
 	amrex::Vector<BCRec> bcs(ncomp, physbc.GetBCRec());
@@ -323,7 +323,7 @@ Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 	{
 		// if (physbc_array[n]) // NO PROBLEM
 		// {
-		physbc_array[n]->SetLevel(lev);
+		physbc_array[n]->define(geom[lev]);
 		physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t);
 		// }
 

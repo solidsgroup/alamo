@@ -98,7 +98,7 @@ Operator::Operator::averageDownCoeffs ()
 
 		for (int amrlev = 0; amrlev < m_num_amr_levels; amrlev++)
 		{
-			physbc_array[i]->SetLevel(amrlev);
+			physbc_array[i]->define(m_geom[amrlev][0]);
 			for (int mglev = 0 ; mglev < m_num_mg_levels[amrlev]; mglev++)
 			{
 				/// \todo The last three arguments of FillBoundary are currently unused,
