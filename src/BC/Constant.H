@@ -17,8 +17,7 @@ class Constant
 
 public:
 	//Constant (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
-	Constant (amrex::Vector<amrex::Geometry> &_geom
-		 ,amrex::Vector<std::string> bc_hi_str
+	Constant (amrex::Vector<std::string> bc_hi_str
 		 ,amrex::Vector<std::string> bc_lo_str
 		 ,amrex::Vector<amrex::Real> _bc_lo_1
 		 ,amrex::Vector<amrex::Real> _bc_hi_1

@@ -438,9 +438,9 @@ Operator2::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 #pragma omp parallel
 #endif
 	
-	// m_bc->SetLevel(amrlev)
+	//m_bc->SetLevel(amrlev);
+	// m_bc->define(m_geom[amrlev][mglev]);
 	// m_bc->FillBoundary(in,0,0,0.0);
-	std::cout << "mglev = " << mglev << std::endl;
 	for (amrex::MFIter mfi(in, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
 	{
 		//continue;

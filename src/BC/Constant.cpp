@@ -2,20 +2,19 @@
 
 namespace BC
 {
-Constant::Constant (amrex::Vector<amrex::Geometry> & _geom
-	  ,amrex::Vector<std::string> bc_hi_str
-	  ,amrex::Vector<std::string> bc_lo_str
-	  ,amrex::Vector<amrex::Real> _bc_lo_1
-	  ,amrex::Vector<amrex::Real> _bc_hi_1
-	  ,amrex::Vector<amrex::Real> _bc_lo_2
-	  ,amrex::Vector<amrex::Real> _bc_hi_2
+Constant::Constant (amrex::Vector<std::string> bc_hi_str
+		    ,amrex::Vector<std::string> bc_lo_str
+		    ,amrex::Vector<amrex::Real> _bc_lo_1
+		    ,amrex::Vector<amrex::Real> _bc_hi_1
+		    ,amrex::Vector<amrex::Real> _bc_lo_2
+		    ,amrex::Vector<amrex::Real> _bc_hi_2
 #if AMREX_SPACEDIM > 2
-	  ,amrex::Vector<amrex::Real> _bc_lo_3
-	  ,amrex::Vector<amrex::Real> _bc_hi_3
+		    ,amrex::Vector<amrex::Real> _bc_lo_3
+		    ,amrex::Vector<amrex::Real> _bc_hi_3
 #endif
 	  )
-	: BC(_geom)
-	,bc_lo_1(_bc_lo_1), bc_hi_1(_bc_hi_1)
+	: 
+	bc_lo_1(_bc_lo_1), bc_hi_1(_bc_hi_1)
 	,bc_lo_2(_bc_lo_2), bc_hi_2(_bc_hi_2)
 #if AMREX_SPACEDIM > 2
 	,bc_lo_3(_bc_lo_3), bc_hi_3(_bc_hi_3)
@@ -49,12 +48,12 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 		Util::Abort("Not enough values specified for bc_hi_3");
 #endif
 
-	amrex::Box domain(geom[lev].Domain());
+	amrex::Box domain(m_geom.Domain());
 
-	mf.FillBoundary(geom[lev].periodicity());
+	mf.FillBoundary(m_geom.periodicity());
 
 	// Added for Neumann BC
-	const amrex::Real* dx = geom[lev].CellSize();
+	const amrex::Real* dx = m_geom.CellSize();
 
 	for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
 	{
@@ -201,6 +200,8 @@ Constant::FillBoundary (amrex::MultiFab& mf, int, int, amrex::Real /*time*/)
 					}
 	}
 }
+
+
 
 amrex::BCRec
 Constant::GetBCRec() {return amrex::BCRec(bc_lo,bc_hi);}
