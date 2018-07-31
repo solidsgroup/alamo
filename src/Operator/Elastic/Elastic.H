@@ -5,7 +5,7 @@
 #include <AMReX_Array.H>
 #include <limits>
 
-#include "Operator/Operator2.H"
+#include "Operator/Operator.H"
 
 
 using namespace amrex;
@@ -14,7 +14,7 @@ namespace Operator
 {
 namespace Elastic
 {
-class Elastic : public Operator2
+class Elastic : public Operator
 {
 public:
 	Elastic () {}
