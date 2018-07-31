@@ -33,7 +33,7 @@ Operator2::defineAuxData ()
 
 	m_undrrelxr.resize(m_num_amr_levels);
 	m_maskvals.resize(m_num_amr_levels);
-	m_fluxreg.resize(m_num_amr_levels-1);
+	//m_fluxreg.resize(m_num_amr_levels-1);
 
 	const int ncomp = getNComp();
 
@@ -57,22 +57,13 @@ Operator2::defineAuxData ()
 			{
 				const amrex::Orientation face = oitr();
 				const int ngrow = 1;
-				const int extent = 1; // extend to corners
+				//const int extent = 1; // extend to corners
 				m_maskvals[amrlev][mglev][face].define(m_grids[amrlev][mglev],
 								       m_dmap[amrlev][mglev],
 								       m_geom[amrlev][mglev],
 								       face, 0, ngrow, 0, ncomp, true);
 			}
 		}
-	}
-
-	for (int amrlev = 0; amrlev < m_num_amr_levels-1; ++amrlev)
-	{
-		const amrex::IntVect ratio{m_amr_ref_ratio[amrlev]};
-		m_fluxreg[amrlev].define(m_grids[amrlev+1][0], m_grids[amrlev][0],
-					 m_dmap[amrlev+1][0], m_dmap[amrlev][0],
-					 m_geom[amrlev+1][0], m_geom[amrlev][0],
-					 ratio, amrlev+1, ncomp);
 	}
 }
 
@@ -282,7 +273,7 @@ Operator2::restriction (int, int, amrex::MultiFab& crse, amrex::MultiFab& fine) 
 }
 
 void
-Operator2::interpolation (int amrlev, int fmglev,
+Operator2::interpolation (int /*amrlev*/, int /*fmglev*/,
 			  amrex::MultiFab& fine, const amrex::MultiFab& crse) const
 {
 #ifdef _OPENMP
@@ -467,72 +458,16 @@ Operator2::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 }
 
 void
-Operator2::reflux (int crse_amrlev,
-		   amrex::MultiFab& res, const amrex::MultiFab& crse_sol, const amrex::MultiFab&,
-		   amrex::MultiFab&, amrex::MultiFab& fine_sol, const amrex::MultiFab&) const
+Operator2::reflux (int,
+		   amrex::MultiFab&, const amrex::MultiFab&, const amrex::MultiFab&,
+		   amrex::MultiFab&, amrex::MultiFab&, const amrex::MultiFab&) const
 {
-	BL_PROFILE("Operator2::reflux()");
-	amrex::YAFluxRegister& fluxreg = m_fluxreg[crse_amrlev];
-	fluxreg.reset();
-
-	const int ncomp = getNComp();
-
-	const int fine_amrlev = crse_amrlev+1;
-
-	amrex::Real dt = 1.0;
-	const amrex::Real* crse_dx = m_geom[crse_amrlev][0].CellSize();
-	const amrex::Real* fine_dx = m_geom[fine_amrlev][0].CellSize();
-
-	const int mglev = 0;
-	applyBC(fine_amrlev, mglev, fine_sol, BCMode::Inhomogeneous, m_bndry_sol[fine_amrlev].get());
-
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
-	{
-		std::array<amrex::FArrayBox,AMREX_SPACEDIM> flux;
-		std::array<amrex::FArrayBox*,AMREX_SPACEDIM> pflux { AMREX_D_DECL(&flux[0], &flux[1], &flux[2]) };
-		std::array<amrex::FArrayBox const*,AMREX_SPACEDIM> cpflux { AMREX_D_DECL(&flux[0], &flux[1], &flux[2]) };
-
-		for (amrex::MFIter mfi(crse_sol, amrex::MFItInfo().EnableTiling().SetDynamic(true));  mfi.isValid(); ++mfi)
-		{
-			if (fluxreg.CrseHasWork(mfi))
-			{
-				const amrex::Box& tbx = mfi.tilebox();
-				AMREX_D_TERM(flux[0].resize(amrex::surroundingNodes(tbx,0),ncomp);,
-					     flux[1].resize(amrex::surroundingNodes(tbx,1),ncomp);,
-					     flux[2].resize(amrex::surroundingNodes(tbx,2),ncomp););
-				FFlux(crse_amrlev, mfi, pflux, crse_sol[mfi]);
-				fluxreg.CrseAdd(mfi, cpflux, crse_dx, dt);
-			}
-		}
-
-#ifdef _OPENMP
-#pragma omp barrier
-#endif
-
-		for (amrex::MFIter mfi(fine_sol, amrex::MFItInfo().EnableTiling().SetDynamic(true));  mfi.isValid(); ++mfi)
-		{
-			if (fluxreg.FineHasWork(mfi))
-			{
-				const amrex::Box& tbx = mfi.tilebox();
-				AMREX_D_TERM(flux[0].resize(amrex::surroundingNodes(tbx,0),ncomp);,
-					     flux[1].resize(amrex::surroundingNodes(tbx,1),ncomp);,
-					     flux[2].resize(amrex::surroundingNodes(tbx,2),ncomp););
-				const int face_only = true;
-				FFlux(fine_amrlev, mfi, pflux, fine_sol[mfi], face_only);
-				fluxreg.FineAdd(mfi, cpflux, fine_dx, dt);            
-			}
-		}
-	}
-
-	fluxreg.Reflux(res);
 }
 
 /// \note This function was stripped and replaced with setVal.
 void
-Operator2::compFlux (int amrlev, const std::array<amrex::MultiFab*,AMREX_SPACEDIM>& fluxes,
-		     amrex::MultiFab& sol) const
+Operator2::compFlux (int /*amrlev*/, const std::array<amrex::MultiFab*,AMREX_SPACEDIM>& fluxes,
+		     amrex::MultiFab& /*sol*/) const
 {
 	BL_PROFILE("Operator2::compFlux()");
 	for (int idim=0; idim < AMREX_SPACEDIM; idim++)
@@ -618,6 +553,7 @@ Operator2::prepareForSolve ()
 			}
 		}
 	}
+	averageDownCoeffs();
 }
 
 amrex::Real
@@ -675,5 +611,93 @@ Operator2::unapplyMetricTerm (int, int, amrex::MultiFab&) const
 	// non-Cartesian. This operator is used for Cartesian coordinates
 	// only.
 }
+
+
+
+
+void
+Operator2::averageDownCoeffs ()
+{
+	for (int i = 0; i < m_num_a_fabs; i++)
+	{
+		for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+		{
+			auto& fine_a_coeffs = m_a_coeffs[i][amrlev];
+			averageDownCoeffsSameAmrLevel(fine_a_coeffs);
+		}
+		averageDownCoeffsSameAmrLevel(m_a_coeffs[i][0]);
+	}
+}
+
+void
+Operator2::averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>& a)
+{
+	int nmglevs = a.size();
+	for (int mglev = 1; mglev < nmglevs; ++mglev)
+	{
+		amrex::average_down(a[mglev-1], a[mglev], 0, a[0].nComp(), mg_coarsen_ratio);
+	}
+}
+
+
+
+const amrex::FArrayBox &
+Operator2::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
+{
+	return m_a_coeffs[num][amrlev][mglev][mfi];
+}
+
+
+void
+Operator2::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input, BC::BC &new_bc)
+{
+	/// \todo assertions here
+	m_a_coeffs.resize(m_a_coeffs.size() + 1);
+	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+								       m_dmap[amrlev][mglev],
+								       input[amrlev].nComp(),
+								       input[amrlev].nGrow());
+
+		amrex::MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+				      input[amrlev], 0, 0,
+				      input[amrlev].nComp(),
+				      input[amrlev].nGrow());
+	}
+	m_num_a_fabs++;
+}
+
+
+void
+Operator2::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input,
+				   BC::BC &new_bc)
+{
+	/// \todo assertions here
+	m_a_coeffs.resize(m_a_coeffs.size() + 1);
+	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+								       m_dmap[amrlev][mglev],
+								       input[amrlev]->nComp(),
+								       input[amrlev]->nGrow());
+
+		amrex::MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+			       *input[amrlev], 0, 0,
+			       input[amrlev]->nComp(),
+			       input[amrlev]->nGrow());
+	}
+	m_num_a_fabs++;
+}
+
+
+
+
 
 }

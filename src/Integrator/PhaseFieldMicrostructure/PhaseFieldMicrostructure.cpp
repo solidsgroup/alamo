@@ -70,8 +70,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-		mybc = new BC::Constant(geom
-					,bc_hi_str, bc_lo_str
+		mybc = new BC::Constant(bc_hi_str, bc_lo_str
 					,bc_lo_1, bc_hi_1
 					,bc_lo_2, bc_hi_2
 #if AMREX_SPACEDIM > 2
@@ -381,7 +380,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elastic_operator = new Operator::Elastic::PolyCrystal::PolyCrystal();
   
 	geom[0].isPeriodic(0);
-	elastic_operator->define(geom,grids,dmap,info);
+	elastic_operator->define(geom,grids,dmap,*mybc,info);
 	elastic_operator->setMaxOrder(2);
 	elastic_operator->setDomainBC({AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
 						    geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
