@@ -1,7 +1,6 @@
 
 #include "Operator2.H"
 #include <AMReX_MLLinOp_F.H>
-#include "AMReX_MG_F.H"
 #include <AMReX_MultiFabUtil.H>
 
 namespace Operator {
