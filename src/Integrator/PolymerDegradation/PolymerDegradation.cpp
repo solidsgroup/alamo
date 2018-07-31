@@ -50,13 +50,13 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_water_bc.countval("lo_3")) pp_water_bc.getarr("lo_3",bc_lo_3);
 		if (pp_water_bc.countval("hi_3")) pp_water_bc.getarr("hi_3",bc_hi_3);
 
-		water_bc = new BC::Constant(geom, bc_hi_str, bc_lo_str
-							  ,bc_lo_1, bc_hi_1
-							  ,bc_lo_2, bc_hi_2
+		water_bc = new BC::Constant(bc_hi_str, bc_lo_str
+					    ,bc_lo_1, bc_hi_1
+					    ,bc_lo_2, bc_hi_2
 #if AMREX_SPACEDIM > 2
-							  ,bc_lo_3, bc_hi_3
+					    ,bc_lo_3, bc_hi_3
 #endif
-							  );
+					    );
 
 		RegisterNewFab(water_conc,     water_bc, 1, number_of_ghost_cells, "Water Concentration");
 		RegisterNewFab(water_conc_old, water_bc, 1, number_of_ghost_cells, "Water Concentration Old");
@@ -100,7 +100,7 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_heat_bc.countval("lo_3")) pp_heat_bc.getarr("lo_3",bc_lo_3);
 		if (pp_heat_bc.countval("hi_3")) pp_heat_bc.getarr("hi_3",bc_hi_3);
 
-		thermal_bc = new BC::Constant(geom, bc_hi_str, bc_lo_str
+		thermal_bc = new BC::Constant(bc_hi_str, bc_lo_str
 								,bc_lo_1,bc_hi_1
 								,bc_lo_2,bc_hi_2
 #if AMREX_SPACEDIM > 2
@@ -173,7 +173,7 @@ PolymerDegradation::PolymerDegradation():
 	if (pp_damage_bc.countval("lo_3")) pp_damage_bc.getarr("lo_3",bc_lo_3);
 	if (pp_damage_bc.countval("hi_3")) pp_damage_bc.getarr("hi_3",bc_hi_3);
 
-	eta_bc = new BC::Constant(geom, bc_hi_str, bc_lo_str
+	eta_bc = new BC::Constant(bc_hi_str, bc_lo_str
 						,bc_lo_1, bc_hi_1
 						,bc_lo_2, bc_hi_2
 #if AMREX_SPACEDIM>2
@@ -483,7 +483,8 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	elastic_operator = new Operator::Elastic::Degradation::Degradation(0.0);
   
 	geom[0].isPeriodic(0);
-	elastic_operator->define(geom,grids,dmap,info);
+	// \\\TODO need to repair this line!!!
+	//elastic_operator->define(geom,grids,dmap,info);
 	elastic_operator->setMaxOrder(2);
 	elastic_operator->setDomainBC(
 		{AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet ,

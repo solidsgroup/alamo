@@ -94,7 +94,7 @@ protected:
 	// boundary cell flags for covered, not_covered, outside_domain
 	amrex::Vector<amrex::Vector<std::array<amrex::MultiMask,2*AMREX_SPACEDIM> > > m_maskvals;
 
-	mutable amrex::Vector<amrex::YAFluxRegister> m_fluxreg;
+
 
 	//
 	// functions
@@ -173,14 +173,40 @@ protected:
 
 	virtual void Fapply (int amrlev, int mglev, amrex::MultiFab& out, const amrex::MultiFab& in) const = 0;
 	virtual void Fsmooth (int amrlev, int mglev, amrex::MultiFab& sol, const amrex::MultiFab& rsh, int redblack) const = 0;
-	virtual void FFlux (int amrlev, const amrex::MFIter& mfi,
-			    const std::array<amrex::FArrayBox*,AMREX_SPACEDIM>& flux,
-			    const amrex::FArrayBox& sol, const int face_only=0) const = 0;
+
+	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input, BC::BC &new_bc);
+	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input, BC::BC &new_bc);
+	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) ;
+
+	virtual bool isSingular (int /*amrlev*/) const final { return false; }
+	virtual bool isBottomSingular () const final { return false; }
+
+	virtual amrex::Real getAScalar () const final { return 0.0; }
+	virtual amrex::Real getBScalar () const final { return 0.0; }
+
+	virtual amrex::MultiFab const* getACoeffs (int /*amrlev*/, int /*mglev*/) const final { return nullptr;}
+	virtual std::array<amrex::MultiFab const*,AMREX_SPACEDIM> getBCoeffs (int /*amrlev*/, int /*mglev*/) const final {
+		std::array<amrex::MultiFab const*,AMREX_SPACEDIM> ret;
+		AMREX_D_TERM(ret[0] = nullptr;, ret[1] = nullptr;,ret[2] = nullptr;);
+		return ret;}
+
+	virtual std::unique_ptr<amrex::MLLinOp> makeNLinOp (int /*grid_size*/) const final {
+		Util::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
+		return std::unique_ptr<MLLinOp>{};
+	}
+
+	void averageDownCoeffs ();
+	void averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>&);
+	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
 private:
 
 	void defineAuxData ();
 	void defineBC ();
+
+	int m_num_a_fabs = 0;
+	// m_a_coeffs[index of fab][amrlevel][mglevel]
+	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs; 
 
 };
 }
