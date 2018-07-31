@@ -529,35 +529,15 @@ Operator2::reflux (int crse_amrlev,
 	fluxreg.Reflux(res);
 }
 
+/// \note This function was stripped and replaced with setVal.
 void
 Operator2::compFlux (int amrlev, const std::array<amrex::MultiFab*,AMREX_SPACEDIM>& fluxes,
 		     amrex::MultiFab& sol) const
 {
 	BL_PROFILE("Operator2::compFlux()");
-
-	const int mglev = 0;
-	const int ncomp = getNComp();
-	applyBC(amrlev, mglev, sol, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());
-
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
-	{
-		std::array<amrex::FArrayBox,AMREX_SPACEDIM> flux;
-		std::array<amrex::FArrayBox*,AMREX_SPACEDIM> pflux { AMREX_D_DECL(&flux[0], &flux[1], &flux[2]) };
-		for (amrex::MFIter mfi(sol, amrex::MFItInfo().EnableTiling().SetDynamic(true));  mfi.isValid(); ++mfi)
-		{
-			const amrex::Box& tbx = mfi.tilebox();
-			AMREX_D_TERM(flux[0].resize(amrex::surroundingNodes(tbx,0));,
-				     flux[1].resize(amrex::surroundingNodes(tbx,1));,
-				     flux[2].resize(amrex::surroundingNodes(tbx,2)););
-			FFlux(amrlev, mfi, pflux, sol[mfi]);
-			for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-				const amrex::Box& nbx = mfi.nodaltilebox(idim);
-				(*fluxes[idim])[mfi].copy(flux[idim], nbx, 0, nbx, 0, ncomp);
-			}
-		}
-	}
+	for (int idim=0; idim < AMREX_SPACEDIM; idim++)
+		fluxes[idim]->setVal(0.0);
+	return;
 }
 
 void
