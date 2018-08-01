@@ -14,7 +14,13 @@ class Nothing
 
 public:
 	Nothing () {};
-	virtual void FillBoundary (amrex::MultiFab&, int, int, amrex::Real /*time*/) override {};
+	virtual void FillBoundary (amrex::FArrayBox&,
+				   const amrex::Box &,
+				   int, int, int,
+				   amrex::Real,
+				   Orientation face = Orientation::All,
+				   const amrex::Mask *mask = nullptr) override {};
+
 	virtual amrex::BCRec GetBCRec() {return amrex::BCRec();}
 };
 }

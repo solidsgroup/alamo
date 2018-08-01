@@ -2,6 +2,7 @@
 #include "Operator.H"
 #include <AMReX_MLLinOp_F.H>
 #include <AMReX_MultiFabUtil.H>
+#include "Util/Color.H"
 
 namespace Operator {
 
@@ -22,7 +23,9 @@ Operator::define (const amrex::Vector<amrex::Geometry>& a_geom,
 {
 	MLLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 	defineAuxData();
+	std::cout << __FILE__<<":"<<__LINE__<<std::endl;
 	defineBC();
+	std::cout << __FILE__<<":"<<__LINE__<<std::endl;
 	m_bc = &a_bc;
 }
 
@@ -57,11 +60,11 @@ Operator::defineAuxData ()
 			{
 				const amrex::Orientation face = oitr();
 				const int ngrow = 1;
-				//const int extent = 1; // extend to corners
+				const int extent = 1;
 				m_maskvals[amrlev][mglev][face].define(m_grids[amrlev][mglev],
 								       m_dmap[amrlev][mglev],
 								       m_geom[amrlev][mglev],
-								       face, 0, ngrow, 0, ncomp, true);
+								       face, 0, ngrow, extent, ncomp, true);
 			}
 		}
 	}
@@ -428,12 +431,9 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 #pragma omp parallel
 #endif
 	
-	//m_bc->SetLevel(amrlev);
-	// m_bc->define(m_geom[amrlev][mglev]);
-	// m_bc->FillBoundary(in,0,0,0.0);
+	//m_bc->define(m_geom[amrlev][mglev]);
 	for (amrex::MFIter mfi(in, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
 	{
-		//continue;
 		const amrex::Box& vbx   = mfi.validbox();
 		amrex::FArrayBox& iofab = in[mfi];
 		const RealTuple & bdl = bcondloc.bndryLocs(mfi);
@@ -447,12 +447,16 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 			foo.setVal(10.0);
 			const amrex::FArrayBox& fsfab = (bndry != nullptr) ? bndry->bndryValues(ori)[mfi] : foo;
 			const amrex::Mask& m = maskvals[ori][mfi];
+			
+			// m_bc->FillBoundary(in[mfi],vbx,in.nGrow()
+			//   		   ,0,0,0.0,(BC::Orientation)cdr,&maskvals[ori][mfi]);
+
 			amrex_mllinop_apply_bc(BL_TO_FORTRAN_BOX(vbx),
-					       BL_TO_FORTRAN_ANYD(iofab),
-					       BL_TO_FORTRAN_ANYD(m),
-					       cdr, bct, bcl,
-					       BL_TO_FORTRAN_ANYD(fsfab),
-					       maxorder, dxinv, flagbc, ncomp, cross);
+			  		       BL_TO_FORTRAN_ANYD(iofab),
+			 		       BL_TO_FORTRAN_ANYD(m),
+			  		       cdr, bct, bcl,
+			  		       BL_TO_FORTRAN_ANYD(fsfab),
+			  		       maxorder, dxinv, flagbc, ncomp, cross);
 		}
 	}
 }
