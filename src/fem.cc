@@ -191,7 +191,7 @@ int main (int argc, char* argv[])
 	// mlabec.SetEigenstrain(eps0,*mybc);
 	// mlabec.AddEigenstrainToRHS(rhs);
 	mlabec.setDomainBC(mybc->GetBCTypes<amrex::LinOpBCType>()[0],
-	 		   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
+	  		   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
