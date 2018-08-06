@@ -23,9 +23,7 @@ Operator::define (const amrex::Vector<amrex::Geometry>& a_geom,
 {
 	MLLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 	defineAuxData();
-	std::cout << __FILE__<<":"<<__LINE__<<std::endl;
 	defineBC();
-	std::cout << __FILE__<<":"<<__LINE__<<std::endl;
 	m_bc = &a_bc;
 }
 
@@ -356,10 +354,14 @@ Operator::solutionResidual (int amrlev, amrex::MultiFab& resid, amrex::MultiFab&
 {
 	BL_PROFILE("Operator::solutionResidual()");
 	const int ncomp = getNComp();
-	if (crse_bcdata != nullptr) {
-		updateSolBC(amrlev, *crse_bcdata);
-	}
 	const int mglev = 0;
+	if (crse_bcdata != nullptr) {
+		//updateSolBC(amrlev, *crse_bcdata);
+	}
+	m_bc->define(m_geom[amrlev][mglev]);
+	m_bc->FillBoundary(x,0,0,0.0);
+	setLevelBC(amrlev,&x);
+
 	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());
 
 	AMREX_ALWAYS_ASSERT(resid.nComp() == b.nComp());
@@ -370,10 +372,15 @@ void
 Operator::fillSolutionBC (int amrlev, amrex::MultiFab& sol, const amrex::MultiFab* crse_bcdata)
 {
 	BL_PROFILE("Operator::fillSolutionBC()");
-	if (crse_bcdata != nullptr) {
-		updateSolBC(amrlev, *crse_bcdata);
-	}
 	const int mglev = 0;
+
+	if (crse_bcdata != nullptr) {
+		//updateSolBC(amrlev, *crse_bcdata);
+	}
+	m_bc->define(m_geom[amrlev][mglev]);
+	m_bc->FillBoundary(sol,0,0,0.0);
+	setLevelBC(amrlev,&sol);
+
 	applyBC(amrlev, mglev, sol, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());    
 }
 
@@ -390,8 +397,13 @@ Operator::correctionResidual (int amrlev, int mglev, amrex::MultiFab& resid, amr
 		{
 			AMREX_ALWAYS_ASSERT(mglev == 0);
 			AMREX_ALWAYS_ASSERT(amrlev > 0);
-			updateCorBC(amrlev, *crse_bcdata);
+			//updateCorBC(amrlev, *crse_bcdata);
 		}
+
+		m_bc->define(m_geom[amrlev][mglev]);
+		m_bc->FillBoundary(x,0,0,0.0);
+		setLevelBC(amrlev,&x);
+
 		apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, m_bndry_cor[amrlev].get());
 	}
 	else
@@ -432,6 +444,7 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 #endif
 	
 	//m_bc->define(m_geom[amrlev][mglev]);
+	//m_bc->FillBoundary(bndry->bndryValues)
 	for (amrex::MFIter mfi(in, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box& vbx   = mfi.validbox();
@@ -449,7 +462,7 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 			const amrex::Mask& m = maskvals[ori][mfi];
 			
 			// m_bc->FillBoundary(in[mfi],vbx,in.nGrow()
-			//   		   ,0,0,0.0,(BC::Orientation)cdr,&maskvals[ori][mfi]);
+			//    		   ,0,0,0.0,(BC::Orientation)cdr,&maskvals[ori][mfi]);
 
 			amrex_mllinop_apply_bc(BL_TO_FORTRAN_BOX(vbx),
 			  		       BL_TO_FORTRAN_ANYD(iofab),
@@ -481,7 +494,7 @@ Operator::compFlux (int /*amrlev*/, const std::array<amrex::MultiFab*,AMREX_SPAC
 
 void
 Operator::compGrad (int amrlev, const std::array<amrex::MultiFab*,AMREX_SPACEDIM>& grad,
-		     amrex::MultiFab& sol) const
+		    amrex::MultiFab& sol) const
 {
 	BL_PROFILE("Operator::compGrad()");
 
@@ -489,6 +502,12 @@ Operator::compGrad (int amrlev, const std::array<amrex::MultiFab*,AMREX_SPACEDIM
 		amrex::Abort("Operator::compGrad called, but only works for single-component solves");
 
 	const int mglev = 0;
+
+	m_bc->define(m_geom[amrlev][mglev]);
+	m_bc->FillBoundary(sol,0,0,0.0);
+	auto *nonconst_this = const_cast<Operator*>(this);
+	nonconst_this->setLevelBC(amrlev,&sol);
+
 	applyBC(amrlev, mglev, sol, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());
 
 	const amrex::Real* dxinv = m_geom[amrlev][mglev].InvCellSize();

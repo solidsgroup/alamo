@@ -188,17 +188,28 @@ int main (int argc, char* argv[])
 	Operator::Elastic::Isotropic mlabec;
 	mlabec.define(geom, grids, dmap, *mybc, info);
 	mlabec.setMaxOrder(linop_maxorder);
+
+	//
+	// THIS STUFF IS THE OLD WAY OF SETTING BOUNDARY CONDITIONS
+	//
 	// mlabec.SetEigenstrain(eps0,*mybc);
 	// mlabec.AddEigenstrainToRHS(rhs);
-	mlabec.setDomainBC(mybc->GetBCTypes<amrex::LinOpBCType>()[0],
-	  		   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
+	//{AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)}
+	// mlabec.setDomainBC(mybc->GetBCTypes<amrex::LinOpBCType>()[0],
+	//   		   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
 
+
+	// this must be replaced...
+	mlabec.setDomainBC({AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)},
+	  		   {AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)});
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		mybc->define(geom[ilev]);
 		mybc->FillBoundary(u[ilev],0,0,0.0);
 		mlabec.setLevelBC(ilev,&u[ilev]);
 	}
+
+
 
 	//
 	// Solver
