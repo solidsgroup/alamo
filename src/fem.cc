@@ -200,14 +200,14 @@ int main (int argc, char* argv[])
 
 
 	// this must be replaced...
-	mlabec.setDomainBC({AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)},
-	  		   {AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)});
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		mybc->define(geom[ilev]);
-		mybc->FillBoundary(u[ilev],0,0,0.0);
-		mlabec.setLevelBC(ilev,&u[ilev]);
-	}
+	//mlabec.
+	// for (int ilev = 0; ilev < nlevels; ++ilev)
+	// {
+	// 	//mybc->define(geom[ilev]);
+	// 	//mybc->FillBoundary(u[ilev],0,0,0.0);
+	// 	//mlabec.setLevelBC(ilev,&u[ilev]);
+	// 	mlabec.setLevelBC(ilev,nullptr);
+	// }
 
 
 

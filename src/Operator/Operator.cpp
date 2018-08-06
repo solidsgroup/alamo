@@ -25,6 +25,13 @@ Operator::define (const amrex::Vector<amrex::Geometry>& a_geom,
 	defineAuxData();
 	defineBC();
 	m_bc = &a_bc;
+
+	setDomainBC({AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)},
+		    {AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)});
+
+	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
+		setLevelBC(ilev,nullptr);
+
 }
 
 void
@@ -356,11 +363,11 @@ Operator::solutionResidual (int amrlev, amrex::MultiFab& resid, amrex::MultiFab&
 	const int ncomp = getNComp();
 	const int mglev = 0;
 	if (crse_bcdata != nullptr) {
-		//updateSolBC(amrlev, *crse_bcdata);
+		updateSolBC(amrlev, *crse_bcdata);
 	}
-	m_bc->define(m_geom[amrlev][mglev]);
-	m_bc->FillBoundary(x,0,0,0.0);
-	setLevelBC(amrlev,&x);
+	// m_bc->define(m_geom[amrlev][mglev]);
+	// m_bc->FillBoundary(x,0,0,0.0);
+	// setLevelBC(amrlev,&x);
 
 	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());
 
@@ -375,11 +382,11 @@ Operator::fillSolutionBC (int amrlev, amrex::MultiFab& sol, const amrex::MultiFa
 	const int mglev = 0;
 
 	if (crse_bcdata != nullptr) {
-		//updateSolBC(amrlev, *crse_bcdata);
+		updateSolBC(amrlev, *crse_bcdata);
 	}
-	m_bc->define(m_geom[amrlev][mglev]);
-	m_bc->FillBoundary(sol,0,0,0.0);
-	setLevelBC(amrlev,&sol);
+	// m_bc->define(m_geom[amrlev][mglev]);
+	// m_bc->FillBoundary(sol,0,0,0.0);
+	// setLevelBC(amrlev,&sol);
 
 	applyBC(amrlev, mglev, sol, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());    
 }
@@ -397,12 +404,12 @@ Operator::correctionResidual (int amrlev, int mglev, amrex::MultiFab& resid, amr
 		{
 			AMREX_ALWAYS_ASSERT(mglev == 0);
 			AMREX_ALWAYS_ASSERT(amrlev > 0);
-			//updateCorBC(amrlev, *crse_bcdata);
+			updateCorBC(amrlev, *crse_bcdata);
+			// m_bc->define(m_geom[amrlev][mglev]);
+			// m_bc->FillBoundary(x,0,0,0.0);
+			// setLevelBC(amrlev,&x);
 		}
 
-		m_bc->define(m_geom[amrlev][mglev]);
-		m_bc->FillBoundary(x,0,0,0.0);
-		setLevelBC(amrlev,&x);
 
 		apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, m_bndry_cor[amrlev].get());
 	}
@@ -443,6 +450,14 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 #pragma omp parallel
 #endif
 	
+	if (mglev==0 && bc_mode == BCMode::Inhomogeneous) 
+	{
+		m_bc->define(m_geom[amrlev][mglev]);
+		m_bc->FillBoundary(in,0,0,0.0);
+		auto *nonconst_this = const_cast<Operator*>(this);
+		nonconst_this->setLevelBC(amrlev,&in);
+	}
+
 	//m_bc->define(m_geom[amrlev][mglev]);
 	//m_bc->FillBoundary(bndry->bndryValues)
 	for (amrex::MFIter mfi(in, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -503,10 +518,10 @@ Operator::compGrad (int amrlev, const std::array<amrex::MultiFab*,AMREX_SPACEDIM
 
 	const int mglev = 0;
 
-	m_bc->define(m_geom[amrlev][mglev]);
-	m_bc->FillBoundary(sol,0,0,0.0);
-	auto *nonconst_this = const_cast<Operator*>(this);
-	nonconst_this->setLevelBC(amrlev,&sol);
+	// m_bc->define(m_geom[amrlev][mglev]);
+	// m_bc->FillBoundary(sol,0,0,0.0);
+	// auto *nonconst_this = const_cast<Operator*>(this);
+	// nonconst_this->setLevelBC(amrlev,&sol);
 
 	applyBC(amrlev, mglev, sol, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());
 

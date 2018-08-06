@@ -99,7 +99,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
-			else if (j < domain.loVect()[1] && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
+			else if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
 			{
 				if (BCUtil::IsDirichlet(bc_lo[1]))
 					in(m,n) = bc_lo_2[n];
@@ -111,7 +111,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
-			else if (j > domain.hiVect()[1] && (face == Orientation::yhi || face == Orientation::All)) // Top boundary
+			else if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All)) // Top boundary
 			{
 				if (BCUtil::IsDirichlet(bc_hi[1]))
 					in(m,n) = bc_hi_2[n];
@@ -124,7 +124,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					Util::Abort("Incorrect boundary conditions");
 			}
 #if AMREX_SPACEDIM>2
-			else if (k < domain.loVect()[2] && (face == Orientation::zlo || face == Orientation::All))
+			else if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All))
 			{
 				if (BCUtil::IsDirichlet(bc_lo[2]))
 					in(m,n) = bc_lo_3[n];
@@ -136,7 +136,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
-			else if (k > domain.hiVect()[2] && (face == Orientation::zhi || face == Orientation::All))
+			else if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All))
 			{
 				if (BCUtil::IsDirichlet(bc_hi[2]))
 					in(m,n) = bc_hi_3[n];
