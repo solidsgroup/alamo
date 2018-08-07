@@ -26,9 +26,14 @@ Operator::define (const amrex::Vector<amrex::Geometry>& a_geom,
 	defineBC();
 	m_bc = &a_bc;
 
-	setDomainBC({AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)},
-		    {AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)});
-
+	std::array<int,AMREX_SPACEDIM> is_periodic = m_bc->IsPeriodic();
+	setDomainBC({AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+				  is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+				  is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)},
+		{AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			      is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			      is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)});
+				  
 	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
 		setLevelBC(ilev,nullptr);
 

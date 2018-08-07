@@ -80,9 +80,8 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					in(m,n) = bc_lo_1[n];
 				else if(BCUtil::IsNeumann(bc_lo[0]))
 					in(m,n) = in(m+dx,n) - bc_lo_1[n]*DX[0];
-				else if(BCUtil::IsPeriodic(bc_lo[0])) //continue;
-					in(m,n) = 
-						in(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
+				else if(BCUtil::IsPeriodic(bc_lo[0])) continue;
+				//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
@@ -93,9 +92,8 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					in(m,n) = bc_hi_1[n];
 				else if(BCUtil::IsNeumann(bc_hi[0]))
 					in(m,n) = in(m-dx,n) - bc_hi_1[n]*DX[0];
-				else if(BCUtil::IsPeriodic(bc_hi[0])) //continue;
-					in(m,n) = 
-						in(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
+				else if(BCUtil::IsPeriodic(bc_hi[0])) continue;
+					//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
@@ -105,9 +103,8 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					in(m,n) = bc_lo_2[n];
 				else if (BCUtil::IsNeumann(bc_lo[1]))
 					in(m,n) = in(m+dy,n) - bc_lo_2[n]*DX[1];
-				else if(BCUtil::IsPeriodic(bc_lo[1])) //continue;
-				 	in(m,n) = 
-				 		in(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
+				else if(BCUtil::IsPeriodic(bc_lo[1])) continue;
+				 	//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
@@ -117,9 +114,8 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					in(m,n) = bc_hi_2[n];
 				else if (BCUtil::IsNeumann(bc_hi[1]))
 					in(m,n) = in(m-dy,n) - bc_hi_2[n]*DX[1];
-				else if(BCUtil::IsPeriodic(bc_hi[1])) //continue;
-					in(m,n) = 
-						in(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
+				else if(BCUtil::IsPeriodic(bc_hi[1])) continue;
+					//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
@@ -130,9 +126,8 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					in(m,n) = bc_lo_3[n];
 				else if (BCUtil::IsNeumann(bc_lo[2]))
 					in(m,n) = in(m+dz,n) - bc_lo_3[n]*DX[2];
-				else if(BCUtil::IsPeriodic(bc_lo[2])) //continue;
-					in(m,n) = 
-						in(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
+				else if(BCUtil::IsPeriodic(bc_lo[2])) continue;
+					//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
@@ -142,9 +137,8 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					in(m,n) = bc_hi_3[n];
 				else if(BCUtil::IsNeumann(bc_hi[2]))
 					in(m,n) = in(m-dz,n) - bc_hi_3[n]*DX[2];
-				else if(BCUtil::IsPeriodic(bc_hi[2])) //continue;
-					 in(m,n) = 
-						 in(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
+				else if(BCUtil::IsPeriodic(bc_hi[2])) continue;
+				//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
 				else
 					Util::Abort("Incorrect boundary conditions");
 			}
