@@ -488,3 +488,689 @@ Elastic::IsPeriodic()
 }
 
 }
+
+// Stencil Fill routine - takes in a stencil, a list of unknown points and fills the unknown values
+// in the stencil.
+
+void StencilFill(	amrex::Vector<Set::Vector> &stencil,
+			const amrex::Vector<Set::Vector> &traction,
+			const amrex::Vector<int> &points,
+			const amrex::IntVect &m,
+			const int amrlev,
+			const int mglev,
+			const MFIter &mfi)
+{
+
+/*
+Description of arguments
+
+stencil:	list of 7 points, each with three components
+traction:	list of tractions, each with three components
+points:		list of points that are empty (can't be more than 3)
+m:		Position of the middle point
+amrlev:		AMR level
+mglev:		MG level
+mfi:		MFI box
+
+point nomenclature:
+	0 = mid
+	1 = left
+	2 = right
+	3 = bottom
+	4 = top
+	5 = back
+	6 = front
+
+Restriction: If there are more than one unknown points, 
+		the list must be in asceding order. 
+*/
+
+	if(points.size() > 3 || points.size() < 1)
+		Util::Abort("Number of unknown points can not be greater than 3");
+
+	if(points.size() != traction.size())
+		Util::Abort("Mismatch between number of unknown points and tractions");
+
+	const Real* DX = m_geom[amrlev][mglev].CellSize();
+  
+#if AMREX_SPACEDIM == 1
+	static amrex::IntVect dx(1);
+#elif AMREX_SPACEDIM == 2
+	static amrex::IntVect dx(1,0), dy(0,1);
+#elif AMREX_SPACEDIM == 3
+	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
+#endif 
+
+	if(points.size() == 1)		//Need three equations - non corner cases
+	{
+		int mul = 0;
+		if(points[0] == 1 || points[0] == 2)		// left or right faces
+		{
+			mul = points[0] == 1 ? -1 : 1;
+			//gradu_k,2
+			Set::Vector gradu_2;
+			AMREX_D_TERM(	gradu_2(0) = (stencil[4](0) - stencil[3](0))/(2.0*DX[1]);
+					, // 2D
+					gradu_2(1) = (stencil[4](1) - stencil[3](1))/(2.0*DX[1]);
+					, // 3D
+					gradu_2(2) = (stencil[4](2) - stencil[3](2))/(2.0*DX[1]);
+					//gradu_k,3
+					Set::Vector gradu_3;
+					gradu_3(0) = (stencil[6](0) - stencil[5](0))/(2.0*DX[2]);
+					gradu_3(1) = (stencil[6](1) - stencil[5](1))/(2.0*DX[2]);
+					gradu_3(2) = (stencil[6](2) - stencil[5](2))/(2.0*DX[2]););
+
+			Set::Matrix left;
+			Set::Vector right; 
+			Set::Vector sol;
+
+			AMREX_D_TERM( 	left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
+					, // 2D
+					left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
+					left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
+					left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
+					, // 3D
+					left(0,2) = C(0,0,2,0,m,amrlev,mglev,mfi);
+					left(1,2) = C(1,0,2,0,m,amrlev,mglev,mfi);
+					left(2,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
+					left(2,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
+					left(2,2) = C(2,0,2,0,m,amrlev,mglev,mfi););
+			AMREX_D_TERM(	right(0) = AMREX_D_DECL(mul*traction[0](0)
+								, 
+								- C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								,
+								- C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								);
+					, // 2D
+					right(1) = AMREX_D_DECL(mul*traction[0](1)
+								, 
+								- C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								,
+								- C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								);
+					, // 3D
+					right(2) = AMREX_D_DECL(mul*traction[0](2)
+								, 
+								- C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								,
+								- C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+					););
+			sol = left.ldlt().solve(right); // we can change this solver as needed
+					
+			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[0]*sol(0);,
+					stencil[points[0]](1) = stencil[0](1) + mul*DX[0]*sol(1);,
+					stencil[points[0]](2) = stencil[0](2) + mul*DX[0]*sol(2););
+		}
+
+		else if(points[0] == 3 || points[0] == 4)	// bottom or top faces
+		{
+			mul = points[0] == 3 ? -1 : 1;
+			//gradu_k,1
+			Set::Vector gradu_1;
+			AMREX_D_TERM(	gradu_1(0) = (stencil[2](0) - stencil[1](0))/(2.0*DX[0]);
+					, // 2D
+					gradu_1(1) = (stencil[2](1) - stencil[1](1))/(2.0*DX[0]);
+					, // 3D
+					gradu_1(2) = (stencil[2](2) - stencil[1](2))/(2.0*DX[0]);
+					//gradu_k,3
+					Set::Vector gradu_3;
+					gradu_3(0) = (stencil[6](0) - stencil[5](0))/(2.0*DX[2]);
+					gradu_3(1) = (stencil[6](1) - stencil[5](1))/(2.0*DX[2]);
+					gradu_3(2) = (stencil[6](2) - stencil[5](2))/(2.0*DX[2]););
+
+			Set::Matrix left;
+			Set::Vector right; 
+			Set::Vector sol;
+			AMREX_D_TERM( 	left(0,0) = C(0,1,0,1,m,amrlev,mglev,mfi);
+					, // 2D
+					left(0,1) = C(0,1,1,1,m,amrlev,mglev,mfi);
+					left(1,0) = C(1,1,0,1,m,amrlev,mglev,mfi);
+					left(1,1) = C(1,1,1,1,m,amrlev,mglev,mfi);
+					, // 3D
+					left(0,2) = C(0,1,2,1,m,amrlev,mglev,mfi);
+					left(1,2) = C(1,1,2,1,m,amrlev,mglev,mfi);
+					left(2,0) = C(2,1,0,1,m,amrlev,mglev,mfi);
+					left(2,1) = C(2,1,1,1,m,amrlev,mglev,mfi);
+					left(2,2) = C(2,1,2,1,m,amrlev,mglev,mfi););
+			AMREX_D_TERM(	right(0) = AMREX_D_DECL(mul*traction[0](0)
+								, 
+								- C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								,
+								- C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								);
+					, // 2D
+					right(1) = AMREX_D_DECL(mul*traction[0](1)
+								, 
+								- C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								,
+								- C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								);
+					, // 3D
+					right(2) = AMREX_D_DECL(mul*traction[0](2)
+								, 
+								- C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								,
+								- C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+					););
+			sol = left.ldlt().solve(right); // we can change this solver as needed
+			
+			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[1]*sol(0);,
+					stencil[points[0]](1) = stencil[0](1) + mul*DX[1]*sol(1);,
+					stencil[points[0]](2) = stencil[0](2) + mul*DX[1]*sol(2););
+		}
+
+		else if(points[0] == 5 || points[0] == 6)	// back and front faces
+		{
+			mul = points[0] == 5 ? -1 : 1;
+			//gradu_k,1
+			Set::Vector gradu_1;
+			AMREX_D_TERM(	gradu_1(0) = (stencil[2](0) - stencil[1](0))/(2.0*DX[0]);
+					, // 2D
+					gradu_1(1) = (stencil[2](1) - stencil[1](1))/(2.0*DX[0]);
+					, // 3D
+					gradu_1(2) = (stencil[2](2) - stencil[1](2))/(2.0*DX[0]);
+					//gradu_k,2
+					Set::Vector gradu_2;
+					gradu_2(0) = (stencil[4](0) - stencil[3](0))/(2.0*DX[1]);
+					gradu_2(1) = (stencil[4](1) - stencil[3](1))/(2.0*DX[1]);
+					gradu_2(2) = (stencil[4](2) - stencil[3](2))/(2.0*DX[1]););
+
+			Set::Matrix left;
+			Set::Vector right; 
+			Set::Vector sol;
+			AMREX_D_TERM( 	left(0,0) = C(0,2,0,2,m,amrlev,mglev,mfi);
+					, // 2D
+					left(0,1) = C(0,2,1,2,m,amrlev,mglev,mfi);
+					left(1,0) = C(1,2,0,2,m,amrlev,mglev,mfi);
+					left(1,1) = C(1,2,1,2,m,amrlev,mglev,mfi);
+					, // 3D
+					left(0,2) = C(0,2,2,2,m,amrlev,mglev,mfi);
+					left(1,2) = C(1,2,2,2,m,amrlev,mglev,mfi);
+					left(2,0) = C(2,2,0,2,m,amrlev,mglev,mfi);
+					left(2,1) = C(2,2,1,2,m,amrlev,mglev,mfi);
+							left(2,2) = C(2,2,2,2,m,amrlev,mglev,mfi););
+					AMREX_D_TERM(	right(0) = AMREX_D_DECL(mul*traction[0](0)
+										, 
+										- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+										- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+										,
+										- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+										- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+										- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+										- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+										);
+							, // 2D
+							right(1) = AMREX_D_DECL(mul*traction[0](1)
+										, 
+										- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+										- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+										,
+										- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+										- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+										- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+										- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+										);
+							, // 3D
+							right(2) = AMREX_D_DECL(mul*traction[0](2)
+										, 
+										- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+										- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+										,
+										- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+										- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+										- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+										- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+										););
+					sol = left.ldlt().solve(right); // we can change this solver as needed
+					
+					AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[2]*sol(0);,
+							stencil[points[0]](1) = stencil[0](1) + mul*DX[2]*sol(1);,
+							stencil[points[0]](2) = stencil[0](2) + mul*DX[2]*sol(2););
+		}
+
+		else
+			Util::Abort("Incorrect values of points");
+	}
+
+	else if (points.size() == 2)	//Need six equations - corner case
+	{
+		int mul1 = 0, mul2 = 0;
+		if ((points[0] == 1 || points[0] == 2) && (points[1] == 3 || points[1] == 4))
+		{
+			mul1 = points[0] == 1 ? -1 : 1;
+			mul2 = points[1] == 3 ? -1 : 1;
+#if AMREX_SPACEDIM > 2
+			//gradu_k,3
+			Set::Vector gradu_3;
+			gradu_3(0) = (stencil[6](0) - stencil[5](0))/(2.0*DX[2]);
+			gradu_3(1) = (stencil[6](1) - stencil[5](1))/(2.0*DX[2]);
+			gradu_3(2) = (stencil[6](2) - stencil[5](2))/(2.0*DX[2]);
+#endif
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,2*AMREX_SPACEDIM> left;
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> right;
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> sol; 
+
+			AMREX_D_TERM(	left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
+					, // 2D
+					left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
+					left(0,2) = C(0,0,0,1,m,amrlev,mglev,mfi);
+					left(0,3) = C(0,0,1,1,m,amrlev,mglev,mfi);
+					left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
+					left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
+					left(1,2) = C(1,0,0,1,m,amrlev,mglev,mfi);
+					left(1,3) = C(1,0,1,1,m,amrlev,mglev,mfi);
+					left(2,0) = C(0,1,0,0,m,amrlev,mglev,mfi);
+					left(2,1) = C(0,1,1,0,m,amrlev,mglev,mfi);
+					left(2,2) = C(0,1,0,1,m,amrlev,mglev,mfi);
+					left(2,3) = C(0,1,1,1,m,amrlev,mglev,mfi);
+					left(3,0) = C(1,1,0,0,m,amrlev,mglev,mfi);
+					left(3,1) = C(1,1,1,0,m,amrlev,mglev,mfi);
+					left(3,2) = C(1,1,0,1,m,amrlev,mglev,mfi);
+					left(3,3) = C(1,1,1,1,m,amrlev,mglev,mfi);
+					, // 3D
+					left(0,4) = C(0,0,2,0,m,amrlev,mglev,mfi);
+					left(0,5) = C(0,0,2,1,m,amrlev,mglev,mfi);
+					left(1,4) = C(1,0,2,0,m,amrlev,mglev,mfi);
+					left(1,5) = C(1,0,2,1,m,amrlev,mglev,mfi);
+					left(2,4) = C(0,1,2,0,m,amrlev,mglev,mfi);
+					left(2,5) = C(0,1,2,1,m,amrlev,mglev,mfi);
+					left(3,4) = C(1,1,2,0,m,amrlev,mglev,mfi);
+					left(3,5) = C(1,1,2,1,m,amrlev,mglev,mfi);
+					left(4,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
+					left(4,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
+					left(4,2) = C(2,0,0,1,m,amrlev,mglev,mfi);
+					left(4,3) = C(2,0,1,1,m,amrlev,mglev,mfi);
+					left(4,4) = C(2,0,2,0,m,amrlev,mglev,mfi);
+					left(4,5) = C(2,0,2,1,m,amrlev,mglev,mfi);
+					left(5,0) = C(2,1,0,0,m,amrlev,mglev,mfi);
+					left(5,1) = C(2,1,1,0,m,amrlev,mglev,mfi);
+					left(5,2) = C(2,1,0,1,m,amrlev,mglev,mfi);
+					left(5,3) = C(2,1,1,1,m,amrlev,mglev,mfi);
+					left(5,4) = C(2,1,2,0,m,amrlev,mglev,mfi);
+					left(5,5) = C(2,1,2,1,m,amrlev,mglev,mfi););
+
+			AMREX_D_TERM(	right(0) = AMREX_D_DECL(	mul1*traction[0](0),
+									, // 2D
+									+ 0.0
+									, // 3D
+									- C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								);
+					, // 2D
+					right(1) = AMREX_D_DECL(	mul1*traction[0](1),
+									, // 2D
+									+ 0.0
+									, // 3D
+									- C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								);
+					right(2) = AMREX_D_DECL(	mul2*traction[1](0),
+									, // 2D
+									+ 0.0
+									, // 3D
+									- C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								);
+					right(3) = AMREX_D_DECL(	mul2*traction[1](1),
+									, // 2D
+									+ 0.0
+									, // 3D
+									- C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								);
+					, // 3D
+					right(4) = AMREX_D_DECL(	mul1*traction[0](2),
+									, // 2D
+									+ 0.0
+									, // 3D
+									- C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								);
+					right(5) = AMREX_D_DECL(	mul2*traction[1](2),
+									, // 2D
+									+ 0.0
+									, // 3D
+									- C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								););
+
+			sol = left.ldlt().solve(right); // we can change this solver as needed
+			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
+					,
+					stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
+					stencil[points[1]](0) = stencil[0](0) + mul2*DX[1]*sol(2);
+					stencil[points[1]](1) = stencil[0](1) + mul2*DX[1]*sol(3);
+					,
+					stencil[points[0]](2) = stencil[0](2) + mul1*DX[2]*sol(4);
+					stencil[points[1]](2) = stencil[0](2) + mul2*DX[2]*sol(5););
+		} 
+
+#if AMREX_SPACEDIM > 2
+		else if ((points[0] == 1 || points[0] == 2) && (points[1] == 5 || points[1] == 6)) 
+		{
+			mul1 = points[0] == 1 ? -1 : 1;
+			mul2 = points[1] == 5 ? -1 : 1;
+			//gradu_k,2
+			Set::Vector gradu_2;
+			gradu_2(0) = (stencil[4](0) - stencil[3](0))/(2.0*DX[1]);
+			gradu_2(1) = (stencil[4](1) - stencil[3](1))/(2.0*DX[1]);
+			gradu_2(2) = (stencil[4](2) - stencil[3](2))/(2.0*DX[1]);
+
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,2*AMREX_SPACEDIM> left;
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> right;
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> sol; 
+
+			left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
+			left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
+			left(0,2) = C(0,0,2,0,m,amrlev,mglev,mfi);
+			left(0,3) = C(0,0,0,2,m,amrlev,mglev,mfi);
+			left(0,4) = C(0,0,1,2,m,amrlev,mglev,mfi);
+			left(0,5) = C(0,0,2,2,m,amrlev,mglev,mfi);
+			left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
+			left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
+			left(1,2) = C(1,0,2,0,m,amrlev,mglev,mfi);
+			left(1,3) = C(1,0,0,2,m,amrlev,mglev,mfi);
+			left(1,4) = C(1,0,1,2,m,amrlev,mglev,mfi);
+			left(1,5) = C(1,0,2,2,m,amrlev,mglev,mfi);
+			left(2,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
+			left(2,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
+			left(2,2) = C(2,0,2,0,m,amrlev,mglev,mfi);
+			left(2,3) = C(2,0,0,2,m,amrlev,mglev,mfi);
+			left(2,4) = C(2,0,1,2,m,amrlev,mglev,mfi);
+			left(2,5) = C(2,0,2,2,m,amrlev,mglev,mfi);
+			left(3,0) = C(0,2,0,0,m,amrlev,mglev,mfi);
+			left(3,1) = C(0,2,1,0,m,amrlev,mglev,mfi);
+			left(3,2) = C(0,2,2,0,m,amrlev,mglev,mfi);
+			left(3,3) = C(0,2,0,2,m,amrlev,mglev,mfi);
+			left(3,4) = C(0,2,1,2,m,amrlev,mglev,mfi);
+			left(3,5) = C(0,2,2,2,m,amrlev,mglev,mfi);
+			left(4,0) = C(1,2,0,0,m,amrlev,mglev,mfi);
+			left(4,1) = C(1,2,1,0,m,amrlev,mglev,mfi);
+			left(4,2) = C(1,2,2,0,m,amrlev,mglev,mfi);
+			left(4,3) = C(1,2,0,2,m,amrlev,mglev,mfi);
+			left(4,4) = C(1,2,1,2,m,amrlev,mglev,mfi);
+			left(4,5) = C(1,2,2,2,m,amrlev,mglev,mfi);
+			left(5,0) = C(2,2,0,0,m,amrlev,mglev,mfi);
+			left(5,1) = C(2,2,1,0,m,amrlev,mglev,mfi);
+			left(5,2) = C(2,2,2,0,m,amrlev,mglev,mfi);
+			left(5,3) = C(2,2,0,2,m,amrlev,mglev,mfi);
+			left(5,4) = C(2,2,1,2,m,amrlev,mglev,mfi);
+			left(5,5) = C(2,2,2,2,m,amrlev,mglev,mfi);
+
+			right(0) = 	mul1*traction[0](0)
+					- C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+					- C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+					- C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+			right(1) = 	mul1*traction[0](1)
+					- C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+					- C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+					- C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+			right(2) = 	mul1*traction[0](2)
+					- C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+					- C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+					- C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+			right(3) = 	mul2*traction[1](0)
+					- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+					- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+					- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+			right(4) = 	mul2*traction[1](1)
+					- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+					- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+					- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+			right(5) = 	mul2*traction[1](2)
+					- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+					- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+					- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+
+			sol = left.ldlt().solve(right); // we can change this solver as needed
+			
+			stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
+			stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
+			stencil[points[0]](2) = stencil[0](2) + mul1*DX[0]*sol(2);
+
+			stencil[points[1]](0) = stencil[0](0) + mul2*DX[2]*sol(0);
+			stencil[points[1]](1) = stencil[0](1) + mul2*DX[2]*sol(1);
+			stencil[points[1]](2) = stencil[0](2) + mul2*DX[2]*sol(2);
+		}
+
+		else if ((points[0] == 3 || points[0] == 4) && (points[1] == 5 || points[1] == 6)) 
+		{
+			mul1 = points[0] == 3 ? -1 : 1;
+			mul2 = points[1] == 5 ? -1 : 1;
+
+			//gradu_k,1
+			Set::Vector gradu_1;
+			gradu_1(0) = (stencil[2](0) - stencil[1](0))/(2.0*DX[1]);
+			gradu_1(1) = (stencil[2](1) - stencil[1](1))/(2.0*DX[1]);
+			gradu_1(2) = (stencil[2](2) - stencil[1](2))/(2.0*DX[1]);
+
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,2*AMREX_SPACEDIM> left;
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> right;
+			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> sol; 
+
+			left(0,0) = C(0,1,0,1,m,amrlev,mglev,mfi);
+			left(0,1) = C(0,1,1,1,m,amrlev,mglev,mfi);
+			left(0,2) = C(0,1,2,1,m,amrlev,mglev,mfi);
+			left(0,3) = C(0,1,0,2,m,amrlev,mglev,mfi);
+			left(0,4) = C(0,1,1,2,m,amrlev,mglev,mfi);
+			left(0,5) = C(0,1,2,2,m,amrlev,mglev,mfi);
+			left(1,0) = C(1,1,0,1,m,amrlev,mglev,mfi);
+			left(1,1) = C(1,1,1,1,m,amrlev,mglev,mfi);
+			left(1,2) = C(1,1,2,1,m,amrlev,mglev,mfi);
+			left(1,3) = C(1,1,0,2,m,amrlev,mglev,mfi);
+			left(1,4) = C(1,1,1,2,m,amrlev,mglev,mfi);
+			left(1,5) = C(1,1,2,2,m,amrlev,mglev,mfi);
+			left(2,0) = C(2,1,0,1,m,amrlev,mglev,mfi);
+			left(2,1) = C(2,1,1,1,m,amrlev,mglev,mfi);
+			left(2,2) = C(2,1,2,1,m,amrlev,mglev,mfi);
+			left(2,3) = C(2,1,0,2,m,amrlev,mglev,mfi);
+			left(2,4) = C(2,1,1,2,m,amrlev,mglev,mfi);
+			left(2,5) = C(2,1,2,2,m,amrlev,mglev,mfi);
+			left(3,0) = C(0,2,0,1,m,amrlev,mglev,mfi);
+			left(3,1) = C(0,2,1,1,m,amrlev,mglev,mfi);
+			left(3,2) = C(0,2,2,1,m,amrlev,mglev,mfi);
+			left(3,3) = C(0,2,0,2,m,amrlev,mglev,mfi);
+			left(3,4) = C(0,2,1,2,m,amrlev,mglev,mfi);
+			left(3,5) = C(0,2,2,2,m,amrlev,mglev,mfi);
+			left(4,0) = C(1,2,0,1,m,amrlev,mglev,mfi);
+			left(4,1) = C(1,2,1,1,m,amrlev,mglev,mfi);
+			left(4,2) = C(1,2,2,1,m,amrlev,mglev,mfi);
+			left(4,3) = C(1,2,0,2,m,amrlev,mglev,mfi);
+			left(4,4) = C(1,2,1,2,m,amrlev,mglev,mfi);
+			left(4,5) = C(1,2,2,2,m,amrlev,mglev,mfi);
+			left(5,0) = C(2,2,0,1,m,amrlev,mglev,mfi);
+			left(5,1) = C(2,2,1,1,m,amrlev,mglev,mfi);
+			left(5,2) = C(2,2,2,1,m,amrlev,mglev,mfi);
+			left(5,3) = C(2,2,0,2,m,amrlev,mglev,mfi);
+			left(5,4) = C(2,2,1,2,m,amrlev,mglev,mfi);
+			left(5,5) = C(2,2,2,2,m,amrlev,mglev,mfi);
+
+			right(0) = 	mul1*traction[0](0)
+					- C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+					- C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+					- C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+			right(1) = 	mul1*traction[0](1)
+					- C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+					- C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+					- C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+			right(2) = 	mul1*traction[0](2)
+					- C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+					- C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+					- C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+			right(3) = 	mul2*traction[1](0)
+					- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+					- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+					- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+			right(4) = 	mul2*traction[1](1)
+					- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+					- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+					- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+			right(5) = 	mul2*traction[1](2)
+					- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+					- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+					- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+
+			sol = left.ldlt().solve(right); // we can change this solver as needed
+			
+			stencil[points[0]](0) = stencil[0](0) + mul1*DX[1]*sol(0);
+			stencil[points[0]](1) = stencil[0](1) + mul1*DX[1]*sol(1);
+			stencil[points[0]](2) = stencil[0](2) + mul1*DX[1]*sol(2);
+
+			stencil[points[1]](0) = stencil[0](0) + mul2*DX[2]*sol(0);
+			stencil[points[1]](1) = stencil[0](1) + mul2*DX[2]*sol(1);
+			stencil[points[1]](2) = stencil[0](2) + mul2*DX[2]*sol(2);
+		}
+#endif
+		else
+			Util::Abort("Corner case: Incorrect list/values of points");
+	}
+
+#if AMREX_SPACEDIM > 2
+	else if (points.size() == 3)	//Need 9 equations - triple point case
+	{
+		mul1 = points[0] == 1 ? -1 : 1;
+		mul2 = points[1] == 3 ? -1 : 1;
+		mul3 = points[2] == 5 ? -1 : 1;
+
+		Eigen::Matrix<amrex::Real,3*AMREX_SPACEDIM,3*AMREX_SPACEDIM> left;
+		Eigen::Matrix<amrex::Real,3*AMREX_SPACEDIM,1> right;
+		Eigen::Matrix<amrex::Real,3*AMREX_SPACEDIM,1> sol; 
+
+		left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
+		left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
+		left(0,2) = C(0,0,2,0,m,amrlev,mglev,mfi);
+		left(0,3) = C(0,0,0,1,m,amrlev,mglev,mfi);
+		left(0,4) = C(0,0,1,1,m,amrlev,mglev,mfi);
+		left(0,5) = C(0,0,2,1,m,amrlev,mglev,mfi);
+		left(0,6) = C(0,0,0,2,m,amrlev,mglev,mfi);
+		left(0,7) = C(0,0,2,2,m,amrlev,mglev,mfi);
+		left(0,8) = C(0,0,2,2,m,amrlev,mglev,mfi);
+		left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
+		left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
+		left(1,2) = C(1,0,2,0,m,amrlev,mglev,mfi);
+		left(1,3) = C(1,0,0,1,m,amrlev,mglev,mfi);
+		left(1,4) = C(1,0,1,1,m,amrlev,mglev,mfi);
+		left(1,5) = C(1,0,2,1,m,amrlev,mglev,mfi);
+		left(1,6) = C(1,0,0,2,m,amrlev,mglev,mfi);
+		left(1,7) = C(1,0,2,2,m,amrlev,mglev,mfi);
+		left(1,8) = C(1,0,2,2,m,amrlev,mglev,mfi);
+		left(2,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
+		left(2,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
+		left(2,2) = C(2,0,2,0,m,amrlev,mglev,mfi);
+		left(2,3) = C(2,0,0,1,m,amrlev,mglev,mfi);
+		left(2,4) = C(2,0,1,1,m,amrlev,mglev,mfi);
+		left(2,5) = C(2,0,2,1,m,amrlev,mglev,mfi);
+		left(2,6) = C(2,0,0,2,m,amrlev,mglev,mfi);
+		left(2,7) = C(2,0,1,2,m,amrlev,mglev,mfi);
+		left(2,8) = C(2,0,2,2,m,amrlev,mglev,mfi);
+		left(3,0) = C(0,1,0,0,m,amrlev,mglev,mfi);
+		left(3,1) = C(0,1,1,0,m,amrlev,mglev,mfi);
+		left(3,2) = C(0,1,2,0,m,amrlev,mglev,mfi);
+		left(3,3) = C(0,1,0,1,m,amrlev,mglev,mfi);
+		left(3,4) = C(0,1,1,1,m,amrlev,mglev,mfi);
+		left(3,5) = C(0,1,2,1,m,amrlev,mglev,mfi);
+		left(3,6) = C(0,1,0,2,m,amrlev,mglev,mfi);
+		left(3,7) = C(0,1,1,2,m,amrlev,mglev,mfi);
+		left(3,8) = C(0,1,2,2,m,amrlev,mglev,mfi);
+		left(4,0) = C(1,1,0,0,m,amrlev,mglev,mfi);
+		left(4,1) = C(1,1,1,0,m,amrlev,mglev,mfi);
+		left(4,2) = C(1,1,2,0,m,amrlev,mglev,mfi);
+		left(4,3) = C(1,1,0,1,m,amrlev,mglev,mfi);
+		left(4,4) = C(1,1,1,1,m,amrlev,mglev,mfi);
+		left(4,5) = C(1,1,2,1,m,amrlev,mglev,mfi);
+		left(4,6) = C(1,1,0,2,m,amrlev,mglev,mfi);
+		left(4,7) = C(1,1,1,2,m,amrlev,mglev,mfi);
+		left(4,8) = C(1,1,2,2,m,amrlev,mglev,mfi);
+		left(5,0) = C(2,1,0,0,m,amrlev,mglev,mfi);
+		left(5,1) = C(2,1,1,0,m,amrlev,mglev,mfi);
+		left(5,2) = C(2,1,2,0,m,amrlev,mglev,mfi);
+		left(5,3) = C(2,1,0,1,m,amrlev,mglev,mfi);
+		left(5,4) = C(2,1,1,1,m,amrlev,mglev,mfi);
+		left(5,5) = C(2,1,2,1,m,amrlev,mglev,mfi);
+		left(5,6) = C(2,1,0,2,m,amrlev,mglev,mfi);
+		left(5,7) = C(2,1,1,2,m,amrlev,mglev,mfi);
+		left(5,8) = C(2,1,2,2,m,amrlev,mglev,mfi);
+		left(6,0) = C(0,2,0,0,m,amrlev,mglev,mfi);
+		left(6,1) = C(0,2,1,0,m,amrlev,mglev,mfi);
+		left(6,2) = C(0,2,2,0,m,amrlev,mglev,mfi);
+		left(6,3) = C(0,2,0,1,m,amrlev,mglev,mfi);
+		left(6,4) = C(0,2,1,1,m,amrlev,mglev,mfi);
+		left(6,5) = C(0,2,2,1,m,amrlev,mglev,mfi);
+		left(6,6) = C(0,2,0,2,m,amrlev,mglev,mfi);
+		left(6,7) = C(0,2,1,2,m,amrlev,mglev,mfi);
+		left(6,8) = C(0,2,2,2,m,amrlev,mglev,mfi);
+		left(7,0) = C(1,2,0,0,m,amrlev,mglev,mfi);
+		left(7,1) = C(1,2,1,0,m,amrlev,mglev,mfi);
+		left(7,2) = C(1,2,2,0,m,amrlev,mglev,mfi);
+		left(7,3) = C(1,2,0,1,m,amrlev,mglev,mfi);
+		left(7,4) = C(1,2,1,1,m,amrlev,mglev,mfi);
+		left(7,5) = C(1,2,2,1,m,amrlev,mglev,mfi);
+		left(7,6) = C(1,2,0,2,m,amrlev,mglev,mfi);
+		left(7,7) = C(1,2,1,2,m,amrlev,mglev,mfi);
+		left(7,8) = C(1,2,2,2,m,amrlev,mglev,mfi);
+		left(7,0) = C(2,2,0,0,m,amrlev,mglev,mfi);
+		left(8,1) = C(2,2,1,0,m,amrlev,mglev,mfi);
+		left(8,2) = C(2,2,2,0,m,amrlev,mglev,mfi);
+		left(8,3) = C(2,2,0,1,m,amrlev,mglev,mfi);
+		left(8,4) = C(2,2,1,1,m,amrlev,mglev,mfi);
+		left(8,5) = C(2,2,2,1,m,amrlev,mglev,mfi);
+		left(8,6) = C(2,2,0,2,m,amrlev,mglev,mfi);
+		left(8,7) = C(2,2,1,2,m,amrlev,mglev,mfi);
+		left(8,8) = C(2,2,2,2,m,amrlev,mglev,mfi);
+
+		right(0) = mul1*traction[0](0);
+		right(1) = mul1*traction[0](1);
+		right(2) = mul1*traction[0](2);
+		right(3) = mul2*traction[1](0);
+		right(4) = mul2*traction[1](1);
+		right(5) = mul2*traction[1](2);
+		right(6) = mul3*traction[2](0);
+		right(7) = mul3*traction[2](1);
+		right(8) = mul3*traction[2](2);
+
+		sol = left.ldlt().solve(right); // we can change this solver as needed
+
+		stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
+		stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
+		stencil[points[0]](2) = stencil[0](2) + mul1*DX[0]*sol(2);
+
+		stencil[points[1]](0) = stencil[0](0) + mul2*DX[1]*sol(0);
+		stencil[points[1]](1) = stencil[0](1) + mul2*DX[1]*sol(1);
+		stencil[points[1]](2) = stencil[0](2) + mul2*DX[1]*sol(2);
+
+		stencil[points[2]](0) = stencil[0](0) + mul3*DX[2]*sol(0);
+		stencil[points[2]](1) = stencil[0](1) + mul3*DX[2]*sol(1);
+		stencil[points[2]](2) = stencil[0](2) + mul3*DX[2]*sol(2);
+	}
+#endif
+}
