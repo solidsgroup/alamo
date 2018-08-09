@@ -42,7 +42,14 @@ public:
 		return {{{AMREX_D_DECL((T)bc_lo[0],(T)bc_lo[1],(T)bc_lo[2])},
 		 			{AMREX_D_DECL((T)bc_lo[0],(T)bc_lo[1],(T)bc_lo[2])}}};
 	}
-
+protected:
+	void StencilFill(	amrex::Vector<Set::Vector> &stencil,
+			const amrex::Vector<Set::Vector> &traction,
+			const amrex::Vector<int> &points,
+			const amrex::IntVect &m,
+			const int amrlev,
+			const int mglev,
+			const MFIter &mfi);
 
 private:
 	int bc_lo[BL_SPACEDIM];
