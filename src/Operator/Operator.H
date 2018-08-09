@@ -44,7 +44,7 @@ public:
 	Operator& operator= (const Operator&) = delete;
 	Operator& operator= (Operator&&) = delete;
 
-	void define (const amrex::Vector<amrex::Geometry>& a_geom,
+	void define (amrex::Vector<amrex::Geometry> a_geom,
 		     const amrex::Vector<amrex::BoxArray>& a_grids,
 		     const amrex::Vector<amrex::DistributionMapping>& a_dmap,
 		     BC::BC& a_bc,
@@ -174,8 +174,8 @@ protected:
 	virtual void Fapply (int amrlev, int mglev, amrex::MultiFab& out, const amrex::MultiFab& in) const = 0;
 	virtual void Fsmooth (int amrlev, int mglev, amrex::MultiFab& sol, const amrex::MultiFab& rsh, int redblack) const = 0;
 
-	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input, BC::BC &new_bc);
-	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input, BC::BC &new_bc);
+	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
+	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) ;
 
 	virtual bool isSingular (int /*amrlev*/) const final { return false; }

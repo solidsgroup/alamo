@@ -178,7 +178,9 @@ void Flame::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 				Temp_box(m) =
 					Temp_old_box(m)
-					+ (dt/rho/cp) * ((k1-k0)*(AMREX_D_DECL(eta_gradx*T_gradx, + eta_grady*T_grady,  + eta_gradz*T_gradz))
+					+ (dt/rho/cp) * ((k1-k0)*(AMREX_D_TERM(eta_gradx*T_gradx,
+									       + eta_grady*T_grady,
+									       + eta_gradz*T_gradz))
 							 + K *T_lap  + (w1 - w0 - qdotburn)*eta_grad_mag);
 
 				if (std::isnan(Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))))

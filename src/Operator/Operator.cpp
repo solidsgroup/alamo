@@ -14,19 +14,23 @@ Operator::Operator ()
 Operator::~Operator () {}
 
 void
-Operator::define (const amrex::Vector<amrex::Geometry>& a_geom,
+Operator::define (amrex::Vector<amrex::Geometry> a_geom,
 		   const amrex::Vector<amrex::BoxArray>& a_grids,
 		   const amrex::Vector<amrex::DistributionMapping>& a_dmap,
 		   BC::BC& a_bc,
 		   const amrex::LPInfo& a_info,
 		   const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory)
 {
-	MLLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
-	defineAuxData();
-	defineBC();
 	m_bc = &a_bc;
 
 	std::array<int,AMREX_SPACEDIM> is_periodic = m_bc->IsPeriodic();
+	// for (int ilev=0; ilev < a_geom.size(); ilev++)
+	// 	a_geom[ilev].SetPeriodicity(is_periodic);
+	
+	MLLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
+	defineAuxData();
+	defineBC();
+
 
 	//setDomainBC
 
@@ -705,7 +709,7 @@ Operator::GetFab(const int num, const int amrlev, const int mglev, const amrex::
 
 
 void
-Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input, BC::BC &new_bc)
+Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 {
 	/// \todo assertions here
 	m_a_coeffs.resize(m_a_coeffs.size() + 1);
@@ -729,8 +733,7 @@ Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input, BC::BC &new_bc)
 
 
 void
-Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input,
-				   BC::BC &new_bc)
+Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
 {
 	/// \todo assertions here
 	m_a_coeffs.resize(m_a_coeffs.size() + 1);

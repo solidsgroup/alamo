@@ -34,7 +34,7 @@ Elastic::Elastic(amrex::Vector<std::string> bc_hi_str
 void
 Elastic::FillBoundary (amrex::FArrayBox &in,
 			const amrex::Box &box,
-			int ngrow, int dcomp, int ncomp, amrex::Real time,
+		       int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
 			Orientation face, const amrex::Mask *mask)
 {
 	// if (mask != nullptr)

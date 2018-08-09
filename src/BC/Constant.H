@@ -52,11 +52,8 @@ private:
 	int bc_hi[BL_SPACEDIM];
 	int bc_hi_flux[BL_SPACEDIM];
 	int bc_lo_flux[BL_SPACEDIM];
-	amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-	amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-#if AMREX_SPACEDIM > 2
-	amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-#endif
+	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3);
+	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3);
 };
 }
 #endif

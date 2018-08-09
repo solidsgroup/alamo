@@ -28,7 +28,7 @@ protected:
 
   amrex::Real C(const int i, const int j, const int k, const int l) const;
 
-  amrex::Real mu1 = 1.0, lambda1 = 1.0;     ///< First Lame parameter
+  amrex::Real lambda1 = 1.0, mu1 = 1.0;     ///< First Lame parameter
 
 
 
