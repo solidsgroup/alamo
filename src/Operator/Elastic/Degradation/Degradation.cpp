@@ -12,10 +12,9 @@ Operator::Elastic::Degradation::Degradation::Degradation(const amrex::Real WInpu
 
 void
 Operator::Elastic::Degradation::Degradation::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta,
-						    BC::BC &eta_bc,
 						    std::vector<PristineMaterialModel *> &models)
 {
-	RegisterNewFab(eta,eta_bc);
+	RegisterNewFab(eta);
 	num_eta = eta[0].get()->nComp();
 	std::cout << "number of eta = " << num_eta << std::endl;
 

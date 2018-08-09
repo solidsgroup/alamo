@@ -490,7 +490,7 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	//						     0.99, 0.511, 1.39));
 	//models.push_back(&g2);
 
-	elastic_operator->SetEta(eta_new,*mybc,models);
+	elastic_operator->SetEta(eta_new,models);
 
 	amrex::Real ushear = 0.0;
 

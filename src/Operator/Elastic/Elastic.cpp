@@ -31,20 +31,19 @@ Elastic::~Elastic ()
 {}
 
 void
-Elastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigenstrain,
-			BC::BC &es_bc)
+Elastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigenstrain)
 {
 	usingEigenstrain = true;
 	AMREX_ASSERT(eigenstrain[0]->nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-	RegisterNewFab(eigenstrain,es_bc);
+	RegisterNewFab(eigenstrain);
 }
 
 void
-Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain, BC::BC &es_bc)
+Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain)
 {
 	usingEigenstrain = true;
 	AMREX_ASSERT(eigenstrain[0].nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-	RegisterNewFab(eigenstrain,es_bc);
+	RegisterNewFab(eigenstrain);
 }
 
 void
