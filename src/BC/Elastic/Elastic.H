@@ -27,10 +27,9 @@ public:
 		 ,amrex::Vector<amrex::Real> _bc_hi_3
 #endif
 		 );
-	virtual void FillBoundary (amrex::FArrayBox &in, const amrex::Box &box,
-				   int ngrow, int dcomp, int ncomp, amrex::Real time,
-				   Orientation face = Orientation::All,
-				   const amrex::Mask *mask = nullptr) override;
+	virtual void FillBoundary (amrex::MultiFab& mf,
+				   int dcomp, int ncomp,
+				   amrex::Real time) override;
 
 	using BC::FillBoundary;
 	
