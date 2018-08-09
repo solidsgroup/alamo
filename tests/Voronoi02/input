@@ -16,14 +16,14 @@ ic.type=voronoi
 
 geometry.prob_lo = 0 0
 geometry.prob_hi = 5 5
-geometry.is_periodic= 1 0 0
+geometry.is_periodic= 1 0 1
 
-bc.hi = INT_DIR EXT_DIR INT_DIR
-bc.lo = INT_DIR EXT_DIR INT_DIR
-bc.lo_2 = 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.hi_2 = 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
+bc.hi = periodic periodic periodic
+bc.lo = periodic periodic periodic
+#bc.lo_2 = 1.0 0.0
+#bc.hi_2 = 0.0 1.0
 
-pf.number_of_grains = 10
+pf.number_of_grains = 2
 pf.M = 1.0 
 pf.mu = 10.0
 pf.gamma = 1.0
@@ -44,6 +44,11 @@ elastic.type=cubic
 elastic.cgverbose=0
 elastic.tol_rel=0.000001
 elastic.tol_abs=0.000001
-elastic.tstart=0.25
+elastic.tstart=0.01
 elastic.load_t=0.0 
 elastic.load_disp=0.01
+
+elastic.bc.hi = periodic dirichlet periodic
+elastic.bc.lo = periodic dirichlet periodic
+elastic.bc.lo_2 = 0.1 0.0 0.0
+elastic.bc.hi_2 = 0.0 0.0 0.0

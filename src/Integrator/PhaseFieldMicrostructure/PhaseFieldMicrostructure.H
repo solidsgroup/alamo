@@ -43,63 +43,65 @@ namespace Integrator
 class PhaseFieldMicrostructure : public Integrator
 {
 public:
-  PhaseFieldMicrostructure();
+	PhaseFieldMicrostructure();
 
 protected:
 
-  /// \fn    Advance
-  /// \brief Evolve phase field in time
-  void Advance (int lev, Real time, Real dt);
+	/// \fn    Advance
+	/// \brief Evolve phase field in time
+	void Advance (int lev, Real time, Real dt);
 
-  void Initialize (int lev);
+	void Initialize (int lev);
 
-  void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
+	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
 
-  void TimeStepBegin(amrex::Real time, int iter);
+	void TimeStepBegin(amrex::Real time, int iter);
 
 private:
 
-  int number_of_grains = 2;
-  int number_of_ghost_cells = 2;
+	int number_of_grains = 2;
+	int number_of_ghost_cells = 2;
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-  BC::BC *mybc;
+	BC::BC *mybc;
 
-  amrex::Real M, mu, gamma, sigma0, l_gb, beta;
-  int anisotropy = 0;
 
-  amrex::Real anisotropy_tstart;
+	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
+	int anisotropy = 0;
 
-  std::string ic_type, gb_type, filename;
+	amrex::Real anisotropy_tstart;
 
-  amrex::Real damp;
+	std::string ic_type, gb_type, filename;
 
-  Model::Interface::GrainBoundary::GrainBoundary *boundary;
+	amrex::Real damp;
 
-  IC::IC *ic;
+	Model::Interface::GrainBoundary::GrainBoundary *boundary;
 
-  bool        elastic_on = false;
-  int         elastic_int = 1;
-  std::string elastic_type;
-  int         elastic_max_iter = 200;
-  int         elastic_max_fmg_iter = 0;
-  int         elastic_verbose = 3;
-  int         elastic_cgverbose = 3;
-  amrex::Real elastic_tol_rel = 0.0;
-  amrex::Real elastic_tol_abs = 1.0E-10;
-  amrex::Real elastic_tstart = 0.0;
-  amrex::Vector<amrex::Real> elastic_load_t;
-  amrex::Vector<amrex::Real> elastic_load_disp;
-  Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	IC::IC *ic;
+
+	bool        elastic_on = false;
+	int         elastic_int = 1;
+	std::string elastic_type;
+	int         elastic_max_iter = 200;
+	int         elastic_max_fmg_iter = 0;
+	int         elastic_verbose = 3;
+	int         elastic_cgverbose = 3;
+	amrex::Real elastic_tol_rel = 0.0;
+	amrex::Real elastic_tol_abs = 1.0E-10;
+	amrex::Real elastic_tstart = 0.0;
+	amrex::Vector<amrex::Real> elastic_load_t;
+	amrex::Vector<amrex::Real> elastic_load_disp;
+	Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	BC::BC *elastic_bc;
 
 	std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
 
