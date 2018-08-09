@@ -70,13 +70,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-		mybc = new BC::Constant(bc_hi_str, bc_lo_str
-					,bc_lo_1, bc_hi_1
-					,bc_lo_2, bc_hi_2
-#if AMREX_SPACEDIM > 2
-					,bc_lo_3, bc_hi_3
-#endif
-					);
+		mybc = new BC::Constant(bc_hi_str, bc_lo_str,
+					AMREX_D_DECL(bc_lo_1,bc_lo_2,bc_lo_3),
+					AMREX_D_DECL(bc_hi_1,bc_hi_2,bc_hi_3));
 	}
 
 
@@ -122,7 +118,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (elastic_load_t.size() != elastic_load_disp.size())
 			Util::Abort("load_t and load_disp must have the same number of entries");
 
-		//BC::Nothing emptybc;
 		if (elastic_on)
 		{
 			RegisterNewFab(displacement, mybc,2,1,"u");
@@ -132,6 +127,26 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			RegisterNewFab(stress_vm, mybc,1,0,"sig_VM");
 			RegisterNewFab(energy,    mybc,1,0,"W");
 			RegisterNewFab(energies,  mybc,number_of_grains,0,"W");
+
+
+			amrex::ParmParse pp("elastic.bc");
+			amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
+			amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
+			pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
+			pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
+			amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
+			if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
+			if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
+			amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
+			if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
+			if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
+			amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
+			if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
+			if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+
+			elastic_bc = new BC::Constant(bc_hi_str, bc_lo_str,
+						      AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
+						      AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 		}
 
 		//
@@ -379,86 +394,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	elastic_operator = new Operator::Elastic::PolyCrystal::PolyCrystal();
   
-	geom[0].isPeriodic(0);
-	elastic_operator->define(geom,grids,dmap,*mybc,info);
-	elastic_operator->setMaxOrder(2);
-	elastic_operator->setDomainBC({AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
-						    geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
-						    geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)},
-		{AMREX_D_DECL(geom[0].isPeriodic(0) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
-			      geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
-			      geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
-
-
-	// models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
-	// 							     2.49, 2.49, 4.328));
-	// models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
-	// 							     0.99, 0.511, 1.39));
-
-	//models.push_back(&g2);
-
+	elastic_operator->define(geom,grids,dmap,*elastic_bc,info);
 	elastic_operator->SetEta(eta_new_mf,*mybc,models);
-
-	amrex::Real ushear = 0.0;
-
-	for (int i = 0; i<elastic_load_t.size(); i++)
-	{
-		if (time < elastic_load_t[0])
-		{
-			ushear = elastic_load_disp[0];
-			break;
-		}
-		if (i < elastic_load_t.size()-1 &&  elastic_load_t[i] < time && time < elastic_load_t[i+1])
-		{
-			ushear = elastic_load_disp[i] +
-				(time - elastic_load_t[i]) * (elastic_load_disp[i+1] - elastic_load_disp[i]) /
-				(elastic_load_t[i+1] - elastic_load_t[i]);
-			break;
-		}
-		else
-		{
-			ushear = elastic_load_disp[elastic_load_t.size()-1];
-			break;
-		}
-	}
-	std::cout << "ushear = " << ushear << std::endl;
-
 
 	for (int ilev = 0; ilev < displacement.size(); ++ilev)
 	{
-		amrex::Box domain(geom[ilev].Domain());
-		for (amrex::MFIter mfi(*displacement[ilev], true); mfi.isValid(); ++mfi)
-		{
-			const amrex::Box& box = mfi.tilebox();
-			amrex::BaseFab<amrex::Real> &disp_box = (*displacement[ilev])[mfi];
-
-			for (int i = box.loVect()[0] - displacement[ilev]->nGrow(); i<=box.hiVect()[0] + displacement[ilev]->nGrow(); i++)
-				for (int j = box.loVect()[1] - displacement[ilev]->nGrow(); j<=box.hiVect()[1] + displacement[ilev]->nGrow(); j++)
-				{
-					if (j > domain.hiVect()[1]) // Top boundary
-					{
-						disp_box(amrex::IntVect(i,j),0) = ushear;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
-					else if (i > domain.hiVect()[0]) // Right boundary
-					{
-						disp_box(amrex::IntVect(i,j),0) = 0.0;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
-					else if (j < domain.loVect()[1]) // Bottom
-					{
-						disp_box(amrex::IntVect(i,j),0) = 0.0;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
-					else if (i < domain.loVect()[0]) // Left boundary
-					{
-						disp_box(amrex::IntVect(i,j),0) = 0.0;
-						disp_box(amrex::IntVect(i,j),1) = 0.0;
-					}
-				}
-		}
-		elastic_operator->setLevelBC(ilev,displacement[ilev].get());
-
 		/// \todo Replace with proper driving force initialization
 		body_force[ilev]->setVal(0.0,0,1);
 		body_force[ilev]->setVal(0.0,1,1);
@@ -482,15 +422,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int lev = 0; lev < displacement.size(); lev++)
 	{
-
-		// (*displacement[lev]).setVal(lev);
-		// (*strain[lev]).setVal(lev);
-		// (*stress[lev]).setVal(lev);
-		// (*energy[lev]).setVal(lev);
-		// (*energies[lev]).setVal(lev);
-		// (*stress_vm[lev]).setVal(lev);
-
-
 		const amrex::Real* DX = geom[lev].CellSize();
 		const amrex::IntVect dx(1,0), dy(0,1);
 		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )

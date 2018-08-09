@@ -27,12 +27,15 @@ Operator::define (const amrex::Vector<amrex::Geometry>& a_geom,
 	m_bc = &a_bc;
 
 	std::array<int,AMREX_SPACEDIM> is_periodic = m_bc->IsPeriodic();
-	setDomainBC({AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-				  is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-				  is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)},
-		{AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			      is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			      is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)});
+
+	//setDomainBC
+
+	m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+	m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
 				  
 	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
 		setLevelBC(ilev,nullptr);
@@ -197,7 +200,7 @@ Operator::setLevelBC (int amrlev, const amrex::MultiFab* a_levelbcdata)
 				AMREX_ALWAYS_ASSERT(m_coarse_data_crse_ratio > 0);
 				const amrex::Box& cbx = amrex::coarsen(m_geom[0][0].Domain(), m_coarse_data_crse_ratio);
 				m_crse_sol_br[amrlev]->copyFrom(*m_coarse_data_for_bc, 0, 0, 0, ncomp,
-								amrex::Geometry::periodicity(cbx));
+								m_bc->Periodicity(cbx));
 			} else {
 				m_crse_sol_br[amrlev]->setVal(0.0);
 			}
@@ -346,7 +349,8 @@ Operator::updateSolBC (int amrlev, const amrex::MultiFab& crse_bcdata) const
 
 	AMREX_ALWAYS_ASSERT(amrlev > 0);
 	const int ncomp = getNComp();
-	m_crse_sol_br[amrlev]->copyFrom(crse_bcdata, 0, 0, 0, ncomp, m_geom[amrlev-1][0].periodicity());
+	m_bc->define(m_geom[amrlev-1][0]);
+	m_crse_sol_br[amrlev]->copyFrom(crse_bcdata, 0, 0, 0, ncomp, m_bc->Periodicity());
 	m_bndry_sol[amrlev]->updateBndryValues(*m_crse_sol_br[amrlev], 0, 0, ncomp, m_amr_ref_ratio[amrlev-1]);
 }
 
@@ -356,7 +360,8 @@ Operator::updateCorBC (int amrlev, const amrex::MultiFab& crse_bcdata) const
 	BL_PROFILE("Operator::updateCorBC()");
 	AMREX_ALWAYS_ASSERT(amrlev > 0);
 	const int ncomp = getNComp();
-	m_crse_cor_br[amrlev]->copyFrom(crse_bcdata, 0, 0, 0, ncomp, m_geom[amrlev-1][0].periodicity());
+	m_bc->define(m_geom[amrlev-1][0]);
+	m_crse_cor_br[amrlev]->copyFrom(crse_bcdata, 0, 0, 0, ncomp, m_bc->Periodicity());
 	m_bndry_cor[amrlev]->updateBndryValues(*m_crse_cor_br[amrlev], 0, 0, ncomp, m_amr_ref_ratio[amrlev-1]);
 }
 
@@ -370,10 +375,6 @@ Operator::solutionResidual (int amrlev, amrex::MultiFab& resid, amrex::MultiFab&
 	if (crse_bcdata != nullptr) {
 		updateSolBC(amrlev, *crse_bcdata);
 	}
-	// m_bc->define(m_geom[amrlev][mglev]);
-	// m_bc->FillBoundary(x,0,0,0.0);
-	// setLevelBC(amrlev,&x);
-
 	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());
 
 	AMREX_ALWAYS_ASSERT(resid.nComp() == b.nComp());
@@ -389,10 +390,6 @@ Operator::fillSolutionBC (int amrlev, amrex::MultiFab& sol, const amrex::MultiFa
 	if (crse_bcdata != nullptr) {
 		updateSolBC(amrlev, *crse_bcdata);
 	}
-	// m_bc->define(m_geom[amrlev][mglev]);
-	// m_bc->FillBoundary(sol,0,0,0.0);
-	// setLevelBC(amrlev,&sol);
-
 	applyBC(amrlev, mglev, sol, BCMode::Inhomogeneous, m_bndry_sol[amrlev].get());    
 }
 
@@ -410,12 +407,7 @@ Operator::correctionResidual (int amrlev, int mglev, amrex::MultiFab& resid, amr
 			AMREX_ALWAYS_ASSERT(mglev == 0);
 			AMREX_ALWAYS_ASSERT(amrlev > 0);
 			updateCorBC(amrlev, *crse_bcdata);
-			// m_bc->define(m_geom[amrlev][mglev]);
-			// m_bc->FillBoundary(x,0,0,0.0);
-			// setLevelBC(amrlev,&x);
 		}
-
-
 		apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, m_bndry_cor[amrlev].get());
 	}
 	else
@@ -436,11 +428,16 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 	BL_ASSERT(mglev == 0 || bc_mode == BCMode::Homogeneous);
 	BL_ASSERT(bndry != nullptr || bc_mode == BCMode::Homogeneous);
 
+	m_bc->define(m_geom[amrlev][mglev]);
+
 	const int ncomp = getNComp();
 	const int cross = false;
+
+	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 	if (!skip_fillboundary) {
-		in.FillBoundary(0, ncomp, m_geom[amrlev][mglev].periodicity(),cross); 
+		in.FillBoundary(0, ncomp, m_bc->Periodicity(),cross); 
 	}
+	if (in.contains_nan())std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 
 	int flagbc = (bc_mode == BCMode::Homogeneous) ? 0 : 1;
 
@@ -455,18 +452,20 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 #pragma omp parallel
 #endif
 	
+	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 	if (mglev==0 && bc_mode == BCMode::Inhomogeneous) 
 	{
-		m_bc->define(m_geom[amrlev][mglev]);
 		m_bc->FillBoundary(in,0,0,0.0);
 		auto *nonconst_this = const_cast<Operator*>(this);
 		nonconst_this->setLevelBC(amrlev,&in);
 	}
+	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 
 	//m_bc->define(m_geom[amrlev][mglev]);
 	//m_bc->FillBoundary(bndry->bndryValues)
 	for (amrex::MFIter mfi(in, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
 	{
+		if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 		const amrex::Box& vbx   = mfi.validbox();
 		amrex::FArrayBox& iofab = in[mfi];
 		const RealTuple & bdl = bcondloc.bndryLocs(mfi);
@@ -484,14 +483,28 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 			// m_bc->FillBoundary(in[mfi],vbx,in.nGrow()
 			//    		   ,0,0,0.0,(BC::Orientation)cdr,&maskvals[ori][mfi]);
 
+			if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
+	
+
+// #define AMREX_LO_DIRICHLET 101
+// #define AMREX_LO_NEUMANN 102
+// #define AMREX_LO_REFLECT_ODD 103
+// #define AMREX_LO_MARSHAK 104
+// #define AMREX_LO_SANCHEZ_POMRANING 105
+// #define AMREX_LO_INFLOW   106
+// #define AMREX_LO_PERIODIC 200
+// #define AMREX_LO_BOGUS    1729
+
 			amrex_mllinop_apply_bc(BL_TO_FORTRAN_BOX(vbx),
 			  		       BL_TO_FORTRAN_ANYD(iofab),
 			 		       BL_TO_FORTRAN_ANYD(m),
 			  		       cdr, bct, bcl,
 			  		       BL_TO_FORTRAN_ANYD(fsfab),
 			  		       maxorder, dxinv, flagbc, ncomp, cross);
+			if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 		}
 	}
+	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 }
 
 void
