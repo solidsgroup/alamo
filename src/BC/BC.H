@@ -26,7 +26,11 @@ class BC
 {
 
 public:
-	void define (const amrex::Geometry& a_geom) {m_geom = a_geom;};
+	void define (	const amrex::Geometry& a_geom,
+			const int a_amrlev = 0,
+			const int a_mglev = 0) {m_geom = a_geom;
+						m_amrlev = a_amrlev;
+						m_mglev = a_mglev;};
 
 	virtual void FillBoundary (amrex::FArrayBox &in,
 				   const amrex::Box &box,
@@ -48,8 +52,8 @@ public:
 		}
 	}
 
-
-
+	virtual void FillBoundary (amrex::MultiFab& mf, amrex::Real time) override;
+	
 	virtual amrex::BCRec GetBCRec() = 0;
 
 	amrex::Array<int,AMREX_SPACEDIM> IsPeriodic()
@@ -57,6 +61,8 @@ public:
 
 protected:
 	amrex::Geometry m_geom;
+	int m_amrlev = 0;
+	int m_mglev = 0;
 	//std::vector<amrex::Geometry> &geom;
 	//int lev=0;
 };
