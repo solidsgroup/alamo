@@ -6,7 +6,7 @@
 #include "AMReX_SPACE.H"
 #include "AMReX_Vector.H"
 #include "AMReX_BLassert.H"
-#define EIGEN_MATRIX_PLUGIN "Set/Eigen_Amrex.H"
+//#define EIGEN_MATRIX_PLUGIN "Set/Eigen_Amrex.H"
 #include <eigen3/Eigen/Core>
 #include <AMReX_REAL.H>
 

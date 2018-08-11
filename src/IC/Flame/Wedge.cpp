@@ -12,9 +12,10 @@ Wedge::Wedge (amrex::Vector<amrex::Geometry> &_geom)
   
 void Wedge::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
 {
-	AMREX_D_TERM(amrex::Real sizex = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
-		     amrex::Real sizey = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
-		     amrex::Real sizez = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
+	amrex::Real sizex = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];
+	// AMREX_D_TERM(,
+	// 	     amrex::Real sizey = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
+	// 	     amrex::Real sizez = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
 	
 
 	amrex::Real angle = 45.0 * 0.01745329251;

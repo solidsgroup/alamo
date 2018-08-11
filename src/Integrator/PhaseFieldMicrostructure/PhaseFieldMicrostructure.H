@@ -56,6 +56,7 @@ protected:
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
 
   void TimeStepBegin(amrex::Real time, int iter);
+  void TimeStepComplete(amrex::Real time, int iter);
 
 private:
 
@@ -64,6 +65,7 @@ private:
 
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > etas_mf; ///< Color code order params
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
@@ -100,6 +102,7 @@ private:
   amrex::Vector<amrex::Real> elastic_load_t;
   amrex::Vector<amrex::Real> elastic_load_disp;
   Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	BC::BC *elastic_bc;
 
 	std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
 

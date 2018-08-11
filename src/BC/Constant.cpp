@@ -4,23 +4,17 @@ namespace BC
 {
 
 
-Constant::Constant (amrex::Vector<std::string> bc_hi_str
-		    ,amrex::Vector<std::string> bc_lo_str
-		    ,amrex::Vector<amrex::Real> _bc_lo_1
-		    ,amrex::Vector<amrex::Real> _bc_hi_1
-		    ,amrex::Vector<amrex::Real> _bc_lo_2
-		    ,amrex::Vector<amrex::Real> _bc_hi_2
-#if AMREX_SPACEDIM > 2
-		    ,amrex::Vector<amrex::Real> _bc_lo_3
-		    ,amrex::Vector<amrex::Real> _bc_hi_3
-#endif
-	  )
+Constant::Constant (amrex::Vector<std::string> bc_hi_str,
+		    amrex::Vector<std::string> bc_lo_str,
+		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
+				 amrex::Vector<amrex::Real> _bc_lo_2,
+				 amrex::Vector<amrex::Real> _bc_lo_3),
+		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
+				 amrex::Vector<amrex::Real> _bc_hi_2,
+				 amrex::Vector<amrex::Real> _bc_hi_3))
 	: 
-	bc_lo_1(_bc_lo_1), bc_hi_1(_bc_hi_1)
-	,bc_lo_2(_bc_lo_2), bc_hi_2(_bc_hi_2)
-#if AMREX_SPACEDIM > 2
-	,bc_lo_3(_bc_lo_3), bc_hi_3(_bc_hi_3)
-#endif
+	AMREX_D_DECL(bc_lo_1(_bc_lo_1),bc_lo_2(_bc_lo_2),bc_lo_3(_bc_lo_3)),
+	AMREX_D_DECL(bc_hi_1(_bc_hi_1),bc_hi_2(_bc_hi_2),bc_hi_3(_bc_hi_3))
 {
 	for (int i=0;i<BL_SPACEDIM;i++)
 	{
@@ -37,7 +31,7 @@ Constant::Constant (amrex::Vector<std::string> bc_hi_str
 void
 Constant::FillBoundary (amrex::FArrayBox &in,
 			const amrex::Box &box,
-			int ngrow, int dcomp, int ncomp, amrex::Real time,
+			int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
 			Orientation face, const amrex::Mask *mask)
 {
 	// if (mask != nullptr)
@@ -155,8 +149,24 @@ Constant::GetBCRec() {return amrex::BCRec(bc_lo,bc_hi);}
 amrex::Array<int,AMREX_SPACEDIM>
 Constant::IsPeriodic()
 {
-	return {AMREX_D_DECL(BCUtil::IsPeriodic(bc_lo[0]),BCUtil::IsPeriodic(bc_lo[1]),BCUtil::IsPeriodic(bc_lo[2]))};
+	return {AMREX_D_DECL(BCUtil::IsPeriodic(bc_lo[0]),
+			     BCUtil::IsPeriodic(bc_lo[1]),
+			     BCUtil::IsPeriodic(bc_lo[2]))};
 }
+amrex::Periodicity Constant::Periodicity () const
+{
+	return amrex::Periodicity(amrex::IntVect(AMREX_D_DECL(m_geom.Domain().length(0) * BCUtil::IsPeriodic(bc_lo[0]),
+							      m_geom.Domain().length(1) * BCUtil::IsPeriodic(bc_lo[1]),
+							      m_geom.Domain().length(2) * BCUtil::IsPeriodic(bc_lo[2]))));
+}
+amrex::Periodicity Constant::Periodicity (const amrex::Box& b) {
+	return amrex::Periodicity(amrex::IntVect(AMREX_D_DECL(b.length(0) * BCUtil::IsPeriodic(bc_lo[0]),
+							      b.length(1) * BCUtil::IsPeriodic(bc_lo[1]),
+							      b.length(2) * BCUtil::IsPeriodic(bc_lo[2]))));
+
+}
+
+
 }
 
 

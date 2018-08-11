@@ -30,7 +30,7 @@ public:
 	Degradation () {};
 	Degradation(const amrex::Real WInput);
 	virtual ~Degradation () {};
-	void SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc, std::vector<PristineMaterialModel *> &models);
+	void SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, std::vector<PristineMaterialModel *> &models);
 	void Energies (FArrayBox& energyfab,
 		const FArrayBox& ufab,
 		int amrlev, int mglev, const MFIter& mfi);

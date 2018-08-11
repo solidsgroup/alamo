@@ -10,8 +10,9 @@ namespace IO
 // GLOBAL VARIABLES
 unsigned long hash = 0;
 std::time_t starttime = 0;
+int percent = -1;
 
-void WriteMetaData(std::string plot_file, Status status) 
+void WriteMetaData(std::string plot_file, Status status, int per) 
 {
 	if (amrex::ParallelDescriptor::IOProcessor())
 		{
@@ -29,6 +30,7 @@ void WriteMetaData(std::string plot_file, Status status)
 					hash =  std::hash<std::string>{}(dumptable + std::ctime(&starttime));
 				}
 
+			if (per > percent) percent = per;
 
 			std::ofstream metadatafile;
 			metadatafile.open(plot_file+"/metadata",std::ios_base::out);
@@ -54,17 +56,20 @@ void WriteMetaData(std::string plot_file, Status status)
 			metadatafile << "HASH = " << hash << std::endl;
 			metadatafile << "Simulation_start_time = " << std::ctime(&starttime);
 			metadatafile << "Number_of_processors = " << amrex::ParallelDescriptor::NProcs() << std::endl;
-			if (status == Status::Running)        metadatafile << "Status = Running" << std::endl;
-			else if (status == Status::Complete)  metadatafile << "Status = Complete" << std::endl;
-			else if (status == Status::Abort)     metadatafile << "Status = Abort" << std::endl;
-			else if (status == Status::Segfault)  metadatafile << "Status = Segfault" << std::endl;
-			else if (status == Status::Interrupt) metadatafile << "Status = Interrupt" << std::endl;
+			if (status == Status::Running)        metadatafile << "Status = Running";
+			else if (status == Status::Complete)  metadatafile << "Status = Complete";
+			else if (status == Status::Abort)     metadatafile << "Status = Abort";
+			else if (status == Status::Segfault)  metadatafile << "Status = Segfault";
+			else if (status == Status::Interrupt) metadatafile << "Status = Interrupt";
+
+			if (percent>0) metadatafile << " (" << percent << "%)";
+			metadatafile << std::endl;
 
 			if (status != Status::Running)
 				{
 					metadatafile << "Simulation_end_time = " << std::ctime(&starttime);
-					metadatafile << "Simulation_run_time = " << std::difftime(now,starttime) << " seconds " << std::endl;
 				}
+			metadatafile << "Simulation_run_time = " << std::difftime(now,starttime) << " seconds " << std::endl;
 
 
 			metadatafile.close();

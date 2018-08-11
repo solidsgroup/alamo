@@ -18,8 +18,8 @@ public:
 				   const amrex::Box &,
 				   int, int, int,
 				   amrex::Real,
-				   Orientation face = Orientation::All,
-				   const amrex::Mask *mask = nullptr) override {};
+				   Orientation /*face*/ = Orientation::All,
+				   const amrex::Mask * /*mask*/ = nullptr) override {};
 
 	virtual amrex::BCRec GetBCRec() {return amrex::BCRec();}
 };

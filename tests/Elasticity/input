@@ -1,18 +1,18 @@
 plot_file = tests/Elasticity/output
 
-bc.body_force     = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.disp_bc_top    = 0.0 0.1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.disp_bc_left   = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.disp_bc_right  = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.disp_bc_bottom = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.disp_bc_front  = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.disp_bc_back   = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 
-bc.bc_x_lo = neumann
+bc.body_force     = 0.0 0.0 0.0 
+bc.disp_bc_top    = 0.0 0.1 0.0 
+bc.disp_bc_left   = 0.0 0.0 0.0 
+bc.disp_bc_right  = 0.0 0.0 0.0 
+bc.disp_bc_bottom = 0.0 0.0 0.0 
+bc.disp_bc_front  = 0.0 0.0 0.0 
+bc.disp_bc_back   = 0.0 0.0 0.0 
+bc.bc_x_lo = dirichlet
 bc.bc_y_lo = dirichlet
-bc.bc_z_lo = neumann
-bc.bc_x_hi = neumann
+bc.bc_z_lo = periodic
+bc.bc_x_hi = dirichlet
 bc.bc_y_hi = dirichlet
-bc.bc_z_hi = neumann
+bc.bc_z_hi = periodic
 
 solver.bottom_solver = bicgstab
 solver.max_level		= 0
