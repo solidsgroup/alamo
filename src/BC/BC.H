@@ -7,6 +7,7 @@
 #include <AMReX_PhysBCFunct.H>
 #include <AMReX_LO_BCTYPES.H>
 #include <AMReX_Mask.H>
+#include <AMReX_Periodicity.H>
 
 #include "Util/Util.H"
 
@@ -56,8 +57,17 @@ public:
 	
 	virtual amrex::BCRec GetBCRec() = 0;
 
-	amrex::Array<int,AMREX_SPACEDIM> IsPeriodic()
+	virtual amrex::Array<int,AMREX_SPACEDIM> IsPeriodic()
 	{return {{AMREX_D_DECL(m_geom.isPeriodic(0),m_geom.isPeriodic(1),m_geom.isPeriodic(2))}}; }
+
+	virtual amrex::Periodicity Periodicity () const {
+		return m_geom.periodicity();
+	}
+	
+	virtual amrex::Periodicity Periodicity (const amrex::Box& b) {
+		return m_geom.periodicity(b);
+	}
+
 
 protected:
 	amrex::Geometry m_geom;

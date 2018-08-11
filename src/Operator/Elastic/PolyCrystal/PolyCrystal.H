@@ -29,7 +29,7 @@ public:
 
   PolyCrystal () {};
   virtual ~PolyCrystal () {};
-  void SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc, std::vector<PolyCrystalModel *> &models);
+  void SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, std::vector<PolyCrystalModel *> &models);
   void Energies (FArrayBox& energyfab,
 		 const FArrayBox& ufab,
 		 int amrlev, const MFIter& mfi);

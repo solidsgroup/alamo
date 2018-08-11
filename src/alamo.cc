@@ -7,8 +7,6 @@
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
 
-#if AMREX_SPACEDIM == 2
-
 int main (int argc, char* argv[])
 {
 	Util::Initialize(argc,argv);
@@ -22,9 +20,3 @@ int main (int argc, char* argv[])
 
 	Util::Finalize();
 } 
-#else
-int main()
-{
-	std::cout << "This program works in 2D only, but AMREX_SPACEDIM=" << AMREX_SPACEDIM << std::endl;
-}
-#endif

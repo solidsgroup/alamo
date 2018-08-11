@@ -25,10 +25,20 @@
 	  <td>
 		{% if columns[i] == "DIR" %}
 		{% if status[j] == "Complete" %} <span class="label label-success" alt="Simulation completed"> <span class="glyphicon glyphicon-ok"/> </span></span>
-		{% elif status[j] == "Running" %} <span class="label label-warning"> <span class="glyphicon glyphicon-cog"/> </span></span>
-		{% elif status[j] == "Interrupt" %} <span class="label label-danger"> <span class="glyphicon glyphicon-remove"/> </span></span>
-		{% elif status[j] == "Abort" %} <span class="label label-danger"> <span class="glyphicon glyphicon-remove"/> </span></span>
-		{% elif status[j] == "Segfault" %} <span class="label label-danger"> <span class="glyphicon glyphicon-remove"/> </span></span>
+                {% elif "Running" in status[j] %} <span class="label label-warning"> 
+                     {% if  status[j].split(' ')|length > 1 %}
+                        {{status[j].split(' ')[1]}}
+                     {% else %}
+                        <span class="glyphicon glyphicon-cog"/></span>
+                     {% endif %}
+                </span>&nbsp;
+                {% elif "Interrupt" in status[j] or "Abort" in status[j] or "Segfault" in status[j] %} <span class="label label-danger"> 
+                     {% if  status[j].split(' ')|length > 1 %}
+                        {{status[j].split(' ')[1]}}
+                     {% else %}
+                        <span class="glyphicon glyphicon-remove"/></span>
+                     {% endif %}
+                </span>&nbsp;
 		{%   endif%}
 		<a href="/table/{{table_name}}/entry/{{table[j][0]}}"{{table[j][i]}}\"">{{table[j][i]}} </a> 
 		{% if numfiles|length > 0 %}{% if numfiles[j] > 0 %}

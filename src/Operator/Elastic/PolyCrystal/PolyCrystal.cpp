@@ -9,10 +9,9 @@
 
 void
 Operator::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta,
-						    BC::BC &eta_bc,
 						    std::vector<PolyCrystalModel *> &models)
 {
-  RegisterNewFab(eta,eta_bc);
+  RegisterNewFab(eta);
   num_eta = eta[0]->nComp();
   Cs.resize(num_eta);
   for (int i = 0; i < AMREX_SPACEDIM; i++)
