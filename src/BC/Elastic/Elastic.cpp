@@ -55,6 +55,7 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 
 		amrex::BaseFab<amrex::Real> &mf_box = mf[mfi];
 
+		/* Dirichlet boundaries are first */
 		if (BCUtil::IsDirichlet(bc_lo[0]))
 		{
 			int i = box.loVect()[0] - 1;
@@ -147,21 +148,22 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 			3. Fill corner ghost cell by averaging.
 		*/
 
-		/* Step 1: Fill left face of ghost cells */
-		if(BCUtil::IsNeumann(bc_lo[0]))
+		/* Step 1: Fill the left face ghost cells */
+		if (BCUtil::IsNeumann(bc_lo[0]))
 		{
-			// non-end ghost cells. End ghost cells will be treated separately.
 			int i = box.loVect()[0] - 1;
+
 			AMREX_D_TERM(	,
-					for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-					for (int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
+					for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
+					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
 				amrex::Vector<Set::Vector> stencil;
 				// the first entry of stencil is the center - so we have to shift right in this case
 				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+2*dx,0),mf_box(m+2*dx,1),mf_box(m+2*dx,2))));
+				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dx,0),mf_box(m-dx+dx,1),mf_box(m-dx+dx,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
 						,
 						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
 						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
@@ -169,358 +171,259 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
 						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
 					);
+
 				amrex::Vector<Set::Vector> traction;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
 
 				amrex::Vector<int> points;
 				points.push_back(1);
+#if AMREX_SPACEDIM > 1
+				if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+				{
+					/* Solving for end points */
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
+					points.push_back(3);
+#if AMREX_SPACEDIM > 2
+					/* Solving for triple end point */ 
+					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+						points.push_back(5);
+					}
+					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+						points.push_back(6);
+					}
+#endif
+				}
+				else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
+					points.push_back(4);
+#if AMREX_SPACEDIM > 2
+					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+						points.push_back(5);
+					}
+					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+						points.push_back(6);
+					}
+#endif
+				}
+#if AMREX_SPACEDIM > 2
+				else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				{
+					/* Solving for end point. No need to consider triple end point.
+					   They have already been solved. */
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+					points.push_back(5);
+				}
+				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+					points.push_back(6);
+				}
+#endif
+#endif
 				StencilFill(stencil, traction, points, m+dx, m_amrlev, m_mglev, mfi);
 
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
+				for (int n = 0; n < AMREX_SPACEDIM; n++)
 					mf_box(m,n) = stencil[1](n);
-			}
-#if AMREX_SPACEDIM>1
-			// end, but non-corner ghost cells are next. 
-			if(BCUtil::IsNeumann(bc_lo[1]))
-			{	// This is the case when bottom boundary is Neumann. So stencil has two 
-				// points missing.
-				int j = box.loVect()[1];
-				AMREX_D_TERM(	,
-						,
-						for(int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
+#if AMREX_SPACEDIM > 1
+				for (int p = 1; p < points.size(); p++)
 				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
-
-					amrex::Vector<int> points;
-					points.push_back(1);
-					points.push_back(3);
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
+					switch (points[p])
 					{
-						mf_box(m,n) = stencil[1](n);
-						mf_box(m+dx-dy,n) = stencil[3](n);
-					}
-				}
-			}
-			else
-			{	// This is the case when bottom boundary is not Neumann. So stencil only has 
-				// one point missing.
-				int j = box.loVect()[1];
-				AMREX_D_TERM(	,
-						,
-						for(int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					
-					amrex::Vector<int> points;
-					points.push_back(1);
-					
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
-						mf_box(m,n) = stencil[1](n);
-				}
-			}
-			if(BCUtil::IsNeumann(bc_hi[1]))
-			{	// This is the case when top boundary is Neumann. So stencil has two 
-				// points missing.
-				int j = box.hiVect()[1];
-				AMREX_D_TERM(	,
-						,
-						for(int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
-
-					amrex::Vector<int> points;
-					points.push_back(1);
-					points.push_back(4);
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
-					{
-						mf_box(m,n) = stencil[1](n);
-						mf_box(m+dx+dy,n) = stencil[4](n);
-					}
-				}
-			}
-			else
-			{	// This is the case when bottom boundary is not Neumann. So stencil only has 
-				// one point missing.
-				int j = box.hiVect()[1];
-				AMREX_D_TERM(	,
-						,
-						for(int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					
-					amrex::Vector<int> points;
-					points.push_back(1);
-					
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
-						mf_box(m,n) = stencil[1](n);
-				}
-			}
+						case 3: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m-dy+dx,n) = stencil[3](n);
+							break;
+						case 4: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m+dy+dx,n) = stencil[4](n);
+							break;
 #if AMREX_SPACEDIM > 2
-			if(BCUtil::IsNeumann(bc_lo[2]))
-			{	// This is the case when back boundary is Neumann. So stencil has two 
-				// points missing.
-				int k = box.loVect()[2];
-				AMREX_D_TERM(	,
-						for(int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-						)
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
-
-					amrex::Vector<int> points;
-					points.push_back(1);
-					points.push_back(5);
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
-					{
-						mf_box(m,n) = stencil[1](n);
-						mf_box(m+dx-dz,n) = stencil[5](n);
+						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m-dz+dx,n) = stencil[5](n);
+							break;
+						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m+dz+dx,n) = stencil[6](n);
+							break;
+#endif
 					}
 				}
-			}
-			else
-			{	// This is the case when back boundary is not Neumann. So stencil only has 
-				// one point missing.
-				int k = box.loVect()[2];
-				AMREX_D_TERM(	,
-						for(int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-						)
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					
-					amrex::Vector<int> points;
-					points.push_back(1);
-					
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
-						mf_box(m,n) = stencil[1](n);
-				}
-			}
-			if(BCUtil::IsNeumann(bc_hi[2]))
-			{	// This is the case when front boundary is Neumann. So stencil has two 
-				// points missing.
-				int k = box.hiVect()[2];
-				AMREX_D_TERM(	,
-						for(int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-						)
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-
-					amrex::Vector<int> points;
-					points.push_back(1);
-					points.push_back(6);
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
-					{
-						mf_box(m,n) = stencil[1](n);
-						mf_box(m+dx+dz,n) = stencil[6](n);
-					}
-				}
-			}
-			else
-			{	// This is the case when back boundary is not Neumann. So stencil only has 
-				// one point missing.
-				int k = box.hiVect()[2];
-				AMREX_D_TERM(	,
-						for(int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-						)
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					amrex::Vector<Set::Vector> stencil;
-					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-					AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-							,
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-							stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-						);
-					amrex::Vector<Set::Vector> traction;
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-					
-					amrex::Vector<int> points;
-					points.push_back(1);
-					
-					StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
-
-					for (int n = 0; n<AMREX_SPACEDIM; n++)
-						mf_box(m,n) = stencil[1](n);
-				}
-			}
 #endif
-#endif
+			}
 		}
 
+		
 		/* Step 2: Fill right face of ghost cells */
 		if(BCUtil::IsNeumann(bc_hi[0]))
 		{
-			// non-end ghost cells. End ghost cells will be treated separately.
 			int i = box.hiVect()[0] + 1;
 			AMREX_D_TERM(	,
-					for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-					for (int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
+					for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
+					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
+				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
+				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dx,0),mf_box(m-dx-dx,1),mf_box(m-dx-dx,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dx,0),mf_box(m+dx-dx,1),mf_box(m+dx-dx,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dx,0),mf_box(m-dy-dx,1),mf_box(m-dy-dx,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dx,0),mf_box(m+dy-dx,1),mf_box(m+dy-dx,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dx,0),mf_box(m-dz-dx,1),mf_box(m-dz-dx,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dx,0),mf_box(m+dz-dx,1),mf_box(m+dz-dx,2))));
 					);
+
 				amrex::Vector<Set::Vector> traction;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_1[0],bc_hi_1[1],bc_hi_1[2])));
 
 				amrex::Vector<int> points;
 				points.push_back(2);
-				StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
+
+#if AMREX_SPACEDIM > 1
+				if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+				{
+					/* Solving for end points */
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
+					points.push_back(3);
+#if AMREX_SPACEDIM > 2
+					/* Solving for triple end point */ 
+					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+						points.push_back(5);
+					}
+					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+						points.push_back(6);
+					}
+#endif
+				}
+				else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
+					points.push_back(4);
+#if AMREX_SPACEDIM > 2
+					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+						points.push_back(5);
+					}
+					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+					{
+						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+						points.push_back(6);
+					}
+#endif
+				}
+#if AMREX_SPACEDIM > 2
+				else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				{
+					/* Solving for end point. No need to consider triple end point.
+					   They have already been solved. */
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+					points.push_back(5);
+				}
+				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+					points.push_back(6);
+				}
+#endif
+#endif
+
+				StencilFill(stencil, traction, points, m-dx, m_amrlev, m_mglev, mfi);
 
 				for (int n = 0; n<AMREX_SPACEDIM; n++)
 					mf_box(m,n) = stencil[2](n);
+#if AMREX_SPACEDIM > 1
+				for (int p = 1; p < points.size(); p++)
+				{
+					switch (points[p])
+					{
+						case 3: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m-dy-dx,n) = stencil[3](n);
+							break;
+						case 4: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m+dy-dx,n) = stencil[4](n);
+							break;
+#if AMREX_SPACEDIM > 2
+						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m-dz-dx,n) = stencil[5](n);
+							break;
+						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m+dz-dx,n) = stencil[6](n);
+							break;
+#endif
+					}
+				}
+#endif
 			}
 		}
-
+#if AMREX_SPACEDIM > 1
 		/* Step 3: Fill bottom face of ghost cells */
 		if(BCUtil::IsNeumann(bc_lo[1]))
 		{
-			// non-end ghost cells. End ghost cells will be treated separately.
 			int j = box.loVect()[1] - 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
+			AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
 					,
-					for (int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
+					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
+				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dy,0),mf_box(m-dx+dy,1),mf_box(m-dx+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dy,0),mf_box(m+dx+dy,1),mf_box(m+dx+dy,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dy,0),mf_box(m-dy+dy,1),mf_box(m-dy+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dy,0),mf_box(m+dy+dy,1),mf_box(m+dy+dy,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dy,0),mf_box(m-dz+dy,1),mf_box(m-dz+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dy,0),mf_box(m+dz+dy,1),mf_box(m+dz+dy,2))));
 					);
 				amrex::Vector<Set::Vector> traction;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
 
 				amrex::Vector<int> points;
 				points.push_back(3);
-				StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
+#if AMREX_SPACEDIM > 2
+				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				{
+					/* Solving for end points */
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+					points.push_back(5);
+				}
+				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+					points.push_back(6);
+				}
+#endif
+				StencilFill(stencil, traction, points, m+dy, m_amrlev, m_mglev, mfi);
 
 				for (int n = 0; n<AMREX_SPACEDIM; n++)
 					mf_box(m,n) = stencil[3](n);
+
+				for (int p = 1; p < points.size(); p++)
+				{
+					switch (points[p])
+					{
+#if AMREX_SPACEDIM > 2
+						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m-dz+dy,n) = stencil[5](n);
+							break;
+						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m+dz+dy,n) = stencil[6](n);
+							break;
+#endif
+					}
 			}
 		}
 
@@ -529,31 +432,58 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 		{
 			// non-end ghost cells. End ghost cells will be treated separately.
 			int j = box.hiVect()[1] + 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
+			AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
 					,
-					for (int k = box.loVect()[2] + 1; k <= box.hiVect()[2] - 1; k++))
+					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
+				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
+				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dy,0),mf_box(m-dx-dy,1),mf_box(m-dx-dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dy,0),mf_box(m+dx-dy,1),mf_box(m+dx-dy,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dy,0),mf_box(m-dy-dy,1),mf_box(m-dy-dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dy,0),mf_box(m+dy-dy,1),mf_box(m+dy-dy,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dy,0),mf_box(m-dz-dy,1),mf_box(m-dz-dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dy,0),mf_box(m+dz-dy,1),mf_box(m+dz-dy,2))));
 					);
 				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
 
 				amrex::Vector<int> points;
 				points.push_back(4);
-				StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
+#if AMREX_SPACEDIM > 2
+				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				{
+					/* Solving for end points */
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+					points.push_back(5);
+				}
+				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+					points.push_back(6);
+				}
+#endif
+				StencilFill(stencil, traction, points, m-dy, m_amrlev, m_mglev, mfi);
 
 				for (int n = 0; n<AMREX_SPACEDIM; n++)
 					mf_box(m,n) = stencil[4](n);
+
+				for (int p = 1; p < points.size(); p++)
+				{
+					switch (points[p])
+					{
+#if AMREX_SPACEDIM > 2
+						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m-dz-dy,n) = stencil[5](n);
+							break;
+						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+								mf_box(m+dz-dy,n) = stencil[6](n);
+							break;
+#endif
+					}
 			}
 		}
 
@@ -561,7 +491,7 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 		/* Step 5: Fill back face of ghost cells */
 		if(BCUtil::IsNeumann(bc_lo[2]))
 		{
-			// non-end ghost cells. End ghost cells will be treated separately.
+			// End and triple end cells have already been filled - so no need to iterate over those
 			int k = box.loVect()[2] - 1;
 			AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
 					for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
@@ -569,32 +499,31 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
+				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dz,0),mf_box(m-dx+dz,1),mf_box(m-dx+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dz,0),mf_box(m+dx+dz,1),mf_box(m+dx+dz,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dz,0),mf_box(m-dy+dz,1),mf_box(m-dy+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dz,0),mf_box(m+dy+dz,1),mf_box(m+dy+dz,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dz,0),mf_box(m-dz+dz,1),mf_box(m-dz+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dz,0),mf_box(m+dz+dz,1),mf_box(m+dz+dz,2))));
 					);
 				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 
 				amrex::Vector<int> points;
 				points.push_back(5);
-				StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
+				StencilFill(stencil, traction, points, m+dz, m_amrlev, m_mglev, mfi);
 
 				for (int n = 0; n<AMREX_SPACEDIM; n++)
 					mf_box(m,n) = stencil[5](n);
 			}
 		}
 
-		/* Step 5: Fill front face of ghost cells */
+		/* Step 6: Fill front face of ghost cells */
 		if(BCUtil::IsNeumann(bc_hi[2]))
 		{
-			// non-end ghost cells. End ghost cells will be treated separately.
 			int k = box.hiVect()[2] + 1;
 			AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
 					for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
@@ -602,29 +531,29 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
+				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
+				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dz,0),mf_box(m-dx-dz,1),mf_box(m-dx-dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dz,0),mf_box(m+dx-dz,1),mf_box(m+dx-dz,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dz,0),mf_box(m-dy-dz,1),mf_box(m-dy-dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dz,0),mf_box(m+dy-dz,1),mf_box(m+dy-dz,2))));
 						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dz,0),mf_box(m-dz-dz,1),mf_box(m-dz-dz,2))));
+						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dz,0),mf_box(m+dz-dz,1),mf_box(m+dz-dz,2))));
 					);
 				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 
 				amrex::Vector<int> points;
 				points.push_back(6);
-				StencilFill(stencil, traction, points, m, m_amrlev, m_mglev, mfi);
+				StencilFill(stencil, traction, points, m-dz, m_amrlev, m_mglev, mfi);
 
 				for (int n = 0; n<AMREX_SPACEDIM; n++)
 					mf_box(m,n) = stencil[6](n);
 			}
 		}
 #endif
-		/* Non end ghost cells have been taken care of. Now we solve for end ghost cells */
+#endif
 	}
 
 }
