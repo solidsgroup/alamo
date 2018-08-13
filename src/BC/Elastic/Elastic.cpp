@@ -3,23 +3,17 @@
 namespace BC
 {
 
-Elastic::Elastic(amrex::Vector<std::string> bc_hi_str
-		    ,amrex::Vector<std::string> bc_lo_str
-		    ,amrex::Vector<amrex::Real> _bc_lo_1
-		    ,amrex::Vector<amrex::Real> _bc_hi_1
-		    ,amrex::Vector<amrex::Real> _bc_lo_2
-		    ,amrex::Vector<amrex::Real> _bc_hi_2
-#if AMREX_SPACEDIM > 2
-		    ,amrex::Vector<amrex::Real> _bc_lo_3
-		    ,amrex::Vector<amrex::Real> _bc_hi_3
-#endif
-	  )
+Elastic::Elastic(amrex::Vector<std::string> bc_hi_str,
+		    amrex::Vector<std::string> bc_lo_str,
+		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
+				 amrex::Vector<amrex::Real> _bc_lo_2,
+				 amrex::Vector<amrex::Real> _bc_lo_3),
+		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
+				 amrex::Vector<amrex::Real> _bc_hi_2,
+				 amrex::Vector<amrex::Real> _bc_hi_3))
 	: 
-	bc_lo_1(_bc_lo_1), bc_hi_1(_bc_hi_1)
-	,bc_lo_2(_bc_lo_2), bc_hi_2(_bc_hi_2)
-#if AMREX_SPACEDIM > 2
-	,bc_lo_3(_bc_lo_3), bc_hi_3(_bc_hi_3)
-#endif
+	AMREX_D_DECL(bc_lo_1(_bc_lo_1),bc_lo_2(_bc_lo_2),bc_lo_3(_bc_lo_3)),
+	AMREX_D_DECL(bc_hi_1(_bc_hi_1),bc_hi_2(_bc_hi_2),bc_hi_3(_bc_hi_3))
 {
 	for (int i=0;i<BL_SPACEDIM;i++)
 	{
@@ -41,9 +35,9 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 		It is further assumed that ncomp = 3.
 	*/
 	
-	amrex::Box domain(geom[lev].Domain());
+	amrex::Box domain(m_geom[m_amrlev].Domain());
 
-	mf.FillBoundary(geom[lev].periodicity());
+	mf.FillBoundary(m_geom[m_amrlev].periodicity());
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
@@ -567,12 +561,12 @@ Elastic::IsPeriodic()
 	return {AMREX_D_DECL(BCUtil::IsPeriodic(bc_lo[0]),BCUtil::IsPeriodic(bc_lo[1]),BCUtil::IsPeriodic(bc_lo[2]))};
 }
 
-}
 
 // Stencil Fill routine - takes in a stencil, a list of unknown points and fills the unknown values
 // in the stencil.
 
-void StencilFill(	amrex::Vector<Set::Vector> &stencil,
+void 
+Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			const amrex::Vector<Set::Vector> &traction,
 			const amrex::Vector<int> &points,
 			const amrex::IntVect &m,
@@ -893,7 +887,7 @@ Restriction: If there are more than one unknown points,
 					left(5,4) = C(2,1,2,0,m,amrlev,mglev,mfi);
 					left(5,5) = C(2,1,2,1,m,amrlev,mglev,mfi););
 
-			AMREX_D_TERM(	right(0) = AMREX_D_DECL(	mul1*traction[0](0),
+			AMREX_D_TERM(	right(0) = AMREX_D_DECL(	mul1*traction[0](0)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -902,7 +896,7 @@ Restriction: If there are more than one unknown points,
 									- C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
 					, // 2D
-					right(1) = AMREX_D_DECL(	mul1*traction[0](1),
+					right(1) = AMREX_D_DECL(	mul1*traction[0](1)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -910,7 +904,7 @@ Restriction: If there are more than one unknown points,
 									- C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
-					right(2) = AMREX_D_DECL(	mul2*traction[1](0),
+					right(2) = AMREX_D_DECL(	mul2*traction[1](0)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -918,7 +912,7 @@ Restriction: If there are more than one unknown points,
 									- C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
-					right(3) = AMREX_D_DECL(	mul2*traction[1](1),
+					right(3) = AMREX_D_DECL(	mul2*traction[1](1)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -927,7 +921,7 @@ Restriction: If there are more than one unknown points,
 									- C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
 					, // 3D
-					right(4) = AMREX_D_DECL(	mul1*traction[0](2),
+					right(4) = AMREX_D_DECL(	mul1*traction[0](2)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -935,7 +929,7 @@ Restriction: If there are more than one unknown points,
 									- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
-					right(5) = AMREX_D_DECL(	mul2*traction[1](2),
+					right(5) = AMREX_D_DECL(	mul2*traction[1](2)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -1253,4 +1247,5 @@ Restriction: If there are more than one unknown points,
 		stencil[points[2]](2) = stencil[0](2) + mul3*DX[2]*sol(2);
 	}
 #endif
+}
 }
