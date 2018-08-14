@@ -6,6 +6,8 @@
 #include <limits>
 
 #include "Operator/Operator.H"
+#include "BC/BC.H"
+#include "BC/Elastic/Elastic.H"
 
 
 using namespace amrex;
@@ -16,6 +18,8 @@ namespace Elastic
 {
 class Elastic : public Operator
 {
+	friend class BC::Elastic;
+
 public:
 	Elastic () {}
 	Elastic (const Vector<Geometry>& a_geom,

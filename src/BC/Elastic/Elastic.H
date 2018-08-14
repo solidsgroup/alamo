@@ -1,5 +1,5 @@
-#ifndef BC_CONSTANT_H_
-#define BC_CONSTANT_H_
+#ifndef BC_ELASTIC_H_
+#define BC_ELASTIC_H_
 
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_ParmParse.H>
@@ -16,7 +16,7 @@ namespace BC
 class Elastic
 	: public BC
 {
-	friend class Operator::Elastic::Elastic;
+	//friend class Operator::Elastic::Elastic;
 
 public:
 	Elastic ( amrex::Vector<std::string> bc_hi_str,
@@ -49,7 +49,7 @@ protected:
 			const amrex::IntVect &m,
 			const int amrlev,
 			const int mglev,
-			const MFIter &mfi);
+			const amrex::MFIter &mfi);
 
 private:
 	int bc_lo[BL_SPACEDIM];
@@ -58,6 +58,7 @@ private:
 	int bc_lo_flux[BL_SPACEDIM];
 	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3);
 	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3);
+	//Operator::Elastic::Elastic* &m_operator;
 };
 }
 #endif
