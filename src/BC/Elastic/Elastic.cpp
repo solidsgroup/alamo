@@ -35,9 +35,9 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 		It is further assumed that ncomp = 3.
 	*/
 	
-	amrex::Box domain(m_geom[m_amrlev].Domain());
+	amrex::Box domain(m_geom.Domain());
 
-	mf.FillBoundary(m_geom[m_amrlev].periodicity());
+	mf.FillBoundary(m_geom.periodicity());
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
@@ -74,6 +74,7 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 					mf_box(m,n) = bc_hi_1[n];
 			}
 		}
+#if AMREX_SPACEDIM > 1
 		if (BCUtil::IsDirichlet(bc_lo[1]))
 		{
 			int j = box.loVect()[1] - 1;
@@ -123,6 +124,7 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 					mf_box(m,n) = bc_hi_3[n];
 			}
 		}
+#endif
 #endif
 		/* Now that the dirichlet is taken care of, neumann bc should be implemented.
 		Think of a 2D case - with a rectangular grid. Let's call the top-left 'real'
@@ -418,6 +420,7 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 							break;
 #endif
 					}
+				}
 			}
 		}
 
@@ -478,6 +481,7 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 							break;
 #endif
 					}
+				}
 			}
 		}
 
@@ -549,7 +553,6 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 #endif
 #endif
 	}
-
 }
 
 amrex::BCRec
@@ -564,7 +567,7 @@ Elastic::IsPeriodic()
 
 // Stencil Fill routine - takes in a stencil, a list of unknown points and fills the unknown values
 // in the stencil.
-
+#define C(i,j,k,l,m,amrlev,mglev,mfi) Operator::Elastic::Elastic::C(i,j,k,l,m,amrlev,mglev,mfi)
 void 
 Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			const amrex::Vector<Set::Vector> &traction,
@@ -572,7 +575,7 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			const amrex::IntVect &m,
 			const int amrlev,
 			const int mglev,
-			const MFIter &mfi)
+			const amrex::MFIter &mfi)
 {
 
 /*
@@ -1132,9 +1135,9 @@ Restriction: If there are more than one unknown points,
 #if AMREX_SPACEDIM > 2
 	else if (points.size() == 3)	//Need 9 equations - triple point case
 	{
-		mul1 = points[0] == 1 ? -1 : 1;
-		mul2 = points[1] == 3 ? -1 : 1;
-		mul3 = points[2] == 5 ? -1 : 1;
+		int mul1 = points[0] == 1 ? -1 : 1;
+		int mul2 = points[1] == 3 ? -1 : 1;
+		int mul3 = points[2] == 5 ? -1 : 1;
 
 		Eigen::Matrix<amrex::Real,3*AMREX_SPACEDIM,3*AMREX_SPACEDIM> left;
 		Eigen::Matrix<amrex::Real,3*AMREX_SPACEDIM,1> right;
