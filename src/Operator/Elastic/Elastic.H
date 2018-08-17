@@ -12,6 +12,11 @@
 
 using namespace amrex;
 
+namespace BC
+{
+	class Elastic;
+}
+
 namespace Operator
 {
 namespace Elastic
