@@ -654,7 +654,7 @@ Restriction: If there are more than one unknown points,
 					left(2,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
 					left(2,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
 					left(2,2) = C(2,0,2,0,m,amrlev,mglev,mfi););
-			AMREX_D_TERM(	right(0) = AMREX_D_DECL(mul*traction[0](0)
+			AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
 								, 
 								- C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
 								- C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
@@ -665,7 +665,7 @@ Restriction: If there are more than one unknown points,
 								- C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
 								);
 					, // 2D
-					right(1) = AMREX_D_DECL(mul*traction[0](1)
+					right(1) = AMREX_D_TERM(mul*traction[0](1)
 								, 
 								- C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
 								- C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
@@ -676,7 +676,7 @@ Restriction: If there are more than one unknown points,
 								- C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
 								);
 					, // 3D
-					right(2) = AMREX_D_DECL(mul*traction[0](2)
+					right(2) = AMREX_D_TERM(mul*traction[0](2)
 								, 
 								- C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
 								- C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
@@ -723,7 +723,7 @@ Restriction: If there are more than one unknown points,
 					left(2,0) = C(2,1,0,1,m,amrlev,mglev,mfi);
 					left(2,1) = C(2,1,1,1,m,amrlev,mglev,mfi);
 					left(2,2) = C(2,1,2,1,m,amrlev,mglev,mfi););
-			AMREX_D_TERM(	right(0) = AMREX_D_DECL(mul*traction[0](0)
+			AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
 								, 
 								- C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
 								- C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
@@ -734,7 +734,7 @@ Restriction: If there are more than one unknown points,
 								- C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					, // 2D
-					right(1) = AMREX_D_DECL(mul*traction[0](1)
+					right(1) = AMREX_D_TERM(mul*traction[0](1)
 								, 
 								- C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
 								- C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
@@ -745,7 +745,7 @@ Restriction: If there are more than one unknown points,
 								- C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					, // 3D
-					right(2) = AMREX_D_DECL(mul*traction[0](2)
+					right(2) = AMREX_D_TERM(mul*traction[0](2)
 								, 
 								- C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
 								- C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
@@ -792,38 +792,39 @@ Restriction: If there are more than one unknown points,
 					left(2,0) = C(2,2,0,2,m,amrlev,mglev,mfi);
 					left(2,1) = C(2,2,1,2,m,amrlev,mglev,mfi);
 							left(2,2) = C(2,2,2,2,m,amrlev,mglev,mfi););
-					AMREX_D_TERM(	right(0) = AMREX_D_DECL(mul*traction[0](0)
-										, 
-										- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-										- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-										,
-										- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-										- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-										- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-										- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
-										);
-							, // 2D
-							right(1) = AMREX_D_DECL(mul*traction[0](1)
-										, 
-										- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-										- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-										,
-										- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-										- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-										- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-										- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
-										);
-							, // 3D
-							right(2) = AMREX_D_DECL(mul*traction[0](2)
-										, 
-										- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-										- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-										,
-										- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-										- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-										- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-										- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
-										););
+					AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
+															, 
+															- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+															- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+															,
+															- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+															- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+															- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+															- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+												);
+									, // 2D
+									right(1) = AMREX_D_TERM(mul*traction[0](1)
+															, 
+															- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+															- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+															,
+															- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+															- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+															- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+															- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+															);
+									, // 3D
+									right(2) = AMREX_D_TERM(mul*traction[0](2)
+															, 
+															- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+															- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+															,
+															- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+															- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+															- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+															- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+															);
+									);
 					sol = left.ldlt().solve(right); // we can change this solver as needed
 					
 					AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[2]*sol(0);,
@@ -892,7 +893,7 @@ Restriction: If there are more than one unknown points,
 					left(5,4) = C(2,1,2,0,m,amrlev,mglev,mfi);
 					left(5,5) = C(2,1,2,1,m,amrlev,mglev,mfi););
 
-			AMREX_D_TERM(	right(0) = AMREX_D_DECL(	mul1*traction[0](0)
+			AMREX_D_TERM(	right(0) = AMREX_D_TERM(	mul1*traction[0](0)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -901,7 +902,7 @@ Restriction: If there are more than one unknown points,
 									- C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
 					, // 2D
-					right(1) = AMREX_D_DECL(	mul1*traction[0](1)
+					right(1) = AMREX_D_TERM(	mul1*traction[0](1)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -909,7 +910,7 @@ Restriction: If there are more than one unknown points,
 									- C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
-					right(2) = AMREX_D_DECL(	mul2*traction[1](0)
+					right(2) = AMREX_D_TERM(	mul2*traction[1](0)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -917,7 +918,7 @@ Restriction: If there are more than one unknown points,
 									- C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
-					right(3) = AMREX_D_DECL(	mul2*traction[1](1)
+					right(3) = AMREX_D_TERM(	mul2*traction[1](1)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -926,7 +927,7 @@ Restriction: If there are more than one unknown points,
 									- C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
 					, // 3D
-					right(4) = AMREX_D_DECL(	mul1*traction[0](2)
+					right(4) = AMREX_D_TERM(	mul1*traction[0](2)
 									, // 2D
 									+ 0.0
 									, // 3D
@@ -934,7 +935,7 @@ Restriction: If there are more than one unknown points,
 									- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								);
-					right(5) = AMREX_D_DECL(	mul2*traction[1](2)
+					right(5) = AMREX_D_TERM(	mul2*traction[1](2)
 									, // 2D
 									+ 0.0
 									, // 3D
