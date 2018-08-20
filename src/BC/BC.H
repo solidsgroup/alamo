@@ -28,10 +28,12 @@ class BC
 
 public:
 	void define (	const amrex::Geometry& a_geom,
-			const int a_amrlev = 0,
-			const int a_mglev = 0) {m_geom = a_geom;
-						m_amrlev = a_amrlev;
-						m_mglev = a_mglev;};
+			const int a_amrlev,
+			const int a_mglev) {m_geom = a_geom;
+					    m_amrlev = a_amrlev;
+					    m_mglev = a_mglev;};
+	
+	void define (	const amrex::Geometry& a_geom) {define(a_geom,0,0);};
 
 	virtual void FillBoundary (amrex::FArrayBox &in,
 				   const amrex::Box &box,
@@ -53,7 +55,10 @@ public:
 		}
 	}
 
-	virtual void FillBoundary (amrex::MultiFab& mf, amrex::Real time) override;
+	virtual void FillBoundary (amrex::MultiFab& mf, amrex::Real time) override
+	{
+		FillBoundary(mf, 0, mf.nComp(), time);
+	}
 	
 	virtual amrex::BCRec GetBCRec() = 0;
 
