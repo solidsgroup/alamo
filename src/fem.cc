@@ -16,6 +16,7 @@
 #include "IO/FileNameParse.H"
 #include "IC/Eigenstrain/Sphere.H"
 #include "BC/Constant.H"
+#include "BC/Elastic/Elastic.H"
 
 using namespace amrex;
 
@@ -104,8 +105,12 @@ int main (int argc, char* argv[])
 	energy.resize(nlevels);
 
 
-	BC::Constant *mybc;
-	mybc = new BC::Constant({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
+	BC::Elastic *mybc;
+	//mybc = new BC::Constant({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
+	//			{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
+	//			AMREX_D_DECL(disp_bc_left,disp_bc_bottom,disp_bc_back),
+	//			AMREX_D_DECL(disp_bc_right,disp_bc_top,disp_bc_front));
+	mybc = new BC::Elastic({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
 				{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
 				AMREX_D_DECL(disp_bc_left,disp_bc_bottom,disp_bc_back),
 				AMREX_D_DECL(disp_bc_right,disp_bc_top,disp_bc_front));
@@ -181,6 +186,8 @@ int main (int argc, char* argv[])
 	Operator::Elastic::Isotropic mlabec;
 	mlabec.define(geom, grids, dmap, *mybc, info);
 	mlabec.setMaxOrder(linop_maxorder);
+
+	mybc->SetElasticOperator(*mlabec);
 
 	//
 	// THIS STUFF IS THE OLD WAY OF SETTING BOUNDARY CONDITIONS
