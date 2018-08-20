@@ -10,12 +10,10 @@ Elastic::Elastic(amrex::Vector<std::string> bc_hi_str,
 				 amrex::Vector<amrex::Real> _bc_lo_3),
 		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
 				 amrex::Vector<amrex::Real> _bc_hi_2,
-				 amrex::Vector<amrex::Real> _bc_hi_3),
-		    Operator::Elastic::Elastic* &a_operator)
+				 amrex::Vector<amrex::Real> _bc_hi_3))
 	: 
 	AMREX_D_DECL(bc_lo_1(_bc_lo_1),bc_lo_2(_bc_lo_2),bc_lo_3(_bc_lo_3)),
-	AMREX_D_DECL(bc_hi_1(_bc_hi_1),bc_hi_2(_bc_hi_2),bc_hi_3(_bc_hi_3)),
-	m_operator(a_operator)
+	AMREX_D_DECL(bc_hi_1(_bc_hi_1),bc_hi_2(_bc_hi_2),bc_hi_3(_bc_hi_3))
 {
 	for (int i=0;i<BL_SPACEDIM;i++)
 	{
@@ -25,6 +23,12 @@ Elastic::Elastic(amrex::Vector<std::string> bc_hi_str,
 		if (BCUtil::IsPeriodic(bc_lo[i]) != BCUtil::IsPeriodic(bc_hi[i]))
 			Util::Abort("Invalid BCs cannot be periodic on one side and not the other");
 	}
+}
+
+void
+Elastic::SetElasticOperator(Operator::Elastic::Elastic* a_operator)
+{
+	m_operator = a_operator;
 }
 
 void
