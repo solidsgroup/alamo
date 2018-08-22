@@ -4,13 +4,13 @@ namespace BC
 {
 
 Elastic::Elastic(amrex::Vector<std::string> bc_hi_str,
-		    amrex::Vector<std::string> bc_lo_str,
-		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
-				 amrex::Vector<amrex::Real> _bc_lo_2,
-				 amrex::Vector<amrex::Real> _bc_lo_3),
-		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
-				 amrex::Vector<amrex::Real> _bc_hi_2,
-				 amrex::Vector<amrex::Real> _bc_hi_3))
+		 amrex::Vector<std::string> bc_lo_str,
+		 AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
+			      amrex::Vector<amrex::Real> _bc_lo_2,
+			      amrex::Vector<amrex::Real> _bc_lo_3),
+		 AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
+			      amrex::Vector<amrex::Real> _bc_hi_2,
+			      amrex::Vector<amrex::Real> _bc_hi_3))
 	: 
 	AMREX_D_DECL(bc_lo_1(_bc_lo_1),bc_lo_2(_bc_lo_2),bc_lo_3(_bc_lo_3)),
 	AMREX_D_DECL(bc_hi_1(_bc_hi_1),bc_hi_2(_bc_hi_2),bc_hi_3(_bc_hi_3))
@@ -31,374 +31,171 @@ Elastic::SetElasticOperator(Operator::Elastic::Elastic* a_operator)
 	m_operator = a_operator;
 }
 
-void
-Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
+//void
+//Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
+void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
+			    const amrex::Box &box,
+			    int ngrow, int dcomp, int ncomp,
+			    amrex::Real time,
+			    amrex::MFIter &mfi,
+			    Orientation face,
+			    const amrex::Mask *mask)
 {
 	/* 
-		We want to fill all dirichlet BC first and then Neumann.
-		This is to ensure that when the stencil function is called, 
-		cells that can be filled, have been filled.
-		It is further assumed that ncomp = 3.
+	   We want to fill all dirichlet BC first and then Neumann.
+	   This is to ensure that when the stencil function is called, 
+	   cells that can be filled, have been filled.
+	   It is further assumed that ncomp = 3.
 	*/
 	
 	amrex::Box domain(m_geom.Domain());
 
-	mf.FillBoundary(m_geom.periodicity());
+	//mf.FillBoundary(m_geom.periodicity());
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
 
-	for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
+	// for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
+	// {
+	// 	const amrex::Box& box = mfi.tilebox();
+
+	//amrex::BaseFab<amrex::Real> &mf_box = mf[mfi];
+
+	/* Dirichlet boundaries are first */
+	if (BCUtil::IsDirichlet(bc_lo[0]))
 	{
-		const amrex::Box& box = mfi.tilebox();
-
-		amrex::BaseFab<amrex::Real> &mf_box = mf[mfi];
-
-		/* Dirichlet boundaries are first */
-		if (BCUtil::IsDirichlet(bc_lo[0]))
+		int i = box.loVect()[0] - 1;
+		AMREX_D_TERM(	,
+				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
+				for (int k = box.loVect()[2] - ngrow; k<=box.hiVect()[2] + ngrow; k++))
 		{
-			int i = box.loVect()[0] - 1;
-			AMREX_D_TERM(	,
-		     			for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++),
-					for (int k = box.loVect()[2] - mf.nGrow(); k<=box.hiVect()[2] + mf.nGrow(); k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = bc_lo_1[n];
-			}
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_lo_1[n];
 		}
-		if (BCUtil::IsDirichlet(bc_hi[0]))
+	}
+	if (BCUtil::IsDirichlet(bc_hi[0]))
+	{
+		int i = box.hiVect()[0] + 1;
+		AMREX_D_TERM(	,
+				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
+				for (int k = box.loVect()[2] - ngrow; k<=box.hiVect()[2] + ngrow; k++))
 		{
-			int i = box.hiVect()[0] + 1;
-			AMREX_D_TERM(	,
-		     			for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++),
-					for (int k = box.loVect()[2] - mf.nGrow(); k<=box.hiVect()[2] + mf.nGrow(); k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = bc_hi_1[n];
-			}
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_hi_1[n];
 		}
+	}
 #if AMREX_SPACEDIM > 1
-		if (BCUtil::IsDirichlet(bc_lo[1]))
+	if (BCUtil::IsDirichlet(bc_lo[1]))
+	{
+		int j = box.loVect()[1] - 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
+				,
+				for (int k = box.loVect()[2] - ngrow; k<=box.hiVect()[2] + ngrow; k++))
 		{
-			int j = box.loVect()[1] - 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] - mf.nGrow(); i<=box.hiVect()[0] + mf.nGrow(); i++),
-		     			,
-					for (int k = box.loVect()[2] - mf.nGrow(); k<=box.hiVect()[2] + mf.nGrow(); k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = bc_lo_2[n];
-			}
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_lo_2[n];
 		}
-		if (BCUtil::IsDirichlet(bc_hi[1]))
+	}
+	if (BCUtil::IsDirichlet(bc_hi[1]))
+	{
+		int j = box.hiVect()[1] + 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
+				,
+				for (int k = box.loVect()[2] - ngrow; k<=box.hiVect()[2] + ngrow; k++))
 		{
-			int j = box.hiVect()[1] + 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] - mf.nGrow(); i<=box.hiVect()[0] + mf.nGrow(); i++),
-		     			,
-					for (int k = box.loVect()[2] - mf.nGrow(); k<=box.hiVect()[2] + mf.nGrow(); k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = bc_hi_2[n];
-			}
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_hi_2[n];
 		}
+	}
 #if AMREX_SPACEDIM > 2
-		if (BCUtil::IsDirichlet(bc_lo[2]))
+	if (BCUtil::IsDirichlet(bc_lo[2]))
+	{
+		int k = box.loVect()[2] - 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
+				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
+				)
 		{
-			int k = box.loVect()[2] - 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] - mf.nGrow(); i<=box.hiVect()[0] + mf.nGrow(); i++),
-		     			for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++),
-					)
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = bc_lo_3[n];
-			}
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_lo_3[n];
 		}
-		if (BCUtil::IsDirichlet(bc_hi[2]))
+	}
+	if (BCUtil::IsDirichlet(bc_hi[2]))
+	{
+		int k = box.hiVect()[2] + 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
+				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
+				)
 		{
-			int k = box.hiVect()[2] + 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] - mf.nGrow(); i<=box.hiVect()[0] + mf.nGrow(); i++),
-		     			for (int j = box.loVect()[1] - mf.nGrow(); j<=box.hiVect()[1] + mf.nGrow(); j++),
-					)
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = bc_hi_3[n];
-			}
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_hi_3[n];
 		}
+	}
 #endif
 #endif
-		/* Now that the dirichlet is taken care of, neumann bc should be implemented.
-		Think of a 2D case - with a rectangular grid. Let's call the top-left 'real'
-		cell as A. It will be surrounded by following ghost cells.
-			1. Left ghost cell (say B)
-			2. Top ghost cell (say C)
-			3. Diagonal top left cell (say D)
-			4. Diagonal bottom left (say E)
-			5. Diagonal top right cell (say F)
-		The next piece of code classifies these cells as following:
-			1. End ghost cells: B and C
-			2. Non-end ghost cells: E and F
-			3. Corner ghost cell: D
-		The next piece of code does the following:
-			1. Fill non-end ghost cells next to all the faces
-			2. Fill end, but non-corner ghost cell
-			3. Fill corner ghost cell by averaging.
-		*/
+	/* Now that the dirichlet is taken care of, neumann bc should be implemented.
+	   Think of a 2D case - with a rectangular grid. Let's call the top-left 'real'
+	   cell as A. It will be surrounded by following ghost cells.
+	   1. Left ghost cell (say B)
+	   2. Top ghost cell (say C)
+	   3. Diagonal top left cell (say D)
+	   4. Diagonal bottom left (say E)
+	   5. Diagonal top right cell (say F)
+	   The next piece of code classifies these cells as following:
+	   1. End ghost cells: B and C
+	   2. Non-end ghost cells: E and F
+	   3. Corner ghost cell: D
+	   The next piece of code does the following:
+	   1. Fill non-end ghost cells next to all the faces
+	   2. Fill end, but non-corner ghost cell
+	   3. Fill corner ghost cell by averaging.
+	*/
 
-		/* Step 1: Fill the left face ghost cells */
-		if (BCUtil::IsNeumann(bc_lo[0]))
+	/* Step 1: Fill the left face ghost cells */
+	if (BCUtil::IsNeumann(bc_lo[0]))
+	{
+		int i = box.loVect()[0] - 1;
+
+		AMREX_D_TERM(	,
+				for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
+				for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 		{
-			int i = box.loVect()[0] - 1;
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
-			AMREX_D_TERM(	,
-					for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
-					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
-				amrex::Vector<Set::Vector> stencil;
-				// the first entry of stencil is the center - so we have to shift right in this case
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dx,0),mf_box(m-dx+dx,1),mf_box(m-dx+dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
-					);
-
-				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
-
-				amrex::Vector<int> points;
-				points.push_back(1);
-#if AMREX_SPACEDIM > 1
-				if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
-				{
-					/* Solving for end points */
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
-					points.push_back(3);
-#if AMREX_SPACEDIM > 2
-					/* Solving for triple end point */ 
-					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
-						points.push_back(5);
-					}
-					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-						points.push_back(6);
-					}
-#endif
-				}
-				else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
-				{
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
-					points.push_back(4);
-#if AMREX_SPACEDIM > 2
-					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
-						points.push_back(5);
-					}
-					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-						points.push_back(6);
-					}
-#endif
-				}
-#if AMREX_SPACEDIM > 2
-				else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
-				{
-					/* Solving for end point. No need to consider triple end point.
-					   They have already been solved. */
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
-					points.push_back(5);
-				}
-				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
-				{
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-					points.push_back(6);
-				}
-#endif
-#endif
-				StencilFill(stencil, traction, points, m+dx, m_amrlev, m_mglev, mfi);
-
-				for (int n = 0; n < AMREX_SPACEDIM; n++)
-					mf_box(m,n) = stencil[1](n);
-#if AMREX_SPACEDIM > 1
-				for (int p = 1; p < points.size(); p++)
-				{
-					switch (points[p])
-					{
-						case 3: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m-dy+dx,n) = stencil[3](n);
-							break;
-						case 4: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m+dy+dx,n) = stencil[4](n);
-							break;
-#if AMREX_SPACEDIM > 2
-						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m-dz+dx,n) = stencil[5](n);
-							break;
-						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m+dz+dx,n) = stencil[6](n);
-							break;
-#endif
-					}
-				}
-#endif
-			}
-		}
-
-		
-		/* Step 2: Fill right face of ghost cells */
-		if(BCUtil::IsNeumann(bc_hi[0]))
-		{
-			int i = box.hiVect()[0] + 1;
-			AMREX_D_TERM(	,
-					for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
-					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dx,0),mf_box(m-dx-dx,1),mf_box(m-dx-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dx,0),mf_box(m+dx-dx,1),mf_box(m+dx-dx,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dx,0),mf_box(m-dy-dx,1),mf_box(m-dy-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dx,0),mf_box(m+dy-dx,1),mf_box(m+dy-dx,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dx,0),mf_box(m-dz-dx,1),mf_box(m-dz-dx,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dx,0),mf_box(m+dz-dx,1),mf_box(m+dz-dx,2))));
-					);
-
-				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_1[0],bc_hi_1[1],bc_hi_1[2])));
-
-				amrex::Vector<int> points;
-				points.push_back(2);
-
-#if AMREX_SPACEDIM > 1
-				if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
-				{
-					/* Solving for end points */
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
-					points.push_back(3);
-#if AMREX_SPACEDIM > 2
-					/* Solving for triple end point */ 
-					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
-						points.push_back(5);
-					}
-					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-						points.push_back(6);
-					}
-#endif
-				}
-				else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
-				{
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
-					points.push_back(4);
-#if AMREX_SPACEDIM > 2
-					if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
-						points.push_back(5);
-					}
-					else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
-					{
-						traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-						points.push_back(6);
-					}
-#endif
-				}
-#if AMREX_SPACEDIM > 2
-				else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
-				{
-					/* Solving for end point. No need to consider triple end point.
-					   They have already been solved. */
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
-					points.push_back(5);
-				}
-				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
-				{
-					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-					points.push_back(6);
-				}
-#endif
-#endif
-
-				StencilFill(stencil, traction, points, m-dx, m_amrlev, m_mglev, mfi);
-
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = stencil[2](n);
-#if AMREX_SPACEDIM > 1
-				for (int p = 1; p < points.size(); p++)
-				{
-					switch (points[p])
-					{
-						case 3: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m-dy-dx,n) = stencil[3](n);
-							break;
-						case 4: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m+dy-dx,n) = stencil[4](n);
-							break;
-#if AMREX_SPACEDIM > 2
-						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m-dz-dx,n) = stencil[5](n);
-							break;
-						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m+dz-dx,n) = stencil[6](n);
-							break;
-#endif
-					}
-				}
-#endif
-			}
-		}
-#if AMREX_SPACEDIM > 1
-		/* Step 3: Fill bottom face of ghost cells */
-		if(BCUtil::IsNeumann(bc_lo[1]))
-		{
-			int j = box.loVect()[1] - 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
+			amrex::Vector<Set::Vector> stencil;
+			// the first entry of stencil is the center - so we have to shift right in this case
+			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
+			AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dx,0),mf_box(m-dx+dx,1),mf_box(m-dx+dx,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dx,0),mf_box(m+dx+dx,1),mf_box(m+dx+dx,2))));
 					,
-					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dy,0),mf_box(m-dx+dy,1),mf_box(m-dx+dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dy,0),mf_box(m+dx+dy,1),mf_box(m+dx+dy,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dy,0),mf_box(m-dy+dy,1),mf_box(m-dy+dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dy,0),mf_box(m+dy+dy,1),mf_box(m+dy+dy,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dy,0),mf_box(m-dz+dy,1),mf_box(m-dz+dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dy,0),mf_box(m+dz+dy,1),mf_box(m+dz+dy,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dx,0),mf_box(m-dy+dx,1),mf_box(m-dy+dx,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dx,0),mf_box(m+dy+dx,1),mf_box(m+dy+dx,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dx,0),mf_box(m-dz+dx,1),mf_box(m-dz+dx,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dx,0),mf_box(m+dz+dx,1),mf_box(m+dz+dx,2))));
 					);
-				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
 
-				amrex::Vector<int> points;
+			amrex::Vector<Set::Vector> traction;
+			traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
+
+			amrex::Vector<int> points;
+			points.push_back(1);
+#if AMREX_SPACEDIM > 1
+			if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+			{
+				/* Solving for end points */
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
 				points.push_back(3);
 #if AMREX_SPACEDIM > 2
+				/* Solving for triple end point */ 
 				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 				{
-					/* Solving for end points */
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
@@ -408,58 +205,14 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 					points.push_back(6);
 				}
 #endif
-				StencilFill(stencil, traction, points, m+dy, m_amrlev, m_mglev, mfi);
-
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = stencil[3](n);
-
-				for (int p = 1; p < points.size(); p++)
-				{
-					switch (points[p])
-					{
-#if AMREX_SPACEDIM > 2
-						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m-dz+dy,n) = stencil[5](n);
-							break;
-						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m+dz+dy,n) = stencil[6](n);
-							break;
-#endif
-					}
-				}
 			}
-		}
-
-		/* Step 4: Fill top face of ghost cells */
-		if(BCUtil::IsNeumann(bc_hi[1]))
-		{
-			// non-end ghost cells. End ghost cells will be treated separately.
-			int j = box.hiVect()[1] + 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
-					,
-					for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
+			else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
 			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dy,0),mf_box(m-dx-dy,1),mf_box(m-dx-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dy,0),mf_box(m+dx-dy,1),mf_box(m+dx-dy,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dy,0),mf_box(m-dy-dy,1),mf_box(m-dy-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dy,0),mf_box(m+dy-dy,1),mf_box(m+dy-dy,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dy,0),mf_box(m-dz-dy,1),mf_box(m-dz-dy,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dy,0),mf_box(m+dz-dy,1),mf_box(m+dz-dy,2))));
-					);
-				amrex::Vector<Set::Vector> traction;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
-
-				amrex::Vector<int> points;
 				points.push_back(4);
 #if AMREX_SPACEDIM > 2
 				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 				{
-					/* Solving for end points */
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
@@ -469,96 +222,350 @@ Elastic::FillBoundary (amrex::MultiFab& mf, amrex::Real time)
 					points.push_back(6);
 				}
 #endif
-				StencilFill(stencil, traction, points, m-dy, m_amrlev, m_mglev, mfi);
-
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = stencil[4](n);
-
-				for (int p = 1; p < points.size(); p++)
-				{
-					switch (points[p])
-					{
+			}
 #if AMREX_SPACEDIM > 2
-						case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m-dz-dy,n) = stencil[5](n);
-							break;
-						case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
-								mf_box(m+dz-dy,n) = stencil[6](n);
-							break;
+			else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			{
+				/* Solving for end point. No need to consider triple end point.
+				   They have already been solved. */
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+				points.push_back(5);
+			}
+			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			{
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+				points.push_back(6);
+			}
 #endif
-					}
+#endif
+			StencilFill(stencil, traction, points, m+dx, m_amrlev, m_mglev, mfi);
+
+			for (int n = 0; n < AMREX_SPACEDIM; n++)
+				mf_box(m,n) = stencil[1](n);
+#if AMREX_SPACEDIM > 1
+			for (int p = 1; p < points.size(); p++)
+			{
+				switch (points[p])
+				{
+				case 3: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m-dy+dx,n) = stencil[3](n);
+					break;
+				case 4: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m+dy+dx,n) = stencil[4](n);
+					break;
+#if AMREX_SPACEDIM > 2
+				case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m-dz+dx,n) = stencil[5](n);
+					break;
+				case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m+dz+dx,n) = stencil[6](n);
+					break;
+#endif
+				}
+			}
+#endif
+		}
+	}
+
+		
+	/* Step 2: Fill right face of ghost cells */
+	if(BCUtil::IsNeumann(bc_hi[0]))
+	{
+		int i = box.hiVect()[0] + 1;
+		AMREX_D_TERM(	,
+				for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
+				for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			amrex::Vector<Set::Vector> stencil;
+			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
+			AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dx,0),mf_box(m-dx-dx,1),mf_box(m-dx-dx,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dx,0),mf_box(m+dx-dx,1),mf_box(m+dx-dx,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dx,0),mf_box(m-dy-dx,1),mf_box(m-dy-dx,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dx,0),mf_box(m+dy-dx,1),mf_box(m+dy-dx,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dx,0),mf_box(m-dz-dx,1),mf_box(m-dz-dx,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dx,0),mf_box(m+dz-dx,1),mf_box(m+dz-dx,2))));
+					);
+
+			amrex::Vector<Set::Vector> traction;
+			traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_1[0],bc_hi_1[1],bc_hi_1[2])));
+
+			amrex::Vector<int> points;
+			points.push_back(2);
+
+#if AMREX_SPACEDIM > 1
+			if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+			{
+				/* Solving for end points */
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
+				points.push_back(3);
+#if AMREX_SPACEDIM > 2
+				/* Solving for triple end point */ 
+				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+					points.push_back(5);
+				}
+				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+					points.push_back(6);
+				}
+#endif
+			}
+			else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
+			{
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
+				points.push_back(4);
+#if AMREX_SPACEDIM > 2
+				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+					points.push_back(5);
+				}
+				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				{
+					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+					points.push_back(6);
+				}
+#endif
+			}
+#if AMREX_SPACEDIM > 2
+			else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			{
+				/* Solving for end point. No need to consider triple end point.
+				   They have already been solved. */
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+				points.push_back(5);
+			}
+			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			{
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+				points.push_back(6);
+			}
+#endif
+#endif
+
+			StencilFill(stencil, traction, points, m-dx, m_amrlev, m_mglev, mfi);
+
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = stencil[2](n);
+#if AMREX_SPACEDIM > 1
+			for (int p = 1; p < points.size(); p++)
+			{
+				switch (points[p])
+				{
+				case 3: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m-dy-dx,n) = stencil[3](n);
+					break;
+				case 4: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m+dy-dx,n) = stencil[4](n);
+					break;
+#if AMREX_SPACEDIM > 2
+				case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m-dz-dx,n) = stencil[5](n);
+					break;
+				case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m+dz-dx,n) = stencil[6](n);
+					break;
+#endif
+				}
+			}
+#endif
+		}
+	}
+#if AMREX_SPACEDIM > 1
+	/* Step 3: Fill bottom face of ghost cells */
+	if(BCUtil::IsNeumann(bc_lo[1]))
+	{
+		int j = box.loVect()[1] - 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
+				,
+				for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			amrex::Vector<Set::Vector> stencil;
+			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+			AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dy,0),mf_box(m-dx+dy,1),mf_box(m-dx+dy,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dy,0),mf_box(m+dx+dy,1),mf_box(m+dx+dy,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dy,0),mf_box(m-dy+dy,1),mf_box(m-dy+dy,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dy,0),mf_box(m+dy+dy,1),mf_box(m+dy+dy,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dy,0),mf_box(m-dz+dy,1),mf_box(m-dz+dy,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dy,0),mf_box(m+dz+dy,1),mf_box(m+dz+dy,2))));
+					);
+			amrex::Vector<Set::Vector> traction;
+			traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
+
+			amrex::Vector<int> points;
+			points.push_back(3);
+#if AMREX_SPACEDIM > 2
+			if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			{
+				/* Solving for end points */
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+				points.push_back(5);
+			}
+			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			{
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+				points.push_back(6);
+			}
+#endif
+			StencilFill(stencil, traction, points, m+dy, m_amrlev, m_mglev, mfi);
+
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = stencil[3](n);
+
+			for (int p = 1; p < points.size(); p++)
+			{
+				switch (points[p])
+				{
+#if AMREX_SPACEDIM > 2
+				case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m-dz+dy,n) = stencil[5](n);
+					break;
+				case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m+dz+dy,n) = stencil[6](n);
+					break;
+#endif
 				}
 			}
 		}
+	}
+
+	/* Step 4: Fill top face of ghost cells */
+	if(BCUtil::IsNeumann(bc_hi[1]))
+	{
+		// non-end ghost cells. End ghost cells will be treated separately.
+		int j = box.hiVect()[1] + 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
+				,
+				for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			amrex::Vector<Set::Vector> stencil;
+			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
+			AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dy,0),mf_box(m-dx-dy,1),mf_box(m-dx-dy,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dy,0),mf_box(m+dx-dy,1),mf_box(m+dx-dy,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dy,0),mf_box(m-dy-dy,1),mf_box(m-dy-dy,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dy,0),mf_box(m+dy-dy,1),mf_box(m+dy-dy,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dy,0),mf_box(m-dz-dy,1),mf_box(m-dz-dy,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dy,0),mf_box(m+dz-dy,1),mf_box(m+dz-dy,2))));
+					);
+			amrex::Vector<Set::Vector> traction;
+			traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
+
+			amrex::Vector<int> points;
+			points.push_back(4);
+#if AMREX_SPACEDIM > 2
+			if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			{
+				/* Solving for end points */
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+				points.push_back(5);
+			}
+			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			{
+				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+				points.push_back(6);
+			}
+#endif
+			StencilFill(stencil, traction, points, m-dy, m_amrlev, m_mglev, mfi);
+
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = stencil[4](n);
+
+			for (int p = 1; p < points.size(); p++)
+			{
+				switch (points[p])
+				{
+#if AMREX_SPACEDIM > 2
+				case 5: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m-dz-dy,n) = stencil[5](n);
+					break;
+				case 6: for (int n = 0; n < AMREX_SPACEDIM; n++)
+						mf_box(m+dz-dy,n) = stencil[6](n);
+					break;
+#endif
+				}
+			}
+		}
+	}
 
 #if AMREX_SPACEDIM > 2
-		/* Step 5: Fill back face of ghost cells */
-		if(BCUtil::IsNeumann(bc_lo[2]))
+	/* Step 5: Fill back face of ghost cells */
+	if(BCUtil::IsNeumann(bc_lo[2]))
+	{
+		// End and triple end cells have already been filled - so no need to iterate over those
+		int k = box.loVect()[2] - 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
+				for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
+				)
 		{
-			// End and triple end cells have already been filled - so no need to iterate over those
-			int k = box.loVect()[2] - 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
-					for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-					)
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dz,0),mf_box(m-dx+dz,1),mf_box(m-dx+dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dz,0),mf_box(m+dx+dz,1),mf_box(m+dx+dz,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dz,0),mf_box(m-dy+dz,1),mf_box(m-dy+dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dz,0),mf_box(m+dy+dz,1),mf_box(m+dy+dz,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dz,0),mf_box(m-dz+dz,1),mf_box(m-dz+dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dz,0),mf_box(m+dz+dz,1),mf_box(m+dz+dz,2))));
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			amrex::Vector<Set::Vector> stencil;
+			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+			AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx+dz,0),mf_box(m-dx+dz,1),mf_box(m-dx+dz,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx+dz,0),mf_box(m+dx+dz,1),mf_box(m+dx+dz,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy+dz,0),mf_box(m-dy+dz,1),mf_box(m-dy+dz,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy+dz,0),mf_box(m+dy+dz,1),mf_box(m+dy+dz,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz+dz,0),mf_box(m-dz+dz,1),mf_box(m-dz+dz,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz+dz,0),mf_box(m+dz+dz,1),mf_box(m+dz+dz,2))));
 					);
-				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
+			amrex::Vector<Set::Vector> traction;
+			traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 
-				amrex::Vector<int> points;
-				points.push_back(5);
-				StencilFill(stencil, traction, points, m+dz, m_amrlev, m_mglev, mfi);
+			amrex::Vector<int> points;
+			points.push_back(5);
+			StencilFill(stencil, traction, points, m+dz, m_amrlev, m_mglev, mfi);
 
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = stencil[5](n);
-			}
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = stencil[5](n);
 		}
-
-		/* Step 6: Fill front face of ghost cells */
-		if(BCUtil::IsNeumann(bc_hi[2]))
-		{
-			int k = box.hiVect()[2] + 1;
-			AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
-					for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-					)
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				amrex::Vector<Set::Vector> stencil;
-				stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
-				AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dz,0),mf_box(m-dx-dz,1),mf_box(m-dx-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dz,0),mf_box(m+dx-dz,1),mf_box(m+dx-dz,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dz,0),mf_box(m-dy-dz,1),mf_box(m-dy-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dz,0),mf_box(m+dy-dz,1),mf_box(m+dy-dz,2))));
-						,
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dz,0),mf_box(m-dz-dz,1),mf_box(m-dz-dz,2))));
-						stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dz,0),mf_box(m+dz-dz,1),mf_box(m+dz-dz,2))));
-					);
-				amrex::Vector<Set::Vector> traction;
-				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
-
-				amrex::Vector<int> points;
-				points.push_back(6);
-				StencilFill(stencil, traction, points, m-dz, m_amrlev, m_mglev, mfi);
-
-				for (int n = 0; n<AMREX_SPACEDIM; n++)
-					mf_box(m,n) = stencil[6](n);
-			}
-		}
-#endif
-#endif
 	}
+
+	/* Step 6: Fill front face of ghost cells */
+	if(BCUtil::IsNeumann(bc_hi[2]))
+	{
+		int k = box.hiVect()[2] + 1;
+		AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
+				for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
+				)
+		{
+			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			amrex::Vector<Set::Vector> stencil;
+			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
+			AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx-dz,0),mf_box(m-dx-dz,1),mf_box(m-dx-dz,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx-dz,0),mf_box(m+dx-dz,1),mf_box(m+dx-dz,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy-dz,0),mf_box(m-dy-dz,1),mf_box(m-dy-dz,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy-dz,0),mf_box(m+dy-dz,1),mf_box(m+dy-dz,2))));
+					,
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz-dz,0),mf_box(m-dz-dz,1),mf_box(m-dz-dz,2))));
+					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dz,0),mf_box(m+dz-dz,1),mf_box(m+dz-dz,2))));
+					);
+			amrex::Vector<Set::Vector> traction;
+			traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+
+			amrex::Vector<int> points;
+			points.push_back(6);
+			StencilFill(stencil, traction, points, m-dz, m_amrlev, m_mglev, mfi);
+
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = stencil[6](n);
+		}
+	}
+#endif
+#endif
+	//	}
 }
 
 amrex::BCRec
@@ -598,29 +605,29 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			const amrex::MFIter &mfi)
 {
 
-/*
-Description of arguments
+	/*
+	  Description of arguments
 
-stencil:	list of 7 points, each with three components
-traction:	list of tractions, each with three components
-points:		list of points that are empty (can't be more than 3)
-m:		Position of the middle point
-amrlev:		AMR level
-mglev:		MG level
-mfi:		MFI box
+	  stencil:	list of 7 points, each with three components
+	  traction:	list of tractions, each with three components
+	  points:		list of points that are empty (can't be more than 3)
+	  m:		Position of the middle point
+	  amrlev:		AMR level
+	  mglev:		MG level
+	  mfi:		MFI box
 
-point nomenclature:
-	0 = mid
-	1 = left
-	2 = right
-	3 = bottom
-	4 = top
-	5 = back
-	6 = front
+	  point nomenclature:
+	  0 = mid
+	  1 = left
+	  2 = right
+	  3 = bottom
+	  4 = top
+	  5 = back
+	  6 = front
 
-Restriction: If there are more than one unknown points, 
-		the list must be in asceding order. 
-*/
+	  Restriction: If there are more than one unknown points, 
+	  the list must be in asceding order. 
+	*/
 
 	if(points.size() > 3 || points.size() < 1)
 		Util::Abort("Number of unknown points can not be greater than 3");
@@ -703,7 +710,7 @@ Restriction: If there are more than one unknown points,
 								- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 								- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								- C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-					););
+								););
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 					
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[0]*sol(0);,
@@ -772,7 +779,7 @@ Restriction: If there are more than one unknown points,
 								- C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 								- C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								- C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
-					););
+								););
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 			
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[1]*sol(0);,
@@ -809,45 +816,45 @@ Restriction: If there are more than one unknown points,
 					left(1,2) = C(1,2,2,2,m,amrlev,mglev,mfi);
 					left(2,0) = C(2,2,0,2,m,amrlev,mglev,mfi);
 					left(2,1) = C(2,2,1,2,m,amrlev,mglev,mfi);
-							left(2,2) = C(2,2,2,2,m,amrlev,mglev,mfi););
-					AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
-															, 
-															- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-															- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-															,
-															- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-															- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-															- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-															- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
-												);
-									, // 2D
-									right(1) = AMREX_D_TERM(mul*traction[0](1)
-															, 
-															- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-															- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-															,
-															- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-															- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-															- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-															- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
-															);
-									, // 3D
-									right(2) = AMREX_D_TERM(mul*traction[0](2)
-															, 
-															- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-															- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-															,
-															- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-															- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-															- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-															- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
-															);
-									);
-					sol = left.ldlt().solve(right); // we can change this solver as needed
+					left(2,2) = C(2,2,2,2,m,amrlev,mglev,mfi););
+			AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
+								, 
+								- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								,
+								- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								);
+					, // 2D
+					right(1) = AMREX_D_TERM(mul*traction[0](1)
+								, 
+								- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								,
+								- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								);
+					, // 3D
+					right(2) = AMREX_D_TERM(mul*traction[0](2)
+								, 
+								- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								,
+								- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								);
+					);
+			sol = left.ldlt().solve(right); // we can change this solver as needed
 					
-					AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[2]*sol(0);,
-							stencil[points[0]](1) = stencil[0](1) + mul*DX[2]*sol(1);,
-							stencil[points[0]](2) = stencil[0](2) + mul*DX[2]*sol(2););
+			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[2]*sol(0);,
+					stencil[points[0]](1) = stencil[0](1) + mul*DX[2]*sol(1);,
+					stencil[points[0]](2) = stencil[0](2) + mul*DX[2]*sol(2););
 		}
 
 		else
@@ -918,7 +925,7 @@ Restriction: If there are more than one unknown points,
 									- C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
 									- C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								);
+									);
 					, // 2D
 					right(1) = AMREX_D_TERM(	mul1*traction[0](1)
 									, // 2D
@@ -927,7 +934,7 @@ Restriction: If there are more than one unknown points,
 									- C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
 									- C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								);
+									);
 					right(2) = AMREX_D_TERM(	mul2*traction[1](0)
 									, // 2D
 									+ 0.0
@@ -935,7 +942,7 @@ Restriction: If there are more than one unknown points,
 									- C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
 									- C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								);
+									);
 					right(3) = AMREX_D_TERM(	mul2*traction[1](1)
 									, // 2D
 									+ 0.0
@@ -943,7 +950,7 @@ Restriction: If there are more than one unknown points,
 									- C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
 									- C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								);
+									);
 					, // 3D
 					right(4) = AMREX_D_TERM(	mul1*traction[0](2)
 									, // 2D
@@ -952,7 +959,7 @@ Restriction: If there are more than one unknown points,
 									- C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
 									- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								);
+									);
 					right(5) = AMREX_D_TERM(	mul2*traction[1](2)
 									, // 2D
 									+ 0.0
@@ -960,7 +967,7 @@ Restriction: If there are more than one unknown points,
 									- C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
 									- C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 									- C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								););
+									););
 
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
@@ -1026,29 +1033,29 @@ Restriction: If there are more than one unknown points,
 			left(5,5) = C(2,2,2,2,m,amrlev,mglev,mfi);
 
 			right(0) = 	mul1*traction[0](0)
-					- C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-					- C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-					- C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(1) = 	mul1*traction[0](1)
-					- C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-					- C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-					- C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(2) = 	mul1*traction[0](2)
-					- C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-					- C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-					- C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(3) = 	mul2*traction[1](0)
-					- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-					- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-					- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(4) = 	mul2*traction[1](1)
-					- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-					- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-					- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(5) = 	mul2*traction[1](2)
-					- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-					- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-					- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 			
@@ -1114,29 +1121,29 @@ Restriction: If there are more than one unknown points,
 			left(5,5) = C(2,2,2,2,m,amrlev,mglev,mfi);
 
 			right(0) = 	mul1*traction[0](0)
-					- C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-					- C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-					- C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(1) = 	mul1*traction[0](1)
-					- C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-					- C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-					- C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(2) = 	mul1*traction[0](2)
-					- C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-					- C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-					- C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(3) = 	mul2*traction[1](0)
-					- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-					- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-					- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(4) = 	mul2*traction[1](1)
-					- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-					- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-					- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(5) = 	mul2*traction[1](2)
-					- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-					- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-					- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 			

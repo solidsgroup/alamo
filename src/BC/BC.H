@@ -39,6 +39,7 @@ public:
 				   const amrex::Box &box,
 				   int ngrow, int dcomp, int ncomp,
 				   amrex::Real time,
+				   amrex::MFIter &mfi,
 				   Orientation face = Orientation::All,
 				   const amrex::Mask *mask = nullptr) = 0;
 
@@ -51,7 +52,7 @@ public:
 		{
 			const amrex::Box& box = mfi.tilebox();
 			amrex::FArrayBox &in = mf[mfi];
-			FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
+			FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time, mfi);
 		}
 	}
 
