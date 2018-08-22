@@ -18,6 +18,7 @@ public:
 				   const amrex::Box &,
 				   int, int, int,
 				   amrex::Real,
+				   amrex::MFIter &,
 				   Orientation /*face*/ = Orientation::All,
 				   const amrex::Mask * /*mask*/ = nullptr) override {};
 

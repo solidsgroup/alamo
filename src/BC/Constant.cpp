@@ -32,7 +32,7 @@ void
 Constant::FillBoundary (amrex::FArrayBox &in,
 			const amrex::Box &box,
 			int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
-			Orientation face, const amrex::Mask *mask)
+			amrex::MFIter &mfi, Orientation face, const amrex::Mask *mask)
 {
 	// if (mask != nullptr)
 	// {
