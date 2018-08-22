@@ -43,8 +43,10 @@ public:
 	using BC::FillBoundary;
 	
 	amrex::BCRec GetBCRec() ;
-	amrex::Array<int,AMREX_SPACEDIM> IsPeriodic();
 	void SetElasticOperator(Operator::Elastic::Elastic* a_operator);
+	virtual amrex::Array<int,AMREX_SPACEDIM> IsPeriodic() override;
+	virtual amrex::Periodicity Periodicity () const override;
+	virtual amrex::Periodicity Periodicity (const amrex::Box& b) override;
 
 	template<class T>
 	const amrex::Array<amrex::Array<T,AMREX_SPACEDIM>,2> GetBCTypes()

@@ -570,6 +570,20 @@ Elastic::IsPeriodic()
 	return {AMREX_D_DECL(BCUtil::IsPeriodic(bc_lo[0]),BCUtil::IsPeriodic(bc_lo[1]),BCUtil::IsPeriodic(bc_lo[2]))};
 }
 
+amrex::Periodicity 
+Elastic::Periodicity () const
+{
+	return amrex::Periodicity(amrex::IntVect(AMREX_D_DECL(m_geom.Domain().length(0) * BCUtil::IsPeriodic(bc_lo[0]),
+							      m_geom.Domain().length(1) * BCUtil::IsPeriodic(bc_lo[1]),
+							      m_geom.Domain().length(2) * BCUtil::IsPeriodic(bc_lo[2]))));
+}
+amrex::Periodicity 
+Elastic::Periodicity (const amrex::Box& b) {
+	return amrex::Periodicity(amrex::IntVect(AMREX_D_DECL(b.length(0) * BCUtil::IsPeriodic(bc_lo[0]),
+							      b.length(1) * BCUtil::IsPeriodic(bc_lo[1]),
+							      b.length(2) * BCUtil::IsPeriodic(bc_lo[2]))));
+
+}
 
 // Stencil Fill routine - takes in a stencil, a list of unknown points and fills the unknown values
 // in the stencil.
