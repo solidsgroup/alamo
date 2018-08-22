@@ -187,7 +187,7 @@ int main (int argc, char* argv[])
 	mlabec.define(geom, grids, dmap, *mybc, info);
 	mlabec.setMaxOrder(linop_maxorder);
 
-	mybc->SetElasticOperator(*mlabec);
+	mybc->SetElasticOperator(&mlabec);
 
 	//
 	// THIS STUFF IS THE OLD WAY OF SETTING BOUNDARY CONDITIONS
