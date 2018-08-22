@@ -63,9 +63,50 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	//amrex::BaseFab<amrex::Real> &mf_box = mf[mfi];
 
 	/* Dirichlet boundaries are first */
-	if (BCUtil::IsDirichlet(bc_lo[0]))
+	AMREX_D_TERM(	for(int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
+					for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
+					for (int k = box.loVect()[2] - ngrow; k<=box.hiVect()[2] + ngrow; k++))
 	{
-		int i = box.loVect()[0] - 1;
+		amrex::IntVect m(AMREX_D_DECL(i,j,k));
+		if (i == domain.loVect()[0]-1 && (face == Orientation::xlo || face == Orientation::All) && BCUtil::IsDirichlet(bc_lo[0])) // Left boundary
+		{
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_lo_1[n];
+		}
+		if (i == domain.hiVect()[0]+1 && (face == Orientation::xhi || face == Orientation::All) && BCUtil::IsDirichlet(bc_hi[0])) // Right boundary
+		{
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_hi_1[n];
+		}
+#if AMREX_SPACEDIM>1
+		if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All) && BCUtil::IsDirichlet(bc_lo[1])) // Bottom boundary
+		{
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_lo_2[n];
+		}
+		if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All) && BCUtil::IsDirichlet(bc_hi[1])) // Top boundary
+		{
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_hi_2[n];
+		}
+#if AMREX_SPACEDIM>2
+		if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All) && BCUtil::IsDirichlet(bc_lo[2])) // Back boundary
+		{
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_lo_3[n];
+		}
+		if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All) && BCUtil::IsDirichlet(bc_hi[2])) // Front boundary
+		{
+			for (int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = bc_hi_3[n];
+		}
+#endif
+#endif
+	}
+	/*if (BCUtil::IsDirichlet(bc_lo[0]))
+	{
+		std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+		int i = domain.loVect()[0] - 1;
 		AMREX_D_TERM(	,
 				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
 				for (int k = box.loVect()[2] - ngrow; k<=box.hiVect()[2] + ngrow; k++))
@@ -77,6 +118,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 	if (BCUtil::IsDirichlet(bc_hi[0]))
 	{
+		std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 		int i = box.hiVect()[0] + 1;
 		AMREX_D_TERM(	,
 				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
@@ -90,6 +132,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #if AMREX_SPACEDIM > 1
 	if (BCUtil::IsDirichlet(bc_lo[1]))
 	{
+		std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 		int j = box.loVect()[1] - 1;
 		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
 				,
@@ -102,6 +145,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 	if (BCUtil::IsDirichlet(bc_hi[1]))
 	{
+		std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 		int j = box.hiVect()[1] + 1;
 		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
 				,
@@ -115,6 +159,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #if AMREX_SPACEDIM > 2
 	if (BCUtil::IsDirichlet(bc_lo[2]))
 	{
+		std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 		int k = box.loVect()[2] - 1;
 		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
 				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
@@ -127,6 +172,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 	if (BCUtil::IsDirichlet(bc_hi[2]))
 	{
+		std::cout << __FILE__ << ":" << __LINE__ << std::endl;
 		int k = box.hiVect()[2] + 1;
 		AMREX_D_TERM(	for (int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
 				for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
@@ -138,7 +184,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		}
 	}
 #endif
-#endif
+#endif*/
 	/* Now that the dirichlet is taken care of, neumann bc should be implemented.
 	   Think of a 2D case - with a rectangular grid. Let's call the top-left 'real'
 	   cell as A. It will be surrounded by following ghost cells.
@@ -158,7 +204,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	*/
 
 	/* Step 1: Fill the left face ghost cells */
-	if (BCUtil::IsNeumann(bc_lo[0]))
+	if (BCUtil::IsNeumann(bc_lo[0]) && box.loVect()[0]==domain.loVect()[0])
 	{
 		int i = box.loVect()[0] - 1;
 
@@ -187,36 +233,36 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(1);
 #if AMREX_SPACEDIM > 1
-			if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+			if (j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
 			{
 				/* Solving for end points */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
 				points.push_back(3);
 #if AMREX_SPACEDIM > 2
 				/* Solving for triple end point */ 
-				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 					points.push_back(6);
 				}
 #endif
 			}
-			else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
+			else if (j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
 			{
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
 				points.push_back(4);
 #if AMREX_SPACEDIM > 2
-				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 					points.push_back(6);
@@ -224,14 +270,14 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 			}
 #if AMREX_SPACEDIM > 2
-			else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			else if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 			{
 				/* Solving for end point. No need to consider triple end point.
 				   They have already been solved. */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 			{
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 				points.push_back(6);
@@ -269,7 +315,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 		
 	/* Step 2: Fill right face of ghost cells */
-	if(BCUtil::IsNeumann(bc_hi[0]))
+	if(BCUtil::IsNeumann(bc_hi[0]) && box.hiVect()[0]==domain.hiVect()[0])
 	{
 		int i = box.hiVect()[0] + 1;
 		AMREX_D_TERM(	,
@@ -296,36 +342,36 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			points.push_back(2);
 
 #if AMREX_SPACEDIM > 1
-			if (j == box.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+			if (j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
 			{
 				/* Solving for end points */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2])));
 				points.push_back(3);
 #if AMREX_SPACEDIM > 2
 				/* Solving for triple end point */ 
-				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 					points.push_back(6);
 				}
 #endif
 			}
-			else if (j == box.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
+			else if (j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
 			{
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
 				points.push_back(4);
 #if AMREX_SPACEDIM > 2
-				if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 				{
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 					points.push_back(6);
@@ -333,14 +379,14 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 			}
 #if AMREX_SPACEDIM > 2
-			else if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			else if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 			{
 				/* Solving for end point. No need to consider triple end point.
 				   They have already been solved. */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 			{
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 				points.push_back(6);
@@ -378,7 +424,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 #if AMREX_SPACEDIM > 1
 	/* Step 3: Fill bottom face of ghost cells */
-	if(BCUtil::IsNeumann(bc_lo[1]))
+	if(BCUtil::IsNeumann(bc_lo[1]) && box.loVect()[1]==domain.loVect()[1])
 	{
 		int j = box.loVect()[1] - 1;
 		AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
@@ -403,13 +449,13 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(3);
 #if AMREX_SPACEDIM > 2
-			if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 			{
 				/* Solving for end points */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 			{
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 				points.push_back(6);
@@ -438,7 +484,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 
 	/* Step 4: Fill top face of ghost cells */
-	if(BCUtil::IsNeumann(bc_hi[1]))
+	if(BCUtil::IsNeumann(bc_hi[1]) && box.hiVect()[1]==domain.hiVect()[1])
 	{
 		// non-end ghost cells. End ghost cells will be treated separately.
 		int j = box.hiVect()[1] + 1;
@@ -464,13 +510,13 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(4);
 #if AMREX_SPACEDIM > 2
-			if (k == box.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
 			{
 				/* Solving for end points */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == box.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
 			{
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
 				points.push_back(6);
@@ -500,7 +546,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 #if AMREX_SPACEDIM > 2
 	/* Step 5: Fill back face of ghost cells */
-	if(BCUtil::IsNeumann(bc_lo[2]))
+	if(BCUtil::IsNeumann(bc_lo[2]) && box.loVect()[2]==domain.loVect()[2])
 	{
 		// End and triple end cells have already been filled - so no need to iterate over those
 		int k = box.loVect()[2] - 1;
@@ -533,7 +579,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 
 	/* Step 6: Fill front face of ghost cells */
-	if(BCUtil::IsNeumann(bc_hi[2]))
+	if(BCUtil::IsNeumann(bc_hi[2]) && box.hiVect()[2]==domain.hiVect()[2])
 	{
 		int k = box.hiVect()[2] + 1;
 		AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
@@ -594,7 +640,7 @@ Elastic::Periodicity (const amrex::Box& b) {
 
 // Stencil Fill routine - takes in a stencil, a list of unknown points and fills the unknown values
 // in the stencil.
-#define C(i,j,k,l,m,amrlev,mglev,mfi) m_operator->C(i,j,k,l,m,amrlev,mglev,mfi)
+//#define m_operator->C(i,j,k,l,m,amrlev,mglev,mfi) m_operator->m_operator->C(i,j,k,l,m,amrlev,mglev,mfi)
 void 
 Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			const amrex::Vector<Set::Vector> &traction,
@@ -668,48 +714,48 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			Set::Vector right; 
 			Set::Vector sol;
 
-			AMREX_D_TERM( 	left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
+			AMREX_D_TERM( 	left(0,0) = m_operator->C(0,0,0,0,m,amrlev,mglev,mfi);
 					, // 2D
-					left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
-					left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
-					left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
+					left(0,1) = m_operator->C(0,0,1,0,m,amrlev,mglev,mfi);
+					left(1,0) = m_operator->C(1,0,0,0,m,amrlev,mglev,mfi);
+					left(1,1) = m_operator->C(1,0,1,0,m,amrlev,mglev,mfi);
 					, // 3D
-					left(0,2) = C(0,0,2,0,m,amrlev,mglev,mfi);
-					left(1,2) = C(1,0,2,0,m,amrlev,mglev,mfi);
-					left(2,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
-					left(2,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
-					left(2,2) = C(2,0,2,0,m,amrlev,mglev,mfi););
+					left(0,2) = m_operator->C(0,0,2,0,m,amrlev,mglev,mfi);
+					left(1,2) = m_operator->C(1,0,2,0,m,amrlev,mglev,mfi);
+					left(2,0) = m_operator->C(2,0,0,0,m,amrlev,mglev,mfi);
+					left(2,1) = m_operator->C(2,0,1,0,m,amrlev,mglev,mfi);
+					left(2,2) = m_operator->C(2,0,2,0,m,amrlev,mglev,mfi););
 			AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
 								, 
-								- C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-								- C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- m_operator->C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- m_operator->C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
 								,
-								- C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-								- C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-								- C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								- C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- m_operator->C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- m_operator->C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- m_operator->C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- m_operator->C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
 								);
 					, // 2D
 					right(1) = AMREX_D_TERM(mul*traction[0](1)
 								, 
-								- C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-								- C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- m_operator->C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- m_operator->C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
 								,
-								- C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-								- C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-								- C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								- C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- m_operator->C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- m_operator->C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- m_operator->C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- m_operator->C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
 								);
 					, // 3D
 					right(2) = AMREX_D_TERM(mul*traction[0](2)
 								, 
-								- C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-								- C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- m_operator->C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- m_operator->C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
 								,
-								- C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-								- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-								- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								- C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- m_operator->C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- m_operator->C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- m_operator->C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
 								););
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 					
@@ -737,48 +783,48 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			Set::Matrix left;
 			Set::Vector right; 
 			Set::Vector sol;
-			AMREX_D_TERM( 	left(0,0) = C(0,1,0,1,m,amrlev,mglev,mfi);
+			AMREX_D_TERM( 	left(0,0) = m_operator->C(0,1,0,1,m,amrlev,mglev,mfi);
 					, // 2D
-					left(0,1) = C(0,1,1,1,m,amrlev,mglev,mfi);
-					left(1,0) = C(1,1,0,1,m,amrlev,mglev,mfi);
-					left(1,1) = C(1,1,1,1,m,amrlev,mglev,mfi);
+					left(0,1) = m_operator->C(0,1,1,1,m,amrlev,mglev,mfi);
+					left(1,0) = m_operator->C(1,1,0,1,m,amrlev,mglev,mfi);
+					left(1,1) = m_operator->C(1,1,1,1,m,amrlev,mglev,mfi);
 					, // 3D
-					left(0,2) = C(0,1,2,1,m,amrlev,mglev,mfi);
-					left(1,2) = C(1,1,2,1,m,amrlev,mglev,mfi);
-					left(2,0) = C(2,1,0,1,m,amrlev,mglev,mfi);
-					left(2,1) = C(2,1,1,1,m,amrlev,mglev,mfi);
-					left(2,2) = C(2,1,2,1,m,amrlev,mglev,mfi););
+					left(0,2) = m_operator->C(0,1,2,1,m,amrlev,mglev,mfi);
+					left(1,2) = m_operator->C(1,1,2,1,m,amrlev,mglev,mfi);
+					left(2,0) = m_operator->C(2,1,0,1,m,amrlev,mglev,mfi);
+					left(2,1) = m_operator->C(2,1,1,1,m,amrlev,mglev,mfi);
+					left(2,2) = m_operator->C(2,1,2,1,m,amrlev,mglev,mfi););
 			AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
 								, 
-								- C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-								- C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								- m_operator->C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- m_operator->C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
 								,
-								- C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-								- C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-								- C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								- C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								- m_operator->C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- m_operator->C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- m_operator->C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- m_operator->C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					, // 2D
 					right(1) = AMREX_D_TERM(mul*traction[0](1)
 								, 
-								- C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-								- C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								- m_operator->C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- m_operator->C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
 								,
-								- C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-								- C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-								- C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								- C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								- m_operator->C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- m_operator->C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- m_operator->C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- m_operator->C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					, // 3D
 					right(2) = AMREX_D_TERM(mul*traction[0](2)
 								, 
-								- C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-								- C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								- m_operator->C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- m_operator->C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
 								,
-								- C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-								- C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-								- C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
-								- C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								- m_operator->C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+								- m_operator->C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+								- m_operator->C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+								- m_operator->C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								););
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 			
@@ -806,48 +852,48 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			Set::Matrix left;
 			Set::Vector right; 
 			Set::Vector sol;
-			AMREX_D_TERM( 	left(0,0) = C(0,2,0,2,m,amrlev,mglev,mfi);
+			AMREX_D_TERM( 	left(0,0) = m_operator->C(0,2,0,2,m,amrlev,mglev,mfi);
 					, // 2D
-					left(0,1) = C(0,2,1,2,m,amrlev,mglev,mfi);
-					left(1,0) = C(1,2,0,2,m,amrlev,mglev,mfi);
-					left(1,1) = C(1,2,1,2,m,amrlev,mglev,mfi);
+					left(0,1) = m_operator->C(0,2,1,2,m,amrlev,mglev,mfi);
+					left(1,0) = m_operator->C(1,2,0,2,m,amrlev,mglev,mfi);
+					left(1,1) = m_operator->C(1,2,1,2,m,amrlev,mglev,mfi);
 					, // 3D
-					left(0,2) = C(0,2,2,2,m,amrlev,mglev,mfi);
-					left(1,2) = C(1,2,2,2,m,amrlev,mglev,mfi);
-					left(2,0) = C(2,2,0,2,m,amrlev,mglev,mfi);
-					left(2,1) = C(2,2,1,2,m,amrlev,mglev,mfi);
-					left(2,2) = C(2,2,2,2,m,amrlev,mglev,mfi););
+					left(0,2) = m_operator->C(0,2,2,2,m,amrlev,mglev,mfi);
+					left(1,2) = m_operator->C(1,2,2,2,m,amrlev,mglev,mfi);
+					left(2,0) = m_operator->C(2,2,0,2,m,amrlev,mglev,mfi);
+					left(2,1) = m_operator->C(2,2,1,2,m,amrlev,mglev,mfi);
+					left(2,2) = m_operator->C(2,2,2,2,m,amrlev,mglev,mfi););
 			AMREX_D_TERM(	right(0) = AMREX_D_TERM(mul*traction[0](0)
 								, 
-								- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-								- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								- m_operator->C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- m_operator->C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
 								,
-								- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-								- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-								- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-								- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								- m_operator->C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- m_operator->C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- m_operator->C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- m_operator->C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					, // 2D
 					right(1) = AMREX_D_TERM(mul*traction[0](1)
 								, 
-								- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-								- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								- m_operator->C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- m_operator->C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
 								,
-								- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-								- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-								- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-								- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								- m_operator->C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- m_operator->C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- m_operator->C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- m_operator->C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					, // 3D
 					right(2) = AMREX_D_TERM(mul*traction[0](2)
 								, 
-								- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-								- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+								- m_operator->C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+								- m_operator->C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
 								,
-								- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-								- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-								- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
-								- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+								- m_operator->C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+								- m_operator->C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+								- m_operator->C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+								- m_operator->C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					);
 			sol = left.ldlt().solve(right); // we can change this solver as needed
@@ -879,94 +925,94 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> right;
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> sol; 
 
-			AMREX_D_TERM(	left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
+			AMREX_D_TERM(	left(0,0) = m_operator->C(0,0,0,0,m,amrlev,mglev,mfi);
 					, // 2D
-					left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
-					left(0,2) = C(0,0,0,1,m,amrlev,mglev,mfi);
-					left(0,3) = C(0,0,1,1,m,amrlev,mglev,mfi);
-					left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
-					left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
-					left(1,2) = C(1,0,0,1,m,amrlev,mglev,mfi);
-					left(1,3) = C(1,0,1,1,m,amrlev,mglev,mfi);
-					left(2,0) = C(0,1,0,0,m,amrlev,mglev,mfi);
-					left(2,1) = C(0,1,1,0,m,amrlev,mglev,mfi);
-					left(2,2) = C(0,1,0,1,m,amrlev,mglev,mfi);
-					left(2,3) = C(0,1,1,1,m,amrlev,mglev,mfi);
-					left(3,0) = C(1,1,0,0,m,amrlev,mglev,mfi);
-					left(3,1) = C(1,1,1,0,m,amrlev,mglev,mfi);
-					left(3,2) = C(1,1,0,1,m,amrlev,mglev,mfi);
-					left(3,3) = C(1,1,1,1,m,amrlev,mglev,mfi);
+					left(0,1) = m_operator->C(0,0,1,0,m,amrlev,mglev,mfi);
+					left(0,2) = m_operator->C(0,0,0,1,m,amrlev,mglev,mfi);
+					left(0,3) = m_operator->C(0,0,1,1,m,amrlev,mglev,mfi);
+					left(1,0) = m_operator->C(1,0,0,0,m,amrlev,mglev,mfi);
+					left(1,1) = m_operator->C(1,0,1,0,m,amrlev,mglev,mfi);
+					left(1,2) = m_operator->C(1,0,0,1,m,amrlev,mglev,mfi);
+					left(1,3) = m_operator->C(1,0,1,1,m,amrlev,mglev,mfi);
+					left(2,0) = m_operator->C(0,1,0,0,m,amrlev,mglev,mfi);
+					left(2,1) = m_operator->C(0,1,1,0,m,amrlev,mglev,mfi);
+					left(2,2) = m_operator->C(0,1,0,1,m,amrlev,mglev,mfi);
+					left(2,3) = m_operator->C(0,1,1,1,m,amrlev,mglev,mfi);
+					left(3,0) = m_operator->C(1,1,0,0,m,amrlev,mglev,mfi);
+					left(3,1) = m_operator->C(1,1,1,0,m,amrlev,mglev,mfi);
+					left(3,2) = m_operator->C(1,1,0,1,m,amrlev,mglev,mfi);
+					left(3,3) = m_operator->C(1,1,1,1,m,amrlev,mglev,mfi);
 					, // 3D
-					left(0,4) = C(0,0,2,0,m,amrlev,mglev,mfi);
-					left(0,5) = C(0,0,2,1,m,amrlev,mglev,mfi);
-					left(1,4) = C(1,0,2,0,m,amrlev,mglev,mfi);
-					left(1,5) = C(1,0,2,1,m,amrlev,mglev,mfi);
-					left(2,4) = C(0,1,2,0,m,amrlev,mglev,mfi);
-					left(2,5) = C(0,1,2,1,m,amrlev,mglev,mfi);
-					left(3,4) = C(1,1,2,0,m,amrlev,mglev,mfi);
-					left(3,5) = C(1,1,2,1,m,amrlev,mglev,mfi);
-					left(4,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
-					left(4,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
-					left(4,2) = C(2,0,0,1,m,amrlev,mglev,mfi);
-					left(4,3) = C(2,0,1,1,m,amrlev,mglev,mfi);
-					left(4,4) = C(2,0,2,0,m,amrlev,mglev,mfi);
-					left(4,5) = C(2,0,2,1,m,amrlev,mglev,mfi);
-					left(5,0) = C(2,1,0,0,m,amrlev,mglev,mfi);
-					left(5,1) = C(2,1,1,0,m,amrlev,mglev,mfi);
-					left(5,2) = C(2,1,0,1,m,amrlev,mglev,mfi);
-					left(5,3) = C(2,1,1,1,m,amrlev,mglev,mfi);
-					left(5,4) = C(2,1,2,0,m,amrlev,mglev,mfi);
-					left(5,5) = C(2,1,2,1,m,amrlev,mglev,mfi););
+					left(0,4) = m_operator->C(0,0,2,0,m,amrlev,mglev,mfi);
+					left(0,5) = m_operator->C(0,0,2,1,m,amrlev,mglev,mfi);
+					left(1,4) = m_operator->C(1,0,2,0,m,amrlev,mglev,mfi);
+					left(1,5) = m_operator->C(1,0,2,1,m,amrlev,mglev,mfi);
+					left(2,4) = m_operator->C(0,1,2,0,m,amrlev,mglev,mfi);
+					left(2,5) = m_operator->C(0,1,2,1,m,amrlev,mglev,mfi);
+					left(3,4) = m_operator->C(1,1,2,0,m,amrlev,mglev,mfi);
+					left(3,5) = m_operator->C(1,1,2,1,m,amrlev,mglev,mfi);
+					left(4,0) = m_operator->C(2,0,0,0,m,amrlev,mglev,mfi);
+					left(4,1) = m_operator->C(2,0,1,0,m,amrlev,mglev,mfi);
+					left(4,2) = m_operator->C(2,0,0,1,m,amrlev,mglev,mfi);
+					left(4,3) = m_operator->C(2,0,1,1,m,amrlev,mglev,mfi);
+					left(4,4) = m_operator->C(2,0,2,0,m,amrlev,mglev,mfi);
+					left(4,5) = m_operator->C(2,0,2,1,m,amrlev,mglev,mfi);
+					left(5,0) = m_operator->C(2,1,0,0,m,amrlev,mglev,mfi);
+					left(5,1) = m_operator->C(2,1,1,0,m,amrlev,mglev,mfi);
+					left(5,2) = m_operator->C(2,1,0,1,m,amrlev,mglev,mfi);
+					left(5,3) = m_operator->C(2,1,1,1,m,amrlev,mglev,mfi);
+					left(5,4) = m_operator->C(2,1,2,0,m,amrlev,mglev,mfi);
+					left(5,5) = m_operator->C(2,1,2,1,m,amrlev,mglev,mfi););
 
 			AMREX_D_TERM(	right(0) = AMREX_D_TERM(	mul1*traction[0](0)
 									, // 2D
 									+ 0.0
 									, // 3D
-									- C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-									- C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-									- C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+									- m_operator->C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- m_operator->C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- m_operator->C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 									);
 					, // 2D
 					right(1) = AMREX_D_TERM(	mul1*traction[0](1)
 									, // 2D
 									+ 0.0
 									, // 3D
-									- C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-									- C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-									- C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+									- m_operator->C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- m_operator->C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- m_operator->C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 									);
 					right(2) = AMREX_D_TERM(	mul2*traction[1](0)
 									, // 2D
 									+ 0.0
 									, // 3D
-									- C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-									- C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-									- C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+									- m_operator->C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- m_operator->C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- m_operator->C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 									);
 					right(3) = AMREX_D_TERM(	mul2*traction[1](1)
 									, // 2D
 									+ 0.0
 									, // 3D
-									- C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-									- C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-									- C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+									- m_operator->C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- m_operator->C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- m_operator->C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 									);
 					, // 3D
 					right(4) = AMREX_D_TERM(	mul1*traction[0](2)
 									, // 2D
 									+ 0.0
 									, // 3D
-									- C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-									- C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-									- C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+									- m_operator->C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- m_operator->C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 									);
 					right(5) = AMREX_D_TERM(	mul2*traction[1](2)
 									, // 2D
 									+ 0.0
 									, // 3D
-									- C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
-									- C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
-									- C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
+									- m_operator->C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+									- m_operator->C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+									- m_operator->C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 									););
 
 			sol = left.ldlt().solve(right); // we can change this solver as needed
@@ -995,67 +1041,67 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> right;
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> sol; 
 
-			left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
-			left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
-			left(0,2) = C(0,0,2,0,m,amrlev,mglev,mfi);
-			left(0,3) = C(0,0,0,2,m,amrlev,mglev,mfi);
-			left(0,4) = C(0,0,1,2,m,amrlev,mglev,mfi);
-			left(0,5) = C(0,0,2,2,m,amrlev,mglev,mfi);
-			left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
-			left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
-			left(1,2) = C(1,0,2,0,m,amrlev,mglev,mfi);
-			left(1,3) = C(1,0,0,2,m,amrlev,mglev,mfi);
-			left(1,4) = C(1,0,1,2,m,amrlev,mglev,mfi);
-			left(1,5) = C(1,0,2,2,m,amrlev,mglev,mfi);
-			left(2,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
-			left(2,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
-			left(2,2) = C(2,0,2,0,m,amrlev,mglev,mfi);
-			left(2,3) = C(2,0,0,2,m,amrlev,mglev,mfi);
-			left(2,4) = C(2,0,1,2,m,amrlev,mglev,mfi);
-			left(2,5) = C(2,0,2,2,m,amrlev,mglev,mfi);
-			left(3,0) = C(0,2,0,0,m,amrlev,mglev,mfi);
-			left(3,1) = C(0,2,1,0,m,amrlev,mglev,mfi);
-			left(3,2) = C(0,2,2,0,m,amrlev,mglev,mfi);
-			left(3,3) = C(0,2,0,2,m,amrlev,mglev,mfi);
-			left(3,4) = C(0,2,1,2,m,amrlev,mglev,mfi);
-			left(3,5) = C(0,2,2,2,m,amrlev,mglev,mfi);
-			left(4,0) = C(1,2,0,0,m,amrlev,mglev,mfi);
-			left(4,1) = C(1,2,1,0,m,amrlev,mglev,mfi);
-			left(4,2) = C(1,2,2,0,m,amrlev,mglev,mfi);
-			left(4,3) = C(1,2,0,2,m,amrlev,mglev,mfi);
-			left(4,4) = C(1,2,1,2,m,amrlev,mglev,mfi);
-			left(4,5) = C(1,2,2,2,m,amrlev,mglev,mfi);
-			left(5,0) = C(2,2,0,0,m,amrlev,mglev,mfi);
-			left(5,1) = C(2,2,1,0,m,amrlev,mglev,mfi);
-			left(5,2) = C(2,2,2,0,m,amrlev,mglev,mfi);
-			left(5,3) = C(2,2,0,2,m,amrlev,mglev,mfi);
-			left(5,4) = C(2,2,1,2,m,amrlev,mglev,mfi);
-			left(5,5) = C(2,2,2,2,m,amrlev,mglev,mfi);
+			left(0,0) = m_operator->C(0,0,0,0,m,amrlev,mglev,mfi);
+			left(0,1) = m_operator->C(0,0,1,0,m,amrlev,mglev,mfi);
+			left(0,2) = m_operator->C(0,0,2,0,m,amrlev,mglev,mfi);
+			left(0,3) = m_operator->C(0,0,0,2,m,amrlev,mglev,mfi);
+			left(0,4) = m_operator->C(0,0,1,2,m,amrlev,mglev,mfi);
+			left(0,5) = m_operator->C(0,0,2,2,m,amrlev,mglev,mfi);
+			left(1,0) = m_operator->C(1,0,0,0,m,amrlev,mglev,mfi);
+			left(1,1) = m_operator->C(1,0,1,0,m,amrlev,mglev,mfi);
+			left(1,2) = m_operator->C(1,0,2,0,m,amrlev,mglev,mfi);
+			left(1,3) = m_operator->C(1,0,0,2,m,amrlev,mglev,mfi);
+			left(1,4) = m_operator->C(1,0,1,2,m,amrlev,mglev,mfi);
+			left(1,5) = m_operator->C(1,0,2,2,m,amrlev,mglev,mfi);
+			left(2,0) = m_operator->C(2,0,0,0,m,amrlev,mglev,mfi);
+			left(2,1) = m_operator->C(2,0,1,0,m,amrlev,mglev,mfi);
+			left(2,2) = m_operator->C(2,0,2,0,m,amrlev,mglev,mfi);
+			left(2,3) = m_operator->C(2,0,0,2,m,amrlev,mglev,mfi);
+			left(2,4) = m_operator->C(2,0,1,2,m,amrlev,mglev,mfi);
+			left(2,5) = m_operator->C(2,0,2,2,m,amrlev,mglev,mfi);
+			left(3,0) = m_operator->C(0,2,0,0,m,amrlev,mglev,mfi);
+			left(3,1) = m_operator->C(0,2,1,0,m,amrlev,mglev,mfi);
+			left(3,2) = m_operator->C(0,2,2,0,m,amrlev,mglev,mfi);
+			left(3,3) = m_operator->C(0,2,0,2,m,amrlev,mglev,mfi);
+			left(3,4) = m_operator->C(0,2,1,2,m,amrlev,mglev,mfi);
+			left(3,5) = m_operator->C(0,2,2,2,m,amrlev,mglev,mfi);
+			left(4,0) = m_operator->C(1,2,0,0,m,amrlev,mglev,mfi);
+			left(4,1) = m_operator->C(1,2,1,0,m,amrlev,mglev,mfi);
+			left(4,2) = m_operator->C(1,2,2,0,m,amrlev,mglev,mfi);
+			left(4,3) = m_operator->C(1,2,0,2,m,amrlev,mglev,mfi);
+			left(4,4) = m_operator->C(1,2,1,2,m,amrlev,mglev,mfi);
+			left(4,5) = m_operator->C(1,2,2,2,m,amrlev,mglev,mfi);
+			left(5,0) = m_operator->C(2,2,0,0,m,amrlev,mglev,mfi);
+			left(5,1) = m_operator->C(2,2,1,0,m,amrlev,mglev,mfi);
+			left(5,2) = m_operator->C(2,2,2,0,m,amrlev,mglev,mfi);
+			left(5,3) = m_operator->C(2,2,0,2,m,amrlev,mglev,mfi);
+			left(5,4) = m_operator->C(2,2,1,2,m,amrlev,mglev,mfi);
+			left(5,5) = m_operator->C(2,2,2,2,m,amrlev,mglev,mfi);
 
 			right(0) = 	mul1*traction[0](0)
-				- C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-				- C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-				- C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- m_operator->C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- m_operator->C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- m_operator->C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(1) = 	mul1*traction[0](1)
-				- C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-				- C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-				- C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- m_operator->C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- m_operator->C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- m_operator->C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(2) = 	mul1*traction[0](2)
-				- C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-				- C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-				- C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- m_operator->C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- m_operator->C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- m_operator->C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(3) = 	mul2*traction[1](0)
-				- C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-				- C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-				- C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- m_operator->C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- m_operator->C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- m_operator->C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(4) = 	mul2*traction[1](1)
-				- C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-				- C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-				- C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- m_operator->C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- m_operator->C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- m_operator->C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 			right(5) = 	mul2*traction[1](2)
-				- C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
-				- C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
-				- C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
+				- m_operator->C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+				- m_operator->C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+				- m_operator->C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 			
@@ -1083,67 +1129,67 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> right;
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> sol; 
 
-			left(0,0) = C(0,1,0,1,m,amrlev,mglev,mfi);
-			left(0,1) = C(0,1,1,1,m,amrlev,mglev,mfi);
-			left(0,2) = C(0,1,2,1,m,amrlev,mglev,mfi);
-			left(0,3) = C(0,1,0,2,m,amrlev,mglev,mfi);
-			left(0,4) = C(0,1,1,2,m,amrlev,mglev,mfi);
-			left(0,5) = C(0,1,2,2,m,amrlev,mglev,mfi);
-			left(1,0) = C(1,1,0,1,m,amrlev,mglev,mfi);
-			left(1,1) = C(1,1,1,1,m,amrlev,mglev,mfi);
-			left(1,2) = C(1,1,2,1,m,amrlev,mglev,mfi);
-			left(1,3) = C(1,1,0,2,m,amrlev,mglev,mfi);
-			left(1,4) = C(1,1,1,2,m,amrlev,mglev,mfi);
-			left(1,5) = C(1,1,2,2,m,amrlev,mglev,mfi);
-			left(2,0) = C(2,1,0,1,m,amrlev,mglev,mfi);
-			left(2,1) = C(2,1,1,1,m,amrlev,mglev,mfi);
-			left(2,2) = C(2,1,2,1,m,amrlev,mglev,mfi);
-			left(2,3) = C(2,1,0,2,m,amrlev,mglev,mfi);
-			left(2,4) = C(2,1,1,2,m,amrlev,mglev,mfi);
-			left(2,5) = C(2,1,2,2,m,amrlev,mglev,mfi);
-			left(3,0) = C(0,2,0,1,m,amrlev,mglev,mfi);
-			left(3,1) = C(0,2,1,1,m,amrlev,mglev,mfi);
-			left(3,2) = C(0,2,2,1,m,amrlev,mglev,mfi);
-			left(3,3) = C(0,2,0,2,m,amrlev,mglev,mfi);
-			left(3,4) = C(0,2,1,2,m,amrlev,mglev,mfi);
-			left(3,5) = C(0,2,2,2,m,amrlev,mglev,mfi);
-			left(4,0) = C(1,2,0,1,m,amrlev,mglev,mfi);
-			left(4,1) = C(1,2,1,1,m,amrlev,mglev,mfi);
-			left(4,2) = C(1,2,2,1,m,amrlev,mglev,mfi);
-			left(4,3) = C(1,2,0,2,m,amrlev,mglev,mfi);
-			left(4,4) = C(1,2,1,2,m,amrlev,mglev,mfi);
-			left(4,5) = C(1,2,2,2,m,amrlev,mglev,mfi);
-			left(5,0) = C(2,2,0,1,m,amrlev,mglev,mfi);
-			left(5,1) = C(2,2,1,1,m,amrlev,mglev,mfi);
-			left(5,2) = C(2,2,2,1,m,amrlev,mglev,mfi);
-			left(5,3) = C(2,2,0,2,m,amrlev,mglev,mfi);
-			left(5,4) = C(2,2,1,2,m,amrlev,mglev,mfi);
-			left(5,5) = C(2,2,2,2,m,amrlev,mglev,mfi);
+			left(0,0) = m_operator->C(0,1,0,1,m,amrlev,mglev,mfi);
+			left(0,1) = m_operator->C(0,1,1,1,m,amrlev,mglev,mfi);
+			left(0,2) = m_operator->C(0,1,2,1,m,amrlev,mglev,mfi);
+			left(0,3) = m_operator->C(0,1,0,2,m,amrlev,mglev,mfi);
+			left(0,4) = m_operator->C(0,1,1,2,m,amrlev,mglev,mfi);
+			left(0,5) = m_operator->C(0,1,2,2,m,amrlev,mglev,mfi);
+			left(1,0) = m_operator->C(1,1,0,1,m,amrlev,mglev,mfi);
+			left(1,1) = m_operator->C(1,1,1,1,m,amrlev,mglev,mfi);
+			left(1,2) = m_operator->C(1,1,2,1,m,amrlev,mglev,mfi);
+			left(1,3) = m_operator->C(1,1,0,2,m,amrlev,mglev,mfi);
+			left(1,4) = m_operator->C(1,1,1,2,m,amrlev,mglev,mfi);
+			left(1,5) = m_operator->C(1,1,2,2,m,amrlev,mglev,mfi);
+			left(2,0) = m_operator->C(2,1,0,1,m,amrlev,mglev,mfi);
+			left(2,1) = m_operator->C(2,1,1,1,m,amrlev,mglev,mfi);
+			left(2,2) = m_operator->C(2,1,2,1,m,amrlev,mglev,mfi);
+			left(2,3) = m_operator->C(2,1,0,2,m,amrlev,mglev,mfi);
+			left(2,4) = m_operator->C(2,1,1,2,m,amrlev,mglev,mfi);
+			left(2,5) = m_operator->C(2,1,2,2,m,amrlev,mglev,mfi);
+			left(3,0) = m_operator->C(0,2,0,1,m,amrlev,mglev,mfi);
+			left(3,1) = m_operator->C(0,2,1,1,m,amrlev,mglev,mfi);
+			left(3,2) = m_operator->C(0,2,2,1,m,amrlev,mglev,mfi);
+			left(3,3) = m_operator->C(0,2,0,2,m,amrlev,mglev,mfi);
+			left(3,4) = m_operator->C(0,2,1,2,m,amrlev,mglev,mfi);
+			left(3,5) = m_operator->C(0,2,2,2,m,amrlev,mglev,mfi);
+			left(4,0) = m_operator->C(1,2,0,1,m,amrlev,mglev,mfi);
+			left(4,1) = m_operator->C(1,2,1,1,m,amrlev,mglev,mfi);
+			left(4,2) = m_operator->C(1,2,2,1,m,amrlev,mglev,mfi);
+			left(4,3) = m_operator->C(1,2,0,2,m,amrlev,mglev,mfi);
+			left(4,4) = m_operator->C(1,2,1,2,m,amrlev,mglev,mfi);
+			left(4,5) = m_operator->C(1,2,2,2,m,amrlev,mglev,mfi);
+			left(5,0) = m_operator->C(2,2,0,1,m,amrlev,mglev,mfi);
+			left(5,1) = m_operator->C(2,2,1,1,m,amrlev,mglev,mfi);
+			left(5,2) = m_operator->C(2,2,2,1,m,amrlev,mglev,mfi);
+			left(5,3) = m_operator->C(2,2,0,2,m,amrlev,mglev,mfi);
+			left(5,4) = m_operator->C(2,2,1,2,m,amrlev,mglev,mfi);
+			left(5,5) = m_operator->C(2,2,2,2,m,amrlev,mglev,mfi);
 
 			right(0) = 	mul1*traction[0](0)
-				- C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-				- C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-				- C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- m_operator->C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- m_operator->C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- m_operator->C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(1) = 	mul1*traction[0](1)
-				- C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-				- C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-				- C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- m_operator->C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- m_operator->C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- m_operator->C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(2) = 	mul1*traction[0](2)
-				- C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-				- C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-				- C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- m_operator->C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- m_operator->C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- m_operator->C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(3) = 	mul2*traction[1](0)
-				- C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-				- C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-				- C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- m_operator->C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- m_operator->C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- m_operator->C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(4) = 	mul2*traction[1](1)
-				- C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-				- C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-				- C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- m_operator->C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- m_operator->C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- m_operator->C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 			right(5) = 	mul2*traction[1](2)
-				- C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
-				- C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
-				- C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
+				- m_operator->C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+				- m_operator->C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+				- m_operator->C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 
 			sol = left.ldlt().solve(right); // we can change this solver as needed
 			
@@ -1171,87 +1217,87 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 		Eigen::Matrix<amrex::Real,3*AMREX_SPACEDIM,1> right;
 		Eigen::Matrix<amrex::Real,3*AMREX_SPACEDIM,1> sol; 
 
-		left(0,0) = C(0,0,0,0,m,amrlev,mglev,mfi);
-		left(0,1) = C(0,0,1,0,m,amrlev,mglev,mfi);
-		left(0,2) = C(0,0,2,0,m,amrlev,mglev,mfi);
-		left(0,3) = C(0,0,0,1,m,amrlev,mglev,mfi);
-		left(0,4) = C(0,0,1,1,m,amrlev,mglev,mfi);
-		left(0,5) = C(0,0,2,1,m,amrlev,mglev,mfi);
-		left(0,6) = C(0,0,0,2,m,amrlev,mglev,mfi);
-		left(0,7) = C(0,0,2,2,m,amrlev,mglev,mfi);
-		left(0,8) = C(0,0,2,2,m,amrlev,mglev,mfi);
-		left(1,0) = C(1,0,0,0,m,amrlev,mglev,mfi);
-		left(1,1) = C(1,0,1,0,m,amrlev,mglev,mfi);
-		left(1,2) = C(1,0,2,0,m,amrlev,mglev,mfi);
-		left(1,3) = C(1,0,0,1,m,amrlev,mglev,mfi);
-		left(1,4) = C(1,0,1,1,m,amrlev,mglev,mfi);
-		left(1,5) = C(1,0,2,1,m,amrlev,mglev,mfi);
-		left(1,6) = C(1,0,0,2,m,amrlev,mglev,mfi);
-		left(1,7) = C(1,0,2,2,m,amrlev,mglev,mfi);
-		left(1,8) = C(1,0,2,2,m,amrlev,mglev,mfi);
-		left(2,0) = C(2,0,0,0,m,amrlev,mglev,mfi);
-		left(2,1) = C(2,0,1,0,m,amrlev,mglev,mfi);
-		left(2,2) = C(2,0,2,0,m,amrlev,mglev,mfi);
-		left(2,3) = C(2,0,0,1,m,amrlev,mglev,mfi);
-		left(2,4) = C(2,0,1,1,m,amrlev,mglev,mfi);
-		left(2,5) = C(2,0,2,1,m,amrlev,mglev,mfi);
-		left(2,6) = C(2,0,0,2,m,amrlev,mglev,mfi);
-		left(2,7) = C(2,0,1,2,m,amrlev,mglev,mfi);
-		left(2,8) = C(2,0,2,2,m,amrlev,mglev,mfi);
-		left(3,0) = C(0,1,0,0,m,amrlev,mglev,mfi);
-		left(3,1) = C(0,1,1,0,m,amrlev,mglev,mfi);
-		left(3,2) = C(0,1,2,0,m,amrlev,mglev,mfi);
-		left(3,3) = C(0,1,0,1,m,amrlev,mglev,mfi);
-		left(3,4) = C(0,1,1,1,m,amrlev,mglev,mfi);
-		left(3,5) = C(0,1,2,1,m,amrlev,mglev,mfi);
-		left(3,6) = C(0,1,0,2,m,amrlev,mglev,mfi);
-		left(3,7) = C(0,1,1,2,m,amrlev,mglev,mfi);
-		left(3,8) = C(0,1,2,2,m,amrlev,mglev,mfi);
-		left(4,0) = C(1,1,0,0,m,amrlev,mglev,mfi);
-		left(4,1) = C(1,1,1,0,m,amrlev,mglev,mfi);
-		left(4,2) = C(1,1,2,0,m,amrlev,mglev,mfi);
-		left(4,3) = C(1,1,0,1,m,amrlev,mglev,mfi);
-		left(4,4) = C(1,1,1,1,m,amrlev,mglev,mfi);
-		left(4,5) = C(1,1,2,1,m,amrlev,mglev,mfi);
-		left(4,6) = C(1,1,0,2,m,amrlev,mglev,mfi);
-		left(4,7) = C(1,1,1,2,m,amrlev,mglev,mfi);
-		left(4,8) = C(1,1,2,2,m,amrlev,mglev,mfi);
-		left(5,0) = C(2,1,0,0,m,amrlev,mglev,mfi);
-		left(5,1) = C(2,1,1,0,m,amrlev,mglev,mfi);
-		left(5,2) = C(2,1,2,0,m,amrlev,mglev,mfi);
-		left(5,3) = C(2,1,0,1,m,amrlev,mglev,mfi);
-		left(5,4) = C(2,1,1,1,m,amrlev,mglev,mfi);
-		left(5,5) = C(2,1,2,1,m,amrlev,mglev,mfi);
-		left(5,6) = C(2,1,0,2,m,amrlev,mglev,mfi);
-		left(5,7) = C(2,1,1,2,m,amrlev,mglev,mfi);
-		left(5,8) = C(2,1,2,2,m,amrlev,mglev,mfi);
-		left(6,0) = C(0,2,0,0,m,amrlev,mglev,mfi);
-		left(6,1) = C(0,2,1,0,m,amrlev,mglev,mfi);
-		left(6,2) = C(0,2,2,0,m,amrlev,mglev,mfi);
-		left(6,3) = C(0,2,0,1,m,amrlev,mglev,mfi);
-		left(6,4) = C(0,2,1,1,m,amrlev,mglev,mfi);
-		left(6,5) = C(0,2,2,1,m,amrlev,mglev,mfi);
-		left(6,6) = C(0,2,0,2,m,amrlev,mglev,mfi);
-		left(6,7) = C(0,2,1,2,m,amrlev,mglev,mfi);
-		left(6,8) = C(0,2,2,2,m,amrlev,mglev,mfi);
-		left(7,0) = C(1,2,0,0,m,amrlev,mglev,mfi);
-		left(7,1) = C(1,2,1,0,m,amrlev,mglev,mfi);
-		left(7,2) = C(1,2,2,0,m,amrlev,mglev,mfi);
-		left(7,3) = C(1,2,0,1,m,amrlev,mglev,mfi);
-		left(7,4) = C(1,2,1,1,m,amrlev,mglev,mfi);
-		left(7,5) = C(1,2,2,1,m,amrlev,mglev,mfi);
-		left(7,6) = C(1,2,0,2,m,amrlev,mglev,mfi);
-		left(7,7) = C(1,2,1,2,m,amrlev,mglev,mfi);
-		left(7,8) = C(1,2,2,2,m,amrlev,mglev,mfi);
-		left(7,0) = C(2,2,0,0,m,amrlev,mglev,mfi);
-		left(8,1) = C(2,2,1,0,m,amrlev,mglev,mfi);
-		left(8,2) = C(2,2,2,0,m,amrlev,mglev,mfi);
-		left(8,3) = C(2,2,0,1,m,amrlev,mglev,mfi);
-		left(8,4) = C(2,2,1,1,m,amrlev,mglev,mfi);
-		left(8,5) = C(2,2,2,1,m,amrlev,mglev,mfi);
-		left(8,6) = C(2,2,0,2,m,amrlev,mglev,mfi);
-		left(8,7) = C(2,2,1,2,m,amrlev,mglev,mfi);
-		left(8,8) = C(2,2,2,2,m,amrlev,mglev,mfi);
+		left(0,0) = m_operator->C(0,0,0,0,m,amrlev,mglev,mfi);
+		left(0,1) = m_operator->C(0,0,1,0,m,amrlev,mglev,mfi);
+		left(0,2) = m_operator->C(0,0,2,0,m,amrlev,mglev,mfi);
+		left(0,3) = m_operator->C(0,0,0,1,m,amrlev,mglev,mfi);
+		left(0,4) = m_operator->C(0,0,1,1,m,amrlev,mglev,mfi);
+		left(0,5) = m_operator->C(0,0,2,1,m,amrlev,mglev,mfi);
+		left(0,6) = m_operator->C(0,0,0,2,m,amrlev,mglev,mfi);
+		left(0,7) = m_operator->C(0,0,2,2,m,amrlev,mglev,mfi);
+		left(0,8) = m_operator->C(0,0,2,2,m,amrlev,mglev,mfi);
+		left(1,0) = m_operator->C(1,0,0,0,m,amrlev,mglev,mfi);
+		left(1,1) = m_operator->C(1,0,1,0,m,amrlev,mglev,mfi);
+		left(1,2) = m_operator->C(1,0,2,0,m,amrlev,mglev,mfi);
+		left(1,3) = m_operator->C(1,0,0,1,m,amrlev,mglev,mfi);
+		left(1,4) = m_operator->C(1,0,1,1,m,amrlev,mglev,mfi);
+		left(1,5) = m_operator->C(1,0,2,1,m,amrlev,mglev,mfi);
+		left(1,6) = m_operator->C(1,0,0,2,m,amrlev,mglev,mfi);
+		left(1,7) = m_operator->C(1,0,2,2,m,amrlev,mglev,mfi);
+		left(1,8) = m_operator->C(1,0,2,2,m,amrlev,mglev,mfi);
+		left(2,0) = m_operator->C(2,0,0,0,m,amrlev,mglev,mfi);
+		left(2,1) = m_operator->C(2,0,1,0,m,amrlev,mglev,mfi);
+		left(2,2) = m_operator->C(2,0,2,0,m,amrlev,mglev,mfi);
+		left(2,3) = m_operator->C(2,0,0,1,m,amrlev,mglev,mfi);
+		left(2,4) = m_operator->C(2,0,1,1,m,amrlev,mglev,mfi);
+		left(2,5) = m_operator->C(2,0,2,1,m,amrlev,mglev,mfi);
+		left(2,6) = m_operator->C(2,0,0,2,m,amrlev,mglev,mfi);
+		left(2,7) = m_operator->C(2,0,1,2,m,amrlev,mglev,mfi);
+		left(2,8) = m_operator->C(2,0,2,2,m,amrlev,mglev,mfi);
+		left(3,0) = m_operator->C(0,1,0,0,m,amrlev,mglev,mfi);
+		left(3,1) = m_operator->C(0,1,1,0,m,amrlev,mglev,mfi);
+		left(3,2) = m_operator->C(0,1,2,0,m,amrlev,mglev,mfi);
+		left(3,3) = m_operator->C(0,1,0,1,m,amrlev,mglev,mfi);
+		left(3,4) = m_operator->C(0,1,1,1,m,amrlev,mglev,mfi);
+		left(3,5) = m_operator->C(0,1,2,1,m,amrlev,mglev,mfi);
+		left(3,6) = m_operator->C(0,1,0,2,m,amrlev,mglev,mfi);
+		left(3,7) = m_operator->C(0,1,1,2,m,amrlev,mglev,mfi);
+		left(3,8) = m_operator->C(0,1,2,2,m,amrlev,mglev,mfi);
+		left(4,0) = m_operator->C(1,1,0,0,m,amrlev,mglev,mfi);
+		left(4,1) = m_operator->C(1,1,1,0,m,amrlev,mglev,mfi);
+		left(4,2) = m_operator->C(1,1,2,0,m,amrlev,mglev,mfi);
+		left(4,3) = m_operator->C(1,1,0,1,m,amrlev,mglev,mfi);
+		left(4,4) = m_operator->C(1,1,1,1,m,amrlev,mglev,mfi);
+		left(4,5) = m_operator->C(1,1,2,1,m,amrlev,mglev,mfi);
+		left(4,6) = m_operator->C(1,1,0,2,m,amrlev,mglev,mfi);
+		left(4,7) = m_operator->C(1,1,1,2,m,amrlev,mglev,mfi);
+		left(4,8) = m_operator->C(1,1,2,2,m,amrlev,mglev,mfi);
+		left(5,0) = m_operator->C(2,1,0,0,m,amrlev,mglev,mfi);
+		left(5,1) = m_operator->C(2,1,1,0,m,amrlev,mglev,mfi);
+		left(5,2) = m_operator->C(2,1,2,0,m,amrlev,mglev,mfi);
+		left(5,3) = m_operator->C(2,1,0,1,m,amrlev,mglev,mfi);
+		left(5,4) = m_operator->C(2,1,1,1,m,amrlev,mglev,mfi);
+		left(5,5) = m_operator->C(2,1,2,1,m,amrlev,mglev,mfi);
+		left(5,6) = m_operator->C(2,1,0,2,m,amrlev,mglev,mfi);
+		left(5,7) = m_operator->C(2,1,1,2,m,amrlev,mglev,mfi);
+		left(5,8) = m_operator->C(2,1,2,2,m,amrlev,mglev,mfi);
+		left(6,0) = m_operator->C(0,2,0,0,m,amrlev,mglev,mfi);
+		left(6,1) = m_operator->C(0,2,1,0,m,amrlev,mglev,mfi);
+		left(6,2) = m_operator->C(0,2,2,0,m,amrlev,mglev,mfi);
+		left(6,3) = m_operator->C(0,2,0,1,m,amrlev,mglev,mfi);
+		left(6,4) = m_operator->C(0,2,1,1,m,amrlev,mglev,mfi);
+		left(6,5) = m_operator->C(0,2,2,1,m,amrlev,mglev,mfi);
+		left(6,6) = m_operator->C(0,2,0,2,m,amrlev,mglev,mfi);
+		left(6,7) = m_operator->C(0,2,1,2,m,amrlev,mglev,mfi);
+		left(6,8) = m_operator->C(0,2,2,2,m,amrlev,mglev,mfi);
+		left(7,0) = m_operator->C(1,2,0,0,m,amrlev,mglev,mfi);
+		left(7,1) = m_operator->C(1,2,1,0,m,amrlev,mglev,mfi);
+		left(7,2) = m_operator->C(1,2,2,0,m,amrlev,mglev,mfi);
+		left(7,3) = m_operator->C(1,2,0,1,m,amrlev,mglev,mfi);
+		left(7,4) = m_operator->C(1,2,1,1,m,amrlev,mglev,mfi);
+		left(7,5) = m_operator->C(1,2,2,1,m,amrlev,mglev,mfi);
+		left(7,6) = m_operator->C(1,2,0,2,m,amrlev,mglev,mfi);
+		left(7,7) = m_operator->C(1,2,1,2,m,amrlev,mglev,mfi);
+		left(7,8) = m_operator->C(1,2,2,2,m,amrlev,mglev,mfi);
+		left(7,0) = m_operator->C(2,2,0,0,m,amrlev,mglev,mfi);
+		left(8,1) = m_operator->C(2,2,1,0,m,amrlev,mglev,mfi);
+		left(8,2) = m_operator->C(2,2,2,0,m,amrlev,mglev,mfi);
+		left(8,3) = m_operator->C(2,2,0,1,m,amrlev,mglev,mfi);
+		left(8,4) = m_operator->C(2,2,1,1,m,amrlev,mglev,mfi);
+		left(8,5) = m_operator->C(2,2,2,1,m,amrlev,mglev,mfi);
+		left(8,6) = m_operator->C(2,2,0,2,m,amrlev,mglev,mfi);
+		left(8,7) = m_operator->C(2,2,1,2,m,amrlev,mglev,mfi);
+		left(8,8) = m_operator->C(2,2,2,2,m,amrlev,mglev,mfi);
 
 		right(0) = mul1*traction[0](0);
 		right(1) = mul1*traction[0](1);

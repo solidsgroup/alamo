@@ -105,6 +105,7 @@ int main (int argc, char* argv[])
 	energy.resize(nlevels);
 
 
+	//BC::Constant *mybc;
 	BC::Elastic *mybc;
 	//mybc = new BC::Constant({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
 	//			{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
@@ -114,7 +115,7 @@ int main (int argc, char* argv[])
 				{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
 				AMREX_D_DECL(disp_bc_left,disp_bc_bottom,disp_bc_back),
 				AMREX_D_DECL(disp_bc_right,disp_bc_top,disp_bc_front));
-	//mybc->define(geom[0]); /// \todo get rid of this line, should work without it
+	mybc->define(geom[0]); /// \todo get rid of this line, should work without it
 
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
@@ -187,7 +188,7 @@ int main (int argc, char* argv[])
 	mlabec.define(geom, grids, dmap, *mybc, info);
 	mlabec.setMaxOrder(linop_maxorder);
 
-	mybc->SetElasticOperator(&mlabec);
+	//mybc->SetElasticOperator(&mlabec);
 
 	//
 	// THIS STUFF IS THE OLD WAY OF SETTING BOUNDARY CONDITIONS
