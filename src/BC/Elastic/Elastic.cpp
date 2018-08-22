@@ -427,10 +427,12 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	if(BCUtil::IsNeumann(bc_lo[1]) && box.loVect()[1]==domain.loVect()[1])
 	{
 		int j = box.loVect()[1] - 1;
-		AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
-				,
-				for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
+		AMREX_D_TERM(	for (int i = box.loVect()[0]; i <= box.hiVect()[0]; i++),
+						,
+						for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 		{
+			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
+			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
@@ -488,10 +490,12 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	{
 		// non-end ghost cells. End ghost cells will be treated separately.
 		int j = box.hiVect()[1] + 1;
-		AMREX_D_TERM(	for (int i = box.loVect()[0]+1; i <= box.hiVect()[0]-1; i++),
+		AMREX_D_TERM(	for (int i = box.loVect()[0]; i <= box.hiVect()[0]; i++),
 				,
 				for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 		{
+			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
+			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
@@ -550,10 +554,14 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	{
 		// End and triple end cells have already been filled - so no need to iterate over those
 		int k = box.loVect()[2] - 1;
-		AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
-				for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
+		AMREX_D_TERM(	for (int i = box.loVect()[0]; i <= box.hiVect()[0]; i++),
+				for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
 				)
 		{
+			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
+			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
+			if(j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1])) continue;
+			if(j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1])) continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
@@ -581,11 +589,16 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	/* Step 6: Fill front face of ghost cells */
 	if(BCUtil::IsNeumann(bc_hi[2]) && box.hiVect()[2]==domain.hiVect()[2])
 	{
+
 		int k = box.hiVect()[2] + 1;
 		AMREX_D_TERM(	for (int i = box.loVect()[0] + 1; i <= box.hiVect()[0] - 1; i++),
-				for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
-				)
+						for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
+					)
 		{
+			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
+			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
+			if(j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1])) continue;
+			if(j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1])) continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
