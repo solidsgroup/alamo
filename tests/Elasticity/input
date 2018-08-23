@@ -1,6 +1,6 @@
 plot_file = tests/Elasticity/output
 
-bc.body_force     = 0.0 1.0 0.0 
+bc.body_force     = 0.0 0.0 0.0 
 bc.disp_bc_top    = 0.0 0.1 0.0 
 bc.disp_bc_left   = 0.0 0.0 0.0 
 bc.disp_bc_right  = 0.0 0.0 0.0 
@@ -9,10 +9,10 @@ bc.disp_bc_front  = 0.0 0.0 0.0
 bc.disp_bc_back   = 0.0 0.0 0.0 
 bc.bc_x_lo = dirichlet
 bc.bc_y_lo = neumann
-bc.bc_z_lo = dirichlet
+bc.bc_z_lo = neumann
 bc.bc_x_hi = dirichlet
 bc.bc_y_hi = neumann
-bc.bc_z_hi = dirichlet
+bc.bc_z_hi = neumann
 
 solver.bottom_solver = cg
 solver.max_level		= 0

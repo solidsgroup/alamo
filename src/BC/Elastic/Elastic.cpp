@@ -1199,9 +1199,9 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 
 			//gradu_k,1
 			Set::Vector gradu_1;
-			gradu_1(0) = (stencil[2](0) - stencil[1](0))/(2.0*DX[1]);
-			gradu_1(1) = (stencil[2](1) - stencil[1](1))/(2.0*DX[1]);
-			gradu_1(2) = (stencil[2](2) - stencil[1](2))/(2.0*DX[1]);
+			gradu_1(0) = (stencil[2](0) - stencil[1](0))/(2.0*DX[0]);
+			gradu_1(1) = (stencil[2](1) - stencil[1](1))/(2.0*DX[0]);
+			gradu_1(2) = (stencil[2](2) - stencil[1](2))/(2.0*DX[0]);
 
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,2*AMREX_SPACEDIM> left;
 			Eigen::Matrix<amrex::Real,2*AMREX_SPACEDIM,1> right;
