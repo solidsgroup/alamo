@@ -624,7 +624,67 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 #endif
 #endif
-	//	}
+	/*Finally let's do averaging of corner cells - edge corners and triple corners*/
+	AMREX_D_TERM(	for(int i = box.loVect()[0]-ngrow; i <= box.hiVect()[0]+ngrow; i++),
+					for(int j = box.loVect()[1]-ngrow; j <= box.hiVect()[1]+ngrow; j++),
+					for(int k = box.loVect()[2]-ngrow; k <= box.hiVect()[2]+ngrow; k++))
+	{
+		amrex::IntVect m(AMREX_D_DECL(i,j,k));
+		int mul1 = 0, mul2 = 0, mul3 = 0;
+
+#if AMREX_SPACEDIM > 1
+		if(i == domain.loVect()[0]-1 && j == domain.loVect()[1]-1)
+		{
+			mul1 = 1; mul2 = 1;
+#if AMREX_SPACEDIM > 2
+			if(k==domain.loVect()[2]-1) mul3 = 1;
+			else if(k==domain.hiVect()[2]+1) mul3 = -1;
+			else mul3 = 0;
+#endif
+		}
+		else if(i == domain.loVect()[0]-1 && j == domain.hiVect()[1]+1)
+		{
+			mul1 = 1; mul2 = -1;
+#if AMREX_SPACEDIM > 2
+			if(k==domain.loVect()[2]-1) mul3 = 1;
+			else if(k==domain.hiVect()[2]+1) mul3 = -1;
+			else mul3 = 0;
+#endif
+		}
+		else if(i == domain.hiVect()[0]+1 && j == domain.loVect()[1]-1)
+		{
+			mul1 = -1; mul2 = 1;
+#if AMREX_SPACEDIM > 2
+			if(k==domain.loVect()[2]-1) mul3 = 1;
+			else if(k==domain.hiVect()[2]+1) mul3 = -1;
+			else mul3 = 0;
+#endif
+		}
+		else if(i == domain.hiVect()[0]+1 && j == domain.hiVect()[1]+1)
+		{
+			mul1 = -1; mul2 = -1;
+#if AMREX_SPACEDIM > 2
+			if(k==domain.loVect()[2]-1) mul3 = 1;
+			else if(k==domain.hiVect()[2]+1) mul3 = -1;
+			else mul3 = 0;
+#endif
+		}
+#if AMREX_SPACEDIM > 2
+		else if (i == domain.loVect()[0]-1 && k == domain.loVect()[2]-1){mul1 = 1; mul2 = 0; mul3 = 1;}
+		else if (i == domain.loVect()[0]-1 && k == domain.hiVect()[2]+1){mul1 = 1; mul2 = 0; mul3 = -1;}
+		else if (i == domain.hiVect()[0]+1 && k == domain.loVect()[2]-1){mul1 = -1; mul2 = 0; mul3 = 1;}
+		else if (i == domain.hiVect()[0]+1 && k == domain.hiVect()[2]+1){mul1 = -1; mul2 = 0; mul3 = -1;}
+		else if (j == domain.loVect()[1]-1 && k == domain.loVect()[2]-1){mul1 = 0; mul2 = 1; mul3 = 1;}
+		else if (j == domain.loVect()[1]-1 && k == domain.hiVect()[2]+1){mul1 = 0; mul2 = 1; mul3 = -1;}
+		else if (j == domain.hiVect()[1]+1 && k == domain.loVect()[2]-1){mul1 = 0; mul2 = -1; mul3 = 1;}
+		else if (j == domain.hiVect()[1]+1 && k == domain.hiVect()[2]+1){mul1 = 0; mul2 = -1; mul3 = -1;}
+#endif
+		if(AMREX_D_TERM(std::abs(mul1), + std::abs(mul2), + std::abs(mul3)) == 0) continue;
+
+		for(int n = 0; n<AMREX_SPACEDIM; n++)
+				mf_box(m,n) = (AMREX_D_TERM(mf_box(m+mul1*dx,n),+mf_box(m+mul2*dy,n),+mf_box(m+mul3*dz,n)))/(AMREX_D_TERM(std::abs(mul1),+std::abs(mul2),+std::abs(mul3)));
+	}
+#endif
 }
 
 amrex::BCRec
@@ -770,7 +830,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 								- m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								- m_operator->C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
 								););
-			sol = left.ldlt().solve(right); // we can change this solver as needed
+			//sol = left.ldlt().solve(right); // we can change this solver as needed
+			sol = left.colPivHouseholderQr().solve(right);
 					
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[0]*sol(0);,
 					stencil[points[0]](1) = stencil[0](1) + mul*DX[0]*sol(1);,
@@ -839,7 +900,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 								- m_operator->C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 								- m_operator->C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								););
-			sol = left.ldlt().solve(right); // we can change this solver as needed
+			//sol = left.ldlt().solve(right); // we can change this solver as needed
+			sol = left.colPivHouseholderQr().solve(right);
 			
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[1]*sol(0);,
 					stencil[points[0]](1) = stencil[0](1) + mul*DX[1]*sol(1);,
@@ -909,7 +971,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 								- m_operator->C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
 								);
 					);
-			sol = left.ldlt().solve(right); // we can change this solver as needed
+			//sol = left.ldlt().solve(right); // we can change this solver as needed
+			sol = left.colPivHouseholderQr().solve(right);
 					
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[2]*sol(0);,
 					stencil[points[0]](1) = stencil[0](1) + mul*DX[2]*sol(1);,
@@ -1028,7 +1091,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 									- m_operator->C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2)
 									););
 
-			sol = left.ldlt().solve(right); // we can change this solver as needed
+			//sol = left.ldlt().solve(right); // we can change this solver as needed
+			sol = left.colPivHouseholderQr().solve(right);
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
 					,
 					stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
@@ -1116,7 +1180,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 				- m_operator->C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
 				- m_operator->C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2);
 
-			sol = left.ldlt().solve(right); // we can change this solver as needed
+			//sol = left.ldlt().solve(right); // we can change this solver as needed
+			sol = left.colPivHouseholderQr().solve(right);
 			
 			stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
 			stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
@@ -1204,7 +1269,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 				- m_operator->C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
 				- m_operator->C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2);
 
-			sol = left.ldlt().solve(right); // we can change this solver as needed
+			//sol = left.ldlt().solve(right); // we can change this solver as needed
+			sol = left.colPivHouseholderQr().solve(right);
 			
 			stencil[points[0]](0) = stencil[0](0) + mul1*DX[1]*sol(0);
 			stencil[points[0]](1) = stencil[0](1) + mul1*DX[1]*sol(1);
@@ -1322,7 +1388,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 		right(7) = mul3*traction[2](1);
 		right(8) = mul3*traction[2](2);
 
-		sol = left.ldlt().solve(right); // we can change this solver as needed
+		//sol = left.ldlt().solve(right); // we can change this solver as needed
+		sol = left.colPivHouseholderQr().solve(right);
 
 		stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
 		stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
