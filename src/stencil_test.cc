@@ -191,9 +191,9 @@ int main (int argc, char* argv[])
 	mybc->SetElasticOperator(&mlabec);
 
 	amrex::Vector<Set::Vector> stencil;
-	amrex::Vector<Set::Vector> traction;
-	amrex::Vector<int> points;
-	amrex::IntVect m(AMREX_D_DECL(0,0,0));
+	//amrex::Vector<Set::Vector> traction;
+	///amrex::Vector<int> points;
+	amrex::IntVect m(AMREX_D_DECL(0,6,5));
 
 #if AMREX_SPACEDIM == 1
 	static amrex::IntVect dx(1);
@@ -204,19 +204,32 @@ int main (int argc, char* argv[])
 #endif 
 
 	/* Testing only one point unknown in the stencil - left boundary*/
-	/*stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m,0),mf_box(m,1),mf_box(m,2))));
-	AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dx,0),mf_box(m-dx,1),mf_box(m-dx,2))));
-			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dx,0),mf_box(m+dx,1),mf_box(m+dx,2))));
+	stencil.push_back(Set::Vector(AMREX_D_DECL(0.0008545907028,0.003169449969,-0.0001377147974)));
+	AMREX_D_TERM(	stencil.push_back(Set::Vector(AMREX_D_DECL(0,0,0)));
+			stencil.push_back(Set::Vector(AMREX_D_DECL(0.0005749858986,0.005498521306,-0.0001355297027)));
 			,
-			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
-			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
+			stencil.push_back(Set::Vector(AMREX_D_DECL(0.0006662620317,0.001609323344,-0.0002173323415)));
+			stencil.push_back(Set::Vector(AMREX_D_DECL(0.001608359934,0.006584905797,3.210572128e-05)));
 			,
-			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
-			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
+			stencil.push_back(Set::Vector(AMREX_D_DECL(0.0008594510531,0.003207860629,-1.956894045e-05)));
+			stencil.push_back(Set::Vector(AMREX_D_DECL(0.0008384021923,0.002920127078,-0.0003646250717)));
 			);
-	amrex::Vector<Set::Vector> traction;
-	traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
+	amrex::Vector<Set::Vector> trac;
+	trac.push_back(Set::Vector(AMREX_D_DECL(disp_bc_left[0],disp_bc_left[1],disp_bc_left[2])));
 
-	amrex::Vector<int> points;
-	points.push_back(6);*/
+	amrex::Vector<int> pts;
+	pts.push_back(1);
+
+	amrex::MFIter mfi (u[0], true);
+
+	//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
+	for (int p = 0; p < 7; p++)
+		std::cout << "Stencil before at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
+	std::cout << std::endl;
+	
+	mybc->StencilFill(stencil, trac, pts, m, 0, 0, mfi);
+
+	for (int p = 0; p < 7; p++)
+		std::cout << "Stencil after at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
+	std::cout << std::endl;
 }

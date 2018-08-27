@@ -182,6 +182,7 @@ int main (int argc, char* argv[])
 
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
+	info.setMaxCoarseningLevel(0);
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
