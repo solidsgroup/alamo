@@ -54,6 +54,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	std::cout << "Box hiVect = (" << box.hiVect()[0] << "," << box.hiVect()[1] << "," << box.hiVect()[2] << ")" << std::endl;
 	std::cout << "Domain loVect = (" << domain.loVect()[0] << "," << domain.loVect()[1] << "," << domain.loVect()[2] << ")" << std::endl;
 	std::cout << "Domain hiVect = (" << domain.hiVect()[0] << "," << domain.hiVect()[1] << "," << domain.hiVect()[2] << ")" << std::endl;
+	std::cout << "Amrlev = " << m_amrlev << ". Mglev = " << m_mglev << std::endl;
 
 	//mf.FillBoundary(m_geom.periodicity());
 
@@ -137,7 +138,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	if (BCUtil::IsNeumann(bc_lo[0]) && box.loVect()[0]==domain.loVect()[0])
 	{
 		int i = box.loVect()[0] - 1;
-		std::cout << "Neumann boundary in left face. i = " << i << std::endl;
+		//std::cout << "Neumann boundary in left face. i = " << i << std::endl;
 
 		AMREX_D_TERM(	,
 				for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
@@ -714,6 +715,7 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 	  the list must be in asceding order. 
 	*/
 
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	if(points.size() > 3 || points.size() < 1)
 		Util::Abort("Number of unknown points can not be greater than 3");
 
@@ -721,6 +723,7 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 		Util::Abort("Mismatch between number of unknown points and tractions");
 
 	const Real* DX = m_geom.CellSize();
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
   
 #if AMREX_SPACEDIM == 1
 	static amrex::IntVect dx(1);
@@ -732,6 +735,7 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 
 	if(points.size() == 1)		//Need three equations - non corner cases
 	{
+		std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 		int mul = 0;
 		if(points[0] == 1 || points[0] == 2)		// left or right faces
 		{
