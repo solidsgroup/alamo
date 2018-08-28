@@ -135,6 +135,8 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	*/
 
 	/* Step 1: Fill the left face ghost cells */
+	bool debug = true;
+
 	if (BCUtil::IsNeumann(bc_lo[0]) && box.loVect()[0]==domain.loVect()[0])
 	{
 		int i = box.loVect()[0] - 1;
@@ -224,14 +226,20 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			}
 #endif
 #endif
-			std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			for (int p = 0; p < 7; p++)
-				std::cout << "Stencil before at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
-			std::cout << std::endl;
-			StencilFill(stencil, traction, points, m+dx, m_amrlev, m_mglev, mfi);
-			for (int p = 0; p < 7; p++)
-				std::cout << "Stencil after at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
-			std::cout << std::endl;
+			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
+			if (m == amrex::IntVect(AMREX_D_DECL(-1,6,5)))
+			{
+				for (int p = 0; p < 7; p++)
+					std::cout << "Stencil before at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
+				std::cout << std::endl;
+			}
+			StencilFill(stencil, traction, points, m+dx, m_amrlev, m_mglev, mfi, debug);
+			if (m == amrex::IntVect(AMREX_D_DECL(-1,6,5)))
+			{
+				for (int p = 0; p < 7; p++)
+					std::cout << "Stencil after at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
+				std::cout << std::endl;
+			}
 
 			for (int n = 0; n < AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[1](n);
@@ -350,7 +358,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			StencilFill(stencil, traction, points, m-dx, m_amrlev, m_mglev, mfi);
+			StencilFill(stencil, traction, points, m-dx, m_amrlev, m_mglev, mfi, debug);
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[2](n);
@@ -423,7 +431,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			}
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			StencilFill(stencil, traction, points, m+dy, m_amrlev, m_mglev, mfi);
+			StencilFill(stencil, traction, points, m+dy, m_amrlev, m_mglev, mfi, debug);
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[3](n);
@@ -490,7 +498,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			}
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			StencilFill(stencil, traction, points, m-dy, m_amrlev, m_mglev, mfi);
+			StencilFill(stencil, traction, points, m-dy, m_amrlev, m_mglev, mfi, debug);
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[4](n);
@@ -545,7 +553,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(5);
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			StencilFill(stencil, traction, points, m+dz, m_amrlev, m_mglev, mfi);
+			StencilFill(stencil, traction, points, m+dz, m_amrlev, m_mglev, mfi, debug);
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[5](n);
@@ -583,7 +591,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(6);
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			StencilFill(stencil, traction, points, m-dz, m_amrlev, m_mglev, mfi);
+			StencilFill(stencil, traction, points, m-dz, m_amrlev, m_mglev, mfi, debug);
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[6](n);
@@ -688,7 +696,8 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			const amrex::IntVect &m,
 			const int amrlev,
 			const int mglev,
-			const amrex::MFIter &mfi)
+			const amrex::MFIter &mfi,
+			const bool debug)
 {
 
 	/*
@@ -715,15 +724,15 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 	  the list must be in asceding order. 
 	*/
 
-	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+	//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	if(points.size() > 3 || points.size() < 1)
 		Util::Abort("Number of unknown points can not be greater than 3");
 
 	if(points.size() != traction.size())
 		Util::Abort("Mismatch between number of unknown points and tractions");
-
+	//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	const Real* DX = m_geom.CellSize();
-	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+	//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
   
 #if AMREX_SPACEDIM == 1
 	static amrex::IntVect dx(1);
@@ -735,7 +744,7 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 
 	if(points.size() == 1)		//Need three equations - non corner cases
 	{
-		std::cout << __FILE__ << ": " << __LINE__ << std::endl;
+		//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 		int mul = 0;
 		if(points[0] == 1 || points[0] == 2)		// left or right faces
 		{
@@ -803,6 +812,50 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 			//sol = left.ldlt().solve(right); // we can change this solver as needed
 			sol = left.colPivHouseholderQr().solve(right);
 					
+			if (debug)
+			{
+				//std::cout << "DX = " << DX[0] << "," << DX[1] << "," << DX[2] << std::endl;
+				//std::cout << "gradu_2 = " << std::endl << gradu_2 << std::endl;
+				//std::cout << "gradu_3 = " << std::endl << gradu_3 << std::endl;
+				//std::cout << "left = " << std::endl << left << std::endl;
+				//std::cout << "right = " << std::endl << right << std::endl;
+				//std::cout << "sol = " << std::endl << sol << std::endl;
+
+				Set::Vector test;
+				test(0) = 	m_operator->C(0,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,0,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test(1) = 	m_operator->C(1,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,0,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test(2) = 	m_operator->C(2,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,0,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+
+				if((test-traction[0]).norm() > 1.e-2)
+				{
+					std::cout << "test =" << std::endl << test << std::endl;
+					std::cout << "traction = " << std::endl << traction[0] << std::endl;
+				}
+			}
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[0]*sol(0);,
 					stencil[points[0]](1) = stencil[0](1) + mul*DX[0]*sol(1);,
 					stencil[points[0]](2) = stencil[0](2) + mul*DX[0]*sol(2););
@@ -872,6 +925,51 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 								););
 			//sol = left.ldlt().solve(right); // we can change this solver as needed
 			sol = left.colPivHouseholderQr().solve(right);
+
+			if (debug)
+			{
+				//std::cout << "DX = " << DX[0] << "," << DX[1] << "," << DX[2] << std::endl;
+				//std::cout << "gradu_2 = " << std::endl << gradu_2 << std::endl;
+				//std::cout << "gradu_3 = " << std::endl << gradu_3 << std::endl;
+				//std::cout << "left = " << std::endl << left << std::endl;
+				//std::cout << "right = " << std::endl << right << std::endl;
+				//std::cout << "sol = " << std::endl << sol << std::endl;
+
+				Set::Vector test;
+				test(0) = 	m_operator->C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(0,1,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,1,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,1,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test(1) = 	m_operator->C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(1,1,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,1,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,1,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test(2) = 	m_operator->C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(2,1,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,1,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,1,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+
+				if((test-traction[0]).norm() > 1.e-2)
+				{
+					std::cout << "test =" << std::endl << test << std::endl;
+					std::cout << "traction = " << std::endl << traction[0] << std::endl;
+				}
+			}
 			
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[1]*sol(0);,
 					stencil[points[0]](1) = stencil[0](1) + mul*DX[1]*sol(1);,
@@ -943,6 +1041,51 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 					);
 			//sol = left.ldlt().solve(right); // we can change this solver as needed
 			sol = left.colPivHouseholderQr().solve(right);
+
+			if (debug)
+			{
+				//std::cout << "DX = " << DX[0] << "," << DX[1] << "," << DX[2] << std::endl;
+				//std::cout << "gradu_2 = " << std::endl << gradu_2 << std::endl;
+				//std::cout << "gradu_3 = " << std::endl << gradu_3 << std::endl;
+				//std::cout << "left = " << std::endl << left << std::endl;
+				//std::cout << "right = " << std::endl << right << std::endl;
+				//std::cout << "sol = " << std::endl << sol << std::endl;
+
+				Set::Vector test;
+				test(0) = 	m_operator->C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(0,2,0,2,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,2,1,2,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,2,2,2,m,amrlev,mglev,mfi)*sol(2);
+				test(1) = 	m_operator->C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(1,2,0,2,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,2,1,2,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,2,2,2,m,amrlev,mglev,mfi)*sol(2);
+				test(2) = 	m_operator->C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(2,2,0,2,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,2,1,2,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,2,2,2,m,amrlev,mglev,mfi)*sol(2);
+
+				if((test-traction[0]).norm() > 1.e-2)
+				{
+					std::cout << "test =" << std::endl << test << std::endl;
+					std::cout << "traction = " << std::endl << traction[0] << std::endl;
+				}
+			}
 					
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul*DX[2]*sol(0);,
 					stencil[points[0]](1) = stencil[0](1) + mul*DX[2]*sol(1);,
@@ -1063,6 +1206,80 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 
 			//sol = left.ldlt().solve(right); // we can change this solver as needed
 			sol = left.colPivHouseholderQr().solve(right);
+
+			if (debug)
+			{
+				//std::cout << "DX = " << DX[0] << "," << DX[1] << "," << DX[2] << std::endl;
+				//std::cout << "gradu_2 = " << std::endl << gradu_2 << std::endl;
+				//std::cout << "gradu_3 = " << std::endl << gradu_3 << std::endl;
+				//std::cout << "left = " << std::endl << left << std::endl;
+				//std::cout << "right = " << std::endl << right << std::endl;
+				//std::cout << "sol = " << std::endl << sol << std::endl;
+
+				Set::Vector test, test2;
+				test(0) = 	m_operator->C(0,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,0,2,0,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(0,0,0,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,0,1,1,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(0,0,2,1,m,amrlev,mglev,mfi)*sol(5)
+							+ m_operator->C(0,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(0,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(0,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test(1) = 	m_operator->C(1,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,0,2,0,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(1,0,0,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,0,1,1,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(1,0,2,1,m,amrlev,mglev,mfi)*sol(5)
+							+ m_operator->C(1,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(1,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(1,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test(2) = 	m_operator->C(2,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,0,2,0,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(2,0,0,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,0,1,1,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(2,0,2,1,m,amrlev,mglev,mfi)*sol(5)
+							+ m_operator->C(2,0,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test2(0) = 	m_operator->C(0,1,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,1,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,1,2,0,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(0,1,0,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,1,1,1,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(0,1,2,1,m,amrlev,mglev,mfi)*sol(5)
+							+ m_operator->C(0,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(0,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(0,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test2(1) = 	m_operator->C(1,1,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,1,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,1,2,0,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(1,1,0,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,1,1,1,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(1,1,2,1,m,amrlev,mglev,mfi)*sol(5)
+							+ m_operator->C(1,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(1,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(1,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+				test2(2) = 	m_operator->C(2,1,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,1,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,1,2,0,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(2,1,0,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,1,1,1,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(2,1,2,1,m,amrlev,mglev,mfi)*sol(5)
+							+ m_operator->C(2,1,0,2,m,amrlev,mglev,mfi)*gradu_3(0)
+							+ m_operator->C(2,1,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
+							+ m_operator->C(2,1,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
+
+				if((test-traction[0]).norm() > 1.e-2 || (test2-traction[1]).norm() > 1.e-2)
+				{
+					std::cout << "test =" << std::endl << test << std::endl;
+					std::cout << "traction = " << std::endl << traction[0] << std::endl;
+					std::cout << "test2 =" << std::endl << test2 << std::endl;
+					std::cout << "traction2 = " << std::endl << traction[1] << std::endl;
+				}
+			}
 			AMREX_D_TERM(	stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
 					,
 					stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
@@ -1152,6 +1369,80 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 
 			//sol = left.ldlt().solve(right); // we can change this solver as needed
 			sol = left.colPivHouseholderQr().solve(right);
+
+			if (debug)
+			{
+				//std::cout << "DX = " << DX[0] << "," << DX[1] << "," << DX[2] << std::endl;
+				//std::cout << "gradu_2 = " << std::endl << gradu_2 << std::endl;
+				//std::cout << "gradu_3 = " << std::endl << gradu_3 << std::endl;
+				//std::cout << "left = " << std::endl << left << std::endl;
+				//std::cout << "right = " << std::endl << right << std::endl;
+				//std::cout << "sol = " << std::endl << sol << std::endl;
+
+				Set::Vector test, test2;
+				test(0) = 	m_operator->C(0,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,0,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(0,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(0,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(0,0,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(0,0,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(0,0,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test(1) = 	m_operator->C(1,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,0,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(1,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(1,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(1,0,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(1,0,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(1,0,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test(2) = 	m_operator->C(2,0,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,0,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,0,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,0,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(2,0,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(2,0,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(2,0,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(2,0,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test2(0) = 	m_operator->C(0,2,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,2,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,2,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(0,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(0,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(0,2,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(0,2,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(0,2,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test2(1) = 	m_operator->C(1,2,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,2,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,2,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(1,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(1,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(1,2,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(1,2,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(1,2,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test2(2) = 	m_operator->C(2,2,0,0,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,2,1,0,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,2,2,0,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,2,0,1,m,amrlev,mglev,mfi)*gradu_2(0)
+							+ m_operator->C(2,2,1,1,m,amrlev,mglev,mfi)*gradu_2(1)
+							+ m_operator->C(2,2,2,1,m,amrlev,mglev,mfi)*gradu_2(2)
+							+ m_operator->C(2,2,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(2,2,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(2,2,2,2,m,amrlev,mglev,mfi)*sol(5);
+
+				if((test-traction[0]).norm() > 1.e-2 || (test2-traction[1]).norm() > 1.e-2)
+				{
+					std::cout << "test =" << std::endl << test << std::endl;
+					std::cout << "traction = " << std::endl << traction[0] << std::endl;
+					std::cout << "test2 =" << std::endl << test2 << std::endl;
+					std::cout << "traction2 = " << std::endl << traction[1] << std::endl;
+				}
+			}
 			
 			stencil[points[0]](0) = stencil[0](0) + mul1*DX[0]*sol(0);
 			stencil[points[0]](1) = stencil[0](1) + mul1*DX[0]*sol(1);
@@ -1241,6 +1532,80 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 
 			//sol = left.ldlt().solve(right); // we can change this solver as needed
 			sol = left.colPivHouseholderQr().solve(right);
+
+			if (debug)
+			{
+				//std::cout << "DX = " << DX[0] << "," << DX[1] << "," << DX[2] << std::endl;
+				//std::cout << "gradu_2 = " << std::endl << gradu_2 << std::endl;
+				//std::cout << "gradu_3 = " << std::endl << gradu_3 << std::endl;
+				//std::cout << "left = " << std::endl << left << std::endl;
+				//std::cout << "right = " << std::endl << right << std::endl;
+				//std::cout << "sol = " << std::endl << sol << std::endl;
+
+				Set::Vector test, test2;
+				test(0) = 	m_operator->C(0,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(0,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(0,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(0,1,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,1,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,1,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,1,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(0,1,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(0,1,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test(1) = 	m_operator->C(1,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(1,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(1,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(1,1,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,1,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,1,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,1,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(1,1,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(1,1,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test(2) = 	m_operator->C(2,1,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(2,1,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(2,1,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(2,1,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,1,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,1,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,1,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(2,1,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(2,1,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test2(0) = 	m_operator->C(0,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(0,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(0,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(0,2,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(0,2,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(0,2,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(0,2,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(0,2,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(0,2,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test2(1) = 	m_operator->C(1,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(1,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(1,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(1,2,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(1,2,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(1,2,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(1,2,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(1,2,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(1,2,2,2,m,amrlev,mglev,mfi)*sol(5);
+				test2(2) = 	m_operator->C(2,2,0,0,m,amrlev,mglev,mfi)*gradu_1(0)
+							+ m_operator->C(2,2,1,0,m,amrlev,mglev,mfi)*gradu_1(1)
+							+ m_operator->C(2,2,2,0,m,amrlev,mglev,mfi)*gradu_1(2)
+							+ m_operator->C(2,2,0,1,m,amrlev,mglev,mfi)*sol(0)
+							+ m_operator->C(2,2,1,1,m,amrlev,mglev,mfi)*sol(1)
+							+ m_operator->C(2,2,2,1,m,amrlev,mglev,mfi)*sol(2)
+							+ m_operator->C(2,2,0,2,m,amrlev,mglev,mfi)*sol(3)
+							+ m_operator->C(2,2,1,2,m,amrlev,mglev,mfi)*sol(4)
+							+ m_operator->C(2,2,2,2,m,amrlev,mglev,mfi)*sol(5);
+
+				if((test-traction[0]).norm() > 1.e-2 || (test2-traction[1]).norm() > 1.e-2)
+				{
+					std::cout << "test =" << std::endl << test << std::endl;
+					std::cout << "traction = " << std::endl << traction[0] << std::endl;
+					std::cout << "test2 =" << std::endl << test2 << std::endl;
+					std::cout << "traction2 = " << std::endl << traction[1] << std::endl;
+				}
+			}
 			
 			stencil[points[0]](0) = stencil[0](0) + mul1*DX[1]*sol(0);
 			stencil[points[0]](1) = stencil[0](1) + mul1*DX[1]*sol(1);
