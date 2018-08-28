@@ -69,7 +69,8 @@ public:
 			const amrex::IntVect &m,
 			const int amrlev,
 			const int mglev,
-			const amrex::MFIter &mfi);
+			const amrex::MFIter &mfi,
+			const bool debug);
 
 private:
 	int bc_lo[BL_SPACEDIM];
