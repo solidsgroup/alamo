@@ -25,7 +25,8 @@ int ReadString(std::string bcstring)
    // From <AMReX_LO_BCTYPES.H>
    if (bcstring == "interior" )        return (int)amrex::LinOpBCType::interior;
    if (bcstring == "Dirichlet" ||
-       bcstring == "dirichlet")        return (int)amrex::LinOpBCType::Dirichlet;
+       bcstring == "dirichlet" ||
+       bcstring == "traction")        return (int)amrex::LinOpBCType::Dirichlet;
    if (bcstring == "Neumann" ||
        bcstring == "neumann")          return (int)amrex::LinOpBCType::Neumann;
    if (bcstring == "reflect_odd")      return (int)amrex::LinOpBCType::reflect_odd;

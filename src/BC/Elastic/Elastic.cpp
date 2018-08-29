@@ -3,15 +3,17 @@
 namespace BC
 {
 
-Elastic::Elastic(amrex::Vector<std::string> bc_hi_str,
-		 amrex::Vector<std::string> bc_lo_str,
+Elastic::Elastic(amrex::Vector<std::string> _bc_hi_str,
+		 amrex::Vector<std::string> _bc_lo_str,
 		 AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
 			      amrex::Vector<amrex::Real> _bc_lo_2,
 			      amrex::Vector<amrex::Real> _bc_lo_3),
 		 AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
 			      amrex::Vector<amrex::Real> _bc_hi_2,
 			      amrex::Vector<amrex::Real> _bc_hi_3))
-	: 
+	:
+	bc_hi_str(_bc_hi_str),
+	bc_lo_str(_bc_lo_str), 
 	AMREX_D_DECL(bc_lo_1(_bc_lo_1),bc_lo_2(_bc_lo_2),bc_lo_3(_bc_lo_3)),
 	AMREX_D_DECL(bc_hi_1(_bc_hi_1),bc_hi_2(_bc_hi_2),bc_hi_3(_bc_hi_3))
 {
@@ -74,39 +76,39 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int k = box.loVect()[2] - ngrow; k<=box.hiVect()[2] + ngrow; k++))
 	{
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
-		if (i == domain.loVect()[0]-1 && (face == Orientation::xlo || face == Orientation::All) && BCUtil::IsDirichlet(bc_lo[0])) // Left boundary
+		if (i == domain.loVect()[0]-1 && (face == Orientation::xlo || face == Orientation::All) && bc_lo_str[0] == "dirichlet") // Left boundary
 		{
 			//std::cout << "Dirichet boundary in left face" << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_lo_1[n];
 		}
-		if (i == domain.hiVect()[0]+1 && (face == Orientation::xhi || face == Orientation::All) && BCUtil::IsDirichlet(bc_hi[0])) // Right boundary
+		if (i == domain.hiVect()[0]+1 && (face == Orientation::xhi || face == Orientation::All) && bc_hi_str[0] == "dirichlet") // Right boundary
 		{
 			//std::cout << "Dirichet boundary in right face" << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_hi_1[n];
 		}
 #if AMREX_SPACEDIM>1
-		if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All) && BCUtil::IsDirichlet(bc_lo[1])) // Bottom boundary
+		if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All) && bc_lo_str[1] == "dirichlet") // Bottom boundary
 		{
 			//std::cout << "Dirichet boundary in bottom face" << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_lo_2[n];
 		}
-		if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All) && BCUtil::IsDirichlet(bc_hi[1])) // Top boundary
+		if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All) && bc_hi_str[1] == "dirichlet") // Top boundary
 		{
 			//std::cout << "Dirichet boundary in top face" << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_hi_2[n];
 		}
 #if AMREX_SPACEDIM>2
-		if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All) && BCUtil::IsDirichlet(bc_lo[2])) // Back boundary
+		if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All) && bc_lo_str[2] == "dirichlet") // Back boundary
 		{
 			//std::cout << "Dirichet boundary in back face" << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_lo_3[n];
 		}
-		if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All) && BCUtil::IsDirichlet(bc_hi[2])) // Front boundary
+		if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All) && bc_hi_str[2] == "dirichlet") // Front boundary
 		{
 			//std::cout << "Dirichet boundary in front face" << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
@@ -134,10 +136,20 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	   3. Fill corner ghost cell by averaging.
 	*/
 
-	/* Step 1: Fill the left face ghost cells */
+	/* The following steps are for debugging purposes.
+		They can be disabled by setting debug = false*/
 	bool debug = true;
 
-	if (BCUtil::IsNeumann(bc_lo[0]) && box.loVect()[0]==domain.loVect()[0])
+	amrex::IntVect point_left(-1,3,3);
+	amrex::IntVect point_right(8,3,3);
+	amrex::IntVect point_bottom(3,-1,3);
+	amrex::IntVect point_top(3,8,3);
+	amrex::IntVect point_back(3,3,-1);
+	amrex::IntVect point_front(3,3,8);
+
+	/* Step 1: Fill the left face ghost cells */
+	
+	if (bc_lo_str[0] == "traction" && box.loVect()[0]==domain.loVect()[0])
 	{
 		int i = box.loVect()[0] - 1;
 		//std::cout << "Neumann boundary in left face. i = " << i << std::endl;
@@ -167,7 +179,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(1);
 #if AMREX_SPACEDIM > 1
-			if (j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+			if (j == domain.loVect()[1] && bc_lo_str[1] == "traction")
 			{
 				//std::cout << "End point: Neumann boundary in bottom face. i,j,k = "<< i << "," << j << "," << k << std::endl;
 				/* Solving for end points */
@@ -175,13 +187,13 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				points.push_back(3);
 #if AMREX_SPACEDIM > 2
 				/* Solving for triple end point */ 
-				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 				{
 					//std::cout << "Triple End point: Neumann boundary in back face. i,j,k = "<< i << "," << j << "," << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 				{
 					//std::cout << "Triple End point: Neumann boundary in front face. i,j,k = "<< i << "," << j << "," << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -189,19 +201,19 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				}
 #endif
 			}
-			else if (j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
+			else if (j == domain.hiVect()[1] && bc_hi_str[1] == "traction")
 			{
 				//std::cout << "End point: Neumann boundary in bottom face. i,j,k = "<< i << "," << j << "," << k << std::endl;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
 				points.push_back(4);
 #if AMREX_SPACEDIM > 2
-				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 				{
 					//std::cout << "Triple End point: Neumann boundary in back face. i,j,k = "<< i << "," << j << "," << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 				{
 					//std::cout << "Triple End point: Neumann boundary in front face. i,j,k = "<< i << "," << j << "," << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -210,7 +222,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 			}
 #if AMREX_SPACEDIM > 2
-			else if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			else if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 			{
 				/* Solving for end point. No need to consider triple end point.
 				   They have already been solved. */
@@ -218,7 +230,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 			{
 				//std::cout << "End point: Neumann boundary in front face. i,j,k = "<< i << "," << j << "," << k << std::endl;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -227,20 +239,25 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			if (m == amrex::IntVect(AMREX_D_DECL(-1,6,5)))
+			if(debug)
 			{
-				for (int p = 0; p < 7; p++)
-					std::cout << "Stencil before at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
-				std::cout << std::endl;
+				if(m == point_left)
+				{
+					std::cout << "Looking at point on the left (" << point_left[0] << "," << point_left[1] << "," << point_left[2] <<")" <<std::endl; 
+					for (int p = 0; p < 7; p++)
+						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
 			}
 			StencilFill(stencil, traction, points, m+dx, m_amrlev, m_mglev, mfi, debug);
-			if (m == amrex::IntVect(AMREX_D_DECL(-1,6,5)))
+			if(debug)
 			{
-				for (int p = 0; p < 7; p++)
-					std::cout << "Stencil after at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
-				std::cout << std::endl;
+				if(m == point_left)
+				{
+					for (int p = 0; p < 7; p++)
+						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
 			}
-
+			
 			for (int n = 0; n < AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[1](n);
 #if AMREX_SPACEDIM > 1
@@ -270,7 +287,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 		
 	/* Step 2: Fill right face of ghost cells */
-	if(BCUtil::IsNeumann(bc_hi[0]) && box.hiVect()[0]==domain.hiVect()[0])
+	if(bc_hi_str[0] == "traction" && box.hiVect()[0]==domain.hiVect()[0])
 	{
 		int i = box.hiVect()[0] + 1;
 		//std::cout << "Neumann BC on the right face. i = " << i << std::endl;
@@ -298,7 +315,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			points.push_back(2);
 
 #if AMREX_SPACEDIM > 1
-			if (j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1]))
+			if (j == domain.loVect()[1] && bc_lo_str[1] == "traction")
 			{
 				/* Solving for end points */
 				//std::cout << "End point: Neumann BC on the bottom face. j = " << j << std::endl;
@@ -306,13 +323,13 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				points.push_back(3);
 #if AMREX_SPACEDIM > 2
 				/* Solving for triple end point */ 
-				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 				{
 					//std::cout << "Triple end point. Neumann BC on the back face. k = " << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 				{
 					//std::cout << "Triple end point. Neumann BC on the front face. k = " << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -320,19 +337,19 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				}
 #endif
 			}
-			else if (j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1]))
+			else if (j == domain.hiVect()[1] && bc_hi_str[1] == "traction")
 			{
 				//std::cout << "End point. Neumann BC on the top face. j = " << j << std::endl;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2])));
 				points.push_back(4);
 #if AMREX_SPACEDIM > 2
-				if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+				if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 				{
 					//std::cout << "Triple end point. Neumann BC on the back face. k = " << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 					points.push_back(5);
 				}
-				else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+				else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 				{
 					//std::cout << "Triple end point. Neumann BC on the front face. k = " << k << std::endl;
 					traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -341,7 +358,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 			}
 #if AMREX_SPACEDIM > 2
-			else if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			else if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 			{
 				//std::cout << "End point: Neumann BC on the back face. k = " << k << std::endl;
 				/* Solving for end point. No need to consider triple end point.
@@ -349,7 +366,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 			{
 				//std::cout << "End point: Neumann BC on the front face. k = " << k << std::endl;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -358,7 +375,24 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
+			if(debug)
+			{
+				if(m == point_right)
+				{
+					std::cout << "Looking at point on the right (" << point_right[0] << "," << point_right[1] << "," << point_right[2] <<")" <<std::endl; 
+					for (int p = 0; p < 7; p++)
+						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 			StencilFill(stencil, traction, points, m-dx, m_amrlev, m_mglev, mfi, debug);
+			if(debug)
+			{
+				if(m == point_right)
+				{
+					for (int p = 0; p < 7; p++)
+						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[2](n);
@@ -388,7 +422,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 #if AMREX_SPACEDIM > 1
 	/* Step 3: Fill bottom face of ghost cells */
-	if(BCUtil::IsNeumann(bc_lo[1]) && box.loVect()[1]==domain.loVect()[1])
+	if(bc_lo_str[1] == "traction" && box.loVect()[1]==domain.loVect()[1])
 	{
 		int j = box.loVect()[1] - 1;
 		//std::cout << "Neumann BC on bottom face. j = " << j << std::endl;
@@ -396,8 +430,8 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 						,
 						for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 		{
-			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
-			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
+			if(i == domain.loVect()[0] && bc_lo_str[0] == "traction") continue;
+			if(i == domain.hiVect()[0] && bc_hi_str[0] == "traction") continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dy,0),mf_box(m+dy,1),mf_box(m+dy,2))));
@@ -416,14 +450,14 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(3);
 #if AMREX_SPACEDIM > 2
-			if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 			{
 				//std::cout << "End point: Neumann BC on the back face. k = " << k << std::endl;
 				/* Solving for end points */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 			{
 				//std::cout << "End point: Neumann BC on the front face. k = " << k << std::endl;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -431,7 +465,25 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			}
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
+			if(debug)
+			{
+				if(m == point_bottom)
+				{
+					std::cout << "Looking at point on the bottom (" << point_bottom[0] << "," << point_bottom[1] << "," << point_bottom[2] <<")" <<std::endl; 
+					for (int p = 0; p < 7; p++)
+						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 			StencilFill(stencil, traction, points, m+dy, m_amrlev, m_mglev, mfi, debug);
+			if(debug)
+			{
+				//std::cout << "Looking at point on the bottom (" << point_bottom[0] << "," << point_bottom[1] << "," << point_bottom[2] <<")" <<std::endl; 
+				if(m == point_bottom)
+				{
+					for (int p = 0; p < 7; p++)
+						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[3](n);
@@ -454,7 +506,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 
 	/* Step 4: Fill top face of ghost cells */
-	if(BCUtil::IsNeumann(bc_hi[1]) && box.hiVect()[1]==domain.hiVect()[1])
+	if(bc_hi_str[1] == "traction" && box.hiVect()[1]==domain.hiVect()[1])
 	{
 		// non-end ghost cells. End ghost cells will be treated separately.
 		int j = box.hiVect()[1] + 1;
@@ -463,8 +515,8 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				,
 				for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 		{
-			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
-			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
+			if(i == domain.loVect()[0] && bc_lo_str[0] == "traction") continue;
+			if(i == domain.hiVect()[0] && bc_hi_str[0] == "traction") continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dy,0),mf_box(m-dy,1),mf_box(m-dy,2))));
@@ -483,14 +535,14 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(4);
 #if AMREX_SPACEDIM > 2
-			if (k == domain.loVect()[2] && BCUtil::IsNeumann(bc_lo[2]))
+			if (k == domain.loVect()[2] && bc_lo_str[2] == "traction")
 			{
 				//std::cout << "End point: Neumann BC on the back face. k = " << k << std::endl;
 				/* Solving for end points */
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2])));
 				points.push_back(5);
 			}
-			else if (k == domain.hiVect()[2] && BCUtil::IsNeumann(bc_hi[2]))
+			else if (k == domain.hiVect()[2] && bc_hi_str[2] == "traction")
 			{
 				//std::cout << "End point: Neumann BC on the front face. k = " << k << std::endl;
 				traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2])));
@@ -498,7 +550,25 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			}
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
+			if(debug)
+			{
+				if(m == point_top)
+				{
+					std::cout << "Looking at point on the top (" << point_top[0] << "," << point_top[1] << "," << point_top[2] <<")" <<std::endl; 
+					for (int p = 0; p < 7; p++)
+						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 			StencilFill(stencil, traction, points, m-dy, m_amrlev, m_mglev, mfi, debug);
+			if(debug)
+			{
+				//std::cout << "Looking at point on the top (" << point_top[0] << "," << point_top[1] << "," << point_top[2] <<")" <<std::endl; 
+				if(m == point_top)
+				{
+					for (int p = 0; p < 7; p++)
+						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[4](n);
@@ -522,7 +592,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 #if AMREX_SPACEDIM > 2
 	/* Step 5: Fill back face of ghost cells */
-	if(BCUtil::IsNeumann(bc_lo[2]) && box.loVect()[2]==domain.loVect()[2])
+	if(bc_lo_str[2] == "traction" && box.loVect()[2]==domain.loVect()[2])
 	{
 		// End and triple end cells have already been filled - so no need to iterate over those
 		int k = box.loVect()[2] - 1;
@@ -531,10 +601,10 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
 				)
 		{
-			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
-			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
-			if(j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1])) continue;
-			if(j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1])) continue;
+			if(i == domain.loVect()[0] && bc_lo_str[0] == "traction") continue;
+			if(i == domain.hiVect()[0] && bc_hi_str[0] == "traction") continue;
+			if(j == domain.loVect()[1] && bc_lo_str[1] == "traction") continue;
+			if(j == domain.hiVect()[1] && bc_hi_str[1] == "traction") continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz,0),mf_box(m+dz,1),mf_box(m+dz,2))));
@@ -552,8 +622,25 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 			amrex::Vector<int> points;
 			points.push_back(5);
-			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
+			if(debug)
+			{
+				if(m == point_back)
+				{
+					std::cout << "Looking at point on the back (" << point_back[0] << "," << point_back[1] << "," << point_back[2] <<")" <<std::endl; 
+					for (int p = 0; p < 7; p++)
+						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 			StencilFill(stencil, traction, points, m+dz, m_amrlev, m_mglev, mfi, debug);
+			if(debug)
+			{
+				//std::cout << "Looking at point on the back (" << point_back[0] << "," << point_back[1] << "," << point_back[2] <<")" <<std::endl; 
+				if(m == point_back)
+				{
+					for (int p = 0; p < 7; p++)
+						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[5](n);
@@ -561,7 +648,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 
 	/* Step 6: Fill front face of ghost cells */
-	if(BCUtil::IsNeumann(bc_hi[2]) && box.hiVect()[2]==domain.hiVect()[2])
+	if(bc_hi_str[2] == "traction" && box.hiVect()[2]==domain.hiVect()[2])
 	{
 		int k = box.hiVect()[2] + 1;
 		//std::cout << "Neumann BC on the front face. k = " << k << std::endl;
@@ -569,10 +656,10 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 						for (int j = box.loVect()[1] + 1; j <= box.hiVect()[1] - 1; j++),
 					)
 		{
-			if(i == domain.loVect()[0] && BCUtil::IsNeumann(bc_lo[0])) continue;
-			if(i == domain.hiVect()[0] && BCUtil::IsNeumann(bc_hi[0])) continue;
-			if(j == domain.loVect()[1] && BCUtil::IsNeumann(bc_lo[1])) continue;
-			if(j == domain.hiVect()[1] && BCUtil::IsNeumann(bc_hi[1])) continue;
+			if(i == domain.loVect()[0] && bc_lo_str[0] == "traction") continue;
+			if(i == domain.hiVect()[0] && bc_hi_str[0] == "traction") continue;
+			if(j == domain.loVect()[1] && bc_lo_str[1] == "traction") continue;
+			if(j == domain.hiVect()[1] && bc_hi_str[1] == "traction") continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			amrex::Vector<Set::Vector> stencil;
 			stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m-dz,0),mf_box(m-dz,1),mf_box(m-dz,2))));
@@ -591,7 +678,25 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(6);
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
+			if(debug)
+			{
+				if(m == point_front)
+				{
+					std::cout << "Looking at point on the front (" << point_front[0] << "," << point_front[1] << "," << point_front[2] <<")" <<std::endl; 
+					for (int p = 0; p < 7; p++)
+						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 			StencilFill(stencil, traction, points, m-dz, m_amrlev, m_mglev, mfi, debug);
+			if(debug)
+			{
+				//std::cout << "Looking at point on the back (" << point_back[0] << "," << point_back[1] << "," << point_back[2] <<")" <<std::endl; 
+				if(m == point_front)
+				{
+					for (int p = 0; p < 7; p++)
+						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
+				}
+			}
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[6](n);
@@ -654,6 +759,9 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		else if (j == domain.hiVect()[1]+1 && k == domain.loVect()[2]-1){mul1 = 0; mul2 = -1; mul3 = 1;}
 		else if (j == domain.hiVect()[1]+1 && k == domain.hiVect()[2]+1){mul1 = 0; mul2 = -1; mul3 = -1;}
 #endif
+		if (m == amrex::IntVect(-1,3,3))
+			std::cout << "mul1 = " << mul1 << ". mul2 = " << mul2 << ". mul3 = " << mul3 << std::endl;
+
 		if(AMREX_D_TERM(std::abs(mul1), + std::abs(mul2), + std::abs(mul3)) == 0) continue;
 
 		for(int n = 0; n<AMREX_SPACEDIM; n++)
@@ -850,6 +958,10 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 							+ m_operator->C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 							+ m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
 
+				if(m == amrex::IntVect(0,7,5))
+				{
+					std::cout << "mul = " << mul << ". sol = " << sol(0) << ", " << sol(1) << ", " << sol(2) << std::endl;
+				}
 				if((test-traction[0]).norm() > 1.e-2)
 				{
 					std::cout << "test =" << std::endl << test << std::endl;
