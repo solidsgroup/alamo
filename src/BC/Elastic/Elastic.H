@@ -28,8 +28,8 @@ class Elastic
 {
 
 public:
-	Elastic ( amrex::Vector<std::string> bc_hi_str,
-		  amrex::Vector<std::string> bc_lo_str,
+	Elastic ( amrex::Vector<std::string> _bc_hi_str,
+		  amrex::Vector<std::string> _bc_lo_str,
 		  AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
 			       amrex::Vector<amrex::Real> _bc_lo_2,
 			       amrex::Vector<amrex::Real> _bc_lo_3),
@@ -73,6 +73,8 @@ public:
 			const bool debug);
 
 private:
+	amrex::Vector<std::string> bc_lo_str;
+	amrex::Vector<std::string> bc_hi_str;
 	int bc_lo[BL_SPACEDIM];
 	int bc_hi[BL_SPACEDIM];
 	int bc_hi_flux[BL_SPACEDIM];
