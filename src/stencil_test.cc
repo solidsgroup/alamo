@@ -227,7 +227,7 @@ int main (int argc, char* argv[])
 		std::cout << "Stencil before at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
 	std::cout << std::endl;
 	
-	mybc->StencilFill(stencil, trac, pts, m, 0, 0, mfi,true);
+	//mybc->StencilFill(stencil, trac, pts, m, 0, 0, mfi,true);
 
 	for (int p = 0; p < 7; p++)
 		std::cout << "Stencil after at p = " << p+1 << ", " << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << std::endl;
