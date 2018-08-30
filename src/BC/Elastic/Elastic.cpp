@@ -52,11 +52,17 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	
 	amrex::Box domain(m_geom.Domain());
 
-	std::cout << "Box loVect = (" << box.loVect()[0] << "," << box.loVect()[1] << "," << box.loVect()[2] << ")" << std::endl;
-	std::cout << "Box hiVect = (" << box.hiVect()[0] << "," << box.hiVect()[1] << "," << box.hiVect()[2] << ")" << std::endl;
-	std::cout << "Domain loVect = (" << domain.loVect()[0] << "," << domain.loVect()[1] << "," << domain.loVect()[2] << ")" << std::endl;
-	std::cout << "Domain hiVect = (" << domain.hiVect()[0] << "," << domain.hiVect()[1] << "," << domain.hiVect()[2] << ")" << std::endl;
-	std::cout << "Amrlev = " << m_amrlev << ". Mglev = " << m_mglev << std::endl;
+	/* The following steps are for debugging purposes.
+		They can be disabled by setting debug = false*/
+	bool debug = true;
+	if(debug)
+	{
+		std::cout << "Box loVect = (" << box.loVect()[0] << "," << box.loVect()[1] << "," << box.loVect()[2] << ")" << std::endl;
+		std::cout << "Box hiVect = (" << box.hiVect()[0] << "," << box.hiVect()[1] << "," << box.hiVect()[2] << ")" << std::endl;
+		std::cout << "Domain loVect = (" << domain.loVect()[0] << "," << domain.loVect()[1] << "," << domain.loVect()[2] << ")" << std::endl;
+		std::cout << "Domain hiVect = (" << domain.hiVect()[0] << "," << domain.hiVect()[1] << "," << domain.hiVect()[2] << ")" << std::endl;
+		std::cout << "Amrlev = " << m_amrlev << ". Mglev = " << m_mglev << std::endl;
+	}
 
 	//mf.FillBoundary(m_geom.periodicity());
 
@@ -64,12 +70,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
 
-	// for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
-	// {
-	// 	const amrex::Box& box = mfi.tilebox();
-
-	//amrex::BaseFab<amrex::Real> &mf_box = mf[mfi];
-
+	
 	/* Dirichlet boundaries are first */
 	AMREX_D_TERM(	for(int i = box.loVect()[0] - ngrow; i<=box.hiVect()[0] + ngrow; i++),
 					for (int j = box.loVect()[1] - ngrow; j<=box.hiVect()[1] + ngrow; j++),
@@ -136,10 +137,8 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	   3. Fill corner ghost cell by averaging.
 	*/
 
-	/* The following steps are for debugging purposes.
-		They can be disabled by setting debug = false*/
-	bool debug = true;
-
+	
+	// For debugging purposes
 	amrex::IntVect point_left(-1,3,3);
 	amrex::IntVect point_right(8,3,3);
 	amrex::IntVect point_bottom(3,-1,3);
@@ -179,6 +178,12 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(1);
 #if AMREX_SPACEDIM > 1
+			/* This is to ensure that if we are solving for an end ghost cell B, 
+				and if the neighboring face is also Neumann, then we have to solve for 
+				to points on the stencil.
+				For example, in a 2D case, if left edge has Neumann and top edge has Neumann, then 
+				we have to solve for both corner ghost cells at the same time. */
+
 			if (j == domain.loVect()[1] && bc_lo_str[1] == "traction")
 			{
 				//std::cout << "End point: Neumann boundary in bottom face. i,j,k = "<< i << "," << j << "," << k << std::endl;
@@ -430,6 +435,8 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 						,
 						for (int k = box.loVect()[2]; k <= box.hiVect()[2]; k++))
 		{
+			/* Corner of bottom face and left face. If left face is Neumann, then it would
+				have already been solved earlier. So we can just skip it. */
 			if(i == domain.loVect()[0] && bc_lo_str[0] == "traction") continue;
 			if(i == domain.hiVect()[0] && bc_hi_str[0] == "traction") continue;
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
@@ -594,13 +601,14 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	/* Step 5: Fill back face of ghost cells */
 	if(bc_lo_str[2] == "traction" && box.loVect()[2]==domain.loVect()[2])
 	{
-		// End and triple end cells have already been filled - so no need to iterate over those
 		int k = box.loVect()[2] - 1;
 		//std::cout << "Neumann BC on back face. k = " << k << std::endl;
 		AMREX_D_TERM(	for (int i = box.loVect()[0]; i <= box.hiVect()[0]; i++),
 				for (int j = box.loVect()[1]; j <= box.hiVect()[1]; j++),
 				)
 		{
+			// The end points and triple end points have already been solved. So
+			// no need to solve for those. 
 			if(i == domain.loVect()[0] && bc_lo_str[0] == "traction") continue;
 			if(i == domain.hiVect()[0] && bc_hi_str[0] == "traction") continue;
 			if(j == domain.loVect()[1] && bc_lo_str[1] == "traction") continue;
@@ -958,10 +966,6 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 							+ m_operator->C(2,0,1,2,m,amrlev,mglev,mfi)*gradu_3(1)
 							+ m_operator->C(2,0,2,2,m,amrlev,mglev,mfi)*gradu_3(2);
 
-				if(m == amrex::IntVect(0,7,5))
-				{
-					std::cout << "mul = " << mul << ". sol = " << sol(0) << ", " << sol(1) << ", " << sol(2) << std::endl;
-				}
 				if((test-traction[0]).norm() > 1.e-2)
 				{
 					std::cout << "test =" << std::endl << test << std::endl;
@@ -1851,5 +1855,15 @@ Elastic::StencilFill(	amrex::Vector<Set::Vector> &stencil,
 		stencil[points[2]](2) = stencil[0](2) + mul3*DX[2]*sol(8);
 	}
 #endif
+	if(debug)
+	{
+		for (int p = 0; p<stencil.size(); p++)
+		{
+			if(std::isnan(stencil[p](0)) || std::isnan(stencil[p](1)) || std::isnan(stencil[p](2)))
+			{
+				std::cout << "Error: Nans found in stencil after computation. p = " << p << std::endl;
+			}
+		}
+	}
 }
 }
