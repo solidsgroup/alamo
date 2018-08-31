@@ -55,6 +55,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	/* The following steps are for debugging purposes.
 		They can be disabled by setting debug = false*/
 	bool debug = true;
+	amrex::IntVect test_point(-1,3,3);
 	if(debug)
 	{
 		std::cout << "Box loVect = (" << box.loVect()[0] << "," << box.loVect()[1] << "," << box.loVect()[2] << ")" << std::endl;
@@ -62,6 +63,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		std::cout << "Domain loVect = (" << domain.loVect()[0] << "," << domain.loVect()[1] << "," << domain.loVect()[2] << ")" << std::endl;
 		std::cout << "Domain hiVect = (" << domain.hiVect()[0] << "," << domain.hiVect()[1] << "," << domain.hiVect()[2] << ")" << std::endl;
 		std::cout << "Amrlev = " << m_amrlev << ". Mglev = " << m_mglev << std::endl;
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
 	}
 
 	//mf.FillBoundary(m_geom.periodicity());
@@ -119,6 +121,11 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 	}
 
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
+	}
+
 	/* Now that the dirichlet is taken care of, neumann bc should be implemented.
 	   Think of a 2D case - with a rectangular grid. Let's call the top-left 'real'
 	   cell as A. It will be surrounded by following ghost cells.
@@ -139,12 +146,12 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 	
 	// For debugging purposes
-	amrex::IntVect point_left(-1,3,3);
-	amrex::IntVect point_right(8,3,3);
-	amrex::IntVect point_bottom(3,-1,3);
-	amrex::IntVect point_top(3,8,3);
-	amrex::IntVect point_back(3,3,-1);
-	amrex::IntVect point_front(3,3,8);
+	//amrex::IntVect point_left(-1,3,3);
+	//amrex::IntVect point_right(8,3,3);
+	//amrex::IntVect point_bottom(3,-1,3);
+	//amrex::IntVect point_top(3,8,3);
+	//amrex::IntVect point_back(3,3,-1);
+	//amrex::IntVect point_front(3,3,8);
 
 	/* Step 1: Fill the left face ghost cells */
 	
@@ -244,7 +251,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_left)
 				{
@@ -252,16 +259,16 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 			StencilFill(stencil, traction, points, m+dx, m_amrlev, m_mglev, mfi, debug);
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_left)
 				{
 					for (int p = 0; p < 7; p++)
 						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 			
 			for (int n = 0; n < AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[1](n);
@@ -290,6 +297,10 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		}
 	}
 
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
+	}
 		
 	/* Step 2: Fill right face of ghost cells */
 	if(bc_hi_str[0] == "traction" && box.hiVect()[0]==domain.hiVect()[0])
@@ -380,7 +391,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_right)
 				{
@@ -388,16 +399,16 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 			StencilFill(stencil, traction, points, m-dx, m_amrlev, m_mglev, mfi, debug);
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_right)
 				{
 					for (int p = 0; p < 7; p++)
 						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[2](n);
@@ -425,6 +436,12 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #endif
 		}
 	}
+
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
+	}
+
 #if AMREX_SPACEDIM > 1
 	/* Step 3: Fill bottom face of ghost cells */
 	if(bc_lo_str[1] == "traction" && box.loVect()[1]==domain.loVect()[1])
@@ -472,7 +489,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			}
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_bottom)
 				{
@@ -480,9 +497,9 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 			StencilFill(stencil, traction, points, m+dy, m_amrlev, m_mglev, mfi, debug);
-			if(debug)
+			/*if(debug)
 			{
 				//std::cout << "Looking at point on the bottom (" << point_bottom[0] << "," << point_bottom[1] << "," << point_bottom[2] <<")" <<std::endl; 
 				if(m == point_bottom)
@@ -490,7 +507,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[3](n);
@@ -510,6 +527,11 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				}
 			}
 		}
+	}
+
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
 	}
 
 	/* Step 4: Fill top face of ghost cells */
@@ -557,7 +579,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			}
 #endif
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_top)
 				{
@@ -565,9 +587,9 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 			StencilFill(stencil, traction, points, m-dy, m_amrlev, m_mglev, mfi, debug);
-			if(debug)
+			/*if(debug)
 			{
 				//std::cout << "Looking at point on the top (" << point_top[0] << "," << point_top[1] << "," << point_top[2] <<")" <<std::endl; 
 				if(m == point_top)
@@ -575,7 +597,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[4](n);
@@ -595,6 +617,11 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				}
 			}
 		}
+	}
+
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
 	}
 
 #if AMREX_SPACEDIM > 2
@@ -630,7 +657,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 			amrex::Vector<int> points;
 			points.push_back(5);
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_back)
 				{
@@ -638,9 +665,9 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 			StencilFill(stencil, traction, points, m+dz, m_amrlev, m_mglev, mfi, debug);
-			if(debug)
+			/*if(debug)
 			{
 				//std::cout << "Looking at point on the back (" << point_back[0] << "," << point_back[1] << "," << point_back[2] <<")" <<std::endl; 
 				if(m == point_back)
@@ -648,11 +675,16 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[5](n);
 		}
+	}
+
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
 	}
 
 	/* Step 6: Fill front face of ghost cells */
@@ -686,7 +718,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 			amrex::Vector<int> points;
 			points.push_back(6);
 			//std::cout << "calling StencilFill routine. at (" << i << "," << j << "," << k << "). point size = " << points.size() << std::endl;
-			if(debug)
+			/*if(debug)
 			{
 				if(m == point_front)
 				{
@@ -694,9 +726,9 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "Before state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 			StencilFill(stencil, traction, points, m-dz, m_amrlev, m_mglev, mfi, debug);
-			if(debug)
+			/*if(debug)
 			{
 				//std::cout << "Looking at point on the back (" << point_back[0] << "," << point_back[1] << "," << point_back[2] <<")" <<std::endl; 
 				if(m == point_front)
@@ -704,7 +736,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					for (int p = 0; p < 7; p++)
 						std::cout << "After state p = " << p+1 << ". (" << stencil[p](0) << "," << stencil[p](1) << "," << stencil[p](2) << ")" << std::endl;
 				}
-			}
+			}*/
 
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = stencil[6](n);
@@ -712,6 +744,12 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 	}
 #endif
 #endif
+
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
+	}
+
 	/*Finally let's do averaging of corner cells - edge corners and triple corners*/
 	AMREX_D_TERM(	for(int i = box.loVect()[0]-ngrow; i <= box.hiVect()[0]+ngrow; i++),
 					for(int j = box.loVect()[1]-ngrow; j <= box.hiVect()[1]+ngrow; j++),
@@ -776,6 +814,11 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 				mf_box(m,n) = (AMREX_D_TERM(mf_box(m+mul1*dx,n),+mf_box(m+mul2*dy,n),+mf_box(m+mul3*dz,n)))/(AMREX_D_TERM(std::abs(mul1),+std::abs(mul2),+std::abs(mul3)));
 	}
 #endif
+
+	if(debug)
+	{
+		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
+	}
 }
 
 amrex::BCRec
