@@ -447,62 +447,100 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 		int mul1 = 0, mul2 = 0, mul3 = 0;
 
+		if (i == domain.loVect()[0]-1 && (face == Orientation::xlo || face == Orientation::All) && bc_lo_str[0] == "traction")
+		{
+			mul1 = 1;
 #if AMREX_SPACEDIM > 1
-		if(i == domain.loVect()[0]-1 && j == domain.loVect()[1]-1)
-		{
-			mul1 = 1; mul2 = 1;
+			if (j == domain.loVect()[1] - 1) mul2 = 1;
+			else if (j==domain.hiVect()[1] +1) mul2 = -1;
+			else mul2 = 0;
 #if AMREX_SPACEDIM > 2
-			if(k==domain.loVect()[2]-1) mul3 = 1;
-			else if(k==domain.hiVect()[2]+1) mul3 = -1;
+			if (k == domain.loVect()[2] - 1) mul3 = 1;
+			else if (k==domain.hiVect()[2] +1) mul3 = -1;
 			else mul3 = 0;
 #endif
+#endif
+			if (mul2 == 0 && mul3 == 0) mul1 = 0;
 		}
-		else if(i == domain.loVect()[0]-1 && j == domain.hiVect()[1]+1)
+		if (i == domain.hiVect()[0]+1 && (face == Orientation::xhi || face == Orientation::All) && bc_hi_str[0] == "traction")
 		{
-			mul1 = 1; mul2 = -1;
+			mul1 = -1;
+#if AMREX_SPACEDIM > 1
+			if (j == domain.loVect()[1] - 1) mul2 = 1;
+			else if (j==domain.hiVect()[1] +1) mul2 = -1;
+			else mul2 = 0;
 #if AMREX_SPACEDIM > 2
-			if(k==domain.loVect()[2]-1) mul3 = 1;
-			else if(k==domain.hiVect()[2]+1) mul3 = -1;
+			if (k == domain.loVect()[2] - 1) mul3 = 1;
+			else if (k==domain.hiVect()[2] +1) mul3 = -1;
 			else mul3 = 0;
 #endif
-		}
-		else if(i == domain.hiVect()[0]+1 && j == domain.loVect()[1]-1)
-		{
-			mul1 = -1; mul2 = 1;
-#if AMREX_SPACEDIM > 2
-			if(k==domain.loVect()[2]-1) mul3 = 1;
-			else if(k==domain.hiVect()[2]+1) mul3 = -1;
-			else mul3 = 0;
 #endif
+			if (mul2 == 0 && mul3 == 0) mul1 = 0;
 		}
-		else if(i == domain.hiVect()[0]+1 && j == domain.hiVect()[1]+1)
-		{
-			mul1 = -1; mul2 = -1;
-#if AMREX_SPACEDIM > 2
-			if(k==domain.loVect()[2]-1) mul3 = 1;
-			else if(k==domain.hiVect()[2]+1) mul3 = -1;
-			else mul3 = 0;
-#endif
-		}
-#if AMREX_SPACEDIM > 2
-		else if (i == domain.loVect()[0]-1 && k == domain.loVect()[2]-1){mul1 = 1; mul2 = 0; mul3 = 1;}
-		else if (i == domain.loVect()[0]-1 && k == domain.hiVect()[2]+1){mul1 = 1; mul2 = 0; mul3 = -1;}
-		else if (i == domain.hiVect()[0]+1 && k == domain.loVect()[2]-1){mul1 = -1; mul2 = 0; mul3 = 1;}
-		else if (i == domain.hiVect()[0]+1 && k == domain.hiVect()[2]+1){mul1 = -1; mul2 = 0; mul3 = -1;}
-		else if (j == domain.loVect()[1]-1 && k == domain.loVect()[2]-1){mul1 = 0; mul2 = 1; mul3 = 1;}
-		else if (j == domain.loVect()[1]-1 && k == domain.hiVect()[2]+1){mul1 = 0; mul2 = 1; mul3 = -1;}
-		else if (j == domain.hiVect()[1]+1 && k == domain.loVect()[2]-1){mul1 = 0; mul2 = -1; mul3 = 1;}
-		else if (j == domain.hiVect()[1]+1 && k == domain.hiVect()[2]+1){mul1 = 0; mul2 = -1; mul3 = -1;}
-#endif
-		if (m == amrex::IntVect(-1,3,3))
-			std::cout << "mul1 = " << mul1 << ". mul2 = " << mul2 << ". mul3 = " << mul3 << std::endl;
 
+#if AMREX_SPACEDIM > 1
+		if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All) && bc_lo_str[1] == "traction")
+		{
+			mul2 = 1;
+			if (i == domain.loVect()[0] -1) mul1 = 1;
+			else if (i == domain.hiVect()[0]+1) mul1 = -1;
+			else mul1 = 0;
+#if AMREX_SPACEDIM > 2
+			if (k == domain.loVect()[2]-1) mul3 = 1;
+			else if (k == domain.hiVect()[2]+1) mul3 = -1;
+			else mul3 = 0;
+#endif
+			if (mul1 == 0 && mul3 == 0) mul2 = 0;
+		}
+		if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All) && bc_hi_str[1] == "traction")
+		{
+			mul2 = -1;
+			if (i == domain.loVect()[0] -1) mul1 = 1;
+			else if (i == domain.hiVect()[0]+1) mul1 = -1;
+			else mul1 = 0;
+#if AMREX_SPACEDIM > 2
+			if (k == domain.loVect()[2]-1) mul3 = 1;
+			else if (k == domain.hiVect()[2]+1) mul3 = -1;
+			else mul3 = 0;
+#endif
+			if (mul2 == 0 && mul3 == 0) mul1 = 0;
+		}
+#endif
+
+#if AMREX_SPACEDIM > 2
+		if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All) && bc_lo_str[2] == "traction")
+		{
+			mul3 = 1;
+			if (i == domain.loVect()[0] -1) mul1 = 1;
+			else if (i == domain.hiVect()[0]+1) mul1 = -1;
+			else mul1 = 0;
+
+			if (j == domain.loVect()[1] - 1) mul2 = 1;
+			else if (j==domain.hiVect()[1] +1) mul2 = -1;
+			else mul2 = 0;
+
+			if (mul1 == 0 && mul2 == 0) mul3 = 0;
+
+		}
+		if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All) && bc_hi_str[2] == "traction")
+		{
+			mul3 = -1;
+			if (i == domain.loVect()[0] -1) mul1 = 1;
+			else if (i == domain.hiVect()[0]+1) mul1 = -1;
+			else mul1 = 0;
+
+			if (j == domain.loVect()[1] - 1) mul2 = 1;
+			else if (j==domain.hiVect()[1] +1) mul2 = -1;
+			else mul2 = 0;
+
+			if (mul1 == 0 && mul2 == 0) mul3 = 0;
+		}
+#endif
 		if(AMREX_D_TERM(std::abs(mul1), + std::abs(mul2), + std::abs(mul3)) == 0) continue;
 
-		//for(int n = 0; n<AMREX_SPACEDIM; n++)
-			//mf_box(m,n) = (AMREX_D_TERM(mf_box(m+mul1*dx,n),+mf_box(m+mul2*dy,n),+mf_box(m+mul3*dz,n)))/(AMREX_D_TERM(std::abs(mul1),+std::abs(mul2),+std::abs(mul3)));
+		for(int n = 0; n<AMREX_SPACEDIM; n++)
+			mf_box(m,n) = (AMREX_D_TERM(mf_box(m+mul1*dx,n),+mf_box(m+mul2*dy,n),+mf_box(m+mul3*dz,n)))/(AMREX_D_TERM(1.0*std::abs(mul1),+1.0*std::abs(mul2),+1.0*std::abs(mul3)));
 	}
-#endif
 
 	if(debug)
 	{
