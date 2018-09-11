@@ -63,7 +63,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		std::cout << "Domain loVect = (" << domain.loVect()[0] << "," << domain.loVect()[1] << "," << domain.loVect()[2] << ")" << std::endl;
 		std::cout << "Domain hiVect = (" << domain.hiVect()[0] << "," << domain.hiVect()[1] << "," << domain.hiVect()[2] << ")" << std::endl;
 		std::cout << "Amrlev = " << m_amrlev << ". Mglev = " << m_mglev << std::endl;
-		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
+		//std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
 	}
 
 	//mf.FillBoundary(m_geom.periodicity());
@@ -81,39 +81,39 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 		if (i == domain.loVect()[0]-1 && (face == Orientation::xlo || face == Orientation::All) && bc_lo_str[0] == "dirichlet") // Left boundary
 		{
-			//std::cout << "Dirichet boundary in left face" << std::endl;
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_lo_1[n];
 		}
 		if (i == domain.hiVect()[0]+1 && (face == Orientation::xhi || face == Orientation::All) && bc_hi_str[0] == "dirichlet") // Right boundary
 		{
-			//std::cout << "Dirichet boundary in right face" << std::endl;
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_hi_1[n];
 		}
 #if AMREX_SPACEDIM>1
 		if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All) && bc_lo_str[1] == "dirichlet") // Bottom boundary
 		{
-			//std::cout << "Dirichet boundary in bottom face" << std::endl;
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_lo_2[n];
 		}
 		if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All) && bc_hi_str[1] == "dirichlet") // Top boundary
 		{
-			//std::cout << "Dirichet boundary in top face" << std::endl;
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_hi_2[n];
 		}
 #if AMREX_SPACEDIM>2
 		if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All) && bc_lo_str[2] == "dirichlet") // Back boundary
 		{
-			//std::cout << "Dirichet boundary in back face" << std::endl;
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_lo_3[n];
 		}
 		if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All) && bc_hi_str[2] == "dirichlet") // Front boundary
 		{
-			//std::cout << "Dirichet boundary in front face" << std::endl;
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			for (int n = 0; n<AMREX_SPACEDIM; n++)
 				mf_box(m,n) = bc_hi_3[n];
 		}
@@ -133,6 +133,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 		if (i == domain.loVect()[0]-1 && (face == Orientation::xlo || face == Orientation::All) && bc_lo_str[0] == "traction") // Left boundary
 		{
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			if (j == domain.loVect()[1] - 1) continue;
 			if (j == domain.hiVect()[1] + 1) continue;
 			if (k == domain.loVect()[2] - 1) continue;
@@ -185,6 +186,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		}
 		if (i == domain.hiVect()[0]+1 && (face == Orientation::xhi || face == Orientation::All) && bc_hi_str[0] == "traction") // Left boundary
 		{
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			if (j == domain.loVect()[1] - 1) continue;
 			if (j == domain.hiVect()[1] + 1) continue;
 			if (k == domain.loVect()[2] - 1) continue;
@@ -204,7 +206,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 					stencil.push_back(Set::Vector(AMREX_D_DECL(mf_box(m+dz-dx,0),mf_box(m+dz-dx,1),mf_box(m+dz-dx,2))));
 					);
 
-			traction.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2])));
+			traction.push_back(Set::Vector(AMREX_D_DECL(bc_hi_1[0],bc_hi_1[1],bc_hi_1[2])));
 			points.push_back(2);
 #if AMREX+SAPCEDIM > 1
 			if (j==domain.loVect()[1] && bc_lo_str[1] == "traction")
@@ -237,6 +239,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #if AMREX_SPACEDIM > 1
 		if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All) && bc_lo_str[1] == "traction") // Left boundary
 		{
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			if (i == domain.loVect()[0] - 1) continue;
 			if (i == domain.hiVect()[0] + 1) continue;
 			if (k == domain.loVect()[2] - 1) continue;
@@ -288,6 +291,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		}
 		if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All) && bc_hi_str[1] == "traction") // Left boundary
 		{
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			if (i == domain.loVect()[0] - 1) continue;
 			if (i == domain.hiVect()[0] + 1) continue;
 			if (k == domain.loVect()[2] - 1) continue;
@@ -339,6 +343,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 #if AMREX_SPACEDIM > 2
 		if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All) && bc_lo_str[2] == "traction") // Left boundary
 		{
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			if (i == domain.loVect()[0] - 1) continue;
 			if (i == domain.hiVect()[0] + 1) continue;
 			if (j == domain.loVect()[1] - 1) continue;
@@ -388,6 +393,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 		}
 		if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All) && bc_hi_str[2] == "traction") // Left boundary
 		{
+			if (debug) std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 			if (i == domain.loVect()[0] - 1) continue;
 			if (i == domain.hiVect()[0] + 1) continue;
 			if (j == domain.loVect()[1] - 1) continue;
@@ -544,7 +550,7 @@ void Elastic::FillBoundary (amrex::FArrayBox &mf_box,
 
 	if(debug)
 	{
-		std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
+		//std::cout << __LINE__ << ": Value at test point = (" << mf_box(test_point,0) << "," << mf_box(test_point,1) << "," << mf_box(test_point,2) << ")" << std::endl;
 	}
 }
 
