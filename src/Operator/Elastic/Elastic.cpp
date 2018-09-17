@@ -55,6 +55,7 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 {
 	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
 
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
   
 #if AMREX_SPACEDIM == 1
@@ -87,9 +88,13 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
 					AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
 						     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
-						     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]);)
+						     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]););
+					
+					// Neumann BC correction
+					if (m[0] == domain.hiVect()[0]) gradu_k(0) = (ufab(m,k) - ufab(m-dx,k))/(DX[0]);
+					// if (m[0] == domain.loVect()[0]) gradu_k(0) = (ufab(m+dx,k) - ufab(m,k))/(DX[0]);
 
-						Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
+					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
 						     ,// 2D
 						     gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
@@ -101,6 +106,20 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 						     gradgradu_k(2,0) = gradgradu_k(0,2);
 						     gradgradu_k(2,1) = gradgradu_k(1,2);
 						     gradgradu_k(2,2) = (ufab(m+dz,k) - 2.0*ufab(m,k) + ufab(m-dz,k))/DX[2]/DX[2];);
+
+					// if (m[0] == domain.hiVect()[0])
+					// {
+					// 	gradgradu_k(0,0) = 0.0;//(ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
+					// 	gradgradu_k(0,1) = (ufab(m+dy,k) + ufab(m-dx-dy,k) - ufab(m-dy,k) - ufab(m-dx+dy,k))/(DX[0])/(2.0*DX[1]);
+					// 	gradgradu_k(0,2) = (ufab(m+dz,k) + ufab(m-dx-dz,k) - ufab(m-dz,k) - ufab(m-dx+dz,k))/(DX[0])/(2.0*DX[2]);
+					// }
+					// if (m[0] == domain.loVect()[0])
+					// {
+					// 	gradgradu_k(0,0) = 0.0;
+					// 	gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dy,k) - ufab(m+dx-dy,k) - ufab(m+dy,k))/(DX[0])/(2.0*DX[1]);
+					// 	gradgradu_k(0,2) = (ufab(m+dx+dz,k) + ufab(m-dz,k) - ufab(m+dx-dz,k) - ufab(m+dz,k))/(DX[0])/(2.0*DX[2]);
+					// }
+
 
 					Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
 					AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
@@ -115,12 +134,20 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 							
 					for (int l=0; l<AMREX_SPACEDIM; l++)
 					{
-						// f_i -= C_{ijkl} (u_{k,lj})
-						for (int j=0; j<AMREX_SPACEDIM; j++)
-							ffab(m,i) -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
+						if (m[0] == domain.hiVect()[0])
+						{
+							// t_u -= C_{i1kl} u_{k,l} 
+							ffab(m,i) -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						}
+						else
+						{
+							// f_i -= C_{ijkl} (u_{k,lj})
+							for (int j=0; j<AMREX_SPACEDIM; j++)
+								ffab(m,i) -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
 
-						// f_i -= C_{ijkl,j} u_{k,l}
-						ffab(m,i) -= C_ik(l) * gradu_k(l);
+							// f_i -= C_{ijkl,j} u_{k,l}
+							ffab(m,i) -= C_ik(l) * gradu_k(l);
+						}
 					}
 					if(std::isinf(ffab(m,i))) std::cout << __FILE__<< ":" << __LINE__ << " Nan in ffab(m,k)" << std::endl;
 					if(std::isnan(ffab(m,i))) std::cout << __FILE__<< ":" << __LINE__ << " Nan in ffab(m,k)" << std::endl;
@@ -391,6 +418,8 @@ Elastic::Stress (FArrayBox& sigmafab,
 		 int amrlev, const MFIter& mfi,
 		 bool voigt) const
 {
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+
 	if (voigt)
 		AMREX_ASSERT(sigmafab.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
 	else
@@ -416,18 +445,33 @@ Elastic::Stress (FArrayBox& sigmafab,
 #endif
 			{
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
 				Set::Matrix gradu;
 #if AMREX_SPACEDIM==2
 				gradu <<
 					(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]),
 					(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]), (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-							
+									// Neumann BC correction
 #elif AMREX_SPACEDIM==3
 				gradu << 
 					(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]), (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]), (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]),
 					(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]), (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]), (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]),
 					(ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]), (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]), (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
 #endif
+
+				if (m[0] == domain.hiVect()[0])
+				{
+					gradu(0,0) = (ufab(m,0) - ufab(m-dx,0))/(DX[0]);
+					gradu(1,0) = (ufab(m,1) - ufab(m-dx,1))/(DX[0]);
+					gradu(2,0) = (ufab(m,2) - ufab(m-dx,2))/(DX[0]);
+				}
+				if (m[0] == domain.loVect()[0])
+				{
+					gradu(0,0) = (ufab(m+dx,0) - ufab(m,0))/(DX[0]);
+					gradu(1,0) = (ufab(m+dx,1) - ufab(m,1))/(DX[0]);
+					gradu(2,0) = (ufab(m+dx,2) - ufab(m,2))/(DX[0]);
+				}
+
 
 				Set::Matrix eps0 = Set::Matrix::Zero();
 				if (usingEigenstrain)
