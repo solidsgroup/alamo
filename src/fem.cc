@@ -75,7 +75,7 @@ int main (int argc, char* argv[])
 	Real tol_abs 	           = 1.0e-5;	  pp_solver.query("tol_abs", tol_abs);                 
 	bool use_fsmooth          = false;	  pp_solver.query("use_fsmooth", use_fsmooth);         
 
-
+	std::cout << "use fsmooth = " << use_fsmooth << std::endl;
 
 	amrex::Vector<amrex::Geometry> 			geom;
 	amrex::Vector<amrex::BoxArray> 			grids;
@@ -176,11 +176,13 @@ int main (int argc, char* argv[])
 
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
+	info.setMaxCoarseningLevel(0);
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
 	mlabec.define(geom, grids, dmap, *mybc, info);
 	mlabec.setMaxOrder(linop_maxorder);
+
 
 	//
 	// THIS STUFF IS THE OLD WAY OF SETTING BOUNDARY CONDITIONS
@@ -220,6 +222,7 @@ int main (int argc, char* argv[])
 		mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	if (!use_fsmooth)// <<< put in to NOT require FSmooth
 		{
+			std::cout << "SKIPPING FSMOOTH" << std::endl;
 			mlmg.setFinalSmooth(0); 
 			mlmg.setBottomSmooth(0); 
 		}
