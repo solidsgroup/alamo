@@ -92,7 +92,7 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 					
 					// Neumann BC correction
 					if (m[0] == domain.hiVect()[0]) gradu_k(0) = (ufab(m,k) - ufab(m-dx,k))/(DX[0]);
-					// if (m[0] == domain.loVect()[0]) gradu_k(0) = (ufab(m+dx,k) - ufab(m,k))/(DX[0]);
+					if (m[0] == domain.loVect()[0]) gradu_k(0) = (ufab(m+dx,k) - ufab(m,k))/(DX[0]);
 
 					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
@@ -125,15 +125,20 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 							 // t_i -= C_{i1kl} u_{k,l} 
 							 ffab(m,i) -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
 						 }
+						 else if (m[0] == domain.loVect()[0])
+						 {
+							 // t_i -= C_{i1kl} u_{k,l} 
+							 ffab(m,i) -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						 }
 						 else
-						{
-							// f_i -= C_{ijkl} (u_{k,lj})
-							for (int j=0; j<AMREX_SPACEDIM; j++)
-								ffab(m,i) -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
+						 {
+							 // f_i -= C_{ijkl} (u_{k,lj})
+							 for (int j=0; j<AMREX_SPACEDIM; j++)
+								 ffab(m,i) -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
 
-							// f_i -= C_{ijkl,j} u_{k,l}
-							ffab(m,i) -= C_ik(l) * gradu_k(l);
-						}
+							 // f_i -= C_{ijkl,j} u_{k,l}
+							 ffab(m,i) -= C_ik(l) * gradu_k(l);
+						 }
 					}
 					if(std::isinf(ffab(m,i))) std::cout << __FILE__<< ":" << __LINE__ << " Nan in ffab(m,k)" << std::endl;
 					if(std::isnan(ffab(m,i))) std::cout << __FILE__<< ":" << __LINE__ << " Nan in ffab(m,k)" << std::endl;
@@ -217,6 +222,7 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 
 					// Neumann BC correction
 					if (m[0] == domain.hiVect()[0]) gradu_k(0) = ((i==k ? 0.0 : ufab(m,k)) - ufab(m-dx,k))/(DX[0]);
+					if (m[0] == domain.loVect()[0]) gradu_k(0) = (ufab(m+dx,k) - (i==k ? 0.0 : ufab(m,k)))/(DX[0]);
 
 					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dx,k))/DX[0]/DX[0];
@@ -248,6 +254,10 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 						{
 						 	rho -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
 						}
+						else if (m[0] == domain.loVect()[0])
+						{
+						 	rho -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						}
 						else
 						{
 							// rho -= C_{ijkl} (u_{k,lj})
@@ -263,7 +273,11 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 				
 				if (m[0] == domain.hiVect()[0])
 				{
-				 	aa -= C(i,0,i,0,m,amrlev,mglev,mfi)/DX[0];
+				 	aa -= +C(i,0,i,0,m,amrlev,mglev,mfi)/DX[0];
+				 }
+				else if (m[0] == domain.loVect()[0])
+				{
+				 	aa -= -C(i,0,i,0,m,amrlev,mglev,mfi)/DX[0];
 				 }
 				else
 				{
@@ -472,8 +486,8 @@ Elastic::Stress (FArrayBox& sigmafab,
 				if (m[0] == domain.loVect()[0])
 				{
 					gradu(0,0) = (ufab(m+dx,0) - ufab(m,0))/(DX[0]);
-					gradu(1,0) = (ufab(m+dx,1) - ufab(m,1))/(DX[0]);
-					gradu(2,0) = (ufab(m+dx,2) - ufab(m,2))/(DX[0]);
+				 	gradu(1,0) = (ufab(m+dx,1) - ufab(m,1))/(DX[0]);
+				 	gradu(2,0) = (ufab(m+dx,2) - ufab(m,2))/(DX[0]);
 				}
 
 
