@@ -90,6 +90,8 @@ public :
 
 	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fapply(amrlev, mglev, out, in);};
+	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
+	{Fsmooth(amrlev,mglev,out,in);};
 
 protected:
 
