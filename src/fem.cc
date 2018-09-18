@@ -181,17 +181,17 @@ int main (int argc, char* argv[])
 
 				amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
 
-				// AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
-				// 	     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
-				// 	     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
-				// {
-				// 	if (i == geom[ilev].Domain().hiVect()[0]+1)
-				// 	{
-				// 		rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) += 1.0;
-				// 		rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) += 2.0;
-				// 		rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) += 3.0;
-				// 	}						
-				// }
+				AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+					     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+					     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+				{
+					if (i == geom[ilev].Domain().hiVect()[0]+1)
+					{
+						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;
+						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;
+						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;
+					}						
+				}
 			}
 		}
 
