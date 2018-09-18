@@ -21,7 +21,6 @@ public:
 	Elastic (const Vector<Geometry>& a_geom,
 		 const Vector<BoxArray>& a_grids,
 		 const Vector<DistributionMapping>& a_dmap,
-		 BC::BC& a_bc,
 		 const LPInfo& a_info);
 	virtual ~Elastic ();
 	Elastic (const Elastic&) = delete;
@@ -29,12 +28,12 @@ public:
 	Elastic& operator= (const Elastic&) = delete;
 	Elastic& operator= (Elastic&&) = delete;
 
-	void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &);
-	void SetEigenstrain(amrex::Vector<amrex::MultiFab> &);
+	// void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &);
+	// void SetEigenstrain(amrex::Vector<amrex::MultiFab> &);
 
-	void AddEigenstrainToRHS (FArrayBox& esrhs,
-									int amrlev, const MFIter& mfi) const;
-	void AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
+	// void AddEigenstrainToRHS (FArrayBox& esrhs,
+	// 								int amrlev, const MFIter& mfi) const;
+	// void AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
 
 	void Stress (FArrayBox& sigmafab,
 		     const FArrayBox& ufab,
@@ -46,7 +45,7 @@ public:
 protected:
 
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
-	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const final;
+	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
 						const FArrayBox& sol, const int face_only=0) const final;
