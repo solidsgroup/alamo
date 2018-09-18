@@ -9,10 +9,10 @@ bc.disp_bc_front  = 0.0 0.0 0.0
 bc.disp_bc_back   = 0.0 0.0 0.0 
 bc.bc_x_lo = dirichlet
 bc.bc_y_lo = dirichlet
-bc.bc_z_lo = periodic
+bc.bc_z_lo = dirichlet
 bc.bc_x_hi = dirichlet
 bc.bc_y_hi = dirichlet
-bc.bc_z_hi = periodic
+bc.bc_z_hi = dirichlet
 
 solver.bottom_solver = bicgstab
 solver.max_level		= 0

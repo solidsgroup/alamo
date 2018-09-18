@@ -171,28 +171,36 @@ int main (int argc, char* argv[])
 			// 	     rhs[ilev].setVal(body_force[1]*volume,1,1);,
 			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
 
-			rhs[ilev].setVal(1.0);
+			rhs[ilev].setVal(0.00001);
 			u[ilev].setVal(0.0);
 
 
-			// for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
-			// {
-			// 	const amrex::Box& box = mfi.tilebox();
+			for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
+			{
+			 	const amrex::Box& box = mfi.tilebox();
 
-			// 	amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
+			 	amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
 
-			// 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
-			// 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
-			// 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
-			// 	{
-			// 		if (i == geom[ilev].Domain().hiVect()[0]+1)
-			// 		{
-			// 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;
-			// 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;
-			// 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;
-			// 		}						
-			// 	}
-			// }
+			 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+			 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+			 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+			 	{
+			 		if (false
+					    || i == geom[ilev].Domain().loVect()[0]     
+					    || i == geom[ilev].Domain().hiVect()[0]+1   
+					    || j == geom[ilev].Domain().loVect()[1]     
+					    || j == geom[ilev].Domain().hiVect()[1]+1   
+					    || k == geom[ilev].Domain().loVect()[2]     
+					    || k == geom[ilev].Domain().hiVect()[2]+1)
+			 		{
+			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;
+			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;
+			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;
+			 		}						
+					if (i == geom[ilev].Domain().loVect()[0])
+						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+			 	}
+			}
 		}
 
 	//
@@ -215,6 +223,7 @@ int main (int argc, char* argv[])
 	// u[0].setVal(0.0);
 	// mlabec.FApply(0,0,res[0],u[0]);
 	// res[0].minus(rhs[0],0,number_of_components,number_of_ghost_cells);
+	//mlabec.FApply(0,0,u[0],rhs[0]);
 
 	//
 	// Solver
