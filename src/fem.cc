@@ -6,6 +6,7 @@
 #include <AMReX_MLCGSolver.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_PlotFileUtil.H>
+#include <AMReX_MLNodeLaplacian.H>
 
 #include "Util/Util.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
@@ -78,8 +79,8 @@ int main (int argc, char* argv[])
 
 
 	amrex::Vector<amrex::Geometry> 			geom;
-	amrex::Vector<amrex::BoxArray> 			grids;
-	amrex::Vector<amrex::DistributionMapping> dmap;
+	amrex::Vector<amrex::BoxArray> 			cgrids, ngrids;
+	amrex::Vector<amrex::DistributionMapping>       cdmap, ndmap;
 
 	amrex::Vector<amrex::MultiFab>  u;
 	amrex::Vector<amrex::MultiFab>  res;
@@ -94,8 +95,10 @@ int main (int argc, char* argv[])
 	//
 	int nlevels = max_level+1;
 	geom.resize(nlevels);
-	grids.resize(nlevels);
-	dmap.resize(nlevels);
+	cgrids.resize(nlevels);
+	ngrids.resize(nlevels);
+	cdmap.resize(nlevels);
+	ndmap.resize(nlevels);
 
 	u.resize(nlevels);
 	res.resize(nlevels);
@@ -111,46 +114,51 @@ int main (int argc, char* argv[])
 				{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
 				AMREX_D_DECL(disp_bc_left,disp_bc_bottom,disp_bc_back),
 				AMREX_D_DECL(disp_bc_right,disp_bc_top,disp_bc_front));
-	//mybc->define(geom[0]); /// \todo get rid of this line, should work without it
-
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	std::array<int,AMREX_SPACEDIM> is_periodic = mybc->IsPeriodic();
-	std::cout << "periodicity = " << is_periodic[0] << " " << is_periodic[1] << std::endl;
 	Geometry::Setup(&rb, 0, is_periodic.data());
-	Box domain0(IntVect{AMREX_D_DECL(0,0,0)},
-		    IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)},
-		    IndexType(AMREX_D_DECL(IndexType::NODE,IndexType::NODE,IndexType::NODE)));
-	Box domain = domain0;
-	
+
+	Box NDomain(IntVect{AMREX_D_DECL(0,0,0)},
+		    IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
+	 	    IntVect::TheNodeVector());
+	Box CDomain = amrex::convert(NDomain, IntVect::TheCellVector());
+
+	Box domain = CDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			geom[ilev].define(domain);
 			domain.refine(ref_ratio);
 		}
-
-	domain = domain0;
+	Box cdomain = CDomain, ndomain = NDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			grids[ilev].define(domain);
-			grids[ilev].maxSize(max_grid_size);
-			domain.grow(-n_cell/4);   // fine level cover the middle of the coarse domain
-			domain.refine(ref_ratio); 
+			cgrids[ilev].define(cdomain);
+			cgrids[ilev].maxSize(max_grid_size);
+
+			ngrids[ilev].define(ndomain);
+			ngrids[ilev].maxSize(max_grid_size);
+
+			cdomain.grow(-n_cell/4); 
+			cdomain.refine(ref_ratio); 
+
+			ndomain = amrex::convert(cdomain,IntVect::TheNodeVector());
 		}
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	int number_of_ghost_cells = 2;
+	int number_of_ghost_cells = 1;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			dmap   [ilev].define(grids[ilev]);
-			u      [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
-			res    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
-			eps0   [ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
-			bcdata [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-			rhs    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-			stress [ilev].define(grids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
-			energy [ilev].define(grids[ilev], dmap[ilev], 1, number_of_ghost_cells);
+			cdmap   [ilev].define(cgrids[ilev]);
+			ndmap   [ilev].define(ngrids[ilev]);
+			u       [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
+			res     [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
+			eps0    [ilev].define(ngrids[ilev], ndmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
+			bcdata  [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
+			rhs     [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
+			stress  [ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
+			energy  [ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
 		}
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -159,14 +167,11 @@ int main (int argc, char* argv[])
 			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
 			
-// 			rhs[ilev].setVal(body_force[0]*volume,0,1);
-// #if AMREX_SPACEDIM > 1
-//  			rhs[ilev].setVal(body_force[1]*volume,1,1);
-// #if AMREX_SPACEDIM > 2
-//  			rhs[ilev].setVal(body_force[2]*volume,2,1);
-// #endif
-// #endif
-			rhs[ilev].setVal(0.0);
+ 			// AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
+			// 	     rhs[ilev].setVal(body_force[1]*volume,1,1);,
+			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
+
+			rhs[ilev].setVal(1.0);
 			u[ilev].setVal(0.0);
 
 
@@ -176,26 +181,19 @@ int main (int argc, char* argv[])
 
 				amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
 
-				AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
-					     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
-					     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
-				{
-					if (i == geom[ilev].Domain().hiVect()[0])
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.01;
-				}
+				// AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+				// 	     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+				// 	     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+				// {
+				// 	if (i == geom[ilev].Domain().hiVect()[0]+1)
+				// 	{
+				// 		rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) += 1.0;
+				// 		rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) += 2.0;
+				// 		rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) += 3.0;
+				// 	}						
+				// }
 			}
-
-
 		}
-	
-	// rhs[0].setVal(8.0,0);
-	// std::cout << __FILE__<<":"<<__LINE__<<" rhsmax = " << rhs[0].max(3) << " rhsmin = " << rhs[0].min(3) << std::endl;
-	// std::cout << __FILE__<<":"<<__LINE__<<" rhsnorm0 = " << rhs[0].norm0() << std::endl;
-	//Util::Abort("Done");
-
-
-
-
 
 	//
 	// Linear Operator
@@ -209,11 +207,14 @@ int main (int argc, char* argv[])
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
-	mlabec.define(geom, grids, dmap, info);
+	//amrex::MLNodeLaplacian mlabec;
+	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
 
-	//mlabec.FApply(0,0,res[0],u[0]);
-	//res[0].minus(rhs[0],0,number_of_components,number_of_ghost_cells);
+	// res[0].setVal(0.0);
+	// u[0].setVal(0.0);
+	// mlabec.FApply(0,0,res[0],u[0]);
+	// res[0].minus(rhs[0],0,number_of_components,number_of_ghost_cells);
 
 	//
 	// Solver
@@ -235,9 +236,6 @@ int main (int argc, char* argv[])
 			mlmg.setBottomSmooth(0); 
 		}
 
-	std::cout << __FILE__<<":"<<__LINE__<<" unorm0 = " << u[0].norm0() << std::endl;
-	std::cout << __FILE__<<":"<<__LINE__<<" rhsnorm0 = " << rhs[0].norm0() << std::endl;
-
 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	//
@@ -252,8 +250,8 @@ int main (int argc, char* argv[])
 					FArrayBox &sigmafab  = (stress[lev])[mfi];
 					FArrayBox &energyfab  = (energy[lev])[mfi];
 			
-					mlabec.Energy(energyfab,ufab,lev,mfi);
-					mlabec.Stress(sigmafab,ufab,lev,mfi);
+					// mlabec.Energy(energyfab,ufab,lev,mfi);
+					// mlabec.Stress(sigmafab,ufab,lev,mfi);
 				}
 		}
 		
@@ -279,7 +277,7 @@ int main (int argc, char* argv[])
 	Vector<MultiFab> plotmf(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			plotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
+			plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
 #if AMREX_SPACEDIM == 2
 			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0, 1, 0);
 			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
