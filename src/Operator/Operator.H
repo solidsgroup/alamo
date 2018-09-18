@@ -107,7 +107,7 @@ protected:
         {return (amrlev == 0) ? m_is_bottom_singular : false; }
 	virtual bool isBottomSingular () const final { return m_is_bottom_singular; }
 	virtual void applyBC (int amrlev, int mglev, MultiFab& phi, BCMode bc_mode,
-			      bool skip_fillboundary=false) const final;
+			      amrex::MLLinOp::StateMode /**/, bool skip_fillboundary=false) const final;
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const =0;
 	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs) const =0;
 	virtual void normalize (int amrlev, int mglev, MultiFab& mf) const final;

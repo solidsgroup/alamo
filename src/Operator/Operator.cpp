@@ -861,7 +861,7 @@ Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crs
 
 void
 Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
-		   bool skip_fillboundary) const
+		   amrex::MLLinOp::StateMode /**/, bool skip_fillboundary) const
 {
 	TRACER;
 	BL_PROFILE("Operator::applyBC()");
