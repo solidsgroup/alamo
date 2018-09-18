@@ -94,21 +94,21 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
 
-					if (//m1 == domain.loVect()[0] || m1 == domain.hiVect()[0]+1 ||
-					    //m2 == domain.loVect()[1] || m2 == domain.hiVect()[1] +1
-					    //m3 == domain.loVect()[2]
-					    m2 == domain.loVect()[1]
-					    //m3 == domain.loVect()[2]
-					    )
+					if (m1 == domain.loVect()[0] || m1 == domain.hiVect()[0]+1)// ||
+						//     //m2 == domain.loVect()[1] || m2 == domain.hiVect()[1] +1
+					//     //m3 == domain.loVect()[2]
+					//     //m2 == domain.loVect()[1]
+					//     m3 == domain.loVect()[2]
+					//     )
 					{
-						ffab(m,k) = 10.1*ufab(m,k);
-						continue;
+					 	ffab(m,k) = ufab(m,k);
+					 	continue;
 					}
-					else
-					{
-						ffab(m,k) = 10.0*ufab(m,k);
-						continue;
-					}
+					// else
+					// {
+					// 	ffab(m,k) = 10.0*ufab(m,k);
+					// 	continue;
+					// }
 
 					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
 					AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
