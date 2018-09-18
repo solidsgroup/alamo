@@ -427,7 +427,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	elastic_operator = new Operator::Elastic::PolyCrystal::PolyCrystal();
   
-	elastic_operator->define(geom,grids,dmap,*elastic_bc,info);
+	elastic_operator->define(geom,grids,dmap// ,*elastic_bc,info
+				 );
 	elastic_operator->SetEta(eta_new_mf,models);
 
 	for (int ilev = 0; ilev < displacement.size(); ++ilev)

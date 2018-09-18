@@ -82,6 +82,7 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::DistributionMapping> dmap;
 
 	amrex::Vector<amrex::MultiFab>  u;
+	amrex::Vector<amrex::MultiFab>  res;
 	amrex::Vector<amrex::MultiFab>  eps0;
 	amrex::Vector<amrex::MultiFab>  bcdata;	
 	amrex::Vector<amrex::MultiFab>  rhs;
@@ -97,6 +98,7 @@ int main (int argc, char* argv[])
 	dmap.resize(nlevels);
 
 	u.resize(nlevels);
+	res.resize(nlevels);
 	eps0.resize(nlevels);
 	bcdata.resize(nlevels);
 	rhs.resize(nlevels);
@@ -116,7 +118,9 @@ int main (int argc, char* argv[])
 	std::array<int,AMREX_SPACEDIM> is_periodic = mybc->IsPeriodic();
 	std::cout << "periodicity = " << is_periodic[0] << " " << is_periodic[1] << std::endl;
 	Geometry::Setup(&rb, 0, is_periodic.data());
-	Box domain0(IntVect{AMREX_D_DECL(0,0,0)}, IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)});
+	Box domain0(IntVect{AMREX_D_DECL(0,0,0)},
+		    IntVect{AMREX_D_DECL(n_cell-1,n_cell-1,n_cell-1)},
+		    IndexType(AMREX_D_DECL(IndexType::NODE,IndexType::NODE,IndexType::NODE)));
 	Box domain = domain0;
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -141,6 +145,7 @@ int main (int argc, char* argv[])
 		{
 			dmap   [ilev].define(grids[ilev]);
 			u      [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
+			res    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
 			eps0   [ilev].define(grids[ilev], dmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
 			bcdata [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
 			rhs    [ilev].define(grids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
@@ -154,19 +159,43 @@ int main (int argc, char* argv[])
 			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
 			
-			rhs[ilev].setVal(body_force[0]*volume,0,1);
-#if AMREX_SPACEDIM > 1
- 			rhs[ilev].setVal(body_force[1]*volume,1,1);
-#if AMREX_SPACEDIM > 2
- 			rhs[ilev].setVal(body_force[2]*volume,2,1);
-#endif
-#endif
-
+// 			rhs[ilev].setVal(body_force[0]*volume,0,1);
+// #if AMREX_SPACEDIM > 1
+//  			rhs[ilev].setVal(body_force[1]*volume,1,1);
+// #if AMREX_SPACEDIM > 2
+//  			rhs[ilev].setVal(body_force[2]*volume,2,1);
+// #endif
+// #endif
+			rhs[ilev].setVal(0.0);
 			u[ilev].setVal(0.0);
-			
-			// IC::Eigenstrain::Sphere eigenstrain_ic(geom);
-			// eigenstrain_ic.Initialize(ilev,eps0);
+
+
+			for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
+			{
+				const amrex::Box& box = mfi.tilebox();
+
+				amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
+
+				AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+					     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+					     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+				{
+					if (i == geom[ilev].Domain().hiVect()[0])
+						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.01;
+				}
+			}
+
+
 		}
+	
+	// rhs[0].setVal(8.0,0);
+	// std::cout << __FILE__<<":"<<__LINE__<<" rhsmax = " << rhs[0].max(3) << " rhsmin = " << rhs[0].min(3) << std::endl;
+	// std::cout << __FILE__<<":"<<__LINE__<<" rhsnorm0 = " << rhs[0].norm0() << std::endl;
+	//Util::Abort("Done");
+
+
+
+
 
 	//
 	// Linear Operator
@@ -176,33 +205,15 @@ int main (int argc, char* argv[])
 
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
+	info.setMaxCoarseningLevel(0);
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
-	mlabec.define(geom, grids, dmap, *mybc, info);
+	mlabec.define(geom, grids, dmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
 
-	//
-	// THIS STUFF IS THE OLD WAY OF SETTING BOUNDARY CONDITIONS
-	//
-	// mlabec.SetEigenstrain(eps0,*mybc);
-	// mlabec.AddEigenstrainToRHS(rhs);
-	//{AMREX_D_DECL(amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet,amrex::LinOpBCType::Dirichlet)}
-	// mlabec.setDomainBC(mybc->GetBCTypes<amrex::LinOpBCType>()[0],
-	//   		   mybc->GetBCTypes<amrex::LinOpBCType>()[1]);
-
-
-	// this must be replaced...
-	//mlabec.
-	// for (int ilev = 0; ilev < nlevels; ++ilev)
-	// {
-	// 	//mybc->define(geom[ilev]);
-	// 	//mybc->FillBoundary(u[ilev],0,0,0.0);
-	// 	//mlabec.setLevelBC(ilev,&u[ilev]);
-	// 	mlabec.setLevelBC(ilev,nullptr);
-	// }
-
-
+	//mlabec.FApply(0,0,res[0],u[0]);
+	//res[0].minus(rhs[0],0,number_of_components,number_of_ghost_cells);
 
 	//
 	// Solver
@@ -223,6 +234,10 @@ int main (int argc, char* argv[])
 			mlmg.setFinalSmooth(0); 
 			mlmg.setBottomSmooth(0); 
 		}
+
+	std::cout << __FILE__<<":"<<__LINE__<<" unorm0 = " << u[0].norm0() << std::endl;
+	std::cout << __FILE__<<":"<<__LINE__<<" rhsnorm0 = " << rhs[0].norm0() << std::endl;
+
 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	//
@@ -251,12 +266,12 @@ int main (int argc, char* argv[])
 	// WRITE PLOT FILE
 	//
 
-	const int ncomp = AMREX_SPACEDIM > 2 ? 13 : 8;
+	const int ncomp = AMREX_SPACEDIM > 2 ? 16 : 10;
 #if AMREX_SPACEDIM==2
-	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12", "energy"};
+	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "res01", "res02" "stress11", "stress22", "stress12", "energy"};
 #elif AMREX_SPACEDIM>2
-	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03",
-											 "stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
+	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03", "res01", "res02", "res03",
+				       "stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
 #endif
 
 	nlevels = max_level+1;
@@ -270,10 +285,12 @@ int main (int argc, char* argv[])
 			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 3, 1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 4, 1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 5, 1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 6, 1, 0);
-			MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 7, 1, 0);
+			MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 4, 1, 0);
+			MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 5, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 6, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 7, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 8, 1, 0);
+			MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 9, 1, 0);
 #elif AMREX_SPACEDIM == 3
 			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0,  1, 0);
 			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1,  1, 0);
@@ -281,13 +298,16 @@ int main (int argc, char* argv[])
 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 3,  1, 0);
 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 4,  1, 0);
 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 2, 5,  1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 6,  1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 4, 7,  1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 8, 8,  1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 9,  1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 10, 1, 0);
-			MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 11, 1, 0);
-			MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 12, 1, 0);
+			MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 6,  1, 0);
+			MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 7,  1, 0);
+			MultiFab::Copy(plotmf[ilev], res    [ilev], 2, 8,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 9,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 4, 10,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 8, 11,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 12,  1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 13, 1, 0);
+			MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 14, 1, 0);
+			MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 15, 1, 0);
 #endif 
 		}
 
