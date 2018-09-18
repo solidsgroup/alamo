@@ -94,22 +94,32 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
 
-					if (m1 == domain.loVect()[0] || m1 == domain.hiVect()[0]+1)// ||
-						//     //m2 == domain.loVect()[1] || m2 == domain.hiVect()[1] +1
-					//     //m3 == domain.loVect()[2]
-					//     //m2 == domain.loVect()[1]
-					//     m3 == domain.loVect()[2]
-					//     )
+					// This part is 2 times the identity operator on whatever 
+					if (false
+					    //|| m1 == domain.loVect()[0]     // WORKS  <-- sets X min boundary
+					    //|| m1 == domain.hiVect()[0]+1   // WORKS  <-- sets X max boundary
+					    //|| m2 == domain.loVect()[1]     // WORKS  <-- sets Y min boundary
+					    || m2 == domain.hiVect()[1]+1   // WORKS  <-- sets Y max boundary
+					    //|| m3 == domain.loVect()[2]     // BLOWS UP <-- sets Z min boundary
+					    //|| m3 == domain.hiVect()[2]+1   // BLOWS UP <-- sets Z max boundary
+					    //|| m3 == domain.loVect()[2]+1   // WORKS??? <-- sets ONE AWAY from the Z min boundary
+					    //|| m3 == domain.hiVect()[2]     // WORKS??? <-- sets ONE AWAY from the Z max boundary
+					    )
 					{
-					 	ffab(m,k) = ufab(m,k);
+					 	ffab(m,k) = 2*ufab(m,k);
 					 	continue;
 					}
-					// else
-					// {
-					// 	ffab(m,k) = 10.0*ufab(m,k);
-					// 	continue;
-					// }
+					// This part is the Identity operator on the body (i.e. not the boundary)
+					else
+					{
+						ffab(m,k) = ufab(m,k);
+						continue;
+					}
 
+
+					continue;
+
+					
 					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
 					AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
 						     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
