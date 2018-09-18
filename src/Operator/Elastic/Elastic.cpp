@@ -57,7 +57,7 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
-  
+	
 #if AMREX_SPACEDIM == 1
 	static amrex::IntVect dx(1);
 #elif AMREX_SPACEDIM == 2
@@ -65,6 +65,16 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 #elif AMREX_SPACEDIM == 3
 	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
 #endif 
+
+	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+	{
+		const amrex::FArrayBox &ufab    = u[mfi];
+		amrex::FArrayBox       &ffab    = f[mfi];
+		// if(ffab.contains_inf()) Util::Abort("Inf in ffab [before update]");
+		// if(ffab.contains_nan()) Util::Abort("Nan in ffab [before update]");
+		if(ufab.contains_inf()) Util::Abort("Inf in ufab [before update]");
+		if(ufab.contains_nan()) Util::Abort("Nan in ufab [before update]");
+	}
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -84,11 +94,19 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
 
-					if (m1 == domain.loVect()[0] || m1 == domain.hiVect()[0] ||
-					    m2 == domain.loVect()[1] || m2 == domain.hiVect()[1] ||
-					    m3 == domain.loVect()[2] || m3 == domain.hiVect()[2])
+					if (//m1 == domain.loVect()[0] || m1 == domain.hiVect()[0]+1 ||
+					    //m2 == domain.loVect()[1] || m2 == domain.hiVect()[1] +1
+					    //m3 == domain.loVect()[2]
+					    m2 == domain.loVect()[1]
+					    //m3 == domain.loVect()[2]
+					    )
 					{
-						ffab(m,k) = ufab(m,k);
+						ffab(m,k) = 10.1*ufab(m,k);
+						continue;
+					}
+					else
+					{
+						ffab(m,k) = 10.0*ufab(m,k);
 						continue;
 					}
 
@@ -130,8 +148,8 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 						// f_i -= C_{ijkl,j} u_{k,l}
 						ffab(m,i) -= C_ik(l) * gradu_k(l);
 					}
-					if(std::isinf(ffab(m,i))) std::cout << __FILE__<< ":" << __LINE__ << " Nan in ffab(m,k)" << std::endl;
-					if(std::isnan(ffab(m,i))) std::cout << __FILE__<< ":" << __LINE__ << " Nan in ffab(m,k)" << std::endl;
+					if(std::isinf(ffab(m,i))) Util::Abort("Inf in ffab(m,k) [after update]");
+					if(std::isnan(ffab(m,i))) Util::Abort("Nan in ffab(m,k) [after update]");
 				}
 			}
 		}
