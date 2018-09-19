@@ -5,7 +5,7 @@
 #include "Util/Color.H"
 
 
-#define TRACER	//std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
+#define TRACER	std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
 #define PROBE	//std::cout << Color::FG::Red << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
 
 
@@ -72,39 +72,41 @@ Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 		   const Vector<const MultiFab*>& rhnd,
 		   const Vector<MultiFab*>& a_rhcc)
 {
-	Util::Abort("here in compRHS");
+	Util::Abort("do not call compRHS");
 }
 
 void
 Operator::updateVelocity (const Vector<MultiFab*>& vel, const Vector<MultiFab const*>& sol) const
 {
-	TRACER;
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
-	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
-	{
-		const auto& sigma = *m_sigma[amrlev][0][0];
-		const Real* dxinv = m_geom[amrlev][0].InvCellSize();
-		for (MFIter mfi(*vel[amrlev], true); mfi.isValid(); ++mfi)
-		{
-			const Box& bx = mfi.tilebox();
-			auto& vfab = (*vel[amrlev])[mfi];
-			{
-				amrex_mlndlap_mknewu(BL_TO_FORTRAN_BOX(bx),
-						     BL_TO_FORTRAN_ANYD(vfab),
-						     BL_TO_FORTRAN_ANYD((*sol[amrlev])[mfi]),
-						     BL_TO_FORTRAN_ANYD(sigma[mfi]),
-						     dxinv);
-			}
-		}
-	}
+ 	TRACER;
+	Util::Abort("do not call updateVelocity");
+// #ifdef _OPENMP
+// #pragma omp parallel
+// #endif
+// 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+// 	{
+// 		const auto& sigma = *m_sigma[amrlev][0][0];
+// 		const Real* dxinv = m_geom[amrlev][0].InvCellSize();
+// 		for (MFIter mfi(*vel[amrlev], true); mfi.isValid(); ++mfi)
+// 		{
+// 			const Box& bx = mfi.tilebox();
+// 			auto& vfab = (*vel[amrlev])[mfi];
+// 			{
+// 				amrex_mlndlap_mknewu(BL_TO_FORTRAN_BOX(bx),
+// 						     BL_TO_FORTRAN_ANYD(vfab),
+// 						     BL_TO_FORTRAN_ANYD((*sol[amrlev])[mfi]),
+// 						     BL_TO_FORTRAN_ANYD(sigma[mfi]),
+// 						     dxinv);
+// 			}
+// 		}
+// 	}
 }
 
 void
 Operator::averageDownCoeffs ()
 {
 	TRACER;
+	Util::Abort("Do not call averageDownCoeffs");
 	// BL_PROFILE("Operator::averageDownCoeffs()");
 
 	// if (m_coarsening_strategy == CoarseningStrategy::Sigma)
@@ -168,6 +170,7 @@ void
 Operator::averageDownCoeffsToCoarseAmrLevel (int flev)
 {
 	TRACER;
+	Util::Abort("Do not call averageDownCoeffsToCoarseAmrLevel");
 	const int mglev = 0;
 	const int idim = 0;  // other dimensions are just aliases
 	amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
@@ -178,6 +181,7 @@ void
 Operator::averageDownCoeffsSameAmrLevel (int amrlev)
 {
 	TRACER;
+	Util::Abort("Do not call averageDownCoeffsSameAmrLevel");
 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
 
 	const int nsigma = (m_use_harmonic_average) ? AMREX_SPACEDIM : 1;
@@ -220,6 +224,7 @@ void
 Operator::FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom)
 {
 	TRACER;
+	Util::Abort("Do not call FillBoundaryCoeff");
 	//     BL_PROFILE("Operator::FillBoundaryCoeff()");
 
 	//     sigma.FillBoundary(geom.periodicity());
@@ -607,7 +612,7 @@ Operator::prepareForSolve ()
 
 	buildMasks();
 
-	averageDownCoeffs();
+	//averageDownCoeffs();
 
 #if (AMREX_SPACEDIM == 2)
 	amrex_mlndlap_set_rz(&m_is_rz);
@@ -635,8 +640,28 @@ Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crs
 				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
 {
 	TRACER;
-	Util::Abort("LINE 836");
+	const auto& amrrr = AMRRefRatio(camrlev);
+	const int ncomp = fine_sol.nComp();
+	amrex::average_down(fine_sol, crse_sol, 0, ncomp, amrrr);
+
+	if (isSingular(0))
+	{
+		Util::Abort("should not be using with singular operator");
+
+		
+		MultiFab frhs(fine_rhs.boxArray(), fine_rhs.DistributionMap(), ncomp, 1);
+		MultiFab::Copy(frhs, fine_rhs, 0, 0, ncomp, 0);
+		restrictInteriorNodes(camrlev, crse_rhs, frhs);
+	}
+
 }
+void
+Operator::restrictInteriorNodes (int camrlev, MultiFab& crhs, MultiFab& a_frhs) const
+{
+	TRACER;
+	Util::Abort("restrictInteriorNodes not supported");
+}
+
 
 void
 Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
@@ -885,49 +910,48 @@ Operator::normalize (int amrlev, int mglev, MultiFab& mf) const
 	BL_PROFILE("MLNodeLaplacian::normalize()");
 
 	//const auto& sigma = m_sigma[amrlev][mglev];
-	const auto& stencil = m_stencil[amrlev][mglev];
-	const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
-	const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][mglev];
+	// const auto& stencil = m_stencil[amrlev][mglev];
+	// const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
+	// const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][mglev];
 
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
 	// for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)
 	// {
-	// 	const Box& bx = mfi.tilebox();
-	// 	FArrayBox& fab = mf[mfi];
-	// 	if (m_coarsening_strategy == CoarseningStrategy::RAP)
-	// 	{
-	// 		amrex_mlndlap_normalize_sten(BL_TO_FORTRAN_BOX(bx),
-	// 					     BL_TO_FORTRAN_ANYD(fab),
-	// 					     BL_TO_FORTRAN_ANYD((*stencil)[mfi]),
-	// 					     BL_TO_FORTRAN_ANYD(dmsk[mfi]));
-	// 	}
-	// 	else if (m_use_harmonic_average && mglev > 0)
-	// 	{
-	// 		AMREX_D_TERM(const FArrayBox& sxfab = (*sigma[0])[mfi];,
-	// 			     const FArrayBox& syfab = (*sigma[1])[mfi];,
-	// 			     const FArrayBox& szfab = (*sigma[2])[mfi];);
+	//  	const Box& bx = mfi.tilebox();
+	//  	FArrayBox& fab = mf[mfi];
+		// 	if (m_coarsening_strategy == CoarseningStrategy::RAP)
+		// 	{
+		 		// amrex_mlndlap_normalize_sten(BL_TO_FORTRAN_BOX(bx),
+		 		// 			     BL_TO_FORTRAN_ANYD(fab),
+		 		// 			     BL_TO_FORTRAN_ANYD((*stencil)[mfi]),
+		 		// 			     BL_TO_FORTRAN_ANYD(dmsk[mfi]));
+		// 	}
+		// 	else if (m_use_harmonic_average && mglev > 0)
+		// 	{
+		// 		AMREX_D_TERM(const FArrayBox& sxfab = (*sigma[0])[mfi];,
+		// 			     const FArrayBox& syfab = (*sigma[1])[mfi];,
+		// 			     const FArrayBox& szfab = (*sigma[2])[mfi];);
 
-	// 		amrex_mlndlap_normalize_ha(BL_TO_FORTRAN_BOX(bx),
-	// 					   BL_TO_FORTRAN_ANYD(fab),
-	// 					   AMREX_D_DECL(BL_TO_FORTRAN_ANYD(sxfab),
-	// 							BL_TO_FORTRAN_ANYD(syfab),
-	// 							BL_TO_FORTRAN_ANYD(szfab)),
-	// 					   BL_TO_FORTRAN_ANYD(dmsk[mfi]),
-	// 					   dxinv);
-	// 	}
-	// 	else
-	// 	{
-	// 		const FArrayBox& sfab = (*sigma[0])[mfi];
+		// 		amrex_mlndlap_normalize_ha(BL_TO_FORTRAN_BOX(bx),
+		// 					   BL_TO_FORTRAN_ANYD(fab),
+		// 					   AMREX_D_DECL(BL_TO_FORTRAN_ANYD(sxfab),
+		// 							BL_TO_FORTRAN_ANYD(syfab),
+		// 							BL_TO_FORTRAN_ANYD(szfab)),
+		// 					   BL_TO_FORTRAN_ANYD(dmsk[mfi]),
+		// 					   dxinv);
+		// 	}
+		// 	else
+		// 	{
+	// 	const FArrayBox& sfab = (*sigma[0])[mfi];
 
-	// 		amrex_mlndlap_normalize_aa(BL_TO_FORTRAN_BOX(bx),
-	// 					   BL_TO_FORTRAN_ANYD(fab),
-	// 					   BL_TO_FORTRAN_ANYD(sfab),
-	// 					   BL_TO_FORTRAN_ANYD(dmsk[mfi]),
-	// 					   dxinv);
-	// 	}
-	// }
+	// 	amrex_mlndlap_normalize_aa(BL_TO_FORTRAN_BOX(bx),
+	// 				   BL_TO_FORTRAN_ANYD(fab),
+	// 				   BL_TO_FORTRAN_ANYD(sfab),
+	// 				   BL_TO_FORTRAN_ANYD(dmsk[mfi]),
+	// 				   dxinv);
+	 // }
 }
 
 void
@@ -953,7 +977,9 @@ Operator::reflux (int crse_amrlev,
 		  MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
 	TRACER;
-	Util::Abort("LINE 1436");
+	return;
+
+	BL_PROFILE("MLNodeLaplacian::reflux()");
 }
 
 

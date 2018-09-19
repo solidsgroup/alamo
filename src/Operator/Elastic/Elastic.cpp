@@ -100,19 +100,20 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 					    || m1 == domain.hiVect()[0]+1   // WORKS  <-- sets X max boundary
 					    || m2 == domain.loVect()[1]     // WORKS  <-- sets Y min boundary
 					    || m2 == domain.hiVect()[1]+1   // WORKS  <-- sets Y max boundary
-					    || m3 == domain.loVect()[2]     // BLOWS UP <-- sets Z min boundary
-					    || m3 == domain.hiVect()[2]+1   // BLOWS UP <-- sets Z max boundary
+					    || m3 == domain.loVect()[2]     // WORKS <-- sets Z min boundary
+					    || m3 == domain.hiVect()[2]+1   // WORKS <-- sets Z max boundary
 					    )
 					{
 					 	ffab(m,k) = ufab(m,k);
 					 	continue;
 					}
-					// This part is the Identity operator on the body (i.e. not the boundary)
-					// else
-					// {
-					// 	ffab(m,k) = ufab(m,k);
-					// 	continue;
-					// }
+
+					if ( m1 == bx.loVect()[0] ||
+					     m1 == bx.hiVect()[0] ||
+					     m2 == bx.loVect()[1] ||
+					     m2 == bx.hiVect()[1] ||
+					     m3 == bx.loVect()[2] ||
+					     m3 == bx.hiVect()[2]) continue;
 
 					
 					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
@@ -212,7 +213,7 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 					amrex::Real rho = 0.0, aa = 0.0;
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{
-						if (false
+						if (true
 						    || m1 == domain.loVect()[0]     
 						    || m1 == domain.hiVect()[0]+1   
 						    || m2 == domain.loVect()[1]     
@@ -224,6 +225,13 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 							ufab(m,k) = rhsfab(m,k);
 							continue;
 						}
+						// else if ( m1 == bx.loVect()[0] ||
+						// 	  m1 == bx.hiVect()[0] ||
+						// 	  m2 == bx.loVect()[1] ||
+						// 	  m2 == bx.hiVect()[1] ||
+						// 	  m3 == bx.loVect()[2] ||
+						// 	  m3 == bx.hiVect()[2]) continue;
+
 
 
 						AMREX_D_TERM(if(std::isnan(ufab(m,k))) std::cout << "Nan in ufab(m,k)" << std::endl;

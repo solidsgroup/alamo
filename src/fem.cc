@@ -9,6 +9,7 @@
 #include <AMReX_MLNodeLaplacian.H>
 
 #include "Util/Util.H"
+#include "Operator/Diagonal/Diagonal.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Model/Solid/Elastic/Elastic.H"
@@ -171,9 +172,9 @@ int main (int argc, char* argv[])
 			// 	     rhs[ilev].setVal(body_force[1]*volume,1,1);,
 			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
 
-			rhs[ilev].setVal(0.00001);
+			res[ilev].setVal(0.0);
+			rhs[ilev].setVal(0.000001);
 			u[ilev].setVal(0.0);
-
 
 			for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
 			{
@@ -185,8 +186,12 @@ int main (int argc, char* argv[])
 			 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
 			 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 			 	{
-			 		if (false
-					    || i == geom[ilev].Domain().loVect()[0]     
+					// amrex::Real x = geom[ilev].ProbLo()[0] + ((amrex::Real)(i)) * geom[ilev].CellSize()[0];
+					// rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = x;
+					// continue;
+
+					if (false
+					    || i < geom[ilev].Domain().loVect()[0]+1
 					    || i == geom[ilev].Domain().hiVect()[0]+1   
 					    || j == geom[ilev].Domain().loVect()[1]     
 					    || j == geom[ilev].Domain().hiVect()[1]+1   
@@ -197,7 +202,7 @@ int main (int argc, char* argv[])
 			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;
 			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;
 			 		}						
-					if (i == geom[ilev].Domain().loVect()[0])
+					if (i == geom[ilev].Domain().hiVect()[0] + 1)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
 			 	}
 			}
@@ -215,15 +220,19 @@ int main (int argc, char* argv[])
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
+	//Operator::Diagonal::Diagonal mlabec;
 	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
 
 	// res[0].setVal(0.0);
 	// u[0].setVal(0.0);
-	// mlabec.FApply(0,0,res[0],u[0]);
-	// res[0].minus(rhs[0],0,number_of_components,number_of_ghost_cells);
-	//mlabec.FApply(0,0,u[0],rhs[0]);
+	// for (int ilev = 0; ilev < nlevels; ++ilev)
+	// {
+	// 	// mlabec.FApply(0,0,res[ilev],u[ilev]);
+	// 	// res[ilev].minus(rhs[ilev],0,number_of_components,number_of_ghost_cells);
+	//  	mlabec.FSmooth(ilev,0,u[ilev],rhs[ilev]);
+	// }
 
 	//
 	// Solver
@@ -244,7 +253,6 @@ int main (int argc, char* argv[])
 			mlmg.setFinalSmooth(0); 
 			mlmg.setBottomSmooth(0); 
 		}
-
 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	//
@@ -263,12 +271,6 @@ int main (int argc, char* argv[])
 					// mlabec.Stress(sigmafab,ufab,lev,mfi);
 				}
 		}
-		
-	// // RECOMPUTE RHS
-	// for (int lev = 0; lev <= max_level; lev++)
-	// 	mlabec.temp_Fapply(lev, 0, rhs[lev], u[lev]);
-
-
 	//
 	// WRITE PLOT FILE
 	//
