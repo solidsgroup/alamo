@@ -63,7 +63,7 @@ Diagonal::Fapply (int amrlev,
 				    m3 == domain.loVect()[2]   ||
 				    m3 == domain.hiVect()[2]+1)
 				{
-					ffab(m,i) = ufab(m,i);
+					ffab(m,i) = 2*ufab(m,i);
 				}
 				else if ( m1 == bx.loVect()[0] ||
 					  m1 == bx.hiVect()[0] ||
@@ -73,7 +73,7 @@ Diagonal::Fapply (int amrlev,
 					  m3 == bx.hiVect()[2])
 					continue;
 				else 
-					ffab(m,i) = ufab(m,i);
+					ffab(m,i) = 2*ufab(m,i);
 			}
 		}
 	}
@@ -126,7 +126,7 @@ Diagonal::Fsmooth (int amrlev,
 						    m3 == domain.loVect()[2]   ||
 						    m3 == domain.hiVect()[2]+1)
 						{
-							ufab(m,k) = rhsfab(m,k);
+							ufab(m,k) = rhsfab(m,k) / 2.0;
 						}
 						else if ( m1 == bx.loVect()[0] ||
 							  m1 == bx.hiVect()[0] ||
@@ -136,7 +136,7 @@ Diagonal::Fsmooth (int amrlev,
 							  m3 == bx.hiVect()[2])
 							continue;
 						else 
-							ufab(m,k) = rhsfab(m,k);
+							ufab(m,k) = rhsfab(m,k) / 2.0;
 					}
 				}
 			}

@@ -66,15 +66,9 @@ public :
 		     const LPInfo& a_info = LPInfo(),
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
-	void setRZCorrection (bool rz) { m_is_rz = rz; }
-
-	void setSigma (int amrlev, const MultiFab& a_sigma);
-
 	void compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 		      const Vector<const MultiFab*>& rhnd,
 		      const Vector<MultiFab*>& rhcc);
-
-	void updateVelocity (const Vector<MultiFab*>& vel, const Vector<MultiFab const*>& sol) const;
 
 	void compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& phi,
 				     const MultiFab& vold, const MultiFab* rhcc,
@@ -124,9 +118,22 @@ protected:
 
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
 
-private:
 
-	int m_is_rz = 0;
+
+
+	// amrex_mlndlap_res_fine_contrib 
+	virtual void FineResidualContribution (int amrlev, int mglev,
+					       const amrex::Box &c,// const int* clo, const int* chi,
+					       const amrex::Box &cg,//const int* cgrid_lo, const int* cgrid_hi,
+					       amrex::FArrayBox &f,//amrex_real* fc, const int* flo, const int* fhi,
+					       const amrex::FArrayBox &phi,//const amrex_real* phi, const int* phlo, const int* phhi,
+					       const amrex::FArrayBox &Ax, // const amrex::amrex_real* Ax, const int* alo, const int* ahi,
+					       const amrex::IArrayBox& dmsk, //const int* dmsk, const int* dmlo, const int* dmhi,
+					       const amrex::Real *dxinv//const amrex_real* dxinv);
+					       ) const = 0;
+
+
+private:
 
 	CoarseningStrategy m_coarsening_strategy = CoarseningStrategy::Sigma;
 

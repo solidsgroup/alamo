@@ -14,10 +14,6 @@ namespace Operator
 {
 namespace Elastic
 {
-/// \fn Operator::Elastic::MLPFStiffnessMatrix
-///
-/// Relay to the define function
-/// Also define elastic constants here.
 Elastic::Elastic (const Vector<Geometry>& a_geom,
 		  const Vector<BoxArray>& a_grids,
 		  const Vector<DistributionMapping>& a_dmap,
@@ -30,27 +26,14 @@ Elastic::Elastic (const Vector<Geometry>& a_geom,
 Elastic::~Elastic ()
 {}
 
-// void
-// Elastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigenstrain)
-// {
-// 	usingEigenstrain = true;
-// 	AMREX_ASSERT(eigenstrain[0]->nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-// 	RegisterNewFab(eigenstrain);
-// }
 
-// void
-// Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain)
-// {
-// 	usingEigenstrain = true;
-// 	AMREX_ASSERT(eigenstrain[0].nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-// 	RegisterNewFab(eigenstrain);
-// }
 
 void
-Elastic::Fapply (int amrlev, ///<[in] AMR Level
-		 int mglev,  ///<[in]
-		 MultiFab& f,///<[out] The force vector
-		 const MultiFab& u ///<[in] The displacements vector
+Elastic::Fapply (int amrlev,
+		 int mglev,
+		 const amrex::Box& bx,
+		 amrex::FArrayBox& ffab,
+		 const amrex::FArrayBox& ufab
 		 ) const
 {
 	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
@@ -65,97 +48,78 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 #elif AMREX_SPACEDIM == 3
 	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
 #endif 
-
-	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+	AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+		     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+		     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 	{
-		const amrex::FArrayBox &ufab    = u[mfi];
-		amrex::FArrayBox       &ffab    = f[mfi];
-		// if(ffab.contains_inf()) Util::Abort("Inf in ffab [before update]");
-		// if(ffab.contains_nan()) Util::Abort("Nan in ffab [before update]");
-		if(ufab.contains_inf()) Util::Abort("Inf in ufab [before update]");
-		if(ufab.contains_nan()) Util::Abort("Nan in ufab [before update]");
-	}
-
-	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
-	{
-		const Box& bx = mfi.tilebox();
-		const amrex::FArrayBox &ufab    = u[mfi];
-		amrex::FArrayBox       &ffab    = f[mfi];
-
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+		for (int i=0; i<AMREX_SPACEDIM; i++)
 		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			for (int i=0; i<AMREX_SPACEDIM; i++)
+			ffab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) = 0.0;
+
+			for (int k=0; k<AMREX_SPACEDIM; k++)
 			{
-				ffab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) = 0.0;
 
-				for (int k=0; k<AMREX_SPACEDIM; k++)
+				// DIRICHLET boundary conditions
+				if (false
+				    || m1 == domain.loVect()[0]    
+				    || m1 == domain.hiVect()[0]+1  
+				    || m2 == domain.loVect()[1]    
+				    || m2 == domain.hiVect()[1]+1  
+				    || m3 == domain.loVect()[2]    
+				    || m3 == domain.hiVect()[2]+1  
+				    )
 				{
+					ffab(m,k) = ufab(m,k);
+					continue;
+				}
+				// IGNORE boundaries if not part of domain boundary
+				if ( m1 == bx.loVect()[0] ||
+				     m1 == bx.hiVect()[0] ||
+				     m2 == bx.loVect()[1] ||
+				     m2 == bx.hiVect()[1] ||
+				     m3 == bx.loVect()[2] ||
+				     m3 == bx.hiVect()[2]) continue;
 
-					// This part is 2 times the identity operator on whatever 
-					if (false
-					    || m1 == domain.loVect()[0]     // WORKS  <-- sets X min boundary
-					    || m1 == domain.hiVect()[0]+1   // WORKS  <-- sets X max boundary
-					    || m2 == domain.loVect()[1]     // WORKS  <-- sets Y min boundary
-					    || m2 == domain.hiVect()[1]+1   // WORKS  <-- sets Y max boundary
-					    || m3 == domain.loVect()[2]     // WORKS <-- sets Z min boundary
-					    || m3 == domain.hiVect()[2]+1   // WORKS <-- sets Z max boundary
-					    )
-					{
-					 	ffab(m,k) = ufab(m,k);
-					 	continue;
-					}
+				// ELSE perform operator
 
-					if ( m1 == bx.loVect()[0] ||
-					     m1 == bx.hiVect()[0] ||
-					     m2 == bx.loVect()[1] ||
-					     m2 == bx.hiVect()[1] ||
-					     m3 == bx.loVect()[2] ||
-					     m3 == bx.hiVect()[2]) continue;
+				Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
+				AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
+					     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
+					     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]);)
 
-					
-					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-					AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
-						     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
-						     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]);)
+					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
+				AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
+					     ,// 2D
+					     gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
+					     gradgradu_k(1,0) = gradgradu_k(0,1);
+					     gradgradu_k(1,1) = (ufab(m+dy,k) - 2.0*ufab(m,k) + ufab(m-dy,k))/DX[1]/DX[1];
+					     ,// 3D
+					     gradgradu_k(0,2) = (ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
+					     gradgradu_k(1,2) = (ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
+					     gradgradu_k(2,0) = gradgradu_k(0,2);
+					     gradgradu_k(2,1) = gradgradu_k(1,2);
+					     gradgradu_k(2,2) = (ufab(m+dz,k) - 2.0*ufab(m,k) + ufab(m-dz,k))/DX[2]/DX[2];);
 
-						Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
-					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
-						     ,// 2D
-						     gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
-						     gradgradu_k(1,0) = gradgradu_k(0,1);
-						     gradgradu_k(1,1) = (ufab(m+dy,k) - 2.0*ufab(m,k) + ufab(m-dy,k))/DX[1]/DX[1];
-						     ,// 3D
-						     gradgradu_k(0,2) = (ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
-						     gradgradu_k(1,2) = (ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
-						     gradgradu_k(2,0) = gradgradu_k(0,2);
-						     gradgradu_k(2,1) = gradgradu_k(1,2);
-						     gradgradu_k(2,2) = (ufab(m+dz,k) - 2.0*ufab(m,k) + ufab(m-dz,k))/DX[2]/DX[2];);
-
-					Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
-					AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,0,m+dy,amrlev,mglev,mfi) - C(i,1,k,0,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,0,m+dz,amrlev,mglev,mfi) - C(i,2,k,0,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-						     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx,amrlev,mglev,mfi) - C(i,0,k,1,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,1,m+dy,amrlev,mglev,mfi) - C(i,1,k,1,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,1,m+dz,amrlev,mglev,mfi) - C(i,2,k,1,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-						     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx,amrlev,mglev,mfi) - C(i,0,k,2,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
+				Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
+				AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx) - C(i,0,k,0,m-dx))/(2.0*DX[0]),
+								    + (C(i,1,k,0,m+dy) - C(i,1,k,0,m-dy))/(2.0*DX[1]),
+								    + (C(i,2,k,0,m+dz) - C(i,2,k,0,m-dz))/(2.0*DX[2]));,
+					     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx) - C(i,0,k,1,m-dx))/(2.0*DX[0]),
+								    + (C(i,1,k,1,m+dy) - C(i,1,k,1,m-dy))/(2.0*DX[1]),
+								    + (C(i,2,k,1,m+dz) - C(i,2,k,1,m-dz))/(2.0*DX[2]));,
+					     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx) - C(i,0,k,2,m-dx))/(2.0*DX[0]),
+								    + (C(i,1,k,2,m+dy) - C(i,1,k,2,m-dy))/(2.0*DX[1]),
+								    + (C(i,2,k,2,m+dz) - C(i,2,k,2,m-dz))/(2.0*DX[2])););
 							
-					for (int l=0; l<AMREX_SPACEDIM; l++)
-					{
-						// f_i -= C_{ijkl} (u_{k,lj})
-						for (int j=0; j<AMREX_SPACEDIM; j++)
-							ffab(m,i) -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
+				for (int l=0; l<AMREX_SPACEDIM; l++)
+				{
+					// f_i -= C_{ijkl} (u_{k,lj})
+					for (int j=0; j<AMREX_SPACEDIM; j++)
+						ffab(m,i) -= C(i,j,k,l,m) * (gradgradu_k(j,l));
 
-						// f_i -= C_{ijkl,j} u_{k,l}
-						ffab(m,i) -= C_ik(l) * gradu_k(l);
-					}
-					if(std::isinf(ffab(m,i))) Util::Abort("Inf in ffab(m,k) [after update]");
-					if(std::isnan(ffab(m,i))) Util::Abort("Nan in ffab(m,k) [after update]");
+					// f_i -= C_{ijkl,j} u_{k,l}
+					ffab(m,i) -= C_ik(l) * gradu_k(l);
 				}
 			}
 		}
@@ -163,15 +127,35 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 }
 
 
-/// \fn Operator::Elastic::Fsmooth
-///
-/// Perform one half Gauss-Seidel iteration corresponding to the operator specified
-/// in Operator::Elastic::Fapply.
-/// The variable redblack corresponds to whether to smooth "red" nodes or "black"
-/// nodes, where red and black nodes are distributed in a checkerboard pattern.
-///
-/// \todo Extend to 3D
-///
+
+void
+Elastic::Fapply (int amrlev, ///<[in] AMR Level
+		 int mglev,  ///<[in]
+		 MultiFab& f,///<[out] The force vector
+		 const MultiFab& u ///<[in] The displacements vector
+		 ) const
+{
+	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
+
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	const Real* DX = m_geom[amrlev][mglev].CellSize();
+
+	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+		if(u[mfi].contains_inf()) Util::Abort("Inf in ufab [before update]");
+
+	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		const amrex::FArrayBox &ufab    = u[mfi];
+		amrex::FArrayBox       &ffab    = f[mfi];
+		Fapply(amrlev, mglev, bx, ffab, ufab);
+	}
+
+	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+		if(f[mfi].contains_nan()) Util::Abort("Nan in ffab [after update]");
+}
+
+
 void
 Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 		  int mglev,           ///<[in]
@@ -213,6 +197,7 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 					amrex::Real rho = 0.0, aa = 0.0;
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{
+						// DIRICHLET BCs on operator
 						if (true
 						    || m1 == domain.loVect()[0]     
 						    || m1 == domain.hiVect()[0]+1   
@@ -225,12 +210,13 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 							ufab(m,k) = rhsfab(m,k);
 							continue;
 						}
-						// else if ( m1 == bx.loVect()[0] ||
-						// 	  m1 == bx.hiVect()[0] ||
-						// 	  m2 == bx.loVect()[1] ||
-						// 	  m2 == bx.hiVect()[1] ||
-						// 	  m3 == bx.loVect()[2] ||
-						// 	  m3 == bx.hiVect()[2]) continue;
+						// DO NOTHING on interior boundaries
+						else if ( m1 == bx.loVect()[0] ||
+							  m1 == bx.hiVect()[0] ||
+							  m2 == bx.loVect()[1] ||
+							  m2 == bx.hiVect()[1] ||
+							  m3 == bx.loVect()[2] ||
+							  m3 == bx.hiVect()[2]) continue;
 
 
 
@@ -269,30 +255,30 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 							     gradgradu_k(2,1) = gradgradu_k(1,2););
 
 						Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
-						AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-										    + (C(i,1,k,0,m+dy,amrlev,mglev,mfi) - C(i,1,k,0,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-										    + (C(i,2,k,0,m+dz,amrlev,mglev,mfi) - C(i,2,k,0,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-							     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx,amrlev,mglev,mfi) - C(i,0,k,1,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-										    + (C(i,1,k,1,m+dy,amrlev,mglev,mfi) - C(i,1,k,1,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-										    + (C(i,2,k,1,m+dz,amrlev,mglev,mfi) - C(i,2,k,1,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-							     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx,amrlev,mglev,mfi) - C(i,0,k,2,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-										    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-										    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
+						AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx) - C(i,0,k,0,m-dx))/(2.0*DX[0]),
+										    + (C(i,1,k,0,m+dy) - C(i,1,k,0,m-dy))/(2.0*DX[1]),
+										    + (C(i,2,k,0,m+dz) - C(i,2,k,0,m-dz))/(2.0*DX[2]));,
+							     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx) - C(i,0,k,1,m-dx))/(2.0*DX[0]),
+										    + (C(i,1,k,1,m+dy) - C(i,1,k,1,m-dy))/(2.0*DX[1]),
+										    + (C(i,2,k,1,m+dz) - C(i,2,k,1,m-dz))/(2.0*DX[2]));,
+							     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx) - C(i,0,k,2,m-dx))/(2.0*DX[0]),
+										    + (C(i,1,k,2,m+dy) - C(i,1,k,2,m-dy))/(2.0*DX[1]),
+										    + (C(i,2,k,2,m+dz) - C(i,2,k,2,m-dz))/(2.0*DX[2])););
 
 						for (int l=0; l<AMREX_SPACEDIM; l++)
 						{
 							// rho -= C_{ijkl} (u_{k,lj})
 							for (int j=0; j<AMREX_SPACEDIM; j++)
-								rho -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
+								rho -= C(i,j,k,l,m) * (gradgradu_k(j,l));
 
 							// rho -= C_{ijkl,j} u_{k,l}
 							rho -= C_ik(l) * gradu_k(l);
 						}
 					}
 
-					aa -= AMREX_D_TERM( - 2.0*C(i,0,i,0,m,amrlev,mglev,mfi)/DX[0]/DX[0],
-							    - 2.0*C(i,1,i,1,m,amrlev,mglev,mfi)/DX[1]/DX[1], 
-							    - 2.0*C(i,2,i,2,m,amrlev,mglev,mfi)/DX[2]/DX[2]);
+					aa -= AMREX_D_TERM( - 2.0*C(i,0,i,0,m)/DX[0]/DX[0],
+							    - 2.0*C(i,1,i,1,m)/DX[1]/DX[1], 
+							    - 2.0*C(i,2,i,2,m)/DX[2]/DX[2]);
 
 					if (std::isnan(rho))
 					{
@@ -308,137 +294,11 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 		}
 	}
 }
-/// \fn Operator::Elastic::FFlux
-///
-/// Compute the "flux" corresponding to the operator in Operator::Elastic::Fapply.
-/// Because the operator is self-adjoint and positive-definite, the flux is not
-/// required for adequate convergence (?)
-/// Therefore, the fluxes are simply set to zero and returned.
-///
-/// \todo Extend to 3D
-///
-void
-Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
-		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
-		const FArrayBox& /*ufab*/, const int /*face_only*/) const
-{
-	// amrex::BaseFab<amrex::Real> &fxfab = *sigmafab[0];
-	// amrex::BaseFab<amrex::Real> &fyfab = *sigmafab[1];
-	// fxfab.setVal(0.0);
-	// fyfab.setVal(0.0);
-
-	amrex::BaseFab<amrex::Real> AMREX_D_DECL( &fxfab = *sigmafab[0],
-	 					  &fyfab = *sigmafab[1],
-	 					  &fzfab = *sigmafab[2] ) ;
-	AMREX_D_TERM(fxfab.setVal(0.0);,
-	 	     fyfab.setVal(0.0);,
-	 	     fzfab.setVal(0.0););
-
-}
-
-// void Elastic::AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
-// {
-// 	for (int amrlev=0; amrlev < rhsfab.size(); amrlev ++)
-// 	{
-// 		for (amrex::MFIter mfi(rhsfab[amrlev], true); mfi.isValid(); ++mfi)
-// 		{
-// 			amrex::FArrayBox       &rhs    = rhsfab[amrlev][mfi];
-// 			AddEigenstrainToRHS(rhs,amrlev,mfi);
-// 		}
-// 	}
-// }
-
-// void Elastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
-// 				   int amrlev, const MFIter& mfi) const
-// {
-// 	BL_PROFILE("Operator::Elastic::AddEigenstrainToRHS()");
-
-// 	if (!usingEigenstrain) return;
-
-// 	const Real* DX = m_geom[amrlev][0].CellSize();
-  
-// #if AMREX_SPACEDIM == 1
-// 	static amrex::IntVect dx(1);
-// #elif AMREX_SPACEDIM == 2
-// 	static amrex::IntVect dx(1,0), dy(0,1);
-// #elif AMREX_SPACEDIM == 3
-// 	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
-// #endif 
-
-// 	const Box& bx = mfi.tilebox();
-// 	const amrex::FArrayBox &eps0fab = GetFab(0,amrlev,0,mfi);
-
-// 	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-// 		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-// #if AMREX_SPACEDIM > 2
-// 			for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
-// #endif
-// 			{
-// 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-// 				for (int i=0; i<AMREX_SPACEDIM; i++)
-// 				{
-// 					for (int k=0; k<AMREX_SPACEDIM; k++)
-// 					{
-
-// 						Set::Matrix gradeps0_k; //  gradeps0_k(l,j) == eps0_{kl,j}
-// 						gradeps0_k(0,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 0) - eps0fab(m-dx,k*AMREX_SPACEDIM + 0)) / (2.0*DX[0]); // eps0_{k0,0}
-// 						gradeps0_k(0,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 0) - eps0fab(m-dy,k*AMREX_SPACEDIM + 0)) / (2.0*DX[1]); // eps0_{k0,1}
-// 						gradeps0_k(1,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 1) - eps0fab(m-dx,k*AMREX_SPACEDIM + 1)) / (2.0*DX[0]); // eps0_{k1,0}
-// 						gradeps0_k(1,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 1) - eps0fab(m-dy,k*AMREX_SPACEDIM + 1)) / (2.0*DX[1]); // eps0_{k1,1}
-// #if AMREX_SPACEDIM > 2
-// 						gradeps0_k(0,2) = (eps0fab(m+dz,k*AMREX_SPACEDIM + 0) - eps0fab(m-dz,k*AMREX_SPACEDIM + 0)) / (2.0*DX[2]); // eps0_{k0,1}
-// 						gradeps0_k(1,2) = (eps0fab(m+dz,k*AMREX_SPACEDIM + 1) - eps0fab(m-dz,k*AMREX_SPACEDIM + 1)) / (2.0*DX[2]); // eps0_{k0,1}
-// 						gradeps0_k(2,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 2) - eps0fab(m-dx,k*AMREX_SPACEDIM + 2)) / (2.0*DX[0]); // eps0_{k0,0}
-// 						gradeps0_k(2,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 2) - eps0fab(m-dy,k*AMREX_SPACEDIM + 2)) / (2.0*DX[1]); // eps0_{k0,1}
-// 						gradeps0_k(2,2) = (eps0fab(m+dz,k*AMREX_SPACEDIM + 2) - eps0fab(m-dz,k*AMREX_SPACEDIM + 2)) / (2.0*DX[2]); // eps0_{k0,1}
-// #endif
-
-// 						Set::Vector eps0_k; // eps0_k(l) = eps0_{kl}
-// 						eps0_k(0) = eps0fab(m,k*AMREX_SPACEDIM + 0);
-// 						eps0_k(1) = eps0fab(m,k*AMREX_SPACEDIM + 1);
-// #if AMREX_SPACEDIM > 2
-// 						eps0_k(2) = eps0fab(m,k*AMREX_SPACEDIM + 2);
-// #endif
 
 
-// 						// C_{ijkl} (u_{k,lj} - eps0_{kl,j})
-
-// 						for (int j=0; j<AMREX_SPACEDIM; j++)
-// 							for (int l=0; l<AMREX_SPACEDIM; l++)
-// 								rhsfab(m,i) -= C(i,j,k,l,m,amrlev,0,mfi) * (gradeps0_k(j,l));
-
-
-// 						// C_{ijkl,j} (u_{k,l} - eps0_{k,l}
-// #if AMREX_SPACEDIM == 2
-// 						rhsfab(m,i) -=
-// 							((C(i,0,k,0,m+dx,amrlev,0,mfi) - C(i,0,k,0,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
-// 							 (C(i,1,k,0,m+dy,amrlev,0,mfi) - C(i,1,k,0,m-dy,amrlev,0,mfi))/(2.0*DX[1])) *
-// 							(eps0_k(0))
-// 							+
-// 							((C(i,0,k,1,m+dx,amrlev,0,mfi) - C(i,0,k,1,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
-// 							 (C(i,1,k,1,m+dy,amrlev,0,mfi) - C(i,1,k,1,m-dy,amrlev,0,mfi))/(2.0*DX[1])) *
-// 							(eps0_k(1));
-// #elif AMREX_SPACEIM == 3
-// 						rhsfab(m,i) -=
-// 							((C(i,0,k,0,m+dx,amrlev,0,mfi) - C(i,0,k,0,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
-// 							 (C(i,1,k,0,m+dy,amrlev,0,mfi) - C(i,1,k,0,m-dy,amrlev,0,mfi))/(2.0*DX[1]) +
-// 							 (C(i,2,k,0,m+dz,amrlev,0,mfi) - C(i,2,k,0,m-dz,amrlev,0,mfi))/(2.0*DX[2])) *
-// 							(eps0_k(0))
-// 							+
-// 							((C(i,0,k,1,m+dx,amrlev,0,mfi) - C(i,0,k,1,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
-// 							 (C(i,1,k,1,m+dy,amrlev,0,mfi) - C(i,1,k,1,m-dy,amrlev,0,mfi))/(2.0*DX[1]) +
-// 							 (C(i,2,k,1,m+dz,amrlev,0,mfi) - C(i,2,k,1,m-dz,amrlev,0,mfi))/(2.0*DX[2])) *
-// 							(eps0_k(1))
-// 							+
-// 							((C(i,0,k,2,m+dx,amrlev,0,mfi) - C(i,0,k,2,m-dx,amrlev,0,mfi))/(2.0*DX[0]) +
-// 							 (C(i,1,k,2,m+dy,amrlev,0,mfi) - C(i,1,k,2,m-dy,amrlev,0,mfi))/(2.0*DX[1]) +
-// 							 (C(i,2,k,2,m+dz,amrlev,0,mfi) - C(i,2,k,2,m-dz,amrlev,0,mfi))/(2.0*DX[2])) *
-// 							(eps0_k(2));
-// #endif
-// 					}
-// 				}
-// 			}
-// }
+//
+// APPLICATION-SPECIFIC
+//
 
 void
 Elastic::Stress (FArrayBox& sigmafab,
@@ -568,7 +428,98 @@ Elastic::Energy (FArrayBox& energyfab,
 }
 
 
+void
+Elastic::FineResidualContribution (int amrlev, int mglev,
+				   const amrex::Box &c,
+				   const amrex::Box &cg,
+				   amrex::FArrayBox &f,
+				   const amrex::FArrayBox &phi,
+				   const amrex::FArrayBox &Ax, 
+				   const amrex::IArrayBox& dmsk,
+				   const amrex::Real *dxinv) const
+{
+	
 
+//    integer, dimension(2), intent(in) :: clo, chi, cglo, cghi, flo, fhi, xlo, xhi, &
+//         slo, shi, alo, ahi, mlo, mhi
+//    real(amrex_real), intent(inout) :: f  (flo(1):fhi(1),flo(2):fhi(2))
+//    real(amrex_real), intent(in   ) :: x  (xlo(1):xhi(1),xlo(2):xhi(2))
+//    real(amrex_real), intent(in   ) :: sig(slo(1):shi(1),slo(2):shi(2))
+//    real(amrex_real), intent(inout) :: Ax (alo(1):ahi(1),alo(2):ahi(2))
+//    integer         , intent(in   ) :: msk(mlo(1):mhi(1),mlo(2):mhi(2))
+//    real(amrex_real), intent(in) :: dxinv(2)
+//
+//    integer, dimension(2) :: lo, hi, glo, ghi, gtlo, gthi
+//    integer :: i, j, ii, jj, step
+//    real(amrex_real) :: facx, facy, fxy, f2xmy, fmx2y, fm, fp
+//    real(amrex_real), parameter :: rfd = 0.25d0
+//    real(amrex_real), parameter :: chip = 0.5d0
+//    real(amrex_real), parameter :: chip2 = 0.25d0
+//
+//    facx = (1.d0/6.d0)*dxinv(1)*dxinv(1)
+//    facy = (1.d0/6.d0)*dxinv(2)*dxinv(2)
+//    fxy = facx + facy
+//    f2xmy = 2.d0*facx - facy
+//    fmx2y = 2.d0*facy - facx
+//
+//    lo = 2*clo
+//    hi = 2*chi
+//    glo = 2*cglo
+//    ghi = 2*cghi
+//
+//    gtlo = max(lo-1,glo)
+//    gthi = min(hi+1,ghi)
+//
+
+
+//    do jj = gtlo(2), gthi(2)
+//       if (jj .eq. glo(2) .or. jj .eq. ghi(2)) then
+//          step = 1
+//       else
+//          step = gthi(1)-gtlo(1)
+//       end if
+//       do ii = gtlo(1), gthi(1), step
+//          if (ii.eq.glo(1) .or. ii.eq.ghi(1) .or. step .eq. 1) then
+//             Ax(ii,jj) = x(ii-1,jj-1)*fxy*sig(ii-1,jj-1) &
+//                  +      x(ii+1,jj-1)*fxy*sig(ii  ,jj-1) &
+//                  +      x(ii-1,jj+1)*fxy*sig(ii-1,jj  ) &
+//                  +      x(ii+1,jj+1)*fxy*sig(ii  ,jj  ) &
+//                  +      x(ii-1,jj)*f2xmy*(sig(ii-1,jj-1)+sig(ii-1,jj  )) &
+//                  +      x(ii+1,jj)*f2xmy*(sig(ii  ,jj-1)+sig(ii  ,jj  )) &
+//                  +      x(ii,jj-1)*fmx2y*(sig(ii-1,jj-1)+sig(ii  ,jj-1)) &
+//                  +      x(ii,jj+1)*fmx2y*(sig(ii-1,jj  )+sig(ii  ,jj  )) &
+//                  +      x(ii,jj)*(-2.d0)*fxy*(sig(ii-1,jj-1)+sig(ii,jj-1)+sig(ii-1,jj)+sig(ii,jj))
+//
+//             if (is_rz) then
+//                fp = facy / (2*ii+1)
+//                fm = facy / (2*ii-1)
+//                Ax(ii,jj) = Ax(ii,jj) + (fm*sig(ii-1,jj  )-fp*sig(ii,jj  ))*(x(ii,jj+1)-x(ii,jj)) &
+//                     &                + (fm*sig(ii-1,jj-1)-fp*sig(ii,jj-1))*(x(ii,jj-1)-x(ii,jj))
+//             end if
+//          end if
+//       end do
+//    end do
+//
+//    do j = clo(2), chi(2)
+//       jj = 2*j
+//       if (j .eq. cglo(2) .or. j .eq. cghi(2)) then
+//          step = 1
+//       else
+//          step = chi(1)-clo(1)
+//       end if
+//       do i = clo(1), chi(1), step
+//          ii = 2*i
+//          if (msk(ii,jj) .eq. dirichlet) then
+//             f(i,j) = f(i,j) + rfd*(Ax(ii,jj) &
+//                  + chip*(Ax(ii-1,jj)+Ax(ii+1,jj)+Ax(ii,jj-1)+Ax(ii,jj+1)) &
+//                  + chip2*(Ax(ii-1,jj-1)+Ax(ii+1,jj-1)+Ax(ii-1,jj+1)+Ax(ii+1,jj+1)))
+//          end if
+//       end do
+//    end do
+
+
+
+}
 
 
 
