@@ -186,9 +186,11 @@ int main (int argc, char* argv[])
 			 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
 			 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 			 	{
-					// amrex::Real x = geom[ilev].ProbLo()[0] + ((amrex::Real)(i)) * geom[ilev].CellSize()[0];
-					// rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = x;
-					// continue;
+					amrex::Real x = geom[ilev].ProbLo()[0] + ((amrex::Real)(i)) * geom[ilev].CellSize()[0];
+					amrex::Real y = geom[ilev].ProbLo()[1] + ((amrex::Real)(j)) * geom[ilev].CellSize()[1];
+					amrex::Real z = geom[ilev].ProbLo()[2] + ((amrex::Real)(k)) * geom[ilev].CellSize()[2];
+					rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = x*y;
+					continue;
 
 					if (false
 					    || i < geom[ilev].Domain().loVect()[0]+1

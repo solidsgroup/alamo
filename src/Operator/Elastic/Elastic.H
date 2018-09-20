@@ -4,7 +4,7 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
-
+#include "Set/Set.H"
 #include "Operator/Operator.H"
 
 
@@ -44,18 +44,42 @@ public:
 				 int amrlev, const MFIter& mfi) const;
 protected:
 
+	virtual void Fapply (int amrlev, int mglev, const Box &bx, FArrayBox& out, const FArrayBox& in) const final;
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
 	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
-	virtual void FFlux (int amrlev, const MFIter& mfi,
-						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
-						const FArrayBox& sol, const int face_only=0) const final;
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
 
 private:
+	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect) const
+	{
+		Set::Scalar mu = 26.0;
+		Set::Scalar lambda = 60.0;
+		amrex::Real ret = 0.0;
+		if (i==k && j==l) ret += mu;
+		if (i==l && j==k) ret += mu;
+		if (i==j && k==l) ret += lambda;
+		return ret;
+	}
+
 	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 						  const int amrlev, const int mglev, const MFIter &mfi) const = 0;
 	bool usingEigenstrain = false;
+
+
+
+	virtual void FineResidualContribution (int amrlev,
+					       int mglev,
+					       const amrex::Box &c,
+					       const amrex::Box &cg,
+					       amrex::FArrayBox &f,
+					       const amrex::FArrayBox &phi,
+					       const amrex::FArrayBox &Ax, 
+					       const amrex::IArrayBox &dmsk,
+					       const amrex::Real *dxinv) const;
+
+
+
 };
 }
 }
