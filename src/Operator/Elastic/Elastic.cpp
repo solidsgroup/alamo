@@ -96,17 +96,58 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 
 					// This part is 2 times the identity operator on whatever 
 					if (false
-					    || m1 == domain.loVect()[0]     // WORKS  <-- sets X min boundary
-					    || m1 == domain.hiVect()[0]+1   // WORKS  <-- sets X max boundary
-					    || m2 == domain.loVect()[1]     // WORKS  <-- sets Y min boundary
-					    || m2 == domain.hiVect()[1]+1   // WORKS  <-- sets Y max boundary
-					    || m3 == domain.loVect()[2]     // BLOWS UP <-- sets Z min boundary
-					    || m3 == domain.hiVect()[2]+1   // BLOWS UP <-- sets Z max boundary
-					    )
+					    || m1 == domain.loVect()[0]  
+					    || m1 == domain.hiVect()[0]+1)
 					{
 					 	ffab(m,k) = ufab(m,k);
 					 	continue;
 					}
+					else if (m2 == domain.loVect()[1])
+					{
+						Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
+						AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
+							     gradu_k(1) = (ufab(m+dy,k) - ufab(m,k))/(DX[1]);,
+							     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]););
+
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							ffab(m,i) -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						continue;
+					}
+					else if (m2 == domain.hiVect()[1] + 1)
+					{
+						Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
+						AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
+							     gradu_k(1) = (ufab(m,k) - ufab(m-dy,k))/(DX[1]);,
+							     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]););
+
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							ffab(m,i) += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						continue;
+					}
+					else if (m3 == domain.loVect()[2])
+					{
+						Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
+						AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
+							     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
+							     gradu_k(2) = (ufab(m+dz,k) - ufab(m,k))/(DX[2]););
+
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							ffab(m,i) -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						continue;
+					}
+					else if (m3 == domain.hiVect()[2] + 1)
+					{
+						Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
+						AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
+							     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
+							     gradu_k(2) = (ufab(m,k) - ufab(m-dz,k))/(DX[2]););
+
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							ffab(m,i) += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						continue;
+					}
+
+
 					// This part is the Identity operator on the body (i.e. not the boundary)
 					// else
 					// {
@@ -178,10 +219,10 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 		  const MultiFab& rhs ///<[in] Body force vectors (rhs=right hand side)
 		  ) const
 {
+	BL_PROFILE("Operator::Elastic::Elastic::Fsmooth()");
+	Util::Abort("not implemented yet");
 	for (int redblack = 0; redblack < 2; redblack++)
 	{
-		BL_PROFILE("Operator::Elastic::Elastic::Fsmooth()");
-
 		amrex::Box domain(m_geom[amrlev][mglev].Domain());
 		const Real* DX = m_geom[amrlev][mglev].CellSize();
 
@@ -212,20 +253,6 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 					amrex::Real rho = 0.0, aa = 0.0;
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{
-						if (false
-						    || m1 == domain.loVect()[0]     
-						    || m1 == domain.hiVect()[0]+1   
-						    || m2 == domain.loVect()[1]     
-						    || m2 == domain.hiVect()[1]+1   
-						    || m3 == domain.loVect()[2]     
-						    || m3 == domain.hiVect()[2]+1   
-						    )
-						{
-							ufab(m,k) = rhsfab(m,k);
-							continue;
-						}
-
-
 						AMREX_D_TERM(if(std::isnan(ufab(m,k))) std::cout << "Nan in ufab(m,k)" << std::endl;
 							     ,
 							     if(std::isnan(ufab(m+dx,k))) std::cout << "Nan in ufab(m+dx,k)" << std::endl;
@@ -285,7 +312,6 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 					aa -= AMREX_D_TERM( - 2.0*C(i,0,i,0,m,amrlev,mglev,mfi)/DX[0]/DX[0],
 							    - 2.0*C(i,1,i,1,m,amrlev,mglev,mfi)/DX[1]/DX[1], 
 							    - 2.0*C(i,2,i,2,m,amrlev,mglev,mfi)/DX[2]/DX[2]);
-
 					if (std::isnan(rho))
 					{
 						std::cout << "WARNING: nans detetected, rho=" << rho << ", aa=" << aa << std::endl;
