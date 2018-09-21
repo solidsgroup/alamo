@@ -88,11 +88,11 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 			bool	xmin = (m1 == domain.loVect()[0]),
-				xmax = (m1 == domain.loVect()[0] + 1),
+				xmax = (m1 == domain.hiVect()[0] + 1),
 				ymin = (m2 == domain.loVect()[1]),
-				ymax = (m2 == domain.loVect()[1] + 1),
+				ymax = (m2 == domain.hiVect()[1] + 1),
 				zmin = (m3 == domain.loVect()[2]),
-				zmax = (m3 == domain.loVect()[2] + 1);
+				zmax = (m3 == domain.hiVect()[2] + 1);
 
 			for (int i=0; i<AMREX_SPACEDIM; i++)
 			{
@@ -134,7 +134,7 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 					}
 
 					if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
-
+					
 					// This part is the Identity operator on the body (i.e. not the boundary)
 					// else
 					// {
@@ -144,11 +144,11 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 
 					
 					// Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-					AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
-						     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
-						     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]);)
+					// AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
+					// 	     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
+					// 	     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]););
 
-						Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
+					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
 						     ,// 2D
 						     gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
