@@ -101,7 +101,7 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
 					// This part is 2 times the identity operator on whatever 
-					if (xmin || xmax)
+					if (xmin || xmax || ymin || ymax || zmin || zmax) // just xmin and xmax for neumann test
 					{
 					 	ffab(m,k) = ufab(m,k);
 					 	continue;
@@ -237,6 +237,7 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 
 				for (int i=0; i<AMREX_SPACEDIM; i++)
 				{
+
 					amrex::Real rho = 0.0, aa = 0.0;
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{

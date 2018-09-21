@@ -234,6 +234,7 @@ int main (int argc, char* argv[])
 	mlmg.setMaxFmgIter(max_fmg_iter);
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
+	mlmg.setBottomMaxIter(200);
 	mlmg.setFinalFillBC(true);	
 	if (bottom_solver == "cg")
 		mlmg.setBottomSolver(MLMG::BottomSolver::cg);
