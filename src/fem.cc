@@ -259,8 +259,8 @@ int main (int argc, char* argv[])
 					FArrayBox &sigmafab  = (stress[lev])[mfi];
 					FArrayBox &energyfab  = (energy[lev])[mfi];
 			
-					// mlabec.Energy(energyfab,ufab,lev,mfi);
-					// mlabec.Stress(sigmafab,ufab,lev,mfi);
+					mlabec.Energy(energyfab,ufab,lev,mfi);
+					mlabec.Stress(sigmafab,ufab,lev,mfi);
 				}
 		}
 		
