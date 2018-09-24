@@ -98,7 +98,6 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
-					// This part is 2 times the identity operator on whatever 
 					//if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
 					if (xmin || xmax) // Neumann
 					{
@@ -134,19 +133,6 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 
 					if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
 					
-					// This part is the Identity operator on the body (i.e. not the boundary)
-					// else
-					// {
-					// 	ffab(m,k) = ufab(m,k);
-					// 	continue;
-					// }
-
-					
-					// Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-					// AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
-					// 	     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
-					// 	     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]););
-
 					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
 						     ,// 2D
@@ -227,45 +213,66 @@ Elastic::Fsmooth (int amrlev,
 				if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
+				bool	xmin = (m1 == domain.loVect()[0]),
+					xmax = (m1 == domain.hiVect()[0] + 1),
+					ymin = (m2 == domain.loVect()[1]),
+					ymax = (m2 == domain.hiVect()[1] + 1),
+					zmin = (m3 == domain.loVect()[2]),
+					zmax = (m3 == domain.hiVect()[2] + 1);
+
+
 				for (int i=0; i<AMREX_SPACEDIM; i++)
 				{
-
-					amrex::Real rho = 0.0, aa = 0.0;
+					amrex::Real rho = 0.0;
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{
-						AMREX_D_TERM(if(std::isnan(ufab(m,k))) std::cout << "Nan in ufab(m,k)" << std::endl;
-							     ,
-							     if(std::isnan(ufab(m+dx,k))) std::cout << "Nan in ufab(m+dx,k)" << std::endl;
-							     if(std::isnan(ufab(m-dx,k))) std::cout << "Nan in ufab(m-dx,k)" << std::endl;
-							     if(std::isnan(ufab(m+dy,k))) std::cout << "Nan in ufab(m+dy,k)" << std::endl;
-							     if(std::isnan(ufab(m-dy,k))) std::cout << "Nan in ufab(m-dy,k)" << std::endl;
-							     if(std::isnan(ufab(m+dx+dy,k))) std::cout << "Nan in ufab(m+dx+dy,k)" << std::endl;
-							     if(std::isnan(ufab(m-dx+dy,k))) std::cout << "Nan in ufab(m-dx+dy,k)" << std::endl;
-							     ,
-							     if(std::isnan(ufab(m+dz,k))) std::cout << "Nan in ufab(m+dz,k)" << std::endl;
-							     if(std::isnan(ufab(m-dz,k))) std::cout << "Nan in ufab(m-dz,k)" << std::endl;
-							     if(std::isnan(ufab(m+dx+dz,k))) std::cout << "Nan in ufab(m+dx+dz,k)" << std::endl;
-							     if(std::isnan(ufab(m+dx-dy,k))) std::cout << "Nan in ufab(m+dx-dz,k)" << std::endl;
-							     if(std::isnan(ufab(m-dx+dy,k))) std::cout << "Nan in ufab(m-dx+dy,k)" << std::endl;);
-
+						//if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
+						if (xmin || xmax) // Neumann
+						{
+							if (i==k) ufab(m,i) += rhsfab(m,k);
+							continue;
+						}
 
 						Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-						AMREX_D_TERM(gradu_k(0) = (ufab(m+dx,k) - ufab(m-dx,k))/(2.0*DX[0]);,
-							     gradu_k(1) = (ufab(m+dy,k) - ufab(m-dy,k))/(2.0*DX[1]);,
-							     gradu_k(2) = (ufab(m+dz,k) - ufab(m-dz,k))/(2.0*DX[2]););
+						AMREX_D_TERM(gradu_k(0) = ((!xmax ? ufab(m+dx,k) : (i==k? 0.0 : ufab(m,k))) - (!xmin ? ufab(m-dx,k) : (i==k ? 0.0 : ufab(m,k))))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+							     gradu_k(1) = ((!ymax ? ufab(m+dy,k) : (i==k? 0.0 : ufab(m,k))) - (!ymin ? ufab(m-dy,k) : (i==k ? 0.0 : ufab(m,k))))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+							     gradu_k(2) = ((!zmax ? ufab(m+dz,k) : (i==k? 0.0 : ufab(m,k))) - (!zmin ? ufab(m-dz,k) : (i==k ? 0.0 : ufab(m,k))))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
+						if (ymin)
+						{
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ufab(m,i) -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						}
+						if (ymax)
+						{
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ufab(m,i) += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						}
+						if (zmin)
+						{
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ufab(m,i) -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						}
+						if (zmax)
+						{
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ufab(m,i) += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						}
+
+						if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
+					
 						Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 						AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dx,k))/DX[0]/DX[0];
 							     ,// 2D
-							     gradgradu_k(1,1) = (ufab(m+dy,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dy,k))/DX[1]/DX[1];
 							     gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
 							     gradgradu_k(1,0) = gradgradu_k(0,1);
+							     gradgradu_k(1,1) = (ufab(m+dy,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dy,k))/DX[1]/DX[1];
 							     ,// 3D
-							     gradgradu_k(2,2) = (ufab(m+dz,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dz,k))/DX[2]/DX[2];
 							     gradgradu_k(0,2) = (ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
-							     gradgradu_k(1,2) = (ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
+							     gradgradu_k(1,2) = (ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2]);
 							     gradgradu_k(2,0) = gradgradu_k(0,2);
-							     gradgradu_k(2,1) = gradgradu_k(1,2););
+							     gradgradu_k(2,1) = gradgradu_k(1,2);
+							     gradgradu_k(2,2) = (ufab(m+dz,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dz,k))/DX[2]/DX[2];);
 
 						Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
 						AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
@@ -277,36 +284,29 @@ Elastic::Fsmooth (int amrlev,
 							     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx,amrlev,mglev,mfi) - C(i,0,k,2,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
 										    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
 										    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
+							
+						Set::Scalar diag = 0.0;
 
 						for (int l=0; l<AMREX_SPACEDIM; l++)
 						{
-							// rho -= C_{ijkl} (u_{k,lj})
+							// f_i -= C_{ijkl} (u_{k,lj})
 							for (int j=0; j<AMREX_SPACEDIM; j++)
 								rho -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
 
-							// rho -= C_{ijkl,j} u_{k,l}
+							// f_i -= C_{ijkl,j} u_{k,l}
 							rho -= C_ik(l) * gradu_k(l);
 						}
-					}
+						ufab(m,i) = rhsfab(m,i) - rho;
 
-					aa -= AMREX_D_TERM( - 2.0*C(i,0,i,0,m,amrlev,mglev,mfi)/DX[0]/DX[0],
-							    - 2.0*C(i,1,i,1,m,amrlev,mglev,mfi)/DX[1]/DX[1], 
-							    - 2.0*C(i,2,i,2,m,amrlev,mglev,mfi)/DX[2]/DX[2]);
-					if (std::isnan(rho))
-					{
-						std::cout << "WARNING: nans detetected, rho=" << rho << ", aa=" << aa << std::endl;
-						amrex::Abort("nans detected");
-					}
-					else
-					{
-						ufab(m,i) = (rhsfab(m,i) - rho) / aa;
+						// ufab(m,i) = (rhsfab(m,i) - rho) / aa;
+
 					}
 				}
 			}
 		}
+		normalize(amrlev,mglev,u);
 	}
 }
-
 
 void
 Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
@@ -348,15 +348,13 @@ Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
 					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-					AMREX_D_TERM(gradu_k(0) = ((!xmax ? 0.0/*ufab(m+dx,k)*/ : 1.0/*ufab(m,k)*/) - (!xmin ? 0.0/*ufab(m-dx,k)*/ : 1.0/*ufab(m,k)*/))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-						     gradu_k(1) = ((!ymax ? 0.0/*ufab(m+dy,k)*/ : 1.0/*ufab(m,k)*/) - (!ymin ? 0.0/*ufab(m-dy,k)*/ : 1.0/*ufab(m,k)*/))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-						     gradu_k(2) = ((!zmax ? 0.0/*ufab(m+dz,k)*/ : 1.0/*ufab(m,k)*/) - (!zmin ? 0.0/*ufab(m-dz,k)*/ : 1.0/*ufab(m,k)*/))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+					AMREX_D_TERM(gradu_k(0) = ((!xmax ? 0.0/*ufab(m+dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!xmin ? 0.0/*ufab(m-dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+						     gradu_k(1) = ((!ymax ? 0.0/*ufab(m+dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!ymin ? 0.0/*ufab(m-dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+						     gradu_k(2) = ((!zmax ? 0.0/*ufab(m+dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!zmin ? 0.0/*ufab(m-dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
-					// This part is 2 times the identity operator on whatever 
-					//if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
 					if (xmin || xmax) // Neumann
 					{
-					 	aa = 1.0;
+					 	if (i==k) aa = 1.0;
 					 	continue;
 					}
 					if (ymin)
@@ -407,8 +405,6 @@ Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
 									    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
 									    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
 							
-					Set::Scalar diag = 0.0;
-
 					for (int l=0; l<AMREX_SPACEDIM; l++)
 					{
 						// f_i -= C_{ijkl} (u_{k,lj})
