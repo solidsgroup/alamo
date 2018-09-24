@@ -89,6 +89,7 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::MultiFab>  rhs;
 	amrex::Vector<amrex::MultiFab>  stress;
 	amrex::Vector<amrex::MultiFab>  energy;
+	amrex::Vector<amrex::MultiFab>  verify;
 
 	//
 	// CONSTRUCTOR
@@ -107,6 +108,7 @@ int main (int argc, char* argv[])
 	rhs.resize(nlevels);
 	stress.resize(nlevels);
 	energy.resize(nlevels);
+	verify.resize(nlevels);
 
 
 	BC::Constant *mybc;
@@ -159,6 +161,7 @@ int main (int argc, char* argv[])
 			rhs     [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
 			stress  [ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
 			energy  [ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
+			verify	[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
 		}
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -174,6 +177,7 @@ int main (int argc, char* argv[])
 			rhs[ilev].setVal(0.00001);
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
+			verify[ilev].setVal(0.0);
 
 			for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
 			{
@@ -218,6 +222,7 @@ int main (int argc, char* argv[])
 	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
+	bool result = mlabec.VerificationCheck(0,0,verify);
 
 	// res[0].setVal(0.0);
 	// u[0].setVal(0.0);
