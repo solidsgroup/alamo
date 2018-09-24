@@ -51,6 +51,126 @@ void Operator::Diagonal (int amrlev,
 
 }
 
+bool Operator::VerificationCheck (int amrlev,
+				  int mglev,
+				  amrex::MultiFab& test) const
+{
+	bool result = false;
+	int ncomp = test.nComp();
+	int nghost = test.nGrow();
+	amrex::MultiFab x(test.boxArray(), test.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab Ax(test.boxArray(), test.DistributionMap(), ncomp, nghost);
+
+	x.setVal(0.0);
+	Ax.setVal(0.0);
+	test.setVal(0.0);
+
+	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::FArrayBox	&testfab = test[mfi];
+		amrex::FArrayBox	&xfab    = x[mfi];
+		amrex::FArrayBox	&Axfab   = Ax[mfi];
+
+		// Random point on inside
+		int pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		int pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		int pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		for (int i = 0; i < ncomp; i++)
+		{
+			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
+			xfab(m,i) = 1.0;
+			Fapply(amrlev,mglev,Ax,x);
+			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			xfab.setVal(0.0);
+			Axfab.setVal(0.0);
+		}
+
+		// Random point on left face
+		pointX = bx.loVect()[0];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		for (int i = 0; i < ncomp; i++)
+		{
+			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
+			xfab(m,i) = 1.0;
+			Fapply(amrlev,mglev,Ax,x);
+			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			xfab.setVal(0.0);
+			Axfab.setVal(0.0);
+		}
+
+		// Random point on the right face
+		pointX = bx.hiVect()[0];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		for (int i = 0; i < ncomp; i++)
+		{
+			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
+			xfab(m,i) = 1.0;
+			Fapply(amrlev,mglev,Ax,x);
+			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			xfab.setVal(0.0);
+			Axfab.setVal(0.0);
+		}
+		// Random point on bottom face
+		pointY = bx.loVect()[1];
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		for (int i = 0; i < ncomp; i++)
+		{
+			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
+			xfab(m,i) = 1.0;
+			Fapply(amrlev,mglev,Ax,x);
+			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			xfab.setVal(0.0);
+			Axfab.setVal(0.0);
+		}
+
+		// Random point on the top face
+		pointY = bx.hiVect()[1];
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		for (int i = 0; i < ncomp; i++)
+		{
+			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
+			xfab(m,i) = 1.0;
+			Fapply(amrlev,mglev,Ax,x);
+			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			xfab.setVal(0.0);
+			Axfab.setVal(0.0);
+		}
+		// Random point on back face
+		pointZ = bx.loVect()[2];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		for (int i = 0; i < ncomp; i++)
+		{
+			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
+			xfab(m,i) = 1.0;
+			Fapply(amrlev,mglev,Ax,x);
+			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			xfab.setVal(0.0);
+			Axfab.setVal(0.0);
+		}
+
+		// Random point on the front face
+		pointZ = bx.hiVect()[2];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		for (int i = 0; i < ncomp; i++)
+		{
+			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
+			xfab(m,i) = 1.0;
+			Fapply(amrlev,mglev,Ax,x);
+			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			xfab.setVal(0.0);
+			Axfab.setVal(0.0);
+		}
+	}
+	return result;
+}
+
 
 Operator::Operator (const Vector<Geometry>& a_geom,
 		    const Vector<BoxArray>& a_grids,
