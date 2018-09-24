@@ -94,6 +94,7 @@ public :
 	{Fsmooth(amrlev,mglev,out,in);};
 
 	void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) const;
+	bool VerificationCheck (int amrlev, int mglev, amrex::MultiFab& test) const;
 protected:
 
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
