@@ -1,8 +1,5 @@
 
-#include "Operator.H"
-#include <AMReX_MLLinOp_F.H>
-#include <AMReX_MultiFabUtil.H>
-#include "Util/Color.H"
+#include "Operator.H" include <AMReX_MLLinOp_F.H> include <AMReX_MultiFabUtil.H> include "Util/Color.H"
 
 
 #define TRACER	//std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
@@ -76,12 +73,16 @@ bool Operator::VerificationCheck (int amrlev,
 		int pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
 		int pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
 		int pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point inside = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
 			xfab(m,i) = 1.0;
 			Fapply(amrlev,mglev,Ax,x);
 			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			std::cout << "test value = " << testfab(m,i) << std::endl;
+			normalize(amrlev,mglev,x);
+			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
 			xfab.setVal(0.0);
 			Axfab.setVal(0.0);
 		}
@@ -90,12 +91,16 @@ bool Operator::VerificationCheck (int amrlev,
 		pointX = bx.loVect()[0];
 		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
 		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point left = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
 			xfab(m,i) = 1.0;
 			Fapply(amrlev,mglev,Ax,x);
 			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			std::cout << "test value = " << testfab(m,i) << std::endl;
+			normalize(amrlev,mglev,x);
+			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
 			xfab.setVal(0.0);
 			Axfab.setVal(0.0);
 		}
@@ -104,12 +109,14 @@ bool Operator::VerificationCheck (int amrlev,
 		pointX = bx.hiVect()[0];
 		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
 		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point right = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
 			xfab(m,i) = 1.0;
 			Fapply(amrlev,mglev,Ax,x);
 			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			std::cout << "test value = " << testfab(m,i) << std::endl;
 			xfab.setVal(0.0);
 			Axfab.setVal(0.0);
 		}
@@ -117,12 +124,16 @@ bool Operator::VerificationCheck (int amrlev,
 		pointY = bx.loVect()[1];
 		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
 		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point bottom = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
 			xfab(m,i) = 1.0;
 			Fapply(amrlev,mglev,Ax,x);
 			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			std::cout << "test value = " << testfab(m,i) << std::endl;
+			normalize(amrlev,mglev,x);
+			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
 			xfab.setVal(0.0);
 			Axfab.setVal(0.0);
 		}
@@ -131,12 +142,16 @@ bool Operator::VerificationCheck (int amrlev,
 		pointY = bx.hiVect()[1];
 		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
 		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point top = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
 			xfab(m,i) = 1.0;
 			Fapply(amrlev,mglev,Ax,x);
 			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			std::cout << "test value = " << testfab(m,i) << std::endl;
+			normalize(amrlev,mglev,x);
+			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
 			xfab.setVal(0.0);
 			Axfab.setVal(0.0);
 		}
@@ -144,12 +159,16 @@ bool Operator::VerificationCheck (int amrlev,
 		pointZ = bx.loVect()[2];
 		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
 		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
 			xfab(m,i) = 1.0;
 			Fapply(amrlev,mglev,Ax,x);
 			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			std::cout << "test value = " << testfab(m,i) << std::endl;
+			normalize(amrlev,mglev,x);
+			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
 			xfab.setVal(0.0);
 			Axfab.setVal(0.0);
 		}
@@ -158,12 +177,16 @@ bool Operator::VerificationCheck (int amrlev,
 		pointZ = bx.hiVect()[2];
 		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
 		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
 			xfab(m,i) = 1.0;
 			Fapply(amrlev,mglev,Ax,x);
 			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
+			std::cout << "test value = " << testfab(m,i) << std::endl;
+			normalize(amrlev,mglev,x);
+			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
 			xfab.setVal(0.0);
 			Axfab.setVal(0.0);
 		}
