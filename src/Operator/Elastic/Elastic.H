@@ -51,6 +51,7 @@ protected:
 						const FArrayBox& sol, const int face_only=0) const final;
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
+	virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
 
 private:
 	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
