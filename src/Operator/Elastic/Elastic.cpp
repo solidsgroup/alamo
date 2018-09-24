@@ -99,8 +99,8 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
 					// This part is 2 times the identity operator on whatever 
-					if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
-						//if (xmin || xmax) // Neumann
+					//if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
+					if (xmin || xmax) // Neumann
 					{
 					 	ffab(m,k) = ufab(m,k);
 					 	continue;
@@ -191,20 +191,11 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 }
 
 
-/// \fn Operator::Elastic::Fsmooth
-///
-/// Perform one half Gauss-Seidel iteration corresponding to the operator specified
-/// in Operator::Elastic::Fapply.
-/// The variable redblack corresponds to whether to smooth "red" nodes or "black"
-/// nodes, where red and black nodes are distributed in a checkerboard pattern.
-///
-/// \todo Extend to 3D
-///
 void
-Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
-		  int mglev,           ///<[in]
-		  MultiFab& u,       ///<[inout] Solution (displacement field)
-		  const MultiFab& rhs ///<[in] Body force vectors (rhs=right hand side)
+Elastic::Fsmooth (int amrlev,
+		  int mglev,
+		  MultiFab& u,
+		  const MultiFab& rhs
 		  ) const
 {
 	BL_PROFILE("Operator::Elastic::Elastic::Fsmooth()");
@@ -362,12 +353,35 @@ Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
 						     gradu_k(2) = ((!zmax ? 0.0/*ufab(m+dz,k)*/ : 1.0/*ufab(m,k)*/) - (!zmin ? 0.0/*ufab(m-dz,k)*/ : 1.0/*ufab(m,k)*/))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
 					// This part is 2 times the identity operator on whatever 
-					if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
-					//if (xmin || xmax) // Neumann
+					//if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
+					if (xmin || xmax) // Neumann
 					{
 					 	aa = 1.0;
 					 	continue;
 					}
+					if (ymin)
+					{
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							aa -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+					}
+					if (ymax)
+					{
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							aa += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+					}
+					if (zmin)
+					{
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							aa -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+					}
+					if (zmax)
+					{
+						for (int l=0; l<AMREX_SPACEDIM; l++)
+							aa += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+					}
+
+					if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
+
 
 					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (/*ufab(m+dx,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /* + ufab(m-dx,k)*/)/DX[0]/DX[0];
