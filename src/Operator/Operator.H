@@ -93,6 +93,7 @@ public :
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fsmooth(amrlev,mglev,out,in);};
 
+	void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) const;
 protected:
 
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
