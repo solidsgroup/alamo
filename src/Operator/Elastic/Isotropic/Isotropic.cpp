@@ -8,8 +8,8 @@
 
 Operator::Elastic::Isotropic::Isotropic ()
 {
-	mu = 2600.0;
-	lambda = 6000.0;
+	mu = 2.6;
+	lambda = 6.0;
 	// mu = 1.23e-3;
 	// lambda = 2.87e-3;
 
