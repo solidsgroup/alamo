@@ -215,14 +215,14 @@ int main (int argc, char* argv[])
 
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
-	info.setMaxCoarseningLevel(0);
+	//info.setMaxCoarseningLevel(0);
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
 	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
-	bool result = mlabec.VerificationCheck(0,0,verify[0]);
+	//bool result = mlabec.VerificationCheck(0,0,verify[0]);
 
 	// for (int i = 0; i<nlevels; i++)
 	// 	mlabec.Diagonal(i,0,res[i]);

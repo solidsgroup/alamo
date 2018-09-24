@@ -14,8 +14,8 @@ bc.bc_x_hi = dirichlet
 bc.bc_y_hi = dirichlet
 bc.bc_z_hi = dirichlet
 
-#solver.bottom_solver = bicgstab
-solver.bottom_solver = smoother
+solver.bottom_solver = bicgstab
+#solver.bottom_solver = smoother
 solver.max_level		= 0
 solver.ref_ratio		= 2
 solver.n_cell			= 16
