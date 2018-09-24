@@ -1,9 +1,12 @@
 
-#include "Operator.H" include <AMReX_MLLinOp_F.H> include <AMReX_MultiFabUtil.H> include "Util/Color.H"
-
+#include "Operator.H"
+#include <AMReX_MLLinOp_F.H>
+#include <AMReX_MultiFabUtil.H>
+#include "Util/Color.H"
+#include "Set/Set.H"
 
 #define TRACER	//std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
-#define PROBE	//std::cout << Color::FG::Red << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
+#define PROBE	std::cout << Color::FG::Red << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
 
 
 using namespace amrex;
@@ -236,14 +239,12 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	 // 	 m_sigma[amrlev][mglev][idim]->setVal(0.0);
 	 // }
 
-#if (AMREX_SPACEDIM == 2)
-	 m_is_rz = Geometry::IsRZ();
-#endif
  }
 
 void
 Operator::setSigma (int amrlev, const MultiFab& a_sigma)
 {
+	Util::Abort("setSigma not implemented");
 	TRACER;
 	MultiFab::Copy(*m_sigma[amrlev][0][0], a_sigma, 0, 0, 1, 0);
 }
@@ -253,12 +254,13 @@ Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 		   const Vector<const MultiFab*>& rhnd,
 		   const Vector<MultiFab*>& a_rhcc)
 {
-	Util::Abort("here in compRHS");
+	Util::Abort("compRHS not implemented");
 }
 
 void
 Operator::updateVelocity (const Vector<MultiFab*>& vel, const Vector<MultiFab const*>& sol) const
 {
+	Util::Abort("updateVelocity not implemented");
 	TRACER;
 #ifdef _OPENMP
 #pragma omp parallel
@@ -286,6 +288,7 @@ void
 Operator::averageDownCoeffs ()
 {
 	TRACER;
+	Util::Abort("averageDownCoeffs not implemented");
 	// BL_PROFILE("Operator::averageDownCoeffs()");
 
 	// if (m_coarsening_strategy == CoarseningStrategy::Sigma)
@@ -348,6 +351,7 @@ Operator::averageDownCoeffs ()
 void
 Operator::averageDownCoeffsToCoarseAmrLevel (int flev)
 {
+	Util::Abort("averageDownCoeffsToCoarseAmrLevel not implemented");
 	TRACER;
 	const int mglev = 0;
 	const int idim = 0;  // other dimensions are just aliases
@@ -358,6 +362,8 @@ Operator::averageDownCoeffsToCoarseAmrLevel (int flev)
 void
 Operator::averageDownCoeffsSameAmrLevel (int amrlev)
 {
+	Util::Abort("averageDownCoeffsToSameAmrLevel not implemented");
+
 	TRACER;
 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
 
@@ -400,6 +406,8 @@ Operator::averageDownCoeffsSameAmrLevel (int amrlev)
 void
 Operator::FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom)
 {
+	Util::Abort("FillBoundaryCoeff not implemented");
+
 	TRACER;
 	//     BL_PROFILE("Operator::FillBoundaryCoeff()");
 
@@ -644,8 +652,6 @@ Operator::buildStencil ()
 	const int ncomp_c = (AMREX_SPACEDIM == 2) ? 6 : 12;
 	AMREX_ALWAYS_ASSERT_WITH_MESSAGE(AMREX_SPACEDIM != 1,
 					 "Operator::buildStencil: 1d not supported");
-	AMREX_ALWAYS_ASSERT_WITH_MESSAGE(!Geometry::IsRZ(),
-					 "Operator::buildStencil: cylindrical not supported for RAP");
 
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
@@ -788,11 +794,7 @@ Operator::prepareForSolve ()
 
 	buildMasks();
 
-	averageDownCoeffs();
-
-#if (AMREX_SPACEDIM == 2)
-	amrex_mlndlap_set_rz(&m_is_rz);
-#endif
+	//averageDownCoeffs();
 
 	buildStencil();
 }
@@ -800,15 +802,264 @@ Operator::prepareForSolve ()
 void
 Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
+	if (AMREX_SPACEDIM != 3) Util::Abort("restriction implemented in 3D only!");
+
 	TRACER;
-	Util::Abort("multigrid not yet allowed");
+	//Util::Abort("restriction not yet implemented");
+	BL_PROFILE("MLNodeLaplacian::restriction()");
+
+	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
+
+	const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][cmglev].Domain());
+
+	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
+	MultiFab cfine;
+	if (need_parallel_copy) {
+		const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
+		cfine.define(ba, fine.DistributionMap(), fine.nComp(), 0);
+	}
+
+	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
+	const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][cmglev-1];
+
+	const auto& stencil = m_stencil[amrlev][cmglev-1];
+
+
+
+
+	// C++ version of Fortran (amrex_mlndlap_restriction)
+	Set::Scalar fac1 = 1.0/64.0;
+	Set::Scalar fac2 = 1.0/32.0;
+	Set::Scalar fac3 = 1.0/16.0; // = fac
+	Set::Scalar fac4 = 1.0/8.0;
+	amrex::Box domain(m_geom[amrlev][cmglev].Domain());
+	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+					   dy(AMREX_D_DECL(0,1,0)),
+					   dz(AMREX_D_DECL(0,0,1)));
+	for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		const amrex::FArrayBox &finefab = fine[mfi];
+		amrex::FArrayBox       &crsefab = (*pcrse)[mfi];
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		{
+			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+			amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
+			bool	xmin = (m1 == domain.loVect()[0]),
+				xmax = (m1 == domain.hiVect()[0] + 1),
+				ymin = (m2 == domain.loVect()[1]),
+				ymax = (m2 == domain.hiVect()[1] + 1),
+				zmin = (m3 == domain.loVect()[2]),
+				zmax = (m3 == domain.hiVect()[2] + 1);
+			for (int i=0; i<crse.nComp(); i++)
+			{
+				if (xmin || xmax || ymin || ymax || zmin || zmax)
+				{
+					crsefab(m_crse,i) = 0.0;
+					continue;
+				}
+				crsefab(m_crse,i) =
+					fac1*(finefab(m_fine-dx-dy-dz) +
+					      finefab(m_fine-dx-dy+dz) +
+					      finefab(m_fine-dx+dy-dz) +
+					      finefab(m_fine-dx+dy+dz) +
+					      finefab(m_fine+dx-dy-dz) +
+					      finefab(m_fine+dx-dy+dz) +
+					      finefab(m_fine+dx+dy-dz) +
+					      finefab(m_fine+dx+dy+dz))
+					+
+					fac2*(finefab(m_fine-dy-dz) +
+					      finefab(m_fine-dy+dz) +
+					      finefab(m_fine+dy-dz) +
+					      finefab(m_fine+dy+dz) +
+					      finefab(m_fine-dz-dx) +
+					      finefab(m_fine-dz+dx) +
+					      finefab(m_fine+dz-dx) +
+					      finefab(m_fine+dz+dx) +
+					      finefab(m_fine-dx-dy) +
+					      finefab(m_fine-dx+dy) +
+					      finefab(m_fine+dx-dy))
+					+
+					fac3*(finefab(m_fine-dx) +
+					      finefab(m_fine-dy) +
+					      finefab(m_fine-dz) +
+					      finefab(m_fine-dx) +
+					      finefab(m_fine-dy) +
+					      finefab(m_fine-dz))
+					+
+					fac4*finefab(m_fine);
+			}
+		}
+	}
+
+//    do    j = lo(2), hi(2)
+//       jj = 2*j
+//       do i = lo(1), hi(1)
+//          ii = 2*i
+//          if (msk(ii,jj) .ne. dirichlet) then
+//             crse(i,j) = fac*(fine(ii-1,jj-1) + 2.d0*fine(ii  ,jj-1) +      fine(ii+1,jj-1) &
+//                  +      2.d0*fine(ii-1,jj  ) + 4.d0*fine(ii  ,jj  ) + 2.d0*fine(ii+1,jj  ) &
+//                  +           fine(ii-1,jj+1) + 2.d0*fine(ii  ,jj+1) +      fine(ii+1,jj+1))
+//          else
+//             crse(i,j) = 0.d0
+//          end if
+//       end do
+//    end do
+//
+
+//    do k = lo(3), hi(3)
+//       kk = 2*k
+//       do j = lo(2), hi(2)
+//          jj = 2*j
+//          do i = lo(1), hi(1)
+//             ii = 2*i
+//             if (msk(ii,jj,kk) .ne. dirichlet) then
+//                crse(i,j,k) = fac1*(fine(ii-1,jj-1,kk-1)+fine(ii+1,jj-1,kk-1) &
+//                     &             +fine(ii-1,jj+1,kk-1)+fine(ii+1,jj+1,kk-1) &
+//                     &             +fine(ii-1,jj-1,kk+1)+fine(ii+1,jj-1,kk+1) &
+//                     &             +fine(ii-1,jj+1,kk+1)+fine(ii+1,jj+1,kk+1)) &
+//                     !
+//                     &      + fac2*(fine(ii  ,jj-1,kk-1)+fine(ii  ,jj+1,kk-1) &
+//                     &             +fine(ii  ,jj-1,kk+1)+fine(ii  ,jj+1,kk+1) &
+//                     &             +fine(ii-1,jj  ,kk-1)+fine(ii+1,jj  ,kk-1) &
+//                     &             +fine(ii-1,jj  ,kk+1)+fine(ii+1,jj  ,kk+1) &
+//                     &             +fine(ii-1,jj-1,kk  )+fine(ii+1,jj-1,kk  ) &
+//                     &             +fine(ii-1,jj+1,kk  )+fine(ii+1,jj+1,kk  )) &
+//                     !
+//                     &      + fac3*(fine(ii-1,jj,kk)+fine(ii+1,jj,kk) &
+//                     &             +fine(ii,jj-1,kk)+fine(ii,jj+1,kk) &
+//                     &             +fine(ii,jj,kk-1)+fine(ii,jj,kk+1)) &
+//                     &      + fac4*fine(ii,jj,kk)
+//             else
+//                crse(i,j,k) = 0.d0
+//             end if
+//          end do
+//       end do
+//    end do
+//  end subroutine amrex_mlndlap_restriction
+//
+
+
+	if (need_parallel_copy) {
+		crse.ParallelCopy(cfine);
+	}
+
 }
 
 void
 Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
 	TRACER;
-	Util::Abort("multigrid not yet supported");
+	BL_PROFILE("MLNodeLaplacian::interpolation()");
+
+	//const auto& sigma = m_sigma[amrlev][fmglev];
+	const auto& stencil = m_stencil[amrlev][fmglev];
+
+	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
+	MultiFab cfine;
+	const MultiFab* cmf = &crse;
+	if (need_parallel_copy) {
+		const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
+		cfine.define(ba, fine.DistributionMap(), crse.nComp(), 0);
+		cfine.ParallelCopy(crse);
+		cmf = &cfine;
+	}
+
+	const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][fmglev].Domain());
+
+	const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][fmglev];
+
+	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+					   dy(AMREX_D_DECL(0,1,0)),
+					   dz(AMREX_D_DECL(0,0,1)));
+
+
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	{
+		FArrayBox tmpfab;
+		for (MFIter mfi(fine, true); mfi.isValid(); ++mfi)
+		{
+			const Box& fine_bx = mfi.tilebox();
+			const Box& course_bx = amrex::coarsen(fine_bx,2);
+			const Box& tmpbx = amrex::refine(course_bx,2);
+			tmpfab.resize(tmpbx,crse.nComp());
+
+			
+			const amrex::FArrayBox &crsefab = (*cmf)[mfi];
+			
+
+			AMREX_D_TERM(for (int m1 = course_bx.loVect()[0]; m1<=course_bx.hiVect()[0]; m1++),
+				     for (int m2 = course_bx.loVect()[1]; m2<=course_bx.hiVect()[1]; m2++),
+				     for (int m3 = course_bx.loVect()[2]; m3<=course_bx.hiVect()[2]; m3++))
+			{
+				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+				amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
+				for (int i=0; i<crse.nComp(); i++)
+				{
+					tmpfab(m_fine,i) = crsefab(m_crse,i);
+					
+					if (m_fine[0] + 1 < fine_bx.hiVect()[0])
+						tmpfab(m_fine+dx,i) = 0.5*(crsefab(m_crse,i) + crsefab(m_crse+dx,i));
+					if (m_fine[1] + 1 < fine_bx.hiVect()[1])
+						tmpfab(m_fine+dy,i) = 0.5*(crsefab(m_crse,i) + crsefab(m_crse+dy,i));
+					if (m_fine[2] + 1 < fine_bx.hiVect()[2])
+						tmpfab(m_fine+dz,i) = 0.5*(crsefab(m_crse,i) + crsefab(m_crse+dz,i));
+				}
+			}
+
+			AMREX_D_TERM(for (int m1 = course_bx.loVect()[0]; m1<=course_bx.hiVect()[0]; m1++),
+				     for (int m2 = course_bx.loVect()[1]; m2<=course_bx.hiVect()[1]; m2++),
+				     for (int m3 = course_bx.loVect()[2]; m3<=course_bx.hiVect()[2]; m3++))
+			{
+				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+				amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
+				for (int i=0; i<crse.nComp(); i++)
+				{
+					if (m_fine[0]+1 < fine_bx.hiVect()[0] && m_fine[1]+1 < fine_bx.hiVect()[1])
+						tmpfab(m_fine+dx+dy,i) = 0.25*(tmpfab(m_fine+dy,i) +
+										tmpfab(m_fine+dx+dx+dy,i) +
+										tmpfab(m_fine+dx,i) +
+										tmpfab(m_fine+dx+dy+dy,i));
+					if (m_fine[1]+1 < fine_bx.hiVect()[1] && m_fine[2]+1 < fine_bx.hiVect()[2])
+						tmpfab(m_fine+dy+dz,i) = 0.25*(tmpfab(m_fine+dz,i) +
+										tmpfab(m_fine+dy+dy+dz,i) +
+										tmpfab(m_fine+dy,i) +
+										tmpfab(m_fine+dy+dz+dz,i));
+					if (m_fine[2]+1 < fine_bx.hiVect()[2] && m_fine[0]+1 < fine_bx.hiVect()[0])
+						tmpfab(m_fine+dz+dx,i) = 0.25*(tmpfab(m_fine+dx,i) +
+										tmpfab(m_fine+dz+dz+dx,i) +
+										tmpfab(m_fine+dz,i) +
+										tmpfab(m_fine+dz+dx+dx,i));
+					
+				}
+			}
+
+			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0] + 1; m1<=fine_bx.hiVect()[0] - 1; m1++),
+				     for (int m2 = fine_bx.loVect()[1] + 1; m2<=fine_bx.hiVect()[1] - 1; m2++),
+				     for (int m3 = fine_bx.loVect()[2] + 1; m3<=fine_bx.hiVect()[2] - 1; m3++))
+			{
+				amrex::IntVect m(m1, m2, m3);
+				for (int i=0; i<crse.nComp(); i++)
+				{
+					tmpfab(m,i) = (tmpfab(m+dx,i) +
+							tmpfab(m-dx,i) +
+							tmpfab(m+dy,i) +
+							tmpfab(m-dy,i) +
+							tmpfab(m+dz,i) +
+							tmpfab(m-dz,i)) / 6.0;
+				}
+			}
+
+			fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
+		}
+	}
+
+
 }
 
 void
