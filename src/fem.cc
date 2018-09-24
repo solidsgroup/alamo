@@ -222,7 +222,7 @@ int main (int argc, char* argv[])
 	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
-	bool result = mlabec.VerificationCheck(0,0,verify);
+	bool result = mlabec.VerificationCheck(0,0,verify[0]);
 
 	// res[0].setVal(0.0);
 	// u[0].setVal(0.0);
