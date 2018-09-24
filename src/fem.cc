@@ -215,7 +215,9 @@ int main (int argc, char* argv[])
 
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
+
 	info.setMaxCoarseningLevel(0);
+
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
@@ -223,12 +225,6 @@ int main (int argc, char* argv[])
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
 	bool result = mlabec.VerificationCheck(0,0,verify[0]);
-
-	// res[0].setVal(0.0);
-	// u[0].setVal(0.0);
-	// mlabec.FApply(0,0,res[0],u[0]);
-	// res[0].minus(rhs[0],0,number_of_components,number_of_ghost_cells);
-	//mlabec.FApply(0,0,u[0],rhs[0]);
 
 	// for (int i = 0; i<nlevels; i++)
 	// 	mlabec.Diagonal(i,0,res[i]);
@@ -249,6 +245,8 @@ int main (int argc, char* argv[])
 		mlmg.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
 		mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	else if (bottom_solver == "smoother")
+		mlmg.setBottomSolver(MLMG::BottomSolver::smoother);
 	if (!use_fsmooth)// <<< put in to NOT require FSmooth
 		{
 			mlmg.setFinalSmooth(0); 
