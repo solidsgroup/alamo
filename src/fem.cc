@@ -173,7 +173,7 @@ int main (int argc, char* argv[])
 
 			rhs[ilev].setVal(0.00001);
 			u[ilev].setVal(0.0);
-
+			stress[ilev].setVal(0.0);
 
 			for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
 			{
@@ -225,6 +225,10 @@ int main (int argc, char* argv[])
 	// res[0].minus(rhs[0],0,number_of_components,number_of_ghost_cells);
 	//mlabec.FApply(0,0,u[0],rhs[0]);
 
+	for (int i = 0; i<nlevels; i++)
+		mlabec.Diagonal(i,0,res[i]);
+
+
 	//
 	// Solver
 	//
@@ -246,7 +250,7 @@ int main (int argc, char* argv[])
 			mlmg.setBottomSmooth(0); 
 		}
 
-	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+	//mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	//
 	// Compute post-solve values

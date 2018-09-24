@@ -13,6 +13,44 @@ using namespace amrex;
 namespace Operator {
 
 
+void Operator::Diagonal (int amrlev,
+			 int mglev,
+			 amrex::MultiFab& diag) const
+{
+	int ncomp = diag.nComp();
+	int nghost = diag.nGrow();
+	amrex::MultiFab x(diag.boxArray(), diag.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab Ax(diag.boxArray(), diag.DistributionMap(), ncomp, nghost);
+
+	x.setVal(0.0);
+	Ax.setVal(0.0);
+	diag.setVal(0.0);
+
+	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::FArrayBox &diagfab = diag[mfi];
+		amrex::FArrayBox       &xfab    = x[mfi];
+		amrex::FArrayBox       &Axfab   = Ax[mfi];
+
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			for (int i = 0; i < ncomp; ++i)
+			{
+				xfab(m,i) = 1.0;
+				Fapply(amrlev,mglev,Ax,x);
+				diagfab(m,i) = amrex::MultiFab::Dot(x, 0, Ax, 0, ncomp, nghost);
+				xfab.setVal(0.0);
+				Axfab.setVal(0.0);
+			}
+		}
+	}
+
+}
+
 
 Operator::Operator (const Vector<Geometry>& a_geom,
 		    const Vector<BoxArray>& a_grids,

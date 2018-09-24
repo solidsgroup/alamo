@@ -8,8 +8,11 @@
 
 Operator::Elastic::Isotropic::Isotropic ()
 {
-  mu = 26.0;
-  lambda = 60.0;
+	// mu = 26.0;
+	// lambda = 60.0;
+	mu = 1.23e-3;
+	lambda = 2.87e-3;
+
 }
 
 amrex::Real
