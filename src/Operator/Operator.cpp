@@ -804,7 +804,9 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 {
 	if (AMREX_SPACEDIM != 3) Util::Abort("restriction implemented in 3D only!");
 
-	TRACER;
+	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("restriction (beginning) - nan or inf detected in fine");
+	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("restriction (beginning) - nan or inf detected in crse");
+
 	//Util::Abort("restriction not yet implemented");
 	BL_PROFILE("MLNodeLaplacian::restriction()");
 
@@ -847,19 +849,13 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 		{
 			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 			amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
-			bool	xmin = (m1 == domain.loVect()[0]),
-				xmax = (m1 == domain.hiVect()[0] + 1),
-				ymin = (m2 == domain.loVect()[1]),
-				ymax = (m2 == domain.hiVect()[1] + 1),
-				zmin = (m3 == domain.loVect()[2]),
-				zmax = (m3 == domain.hiVect()[2] + 1);
 			for (int i=0; i<crse.nComp(); i++)
 			{
-				if (xmin || xmax || ymin || ymax || zmin || zmax)
-				{
-					crsefab(m_crse,i) = 0.0;
-					continue;
-				}
+				// if (xmin || xmax || ymin || ymax || zmin || zmax)
+				// {
+				// 	crsefab(m_crse,i) = 0.0;
+				// 	continue;
+				// }
 				crsefab(m_crse,i) =
 					fac1*(finefab(m_fine-dx-dy-dz) +
 					      finefab(m_fine-dx-dy+dz) +
@@ -946,6 +942,9 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 		crse.ParallelCopy(cfine);
 	}
 
+	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("restriction (end) - nan or inf detected in fine");
+	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("restriction (end) - nan or inf detected in crse");
+
 }
 
 void
@@ -953,6 +952,10 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 {
 	TRACER;
 	BL_PROFILE("MLNodeLaplacian::interpolation()");
+
+	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("interpolation (beginning) - nan or inf detected in fine");
+	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("interpolation (beginning) - nan or inf detected in crse");
+
 
 	//const auto& sigma = m_sigma[amrlev][fmglev];
 	const auto& stencil = m_stencil[amrlev][fmglev];
@@ -988,7 +991,6 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 			const Box& course_bx = amrex::coarsen(fine_bx,2);
 			const Box& tmpbx = amrex::refine(course_bx,2);
 			tmpfab.resize(tmpbx,crse.nComp());
-
 			
 			const amrex::FArrayBox &crsefab = (*cmf)[mfi];
 			
@@ -1039,9 +1041,9 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 				}
 			}
 
-			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0] + 1; m1<=fine_bx.hiVect()[0] - 1; m1++),
-				     for (int m2 = fine_bx.loVect()[1] + 1; m2<=fine_bx.hiVect()[1] - 1; m2++),
-				     for (int m3 = fine_bx.loVect()[2] + 1; m3<=fine_bx.hiVect()[2] - 1; m3++))
+			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0] + 1; m1<=fine_bx.hiVect()[0] - 1; m1 += 2),
+				     for (int m2 = fine_bx.loVect()[1] + 1; m2<=fine_bx.hiVect()[1] - 1; m2 += 2),
+				     for (int m3 = fine_bx.loVect()[2] + 1; m3<=fine_bx.hiVect()[2] - 1; m3 += 2))
 			{
 				amrex::IntVect m(m1, m2, m3);
 				for (int i=0; i<crse.nComp(); i++)
@@ -1059,7 +1061,8 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 		}
 	}
 
-
+	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("interpolation (end) - nan or inf detected in fine");
+	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("interpolation (end) - nan or inf detected in crse");
 }
 
 void
