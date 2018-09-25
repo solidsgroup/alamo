@@ -103,8 +103,8 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 						     gradu_k(1) = ((!ymax ? ufab(m+dy,k) : ufab(m,k)) - (!ymin ? ufab(m-dy,k) : ufab(m,k)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 						     gradu_k(2) = ((!zmax ? ufab(m+dz,k) : ufab(m,k)) - (!zmin ? ufab(m-dz,k) : ufab(m,k)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
-					//if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
-					if (xmin || xmax) // Neumann
+					if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
+					//if (xmin || xmax) // Neumann
 					{
 					 	ffab(m,k) = ufab(m,k);
 					 	continue;
