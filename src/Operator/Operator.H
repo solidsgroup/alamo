@@ -68,13 +68,9 @@ public :
 
 	void setRZCorrection (bool rz) { m_is_rz = rz; }
 
-	void setSigma (int amrlev, const MultiFab& a_sigma);
-
 	void compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 		      const Vector<const MultiFab*>& rhnd,
 		      const Vector<MultiFab*>& rhcc);
-
-	void updateVelocity (const Vector<MultiFab*>& vel, const Vector<MultiFab const*>& sol) const;
 
 	void compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& phi,
 				     const MultiFab& vold, const MultiFab* rhcc,
@@ -118,11 +114,7 @@ protected:
 
 	virtual Real getAScalar () const final { return  0.0; }
 	virtual Real getBScalar () const final { return -1.0; }
-	virtual MultiFab const* getACoeffs (int amrlev, int mglev) const final { return nullptr; }
-	virtual Array<MultiFab const*,AMREX_SPACEDIM> getBCoeffs (int amrlev, int mglev) const final
-        { return {AMREX_D_DECL(m_sigma[amrlev][mglev][0].get(),
-                               m_sigma[amrlev][mglev][2].get(),
-                               m_sigma[amrlev][mglev][3].get())}; }
+
 
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
 
@@ -131,9 +123,6 @@ private:
 	int m_is_rz = 0;
 
 	CoarseningStrategy m_coarsening_strategy = CoarseningStrategy::Sigma;
-
-	Vector<Vector<Array<std::unique_ptr<MultiFab>,AMREX_SPACEDIM> > > m_sigma;
-	Vector<Vector<std::unique_ptr<MultiFab> > > m_stencil;
 
 	bool m_use_gauss_seidel = true;
 	bool m_use_harmonic_average = false;
@@ -150,10 +139,6 @@ private:
 	void FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom);
 
 	void buildMasks ();
-
-	void buildStencil ();
-
-
 public:
 	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
 	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
