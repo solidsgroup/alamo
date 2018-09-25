@@ -974,23 +974,6 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 				}
 			}
 
-			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
-				     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
-				     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
-			{
-				amrex::IntVect m(m1, m2, m3);
-				for (int i=0; i<crse.nComp(); i++)
-				{
-					if (std::isnan(tmpfab(m,i)) || std::isinf(tmpfab(m,i)))
-					{
-						std::cout << __LINE__ << " nan/inf in tmpfab: i = " << i << " m=(" << m << ")" << "tmpfab = " << tmpfab(m,i) << std::endl;
-						std::cout << " fine box hivect = " << fine_bx.hiVect()[0] << "," << fine_bx.hiVect()[1] << "," << fine_bx.hiVect()[2] << std::endl;
-						std::cout << " fine box lovect = " << fine_bx.loVect()[0] << "," << fine_bx.loVect()[1] << "," << fine_bx.loVect()[2] << std::endl;
-						Util::Abort("nan/inf detected");
-					}
-				}
-			}
-
 			fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
 
 			if (fine[mfi].contains_nan()) std::cout << __LINE__ << " fine[mfi] contains nan" << std::endl;
