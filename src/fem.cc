@@ -1,5 +1,6 @@
 #include <streambuf>
- 
+#include <map>
+
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_MLMG.H>
@@ -47,16 +48,32 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::Real> disp_bc_front;  pp_bc.queryarr("disp_bc_front",  disp_bc_front   );
 	amrex::Vector<amrex::Real> disp_bc_back;   pp_bc.queryarr("disp_bc_back",   disp_bc_back    );
 #endif
-	std::string bc_x_lo_str; pp_bc.query("bc_x_lo",bc_x_lo_str);
-	std::string bc_x_hi_str; pp_bc.query("bc_x_hi",bc_x_hi_str);
-	std::string bc_y_lo_str; pp_bc.query("bc_y_lo",bc_y_lo_str);
-	std::string bc_y_hi_str; pp_bc.query("bc_y_hi",bc_y_hi_str);
-#if AMREX_SPACEDIM > 2
-	std::string bc_z_lo_str; pp_bc.query("bc_z_lo",bc_z_lo_str);
-	std::string bc_z_hi_str; pp_bc.query("bc_z_hi",bc_z_hi_str);
-#endif
-
+	amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
+	amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
+	AMREX_D_TERM(pp_bc.queryarr("bc_x_lo",bc_x_lo_str);,
+		     pp_bc.queryarr("bc_y_lo",bc_y_lo_str);,
+		     pp_bc.queryarr("bc_z_lo",bc_z_lo_str););
+	AMREX_D_TERM(pp_bc.queryarr("bc_x_hi",bc_x_hi_str);,
+		     pp_bc.queryarr("bc_y_hi",bc_y_hi_str);,
+		     pp_bc.queryarr("bc_z_hi",bc_z_hi_str););
 	
+	std::map<std::string,Operator::Elastic::BC> bc;
+	bc["displacement"] = Operator::Elastic::BC::Displacement;
+	bc["disp"] = Operator::Elastic::BC::Displacement;
+	bc["traction"] = Operator::Elastic::BC::Traction;
+	bc["trac"] = Operator::Elastic::BC::Traction;
+	bc["periodic"] = Operator::Elastic::BC::Periodic;
+
+
+	std::array<Operator::Elastic::BC,3> bc_x_lo = {bc[bc_x_lo_str[0]], bc[bc_x_lo_str[1]], bc[bc_x_lo_str[2]]};
+	std::array<Operator::Elastic::BC,3> bc_y_lo = {bc[bc_y_lo_str[0]], bc[bc_y_lo_str[1]], bc[bc_y_lo_str[2]]};
+	std::array<Operator::Elastic::BC,3> bc_z_lo = {bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]]};
+	std::array<Operator::Elastic::BC,3> bc_x_hi = {bc[bc_x_hi_str[0]], bc[bc_x_hi_str[1]], bc[bc_x_hi_str[2]]};
+	std::array<Operator::Elastic::BC,3> bc_y_hi = {bc[bc_y_hi_str[0]], bc[bc_y_hi_str[1]], bc[bc_y_hi_str[2]]};
+	std::array<Operator::Elastic::BC,3> bc_z_hi = {bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]]};
+
+
+
 	// Solver Parameters
 	ParmParse pp_solver("solver");
 	std::string bottom_solver = "cg";     pp_solver.query("bottom_solver",bottom_solver);      
@@ -111,15 +128,15 @@ int main (int argc, char* argv[])
 	verify.resize(nlevels);
 
 
-	BC::Constant *mybc;
-	mybc = new BC::Constant({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
-				{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
-				AMREX_D_DECL(disp_bc_left,disp_bc_bottom,disp_bc_back),
-				AMREX_D_DECL(disp_bc_right,disp_bc_top,disp_bc_front));
+	// BC::Constant *mybc;
+	// mybc = new BC::Constant({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
+	// 			{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
+	// 			AMREX_D_DECL(disp_bc_left,disp_bc_bottom,disp_bc_back),
+	// 			AMREX_D_DECL(disp_bc_right,disp_bc_top,disp_bc_front));
 	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
-	std::array<int,AMREX_SPACEDIM> is_periodic = mybc->IsPeriodic();
-	Geometry::Setup(&rb, 0, is_periodic.data());
+	//std::array<int,AMREX_SPACEDIM> is_periodic = mybc->IsPeriodic();
+	Geometry::Setup(&rb, 0);
 
 	Box NDomain(IntVect{AMREX_D_DECL(0,0,0)},
 		    IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
@@ -215,13 +232,18 @@ int main (int argc, char* argv[])
 
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
-	//info.setMaxCoarseningLevel(2);
+	info.setMaxCoarseningLevel(0);
 	nlevels = geom.size();
 
 	Operator::Elastic::Isotropic mlabec;
 	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
+
+	mlabec.SetBC({{bc_x_lo,bc_y_lo,bc_z_lo}},
+		     {{bc_x_hi,bc_y_hi,bc_z_hi}});
+	
+
 	//bool result = mlabec.VerificationCheck(0,0,verify[0]);
 
 	// for (int i = 0; i<nlevels; i++)
