@@ -851,11 +851,6 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 			amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
 			for (int i=0; i<crse.nComp(); i++)
 			{
-				// if (xmin || xmax || ymin || ymax || zmin || zmax)
-				// {
-				// 	crsefab(m_crse,i) = 0.0;
-				// 	continue;
-				// }
 				crsefab(m_crse,i) =
 					fac1*(finefab(m_fine-dx-dy-dz) +
 					      finefab(m_fine-dx-dy+dz) +
@@ -956,10 +951,6 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("interpolation (beginning) - nan or inf detected in fine");
 	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("interpolation (beginning) - nan or inf detected in crse");
 
-
-	//const auto& sigma = m_sigma[amrlev][fmglev];
-	const auto& stencil = m_stencil[amrlev][fmglev];
-
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
 	const MultiFab* cmf = &crse;
@@ -969,17 +960,9 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 		cfine.ParallelCopy(crse);
 		cmf = &cfine;
 	}
-
-	const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][fmglev].Domain());
-
-	const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][fmglev];
-
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
-
-
-
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
@@ -990,79 +973,89 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 			const Box& fine_bx = mfi.tilebox();
 			const Box& course_bx = amrex::coarsen(fine_bx,2);
 			const Box& tmpbx = amrex::refine(course_bx,2);
-			tmpfab.resize(tmpbx,crse.nComp());
+			tmpfab.resize(tmpbx,fine.nComp());
 			
 			const amrex::FArrayBox &crsefab = (*cmf)[mfi];
 			
 
-			AMREX_D_TERM(for (int m1 = course_bx.loVect()[0]; m1<=course_bx.hiVect()[0]; m1++),
-				     for (int m2 = course_bx.loVect()[1]; m2<=course_bx.hiVect()[1]; m2++),
-				     for (int m3 = course_bx.loVect()[2]; m3<=course_bx.hiVect()[2]; m3++))
+
+
+			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
+				     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
+				     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
 			{
-				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-				amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
+				amrex::IntVect m(m1, m2, m3);
+				amrex::IntVect M(m1/2, m2/2, m3/2);
+
 				for (int i=0; i<crse.nComp(); i++)
 				{
-					tmpfab(m_fine,i) = crsefab(m_crse,i);
-					
-					if (m_fine[0] + 1 < fine_bx.hiVect()[0])
-						tmpfab(m_fine+dx,i) = 0.5*(crsefab(m_crse,i) + crsefab(m_crse+dx,i));
-					if (m_fine[1] + 1 < fine_bx.hiVect()[1])
-						tmpfab(m_fine+dy,i) = 0.5*(crsefab(m_crse,i) + crsefab(m_crse+dy,i));
-					if (m_fine[2] + 1 < fine_bx.hiVect()[2])
-						tmpfab(m_fine+dz,i) = 0.5*(crsefab(m_crse,i) + crsefab(m_crse+dz,i));
+					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
+						tmpfab(m,i) = crsefab(M,i);
+					else if (m[1]==2*M[1] && m[2]==2*M[2]) // X Edge
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
+					else if (m[2]==2*M[2] && m[0]==2*M[0]) // Y Edge
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
+					else if (m[0]==2*M[0] && m[1]==2*M[1]) // Z Edge
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i));
+					else if (m[0]==2*M[0]) // X Face
+						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dy,i) +
+								      crsefab(M+dz,i) + crsefab(M+dy+dz,i));
+					else if (m[1]==2*M[1]) // Y Face
+						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dz,i) +
+								      crsefab(M+dx,i) + crsefab(M+dz+dx,i));
+					else if (m[2]==2*M[2]) // Z Face
+						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
+								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
+					else // Centroid
+					{
+						tmpfab(m,i) = 0.125 * (crsefab(M,i) +
+								       crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dz,i) +
+								       crsefab(M+dy+dz,i) + crsefab(M+dz+dx,i) + crsefab(M+dx+dy,i) +
+								       crsefab(M+dx+dy+dz,i));
+					}
+
+					if (std::isinf(tmpfab(m,i)))
+					{
+						std::cout << m << M << std::endl;
+						Util::Abort("Is Infinity");
+					}
+					if (std::isnan(tmpfab(m,i)))
+					{
+						std::cout << m << M << std::endl;
+						Util::Abort("Is NaN");
+					}
 				}
 			}
 
-			AMREX_D_TERM(for (int m1 = course_bx.loVect()[0]; m1<=course_bx.hiVect()[0]; m1++),
-				     for (int m2 = course_bx.loVect()[1]; m2<=course_bx.hiVect()[1]; m2++),
-				     for (int m3 = course_bx.loVect()[2]; m3<=course_bx.hiVect()[2]; m3++))
-			{
-				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-				amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
-				for (int i=0; i<crse.nComp(); i++)
-				{
-					if (m_fine[0]+1 < fine_bx.hiVect()[0] && m_fine[1]+1 < fine_bx.hiVect()[1])
-						tmpfab(m_fine+dx+dy,i) = 0.25*(tmpfab(m_fine+dy,i) +
-										tmpfab(m_fine+dx+dx+dy,i) +
-										tmpfab(m_fine+dx,i) +
-										tmpfab(m_fine+dx+dy+dy,i));
-					if (m_fine[1]+1 < fine_bx.hiVect()[1] && m_fine[2]+1 < fine_bx.hiVect()[2])
-						tmpfab(m_fine+dy+dz,i) = 0.25*(tmpfab(m_fine+dz,i) +
-										tmpfab(m_fine+dy+dy+dz,i) +
-										tmpfab(m_fine+dy,i) +
-										tmpfab(m_fine+dy+dz+dz,i));
-					if (m_fine[2]+1 < fine_bx.hiVect()[2] && m_fine[0]+1 < fine_bx.hiVect()[0])
-						tmpfab(m_fine+dz+dx,i) = 0.25*(tmpfab(m_fine+dx,i) +
-										tmpfab(m_fine+dz+dz+dx,i) +
-										tmpfab(m_fine+dz,i) +
-										tmpfab(m_fine+dz+dx+dx,i));
-					
-				}
-			}
-
-			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0] + 1; m1<=fine_bx.hiVect()[0] - 1; m1 += 2),
-				     for (int m2 = fine_bx.loVect()[1] + 1; m2<=fine_bx.hiVect()[1] - 1; m2 += 2),
-				     for (int m3 = fine_bx.loVect()[2] + 1; m3<=fine_bx.hiVect()[2] - 1; m3 += 2))
+			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
+				     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
+				     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
 			{
 				amrex::IntVect m(m1, m2, m3);
 				for (int i=0; i<crse.nComp(); i++)
 				{
-					tmpfab(m,i) = (tmpfab(m+dx,i) +
-							tmpfab(m-dx,i) +
-							tmpfab(m+dy,i) +
-							tmpfab(m-dy,i) +
-							tmpfab(m+dz,i) +
-							tmpfab(m-dz,i)) / 6.0;
+					if (std::isnan(tmpfab(m,i)) || std::isinf(tmpfab(m,i)))
+					{
+						std::cout << __LINE__ << " nan/inf in tmpfab: i = " << i << " m=(" << m << ")" << "tmpfab = " << tmpfab(m,i) << std::endl;
+						std::cout << " fine box hivect = " << fine_bx.hiVect()[0] << "," << fine_bx.hiVect()[1] << "," << fine_bx.hiVect()[2] << std::endl;
+						std::cout << " fine box lovect = " << fine_bx.loVect()[0] << "," << fine_bx.loVect()[1] << "," << fine_bx.loVect()[2] << std::endl;
+						Util::Abort("nan/inf detected");
+					}
 				}
 			}
 
 			fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
+
+			if (fine[mfi].contains_nan()) std::cout << __LINE__ << " fine[mfi] contains nan" << std::endl;
+			if (fine[mfi].contains_inf()) std::cout << __LINE__ << " fine[mfi] contains nan" << std::endl;
+
 		}
 	}
 
-	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("interpolation (end) - nan or inf detected in fine");
-	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("interpolation (end) - nan or inf detected in crse");
+	if (fine.contains_nan()) Util::Abort("interpolation (end) - nan detected in fine");
+	if (fine.contains_inf()) Util::Abort("interpolation (end) - inf detected in fine");
+	if (crse.contains_nan()) Util::Abort("interpolation (end) - nan detected in crse");
+	if (crse.contains_inf()) Util::Abort("interpolation (end) - inf detected in crse");
 }
 
 void
