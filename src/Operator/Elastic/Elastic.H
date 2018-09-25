@@ -14,6 +14,8 @@ namespace Operator
 {
 namespace Elastic
 {
+enum BC	{Displacement, Traction, Periodic}; 
+
 class Elastic : public Operator
 {
 public:
@@ -42,6 +44,13 @@ public:
 	void Energy (FArrayBox& energyfab,
 				 const FArrayBox& ufab,
 				 int amrlev, const MFIter& mfi) const;
+	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
+		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
+	{
+		AMREX_D_TERM(m_bc_xlo = a_bc_lo[0];, m_bc_ylo = a_bc_lo[1];, m_bc_zlo = a_bc_lo[2];);
+		AMREX_D_TERM(m_bc_xhi = a_bc_hi[0];, m_bc_yhi = a_bc_hi[1];, m_bc_zhi = a_bc_hi[2];);
+	};
+
 protected:
 
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
@@ -57,6 +66,11 @@ private:
 	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 						  const int amrlev, const int mglev, const MFIter &mfi) const = 0;
 	bool usingEigenstrain = false;
+
+	std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL(m_bc_xlo, m_bc_ylo, m_bc_zlo);
+	std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL(m_bc_xhi, m_bc_yhi, m_bc_zhi);
+
+	//std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL{bc_x, bc_y, bc_z};
 };
 }
 }

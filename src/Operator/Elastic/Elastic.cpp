@@ -14,6 +14,7 @@ namespace Operator
 {
 namespace Elastic
 {
+
 /// \fn Operator::Elastic::MLPFStiffnessMatrix
 ///
 /// Relay to the define function
@@ -59,11 +60,11 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
 #if AMREX_SPACEDIM == 1
-		static amrex::IntVect dx(1);
+	static amrex::IntVect dx(1);
 #elif AMREX_SPACEDIM == 2
-		static amrex::IntVect dx(1,0), dy(0,1);
+	static amrex::IntVect dx(1,0), dy(0,1);
 #elif AMREX_SPACEDIM == 3
-		static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
+	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
 #endif 
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
@@ -103,35 +104,69 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 						     gradu_k(1) = ((!ymax ? ufab(m+dy,k) : ufab(m,k)) - (!ymin ? ufab(m-dy,k) : ufab(m,k)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 						     gradu_k(2) = ((!zmax ? ufab(m+dz,k) : ufab(m,k)) - (!zmin ? ufab(m-dz,k) : ufab(m,k)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
-					if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
-					//if (xmin || xmax) // Neumann
+					if (xmin)
 					{
-					 	ffab(m,k) = ufab(m,k);
-					 	continue;
+						if (m_bc_xlo[k] == BC::Displacement)
+							ffab(m,k) = ufab(m,k);
+						else if (m_bc_xlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ffab(m,i) -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						else Util::Abort("Invalid BC");
 					}
+					if (xmax)
+					{
+						if (m_bc_xhi[k] == BC::Displacement)
+							ffab(m,k) = ufab(m,k);
+						else if (m_bc_xlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ffab(m,i) += C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						else Util::Abort("Invalid BC");
+					}
+
 					if (ymin)
 					{
-					 	for (int l=0; l<AMREX_SPACEDIM; l++)
-					 		ffab(m,i) -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_ylo[k] == BC::Displacement)
+							ffab(m,k) = ufab(m,k);
+						else if (m_bc_ylo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ffab(m,i) -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						else Util::Abort("Invalid BC");
 					}
 					if (ymax)
 					{
-					 	for (int l=0; l<AMREX_SPACEDIM; l++)
-					 		ffab(m,i) += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_yhi[k] == BC::Displacement)
+							ffab(m,k) = ufab(m,k);
+						else if (m_bc_ylo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ffab(m,i) += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						else Util::Abort("Invalid BC");
 					}
+
 					if (zmin)
 					{
-					 	for (int l=0; l<AMREX_SPACEDIM; l++)
-					 		ffab(m,i) -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_zlo[k] == BC::Displacement)
+							ffab(m,k) = ufab(m,k);
+						else if (m_bc_zlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ffab(m,i) -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						else Util::Abort("Invalid BC");
 					}
 					if (zmax)
 					{
-					 	for (int l=0; l<AMREX_SPACEDIM; l++)
-					 		ffab(m,i) += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_zhi[k] == BC::Displacement)
+							ffab(m,k) = ufab(m,k);
+						else if (m_bc_zlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ffab(m,i) += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						else Util::Abort("Invalid BC");
 					}
-
 					if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
 					
+
+
+
+
+
 					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
 						     ,// 2D
@@ -230,50 +265,84 @@ Elastic::Fsmooth (int amrlev,
 							     Diag_gradu_k(1) = ((!ymax ? 0.0 : (i==k? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 							     Diag_gradu_k(2) = ((!zmax ? 0.0 : (i==k? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
-						//if (xmin || xmax || ymin || ymax || zmin || zmax) // All Dirichlet
-						if (xmin || xmax) // Neumann
+						if (xmin)
 						{
-							if (i==k)
-							{
-								rho = 0.0;
-								aa = 1.0;
-							}
-							continue;
+							if (m_bc_xlo[k] == BC::Displacement)
+							{rho = 0.0; aa = 1.0;}
+							else if (m_bc_xlo[k] == BC::Traction) 
+								for (int l=0; l<AMREX_SPACEDIM; l++)
+								{
+									rho -= C(i,0,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
+									aa  -= C(i,0,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
+								}
+							else Util::Abort("Invalid BC");
 						}
+						if (xmax)
+						{
+							if (m_bc_xhi[k] == BC::Displacement)
+							{rho = 0.0; aa = 1.0;}
+							else if (m_bc_xlo[k] == BC::Traction) 
+								for (int l=0; l<AMREX_SPACEDIM; l++)
+								{
+									rho += C(i,0,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
+									aa  += C(i,0,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
+								}
+							else Util::Abort("Invalid BC");
+						}
+
 						if (ymin)
 						{
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-							{
-								rho -= C(i,1,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
-								aa  -= C(i,1,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
-							}
+							if (m_bc_ylo[k] == BC::Displacement)
+							{rho = 0.0; aa = 1.0;}
+							else if (m_bc_ylo[k] == BC::Traction) 
+								for (int l=0; l<AMREX_SPACEDIM; l++)
+								{
+									rho -= C(i,1,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
+									aa  -= C(i,1,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
+								}
+							else Util::Abort("Invalid BC");
 						}
 						if (ymax)
 						{
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-							{
-								rho += C(i,1,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
-								aa  += C(i,1,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
-							}
+							if (m_bc_yhi[k] == BC::Displacement)
+							{rho = 0.0; aa = 1.0;}
+							else if (m_bc_ylo[k] == BC::Traction) 
+								for (int l=0; l<AMREX_SPACEDIM; l++)
+								{
+									rho += C(i,1,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
+									aa  += C(i,1,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
+								}
+							else Util::Abort("Invalid BC");
 						}
+
 						if (zmin)
 						{
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-							{
-								rho -= C(i,2,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
-								aa  -= C(i,2,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
-							}
+							if (m_bc_zlo[k] == BC::Displacement)
+							{rho = 0.0; aa = 1.0;}
+							else if (m_bc_zlo[k] == BC::Traction) 
+								for (int l=0; l<AMREX_SPACEDIM; l++)
+								{
+									rho -= C(i,2,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
+									aa  -= C(i,2,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
+								}
+							else Util::Abort("Invalid BC");
 						}
 						if (zmax)
 						{
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-							{
-								rho += C(i,2,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
-								aa  += C(i,2,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
-							}
+							if (m_bc_zhi[k] == BC::Displacement)
+							{rho = 0.0; aa = 1.0;}
+							else if (m_bc_zlo[k] == BC::Traction) 
+								for (int l=0; l<AMREX_SPACEDIM; l++)
+								{
+									rho += C(i,2,k,l,m,amrlev,mglev,mfi) * OffDiag_gradu_k(l);
+									aa  += C(i,2,k,l,m,amrlev,mglev,mfi) * Diag_gradu_k(l);
+								}
+							else Util::Abort("Invalid BC");
 						}
-
 						if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
+
+
+
 					
 						Set::Matrix OffDiag_gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
 						AMREX_D_TERM(OffDiag_gradgradu_k(0,0) = (ufab(m+dx,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dx,k))/DX[0]/DX[0];
@@ -382,32 +451,61 @@ Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
 						     gradu_k(1) = ((!ymax ? 0.0/*ufab(m+dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!ymin ? 0.0/*ufab(m-dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 						     gradu_k(2) = ((!zmax ? 0.0/*ufab(m+dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!zmin ? 0.0/*ufab(m-dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
-					//if (xmin || xmax || ymin || ymax || zmin || zmax) // Dirichlet
-					if (xmin || xmax) // Neumann
+
+					if (xmin)
 					{
-					 	if (i==k) aa = 1.0;
-					 	continue;
+						if (m_bc_xlo[k] == BC::Displacement)
+							aa = 1.0;
+						else if (m_bc_xlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								aa  -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
 					}
+					if (xmax)
+					{
+						if (m_bc_xhi[k] == BC::Displacement)
+							aa = 1.0;
+						else if (m_bc_xlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								aa  += C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+
+					}
+
 					if (ymin)
 					{
-						for (int l=0; l<AMREX_SPACEDIM; l++)
-							aa -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_ylo[k] == BC::Displacement)
+							aa = 1.0;
+						else if (m_bc_ylo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								aa  -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
 					}
 					if (ymax)
 					{
-						for (int l=0; l<AMREX_SPACEDIM; l++)
-							aa += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_yhi[k] == BC::Displacement)
+							aa = 1.0;
+						else if (m_bc_ylo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								aa  += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+
 					}
+
 					if (zmin)
 					{
-						for (int l=0; l<AMREX_SPACEDIM; l++)
-							aa -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_zlo[k] == BC::Displacement)
+							aa = 1.0;
+						else if (m_bc_zlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								aa  -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+
 					}
 					if (zmax)
 					{
-						for (int l=0; l<AMREX_SPACEDIM; l++)
-							aa += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						if (m_bc_zhi[k] == BC::Displacement)
+							aa = 1.0;
+						else if (m_bc_zlo[k] == BC::Traction) 
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								aa  += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
 					}
+
 
 					if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
 
@@ -599,15 +697,15 @@ Elastic::Energy (FArrayBox& energyfab,
 #endif
 
 				Set::Matrix eps0 = Set::Matrix::Zero();
-// 				if (usingEigenstrain)
-// 				{
-// 					const FArrayBox &eps0fab = GetFab(0,amrlev,0,mfi);
-// #if AMREX_SPACEDIM ==2
-// 					eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3);
-// #elif AMREX_SPACEDIM ==3
-// 					eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3), eps0fab(m,4), eps0fab(m,5), eps0fab(m,6), eps0fab(m,7), eps0fab(m,8);
-// #endif
-// 				}
+				// 				if (usingEigenstrain)
+				// 				{
+				// 					const FArrayBox &eps0fab = GetFab(0,amrlev,0,mfi);
+				// #if AMREX_SPACEDIM ==2
+				// 					eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3);
+				// #elif AMREX_SPACEDIM ==3
+				// 					eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3), eps0fab(m,4), eps0fab(m,5), eps0fab(m,6), eps0fab(m,7), eps0fab(m,8);
+				// #endif
+				// 				}
 
 				energyfab(m) = 0.0;
 
