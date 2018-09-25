@@ -5,7 +5,7 @@
 #include "Util/Color.H"
 #include "Set/Set.H"
 
-#define TRACER	//std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
+#define TRACER	std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
 #define PROBE	std::cout << Color::FG::Red << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
 
 
@@ -802,6 +802,7 @@ Operator::prepareForSolve ()
 void
 Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
+	TRACER;
 	if (AMREX_SPACEDIM != 3) Util::Abort("restriction implemented in 3D only!");
 
 	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("restriction (beginning) - nan or inf detected in fine");
@@ -822,22 +823,18 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	}
 
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
-	const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][cmglev-1];
-
-	const auto& stencil = m_stencil[amrlev][cmglev-1];
-
-
-
 
 	// C++ version of Fortran (amrex_mlndlap_restriction)
 	Set::Scalar fac1 = 1.0/64.0;
 	Set::Scalar fac2 = 1.0/32.0;
-	Set::Scalar fac3 = 1.0/16.0; // = fac
+	Set::Scalar fac3 = 1.0/16.0; 
 	Set::Scalar fac4 = 1.0/8.0;
 	amrex::Box domain(m_geom[amrlev][cmglev].Domain());
+
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
+
 	for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -852,86 +849,39 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 			for (int i=0; i<crse.nComp(); i++)
 			{
 				crsefab(m_crse,i) =
-					fac1*(finefab(m_fine-dx-dy-dz) +
-					      finefab(m_fine-dx-dy+dz) +
-					      finefab(m_fine-dx+dy-dz) +
-					      finefab(m_fine-dx+dy+dz) +
-					      finefab(m_fine+dx-dy-dz) +
-					      finefab(m_fine+dx-dy+dz) +
-					      finefab(m_fine+dx+dy-dz) +
-					      finefab(m_fine+dx+dy+dz))
+					fac1*(finefab(m_fine-dx-dy-dz,i) +
+					      finefab(m_fine-dx-dy+dz,i) +
+					      finefab(m_fine-dx+dy-dz,i) +
+					      finefab(m_fine-dx+dy+dz,i) +
+					      finefab(m_fine+dx-dy-dz,i) +
+					      finefab(m_fine+dx-dy+dz,i) +
+					      finefab(m_fine+dx+dy-dz,i) +
+					      finefab(m_fine+dx+dy+dz,i))
 					+
-					fac2*(finefab(m_fine-dy-dz) +
-					      finefab(m_fine-dy+dz) +
-					      finefab(m_fine+dy-dz) +
-					      finefab(m_fine+dy+dz) +
-					      finefab(m_fine-dz-dx) +
-					      finefab(m_fine-dz+dx) +
-					      finefab(m_fine+dz-dx) +
-					      finefab(m_fine+dz+dx) +
-					      finefab(m_fine-dx-dy) +
-					      finefab(m_fine-dx+dy) +
-					      finefab(m_fine+dx-dy))
+					fac2*(finefab(m_fine-dy-dz,i) +
+					      finefab(m_fine-dy+dz,i) +
+					      finefab(m_fine+dy-dz,i) +
+					      finefab(m_fine+dy+dz,i) +
+					      finefab(m_fine-dz-dx,i) +
+					      finefab(m_fine-dz+dx,i) +
+					      finefab(m_fine+dz-dx,i) +
+					      finefab(m_fine+dz+dx,i) +
+					      finefab(m_fine-dx-dy,i) +
+					      finefab(m_fine-dx+dy,i) +
+					      finefab(m_fine+dx-dy,i) +
+					      finefab(m_fine+dx+dy,i))
 					+
-					fac3*(finefab(m_fine-dx) +
-					      finefab(m_fine-dy) +
-					      finefab(m_fine-dz) +
-					      finefab(m_fine-dx) +
-					      finefab(m_fine-dy) +
-					      finefab(m_fine-dz))
+					fac3*(finefab(m_fine-dx,i) +
+					      finefab(m_fine-dy,i) +
+					      finefab(m_fine-dz,i) +
+					      finefab(m_fine+dx,i) +
+					      finefab(m_fine+dy,i) +
+					      finefab(m_fine+dz,i))
 					+
-					fac4*finefab(m_fine);
+					fac4*finefab(m_fine,i);
 			}
 		}
 	}
-
-//    do    j = lo(2), hi(2)
-//       jj = 2*j
-//       do i = lo(1), hi(1)
-//          ii = 2*i
-//          if (msk(ii,jj) .ne. dirichlet) then
-//             crse(i,j) = fac*(fine(ii-1,jj-1) + 2.d0*fine(ii  ,jj-1) +      fine(ii+1,jj-1) &
-//                  +      2.d0*fine(ii-1,jj  ) + 4.d0*fine(ii  ,jj  ) + 2.d0*fine(ii+1,jj  ) &
-//                  +           fine(ii-1,jj+1) + 2.d0*fine(ii  ,jj+1) +      fine(ii+1,jj+1))
-//          else
-//             crse(i,j) = 0.d0
-//          end if
-//       end do
-//    end do
-//
-
-//    do k = lo(3), hi(3)
-//       kk = 2*k
-//       do j = lo(2), hi(2)
-//          jj = 2*j
-//          do i = lo(1), hi(1)
-//             ii = 2*i
-//             if (msk(ii,jj,kk) .ne. dirichlet) then
-//                crse(i,j,k) = fac1*(fine(ii-1,jj-1,kk-1)+fine(ii+1,jj-1,kk-1) &
-//                     &             +fine(ii-1,jj+1,kk-1)+fine(ii+1,jj+1,kk-1) &
-//                     &             +fine(ii-1,jj-1,kk+1)+fine(ii+1,jj-1,kk+1) &
-//                     &             +fine(ii-1,jj+1,kk+1)+fine(ii+1,jj+1,kk+1)) &
-//                     !
-//                     &      + fac2*(fine(ii  ,jj-1,kk-1)+fine(ii  ,jj+1,kk-1) &
-//                     &             +fine(ii  ,jj-1,kk+1)+fine(ii  ,jj+1,kk+1) &
-//                     &             +fine(ii-1,jj  ,kk-1)+fine(ii+1,jj  ,kk-1) &
-//                     &             +fine(ii-1,jj  ,kk+1)+fine(ii+1,jj  ,kk+1) &
-//                     &             +fine(ii-1,jj-1,kk  )+fine(ii+1,jj-1,kk  ) &
-//                     &             +fine(ii-1,jj+1,kk  )+fine(ii+1,jj+1,kk  )) &
-//                     !
-//                     &      + fac3*(fine(ii-1,jj,kk)+fine(ii+1,jj,kk) &
-//                     &             +fine(ii,jj-1,kk)+fine(ii,jj+1,kk) &
-//                     &             +fine(ii,jj,kk-1)+fine(ii,jj,kk+1)) &
-//                     &      + fac4*fine(ii,jj,kk)
-//             else
-//                crse(i,j,k) = 0.d0
-//             end if
-//          end do
-//       end do
-//    end do
-//  end subroutine amrex_mlndlap_restriction
-//
-
 
 	if (need_parallel_copy) {
 		crse.ParallelCopy(cfine);
@@ -977,9 +927,6 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 			
 			const amrex::FArrayBox &crsefab = (*cmf)[mfi];
 			
-
-
-
 			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
 				     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
 				     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
@@ -1070,7 +1017,6 @@ void
 Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 		   amrex::MLLinOp::StateMode /**/, bool skip_fillboundary) const
 {
-	TRACER;
 	BL_PROFILE("Operator::applyBC()");
 
 	const Geometry& geom = m_geom[amrlev][mglev];
