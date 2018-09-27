@@ -99,13 +99,17 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-#if AMREX_SPACEDIM == 1
-	static amrex::IntVect dx(1);
-#elif AMREX_SPACEDIM == 2
-	static amrex::IntVect dx(1,0), dy(0,1);
-#elif AMREX_SPACEDIM == 3
-	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
-#endif 
+	// #if AMREX_SPACEDIM == 1
+	// 	static amrex::IntVect dx(1);
+	// #elif AMREX_SPACEDIM == 2
+	// 	static amrex::IntVect dx(1,0), dy(0,1);
+	// #elif AMREX_SPACEDIM == 3
+	// 	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
+	// #endif 
+	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
+
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -140,9 +144,9 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
 					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-					AMREX_D_TERM(gradu_k(0) = ((!xmax ? ufab(m+dx,k) : ufab(m,k)) - (!xmin ? ufab(m-dx,k) : ufab(m,k)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-						     gradu_k(1) = ((!ymax ? ufab(m+dy,k) : ufab(m,k)) - (!ymin ? ufab(m-dy,k) : ufab(m,k)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-						     gradu_k(2) = ((!zmax ? ufab(m+dz,k) : ufab(m,k)) - (!zmin ? ufab(m-dz,k) : ufab(m,k)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+					AMREX_D_TERM(gradu_k(0) = ((!xmax ? ufab(m+dx[0],k) : ufab(m,k)) - (!xmin ? ufab(m-dx[0],k) : ufab(m,k)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+						     gradu_k(1) = ((!ymax ? ufab(m+dx[1],k) : ufab(m,k)) - (!ymin ? ufab(m-dx[1],k) : ufab(m,k)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+						     gradu_k(2) = ((!zmax ? ufab(m+dx[2],k) : ufab(m,k)) - (!zmin ? ufab(m-dx[2],k) : ufab(m,k)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
 					if (xmin)
 					{
@@ -208,28 +212,28 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 
 
 					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
-					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx,k) - 2.0*ufab(m,k) + ufab(m-dx,k))/DX[0]/DX[0];
+					AMREX_D_TERM(gradgradu_k(0,0) = (ufab(m+dx[0],k) - 2.0*ufab(m,k) + ufab(m-dx[0],k))/DX[0]/DX[0];
 						     ,// 2D
-						     gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
+						     gradgradu_k(0,1) = (ufab(m+dx[0]+dx[1],k) + ufab(m-dx[0]-dx[1],k) - ufab(m+dx[0]-dx[1],k) - ufab(m-dx[0]+dx[1],k))/(2.0*DX[0])/(2.0*DX[1]);
 						     gradgradu_k(1,0) = gradgradu_k(0,1);
-						     gradgradu_k(1,1) = (ufab(m+dy,k) - 2.0*ufab(m,k) + ufab(m-dy,k))/DX[1]/DX[1];
+						     gradgradu_k(1,1) = (ufab(m+dx[1],k) - 2.0*ufab(m,k) + ufab(m-dx[1],k))/DX[1]/DX[1];
 						     ,// 3D
-						     gradgradu_k(0,2) = (ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
-						     gradgradu_k(1,2) = (ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2]);
+						     gradgradu_k(0,2) = (ufab(m+dx[0]+dx[2],k) + ufab(m-dx[0]-dx[2],k) - ufab(m+dx[0]-dx[2],k) - ufab(m-dx[0]+dx[2],k))/(2.0*DX[0])/(2.0*DX[2]);
+						     gradgradu_k(1,2) = (ufab(m+dx[1]+dx[2],k) + ufab(m-dx[1]-dx[2],k) - ufab(m+dx[1]-dx[2],k) - ufab(m-dx[1]+dx[2],k))/(2.0*DX[1])/(2.0*DX[2]);
 						     gradgradu_k(2,0) = gradgradu_k(0,2);
 						     gradgradu_k(2,1) = gradgradu_k(1,2);
-						     gradgradu_k(2,2) = (ufab(m+dz,k) - 2.0*ufab(m,k) + ufab(m-dz,k))/DX[2]/DX[2];);
+						     gradgradu_k(2,2) = (ufab(m+dx[2],k) - 2.0*ufab(m,k) + ufab(m-dx[2],k))/DX[2]/DX[2];);
 
 					Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
-					AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,0,m+dy,amrlev,mglev,mfi) - C(i,1,k,0,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,0,m+dz,amrlev,mglev,mfi) - C(i,2,k,0,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-						     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx,amrlev,mglev,mfi) - C(i,0,k,1,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,1,m+dy,amrlev,mglev,mfi) - C(i,1,k,1,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,1,m+dz,amrlev,mglev,mfi) - C(i,2,k,1,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-						     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx,amrlev,mglev,mfi) - C(i,0,k,2,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
+					AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx[0],amrlev,mglev,mfi) - C(i,0,k,0,m-dx[0],amrlev,mglev,mfi))/(2.0*DX[0]),
+									    + (C(i,1,k,0,m+dx[1],amrlev,mglev,mfi) - C(i,1,k,0,m-dx[1],amrlev,mglev,mfi))/(2.0*DX[1]),
+									    + (C(i,2,k,0,m+dx[2],amrlev,mglev,mfi) - C(i,2,k,0,m-dx[2],amrlev,mglev,mfi))/(2.0*DX[2]));,
+						     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx[0],amrlev,mglev,mfi) - C(i,0,k,1,m-dx[0],amrlev,mglev,mfi))/(2.0*DX[0]),
+									    + (C(i,1,k,1,m+dx[1],amrlev,mglev,mfi) - C(i,1,k,1,m-dx[1],amrlev,mglev,mfi))/(2.0*DX[1]),
+									    + (C(i,2,k,1,m+dx[2],amrlev,mglev,mfi) - C(i,2,k,1,m-dx[2],amrlev,mglev,mfi))/(2.0*DX[2]));,
+						     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx[0],amrlev,mglev,mfi) - C(i,0,k,2,m-dx[0],amrlev,mglev,mfi))/(2.0*DX[0]),
+									    + (C(i,1,k,2,m+dx[1],amrlev,mglev,mfi) - C(i,1,k,2,m-dx[1],amrlev,mglev,mfi))/(2.0*DX[1]),
+									    + (C(i,2,k,2,m+dx[2],amrlev,mglev,mfi) - C(i,2,k,2,m-dx[2],amrlev,mglev,mfi))/(2.0*DX[2])););
 							
 					Set::Scalar diag = 0.0;
 
