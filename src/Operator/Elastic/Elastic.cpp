@@ -32,6 +32,62 @@ Elastic::~Elastic ()
 {}
 
 void
+Elastic::define (const Vector<Geometry>& a_geom,
+		 const Vector<BoxArray>& a_grids,
+		 const Vector<DistributionMapping>& a_dmap,
+		 const LPInfo& a_info,
+		 const Vector<FabFactory<FArrayBox> const*>& a_factory)
+{
+	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
+
+	model = new Model::Solid::Elastic::Elastic(2.6, 6.0);
+
+	// DEFINE Cijkl ( to be replaced with RegisterNewFab  eventually)
+
+	m_a_coeffs.resize(m_a_coeffs.size() + 1);
+	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+		{
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+								       m_dmap[amrlev][mglev],
+								       model->NComp(),
+								       0);
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].setVal(0.0);
+
+			for (MFIter mfi(m_a_coeffs[m_num_a_fabs][amrlev][mglev], true); mfi.isValid(); ++mfi)
+			{
+				const Box& bx = mfi.tilebox();
+				amrex::FArrayBox       &C    = m_a_coeffs[m_num_a_fabs][amrlev][mglev][mfi];
+
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				{
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					for (int i=0; i<AMREX_SPACEDIM; i++)
+						for (int j=0; j<AMREX_SPACEDIM; j++)
+							for (int k=0; k<AMREX_SPACEDIM; k++)
+								for (int l=0; l<AMREX_SPACEDIM; l++)
+									if ((*model)(i,j,k,l) >= 0)
+										C(m,(*model)(i,j,k,l)) = (*model).C(i,j,k,l);
+				}
+			}
+			
+		}
+		// amrex::MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+		// 		      input[amrlev], 0, 0,
+		// 		      input[amrlev].nComp(),
+		// 		      input[amrlev].nGrow());
+	}
+	m_num_a_fabs++;
+
+
+}
+
+void
 Elastic::Fapply (int amrlev, ///<[in] AMR Level
 		 int mglev,  ///<[in]
 		 MultiFab& f,///<[out] The force vector

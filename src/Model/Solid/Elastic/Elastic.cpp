@@ -26,6 +26,11 @@ Elastic::C(int i, int j, int k, int l)
 	return ret;
 }
 	
+int
+Elastic::NComp()
+{
+	return 3;
+}
 
 }
 }

@@ -144,7 +144,7 @@ public:
 	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
-private:
+protected:
 	int m_num_a_fabs = 0;
 	// m_a_coeffs[index of fab][amrlevel][mglevel]
 	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs; 
