@@ -18,6 +18,8 @@ public:
 	
 	Set::Scalar C(int i, int j, int k, int l);
 
+	int NComp();
+
 private:
 	Set::Scalar mu, lambda;
 };

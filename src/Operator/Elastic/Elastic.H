@@ -6,7 +6,7 @@
 #include <limits>
 
 #include "Operator/Operator.H"
-
+#include "Model/Solid/Elastic/Elastic.H"
 
 using namespace amrex;
 
@@ -29,6 +29,13 @@ public:
 	Elastic (Elastic&&) = delete;
 	Elastic& operator= (const Elastic&) = delete;
 	Elastic& operator= (Elastic&&) = delete;
+
+	void define (const Vector<Geometry>& a_geom,
+		     const Vector<BoxArray>& a_grids,
+		     const Vector<DistributionMapping>& a_dmap,
+		     const LPInfo& a_info = LPInfo(),
+		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
+
 
 	// void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &);
 	// void SetEigenstrain(amrex::Vector<amrex::MultiFab> &);
@@ -69,6 +76,8 @@ private:
 
 	std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL(m_bc_xlo, m_bc_ylo, m_bc_zlo);
 	std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL(m_bc_xhi, m_bc_yhi, m_bc_zhi);
+
+	Model::Solid::Elastic::Elastic *model;
 
 	//std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL{bc_x, bc_y, bc_z};
 };
