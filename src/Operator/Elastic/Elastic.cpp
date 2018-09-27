@@ -31,22 +31,6 @@ Elastic::Elastic (const Vector<Geometry>& a_geom,
 Elastic::~Elastic ()
 {}
 
-// void
-// Elastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigenstrain)
-// {
-// 	usingEigenstrain = true;
-// 	AMREX_ASSERT(eigenstrain[0]->nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-// 	RegisterNewFab(eigenstrain);
-// }
-
-// void
-// Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain)
-// {
-// 	usingEigenstrain = true;
-// 	AMREX_ASSERT(eigenstrain[0].nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-// 	RegisterNewFab(eigenstrain);
-// }
-
 void
 Elastic::Fapply (int amrlev, ///<[in] AMR Level
 		 int mglev,  ///<[in]
@@ -697,15 +681,6 @@ Elastic::Energy (FArrayBox& energyfab,
 #endif
 
 				Set::Matrix eps0 = Set::Matrix::Zero();
-				// 				if (usingEigenstrain)
-				// 				{
-				// 					const FArrayBox &eps0fab = GetFab(0,amrlev,0,mfi);
-				// #if AMREX_SPACEDIM ==2
-				// 					eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3);
-				// #elif AMREX_SPACEDIM ==3
-				// 					eps0 << eps0fab(m,0), eps0fab(m,1), eps0fab(m,2), eps0fab(m,3), eps0fab(m,4), eps0fab(m,5), eps0fab(m,6), eps0fab(m,7), eps0fab(m,8);
-				// #endif
-				// 				}
 
 				energyfab(m) = 0.0;
 
