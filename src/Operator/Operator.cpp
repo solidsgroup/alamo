@@ -595,8 +595,4 @@ Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input
 	m_num_a_fabs++;
 }
 
-
-
-
-
 }

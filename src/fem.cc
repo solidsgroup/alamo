@@ -25,6 +25,9 @@ int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
 
+	Model::Solid::Elastic::Elastic model(1.0, 1000.0);
+
+
 	//
 	//
 	// READ INPUT FILE AND INSTANTIATE PARAMETERS
