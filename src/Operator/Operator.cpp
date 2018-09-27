@@ -429,13 +429,14 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 #pragma omp parallel
 #endif
 	{
-		FArrayBox tmpfab;
 		for (MFIter mfi(fine, true); mfi.isValid(); ++mfi)
 		{
 			const Box& fine_bx = mfi.tilebox();
 			const Box& course_bx = amrex::coarsen(fine_bx,2);
 			const Box& tmpbx = amrex::refine(course_bx,2);
+			FArrayBox tmpfab;
 			tmpfab.resize(tmpbx,fine.nComp());
+			tmpfab.setVal(0.0);
 			
 			const amrex::FArrayBox &crsefab = (*cmf)[mfi];
 			
