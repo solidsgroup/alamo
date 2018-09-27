@@ -20,6 +20,8 @@
 #include "IC/IC.H"
 #include "IC/Constant/Constant.H"
 #include "IC/PerturbedInterface/PerturbedInterface.H"
+//#include "BC/Changeable/Changeable.H"
+#include "Numeric/Interpolator/Linear/Linear.H"
 
 #include "Operator/Elastic/Degradation/Degradation.H"
 #include "Operator/Elastic/Degradation/Isotropic/Isotropic.H"
@@ -35,6 +37,8 @@
 #define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define WATER_OLD(i,j,k) water_conc_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define WATER(i,j,k) water_conc_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
+#define ETA_OLD(i,j,k,m) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
+#define ETA_NEW(i,j,k,m) eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
 
 namespace Integrator
 {
@@ -84,14 +88,12 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs; ///< Multicomponent field variable storing pointwise displacements
 	
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-	BC::BC *mybc;
-
-	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
+	Set::Scalar M, mu, gamma, sigma0, l_gb, beta;
 	int anisotropy = 0;
 
 	amrex::Real anisotropy_tstart;
@@ -102,34 +104,35 @@ private:
 
 	// Water diffusion parameters
 	bool 		water_diffusion_on =		false;
-	amrex::Real 	water_diffusivity =		1.0;
-	amrex::Real 	water_refinement_threshold =	0.01;
+	Set::Scalar 	water_diffusivity =		1.0;
+	Set::Scalar 	water_refinement_threshold =	0.01;
 	std::string 	water_ic_type;
 	IC::IC		*water_ic;
 	BC::BC		*water_bc;
 
 	// Thermal diffusion parameters
 	bool		heat_diffusion_on =		false;
-	amrex::Real 	thermal_diffusivity =		1.0;
-	amrex::Real 	thermal_refinement_threshold =	0.01;
+	Set::Scalar 	thermal_diffusivity =		1.0;
+	Set::Scalar 	thermal_refinement_threshold =	0.01;
 	std::string	thermal_ic_type;
 	IC::IC		*thermal_ic;
 	BC::BC		*thermal_bc;
 
 	// Damage parameters
 	std::string	damage_type;
-	int		damage_anisotropy = 0;
-	int		number_of_eta;
+	bool		damage_anisotropy = 0;
+	int		number_of_eta = 1;
+	Set::Scalar	damage_refinement_threshold = 0.01;
 	std::string 	eta_ic_type;
 	IC::IC		*eta_ic;
 	BC::BC		*eta_bc;
 
-	// Damage model: relaxation
+	// Damage model: water relaxation
 	int number_of_terms = 4;
-	amrex::Vector<amrex::Real> E_i;
-	amrex::Real E0;
-	amrex::Vector<amrex::Real> tau_i;
-	amrex::Vector<amrex::Real> t_start_i;
+	amrex::Vector<Set::Scalar> d_i;
+	Set::Scalar d_final = 1.0;
+	amrex::Vector<Set::Scalar> tau_i;
+	amrex::Vector<Set::Scalar> t_start_i;
 
 	// Elasticity parameters
 	bool        elastic_on = false;
@@ -139,12 +142,44 @@ private:
 	int         elastic_max_fmg_iter = 0;
 	int         elastic_verbose = 3;
 	int         elastic_cgverbose = 3;
-	amrex::Real elastic_tol_rel = 0.0;
-	amrex::Real elastic_tol_abs = 1.0E-10;
-	amrex::Real elastic_tstart = 0.0;
-	amrex::Vector<amrex::Real> elastic_load_t;
-	amrex::Vector<amrex::Real> elastic_load_disp;
+	Set::Scalar elastic_tol_rel = 1.0E-5;
+	Set::Scalar elastic_tol_abs = 1.0E-5;
+	Set::Scalar elastic_tstart = 0.0;
+	Set::Scalar elastic_tend = 0.0;
+	std::string bottom_solver = "bicgstab";
+	int linop_maxorder 	     = 2;
+	bool	    elastic_use_fsmooth = false;
+
+	// Elastic BC
+	BC::BC *elastic_bc;
+	std::map<std::string,Operator::Elastic::BC> bc_map;
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_lo, bc_x_hi;
+#if AMREX_SPACEDIM > 1
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_lo, bc_y_hi;
+#if AMREX_SPACEDIM > 2
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_lo, bc_z_hi;
+#endif
+#endif
+	amrex::Vector<Set::Vector> elastic_bc_left;
+	amrex::Vector<Set::Vector> elastic_bc_right;
+	amrex::Vector<Set::Vector> elastic_bc_bottom;
+	amrex::Vector<Set::Vector> elastic_bc_top;
+	amrex::Vector<Set::Vector> elastic_bc_back;
+	amrex::Vector<Set::Vector> elastic_bc_front;
+	amrex::Vector<Set::Scalar> elastic_bc_left_t;
+	amrex::Vector<Set::Scalar> elastic_bc_right_t;
+	amrex::Vector<Set::Scalar> elastic_bc_bottom_t;
+	amrex::Vector<Set::Scalar> elastic_bc_top_t;
+	amrex::Vector<Set::Scalar> elastic_bc_back_t;
+	amrex::Vector<Set::Scalar> elastic_bc_front_t;
+	
+
+	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	Operator::Elastic::Degradation::Degradation *elastic_operator;
+
+	// Material model
+	std::vector<Operator::Elastic::Degradation::PristineMaterialModel *> models;
+	std::string 	input_material = "isotropic";
 
 };
 }
