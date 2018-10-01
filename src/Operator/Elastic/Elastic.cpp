@@ -68,7 +68,6 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 		 const MultiFab& u ///<[in] The displacements vector
 		 ) const
 {
-	std::cout << "amrlev = " << amrlev << " mglev = " << mglev << std::endl;
 	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
@@ -129,7 +128,8 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 					     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
 			}
 
-			Set::Matrix sig = coeffab(m)(gradu);
+			Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+			Set::Matrix sig = coeffab(m)(eps);
 
 			for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
 			{
@@ -172,6 +172,8 @@ Elastic::Fsmooth (int amrlev,
 		  const MultiFab& rhs
 		  ) const
 {
+	Util::Abort("Fsmooth is under construction and not fully implemented");
+	/*
 	BL_PROFILE("Operator::Elastic::Elastic::Fsmooth()");
 
 	for (int redblack = 0; redblack < 2; redblack++)
@@ -197,29 +199,90 @@ Elastic::Fsmooth (int amrlev,
 				if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-				bool	xmin = (m1 == domain.loVect()[0]),
-					xmax = (m1 == domain.hiVect()[0] + 1),
-					ymin = (m2 == domain.loVect()[1]),
-					ymax = (m2 == domain.hiVect()[1] + 1),
-					zmin = (m3 == domain.loVect()[2]),
-					zmax = (m3 == domain.hiVect()[2] + 1);
+				bool min[AMREX_SPACEDIM], max[AMREX_SPACEDIM];
+
+				min[0] = (m1 == domain.loVect()[0]);
+				max[0] = (m1 == domain.hiVect()[0] + 1);
+				min[1] = (m2 == domain.loVect()[1]);
+				max[1] = (m2 == domain.hiVect()[1] + 1);
+				min[2] = (m3 == domain.loVect()[2]);
+				max[2] = (m3 == domain.hiVect()[2] + 1);
+
+
+				Set::Matrix Dgradu, ODgradu;// gradu(i,j) = u_{i,j)
+				std::array<Set::Matrix,AMREX_SPACEDIM> Dgradgradu, ODgradgradu; // gradgradu[k](l,j) = u_{k,lj}
+				for (int i = 0; i < AMREX_SPACEDIM; i++)
+				{
+					for (int j = 0; j < AMREX_SPACEDIM; j++)
+					{
+						ODgradu(i,j) = ((!max[j] ? ufab(m+dx[0],i) : (i==j ? 0.0 : ufab(m,i))) - (!min[j] ? ufab(m-dx[0],i) : (i==j ? 0.0 : ufab(m,i))))
+							/((min[j] || max[j] ? 1.0 : 2.0)*DX[0]);
+
+						Dgradu(i,j) = ((!max[j] ? 0.0 : (i==j ? 1.0 : 0.0)) - (!min[j] ? 0.0 : (i==j ? 1.0 : 0.0)))
+							/((min[j] || max[j] ? 1.0 : 2.0)*DX[0]);
+					}
+					
+					AMREX_D_TERM(ODgradgradu[k](0,0) = (ufab(m+dx,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dx,k))/DX[0]/DX[0];
+						     ,// 2D
+						     ODgradgradu[k](0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
+						     ODgradgradu[k](1,0) = OffDiag_gradgradu[k](0,1);
+						     ODgradgradu[k](1,1) = (ufab(m+dy,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dy,k))/DX[1]/DX[1];
+						     ,// 3D
+						     ODgradgradu[k](0,2) = (ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
+						     ODgradgradu[k](1,2) = (ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2]);
+						     ODgradgradu[k](2,0) = OffDiag_gradgradu[k](0,2);
+						     ODgradgradu[k](2,1) = OffDiag_gradgradu[k](1,2);
+						     ODgradgradu[k](2,2) = (ufab(m+dz,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dz,k))/DX[2]/DX[2];);
+					
+
+						Set::Matrix OffDiag_gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
+						AMREX_D_TERM(OffDiag_gradgradu_k(0,0) = (ufab(m+dx,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dx,k))/DX[0]/DX[0];
+							     ,// 2D
+							     OffDiag_gradgradu_k(0,1) = (ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1]);
+							     OffDiag_gradgradu_k(1,0) = OffDiag_gradgradu_k(0,1);
+							     OffDiag_gradgradu_k(1,1) = (ufab(m+dy,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dy,k))/DX[1]/DX[1];
+							     ,// 3D
+							     OffDiag_gradgradu_k(0,2) = (ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2]);
+							     OffDiag_gradgradu_k(1,2) = (ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2]);
+							     OffDiag_gradgradu_k(2,0) = OffDiag_gradgradu_k(0,2);
+							     OffDiag_gradgradu_k(2,1) = OffDiag_gradgradu_k(1,2);
+							     OffDiag_gradgradu_k(2,2) = (ufab(m+dz,k) - (i==k ? 0.0 : 2.0*ufab(m,k)) + ufab(m-dz,k))/DX[2]/DX[2];);
+
+						Set::Matrix Diag_gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
+						AMREX_D_TERM(Diag_gradgradu_k(0,0) = (0.0 - (i==k ? 2.0 : 0.0) + 0.0)/DX[0]/DX[0];
+							     ,// 2D
+							     Diag_gradgradu_k(0,1) = 0.0;
+							     Diag_gradgradu_k(1,0) = 0.0;
+							     Diag_gradgradu_k(1,1) = (0.0 - (i==k ? 2.0 : 0.0) + 0.0)/DX[1]/DX[1];
+							     ,// 3D
+							     Diag_gradgradu_k(0,2) = 0.0;
+							     Diag_gradgradu_k(1,2) = 0.0;
+							     Diag_gradgradu_k(2,0) = 0.0;
+							     Diag_gradgradu_k(2,1) = 0.0;
+							     Diag_gradgradu_k(2,2) = (0.0 - (i==k ? 2.0 : 0.0) + 0.0)/DX[2]/DX[2];);
+
+
+				}
 
 
 				for (int i=0; i<AMREX_SPACEDIM; i++)
 				{
+
+
+
 					amrex::Real rho = 0.0, aa = 0.0;
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{
 						Set::Vector OffDiag_gradu_k; // gradu_k(l) = u_{k,l}
-						AMREX_D_TERM(OffDiag_gradu_k(0) = ((!xmax ? ufab(m+dx,k) : (i==k? 0.0 : ufab(m,k))) - (!xmin ? ufab(m-dx,k) : (i==k ? 0.0 : ufab(m,k))))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-							     OffDiag_gradu_k(1) = ((!ymax ? ufab(m+dy,k) : (i==k? 0.0 : ufab(m,k))) - (!ymin ? ufab(m-dy,k) : (i==k ? 0.0 : ufab(m,k))))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-							     OffDiag_gradu_k(2) = ((!zmax ? ufab(m+dz,k) : (i==k? 0.0 : ufab(m,k))) - (!zmin ? ufab(m-dz,k) : (i==k ? 0.0 : ufab(m,k))))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+						AMREX_D_TERM(OffDiag_gradu_k(0) = ((!max[0] ? ufab(m+dx,k) : (i==k? 0.0 : ufab(m,k))) - (!min[0] ? ufab(m-dx,k) : (i==k ? 0.0 : ufab(m,k))))/((min[0] || max[0] ? 1.0 : 2.0)*DX[0]);,
+							     OffDiag_gradu_k(1) = ((!max[1] ? ufab(m+dy,k) : (i==k? 0.0 : ufab(m,k))) - (!min[1] ? ufab(m-dy,k) : (i==k ? 0.0 : ufab(m,k))))/((min[1] || max[1] ? 1.0 : 2.0)*DX[1]);,
+							     OffDiag_gradu_k(2) = ((!max[2] ? ufab(m+dz,k) : (i==k? 0.0 : ufab(m,k))) - (!min[2] ? ufab(m-dz,k) : (i==k ? 0.0 : ufab(m,k))))/((min[2] || max[2] ? 1.0 : 2.0)*DX[2]););
 						Set::Vector Diag_gradu_k; // gradu_k(l) = u_{k,l}
-						AMREX_D_TERM(Diag_gradu_k(0) = ((!xmax ? 0.0 : (i==k? 1.0 : 0.0)) - (!xmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-							     Diag_gradu_k(1) = ((!ymax ? 0.0 : (i==k? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-							     Diag_gradu_k(2) = ((!zmax ? 0.0 : (i==k? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+						AMREX_D_TERM(Diag_gradu_k(0) = ((!max[0] ? 0.0 : (i==k? 1.0 : 0.0)) - (!min[0] ? 0.0 : (i==k ? 1.0 : 0.0)))/((min[0] || max[0] ? 1.0 : 2.0)*DX[0]);,
+							     Diag_gradu_k(1) = ((!max[1] ? 0.0 : (i==k? 1.0 : 0.0)) - (!min[1] ? 0.0 : (i==k ? 1.0 : 0.0)))/((min[1] || max[1] ? 1.0 : 2.0)*DX[1]);,
+							     Diag_gradu_k(2) = ((!max[2] ? 0.0 : (i==k? 1.0 : 0.0)) - (!min[2] ? 0.0 : (i==k ? 1.0 : 0.0)))/((min[2] || max[2] ? 1.0 : 2.0)*DX[2]););
 
-						if (xmin)
+						if (min[0])
 						{
 							if (m_bc_lo[0][k] == BC::Displacement)
 							{rho = 0.0; aa = 1.0;}
@@ -231,7 +294,7 @@ Elastic::Fsmooth (int amrlev,
 								}
 							else Util::Abort("Invalid BC");
 						}
-						if (xmax)
+						if (max[0])
 						{
 							if (m_bc_hi[0][k] == BC::Displacement)
 							{rho = 0.0; aa = 1.0;}
@@ -244,7 +307,7 @@ Elastic::Fsmooth (int amrlev,
 							else Util::Abort("Invalid BC");
 						}
 
-						if (ymin)
+						if (min[1])
 						{
 							if (m_bc_lo[1][k] == BC::Displacement)
 							{rho = 0.0; aa = 1.0;}
@@ -256,7 +319,7 @@ Elastic::Fsmooth (int amrlev,
 								}
 							else Util::Abort("Invalid BC");
 						}
-						if (ymax)
+						if (max[1])
 						{
 							if (m_bc_hi[1][k] == BC::Displacement)
 							{rho = 0.0; aa = 1.0;}
@@ -269,7 +332,7 @@ Elastic::Fsmooth (int amrlev,
 							else Util::Abort("Invalid BC");
 						}
 
-						if (zmin)
+						if (min[2])
 						{
 							if (m_bc_lo[2][k] == BC::Displacement)
 							{rho = 0.0; aa = 1.0;}
@@ -281,7 +344,7 @@ Elastic::Fsmooth (int amrlev,
 								}
 							else Util::Abort("Invalid BC");
 						}
-						if (zmax)
+						if (max[2])
 						{
 							if (m_bc_hi[2][k] == BC::Displacement)
 							{rho = 0.0; aa = 1.0;}
@@ -293,7 +356,7 @@ Elastic::Fsmooth (int amrlev,
 								}
 							else Util::Abort("Invalid BC");
 						}
-						if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
+						if (min[0] || max[0] || min[1] || max[1] || min[2] || max[2]) continue;
 
 
 
@@ -362,7 +425,7 @@ Elastic::Fsmooth (int amrlev,
 				}
 			}
 		}
-	}
+		}*/
 }
 
 void
