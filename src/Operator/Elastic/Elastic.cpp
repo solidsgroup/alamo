@@ -137,8 +137,10 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
+		amrex::BaseFab<Solid> &coeffab = (*(coeff[amrlev][mglev]))[mfi];
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
+		
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
@@ -152,9 +154,57 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				zmin = (m3 == domain.loVect()[2]),
 				zmax = (m3 == domain.hiVect()[2] + 1);
 
-			for (int i=0; i<AMREX_SPACEDIM; i++)
+			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
 			{
-				ffab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) = 0.0;
+				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			
+				AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
+					     ,// 2D
+					     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
+					     gradgradu[i](1,0) = gradgradu[i](0,1);
+					     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/DX[1]/DX[1];
+					     ,// 3D
+					     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*DX[0])/(2.0*DX[2]);
+					     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*DX[1])/(2.0*DX[2]);
+					     gradgradu[i](2,0) = gradgradu[i](0,2);
+					     gradgradu[i](2,1) = gradgradu[i](1,2);
+					     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
+			}
+
+
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
+			{
+				for (int j = 0; j < AMREX_SPACEDIM; j++)
+				{
+					if (m[i] == domain.loVect()[i])
+						if (m_bc_xlo[j] == BC::Displacement)
+							ffab(m,j) = ufab(m,j);
+						else if (m_bc_xlo[j] == BC::Traction) 
+							
+							for (int l=0; l<AMREX_SPACEDIM; l++)
+								ffab(m,i) -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+						else Util::Abort("Invalid BC");
+				}
+			}
+				
+
+
+
+			Set::Matrix sig = coeffab(m)(gradu);
+
+			Set::Vector f =
+				coeffab(m)(gradgradu) + 
+				AMREX_D_TERM(((coeffab(m+dx[0]) - coeffab(m-dx[0]))/DX[0])(gradu).col(0),
+					     + ((coeffab(m+dx[1]) - coeffab(m-dx[1]))/DX[1])(gradu).col(1),
+					     + ((coeffab(m+dx[2]) - coeffab(m-dx[2]))/DX[2])(gradu).col(2));
+
+			for (int i=0; i<AMREX_SPACEDIM; i++)
+				ffab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) = f(i);
 
 				for (int k=0; k<AMREX_SPACEDIM; k++)
 				{
@@ -238,6 +288,8 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 						     gradgradu_k(2,0) = gradgradu_k(0,2);
 						     gradgradu_k(2,1) = gradgradu_k(1,2);
 						     gradgradu_k(2,2) = (ufab(m+dx[2],k) - 2.0*ufab(m,k) + ufab(m-dx[2],k))/DX[2]/DX[2];);
+
+					(coeffab(m + dx[0]) - coeffab(m - dx[0]))/(2.0*DX[0]);
 
 					Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
 					AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx[0],amrlev,mglev,mfi) - C(i,0,k,0,m-dx[0],amrlev,mglev,mfi))/(2.0*DX[0]),
