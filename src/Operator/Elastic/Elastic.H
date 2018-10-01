@@ -22,21 +22,27 @@ class Solid
 {
 public:
 	Solid() {} ;
-	Set::Matrix operator () (Set::Matrix &eps);
+	Set::Matrix operator () (Set::Matrix &eps)
 	{
+		return 2*mu*eps + lambda*Set::Matrix::Identity()*eps.trace();
 	};
-	Set::Scalar operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
+	{
+		Set::Vector f = Set::Vector::Zero();
+		for (int i = 0; i < AMREX_SPACEDIM; i++)
+			for (int j=0; j < AMREX_SPACEDIM; j++)
+				f(i) += 2*mu*gradeps[i](j,j)  + lambda*gradeps[j](j,i);
+		return f;
+	}
 
 	friend Solid operator + (Solid lhs, const Solid rhs)
-	{lhs.mu += rhs.mu; lhs.lambda += rhs.lambda;}
+	{lhs.mu += rhs.mu; lhs.lambda += rhs.lambda;};
 
 	friend Solid operator - (Solid lhs, const Solid rhs)
-	{lhs.mu -= rhs.mu; lhs.lambda -= rhs.lambda;}
+	{lhs.mu -= rhs.mu; lhs.lambda -= rhs.lambda;};
 	
 	friend Solid operator / (Solid lhs, const Set::Scalar alpha)
-	{lhs.mu /= alpha; lhs.lambda /= alpha;}
-
-	
+	{lhs.mu /= alpha; lhs.lambda /= alpha;};
 private:
 	Set::Scalar mu, lambda;
 };
