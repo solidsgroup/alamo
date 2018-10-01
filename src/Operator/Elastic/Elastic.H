@@ -5,6 +5,7 @@
 #include <AMReX_Array.H>
 #include <limits>
 
+#include "Set/Set.H"
 #include "Operator/Operator.H"
 #include "Model/Solid/Elastic/Elastic.H"
 
@@ -15,6 +16,30 @@ namespace Operator
 namespace Elastic
 {
 enum BC	{Displacement, Traction, Periodic}; 
+
+
+class Solid
+{
+public:
+	Solid() {} ;
+	Set::Matrix operator () (Set::Matrix &eps);
+	{
+	};
+	Set::Scalar operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+
+	friend Solid operator + (Solid lhs, const Solid rhs)
+	{lhs.mu += rhs.mu; lhs.lambda += rhs.lambda;}
+
+	friend Solid operator - (Solid lhs, const Solid rhs)
+	{lhs.mu -= rhs.mu; lhs.lambda -= rhs.lambda;}
+	
+	friend Solid operator / (Solid lhs, const Set::Scalar alpha)
+	{lhs.mu /= alpha; lhs.lambda /= alpha;}
+
+	
+private:
+	Set::Scalar mu, lambda;
+};
 
 class Elastic : public Operator
 {
@@ -78,6 +103,8 @@ private:
 	std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL(m_bc_xhi, m_bc_yhi, m_bc_zhi);
 
 	Model::Solid::Elastic::Elastic *model;
+
+	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<Solid> > > > > coeff;
 
 	//std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL{bc_x, bc_y, bc_z};
 };

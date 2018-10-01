@@ -20,6 +20,8 @@ public:
 
 	int NComp();
 
+	
+
 private:
 	Set::Scalar mu, lambda;
 };

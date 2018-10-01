@@ -26,6 +26,9 @@ Elastic::Elastic (const Vector<Geometry>& a_geom,
 {
 	define(a_geom, a_grids, a_dmap// , a_bc, a_info
 	       );
+
+
+
 }
 
 Elastic::~Elastic ()
@@ -43,6 +46,18 @@ Elastic::define (const Vector<Geometry>& a_geom,
 	model = new Model::Solid::Elastic::Elastic(2.6, 6.0);
 
 	// DEFINE Cijkl ( to be replaced with RegisterNewFab  eventually)
+
+	coeff.resize(m_num_amr_levels);
+	Solid ms;
+
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		coeff[amrlev].resize(m_num_mg_levels[amrlev]);
+		const int mglev = 0;
+		coeff[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<Solid> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
+		coeff[amrlev][mglev]->setVal(ms);
+	}
+
 
 	m_a_coeffs.resize(m_a_coeffs.size() + 1);
 	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
@@ -207,8 +222,8 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 					if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
 					
 
-
-
+					
+					
 
 
 					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
