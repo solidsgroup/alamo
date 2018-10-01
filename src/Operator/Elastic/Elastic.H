@@ -22,6 +22,7 @@ class Solid
 {
 public:
 	Solid() {} ;
+	Solid(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
 	Set::Matrix operator () (Set::Matrix &eps)
 	{
 		return 2*mu*eps + lambda*Set::Matrix::Identity()*eps.trace();
@@ -85,8 +86,8 @@ public:
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
 	{
-		AMREX_D_TERM(m_bc_xlo = a_bc_lo[0];, m_bc_ylo = a_bc_lo[1];, m_bc_zlo = a_bc_lo[2];);
-		AMREX_D_TERM(m_bc_xhi = a_bc_hi[0];, m_bc_yhi = a_bc_hi[1];, m_bc_zhi = a_bc_hi[2];);
+		m_bc_lo = a_bc_lo;
+		m_bc_hi = a_bc_hi;
 	};
 
 protected:
@@ -105,8 +106,8 @@ private:
 						  const int amrlev, const int mglev, const MFIter &mfi) const = 0;
 	bool usingEigenstrain = false;
 
-	std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL(m_bc_xlo, m_bc_ylo, m_bc_zlo);
-	std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL(m_bc_xhi, m_bc_yhi, m_bc_zhi);
+	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
+	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]
 
 	Model::Solid::Elastic::Elastic *model;
 
