@@ -250,7 +250,7 @@ int main (int argc, char* argv[])
 	//bool result = mlabec.VerificationCheck(0,0,verify[0]);
 
 	// for (int i = 0; i<nlevels; i++)
-	// 	mlabec.Diagonal(i,0,res[i]);
+	//  	mlabec.Diagonal(i,0,res[i]);
 
 
 	//
