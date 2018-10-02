@@ -776,14 +776,10 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		const Real* DX = geom[ilev].CellSize();
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
-		rhs[ilev]->setVal(body_force[0]*volume,0,1);
+		AMREX_D_TERM(rhs[ilev]->setVal(body_force[0]*volume,0,1);,
+					rhs[ilev]->setVal(body_force[1]*volume,1,1);,
+					rhs[ilev]->setVal(body_force[2]*volume,2,1););
 
-#if AMREX_SPACEDIM > 1
-		rhs[ilev]->setVal(body_force[1]*volume,1,1);
-#if AMREX_SPACEDIM > 2
-		rhs[ilev]->setVal(body_force[2]*volume,2,1);
-#endif
-#endif
 		if (iter==0)
 		{
 			displacement[ilev]->setVal(0.0);
