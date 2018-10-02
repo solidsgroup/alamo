@@ -5,6 +5,7 @@
 #include <AMReX_Array.H>
 #include <limits>
 
+#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Elastic.H"
 
 using namespace amrex;
@@ -13,7 +14,7 @@ namespace Operator
 {
 namespace Elastic
 {
-class Cubic : public Elastic
+class Cubic : public Elastic<Model::Solid::Elastic::Isotropic::Isotropic>
 {
 public:
 

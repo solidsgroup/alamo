@@ -7,7 +7,8 @@
 
 #include "Set/Set.H"
 #include "Operator/Operator.H"
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Solid.H"
+#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 
 using namespace amrex;
 
@@ -17,37 +18,7 @@ namespace Elastic
 {
 enum BC	{Displacement, Traction, Periodic}; 
 
-
-class Solid
-{
-public:
-	Solid() {} ;
-	Solid(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
-	Set::Matrix operator () (Set::Matrix &eps)
-	{
-		return 2*mu*eps + lambda*Set::Matrix::Identity()*eps.trace();
-	};
-	Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
-	{
-		Set::Vector f = Set::Vector::Zero();
-		for (int i = 0; i < AMREX_SPACEDIM; i++)
-			for (int j=0; j < AMREX_SPACEDIM; j++)
-				f(i) += 2*mu*gradeps[i](j,j)  + lambda*gradeps[j](j,i);
-		return f;
-	}
-
-	friend Solid operator + (Solid lhs, const Solid rhs)
-	{return Solid(lhs.mu+rhs.mu, lhs.lambda+rhs.lambda);}
-
-	friend Solid operator - (Solid lhs, const Solid rhs)
-	{return Solid(lhs.mu-rhs.mu, lhs.lambda-rhs.lambda);}
-	
-	friend Solid operator / (Solid lhs, const Set::Scalar alpha)
-	{return Solid(lhs.mu/alpha,lhs.lambda/alpha);};
-private:
-	Set::Scalar mu, lambda;
-};
-
+template<class T>
 class Elastic : public Operator
 {
 public:
@@ -103,18 +74,20 @@ protected:
 
 private:
 	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
-						  const int amrlev, const int mglev, const MFIter &mfi) const = 0;
+						  const int amrlev, const int mglev, const MFIter &mfi) const
+	{
+		Util::Abort("This function is depricated and must not be used.");
+	};
 	bool usingEigenstrain = false;
 
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]
 
-	Model::Solid::Elastic::Elastic *model;
-
-	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<Solid> > > > > coeff;
+	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > coeff;
 
 	//std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL{bc_x, bc_y, bc_z};
 };
 }
 }
+
 #endif
