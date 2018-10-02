@@ -7,6 +7,7 @@
 
 #include "eigen3/Eigen/Core"
 
+#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Elastic.H"
 
 using namespace amrex;
@@ -15,7 +16,7 @@ namespace Operator
 {
 namespace Elastic
 {
-  class CubicRotation : public Elastic
+class CubicRotation : public Elastic<Model::Solid::Elastic::Isotropic::Isotropic>
   {
   public:
 
