@@ -14,7 +14,13 @@ namespace Solid
 class Solid
 {
 public:
-  Solid() {} ;
+	Solid() {} ;
+
+	// virtual Set::Matrix operator () (Set::Matrix &eps);// = 0;
+	// virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);// = 0;
+	// virtual Solid & operator + (const Solid & rhs);// = 0;
+	// virtual Solid & operator - (const Solid & rhs);// = 0;
+	// virtual Solid & operator / (const Set::Scalar alpha);// = 0;
 };
 
 }

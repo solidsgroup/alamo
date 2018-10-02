@@ -6,6 +6,7 @@
 #include <limits>
 
 #include "BC/BC.H"
+#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Elastic.H"
 
 using namespace amrex;
@@ -23,7 +24,7 @@ class PristineMaterialModel
 	virtual amrex::Real C(const int i, const int j, const int k, const int l) const = 0;
 };
 
-class Degradation : public Elastic
+class Degradation : public Elastic<Model::Solid::Elastic::Isotropic::Isotropic>
 {
 public:
 
