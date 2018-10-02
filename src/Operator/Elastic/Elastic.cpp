@@ -439,21 +439,17 @@ template<class T>
 void
 Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 {
-
-	return;
-	Util::Abort("normalize is under construction - do not use");
-	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-					   dy(AMREX_D_DECL(0,1,0)),
-					   dz(AMREX_D_DECL(0,0,1)));
-
+	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 	for (MFIter mfi(mf, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::FArrayBox &mffab    = mf[mfi];
+		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
+		amrex::FArrayBox       &mffab    = mf[mfi];
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
@@ -467,115 +463,226 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 				zmin = (m3 == domain.loVect()[2]),
 				zmax = (m3 == domain.hiVect()[2] + 1);
 
-			for (int i=0; i<AMREX_SPACEDIM; i++)
+			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
 			{
 				Set::Scalar aa = 0.0;
-
-				for (int k=0; k<AMREX_SPACEDIM; k++)
+				for (int k = 0; k < AMREX_SPACEDIM; k++)
 				{
-					Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-					AMREX_D_TERM(gradu_k(0) = ((!xmax ? 0.0/*ufab(m+dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!xmin ? 0.0/*ufab(m-dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-						     gradu_k(1) = ((!ymax ? 0.0/*ufab(m+dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!ymin ? 0.0/*ufab(m-dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-						     gradu_k(2) = ((!zmax ? 0.0/*ufab(m+dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!zmin ? 0.0/*ufab(m-dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-
-
-					if (xmin)
-					{
-						if (m_bc_lo[0][k] == BC::Displacement)
-							aa = 1.0;
-						else if (m_bc_lo[0][k] == BC::Traction) 
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-								aa  -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-					}
-					if (xmax)
-					{
-						if (m_bc_hi[0][k] == BC::Displacement)
-							aa = 1.0;
-						else if (m_bc_hi[0][k] == BC::Traction) 
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-								aa  += C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-
-					}
-
-					if (ymin)
-					{
-						if (m_bc_lo[1][k] == BC::Displacement)
-							aa = 1.0;
-						else if (m_bc_lo[1][k] == BC::Traction) 
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-								aa  -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-					}
-					if (ymax)
-					{
-						if (m_bc_hi[1][k] == BC::Displacement)
-							aa = 1.0;
-						else if (m_bc_hi[1][k] == BC::Traction) 
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-								aa  += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-
-					}
-
-					if (zmin)
-					{
-						if (m_bc_lo[2][k] == BC::Displacement)
-							aa = 1.0;
-						else if (m_bc_lo[2][k] == BC::Traction) 
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-								aa  -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-
-					}
-					if (zmax)
-					{
-						if (m_bc_hi[2][k] == BC::Displacement)
-							aa = 1.0;
-						else if (m_bc_lo[2][k] == BC::Traction) 
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-								aa  += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-					}
-
-
-					if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
-
-
-					Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
-					AMREX_D_TERM(gradgradu_k(0,0) = (/*ufab(m+dx,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /* + ufab(m-dx,k)*/)/DX[0]/DX[0];
+					AMREX_D_TERM(gradu(k,0) = ((!xmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!xmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+						     gradu(k,1) = ((!ymax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+						     gradu(k,2) = ((!zmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			
+					AMREX_D_TERM(gradgradu[k](0,0) = (i==k ? -2.0 : 0.0)/DX[0]/DX[0];
 						     ,// 2D
-						     gradgradu_k(0,1) = 0.0 /*(ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1])*/;
-						     gradgradu_k(1,0) = 0.0 /*gradgradu_k(0,1)*/;
-						     gradgradu_k(1,1) = (/*ufab(m+dy,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /*+ ufab(m-dy,k)*/)/DX[1]/DX[1];
+						     gradgradu[k](0,1) = 0.0;
+						     gradgradu[k](1,0) = 0.0;
+						     gradgradu[k](1,1) = (i==k ? -2.0 : 0.0)/DX[1]/DX[1];
 						     ,// 3D
-						     gradgradu_k(0,2) = 0.0 /*(ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2])*/;
-						     gradgradu_k(1,2) = 0.0 /*(ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2])*/;
-						     gradgradu_k(2,0) = 0.0 /*gradgradu_k(0,2)*/;
-						     gradgradu_k(2,1) = 0.0 /*gradgradu_k(1,2)*/;
-						     gradgradu_k(2,2) = (/*ufab(m+dz,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /*+ ufab(m-dz,k)*/)/DX[2]/DX[2];);
-
-					Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
-					AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,0,m+dy,amrlev,mglev,mfi) - C(i,1,k,0,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,0,m+dz,amrlev,mglev,mfi) - C(i,2,k,0,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-						     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx,amrlev,mglev,mfi) - C(i,0,k,1,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,1,m+dy,amrlev,mglev,mfi) - C(i,1,k,1,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,1,m+dz,amrlev,mglev,mfi) - C(i,2,k,1,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-						     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx,amrlev,mglev,mfi) - C(i,0,k,2,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-									    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-									    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
-							
-					for (int l=0; l<AMREX_SPACEDIM; l++)
-					{
-						// f_i -= C_{ijkl} (u_{k,lj})
-						for (int j=0; j<AMREX_SPACEDIM; j++)
-							aa -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
-
-						// f_i -= C_{ijkl,j} u_{k,l}
-						if (i==l)
-							aa -= C_ik(l) * gradu_k(l);
-					}
+						     gradgradu[k](0,2) = 0.0;
+						     gradgradu[k](1,2) = 0.0;
+						     gradgradu[k](2,0) = 0.0;
+						     gradgradu[k](2,1) = 0.0;
+						     gradgradu[k](2,2) = (i==k ? -2.0 : 0.0))/DX[2]/DX[2];
 				}
-				mffab(m,i) = mffab(m,i) / aa;
+
+				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+				Set::Matrix sig = C(m)(eps);
+
+				if (xmax || xmin || ymax || ymin || zmax || zmin) 
+				{
+					for (int k = 0; k < AMREX_SPACEDIM; k++) // iterate over DIMENSIONS
+					{
+						for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+						{
+							if (m[j] == domain.loVect()[j])
+								if (m_bc_lo[j][k] == BC::Displacement)
+									aa += 1.0;
+								else if (m_bc_lo[j][k] == BC::Traction) 
+									aa -= sig(k,j);
+								else Util::Abort("Invalid BC");
+							if (m[j] == domain.hiVect()[j] + 1)
+								if (m_bc_hi[j][k] == BC::Displacement)
+									aa += 1.0;
+								else if (m_bc_hi[j][k] == BC::Traction) 
+									aa += sig(k,j);
+								else Util::Abort("Invalid BC");
+						}
+					}
+					if (fabs(aa) < 1E-10) Util::Abort("Singular boundary operator: diagonal = 0");
+				}
+				else
+				{
+					Set::Vector f =
+						C(m)(gradgradu) + 
+						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+							     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
+							     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+					aa += f(i);
+				}
+
+				if (fabs(aa) < 1E-10) Util::Abort("Singular operator: diagonal = 0");
+
+				mffab(m,i) /= aa;
 			}
 		}
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// return;
+	// Util::Abort("normalize is under construction - do not use");
+	// BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
+	// amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	// const Real* DX = m_geom[amrlev][mglev].CellSize();
+	
+	// static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+	// 				   dy(AMREX_D_DECL(0,1,0)),
+	// 				   dz(AMREX_D_DECL(0,0,1)));
+
+	// for (MFIter mfi(mf, true); mfi.isValid(); ++mfi)
+	// {
+	// 	const Box& bx = mfi.tilebox();
+	// 	amrex::FArrayBox &mffab    = mf[mfi];
+
+	// 	AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+	// 		     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+	// 		     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+	// 	{
+	// 		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+	// 		bool	xmin = (m1 == domain.loVect()[0]),
+	// 			xmax = (m1 == domain.hiVect()[0] + 1),
+	// 			ymin = (m2 == domain.loVect()[1]),
+	// 			ymax = (m2 == domain.hiVect()[1] + 1),
+	// 			zmin = (m3 == domain.loVect()[2]),
+	// 			zmax = (m3 == domain.hiVect()[2] + 1);
+
+	// 		for (int i=0; i<AMREX_SPACEDIM; i++)
+	// 		{
+	// 			Set::Scalar aa = 0.0;
+
+	// 			for (int k=0; k<AMREX_SPACEDIM; k++)
+	// 			{
+	// 				Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
+	// 				AMREX_D_TERM(gradu_k(0) = ((!xmax ? 0.0/*ufab(m+dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!xmin ? 0.0/*ufab(m-dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+	// 					     gradu_k(1) = ((!ymax ? 0.0/*ufab(m+dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!ymin ? 0.0/*ufab(m-dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+	// 					     gradu_k(2) = ((!zmax ? 0.0/*ufab(m+dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!zmin ? 0.0/*ufab(m-dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+
+
+	// 				if (xmin)
+	// 				{
+	// 					if (m_bc_lo[0][k] == BC::Displacement)
+	// 						aa = 1.0;
+	// 					else if (m_bc_lo[0][k] == BC::Traction) 
+	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
+	// 							aa  -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+	// 				}
+	// 				if (xmax)
+	// 				{
+	// 					if (m_bc_hi[0][k] == BC::Displacement)
+	// 						aa = 1.0;
+	// 					else if (m_bc_hi[0][k] == BC::Traction) 
+	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
+	// 							aa  += C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+
+	// 				}
+
+	// 				if (ymin)
+	// 				{
+	// 					if (m_bc_lo[1][k] == BC::Displacement)
+	// 						aa = 1.0;
+	// 					else if (m_bc_lo[1][k] == BC::Traction) 
+	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
+	// 							aa  -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+	// 				}
+	// 				if (ymax)
+	// 				{
+	// 					if (m_bc_hi[1][k] == BC::Displacement)
+	// 						aa = 1.0;
+	// 					else if (m_bc_hi[1][k] == BC::Traction) 
+	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
+	// 							aa  += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+
+	// 				}
+
+	// 				if (zmin)
+	// 				{
+	// 					if (m_bc_lo[2][k] == BC::Displacement)
+	// 						aa = 1.0;
+	// 					else if (m_bc_lo[2][k] == BC::Traction) 
+	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
+	// 							aa  -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+
+	// 				}
+	// 				if (zmax)
+	// 				{
+	// 					if (m_bc_hi[2][k] == BC::Displacement)
+	// 						aa = 1.0;
+	// 					else if (m_bc_lo[2][k] == BC::Traction) 
+	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
+	// 							aa  += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
+	// 				}
+
+
+	// 				if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
+
+
+	// 				Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
+	// 				AMREX_D_TERM(gradgradu_k(0,0) = (/*ufab(m+dx,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /* + ufab(m-dx,k)*/)/DX[0]/DX[0];
+	// 					     ,// 2D
+	// 					     gradgradu_k(0,1) = 0.0 /*(ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1])*/;
+	// 					     gradgradu_k(1,0) = 0.0 /*gradgradu_k(0,1)*/;
+	// 					     gradgradu_k(1,1) = (/*ufab(m+dy,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /*+ ufab(m-dy,k)*/)/DX[1]/DX[1];
+	// 					     ,// 3D
+	// 					     gradgradu_k(0,2) = 0.0 /*(ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2])*/;
+	// 					     gradgradu_k(1,2) = 0.0 /*(ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2])*/;
+	// 					     gradgradu_k(2,0) = 0.0 /*gradgradu_k(0,2)*/;
+	// 					     gradgradu_k(2,1) = 0.0 /*gradgradu_k(1,2)*/;
+	// 					     gradgradu_k(2,2) = (/*ufab(m+dz,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /*+ ufab(m-dz,k)*/)/DX[2]/DX[2];);
+
+	// 				Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
+	// 				AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
+	// 								    + (C(i,1,k,0,m+dy,amrlev,mglev,mfi) - C(i,1,k,0,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
+	// 								    + (C(i,2,k,0,m+dz,amrlev,mglev,mfi) - C(i,2,k,0,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
+	// 					     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx,amrlev,mglev,mfi) - C(i,0,k,1,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
+	// 								    + (C(i,1,k,1,m+dy,amrlev,mglev,mfi) - C(i,1,k,1,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
+	// 								    + (C(i,2,k,1,m+dz,amrlev,mglev,mfi) - C(i,2,k,1,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
+	// 					     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx,amrlev,mglev,mfi) - C(i,0,k,2,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
+	// 								    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
+	// 								    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
+							
+	// 				for (int l=0; l<AMREX_SPACEDIM; l++)
+	// 				{
+	// 					// f_i -= C_{ijkl} (u_{k,lj})
+	// 					for (int j=0; j<AMREX_SPACEDIM; j++)
+	// 						aa -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
+
+	// 					// f_i -= C_{ijkl,j} u_{k,l}
+	// 					if (i==l)
+	// 						aa -= C_ik(l) * gradu_k(l);
+	// 				}
+	// 			}
+	// 			mffab(m,i) = mffab(m,i) / aa;
+	// 		}
+	// 	}
+	// }
 	
 
 
