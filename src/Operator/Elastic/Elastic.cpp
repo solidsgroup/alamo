@@ -1,11 +1,4 @@
-#include <AMReX_MultiFabUtil.H>
-#include <AMReX_REAL.H>
-#include <AMReX_MLCGSolver.H>
-#include "Set/Set.H"
-#include "Util/Color.H"
-#include <AMReX_ArrayLim.H>
-
-#include "Set/Set.H"
+#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Elastic.H"
 
 #define TRACER	std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
@@ -19,23 +12,23 @@ namespace Elastic
 ///
 /// Relay to the define function
 /// Also define elastic constants here.
-Elastic::Elastic (const Vector<Geometry>& a_geom,
-		  const Vector<BoxArray>& a_grids,
-		  const Vector<DistributionMapping>& a_dmap,
-		  const LPInfo& a_info)
+template<class T>
+Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
+		     const Vector<BoxArray>& a_grids,
+		     const Vector<DistributionMapping>& a_dmap,
+		     const LPInfo& a_info)
 {
 	define(a_geom, a_grids, a_dmap// , a_bc, a_info
 	       );
-
-
-
 }
 
-Elastic::~Elastic ()
+template<class T>
+Elastic<T>::~Elastic ()
 {}
 
+template<class T>
 void
-Elastic::define (const Vector<Geometry>& a_geom,
+Elastic<T>::define (const Vector<Geometry>& a_geom,
 		 const Vector<BoxArray>& a_grids,
 		 const Vector<DistributionMapping>& a_dmap,
 		 const LPInfo& a_info,
@@ -43,11 +36,7 @@ Elastic::define (const Vector<Geometry>& a_geom,
 {
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
-	model = new Model::Solid::Elastic::Elastic(2.6, 6.0);
-
-	// DEFINE Cijkl ( to be replaced with RegisterNewFab  eventually)
-
-	Solid ms(2.6,6.0);
+	T ms(2.6,6.0);
 
 	coeff.resize(m_num_amr_levels);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -55,14 +44,15 @@ Elastic::define (const Vector<Geometry>& a_geom,
 		coeff[amrlev].resize(m_num_mg_levels[amrlev]);
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		{
-			coeff[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<Solid> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
+			coeff[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
 			coeff[amrlev][mglev]->setVal(ms);
 		}
 	}
 }
 
+template<class T>
 void
-Elastic::Fapply (int amrlev, ///<[in] AMR Level
+Elastic<T>::Fapply (int amrlev, ///<[in] AMR Level
 		 int mglev,  ///<[in]
 		 MultiFab& f,///<[out] The force vector
 		 const MultiFab& u ///<[in] The displacements vector
@@ -89,7 +79,7 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::BaseFab<Solid> &coeffab = (*(coeff[amrlev][mglev]))[mfi];
+		amrex::BaseFab<T> &coeffab = (*(coeff[amrlev][mglev]))[mfi];
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
 		
@@ -164,8 +154,9 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 }
 
 
+template<class T>
 void
-Elastic::Fsmooth (int amrlev,
+Elastic<T>::Fsmooth (int amrlev,
 		  int mglev,
 		  MultiFab& u,
 		  const MultiFab& rhs
@@ -427,8 +418,9 @@ Elastic::Fsmooth (int amrlev,
 		}*/
 }
 
+template<class T>
 void
-Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
+Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 {
 	return;
 	Util::Abort("normalize is under construction - do not use");
@@ -582,8 +574,9 @@ Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
 ///
 /// \todo Extend to 3D
 ///
+template<class T>
 void
-Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
+Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
@@ -602,8 +595,9 @@ Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 }
 
 
+template<class T>
 void
-Elastic::Stress (FArrayBox& sigmafab,
+Elastic<T>::Stress (FArrayBox& sigmafab,
 		 const FArrayBox& ufab,
 		 int amrlev, const MFIter& mfi,
 		 bool voigt) const
@@ -672,8 +666,9 @@ Elastic::Stress (FArrayBox& sigmafab,
 			}
 }
 
+template<class T>
 void
-Elastic::Energy (FArrayBox& energyfab,
+Elastic<T>::Energy (FArrayBox& energyfab,
 		 const FArrayBox& ufab,
 		 int amrlev, const MFIter& mfi) const
 {
@@ -727,7 +722,7 @@ Elastic::Energy (FArrayBox& energyfab,
 
 
 
-
+template class Elastic<Model::Solid::Elastic::Isotropic::Isotropic>;
 
 
 }

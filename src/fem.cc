@@ -10,6 +10,7 @@
 #include <AMReX_MLNodeLaplacian.H>
 
 #include "Util/Util.H"
+#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Model/Solid/Elastic/Elastic.H"
@@ -238,7 +239,7 @@ int main (int argc, char* argv[])
 	info.setMaxCoarseningLevel(0);
 	nlevels = geom.size();
 
-	Operator::Elastic::Isotropic mlabec;
+	Operator::Elastic::Elastic<Model::Solid::Elastic::Isotropic::Isotropic> mlabec;
 	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
@@ -282,18 +283,18 @@ int main (int argc, char* argv[])
 	// Compute post-solve values
 	//
 
-	for (int lev = 0; lev < nlevels; lev++)
-		{
-			for ( amrex::MFIter mfi(u[lev],true); mfi.isValid(); ++mfi )
-				{
-					FArrayBox &ufab  = (u[lev])[mfi];
-					FArrayBox &sigmafab  = (stress[lev])[mfi];
-					FArrayBox &energyfab  = (energy[lev])[mfi];
+	// for (int lev = 0; lev < nlevels; lev++)
+	// 	{
+	// 		for ( amrex::MFIter mfi(u[lev],true); mfi.isValid(); ++mfi )
+	// 			{
+	// 				FArrayBox &ufab  = (u[lev])[mfi];
+	// 				FArrayBox &sigmafab  = (stress[lev])[mfi];
+	// 				FArrayBox &energyfab  = (energy[lev])[mfi];
 			
-					mlabec.Energy(energyfab,ufab,lev,mfi);
-					mlabec.Stress(sigmafab,ufab,lev,mfi);
-				}
-		}
+	// 				mlabec.Energy(energyfab,ufab,lev,mfi);
+	// 				mlabec.Stress(sigmafab,ufab,lev,mfi);
+	// 			}
+	// 	}
 		
 	// // RECOMPUTE RHS
 	// for (int lev = 0; lev <= max_level; lev++)
