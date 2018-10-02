@@ -156,7 +156,6 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 				AMREX_D_TERM(((coeffab(m+dx[0]) - coeffab(m-dx[0]))/2.0/DX[0])(gradu).col(0),
 				 	     + ((coeffab(m+dx[1]) - coeffab(m-dx[1]))/2.0/DX[1])(gradu).col(1),
 				  	     + ((coeffab(m+dx[2]) - coeffab(m-dx[2]))/2.0/DX[2])(gradu).col(2));
-
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
 
@@ -431,7 +430,8 @@ Elastic::Fsmooth (int amrlev,
 void
 Elastic::normalize (int amrlev, int mglev, MultiFab& mf) const
 {
-	//	return;
+	return;
+	Util::Abort("normalize is under construction - do not use");
 	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();

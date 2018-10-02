@@ -16,11 +16,11 @@ bc.disp_bc_back   = 0.0 0.0 0.0
 #bc.bc_z_hi = trac trac trac
 
 bc.bc_x_lo = disp disp disp
-bc.bc_y_lo = disp disp disp
-bc.bc_z_lo = disp disp disp
+bc.bc_y_lo = trac trac trac
+bc.bc_z_lo = trac trac trac
 bc.bc_x_hi = disp disp disp
-bc.bc_y_hi = disp disp disp
-bc.bc_z_hi = disp disp disp
+bc.bc_y_hi = trac trac trac
+bc.bc_z_hi = trac trac trac
 
 solver.bottom_solver = bicgstab
 #solver.bottom_solver = smoother
@@ -36,6 +36,6 @@ solver.max_fmg_iter 	= 10
 solver.linop_maxorder 	= 2
 solver.agglomeration 	= 1
 solver.consolidation 	= 0
-solver.tol_rel			=  1.0e-6
-solver.tol_abs			=  1.0e-6
-solver.use_fsmooth = 1
+solver.tol_rel			=  1.0e-4
+solver.tol_abs			=  1.0e-4
+solver.use_fsmooth = 0

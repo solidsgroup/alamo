@@ -37,13 +37,13 @@ public:
 	}
 
 	friend Solid operator + (Solid lhs, const Solid rhs)
-	{lhs.mu += rhs.mu; lhs.lambda += rhs.lambda;};
+	{return Solid(lhs.mu+rhs.mu, lhs.lambda+rhs.lambda);}
 
 	friend Solid operator - (Solid lhs, const Solid rhs)
-	{lhs.mu -= rhs.mu; lhs.lambda -= rhs.lambda;};
+	{return Solid(lhs.mu-rhs.mu, lhs.lambda-rhs.lambda);}
 	
 	friend Solid operator / (Solid lhs, const Set::Scalar alpha)
-	{lhs.mu /= alpha; lhs.lambda /= alpha;};
+	{return Solid(lhs.mu/alpha,lhs.lambda/alpha);};
 private:
 	Set::Scalar mu, lambda;
 };
