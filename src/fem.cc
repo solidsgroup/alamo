@@ -26,9 +26,6 @@ int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
 
-	Model::Solid::Elastic::Elastic model(1.0, 1000.0);
-
-
 	//
 	//
 	// READ INPUT FILE AND INSTANTIATE PARAMETERS
@@ -112,6 +109,8 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::MultiFab>  energy;
 	amrex::Vector<amrex::MultiFab>  verify;
 
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Isotropic::Isotropic> > > model;
+
 	//
 	// CONSTRUCTOR
 	//
@@ -130,7 +129,7 @@ int main (int argc, char* argv[])
 	stress.resize(nlevels);
 	energy.resize(nlevels);
 	verify.resize(nlevels);
-
+	model.resize(nlevels);
 
 	// BC::Constant *mybc;
 	// mybc = new BC::Constant({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
@@ -183,7 +182,11 @@ int main (int argc, char* argv[])
 			stress  [ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
 			energy  [ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
 			verify	[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
+			model	[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
 		}
+
+
+	Model::Solid::Elastic::Isotropic::Isotropic isotropic(2.6,6.0);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
@@ -199,6 +202,7 @@ int main (int argc, char* argv[])
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
 			verify[ilev].setVal(0.0);
+			model[ilev].setVal(isotropic);
 
 			for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
 			{
@@ -243,6 +247,11 @@ int main (int argc, char* argv[])
 	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
+
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		mlabec.SetModel(ilev,model[ilev]);
+	}
 
 	mlabec.SetBC({{bc_x_lo,bc_y_lo,bc_z_lo}},
 		     {{bc_x_hi,bc_y_hi,bc_z_hi}});
