@@ -36,27 +36,44 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 {
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
-	T ms(2.6,6.0);
-
-	coeff.resize(m_num_amr_levels);
+	model.resize(m_num_amr_levels);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
-		coeff[amrlev].resize(m_num_mg_levels[amrlev]);
+		model[amrlev].resize(m_num_mg_levels[amrlev]);
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		{
-			coeff[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
-			coeff[amrlev][mglev]->setVal(ms);
+			//\todo replace number of ghost cells with 0
+			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
+			//model[amrlev][mglev]->setVal(ms);
+		}
+	}
+}
+
+template <class T>
+void
+Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
+{
+	
+	//amrex::FabArray<amrex::BaseFab<T> >::Copy(*model[amrlev][0][0], a_model, 0, 0, 1, 0);
+	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
+		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
+
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			modelfab(m) = a_modelfab(m);
 		}
 	}
 }
 
 template<class T>
 void
-Elastic<T>::Fapply (int amrlev, ///<[in] AMR Level
-		 int mglev,  ///<[in]
-		 MultiFab& f,///<[out] The force vector
-		 const MultiFab& u ///<[in] The displacements vector
-		 ) const
+Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
 
@@ -75,11 +92,11 @@ Elastic<T>::Fapply (int amrlev, ///<[in] AMR Level
 		if(ufab.contains_nan()) Util::Abort("Nan in ufab [before update]");
 	}
 
-	//for (MFIter mfi(*(coeff[amrlev][mglev]), true); mfi.isValid(); ++mfi)
+	//for (MFIter mfi(*(model[amrlev][mglev]), true); mfi.isValid(); ++mfi)
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::BaseFab<T> &coeffab = (*(coeff[amrlev][mglev]))[mfi];
+		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
 		
@@ -119,7 +136,7 @@ Elastic<T>::Fapply (int amrlev, ///<[in] AMR Level
 			}
 
 			Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-			Set::Matrix sig = coeffab(m)(eps);
+			Set::Matrix sig = C(m)(eps);
 
 			for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
 			{
@@ -142,10 +159,10 @@ Elastic<T>::Fapply (int amrlev, ///<[in] AMR Level
 			if (xmax || xmin || ymax || ymin || zmax || zmin) continue;
 			
 			Set::Vector f =
-				coeffab(m)(gradgradu) + 
-				AMREX_D_TERM(((coeffab(m+dx[0]) - coeffab(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				 	     + ((coeffab(m+dx[1]) - coeffab(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				  	     + ((coeffab(m+dx[2]) - coeffab(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+				C(m)(gradgradu) + 
+				AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				  	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
 
@@ -422,6 +439,7 @@ template<class T>
 void
 Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 {
+
 	return;
 	Util::Abort("normalize is under construction - do not use");
 	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");

@@ -47,6 +47,8 @@ public:
 	// 								int amrlev, const MFIter& mfi) const;
 	// void AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
 
+	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
+
 	void Stress (FArrayBox& sigmafab,
 		     const FArrayBox& ufab,
 		     int amrlev, const MFIter& mfi,
@@ -83,7 +85,7 @@ private:
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]
 
-	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > coeff;
+	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > model;
 
 	//std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL{bc_x, bc_y, bc_z};
 };
