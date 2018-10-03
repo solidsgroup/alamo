@@ -1,4 +1,5 @@
 #include "Model/Solid/Elastic/Isotropic/Isotropic.H"
+#include "Model/Solid/Elastic/Cubic/Cubic.H"
 #include "Elastic.H"
 
 namespace Operator
@@ -160,17 +161,21 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
 				{
 					if (m[j] == domain.loVect()[j])
+					{
 						if (m_bc_lo[j][i] == BC::Displacement)
 							ffab(m,i) = ufab(m,i);
 						else if (m_bc_lo[j][i] == BC::Traction) 
 							ffab(m,i) = -sig(i,j);
 						else Util::Abort("Invalid BC");
+					}
 					if (m[j] == domain.hiVect()[j] + 1)
+					{
 						if (m_bc_hi[j][i] == BC::Displacement)
 							ffab(m,i) = ufab(m,i);
 						else if (m_bc_hi[j][i] == BC::Traction) 
 							ffab(m,i) = +sig(i,j);
 						else Util::Abort("Invalid BC");
+					}
 				}
 			}
 			if (xmax || xmin || ymax || ymin || zmax || zmin) continue;
@@ -524,17 +529,21 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 						for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
 						{
 							if (m[j] == domain.loVect()[j])
+							{
 								if (m_bc_lo[j][k] == BC::Displacement)
 									aa += 1.0;
 								else if (m_bc_lo[j][k] == BC::Traction) 
 									aa -= sig(k,j);
 								else Util::Abort("Invalid BC");
+							}
 							if (m[j] == domain.hiVect()[j] + 1)
+							{
 								if (m_bc_hi[j][k] == BC::Displacement)
 									aa += 1.0;
 								else if (m_bc_hi[j][k] == BC::Traction) 
 									aa += sig(k,j);
 								else Util::Abort("Invalid BC");
+							}
 						}
 					}
 					if (fabs(aa) < 1E-10) Util::Abort("Singular boundary operator: diagonal = 0");
@@ -576,76 +585,73 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 
 template<class T>
 void
-Elastic<T>::Stress (FArrayBox& sigmafab,
-		 const FArrayBox& ufab,
-		 int amrlev, const MFIter& mfi,
-		 bool voigt) const
+Elastic<T>::Stress (int amrlev,
+		    amrex::MultiFab& sigma,
+		    const amrex::MultiFab& u,
+		    bool voigt) const
 {
-	Util::Abort("Stress() is not yet implemented - do not use");
-	/*
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	if (voigt)
-		AMREX_ASSERT(sigmafab.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
+		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
 	else
-		AMREX_ASSERT(sigmafab.nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
+		AMREX_ASSERT(sigma.nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-#if AMREX_SPACEDIM==2
-	amrex::IntVect dx(1,0);
-	amrex::IntVect dy(0,1);
-#elif AMREX_SPACEDIM==3
-	amrex::IntVect dx(1,0,0);
-	amrex::IntVect dy(0,1,0);
-	amrex::IntVect dz(0,0,1);
-#endif
-	const Box& bx = mfi.tilebox();
-	
+	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
+	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::BaseFab<T> &C          = (*(model[amrlev][0]))[mfi];
+		amrex::FArrayBox  &sigmafab   = sigma[mfi];
+		const amrex::FArrayBox  &ufab = u[mfi];
 
-	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-#if AMREX_SPACEDIM==3
-			for(int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
-#endif
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			bool	xmin = (m1 == domain.loVect()[0]),
+				xmax = (m1 == domain.hiVect()[0] + 1),
+				ymin = (m2 == domain.loVect()[1]),
+				ymax = (m2 == domain.hiVect()[1] + 1),
+				zmin = (m3 == domain.loVect()[2]),
+				zmax = (m3 == domain.hiVect()[2] + 1);
+
+
+			Set::Matrix gradu;
+
+			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx[0],0) : ufab(m,0)) - (!xmin ? ufab(m-dx[0],0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+				     ,
+				     gradu(0,1) = ((!ymax ? ufab(m+dx[1],0) : ufab(m,0)) - (!ymin ? ufab(m-dx[1],0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+				     gradu(1,0) = ((!xmax ? ufab(m+dx[0],1) : ufab(m,1)) - (!xmin ? ufab(m-dx[0],1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+				     gradu(1,1) = ((!ymax ? ufab(m+dx[1],1) : ufab(m,1)) - (!ymin ? ufab(m-dx[1],1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+				     ,
+				     gradu(0,2) = ((!zmax ? ufab(m+dx[2],0) : ufab(m,0)) - (!zmin ? ufab(m-dx[2],0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
+				     gradu(1,2) = ((!zmax ? ufab(m+dx[2],1) : ufab(m,1)) - (!zmin ? ufab(m-dx[2],1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
+				     gradu(2,0) = ((!xmax ? ufab(m+dx[0],2) : ufab(m,2)) - (!xmin ? ufab(m-dx[0],2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+				     gradu(2,1) = ((!ymax ? ufab(m+dx[1],2) : ufab(m,2)) - (!ymin ? ufab(m-dx[1],2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+				     gradu(2,2) = ((!zmax ? ufab(m+dx[2],2) : ufab(m,2)) - (!zmin ? ufab(m-dx[2],2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			
+			Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
+
+			Set::Matrix sig = C(m)(eps);
+
+			if (voigt)
 			{
-				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-
-				bool	xmin = (m1 == domain.loVect()[0]),
-					xmax = (m1 == domain.hiVect()[0] + 1),
-					ymin = (m2 == domain.loVect()[1]),
-					ymax = (m2 == domain.hiVect()[1] + 1),
-					zmin = (m3 == domain.loVect()[2]),
-					zmax = (m3 == domain.hiVect()[2] + 1);
-
-
-
-				Set::Matrix gradu;
-
-				Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-				AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx,0) : ufab(m,0)) - (!xmin ? ufab(m-dx,0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-					     ,
-					     gradu(0,1) = ((!ymax ? ufab(m+dy,0) : ufab(m,0)) - (!ymin ? ufab(m-dy,0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-					     gradu(1,0) = ((!xmax ? ufab(m+dx,1) : ufab(m,1)) - (!xmin ? ufab(m-dx,1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-					     gradu(1,1) = ((!ymax ? ufab(m+dy,1) : ufab(m,1)) - (!ymin ? ufab(m-dy,1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-					     ,
-					     gradu(0,2) = ((!zmax ? ufab(m+dz,0) : ufab(m,0)) - (!zmin ? ufab(m-dz,0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-					     gradu(1,2) = ((!zmax ? ufab(m+dz,1) : ufab(m,1)) - (!zmin ? ufab(m-dz,1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-					     gradu(2,0) = ((!xmax ? ufab(m+dx,2) : ufab(m,2)) - (!xmin ? ufab(m-dx,2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-					     gradu(2,1) = ((!ymax ? ufab(m+dy,2) : ufab(m,2)) - (!ymin ? ufab(m-dy,2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-					     gradu(2,2) = ((!zmax ? ufab(m+dz,2) : ufab(m,2)) - (!zmin ? ufab(m-dz,2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-					     );
-
-				Set::Matrix eps0 = Set::Matrix::Zero();
-
-				for (int i=0; i<AMREX_SPACEDIM; i++)
-					for (int j=0; j<AMREX_SPACEDIM; j++)
-					{
-						for (int k=0; k<AMREX_SPACEDIM; k++)
-							for (int l=0; l<AMREX_SPACEDIM; l++)
-								sigmafab(m,i*AMREX_SPACEDIM + j) += C(i,j,k,l,m,amrlev,0,mfi) * (gradu(k,l) - eps0(k,l));
-					}
+				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(1,1); sigmafab(m,2) = sig(2,2); 
+				sigmafab(m,3) = sig(1,2); sigmafab(m,4) = sig(2,0); sigmafab(m,5) = sig(0,1); 
 			}
-	*/
+			else
+			{
+				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(0,1); sigmafab(m,2) = sig(0,2); 
+				sigmafab(m,3) = sig(1,0); sigmafab(m,4) = sig(1,1); sigmafab(m,5) = sig(1,2); 
+				sigmafab(m,6) = sig(2,0); sigmafab(m,7) = sig(2,1); sigmafab(m,8) = sig(2,2); 
+			}
+			}
+	}
 }
 
 template<class T>
@@ -701,6 +707,7 @@ Elastic<T>::Energy (FArrayBox& energyfab,
 
 
 template class Elastic<Model::Solid::Elastic::Isotropic::Isotropic>;
+template class Elastic<Model::Solid::Elastic::Cubic::Cubic>;
 
 
 }

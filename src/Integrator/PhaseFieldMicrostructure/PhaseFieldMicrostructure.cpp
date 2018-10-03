@@ -207,7 +207,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 				// amrex::Real grad1 =  grad1_normal;
 				// amrex::Real grad2 =  grad2_normal;
-				amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
+				// amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
 				amrex::Real grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0]; // 3 point
 				amrex::Real grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1]; // 3 point
 		      
@@ -460,6 +460,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		const amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 						  dy(AMREX_D_DECL(0,1,0)),
 						  dz(AMREX_D_DECL(0,0,1)));
+
+		elastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
+
 		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
 		{
 			const Box& bx = mfi.tilebox();
@@ -471,7 +474,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			FArrayBox &energiesfab  = (*energies[lev])[mfi];
 			FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
 
-			elastic_operator->Stress(sigmafab,ufab,lev,mfi);
 
 			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
 				     for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),

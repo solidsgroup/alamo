@@ -43,7 +43,7 @@ public:
 				for(int s = 0; s < AMREX_SPACEDIM; s++) 
 					for(int t = 0; t < AMREX_SPACEDIM; t++)
 					{
-						Crot[p][q][s][t];
+						Crot[p][q][s][t] = 0.0;
 						for(int i = 0; i < AMREX_SPACEDIM; i++) 
 							for(int j = 0; j < AMREX_SPACEDIM; j++) 
 								for(int k = 0; k < AMREX_SPACEDIM; k++) 
@@ -82,29 +82,28 @@ public:
 	{
 		Set::Vector f = Set::Vector::Zero();
 
-		f(0) =  C[ 0]*eps[0](0,0) + C[ 1]*eps[1](1,0) + C[ 2]*eps[2](2,0) + 2.0 * ( C[ 3]*eps[1](2,0) + C[ 4]*eps[2](0,0) + C[ 5]*eps[0](1,0)) +
-			C[ 5]*eps[0](0,1) + C[10]*eps[1](1,1) + C[14]*eps[2](2,1) + 2.0 * ( C[17]*eps[1](2,1) + C[19]*eps[2](0,1) + C[20]*eps[0](1,1)) + 
-			C[ 4]*eps[0](0,2) + C[ 9]*eps[1](1,2) + C[13]*eps[2](2,2) + 2.0 * ( C[16]*eps[1](2,2) + C[18]*eps[2](0,2) + C[19]*eps[0](1,2));
+		f(0) =  C[ 0]*gradeps[0](0,0) + C[ 1]*gradeps[1](1,0) + C[ 2]*gradeps[2](2,0) + 2.0 * ( C[ 3]*gradeps[1](2,0) + C[ 4]*gradeps[2](0,0) + C[ 5]*gradeps[0](1,0)) + 
+			C[ 5]*gradeps[0](0,1) + C[10]*gradeps[1](1,1) + C[14]*gradeps[2](2,1) + 2.0 * ( C[17]*gradeps[1](2,1) + C[19]*gradeps[2](0,1) + C[20]*gradeps[0](1,1)) + 
+			C[ 4]*gradeps[0](0,2) + C[ 9]*gradeps[1](1,2) + C[13]*gradeps[2](2,2) + 2.0 * ( C[16]*gradeps[1](2,2) + C[18]*gradeps[2](0,2) + C[19]*gradeps[0](1,2));
 
-		f(1) =  C[ 5]*eps[0](0,0) + C[10]*eps[1](1,0) + C[14]*eps[2](2,0) + 2.0 * ( C[17]*eps[1](2,0) + C[19]*eps[2](0,0) + C[20]*eps[0](1,0)) + 
-			C[ 1]*eps[0](0,1) + C[ 6]*eps[1](1,1) + C[ 7]*eps[2](2,1) + 2.0 * ( C[ 8]*eps[1](2,1) + C[ 9]*eps[2](0,1) + C[10]*eps[0](1,1)) + 
-			C[ 3]*eps[0](0,2) + C[ 8]*eps[1](1,2) + C[12]*eps[2](2,2) + 2.0 * ( C[15]*eps[1](2,2) + C[16]*eps[2](0,2) + C[17]*eps[0](1,2));
+		f(1) =  C[ 5]*gradeps[0](0,0) + C[10]*gradeps[1](1,0) + C[14]*gradeps[2](2,0) + 2.0 * ( C[17]*gradeps[1](2,0) + C[19]*gradeps[2](0,0) + C[20]*gradeps[0](1,0)) +
+			C[ 1]*gradeps[0](0,1) + C[ 6]*gradeps[1](1,1) + C[ 7]*gradeps[2](2,1) + 2.0 * ( C[ 8]*gradeps[1](2,1) + C[ 9]*gradeps[2](0,1) + C[10]*gradeps[0](1,1)) +
+			C[ 3]*gradeps[0](0,2) + C[ 8]*gradeps[1](1,2) + C[12]*gradeps[2](2,2) + 2.0 * ( C[15]*gradeps[1](2,2) + C[16]*gradeps[2](0,2) + C[17]*gradeps[0](1,2));
 
-		f(2) =  C[ 2]*eps[0](0,2) + C[ 7]*eps[1](1,2) + C[11]*eps[2](2,2) + 2.0 * ( C[12]*eps[1](2,2) + C[13]*eps[2](0,2) + C[14]*eps[0](1,2)) +
-			C[ 3]*eps[0](0,1) + C[ 8]*eps[1](1,1) + C[12]*eps[2](2,1) + 2.0 * ( C[15]*eps[1](2,1) + C[16]*eps[2](0,1) + C[17]*eps[0](1,1)) +
-			C[ 4]*eps[0](0,0) + C[ 9]*eps[1](1,0) + C[13]*eps[2](2,0) + 2.0 * ( C[16]*eps[1](2,0) + C[18]*eps[2](0,0) + C[19]*eps[0](1,0));
-		
+		f(2) =  C[ 4]*gradeps[0](0,0) + C[ 9]*gradeps[1](1,0) + C[13]*gradeps[2](2,0) + 2.0 * ( C[16]*gradeps[1](2,0) + C[18]*gradeps[2](0,0) + C[19]*gradeps[0](1,0)) +
+			C[ 3]*gradeps[0](0,1) + C[ 8]*gradeps[1](1,1) + C[12]*gradeps[2](2,1) + 2.0 * ( C[15]*gradeps[1](2,1) + C[16]*gradeps[2](0,1) + C[17]*gradeps[0](1,1)) + 
+			C[ 2]*gradeps[0](0,2) + C[ 7]*gradeps[1](1,2) + C[11]*gradeps[2](2,2) + 2.0 * ( C[12]*gradeps[1](2,2) + C[13]*gradeps[2](0,2) + C[14]*gradeps[0](1,2));
 		return f;
 	}
 
 	Cubic operator + (const Cubic &rhs)
-	{Cubic ret; ret.C = C + rhs.C;}
+	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] + rhs.C[i]; return ret;}
 
-	// Cubic operator - (const Cubic &rhs)
-	// {return Cubic(mu-rhs.mu, lambda-rhs.lambda);}
+	Cubic operator - (const Cubic &rhs)
+	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] - rhs.C[i]; return ret;}
 
-	// virtual Cubic operator / (const Set::Scalar alpha)
-	// {return Cubic(mu/alpha, lambda/alpha);}
+	Cubic operator / (const Set::Scalar alpha)
+	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]/alpha; return ret;}
 
 private:
 	std::array<Set::Scalar,21> C;

@@ -39,7 +39,7 @@ public:
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
-	void Stress (FArrayBox& sigmafab, const FArrayBox& ufab, int amrlev, const MFIter& mfi, bool voigt = false) const;
+	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
 	void Energy (FArrayBox& energyfab, const FArrayBox& ufab, int amrlev, const MFIter& mfi) const;
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
@@ -59,10 +59,11 @@ protected:
 private:
 	// This is an old depricated method that needs to be eliminated.
 	// We keep it around to maintain backward compatibility.
-	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
-						  const int amrlev, const int mglev, const MFIter &mfi) const
+	virtual amrex::Real C(const int , const int , const int , const int , const amrex::IntVect ,
+						  const int , const int , const MFIter &) const
 	{
 		Util::Abort("This function is depricated and must not be used.");
+		return std::numeric_limits<Set::Scalar>::quiet_NaN();
 	};
 
 	// Simple arrays storing boundary conditions for each component and each face.

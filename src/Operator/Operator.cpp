@@ -231,8 +231,8 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 
 void
 Operator::reflux (int crse_amrlev,
-		     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-		     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
+		  MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+		  MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
 	Util::Abort("reflux not yet implemented");
 }
