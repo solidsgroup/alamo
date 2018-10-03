@@ -16,10 +16,10 @@ bc.bc_y_hi = disp disp disp
 bc.bc_z_hi = disp disp disp
 
 #bc.bc_x_lo = disp disp disp
-bc.bc_y_lo = trac trac trac
+#bc.bc_y_lo = trac trac trac
 #bc.bc_z_lo = trac trac trac
 #bc.bc_x_hi = disp disp disp
-bc.bc_y_hi = trac trac trac
+#bc.bc_y_hi = trac trac trac
 #bc.bc_z_hi = trac trac trac
 
 solver.bottom_solver = bicgstab
