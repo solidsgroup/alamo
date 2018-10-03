@@ -19,18 +19,13 @@
 #include "BC/Constant.H"
 #include "IC/IC.H"
 #include "IC/Constant/Constant.H"
-#include "IC/PerturbedInterface/PerturbedInterface.H"
-//#include "BC/Changeable/Changeable.H"
 #include "Numeric/Interpolator/Linear/Linear.H"
+#include "Util/Util.H"
+#include "IO/FileNameParse.H"
 
-#include "Operator/Elastic/Degradation/Degradation.H"
-#include "Operator/Elastic/Degradation/Isotropic/Isotropic.H"
-#include "Operator/Elastic/Degradation/Cubic/Cubic.H"
-#include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
-#include "Operator/Elastic/Isotropic/Isotropic.H"
-#include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
-#include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
-#include "Operator/Elastic/Cubic/Cubic.H"
+
+#include "Operator/Elastic/Elastic.H"
+#include "Model/Solid/Elastic/Isotropic/Degradable/Isotropic.H"
 
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -175,10 +170,10 @@ private:
 	
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
-	Operator::Elastic::Degradation::Degradation *elastic_operator;
+	Operator::Elastic::Elastic<Model::Solid::Elastic::Degradable::Isotropic::Isotropic> *elastic_operator;
 
 	// Material model
-	std::vector<Operator::Elastic::Degradation::PristineMaterialModel *> models;
+	std::vector<Model::Solid::Solid *> models;
 	std::string 	input_material = "isotropic";
 
 };
