@@ -1,25 +1,18 @@
 #include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Elastic.H"
 
-#define TRACER	std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
-
 namespace Operator
 {
 namespace Elastic
 {
 
-/// \fn Operator::Elastic::MLPFStiffnessMatrix
-///
-/// Relay to the define function
-/// Also define elastic constants here.
 template<class T>
 Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
 		     const Vector<BoxArray>& a_grids,
 		     const Vector<DistributionMapping>& a_dmap,
 		     const LPInfo& a_info)
 {
-	define(a_geom, a_grids, a_dmap// , a_bc, a_info
-	       );
+	define(a_geom, a_grids, a_dmap, a_info);
 }
 
 template<class T>
@@ -44,7 +37,6 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		{
 			//\todo replace number of ghost cells with 0
 			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
-			//model[amrlev][mglev]->setVal(ms);
 		}
 	}
 }
@@ -53,8 +45,6 @@ template <class T>
 void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
-	
-	//amrex::FabArray<amrex::BaseFab<T> >::Copy(*model[amrlev][0][0], a_model, 0, 0, 1, 0);
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -83,7 +73,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
 									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
 									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
-
+	// DEBUG: Check to see if Fapply is getting passed bad values.
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
 		const amrex::FArrayBox &ufab    = u[mfi];
@@ -92,7 +82,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 		if(ufab.contains_nan()) Util::Abort("Nan in ufab [before update]");
 	}
 
-	//for (MFIter mfi(*(model[amrlev][mglev]), true); mfi.isValid(); ++mfi)
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -113,11 +102,16 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				zmin = (m3 == domain.loVect()[2]),
 				zmax = (m3 == domain.hiVect()[2] + 1);
 
+			// The displacement gradient tensor
 			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+
+			// The gradient of the displacement gradient tensor
 			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
 
+			// Fill gradu and gradgradu
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 			{
+				// Note: the (?:) block modifies the stencil if the node is on a boundary
 				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
 					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
@@ -135,9 +129,32 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 					     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
 			}
 
+			// Strain tensor
 			Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+			// Stress tensor computed using the model fab
 			Set::Matrix sig = C(m)(eps);
 
+			//
+			// Boundary conditions
+			//
+			// BCs are implemented as boundary operators.
+			//
+			// ┌                      ┐ ┌                     ┐   ┌              ┐
+			// │              |       │ │ interior		  │   │ body	     │
+			// │  Div C Grad  │       │ │ displacements	  │   │ forces	     │
+			// │              │       │ │			  │ = │		     │
+			// │ ─────────────┼────── │ │ ──────────────────  │   │ ──────────── │
+			// │              │ Bndry │ │ bndry displacements │   │ bndry values │
+			// └                      ┘ └			  ┘   └		     ┘
+			//
+			// For displacement:
+			//   (Bndry)(u) = u
+			// For traction:
+			//   (Bndry)(u) = C Grad (u) n   (n is surface normal)
+			//
+			// The displacement values or traction values are set as the boundary
+			// values of the rhs fab.
+			//
 			for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
 			{
 				for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
@@ -158,6 +175,14 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			}
 			if (xmax || xmin || ymax || ymin || zmax || zmin) continue;
 			
+			//
+			// Operator
+			//
+			// The return value is
+			//    f = C(grad grad u) + grad(C)*grad(u)
+			// In index notation
+			//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
+			//
 			Set::Vector f =
 				C(m)(gradgradu) + 
 				AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
@@ -165,7 +190,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				  	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
-
 		}
 	}
 }
@@ -439,6 +463,8 @@ template<class T>
 void
 Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 {
+	// See FApply for documentation. 
+
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -529,187 +555,15 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 			}
 		}
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	// return;
-	// Util::Abort("normalize is under construction - do not use");
-	// BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
-	// amrex::Box domain(m_geom[amrlev][mglev].Domain());
-	// const Real* DX = m_geom[amrlev][mglev].CellSize();
-	
-	// static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-	// 				   dy(AMREX_D_DECL(0,1,0)),
-	// 				   dz(AMREX_D_DECL(0,0,1)));
-
-	// for (MFIter mfi(mf, true); mfi.isValid(); ++mfi)
-	// {
-	// 	const Box& bx = mfi.tilebox();
-	// 	amrex::FArrayBox &mffab    = mf[mfi];
-
-	// 	AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-	// 		     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-	// 		     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
-	// 	{
-	// 		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-	// 		bool	xmin = (m1 == domain.loVect()[0]),
-	// 			xmax = (m1 == domain.hiVect()[0] + 1),
-	// 			ymin = (m2 == domain.loVect()[1]),
-	// 			ymax = (m2 == domain.hiVect()[1] + 1),
-	// 			zmin = (m3 == domain.loVect()[2]),
-	// 			zmax = (m3 == domain.hiVect()[2] + 1);
-
-	// 		for (int i=0; i<AMREX_SPACEDIM; i++)
-	// 		{
-	// 			Set::Scalar aa = 0.0;
-
-	// 			for (int k=0; k<AMREX_SPACEDIM; k++)
-	// 			{
-	// 				Set::Vector gradu_k; // gradu_k(l) = u_{k,l}
-	// 				AMREX_D_TERM(gradu_k(0) = ((!xmax ? 0.0/*ufab(m+dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!xmin ? 0.0/*ufab(m-dx,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-	// 					     gradu_k(1) = ((!ymax ? 0.0/*ufab(m+dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!ymin ? 0.0/*ufab(m-dy,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-	// 					     gradu_k(2) = ((!zmax ? 0.0/*ufab(m+dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/) - (!zmin ? 0.0/*ufab(m-dz,k)*/ : (i==k ? 1.0 : 0.0)/*ufab(m,k)*/))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-
-
-	// 				if (xmin)
-	// 				{
-	// 					if (m_bc_lo[0][k] == BC::Displacement)
-	// 						aa = 1.0;
-	// 					else if (m_bc_lo[0][k] == BC::Traction) 
-	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 							aa  -= C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-	// 				}
-	// 				if (xmax)
-	// 				{
-	// 					if (m_bc_hi[0][k] == BC::Displacement)
-	// 						aa = 1.0;
-	// 					else if (m_bc_hi[0][k] == BC::Traction) 
-	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 							aa  += C(i,0,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-
-	// 				}
-
-	// 				if (ymin)
-	// 				{
-	// 					if (m_bc_lo[1][k] == BC::Displacement)
-	// 						aa = 1.0;
-	// 					else if (m_bc_lo[1][k] == BC::Traction) 
-	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 							aa  -= C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-	// 				}
-	// 				if (ymax)
-	// 				{
-	// 					if (m_bc_hi[1][k] == BC::Displacement)
-	// 						aa = 1.0;
-	// 					else if (m_bc_hi[1][k] == BC::Traction) 
-	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 							aa  += C(i,1,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-
-	// 				}
-
-	// 				if (zmin)
-	// 				{
-	// 					if (m_bc_lo[2][k] == BC::Displacement)
-	// 						aa = 1.0;
-	// 					else if (m_bc_lo[2][k] == BC::Traction) 
-	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 							aa  -= C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-
-	// 				}
-	// 				if (zmax)
-	// 				{
-	// 					if (m_bc_hi[2][k] == BC::Displacement)
-	// 						aa = 1.0;
-	// 					else if (m_bc_lo[2][k] == BC::Traction) 
-	// 						for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 							aa  += C(i,2,k,l,m,amrlev,mglev,mfi) * gradu_k(l);
-	// 				}
-
-
-	// 				if (xmin || xmax || ymin || ymax || zmin || zmax) continue;
-
-
-	// 				Set::Matrix gradgradu_k; // gradgradu_k(l,j) = u_{k,lj}
-	// 				AMREX_D_TERM(gradgradu_k(0,0) = (/*ufab(m+dx,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /* + ufab(m-dx,k)*/)/DX[0]/DX[0];
-	// 					     ,// 2D
-	// 					     gradgradu_k(0,1) = 0.0 /*(ufab(m+dx+dy,k) + ufab(m-dx-dy,k) - ufab(m+dx-dy,k) - ufab(m-dx+dy,k))/(2.0*DX[0])/(2.0*DX[1])*/;
-	// 					     gradgradu_k(1,0) = 0.0 /*gradgradu_k(0,1)*/;
-	// 					     gradgradu_k(1,1) = (/*ufab(m+dy,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /*+ ufab(m-dy,k)*/)/DX[1]/DX[1];
-	// 					     ,// 3D
-	// 					     gradgradu_k(0,2) = 0.0 /*(ufab(m+dx+dz,k) + ufab(m-dx-dz,k) - ufab(m+dx-dz,k) - ufab(m-dx+dz,k))/(2.0*DX[0])/(2.0*DX[2])*/;
-	// 					     gradgradu_k(1,2) = 0.0 /*(ufab(m+dy+dz,k) + ufab(m-dy-dz,k) - ufab(m+dy-dz,k) - ufab(m-dy+dz,k))/(2.0*DX[1])/(2.0*DX[2])*/;
-	// 					     gradgradu_k(2,0) = 0.0 /*gradgradu_k(0,2)*/;
-	// 					     gradgradu_k(2,1) = 0.0 /*gradgradu_k(1,2)*/;
-	// 					     gradgradu_k(2,2) = (/*ufab(m+dz,k)*/ - (i==k ? 2.0/**ufab(m,k)*/ : 0) /*+ ufab(m-dz,k)*/)/DX[2]/DX[2];);
-
-	// 				Set::Vector C_ik; // C_ik(l) = C_{ijkl,j}
-	// 				AMREX_D_TERM(C_ik(0) = AMREX_D_TERM(+ (C(i,0,k,0,m+dx,amrlev,mglev,mfi) - C(i,0,k,0,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-	// 								    + (C(i,1,k,0,m+dy,amrlev,mglev,mfi) - C(i,1,k,0,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-	// 								    + (C(i,2,k,0,m+dz,amrlev,mglev,mfi) - C(i,2,k,0,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-	// 					     C_ik(1) = AMREX_D_TERM(+ (C(i,0,k,1,m+dx,amrlev,mglev,mfi) - C(i,0,k,1,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-	// 								    + (C(i,1,k,1,m+dy,amrlev,mglev,mfi) - C(i,1,k,1,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-	// 								    + (C(i,2,k,1,m+dz,amrlev,mglev,mfi) - C(i,2,k,1,m-dz,amrlev,mglev,mfi))/(2.0*DX[2]));,
-	// 					     C_ik(2) = AMREX_D_TERM(+ (C(i,0,k,2,m+dx,amrlev,mglev,mfi) - C(i,0,k,2,m-dx,amrlev,mglev,mfi))/(2.0*DX[0]),
-	// 								    + (C(i,1,k,2,m+dy,amrlev,mglev,mfi) - C(i,1,k,2,m-dy,amrlev,mglev,mfi))/(2.0*DX[1]),
-	// 								    + (C(i,2,k,2,m+dz,amrlev,mglev,mfi) - C(i,2,k,2,m-dz,amrlev,mglev,mfi))/(2.0*DX[2])););
-							
-	// 				for (int l=0; l<AMREX_SPACEDIM; l++)
-	// 				{
-	// 					// f_i -= C_{ijkl} (u_{k,lj})
-	// 					for (int j=0; j<AMREX_SPACEDIM; j++)
-	// 						aa -= C(i,j,k,l,m,amrlev,mglev,mfi) * (gradgradu_k(j,l));
-
-	// 					// f_i -= C_{ijkl,j} u_{k,l}
-	// 					if (i==l)
-	// 						aa -= C_ik(l) * gradu_k(l);
-	// 				}
-	// 			}
-	// 			mffab(m,i) = mffab(m,i) / aa;
-	// 		}
-	// 	}
-	// }
-	
-
-
 }
 
 
-
-/// \fn Operator::Elastic::FFlux
-///
-/// Compute the "flux" corresponding to the operator in Operator::Elastic::Fapply.
-/// Because the operator is self-adjoint and positive-definite, the flux is not
-/// required for adequate convergence (?)
-/// Therefore, the fluxes are simply set to zero and returned.
-///
-/// \todo Extend to 3D
-///
 template<class T>
 void
 Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
-	// amrex::BaseFab<amrex::Real> &fxfab = *sigmafab[0];
-	// amrex::BaseFab<amrex::Real> &fyfab = *sigmafab[1];
-	// fxfab.setVal(0.0);
-	// fyfab.setVal(0.0);
-
 	amrex::BaseFab<amrex::Real> AMREX_D_DECL( &fxfab = *sigmafab[0],
 	 					  &fyfab = *sigmafab[1],
 	 					  &fzfab = *sigmafab[2] ) ;
@@ -727,6 +581,8 @@ Elastic<T>::Stress (FArrayBox& sigmafab,
 		 int amrlev, const MFIter& mfi,
 		 bool voigt) const
 {
+	Util::Abort("Stress() is not yet implemented - do not use");
+	/*
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	if (voigt)
 		AMREX_ASSERT(sigmafab.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
@@ -789,6 +645,7 @@ Elastic<T>::Stress (FArrayBox& sigmafab,
 								sigmafab(m,i*AMREX_SPACEDIM + j) += C(i,j,k,l,m,amrlev,0,mfi) * (gradu(k,l) - eps0(k,l));
 					}
 			}
+	*/
 }
 
 template<class T>
@@ -797,18 +654,13 @@ Elastic<T>::Energy (FArrayBox& energyfab,
 		 const FArrayBox& ufab,
 		 int amrlev, const MFIter& mfi) const
 {
-	/// \todo RE-IMPLEMENT in 2D and 3D
-
+	Util::Abort("Energy() is not yet implemented - do not use");
+	/*
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-#if AMREX_SPACEDIM==2
-	amrex::IntVect dx(1,0);
-	amrex::IntVect dy(0,1);
-#elif AMREX_SPACEDIM==3
-	amrex::IntVect dx(1,0,0);
-	amrex::IntVect dy(0,1,0);
-	amrex::IntVect dz(0,0,1);
-#endif
+	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 
 	const Box& bx = mfi.tilebox();
 	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
@@ -843,6 +695,7 @@ Elastic<T>::Energy (FArrayBox& energyfab,
 							for (int l=0; l<AMREX_SPACEDIM; l++)
 								energyfab(m) += 0.5 * (gradu(i,j) - eps0(i,j)) * C(i,j,k,l,m,amrlev,0,mfi) * (gradu(k,l) - eps0(k,l));
 			}
+	*/
 }
 
 

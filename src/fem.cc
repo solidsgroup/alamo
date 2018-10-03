@@ -27,27 +27,23 @@ int main (int argc, char* argv[])
 	Util::Initialize(argc, argv);
 
 	//
+	// READ INPUT FILE
 	//
-	// READ INPUT FILE AND INSTANTIATE PARAMETERS
-	//
-	//
-
 
 	// Input file
 	amrex::ParmParse pp;
 	std::string plot_file = "output"; pp.query("plot_file",plot_file);
-	
 
-	// Boundary Conditions
+	// Read in boundary conditions
 	ParmParse pp_bc("bc");
-	amrex::Vector<amrex::Real> body_force;     pp_bc.queryarr("body_force",     body_force     );
-	amrex::Vector<amrex::Real> disp_bc_top;    pp_bc.queryarr("disp_bc_top",    disp_bc_top     );
-	amrex::Vector<amrex::Real> disp_bc_left;   pp_bc.queryarr("disp_bc_left",   disp_bc_left    );
-	amrex::Vector<amrex::Real> disp_bc_right;  pp_bc.queryarr("disp_bc_right",  disp_bc_right   );
-	amrex::Vector<amrex::Real> disp_bc_bottom; pp_bc.queryarr("disp_bc_bottom", disp_bc_bottom  );
-#if AMREX_SPACEDIM > 2
-	amrex::Vector<amrex::Real> disp_bc_front;  pp_bc.queryarr("disp_bc_front",  disp_bc_front   );
-	amrex::Vector<amrex::Real> disp_bc_back;   pp_bc.queryarr("disp_bc_back",   disp_bc_back    );
+	amrex::Vector<amrex::Real> body_force;     pp_bc.queryarr("body_force",     body_force      ); //  
+	amrex::Vector<amrex::Real> disp_bc_top;    pp_bc.queryarr("disp_bc_top",    disp_bc_top     ); // Note: we are currently
+	amrex::Vector<amrex::Real> disp_bc_left;   pp_bc.queryarr("disp_bc_left",   disp_bc_left    ); // using hard-coded values and
+	amrex::Vector<amrex::Real> disp_bc_right;  pp_bc.queryarr("disp_bc_right",  disp_bc_right   ); // these parameters
+	amrex::Vector<amrex::Real> disp_bc_bottom; pp_bc.queryarr("disp_bc_bottom", disp_bc_bottom  ); // are not currently
+#if AMREX_SPACEDIM > 2										       // being used.
+	amrex::Vector<amrex::Real> disp_bc_front;  pp_bc.queryarr("disp_bc_front",  disp_bc_front   ); // 
+	amrex::Vector<amrex::Real> disp_bc_back;   pp_bc.queryarr("disp_bc_back",   disp_bc_back    ); // 
 #endif
 	amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 	amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
@@ -57,25 +53,20 @@ int main (int argc, char* argv[])
 	AMREX_D_TERM(pp_bc.queryarr("bc_x_hi",bc_x_hi_str);,
 		     pp_bc.queryarr("bc_y_hi",bc_y_hi_str);,
 		     pp_bc.queryarr("bc_z_hi",bc_z_hi_str););
-	
 	std::map<std::string,Operator::Elastic::BC> bc;
 	bc["displacement"] = Operator::Elastic::BC::Displacement;
 	bc["disp"] = Operator::Elastic::BC::Displacement;
 	bc["traction"] = Operator::Elastic::BC::Traction;
 	bc["trac"] = Operator::Elastic::BC::Traction;
 	bc["periodic"] = Operator::Elastic::BC::Periodic;
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_lo = {AMREX_D_DECL(bc[bc_x_lo_str[0]], bc[bc_x_lo_str[1]], bc[bc_x_lo_str[2]])};
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_lo = {AMREX_D_DECL(bc[bc_y_lo_str[0]], bc[bc_y_lo_str[1]], bc[bc_y_lo_str[2]])};
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_lo = {AMREX_D_DECL(bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]])};
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_hi = {AMREX_D_DECL(bc[bc_x_hi_str[0]], bc[bc_x_hi_str[1]], bc[bc_x_hi_str[2]])};
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_hi = {AMREX_D_DECL(bc[bc_y_hi_str[0]], bc[bc_y_hi_str[1]], bc[bc_y_hi_str[2]])};
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_hi = {AMREX_D_DECL(bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]])};
 
-
-	std::array<Operator::Elastic::BC,3> bc_x_lo = {bc[bc_x_lo_str[0]], bc[bc_x_lo_str[1]], bc[bc_x_lo_str[2]]};
-	std::array<Operator::Elastic::BC,3> bc_y_lo = {bc[bc_y_lo_str[0]], bc[bc_y_lo_str[1]], bc[bc_y_lo_str[2]]};
-	std::array<Operator::Elastic::BC,3> bc_z_lo = {bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]]};
-	std::array<Operator::Elastic::BC,3> bc_x_hi = {bc[bc_x_hi_str[0]], bc[bc_x_hi_str[1]], bc[bc_x_hi_str[2]]};
-	std::array<Operator::Elastic::BC,3> bc_y_hi = {bc[bc_y_hi_str[0]], bc[bc_y_hi_str[1]], bc[bc_y_hi_str[2]]};
-	std::array<Operator::Elastic::BC,3> bc_z_hi = {bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]]};
-
-
-
-	// Solver Parameters
+	// Read in solver parameters
 	ParmParse pp_solver("solver");
 	std::string bottom_solver = "cg";     pp_solver.query("bottom_solver",bottom_solver);      
 	int max_level             = 1;		  pp_solver.query("max_level", max_level);             
@@ -86,15 +77,21 @@ int main (int argc, char* argv[])
 	int verbose               = 2;		  pp_solver.query("verbose", verbose);                 
 	int cg_verbose            = 0;		  pp_solver.query("cg_verbose", cg_verbose);           
 	int max_iter              = 100;		  pp_solver.query("max_iter", max_iter);               
-	int max_fmg_iter 	        = 0;		  pp_solver.query("max_fmg_iter", max_fmg_iter);       
-	int linop_maxorder 	     = 2;		  pp_solver.query("linop_maxorder", linop_maxorder);   
-	bool agglomeration 	     = true;	  pp_solver.query("agglomeration", agglomeration);     
-	bool consolidation 	     = false;	  pp_solver.query("consolidation", consolidation);     
-	Real tol_rel 	           = 1.0e-5;	  pp_solver.query("tol_rel", tol_rel);                 
-	Real tol_abs 	           = 1.0e-5;	  pp_solver.query("tol_abs", tol_abs);                 
+	int max_fmg_iter 	  = 0;		  pp_solver.query("max_fmg_iter", max_fmg_iter);       
+	int linop_maxorder 	  = 2;		  pp_solver.query("linop_maxorder", linop_maxorder);   
+	bool agglomeration 	  = true;	  pp_solver.query("agglomeration", agglomeration);     
+	bool consolidation 	  = false;	  pp_solver.query("consolidation", consolidation);     
+	Real tol_rel 	          = 1.0e-5;	  pp_solver.query("tol_rel", tol_rel);                 
+	Real tol_abs 	          = 1.0e-5;	  pp_solver.query("tol_abs", tol_abs);                 
 	bool use_fsmooth          = false;	  pp_solver.query("use_fsmooth", use_fsmooth);         
 
 
+	//
+	// Define problem domain and field variables
+	//
+	// Note: both cell centered (cgrids, etc) and node centered (ngrids, etc)
+	// are defined. Only node centered is used currently.
+	//
 
 	amrex::Vector<amrex::Geometry> 			geom;
 	amrex::Vector<amrex::BoxArray> 			cgrids, ngrids;
@@ -112,7 +109,7 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Isotropic::Isotropic> > > model;
 
 	//
-	// CONSTRUCTOR
+	// Define domain
 	//
 	int nlevels = max_level+1;
 	geom.resize(nlevels);
@@ -131,14 +128,7 @@ int main (int argc, char* argv[])
 	verify.resize(nlevels);
 	model.resize(nlevels);
 
-	// BC::Constant *mybc;
-	// mybc = new BC::Constant({AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str)},
-	// 			{AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str)},
-	// 			AMREX_D_DECL(disp_bc_left,disp_bc_bottom,disp_bc_back),
-	// 			AMREX_D_DECL(disp_bc_right,disp_bc_top,disp_bc_front));
-	// define simulation domain
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
-	//std::array<int,AMREX_SPACEDIM> is_periodic = mybc->IsPeriodic();
 	Geometry::Setup(&rb, 0);
 
 	Box NDomain(IntVect{AMREX_D_DECL(0,0,0)},
@@ -167,9 +157,13 @@ int main (int argc, char* argv[])
 			ndomain = amrex::convert(cdomain,IntVect::TheNodeVector());
 		}
 
+	//
+	// Initialize fields
+	//
+
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	int number_of_ghost_cells = 1;
+	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			cdmap   [ilev].define(cgrids[ilev]);
@@ -185,9 +179,13 @@ int main (int argc, char* argv[])
 			model	[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
 		}
 
+	
+	//
+	// Initialize fields, rhs, coefficients, etc.
+	// Note: everything is currently hard-coded for testing purposes.
+	//
 
 	Model::Solid::Elastic::Isotropic::Isotropic isotropic(2.6,6.0);
-
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			const Real* dx = geom[ilev].CellSize();
@@ -237,32 +235,18 @@ int main (int argc, char* argv[])
 	//
 
 	LPInfo info;
-
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
-	info.setMaxCoarseningLevel(0);
+	info.setMaxCoarseningLevel(0); // Multigrid does not work yet
 	nlevels = geom.size();
 
 	Operator::Elastic::Elastic<Model::Solid::Elastic::Isotropic::Isotropic> mlabec;
-	//amrex::MLNodeLaplacian mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
-
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		mlabec.SetModel(ilev,model[ilev]);
-	}
-
+	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,model[ilev]);
 	mlabec.SetBC({{bc_x_lo,bc_y_lo,bc_z_lo}},
 		     {{bc_x_hi,bc_y_hi,bc_z_hi}});
 	
-
-	//bool result = mlabec.VerificationCheck(0,0,verify[0]);
-
-	// for (int i = 0; i<nlevels; i++)
-	//  	mlabec.Diagonal(i,0,res[i]);
-
-
 	//
 	// Solver
 	//
@@ -292,24 +276,21 @@ int main (int argc, char* argv[])
 	// Compute post-solve values
 	//
 
-	// for (int lev = 0; lev < nlevels; lev++)
-	// 	{
-	// 		for ( amrex::MFIter mfi(u[lev],true); mfi.isValid(); ++mfi )
-	// 			{
-	// 				FArrayBox &ufab  = (u[lev])[mfi];
-	// 				FArrayBox &sigmafab  = (stress[lev])[mfi];
-	// 				FArrayBox &energyfab  = (energy[lev])[mfi];
+	for (int lev = 0; lev < nlevels; lev++)
+		{
+			for ( amrex::MFIter mfi(u[lev],true); mfi.isValid(); ++mfi )
+				{
+					FArrayBox &ufab  = (u[lev])[mfi];
+					FArrayBox &sigmafab  = (stress[lev])[mfi];
+					FArrayBox &energyfab  = (energy[lev])[mfi];
 			
-	// 				mlabec.Energy(energyfab,ufab,lev,mfi);
-	// 				mlabec.Stress(sigmafab,ufab,lev,mfi);
-	// 			}
-	// 	}
+					sigmafab.setVal(0.0); ///\todo Implement sigma
+					energyfab.setVal(0.0); ///\todo Implement energy
+					//mlabec.Energy(energyfab,ufab,lev,mfi);
+					//mlabec.Stress(sigmafab,ufab,lev,mfi);
+				}
+		}
 		
-	// // RECOMPUTE RHS
-	// for (int lev = 0; lev <= max_level; lev++)
-	// 	mlabec.temp_Fapply(lev, 0, rhs[lev], u[lev]);
-
-
 	//
 	// WRITE PLOT FILE
 	//

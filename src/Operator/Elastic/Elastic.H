@@ -1,5 +1,5 @@
-#ifndef AMREX_OPERATOR_ELASTIC_H_
-#define AMREX_OPERATOR_ELASTIC_H_
+#ifndef OPERATOR_ELASTIC_H_
+#define OPERATOR_ELASTIC_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
@@ -39,29 +39,12 @@ public:
 		     const LPInfo& a_info = LPInfo(),
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
-
-	// void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &);
-	// void SetEigenstrain(amrex::Vector<amrex::MultiFab> &);
-
-	// void AddEigenstrainToRHS (FArrayBox& esrhs,
-	// 								int amrlev, const MFIter& mfi) const;
-	// void AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const;
-
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
-
-	void Stress (FArrayBox& sigmafab,
-		     const FArrayBox& ufab,
-		     int amrlev, const MFIter& mfi,
-		     bool voigt = false) const;
-	void Energy (FArrayBox& energyfab,
-				 const FArrayBox& ufab,
-				 int amrlev, const MFIter& mfi) const;
+	void Stress (FArrayBox& sigmafab, const FArrayBox& ufab, int amrlev, const MFIter& mfi, bool voigt = false) const;
+	void Energy (FArrayBox& energyfab, const FArrayBox& ufab, int amrlev, const MFIter& mfi) const;
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
-	{
-		m_bc_lo = a_bc_lo;
-		m_bc_hi = a_bc_hi;
-	};
+	{m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;};
 
 protected:
 
@@ -75,19 +58,22 @@ protected:
 	virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
 
 private:
+	// This is an old depricated method that needs to be eliminated.
+	// We keep it around to maintain backward compatibility.
 	virtual amrex::Real C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 						  const int amrlev, const int mglev, const MFIter &mfi) const
 	{
 		Util::Abort("This function is depricated and must not be used.");
 	};
-	bool usingEigenstrain = false;
 
+	// Simple arrays storing boundary conditions for each component and each face.
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]
 
+	// This is a multifab containing objects of type Model::Solid::Elastic::Isotropic
+	// (or some other model type). T is the template argument.
+	// The models contain elastic constants and contain methods for converting strain to stress
 	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > model;
-
-	//std::array<BC,AMREX_SPACEDIM> AMREX_D_DECL{bc_x, bc_y, bc_z};
 };
 }
 }

@@ -1,9 +1,6 @@
 #ifndef OPERATOR_H
 #define OPERATOR_H
 
-//#include <AMReX_MLNodeLinOp.H>
-//#include <AMReX_MLNodeLaplacian.H>
-
 #include <AMReX_MLNodeLinOp.H>
 #include <AMReX_MLNodeLap_F.H>
 #include <AMReX_MultiFabUtil.H>
@@ -146,9 +143,7 @@ public:
 
 protected:
 	int m_num_a_fabs = 0;
-	// m_a_coeffs[index of fab][amrlevel][mglevel]
-	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs; 
-
+	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs;
 };
 }
 
