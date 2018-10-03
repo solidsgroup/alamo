@@ -4,7 +4,6 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
-
 #include "Set/Set.H"
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
