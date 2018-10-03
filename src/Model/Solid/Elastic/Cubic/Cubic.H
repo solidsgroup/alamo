@@ -1,0 +1,121 @@
+#ifndef MODEL_SOLID_ELASTIC_CUBIC_H_
+#define MODEL_SOLID_ELASTIC_CUBIC_H_
+
+#include <AMReX.H>
+#include <AMReX_REAL.H>
+#include <eigen3/Eigen/Core>
+
+#include "Set/Set.H"
+#include "Model/Solid/Solid.H"
+
+namespace Model
+{
+namespace Solid
+{
+namespace Elastic
+{
+namespace Cubic
+{
+class Cubic : Model::Solid::Solid
+{
+public:
+	Cubic() {} ;
+	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Matrix R = Set::Matrix::Identity())
+	{
+  
+		amrex::Real Ctmp[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
+		amrex::Real Crot[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
+
+
+		for(int i = 0; i < AMREX_SPACEDIM; i++) 
+			for(int j = 0; j < AMREX_SPACEDIM; j++) 
+				for(int k = 0; k < AMREX_SPACEDIM; k++) 
+					for(int l = 0; l < AMREX_SPACEDIM; l++)
+					{
+						if(i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11;
+						else if (i==k && j==l) Ctmp[i][j][k][l] = C44;
+						else if (i==j && k==l) Ctmp[i][j][k][l] = C12;
+						else Ctmp[i][j][k][l] = 0.0;
+					}
+
+		for(int p = 0; p < AMREX_SPACEDIM; p++) 
+			for(int q = 0; q < AMREX_SPACEDIM; q++) 
+				for(int s = 0; s < AMREX_SPACEDIM; s++) 
+					for(int t = 0; t < AMREX_SPACEDIM; t++)
+					{
+						Crot[p][q][s][t];
+						for(int i = 0; i < AMREX_SPACEDIM; i++) 
+							for(int j = 0; j < AMREX_SPACEDIM; j++) 
+								for(int k = 0; k < AMREX_SPACEDIM; k++) 
+									for(int l = 0; l < AMREX_SPACEDIM; l++) 
+										Crot[p][q][s][t] += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+					}
+
+		C[ 0] = Crot[0][0][0][0]; C[ 1] = Crot[0][0][1][1]; C[ 2] = Crot[0][0][2][2]; C[ 3] = Crot[0][0][1][2]; C[ 4] = Crot[0][0][2][0]; C[ 5] = Crot[0][0][0][1];
+		/**/                      C[ 6] = Crot[1][1][1][1]; C[ 7] = Crot[1][1][2][2]; C[ 8] = Crot[1][1][1][2]; C[ 9] = Crot[1][1][2][0]; C[10] = Crot[1][1][0][1];
+		/**/                                                C[11] = Crot[2][2][2][2]; C[12] = Crot[2][2][1][2]; C[13] = Crot[2][2][2][0]; C[14] = Crot[2][2][0][1];
+		/**/                                                                          C[15] = Crot[1][2][1][2]; C[16] = Crot[1][2][2][0]; C[17] = Crot[1][2][0][1];
+		/**/                                                                                                    C[18] = Crot[2][0][2][0]; C[19] = Crot[2][0][0][1];
+		/**/                                                                                                                              C[20] = Crot[0][1][0][1];
+
+	};
+
+
+	virtual Set::Matrix operator () (Set::Matrix &eps)
+	{
+		Set::Matrix sig = Set::Matrix::Zero();
+		
+		sig(0,0) = C[ 0]*eps(0,0) + C[ 1]*eps(1,1) + C[ 2]*eps(2,2) + 2.0 * ( C[ 3]*eps(1,2) + C[ 4]*eps(2,0) + C[ 5]*eps(0,1));
+		sig(1,1) = C[ 1]*eps(0,0) + C[ 6]*eps(1,1) + C[ 7]*eps(2,2) + 2.0 * ( C[ 8]*eps(1,2) + C[ 9]*eps(2,0) + C[10]*eps(0,1));
+		sig(2,2) = C[ 2]*eps(0,0) + C[ 7]*eps(1,1) + C[11]*eps(2,2) + 2.0 * ( C[12]*eps(1,2) + C[13]*eps(2,0) + C[14]*eps(0,1));
+		sig(1,2) = C[ 3]*eps(0,0) + C[ 8]*eps(1,1) + C[12]*eps(2,2) + 2.0 * ( C[15]*eps(1,2) + C[16]*eps(2,0) + C[17]*eps(0,1));
+		sig(2,0) = C[ 4]*eps(0,0) + C[ 9]*eps(1,1) + C[13]*eps(2,2) + 2.0 * ( C[16]*eps(1,2) + C[18]*eps(2,0) + C[19]*eps(0,1));
+		sig(0,1) = C[ 5]*eps(0,0) + C[10]*eps(1,1) + C[14]*eps(2,2) + 2.0 * ( C[17]*eps(1,2) + C[19]*eps(2,0) + C[20]*eps(0,1));
+
+		sig(2,1) = sig(1,2);
+		sig(0,2) = sig(2,0);
+		sig(1,0) = sig(0,1);
+
+		return sig;
+	};
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
+	{
+		Set::Vector f = Set::Vector::Zero();
+
+		f(0) =  C[ 0]*eps[0](0,0) + C[ 1]*eps[1](1,0) + C[ 2]*eps[2](2,0) + 2.0 * ( C[ 3]*eps[1](2,0) + C[ 4]*eps[2](0,0) + C[ 5]*eps[0](1,0)) +
+			C[ 5]*eps[0](0,1) + C[10]*eps[1](1,1) + C[14]*eps[2](2,1) + 2.0 * ( C[17]*eps[1](2,1) + C[19]*eps[2](0,1) + C[20]*eps[0](1,1)) + 
+			C[ 4]*eps[0](0,2) + C[ 9]*eps[1](1,2) + C[13]*eps[2](2,2) + 2.0 * ( C[16]*eps[1](2,2) + C[18]*eps[2](0,2) + C[19]*eps[0](1,2));
+
+		f(1) =  C[ 5]*eps[0](0,0) + C[10]*eps[1](1,0) + C[14]*eps[2](2,0) + 2.0 * ( C[17]*eps[1](2,0) + C[19]*eps[2](0,0) + C[20]*eps[0](1,0)) + 
+			C[ 1]*eps[0](0,1) + C[ 6]*eps[1](1,1) + C[ 7]*eps[2](2,1) + 2.0 * ( C[ 8]*eps[1](2,1) + C[ 9]*eps[2](0,1) + C[10]*eps[0](1,1)) + 
+			C[ 3]*eps[0](0,2) + C[ 8]*eps[1](1,2) + C[12]*eps[2](2,2) + 2.0 * ( C[15]*eps[1](2,2) + C[16]*eps[2](0,2) + C[17]*eps[0](1,2));
+
+		f(2) =  C[ 2]*eps[0](0,2) + C[ 7]*eps[1](1,2) + C[11]*eps[2](2,2) + 2.0 * ( C[12]*eps[1](2,2) + C[13]*eps[2](0,2) + C[14]*eps[0](1,2)) +
+			C[ 3]*eps[0](0,1) + C[ 8]*eps[1](1,1) + C[12]*eps[2](2,1) + 2.0 * ( C[15]*eps[1](2,1) + C[16]*eps[2](0,1) + C[17]*eps[0](1,1)) +
+			C[ 4]*eps[0](0,0) + C[ 9]*eps[1](1,0) + C[13]*eps[2](2,0) + 2.0 * ( C[16]*eps[1](2,0) + C[18]*eps[2](0,0) + C[19]*eps[0](1,0));
+		
+		return f;
+	}
+
+	Cubic operator + (const Cubic &rhs)
+	{Cubic ret; ret.C = C + rhs.C;}
+
+	// Cubic operator - (const Cubic &rhs)
+	// {return Cubic(mu-rhs.mu, lambda-rhs.lambda);}
+
+	// virtual Cubic operator / (const Set::Scalar alpha)
+	// {return Cubic(mu/alpha, lambda/alpha);}
+
+private:
+	std::array<Set::Scalar,21> C;
+
+};
+
+}
+}
+}
+}
+
+#endif
+
+
