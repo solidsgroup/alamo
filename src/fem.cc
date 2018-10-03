@@ -10,6 +10,7 @@
 #include <AMReX_MLNodeLaplacian.H>
 
 #include "Util/Util.H"
+#include "Operator/Diagonal/Diagonal.H"
 #include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Operator/Elastic/Cubic/Cubic.H"
 #include "Operator/Elastic/Isotropic/Isotropic.H"
