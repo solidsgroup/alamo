@@ -8,6 +8,7 @@
 #include "AMReX_BLassert.H"
 //#define EIGEN_MATRIX_PLUGIN "Set/Eigen_Amrex.H"
 #include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Geometry>
 #include <AMReX_REAL.H>
 
 namespace Set
