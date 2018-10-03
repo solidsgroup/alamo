@@ -19,7 +19,7 @@ Diagonal::Diagonal (const Vector<Geometry>& a_geom,
 	  const Vector<DistributionMapping>& a_dmap,
 	  const LPInfo& a_info)
 {define(a_geom, a_grids, a_dmap, a_info);}
-Diagonal::~Diagonal () {};
+Diagonal::~Diagonal () {}
 
 
 void
@@ -33,8 +33,6 @@ Diagonal::Fapply (int amrlev,
 	std::cout << "in fapply, amrlev = " << amrlev << std::endl; 
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
-	const Real* DX = m_geom[amrlev][mglev].CellSize();
-
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -98,7 +96,6 @@ Diagonal::Fsmooth (int amrlev,
 		BL_PROFILE("Operator::Diagonal::Diagonal::Fsmooth()");
 
 		amrex::Box domain(m_geom[amrlev][mglev].Domain());
-		const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 		for (MFIter mfi(u,MFItInfo().EnableTiling().SetDynamic(true));
 		     mfi.isValid(); ++mfi)
@@ -116,7 +113,6 @@ Diagonal::Fsmooth (int amrlev,
 
 				for (int i=0; i<AMREX_SPACEDIM; i++)
 				{
-					amrex::Real rho = 0.0, aa = 0.0;
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{
 						if (m1 == domain.loVect()[0]   ||
