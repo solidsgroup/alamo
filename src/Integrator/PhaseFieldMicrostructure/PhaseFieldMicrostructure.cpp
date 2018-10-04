@@ -1,6 +1,7 @@
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
 #include "Set/Set.H"
+#include "Util/Util.H"
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -79,6 +80,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("type", ic_type);
 		if (ic_type == "perturbed_interface")
 			ic = new IC::PerturbedInterface(geom);
+		else if (ic_type == "tabulated_interface")
+		{
+			Util::Message(INFO, "setting tabulated interface");
+			ic = new IC::TabulatedInterface(geom);
+		}
 		else if (ic_type == "voronoi")
 			ic = new IC::Voronoi(geom,number_of_grains);
 		else
