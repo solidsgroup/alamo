@@ -134,11 +134,12 @@ PolymerDegradation::PolymerDegradation():
 			std::cout<< "Warning. Mu must be positive. Resetting back to default value" <<std::endl;
 			mu = 1.0;
 		}
-		models.push_back(new Operator::Elastic::Degradation::Isotropic(lambda,mu));
+		models.push_back(new Model::Solid::Elastic::Degradable::Isotropic(lambda,mu));
 	}
 	else if(input_material == "cubic")
 	{
-		Set::Scalar C11 = 1.0;
+		Util::Abort("Not implemented yet");
+		/*Set::Scalar C11 = 1.0;
 		Set::Scalar C12 = 1.0; 
 		Set::Scalar C44 = 1.0;
 		amrex::ParmParse pp_material_isotropic("material.cubic");
@@ -160,7 +161,7 @@ PolymerDegradation::PolymerDegradation():
 			std::cout<< "Warning. C44 must be positive. Resetting back to default value" <<std::endl;
 			C44 = 1.0;
 		}
-		models.push_back(new Operator::Elastic::Degradation::Cubic(C11,C12,C44,0.0,0.0,0.0));
+		models.push_back(new Operator::Elastic::Degradation::Cubic(C11,C12,C44,0.0,0.0,0.0));*/
 	}
 
 	//
