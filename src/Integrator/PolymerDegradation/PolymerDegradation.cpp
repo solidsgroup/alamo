@@ -30,7 +30,7 @@ PolymerDegradation::PolymerDegradation():
 			water_ic = new IC::Constant(geom,value);
 		}
 		else
-			Util::Abort("This kind of IC has not been implemented yet");
+			Util::Abort(INFO, "This kind of IC has not been implemented yet");
 		
 		amrex::ParmParse pp_water_bc("water.bc");
 
@@ -85,7 +85,7 @@ PolymerDegradation::PolymerDegradation():
 			thermal_ic = new IC::Constant(geom,T);
 		}
 		else
-			Util::Abort("This kind of IC has not been implemented yet");
+			Util::Abort(INFO, "This kind of IC has not been implemented yet");
 
 		amrex::ParmParse pp_heat_bc("thermal.bc");
 
@@ -146,7 +146,7 @@ PolymerDegradation::PolymerDegradation():
 	}
 	else if(input_material == "cubic")
 	{
-		Util::Abort("Not implemented yet");
+		Util::Abort(INFO, "Not implemented yet");
 		/*Set::Scalar C11 = 1.0;
 		Set::Scalar C12 = 1.0; 
 		Set::Scalar C44 = 1.0;
@@ -201,22 +201,22 @@ PolymerDegradation::PolymerDegradation():
 		}
 
 		if(d_i.size() != number_of_terms || tau_i.size() != number_of_terms || t_start_i.size() != number_of_terms)
-			amrex::Abort("missing entries in d_i, tau_i or t_start_i");
+			amrex::Abort(INFO, "missing entries in d_i, tau_i or t_start_i");
 
 		amrex::Real sum = 0;		
 		for (int temp = 0; temp < d_i.size(); temp++)
 		{
 			if(d_i[temp] < 0.0 || d_i[temp] > 1.0)
-			 	amrex::Abort("Invalid values for d_i. Must be between 0 and 1");
+			 	amrex::Abort(INFO, "Invalid values for d_i. Must be between 0 and 1");
 
 			sum += d_i[temp];
 		}
 
 		if(sum != d_final) //need to replace this in the future
-			amrex::Abort("d_final is not equal to the sum of d_i");
+			amrex::Abort(INFO, "d_final is not equal to the sum of d_i");
 	}
 	else
-		Util::Abort("This kind of damage model has not been implemented yet");
+		Util::Abort(INFO, "This kind of damage model has not been implemented yet");
 
 	pp_damage.query("ic_type",eta_ic_type);
 	pp_damage.query("refinement_threshold",damage_refinement_threshold);
@@ -228,7 +228,7 @@ PolymerDegradation::PolymerDegradation():
 		eta_ic = new IC::Constant(geom,eta_init);
 	}
 	else
-		Util::Abort("This kind of IC has not been implemented yet");
+		Util::Abort(INFO, "This kind of IC has not been implemented yet");
 	
 	amrex::ParmParse pp_damage_bc("damage.bc");
 
@@ -350,28 +350,28 @@ PolymerDegradation::PolymerDegradation():
 
 		if (pp_elastic_bc.countval("left_face")) pp_elastic_bc.getarr("left_face",bc_lo_1);
 		if(bc_lo_1.size() % AMREX_SPACEDIM !=0)
-			amrex::Abort("Invalid number of values for left_face displacement");
+			amrex::Abort(INFO, "Invalid number of values for left_face displacement");
 
 		if (pp_elastic_bc.countval("right_face")) pp_elastic_bc.getarr("right_face",bc_hi_1);
 		if(bc_hi_1.size() % AMREX_SPACEDIM !=0)
-			amrex::Abort("Invalid number of values for right_face displacement");
+			amrex::Abort(INFO, "Invalid number of values for right_face displacement");
 	
 		if (pp_elastic_bc.countval("bottom_face")) pp_elastic_bc.getarr("bottom_face",bc_lo_2);
 		if(bc_lo_2.size() % AMREX_SPACEDIM !=0)
-			amrex::Abort("Invalid number of values for bottom_face displacement");
+			amrex::Abort(INFO, "Invalid number of values for bottom_face displacement");
 
 		if (pp_elastic_bc.countval("top_face")) pp_elastic_bc.getarr("top_face",bc_hi_2);
 		if(bc_hi_2.size() % AMREX_SPACEDIM !=0)
-			amrex::Abort("Invalid number of values for top_face displacement");
+			amrex::Abort(INFO, "Invalid number of values for top_face displacement");
 		
 #if AMREX_SPACEDIM>2
 		if (pp_elastic_bc.countval("back_face")) pp_elastic_bc.getarr("back_face",bc_lo_3);
 		if(bc_lo_3.size() % AMREX_SPACEDIM !=0)
-			amrex::Abort("Invalid number of values for back_face displacement");
+			amrex::Abort(INFO, "Invalid number of values for back_face displacement");
 
 		if (pp_elastic_bc.countval("front_face")) pp_elastic_bc.getarr("front_face",bc_hi_3);
 		if(bc_hi_3.size() % AMREX_SPACEDIM !=0)
-			amrex::Abort("Invalid number of values for front_face displacement");
+			amrex::Abort(INFO, "Invalid number of values for front_face displacement");
 #endif
 
 		int tempSize = bc_lo_1.size()/AMREX_SPACEDIM;
@@ -544,12 +544,12 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 #endif
 				{
 					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					if(std::isnan(water_conc_old_box(m))) amrex::Abort("Nan found in WATER_OLD(i,j,k)");
-					if(std::isinf(water_conc_old_box(m))) amrex::Abort("Inf found in WATER_OLD(i,j,k)");
+					if(std::isnan(water_conc_old_box(m))) amrex::Abort(INFO, "Nan found in WATER_OLD(i,j,k)");
+					if(std::isinf(water_conc_old_box(m))) amrex::Abort(INFO, "Inf found in WATER_OLD(i,j,k)");
 					if(water_conc_old_box(m) > 2.0) 
 					{
 						std::cout << "dt = " << dt << ", time = " << time << ", lev = " << lev << std::endl;
-						amrex::Abort("water concentration exceeded 2");
+						amrex::Abort(INFO, "water concentration exceeded 2");
 					}						
 					water_conc_box(m) =
 						water_conc_old_box(m)

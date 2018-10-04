@@ -5,10 +5,6 @@
 #include "Util/Color.H"
 #include "Set/Set.H"
 
-#define TRACER	std::cout << Color::FG::Yellow << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
-#define PROBE	std::cout << Color::FG::Red << __FILE__ << ":" << __LINE__ << Color::FG::Default << " " << __func__ << std::endl;
-
-
 using namespace amrex;
 namespace Operator {
 
@@ -204,7 +200,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 		    const LPInfo& a_info,
 		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
-	TRACER;
+	Util::Message(INFO);
 	define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
 
@@ -218,7 +214,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 		const LPInfo& a_info,
 		const Vector<FabFactory<FArrayBox> const*>& a_factory)
  {
-	 TRACER;
+	 Util::Message(INFO);
 	 BL_PROFILE("MLNodeLaplacian::define()");
 
 	 // This makes sure grids are cell-centered;
@@ -234,7 +230,7 @@ Operator::reflux (int crse_amrlev,
 		  MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		  MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
-	Util::Abort("reflux not yet implemented");
+	Util::Abort(INFO, "reflux not yet implemented");
 }
 
 void
@@ -242,20 +238,20 @@ Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 		   const Vector<const MultiFab*>& rhnd,
 		   const Vector<MultiFab*>& a_rhcc)
 {
-	Util::Abort("compRHS not implemented");
+	Util::Abort(INFO, "compRHS not implemented");
 }
 
 
 void
 Operator::averageDownCoeffs ()
 {
-	Util::Abort("averageDownCoeffs not implemented");
+	Util::Abort(INFO, "averageDownCoeffs not implemented");
 }
 
 void
 Operator::averageDownCoeffsToCoarseAmrLevel (int flev)
 {
-	Util::Abort("averageDownCoeffsToCoarseAmrLevel not implemented");
+	Util::Abort(INFO, "averageDownCoeffsToCoarseAmrLevel not implemented");
 	const int mglev = 0;
 	const int idim = 0;  // other dimensions are just aliases
 	// amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
@@ -265,13 +261,13 @@ Operator::averageDownCoeffsToCoarseAmrLevel (int flev)
 void
 Operator::averageDownCoeffsSameAmrLevel (int amrlev)
 {
-	Util::Abort("averageDownCoeffsToSameAmrLevel not implemented");
+	Util::Abort(INFO, "averageDownCoeffsToSameAmrLevel not implemented");
 }
 
 void
 Operator::FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom)
 {
-	Util::Abort("FillBoundaryCoeff not implemented");
+	Util::Abort(INFO, "FillBoundaryCoeff not implemented");
 }
 
 void
@@ -292,13 +288,13 @@ Operator::buildMasks ()
 void
 Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 {
-	Util::Abort("fixUpResidualMask not implemented");
+	Util::Abort(INFO, "fixUpResidualMask not implemented");
 }
 
 void
 Operator::prepareForSolve ()
 {
-	TRACER;
+	Util::Message(INFO);
 	BL_PROFILE("Operator::prepareForSolve()");
 
 	AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_num_amr_levels == 1 ||
@@ -315,11 +311,11 @@ Operator::prepareForSolve ()
 void
 Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
-	TRACER;
-	if (AMREX_SPACEDIM != 3) Util::Abort("restriction implemented in 3D only!");
+	Util::Message(INFO);
+	if (AMREX_SPACEDIM != 3) Util::Abort(INFO, "restriction implemented in 3D only!");
 
-	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("restriction (beginning) - nan or inf detected in fine");
-	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("restriction (beginning) - nan or inf detected in crse");
+	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
+	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
 
 	BL_PROFILE("MLNodeLaplacian::restriction()");
 
@@ -399,20 +395,18 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 		crse.ParallelCopy(cfine);
 	}
 
-	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("restriction (end) - nan or inf detected in fine");
-	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("restriction (end) - nan or inf detected in crse");
-
+	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in fine");
+	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in crse");
 }
 
 void
 Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
-	TRACER;
+	Util::Message(INFO);
 	BL_PROFILE("MLNodeLaplacian::interpolation()");
 
-	if (fine.contains_nan() || fine.contains_inf()) Util::Abort("interpolation (beginning) - nan or inf detected in fine");
-	if (crse.contains_nan() || crse.contains_inf()) Util::Abort("interpolation (beginning) - nan or inf detected in crse");
-
+	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
+	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
 	const MultiFab* cmf = &crse;
@@ -477,12 +471,12 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 					if (std::isinf(tmpfab(m,i)))
 					{
 						std::cout << m << M << std::endl;
-						Util::Abort("Is Infinity");
+						Util::Abort(INFO, "Is Infinity");
 					}
 					if (std::isnan(tmpfab(m,i)))
 					{
 						std::cout << m << M << std::endl;
-						Util::Abort("Is NaN");
+						Util::Abort(INFO, "Is NaN");
 					}
 				}
 			}
@@ -495,18 +489,18 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 		}
 	}
 
-	if (fine.contains_nan()) Util::Abort("interpolation (end) - nan detected in fine");
-	if (fine.contains_inf()) Util::Abort("interpolation (end) - inf detected in fine");
-	if (crse.contains_nan()) Util::Abort("interpolation (end) - nan detected in crse");
-	if (crse.contains_inf()) Util::Abort("interpolation (end) - inf detected in crse");
+	if (fine.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in fine");
+	if (fine.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in fine");
+	if (crse.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in crse");
+	if (crse.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in crse");
 }
 
 void
 Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
 				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
 {
-	TRACER;
-	Util::Abort("LINE 836");
+	Util::Message(INFO);
+	Util::Abort(INFO, "Not implemented");
 }
 
 void
@@ -542,14 +536,14 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 const amrex::FArrayBox &
 Operator::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
 {
-	TRACER;
+	Util::Message(INFO);
  	return m_a_coeffs[num][amrlev][mglev][mfi];
 }
 
 void
 Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 {
-	TRACER;
+	Util::Message(INFO);
 	/// \todo assertions here
 	m_a_coeffs.resize(m_a_coeffs.size() + 1);
 	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
@@ -574,7 +568,7 @@ Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 void
 Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
 {
-	TRACER;
+	Util::Message(INFO);
 	/// \todo assertions here
 	m_a_coeffs.resize(m_a_coeffs.size() + 1);
 	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
