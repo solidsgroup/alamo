@@ -28,28 +28,15 @@ int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
 
-
 	Set::Matrix R;
 	R = Eigen::AngleAxisd(30, Set::Vector::UnitZ())*
 		Eigen::AngleAxisd(20, Set::Vector::UnitY())*
 		Eigen::AngleAxisd(10, Set::Vector::UnitZ());
-	Model::Solid::Elastic::Cubic::Cubic mymodel(1.0, 0.0, 0.0); 
-	std::array<Set::Matrix,6> gradu, eps;
-	gradu[0] << 1,0,0, 0,0,0, 0,0,0; eps[0] = 0.5*(gradu[0] + gradu[0].transpose());
-	gradu[1] << 0,0,0, 0,1,0, 0,0,0; eps[1] = 0.5*(gradu[1] + gradu[1].transpose());
-	gradu[2] << 0,0,0, 0,0,0, 0,0,1; eps[2] = 0.5*(gradu[2] + gradu[2].transpose());
-	gradu[3] << 0,0,0, 0,0,1, 0,0,0; eps[3] = 0.5*(gradu[3] + gradu[3].transpose());
-	gradu[4] << 0,0,1, 0,0,0, 0,0,0; eps[4] = 0.5*(gradu[4] + gradu[4].transpose());
-	gradu[5] << 0,1,0, 0,0,0, 0,0,0; eps[5] = 0.5*(gradu[5] + gradu[5].transpose());
-	for (int i = 0; i < 6; i++)
-	{
-		for (int j = 0; j < 6; j++)
-		{
-			Set::Scalar comp = (eps[i].transpose() * mymodel(eps[j])).trace();
-			std::cout << (fabs(comp)>1E-10 ? comp : 0)  << "\t";
-		}
-		std::cout << std::endl;
-	}
+
+	using model_type = Model::Solid::Elastic::Cubic::Cubic; model_type model(10.73, 6.09, 2.830); 
+	//using model_type = Model::Solid::Elastic::Isotropic::Isotropic; model_type model(2.6,6.0); 
+	
+	model.Print();
 
 	//
 	// READ INPUT FILE
@@ -131,8 +118,7 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::MultiFab>  energy;
 	amrex::Vector<amrex::MultiFab>  verify;
 
-	//amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Isotropic::Isotropic> > > model;
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Cubic::Cubic> > > model;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab;
 
 	//
 	// Define domain
@@ -152,7 +138,7 @@ int main (int argc, char* argv[])
 	stress.resize(nlevels);
 	energy.resize(nlevels);
 	verify.resize(nlevels);
-	model.resize(nlevels);
+	modelfab.resize(nlevels);
 
 	RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	Geometry::Setup(&rb, 0);
@@ -202,7 +188,7 @@ int main (int argc, char* argv[])
 			stress  [ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
 			energy  [ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
 			verify	[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			model	[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
+			modelfab[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
 		}
 
 	
@@ -212,7 +198,7 @@ int main (int argc, char* argv[])
 	//
 
 	//Model::Solid::Elastic::Isotropic::Isotropic modeltype(2.6,6.0);
-	Model::Solid::Elastic::Cubic::Cubic modeltype(10.73, 6.09, 2.830);
+	//Model::Solid::Elastic::Cubic::Cubic modeltype(10.73, 6.09, 2.830);
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
@@ -228,7 +214,7 @@ int main (int argc, char* argv[])
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
 			verify[ilev].setVal(0.0);
-			model[ilev].setVal(modeltype);
+			modelfab[ilev].setVal(model);
 
 			for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
 			{
@@ -268,11 +254,11 @@ int main (int argc, char* argv[])
 	info.setMaxCoarseningLevel(0); // Multigrid does not work yet
 	nlevels = geom.size();
 
-	Operator::Elastic::Elastic<Model::Solid::Elastic::Cubic::Cubic> mlabec;
-	//Operator::Elastic::Elastic<Model::Solid::Elastic::Isotropic::Isotropic> mlabec;
+	//Operator::Elastic::Elastic<Model::Solid::Elastic::Cubic::Cubic> mlabec;
+	Operator::Elastic::Elastic<model_type> mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
-	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,model[ilev]);
+	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
 	mlabec.SetBC({{bc_x_lo,bc_y_lo,bc_z_lo}},
 		     {{bc_x_hi,bc_y_hi,bc_z_hi}});
 	
@@ -307,20 +293,8 @@ int main (int argc, char* argv[])
 
 	for (int lev = 0; lev < nlevels; lev++)
 		{
-
 			mlabec.Stress(lev,stress[lev],u[lev]);
-
-			// for ( amrex::MFIter mfi(u[lev],true); mfi.isValid(); ++mfi )
-			// 	{
-			// 		//FArrayBox &ufab  = (u[lev])[mfi];
-			// 		FArrayBox &sigmafab  = (stress[lev])[mfi];
-			// 		FArrayBox &energyfab  = (energy[lev])[mfi];
-			
-			// 		sigmafab.setVal(0.0); ///\todo Implement sigma
-			// 		energyfab.setVal(0.0); ///\todo Implement energy
-			// 		//mlabec.Energy(energyfab,ufab,lev,mfi);
-			// 		//mlabec.Stress(sigmafab,ufab,lev,mfi);
-			// 	}
+			mlabec.Energy(lev,energy[lev],u[lev]);
 		}
 		
 	//

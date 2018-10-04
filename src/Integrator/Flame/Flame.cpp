@@ -184,7 +184,7 @@ void Flame::Advance (int lev, amrex::Real time, amrex::Real dt)
 							 + K *T_lap  + (w1 - w0 - qdotburn)*eta_grad_mag);
 
 				if (std::isnan(Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))))
-					Util::Abort("NaN encountered");
+					Util::Abort(INFO, "NaN encountered");
 			}
     }
 }

@@ -50,7 +50,7 @@ Integrator::Integrator ()
 				for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
 			}
 			else
-				Util::Abort("number of nsubsteps input must equal either 1 or amr.max_level");
+				Util::Abort(INFO, "number of nsubsteps input must equal either 1 or amr.max_level");
 		else
 			for (int lev = 1; lev <= maxLevel(); ++lev) 
 				nsubsteps[lev] = MaxRefRatio(lev-1);
@@ -387,7 +387,7 @@ Integrator::WritePlotFile () const
 void
 Integrator::InitFromCheckpoint ()
 {
-	Util::Abort("Integrator::InitFromCheckpoint: todo");
+	Util::Abort(INFO, "Integrator::InitFromCheckpoint: todo");
 }
 
 void

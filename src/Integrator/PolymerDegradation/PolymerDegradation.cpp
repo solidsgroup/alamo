@@ -26,7 +26,7 @@ PolymerDegradation::PolymerDegradation():
 			water_ic = new IC::Constant(geom,value);
 		}
 		else
-			Util::Abort("This kind of IC has not been implemented yet");
+			Util::Abort(INFO, "This kind of IC has not been implemented yet");
 		
 		amrex::ParmParse pp_water_bc("water.bc");
 
@@ -78,7 +78,7 @@ PolymerDegradation::PolymerDegradation():
 			thermal_ic = new IC::Constant(geom,T);
 		}
 		else
-			Util::Abort("This kind of IC has not been implemented yet");
+			Util::Abort(INFO, "This kind of IC has not been implemented yet");
 
 		amrex::ParmParse pp_heat_bc("thermal.bc");
 
@@ -206,7 +206,7 @@ PolymerDegradation::PolymerDegradation():
 			amrex::Abort("d_final is not equal to the sum of d_i");
 	}
 	else
-		Util::Abort("This kind of damage model has not been implemented yet");
+		Util::Abort(INFO, "This kind of damage model has not been implemented yet");
 
 	pp_damage.query("ic_type",eta_ic_type);
 	pp_damage.query("refinement_threshold",damage_refinement_threshold);
@@ -218,7 +218,7 @@ PolymerDegradation::PolymerDegradation():
 		eta_ic = new IC::Constant(geom,eta_init);
 	}
 	else
-		Util::Abort("This kind of IC has not been implemented yet");
+		Util::Abort(INFO, "This kind of IC has not been implemented yet");
 	
 	amrex::ParmParse pp_damage_bc("damage.bc");
 
