@@ -22,7 +22,7 @@ Constant::Constant (amrex::Vector<std::string> bc_hi_str,
 		bc_lo[i] = BCUtil::ReadString(bc_lo_str[i]);
 
 		if (BCUtil::IsPeriodic(bc_lo[i]) != BCUtil::IsPeriodic(bc_hi[i]))
-			Util::Abort("Invalid BCs cannot be periodic on one side and not the other");
+			Util::Abort(INFO, "Invalid BCs cannot be periodic on one side and not the other");
 	}
 }
 
@@ -77,7 +77,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else if(BCUtil::IsPeriodic(bc_lo[0])) continue;
 				//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
 				else
-					Util::Abort("Incorrect boundary conditions");
+					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
 			else if (i == domain.hiVect()[0]+1 && (face == Orientation::xhi || face == Orientation::All)) // Right boundary
 			{
@@ -89,7 +89,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else if(BCUtil::IsPeriodic(bc_hi[0])) continue;
 					//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(-i+box.loVect()[0]+box.hiVect()[0],j,k)),n);
 				else
-					Util::Abort("Incorrect boundary conditions");
+					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
 			else if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
 			{
@@ -100,7 +100,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else if(BCUtil::IsPeriodic(bc_lo[1])) continue;
 				 	//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
 				else
-					Util::Abort("Incorrect boundary conditions");
+					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
 			else if (j == domain.hiVect()[1]+1 && (face == Orientation::yhi || face == Orientation::All)) // Top boundary
 			{
@@ -111,7 +111,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else if(BCUtil::IsPeriodic(bc_hi[1])) continue;
 					//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,-j+box.loVect()[1]+box.hiVect()[1],k)),n);
 				else
-					Util::Abort("Incorrect boundary conditions");
+					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
 #if AMREX_SPACEDIM>2
 			else if (k == domain.loVect()[2]-1 && (face == Orientation::zlo || face == Orientation::All))
@@ -123,7 +123,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else if(BCUtil::IsPeriodic(bc_lo[2])) continue;
 					//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
 				else
-					Util::Abort("Incorrect boundary conditions");
+					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
 			else if (k == domain.hiVect()[2]+1 && (face == Orientation::zhi || face == Orientation::All))
 			{
@@ -134,7 +134,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else if(BCUtil::IsPeriodic(bc_hi[2])) continue;
 				//in(m,n) = in(amrex::IntVect(AMREX_D_DECL(i,j,-k+box.loVect()[2]+box.hiVect()[2])),n);
 				else
-					Util::Abort("Incorrect boundary conditions");
+					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
 #endif
 

@@ -16,7 +16,7 @@ namespace Elastic
 {
 namespace Cubic
 {
-class Cubic : Model::Solid::Solid
+class Cubic : public Model::Solid::Elastic::Elastic
 {
 public:
 	Cubic() {} ;

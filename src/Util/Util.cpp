@@ -6,6 +6,7 @@
 
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
+#include "Color.H"
 #include <chrono>
 
 namespace Util
@@ -93,8 +94,6 @@ void Finalize()
 }
 
 
-void
-Abort (std::string msg) { Abort(msg.c_str()); }
 
 void
 Abort (const char * msg) { Terminate(msg, SIGABRT, true); }
@@ -143,6 +142,33 @@ CreateCleanDirectory (const std::string &path, bool callbarrier)
 		// Force other processors to wait until directory is built.
 		amrex::ParallelDescriptor::Barrier("amrex::UtilCreateCleanDirectory");
 	}
+}
+
+
+
+
+
+
+namespace String
+{
+int ReplaceAll(std::string &str, const std::string before, const std::string after)
+{
+	size_t start_pos = 0;
+	while((start_pos = str.find(before, start_pos)) != std::string::npos) {
+		str.replace(start_pos, before.length(), after);
+		start_pos += after.length(); 
+	}
+	return 0;
+}
+int ReplaceAll(std::string &str, const char before, const std::string after)
+{
+	size_t start_pos = 0;
+	while((start_pos = str.find(before, start_pos)) != std::string::npos) {
+		str.replace(start_pos, 1, after);
+		start_pos += after.length(); 
+	}
+	return 0;
+}
 }
 
 
