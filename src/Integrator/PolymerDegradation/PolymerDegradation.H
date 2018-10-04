@@ -173,7 +173,8 @@ private:
 	Operator::Elastic::Elastic<Model::Solid::Elastic::Degradable::Isotropic::Isotropic> *elastic_operator;
 
 	// Material model
-	std::vector<Model::Solid::Solid *> models;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic::Isotropic> > > model;
+	Model::Solid::Elastic::Degradable::Isotropic::Isotropic modeltype;
 	std::string 	input_material = "isotropic";
 
 };
