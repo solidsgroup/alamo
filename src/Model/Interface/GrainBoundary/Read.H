@@ -39,7 +39,7 @@ public:
     
     //Error Check
     if(inFile.fail()){
-      Util::Abort ("\n**UNABLE TO OPEN THE FILE**\n");
+	    Util::Abort (INFO, "UNABLE TO OPEN THE FILE");
     }
 
     //Read the file and fill out the vectors thetas and sigmasW with the read values
@@ -62,7 +62,7 @@ public:
 
     //Check that the file we have read contains the whole range of thetas (from 0 to 2pi)
     if((thetas[size-1]+(thetas[1]-thetas[0]))<2*pi){
-      Util::Abort ("\n**FILE DID NOT CONTAIN THE WHOLE RANGES OF THETAS (FROM 0 TO 2PI)**\n");
+	    Util::Abort(INFO, "FILE DID NOT CONTAIN THE WHOLE RANGES OF THETAS (FROM 0 TO 2PI)");
     }
     
     //Create vector sigmas DW    

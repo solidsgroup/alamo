@@ -5,8 +5,9 @@
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
 
+#include "Util/Util.H"
 #include "Set/Set.H"
-#include "Model/Solid/Solid.H"
+#include "Model/Solid/Elastic/Elastic.H"
 
 namespace Model
 {
@@ -16,7 +17,7 @@ namespace Elastic
 {
 namespace Isotropic
 {
-class Isotropic : Model::Solid::Solid
+class Isotropic : public Model::Solid::Elastic::Elastic
 {
 public:
 	Isotropic() {} ;

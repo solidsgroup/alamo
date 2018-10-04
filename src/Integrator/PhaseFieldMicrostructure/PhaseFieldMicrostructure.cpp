@@ -82,7 +82,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		else if (ic_type == "voronoi")
 			ic = new IC::Voronoi(geom,number_of_grains);
 		else
-			Util::Abort("No valid initial condition specified");
+			Util::Abort(INFO, "No valid initial condition specified");
 	}
 	/*
 	 */
@@ -115,7 +115,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.queryarr("load_t",elastic_load_t);
 		pp.queryarr("load_disp",elastic_load_disp);
 		if (elastic_load_t.size() != elastic_load_disp.size())
-			Util::Abort("load_t and load_disp must have the same number of entries");
+			Util::Abort(INFO, "load_t and load_disp must have the same number of entries");
 
 		if (elastic_on)
 		{
@@ -291,7 +291,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						ETA(m1,m2,m3,i) -
 						M*dt*(W - (Boundary_term) + beta*(Curvature_term));
 #else
-					Util::Abort("Anisotropy is enabled but works in 2D ONLY");
+					Util::Abort(INFO, "Anisotropy is enabled but works in 2D ONLY");
 #endif
 				}
 				else // Isotropic response if less than anisotropy_tstart
@@ -462,6 +462,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						  dz(AMREX_D_DECL(0,0,1)));
 
 		elastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
+		elastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
 
 		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
 		{
@@ -518,7 +519,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 			 	}
 
-			elastic_operator->Energy(energyfab,ufab,lev,mfi);
+			
 			elastic_operator->Energies(energiesfab,ufab,lev,mfi);
 		}
 	}
