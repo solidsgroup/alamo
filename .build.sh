@@ -1,5 +1,5 @@
 mkdir amrex3d
-git clone git@github.com:AMReX-Codes/amrex.git
+git clone https://github.com/AMReX-Codes/amrex.git
 cd amrex
 git checkout development
 ./configure --dim=3 --prefix=../amrex3d/ --debug=yes
