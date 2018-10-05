@@ -1,0 +1,15 @@
+language: generic
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install -y mpich2 gfortran libeigen3-devv
+
+install:
+  - pyenv global 3.6
+  - pip install --user sphinx sphinx_rtd_theme
+
+script: bash ./.build.sh
+
+env:
+  global:
+  - COMMIT_AUTHOR_EMAIL: "brunnels@uccs.edu"
