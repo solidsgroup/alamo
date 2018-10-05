@@ -1,10 +1,12 @@
 CC = mpicxx
 
+MPICHFORT ?= mpichfort
+
 COMP ?= GCC
 ifeq ($(COMP),INTEL)
  MPI_LIB = -lifcore
 else ifeq ($(COMP),GCC)
- MPI_LIB = -lgfortran -lmpichfort -lmpich
+ MPI_LIB = -lgfortran -l$(MPICHFORT) -lmpich
 endif
 
 RESET              = \033[0m
