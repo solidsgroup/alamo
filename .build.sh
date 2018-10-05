@@ -7,5 +7,5 @@ git checkout development
 make
 make install
 cd ..
-make AMREX=./amrex3d 
+make AMREX=./amrex3d MPICHFORT=mpichf90
 rm -rf amrex3d amrex
