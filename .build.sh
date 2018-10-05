@@ -1,3 +1,4 @@
+set -e
 mkdir amrex3d
 git clone https://github.com/AMReX-Codes/amrex.git
 cd amrex
