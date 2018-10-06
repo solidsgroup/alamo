@@ -21,14 +21,14 @@
 #include "IC/Constant/Constant.H"
 #include "IC/PerturbedInterface/PerturbedInterface.H"
 
-#include "Operator/Elastic/Degradation/Degradation.H"
-#include "Operator/Elastic/Degradation/Isotropic/Isotropic.H"
-#include "Operator/Elastic/Degradation/Cubic/Cubic.H"
-#include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
-#include "Operator/Elastic/Isotropic/Isotropic.H"
-#include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
-#include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
-#include "Operator/Elastic/Cubic/Cubic.H"
+#include "OperatorCell/Elastic/Degradation/Degradation.H"
+#include "OperatorCell/Elastic/Degradation/Isotropic/Isotropic.H"
+#include "OperatorCell/Elastic/Degradation/Cubic/Cubic.H"
+#include "OperatorCell/Elastic/PolyCrystal/PolyCrystal.H"
+#include "OperatorCell/Elastic/Isotropic/Isotropic.H"
+#include "OperatorCell/Elastic/PolyCrystal/Isotropic/Isotropic.H"
+#include "OperatorCell/Elastic/PolyCrystal/Cubic/Cubic.H"
+#include "OperatorCell/Elastic/Cubic/Cubic.H"
 
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -144,7 +144,7 @@ private:
 	amrex::Real elastic_tstart = 0.0;
 	amrex::Vector<amrex::Real> elastic_load_t;
 	amrex::Vector<amrex::Real> elastic_load_disp;
-	Operator::Elastic::Degradation::Degradation *elastic_operator;
+	OperatorCell::Elastic::Degradation::Degradation *elastic_operator;
 
 };
 }

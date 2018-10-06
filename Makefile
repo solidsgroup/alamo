@@ -1,10 +1,12 @@
 CC = mpicxx
 
+MPICHFORT ?= mpichfort
+
 COMP ?= GCC
 ifeq ($(COMP),INTEL)
  MPI_LIB = -lifcore
 else ifeq ($(COMP),GCC)
- MPI_LIB = -lgfortran -lmpichfort -lmpich
+ MPI_LIB = -lgfortran -l$(MPICHFORT) -lmpich
 endif
 
 RESET              = \033[0m
@@ -36,7 +38,7 @@ METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(
 CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
 
 
-INCLUDE = -I${EIGEN} -I${AMREX}/include/ -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+INCLUDE = $(if ${EIGEN}, -I${EIGEN})  $(if ${AMREX}, -I${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -L${AMREX}/lib/ -lamrex 
 
 HDR = $(shell find src/ -name *.H)

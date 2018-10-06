@@ -468,7 +468,7 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	info.setAgglomeration(true);
 	info.setConsolidation(true);
 
-	elastic_operator = new Operator::Elastic::Degradation::Degradation(0.0);
+	elastic_operator = new OperatorCell::Elastic::Degradation::Degradation(0.0);
   
 	geom[0].isPeriodic(0);
 	// \\\TODO need to repair this line!!!
@@ -482,10 +482,10 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 			geom[0].isPeriodic(1) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet,
 			geom[0].isPeriodic(2) ? LinOpBCType::Periodic : LinOpBCType::Dirichlet)});
 
-	std::vector<Operator::Elastic::Degradation::PristineMaterialModel *> models;
+	std::vector<OperatorCell::Elastic::Degradation::PristineMaterialModel *> models;
 	
 	// for (int n = 0; n <  number_of_grains; n++) {} <<<<<< need to replace with this!
-	models.push_back(new Operator::Elastic::Degradation::Isotropic(1.0,1.0));
+	models.push_back(new OperatorCell::Elastic::Degradation::Isotropic(1.0,1.0));
 	//models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30,
 	//						     0.99, 0.511, 1.39));
 	//models.push_back(&g2);
