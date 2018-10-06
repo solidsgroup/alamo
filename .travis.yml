@@ -3,12 +3,16 @@ language: generic
 before_install:
   - sudo apt-get update
   - sudo apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev
+  - bash .build.amrex.sh
 
-install:
-  - pyenv global 3.6
-  - pip install --user sphinx sphinx_rtd_theme
+jobs:
+  include:
+    - stage: 2d
+      script: ./.build2d.sh
+    - stage: 3d
+      script: ./.build2d.sh
 
-script: bash ./.build.sh
+#script: bash ./.build.sh
 
 env:
   global:
