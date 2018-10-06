@@ -5,11 +5,11 @@
 
 #include "eigen3/Eigen/Core" //not sure if this import is necessary
 
-#include "Operator/Elastic/CubicRotation/CubicRotation.H"
-//#include "Operator/Elastic/Cubic/Cubic.H"  //allows use of Cijkl internally
+#include "OperatorCell/Elastic/CubicRotation/CubicRotation.H"
+//#include "OperatorCell/Elastic/Cubic/Cubic.H"  //allows use of Cijkl internally
 amrex::Real Cpqst[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
 
-Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
+OperatorCell::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
 						amrex::Real C11in, amrex::Real C12in, amrex::Real C44in)
 {
   // Default values hard coded for now
@@ -65,13 +65,13 @@ Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX
 }
 
 // void
-// Operator::Elastic::CubicRotation::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc)
+// OperatorCell::Elastic::CubicRotation::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta, BC::BC &eta_bc)
 // {
 //   RegisterNewFab(eta,eta_bc);
 // }
 
 amrex::Real
-Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const int l,
+OperatorCell::Elastic::CubicRotation::C(const int i, const int j, const int k, const int l,
 				    const amrex::IntVect /*loc*/,
 				    const int /*amrlev*/, const int /*mglev*/, const MFIter &/*mfi*/) const
 {
