@@ -158,7 +158,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		// Initialize elastic models
 		//
 		for (int n = 0; n <  number_of_grains; n++) 
-			models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
+			models.push_back(new OperatorCell::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
 
 	}
 }
@@ -431,7 +431,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	info.setAgglomeration(true);
 	info.setConsolidation(true);
 
-	elastic_operator = new Operator::Elastic::PolyCrystal::PolyCrystal();
+	elastic_operator = new OperatorCell::Elastic::PolyCrystal::PolyCrystal();
   
 	elastic_operator->define(geom,grids,dmap,*elastic_bc,info);
 	elastic_operator->SetEta(eta_new_mf,models);
