@@ -70,9 +70,9 @@ void Initialize (int argc, char* argv[])
 	amrex::ParmParse pp_amrex("amrex");
 	pp_amrex.add("throw_exception",1);
 	//amrex.throw_exception=1
-	
 
-	signal(SIGSEGV, Util::SignalHandler); 
+
+	signal(SIGSEGV, Util::SignalHandler);
 	signal(SIGINT,  Util::SignalHandler);
 	signal(SIGABRT, Util::SignalHandler);
 
@@ -156,7 +156,7 @@ int ReplaceAll(std::string &str, const std::string before, const std::string aft
 	size_t start_pos = 0;
 	while((start_pos = str.find(before, start_pos)) != std::string::npos) {
 		str.replace(start_pos, before.length(), after);
-		start_pos += after.length(); 
+		start_pos += after.length();
 	}
 	return 0;
 }
@@ -165,7 +165,7 @@ int ReplaceAll(std::string &str, const char before, const std::string after)
 	size_t start_pos = 0;
 	while((start_pos = str.find(before, start_pos)) != std::string::npos) {
 		str.replace(start_pos, 1, after);
-		start_pos += after.length(); 
+		start_pos += after.length();
 	}
 	return 0;
 }
