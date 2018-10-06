@@ -62,6 +62,8 @@ protected:
 
 	void TimeStepBegin(amrex::Real time, int iter);
 
+	void DegradeMaterial(int lev);
+
 private:
 
 	int number_of_ghost_cells = 2;
@@ -76,7 +78,7 @@ private:
 
 	// For temperature induced degradation
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;			///< Temperature for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;		///< Temperature for the __previous__timestep		
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;		///< Temperature for the __previous__timestep
 
 	// For mechanical degradation to be studied later
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
@@ -84,7 +86,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs; ///< Multicomponent field variable storing pointwise displacements
-	
+
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
@@ -98,63 +100,64 @@ private:
 	amrex::Real damp;
 
 	// Water diffusion parameters
-	bool 		water_diffusion_on =		false;
-	Set::Scalar 	water_diffusivity =		1.0;
-	Set::Scalar 	water_refinement_threshold =	0.01;
+	bool 					water_diffusion_on 					=	false;
+	Set::Scalar 	water_diffusivity						=	1.0;
+	Set::Scalar 	water_refinement_threshold 	=	0.01;
 	std::string 	water_ic_type;
-	IC::IC		*water_ic;
-	BC::BC		*water_bc;
+	IC::IC				*water_ic;
+	BC::BC				*water_bc;
 
 	// Thermal diffusion parameters
-	bool		heat_diffusion_on =		false;
-	Set::Scalar 	thermal_diffusivity =		1.0;
-	Set::Scalar 	thermal_refinement_threshold =	0.01;
-	std::string	thermal_ic_type;
-	IC::IC		*thermal_ic;
-	BC::BC		*thermal_bc;
+	bool					heat_diffusion_on 						=	false;
+	Set::Scalar 	thermal_diffusivity 					=	1.0;
+	Set::Scalar 	thermal_refinement_threshold 	=	0.01;
+	std::string		thermal_ic_type;
+	IC::IC				*thermal_ic;
+	BC::BC				*thermal_bc;
 
 	// Damage parameters
-	std::string	damage_type;
-	bool		damage_anisotropy = 0;
-	int		number_of_eta = 1;
-	Set::Scalar	damage_refinement_threshold = 0.01;
+	std::string		damage_type;
+	bool					damage_anisotropy 					= 0;
+	int						number_of_eta 							= 1;
+	Set::Scalar		damage_refinement_threshold = 0.01;
 	std::string 	eta_ic_type;
-	IC::IC		*eta_ic;
-	BC::BC		*eta_bc;
+	IC::IC				*eta_ic;
+	BC::BC				*eta_bc;
 
 	// Damage model: water relaxation
-	int number_of_terms = 4;
-	amrex::Vector<Set::Scalar> d_i;
-	Set::Scalar d_final = 1.0;
-	amrex::Vector<Set::Scalar> tau_i;
-	amrex::Vector<Set::Scalar> t_start_i;
+	int 												number_of_terms = 4;
+	amrex::Vector<Set::Scalar> 	d_i;
+	Set::Scalar 								d_final 				= 1.0;
+	amrex::Vector<Set::Scalar> 	tau_i;
+	amrex::Vector<Set::Scalar> 	t_start_i;
 
 	// Elasticity parameters
-	bool        elastic_on = false;
-	int         elastic_int = 1;
+	bool        elastic_on 						= false;
+	int         elastic_int 					= 1;
 	std::string elastic_type;
-	int         elastic_max_iter = 200;
-	int         elastic_max_fmg_iter = 0;
-	int         elastic_verbose = 3;
-	int         elastic_cgverbose = 3;
-	Set::Scalar elastic_tol_rel = 1.0E-5;
-	Set::Scalar elastic_tol_abs = 1.0E-5;
-	Set::Scalar elastic_tstart = 0.0;
-	Set::Scalar elastic_tend = 0.0;
-	std::string bottom_solver = "bicgstab";
-	int linop_maxorder 	     = 2;
-	bool	    elastic_use_fsmooth = false;
+	int         elastic_max_iter 			= 200;
+	int         elastic_max_fmg_iter 	= 0;
+	int         elastic_verbose 			= 3;
+	int         elastic_cgverbose 		= 3;
+	Set::Scalar elastic_tol_rel 			= 1.0E-5;
+	Set::Scalar elastic_tol_abs 			= 1.0E-5;
+	Set::Scalar elastic_tstart 				= 0.0;
+	Set::Scalar elastic_tend 					= 0.0;
+	std::string bottom_solver 				= "bicgstab";
+	int 				linop_maxorder 	     	= 2;
+	bool	    	elastic_use_fsmooth 	= false;
 
 	// Elastic BC
 	BC::BC *elastic_bc;
-	std::map<std::string,Operator::Elastic::BC> bc_map;
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_lo, bc_x_hi;
+	std::map<std::string,Operator::Elastic::BC> 			bc_map;
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
 #if AMREX_SPACEDIM > 1
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_lo, bc_y_hi;
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
 #if AMREX_SPACEDIM > 2
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_lo, bc_z_hi;
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
 #endif
 #endif
+
 	amrex::Vector<Set::Vector> elastic_bc_left;
 	amrex::Vector<Set::Vector> elastic_bc_right;
 	amrex::Vector<Set::Vector> elastic_bc_bottom;
@@ -167,7 +170,7 @@ private:
 	amrex::Vector<Set::Scalar> elastic_bc_top_t;
 	amrex::Vector<Set::Scalar> elastic_bc_back_t;
 	amrex::Vector<Set::Scalar> elastic_bc_front_t;
-	
+
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	Operator::Elastic::Elastic<Model::Solid::Elastic::Degradable::Isotropic::Isotropic> *elastic_operator;
