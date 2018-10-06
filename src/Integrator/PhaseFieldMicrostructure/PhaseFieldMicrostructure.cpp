@@ -1,6 +1,7 @@
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
 #include "Set/Set.H"
+#include "Util/Util.H"
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -79,6 +80,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("type", ic_type);
 		if (ic_type == "perturbed_interface")
 			ic = new IC::PerturbedInterface(geom);
+		else if (ic_type == "tabulated_interface")
+		{
+			Util::Message(INFO, "setting tabulated interface");
+			ic = new IC::TabulatedInterface(geom);
+		}
 		else if (ic_type == "voronoi")
 			ic = new IC::Voronoi(geom,number_of_grains);
 		else
@@ -427,8 +433,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	elastic_operator = new OperatorCell::Elastic::PolyCrystal::PolyCrystal();
   
-	elastic_operator->define(geom,grids,dmap// ,*elastic_bc,info
-				 );
+	elastic_operator->define(geom,grids,dmap,*elastic_bc,info);
 	elastic_operator->SetEta(eta_new_mf,models);
 
 	for (int ilev = 0; ilev < displacement.size(); ++ilev)
@@ -461,8 +466,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						  dy(AMREX_D_DECL(0,1,0)),
 						  dz(AMREX_D_DECL(0,0,1)));
 
-		elastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
-		elastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
+		// elastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
+		// elastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
 
 		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
 		{
@@ -481,7 +486,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				     for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
 			 	{
 			 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
 #if AMREX_SPACEDIM == 2
 			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
 			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
@@ -499,6 +503,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					epsfab(m,7) = epsfab(m,5);
 			 		epsfab(m,8) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
 #endif
+
+					elastic_operator->Stress((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+					elastic_operator->Energy((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+
+
 			 		sigmavmfab(m,0) = 0.0;
 
 #if AMREX_SPACEDIM == 2
