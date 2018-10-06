@@ -8,8 +8,8 @@
 #include <AMReX_PlotFileUtil.H>
 
 #include "Util/Util.H"
-#include "Operator/Elastic/Cubic/Cubic.H"
-#include "Operator/Elastic/Isotropic/Isotropic.H"
+#include "OperatorCell/Elastic/Cubic/Cubic.H"
+#include "OperatorCell/Elastic/Isotropic/Isotropic.H"
 #include "Model/Solid/Elastic/Elastic.H"
 #include "Set/Set.H"
 #include "IO/WriteMetaData.H"
@@ -178,7 +178,7 @@ int main (int argc, char* argv[])
 	info.setConsolidation(consolidation);
 	nlevels = geom.size();
 
-	Operator::Elastic::Isotropic mlabec;
+	OperatorCell::Elastic::Isotropic mlabec;
 	mlabec.define(geom, grids, dmap, *mybc, info);
 	mlabec.setMaxOrder(linop_maxorder);
 
