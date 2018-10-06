@@ -10,5 +10,5 @@ before_install:
   - bash .build.amrex.sh
 
 script:
-  - bash ./build2d.sh
-  - bash ./build3d.sh
+  - bash ./.build2d.sh
+  - bash ./.build3d.sh
