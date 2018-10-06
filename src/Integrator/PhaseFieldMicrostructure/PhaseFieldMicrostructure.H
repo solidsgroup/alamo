@@ -17,6 +17,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
+#include "IC/TabulatedInterface/TabulatedInterface.H"
 #include "IC/PerturbedInterface/PerturbedInterface.H"
 #include "IC/Voronoi/Voronoi.H"
 
