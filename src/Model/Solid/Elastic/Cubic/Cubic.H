@@ -23,14 +23,14 @@ public:
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Matrix R = Set::Matrix::Identity())
 	{
   
-		amrex::Real Ctmp[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
-		amrex::Real Crot[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
+		amrex::Real Ctmp[3][3][3][3];
+		amrex::Real Crot[3][3][3][3];
 
 
-		for(int i = 0; i < AMREX_SPACEDIM; i++) 
-			for(int j = 0; j < AMREX_SPACEDIM; j++) 
-				for(int k = 0; k < AMREX_SPACEDIM; k++) 
-					for(int l = 0; l < AMREX_SPACEDIM; l++)
+		for(int i = 0; i < 3; i++) 
+			for(int j = 0; j < 3; j++) 
+				for(int k = 0; k < 3; k++) 
+					for(int l = 0; l < 3; l++)
 					{
 						if(i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11;
 						else if (i==k && j==l) Ctmp[i][j][k][l] = C44;
@@ -38,16 +38,16 @@ public:
 						else Ctmp[i][j][k][l] = 0.0;
 					}
 
-		for(int p = 0; p < AMREX_SPACEDIM; p++) 
-			for(int q = 0; q < AMREX_SPACEDIM; q++) 
-				for(int s = 0; s < AMREX_SPACEDIM; s++) 
-					for(int t = 0; t < AMREX_SPACEDIM; t++)
+		for(int p = 0; p < 3; p++) 
+			for(int q = 0; q < 3; q++) 
+				for(int s = 0; s < 3; s++) 
+					for(int t = 0; t < 3; t++)
 					{
 						Crot[p][q][s][t] = 0.0;
-						for(int i = 0; i < AMREX_SPACEDIM; i++) 
-							for(int j = 0; j < AMREX_SPACEDIM; j++) 
-								for(int k = 0; k < AMREX_SPACEDIM; k++) 
-									for(int l = 0; l < AMREX_SPACEDIM; l++) 
+						for(int i = 0; i < 3; i++) 
+							for(int j = 0; j < 3; j++) 
+								for(int k = 0; k < 3; k++) 
+									for(int l = 0; l < 3; l++) 
 										Crot[p][q][s][t] += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
 					}
 
@@ -78,7 +78,22 @@ public:
 
 		return sig;
 	};
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
+
+#if AMREX_SPACEDIM==2
+	virtual Set::Vector operator () (std::array<Set::Matrix,2> &gradeps)
+	{
+		Set::Vector f = Set::Vector::Zero();
+
+		f(0) =  C[ 0]*gradeps[0](0,0) + C[ 1]*gradeps[1](1,0) + 2.0 * ( C[ 5]*gradeps[0](1,0)) + 
+			C[ 5]*gradeps[0](0,1) + C[10]*gradeps[1](1,1) + 2.0 * ( C[20]*gradeps[0](1,1));
+
+		f(1) =  C[ 5]*gradeps[0](0,0) + C[10]*gradeps[1](1,0) + 2.0 * ( C[20]*gradeps[0](1,0)) +
+			C[ 1]*gradeps[0](0,1) + C[ 6]*gradeps[1](1,1) + 2.0 * ( C[10]*gradeps[0](1,1));
+
+		return f;
+	}
+#elif AMREX_SPACEDIM==3
+	virtual Set::Vector operator () (std::array<Set::Matrix,3> &gradeps)
 	{
 		Set::Vector f = Set::Vector::Zero();
 
@@ -95,6 +110,7 @@ public:
 			C[ 2]*gradeps[0](0,2) + C[ 7]*gradeps[1](1,2) + C[11]*gradeps[2](2,2) + 2.0 * ( C[12]*gradeps[1](2,2) + C[13]*gradeps[2](0,2) + C[14]*gradeps[0](1,2));
 		return f;
 	}
+#endif
 
 	Cubic operator + (const Cubic &rhs)
 	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] + rhs.C[i]; return ret;}

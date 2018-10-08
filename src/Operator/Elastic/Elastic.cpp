@@ -523,14 +523,23 @@ Elastic<T>::Stress (int amrlev,
 
 			if (voigt)
 			{
+#if AMREX_SPACEDIM == 2
+				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(1,1); sigmafab(m,2) = sig(0,1); 
+#elif AMREX_SPACEDIM == 3
 				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(1,1); sigmafab(m,2) = sig(2,2); 
 				sigmafab(m,3) = sig(1,2); sigmafab(m,4) = sig(2,0); sigmafab(m,5) = sig(0,1); 
+#endif
 			}
 			else
 			{
+#if   AMREX_SPACEDIM == 2
+				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(0,1); 
+				sigmafab(m,2) = sig(1,0); sigmafab(m,3) = sig(1,1); 
+#elif AMREX_SPACEDIM == 3
 				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(0,1); sigmafab(m,2) = sig(0,2); 
 				sigmafab(m,3) = sig(1,0); sigmafab(m,4) = sig(1,1); sigmafab(m,5) = sig(1,2); 
 				sigmafab(m,6) = sig(2,0); sigmafab(m,7) = sig(2,1); sigmafab(m,8) = sig(2,2); 
+#endif
 			}
 			}
 	}

@@ -32,8 +32,8 @@ int main (int argc, char* argv[])
 	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
 	// 	Eigen::AngleAxisd(10, Set::Vector::UnitZ());
 
-	using model_type = Model::Solid::Elastic::Cubic::Cubic; model_type model(10.73, 6.09, 2.830); 
-	//using model_type = Model::Solid::Elastic::Isotropic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::Elastic::Cubic::Cubic; model_type model(10.73, 6.09, 2.830); 
+	using model_type = Model::Solid::Elastic::Isotropic::Isotropic; model_type model(2.6,6.0); 
 	
 	model.Print();
 
@@ -236,9 +236,9 @@ int main (int argc, char* argv[])
 							 || j == geom[ilev].Domain().hiVect()[1]+1,  
 							 || k == geom[ilev].Domain().hiVect()[2]+1))
 			 		{
-			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;
-			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;
-			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;
+			 			AMREX_D_TERM(rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;,
+							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,
+							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;);
 			 		}						
 					if (i == geom[ilev].Domain().loVect()[0])
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
@@ -303,10 +303,11 @@ int main (int argc, char* argv[])
 	// WRITE PLOT FILE
 	//
 
-	const int ncomp = AMREX_SPACEDIM > 2 ? 16 : 10;
 #if AMREX_SPACEDIM==2
-	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "res01", "res02" "stress11", "stress22", "stress12", "energy"};
-#elif AMREX_SPACEDIM>2
+	const int ncomp = 10;
+	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "res01", "res02", "stress11", "stress22", "stress12", "energy"};
+#elif AMREX_SPACEDIM==3
+	const int ncomp = 16;
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03", "res01", "res02", "res03",
 				       "stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
 #endif
@@ -350,9 +351,12 @@ int main (int argc, char* argv[])
 
 	IO::FileNameParse(plot_file);
 
+	Util::Message(INFO,"varname size = ", varname.size());
+	Util::Message(INFO,"mf->nComp() = ", plotmf[0].nComp());
+	
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-									varname, geom, 0.0, Vector<int>(nlevels, 0),
-									Vector<IntVect>(nlevels, IntVect{ref_ratio}));
+				varname, geom, 0.0, Vector<int>(nlevels, 0),
+				Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	
 	IO::WriteMetaData(plot_file);
 
