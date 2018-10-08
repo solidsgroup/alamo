@@ -11,10 +11,9 @@
 
 #include "Util/Util.H"
 #include "Operator/Diagonal/Diagonal.H"
+#include "Operator/Elastic/Elastic.H"
 #include "Model/Solid/Elastic/Isotropic/Isotropic.H"
 #include "Model/Solid/Elastic/Cubic/Cubic.H"
-#include "Operator/Elastic/Cubic/Cubic.H"
-#include "Operator/Elastic/Isotropic/Isotropic.H"
 #include "Model/Solid/Elastic/Elastic.H"
 #include "Set/Set.H"
 #include "IO/WriteMetaData.H"
@@ -28,10 +27,10 @@ int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
 
-	Set::Matrix R;
-	R = Eigen::AngleAxisd(30, Set::Vector::UnitZ())*
-		Eigen::AngleAxisd(20, Set::Vector::UnitY())*
-		Eigen::AngleAxisd(10, Set::Vector::UnitZ());
+	// Set::Matrix R;
+	// R = Eigen::AngleAxisd(30, Set::Vector::UnitZ())*
+	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
+	// 	Eigen::AngleAxisd(10, Set::Vector::UnitZ());
 
 	using model_type = Model::Solid::Elastic::Cubic::Cubic; model_type model(10.73, 6.09, 2.830); 
 	//using model_type = Model::Solid::Elastic::Isotropic::Isotropic; model_type model(2.6,6.0); 
@@ -57,8 +56,8 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::Real> disp_bc_front;  pp_bc.queryarr("disp_bc_front",  disp_bc_front   ); // 
 	amrex::Vector<amrex::Real> disp_bc_back;   pp_bc.queryarr("disp_bc_back",   disp_bc_back    ); // 
 #endif
-	amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 	amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
+	amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 	AMREX_D_TERM(pp_bc.queryarr("bc_x_lo",bc_x_lo_str);,
 		     pp_bc.queryarr("bc_y_lo",bc_y_lo_str);,
 		     pp_bc.queryarr("bc_z_lo",bc_z_lo_str););
@@ -72,11 +71,15 @@ int main (int argc, char* argv[])
 	bc["trac"] = Operator::Elastic::BC::Traction;
 	bc["periodic"] = Operator::Elastic::BC::Periodic;
 	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_lo = {AMREX_D_DECL(bc[bc_x_lo_str[0]], bc[bc_x_lo_str[1]], bc[bc_x_lo_str[2]])};
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_lo = {AMREX_D_DECL(bc[bc_y_lo_str[0]], bc[bc_y_lo_str[1]], bc[bc_y_lo_str[2]])};
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_lo = {AMREX_D_DECL(bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]])};
 	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_hi = {AMREX_D_DECL(bc[bc_x_hi_str[0]], bc[bc_x_hi_str[1]], bc[bc_x_hi_str[2]])};
+#if AMREX_SPACEDIM > 1
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_lo = {AMREX_D_DECL(bc[bc_y_lo_str[0]], bc[bc_y_lo_str[1]], bc[bc_y_lo_str[2]])};
 	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_hi = {AMREX_D_DECL(bc[bc_y_hi_str[0]], bc[bc_y_hi_str[1]], bc[bc_y_hi_str[2]])};
+#endif
+#if AMREX_SPACEDIM > 2
+	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_lo = {AMREX_D_DECL(bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]])};
 	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_hi = {AMREX_D_DECL(bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]])};
+#endif
 
 	// Read in solver parameters
 	ParmParse pp_solver("solver");
@@ -226,13 +229,12 @@ int main (int argc, char* argv[])
 			 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
 			 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 			 	{
-			 		if (false
-					    || i == geom[ilev].Domain().loVect()[0]     
-					    || i == geom[ilev].Domain().hiVect()[0]+1   
-					    || j == geom[ilev].Domain().loVect()[1]     
-					    || j == geom[ilev].Domain().hiVect()[1]+1   
-					    || k == geom[ilev].Domain().loVect()[2]     
-					    || k == geom[ilev].Domain().hiVect()[2]+1)
+			 		if (AMREX_D_TERM(i == geom[ilev].Domain().loVect()[0],
+							 || j == geom[ilev].Domain().loVect()[1],
+							 || k == geom[ilev].Domain().loVect()[2] ) ||    
+					    AMREX_D_TERM(i == geom[ilev].Domain().hiVect()[0]+1,
+							 || j == geom[ilev].Domain().hiVect()[1]+1,  
+							 || k == geom[ilev].Domain().hiVect()[2]+1))
 			 		{
 			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;
 			 			rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;
@@ -259,8 +261,8 @@ int main (int argc, char* argv[])
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
 	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
-	mlabec.SetBC({{bc_x_lo,bc_y_lo,bc_z_lo}},
-		     {{bc_x_hi,bc_y_hi,bc_z_hi}});
+	mlabec.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
+		     {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
 	
 	//
 	// Solver

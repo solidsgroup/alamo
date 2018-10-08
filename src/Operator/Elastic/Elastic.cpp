@@ -96,12 +96,12 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool	xmin = (m1 == domain.loVect()[0]),
-				xmax = (m1 == domain.hiVect()[0] + 1),
-				ymin = (m2 == domain.loVect()[1]),
-				ymax = (m2 == domain.hiVect()[1] + 1),
-				zmin = (m3 == domain.loVect()[2]),
-				zmax = (m3 == domain.hiVect()[2] + 1);
+			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
+					     ymin = (m2 == domain.loVect()[1]),
+					     zmin = (m3 == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
+					     ymax = (m2 == domain.hiVect()[1] + 1),
+					     zmax = (m3 == domain.hiVect()[2] + 1));
 
 			// The displacement gradient tensor
 			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
@@ -178,7 +178,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 					}
 				}
 			}
-			if (xmax || xmin || ymax || ymin || zmax || zmin) continue;
+			if (AMREX_D_TERM(xmax || xmin,
+					 || ymax || ymin,
+					 || zmax || zmin)) continue;
 			
 			//
 			// Operator
@@ -230,12 +232,12 @@ Elastic<T>::Fsmooth (int amrlev,
 				if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-				bool	xmin = (m1 == domain.loVect()[0]),
-					xmax = (m1 == domain.hiVect()[0] + 1),
-					ymin = (m2 == domain.loVect()[1]),
-					ymax = (m2 == domain.hiVect()[1] + 1),
-					zmin = (m3 == domain.loVect()[2]),
-					zmax = (m3 == domain.hiVect()[2] + 1);
+				bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
+						     ymin = (m2 == domain.loVect()[1]),
+						     zmin = (m3 == domain.loVect()[2])),
+					AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
+						     ymax = (m2 == domain.hiVect()[1] + 1),
+						     zmax = (m3 == domain.hiVect()[2] + 1));
 
 				Set::Matrix graduD, graduU; // gradu(i,j) = u_{i,j)
 				std::array<Set::Matrix,AMREX_SPACEDIM> gradgraduD,gradgraduU; // gradgradu[k](l,j) = u_{k,lj}
@@ -266,7 +268,7 @@ Elastic<T>::Fsmooth (int amrlev,
 							     gradgraduD[k](1,2) = 0.0;
 							     gradgraduD[k](2,0) = 0.0;
 							     gradgraduD[k](2,1) = 0.0;
-							     gradgraduD[k](2,2) = (i==k ? -2.0 : 0.0))/DX[2]/DX[2];
+							     gradgraduD[k](2,2) = (i==k ? -2.0 : 0.0)/DX[2]/DX[2]);
 
 						AMREX_D_TERM(gradgraduU[i](0,0) = (ufab(m+dx[0],i) - (i==k ? 0.0 : 2.0*ufab(m,i)) + ufab(m-dx[0],i))/DX[0]/DX[0];
 							     ,// 2D
@@ -288,7 +290,9 @@ Elastic<T>::Fsmooth (int amrlev,
 					Set::Matrix sigD = C(m)(epsD);
 					Set::Matrix sigU = C(m)(epsU);
 
-					if (xmax || xmin || ymax || ymin || zmax || zmin) 
+					if (AMREX_D_TERM(xmax || xmin,
+							 || ymax || ymin,
+							 || zmax || zmin))
 					{
 						for (int k = 0; k < AMREX_SPACEDIM; k++) // iterate over DIMENSIONS
 						{
@@ -362,12 +366,12 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool	xmin = (m1 == domain.loVect()[0]),
-				xmax = (m1 == domain.hiVect()[0] + 1),
-				ymin = (m2 == domain.loVect()[1]),
-				ymax = (m2 == domain.hiVect()[1] + 1),
-				zmin = (m3 == domain.loVect()[2]),
-				zmax = (m3 == domain.hiVect()[2] + 1);
+			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
+					     ymin = (m2 == domain.loVect()[1]),
+					     zmin = (m3 == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
+					     ymax = (m2 == domain.hiVect()[1] + 1),
+					     zmax = (m3 == domain.hiVect()[2] + 1));
 
 			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
 			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
@@ -391,13 +395,15 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 						     gradgradu[k](1,2) = 0.0;
 						     gradgradu[k](2,0) = 0.0;
 						     gradgradu[k](2,1) = 0.0;
-						     gradgradu[k](2,2) = (i==k ? -2.0 : 0.0))/DX[2]/DX[2];
+						     gradgradu[k](2,2) = (i==k ? -2.0 : 0.0)/DX[2]/DX[2]);
 				}
 
 				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
 				Set::Matrix sig = C(m)(eps);
 
-				if (xmax || xmin || ymax || ymin || zmax || zmin) 
+				if (AMREX_D_TERM(xmax || xmin,
+						 || ymax || ymin,
+						 || zmax || zmin)) 
 				{
 					for (int k = 0; k < AMREX_SPACEDIM; k++) // iterate over DIMENSIONS
 					{
@@ -489,12 +495,12 @@ Elastic<T>::Stress (int amrlev,
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool	xmin = (m1 == domain.loVect()[0]),
-				xmax = (m1 == domain.hiVect()[0] + 1),
-				ymin = (m2 == domain.loVect()[1]),
-				ymax = (m2 == domain.hiVect()[1] + 1),
-				zmin = (m3 == domain.loVect()[2]),
-				zmax = (m3 == domain.hiVect()[2] + 1);
+			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
+					     ymin = (m2 == domain.loVect()[1]),
+					     zmin = (m3 == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
+					     ymax = (m2 == domain.hiVect()[1] + 1),
+					     zmax = (m3 == domain.hiVect()[2] + 1));
 
 
 			Set::Matrix gradu;
@@ -558,12 +564,12 @@ Elastic<T>::Energy (int amrlev,
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool	xmin = (m1 == domain.loVect()[0]),
-				xmax = (m1 == domain.hiVect()[0] + 1),
-				ymin = (m2 == domain.loVect()[1]),
-				ymax = (m2 == domain.hiVect()[1] + 1),
-				zmin = (m3 == domain.loVect()[2]),
-				zmax = (m3 == domain.hiVect()[2] + 1);
+			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
+					     ymin = (m2 == domain.loVect()[1]),
+					     zmin = (m3 == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
+					     ymax = (m2 == domain.hiVect()[1] + 1),
+					     zmax = (m3 == domain.hiVect()[2] + 1));
 
 
 			Set::Matrix gradu;
