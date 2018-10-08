@@ -1,0 +1,27 @@
+digraph "Integrator::PolymerDegradation"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="Integrator::PolymerDegradation",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="Integrator::Integrator",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classIntegrator_1_1Integrator.html"];
+  Node3 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="amrex::AmrCore",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+  Node4 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" water_bc\nthermal_bc\nelastic_bc\neta_bc" ,fontname="Helvetica"];
+  Node4 [label="BC::BC",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classBC_1_1BC.html"];
+  Node5 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="amrex::PhysBCFunctBase",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+  Node6 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" modeltype" ,fontname="Helvetica"];
+  Node6 [label="Model::Solid::Elastic\l::Degradable::Isotropic\l::Isotropic",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classModel_1_1Solid_1_1Elastic_1_1Degradable_1_1Isotropic_1_1Isotropic.html"];
+  Node7 -> Node6 [dir="back",color="firebrick4",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="Model::Solid::Solid",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classModel_1_1Solid_1_1Solid.html"];
+  Node8 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" water_ic\nthermal_ic\neta_ic" ,fontname="Helvetica"];
+  Node8 [label="IC::IC",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classIC_1_1IC.html"];
+  Node9 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" elastic_operator" ,fontname="Helvetica"];
+  Node9 [label="Operator::Elastic::\lElastic\< Model::Solid\l::Elastic::Degradable\l::Isotropic::Isotropic \>",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classOperator_1_1Elastic_1_1Elastic.html"];
+  Node10 -> Node9 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node10 [label="Operator::Operator",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classOperator_1_1Operator.html"];
+  Node11 -> Node10 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node11 [label="amrex::MLNodeLinOp",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+}
