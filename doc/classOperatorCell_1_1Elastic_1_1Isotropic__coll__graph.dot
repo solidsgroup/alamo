@@ -1,0 +1,16 @@
+digraph "OperatorCell::Elastic::Isotropic"
+{
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="OperatorCell::Elastic\l::Isotropic",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black"];
+  Node2 -> Node1 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="OperatorCell::Elastic\l::Elastic",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classOperatorCell_1_1Elastic_1_1Elastic.html"];
+  Node3 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="OperatorCell::Operator",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classOperatorCell_1_1Operator.html"];
+  Node4 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="amrex::MLLinOp",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+  Node5 -> Node3 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" m_bc" ,fontname="Helvetica"];
+  Node5 [label="BC::BC",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classBC_1_1BC.html"];
+  Node6 -> Node5 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="amrex::PhysBCFunctBase",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled"];
+}
