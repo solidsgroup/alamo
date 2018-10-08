@@ -72,9 +72,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 	// DEBUG: Check to see if Fapply is getting passed bad values.
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -213,9 +210,6 @@ Elastic<T>::Fsmooth (int amrlev,
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 	for (int redblack = 0; redblack < 2; redblack++)
 	{
 		for (MFIter mfi(rhs, true); mfi.isValid(); ++mfi)
@@ -352,9 +346,6 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 	for (MFIter mfi(mf, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -480,9 +471,6 @@ Elastic<T>::Stress (int amrlev,
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -558,9 +546,6 @@ Elastic<T>::Energy (int amrlev,
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -603,6 +588,161 @@ Elastic<T>::Energy (int amrlev,
 		}
 	}
 }
+
+
+template<class T>
+void
+Elastic<T>::reflux (int crse_amrlev,
+		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
+{
+	Util::Message(INFO, "reflux implementation in progress");
+
+
+	int ncomp = AMREX_SPACEDIM;
+
+
+	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
+ 	const Geometry& fgeom = m_geom[crse_amrlev+1][0];
+ 	const Box& c_cc_domain = cgeom.Domain();
+ 	const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
+
+	Util::Message(INFO);
+ 	const BoxArray& fba = fine_sol.boxArray();
+ 	const DistributionMapping& fdm = fine_sol.DistributionMap();
+
+ 	const iMultiFab& fdmsk = *m_dirichlet_mask[crse_amrlev+1][0];
+
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+
+	Util::Message(INFO);
+ 	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
+
+	Util::Message(INFO);
+
+	Util::Message(INFO);
+
+	if (AMREX_SPACEDIM != 2) Util::Abort("2D implementation only");
+
+	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
+	{
+		Util::Message(INFO);
+		const Box& bx = mfi.tilebox();
+		const FArrayBox &fine = fine_res[mfi];
+		FArrayBox &crse = fine_res_for_coarse[mfi];
+
+		crse.setVal(0.0);
+		
+		for (int n = 0 ; n < ncomp; n++)
+		{
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++), // Do not include
+				     for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++), // boundaries, interior
+				     for (int m3 = bx.loVect()[2] +1; m3<=bx.hiVect()[2] -1; m3++)) // only.
+			{
+				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
+
+				crse(m_crse,n) = (      fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n)     + fine(m_fine+dx[0]-dx[1],n) 
+						  + 2.0*fine(m_fine-dx[0],n)       + 4.0*fine(m_fine,n)       + 2.0*fine(m_fine+dx[0],n) 
+						  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n)     + fine(m_fine+dx[0]+dx[1],n))/16.0;
+
+			}
+		}
+	}
+
+	
+
+	res.ParallelCopy(fine_res_for_coarse, cgeom.periodicity());
+	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+	fine_contrib.setVal(0.0);
+
+
+// 	const auto& fsigma = *m_sigma[crse_amrlev+1][0][0];
+
+// #ifdef _OPENMP
+// #pragma omp parallel
+// #endif
+// 	{
+// 		FArrayBox sigfab;
+// 		FArrayBox Axfab;
+// 		for (MFIter mfi(fine_contrib, MFItInfo().EnableTiling().SetDynamic(true));
+// 		     mfi.isValid(); ++mfi)
+// 		{
+// 			const Box& cvbx = mfi.validbox();
+// 			const Box& fvbx = amrex::refine(cvbx,2);
+// 			const Box& cbx = mfi.tilebox();
+// 			const Box& fbx = amrex::refine(cbx,2);
+
+// 			const Box& cc_fbx = amrex::enclosedCells(fbx);
+// 			const Box& cc_fvbx = amrex::enclosedCells(fvbx);
+// 			const Box& bx_sig = amrex::grow(cc_fbx,2) & amrex::grow(cc_fvbx,1);
+// 			const Box& b = bx_sig & cc_fvbx;
+// 			sigfab.resize(bx_sig, 1);
+// 			sigfab.setVal(0.0);
+// 			sigfab.copy(fsigma[mfi], b, 0, b, 0, 1);
+
+// 			const Box& bx_Ax = amrex::grow(fbx,1);
+// 			const Box& b2 = bx_Ax & amrex::grow(fvbx,-1);
+// 			Axfab.resize(bx_Ax);
+// 			Axfab.setVal(0.0);
+// 			Axfab.copy(fine_rhs[mfi], b2, 0, b2, 0, 1);
+// 			Axfab.minus(fine_res[mfi], b2, 0, 0, 1);
+
+// 			amrex_mlndlap_res_fine_contrib(BL_TO_FORTRAN_BOX(cbx),
+// 						       BL_TO_FORTRAN_BOX(cvbx),
+// 						       BL_TO_FORTRAN_ANYD(fine_contrib[mfi]),
+// 						       BL_TO_FORTRAN_ANYD(fine_sol[mfi]),
+// 						       BL_TO_FORTRAN_ANYD(sigfab),
+// 						       BL_TO_FORTRAN_ANYD(Axfab),
+// 						       BL_TO_FORTRAN_ANYD(fdmsk[mfi]),
+// 						       fdxinv);
+// 		}
+// 	}
+
+// 	MultiFab fine_contrib_on_crse(crse_sol.boxArray(), crse_sol.DistributionMap(), 1, 0);
+// 	fine_contrib_on_crse.setVal(0.0);
+// 	fine_contrib_on_crse.ParallelAdd(fine_contrib, cgeom.periodicity());
+
+// 	const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
+// 	const auto& nd_mask     = m_nd_fine_mask[crse_amrlev];
+// 	const auto& cc_mask     = m_cc_fine_mask[crse_amrlev];
+// 	const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
+
+// 	const auto& csigma = *m_sigma[crse_amrlev][0][0];
+
+// #ifdef _OPENMP
+// #pragma omp parallel
+// #endif
+// 	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
+// 	{
+// 		if ((*has_fine_bndry)[mfi])
+// 		{
+// 			const Box& bx = mfi.tilebox();
+// 			amrex_mlndlap_res_cf_contrib(BL_TO_FORTRAN_BOX(bx),
+// 						     BL_TO_FORTRAN_ANYD(res[mfi]),
+// 						     BL_TO_FORTRAN_ANYD(crse_sol[mfi]),
+// 						     BL_TO_FORTRAN_ANYD(crse_rhs[mfi]),
+// 						     BL_TO_FORTRAN_ANYD(csigma[mfi]),
+// 						     BL_TO_FORTRAN_ANYD(cdmsk[mfi]),
+// 						     BL_TO_FORTRAN_ANYD((*nd_mask)[mfi]),
+// 						     BL_TO_FORTRAN_ANYD((*cc_mask)[mfi]),
+// 						     BL_TO_FORTRAN_ANYD(fine_contrib_on_crse[mfi]),
+// 						     cdxinv, BL_TO_FORTRAN_BOX(c_nd_domain),
+// 						     m_lobc.data(), m_hibc.data());
+// 		}
+// 	}
+
+
+
+
+
+
+
+	Util::Message(INFO, "reflux implementation in progress");
+}
+
+
+
 
 
 

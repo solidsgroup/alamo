@@ -225,13 +225,6 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	 MLNodeLinOp::define(a_geom, cc_grids, a_dmap, a_info, a_factory);
  }
 
-void
-Operator::reflux (int crse_amrlev,
-		  MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-		  MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
-{
-	Util::Abort(INFO, "reflux not yet implemented");
-}
 
 void
 Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
@@ -288,7 +281,7 @@ Operator::buildMasks ()
 void
 Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 {
-	Util::Abort(INFO, "fixUpResidualMask not implemented");
+	Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
 }
 
 void
@@ -509,8 +502,9 @@ void
 Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
 				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
 {
-	Util::Message(INFO);
-	Util::Abort(INFO, "Not implemented");
+	Util::Message(INFO,"Suspect implementation!");
+	const auto& amrrr = AMRRefRatio(camrlev);
+	amrex::average_down(fine_sol, crse_sol, 0, fine_rhs.nComp(), amrrr);
 }
 
 void
