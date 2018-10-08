@@ -4,7 +4,7 @@
 
 #include "AMReX.H"
 
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 1
 
 #include "Integrator/PolymerDegradation/PolymerDegradation.H"
 
@@ -30,7 +30,7 @@ int main (int argc, char* argv[])
 #else
 int main()
 {
-	std::cout << "This program works in 2D only, but AMREX_SPACEDIM=" << AMREX_SPACEDIM << std::endl;
+	std::cout << "This program works in 1D only, but AMREX_SPACEDIM=" << AMREX_SPACEDIM << std::endl;
 }
 
 #endif

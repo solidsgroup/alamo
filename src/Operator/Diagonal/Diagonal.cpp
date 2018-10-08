@@ -54,22 +54,22 @@ Diagonal::Fapply (int amrlev,
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 			for (int i=0; i<AMREX_SPACEDIM; i++)
 			{
-				if (m1 == domain.loVect()[0]   ||
-				    m1 == domain.hiVect()[0]+1 ||  
-				    m2 == domain.loVect()[1]   ||
-				    m2 == domain.hiVect()[1]+1 ||
-				    m3 == domain.loVect()[2]   ||
-				    m3 == domain.hiVect()[2]+1)
+				if (AMREX_D_TERM(m1 == domain.loVect()[0],
+						 || m2 == domain.loVect()[1],
+						 || m3 == domain.loVect()[2]) ||
+				    AMREX_D_TERM(m1 == domain.hiVect()[0]+1,
+						 || m2 == domain.hiVect()[1]+1,
+						 || m3 == domain.hiVect()[2]+1))
 				{
 					ffab(m,i) = 2*ufab(m,i);
 				}
-				else if ( m1 == bx.loVect()[0] ||
-					  m1 == bx.hiVect()[0] ||
-					  m2 == bx.loVect()[1] ||
-					  m2 == bx.hiVect()[1] ||
-					  m3 == bx.loVect()[2] ||
-					  m3 == bx.hiVect()[2])
-					continue;
+				else if (AMREX_D_TERM(m1 == bx.loVect()[0], 
+						      || m2 == bx.loVect()[1],
+						      || m3 == bx.loVect()[2]) || 
+					 AMREX_D_TERM(m1 == bx.hiVect()[0],
+						      || m2 == bx.hiVect()[1],
+						      || m3 == bx.hiVect()[2]))
+					  continue;
 				else 
 					ffab(m,i) = 2*ufab(m,i);
 			}
@@ -115,21 +115,21 @@ Diagonal::Fsmooth (int amrlev,
 				{
 					for (int k=0; k<AMREX_SPACEDIM; k++)
 					{
-						if (m1 == domain.loVect()[0]   ||
-						    m1 == domain.hiVect()[0]+1 ||  
-						    m2 == domain.loVect()[1]   ||
-						    m2 == domain.hiVect()[1]+1 ||
-						    m3 == domain.loVect()[2]   ||
-						    m3 == domain.hiVect()[2]+1)
+						if (AMREX_D_TERM(m1 == domain.loVect()[0],
+								 || m2 == domain.loVect()[1],
+								 || m3 == domain.loVect()[2]) ||
+						    AMREX_D_TERM(m1 == domain.hiVect()[0]+1,
+								 || m2 == domain.hiVect()[1]+1,
+								 || m3 == domain.hiVect()[2]+1))
 						{
 							ufab(m,k) = rhsfab(m,k) / 2.0;
 						}
-						else if ( m1 == bx.loVect()[0] ||
-							  m1 == bx.hiVect()[0] ||
-							  m2 == bx.loVect()[1] ||
-							  m2 == bx.hiVect()[1] ||
-							  m3 == bx.loVect()[2] ||
-							  m3 == bx.hiVect()[2])
+						else if (AMREX_D_TERM(m1 == bx.loVect()[0],
+								      || m2 == bx.loVect()[1],
+								      || m3 == bx.loVect()[2]) || 
+							 AMREX_D_TERM(m1 == bx.hiVect()[0], 
+								      || m2 == bx.hiVect()[1],
+								      || m3 == bx.hiVect()[2]))
 							continue;
 						else 
 							ufab(m,k) = rhsfab(m,k) / 2.0;

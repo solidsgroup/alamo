@@ -353,9 +353,13 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-			amrex::IntVect m_fine(2*m1, 2*m2, 2*m3);
+			amrex::IntVect m_fine(AMREX_D_DECL(2*m1, 2*m2, 2*m3));
 			for (int i=0; i<crse.nComp(); i++)
 			{
+#if AMREX_SPACEDIM == 2
+				Util::Abort(INFO,"Not yet implemented in 2D");
+#endif
+#if AMREX_SPACEDIM == 3
 				crsefab(m_crse,i) =
 					fac1*(finefab(m_fine-dx-dy-dz,i) +
 					      finefab(m_fine-dx-dy+dz,i) +
@@ -387,6 +391,7 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 					      finefab(m_fine+dz,i))
 					+
 					fac4*finefab(m_fine,i);
+#endif
 			}
 		}
 	}
@@ -438,11 +443,15 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 				     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
 				     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
 			{
-				amrex::IntVect m(m1, m2, m3);
-				amrex::IntVect M(m1/2, m2/2, m3/2);
+				amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
+				amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
 
 				for (int i=0; i<crse.nComp(); i++)
 				{
+#if AMREX_SPACEDIM == 2
+					Util::Abort("Not implemented in 2D");
+#endif
+#if AMREX_SPACEDIM == 3
 					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
 						tmpfab(m,i) = crsefab(M,i);
 					else if (m[1]==2*M[1] && m[2]==2*M[2]) // X Edge
@@ -478,6 +487,7 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 						std::cout << m << M << std::endl;
 						Util::Abort(INFO, "Is NaN");
 					}
+#endif
 				}
 			}
 
