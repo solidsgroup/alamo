@@ -98,6 +98,10 @@ protected:
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
 						const FArrayBox& sol, const int face_only=0) const final;
+	virtual void reflux (int crse_amrlev,
+			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const;
+
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
 	virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;

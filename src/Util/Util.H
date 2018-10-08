@@ -36,7 +36,7 @@ void Abort (std::string file, std::string func, int line, Args const &... args)
 {
 	std::ostringstream infostream;
 	infostream << Color::Bold << Color::FG::Red << "ABORT" << Color::Reset << ":   ";
-	infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
+	infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
 	infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
 	std::string info = infostream.str();
 

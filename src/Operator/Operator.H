@@ -97,7 +97,7 @@ protected:
 
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const final;
+			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const =0;
 
 	virtual void prepareForSolve () final;
 	virtual bool isSingular (int amrlev) const final
@@ -114,6 +114,10 @@ protected:
 
 
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
+
+	std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
+								      amrex::IntVect(AMREX_D_DECL(0,1,0)),
+								      amrex::IntVect(AMREX_D_DECL(0,0,1)))}};
 
 private:
 
