@@ -3,7 +3,7 @@
 
 #include "IC/IC.H"
 #include "Util/Util.H"
-#include "Numeric/Interpolator/Linear/Linear.H"
+#include "Numeric/Interpolator/Linear.H"
 
 /// \class TabulatedInterface
 /// \brief Initialize a perturbed interface using a linear interpolation
@@ -30,7 +30,7 @@ public:
 	{
 		const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
 
-		Numeric::Interpolator::Linear::Linear<Set::Scalar> f(ys,xs);
+		Numeric::Interpolator::Linear<Set::Scalar> f(ys,xs);
 
 		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
 		{

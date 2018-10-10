@@ -35,6 +35,9 @@ extern "C"
 
 namespace Operator {
 
+///
+/// General abstract class for node-based operators
+///
 class Operator
 	: public amrex::MLNodeLinOp
 {
@@ -95,9 +98,6 @@ protected:
 	virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
 					     const MultiFab& fine_sol, const MultiFab& fine_rhs) final;
 
-	virtual void reflux (int crse_amrlev,
-			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const =0;
 
 	virtual void prepareForSolve () final;
 	virtual bool isSingular (int amrlev) const final
@@ -105,9 +105,26 @@ protected:
 	virtual bool isBottomSingular () const final { return m_is_bottom_singular; }
 	virtual void applyBC (int amrlev, int mglev, MultiFab& phi, BCMode bc_mode,
 			      amrex::MLLinOp::StateMode /**/, bool skip_fillboundary=false) const final;
-	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const =0;
-	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs) const =0;
-	virtual void normalize (int amrlev, int mglev, MultiFab& mf) const =0;
+	///
+	/// Apply 
+	/// 
+	virtual void Fapply (int amrlev, ///<[in] AMR level
+			     int mglev, ///<[in] MG level
+			     MultiFab& out, ///<[out] Output of linear operator
+			     const MultiFab& in ///<[in] Input of linear operator
+			     ) const =0;
+	virtual void Fsmooth (int amrlev,
+			      int mglev,
+			      MultiFab& sol,
+			      const MultiFab& rhs
+			      ) const =0;
+	virtual void normalize (int amrlev,
+				int mglev,
+				MultiFab& mf
+				) const =0;
+	virtual void reflux (int crse_amrlev,
+			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const =0;
 
 	virtual Real getAScalar () const final { return  0.0; }
 	virtual Real getBScalar () const final { return -1.0; }

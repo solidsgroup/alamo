@@ -1,5 +1,5 @@
-#ifndef NUMERIC_INTERPOLATOR_LINEAR_LINEAR_H_
-#define NUMERIC_INTERPOLATOR_LINEAR_LINEAR_H_
+#ifndef NUMERIC_INTERPOLATOR_LINEAR_H_
+#define NUMERIC_INTERPOLATOR_LINEAR_H_
 
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
@@ -11,9 +11,6 @@ namespace Numeric
 {
 namespace Interpolator
 {
-namespace Linear
-{
-
 template <class T>
 class Linear : public Interpolator<T>
 {
@@ -51,7 +48,6 @@ protected:
  	amrex::Vector<T> data_points;
  	amrex::Vector<Set::Scalar> interval_points;
 };
-}
 }
 }
 

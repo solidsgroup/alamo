@@ -1,13 +1,11 @@
-#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
-#include "Model/Solid/Elastic/Cubic/Cubic.H"
+#include "Model/Solid/Elastic/Isotropic.H"
+#include "Model/Solid/Elastic/Cubic.H"
+#include "Model/Solid/Elastic/Degradable/Isotropic.H"
 #include "Elastic.H"
 
 
 namespace Operator
 {
-namespace Elastic
-{
-
 template<class T>
 Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
 		     const Vector<BoxArray>& a_grids,
@@ -596,11 +594,13 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
+#if AMREX_SPACEDIM == 2
 	Util::Message(INFO, "reflux implementation in progress");
 
 
 	int ncomp = AMREX_SPACEDIM;
 
+	const Real* DX = m_geom[crse_amrlev+1][0].CellSize();
 
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
  	const Geometry& fgeom = m_geom[crse_amrlev+1][0];
@@ -633,6 +633,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
 		crse.setVal(0.0);
 		
+		// amrex_mlndlap_restriction
 		for (int n = 0 ; n < ncomp; n++)
 		{
 			AMREX_D_TERM(for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++), // Do not include
@@ -642,66 +643,125 @@ Elastic<T>::reflux (int crse_amrlev,
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
-				crse(m_crse,n) = (      fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n)     + fine(m_fine+dx[0]-dx[1],n) 
-						  + 2.0*fine(m_fine-dx[0],n)       + 4.0*fine(m_fine,n)       + 2.0*fine(m_fine+dx[0],n) 
-						  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n)     + fine(m_fine+dx[0]+dx[1],n))/16.0;
+				crse(m_crse,n) =
+					(fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) + fine(m_fine+dx[0]-dx[1],n)
+					 + 2.0*fine(m_fine-dx[0],n) + 4.0*fine(m_fine,n)  + 2.0*fine(m_fine+dx[0],n) 
+					 + fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) + fine(m_fine+dx[0]+dx[1],n))/16.0;
 
 			}
 		}
 	}
 
 	
-
 	res.ParallelCopy(fine_res_for_coarse, cgeom.periodicity());
 	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 0);
 	fine_contrib.setVal(0.0);
 
+	FArrayBox Axfab;
+        for (MFIter mfi(fine_contrib, MFItInfo().EnableTiling().SetDynamic(true));
+             mfi.isValid(); ++mfi)
+	{
+		const Box& cbx = mfi.tilebox(); // clo, chi
+		const Box& cvbx = mfi.validbox(); // cglo, cghi
 
-// 	const auto& fsigma = *m_sigma[crse_amrlev+1][0][0];
+		const Box& fbx = amrex::refine(cbx,2); // lo, hi
+		const Box& fvbx = amrex::refine(cvbx,2); // glo, ghi
 
-// #ifdef _OPENMP
-// #pragma omp parallel
-// #endif
-// 	{
-// 		FArrayBox sigfab;
-// 		FArrayBox Axfab;
-// 		for (MFIter mfi(fine_contrib, MFItInfo().EnableTiling().SetDynamic(true));
-// 		     mfi.isValid(); ++mfi)
-// 		{
-// 			const Box& cvbx = mfi.validbox();
-// 			const Box& fvbx = amrex::refine(cvbx,2);
-// 			const Box& cbx = mfi.tilebox();
-// 			const Box& fbx = amrex::refine(cbx,2);
 
-// 			const Box& cc_fbx = amrex::enclosedCells(fbx);
-// 			const Box& cc_fvbx = amrex::enclosedCells(fvbx);
-// 			const Box& bx_sig = amrex::grow(cc_fbx,2) & amrex::grow(cc_fvbx,1);
-// 			const Box& b = bx_sig & cc_fvbx;
-// 			sigfab.resize(bx_sig, 1);
-// 			sigfab.setVal(0.0);
-// 			sigfab.copy(fsigma[mfi], b, 0, b, 0, 1);
+		Util::Message(INFO, "amrlev  = ", crse_amrlev);
+		Util::Message(INFO, "cbx  = ", cbx);
+		Util::Message(INFO, "cvbx = ", cvbx);
+		Util::Message(INFO, "fbx  = ", fbx);
+		Util::Message(INFO, "fvbx = ", fvbx);
 
-// 			const Box& bx_Ax = amrex::grow(fbx,1);
-// 			const Box& b2 = bx_Ax & amrex::grow(fvbx,-1);
-// 			Axfab.resize(bx_Ax);
-// 			Axfab.setVal(0.0);
-// 			Axfab.copy(fine_rhs[mfi], b2, 0, b2, 0, 1);
-// 			Axfab.minus(fine_res[mfi], b2, 0, 0, 1);
 
-// 			amrex_mlndlap_res_fine_contrib(BL_TO_FORTRAN_BOX(cbx),
-// 						       BL_TO_FORTRAN_BOX(cvbx),
-// 						       BL_TO_FORTRAN_ANYD(fine_contrib[mfi]),
-// 						       BL_TO_FORTRAN_ANYD(fine_sol[mfi]),
-// 						       BL_TO_FORTRAN_ANYD(sigfab),
-// 						       BL_TO_FORTRAN_ANYD(Axfab),
-// 						       BL_TO_FORTRAN_ANYD(fdmsk[mfi]),
-// 						       fdxinv);
-// 		}
-// 	}
+		const Box& bx_Ax = amrex::grow(fbx,1);
+		const Box& b2 = bx_Ax & amrex::grow(fvbx,-1);
 
-// 	MultiFab fine_contrib_on_crse(crse_sol.boxArray(), crse_sol.DistributionMap(), 1, 0);
-// 	fine_contrib_on_crse.setVal(0.0);
-// 	fine_contrib_on_crse.ParallelAdd(fine_contrib, cgeom.periodicity());
+		Axfab.resize(bx_Ax,ncomp);
+		Axfab.setVal(0.0);
+		Axfab.copy(fine_rhs[mfi], b2, 0, b2, 0, 1);
+		Axfab.minus(fine_res[mfi], b2, 0, 0, 1);
+
+		amrex::IntVect gtlo(std::min(fbx.loVect()[0]-1, fvbx.loVect()[0]),
+				    std::min(fbx.loVect()[1]-1, fvbx.loVect()[1]));
+
+		amrex::IntVect gthi(std::max(fbx.loVect()[0]+1, fvbx.loVect()[0]),
+				    std::min(fbx.loVect()[1]+1, fvbx.loVect()[1]));
+
+		FArrayBox &ufab = fine_sol[mfi];
+		FArrayBox &ffab = fine_contrib[mfi];
+		amrex::BaseFab<T> &C = (*(model[crse_amrlev+1][0]))[mfi];
+
+		for (int m1 = gtlo[0]; m1<=gthi[0]; m1++)
+		for (int m2 = gtlo[1]; m2<=gthi[1]; m2++)
+		{
+			amrex::IntVect m(m1, m2);
+
+			bool    xmin = (m1 == gtlo[0]),
+				ymin = (m2 == gtlo[1]),
+				xmax = (m1 == gthi[0]),
+				ymax = (m2 == gthi[1]);
+
+			// Consider boundary terms only
+			if (!(xmin || ymin || xmax || ymin)) continue; 
+
+			
+			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+
+			// The gradient of the displacement gradient tensor
+			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+
+			// Fill gradu and gradgradu
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
+			{
+				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			}
+
+			Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+			// Stress tensor computed using the model fab
+			Set::Matrix sig = C(m)(eps);
+
+			for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+				for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+					if (m[j] == gtlo[j])
+						Axfab(m,i) = -sig(i,j);
+					else if (m[j] == gthi[j])
+						Axfab(m,i) = +sig(i,j);
+
+			for (int i = 0; i < ncomp ; i++)
+				for (int m1 = cbx.loVect()[0]; m1<=cbx.loVect()[0]+1; m1++)
+					for (int m2 = cbx.loVect()[1]; m2<=cbx.loVect()[1]+1; m2++)
+					{
+						amrex::IntVect m(m1, m2);
+						bool    xmin = (m1 == cbx.loVect()[0]),
+							ymin = (m2 == cbx.loVect()[1]),
+							xmax = (m1 == cbx.hiVect()[0]),
+							ymax = (m2 == cbx.hiVect()[1]);
+						if (!(xmin || ymin || xmax || ymax)) continue;
+						ffab(m,i) = ffab(m,i) + (0.25)*Axfab(2*m,i)
+							+ (0.5)*(Axfab(2*m + dx[0]) +
+								 Axfab(2*m - dx[0]) +
+								 Axfab(2*m + dx[1]) +
+								 Axfab(2*m - dx[1]))
+							+ (0.25)*(Axfab(2*m - dx[0] - dx[1]) +
+								  Axfab(2*m - dx[0] + dx[1]) +
+								  Axfab(2*m + dx[1] - dx[1]) +
+								  Axfab(2*m + dx[1] + dx[1]));
+				
+					
+					}
+		}
+	}
+	MultiFab fine_contrib_on_crse(crse_sol.boxArray(), crse_sol.DistributionMap(), 1, 0);
+	fine_contrib_on_crse.setVal(0.0);
+	fine_contrib_on_crse.ParallelAdd(fine_contrib, cgeom.periodicity());
+	     
+
+	//Util::Abort("Exit normally");
 
 // 	const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
 // 	const auto& nd_mask     = m_nd_fine_mask[crse_amrlev];
@@ -710,11 +770,8 @@ Elastic<T>::reflux (int crse_amrlev,
 
 // 	const auto& csigma = *m_sigma[crse_amrlev][0][0];
 
-// #ifdef _OPENMP
-// #pragma omp parallel
-// #endif
-// 	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
-// 	{
+ 	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
+ 	{
 // 		if ((*has_fine_bndry)[mfi])
 // 		{
 // 			const Box& bx = mfi.tilebox();
@@ -730,25 +787,17 @@ Elastic<T>::reflux (int crse_amrlev,
 // 						     cdxinv, BL_TO_FORTRAN_BOX(c_nd_domain),
 // 						     m_lobc.data(), m_hibc.data());
 // 		}
-// 	}
-
-
-
-
-
-
+ 	}
 
 	Util::Message(INFO, "reflux implementation in progress");
-}
-
-
-
-
-
-
-template class Elastic<Model::Solid::Elastic::Isotropic::Isotropic>;
-template class Elastic<Model::Solid::Elastic::Cubic::Cubic>;
-
+#else
+	Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
+#endif
 
 }
+template class Elastic<Model::Solid::Elastic::Isotropic>;
+template class Elastic<Model::Solid::Elastic::Cubic>;
+template class Elastic<Model::Solid::Elastic::Degradable::Isotropic>;
+
 }
+
