@@ -1,6 +1,6 @@
 Elastic
 -------
 
-.. doxygenclass:: Operator::Elastic::Elastic
+.. doxygenclass:: Operator::Elastic
    :project: alamo
    :members:
