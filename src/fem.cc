@@ -10,10 +10,10 @@
 #include <AMReX_MLNodeLaplacian.H>
 
 #include "Util/Util.H"
-#include "Operator/Diagonal/Diagonal.H"
-#include "Operator/Elastic/Elastic.H"
-#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
-#include "Model/Solid/Elastic/Cubic/Cubic.H"
+#include "Operator/Diagonal.H"
+#include "Operator/Elastic.H"
+#include "Model/Solid/Elastic/Isotropic.H"
+#include "Model/Solid/Elastic/Cubic.H"
 #include "Model/Solid/Elastic/Elastic.H"
 #include "Set/Set.H"
 #include "IO/WriteMetaData.H"
@@ -32,8 +32,8 @@ int main (int argc, char* argv[])
 	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
 	// 	Eigen::AngleAxisd(10, Set::Vector::UnitZ());
 
-	//using model_type = Model::Solid::Elastic::Cubic::Cubic; model_type model(10.73, 6.09, 2.830); 
-	using model_type = Model::Solid::Elastic::Isotropic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::Elastic::Cubic; model_type model(10.73, 6.09, 2.830); 
+	using model_type = Model::Solid::Elastic::Isotropic; model_type model(2.6,6.0); 
 	
 	model.Print();
 
@@ -64,21 +64,21 @@ int main (int argc, char* argv[])
 	AMREX_D_TERM(pp_bc.queryarr("bc_x_hi",bc_x_hi_str);,
 		     pp_bc.queryarr("bc_y_hi",bc_y_hi_str);,
 		     pp_bc.queryarr("bc_z_hi",bc_z_hi_str););
-	std::map<std::string,Operator::Elastic::BC> bc;
-	bc["displacement"] = Operator::Elastic::BC::Displacement;
-	bc["disp"] = Operator::Elastic::BC::Displacement;
-	bc["traction"] = Operator::Elastic::BC::Traction;
-	bc["trac"] = Operator::Elastic::BC::Traction;
-	bc["periodic"] = Operator::Elastic::BC::Periodic;
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_lo = {AMREX_D_DECL(bc[bc_x_lo_str[0]], bc[bc_x_lo_str[1]], bc[bc_x_lo_str[2]])};
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_x_hi = {AMREX_D_DECL(bc[bc_x_hi_str[0]], bc[bc_x_hi_str[1]], bc[bc_x_hi_str[2]])};
+	std::map<std::string,Operator::Elastic<model_type>::BC> bc;
+	bc["displacement"] = Operator::Elastic<model_type>::BC::Displacement;
+	bc["disp"] = Operator::Elastic<model_type>::BC::Displacement;
+	bc["traction"] = Operator::Elastic<model_type>::BC::Traction;
+	bc["trac"] = Operator::Elastic<model_type>::BC::Traction;
+	bc["periodic"] = Operator::Elastic<model_type>::BC::Periodic;
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_x_lo = {AMREX_D_DECL(bc[bc_x_lo_str[0]], bc[bc_x_lo_str[1]], bc[bc_x_lo_str[2]])};
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_x_hi = {AMREX_D_DECL(bc[bc_x_hi_str[0]], bc[bc_x_hi_str[1]], bc[bc_x_hi_str[2]])};
 #if AMREX_SPACEDIM > 1
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_lo = {AMREX_D_DECL(bc[bc_y_lo_str[0]], bc[bc_y_lo_str[1]], bc[bc_y_lo_str[2]])};
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_y_hi = {AMREX_D_DECL(bc[bc_y_hi_str[0]], bc[bc_y_hi_str[1]], bc[bc_y_hi_str[2]])};
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_y_lo = {AMREX_D_DECL(bc[bc_y_lo_str[0]], bc[bc_y_lo_str[1]], bc[bc_y_lo_str[2]])};
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_y_hi = {AMREX_D_DECL(bc[bc_y_hi_str[0]], bc[bc_y_hi_str[1]], bc[bc_y_hi_str[2]])};
 #endif
 #if AMREX_SPACEDIM > 2
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_lo = {AMREX_D_DECL(bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]])};
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> bc_z_hi = {AMREX_D_DECL(bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]])};
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_z_lo = {AMREX_D_DECL(bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]])};
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_z_hi = {AMREX_D_DECL(bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]])};
 #endif
 
 	// Read in solver parameters
@@ -256,8 +256,8 @@ int main (int argc, char* argv[])
 	info.setMaxCoarseningLevel(0); // Multigrid does not work yet
 	nlevels = geom.size();
 
-	//Operator::Elastic::Elastic<Model::Solid::Elastic::Cubic::Cubic> mlabec;
-	Operator::Elastic::Elastic<model_type> mlabec;
+	//Operator::Elastic<Model::Solid::Elastic::Cubic::Cubic> mlabec;
+	Operator::Elastic<model_type> mlabec;
 	mlabec.define(geom, cgrids, cdmap, info);
 	mlabec.setMaxOrder(linop_maxorder);
 	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);

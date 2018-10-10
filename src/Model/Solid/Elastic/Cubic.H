@@ -14,8 +14,6 @@ namespace Solid
 {
 namespace Elastic
 {
-namespace Cubic
-{
 class Cubic : public Model::Solid::Elastic::Elastic
 {
 public:
@@ -126,7 +124,6 @@ private:
 
 };
 
-}
 }
 }
 }
