@@ -26,6 +26,7 @@
 
 #include "Operator/Elastic.H"
 #include "Model/Solid/Elastic/Degradable/Isotropic.H"
+#include "Model/Solid/Elastic/Elastic.H"
 
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -69,26 +70,26 @@ private:
 	int number_of_ghost_cells = 2;
 
 	// Degradation variable
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old;		///< Degradation variable for the __previous__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_old;		///< Degradation variable for the __previous__timestep
 
 	// For water induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > water_conc;		///< Water concentration for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > water_conc_old;	///< Water concentration for the __previous__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;		///< Water concentration for the __current__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc_old;	///< Water concentration for the __previous__timestep
 
 	// For temperature induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;			///< Temperature for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;		///< Temperature for the __previous__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp;			///< Temperature for the __current__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp_old;		///< Temperature for the __previous__timestep
 
 	// For mechanical degradation to be studied later
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<amrex::MultiFab> displacement; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<amrex::MultiFab> strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<amrex::MultiFab> stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<amrex::MultiFab> stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<amrex::MultiFab> rhs; ///< Multicomponent field variable storing pointwise displacements
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	amrex::Vector<amrex::MultiFab> energy; ///< Single component variable storing strain energy
+	amrex::Vector<amrex::MultiFab> energies; ///< Multicomponent field variable storing individual strain energies
 
 	Set::Scalar M, mu, gamma, sigma0, l_gb, beta;
 	int anisotropy = 0;
@@ -117,7 +118,7 @@ private:
 
 	// Damage parameters
 	std::string		damage_type;
-	bool					damage_anisotropy 					= 0;
+	bool					damage_anisotropy 					= false;
 	int						number_of_eta 							= 1;
 	Set::Scalar		damage_refinement_threshold = 0.01;
 	std::string 	eta_ic_type;
@@ -173,7 +174,7 @@ private:
 
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
-	Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic> *elastic_operator;
+	Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic> elastic_operator;
 
 	// Material model
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic> > > model;
