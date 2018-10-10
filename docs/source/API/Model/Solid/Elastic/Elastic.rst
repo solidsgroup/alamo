@@ -8,7 +8,6 @@ Elastic
    Isotropic
    Cubic
 
-
 .. doxygenclass:: Model::Solid::Elastic::Elastic
    :project: alamo
    :members: 
