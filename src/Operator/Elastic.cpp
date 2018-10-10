@@ -595,20 +595,20 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
 #if AMREX_SPACEDIM == 2
-	Util::Message(INFO, "reflux implementation in progress");
 
 	Util::Warning(INFO, "Reflux does not currently implement grad(C)!");
 
 	int ncomp = AMREX_SPACEDIM;
 
-	const Real* DX = m_geom[crse_amrlev+1][0].CellSize();
+
 
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
  	const Geometry& fgeom = m_geom[crse_amrlev+1][0];
  	const Box& c_cc_domain = cgeom.Domain();
  	const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
+	const Real* cDX = cgeom.CellSize();
+	const Real* fDX = fgeom.CellSize();
 
-	Util::Message(INFO);
  	const BoxArray& fba = fine_sol.boxArray();
  	const DistributionMapping& fdm = fine_sol.DistributionMap();
 
@@ -616,12 +616,10 @@ Elastic<T>::reflux (int crse_amrlev,
 
  	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
 
-	Util::Message(INFO);
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
 	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
 	{
-		Util::Message(INFO);
 		const Box& bx = mfi.tilebox();
 		const FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
@@ -700,21 +698,21 @@ Elastic<T>::reflux (int crse_amrlev,
 					// Fill gradu and gradgradu
 					for (int i = 0; i < AMREX_SPACEDIM; i++)
 					{
-						AMREX_D_TERM(gradu(i,0) = (ufab(m+dx[0],i) - ufab(m-dx[0],i))/(2.0*DX[0]);,
-							     gradu(i,1) = (ufab(m+dx[1],i) - ufab(m-dx[1],i))/(2.0*DX[1]);,
-							     gradu(i,2) = (ufab(m+dx[2],i) - ufab(m-dx[2],i))/(2.0*DX[2]););
+						AMREX_D_TERM(gradu(i,0) = (ufab(m+dx[0],i) - ufab(m-dx[0],i))/(2.0*fDX[0]);,
+							     gradu(i,1) = (ufab(m+dx[1],i) - ufab(m-dx[1],i))/(2.0*fDX[1]);,
+							     gradu(i,2) = (ufab(m+dx[2],i) - ufab(m-dx[2],i))/(2.0*fDX[2]););
 
-						AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
+						AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/fDX[0]/fDX[0];
 							     ,// 2D
-							     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
+							     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*fDX[0])/(2.0*fDX[1]);
 							     gradgradu[i](1,0) = gradgradu[i](0,1);
-							     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/DX[1]/DX[1];
+							     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/fDX[1]/fDX[1];
 							     ,// 3D
-							     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*DX[0])/(2.0*DX[2]);
-							     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*DX[1])/(2.0*DX[2]);
+							     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*fDX[0])/(2.0*fDX[2]);
+							     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*fDX[1])/(2.0*fDX[2]);
 							     gradgradu[i](2,0) = gradgradu[i](0,2);
 							     gradgradu[i](2,1) = gradgradu[i](1,2);
-							     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
+							     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/fDX[2]/fDX[2];);
 					}
 
 					// Strain tensor
@@ -724,9 +722,9 @@ Elastic<T>::reflux (int crse_amrlev,
 
 					Set::Vector f =
 						C(m)(gradgradu)
-						// + AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-						// 	       + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-						// 	       + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2))
+						// + AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/fDX[0])(gradu).col(0),
+						// 	       + ((C(m+dx[1]) - C(m-dx[1]))/2.0/fDX[1])(gradu).col(1),
+						// 	       + ((C(m+dx[2]) - C(m-dx[2]))/2.0/fDX[2])(gradu).col(2))
 						;
 					for (int i = 0; i < AMREX_SPACEDIM; i++)
 						Axfab(m,i) = f(i);
@@ -734,40 +732,173 @@ Elastic<T>::reflux (int crse_amrlev,
 			}
 		}
 	}
-	MultiFab fine_contrib_on_crse(crse_sol.boxArray(), crse_sol.DistributionMap(), 1, 0);
+	MultiFab fine_contrib_on_crse(crse_sol.boxArray(), crse_sol.DistributionMap(), ncomp, 0);
 	fine_contrib_on_crse.setVal(0.0);
 	fine_contrib_on_crse.ParallelAdd(fine_contrib, cgeom.periodicity());
 	     
-
 	//Util::Abort("Exit normally");
 
-// 	const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
-// 	const auto& nd_mask     = m_nd_fine_mask[crse_amrlev];
-// 	const auto& cc_mask     = m_cc_fine_mask[crse_amrlev];
-// 	const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
+ 	const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
+ 	const iMultiFab& nd_mask     = *m_nd_fine_mask[crse_amrlev];
+ 	const iMultiFab& cc_mask     = *m_cc_fine_mask[crse_amrlev];
+ 	const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
 
 // 	const auto& csigma = *m_sigma[crse_amrlev][0][0];
 
+	static int crse_cell = 0;
+	static int fine_cell = 1;
+	static int crse_node = 0;
+	static int crse_fine_node = 1;
+	static int fine_node = 2;
  	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
  	{
-// 		if ((*has_fine_bndry)[mfi])
-// 		{
-// 			const Box& bx = mfi.tilebox();
-// 			amrex_mlndlap_res_cf_contrib(BL_TO_FORTRAN_BOX(bx),
-// 						     BL_TO_FORTRAN_ANYD(res[mfi]),
-// 						     BL_TO_FORTRAN_ANYD(crse_sol[mfi]),
-// 						     BL_TO_FORTRAN_ANYD(crse_rhs[mfi]),
-// 						     BL_TO_FORTRAN_ANYD(csigma[mfi]),
-// 						     BL_TO_FORTRAN_ANYD(cdmsk[mfi]),
-// 						     BL_TO_FORTRAN_ANYD((*nd_mask)[mfi]),
-// 						     BL_TO_FORTRAN_ANYD((*cc_mask)[mfi]),
-// 						     BL_TO_FORTRAN_ANYD(fine_contrib_on_crse[mfi]),
-// 						     cdxinv, BL_TO_FORTRAN_BOX(c_nd_domain),
-// 						     m_lobc.data(), m_hibc.data());
-// 		}
+ 		if ((*has_fine_bndry)[mfi])
+ 		{
+
+
+
+
+ 			const Box& bx = mfi.tilebox();
+ 			// amrex_mlndlap_res_cf_contrib(BL_TO_FORTRAN_BOX(bx),  <<<< lo, hi
+ 			// 			     BL_TO_FORTRAN_ANYD(res[mfi]), <<<< res, rlo, rhi [OUTPUT]
+ 			// 			     BL_TO_FORTRAN_ANYD(crse_sol[mfi]), <<< phi, phlo, phhi
+ 			// 			     BL_TO_FORTRAN_ANYD(crse_rhs[mfi]), <<< rhs, rhlo, rhhi
+ 			// 			     BL_TO_FORTRAN_ANYD(csigma[mfi]), <<< sig, slo, shi
+ 			// 			     BL_TO_FORTRAN_ANYD(cdmsk[mfi]), <<< mask, mlo, mhi
+ 			// 			     BL_TO_FORTRAN_ANYD((*nd_mask)[mfi]), <<< ndmsk, nmlo, nmhi
+ 			// 			     BL_TO_FORTRAN_ANYD((*cc_mask)[mfi]), <<< ccmsk, cmlo, cmhi
+ 			// 			     BL_TO_FORTRAN_ANYD(fine_contrib_on_crse[mfi]), <<< fc, clo, chi [OUTPUT]
+ 			// 			     cdxinv, <<< dxinv
+			//                           BL_TO_FORTRAN_BOX(c_nd_domain), <<< ndlo, ndhi
+ 			// 			     m_lobc.data(),  <<< bclo
+			//                           m_hibc.data());  <<< bchi
+			
+			const amrex::FArrayBox &ufab = crse_sol[mfi];
+			
+			for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
+			for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
+			{
+				amrex::IntVect m(m1,m2);
+
+				if (nd_mask[mfi](m) != crse_fine_node) continue; // Only proceed if on a coarse/fine boundary
+				
+				Set::Scalar Ax = 0.0;
+
+				Set::Matrix gradu;
+				
+
+				if (cc_mask[mfi](m-dx[0]-dx[1]) ==  crse_cell)
+				{
+					for (int i = 0; i < ncomp ; i++)
+					{
+						AMREX_D_TERM(gradu(i,0) = (ufab(m+dx[0],i) - ufab(m-dx[0],i))/(2.0*cDX[0]);,
+							     gradu(i,1) = (ufab(m+dx[1],i) - ufab(m-dx[1],i))/(2.0*cDX[1]);,
+							     gradu(i,2) = (ufab(m+dx[2],i) - ufab(m-dx[2],i))/(2.0*cDX[2]););
+					}
+				}
+				
+			
+			}
+
+
+			
+
+
+  // subroutine amrex_mlndlap_res_cf_contrib (lo, hi, res, rlo, rhi, phi, phlo, phhi, &
+  //      rhs, rhlo, rhhi, sig, slo, shi, dmsk, mlo, mhi, ndmsk, nmlo, nmhi, ccmsk, cmlo, cmhi, &
+  //      fc, clo, chi, dxinv, ndlo, ndhi, bclo, bchi) &
+  //      bind(c,name='amrex_mlndlap_res_cf_contrib')
+  //   integer, dimension(2), intent(in) :: lo, hi, rlo, rhi, phlo, phhi, rhlo, rhhi, slo, shi, &
+  //        mlo, mhi, nmlo, nmhi, cmlo, cmhi, clo, chi, ndlo, ndhi, bclo, bchi
+  //   real(amrex_real), intent(in) :: dxinv(2)
+  //   real(amrex_real), intent(inout) :: res( rlo(1): rhi(1), rlo(2): rhi(2))
+  //   real(amrex_real), intent(in   ) :: phi(phlo(1):phhi(1),phlo(2):phhi(2))
+  //   real(amrex_real), intent(in   ) :: rhs(rhlo(1):rhhi(1),rhlo(2):rhhi(2))
+  //   real(amrex_real), intent(in   ) :: sig( slo(1): shi(1), slo(2): shi(2))
+  //   real(amrex_real), intent(inout) :: fc ( clo(1): chi(1), clo(2): chi(2))
+  //   integer, intent(in) ::  dmsk( mlo(1): mhi(1), mlo(2): mhi(2))
+  //   integer, intent(in) :: ndmsk(nmlo(1):nmhi(1),nmlo(2):nmhi(2))
+  //   integer, intent(in) :: ccmsk(cmlo(1):cmhi(1),cmlo(2):cmhi(2))
+
+  //   integer :: i,j
+  //   real(amrex_real) :: Ax, Axf, facx, facy
+
+  //   facx = (1.d0/6.d0)*dxinv(1)*dxinv(1)
+  //   facy = (1.d0/6.d0)*dxinv(2)*dxinv(2)
+
+  //   do    j = lo(2), hi(2)
+  //      do i = lo(1), hi(1)
+  //         if (dmsk(i,j) .ne. dirichlet) then
+  //            if (ndmsk(i,j) .eq. crse_fine_node) then
+
+
+  //               Ax = 0.d0
+  //               if (ccmsk(i-1,j-1) .eq. crse_cell) then
+  //                  Ax = Ax + sig(i-1,j-1)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
+  //                       &                       +     (phi(i-1,j-1)-phi(i  ,j-1))) &
+  //                       &                + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
+  //                       &                       +     (phi(i-1,j-1)-phi(i-1,j  ))))
+  //               end if
+  //               if (ccmsk(i,j-1) .eq. crse_cell) then
+  //                  Ax = Ax + sig(i,j-1)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
+  //                       &                     +     (phi(i+1,j-1)-phi(i  ,j-1))) &
+  //                       &              + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
+  //                       &                     +     (phi(i+1,j-1)-phi(i+1,j  ))))
+  //               end if
+  //               if (ccmsk(i-1,j) .eq. crse_cell) then
+  //                  Ax = Ax + sig(i-1,j)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
+  //                       &                     +     (phi(i-1,j+1)-phi(i  ,j+1))) &
+  //                       &              + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
+  //                       &                     +     (phi(i-1,j+1)-phi(i-1,j  ))))
+  //               end if
+  //               if (ccmsk(i,j) .eq. crse_cell) then
+  //                  Ax = Ax + sig(i,j)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
+  //                       &                  +      (phi(i+1,j+1)-phi(i  ,j+1))) &
+  //                       &            + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
+  //                       &                  +      (phi(i+1,j+1)-phi(i+1,j  ))))
+  //               end if
+
+  //               Axf = fc(i,j)
+
+  //               if (i .eq. ndlo(1) .and. &
+  //                    (    bclo(1) .eq. amrex_lo_neumann &
+  //                    .or. bclo(1) .eq. amrex_lo_inflow)) then
+  //                  Axf = 2.d0*Axf
+  //               else if (i.eq. ndhi(1) .and. &
+  //                    (    bchi(1) .eq. amrex_lo_neumann &
+  //                    .or. bchi(1) .eq. amrex_lo_inflow)) then
+  //                  Axf = 2.d0*Axf
+  //               end if
+
+  //               if (j .eq. ndlo(2) .and. &
+  //                    (    bclo(2) .eq. amrex_lo_neumann &
+  //                    .or. bclo(2) .eq. amrex_lo_inflow)) then
+  //                  Axf = 2.d0*Axf
+  //               else if (j .eq. ndhi(2) .and. &
+  //                    (    bchi(2) .eq. amrex_lo_neumann &
+  //                    .or. bchi(2) .eq. amrex_lo_inflow)) then
+  //                  Axf = 2.d0*Axf
+  //               end if
+
+  //               res(i,j) = rhs(i,j) - (Ax + Axf)
+  //            end if
+  //         end if
+  //      end do
+  //   end do
+  // end subroutine amrex_mlndlap_res_cf_contrib
+
+
+
+
+
+
+
+
+
+
+ 		}
  	}
 
-	Util::Message(INFO, "reflux implementation in progress");
 #else
 	Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
 #endif

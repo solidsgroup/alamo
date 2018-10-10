@@ -267,14 +267,169 @@ void
 Operator::buildMasks ()
 {
 	if (m_masks_built) return;
-	BL_PROFILE("Operator::buildMasks()");
+
+	BL_PROFILE("MLNodeLaplacian::buildMasks()");
+
 	m_masks_built = true;
+
 	m_is_bottom_singular = false;
-	int amrlev = 0;
-	int mglev = m_num_mg_levels[amrlev]-1;
-	const iMultiFab& omask = *m_owner_mask[amrlev][mglev];
-	m_bottom_dot_mask.define(omask.boxArray(), omask.DistributionMap(), 1, 0);
-	m_bottom_dot_mask.setVal(1);
+	auto itlo = std::find(m_lobc.begin(), m_lobc.end(), BCType::Dirichlet);
+	auto ithi = std::find(m_hibc.begin(), m_hibc.end(), BCType::Dirichlet);
+	// if (itlo == m_lobc.end() && ithi == m_hibc.end())
+	// {  // No Dirichlet
+	// 	m_is_bottom_singular = m_domain_covered[0];
+	// }
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	{
+		std::vector< std::pair<int,Box> > isects;
+		IArrayBox ccfab;
+
+		for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+		{
+			for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			{
+				const Geometry& geom = m_geom[amrlev][mglev];
+				const auto& period = geom.periodicity();
+				const Box& ccdomain = geom.Domain();
+				const Box& nddomain = amrex::surroundingNodes(ccdomain);
+				const std::vector<IntVect>& pshifts = period.shiftIntVect();
+
+				Box ccdomain_p = ccdomain;
+				for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+					if (Geometry::isPeriodic(idim)) {
+						ccdomain_p.grow(idim, 1);
+					}
+				}
+
+				{
+					auto& dmask = *m_dirichlet_mask[amrlev][mglev];
+					const BoxArray& ccba = m_grids[amrlev][mglev];
+
+					for (MFIter mfi(dmask, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
+					{
+						const Box& ndbx = mfi.validbox();
+						const Box& ccbx = amrex::enclosedCells(ndbx);
+						const Box& ccbxg1 = amrex::grow(ccbx,1);
+						IArrayBox& mskfab = dmask[mfi];
+                        
+						ccfab.resize(ccbxg1);
+						ccfab.setVal(1);
+						ccfab.setComplement(2,ccdomain_p,0,1);
+
+						for (const auto& iv : pshifts)
+						{
+							ccba.intersections(ccbxg1+iv, isects);
+							for (const auto& is : isects)
+							{
+								ccfab.setVal(0, is.second-iv, 0, 1);
+							}
+						}
+                        
+						amrex_mlndlap_set_dirichlet_mask(BL_TO_FORTRAN_ANYD(mskfab),
+										 BL_TO_FORTRAN_ANYD(ccfab),
+										 BL_TO_FORTRAN_BOX(nddomain),
+										 m_lobc.data(), m_hibc.data());
+					}
+				}
+			}
+		}
+	}
+
+	for (int amrlev = 0; amrlev < m_num_amr_levels-1; ++amrlev)
+	{
+		iMultiFab& cc_mask = *m_cc_fine_mask[amrlev];
+		iMultiFab& nd_mask = *m_nd_fine_mask[amrlev];
+		LayoutData<int>& has_cf = *m_has_fine_bndry[amrlev];
+		const BoxArray& fba = m_grids[amrlev+1][0];
+		const BoxArray& cfba = amrex::coarsen(fba, AMRRefRatio(amrlev));
+
+		const Box& ccdom = m_geom[amrlev][0].Domain();
+
+		AMREX_ALWAYS_ASSERT_WITH_MESSAGE(AMRRefRatio(amrlev) == 2, "ref_ratio != 0 not supported");
+
+		cc_mask.setVal(0);  // coarse by default
+
+		const std::vector<IntVect>& pshifts = m_geom[amrlev][0].periodicity().shiftIntVect();
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+		{
+			std::vector< std::pair<int,Box> > isects;
+
+			for (MFIter mfi(cc_mask); mfi.isValid(); ++mfi)
+			{
+				has_cf[mfi] = 0;
+				IArrayBox& fab = cc_mask[mfi];
+				const Box& bx = fab.box();
+				for (const auto& iv : pshifts)
+				{
+					cfba.intersections(bx+iv, isects);
+					for (const auto& is : isects)
+					{
+						fab.setVal(1, is.second-iv, 0, 1);
+					}
+					if (!isects.empty()) has_cf[mfi] = 1;
+				}
+
+				amrex_mlndlap_fillbc_cc_i(BL_TO_FORTRAN_ANYD(fab),
+							  BL_TO_FORTRAN_BOX(ccdom),
+							  m_lobc.data(), m_hibc.data());
+			}
+		}
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+		for (MFIter mfi(nd_mask,true); mfi.isValid(); ++mfi)
+		{
+			const Box& bx = mfi.tilebox();
+			amrex_mlndlap_set_nodal_mask(BL_TO_FORTRAN_BOX(bx),
+						     BL_TO_FORTRAN_ANYD(nd_mask[mfi]),
+						     BL_TO_FORTRAN_ANYD(cc_mask[mfi]));
+		}
+	}
+
+	auto& has_cf = *m_has_fine_bndry[m_num_amr_levels-1];
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (MFIter mfi(has_cf); mfi.isValid(); ++mfi)
+	{
+		has_cf[mfi] = 0;
+	}
+
+	{
+		int amrlev = 0;
+		int mglev = m_num_mg_levels[amrlev]-1;
+		const iMultiFab& omask = *m_owner_mask[amrlev][mglev];
+		m_bottom_dot_mask.define(omask.boxArray(), omask.DistributionMap(), 1, 0);
+
+		const Geometry& geom = m_geom[amrlev][mglev];
+		Box nddomain = amrex::surroundingNodes(geom.Domain());
+
+		if (m_coarsening_strategy != CoarseningStrategy::Sigma) {
+			nddomain.grow(1000); // hack to avoid masks being modified at Neuman boundary
+		}
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+		for (MFIter mfi(m_bottom_dot_mask,true); mfi.isValid(); ++mfi)
+		{
+			const Box& bx = mfi.tilebox();
+			auto& dfab = m_bottom_dot_mask[mfi];
+			const auto& sfab = omask[mfi];
+			amrex_mlndlap_set_dot_mask(BL_TO_FORTRAN_BOX(bx),
+						   BL_TO_FORTRAN_ANYD(dfab),
+						   BL_TO_FORTRAN_ANYD(sfab),
+						   BL_TO_FORTRAN_BOX(nddomain),
+						   m_lobc.data(), m_hibc.data());
+		}
+	}
 }
 
 
