@@ -18,10 +18,8 @@ namespace Elastic
 enum BC	{Displacement, Traction, Periodic}; 
 
 ///
-///
-/// \brief Implement the stress divergence equation as a linear operator
-///
-/// ### Stress divergence operator definition
+/// Stress divergence operator definition
+/// -------------------------------------
 ///
 /// The stress divergence equation is
 /// \f[ f_i = D_{\Omega}(\mathbf{u})_i
