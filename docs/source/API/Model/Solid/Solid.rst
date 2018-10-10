@@ -1,5 +1,5 @@
 Solid
---------
+~~~~~
 
 .. toctree::
    :maxdepth: 2

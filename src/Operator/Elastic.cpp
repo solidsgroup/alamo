@@ -597,6 +597,7 @@ Elastic<T>::reflux (int crse_amrlev,
 #if AMREX_SPACEDIM == 2
 	Util::Message(INFO, "reflux implementation in progress");
 
+	Util::Warning(INFO, "Reflux does not currently implement grad(C)!");
 
 	int ncomp = AMREX_SPACEDIM;
 
@@ -617,12 +618,6 @@ Elastic<T>::reflux (int crse_amrlev,
 
 	Util::Message(INFO);
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
-
-	Util::Message(INFO);
-
-	Util::Message(INFO);
-
-	if (AMREX_SPACEDIM != 2) Util::Abort("2D implementation only");
 
 	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
 	{
@@ -657,103 +652,86 @@ Elastic<T>::reflux (int crse_amrlev,
 	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 0);
 	fine_contrib.setVal(0.0);
 
+
+	const auto& fmodel = *model[crse_amrlev+1][0];
 	FArrayBox Axfab;
+
         for (MFIter mfi(fine_contrib, MFItInfo().EnableTiling().SetDynamic(true));
              mfi.isValid(); ++mfi)
 	{
-		const Box& cbx = mfi.tilebox(); // clo, chi
-		const Box& cvbx = mfi.validbox(); // cglo, cghi
+		const Box& cvbx = mfi.validbox();         const int* cglo = cvbx.loVect(), *cghi = cvbx.hiVect();// cglo, cghi
+		const Box& fvbx = amrex::refine(cvbx,2);  const int* glo  = fvbx.loVect(), *ghi  = fvbx.hiVect();// glo, ghi
+		const Box& cbx = mfi.tilebox();           const int* clo  = cbx.loVect(),  *chi  = cbx.hiVect();// clo, chi
+		const Box& fbx = amrex::refine(cbx,2);    const int* lo   = fbx.loVect(),  *hi   = fbx.hiVect();// lo, hi
 
-		const Box& fbx = amrex::refine(cbx,2); // lo, hi
-		const Box& fvbx = amrex::refine(cvbx,2); // glo, ghi
-
-
-		Util::Message(INFO, "amrlev  = ", crse_amrlev);
-		Util::Message(INFO, "cbx  = ", cbx);
-		Util::Message(INFO, "cvbx = ", cvbx);
-		Util::Message(INFO, "fbx  = ", fbx);
-		Util::Message(INFO, "fvbx = ", fvbx);
-
+		amrex::BaseFab<T> &C = (*(model[crse_amrlev+1][0]))[mfi];
 
 		const Box& bx_Ax = amrex::grow(fbx,1);
 		const Box& b2 = bx_Ax & amrex::grow(fvbx,-1);
-
 		Axfab.resize(bx_Ax,ncomp);
 		Axfab.setVal(0.0);
-		Axfab.copy(fine_rhs[mfi], b2, 0, b2, 0, 1);
-		Axfab.minus(fine_res[mfi], b2, 0, 0, 1);
+		Axfab.copy(fine_rhs[mfi], b2, 0, b2, 0, ncomp);
+		Axfab.minus(fine_res[mfi], b2, 0, 0, ncomp);
 
-		amrex::IntVect gtlo(std::min(fbx.loVect()[0]-1, fvbx.loVect()[0]),
-				    std::min(fbx.loVect()[1]-1, fvbx.loVect()[1]));
+		amrex::IntVect gtlo(std::max(lo[0]-1, glo[0]),
+				    std::max(lo[1]-1, glo[1]));
 
-		amrex::IntVect gthi(std::max(fbx.loVect()[0]+1, fvbx.loVect()[0]),
-				    std::min(fbx.loVect()[1]+1, fvbx.loVect()[1]));
+		amrex::IntVect gthi(std::min(hi[0]+1, ghi[0]),
+				    std::min(hi[1]+1, ghi[1]));
 
 		FArrayBox &ufab = fine_sol[mfi];
 		FArrayBox &ffab = fine_contrib[mfi];
-		amrex::BaseFab<T> &C = (*(model[crse_amrlev+1][0]))[mfi];
 
-		for (int m1 = gtlo[0]; m1<=gthi[0]; m1++)
 		for (int m2 = gtlo[1]; m2<=gthi[1]; m2++)
-		{
-			amrex::IntVect m(m1, m2);
+		{	
+			int step;
+			if (m2 == glo[1] || m2 == ghi[1]) step = 1;
+			else step=gthi[0] - gtlo[0];
 
-			bool    xmin = (m1 == gtlo[0]),
-				ymin = (m2 == gtlo[1]),
-				xmax = (m1 == gthi[0]),
-				ymax = (m2 == gthi[1]);
-
-			// Consider boundary terms only
-			if (!(xmin || ymin || xmax || ymin)) continue; 
-
-			
-			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
-
-			// The gradient of the displacement gradient tensor
-			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
-
-
-			// Fill gradu and gradgradu
-			for (int i = 0; i < AMREX_SPACEDIM; i++)
+			for (int m1 = gtlo[0]; m1<=gthi[0]; m1 += step)
 			{
-				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			}
+				if (m1 == glo[0] || m1 == ghi[0] || step==1)
+				{
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-			Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-			// Stress tensor computed using the model fab
-			Set::Matrix sig = C(m)(eps);
+					Set::Matrix gradu; 
+					std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; 
 
-			for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
-				for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
-					if (m[j] == gtlo[j])
-						Axfab(m,i) = -sig(i,j);
-					else if (m[j] == gthi[j])
-						Axfab(m,i) = +sig(i,j);
-
-			for (int i = 0; i < ncomp ; i++)
-				for (int m1 = cbx.loVect()[0]; m1<=cbx.loVect()[0]+1; m1++)
-					for (int m2 = cbx.loVect()[1]; m2<=cbx.loVect()[1]+1; m2++)
+					// Fill gradu and gradgradu
+					for (int i = 0; i < AMREX_SPACEDIM; i++)
 					{
-						amrex::IntVect m(m1, m2);
-						bool    xmin = (m1 == cbx.loVect()[0]),
-							ymin = (m2 == cbx.loVect()[1]),
-							xmax = (m1 == cbx.hiVect()[0]),
-							ymax = (m2 == cbx.hiVect()[1]);
-						if (!(xmin || ymin || xmax || ymax)) continue;
-						ffab(m,i) = ffab(m,i) + (0.25)*Axfab(2*m,i)
-							+ (0.5)*(Axfab(2*m + dx[0]) +
-								 Axfab(2*m - dx[0]) +
-								 Axfab(2*m + dx[1]) +
-								 Axfab(2*m - dx[1]))
-							+ (0.25)*(Axfab(2*m - dx[0] - dx[1]) +
-								  Axfab(2*m - dx[0] + dx[1]) +
-								  Axfab(2*m + dx[1] - dx[1]) +
-								  Axfab(2*m + dx[1] + dx[1]));
-				
-					
+						AMREX_D_TERM(gradu(i,0) = (ufab(m+dx[0],i) - ufab(m-dx[0],i))/(2.0*DX[0]);,
+							     gradu(i,1) = (ufab(m+dx[1],i) - ufab(m-dx[1],i))/(2.0*DX[1]);,
+							     gradu(i,2) = (ufab(m+dx[2],i) - ufab(m-dx[2],i))/(2.0*DX[2]););
+
+						AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
+							     ,// 2D
+							     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
+							     gradgradu[i](1,0) = gradgradu[i](0,1);
+							     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/DX[1]/DX[1];
+							     ,// 3D
+							     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*DX[0])/(2.0*DX[2]);
+							     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*DX[1])/(2.0*DX[2]);
+							     gradgradu[i](2,0) = gradgradu[i](0,2);
+							     gradgradu[i](2,1) = gradgradu[i](1,2);
+							     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
 					}
+
+					// Strain tensor
+					Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+					// Stress tensor computed using the model fab
+					Set::Matrix sig = C(m)(eps);
+
+					Set::Vector f =
+						C(m)(gradgradu)
+						// + AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+						// 	       + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+						// 	       + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2))
+						;
+					for (int i = 0; i < AMREX_SPACEDIM; i++)
+						Axfab(m,i) = f(i);
+				}
+			}
 		}
 	}
 	MultiFab fine_contrib_on_crse(crse_sol.boxArray(), crse_sol.DistributionMap(), 1, 0);

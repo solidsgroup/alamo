@@ -74,6 +74,26 @@ void Message (std::string file, std::string func, int line, Args const &... args
 		std::cout << info << message << std::endl;
 }
 
+template<typename... Args>
+void Warning (std::string file, std::string func, int line, Args const &... args)
+{
+	std::ostringstream infostream;
+	infostream << Color::Bold << Color::FG::Yellow << "WARNING" << Color::Reset << ": ";
+	infostream << Color::FG::Yellow << file << Color::Reset << ":" << line << " ";
+	infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+	std::string info = infostream.str();
+
+	std::ostringstream messagestream;
+	using List= int[];
+	(void)List{0, ( (void)(messagestream << args), 0 ) ... };
+	std::string message = messagestream.str();
+
+	String::ReplaceAll(message,'\n',"\n"+info);
+
+	if (amrex::ParallelDescriptor::IOProcessor())
+		std::cout << info << message << std::endl;
+}
+
 void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
 
 }
