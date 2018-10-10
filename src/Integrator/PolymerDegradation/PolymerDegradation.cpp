@@ -830,14 +830,14 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	//				((BC::Changeable *)elastic_bc)->GetBCTypes<amrex::LinOpBCType>()[1]);
 
 	//elastic_operator->SetEta(eta_new,*eta_bc,models);
-	AMREX_D_TERM(	Numeric::Interpolator::Linear::Linear<Set::Vector> interpolate_left(elastic_bc_left,elastic_bc_left_t);
-					Numeric::Interpolator::Linear::Linear<Set::Vector> interpolate_right(elastic_bc_right,elastic_bc_right_t);
+	AMREX_D_TERM(	Numeric::Interpolator::Linear<Set::Vector> interpolate_left(elastic_bc_left,elastic_bc_left_t);
+					Numeric::Interpolator::Linear<Set::Vector> interpolate_right(elastic_bc_right,elastic_bc_right_t);
 					,
-					Numeric::Interpolator::Linear::Linear<Set::Vector> interpolate_bottom(elastic_bc_bottom,elastic_bc_bottom_t);
-					Numeric::Interpolator::Linear::Linear<Set::Vector> interpolate_top(elastic_bc_top,elastic_bc_top_t);
+					Numeric::Interpolator::Linear<Set::Vector> interpolate_bottom(elastic_bc_bottom,elastic_bc_bottom_t);
+					Numeric::Interpolator::Linear<Set::Vector> interpolate_top(elastic_bc_top,elastic_bc_top_t);
 					,
-					Numeric::Interpolator::Linear::Linear<Set::Vector> interpolate_back(elastic_bc_back,elastic_bc_back_t);
-					Numeric::Interpolator::Linear::Linear<Set::Vector> interpolate_front(elastic_bc_front,elastic_bc_front_t););
+					Numeric::Interpolator::Linear<Set::Vector> interpolate_back(elastic_bc_back,elastic_bc_back_t);
+					Numeric::Interpolator::Linear<Set::Vector> interpolate_front(elastic_bc_front,elastic_bc_front_t););
 
 	for (int ilev = 0; ilev < displacement.size(); ++ilev)
 	{

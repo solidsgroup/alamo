@@ -1,13 +1,13 @@
-#ifndef MODEL_SOLID_ELASTIC_ISOTROPIC_H_
-#define MODEL_SOLID_ELASTIC_ISOTROPIC_H_
+#ifndef MODEL_SOLID_ELASTIC_DEGRADABLE_ISOTROPIC_H_
+#define MODEL_SOLID_ELASTIC_DEGRADABLE_ISOTROPIC_H_
 
 #include <AMReX.H>
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
 
-#include "Util/Util.H"
 #include "Set/Set.H"
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Solid.H"
+#include "Util/Util.H"
 
 namespace Model
 {
@@ -15,9 +15,9 @@ namespace Solid
 {
 namespace Elastic
 {
-namespace Isotropic
+namespace Degradable
 {
-class Isotropic : public Model::Solid::Elastic::Elastic
+class Isotropic : Model::Solid::Solid
 {
 public:
 	Isotropic() {} ;
@@ -44,6 +44,29 @@ public:
 	virtual Isotropic operator / (const Set::Scalar alpha)
 	{return Isotropic(mu/alpha, lambda/alpha);}
 
+	void DegradeModulus(const amrex::Vector<Set::Scalar> &eta)
+	{
+		if(eta.size() == 0) return;
+		else if(eta.size() == 1)
+		{
+			if(std::isnan(eta[0])) Util::Abort("Nans in eta");
+			if(std::isinf(eta[0])) Util::Abort("Infs in eta");
+			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort("Invalid value of eta");
+			lambda *= (1.0-eta[0]);
+			mu *= (1.0-eta[0]);
+		}
+		else if(eta.size() == 2)
+		{
+			if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort("Nans in eta");
+			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort("Infs in eta");
+			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort("Invalid value of eta");
+			lambda *= (1.0-eta[0]);
+			mu *= (1.0-eta[1]);
+		}
+		else
+			return;
+	}
+
 private:
 	Set::Scalar mu, lambda;
 };
@@ -52,7 +75,6 @@ private:
 }
 }
 }
-
 #endif
 
 

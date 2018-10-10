@@ -7,16 +7,12 @@
 #include "Set/Set.H"
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
-#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
+#include "Model/Solid/Elastic/Isotropic.H"
 
 using namespace amrex;
 
 namespace Operator
 {
-namespace Elastic
-{
-enum BC	{Displacement, Traction, Periodic}; 
-
 ///
 /// Stress divergence operator definition
 /// -------------------------------------
@@ -65,6 +61,8 @@ template<class T>
 class Elastic : public Operator
 {
 public:
+	enum class BC {Displacement, Traction, Periodic}; 
+
 	Elastic () {}
 	Elastic (const Vector<Geometry>& a_geom,
 		 const Vector<BoxArray>& a_grids,
@@ -124,7 +122,6 @@ private:
 	/// The models contain elastic constants and contain methods for converting strain to stress
 	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > model;
 };
-}
 }
 
 #endif

@@ -1,13 +1,11 @@
-#include "Model/Solid/Elastic/Isotropic/Isotropic.H"
-#include "Model/Solid/Elastic/Cubic/Cubic.H"
+#include "Model/Solid/Elastic/Isotropic.H"
+#include "Model/Solid/Elastic/Cubic.H"
+#include "Model/Solid/Elastic/Degradable/Isotropic.H"
 #include "Elastic.H"
 
 
 namespace Operator
 {
-namespace Elastic
-{
-
 template<class T>
 Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
 		     const Vector<BoxArray>& a_grids,
@@ -596,6 +594,7 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
+#if AMREX_SPACEDIM == 2
 	Util::Message(INFO, "reflux implementation in progress");
 
 
@@ -791,16 +790,14 @@ Elastic<T>::reflux (int crse_amrlev,
  	}
 
 	Util::Message(INFO, "reflux implementation in progress");
-}
-
-
-
-
-
-
-template class Elastic<Model::Solid::Elastic::Isotropic::Isotropic>;
-template class Elastic<Model::Solid::Elastic::Cubic::Cubic>;
-
+#else
+	Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
+#endif
 
 }
+template class Elastic<Model::Solid::Elastic::Isotropic>;
+template class Elastic<Model::Solid::Elastic::Cubic>;
+template class Elastic<Model::Solid::Elastic::Degradable::Isotropic>;
+
 }
+

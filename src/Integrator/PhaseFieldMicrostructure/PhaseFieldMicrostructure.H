@@ -1,8 +1,8 @@
 ///
 /// \file PhaseFieldMicrostructure.H
 ///
-#ifndef PHASEFIELDMICROSTRUCTURE_H
-#define PHASEFIELDMICROSTRUCTURE_H
+#ifndef INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
+#define INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 
 #include <iostream>
 #include <fstream>
@@ -17,8 +17,8 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
-#include "IC/TabulatedInterface/TabulatedInterface.H"
-#include "IC/PerturbedInterface/PerturbedInterface.H"
+#include "IC/TabulatedInterface.H"
+#include "IC/PerturbedInterface.H"
 #include "IC/Voronoi/Voronoi.H"
 
 #include "Model/Interface/GrainBoundary/GrainBoundary.H"

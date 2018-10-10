@@ -10,6 +10,7 @@ Welcome to alamo's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   Convention
    API/API
 
 

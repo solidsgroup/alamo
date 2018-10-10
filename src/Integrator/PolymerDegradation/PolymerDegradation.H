@@ -19,13 +19,13 @@
 #include "BC/Constant.H"
 #include "IC/IC.H"
 #include "IC/Constant/Constant.H"
-#include "Numeric/Interpolator/Linear/Linear.H"
+#include "Numeric/Interpolator/Linear.H"
 #include "Util/Util.H"
 #include "IO/FileNameParse.H"
 
 
-#include "Operator/Elastic/Elastic.H"
-#include "Model/Solid/Elastic/Isotropic/Degradable/Isotropic.H"
+#include "Operator/Elastic.H"
+#include "Model/Solid/Elastic/Degradable/Isotropic.H"
 
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -149,12 +149,12 @@ private:
 
 	// Elastic BC
 	BC::BC *elastic_bc;
-	std::map<std::string,Operator::Elastic::BC> 			bc_map;
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
+	std::map<std::string,Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC > 			bc_map;
+	std::array<Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
 #if AMREX_SPACEDIM > 1
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
+	std::array<Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
 #if AMREX_SPACEDIM > 2
-	std::array<Operator::Elastic::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
+	std::array<Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
 #endif
 #endif
 
@@ -173,11 +173,11 @@ private:
 
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
-	Operator::Elastic::Elastic<Model::Solid::Elastic::Degradable::Isotropic::Isotropic> *elastic_operator;
+	Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic> *elastic_operator;
 
 	// Material model
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic::Isotropic> > > model;
-	Model::Solid::Elastic::Degradable::Isotropic::Isotropic modeltype;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic> > > model;
+	Model::Solid::Elastic::Degradable::Isotropic modeltype;
 	std::string 	input_material = "isotropic";
 
 };
