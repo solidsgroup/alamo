@@ -10,11 +10,21 @@ namespace Solid
 {
 namespace Elastic
 {
+///
+/// The Elastic model provides a structure for computing
+/// \f[\mathbb{C}_{ijkl}\varepsilon_{kl}\f]
+/// that contains the data stored in \f$\mathbb{C}\f$ in an efficient way.
+/// For a general material \f$\mathbb{C}\f$ contains 81 constants.
+/// This can be reduced by making assumptions about the material.
+///
 class Elastic : public Solid
 {
 public:
 	Elastic() {};
 
+	///
+	/// Print the coefficients of the Elastic operator using Voigt notation
+	///
 	void Print()
 	{
 
