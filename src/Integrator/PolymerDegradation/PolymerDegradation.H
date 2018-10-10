@@ -81,14 +81,14 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;		///< Temperature for the __previous__timestep
 
 	// For mechanical degradation to be studied later
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<amrex::MultiFab> displacement; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<amrex::MultiFab> strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<amrex::MultiFab> stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<amrex::MultiFab> stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<amrex::MultiFab> rhs; ///< Multicomponent field variable storing pointwise displacements
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	amrex::Vector<amrex::MultiFab> energy; ///< Single component variable storing strain energy
+	amrex::Vector<amrex::MultiFab> energies; ///< Multicomponent field variable storing individual strain energies
 
 	Set::Scalar M, mu, gamma, sigma0, l_gb, beta;
 	int anisotropy = 0;
@@ -117,7 +117,7 @@ private:
 
 	// Damage parameters
 	std::string		damage_type;
-	bool					damage_anisotropy 					= 0;
+	bool					damage_anisotropy 					= false;
 	int						number_of_eta 							= 1;
 	Set::Scalar		damage_refinement_threshold = 0.01;
 	std::string 	eta_ic_type;
@@ -177,7 +177,7 @@ private:
 
 	// Material model
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic::Isotropic> > > model;
-	Model::Solid::Elastic::Degradable::Isotropic::Isotropic modeltype;
+	Model::Solid::Elastic::Degradable::Isotropic::Isotropic *modeltype;
 	std::string 	input_material = "isotropic";
 
 };
