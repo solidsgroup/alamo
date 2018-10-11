@@ -340,7 +340,6 @@ void
 Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 {
 	// See FApply for documentation. 
-
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -636,7 +635,7 @@ Elastic<T>::reflux (int crse_amrlev,
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
-				crse(m_crse,n) =
+				crse(m_crse,n) +=
 					(fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) + fine(m_fine+dx[0]-dx[1],n)
 					 + 2.0*fine(m_fine-dx[0],n) + 4.0*fine(m_fine,n)  + 2.0*fine(m_fine+dx[0],n) 
 					 + fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) + fine(m_fine+dx[0]+dx[1],n))/16.0;
@@ -661,6 +660,28 @@ Elastic<T>::reflux (int crse_amrlev,
 		const Box& fvbx = amrex::refine(cvbx,2);  const int* glo  = fvbx.loVect(), *ghi  = fvbx.hiVect();// glo, ghi
 		const Box& cbx = mfi.tilebox();           const int* clo  = cbx.loVect(),  *chi  = cbx.hiVect();// clo, chi
 		const Box& fbx = amrex::refine(cbx,2);    const int* lo   = fbx.loVect(),  *hi   = fbx.hiVect();// lo, hi
+
+		// amrex_mlndlap_res_fine_contrib(BL_TO_FORTRAN_BOX(cbx), // clo, chi
+		// 			       BL_TO_FORTRAN_BOX(cvbx), // cglo, cghi
+		// 			       BL_TO_FORTRAN_ANYD(fine_contrib[mfi]), // f, flo, fhi
+		// 			       BL_TO_FORTRAN_ANYD(fine_sol[mfi]), // x, xlo, xhi
+		// 			       BL_TO_FORTRAN_ANYD(sigfab), // sig, slo, shi
+		// 			       BL_TO_FORTRAN_ANYD(Axfab), // Ax alo, ahi
+		// 			       BL_TO_FORTRAN_ANYD(fdmsk[mfi]), // msk, mlo, mhi
+		// 			       fdxinv); // dxinv
+
+
+    // gtlo = max(lo-1,glo)
+    // gthi = min(hi+1,ghi)
+
+    // do jj = gtlo(2), gthi(2)
+    //    if (jj .eq. glo(2) .or. jj .eq. ghi(2)) then
+    //       step = 1
+    //    else
+    //       step = gthi(1)-gtlo(1)
+    //    end if
+    //    do ii = gtlo(1), gthi(1), step
+
 
 		amrex::BaseFab<T> &C = (*(model[crse_amrlev+1][0]))[mfi];
 
@@ -727,7 +748,7 @@ Elastic<T>::reflux (int crse_amrlev,
 						// 	       + ((C(m+dx[2]) - C(m-dx[2]))/2.0/fDX[2])(gradu).col(2))
 						;
 					for (int i = 0; i < AMREX_SPACEDIM; i++)
-						Axfab(m,i) = f(i);
+						Axfab(m,i) += f(i);
 				}
 			}
 		}
