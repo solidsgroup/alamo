@@ -3,7 +3,7 @@
 #include <iomanip>
 
 #include "AMReX.H"
-
+#include "Util/Util.H"
 //#if AMREX_SPACEDIM == 1
 
 #include "Integrator/PolymerDegradation/PolymerDegradation.H"
@@ -15,7 +15,7 @@ int main (int argc, char* argv[])
 		std::cout << "Missing input file" << std::endl;
 		exit(-1);
 	}
-	amrex::Initialize(argc,argv);
+	Util::Initialize(argc,argv);
 
 	srand(1.0*amrex::ParallelDescriptor::MyProc());
 	{
@@ -24,7 +24,7 @@ int main (int argc, char* argv[])
 		model.Evolve();
 	}
   
-	amrex::Finalize();
+	Util::Finalize();
 } 
 
 //#else
