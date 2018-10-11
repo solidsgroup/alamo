@@ -754,7 +754,7 @@ Elastic<T>::reflux (int crse_amrlev,
  	{
  		if ((*has_fine_bndry)[mfi])
  		{
-
+			amrex::BaseFab<T> &C = (*(model[crse_amrlev][0]))[mfi];
 
 
 
@@ -782,43 +782,56 @@ Elastic<T>::reflux (int crse_amrlev,
 
 				if (nd_mask[mfi](m) != crse_fine_node) continue; // Only proceed if on a coarse/fine boundary
 				
-				Set::Scalar Ax = 0.0;
+				Set::Vector Ax = Set::Vector::Zero();
+				Set::Vector nx(1.0, 0), ny(0,1.0);
 
 				Set::Matrix gradu;
 				
 
-				if (cc_mask[mfi](m-dx[0]-dx[1]) ==  crse_cell)
+				for (int i = 0; i < ncomp ; i++)
 				{
-					// for (int i = 0; i < ncomp ; i++)
-					// {
-					// 	AMREX_D_TERM(gradu(i,0) = (ufab(m+dx[0],i) - ufab(m-dx[0],i))/(2.0*cDX[0]);,
-					// 		     gradu(i,1) = (ufab(m+dx[1],i) - ufab(m-dx[1],i))/(2.0*cDX[1]);,
-					// 		     gradu(i,2) = (ufab(m+dx[2],i) - ufab(m-dx[2],i))/(2.0*cDX[2]););
-					// }
+					if (cc_mask[mfi](m-dx[0]-dx[1]) ==  crse_cell)
+					{
+						gradu(i,0) = (ufab(m,i) - ufab(m-dx[0],i))/(cDX[0]);
+						gradu(i,1) = (ufab(m,i) - ufab(m-dx[1],i))/(cDX[1]);
+						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+						Set::Matrix sig = C(m)(eps);
+						Ax -= sig*nx;
+					}
+					if (cc_mask[mfi](m-dx[1]) ==  crse_cell)
+					{
+						gradu(i,0) = (ufab(m+dx[0],i) - ufab(m,i))/(cDX[0]);
+						gradu(i,1) = (ufab(m,i) - ufab(m-dx[1],i))/(cDX[1]);
+						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+						Set::Matrix sig = C(m)(eps);
+						Ax -= sig*ny;
+					}
+					if (cc_mask[mfi](m-dx[0]) ==  crse_cell)
+					{
+						gradu(i,0) = (ufab(m,i) - ufab(m-dx[0],i))/(cDX[0]);
+						gradu(i,1) = (ufab(m+dx[1],i) - ufab(m,i))/(cDX[1]);
+						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+						Set::Matrix sig = C(m)(eps);
+						Ax += sig*nx;
+					}
+					if (cc_mask[mfi](m) ==  crse_cell)
+					{
+						gradu(i,0) = (ufab(m+dx[0],i) - ufab(m,i))/(cDX[0]);
+						gradu(i,1) = (ufab(m+dx[1],i) - ufab(m,i))/(cDX[1]);
+						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+						Set::Matrix sig = C(m)(eps);
+						Ax += sig*ny;
+					}
 				}
+
+				Set::Vector Axf;
+				Axf(0) = fine_contrib_on_crse[mfi](m,0);
+				Axf(1) = fine_contrib_on_crse[mfi](m,1);
 				
-			
+				// res[mfi](m,0) = crse_rhs[mfi](m,0) - (Ax(0) + Axf(0));
+				// res[mfi](m,1) = crse_rhs[mfi](m,1) - (Ax(1) + Axf(1));
+
 			}
-
-
-			
-
-
-  // subroutine amrex_mlndlap_res_cf_contrib (lo, hi, res, rlo, rhi, phi, phlo, phhi, &
-  //      rhs, rhlo, rhhi, sig, slo, shi, dmsk, mlo, mhi, ndmsk, nmlo, nmhi, ccmsk, cmlo, cmhi, &
-  //      fc, clo, chi, dxinv, ndlo, ndhi, bclo, bchi) &
-  //      bind(c,name='amrex_mlndlap_res_cf_contrib')
-  //   integer, dimension(2), intent(in) :: lo, hi, rlo, rhi, phlo, phhi, rhlo, rhhi, slo, shi, &
-  //        mlo, mhi, nmlo, nmhi, cmlo, cmhi, clo, chi, ndlo, ndhi, bclo, bchi
-  //   real(amrex_real), intent(in) :: dxinv(2)
-  //   real(amrex_real), intent(inout) :: res( rlo(1): rhi(1), rlo(2): rhi(2))
-  //   real(amrex_real), intent(in   ) :: phi(phlo(1):phhi(1),phlo(2):phhi(2))
-  //   real(amrex_real), intent(in   ) :: rhs(rhlo(1):rhhi(1),rhlo(2):rhhi(2))
-  //   real(amrex_real), intent(in   ) :: sig( slo(1): shi(1), slo(2): shi(2))
-  //   real(amrex_real), intent(inout) :: fc ( clo(1): chi(1), clo(2): chi(2))
-  //   integer, intent(in) ::  dmsk( mlo(1): mhi(1), mlo(2): mhi(2))
-  //   integer, intent(in) :: ndmsk(nmlo(1):nmhi(1),nmlo(2):nmhi(2))
-  //   integer, intent(in) :: ccmsk(cmlo(1):cmhi(1),cmlo(2):cmhi(2))
 
   //   integer :: i,j
   //   real(amrex_real) :: Ax, Axf, facx, facy
