@@ -311,6 +311,7 @@ PolymerDegradation::PolymerDegradation():
 
 		pp_elastic.query("bottom_solver",bottom_solver);
 		pp_elastic.query("linop_maxorder", linop_maxorder);
+		pp_elastic.query("max_coarsening_level",max_coarsening_level);
 		if (pp_elastic.countval("body_force")) pp_elastic.getarr("body_force",body_force);
 
 		amrex::ParmParse pp_elastic_bc("elastic.bc");
@@ -502,7 +503,7 @@ PolymerDegradation::PolymerDegradation():
 		LPInfo info;
 		info.setAgglomeration(agglomeration);
 		info.setConsolidation(consolidation);
-		info.setMaxCoarseningLevel(0);
+		info.setMaxCoarseningLevel(max_coarsening_level);
 		elastic_operator.define(geom, ngrids, ndmap, info);
 		elastic_operator.setMaxOrder(linop_maxorder);
 
