@@ -5,7 +5,7 @@ namespace Integrator
 PolymerDegradation::PolymerDegradation():
 	Integrator()
 {
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	//
 	// READ INPUT PARAMETERS
 	//
@@ -65,7 +65,7 @@ PolymerDegradation::PolymerDegradation():
 		RegisterNewFab(water_conc,     water_bc, 1, number_of_ghost_cells, "Water Concentration");
 		RegisterNewFab(water_conc_old, water_bc, 1, number_of_ghost_cells, "Water Concentration Old");
 	}
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Heat diffusion -------------------------------
 	// ---------------------------------------------------------------------
@@ -119,7 +119,7 @@ PolymerDegradation::PolymerDegradation():
 		RegisterNewFab(Temp,     thermal_bc, 1, number_of_ghost_cells, "Temperature");
 		RegisterNewFab(Temp_old, thermal_bc, 1, number_of_ghost_cells, "Temperature Old");
 	}
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
 	// ---------------------------------------------------------------------
@@ -173,7 +173,7 @@ PolymerDegradation::PolymerDegradation():
 		}
 		models.push_back(new Operator::Elastic::Degradation::Cubic(C11,C12,C44,0.0,0.0,0.0));*/
 	}
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Damage model ----------------------------------
 	// ---------------------------------------------------------------------
@@ -263,7 +263,7 @@ PolymerDegradation::PolymerDegradation():
 	RegisterNewFab(eta_new, eta_bc, number_of_eta, number_of_ghost_cells, "Eta");
 	RegisterNewFab(eta_old, eta_bc, number_of_eta, number_of_ghost_cells, "Eta old");
 
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Elasticity parameters -------------------------
 	// ---------------------------------------------------------------------
@@ -664,7 +664,7 @@ PolymerDegradation::Initialize (int lev)
 		stress_vm[lev].setVal(0.0);
 		rhs[lev].setVal(0.0);
 		energy[lev].setVal(0.0);
-		energies[lev].setVal(0.0);
+		//energies[lev].setVal(0.0);
 	}
 	eta_ic->Initialize(lev,eta_new);
 	eta_ic->Initialize(lev,eta_old);
@@ -785,7 +785,7 @@ PolymerDegradation::DegradeMaterial(int lev)
 	damage model.
 	For now we are just using isotropic degradation.
 	*/
-	if(!damage_anisotropy)
+	if(damage_anisotropy)
 		Util::Abort(__FILE__,"DegradeModulus",__LINE__,"Not implemented yet");
 
 	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
