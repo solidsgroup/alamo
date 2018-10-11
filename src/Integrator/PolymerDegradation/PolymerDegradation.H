@@ -101,52 +101,53 @@ private:
 	amrex::Real damp;
 
 	// Water diffusion parameters
-	bool 					water_diffusion_on 					=	false;
-	Set::Scalar 	water_diffusivity						=	1.0;
+	bool 			water_diffusion_on 			=	false;
+	Set::Scalar 	water_diffusivity			=	1.0;
 	Set::Scalar 	water_refinement_threshold 	=	0.01;
 	std::string 	water_ic_type;
-	IC::IC				*water_ic;
-	BC::BC				*water_bc;
+	IC::IC			*water_ic;
+	BC::BC			*water_bc;
 
 	// Thermal diffusion parameters
-	bool					heat_diffusion_on 						=	false;
-	Set::Scalar 	thermal_diffusivity 					=	1.0;
+	bool			heat_diffusion_on 				=	false;
+	Set::Scalar 	thermal_diffusivity 			=	1.0;
 	Set::Scalar 	thermal_refinement_threshold 	=	0.01;
 	std::string		thermal_ic_type;
-	IC::IC				*thermal_ic;
-	BC::BC				*thermal_bc;
+	IC::IC			*thermal_ic;
+	BC::BC			*thermal_bc;
 
 	// Damage parameters
 	std::string		damage_type;
-	bool					damage_anisotropy 					= false;
-	int						number_of_eta 							= 1;
-	Set::Scalar		damage_refinement_threshold = 0.01;
+	bool			damage_anisotropy 			= false;
+	int				number_of_eta 				= 1;
+	Set::Scalar		damage_refinement_threshold	= 0.01;
 	std::string 	eta_ic_type;
-	IC::IC				*eta_ic;
-	BC::BC				*eta_bc;
+	IC::IC			*eta_ic;
+	BC::BC			*eta_bc;
 
 	// Damage model: water relaxation
-	int 												number_of_terms = 4;
+	int 						number_of_terms	= 4;
 	amrex::Vector<Set::Scalar> 	d_i;
-	Set::Scalar 								d_final 				= 1.0;
+	Set::Scalar 				d_final 		= 1.0;
 	amrex::Vector<Set::Scalar> 	tau_i;
 	amrex::Vector<Set::Scalar> 	t_start_i;
 
 	// Elasticity parameters
-	bool        elastic_on 						= false;
-	int         elastic_int 					= 1;
+	bool        elastic_on 				= false;
+	int         elastic_int 			= 1;
 	std::string elastic_type;
-	int         elastic_max_iter 			= 200;
+	int         elastic_max_iter 		= 200;
 	int         elastic_max_fmg_iter 	= 0;
-	int         elastic_verbose 			= 3;
+	int         elastic_verbose 		= 3;
 	int         elastic_cgverbose 		= 3;
-	Set::Scalar elastic_tol_rel 			= 1.0E-5;
-	Set::Scalar elastic_tol_abs 			= 1.0E-5;
-	Set::Scalar elastic_tstart 				= 0.0;
-	Set::Scalar elastic_tend 					= 0.0;
-	std::string bottom_solver 				= "bicgstab";
-	int 				linop_maxorder 	     	= 2;
-	bool	    	elastic_use_fsmooth 	= false;
+	Set::Scalar elastic_tol_rel 		= 1.0E-5;
+	Set::Scalar elastic_tol_abs 		= 1.0E-5;
+	Set::Scalar elastic_tstart 			= 0.0;
+	Set::Scalar elastic_tend 			= 0.0;
+	std::string bottom_solver			= "bicgstab";
+	int 		linop_maxorder 	     	= 2;
+	bool	    elastic_use_fsmooth 	= false;
+	int 		max_coarsening_level	= 0;
 
 	// Elastic BC
 	BC::BC *elastic_bc;
