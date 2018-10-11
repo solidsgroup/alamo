@@ -186,10 +186,10 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 			//
 			Set::Vector f =
-				C(m)(gradgradu) + 
-				AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				  	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+				C(m)(gradgradu);// + 
+				// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				//  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				//   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
 		}
@@ -313,15 +313,15 @@ Elastic<T>::Fsmooth (int amrlev,
 					else
 					{
 						Set::Vector fD =
-							C(m)(gradgraduD) + 
-							AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
-								     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsD).col(1),
-								     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsD).col(2));
+							C(m)(gradgraduD);// + 
+							// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
+							// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsD).col(1),
+							// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsD).col(2));
 						Set::Vector fU =
-							C(m)(gradgraduU) + 
-							AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
-								     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsU).col(1),
-								     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsU).col(2));
+							C(m)(gradgraduU);// + 
+							// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
+							// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsU).col(1),
+							// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsU).col(2));
 						aa += fD(i);
 						rho += fU(i);
 					}
@@ -421,10 +421,10 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 				else
 				{
 					Set::Vector f =
-						C(m)(gradgradu) + 
-						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
-							     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
-							     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+						C(m)(gradgradu);// + 
+						// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+						// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
+						// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
 					aa += f(i);
 				}
 
@@ -789,12 +789,12 @@ Elastic<T>::reflux (int crse_amrlev,
 
 				if (cc_mask[mfi](m-dx[0]-dx[1]) ==  crse_cell)
 				{
-					for (int i = 0; i < ncomp ; i++)
-					{
-						AMREX_D_TERM(gradu(i,0) = (ufab(m+dx[0],i) - ufab(m-dx[0],i))/(2.0*cDX[0]);,
-							     gradu(i,1) = (ufab(m+dx[1],i) - ufab(m-dx[1],i))/(2.0*cDX[1]);,
-							     gradu(i,2) = (ufab(m+dx[2],i) - ufab(m-dx[2],i))/(2.0*cDX[2]););
-					}
+					// for (int i = 0; i < ncomp ; i++)
+					// {
+					// 	AMREX_D_TERM(gradu(i,0) = (ufab(m+dx[0],i) - ufab(m-dx[0],i))/(2.0*cDX[0]);,
+					// 		     gradu(i,1) = (ufab(m+dx[1],i) - ufab(m-dx[1],i))/(2.0*cDX[1]);,
+					// 		     gradu(i,2) = (ufab(m+dx[2],i) - ufab(m-dx[2],i))/(2.0*cDX[2]););
+					// }
 				}
 				
 			
@@ -830,8 +830,6 @@ Elastic<T>::reflux (int crse_amrlev,
   //      do i = lo(1), hi(1)
   //         if (dmsk(i,j) .ne. dirichlet) then
   //            if (ndmsk(i,j) .eq. crse_fine_node) then
-
-
   //               Ax = 0.d0
   //               if (ccmsk(i-1,j-1) .eq. crse_cell) then
   //                  Ax = Ax + sig(i-1,j-1)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
