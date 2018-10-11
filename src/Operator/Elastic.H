@@ -14,8 +14,7 @@ using namespace amrex;
 namespace Operator
 {
 ///
-/// Stress divergence operator definition
-/// -------------------------------------
+/// **Stress divergence operator definition**
 ///
 /// The stress divergence equation is
 /// \f[ f_i = D_{\Omega}(\mathbf{u})_i
@@ -24,12 +23,12 @@ namespace Operator
 /// Where \f$\mathbf{f}\f$ is the vector of nodal forces, \f$\mathbf{u}\f$ the vector of
 /// nodal displacements, and \f$\mathbb{C}_{ijkl}\f$ the fourth-order elasticity tensor.
 /// 
-/// ### Boundary operator
+/// **Boundary operator**
 ///
 /// If a point is located on the boundary then a boundary operator is used rather than
 /// the stress divergence operator.
 ///
-/// #### Dirichlet/Essential/Displacement BC Operator
+/// *Dirichlet/Essential/Displacement BC Operator*
 /// For a Dirichlet point the Dirichlet boundary operator is used, \f$D_{\Omega_1}\f$.
 /// This is nothing other than the identity operator, i.e.
 /// \f[ D_{\Omega_1}(\mathbf{u}) = \mathbf{u}, \f]
@@ -37,7 +36,7 @@ namespace Operator
 /// The _value_ of the displacement is thus determined by the value of the corresponding point
 /// in the right hand side during the solve.
 /// 
-/// #### Natural/Traction BC Operator
+/// *Natural/Traction BC Operator*
 /// This operator is _similar_ (but not the same as) a typical Neumann boundary condition.
 /// The operator, denoted \f$D_{\Omega_2}\f$ is defined as
 /// \f[ D_{\Omega_2}(\mathbf{u}) = \mathbb{C}\nabla\mathbf{u} \cdot \mathbf{n}
@@ -45,7 +44,7 @@ namespace Operator
 /// The output of this operator is a surface traction. The value of the surface traction is
 /// specified in the right hand side during the solve.
 ///
-/// ### Solid Model Template Class T
+/// **Solid Model Template Class T**
 ///
 /// This operator is templated with class T.
 /// T should be of type Model::Solid::Solid or derived.
