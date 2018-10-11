@@ -166,7 +166,9 @@ int main (int argc, char* argv[])
 			ngrids[ilev].define(ndomain);
 			ngrids[ilev].maxSize(max_grid_size);
 
-			cdomain.grow(IntVect(-n_cell/4,0)); 
+			//cdomain.grow(IntVect(-n_cell/4,0)); 
+			cdomain.grow(IntVect(0,-n_cell/4)); 
+			//cdomain.grow(-n_cell/4); 
 			cdomain.refine(ref_ratio); 
 
 			ndomain = amrex::convert(cdomain,IntVect::TheNodeVector());
@@ -240,8 +242,10 @@ int main (int argc, char* argv[])
 							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,
 							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;);
 			 		}						
-					if (i == geom[ilev].Domain().loVect()[0])
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					// if (i == geom[ilev].Domain().loVect()[0])
+					// 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					if (j == geom[ilev].Domain().loVect()[1])
+						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
 			 	}
 			}
 		}
