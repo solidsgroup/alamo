@@ -40,11 +40,11 @@ namespace Integrator
 {
 
 ///
-/// \class PhaseFieldMicrostructure
-/// \brief Microstructure evolution with grain boundary anisotropy
+/// \class PolymerDegradation
+/// \brief Phase field degradation model for hydro-thermal induced degradation of polymers.
 ///
-/// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
-/// where n corresponds to the number of grains.
+/// Solve damage evolution laws for damage variable \f$ \eta \f$ or tensor \f$ \mathbf{F}_d \f$,
+/// degrade material modulus tensor based on damage variable, and perform elasticity tests.
 ///
 class PolymerDegradation : public Integrator::Integrator
 {
@@ -138,6 +138,7 @@ private:
 	std::string elastic_type;
 	int         elastic_max_iter 		= 200;
 	int         elastic_max_fmg_iter 	= 0;
+	int 		elastic_bottom_max_iter	= 200;
 	int         elastic_verbose 		= 3;
 	int         elastic_cgverbose 		= 3;
 	Set::Scalar elastic_tol_rel 		= 1.0E-5;
