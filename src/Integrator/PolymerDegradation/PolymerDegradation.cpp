@@ -312,6 +312,9 @@ PolymerDegradation::PolymerDegradation():
 		pp_elastic.query("bottom_solver",bottom_solver);
 		pp_elastic.query("linop_maxorder", linop_maxorder);
 		pp_elastic.query("max_coarsening_level",max_coarsening_level);
+		pp_elastic.query("verbose",elastic_verbose);
+		pp_elastic.query("cg_verbose", elastic_cgverbose);
+		pp_elastic.query("bottom_max_iter", elastic_bottom_max_iter);
 		if (pp_elastic.countval("body_force")) pp_elastic.getarr("body_force",body_force);
 
 		amrex::ParmParse pp_elastic_bc("elastic.bc");
@@ -822,9 +825,9 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	if (iter%elastic_int) return;
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
-	LPInfo info;
-	info.setAgglomeration(true);
-	info.setConsolidation(true);
+	//LPInfo info;
+	//info.setAgglomeration(true);
+	//info.setConsolidation(true);
 
 	//elastic_operator = new Operator::Elastic::Degradation::Degradation(0.0,damage_anisotropy,damage_type);
 
@@ -844,6 +847,13 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_back(elastic_bc_back,elastic_bc_back_t);
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_front(elastic_bc_front,elastic_bc_front_t););
 
+	//std::cout << "Interpolate - left = " << interpolate_left(time) << std::endl;
+	//std::cout << "Interpolate - right = " << interpolate_right(time) << std::endl;
+	//std::cout << "Interpolate - bottom = " << interpolate_bottom(time) << std::endl;
+	//std::cout << "Interpolate - top = " << interpolate_top(time) << std::endl;
+	//std::cout << "Interpolate - back = " << interpolate_back(time) << std::endl;
+	//std::cout << "Interpolate - front = " << interpolate_front(time) << std::endl;
+
 	for (int ilev = 0; ilev < displacement.size(); ++ilev)
 	{
 		const Real* DX = geom[ilev].CellSize();
@@ -853,7 +863,7 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					rhs[ilev].setVal(body_force[1]*volume,1,1);,
 					rhs[ilev].setVal(body_force[2]*volume,2,1););
 
-		if (iter==0)
+		if (iter==0 || time == elastic_tstart)
 		{
 			displacement[ilev].setVal(0.0);
 			model[ilev].setVal(modeltype);
@@ -884,11 +894,11 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		 						zmax = (k == geom[ilev].Domain().hiVect()[2]+1););
 
 		 		if (	false
-							|| xmin || xmax
+						|| xmin || xmax
 #if AMREX_SPACEDIM > 1
-							|| ymin || ymax
+						|| ymin || ymax
 #if AMREX_SPACEDIM > 2
-							|| zmin || zmax
+						|| zmin || zmax
 #endif
 #endif
 						)
@@ -925,6 +935,7 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setMaxFmgIter(elastic_max_fmg_iter);
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
+	solver.setBottomMaxIter(elastic_bottom_max_iter);
 	solver.setFinalFillBC(true);
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
