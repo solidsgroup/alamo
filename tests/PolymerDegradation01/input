@@ -21,7 +21,7 @@
 #===========================================================================
 
 #=============== Simulation length =========================================
-timestep = 0.0001
+timestep = 0.001
 stop_time = 10
 #===========================================================================
 
@@ -98,7 +98,7 @@ elastic.composite_solve	= 1
 elastic.verbose			= 1
 elastic.cg_verbose 		= 1
 elastic.max_iter		= 1000
-elastic.max_fmg_iter 	= 1000
+elastic.max_fmg_iter 	= 1000 
 elastic.bottom_max_iter = 1000
 elastic.linop_maxorder 	= 2
 elastic.max_coarsening_level = 0
@@ -106,6 +106,8 @@ elastic.agglomeration 	= 0
 elastic.consolidation 	= 0
 elastic.tol_rel			=  1.0e-2
 elastic.tol_abs			=  1.0e-2
+elastic.tstart 			= 0.0
+elastic.tend			= 10.0
 elastic.use_fsmooth = 0
 
 elastic.body_force     = 0.0 -0.00001 0.0

@@ -51,15 +51,15 @@ public:
 		{
 			if(std::isnan(eta[0])) Util::Abort("Nans in eta");
 			if(std::isinf(eta[0])) Util::Abort("Infs in eta");
-			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort("Invalid value of eta");
+			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta");
 			lambda *= (1.0-eta[0]);
 			mu *= (1.0-eta[0]);
 		}
 		else if(eta.size() == 2)
 		{
-			if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort("Nans in eta");
-			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort("Infs in eta");
-			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort("Invalid value of eta");
+			if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Nans in eta");
+			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
+			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
 			lambda *= (1.0-eta[0]);
 			mu *= (1.0-eta[1]);
 		}

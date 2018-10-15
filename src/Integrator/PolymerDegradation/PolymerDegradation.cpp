@@ -455,8 +455,6 @@ PolymerDegradation::PolymerDegradation():
 		pp_amr.query("max_grid_size",max_grid_size);
 		pp_amr.query("ref_ratio",ref_ratio);
 
-		amrex::Vector<amrex::BoxArray> ngrids,cgrids;
-		amrex::Vector<amrex::DistributionMapping> ndmap;
 		int nlevels = maxLev+1;
 
 		cgrids.resize(nlevels);
@@ -819,7 +817,90 @@ PolymerDegradation::DegradeMaterial(int lev)
 	}
 }
 
-void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
+std::vector<std::string>
+PolymerDegradation::PlotFileNameNode (std::string plot_file_name, int lev) const
+{
+	std::vector<std::string> name;
+	name.push_back(plot_file_name+"/");
+	name.push_back(amrex::Concatenate("", lev, 5));
+	return name;
+}
+
+void 
+PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
+{
+	Util::Message(INFO);
+	if (! elastic_on) return;
+	if (iter % elastic_int) return;
+	if (time < elastic_tstart) return;
+	if (time > elastic_tend) return;
+
+#if AMREX_SPACEDIM == 2
+	const int ncomp = 8;
+	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12", "energy"};
+
+#elif AMREX_SPACEDIM == 3
+	const int ncomp = 13;
+	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
+								 "stress33", "stress23", "stress13", "stress12", "energy"};
+#endif
+
+	Util::Message(INFO);
+	const int nlevels = finest_level+1;
+
+	Vector<amrex::MultiFab> plotmf(nlevels);
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
+#if AMREX_SPACEDIM == 2
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0, 1, 0);
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 3, 1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 4, 1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 5, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 4, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 5, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 6, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 7, 1, 0);
+#elif AMREX_SPACEDIM == 3
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0,  1, 0);
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1,  1, 0);
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 2, 2,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 3,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 4,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 2, 5,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 6,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 7,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 2, 8,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 6,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 4, 7,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 8, 8,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 9,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 10, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 11, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 12, 1, 0);
+#endif 
+	}
+	Util::Message(INFO);
+	std::string plot_file_node = plot_file+"-node";
+	const std::vector<std::string>& plotfilename = PlotFileNameNode(plot_file_node,istep[0]);
+	Util::Message(INFO);
+	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), varname,
+				Geom(), t_new[0], istep, refRatio());
+	Util::Message(INFO);
+	if (ParallelDescriptor::IOProcessor())
+	{
+		Util::Message(INFO);
+		std::ofstream outfile;
+		if (istep[0]==0) outfile.open(plot_file_node+"/output.visit",std::ios_base::out);
+		else outfile.open(plot_file_node+"/output.visit",std::ios_base::app);
+		outfile << plotfilename[1] + "/Header" << std::endl;
+	}
+}
+
+void 
+PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 {
 	if (!elastic_on) return;
 	if (iter%elastic_int) return;
