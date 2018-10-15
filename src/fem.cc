@@ -197,7 +197,7 @@ int main (int argc, char* argv[])
 		}
 
 	
-	//
+	//res
 	// Initialize fields, rhs, coefficients, etc.
 	// Note: everything is currently hard-coded for testing purposes.
 	//

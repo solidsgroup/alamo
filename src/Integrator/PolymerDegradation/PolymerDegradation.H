@@ -63,6 +63,8 @@ protected:
 
 	void TimeStepBegin(amrex::Real time, int iter);
 
+	void TimeStepComplete(amrex::Real time, int iter);
+
 	void DegradeMaterial(int lev);
 
 private:
@@ -97,6 +99,9 @@ private:
 	amrex::Real anisotropy_tstart;
 
 	std::string ic_type, gb_type, filename;
+
+	amrex::Vector<amrex::BoxArray> ngrids,cgrids;
+	amrex::Vector<amrex::DistributionMapping> ndmap;
 
 	amrex::Real damp;
 
@@ -182,6 +187,8 @@ private:
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic> > > model;
 	Model::Solid::Elastic::Degradable::Isotropic modeltype;
 	std::string 	input_material = "isotropic";
+
+	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
 
 };
 }
