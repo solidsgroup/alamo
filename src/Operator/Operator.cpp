@@ -13,6 +13,9 @@ void Operator::Diagonal (int amrlev,
 			 int mglev,
 			 amrex::MultiFab& diag) const
 {
+	BL_PROFILE("Operator::Diagonal()");
+	Util::Message(INFO);
+
 	int ncomp = diag.nComp();
 	int nghost = diag.nGrow();
 	amrex::MultiFab x(diag.boxArray(), diag.DistributionMap(), ncomp, nghost);
@@ -51,6 +54,8 @@ bool Operator::VerificationCheck (int amrlev,
 				  int mglev,
 				  amrex::MultiFab& test) const
 {
+	BL_PROFILE("Operator::VerificationCheck()");
+	Util::Message(INFO);
 	bool result = false;
 	int ncomp = test.nComp();
 	int nghost = test.nGrow();
@@ -200,6 +205,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 		    const LPInfo& a_info,
 		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
+	BL_PROFILE("Operator::Operator()");
 	Util::Message(INFO);
 	define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
@@ -214,8 +220,8 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 		const LPInfo& a_info,
 		const Vector<FabFactory<FArrayBox> const*>& a_factory)
  {
+	 BL_PROFILE("Operator::~Operator()");
 	 Util::Message(INFO);
-	 BL_PROFILE("MLNodeLaplacian::define()");
 
 	 // This makes sure grids are cell-centered;
 	 Vector<BoxArray> cc_grids = a_grids;
@@ -266,9 +272,11 @@ Operator::FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom)
 void
 Operator::buildMasks ()
 {
+	BL_PROFILE("Operator::buildMasks()");
+	Util::Message(INFO);
+
 	if (m_masks_built) return;
 
-	BL_PROFILE("MLNodeLaplacian::buildMasks()");
 
 	m_masks_built = true;
 
@@ -436,14 +444,15 @@ Operator::buildMasks ()
 void
 Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 {
+	BL_PROFILE("Operator::fixUpResidualMask()");
 	Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
 }
 
 void
 Operator::prepareForSolve ()
 {
-	Util::Message(INFO);
 	BL_PROFILE("Operator::prepareForSolve()");
+	Util::Message(INFO);
 
 	AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_num_amr_levels == 1 ||
 					 m_coarsening_strategy != CoarseningStrategy::RAP,
@@ -459,13 +468,12 @@ Operator::prepareForSolve ()
 void
 Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
+	BL_PROFILE("Operator::restriction()");
 	Util::Message(INFO);
 	if (AMREX_SPACEDIM != 3) Util::Abort(INFO, "restriction implemented in 3D only!");
 
 	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
 	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
-
-	BL_PROFILE("MLNodeLaplacian::restriction()");
 
 	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
 
@@ -555,8 +563,8 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 void
 Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
+	BL_PROFILE("Operator::interpolation()");
 	Util::Message(INFO);
-	BL_PROFILE("MLNodeLaplacian::interpolation()");
 
 	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
@@ -657,9 +665,10 @@ void
 Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
 				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
 {
+	BL_PROFILE("Operator::averageDownSolutionRHS()");
 	Util::Message(INFO,"Suspect implementation!");
 	const auto& amrrr = AMRRefRatio(camrlev);
-	amrex::average_down(fine_sol, crse_sol, 0, fine_rhs.nComp(), amrrr);
+	//amrex::average_down(fine_sol, crse_sol, 0, fine_rhs.nComp(), amrrr);
 }
 
 void
@@ -677,9 +686,6 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 
 	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
 	{
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
 		for (MFIter mfi(phi); mfi.isValid(); ++mfi)
 		{
 			if (!nd_domain.strictly_contains(mfi.fabbox()))
@@ -695,6 +701,7 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 const amrex::FArrayBox &
 Operator::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
 {
+	BL_PROFILE("Operator::GetFab()");
 	Util::Message(INFO);
  	return m_a_coeffs[num][amrlev][mglev][mfi];
 }
@@ -702,6 +709,7 @@ Operator::GetFab(const int num, const int amrlev, const int mglev, const amrex::
 void
 Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 {
+	BL_PROFILE("Operator::RegisterNewFab()");
 	Util::Message(INFO);
 	/// \todo assertions here
 	m_a_coeffs.resize(m_a_coeffs.size() + 1);
@@ -727,6 +735,7 @@ Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 void
 Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
 {
+	BL_PROFILE("Operator::RegisterNewFab()");
 	Util::Message(INFO);
 	/// \todo assertions here
 	m_a_coeffs.resize(m_a_coeffs.size() + 1);
