@@ -207,6 +207,8 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 {
 	BL_PROFILE("Operator::Operator()");
 	Util::Message(INFO);
+
+
 	define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
 
@@ -222,6 +224,15 @@ Operator::Operator (const Vector<Geometry>& a_geom,
  {
 	 BL_PROFILE("Operator::~Operator()");
 	 Util::Message(INFO);
+
+
+	 if (amrex::ParallelDescriptor::NProcs() > a_grids[0].size())
+	 {
+		 Util::Warning(INFO,"There are more processors than there are boxes in the amrlev=0 boxarray!!\n",
+			       "(NProcs = ",amrex::ParallelDescriptor::NProcs(),", a_grids[0].size() = ",a_grids[0].size(),")\n",
+			       "You should decrease max_grid_size or you will not get proper scaling!");
+	 }
+
 
 	 // This makes sure grids are cell-centered;
 	 Vector<BoxArray> cc_grids = a_grids;
