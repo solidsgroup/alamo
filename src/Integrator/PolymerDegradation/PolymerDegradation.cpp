@@ -5,7 +5,7 @@ namespace Integrator
 PolymerDegradation::PolymerDegradation():
 	Integrator()
 {
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	//
 	// READ INPUT PARAMETERS
 	//
@@ -65,7 +65,7 @@ PolymerDegradation::PolymerDegradation():
 		RegisterNewFab(water_conc,     water_bc, 1, number_of_ghost_cells, "Water Concentration");
 		RegisterNewFab(water_conc_old, water_bc, 1, number_of_ghost_cells, "Water Concentration Old");
 	}
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Heat diffusion -------------------------------
 	// ---------------------------------------------------------------------
@@ -119,7 +119,7 @@ PolymerDegradation::PolymerDegradation():
 		RegisterNewFab(Temp,     thermal_bc, 1, number_of_ghost_cells, "Temperature");
 		RegisterNewFab(Temp_old, thermal_bc, 1, number_of_ghost_cells, "Temperature Old");
 	}
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
 	// ---------------------------------------------------------------------
@@ -173,7 +173,7 @@ PolymerDegradation::PolymerDegradation():
 		}
 		models.push_back(new Operator::Elastic::Degradation::Cubic(C11,C12,C44,0.0,0.0,0.0));*/
 	}
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Damage model ----------------------------------
 	// ---------------------------------------------------------------------
@@ -263,7 +263,7 @@ PolymerDegradation::PolymerDegradation():
 	RegisterNewFab(eta_new, eta_bc, number_of_eta, number_of_ghost_cells, "Eta");
 	RegisterNewFab(eta_old, eta_bc, number_of_eta, number_of_ghost_cells, "Eta old");
 
-
+	std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
 	// --------------------- Elasticity parameters -------------------------
 	// ---------------------------------------------------------------------
@@ -311,6 +311,10 @@ PolymerDegradation::PolymerDegradation():
 
 		pp_elastic.query("bottom_solver",bottom_solver);
 		pp_elastic.query("linop_maxorder", linop_maxorder);
+		pp_elastic.query("max_coarsening_level",max_coarsening_level);
+		pp_elastic.query("verbose",elastic_verbose);
+		pp_elastic.query("cg_verbose", elastic_cgverbose);
+		pp_elastic.query("bottom_max_iter", elastic_bottom_max_iter);
 		if (pp_elastic.countval("body_force")) pp_elastic.getarr("body_force",body_force);
 
 		amrex::ParmParse pp_elastic_bc("elastic.bc");
@@ -451,8 +455,6 @@ PolymerDegradation::PolymerDegradation():
 		pp_amr.query("max_grid_size",max_grid_size);
 		pp_amr.query("ref_ratio",ref_ratio);
 
-		amrex::Vector<amrex::BoxArray> ngrids,cgrids;
-		amrex::Vector<amrex::DistributionMapping> ndmap;
 		int nlevels = maxLev+1;
 
 		cgrids.resize(nlevels);
@@ -502,7 +504,7 @@ PolymerDegradation::PolymerDegradation():
 		LPInfo info;
 		info.setAgglomeration(agglomeration);
 		info.setConsolidation(consolidation);
-		info.setMaxCoarseningLevel(0);
+		info.setMaxCoarseningLevel(max_coarsening_level);
 		elastic_operator.define(geom, ngrids, ndmap, info);
 		elastic_operator.setMaxOrder(linop_maxorder);
 
@@ -663,7 +665,7 @@ PolymerDegradation::Initialize (int lev)
 		stress_vm[lev].setVal(0.0);
 		rhs[lev].setVal(0.0);
 		energy[lev].setVal(0.0);
-		energies[lev].setVal(0.0);
+		//energies[lev].setVal(0.0);
 	}
 	eta_ic->Initialize(lev,eta_new);
 	eta_ic->Initialize(lev,eta_old);
@@ -784,7 +786,7 @@ PolymerDegradation::DegradeMaterial(int lev)
 	damage model.
 	For now we are just using isotropic degradation.
 	*/
-	if(!damage_anisotropy)
+	if(damage_anisotropy)
 		Util::Abort(__FILE__,"DegradeModulus",__LINE__,"Not implemented yet");
 
 	static std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
@@ -815,15 +817,98 @@ PolymerDegradation::DegradeMaterial(int lev)
 	}
 }
 
-void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
+std::vector<std::string>
+PolymerDegradation::PlotFileNameNode (std::string plot_file_name, int lev) const
+{
+	std::vector<std::string> name;
+	name.push_back(plot_file_name+"/");
+	name.push_back(amrex::Concatenate("", lev, 5));
+	return name;
+}
+
+void 
+PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
+{
+	Util::Message(INFO);
+	if (! elastic_on) return;
+	if (iter % elastic_int) return;
+	if (time < elastic_tstart) return;
+	if (time > elastic_tend) return;
+
+#if AMREX_SPACEDIM == 2
+	const int ncomp = 8;
+	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12", "energy"};
+
+#elif AMREX_SPACEDIM == 3
+	const int ncomp = 13;
+	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
+								 "stress33", "stress23", "stress13", "stress12", "energy"};
+#endif
+
+	Util::Message(INFO);
+	const int nlevels = finest_level+1;
+
+	Vector<amrex::MultiFab> plotmf(nlevels);
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
+#if AMREX_SPACEDIM == 2
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0, 1, 0);
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 3, 1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 4, 1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 5, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 4, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 5, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 6, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 7, 1, 0);
+#elif AMREX_SPACEDIM == 3
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0,  1, 0);
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1,  1, 0);
+		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 2, 2,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 3,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 4,  1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 2, 5,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 6,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 7,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], res    [ilev], 2, 8,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 6,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 4, 7,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 8, 8,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 9,  1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 10, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 11, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 12, 1, 0);
+#endif 
+	}
+	Util::Message(INFO);
+	std::string plot_file_node = plot_file+"-node";
+	const std::vector<std::string>& plotfilename = PlotFileNameNode(plot_file_node,istep[0]);
+	Util::Message(INFO);
+	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), varname,
+				Geom(), t_new[0], istep, refRatio());
+	Util::Message(INFO);
+	if (ParallelDescriptor::IOProcessor())
+	{
+		Util::Message(INFO);
+		std::ofstream outfile;
+		if (istep[0]==0) outfile.open(plot_file_node+"/output.visit",std::ios_base::out);
+		else outfile.open(plot_file_node+"/output.visit",std::ios_base::app);
+		outfile << plotfilename[1] + "/Header" << std::endl;
+	}
+}
+
+void 
+PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 {
 	if (!elastic_on) return;
 	if (iter%elastic_int) return;
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
-	LPInfo info;
-	info.setAgglomeration(true);
-	info.setConsolidation(true);
+	//LPInfo info;
+	//info.setAgglomeration(true);
+	//info.setConsolidation(true);
 
 	//elastic_operator = new Operator::Elastic::Degradation::Degradation(0.0,damage_anisotropy,damage_type);
 
@@ -843,6 +928,13 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_back(elastic_bc_back,elastic_bc_back_t);
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_front(elastic_bc_front,elastic_bc_front_t););
 
+	//std::cout << "Interpolate - left = " << interpolate_left(time) << std::endl;
+	//std::cout << "Interpolate - right = " << interpolate_right(time) << std::endl;
+	//std::cout << "Interpolate - bottom = " << interpolate_bottom(time) << std::endl;
+	//std::cout << "Interpolate - top = " << interpolate_top(time) << std::endl;
+	//std::cout << "Interpolate - back = " << interpolate_back(time) << std::endl;
+	//std::cout << "Interpolate - front = " << interpolate_front(time) << std::endl;
+
 	for (int ilev = 0; ilev < displacement.size(); ++ilev)
 	{
 		const Real* DX = geom[ilev].CellSize();
@@ -852,7 +944,7 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					rhs[ilev].setVal(body_force[1]*volume,1,1);,
 					rhs[ilev].setVal(body_force[2]*volume,2,1););
 
-		if (iter==0)
+		if (iter==0 || time == elastic_tstart)
 		{
 			displacement[ilev].setVal(0.0);
 			model[ilev].setVal(modeltype);
@@ -883,11 +975,11 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		 						zmax = (k == geom[ilev].Domain().hiVect()[2]+1););
 
 		 		if (	false
-							|| xmin || xmax
+						|| xmin || xmax
 #if AMREX_SPACEDIM > 1
-							|| ymin || ymax
+						|| ymin || ymax
 #if AMREX_SPACEDIM > 2
-							|| zmin || zmax
+						|| zmin || zmax
 #endif
 #endif
 						)
@@ -924,6 +1016,7 @@ void PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setMaxFmgIter(elastic_max_fmg_iter);
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
+	solver.setBottomMaxIter(elastic_bottom_max_iter);
 	solver.setFinalFillBC(true);
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
