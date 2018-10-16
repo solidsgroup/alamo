@@ -35,7 +35,8 @@ int main (int argc, char* argv[])
 	//using model_type = Model::Solid::Elastic::Cubic; model_type model(10.73, 6.09, 2.830); 
 	using model_type = Model::Solid::Elastic::Isotropic; model_type model(2.6,6.0); 
 	
-	model.Print();
+	if (amrex::ParallelDescriptor::IOProcessor())
+		model.Print();
 
 	//
 	// READ INPUT FILE
@@ -243,9 +244,9 @@ int main (int argc, char* argv[])
 							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;);
 			 		}						
 					// if (i == geom[ilev].Domain().loVect()[0])
-					// 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					// 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
 					if (j == geom[ilev].Domain().loVect()[1])
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
+					 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
 			 	}
 			}
 		}
@@ -260,10 +261,13 @@ int main (int argc, char* argv[])
 	info.setMaxCoarseningLevel(0); // Multigrid does not work yet
 	nlevels = geom.size();
 
-	//Operator::Elastic<Model::Solid::Elastic::Cubic::Cubic> mlabec;
+	// Operator::Diagonal mlabec;
+	// mlabec.define(geom, cgrids, cdmap, info);
+	// mlabec.setMaxOrder(linop_maxorder);
+
 	Operator::Elastic<model_type> mlabec;
-	mlabec.define(geom, cgrids, cdmap, info);
-	mlabec.setMaxOrder(linop_maxorder);
+	mlabec.define(geom, ngrids, ndmap, info);
+	//mlabec.setMaxOrder(linop_maxorder);
 	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
 	mlabec.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
 		     {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});

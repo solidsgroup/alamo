@@ -93,6 +93,25 @@ protected:
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
 						const FArrayBox& sol, const int face_only=0) const final;
+
+
+
+	///
+	/// This is a three step process.
+	/// **Note** it is implemented in 2D only and all documentation references the 2D implementation
+	/// where dimensionality is not general.
+	/// 
+	/// 1. Restriction.
+	///    Updates the residual on the coarse fab with the residual as calculated on the fine fab.
+	///    Restriction takes place only on the interior nodes.
+	///    In 2D the restriction scheme is:
+	///    \f{eqnarray*}{	
+	///       res_{c}(I,J) &=& 4\,res_f(i,j) \\
+	///                    &+& 2\,\Big[res_f(i+1,j) + res_f(i-1,j) + res_f(i,j+1) + res_f(i,j-1)\Big] \\
+	///                    &+& \Big[res_f(i+1,j+1) + res_f(i+1,j-1) + res_f(i-1,j+1) + res_f(i-1,j-1)\Big]
+	///    \f}
+	///
+
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const;
