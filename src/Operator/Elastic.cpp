@@ -12,6 +12,9 @@ Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
 		     const Vector<DistributionMapping>& a_dmap,
 		     const LPInfo& a_info)
 {
+	BL_PROFILE("Operator::Elastic::Elastic()");
+	Util::Message(INFO);
+
 	define(a_geom, a_grids, a_dmap, a_info);
 }
 
@@ -27,6 +30,10 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		 const LPInfo& a_info,
 		 const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
+	BL_PROFILE("Operator::Elastic::define()");
+	Util::Message(INFO);
+
+
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
 	model.resize(m_num_amr_levels);
@@ -45,6 +52,8 @@ template <class T>
 void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
+	BL_PROFILE("Operator::Elastic::SetModel()");
+	Util::Message(INFO);
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -65,18 +74,17 @@ template<class T>
 void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
-	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
-
+	BL_PROFILE("Operator::Elastic::Fapply()");
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	// DEBUG: Check to see if Fapply is getting passed bad values.
-	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
-	{
-		const amrex::FArrayBox &ufab    = u[mfi];
-		if(ufab.contains_inf()) Util::Abort(INFO, "Inf in ufab [before update]");
-		if(ufab.contains_nan()) Util::Abort(INFO, "Nan in ufab [before update]");
-	}
+	// // DEBUG: Check to see if Fapply is getting passed bad values.
+	// for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+	// {
+	// 	const amrex::FArrayBox &ufab    = u[mfi];
+	// 	if(ufab.contains_inf()) Util::Abort(INFO, "Inf in ufab [before update]");
+	// 	if(ufab.contains_nan()) Util::Abort(INFO, "Nan in ufab [before update]");
+	// }
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -205,6 +213,8 @@ Elastic<T>::Fsmooth (int amrlev,
 		  const MultiFab& rhs
 		  ) const
 {
+	BL_PROFILE("Operator::Elastic::Fsmooth()");
+	Util::Message(INFO);
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -339,6 +349,7 @@ template<class T>
 void
 Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 {
+	BL_PROFILE("Operator::Elastic::normalize()");
 	// See FApply for documentation. 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
@@ -443,6 +454,7 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
+	BL_PROFILE("Operator::Elastic::FFlux()");
 	amrex::BaseFab<amrex::Real> AMREX_D_DECL( &fxfab = *sigmafab[0],
 	 					  &fyfab = *sigmafab[1],
 	 					  &fzfab = *sigmafab[2] ) ;
@@ -460,6 +472,7 @@ Elastic<T>::Stress (int amrlev,
 		    const amrex::MultiFab& u,
 		    bool voigt) const
 {
+	BL_PROFILE("Operator::Elastic::Stress()");
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	if (voigt)
 		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
@@ -537,6 +550,7 @@ Elastic<T>::Energy (int amrlev,
 		    amrex::MultiFab& energy,
 		    const amrex::MultiFab& u) const
 {
+	BL_PROFILE("Operator::Elastic::Energy()");
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	AMREX_ASSERT(energy.nComp() == 1);
 	AMREX_ASSERT(u.nComp() == AMREX_SPACEDIM);
@@ -593,8 +607,11 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
+	BL_PROFILE("Operator::Elastic::reflux()");
+
 #if AMREX_SPACEDIM == 2
 
+	Util::Message(INFO);
 	Util::Warning(INFO, "Reflux does not currently implement grad(C)!");
 
 	int ncomp = AMREX_SPACEDIM;
@@ -614,6 +631,7 @@ Elastic<T>::reflux (int crse_amrlev,
  	const iMultiFab& fdmsk = *m_dirichlet_mask[crse_amrlev+1][0];
 
  	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+	fine_res_for_coarse.setVal(0.0);
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
@@ -623,29 +641,40 @@ Elastic<T>::reflux (int crse_amrlev,
 		const FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
 
-		crse.setVal(0.0);
+		//if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
 		
 		// amrex_mlndlap_restriction
 		for (int n = 0 ; n < ncomp; n++)
 		{
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++), // Do not include
-				     for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++), // boundaries, interior
-				     for (int m3 = bx.loVect()[2] +1; m3<=bx.hiVect()[2] -1; m3++)) // only.
+			for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
+				for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
 			{
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
-				crse(m_crse,n) +=
-					(fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) + fine(m_fine+dx[0]-dx[1],n)
-					 + 2.0*fine(m_fine-dx[0],n) + 4.0*fine(m_fine,n)  + 2.0*fine(m_fine+dx[0],n) 
-					 + fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) + fine(m_fine+dx[0]+dx[1],n))/16.0;
-
+				crse(m_crse,n) =
+					(+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+					 + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+					 +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0;
 			}
 		}
 	}
 
-	
-	res.ParallelCopy(fine_res_for_coarse, cgeom.periodicity());
+	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
+	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
+	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
+	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
+
+
+
+	return;
+
+
+
+
+
+
 	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 0);
 	fine_contrib.setVal(0.0);
 
@@ -653,9 +682,11 @@ Elastic<T>::reflux (int crse_amrlev,
 	const auto& fmodel = *model[crse_amrlev+1][0];
 	FArrayBox Axfab;
 
+	if (0)
         for (MFIter mfi(fine_contrib, MFItInfo().EnableTiling().SetDynamic(true));
              mfi.isValid(); ++mfi)
 	{
+		Util::Abort(INFO);
 		const Box& cvbx = mfi.validbox();         const int* cglo = cvbx.loVect(), *cghi = cvbx.hiVect();// cglo, cghi
 		const Box& fvbx = amrex::refine(cvbx,2);  const int* glo  = fvbx.loVect(), *ghi  = fvbx.hiVect();// glo, ghi
 		const Box& cbx = mfi.tilebox();           const int* clo  = cbx.loVect(),  *chi  = cbx.hiVect();// clo, chi
@@ -669,19 +700,6 @@ Elastic<T>::reflux (int crse_amrlev,
 		// 			       BL_TO_FORTRAN_ANYD(Axfab), // Ax alo, ahi
 		// 			       BL_TO_FORTRAN_ANYD(fdmsk[mfi]), // msk, mlo, mhi
 		// 			       fdxinv); // dxinv
-
-
-    // gtlo = max(lo-1,glo)
-    // gthi = min(hi+1,ghi)
-
-    // do jj = gtlo(2), gthi(2)
-    //    if (jj .eq. glo(2) .or. jj .eq. ghi(2)) then
-    //       step = 1
-    //    else
-    //       step = gthi(1)-gtlo(1)
-    //    end if
-    //    do ii = gtlo(1), gthi(1), step
-
 
 		amrex::BaseFab<T> &C = (*(model[crse_amrlev+1][0]))[mfi];
 
@@ -752,12 +770,28 @@ Elastic<T>::reflux (int crse_amrlev,
 				}
 			}
 		}
+
+		for (int m2 = gtlo[1]; m2<=gthi[1]; m2++)
+		{	
+			int step;
+			if (m2 == glo[1] || m2 == ghi[1]) step = 1;
+			else step=gthi[0] - gtlo[0];
+
+			for (int m1 = gtlo[0]; m1<=gthi[0]; m1 += step)
+			{
+				if (m1 == glo[0] || m1 == ghi[0] || step==1)
+				{
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					
+				}
+			}
+		}
 	}
+
 	MultiFab fine_contrib_on_crse(crse_sol.boxArray(), crse_sol.DistributionMap(), ncomp, 0);
 	fine_contrib_on_crse.setVal(0.0);
 	fine_contrib_on_crse.ParallelAdd(fine_contrib, cgeom.periodicity());
-	     
-	//Util::Abort("Exit normally");
+
 
  	const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
  	const iMultiFab& nd_mask     = *m_nd_fine_mask[crse_amrlev];
@@ -854,80 +888,71 @@ Elastic<T>::reflux (int crse_amrlev,
 
 			}
 
-  //   integer :: i,j
-  //   real(amrex_real) :: Ax, Axf, facx, facy
+	  
+			//   integer :: i,j
+			//   real(amrex_real) :: Ax, Axf, facx, facy
 
-  //   facx = (1.d0/6.d0)*dxinv(1)*dxinv(1)
-  //   facy = (1.d0/6.d0)*dxinv(2)*dxinv(2)
+			//   facx = (1.d0/6.d0)*dxinv(1)*dxinv(1)
+			//   facy = (1.d0/6.d0)*dxinv(2)*dxinv(2)
 
-  //   do    j = lo(2), hi(2)
-  //      do i = lo(1), hi(1)
-  //         if (dmsk(i,j) .ne. dirichlet) then
-  //            if (ndmsk(i,j) .eq. crse_fine_node) then
-  //               Ax = 0.d0
-  //               if (ccmsk(i-1,j-1) .eq. crse_cell) then
-  //                  Ax = Ax + sig(i-1,j-1)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
-  //                       &                       +     (phi(i-1,j-1)-phi(i  ,j-1))) &
-  //                       &                + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
-  //                       &                       +     (phi(i-1,j-1)-phi(i-1,j  ))))
-  //               end if
-  //               if (ccmsk(i,j-1) .eq. crse_cell) then
-  //                  Ax = Ax + sig(i,j-1)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
-  //                       &                     +     (phi(i+1,j-1)-phi(i  ,j-1))) &
-  //                       &              + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
-  //                       &                     +     (phi(i+1,j-1)-phi(i+1,j  ))))
-  //               end if
-  //               if (ccmsk(i-1,j) .eq. crse_cell) then
-  //                  Ax = Ax + sig(i-1,j)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
-  //                       &                     +     (phi(i-1,j+1)-phi(i  ,j+1))) &
-  //                       &              + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
-  //                       &                     +     (phi(i-1,j+1)-phi(i-1,j  ))))
-  //               end if
-  //               if (ccmsk(i,j) .eq. crse_cell) then
-  //                  Ax = Ax + sig(i,j)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
-  //                       &                  +      (phi(i+1,j+1)-phi(i  ,j+1))) &
-  //                       &            + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
-  //                       &                  +      (phi(i+1,j+1)-phi(i+1,j  ))))
-  //               end if
+			//   do    j = lo(2), hi(2)
+			//      do i = lo(1), hi(1)
+			//         if (dmsk(i,j) .ne. dirichlet) then
+			//            if (ndmsk(i,j) .eq. crse_fine_node) then
+			//               Ax = 0.d0
+			//               if (ccmsk(i-1,j-1) .eq. crse_cell) then
+			//                  Ax = Ax + sig(i-1,j-1)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
+			//                       &                       +     (phi(i-1,j-1)-phi(i  ,j-1))) &
+			//                       &                + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
+			//                       &                       +     (phi(i-1,j-1)-phi(i-1,j  ))))
+			//               end if
+			//               if (ccmsk(i,j-1) .eq. crse_cell) then
+			//                  Ax = Ax + sig(i,j-1)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
+			//                       &                     +     (phi(i+1,j-1)-phi(i  ,j-1))) &
+			//                       &              + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
+			//                       &                     +     (phi(i+1,j-1)-phi(i+1,j  ))))
+			//               end if
+			//               if (ccmsk(i-1,j) .eq. crse_cell) then
+			//                  Ax = Ax + sig(i-1,j)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
+			//                       &                     +     (phi(i-1,j+1)-phi(i  ,j+1))) &
+			//                       &              + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
+			//                       &                     +     (phi(i-1,j+1)-phi(i-1,j  ))))
+			//               end if
+			//               if (ccmsk(i,j) .eq. crse_cell) then
+			//                  Ax = Ax + sig(i,j)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
+			//                       &                  +      (phi(i+1,j+1)-phi(i  ,j+1))) &
+			//                       &            + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
+			//                       &                  +      (phi(i+1,j+1)-phi(i+1,j  ))))
+			//               end if
 
-  //               Axf = fc(i,j)
+			//               Axf = fc(i,j)
 
-  //               if (i .eq. ndlo(1) .and. &
-  //                    (    bclo(1) .eq. amrex_lo_neumann &
-  //                    .or. bclo(1) .eq. amrex_lo_inflow)) then
-  //                  Axf = 2.d0*Axf
-  //               else if (i.eq. ndhi(1) .and. &
-  //                    (    bchi(1) .eq. amrex_lo_neumann &
-  //                    .or. bchi(1) .eq. amrex_lo_inflow)) then
-  //                  Axf = 2.d0*Axf
-  //               end if
+			//               if (i .eq. ndlo(1) .and. &
+			//                    (    bclo(1) .eq. amrex_lo_neumann &
+			//                    .or. bclo(1) .eq. amrex_lo_inflow)) then
+			//                  Axf = 2.d0*Axf
+			//               else if (i.eq. ndhi(1) .and. &
+			//                    (    bchi(1) .eq. amrex_lo_neumann &
+			//                    .or. bchi(1) .eq. amrex_lo_inflow)) then
+			//                  Axf = 2.d0*Axf
+			//               end if
 
-  //               if (j .eq. ndlo(2) .and. &
-  //                    (    bclo(2) .eq. amrex_lo_neumann &
-  //                    .or. bclo(2) .eq. amrex_lo_inflow)) then
-  //                  Axf = 2.d0*Axf
-  //               else if (j .eq. ndhi(2) .and. &
-  //                    (    bchi(2) .eq. amrex_lo_neumann &
-  //                    .or. bchi(2) .eq. amrex_lo_inflow)) then
-  //                  Axf = 2.d0*Axf
-  //               end if
+			//               if (j .eq. ndlo(2) .and. &
+			//                    (    bclo(2) .eq. amrex_lo_neumann &
+			//                    .or. bclo(2) .eq. amrex_lo_inflow)) then
+			//                  Axf = 2.d0*Axf
+			//               else if (j .eq. ndhi(2) .and. &
+			//                    (    bchi(2) .eq. amrex_lo_neumann &
+			//                    .or. bchi(2) .eq. amrex_lo_inflow)) then
+			//                  Axf = 2.d0*Axf
+			//               end if
 
-  //               res(i,j) = rhs(i,j) - (Ax + Axf)
-  //            end if
-  //         end if
-  //      end do
-  //   end do
-  // end subroutine amrex_mlndlap_res_cf_contrib
-
-
-
-
-
-
-
-
-
-
+			//               res(i,j) = rhs(i,j) - (Ax + Axf)
+			//            end if
+			//         end if
+			//      end do
+			//   end do
+			// end subroutine amrex_mlndlap_res_cf_contrib
  		}
  	}
 
