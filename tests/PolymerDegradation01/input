@@ -21,7 +21,7 @@
 #===========================================================================
 
 #=============== Simulation length =========================================
-timestep = 0.001
+timestep = 0.0001
 stop_time = 10
 #===========================================================================
 
@@ -95,34 +95,38 @@ elastic.on = true
 elastic.bottom_solver = bicgstab
 elastic.int = 100
 elastic.composite_solve	= 1
-elastic.verbose			= 1
-elastic.cg_verbose 		= 1
-elastic.max_iter		= 1000
-elastic.max_fmg_iter 	= 1000 
-elastic.bottom_max_iter = 1000
+elastic.verbose			= 4
+elastic.cg_verbose 		= 4
+elastic.max_iter		= 10000
+elastic.max_fmg_iter 	= 10000 
+elastic.bottom_max_iter = 10000
 elastic.linop_maxorder 	= 2
 elastic.max_coarsening_level = 0
 elastic.agglomeration 	= 0
 elastic.consolidation 	= 0
-elastic.tol_rel			=  1.0e-2
-elastic.tol_abs			=  1.0e-2
+elastic.tol_rel			=  1.0e-6
+elastic.tol_abs			=  1.0e-6
 elastic.tstart 			= 0.0
 elastic.tend			= 10.0
 elastic.use_fsmooth = 0
 
 elastic.body_force     = 0.0 -0.00001 0.0
 
-elastic.bc.bc_x_lo = disp disp disp
+#elastic.bc.bc_x_lo = disp disp disp
+elastic.bc.bc_x_lo = trac trac trac
 elastic.bc.bc_y_lo = disp disp disp
-elastic.bc.bc_z_lo = disp disp disp
-elastic.bc.bc_x_hi = disp disp disp
+#elastic.bc.bc_z_lo = disp disp disp
+elastic.bc.bc_z_lo = trac trac trac
+#elastic.bc.bc_x_hi = disp disp disp
+elastic.bc.bc_x_hi = trac trac trac
 elastic.bc.bc_y_hi = disp disp disp
-elastic.bc.bc_z_hi = disp disp disp
+#elastic.bc.bc_z_hi = disp disp disp
+elastic.bc.bc_z_hi = trac trac trac
 
 elastic.bc.left_face = 0.0 0.0 0.0
-elastic.bc.right_face = 0.1 0.0 0.0
+elastic.bc.right_face = 0.0 0.0 0.0
 elastic.bc.bottom_face = 0.0 0.0 0.0
-elastic.bc.top_face = 0.0 0.0 0.0
+elastic.bc.top_face = 0.0 0.1 0.0
 elastic.bc.back_face = 0.0 0.0 0.0
 elastic.bc.front_face = 0.0 0.0 0.0
 #===========================================================================
