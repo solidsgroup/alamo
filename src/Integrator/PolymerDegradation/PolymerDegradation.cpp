@@ -553,7 +553,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 					amrex::IntVect m(AMREX_D_DECL(i,j,k));
 					if(std::isnan(water_conc_old_box(m))) Util::Abort(INFO, "Nan found in WATER_OLD(i,j,k)");
 					if(std::isinf(water_conc_old_box(m))) Util::Abort(INFO, "Inf found in WATER_OLD(i,j,k)");
-					if(water_conc_old_box(m) > 2.0)
+					if(water_conc_old_box(m) > 1.0)
 					{
 						std::cout << "dt = " << dt << ", time = " << time << ", lev = " << lev << std::endl;
 						Util::Abort(INFO, "water concentration exceeded 2");
@@ -624,6 +624,10 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 								rhs += d_i[l]*water_conc_box(m)*std::exp(-std::max(0.0,time-t_start_i[l])/tau_i[l])/(tau_i[l]);
 						}
 						eta_new_box(m,n) = eta_old_box(m,n) + rhs*dt;
+						if(eta_new_box(m,n) > d_final)
+						{
+							Util::Abort(INFO, "eta exceeded ",d_final, ". Rhs = ", rhs, ", Water = ", water_conc_box(m,n));
+						}
 					}
 
 					//
@@ -804,14 +808,27 @@ PolymerDegradation::DegradeMaterial(int lev)
 		 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 	 	{
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
-			Set::Scalar mul = 1.0/AMREX_D_TERM(2.0,+2.0,+4.0);
-			Set::Scalar temp = mul*AMREX_D_TERM(	etafab(m) 	+ etafab(m-dx[0])
+			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+			Set::Scalar temp = mul*(AMREX_D_TERM(	etafab(m) 	+ etafab(m-dx[0])
 													,
 													+ etafab(m-dx[1]) + etafab(m-dx[0]-dx[1])
 													,
 													+ etafab(m-dx[2])	+ etafab(m-dx[0]-dx[2])
 													+ etafab(m-dx[1]-dx[2]) + etafab(m-dx[0]-dx[1]-dx[2])
-												);
+												));
+			if(temp > d_final)
+			{
+				Util::Message(INFO,"temp exceeded d_final due to averaging.");
+				Util::Message(INFO," mul = ", mul);
+				Util::Message(INFO,"etafab(m) = ", etafab(m));
+				Util::Message(INFO,"etafab(m-dx) = ", etafab(m-dx[0]));
+				Util::Message(INFO,"etafab(m-dy) = ", etafab(m-dx[1]));
+				Util::Message(INFO,"etafab(m-dz) = ", etafab(m-dx[2]));
+				Util::Message(INFO,"etafab(m-dx-dy) = ", etafab(m-dx[0]-dx[1]));
+				Util::Message(INFO,"etafab(m-dx-dz) = ", etafab(m-dx[0]-dx[2]));
+				Util::Message(INFO,"etafab(m-dy-dz) = ", etafab(m-dx[2]-dx[1]));
+				Util::Message(INFO,"etafab(m-dx-dy-dz) = ", etafab(m-dx[0]-dx[1]-dx[2]));
+			}
 			modelfab(m).DegradeModulus({temp});
 		}
 	}
@@ -836,13 +853,16 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	if (time > elastic_tend) return;
 
 #if AMREX_SPACEDIM == 2
-	const int ncomp = 8;
-	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12", "energy"};
+	const int ncomp = 11;
+	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12",
+									"strain11", "strain22", "strain12", "energy"};
 
 #elif AMREX_SPACEDIM == 3
-	const int ncomp = 13;
+	const int ncomp = 19;
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
-								 "stress33", "stress23", "stress13", "stress12", "energy"};
+								 "stress33", "stress23", "stress13", "stress12", 
+								 "strain11", "strain22","strain33", "strain23", "strain13", 
+								 "strain12", "energy"};
 #endif
 
 	Util::Message(INFO);
@@ -862,7 +882,10 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 4, 1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 5, 1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 6, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 7, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 7, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 3, 8, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 9, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 10, 1, 0);
 #elif AMREX_SPACEDIM == 3
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0,  1, 0);
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1,  1, 0);
@@ -879,7 +902,13 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 9,  1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 10, 1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 11, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 12, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 12,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 4, 13,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 8, 14,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 5, 15,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 16, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 18, 1, 0);
 #endif 
 	}
 	Util::Message(INFO);
@@ -948,9 +977,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		{
 			displacement[ilev].setVal(0.0);
 			model[ilev].setVal(modeltype);
-			elastic_operator.SetModel(ilev,model[ilev]);
+			//elastic_operator.SetModel(ilev,model[ilev]);
 		}
 		DegradeMaterial(ilev);
+		elastic_operator.SetModel(ilev,model[ilev]);
 
 		for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
 		{

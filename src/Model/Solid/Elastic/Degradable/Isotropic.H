@@ -21,7 +21,7 @@ class Isotropic : Model::Solid::Solid
 {
 public:
 	Isotropic() {} ;
-	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
+	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda), mu0(_mu), lambda0(_lambda) {} ;
 	virtual Set::Matrix operator () (Set::Matrix &eps)
 	{
 		return 2*mu*eps + lambda*Set::Matrix::Identity()*eps.trace();
@@ -51,24 +51,24 @@ public:
 		{
 			if(std::isnan(eta[0])) Util::Abort("Nans in eta");
 			if(std::isinf(eta[0])) Util::Abort("Infs in eta");
-			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta");
-			lambda *= (1.0-eta[0]);
-			mu *= (1.0-eta[0]);
+			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta",eta[0]);
+			lambda = lambda0*(1.0-eta[0]);
+			mu = mu0*(1.0-eta[0]);
 		}
 		else if(eta.size() == 2)
 		{
 			if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Nans in eta");
 			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
 			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
-			lambda *= (1.0-eta[0]);
-			mu *= (1.0-eta[1]);
+			lambda = lambda0*(1.0-eta[0]);
+			mu = mu0*(1.0-eta[1]);
 		}
 		else
 			return;
 	}
 
 private:
-	Set::Scalar mu, lambda;
+	Set::Scalar mu, lambda, mu0, lambda0;
 };
 
 }
