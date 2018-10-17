@@ -57,14 +57,8 @@ operator<< (std::ostream& os,
 			os << "│ ";
 			for (int j = 0; j < 6; j++)
 			{
-				if ((i==0 || i==1 || i==5) &&
-				    (j==0 || j==1 || j==5))
-				{
-					Set::Scalar comp = (eps[i].transpose() * b(eps[j])).trace();
-					os << std::setw(10) << (fabs(comp)>1E-10 ? comp : 0);
-				}
-				else
-					os << std::setw(10) << "-";
+				Set::Scalar comp = (eps[i].transpose() * b(eps[j])).trace();
+				os << std::setw(10) << (fabs(comp)>1E-10 ? comp : 0);
 			}
 			os << "  │" << std::endl;
 		}
