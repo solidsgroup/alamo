@@ -150,17 +150,14 @@ private:
 	//
 	// functions
 	//
-	void averageDownCoeffs ();
-	void averageDownCoeffsToCoarseAmrLevel (int flev);
-	void averageDownCoeffsSameAmrLevel (int amrlev);
-
-	void FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom);
 
 	void buildMasks ();
 public:
 	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
 	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
+
+	virtual void averageDownCoeffs () = 0;
 
 protected:
 	int m_num_a_fabs = 0;

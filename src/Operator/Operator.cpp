@@ -234,6 +234,13 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	 }
 
 
+	 for (int amrlev = 1; amrlev < a_grids.size(); ++amrlev)
+	 {
+		 if (!a_grids[amrlev].coarsenable(2))
+		  	 Util::Abort(INFO, "Coarsenability error! AMR level ", amrlev, " is not coarsenable with ref ratio 2 \n"
+				     "a_grids[",amrlev,"] = ", a_grids[amrlev]);
+	 }
+
 	 // This makes sure grids are cell-centered;
 	 Vector<BoxArray> cc_grids = a_grids;
 	 for (auto& ba : cc_grids)
@@ -252,33 +259,6 @@ Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 }
 
 
-void
-Operator::averageDownCoeffs ()
-{
-	Util::Abort(INFO, "averageDownCoeffs not implemented");
-}
-
-void
-Operator::averageDownCoeffsToCoarseAmrLevel (int flev)
-{
-	Util::Abort(INFO, "averageDownCoeffsToCoarseAmrLevel not implemented");
-	const int mglev = 0;
-	const int idim = 0;  // other dimensions are just aliases
-	// amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
-	// 		    m_amr_ref_ratio[flev-1]);
-}
-
-void
-Operator::averageDownCoeffsSameAmrLevel (int amrlev)
-{
-	Util::Abort(INFO, "averageDownCoeffsToSameAmrLevel not implemented");
-}
-
-void
-Operator::FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom)
-{
-	Util::Abort(INFO, "FillBoundaryCoeff not implemented");
-}
 
 void
 Operator::buildMasks ()
@@ -473,7 +453,7 @@ Operator::prepareForSolve ()
 
 	buildMasks();
 
-	//averageDownCoeffs();
+	averageDownCoeffs();
 }
 
 void

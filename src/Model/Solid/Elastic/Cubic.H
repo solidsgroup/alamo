@@ -59,7 +59,7 @@ public:
 	};
 
 
-	virtual Set::Matrix operator () (Set::Matrix &eps)
+	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
 		Set::Matrix sig = Set::Matrix::Zero();
 		

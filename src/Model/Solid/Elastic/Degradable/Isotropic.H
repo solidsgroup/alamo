@@ -17,12 +17,12 @@ namespace Elastic
 {
 namespace Degradable
 {
-class Isotropic : Model::Solid::Solid
+class Isotropic : public Model::Solid::Elastic::Elastic
 {
 public:
 	Isotropic() {} ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda), mu0(_mu), lambda0(_lambda) {} ;
-	virtual Set::Matrix operator () (Set::Matrix &eps)
+	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
 		return 2*mu*eps + lambda*Set::Matrix::Identity()*eps.trace();
 	};
