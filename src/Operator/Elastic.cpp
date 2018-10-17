@@ -65,6 +65,8 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			modelfab(m);
+			a_modelfab(m);
 			modelfab(m) = a_modelfab(m);
 		}
 	}
