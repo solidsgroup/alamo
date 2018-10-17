@@ -40,8 +40,17 @@ public:
 	Isotropic operator + (const Isotropic &rhs)
 	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
 
+	void operator += (const Isotropic &rhs)
+	{mu+=rhs.mu; lambda+=rhs.lambda;}
+
 	Isotropic operator - (const Isotropic &rhs)
 	{return Isotropic(mu-rhs.mu, lambda-rhs.lambda);}
+
+	Isotropic operator * (const Isotropic &rhs)
+	{return Isotropic(mu*rhs.mu, lambda*rhs.lambda);}
+
+	Isotropic operator / (const Isotropic &rhs)
+	{return Isotropic(mu/rhs.mu, lambda/rhs.lambda);}
 
 	virtual Isotropic operator / (const Set::Scalar alpha)
 	{return Isotropic(mu/alpha, lambda/alpha);}

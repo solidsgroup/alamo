@@ -461,10 +461,9 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 {
 	BL_PROFILE("Operator::restriction()");
 	Util::Message(INFO);
-	if (AMREX_SPACEDIM != 3) Util::Abort(INFO, "restriction implemented in 3D only!");
 
-	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
-	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
+	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
+	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
 
 	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
 
@@ -504,7 +503,21 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 			for (int i=0; i<crse.nComp(); i++)
 			{
 #if AMREX_SPACEDIM == 2
-				Util::Abort(INFO,"Not yet implemented in 2D");
+		
+				// // amrex_mlndlap_restriction
+				// for (int n = 0 ; n < ncomp; n++)
+				// {
+				// 	for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
+				// 		for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
+				// 	{
+				// 		amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+				// 		amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
+
+				crsefab(m_crse,i) =
+					(+     finefab(m_fine-dx[0]-dx[1],i) + 2.0*finefab(m_fine-dx[1],i) +     finefab(m_fine+dx[0]-dx[1],i)
+					 + 2.0*finefab(m_fine-dx[0]      ,i) + 4.0*finefab(m_fine      ,i) + 2.0*finefab(m_fine+dx[0]      ,i) 
+					 +     finefab(m_fine-dx[0]+dx[1],i) + 2.0*finefab(m_fine+dx[1],i) +     finefab(m_fine+dx[0]+dx[1],i))/16.0;
+				//}
 #endif
 #if AMREX_SPACEDIM == 3
 				crsefab(m_crse,i) =
@@ -547,8 +560,8 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 		crse.ParallelCopy(cfine);
 	}
 
-	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in fine");
-	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in crse");
+	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in fine");
+	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in crse");
 }
 
 void
@@ -557,8 +570,8 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 	BL_PROFILE("Operator::interpolation()");
 	Util::Message(INFO);
 
-	if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
-	if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
+	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
+	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
 	const MultiFab* cmf = &crse;
@@ -596,7 +609,7 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 				for (int i=0; i<crse.nComp(); i++)
 				{
 #if AMREX_SPACEDIM == 2
-					Util::Abort("Not implemented in 2D");
+					Util::Abort(INFO,"Not implemented in 2D");
 #endif
 #if AMREX_SPACEDIM == 3
 					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
@@ -646,10 +659,10 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 		}
 	}
 
-	if (fine.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in fine");
-	if (fine.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in fine");
-	if (crse.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in crse");
-	if (crse.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in crse");
+	// if (fine.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in fine");
+	// if (fine.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in fine");
+	// if (crse.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in crse");
+	// if (crse.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in crse");
 }
 
 void

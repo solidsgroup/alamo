@@ -59,6 +59,8 @@ namespace Operator
 template<class T>
 class Elastic : public Operator
 {
+	using TArrayBox = amrex::BaseFab<T>;
+	using MultiTab  = amrex::FabArray<TArrayBox>;
 public:
 	enum class BC {Displacement, Traction, Periodic}; 
 
