@@ -56,17 +56,21 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	Util::Message(INFO);
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
+		Util::Message(INFO);
 		const Box& bx = mfi.tilebox();
 		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
 		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
+		Util::Message(INFO);
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			modelfab(m);
-			a_modelfab(m);
+			Util::Message(INFO,"box = ",bx);
+			Util::Message(INFO,"Point = ",m);
+			Util::Message(INFO,"Modelfab = ",modelfab(m));
+			Util::Message(INFO,"InputModel fab = ",a_modelfab (m));
 			modelfab(m) = a_modelfab(m);
 		}
 	}

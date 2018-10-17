@@ -182,6 +182,7 @@ private:
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic> elastic_operator;
+	LPInfo info;
 
 	// Material model
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic> > > model;
