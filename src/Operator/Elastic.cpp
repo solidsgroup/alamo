@@ -202,6 +202,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				//   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
+
 		}
 	}
 }
@@ -338,7 +339,7 @@ Elastic<T>::Fsmooth (int amrlev,
 						rho += fU(i);
 					}
 
-					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular operator in Fsmooth: diagonal = 0");
+					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular operator in Fsmooth: diagonal = 0, amrlev = ", amrlev, " mglev = ", mglev, " C = \n",C(m));
 
 					ufab(m,i) = (rhsfab(m,i) - rho) / aa;
 				}
@@ -967,76 +968,213 @@ template<class T>
 void
 Elastic<T>::averageDownCoeffs ()
 {
-	// BL_PROFILE("Elastic::averageDownCoeffs()");
-
-	// if (m_coarsening_strategy == CoarseningStrategy::Sigma)
-	// {
-	// 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
-	// 	{
-	// 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
-	// 		{
-	// 			//\todo replace number of ghost cells with 0
-	// 			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
-	// 		}
-	// 	}
-	// }
-
-	// for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
-	// {
-	// 	averageDownCoeffsSameAmrLevel(amrlev);
-	// 	averageDownCoeffsToCoarseAmrLevel(amrlev);
-	// }
-
-	// averageDownCoeffsSameAmrLevel(0);
+	BL_PROFILE("Elastic::averageDownCoeffs()");
 
 	// for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	// {
-	// 	if (m_use_harmonic_average) {
-	// 		int mglev = 0;
-	// 		FillBoundaryCoeff(*model[amrlev][mglev][0], m_geom[amrlev][mglev]);
-	// 		for (mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
-	// 		{
-	// 			if (model[amrlev][mglev]) {
-	// 				FillBoundaryCoeff(*model[amrlev][mglev], m_geom[amrlev][mglev]);
-	// 			}
-	// 		}
-	// 	} else {
-	// 		int idim = 0;
-	// 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
-	// 		{
-	// 			if (model[amrlev][mglev][idim]) {
-	// 				FillBoundaryCoeff(*model[amrlev][mglev][idim], m_geom[amrlev][mglev]);
-	// 			}
-	// 		}
+	// 	for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+	// 	{
+	// 		///\todo replace number of ghost cells with 0
+	// 		///\todo I think we can erase this section.
+	// 		model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
 	// 	}
 	// }
 
-	Util::Abort(INFO, "averageDownCoeffs not implemented");
+	for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+	{
+		averageDownCoeffsSameAmrLevel(amrlev);
+		averageDownCoeffsToCoarseAmrLevel(amrlev);
+	}
+
+	averageDownCoeffsSameAmrLevel(0);
+
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+		{
+			if (model[amrlev][mglev]) {
+				FillBoundaryCoeff(*model[amrlev][mglev], m_geom[amrlev][mglev]);
+			}
+		}
+	}
 }
 
 template<class T>
 void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev)
 {
+	// const int mglev = 0;
+	// const int idim = 0;  // other dimensions are just aliases
+
+	// // amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
+	// // 		    m_amr_ref_ratio[flev-1]);
+
+	// for (MFIter mfi(*model[flev][mglev], true); mfi.isValid(); ++mfi)
+	// {
+	// 	const Box& bx = mfi.tilebox();
+	// 	const FArrayBox &fine = (*model[flev][mglev])[mfi];
+	// 	FArrayBox &crse = (*model[flev-1][mglev])[mfi];
+
+	// 		for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
+	// 			for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
+	// 		{
+	// 			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+	// 			amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
+
+	// 			crse(m_crse) =
+	// 				(+     fine(m_fine-dx[0]-dx[1]) + 2.0*fine(m_fine-dx[1]) +     fine(m_fine+dx[0]-dx[1])
+	// 				 + 2.0*fine(m_fine-dx[0]      ) + 4.0*fine(m_fine      ) + 2.0*fine(m_fine+dx[0])       
+	// 				 +     fine(m_fine-dx[0]+dx[1]) + 2.0*fine(m_fine+dx[1]) +     fine(m_fine+dx[0]+dx[1]))/16.0;
+	// 		}
+	// }
+
+
 	Util::Abort(INFO, "averageDownCoeffsToCoarseAmrLevel not implemented");
-	const int mglev = 0;
-	const int idim = 0;  // other dimensions are just aliases
-	// amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
-	// 		    m_amr_ref_ratio[flev-1]);
 }
 
 template<class T>
 void
 Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 {
-	Util::Abort(INFO, "averageDownCoeffsToSameAmrLevel not implemented");
+	Util::Message(INFO);
+	BL_PROFILE("Elastic::averageDownCoeffsSameAmrLevel()");
+
+// 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
+
+// 	const int nsigma = (m_use_harmonic_average) ? AMREX_SPACEDIM : 1;
+
+ 	for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
+ 	{
+		MultiTab&       crse = *model[amrlev][mglev];
+		MultiTab& fine = *model[amrlev][mglev-1];
+		
+		bool isMFIterSafe  = (crse.DistributionMap() == fine.DistributionMap()) && BoxArray::SameRefs(crse.boxArray(),fine.boxArray());
+		bool need_parallel_copy = !isMFIterSafe;
+
+		MultiTab cfine;
+		if (need_parallel_copy) {
+			const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
+			cfine.define(ba, fine.DistributionMap(), 1, 0);
+		}
+
+		//MultiTab* pcrse = &crse;
+		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
+
+		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
+ 			{
+				const Box& bx = mfi.tilebox();
+
+				TArrayBox &crsetab = (*pcrse)[mfi];
+				TArrayBox &finetab = fine[mfi];
+
+				for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
+				for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+				for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+				{
+					amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+					amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
+
+					
+					crsetab(m_crse) = (finetab(m_fine)+finetab(m_fine+dx[1]))*(finetab(m_fine+dx[0])+finetab(m_fine+dx[0]+dx[1])) /
+						(finetab(m_fine)+finetab(m_fine+dx[0])+finetab(m_fine+dx[1])+finetab(m_fine+dx[0]+dx[1]));
+
+				}
+ 			}
+
+		if (need_parallel_copy) {
+			crse.ParallelCopy(cfine);
+		}
+ 	}
 }
 
 template<class T>
 void
 Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
 {
-	Util::Abort(INFO, "FillBoundaryCoeff not implemented");
+	BL_PROFILE("Elastic::FillBoundaryCoeff()");
+
+	sigma.FillBoundary(geom.periodicity());
+
+//     if (m_coarsening_strategy == CoarseningStrategy::Sigma)
+//     {
+	const Box& domain = geom.Domain();
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
+	{
+		if (!domain.contains(mfi.fabbox()))
+		{
+			
+
+			//                 amrex_mlndlap_fillbc_cc(BL_TO_FORTRAN_ANYD(sigma[mfi]),
+			//                                         BL_TO_FORTRAN_BOX(domain),
+			//                                         m_lobc.data(), m_hibc.data());
+
+			
+
+    // ilo = max(dlo(1), slo(1))
+    // ihi = min(dhi(1), shi(1))
+    // jlo = max(dlo(2), slo(2))
+    // jhi = min(dhi(2), shi(2))
+
+    // if (bclo(1) .ne. amrex_lo_periodic .and. slo(1) .lt. dlo(1)) then
+    //    sigma(dlo(1)-1,jlo:jhi) = sigma(dlo(1),jlo:jhi)
+    // end if
+    
+    // if (bchi(1) .ne. amrex_lo_periodic .and. shi(1) .gt. dhi(1)) then
+    //    sigma(dhi(1)+1,jlo:jhi) = sigma(dhi(1),jlo:jhi)
+    // end if
+
+    // if (bclo(2) .ne. amrex_lo_periodic .and. slo(2) .lt. dlo(2)) then
+    //    sigma(ilo:ihi,dlo(2)-1) = sigma(ilo:ihi,dlo(2))
+    // end if
+
+    // if (bchi(2) .ne. amrex_lo_periodic .and. shi(2) .gt. dhi(2)) then
+    //    sigma(ilo:ihi,dhi(2)+1) = sigma(ilo:ihi,dhi(2))
+    // end if
+
+    // if (slo(1) .lt. dlo(1) .and. slo(2) .lt. dlo(2)) then
+    //    if (bclo(1) .ne. amrex_lo_periodic) then
+    //       sigma(dlo(1)-1,dlo(2)-1) = sigma(dlo(1),dlo(2)-1)
+    //    else if (bclo(2) .ne. amrex_lo_periodic) then
+    //       sigma(dlo(1)-1,dlo(2)-1) = sigma(dlo(1)-1,dlo(2))
+    //    end if
+    // end if
+
+    // if (shi(1) .gt. dhi(1) .and. slo(2) .lt. dlo(2)) then
+    //    if (bchi(1) .ne. amrex_lo_periodic) then
+    //       sigma(dhi(1)+1,dlo(2)-1) = sigma(dhi(1),dlo(2)-1)
+    //    else if (bclo(2) .ne. amrex_lo_periodic) then
+    //       sigma(dhi(1)+1,dlo(2)-1) = sigma(dhi(1)+1,dlo(2))
+    //    end if
+    // end if
+
+    // if (slo(1) .lt. dlo(1) .and. shi(2) .gt. dhi(2)) then
+    //    if (bclo(1) .ne. amrex_lo_periodic) then
+    //       sigma(dlo(1)-1,dhi(2)+1) = sigma(dlo(1),dhi(2)+1)
+    //    else if (bchi(2) .ne. amrex_lo_periodic) then
+    //       sigma(dlo(1)-1,dhi(2)+1) = sigma(dlo(1)-1,dhi(2))
+    //    end if
+    // end if
+
+    // if (shi(1) .gt. dhi(1) .and. shi(2) .gt. dhi(2)) then
+    //    if (bchi(1) .ne. amrex_lo_periodic) then
+    //       sigma(dhi(1)+1,dhi(2)+1) = sigma(dhi(1),dhi(2)+1)
+    //    else if (bchi(2) .ne. amrex_lo_periodic) then
+    //       sigma(dhi(1)+1,dhi(2)+1) = sigma(dhi(1)+1,dhi(2))
+    //    end if
+    // end if
+
+
+
+		}
+	}
+//     }
+
+
+	//Util::Abort(INFO, "FillBoundaryCoeff not implemented");
 }
 
 
