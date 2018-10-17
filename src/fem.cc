@@ -36,7 +36,7 @@ int main (int argc, char* argv[])
 	using model_type = Model::Solid::Elastic::Isotropic; model_type model(2.6,6.0); 
 	
 	if (amrex::ParallelDescriptor::IOProcessor())
-		model.Print();
+		Util::Message(INFO,model);
 
 	//
 	// READ INPUT FILE
@@ -172,7 +172,9 @@ int main (int argc, char* argv[])
 			//cdomain.grow(-n_cell/4); 
 			cdomain.refine(ref_ratio); 
 
-			ndomain = amrex::convert(cdomain,IntVect::TheNodeVector());
+			//ndomain.grow(IntVect(-n_cell/4,0));
+			ndomain.refine(ref_ratio);
+			//amrex::convert(cdomain,IntVect::TheNodeVector());
 		}
 
 	//
@@ -258,7 +260,8 @@ int main (int argc, char* argv[])
 	LPInfo info;
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
-	info.setMaxCoarseningLevel(0); // Multigrid does not work yet
+	//info.setMaxCoarseningLevel(0); // Multigrid does not work yet
+	//info.setMaxCoarseningLevel(1); // Multigrid does not work yet
 	nlevels = geom.size();
 
 	// Operator::Diagonal mlabec;

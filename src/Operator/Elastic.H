@@ -139,6 +139,15 @@ private:
 	/// (or some other model type). T is the template argument.
 	/// The models contain elastic constants and contain methods for converting strain to stress
 	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > model;
+
+
+
+	virtual void averageDownCoeffs ();
+	void averageDownCoeffsToCoarseAmrLevel (int flev);
+	void averageDownCoeffsSameAmrLevel (int amrlev);
+
+	void FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom);
+
 };
 }
 

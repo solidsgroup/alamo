@@ -361,8 +361,8 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 		amrex::FArrayBox       &mffab    = mf[mfi];
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+		 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
@@ -426,7 +426,7 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 							}
 						}
 					}
-					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular boundary operator in normalize: diagonal = ", aa);
+					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular boundary operator in normalize: diagonal = ", aa," amrlev=",amrlev," mglev=",mglev);
 				}
 				else
 				{
@@ -440,7 +440,7 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 
 				//Util::Message(INFO, "eps = \n", eps);
 
-				if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular operator in normalize: diagonal = ", aa);
+				if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular operator in normalize: diagonal = ", aa," amrlev=",amrlev," mglev=",mglev," C = \n",C(m));
 				mffab(m,i) /= aa;
 			}
 		}
@@ -959,8 +959,86 @@ Elastic<T>::reflux (int crse_amrlev,
 #else
 	Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
 #endif
-
 }
+
+template<class T>
+void
+Elastic<T>::averageDownCoeffs ()
+{
+	// BL_PROFILE("Elastic::averageDownCoeffs()");
+
+	// if (m_coarsening_strategy == CoarseningStrategy::Sigma)
+	// {
+	// 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	// 	{
+	// 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+	// 		{
+	// 			//\todo replace number of ghost cells with 0
+	// 			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
+	// 		}
+	// 	}
+	// }
+
+	// for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+	// {
+	// 	averageDownCoeffsSameAmrLevel(amrlev);
+	// 	averageDownCoeffsToCoarseAmrLevel(amrlev);
+	// }
+
+	// averageDownCoeffsSameAmrLevel(0);
+
+	// for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	// {
+	// 	if (m_use_harmonic_average) {
+	// 		int mglev = 0;
+	// 		FillBoundaryCoeff(*model[amrlev][mglev][0], m_geom[amrlev][mglev]);
+	// 		for (mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
+	// 		{
+	// 			if (model[amrlev][mglev]) {
+	// 				FillBoundaryCoeff(*model[amrlev][mglev], m_geom[amrlev][mglev]);
+	// 			}
+	// 		}
+	// 	} else {
+	// 		int idim = 0;
+	// 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+	// 		{
+	// 			if (model[amrlev][mglev][idim]) {
+	// 				FillBoundaryCoeff(*model[amrlev][mglev][idim], m_geom[amrlev][mglev]);
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	Util::Abort(INFO, "averageDownCoeffs not implemented");
+}
+
+template<class T>
+void
+Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev)
+{
+	Util::Abort(INFO, "averageDownCoeffsToCoarseAmrLevel not implemented");
+	const int mglev = 0;
+	const int idim = 0;  // other dimensions are just aliases
+	// amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
+	// 		    m_amr_ref_ratio[flev-1]);
+}
+
+template<class T>
+void
+Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
+{
+	Util::Abort(INFO, "averageDownCoeffsToSameAmrLevel not implemented");
+}
+
+template<class T>
+void
+Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
+{
+	Util::Abort(INFO, "FillBoundaryCoeff not implemented");
+}
+
+
+
 template class Elastic<Model::Solid::Elastic::Isotropic>;
 template class Elastic<Model::Solid::Elastic::Cubic>;
 template class Elastic<Model::Solid::Elastic::Degradable::Isotropic>;
