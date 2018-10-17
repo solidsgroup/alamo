@@ -797,7 +797,8 @@ PolymerDegradation::DegradeMaterial(int lev)
 																		amrex::IntVect(AMREX_D_DECL(0,1,0)),
 																		amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 
-	for (amrex::MFIter mfi(model[lev],true); mfi.isValid(); ++mfi)
+	//for (amrex::MFIter mfi(model[lev],true); mfi.isValid(); ++mfi)
+	for (amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box& box = mfi.tilebox();
 	 	amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic> &modelfab = (model[lev])[mfi];
@@ -809,6 +810,16 @@ PolymerDegradation::DegradeMaterial(int lev)
 	 	{
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+
+			//Util::Message(INFO,"etafab(m) = ", etafab(m));
+			//Util::Message(INFO,"etafab(m-dx) = ", etafab(m-dx[0]));
+			//Util::Message(INFO,"etafab(m-dy) = ", etafab(m-dx[1]));
+			//Util::Message(INFO,"etafab(m-dz) = ", etafab(m-dx[2]));
+			//Util::Message(INFO,"etafab(m-dx-dy) = ", etafab(m-dx[0]-dx[1]));
+			//Util::Message(INFO,"etafab(m-dx-dz) = ", etafab(m-dx[0]-dx[2]));
+			//Util::Message(INFO,"etafab(m-dy-dz) = ", etafab(m-dx[2]-dx[1]));
+			//Util::Message(INFO,"etafab(m-dx-dy-dz) = ", etafab(m-dx[0]-dx[1]-dx[2]));
+
 			Set::Scalar temp = mul*(AMREX_D_TERM(	etafab(m) 	+ etafab(m-dx[0])
 													,
 													+ etafab(m-dx[1]) + etafab(m-dx[0]-dx[1])
@@ -816,9 +827,9 @@ PolymerDegradation::DegradeMaterial(int lev)
 													+ etafab(m-dx[2])	+ etafab(m-dx[0]-dx[2])
 													+ etafab(m-dx[1]-dx[2]) + etafab(m-dx[0]-dx[1]-dx[2])
 												));
-			if(temp > d_final)
+			if(temp > d_final || std::isnan(temp) || std::isinf(temp))
 			{
-				Util::Message(INFO,"temp exceeded d_final due to averaging.");
+				Util::Message(INFO,"Invalid value of temp = ", temp);
 				Util::Message(INFO," mul = ", mul);
 				Util::Message(INFO,"etafab(m) = ", etafab(m));
 				Util::Message(INFO,"etafab(m-dx) = ", etafab(m-dx[0]));
@@ -911,13 +922,13 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 18, 1, 0);
 #endif 
 	}
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	std::string plot_file_node = plot_file+"-node";
 	const std::vector<std::string>& plotfilename = PlotFileNameNode(plot_file_node,istep[0]);
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), varname,
 				Geom(), t_new[0], istep, refRatio());
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	if (ParallelDescriptor::IOProcessor())
 	{
 		Util::Message(INFO);

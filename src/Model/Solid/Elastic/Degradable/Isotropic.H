@@ -49,8 +49,8 @@ public:
 		if(eta.size() == 0) return;
 		else if(eta.size() == 1)
 		{
-			if(std::isnan(eta[0])) Util::Abort("Nans in eta");
-			if(std::isinf(eta[0])) Util::Abort("Infs in eta");
+			if(std::isnan(eta[0])) Util::Abort(INFO,"Nans in eta");
+			if(std::isinf(eta[0])) Util::Abort(INFO,"Infs in eta");
 			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta",eta[0]);
 			lambda = lambda0*(1.0-eta[0]);
 			mu = mu0*(1.0-eta[0]);
