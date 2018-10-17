@@ -77,6 +77,7 @@ void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE("Operator::Elastic::Fapply()");
+	Util::Message(INFO,"amrlev = ",amrlev," mglev = ", mglev);
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -1001,35 +1002,35 @@ Elastic<T>::averageDownCoeffs ()
 
 template<class T>
 void
-Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev)
+Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
-	// const int mglev = 0;
+	const int mglev = 0;
 	// const int idim = 0;  // other dimensions are just aliases
 
 	// // amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
 	// // 		    m_amr_ref_ratio[flev-1]);
 
-	// for (MFIter mfi(*model[flev][mglev], true); mfi.isValid(); ++mfi)
-	// {
-	// 	const Box& bx = mfi.tilebox();
-	// 	const FArrayBox &fine = (*model[flev][mglev])[mfi];
-	// 	FArrayBox &crse = (*model[flev-1][mglev])[mfi];
+	for (MFIter mfi(*model[flev][mglev], true); mfi.isValid(); ++mfi)
+	{
+	 	const Box& bx = mfi.tilebox();
+	 	const TArrayBox &fine = (*model[flev][mglev])[mfi];
+	 	TArrayBox &crse = (*model[flev-1][mglev])[mfi];
 
-	// 		for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
-	// 			for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
-	// 		{
-	// 			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-	// 			amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
+		for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
+			for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
+	 		{
+	 			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+	 			amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
-	// 			crse(m_crse) =
-	// 				(+     fine(m_fine-dx[0]-dx[1]) + 2.0*fine(m_fine-dx[1]) +     fine(m_fine+dx[0]-dx[1])
-	// 				 + 2.0*fine(m_fine-dx[0]      ) + 4.0*fine(m_fine      ) + 2.0*fine(m_fine+dx[0])       
-	// 				 +     fine(m_fine-dx[0]+dx[1]) + 2.0*fine(m_fine+dx[1]) +     fine(m_fine+dx[0]+dx[1]))/16.0;
-	// 		}
-	// }
+	 			// crse(m_crse) =
+	 			// 	(+     fine(m_fine-dx[0]-dx[1]) + 2.0*fine(m_fine-dx[1]) +     fine(m_fine+dx[0]-dx[1])
+	 			// 	 + 2.0*fine(m_fine-dx[0]      ) + 4.0*fine(m_fine      ) + 2.0*fine(m_fine+dx[0])       
+				// 	 +     fine(m_fine-dx[0]+dx[1]) + 2.0*fine(m_fine+dx[1]) +     fine(m_fine+dx[0]+dx[1]))/16.0;
+	 		}
+	}
 
 
-	Util::Abort(INFO, "averageDownCoeffsToCoarseAmrLevel not implemented");
+	// Util::Abort(INFO, "averageDownCoeffsToCoarseAmrLevel not implemented");
 }
 
 template<class T>
