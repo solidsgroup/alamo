@@ -167,7 +167,7 @@ int main (int argc, char* argv[])
 			ngrids[ilev].define(ndomain);
 			ngrids[ilev].maxSize(max_grid_size);
 
-			cdomain.grow(IntVect(-n_cell/4,0,0)); 
+			cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(IntVect(0,-n_cell/4)); 
 			//cdomain.grow(-n_cell/4); 
 			cdomain.refine(ref_ratio); 
