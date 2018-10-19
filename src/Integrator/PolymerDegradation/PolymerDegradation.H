@@ -95,10 +95,12 @@ private:
 
 	Set::Scalar M, mu, gamma, sigma0, l_gb, beta;
 	int anisotropy = 0;
+	int nlevels = 1;
 
 	amrex::Real anisotropy_tstart;
 
 	std::string ic_type, gb_type, filename;
+
 
 	amrex::Vector<amrex::BoxArray> ngrids,cgrids;
 	amrex::Vector<amrex::DistributionMapping> ndmap;
@@ -154,6 +156,8 @@ private:
 	int 		linop_maxorder 	     	= 2;
 	bool	    elastic_use_fsmooth 	= false;
 	int 		max_coarsening_level	= 0;
+	bool agglomeration 	  = true;
+	bool consolidation 	  = false;
 
 	// Elastic BC
 	BC::BC *elastic_bc;
