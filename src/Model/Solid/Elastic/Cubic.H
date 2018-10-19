@@ -110,24 +110,26 @@ public:
 	}
 #endif
 
-	Cubic operator + (const Cubic &rhs)
+	Cubic operator + (const Cubic &rhs) const
 	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] + rhs.C[i]; return ret;}
 
 	void operator += (const Cubic &rhs)
 	{for (unsigned int i = 0; i < C.size(); i++) C[i] += rhs.C[i];}
 
-	Cubic operator - (const Cubic &rhs)
+	Cubic operator - (const Cubic &rhs) const
 	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] - rhs.C[i]; return ret;}
 
-	Cubic operator * (const Cubic &rhs)
+	Cubic operator * (const Cubic &rhs) const
 	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] * rhs.C[i]; return ret;}
 
-	Cubic operator / (const Cubic &rhs)
+	Cubic operator / (const Cubic &rhs) const
 	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] / rhs.C[i]; return ret;}
 
-	Cubic operator / (const Set::Scalar alpha)
+	Cubic operator / (const Set::Scalar alpha) const
 	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]/alpha; return ret;}
 
+	Cubic operator * (const Set::Scalar alpha) const
+	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]*alpha; return ret;}
 private:
 	std::array<Set::Scalar,21> C;
 
@@ -137,6 +139,6 @@ private:
 }
 }
 
-#endif
+#endif 
 
 

@@ -35,23 +35,26 @@ public:
 		return f;
 	}
 
-	Isotropic operator + (const Isotropic &rhs)
+	Isotropic operator + (const Isotropic &rhs) const
 	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
 
 	void operator += (const Isotropic &rhs)
 	{mu+=rhs.mu; lambda+=rhs.lambda;}
 
-	Isotropic operator - (const Isotropic &rhs)
+	Isotropic operator - (const Isotropic &rhs) const
 	{return Isotropic(mu-rhs.mu, lambda-rhs.lambda);}
 
-	Isotropic operator * (const Isotropic &rhs)
+	Isotropic operator * (const Isotropic &rhs) const
 	{return Isotropic(mu*rhs.mu, lambda*rhs.lambda);}
 
-	Isotropic operator / (const Isotropic &rhs)
+	Isotropic operator / (const Isotropic &rhs) const
 	{return Isotropic(mu/rhs.mu, lambda/rhs.lambda);}
 
-	virtual Isotropic operator / (const Set::Scalar alpha)
+	virtual Isotropic operator / (const Set::Scalar alpha) const
 	{return Isotropic(mu/alpha, lambda/alpha);}
+
+	virtual Isotropic operator * (const Set::Scalar alpha) const
+	{return Isotropic(mu*alpha, lambda*alpha);}
 
 	void DegradeModulus(const amrex::Vector<Set::Scalar> &eta)
 	{
