@@ -56,6 +56,8 @@ Integrator::Integrator ()
 				nsubsteps[lev] = MaxRefRatio(lev-1);
 	}
 
+	Util::Message(INFO,"Grids size = ",grids[0].size());
+
 	int nlevs_max = maxLevel() + 1;
 
 	istep.resize(nlevs_max, 0);
