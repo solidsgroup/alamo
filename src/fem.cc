@@ -285,6 +285,11 @@ int main (int argc, char* argv[])
 	mlabec.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
 		     {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
 	
+
+
+	//mlabec.FsmoothTest(0, 0, u[0], rhs[0], res[0]);
+	//Util::Abort(INFO);
+
 	//
 	// Solver
 	//
@@ -302,7 +307,7 @@ int main (int argc, char* argv[])
 		mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	else if (bottom_solver == "smoother")
 		mlmg.setBottomSolver(MLMG::BottomSolver::smoother);
-	mlmg.setFinalSmooth(100); 
+	//mlmg.setFinalSmooth(100); 
 	if (!use_fsmooth)// <<< put in to NOT require FSmooth
 		{
 			mlmg.setFinalSmooth(0); 
