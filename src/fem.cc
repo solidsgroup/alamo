@@ -111,8 +111,8 @@ int main (int argc, char* argv[])
 	//
 
 	amrex::Vector<amrex::Geometry> 			geom;
-	amrex::Vector<amrex::BoxArray> 			cgrids, ngrids;
-	amrex::Vector<amrex::DistributionMapping>       cdmap, ndmap;
+	amrex::Vector<amrex::BoxArray> 			/*cgrids,*/ ngrids;
+	amrex::Vector<amrex::DistributionMapping>       /*cdmap,*/ ndmap;
 
 	amrex::Vector<amrex::MultiFab>  u;
 	amrex::Vector<amrex::MultiFab>  res;
@@ -130,9 +130,9 @@ int main (int argc, char* argv[])
 	//
 	int nlevels = max_level+1;
 	geom.resize(nlevels);
-	cgrids.resize(nlevels);
+	//cgrids.resize(nlevels);
 	ngrids.resize(nlevels);
-	cdmap.resize(nlevels);
+	//cdmap.resize(nlevels);
 	ndmap.resize(nlevels);
 
 	u.resize(nlevels);
@@ -162,18 +162,18 @@ int main (int argc, char* argv[])
 	Box cdomain = CDomain, ndomain = NDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			cgrids[ilev].define(cdomain);
-			cgrids[ilev].maxSize(max_grid_size);
+			// cgrids[ilev].define(cdomain);
+			// cgrids[ilev].maxSize(max_grid_size);
 
 			ngrids[ilev].define(ndomain);
 			ngrids[ilev].maxSize(max_grid_size);
 
-			cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
+			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(IntVect(0,-n_cell/4)); 
 			//cdomain.grow(-n_cell/4); 
-			cdomain.refine(ref_ratio); 
+			//cdomain.refine(ref_ratio); 
 
-			//ndomain.grow(IntVect(-n_cell/4,0));
+			ndomain.grow(IntVect(-n_cell/4,0));
 			ndomain.refine(ref_ratio);
 			//amrex::convert(cdomain,IntVect::TheNodeVector());
 		}
@@ -184,10 +184,10 @@ int main (int argc, char* argv[])
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0
+	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0 |||| or not? 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			cdmap   [ilev].define(cgrids[ilev]);
+			//cdmap   [ilev].define(cgrids[ilev]);
 			ndmap   [ilev].define(ngrids[ilev]);
 			u       [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
 			res     [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
@@ -251,6 +251,14 @@ int main (int argc, char* argv[])
 					if (j == geom[ilev].Domain().loVect()[1])
 					 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
 			 	}
+			}
+			for (MFIter mfi(u[ilev], true); mfi.isValid(); ++mfi)
+			{
+				amrex::BaseFab<model_type> &C = modelfab[ilev][mfi];
+				const amrex::FArrayBox &ufab    = u[ilev][mfi];
+				Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.loVect()), ", C lovect = ",amrex::IntVect(C.loVect()));
+				Util::Message(INFO,"u hivect = ",amrex::IntVect(ufab.hiVect()), ", C hivect = ",amrex::IntVect(C.hiVect()));
+
 			}
 		}
 
