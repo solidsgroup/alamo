@@ -56,17 +56,21 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	Util::Message(INFO);
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
+		Util::Message(INFO);
 		const Box& bx = mfi.tilebox();
 		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
 		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
+		Util::Message(INFO);
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			modelfab(m);
-			a_modelfab(m);
+			//Util::Message(INFO,"box = ",bx);
+			//Util::Message(INFO,"Point = ",m);
+			//Util::Message(INFO,"Modelfab = ",modelfab(m));
+			//Util::Message(INFO,"InputModel fab = ",a_modelfab (m));
 			modelfab(m) = a_modelfab(m);
 		}
 	}
@@ -197,10 +201,10 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 			//
 			Set::Vector f =
-				C(m)(gradgradu);// + 
-				// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				//  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				//   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+				C(m)(gradgradu) + 
+				 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
 
@@ -329,15 +333,15 @@ Elastic<T>::Fsmooth (int amrlev,
 					else
 					{
 						Set::Vector fD =
-							C(m)(gradgraduD);// + 
-							// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
-							// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsD).col(1),
-							// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsD).col(2));
+							C(m)(gradgraduD) + 
+							 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
+							 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsD).col(1),
+							 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsD).col(2));
 						Set::Vector fU =
-							C(m)(gradgraduU);// + 
-							// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
-							// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsU).col(1),
-							// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsU).col(2));
+							C(m)(gradgraduU) + 
+							 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
+							 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsU).col(1),
+							 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsU).col(2));
 						aa += fD(i);
 						rho += fU(i);
 					}
@@ -435,15 +439,15 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 							}
 						}
 					}
-					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular boundary operator in normalize: diagonal = ", aa," amrlev=",amrlev," mglev=",mglev);
+					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular boundary operator in normalize: diagonal = ", aa," amrlev=",amrlev," mglev=",mglev," C = \n",C(m));
 				}
 				else
 				{
 					Set::Vector f =
-						C(m)(gradgradu);// + 
-						// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
-						// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
-						// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+						C(m)(gradgradu) + 
+						 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+						 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
+						 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
 					aa += f(i);
 				}
 
