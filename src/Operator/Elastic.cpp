@@ -25,10 +25,10 @@ Elastic<T>::~Elastic ()
 template<class T>
 void
 Elastic<T>::define (const Vector<Geometry>& a_geom,
-		 const Vector<BoxArray>& a_grids,
-		 const Vector<DistributionMapping>& a_dmap,
-		 const LPInfo& a_info,
-		 const Vector<FabFactory<FArrayBox> const*>& a_factory)
+		    const Vector<BoxArray>& a_grids,
+		    const Vector<DistributionMapping>& a_dmap,
+		    const LPInfo& a_info,
+		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
 	BL_PROFILE("Operator::Elastic::define()");
 	Util::Message(INFO);
@@ -42,10 +42,20 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		model[amrlev].resize(m_num_mg_levels[amrlev]);
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		{
-			//\todo replace number of ghost cells with 0
-			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
+			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(amrex::convert(m_grids[amrlev][mglev],amrex::IntVect::TheNodeVector()),
+											   m_dmap[amrlev][mglev], 1, 1));
 		}
 	}
+
+
+	for (MFIter mfi(*model[0][0], true); mfi.isValid(); ++mfi)
+	{
+		amrex::BaseFab<T> &C = (*model[0][0])[mfi];
+		Util::Message(INFO,"C lovect = ",amrex::IntVect(C.loVect()));
+		Util::Message(INFO,"C hivect = ",amrex::IntVect(C.hiVect()));
+	}
+	//Util::Abort(INFO);
+
 }
 
 template <class T>
@@ -99,7 +109,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
-		
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
@@ -188,10 +197,15 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 					}
 				}
 			}
-			if (AMREX_D_TERM(xmax || xmin,
-					 || ymax || ymin,
-					 || zmax || zmin)) continue;
-			
+			if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) continue;
+
+			// Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.loVect()), ", C lovect = ",amrex::IntVect(C.loVect()));
+			// Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.hiVect()), ", C lovect = ",amrex::IntVect(C.hiVect()));
+			// Util::Message(INFO,"u xmax");ufab(m+dx[0]);
+			// Util::Message(INFO,"C xmax");C(m+dx[0]);
+			// Util::Message(INFO,"u ymax");ufab(m+dx[1]);
+			// Util::Message(INFO,"C ymax");C(m+dx[1]);
+
 			//
 			// Operator
 			//
@@ -201,15 +215,15 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 			//
 			Set::Vector f =
-				C(m)(gradgradu) + 
-				 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+				C(m)(gradgradu);// + 
+				// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				//     	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				//      	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
-
 		}
 	}
+	//Util::Abort(INFO);
 }
 
 
@@ -413,9 +427,7 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
 				Set::Matrix sig = C(m)(eps);
 
-				if (AMREX_D_TERM(xmax || xmin,
-						 || ymax || ymin,
-						 || zmax || zmin)) 
+				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
 					for (int k = 0; k < AMREX_SPACEDIM; k++) // iterate over DIMENSIONS
 					{
@@ -445,9 +457,9 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 				{
 					Set::Vector f =
 						C(m)(gradgradu) + 
-						 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
 						 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
-						 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+						  	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
 					aa += f(i);
 				}
 
