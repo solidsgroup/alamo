@@ -219,7 +219,9 @@ int main (int argc, char* argv[])
 			// 	     rhs[ilev].setVal(body_force[1]*volume,1,1);,
 			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
 
-			rhs[ilev].setVal(0.00001);
+			rhs[ilev].setVal(0.0000);
+			// rhs[ilev].setVal(0.0,0);
+			// rhs[ilev].setVal(100.0,1);
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
 			verify[ilev].setVal(0.0);
@@ -246,10 +248,12 @@ int main (int argc, char* argv[])
 							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,
 							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;);
 			 		}						
-					// if (i == geom[ilev].Domain().loVect()[0])
-					// 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
-					if (j == geom[ilev].Domain().loVect()[1])
-					 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
+					if (i == geom[ilev].Domain().loVect()[0])
+					    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					// if (i == geom[ilev].Domain().hiVect()[0]+1)
+					//    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					// if (j == geom[ilev].Domain().hiVect()[0])
+					//    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
 			 	}
 			}
 			for (MFIter mfi(u[ilev], true); mfi.isValid(); ++mfi)
@@ -288,7 +292,8 @@ int main (int argc, char* argv[])
 
 
 	//mlabec.FsmoothTest(0, 0, u[0], rhs[0], res[0]);
-	//Util::Abort(INFO);
+	//mlabec.Diagonal(0, 0, res[0]);
+
 
 	//
 	// Solver
@@ -381,11 +386,12 @@ int main (int argc, char* argv[])
 	Util::Message(INFO,"varname size = ", varname.size());
 	Util::Message(INFO,"mf->nComp() = ", plotmf[0].nComp());
 	
-	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-				varname, geom, 0.0, Vector<int>(nlevels, 0),
-				Vector<IntVect>(nlevels, IntVect{ref_ratio}));
-	
 	IO::WriteMetaData(plot_file);
+
+	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
+	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
+	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
+	
 
 	Util::Finalize();
 }
