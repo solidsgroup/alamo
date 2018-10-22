@@ -50,6 +50,78 @@ void Operator::Diagonal (int amrlev,
 
 }
 
+int Operator::FsmoothTest(int amrlev, int mglev, const amrex::MultiFab& x, const amrex::MultiFab& b, amrex::MultiFab& diff) const
+{
+	int ncomp = x.nComp();
+	int nghost = x.nGrow();
+	amrex::MultiFab x1(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab::Copy(x1,x,0,0,ncomp,nghost);
+	amrex::MultiFab x2(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab::Copy(x2,x,0,0,ncomp,nghost);
+
+	FsmoothExact(amrlev, mglev, x1, b);
+	Fsmooth(amrlev, mglev, x2, b);
+
+	//amrex::MultiFab::Subtract(x1,x2,0,0,ncomp,nghost);
+	amrex::MultiFab::Copy(diff,x1,0,0,ncomp,nghost);
+	amrex::MultiFab::Subtract(diff,x2,0,0,ncomp,nghost);
+
+	Set::Scalar norm = 0.0;
+	for (int n=0; n<ncomp; n++)
+		norm += diff.norm0(n);
+
+	Util::Message(INFO,"|smoothexact - smooth| =", norm);
+}
+
+void Operator::FsmoothExact(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
+{
+	int ncomp = x.nComp();
+	int nghost = x.nGrow();
+	amrex::MultiFab diag(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+
+	Diagonal(amrlev,mglev,diag);
+
+	for (int redblack = 0; redblack < 2; redblack++)
+	{
+		Fapply(amrlev,mglev,Ax,x); // find Ax
+
+		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,nghost); // Dx = x
+		amrex::MultiFab::Multiply(Dx,diag,0,0,ncomp,nghost); // Dx *= diag  (Dx = x*diag)
+
+		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,nghost); // Rx = Ax
+		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,nghost); // Rx -= Dx  (Rx = Ax - Dx)
+
+		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+		{
+			const Box& bx = mfi.tilebox();
+			amrex::FArrayBox       &xfab    = x[mfi];
+			const amrex::FArrayBox &bfab    = b[mfi];
+			const amrex::FArrayBox &Rxfab   = Rx[mfi];
+			const amrex::FArrayBox &diagfab = diag[mfi];
+
+			for (int n = 0; n < ncomp; n++)
+			{
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				{
+
+					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
+				}
+			}
+		}
+	}
+
+}
+
+
+
+
 bool Operator::VerificationCheck (int amrlev,
 				  int mglev,
 				  amrex::MultiFab& test) const
@@ -234,15 +306,19 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	 }
 
 
+
+	 Vector<BoxArray> cc_grids(a_grids.size());
+	 for (int i = 0; i < cc_grids.size(); i++)
+		 cc_grids[i] = amrex::convert(a_grids[i],amrex::IntVect::TheNodeVector());
+
 	 for (int amrlev = 1; amrlev < a_grids.size(); ++amrlev)
 	 {
-		 if (!a_grids[amrlev].coarsenable(2))
+		 if (!cc_grids[amrlev].coarsenable(2))
 		  	 Util::Abort(INFO, "Coarsenability error! AMR level ", amrlev, " is not coarsenable with ref ratio 2 \n"
-				     "a_grids[",amrlev,"] = ", a_grids[amrlev]);
+				     "cc_grids[",amrlev,"] = ", cc_grids[amrlev]);
 	 }
 
 	 // This makes sure grids are cell-centered;
-	 Vector<BoxArray> cc_grids = a_grids;
 	 for (auto& ba : cc_grids)
 		 ba.enclosedCells();
 	

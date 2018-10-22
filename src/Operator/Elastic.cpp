@@ -235,6 +235,9 @@ Elastic<T>::Fsmooth (int amrlev,
 		     const MultiFab& rhs
 		     ) const
 {
+	FsmoothExact(amrlev,mglev,u,rhs);
+	return;
+
 	BL_PROFILE("Operator::Elastic::Fsmooth()");
 	Util::Message(INFO,"amrlev=",amrlev," mglev=",mglev);
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
