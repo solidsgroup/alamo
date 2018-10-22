@@ -242,15 +242,16 @@ Elastic<T>::Fsmooth (int amrlev,
 
 	Set::Scalar residual = 0.0;
 	
-	for (int redblack = 0; redblack < 2; redblack++)
+	for (MFIter mfi(rhs, true); mfi.isValid(); ++mfi)
 	{
-		for (MFIter mfi(rhs, true); mfi.isValid(); ++mfi)
-		{
-			const Box           &bx     = mfi.tilebox();
-			amrex::BaseFab<T>   &C      = (*(model[amrlev][mglev]))[mfi];
-			amrex::FArrayBox    &ufab   = u[mfi];
-			const amrex::FArrayBox    &rhsfab   = rhs[mfi];
 
+		const Box           &bx     = mfi.tilebox();
+		amrex::BaseFab<T>   &C      = (*(model[amrlev][mglev]))[mfi];
+		amrex::FArrayBox    &ufab   = u[mfi];
+		const amrex::FArrayBox    &rhsfab   = rhs[mfi];
+
+		for (int redblack = 0; redblack < 2; redblack++)
+		{
 			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
 				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
@@ -277,9 +278,12 @@ Elastic<T>::Fsmooth (int amrlev,
 							     graduD(k,1) = ((!ymax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 							     graduD(k,2) = ((!zmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
-						AMREX_D_TERM(graduU(i,0) = ((!xmax ? ufab(m+dx[0],i) : (i==k ? 0.0 : ufab(m,i))) - (!xmin ? ufab(m-dx[0],i) : (i==k ? 0.0 : ufab(m,i))))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-							     graduU(i,1) = ((!ymax ? ufab(m+dx[1],i) : (i==k ? 0.0 : ufab(m,i))) - (!ymin ? ufab(m-dx[1],i) : (i==k ? 0.0 : ufab(m,i))))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-							     graduU(i,2) = ((!zmax ? ufab(m+dx[2],i) : (i==k ? 0.0 : ufab(m,i))) - (!zmin ? ufab(m-dx[2],i) : (i==k ? 0.0 : ufab(m,i))))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+						AMREX_D_TERM(graduU(i,0) = ((!xmax ? ufab(m+dx[0],i) : (i==k ? 0.0 : ufab(m,i))) - (!xmin ? ufab(m-dx[0],i) : (i==k ? 0.0 : ufab(m,i))))
+							     / ((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+							     graduU(i,1) = ((!ymax ? ufab(m+dx[1],i) : (i==k ? 0.0 : ufab(m,i))) - (!ymin ? ufab(m-dx[1],i) : (i==k ? 0.0 : ufab(m,i))))
+							     / ((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+							     graduU(i,2) = ((!zmax ? ufab(m+dx[2],i) : (i==k ? 0.0 : ufab(m,i))) - (!zmin ? ufab(m-dx[2],i) : (i==k ? 0.0 : ufab(m,i))))
+							     / ((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
 			
 			
@@ -348,23 +352,23 @@ Elastic<T>::Fsmooth (int amrlev,
 					{
 						Set::Vector fD =
 							C(m)(gradgraduD) + 
-							 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
-							 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsD).col(1),
-							 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsD).col(2));
+							AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
+								     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsD).col(1),
+								     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsD).col(2));
 						Set::Vector fU =
 							C(m)(gradgraduU) + 
-							 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
-							 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsU).col(1),
-							 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsU).col(2));
+							AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
+								     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsU).col(1),
+								     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsU).col(2));
 						aa += fD(i);
 						rho += fU(i);
 					}
 
 					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular operator in Fsmooth: diagonal = 0, amrlev = ", amrlev, " mglev = ", mglev, " C = \n",C(m));
 
+					Set::Scalar uold = ufab(m,i);
 					ufab(m,i) = (rhsfab(m,i) - rho) / aa;
-					residual += rho/aa;
-					//if (i==0 && m[0]==4 && m[1] == 4) Util::Message(INFO,ufab(m,i));
+					residual += fabs(uold - ufab(m,i));
 				}
 			}
 		}

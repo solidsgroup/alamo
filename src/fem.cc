@@ -302,6 +302,7 @@ int main (int argc, char* argv[])
 		mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	else if (bottom_solver == "smoother")
 		mlmg.setBottomSolver(MLMG::BottomSolver::smoother);
+	mlmg.setFinalSmooth(100); 
 	if (!use_fsmooth)// <<< put in to NOT require FSmooth
 		{
 			mlmg.setFinalSmooth(0); 
