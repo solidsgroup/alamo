@@ -460,7 +460,7 @@ void
 Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
 	BL_PROFILE("Operator::restriction()");
-	Util::Message(INFO);
+	//Util::Message(INFO);
 
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
@@ -568,7 +568,7 @@ void
 Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	Util::Message(INFO);
+	//Util::Message(INFO);
 
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
@@ -599,17 +599,25 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 			
 			const amrex::FArrayBox &crsefab = (*cmf)[mfi];
 			
-			AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
-				     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
-				     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
+			for (int i=0; i<crse.nComp(); i++)
 			{
-				amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
-				amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
-
-				for (int i=0; i<crse.nComp(); i++)
+				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
+					     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
+					     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
 				{
+					amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
+					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
+
 #if AMREX_SPACEDIM == 2
-					Util::Abort(INFO,"Not implemented in 2D");
+					if (m[0]==2*M[0] && m[1]==2*M[1]) // Coincident
+						tmpfab(m,i) = crsefab(M,i);
+					else if (m[1]==2*M[1]) // X Edge
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
+					else if (m[0]==2*M[0]) // Y Edge
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
+					else // Center
+						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
+								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
 #endif
 #if AMREX_SPACEDIM == 3
 					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
@@ -629,7 +637,7 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 					else if (m[2]==2*M[2]) // Z Face
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
 								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
-					else // Centroid
+					else // Center
 					{
 						tmpfab(m,i) = 0.125 * (crsefab(M,i) +
 								       crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dz,i) +

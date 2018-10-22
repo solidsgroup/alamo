@@ -92,8 +92,9 @@ int main (int argc, char* argv[])
 	bool composite_solve      = true;	  pp_solver.query("composite_solve", composite_solve); 
 	int verbose               = 2;		  pp_solver.query("verbose", verbose);                 
 	int cg_verbose            = 0;		  pp_solver.query("cg_verbose", cg_verbose);           
-	int max_iter              = 100;		  pp_solver.query("max_iter", max_iter);               
+	int max_iter              = 100;	  pp_solver.query("max_iter", max_iter);               
 	int max_fmg_iter 	  = 0;		  pp_solver.query("max_fmg_iter", max_fmg_iter);       
+	int max_mg_level          = 4;            pp_solver.query("max_mg_level", max_mg_level);
 	int linop_maxorder 	  = 2;		  pp_solver.query("linop_maxorder", linop_maxorder);   
 	bool agglomeration 	  = true;	  pp_solver.query("agglomeration", agglomeration);     
 	bool consolidation 	  = false;	  pp_solver.query("consolidation", consolidation);     
@@ -262,6 +263,7 @@ int main (int argc, char* argv[])
 	info.setConsolidation(consolidation);
 	//info.setMaxCoarseningLevel(0); // Multigrid does not work yet
 	//info.setMaxCoarseningLevel(1); // Multigrid does not work yet
+	info.setMaxCoarseningLevel(max_mg_level);
 	nlevels = geom.size();
 
 	// Operator::Diagonal mlabec;
