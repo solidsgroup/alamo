@@ -21,9 +21,12 @@ void Operator::Diagonal (int amrlev,
 	amrex::MultiFab x(diag.boxArray(), diag.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Ax(diag.boxArray(), diag.DistributionMap(), ncomp, nghost);
 
-	x.setVal(0.0);
-	Ax.setVal(0.0);
-	diag.setVal(0.0);
+	// x.setVal(0.0);
+	// Ax.setVal(0.0);
+	// diag.setVal(0.0);
+
+	int sep = AMREX_SPACEDIM;
+	int num = AMREX_D_TERM(sep,*sep,*sep);
 
 	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
@@ -32,18 +35,26 @@ void Operator::Diagonal (int amrlev,
 		amrex::FArrayBox       &xfab    = x[mfi];
 		amrex::FArrayBox       &Axfab   = Ax[mfi];
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		for (int i = 0; i < num; i++)
 		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			for (int i = 0; i < ncomp; ++i)
+			for (int n = 0; n < ncomp; n++)
 			{
-				xfab(m,i) = 1.0;
-				Fapply(amrlev,mglev,Ax,x);
-				diagfab(m,i) = amrex::MultiFab::Dot(x, 0, Ax, 0, ncomp, nghost);
 				xfab.setVal(0.0);
 				Axfab.setVal(0.0);
+				
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				{
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+				
+					if ( m1%sep == i/sep   &&   m2%sep == i%sep ) xfab(m,n) = 1.0;
+					else xfab(m,n) = 0.0;
+				}
+
+				Fapply(amrlev,mglev,Ax,x);
+				Axfab.mult(xfab,n,n,1);
+				diagfab.plus(Axfab,n,n,1);
 			}
 		}
 	}
@@ -84,6 +95,7 @@ void Operator::FsmoothExact(int amrlev, int mglev, amrex::MultiFab& x, const amr
 
 	Diagonal(amrlev,mglev,diag);
 
+	Set::Scalar residual = 0.0;
 	for (int redblack = 0; redblack < 2; redblack++)
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
@@ -111,12 +123,14 @@ void Operator::FsmoothExact(int amrlev, int mglev, amrex::MultiFab& x, const amr
 
 					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					Set::Scalar xold = xfab(m,n);
 					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
+					residual += fabs(xold - xfab(m,n));
 				}
 			}
 		}
 	}
-
+	Util::Message(INFO,"residual = ", residual);
 }
 
 

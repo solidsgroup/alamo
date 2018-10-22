@@ -215,10 +215,10 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 			//
 			Set::Vector f =
-				C(m)(gradgradu);// + 
-				// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				//     	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				//      	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+				C(m)(gradgradu) + 
+				AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				     	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				      	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
 		}
@@ -235,8 +235,10 @@ Elastic<T>::Fsmooth (int amrlev,
 		     const MultiFab& rhs
 		     ) const
 {
-	FsmoothExact(amrlev,mglev,u,rhs);
-	return;
+	Util::Abort(INFO,"Do not use fsmooth!");
+
+	// FsmoothExact(amrlev,mglev,u,rhs);
+	// return;
 
 	BL_PROFILE("Operator::Elastic::Fsmooth()");
 	Util::Message(INFO,"amrlev=",amrlev," mglev=",mglev);
@@ -255,9 +257,11 @@ Elastic<T>::Fsmooth (int amrlev,
 
 		for (int redblack = 0; redblack < 2; redblack++)
 		{
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			// AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			// 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			// 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+			for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
 			{
 				if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 
@@ -287,9 +291,6 @@ Elastic<T>::Fsmooth (int amrlev,
 							     / ((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 							     graduU(i,2) = ((!zmax ? ufab(m+dx[2],i) : (i==k ? 0.0 : ufab(m,i))) - (!zmin ? ufab(m-dx[2],i) : (i==k ? 0.0 : ufab(m,i))))
 							     / ((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-
-			
-			
 
 						AMREX_D_TERM(gradgraduD[k](0,0) = (i==k ? -2.0 : 0.0)/DX[0]/DX[0];
 							     ,// 2D
@@ -323,32 +324,28 @@ Elastic<T>::Fsmooth (int amrlev,
 					Set::Matrix sigD = C(m)(epsD);
 					Set::Matrix sigU = C(m)(epsU);
 
-					if (AMREX_D_TERM(xmax || xmin,
-							 || ymax || ymin,
-							 || zmax || zmin))
+					if (AMREX_D_TERM(xmax || xmin, || ymax || ymin,|| zmax || zmin))
 					{
-						for (int k = 0; k < AMREX_SPACEDIM; k++) // iterate over DIMENSIONS
+						for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
 						{
-							for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+							if (m[j] == domain.loVect()[j])
 							{
-								if (m[j] == domain.loVect()[j])
-								{
-									if (m_bc_lo[j][k] == BC::Displacement)
-									{ aa += 1.0; rho += 0.0;}
-									else if (m_bc_lo[j][k] == BC::Traction) 
-									{ aa -= sigD(k,j); rho -= sigU(k,j); }
-									else Util::Abort(INFO, "Invalid BC");
-								}
-								if (m[j] == domain.hiVect()[j] + 1)
-								{
-									if (m_bc_hi[j][k] == BC::Displacement)
-									{ aa += 1.0; rho += 0.0;}
-									else if (m_bc_hi[j][k] == BC::Traction) 
-									{ aa += sigD(k,j); rho += sigU(k,j); }
-									else Util::Abort(INFO, "Invalid BC");
-								}
+								if (m_bc_lo[j][i] == BC::Displacement)
+								{ aa = 1.0; rho = 0.0;}
+								else if (m_bc_lo[j][i] == BC::Traction) 
+								{ aa -= sigD(i,j); rho -= sigU(i,j); }
+								else Util::Abort(INFO, "Invalid BC");
+							}
+							else if (m[j] == domain.hiVect()[j] + 1)
+							{
+								if (m_bc_hi[j][i] == BC::Displacement)
+								{ aa = 1.0; rho = 0.0;}
+								else if (m_bc_hi[j][i] == BC::Traction) 
+								{ aa += sigD(i,j); rho += sigU(i,j); }
+								else Util::Abort(INFO, "Invalid BC");
 							}
 						}
+
 						if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular boundary operator in Fsmooth: diagonal = 0");
 					}
 					else
