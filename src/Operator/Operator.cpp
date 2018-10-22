@@ -453,7 +453,7 @@ Operator::prepareForSolve ()
 
 	buildMasks();
 
-	averageDownCoeffs();
+	//averageDownCoeffs();
 }
 
 void
