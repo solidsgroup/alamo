@@ -91,7 +91,7 @@ public:
 protected:
 
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
-	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
+	//virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
 						const FArrayBox& sol, const int face_only=0) const final;
@@ -120,7 +120,7 @@ protected:
 
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
-	virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
+	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
 
 private:
 	/// \todo: This function needs to be removed. It currently exists only to avoid
