@@ -111,8 +111,8 @@ int main (int argc, char* argv[])
 	//
 
 	amrex::Vector<amrex::Geometry> 			geom;
-	amrex::Vector<amrex::BoxArray> 			/*cgrids,*/ ngrids;
-	amrex::Vector<amrex::DistributionMapping>       /*cdmap,*/ ndmap;
+	amrex::Vector<amrex::BoxArray> 			cgrids, ngrids;
+	amrex::Vector<amrex::DistributionMapping>       dmap;
 
 	amrex::Vector<amrex::MultiFab>  u;
 	amrex::Vector<amrex::MultiFab>  res;
@@ -130,10 +130,9 @@ int main (int argc, char* argv[])
 	//
 	int nlevels = max_level+1;
 	geom.resize(nlevels);
-	//cgrids.resize(nlevels);
+	cgrids.resize(nlevels);
 	ngrids.resize(nlevels);
-	//cdmap.resize(nlevels);
-	ndmap.resize(nlevels);
+	dmap.resize(nlevels);
 
 	u.resize(nlevels);
 	res.resize(nlevels);
@@ -162,20 +161,20 @@ int main (int argc, char* argv[])
 	Box cdomain = CDomain, ndomain = NDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			// cgrids[ilev].define(cdomain);
-			// cgrids[ilev].maxSize(max_grid_size);
+			cgrids[ilev].define(cdomain);
+			cgrids[ilev].maxSize(max_grid_size);
 
-			ngrids[ilev].define(ndomain);
-			ngrids[ilev].maxSize(max_grid_size);
+			// ngrids[ilev].define(ndomain);
+			// ngrids[ilev].maxSize(max_grid_size);
 
-			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
-			//cdomain.grow(IntVect(0,-n_cell/4)); 
+			cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(-n_cell/4); 
-			//cdomain.refine(ref_ratio); 
+			cdomain.refine(ref_ratio); 
 
-			ndomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0)));
-			ndomain.refine(ref_ratio);
-			//amrex::convert(cdomain,IntVect::TheNodeVector());
+			//ndomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0)));
+			//ndomain.refine(ref_ratio);
+			ngrids[ilev] = cgrids[ilev];
+			ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
 		}
 
 	//
@@ -187,17 +186,22 @@ int main (int argc, char* argv[])
 	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0 |||| or not? 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
+			dmap   [ilev].define(cgrids[ilev]);
+			Util::Message(INFO,dmap[ilev].size());
+			Util::Message(INFO,cgrids[ilev].size());
+			//ndmap   [ilev].define(ngrids[ilev]);
+			Util::Message(INFO,ngrids[ilev].size());
 			//cdmap   [ilev].define(cgrids[ilev]);
-			ndmap   [ilev].define(ngrids[ilev]);
-			u       [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
-			res     [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
-			eps0    [ilev].define(ngrids[ilev], ndmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
-			bcdata  [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			rhs     [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			stress  [ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
-			energy  [ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
-			verify	[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			modelfab[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
+			u       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
+			res     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
+			eps0    [ilev].define(ngrids[ilev], dmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
+			bcdata  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+			rhs     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+			stress  [ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
+			energy  [ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
+			verify	[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+			modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
+			Util::Message(INFO,"DEFINED PROPERLY");
 		}
 
 	
@@ -220,7 +224,7 @@ int main (int argc, char* argv[])
 			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
 
 			rhs[ilev].setVal(0.00001);
-			// rhs[ilev].setVal(1.0,0);
+			//rhs[ilev].setVal(1.0,0);
 			// rhs[ilev].setVal(100.0,1);
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
@@ -283,16 +287,16 @@ int main (int argc, char* argv[])
 	// mlabec.setMaxOrder(linop_maxorder);
 
 	Operator::Elastic<model_type> mlabec;
-	mlabec.define(geom, ngrids, ndmap, info);
-	//mlabec.setMaxOrder(linop_maxorder);
+	//amrex::MLNodeLaplacian mlabec;
+	//Util::Abort(INFO,"agrids.size = ", a_grids.size()," a_dmap.size = ", a_dmap.size());
+
+	mlabec.define(geom, cgrids, dmap, info);
+	mlabec.setMaxOrder(linop_maxorder);
 	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
-	mlabec.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
-		     {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
+	 mlabec.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
+	 	     {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
 	
 
-
-	//mlabec.FsmoothTest(0, 0, u[0], rhs[0], res[0]);
-	//mlabec.Diagonal(0, 0, res[0]);
 
 
 	//
@@ -327,8 +331,8 @@ int main (int argc, char* argv[])
 
 	for (int lev = 0; lev < nlevels; lev++)
 		{
-			mlabec.Stress(lev,stress[lev],u[lev]);
-			mlabec.Energy(lev,energy[lev],u[lev]);
+			// mlabec.Stress(lev,stress[lev],u[lev]);
+			// mlabec.Energy(lev,energy[lev],u[lev]);
 		}
 		
 	//
@@ -349,7 +353,7 @@ int main (int argc, char* argv[])
 	Vector<MultiFab> plotmf(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
+			plotmf[ilev].define(ngrids[ilev], dmap[ilev], ncomp, 0);
 #if AMREX_SPACEDIM == 2
 			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0, 1, 0);
 			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
