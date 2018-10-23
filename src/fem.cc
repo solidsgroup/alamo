@@ -92,8 +92,9 @@ int main (int argc, char* argv[])
 	bool composite_solve      = true;	  pp_solver.query("composite_solve", composite_solve); 
 	int verbose               = 2;		  pp_solver.query("verbose", verbose);                 
 	int cg_verbose            = 0;		  pp_solver.query("cg_verbose", cg_verbose);           
-	int max_iter              = 100;		  pp_solver.query("max_iter", max_iter);               
+	int max_iter              = 100;	  pp_solver.query("max_iter", max_iter);               
 	int max_fmg_iter 	  = 0;		  pp_solver.query("max_fmg_iter", max_fmg_iter);       
+	int max_mg_level          = 4;            pp_solver.query("max_mg_level", max_mg_level);
 	int linop_maxorder 	  = 2;		  pp_solver.query("linop_maxorder", linop_maxorder);   
 	bool agglomeration 	  = true;	  pp_solver.query("agglomeration", agglomeration);     
 	bool consolidation 	  = false;	  pp_solver.query("consolidation", consolidation);     
@@ -110,8 +111,8 @@ int main (int argc, char* argv[])
 	//
 
 	amrex::Vector<amrex::Geometry> 			geom;
-	amrex::Vector<amrex::BoxArray> 			cgrids, ngrids;
-	amrex::Vector<amrex::DistributionMapping>       cdmap, ndmap;
+	amrex::Vector<amrex::BoxArray> 			/*cgrids,*/ ngrids;
+	amrex::Vector<amrex::DistributionMapping>       /*cdmap,*/ ndmap;
 
 	amrex::Vector<amrex::MultiFab>  u;
 	amrex::Vector<amrex::MultiFab>  res;
@@ -129,9 +130,9 @@ int main (int argc, char* argv[])
 	//
 	int nlevels = max_level+1;
 	geom.resize(nlevels);
-	cgrids.resize(nlevels);
+	//cgrids.resize(nlevels);
 	ngrids.resize(nlevels);
-	cdmap.resize(nlevels);
+	//cdmap.resize(nlevels);
 	ndmap.resize(nlevels);
 
 	u.resize(nlevels);
@@ -161,18 +162,18 @@ int main (int argc, char* argv[])
 	Box cdomain = CDomain, ndomain = NDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			cgrids[ilev].define(cdomain);
-			cgrids[ilev].maxSize(max_grid_size);
+			// cgrids[ilev].define(cdomain);
+			// cgrids[ilev].maxSize(max_grid_size);
 
 			ngrids[ilev].define(ndomain);
 			ngrids[ilev].maxSize(max_grid_size);
 
-			cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
+			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(IntVect(0,-n_cell/4)); 
 			//cdomain.grow(-n_cell/4); 
-			cdomain.refine(ref_ratio); 
+			//cdomain.refine(ref_ratio); 
 
-			//ndomain.grow(IntVect(-n_cell/4,0));
+			ndomain.grow(IntVect(-n_cell/4,0));
 			ndomain.refine(ref_ratio);
 			//amrex::convert(cdomain,IntVect::TheNodeVector());
 		}
@@ -183,10 +184,10 @@ int main (int argc, char* argv[])
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0
+	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0 |||| or not? 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			cdmap   [ilev].define(cgrids[ilev]);
+			//cdmap   [ilev].define(cgrids[ilev]);
 			ndmap   [ilev].define(ngrids[ilev]);
 			u       [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
 			res     [ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells); 
@@ -218,7 +219,9 @@ int main (int argc, char* argv[])
 			// 	     rhs[ilev].setVal(body_force[1]*volume,1,1);,
 			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
 
-			rhs[ilev].setVal(0.00001);
+			rhs[ilev].setVal(0.0000);
+			rhs[ilev].setVal(1.0,0);
+			// rhs[ilev].setVal(100.0,1);
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
 			verify[ilev].setVal(0.0);
@@ -245,11 +248,21 @@ int main (int argc, char* argv[])
 							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,
 							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;);
 			 		}						
-					// if (i == geom[ilev].Domain().loVect()[0])
-					// 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
-					if (j == geom[ilev].Domain().loVect()[1])
-					 	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.1;
+					if (i == geom[ilev].Domain().loVect()[0])
+					    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					// if (i == geom[ilev].Domain().hiVect()[0]+1)
+					//    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					// if (j == geom[ilev].Domain().hiVect()[0])
+					//    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
 			 	}
+			}
+			for (MFIter mfi(u[ilev], true); mfi.isValid(); ++mfi)
+			{
+				amrex::BaseFab<model_type> &C = modelfab[ilev][mfi];
+				const amrex::FArrayBox &ufab    = u[ilev][mfi];
+				Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.loVect()), ", C lovect = ",amrex::IntVect(C.loVect()));
+				Util::Message(INFO,"u hivect = ",amrex::IntVect(ufab.hiVect()), ", C hivect = ",amrex::IntVect(C.hiVect()));
+
 			}
 		}
 
@@ -262,6 +275,7 @@ int main (int argc, char* argv[])
 	info.setConsolidation(consolidation);
 	//info.setMaxCoarseningLevel(0); // Multigrid does not work yet
 	//info.setMaxCoarseningLevel(1); // Multigrid does not work yet
+	info.setMaxCoarseningLevel(max_mg_level);
 	nlevels = geom.size();
 
 	// Operator::Diagonal mlabec;
@@ -275,6 +289,12 @@ int main (int argc, char* argv[])
 	mlabec.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
 		     {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
 	
+
+
+	//mlabec.FsmoothTest(0, 0, u[0], rhs[0], res[0]);
+	//mlabec.Diagonal(0, 0, res[0]);
+
+
 	//
 	// Solver
 	//
@@ -292,6 +312,7 @@ int main (int argc, char* argv[])
 		mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	else if (bottom_solver == "smoother")
 		mlmg.setBottomSolver(MLMG::BottomSolver::smoother);
+	//mlmg.setFinalSmooth(100); 
 	if (!use_fsmooth)// <<< put in to NOT require FSmooth
 		{
 			mlmg.setFinalSmooth(0); 
@@ -365,11 +386,12 @@ int main (int argc, char* argv[])
 	Util::Message(INFO,"varname size = ", varname.size());
 	Util::Message(INFO,"mf->nComp() = ", plotmf[0].nComp());
 	
-	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-				varname, geom, 0.0, Vector<int>(nlevels, 0),
-				Vector<IntVect>(nlevels, IntVect{ref_ratio}));
-	
 	IO::WriteMetaData(plot_file);
+
+	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
+	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
+	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
+	
 
 	Util::Finalize();
 }

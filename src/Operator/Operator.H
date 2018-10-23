@@ -91,6 +91,8 @@ public :
 
 	void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) const;
 	bool VerificationCheck (int amrlev, int mglev, amrex::MultiFab& test) const;
+	void FsmoothExact(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const;
+	int FsmoothTest(int amrlev, int mglev, const amrex::MultiFab& x, const amrex::MultiFab& b, amrex::MultiFab& diff) const;
 protected:
 
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
