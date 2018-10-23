@@ -21,9 +21,9 @@ void Operator::Diagonal (int amrlev,
 	amrex::MultiFab x(diag.boxArray(), diag.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Ax(diag.boxArray(), diag.DistributionMap(), ncomp, nghost);
 
-	// x.setVal(0.0);
-	// Ax.setVal(0.0);
-	// diag.setVal(0.0);
+	x.setVal(0.0);
+	Ax.setVal(0.0);
+	diag.setVal(0.0);
 
 	int sep = AMREX_SPACEDIM;
 	int num = AMREX_D_TERM(sep,*sep,*sep);
