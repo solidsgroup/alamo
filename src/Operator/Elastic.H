@@ -90,6 +90,8 @@ public:
 
 protected:
 
+	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
+
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
 	//virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
@@ -120,6 +122,7 @@ protected:
 
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
+	//virtual void Diagonal(bool recompute=false);
 	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
 
 private:

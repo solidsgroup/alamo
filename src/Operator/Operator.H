@@ -89,7 +89,6 @@ public :
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fsmooth(amrlev,mglev,out,in);};
 
-	void Diagonal (bool recompute=false);
 	bool VerificationCheck (int amrlev, int mglev, amrex::MultiFab& test) const;
 
 protected:
@@ -109,6 +108,9 @@ protected:
 	///
 	/// Apply 
 	/// 
+	virtual void Diagonal (bool recompute=false);
+	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag);
+
 	virtual void Fapply (int amrlev, ///<[in] AMR level
 			     int mglev, ///<[in] MG level
 			     MultiFab& out, ///<[out] Output of linear operator

@@ -221,6 +221,99 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 
 template<class T>
 void
+Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
+{
+	BL_PROFILE("Operator::Elastic::Diagonal()");
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	const Real* DX = m_geom[amrlev][mglev].CellSize();
+	
+	for (MFIter mfi(diag, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
+		amrex::FArrayBox       &diagfab    = diag[mfi];
+
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+		 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+		 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
+					     ymin = (m2 == domain.loVect()[1]),
+					     zmin = (m3 == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
+					     ymax = (m2 == domain.hiVect()[1] + 1),
+					     zmax = (m3 == domain.hiVect()[2] + 1));
+
+			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
+			{
+				diagfab(m,i) = 0.0;
+				for (int k = 0; k < AMREX_SPACEDIM; k++)
+				{
+					AMREX_D_TERM(gradu(k,0) = ((!xmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!xmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+						     gradu(k,1) = ((!ymax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+						     gradu(k,2) = ((!zmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			
+					AMREX_D_TERM(gradgradu[k](0,0) = (i==k ? -2.0 : 0.0)/DX[0]/DX[0];
+						     ,// 2D
+						     gradgradu[k](0,1) = 0.0;
+						     gradgradu[k](1,0) = 0.0;
+						     gradgradu[k](1,1) = (i==k ? -2.0 : 0.0)/DX[1]/DX[1];
+						     ,// 3D
+						     gradgradu[k](0,2) = 0.0;
+						     gradgradu[k](1,2) = 0.0;
+						     gradgradu[k](2,0) = 0.0;
+						     gradgradu[k](2,1) = 0.0;
+						     gradgradu[k](2,2) = (i==k ? -2.0 : 0.0)/DX[2]/DX[2]);
+				}
+
+				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+				Set::Matrix sig = C(m)(eps);
+
+				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
+				{
+					for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+					{
+						if (m[j] == domain.loVect()[j])
+						{
+							if (m_bc_lo[j][i] == BC::Displacement)
+								diagfab(m,i) += 1.0;
+							else if (m_bc_lo[j][i] == BC::Traction) 
+								diagfab(m,i) -= sig(i,j);
+							else Util::Abort(INFO, "Invalid BC");
+						}
+						if (m[j] == domain.hiVect()[j] + 1)
+						{
+							if (m_bc_hi[j][i] == BC::Displacement)
+								diagfab(m,i) += 1.0;
+							else if (m_bc_hi[j][i] == BC::Traction) 
+								diagfab(m,i) += sig(i,j);
+							else Util::Abort(INFO, "Invalid BC");
+						}
+					}
+				}
+				else
+				{
+					Set::Vector f =
+						C(m)(gradgradu) + 
+						 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+						  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
+						   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+					diagfab(m,i) += f(i);
+				}
+			}
+		}
+	}
+}
+
+
+
+
+template<class T>
+void
 Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const

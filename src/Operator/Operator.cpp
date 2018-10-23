@@ -21,57 +21,74 @@ void Operator::Diagonal (bool recompute)
 
 	int sep = 2;
 	int num = AMREX_D_TERM(sep,*sep,*sep);
+	int cntr = 0;
 
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
-
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		{
-			amrex::MultiFab x(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
-			amrex::MultiFab Ax(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
+			Diagonal(amrlev,mglev,*m_diag[amrlev][mglev]);
+		}
+	}
+}
 
-			for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
+{
+	BL_PROFILE("Operator::Diagonal()");
+
+	int ncomp = diag.nComp();
+	int nghost = 1;
+
+	int sep = 2;
+	int num = AMREX_D_TERM(sep,*sep,*sep);
+	int cntr = 0;
+
+	amrex::MultiFab x(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
+	amrex::MultiFab Ax(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
+
+	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::FArrayBox       &diagfab = diag[mfi];
+		amrex::FArrayBox       &xfab    = x[mfi];
+		amrex::FArrayBox       &Axfab   = Ax[mfi];
+
+		diagfab.setVal(0.0);
+				
+		for (int i = 0; i < num; i++)
+		{
+			for (int n = 0; n < ncomp; n++)
 			{
-				const Box& bx = mfi.tilebox();
-				amrex::FArrayBox       &diagfab = (*m_diag[amrlev][mglev])[mfi];
-				amrex::FArrayBox       &xfab    = x[mfi];
-				amrex::FArrayBox       &Axfab   = Ax[mfi];
-
-				diagfab.setVal(0.0);
+				xfab.setVal(0.0);
+				Axfab.setVal(0.0);
 				
-				for (int i = 0; i < num; i++)
+				//BL_PROFILE_VAR("Operator::Part1", part1); 
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 				{
-					for (int n = 0; n < ncomp; n++)
-					{
-						xfab.setVal(0.0);
-						Axfab.setVal(0.0);
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 				
-						BL_PROFILE_VAR("Operator::Part1", part1); 
-						AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-							     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-							     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
-						{
-							amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-				
-							if ( m1%sep == i/sep   &&   m2%sep == i%sep ) xfab(m,n) = 1.0;
-							else xfab(m,n) = 0.0;
-						}
-						BL_PROFILE_VAR_STOP(part1);
-
-						BL_PROFILE_VAR("Operator::Part2", part2); 
-						Fapply(amrlev,mglev,Ax,x);
-						BL_PROFILE_VAR_STOP(part2);
-
-						BL_PROFILE_VAR("Operator::Part3", part3); 
-						Axfab.mult(xfab,n,n,1);
-						diagfab.plus(Axfab,n,n,1);
-						BL_PROFILE_VAR_STOP(part3);
-					}
+					if ( m1%sep == i/sep   &&   m2%sep == i%sep ) xfab(m,n) = 1.0;
+					else xfab(m,n) = 0.0;
 				}
+				//BL_PROFILE_VAR_STOP(part1);
+
+				BL_PROFILE_VAR("Operator::Part2", part2); 
+				Util::Message(INFO,"Calling fapply...",cntr++);
+				Fapply(amrlev,mglev,Ax,x);
+				BL_PROFILE_VAR_STOP(part2);
+						
+				//BL_PROFILE_VAR("Operator::Part3", part3); 
+				Axfab.mult(xfab,n,n,1);
+				diagfab.plus(Axfab,n,n,1);
+				//BL_PROFILE_VAR_STOP(part3);
 			}
 		}
 	}
 }
+
+
 
 void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
