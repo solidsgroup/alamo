@@ -173,7 +173,7 @@ int main (int argc, char* argv[])
 			//cdomain.grow(-n_cell/4); 
 			//cdomain.refine(ref_ratio); 
 
-			ndomain.grow(IntVect(-n_cell/4,0));
+			ndomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0)));
 			ndomain.refine(ref_ratio);
 			//amrex::convert(cdomain,IntVect::TheNodeVector());
 		}
