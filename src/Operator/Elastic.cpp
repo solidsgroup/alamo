@@ -25,10 +25,10 @@ Elastic<T>::~Elastic ()
 template<class T>
 void
 Elastic<T>::define (const Vector<Geometry>& a_geom,
-		 const Vector<BoxArray>& a_grids,
-		 const Vector<DistributionMapping>& a_dmap,
-		 const LPInfo& a_info,
-		 const Vector<FabFactory<FArrayBox> const*>& a_factory)
+		    const Vector<BoxArray>& a_grids,
+		    const Vector<DistributionMapping>& a_dmap,
+		    const LPInfo& a_info,
+		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
 	BL_PROFILE("Operator::Elastic::define()");
 	Util::Message(INFO);
@@ -42,10 +42,20 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		model[amrlev].resize(m_num_mg_levels[amrlev]);
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		{
-			//\todo replace number of ghost cells with 0
-			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
+			model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(amrex::convert(m_grids[amrlev][mglev],amrex::IntVect::TheNodeVector()),
+											   m_dmap[amrlev][mglev], 1, 1));
 		}
 	}
+
+
+	for (MFIter mfi(*model[0][0], true); mfi.isValid(); ++mfi)
+	{
+		amrex::BaseFab<T> &C = (*model[0][0])[mfi];
+		Util::Message(INFO,"C lovect = ",amrex::IntVect(C.loVect()));
+		Util::Message(INFO,"C hivect = ",amrex::IntVect(C.hiVect()));
+	}
+	//Util::Abort(INFO);
+
 }
 
 template <class T>
@@ -62,15 +72,15 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
 		Util::Message(INFO);
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+			     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+			     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 			//Util::Message(INFO,"box = ",bx);
 			//Util::Message(INFO,"Point = ",m);
-			Util::Message(INFO,"Modelfab = ",modelfab(m));
-			Util::Message(INFO,"InputModel fab = ",a_modelfab (m));
+			//Util::Message(INFO,"Modelfab = ",modelfab(m));
+			//Util::Message(INFO,"InputModel fab = ",a_modelfab (m));
 			modelfab(m) = a_modelfab(m);
 		}
 	}
@@ -99,7 +109,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
-		
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
@@ -188,10 +197,15 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 					}
 				}
 			}
-			if (AMREX_D_TERM(xmax || xmin,
-					 || ymax || ymin,
-					 || zmax || zmin)) continue;
-			
+			if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) continue;
+
+			// Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.loVect()), ", C lovect = ",amrex::IntVect(C.loVect()));
+			// Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.hiVect()), ", C lovect = ",amrex::IntVect(C.hiVect()));
+			// Util::Message(INFO,"u xmax");ufab(m+dx[0]);
+			// Util::Message(INFO,"C xmax");C(m+dx[0]);
+			// Util::Message(INFO,"u ymax");ufab(m+dx[1]);
+			// Util::Message(INFO,"C ymax");C(m+dx[1]);
+
 			//
 			// Operator
 			//
@@ -202,42 +216,52 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			//
 			Set::Vector f =
 				C(m)(gradgradu) + 
-				 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+				AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				      	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				       	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
-
 		}
 	}
+	//Util::Abort(INFO);
 }
 
 
 template<class T>
 void
 Elastic<T>::Fsmooth (int amrlev,
-		  int mglev,
-		  MultiFab& u,
-		  const MultiFab& rhs
-		  ) const
+		     int mglev,
+		     MultiFab& u,
+		     const MultiFab& rhs
+		     ) const
 {
+	FsmoothExact(amrlev,mglev,u,rhs);
+	return;
+
+	/*
 	BL_PROFILE("Operator::Elastic::Fsmooth()");
-	Util::Message(INFO);
+	Util::Message(INFO,"amrlev=",amrlev," mglev=",mglev);
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
-	
-	for (int redblack = 0; redblack < 2; redblack++)
-	{
-		for (MFIter mfi(rhs, true); mfi.isValid(); ++mfi)
-		{
-			const Box           &bx     = mfi.tilebox();
-			amrex::BaseFab<T>   &C      = (*(model[amrlev][mglev]))[mfi];
-			amrex::FArrayBox    &ufab   = u[mfi];
-			const amrex::FArrayBox    &rhsfab   = rhs[mfi];
 
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+	Set::Scalar residual = 0.0;
+	
+	for (MFIter mfi(rhs, true); mfi.isValid(); ++mfi)
+	{
+
+		const Box           &bx     = mfi.tilebox();
+		amrex::BaseFab<T>   &C      = (*(model[amrlev][mglev]))[mfi];
+		amrex::FArrayBox    &ufab   = u[mfi];
+		const amrex::FArrayBox    &rhsfab   = rhs[mfi];
+
+		for (int redblack = 0; redblack < 2; redblack++)
+		{
+			// AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			// 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			// 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+			for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
 			{
 				if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 
@@ -261,12 +285,12 @@ Elastic<T>::Fsmooth (int amrlev,
 							     graduD(k,1) = ((!ymax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 							     graduD(k,2) = ((!zmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
-						AMREX_D_TERM(graduU(i,0) = ((!xmax ? ufab(m+dx[0],i) : (i==k ? 0.0 : ufab(m,i))) - (!xmin ? ufab(m-dx[0],i) : (i==k ? 0.0 : ufab(m,i))))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-							     graduU(i,1) = ((!ymax ? ufab(m+dx[1],i) : (i==k ? 0.0 : ufab(m,i))) - (!ymin ? ufab(m-dx[1],i) : (i==k ? 0.0 : ufab(m,i))))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-							     graduU(i,2) = ((!zmax ? ufab(m+dx[2],i) : (i==k ? 0.0 : ufab(m,i))) - (!zmin ? ufab(m-dx[2],i) : (i==k ? 0.0 : ufab(m,i))))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-
-			
-			
+						AMREX_D_TERM(graduU(i,0) = ((!xmax ? ufab(m+dx[0],i) : (i==k ? 0.0 : ufab(m,i))) - (!xmin ? ufab(m-dx[0],i) : (i==k ? 0.0 : ufab(m,i))))
+							     / ((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+							     graduU(i,1) = ((!ymax ? ufab(m+dx[1],i) : (i==k ? 0.0 : ufab(m,i))) - (!ymin ? ufab(m-dx[1],i) : (i==k ? 0.0 : ufab(m,i))))
+							     / ((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+							     graduU(i,2) = ((!zmax ? ufab(m+dx[2],i) : (i==k ? 0.0 : ufab(m,i))) - (!zmin ? ufab(m-dx[2],i) : (i==k ? 0.0 : ufab(m,i))))
+							     / ((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 
 						AMREX_D_TERM(gradgraduD[k](0,0) = (i==k ? -2.0 : 0.0)/DX[0]/DX[0];
 							     ,// 2D
@@ -300,44 +324,40 @@ Elastic<T>::Fsmooth (int amrlev,
 					Set::Matrix sigD = C(m)(epsD);
 					Set::Matrix sigU = C(m)(epsU);
 
-					if (AMREX_D_TERM(xmax || xmin,
-							 || ymax || ymin,
-							 || zmax || zmin))
+					if (AMREX_D_TERM(xmax || xmin, || ymax || ymin,|| zmax || zmin))
 					{
-						for (int k = 0; k < AMREX_SPACEDIM; k++) // iterate over DIMENSIONS
+						for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
 						{
-							for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+							if (m[j] == domain.loVect()[j])
 							{
-								if (m[j] == domain.loVect()[j])
-								{
-									if (m_bc_lo[j][k] == BC::Displacement)
-									{ aa += 1.0; rho += 0.0;}
-									else if (m_bc_lo[j][k] == BC::Traction) 
-									{ aa -= sigD(k,j); rho -= sigU(k,j); }
-									else Util::Abort(INFO, "Invalid BC");
-								}
-								if (m[j] == domain.hiVect()[j] + 1)
-								{
-									if (m_bc_hi[j][k] == BC::Displacement)
-									{ aa += 1.0; rho += 0.0;}
-									else if (m_bc_hi[j][k] == BC::Traction) 
-									{ aa += sigD(k,j); rho += sigU(k,j); }
-									else Util::Abort(INFO, "Invalid BC");
-								}
+								if (m_bc_lo[j][i] == BC::Displacement)
+								{ aa = 1.0; rho = 0.0;}
+								else if (m_bc_lo[j][i] == BC::Traction) 
+								{ aa -= sigD(i,j); rho -= sigU(i,j); }
+								else Util::Abort(INFO, "Invalid BC");
+							}
+							else if (m[j] == domain.hiVect()[j] + 1)
+							{
+								if (m_bc_hi[j][i] == BC::Displacement)
+								{ aa = 1.0; rho = 0.0;}
+								else if (m_bc_hi[j][i] == BC::Traction) 
+								{ aa += sigD(i,j); rho += sigU(i,j); }
+								else Util::Abort(INFO, "Invalid BC");
 							}
 						}
+
 						if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular boundary operator in Fsmooth: diagonal = 0");
 					}
 					else
 					{
 						Set::Vector fD =
 							C(m)(gradgraduD) + 
-							 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
+							AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsD).col(0),
 							 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsD).col(1),
 							 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsD).col(2));
 						Set::Vector fU =
 							C(m)(gradgraduU) + 
-							 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
+							AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(epsU).col(0),
 							 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(epsU).col(1),
 							 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(epsU).col(2));
 						aa += fD(i);
@@ -346,11 +366,15 @@ Elastic<T>::Fsmooth (int amrlev,
 
 					if (fabs(aa) < 1E-10) Util::Abort(INFO, "Singular operator in Fsmooth: diagonal = 0, amrlev = ", amrlev, " mglev = ", mglev, " C = \n",C(m));
 
+					Set::Scalar uold = ufab(m,i);
 					ufab(m,i) = (rhsfab(m,i) - rho) / aa;
+					residual += fabs(uold - ufab(m,i));
 				}
 			}
 		}
 	}
+	Util::Message(INFO,"residual = ",residual);
+	*/
 }
 
 template<class T>
@@ -408,9 +432,7 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
 				Set::Matrix sig = C(m)(eps);
 
-				if (AMREX_D_TERM(xmax || xmin,
-						 || ymax || ymin,
-						 || zmax || zmin)) 
+				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
 					for (int k = 0; k < AMREX_SPACEDIM; k++) // iterate over DIMENSIONS
 					{
@@ -439,10 +461,10 @@ Elastic<T>::normalize (int amrlev, int mglev, MultiFab& mf) const
 				else
 				{
 					Set::Vector f =
-						C(m)(gradgradu) + 
-						 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
-						 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
-						 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+						C(m)(gradgradu);// + 
+						// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+						//  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
+						//   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
 					aa += f(i);
 				}
 
@@ -1009,42 +1031,69 @@ void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
 	const int mglev = 0;
+
 	// const int idim = 0;  // other dimensions are just aliases
 
 	// // amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
 	// // 		    m_amr_ref_ratio[flev-1]);
 
-	for (MFIter mfi(*model[flev][mglev], true); mfi.isValid(); ++mfi)
+	int ncomp = AMREX_SPACEDIM;
+	MultiTab finemt;
+	MultiTab crsemt;
+	
+	
+
+	amrex::BoxArray fineBACoarsened = finemt.boxArray(); fineBACoarsened.coarsen(m_amr_ref_ratio[flev-1]);
+
+
+	//MultiFab crse_S_fine(crse_S_fine_BA, S_fine.DistributionMap(), ncomp, 0, MFInfo(), FArrayBoxFactory());
+        if ((fineBACoarsened == crsemt.boxArray()) &&
+	    (finemt.DistributionMap() == crsemt.DistributionMap()))
 	{
-	 	const Box& bx = mfi.tilebox();
-	 	const TArrayBox &fine = (*model[flev][mglev])[mfi];
-	 	TArrayBox &crse = (*model[flev-1][mglev])[mfi];
-
-#if AMREX_SPACEDIM > 2
-	 	for (int m3 = bx.loVect()[2]+1; m3<=bx.hiVect()[2]-1;m3++)
-#endif
-		for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
-			for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
-	 		{
-	 			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-	 			amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
-
-	 			// crse(m_crse) =
-	 			// 	(+     fine(m_fine-dx[0]-dx[1]) + 2.0*fine(m_fine-dx[1]) +     fine(m_fine+dx[0]-dx[1])
-	 			// 	 + 2.0*fine(m_fine-dx[0]      ) + 4.0*fine(m_fine      ) + 2.0*fine(m_fine+dx[0])       
-				// 	 +     fine(m_fine-dx[0]+dx[1]) + 2.0*fine(m_fine+dx[1]) +     fine(m_fine+dx[0]+dx[1]))/16.0;
-	 		}
+		Util::Message(INFO); // this never seems to happen
 	}
+	else
+	{
+		//Util::Abort(INFO, "difference in box arrays");
+
+		MultiTab finemtcoarsened(fineBACoarsened, finemt.DistributionMap(), ncomp, 0);
+
+// #ifdef _OPENMP
+// #pragma omp parallel
+// #endif
+		for (MFIter mfi(finemtcoarsened,true); mfi.isValid(); ++mfi)
+		{
+			//  NOTE: The tilebox is defined at the coarse level.
+			const Box& bx = mfi.tilebox();
+                
+			const TArrayBox &fine = finemtcoarsened[mfi];
+			TArrayBox &crse = crsemt[mfi];
+
+			//  NOTE: We copy from component scomp of the fine fab into component 0 of the crse fab
+			//        because the crse fab is a temporary which was made starting at comp 0, it is
+			//        not part of the actual crse multifab which came in.
 
 
-	// Util::Abort(INFO, "averageDownCoeffsToCoarseAmrLevel not implemented");
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			{
+				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
+
+				crse(m_crse) = fine(m_fine);
+			}
+		}
+            
+		crsemt.copy(finemtcoarsened,0,0,ncomp);
+
+	}
 }
 
 template<class T>
 void
 Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 {
-	Util::Message(INFO);
 	BL_PROFILE("Elastic::averageDownCoeffsSameAmrLevel()");
 
 // 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
@@ -1065,7 +1114,6 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 			cfine.define(ba, fine.DistributionMap(), 1, 0);
 		}
 
-		//MultiTab* pcrse = &crse;
 		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
 		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
@@ -1075,9 +1123,9 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 				TArrayBox &crsetab = (*pcrse)[mfi];
 				TArrayBox &finetab = fine[mfi];
 
-				for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
-				for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-				for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 				{
 					amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 					amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
@@ -1103,8 +1151,6 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 
 	sigma.FillBoundary(geom.periodicity());
 
-//     if (m_coarsening_strategy == CoarseningStrategy::Sigma)
-//     {
 	const Box& domain = geom.Domain();
 
 #ifdef _OPENMP
@@ -1116,72 +1162,8 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 		{
 			
 
-			//                 amrex_mlndlap_fillbc_cc(BL_TO_FORTRAN_ANYD(sigma[mfi]),
-			//                                         BL_TO_FORTRAN_BOX(domain),
-			//                                         m_lobc.data(), m_hibc.data());
-
-			
-
-    // ilo = max(dlo(1), slo(1))
-    // ihi = min(dhi(1), shi(1))
-    // jlo = max(dlo(2), slo(2))
-    // jhi = min(dhi(2), shi(2))
-
-    // if (bclo(1) .ne. amrex_lo_periodic .and. slo(1) .lt. dlo(1)) then
-    //    sigma(dlo(1)-1,jlo:jhi) = sigma(dlo(1),jlo:jhi)
-    // end if
-    
-    // if (bchi(1) .ne. amrex_lo_periodic .and. shi(1) .gt. dhi(1)) then
-    //    sigma(dhi(1)+1,jlo:jhi) = sigma(dhi(1),jlo:jhi)
-    // end if
-
-    // if (bclo(2) .ne. amrex_lo_periodic .and. slo(2) .lt. dlo(2)) then
-    //    sigma(ilo:ihi,dlo(2)-1) = sigma(ilo:ihi,dlo(2))
-    // end if
-
-    // if (bchi(2) .ne. amrex_lo_periodic .and. shi(2) .gt. dhi(2)) then
-    //    sigma(ilo:ihi,dhi(2)+1) = sigma(ilo:ihi,dhi(2))
-    // end if
-
-    // if (slo(1) .lt. dlo(1) .and. slo(2) .lt. dlo(2)) then
-    //    if (bclo(1) .ne. amrex_lo_periodic) then
-    //       sigma(dlo(1)-1,dlo(2)-1) = sigma(dlo(1),dlo(2)-1)
-    //    else if (bclo(2) .ne. amrex_lo_periodic) then
-    //       sigma(dlo(1)-1,dlo(2)-1) = sigma(dlo(1)-1,dlo(2))
-    //    end if
-    // end if
-
-    // if (shi(1) .gt. dhi(1) .and. slo(2) .lt. dlo(2)) then
-    //    if (bchi(1) .ne. amrex_lo_periodic) then
-    //       sigma(dhi(1)+1,dlo(2)-1) = sigma(dhi(1),dlo(2)-1)
-    //    else if (bclo(2) .ne. amrex_lo_periodic) then
-    //       sigma(dhi(1)+1,dlo(2)-1) = sigma(dhi(1)+1,dlo(2))
-    //    end if
-    // end if
-
-    // if (slo(1) .lt. dlo(1) .and. shi(2) .gt. dhi(2)) then
-    //    if (bclo(1) .ne. amrex_lo_periodic) then
-    //       sigma(dlo(1)-1,dhi(2)+1) = sigma(dlo(1),dhi(2)+1)
-    //    else if (bchi(2) .ne. amrex_lo_periodic) then
-    //       sigma(dlo(1)-1,dhi(2)+1) = sigma(dlo(1)-1,dhi(2))
-    //    end if
-    // end if
-
-    // if (shi(1) .gt. dhi(1) .and. shi(2) .gt. dhi(2)) then
-    //    if (bchi(1) .ne. amrex_lo_periodic) then
-    //       sigma(dhi(1)+1,dhi(2)+1) = sigma(dhi(1),dhi(2)+1)
-    //    else if (bchi(2) .ne. amrex_lo_periodic) then
-    //       sigma(dhi(1)+1,dhi(2)+1) = sigma(dhi(1)+1,dhi(2))
-    //    end if
-    // end if
-
-
-
 		}
 	}
-//     }
-
-
 	//Util::Abort(INFO, "FillBoundaryCoeff not implemented");
 }
 
