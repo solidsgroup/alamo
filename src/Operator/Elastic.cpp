@@ -69,8 +69,8 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 			//Util::Message(INFO,"box = ",bx);
 			//Util::Message(INFO,"Point = ",m);
-			//Util::Message(INFO,"Modelfab = ",modelfab(m));
-			//Util::Message(INFO,"InputModel fab = ",a_modelfab (m));
+			Util::Message(INFO,"Modelfab = ",modelfab(m));
+			Util::Message(INFO,"InputModel fab = ",a_modelfab (m));
 			modelfab(m) = a_modelfab(m);
 		}
 	}
@@ -81,7 +81,7 @@ void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE("Operator::Elastic::Fapply()");
-	Util::Message(INFO,"amrlev = ",amrlev," mglev = ", mglev);
+	//Util::Message(INFO,"amrlev = ",amrlev," mglev = ", mglev);
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -1020,6 +1020,9 @@ Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the pr
 	 	const TArrayBox &fine = (*model[flev][mglev])[mfi];
 	 	TArrayBox &crse = (*model[flev-1][mglev])[mfi];
 
+#if AMREX_SPACEDIM > 2
+	 	for (int m3 = bx.loVect()[2]+1; m3<=bx.hiVect()[2]-1;m3++)
+#endif
 		for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
 			for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
 	 		{
