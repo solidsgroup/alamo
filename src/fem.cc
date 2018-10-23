@@ -219,8 +219,8 @@ int main (int argc, char* argv[])
 			// 	     rhs[ilev].setVal(body_force[1]*volume,1,1);,
 			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
 
-			rhs[ilev].setVal(0.0000);
-			rhs[ilev].setVal(1.0,0);
+			rhs[ilev].setVal(0.00001);
+			// rhs[ilev].setVal(1.0,0);
 			// rhs[ilev].setVal(100.0,1);
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);

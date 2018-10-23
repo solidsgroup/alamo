@@ -89,10 +89,9 @@ public :
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fsmooth(amrlev,mglev,out,in);};
 
-	void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) const;
+	void Diagonal (bool recompute=false);
 	bool VerificationCheck (int amrlev, int mglev, amrex::MultiFab& test) const;
-	void FsmoothExact(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const;
-	int FsmoothTest(int amrlev, int mglev, const amrex::MultiFab& x, const amrex::MultiFab& b, amrex::MultiFab& diff) const;
+
 protected:
 
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
@@ -117,13 +116,13 @@ protected:
 			     ) const =0;
 	virtual void Fsmooth (int amrlev,
 			      int mglev,
-			      MultiFab& sol,
-			      const MultiFab& rhs
-			      ) const =0;
+			      MultiFab& x,
+			      const MultiFab& b
+			      ) const;
 	virtual void normalize (int amrlev,
 				int mglev,
 				MultiFab& mf
-				) const =0;
+				) const;
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const =0;
@@ -163,7 +162,9 @@ public:
 
 protected:
 	int m_num_a_fabs = 0;
+	bool m_diagonal_computed = false;
 	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs;
+	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > > m_diag;
 };
 }
 
