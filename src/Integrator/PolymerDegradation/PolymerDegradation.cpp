@@ -809,9 +809,9 @@ PolymerDegradation::DegradeMaterial(int lev)
 	 	amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic> &modelfab = (model[lev])[mfi];
 		amrex::BaseFab<amrex::Real> &etafab = (*eta_new[lev])[mfi];
 
-	 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
-		 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
-		 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+	 	AMREX_D_TERM(for (int i = box.loVect()[0]-1; i<=box.hiVect()[0]+1; i++),
+		 		     for (int j = box.loVect()[1]-1; j<=box.hiVect()[1]+1; j++),
+		 		     for (int k = box.loVect()[2]-1; k<=box.hiVect()[2]+1; k++))
 	 	{
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
