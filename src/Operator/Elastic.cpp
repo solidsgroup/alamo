@@ -35,6 +35,8 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
+	int model_nghost = 1;
+
 	model.resize(m_num_amr_levels);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
@@ -43,7 +45,7 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		{
 			model[amrlev][mglev].reset(new MultiTab(amrex::convert(m_grids[amrlev][mglev],
 									       amrex::IntVect::TheNodeVector()),
-								m_dmap[amrlev][mglev], 1, 1));
+								m_dmap[amrlev][mglev], 1, model_nghost));
 		}
 	}
 }
@@ -304,10 +306,14 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 				{
 					Set::Vector f =
 						C(m)(gradgradu) + 
-						 AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
 						  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
-						   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+						    	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
 					diagfab(m,i) += f(i);
+					//if (diagfab(m,i) != diagfab(m,i))
+						Util::Message(INFO,"diagfab=",diagfab(m,i)," amrlev=",amrlev," mglev=",mglev," m = " , m , " i = ", i, " C = \n", C(m),
+							      " C(m+dx[0]) = \n", C(m+dx[0]),
+							      " C(m-dx[0]) = \n", C(m-dx[0]));
 				}
 			}
 		}
@@ -482,11 +488,9 @@ Elastic<T>::reflux (int crse_amrlev,
 
 #if AMREX_SPACEDIM == 2
 
-	Util::Abort(INFO,"Not working yet");
+	//Util::Abort(INFO,"Not working yet");
 
 	int ncomp = AMREX_SPACEDIM;
-
-
 
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
  	const Geometry& fgeom = m_geom[crse_amrlev+1][0];
@@ -500,7 +504,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
  	const iMultiFab& fdmsk = *m_dirichlet_mask[crse_amrlev+1][0];
 
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 1);
 	fine_res_for_coarse.setVal(0.0);
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
@@ -531,12 +535,12 @@ Elastic<T>::reflux (int crse_amrlev,
 	}
 
 	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
-	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
-	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+	if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
+	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
 	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
 	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
 
-	//return;
+	return;
 
 
 
@@ -919,9 +923,9 @@ Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the pr
 			//        not part of the actual crse multifab which came in.
 
 
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+				     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+				     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 			{
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
@@ -957,28 +961,58 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 		MultiTab cfine;
 		if (need_parallel_copy) {
 			const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-			cfine.define(ba, fine.DistributionMap(), 1, 0);
+			cfine.define(ba, fine.DistributionMap(), 1, 1);
 		}
 
 		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
 		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
  			{
+				if (AMREX_SPACEDIM > 2) Util::Abort("works in 2D only!");
+
 				const Box& bx = mfi.tilebox();
 
 				TArrayBox &crsetab = (*pcrse)[mfi];
 				TArrayBox &finetab = fine[mfi];
 
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+					     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+					     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 				{
+
 					amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 					amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
+					Set::Scalar total = 0.0;
+
+					if (m1 == bx.loVect()[0] - 1) ++m_fine[0];
+					if (m2 == bx.loVect()[1] - 1) ++m_fine[1];
+					if (m1 == bx.hiVect()[0] + 1) --m_fine[0];
+					if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
 					
-					crsetab(m_crse) = (finetab(m_fine)+finetab(m_fine+dx[1]))*(finetab(m_fine+dx[0])+finetab(m_fine+dx[0]+dx[1])) /
-						(finetab(m_fine)+finetab(m_fine+dx[0])+finetab(m_fine+dx[1])+finetab(m_fine+dx[0]+dx[1]));
+					crsetab(m_crse) = finetab(m_fine)*4.0; 
+					total += 4.0;
+
+
+					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1)
+					{
+						crsetab(m_crse) += finetab(m_fine-dx[0])*2.0 + finetab(m_fine+dx[0])*2.0;
+						total += 4.0;
+					}	
+					if (m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1)
+					{
+						crsetab(m_crse) += finetab(m_fine-dx[1])*2.0 + finetab(m_fine+dx[1])*2.0;
+						total += 4.0;
+					}	
+					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1 &&
+					    m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1 )
+					{
+						crsetab(m_crse) +=
+							finetab(m_fine-dx[0]-dx[1]) + finetab(m_fine-dx[0]+dx[1]) +
+							finetab(m_fine+dx[0]-dx[1]) + finetab(m_fine+dx[0]+dx[1]);
+						total += 4.0;
+					}	
+					crsetab(m_crse) = crsetab(m_crse) / total;
 
 				}
  			}
@@ -1003,15 +1037,15 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
-	for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
-	{
-		if (!domain.contains(mfi.fabbox()))
-		{
+	// for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
+	// {
+	// 	if (!domain.contains(mfi.fabbox()))
+	// 	{
 			
 
-		}
-	}
-	//Util::Abort(INFO, "FillBoundaryCoeff not implemented");
+	// 	}
+	// }
+	Util::Warning(INFO, "FillBoundaryCoeff not fully implemented");
 }
 
 

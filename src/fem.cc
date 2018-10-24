@@ -163,16 +163,11 @@ int main (int argc, char* argv[])
 		{
 			cgrids[ilev].define(cdomain);
 			cgrids[ilev].maxSize(max_grid_size);
-
-			// ngrids[ilev].define(ndomain);
-			// ngrids[ilev].maxSize(max_grid_size);
-
 			cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(-n_cell/4); 
 			cdomain.refine(ref_ratio); 
 
-			//ndomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0)));
-			//ndomain.refine(ref_ratio);
+
 			ngrids[ilev] = cgrids[ilev];
 			ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
 		}
@@ -183,7 +178,7 @@ int main (int argc, char* argv[])
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0 |||| or not? 
+	int number_of_ghost_cells = 0; // \todo Reduce number of ghost cells to 0 |||| or not? 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			dmap   [ilev].define(cgrids[ilev]);
@@ -200,7 +195,7 @@ int main (int argc, char* argv[])
 			stress  [ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
 			energy  [ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 			verify	[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-			modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
+			modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
 			Util::Message(INFO,"DEFINED PROPERLY");
 		}
 
@@ -309,7 +304,7 @@ int main (int argc, char* argv[])
 	mlmg.setVerbose(verbose);
 	mlmg.setCGVerbose(cg_verbose);
 	mlmg.setBottomMaxIter(200);
-	mlmg.setFinalFillBC(true);	
+	mlmg.setFinalFillBC(false);	
 	if (bottom_solver == "cg")
 		mlmg.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
@@ -323,6 +318,8 @@ int main (int argc, char* argv[])
 			mlmg.setBottomSmooth(0); 
 		}
 
+	Util::Message(INFO,u[0].nGrow());
+	Util::Message(INFO,rhs[0].nGrow());
 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	//
