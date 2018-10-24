@@ -12,6 +12,7 @@ namespace Operator {
 void Operator::Diagonal (bool recompute)
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Diagonal()" + Color::Reset);
+	//Util::Message(INFO);
 	
 	if ( !recompute && m_diagonal_computed ) return;
 	m_diagonal_computed = true;
@@ -35,6 +36,7 @@ void Operator::Diagonal (bool recompute)
 void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 {
 	BL_PROFILE("Operator::Diagonal()");
+	//Util::Message(INFO);
 
 	int ncomp = diag.nComp();
 	int nghost = 1;
@@ -93,6 +95,8 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
+	//Util::Message(INFO);
+
 	int ncomp = x.nComp();
 	int nghost = x.nGrow();
 	//amrex::MultiFab diag(x.boxArray(), x.DistributionMap(), ncomp, nghost);
@@ -102,6 +106,12 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagona() must be called before using Fsmooth");
+
+	// if (x.contains_nan()) Util::Abort(INFO,"x is nan amrlev=", amrlev, " mglev=", mglev);
+	// if (x.contains_inf()) Util::Abort(INFO,"x is inf amrlev=", amrlev, " mglev=", mglev);
+	// if (b.contains_nan()) Util::Abort(INFO,"b is nan amrlev=", amrlev, " mglev=", mglev);
+	// if (b.contains_inf()) Util::Abort(INFO,"b is inf amrlev=", amrlev, " mglev=", mglev);
+
 
 	Set::Scalar residual = 0.0;
 	for (int redblack = 0; redblack < 2; redblack++)
@@ -144,6 +154,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
+	//Util::Message(INFO);
 	
 	int ncomp = getNComp();
 
@@ -386,6 +397,7 @@ Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 		   const Vector<const MultiFab*>& rhnd,
 		   const Vector<MultiFab*>& a_rhcc)
 {
+	//Util::Message(INFO);
 	Util::Abort(INFO, "compRHS not implemented");
 }
 
@@ -581,7 +593,7 @@ Operator::prepareForSolve ()
 	buildMasks();
 
 
-	//averageDownCoeffs();
+	averageDownCoeffs();
 	Diagonal(true);
 
 }
@@ -808,6 +820,7 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 		   amrex::MLLinOp::StateMode /**/, bool skip_fillboundary) const
 {
 	BL_PROFILE("Operator::applyBC()");
+	//Util::Message(INFO);
 
 	const Geometry& geom = m_geom[amrlev][mglev];
 	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());

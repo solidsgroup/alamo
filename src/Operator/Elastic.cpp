@@ -31,6 +31,7 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
 	BL_PROFILE("Operator::Elastic::define()");
+	//Util::Message(INFO);
 
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
@@ -52,6 +53,8 @@ void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
+	//Util::Message(INFO);
+
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
 		Util::Message(INFO);
@@ -79,6 +82,8 @@ void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
+	//Util::Message(INFO);
+
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -118,6 +123,8 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			// Fill gradu and gradgradu
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 			{
+				if (std::isnan(ufab(m,i))) Util::Abort(INFO,"u is nan. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
+				if (std::isinf(ufab(m,i))) Util::Abort(INFO,"u is inf. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
 				// Note: the (?:) block modifies the stencil if the node is on a boundary
 				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
 					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
@@ -220,6 +227,8 @@ void
 Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 {
 	BL_PROFILE("Operator::Elastic::Diagonal()");
+	//Util::Message(INFO);
+
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -315,6 +324,7 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
 	BL_PROFILE("Operator::Elastic::FFlux()");
+	//Util::Message(INFO);
 	amrex::BaseFab<amrex::Real> AMREX_D_DECL( &fxfab = *sigmafab[0],
 	 					  &fyfab = *sigmafab[1],
 	 					  &fzfab = *sigmafab[2] ) ;
@@ -333,6 +343,7 @@ Elastic<T>::Stress (int amrlev,
 		    bool voigt) const
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
+	//Util::Message(INFO);
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	if (voigt)
 		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
@@ -471,7 +482,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
 #if AMREX_SPACEDIM == 2
 
-	Util::Message(INFO);
+	Util::Abort(INFO,"Not working yet");
 
 	int ncomp = AMREX_SPACEDIM;
 
@@ -828,7 +839,8 @@ void
 Elastic<T>::averageDownCoeffs ()
 {
 	BL_PROFILE("Elastic::averageDownCoeffs()");
-
+	//Util::Message(INFO);
+	
 	// for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	// {
 	// 	for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
@@ -862,6 +874,7 @@ template<class T>
 void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
+	//Util::Message(INFO);
 	const int mglev = 0;
 
 	// const int idim = 0;  // other dimensions are just aliases
@@ -927,6 +940,7 @@ void
 Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 {
 	BL_PROFILE("Elastic::averageDownCoeffsSameAmrLevel()");
+	//Util::Message(INFO,"Appears to work.");
 
 // 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
 
@@ -934,7 +948,7 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 
  	for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
  	{
-		MultiTab&       crse = *model[amrlev][mglev];
+		MultiTab& crse = *model[amrlev][mglev];
 		MultiTab& fine = *model[amrlev][mglev-1];
 		
 		bool isMFIterSafe  = (crse.DistributionMap() == fine.DistributionMap()) && BoxArray::SameRefs(crse.boxArray(),fine.boxArray());
@@ -980,6 +994,7 @@ void
 Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
+	Util::Message(INFO);
 
 	sigma.FillBoundary(geom.periodicity());
 
