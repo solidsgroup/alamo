@@ -31,8 +31,6 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
 	BL_PROFILE("Operator::Elastic::define()");
-	Util::Message(INFO);
-
 
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
@@ -54,7 +52,6 @@ void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
-	Util::Message(INFO);
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
 		Util::Message(INFO);
@@ -82,7 +79,6 @@ void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
-	//Util::Message(INFO,"amrlev = ",amrlev," mglev = ", mglev);
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -476,7 +472,6 @@ Elastic<T>::reflux (int crse_amrlev,
 #if AMREX_SPACEDIM == 2
 
 	Util::Message(INFO);
-	Util::Warning(INFO, "Reflux does not currently implement grad(C)!");
 
 	int ncomp = AMREX_SPACEDIM;
 
@@ -530,9 +525,7 @@ Elastic<T>::reflux (int crse_amrlev,
 	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
 	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
 
-
-
-	return;
+	//return;
 
 
 
@@ -624,10 +617,10 @@ Elastic<T>::reflux (int crse_amrlev,
 					Set::Matrix sig = C(m)(eps);
 
 					Set::Vector f =
-						C(m)(gradgradu)
-						// + AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/fDX[0])(gradu).col(0),
-						// 	       + ((C(m+dx[1]) - C(m-dx[1]))/2.0/fDX[1])(gradu).col(1),
-						// 	       + ((C(m+dx[2]) - C(m-dx[2]))/2.0/fDX[2])(gradu).col(2))
+						C(m)(gradgradu) 
+						 + AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/fDX[0])(gradu).col(0),
+						 	       + ((C(m+dx[1]) - C(m-dx[1]))/2.0/fDX[1])(gradu).col(1),
+						 	       + ((C(m+dx[2]) - C(m-dx[2]))/2.0/fDX[2])(gradu).col(2))
 						;
 					for (int i = 0; i < AMREX_SPACEDIM; i++)
 						Axfab(m,i) += f(i);
@@ -661,6 +654,11 @@ Elastic<T>::reflux (int crse_amrlev,
  	const iMultiFab& nd_mask     = *m_nd_fine_mask[crse_amrlev];
  	const iMultiFab& cc_mask     = *m_cc_fine_mask[crse_amrlev];
  	const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
+
+
+
+
+
 
 // 	const auto& csigma = *m_sigma[crse_amrlev][0][0];
 
@@ -747,8 +745,8 @@ Elastic<T>::reflux (int crse_amrlev,
 				Axf(0) = fine_contrib_on_crse[mfi](m,0);
 				Axf(1) = fine_contrib_on_crse[mfi](m,1);
 				
-				// res[mfi](m,0) = crse_rhs[mfi](m,0) - (Ax(0) + Axf(0));
-				// res[mfi](m,1) = crse_rhs[mfi](m,1) - (Ax(1) + Axf(1));
+				res[mfi](m,0) = crse_rhs[mfi](m,0) - (Ax(0) + Axf(0));
+				res[mfi](m,1) = crse_rhs[mfi](m,1) - (Ax(1) + Axf(1));
 
 			}
 

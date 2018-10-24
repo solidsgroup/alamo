@@ -92,7 +92,6 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 
 void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
-	Util::Message(INFO,"Here in fsmooth!");
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
 	int ncomp = x.nComp();
 	int nghost = x.nGrow();
@@ -139,7 +138,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 			}
 		}
 	}
-	Util::Message(INFO,"residual = ", residual);
+	//Util::Message(INFO,"residual = ", residual);
 }
 
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
@@ -333,7 +332,6 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	BL_PROFILE("Operator::Operator()");
 	Util::Message(INFO);
 
-
 	define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
 
@@ -350,7 +348,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	 BL_PROFILE("Operator::~Operator()");
 	 Util::Message(INFO);
 
-
+	 // Make sure we're not trying to parallelize in vain.
 	 if (amrex::ParallelDescriptor::NProcs() > a_grids[0].size())
 	 {
 		 Util::Warning(INFO,"There are more processors than there are boxes in the amrlev=0 boxarray!!\n",
@@ -358,27 +356,13 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 			       "You should decrease max_grid_size or you will not get proper scaling!");
 	 }
 
-
-
-	 Vector<BoxArray> cc_grids(a_grids.size());
-	 for (int i = 0; i < cc_grids.size(); i++)
-		 cc_grids[i] = amrex::convert(a_grids[i],amrex::IntVect::TheNodeVector());
-
-	 for (int amrlev = 1; amrlev < a_grids.size(); ++amrlev)
-	 {
-		 if (!cc_grids[amrlev].coarsenable(2))
-		  	 Util::Abort(INFO, "Coarsenability error! AMR level ", amrlev, " is not coarsenable with ref ratio 2 \n"
-				     "cc_grids[",amrlev,"] = ", cc_grids[amrlev]);
+	 // This makes sure grids are cell-centered;
+	 Vector<BoxArray> cc_grids = a_grids;
+	 for (auto& ba : cc_grids) {
+		 ba.enclosedCells();
 	 }
 
-
-	 // This makes sure grids are cell-centered;
-	 for (auto& ba : cc_grids)
-		 ba.enclosedCells();
-	
-	 MLNodeLinOp::define(a_geom, cc_grids, a_dmap, a_info, a_factory);
-
-
+	 MLNodeLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
 	 // Resize the multifab containing the operator diagonal
 	 m_diag.resize(m_num_amr_levels);
@@ -421,10 +405,6 @@ Operator::buildMasks ()
 	m_is_bottom_singular = false;
 	auto itlo = std::find(m_lobc.begin(), m_lobc.end(), BCType::Dirichlet);
 	auto ithi = std::find(m_hibc.begin(), m_hibc.end(), BCType::Dirichlet);
-	// if (itlo == m_lobc.end() && ithi == m_hibc.end())
-	// {  // No Dirichlet
-	// 	m_is_bottom_singular = m_domain_covered[0];
-	// }
 
 #ifdef _OPENMP
 #pragma omp parallel
@@ -808,19 +788,9 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 #endif
 				}
 			}
-
 			fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
-
-			if (fine[mfi].contains_nan()) std::cout << __LINE__ << " fine[mfi] contains nan" << std::endl;
-			if (fine[mfi].contains_inf()) std::cout << __LINE__ << " fine[mfi] contains nan" << std::endl;
-
 		}
 	}
-
-	// if (fine.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in fine");
-	// if (fine.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in fine");
-	// if (crse.contains_nan()) Util::Abort(INFO, "interpolation (end) - nan detected in crse");
-	// if (crse.contains_inf()) Util::Abort(INFO, "interpolation (end) - inf detected in crse");
 }
 
 void
