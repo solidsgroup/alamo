@@ -29,11 +29,11 @@ stop_time = 10
 amr.plot_int = 10
 amr.max_level = 0
 amr.n_cell = 16 16 16
-amr.max_grid_size = 128
+amr.max_grid_size = 8
 amr.blocking_factor = 2
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = tests/PolymerDegradation01/output
+amr.plot_file = tests/PolymerDegradation01/output2
 #===========================================================================
 
 #=============== Specify geometry and unrefined mesh =======================
@@ -113,16 +113,16 @@ elastic.use_fsmooth = 0
 
 elastic.body_force     = 0.0 -0.00001 0.0
 
-#elastic.bc.bc_x_lo = disp disp disp
-elastic.bc.bc_x_lo = trac trac trac
+elastic.bc.bc_x_lo = disp disp disp
+#elastic.bc.bc_x_lo = trac trac trac
 elastic.bc.bc_y_lo = disp disp disp
-#elastic.bc.bc_z_lo = disp disp disp
-elastic.bc.bc_z_lo = trac trac trac
-#elastic.bc.bc_x_hi = disp disp disp
-elastic.bc.bc_x_hi = trac trac trac
+elastic.bc.bc_z_lo = disp disp disp
+#elastic.bc.bc_z_lo = trac trac trac
+elastic.bc.bc_x_hi = disp disp disp
+#elastic.bc.bc_x_hi = trac trac trac
 elastic.bc.bc_y_hi = disp disp disp
-#elastic.bc.bc_z_hi = disp disp disp
-elastic.bc.bc_z_hi = trac trac trac
+elastic.bc.bc_z_hi = disp disp disp
+#elastic.bc.bc_z_hi = trac trac trac
 
 elastic.bc.left_face = 0.0 0.0 0.0
 elastic.bc.right_face = 0.0 0.0 0.0
