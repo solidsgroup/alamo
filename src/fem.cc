@@ -210,17 +210,14 @@ int main (int argc, char* argv[])
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			// const Real* dx = geom[ilev].CellSize();
-			// Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
+			const Real* dx = geom[ilev].CellSize();
+			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
 			
- 			// AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
-			// 	     rhs[ilev].setVal(body_force[1]*volume,1,1);,
-			// 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
+ 			AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
+				     rhs[ilev].setVal(body_force[1]*volume,1,1);,
+			 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
 
-			rhs[ilev].setVal(0.00001);
-			//rhs[ilev].setVal(1.0,0);
-			// rhs[ilev].setVal(100.0,1);
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
 			verify[ilev].setVal(0.0);
@@ -236,23 +233,17 @@ int main (int argc, char* argv[])
 			 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
 			 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 			 	{
-			 		if (AMREX_D_TERM(i == geom[ilev].Domain().loVect()[0],
-							 || j == geom[ilev].Domain().loVect()[1],
-							 || k == geom[ilev].Domain().loVect()[2] ) ||    
-					    AMREX_D_TERM(i == geom[ilev].Domain().hiVect()[0]+1,
-							 || j == geom[ilev].Domain().hiVect()[1]+1,  
-							 || k == geom[ilev].Domain().hiVect()[2]+1))
-			 		{
-			 			AMREX_D_TERM(rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;,
-							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,
-							     rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;);
-			 		}						
-					if (i == geom[ilev].Domain().loVect()[0])
-					    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
-					// if (i == geom[ilev].Domain().hiVect()[0]+1)
-					//    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
-					// if (j == geom[ilev].Domain().hiVect()[0])
-					//    	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.1;
+					amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
+					for (int p = 0; p<AMREX_SPACEDIM; p++)
+					{
+						AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0]) rhsfab(m,p) = disp_bc_left[p];,
+							      if (j == geom[ilev].Domain().loVect()[1]) rhsfab(m,p) = disp_bc_bottom[p];,
+							      if (k == geom[ilev].Domain().loVect()[2]) rhsfab(m,p) = disp_bc_back[p]; );
+						AMREX_D_TERM( if (i == geom[ilev].Domain().hiVect()[0]+1) rhsfab(m,p) = disp_bc_right[p];,
+							      if (j == geom[ilev].Domain().hiVect()[1]+1) rhsfab(m,p) = disp_bc_top[p];,
+							      if (k == geom[ilev].Domain().hiVect()[2]+1) rhsfab(m,p) = disp_bc_front[p]; );
+					}
 			 	}
 			}
 			for (MFIter mfi(u[ilev], true); mfi.isValid(); ++mfi)
