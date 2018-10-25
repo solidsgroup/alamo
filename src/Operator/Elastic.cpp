@@ -311,9 +311,9 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 						    	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
 					diagfab(m,i) += f(i);
 					//if (diagfab(m,i) != diagfab(m,i))
-						Util::Message(INFO,"diagfab=",diagfab(m,i)," amrlev=",amrlev," mglev=",mglev," m = " , m , " i = ", i, " C = \n", C(m),
-							      " C(m+dx[0]) = \n", C(m+dx[0]),
-							      " C(m-dx[0]) = \n", C(m-dx[0]));
+						// Util::Message(INFO,"diagfab=",diagfab(m,i)," amrlev=",amrlev," mglev=",mglev," m = " , m , " i = ", i, " C = \n", C(m),
+						// 	      " C(m+dx[0]) = \n", C(m+dx[0]),
+						// 	      " C(m-dx[0]) = \n", C(m-dx[0]));
 				}
 			}
 		}
@@ -543,10 +543,6 @@ Elastic<T>::reflux (int crse_amrlev,
 	return;
 
 
-
-
-
-
 	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 0);
 	fine_contrib.setVal(0.0);
 
@@ -554,11 +550,10 @@ Elastic<T>::reflux (int crse_amrlev,
 	const auto& fmodel = *model[crse_amrlev+1][0];
 	FArrayBox Axfab;
 
-	if (0)
         for (MFIter mfi(fine_contrib, MFItInfo().EnableTiling().SetDynamic(true));
              mfi.isValid(); ++mfi)
 	{
-		Util::Abort(INFO);
+		//Util::Abort(INFO);
 		const Box& cvbx = mfi.validbox();         const int* cglo = cvbx.loVect(), *cghi = cvbx.hiVect();// cglo, cghi
 		const Box& fvbx = amrex::refine(cvbx,2);  const int* glo  = fvbx.loVect(), *ghi  = fvbx.hiVect();// glo, ghi
 		const Box& cbx = mfi.tilebox();           const int* clo  = cbx.loVect(),  *chi  = cbx.hiVect();// clo, chi
