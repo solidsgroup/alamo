@@ -31,8 +31,11 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
 	BL_PROFILE("Operator::Elastic::define()");
+	//Util::Message(INFO);
 
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
+
+	int model_nghost = 1;
 
 	model.resize(m_num_amr_levels);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -42,7 +45,7 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		{
 			model[amrlev][mglev].reset(new MultiTab(amrex::convert(m_grids[amrlev][mglev],
 									       amrex::IntVect::TheNodeVector()),
-								m_dmap[amrlev][mglev], 1, 1));
+								m_dmap[amrlev][mglev], 1, model_nghost));
 		}
 	}
 }
@@ -52,6 +55,8 @@ void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
+	//Util::Message(INFO);
+
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
 		Util::Message(INFO);
@@ -79,6 +84,8 @@ void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
+	//Util::Message(INFO);
+
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -118,6 +125,8 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			// Fill gradu and gradgradu
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 			{
+				if (std::isnan(ufab(m,i))) Util::Abort(INFO,"u is nan. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
+				if (std::isinf(ufab(m,i))) Util::Abort(INFO,"u is inf. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
 				// Note: the (?:) block modifies the stencil if the node is on a boundary
 				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
 					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
@@ -202,10 +211,10 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 			//
 			Set::Vector f =
-				C(m)(gradgradu) ;//+
-					//AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				    //  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				    //   	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+				C(m)(gradgradu) + 
+				AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				      	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				       	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 				ffab(m,i) = f(i);
@@ -220,6 +229,8 @@ void
 Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 {
 	BL_PROFILE("Operator::Elastic::Diagonal()");
+	//Util::Message(INFO);
+
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
@@ -294,11 +305,15 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 				else
 				{
 					Set::Vector f =
-						C(m)(gradgradu) ;//+ 
-						 //AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
-						 // 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
-						 //  	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+						C(m)(gradgradu) + 
+						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
+						  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
+						    	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
 					diagfab(m,i) += f(i);
+					//if (diagfab(m,i) != diagfab(m,i))
+						// Util::Message(INFO,"diagfab=",diagfab(m,i)," amrlev=",amrlev," mglev=",mglev," m = " , m , " i = ", i, " C = \n", C(m),
+						// 	      " C(m+dx[0]) = \n", C(m+dx[0]),
+						// 	      " C(m-dx[0]) = \n", C(m-dx[0]));
 				}
 			}
 		}
@@ -315,6 +330,7 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
 	BL_PROFILE("Operator::Elastic::FFlux()");
+	//Util::Message(INFO);
 	amrex::BaseFab<amrex::Real> AMREX_D_DECL( &fxfab = *sigmafab[0],
 	 					  &fyfab = *sigmafab[1],
 	 					  &fzfab = *sigmafab[2] ) ;
@@ -333,6 +349,7 @@ Elastic<T>::Stress (int amrlev,
 		    bool voigt) const
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
+	//Util::Message(INFO);
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	if (voigt)
 		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
@@ -471,11 +488,9 @@ Elastic<T>::reflux (int crse_amrlev,
 
 #if AMREX_SPACEDIM == 2
 
-	Util::Message(INFO);
+	//Util::Abort(INFO,"Not working yet");
 
 	int ncomp = AMREX_SPACEDIM;
-
-
 
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
  	const Geometry& fgeom = m_geom[crse_amrlev+1][0];
@@ -489,7 +504,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
  	const iMultiFab& fdmsk = *m_dirichlet_mask[crse_amrlev+1][0];
 
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 1);
 	fine_res_for_coarse.setVal(0.0);
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
@@ -520,16 +535,12 @@ Elastic<T>::reflux (int crse_amrlev,
 	}
 
 	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
-	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
-	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+	if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
+	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
 	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
 	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
 
-	//return;
-
-
-
-
+	return;
 
 
 	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 0);
@@ -539,11 +550,10 @@ Elastic<T>::reflux (int crse_amrlev,
 	const auto& fmodel = *model[crse_amrlev+1][0];
 	FArrayBox Axfab;
 
-	if (0)
         for (MFIter mfi(fine_contrib, MFItInfo().EnableTiling().SetDynamic(true));
              mfi.isValid(); ++mfi)
 	{
-		Util::Abort(INFO);
+		//Util::Abort(INFO);
 		const Box& cvbx = mfi.validbox();         const int* cglo = cvbx.loVect(), *cghi = cvbx.hiVect();// cglo, cghi
 		const Box& fvbx = amrex::refine(cvbx,2);  const int* glo  = fvbx.loVect(), *ghi  = fvbx.hiVect();// glo, ghi
 		const Box& cbx = mfi.tilebox();           const int* clo  = cbx.loVect(),  *chi  = cbx.hiVect();// clo, chi
@@ -828,7 +838,8 @@ void
 Elastic<T>::averageDownCoeffs ()
 {
 	BL_PROFILE("Elastic::averageDownCoeffs()");
-
+	//Util::Message(INFO);
+	
 	// for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	// {
 	// 	for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
@@ -862,6 +873,7 @@ template<class T>
 void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
+	//Util::Message(INFO);
 	const int mglev = 0;
 
 	// const int idim = 0;  // other dimensions are just aliases
@@ -906,9 +918,9 @@ Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the pr
 			//        not part of the actual crse multifab which came in.
 
 
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+				     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+				     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 			{
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
@@ -927,6 +939,7 @@ void
 Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 {
 	BL_PROFILE("Elastic::averageDownCoeffsSameAmrLevel()");
+	//Util::Message(INFO,"Appears to work.");
 
 // 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
 
@@ -934,7 +947,7 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 
  	for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
  	{
-		MultiTab&       crse = *model[amrlev][mglev];
+		MultiTab& crse = *model[amrlev][mglev];
 		MultiTab& fine = *model[amrlev][mglev-1];
 		
 		bool isMFIterSafe  = (crse.DistributionMap() == fine.DistributionMap()) && BoxArray::SameRefs(crse.boxArray(),fine.boxArray());
@@ -943,28 +956,58 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 		MultiTab cfine;
 		if (need_parallel_copy) {
 			const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-			cfine.define(ba, fine.DistributionMap(), 1, 0);
+			cfine.define(ba, fine.DistributionMap(), 1, 1);
 		}
 
 		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
 		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
  			{
+				if (AMREX_SPACEDIM > 2) Util::Abort("works in 2D only!");
+
 				const Box& bx = mfi.tilebox();
 
 				TArrayBox &crsetab = (*pcrse)[mfi];
 				TArrayBox &finetab = fine[mfi];
 
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+					     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+					     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 				{
+
 					amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 					amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
+					Set::Scalar total = 0.0;
+
+					if (m1 == bx.loVect()[0] - 1) ++m_fine[0];
+					if (m2 == bx.loVect()[1] - 1) ++m_fine[1];
+					if (m1 == bx.hiVect()[0] + 1) --m_fine[0];
+					if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
 					
-					crsetab(m_crse) = (finetab(m_fine)+finetab(m_fine+dx[1]))*(finetab(m_fine+dx[0])+finetab(m_fine+dx[0]+dx[1])) /
-						(finetab(m_fine)+finetab(m_fine+dx[0])+finetab(m_fine+dx[1])+finetab(m_fine+dx[0]+dx[1]));
+					crsetab(m_crse) = finetab(m_fine)*4.0; 
+					total += 4.0;
+
+
+					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1)
+					{
+						crsetab(m_crse) += finetab(m_fine-dx[0])*2.0 + finetab(m_fine+dx[0])*2.0;
+						total += 4.0;
+					}	
+					if (m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1)
+					{
+						crsetab(m_crse) += finetab(m_fine-dx[1])*2.0 + finetab(m_fine+dx[1])*2.0;
+						total += 4.0;
+					}	
+					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1 &&
+					    m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1 )
+					{
+						crsetab(m_crse) +=
+							finetab(m_fine-dx[0]-dx[1]) + finetab(m_fine-dx[0]+dx[1]) +
+							finetab(m_fine+dx[0]-dx[1]) + finetab(m_fine+dx[0]+dx[1]);
+						total += 4.0;
+					}	
+					crsetab(m_crse) = crsetab(m_crse) / total;
 
 				}
  			}
@@ -980,6 +1023,7 @@ void
 Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
+	Util::Message(INFO);
 
 	sigma.FillBoundary(geom.periodicity());
 
@@ -988,15 +1032,15 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
-	for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
-	{
-		if (!domain.contains(mfi.fabbox()))
-		{
+	// for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
+	// {
+	// 	if (!domain.contains(mfi.fabbox()))
+	// 	{
 			
 
-		}
-	}
-	//Util::Abort(INFO, "FillBoundaryCoeff not implemented");
+	// 	}
+	// }
+	Util::Warning(INFO, "FillBoundaryCoeff not fully implemented");
 }
 
 

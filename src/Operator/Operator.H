@@ -91,6 +91,32 @@ public :
 
 	bool VerificationCheck (int amrlev, int mglev, amrex::MultiFab& test) const;
 
+	int NanInfOnBoundary(const amrex::MultiFab &test) const
+	{
+		int ncomp = test.nComp(), ngrow = test.nGrow();
+		if (ngrow == 0) return 0;
+	  	for (MFIter mfi(test, true); mfi.isValid(); ++mfi)
+	  	{
+	  		const Box& bx = mfi.tilebox();
+	  		const amrex::FArrayBox &testfab    = test[mfi];
+	  		for (int n = 0; n < ncomp; n++)
+	  		{
+	  			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-ngrow; m1<=bx.hiVect()[0]+ngrow; m1++),
+	  				     for (int m2 = bx.loVect()[1]-ngrow; m2<=bx.hiVect()[1]+ngrow; m2++),
+	  				     for (int m3 = bx.loVect()[2]-ngrow; m3<=bx.hiVect()[2]+ngrow; m3++))
+	  			{
+					AMREX_D_TERM(if (m1 >= bx.loVect()[0] || m1 <= bx.hiVect()[0]) continue;,
+						     if (m2 >= bx.loVect()[1] || m2 <= bx.hiVect()[1]) continue;,
+						     if (m3 >= bx.loVect()[2] || m3 <= bx.hiVect()[2]) continue;)
+						amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+	  				if (std::isnan(testfab(m,n)) || std::isnan(testfab(m,n))) Util::Abort(INFO,"nan detected: m=",m," n=",n);
+	  			}
+	  		}
+	  	}
+		return 0;
+	}
+
+
 protected:
 
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
