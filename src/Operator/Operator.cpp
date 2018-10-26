@@ -12,12 +12,13 @@ namespace Operator {
 void Operator::Diagonal (bool recompute)
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Diagonal()" + Color::Reset);
+	//Util::Message(INFO);
 	
 	if ( !recompute && m_diagonal_computed ) return;
 	m_diagonal_computed = true;
 
 	int ncomp = getNComp();
-	int nghost = 1;
+	int nghost = 0;
 
 	int sep = 2;
 	int num = AMREX_D_TERM(sep,*sep,*sep);
@@ -35,9 +36,10 @@ void Operator::Diagonal (bool recompute)
 void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 {
 	BL_PROFILE("Operator::Diagonal()");
+	//Util::Message(INFO);
 
 	int ncomp = diag.nComp();
-	int nghost = 1;
+	int nghost = 0;
 
 	int sep = 2;
 	int num = AMREX_D_TERM(sep,*sep,*sep);
@@ -93,26 +95,32 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
-	int ncomp = x.nComp();
-	int nghost = x.nGrow();
+	//Util::Message(INFO);
+
+	int ncomp = b.nComp();
+	int nghost = b.nGrow();
+	//Util::Message(INFO,"ncomp = ", b.nComp(), " ngrow = ",b.nGrow());
+	
 	//amrex::MultiFab diag(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 
-	if (!m_diagonal_computed)
-		Util::Abort(INFO,"Operator::Diagona() must be called before using Fsmooth");
+	if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
+
+	// if ((b.contains_nan() || b.contains_inf()) && !NanInfOnBoundary(b))
+	// 	Util::Abort(INFO,"amrlev = ",amrlev," mglev = ",mglev, " b fab contains nan/inf on interior!");
 
 	Set::Scalar residual = 0.0;
 	for (int redblack = 0; redblack < 2; redblack++)
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
 
-		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,nghost); // Dx = x
-		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,nghost); // Dx *= diag  (Dx = x*diag)
+		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,0); // Dx = x
+		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,0); // Dx *= diag  (Dx = x*diag)
 
-		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,nghost); // Rx = Ax
-		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,nghost); // Rx -= Dx  (Rx = Ax - Dx)
+		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,0); // Rx = Ax
+		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,0); // Rx -= Dx  (Rx = Ax - Dx)
 
 		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 		{
@@ -131,9 +139,17 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 
 					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
+
 					Set::Scalar xold = xfab(m,n);
 					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
 					residual += fabs(xold - xfab(m,n));
+					// Util::Message(INFO,m);
+					// Util::Message(INFO,xfab(m,n));
+					// Util::Message(INFO,bfab(m,n));
+					// Util::Message(INFO,Rxfab(m,n));
+					// Util::Message(INFO,diagfab(m,n));
+
 				}
 			}
 		}
@@ -144,6 +160,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
+	//Util::Message(INFO);
 	
 	int ncomp = getNComp();
 
@@ -364,6 +381,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 
 	 MLNodeLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
+	 int nghost = 0;
 	 // Resize the multifab containing the operator diagonal
 	 m_diag.resize(m_num_amr_levels);
 	 for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -375,7 +393,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 		 for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		 {
 		 	 m_diag[amrlev][mglev].reset(new MultiFab(amrex::convert(m_grids[amrlev][mglev], amrex::IntVect::TheNodeVector()),
-		 						  m_dmap[amrlev][mglev], getNComp(), 1));
+		 						  m_dmap[amrlev][mglev], getNComp(), nghost));
 		 }
 	 }
  }
@@ -386,6 +404,7 @@ Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
 		   const Vector<const MultiFab*>& rhnd,
 		   const Vector<MultiFab*>& a_rhcc)
 {
+	//Util::Message(INFO);
 	Util::Abort(INFO, "compRHS not implemented");
 }
 
@@ -581,7 +600,7 @@ Operator::prepareForSolve ()
 	buildMasks();
 
 
-	//averageDownCoeffs();
+	averageDownCoeffs();
 	Diagonal(true);
 
 }
@@ -590,7 +609,7 @@ void
 Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
 	BL_PROFILE("Operator::restriction()");
-	//Util::Message(INFO);
+	Util::Message(INFO);
 
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
@@ -698,8 +717,7 @@ void
 Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	//Util::Message(INFO);
-
+	
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -800,7 +818,7 @@ Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crs
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
 	Util::Message(INFO,"Suspect implementation!");
 	const auto& amrrr = AMRRefRatio(camrlev);
-	//amrex::average_down(fine_sol, crse_sol, 0, fine_rhs.nComp(), amrrr);
+	amrex::average_down(fine_sol, crse_sol, 0, fine_rhs.nComp(), amrrr);
 }
 
 void
