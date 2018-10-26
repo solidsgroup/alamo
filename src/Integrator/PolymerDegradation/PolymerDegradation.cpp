@@ -946,16 +946,16 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
-	//ngrids.resize(nlevels);
+	ngrids.resize(nlevels);
 	//ndmap.resize(nlevels);
 
-	//displacement.resize(nlevels);
-	//rhs.resize(nlevels);
-	//strain.resize(nlevels);
-	//stress.resize(nlevels);
-	//stress_vm.resize(nlevels);
-	//energy.resize(nlevels);
-	//model.resize(nlevels);
+	displacement.resize(nlevels);
+	rhs.resize(nlevels);
+	strain.resize(nlevels);
+	stress.resize(nlevels);
+	stress_vm.resize(nlevels);
+	energy.resize(nlevels);
+	model.resize(nlevels);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -988,6 +988,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	geom[0].isPeriodic(0);
 	elastic_operator.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
 		     				{{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
+	
 	AMREX_D_TERM(	Numeric::Interpolator::Linear<Set::Vector> interpolate_left(elastic_bc_left,elastic_bc_left_t);
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_right(elastic_bc_right,elastic_bc_right_t);
 					,
