@@ -870,11 +870,12 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 									"strain11", "strain22", "strain12", "energy"};
 
 #elif AMREX_SPACEDIM == 3
-	const int ncomp = 19;
+	const int ncomp = 13;
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
 								 "stress33", "stress23", "stress13", "stress12", 
-								 "strain11", "strain22","strain33", "strain23", "strain13", 
-								 "strain12", "energy"};
+								 //"strain11", "strain22","strain33", "strain23", "strain13", 
+								 //"strain12", 
+								 "energy"};
 #endif
 
 	Vector<amrex::MultiFab> plotmf(nlevels);
@@ -912,13 +913,13 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 9,  1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 10, 1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 11, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 12,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 4, 13,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 8, 14,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 5, 15,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 16, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 18, 1, 0);
+		//MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 12,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], strain [ilev], 4, 13,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], strain [ilev], 8, 14,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], strain [ilev], 5, 15,  1, 0);
+		//MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 16, 1, 0);
+		//MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 12, 1, 0);
 #endif 
 	}
 	//Util::Message(INFO);
@@ -965,7 +966,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	int number_of_components = AMREX_SPACEDIM;
-	int number_of_ghost_cells = 1;
+	int number_of_ghost_cells = 0;
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -975,7 +976,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		strain		[ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
 		energy 		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 		stress_vm	[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
-		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
+		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
 	}
 
 	info.setAgglomeration(agglomeration);
@@ -988,7 +989,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	geom[0].isPeriodic(0);
 	elastic_operator.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
 		     				{{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
-	
+
 	AMREX_D_TERM(	Numeric::Interpolator::Linear<Set::Vector> interpolate_left(elastic_bc_left,elastic_bc_left_t);
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_right(elastic_bc_right,elastic_bc_right_t);
 					,
@@ -1126,7 +1127,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
 	solver.setBottomMaxIter(elastic_bottom_max_iter);
-	solver.setFinalFillBC(true);
+	//solver.setFinalFillBC(true);
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
@@ -1142,6 +1143,12 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		elastic_tol_rel,
 		elastic_tol_abs);
 
+	for (int lev = 0; lev < nlevels; lev++)
+	{
+		elastic_operator.Stress(lev,stress[lev],displacement[lev]);
+		elastic_operator.Energy(lev,energy[lev],displacement[lev]);
+	}
+	/*
 
 #if AMREX_SPACEDIM == 1
 	static amrex::IntVect dx(1);
@@ -1226,6 +1233,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 			//elastic_operator->Energies(energiesfab,ufab,lev,0,mfi);
 		}
 	}
+	*/
 }
 }
 //#endif
