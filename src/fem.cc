@@ -319,8 +319,8 @@ int main (int argc, char* argv[])
 
 	for (int lev = 0; lev < nlevels; lev++)
 		{
-			// mlabec.Stress(lev,stress[lev],u[lev]);
-			// mlabec.Energy(lev,energy[lev],u[lev]);
+			mlabec.Stress(lev,stress[lev],u[lev]);
+			mlabec.Energy(lev,energy[lev],u[lev]);
 		}
 		
 	//

@@ -358,6 +358,8 @@ Elastic<T>::Stress (int amrlev,
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
+	Util::Message(INFO,"u grow = ", u.nGrow());
+
 	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -370,13 +372,14 @@ Elastic<T>::Stress (int amrlev,
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
-					     ymin = (m2 == domain.loVect()[1]),
-					     zmin = (m3 == domain.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
-					     ymax = (m2 == domain.hiVect()[1] + 1),
-					     zmax = (m3 == domain.hiVect()[2] + 1));
+			Util::Message(INFO,"m=",m," & box = (",bx.loVect()[0],",",bx.loVect()[1],",",bx.loVect()[2],")(",bx.hiVect()[0],",",bx.hiVect()[1],",",bx.hiVect()[2],")");
 
+			bool    AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
+					     ymin = (m2 == bx.loVect()[1]),
+					     zmin = (m3 == bx.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
+					     ymax = (m2 == bx.hiVect()[1]),
+					     zmax = (m3 == bx.hiVect()[2]));
 
 			Set::Matrix gradu;
 
@@ -446,12 +449,12 @@ Elastic<T>::Energy (int amrlev,
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
-					     ymin = (m2 == domain.loVect()[1]),
-					     zmin = (m3 == domain.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
-					     ymax = (m2 == domain.hiVect()[1] + 1),
-					     zmax = (m3 == domain.hiVect()[2] + 1));
+			bool    AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
+					     ymin = (m2 == bx.loVect()[1]),
+					     zmin = (m3 == bx.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
+					     ymax = (m2 == bx.hiVect()[1]),
+					     zmax = (m3 == bx.hiVect()[2]));
 
 
 			Set::Matrix gradu;

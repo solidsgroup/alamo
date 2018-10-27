@@ -960,7 +960,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		ngrids[ilev] = grids[ilev].convert(IntVect::TheNodeVector());
+		//ngrids[ilev] = grids[ilev].convert(IntVect::TheNodeVector()); // This was the problem
+		//                                                                 It seems calling grids.convert actually modifies grids itself.
+		ngrids[ilev] = grids[ilev];
+		ngrids[ilev].convert(IntVect::TheNodeVector());
 		Util::Message(INFO,"ngrid size = ",ngrids[ilev].size(), ". Grids size = ", grids[ilev].size());
 	}
 
@@ -983,7 +986,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	info.setConsolidation(consolidation);
 	info.setMaxCoarseningLevel(max_coarsening_level);
 	
-	elastic_operator.define(geom, ngrids, dmap, info);
+	elastic_operator.define(geom, grids, dmap, info);
 	elastic_operator.setMaxOrder(linop_maxorder);
 
 	geom[0].isPeriodic(0);
