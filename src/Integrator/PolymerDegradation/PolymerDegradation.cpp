@@ -658,16 +658,7 @@ PolymerDegradation::Initialize (int lev)
 		thermal_ic->Initialize(lev,Temp_old);
 	}
 
-	if(elastic_on)
-	{
-		//displacement[lev].setVal(0.0);
-		//strain[lev].setVal(0.0);
-		//stress[lev].setVal(0.0);
-		//stress_vm[lev].setVal(0.0);
-		//rhs[lev].setVal(0.0);
-		//energy[lev].setVal(0.0);
-		//energies[lev].setVal(0.0);
-	}
+
 	eta_ic->Initialize(lev,eta_new);
 	eta_ic->Initialize(lev,eta_old);
 	//Util::Message(INFO,"Grids size = ",grids[0].size());
@@ -795,8 +786,6 @@ PolymerDegradation::DegradeMaterial(int lev)
 																		amrex::IntVect(AMREX_D_DECL(0,1,0)),
 																		amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 
-	//for (amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi)
-	//{
 	bool isMFIterSafe  = (model[lev].DistributionMap() == (*eta_new[lev]).DistributionMap());
 	Util::Message(INFO, "isMFIterSafe = ",isMFIterSafe);
 
@@ -812,16 +801,6 @@ PolymerDegradation::DegradeMaterial(int lev)
 	 	{
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-			//Util::Message(INFO,"box = ",box, " m = ", m);
-			//Util::Message(INFO,"etafab(m) = ", etafab(m));
-			//Util::Message(INFO,"etafab(m-dx) = ", etafab(m-dx[0]));
-			//Util::Message(INFO,"etafab(m-dy) = ", etafab(m-dx[1]));
-			//Util::Message(INFO,"etafab(m-dz) = ", etafab(m-dx[2]));
-			//Util::Message(INFO,"etafab(m-dx-dy) = ", etafab(m-dx[0]-dx[1]));
-			//Util::Message(INFO,"etafab(m-dx-dz) = ", etafab(m-dx[0]-dx[2]));
-			//Util::Message(INFO,"etafab(m-dy-dz) = ", etafab(m-dx[2]-dx[1]));
-			//Util::Message(INFO,"etafab(m-dx-dy-dz) = ", etafab(m-dx[0]-dx[1]-dx[2]));
-
 			Set::Scalar temp = mul*(AMREX_D_TERM(	etafab(m) 	+ etafab(m-dx[0])
 													,
 													+ etafab(m-dx[1]) + etafab(m-dx[0]-dx[1])
@@ -960,8 +939,6 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		//ngrids[ilev] = grids[ilev].convert(IntVect::TheNodeVector()); // This was the problem
-		//                                                                 It seems calling grids.convert actually modifies grids itself.
 		ngrids[ilev] = grids[ilev];
 		ngrids[ilev].convert(IntVect::TheNodeVector());
 		Util::Message(INFO,"ngrid size = ",ngrids[ilev].size(), ". Grids size = ", grids[ilev].size());
@@ -1002,30 +979,6 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_back(elastic_bc_back,elastic_bc_back_t);
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_front(elastic_bc_front,elastic_bc_front_t););
 	
-	//for (int ilev = 0; ilev<nlevels; ++ilev)
-	//{
-	//	displacement[ilev].setVal(0.0);
-	//	strain[ilev].setVal(0.0);
-	//	stress[ilev].setVal(0.0);
-	//	stress_vm[ilev].setVal(0.0);
-	//	rhs[ilev].setVal(0.0);
-	//	energy[ilev].setVal(0.0);
-	//}
-
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		model[ilev].setVal(modeltype);
-		//if(iter == 0 || time == elastic_tstart)
-		{
-			displacement[ilev].setVal(0.0);
-			strain[ilev].setVal(0.0);
-			stress[ilev].setVal(0.0);
-			stress_vm[ilev].setVal(0.0);
-			rhs[ilev].setVal(0.0);
-			energy[ilev].setVal(0.0);	
-		}
-	}
-
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		const Real* DX = geom[ilev].CellSize();
@@ -1033,18 +986,15 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 		Util::Message(INFO);
 		//if (iter==0 || time == elastic_tstart)
-		//{
-		//	displacement[ilev].setVal(0.0);
-		//	strain[ilev].setVal(0.0);
-		//	stress[ilev].setVal(0.0);
-		//	stress_vm[ilev].setVal(0.0);
-		//	rhs[ilev].setVal(0.0);
-		//	energy[ilev].setVal(0.0);
-			//model[ilev].setVal(modeltype);
-			//displacement[ilev].setVal(0.0);
-			//elastic_operator.SetModel(ilev,model[ilev]);
-		//}
-		//model[ilev].setVal(modeltype);
+		{
+			displacement[ilev].setVal(0.0);
+			strain[ilev].setVal(0.0);
+			stress[ilev].setVal(0.0);
+			stress_vm[ilev].setVal(0.0);
+			rhs[ilev].setVal(0.0);
+			energy[ilev].setVal(0.0);
+		}
+		model[ilev].setVal(modeltype);
 
 		AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
 					rhs[ilev].setVal(body_force[1]*volume,1,1);,
@@ -1097,26 +1047,16 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					if(xmin && bc_x_lo[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
 					if(xmax && bc_x_hi[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
-
-					//Util::Message(INFO, "Time = ", time, ". Interpolate left = \n", interpolate_left(time));
-					//Util::Message(INFO, "Time = ", time, ". Interpolate right = \n", interpolate_right(time));
 #if AMREX_SPACEDIM > 1
 					if(ymin && bc_y_lo[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
 					if(ymax && bc_y_hi[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
-
-					//Util::Message(INFO, "Time = ", time, ". Interpolate bottom = \n", interpolate_bottom(time));
-					//Util::Message(INFO, "Time = ", time, ". Interpolate top = \n", interpolate_top(time));
 #if AMREX_SPACEDIM > 2
 					if(zmin && bc_z_lo[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
 					if(zmax && bc_z_hi[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_front(time)[l];
-
-					//Util::Message(INFO, "Time = ", time, ". Interpolate back = \n", interpolate_back(time));
-					//Util::Message(INFO, "Time = ", time, ". Interpolate front = \n", interpolate_front(time));
 #endif
 #endif
 				}
@@ -1130,7 +1070,6 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
 	solver.setBottomMaxIter(elastic_bottom_max_iter);
-	//solver.setFinalFillBC(true);
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
@@ -1151,92 +1090,6 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		elastic_operator.Stress(lev,stress[lev],displacement[lev]);
 		elastic_operator.Energy(lev,energy[lev],displacement[lev]);
 	}
-	/*
-
-#if AMREX_SPACEDIM == 1
-	static amrex::IntVect dx(1);
-#elif AMREX_SPACEDIM == 2
-	static amrex::IntVect dx(1,0), dy(0,1);
-#elif AMREX_SPACEDIM == 3
-	static amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
-#endif
-	//std::cout<< __FILE__ << ":" << __LINE__ << ": TimeStepBegin()" << std::endl;
-
-	for (int lev = 0; lev < displacement.size(); lev++)
-	{
-		const amrex::Real* DX = geom[lev].CellSize();
-		for ( amrex::MFIter mfi(displacement[lev],true); mfi.isValid(); ++mfi )
-		{
-			const Box& bx = mfi.tilebox();
-
-			FArrayBox &ufab  = (displacement[lev])[mfi];
-			FArrayBox &epsfab  = (strain[lev])[mfi];
-			FArrayBox &sigmafab  = (stress[lev])[mfi];
-			FArrayBox &sigmavmfab  = (stress_vm[lev])[mfi];
-
-			elastic_operator.Stress(lev,stress[lev],displacement[lev]);
-			elastic_operator.Energy(lev,energy[lev],displacement[lev]);
-
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM > 2
-					for (int k = bx.loVect()[2]; k<= bx.hiVect()[2]; k++)
-#endif
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
-#if AMREX_SPACEDIM==2
-					epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-					epsfab(m,1) = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
-					epsfab(m,2) = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
-					epsfab(m,3) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-					Set::Scalar trace = (sigmafab(m,0) + sigmafab(m,3))/3.0;
-					sigmavmfab(m) = sqrt(
-								1.5*(
-									(sigmafab(m,0)-trace)*(sigmafab(m,0)-trace) +
-									(sigmafab(m,1))*(sigmafab(m,1)) +
-									(sigmafab(m,2))*(sigmafab(m,2)) +
-									((sigmafab(m,3)-trace)*(sigmafab(m,3)-trace))
-								)
-							);
-
-#elif AMREX_SPACEDIM==3
-					epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-					epsfab(m,1) = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
-					epsfab(m,2) = (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]);
-					epsfab(m,3) = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
-					epsfab(m,4) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-					epsfab(m,5) = (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
-					epsfab(m,6) = (ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]);
-					epsfab(m,7) = (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]);
-					epsfab(m,8) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
-					Set::Scalar trace = (sigmafab(m,0) + sigmafab(m,4) + sigmafab(m,8))/3.0;
-					sigmavmfab(m) = sqrt(
-								1.5*(
-									(sigmafab(m,0)-trace)*(sigmafab(m,0)-trace) +
-									(sigmafab(m,1))*(sigmafab(m,1)) +
-									(sigmafab(m,2))*(sigmafab(m,2)) +
-									(sigmafab(m,3))*(sigmafab(m,3)) +
-									((sigmafab(m,4)-trace)*(sigmafab(m,4)-trace)) +
-									(sigmafab(m,5))*(sigmafab(m,5)) +
-									(sigmafab(m,6))*(sigmafab(m,6)) +
-									(sigmafab(m,7))*(sigmafab(m,7)) +
-									((sigmafab(m,8)-trace)*(sigmafab(m,8)-trace))
-								)
-							);
-
-#endif
-
-				}
-
-			//FArrayBox &energyfab  = (*energy[lev])[mfi];
-			//elastic_operator->Energy(energyfab,ufab,lev,mfi);
-
-			//FArrayBox &energiesfab  = (*energies[lev])[mfi];
-			//elastic_operator->Energies(energiesfab,ufab,lev,0,mfi);
-		}
-	}
-	*/
 }
 }
 //#endif
