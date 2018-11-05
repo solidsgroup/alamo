@@ -372,7 +372,7 @@ Elastic<T>::Stress (int amrlev,
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			Util::Message(INFO,"m=",m," & box = (",bx.loVect()[0],",",bx.loVect()[1],",",bx.loVect()[2],")(",bx.hiVect()[0],",",bx.hiVect()[1],",",bx.hiVect()[2],")");
+			//Util::Message(INFO,"m=",m," & box = (",bx.loVect()[0],",",bx.loVect()[1],",",bx.loVect()[2],")(",bx.hiVect()[0],",",bx.hiVect()[1],",",bx.hiVect()[2],")");
 
 			bool    AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
 					     ymin = (m2 == bx.loVect()[1]),
@@ -487,6 +487,8 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
+	//return;
+	
 	BL_PROFILE("Operator::Elastic::reflux()");
 
 #if AMREX_SPACEDIM == 2
@@ -546,7 +548,7 @@ Elastic<T>::reflux (int crse_amrlev,
 	return;
 
 
-	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 1);
 	fine_contrib.setVal(0.0);
 
 
@@ -669,10 +671,6 @@ Elastic<T>::reflux (int crse_amrlev,
  	const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
 
 
-
-
-
-
 // 	const auto& csigma = *m_sigma[crse_amrlev][0][0];
 
 	static int crse_cell = 0;
@@ -705,13 +703,18 @@ Elastic<T>::reflux (int crse_amrlev,
 			
 			const amrex::FArrayBox &ufab = crse_sol[mfi];
 			
-			for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
-			for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
+			for (int m1 = bx.loVect()[0]-1; m1 <= bx.hiVect()[0]+1; m1++)
+			for (int m2 = bx.loVect()[1]-1; m2 <= bx.hiVect()[1]+1; m2++)
 			{
 				amrex::IntVect m(m1,m2);
 
+
+				if (!bx.contains(m)) continue;
 				if (nd_mask[mfi](m) != crse_fine_node) continue; // Only proceed if on a coarse/fine boundary
 				
+				// Util::Message(INFO,"m=(",m1,",",m2,")");
+				// continue;
+
 				Set::Vector Ax = Set::Vector::Zero();
 				Set::Vector nx(1.0, 0), ny(0,1.0);
 
@@ -720,32 +723,48 @@ Elastic<T>::reflux (int crse_amrlev,
 
 				for (int i = 0; i < ncomp ; i++)
 				{
-					if (cc_mask[mfi](m-dx[0]-dx[1]) ==  crse_cell)
+					//               if (ccmsk(i-1,j-1) .eq. crse_cell) then
+					//                  Ax = Ax + sig(i-1,j-1)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
+					//                       &                       +     (phi(i-1,j-1)-phi(i  ,j-1))) &
+					//                       &                + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
+					//                       &                       +     (phi(i-1,j-1)-phi(i-1,j  ))))
+					//               end if
+
+					if (cc_mask[mfi](m-dx[0]-dx[1]) ==  crse_cell) // xlo or ylo
 					{
+						
+						std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+						
+						
+						
+						//Util::Message(INFO,"m=",m," A");
 						gradu(i,0) = (ufab(m,i) - ufab(m-dx[0],i))/(cDX[0]);
 						gradu(i,1) = (ufab(m,i) - ufab(m-dx[1],i))/(cDX[1]);
 						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
 						Set::Matrix sig = C(m)(eps);
 						Ax -= sig*nx;
 					}
-					if (cc_mask[mfi](m-dx[1]) ==  crse_cell)
+					if (cc_mask[mfi](m-dx[1]) ==  crse_cell) // xhi or ylo
 					{
+						//Util::Message(INFO,"m=",m," B");
 						gradu(i,0) = (ufab(m+dx[0],i) - ufab(m,i))/(cDX[0]);
 						gradu(i,1) = (ufab(m,i) - ufab(m-dx[1],i))/(cDX[1]);
 						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
 						Set::Matrix sig = C(m)(eps);
 						Ax -= sig*ny;
 					}
-					if (cc_mask[mfi](m-dx[0]) ==  crse_cell)
+					if (cc_mask[mfi](m-dx[0]) ==  crse_cell) // xlo or yhi
 					{
+						//Util::Message(INFO,"m=",m," C");
 						gradu(i,0) = (ufab(m,i) - ufab(m-dx[0],i))/(cDX[0]);
 						gradu(i,1) = (ufab(m+dx[1],i) - ufab(m,i))/(cDX[1]);
 						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
 						Set::Matrix sig = C(m)(eps);
 						Ax += sig*nx;
 					}
-					if (cc_mask[mfi](m) ==  crse_cell)
+					if (cc_mask[mfi](m) ==  crse_cell) // xhi or yhi
 					{
+						//Util::Message(INFO,"m=",m," D");
 						gradu(i,0) = (ufab(m+dx[0],i) - ufab(m,i))/(cDX[0]);
 						gradu(i,1) = (ufab(m+dx[1],i) - ufab(m,i))/(cDX[1]);
 						Set::Matrix eps = 0.5*(gradu + gradu.transpose());

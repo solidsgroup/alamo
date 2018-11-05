@@ -13,26 +13,6 @@
 
 using namespace amrex;
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-	// Defined in AMReX
-	void amrex_mg_average (amrex_real* crse,       AMREX_ARLIM_P(crse_lo), AMREX_ARLIM_P(crse_hi),
-			       const amrex_real* fine, AMREX_ARLIM_P(fine_lo), AMREX_ARLIM_P(fine_hi),
-			       const int *tlo, const int *thi,
-			       const int *nc);
-
-	// Defined in AMReX
-	void amrex_mg_interp (amrex_real* fine,       AMREX_ARLIM_P(fine_lo), AMREX_ARLIM_P(fine_hi),
-			      const amrex_real* crse, AMREX_ARLIM_P(crse_lo), AMREX_ARLIM_P(crse_hi),
-			      const int *tlo, const int *thi,
-			      const int *nc);
-#ifdef __cplusplus
-}
-#endif
-
-
 namespace Operator {
 
 ///
