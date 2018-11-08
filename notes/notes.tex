@@ -1,0 +1,40 @@
+\documentclass{article}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\title{Reflux}
+\begin{document}
+\maketitle
+
+\def\flux{\operatorname{Flux}}
+
+
+Let $A:\Omega\to\mathbb{R}$ be a linear operator on the problem domain $\Omega$ such that
+\begin{align}
+  A[\phi](\bm{x}) = \nabla\cdot\bm{\sigma}(\bm{x})\nabla\phi, 
+\end{align}
+where $\bm{\sigma}:\Omega\to\mathbb{R}^{n\times n}$ is a coefficient matrix.
+We define the {\it flux} of the operator $\bm{f}:\Omega\to\mathbb{R}^n$ to be 
+\begin{align}
+  \bm{f}[\phi](\bm{x}) = \bm{\sigma}(\bm{x})\nabla\phi
+\end{align}
+The pointwise residual is defined as 
+\begin{align}
+  r(\bm{x}) = b(\bm{x}) - A[\phi](\bm{x})
+\end{align}
+where $b:\Omega\to\mathbb{R}$ is the right hand side.
+The {\it total residual} is the integral 
+\begin{align}
+  R = \int_\Omega r(\bm{x})\,d\bm{x}
+\end{align}
+Let $B\subset\Omega$ represent the {\it refined region} and $\Omega\setminus B$ the {\it coarse region}.
+By nature of the discrete algorithm, we assume that $u$ and $\nabla u$ are discontinuous over the boundary $\partial B$.
+\begin{align}
+  R = \int_{B} r(\bm{x})\,d\bm{x} + \int_{\Omega\setminus B} r(\bm{x})\,d\bm{x}
+\end{align}
+
+
+
+
+\end{document}
+
+
