@@ -849,11 +849,11 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 									"strain11", "strain22", "strain12", "energy"};
 
 #elif AMREX_SPACEDIM == 3
-	const int ncomp = 13;
+	const int ncomp = 19;
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
 								 "stress33", "stress23", "stress13", "stress12", 
-								 //"strain11", "strain22","strain33", "strain23", "strain13", 
-								 //"strain12", 
+								 "strain11", "strain22","strain33", "strain23", "strain13", 
+								 "strain12", 
 								 "energy"};
 #endif
 
@@ -892,13 +892,13 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 9,  1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 10, 1, 0);
 		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 11, 1, 0);
-		//MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 12,  1, 0);
-		//MultiFab::Copy(plotmf[ilev], strain [ilev], 4, 13,  1, 0);
-		//MultiFab::Copy(plotmf[ilev], strain [ilev], 8, 14,  1, 0);
-		//MultiFab::Copy(plotmf[ilev], strain [ilev], 5, 15,  1, 0);
-		//MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 16, 1, 0);
-		//MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 12, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 12,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 4, 13,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 8, 14,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 5, 15,  1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 16, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 18, 1, 0);
 #endif 
 	}
 	//Util::Message(INFO);
@@ -1088,6 +1088,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
+		elastic_operator.Strain(lev,strain[lev],displacement[lev]);
 		elastic_operator.Stress(lev,stress[lev],displacement[lev]);
 		elastic_operator.Energy(lev,energy[lev],displacement[lev]);
 	}

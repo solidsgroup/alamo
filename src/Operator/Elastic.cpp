@@ -340,6 +340,78 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 
 }
 
+template<class T>
+void
+Elastic<T>::Strain  (int amrlev,
+		    amrex::MultiFab& eps,
+		    const amrex::MultiFab& u,
+		    bool voigt) const
+{
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	if (voigt)
+		AMREX_ASSERT(eps.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
+	else
+		AMREX_ASSERT(eps.nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
+	
+	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+	
+	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::FArrayBox  &epsfab   = eps[mfi];
+		const amrex::FArrayBox  &ufab = u[mfi];
+		
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			bool	AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
+					     ymin = (m2 == bx.loVect()[1]),
+					     zmin = (m3 == bx.loVect()[2])),
+				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
+					     ymax = (m2 == bx.hiVect()[1]),
+					     zmax = (m3 == bx.hiVect()[2]));
+
+			Set::Matrix gradu;
+			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx[0],0) : ufab(m,0)) - (!xmin ? ufab(m-dx[0],0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+				     ,
+				     gradu(0,1) = ((!ymax ? ufab(m+dx[1],0) : ufab(m,0)) - (!ymin ? ufab(m-dx[1],0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+				     gradu(1,0) = ((!xmax ? ufab(m+dx[0],1) : ufab(m,1)) - (!xmin ? ufab(m-dx[0],1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+				     gradu(1,1) = ((!ymax ? ufab(m+dx[1],1) : ufab(m,1)) - (!ymin ? ufab(m-dx[1],1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+				     ,
+				     gradu(0,2) = ((!zmax ? ufab(m+dx[2],0) : ufab(m,0)) - (!zmin ? ufab(m-dx[2],0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
+				     gradu(1,2) = ((!zmax ? ufab(m+dx[2],1) : ufab(m,1)) - (!zmin ? ufab(m-dx[2],1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
+				     gradu(2,0) = ((!xmax ? ufab(m+dx[0],2) : ufab(m,2)) - (!xmin ? ufab(m-dx[0],2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+				     gradu(2,1) = ((!ymax ? ufab(m+dx[1],2) : ufab(m,2)) - (!ymin ? ufab(m-dx[1],2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+				     gradu(2,2) = ((!zmax ? ufab(m+dx[2],2) : ufab(m,2)) - (!zmin ? ufab(m-dx[2],2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			
+			Set::Matrix strain = 0.5 * (gradu + gradu.transpose());
+			
+			if (voigt)
+			{
+#if AMREX_SPACEDIM == 2
+				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(1,1); epsfab(m,2) = strain(0,1); 
+#elif AMREX_SPACEDIM == 3
+				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(1,1); epsfab(m,2) = strain(2,2); 
+				epsfab(m,3) = strain(1,2); epsfab(m,4) = strain(2,0); epsfab(m,5) = strain(0,1); 
+#endif
+			}
+			else
+			{
+#if   AMREX_SPACEDIM == 2
+				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(0,1); 
+				epsfab(m,2) = strain(1,0); epsfab(m,3) = strain(1,1); 
+#elif AMREX_SPACEDIM == 3
+				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(0,1); epsfab(m,2) = strain(0,2); 
+				epsfab(m,3) = strain(1,0); epsfab(m,4) = strain(1,1); epsfab(m,5) = strain(1,2); 
+				epsfab(m,6) = strain(2,0); epsfab(m,7) = strain(2,1); epsfab(m,8) = strain(2,2); 
+#endif
+			}
+		}
+	}
+}
+
 
 template<class T>
 void
