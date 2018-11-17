@@ -1,8 +1,8 @@
 plot_file = tests/Elasticity/output
 
 bc.body_force     = 0.0 0.0 0.0
-bc.disp_bc_top    = 0.1 0.0 0.0
-bc.disp_bc_left   = 0.0 0.0 0.0
+bc.disp_bc_top    = 0.0 0.0 0.0
+bc.disp_bc_left   = 0.0 0.1 0.0
 bc.disp_bc_right  = 0.0 0.0 0.0
 bc.disp_bc_bottom = 0.0 0.0 0.0
 bc.disp_bc_front  = 0.0 0.0 0.0
@@ -27,8 +27,8 @@ solver.bottom_solver = bicgstab
 solver.max_level		= 1
 solver.max_mg_level		= 0
 solver.ref_ratio		= 2
-solver.n_cell			= 16
-solver.max_grid_size	        = 4
+solver.n_cell			= 8
+solver.max_grid_size	        = 400000
 solver.composite_solve	= 1
 solver.verbose			= 5
 solver.cg_verbose 		= 0
