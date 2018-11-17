@@ -717,7 +717,7 @@ void
 Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	
+	Util::Message(INFO,"In interpolation!");
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -749,9 +749,9 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 			
 			for (int i=0; i<crse.nComp(); i++)
 			{
-				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
-					     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
-					     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
+				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]-1; m1<=fine_bx.hiVect()[0]+1; m1++),
+					     for (int m2 = fine_bx.loVect()[1]-1; m2<=fine_bx.hiVect()[1]+1; m2++),
+					     for (int m3 = fine_bx.loVect()[2]-1; m3<=fine_bx.hiVect()[2]+1; m3++))
 				{
 					amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
 					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));

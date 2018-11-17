@@ -116,6 +116,16 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 					     ymax = (m2 == domain.hiVect()[1] + 1),
 					     zmax = (m3 == domain.hiVect()[2] + 1));
 
+			
+			// if ((m1 == bx.loVect()[0] && !xmin)||
+			//     (m1 == bx.hiVect()[0] && !xmax)||
+			//     (m2 == bx.loVect()[1] && !ymin)||
+			//     (m2 == bx.hiVect()[1] && !ymax)//||
+			//     //(m3 == bx.loVect()[2] && !zmin)||
+			//     //(m3 == bx.hiVect()[2] && !zmax)
+			//     ) continue;
+
+
 			// The displacement gradient tensor
 			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
 
@@ -559,7 +569,6 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
-	//return;
 	
 	BL_PROFILE("Operator::Elastic::reflux()");
 
@@ -589,36 +598,144 @@ Elastic<T>::reflux (int crse_amrlev,
 	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		const FArrayBox &fine = fine_res[mfi];
+		FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
+		const FArrayBox &ufab = fine_sol[mfi];
+		TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
 
 		//if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
 		
 		// amrex_mlndlap_restriction
 		for (int n = 0 ; n < ncomp; n++)
 		{
-			for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
-				for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
+			int m1 = (2*bx.loVect()[0]);
+			for (int m2 = (2*bx.loVect()[1]) + 1; m2<=(2*bx.hiVect()[1]) - 1; m2++)
+			{
+				amrex::IntVect m_fine(AMREX_D_DECL(m1,m2,m3));
+				
+				Set::Matrix gradu;
+				gradu(0,0) = (ufab(m_fine+dx[0],0) - ufab(m_fine,0))/fDX[0];
+				gradu(1,0) = (ufab(m_fine+dx[0],1) - ufab(m_fine,1))/fDX[0];
+				gradu(0,1) = (ufab(m_fine+dx[1],0) - ufab(m_fine-dx[1],0))/(2*fDX[1]);
+				gradu(1,1) = (ufab(m_fine+dx[1],1) - ufab(m_fine-dx[1],1))/(2*fDX[1]);
+				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+				Set::Matrix sig = C(m_fine)(eps);
+				
+				Set::Vector n(-1, 0);
+
+				Set::Vector t = sig*n;
+				
+				fine(m_fine,0) = t(0);
+				fine(m_fine,1) = t(1);
+
+			}
+			
+			// INTERIOR ONLY
+			for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]-1; m2++)
+			  	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]-1; m1++)
 			{
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
-
-				crse(m_crse,n) =
-					(+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-					 + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-					 +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0;
+				
+				if (m1 == bx.loVect()[0])
+				{
+					crse(m_crse,n) = 0.25*(fine(m_fine-dx[1],n) + 2.0*fine(m_fine,n) + fine(m_fine+dx[1],n));
+				}
+				else if (m1 == bx.hiVect()[0])
+				{
+					//crse(m_crse,n) = 0.25*(fine(m_fine-dx[1],n) + 2.0*fine(m_fine,n) + fine(m_fine+dx[1],n));
+				}
+				else
+				{
+					crse(m_crse,n) =
+						(+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+						 + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+						 +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0;
+				}
 			}
 		}
 	}
 
-	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
-	if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
-	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
-	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
-	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
 
+	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
+	return;
+	//
+	// GOOD UNTIL THIS POINT
+	//
+
+
+ 	const iMultiFab& nd_mask     = *m_nd_fine_mask[crse_amrlev];
+ 	const iMultiFab& cc_mask     = *m_cc_fine_mask[crse_amrlev];
+ 	const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
+
+	static int crse_cell = 0;
+	static int fine_cell = 1;
+	static int crse_node = 0;
+	static int crse_fine_node = 1;
+	static int fine_node = 2;
+
+ 	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
+ 	{
+ 		if ((*has_fine_bndry)[mfi])
+ 		{
+			amrex::BaseFab<T> &C = (*(model[crse_amrlev][0]))[mfi];
+
+ 			const Box& bx = mfi.tilebox();
+			
+			const amrex::FArrayBox &ufab = crse_sol[mfi];
+			amrex::FArrayBox &resfab = res[mfi];
+			
+			int m1 = 2;//bx.loVect()[0];
+			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+			{
+				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+				
+				Set::Matrix gradu;
+				gradu(0,0) = (ufab(m_crse,0) - ufab(m_crse-dx[0],0))/cDX[0];
+				gradu(1,0) = (ufab(m_crse,1) - ufab(m_crse-dx[0],1))/cDX[0];
+				gradu(0,1) = (ufab(m_crse+dx[1],0) - ufab(m_crse-dx[1],0))/(2*cDX[1]);
+				gradu(1,1) = (ufab(m_crse+dx[1],1) - ufab(m_crse-dx[1],1))/(2*cDX[1]);
+				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+				Set::Matrix sig = C(m_crse)(eps);
+				
+				Set::Vector n(1.0, 0.0);
+
+				Set::Vector t = sig*n;
+				
+				resfab(m_crse,0) -= t(0);
+				resfab(m_crse,1) -= t(1);
+				Util::Message(INFO,"m = ",m_crse, " : " , t(1));
+			}
+
+			// continue;
+			// for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
+			// for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
+			// {
+			// 	amrex::IntVect m(m1,m2);
+			// 	if (!bx.contains(m)) continue;
+			// 	if (nd_mask[mfi](m) != crse_fine_node) continue; // Only proceed if on a coarse/fine boundary
+
+				
+			// 	if (nd_mask[mfi](m) == crse_fine_node) 
+			// 	 	Util::Message(INFO,"CRSE FINE BNDRY: res(",m1,",",m2,") = ",res[mfi](m,1));
+			// 	// else
+			// 	// 	Util::Message(INFO,"NOT CRSE FINE BNDRY: res(",m1,",",m2,") = ",res[mfi](m,1));
+				
+			// }
+		}
+	}
+
+
+
+
+
+	//
+	// YOU ... SHALL ... NOT ... PASS!
+	// 
 	return;
 
+
+#if (0)
 
 	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 1);
 	fine_contrib.setVal(0.0);
@@ -921,10 +1038,12 @@ Elastic<T>::reflux (int crse_amrlev,
 			// end subroutine amrex_mlndlap_res_cf_contrib
  		}
  	}
+#endif
 
 #else
 	Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
 #endif
+
 }
 
 template<class T>
