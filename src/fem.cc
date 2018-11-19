@@ -178,7 +178,8 @@ int main (int argc, char* argv[])
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	int number_of_ghost_cells = 0; // \todo Reduce number of ghost cells to 0 |||| or not? 
+	Util::Message(INFO,"Need to reduce number of ghost cells!");
+	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0 |||| or not? 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			dmap   [ilev].define(cgrids[ilev]);
@@ -311,7 +312,26 @@ int main (int argc, char* argv[])
 
 	Util::Message(INFO,u[0].nGrow());
 	Util::Message(INFO,rhs[0].nGrow());
-	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+
+
+	//mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+
+	mlabec.SetTesting(true);
+
+	mlabec.FApply(0,0,res[0],u[0]);
+	mlabec.FApply(1,0,res[1],u[1]);
+	
+
+
+	res[0].minus(rhs[0],0,2,0);
+	res[1].minus(rhs[1],0,2,0);
+
+	mlabec.Reflux(0,
+	  	      res[0], u[0], rhs[0],
+	  	      res[1], u[1], rhs[1]);
+
+
+	//
 
 	//
 	// Compute post-solve values
@@ -380,6 +400,8 @@ int main (int argc, char* argv[])
 	
 	IO::WriteMetaData(plot_file);
 
+	Util::Warning(INFO,"TODO: change nlevels back!");
+	nlevels=1;
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));

@@ -128,6 +128,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				if (std::isnan(ufab(m,i))) Util::Abort(INFO,"u is nan. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
 				if (std::isinf(ufab(m,i))) Util::Abort(INFO,"u is inf. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
 				// Note: the (?:) block modifies the stencil if the node is on a boundary
+
 				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
 					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
 					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
@@ -629,7 +630,7 @@ Elastic<T>::reflux (int crse_amrlev,
 				
 				if (m1 == bx.loVect()[0])
 				{
-					crse(m_crse,n) = 0.25*(fine(m_fine-dx[1],n) + 2.0*fine(m_fine,n) + fine(m_fine+dx[1],n));
+					crse(m_crse,n) += 0.25*(fine(m_fine-dx[1],n) + 2.0*fine(m_fine,n) + fine(m_fine+dx[1],n)) / (0.5*fDX[0]);
 				}
 				else if (m1 == bx.hiVect()[0])
 				{
@@ -648,7 +649,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
 
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
-	return;
+	//if (!m_testing) return;
 	//
 	// GOOD UNTIL THIS POINT
 	//
@@ -691,10 +692,10 @@ Elastic<T>::reflux (int crse_amrlev,
 				Set::Vector n(1.0, 0.0);
 
 				Set::Vector t = sig*n;
-				
-				resfab(m_crse,0) -= t(0);
-				resfab(m_crse,1) -= t(1);
-				Util::Message(INFO,"m = ",m_crse, " : " , t(1));
+
+				// resfab(m_crse,0) -= t(0) / (0.5*cDX[0]);
+				// resfab(m_crse,1) -= t(1) / (0.5*cDX[0]);
+				Util::Message(INFO,"m = ",m_crse, " : " , resfab(m_crse,1), " and t(1) = ", t(1));
 			}
 
 			// continue;

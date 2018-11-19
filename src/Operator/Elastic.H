@@ -89,6 +89,14 @@ public:
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
 	{m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;};
 
+	void Reflux(int crse_amrlev,
+		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs)
+	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
+	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
+	{Fapply(amrlev,mglev,out,in);}
+
+	void SetTesting(bool a_testing) {m_testing = a_testing;}
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
@@ -153,6 +161,8 @@ private:
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 
 	void FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom);
+
+	bool m_testing = false;
 
 };
 }
