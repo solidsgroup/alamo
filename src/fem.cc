@@ -314,21 +314,34 @@ int main (int argc, char* argv[])
 	Util::Message(INFO,rhs[0].nGrow());
 
 
-	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	mlabec.SetTesting(true);
+	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
+
+	// mlabec.PrepareForSolve();
+	// for (int i = 0; i < 10; i++)
+	// {
+	// 	Util::Message(INFO,"Ad-hoc gauss seidel solver");
+
+	res[0].setVal(0.0);
+	res[1].setVal(0.0);
+		
 	mlabec.FApply(0,0,res[0],u[0]);
 	mlabec.FApply(1,0,res[1],u[1]);
-	
-
 
 	res[0].minus(rhs[0],0,2,0);
 	res[1].minus(rhs[1],0,2,0);
 
 	mlabec.Reflux(0,
-	  	      res[0], u[0], rhs[0],
-	  	      res[1], u[1], rhs[1]);
+		      res[0], u[0], rhs[0],
+		      res[1], u[1], rhs[1]);
+
+	// 	mlabec.FSmooth(0,0,u[0],rhs[0]);
+	// 	mlabec.FSmooth(1,0,u[1],rhs[1]);
+	// }
+
+
 
 
 	//
@@ -400,8 +413,7 @@ int main (int argc, char* argv[])
 	
 	IO::WriteMetaData(plot_file);
 
-	Util::Warning(INFO,"TODO: change nlevels back!");
-	nlevels=1;
+	//Util::Warning(INFO,"TODO: change nlevels back!"); nlevels=1;
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));

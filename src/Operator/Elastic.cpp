@@ -565,8 +565,6 @@ Elastic<T>::reflux (int crse_amrlev,
 
 #if AMREX_SPACEDIM == 2
 
-	//Util::Abort(INFO,"Not working yet");
-
 	int ncomp = AMREX_SPACEDIM;
 
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
@@ -586,6 +584,8 @@ Elastic<T>::reflux (int crse_amrlev,
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
+	Set::Scalar fDX_cDX = (fDX[0]*fDX[1]) / (cDX[0]*cDX[1]);
+
 	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -594,43 +594,42 @@ Elastic<T>::reflux (int crse_amrlev,
 		const FArrayBox &ufab = fine_sol[mfi];
 		TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
 
-		//if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
-		
-		// amrex_mlndlap_restriction
-		for (int n = 0 ; n < ncomp; n++)
-		{
-			int m1 = (2*bx.loVect()[0]);
-			for (int m2 = (2*bx.loVect()[1]) + 1; m2<=(2*bx.hiVect()[1]) - 1; m2++)
-			{
-				amrex::IntVect m_fine(AMREX_D_DECL(m1,m2,m3));
-				
-				Set::Matrix gradu;
-				gradu(0,0) = (ufab(m_fine+dx[0],0) - ufab(m_fine,0))/fDX[0];
-				gradu(1,0) = (ufab(m_fine+dx[0],1) - ufab(m_fine,1))/fDX[0];
-				gradu(0,1) = (ufab(m_fine+dx[1],0) - ufab(m_fine-dx[1],0))/(2*fDX[1]);
-				gradu(1,1) = (ufab(m_fine+dx[1],1) - ufab(m_fine-dx[1],1))/(2*fDX[1]);
-				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-				Set::Matrix sig = C(m_fine)(eps);
-				
-				Set::Vector n(-1, 0);
-
-				Set::Vector t = sig*n;
-				
-				fine(m_fine,0) = t(0);
-				fine(m_fine,1) = t(1);
-
-			}
-			
-			// INTERIOR ONLY
-			for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]-1; m2++)
-			  	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]-1; m1++)
+		for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]-1; m2++)
+			for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]-1; m1++)
 			{
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 				
 				if (m1 == bx.loVect()[0])
 				{
-					crse(m_crse,n) += 0.25*(fine(m_fine-dx[1],n) + 2.0*fine(m_fine,n) + fine(m_fine+dx[1],n)) / (0.5*fDX[0]);
+
+					Set::Matrix gradu;
+					gradu(0,0) =
+						+ 0.25*(ufab(m_fine+dx[0] +dx[1],0) - ufab(m_fine +dx[1],0))/fDX[0]
+						+ 0.50*(ufab(m_fine+dx[0]       ,0) - ufab(m_fine       ,0))/fDX[0]
+						+ 0.25*(ufab(m_fine+dx[0] -dx[1],0) - ufab(m_fine -dx[1],0))/fDX[0];
+					gradu(1,0) =
+						+ 0.25*(ufab(m_fine+dx[0] +dx[1],1) - ufab(m_fine +dx[1],1))/fDX[0]
+						+ 0.50*(ufab(m_fine+dx[0]       ,1) - ufab(m_fine       ,1))/fDX[0]
+						+ 0.25*(ufab(m_fine+dx[0] -dx[1],1) - ufab(m_fine -dx[1],1))/fDX[0];
+					gradu(0,1) =
+						+ 0.25*(ufab(m_fine+dx[1] +dx[1],0) - ufab(m_fine-dx[1] +dx[1],0))/(2*fDX[1])
+						+ 0.50*(ufab(m_fine+dx[1]       ,0) - ufab(m_fine-dx[1]       ,0))/(2*fDX[1])
+						+ 0.25*(ufab(m_fine+dx[1] -dx[1],0) - ufab(m_fine-dx[1] -dx[1],0))/(2*fDX[1]);
+					gradu(1,1) =
+						+ 0.25*(ufab(m_fine+dx[1] +dx[1],1) - ufab(m_fine-dx[1] +dx[1],1))/(2*fDX[1])
+						+ 0.50*(ufab(m_fine+dx[1]       ,1) - ufab(m_fine-dx[1]       ,1))/(2*fDX[1])
+						+ 0.25*(ufab(m_fine+dx[1] -dx[1],1) - ufab(m_fine-dx[1] -dx[1],1))/(2*fDX[1]);
+
+					Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+					Set::Matrix sig = C(m_fine)(eps);
+					Set::Vector n(-1, 0);
+					Set::Vector t = sig*n;
+
+					for (int n = 0 ; n < ncomp; n++)
+					{
+						crse(m_crse,n) -= t(n) / (0.5*fDX[0]);
+					}
 				}
 				else if (m1 == bx.hiVect()[0])
 				{
@@ -638,18 +637,22 @@ Elastic<T>::reflux (int crse_amrlev,
 				}
 				else
 				{
-					crse(m_crse,n) =
-						(+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-						 + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-						 +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0;
+					for (int n = 0 ; n < ncomp; n++)
+					{
+
+						crse(m_crse,n) =
+							((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+							  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+					}
 				}
-			}
 		}
 	}
 
-
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
-	//if (!m_testing) return;
+	return;
+	if (!m_testing) return;
+
 	//
 	// GOOD UNTIL THIS POINT
 	//
@@ -693,9 +696,8 @@ Elastic<T>::reflux (int crse_amrlev,
 
 				Set::Vector t = sig*n;
 
-				// resfab(m_crse,0) -= t(0) / (0.5*cDX[0]);
-				// resfab(m_crse,1) -= t(1) / (0.5*cDX[0]);
-				Util::Message(INFO,"m = ",m_crse, " : " , resfab(m_crse,1), " and t(1) = ", t(1));
+				resfab(m_crse,0) -= t(0) / (0.5*cDX[0]);
+				resfab(m_crse,1) -= t(1) / (0.5*cDX[0]);
 			}
 
 			// continue;
