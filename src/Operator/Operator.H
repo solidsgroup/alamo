@@ -69,6 +69,8 @@ public :
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fsmooth(amrlev,mglev,out,in);};
 
+	virtual void PrepareForSolve () {prepareForSolve();};
+
 	bool VerificationCheck (int amrlev, int mglev, amrex::MultiFab& test) const;
 
 	int NanInfOnBoundary(const amrex::MultiFab &test) const
