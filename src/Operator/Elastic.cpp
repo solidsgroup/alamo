@@ -487,8 +487,6 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
-	//return;
-	
 	BL_PROFILE("Operator::Elastic::reflux()");
 
 #if AMREX_SPACEDIM == 2
@@ -503,6 +501,8 @@ Elastic<T>::reflux (int crse_amrlev,
  	const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
 	const Real* cDX = cgeom.CellSize();
 	const Real* fDX = fgeom.CellSize();
+
+	const Real* DX = cgeom[crse_amrlev][mglev].CellSize();
 
  	const BoxArray& fba = fine_sol.boxArray();
  	const DistributionMapping& fdm = fine_sol.DistributionMap();
@@ -540,12 +540,10 @@ Elastic<T>::reflux (int crse_amrlev,
 	}
 
 	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
-	if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
+	//if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
 	// if (res.contains_nan()) Util::Abort(INFO,"res contains nan");
 	// if (fine_res_for_coarse.contains_nan()) Util::Abort(INFO,"fine_res_for_coarse contains nan");
-
-	return;
 
 
 	MultiFab fine_contrib(amrex::coarsen(fba, 2), fdm, ncomp, 1);
@@ -671,6 +669,9 @@ Elastic<T>::reflux (int crse_amrlev,
  	const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
 
 
+	return;
+
+
 // 	const auto& csigma = *m_sigma[crse_amrlev][0][0];
 
 	static int crse_cell = 0;
@@ -721,57 +722,103 @@ Elastic<T>::reflux (int crse_amrlev,
 				Set::Matrix gradu;
 				
 
+				// gradgradu[k](l,j) = u_{k,lj}
+				std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; 
+
 				for (int i = 0; i < ncomp ; i++)
 				{
-					//               if (ccmsk(i-1,j-1) .eq. crse_cell) then
-					//                  Ax = Ax + sig(i-1,j-1)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
-					//                       &                       +     (phi(i-1,j-1)-phi(i  ,j-1))) &
-					//                       &                + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
-					//                       &                       +     (phi(i-1,j-1)-phi(i-1,j  ))))
-					//               end if
 
+
+					gradgradu[i] = Set::Matrix::Zero();
+
+
+
+					// gradgradu[i](0,0) += (2.0 * (ufab(m+dx[0]      ,i) - ufab(m      ,i)       - ufab(m      ,i)       + ufab(m-dx[0]      ,i))
+					// 		      +     (ufab(m+dx[0]+dx[1],i) - ufab(m+dx[1],i)       - ufab(m+dx[1],i)       + ufab(m-dx[0]+dx[1],i)))/DX[0]/DX[0]/6.0;
+					// gradgradu[i](0,1) += (2.0 * (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))
+					// 		      +     (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i)))/(2.0*DX[0])/(2.0*DX[1])/6.0;
+					// gradgradu[i](1,1) += (2.0 * (ufab(m+dx[1],i)       - ufab(m      ,i)       - ufab(m      ,i)       + ufab(m-dx[1],i))
+					// 		      +     (ufab(m+dx[0]+dx[0],i) - ufab(m+dx[0],i)       - ufab(m+dx[0],i)       + ufab(m-dx[1]+dx[0],i)))/DX[1]/DX[1]/6.0;
+					// gradgradu[i](1,0) += gradgradu[i](0,1);
+
+
+							     
 					if (cc_mask[mfi](m-dx[0]-dx[1]) ==  crse_cell) // xlo or ylo
 					{
-						
-						std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
-						
-						
-						
-						//Util::Message(INFO,"m=",m," A");
-						gradu(i,0) = (ufab(m,i) - ufab(m-dx[0],i))/(cDX[0]);
-						gradu(i,1) = (ufab(m,i) - ufab(m-dx[1],i))/(cDX[1]);
-						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-						Set::Matrix sig = C(m)(eps);
-						Ax -= sig*nx;
+						//    if (ccmsk(i-1,j-1) .eq. crse_cell) then
+						//       Ax = Ax + sig(i-1,j-1)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
+						//            &                       +     (phi(i-1,j-1)-phi(i  ,j-1))) &
+						//            &                + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
+						//            &                       +     (phi(i-1,j-1)-phi(i-1,j  ))))
+						//       if (is_rz) then
+						//          Ax = Ax + fm*sig(i-1,j-1)*(phi(i,j-1)-phi(i,j))
+						//       end if
+						//    end if
+
+						gradgradu[i](0,0) += (2.0 * (/*ufab(m+dx[0]      ,i) - ufab(m      ,i)*/       - ufab(m      ,i)       + ufab(m-dx[0]      ,i))
+								      +     (/*ufab(m+dx[0]-dx[1],i) - ufab(m-dx[1],i)*/       - ufab(m-dx[1],i)       + ufab(m-dx[0]-dx[1],i)))/DX[0]/DX[0]/6.0;
+
+						gradgradu[i](1,1) += (2.0 * (/*ufab(m+dx[1],i)       - ufab(m      ,i)*/       - ufab(m      ,i)       + ufab(m-dx[1],i))
+								      +     (/*ufab(m+dx[0]-dx[0],i) - ufab(m-dx[0],i)*/       - ufab(m-dx[0],i)       + ufab(m-dx[1]-dx[0],i)))/DX[1]/DX[1]/6.0;
+
 					}
 					if (cc_mask[mfi](m-dx[1]) ==  crse_cell) // xhi or ylo
 					{
-						//Util::Message(INFO,"m=",m," B");
-						gradu(i,0) = (ufab(m+dx[0],i) - ufab(m,i))/(cDX[0]);
-						gradu(i,1) = (ufab(m,i) - ufab(m-dx[1],i))/(cDX[1]);
-						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-						Set::Matrix sig = C(m)(eps);
-						Ax -= sig*ny;
+						//    if (ccmsk(i,j-1) .eq. crse_cell) then
+						//       Ax = Ax + sig(i,j-1)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
+						//            &                     +     (phi(i+1,j-1)-phi(i  ,j-1))) &
+						//            &              + facy*(2.d0*(phi(i  ,j-1)-phi(i  ,j  )) &
+						//            &                     +     (phi(i+1,j-1)-phi(i+1,j  ))))
+						//       if (is_rz) then
+						//          Ax = Ax - fp*sig(i,j-1)*(phi(i,j-1)-phi(i,j))
+						//       end if
+						//    end if
+
+						gradgradu[i](0,0) += (2.0 * (ufab(m+dx[0]      ,i) - ufab(m      ,i)       /*- ufab(m      ,i)       + ufab(m-dx[0]      ,i)*/)
+								      +     (ufab(m+dx[0]-dx[1],i) - ufab(m-dx[1],i)       /*- ufab(m-dx[1],i)       + ufab(m-dx[0]-dx[1],i)*/))/DX[0]/DX[0]/6.0;
+
+						gradgradu[i](1,1) += (2.0 * (/*ufab(m+dx[1],i)       - ufab(m      ,i)*/       - ufab(m      ,i)       + ufab(m-dx[1],i))
+								      +     (/*ufab(m+dx[0]+dx[0],i) - ufab(m+dx[0],i)*/       - ufab(m+dx[0],i)       + ufab(m-dx[1]+dx[0],i)))/DX[1]/DX[1]/6.0;
 					}
 					if (cc_mask[mfi](m-dx[0]) ==  crse_cell) // xlo or yhi
 					{
-						//Util::Message(INFO,"m=",m," C");
-						gradu(i,0) = (ufab(m,i) - ufab(m-dx[0],i))/(cDX[0]);
-						gradu(i,1) = (ufab(m+dx[1],i) - ufab(m,i))/(cDX[1]);
-						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-						Set::Matrix sig = C(m)(eps);
-						Ax += sig*nx;
+						//    if (ccmsk(i-1,j) .eq. crse_cell) then
+						//       Ax = Ax + sig(i-1,j)*(facx*(2.d0*(phi(i-1,j  )-phi(i  ,j  )) &
+						//            &                     +     (phi(i-1,j+1)-phi(i  ,j+1))) &
+						//            &              + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
+						//            &                     +     (phi(i-1,j+1)-phi(i-1,j  ))))
+						//       if (is_rz) then
+						//          Ax = Ax + fm*sig(i-1,j)*(phi(i,j+1)-phi(i,j))
+						//       end if
+						//    end if
+
+						gradgradu[i](0,0) += (2.0 * (/*ufab(m+dx[0]      ,i) - ufab(m      ,i)*/       - ufab(m      ,i)       + ufab(m-dx[0]      ,i))
+								      +     (/*ufab(m+dx[0]+dx[1],i) - ufab(m+dx[1],i)*/       - ufab(m+dx[1],i)       + ufab(m-dx[0]+dx[1],i)))/DX[0]/DX[0]/6.0;
+
+						gradgradu[i](1,1) += (2.0 * (ufab(m+dx[1],i)       - ufab(m      ,i)       /*- ufab(m      ,i)       + ufab(m-dx[1]      ,i)*/)
+								      +     (ufab(m+dx[0]-dx[0],i) - ufab(m-dx[0],i)       /*- ufab(m-dx[0],i)       + ufab(m-dx[1]-dx[0],i)*/))/DX[1]/DX[1]/6.0;
 					}
 					if (cc_mask[mfi](m) ==  crse_cell) // xhi or yhi
 					{
-						//Util::Message(INFO,"m=",m," D");
-						gradu(i,0) = (ufab(m+dx[0],i) - ufab(m,i))/(cDX[0]);
-						gradu(i,1) = (ufab(m+dx[1],i) - ufab(m,i))/(cDX[1]);
-						Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-						Set::Matrix sig = C(m)(eps);
-						Ax += sig*ny;
+						//    if (ccmsk(i,j) .eq. crse_cell) then
+						//       Ax = Ax + sig(i,j)*(facx*(2.d0*(phi(i+1,j  )-phi(i  ,j  )) &
+						//            &                  +      (phi(i+1,j+1)-phi(i  ,j+1))) &
+						//            &            + facy*(2.d0*(phi(i  ,j+1)-phi(i  ,j  )) &
+						//            &                  +      (phi(i+1,j+1)-phi(i+1,j  ))))
+						//       if (is_rz) then
+						//          Ax = Ax - fp*sig(i,j)*(phi(i,j+1)-phi(i,j))
+						//       end if
+						//    end if
+
+						gradgradu[i](0,0) += (2.0 * (ufab(m+dx[0]      ,i) - ufab(m      ,i)       /*- ufab(m      ,i)       + ufab(m-dx[0]      ,i)*/)
+								      +     (ufab(m+dx[0]+dx[1],i) - ufab(m+dx[1],i)       /*- ufab(m+dx[1],i)       + ufab(m-dx[0]+dx[1],i)*/))/DX[0]/DX[0]/6.0;
+
+						gradgradu[i](1,1) += (2.0 * (ufab(m+dx[1],i)       - ufab(m      ,i)       /*- ufab(m      ,i)       + ufab(m-dx[1]      ,i)*/)
+								      +     (ufab(m+dx[0]+dx[0],i) - ufab(m+dx[0],i)       /*- ufab(m+dx[0],i)       + ufab(m-dx[1]+dx[0],i)*/))/DX[1]/DX[1]/6.0;
 					}
 				}
+				
+				Set::Vector Ax = modelfab(m)(gradgradu);
 
 				Set::Vector Axf;
 				Axf(0) = fine_contrib_on_crse[mfi](m,0);
