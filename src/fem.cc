@@ -314,7 +314,7 @@ int main (int argc, char* argv[])
 	Util::Message(INFO,rhs[0].nGrow());
 
 
-	//mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 	mlabec.SetTesting(true);
 
