@@ -628,7 +628,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
 					for (int n = 0 ; n < ncomp; n++)
 					{
-						crse(m_crse,n) -= t(n) / (0.5*fDX[0]);
+						crse(m_crse,n) += t(n) / (fDX[0]) * fDX_cDX;
 					}
 				}
 				else if (m1 == bx.hiVect()[0])
@@ -650,7 +650,6 @@ Elastic<T>::reflux (int crse_amrlev,
 	}
 
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
-	return;
 	if (!m_testing) return;
 
 	//
@@ -696,25 +695,9 @@ Elastic<T>::reflux (int crse_amrlev,
 
 				Set::Vector t = sig*n;
 
-				resfab(m_crse,0) -= t(0) / (0.5*cDX[0]);
-				resfab(m_crse,1) -= t(1) / (0.5*cDX[0]);
+				resfab(m_crse,0) += 0.01 * t(0) / (cDX[0]);
+				resfab(m_crse,1) += 0.01 * t(1) / (cDX[0]);
 			}
-
-			// continue;
-			// for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
-			// for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
-			// {
-			// 	amrex::IntVect m(m1,m2);
-			// 	if (!bx.contains(m)) continue;
-			// 	if (nd_mask[mfi](m) != crse_fine_node) continue; // Only proceed if on a coarse/fine boundary
-
-				
-			// 	if (nd_mask[mfi](m) == crse_fine_node) 
-			// 	 	Util::Message(INFO,"CRSE FINE BNDRY: res(",m1,",",m2,") = ",res[mfi](m,1));
-			// 	// else
-			// 	// 	Util::Message(INFO,"NOT CRSE FINE BNDRY: res(",m1,",",m2,") = ",res[mfi](m,1));
-				
-			// }
 		}
 	}
 

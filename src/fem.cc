@@ -164,9 +164,9 @@ int main (int argc, char* argv[])
 			cgrids[ilev].define(cdomain);
 			cgrids[ilev].maxSize(max_grid_size);
 			cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
+			//cdomain.growLo(0,-n_cell/2); 
 			//cdomain.grow(-n_cell/4); 
 			cdomain.refine(ref_ratio); 
-
 
 			ngrids[ilev] = cgrids[ilev];
 			ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
