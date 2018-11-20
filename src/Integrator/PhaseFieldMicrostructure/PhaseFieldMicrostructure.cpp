@@ -17,6 +17,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("gamma", gamma);
 		pp.query("sigma0", sigma0);
 		pp.query("l_gb", l_gb);
+		pp.query("sdf_on", sdf_on);
+		if (sdf_on)
+		{
+			sdf.resize(number_of_grains);
+			pp.queryarr("sdf",sdf);
+		}
 	}
 	{
 		amrex::ParmParse pp("amr");
@@ -34,7 +40,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("sigma0", sigma0);
 		pp.query("sigma1", sigma1);
 		pp.query("beta", beta);
-		pp.query("damp", damp);
 		pp.query("tstart", anisotropy_tstart);
 
 		// if (amrex::Verbose()) std::cout << "should only print if run with -v flag" << std::cout;
@@ -81,12 +86,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (ic_type == "perturbed_interface")
 			ic = new IC::PerturbedInterface(geom);
 		else if (ic_type == "tabulated_interface")
-		{
-			Util::Message(INFO, "setting tabulated interface");
 			ic = new IC::TabulatedInterface(geom);
-		}
 		else if (ic_type == "voronoi")
 			ic = new IC::Voronoi(geom,number_of_grains);
+		else if (ic_type == "circle")
+			ic = new IC::Circle(geom);
 		else
 			Util::Abort(INFO, "No valid initial condition specified");
 	}
@@ -290,7 +294,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					amrex::Real Boundary_term =
 						Kappa*laplacian +
 						DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-						+ damp*0.5*DDKappa*(Sine_theta*Sine_theta*grad11 - 2.*Sine_theta*Cos_theta*grad12 + Cos_theta*Cos_theta*grad22);
+						+ 0.5*DDKappa*(Sine_theta*Sine_theta*grad11 - 2.*Sine_theta*Cos_theta*grad12 + Cos_theta*Cos_theta*grad22);
 			
 			
 					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) =
@@ -308,6 +312,14 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 							  - 1.0 +
 							  2.0*gamma*sum_of_squares)*ETA(m1,m2,m3,i)
 						      - kappa*laplacian);
+				}
+
+				//
+				// SYNTHETIC DRIVING FORCE
+				//
+				if (sdf_on)
+				{
+					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) -=  M*dt*(sdf[i]);
 				}
 
 				//
@@ -423,9 +435,6 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
-	Util::Abort(INFO,"grids size = ", grids[0].size());
-
-
 	if (!elastic_on) return;
 	if (iter%elastic_int) return;
 	if (time < elastic_tstart) return;

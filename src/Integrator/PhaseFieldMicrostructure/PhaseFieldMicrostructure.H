@@ -20,6 +20,7 @@
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi/Voronoi.H"
+#include "IC/Circle.H"
 
 #include "Model/Interface/GrainBoundary/GrainBoundary.H"
 #include "Model/Interface/GrainBoundary/Sin.H"
@@ -90,6 +91,10 @@ private:
 
 	IC::IC *ic;
 
+	bool sdf_on = false;
+	amrex::Vector<amrex::Real> sdf;
+
+
 	bool        elastic_on = false;
 	int         elastic_int = 1;
 	std::string elastic_type;
@@ -106,7 +111,7 @@ private:
 	BC::BC *elastic_bc;
 
 	std::vector<OperatorCell::Elastic::PolyCrystal::PolyCrystalModel *> models;
-
+	
 };
 }
 #endif
