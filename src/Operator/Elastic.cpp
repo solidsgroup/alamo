@@ -605,21 +605,21 @@ Elastic<T>::reflux (int crse_amrlev,
 					// plus the ones above and below
 					Set::Matrix gradu;
 					gradu(0,0) =
-						+ 0.5*(ufab(m_fine+dx[0] +dx[1],0) - ufab(m_fine +dx[1],0))/fDX[0]
-						+ 1.0*(ufab(m_fine+dx[0]       ,0) - ufab(m_fine       ,0))/fDX[0]
-						+ 0.5*(ufab(m_fine+dx[0] -dx[1],0) - ufab(m_fine -dx[1],0))/fDX[0];
+						+ 0.25*(ufab(m_fine+dx[0] +dx[1],0) - ufab(m_fine +dx[1],0))/fDX[0]
+						+ 0.50*(ufab(m_fine+dx[0]       ,0) - ufab(m_fine       ,0))/fDX[0]
+						+ 0.25*(ufab(m_fine+dx[0] -dx[1],0) - ufab(m_fine -dx[1],0))/fDX[0];
 					gradu(1,0) =
-						+ 0.5*(ufab(m_fine+dx[0] +dx[1],1) - ufab(m_fine +dx[1],1))/fDX[0]
-						+ 1.0*(ufab(m_fine+dx[0]       ,1) - ufab(m_fine       ,1))/fDX[0]
-						+ 0.5*(ufab(m_fine+dx[0] -dx[1],1) - ufab(m_fine -dx[1],1))/fDX[0];
+						+ 0.25*(ufab(m_fine+dx[0] +dx[1],1) - ufab(m_fine +dx[1],1))/fDX[0]
+						+ 0.50*(ufab(m_fine+dx[0]       ,1) - ufab(m_fine       ,1))/fDX[0]
+						+ 0.25*(ufab(m_fine+dx[0] -dx[1],1) - ufab(m_fine -dx[1],1))/fDX[0];
 					gradu(0,1) =
-						+ 0.5*(ufab(m_fine+dx[1] +dx[1],0) - ufab(m_fine-dx[1] +dx[1],0))/(2*fDX[1])
-						+ 1.0*(ufab(m_fine+dx[1]       ,0) - ufab(m_fine-dx[1]       ,0))/(2*fDX[1])
-						+ 0.5*(ufab(m_fine+dx[1] -dx[1],0) - ufab(m_fine-dx[1] -dx[1],0))/(2*fDX[1]);
+						+ 0.25*(ufab(m_fine+dx[1] +dx[1],0) - ufab(m_fine-dx[1] +dx[1],0))/(2*fDX[1])
+						+ 0.50*(ufab(m_fine+dx[1]       ,0) - ufab(m_fine-dx[1]       ,0))/(2*fDX[1])
+						+ 0.25*(ufab(m_fine+dx[1] -dx[1],0) - ufab(m_fine-dx[1] -dx[1],0))/(2*fDX[1]);
 					gradu(1,1) =
-						+ 0.5*(ufab(m_fine+dx[1] +dx[1],1) - ufab(m_fine-dx[1] +dx[1],1))/(2*fDX[1])
-						+ 1.0*(ufab(m_fine+dx[1]       ,1) - ufab(m_fine-dx[1]       ,1))/(2*fDX[1])
-						+ 0.5*(ufab(m_fine+dx[1] -dx[1],1) - ufab(m_fine-dx[1] -dx[1],1))/(2*fDX[1]);
+						+ 0.25*(ufab(m_fine+dx[1] +dx[1],1) - ufab(m_fine-dx[1] +dx[1],1))/(2*fDX[1])
+						+ 0.50*(ufab(m_fine+dx[1]       ,1) - ufab(m_fine-dx[1]       ,1))/(2*fDX[1])
+						+ 0.25*(ufab(m_fine+dx[1] -dx[1],1) - ufab(m_fine-dx[1] -dx[1],1))/(2*fDX[1]);
 
 					// Compute the traction vector (i.e. operator flux)
 					// using the outward-facing normal
@@ -630,10 +630,16 @@ Elastic<T>::reflux (int crse_amrlev,
 
 					// Traction should be per unit VOLUME not per unit area, so divide
 					// by orthogonal grid distance
-					t /= fDX[0];
+					t /= (cDX[0]);
+
+					Util::Message(INFO,t.transpose());
 
 					// Add this contribution to the residual
 					for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += t(n);
+					
+					// // Add the rhs component to the residual
+					for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += crserhs(m_crse,n);
+
 				}
 				else
 				{
@@ -663,10 +669,13 @@ Elastic<T>::reflux (int crse_amrlev,
 	static int crse_fine_node = 1;
 	static int fine_node = 2;
 
+	Util::Message(INFO);
  	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
  	{
- 		if ((*has_fine_bndry)[mfi])
- 		{
+		if (true || (*has_fine_bndry)[mfi])
+		{
+			Util::Warning(INFO,"Fix this for loop!");
+
 			amrex::BaseFab<T> &C = (*(model[crse_amrlev][0]))[mfi];
 
  			const Box& bx = mfi.tilebox();
@@ -678,7 +687,7 @@ Elastic<T>::reflux (int crse_amrlev,
 			// THIS PART IS HARD CODED
 			// Iterate over the centerline only.
 			int m1 = 4;
-			for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]; m2++)
+			for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]-1; m2++)
 			{
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 
@@ -696,10 +705,12 @@ Elastic<T>::reflux (int crse_amrlev,
 				Set::Vector n(1.0, 0.0);
 				Set::Vector t = sig*n;
 				
+
 				// Divide out by cDX[0] to correct the units.
 				t /= cDX[0];
 
-				// S
+				Util::Message(INFO,t.transpose());
+
 				for (int n=0; n<ncomp; n++) resfab(m_crse,n) += t(n);
 			}
 		}

@@ -19,6 +19,7 @@
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
 #include "IC/Eigenstrain/Sphere.H"
+#include "IC/Affine.H"
 #include "BC/Constant.H"
 
 using namespace amrex;
@@ -316,26 +317,42 @@ int main (int argc, char* argv[])
 
 
 	mlabec.SetTesting(true);
-	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+	///
 
 
-	// mlabec.PrepareForSolve();
-	// for (int i = 0; i < 10; i++)
-	// {
-	// 	Util::Message(INFO,"Ad-hoc gauss seidel solver");
+	bool solve = false;
+	
+	if (solve)
+	{
+		mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+	}
+	else
+	{
+		Set::Vector n(1.0,0.0);
+		Set::Vector b(0.5,0.0);
+		Set::Scalar alpha = 1.0;
+		IC::Affine affine(geom,n,alpha,b,true);
+		u[0].setVal(0.0);
+		u[1].setVal(0.0);
+		rhs[0].setVal(0.0);
+		rhs[1].setVal(0.0);
 
-	res[0].setVal(0.0);
-	res[1].setVal(0.0);
-		
-	mlabec.FApply(0,0,res[0],u[0]);
-	mlabec.FApply(1,0,res[1],u[1]);
+		affine.SetComp(0);
+		affine.Initialize(0,u); affine.Initialize(1,u);
+		affine.SetComp(1);
+		affine.Initialize(0,u); affine.Initialize(1,u);
+		mlabec.FApply(0,0,rhs[0],u[0]);
+		mlabec.FApply(1,0,rhs[1],u[1]);
 
-	res[0].minus(rhs[0],0,2,0);
-	res[1].minus(rhs[1],0,2,0);
+		res[0].setVal(0.0);
+		res[1].setVal(0.0);
 
-	mlabec.Reflux(0,
-		      res[0], u[0], rhs[0],
-		      res[1], u[1], rhs[1]);
+		mlabec.Reflux(0,
+			      res[0], u[0], rhs[0],
+			      res[1], u[1], rhs[1]);
+	}
+	
+
 
 	// 	mlabec.FSmooth(0,0,u[0],rhs[0]);
 	// 	mlabec.FSmooth(1,0,u[1],rhs[1]);

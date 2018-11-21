@@ -5,21 +5,7 @@
 #include "Util/Util.H"
 
 /// \class Circle
-/// \brief Initialize a perturbed interface using Fourier Modes
-///
-/// \todo Extend this class to allow for 3D perturbations, currently only 2D are allowed
-/// \todo Allow for cosine (or complex exponential) expansions rather than just sin.
-/// \note This is a **two grain only** initial condition.
-/// \note This replaces the depricated "perturbed_bar" initial condition from previous versions
-///
-/// The interface is defined as the \f$x=0\f$ plane (2D), or the \f$x=0,z=0\f$ plane (3D).
-/// The equation for the interface is given by
-/// \f[y(x,z) = \sum_{n\in \{n_1,\ldots,n_N\}} A_n \sin(n\pi x/L_x) \f]
-/// where \f$A_n\f$ are the amplitudes (stored in #wave_amplitudes),
-/// \f$n_1,\ldots,n_N\subset\mathbb{Z}_+\f$ are wave numbers (stored in #wave_numbers),
-/// and \f$L_x\f$ is the length in the x direction (obtained using the #geom object).
-///
-/// Grain 1 is defined as being above \f$y(x,z)\f$, Grain 2 is defined as being below.
+/// \brief Initialize a circular inclusion
 namespace IC
 {
 class Circle : public IC
