@@ -8,25 +8,34 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace LinearElastic
 {
 ///
-/// The Elastic model provides a structure for computing
+/// The LinearElastic model provides a structure for computing
 /// \f[\mathbb{C}_{ijkl}\varepsilon_{kl}\f]
 /// that contains the data stored in \f$\mathbb{C}\f$ in an efficient way.
 /// For a general material \f$\mathbb{C}\f$ contains 81 constants.
 /// This can be reduced by making assumptions about the material.
 ///
-class Elastic : public Solid
+class LinearElastic : public Solid
 {
 public:
-	Elastic() {};
+	LinearElastic() {};
+	///
+	/// Returns
+	/// \f[\mathbb{C}_{ijkl}u_{k,l}\f]
+	///
 	virtual Set::Matrix operator () (Set::Matrix &eps) const = 0;
+	///
+	/// Returns
+	/// \f[\mathbb{C}_{ijkl}u_{k,lj}\f]
+	///
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps) = 0;
 };
 
 std::ostream&
 operator<< (std::ostream& os,
-	    const Elastic&    b);
+	    const LinearElastic&    b);
 
 }
 }
