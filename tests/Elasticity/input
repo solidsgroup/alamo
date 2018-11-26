@@ -41,8 +41,8 @@ solver.tol_rel			=  0.5 #1E-3
 solver.tol_abs			=  0.5 #1E-3
 solver.use_fsmooth = 1
 
-test.on = 0
+test.on = 1
 test.n = 1 1
-test.b = 0 0 0
+test.b = 0.5 0.5 0
 test.alpha = 1
 test.comp = 1

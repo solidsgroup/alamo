@@ -12,9 +12,9 @@
 #include "Util/Util.H"
 #include "Operator/Diagonal.H"
 #include "Operator/Elastic.H"
-#include "Model/Solid/Elastic/Isotropic.H"
-#include "Model/Solid/Elastic/Cubic.H"
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Set/Set.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
@@ -33,8 +33,8 @@ int main (int argc, char* argv[])
 	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
 	// 	Eigen::AngleAxisd(10, Set::Vector::UnitZ());
 
-	//using model_type = Model::Solid::Elastic::Cubic; model_type model(10.73, 6.09, 2.830); 
-	using model_type = Model::Solid::Elastic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model(10.73, 6.09, 2.830); 
+	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
 	
 	if (amrex::ParallelDescriptor::IOProcessor())
 		Util::Message(INFO,model);
