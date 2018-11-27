@@ -41,7 +41,9 @@ CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
 INCLUDE = $(if ${EIGEN}, -I${EIGEN})  $(if ${AMREX}, -I${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -L${AMREX}/lib/ -lamrex 
 
-HDR = $(shell find src/ -name *.H)
+HDR_ALL = $(shell find src/ -name *.H)
+HDR_TEST = $(shell find src/ -name *Test.H)
+HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
@@ -64,6 +66,13 @@ bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)###$(RESET)\n"
 	mkdir -p bin/
 	$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}
+
+obj/test.cc.o: src/test.cc ${HDR_ALL}
+	@printf "$(B_ON)$(FG_YELLOW)###\n"
+	@printf "$(B_ON)$(FG_YELLOW)### COMPILING $<\n" 
+	@printf "$(B_ON)$(FG_YELLOW)###$(RESET)\n"
+	@mkdir -p $(dir $@)
+	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/%.cc.o: src/%.cc ${HDR}
 	@printf "$(B_ON)$(FG_YELLOW)###\n"
