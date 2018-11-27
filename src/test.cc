@@ -24,7 +24,7 @@ int main (int argc, char* argv[])
 
 		Set::Vector f = model(gradgradu);
 
-		// f_i = C_{ijkl} u_{k,lj}
+		// f_i = C_{ijkl} u_{k,lj} = C_{ijkl} Delta u_{k,l}
 
 		// sig_{ij} = C_{ijkl} u_{k,l}
 		
