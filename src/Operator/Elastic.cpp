@@ -321,8 +321,58 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 	}
 }
 
+/*
+template<class T>
+void
+Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x)
+{
+	int ncomp = getNComp();
 
+	if (!m_diagonal_computed)
+		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
 
+	for (MFIter mfi(R0x, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		const amrex::FArrayBox &xfab	= x[mfi];
+		amrex::FArrayBox       &R0xfab	= R0x[mfi];
+		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
+
+		for (int n = 0; n < ncomp; n++)
+		{
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+		 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+		 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+				R0xfab(m,n) = xfab(m,n)/diagfab(m,n);
+			}
+		}
+	}
+	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, 0);
+	amrex::MultiFab::Copy(Ax,R0x,0,0,ncomp,0);
+	Fapply(amrlev,mglev,R0x,Ax);
+
+	for (MFIter mfi(R0x, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		const amrex::FArrayBox &xfab	= x[mfi];
+		amrex::FArrayBox       &R0xfab	= R0x[mfi];
+		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
+
+		for (int n = 0; n < ncomp; n++)
+		{
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+		 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+		 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+				R0xfab(m,n) = 1.0 - R0xfab(m,n);
+			}
+		}
+	}
+}
+*/
 
 template<class T>
 void
