@@ -97,6 +97,7 @@ public:
 	{Fapply(amrlev,mglev,out,in);}
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
+	//virtual void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x);
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;

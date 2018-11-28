@@ -1,3 +1,4 @@
+//#if AMREX_SPACEDIM==1
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
@@ -519,3 +520,4 @@ Elastic::Energy (FArrayBox& energyfab,
 
 }
 }
+//#endif
