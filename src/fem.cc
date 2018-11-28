@@ -12,9 +12,9 @@
 #include "Util/Util.H"
 #include "Operator/Diagonal.H"
 #include "Operator/Elastic.H"
-#include "Model/Solid/Elastic/Isotropic.H"
-#include "Model/Solid/Elastic/Cubic.H"
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Set/Set.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
@@ -33,8 +33,8 @@ int main (int argc, char* argv[])
 	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
 	// 	Eigen::AngleAxisd(10, Set::Vector::UnitZ());
 
-	//using model_type = Model::Solid::Elastic::Cubic; model_type model(10.73, 6.09, 2.830); 
-	using model_type = Model::Solid::Elastic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model(10.73, 6.09, 2.830); 
+	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
 	
 	if (amrex::ParallelDescriptor::IOProcessor())
 		Util::Message(INFO,model);
@@ -320,27 +320,39 @@ int main (int argc, char* argv[])
 	///
 
 
-	bool solve = false;
-	
-	if (solve)
+	amrex::ParmParse pptest("test");
+	int test_on = 5; pptest.query("on",test_on);
+	amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
+	amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
+	amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
+	int comp; pptest.query("comp",comp);
+
+	if (test_on == 0)
 	{
 		mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 	}
 	else
 	{
-		Set::Vector n(1.0,0.0);
-		Set::Vector b(0.5,0.0);
-		Set::Scalar alpha = 1.0;
+		Set::Scalar alpha = tmpalpha;
+		//Set::Vector n(1.0,1.0); Set::Vector b(0.5,0.0);
+		Set::Vector n(tmpn[0],tmpn[1]);
+		Set::Vector b(tmpb[0],tmpb[1]);
+
+		Util::Message(INFO,"alpha=",alpha);
+		Util::Message(INFO,"n=",n.transpose());
+		Util::Message(INFO,"b=",b.transpose());
+		Util::Message(INFO,"comp=",comp);
+
+
 		IC::Affine affine(geom,n,alpha,b,true);
 		u[0].setVal(0.0);
 		u[1].setVal(0.0);
 		rhs[0].setVal(0.0);
 		rhs[1].setVal(0.0);
 
-		affine.SetComp(0);
-		affine.Initialize(0,u); affine.Initialize(1,u);
-		affine.SetComp(1);
-		affine.Initialize(0,u); affine.Initialize(1,u);
+		if (comp == 0) {affine.SetComp(0); affine.Initialize(0,u); affine.Initialize(1,u);}
+		if (comp == 1) {affine.SetComp(1); affine.Initialize(0,u); affine.Initialize(1,u);}
+
 		mlabec.FApply(0,0,rhs[0],u[0]);
 		mlabec.FApply(1,0,rhs[1],u[1]);
 

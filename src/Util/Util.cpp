@@ -22,7 +22,7 @@ std::string GetFileName()
 		amrex::ParmParse pp_amr("amr");
 
 		if (pp_amr.contains("plot_file") && pp.contains("plot_file"))
-			Abort("plot_file specified in too many locations");
+			Util::Abort("plot_file specified in too many locations");
 		else if (pp_amr.contains("plot_file"))
 		{
 			if (amrex::ParallelDescriptor::IOProcessor())
@@ -36,7 +36,7 @@ std::string GetFileName()
 		}
 		else
 			if (amrex::ParallelDescriptor::IOProcessor())
-				Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
+				Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
 	}
 	return filename;
 }
@@ -59,6 +59,8 @@ void SignalHandler(int s)
 
 void Initialize (int argc, char* argv[])
 {
+	srand (time(NULL));
+
 	if (argc < 2)
 	{
 		std::cout << "No plot file specified!" << std::endl;
@@ -71,13 +73,11 @@ void Initialize (int argc, char* argv[])
 	pp_amrex.add("throw_exception",1);
 	//amrex.throw_exception=1
 
-
 	signal(SIGSEGV, Util::SignalHandler);
 	signal(SIGINT,  Util::SignalHandler);
 	signal(SIGABRT, Util::SignalHandler);
 
 	std::string filename = GetFileName();
-
 
 	if (amrex::ParallelDescriptor::IOProcessor())
 	{
@@ -210,6 +210,32 @@ std::string Wrap(std::string text, unsigned per_line)
 
 
 
+}
+
+
+Set::Scalar Random()
+{
+	return ((Set::Scalar) rand()) / ((Set::Scalar) RAND_MAX);
+}
+
+namespace Test
+{
+int Message(std::string testname, bool passed)
+{
+	winsize w;
+	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+	std::stringstream ss;
+	if (passed)
+		ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
+	else
+		ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
+
+	std::cout << std::left
+		  << Color::FG::White << Color::Bold << testname << Color::Reset
+		  << std::setw(w.ws_col - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+	if (passed) return 0;
+	else return 1;
+}
 }
 
 

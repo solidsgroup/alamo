@@ -139,7 +139,7 @@ PolymerDegradation::PolymerDegradation():
 			std::cout<< "Warning. Mu must be positive. Resetting back to default value" <<std::endl;
 			mu = 1.0;
 		}
-		modeltype = Model::Solid::Elastic::Degradable::Isotropic(lambda,mu);
+		modeltype = Model::Solid::LinearElastic::Degradable::Isotropic(lambda,mu);
 		//Model::Solid::Elastic::Degradable::Isotropic modeltype(lambda,mu);
 		//modeltype(lambda,mu);
 	}
@@ -324,11 +324,11 @@ PolymerDegradation::PolymerDegradation():
 						pp_elastic_bc.queryarr("bc_y_hi",bc_y_hi_str);,
 						pp_elastic_bc.queryarr("bc_z_hi",bc_z_hi_str););
 
-		bc_map["displacement"] = Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement;
-		bc_map["disp"] = Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement;
-		bc_map["traction"] = Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Traction;
-		bc_map["trac"] = Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Traction;
-		bc_map["periodic"] = Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Periodic;
+		bc_map["displacement"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement;
+		bc_map["disp"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement;
+		bc_map["traction"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Traction;
+		bc_map["trac"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Traction;
+		bc_map["periodic"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Periodic;
 
 		AMREX_D_TERM(	bc_x_lo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]], bc_map[bc_x_lo_str[1]], bc_map[bc_x_lo_str[2]])};
 						bc_x_hi = {AMREX_D_DECL(bc_map[bc_x_hi_str[0]], bc_map[bc_x_hi_str[1]], bc_map[bc_x_hi_str[2]])};
@@ -792,7 +792,7 @@ PolymerDegradation::DegradeMaterial(int lev)
 	for (amrex::MFIter mfi(model[lev],true); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box& box = mfi.tilebox();
-	 	amrex::BaseFab<Model::Solid::Elastic::Degradable::Isotropic> &modelfab = (model[lev])[mfi];
+	 	amrex::BaseFab<Model::Solid::LinearElastic::Degradable::Isotropic> &modelfab = (model[lev])[mfi];
 		amrex::BaseFab<amrex::Real> &etafab = (*eta_new[lev])[mfi];
 
 	 	AMREX_D_TERM(for (int i = box.loVect()[0]-1; i<=box.hiVect()[0]+1; i++),
@@ -1044,19 +1044,19 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		 		}
 				for(int l = 0; l<AMREX_SPACEDIM; l++)
 				{
-					if(xmin && bc_x_lo[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
+					if(xmin && bc_x_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
-					if(xmax && bc_x_hi[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
+					if(xmax && bc_x_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
 #if AMREX_SPACEDIM > 1
-					if(ymin && bc_y_lo[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
+					if(ymin && bc_y_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
-					if(ymax && bc_y_hi[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
+					if(ymax && bc_y_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
 #if AMREX_SPACEDIM > 2
-					if(zmin && bc_z_lo[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
+					if(zmin && bc_z_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
-					if(zmax && bc_z_hi[l]==Operator::Elastic<Model::Solid::Elastic::Degradable::Isotropic>::BC::Displacement)
+					if(zmax && bc_z_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_front(time)[l];
 #endif
 #endif

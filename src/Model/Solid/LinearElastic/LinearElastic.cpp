@@ -1,15 +1,15 @@
-#include "Elastic.H"
+#include "LinearElastic.H"
 #include <iomanip>
 
 namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace LinearElastic
 {
 std::ostream&
 operator<< (std::ostream& os,
-	    const Elastic&    b)
+	    const LinearElastic&    b)
 {
 #if AMREX_SPACEDIM == 2
 	std::array<Set::Matrix,6> gradu, eps;
