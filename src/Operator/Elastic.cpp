@@ -1,6 +1,6 @@
-#include "Model/Solid/Elastic/Isotropic.H"
-#include "Model/Solid/Elastic/Cubic.H"
-#include "Model/Solid/Elastic/Degradable/Isotropic.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Elastic.H"
 
 
@@ -682,7 +682,7 @@ Elastic<T>::reflux (int crse_amrlev,
 					// by orthogonal grid distance
 					t /= (cDX[0]);
 
-					Util::Message(INFO,t.transpose());
+					Util::Message(INFO,t.transpose(), "     rhs = ", crserhs(m_crse,0)," ",crserhs(m_crse,1));
 
 					// Add this contribution to the residual
 					for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += t(n);
@@ -757,7 +757,9 @@ Elastic<T>::reflux (int crse_amrlev,
 				
 
 				// Divide out by cDX[0] to correct the units.
-				t /= cDX[0];
+				t /= (cDX[0]);
+				//t(1) *= 2.0;
+
 
 				Util::Message(INFO,t.transpose());
 
@@ -983,9 +985,9 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 
 
 
-template class Elastic<Model::Solid::Elastic::Isotropic>;
-template class Elastic<Model::Solid::Elastic::Cubic>;
-template class Elastic<Model::Solid::Elastic::Degradable::Isotropic>;
+template class Elastic<Model::Solid::LinearElastic::Isotropic>;
+template class Elastic<Model::Solid::LinearElastic::Cubic>;
+template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 
 }
 

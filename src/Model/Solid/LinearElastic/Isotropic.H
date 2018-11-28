@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_ISOTROPIC_H_
-#define MODEL_SOLID_ELASTIC_ISOTROPIC_H_
+#ifndef MODEL_SOLID_LINEARELASTIC_ISOTROPIC_H_
+#define MODEL_SOLID_LINEARELASTIC_ISOTROPIC_H_
 
 #include <AMReX.H>
 #include <AMReX_REAL.H>
@@ -7,19 +7,19 @@
 
 #include "Util/Util.H"
 #include "Set/Set.H"
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/LinearElastic/LinearElastic.H"
 
 namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace LinearElastic
 {
 ///
 /// Isotropic implements the following elastic model
 /// \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
 ///
-class Isotropic : public Model::Solid::Elastic::Elastic
+class Isotropic : public Model::Solid::LinearElastic::LinearElastic
 {
 public:
 	Isotropic() {} ;
@@ -36,6 +36,12 @@ public:
 				f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
 		return f;
 	}
+
+	void Randomize()
+	{
+		mu = Util::Random();
+		lambda = Util::Random();
+	};
 
 	Isotropic operator + (const Isotropic &rhs) const
 	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
