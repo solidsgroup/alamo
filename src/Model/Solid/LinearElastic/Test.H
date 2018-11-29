@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_LINEARELASTIC_H
-#define MODEL_SOLID_LINEARELASTIC_H
+#ifndef MODEL_SOLID_LINEARELASTIC_TEST_H
+#define MODEL_SOLID_LINEARELASTIC_TEST_H
 #include "LinearElastic.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
@@ -17,7 +17,39 @@ namespace Test
 template <class T>
 bool Consistency(int verbose = 0)
 {
-	
+	T model;
+	for (int ctr = 0; ctr < 20; ctr++)
+	{
+		model.Randomize();
+		std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu;
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradgradu[i] = Set::Matrix::Random();
+
+		Set::Vector f1 = model(gradgradu);
+
+		Set::Vector f2 = Set::Vector::Zero();
+		for (int j = 0; j < AMREX_SPACEDIM; j++)
+		{
+			Set::Matrix gradu = Set::Matrix::Zero();
+			
+			for (int k = 0; k < AMREX_SPACEDIM; k++)
+				for (int l = 0; l < AMREX_SPACEDIM; l++)
+					gradu(k,l) = gradgradu[k](l,j);
+			Set::Matrix sig = model(gradu);
+			f2 += sig.col(j);
+		}
+
+		if ((f1-f2).norm() > 1E-8)
+		{
+			if (verbose>0)
+			{
+		 		Util::Message(INFO,"Test failed");
+		 		Util::Message(INFO,"f1 = ", f1);
+		 		Util::Message(INFO,"f2 = ", f2);
+		 	}
+		 	return false;
+		}
+	}
+	return true;	
 }
 
 template <class T>
