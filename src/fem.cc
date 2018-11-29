@@ -159,14 +159,23 @@ int main (int argc, char* argv[])
 			geom[ilev].define(domain);
 			domain.refine(ref_ratio);
 		}
+	amrex::ParmParse pptest("test");
+	std::string orientation; pptest.query("orientation",orientation);
+	Util::Message(INFO,"ORIENTATION = [",orientation,"]");
 	Box cdomain = CDomain, ndomain = NDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			cgrids[ilev].define(cdomain);
 			cgrids[ilev].maxSize(max_grid_size);
-			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
-			cdomain.growLo(0,-n_cell/2); 
+			if (orientation == "h")
+				cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
+			else if (orientation == "v")
+				cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(-n_cell/4); 
+
+			//cdomain.growLo(0,-n_cell/2); 
+			//cdomain.growLo(1,-n_cell/2); 
+
 			cdomain.refine(ref_ratio); 
 
 			ngrids[ilev] = cgrids[ilev];
@@ -320,7 +329,6 @@ int main (int argc, char* argv[])
 	///
 
 
-	amrex::ParmParse pptest("test");
 	int test_on = 5; pptest.query("on",test_on);
 	amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
 	amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
@@ -359,6 +367,7 @@ int main (int argc, char* argv[])
 		res[0].setVal(0.0);
 		res[1].setVal(0.0);
 
+		mlabec.BuildMasks();
 		mlabec.Reflux(0,
 			      res[0], u[0], rhs[0],
 			      res[1], u[1], rhs[1]);
@@ -442,7 +451,8 @@ int main (int argc, char* argv[])
 	
 	IO::WriteMetaData(plot_file);
 
-	//Util::Warning(INFO,"TODO: change nlevels back!"); nlevels=1;
+	pptest.query("nlevels",nlevels);
+	Util::Warning(INFO,"TODO: change nlevels back!");// nlevels=1;
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));

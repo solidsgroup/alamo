@@ -9,6 +9,7 @@
 //#define EIGEN_MATRIX_PLUGIN "Set/Eigen_Amrex.H"
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Geometry>
+#include <eigen3/Eigen/SVD>
 #include <AMReX_REAL.H>
 
 namespace Set

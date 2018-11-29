@@ -64,6 +64,8 @@ class Elastic : public Operator
 public:
 	enum class BC {Displacement, Traction, Periodic}; 
 
+	enum class Boundary {Lo, Hi, None};
+
 	Elastic () {}
 	Elastic (const Vector<Geometry>& a_geom,
 		 const Vector<BoxArray>& a_grids,
@@ -81,6 +83,7 @@ public:
 		     const LPInfo& a_info = LPInfo(),
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
+
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
 	void Strain (int amrlev, amrex::MultiFab& epsfab, const amrex::MultiFab& ufab, bool voigt = false) const;
 	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
@@ -95,6 +98,17 @@ public:
 	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
 	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fapply(amrlev,mglev,out,in);}
+
+	inline Set::Vector apply (int amrlev, int mglev,
+				  const amrex::FArrayBox &ufab,
+				  TArrayBox &C,
+				  const amrex::IntVect &m) const;
+	
+	inline Set::Matrix flux (int amrlev, int mglev,
+				 const amrex::FArrayBox &ufab,
+				 TArrayBox &C,
+				 const amrex::IntVect &m,
+				 std::array<Boundary,AMREX_SPACEDIM>) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;

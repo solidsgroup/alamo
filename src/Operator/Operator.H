@@ -99,7 +99,7 @@ public :
 		return 0;
 	}
 
-
+	void BuildMasks() {buildMasks();}
 protected:
 
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
