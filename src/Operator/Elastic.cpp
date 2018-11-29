@@ -739,7 +739,7 @@ Elastic<T>::reflux (int crse_amrlev,
 								0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::None, Boundary::Lo}});
 						Set::Vector n(0, -1);
 						t = (sig * n) / cDX[1];
-						Util::Message(INFO,"FINE: m_crse = ", m_crse, " t = ", t.transpose(), "  rhs = ", crserhs(m_crse,0), " ", crserhs(m_crse,1));
+						Util::Message(INFO,"FINE: m_crse = ", m_crse, " sig = \n",sig,"\nt = ", t.transpose(), "  rhs = ", crserhs(m_crse,0), " ", crserhs(m_crse,1));
 					}
 					if (m2 == bx.hiVect()[1])
 					{
@@ -879,7 +879,7 @@ Elastic<T>::reflux (int crse_amrlev,
 					Set::Matrix sig = flux(crse_amrlev, 0, ufab, C, m, {{Boundary::None, Boundary::Hi}});
 					Set::Vector n = Set::Vector(0., 1.);
 					t += (sig * n)/cDX[0];
-					Util::Message(INFO,"CRSE: m = ", m, " t = ", t.transpose());
+					Util::Message(INFO,"CRSE: m = ", m, " sig = \n", sig, "\n t= ",t.transpose());
 				}
 
 				if (cc_mask[mfi](m) ==  crse_cell // xhi or yhi
