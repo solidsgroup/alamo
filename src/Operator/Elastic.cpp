@@ -321,10 +321,10 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 	}
 }
 
-/*
+
 template<class T>
 void
-Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x)
+Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const
 {
 	int ncomp = getNComp();
 
@@ -372,7 +372,7 @@ Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x)
 		}
 	}
 }
-*/
+
 
 template<class T>
 void

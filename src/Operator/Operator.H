@@ -68,6 +68,7 @@ public :
 	{Fapply(amrlev, mglev, out, in);};
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fsmooth(amrlev,mglev,out,in);};
+	virtual void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
 	virtual void PrepareForSolve () {prepareForSolve();};
 
@@ -140,7 +141,6 @@ protected:
 	virtual Real getAScalar () const final { return  0.0; }
 	virtual Real getBScalar () const final { return -1.0; }
 
-	//virtual void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x);
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
 
 	std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),

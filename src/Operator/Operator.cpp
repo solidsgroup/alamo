@@ -168,11 +168,11 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
-	//amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, 0);
+	amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, 0);
 
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
-	/*
+	
 	if(debug)
 	{
 		// We are trying to do a first order inverse correction here.
@@ -197,7 +197,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 				}
 			}
 		}
-	}*/
+	}
 	
 	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
