@@ -22,6 +22,197 @@ template<class T>
 Elastic<T>::~Elastic ()
 {}
 
+
+template<class T>
+inline
+Set::Vector
+Elastic<T>::apply (int amrlev, int mglev,
+		   const amrex::FArrayBox &ufab,
+		   TArrayBox &C,
+		   const amrex::IntVect &m) const
+
+{
+	Set::Vector f = Set::Vector::Zero();
+
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+
+	bool    AMREX_D_DECL(xmin = (m[0] == domain.loVect()[0]),
+			     ymin = (m[1] == domain.loVect()[1]),
+			     zmin = (m[2] == domain.loVect()[2])),
+		AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]+1),
+			     ymax = (m[1] == domain.hiVect()[1]+1),
+			     zmax = (m[2] == domain.hiVect()[2]+1));
+	const Real* DX = m_geom[amrlev][mglev].CellSize();
+
+	// The displacement gradient tensor
+	Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+
+	// Fill gradu and gradgradu
+	for (int i = 0; i < AMREX_SPACEDIM; i++)
+	{
+		AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+			     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+			     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+	}
+
+
+	// Stress tensor computed using the model fab
+	Set::Matrix sig = C(m)(gradu);
+
+	//
+	// Boundary conditions
+	//
+	// BCs are implemented as boundary operators.
+	//
+	// ┌                      ┐ ┌                     ┐   ┌              ┐
+	// │              |       │ │ interior		  │   │ body	     │
+	// │  Div C Grad  │       │ │ displacements	  │   │ forces	     │
+	// │              │       │ │			  │ = │		     │
+	// │ ─────────────┼────── │ │ ──────────────────  │   │ ──────────── │
+	// │              │ Bndry │ │ bndry displacements │   │ bndry values │
+	// └                      ┘ └			  ┘   └		     ┘
+	//
+	// For displacement:
+	//   (Bndry)(u) = u
+	// For traction:
+	//   (Bndry)(u) = C Grad (u) n   (n is surface normal)
+	//
+	// The displacement values or traction values are set as the boundary
+	// values of the rhs fab.
+	//
+
+	if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
+	{
+		for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+		{
+			for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+			{
+
+				if (m[j] == domain.loVect()[j])
+				{
+					if (m_bc_lo[j][i] == BC::Displacement)
+						f(i) = ufab(m,i);
+					else if (m_bc_lo[j][i] == BC::Traction) 
+						f(i) += -sig(i,j);
+					else Util::Abort(INFO, "Invalid BC");
+				}
+				if (m[j] == domain.hiVect()[j] + 1)
+				{
+					if (m_bc_hi[j][i] == BC::Displacement)
+						f(i) = ufab(m,i);
+					else if (m_bc_hi[j][i] == BC::Traction) 
+						f(i) += +sig(i,j);
+					else Util::Abort(INFO, "Invalid BC");
+
+				}
+			}
+		}
+		return f;
+	}
+	else
+	{
+		// The gradient of the displacement gradient tensor
+		std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+		// Fill gradu and gradgradu
+		for (int i = 0; i < AMREX_SPACEDIM; i++)
+		{
+			AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
+				     ,// 2D
+				     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
+				     gradgradu[i](1,0) = gradgradu[i](0,1);
+				     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/DX[1]/DX[1];
+				     ,// 3D
+				     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*DX[0])/(2.0*DX[2]);
+				     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*DX[1])/(2.0*DX[2]);
+				     gradgradu[i](2,0) = gradgradu[i](0,2);
+				     gradgradu[i](2,1) = gradgradu[i](1,2);
+				     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
+		}
+	
+		//
+		// Operator
+		//
+		// The return value is
+		//    f = C(grad grad u) + grad(C)*grad(u)
+		// In index notation
+		//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
+		//
+		f =     C(m)(gradgradu) + 
+			AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+				     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+				     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+		return f;
+	}
+}
+
+
+
+template<class T>
+inline
+Set::Matrix
+Elastic<T>::flux (int amrlev, int mglev,
+		  const amrex::FArrayBox &ufab,
+		  TArrayBox &C,
+		  const amrex::IntVect &m,
+		  std::array<Boundary,AMREX_SPACEDIM> boundary) const
+{
+	Set::Matrix sig = Set::Matrix::Zero();
+
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+
+	bool    AMREX_D_DECL(xmin = (boundary[0] == Boundary::Lo || m[0] == domain.loVect()[0]),
+			     ymin = (boundary[1] == Boundary::Lo || m[1] == domain.loVect()[1]),
+			     zmin = (boundary[2] == Boundary::Lo || m[2] == domain.loVect()[2])),
+		AMREX_D_DECL(xmax = (boundary[0] == Boundary::Hi || m[0] == domain.hiVect()[0]+1),
+			     ymax = (boundary[1] == Boundary::Hi || m[1] == domain.hiVect()[1]+1),
+			     zmax = (boundary[2] == Boundary::Hi || m[2] == domain.hiVect()[2]+1));
+	const Real* DX = m_geom[amrlev][mglev].CellSize();
+
+	// The displacement gradient tensor
+	Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+
+	// Fill gradu and gradgradu, accounting for potential stencil issues
+	for (int i = 0; i < AMREX_SPACEDIM; i++)
+	{
+		AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+			     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+			     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+	}
+
+
+	// Stress tensor computed using the model fab
+	sig = C(m)(gradu);
+
+	if (AMREX_D_TERM(false
+			 || m[0] == domain.loVect()[0] || m[0] == domain.hiVect()[0],
+			 || m[1] == domain.loVect()[1] || m[1] == domain.hiVect()[1],
+			 || m[2] == domain.loVect()[2] || m[2] == domain.hiVect()[2]))
+	{
+		for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+		{
+			for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+			{
+				if (m[j] == domain.loVect()[j])
+					if (m_bc_lo[j][i] == BC::Displacement) sig.col(i) = Set::Vector::Zero();
+				if (m[j] == domain.hiVect()[j] + 1)
+					if (m_bc_hi[j][i] == BC::Displacement) sig.col(i) = Set::Vector::Zero();
+
+			}
+		}
+		return sig;
+	}
+	else
+	{
+		return sig;
+	}
+}
+
+
+
+
+
+
 template<class T>
 void
 Elastic<T>::define (const Vector<Geometry>& a_geom,
@@ -84,18 +275,9 @@ void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
-	//Util::Message(INFO);
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
-	
-	// // DEBUG: Check to see if Fapply is getting passed bad values.
-	// for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
-	// {
-	// 	const amrex::FArrayBox &ufab    = u[mfi];
-	// 	if(ufab.contains_inf()) Util::Abort(INFO, "Inf in ufab [before update]");
-	// 	if(ufab.contains_nan()) Util::Abort(INFO, "Nan in ufab [before update]");
-	// }
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -109,116 +291,16 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
-					     ymin = (m2 == domain.loVect()[1]),
-					     zmin = (m3 == domain.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
-					     ymax = (m2 == domain.hiVect()[1] + 1),
-					     zmax = (m3 == domain.hiVect()[2] + 1));
 
-			// The displacement gradient tensor
-			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+			std::array<Boundary,AMREX_SPACEDIM> bndry = {Boundary::None, Boundary::None};
+			if (m[0] == domain.loVect()[0]) bndry[0] == Boundary::Lo;
+			if (m[0] == domain.hiVect()[0]) bndry[0] == Boundary::Hi;
+			if (m[1] == domain.loVect()[1]) bndry[1] == Boundary::Lo;
+			if (m[1] == domain.hiVect()[1]) bndry[1] == Boundary::Hi;
 
-			// The gradient of the displacement gradient tensor
-			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+			Set::Vector f = apply(amrlev, mglev, ufab, C, m);
 
-			// Fill gradu and gradgradu
-			for (int i = 0; i < AMREX_SPACEDIM; i++)
-			{
-				if (std::isnan(ufab(m,i))) Util::Abort(INFO,"u is nan. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
-				if (std::isinf(ufab(m,i))) Util::Abort(INFO,"u is inf. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
-				// Note: the (?:) block modifies the stencil if the node is on a boundary
-
-				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
-				AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
-					     ,// 2D
-					     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
-					     gradgradu[i](1,0) = gradgradu[i](0,1);
-					     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/DX[1]/DX[1];
-					     ,// 3D
-					     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*DX[0])/(2.0*DX[2]);
-					     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*DX[1])/(2.0*DX[2]);
-					     gradgradu[i](2,0) = gradgradu[i](0,2);
-					     gradgradu[i](2,1) = gradgradu[i](1,2);
-					     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
-			}
-
-			// Strain tensor
-			Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-			// Stress tensor computed using the model fab
-			Set::Matrix sig = C(m)(eps);
-
-			//
-			// Boundary conditions
-			//
-			// BCs are implemented as boundary operators.
-			//
-			// ┌                      ┐ ┌                     ┐   ┌              ┐
-			// │              |       │ │ interior		  │   │ body	     │
-			// │  Div C Grad  │       │ │ displacements	  │   │ forces	     │
-			// │              │       │ │			  │ = │		     │
-			// │ ─────────────┼────── │ │ ──────────────────  │   │ ──────────── │
-			// │              │ Bndry │ │ bndry displacements │   │ bndry values │
-			// └                      ┘ └			  ┘   └		     ┘
-			//
-			// For displacement:
-			//   (Bndry)(u) = u
-			// For traction:
-			//   (Bndry)(u) = C Grad (u) n   (n is surface normal)
-			//
-			// The displacement values or traction values are set as the boundary
-			// values of the rhs fab.
-			//
-			for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
-			{
-				for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
-				{
-					if (m[j] == domain.loVect()[j])
-					{
-						if (m_bc_lo[j][i] == BC::Displacement)
-							ffab(m,i) = ufab(m,i);
-						else if (m_bc_lo[j][i] == BC::Traction) 
-							ffab(m,i) = -sig(i,j);
-						else Util::Abort(INFO, "Invalid BC");
-					}
-					if (m[j] == domain.hiVect()[j] + 1)
-					{
-						if (m_bc_hi[j][i] == BC::Displacement)
-							ffab(m,i) = ufab(m,i);
-						else if (m_bc_hi[j][i] == BC::Traction) 
-							ffab(m,i) = +sig(i,j);
-						else Util::Abort(INFO, "Invalid BC");
-					}
-				}
-			}
-			if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) continue;
-
-			// Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.loVect()), ", C lovect = ",amrex::IntVect(C.loVect()));
-			// Util::Message(INFO,"u lovect = ",amrex::IntVect(ufab.hiVect()), ", C lovect = ",amrex::IntVect(C.hiVect()));
-			// Util::Message(INFO,"u xmax");ufab(m+dx[0]);
-			// Util::Message(INFO,"C xmax");C(m+dx[0]);
-			// Util::Message(INFO,"u ymax");ufab(m+dx[1]);
-			// Util::Message(INFO,"C ymax");C(m+dx[1]);
-
-			//
-			// Operator
-			//
-			// The return value is
-			//    f = C(grad grad u) + grad(C)*grad(u)
-			// In index notation
-			//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
-			//
-			Set::Vector f =
-				C(m)(gradgradu) + 
-				AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				      	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				       	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
-
-			for (int i = 0; i < AMREX_SPACEDIM; i++)
-				ffab(m,i) = f(i);
+			for (int i = 0; i < AMREX_SPACEDIM; i++) ffab(m,i) = f(i);
 		}
 	}
 }
@@ -278,8 +360,7 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 						     gradgradu[k](2,2) = (i==k ? -2.0 : 0.0)/DX[2]/DX[2]);
 				}
 
-				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-				Set::Matrix sig = C(m)(eps);
+				Set::Matrix sig = C(m)(gradu);
 
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
@@ -307,14 +388,10 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 				{
 					Set::Vector f =
 						C(m)(gradgradu) + 
-						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(eps).col(0),
-						  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(eps).col(1),
-						    	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(eps).col(2));
+						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+						  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+						    	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 					diagfab(m,i) += f(i);
-					//if (diagfab(m,i) != diagfab(m,i))
-						// Util::Message(INFO,"diagfab=",diagfab(m,i)," amrlev=",amrlev," mglev=",mglev," m = " , m , " i = ", i, " C = \n", C(m),
-						// 	      " C(m+dx[0]) = \n", C(m+dx[0]),
-						// 	      " C(m-dx[0]) = \n", C(m-dx[0]));
 				}
 			}
 		}
@@ -528,7 +605,7 @@ Elastic<T>::Energy (int amrlev,
 				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
 					     ymax = (m2 == bx.hiVect()[1]),
 					     zmax = (m3 == bx.hiVect()[2]));
-
+			
 
 			Set::Matrix gradu;
 
@@ -560,7 +637,6 @@ Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
 {
-	
 	BL_PROFILE("Operator::Elastic::reflux()");
 
 #if AMREX_SPACEDIM == 2
@@ -591,55 +667,120 @@ Elastic<T>::reflux (int crse_amrlev,
 		const FArrayBox &ufab = fine_sol[mfi];
 		TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
 
-		for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]-1; m2++)
-			for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]-1; m1++)
+		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+			for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
 			{
 				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 				
+				// if (m1 == c_cc_domain.loVect()[0] ||
+				//     m1 == c_cc_domain.hiVect()[0] ||
+				//     m2 == c_cc_domain.loVect()[1] ||
+				//     m2 == c_cc_domain.hiVect()[1])
+				// 	continue;
+
+				//crse(m_crse,0) = m_fine[1];
+				//continue;
+
 				// THIS PART IS HARD CODED:
-				// Will only occur at the centerline, so treat that case here
-				if (m1 == bx.loVect()[0])
+				if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0] ||
+				    m2 == bx.loVect()[1] || m2 == bx.hiVect()[1] )
 				{
-					// Compute the gradient as a weighted average of the current fine node
-					// plus the ones above and below
-					Set::Matrix gradu;
-					gradu(0,0) =
-						+ 0.25*(ufab(m_fine+dx[0] +dx[1],0) - ufab(m_fine +dx[1],0))/fDX[0]
-						+ 0.50*(ufab(m_fine+dx[0]       ,0) - ufab(m_fine       ,0))/fDX[0]
-						+ 0.25*(ufab(m_fine+dx[0] -dx[1],0) - ufab(m_fine -dx[1],0))/fDX[0];
-					gradu(1,0) =
-						+ 0.25*(ufab(m_fine+dx[0] +dx[1],1) - ufab(m_fine +dx[1],1))/fDX[0]
-						+ 0.50*(ufab(m_fine+dx[0]       ,1) - ufab(m_fine       ,1))/fDX[0]
-						+ 0.25*(ufab(m_fine+dx[0] -dx[1],1) - ufab(m_fine -dx[1],1))/fDX[0];
-					gradu(0,1) =
-						+ 0.25*(ufab(m_fine+dx[1] +dx[1],0) - ufab(m_fine-dx[1] +dx[1],0))/(2*fDX[1])
-						+ 0.50*(ufab(m_fine+dx[1]       ,0) - ufab(m_fine-dx[1]       ,0))/(2*fDX[1])
-						+ 0.25*(ufab(m_fine+dx[1] -dx[1],0) - ufab(m_fine-dx[1] -dx[1],0))/(2*fDX[1]);
-					gradu(1,1) =
-						+ 0.25*(ufab(m_fine+dx[1] +dx[1],1) - ufab(m_fine-dx[1] +dx[1],1))/(2*fDX[1])
-						+ 0.50*(ufab(m_fine+dx[1]       ,1) - ufab(m_fine-dx[1]       ,1))/(2*fDX[1])
-						+ 0.25*(ufab(m_fine+dx[1] -dx[1],1) - ufab(m_fine-dx[1] -dx[1],1))/(2*fDX[1]);
+					Set::Vector t = Set::Vector::Zero();
+					if (m1 == bx.loVect()[0])
+					{
+						Set::Matrix sig;
+						Util::Message(INFO,"IN LOVECT m = ", m_crse);
 
-					// Compute the traction vector (i.e. operator flux)
-					// using the outward-facing normal
-					Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-					Set::Matrix sig = C(m_fine)(eps);
-					Set::Vector n(-1.0, 0.0);
-					Set::Vector t = sig*n;
+						if (m2 == bx.loVect()[1]) continue;
+							// sig =   (1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1], {{Boundary::Lo, Boundary::None}}) +
+							// 	(2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Lo, Boundary::Lo}});
+						else if (m2 == bx.hiVect()[1]) continue;
+							// sig =   (2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Lo, Boundary::Hi}}) + 
+							// 	(1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1], {{Boundary::Lo, Boundary::None}});
+						else 
+							sig =   0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1], {{Boundary::Lo, Boundary::None}}) +
+								0.50    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Lo, Boundary::None}}) + 
+								0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1], {{Boundary::Lo, Boundary::None}});
 
-					// Traction should be per unit VOLUME not per unit area, so divide
-					// by orthogonal grid distance
-					t /= (cDX[0]);
+						Set::Vector n(-1, 0);
+						t = (sig * n) / cDX[0];
+					}
+					if (m1 == bx.hiVect()[0])
+					{
+						Set::Matrix sig;
 
-					Util::Message(INFO,t.transpose(), "     rhs = ", crserhs(m_crse,0)," ",crserhs(m_crse,1));
+						if (m2 == bx.loVect()[1]) continue;
+							// sig =   (1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1], {{Boundary::Hi, Boundary::None}}) +
+							// 	(2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Hi, Boundary::Lo}});
+						else if (m2 == bx.hiVect()[1]) continue;
+							// sig =   (2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Hi, Boundary::Hi}}) + 
+							// 	(1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1], {{Boundary::Hi, Boundary::None}});
+						else 
+							sig =   0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1], {{Boundary::Hi, Boundary::None}}) +
+								0.50    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Hi, Boundary::None}}) + 
+								0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1], {{Boundary::Hi, Boundary::None}});
+						Set::Vector n(1, 0);
+						t = (sig * n) / cDX[0];
+					}
+					if (m2 == bx.loVect()[1])
+					{
+						Set::Matrix sig;
 
+						if (m1 == bx.loVect()[0]) continue;
+							// sig =   (1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0], {{Boundary::None, Boundary::Lo}}) +
+							// 	(2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Lo,   Boundary::Lo}});
+						else if (m1 == bx.hiVect()[0]) continue;
+							// sig =   (2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Hi,   Boundary::Lo}}) + 
+							// 	(1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::None, Boundary::Lo}});
+						else 
+							sig =   0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0], {{Boundary::None, Boundary::Lo}}) +
+								0.50    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::None, Boundary::Lo}}) + 
+								0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::None, Boundary::Lo}});
+						Set::Vector n(0, -1);
+						t = (sig * n) / cDX[1];
+						Util::Message(INFO,"FINE: m_crse = ", m_crse, " t = ", t.transpose(), "  rhs = ", crserhs(m_crse,0), " ", crserhs(m_crse,1));
+					}
+					if (m2 == bx.hiVect()[1])
+					{
+						Set::Matrix sig;
+
+						if (m1 == bx.loVect()[0]) continue;
+							// sig =   (1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0], {{Boundary::None, Boundary::Hi}}) +
+							// 	(2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Lo,   Boundary::Hi}});
+						else if (m1 == bx.hiVect()[0]) continue;
+							// sig =   (2./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Hi,   Boundary::Hi}}) + 
+							// 	(1./3.) * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::None, Boundary::Hi}});
+						else 
+							sig =   0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0], {{Boundary::None, Boundary::Hi}}) +
+								0.50    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::None, Boundary::Hi}}) + 
+								0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::None, Boundary::Hi}});
+
+						Set::Vector n(0, 1);
+						t = (sig * n) / cDX[1];
+					}
+
+						
 					// Add this contribution to the residual
 					for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += t(n);
 					
 					// // Add the rhs component to the residual
 					for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += crserhs(m_crse,n);
-
+					
+					// Residual for all Dirichlet boundaries should be zero.
+					for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+					 	for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+					 	{
+					 		if (m_crse[j] == c_cc_domain.loVect()[j])
+					 		{
+					 			Util::Message(INFO,"LOVECT, m = ", m_crse);
+					 			if (m_bc_lo[j][i] == BC::Displacement) crse(m_crse,i) = 0.0;
+					 		}
+					 		if (m_crse[j] == c_cc_domain.hiVect()[j] + 1)
+					 		{
+					 			if (m_bc_hi[j][i] == BC::Displacement) crse(m_crse,i) = 0.0;
+					 		}
+					 	}
 				}
 				else
 				{
@@ -647,9 +788,9 @@ Elastic<T>::reflux (int crse_amrlev,
 					for (int n = 0 ; n < ncomp; n++)
 					{
 						crse(m_crse,n) =
-							((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-							  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+						  	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
 					}
 				}
 		}
@@ -659,9 +800,14 @@ Elastic<T>::reflux (int crse_amrlev,
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
 
+	// const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
+	// const auto& nd_mask     = m_nd_fine_mask[crse_amrlev];
+	// const auto& cc_mask     = m_cc_fine_mask[crse_amrlev];
+	// const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
+
 	// Mask multifabs
  	const iMultiFab& nd_mask     = *m_nd_fine_mask[crse_amrlev];
- 	const iMultiFab& cc_mask     = *m_cc_fine_mask[crse_amrlev];
+ 	const auto& cc_mask     = *m_cc_fine_mask[crse_amrlev];
  	const auto& has_fine_bndry   = m_has_fine_bndry[crse_amrlev];
 	static int crse_cell = 0;
 	static int fine_cell = 1;
@@ -684,36 +830,77 @@ Elastic<T>::reflux (int crse_amrlev,
 			amrex::FArrayBox       &resfab = res[mfi];
 			const amrex::FArrayBox &rhsfab = crse_rhs[mfi];
 
+			//Util::Warning(INFO,"Skipping the coarse flux correction!!"); continue;
+
 			// THIS PART IS HARD CODED
-			// Iterate over the centerline only.
-			int m1 = 4;
-			for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]-1; m2++)
+			for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
+			for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
+			// for (int m1 = bx.loVect()[0]-1; m1 <= bx.hiVect()[0]+1; m1++)
+			// for (int m2 = bx.loVect()[1]-1; m2 <= bx.hiVect()[1]+1; m2++)
 			{
-				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
+				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+				
+				if (!bx.contains(m)) continue;
+				if (nd_mask[mfi](m) != crse_fine_node) continue; // Only proceed if on a coarse/fine boundary
+				if (m1 == c_cc_domain.loVect()[0]   ||
+				    m1 == c_cc_domain.hiVect()[0]+1 ||
+				    m2 == c_cc_domain.loVect()[1]   ||
+				    m2 == c_cc_domain.hiVect()[1]+1)
+				{
+				 	Util::Message(INFO,"skipping m = ", m);
+				 	continue;
+				}
 
 				// Compute gradient of u 
-				Set::Matrix gradu;
-				gradu(0,0) = (ufab(m_crse,0) - ufab(m_crse-dx[0],0))/cDX[0];
-				gradu(1,0) = (ufab(m_crse,1) - ufab(m_crse-dx[0],1))/cDX[0];
-				gradu(0,1) = (ufab(m_crse+dx[1],0) - ufab(m_crse-dx[1],0))/(2*cDX[1]);
-				gradu(1,1) = (ufab(m_crse+dx[1],1) - ufab(m_crse-dx[1],1))/(2*cDX[1]);
+				// Set::Matrix gradu;
+				// Set::Vector n;
+				Set::Vector t = Set::Vector::Zero();
+				if (cc_mask[mfi](m-dx[0]-dx[1]) == crse_cell // xlo or ylo
+				    &&
+				    cc_mask[mfi](m-dx[0]) ==  crse_cell) // xlo or yhi .... XLO
+				{
+					Set::Matrix sig = flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Hi, Boundary::None}});
+					Set::Vector n = Set::Vector(1., 0.);
+					t += (sig * n)/cDX[0];
+				}
+				if (cc_mask[mfi](m-dx[1]) ==  crse_cell// xhi or ylo
+				    &&
+				    cc_mask[mfi](m) ==  crse_cell) // xhi or yhi
+				{
+					Set::Matrix sig = flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Lo, Boundary::None}});
+					Set::Vector n = Set::Vector(-1., 0.);
+					t += (sig * n)/cDX[0];
+				}
+
+				if (cc_mask[mfi](m-dx[0]-dx[1]) == crse_cell // xlo or ylo
+				    &&
+				    cc_mask[mfi](m-dx[1]) ==  crse_cell) // xhi or ylo ... YLO
+				{
+					Set::Matrix sig = flux(crse_amrlev, 0, ufab, C, m, {{Boundary::None, Boundary::Hi}});
+					Set::Vector n = Set::Vector(0., 1.);
+					t += (sig * n)/cDX[0];
+					Util::Message(INFO,"CRSE: m = ", m, " t = ", t.transpose());
+				}
+
+				if (cc_mask[mfi](m) ==  crse_cell // xhi or yhi
+				    &&
+				    cc_mask[mfi](m-dx[0]) ==  crse_cell) // xlo or yhi
+
+				{
+					Set::Matrix sig = flux(crse_amrlev, 0, ufab, C, m, {{Boundary::None, Boundary::Lo}});
+					Set::Vector n = Set::Vector(0., -1.);
+					t += (sig * n)/cDX[0];
+				}
+
 
 				// Compute the coarse traction vector (flux)
-				// using the outward facing normal
-				Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-				Set::Matrix sig = C(m_crse)(eps);
-				Set::Vector n(1.0, 0.0);
-				Set::Vector t = sig*n;
-				
+				// // using the outward facing normal
+				// Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+				// Set::Matrix sig = C(m)(eps);
+				//Set::Vector n = Set::Vector(1.0, 0.0);
+				//Set::Vector t = sig*n;
 
-				// Divide out by cDX[0] to correct the units.
-				t /= (cDX[0]);
-				//t(1) *= 2.0;
-
-
-				Util::Message(INFO,t.transpose());
-
-				for (int n=0; n<ncomp; n++) resfab(m_crse,n) += t(n);
+				for (int n=0; n<ncomp; n++) resfab(m,n) += t(n);
 			}
 		}
 	}
