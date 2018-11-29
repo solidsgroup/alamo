@@ -111,6 +111,7 @@ public:
 				 std::array<Boundary,AMREX_SPACEDIM>) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
+	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;

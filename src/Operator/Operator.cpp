@@ -161,14 +161,43 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
 	//Util::Message(INFO);
+
+	bool debug = false;
 	
 	int ncomp = getNComp();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
+	amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, 0);
 
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
+	
+	if(debug)
+	{
+		// We are trying to do a first order inverse correction here.
+		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, 0);
+		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,0);
+		Error0x(amrlev,mglev,R0x,xtemp);
+		
+		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+		{
+			const Box& bx = mfi.tilebox();
+			amrex::FArrayBox	&xfab    = x[mfi];
+			amrex::FArrayBox	&R0xfab = R0x[mfi];
+			
+			for (int n = 0; n < ncomp; n++)
+			{
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				{
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					xfab(m,n) += R0xfab(m,n);
+				}
+			}
+		}
+	}
 	
 	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{

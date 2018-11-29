@@ -34,6 +34,7 @@ protected:
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const {};
+	virtual void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const {};
 
 };
 }
