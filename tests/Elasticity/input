@@ -1,8 +1,8 @@
 plot_file = tests/Elasticity/output
 
-bc.body_force     = 0.0 0.0 0.0
+bc.body_force     = 1000.0 0.0 0.0
 bc.disp_bc_top    = 0.0 0.0 0.0
-bc.disp_bc_left   = 0.0 0.1 0.0
+bc.disp_bc_left   = 0.0 0.0 0.0
 bc.disp_bc_right  = 0.0 0.0 0.0
 bc.disp_bc_bottom = 0.0 0.0 0.0
 bc.disp_bc_front  = 0.0 0.0 0.0
@@ -32,8 +32,8 @@ solver.max_grid_size	        = 400000
 solver.composite_solve	= 1
 solver.verbose			= 5
 solver.cg_verbose 		= 0
-solver.max_iter			= 2
-solver.max_fmg_iter 	= 1
+solver.max_iter			= 1
+solver.max_fmg_iter 	= 100
 solver.linop_maxorder 	= 2
 solver.agglomeration 	= 1
 solver.consolidation 	= 0
@@ -49,7 +49,7 @@ test.b = 0.25 0.0 0.0
 #test.n = -1 0 
 #test.comp = 0
 
-test.orientation = v
+test.orientation = h
 test.n = 1 0
 test.comp = 0
 

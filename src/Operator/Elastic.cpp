@@ -823,7 +823,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
 			//Util::Warning(INFO,"Skipping the coarse flux correction!!"); continue;
 
-			// THIS PART IS HARD CODED
+
 			for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
 			for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
 			// for (int m1 = bx.loVect()[0]-1; m1 <= bx.hiVect()[0]+1; m1++)
@@ -892,14 +892,6 @@ Elastic<T>::reflux (int crse_amrlev,
 					t +=    sig1 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(0, -1/cDX[1]) + 
 						sig1 * Set::Vector(1/cDX[0] ,0)  + sig2 * Set::Vector(-1/cDX[0] ,0);
 				}
-
-
-				// Compute the coarse traction vector (flux)
-				// // using the outward facing normal
-				// Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-				// Set::Matrix sig = C(m)(eps);
-				//Set::Vector n = Set::Vector(1.0, 0.0);
-				//Set::Vector t = sig*n;
 
 				for (int n=0; n<ncomp; n++) resfab(m,n) += t(n);
 			}
