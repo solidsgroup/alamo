@@ -20,6 +20,8 @@
 #include "IO/FileNameParse.H"
 #include "IC/Eigenstrain/Sphere.H"
 #include "IC/Affine.H"
+#include "IC/Random.H"
+#include "IC/Trig.H"
 #include "BC/Constant.H"
 
 using namespace amrex;
@@ -352,14 +354,16 @@ int main (int argc, char* argv[])
 		Util::Message(INFO,"comp=",comp);
 
 
-		IC::Affine affine(geom,n,alpha,b,true);
+		//IC::Affine ic(geom,n,alpha,b,true);
+		//IC::Random ic(geom);
+		IC::Trig ic(geom);
 		u[0].setVal(0.0);
 		u[1].setVal(0.0);
 		rhs[0].setVal(0.0);
 		rhs[1].setVal(0.0);
 
-		if (comp == 0) {affine.SetComp(0); affine.Initialize(0,u); affine.Initialize(1,u);}
-		if (comp == 1) {affine.SetComp(1); affine.Initialize(0,u); affine.Initialize(1,u);}
+		if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
+		if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
 
 		mlabec.FApply(0,0,rhs[0],u[0]);
 		mlabec.FApply(1,0,rhs[1],u[1]);
