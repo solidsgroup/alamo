@@ -877,6 +877,8 @@ Elastic<T>::reflux (int crse_amrlev,
 
 					t +=    sig1 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(0, 1/cDX[1]) + 
 						sig1 * Set::Vector(1/cDX[0] ,0) + sig2 * Set::Vector(-1/cDX[0] ,0);
+
+					Util::Message(INFO, "CRSE: m      = ", m, " f1 = ", t.transpose());
 				}
 
 				if (cc_mask[mfi](m) ==  crse_cell // xhi or yhi
