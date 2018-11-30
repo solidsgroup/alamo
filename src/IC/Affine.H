@@ -26,8 +26,9 @@ public:
 		Set::Vector a_n,
 		Set::Scalar a_alpha,
 		Set::Vector a_b = Set::Vector::Zero(),
-		bool a_halfspace = false) :
-		IC(_geom), n(a_n), alpha(a_alpha), b(a_b), halfspace(a_halfspace)
+		bool a_halfspace = false,
+		Set::Scalar a_m = 1.0) :
+		IC(_geom), n(a_n), alpha(a_alpha), b(a_b), halfspace(a_halfspace), m(a_m)
 	{}
 
 	void SetComp(int a_comp) {comp = a_comp;}
@@ -57,10 +58,13 @@ public:
 
 				Set::Vector x(AMREX_D_DECL(x1,x2,x3));
 
-				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = alpha * (x - b).dot(n);
-
+				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = (x - b).dot(n);
+				Set::Scalar val = (x - b).dot(n);
 				if (halfspace)
-					field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = std::max(0.0, field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp));
+					if (val >= 0)
+						field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = alpha*std::pow(val,m);
+					else
+						field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = 0.0;
 			}
 		}
 
@@ -85,6 +89,7 @@ private:
 	int comp = 0;
 	Set::Vector n, b;
 	amrex::Real alpha;
+	amrex::Real m = 1.0;
 };
 }
 #endif
