@@ -32,7 +32,7 @@ solver.max_grid_size	        = 400000
 solver.composite_solve	= 1
 solver.verbose			= 5
 solver.cg_verbose 		= 0
-solver.max_iter			= 1
+solver.max_iter			= 10
 solver.max_fmg_iter 	= 100
 solver.linop_maxorder 	= 2
 solver.agglomeration 	= 1
@@ -43,7 +43,7 @@ solver.use_fsmooth = 1
 
 test.on = 1
 test.alpha = 1
-test.b = 0.25 0.0 0.0
+test.b = 0.5 0.5 0.0
 
 #test.orientation = h
 #test.n = -1 0 

@@ -354,9 +354,9 @@ int main (int argc, char* argv[])
 		Util::Message(INFO,"comp=",comp);
 
 
-		//IC::Affine ic(geom,n,alpha,b,true);
+		IC::Affine ic(geom,n,alpha,b,true);
 		//IC::Random ic(geom);
-		IC::Trig ic(geom);
+		//IC::Trig ic(geom);
 		u[0].setVal(0.0);
 		u[1].setVal(0.0);
 		rhs[0].setVal(0.0);
