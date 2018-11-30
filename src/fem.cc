@@ -335,6 +335,7 @@ int main (int argc, char* argv[])
 	amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
 	amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
 	amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
+	amrex::Real tmpm = 1.0; pptest.query("m",tmpm);
 	int comp; pptest.query("comp",comp);
 
 	if (test_on == 0)
@@ -343,7 +344,7 @@ int main (int argc, char* argv[])
 	}
 	else
 	{
-		Set::Scalar alpha = tmpalpha;
+		Set::Scalar alpha = tmpalpha, m = tmpm;
 		//Set::Vector n(1.0,1.0); Set::Vector b(0.5,0.0);
 		Set::Vector n(tmpn[0],tmpn[1]);
 		Set::Vector b(tmpb[0],tmpb[1]);
@@ -354,7 +355,7 @@ int main (int argc, char* argv[])
 		Util::Message(INFO,"comp=",comp);
 
 
-		IC::Affine ic(geom,n,alpha,b,true);
+		IC::Affine ic(geom,n,alpha,b,true,m);
 		//IC::Random ic(geom);
 		//IC::Trig ic(geom);
 		u[0].setVal(0.0);
