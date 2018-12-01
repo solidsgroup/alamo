@@ -48,7 +48,7 @@ test.b = 0.0 .25 0.0
 
 test.orientation = h
 test.n = 0 1
-test.m = 3.
+test.m = 2.
 test.comp = 0
 
 #test.nlevels = 1
