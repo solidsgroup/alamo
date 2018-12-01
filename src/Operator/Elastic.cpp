@@ -725,29 +725,29 @@ Elastic<T>::reflux (int crse_amrlev,
 
 						Set::Matrix sig1, sig2; 
 
-						sig1 = flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Hi, Boundary::Lo}});
-						sig2 = flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Lo, Boundary::Lo}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Hi, Boundary::Lo}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Lo, Boundary::Lo}});
 
 						Set::Vector t1 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]);
 							sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
 							sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
 
-						sig1 = flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Hi, Boundary::Lo}});
-						sig2 = flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Lo, Boundary::Lo}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Hi, Boundary::Lo}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Lo, Boundary::Lo}});
 
 						Set::Vector t2 =
 							sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0],0) +
 							sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0],0);
 
-						sig1 = flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Hi, Boundary::Lo}});
-						sig2 = flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Lo, Boundary::Lo}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Hi, Boundary::Lo}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Lo, Boundary::Lo}});
 
 						Set::Vector t3 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0]);
 							sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
 							sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
 
 
-						t = 0.125*t1 + 0.25*t2 + 0.125*t3;
+						t = 0.25*t1 + 0.5*t2 + 0.25*t3;
 
 						Util::Message(INFO, "FINE: m_crse = ", m_crse, " t = ", t.transpose(), " rhs = ", crserhs(m_crse,0)," ",crserhs(m_crse,1));
 						Util::Message(INFO, "    t1 = ", t1.transpose());
@@ -765,28 +765,28 @@ Elastic<T>::reflux (int crse_amrlev,
 
 						Set::Matrix sig1, sig2; 
 
-						sig1 = flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Hi, Boundary::Hi}});
-						sig2 = flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Lo, Boundary::Hi}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Hi, Boundary::Hi}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Lo, Boundary::Hi}});
 
-						Set::Vector t1 =  apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]);
-							// sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/cDX[0] ,0) +
-							// sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0] ,0);
+						Set::Vector t1 =  //apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]);
+							sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/cDX[0] ,0) +
+							sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0] ,0);
 
-						sig1 = flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Hi, Boundary::Hi}});
-						sig2 = flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Lo, Boundary::Hi}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Hi, Boundary::Hi}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Lo, Boundary::Hi}});
 
 						Set::Vector t2 =
 							sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
 							sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
 
-						sig1 = flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Hi, Boundary::Hi}});
-						sig2 = flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Lo, Boundary::Hi}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Hi, Boundary::Hi}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Lo, Boundary::Hi}});
 
-						Set::Vector t3 = apply(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0]);
-							// sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/cDX[0] ,0) +
-							// sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0] ,0);
+						Set::Vector t3 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0]);
+							sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/cDX[0] ,0) +
+							sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0] ,0);
 
-						t = 0.125*t1 + 0.25*t2 + 0.125*t3;
+						t = 0.25*t1 + 0.5*t2 + 0.25*t3;
 					}
 
 						
