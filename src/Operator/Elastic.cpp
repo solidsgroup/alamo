@@ -725,22 +725,22 @@ Elastic<T>::reflux (int crse_amrlev,
 
 						Set::Matrix sig1, sig2; 
 
-						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Hi, Boundary::Lo}});
-						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Lo, Boundary::Lo}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] - dx[0], {{Boundary::Hi, Boundary::None}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] - dx[0], {{Boundary::Lo, Boundary::None}});
 
 						Set::Vector t1 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]);
 							sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
 							sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
 
-						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Hi, Boundary::Lo}});
-						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Lo, Boundary::Lo}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1],  {{Boundary::Hi, Boundary::None}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1],  {{Boundary::Lo, Boundary::None}});
 
 						Set::Vector t2 =
 							sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0],0) +
 							sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0],0);
 
-						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Hi, Boundary::Lo}});
-						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Lo, Boundary::Lo}});
+						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] + dx[0],  {{Boundary::Hi, Boundary::None}});
+						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] + dx[0],  {{Boundary::Lo, Boundary::None}});
 
 						Set::Vector t3 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0]);
 							sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
@@ -761,13 +761,13 @@ Elastic<T>::reflux (int crse_amrlev,
 							(flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::None, Boundary::None}}) -
 							 flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0],  {{Boundary::None, Boundary::None}}))/(2.0*fDX[0]);
 							
-						// Set::Matrix sig_2 =
+						// Set::Matrix sig_2 = //// THIS STENCIL DOES NOT WORK
 						// 	(flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::None, Boundary::Hi}}) -
 						// 	 flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::None, Boundary::Lo}}))/(fDX[1]);
 
-						Set::Matrix sig_2 =
-							(flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1],  {{Boundary::None, Boundary::Hi}}) -
-							 flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1],  {{Boundary::None, Boundary::Lo}}))/(fDX[1]);
+						Set::Matrix sig_2 = /// THIS STENCIL WORKS
+							(flux(crse_amrlev + 1, 0, ufab, C, m_fine+dx[1],  {{Boundary::None, Boundary::None}}) -
+							 flux(crse_amrlev + 1, 0, ufab, C, m_fine-dx[1],  {{Boundary::None, Boundary::Lo}}))/(2*fDX[1]);
 
 						Set::Vector divsig(sig_1(0,0) + sig_2(0,1),
 						 		   sig_1(1,0) + sig_2(1,1));
