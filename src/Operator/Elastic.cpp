@@ -753,6 +753,25 @@ Elastic<T>::reflux (int crse_amrlev,
 						Util::Message(INFO, "    t1 = ", t1.transpose());
 						Util::Message(INFO, "    t2 = ", t2.transpose());
 						Util::Message(INFO, "    t3 = ", t3.transpose());
+						Util::Message(INFO, "    texact = ", apply(crse_amrlev + 1, 0, ufab, C, m_fine).transpose());
+						Util::Message(INFO, "    texact = ", apply(crse_amrlev + 1, 0, ufab, C, m_fine).transpose());
+						Util::Message(INFO, "    u = (", ufab(m_fine-dx[1],0),",",ufab(m_fine-dx[1],1),"), (" , ufab(m_fine,0),",",ufab(m_fine,1), "), (", ufab(m_fine+dx[1],0),",",ufab(m_fine+dx[1],1),")");
+
+						Set::Matrix sig_1 =
+							(flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::None, Boundary::None}}) -
+							 flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0],  {{Boundary::None, Boundary::None}}))/(2.0*fDX[0]);
+							
+						// Set::Matrix sig_2 =
+						// 	(flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::None, Boundary::Hi}}) -
+						// 	 flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::None, Boundary::Lo}}))/(fDX[1]);
+
+						Set::Matrix sig_2 =
+							(flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1],  {{Boundary::None, Boundary::Hi}}) -
+							 flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1],  {{Boundary::None, Boundary::Lo}}))/(fDX[1]);
+
+						Set::Vector divsig(sig_1(0,0) + sig_2(0,1),
+						 		   sig_1(1,0) + sig_2(1,1));
+						Util::Message(INFO, "    numerical div sig = ",divsig.transpose());
 
 					}
 					if (m2 == bx.hiVect()[1]) // YHI
