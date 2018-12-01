@@ -790,7 +790,8 @@ Elastic<T>::reflux (int crse_amrlev,
 							0.25*tL_CC + 0.5*tL_CS + 0.5*tL_EC + 1.0*tL_ES +
 							0.25*tH_CC + 0.5*tH_CS + 0.5*tH_WC + 1.0*tH_WS;
 
-						newandimproved /= (9./2.);
+						newandimproved /= (0.25 + 0.5 + 0.5 + 1.0 +
+								   0.25 + 0.5 + 0.5 + 1.0);
 						
 
 							//Set::Vector tR_cc = apply(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0] + dy[0]);
@@ -809,7 +810,7 @@ Elastic<T>::reflux (int crse_amrlev,
 						 		   sig_1(1,0) + sig_2(1,1));
 						Util::Message(INFO, "    numerical div sig = ",divsig.transpose());
 
-						Util::Message(INFO, "    NEW AND IMPROVED = ",newandimproved.transpose());
+						Util::Message(INFO, Color::FG::Green, "    NEW AND IMPROVED = ",newandimproved.transpose(),Color::Reset);
 						Util::Message(INFO, "    tH_CC = ",tH_CC.transpose());
 						Util::Message(INFO, "    tL_CC = ",tL_CC.transpose());
 						Util::Message(INFO, "    tH_CS = ",tH_CS.transpose());
