@@ -332,6 +332,7 @@ int main (int argc, char* argv[])
 
 
 	int test_on = 5; pptest.query("on",test_on);
+	std::string testtype = "random"; pptest.query("type",testtype);
 	amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
 	amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
 	amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
@@ -354,17 +355,37 @@ int main (int argc, char* argv[])
 		Util::Message(INFO,"b=",b.transpose());
 		Util::Message(INFO,"comp=",comp);
 
-
-		IC::Affine ic(geom,n,alpha,b,true,m);
-		//IC::Random ic(geom);
-		//IC::Trig ic(geom);
+		
 		u[0].setVal(0.0);
 		u[1].setVal(0.0);
 		rhs[0].setVal(0.0);
 		rhs[1].setVal(0.0);
 
-		if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
-		if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
+		if (testtype=="affine")
+		{
+			Util::Message(INFO,"affine, comp = ", comp);
+			IC::Affine ic(geom,n,alpha,b,true,m);
+			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
+			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
+		}
+		else if (testtype=="trig")
+		{
+			Util::Message(INFO,"trig");
+			IC::Trig ic(geom);
+			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
+			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
+		}
+		else if (testtype=="random")
+		{
+			Util::Message(INFO,"random");
+			IC::Random ic(geom);
+			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
+			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
+		}
+		else
+			Util::Abort(INFO,"invalid test type");
+
+
 
 		mlabec.FApply(0,0,rhs[0],u[0]);
 		mlabec.FApply(1,0,rhs[1],u[1]);

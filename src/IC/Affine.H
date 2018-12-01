@@ -31,7 +31,7 @@ public:
 		IC(_geom), n(a_n), alpha(a_alpha), b(a_b), halfspace(a_halfspace), m(a_m)
 	{}
 
-	void SetComp(int a_comp) {comp = a_comp;}
+	virtual void SetComp(int a_comp) {comp = a_comp;}
 	void SetHalfspace(bool a_halfspace) {halfspace = a_halfspace;}
 
 	void Initialize(const int lev,
