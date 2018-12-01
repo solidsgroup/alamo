@@ -15,7 +15,7 @@ public:
 		IC(_geom)
 	{}
 
-	void SetComp(int a_comp) {comp = a_comp;}
+	virtual void SetComp(int a_comp) {comp = a_comp;}
 
 	void Initialize(const int lev,
 			amrex::Vector<amrex::MultiFab *> &field)
@@ -41,7 +41,7 @@ public:
 
 				Set::Vector x(AMREX_D_DECL(x1,x2,x3));
 
-				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = std::sin(2*3.14159*x1);// * std::sin(2*3.14159*x2) ;
+				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = std::sin(2*3.14159*x1) *  std::sin(2*3.14159*x2) ;
 
 			}
 		}

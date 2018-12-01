@@ -48,7 +48,7 @@ public:
 		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
 		Initialize(lev,pfield);
 	};
-	void SetComp(const int a_comp)
+	virtual void SetComp(const int a_comp)
 	{
 		comp = a_comp;
 	}

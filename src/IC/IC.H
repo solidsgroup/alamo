@@ -9,13 +9,14 @@ namespace IC
 class IC
 {
 public:
-  IC (amrex::Vector<amrex::Geometry> &_geom)
-    : geom(_geom) {} ;
+	IC (amrex::Vector<amrex::Geometry> &_geom)
+		: geom(_geom) {} ;
   
-  virtual void Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::MultiFab> > &fab) = 0;
+	virtual void Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::MultiFab> > &fab) = 0;
 
+	virtual void SetComp(const int a_comp) {}
 protected:
-  amrex::Vector<amrex::Geometry> &geom;
+	amrex::Vector<amrex::Geometry> &geom;
 };
 }
 #endif
