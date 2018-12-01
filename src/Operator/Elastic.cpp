@@ -760,10 +760,46 @@ Elastic<T>::reflux (int crse_amrlev,
 						Set::Matrix sig_1 =
 							(flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::None, Boundary::None}}) -
 							 flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0],  {{Boundary::None, Boundary::None}}))/(2.0*fDX[0]);
-							
-						// Set::Matrix sig_2 = //// THIS STENCIL DOES NOT WORK
-						// 	(flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::None, Boundary::Hi}}) -
-						// 	 flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::None, Boundary::Lo}}))/(fDX[1]);
+
+
+						
+						Set::Vector tL_CC =
+							- apply(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0] + dx[1]);
+						Set::Vector tL_CS =
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]) +
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
+						Set::Vector tL_EC =
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],+1/fDX[1]) +
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Hi}})*Set::Vector(+1/fDX[0],-1/fDX[1]);
+						Set::Vector tL_ES =
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine, {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]);
+
+						Set::Vector tH_CC =
+							- apply(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0] + dx[1]);
+						Set::Vector tH_CS =
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]) +
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
+						Set::Vector tH_WC =
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],+1/fDX[1]) +
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Hi}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
+						Set::Vector tH_WS =
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine, {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
+
+
+						Set::Vector newandimproved =
+							0.25*tL_CC + 0.5*tL_CS + 0.5*tL_EC + 1.0*tL_ES +
+							0.25*tH_CC + 0.5*tH_CS + 0.5*tH_WC + 1.0*tH_WS;
+
+						newandimproved /= (9./2.);
+						
+
+							//Set::Vector tR_cc = apply(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0] + dy[0]);
+
+						
+
+
+
+
 
 						Set::Matrix sig_2 = /// THIS STENCIL WORKS
 							(flux(crse_amrlev + 1, 0, ufab, C, m_fine+dx[1],  {{Boundary::None, Boundary::None}}) -
@@ -772,6 +808,17 @@ Elastic<T>::reflux (int crse_amrlev,
 						Set::Vector divsig(sig_1(0,0) + sig_2(0,1),
 						 		   sig_1(1,0) + sig_2(1,1));
 						Util::Message(INFO, "    numerical div sig = ",divsig.transpose());
+
+						Util::Message(INFO, "    NEW AND IMPROVED = ",newandimproved.transpose());
+						Util::Message(INFO, "    tH_CC = ",tH_CC.transpose());
+						Util::Message(INFO, "    tL_CC = ",tL_CC.transpose());
+						Util::Message(INFO, "    tH_CS = ",tH_CS.transpose());
+						Util::Message(INFO, "    tL_CS = ",tL_CS.transpose());
+						Util::Message(INFO, "    tH_WC = ",tH_WC.transpose());
+						Util::Message(INFO, "    tL_EC = ",tL_EC.transpose());
+
+						Util::Message(INFO, "    tH_WS = ",tH_WS.transpose());
+						Util::Message(INFO, "    tL_ES = ",tL_ES.transpose());
 
 					}
 					if (m2 == bx.hiVect()[1]) // YHI
