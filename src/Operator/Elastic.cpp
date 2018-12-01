@@ -769,8 +769,8 @@ Elastic<T>::reflux (int crse_amrlev,
 						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0], {{Boundary::Lo, Boundary::Hi}});
 
 						Set::Vector t1 =  //apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]);
-							sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/cDX[0] ,0) +
-							sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0] ,0);
+							sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
+							sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
 
 						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Hi, Boundary::Hi}});
 						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine,  {{Boundary::Lo, Boundary::Hi}});
@@ -783,8 +783,8 @@ Elastic<T>::reflux (int crse_amrlev,
 						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::Lo, Boundary::Hi}});
 
 						Set::Vector t3 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0]);
-							sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/cDX[0] ,0) +
-							sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0] ,0);
+							sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
+							sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
 
 						t = 0.25*t1 + 0.5*t2 + 0.25*t3;
 					}
