@@ -769,8 +769,8 @@ Elastic<T>::reflux (int crse_amrlev,
 							flux(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]) +
 							flux(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
 						Set::Vector tL_EC =
-							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],+1/fDX[1]) +
-							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Hi}})*Set::Vector(+1/fDX[0],-1/fDX[1]);
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Hi}})*Set::Vector(+1/fDX[0],+1/fDX[1]) +
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]);
 						Set::Vector tL_ES =
 							flux(crse_amrlev + 1, 0, ufab , C, m_fine, {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]);
 
@@ -780,8 +780,8 @@ Elastic<T>::reflux (int crse_amrlev,
 							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]) +
 							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
 						Set::Vector tH_WC =
-							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],+1/fDX[1]) +
-							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Hi}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Hi}})*Set::Vector(-1/fDX[0],+1/fDX[1]) +
+							flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
 						Set::Vector tH_WS =
 							flux(crse_amrlev + 1, 0, ufab , C, m_fine, {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
 
