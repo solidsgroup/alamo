@@ -5,7 +5,6 @@
 #include "Model/Solid/LinearElastic/Cubic.H"
 
 #include "Operator/Test.H"
-#include "Operator/Elastic.H"
 
 int main (int argc, char* argv[])
 {
