@@ -87,6 +87,7 @@ public:
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
 	{m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;};
+	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
 protected:
 
