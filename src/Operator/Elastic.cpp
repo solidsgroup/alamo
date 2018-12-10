@@ -127,11 +127,19 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			{
 				if (std::isnan(ufab(m,i))) Util::Abort(INFO,"u is nan. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
 				if (std::isinf(ufab(m,i))) Util::Abort(INFO,"u is inf. m = ",m,", i = ", i, ", amrlev=", amrlev, " mglev=", mglev);
+				
 				// Note: the (?:) block modifies the stencil if the node is on a boundary
-				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
+				//Util::Message(INFO, "m = ", m, ". i = ", i, ". Box = (", bx.loVect()[0],",",bx.loVect()[1],",",bx.loVect()[2],") to (",
+				//	bx.hiVect()[0],",",bx.hiVect()[1],",",bx.hiVect()[2],"). Before gradu computation");
+
+				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);/*Util::Message(INFO);*/,
+					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);/*Util::Message(INFO);*/,
+					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);/*Util::Message(INFO);*/);
+				
+				//Util::Message(INFO, ". After gradu computation");
+
+				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) continue;
+				
 				AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
 					     ,// 2D
 					     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
@@ -143,6 +151,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 					     gradgradu[i](2,0) = gradgradu[i](0,2);
 					     gradgradu[i](2,1) = gradgradu[i](1,2);
 					     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
+				//Util::Message(INFO, "m = ", m, ". i = ", i, ". After gradgradu computation");
 			}
 
 			// Strain tensor
@@ -320,7 +329,72 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 	}
 }
 
+template<class T>
+void
+Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const
+{
+	int ncomp = x.nComp();//getNComp();
+	int nghost = x.nGrow();
+	Util::Message(INFO);
+	if (!m_diagonal_computed)
+		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
 
+	//amrex::MultiFab::Divide(R0x,*m_diag[amrlev][mglev],0,0,ncomp,0);
+
+	amrex::MultiFab D0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab AD0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+
+	amrex::MultiFab::Copy(D0x,x,0,0,ncomp,nghost); // D0x = x
+	amrex::MultiFab::Divide(D0x,*m_diag[amrlev][mglev],0,0,ncomp,nghost); // D0x = x/diag
+	amrex::MultiFab::Copy(AD0x,D0x,0,0,ncomp,nghost); // AD0x = D0x
+
+	/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		const amrex::FArrayBox &xfab	= x[mfi];
+		amrex::FArrayBox       &D0xfab	= D0x[mfi];
+		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
+		
+		for (int n = 0; n < ncomp; n++)
+		{
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+		 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+		 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+				D0xfab(m,n) = xfab(m,n)/diagfab(m,n); // R0x = D0 * x
+			}
+		}
+	}*/
+
+	//AD0x.setVal(0.0);
+	Util::Message(INFO);
+	Fapply(amrlev,mglev,AD0x,D0x);	// AD0x = A * D0 * x
+	Util::Message(INFO);
+
+	amrex::MultiFab::Copy(R0x,x,0,0,ncomp,nghost); // R0x = x
+	amrex::MultiFab::Subtract(R0x,AD0x,0,0,ncomp,nghost); // R0x = x - AD0x
+		
+	/*for (MFIter mfi(R0x, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		const amrex::FArrayBox &xfab	= x[mfi];
+		amrex::FArrayBox       &AD0xfab	= AD0x[mfi];
+		amrex::FArrayBox       &R0xfab	= R0x[mfi];
+		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
+
+		for (int n = 0; n < ncomp; n++)
+		{
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+		 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+		 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+				R0xfab(m,n) = xfab(m,n) - AD0xfab(m,n);	// R0x = (I - A * D0) * x
+			}
+		}
+	}*/
+}
 
 
 template<class T>

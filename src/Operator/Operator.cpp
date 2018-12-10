@@ -160,9 +160,11 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
+	bool debug = false;
 	//Util::Message(INFO);
 	
-	int ncomp = getNComp();
+	int ncomp = x.nComp();
+	int nghost = x.nGrow();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
@@ -170,7 +172,40 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
 	
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	if(debug)
+	{
+		// We are trying to do a first order inverse correction here.
+		//Util::Message(INFO);
+		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		//Util::Message(INFO);
+		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,nghost); // xtemp = x
+		//Util::Message(INFO);
+		amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		Error0x(amrlev,mglev,R0x,xtemp); 	// R0x = R0 * x = (I - A D0) * x
+		//Util::Message(INFO);
+		amrex::MultiFab::Add(x,R0x,0,0,ncomp,nghost);
+		
+		/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+		{
+			const Box& bx = mfi.tilebox();
+			amrex::FArrayBox	&xfab    = x[mfi];
+			amrex::FArrayBox	&R0xfab = R0x[mfi];
+			
+			for (int n = 0; n < ncomp; n++)
+			{
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				{
+					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					xfab(m,n) += R0xfab(m,n);	// x = x + R0x = (I + R0) * x
+				}
+			}
+		}*/
+	}
+	amrex::MultiFab::Divide(x,*m_diag[amrlev][mglev],0,0,ncomp,nghost);
+
+	/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
 		amrex::FArrayBox       &xfab    = x[mfi];
@@ -186,7 +221,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 				xfab(m,n) /= diagfab(m,n);
 			}
 		}
-	}
+	}*/
 }
 
 
