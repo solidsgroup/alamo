@@ -7,7 +7,10 @@
 #include "Set/Set.H"
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
-#include "Model/Solid/Elastic/Isotropic.H"
+
+#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 using namespace amrex;
 

@@ -1,6 +1,3 @@
-#include "Model/Solid/Elastic/Isotropic.H"
-#include "Model/Solid/Elastic/Cubic.H"
-#include "Model/Solid/Elastic/Degradable/Isotropic.H"
 #include "Elastic.H"
 
 
@@ -1141,9 +1138,9 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 
 
 
-template class Elastic<Model::Solid::Elastic::Isotropic>;
-template class Elastic<Model::Solid::Elastic::Cubic>;
-template class Elastic<Model::Solid::Elastic::Degradable::Isotropic>;
+template class Elastic<Model::Solid::LinearElastic::Isotropic>;
+template class Elastic<Model::Solid::LinearElastic::Cubic>;
+template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 
 }
 
