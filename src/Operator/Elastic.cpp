@@ -1141,6 +1141,6 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 template class Elastic<Model::Solid::LinearElastic::Isotropic>;
 template class Elastic<Model::Solid::LinearElastic::Cubic>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
-
+template class Elastic<Model::Solid::Viscoelastic::Isotropic>;
 }
 

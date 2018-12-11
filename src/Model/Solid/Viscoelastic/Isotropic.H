@@ -24,27 +24,34 @@ class Isotropic : public Model::Solid::Viscoelastic::Viscoelastic
 public:
 	Isotropic() {} ;
 	Isotropic(Set::Scalar _nu, amrex::Vector<Set::Scalar> _modulus, amrex::Vector<Set::Scalar> _relaxation) : 
-		nu(_nu) , youngs_modulus(_modulus), relaxation_times(_relaxation) {} ;
-	virtual Set::Matrix operator () (Set::Matrix &eps, Set::Scalar time) const
+		nu(_nu) , youngs_modulus(_modulus), relaxation_times(_relaxation) 
+	{
+		Set::Scalar e = youngs_modulus[youngs_modulus.size()-1];
+		for(int i = 0; i < relaxation_times.size(); i++)
+			e += youngs_modulus[i];
+		
+		Set::Scalar lambda = e*nu/((1.0+nu)*(1-2*nu));
+		Set::Scalar mu = e/(2.0*(1.0+nu));
+	}
+
+	Isotropic(Set::Scalar _lambda, Set::Scalar _mu): lambda(_lambda), mu(_mu){};
+
+	void SetTime(Set::Scalar time)
 	{
 		Set::Scalar e = youngs_modulus[youngs_modulus.size()-1];
 		for(int i = 0; i < relaxation_times.size(); i++)
 			e += youngs_modulus[i]*std::exp(-time/relaxation_times[i]);
 		
-		Set::Scalar lambda = e*nu/((1.0+nu)*(1-2*nu));
-		Set::Scalar mu = e/(2.0*(1.0+nu));
-
+		lambda = e*nu/((1.0+nu)*(1-2*nu));
+		mu = e/(2.0*(1.0+nu));
+	}
+	
+	virtual Set::Matrix operator () (Set::Matrix &eps) const
+	{
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps, Set::Scalar time)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
 	{
-		Set::Scalar e = youngs_modulus[youngs_modulus.size()-1];
-		for(int i = 0; i < relaxation_times.size(); i++)
-			e += youngs_modulus[i]*std::exp(-time/relaxation_times[i]);
-		
-		Set::Scalar lambda = e*nu/((1.0+nu)*(1-2*nu));
-		Set::Scalar mu = e/(2.0*(1.0+nu));
-
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
@@ -52,32 +59,40 @@ public:
 		return f;
 	}
 
+	void Randomize()
+	{
+		mu = Util::Random();
+		lambda = Util::Random();
+	};
+
 	Isotropic operator + (const Isotropic &rhs) const
-	{return Isotropic(nu+rhs.nu, youngs_modulus+rhs.youngs_modulus, relaxation_times+rhs.relaxation_times);}
+	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
 
 	void operator += (const Isotropic &rhs)
-	{nu+=rhs.nu; youngs_modulus+=rhs.youngs_modulus; relaxation_times+=rhs.relaxation_times;}
+	{mu+=rhs.mu; lambda+=rhs.lambda;}
 
 	Isotropic operator - (const Isotropic &rhs) const
-	{return Isotropic(nu-rhs.nu, youngs_modulus-rhs.youngs_modulus, relaxation_times-rhs.relaxation_times);}
+	{return Isotropic(mu-rhs.mu, lambda-rhs.lambda);}
 
 	Isotropic operator * (const Isotropic &rhs) const
-	{return Isotropic(nu*rhs.nu, youngs_modulus*rhs.youngs_modulus, relaxation_times*rhs.relaxation_times);}
+	{return Isotropic(mu*rhs.mu, lambda*rhs.lambda);}
 
 	Isotropic operator / (const Isotropic &rhs) const
-	{return Isotropic(nu/rhs.nu, youngs_modulus/rhs.youngs_modulus, relaxation_times/rhs.relaxation_times);}
+	{return Isotropic(mu/rhs.mu, lambda/rhs.lambda);}
 
 	virtual Isotropic operator / (const Set::Scalar alpha) const
-	{return Isotropic(nu/alpha, youngs_modulus/alpha);}
+	{return Isotropic(mu/alpha, lambda/alpha);}
 
 	virtual Isotropic operator * (const Set::Scalar alpha) const
-	{return Isotropic(u*alpha, youngs_modulus*alpha);}
+	{return Isotropic(mu*alpha, lambda*alpha);}
 
 private:
 	Set::Scalar nu; ///< Poisson Ratio
 	//Set::Scalar lambda; ///< Second Lame parameter \f$\lambda\f$
-	amrex::Vector<Set::Scala> youngs_modulus; ///< Prony Series elastic modulus
+	amrex::Vector<Set::Scalar> youngs_modulus; ///< Prony Series elastic modulus
 	amrex::Vector<Set::Scalar> relaxation_times; ///< Prony Series relaxation times
+	Set::Scalar lambda;
+	Set::Scalar mu;
 };
 
 }
