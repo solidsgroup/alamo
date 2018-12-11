@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_H_
-#define MODEL_SOLID_ELASTIC_H_
+#ifndef MODEL_SOLID_VISCOELASTIC_H_
+#define MODEL_SOLID_VISCOELASTIC_H_
 
 #include "Model/Solid/Solid.H"
 #include "Set/Set.H"
@@ -8,7 +8,7 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Viscoelastic
 {
 ///
 /// The Elastic model provides a structure for computing
@@ -17,16 +17,16 @@ namespace Elastic
 /// For a general material \f$\mathbb{C}\f$ contains 81 constants.
 /// This can be reduced by making assumptions about the material.
 ///
-class Elastic : public Solid
+class Viscoelastic : public Solid
 {
 public:
-	Elastic() {};
+	Viscoelastic() {};
 	virtual Set::Matrix operator () (Set::Matrix &eps) const = 0;
 };
 
 std::ostream&
 operator<< (std::ostream& os,
-	    const Elastic&    b);
+	    const Viscoelastic&    b);
 
 }
 }

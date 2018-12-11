@@ -1,6 +1,14 @@
 #ifndef UTIL_UTIL_H
 #define UTIL_UTIL_H
 
+#include "Set/Set.H"
+#include <iostream>
+#include <iomanip>
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+#include <stdlib.h>
+
 #include <string>
 
 #include "AMReX.H"
@@ -20,6 +28,7 @@ int ReplaceAll(std::string &str, const char before, const std::string after);
 std::string Wrap(std::string text, unsigned per_line);
 }
 
+Set::Scalar Random();
 
 std::string GetFileName();
 
@@ -104,6 +113,13 @@ void Warning (std::string file, std::string func, int line, Args const &... args
 }
 
 void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
+
+
+namespace Test
+{
+int Message(std::string testname, bool passed = false);
+}
+
 
 }
 #endif

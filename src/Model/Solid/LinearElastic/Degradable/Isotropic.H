@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_DEGRADABLE_ISOTROPIC_H_
-#define MODEL_SOLID_ELASTIC_DEGRADABLE_ISOTROPIC_H_
+#ifndef MODEL_SOLID_LINEARELASTIC_DEGRADABLE_ISOTROPIC_H_
+#define MODEL_SOLID_LINEARELASTIC_DEGRADABLE_ISOTROPIC_H_
 
 #include <AMReX.H>
 #include <AMReX_REAL.H>
@@ -13,25 +13,25 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace LinearElastic
 {
 namespace Degradable
 {
-class Isotropic : public Model::Solid::Elastic::Elastic
+class Isotropic : public Model::Solid::LinearElastic::LinearElastic
 {
 public:
 	Isotropic() {} ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda), mu0(_mu), lambda0(_lambda) {} ;
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
-		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
+		return 2*mu*eps + lambda*Set::Matrix::Identity()*eps.trace();
 	};
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
 	{
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
-				f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
+				f(i) += 2*mu*gradeps[i](j,j)  + lambda*gradeps[j](j,i);
 		return f;
 	}
 

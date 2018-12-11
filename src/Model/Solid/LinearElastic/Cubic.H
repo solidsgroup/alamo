@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_CUBIC_H_
-#define MODEL_SOLID_ELASTIC_CUBIC_H_
+#ifndef MODEL_SOLID_LINEARELASTIC_CUBIC_H_
+#define MODEL_SOLID_LINEARELASTIC_CUBIC_H_
 
 #include <AMReX.H>
 #include <AMReX_REAL.H>
@@ -12,9 +12,9 @@ namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace LinearElastic
 {
-class Cubic : public Model::Solid::Elastic::Elastic
+class Cubic : public Model::Solid::LinearElastic::LinearElastic
 {
 public:
 	Cubic() {} ;
