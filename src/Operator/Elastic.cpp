@@ -337,13 +337,14 @@ Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) co
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
 
 	//amrex::MultiFab::Divide(R0x,*m_diag[amrlev][mglev],0,0,ncomp,0);
-
+	
+	Util::Message(INFO,"nghost=",x.nGrow());
 	amrex::MultiFab D0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab AD0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 
-	amrex::MultiFab::Copy(D0x,x,0,0,ncomp,nghost); // D0x = x
-	amrex::MultiFab::Divide(D0x,*m_diag[amrlev][mglev],0,0,ncomp,nghost); // D0x = x/diag
-	amrex::MultiFab::Copy(AD0x,D0x,0,0,ncomp,nghost); // AD0x = D0x
+	amrex::MultiFab::Copy(D0x,x,0,0,ncomp,0); // D0x = x
+	amrex::MultiFab::Divide(D0x,*m_diag[amrlev][mglev],0,0,ncomp,0); // D0x = x/diag
+	amrex::MultiFab::Copy(AD0x,D0x,0,0,ncomp,0); // AD0x = D0x
 
 	/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
