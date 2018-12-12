@@ -460,58 +460,6 @@ PolymerDegradation::PolymerDegradation():
 		stress_vm.resize(nlevels);
 		energy.resize(nlevels);
 		model.resize(nlevels);
-
-		//cgrids.resize(nlevels);
-
-		//amrex::Box NDomain(	amrex::IntVect{AMREX_D_DECL(0,0,0)},
-		//   				amrex::IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
-	 	//    				amrex::IntVect::TheNodeVector());
-		//amrex::Box CDomain = amrex::convert(NDomain, IntVect::TheCellVector());
-		//amrex::Box NDomain = amrex::convert(geom[0].Domain(),IntVect::TheNodeVector());
-		//amrex::Box ndomain = NDomain;//, cdomain = CDomain;
-
-		//for (int ilev = 0; ilev < nlevels; ++ilev)
-		//{
-			//cgrids[ilev].define(cdomain);
-			//cgrids[ilev].maxSize(max_grid_size);
-
-			//ngrids[ilev].define(ndomain);
-			//ngrids[ilev].maxSize(max_grid_size);
-
-			//cdomain.refine(ref_ratio);
-
-			//ndomain = amrex::convert(geom[ilev].Domain(),IntVect::TheNodeVector());
-			//ngrids[ilev] = amrex::convert(grids[ilev],IntVect::TheNodeVector());
-			//Util::Message(INFO,"ngrid size = ",ngrids[ilev].size(), ". Grids size = ", grids[ilev].size());
-		//}
-
-		//for (int ilev = 0; ilev < nlevels; ++ilev)
-		//{
-			//ndmap   	[ilev].define(ngrids[ilev]);
-			//displacement[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			//rhs     	[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			//stress 		[ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
-			//strain		[ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
-			//energy 		[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
-			//stress_vm	[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
-			//model		[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
-			//model[ilev].setVal(modeltype);
-		//}
-
-		//LPInfo info;
-		//info.setAgglomeration(agglomeration);
-		//info.setConsolidation(consolidation);
-		//info.setMaxCoarseningLevel(max_coarsening_level);
-		//elastic_operator.define(geom, ngrids, ndmap, info);
-		//elastic_operator.setMaxOrder(linop_maxorder);
-
-		/*RegisterNewFab(displacement, AMREX_SPACEDIM, "disp");
-		RegisterNewFab(rhs, AMREX_SPACEDIM, "rhs");
-		RegisterNewFab(strain, number_of_stress_components, "eps");
-		RegisterNewFab(stress, number_of_stress_components, "sig");
-		RegisterNewFab(stress_vm, 1, "sig_VM");
-		RegisterNewFab(energy, 1, "W");
-		RegisterNewFab(energies, number_of_eta, "W_1");*/
 	}
 }
 
@@ -1088,9 +1036,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
-		// elastic_operator.Strain(lev,strain[lev],displacement[lev]);
-		// elastic_operator.Stress(lev,stress[lev],displacement[lev]);
-		// elastic_operator.Energy(lev,energy[lev],displacement[lev]);
+		elastic_operator.Strain(lev,strain[lev],displacement[lev]);
+		elastic_operator.Stress(lev,stress[lev],displacement[lev]);
+		elastic_operator.Energy(lev,energy[lev],displacement[lev]);
 	}
 }
 }
