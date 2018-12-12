@@ -946,7 +946,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	int number_of_components = AMREX_SPACEDIM;
-	int number_of_ghost_cells = 0;
+	int number_of_ghost_cells = 1;
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -1088,9 +1088,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
-		elastic_operator.Strain(lev,strain[lev],displacement[lev]);
-		elastic_operator.Stress(lev,stress[lev],displacement[lev]);
-		elastic_operator.Energy(lev,energy[lev],displacement[lev]);
+		// elastic_operator.Strain(lev,strain[lev],displacement[lev]);
+		// elastic_operator.Stress(lev,stress[lev],displacement[lev]);
+		// elastic_operator.Energy(lev,energy[lev],displacement[lev]);
 	}
 }
 }

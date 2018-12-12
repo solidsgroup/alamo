@@ -160,11 +160,11 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
-	bool debug = false;
+	bool debug = true;
 	//Util::Message(INFO);
 	
 	int ncomp = x.nComp();
-	int nghost = x.nGrow();
+	int nghost = 1; x.nGrow();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
@@ -177,13 +177,15 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 		// We are trying to do a first order inverse correction here.
 		//Util::Message(INFO);
 		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		xtemp.setVal(0.0);
 		//Util::Message(INFO);
-		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,nghost); // xtemp = x
+		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,0); // xtemp = x
 		//Util::Message(INFO);
 		amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		R0x.setVal(0,0);
 		Error0x(amrlev,mglev,R0x,xtemp); 	// R0x = R0 * x = (I - A D0) * x
 		//Util::Message(INFO);
-		amrex::MultiFab::Add(x,R0x,0,0,ncomp,nghost);
+		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0);
 		
 		/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 		{
@@ -203,7 +205,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 			}
 		}*/
 	}
-	amrex::MultiFab::Divide(x,*m_diag[amrlev][mglev],0,0,ncomp,nghost);
+	amrex::MultiFab::Divide(x,*m_diag[amrlev][mglev],0,0,ncomp,0);
 
 	/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
