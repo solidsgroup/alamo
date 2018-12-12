@@ -160,15 +160,14 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
-	//Util::Message(INFO);
-
 	bool debug = false;
+	//Util::Message(INFO);
 	
-	int ncomp = getNComp();
+	int ncomp = x.nComp();
+	int nghost = x.nGrow();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
-	amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, 0);
 
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
@@ -176,11 +175,17 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	if(debug)
 	{
 		// We are trying to do a first order inverse correction here.
-		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, 0);
-		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,0);
-		Error0x(amrlev,mglev,R0x,xtemp);
+		//Util::Message(INFO);
+		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		//Util::Message(INFO);
+		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,nghost); // xtemp = x
+		//Util::Message(INFO);
+		amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		Error0x(amrlev,mglev,R0x,xtemp); 	// R0x = R0 * x = (I - A D0) * x
+		//Util::Message(INFO);
+		amrex::MultiFab::Add(x,R0x,0,0,ncomp,nghost);
 		
-		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+		/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 		{
 			const Box& bx = mfi.tilebox();
 			amrex::FArrayBox	&xfab    = x[mfi];
@@ -193,13 +198,14 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 				{
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-					xfab(m,n) += R0xfab(m,n);
+					xfab(m,n) += R0xfab(m,n);	// x = x + R0x = (I + R0) * x
 				}
 			}
-		}
+		}*/
 	}
-	
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	amrex::MultiFab::Divide(x,*m_diag[amrlev][mglev],0,0,ncomp,nghost);
+
+	/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
 		amrex::FArrayBox       &xfab    = x[mfi];
@@ -215,7 +221,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 				xfab(m,n) /= diagfab(m,n);
 			}
 		}
-	}
+	}*/
 }
 
 
@@ -746,7 +752,7 @@ void
 Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	Util::Message(INFO,"In interpolation!");
+	
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -778,9 +784,9 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 			
 			for (int i=0; i<crse.nComp(); i++)
 			{
-				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]-1; m1<=fine_bx.hiVect()[0]+1; m1++),
-					     for (int m2 = fine_bx.loVect()[1]-1; m2<=fine_bx.hiVect()[1]+1; m2++),
-					     for (int m3 = fine_bx.loVect()[2]-1; m3<=fine_bx.hiVect()[2]+1; m3++))
+				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
+					     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
+					     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
 				{
 					amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
 					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
