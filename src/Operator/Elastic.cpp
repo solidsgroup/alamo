@@ -250,11 +250,9 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
-		Util::Message(INFO);
 		const Box& bx = mfi.tilebox();
 		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
 		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
-		Util::Message(INFO);
 
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
 			     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
@@ -277,7 +275,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
-	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -291,12 +288,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-
-			std::array<Boundary,AMREX_SPACEDIM> bndry = {Boundary::None, Boundary::None};
-			if (m[0] == domain.loVect()[0]) bndry[0] == Boundary::Lo;
-			if (m[0] == domain.hiVect()[0]) bndry[0] == Boundary::Hi;
-			if (m[1] == domain.loVect()[1]) bndry[1] == Boundary::Lo;
-			if (m[1] == domain.hiVect()[1]) bndry[1] == Boundary::Hi;
 
 			Set::Vector f = apply(amrlev, mglev, ufab, C, m);
 
@@ -646,7 +637,7 @@ Elastic<T>::reflux (int crse_amrlev,
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
  	const Geometry& fgeom = m_geom[crse_amrlev+1][0];
  	const Box& c_cc_domain = cgeom.Domain();
- 	const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
+ 	//const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
 	const Real* cDX = cgeom.CellSize();
 	const Real* fDX = fgeom.CellSize();
 
@@ -664,6 +655,7 @@ Elastic<T>::reflux (int crse_amrlev,
 		FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
 		const FArrayBox &crserhs = crse_rhs[mfi];
+		const FArrayBox &finerhs = fine_rhs[mfi];
 		const FArrayBox &ufab = fine_sol[mfi];
 		TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
 
@@ -683,9 +675,11 @@ Elastic<T>::reflux (int crse_amrlev,
 				//continue;
 
 				// THIS PART IS HARD CODED:
+				//if (0)
 				if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0] ||
 				    m2 == bx.loVect()[1] || m2 == bx.hiVect()[1] )
 				{
+					continue;
 					Set::Vector t = Set::Vector::Zero();
 					if (m1 == bx.loVect()[0]) // XLO
 					{
@@ -749,13 +743,12 @@ Elastic<T>::reflux (int crse_amrlev,
 
 						t = 0.25*t1 + 0.5*t2 + 0.25*t3;
 
-
+						
 						Util::Message(INFO, "FINE: m_crse = ", m_crse, " t = ", t.transpose(), " rhs = ", crserhs(m_crse,0)," ",crserhs(m_crse,1));
 						Util::Message(INFO, "    t1 = ", t1.transpose());
-						//Util::Message(INFO, "    t1exact = ", apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]).transpose());
 						Util::Message(INFO, "    t2 = ", t2.transpose());
 						Util::Message(INFO, "    t3 = ", t3.transpose());
-						Util::Message(INFO, "    u = (", ufab(m_fine-dx[1],0),",",ufab(m_fine-dx[1],1),"), (" , ufab(m_fine,0),",",ufab(m_fine,1), "), (", ufab(m_fine+dx[1],0),",",ufab(m_fine+dx[1],1),")");
+						//Util::Message(INFO, "    u = (", ufab(m_fine-dx[1],0),",",ufab(m_fine-dx[1],1),"), (" , ufab(m_fine,0),",",ufab(m_fine,1), "), (", ufab(m_fine+dx[1],0),",",ufab(m_fine+dx[1],1),")");
 
 
 						Set::Vector test;
@@ -863,7 +856,6 @@ Elastic<T>::reflux (int crse_amrlev,
 						sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] + dx[0],  {{Boundary::None, Boundary::None}});
 						sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] - dx[0],  {{Boundary::None, Boundary::None}});
 						test =  sig1 * Set::Vector(-1/cDX[0], 1/cDX[1]) + sig2 * Set::Vector(1/(cDX[0]), 1/cDX[1]);
-						Util::Message(INFO, "      test: ", test.transpose());
 						t= test;
 
 					}
@@ -872,8 +864,16 @@ Elastic<T>::reflux (int crse_amrlev,
 					// Add this contribution to the residual
 					for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += t(n);
 					
+
 					// // Add the rhs component to the residual
-					for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += crserhs(m_crse,n);
+					for (int n = 0 ; n < ncomp; n++) 
+					{
+						crse(m_crse,n) += crserhs(m_crse,n);
+
+						// if (finerhs.box().contains(m_crse) &&
+						//     fabs(crserhs(m_crse,n)) > 1E-8)
+						// 	Util::Message(INFO,"crse/fine rhs discrepancy: m_crse = ",m_crse," n=",n," crserhs=",crserhs(m_crse,n)," finerhs=",finerhs(m_crse,n) );
+					}
 					
 					// Residual for all Dirichlet boundaries should be zero.
 					for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
@@ -889,7 +889,7 @@ Elastic<T>::reflux (int crse_amrlev,
 					 		}
 					 	}
 				}
-				else
+				//else
 				{
 					// For all other cells, do a restriction as usual
 					for (int n = 0 ; n < ncomp; n++)
@@ -906,7 +906,7 @@ Elastic<T>::reflux (int crse_amrlev,
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
-	//return;
+	return;
 	// const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
 	// const auto& nd_mask     = m_nd_fine_mask[crse_amrlev];
 	// const auto& cc_mask     = m_cc_fine_mask[crse_amrlev];
@@ -917,17 +917,16 @@ Elastic<T>::reflux (int crse_amrlev,
  	const auto& cc_mask     = *m_cc_fine_mask[crse_amrlev];
  	const auto& has_fine_bndry   = m_has_fine_bndry[crse_amrlev];
 	static int crse_cell = 0;
-	static int fine_cell = 1;
-	static int crse_node = 0;
+	//static int fine_cell = 1;
+	//static int crse_node = 0;
 	static int crse_fine_node = 1;
-	static int fine_node = 2;
+	//static int fine_node = 2;
 
-	Util::Message(INFO);
  	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
  	{
 		if (true || (*has_fine_bndry)[mfi])
 		{
-			Util::Warning(INFO,"Fix this for loop!");
+			//Util::Warning(INFO,"Fix this for loop!");
 
 			amrex::BaseFab<T> &C = (*(model[crse_amrlev][0]))[mfi];
 
@@ -935,15 +934,10 @@ Elastic<T>::reflux (int crse_amrlev,
 			
 			const amrex::FArrayBox &ufab   = crse_sol[mfi];
 			amrex::FArrayBox       &resfab = res[mfi];
-			const amrex::FArrayBox &rhsfab = crse_rhs[mfi];
-
-			//Util::Warning(INFO,"Skipping the coarse flux correction!!"); continue;
-
+			//const amrex::FArrayBox &rhsfab = crse_rhs[mfi];
 
 			for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
 			for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
-			// for (int m1 = bx.loVect()[0]-1; m1 <= bx.hiVect()[0]+1; m1++)
-			// for (int m2 = bx.loVect()[1]-1; m2 <= bx.hiVect()[1]+1; m2++)
 			{
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 				
@@ -954,7 +948,7 @@ Elastic<T>::reflux (int crse_amrlev,
 				    m2 == c_cc_domain.loVect()[1]   ||
 				    m2 == c_cc_domain.hiVect()[1]+1)
 				{
-				 	Util::Message(INFO,"skipping m = ", m);
+				 	//Util::Message(INFO,"skipping m = ", m);
 				 	continue;
 				}
 
@@ -992,16 +986,14 @@ Elastic<T>::reflux (int crse_amrlev,
 					sig1 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Hi, Boundary::Hi}});
 					sig2 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Lo, Boundary::Hi}});
 
-					f1 =    sig1 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(0, 1/cDX[1]) + 
-						sig1 * Set::Vector(1/cDX[0] ,0) + sig2 * Set::Vector(-1/cDX[0] ,0);
+					f1 =    sig1 * Set::Vector(1/cDX[0], 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0], 1/cDX[1]);
 
 					sig1 = 0.5*flux(crse_amrlev, 0, ufab, C, m - dx[1], {{Boundary::Hi, Boundary::Lo}});
 					sig2 = 0.5*flux(crse_amrlev, 0, ufab, C, m - dx[1], {{Boundary::Lo, Boundary::Lo}});
 
-					f2 =    sig1 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(0, 1/cDX[1]) + 
-						sig1 * Set::Vector(1/cDX[0] ,0) + sig2 * Set::Vector(-1/cDX[0] ,0);
+					f2 =    sig1 * Set::Vector(1/cDX[0], 1/cDX[1]) + sig2 * Set::Vector(-1/cDX[0], 1/cDX[1]);
 
-					Util::Message(INFO, "CRSE: m      = ", m, " f1 = ", f1.transpose());
+					Util::Message(INFO, "CRSE: m      = ", m, " f1 = ", f1.transpose(), " f2 = " , f2.transpose());
 
 					t = f1;
 				}
@@ -1071,7 +1063,7 @@ void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
 	//Util::Message(INFO);
-	const int mglev = 0;
+	//const int mglev = 0;
 
 	// const int idim = 0;  // other dimensions are just aliases
 
@@ -1224,7 +1216,7 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 
 	sigma.FillBoundary(geom.periodicity());
 
-	const Box& domain = geom.Domain();
+	//const Box& domain = geom.Domain();
 
 #ifdef _OPENMP
 #pragma omp parallel

@@ -61,10 +61,12 @@ public:
 				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = (x - b).dot(n);
 				Set::Scalar val = (x - b).dot(n);
 				if (halfspace)
+				{
 					if (val >= 0)
 						field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = alpha*std::pow(val,m);
 					else
 						field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = 0.0;
+				}
 			}
 		}
 
@@ -85,10 +87,11 @@ public:
 	};
 
 private:
-	bool halfspace = false;
 	int comp = 0;
-	Set::Vector n, b;
+	Set::Vector n;
 	amrex::Real alpha;
+	Set::Vector b;
+	bool halfspace = false;
 	amrex::Real m = 1.0;
 };
 }
