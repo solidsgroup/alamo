@@ -20,6 +20,10 @@ int main (int argc, char* argv[])
 		failed += Util::Test::Message("MinorSymmetry2<Isotropic>", test.MinorSymmetry2(2));
 		failed += Util::Test::Message("MajorSymmetry<Isotropic>",  test.MajorSymmetry(2));
 	}
+	{
+		
+	}
+
 
 	{
 		Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
@@ -30,5 +34,5 @@ int main (int argc, char* argv[])
 	Util::Message(INFO,failed," tests failed");
 
 	Util::Finalize();
-	return 1;
+	return failed;
 }

@@ -119,8 +119,14 @@ int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbo
 	std::vector<int> comps = {{0,1}};
 	std::vector<Set::Scalar> alphas = {{1.0}};
 	std::vector<Set::Scalar> ms = {{1.0,2.0,3.0}};
-	std::vector<Set::Vector> ns = {{Set::Vector(1,0),Set::Vector(-1,0),Set::Vector(0,1),Set::Vector(0,-1),Set::Vector(1,1)}};
-	std::vector<Set::Vector> bs = {{Set::Vector(0,0.25),Set::Vector(0,0.75),Set::Vector(0.5,0.5)}};
+	std::vector<Set::Vector> ns = {{Set::Vector(AMREX_D_DECL(1,0,0)),
+					Set::Vector(AMREX_D_DECL(-1,0,0)),
+					Set::Vector(AMREX_D_DECL(0,1,0)),
+					Set::Vector(AMREX_D_DECL(0,-1,0)),
+					Set::Vector(AMREX_D_DECL(1,1,0))}};
+	std::vector<Set::Vector> bs = {{Set::Vector(AMREX_D_DECL(0,0.25,0)),
+					Set::Vector(AMREX_D_DECL(0,0.75,0)),
+					Set::Vector(AMREX_D_DECL(0.5,0.5,0))}};
 
 	for (std::vector<int>::iterator comp = comps.begin(); comp != comps.end(); comp++)
 	for (std::vector<Set::Scalar>::iterator m = ms.begin(); m != ms.end(); m++)
@@ -168,7 +174,10 @@ int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbo
 		if (rhs[0].norm0() > 1E-15) residual /= rhs[0].norm0();
 
 		std::stringstream ss;
-		ss << "n=["<<(n->transpose())<<"],b=["<<(b->transpose())<<"],m="<<*m<<",comp="<<(*comp);
+		ss << "n=["<< std::setw(5) << (n->transpose()) << "], "
+		   << "b=["<< std::setw(5) << (b->transpose()) << "], "
+		   << "m=" << *m<<", "
+		   << "comp="<<(*comp);
 
 		bool pass = fabs(residual) < 1E-12;
 

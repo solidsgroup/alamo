@@ -11,4 +11,5 @@ before_install:
 
 script:
   - bash ./.build2d.sh
+  - bash ./.test2d.sh
   - bash ./.build3d.sh
