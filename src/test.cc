@@ -5,6 +5,7 @@
 #include "Model/Solid/LinearElastic/Cubic.H"
 
 #include "Operator/Test.H"
+#include "Operator/Elastic.H"
 
 int main (int argc, char* argv[])
 {
@@ -13,12 +14,18 @@ int main (int argc, char* argv[])
 	int failed = 0;
 
 	{
-		using namespace Model::Solid::LinearElastic;
-		failed += Util::Test::Message("Consistency<Isotropic>",    Test::Consistency<Isotropic>(2));
-		failed += Util::Test::Message("MinorSymmetry1<Isotropic>", Test::MinorSymmetry1<Isotropic>(2));
-		failed += Util::Test::Message("MinorSymmetry2<Isotropic>", Test::MinorSymmetry2<Isotropic>(2));
-		failed += Util::Test::Message("MajorSymmetry<Isotropic>",  Test::MajorSymmetry<Isotropic>(2));
+		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Isotropic> test;
+		failed += Util::Test::Message("Consistency<Isotropic>",    test.Consistency(2));
+		failed += Util::Test::Message("MinorSymmetry1<Isotropic>", test.MinorSymmetry1(2));
+		failed += Util::Test::Message("MinorSymmetry2<Isotropic>", test.MinorSymmetry2(2));
+		failed += Util::Test::Message("MajorSymmetry<Isotropic>",  test.MajorSymmetry(2));
 	}
+
+	{
+		Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
+		failed += Util::Test::Message("RefluxTest", test.RefluxTest(2));
+	}
+
 
 	Util::Message(INFO,failed," tests failed");
 

@@ -363,7 +363,6 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 		const Vector<FabFactory<FArrayBox> const*>& a_factory)
  {
 	 BL_PROFILE("Operator::~Operator()");
-	 Util::Message(INFO);
 
 	 // Make sure we're not trying to parallelize in vain.
 	 if (amrex::ParallelDescriptor::NProcs() > a_grids[0].size())
@@ -386,9 +385,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	 m_diag.resize(m_num_amr_levels);
 	 for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	 {
-		 Util::Message(INFO,amrlev);
 		 m_diag[amrlev].resize(m_num_mg_levels[amrlev]);
-		 Util::Message(INFO,amrlev);
 
 		 for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		 {
@@ -414,7 +411,6 @@ void
 Operator::buildMasks ()
 {
 	BL_PROFILE("Operator::buildMasks()");
-	Util::Message(INFO);
 
 	if (m_masks_built) return;
 

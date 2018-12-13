@@ -1,15 +1,20 @@
 #include <AMReX.H>
 
-#include "Test.H"
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
-
+#include "Test.H"
+#include "IC/Affine.H"
+#include "IC/Trig.H"
+#include "IC/Random.H"
 
 namespace Operator
 {
 
-int Test::RefluxTest(int verbose)
+template<>
+int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbose)
 {
+	int failed = 0;
+
 	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
 
  	amrex::Vector<amrex::Geometry> 			geom;
@@ -19,7 +24,8 @@ int Test::RefluxTest(int verbose)
  	amrex::Vector<amrex::MultiFab>  u;
  	amrex::Vector<amrex::MultiFab>  res;
  	amrex::Vector<amrex::MultiFab>  rhs;
-		amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab;
+
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab;
 
 	int n_cell = 16;
  	int nlevels = 2;
@@ -33,8 +39,8 @@ int Test::RefluxTest(int verbose)
 
  	u.resize(nlevels);
  	res.resize(nlevels);
-	
  	rhs.resize(nlevels);
+	modelfab.resize(nlevels);
 
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	amrex::Geometry::Setup(&rb, 0);
@@ -50,7 +56,7 @@ int Test::RefluxTest(int verbose)
  			geom[ilev].define(domain);
  			domain.refine(ref_ratio);
  		}
-	amrex::Box cdomain = CDomain, ndomain = NDomain;
+	amrex::Box cdomain = CDomain;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  		{
  			cgrids[ilev].define(cdomain);
@@ -70,9 +76,10 @@ int Test::RefluxTest(int verbose)
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  		{
  			dmap   [ilev].define(cgrids[ilev]);
- 			u       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 0); 
- 			res     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 0); 
- 			rhs     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 0);
+ 			u       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			res     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			rhs     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+			modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
  		}
 
  	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -80,6 +87,7 @@ int Test::RefluxTest(int verbose)
  			u[ilev].setVal(0.0);
  			res[ilev].setVal(0.0);
  			rhs[ilev].setVal(0.0);
+			modelfab[ilev].setVal(model);
  		}
 
  	LPInfo info;
@@ -88,175 +96,125 @@ int Test::RefluxTest(int verbose)
  	info.setMaxCoarseningLevel(0);
  	nlevels = geom.size();
 
- 	Elastic<model_type> mlabec;
 
- 	mlabec.define(geom, cgrids, dmap, info);
- 	mlabec.setMaxOrder(2);
- 	for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
-	// mlabec.SetBC({{AMREX_D_DECL(Elastic<model_type>::BC::Dirichlet,
-	// 			    Elastic<model_type>::BC::Dirichlet,
-	// 			    Elastic<model_type>::BC::Dirichlet)}},
-	// 	{{AMREX_D_DECL(Elastic<model_type>::BC::Dirichlet,
-	// 		       Elastic<model_type>::BC::Dirichlet,
-	// 		       Elastic<model_type>::BC::Dirichlet)}});
+
+ 	// int test_on = 5;
+ 	// std::string testtype = "random"; 
+ 	// amrex::Vector<amrex::Real> tmpn; 
+ 	// amrex::Vector<amrex::Real> tmpb; 
+ 	// amrex::Real tmpalpha; 
+ 	// amrex::Real tmpm = 1.0; 
+ 	// int comp; 
+
+	// Set::Scalar alpha = tmpalpha, m = tmpm;
+	// //Set::Vector n(1.0,1.0); Set::Vector b(0.5,0.0);
+	// Set::Vector n(tmpn[0],tmpn[1]);
+	// Set::Vector b(tmpb[0],tmpb[1]);
+
+	// Util::Message(INFO,"alpha=",alpha);
+	// Util::Message(INFO,"n=",n.transpose());
+	// Util::Message(INFO,"b=",b.transpose());
+	// Util::Message(INFO,"comp=",comp);
+
+	std::vector<int> comps = {{0,1}};
+	std::vector<Set::Scalar> alphas = {{1.0}};
+	std::vector<Set::Scalar> ms = {{1.0,2.0,3.0}};
+	std::vector<Set::Vector> ns = {{Set::Vector(1,0),Set::Vector(-1,0),Set::Vector(0,1),Set::Vector(0,-1),Set::Vector(1,1)}};
+	std::vector<Set::Vector> bs = {{Set::Vector(0,0.25),Set::Vector(0,0.75),Set::Vector(0.5,0.5)}};
+
+	for (std::vector<int>::iterator comp = comps.begin(); comp != comps.end(); comp++)
+	for (std::vector<Set::Scalar>::iterator m = ms.begin(); m != ms.end(); m++)
+	for (std::vector<Set::Vector>::iterator n = ns.begin(); n != ns.end(); n++)
+	for (std::vector<Set::Vector>::iterator b = bs.begin(); b != bs.end(); b++)
+	{
+		Elastic<model_type> mlabec;
 	
-	
+		mlabec.define(geom, cgrids, dmap, info);
+		mlabec.setMaxOrder(2);
+		for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
+		mlabec.SetBC({{AMREX_D_DECL(Elastic<model_type>::BC::Displacement,
+					    Elastic<model_type>::BC::Displacement,
+					    Elastic<model_type>::BC::Displacement)}},
+			{{AMREX_D_DECL(Elastic<model_type>::BC::Displacement,
+				       Elastic<model_type>::BC::Displacement,
+				       Elastic<model_type>::BC::Displacement)}});
 
-// 	int test_on = 5; pptest.query("on",test_on);
-// 	std::string testtype = "random"; pptest.query("type",testtype);
-// 	amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
-// 	amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
-// 	amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
-// 	amrex::Real tmpm = 1.0; pptest.query("m",tmpm);
-// 	int comp; pptest.query("comp",comp);
 
-// 	if (test_on == 0)
-// 	{
-// 		mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-// 	}
-// 	else
-// 	{
-// 		Set::Scalar alpha = tmpalpha, m = tmpm;
-// 		//Set::Vector n(1.0,1.0); Set::Vector b(0.5,0.0);
-// 		Set::Vector n(tmpn[0],tmpn[1]);
-// 		Set::Vector b(tmpb[0],tmpb[1]);
+		u[0].setVal(0.0);
+		u[1].setVal(0.0);
+		rhs[0].setVal(0.0);
+		rhs[1].setVal(0.0);
 
-// 		Util::Message(INFO,"alpha=",alpha);
-// 		Util::Message(INFO,"n=",n.transpose());
-// 		Util::Message(INFO,"b=",b.transpose());
-// 		Util::Message(INFO,"comp=",comp);
+		IC::Affine ic(geom,*n,1.0,*b,true,*m);
+
+		ic.SetComp(*comp);
+		ic.Initialize(0,u);
+		ic.Initialize(1,u);
+
+		mlabec.FApply(0,0,rhs[0],u[0]);
+		mlabec.FApply(1,0,rhs[1],u[1]);
+
+		res[0].setVal(0.0);
+		res[1].setVal(0.0);
+
+		mlabec.BuildMasks();
+		mlabec.Reflux(0,
+		 	      res[0], u[0], rhs[0],
+		 	      res[1], u[1], rhs[1]);
 
 		
-// 		u[0].setVal(0.0);
-// 		u[1].setVal(0.0);
-// 		rhs[0].setVal(0.0);
-// 		rhs[1].setVal(0.0);
+		Set::Scalar residual = res[0].norm0();
 
-// 		if (testtype=="affine")
-// 		{
-// 			Util::Message(INFO,"affine, comp = ", comp);
-// 			IC::Affine ic(geom,n,alpha,b,true,m);
-// 			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
-// 			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
-// 		}
-// 		else if (testtype=="trig")
-// 		{
-// 			Util::Message(INFO,"trig");
-// 			IC::Trig ic(geom);
-// 			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
-// 			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
-// 		}
-// 		else if (testtype=="random")
-// 		{
-// 			Util::Message(INFO,"random");
-// 			IC::Random ic(geom);
-// 			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
-// 			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
-// 		}
-// 		else
-// 			Util::Abort(INFO,"invalid test type");
+		if (rhs[0].norm0() > 1E-15) residual /= rhs[0].norm0();
 
+		std::stringstream ss;
+		ss << "n=["<<(n->transpose())<<"],b=["<<(b->transpose())<<"],m="<<*m<<",comp="<<(*comp);
 
+		bool pass = fabs(residual) < 1E-12;
 
-// 		mlabec.FApply(0,0,rhs[0],u[0]);
-// 		mlabec.FApply(1,0,rhs[1],u[1]);
+		if (verbose > 0) Util::Test::SubMessage(ss.str(), !pass);
 
-// 		res[0].setVal(0.0);
-// 		res[1].setVal(0.0);
-
-// 		mlabec.BuildMasks();
-// 		mlabec.Reflux(0,
-// 			      res[0], u[0], rhs[0],
-// 			      res[1], u[1], rhs[1]);
-// 	}
+		if (!pass) failed++;
+	}
 	
+	return failed;
+
+	// if (testtype=="affine")
+	// {
+	// 	Util::Message(INFO,"affine, comp = ", comp);
+	// 	IC::Affine ic(geom,n,alpha,b,true,m);
+	// 	if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
+	// 	if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
+	// }
+	// else if (testtype=="trig")
+	// {
+	// 	Util::Message(INFO,"trig");
+	// 	IC::Trig ic(geom);
+	// 	if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
+	// 	if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
+	// }
+	// else if (testtype=="random")
+	// {
+	// 	Util::Message(INFO,"random");
+	// 	IC::Random ic(geom);
+	// 	if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
+	// 	if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
+	// }
+	// else
+	// 	Util::Abort(INFO,"invalid test type");
 
 
-// 	// 	mlabec.FSmooth(0,0,u[0],rhs[0]);
-// 	// 	mlabec.FSmooth(1,0,u[1],rhs[1]);
-// 	// }
 
+	// mlabec.FApply(0,0,rhs[0],u[0]);
+	// mlabec.FApply(1,0,rhs[1],u[1]);
 
+	// res[0].setVal(0.0);
+	// res[1].setVal(0.0);
 
-
-// 	//
-
-// 	//
-// 	// Compute post-solve values
-// 	//
-
-// 	for (int lev = 0; lev < nlevels; lev++)
-// 		{
-// 			mlabec.Stress(lev,stress[lev],u[lev]);
-// 			mlabec.Energy(lev,energy[lev],u[lev]);
-// 		}
-		
-// 	//
-// 	// WRITE PLOT FILE
-// 	//
-
-// #if AMREX_SPACEDIM==2
-// 	const int ncomp = 10;
-// 	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "res01", "res02", "stress11", "stress22", "stress12", "energy"};
-// #elif AMREX_SPACEDIM==3
-// 	const int ncomp = 16;
-// 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03", "res01", "res02", "res03",
-// 				       "stress11", "stress22", "stress33", "stress23", "stress13", "stress12", "energy"};
-// #endif
-
-// 	nlevels = max_level+1;
-
-// 	Vector<MultiFab> plotmf(nlevels);
-// 	for (int ilev = 0; ilev < nlevels; ++ilev)
-// 		{
-// 			plotmf[ilev].define(ngrids[ilev], dmap[ilev], ncomp, 0);
-// #if AMREX_SPACEDIM == 2
-// 			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 3, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 4, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 5, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 6, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 7, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 8, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 9, 1, 0);
-// #elif AMREX_SPACEDIM == 3
-// 			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], u      [ilev], 2, 2,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 3,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 4,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 2, 5,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 6,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 7,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], res    [ilev], 2, 8,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 9,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 4, 10,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 8, 11,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 12,  1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 13, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 14, 1, 0);
-// 			MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 15, 1, 0);
-// #endif 
-// 		}
-
-// 	IO::FileNameParse(plot_file);
-
-// 	Util::Message(INFO,"varname size = ", varname.size());
-// 	Util::Message(INFO,"mf->nComp() = ", plotmf[0].nComp());
-	
-// 	IO::WriteMetaData(plot_file);
-
-// 	pptest.query("nlevels",nlevels);
-// 	Util::Warning(INFO,"TODO: change nlevels back!");// nlevels=1;
-// 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-// 	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
-// 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
-	
-
-
-	
+	// mlabec.BuildMasks();
+	// mlabec.Reflux(0,
+	// 	      res[0], u[0], rhs[0],
+	// 	      res[1], u[1], rhs[1]);
 }
 
 

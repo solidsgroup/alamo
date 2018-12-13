@@ -133,9 +133,9 @@ protected:
 	///    Restriction takes place only on the interior nodes.
 	///    In 2D the restriction scheme is:
 	///    \f{eqnarray*}{	
-	///       res_{c}(I,J) &=& 4\,res_f(i,j) \\
-	///                    &+& 2\,\Big[res_f(i+1,j) + res_f(i-1,j) + res_f(i,j+1) + res_f(i,j-1)\Big] \\
-	///                    &+& \Big[res_f(i+1,j+1) + res_f(i+1,j-1) + res_f(i-1,j+1) + res_f(i-1,j-1)\Big]
+	///       res_{c}(I,J)    &=& 4\,res_f(i,j) 
+	///                    \\ &+& 2\,\Big[res_f(i+1,j) + res_f(i-1,j) + res_f(i,j+1) + res_f(i,j-1)\Big] 
+	///                    \\ &+& \Big[res_f(i+1,j+1) + res_f(i+1,j-1) + res_f(i-1,j+1) + res_f(i-1,j-1)\Big]
 	///    \f}
 	///
 
