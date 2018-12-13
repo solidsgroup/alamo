@@ -29,7 +29,6 @@ using namespace amrex;
 int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
-
 	// Set::Matrix R;
 	// R = Eigen::AngleAxisd(30, Set::Vector::UnitZ())*
 	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
@@ -84,7 +83,6 @@ int main (int argc, char* argv[])
 	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_z_lo = {AMREX_D_DECL(bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]])};
 	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_z_hi = {AMREX_D_DECL(bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]])};
 #endif
-
 	// Read in solver parameters
 	ParmParse pp_solver("solver");
 	std::string bottom_solver = "cg";     pp_solver.query("bottom_solver",bottom_solver);      
@@ -169,10 +167,10 @@ int main (int argc, char* argv[])
 		{
 			cgrids[ilev].define(cdomain);
 			cgrids[ilev].maxSize(max_grid_size);
-			if (orientation == "h")
-				cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
-			else if (orientation == "v")
-				cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
+			// if (orientation == "h")
+			   	cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
+			// else if (orientation == "v")
+			//  	cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(-n_cell/4); 
 
 			//cdomain.growLo(0,-n_cell/2); 
@@ -190,8 +188,7 @@ int main (int argc, char* argv[])
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	Util::Message(INFO,"Need to reduce number of ghost cells!");
-	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0 |||| or not? 
+	int number_of_ghost_cells = 1; 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			dmap   [ilev].define(cgrids[ilev]);
@@ -342,13 +339,25 @@ int main (int argc, char* argv[])
 	if (test_on == 0)
 	{
 		mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+		
+
+		mlabec.FApply(0,0,res[0],u[0]);
+		mlabec.FApply(1,0,res[1],u[1]);
+
+		res[0].minus(rhs[0], 0, 2, 0);
+		res[1].minus(rhs[1], 0, 2, 0);
+
+		mlabec.BuildMasks();
+		mlabec.Reflux(0,
+			      res[0], u[0], rhs[0],
+		 	      res[1], u[1], rhs[1]);
 	}
 	else
 	{
 		Set::Scalar alpha = tmpalpha, m = tmpm;
 		//Set::Vector n(1.0,1.0); Set::Vector b(0.5,0.0);
-		Set::Vector n(tmpn[0],tmpn[1]);
-		Set::Vector b(tmpb[0],tmpb[1]);
+		Set::Vector n(AMREX_D_DECL(tmpn[0],tmpn[1],tmpn[2]));
+		Set::Vector b(AMREX_D_DECL(tmpb[0],tmpb[1],tmpn[2]));
 
 		Util::Message(INFO,"alpha=",alpha);
 		Util::Message(INFO,"n=",n.transpose());
@@ -478,11 +487,12 @@ int main (int argc, char* argv[])
 	IO::WriteMetaData(plot_file);
 
 	pptest.query("nlevels",nlevels);
-	Util::Warning(INFO,"TODO: change nlevels back!");// nlevels=1;
+	//Util::Warning(INFO,"TODO: change nlevels back!"); nlevels=1;
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	
 
 	Util::Finalize();
+
 }
