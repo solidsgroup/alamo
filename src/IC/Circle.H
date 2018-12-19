@@ -33,9 +33,10 @@ public:
 				     for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++))
 					{
 						amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
+#if AMREX_SPACEDIM > 1
 						amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-
-						if ( ((x-center[0])*(x-center[0]) + (y-center[1])*(y-center[1])) < radius*radius)
+#endif
+						if ( (AMREX_D_TERM((x-center[0])*(x-center[0]) ,+ (y-center[1])*(y-center[1]),)) < radius*radius)
 						{
 							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 1.;     
 							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.;     
