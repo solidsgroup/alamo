@@ -54,11 +54,8 @@ PolymerDegradation::PolymerDegradation():
 #endif
 
 		water_bc = new BC::Constant(bc_hi_str, bc_lo_str
-							  ,bc_lo_1, bc_hi_1
-							  ,bc_lo_2, bc_hi_2
-#if AMREX_SPACEDIM > 2
-							  ,bc_lo_3, bc_hi_3
-#endif
+							  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
+							  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 							  );
 
 		RegisterNewFab(water_conc,     water_bc, 1, number_of_ghost_cells, "Water Concentration");
@@ -108,12 +105,9 @@ PolymerDegradation::PolymerDegradation():
 #endif
 
 		thermal_bc = new BC::Constant(bc_hi_str, bc_lo_str
-								,bc_lo_1,bc_hi_1
-								,bc_lo_2,bc_hi_2
-#if AMREX_SPACEDIM > 2
-								,bc_lo_3,bc_hi_3
-#endif
-					);
+								,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
+							  	,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
+						);
 		RegisterNewFab(Temp,     thermal_bc, 1, number_of_ghost_cells, "Temperature");
 		RegisterNewFab(Temp_old, thermal_bc, 1, number_of_ghost_cells, "Temperature Old");
 	}
@@ -249,12 +243,9 @@ PolymerDegradation::PolymerDegradation():
 	if (pp_damage_bc.countval("hi_3")) pp_damage_bc.getarr("hi_3",bc_hi_3);
 
 	eta_bc = new BC::Constant(bc_hi_str, bc_lo_str
-						,bc_lo_1, bc_hi_1
-						,bc_lo_2, bc_hi_2
-#if AMREX_SPACEDIM>2
-						,bc_lo_3, bc_hi_3
-#endif
-						);
+							,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
+							,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
+					);
 
 	RegisterNewFab(eta_new, eta_bc, number_of_eta, number_of_ghost_cells, "Eta");
 	RegisterNewFab(eta_old, eta_bc, number_of_eta, number_of_ghost_cells, "Eta old");
@@ -791,7 +782,11 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 1
+	const int ncomp = 5;
+	Vector<std::string> varname = {"u01", "rhs01", "stress11", "strain11", "energy"};
+
+#elif AMREX_SPACEDIM == 2
 	const int ncomp = 11;
 	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12",
 									"strain11", "strain22", "strain12", "energy"};
@@ -810,7 +805,13 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	{
 		//plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
 		plotmf[ilev].define(ngrids[ilev], dmap[ilev], ncomp, 0);
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 1
+		MultiFab::Copy(plotmf[ilev], displacement 	[ilev], 0, 0, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    		[ilev], 0, 1, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress 		[ilev], 0, 2, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain 		[ilev], 0, 3, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy 		[ilev], 0, 4, 1, 0);
+#elif AMREX_SPACEDIM == 2
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0, 1, 0);
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);

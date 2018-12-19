@@ -1104,9 +1104,13 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 					Set::Scalar total = 0.0;
 
 					if (m1 == bx.loVect()[0] - 1) ++m_fine[0];
+#if AMREX_SPACEDIM > 1
 					if (m2 == bx.loVect()[1] - 1) ++m_fine[1];
+#endif
 					if (m1 == bx.hiVect()[0] + 1) --m_fine[0];
+#if AMREX_SPACEDIM > 1
 					if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
+#endif
 					
 					crsetab(m_crse) = finetab(m_fine)*4.0; 
 					total += 4.0;
@@ -1116,18 +1120,20 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 					{
 						crsetab(m_crse) += finetab(m_fine-dx[0])*2.0 + finetab(m_fine+dx[0])*2.0;
 						total += 4.0;
-					}	
+					}
+#if AMREX_SPACEDIM  > 1	
 					if (m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1)
 					{
 						crsetab(m_crse) += finetab(m_fine-dx[1])*2.0 + finetab(m_fine+dx[1])*2.0;
 						total += 4.0;
 					}	
-					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1 &&
-					    m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1 )
+#endif
+					if (AMREX_D_TERM(m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1
+									,&& m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1,) )
 					{
 						crsetab(m_crse) +=
-							finetab(m_fine-dx[0]-dx[1]) + finetab(m_fine-dx[0]+dx[1]) +
-							finetab(m_fine+dx[0]-dx[1]) + finetab(m_fine+dx[0]+dx[1]);
+							finetab(m_fine-AMREX_D_TERM(dx[0],-dx[1],)) + finetab(m_fine-AMREX_D_TERM(dx[0],+dx[1],)) +
+							finetab(m_fine+AMREX_D_TERM(dx[0],-dx[1],)) + finetab(m_fine+AMREX_D_TERM(dx[0],+dx[1],));
 						total += 4.0;
 					}	
 					crsetab(m_crse) = crsetab(m_crse) / total;

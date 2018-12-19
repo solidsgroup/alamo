@@ -288,7 +288,11 @@ StressRelaxation::TimeStepComplete(amrex::Real time, int iter)
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 1
+	const int ncomp = 5;
+	Vector<std::string> varname = {"u01", "rhs01", "stress11", "strain11", "energy"};
+
+#elif AMREX_SPACEDIM == 2
 	const int ncomp = 11;
 	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12",
 									"strain11", "strain22", "strain12", "energy"};

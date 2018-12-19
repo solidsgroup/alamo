@@ -62,7 +62,10 @@ public:
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
 		Set::Matrix sig = Set::Matrix::Zero();
-		
+
+#if AMREX_SPACEDIM == 1
+		sig(0,0) = C[0]*eps(0,0);
+#elif AMREX_SPACEDIM > 1
 		sig(0,0) = C[ 0]*eps(0,0) + C[ 1]*eps(1,1) + C[ 2]*eps(2,2) + 2.0 * ( C[ 3]*eps(1,2) + C[ 4]*eps(2,0) + C[ 5]*eps(0,1));
 		sig(1,1) = C[ 1]*eps(0,0) + C[ 6]*eps(1,1) + C[ 7]*eps(2,2) + 2.0 * ( C[ 8]*eps(1,2) + C[ 9]*eps(2,0) + C[10]*eps(0,1));
 		sig(2,2) = C[ 2]*eps(0,0) + C[ 7]*eps(1,1) + C[11]*eps(2,2) + 2.0 * ( C[12]*eps(1,2) + C[13]*eps(2,0) + C[14]*eps(0,1));
@@ -73,11 +76,21 @@ public:
 		sig(2,1) = sig(1,2);
 		sig(0,2) = sig(2,0);
 		sig(1,0) = sig(0,1);
+#endif
 
 		return sig;
 	};
 
-#if AMREX_SPACEDIM==2
+#if AMREX_SPACEDIM == 1
+	virtual Set::Vector operator () (std::array<Set::Matrix,1> &gradeps)
+	{
+		Set::Vector f = Set::Vector::Zero();
+
+		f(0) =  C[ 0]*gradeps[0](0,0);
+		return f;
+	}
+
+#elif AMREX_SPACEDIM==2
 	virtual Set::Vector operator () (std::array<Set::Matrix,2> &gradeps)
 	{
 		Set::Vector f = Set::Vector::Zero();
@@ -90,6 +103,7 @@ public:
 
 		return f;
 	}
+
 #elif AMREX_SPACEDIM==3
 	virtual Set::Vector operator () (std::array<Set::Matrix,3> &gradeps)
 	{

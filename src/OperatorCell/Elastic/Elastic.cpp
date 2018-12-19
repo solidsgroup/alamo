@@ -328,6 +328,7 @@ void Elastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
 
 						Set::Matrix gradeps0_k; //  gradeps0_k(l,j) == eps0_{kl,j}
 						gradeps0_k(0,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 0) - eps0fab(m-dx,k*AMREX_SPACEDIM + 0)) / (2.0*DX[0]); // eps0_{k0,0}
+#if AMREX_SPACEDIM > 1
 						gradeps0_k(0,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 0) - eps0fab(m-dy,k*AMREX_SPACEDIM + 0)) / (2.0*DX[1]); // eps0_{k0,1}
 						gradeps0_k(1,0) = (eps0fab(m+dx,k*AMREX_SPACEDIM + 1) - eps0fab(m-dx,k*AMREX_SPACEDIM + 1)) / (2.0*DX[0]); // eps0_{k1,0}
 						gradeps0_k(1,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 1) - eps0fab(m-dy,k*AMREX_SPACEDIM + 1)) / (2.0*DX[1]); // eps0_{k1,1}
@@ -338,12 +339,15 @@ void Elastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
 						gradeps0_k(2,1) = (eps0fab(m+dy,k*AMREX_SPACEDIM + 2) - eps0fab(m-dy,k*AMREX_SPACEDIM + 2)) / (2.0*DX[1]); // eps0_{k0,1}
 						gradeps0_k(2,2) = (eps0fab(m+dz,k*AMREX_SPACEDIM + 2) - eps0fab(m-dz,k*AMREX_SPACEDIM + 2)) / (2.0*DX[2]); // eps0_{k0,1}
 #endif
+#endif
 
 						Set::Vector eps0_k; // eps0_k(l) = eps0_{kl}
 						eps0_k(0) = eps0fab(m,k*AMREX_SPACEDIM + 0);
+#if AMREX_SPACEDIM > 1
 						eps0_k(1) = eps0fab(m,k*AMREX_SPACEDIM + 1);
 #if AMREX_SPACEDIM > 2
 						eps0_k(2) = eps0fab(m,k*AMREX_SPACEDIM + 2);
+#endif
 #endif
 
 
