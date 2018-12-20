@@ -329,7 +329,7 @@ Operator::apply (int amrlev, int mglev,
 		 amrex::MultiFab& out,
 		 amrex::MultiFab& in,
 		 BCMode bc_mode,
-		 StateMode s_mode,
+		 StateMode /*s_mode*/,
 		 const amrex::MLMGBndry* bndry) const
 {
 	BL_PROFILE("Operator::apply()");

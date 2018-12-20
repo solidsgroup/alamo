@@ -17,13 +17,6 @@ void Operator::Diagonal (bool recompute)
 	if ( !recompute && m_diagonal_computed ) return;
 	m_diagonal_computed = true;
 
-	int ncomp = getNComp();
-	int nghost = 0;
-
-	int sep = 2;
-	int num = AMREX_D_TERM(sep,*sep,*sep);
-	int cntr = 0;
-
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
@@ -165,7 +158,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	int ncomp = getNComp();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
-	const Real* DX = m_geom[amrlev][mglev].CellSize();
+	//const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
@@ -397,9 +390,9 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 
 
 void
-Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
-		   const Vector<const MultiFab*>& rhnd,
-		   const Vector<MultiFab*>& a_rhcc)
+Operator::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*vel*/,
+		   const Vector<const MultiFab*>& /*rhnd*/,
+		   const Vector<MultiFab*>& /*a_rhcc*/)
 {
 	//Util::Message(INFO);
 	Util::Abort(INFO, "compRHS not implemented");
@@ -418,8 +411,8 @@ Operator::buildMasks ()
 	m_masks_built = true;
 
 	m_is_bottom_singular = false;
-	auto itlo = std::find(m_lobc.begin(), m_lobc.end(), BCType::Dirichlet);
-	auto ithi = std::find(m_hibc.begin(), m_hibc.end(), BCType::Dirichlet);
+	// auto itlo = std::find(m_lobc.begin(), m_lobc.end(), BCType::Dirichlet);
+	// auto ithi = std::find(m_hibc.begin(), m_hibc.end(), BCType::Dirichlet);
 
 #ifdef _OPENMP
 #pragma omp parallel
@@ -435,7 +428,7 @@ Operator::buildMasks ()
 				const Geometry& geom = m_geom[amrlev][mglev];
 				const auto& period = geom.periodicity();
 				const Box& ccdomain = geom.Domain();
-				const Box& nddomain = amrex::surroundingNodes(ccdomain);
+				//const Box& nddomain = amrex::surroundingNodes(ccdomain);
 				const std::vector<IntVect>& pshifts = period.shiftIntVect();
 
 				Box ccdomain_p = ccdomain;
@@ -454,7 +447,7 @@ Operator::buildMasks ()
 						const Box& ndbx = mfi.validbox();
 						const Box& ccbx = amrex::enclosedCells(ndbx);
 						const Box& ccbxg1 = amrex::grow(ccbx,1);
-						IArrayBox& mskfab = dmask[mfi];
+						//IArrayBox& mskfab = dmask[mfi];
                         
 						ccfab.resize(ccbxg1);
 						ccfab.setVal(1);
@@ -575,7 +568,7 @@ Operator::buildMasks ()
 
 
 void
-Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
+Operator::fixUpResidualMask (int /*amrlev*/, iMultiFab& /*resmsk*/)
 {
 	BL_PROFILE("Operator::fixUpResidualMask()");
 	Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
@@ -607,12 +600,9 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	BL_PROFILE("Operator::restriction()");
 	Util::Message(INFO);
 
-	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
-	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
-
 	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
 
-	const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][cmglev].Domain());
+	//const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][cmglev].Domain());
 
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
@@ -624,10 +614,10 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
 	// C++ version of Fortran (amrex_mlndlap_restriction)
-	Set::Scalar fac1 = 1.0/64.0;
-	Set::Scalar fac2 = 1.0/32.0;
-	Set::Scalar fac3 = 1.0/16.0; 
-	Set::Scalar fac4 = 1.0/8.0;
+	// Set::Scalar fac1 = 1.0/64.0;
+	// Set::Scalar fac2 = 1.0/32.0;
+	// Set::Scalar fac3 = 1.0/16.0; 
+	// Set::Scalar fac4 = 1.0/8.0;
 	amrex::Box domain(m_geom[amrlev][cmglev].Domain());
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
@@ -710,10 +700,10 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 }
 
 void
-Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
+Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	Util::Message(INFO,"In interpolation!");
+	Util::Message(INFO,"Not yet implemented");
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -808,7 +798,7 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 }
 
 void
-Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
+Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
 				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
