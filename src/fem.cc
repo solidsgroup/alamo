@@ -168,10 +168,10 @@ int main (int argc, char* argv[])
 			cgrids[ilev].define(cdomain);
 			cgrids[ilev].maxSize(max_grid_size);
 			// if (orientation == "h")
-			   	cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
+			//cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
 			// else if (orientation == "v")
-			//  	cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
-			//cdomain.grow(-n_cell/4); 
+			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
+			cdomain.grow(-n_cell/4); 
 
 			//cdomain.growLo(0,-n_cell/2); 
 			//cdomain.growLo(1,-n_cell/2); 
@@ -224,6 +224,7 @@ int main (int argc, char* argv[])
 			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
 			
+			Util::Message(INFO,"ilev = ", ilev);
  			AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
 				     rhs[ilev].setVal(body_force[1]*volume,1,1);,
 			 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
@@ -341,16 +342,16 @@ int main (int argc, char* argv[])
 		mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 		
 
-		mlabec.FApply(0,0,res[0],u[0]);
-		mlabec.FApply(1,0,res[1],u[1]);
+		for (int ilev = 0; ilev < nlevels; ilev++) mlabec.FApply(ilev,0,res[ilev],u[ilev]);
 
-		res[0].minus(rhs[0], 0, 2, 0);
-		res[1].minus(rhs[1], 0, 2, 0);
+		for (int ilev = 0; ilev < nlevels; ilev++) res[ilev].minus(rhs[ilev], 0, 2, 0);
 
 		mlabec.BuildMasks();
-		mlabec.Reflux(0,
-			      res[0], u[0], rhs[0],
-		 	      res[1], u[1], rhs[1]);
+
+		for (int ilev = nlevels-1; ilev > 0; ilev--) mlabec.Reflux(0, res[ilev-1], u[ilev-1], rhs[ilev-1], res[ilev], u[ilev], rhs[ilev]);
+	
+		//if (nlevels > 1) mlabec.Reflux(0, res[0], u[0], rhs[0], res[1], u[1], rhs[1]);
+
 	}
 	else
 	{
@@ -365,10 +366,11 @@ int main (int argc, char* argv[])
 		Util::Message(INFO,"comp=",comp);
 
 		
-		u[0].setVal(0.0);
-		u[1].setVal(0.0);
-		rhs[0].setVal(0.0);
-		rhs[1].setVal(0.0);
+		for (int ilev = 0; ilev < nlevels; ilev++)
+		{
+			u[ilev].setVal(0.0);
+			rhs[ilev].setVal(0.0);
+		}
 
 		if (testtype=="affine")
 		{
@@ -396,16 +398,14 @@ int main (int argc, char* argv[])
 
 
 
-		mlabec.FApply(0,0,rhs[0],u[0]);
-		mlabec.FApply(1,0,rhs[1],u[1]);
-
-		res[0].setVal(0.0);
-		res[1].setVal(0.0);
+		for (int ilev = 0; ilev < nlevels; ilev++)
+		{
+			mlabec.FApply(ilev,0,rhs[ilev],u[ilev]);
+			res[ilev].setVal(0.0);
+		}
 
 		mlabec.BuildMasks();
-		mlabec.Reflux(0,
-			      res[0], u[0], rhs[0],
-			      res[1], u[1], rhs[1]);
+		if (nlevels > 1) mlabec.Reflux(0, res[0], u[0], rhs[0], res[1], u[1], rhs[1]);
 	}
 	
 

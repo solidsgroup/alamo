@@ -469,10 +469,10 @@ Operator::buildMasks ()
 							}
 						}
                         
-						amrex_mlndlap_set_dirichlet_mask(BL_TO_FORTRAN_ANYD(mskfab),
-										 BL_TO_FORTRAN_ANYD(ccfab),
-										 BL_TO_FORTRAN_BOX(nddomain),
-										 m_lobc.data(), m_hibc.data());
+						// amrex_mlndlap_set_dirichlet_mask(BL_TO_FORTRAN_ANYD(mskfab),
+						// 				 BL_TO_FORTRAN_ANYD(ccfab),
+						// 				 BL_TO_FORTRAN_BOX(nddomain),
+						// 				 m_lobc.data(), m_hibc.data());
 					}
 				}
 			}

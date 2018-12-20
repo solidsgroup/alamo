@@ -32,6 +32,18 @@ Elastic<T>::apply (int amrlev, int mglev,
 		   const amrex::IntVect &m) const
 
 {
+	// if (amrlev == 1 && m[0] == 8 && m[1] == 8)
+	// {
+	// 	Util::Message(INFO,"m = ", m);
+	// 	Util::Message(INFO,"u(m) = ", ufab(m,0), " ", ufab(m,1));
+	// 	Util::Message(INFO,"u(m+dx) = ", ufab(m+dx[0],0), " ", ufab(m+dx[0],1));
+	// 	Util::Message(INFO,"u(m-dx) = ", ufab(m-dx[0],0), " ", ufab(m-dx[0],1));
+	// 	Util::Message(INFO,"u(m+dy) = ", ufab(m+dx[1],0), " ", ufab(m+dx[1],1));
+	// 	Util::Message(INFO,"u(m-dy) = ", ufab(m-dx[1],0), " ", ufab(m-dx[1],1));
+	// 	Util::Message(INFO,"u(m-dx-dy) = ", ufab(m-dx[0]-dx[1],0), " ", ufab(m-dx[0]-dx[1],1));
+	// }
+
+
 	Set::Vector f = Set::Vector::Zero();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
@@ -81,15 +93,16 @@ Elastic<T>::apply (int amrlev, int mglev,
 	// values of the rhs fab.
 	//
 
+	bool tracer = (amrlev == 1 && m[0] == 0);
 	if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
 	{
 		for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
 		{
 			for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
 			{
-
 				if (m[j] == domain.loVect()[j])
 				{
+					
 					if (m_bc_lo[j][i] == BC::Displacement)
 						f(i) = ufab(m,i);
 					else if (m_bc_lo[j][i] == BC::Traction) 
@@ -633,7 +646,7 @@ template<class T>
 void
 Elastic<T>::reflux (int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
+		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& /*fine_rhs*/) const
 {
 	BL_PROFILE("Operator::Elastic::reflux()");
 
@@ -651,7 +664,7 @@ Elastic<T>::reflux (int crse_amrlev,
  	const BoxArray&            fba = fine_sol.boxArray();
  	const DistributionMapping& fdm = fine_sol.DistributionMap();
 
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 1);
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
 	fine_res_for_coarse.setVal(0.0);
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
@@ -661,7 +674,7 @@ Elastic<T>::reflux (int crse_amrlev,
 		const Box& bx = mfi.tilebox();
 		FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
-		const FArrayBox &crserhs = crse_rhs[mfi];
+		//const FArrayBox &crserhs = crse_rhs[mfi];
 		//const FArrayBox &finerhs = fine_rhs[mfi];
 		const FArrayBox &ufab = fine_sol[mfi];
 		TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
@@ -932,7 +945,7 @@ Elastic<T>::reflux (int crse_amrlev,
 
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
-	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,1,1,cgeom.periodicity());
+	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
 	return;
 	// const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
 	// const auto& nd_mask     = m_nd_fine_mask[crse_amrlev];
