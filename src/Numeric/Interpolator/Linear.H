@@ -24,16 +24,16 @@ public:
 
  	T operator() (Set::Scalar point)
 	{
+
+		// Do this if point is below interpolation range
+		if(point < interval_points[0])
+		{
+			return data_points[0];
+		}
+
+		// Do this if point is within interpolation range
 		for (int i = 0; i<interval_points.size(); i++)
 		{
-			if(point < interval_points[0])
-			{
-				return data_points[0];
-			}
-			else if (i==interval_points.size()-1)
-			{
-				return  data_points[interval_points.size()-1];
-			}
 			if (interval_points[i] < point && point < interval_points[i+1])
 			{
 				return data_points[i] +
@@ -42,7 +42,12 @@ public:
 
 			}
 		}
+
+		// Otherwise point must be outside interpolation range, so
+		// return the value for the highest point
+		return  data_points[interval_points.size()-1];
 	}
+
 
 protected:
  	amrex::Vector<T> data_points;

@@ -93,7 +93,6 @@ Elastic<T>::apply (int amrlev, int mglev,
 	// values of the rhs fab.
 	//
 
-	bool tracer = (amrlev == 1 && m[0] == 0);
 	if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
 	{
 		for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
@@ -288,7 +287,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
-	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -645,8 +643,8 @@ Elastic<T>::Energy (int amrlev,
 template<class T>
 void
 Elastic<T>::reflux (int crse_amrlev,
-		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& /*fine_rhs*/) const
+		    MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
+		    MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
 {
 	BL_PROFILE("Operator::Elastic::reflux()");
 
@@ -655,14 +653,14 @@ Elastic<T>::reflux (int crse_amrlev,
 	int ncomp = AMREX_SPACEDIM;
 
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
- 	const Geometry& fgeom = m_geom[crse_amrlev+1][0];
+ 	//const Geometry& fgeom = m_geom[crse_amrlev+1][0];
  	const Box& c_cc_domain = cgeom.Domain();
  	//const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
-	const Real* cDX = cgeom.CellSize();
-	const Real* fDX = fgeom.CellSize();
+	//const Real* cDX = cgeom.CellSize();
+	//const Real* fDX = fgeom.CellSize();
 
- 	const BoxArray&            fba = fine_sol.boxArray();
- 	const DistributionMapping& fdm = fine_sol.DistributionMap();
+ 	const BoxArray&            fba = fine_res.boxArray();
+ 	const DistributionMapping& fdm = fine_res.DistributionMap();
 
  	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
 	fine_res_for_coarse.setVal(0.0);
@@ -676,8 +674,8 @@ Elastic<T>::reflux (int crse_amrlev,
 		FArrayBox &crse = fine_res_for_coarse[mfi];
 		//const FArrayBox &crserhs = crse_rhs[mfi];
 		//const FArrayBox &finerhs = fine_rhs[mfi];
-		const FArrayBox &ufab = fine_sol[mfi];
-		TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
+		//const FArrayBox &ufab = fine_sol[mfi];
+		//TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
 
 		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
 			for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
@@ -691,225 +689,6 @@ Elastic<T>::reflux (int crse_amrlev,
 				    m2 == c_cc_domain.hiVect()[1])
 				 	continue;
 
-				//crse(m_crse,0) = m_fine[1];
-				//continue;
-
-				// // THIS PART IS HARD CODED:
-				// if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0] ||
-				//     m2 == bx.loVect()[1] || m2 == bx.hiVect()[1] )
-				// {
-				// 	Set::Vector t = Set::Vector::Zero();
-				// 	if (m1 == bx.loVect()[0]) // XLO
-				// 	{
-				// 		if (m2 == bx.loVect()[1]) continue;
-				// 		else if (m2 == bx.hiVect()[1]) continue;
-
-				// 		Set::Matrix sig1, sig2; 
-				// 		sig1 =  0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1], {{Boundary::Lo, Boundary::None}}) +
-				// 			0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Lo, Boundary::Hi  }});
-				// 		sig2 =  0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Lo, Boundary::Lo  }}) + 
-				// 			0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1], {{Boundary::Lo, Boundary::None}});
-
-				// 		t =     sig1 * Set::Vector(-1/cDX[0],0) + sig1 * Set::Vector(0, 1/cDX[1]) +
-				// 			sig2 * Set::Vector(-1/cDX[0],0) + sig2 * Set::Vector(0,-1/cDX[1]);
-				// 	}
-				// 	if (m1 == bx.hiVect()[0]) // XHI
-				// 	{
-				// 		if (m2 == bx.loVect()[1]) continue;
-				// 		else if (m2 == bx.hiVect()[1]) continue;
-
-				// 		Set::Matrix sig1, sig2; 
-				// 		sig1 =  0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1], {{Boundary::Hi, Boundary::None}}) +
-				// 			0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Hi, Boundary::Hi  }});
-				// 		sig2 =  0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine        , {{Boundary::Hi, Boundary::Lo  }}) + 
-				// 			0.25    * flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1], {{Boundary::Hi, Boundary::None}});
-
-				// 		t =     sig1 * Set::Vector(1/cDX[0],0) + sig1 * Set::Vector(0, 1/cDX[1]) +
-				// 			sig2 * Set::Vector(1/cDX[0],0) + sig2 * Set::Vector(0,-1/cDX[1]);
-				// 	}
-				// 	if (m2 == bx.loVect()[1]) // YLO
-				// 	{
-				// 		if (m2 == bx.loVect()[0]) continue;
-				// 		else if (m2 == bx.hiVect()[0]) continue;
-
-				// 		// 1/2 ( a/2 + b/2) --> 1/2 (a/3 + 2b/3) --> (1/6)a + (2/6)b
-				// 		// 1/2 ( a/2 + b/2) --> 1/2 (a/4 + 3b/4) --> (1/8)a + (3/8)b
-
-				// 		Set::Matrix sig1, sig2; 
-
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] - dx[0], {{Boundary::Lo, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] - dx[0], {{Boundary::Hi, Boundary::None}});
-
-				// 		Set::Vector t1 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]);
-				// 			sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
-				// 			sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
-
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1],  {{Boundary::Hi, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1],  {{Boundary::Lo, Boundary::None}});
-
-				// 		Set::Vector t2 =
-				// 			sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0],0) +
-				// 			sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0],0);
-
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] + dx[0],  {{Boundary::Hi, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] + dx[0],  {{Boundary::Lo, Boundary::None}});
-
-				// 		Set::Vector t3 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0]);
-				// 			sig1 * Set::Vector(0, -1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
-				// 			sig2 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
-
-
-				// 		t = 0.25*t1 + 0.5*t2 + 0.25*t3;
-
-
-				// 		Util::Message(INFO, "FINE: m_crse = ", m_crse, " t = ", t.transpose(), " rhs = ", crserhs(m_crse,0)," ",crserhs(m_crse,1));
-				// 		Util::Message(INFO, "    t1 = ", t1.transpose());
-				// 		//Util::Message(INFO, "    t1exact = ", apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]).transpose());
-				// 		Util::Message(INFO, "    t2 = ", t2.transpose());
-				// 		Util::Message(INFO, "    t3 = ", t3.transpose());
-				// 		Util::Message(INFO, "    u = (", ufab(m_fine-dx[1],0),",",ufab(m_fine-dx[1],1),"), (" , ufab(m_fine,0),",",ufab(m_fine,1), "), (", ufab(m_fine+dx[1],0),",",ufab(m_fine+dx[1],1),")");
-
-
-				// 		Set::Vector test;
-
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] + dx[0],  {{Boundary::None, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[1] - dx[0],  {{Boundary::None, Boundary::None}});
-				// 		test =  sig1 * Set::Vector(-1/cDX[0], -1/cDX[1]) + sig2 * Set::Vector(1/(cDX[0]), -1/cDX[1]);
-				// 		Util::Message(INFO, "      test: ", test.transpose());
-				// 		t= test;
-
-
-				// 		// Set::Matrix sig_1 =
-				// 		// 	(flux(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0],  {{Boundary::None, Boundary::None}}) -
-				// 		// 	 flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0],  {{Boundary::None, Boundary::None}}))/(2.0*fDX[0]);
-
-
-						
-				// 		// Set::Vector tL_CC =
-				// 		// 	- apply(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0] + dx[1]);
-				// 		// Set::Vector tL_CS =
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]) +
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine - dx[0], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
-				// 		// Set::Vector tL_EC =
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Hi}})*Set::Vector(+1/fDX[0],+1/fDX[1]) +
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]);
-				// 		// Set::Vector tL_ES =
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine, {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]);
-
-				// 		// Set::Vector tH_CC =
-				// 		// 	- apply(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0] + dx[1]);
-				// 		// Set::Vector tH_CS =
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0], {{Boundary::Hi, Boundary::Lo}})*Set::Vector(+1/fDX[0],-1/fDX[1]) +
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
-				// 		// Set::Vector tH_WC =
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Hi}})*Set::Vector(-1/fDX[0],+1/fDX[1]) +
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine + dx[1], {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
-				// 		// Set::Vector tH_WS =
-				// 		// 	flux(crse_amrlev + 1, 0, ufab , C, m_fine, {{Boundary::Lo, Boundary::Lo}})*Set::Vector(-1/fDX[0],-1/fDX[1]);
-
-
-				// 		// Set::Vector newandimproved =
-				// 		// 	0.25*tL_CC + 0.5*tL_CS + 0.5*tL_EC + 1.0*tL_ES +
-				// 		// 	0.25*tH_CC + 0.5*tH_CS + 0.5*tH_WC + 1.0*tH_WS;
-
-				// 		// newandimproved /= (0.25 + 0.5 + 0.5 + 1.0 +
-				// 		// 		   0.25 + 0.5 + 0.5 + 1.0);
-						
-
-				// 		// 	//Set::Vector tR_cc = apply(crse_amrlev + 1, 0, ufab , C, m_fine + dx[0] + dy[0]);
-
-
-				// 		// Set::Matrix sig_2 = /// THIS STENCIL WORKS
-				// 		// 	(flux(crse_amrlev + 1, 0, ufab, C, m_fine+dx[1],  {{Boundary::None, Boundary::None}}) -
-				// 		// 	 flux(crse_amrlev + 1, 0, ufab, C, m_fine-dx[1],  {{Boundary::None, Boundary::Lo}}))/(2*fDX[1]);
-
-				// 		// Set::Vector divsig(sig_1(0,0) + sig_2(0,1),
-				// 		//  		   sig_1(1,0) + sig_2(1,1));
-				// 		// Util::Message(INFO, "    numerical div sig = ",divsig.transpose());
-
-				// 		// Util::Message(INFO, Color::FG::Green, "    NEW AND IMPROVED = ",newandimproved.transpose(),Color::Reset);
-				// 		// Util::Message(INFO, "    tH_CC = ",tH_CC.transpose());
-				// 		// Util::Message(INFO, "    tL_CC = ",tL_CC.transpose());
-				// 		// Util::Message(INFO, "    tH_CS = ",tH_CS.transpose());
-				// 		// Util::Message(INFO, "    tL_CS = ",tL_CS.transpose());
-				// 		// Util::Message(INFO, "    tH_WC = ",tH_WC.transpose());
-				// 		// Util::Message(INFO, "    tL_EC = ",tL_EC.transpose());
-
-				// 		// Util::Message(INFO, "    tH_WS = ",tH_WS.transpose());
-				// 		// Util::Message(INFO, "    tL_ES = ",tL_ES.transpose());
-
-				// 	}
-				// 	if (m2 == bx.hiVect()[1]) // YHI
-				// 	{
-				// 		if (m2 == bx.loVect()[0]) continue;
-				// 		else if (m2 == bx.hiVect()[0]) continue;
-
-				// 		// 1/2 ( a/2 + b/2) --> 1/2 (a/3 + 2b/3) --> (1/6)a + (2/6)b
-				// 		// 1/2 ( a/2 + b/2) --> 1/2 (a/4 + 3b/4) --> (1/8)a + (3/8)b
-
-				// 		Set::Matrix sig1, sig2; 
-
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] - dx[0], {{Boundary::Hi, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] - dx[0], {{Boundary::Lo, Boundary::None}});
-
-				// 		Set::Vector t1 =  //apply(crse_amrlev + 1, 0, ufab, C, m_fine - dx[0]);
-				// 			sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
-				// 			sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
-
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1],  {{Boundary::Hi, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1],  {{Boundary::Lo, Boundary::None}});
-
-				// 		Set::Vector t2 = sig1 * Set::Vector( 1/fDX[0], 1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0], 1/cDX[1]);
-
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] + dx[0],  {{Boundary::Hi, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] + dx[0],  {{Boundary::Lo, Boundary::None}});
-
-				// 		Set::Vector t3 = //apply(crse_amrlev + 1, 0, ufab, C, m_fine + dx[0]);
-				// 			sig1 * Set::Vector(0, 1/cDX[1]) + sig1 * Set::Vector( 1/fDX[0] ,0) +
-				// 			sig2 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(-1/fDX[0] ,0);
-
-				// 		t = 0.25*t1 + 0.5*t2 + 0.25*t3;
-
-
-				// 		Set::Vector test;
-				// 		sig1 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] + dx[0],  {{Boundary::None, Boundary::None}});
-				// 		sig2 = 0.5*flux(crse_amrlev + 1, 0, ufab, C, m_fine - dx[1] - dx[0],  {{Boundary::None, Boundary::None}});
-				// 		test =  sig1 * Set::Vector(-1/cDX[0], 1/cDX[1]) + sig2 * Set::Vector(1/(cDX[0]), 1/cDX[1]);
-				// 		Util::Message(INFO, "      test: ", test.transpose());
-				// 		t= test;
-
-				// 	}
-
-						
-				// 	// Add this contribution to the residual
-				// 	for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += t(n);
-					
-				// 	// // Add the rhs component to the residual
-				// 	for (int n = 0 ; n < ncomp; n++) crse(m_crse,n) += crserhs(m_crse,n);
-					
-				// 	// Residual for all Dirichlet boundaries should be zero.
-				// 	for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
-				// 	 	for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
-				// 	 	{
-				// 	 		if (m_crse[j] == c_cc_domain.loVect()[j])
-				// 	 		{
-				// 	 			if (m_bc_lo[j][i] == BC::Displacement) crse(m_crse,i) = 0.0;
-				// 	 		}
-				// 	 		if (m_crse[j] == c_cc_domain.hiVect()[j] + 1)
-				// 	 		{
-				// 	 			if (m_bc_hi[j][i] == BC::Displacement) crse(m_crse,i) = 0.0;
-				// 	 		}
-				// 	 	}
-				// }
-				// else
-				// {
-
-
-				// for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-				// 	for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-
-		
-				// For all other cells, do a restriction as usual
 				for (int n = 0 ; n < ncomp; n++)
 				{
 
@@ -931,139 +710,13 @@ Elastic<T>::reflux (int crse_amrlev,
 							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
 				}
 
-				if (crse(m_crse,0) != crse(m_crse,0))
-				{
-					int n = 0;
-					Util::Message(INFO,"m_crse = ", m_crse);
-					Util::Message(INFO,"    ",fine(m_fine-dx[0]+dx[1],n)," ",fine(m_fine+dx[1],n)," ",fine(m_fine+dx[0]+dx[1],n));
-					Util::Message(INFO,"    ",fine(m_fine-dx[0]      ,n)," ",fine(m_fine      ,n)," ",fine(m_fine+dx[0]      ,n));
-					Util::Message(INFO,"    ",fine(m_fine-dx[0]-dx[1],n)," ",fine(m_fine-dx[1],n)," ",fine(m_fine+dx[0]-dx[1],n));
-				}
-				// }
-		}
+			}
 	}
 
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
 	return;
-	// const iMultiFab& cdmsk = *m_dirichlet_mask[crse_amrlev][0];
-	// const auto& nd_mask     = m_nd_fine_mask[crse_amrlev];
-	// const auto& cc_mask     = m_cc_fine_mask[crse_amrlev];
-	// const auto& has_fine_bndry = m_has_fine_bndry[crse_amrlev];
-
-	// Mask multifabs
- 	const iMultiFab& nd_mask     = *m_nd_fine_mask[crse_amrlev];
- 	const auto& cc_mask     = *m_cc_fine_mask[crse_amrlev];
- 	const auto& has_fine_bndry   = m_has_fine_bndry[crse_amrlev];
-	static int crse_cell = 0;
-	static int fine_cell = 1;
-	static int crse_node = 0;
-	static int crse_fine_node = 1;
-	static int fine_node = 2;
-
-	Util::Message(INFO);
- 	for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
- 	{
-		if (true || (*has_fine_bndry)[mfi])
-		{
-			Util::Warning(INFO,"Fix this for loop!");
-
-			amrex::BaseFab<T> &C = (*(model[crse_amrlev][0]))[mfi];
-
- 			const Box& bx = mfi.tilebox();
-			
-			const amrex::FArrayBox &ufab   = crse_sol[mfi];
-			amrex::FArrayBox       &resfab = res[mfi];
-			const amrex::FArrayBox &rhsfab = crse_rhs[mfi];
-
-			//Util::Warning(INFO,"Skipping the coarse flux correction!!"); continue;
-
-
-			for (int m1 = bx.loVect()[0]; m1 <= bx.hiVect()[0]; m1++)
-			for (int m2 = bx.loVect()[1]; m2 <= bx.hiVect()[1]; m2++)
-			// for (int m1 = bx.loVect()[0]-1; m1 <= bx.hiVect()[0]+1; m1++)
-			// for (int m2 = bx.loVect()[1]-1; m2 <= bx.hiVect()[1]+1; m2++)
-			{
-				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-				
-				if (!bx.contains(m)) continue;
-				if (nd_mask[mfi](m) != crse_fine_node) continue; // Only proceed if on a coarse/fine boundary
-				if (m1 == c_cc_domain.loVect()[0]   ||
-				    m1 == c_cc_domain.hiVect()[0]+1 ||
-				    m2 == c_cc_domain.loVect()[1]   ||
-				    m2 == c_cc_domain.hiVect()[1]+1)
-				{
-				 	Util::Message(INFO,"skipping m = ", m);
-				 	continue;
-				}
-
-				// Compute gradient of u 
-				// Set::Matrix gradu;
-				// Set::Vector n;
-				Set::Vector t = Set::Vector::Zero();
-				if (cc_mask[mfi](m-dx[0]-dx[1]) == crse_cell // xlo or ylo
-				    &&
-				    cc_mask[mfi](m-dx[0]) ==  crse_cell) // xlo or yhi .... XLO
-				{
-					Set::Matrix sig1 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Hi, Boundary::Hi}});
-					Set::Matrix sig2 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Hi, Boundary::Lo}});
-					t =     sig1 * Set::Vector(1/cDX[0],0)  + sig1 * Set::Vector(0, 1/cDX[1]) +
-						sig2 * Set::Vector(1/cDX[0],0)  + sig2 * Set::Vector(0,-1/cDX[1]);
-
-				}
-				if (cc_mask[mfi](m-dx[1]) ==  crse_cell// xhi or ylo
-				    &&
-				    cc_mask[mfi](m) ==  crse_cell) // xhi or yhi .... XHI
-				{
-					Set::Matrix sig1 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Lo, Boundary::Hi}});
-					Set::Matrix sig2 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Lo, Boundary::Lo}});
-					t =     sig1 * Set::Vector(-1/cDX[0],0)  + sig1 * Set::Vector(0, 1/cDX[1]) +
-						sig2 * Set::Vector(-1/cDX[0],0)  + sig2 * Set::Vector(0,-1/cDX[1]);
-				}
-
-				if (cc_mask[mfi](m-dx[0]-dx[1]) == crse_cell // xlo or ylo
-				    &&
-				    cc_mask[mfi](m-dx[1]) ==  crse_cell) // xhi or ylo ... YLO
-				{
-					Set::Matrix sig1, sig2;
-					Set::Vector f1, f2;
-
-					sig1 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Hi, Boundary::Hi}});
-					sig2 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Lo, Boundary::Hi}});
-
-					f1 =    sig1 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(0, 1/cDX[1]) + 
-						sig1 * Set::Vector(1/cDX[0] ,0) + sig2 * Set::Vector(-1/cDX[0] ,0);
-
-					sig1 = 0.5*flux(crse_amrlev, 0, ufab, C, m - dx[1], {{Boundary::Hi, Boundary::Lo}});
-					sig2 = 0.5*flux(crse_amrlev, 0, ufab, C, m - dx[1], {{Boundary::Lo, Boundary::Lo}});
-
-					f2 =    sig1 * Set::Vector(0, 1/cDX[1]) + sig2 * Set::Vector(0, 1/cDX[1]) + 
-						sig1 * Set::Vector(1/cDX[0] ,0) + sig2 * Set::Vector(-1/cDX[0] ,0);
-
-					Util::Message(INFO, "CRSE: m      = ", m, " f1 = ", f1.transpose());
-
-					t = f1;
-				}
-
-				if (cc_mask[mfi](m) ==  crse_cell // xhi or yhi
-				    &&
-				    cc_mask[mfi](m-dx[0]) ==  crse_cell) // xlo or yhi .. YHI
-
-				{
-					Set::Matrix sig1 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Hi, Boundary::Lo}});
-					Set::Matrix sig2 = 0.5*flux(crse_amrlev, 0, ufab, C, m, {{Boundary::Lo, Boundary::Lo}});
-
-					t = Set::Vector::Zero();
-
-					t +=    sig1 * Set::Vector(0, -1/cDX[1]) + sig2 * Set::Vector(0, -1/cDX[1]) + 
-						sig1 * Set::Vector(1/cDX[0] ,0)  + sig2 * Set::Vector(-1/cDX[0] ,0);
-				}
-
-				for (int n=0; n<ncomp; n++) resfab(m,n) += t(n);
-			}
-		}
-	}
 #else
 	Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
 #endif
@@ -1111,7 +764,7 @@ void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
 	//Util::Message(INFO);
-	const int mglev = 0;
+	//const int mglev = 0;
 
 	// const int idim = 0;  // other dimensions are just aliases
 

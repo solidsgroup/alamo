@@ -28,7 +28,7 @@ public:
 	void Initialize(const int lev,
 			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
 	{
-		const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
+		//const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
 
 		Numeric::Interpolator::Linear<Set::Scalar> f(ys,xs);
 
