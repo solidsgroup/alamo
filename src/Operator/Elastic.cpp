@@ -663,7 +663,7 @@ Elastic<T>::reflux (int crse_amrlev,
  	const DistributionMapping& fdm = fine_res.DistributionMap();
 
  	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
-	fine_res_for_coarse.setVal(0.0);
+	fine_res_for_coarse.ParallelCopy(res,0,0,ncomp,0,0,cgeom.periodicity());
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
@@ -691,23 +691,28 @@ Elastic<T>::reflux (int crse_amrlev,
 
 				for (int n = 0 ; n < ncomp; n++)
 				{
-
 					if ((m1 == bx.loVect()[0] && m2 == bx.loVect()[1]) || 
 					    (m1 == bx.loVect()[0] && m2 == bx.hiVect()[1]) ||
 					    (m1 == bx.hiVect()[0] && m2 == bx.loVect()[1]) ||
 					    (m1 == bx.hiVect()[0] && m2 == bx.hiVect()[1]) )
+					{
 						crse(m_crse,n) = fine(m_fine,n);
+					}
 					else if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
-						crse(m_crse,n) =
-							0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n);
+					{
+						crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+					}
 					else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
-						crse(m_crse,n) =
-							0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n);
+					{
+						crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+					}
 					else
+					{
 						crse(m_crse,n) =
 							((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
 							  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
 							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+					}
 				}
 
 			}

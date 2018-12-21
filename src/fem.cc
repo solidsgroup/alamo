@@ -162,7 +162,7 @@ int main (int argc, char* argv[])
 	amrex::ParmParse pptest("test");
 	std::string orientation; pptest.query("orientation",orientation);
 	Util::Message(INFO,"ORIENTATION = [",orientation,"]");
-	Box cdomain = CDomain, ndomain = NDomain;
+	Box cdomain = CDomain;//, ndomain = NDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			cgrids[ilev].define(cdomain);
@@ -223,11 +223,9 @@ int main (int argc, char* argv[])
 			const Real* dx = geom[ilev].CellSize();
 			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
-			
-			Util::Message(INFO,"ilev = ", ilev);
- 			AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
-				     rhs[ilev].setVal(body_force[1]*volume,1,1);,
-			 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
+ 			AMREX_D_TERM(rhs[ilev].setVal(body_force[0],0,1);,
+				     rhs[ilev].setVal(body_force[1],1,1);,
+			 	     rhs[ilev].setVal(body_force[2],2,1);)
 
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
@@ -329,85 +327,36 @@ int main (int argc, char* argv[])
 	///
 
 
-	int test_on = 5; pptest.query("on",test_on);
-	std::string testtype = "random"; pptest.query("type",testtype);
-	amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
-	amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
-	amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
-	amrex::Real tmpm = 1.0; pptest.query("m",tmpm);
-	int comp; pptest.query("comp",comp);
-
-	if (test_on == 0)
 	{
-		mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-		
+		int test_on = 5; pptest.query("on",test_on);
+		std::string testtype = "random"; pptest.query("type",testtype);
+		amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
+		amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
+		amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
+		amrex::Real tmpm = 1.0; pptest.query("m",tmpm);
+		int comp; pptest.query("comp",comp);
+
+		Set::Vector n(tmpn[0],tmpn[1]);
+		Set::Vector b(tmpb[0],tmpb[1]);
+		Set::Scalar alpha = tmpalpha;
+		Set::Scalar m = tmpm;
+		IC::Affine ic(geom,n,alpha,b,true,m);
+		//IC::Trig ic(geom);
+		ic.SetComp(0);
+		for (int ilev = 0; ilev < nlevels; ilev++) ic.Initialize(ilev,u);
+
+		if (test_on)
+			mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 		for (int ilev = 0; ilev < nlevels; ilev++) mlabec.FApply(ilev,0,res[ilev],u[ilev]);
-
+		
 		for (int ilev = 0; ilev < nlevels; ilev++) res[ilev].minus(rhs[ilev], 0, 2, 0);
 
 		mlabec.BuildMasks();
 
 		for (int ilev = nlevels-1; ilev > 0; ilev--) mlabec.Reflux(0, res[ilev-1], u[ilev-1], rhs[ilev-1], res[ilev], u[ilev], rhs[ilev]);
 	
-		//if (nlevels > 1) mlabec.Reflux(0, res[0], u[0], rhs[0], res[1], u[1], rhs[1]);
-
 	}
-	else
-	{
-		Set::Scalar alpha = tmpalpha, m = tmpm;
-		//Set::Vector n(1.0,1.0); Set::Vector b(0.5,0.0);
-		Set::Vector n(AMREX_D_DECL(tmpn[0],tmpn[1],tmpn[2]));
-		Set::Vector b(AMREX_D_DECL(tmpb[0],tmpb[1],tmpn[2]));
-
-		Util::Message(INFO,"alpha=",alpha);
-		Util::Message(INFO,"n=",n.transpose());
-		Util::Message(INFO,"b=",b.transpose());
-		Util::Message(INFO,"comp=",comp);
-
-		
-		for (int ilev = 0; ilev < nlevels; ilev++)
-		{
-			u[ilev].setVal(0.0);
-			rhs[ilev].setVal(0.0);
-		}
-
-		if (testtype=="affine")
-		{
-			Util::Message(INFO,"affine, comp = ", comp);
-			IC::Affine ic(geom,n,alpha,b,true,m);
-			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
-			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
-		}
-		else if (testtype=="trig")
-		{
-			Util::Message(INFO,"trig");
-			IC::Trig ic(geom);
-			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
-			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
-		}
-		else if (testtype=="random")
-		{
-			Util::Message(INFO,"random");
-			IC::Random ic(geom);
-			if (comp == 0) {ic.SetComp(0); ic.Initialize(0,u); ic.Initialize(1,u);}
-			if (comp == 1) {ic.SetComp(1); ic.Initialize(0,u); ic.Initialize(1,u);}
-		}
-		else
-			Util::Abort(INFO,"invalid test type");
-
-
-
-		for (int ilev = 0; ilev < nlevels; ilev++)
-		{
-			mlabec.FApply(ilev,0,rhs[ilev],u[ilev]);
-			res[ilev].setVal(0.0);
-		}
-
-		mlabec.BuildMasks();
-		if (nlevels > 1) mlabec.Reflux(0, res[0], u[0], rhs[0], res[1], u[1], rhs[1]);
-	}
-	
 
 
 	// 	mlabec.FSmooth(0,0,u[0],rhs[0]);
