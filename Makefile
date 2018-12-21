@@ -22,8 +22,8 @@ FG_CYAN            = \033[36m
 
 
 
-MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
-MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
+MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro, 
+MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
 
 METADATA_GITHASH  = $(shell git log --pretty=format:'%H' -n 1)
 METADATA_USER     = $(shell whoami)
@@ -35,7 +35,7 @@ METADATA_TIME     = $(shell date +%H:%M:%S)
 
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" 
 
-CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
+CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb -no-pie
 
 
 INCLUDE = $(if ${EIGEN}, -I${EIGEN})  $(if ${AMREX}, -I${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
@@ -55,13 +55,21 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 .SECONDARY: 
 
 
+
 default: $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
+
+info:
+	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
+	@$(CC) --version
+	@printf "$(B_ON)$(FG_BLUE)MPI Flags$(RESET)\n"
+	@$(CC) -show
+	@printf "\n"
 
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)LINKING $(RESET)$@ \n" 
 	@mkdir -p bin/
-	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}
+	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB} -no-pie
 
 obj/test.cc.o: src/test.cc ${HDR_ALL}
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING $(RESET)$< \n" 
@@ -79,9 +87,10 @@ obj/%.cpp.o: src/%.cpp ${HDR}
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
-	@printf "$(B_ON)$(FG_CYAN)COMPILING $(RESET)$< \n" 
+	@printf "$(B_ON)$(FG_CYAN)COMPILING $(RESET)$@ \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+
 .PHONY: .FORCE
 
 
