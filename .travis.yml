@@ -1,15 +1,19 @@
 language: cpp
+compiler: gcc
+dist: trusty
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get install gcc-6 g++-6 -y
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60 --slave /usr/bin/g++ g++ /usr/bin/g++-6
-  - sudo update-alternatives --config gcc
   - sudo apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev 
   - alias g++=g++-6
   - bash .build.amrex.sh ${DIM} nodeghostcells
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update -qq
+
 
 install:
+  - sudo apt-get install -qq g++-6
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
   - bash .build.sh ${DIM}
 
 script:
