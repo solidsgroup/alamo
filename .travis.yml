@@ -5,7 +5,7 @@ before_install:
   - test -n $CXX && unset CXX
   - sudo apt-get update
   - sudo apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev
-  - bash .build.amrex.sh ${DIM}
+  - bash .build.amrex.sh ${DIM} nodeghostcells
 
 install:
   - bash .build.sh ${DIM}
@@ -14,5 +14,5 @@ script:
   - bash .test.sh ${DIM}
 
 env:
-  - DIM=one
-  - DIM=two
+  - DIM=1
+  - DIM=2
