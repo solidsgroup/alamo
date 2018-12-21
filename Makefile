@@ -35,7 +35,7 @@ METADATA_TIME     = $(shell date +%H:%M:%S)
 
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" 
 
-CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb -no-pie
+CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb 
 
 
 INCLUDE = $(if ${EIGEN}, -I${EIGEN})  $(if ${AMREX}, -I${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
@@ -69,7 +69,7 @@ info:
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)LINKING $(RESET)$@ \n" 
 	@mkdir -p bin/
-	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB} -no-pie
+	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB} 
 
 obj/test.cc.o: src/test.cc ${HDR_ALL}
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING $(RESET)$< \n" 
