@@ -16,7 +16,7 @@ public:
 	{
 		Util::Abort(INFO,"Spatially Varying C test is not implemented yet");
 		return std::numeric_limits<int>::max();	
-	}
+	};
 	
 private:
 
