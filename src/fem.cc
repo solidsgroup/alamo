@@ -336,8 +336,8 @@ int main (int argc, char* argv[])
 		amrex::Real tmpm = 1.0; pptest.query("m",tmpm);
 		int comp; pptest.query("comp",comp);
 
-		Set::Vector n(tmpn[0],tmpn[1]);
-		Set::Vector b(tmpb[0],tmpb[1]);
+		Set::Vector n(AMREX_D_DECL(tmpn[0],tmpn[1],tmpn[2]));
+		Set::Vector b(AMREX_D_DECL(tmpb[0],tmpb[1],tmpn[2]));
 		Set::Scalar alpha = tmpalpha;
 		Set::Scalar m = tmpm;
 		IC::Affine ic(geom,n,alpha,b,true,m);

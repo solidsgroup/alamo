@@ -656,36 +656,36 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 #endif
 #if AMREX_SPACEDIM == 3
 				crsefab(m_crse,i) =
-					fac1*(finefab(m_fine-dx-dy-dz,i) +
-					      finefab(m_fine-dx-dy+dz,i) +
-					      finefab(m_fine-dx+dy-dz,i) +
-					      finefab(m_fine-dx+dy+dz,i) +
-					      finefab(m_fine+dx-dy-dz,i) +
-					      finefab(m_fine+dx-dy+dz,i) +
-					      finefab(m_fine+dx+dy-dz,i) +
-					      finefab(m_fine+dx+dy+dz,i))
+					(finefab(m_fine-dx-dy-dz,i) +
+					 finefab(m_fine-dx-dy+dz,i) +
+					 finefab(m_fine-dx+dy-dz,i) +
+					 finefab(m_fine-dx+dy+dz,i) +
+					 finefab(m_fine+dx-dy-dz,i) +
+					 finefab(m_fine+dx-dy+dz,i) +
+					 finefab(m_fine+dx+dy-dz,i) +
+					 finefab(m_fine+dx+dy+dz,i)) / 64.0
 					+
-					fac2*(finefab(m_fine-dy-dz,i) +
-					      finefab(m_fine-dy+dz,i) +
-					      finefab(m_fine+dy-dz,i) +
-					      finefab(m_fine+dy+dz,i) +
-					      finefab(m_fine-dz-dx,i) +
-					      finefab(m_fine-dz+dx,i) +
-					      finefab(m_fine+dz-dx,i) +
-					      finefab(m_fine+dz+dx,i) +
-					      finefab(m_fine-dx-dy,i) +
-					      finefab(m_fine-dx+dy,i) +
-					      finefab(m_fine+dx-dy,i) +
-					      finefab(m_fine+dx+dy,i))
+					(finefab(m_fine-dy-dz,i) +
+					 finefab(m_fine-dy+dz,i) +
+					 finefab(m_fine+dy-dz,i) +
+					 finefab(m_fine+dy+dz,i) +
+					 finefab(m_fine-dz-dx,i) +
+					 finefab(m_fine-dz+dx,i) +
+					 finefab(m_fine+dz-dx,i) +
+					 finefab(m_fine+dz+dx,i) +
+					 finefab(m_fine-dx-dy,i) +
+					 finefab(m_fine-dx+dy,i) +
+					 finefab(m_fine+dx-dy,i) +
+					 finefab(m_fine+dx+dy,i)) / 32.0
 					+
-					fac3*(finefab(m_fine-dx,i) +
-					      finefab(m_fine-dy,i) +
-					      finefab(m_fine-dz,i) +
-					      finefab(m_fine+dx,i) +
-					      finefab(m_fine+dy,i) +
-					      finefab(m_fine+dz,i))
+					(finefab(m_fine-dx,i) +
+					 finefab(m_fine-dy,i) +
+					 finefab(m_fine-dz,i) +
+					 finefab(m_fine+dx,i) +
+					 finefab(m_fine+dy,i) +
+					 finefab(m_fine+dz,i)) / 16.0
 					+
-					fac4*finefab(m_fine,i);
+					finefab(m_fine,i) / 8.0;
 #endif
 			}
 		}
