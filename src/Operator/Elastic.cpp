@@ -677,20 +677,20 @@ Elastic<T>::reflux (int crse_amrlev,
 		//const FArrayBox &ufab = fine_sol[mfi];
 		//TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
 
-		for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-			for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-			{
-				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
-				
-				if (m1 == c_cc_domain.loVect()[0] ||
-				    m1 == c_cc_domain.hiVect()[0] ||
-				    m2 == c_cc_domain.loVect()[1] ||
-				    m2 == c_cc_domain.hiVect()[1])
-				 	continue;
-
-				for (int n = 0 ; n < ncomp; n++)
+#if AMREX_SPACEDIM == 1
+		Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
+#elif AMREX_SPACEDIM == 2
+		for (int n = 0 ; n < ncomp; n++)
+			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+				for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
 				{
+					amrex::IntVect m_crse(m1,  m2);
+					amrex::IntVect m_fine(m1*2,m2*2);
+					
+					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] ||
+					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1])
+						continue;
+
 					if ((m1 == bx.loVect()[0] && m2 == bx.loVect()[1]) || 
 					    (m1 == bx.loVect()[0] && m2 == bx.hiVect()[1]) ||
 					    (m1 == bx.hiVect()[0] && m2 == bx.loVect()[1]) ||
@@ -713,9 +713,94 @@ Elastic<T>::reflux (int crse_amrlev,
 							  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
 							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
 					}
-				}
+				
 
-			}
+				}
+#elif AMREX_SPACEDIM == 3
+		for (int n = 0 ; n < ncomp; n++)
+			for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
+				for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+					for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+					{
+						amrex::IntVect m_crse(m1,  m2,  m3  );
+						amrex::IntVect m_fine(m1*2,m2*2,m3*2);
+				
+						bool xmin = (m1 == bx.loVect()[0]) || (m1 == c_cc_domain.loVect()[0]);
+						bool xmax = (m1 == bx.hiVect()[0]) || (m1 == c_cc_domain.hiVect()[0]);
+						bool ymin = (m2 == bx.loVect()[1]) || (m2 == c_cc_domain.loVect()[1]);
+						bool ymax = (m2 == bx.hiVect()[1]) || (m2 == c_cc_domain.hiVect()[1]);
+						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
+						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2]);
+						
+						// Corners
+						if ((xmin && ymin && zmin) ||
+						    (xmin && ymin && zmax) ||
+						    (xmin && ymax && zmin) ||
+						    (xmin && ymax && zmax) ||
+						    (xmax && ymin && zmin) ||
+						    (xmax && ymin && zmax) ||
+						    (xmax && ymax && zmin) ||
+						    (xmax && ymax && zmax))
+							crse(m_crse,n) = fine(m_fine,n);
+						// X edges
+						else if ( (ymin && zmin) || (ymin && zmax) || (ymax && zmin) || (ymax && zmax) )
+							crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+						// Y edges
+						else if ( (zmin && zmin) || (zmin && xmax) || (zmax && xmin) || (zmax && xmax) )
+							crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+						// Z edges
+						else if ( (xmin && ymin) || (xmin && ymax) || (xmax && ymin) || (xmax && ymax) )
+							crse(m_crse,n) = (0.25*fine(m_fine-dx[2],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[2],n));
+						// YZ face (X=const)
+						else if ( xmin || xmax )
+							crse(m_crse,n) =
+								((+     fine(m_fine-dx[1]-dx[2],n) + 2.0*fine(m_fine-dx[2],n) +     fine(m_fine+dx[1]-dx[2],n)
+								  + 2.0*fine(m_fine-dx[1]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[1]      ,n) 
+								  +     fine(m_fine-dx[1]+dx[2],n) + 2.0*fine(m_fine+dx[2],n) +     fine(m_fine+dx[1]+dx[2],n))/16.0);
+						// ZX face (Y=const)
+						else if ( xmin || xmax )
+							crse(m_crse,n) =
+								((+     fine(m_fine-dx[2]-dx[0],n) + 2.0*fine(m_fine-dx[0],n) +     fine(m_fine+dx[2]-dx[2],n)
+								  + 2.0*fine(m_fine-dx[2]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[2]      ,n) 
+								  +     fine(m_fine-dx[2]+dx[0],n) + 2.0*fine(m_fine+dx[0],n) +     fine(m_fine+dx[2]+dx[2],n))/16.0);
+						// XY face (Z=const)
+						else if ( xmin || xmax )
+							crse(m_crse,n) =
+								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+
+						// Internal
+
+						else if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
+						{
+							crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+						}
+						else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
+						{
+							crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+						}
+						else
+						{
+							crse(m_crse,n) =
+								0.25*
+								((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
+								  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
+								  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+								+
+								0.5*
+								((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
+								  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
+								  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+								+
+								0.25*
+								((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
+								  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
+								  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+						}
+					}
+
+#endif		
 	}
 
 	// Copy the fine residual restricted onto the coarse grid
@@ -723,7 +808,7 @@ Elastic<T>::reflux (int crse_amrlev,
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
 	return;
 #else
-	Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
+	
 #endif
 
 }
