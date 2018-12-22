@@ -27,7 +27,8 @@ int main (int argc, char* argv[])
 
 	{
 		Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
-		failed += Util::Test::Message("RefluxTest", test.RefluxTest(2));
+		failed += Util::Test::Message("SpatiallyVaryingC Test", test.SpatiallyVaryingCTest(1));
+		//failed += Util::Test::Message("RefluxTest", test.RefluxTest(2));
 	}
 
 

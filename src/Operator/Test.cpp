@@ -1,7 +1,8 @@
 #include <AMReX.H>
-
+#include <AMReX_MLMG.H>
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Test.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
@@ -9,6 +10,280 @@
 
 namespace Operator
 {
+
+template<>
+int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::SpatiallyVaryingCTest(int verbose)
+{
+	int failed = 0;
+	using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+	model_type model(2.6,6.0);
+
+	amrex::Vector<amrex::Geometry>		geom;
+	amrex::Vector<amrex::BoxArray> 		ngrids,cgrids;
+	amrex::Vector<amrex::DistributionMapping>	dmap;
+
+	amrex::Vector<amrex::MultiFab> 	u;
+	amrex::Vector<amrex::MultiFab> 	rhs;
+	amrex::Vector<amrex::MultiFab> 	res;
+	amrex::Vector<amrex::MultiFab> 	stress;
+	amrex::Vector<amrex::MultiFab> 	strain;
+	amrex::Vector<amrex::MultiFab> 	energy;
+
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab;
+	std::map<std::string,Elastic<model_type>::BC > 			bc_map;
+	amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
+	amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
+	std::array<Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo);
+	std::array<Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi);
+
+	bc_map["displacement"] = 	Elastic<model_type>::BC::Displacement;
+	bc_map["disp"] = 			Elastic<model_type>::BC::Displacement;
+	bc_map["traction"] = 		Elastic<model_type>::BC::Traction;
+	bc_map["trac"] = 			Elastic<model_type>::BC::Traction;
+	bc_map["periodic"] = 		Elastic<model_type>::BC::Periodic;
+
+	AMREX_D_TERM(	bc_x_lo_str = {AMREX_D_DECL("disp", "disp", "disp")};
+					bc_x_hi_str = {AMREX_D_DECL("disp", "disp", "disp")};
+					,
+					bc_y_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
+					bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
+					,
+					bc_z_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
+					bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
+				);
+
+	AMREX_D_TERM(	bc_x_lo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]], bc_map[bc_x_lo_str[1]], bc_map[bc_x_lo_str[2]])};
+					bc_x_hi = {AMREX_D_DECL(bc_map[bc_x_hi_str[0]], bc_map[bc_x_hi_str[1]], bc_map[bc_x_hi_str[2]])};
+					,
+					bc_y_lo = {AMREX_D_DECL(bc_map[bc_y_lo_str[0]], bc_map[bc_y_lo_str[1]], bc_map[bc_y_lo_str[2]])};
+					bc_y_hi = {AMREX_D_DECL(bc_map[bc_y_hi_str[0]], bc_map[bc_y_hi_str[1]], bc_map[bc_y_hi_str[2]])};
+					,
+					bc_z_lo = {AMREX_D_DECL(bc_map[bc_z_lo_str[0]], bc_map[bc_z_lo_str[1]], bc_map[bc_z_lo_str[2]])};
+					bc_z_hi = {AMREX_D_DECL(bc_map[bc_z_hi_str[0]], bc_map[bc_z_hi_str[1]], bc_map[bc_z_hi_str[2]])};);
+
+	Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
+	Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
+
+	AMREX_D_TERM(	bc_left = {AMREX_D_DECL(0.,0.,0.)};
+					bc_right = {AMREX_D_DECL(1.,0.,0.)};,
+					bc_bottom = {AMREX_D_DECL(0.,0.,0.)};
+					bc_top = {AMREX_D_DECL(0.,0.,0.)};,
+					bc_back = {AMREX_D_DECL(0.,0.,0.)};
+					bc_front = {AMREX_D_DECL(0.,0.,0.)};
+				);
+
+
+	int n_cell = 16;
+ 	int nlevels = 0;
+	int ref_ratio = 2;
+	int max_grid_size = 100000;
+	Set::Vector body_force(AMREX_D_DECL(0.,-0.0001,0.));
+
+ 	
+ 	geom.resize(nlevels);	
+
+ 	ngrids.resize(nlevels);
+ 	cgrids.resize(nlevels);
+ 	dmap.resize(nlevels);
+
+ 	u.resize(nlevels);
+ 	res.resize(nlevels);
+ 	rhs.resize(nlevels);
+ 	stress.resize(nlevels);
+ 	strain.resize(nlevels);
+ 	energy.resize(nlevels);
+	modelfab.resize(nlevels);
+
+	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
+	amrex::Geometry::Setup(&rb, 0);
+
+	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
+			   amrex::IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
+			   amrex::IntVect::TheNodeVector());
+	amrex::Box CDomain = amrex::convert(NDomain, amrex::IntVect::TheCellVector());
+
+	amrex::Box domain = CDomain;
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		geom[ilev].define(domain);
+		domain.refine(ref_ratio);
+ 	}
+	amrex::Box cdomain = CDomain;
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+ 	{
+ 		cgrids[ilev].define(cdomain);
+ 		cgrids[ilev].maxSize(max_grid_size);
+ 		cdomain.refine(ref_ratio); 
+
+		ngrids[ilev] = cgrids[ilev];
+		ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
+	}
+
+	int number_of_components = AMREX_SPACEDIM;
+	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+ 		dmap   [ilev].define(cgrids[ilev]);
+ 		u       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 		res     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 		rhs     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 		stress     [ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, 1);
+ 		strain     [ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, 1);
+ 		energy     [ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+		modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+ 	}
+
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+ 	{
+ 		u[ilev].setVal(0.0);
+ 		res[ilev].setVal(0.0);
+ 		rhs[ilev].setVal(0.0);
+ 		stress[ilev].setVal(0.0);
+ 		strain[ilev].setVal(0.0);
+ 		energy[ilev].setVal(0.0);
+		modelfab[ilev].setVal(model);
+ 	}
+
+ 	LPInfo info;
+ 	info.setAgglomeration(1);
+ 	info.setConsolidation(1);
+ 	info.setMaxCoarseningLevel(0);
+ 	nlevels = geom.size();
+
+ 	std::vector<Set::Vector> normal = {{Set::Vector(AMREX_D_DECL(1.,0.,0.))}};
+ 	std::vector<Set::Vector> point = {{Set::Vector(AMREX_D_DECL(0.5,0.5,0.))}};
+ 	std::vector<Set::Scalar> value = {0.5};
+ 	std::vector<Set::Scalar> exponent = {1.};
+
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		for (amrex::MFIter mfi(modelfab[ilev],true); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box& box = mfi.tilebox();
+	 		amrex::BaseFab<model_type> &modelbox = (modelfab[ilev])[mfi];
+	 		AMREX_D_TERM(for (int i = box.loVect()[0]-1; i<=box.hiVect()[0]+1; i++),
+		 		     for (int j = box.loVect()[1]-1; j<=box.hiVect()[1]+1; j++),
+		 		     for (int k = box.loVect()[2]-1; k<=box.hiVect()[2]+1; k++))
+	 		{
+	 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
+	 			std::vector<Set::Vector> corners = {	{AMREX_D_DECL(geom[ilev].ProbLo()[0],geom[ilev].ProbLo()[1],geom[ilev].ProbLo()[2])},
+	 													{AMREX_D_DECL(geom[ilev].ProbHi()[0],geom[ilev].ProbLo()[1],geom[ilev].ProbLo()[2])}
+	 													#if AMREX_SPACEDIM > 1
+	 													,{AMREX_D_DECL(geom[ilev].ProbLo()[0],geom[ilev].ProbHi()[1],geom[ilev].ProbLo()[2])}
+	 													,{AMREX_D_DECL(geom[ilev].ProbHi()[0],geom[ilev].ProbHi()[1],geom[ilev].ProbLo()[2])}
+	 													#if AMREX_SPACEDIM > 2
+	 													,{AMREX_D_DECL(geom[ilev].ProbLo()[0],geom[ilev].ProbLo()[1],geom[ilev].ProbHi()[2])}
+	 													,{AMREX_D_DECL(geom[ilev].ProbHi()[0],geom[ilev].ProbLo()[1],geom[ilev].ProbHi()[2])}
+	 													,{AMREX_D_DECL(geom[ilev].ProbLo()[0],geom[ilev].ProbHi()[1],geom[ilev].ProbHi()[2])}
+	 													,{AMREX_D_DECL(geom[ilev].ProbHi()[0],geom[ilev].ProbHi()[1],geom[ilev].ProbHi()[2])}
+	 													#endif
+	 													#endif
+	 													};
+	 			Set::Scalar max_dist = 0.0;
+	 			AMREX_D_TERM(	amrex::Real x1 = geom[ilev].ProbLo()[0] + ((amrex::Real)(i)) * geom[ilev].CellSize()[0];,
+					     		amrex::Real x2 = geom[ilev].ProbLo()[1] + ((amrex::Real)(j)) * geom[ilev].CellSize()[1];,
+					     		amrex::Real x3 = geom[ilev].ProbLo()[2] + ((amrex::Real)(k)) * geom[ilev].CellSize()[2];);
+	 			
+	 			Set::Vector x(AMREX_D_DECL(x1,x2,x3));
+
+	 			for (std::vector<Set::Vector>::iterator corner = corners.begin(); corner != corners.end(); corner++)
+	 				max_dist = std::max (max_dist, (*corner-point[0]).dot(normal[0]));
+	 			
+	 			Set::Scalar dist = (x-point[0]).dot(normal[0]);
+	 			if(dist >= 0.0)
+	 				modelbox(m).DegradeModulus({value[0]*std::pow((dist/max_dist),exponent[0])});
+
+	 		}
+		}
+	}
+
+	Elastic<model_type> mlabec;
+	
+	mlabec.define(geom, cgrids, dmap, info);
+	mlabec.setMaxOrder(2);
+
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		const Real* DX = geom[ilev].CellSize();
+		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+
+		mlabec.SetModel(ilev,modelfab[ilev]);
+		AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
+					rhs[ilev].setVal(body_force[1]*volume,1,1);,
+					rhs[ilev].setVal(body_force[2]*volume,2,1););
+		for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
+		{
+		 	const amrex::Box& box = mfi.tilebox();
+
+		 	amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
+
+		 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+		 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+		 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+		 	{
+		 		bool AMREX_D_DECL(xmin = false, ymin = false, zmin = false);
+				bool AMREX_D_DECL(xmax = false, ymax = false, zmax = false);
+
+		 		AMREX_D_TERM(	xmin = (i == geom[ilev].Domain().loVect()[0]);
+		 						xmax = (i == geom[ilev].Domain().hiVect()[0]+1);
+		 						,
+		 						ymin = (j == geom[ilev].Domain().loVect()[1]);
+		 						ymax = (j == geom[ilev].Domain().hiVect()[1]+1);
+		 						,
+		 						zmin = (k == geom[ilev].Domain().loVect()[2]);
+		 						zmax = (k == geom[ilev].Domain().hiVect()[2]+1););
+		 	
+		 
+		 		if (false || AMREX_D_TERM(xmin || xmax, || ymin || ymax, || zmin || zmax))
+		 		{
+		 			AMREX_D_TERM(	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;,
+ 									rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,
+ 									rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),2) = 0.0;);
+		 			for(int l = 0; l<AMREX_SPACEDIM; l++)
+					{
+						AMREX_D_TERM(
+							if(xmin && bc_x_lo[l]==Elastic<model_type>::BC::Displacement)
+								rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = bc_left[l];
+							if(xmax && bc_x_hi[l]==Elastic<model_type>::BC::Displacement)
+								rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = bc_right[l];
+							,
+							if(ymin && bc_y_lo[l]==Elastic<model_type>::BC::Displacement)
+								rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = bc_bottom[l];
+							if(ymax && bc_y_hi[l]==Elastic<model_type>::BC::Displacement)
+								rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = bc_top[l];
+							,
+							if(zmin && bc_z_lo[l]==Elastic<model_type>::BC::Displacement)
+								rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = bc_back[l];
+							if(zmax && bc_z_hi[l]==Elastic<model_type>::BC::Displacement)
+								rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = bc_front[l];
+							);
+					}
+		 		}
+		 	}
+		}
+	}
+
+	amrex::MLMG solver(mlabec);
+	solver.setMaxIter(10000);
+	solver.setMaxFmgIter(10000);
+	solver.setVerbose(4);
+	solver.setCGVerbose(4);
+	solver.setBottomMaxIter(10000);
+	solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	
+	solver.solve(GetVecOfPtrs(u),
+		GetVecOfConstPtrs(rhs),
+		1E-8,
+		1E-8);
+
+	for (int lev = 0; lev < nlevels; lev++)
+	{
+		//mlabec.Strain(lev,strain[lev],displacement[lev]);
+		mlabec.Stress(lev,stress[lev],u[lev]);
+		mlabec.Energy(lev,energy[lev],u[lev]);
+	}
+	return 1;
+}
 
 template<>
 int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbose)
