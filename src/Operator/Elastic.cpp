@@ -648,8 +648,6 @@ Elastic<T>::reflux (int crse_amrlev,
 {
 	BL_PROFILE("Operator::Elastic::reflux()");
 
-#if AMREX_SPACEDIM == 2
-
 	int ncomp = AMREX_SPACEDIM;
 
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
@@ -769,17 +767,7 @@ Elastic<T>::reflux (int crse_amrlev,
 								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
 								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
 								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-
 						// Internal
-
-						else if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
-						{
-							crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
-						}
-						else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
-						{
-							crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
-						}
 						else
 						{
 							crse(m_crse,n) =
@@ -807,10 +795,6 @@ Elastic<T>::reflux (int crse_amrlev,
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
 	return;
-#else
-	
-#endif
-
 }
 
 template<class T>
