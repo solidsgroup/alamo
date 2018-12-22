@@ -656,6 +656,7 @@ Elastic<T>::reflux (int crse_amrlev,
  	//const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
 	//const Real* cDX = cgeom.CellSize();
 	//const Real* fDX = fgeom.CellSize();
+	
 
  	const BoxArray&            fba = fine_res.boxArray();
  	const DistributionMapping& fdm = fine_res.DistributionMap();
