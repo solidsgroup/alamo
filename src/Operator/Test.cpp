@@ -72,9 +72,9 @@ int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::Spatiall
 					bc_front = {AMREX_D_DECL(0.,0.,0.)};
 				);
 
-
+	
 	int n_cell = 16;
- 	int nlevels = 0;
+ 	int nlevels = 1;
 	int ref_ratio = 2;
 	int max_grid_size = 100000;
 	Set::Vector body_force(AMREX_D_DECL(0.,-0.0001,0.));
