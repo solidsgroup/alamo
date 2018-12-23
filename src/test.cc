@@ -21,17 +21,17 @@ int main (int argc, char* argv[])
 		failed += Util::Test::Message("MinorSymmetry2<Isotropic>", test.MinorSymmetry2(2));
 		failed += Util::Test::Message("MajorSymmetry<Isotropic>",  test.MajorSymmetry(2));
 	}
-	{
-		
-	}
-
 
 	{
-		//Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
-		Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> > test;
-		failed += Util::Test::Message("SpatiallyVaryingC Test", test.SpatiallyVaryingCTest(1));
-		//failed += Util::Test::Message("RefluxTest", test.RefluxTest(2));
+		Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
+		failed += Util::Test::Message("RefluxTest", test.RefluxTest(2));
 	}
+
+	/// \todo Don't include in test.cc until pass/fail is computed accurately.
+	// { 
+	// 	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> > test;
+	// 	failed += Util::Test::Message("SpatiallyVaryingC Test", test.SpatiallyVaryingCTest(1));
+	// }
 
 
 	Util::Message(INFO,failed," tests failed");
