@@ -9,11 +9,11 @@ before_install:
   - bash .build.amrex.sh ${DIM} nodeghostcells
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
   - sudo apt-get update -qq
-
-
-install:
   - sudo apt-get install -qq g++-6
   - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90
+  - export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/
+
+install:
   - bash .build.sh ${DIM}
 
 script:
