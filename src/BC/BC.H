@@ -38,7 +38,7 @@ public:
 
 	virtual void FillBoundary (amrex::MultiFab& mf,
 				   int dcomp, int ncomp,
-				   amrex::Real time) override
+				   amrex::Real time, int /*bccomp*/) override
 	{
 		mf.FillBoundary(m_geom.periodicity());
 		for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)

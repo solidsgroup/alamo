@@ -460,7 +460,7 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 	
 	if (mglev==0 && bc_mode == BCMode::Inhomogeneous) 
 	{
-		m_bc->FillBoundary(in,0,0,0.0);
+		m_bc->FillBoundary(in,0,0,0.0,0);
 		auto *nonconst_this = const_cast<Operator*>(this);
 		nonconst_this->setLevelBC(amrlev,&in);
 	}

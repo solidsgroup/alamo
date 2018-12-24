@@ -91,7 +91,7 @@ void Finalize()
 {
 	std::string filename = GetFileName();
 	if (filename != "")
-		IO::WriteMetaData(filename,IO::Status::Complete);
+	 	IO::WriteMetaData(filename,IO::Status::Complete);
 	amrex::Finalize();
 }
 
