@@ -224,7 +224,7 @@ Integrator::FillPatch (int lev, Real time,
 					    icomp,			// dcomp - Destination component
 					    destination_mf.nComp(),	// ncomp - Number of components
 					    geom[lev],			// Geometry (CONST)
-					    physbc);			// BC
+					    physbc, 0);			// BC
 	} 
 	else
 	{
@@ -244,9 +244,10 @@ Integrator::FillPatch (int lev, Real time,
 		amrex::ParallelDescriptor::Barrier();
 		amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
 					  0, icomp, destination_mf.nComp(), geom[lev-1], geom[lev],
-					  physbc, physbc,
+					  physbc, 0,
+					  physbc, 0,
 					  refRatio(lev-1),
-					  mapper, bcs);
+					  mapper, bcs, 0);
 		amrex::ParallelDescriptor::Barrier();
 	}
 }
@@ -275,9 +276,10 @@ Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
     
 	amrex::Vector<BCRec> bcs(ncomp, physbc.GetBCRec());
 	amrex::InterpFromCoarseLevel(*mf[lev], time, *cmf[0], 0, icomp, ncomp, geom[lev-1], geom[lev],
-				     physbc, physbc,
+				     physbc, 0,
+				     physbc, 0,
 				     refRatio(lev-1),
-				     mapper, bcs);
+				     mapper, bcs, 0);
 }
  
 void
@@ -325,7 +327,7 @@ Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 		// if (physbc_array[n]) // NO PROBLEM
 		// {
 		physbc_array[n]->define(geom[lev]);
-		physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t);
+		physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t,0);
 		// }
 
 	}

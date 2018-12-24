@@ -440,6 +440,6 @@ int main (int argc, char* argv[])
 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	
 
-	Util::Finalize();
+	//Util::Finalize();
 
 }
