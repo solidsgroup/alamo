@@ -99,6 +99,8 @@ public:
 	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fapply(amrlev,mglev,out,in);}
 
+	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
+
 	inline Set::Vector apply (int amrlev, int mglev,
 				  const amrex::FArrayBox &ufab,
 				  TArrayBox &C,
