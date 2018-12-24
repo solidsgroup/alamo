@@ -68,6 +68,7 @@ public :
 	{Fapply(amrlev, mglev, out, in);};
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fsmooth(amrlev,mglev,out,in);};
+	virtual void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const = 0;
 
 	virtual void PrepareForSolve () {prepareForSolve();};
 

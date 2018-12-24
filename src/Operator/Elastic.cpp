@@ -409,6 +409,28 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 }
 
 
+template<class T>
+void
+Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const
+{
+	int ncomp = x.nComp();//getNComp();
+	int nghost = x.nGrow();
+
+	if (!m_diagonal_computed)
+		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
+
+	amrex::MultiFab D0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab AD0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+
+	amrex::MultiFab::Copy(D0x,x,0,0,ncomp,nghost); // D0x = x
+	amrex::MultiFab::Divide(D0x,*m_diag[amrlev][mglev],0,0,ncomp,0); // D0x = x/diag
+	amrex::MultiFab::Copy(AD0x,D0x,0,0,ncomp,nghost); // AD0x = D0x
+
+	Fapply(amrlev,mglev,AD0x,D0x);	// AD0x = A * D0 * x
+	
+	amrex::MultiFab::Copy(R0x,x,0,0,ncomp,nghost); // R0x = x
+	amrex::MultiFab::Subtract(R0x,AD0x,0,0,ncomp,nghost); // R0x = x - AD0x
+}
 
 
 template<class T>
