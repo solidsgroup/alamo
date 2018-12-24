@@ -7,11 +7,7 @@
 #include "Set/Set.H"
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
-
 #include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/Cubic.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-#include "Model/Solid/Viscoelastic/Isotropic.H"
 
 using namespace amrex;
 
@@ -68,6 +64,8 @@ class Elastic : public Operator
 public:
 	enum class BC {Displacement, Traction, Periodic}; 
 
+	enum class Boundary {Lo, Hi, None};
+
 	Elastic () {}
 	Elastic (const Vector<Geometry>& a_geom,
 		 const Vector<BoxArray>& a_grids,
@@ -85,15 +83,36 @@ public:
 		     const LPInfo& a_info = LPInfo(),
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
+
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
-	void Strain (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
+	void Strain (int amrlev, amrex::MultiFab& epsfab, const amrex::MultiFab& ufab, bool voigt = false) const;
 	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
 	{m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;};
+
+	void Reflux(int crse_amrlev,
+		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs)
+	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
+	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
+	{Fapply(amrlev,mglev,out,in);}
+
 	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
+	inline Set::Vector apply (int amrlev, int mglev,
+				  const amrex::FArrayBox &ufab,
+				  TArrayBox &C,
+				  const amrex::IntVect &m) const;
+	
+	inline Set::Matrix flux (int amrlev, int mglev,
+				 const amrex::FArrayBox &ufab,
+				 TArrayBox &C,
+				 const amrex::IntVect &m,
+				 std::array<Boundary,AMREX_SPACEDIM>) const;
+
+	void SetTesting(bool a_testing) {m_testing = a_testing;}
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
@@ -116,9 +135,9 @@ protected:
 	///    Restriction takes place only on the interior nodes.
 	///    In 2D the restriction scheme is:
 	///    \f{eqnarray*}{	
-	///       res_{c}(I,J) &=& 4\,res_f(i,j) \\
-	///                    &+& 2\,\Big[res_f(i+1,j) + res_f(i-1,j) + res_f(i,j+1) + res_f(i,j-1)\Big] \\
-	///                    &+& \Big[res_f(i+1,j+1) + res_f(i+1,j-1) + res_f(i-1,j+1) + res_f(i-1,j-1)\Big]
+	///       res_{c}(I,J)    &=& 4\,res_f(i,j) 
+	///                    \\ &+& 2\,\Big[res_f(i+1,j) + res_f(i-1,j) + res_f(i,j+1) + res_f(i,j-1)\Big] 
+	///                    \\ &+& \Big[res_f(i+1,j+1) + res_f(i+1,j-1) + res_f(i-1,j+1) + res_f(i-1,j-1)\Big]
 	///    \f}
 	///
 
@@ -158,6 +177,8 @@ private:
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 
 	void FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom);
+
+	bool m_testing = false;
 
 };
 }

@@ -30,8 +30,8 @@ public:
 		for(int i = 0; i < relaxation_times.size(); i++)
 			e += youngs_modulus[i];
 		
-		Set::Scalar lambda = e*nu/((1.0+nu)*(1-2*nu));
-		Set::Scalar mu = e/(2.0*(1.0+nu));
+		lambda = e*nu/((1.0+nu)*(1-2*nu));
+		mu = e/(2.0*(1.0+nu));
 	}
 
 	Isotropic(Set::Scalar _lambda, Set::Scalar _mu): lambda(_lambda), mu(_mu){};

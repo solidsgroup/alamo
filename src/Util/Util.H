@@ -117,7 +117,9 @@ void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
 
 namespace Test
 {
-int Message(std::string testname, bool passed = false);
+int Message(std::string testname);
+int Message(std::string testname, int passed);
+int SubMessage(std::string testname, int passed);
 }
 
 

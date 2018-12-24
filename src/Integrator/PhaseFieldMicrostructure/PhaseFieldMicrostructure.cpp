@@ -489,7 +489,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			FArrayBox &ufab  = (*displacement[lev])[mfi];
 			FArrayBox &epsfab  = (*strain[lev])[mfi];
 			FArrayBox &sigmafab  = (*stress[lev])[mfi];
-			FArrayBox &energyfab  = (*energy[lev])[mfi];
+			//FArrayBox &energyfab  = (*energy[lev])[mfi];
 			FArrayBox &energiesfab  = (*energies[lev])[mfi];
 			FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
 

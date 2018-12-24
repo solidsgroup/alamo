@@ -17,13 +17,6 @@ void Operator::Diagonal (bool recompute)
 	if ( !recompute && m_diagonal_computed ) return;
 	m_diagonal_computed = true;
 
-	int ncomp = getNComp();
-	int nghost = 0;
-
-	int sep = 2;
-	int num = AMREX_D_TERM(sep,*sep,*sep);
-	int cntr = 0;
-
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
@@ -71,7 +64,7 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 				{
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 				
-					if ( AMREX_D_TERM(m1%sep == i/sep ,  &&   m2%sep == i%sep, )) xfab(m,n) = 1.0;
+					if ( m1%sep == i/sep   &&   m2%sep == i%sep ) xfab(m,n) = 1.0;
 					else xfab(m,n) = 0.0;
 				}
 				//BL_PROFILE_VAR_STOP(part1);
@@ -160,15 +153,14 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
-	
-	bool debug = false;
 	//Util::Message(INFO);
-	
-	int ncomp = x.nComp();
+	bool debug = false;		// Enable this for inverse approximation
+
+	int ncomp = getNComp();
 	int nghost = 1; //x.nGrow();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
-	const Real* DX = m_geom[amrlev][mglev].CellSize();
+	//const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
@@ -176,21 +168,16 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	if(debug)
 	{
 		// We are trying to do a first order inverse correction here.
-		//Util::Message(INFO);
 		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 		xtemp.setVal(0.0);
-		//Util::Message(INFO);
 		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,0); // xtemp = x
-		//Util::Message(INFO);
 		amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 		R0x.setVal(0,0);
 		Error0x(amrlev,mglev,R0x,xtemp); 	// R0x = R0 * x = (I - A D0) * x
-		//Util::Message(INFO);
 		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0);
 	}
-	amrex::MultiFab::Divide(x,*m_diag[amrlev][mglev],0,0,ncomp,0);
 
-	/*for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
 		amrex::FArrayBox       &xfab    = x[mfi];
@@ -206,7 +193,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 				xfab(m,n) /= diagfab(m,n);
 			}
 		}
-	}*/
+	}
 }
 
 
@@ -235,10 +222,10 @@ bool Operator::VerificationCheck (int amrlev,
 		amrex::FArrayBox	&Axfab   = Ax[mfi];
 
 		// Random point on inside
-		AMREX_D_TERM(	int pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);,
-						int pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);,
-						int pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]); );
-		std::cout << "Point inside = (" << AMREX_D_TERM(pointX <<, ", " << pointY <<, ", " << pointZ <<) ")" << std::endl;
+		int pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		int pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		int pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point inside = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
@@ -253,10 +240,10 @@ bool Operator::VerificationCheck (int amrlev,
 		}
 
 		// Random point on left face
-		AMREX_D_TERM(	pointX = bx.loVect()[0];,
-						pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);,
-						pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]););
-		std::cout << "Point inside = (" << AMREX_D_TERM(pointX <<, ", " << pointY <<, ", " << pointZ <<) ")" << std::endl;
+		pointX = bx.loVect()[0];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point left = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
@@ -271,10 +258,10 @@ bool Operator::VerificationCheck (int amrlev,
 		}
 
 		// Random point on the right face
-		AMREX_D_TERM(	pointX = bx.hiVect()[0];,
-						pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);,
-						pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]););
-		std::cout << "Point inside = (" << AMREX_D_TERM(pointX <<, ", " << pointY <<, ", " << pointZ <<) ")" << std::endl;
+		pointX = bx.hiVect()[0];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point right = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
@@ -286,10 +273,10 @@ bool Operator::VerificationCheck (int amrlev,
 			Axfab.setVal(0.0);
 		}
 		// Random point on bottom face
-		AMREX_D_TERM(	pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);,
-						pointY = bx.loVect()[1];,
-						pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]););
-		std::cout << "Point inside = (" << AMREX_D_TERM(pointX <<, ", " << pointY <<, ", " << pointZ <<) ")" << std::endl;
+		pointY = bx.loVect()[1];
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point bottom = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
@@ -304,10 +291,10 @@ bool Operator::VerificationCheck (int amrlev,
 		}
 
 		// Random point on the top face
-		AMREX_D_TERM(	pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);,
-						pointY = bx.hiVect()[1];,
-						pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]););
-		std::cout << "Point inside = (" << AMREX_D_TERM(pointX <<, ", " << pointY <<, ", " << pointZ <<) ")" << std::endl;
+		pointY = bx.hiVect()[1];
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
+		std::cout << "Point top = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
@@ -321,10 +308,10 @@ bool Operator::VerificationCheck (int amrlev,
 			Axfab.setVal(0.0);
 		}
 		// Random point on back face
-		AMREX_D_TERM(	pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);,
-						pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);,
-						pointZ = bx.loVect()[2];);
-		std::cout << "Point inside = (" << AMREX_D_TERM(pointX <<, ", " << pointY <<, ", " << pointZ <<) ")" << std::endl;
+		pointZ = bx.loVect()[2];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
@@ -339,10 +326,10 @@ bool Operator::VerificationCheck (int amrlev,
 		}
 
 		// Random point on the front face
-		AMREX_D_TERM(	pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);,
-						pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);,
-						pointZ = bx.hiVect()[2];);
-		std::cout << "Point inside = (" << AMREX_D_TERM(pointX <<, ", " << pointY <<, ", " << pointZ <<) ")" << std::endl;
+		pointZ = bx.hiVect()[2];
+		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
+		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
+		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
 		for (int i = 0; i < ncomp; i++)
 		{
 			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
@@ -383,7 +370,6 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 		const Vector<FabFactory<FArrayBox> const*>& a_factory)
  {
 	 BL_PROFILE("Operator::~Operator()");
-	 Util::Message(INFO);
 
 	 // Make sure we're not trying to parallelize in vain.
 	 if (amrex::ParallelDescriptor::NProcs() > a_grids[0].size())
@@ -406,9 +392,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	 m_diag.resize(m_num_amr_levels);
 	 for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	 {
-		 Util::Message(INFO,amrlev);
 		 m_diag[amrlev].resize(m_num_mg_levels[amrlev]);
-		 Util::Message(INFO,amrlev);
 
 		 for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		 {
@@ -420,9 +404,9 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 
 
 void
-Operator::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>& vel,
-		   const Vector<const MultiFab*>& rhnd,
-		   const Vector<MultiFab*>& a_rhcc)
+Operator::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*vel*/,
+		   const Vector<const MultiFab*>& /*rhnd*/,
+		   const Vector<MultiFab*>& /*a_rhcc*/)
 {
 	//Util::Message(INFO);
 	Util::Abort(INFO, "compRHS not implemented");
@@ -434,7 +418,6 @@ void
 Operator::buildMasks ()
 {
 	BL_PROFILE("Operator::buildMasks()");
-	Util::Message(INFO);
 
 	if (m_masks_built) return;
 
@@ -442,8 +425,8 @@ Operator::buildMasks ()
 	m_masks_built = true;
 
 	m_is_bottom_singular = false;
-	auto itlo = std::find(m_lobc.begin(), m_lobc.end(), BCType::Dirichlet);
-	auto ithi = std::find(m_hibc.begin(), m_hibc.end(), BCType::Dirichlet);
+	// auto itlo = std::find(m_lobc.begin(), m_lobc.end(), BCType::Dirichlet);
+	// auto ithi = std::find(m_hibc.begin(), m_hibc.end(), BCType::Dirichlet);
 
 #ifdef _OPENMP
 #pragma omp parallel
@@ -459,7 +442,7 @@ Operator::buildMasks ()
 				const Geometry& geom = m_geom[amrlev][mglev];
 				const auto& period = geom.periodicity();
 				const Box& ccdomain = geom.Domain();
-				const Box& nddomain = amrex::surroundingNodes(ccdomain);
+				//const Box& nddomain = amrex::surroundingNodes(ccdomain);
 				const std::vector<IntVect>& pshifts = period.shiftIntVect();
 
 				Box ccdomain_p = ccdomain;
@@ -478,7 +461,7 @@ Operator::buildMasks ()
 						const Box& ndbx = mfi.validbox();
 						const Box& ccbx = amrex::enclosedCells(ndbx);
 						const Box& ccbxg1 = amrex::grow(ccbx,1);
-						IArrayBox& mskfab = dmask[mfi];
+						//IArrayBox& mskfab = dmask[mfi];
                         
 						ccfab.resize(ccbxg1);
 						ccfab.setVal(1);
@@ -493,10 +476,10 @@ Operator::buildMasks ()
 							}
 						}
                         
-						amrex_mlndlap_set_dirichlet_mask(BL_TO_FORTRAN_ANYD(mskfab),
-										 BL_TO_FORTRAN_ANYD(ccfab),
-										 BL_TO_FORTRAN_BOX(nddomain),
-										 m_lobc.data(), m_hibc.data());
+						// amrex_mlndlap_set_dirichlet_mask(BL_TO_FORTRAN_ANYD(mskfab),
+						// 				 BL_TO_FORTRAN_ANYD(ccfab),
+						// 				 BL_TO_FORTRAN_BOX(nddomain),
+						// 				 m_lobc.data(), m_hibc.data());
 					}
 				}
 			}
@@ -599,7 +582,7 @@ Operator::buildMasks ()
 
 
 void
-Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
+Operator::fixUpResidualMask (int /*amrlev*/, iMultiFab& /*resmsk*/)
 {
 	BL_PROFILE("Operator::fixUpResidualMask()");
 	Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
@@ -631,12 +614,9 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	BL_PROFILE("Operator::restriction()");
 	Util::Message(INFO);
 
-	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in fine");
-	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (beginning) - nan or inf detected in crse");
-
 	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
 
-	const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][cmglev].Domain());
+	//const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][cmglev].Domain());
 
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
@@ -648,10 +628,10 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
 	// C++ version of Fortran (amrex_mlndlap_restriction)
-	Set::Scalar fac1 = 1.0/64.0;
-	Set::Scalar fac2 = 1.0/32.0;
-	Set::Scalar fac3 = 1.0/16.0; 
-	Set::Scalar fac4 = 1.0/8.0;
+	// Set::Scalar fac1 = 1.0/64.0;
+	// Set::Scalar fac2 = 1.0/32.0;
+	// Set::Scalar fac3 = 1.0/16.0; 
+	// Set::Scalar fac4 = 1.0/8.0;
 	amrex::Box domain(m_geom[amrlev][cmglev].Domain());
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
@@ -690,36 +670,36 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 #endif
 #if AMREX_SPACEDIM == 3
 				crsefab(m_crse,i) =
-					fac1*(finefab(m_fine-dx-dy-dz,i) +
-					      finefab(m_fine-dx-dy+dz,i) +
-					      finefab(m_fine-dx+dy-dz,i) +
-					      finefab(m_fine-dx+dy+dz,i) +
-					      finefab(m_fine+dx-dy-dz,i) +
-					      finefab(m_fine+dx-dy+dz,i) +
-					      finefab(m_fine+dx+dy-dz,i) +
-					      finefab(m_fine+dx+dy+dz,i))
+					(finefab(m_fine-dx-dy-dz,i) +
+					 finefab(m_fine-dx-dy+dz,i) +
+					 finefab(m_fine-dx+dy-dz,i) +
+					 finefab(m_fine-dx+dy+dz,i) +
+					 finefab(m_fine+dx-dy-dz,i) +
+					 finefab(m_fine+dx-dy+dz,i) +
+					 finefab(m_fine+dx+dy-dz,i) +
+					 finefab(m_fine+dx+dy+dz,i)) / 64.0
 					+
-					fac2*(finefab(m_fine-dy-dz,i) +
-					      finefab(m_fine-dy+dz,i) +
-					      finefab(m_fine+dy-dz,i) +
-					      finefab(m_fine+dy+dz,i) +
-					      finefab(m_fine-dz-dx,i) +
-					      finefab(m_fine-dz+dx,i) +
-					      finefab(m_fine+dz-dx,i) +
-					      finefab(m_fine+dz+dx,i) +
-					      finefab(m_fine-dx-dy,i) +
-					      finefab(m_fine-dx+dy,i) +
-					      finefab(m_fine+dx-dy,i) +
-					      finefab(m_fine+dx+dy,i))
+					(finefab(m_fine-dy-dz,i) +
+					 finefab(m_fine-dy+dz,i) +
+					 finefab(m_fine+dy-dz,i) +
+					 finefab(m_fine+dy+dz,i) +
+					 finefab(m_fine-dz-dx,i) +
+					 finefab(m_fine-dz+dx,i) +
+					 finefab(m_fine+dz-dx,i) +
+					 finefab(m_fine+dz+dx,i) +
+					 finefab(m_fine-dx-dy,i) +
+					 finefab(m_fine-dx+dy,i) +
+					 finefab(m_fine+dx-dy,i) +
+					 finefab(m_fine+dx+dy,i)) / 32.0
 					+
-					fac3*(finefab(m_fine-dx,i) +
-					      finefab(m_fine-dy,i) +
-					      finefab(m_fine-dz,i) +
-					      finefab(m_fine+dx,i) +
-					      finefab(m_fine+dy,i) +
-					      finefab(m_fine+dz,i))
+					(finefab(m_fine-dx,i) +
+					 finefab(m_fine-dy,i) +
+					 finefab(m_fine-dz,i) +
+					 finefab(m_fine+dx,i) +
+					 finefab(m_fine+dy,i) +
+					 finefab(m_fine+dz,i)) / 16.0
 					+
-					fac4*finefab(m_fine,i);
+					finefab(m_fine,i) / 8.0;
 #endif
 			}
 		}
@@ -734,10 +714,10 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 }
 
 void
-Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
+Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	
+	Util::Message(INFO,"Not yet implemented");
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -769,9 +749,9 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 			
 			for (int i=0; i<crse.nComp(); i++)
 			{
-				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
-					     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
-					     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
+				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]-1; m1<=fine_bx.hiVect()[0]+1; m1++),
+					     for (int m2 = fine_bx.loVect()[1]-1; m2<=fine_bx.hiVect()[1]+1; m2++),
+					     for (int m3 = fine_bx.loVect()[2]-1; m3<=fine_bx.hiVect()[2]+1; m3++))
 				{
 					amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
 					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
@@ -832,7 +812,7 @@ Operator::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab&
 }
 
 void
-Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
+Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
 				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");

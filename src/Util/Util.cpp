@@ -34,9 +34,9 @@ std::string GetFileName()
 		{
 			pp.query("plot_file", filename);
 		}
-		else
-			if (amrex::ParallelDescriptor::IOProcessor())
-				Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
+		// else
+		// 	if (amrex::ParallelDescriptor::IOProcessor())
+		// 		Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
 	}
 	return filename;
 }
@@ -50,7 +50,8 @@ void SignalHandler(int s)
 		if (s == SIGSEGV) status = IO::Status::Segfault;
 		else if (s == SIGINT) status = IO::Status::Interrupt;
 		if (s == SIGABRT) status = IO::Status::Abort;
-		IO::WriteMetaData(filename,status);
+		if (filename != "")
+			IO::WriteMetaData(filename,status);
 	}
 
 	amrex::BLBackTrace::handler(s);
@@ -61,11 +62,11 @@ void Initialize (int argc, char* argv[])
 {
 	srand (time(NULL));
 
-	if (argc < 2)
-	{
-		std::cout << "No plot file specified!" << std::endl;
-		exit(-1);
-	}
+	// if (argc < 2)
+	// {
+	// 	std::cout << "No plot file specified!" << std::endl;
+	// 	exit(-1);
+	// }
 
 	amrex::Initialize(argc, argv);
 
@@ -79,7 +80,7 @@ void Initialize (int argc, char* argv[])
 
 	std::string filename = GetFileName();
 
-	if (amrex::ParallelDescriptor::IOProcessor())
+	if (amrex::ParallelDescriptor::IOProcessor() && filename != "")
 	{
 		Util::CreateCleanDirectory(filename, false);
 		IO::WriteMetaData(filename);
@@ -89,7 +90,8 @@ void Initialize (int argc, char* argv[])
 void Finalize()
 {
 	std::string filename = GetFileName();
-	IO::WriteMetaData(filename,IO::Status::Complete);
+	if (filename != "")
+		IO::WriteMetaData(filename,IO::Status::Complete);
 	amrex::Finalize();
 }
 
@@ -220,12 +222,18 @@ Set::Scalar Random()
 
 namespace Test
 {
-int Message(std::string testname, bool passed)
+int Message(std::string testname)
+{
+	std::cout << std::left
+		  << Color::FG::White << Color::Bold << testname << Color::Reset << std::endl;
+	return 0;
+}
+int Message(std::string testname, int failed)
 {
 	winsize w;
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 	std::stringstream ss;
-	if (passed)
+	if (!failed)
 		ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
 	else
 		ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
@@ -233,9 +241,24 @@ int Message(std::string testname, bool passed)
 	std::cout << std::left
 		  << Color::FG::White << Color::Bold << testname << Color::Reset
 		  << std::setw(w.ws_col - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
-	if (passed) return 0;
-	else return 1;
+	return failed;
 }
+int SubMessage(std::string testname, int failed)
+{
+	winsize w;
+	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+	std::stringstream ss;
+	if (!failed)
+		ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
+	else
+		ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
+
+	std::cout << std::left
+		  << Color::FG::White << Color::Bold << "    " + testname << Color::Reset
+		  << std::setw(w.ws_col - ( testname.size() + 4) + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+	return failed;
+}
+
 }
 
 

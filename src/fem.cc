@@ -20,6 +20,8 @@
 #include "IO/FileNameParse.H"
 #include "IC/Eigenstrain/Sphere.H"
 #include "IC/Affine.H"
+#include "IC/Random.H"
+#include "IC/Trig.H"
 #include "BC/Constant.H"
 
 using namespace amrex;
@@ -27,7 +29,6 @@ using namespace amrex;
 int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
-
 	// Set::Matrix R;
 	// R = Eigen::AngleAxisd(30, Set::Vector::UnitZ())*
 	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
@@ -82,7 +83,6 @@ int main (int argc, char* argv[])
 	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_z_lo = {AMREX_D_DECL(bc[bc_z_lo_str[0]], bc[bc_z_lo_str[1]], bc[bc_z_lo_str[2]])};
 	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> bc_z_hi = {AMREX_D_DECL(bc[bc_z_hi_str[0]], bc[bc_z_hi_str[1]], bc[bc_z_hi_str[2]])};
 #endif
-
 	// Read in solver parameters
 	ParmParse pp_solver("solver");
 	std::string bottom_solver = "cg";     pp_solver.query("bottom_solver",bottom_solver);      
@@ -162,16 +162,16 @@ int main (int argc, char* argv[])
 	amrex::ParmParse pptest("test");
 	std::string orientation; pptest.query("orientation",orientation);
 	Util::Message(INFO,"ORIENTATION = [",orientation,"]");
-	Box cdomain = CDomain, ndomain = NDomain;
+	Box cdomain = CDomain;//, ndomain = NDomain;
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			cgrids[ilev].define(cdomain);
 			cgrids[ilev].maxSize(max_grid_size);
-			if (orientation == "h")
-				cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
-			else if (orientation == "v")
-				cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
-			//cdomain.grow(-n_cell/4); 
+			// if (orientation == "h")
+			//cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
+			// else if (orientation == "v")
+			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
+			cdomain.grow(-n_cell/4); 
 
 			//cdomain.growLo(0,-n_cell/2); 
 			//cdomain.growLo(1,-n_cell/2); 
@@ -188,8 +188,7 @@ int main (int argc, char* argv[])
 
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	Util::Message(INFO,"Need to reduce number of ghost cells!");
-	int number_of_ghost_cells = 1; // \todo Reduce number of ghost cells to 0 |||| or not? 
+	int number_of_ghost_cells = 1; 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			dmap   [ilev].define(cgrids[ilev]);
@@ -221,13 +220,10 @@ int main (int argc, char* argv[])
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			const Real* dx = geom[ilev].CellSize();
-			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
-			
- 			AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
-				     rhs[ilev].setVal(body_force[1]*volume,1,1);,
-			 	     rhs[ilev].setVal(body_force[2]*volume,2,1);)
+ 			AMREX_D_TERM(rhs[ilev].setVal(body_force[0],0,1);,
+				     rhs[ilev].setVal(body_force[1],1,1);,
+			 	     rhs[ilev].setVal(body_force[2],2,1);)
 
 			u[ilev].setVal(0.0);
 			stress[ilev].setVal(0.0);
@@ -329,50 +325,36 @@ int main (int argc, char* argv[])
 	///
 
 
-	int test_on = 5; pptest.query("on",test_on);
-	amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
-	amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
-	amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
-	int comp; pptest.query("comp",comp);
+	{
+		int test_on = 5; pptest.query("on",test_on);
+		std::string testtype = "random"; pptest.query("type",testtype);
+		amrex::Vector<amrex::Real> tmpn; pptest.queryarr("n",tmpn);
+		amrex::Vector<amrex::Real> tmpb; pptest.queryarr("b",tmpb);
+		amrex::Real tmpalpha; pptest.query("alpha",tmpalpha);
+		amrex::Real tmpm = 1.0; pptest.query("m",tmpm);
+		int comp; pptest.query("comp",comp);
 
-	if (test_on == 0)
-	{
-		mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
-	}
-	else
-	{
+		Set::Vector n(AMREX_D_DECL(tmpn[0],tmpn[1],tmpn[2]));
+		Set::Vector b(AMREX_D_DECL(tmpb[0],tmpb[1],tmpn[2]));
 		Set::Scalar alpha = tmpalpha;
-		//Set::Vector n(1.0,1.0); Set::Vector b(0.5,0.0);
-		Set::Vector n(tmpn[0],tmpn[1]);
-		Set::Vector b(tmpb[0],tmpb[1]);
+		Set::Scalar m = tmpm;
+		IC::Affine ic(geom,n,alpha,b,true,m);
+		//IC::Trig ic(geom);
+		ic.SetComp(0);
+		for (int ilev = 0; ilev < nlevels; ilev++) ic.Initialize(ilev,u);
 
-		Util::Message(INFO,"alpha=",alpha);
-		Util::Message(INFO,"n=",n.transpose());
-		Util::Message(INFO,"b=",b.transpose());
-		Util::Message(INFO,"comp=",comp);
+		if (test_on)
+			mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
-
-		IC::Affine affine(geom,n,alpha,b,true);
-		u[0].setVal(0.0);
-		u[1].setVal(0.0);
-		rhs[0].setVal(0.0);
-		rhs[1].setVal(0.0);
-
-		if (comp == 0) {affine.SetComp(0); affine.Initialize(0,u); affine.Initialize(1,u);}
-		if (comp == 1) {affine.SetComp(1); affine.Initialize(0,u); affine.Initialize(1,u);}
-
-		mlabec.FApply(0,0,rhs[0],u[0]);
-		mlabec.FApply(1,0,rhs[1],u[1]);
-
-		res[0].setVal(0.0);
-		res[1].setVal(0.0);
+		for (int ilev = 0; ilev < nlevels; ilev++) mlabec.FApply(ilev,0,res[ilev],u[ilev]);
+		
+		for (int ilev = 0; ilev < nlevels; ilev++) res[ilev].minus(rhs[ilev], 0, 2, 0);
 
 		mlabec.BuildMasks();
-		mlabec.Reflux(0,
-			      res[0], u[0], rhs[0],
-			      res[1], u[1], rhs[1]);
-	}
+
+		for (int ilev = nlevels-1; ilev > 0; ilev--) mlabec.Reflux(0, res[ilev-1], u[ilev-1], rhs[ilev-1], res[ilev], u[ilev], rhs[ilev]);
 	
+	}
 
 
 	// 	mlabec.FSmooth(0,0,u[0],rhs[0]);
@@ -452,11 +434,12 @@ int main (int argc, char* argv[])
 	IO::WriteMetaData(plot_file);
 
 	pptest.query("nlevels",nlevels);
-	Util::Warning(INFO,"TODO: change nlevels back!");// nlevels=1;
+	//Util::Warning(INFO,"TODO: change nlevels back!"); nlevels=1;
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	
 
 	Util::Finalize();
+
 }

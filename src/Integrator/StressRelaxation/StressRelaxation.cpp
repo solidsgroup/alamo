@@ -9,6 +9,15 @@ StressRelaxation::StressRelaxation():
 	// READ INPUT PARAMETERS
 	//
 
+	amrex::Vector<std::string> bc_hi_str({AMREX_D_DECL("EXT_DIR", "EXT_DIR", "EXT_DIR")});
+	amrex::Vector<std::string> bc_lo_str({AMREX_D_DECL("EXT_DIR", "EXT_DIR", "EXT_DIR")});
+	water_bc = new BC::Constant(bc_hi_str, bc_lo_str
+							  ,AMREX_D_DECL({0.}, {0.}, {0.})
+							  ,AMREX_D_DECL({0.}, {0.}, {0.})
+							  );
+	RegisterNewFab(water_conc,water_bc, 1, 1, "Water Concentration");
+	water_ic = new IC::Constant(geom,{0.0});
+
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
 	// ---------------------------------------------------------------------
@@ -22,7 +31,7 @@ StressRelaxation::StressRelaxation():
 		amrex::Vector<Set::Scalar> tau_i;
 
 		amrex::ParmParse pp_material_isotropic("material.isotropic");
-		
+		pp_material_isotropic.query("nu",nu);
 		pp_material_isotropic.query("number_of_terms",prony_terms);
 		//Sanity check
 		if(prony_terms < 0) Util::Abort(INFO,"Number of prony series terms must be non-negative");
@@ -72,26 +81,8 @@ StressRelaxation::StressRelaxation():
 		pp_temp.query("timestep",timestep);
 		pp_temp.query("stop_time",stop_time);
 
-		pp_elastic.query("tstart",elastic_tstart);
-		if(elastic_tstart < 0.0)
-		{
-			std::cout << "Warning: Invalid value for elasitc t_start. Setting it to zero" << std::endl;
-			elastic_tstart = 0.0;
-		}
-		else if(elastic_tstart > stop_time)
-		{
-			std::cout << "Warning: Invalid value for elastic t_start. Setting it to stop_time" <<std::endl;
-			elastic_tstart = stop_time;
-		}
-
-		pp_elastic.query("tend",elastic_tend);
-		if(elastic_tend < elastic_tstart || elastic_tend > stop_time)
-		{
-			std::cout << "Warning: Invalid value for elastic t_end. Setting it to stop_time" << std::endl;
-			elastic_tend = stop_time;
-			if(elastic_tstart == stop_time) elastic_tstart = stop_time - timestep;
-
-		}
+		elastic_tstart = 0.0;
+		elastic_tend = stop_time;
 
 		pp_elastic.query("bottom_solver",bottom_solver);
 		pp_elastic.query("linop_maxorder", linop_maxorder);
@@ -247,27 +238,27 @@ StressRelaxation::StressRelaxation():
 		stress_vm.resize(nlevels);
 		energy.resize(nlevels);
 		model.resize(nlevels);
+
+		Util::Message(INFO);
 	}
 }
 
 
 void
-StressRelaxation::Advance (int lev, amrex::Real time, amrex::Real dt)
+StressRelaxation::Advance (int /*lev*/, amrex::Real /*time*/, amrex::Real /*dt*/)
 {
-	
 }
 
 void
 StressRelaxation::Initialize (int lev)
 {
-	
+	water_ic->Initialize(lev,water_conc);
 }
 
 
 void
-StressRelaxation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+StressRelaxation::TagCellsForRefinement (int /*lev*/, amrex::TagBoxArray& /*tags*/, amrex::Real /*time*/, int /*ngrow*/)
 {
-	
 }
 
 
@@ -281,12 +272,11 @@ StressRelaxation::PlotFileNameNode (std::string plot_file_name, int lev) const
 }
 
 void 
-StressRelaxation::TimeStepComplete(amrex::Real time, int iter)
+StressRelaxation::TimeStepComplete(amrex::Real /*time*/, int /*iter*/)
 {
 	if (! elastic_on) return;
-	if (iter % elastic_int) return;
-	if (time < elastic_tstart) return;
-	if (time > elastic_tend) return;
+	
+	Util::Message(INFO);
 
 #if AMREX_SPACEDIM == 1
 	const int ncomp = 5;
@@ -368,15 +358,13 @@ StressRelaxation::TimeStepComplete(amrex::Real time, int iter)
 }
 
 void 
-StressRelaxation::TimeStepBegin(amrex::Real time, int iter)
+StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 {
 	if (!elastic_on) return;
-	if (iter%elastic_int) return;
-	if (time < elastic_tstart) return;
-	if (time > elastic_tend) return;
-
-	ngrids.resize(nlevels);
 	
+	ngrids.resize(nlevels);
+	//ndmap.resize(nlevels);
+
 	displacement.resize(nlevels);
 	rhs.resize(nlevels);
 	strain.resize(nlevels);
@@ -394,7 +382,7 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int iter)
 
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	int number_of_components = AMREX_SPACEDIM;
-	int number_of_ghost_cells = 0;
+	int number_of_ghost_cells = 1;
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -431,7 +419,7 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		modeltype.SetTime(time);
 		model[ilev].setVal(modeltype);
-		if(iter == 0 || time == elastic_tstart)
+		//if(iter == 0 || time == elastic_tstart)
 		{
 			displacement[ilev].setVal(0.0);
 			strain[ilev].setVal(0.0);
@@ -521,7 +509,6 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int iter)
 		 	}
 		}
 	}
-	Util::Message(INFO);
 	amrex::MLMG solver(elastic_operator);
 	solver.setMaxIter(elastic_max_iter);
 	solver.setMaxFmgIter(elastic_max_fmg_iter);

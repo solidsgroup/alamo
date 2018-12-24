@@ -329,7 +329,7 @@ Operator::apply (int amrlev, int mglev,
 		 amrex::MultiFab& out,
 		 amrex::MultiFab& in,
 		 BCMode bc_mode,
-		 StateMode s_mode,
+		 StateMode /*s_mode*/,
 		 const amrex::MLMGBndry* bndry) const
 {
 	BL_PROFILE("Operator::apply()");
@@ -441,11 +441,9 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 	const int ncomp = getNComp();
 	const int cross = false;
 
-	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 	if (!skip_fillboundary) {
 		in.FillBoundary(0, ncomp, m_bc->Periodicity(),cross); 
 	}
-	if (in.contains_nan())std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 
 	int flagbc = (bc_mode == BCMode::Homogeneous) ? 0 : 1;
 
@@ -460,20 +458,17 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 #pragma omp parallel
 #endif
 	
-	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 	if (mglev==0 && bc_mode == BCMode::Inhomogeneous) 
 	{
 		m_bc->FillBoundary(in,0,0,0.0);
 		auto *nonconst_this = const_cast<Operator*>(this);
 		nonconst_this->setLevelBC(amrlev,&in);
 	}
-	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 
 	//m_bc->define(m_geom[amrlev][mglev]);
 	//m_bc->FillBoundary(bndry->bndryValues)
 	for (amrex::MFIter mfi(in, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
 	{
-		if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 		const amrex::Box& vbx   = mfi.validbox();
 		amrex::FArrayBox& iofab = in[mfi];
 		const RealTuple & bdl = bcondloc.bndryLocs(mfi);
@@ -488,31 +483,14 @@ Operator::applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
 			const amrex::FArrayBox& fsfab = (bndry != nullptr) ? bndry->bndryValues(ori)[mfi] : foo;
 			const amrex::Mask& m = maskvals[ori][mfi];
 			
-			// m_bc->FillBoundary(in[mfi],vbx,in.nGrow()
-			//    		   ,0,0,0.0,(BC::Orientation)cdr,&maskvals[ori][mfi]);
-
-			if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
-	
-
-// #define AMREX_LO_DIRICHLET 101
-// #define AMREX_LO_NEUMANN 102
-// #define AMREX_LO_REFLECT_ODD 103
-// #define AMREX_LO_MARSHAK 104
-// #define AMREX_LO_SANCHEZ_POMRANING 105
-// #define AMREX_LO_INFLOW   106
-// #define AMREX_LO_PERIODIC 200
-// #define AMREX_LO_BOGUS    1729
-
 			amrex_mllinop_apply_bc(BL_TO_FORTRAN_BOX(vbx),
 			  		       BL_TO_FORTRAN_ANYD(iofab),
 			 		       BL_TO_FORTRAN_ANYD(m),
 			  		       cdr, bct, bcl,
 			  		       BL_TO_FORTRAN_ANYD(fsfab),
 			  		       maxorder, dxinv, flagbc, ncomp, cross);
-			if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 		}
 	}
-	if (in.contains_nan()) std::cout << __FILE__ << ":" << __LINE__ << " contains nan" <<std::endl;
 }
 
 void
