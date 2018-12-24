@@ -396,17 +396,15 @@ int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbo
 	// Util::Message(INFO,"b=",b.transpose());
 	// Util::Message(INFO,"comp=",comp);
 
-	std::vector<int> comps = {{0,1}};
+	std::vector<int> comps = {{1}};
 	std::vector<Set::Scalar> alphas = {{1.0}};
-	std::vector<Set::Scalar> ms = {{1.0,2.0,3.0}};
+	std::vector<Set::Scalar> ms = {{1.0,2.0}};
 	std::vector<Set::Vector> ns = {{Set::Vector(AMREX_D_DECL(1,0,0)),
 					Set::Vector(AMREX_D_DECL(-1,0,0)),
 					Set::Vector(AMREX_D_DECL(0,1,0)),
 					Set::Vector(AMREX_D_DECL(0,-1,0)),
 					Set::Vector(AMREX_D_DECL(1,1,0))}};
-	std::vector<Set::Vector> bs = {{Set::Vector(AMREX_D_DECL(0,0.25,0)),
-					Set::Vector(AMREX_D_DECL(0,0.75,0)),
-					Set::Vector(AMREX_D_DECL(0.5,0.5,0))}};
+	std::vector<Set::Vector> bs = {{Set::Vector(AMREX_D_DECL(0,0.25,0))}};
 
 	for (std::vector<int>::iterator comp = comps.begin(); comp != comps.end(); comp++)
 	for (std::vector<Set::Scalar>::iterator m = ms.begin(); m != ms.end(); m++)
