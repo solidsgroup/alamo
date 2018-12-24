@@ -218,11 +218,10 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 				// amrex::Real grad1 =  grad1_normal;
 				// amrex::Real grad2 =  grad2_normal;
 				// amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
-				AMREX_D_TERM(	amrex::Real grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0];, // 3 point
-								amrex::Real grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1];, // 3 point
-							);
+				amrex::Real grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0]; // 3 point
+				amrex::Real grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1]; // 3 point
 		      
-				amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, );
+				amrex::Real laplacian = grad11 + grad22;
 
 				amrex::Real kappa = l_gb*0.75*sigma0;
 				mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;

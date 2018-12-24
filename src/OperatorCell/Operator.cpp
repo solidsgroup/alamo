@@ -1,4 +1,4 @@
-//#if AMREX_SPACEDIM==1
+
 #include "Operator.H"
 #include <AMReX_MLLinOp_F.H>
 #include <AMReX_MultiFabUtil.H>
@@ -742,4 +742,3 @@ Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input
 
 
 }
-//#endif

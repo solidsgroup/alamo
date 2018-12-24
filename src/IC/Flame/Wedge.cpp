@@ -37,13 +37,12 @@ void Wedge::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::Multi
 
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
-#if AMREX_SPACEDIM>1
+
 			if (y > (x+0.5*sizex)*std::tan(angle) ||
 			    y < -(x+0.5*sizex)*std::tan(angle)) // outside
 				field_box(m) = 0.0;
 			else
 				field_box(m) = 1.0;
-#endif
 
 		}
 	}

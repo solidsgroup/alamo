@@ -56,10 +56,8 @@ OperatorCell::Elastic::PolyCrystal::PolyCrystal::Energies (FArrayBox& energyfab,
 													   int amrlev, const MFIter& mfi)
 {
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
-
-#if AMREX_SPACEDIM == 1
-	amrex::IntVect dx(1);
-#elif AMREX_SPACEDIM == 2
+  
+#if AMREX_SPACEDIM == 2
 	amrex::IntVect dx(1,0), dy(0,1);
 #elif AMREX_SPACEDIM == 3
 	amrex::IntVect dx(1,0,0), dy(0,1,0), dz(0,0,1);
@@ -77,17 +75,15 @@ OperatorCell::Elastic::PolyCrystal::PolyCrystal::Energies (FArrayBox& energyfab,
 
 						Set::Matrix gradu;
 						gradu(0,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-#if AMREX_SPACEDIM > 1
 						gradu(0,1) = (ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
 						gradu(1,0) = (ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]);
 						gradu(1,1) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-#if AMREX_SPACEDIM > 2
+#if AMREX_SPACEDIM == 3
 						gradu(0,2) = (ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]);
 						gradu(1,2) = (ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
 						gradu(2,0) = (ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]);
 						gradu(2,1) = (ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]);
 						gradu(2,2) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
-#endif
 #endif
 
 						energyfab(m,n) = 0.0;

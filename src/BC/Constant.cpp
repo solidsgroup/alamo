@@ -91,7 +91,6 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 				else
 					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
-#if AMREX_SPACEDIM > 1
 			else if (j == domain.loVect()[1]-1 && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
 			{
 				if (BCUtil::IsDirichlet(bc_lo[1]))
@@ -138,7 +137,7 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 					Util::Abort(INFO, "Incorrect boundary conditions");
 			}
 #endif
-#endif
+
 		}
 	
 	}

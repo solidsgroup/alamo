@@ -164,9 +164,7 @@ OperatorCell::Elastic::Degradation::Degradation::Energies (FArrayBox& energyfab,
 {
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-#if AMREX_SPACEDIM == 1
-	amrex::IntVect dx(1);
-#elif AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 2
 	amrex::IntVect dx(1,0);
 	amrex::IntVect dy(0,1);
 #elif AMREX_SPACEDIM > 2
@@ -183,10 +181,7 @@ OperatorCell::Elastic::Degradation::Degradation::Energies (FArrayBox& energyfab,
 				for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
 #endif
 			{
-#if AMREX_SPACEDIM == 1
-				amrex::IntVect m(m1);
-				amrex::Real gradu[1][1] = {ufab(m+dx,0) - ufab(m-dx,0)/(2.0*DX[0])};
-#elif AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 2
 				amrex::IntVect m(m1,m2);
 				amrex::Real gradu[2][2] = {{(ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]),
 					(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1])},
