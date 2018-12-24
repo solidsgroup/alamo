@@ -66,6 +66,7 @@ operator<< (std::ostream& os,
 
 	}
 #endif
+	return os;
 }
 
 }

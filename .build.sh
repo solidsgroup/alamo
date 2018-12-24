@@ -1,11 +1,4 @@
 set -e
-mkdir amrex3d
-git clone https://github.com/AMReX-Codes/amrex.git
-cd amrex
-git checkout development
-./configure --dim=3 --prefix=../amrex3d/ --debug=yes
-make
-make install
-cd ..
-make AMREX=./amrex3d MPICHFORT=mpichf90
-rm -rf amrex3d amrex
+make clean
+make info
+make AMREX=./amrex$1d MPICHFORT=mpichf90 bin/test

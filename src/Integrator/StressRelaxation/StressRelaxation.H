@@ -1,3 +1,4 @@
+
 ///
 /// \file StressRelaxation.H
 ///
@@ -135,6 +136,10 @@ private:
 	std::string 	input_material = "isotropic";
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
+
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;
+	IC::IC			*water_ic;
+	BC::BC			*water_bc;
 
 };
 }

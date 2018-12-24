@@ -1,22 +1,16 @@
 #==========================================================================
-# name:		PolymerDegradation01
+# name:		StressRelaxation
 # author:	Vinamra Agrawal
-# date:		2018 May 28
+# date:		2018 Dec 23
 #
-# description:	Simulation polymer degradation due to water diffusion
-#		In this example the 3rd dimension (if used) is periodic so
-#		the simulation is still 2D.
+# description:	Simulation of a stress relaxation experiment for polymers
+#		3D tensile test is being recreated.
 #		The boundary conditions are:
-#			- Dirichlet in X and Y
-#			o  mu=1 at x=0, y=0
-#			o  mu=1 at x=1, y=1
-#			- Periodic in Z
-#		The initial condition is a constant with zero water
-#		concentration and no damage
+#			- Dirichlet in X, Neumann in y and z
 #
-# usage:	[alamo]$> bin/degradation tests/PolymerDegradation01/input
+# usage:	[alamo]$> bin/stressrelaxation tests/StressRelaxation01/input
 #
-# output:	tests/PolymerDegradation01/output2
+# output:	tests/StressRelaxation01/output
 #
 #===========================================================================
 
@@ -28,68 +22,28 @@ stop_time = 100
 #=============== AMR parameters ============================================
 amr.plot_int = 10
 amr.max_level = 0
-amr.n_cell = 128 64 16
+amr.n_cell = 16 16 16
 amr.max_grid_size = 8
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = tests/PolymerDegradation01/output2
+amr.plot_file = tests/StressRelaxation01/output
 #===========================================================================
 
 #=============== Specify geometry and unrefined mesh =======================
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 25.5 12.7 3.25
+geometry.prob_hi = 10 10 10
 geometry.is_periodic= 0 0 0
-#===========================================================================
-
-#=============== Water diffusion parameters ================================
-water.on = true
-water.diffusivity = 0.0015
-water.refinement_threshold = 0.01
-
-water.ic_type = constant
-water.ic.value = 0.0
-water.bc.lo = EXT_DIR EXT_DIR EXT_DIR
-water.bc.hi = EXT_DIR EXT_DIR EXT_DIR
-water.bc.lo_1 = 1.0
-water.bc.hi_1 = 1.0
-water.bc.lo_2 = 1.0
-water.bc.hi_2 = 1.0
-water.bc.lo_3 = 1.0
-water.bc.hi_3 = 1.0
-#===========================================================================
-
-#=============== Heat diffusion parameters =================================
-thermal.on = false
-thermal.diffusivity = 0.01
-thermal.refinement_threshold = 0.01
 #===========================================================================
 
 #=============== Material model parameters =================================
 material.model = isotropic
-material.isotropic.lambda = 497.0
-material.isotropic.mu = 331.0
+material.isotropic.nu = 0.3
+material.isotropic.number_of_terms = 8
+material.isotropic.E_i = 3891.911 2862.654 2821.350 2491.161 1304.639 2.22E-17 2426.044 0.062 8467.871
+material.isotropic.tau_i = 0.395438464627698 0.009125154121665 2.22E-14 2.22E-14 5.71831265851205 4562622.72043612 2.22E-14 8229082.44206957
 #===========================================================================
 
-#=============== Damage evolution parameters ===============================
-damage.anisotropy = 0
-damage.type = relaxation
-damage.d_final = 0.999
-damage.number_of_terms = 4
-damage.d_i = 0.25 0.25 0.25 0.249
-damage.tau_i = 24 24 24 24
-damage.t_start_i = 0 24 48 72
-damage.ic_type = constant
-damage.ic.value = 0.0
-damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
-damage.bc.hi = EXT_DIR EXT_DIR EXT_DIR
-damage.bc.lo_1 = 0.0
-damage.bc.hi_1 = 0.0
-damage.bc.lo_2 = 0.0
-damage.bc.hi_2 = 0.0
-damage.bc.lo_3 = 0.0
-damage.bc.hi_3 = 0.0
-#===========================================================================
 
 #=============== Elasticity parameters =====================================
 elastic.on = true
@@ -107,8 +61,6 @@ elastic.agglomeration 	= 0
 elastic.consolidation 	= 0
 elastic.tol_rel			=  1.0e-6
 elastic.tol_abs			=  1.0e-6
-elastic.tstart 			= 0.0
-elastic.tend			= 10.0
 elastic.use_fsmooth = 0
 
 elastic.body_force     = 0.0 -0.00001 0.0
