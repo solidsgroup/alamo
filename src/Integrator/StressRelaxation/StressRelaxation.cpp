@@ -247,13 +247,11 @@ StressRelaxation::StressRelaxation():
 void
 StressRelaxation::Advance (int /*lev*/, amrex::Real /*time*/, amrex::Real /*dt*/)
 {
-	Util::Message(INFO);
 }
 
 void
 StressRelaxation::Initialize (int lev)
 {
-	Util::Message(INFO);
 	water_ic->Initialize(lev,water_conc);
 }
 
@@ -261,7 +259,6 @@ StressRelaxation::Initialize (int lev)
 void
 StressRelaxation::TagCellsForRefinement (int /*lev*/, amrex::TagBoxArray& /*tags*/, amrex::Real /*time*/, int /*ngrow*/)
 {
-	Util::Message(INFO);
 }
 
 

@@ -44,7 +44,7 @@ PolymerDegradation::PolymerDegradation():
 
 		if (pp_water_bc.countval("lo_1")) pp_water_bc.getarr("lo_1",bc_lo_1);
 		if (pp_water_bc.countval("hi_1")) pp_water_bc.getarr("hi_1",bc_hi_1);
-
+#if AMREX_SPACEDIM>1
 		if (pp_water_bc.countval("lo_2")) pp_water_bc.getarr("lo_2",bc_lo_2);
 		if (pp_water_bc.countval("hi_2")) pp_water_bc.getarr("hi_2",bc_hi_2);
 
@@ -52,13 +52,10 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_water_bc.countval("lo_3")) pp_water_bc.getarr("lo_3",bc_lo_3);
 		if (pp_water_bc.countval("hi_3")) pp_water_bc.getarr("hi_3",bc_hi_3);
 #endif
-
-		water_bc = new BC::Constant(bc_hi_str, bc_lo_str
-							  ,bc_lo_1, bc_hi_1
-							  ,bc_lo_2, bc_hi_2
-#if AMREX_SPACEDIM > 2
-							  ,bc_lo_3, bc_hi_3
 #endif
+		water_bc = new BC::Constant(bc_hi_str, bc_lo_str
+							  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
+							  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 							  );
 
 		RegisterNewFab(water_conc,     water_bc, 1, number_of_ghost_cells, "Water Concentration");
@@ -108,12 +105,9 @@ PolymerDegradation::PolymerDegradation():
 #endif
 
 		thermal_bc = new BC::Constant(bc_hi_str, bc_lo_str
-								,bc_lo_1,bc_hi_1
-								,bc_lo_2,bc_hi_2
-#if AMREX_SPACEDIM > 2
-								,bc_lo_3,bc_hi_3
-#endif
-					);
+								,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
+							  	,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
+						);
 		RegisterNewFab(Temp,     thermal_bc, 1, number_of_ghost_cells, "Temperature");
 		RegisterNewFab(Temp_old, thermal_bc, 1, number_of_ghost_cells, "Temperature Old");
 	}
@@ -249,12 +243,9 @@ PolymerDegradation::PolymerDegradation():
 	if (pp_damage_bc.countval("hi_3")) pp_damage_bc.getarr("hi_3",bc_hi_3);
 
 	eta_bc = new BC::Constant(bc_hi_str, bc_lo_str
-						,bc_lo_1, bc_hi_1
-						,bc_lo_2, bc_hi_2
-#if AMREX_SPACEDIM>2
-						,bc_lo_3, bc_hi_3
-#endif
-						);
+							,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
+							,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
+					);
 
 	RegisterNewFab(eta_new, eta_bc, number_of_eta, number_of_ghost_cells, "Eta");
 	RegisterNewFab(eta_old, eta_bc, number_of_eta, number_of_ghost_cells, "Eta old");
@@ -354,6 +345,7 @@ PolymerDegradation::PolymerDegradation():
 		if(bc_hi_1.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for right_face displacement");
 
+#if AMREX_SPACEDIM > 1
 		if (pp_elastic_bc.countval("bottom_face")) pp_elastic_bc.getarr("bottom_face",bc_lo_2);
 		if(bc_lo_2.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for bottom_face displacement");
@@ -370,6 +362,7 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_elastic_bc.countval("front_face")) pp_elastic_bc.getarr("front_face",bc_hi_3);
 		if(bc_hi_3.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for front_face displacement");
+#endif
 #endif
 
 		int tempSize = bc_lo_1.size()/AMREX_SPACEDIM;
@@ -393,7 +386,7 @@ PolymerDegradation::PolymerDegradation():
 			for (int j = 0; j < tempSize; j++)
 				elastic_bc_right_t.push_back(elastic_tstart + j*(elastic_tend - elastic_tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
 
-
+#if AMREX_SPACEDIM > 1
 		tempSize = bc_lo_2.size()/AMREX_SPACEDIM;
 		for (int i = 0; i<tempSize; i++)
 			elastic_bc_bottom.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[AMREX_SPACEDIM*i],bc_lo_2[AMREX_SPACEDIM*i+1],bc_lo_2[AMREX_SPACEDIM*i+2])));
@@ -435,7 +428,7 @@ PolymerDegradation::PolymerDegradation():
 			for (int j = 0; j < tempSize; j++)
 				elastic_bc_front_t.push_back(elastic_tstart + j*(elastic_tend - elastic_tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
 #endif
-		
+#endif
 		//----------------------------------------------------------------------
 		// The following routine should be replaced by RegisterNewFab in the
 		// future. For now, we are manually defining and resizing
@@ -460,58 +453,6 @@ PolymerDegradation::PolymerDegradation():
 		stress_vm.resize(nlevels);
 		energy.resize(nlevels);
 		model.resize(nlevels);
-
-		//cgrids.resize(nlevels);
-
-		//amrex::Box NDomain(	amrex::IntVect{AMREX_D_DECL(0,0,0)},
-		//   				amrex::IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
-	 	//    				amrex::IntVect::TheNodeVector());
-		//amrex::Box CDomain = amrex::convert(NDomain, IntVect::TheCellVector());
-		//amrex::Box NDomain = amrex::convert(geom[0].Domain(),IntVect::TheNodeVector());
-		//amrex::Box ndomain = NDomain;//, cdomain = CDomain;
-
-		//for (int ilev = 0; ilev < nlevels; ++ilev)
-		//{
-			//cgrids[ilev].define(cdomain);
-			//cgrids[ilev].maxSize(max_grid_size);
-
-			//ngrids[ilev].define(ndomain);
-			//ngrids[ilev].maxSize(max_grid_size);
-
-			//cdomain.refine(ref_ratio);
-
-			//ndomain = amrex::convert(geom[ilev].Domain(),IntVect::TheNodeVector());
-			//ngrids[ilev] = amrex::convert(grids[ilev],IntVect::TheNodeVector());
-			//Util::Message(INFO,"ngrid size = ",ngrids[ilev].size(), ". Grids size = ", grids[ilev].size());
-		//}
-
-		//for (int ilev = 0; ilev < nlevels; ++ilev)
-		//{
-			//ndmap   	[ilev].define(ngrids[ilev]);
-			//displacement[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			//rhs     	[ilev].define(ngrids[ilev], ndmap[ilev], number_of_components, number_of_ghost_cells);
-			//stress 		[ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
-			//strain		[ilev].define(ngrids[ilev], ndmap[ilev], number_of_stress_components, number_of_ghost_cells);
-			//energy 		[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
-			//stress_vm	[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
-			//model		[ilev].define(ngrids[ilev], ndmap[ilev], 1, number_of_ghost_cells);
-			//model[ilev].setVal(modeltype);
-		//}
-
-		//LPInfo info;
-		//info.setAgglomeration(agglomeration);
-		//info.setConsolidation(consolidation);
-		//info.setMaxCoarseningLevel(max_coarsening_level);
-		//elastic_operator.define(geom, ngrids, ndmap, info);
-		//elastic_operator.setMaxOrder(linop_maxorder);
-
-		/*RegisterNewFab(displacement, AMREX_SPACEDIM, "disp");
-		RegisterNewFab(rhs, AMREX_SPACEDIM, "rhs");
-		RegisterNewFab(strain, number_of_stress_components, "eps");
-		RegisterNewFab(stress, number_of_stress_components, "sig");
-		RegisterNewFab(stress_vm, 1, "sig_VM");
-		RegisterNewFab(energy, 1, "W");
-		RegisterNewFab(energies, number_of_eta, "W_1");*/
 	}
 }
 
@@ -541,11 +482,10 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			amrex::FArrayBox &water_conc_old_box = (*water_conc_old[lev])[mfi];
 			amrex::FArrayBox &water_conc_box = (*water_conc[lev])[mfi];
 
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM>2
-				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-#endif
+			AMREX_D_TERM(	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+						)
 				{
 					amrex::IntVect m(AMREX_D_DECL(i,j,k));
 					if(std::isnan(water_conc_old_box(m))) Util::Abort(INFO, "Nan found in WATER_OLD(i,j,k)");
@@ -578,11 +518,10 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			amrex::FArrayBox &Temp_old_box = (*Temp_old[lev])[mfi];
 			amrex::FArrayBox &Temp_box = (*Temp[lev])[mfi];
 
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM>2
-				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-#endif
+			AMREX_D_TERM(	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+						)
 				{
 					amrex::IntVect m(AMREX_D_DECL(i,j,k));
 					Temp_box(m) =
@@ -603,11 +542,10 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 		//FArrayBox &energiesfab = (*energy)
 
-		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-			for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM > 2
-				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-#endif
+		AMREX_D_TERM(	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+						for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+						for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+					)
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				for (int n = 0; n < number_of_eta; n++)
@@ -681,17 +619,14 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 
 			amrex::FArrayBox &water_conc_box = (*water_conc[lev])[mfi];
 
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM>2
-					for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-#endif
+			AMREX_D_TERM(	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+						)
 				{
-					amrex::Real grad1 = (WATER(i+1,j,k) - WATER(i-1,j,k))/(2.*dx[0]);
-					amrex::Real grad2 = (WATER(i,j+1,k) - WATER(i,j-1,k))/(2.*dx[1]);
-#if AMREX_SPACEDIM>2
-					amrex::Real grad3 = (WATER(i,j,k+1) - WATER(i,j,k-1))/(2.*dx[2]);
-#endif
+					AMREX_D_TERM(	amrex::Real grad1 = (WATER(i+1,j,k) - WATER(i-1,j,k))/(2.*dx[0]);,
+									amrex::Real grad2 = (WATER(i,j+1,k) - WATER(i,j-1,k))/(2.*dx[1]);,
+									amrex::Real grad3 = (WATER(i,j,k+1) - WATER(i,j,k-1))/(2.*dx[2]););
 					amrex::Real grad = sqrt(AMREX_D_TERM(grad1*grad1,
 						+ grad2*grad2,
 						+ grad3*grad3));
@@ -715,17 +650,15 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 
 			amrex::FArrayBox &Temp_box = (*Temp[lev])[mfi];
 
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM>2
-					for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-#endif
+			AMREX_D_TERM(	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+						)
 				{
-					amrex::Real grad1 = (TEMP(i+1,j,k) - TEMP(i-1,j,k))/(2.*dx[0]);
-					amrex::Real grad2 = (TEMP(i,j+1,k) - TEMP(i,j-1,k))/(2.*dx[1]);
-#if AMREX_SPACEDIM>2
-					amrex::Real grad3 = (TEMP(i,j,k+1) - TEMP(i,j,k-1))/(2.*dx[2]);
-#endif
+					AMREX_D_TERM(	amrex::Real grad1 = (TEMP(i+1,j,k) - TEMP(i-1,j,k))/(2.*dx[0]);,
+									amrex::Real grad2 = (TEMP(i,j+1,k) - TEMP(i,j-1,k))/(2.*dx[1]);,
+									amrex::Real grad3 = (TEMP(i,j,k+1) - TEMP(i,j,k-1))/(2.*dx[2]);
+								)
 					amrex::Real grad = sqrt(AMREX_D_TERM(grad1*grad1,
 						+ grad2*grad2,
 						+ grad3*grad3));
@@ -747,19 +680,17 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 		amrex::TagBox&     tag  = tags[mfi];
 		amrex::BaseFab<amrex::Real> &eta_new_box = (*eta_new[lev])[mfi];
 
-		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-			for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if AMREX_SPACEDIM > 2
-				for (int k = bx.loVect()[2]; k <= bx.hiVect()[2]; k++)
-#endif
+		AMREX_D_TERM(		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+					)
 			{
 				for (int m = 0; m < number_of_eta; m++)
 				{
-					Set::Scalar gradx = (ETA_NEW(i+1,j,k,m) - ETA_NEW(i-1,j,k,m))/(2.*dx[0]);
-					Set::Scalar grady = (ETA_NEW(i,j+1,k,m) - ETA_NEW(i,j-1,k,m))/(2.*dx[1]);
-#if AMREX_SPACEDIM >2
-					Set::Scalar gradz = (ETA_NEW(i,j,k+1,m) - ETA_NEW(i,j,k-1,m))/(2.*dx[2]);
-#endif
+					AMREX_D_TERM(	Set::Scalar gradx = (ETA_NEW(i+1,j,k,m) - ETA_NEW(i-1,j,k,m))/(2.*dx[0]);,
+									Set::Scalar grady = (ETA_NEW(i,j+1,k,m) - ETA_NEW(i,j-1,k,m))/(2.*dx[1]);,
+									Set::Scalar gradz = (ETA_NEW(i,j,k+1,m) - ETA_NEW(i,j,k-1,m))/(2.*dx[2]);
+					)
 					Set::Scalar grad = sqrt(AMREX_D_TERM(gradx*gradx, + grady*grady, + gradz*gradz));
 					Set::Scalar dr = sqrt(AMREX_D_TERM(dx[0]*dx[0], + dx[1]*dx[1], + dx[2]*dx[2]));
 
@@ -843,7 +774,11 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 1
+	const int ncomp = 5;
+	Vector<std::string> varname = {"u01", "rhs01", "stress11", "strain11", "energy"};
+
+#elif AMREX_SPACEDIM == 2
 	const int ncomp = 11;
 	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12",
 									"strain11", "strain22", "strain12", "energy"};
@@ -862,7 +797,13 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	{
 		//plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
 		plotmf[ilev].define(ngrids[ilev], dmap[ilev], ncomp, 0);
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 1
+		MultiFab::Copy(plotmf[ilev], displacement 	[ilev], 0, 0, 1, 0);
+		MultiFab::Copy(plotmf[ilev], rhs    		[ilev], 0, 1, 1, 0);
+		MultiFab::Copy(plotmf[ilev], stress 		[ilev], 0, 2, 1, 0);
+		MultiFab::Copy(plotmf[ilev], strain 		[ilev], 0, 3, 1, 0);
+		MultiFab::Copy(plotmf[ilev], energy 		[ilev], 0, 4, 1, 0);
+#elif AMREX_SPACEDIM == 2
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0, 1, 0);
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1, 1, 0);
 		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
@@ -946,7 +887,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	int number_of_components = AMREX_SPACEDIM;
-	int number_of_ghost_cells = 0;
+	int number_of_ghost_cells = 1;
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -1044,22 +985,22 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		 		}
 				for(int l = 0; l<AMREX_SPACEDIM; l++)
 				{
+					AMREX_D_TERM(
 					if(xmin && bc_x_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
 					if(xmax && bc_x_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
-#if AMREX_SPACEDIM > 1
+					,
 					if(ymin && bc_y_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
 					if(ymax && bc_y_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
-#if AMREX_SPACEDIM > 2
+					,
 					if(zmin && bc_z_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
 					if(zmax && bc_z_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
 						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_front(time)[l];
-#endif
-#endif
+					);
 				}
 		 	}
 		}
