@@ -26,9 +26,14 @@ public:
 	{
 
 		// Do this if point is below interpolation range
-		if(point < interval_points[0])
+		if(point <= interval_points[0])
 		{
 			return data_points[0];
+		}
+		// Do this if point is above interpolation range
+		if(point >= interval_points[interval_points.size()-1])
+		{
+			return  data_points[interval_points.size()-1];
 		}
 
 		// Do this if point is within interpolation range
@@ -42,10 +47,6 @@ public:
 
 			}
 		}
-
-		// Otherwise point must be outside interpolation range, so
-		// return the value for the highest point
-		return  data_points[interval_points.size()-1];
 	}
 
 
