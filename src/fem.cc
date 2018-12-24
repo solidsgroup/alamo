@@ -220,8 +220,6 @@ int main (int argc, char* argv[])
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			const Real* dx = geom[ilev].CellSize();
-			Set::Scalar volume = AMREX_D_TERM(dx[0],*dx[1],*dx[2]);
 
  			AMREX_D_TERM(rhs[ilev].setVal(body_force[0],0,1);,
 				     rhs[ilev].setVal(body_force[1],1,1);,

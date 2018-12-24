@@ -14,10 +14,10 @@
 namespace Operator
 {
 
+/// \todo Add verbosity messages 
 template<>
-int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::SpatiallyVaryingCTest(int verbose)
+int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::SpatiallyVaryingCTest(int /*verbose*/)
 {
-	int failed = 0;
 	using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 	model_type model(400,300);
 
@@ -287,84 +287,6 @@ int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::Spatiall
 		mlabec.Stress(lev,stress[lev],u[lev]);
 		mlabec.Energy(lev,energy[lev],u[lev]);
 	}
-
-	#if AMREX_SPACEDIM == 1
-	const int ncomp = 6;
-	Vector<std::string> varname = {"u01", "rhs01", "res01", "stress11", "strain11", "energy"};
-
-#elif AMREX_SPACEDIM == 2
-	const int ncomp = 13;
-	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "res01", "res02", "stress11", "stress22", "stress12",
-									"strain11", "strain22", "strain12", "energy"};
-
-#elif AMREX_SPACEDIM == 3
-	const int ncomp = 22;
-	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03", "res01", "res02", "res03",
-								"stress11", "stress22",
-								 "stress33", "stress23", "stress13", "stress12", 
-								 "strain11", "strain22","strain33", "strain23", "strain13", 
-								 "strain12", 
-								 "energy"};
-#endif
-
-	std::string plot_file = "output";
-	Vector<amrex::MultiFab> plotmf(nlevels);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		//plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
-		plotmf[ilev].define(ngrids[ilev], dmap[ilev], ncomp, 0);
-		#if AMREX_SPACEDIM == 1
-		MultiFab::Copy(plotmf[ilev], u 		[ilev], 0, 0, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 1, 1, 0);
-		MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 2, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 3, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 4, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 5, 1, 0);
-		#elif AMREX_SPACEDIM == 2
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0, 1, 0);
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 3, 1, 0);
-		MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 4, 1, 0);
-		MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 5, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 6, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 7, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 8, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 9, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 3, 10, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 11, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 12, 1, 0);
-		#elif AMREX_SPACEDIM == 3
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0,  1, 0);
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1,  1, 0);
-		MultiFab::Copy(plotmf[ilev], u      [ilev], 2, 2,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 3,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 4,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 2, 5,  1, 0);
-		MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 6,  1, 0);
-		MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 7,  1, 0);
-		MultiFab::Copy(plotmf[ilev], res    [ilev], 2, 8,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 9,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 4, 10,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 8, 11,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 12,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 13, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 14, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 15,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 4, 16,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 8, 17,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 5, 18,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 19, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 20, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 21, 1, 0);
-		#endif 
-	}
-	IO::FileNameParse(plot_file);
-	IO::WriteMetaData(plot_file);
-	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
-	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
-
 	return 1;
 }
 
