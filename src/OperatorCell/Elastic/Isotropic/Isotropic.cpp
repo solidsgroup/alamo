@@ -1,4 +1,3 @@
-//#if AMREX_SPACEDIM==1
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_REAL.H>
 #include <AMReX_MLCGSolver.H>
@@ -25,4 +24,3 @@ OperatorCell::Elastic::Isotropic::C(const int i, const int j, const int k, const
 
   return ret;
 }
-//#endif
