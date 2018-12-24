@@ -245,7 +245,7 @@ StressRelaxation::StressRelaxation():
 
 
 void
-StressRelaxation::Advance (int lev, amrex::Real time, amrex::Real dt)
+StressRelaxation::Advance (int /*lev*/, amrex::Real /*time*/, amrex::Real /*dt*/)
 {
 	Util::Message(INFO);
 }
@@ -259,7 +259,7 @@ StressRelaxation::Initialize (int lev)
 
 
 void
-StressRelaxation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+StressRelaxation::TagCellsForRefinement (int /*lev*/, amrex::TagBoxArray& /*tags*/, amrex::Real /*time*/, int /*ngrow*/)
 {
 	Util::Message(INFO);
 }
@@ -361,7 +361,7 @@ StressRelaxation::TimeStepComplete(amrex::Real /*time*/, int /*iter*/)
 }
 
 void 
-StressRelaxation::TimeStepBegin(amrex::Real time, int iter)
+StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 {
 	if (!elastic_on) return;
 	
