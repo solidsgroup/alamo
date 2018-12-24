@@ -154,8 +154,10 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
 	//Util::Message(INFO);
-	
+	bool debug = false;		// Enable this for inverse approximation
+
 	int ncomp = getNComp();
+	int nghost = 1; //x.nGrow();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	//const Real* DX = m_geom[amrlev][mglev].CellSize();
@@ -163,6 +165,18 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
 	
+	if(debug)
+	{
+		// We are trying to do a first order inverse correction here.
+		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		xtemp.setVal(0.0);
+		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,0); // xtemp = x
+		amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+		R0x.setVal(0,0);
+		Error0x(amrlev,mglev,R0x,xtemp); 	// R0x = R0 * x = (I - A D0) * x
+		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0);
+	}
+
 	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
