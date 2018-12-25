@@ -174,7 +174,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 		amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 		R0x.setVal(0,0);
 		Error0x(amrlev,mglev,R0x,xtemp); 	// R0x = R0 * x = (I - A D0) * x
-		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0);
+		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0); // x = (I + R0)*x
 	}
 
 	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)

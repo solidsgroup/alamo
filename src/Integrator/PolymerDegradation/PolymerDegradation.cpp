@@ -717,8 +717,8 @@ PolymerDegradation::DegradeMaterial(int lev)
 																		amrex::IntVect(AMREX_D_DECL(0,1,0)),
 																		amrex::IntVect(AMREX_D_DECL(0,0,1)))};
 
-	bool isMFIterSafe  = (model[lev].DistributionMap() == (*eta_new[lev]).DistributionMap());
-	Util::Message(INFO, "isMFIterSafe = ",isMFIterSafe);
+	//bool isMFIterSafe  = (model[lev].DistributionMap() == (*eta_new[lev]).DistributionMap());
+	//Util::Message(INFO, "isMFIterSafe = ",isMFIterSafe);
 
 	for (amrex::MFIter mfi(model[lev],true); mfi.isValid(); ++mfi)
 	{
@@ -726,9 +726,9 @@ PolymerDegradation::DegradeMaterial(int lev)
 	 	amrex::BaseFab<Model::Solid::LinearElastic::Degradable::Isotropic> &modelfab = (model[lev])[mfi];
 		amrex::BaseFab<amrex::Real> &etafab = (*eta_new[lev])[mfi];
 
-	 	AMREX_D_TERM(for (int i = box.loVect()[0]-1; i<=box.hiVect()[0]+1; i++),
-		 		     for (int j = box.loVect()[1]-1; j<=box.hiVect()[1]+1; j++),
-		 		     for (int k = box.loVect()[2]-1; k<=box.hiVect()[2]+1; k++))
+	 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+		 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+		 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 	 	{
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
@@ -739,6 +739,10 @@ PolymerDegradation::DegradeMaterial(int lev)
 													+ etafab(m-dx[2])	+ etafab(m-dx[0]-dx[2])
 													+ etafab(m-dx[1]-dx[2]) + etafab(m-dx[0]-dx[1]-dx[2])
 												));
+			if (false || AMREX_D_TERM( i == geom[lev].Domain().loVect()[0] || i == geom[lev].Domain().hiVect()[0]+1,
+									|| j == geom[lev].Domain().loVect()[1] || j == geom[lev].Domain().hiVect()[1]+1,
+									|| k == geom[lev].Domain().loVect()[2] || k == geom[lev].Domain().hiVect()[2]+1))
+				continue;
 			if(temp > d_final || std::isnan(temp) || std::isinf(temp))
 			{
 				Util::Message(INFO,"Invalid value of temp = ", temp);
@@ -985,22 +989,52 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		 		}
 				for(int l = 0; l<AMREX_SPACEDIM; l++)
 				{
-					AMREX_D_TERM(
 					if(xmin && bc_x_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
+					{
+						if(elastic_bc_left.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_left[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
+					}
 					if(xmax && bc_x_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
-					,
+					{
+						if(elastic_bc_right.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_right[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
+					}
+#if AMREX_SPACEDIM > 1
 					if(ymin && bc_y_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
+					{
+						if(elastic_bc_bottom.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_bottom[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
+					}
 					if(ymax && bc_y_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
-					,
+					{
+						if(elastic_bc_top.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_top[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
+					}
+#if AMREX_SPACEDIM > 2
 					if(zmin && bc_z_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
+					{
+						if(elastic_bc_back.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_back[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
+					}
 					if(zmax && bc_z_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_front(time)[l];
-					);
+					{
+						if(elastic_bc_front.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_front[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_front(time)[l];
+					}
+#endif
+#endif
 				}
 		 	}
 		}
