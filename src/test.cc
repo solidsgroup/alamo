@@ -36,10 +36,10 @@ int main (int argc, char* argv[])
 	}
 
 	/// \todo Don't include in test.cc until pass/fail is computed accurately.
-	// { 
-	// 	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> > test;
-	// 	failed += Util::Test::Message("SpatiallyVaryingC Test", test.SpatiallyVaryingCTest(1));
-	// }
+	//{ 
+	//	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> > test;
+	//	failed += Util::Test::Message("SpatiallyVaryingC Test", test.SpatiallyVaryingCTest(1));
+	//}
 
 
 	Util::Message(INFO,failed," tests failed");

@@ -845,7 +845,6 @@ Elastic<T>::averageDownCoeffs ()
 	}
 
 	averageDownCoeffsSameAmrLevel(0);
-
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
 		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)

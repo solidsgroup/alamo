@@ -275,8 +275,6 @@ void
 StressRelaxation::TimeStepComplete(amrex::Real /*time*/, int /*iter*/)
 {
 	if (! elastic_on) return;
-	
-	Util::Message(INFO);
 
 #if AMREX_SPACEDIM == 1
 	const int ncomp = 5;
@@ -349,7 +347,6 @@ StressRelaxation::TimeStepComplete(amrex::Real /*time*/, int /*iter*/)
 	//Util::Message(INFO);
 	if (ParallelDescriptor::IOProcessor())
 	{
-		Util::Message(INFO);
 		std::ofstream outfile;
 		if (istep[0]==0) outfile.open(plot_file_node+"/output.visit",std::ios_base::out);
 		else outfile.open(plot_file_node+"/output.visit",std::ios_base::app);
@@ -363,7 +360,6 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 	if (!elastic_on) return;
 	
 	ngrids.resize(nlevels);
-	//ndmap.resize(nlevels);
 
 	displacement.resize(nlevels);
 	rhs.resize(nlevels);
@@ -372,7 +368,7 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 	stress_vm.resize(nlevels);
 	energy.resize(nlevels);
 	model.resize(nlevels);
-
+	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		ngrids[ilev] = grids[ilev];
@@ -394,14 +390,14 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 		stress_vm	[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
 	}
-
+	
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
 	info.setMaxCoarseningLevel(max_coarsening_level);
 	
 	elastic_operator.define(geom, grids, dmap, info);
 	elastic_operator.setMaxOrder(linop_maxorder);
-
+	
 	geom[0].isPeriodic(0);
 	elastic_operator.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
 		     				{{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
@@ -445,7 +441,6 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 		for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
 		{
 		 	const amrex::Box& box = mfi.tilebox();
-
 		 	amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
 
 		 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
@@ -464,15 +459,7 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 		 						zmin = (k == geom[ilev].Domain().loVect()[2]);
 		 						zmax = (k == geom[ilev].Domain().hiVect()[2]+1););
 
-		 		if (	false
-						|| xmin || xmax
-#if AMREX_SPACEDIM > 1
-						|| ymin || ymax
-#if AMREX_SPACEDIM > 2
-						|| zmin || zmax
-#endif
-#endif
-						)
+		 		if (false || AMREX_D_TERM(xmin || xmax, || ymin || ymax, || zmin || zmax))
 		 		{
 		 			AMREX_D_TERM(	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;,
 		 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,
@@ -481,41 +468,62 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 				for(int l = 0; l<AMREX_SPACEDIM; l++)
 				{
 					if(xmin && bc_x_lo[l]==Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
+					{
+						if(elastic_bc_left.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_left[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
+					}
 					if(xmax && bc_x_hi[l]==Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
-
-					//Util::Message(INFO, "Time = ", time, ". Interpolate left = \n", interpolate_left(time));
-					//Util::Message(INFO, "Time = ", time, ". Interpolate right = \n", interpolate_right(time));
+					{
+						if(elastic_bc_right.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_right[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
+					}
 #if AMREX_SPACEDIM > 1
 					if(ymin && bc_y_lo[l]==Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
+					{
+						if(elastic_bc_bottom.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_bottom[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
+					}
 					if(ymax && bc_y_hi[l]==Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
-
-					//Util::Message(INFO, "Time = ", time, ". Interpolate bottom = \n", interpolate_bottom(time));
-					//Util::Message(INFO, "Time = ", time, ". Interpolate top = \n", interpolate_top(time));
+					{
+						if(elastic_bc_top.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_top[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
+					}
 #if AMREX_SPACEDIM > 2
 					if(zmin && bc_z_lo[l]==Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
+					{
+						if(elastic_bc_back.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_back[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
+					}
 					if(zmax && bc_z_hi[l]==Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC::Displacement)
-						rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_front(time)[l];
-
-					//Util::Message(INFO, "Time = ", time, ". Interpolate back = \n", interpolate_back(time));
-					//Util::Message(INFO, "Time = ", time, ". Interpolate front = \n", interpolate_front(time));
+					{
+						if(elastic_bc_front.size() == 1)
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_front[0](l);
+						else	
+							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_front(time)[l];
+					}
 #endif
 #endif
 				}
 		 	}
 		}
 	}
+	
 	amrex::MLMG solver(elastic_operator);
 	solver.setMaxIter(elastic_max_iter);
 	solver.setMaxFmgIter(elastic_max_fmg_iter);
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
 	solver.setBottomMaxIter(elastic_bottom_max_iter);
-	//solver.setFinalFillBC(true);
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
@@ -525,7 +533,7 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 		solver.setFinalSmooth(0);
 		solver.setBottomSmooth(0);
 	}
-
+	
 	solver.solve(GetVecOfPtrs(displacement),
 		GetVecOfConstPtrs(rhs),
 		elastic_tol_rel,
@@ -533,6 +541,7 @@ StressRelaxation::TimeStepBegin(amrex::Real time, int /*iter*/)
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
+		elastic_operator.Strain(lev,strain[lev],displacement[lev]);
 		elastic_operator.Stress(lev,stress[lev],displacement[lev]);
 		elastic_operator.Energy(lev,energy[lev],displacement[lev]);
 	}

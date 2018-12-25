@@ -153,10 +153,10 @@ int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::Spatiall
  	info.setMaxCoarseningLevel(0);
  	nlevels = geom.size();
 
- 	std::vector<Set::Vector> normal = {{Set::Vector(AMREX_D_DECL(1.,0.,0.))}};
- 	std::vector<Set::Vector> point = {{Set::Vector(AMREX_D_DECL(0.5,0.5,0.))}};
- 	std::vector<Set::Scalar> value = {0.8};
- 	std::vector<Set::Scalar> exponent = {1.};
+ 	std::vector<Set::Vector> normal = {{Set::Vector(AMREX_D_DECL(0.,1.,0.))}};
+ 	std::vector<Set::Vector> point = {{Set::Vector(AMREX_D_DECL(0.95,0.95,0.95))}};
+ 	std::vector<Set::Scalar> value = {0.1};
+ 	std::vector<Set::Scalar> exponent = {0.};
 
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
