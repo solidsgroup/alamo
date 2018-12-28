@@ -12,7 +12,20 @@ Cubic::Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d 
 {
 	define(C11, C12, C44, R);
 }
+Cubic::Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+{
+	define(C11, C12, C44, phi1, Phi, phi2);
+}
 
+void
+Cubic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+{
+	Eigen::Matrix3d m;
+	m =     Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+		Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+	 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+	define(C11,C12,C44,m);
+}
 void
 Cubic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R)
 {
@@ -65,11 +78,7 @@ Cubic::Randomize()
 	Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random();
 	Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
 
-	Eigen::Matrix3d m;
-	m =     Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
-		Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
-	 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
-	define(C11,C12,C44,m);
+	define(C11,C12,C44,phi1,Phi,phi2);
 }
 
 

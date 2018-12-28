@@ -5,7 +5,7 @@ Solid
    :maxdepth: 2
    :caption: Contents:
 
-   Elastic/Elastic
+   LinearElastic/LinearElastic
 
 
 No implementation yet
