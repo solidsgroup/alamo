@@ -1,4 +1,4 @@
-Elastic
+LinearElastic
 --------
 
 .. toctree::
@@ -8,7 +8,7 @@ Elastic
    Isotropic
    Cubic
 
-.. doxygenclass:: Model::Solid::Elastic::Elastic
+.. doxygenclass:: Model::Solid::LinearElastic::LinearElastic
    :project: alamo
    :members: 
    :protected-members:

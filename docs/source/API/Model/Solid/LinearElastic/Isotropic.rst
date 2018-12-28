@@ -1,7 +1,7 @@
 Isotropic
 ---------
 
-.. doxygenclass:: Model::Solid::Elastic::Isotropic
+.. doxygenclass:: Model::Solid::LinearElastic::Isotropic
    :project: alamo
    :members: 
    :protected-members:
