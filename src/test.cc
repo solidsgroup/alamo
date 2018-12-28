@@ -26,14 +26,22 @@ int main (int argc, char* argv[])
 	}
 
 	{
+		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Cubic> test;
+		failed += Util::Test::Message("Model::Solid::LinearElastic::Consistency<Cubic>",    test.Consistency(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry1<Cubic>", test.MinorSymmetry1(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry2<Cubic>", test.MinorSymmetry2(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MajorSymmetry<Cubic>",  test.MajorSymmetry(2));
+	}
+
+	{
 		Numeric::Interpolator::Test<Numeric::Interpolator::Linear<Set::Scalar> > test;
 		failed += Util::Test::Message("Numeric::Interpolator::Match<Numeric::Interpolator::Linear>",test.Match(0));
 	}
 
-	{
-		Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
-		failed += Util::Test::Message("Operator::RefluxTest", test.RefluxTest(0));
-	}
+	// {
+	// 	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
+	// 	failed += Util::Test::Message("Operator::RefluxTest", test.RefluxTest(0));
+	// }
 
 	/// \todo Don't include in test.cc until pass/fail is computed accurately.
 	//{ 

@@ -18,6 +18,11 @@ using Scalar   = amrex::Real;
 using Vector   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,1>;
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
+
+namespace Constant
+{
+static const Set::Scalar Pi = 3.14159265359;
+}
 }
 
 
