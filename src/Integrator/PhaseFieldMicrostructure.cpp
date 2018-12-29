@@ -2,6 +2,7 @@
 #include "BC/Constant.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
+#include "IC/Affine.H"
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -130,8 +131,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 		if (elastic_on)
 		{
-			RegisterNewFab(displacement, mybc,AMREX_SPACEDIM,1,"u");
-			RegisterNewFab(body_force,mybc,AMREX_SPACEDIM,0,"b");
+			//RegisterNewFab(displacement, mybc,AMREX_SPACEDIM,1,"u");
+			//RegisterNewFab(body_force,mybc,AMREX_SPACEDIM,0,"b");
 			RegisterNewFab(strain,    mybc,AMREX_SPACEDIM*AMREX_SPACEDIM,0,"eps");
 			RegisterNewFab(stress,    mybc,AMREX_SPACEDIM*AMREX_SPACEDIM,0,"sig");
 			RegisterNewFab(stress_vm, mybc,1,0,"sig_VM");
@@ -162,8 +163,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		//
 		// Initialize elastic models
 		//
-		for (int n = 0; n <  number_of_grains; n++) 
-			models.push_back(new OperatorCell::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
+		// for (int n = 0; n <  number_of_grains; n++) 
+		// 	models.push_back(new OperatorCell::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
 
 	}
 }
@@ -350,11 +351,11 @@ PhaseFieldMicrostructure::Initialize (int lev)
   
 	if (elastic_on)
 	{
-		displacement[lev].get()->setVal(0.0);
+		//displacement[lev].get()->setVal(0.0);
 		strain[lev].get()->setVal(0.0); 
 		stress[lev].get()->setVal(0.0); 
 		stress_vm[lev].get()->setVal(0.0);
-		body_force[lev].get()->setVal(0.0);
+		//body_force[lev].get()->setVal(0.0);
 		energy[lev].get()->setVal(0.0); 
 		energies[lev].get()->setVal(0.0); 
 	}
@@ -502,23 +503,106 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	LPInfo info;
 	info.setAgglomeration(true);
 	info.setConsolidation(true);
+	int max_mg_level = 0;
+	info.setMaxCoarseningLevel(max_mg_level);
 
-	elastic_operator = new OperatorCell::Elastic::PolyCrystal::PolyCrystal();
-  
-	elastic_operator->define(geom,grids,dmap,*elastic_bc,info);
-	elastic_operator->SetEta(eta_new_mf,models);
 
-	for (int ilev = 0; ilev < displacement.size(); ++ilev)
+
+	int nlevels = maxLevel() + 1;
+
+	//amrex::Vector<amrex::Geometry> 	ngeom;
+	amrex::Vector<amrex::BoxArray> 	ngrids;
+	//ngeom.resize(nlevels);
+	ngrids.resize(nlevels);
+	displacement.resize(nlevels);
+	body_force.resize(nlevels);
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Cubic> > > modelfab;
+	modelfab.resize(nlevels);
+	Model::Solid::LinearElastic::Cubic testmodel;
+	testmodel.Randomize();
+
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual;
+	residual.resize(nlevels);
+
+	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		/// \todo Replace with proper driving force initialization
-		body_force[ilev]->setVal(0.0,0,1);
-		body_force[ilev]->setVal(0.0,1,1);
+		//ngeom[ilev].define(amrex::convert(geom[ilev],amrex::IntVect::TheNodeVector()));
+		
+		ngrids[ilev] = grids[ilev];
+		ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
 
-		if (iter==0)
+		displacement[ilev].reset(new amrex::MultiFab(ngrids[ilev],dmap[ilev],AMREX_SPACEDIM,1));
+		body_force[ilev]  .reset(new amrex::MultiFab(ngrids[ilev],dmap[ilev],AMREX_SPACEDIM,1));
+		residual[ilev].reset(new amrex::MultiFab(ngrids[ilev],dmap[ilev],AMREX_SPACEDIM,1));
+
+		modelfab[ilev].define(ngrids[ilev],dmap[ilev],1,1);
+
+		displacement[ilev]->setVal(0.0);
+		body_force[ilev]->setVal(0.0,0);
+		body_force[ilev]->setVal(0.00001,1);
+		modelfab[ilev].setVal(testmodel);
+
+
+		for (amrex::MFIter mfi(*body_force[ilev],true); mfi.isValid(); ++mfi)
 		{
-			displacement[ilev]->setVal(0.0);
+			const amrex::Box& box = mfi.tilebox();
+
+			amrex::BaseFab<amrex::Real> &rhsfab = (*(body_force[ilev]))[mfi];
+
+			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
+				for (int p = 0; p<AMREX_SPACEDIM; p++)
+				{
+					if (j == geom[ilev].Domain().hiVect()[1]) rhsfab(m,p) = 0.1;
+				}
+			}
 		}
 	}
+	
+	Set::Vector n(1.0,0);
+	Set::Vector b(1.0,0);
+	Set::Scalar alpha = 1.0;
+	Set::Scalar m = 2.0;
+	IC::Affine ic(geom,n,alpha,b,true,m);
+	ic.SetComp(0);
+	for (int ilev = 0; ilev < nlevels; ilev++) ic.Initialize(ilev,displacement);
+
+		
+	//for (int ilev = 0; ilev < nlevels; ilev++) res[ilev].minus(rhs[ilev], 0, 2, 0);
+
+
+
+
+	elastic_operator = new Operator::Elastic<Model::Solid::LinearElastic::Cubic>();
+	elastic_operator->define(geom,grids,dmap,info);
+
+
+
+	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
+		bc_x_lo = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
+	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
+		bc_x_hi = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
+	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
+		bc_y_lo = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
+	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
+		bc_y_hi = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
+					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
+	
+	elastic_operator->SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
+				{{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
+
+	for (int ilev = 0; ilev < nlevels; ++ilev) elastic_operator->SetModel(ilev,modelfab[ilev]);
 
 	amrex::MLMG solver(*elastic_operator);
 	solver.setMaxIter(elastic_max_iter);
@@ -526,10 +610,37 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
 
-	solver.solve(GetVecOfPtrs(displacement),
-		     GetVecOfConstPtrs(body_force),
-		     elastic_tol_rel,
-		     elastic_tol_abs);
+	
+	
+	for (int ilev = 0; ilev < nlevels; ilev++)
+	{
+		Util::Message(INFO,"level = ", ilev, " norm = ", body_force[ilev]->norm0());
+		elastic_operator->FApply(ilev,0,*(body_force[ilev]),*(displacement[ilev]));
+		Util::Message(INFO,"level = ", ilev, " norm = ", body_force[ilev]->norm0());
+		residual[ilev]->setVal(0.0);
+
+	}
+	elastic_operator->BuildMasks();
+
+	for (int ilev = nlevels-1; ilev > 0; ilev--)
+	{
+		elastic_operator->Reflux(0, *residual[ilev-1], *displacement[ilev-1], *body_force[ilev-1], *residual[ilev], *displacement[ilev], *body_force[ilev]);
+	}
+
+	// solver.solve(GetVecOfPtrs(displacement),
+	//  	     GetVecOfConstPtrs(body_force),
+	//  	     elastic_tol_rel,
+	//  	     elastic_tol_abs);
+
+
+
+	amrex::Vector<std::string> complete_name_array;
+	complete_name_array.push_back("1");
+	complete_name_array.push_back("2");
+	amrex::WriteMultiLevelPlotfile("residual", nlevels, amrex::GetVecOfConstPtrs(residual), complete_name_array, Geom(), t_new[0], istep, refRatio());
+	amrex::WriteMultiLevelPlotfile("bodyforce", nlevels, amrex::GetVecOfConstPtrs(body_force), complete_name_array, Geom(), t_new[0], istep, refRatio());
+
+
 
 	for (int lev = 0; lev < displacement.size(); lev++)
 	{
@@ -576,8 +687,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			 		epsfab(m,8) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
 #endif
 
-					elastic_operator->Stress((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
-					elastic_operator->Energy((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+					// elastic_operator->Stress((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+					// elastic_operator->Energy((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
 
 
 			 		sigmavmfab(m,0) = 0.0;
@@ -601,7 +712,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			 	}
 
 			
-			elastic_operator->Energies(energiesfab,ufab,lev,mfi);
+			//elastic_operator->Energies(energiesfab,ufab,lev,mfi);
 		}
 	}
 }
