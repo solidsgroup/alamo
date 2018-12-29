@@ -449,7 +449,6 @@ Operator::buildMasks ()
 						const Box& ndbx = mfi.validbox();
 						const Box& ccbx = amrex::enclosedCells(ndbx);
 						const Box& ccbxg1 = amrex::grow(ccbx,1);
-						//IArrayBox& mskfab = dmask[mfi];
                         
 						ccfab.resize(ccbxg1);
 						ccfab.setVal(1);
