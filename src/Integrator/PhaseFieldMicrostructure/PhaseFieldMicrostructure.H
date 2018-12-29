@@ -33,6 +33,9 @@
 #include "OperatorCell/Elastic/PolyCrystal/Cubic/Cubic.H"
 #include "OperatorCell/Elastic/Cubic/Cubic.H"
 
+#include "Model/Solid/LinearElastic/Cubic.H"
+#include "Operator/Elastic.H"
+
 namespace Integrator
 {
 ///
@@ -107,7 +110,8 @@ private:
 	amrex::Real elastic_tstart = 0.0;
 	amrex::Vector<amrex::Real> elastic_load_t;
 	amrex::Vector<amrex::Real> elastic_load_disp;
-	OperatorCell::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	//OperatorCell::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	Operator::Elastic<Model::Solid::LinearElastic::Cubic> *elastic_operator;
 	BC::BC *elastic_bc;
 
 	std::vector<OperatorCell::Elastic::PolyCrystal::PolyCrystalModel *> models;

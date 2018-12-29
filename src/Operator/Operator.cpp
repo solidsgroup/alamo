@@ -356,6 +356,9 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	BL_PROFILE("Operator::Operator()");
 	Util::Message(INFO);
 
+	if (!(a_grids[0].ixType()  == amrex::IndexType::TheNodeType()))
+		Util::Abort(INFO,"Operator must be defined using CELL CENTERED boxarrays.");
+
 	define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
 
@@ -461,7 +464,6 @@ Operator::buildMasks ()
 						const Box& ndbx = mfi.validbox();
 						const Box& ccbx = amrex::enclosedCells(ndbx);
 						const Box& ccbxg1 = amrex::grow(ccbx,1);
-						//IArrayBox& mskfab = dmask[mfi];
                         
 						ccfab.resize(ccbxg1);
 						ccfab.setVal(1);
