@@ -739,10 +739,10 @@ PolymerDegradation::DegradeMaterial(int lev)
 													+ etafab(m-dx[2])	+ etafab(m-dx[0]-dx[2])
 													+ etafab(m-dx[1]-dx[2]) + etafab(m-dx[0]-dx[1]-dx[2])
 												));
-			if (false || AMREX_D_TERM( i == geom[lev].Domain().loVect()[0] || i == geom[lev].Domain().hiVect()[0]+1,
-									|| j == geom[lev].Domain().loVect()[1] || j == geom[lev].Domain().hiVect()[1]+1,
-									|| k == geom[lev].Domain().loVect()[2] || k == geom[lev].Domain().hiVect()[2]+1))
-				continue;
+			//if (false || AMREX_D_TERM( i == geom[lev].Domain().loVect()[0] || i == geom[lev].Domain().hiVect()[0]+1,
+			//						|| j == geom[lev].Domain().loVect()[1] || j == geom[lev].Domain().hiVect()[1]+1,
+			//						|| k == geom[lev].Domain().loVect()[2] || k == geom[lev].Domain().hiVect()[2]+1))
+			//	continue;
 			if(temp > d_final || std::isnan(temp) || std::isinf(temp))
 			{
 				Util::Message(INFO,"Invalid value of temp = ", temp);
@@ -758,6 +758,28 @@ PolymerDegradation::DegradeMaterial(int lev)
 			}
 			modelfab(m).DegradeModulus({temp});
 		}
+		AMREX_D_TERM(for (int i = box.loVect()[0]-1; i<=box.hiVect()[0]+1; i++),
+		 		     for (int j = box.loVect()[1]-1; j<=box.hiVect()[1]+1; j++),
+		 		     for (int k = box.loVect()[2]-1; k<=box.hiVect()[2]+1; k++))
+	 	{
+	 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
+	 		if(i == box.loVect()[0]-1)
+	 			modelfab(m) = modelfab(m+dx[0]);
+	 		if(i == box.hiVect()[0]+1)
+	 			modelfab(m) = modelfab(m-dx[0]);
+	 		#if AMREX_SPACEDIM > 1
+	 		if(j == box.loVect()[1]-1)
+	 			modelfab(m) = modelfab(m+dx[1]);
+	 		if(j == box.hiVect()[1]+1)
+	 			modelfab(m) = modelfab(m-dx[1]);
+	 		#if AMREX_SPACEDIM > 2
+	 		if(k == box.loVect()[2]-1)
+	 			modelfab(m) = modelfab(m+dx[2]);
+	 		if(k == box.hiVect()[2]+1)
+	 			modelfab(m) = modelfab(m-dx[2]);
+	 		#endif
+	 		#endif
+	 	}
 	}
 }
 
