@@ -34,6 +34,14 @@ int main (int argc, char* argv[])
 	}
 
 	{
+		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Simple> test;
+		failed += Util::Test::Message("Model::Solid::LinearElastic::Consistency<Simple>",    test.Consistency(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry1<Simple>", test.MinorSymmetry1(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry2<Simple>", test.MinorSymmetry2(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MajorSymmetry<Simple>",  test.MajorSymmetry(2));
+	}
+
+	{
 		Numeric::Interpolator::Test<Numeric::Interpolator::Linear<Set::Scalar> > test;
 		failed += Util::Test::Message("Numeric::Interpolator::Match<Numeric::Interpolator::Linear>",test.Match(0));
 	}
