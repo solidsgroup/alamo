@@ -3,6 +3,7 @@
 #include "Model/Solid/LinearElastic/Test.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/Simple.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Operator/Test.H"
@@ -31,6 +32,14 @@ int main (int argc, char* argv[])
 		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry1<Cubic>", test.MinorSymmetry1(2));
 		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry2<Cubic>", test.MinorSymmetry2(2));
 		failed += Util::Test::Message("Model::Solid::LinearElastic::MajorSymmetry<Cubic>",  test.MajorSymmetry(2));
+	}
+
+	{
+		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Simple> test;
+		failed += Util::Test::Message("Model::Solid::LinearElastic::Consistency<Simple>",    test.Consistency(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry1<Simple>", test.MinorSymmetry1(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry2<Simple>", test.MinorSymmetry2(2));
+		failed += Util::Test::Message("Model::Solid::LinearElastic::MajorSymmetry<Simple>",  test.MajorSymmetry(2));
 	}
 
 	{
