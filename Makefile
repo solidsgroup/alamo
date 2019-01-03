@@ -91,12 +91,12 @@ obj/%.cpp.o:
 obj/%.cpp.d: src/%.cpp 
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
-	@g++ -I./src/ $< -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/%.cc.d: src/%.cc
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
-	@g++ -I./src/ $< -MM -MT $(@:.cc.d=.cc.o) -MF $@
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 
 
@@ -123,14 +123,6 @@ clean:
 	rm -f bin/*
 	rm -rf obj/
 	rm -f Backtrace*
-
-%.cpp: $(HDR)
-
-%.cc: $(HDR)
-
-%.F90: $(HDR)
-
-%.H :
 
 help:
 	@printf "$(B_ON)$(FG_YELLOW)\n\n============================== ALAMO Makefile help ==============================$(RESET)""\n\n"
