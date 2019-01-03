@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_LINEARELASTIC_SIMPLE_H_
-#define MODEL_SOLID_LINEARELASTIC_SIMPLE_H_
+#ifndef MODEL_SOLID_LINEARELASTIC_LAPLACIAN_H_
+#define MODEL_SOLID_LINEARELASTIC_LAPLACIAN_H_
 
 #include <AMReX.H>
 #include <AMReX_REAL.H>
@@ -7,7 +7,6 @@
 
 #include "Util/Util.H"
 #include "Set/Set.H"
-#include "Model/Solid/LinearElastic/Simple.H"
 
 namespace Model
 {
@@ -22,11 +21,11 @@ namespace LinearElastic
 /// \f[ \sigma_{ij} = \alpha\delta_{ik}\delta_{jl}u_{k,l} = \alpha u_{i,j} \f]
 /// \f[ f_{i} = \mathbb{C}_{ijkl}u_{k,jl} = \alpha\delta_{ik}\delta_{jl}u_{k,jl} = \alpha u_{i,jj} \f]
 ///
-class Simple : public Model::Solid::LinearElastic::LinearElastic
+class Laplacian : public Model::Solid::LinearElastic::LinearElastic
 {
 public:
-	Simple() {} ;
-	Simple(Set::Scalar _alpha) : alpha(_alpha)  {} ;
+	Laplacian() {} ;
+	Laplacian(Set::Scalar _alpha) : alpha(_alpha)  {} ;
 	virtual Set::Matrix operator () (Set::Matrix &gradu) const
 	{
 		return alpha * 0.5*(gradu + gradu.transpose());
@@ -45,26 +44,26 @@ public:
 		alpha = Util::Random();
 	};
 
-	Simple operator + (const Simple &rhs) const
-	{return Simple(alpha+rhs.alpha);}
+	Laplacian operator + (const Laplacian &rhs) const
+	{return Laplacian(alpha+rhs.alpha);}
 
-	void operator += (const Simple &rhs)
+	void operator += (const Laplacian &rhs)
 	{alpha+=rhs.alpha;}
 
-	Simple operator - (const Simple &rhs) const
-	{return Simple(alpha-rhs.alpha);}
+	Laplacian operator - (const Laplacian &rhs) const
+	{return Laplacian(alpha-rhs.alpha);}
 
-	Simple operator * (const Simple &rhs) const
-	{return Simple(alpha*rhs.alpha);}
+	Laplacian operator * (const Laplacian &rhs) const
+	{return Laplacian(alpha*rhs.alpha);}
 
-	Simple operator / (const Simple &rhs) const
-	{return Simple(alpha/rhs.alpha);}
+	Laplacian operator / (const Laplacian &rhs) const
+	{return Laplacian(alpha/rhs.alpha);}
 
-	virtual Simple operator / (const Set::Scalar beta) const
-	{return Simple(alpha/beta);}
+	virtual Laplacian operator / (const Set::Scalar beta) const
+	{return Laplacian(alpha/beta);}
 
-	virtual Simple operator * (const Set::Scalar beta) const
-	{return Simple(alpha*beta);}
+	virtual Laplacian operator * (const Set::Scalar beta) const
+	{return Laplacian(alpha*beta);}
 
 private:
 	Set::Scalar alpha; ///< Coefficient

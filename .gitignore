@@ -24,3 +24,4 @@ docs/build
 docs/doxygen
 docs/html
 docs/latex
+*.d
