@@ -3,6 +3,7 @@
 #include "Model/Solid/LinearElastic/Test.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/Simple.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Operator/Test.H"
