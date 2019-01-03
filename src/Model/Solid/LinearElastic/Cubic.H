@@ -21,12 +21,12 @@ namespace LinearElastic
 /// Cubic implements the following linear elastic model, expressed in Voigt notation
 ///
 /// \f[\begin{bmatrix}\hat{\sigma}_{11}\\\hat{\sigma}_{22}\\\hat{\sigma}_{33}\\\hat{\sigma}_{23}\\\hat{\sigma}_{31}\\\hat{\sigma}_{12}\end{bmatrix} = 
-///    \begin{bmatrix} C_{11} & C_{12} & C_{12} \\
-///                    C_{12} & C_{11} & C_{12} \\
-///                    C_{12} & C_{12} & C_{11} \\
-///                    &&& C_{44} \\
-///                    &&&& C_{44} \\
-///                    &&&&& C_{44} \\
+///    \begin{bmatrix} C_{11} & C_{12} & C_{12} \\ %
+///                    C_{12} & C_{11} & C_{12} \\ %
+///                    C_{12} & C_{12} & C_{11} \\ %
+///                    &&& C_{44}   \\ %
+///                    &&&& C_{44}  \\ %
+///                    &&&&& C_{44} \\ %
 ///    \end{bmatrix}
 ///    \begin{bmatrix}\hat{\varepsilon}_{11}\\\hat{\varepsilon}_{22}\\\hat{\varepsilon}_{33}\\\hat{\varepsilon}_{23}\\\hat{\varepsilon}_{31}\\\hat{\varepsilon}_{12}\end{bmatrix} 
 /// \f]
