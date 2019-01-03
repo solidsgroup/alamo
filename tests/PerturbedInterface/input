@@ -1,10 +1,11 @@
 timestep = 0.005
-stop_time = 2.0
+stop_time = 0.005
+#stop_time = 2.0
 
 plot_file = tests/PerturbedInterface/output
 
 amr.plot_int = 10
-amr.max_level = 3
+amr.max_level = 1
 amr.n_cell = 64 8
 amr.blocking_factor = 4
 amr.regrid_int = 10
@@ -46,8 +47,8 @@ elastic.int=10
 elastic.type=isotropic
 elastic.verbose=2
 elastic.cgverbose=0
-elastic.tol_rel=0.01
-elastic.tol_abs=0.01
+elastic.tol_rel=0.8 #0.01
+elastic.tol_abs=0.05 #0.01
 elastic.tstart=0.0
 elastic.load_t=0.0 
 elastic.load_disp=0.01

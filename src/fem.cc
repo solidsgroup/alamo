@@ -171,7 +171,7 @@ int main (int argc, char* argv[])
 			//cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
 			// else if (orientation == "v")
 			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
-			cdomain.grow(-n_cell/4); 
+			//cdomain.grow(-n_cell/4); 
 
 			//cdomain.growLo(0,-n_cell/2); 
 			//cdomain.growLo(1,-n_cell/2); 
