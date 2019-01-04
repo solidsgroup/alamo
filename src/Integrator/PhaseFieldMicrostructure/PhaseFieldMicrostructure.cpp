@@ -112,51 +112,52 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	// Elasticity
 	{
 		amrex::ParmParse pp("elastic");
-		pp.query("on",elastic_on);
-		pp.query("int",elastic_int);
-		pp.query("type",elastic_type);
-		pp.query("max_iter",elastic_max_iter);
-		pp.query("max_fmg_iter",elastic_max_fmg_iter);
-		pp.query("verbose",elastic_verbose);
-		pp.query("cgverbose",elastic_cgverbose);
-		pp.query("tol_rel",elastic_tol_rel);
-		pp.query("tol_abs",elastic_tol_abs);
-		pp.query("tstart",elastic_tstart);
+		pp.query("on",elastic.on);
 
-		pp.queryarr("load_t",elastic_load_t);
-		pp.queryarr("load_disp",elastic_load_disp);
-		if (elastic_load_t.size() != elastic_load_disp.size())
-			Util::Abort(INFO, "load_t and load_disp must have the same number of entries");
-
-		if (elastic_on)
+		if (elastic.on)
 		{
-			//RegisterNewFab(displacement, mybc,AMREX_SPACEDIM,1,"u");
-			//RegisterNewFab(body_force,mybc,AMREX_SPACEDIM,0,"b");
-			RegisterNewFab(strain,    mybc,AMREX_SPACEDIM*AMREX_SPACEDIM,0,"eps");
-			RegisterNewFab(stress,    mybc,AMREX_SPACEDIM*AMREX_SPACEDIM,0,"sig");
-			RegisterNewFab(stress_vm, mybc,1,0,"sig_VM");
-			RegisterNewFab(energy,    mybc,1,0,"W");
-			RegisterNewFab(energies,  mybc,number_of_grains,0,"W");
+			pp.query("interval",elastic.interval);
+			//pp.query("type",elastic_type);
+			pp.query("max_iter",elastic.max_iter);
+			pp.query("max_fmg_iter",elastic.max_fmg_iter);
+			pp.query("verbose",elastic.verbose);
+			pp.query("cgverbose",elastic.cgverbose);
+			pp.query("tol_rel",elastic.tol_rel);
+			pp.query("tol_abs",elastic.tol_abs);
+			pp.query("tstart",elastic.tstart);
 
 
-			amrex::ParmParse pp("elastic.bc");
-			amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
-			amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
-			pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
-			pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
-			amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-			if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
-			if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
-			amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-			if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
-			if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
-			amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-			if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
-			if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+			amrex::ParmParse pp_bc("elastic.bc");
 
-			elastic_bc = new BC::Constant(bc_hi_str, bc_lo_str,
-						      AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
-						      AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
+			// Read in boundary types as strings, then convert to Operator::Elastic::BC types and store for future use.
+			amrex::Vector<std::string> AMREX_D_DECL(bctype_xlo_str,bctype_ylo_str,bctype_zlo_str);
+			amrex::Vector<std::string> AMREX_D_DECL(bctype_xhi_str,bctype_yhi_str,bctype_zhi_str);
+			AMREX_D_TERM(pp_bc.queryarr("type_xlo",bctype_xlo_str);, pp_bc.queryarr("type_ylo",bctype_ylo_str);, pp_bc.queryarr("type_zlo",bctype_zlo_str););
+			AMREX_D_TERM(pp_bc.queryarr("type_xhi",bctype_xhi_str);, pp_bc.queryarr("type_yhi",bctype_yhi_str);, pp_bc.queryarr("type_zhi",bctype_zhi_str););
+			if ( AMREX_D_TERM(bctype_xlo_str.size() < AMREX_SPACEDIM, || bctype_ylo_str.size() < AMREX_SPACEDIM, || bctype_zlo_str.size() < AMREX_SPACEDIM)
+			     ||
+			     AMREX_D_TERM(bctype_xhi_str.size() < AMREX_SPACEDIM, || bctype_yhi_str.size() < AMREX_SPACEDIM, || bctype_zhi_str.size() < AMREX_SPACEDIM))
+				Util::Abort(INFO, "incorrect number of terms specified in bctype");
+			std::map<std::string,Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC> bc;
+			bc["displacement"] = Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement;
+			bc["disp"]         = Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement;
+			bc["traction"]     = Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Traction;
+			bc["trac"]         = Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Traction;
+			bc["periodic"]     = Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Periodic;
+			AMREX_D_TERM(elastic.bctype_xlo = {AMREX_D_DECL(bc[bctype_xlo_str[0]], bc[bctype_xlo_str[1]], bc[bctype_xlo_str[2]])};,
+				     elastic.bctype_ylo = {AMREX_D_DECL(bc[bctype_ylo_str[0]], bc[bctype_ylo_str[1]], bc[bctype_ylo_str[2]])};,
+				     elastic.bctype_zlo = {AMREX_D_DECL(bc[bctype_zlo_str[0]], bc[bctype_zlo_str[1]], bc[bctype_zlo_str[2]])};);
+			AMREX_D_TERM(elastic.bctype_xhi = {AMREX_D_DECL(bc[bctype_xhi_str[0]], bc[bctype_xhi_str[1]], bc[bctype_xhi_str[2]])};,
+				     elastic.bctype_yhi = {AMREX_D_DECL(bc[bctype_yhi_str[0]], bc[bctype_yhi_str[1]], bc[bctype_yhi_str[2]])};,
+				     elastic.bctype_zhi = {AMREX_D_DECL(bc[bctype_zhi_str[0]], bc[bctype_zhi_str[1]], bc[bctype_zhi_str[2]])};);
+
+
+			AMREX_D_TERM(pp_bc.queryarr("xlo",elastic.bc_xlo);, pp_bc.queryarr("ylo",elastic.bc_ylo);, pp_bc.queryarr("zlo",elastic.bc_zlo););
+			AMREX_D_TERM(pp_bc.queryarr("xhi",elastic.bc_xhi);, pp_bc.queryarr("yhi",elastic.bc_yhi);, pp_bc.queryarr("zhi",elastic.bc_zhi););
+
+
+				
+
 		}
 
 		//
@@ -326,7 +327,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 				//
 				// ELASTIC DRIVING FORCE
 				//
-				if (elastic_on && time > elastic_tstart)
+				if (elastic.on && time > elastic.tstart)
 				{
 					FArrayBox &energiesfab     = (*energies[lev])[mfi];
 
@@ -348,15 +349,15 @@ PhaseFieldMicrostructure::Initialize (int lev)
 	ic->Initialize(lev,eta_old_mf);
   
   
-	if (elastic_on)
+	if (elastic.on)
 	{
-		//displacement[lev].get()->setVal(0.0);
-		strain[lev].get()->setVal(0.0); 
-		stress[lev].get()->setVal(0.0); 
-		stress_vm[lev].get()->setVal(0.0);
-		//body_force[lev].get()->setVal(0.0);
-		energy[lev].get()->setVal(0.0); 
-		energies[lev].get()->setVal(0.0); 
+		// //displacement[lev].get()->setVal(0.0); ///TODO
+		// strain[lev].get()->setVal(0.0); 
+		// stress[lev].get()->setVal(0.0); 
+		// stress_vm[lev].get()->setVal(0.0);
+		// //body_force[lev].get()->setVal(0.0);
+		// energy[lev].get()->setVal(0.0); 
+		// energies[lev].get()->setVal(0.0); 
 	}
 }
 
@@ -436,9 +437,9 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
-	if (!elastic_on) return;
-	if (iter%elastic_int) return;
-	if (time < elastic_tstart) return;
+	if (!elastic.on) return;
+	if (iter%elastic.interval) return;
+	if (time < elastic.tstart) return;
 
 	LPInfo info;
 	info.setAgglomeration(true);
@@ -478,8 +479,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		displacement[ilev]->setVal(0.0);
 		body_force[ilev]->setVal(0.000000001);
-		// body_force[ilev]->setVal(0.00001,1,1);
-		// body_force[ilev]->setVal(10.0,0,1);
 		modelfab[ilev].setVal(testmodel);
 
 
@@ -489,85 +488,58 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		 	amrex::BaseFab<amrex::Real> &rhsfab = (*(body_force[ilev]))[mfi];
 
-		 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]+1; i++),
-		 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]+1; j++),
-		 		     for (int k = box.loVect()[2]; k<=box.hiVect()[2]+1; k++))
-		 	{
-		 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
-				if (j == geom[ilev].Domain().hiVect()[1]+1) rhsfab(m,0) = 0.1;
-		 	}
+				for (int p = 0; p<AMREX_SPACEDIM; p++)
+				{
+					AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0]) rhsfab(m,p)   = elastic.bc_xlo[p];,
+						      if (j == geom[ilev].Domain().loVect()[1]) rhsfab(m,p)   = elastic.bc_ylo[p];,
+						      if (k == geom[ilev].Domain().loVect()[2]) rhsfab(m,p)   = elastic.bc_zlo[p]; );
+					AMREX_D_TERM( if (i == geom[ilev].Domain().hiVect()[0]+1) rhsfab(m,p) = elastic.bc_xhi[p];,
+						      if (j == geom[ilev].Domain().hiVect()[1]+1) rhsfab(m,p) = elastic.bc_yhi[p];,
+						      if (k == geom[ilev].Domain().hiVect()[2]+1) rhsfab(m,p) = elastic.bc_zhi[p]; );
+				}
+			}
 		}
 	}
 	
-	// Set::Vector n(1.0,0);
-	// Set::Vector b(1.0,0);
-	// Set::Scalar alpha = 1.0;
-	// Set::Scalar m = 2.0;
-	// IC::Affine ic(geom,n,alpha,b,true,m);
-	// ic.SetComp(0);
-	// for (int ilev = 0; ilev < nlevels; ilev++) ic.Initialize(ilev,displacement);
-
-		
-	//for (int ilev = 0; ilev < nlevels; ilev++) res[ilev].minus(rhs[ilev], 0, 2, 0);
 
 
 
+	elastic.op = new Operator::Elastic<Model::Solid::LinearElastic::Cubic>();
+	// amrex::Vector<amrex::Geometry> elgeom(nlevels);
+	// for (int i = 0; i < nlevels; i++)
+	// {
 
-	elastic_operator = new Operator::Elastic<Model::Solid::LinearElastic::Cubic>();
-	elastic_operator->define(geom,grids,dmap,info);
+	//        elgeom = geom;
+	elastic.op->define(geom,grids,dmap,info);
 
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
-		bc_x_lo = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
-		bc_x_hi = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
-#if AMREX_SPACEDIM > 1
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
-		bc_y_lo = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
-		bc_y_hi = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
-#endif
-#if AMREX_SPACEDIM > 2
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
-		bc_z_lo = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM>
-		bc_z_hi = {AMREX_D_DECL(Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement,
-					Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC::Displacement)};
-#endif
+	elastic.op->SetBC({{AMREX_D_DECL(elastic.bctype_xlo,elastic.bctype_ylo,elastic.bctype_zlo)}},
+			  {{AMREX_D_DECL(elastic.bctype_xhi,elastic.bctype_yhi,elastic.bctype_zhi)}});
 
-	elastic_operator->SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
-				{{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
+	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.op->SetModel(ilev,modelfab[ilev]);
 
-	for (int ilev = 0; ilev < nlevels; ++ilev) elastic_operator->SetModel(ilev,modelfab[ilev]);
-
-	amrex::MLMG solver(*elastic_operator);
-	solver.setMaxIter(elastic_max_iter);
-	solver.setMaxFmgIter(elastic_max_fmg_iter);
-	solver.setVerbose(elastic_verbose);
-	solver.setCGVerbose(elastic_cgverbose);
+	amrex::MLMG solver(*elastic.op);
+	solver.setMaxIter(elastic.max_iter);
+	solver.setMaxFmgIter(elastic.max_fmg_iter);
+	solver.setVerbose(elastic.verbose);
+	solver.setCGVerbose(elastic.cgverbose);
 
 	
 	
 	solver.solve(GetVecOfPtrs(displacement),
 	  	     GetVecOfConstPtrs(body_force),
-	  	     elastic_tol_rel,
-	  	     elastic_tol_abs);
+	  	     elastic.tol_rel,
+	  	     elastic.tol_abs);
 
 	for (int ilev = 0; ilev < nlevels; ilev++)
 	{
 		Util::Message(INFO,"level = ", ilev, " norm = ", body_force[ilev]->norm0());
-		elastic_operator->FApply(ilev,0,*(residual[ilev]),*(displacement[ilev]));
+		elastic.op->FApply(ilev,0,*(residual[ilev]),*(displacement[ilev]));
 		Util::Message(INFO,"level = ", ilev, " norm = ", body_force[ilev]->norm0());
 		(*residual[ilev]).minus(*(body_force[ilev]), 0, 2, 0);
 	 	//residual[ilev]->setVal(0.0);
@@ -576,7 +548,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	//elastic_operator->BuildMasks();
 	for (int ilev = nlevels-1; ilev > 0; ilev--)
 	{
-		elastic_operator->Reflux(0, *residual[ilev-1], *displacement[ilev-1], *body_force[ilev-1], *residual[ilev], *displacement[ilev], *body_force[ilev]);
+		elastic.op->Reflux(0, *residual[ilev-1], *displacement[ilev-1], *body_force[ilev-1], *residual[ilev], *displacement[ilev], *body_force[ilev]);
 	}
 
 

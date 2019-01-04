@@ -11,8 +11,10 @@ namespace IC
 class Trig : public IC
 {
 public:
-	Trig (amrex::Vector<amrex::Geometry> &_geom) :
-		IC(_geom)
+	Trig (amrex::Vector<amrex::Geometry> &_geom,
+	      AMREX_D_DECL(int _n1 = 1, int _n2 = 1, int _n3 = 1)) :
+	      IC(_geom),
+	      AMREX_D_DECL(n1(_n1),n2(_n2),n3(_n3))
 	{}
 
 	virtual void SetComp(int a_comp) {comp = a_comp;}
@@ -20,6 +22,11 @@ public:
 	void Initialize(const int lev,
 			amrex::Vector<amrex::MultiFab *> &field)
 	{
+		const amrex::Real AMREX_D_DECL(L1 = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0],
+					       L2 = geom[lev].ProbLo()[1] - geom[lev].ProbHi()[1],
+					       L3 = geom[lev].ProbLo()[2] - geom[lev].ProbHi()[2]);
+				   
+
 		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
 		{
 			const amrex::Box& box = mfi.tilebox();
@@ -39,9 +46,10 @@ public:
 					     amrex::Real x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
 					     amrex::Real x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
 
-				Set::Vector x(AMREX_D_DECL(x1,x2,x3));
-
-				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = std::sin(2*3.14159*x1) *  std::sin(2*3.14159*x2) ;
+				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp)
+					= AMREX_D_TERM(std::sin(n1*Set::Constant::Pi*x1 / L1),
+						       * std::sin(n2*Set::Constant::Pi*x2 / L2),
+						       * std::sin(n3*Set::Constant::Pi*x3 / L3));
 
 			}
 		}
@@ -64,6 +72,7 @@ public:
 
 private:
 	int comp;
+	int AMREX_D_DECL(n1, n2, n3);
 };
 }
 #endif

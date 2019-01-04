@@ -14,7 +14,6 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Set/Set.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"

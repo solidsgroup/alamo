@@ -239,7 +239,7 @@ int Message(std::string testname, int failed)
 		ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
 
 	std::cout << std::left
-		  << Color::FG::White << Color::Bold << testname << Color::Reset
+		  << testname 
 		  << std::setw(w.ws_col - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
 	return failed;
 }

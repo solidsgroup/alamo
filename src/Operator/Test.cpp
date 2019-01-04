@@ -6,7 +6,6 @@
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Test.H"
 #include "IC/Affine.H"
-#include "IC/Trig.H"
 #include "IC/Random.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"

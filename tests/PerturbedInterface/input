@@ -5,9 +5,9 @@ stop_time = 0.005
 plot_file = tests/PerturbedInterface/output
 
 amr.plot_int = 10
-amr.max_level = 1
-amr.n_cell = 64 8
-amr.blocking_factor = 4
+amr.max_level = 2
+amr.n_cell = 32 4
+amr.blocking_factor = 2
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 amr.max_grid_size = 8
@@ -19,7 +19,7 @@ ic.wave_amplitudes=0.05
 
 geometry.prob_lo = 0 -0.5
 geometry.prob_hi = 8 0.5
-geometry.is_periodic= 1 0 0
+geometry.is_periodic= 0 0 0
 
 bc.hi = INT_DIR EXT_DIR INT_DIR
 bc.lo = INT_DIR EXT_DIR INT_DIR
@@ -43,18 +43,32 @@ anisotropy.damp=1.0
 
 
 elastic.on=1
+elastic.max_iter = 20
 elastic.int=10
 elastic.type=isotropic
 elastic.verbose=2
 elastic.cgverbose=0
-elastic.tol_rel=0.8 #0.01
-elastic.tol_abs=0.05 #0.01
+elastic.tol_rel=1E-6 #0.01
+elastic.tol_abs=1E-6 #0.01
 elastic.tstart=0.0
 elastic.load_t=0.0 
 elastic.load_disp=0.01
 
-elastic.bc.hi = periodic dirichlet periodic
-elastic.bc.lo = periodic dirichlet periodic
-elastic.bc.lo_2 = 0.1 0.0 0.0 
-elastic.bc.hi_2 = 0.0 0.0 0.0 
+elastic.bc.type_xlo = disp disp disp
+elastic.bc.type_ylo = disp disp disp
+elastic.bc.type_zlo = disp disp disp
+elastic.bc.type_xhi = disp disp disp
+elastic.bc.type_yhi = disp disp disp
+elastic.bc.type_zhi = disp disp disp
+
+elastic.bc.type_ylo = trac trac trac
+elastic.bc.type_yhi = trac trac trac
+
+elastic.bc.xlo = 0.0 0.0 0.0
+elastic.bc.ylo = 0.0 0.0 0.0
+elastic.bc.zlo = 0.0 0.0 0.0
+elastic.bc.xhi = 0.0 0.0 0.0
+elastic.bc.yhi = 0.0 0.1 0.0
+elastic.bc.zhi = 0.0 0.0 0.0
+
 
