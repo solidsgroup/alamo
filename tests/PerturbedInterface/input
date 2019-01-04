@@ -61,8 +61,8 @@ elastic.bc.type_xhi = disp disp disp
 elastic.bc.type_yhi = disp disp disp
 elastic.bc.type_zhi = disp disp disp
 
-elastic.bc.type_ylo = trac trac trac
-elastic.bc.type_yhi = trac trac trac
+#elastic.bc.type_ylo = trac trac trac
+#elastic.bc.type_yhi = trac trac trac
 
 elastic.bc.xlo = 0.0 0.0 0.0
 elastic.bc.ylo = 0.0 0.0 0.0

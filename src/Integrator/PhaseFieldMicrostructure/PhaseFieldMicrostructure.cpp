@@ -451,14 +451,17 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	int nlevels = maxLevel() + 1;
 	amrex::Vector<amrex::BoxArray> 	ngrids;
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Cubic> > > modelfab;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Cubic> > > model;
 
 	ngrids.resize(nlevels);
 	displacement.resize(nlevels);
 	body_force.resize(nlevels);
-	modelfab.resize(nlevels);
+	model.resize(nlevels);
 
-	Model::Solid::LinearElastic::Cubic testmodel(10.73, 6.09, 2.830); //testmodel.Randomize();
+	Model::Solid::LinearElastic::Cubic grain1; grain1.Randomize(); //(10.73, 6.09, 2.830); //testmodel.Randomize();
+	Model::Solid::LinearElastic::Cubic grain2 = grain1 * 2.0;
+	// Util::Message(INFO,grain1);
+	// Util::Message(INFO,grain2);
 	
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual;
@@ -473,20 +476,23 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		displacement[ilev].reset(new amrex::MultiFab(ngrids[ilev],dmap[ilev],AMREX_SPACEDIM,1));
 		body_force[ilev]  .reset(new amrex::MultiFab(ngrids[ilev],dmap[ilev],AMREX_SPACEDIM,1));
-		residual[ilev].reset(new amrex::MultiFab(ngrids[ilev],dmap[ilev],AMREX_SPACEDIM,1));
+		residual[ilev]    .reset(new amrex::MultiFab(ngrids[ilev],dmap[ilev],AMREX_SPACEDIM,1));
 
-		modelfab[ilev].define(ngrids[ilev],dmap[ilev],1,1);
+		model[ilev].define(ngrids[ilev],dmap[ilev],1,1);
 
 		displacement[ilev]->setVal(0.0);
 		body_force[ilev]->setVal(0.000000001);
-		modelfab[ilev].setVal(testmodel);
+
+		//model[ilev].setVal(grain1); //TODO
 
 
 		for (amrex::MFIter mfi(*body_force[ilev],true); mfi.isValid(); ++mfi)
 		{
 		 	const amrex::Box& box = mfi.tilebox();
 
+			amrex::BaseFab<amrex::Real> &etafab = (*(eta_old_mf[ilev]))[mfi];
 		 	amrex::BaseFab<amrex::Real> &rhsfab = (*(body_force[ilev]))[mfi];
+			amrex::BaseFab<Model::Solid::LinearElastic::Cubic> &modelfab = (model[ilev])[mfi];
 
 			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
 				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
@@ -494,6 +500,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
+				// Set boundary conditions in RHS
 				for (int p = 0; p<AMREX_SPACEDIM; p++)
 				{
 					AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0]) rhsfab(m,p)   = elastic.bc_xlo[p];,
@@ -503,6 +510,15 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						      if (j == geom[ilev].Domain().hiVect()[1]+1) rhsfab(m,p) = elastic.bc_yhi[p];,
 						      if (k == geom[ilev].Domain().hiVect()[2]+1) rhsfab(m,p) = elastic.bc_zhi[p]; );
 				}
+
+				
+				modelfab(m) =
+					grain1 * 0.25*(etafab(m-dx[0]-dx[1], 0) + etafab(m-dx[0], 0) + etafab(m-dx[1], 0) + etafab(m, 0)) +
+					grain2 * 0.25*(etafab(m-dx[0]-dx[1], 1) + etafab(m-dx[0], 1) + etafab(m-dx[1], 1) + etafab(m, 1));
+
+
+
+				
 			}
 		}
 	}
@@ -521,7 +537,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elastic.op->SetBC({{AMREX_D_DECL(elastic.bctype_xlo,elastic.bctype_ylo,elastic.bctype_zlo)}},
 			  {{AMREX_D_DECL(elastic.bctype_xhi,elastic.bctype_yhi,elastic.bctype_zhi)}});
 
-	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.op->SetModel(ilev,modelfab[ilev]);
+	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.op->SetModel(ilev,model[ilev]);
 
 	amrex::MLMG solver(*elastic.op);
 	solver.setMaxIter(elastic.max_iter);
