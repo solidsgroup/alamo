@@ -3,7 +3,7 @@
 #include "Model/Solid/LinearElastic/Test.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
-#include "Model/Solid/LinearElastic/Simple.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Operator/Test.H"
@@ -20,31 +20,36 @@ int main (int argc, char* argv[])
 
 	{
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Isotropic> test;
-		failed += Util::Test::Message("Model::Solid::LinearElastic::Consistency<Isotropic>",    test.Consistency(0));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry1<Isotropic>", test.MinorSymmetry1(0));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry2<Isotropic>", test.MinorSymmetry2(0));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MajorSymmetry<Isotropic>",  test.MajorSymmetry(0));
+		
+		/*      */Util::Test::Message("Model::Solid::LinearElastic<Isotropic>");
+		failed += Util::Test::Message("  ├ Consistency",    test.Consistency(0));
+		failed += Util::Test::Message("  ├ MinorSymmetry1", test.MinorSymmetry1(0));
+		failed += Util::Test::Message("  ├ MinorSymmetry2", test.MinorSymmetry2(0));
+		failed += Util::Test::Message("  └ MajorSymmetry",  test.MajorSymmetry(0));
 	}
 
 	{
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Cubic> test;
-		failed += Util::Test::Message("Model::Solid::LinearElastic::Consistency<Cubic>",    test.Consistency(2));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry1<Cubic>", test.MinorSymmetry1(2));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry2<Cubic>", test.MinorSymmetry2(2));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MajorSymmetry<Cubic>",  test.MajorSymmetry(2));
+		/*      */Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
+		failed += Util::Test::Message("  ├ Consistency",    test.Consistency(2));
+		failed += Util::Test::Message("  ├ MinorSymmetry1", test.MinorSymmetry1(2));
+		failed += Util::Test::Message("  ├ MinorSymmetry2", test.MinorSymmetry2(2));
+		failed += Util::Test::Message("  └ MajorSymmetry",  test.MajorSymmetry(2));
 	}
 
 	{
-		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Simple> test;
-		failed += Util::Test::Message("Model::Solid::LinearElastic::Consistency<Simple>",    test.Consistency(2));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry1<Simple>", test.MinorSymmetry1(2));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MinorSymmetry2<Simple>", test.MinorSymmetry2(2));
-		failed += Util::Test::Message("Model::Solid::LinearElastic::MajorSymmetry<Simple>",  test.MajorSymmetry(2));
+		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Laplacian> test;
+		/*      */Util::Test::Message("Model::Solid::LinearElastic<Laplacian>");
+		failed += Util::Test::Message("  ├ Consistency",    test.Consistency(2));
+		failed += Util::Test::Message("  ├ MinorSymmetry1", test.MinorSymmetry1(2));
+		failed += Util::Test::Message("  ├ MinorSymmetry2", test.MinorSymmetry2(2));
+		failed += Util::Test::Message("  └ MajorSymmetry",  test.MajorSymmetry(2));
 	}
 
 	{
 		Numeric::Interpolator::Test<Numeric::Interpolator::Linear<Set::Scalar> > test;
-		failed += Util::Test::Message("Numeric::Interpolator::Match<Numeric::Interpolator::Linear>",test.Match(0));
+		/*      */Util::Test::Message("Numeric::Interpolator<Linear>");
+		failed += Util::Test::Message("  └ Match",test.Match(0));
 	}
 
 	// {

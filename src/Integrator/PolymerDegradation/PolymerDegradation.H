@@ -69,7 +69,7 @@ protected:
 
 private:
 
-	int number_of_ghost_cells = 1;
+	int number_of_ghost_cells = 2;
 
 	// Degradation variable
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep

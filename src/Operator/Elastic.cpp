@@ -709,9 +709,9 @@ Elastic<T>::reflux (int crse_amrlev,
 					amrex::IntVect m_crse(m1,  m2);
 					amrex::IntVect m_fine(m1*2,m2*2);
 					
-					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] ||
-					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1])
-						continue;
+					// if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1||
+					//     m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
+					// 	continue;
 
 					if ((m1 == bx.loVect()[0] && m2 == bx.loVect()[1]) || 
 					    (m1 == bx.loVect()[0] && m2 == bx.hiVect()[1]) ||
@@ -748,11 +748,11 @@ Elastic<T>::reflux (int crse_amrlev,
 						amrex::IntVect m_fine(m1*2,m2*2,m3*2);
 				
 						bool xmin = (m1 == bx.loVect()[0]) || (m1 == c_cc_domain.loVect()[0]);
-						bool xmax = (m1 == bx.hiVect()[0]) || (m1 == c_cc_domain.hiVect()[0]);
+						bool xmax = (m1 == bx.hiVect()[0]) || (m1 == c_cc_domain.hiVect()[0] +1);
 						bool ymin = (m2 == bx.loVect()[1]) || (m2 == c_cc_domain.loVect()[1]);
-						bool ymax = (m2 == bx.hiVect()[1]) || (m2 == c_cc_domain.hiVect()[1]);
+						bool ymax = (m2 == bx.hiVect()[1]) || (m2 == c_cc_domain.hiVect()[1] +1);
 						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
-						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2]);
+						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2] +1);
 						
 						// Corners
 						if ((xmin && ymin && zmin) ||
