@@ -33,18 +33,6 @@ Elastic<T>::apply (int amrlev, int mglev,
 		   const amrex::IntVect &m) const
 
 {
-	// if (amrlev == 1 && m[0] == 8 && m[1] == 8)
-	// {
-	// 	Util::Message(INFO,"m = ", m);
-	// 	Util::Message(INFO,"u(m) = ", ufab(m,0), " ", ufab(m,1));
-	// 	Util::Message(INFO,"u(m+dx) = ", ufab(m+dx[0],0), " ", ufab(m+dx[0],1));
-	// 	Util::Message(INFO,"u(m-dx) = ", ufab(m-dx[0],0), " ", ufab(m-dx[0],1));
-	// 	Util::Message(INFO,"u(m+dy) = ", ufab(m+dx[1],0), " ", ufab(m+dx[1],1));
-	// 	Util::Message(INFO,"u(m-dy) = ", ufab(m-dx[1],0), " ", ufab(m-dx[1],1));
-	// 	Util::Message(INFO,"u(m-dx-dy) = ", ufab(m-dx[0]-dx[1],0), " ", ufab(m-dx[0]-dx[1],1));
-	// }
-
-
 	Set::Vector f = Set::Vector::Zero();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
@@ -553,33 +541,36 @@ Elastic<T>::Stress (int amrlev,
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
+
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			//Util::Message(INFO,"m=",m," & box = (",bx.loVect()[0],",",bx.loVect()[1],",",bx.loVect()[2],")(",bx.hiVect()[0],",",bx.hiVect()[1],",",bx.hiVect()[2],")");
 
-			bool    AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
-					     ymin = (m2 == bx.loVect()[1]),
-					     zmin = (m3 == bx.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
-					     ymax = (m2 == bx.hiVect()[1]),
-					     zmax = (m3 == bx.hiVect()[2]));
+			bool    AMREX_D_DECL(xmin = (m[0] == bx.loVect()[0]),
+					     ymin = (m[1] == bx.loVect()[1]),
+					     zmin = (m[2] == bx.loVect()[2])),
+				AMREX_D_DECL(xmax = (m[0] == bx.hiVect()[0]),
+					     ymax = (m[1] == bx.hiVect()[1]),
+					     zmax = (m[2] == bx.hiVect()[2]));
+			// bool    AMREX_D_DECL(xmin = (m[0] == domain.loVect()[0]),
+			// 		     ymin = (m[1] == domain.loVect()[1]),
+			// 		     zmin = (m[2] == domain.loVect()[2])),
+			// 	AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]+1),
+			// 		     ymax = (m[1] == domain.hiVect()[1]+1),
+			// 		     zmax = (m[2] == domain.hiVect()[2]+1));
 
-			Set::Matrix gradu;
+			// The displacement gradient tensor
+			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
 
-			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx[0],0) : ufab(m,0)) - (!xmin ? ufab(m-dx[0],0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     ,
-				     gradu(0,1) = ((!ymax ? ufab(m+dx[1],0) : ufab(m,0)) - (!ymin ? ufab(m-dx[1],0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(1,0) = ((!xmax ? ufab(m+dx[0],1) : ufab(m,1)) - (!xmin ? ufab(m-dx[0],1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(1,1) = ((!ymax ? ufab(m+dx[1],1) : ufab(m,1)) - (!ymin ? ufab(m-dx[1],1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     ,
-				     gradu(0,2) = ((!zmax ? ufab(m+dx[2],0) : ufab(m,0)) - (!zmin ? ufab(m-dx[2],0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(1,2) = ((!zmax ? ufab(m+dx[2],1) : ufab(m,1)) - (!zmin ? ufab(m-dx[2],1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(2,0) = ((!xmax ? ufab(m+dx[0],2) : ufab(m,2)) - (!xmin ? ufab(m-dx[0],2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(2,1) = ((!ymax ? ufab(m+dx[1],2) : ufab(m,2)) - (!ymin ? ufab(m-dx[1],2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(2,2) = ((!zmax ? ufab(m+dx[2],2) : ufab(m,2)) - (!zmin ? ufab(m-dx[2],2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
-			Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
+			// Fill gradu and gradgradu
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
+			{
+				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			}
 
-			Set::Matrix sig = C(m)(eps);
+
+			// Stress tensor computed using the model fab
+			Set::Matrix sig = C(m)(gradu);
 
 			if (voigt)
 			{
