@@ -224,38 +224,49 @@ namespace Test
 {
 int Message(std::string testname)
 {
-	std::cout << std::left
-		  << Color::FG::White << Color::Bold << testname << Color::Reset << std::endl;
+	if (amrex::ParallelDescriptor::IOProcessor())
+		std::cout << std::left
+			  << Color::FG::White << Color::Bold << testname << Color::Reset << std::endl;
 	return 0;
 }
 int Message(std::string testname, int failed)
 {
-	winsize w;
-	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-	std::stringstream ss;
-	if (!failed)
-		ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
-	else
-		ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
+	if (amrex::ParallelDescriptor::IOProcessor())
+	{
+		winsize w;
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+		std::stringstream ss;
+		if (!failed)
+			ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
+		else
+			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
 
-	std::cout << std::left
-		  << testname 
-		  << std::setw(w.ws_col - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+		int terminalwidth = 100; //std::min(w.ws_col,(short unsigned int) 100);
+
+		std::cout << std::left
+			  << testname 
+			  << std::setw(terminalwidth - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+	}
 	return failed;
 }
 int SubMessage(std::string testname, int failed)
 {
-	winsize w;
-	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-	std::stringstream ss;
-	if (!failed)
-		ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
-	else
-		ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
+	if (amrex::ParallelDescriptor::IOProcessor())
+	{
+		winsize w;
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+		std::stringstream ss;
+		if (!failed)
+			ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
+		else
+			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
 
-	std::cout << std::left
-		  << Color::FG::White << Color::Bold << "    " + testname << Color::Reset
-		  << std::setw(w.ws_col - ( testname.size() + 4) + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+		int terminalwidth = 100; //std::min(w.ws_col,(short unsigned int) 100);
+
+		std::cout << std::left
+			  << Color::FG::White << Color::Bold << "    " + testname << Color::Reset
+			  << std::setw(terminalwidth - ( testname.size() + 4) + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+	}
 	return failed;
 }
 
