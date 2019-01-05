@@ -6,6 +6,8 @@
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
+#include "Test/Operator/Elastic/Test.H"
+
 #include "Operator/Test.H"
 #include "Operator/Elastic.H"
 
@@ -40,10 +42,7 @@ int main (int argc, char* argv[])
 	{
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Laplacian> test;
 		/*      */Util::Test::Message("Model::Solid::LinearElastic<Laplacian>");
-		failed += Util::Test::Message("  ├ Consistency",    test.Consistency(2));
-		failed += Util::Test::Message("  ├ MinorSymmetry1", test.MinorSymmetry1(2));
-		failed += Util::Test::Message("  ├ MinorSymmetry2", test.MinorSymmetry2(2));
-		failed += Util::Test::Message("  └ MajorSymmetry",  test.MajorSymmetry(2));
+		failed += Util::Test::Message("  └ Consistency",    test.Consistency(2));
 	}
 
 	{
