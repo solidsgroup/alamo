@@ -14,9 +14,21 @@
 #include "Numeric/Interpolator/Test.H"
 #include "Numeric/Interpolator/Linear.H"
 
+namespace Test
+{
+void testfn()
+{
+
+	using model_type = Model::Solid::LinearElastic::Isotropic;
+	::Operator::Elastic<model_type> elastic;
+
+}
+}
+
 int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
+
 
 	int failed = 0;
 
@@ -50,6 +62,19 @@ int main (int argc, char* argv[])
 		/*      */Util::Test::Message("Numeric::Interpolator<Linear>");
 		failed += Util::Test::Message("  └ Match",test.Match(0));
 	}
+
+	{
+		Test::Operator::Elastic::Test test;
+		test.Define(32,1);
+		/*      */Util::Test::Message("Elastic Operator Trig Test 32x32, 1 level");
+		failed += Util::Test::Message("  ├ Component 0, Level 0, period=1",test.TrigTest(0,0,1));
+		failed += Util::Test::Message("  └ Component 0, Level 0, period=2",test.TrigTest(0,0,1));
+		test.Define(32,2);
+		/*      */Util::Test::Message("Elastic Operator Trig Test 32x32, 2 levels");
+		failed += Util::Test::Message("  ├ Component 0, Level 0, period=1",test.TrigTest(0,0,1));
+		failed += Util::Test::Message("  └ Component 0, Level 0, period=2",test.TrigTest(0,0,1));
+	}
+
 
 	// {
 	// 	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;

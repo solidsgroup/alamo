@@ -1012,7 +1012,7 @@ void
 Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
-	Util::Message(INFO);
+	/////////Util::Message(INFO);
 
 	sigma.FillBoundary(geom.periodicity());
 
@@ -1029,7 +1029,7 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 
 	// 	}
 	// }
-	Util::Warning(INFO, "FillBoundaryCoeff not fully implemented");
+	///////Util::Warning(INFO, "FillBoundaryCoeff not fully implemented");
 }
 
 
