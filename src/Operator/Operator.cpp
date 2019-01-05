@@ -594,7 +594,6 @@ void
 Operator::prepareForSolve ()
 {
 	BL_PROFILE("Operator::prepareForSolve()");
-	Util::Message(INFO);
 
 	AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_num_amr_levels == 1 ||
 					 m_coarsening_strategy != CoarseningStrategy::RAP,

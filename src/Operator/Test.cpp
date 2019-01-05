@@ -11,35 +11,6 @@
 #include "IO/FileNameParse.H"
 
 
-//
-//
-// Let Omega = [0, 1]^2
-//
-// Let u_i = u_i^{mn} sin(pi x m) sin(pi y n) and
-//     b_i = b_i^{mn} sin(pi x m) sin(pi y n) and
-// Then u_{i,jj} = - u_i^{mn} pi^2 (m^2 + n^2) sin(pi x m) sin(pi y n) 
-//
-// Governing equation
-//   C_{ijkl} u_{k,jl} + b_i = 0
-//
-// Let C_{ijkl} = alpha delta_{ik} delta_{jl}
-// then
-//   C_{ijkl} u_{k,jl} = alpha delta_{ik} delta_{jl} u_{k,jl}
-//                     = alpha u_{i,jj}
-// so
-//   - alpha u_i^{mn} pi^2 (m^2 + n^2) sin(pi x m) sin(pi y n) + b_i^{mn} sin(pi x m) sin(pi y n) = 0
-// or
-//     alpha u_i^{mn} pi^2 (m^2 + n^2) sin(pi x m) sin(pi y n) = b_i^{mn} sin(pi x m) sin(pi y n)
-// using orthogonality
-//     alpha u_i^{mn} pi^2 (m^2 + n^2) = b_i^{mn}
-// or
-//     u_i^{mn}  = b_i^{mn} / (alpha * pi^2 * (m^2 + n^2))
-// 
-// Let b(x,y) = b0 * sin(pi x) sin(pi y)
-// so the solution is
-//     u_i^{mn}  = b0 / (alpha * pi^2 * 2) if m=n=1,    0 else
-// 
-//
 
 
 

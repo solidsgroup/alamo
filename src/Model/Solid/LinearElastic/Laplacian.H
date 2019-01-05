@@ -7,6 +7,7 @@
 
 #include "Util/Util.H"
 #include "Set/Set.H"
+#include "Model/Solid/LinearElastic/LinearElastic.H"
 
 namespace Model
 {
@@ -28,14 +29,16 @@ public:
 	Laplacian(Set::Scalar _alpha) : alpha(_alpha)  {} ;
 	virtual Set::Matrix operator () (Set::Matrix &gradu) const
 	{
-		return alpha * 0.5*(gradu + gradu.transpose());
+		//return alpha * 0.5*(gradu + gradu.transpose());
+		return alpha * gradu;
 	};
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
 	{
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
-				f(i) += alpha * 0.5*(gradgradu[i](j,j) + gradgradu[j](i,j));
+				//f(i) += alpha * 0.5*(gradgradu[i](j,j) + gradgradu[j](i,j));
+				f(i) += alpha *gradgradu[i](j,j);
 		return f;
 	}
 

@@ -12,8 +12,10 @@ class Trig : public IC
 {
 public:
 	Trig (amrex::Vector<amrex::Geometry> &_geom,
+	      Set::Scalar _alpha = 1.0,
 	      AMREX_D_DECL(int _n1 = 1, int _n2 = 1, int _n3 = 1)) :
 	      IC(_geom),
+	      alpha(_alpha),
 	      AMREX_D_DECL(n1(_n1),n2(_n2),n3(_n3))
 	{}
 
@@ -47,9 +49,9 @@ public:
 					     amrex::Real x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
 
 				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp)
-					= AMREX_D_TERM(std::sin(n1*Set::Constant::Pi*x1 / L1),
-						       * std::sin(n2*Set::Constant::Pi*x2 / L2),
-						       * std::sin(n3*Set::Constant::Pi*x3 / L3));
+					= alpha* AMREX_D_TERM(std::sin(n1*Set::Constant::Pi*x1 / L1),
+							      * std::sin(n2*Set::Constant::Pi*x2 / L2),
+							      * std::sin(n3*Set::Constant::Pi*x3 / L3));
 
 			}
 		}
@@ -72,6 +74,7 @@ public:
 
 private:
 	int comp;
+	Set::Scalar alpha;
 	int AMREX_D_DECL(n1, n2, n3);
 };
 }
