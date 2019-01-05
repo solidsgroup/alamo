@@ -9,11 +9,14 @@ namespace Elastic
 {
 class Test
 {
+public:
 	Test() {};
 	void Define(int _ncells,
 		    int _nlevels);
 	int TrigTest(bool verbose,
-		     int component, int n);
+		     int component = 0,
+		     int n = 1,
+		     std::string plotfile = "");
 private:
 
 
