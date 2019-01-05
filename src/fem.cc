@@ -14,6 +14,7 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Set/Set.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
@@ -34,7 +35,8 @@ int main (int argc, char* argv[])
 	// 	Eigen::AngleAxisd(10, Set::Vector::UnitZ());
 
 	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model(10.73, 6.09, 2.830); 
-	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(1.0); 
 	
 	if (amrex::ParallelDescriptor::IOProcessor())
 		Util::Message(INFO,model);
@@ -167,12 +169,16 @@ int main (int argc, char* argv[])
 			cgrids[ilev].define(cdomain);
 			cgrids[ilev].maxSize(max_grid_size);
 			// if (orientation == "h")
-			//cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
+			cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0)));
+
+			// cdomain.grow(IntVect(AMREX_D_DECL(0,-n_cell/4,0))); 
+			// cdomain.grow(IntVect(AMREX_D_DECL(-4,0,0))); 
+
 			// else if (orientation == "v")
 			//cdomain.grow(IntVect(AMREX_D_DECL(-n_cell/4,0,0))); 
 			//cdomain.grow(-n_cell/4); 
 
-			//cdomain.growLo(0,-n_cell/2); 
+			//cdomain.growHi(0,-n_cell/2); 
 			//cdomain.growLo(1,-n_cell/2); 
 
 			cdomain.refine(ref_ratio); 
@@ -191,11 +197,6 @@ int main (int argc, char* argv[])
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			dmap   [ilev].define(cgrids[ilev]);
-			Util::Message(INFO,dmap[ilev].size());
-			Util::Message(INFO,cgrids[ilev].size());
-			//ndmap   [ilev].define(ngrids[ilev]);
-			Util::Message(INFO,ngrids[ilev].size());
-			//cdmap   [ilev].define(cgrids[ilev]);
 			u       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
 			res     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells); 
 			eps0    [ilev].define(ngrids[ilev], dmap[ilev], AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells); 
@@ -217,14 +218,24 @@ int main (int argc, char* argv[])
 	//Model::Solid::Elastic::Isotropic::Isotropic modeltype(2.6,6.0);
 	//Model::Solid::Elastic::Cubic::Cubic modeltype(10.73, 6.09, 2.830);
 	
+	IC::Trig trig(geom,1.0,1,1);
+	trig.SetComp(0);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-
- 			AMREX_D_TERM(rhs[ilev].setVal(body_force[0],0,1);,
-				     rhs[ilev].setVal(body_force[1],1,1);,
-			 	     rhs[ilev].setVal(body_force[2],2,1);)
+			
+ 			// AMREX_D_TERM(rhs[ilev].setVal(body_force[0],0,1);,
+			// 	     rhs[ilev].setVal(body_force[1],1,1);,
+			//  	     rhs[ilev].setVal(body_force[2],2,1);)
+			rhs[ilev].setVal(0.0);
+			trig.Initialize(ilev,rhs);
 
 			u[ilev].setVal(0.0);
+
+			trig.Initialize(ilev,u);
+			for (amrex::MFIter mfi(u[ilev],true); mfi.isValid(); ++mfi)
+				u[ilev][mfi] *= -(1./2./Set::Constant::Pi/Set::Constant::Pi);
+
+
 			stress[ilev].setVal(0.0);
 			verify[ilev].setVal(0.0);
 			modelfab[ilev].setVal(model);
@@ -340,10 +351,10 @@ int main (int argc, char* argv[])
 		IC::Affine ic(geom,n,alpha,b,true,m);
 		//IC::Trig ic(geom);
 		ic.SetComp(0);
-		for (int ilev = 0; ilev < nlevels; ilev++) ic.Initialize(ilev,u);
+		//for (int ilev = 0; ilev < nlevels; ilev++) ic.Initialize(ilev,u);
 
 		if (test_on)
-			mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+		 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
 
 		for (int ilev = 0; ilev < nlevels; ilev++) mlabec.FApply(ilev,0,res[ilev],u[ilev]);
 		
