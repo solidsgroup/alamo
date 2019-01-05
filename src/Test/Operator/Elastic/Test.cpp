@@ -9,6 +9,22 @@
 #include <AMReX_PlotFileUtil.H>
 #include <AMReX_MLNodeLaplacian.H>
 
+
+#include <AMReX.H>
+#include <AMReX_Vector.H>
+#include <AMReX_Geometry.H>
+#include <AMReX_BoxArray.H>
+#include <AMReX_DistributionMapping.H>
+#include <AMReX_MultiFab.H>
+#include <AMReX_MLMG.H>
+#include <AMReX_MLCGSolver.H>
+
+#include "Test.H"
+#include "Set/Set.H"
+#include "IC/Trig.H"
+#include "Operator/Elastic.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
+
 #include "Util/Util.H"
 #include "Operator/Diagonal.H"
 #include "Operator/Elastic.H"
@@ -24,18 +40,124 @@
 #include "IC/Trig.H"
 #include "BC/Constant.H"
 
-using namespace amrex;
-
-int main (int argc, char* argv[])
+namespace Test
 {
-	Util::Initialize(argc, argv);
-	// Set::Matrix R;
-	// R = Eigen::AngleAxisd(30, Set::Vector::UnitZ())*
-	// 	Eigen::AngleAxisd(20, Set::Vector::UnitY())*
-	// 	Eigen::AngleAxisd(10, Set::Vector::UnitZ());
+namespace Operator
+{
+namespace Elastic
+{
 
-	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model(10.73, 6.09, 2.830); 
-	//using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+void Test::Define(int _ncells,
+		  int _nlevels)
+{
+
+	int ncells = _ncells;
+ 	int nlevels = _nlevels;
+	int max_grid_size = 100000;
+	std::string orientation = "h";
+ 	geom.resize(nlevels);
+ 	cgrids.resize(nlevels);
+ 	ngrids.resize(nlevels);
+ 	dmap.resize(nlevels);
+
+ 	u.resize(nlevels);
+ 	res.resize(nlevels);
+ 	rhs.resize(nlevels);
+ 	exact.resize(nlevels);
+
+	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
+	amrex::Geometry::Setup(&rb, 0);
+
+	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
+			   amrex::IntVect{AMREX_D_DECL(ncells,ncells,ncells)},
+			   amrex::IntVect::TheNodeVector());
+	amrex::Box CDomain = amrex::convert(NDomain, amrex::IntVect::TheCellVector());
+
+	amrex::Box domain = CDomain;
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+ 		{
+ 			geom[ilev].define(domain);
+ 			domain.refine(ref_ratio);
+ 		}
+	amrex::Box cdomain = CDomain;
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+ 		{
+ 			cgrids[ilev].define(cdomain);
+ 			cgrids[ilev].maxSize(max_grid_size);
+ 			if (orientation == "h")
+ 				cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0))); 
+ 			else if (orientation == "v")
+ 				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0))); 
+
+ 			cdomain.refine(ref_ratio); 
+
+ 			ngrids[ilev] = cgrids[ilev];
+ 			ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
+ 		}
+
+ 	int number_of_components = AMREX_SPACEDIM;
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+ 		{
+ 			dmap   [ilev].define(cgrids[ilev]);
+ 			u       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			res     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			rhs     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 			exact   [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 		}
+
+}
+
+int
+Test::TrigTest(bool verbose,
+	       int component, int n)
+{
+	// int failed = 0;
+
+	// Set::Scalar alpha = 1.0;
+	// Model::Solid::LinearElastic::Laplacian model(alpha);
+	// amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Laplacian> > >
+	// 	modelfab(nlevels); 
+ 	// for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+ 	// for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
+
+	// IC::Trig icrhs(geom,1.0,n,n);
+	// icrhs.SetComp(component);
+	// IC::Trig icexact(geom,-(1./2./Set::Constant::Pi/Set::Constant::Pi),n,n);
+	// icexact.SetComp(component);
+
+	// for (int ilev = 0; ilev < nlevels; ++ilev)
+	// {
+	// 	u[ilev].setVal(0.0);
+	// 	res[ilev].setVal(0.0);
+
+	// 	rhs[ilev].setVal(0.0);
+	// 	icrhs.Initialize(ilev,rhs);
+	// 	exact[ilev].setVal(0.0);
+	// 	icexact.Initialize(ilev,exact);
+	// }
+
+	// amrex::LPInfo info;
+ 	// info.setAgglomeration(1);
+ 	// info.setConsolidation(1);
+ 	// info.setMaxCoarseningLevel(0);
+ 	// nlevels = geom.size();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(1.0); 
 	
 	if (amrex::ParallelDescriptor::IOProcessor())
@@ -448,8 +570,87 @@ int main (int argc, char* argv[])
 	WriteMultiLevelPlotfile(plot_file, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 	 			varname, geom, 0.0, Vector<int>(nlevels, 0),
 	 			Vector<IntVect>(nlevels, IntVect{ref_ratio}));
-	
 
-	//Util::Finalize();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//using model_type = Model::Solid::LinearElastic::Isotropic;
+	//Operator::Elastic<model_type> myelastic;
+	//Operator::Elastic<model_type> elastic;
+
+	//Operator::Elastic<Model::Solid::LinearElastic::Laplacian> a;
+
+// 	elastic.define(geom, cgrids, dmap, info);
+// 	elastic.setMaxOrder(linop_maxorder);
+// 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
+// 	elastic.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
+// 		      {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
+	
+// 	using bctype = Operator::Elastic<Model::Solid::LinearElastic::Laplacian>::BC;
+
+// 	std::array<bctype,AMREX_SPACEDIM> bc_x_lo
+// 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
+// 	std::array<bctype,AMREX_SPACEDIM> bc_x_hi 
+// 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
+// #if AMREX_SPACEDIM > 1
+// 	std::array<bctype,AMREX_SPACEDIM> bc_y_lo
+// 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
+// 	std::array<bctype,AMREX_SPACEDIM> bc_y_hi
+// 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
+// #endif
+// #if AMREX_SPACEDIM > 2
+// 	std::array<bctype,AMREX_SPACEDIM> bc_z_lo
+// 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
+// 	std::array<bctype,AMREX_SPACEDIM> bc_z_hi
+// 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
+// #endif
+
+
+// 	MLMG mlmg(elastic);
+// 	mlmg.setMaxIter(20);
+// 	mlmg.setMaxFmgIter(20);
+// 	if (verbose)
+// 	{
+// 		mlmg.setVerbose(2);
+// 		mlmg.setCGVerbose(2);
+// 	}
+// 	else
+// 	{
+// 		mlmg.setVerbose(0);
+// 		mlmg.setCGVerbose(0);
+// 	}
+// 	mlmg.setBottomMaxIter(200);
+// 	mlmg.setFinalFillBC(false);	
+// 	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+
+// 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+
 
 }
+
+}
+}
+}
+	     
