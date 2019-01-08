@@ -265,7 +265,7 @@ int SubMessage(std::string testname, int failed)
 
 		std::cout << std::left
 			  << Color::FG::White << Color::Bold << "    " + testname << Color::Reset
-			  << std::setw(terminalwidth - ( testname.size() + 4) + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+			  << std::setw(terminalwidth - ( testname.size() + 6) + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
 	}
 	return failed;
 }

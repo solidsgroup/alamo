@@ -585,10 +585,26 @@ Operator::buildMasks ()
 
 
 void
-Operator::fixUpResidualMask (int /*amrlev*/, iMultiFab& /*resmsk*/)
+Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 {
 	BL_PROFILE("Operator::fixUpResidualMask()");
-	Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
+
+	if (!m_masks_built) buildMasks();
+
+	const iMultiFab& cfmask = *m_nd_fine_mask[amrlev];
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (MFIter mfi(resmsk,true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex_mlndlap_fixup_res_mask(BL_TO_FORTRAN_BOX(bx),
+					     BL_TO_FORTRAN_ANYD(resmsk[mfi]),
+					     BL_TO_FORTRAN_ANYD(cfmask[mfi]));
+	}
+
+	//Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
 }
 
 void
@@ -815,12 +831,20 @@ Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const M
 
 void
 Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
-				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
+				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
-	Util::Message(INFO,"Suspect implementation!");
 	const auto& amrrr = AMRRefRatio(camrlev);
-	amrex::average_down(fine_sol, crse_sol, 0, fine_rhs.nComp(), amrrr);
+	amrex::average_down(fine_sol, crse_sol, 0, crse_sol.nComp(), amrrr);
+	
+	if (isSingular(0))
+	{
+		Util::Abort(INFO,"Singular operators not supported!");
+		// MultiFab frhs(fine_rhs.boxArray(), fine_rhs.DistributionMap(), 1, 1);
+		// MultiFab::Copy(frhs, fine_rhs, 0, 0, 1, 0);
+		// restrictInteriorNodes(camrlev, crse_rhs, frhs);
+	}
+
 }
 
 void

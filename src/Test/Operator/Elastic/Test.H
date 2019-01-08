@@ -23,13 +23,20 @@ private:
 	int nlevels = 1;
 	int ncells = 16;
 	const int ref_ratio = 2;
- 	amrex::Vector<amrex::Geometry> 			geom;
- 	amrex::Vector<amrex::BoxArray> 			cgrids, ngrids;
- 	amrex::Vector<amrex::DistributionMapping>       dmap;
- 	amrex::Vector<amrex::MultiFab>                  u;
- 	amrex::Vector<amrex::MultiFab>                  res;
- 	amrex::Vector<amrex::MultiFab>                  rhs;
- 	amrex::Vector<amrex::MultiFab>                  exact;
+ 	amrex::Vector<amrex::Geometry> 		   geom;
+ 	amrex::Vector<amrex::BoxArray> 		   cgrids, ngrids;
+ 	amrex::Vector<amrex::DistributionMapping>  dmap;
+	
+ 	amrex::Vector<amrex::MultiFab>             solution_exact;
+ 	amrex::Vector<amrex::MultiFab>             solution_numeric;
+ 	amrex::Vector<amrex::MultiFab>             solution_error;
+
+ 	amrex::Vector<amrex::MultiFab>             rhs_prescribed;
+ 	amrex::Vector<amrex::MultiFab>             rhs_exact;
+ 	amrex::Vector<amrex::MultiFab>             rhs_numeric;
+
+ 	amrex::Vector<amrex::MultiFab>             res_exact;
+ 	amrex::Vector<amrex::MultiFab>             res_numeric;
 
 };
 }
