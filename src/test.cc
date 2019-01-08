@@ -35,7 +35,7 @@ int main (int argc, char* argv[])
 	{
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Isotropic> test;
 		
-		/*      */Util::Test::Message("Model::Solid::LinearElastic<Isotropic>");
+		Util::Test::Message(          "Model::Solid::LinearElastic<Isotropic>");
 		failed += Util::Test::Message("  ├ Consistency",    test.Consistency(0));
 		failed += Util::Test::Message("  ├ MinorSymmetry1", test.MinorSymmetry1(0));
 		failed += Util::Test::Message("  ├ MinorSymmetry2", test.MinorSymmetry2(0));
@@ -44,7 +44,7 @@ int main (int argc, char* argv[])
 
 	{
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Cubic> test;
-		/*      */Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
+		Util::Test::Message(          "Model::Solid::LinearElastic<Cubic>");
 		failed += Util::Test::Message("  ├ Consistency",    test.Consistency(2));
 		failed += Util::Test::Message("  ├ MinorSymmetry1", test.MinorSymmetry1(2));
 		failed += Util::Test::Message("  ├ MinorSymmetry2", test.MinorSymmetry2(2));
@@ -59,27 +59,29 @@ int main (int argc, char* argv[])
 
 	{
 		Numeric::Interpolator::Test<Numeric::Interpolator::Linear<Set::Scalar> > test;
-		/*      */Util::Test::Message("Numeric::Interpolator<Linear>");
+		Util::Test::Message(          "Numeric::Interpolator<Linear>");
 		failed += Util::Test::Message("  └ Match",test.Match(0));
 	}
 
 	{
-		Test::Operator::Elastic::Test test;
-		test.Define(32,1);
-		/*      */Util::Test::Message("Elastic Operator Trig Test 32x32, 1 level");
-		failed += Util::Test::Message("  ├ Component 0, Level 0, period=1",test.TrigTest(0,0,1));
-		failed += Util::Test::Message("  └ Component 0, Level 0, period=2",test.TrigTest(0,0,1));
-		test.Define(32,2);
-		/*      */Util::Test::Message("Elastic Operator Trig Test 32x32, 2 levels");
-		failed += Util::Test::Message("  ├ Component 0, Level 0, period=1",test.TrigTest(0,0,1));
-		failed += Util::Test::Message("  └ Component 0, Level 0, period=2",test.TrigTest(0,0,1));
+	 	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
+	 	failed += Util::Test::Message("Operator::RefluxTest", test.RefluxTest(1));
 	}
 
+	{
+		Test::Operator::Elastic::Test test;
+		// test.Define(32,1);
+		// Util::Test::Message(          "Elastic Operator Trig Test 32x32, 1 level");
+		// failed += Util::Test::Message("  ├ Component 0, period=1",test.TrigTest(2,0,1));
+		// failed += Util::Test::Message("  └ Component 0, period=2",test.TrigTest(2,0,1));
 
-	// {
-	// 	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
-	// 	failed += Util::Test::Message("Operator::RefluxTest", test.RefluxTest(0));
-	// }
+		test.Define(32,2);
+		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 2 levels");
+		failed += Util::Test::Message("  ├ Component 0, period=1",test.TrigTest(2,0,1,"testoutput"));
+		//failed += Util::Test::Message("  └ Component 0, period=2",test.TrigTest(2,0,2));
+	}
+
+	
 
 	/// \todo Don't include in test.cc until pass/fail is computed accurately.
 	//{ 

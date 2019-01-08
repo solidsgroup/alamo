@@ -38,17 +38,21 @@ void Test::Define(int _ncells,
 
 	ncells = _ncells;
  	nlevels = _nlevels;
-	int max_grid_size = 100000;
+	int max_grid_size = 2000;//16;
 	std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
  	ngrids.resize(nlevels);
  	dmap.resize(nlevels);
 
- 	u.resize(nlevels);
- 	res.resize(nlevels);
- 	rhs.resize(nlevels);
- 	exact.resize(nlevels);
+ 	solution_exact.resize(nlevels);
+ 	solution_numeric.resize(nlevels);
+ 	solution_error.resize(nlevels);
+ 	rhs_prescribed.resize(nlevels);
+ 	rhs_numeric.resize(nlevels);
+ 	rhs_exact.resize(nlevels);
+ 	res_numeric.resize(nlevels);
+ 	res_exact.resize(nlevels);
 
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	amrex::Geometry::Setup(&rb, 0);
@@ -74,7 +78,6 @@ void Test::Define(int _ncells,
  			// else if (orientation == "v")
  			// 	cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0))); 
 			cdomain.grow(amrex::IntVect(-ncells/4)); 
-
  			cdomain.refine(ref_ratio); 
 
  			ngrids[ilev] = cgrids[ilev];
@@ -85,10 +88,14 @@ void Test::Define(int _ncells,
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  		{
  			dmap   [ilev].define(cgrids[ilev]);
- 			u       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
- 			res     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
- 			rhs     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
- 			exact   [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 			solution_numeric[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			solution_exact  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 			solution_error  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 			rhs_prescribed  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 			rhs_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 			rhs_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
+ 			res_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			res_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
  		}
 
 }
@@ -140,13 +147,18 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		u[ilev].setVal(0.0);
-		res[ilev].setVal(0.0);
+		solution_exact  [ilev].setVal(0.0);
+		solution_numeric[ilev].setVal(0.0);
+		solution_error  [ilev].setVal(0.0);
+		rhs_prescribed  [ilev].setVal(0.0);
+		rhs_exact       [ilev].setVal(0.0);
+		rhs_numeric     [ilev].setVal(0.0);
+		res_exact       [ilev].setVal(0.0);
+		res_numeric     [ilev].setVal(0.0);
 
-		rhs[ilev].setVal(0.0);
-		icrhs.Initialize(ilev,rhs);
-		exact[ilev].setVal(0.0);
-		icexact.Initialize(ilev,exact);
+		icrhs.Initialize(ilev,rhs_prescribed);
+		icexact.Initialize(ilev,solution_exact);
+		///icexact.Initialize(ilev,solution_numeric);
 	}
 
 	amrex::LPInfo info;
@@ -154,8 +166,6 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	info.setConsolidation(1);
  	info.setMaxCoarseningLevel(0);
  	nlevels = geom.size();
-
-
 
 	::Operator::Elastic<Model::Solid::LinearElastic::Laplacian> elastic;
 
@@ -199,42 +209,78 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(200);
+ 	mlmg.setBottomMaxIter(20);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
-	std::vector<Set::Scalar> initial_error_norm(nlevels);
+	// Solution	
+	Set::Scalar tol_rel = 1E-8;
+	Set::Scalar tol_abs = 0.0;
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel, tol_abs);
 
+	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(res[i],exact[i],component,component,1,0);
-		amrex::MultiFab::Subtract(res[i],u[i],component,component,1,0);
-		initial_error_norm[i] = res[0].norm0(component,0,false);
+		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,0);
+		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,0);
 	}
 	
 
-	Set::Scalar tol_rel = 1E-8;
-	Set::Scalar tol_abs = 0.0;
+	// Compute numerical right hand side
+	for (int ilev = 0; ilev < nlevels; ilev++) elastic.FApply(ilev,0,rhs_numeric[ilev],solution_numeric[ilev]);
 
- 	mlmg.solve(GetVecOfPtrs(u), GetVecOfConstPtrs(rhs), tol_rel, tol_abs);
+	// Compute exact right hand side
+	for (int ilev = 0; ilev < nlevels; ilev++) elastic.FApply(ilev,0,rhs_exact[ilev]  ,solution_exact[ilev]);
+
+	
+	// Compute the numeric residual
+	for (int i = 0; i < nlevels; i++)
+	{
+		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],component,component,1,1);
+		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],component,component,1,1);
+	}
+	for (int ilev = nlevels-1; ilev > 0; ilev--)
+	 	elastic.Reflux(0,
+	 		       res_numeric[ilev-1], solution_numeric[ilev-1], rhs_prescribed[ilev-1],
+	 		       res_numeric[ilev],   solution_numeric[ilev],   rhs_prescribed[ilev]);
+
+	// Compute the exact residual
+	for (int i = 0; i < nlevels; i++)
+	{
+		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],component,component,1,1);
+		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],component,component,1,1);
+	}
+	for (int ilev = nlevels-1; ilev > 0; ilev--)
+	 	elastic.Reflux(0,
+	 		       res_exact[ilev-1], solution_exact[ilev-1], rhs_prescribed[ilev-1],
+	 		       res_exact[ilev],   solution_exact[ilev],   rhs_prescribed[ilev]);
+
 
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		const int output_comp = 8;
-		Vector<std::string> varname = {"u1", "u2", "rhs1", "rhs2", "res1", "res2", "exact1", "exact2"};
+		const int output_comp = 16;
+		Vector<std::string> varname = {"solution_exact1", "solution_exact2",
+					       "solution_numeric1", "solution_numeric2",
+					       "solution_error1", "solution_error2",
+					       "rhs_prescribed1", "rhs_prescribed2",
+					       "rhs_exact1","rhs_exact2",
+					       "rhs_numeric1","rhs_numeric2",
+					       "res_exact1","res_exact2",
+					       "res_numeric1","res_numeric2"};
 		Vector<MultiFab> plotmf(nlevels);
 		for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			plotmf[ilev].define(ngrids[ilev], dmap[ilev], output_comp, 0);
-			MultiFab::Copy(plotmf[ilev], u      [ilev], 0, 0, 1, 0);
-			MultiFab::Copy(plotmf[ilev], u      [ilev], 1, 1, 1, 0);
-			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
-			MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 3, 1, 0);
-			MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 4, 1, 0);
-			MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 5, 1, 0);
-			MultiFab::Copy(plotmf[ilev], exact  [ilev], 0, 6, 1, 0);
-			MultiFab::Copy(plotmf[ilev], exact  [ilev], 1, 7, 1, 0);
+			plotmf			[ilev].define(ngrids[ilev], dmap[ilev], output_comp, 0);
+			MultiFab::Copy(plotmf	[ilev], solution_exact [ilev], 0, 0,  2, 0); // 
+			MultiFab::Copy(plotmf	[ilev], solution_numeric[ilev],0, 2,  2, 0); // 
+			MultiFab::Copy(plotmf	[ilev], solution_error [ilev], 0, 4,  2, 0); // 
+			MultiFab::Copy(plotmf	[ilev], rhs_prescribed [ilev], 0, 6,  2, 0); // 
+			MultiFab::Copy(plotmf	[ilev], rhs_exact      [ilev], 0, 8,  2, 0); // 
+			MultiFab::Copy(plotmf	[ilev], rhs_numeric    [ilev], 0, 10, 2, 0); // 
+			MultiFab::Copy(plotmf	[ilev], res_exact      [ilev], 0, 12, 2, 0); // 
+			MultiFab::Copy(plotmf	[ilev], res_numeric    [ilev], 0, 14, 2, 0); // 
+
 		}
 
 
@@ -243,24 +289,16 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
 					       Vector<IntVect>(nlevels, IntVect{ref_ratio}));
 	}
 
+	// Find maximum solution error
 	std::vector<Set::Scalar> error_norm(nlevels);
+	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0].norm0(component,0,false) / solution_exact[0].norm0(component,0,false);
+	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
 
-	for (int i = 0; i < nlevels; i++)
-	{
-		amrex::MultiFab::Copy(res[i],exact[i],component,component,1,0);
-		amrex::MultiFab::Subtract(res[i],u[i],component,component,1,0);
-		error_norm[i] = res[0].norm0(component,0,false) / initial_error_norm[i];
-	}
+	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");
 
-	Set::Scalar maxnorm = *std::max_element(error_norm.begin(),error_norm.end());
+	if (maxnorm > tolerance) failed += 1;
 
-	if (maxnorm > tolerance)
-	{
-		if (verbose) Util::Message(INFO,"relative error = ", maxnorm);
-		return 1;
-	}
-	else return 0;
-
+	return failed;
 }
 
 }

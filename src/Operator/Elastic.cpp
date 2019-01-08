@@ -34,6 +34,13 @@ Elastic<T>::apply (int amrlev, int mglev,
 		   const amrex::IntVect &m) const
 
 {
+	if (amrlev == 1 && m[0] == 16 && m[1] == 16)
+	{
+		Util::Message(INFO,"m = ", m);
+		//Util::Message(INFO,"    u(m) = ", ufab(m,0));
+		Util::Message(INFO,"    u(m-dx-dy) = ", ufab(m-dx[0]-dx[1],0));
+	}
+
 	// if (amrlev == 1 && m[0] == 8 && m[1] == 8)
 	// {
 	// 	Util::Message(INFO,"m = ", m);
@@ -701,7 +708,7 @@ Elastic<T>::reflux (int crse_amrlev,
 		//TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
 
 #if AMREX_SPACEDIM == 1
-		Util::Abort(INFO, "reflux not implemented in 3D. Turn AMR off or switch to 2D.");
+		Util::Abort(INFO, "reflux not implemented in 1D. Turn AMR off or switch to 2D.");
 #elif AMREX_SPACEDIM == 2
 		for (int n = 0 ; n < ncomp; n++)
 			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
@@ -720,21 +727,37 @@ Elastic<T>::reflux (int crse_amrlev,
 					    (m1 == bx.hiVect()[0] && m2 == bx.hiVect()[1]) )
 					{
 						crse(m_crse,n) = fine(m_fine,n);
+						
+						// crse(m_crse,n) *= 0.5;
+						// crse(m_crse,n) += 0.25 * ( fine(m_fine,n) );
+
+						//crse(m_crse,n) *= 4.0;
 					}
 					else if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
 					{
 						crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+
+						// crse(m_crse,n) *= 0.5;
+						// crse(m_crse,n) += 0.5*( (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)) );
+
+						//crse(m_crse,n) *= 4.0;
 					}
 					else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
 					{
 						crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+
+						// crse(m_crse,n) *= 0.5;
+						// crse(m_crse,n) += 0.5 * ( (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)) );
+
+						//crse(m_crse,n) *= 4.0;
+
 					}
 					else
 					{
 						crse(m_crse,n) =
-							((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-							  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+						 	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+						 	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
 					}
 				
 
