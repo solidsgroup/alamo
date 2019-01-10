@@ -1,5 +1,5 @@
-#ifndef TEST_OPERATOR_ELASTIC_TEST_H
-#define TEST_OPERATOR_ELASTIC_TEST_H
+#ifndef TEST_OPERATOR_ELASTIC_ANALYTIC_H
+#define TEST_OPERATOR_ELASTIC_ANALYTIC_H
 
 namespace Test
 {
@@ -7,10 +7,10 @@ namespace Operator
 {
 namespace Elastic
 {
-class Test
+class Analytic
 {
 public:
-	Test() {};
+	Analytic() {};
 	void Define(int _ncells,
 		    int _nlevels);
 	int TrigTest(bool verbose,
@@ -37,6 +37,7 @@ private:
 
  	amrex::Vector<amrex::MultiFab>             res_exact;
  	amrex::Vector<amrex::MultiFab>             res_numeric;
+ 	amrex::Vector<amrex::MultiFab>             ghost_force;
 
 };
 }

@@ -4,24 +4,24 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-#include "Test.H"
+#include "Reflux.H"
 #include "IC/Affine.H"
 #include "IC/Random.H"
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
 
-
-
-
-
-
+namespace Test
+{
 namespace Operator
+{
+namespace Elastic
 {
 
 /// \todo Add verbosity messages 
 template<>
-int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::SpatiallyVaryingCTest(int /*verbose*/)
+int Reflux<::Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::SpatiallyVaryingCTest(int /*verbose*/)
 {
+	/*
 	using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 	model_type model(400,300);
 
@@ -37,17 +37,17 @@ int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::Spatiall
 	amrex::Vector<amrex::MultiFab> 	energy;
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab;
-	std::map<std::string,Elastic<model_type>::BC > 			bc_map;
+	std::map<std::string,::Operator::Elastic<model_type>::BC > 			bc_map;
 	amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
 	amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
-	std::array<Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo);
-	std::array<Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi);
+	std::array<::Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo);
+	std::array<::Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi);
 
-	bc_map["displacement"] = 	Elastic<model_type>::BC::Displacement;
-	bc_map["disp"] = 			Elastic<model_type>::BC::Displacement;
-	bc_map["traction"] = 		Elastic<model_type>::BC::Traction;
-	bc_map["trac"] = 			Elastic<model_type>::BC::Traction;
-	bc_map["periodic"] = 		Elastic<model_type>::BC::Periodic;
+	bc_map["displacement"] = 	::Operator::Elastic<model_type>::BC::Displacement;
+	bc_map["disp"] = 		::Operator::Elastic<model_type>::BC::Displacement;
+	bc_map["traction"] = 		::Operator::Elastic<model_type>::BC::Traction;
+	bc_map["trac"] = 		::Operator::Elastic<model_type>::BC::Traction;
+	bc_map["periodic"] = 		::Operator::Elastic<model_type>::BC::Periodic;
 
 	AMREX_D_TERM(	bc_x_lo_str = {AMREX_D_DECL("disp", "disp", "disp")};
 					bc_x_hi_str = {AMREX_D_DECL("disp", "disp", "disp")};
@@ -76,8 +76,7 @@ int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::Spatiall
 					bc_bottom = {AMREX_D_DECL(0.,0.,0.)};
 					bc_top = {AMREX_D_DECL(0.,0.,0.)};,
 					bc_back = {AMREX_D_DECL(0.,0.,0.)};
-					bc_front = {AMREX_D_DECL(0.,0.,0.)};
-				);
+					bc_front = {AMREX_D_DECL(0.,0.,0.)};);
 
 	
 	int n_cell = 16;
@@ -291,11 +290,13 @@ int Test<Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> >::Spatiall
 		mlabec.Stress(lev,stress[lev],u[lev]);
 		mlabec.Energy(lev,energy[lev],u[lev]);
 	}
+	*/
+	Util::Abort(INFO,"Test is not fully implemente yet");
 	return 1;
 }
 
 template<>
-int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbose)
+int Reflux<::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbose)
 {
 	int failed = 0;
 
@@ -314,7 +315,7 @@ int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbo
 	int n_cell = 16;
  	int nlevels = 2;
 	int ref_ratio = 2;
-	int max_grid_size = 100000;
+	int max_grid_size = 8;
 	std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -415,17 +416,17 @@ int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbo
 	for (std::vector<Set::Vector>::iterator n = ns.begin(); n != ns.end(); n++)
 	for (std::vector<Set::Vector>::iterator b = bs.begin(); b != bs.end(); b++)
 	{
-		Elastic<model_type> mlabec;
+		::Operator::Elastic<model_type> mlabec;
 	
 		mlabec.define(geom, cgrids, dmap, info);
 		mlabec.setMaxOrder(2);
 		for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
-		mlabec.SetBC({{AMREX_D_DECL(Elastic<model_type>::BC::Displacement,
-					    Elastic<model_type>::BC::Displacement,
-					    Elastic<model_type>::BC::Displacement)}},
-			{{AMREX_D_DECL(Elastic<model_type>::BC::Displacement,
-				       Elastic<model_type>::BC::Displacement,
-				       Elastic<model_type>::BC::Displacement)}});
+		mlabec.SetBC({{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
+					    ::Operator::Elastic<model_type>::BC::Displacement,
+					    ::Operator::Elastic<model_type>::BC::Displacement)}},
+			{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
+				       ::Operator::Elastic<model_type>::BC::Displacement,
+				       ::Operator::Elastic<model_type>::BC::Displacement)}});
 
 
 		u[0].setVal(0.0);
@@ -509,4 +510,6 @@ int Test<Elastic<Model::Solid::LinearElastic::Isotropic> >::RefluxTest(int verbo
 }
 
 
+}
+}
 }

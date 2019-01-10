@@ -34,12 +34,6 @@ Elastic<T>::apply (int amrlev, int mglev,
 		   const amrex::IntVect &m) const
 
 {
-	if (amrlev == 1 && m[0] == 16 && m[1] == 16)
-	{
-		Util::Message(INFO,"m = ", m);
-		//Util::Message(INFO,"    u(m) = ", ufab(m,0));
-		Util::Message(INFO,"    u(m-dx-dy) = ", ufab(m-dx[0]-dx[1],0));
-	}
 
 	// if (amrlev == 1 && m[0] == 8 && m[1] == 8)
 	// {
@@ -697,6 +691,12 @@ Elastic<T>::reflux (int crse_amrlev,
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
+	const int fine_fine_node = 1;
+	const int coarse_fine_node = 2;
+	const auto& cc_mask     = m_nd_fine_mask[crse_amrlev];
+	amrex::iMultiFab mask(amrex::coarsen(fba,2), fdm, 1, 0);
+	mask.ParallelCopy(*cc_mask,0,0,1,0,0,cgeom.periodicity());
+
 	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -726,38 +726,28 @@ Elastic<T>::reflux (int crse_amrlev,
 					    (m1 == bx.hiVect()[0] && m2 == bx.loVect()[1])  ||
 					    (m1 == bx.hiVect()[0] && m2 == bx.hiVect()[1]) )
 					{
-						crse(m_crse,n) = fine(m_fine,n);
-						
-						// crse(m_crse,n) *= 0.5;
-						// crse(m_crse,n) += 0.25 * ( fine(m_fine,n) );
+						if ((mask[mfi])(m_crse) != coarse_fine_node) continue;
 
-						//crse(m_crse,n) *= 4.0;
+						crse(m_crse,n) = fine(m_fine,n);
 					}
 					else if (m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
 					{
-						crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+						if ((mask[mfi])(m_crse) != coarse_fine_node) continue;
 
-						// crse(m_crse,n) *= 0.5;
-						// crse(m_crse,n) += 0.5*( (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)) );
-
-						//crse(m_crse,n) *= 4.0;
+						crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
 					}
 					else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
 					{
-						crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+						if ((mask[mfi])(m_crse) != coarse_fine_node) continue;
 
-						// crse(m_crse,n) *= 0.5;
-						// crse(m_crse,n) += 0.5 * ( (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)) );
-
-						//crse(m_crse,n) *= 4.0;
-
+						crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
 					}
 					else
 					{
-						crse(m_crse,n) =
+						crse(m_crse,n) = 
 						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-						 	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-						 	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
 					}
 				
 
@@ -866,18 +856,18 @@ Elastic<T>::averageDownCoeffs ()
 	for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
 	{
 		averageDownCoeffsSameAmrLevel(amrlev);
-		averageDownCoeffsToCoarseAmrLevel(amrlev);
+	 	averageDownCoeffsToCoarseAmrLevel(amrlev);
 	}
 
 	averageDownCoeffsSameAmrLevel(0);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	{
-		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
-		{
-			if (model[amrlev][mglev]) {
-				FillBoundaryCoeff(*model[amrlev][mglev], m_geom[amrlev][mglev]);
-			}
-		}
+	 	for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+	 	{
+	 		if (model[amrlev][mglev]) {
+	 			FillBoundaryCoeff(*model[amrlev][mglev], m_geom[amrlev][mglev]);
+	 		}
+	 	}
 	}
 }
 
