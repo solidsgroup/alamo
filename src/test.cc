@@ -6,24 +6,13 @@
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
-#include "Test/Operator/Elastic/Test.H"
+#include "Test/Operator/Elastic/Analytic.H"
+#include "Test/Operator/Elastic/Reflux.H"
 
-#include "Operator/Test.H"
 #include "Operator/Elastic.H"
 
 #include "Numeric/Interpolator/Test.H"
 #include "Numeric/Interpolator/Linear.H"
-
-namespace Test
-{
-void testfn()
-{
-
-	using model_type = Model::Solid::LinearElastic::Isotropic;
-	::Operator::Elastic<model_type> elastic;
-
-}
-}
 
 int main (int argc, char* argv[])
 {
@@ -53,7 +42,7 @@ int main (int argc, char* argv[])
 
 	{
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Laplacian> test;
-		/*      */Util::Test::Message("Model::Solid::LinearElastic<Laplacian>");
+		Util::Test::Message(          "Model::Solid::LinearElastic<Laplacian>");
 		failed += Util::Test::Message("  └ Consistency",    test.Consistency(2));
 	}
 
@@ -64,30 +53,20 @@ int main (int argc, char* argv[])
 	}
 
 	{
-	 	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
-	 	failed += Util::Test::Message("Operator::RefluxTest", test.RefluxTest(1));
+		Test::Operator::Elastic::Reflux<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
+	 	failed += Util::Test::Message("  └ Operator::RefluxTest", test.RefluxTest(0));
 	}
 
 	{
-		Test::Operator::Elastic::Test test;
-		// test.Define(32,1);
-		// Util::Test::Message(          "Elastic Operator Trig Test 32x32, 1 level");
-		// failed += Util::Test::Message("  ├ Component 0, period=1",test.TrigTest(2,0,1));
-		// failed += Util::Test::Message("  └ Component 0, period=2",test.TrigTest(2,0,1));
+		Test::Operator::Elastic::Analytic test;
+		test.Define(16,1);
+		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 1 level");
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
-		test.Define(32,2);
+		test.Define(16,2);
 		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 2 levels");
-		failed += Util::Test::Message("  ├ Component 0, period=1",test.TrigTest(2,0,1,"testoutput"));
-		//failed += Util::Test::Message("  └ Component 0, period=2",test.TrigTest(2,0,2));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}
-
-	
-
-	/// \todo Don't include in test.cc until pass/fail is computed accurately.
-	//{ 
-	//	Operator::Test<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> > test;
-	//	failed += Util::Test::Message("SpatiallyVaryingC Test", test.SpatiallyVaryingCTest(1));
-	//}
 
 
 	Util::Message(INFO,failed," tests failed");

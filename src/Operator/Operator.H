@@ -7,8 +7,6 @@
 #include <AMReX_BaseFab.H>
 #include "AMReX_BaseFab_f.H"
 
-
-
 #include "BC/BC.H"
 
 using namespace amrex;
@@ -21,8 +19,6 @@ namespace Operator {
 class Operator
 	: public amrex::MLNodeLinOp
 {
-
-
 public :
 
 	enum struct CoarseningStrategy { Sigma, RAP };

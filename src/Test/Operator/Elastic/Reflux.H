@@ -1,10 +1,14 @@
 #ifndef OPERATOR_TEST_H
 #define OPERATOR_TEST_H
 
+namespace Test
+{
 namespace Operator
 {
+namespace Elastic
+{
 template<class Op>
-class Test
+class Reflux
 {
 public:
 	int RefluxTest(int)
@@ -21,6 +25,8 @@ public:
 private:
 
 };
+}
+}
 }
 
 

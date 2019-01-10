@@ -19,7 +19,7 @@
 #include <AMReX_MLMG.H>
 #include <AMReX_MLCGSolver.H>
 
-#include "Test.H"
+#include "Analytic.H"
 #include "Set/Set.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
@@ -32,14 +32,14 @@ namespace Operator
 namespace Elastic
 {
 
-void Test::Define(int _ncells,
+void Analytic::Define(int _ncells,
 		  int _nlevels)
 {
 
 	ncells = _ncells;
  	nlevels = _nlevels;
-	int max_grid_size = 2000;//16;
-	std::string orientation = "h";
+	int max_grid_size = ncells/2;
+	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
  	ngrids.resize(nlevels);
@@ -53,6 +53,7 @@ void Test::Define(int _ncells,
  	rhs_exact.resize(nlevels);
  	res_numeric.resize(nlevels);
  	res_exact.resize(nlevels);
+	ghost_force.resize(nlevels);
 
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	amrex::Geometry::Setup(&rb, 0);
@@ -78,8 +79,10 @@ void Test::Define(int _ncells,
  			// else if (orientation == "v")
  			// 	cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0))); 
 			cdomain.grow(amrex::IntVect(-ncells/4)); 
- 			cdomain.refine(ref_ratio); 
+			
+			//cdomain.growHi(1,-ncells/2); 
 
+ 			cdomain.refine(ref_ratio); 
  			ngrids[ilev] = cgrids[ilev];
  			ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
  		}
@@ -96,6 +99,7 @@ void Test::Define(int _ncells,
  			rhs_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
  			res_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
  			res_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			ghost_force     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
  		}
 
 }
@@ -126,9 +130,9 @@ void Test::Define(int _ncells,
 // 
 //
 int
-Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
+Analytic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 {
-	Set::Scalar tolerance = 0.001;
+	Set::Scalar tolerance = 0.01;
 
 	int failed = 0;
 
@@ -155,11 +159,13 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
 		rhs_numeric     [ilev].setVal(0.0);
 		res_exact       [ilev].setVal(0.0);
 		res_numeric     [ilev].setVal(0.0);
+		ghost_force     [ilev].setVal(0.0);
 
 		icrhs.Initialize(ilev,rhs_prescribed);
 		icexact.Initialize(ilev,solution_exact);
-		///icexact.Initialize(ilev,solution_numeric);
+		//icexact.Initialize(ilev,solution_numeric);
 	}
+	//rhs_prescribed[1].mult(0.5);
 
 	amrex::LPInfo info;
  	info.setAgglomeration(1);
@@ -174,30 +180,18 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	
  	using bctype = ::Operator::Elastic<Model::Solid::LinearElastic::Laplacian>::BC;
 
- 	std::array<bctype,AMREX_SPACEDIM> bc_x_lo
- 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
- 	std::array<bctype,AMREX_SPACEDIM> bc_x_hi 
- 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
-#if AMREX_SPACEDIM > 1
- 	std::array<bctype,AMREX_SPACEDIM> bc_y_lo
- 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
- 	std::array<bctype,AMREX_SPACEDIM> bc_y_hi
- 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
-#endif
-#if AMREX_SPACEDIM > 2
- 	std::array<bctype,AMREX_SPACEDIM> bc_z_lo
- 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
- 	std::array<bctype,AMREX_SPACEDIM> bc_z_hi
- 		= {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)};
-#endif
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
- 	elastic.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
- 		      {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
+ 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}},
+ 		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}});
 
 
 	amrex::MLMG mlmg(elastic);
-	mlmg.setMaxIter(20);
+	mlmg.setMaxIter(100);
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
@@ -209,35 +203,36 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(20);
+ 	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
+#if 1
 	// Solution	
-	Set::Scalar tol_rel = 1E-8;
+	Set::Scalar tol_rel = 1E-6;
 	Set::Scalar tol_abs = 0.0;
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel, tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,0);
-		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,0);
+		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
+		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,1);
 	}
 	
 
 	// Compute numerical right hand side
-	for (int ilev = 0; ilev < nlevels; ilev++) elastic.FApply(ilev,0,rhs_numeric[ilev],solution_numeric[ilev]);
+	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
 
 	// Compute exact right hand side
-	for (int ilev = 0; ilev < nlevels; ilev++) elastic.FApply(ilev,0,rhs_exact[ilev]  ,solution_exact[ilev]);
+	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
 
 	
 	// Compute the numeric residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],component,component,1,1);
-		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],component,component,1,1);
+		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],component,component,1,0);
+		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],component,component,1,0);
 	}
 	for (int ilev = nlevels-1; ilev > 0; ilev--)
 	 	elastic.Reflux(0,
@@ -247,19 +242,36 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// Compute the exact residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],component,component,1,1);
-		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],component,component,1,1);
+		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],component,component,1,0);
+		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],component,component,1,0);
 	}
 	for (int ilev = nlevels-1; ilev > 0; ilev--)
 	 	elastic.Reflux(0,
 	 		       res_exact[ilev-1], solution_exact[ilev-1], rhs_prescribed[ilev-1],
 	 		       res_exact[ilev],   solution_exact[ilev],   rhs_prescribed[ilev]);
 
+	// Compute the "ghost force" that introduces the error
+	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
+	// elastic.FApply(0,0,ghost_force[0],solution_error[0]);
+	// elastic.FApply(1,0,ghost_force[1],solution_error[1]);
 
+	// {
+	// 	const int mglev = 0;
+	// 	for (int alev = nlevels-1; alev >= 0; --alev) {
+	// 		const amrex::MultiFab* crse_bcdata = (alev > 0) ? &solution_numeric[alev-1] : nullptr;
+	// 		elastic.solutionResidual(alev, ghost_force[alev], solution_numeric[alev], rhs_prescribed[alev], crse_bcdata);
+	// 		if (alev < nlevels-1) {
+	// 			elastic.Reflux(alev,
+	// 				       ghost_force[alev],   solution_numeric[alev],   rhs_prescribed[alev],
+	// 				       ghost_force[alev+1], solution_numeric[alev+1], rhs_prescribed[alev+1]);
+	// 		}
+	// 	}
+	// }
+
+#endif
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		const int output_comp = 16;
 		Vector<std::string> varname = {"solution_exact1", "solution_exact2",
 					       "solution_numeric1", "solution_numeric2",
 					       "solution_error1", "solution_error2",
@@ -267,10 +279,14 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
 					       "rhs_exact1","rhs_exact2",
 					       "rhs_numeric1","rhs_numeric2",
 					       "res_exact1","res_exact2",
-					       "res_numeric1","res_numeric2"};
+					       "res_numeric1","res_numeric2",
+					       "ghost_force1", "ghost_force2"};
+		const int output_comp = varname.size();
+
 		Vector<MultiFab> plotmf(nlevels);
 		for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
+			//if (ilev==1) ngrids[ilev].growHi(1,1);
 			plotmf			[ilev].define(ngrids[ilev], dmap[ilev], output_comp, 0);
 			MultiFab::Copy(plotmf	[ilev], solution_exact [ilev], 0, 0,  2, 0); // 
 			MultiFab::Copy(plotmf	[ilev], solution_numeric[ilev],0, 2,  2, 0); // 
@@ -280,7 +296,7 @@ Test::TrigTest(bool verbose, int component, int n, std::string plotfile)
 			MultiFab::Copy(plotmf	[ilev], rhs_numeric    [ilev], 0, 10, 2, 0); // 
 			MultiFab::Copy(plotmf	[ilev], res_exact      [ilev], 0, 12, 2, 0); // 
 			MultiFab::Copy(plotmf	[ilev], res_numeric    [ilev], 0, 14, 2, 0); // 
-
+			MultiFab::Copy(plotmf	[ilev], ghost_force    [ilev], 0, 16, 2, 0); // 
 		}
 
 
