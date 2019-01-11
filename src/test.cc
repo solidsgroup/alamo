@@ -66,6 +66,10 @@ int main (int argc, char* argv[])
 		test.Define(16,2);
 		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 2 levels");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
+
+		test.Define(16,3);
+		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 3 levels");
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}
 
 
