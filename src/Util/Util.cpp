@@ -54,6 +54,18 @@ void SignalHandler(int s)
 			IO::WriteMetaData(filename,status);
 	}
 
+#ifdef MEME
+	amrex::ParmParse pp;
+	if (!pp.contains("nomeme"))
+	{			
+		time_t timer; time(&timer);
+		std::stringstream cmd;
+		cmd << "xdg-open " << BUILD_DIR << "/src/Util/Meme/cat0" << (1+((int)timer)%6) << ".gif &";
+		std::system(cmd.str().c_str());
+		std::cout << Color::Bold << Color::FG::Red << "PROGRAM FAILED!" << Color::Reset << " (Compile without -DMEME, or set nomeme = 1 in the input file to disable this!)";
+	}
+#endif 
+
 	amrex::BLBackTrace::handler(s);
 }
 

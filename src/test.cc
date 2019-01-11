@@ -56,6 +56,7 @@ int main (int argc, char* argv[])
 
 	{
 		Test::Operator::Elastic::Reflux<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
+		Util::Test::Message(          "Elastic Operator Reflux Test");
 	 	failed += Util::Test::Message("  └ Operator::RefluxTest", test.RefluxTest(0));
 	}
 
@@ -73,8 +74,6 @@ int main (int argc, char* argv[])
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}
-
-	std::system("eog .faust.gif &");
 
 	Util::Message(INFO,failed," tests failed");
 
