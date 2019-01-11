@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "Util/Util.H"
 
 #include "Model/Solid/LinearElastic/Test.H"
@@ -60,18 +62,19 @@ int main (int argc, char* argv[])
 	{
 		Test::Operator::Elastic::Analytic test;
 		test.Define(16,1);
-		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 1 level");
+		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
 		test.Define(16,2);
-		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 2 levels");
+		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
 		test.Define(16,3);
-		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 3 levels");
+		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}
 
+	std::system("eog .faust.gif &");
 
 	Util::Message(INFO,failed," tests failed");
 
