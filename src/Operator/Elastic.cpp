@@ -787,7 +787,6 @@ Elastic<T>::reflux (int crse_amrlev,
 					}
 				}
 #elif AMREX_SPACEDIM == 3
-		Util::Warning(INFO,"Changes made in 2D have not been applied to 3D case!");
 		for (int n = 0 ; n < ncomp; n++)
 			for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
 				for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
@@ -803,45 +802,7 @@ Elastic<T>::reflux (int crse_amrlev,
 						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
 						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2] +1);
 						
-						// Corners
-						if ((xmin && ymin && zmin) ||
-						    (xmin && ymin && zmax) ||
-						    (xmin && ymax && zmin) ||
-						    (xmin && ymax && zmax) ||
-						    (xmax && ymin && zmin) ||
-						    (xmax && ymin && zmax) ||
-						    (xmax && ymax && zmin) ||
-						    (xmax && ymax && zmax))
-							crse(m_crse,n) = fine(m_fine,n);
-						// X edges
-						else if ( (ymin && zmin) || (ymin && zmax) || (ymax && zmin) || (ymax && zmax) )
-							crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
-						// Y edges
-						else if ( (zmin && zmin) || (zmin && xmax) || (zmax && xmin) || (zmax && xmax) )
-							crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
-						// Z edges
-						else if ( (xmin && ymin) || (xmin && ymax) || (xmax && ymin) || (xmax && ymax) )
-							crse(m_crse,n) = (0.25*fine(m_fine-dx[2],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[2],n));
-						// YZ face (X=const)
-						else if ( xmin || xmax )
-							crse(m_crse,n) =
-								((+     fine(m_fine-dx[1]-dx[2],n) + 2.0*fine(m_fine-dx[2],n) +     fine(m_fine+dx[1]-dx[2],n)
-								  + 2.0*fine(m_fine-dx[1]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[1]      ,n) 
-								  +     fine(m_fine-dx[1]+dx[2],n) + 2.0*fine(m_fine+dx[2],n) +     fine(m_fine+dx[1]+dx[2],n))/16.0);
-						// ZX face (Y=const)
-						else if ( xmin || xmax )
-							crse(m_crse,n) =
-								((+     fine(m_fine-dx[2]-dx[0],n) + 2.0*fine(m_fine-dx[0],n) +     fine(m_fine+dx[2]-dx[2],n)
-								  + 2.0*fine(m_fine-dx[2]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[2]      ,n) 
-								  +     fine(m_fine-dx[2]+dx[0],n) + 2.0*fine(m_fine+dx[0],n) +     fine(m_fine+dx[2]+dx[2],n))/16.0);
-						// XY face (Z=const)
-						else if ( xmin || xmax )
-							crse(m_crse,n) =
-								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-						// Internal
-						else
+						if ((nodemask[mfi])(m_crse) == fine_fine_node)
 						{
 							crse(m_crse,n) =
 								0.25*
@@ -859,8 +820,75 @@ Elastic<T>::reflux (int crse_amrlev,
 								  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
 								  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
 						}
-					}
+						else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
+						{
+							/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
+							/**/ // solution to converge to the CORRECT answer.
+							/**/ // If these are commented out, the solution converges super fast but to the 
+							/**/ // WRONG answer. TODO: figure out what's going on here.
+							/**/    crse(m_crse,n) *= 2.0;
+							/**/    continue;
 
+							// DOES NOT CONTINUE BEYOND THIS POINT
+
+							// Corners
+							if ((xmin && ymin && zmin) ||
+							    (xmin && ymin && zmax) ||
+							    (xmin && ymax && zmin) ||
+							    (xmin && ymax && zmax) ||
+							    (xmax && ymin && zmin) ||
+							    (xmax && ymin && zmax) ||
+							    (xmax && ymax && zmin) ||
+							    (xmax && ymax && zmax))
+								crse(m_crse,n) = fine(m_fine,n);
+							// X edges
+							else if ( (ymin && zmin) || (ymin && zmax) || (ymax && zmin) || (ymax && zmax) )
+								crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+							// Y edges
+							else if ( (zmin && zmin) || (zmin && xmax) || (zmax && xmin) || (zmax && xmax) )
+								crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+							// Z edges
+							else if ( (xmin && ymin) || (xmin && ymax) || (xmax && ymin) || (xmax && ymax) )
+								crse(m_crse,n) = (0.25*fine(m_fine-dx[2],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[2],n));
+							// YZ face (X=const)
+							else if ( xmin || xmax )
+								crse(m_crse,n) =
+									((+     fine(m_fine-dx[1]-dx[2],n) + 2.0*fine(m_fine-dx[2],n) +     fine(m_fine+dx[1]-dx[2],n)
+									  + 2.0*fine(m_fine-dx[1]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[1]      ,n) 
+									  +     fine(m_fine-dx[1]+dx[2],n) + 2.0*fine(m_fine+dx[2],n) +     fine(m_fine+dx[1]+dx[2],n))/16.0);
+							// ZX face (Y=const)
+							else if ( xmin || xmax )
+								crse(m_crse,n) =
+									((+     fine(m_fine-dx[2]-dx[0],n) + 2.0*fine(m_fine-dx[0],n) +     fine(m_fine+dx[2]-dx[2],n)
+									  + 2.0*fine(m_fine-dx[2]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[2]      ,n) 
+									  +     fine(m_fine-dx[2]+dx[0],n) + 2.0*fine(m_fine+dx[0],n) +     fine(m_fine+dx[2]+dx[2],n))/16.0);
+							// XY face (Z=const)
+							else if ( xmin || xmax )
+								crse(m_crse,n) =
+									((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+									  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+									  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+							// Internal
+							else
+							{
+								crse(m_crse,n) =
+									0.25*
+									((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
+									  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
+									  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+									+
+									0.5*
+									((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
+									  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
+									  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+									+
+									0.25*
+									((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
+									  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
+									  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+							}
+						}
+					}
 #endif		
 	}
 

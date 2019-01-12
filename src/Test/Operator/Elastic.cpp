@@ -144,7 +144,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	IC::Trig icrhs(geom,1.0,n,n);
 	icrhs.SetComp(component);
-	IC::Trig icexact(geom,-(1./2./Set::Constant::Pi/Set::Constant::Pi),n,n);
+	Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
+	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),n,n);
 	icexact.SetComp(component);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
