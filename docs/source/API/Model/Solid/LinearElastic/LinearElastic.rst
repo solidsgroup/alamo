@@ -1,5 +1,5 @@
 LinearElastic
---------
+-------------
 
 .. toctree::
    :maxdepth: 2
