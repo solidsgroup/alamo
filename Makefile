@@ -12,15 +12,17 @@ endif
 RESET              = \033[0m
 B_ON               = \033[1m
 FG_RED             = \033[31m
+FG_DIM             = \033[2m
 FG_LIGHTRED        = \033[91m
 FG_LIGHTGRAY       = \033[90m
 FG_GREEN           = \033[32m
 FG_LIGHTGREEN      = \033[92m
 FG_YELLOW          = \033[33m
+FG_LIGHTYELLOW     = \033[93m
 FG_BLUE            = \033[34m
 FG_LIGHTBLUE       = \033[94m
 FG_CYAN            = \033[36m
-
+FG_MAGENTA         = \033[35m
 
 
 
@@ -58,6 +60,15 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 .SECONDARY: 
 
 
+docs: docs/doxygen/index.html docs/build/html/index.html 
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
+
+docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
+	@cd docs && doxygen 
+docs/build/html/index.html: $(shell find docs/source/ -type f) $(shell find docs/doxygen/ -type f)
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
+	@make -C docs html > /dev/null
 
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
@@ -102,7 +113,7 @@ obj/%.cc.d: src/%.cc
 
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
-	@printf "$(B_ON)$(FG_CYAN)COMPILING$(RESET)   $(@:.o=) \n" 
+	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   $(@:.o=) \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 

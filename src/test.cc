@@ -8,8 +8,7 @@
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
-#include "Test/Operator/Elastic/Analytic.H"
-#include "Test/Operator/Elastic/Reflux.H"
+#include "Test/Operator/Elastic.H"
 
 #include "Operator/Elastic.H"
 
@@ -55,24 +54,20 @@ int main (int argc, char* argv[])
 	}
 
 	{
-		Test::Operator::Elastic::Reflux<Operator::Elastic<Model::Solid::LinearElastic::Isotropic> > test;
-		Util::Test::Message(          "Elastic Operator Reflux Test");
-	 	failed += Util::Test::Message("  └ Operator::RefluxTest", test.RefluxTest(0));
-	}
-
-	{
-		Test::Operator::Elastic::Analytic test;
+		Test::Operator::Elastic test;
 		test.Define(16,1);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1));
 
 		test.Define(16,2);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
+		failed += Util::Test::Message("  ├ Component 0, period=1",test.RefluxTest(0));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1));
 
 		test.Define(16,3);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
+		failed += Util::Test::Message("  ├ Component 0, period=1",test.RefluxTest(0));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1));
 	}
 
 	Util::Message(INFO,failed," tests failed");
