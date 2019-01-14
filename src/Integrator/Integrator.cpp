@@ -186,6 +186,14 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 }
 
 
+void // CUSTOM METHOD - CHANGEABLE
+Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name)
+{
+	intvar_array.push_back(integrated_variable);
+	intvar_names.push_back(name);
+	number_of_intvars++;
+}
+
 long // CUSTOM METHOD - CHANGEABLE
 Integrator::CountCells (int lev)
 {
@@ -407,6 +415,7 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
+		IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
 		TimeStepComplete(cur_time,step);
 		cur_time += dt[0];
@@ -434,6 +443,60 @@ Integrator::Evolve ()
 		WritePlotFile();
 	}
 }
+
+void
+Integrator::IntegrateVariables (Real time, int step)
+{
+	if (!number_of_intvars) return;
+
+	if (!(step % intvar_int))
+	{
+		// Zero out all variables
+		for (int i = 0; i < number_of_intvars; i++) intvar_array[i] = 0; 
+
+		// All levels except the finest
+		for (int ilev = 0; ilev < max_level; ilev++)
+		{
+			const amrex::Real* DX = geom[ilev].CellSize();
+
+			const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
+
+			for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
+			{
+				const amrex::Box& box = mfi.tilebox();
+				const::BoxArray & comp = amrex::complementIn(box,cfba);
+
+				for (int i = 0; i < comp.size(); i++)
+				{
+					Integrate(ilev,time, step,
+						  mfi, comp[i]);
+				}
+			}
+		}
+		// Now do the finest level
+		{
+			const amrex::Real* DX = geom[max_level].CellSize();
+
+			for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
+			{
+				const amrex::Box& box = mfi.tilebox();
+				Integrate(max_level, time, step, mfi, box);
+			}
+		}
+
+		// Sum up across all processors
+		for (int i = 0; i < number_of_intvars; i++) 
+		{
+			Util::Message(INFO,*intvar_array[i]);
+			amrex::ParallelDescriptor::ReduceRealSum(*intvar_array[i]);
+		}
+	}
+	if (step==0)
+	{
+		Util::Message(INFO,plot_file);
+	}
+}
+
 
 void
 Integrator::TimeStep (int lev, Real time, int /*iteration*/)

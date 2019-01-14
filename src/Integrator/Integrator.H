@@ -152,6 +152,16 @@ protected:
   ///
   virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
 
+  /// \fn    Integrate
+  /// \brief Update the value of integrated variables 
+  virtual void Integrate(int amrlev, Set::Scalar time, int iter,
+			 amrex::MFIter &mfi, amrex::Box box)
+  {
+     if (number_of_intvars > 0)
+	     Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
+  }
+		
+
   /// \fn    RegisterNewFab
   /// \brief Register a field variable for AMR with this class 
   ///
@@ -179,6 +189,10 @@ protected:
 		       int ncomp,
 		       std::string name
 		       );
+
+  void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
+
+
   amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
   amrex::Vector<int> istep;           ///< Keep track of where each level is
   // PLOT FILES
@@ -193,6 +207,8 @@ private:
 			                const amrex::DistributionMapping& dm) override;
   virtual void ClearLevel              (int lev) override;
   virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
+
+  void IntegrateVariables(Set::Scalar cur_time, int step);
 
   void FillPatch (int lev, amrex::Real time,
 		  amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
@@ -229,6 +245,13 @@ private:
   amrex::Vector<int> nghost_array;								///< Array containing number of ghost cells in each fab array
   amrex::Vector<std::string> name_array;								///< Array containing names for each variable in the fab array
   amrex::Vector<BC::BC *> physbc_array;                   		                 	///< Array of pointers to BC objects
+
+  // KEEP TRACK OF ALL INTEGRATED VARIABLES
+  int intvar_int = 1;
+  int intvar_plot = 1;
+  int number_of_intvars = 0;
+  std::vector<Set::Scalar*> intvar_array;
+  std::vector<std::string> intvar_names;
 
   // REGRIDDING
   int regrid_int = 2; ///< Determine how often to regrid (default: 2)
