@@ -12,18 +12,22 @@ endif
 RESET              = \033[0m
 B_ON               = \033[1m
 FG_RED             = \033[31m
+FG_DIM             = \033[2m
 FG_LIGHTRED        = \033[91m
+FG_LIGHTGRAY       = \033[90m
 FG_GREEN           = \033[32m
 FG_LIGHTGREEN      = \033[92m
 FG_YELLOW          = \033[33m
+FG_LIGHTYELLOW     = \033[93m
 FG_BLUE            = \033[34m
 FG_LIGHTBLUE       = \033[94m
 FG_CYAN            = \033[36m
+FG_MAGENTA         = \033[35m
 
 
 
-MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
-MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro
+MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro, 
+MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
 
 METADATA_GITHASH  = $(shell git log --pretty=format:'%H' -n 1)
 METADATA_USER     = $(shell whoami)
@@ -31,60 +35,85 @@ METADATA_PLATFORM = $(shell hostname)
 METADATA_COMPILER = $(CC)
 METADATA_DATE     = $(shell date +%x)
 METADATA_TIME     = $(shell date +%H:%M:%S)
+BUILD_DIR         = ${shell pwd}
+
+METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
+
+CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb 
 
 
-METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" 
-
-CXX_COMPILE_FLAGS = -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
-
-
-INCLUDE = $(if ${EIGEN}, -I${EIGEN})  $(if ${AMREX}, -I${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -L${AMREX}/lib/ -lamrex 
 
-HDR = $(shell find src/ -name *.H)
+HDR_ALL = $(shell find src/ -name *.H)
+HDR_TEST = $(shell find src/ -name *Test.H)
+HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=)) 
 OBJ = $(subst src/,obj/, $(SRC:.cpp=.cpp.o)) 
+DEP = $(subst src/,obj/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/, $(SRC_MAIN:.cc=.cc.d))
 OBJ_MAIN = $(subst src/,obj/, $(SRC_MAIN:.cpp=.cc.o))
 OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 
 .SECONDARY: 
 
 
-default: $(EXE)
-	@printf "$(B_ON)$(FG_GREEN)###\n"
-	@printf "$(B_ON)$(FG_GREEN)### DONE\n" 
-	@printf "$(B_ON)$(FG_GREEN)###$(RESET)\n"
+
+default: $(DEP) $(EXE)
+	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
+
+clean:
+	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
+	find src/ -name "*.o" -exec rm {} \;
+	rm -f bin/*
+	rm -rf obj/
+	rm -f Backtrace*
+info:
+	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
+	@$(CC) --version
+	@printf "$(B_ON)$(FG_BLUE)MPI Flags$(RESET)\n"
+	@$(CC) -show
+	@printf "\n"
 
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
-	@printf "$(B_ON)$(FG_BLUE)###\n"
-	@printf "$(B_ON)$(FG_BLUE)### LINKING $@\n" 
-	@printf "$(B_ON)$(FG_BLUE)###$(RESET)\n"
-	mkdir -p bin/
-	$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}
+	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
+	@mkdir -p bin/
+	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB} 
 
-obj/%.cc.o: src/%.cc ${HDR}
-	@printf "$(B_ON)$(FG_YELLOW)###\n"
-	@printf "$(B_ON)$(FG_YELLOW)### COMPILING $<\n" 
-	@printf "$(B_ON)$(FG_YELLOW)###$(RESET)\n"
+obj/test.cc.o: src/test.cc
+	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
-obj/%.cpp.o: src/%.cpp ${HDR}
-	@printf "$(B_ON)$(FG_YELLOW)###\n"
-	@printf "$(B_ON)$(FG_YELLOW)### COMPILING $<\n" 
-	@printf "$(B_ON)$(FG_YELLOW)###$(RESET)\n"
+obj/%.cc.o: src/%.cc
+	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+
+obj/%.cpp.o: 
+	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
+	@mkdir -p $(dir $@)
+	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+
+obj/%.cpp.d: src/%.cpp 
+	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
+	@mkdir -p $(dir $@)
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+
+obj/%.cc.d: src/%.cc
+	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
+	@mkdir -p $(dir $@)
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
+
+
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
-	@printf "$(B_ON)$(FG_CYAN)###\n"
-	@printf "$(B_ON)$(FG_CYAN)### COMPILING $@\n" 
-	@printf "$(B_ON)$(FG_CYAN)###$(RESET)\n"
+	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   $(@:.o=) \n" 
 	@mkdir -p $(dir $@)
-	$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	@$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+
 .PHONY: .FORCE
 
 
@@ -92,29 +121,11 @@ obj/IO/WriteMetaData.cpp.o: .FORCE
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
 obj/%.F90.o: src/%.F90 
-	@printf "$(B_ON)$(FG_YELLOW)###\n"
-	@printf "$(B_ON)$(FG_YELLOW)### COMPILING $<\n" 
-	@printf "$(B_ON)$(FG_YELLOW)###$(RESET)\n"
+	@printf "$(B_ON)$(FG_YELLOW)COMPILING  $(RESET)$<\n" 
 	@mkdir -p $(dir $@)
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
-clean:
-	@printf "$(B_ON)$(FG_RED)###\n"
-	@printf "$(B_ON)$(FG_RED)### CLEANING\n" 
-	@printf "$(B_ON)$(FG_RED)###$(RESET)\n"
-	find src/ -name "*.o" -exec rm {} \;
-	rm -f bin/*
-	rm -rf obj/
-	rm -f Backtrace*
-
-%.cpp: $(HDR)
-
-%.cc: $(HDR)
-
-%.F90: $(HDR)
-
-%.H :
 
 help:
 	@printf "$(B_ON)$(FG_YELLOW)\n\n============================== ALAMO Makefile help ==============================$(RESET)""\n\n"
@@ -142,3 +153,17 @@ help:
 	@printf "   - The AMREX path must contain directories called $(FG_LIGHTBLUE)lib/ include/$(RESET)   \n"
 	@printf "   - The EIGEN path must contain a directory called $(FG_LIGHTBLUE)eigen3$(RESET)   \n"
 	@printf "\n"
+
+
+docs: docs/doxygen/index.html docs/build/html/index.html 
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
+
+docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
+	@cd docs && doxygen 
+docs/build/html/index.html: $(shell find docs/source/ -type f) $(shell find docs/doxygen/ -type f)
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
+	@make -C docs html > /dev/null
+
+
+-include $(DEP)

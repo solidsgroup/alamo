@@ -33,7 +33,7 @@ void Wedge::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::Multi
 		{
 			AMREX_D_TERM(amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
 				     amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-				     amrex::Real z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+				     );
 
 			amrex::IntVect m(AMREX_D_DECL(i,j,k));
 

@@ -1,12 +1,11 @@
-mkdir amrex2d amrex3d
+set -e
+mkdir amrex$1
 git clone https://github.com/AMReX-Codes/amrex.git
 cd amrex
-./configure --dim=2 --prefix=../amrex2d/ --debug=yes
+if [ $# -eq 2 ]
+then
+    git checkout $2
+fi
+./configure --dim=$1 --prefix=../amrex$1d/ --debug=yes
 make
 make install
-make clean
-rm -rf tmp_build_dir
-./configure --dim=3 --prefix=../amrex3d/ --debug=yes
-make
-make install
-cd ..

@@ -22,7 +22,7 @@ std::string GetFileName()
 		amrex::ParmParse pp_amr("amr");
 
 		if (pp_amr.contains("plot_file") && pp.contains("plot_file"))
-			Abort("plot_file specified in too many locations");
+			Util::Abort("plot_file specified in too many locations");
 		else if (pp_amr.contains("plot_file"))
 		{
 			if (amrex::ParallelDescriptor::IOProcessor())
@@ -34,9 +34,9 @@ std::string GetFileName()
 		{
 			pp.query("plot_file", filename);
 		}
-		else
-			if (amrex::ParallelDescriptor::IOProcessor())
-				Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
+		// else
+		// 	if (amrex::ParallelDescriptor::IOProcessor())
+		// 		Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
 	}
 	return filename;
 }
@@ -50,8 +50,21 @@ void SignalHandler(int s)
 		if (s == SIGSEGV) status = IO::Status::Segfault;
 		else if (s == SIGINT) status = IO::Status::Interrupt;
 		if (s == SIGABRT) status = IO::Status::Abort;
-		IO::WriteMetaData(filename,status);
+		if (filename != "")
+			IO::WriteMetaData(filename,status);
 	}
+
+#ifdef MEME
+	amrex::ParmParse pp;
+	if (!pp.contains("nomeme"))
+	{			
+		time_t timer; time(&timer);
+		std::stringstream cmd;
+		cmd << "xdg-open " << BUILD_DIR << "/src/Util/Meme/cat0" << (1+((int)timer)%6) << ".gif &";
+		std::system(cmd.str().c_str());
+		std::cout << Color::Bold << Color::FG::Red << "PROGRAM FAILED!" << Color::Reset << " (Compile without -DMEME, or set nomeme = 1 in the input file to disable this!)";
+	}
+#endif 
 
 	amrex::BLBackTrace::handler(s);
 }
@@ -59,27 +72,27 @@ void SignalHandler(int s)
 
 void Initialize (int argc, char* argv[])
 {
-	if (argc < 2)
-	{
-		std::cout << "No plot file specified!" << std::endl;
-		exit(-1);
-	}
+	srand (time(NULL));
+
+	// if (argc < 2)
+	// {
+	// 	std::cout << "No plot file specified!" << std::endl;
+	// 	exit(-1);
+	// }
 
 	amrex::Initialize(argc, argv);
 
 	amrex::ParmParse pp_amrex("amrex");
 	pp_amrex.add("throw_exception",1);
 	//amrex.throw_exception=1
-	
 
-	signal(SIGSEGV, Util::SignalHandler); 
+	signal(SIGSEGV, Util::SignalHandler);
 	signal(SIGINT,  Util::SignalHandler);
 	signal(SIGABRT, Util::SignalHandler);
 
 	std::string filename = GetFileName();
 
-
-	if (amrex::ParallelDescriptor::IOProcessor())
+	if (amrex::ParallelDescriptor::IOProcessor() && filename != "")
 	{
 		Util::CreateCleanDirectory(filename, false);
 		IO::WriteMetaData(filename);
@@ -89,7 +102,8 @@ void Initialize (int argc, char* argv[])
 void Finalize()
 {
 	std::string filename = GetFileName();
-	IO::WriteMetaData(filename,IO::Status::Complete);
+	if (filename != "")
+	 	IO::WriteMetaData(filename,IO::Status::Complete);
 	amrex::Finalize();
 }
 
@@ -156,7 +170,7 @@ int ReplaceAll(std::string &str, const std::string before, const std::string aft
 	size_t start_pos = 0;
 	while((start_pos = str.find(before, start_pos)) != std::string::npos) {
 		str.replace(start_pos, before.length(), after);
-		start_pos += after.length(); 
+		start_pos += after.length();
 	}
 	return 0;
 }
@@ -165,10 +179,109 @@ int ReplaceAll(std::string &str, const char before, const std::string after)
 	size_t start_pos = 0;
 	while((start_pos = str.find(before, start_pos)) != std::string::npos) {
 		str.replace(start_pos, 1, after);
-		start_pos += after.length(); 
+		start_pos += after.length();
 	}
 	return 0;
 }
+
+
+std::string Wrap(std::string text, unsigned per_line)
+{
+	unsigned line_begin = 0;
+
+	while (line_begin < text.size())
+	{
+		const unsigned ideal_end = line_begin + per_line ;
+		unsigned line_end = ideal_end <= text.size() ? ideal_end : text.size()-1;
+
+		if (line_end == text.size() - 1)
+			++line_end;
+		else if (std::isspace(text[line_end]))
+		{
+			text[line_end] = '\n';
+			++line_end;
+		}
+		else    // backtrack
+		{
+			unsigned end = line_end;
+			while ( end > line_begin && !std::isspace(text[end]))
+				--end;
+
+			if (end != line_begin)                  
+			{                                       
+				line_end = end;                     
+				text[line_end++] = '\n';            
+			}                                       
+			else                                    
+				text.insert(line_end++, 1, '\n');
+		}
+
+		line_begin = line_end;
+	}
+
+	return text;
+}
+
+
+
+}
+
+
+Set::Scalar Random()
+{
+	return ((Set::Scalar) rand()) / ((Set::Scalar) RAND_MAX);
+}
+
+namespace Test
+{
+int Message(std::string testname)
+{
+	if (amrex::ParallelDescriptor::IOProcessor())
+		std::cout << std::left
+			  << Color::FG::White << Color::Bold << testname << Color::Reset << std::endl;
+	return 0;
+}
+int Message(std::string testname, int failed)
+{
+	if (amrex::ParallelDescriptor::IOProcessor())
+	{
+		winsize w;
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+		std::stringstream ss;
+		if (!failed)
+			ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
+		else
+			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
+
+		int terminalwidth = 100; //std::min(w.ws_col,(short unsigned int) 100);
+
+		std::cout << std::left
+			  << testname 
+			  << std::setw(terminalwidth - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+	}
+	return failed;
+}
+int SubMessage(std::string testname, int failed)
+{
+	if (amrex::ParallelDescriptor::IOProcessor())
+	{
+		winsize w;
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+		std::stringstream ss;
+		if (!failed)
+			ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
+		else
+			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
+
+		int terminalwidth = 100; //std::min(w.ws_col,(short unsigned int) 100);
+
+		std::cout << std::left
+			  << Color::FG::White << Color::Bold << "    " + testname << Color::Reset
+			  << std::setw(terminalwidth - ( testname.size() + 6) + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+	}
+	return failed;
+}
+
 }
 
 

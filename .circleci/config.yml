@@ -1,0 +1,64 @@
+version: 2
+dependencies:
+  - sudo  
+
+jobs:
+  2D:
+    docker:
+      - image: buildpack-deps:trusty 
+    steps:
+      - checkout
+      - run:
+          name: Installing preliminaries
+          command: 'apt-get update && 
+                    apt-get install -qq software-properties-common'
+      - run:
+          name: Updating compilers
+          command: 'add-apt-repository -y ppa:ubuntu-toolchain-r/test &&
+                    apt-get update -qq &&
+                    apt-get install -qq g++-6  &&
+                    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90 &&
+                    apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev &&
+                    export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
+      - run:
+          name: Building AMReX
+          command: 'bash ./.build.amrex.sh 2 nodeghostcells'
+      - run:
+          name: Building Alamo
+          command: 'bash ./.build.sh 2'
+      - run:
+          name: Running Unit Tests
+          command: 'bash ./.test.sh'
+  3D:
+    docker:
+      - image: buildpack-deps:trusty 
+    steps:
+      - checkout
+      - run:
+          name: Installing preliminaries
+          command: 'apt-get update && 
+                    apt-get install -qq software-properties-common'
+      - run:
+          name: Updating compilers
+          command: 'add-apt-repository -y ppa:ubuntu-toolchain-r/test &&
+                    apt-get update -qq &&
+                    apt-get install -qq g++-6  &&
+                    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90 &&
+                    apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev &&
+                    export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
+      - run:
+          name: Building AMReX
+          command: 'bash ./.build.amrex.sh 3 nodeghostcells'
+      - run:
+          name: Building Alamo
+          command: 'bash ./.build.sh 3'
+      - run:
+          name: Running Unit Tests
+          command: 'bash ./.test.sh'
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - "2D"
+      - "3D"

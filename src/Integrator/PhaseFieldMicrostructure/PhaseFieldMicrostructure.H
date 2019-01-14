@@ -1,8 +1,8 @@
 ///
 /// \file PhaseFieldMicrostructure.H
 ///
-#ifndef PHASEFIELDMICROSTRUCTURE_H
-#define PHASEFIELDMICROSTRUCTURE_H
+#ifndef INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
+#define INTEGRATOR_PHASEFIELDMICROSTRUCTURE_H
 
 #include <iostream>
 #include <fstream>
@@ -17,9 +17,10 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
-#include "IC/PerturbedInterface/PerturbedInterface.H"
-#include "IC/TabulatedInterface/TabulatedInterface.H"
+#include "IC/TabulatedInterface.H"
+#include "IC/PerturbedInterface.H"
 #include "IC/Voronoi/Voronoi.H"
+#include "IC/Circle.H"
 
 #include "Model/Interface/GrainBoundary/GrainBoundary.H"
 #include "Model/Interface/GrainBoundary/Sin.H"
@@ -90,6 +91,10 @@ private:
 
 	IC::IC *ic;
 
+	bool sdf_on = false;
+	amrex::Vector<amrex::Real> sdf;
+
+
 	bool        elastic_on = false;
 	int         elastic_int = 1;
 	std::string elastic_type;
@@ -106,7 +111,7 @@ private:
 	BC::BC *elastic_bc;
 
 	std::vector<OperatorCell::Elastic::PolyCrystal::PolyCrystalModel *> models;
-
+	
 };
 }
 #endif

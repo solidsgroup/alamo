@@ -67,7 +67,7 @@ void Voronoi::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::Mul
 		      d = std::min(d,sqrt(AMREX_D_TERM((x-voronoi_x[n])*(x-voronoi_x[n]), + (y-voronoi_y[n] + sizey)*(y-voronoi_y[n] + sizey), + (z-voronoi_z[n])*(z-voronoi_z[n]))));
 		      d = std::min(d,sqrt(AMREX_D_TERM((x-voronoi_x[n])*(x-voronoi_x[n]), + (y-voronoi_y[n] - sizey)*(y-voronoi_y[n] - sizey), + (z-voronoi_z[n])*(z-voronoi_z[n]))));
 		    }
-#if AMREX_SPACEIMD>2
+#if AMREX_SPACEDIM>2
 		  if (geom[0].isPeriodic(2))
 		    {
 		      d = std::min(d,sqrt(AMREX_D_TERM((x-voronoi_x[n])*(x-voronoi_x[n]), + (y-voronoi_y[n])*(y-voronoi_y[n]), + (z-voronoi_z[n] + sizez)*(z-voronoi_z[n] + sizez))));
