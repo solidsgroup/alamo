@@ -421,7 +421,6 @@ void
 Operator::buildMasks ()
 {
 	BL_PROFILE("Operator::buildMasks()");
-
 	if (m_masks_built) return;
 
 
@@ -584,10 +583,26 @@ Operator::buildMasks ()
 
 
 void
-Operator::fixUpResidualMask (int /*amrlev*/, iMultiFab& /*resmsk*/)
+Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 {
 	BL_PROFILE("Operator::fixUpResidualMask()");
-	Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
+
+	if (!m_masks_built) buildMasks();
+
+	const iMultiFab& cfmask = *m_nd_fine_mask[amrlev];
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (MFIter mfi(resmsk,true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex_mlndlap_fixup_res_mask(BL_TO_FORTRAN_BOX(bx),
+					     BL_TO_FORTRAN_ANYD(resmsk[mfi]),
+					     BL_TO_FORTRAN_ANYD(cfmask[mfi]));
+	}
+
+	//Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
 }
 
 void
@@ -613,7 +628,6 @@ void
 Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
 	BL_PROFILE("Operator::restriction()");
-	Util::Message(INFO);
 
 	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
 
@@ -718,7 +732,6 @@ void
 Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	Util::Message(INFO,"Not yet implemented");
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -750,9 +763,9 @@ Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const M
 			
 			for (int i=0; i<crse.nComp(); i++)
 			{
-				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]-1; m1<=fine_bx.hiVect()[0]+1; m1++),
-					     for (int m2 = fine_bx.loVect()[1]-1; m2<=fine_bx.hiVect()[1]+1; m2++),
-					     for (int m3 = fine_bx.loVect()[2]-1; m3<=fine_bx.hiVect()[2]+1; m3++))
+				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
+					     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
+					     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
 				{
 					amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
 					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
@@ -814,12 +827,20 @@ Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const M
 
 void
 Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
-				  const MultiFab& fine_sol, const MultiFab& fine_rhs)
+				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
-	Util::Message(INFO,"Suspect implementation!");
 	const auto& amrrr = AMRRefRatio(camrlev);
-	amrex::average_down(fine_sol, crse_sol, 0, fine_rhs.nComp(), amrrr);
+	amrex::average_down(fine_sol, crse_sol, 0, crse_sol.nComp(), amrrr);
+	
+	if (isSingular(0))
+	{
+		Util::Abort(INFO,"Singular operators not supported!");
+		// MultiFab frhs(fine_rhs.boxArray(), fine_rhs.DistributionMap(), 1, 1);
+		// MultiFab::Copy(frhs, fine_rhs, 0, 0, 1, 0);
+		// restrictInteriorNodes(camrlev, crse_rhs, frhs);
+	}
+
 }
 
 void
