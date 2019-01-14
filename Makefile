@@ -64,6 +64,12 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
+clean:
+	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
+	find src/ -name "*.o" -exec rm {} \;
+	rm -f bin/*
+	rm -rf obj/
+	rm -f Backtrace*
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
@@ -120,12 +126,6 @@ obj/%.F90.o: src/%.F90
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
-clean:
-	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
-	find src/ -name "*.o" -exec rm {} \;
-	rm -f bin/*
-	rm -rf obj/
-	rm -f Backtrace*
 
 help:
 	@printf "$(B_ON)$(FG_YELLOW)\n\n============================== ALAMO Makefile help ==============================$(RESET)""\n\n"

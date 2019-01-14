@@ -766,7 +766,6 @@ Elastic<T>::reflux (int crse_amrlev,
 							//m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
 						{
 							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
-							if (m_crse == amrex::IntVect(8,4)) Util::Message(INFO);
 						}
 						// ymin / ymax edge
 						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[0])) &&
@@ -774,7 +773,6 @@ Elastic<T>::reflux (int crse_amrlev,
 						//else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
 						{
 							crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
-							if (m_crse == amrex::IntVect(8,4)) Util::Message(INFO);
 						}
 						else
 						{
