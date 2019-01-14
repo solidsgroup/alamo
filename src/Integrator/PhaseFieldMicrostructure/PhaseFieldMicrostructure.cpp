@@ -107,6 +107,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
 	RegisterNewFab(etas_mf, 1, "Etas");
 
+	RegisterIntegratedVariable(&volume, "volume");
   
 	// Elasticity
 	{
@@ -430,6 +431,60 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 		}
 
 	}
+
+	// Set::Scalar volume = 0.0;
+	// for (int ilev = 0; ilev < max_level; ilev++)
+	// {
+	// 	const amrex::Real* DX = geom[ilev].CellSize();
+
+	// 	const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
+
+	// 	for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
+	// 	{
+	// 		const amrex::Box& box = mfi.tilebox();
+	// 		const::BoxArray & comp = amrex::complementIn(box,cfba);
+	// 		amrex::FArrayBox &eta_new  = (*eta_new_mf[ilev])[mfi];
+
+	// 		for (int i = 0; i < comp.size(); i++)
+	// 		{
+	// 			amrex::Box mybox = comp[i];
+	// 			AMREX_D_TERM(for (int m1 = mybox.loVect()[0]; m1<=mybox.hiVect()[0]; m1++),
+	// 				     for (int m2 = mybox.loVect()[1]; m2<=mybox.hiVect()[1]; m2++),
+	// 				     for (int m3 = mybox.loVect()[2]; m3<=mybox.hiVect()[2]; m3++))
+	// 			{
+	// 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+	// 				volume += AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// {
+	// 	const amrex::Real* DX = geom[max_level].CellSize();
+
+	// 	for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
+	// 	{
+	// 		const amrex::Box& box = mfi.tilebox();
+	// 		//amrex::FArrayBox &etas  = (*etas_mf[ilev])[mfi];
+	// 		amrex::FArrayBox &eta_new  = (*eta_new_mf[max_level])[mfi];
+	// 		AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
+	// 			     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
+	// 			     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
+	// 		{
+	// 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					
+	// 			volume += AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+				
+	// 		}
+	// 	}
+	// }
+
+	// std::cout << "volbefore = " << volume << std::endl;
+	// amrex::ParallelDescriptor::ReduceRealSum(volume);
+
+	// std::cout << "volafter = " << volume << std::endl;
+	// Util::Message(INFO,"volume = ", volume);
+	// //(*etas_mf[max_level]).setVal(max_level);
+	
 }
 
 
@@ -545,5 +600,25 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		}
 	}
 }
+
+
+void
+PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
+				   amrex::MFIter &mfi, amrex::Box &box)
+{
+	// amrex::FArrayBox &eta_new  = (*eta_new_mf[max_level])[mfi];
+	// AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
+	// 	     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
+	// 	     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
+	// {
+	// 	amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+					
+	// 	volume += AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+				
+	// }
+}
+
+
+
 }
 

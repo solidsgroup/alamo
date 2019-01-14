@@ -59,6 +59,8 @@ protected:
 
 	void TimeStepBegin(amrex::Real time, int iter);
 	void TimeStepComplete(amrex::Real time, int iter);
+	void Integrate(int amrlev, Set::Scalar time, int step,
+		       amrex::MFIter &mfi, amrex::Box &box);
 
 private:
 
@@ -93,6 +95,8 @@ private:
 
 	bool sdf_on = false;
 	amrex::Vector<amrex::Real> sdf;
+
+	Set::Scalar volume = 0.0;
 
 
 	bool        elastic_on = false;
