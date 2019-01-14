@@ -59,8 +59,6 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 
 .SECONDARY: 
 
-
-
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
@@ -166,4 +164,9 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) $(shell find docs
 	@make -C docs html > /dev/null
 
 
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),info)
 -include $(DEP)
+endif
+endif
+

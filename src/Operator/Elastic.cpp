@@ -886,6 +886,11 @@ Elastic<T>::reflux (int crse_amrlev,
 									  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
 							}
 						}
+						else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
+						{
+							//Util::Message(INFO,"Discovered coarse node while on fine fab: crse amrlev = ", crse_amrlev,", m_crse = ", m_crse, " box = ", bx);
+						}
+
 					}
 #endif		
 	}
