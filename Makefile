@@ -12,14 +12,17 @@ endif
 RESET              = \033[0m
 B_ON               = \033[1m
 FG_RED             = \033[31m
+FG_DIM             = \033[2m
 FG_LIGHTRED        = \033[91m
 FG_LIGHTGRAY       = \033[90m
 FG_GREEN           = \033[32m
 FG_LIGHTGREEN      = \033[92m
 FG_YELLOW          = \033[33m
+FG_LIGHTYELLOW     = \033[93m
 FG_BLUE            = \033[34m
 FG_LIGHTBLUE       = \033[94m
 FG_CYAN            = \033[36m
+FG_MAGENTA         = \033[35m
 
 
 
@@ -32,9 +35,9 @@ METADATA_PLATFORM = $(shell hostname)
 METADATA_COMPILER = $(CC)
 METADATA_DATE     = $(shell date +%x)
 METADATA_TIME     = $(shell date +%H:%M:%S)
+BUILD_DIR         = ${shell pwd}
 
-
-METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" 
+METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb 
 
@@ -61,6 +64,12 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
+clean:
+	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
+	find src/ -name "*.o" -exec rm {} \;
+	rm -f bin/*
+	rm -rf obj/
+	rm -f Backtrace*
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
@@ -101,7 +110,7 @@ obj/%.cc.d: src/%.cc
 
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
-	@printf "$(B_ON)$(FG_CYAN)COMPILING$(RESET)   $(@:.o=) \n" 
+	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   $(@:.o=) \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
 
@@ -117,12 +126,6 @@ obj/%.F90.o: src/%.F90
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
-clean:
-	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
-	find src/ -name "*.o" -exec rm {} \;
-	rm -f bin/*
-	rm -rf obj/
-	rm -f Backtrace*
 
 help:
 	@printf "$(B_ON)$(FG_YELLOW)\n\n============================== ALAMO Makefile help ==============================$(RESET)""\n\n"
@@ -150,5 +153,17 @@ help:
 	@printf "   - The AMREX path must contain directories called $(FG_LIGHTBLUE)lib/ include/$(RESET)   \n"
 	@printf "   - The EIGEN path must contain a directory called $(FG_LIGHTBLUE)eigen3$(RESET)   \n"
 	@printf "\n"
+
+
+docs: docs/doxygen/index.html docs/build/html/index.html 
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
+
+docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
+	@cd docs && doxygen 
+docs/build/html/index.html: $(shell find docs/source/ -type f) $(shell find docs/doxygen/ -type f)
+	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
+	@make -C docs html > /dev/null
+
 
 -include $(DEP)

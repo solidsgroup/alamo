@@ -52,7 +52,7 @@ public:
 					= alpha* AMREX_D_TERM(std::sin(n1*Set::Constant::Pi*x1 / L1),
 							      * std::sin(n2*Set::Constant::Pi*x2 / L2),
 							      * std::sin(n3*Set::Constant::Pi*x3 / L3));
-
+				
 			}
 		}
 
