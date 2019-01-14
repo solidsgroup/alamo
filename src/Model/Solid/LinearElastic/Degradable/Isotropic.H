@@ -35,6 +35,19 @@ public:
 		return f;
 	}
 
+	void Randomize()
+	{
+		mu = Util::Random();
+		lambda = Util::Random();
+		mu0 = mu;
+		lambda0 = lambda0;
+		amrex::Vector<Set::Scalar> eta(2);
+		eta[0] = Util::Random();
+		eta[1] = Util::Random();
+		DegradeModulus(eta);
+		
+	};
+
 	Isotropic operator + (const Isotropic &rhs) const
 	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
 
