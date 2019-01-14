@@ -14,22 +14,12 @@ namespace Solid
 class Solid
 {
 public:
-  Solid() {} ;
-
-  virtual Set::Scalar W(const Set::Matrix &gradu) = 0;
-
-  virtual Set::Matrix DW(const Set::Matrix &gradu) = 0;
-  virtual Set::Vector DW(const Set::Matrix &gradu, const Set::Vector &arg1) = 0;
-  virtual Set::Scalar DW(const Set::Matrix &gradu, const Set::Matrix &arg1) = 0;
-
-  //virtual Matrix DDW(const Matrix &gradu) = 0;
-  virtual Set::Matrix DDW(const Set::Matrix &gradu, const Set::Vector &arg1, const Set::Vector &arg2) = 0;
-  virtual Set::Scalar DDW(const Set::Matrix &gradu, const Set::Matrix &arg1, const Set::Matrix &arg2) = 0;
-
-  // virtual void
-  // DDW(std::array<std::array<std::array<std::array<amrex::Real,2>,2>,2>,2> &ddw,
-  //     const std::array<std::array<amrex::Real,2>,2> &gradu) = 0;
-
+	Solid() {} ;
+	// virtual Set::Matrix operator () (Set::Matrix &eps);// = 0;
+	// virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);// = 0;
+	// virtual Solid & operator + (const Solid & rhs);// = 0;
+	// virtual Solid & operator - (const Solid & rhs);// = 0;
+	// virtual Solid & operator / (const Set::Scalar alpha);// = 0;
 };
 
 }

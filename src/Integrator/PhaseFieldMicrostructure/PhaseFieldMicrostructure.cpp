@@ -17,6 +17,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("gamma", gamma);
 		pp.query("sigma0", sigma0);
 		pp.query("l_gb", l_gb);
+		pp.query("sdf_on", sdf_on);
+		if (sdf_on)
+		{
+			sdf.resize(number_of_grains);
+			pp.queryarr("sdf",sdf);
+		}
 	}
 	{
 		amrex::ParmParse pp("amr");
@@ -34,7 +40,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("sigma0", sigma0);
 		pp.query("sigma1", sigma1);
 		pp.query("beta", beta);
-		pp.query("damp", damp);
 		pp.query("tstart", anisotropy_tstart);
 
 		// if (amrex::Verbose()) std::cout << "should only print if run with -v flag" << std::cout;
@@ -81,14 +86,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (ic_type == "perturbed_interface")
 			ic = new IC::PerturbedInterface(geom);
 		else if (ic_type == "tabulated_interface")
-		{
-			Util::Message(INFO, "setting tabulated interface");
 			ic = new IC::TabulatedInterface(geom);
-		}
 		else if (ic_type == "voronoi")
 			ic = new IC::Voronoi(geom,number_of_grains);
+		else if (ic_type == "circle")
+			ic = new IC::Circle(geom);
 		else
-			Util::Abort("No valid initial condition specified");
+			Util::Abort(INFO, "No valid initial condition specified");
 	}
 	/*
 	 */
@@ -121,7 +125,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.queryarr("load_t",elastic_load_t);
 		pp.queryarr("load_disp",elastic_load_disp);
 		if (elastic_load_t.size() != elastic_load_disp.size())
-			Util::Abort("load_t and load_disp must have the same number of entries");
+			Util::Abort(INFO, "load_t and load_disp must have the same number of entries");
 
 		if (elastic_on)
 		{
@@ -213,7 +217,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 				// amrex::Real grad1 =  grad1_normal;
 				// amrex::Real grad2 =  grad2_normal;
-				amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
+				// amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
 				amrex::Real grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0]; // 3 point
 				amrex::Real grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1]; // 3 point
 		      
@@ -290,14 +294,14 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					amrex::Real Boundary_term =
 						Kappa*laplacian +
 						DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-						+ damp*0.5*DDKappa*(Sine_theta*Sine_theta*grad11 - 2.*Sine_theta*Cos_theta*grad12 + Cos_theta*Cos_theta*grad22);
+						+ 0.5*DDKappa*(Sine_theta*Sine_theta*grad11 - 2.*Sine_theta*Cos_theta*grad12 + Cos_theta*Cos_theta*grad22);
 			
 			
 					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) =
 						ETA(m1,m2,m3,i) -
 						M*dt*(W - (Boundary_term) + beta*(Curvature_term));
 #else
-					Util::Abort("Anisotropy is enabled but works in 2D ONLY");
+					Util::Abort(INFO, "Anisotropy is enabled but works in 2D ONLY");
 #endif
 				}
 				else // Isotropic response if less than anisotropy_tstart
@@ -308,6 +312,14 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 							  - 1.0 +
 							  2.0*gamma*sum_of_squares)*ETA(m1,m2,m3,i)
 						      - kappa*laplacian);
+				}
+
+				//
+				// SYNTHETIC DRIVING FORCE
+				//
+				if (sdf_on)
+				{
+					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) -=  M*dt*(sdf[i]);
 				}
 
 				//
@@ -465,6 +477,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		const amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 						  dy(AMREX_D_DECL(0,1,0)),
 						  dz(AMREX_D_DECL(0,0,1)));
+
+		// elastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
+		// elastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
+
 		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
 		{
 			const Box& bx = mfi.tilebox();
@@ -472,18 +488,16 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			FArrayBox &ufab  = (*displacement[lev])[mfi];
 			FArrayBox &epsfab  = (*strain[lev])[mfi];
 			FArrayBox &sigmafab  = (*stress[lev])[mfi];
-			FArrayBox &energyfab  = (*energy[lev])[mfi];
+			//FArrayBox &energyfab  = (*energy[lev])[mfi];
 			FArrayBox &energiesfab  = (*energies[lev])[mfi];
 			FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
 
-			elastic_operator->Stress(sigmafab,ufab,lev,mfi);
 
 			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
 				     for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
 				     for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
 			 	{
 			 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
 #if AMREX_SPACEDIM == 2
 			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
 			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
@@ -501,6 +515,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					epsfab(m,7) = epsfab(m,5);
 			 		epsfab(m,8) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
 #endif
+
+					elastic_operator->Stress((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+					elastic_operator->Energy((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+
+
 			 		sigmavmfab(m,0) = 0.0;
 
 #if AMREX_SPACEDIM == 2
@@ -521,7 +540,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 			 	}
 
-			elastic_operator->Energy(energyfab,ufab,lev,mfi);
+			
 			elastic_operator->Energies(energiesfab,ufab,lev,mfi);
 		}
 	}

@@ -179,6 +179,11 @@ protected:
 		       int ncomp,
 		       std::string name
 		       );
+  amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
+  amrex::Vector<int> istep;           ///< Keep track of where each level is
+  // PLOT FILES
+  std::string plot_file {"plt"};   ///< Plotfile name
+
 private:
   virtual void MakeNewLevelFromScratch (int lev, amrex::Real time, const amrex::BoxArray& ba,
 					const amrex::DistributionMapping& dm) override;
@@ -210,8 +215,8 @@ private:
   amrex::Real timestep;							///< Timestep for the base level of refinement
   amrex::Vector<amrex::Real> dt;						///< Timesteps for each level of refinement
   amrex::Vector<int> nsubsteps;						///< how many substeps on each level?
-  amrex::Vector<int> istep;						///< Keep track of where each level is
-  amrex::Vector<amrex::Real> t_new;					///< Keep track of current old simulation time on each level
+  
+  
   amrex::Vector<amrex::Real> t_old;					///< Keep track of current old simulation time on each level
   int max_step = std::numeric_limits<int>::max();			///< Maximum allowable timestep
   amrex::Real tstart = 0;						///< Default start time (default: 0)
@@ -233,8 +238,6 @@ private:
   //std::string check_file {"chk"};  ///< Checkfiles __Not currently used__
   //int check_int = -1;              ///< How frequently to dump checkfile __Not currently used__
 
-  // PLOT FILES
-  std::string plot_file {"plt"};   ///< Plotfile name
 protected:
   int plot_int = -1;               ///< How frequently to dump plot file (default: never)
 };

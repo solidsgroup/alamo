@@ -20,3 +20,8 @@ build
 simba.sh
 bin2d
 bin3d
+docs/build
+docs/doxygen
+docs/html
+docs/latex
+*.d
