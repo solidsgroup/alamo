@@ -604,7 +604,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 
 void
-PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
+PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
 				    const amrex::MFIter &mfi, const amrex::Box &box)
 {
 	const amrex::Real* DX = geom[amrlev].CellSize();
