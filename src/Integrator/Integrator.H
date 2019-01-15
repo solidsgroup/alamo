@@ -155,7 +155,7 @@ protected:
   /// \fn    Integrate
   /// \brief Update the value of integrated variables 
   virtual void Integrate(int amrlev, Set::Scalar time, int iter,
-			 amrex::MFIter &mfi, amrex::Box box)
+			 const amrex::MFIter &mfi, const amrex::Box &box)
   {
      if (number_of_intvars > 0)
 	     Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
@@ -250,7 +250,7 @@ private:
   int intvar_int = 1;
   int intvar_plot = 1;
   int number_of_intvars = 0;
-  std::vector<Set::Scalar*> intvar_array;
+  std::vector<Set::Scalar *> intvar_array;
   std::vector<std::string> intvar_names;
 
   // REGRIDDING

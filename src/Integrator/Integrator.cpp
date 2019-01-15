@@ -191,6 +191,7 @@ Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::st
 {
 	intvar_array.push_back(integrated_variable);
 	intvar_names.push_back(name);
+	Util::Message(INFO,intvar_array[0]);
 	number_of_intvars++;
 }
 
@@ -404,6 +405,7 @@ Integrator::InitFromCheckpoint ()
 void
 Integrator::Evolve ()
 {
+	
 	Real cur_time = t_new[0];
 	int last_plot_file_step = 0;
 
@@ -452,7 +454,7 @@ Integrator::IntegrateVariables (Real time, int step)
 	if (!(step % intvar_int))
 	{
 		// Zero out all variables
-		for (int i = 0; i < number_of_intvars; i++) intvar_array[i] = 0; 
+		for (int i = 0; i < number_of_intvars; i++) *intvar_array[i] = 0; 
 
 		// All levels except the finest
 		for (int ilev = 0; ilev < max_level; ilev++)
@@ -487,14 +489,29 @@ Integrator::IntegrateVariables (Real time, int step)
 		// Sum up across all processors
 		for (int i = 0; i < number_of_intvars; i++) 
 		{
-			Util::Message(INFO,*intvar_array[i]);
 			amrex::ParallelDescriptor::ReduceRealSum(*intvar_array[i]);
 		}
 	}
-	if (step==0)
+	if (!(step % intvar_plot))
 	{
-		Util::Message(INFO,plot_file);
+		Util::Message(INFO);
+		std::ofstream outfile;
+		if (step==0)
+		{
+			outfile.open(plot_file+"/thermo.dat",std::ios_base::out);
+			outfile << "time";
+			for (int i = 0; i < number_of_intvars; i++) 
+				outfile << "\t" << intvar_names[i];
+			outfile << std::endl;
+		}
+		else outfile.open(plot_file+"/thermo.dat",std::ios_base::app);
+		outfile << time;
+		for (int i = 0; i < number_of_intvars; i++)
+			outfile << "\t" << *intvar_array[i];
+		outfile << std::endl;
+		outfile.close();
 	}
+
 }
 
 

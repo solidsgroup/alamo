@@ -107,6 +107,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
 	RegisterNewFab(etas_mf, 1, "Etas");
 
+	volume = 10;
 	RegisterIntegratedVariable(&volume, "volume");
   
 	// Elasticity
@@ -604,8 +605,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 void
 PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
-				   amrex::MFIter &mfi, amrex::Box &box)
+				    const amrex::MFIter &mfi, const amrex::Box &box)
 {
+	volume = 4.0;
 	// amrex::FArrayBox &eta_new  = (*eta_new_mf[max_level])[mfi];
 	// AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
 	// 	     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
