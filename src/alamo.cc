@@ -3,7 +3,7 @@
 #include <iomanip>
 
 #include "Util/Util.H"
-#include "Integrator/PhaseFieldMicrostructure/PhaseFieldMicrostructure.H"
+#include "Integrator/PhaseFieldMicrostructure.H"
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
 
