@@ -607,20 +607,19 @@ void
 PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
 				    const amrex::MFIter &mfi, const amrex::Box &box)
 {
-	volume = 4.0;
-	// amrex::FArrayBox &eta_new  = (*eta_new_mf[max_level])[mfi];
-	// AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
-	// 	     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
-	// 	     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
-	// {
-	// 	amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-					
-	// 	volume += AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
-				
-	// }
-}
+	const amrex::Real* DX = geom[amrlev].CellSize();
 
+	amrex::FArrayBox &eta_new  = (*eta_new_mf[amrlev])[mfi];
 
+	
+	AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
+		     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
+		     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
+	{
+		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+		volume += eta_new(m,0)*AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+	}
 
 }
 
+}

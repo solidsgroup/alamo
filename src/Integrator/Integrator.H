@@ -153,9 +153,19 @@ protected:
   virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
 
   /// \fn    Integrate
-  /// \brief Update the value of integrated variables 
-  virtual void Integrate(int amrlev, Set::Scalar time, int iter,
-			 const amrex::MFIter &mfi, const amrex::Box &box)
+  /// \brief Perform an integration to compute integrated quantities
+  ///
+  /// This is a function that is called by `Integrator` to update the variables registered in
+  /// RegisterIntegratedVariable.
+  /// The following variables are used:
+  ///   -  amrlev: current amr level
+  ///   -  time: current simulation time
+  ///   -  iter: current simulation iteration
+  ///   -  mfi:  current MFIter object (used to get FArrayBox from MultiFab)
+  ///   -  box:  Use this box (not mfi.tilebox). This box covers only cells on this level that are
+  ///            not also on a finer level.
+	virtual void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*iter*/,
+			 const amrex::MFIter &/*mfi*/, const amrex::Box &/*box*/)
   {
      if (number_of_intvars > 0)
 	     Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
