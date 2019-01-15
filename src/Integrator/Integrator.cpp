@@ -55,6 +55,12 @@ Integrator::Integrator ()
 			for (int lev = 1; lev <= maxLevel(); ++lev) 
 				nsubsteps[lev] = MaxRefRatio(lev-1);
 	}
+	{
+		ParmParse pp("amr.thermo"); // AMR specific parameters
+		pp.query("intvar_int", intvar_int);     // ALL processors
+		pp.query("intvar_plot", intvar_plot);         // ALL processors
+	}
+
 
 	int nlevs_max = maxLevel() + 1;
 
@@ -459,8 +465,6 @@ Integrator::IntegrateVariables (Real time, int step)
 		// All levels except the finest
 		for (int ilev = 0; ilev < max_level; ilev++)
 		{
-			const amrex::Real* DX = geom[ilev].CellSize();
-
 			const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
 
 			for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
@@ -477,8 +481,6 @@ Integrator::IntegrateVariables (Real time, int step)
 		}
 		// Now do the finest level
 		{
-			const amrex::Real* DX = geom[max_level].CellSize();
-
 			for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -492,9 +494,8 @@ Integrator::IntegrateVariables (Real time, int step)
 			amrex::ParallelDescriptor::ReduceRealSum(*intvar_array[i]);
 		}
 	}
-	if (!(step % intvar_plot))
+	if (!(step % intvar_plot) && 	ParallelDescriptor::IOProcessor())
 	{
-		Util::Message(INFO);
 		std::ofstream outfile;
 		if (step==0)
 		{
