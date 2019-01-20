@@ -69,6 +69,15 @@ public:
 	virtual Isotropic operator * (const Set::Scalar alpha) const
 	{return Isotropic(mu*alpha, lambda*alpha);}
 
+	void DegradeModulus(const Set::Scalar eta)
+	{
+		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
+
+		lambda = lambda0*(1.0 - eta);
+		mu = mu0*(1.0-eta);
+		
+	}
+
 	void DegradeModulus(const amrex::Vector<Set::Scalar> &eta)
 	{
 		if(eta.size() == 0) return;
