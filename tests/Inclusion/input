@@ -32,11 +32,12 @@ pf.sdf_on = 1
 pf.sdf = 0.0 0.25
 
 anisotropy.on=1
-anisotropy.tstart= 2
+anisotropy.timestep=0.00001
+anisotropy.tstart= 0.5
 anisotropy.theta0= 45
 anisotropy.sigma0=0.075
-anisotropy.sigma1=0.0
-anisotropy.beta= 0
+anisotropy.sigma1=0.025
+anisotropy.beta= 0.00001
 anisotropy.damp=1.0
 
 

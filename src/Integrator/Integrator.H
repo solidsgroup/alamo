@@ -202,6 +202,7 @@ protected:
 
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
+	void SetTimestep(Set::Scalar _timestep);
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
@@ -238,19 +239,21 @@ private:
 	//
 
 	// TIME (STEP) KEEPING
-	amrex::Real timestep;							///< Timestep for the base level of refinement
-	amrex::Vector<amrex::Real> dt;						///< Timesteps for each level of refinement
-	amrex::Vector<int> nsubsteps;						///< how many substeps on each level?
+protected:
+	amrex::Real timestep;	///< Timestep for the base level of refinement
+private:
+	amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
+	amrex::Vector<int> nsubsteps;	///< how many substeps on each level?
   
   
-	amrex::Vector<amrex::Real> t_old;					///< Keep track of current old simulation time on each level
-	int max_step = std::numeric_limits<int>::max();			///< Maximum allowable timestep
-	amrex::Real tstart = 0;						///< Default start time (default: 0)
-	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max();	///< Default stop time (default: max)
+	amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
+	int max_step = std::numeric_limits<int>::max();	///< Maximum allowable timestep
+	amrex::Real tstart = 0;	///< Default start time (default: 0)
+	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
 	// KEEPING TRACK OF ALL EVOLVING VARIABLES
-	int number_of_fabs = 0;									///< Number of evolving variables (updated automatically)
-	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;	                ///< List of ptrs to all updated fabs
+	int number_of_fabs = 0;	  ///< Number of evolving variables (updated automatically)
+	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;  ///< List of ptrs to all updated fabs
 	amrex::Vector<int> ncomp_array;								///< Array containing number of components for each fab array
 	amrex::Vector<int> nghost_array;								///< Array containing number of ghost cells in each fab array
 	amrex::Vector<std::string> name_array;								///< Array containing names for each variable in the fab array

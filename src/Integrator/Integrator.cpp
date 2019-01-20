@@ -68,10 +68,7 @@ Integrator::Integrator ()
 
 	t_new.resize(nlevs_max, 0.0);
 	t_old.resize(nlevs_max, -1.e100);
-	dt.resize(nlevs_max, 1.e100);
-	dt[0] = timestep;
-	for (int i = 1; i < nlevs_max; i++)
-		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
+	SetTimestep(timestep);
 
 	plot_file = Util::GetFileName();
 	IO::WriteMetaData(plot_file,IO::Status::Running,0);
@@ -86,6 +83,16 @@ Integrator::~Integrator ()
 {
 	if (ParallelDescriptor::IOProcessor())
 	  IO::WriteMetaData(plot_file,IO::Status::Complete);
+}
+
+void Integrator::SetTimestep(Set::Scalar _timestep)
+{
+	int nlevs_max = maxLevel() + 1;
+	timestep = _timestep;
+	dt.resize(nlevs_max, 1.e100);
+	dt[0] = timestep;
+	for (int i = 1; i < nlevs_max; i++)
+		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 }
 
 /// \fn    Integrator::MakeNewLevelFromCoarse
