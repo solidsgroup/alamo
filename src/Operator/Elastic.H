@@ -65,12 +65,6 @@ public:
 				  const amrex::FArrayBox &ufab,
 				  TArrayBox &C,
 				  const amrex::IntVect &m) const;
-	
-	inline Set::Matrix flux (int amrlev, int mglev,
-				 const amrex::FArrayBox &ufab,
-				 TArrayBox &C,
-				 const amrex::IntVect &m,
-				 std::array<Boundary,AMREX_SPACEDIM>) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 protected:
@@ -85,25 +79,6 @@ protected:
 
 
 
-	///
-	/// This is a three step process.
-	/// **Note** it is implemented in 2D only and all documentation references the 2D implementation
-	/// where dimensionality is not general.
-	/// 
-	/// 1. Restriction.
-	///    Updates the residual on the coarse fab with the residual as calculated on the fine fab.
-	///    Restriction takes place only on the interior nodes.
-	///    In 2D the restriction scheme is:
-	///    \f{eqnarray*}{	
-	///       res_{c}(I,J)    &=& 4\,res_f(i,j) 
-	///                    \\ &+& 2\,\Big[res_f(i+1,j) + res_f(i-1,j) + res_f(i,j+1) + res_f(i,j-1)\Big] 
-	///                    \\ &+& \Big[res_f(i+1,j+1) + res_f(i+1,j-1) + res_f(i-1,j+1) + res_f(i-1,j-1)\Big]
-	///    \f}
-	///
-
-	virtual void reflux (int crse_amrlev,
-			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const;
 
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
