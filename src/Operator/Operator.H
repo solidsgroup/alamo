@@ -116,10 +116,10 @@ protected:
 	virtual void Diagonal (bool recompute=false);
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag);
 
-	virtual void Fapply (int amrlev, ///<[in] AMR level
-			     int mglev, ///<[in] MG level
-			     MultiFab& out, ///<[out] Output of linear operator
-			     const MultiFab& in ///<[in] Input of linear operator
+	virtual void Fapply (int amrlev, 
+			     int mglev, 
+			     MultiFab& out,
+			     const MultiFab& in 
 			     ) const =0;
 	virtual void Fsmooth (int amrlev,
 			      int mglev,
@@ -132,7 +132,7 @@ protected:
 				) const;
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const =0;
+			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const override;
 
 	virtual Real getAScalar () const final { return  0.0; }
 	virtual Real getBScalar () const final { return -1.0; }
