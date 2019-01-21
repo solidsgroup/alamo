@@ -68,6 +68,7 @@ clean:
 	rm -f bin/*
 	rm -rf obj/
 	rm -f Backtrace*
+	rm -rf docs/build docs/doxygen docs/html docs/latex
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
@@ -153,20 +154,24 @@ help:
 	@printf "\n"
 
 
-docs: docs/doxygen/index.html docs/build/html/index.html 
+docs: docs/doxygen/index.html docs/build/html/index.html .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
 	@cd docs && doxygen 
-docs/build/html/index.html: $(shell find docs/source/ -type f) $(shell find docs/doxygen/ -type f)
+docs/build/html/index.html: $(shell find docs/source/ -type f)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html > /dev/null
 
 
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),info)
+ifneq ($(MAKECMDGOALS),help)
+ifneq ($(MAKECMDGOALS),docs)
 -include $(DEP)
+endif
+endif
 endif
 endif
 
