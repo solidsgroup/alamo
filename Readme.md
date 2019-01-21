@@ -1,7 +1,7 @@
-## ALAMO - Getting Started ##
+# Getting Started #
 
-**Note**: this README page is also the Doxygen main page and the Github readme page.
-You can view it by running `doxygen` in the root directory, then opening `doc/html/index.html` in a web browser.
+**Note**: this README page is also the Doxygen main page, the Github readme page, and the Docs main page.
+You can view it by running `make docs` in the root directory, then opening `docs/doxygen/html/index.html` or `docs/build/html/index.html` in a web browser. 
 
 ## Compiling Alamo ##
 
@@ -66,7 +66,9 @@ to clear out extra files that were generated.
 ### Building - Using CMAKE ###
 
 To build ALAMO using CMAKE, you must have CMAKE installed. 
-1. Create a build directory. **Do not use the ALAMO root directory as your build directory**. The `.gitignore` file is configured to ignore the `./build` directory, but you can choose whatever directory you wish.
+1. Create a build directory.
+   **Do not use the ALAMO root directory as your build directory**.
+   The `.gitignore` file is configured to ignore the `./build` directory, but you can choose whatever directory you wish.
 2. Within the build directory, run CMAKE with the following:
 
        cmake /path/to/alamo/root -DAMREX=/path/to/amrex
@@ -76,7 +78,7 @@ To build ALAMO using CMAKE, you must have CMAKE installed.
 
        make
 		
-   to generate executables
+   to generate executables.
 
 ## Testing ##
 
@@ -93,5 +95,4 @@ The following are some common error messages and problems encountered.
   Solve by changing the domain dimensions (`amr.n_cell`) so that they are powers of two.
 
 * `static_cast<long>(i) < this->size() failed'
-  One common reason this happens is if Dirichlet/Neumann boundaries are specified but
-  no boundary values are provided. 
+  One common reason this happens is if Dirichlet/Neumann boundaries are specified but no boundary values are provided. 
