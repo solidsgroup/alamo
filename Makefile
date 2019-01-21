@@ -166,7 +166,9 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) $(shell find docs
 
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),info)
+ifneq ($(MAKECMDGOALS),help)
 -include $(DEP)
+endif
 endif
 endif
 
