@@ -15,9 +15,9 @@ class Trig : public IC
 public:
 	Trig (amrex::Vector<amrex::Geometry> &_geom,
 	      Set::Scalar _alpha = 1.0,
-	      AMREX_D_DECL(std::complex<int> _n1 = 1,
-			   std::complex<int> _n2 = 1,
-			   std::complex<int> _n3 = 1)) :
+	      AMREX_D_DECL(std::complex<int> _n1 = 0,
+			   std::complex<int> _n2 = 0,
+			   std::complex<int> _n3 = 0)) :
 	      IC(_geom)
 	{
 		Define(_alpha,AMREX_D_DECL(_n1,_n2,_n3));
@@ -25,9 +25,9 @@ public:
 
 
 	void Define(Set::Scalar _alpha = 1.0,
-		    AMREX_D_DECL(std::complex<int> _n1 = 1,
-				 std::complex<int> _n2 = 1,
-				 std::complex<int> _n3 = 1))
+		    AMREX_D_DECL(std::complex<int> _n1 = 0,
+				 std::complex<int> _n2 = 0,
+				 std::complex<int> _n3 = 0))
 	{
 		alpha = _alpha;
 		AMREX_D_TERM(n1 = _n1;,
@@ -86,8 +86,7 @@ public:
 			}
 		}
 	}
-
-
+	using IC::Add;
 
 private:
 	Set::Scalar alpha;

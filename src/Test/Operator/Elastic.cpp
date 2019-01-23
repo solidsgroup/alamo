@@ -110,8 +110,9 @@ Elastic::SPD(bool verbose,std::string plotfile)
 	int failed = 0;
 
 	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(1.0); 
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Isotropic> > > modelfab(nlevels); 
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
@@ -133,22 +134,27 @@ Elastic::SPD(bool verbose,std::string plotfile)
 	amrex::Vector<amrex::MultiFab> &Av  = rhs_prescribed;
 	amrex::Vector<amrex::MultiFab> &vAu = rhs_exact;
 	amrex::Vector<amrex::MultiFab> &uAv = rhs_numeric;
+	amrex::Vector<amrex::MultiFab> &diff = res_exact;
 
 	//IC::Random ic(geom);
-	std::complex<int> i(0,1);
+	std::complex<int> I(0,1);
 
-	IC::Trig   ic_u(geom,1.0,i,i,i);
-	//IC::Trig   ic_v(geom,1.0,0,0,0);
-	// for (int i=0; i<AMREX_SPACEDIM; i++)
-	// {
-	ic_u.SetComp(0);
-	//ic_v.SetComp(0);
-	for (int ilev = 0; ilev < nlevels; ++ilev)  ic_u.Initialize(ilev, u);
-	//for (int ilev = 0; ilev < nlevels; ++ilev)  ic_v.Initialize(ilev, v);
+	IC::Trig   ic(geom);//,1.0,i,i,i);
+	for (int d=0; d<AMREX_SPACEDIM; d++)
+	{
+		ic.SetComp(d);
+		AMREX_D_TERM(for (int i = 1; i < 2; i++),
+			     for (int j = 1; j < 2; j++),
+			     for (int k = 0; k < 1; k++))
+		{
+			ic.Define(Util::Random(),AMREX_D_DECL(i*I,j*I,k*I));
+			for (int ilev = 0; ilev < nlevels; ++ilev)  ic.Add(ilev, u);
+			ic.Define(Util::Random(),AMREX_D_DECL(i*I,j*I,k*I));
+			for (int ilev = 0; ilev < nlevels; ++ilev)  ic.Add(ilev, v);
+		}
+	}
 	for (int ilev = 0; ilev < nlevels; ++ilev)  Au[ilev].setVal(0.0);
 	for (int ilev = 0; ilev < nlevels; ++ilev)  Av[ilev].setVal(0.0);
-	//}
-
 		
 	std::complex<int> mycomplex(0,1);
 
@@ -159,10 +165,10 @@ Elastic::SPD(bool verbose,std::string plotfile)
  	info.setMaxCoarseningLevel(0);
  	nlevels = geom.size();
 
-	::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
+	::Operator::Elastic<model_type> elastic;
  	elastic.define(geom, cgrids, dmap, info);
 
-	using bctype = ::Operator::Elastic<Model::Solid::LinearElastic::Isotropic>::BC;
+	using bctype = ::Operator::Elastic<model_type>::BC;
 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,bctype::Displacement)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Displacement,bctype::Displacement)},
 				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}},
@@ -183,6 +189,15 @@ Elastic::SPD(bool verbose,std::string plotfile)
 	{
 		Util::Message(INFO,amrex::MultiFab::Dot(u[ilev],0,Av[ilev],0,AMREX_SPACEDIM,0));
 		Util::Message(INFO,amrex::MultiFab::Dot(v[ilev],0,Au[ilev],0,AMREX_SPACEDIM,0));
+
+		amrex::MultiFab::Copy(uAv[ilev],u[ilev],0,0,AMREX_SPACEDIM,0); // uAv = u
+		amrex::MultiFab::Multiply(uAv[ilev],Av[ilev],0,0,AMREX_SPACEDIM,0); // uAv *= Av
+
+		amrex::MultiFab::Copy(vAu[ilev],v[ilev],0,0,AMREX_SPACEDIM,0); // vAu = v
+		amrex::MultiFab::Multiply(vAu[ilev],Au[ilev],0,0,AMREX_SPACEDIM,0); // vAu *= Au
+
+		amrex::MultiFab::Copy(diff[ilev],uAv[ilev],0,0,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Subtract(diff[ilev],vAu[ilev],0,0,AMREX_SPACEDIM,0);
 	}
 
 	if (plotfile != "")
@@ -215,10 +230,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
 	std::complex<int> i(0,1);
-	IC::Trig icrhs(geom,1.0,n*i,n*i,n*i);
+	IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i));
 	icrhs.SetComp(component);
 	Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
-	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),n*i,n*i,n*i);
+	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
 	icexact.SetComp(component);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
