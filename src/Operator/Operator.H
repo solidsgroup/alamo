@@ -120,16 +120,16 @@ protected:
 			     int mglev, 
 			     MultiFab& out,
 			     const MultiFab& in 
-			     ) const =0;
+			     ) const override =0;
 	virtual void Fsmooth (int amrlev,
 			      int mglev,
 			      MultiFab& x,
 			      const MultiFab& b
-			      ) const;
+			      ) const override;
 	virtual void normalize (int amrlev,
 				int mglev,
 				MultiFab& mf
-				) const;
+				) const override;
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const override;

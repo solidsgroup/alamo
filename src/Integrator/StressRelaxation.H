@@ -62,8 +62,6 @@ protected:
 
 private:
 
-	int number_of_ghost_cells = 2;
-
 	// For mechanical degradation to be studied later
 	amrex::Vector<amrex::MultiFab> displacement; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<amrex::MultiFab> strain; ///< Multicomponent field variable storing pointwise strains (6 components)
@@ -100,7 +98,6 @@ private:
 	bool consolidation 	  = false;
 
 	// Elastic BC
-	BC::BC *elastic_bc;
 	std::map<std::string,Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC > 			bc_map;
 	std::array<Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
 #if AMREX_SPACEDIM > 1

@@ -156,9 +156,6 @@ Elastic::SPD(bool verbose,std::string plotfile)
 	for (int ilev = 0; ilev < nlevels; ++ilev)  Au[ilev].setVal(0.0);
 	for (int ilev = 0; ilev < nlevels; ++ilev)  Av[ilev].setVal(0.0);
 		
-	std::complex<int> mycomplex(0,1);
-
-
  	LPInfo info;
  	info.setAgglomeration(1);
  	info.setConsolidation(1);
@@ -222,8 +219,14 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	int failed = 0;
 
 	Set::Scalar alpha = 1.0;
-	Model::Solid::LinearElastic::Laplacian model(alpha);
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Laplacian> > >
+
+	using model_type = Model::Solid::LinearElastic::Laplacian;
+	model_type model(alpha);
+
+	// using model_type = Model::Solid::LinearElastic::Isotropic;
+	// model_type model(2.6,6.0);
+
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > >
 		modelfab(nlevels); 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
@@ -260,12 +263,12 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	info.setMaxCoarseningLevel(0);
  	nlevels = geom.size();
 
-	::Operator::Elastic<Model::Solid::LinearElastic::Laplacian> elastic;
+	::Operator::Elastic<model_type> elastic;
 
  	elastic.define(geom, cgrids, dmap, info);
  	//elastic.setMaxOrder(linop_maxorder);
 	
- 	using bctype = ::Operator::Elastic<Model::Solid::LinearElastic::Laplacian>::BC;
+ 	using bctype = ::Operator::Elastic<model_type>::BC;
 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
@@ -282,8 +285,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
- 		mlmg.setVerbose(2);
- 		mlmg.setCGVerbose(2);
+ 		mlmg.setVerbose(4);
+ 		mlmg.setCGVerbose(4);
  	}
  	else
  	{
@@ -296,9 +299,9 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 #if 1
 	// Solution	
-	Set::Scalar tol_rel = 1E-6;
-	Set::Scalar tol_abs = 0.0;
- 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel, tol_abs);
+	Set::Scalar tol_rel = 1E-11;
+	Set::Scalar tol_abs = 0;
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
@@ -383,8 +386,8 @@ int Elastic::RefluxTest(int verbose)
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 
 
-	std::vector<int> comps = {{1}};
-	std::vector<Set::Scalar> alphas = {{1.0}};
+	std::vector<int> comps = {1};
+	std::vector<Set::Scalar> alphas = {1.0};
 	std::vector<Set::Scalar> ms = {{1.0,2.0}};
 	std::vector<Set::Vector> ns = {{Set::Vector(AMREX_D_DECL(1,0,0)),
 					Set::Vector(AMREX_D_DECL(-1,0,0)),
@@ -403,12 +406,12 @@ int Elastic::RefluxTest(int verbose)
 		mlabec.define(geom, cgrids, dmap, info);
 		mlabec.setMaxOrder(2);
 		for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
-		mlabec.SetBC({{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
+		mlabec.SetBC({{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
 					    ::Operator::Elastic<model_type>::BC::Displacement,
-					    ::Operator::Elastic<model_type>::BC::Displacement)}},
-			{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
+					     ::Operator::Elastic<model_type>::BC::Displacement)}}},
+			{{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
 				       ::Operator::Elastic<model_type>::BC::Displacement,
-				       ::Operator::Elastic<model_type>::BC::Displacement)}});
+					::Operator::Elastic<model_type>::BC::Displacement)}}});
 
 
 		solution_exact[0].setVal(0.0);

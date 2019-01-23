@@ -28,12 +28,13 @@ Elastic<T>::~Elastic ()
 template<class T>
 inline
 Set::Vector
-Elastic<T>::apply (int amrlev, int mglev,
+Elastic<T>::Apply (int amrlev, int mglev,
 		   const amrex::FArrayBox &ufab,
 		   TArrayBox &C,
 		   const amrex::IntVect &m) const
 
 {
+	BL_PROFILE("Operator::Elastic::apply()");
 	Set::Vector f = Set::Vector::Zero();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
@@ -207,9 +208,10 @@ template<class T>
 void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
-	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
+	BL_PROFILE("Operator::Elastic::Fapply()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -224,15 +226,116 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-			// std::array<Boundary,AMREX_SPACEDIM> bndry = {Boundary::None, Boundary::None};
-			// if (m[0] == domain.loVect()[0]) bndry[0] == Boundary::Lo;
-			// if (m[0] == domain.hiVect()[0]) bndry[0] == Boundary::Hi;
-			// if (m[1] == domain.loVect()[1]) bndry[1] == Boundary::Lo;
-			// if (m[1] == domain.hiVect()[1]) bndry[1] == Boundary::Hi;
 
-			Set::Vector f = apply(amrlev, mglev, ufab, C, m);
 
-			for (int i = 0; i < AMREX_SPACEDIM; i++) ffab(m,i) = f(i);
+			Set::Vector f = Set::Vector::Zero();
+			
+
+			bool    AMREX_D_DECL(xmin = (m[0] == domain.loVect()[0]),
+					     ymin = (m[1] == domain.loVect()[1]),
+					     zmin = (m[2] == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]+1),
+					     ymax = (m[1] == domain.hiVect()[1]+1),
+					     zmax = (m[2] == domain.hiVect()[2]+1));
+
+			// The displacement gradient tensor
+			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+
+			// Fill gradu and gradgradu
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
+			{
+				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			}
+
+			// Stress tensor computed using the model fab
+			Set::Matrix sig = C(m)(gradu);
+
+			//
+			// Boundary conditions
+			//
+			// BCs are implemented as boundary operators.
+			//
+			// ┌                      ┐ ┌                     ┐   ┌              ┐
+			// │              |       │ │ interior		  │   │ body	     │
+			// │  Div C Grad  │       │ │ displacements	  │   │ forces	     │
+			// │              │       │ │			  │ = │		     │
+			// │ ─────────────┼────── │ │ ──────────────────  │   │ ──────────── │
+			// │              │ Bndry │ │ bndry displacements │   │ bndry values │
+			// └                      ┘ └			  ┘   └		     ┘
+			//
+			// For displacement:
+			//   (Bndry)(u) = u
+			// For traction:
+			//   (Bndry)(u) = C Grad (u) n   (n is surface normal)
+			//
+			// The displacement values or traction values are set as the boundary
+			// values of the rhs fab.
+			//
+			if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
+			{
+				for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+				{
+					for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+					{
+						if (m[j] == domain.loVect()[j])
+						{
+					
+							if (m_bc_lo[j][i] == BC::Displacement)
+								f(i) = ufab(m,i);
+							else if (m_bc_lo[j][i] == BC::Traction) 
+								f(i) += -sig(i,j);
+							else Util::Abort(INFO, "Invalid BC");
+						}
+						if (m[j] == domain.hiVect()[j] + 1)
+						{
+							if (m_bc_hi[j][i] == BC::Displacement)
+								f(i) = ufab(m,i);
+							else if (m_bc_hi[j][i] == BC::Traction) 
+								f(i) += +sig(i,j);
+							else Util::Abort(INFO, "Invalid BC");
+
+						}
+					}
+				}
+			}
+			else
+			{
+				// The gradient of the displacement gradient tensor
+				std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+				// Fill gradu and gradgradu
+				for (int i = 0; i < AMREX_SPACEDIM; i++)
+				{
+					AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
+						     ,// 2D
+						     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
+						     gradgradu[i](1,0) = gradgradu[i](0,1);
+						     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/DX[1]/DX[1];
+						     ,// 3D
+						     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*DX[0])/(2.0*DX[2]);
+						     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*DX[1])/(2.0*DX[2]);
+						     gradgradu[i](2,0) = gradgradu[i](0,2);
+						     gradgradu[i](2,1) = gradgradu[i](1,2);
+						     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
+				}
+	
+				//
+				// Operator
+				//
+				// The return value is
+				//    f = C(grad grad u) + grad(C)*grad(u)
+				// In index notation
+				//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
+				//
+				f =     C(m)(gradgradu) + 
+					AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+						     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+						     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+			}
+
+			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
 		}
 	}
 }
@@ -335,6 +438,8 @@ template<class T>
 void
 Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const
 {
+	BL_PROFILE("Operator::Elastic::Error0x()");
+
 	int ncomp = x.nComp();//getNComp();
 	int nghost = x.nGrow();
 
@@ -379,7 +484,8 @@ Elastic<T>::Strain  (int amrlev,
 		    const amrex::MultiFab& u,
 		    bool voigt) const
 {
-	amrex::Box domain(m_geom[amrlev][0].Domain());
+	BL_PROFILE("Operator::Elastic::Strain()");
+
 	if (voigt)
 		AMREX_ASSERT(eps.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
 	else
@@ -454,7 +560,6 @@ Elastic<T>::Stress (int amrlev,
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
 	//Util::Message(INFO);
-	amrex::Box domain(m_geom[amrlev][0].Domain());
 	if (voigt)
 		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
 	else
@@ -535,7 +640,6 @@ Elastic<T>::Energy (int amrlev,
 		    const amrex::MultiFab& u) const
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	amrex::Box domain(m_geom[amrlev][0].Domain());
 	AMREX_ASSERT(energy.nComp() == 1);
 	AMREX_ASSERT(u.nComp() == AMREX_SPACEDIM);
 
@@ -625,6 +729,8 @@ template<class T>
 void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
+	BL_PROFILE("Operator::Elastic::averageDownCoeffsToCoarseAmrLevel()");
+
 	//Util::Message(INFO);
 	//const int mglev = 0;
 

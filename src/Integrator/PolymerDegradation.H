@@ -93,19 +93,13 @@ private:
 	amrex::Vector<amrex::MultiFab> energy; ///< Single component variable storing strain energy
 	amrex::Vector<amrex::MultiFab> energies; ///< Multicomponent field variable storing individual strain energies
 
-	Set::Scalar M, mu, gamma, sigma0, l_gb, beta;
-	int anisotropy = 0;
 	int nlevels = 1;
-
-	amrex::Real anisotropy_tstart;
 
 	std::string ic_type, gb_type, filename;
 
 
 	amrex::Vector<amrex::BoxArray> ngrids,cgrids;
 	amrex::Vector<amrex::DistributionMapping> ndmap;
-
-	amrex::Real damp;
 
 	// Water diffusion parameters
 	bool 			water_diffusion_on 			=	false;
@@ -160,7 +154,7 @@ private:
 	bool consolidation 	  = false;
 
 	// Elastic BC
-	BC::BC *elastic_bc;
+	//BC::BC *elastic_bc;
 	std::map<std::string,Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC > 			bc_map;
 	std::array<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
 #if AMREX_SPACEDIM > 1
