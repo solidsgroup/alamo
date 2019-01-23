@@ -56,12 +56,10 @@ public:
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs)
 	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
-	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
-	{Fapply(amrlev,mglev,out,in);}
 
-	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
+	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const override;
 
-	inline Set::Vector apply (int amrlev, int mglev,
+	inline Set::Vector Apply (int amrlev, int mglev,
 				  const amrex::FArrayBox &ufab,
 				  TArrayBox &C,
 				  const amrex::IntVect &m) const;
@@ -71,7 +69,7 @@ protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
 
-	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
+	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const override final;
 	//virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
@@ -80,7 +78,7 @@ protected:
 
 
 
-	virtual int getNComp() const {return AMREX_SPACEDIM;};
+	virtual int getNComp() const override {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
 	//virtual void Diagonal(bool recompute=false);
 	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
@@ -107,7 +105,7 @@ private:
 
 
 
-	virtual void averageDownCoeffs ();
+	virtual void averageDownCoeffs () override;
 	void averageDownCoeffsToCoarseAmrLevel (int flev);
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 

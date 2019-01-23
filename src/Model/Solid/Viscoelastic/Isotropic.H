@@ -23,6 +23,7 @@ class Isotropic : public Model::Solid::Viscoelastic::Viscoelastic
 {
 public:
 	Isotropic() {} ;
+	~Isotropic() {} ;
 	Isotropic(Set::Scalar _nu, int _number_of_terms, std::array<Set::Scalar,9> _modulus, std::array<Set::Scalar,8> _relaxation) : 
 		nu(_nu) , number_of_terms(_number_of_terms) 
 	{

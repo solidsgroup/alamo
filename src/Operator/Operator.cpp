@@ -146,7 +146,6 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	int ncomp = getNComp();
 	int nghost = 1; //x.nGrow();
 
-	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	//const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	if (!m_diagonal_computed)
@@ -635,7 +634,6 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	// Set::Scalar fac2 = 1.0/32.0;
 	// Set::Scalar fac3 = 1.0/16.0; 
 	// Set::Scalar fac4 = 1.0/8.0;
-	amrex::Box domain(m_geom[amrlev][cmglev].Domain());
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),

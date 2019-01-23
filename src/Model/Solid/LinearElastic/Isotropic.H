@@ -24,6 +24,7 @@ class Isotropic : public Model::Solid::LinearElastic::LinearElastic
 public:
 	Isotropic() {} ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
+	~Isotropic() {} ;
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
