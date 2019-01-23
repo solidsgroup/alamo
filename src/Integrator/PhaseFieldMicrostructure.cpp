@@ -2,7 +2,6 @@
 #include "BC/Constant.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
-#include "IC/Affine.H"
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -43,7 +42,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("beta", beta);
 		pp.query("tstart", anisotropy_tstart);
 
-		// if (amrex::Verbose()) std::cout << "should only print if run with -v flag" << std::cout;
 
 		if(gb_type=="abssin")
 			boundary = new Model::Interface::GrainBoundary::AbsSin(theta0,sigma0,sigma1);
@@ -55,8 +53,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			boundary = new Model::Interface::GrainBoundary::Sin(theta0,sigma0,sigma1);
 
     
-		// if(ParallelDescriptor::IOProcessor())
-		//   if (!boundary->Test()) amrex::Error("Boundary functor does not pass derivative test");
 	}
 
 	{
@@ -442,6 +438,11 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+	if (anisotropy && time > anisotropy_tstart)
+	{
+		SetTimestep(anisotropy_timestep);
+	}
+
 	if (!elastic.on) return;
 	if (iter%elastic.interval) return;
 	if (time < elastic.tstart) return;

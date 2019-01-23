@@ -54,14 +54,16 @@ protected:
 
 	/// \fn    Advance
 	/// \brief Evolve phase field in time
-	void Advance (int lev, Real time, Real dt);
+	void Advance (int lev, Real time, Real dt) override;
 
-	void Initialize (int lev);
+	void Initialize (int lev) override;
 
-	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow);
+	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-	void TimeStepBegin(amrex::Real time, int iter);
-	void TimeStepComplete(amrex::Real time, int iter);
+	void TimeStepBegin(amrex::Real time, int iter) override;
+	void TimeStepComplete(amrex::Real time, int iter) override;
+	// void Integrate(int amrlev, Set::Scalar time, int step,
+	// 	       const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 private:
 
@@ -83,12 +85,10 @@ private:
 
 	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
 	int anisotropy = 0;
-
+	amrex::Real anisotropy_timestep;
 	amrex::Real anisotropy_tstart;
 
 	std::string ic_type, gb_type, filename;
-
-	amrex::Real damp;
 
 	Model::Interface::GrainBoundary::GrainBoundary *boundary;
 
@@ -97,6 +97,7 @@ private:
 	bool sdf_on = false;
 	amrex::Vector<amrex::Real> sdf;
 
+	Set::Scalar volume = 5;
 
 	struct
 	{
