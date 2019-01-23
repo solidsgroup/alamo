@@ -1,8 +1,9 @@
+
 ///
-/// \file PolymerDegradation.H
+/// \file StressRelaxation.H
 ///
-#ifndef POLYMERDEGRADATION_H
-#define POLYMERDEGRADATION_H
+#ifndef STRESSRELAXATION_H
+#define STRESSRELAXATION_H
 
 #include <iostream>
 #include <fstream>
@@ -25,16 +26,8 @@
 
 
 #include "Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
-
-
-#define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define WATER_OLD(i,j,k) water_conc_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define WATER(i,j,k) water_conc_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define ETA_OLD(i,j,k,m) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
-#define ETA_NEW(i,j,k,m) eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
+#include "Model/Solid/Viscoelastic/Isotropic.H"
+#include "Model/Solid/Viscoelastic/Viscoelastic.H"
 
 namespace Integrator
 {
@@ -46,10 +39,10 @@ namespace Integrator
 /// Solve damage evolution laws for damage variable \f$ \eta \f$ or tensor \f$ \mathbf{F}_d \f$,
 /// degrade material modulus tensor based on damage variable, and perform elasticity tests.
 ///
-class PolymerDegradation : public Integrator::Integrator
+class StressRelaxation : public Integrator::Integrator
 {
 public:
-	PolymerDegradation();
+	StressRelaxation();
 
 protected:
 
@@ -65,23 +58,9 @@ protected:
 
 	void TimeStepComplete(amrex::Real time, int iter);
 
-	void DegradeMaterial(int lev);
+	//void DegradeMaterial(int lev);
 
 private:
-
-	int number_of_ghost_cells = 2;
-
-	// Degradation variable
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_old;		///< Degradation variable for the __previous__timestep
-
-	// For water induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;		///< Water concentration for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc_old;	///< Water concentration for the __previous__timestep
-
-	// For temperature induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp;			///< Temperature for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp_old;		///< Temperature for the __previous__timestep
 
 	// For mechanical degradation to be studied later
 	amrex::Vector<amrex::MultiFab> displacement; ///< Multicomponent field variable storing pointwise displacements
@@ -93,51 +72,10 @@ private:
 	amrex::Vector<amrex::MultiFab> energy; ///< Single component variable storing strain energy
 	amrex::Vector<amrex::MultiFab> energies; ///< Multicomponent field variable storing individual strain energies
 
-	Set::Scalar M, mu, gamma, sigma0, l_gb, beta;
-	int anisotropy = 0;
 	int nlevels = 1;
-
-	amrex::Real anisotropy_tstart;
 
 	std::string ic_type, gb_type, filename;
 
-
-	amrex::Vector<amrex::BoxArray> ngrids,cgrids;
-	amrex::Vector<amrex::DistributionMapping> ndmap;
-
-	amrex::Real damp;
-
-	// Water diffusion parameters
-	bool 			water_diffusion_on 			=	false;
-	Set::Scalar 	water_diffusivity			=	1.0;
-	Set::Scalar 	water_refinement_threshold 	=	0.01;
-	std::string 	water_ic_type;
-	IC::IC			*water_ic;
-	BC::BC			*water_bc;
-
-	// Thermal diffusion parameters
-	bool			heat_diffusion_on 				=	false;
-	Set::Scalar 	thermal_diffusivity 			=	1.0;
-	Set::Scalar 	thermal_refinement_threshold 	=	0.01;
-	std::string		thermal_ic_type;
-	IC::IC			*thermal_ic;
-	BC::BC			*thermal_bc;
-
-	// Damage parameters
-	std::string		damage_type;
-	bool			damage_anisotropy 			= false;
-	int				number_of_eta 				= 1;
-	Set::Scalar		damage_refinement_threshold	= 0.01;
-	std::string 	eta_ic_type;
-	IC::IC			*eta_ic;
-	BC::BC			*eta_bc;
-
-	// Damage model: water relaxation
-	int 						number_of_terms	= 4;
-	amrex::Vector<Set::Scalar> 	d_i;
-	Set::Scalar 				d_final 		= 1.0;
-	amrex::Vector<Set::Scalar> 	tau_i;
-	amrex::Vector<Set::Scalar> 	t_start_i;
 
 	// Elasticity parameters
 	bool        elastic_on 				= false;
@@ -160,15 +98,16 @@ private:
 	bool consolidation 	  = false;
 
 	// Elastic BC
-	BC::BC *elastic_bc;
-	std::map<std::string,Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC > 			bc_map;
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
+	std::map<std::string,Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC > 			bc_map;
+	std::array<Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
 #if AMREX_SPACEDIM > 1
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
+	std::array<Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
 #if AMREX_SPACEDIM > 2
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
+	std::array<Operator::Elastic<Model::Solid::Viscoelastic::Isotropic>::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
 #endif
 #endif
+
+	amrex::Vector<amrex::BoxArray> ngrids;
 
 	amrex::Vector<Set::Vector> elastic_bc_left;
 	amrex::Vector<Set::Vector> elastic_bc_right;
@@ -185,15 +124,19 @@ private:
 
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
-	Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> elastic_operator;
+	Operator::Elastic<Model::Solid::Viscoelastic::Isotropic> elastic_operator;
 	LPInfo info;
 
 	// Material model
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Degradable::Isotropic> > > model;
-	Model::Solid::LinearElastic::Degradable::Isotropic modeltype;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::Viscoelastic::Isotropic> > > model;
+	Model::Solid::Viscoelastic::Isotropic modeltype;
 	std::string 	input_material = "isotropic";
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
+
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;
+	IC::IC			*water_ic;
+	BC::BC			*water_bc;
 
 };
 }

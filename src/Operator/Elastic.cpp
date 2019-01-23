@@ -28,25 +28,13 @@ Elastic<T>::~Elastic ()
 template<class T>
 inline
 Set::Vector
-Elastic<T>::apply (int amrlev, int mglev,
+Elastic<T>::Apply (int amrlev, int mglev,
 		   const amrex::FArrayBox &ufab,
 		   TArrayBox &C,
 		   const amrex::IntVect &m) const
 
 {
-
-	// if (amrlev == 1 && m[0] == 8 && m[1] == 8)
-	// {
-	// 	Util::Message(INFO,"m = ", m);
-	// 	Util::Message(INFO,"u(m) = ", ufab(m,0), " ", ufab(m,1));
-	// 	Util::Message(INFO,"u(m+dx) = ", ufab(m+dx[0],0), " ", ufab(m+dx[0],1));
-	// 	Util::Message(INFO,"u(m-dx) = ", ufab(m-dx[0],0), " ", ufab(m-dx[0],1));
-	// 	Util::Message(INFO,"u(m+dy) = ", ufab(m+dx[1],0), " ", ufab(m+dx[1],1));
-	// 	Util::Message(INFO,"u(m-dy) = ", ufab(m-dx[1],0), " ", ufab(m-dx[1],1));
-	// 	Util::Message(INFO,"u(m-dx-dy) = ", ufab(m-dx[0]-dx[1],0), " ", ufab(m-dx[0]-dx[1],1));
-	// }
-
-
+	BL_PROFILE("Operator::Elastic::apply()");
 	Set::Vector f = Set::Vector::Zero();
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
@@ -154,79 +142,12 @@ Elastic<T>::apply (int amrlev, int mglev,
 		//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 		//
 		f =     C(m)(gradgradu) + 
-			AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-				     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-				     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+		 	AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+		 		     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+		 		     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 		return f;
 	}
 }
-
-
-
-template<class T>
-inline
-Set::Matrix
-Elastic<T>::flux (int amrlev, int mglev,
-		  const amrex::FArrayBox &ufab,
-		  TArrayBox &C,
-		  const amrex::IntVect &m,
-		  std::array<Boundary,AMREX_SPACEDIM> boundary) const
-{
-	Set::Matrix sig = Set::Matrix::Zero();
-
-	amrex::Box domain(m_geom[amrlev][mglev].Domain());
-
-	bool    AMREX_D_DECL(xmin = (boundary[0] == Boundary::Lo || m[0] == domain.loVect()[0]),
-			     ymin = (boundary[1] == Boundary::Lo || m[1] == domain.loVect()[1]),
-			     zmin = (boundary[2] == Boundary::Lo || m[2] == domain.loVect()[2])),
-		AMREX_D_DECL(xmax = (boundary[0] == Boundary::Hi || m[0] == domain.hiVect()[0]+1),
-			     ymax = (boundary[1] == Boundary::Hi || m[1] == domain.hiVect()[1]+1),
-			     zmax = (boundary[2] == Boundary::Hi || m[2] == domain.hiVect()[2]+1));
-	const Real* DX = m_geom[amrlev][mglev].CellSize();
-
-	// The displacement gradient tensor
-	Set::Matrix gradu; // gradu(i,j) = u_{i,j)
-
-	// Fill gradu and gradgradu, accounting for potential stencil issues
-	for (int i = 0; i < AMREX_SPACEDIM; i++)
-	{
-		AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-			     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-			     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-	}
-
-
-	// Stress tensor computed using the model fab
-	sig = C(m)(gradu);
-
-	if (AMREX_D_TERM(false
-			 || m[0] == domain.loVect()[0] || m[0] == domain.hiVect()[0],
-			 || m[1] == domain.loVect()[1] || m[1] == domain.hiVect()[1],
-			 || m[2] == domain.loVect()[2] || m[2] == domain.hiVect()[2]))
-	{
-		for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
-		{
-			for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
-			{
-				if (m[j] == domain.loVect()[j])
-					if (m_bc_lo[j][i] == BC::Displacement) sig.col(i) = Set::Vector::Zero();
-				if (m[j] == domain.hiVect()[j] + 1)
-					if (m_bc_hi[j][i] == BC::Displacement) sig.col(i) = Set::Vector::Zero();
-
-			}
-		}
-		return sig;
-	}
-	else
-	{
-		return sig;
-	}
-}
-
-
-
-
-
 
 template<class T>
 void
@@ -287,9 +208,10 @@ template<class T>
 void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
-	BL_PROFILE(Color::FG::Yellow + "Operator::Elastic::Fapply()" + Color::Reset);
+	BL_PROFILE("Operator::Elastic::Fapply()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
@@ -304,15 +226,116 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-			// std::array<Boundary,AMREX_SPACEDIM> bndry = {Boundary::None, Boundary::None};
-			// if (m[0] == domain.loVect()[0]) bndry[0] == Boundary::Lo;
-			// if (m[0] == domain.hiVect()[0]) bndry[0] == Boundary::Hi;
-			// if (m[1] == domain.loVect()[1]) bndry[1] == Boundary::Lo;
-			// if (m[1] == domain.hiVect()[1]) bndry[1] == Boundary::Hi;
 
-			Set::Vector f = apply(amrlev, mglev, ufab, C, m);
 
-			for (int i = 0; i < AMREX_SPACEDIM; i++) ffab(m,i) = f(i);
+			Set::Vector f = Set::Vector::Zero();
+			
+
+			bool    AMREX_D_DECL(xmin = (m[0] == domain.loVect()[0]),
+					     ymin = (m[1] == domain.loVect()[1]),
+					     zmin = (m[2] == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]+1),
+					     ymax = (m[1] == domain.hiVect()[1]+1),
+					     zmax = (m[2] == domain.hiVect()[2]+1));
+
+			// The displacement gradient tensor
+			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+
+			// Fill gradu and gradgradu
+			for (int i = 0; i < AMREX_SPACEDIM; i++)
+			{
+				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx[0],i) : ufab(m,i)) - (!xmin ? ufab(m-dx[0],i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+					     gradu(i,1) = ((!ymax ? ufab(m+dx[1],i) : ufab(m,i)) - (!ymin ? ufab(m-dx[1],i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+					     gradu(i,2) = ((!zmax ? ufab(m+dx[2],i) : ufab(m,i)) - (!zmin ? ufab(m-dx[2],i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			}
+
+			// Stress tensor computed using the model fab
+			Set::Matrix sig = C(m)(gradu);
+
+			//
+			// Boundary conditions
+			//
+			// BCs are implemented as boundary operators.
+			//
+			// ┌                      ┐ ┌                     ┐   ┌              ┐
+			// │              |       │ │ interior		  │   │ body	     │
+			// │  Div C Grad  │       │ │ displacements	  │   │ forces	     │
+			// │              │       │ │			  │ = │		     │
+			// │ ─────────────┼────── │ │ ──────────────────  │   │ ──────────── │
+			// │              │ Bndry │ │ bndry displacements │   │ bndry values │
+			// └                      ┘ └			  ┘   └		     ┘
+			//
+			// For displacement:
+			//   (Bndry)(u) = u
+			// For traction:
+			//   (Bndry)(u) = C Grad (u) n   (n is surface normal)
+			//
+			// The displacement values or traction values are set as the boundary
+			// values of the rhs fab.
+			//
+			if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
+			{
+				for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+				{
+					for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+					{
+						if (m[j] == domain.loVect()[j])
+						{
+					
+							if (m_bc_lo[j][i] == BC::Displacement)
+								f(i) = ufab(m,i);
+							else if (m_bc_lo[j][i] == BC::Traction) 
+								f(i) += -sig(i,j);
+							else Util::Abort(INFO, "Invalid BC");
+						}
+						if (m[j] == domain.hiVect()[j] + 1)
+						{
+							if (m_bc_hi[j][i] == BC::Displacement)
+								f(i) = ufab(m,i);
+							else if (m_bc_hi[j][i] == BC::Traction) 
+								f(i) += +sig(i,j);
+							else Util::Abort(INFO, "Invalid BC");
+
+						}
+					}
+				}
+			}
+			else
+			{
+				// The gradient of the displacement gradient tensor
+				std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+				// Fill gradu and gradgradu
+				for (int i = 0; i < AMREX_SPACEDIM; i++)
+				{
+					AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
+						     ,// 2D
+						     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
+						     gradgradu[i](1,0) = gradgradu[i](0,1);
+						     gradgradu[i](1,1) = (ufab(m+dx[1],i) - 2.0*ufab(m,i) + ufab(m-dx[1],i))/DX[1]/DX[1];
+						     ,// 3D
+						     gradgradu[i](0,2) = (ufab(m+dx[0]+dx[2],i) + ufab(m-dx[0]-dx[2],i) - ufab(m+dx[0]-dx[2],i) - ufab(m-dx[0]+dx[2],i))/(2.0*DX[0])/(2.0*DX[2]);
+						     gradgradu[i](1,2) = (ufab(m+dx[1]+dx[2],i) + ufab(m-dx[1]-dx[2],i) - ufab(m+dx[1]-dx[2],i) - ufab(m-dx[1]+dx[2],i))/(2.0*DX[1])/(2.0*DX[2]);
+						     gradgradu[i](2,0) = gradgradu[i](0,2);
+						     gradgradu[i](2,1) = gradgradu[i](1,2);
+						     gradgradu[i](2,2) = (ufab(m+dx[2],i) - 2.0*ufab(m,i) + ufab(m-dx[2],i))/DX[2]/DX[2];);
+				}
+	
+				//
+				// Operator
+				//
+				// The return value is
+				//    f = C(grad grad u) + grad(C)*grad(u)
+				// In index notation
+				//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
+				//
+				f =     C(m)(gradgradu) + 
+					AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+						     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+						     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+			}
+
+			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
 		}
 	}
 }
@@ -415,6 +438,8 @@ template<class T>
 void
 Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const
 {
+	BL_PROFILE("Operator::Elastic::Error0x()");
+
 	int ncomp = x.nComp();//getNComp();
 	int nghost = x.nGrow();
 
@@ -459,7 +484,8 @@ Elastic<T>::Strain  (int amrlev,
 		    const amrex::MultiFab& u,
 		    bool voigt) const
 {
-	amrex::Box domain(m_geom[amrlev][0].Domain());
+	BL_PROFILE("Operator::Elastic::Strain()");
+
 	if (voigt)
 		AMREX_ASSERT(eps.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
 	else
@@ -534,7 +560,6 @@ Elastic<T>::Stress (int amrlev,
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
 	//Util::Message(INFO);
-	amrex::Box domain(m_geom[amrlev][0].Domain());
 	if (voigt)
 		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
 	else
@@ -615,7 +640,6 @@ Elastic<T>::Energy (int amrlev,
 		    const amrex::MultiFab& u) const
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	amrex::Box domain(m_geom[amrlev][0].Domain());
 	AMREX_ASSERT(energy.nComp() == 1);
 	AMREX_ASSERT(u.nComp() == AMREX_SPACEDIM);
 
@@ -665,236 +689,6 @@ Elastic<T>::Energy (int amrlev,
 }
 
 
-template<class T>
-void
-Elastic<T>::reflux (int crse_amrlev,
-		    MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
-		    MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
-{
-	BL_PROFILE("Operator::Elastic::reflux()");
-
-	int ncomp = AMREX_SPACEDIM;
-
-	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
- 	//const Geometry& fgeom = m_geom[crse_amrlev+1][0];
- 	const Box& c_cc_domain = cgeom.Domain();
- 	//const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
-	//const Real* cDX = cgeom.CellSize();
-	//const Real* fDX = fgeom.CellSize();
-	
-
- 	const BoxArray&            fba = fine_res.boxArray();
- 	const DistributionMapping& fdm = fine_res.DistributionMap();
-
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
-	fine_res_for_coarse.ParallelCopy(res,0,0,ncomp,0,0,cgeom.periodicity());
-
- 	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
-
-	const int coarse_coarse_node = 0;
-	const int coarse_fine_node = 1;
-	const int fine_fine_node = 2;
-
-	amrex::iMultiFab nodemask(amrex::coarsen(fba,2), fdm, 1, 0);
-	nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev],0,0,1,0,0,cgeom.periodicity());
-
-	amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 1);
-	cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev],0,0,1,1,1,cgeom.periodicity());
-	
-
-
-	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
-	{
-		const Box& bx = mfi.tilebox();
-		FArrayBox &fine = fine_res[mfi];
-		FArrayBox &crse = fine_res_for_coarse[mfi];
-		//const FArrayBox &crserhs = crse_rhs[mfi];
-		//const FArrayBox &finerhs = fine_rhs[mfi];
-		//const FArrayBox &ufab = fine_sol[mfi];
-		//TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
-
-#if AMREX_SPACEDIM == 1
-		Util::Abort(INFO, "reflux not implemented in 1D. Turn AMR off or switch to 2D.");
-#elif AMREX_SPACEDIM == 2
-		for (int n = 0 ; n < ncomp; n++)
-			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-				for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-				{
-					amrex::IntVect m_crse(m1,  m2);
-					amrex::IntVect m_fine(m1*2,m2*2);
-					
-					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1||
-					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
-						continue;
-
-					if ((nodemask[mfi])(m_crse) == fine_fine_node)
-					{
-						crse(m_crse,n) = 
-						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-					}
-					else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
-					{
-						/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-						/**/ // solution to converge to the CORRECT answer.
-						/**/ // If these are commented out, the solution converges super fast but to the 
-						/**/ // WRONG answer. TODO: figure out what's going on here.
-						/**/    crse(m_crse,n) *= 2.0;
-						/**/    continue;
-
-
-						// Exterior corner
-						if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 1)
-						{
-							crse(m_crse,n) = fine(m_fine,n);
-						}
-						// Interior corner - same as if not on C/F boundary
-						else if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 3)
-						{
-							crse(m_crse,n) = 
-								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-
-							if (m_crse == amrex::IntVect(8,4)) Util::Message(INFO);
-
-						}
-						// xmin / xmax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[1])) &&
-							  (cellmask[mfi](m_crse-dx[0]) == cellmask[mfi](m_crse-dx[0]-dx[1])))
-							//m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
-						}
-						// ymin / ymax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[0])) &&
-							  (cellmask[mfi](m_crse-dx[1]) == cellmask[mfi](m_crse-dx[1]-dx[0])))
-						//else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
-						}
-						else
-						{
-							Util::Abort(INFO,"Coarse/fine node not on boundary of fab");
-						}
-					}				
-					else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
-					{
-						//Util::Message(INFO,"Discovered coarse node while on fine fab: crse amrlev = ", crse_amrlev,", m_crse = ", m_crse, " box = ", bx);
-					}
-				}
-#elif AMREX_SPACEDIM == 3
-		for (int n = 0 ; n < ncomp; n++)
-			for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
-				for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
-					for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
-					{
-						amrex::IntVect m_crse(m1,  m2,  m3  );
-						amrex::IntVect m_fine(m1*2,m2*2,m3*2);
-				
-						bool xmin = (m1 == bx.loVect()[0]) || (m1 == c_cc_domain.loVect()[0]);
-						bool xmax = (m1 == bx.hiVect()[0]) || (m1 == c_cc_domain.hiVect()[0] +1);
-						bool ymin = (m2 == bx.loVect()[1]) || (m2 == c_cc_domain.loVect()[1]);
-						bool ymax = (m2 == bx.hiVect()[1]) || (m2 == c_cc_domain.hiVect()[1] +1);
-						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
-						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2] +1);
-						
-						if ((nodemask[mfi])(m_crse) == fine_fine_node)
-						{
-							crse(m_crse,n) =
-								0.25*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
-								  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
-								+
-								0.5*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
-								  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
-								+
-								0.25*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
-								  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
-						}
-						else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
-						{
-							/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-							/**/ // solution to converge to the CORRECT answer.
-							/**/ // If these are commented out, the solution converges super fast but to the 
-							/**/ // WRONG answer. TODO: figure out what's going on here.
-							/**/    crse(m_crse,n) *= 2.0;
-							/**/    continue;
-
-							// DOES NOT CONTINUE BEYOND THIS POINT
-
-							// Corners
-							if ((xmin && ymin && zmin) ||
-							    (xmin && ymin && zmax) ||
-							    (xmin && ymax && zmin) ||
-							    (xmin && ymax && zmax) ||
-							    (xmax && ymin && zmin) ||
-							    (xmax && ymin && zmax) ||
-							    (xmax && ymax && zmin) ||
-							    (xmax && ymax && zmax))
-								crse(m_crse,n) = fine(m_fine,n);
-							// X edges
-							else if ( (ymin && zmin) || (ymin && zmax) || (ymax && zmin) || (ymax && zmax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
-							// Y edges
-							else if ( (zmin && zmin) || (zmin && xmax) || (zmax && xmin) || (zmax && xmax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
-							// Z edges
-							else if ( (xmin && ymin) || (xmin && ymax) || (xmax && ymin) || (xmax && ymax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[2],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[2],n));
-							// YZ face (X=const)
-							else if ( xmin || xmax )
-								crse(m_crse,n) =
-									((+     fine(m_fine-dx[1]-dx[2],n) + 2.0*fine(m_fine-dx[2],n) +     fine(m_fine+dx[1]-dx[2],n)
-									  + 2.0*fine(m_fine-dx[1]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[1]      ,n) 
-									  +     fine(m_fine-dx[1]+dx[2],n) + 2.0*fine(m_fine+dx[2],n) +     fine(m_fine+dx[1]+dx[2],n))/16.0);
-							// ZX face (Y=const)
-							else if ( xmin || xmax )
-								crse(m_crse,n) =
-									((+     fine(m_fine-dx[2]-dx[0],n) + 2.0*fine(m_fine-dx[0],n) +     fine(m_fine+dx[2]-dx[2],n)
-									  + 2.0*fine(m_fine-dx[2]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[2]      ,n) 
-									  +     fine(m_fine-dx[2]+dx[0],n) + 2.0*fine(m_fine+dx[0],n) +     fine(m_fine+dx[2]+dx[2],n))/16.0);
-							// XY face (Z=const)
-							else if ( xmin || xmax )
-								crse(m_crse,n) =
-									((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-									  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-									  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-							// Internal
-							else
-							{
-								crse(m_crse,n) =
-									0.25*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
-									  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
-									+
-									0.5*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
-									  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
-									+
-									0.25*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
-									  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
-							}
-						}
-					}
-#endif		
-	}
-
-	// Copy the fine residual restricted onto the coarse grid
-	// into the final residual.
-	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
-	return;
-}
 
 template<class T>
 void
@@ -935,6 +729,8 @@ template<class T>
 void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
+	BL_PROFILE("Operator::Elastic::averageDownCoeffsToCoarseAmrLevel()");
+
 	//Util::Message(INFO);
 	//const int mglev = 0;
 

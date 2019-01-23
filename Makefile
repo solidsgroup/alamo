@@ -1,11 +1,15 @@
-CC = mpicxx
 
 MPICHFORT ?= mpichfort
 
 COMP ?= GCC
 ifeq ($(COMP),INTEL)
+ CC = mpicxx -cxx=icc
  MPI_LIB = -lifcore
 else ifeq ($(COMP),GCC)
+ CC = mpicxx -cxx=g++
+ MPI_LIB = -lgfortran -l$(MPICHFORT) -lmpich
+else ifeq ($(COMP),CLANG)
+ CC = mpicxx -cxx=clang++
  MPI_LIB = -lgfortran -l$(MPICHFORT) -lmpich
 endif
 
@@ -26,21 +30,19 @@ FG_MAGENTA         = \033[35m
 
 
 
-MPICXX_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro, 
-MPIFORT_COMPILE_FLAGS = -Wl,-Bsymbolic-functions -Wl,-z,relro 
 
 METADATA_GITHASH  = $(shell git log --pretty=format:'%H' -n 1)
 METADATA_USER     = $(shell whoami)
 METADATA_PLATFORM = $(shell hostname)
-METADATA_COMPILER = $(CC)
+METADATA_COMPILER = $(COMP)
 METADATA_DATE     = $(shell date +%x)
 METADATA_TIME     = $(shell date +%H:%M:%S)
 BUILD_DIR         = ${shell pwd}
 
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
-CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb 
-
+CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
+LINKER_FLAGS = -Bsymbolic-functions
 
 INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -L${AMREX}/lib/ -lamrex 
@@ -59,8 +61,6 @@ OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90.o))
 
 .SECONDARY: 
 
-
-
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
@@ -70,6 +70,7 @@ clean:
 	rm -f bin/*
 	rm -rf obj/
 	rm -f Backtrace*
+	rm -rf docs/build docs/doxygen docs/html docs/latex
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
@@ -80,39 +81,39 @@ info:
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
 	@mkdir -p bin/
-	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB} 
+	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
 
 obj/test.cc.o: src/test.cc
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/%.cc.o: src/%.cc
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/%.cpp.o: 
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/%.cpp.d: src/%.cpp 
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
-	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/%.cc.d: src/%.cc
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
-	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 
 
 obj/IO/WriteMetaData.cpp.o: .FORCE
 	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   $(@:.o=) \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} ${MPICXX_COMPILE_FLAGS}
+	@$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 .PHONY: .FORCE
 
@@ -155,15 +156,24 @@ help:
 	@printf "\n"
 
 
-docs: docs/doxygen/index.html docs/build/html/index.html 
+docs: docs/doxygen/index.html docs/build/html/index.html .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
 	@cd docs && doxygen 
-docs/build/html/index.html: $(shell find docs/source/ -type f) $(shell find docs/doxygen/ -type f)
+docs/build/html/index.html: $(shell find docs/source/ -type f)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html > /dev/null
 
 
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),info)
+ifneq ($(MAKECMDGOALS),help)
+ifneq ($(MAKECMDGOALS),docs)
 -include $(DEP)
+endif
+endif
+endif
+endif
+

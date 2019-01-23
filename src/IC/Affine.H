@@ -31,12 +31,13 @@ public:
 		IC(_geom), n(a_n), alpha(a_alpha), b(a_b), halfspace(a_halfspace), m(a_m)
 	{}
 
-	virtual void SetComp(int a_comp) {comp = a_comp;}
 	void SetHalfspace(bool a_halfspace) {halfspace = a_halfspace;}
 
-	void Initialize(const int lev,
-			amrex::Vector<amrex::MultiFab *> &field)
+	void Add(const int lev,
+		 amrex::Vector<amrex::MultiFab *> &field)
 	{
+		bool cellcentered = (field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
+
 		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
 		{
 			const amrex::Box& box = mfi.tilebox();
@@ -47,14 +48,19 @@ public:
 				     for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++),
 				     for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++))
 			{
-				// Cell-centered version
-				// AMREX_D_TERM(amrex::Real x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-				// 	     amrex::Real x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-				// 	     amrex::Real x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-
-				AMREX_D_TERM(amrex::Real x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
-					     amrex::Real x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
-					     amrex::Real x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+				amrex::Real AMREX_D_DECL(x1,x2,x3);
+				
+				if (cellcentered)
+				{
+					AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
+						     x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
+						     x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+				}
+				{
+					AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
+						     x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
+						     x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+				}
 
 				Set::Vector x(AMREX_D_DECL(x1,x2,x3));
 
@@ -72,22 +78,7 @@ public:
 
 	};
 
-
-	void Initialize(const int lev,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Initialize(lev,pfield);
-	};
-	void Initialize(const int lev,
-			amrex::Vector<amrex::MultiFab> &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Initialize(lev,pfield);
-	};
-
 private:
-	int comp = 0;
 	Set::Vector n;
 	amrex::Real alpha;
 	Set::Vector b;

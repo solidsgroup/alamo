@@ -55,6 +55,12 @@ Integrator::Integrator ()
 			for (int lev = 1; lev <= maxLevel(); ++lev) 
 				nsubsteps[lev] = MaxRefRatio(lev-1);
 	}
+	{
+		ParmParse pp("amr.thermo"); // AMR specific parameters
+		pp.query("intvar_int", intvar_int);     // ALL processors
+		pp.query("intvar_plot", intvar_plot);         // ALL processors
+	}
+
 
 	int nlevs_max = maxLevel() + 1;
 
@@ -62,10 +68,7 @@ Integrator::Integrator ()
 
 	t_new.resize(nlevs_max, 0.0);
 	t_old.resize(nlevs_max, -1.e100);
-	dt.resize(nlevs_max, 1.e100);
-	dt[0] = timestep;
-	for (int i = 1; i < nlevs_max; i++)
-		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
+	SetTimestep(timestep);
 
 	plot_file = Util::GetFileName();
 	IO::WriteMetaData(plot_file,IO::Status::Running,0);
@@ -80,6 +83,16 @@ Integrator::~Integrator ()
 {
 	if (ParallelDescriptor::IOProcessor())
 	  IO::WriteMetaData(plot_file,IO::Status::Complete);
+}
+
+void Integrator::SetTimestep(Set::Scalar _timestep)
+{
+	int nlevs_max = maxLevel() + 1;
+	timestep = _timestep;
+	dt.resize(nlevs_max, 1.e100);
+	dt[0] = timestep;
+	for (int i = 1; i < nlevs_max; i++)
+		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 }
 
 /// \fn    Integrator::MakeNewLevelFromCoarse
@@ -229,6 +242,15 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 	node.number_of_fabs++;
 }
 
+
+void // CUSTOM METHOD - CHANGEABLE
+Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name)
+{
+	intvar_array.push_back(integrated_variable);
+	intvar_names.push_back(name);
+	Util::Message(INFO,intvar_array[0]);
+	number_of_intvars++;
+}
 
 long // CUSTOM METHOD - CHANGEABLE
 Integrator::CountCells (int lev)
@@ -486,6 +508,7 @@ Integrator::InitFromCheckpoint ()
 void
 Integrator::Evolve ()
 {
+	
 	Real cur_time = t_new[0];
 	int last_plot_file_step = 0;
 
@@ -497,6 +520,7 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
+		IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
 		TimeStepComplete(cur_time,step);
 		cur_time += dt[0];
@@ -524,6 +548,70 @@ Integrator::Evolve ()
 		WritePlotFile();
 	}
 }
+
+void
+Integrator::IntegrateVariables (Real time, int step)
+{
+	if (!number_of_intvars) return;
+
+	if (!(step % intvar_int))
+	{
+		// Zero out all variables
+		for (int i = 0; i < number_of_intvars; i++) *intvar_array[i] = 0; 
+
+		// All levels except the finest
+		for (int ilev = 0; ilev < max_level; ilev++)
+		{
+			const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
+
+			for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
+			{
+				const amrex::Box& box = mfi.tilebox();
+				const::BoxArray & comp = amrex::complementIn(box,cfba);
+
+				for (int i = 0; i < comp.size(); i++)
+				{
+					Integrate(ilev,time, step,
+						  mfi, comp[i]);
+				}
+			}
+		}
+		// Now do the finest level
+		{
+			for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
+			{
+				const amrex::Box& box = mfi.tilebox();
+				Integrate(max_level, time, step, mfi, box);
+			}
+		}
+
+		// Sum up across all processors
+		for (int i = 0; i < number_of_intvars; i++) 
+		{
+			amrex::ParallelDescriptor::ReduceRealSum(*intvar_array[i]);
+		}
+	}
+	if (!(step % intvar_plot) && 	ParallelDescriptor::IOProcessor())
+	{
+		std::ofstream outfile;
+		if (step==0)
+		{
+			outfile.open(plot_file+"/thermo.dat",std::ios_base::out);
+			outfile << "time";
+			for (int i = 0; i < number_of_intvars; i++) 
+				outfile << "\t" << intvar_names[i];
+			outfile << std::endl;
+		}
+		else outfile.open(plot_file+"/thermo.dat",std::ios_base::app);
+		outfile << time;
+		for (int i = 0; i < number_of_intvars; i++)
+			outfile << "\t" << *intvar_array[i];
+		outfile << std::endl;
+		outfile.close();
+	}
+
+}
+
 
 void
 Integrator::TimeStep (int lev, Real time, int /*iteration*/)

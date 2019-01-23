@@ -13,7 +13,7 @@ class Constant : public IC
 public:
 	Constant (amrex::Vector<amrex::Geometry> &_geom, amrex::Vector<amrex::Real> _value);  
 
-	void Initialize(const int lev,amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field);
+	void Add(const int lev,amrex::Vector<amrex::MultiFab * > &field);
 
 private:
 	amrex::Vector<amrex::Real> value;

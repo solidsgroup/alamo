@@ -32,7 +32,7 @@ public:
 
 	using BC::FillBoundary;
 	
-	amrex::BCRec GetBCRec() ;
+	amrex::BCRec GetBCRec() override;
 	virtual amrex::Array<int,AMREX_SPACEDIM> IsPeriodic() override;
 	virtual amrex::Periodicity Periodicity () const override;
 	virtual amrex::Periodicity Periodicity (const amrex::Box& b) override;
@@ -50,8 +50,6 @@ public:
 private:
 	int bc_lo[BL_SPACEDIM];
 	int bc_hi[BL_SPACEDIM];
-	int bc_hi_flux[BL_SPACEDIM];
-	int bc_lo_flux[BL_SPACEDIM];
 	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3);
 	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3);
 };

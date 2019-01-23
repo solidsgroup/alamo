@@ -21,6 +21,7 @@ class LinearElastic : public Solid
 {
 public:
 	LinearElastic() {};
+	virtual ~LinearElastic() {};
 	///
 	/// Returns
 	/// \f[\mathbb{C}_{ijkl}u_{k,l}\f]

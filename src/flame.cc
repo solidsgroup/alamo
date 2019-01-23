@@ -3,7 +3,7 @@
 #include <iomanip>
 
 #include "Util/Util.H"
-#include "Integrator/Flame/Flame.H"
+#include "Integrator/Flame.H"
 
 int main (int argc, char* argv[])
 {

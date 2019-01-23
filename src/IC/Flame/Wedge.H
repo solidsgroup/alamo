@@ -12,8 +12,8 @@ class Wedge : public IC
 public:
 	Wedge (amrex::Vector<amrex::Geometry> &_geom);
   
-	void Initialize(const int lev,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field);
+	void Add(const int lev,
+			amrex::Vector<amrex::MultiFab * > &field);
   
 private:
 };
