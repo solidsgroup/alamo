@@ -20,7 +20,7 @@ Voronoi::Voronoi (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains)
 		}
 }
   
-void Voronoi::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+void Voronoi::Add(const int lev, amrex::Vector<amrex::MultiFab * > &field)
 {
 	AMREX_D_TERM(amrex::Real sizex = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 		     amrex::Real sizey = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,

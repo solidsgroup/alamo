@@ -88,21 +88,15 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
-	//Util::Message(INFO);
 
 	int ncomp = b.nComp();
 	int nghost = b.nGrow();
-	//Util::Message(INFO,"ncomp = ", b.nComp(), " ngrow = ",b.nGrow());
 	
-	//amrex::MultiFab diag(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 
 	if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
-
-	// if ((b.contains_nan() || b.contains_inf()) && !NanInfOnBoundary(b))
-	// 	Util::Abort(INFO,"amrlev = ",amrlev," mglev = ",mglev, " b fab contains nan/inf on interior!");
 
 	Set::Scalar residual = 0.0;
 	for (int redblack = 0; redblack < 2; redblack++)
@@ -137,17 +131,10 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 					Set::Scalar xold = xfab(m,n);
 					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
 					residual += fabs(xold - xfab(m,n));
-					// Util::Message(INFO,m);
-					// Util::Message(INFO,xfab(m,n));
-					// Util::Message(INFO,bfab(m,n));
-					// Util::Message(INFO,Rxfab(m,n));
-					// Util::Message(INFO,diagfab(m,n));
-
 				}
 			}
 		}
 	}
-	//Util::Message(INFO,"residual = ", residual);
 }
 
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
@@ -159,7 +146,6 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	int ncomp = getNComp();
 	int nghost = 1; //x.nGrow();
 
-	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	//const Real* DX = m_geom[amrlev][mglev].CellSize();
 
 	if (!m_diagonal_computed)
@@ -648,7 +634,6 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	// Set::Scalar fac2 = 1.0/32.0;
 	// Set::Scalar fac3 = 1.0/16.0; 
 	// Set::Scalar fac4 = 1.0/8.0;
-	amrex::Box domain(m_geom[amrlev][cmglev].Domain());
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
@@ -929,5 +914,241 @@ Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input
 	}
 	m_num_a_fabs++;
 }
+
+void
+Operator::reflux (int crse_amrlev,
+		    MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
+		    MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
+{
+	BL_PROFILE("Operator::Elastic::reflux()");
+
+	int ncomp = AMREX_SPACEDIM;
+
+	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
+ 	//const Geometry& fgeom = m_geom[crse_amrlev+1][0];
+ 	const Box& c_cc_domain = cgeom.Domain();
+ 	//const Box& c_nd_domain = amrex::surroundingNodes(c_cc_domain);
+	//const Real* cDX = cgeom.CellSize();
+	//const Real* fDX = fgeom.CellSize();
+	
+
+ 	const BoxArray&            fba = fine_res.boxArray();
+ 	const DistributionMapping& fdm = fine_res.DistributionMap();
+
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+	fine_res_for_coarse.ParallelCopy(res,0,0,ncomp,0,0,cgeom.periodicity());
+
+ 	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
+
+	const int coarse_coarse_node = 0;
+	const int coarse_fine_node = 1;
+	const int fine_fine_node = 2;
+
+	amrex::iMultiFab nodemask(amrex::coarsen(fba,2), fdm, 1, 0);
+	nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev],0,0,1,0,0,cgeom.periodicity());
+
+	amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 1);
+	cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev],0,0,1,1,1,cgeom.periodicity());
+	
+
+
+	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		FArrayBox &fine = fine_res[mfi];
+		FArrayBox &crse = fine_res_for_coarse[mfi];
+		//const FArrayBox &crserhs = crse_rhs[mfi];
+		//const FArrayBox &finerhs = fine_rhs[mfi];
+		//const FArrayBox &ufab = fine_sol[mfi];
+		//TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
+
+#if AMREX_SPACEDIM == 1
+		Util::Abort(INFO, "reflux not implemented in 1D. Turn AMR off or switch to 2D.");
+#elif AMREX_SPACEDIM == 2
+		for (int n = 0 ; n < ncomp; n++)
+			for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+				for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+				{
+					amrex::IntVect m_crse(m1,  m2);
+					amrex::IntVect m_fine(m1*2,m2*2);
+					
+					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1||
+					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
+						continue;
+
+					if ((nodemask[mfi])(m_crse) == fine_fine_node)
+					{
+						crse(m_crse,n) = 
+						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+					}
+					else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
+					{
+						/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
+						/**/ // solution to converge to the CORRECT answer.
+						/**/ // If these are commented out, the solution converges super fast but to the 
+						/**/ // WRONG answer. TODO: figure out what's going on here.
+						/**/    crse(m_crse,n) *= 2.0;
+						/**/    continue;
+
+
+						// Exterior corner
+						if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 1)
+						{
+							crse(m_crse,n) = fine(m_fine,n);
+						}
+						// Interior corner - same as if not on C/F boundary
+						else if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 3)
+						{
+							crse(m_crse,n) = 
+								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+
+							if (m_crse == amrex::IntVect(8,4)) Util::Message(INFO);
+
+						}
+						// xmin / xmax edge
+						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[1])) &&
+							  (cellmask[mfi](m_crse-dx[0]) == cellmask[mfi](m_crse-dx[0]-dx[1])))
+							//m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
+						{
+							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
+						}
+						// ymin / ymax edge
+						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[0])) &&
+							  (cellmask[mfi](m_crse-dx[1]) == cellmask[mfi](m_crse-dx[1]-dx[0])))
+						//else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
+						{
+							crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
+						}
+						else
+						{
+							Util::Abort(INFO,"Coarse/fine node not on boundary of fab");
+						}
+					}				
+					else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
+					{
+						//Util::Message(INFO,"Discovered coarse node while on fine fab: crse amrlev = ", crse_amrlev,", m_crse = ", m_crse, " box = ", bx);
+					}
+				}
+#elif AMREX_SPACEDIM == 3
+		for (int n = 0 ; n < ncomp; n++)
+			for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++)
+				for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++)
+					for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++)
+					{
+						amrex::IntVect m_crse(m1,  m2,  m3  );
+						amrex::IntVect m_fine(m1*2,m2*2,m3*2);
+				
+						bool xmin = (m1 == bx.loVect()[0]) || (m1 == c_cc_domain.loVect()[0]);
+						bool xmax = (m1 == bx.hiVect()[0]) || (m1 == c_cc_domain.hiVect()[0] +1);
+						bool ymin = (m2 == bx.loVect()[1]) || (m2 == c_cc_domain.loVect()[1]);
+						bool ymax = (m2 == bx.hiVect()[1]) || (m2 == c_cc_domain.hiVect()[1] +1);
+						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
+						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2] +1);
+						
+						if ((nodemask[mfi])(m_crse) == fine_fine_node)
+						{
+							crse(m_crse,n) =
+								0.25*
+								((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
+								  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
+								  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+								+
+								0.5*
+								((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
+								  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
+								  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+								+
+								0.25*
+								((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
+								  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
+								  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+						}
+						else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
+						{
+							/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
+							/**/ // solution to converge to the CORRECT answer.
+							/**/ // If these are commented out, the solution converges super fast but to the 
+							/**/ // WRONG answer. TODO: figure out what's going on here.
+							/**/    crse(m_crse,n) *= 2.0;
+							/**/    continue;
+
+							// DOES NOT CONTINUE BEYOND THIS POINT
+
+							// Corners
+							if ((xmin && ymin && zmin) ||
+							    (xmin && ymin && zmax) ||
+							    (xmin && ymax && zmin) ||
+							    (xmin && ymax && zmax) ||
+							    (xmax && ymin && zmin) ||
+							    (xmax && ymin && zmax) ||
+							    (xmax && ymax && zmin) ||
+							    (xmax && ymax && zmax))
+								crse(m_crse,n) = fine(m_fine,n);
+							// X edges
+							else if ( (ymin && zmin) || (ymin && zmax) || (ymax && zmin) || (ymax && zmax) )
+								crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+							// Y edges
+							else if ( (zmin && zmin) || (zmin && xmax) || (zmax && xmin) || (zmax && xmax) )
+								crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+							// Z edges
+							else if ( (xmin && ymin) || (xmin && ymax) || (xmax && ymin) || (xmax && ymax) )
+								crse(m_crse,n) = (0.25*fine(m_fine-dx[2],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[2],n));
+							// YZ face (X=const)
+							else if ( xmin || xmax )
+								crse(m_crse,n) =
+									((+     fine(m_fine-dx[1]-dx[2],n) + 2.0*fine(m_fine-dx[2],n) +     fine(m_fine+dx[1]-dx[2],n)
+									  + 2.0*fine(m_fine-dx[1]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[1]      ,n) 
+									  +     fine(m_fine-dx[1]+dx[2],n) + 2.0*fine(m_fine+dx[2],n) +     fine(m_fine+dx[1]+dx[2],n))/16.0);
+							// ZX face (Y=const)
+							else if ( xmin || xmax )
+								crse(m_crse,n) =
+									((+     fine(m_fine-dx[2]-dx[0],n) + 2.0*fine(m_fine-dx[0],n) +     fine(m_fine+dx[2]-dx[2],n)
+									  + 2.0*fine(m_fine-dx[2]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[2]      ,n) 
+									  +     fine(m_fine-dx[2]+dx[0],n) + 2.0*fine(m_fine+dx[0],n) +     fine(m_fine+dx[2]+dx[2],n))/16.0);
+							// XY face (Z=const)
+							else if ( xmin || xmax )
+								crse(m_crse,n) =
+									((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+									  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+									  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+							// Internal
+							else
+							{
+								crse(m_crse,n) =
+									0.25*
+									((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
+									  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
+									  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+									+
+									0.5*
+									((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
+									  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
+									  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+									+
+									0.25*
+									((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
+									  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
+									  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+							}
+						}
+						else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
+						{
+							//Util::Message(INFO,"Discovered coarse node while on fine fab: crse amrlev = ", crse_amrlev,", m_crse = ", m_crse, " box = ", bx);
+						}
+
+					}
+#endif		
+	}
+
+	// Copy the fine residual restricted onto the coarse grid
+	// into the final residual.
+	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+	return;
+}
+
 
 }
