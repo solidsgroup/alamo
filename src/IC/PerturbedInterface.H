@@ -37,8 +37,8 @@ public:
 
   }
   
-void Initialize(const int lev,
-		amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+void Add(const int lev,
+		amrex::Vector<amrex::MultiFab *> &field)
   {
     const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
     //const amrex::Real width = geom[0].ProbHi()[0] - geom[0].ProbHi()[1];

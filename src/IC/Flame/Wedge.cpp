@@ -10,7 +10,7 @@ Wedge::Wedge (amrex::Vector<amrex::Geometry> &_geom)
 {
 }
   
-void Wedge::Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+void Wedge::Add(const int lev, amrex::Vector<amrex::MultiFab * > &field)
 {
 	amrex::Real sizex = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];
 	// AMREX_D_TERM(,

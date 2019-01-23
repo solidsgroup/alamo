@@ -25,8 +25,8 @@ public:
 
 	}
   
-	void Initialize(const int lev,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+	void Add(const int lev,
+		 amrex::Vector<amrex::MultiFab * > &field)
 	{
 		//const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
 
@@ -50,13 +50,13 @@ public:
 
 						if (y > f(x))
 						{
-							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.;     
-							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 1.;     
+							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) += 0.;     
+							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) += 1.;     
 						}
 						else
 						{
-							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 1.;     
-							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.;     
+							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) += 1.;     
+							field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) += 0.;     
 						}
 					}
 		}

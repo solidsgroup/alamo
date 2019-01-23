@@ -21,8 +21,8 @@ public:
     pp.query("Tout", Tout);
   }
   
-void Initialize(const int lev,
-		amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+virtual void Add(const int lev,
+		amrex::Vector<amrex::MultiFab * > &field)
   {
     const amrex::Real L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
     const amrex::Real L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];
