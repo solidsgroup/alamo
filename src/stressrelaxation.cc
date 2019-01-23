@@ -6,7 +6,7 @@
 #include "Util/Util.H"
 //#if AMREX_SPACEDIM == 1
 
-#include "Integrator/StressRelaxation/StressRelaxation.H"
+#include "Integrator/StressRelaxation.H"
 
 int main (int argc, char* argv[])
 {

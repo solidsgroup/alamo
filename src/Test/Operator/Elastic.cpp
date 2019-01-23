@@ -1,5 +1,6 @@
 #include <streambuf>
 #include <map>
+#include <complex>
 
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
@@ -23,6 +24,7 @@
 #include "Set/Set.H"
 #include "IC/Trig.H"
 #include "IC/Affine.H"
+#include "IC/Random.H"
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 
@@ -102,31 +104,113 @@ void Elastic::Define(int _ncells,
 
 }
 
-//
-//
-// Let Omega = [0, 1]^2
-//
-// Let u_i = u_i^{mn} sin(pi x m) sin(pi y n) and
-//     b_i = b_i^{mn} sin(pi x m) sin(pi y n) and
-// Then u_{i,jj} = - u_i^{mn} pi^2 (m^2 + n^2) sin(pi x m) sin(pi y n) 
-//
-// Governing equation
-//   C_{ijkl} u_{k,jl} + b_i = 0
-//
-// Let C_{ijkl} = alpha delta_{ik} delta_{jl}
-// then
-//   C_{ijkl} u_{k,jl} = alpha delta_{ik} delta_{jl} u_{k,jl}
-//                     = alpha u_{i,jj}
-// so
-//   - alpha u_i^{mn} pi^2 (m^2 + n^2) sin(pi x m) sin(pi y n) + b_i^{mn} sin(pi x m) sin(pi y n) = 0
-// or
-//     alpha u_i^{mn} pi^2 (m^2 + n^2) sin(pi x m) sin(pi y n) = b_i^{mn} sin(pi x m) sin(pi y n)
-// using orthogonality
-//     alpha u_i^{mn} pi^2 (m^2 + n^2) = b_i^{mn}
-// or
-//     u_i^{mn}  = b_i^{mn} / (alpha * pi^2 * (m^2 + n^2))
-// 
-//
+int
+Elastic::SPD(bool verbose,std::string plotfile)
+{
+	int failed = 0;
+
+	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(1.0); 
+
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
+
+	// Clear all multifabs
+	for (int ilev = 0; ilev < nlevels; ilev++) solution_exact  [ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) solution_numeric[ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) solution_error  [ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) rhs_prescribed  [ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) rhs_exact       [ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) rhs_numeric     [ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) res_exact       [ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) res_numeric     [ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ilev++) ghost_force     [ilev].setVal(0.0);
+
+
+	amrex::Vector<amrex::MultiFab> &u   = solution_exact;
+	amrex::Vector<amrex::MultiFab> &v   = solution_numeric;
+	amrex::Vector<amrex::MultiFab> &Au  = solution_error;
+	amrex::Vector<amrex::MultiFab> &Av  = rhs_prescribed;
+	amrex::Vector<amrex::MultiFab> &vAu = rhs_exact;
+	amrex::Vector<amrex::MultiFab> &uAv = rhs_numeric;
+	amrex::Vector<amrex::MultiFab> &diff = res_exact;
+
+	//IC::Random ic(geom);
+	std::complex<int> I(0,1);
+
+	IC::Trig   ic(geom);//,1.0,i,i,i);
+	for (int d=0; d<AMREX_SPACEDIM; d++)
+	{
+		ic.SetComp(d);
+		AMREX_D_TERM(for (int i = 1; i < 2; i++),
+			     for (int j = 1; j < 2; j++),
+			     for (int k = 0; k < 1; k++))
+		{
+			ic.Define(Util::Random(),AMREX_D_DECL(i*I,j*I,k*I));
+			for (int ilev = 0; ilev < nlevels; ++ilev)  ic.Add(ilev, u);
+			ic.Define(Util::Random(),AMREX_D_DECL(i*I,j*I,k*I));
+			for (int ilev = 0; ilev < nlevels; ++ilev)  ic.Add(ilev, v);
+		}
+	}
+	for (int ilev = 0; ilev < nlevels; ++ilev)  Au[ilev].setVal(0.0);
+	for (int ilev = 0; ilev < nlevels; ++ilev)  Av[ilev].setVal(0.0);
+		
+ 	LPInfo info;
+ 	info.setAgglomeration(1);
+ 	info.setConsolidation(1);
+ 	info.setMaxCoarseningLevel(0);
+ 	nlevels = geom.size();
+
+	::Operator::Elastic<model_type> elastic;
+ 	elastic.define(geom, cgrids, dmap, info);
+
+	using bctype = ::Operator::Elastic<model_type>::BC;
+	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Traction,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}},
+		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Traction,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}});
+
+
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
+
+	amrex::MLMG mlmg(elastic);
+
+
+	mlmg.apply(GetVecOfPtrs(Au),GetVecOfPtrs(u));
+	mlmg.apply(GetVecOfPtrs(Av),GetVecOfPtrs(v));
+
+	for (int ilev=0; ilev < nlevels; ilev++)
+	{
+		Util::Message(INFO,amrex::MultiFab::Dot(u[ilev],0,Av[ilev],0,AMREX_SPACEDIM,0));
+		Util::Message(INFO,amrex::MultiFab::Dot(v[ilev],0,Au[ilev],0,AMREX_SPACEDIM,0));
+
+		amrex::MultiFab::Copy(uAv[ilev],u[ilev],0,0,AMREX_SPACEDIM,0); // uAv = u
+		amrex::MultiFab::Multiply(uAv[ilev],Av[ilev],0,0,AMREX_SPACEDIM,0); // uAv *= Av
+
+		amrex::MultiFab::Copy(vAu[ilev],v[ilev],0,0,AMREX_SPACEDIM,0); // vAu = v
+		amrex::MultiFab::Multiply(vAu[ilev],Au[ilev],0,0,AMREX_SPACEDIM,0); // vAu *= Au
+
+		amrex::MultiFab::Copy(diff[ilev],uAv[ilev],0,0,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Subtract(diff[ilev],vAu[ilev],0,0,AMREX_SPACEDIM,0);
+	}
+
+	if (plotfile != "")
+	{
+		if (verbose) Util::Message(INFO,"Printing plot file to ",plotfile);
+		WritePlotFile(plotfile);
+	}
+
+
+
+	
+	return failed;
+}
+
+
+
 int
 Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 {
@@ -135,17 +219,24 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	int failed = 0;
 
 	Set::Scalar alpha = 1.0;
-	Model::Solid::LinearElastic::Laplacian model(alpha);
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Laplacian> > >
+
+	using model_type = Model::Solid::LinearElastic::Laplacian;
+	model_type model(alpha);
+
+	// using model_type = Model::Solid::LinearElastic::Isotropic;
+	// model_type model(2.6,6.0);
+
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > >
 		modelfab(nlevels); 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
-	IC::Trig icrhs(geom,1.0,n,n);
+	std::complex<int> i(0,1);
+	IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i));
 	icrhs.SetComp(component);
 	Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
-	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),n,n);
+	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
 	icexact.SetComp(component);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -172,12 +263,12 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	info.setMaxCoarseningLevel(0);
  	nlevels = geom.size();
 
-	::Operator::Elastic<Model::Solid::LinearElastic::Laplacian> elastic;
+	::Operator::Elastic<model_type> elastic;
 
  	elastic.define(geom, cgrids, dmap, info);
  	//elastic.setMaxOrder(linop_maxorder);
 	
- 	using bctype = ::Operator::Elastic<Model::Solid::LinearElastic::Laplacian>::BC;
+ 	using bctype = ::Operator::Elastic<model_type>::BC;
 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
@@ -194,8 +285,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
- 		mlmg.setVerbose(2);
- 		mlmg.setCGVerbose(2);
+ 		mlmg.setVerbose(4);
+ 		mlmg.setCGVerbose(4);
  	}
  	else
  	{
@@ -208,9 +299,9 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 #if 1
 	// Solution	
-	Set::Scalar tol_rel = 1E-6;
-	Set::Scalar tol_abs = 0.0;
- 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel, tol_abs);
+	Set::Scalar tol_rel = 1E-11;
+	Set::Scalar tol_abs = 0;
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
@@ -256,28 +347,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		const int output_comp = varname.size();
-
-		Vector<MultiFab> plotmf(nlevels);
-		for (int ilev = 0; ilev < nlevels; ++ilev)
-		{
-			//if (ilev==1) ngrids[ilev].growHi(1,1);
-			plotmf			[ilev].define(ngrids[ilev], dmap[ilev], output_comp, 0);
-			MultiFab::Copy(plotmf	[ilev], solution_exact [ilev], 0, 0,  2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], solution_numeric[ilev],0, 2,  2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], solution_error [ilev], 0, 4,  2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], rhs_prescribed [ilev], 0, 6,  2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], rhs_exact      [ilev], 0, 8,  2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], rhs_numeric    [ilev], 0, 10, 2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], res_exact      [ilev], 0, 12, 2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], res_numeric    [ilev], 0, 14, 2, 0); // 
-			MultiFab::Copy(plotmf	[ilev], ghost_force    [ilev], 0, 16, 2, 0); // 
-		}
-
-
-		amrex::WriteMultiLevelPlotfile(plotfile, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-					       varname, geom, 0.0, Vector<int>(nlevels, 0),
-					       Vector<IntVect>(nlevels, IntVect{ref_ratio}));
+		WritePlotFile(plotfile);
 	}
 
 	// Find maximum solution error
@@ -316,8 +386,8 @@ int Elastic::RefluxTest(int verbose)
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 
 
-	std::vector<int> comps = {{1}};
-	std::vector<Set::Scalar> alphas = {{1.0}};
+	std::vector<int> comps = {1};
+	std::vector<Set::Scalar> alphas = {1.0};
 	std::vector<Set::Scalar> ms = {{1.0,2.0}};
 	std::vector<Set::Vector> ns = {{Set::Vector(AMREX_D_DECL(1,0,0)),
 					Set::Vector(AMREX_D_DECL(-1,0,0)),
@@ -336,12 +406,12 @@ int Elastic::RefluxTest(int verbose)
 		mlabec.define(geom, cgrids, dmap, info);
 		mlabec.setMaxOrder(2);
 		for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
-		mlabec.SetBC({{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
+		mlabec.SetBC({{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
 					    ::Operator::Elastic<model_type>::BC::Displacement,
-					    ::Operator::Elastic<model_type>::BC::Displacement)}},
-			{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
+					     ::Operator::Elastic<model_type>::BC::Displacement)}}},
+			{{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
 				       ::Operator::Elastic<model_type>::BC::Displacement,
-				       ::Operator::Elastic<model_type>::BC::Displacement)}});
+					::Operator::Elastic<model_type>::BC::Displacement)}}});
 
 
 		solution_exact[0].setVal(0.0);

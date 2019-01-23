@@ -27,6 +27,7 @@ class Laplacian : public Model::Solid::LinearElastic::LinearElastic
 public:
 	Laplacian() {} ;
 	Laplacian(Set::Scalar _alpha) : alpha(_alpha)  {} ;
+	~Laplacian() {} ;
 	virtual Set::Matrix operator () (Set::Matrix &gradu) const
 	{
 		//return alpha * 0.5*(gradu + gradu.transpose());
@@ -37,7 +38,6 @@ public:
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
-				//f(i) += alpha * 0.5*(gradgradu[i](j,j) + gradgradu[j](i,j));
 				f(i) += alpha *gradgradu[i](j,j);
 		return f;
 	}

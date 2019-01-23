@@ -6,7 +6,7 @@
 #include "Util/Util.H"
 //#if AMREX_SPACEDIM == 1
 
-#include "Integrator/PolymerDegradation/PolymerDegradation.H"
+#include "Integrator/PolymerDegradation.H"
 
 int main (int argc, char* argv[])
 {
