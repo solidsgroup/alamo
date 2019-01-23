@@ -13,7 +13,12 @@ public:
 		: geom(_geom) {} ;
   
 	virtual void Add(const int lev, amrex::Vector<amrex::MultiFab *> &field) = 0;
-
+	void Add(const int lev,
+		 amrex::Vector<amrex::MultiFab> &field)
+	{
+		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
+		Add(lev,pfield);
+	};
 	void Initialize(const int lev,
 			amrex::Vector<amrex::MultiFab *> &field)
 	{

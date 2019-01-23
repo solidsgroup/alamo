@@ -62,12 +62,12 @@ int main (int argc, char* argv[])
 		failed += Util::Test::Message("  └ Match",test.Match(0));
 	}
 
-	// {
-	// 	Test::Operator::Elastic test;
-	// 	test.Define(16,1);
-	// 	Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
-	// 	failed += Util::Test::Message("  └ SPD",test.SPD(2,"testoutput"));
-	// }
+	{
+	 	Test::Operator::Elastic test;
+	 	test.Define(16,1);
+	 	Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
+	 	failed += Util::Test::Message("  └ SPD",test.SPD(2,"testoutput"));
+	}
 
 	{
 		Test::Operator::Elastic test;
