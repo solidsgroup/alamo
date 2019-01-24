@@ -8,6 +8,7 @@
 #include "AMReX_BaseFab_f.H"
 
 #include "BC/BC.H"
+#include "Test/Operator/Elastic.H"
 
 using namespace amrex;
 
@@ -19,6 +20,7 @@ namespace Operator {
 class Operator
 	: public amrex::MLNodeLinOp
 {
+	friend Test::Operator::Elastic;
 public :
 
 	enum struct CoarseningStrategy { Sigma, RAP };
@@ -133,10 +135,6 @@ protected:
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const override;
-
-	virtual Real getAScalar () const final { return  0.0; }
-	virtual Real getBScalar () const final { return -1.0; }
-
 
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
 
