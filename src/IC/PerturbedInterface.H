@@ -25,64 +25,82 @@ namespace IC
 class PerturbedInterface : public IC
 {
 public:
-  PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
-    IC(_geom)
-  {
-      amrex::ParmParse pp("ic");
-      pp.queryarr("wave_numbers",wave_numbers);
-      pp.queryarr("wave_amplitudes",wave_amplitudes);
+	PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
+		IC(_geom)
+	{
+		amrex::ParmParse pp("ic");
 
-      if (wave_numbers.size() != wave_amplitudes.size())
-	      Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
+		std::vector<std::string> wave_numbers_str;
+		pp.queryarr("wave_numbers",wave_numbers_str);
+		for (unsigned int i = 0; i<wave_numbers_str.size(); ++i)
+		{
+			wave_numbers.push_back(Util::String::Parse<std::complex<int> >(wave_numbers_str[i]));
+			phis.push_back(std::atan2(wave_numbers[i].imag(),wave_numbers[i].real()));
+		}
+		pp.queryarr("wave_amplitudes",wave_amplitudes);
 
-  }
+		if (wave_numbers.size() != wave_amplitudes.size())
+			Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
+	}
   
-void Add(const int lev,
-		amrex::Vector<amrex::MultiFab *> &field)
-  {
-    const amrex::Real width = geom[lev].ProbLo()[0] - geom[lev].ProbHi()[0];
-    //const amrex::Real width = geom[0].ProbHi()[0] - geom[0].ProbHi()[1];
+	void Add(const int lev,
+		 amrex::Vector<amrex::MultiFab *> &field)
+	{
+		bool cellcentered = (field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
-    for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
-      {
-	const amrex::Box& box = mfi.tilebox();
+		Set::Scalar L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
 
-	amrex::BaseFab<amrex::Real> &field_box = (*field[lev])[mfi];
+		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box& box = mfi.tilebox();
 
-	for (int i = box.loVect()[0]-field[lev]->nGrow(); i<=box.hiVect()[0]+field[lev]->nGrow(); i++) 
-	  for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++)
-#if BL_SPACEDIM==3
-	    for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++)
-#endif
-	      {
-		amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
-		amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-#if BL_SPACEDIM==3
-		// amrex::Real z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];
-#endif
-		amrex::Real bdry = 0.;
-		for (int n = 0; n < wave_numbers.size(); n++)
-		  bdry += wave_amplitudes[n] * sin((amrex::Real)(wave_numbers[n])*x*pi/width);
+			amrex::BaseFab<amrex::Real> &field_box = (*field[lev])[mfi];
 
-		if (y < bdry)
-		  {
-		    field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 1.;     
-		    field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.;     
-		  }
-		else
-		  {
-		    field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.;     
-		    field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 1.;     
-		  }
-	      }
-      }
+			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(i,j,k));
+				amrex::Real AMREX_D_DECL(x1,x2,x3);
 
-  };
+				if (cellcentered)
+				{
+					AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
+						     x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
+						     x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+				}
+				else
+				{
+					AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
+						     x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
+						     x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+				}
+
+				amrex::Real bdry = 0.;
+				for (int n = 0; n < wave_numbers.size(); n++)
+					bdry += wave_amplitudes[n]
+						* (fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*x1 / L1) +
+						   fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*x1 / L1));
+
+				if (x2 < bdry)
+				{
+					field_box(m,0) = 1.;     
+					field_box(m,1) = 0.;     
+				}
+				else
+				{
+					field_box(m,0) = 0.;     
+					field_box(m,1) = 1.;     
+				}
+			}
+		}
+
+	};
   
 private:
-  static constexpr amrex::Real pi = 3.14159265359;
-  amrex::Vector<int> wave_numbers; ///< Store mode amplitudes \f$A_n\f$
-  amrex::Vector<amrex::Real> wave_amplitudes;
+	amrex::Vector<std::complex<int> > wave_numbers; ///< Store mode amplitudes \f$A_n\f$
+	amrex::Vector<Set::Scalar> wave_amplitudes;
+	std::vector<Set::Scalar> phis;
 };
 }
 #endif
