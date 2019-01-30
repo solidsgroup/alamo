@@ -22,7 +22,6 @@ int main (int argc, char* argv[])
 
 	int failed = 0;
 
-	/*
 	{
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Isotropic> test;
 		
@@ -62,24 +61,22 @@ int main (int argc, char* argv[])
 		Util::Test::Message(          "Numeric::Interpolator<Linear>");
 		failed += Util::Test::Message("  └ Match",test.Match(0));
 	}
-	*/
+
 	{
 		Test::Operator::Elastic test;
-		test.Define(32,1);
-		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(4,0,1,"testoutput"));
+		// test.Define(16,1);
+		// Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
+		// failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
-		/*
 		test.Define(16,2);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
 		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1,"testoutput"));
 
-		test.Define(16,3);
-		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
-		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
-		*/
+		// test.Define(16,3);
+		// Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
+		// failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
+		// failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}
 
 	Util::Message(INFO,failed," tests failed");
