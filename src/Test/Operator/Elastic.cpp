@@ -178,7 +178,7 @@ Elastic::SPD(bool verbose,std::string plotfile)
 
 	amrex::MLMG mlmg(elastic);
 
-
+	
 	mlmg.apply(GetVecOfPtrs(Au),GetVecOfPtrs(u));
 	mlmg.apply(GetVecOfPtrs(Av),GetVecOfPtrs(v));
 
@@ -218,7 +218,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	int failed = 0;
 
-	Set::Scalar alpha = 1000.0;
+	Set::Scalar alpha = 1.0;
 
 	using model_type = Model::Solid::LinearElastic::Laplacian;
 	model_type model(alpha);
@@ -280,10 +280,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}});
 
 
-	Util::Message(INFO);
 	amrex::MLMG mlmg(elastic);
-	mlmg.setMaxIter(1);
-	Util::Message(INFO);
+	mlmg.setMaxIter(100);
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
@@ -295,26 +293,29 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(5);
+ 	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	Util::Message(INFO);
+
+#if 1
+	// amrex::MultiFab::Copy(solution_numeric[0],solution_exact[0],component,component,1,1);
+	// amrex::MultiFab::Copy(solution_numeric[1],solution_exact[1],component,component,1,1);
 
 	// Solution	
-	Set::Scalar tol_rel = 1E-8;
+	Set::Scalar tol_rel = 1E-11;
 	Set::Scalar tol_abs = 0;
 
-	Util::Message(INFO);
-	amrex::MLCGSolver mlcg(&mlmg,elastic);
-	Util::Message(INFO);
-	elastic.prepareForSolve();
-	mlcg.setVerbose(4);
-	mlcg.setMaxIter(20);
-	mlcg.solve(solution_numeric[0],rhs_prescribed[0],tol_rel,tol_abs);
-	Util::Message(INFO);
+	//Util::Message(INFO);
+	//amrex::MLCGSolver mlcg(&mlmg,elastic);
+	//Util::Message(INFO);
+	//elastic.prepareForSolve();
+	//mlcg.setVerbose(4);
+	//mlcg.setMaxIter(20);
+	//mlcg.solve(solution_numeric[0],rhs_prescribed[0],tol_rel,tol_abs);
+	//Util::Message(INFO);
 
 
- 	//mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
@@ -324,7 +325,9 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	}
 	
 
-	// Compute numerical right hand side
+	//
+
+	//Compute numerical right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
 
 	// Compute exact right hand side

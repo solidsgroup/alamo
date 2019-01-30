@@ -1,0 +1,54 @@
+HyperCLaw-V1.1
+18
+solution_exact1
+solution_exact2
+solution_numeric1
+solution_numeric2
+solution_error1
+solution_error2
+rhs_prescribed1
+rhs_prescribed2
+rhs_exact1
+rhs_exact2
+rhs_numeric1
+rhs_numeric2
+res_exact1
+res_exact2
+res_numeric1
+res_numeric2
+ghost_force1
+ghost_force2
+2
+0
+1
+0 0 
+1 1 
+2 
+((0,0) (15,15) (0,0)) ((0,0) (31,31) (0,0)) 
+0 0 
+0.0625 0.0625 
+0.03125 0.03125 
+0
+0
+0 4 0
+0
+0 0.5
+0 0.5
+0.5 1
+0 0.5
+0 0.5
+0.5 1
+0.5 1
+0.5 1
+Level_0/Cell
+1 4 0
+0
+0.25 0.5
+0.25 0.5
+0.5 0.75
+0.25 0.5
+0.25 0.5
+0.5 0.75
+0.5 0.75
+0.5 0.75
+Level_1/Cell
