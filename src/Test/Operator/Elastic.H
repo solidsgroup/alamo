@@ -60,7 +60,12 @@ public:
 		     int component = 0,
 		     int n = 1,
 		     std::string plotfile = "");
-
+  
+        /// \todo: write documentation for this test
+	int UniaxialTest(bool verbose,
+		     int component = 0,
+		     int n = 1,
+		     std::string plotfile = "");
 
 	int SpatiallyVaryingCTest(int);
 	
