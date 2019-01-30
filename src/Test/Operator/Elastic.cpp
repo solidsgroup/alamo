@@ -38,7 +38,7 @@ void Elastic::Define(int _ncells,
 
 	ncells = _ncells;
  	nlevels = _nlevels;
-	int max_grid_size = ncells/2;
+	int max_grid_size = 100000;//ncells/2;
 	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -297,7 +297,6 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
-#if 1
 	// amrex::MultiFab::Copy(solution_numeric[0],solution_exact[0],component,component,1,1);
 	// amrex::MultiFab::Copy(solution_numeric[1],solution_exact[1],component,component,1,1);
 
