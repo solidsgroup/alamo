@@ -178,7 +178,7 @@ Elastic::SPD(bool verbose,std::string plotfile)
 
 	amrex::MLMG mlmg(elastic);
 
-
+	
 	mlmg.apply(GetVecOfPtrs(Au),GetVecOfPtrs(u));
 	mlmg.apply(GetVecOfPtrs(Av),GetVecOfPtrs(v));
 
@@ -298,6 +298,9 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
 #if 1
+	// amrex::MultiFab::Copy(solution_numeric[0],solution_exact[0],component,component,1,1);
+	// amrex::MultiFab::Copy(solution_numeric[1],solution_exact[1],component,component,1,1);
+
 	// Solution	
 	Set::Scalar tol_rel = 1E-11;
 	Set::Scalar tol_abs = 0;
@@ -311,8 +314,11 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	}
 	
 
-	// Compute numerical right hand side
+	//
+
+	//Compute numerical right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
+	//Util::Abort(INFO);
 
 	// Compute exact right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));

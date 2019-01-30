@@ -989,8 +989,8 @@ Operator::reflux (int crse_amrlev,
 						/**/ // solution to converge to the CORRECT answer.
 						/**/ // If these are commented out, the solution converges super fast but to the 
 						/**/ // WRONG answer. TODO: figure out what's going on here.
-						/**/    crse(m_crse,n) *= 2.0;
-						/**/    continue;
+						/**/    //crse(m_crse,n) *= 2.0;
+						/**/    //continue;
 
 
 						// Exterior corner

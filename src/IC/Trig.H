@@ -55,9 +55,9 @@ public:
 
 			amrex::BaseFab<amrex::Real> &field_box = (*field[lev])[mfi];
 
-			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
-				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
-				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+			AMREX_D_TERM(for (int i = box.loVect()[0] - field[lev]->nGrow(); i<=box.hiVect()[0] + field[lev]->nGrow(); i++),
+				     for (int j = box.loVect()[1] - field[lev]->nGrow(); j<=box.hiVect()[1] + field[lev]->nGrow(); j++),
+				     for (int k = box.loVect()[2] - field[lev]->nGrow(); k<=box.hiVect()[2] + field[lev]->nGrow(); k++))
 			{
 				amrex::Real AMREX_D_DECL(x1,x2,x3);
 				if (cellcentered)
