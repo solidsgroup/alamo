@@ -15,7 +15,6 @@ Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
 		     const LPInfo& a_info)
 {
 	BL_PROFILE("Operator::Elastic::Elastic()");
-	Util::Message(INFO);
 
 	define(a_geom, a_grids, a_dmap, a_info);
 }
@@ -33,7 +32,6 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 		    const Vector<FabFactory<FArrayBox> const*>& a_factory)
 {
 	BL_PROFILE("Operator::Elastic::define()");
-	Util::Message(INFO);
 
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
@@ -57,7 +55,6 @@ void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
-	Util::Message(INFO);
 
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
@@ -84,7 +81,6 @@ void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 {
 	BL_PROFILE("Operator::Elastic::Fapply()");
-	Util::Message(INFO);
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
@@ -223,7 +219,6 @@ void
 Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 {
 	BL_PROFILE("Operator::Elastic::Diagonal()");
-	Util::Message(INFO);
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
@@ -574,7 +569,6 @@ void
 Elastic<T>::averageDownCoeffs ()
 {
 	BL_PROFILE("Elastic::averageDownCoeffs()");
-	Util::Message(INFO);
 	
 	// for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	// {
@@ -610,7 +604,6 @@ Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the pr
 {
 	BL_PROFILE("Operator::Elastic::averageDownCoeffsToCoarseAmrLevel()");
 
-	Util::Message(INFO);
 	//const int mglev = 0;
 
 	// const int idim = 0;  // other dimensions are just aliases
@@ -676,7 +669,6 @@ void
 Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 {
 	BL_PROFILE("Elastic::averageDownCoeffsSameAmrLevel()");
-	Util::Message(INFO,"Appears to work.");
 
 // 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
 
@@ -760,7 +752,6 @@ void
 Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
-	Util::Message(INFO);
 
 	sigma.FillBoundary(geom.periodicity());
 

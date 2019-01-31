@@ -257,6 +257,11 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	}
 	//rhs_prescribed[1].mult(0.5);
 
+	Util::Message(INFO,
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
+
+
 	amrex::LPInfo info;
  	info.setAgglomeration(1);
  	info.setConsolidation(1);
@@ -314,13 +319,22 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	//Util::Message(INFO);
 
 
+	Util::Message(INFO,
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
+
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+
+	Util::Message(INFO,
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
+
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
-		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,1);
+	 	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
+	 	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,1);
 	}
 	
 
@@ -328,6 +342,12 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	//Compute numerical right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
+
+
+	Util::Message(INFO,
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
+
 
 	// Compute exact right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
@@ -354,6 +374,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	 	elastic.Reflux(0,
 	 		       res_exact[ilev-1], solution_exact[ilev-1], rhs_prescribed[ilev-1],
 	 		       res_exact[ilev],   solution_exact[ilev],   rhs_prescribed[ilev]);
+
+	Util::Message(INFO,
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
 
 	// Compute the "ghost force" that introduces the error
 	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
