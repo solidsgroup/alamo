@@ -283,8 +283,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	// Call out specific value at a C/F point
 	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 
 	// Create MLMG solver and solve
@@ -304,15 +304,14 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	Set::Scalar tol_rel = 1E-11;
+	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Call out specific value at C/F point
 	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
-
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
@@ -326,8 +325,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	// Check to make sure that point didn't change
 	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 	// Compute exact right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
