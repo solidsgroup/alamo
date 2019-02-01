@@ -64,19 +64,17 @@ int main (int argc, char* argv[])
 
 	{
 		Test::Operator::Elastic test;
-		// test.Define(16,1);
-		// Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
-		// failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
-		test.Define(16,2);
+		// number of AMR levels
+		int nlevels = 2; 
+		// dimension of the problem (must be less than or equal to AMREX_SPACEDIM
+		int problem_dimension = 1; 
+		// Configuration of the grid (can be "Cube" or "YZ)
+		Test::Operator::Elastic::Grid config = Test::Operator::Elastic::Grid::YZ;
+
+		test.Define(16,nlevels,problem_dimension, config);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
-		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1,"testoutput"));
-
-		// test.Define(16,3);
-		// Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
-		// failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
-		// failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}
 
 	Util::Message(INFO,failed," tests failed");

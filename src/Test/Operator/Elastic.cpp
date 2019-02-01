@@ -33,9 +33,11 @@ namespace Test
 namespace Operator
 {
 void Elastic::Define(int _ncells,
-		     int _nlevels)
+		     int _nlevels,
+		     int _dim,
+		     Grid _config)
 {
-
+	dim = _dim;
 	ncells = _ncells;
  	nlevels = _nlevels;
 	int max_grid_size = 100000;//ncells/2;
@@ -78,7 +80,10 @@ void Elastic::Define(int _ncells,
 			//cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0))); 
  			// else if (orientation == "v")
  			// 	cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0))); 
-			cdomain.grow(amrex::IntVect(-ncells/4)); 
+			if (_config == Grid::Cube)
+				cdomain.grow(amrex::IntVect(-ncells/4)); 
+			if (_config == Grid::YZ)
+				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0)));
 			
 			//cdomain.growHi(1,-ncells/2); 
 
@@ -220,7 +225,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	Set::Scalar tolerance = 0.01;
 
 	int failed = 0;
-	
+
 	// Define the "model" fab to be a Laplacian, so that this
 	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
 	Set::Scalar alpha = 1.0;
@@ -234,10 +239,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// the exact solution is sin(n pi x1 / L) * sin(n pi x2 / L) / pi / 2.
 	// Set everything else to zero.
 	std::complex<int> i(0,1);
-	IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i));
+	IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i),dim);
 	icrhs.SetComp(component);
-	Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
-	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
+	//Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
+	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i),dim);
 	icexact.SetComp(component);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -254,11 +259,43 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 		icrhs.Initialize(ilev,rhs_prescribed);
 		icexact.Initialize(ilev,solution_exact);
 
+
+		// Zero out the boundaries of the presecribed RHS
+		for (amrex::MFIter mfi(rhs_prescribed[ilev],true); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box& box = mfi.tilebox();
+
+			amrex::BaseFab<amrex::Real> &rhs = (rhs_prescribed[ilev])[mfi];
+
+			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
+				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+			{
+				amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
+				for (int p = 0; p<AMREX_SPACEDIM; p++)
+				{
+					AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0]) rhs(m,p) = 0.0;,
+						      if (j == geom[ilev].Domain().loVect()[1]) rhs(m,p) = 0.0;,
+						      if (k == geom[ilev].Domain().loVect()[2]) rhs(m,p) = 0.0; );
+					AMREX_D_TERM( if (i == geom[ilev].Domain().hiVect()[0]+1) rhs(m,p) = 0.0;,
+						      if (j == geom[ilev].Domain().hiVect()[1]+1) rhs(m,p) = 0.0;,
+						      if (k == geom[ilev].Domain().hiVect()[2]+1) rhs(m,p) = 0.0; );
+				}
+			}
+		}
+
 		// Uncomment this to initialize the numeric solution with the
 		// exact solution
 
 		// icexact.Initialize(ilev,solution_numeric); 
 	}
+
+
+
+
+
+
 
 	// Create and configure the Elastic operator
 	// See:
@@ -273,22 +310,42 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	elastic.define(geom, cgrids, dmap, info);
  	using bctype = ::Operator::Elastic<model_type>::BC;
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
- 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}},
- 		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}});
+	if (dim == 1)
+	{
+		elastic.SetBC(
+			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,bctype::Traction)},
+					     {AMREX_D_DECL(bctype::Traction,bctype::Displacement,bctype::Traction)},
+					     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Displacement)})}},
+			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,bctype::Traction)},
+					     {AMREX_D_DECL(bctype::Traction,bctype::Displacement,bctype::Traction)},
+					     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Displacement)})}});
+
+	}
+	if (dim == 2)
+	{
+		elastic.SetBC(
+			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}},
+			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}});
+	}
+
+
+
 
 
 	// Call out specific value at a C/F point
-	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+	if (nlevels > 1)
+		Util::Message(INFO,
+			      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+			      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
+	mlmg.setFixedIter(20);
 	mlmg.setMaxIter(100);
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
@@ -309,9 +366,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Call out specific value at C/F point
-	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+	if (nlevels > 1)
+		Util::Message(INFO,
+			      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+			      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
@@ -324,9 +382,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
 
 	// Check to make sure that point didn't change
-	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+	if (nlevels > 1)
+		Util::Message(INFO,
+			      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+			      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 	// Compute exact right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));

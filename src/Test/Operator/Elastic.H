@@ -10,6 +10,9 @@ namespace Operator
 class Elastic
 {
 public:
+	enum Grid {Cube, YZ};
+
+public:
 	Elastic() {};
 
 	/// Create a simulation domain where the coarse level has ncells x ncells ( x ncells)
@@ -18,7 +21,9 @@ public:
 	/// the resolution.
 	/// \todo Add option to specify one of multiple refinement geometries
 	void Define(int _ncells,
-		    int _nlevels);
+		    int _nlevels,
+		    int _dim = AMREX_SPACEDIM,
+		    Grid config = Grid::Cube);
 
 	/// Impose a set of prescribed values for \f$\mathbf{u}\f$.
 	/// Compute right hand side, then use Operator::Reflux to modify the residual \f$\mathbf{r}=\mathbf{b}-D\mathbf{u}\f$.
@@ -93,8 +98,9 @@ private: // Private member functions
 					       amrex::Vector<amrex::IntVect>(nlevels, amrex::IntVect{ref_ratio}));
 	}		
 
-	
 private: // Private member variables
+	int dim = 1;
+
 	int nlevels = 1;
 	int ncells = 16;
 	const int ref_ratio = 2;
