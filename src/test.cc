@@ -69,8 +69,9 @@ int main (int argc, char* argv[])
 		int nlevels = 2; 
 		// dimension of the problem (must be less than or equal to AMREX_SPACEDIM
 		int problem_dimension = 1; 
-		// Configuration of the grid (can be "Cube" or "YZ)
-		Test::Operator::Elastic::Grid config = Test::Operator::Elastic::Grid::YZ;
+		// Configuration of the grid (can be "None" or "X", "Y", "Z", "YZ", "ZX", "XY", "XYZ")
+		// XYZ = fine level shrunk in x, y, z directions; X = fine level shrunk in x direction only, etc.
+		Test::Operator::Elastic::Grid config = Test::Operator::Elastic::Grid::X;
 
 		test.Define(16,nlevels,problem_dimension, config);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");

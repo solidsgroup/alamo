@@ -80,10 +80,20 @@ void Elastic::Define(int _ncells,
 			//cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0))); 
  			// else if (orientation == "v")
  			// 	cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0))); 
-			if (_config == Grid::Cube)
+			if (_config == Grid::XYZ)
 				cdomain.grow(amrex::IntVect(-ncells/4)); 
-			if (_config == Grid::YZ)
+			else if (_config == Grid::X)
 				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0)));
+			else if (_config == Grid::Y)
+				cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0)));
+			else if (_config == Grid::Z)
+				cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,0,-ncells/4)));
+			else if (_config == Grid::YZ)
+				cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,-ncells/4)));
+			else if (_config == Grid::ZX)
+				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,-ncells/4)));
+			else if (_config == Grid::XY)
+				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,-ncells/4,0)));
 			
 			//cdomain.growHi(1,-ncells/2); 
 
@@ -272,7 +282,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
+				const Real* DX = geom[ilev].CellSize();
 				for (int p = 0; p<AMREX_SPACEDIM; p++)
 				{
 					AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0]) rhs(m,p) = 0.0;,
@@ -346,12 +356,12 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
 	mlmg.setFixedIter(20);
-	mlmg.setMaxIter(100);
+	mlmg.setMaxIter(1000);
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
  		mlmg.setVerbose(4);
- 		mlmg.setCGVerbose(4);
+ 		mlmg.setCGVerbose(0);
  	}
  	else
  	{
@@ -390,30 +400,20 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// Compute exact right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
 
-	// Compute the numeric residual
-	for (int i = 0; i < nlevels; i++)
-	{
-		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],component,component,1,0);
-		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],component,component,1,0);
-	}
-	for (int ilev = nlevels-1; ilev > 0; ilev--)
-	 	elastic.Reflux(0,
-	 		       res_numeric[ilev-1], solution_numeric[ilev-1], rhs_prescribed[ilev-1],
-	 		       res_numeric[ilev],   solution_numeric[ilev],   rhs_prescribed[ilev]);
+	// Compute numerical residual
+	mlmg.compResidual(GetVecOfPtrs(res_numeric),GetVecOfPtrs(solution_numeric),GetVecOfConstPtrs(rhs_prescribed));
 
-	// Compute the exact residual
-	for (int i = 0; i < nlevels; i++)
-	{
-		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],component,component,1,0);
-		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],component,component,1,0);
-	}
-	for (int ilev = nlevels-1; ilev > 0; ilev--)
-	 	elastic.Reflux(0,
-	 		       res_exact[ilev-1], solution_exact[ilev-1], rhs_prescribed[ilev-1],
-	 		       res_exact[ilev],   solution_exact[ilev],   rhs_prescribed[ilev]);
+	// Compute exact residual
+	mlmg.compResidual(GetVecOfPtrs(res_exact),GetVecOfPtrs(solution_exact),GetVecOfConstPtrs(rhs_prescribed));
 
 	// Compute the "ghost force" that introduces the error
 	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
+	// Normalize so that they are all per unit area
+	for (int i = 0; i < nlevels; i++)
+	{
+		const Real* DX = geom[i].CellSize();
+		ghost_force[i].mult(1.0/DX[0]/DX[1]);
+	}	
 
 	// Output plot file
 	if (plotfile != "")
