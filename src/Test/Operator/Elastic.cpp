@@ -210,35 +210,35 @@ Elastic::SPD(bool verbose,std::string plotfile)
 }
 
 
-
+// This is a test that solves the equation
+//     Lap(u) = 0
+// with u = 0 on the boundary.
+// Only one component is solved for, specified by the "component" argument.
 int
 Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 {
 	Set::Scalar tolerance = 0.01;
 
 	int failed = 0;
-
+	
+	// Define the "model" fab to be a Laplacian, so that this
+	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
 	Set::Scalar alpha = 1.0;
-
 	using model_type = Model::Solid::LinearElastic::Laplacian;
 	model_type model(alpha);
-
-	// using model_type = Model::Solid::LinearElastic::Isotropic;
-	// model_type model(2.6,6.0);
-
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > >
-		modelfab(nlevels); 
-
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
+	// Initialize: set the rhs_prescribed to sin(n pi x1 / L) * sin(n pi x2 / L), so that
+	// the exact solution is sin(n pi x1 / L) * sin(n pi x2 / L) / pi / 2.
+	// Set everything else to zero.
 	std::complex<int> i(0,1);
 	IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i));
 	icrhs.SetComp(component);
 	Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
 	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
 	icexact.SetComp(component);
-
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		solution_exact  [ilev].setVal(0.0);
@@ -253,29 +253,25 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 		icrhs.Initialize(ilev,rhs_prescribed);
 		icexact.Initialize(ilev,solution_exact);
-		//icexact.Initialize(ilev,solution_numeric);
+
+		// Uncomment this to initialize the numeric solution with the
+		// exact solution
+
+		// icexact.Initialize(ilev,solution_numeric); 
 	}
-	//rhs_prescribed[1].mult(0.5);
 
-	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
-
-
+	// Create and configure the Elastic operator
+	// See:
+	//   - src/Operator/Elastic.cpp   <<  the actual operator
+	//   - src/Operator/Operator.cpp  <<  the abstract operator that Elastic inherits from. (where reflux is)
 	amrex::LPInfo info;
  	info.setAgglomeration(1);
  	info.setConsolidation(1);
  	info.setMaxCoarseningLevel(0);
  	nlevels = geom.size();
-
 	::Operator::Elastic<model_type> elastic;
-
  	elastic.define(geom, cgrids, dmap, info);
- 	//elastic.setMaxOrder(linop_maxorder);
-	
  	using bctype = ::Operator::Elastic<model_type>::BC;
-
-
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
  	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
 				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
@@ -285,6 +281,13 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}});
 
 
+	// Call out specific value at a C/F point
+	Util::Message(INFO,
+		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
+		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
+
+
+	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
 	mlmg.setMaxIter(100);
 	mlmg.setMaxFmgIter(20);
@@ -301,30 +304,11 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-
-	// amrex::MultiFab::Copy(solution_numeric[0],solution_exact[0],component,component,1,1);
-	// amrex::MultiFab::Copy(solution_numeric[1],solution_exact[1],component,component,1,1);
-
-	// Solution	
 	Set::Scalar tol_rel = 1E-11;
 	Set::Scalar tol_abs = 0;
-
-	//Util::Message(INFO);
-	//amrex::MLCGSolver mlcg(&mlmg,elastic);
-	//Util::Message(INFO);
-	//elastic.prepareForSolve();
-	//mlcg.setVerbose(4);
-	//mlcg.setMaxIter(20);
-	//mlcg.solve(solution_numeric[0],rhs_prescribed[0],tol_rel,tol_abs);
-	//Util::Message(INFO);
-
-
-	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
-
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
+	// Call out specific value at C/F point
 	Util::Message(INFO,
 		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
@@ -336,23 +320,18 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	 	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
 	 	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,1);
 	}
-	
-
-	//
 
 	//Compute numerical right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
 
-
+	// Check to make sure that point didn't change
 	Util::Message(INFO,
 		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
 
-
 	// Compute exact right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
 
-	
 	// Compute the numeric residual
 	for (int i = 0; i < nlevels; i++)
 	{
@@ -375,13 +354,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	 		       res_exact[ilev-1], solution_exact[ilev-1], rhs_prescribed[ilev-1],
 	 		       res_exact[ilev],   solution_exact[ilev],   rhs_prescribed[ilev]);
 
-	Util::Message(INFO,
-		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(4,8)), " ",
-		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(8,16)));
-
 	// Compute the "ghost force" that introduces the error
 	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
 
+	// Output plot file
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
