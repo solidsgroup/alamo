@@ -971,12 +971,30 @@ Operator::reflux (int crse_amrlev,
 					amrex::IntVect m_crse(m1,  m2);
 					amrex::IntVect m_fine(m1*2,m2*2);
 					
-					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1||
-					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
-						continue;
+					//if (m_crse == amrex::IntVect(8,0)) Util::Message(INFO);
 
+					// Domain boundaries
+					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] + 1 ||
+					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] + 1)
+					{
+						// Domain corner
+						if ((m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.loVect()[1]     ) ||
+						    (m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.hiVect()[1] + 1 ) ||
+						    (m1 == c_cc_domain.hiVect()[0] + 1 && m2 == c_cc_domain.loVect()[1]     ) ||
+						    (m1 == c_cc_domain.hiVect()[0] + 1 && m2 == c_cc_domain.hiVect()[1] + 1 ))
+							crse(m_crse,n) = fine(m_fine,n);
+						// Domain xlo or xhi edge
+						else if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1)
+							crse(m_crse,n) = 0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n);
+						// Domain ylo or yhi edge
+						else if (m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
+							crse(m_crse,n) = 0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n);
+						continue;
+					}
+					// Interior boundaries
 					if ((nodemask[mfi])(m_crse) == fine_fine_node)
 					{
+						if (m_crse == amrex::IntVect(8,0)) Util::Message(INFO);
 						crse(m_crse,n) = 
 						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
 						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
@@ -984,12 +1002,15 @@ Operator::reflux (int crse_amrlev,
 					}
 					else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
 					{
+						if (m_crse == amrex::IntVect(8,0)) Util::Message(INFO);
+
 						/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
 						/**/ // solution to converge to the CORRECT answer.
 						/**/ // If these are commented out, the solution converges super fast but to the 
 						/**/ // WRONG answer. TODO: figure out what's going on here.
-						/**/    //crse(m_crse,n) *= 2.0;
-						/**/    //continue;
+						/**/ 
+						/**/ //crse(m_crse,n) *= 2.0;
+						/**/ //continue;
 
 
 						// Exterior corner
@@ -1024,6 +1045,8 @@ Operator::reflux (int crse_amrlev,
 						}
 						else
 						{
+
+						
 							Util::Abort(INFO,"Coarse/fine node not on boundary of fab");
 						}
 					}				
