@@ -282,7 +282,6 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				const Real* DX = geom[ilev].CellSize();
 				for (int p = 0; p<AMREX_SPACEDIM; p++)
 				{
 					AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0]) rhs(m,p) = 0.0;,
@@ -407,13 +406,20 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.compResidual(GetVecOfPtrs(res_exact),GetVecOfPtrs(solution_exact),GetVecOfConstPtrs(rhs_prescribed));
 
 	// Compute the "ghost force" that introduces the error
-	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
-	// Normalize so that they are all per unit area
+	//mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
+	
 	for (int i = 0; i < nlevels; i++)
 	{
-		const Real* DX = geom[i].CellSize();
-		ghost_force[i].mult(1.0/DX[0]/DX[1]);
-	}	
+	 	amrex::MultiFab::Copy(ghost_force[i],rhs_prescribed[i],component,component,1,1);
+	 	amrex::MultiFab::Subtract(ghost_force[i],rhs_numeric[i],component,component,1,1);
+	}
+
+	// // Normalize so that they are all per unit area
+	// for (int i = 0; i < nlevels; i++)
+	// {
+	// 	const Real* DX = geom[i].CellSize();
+	// 	ghost_force[i].mult(1.0/DX[0]/DX[1]);
+	// }	
 
 	// Output plot file
 	if (plotfile != "")
