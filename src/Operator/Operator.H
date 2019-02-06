@@ -106,6 +106,8 @@ protected:
 	virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
 					     const MultiFab& fine_sol, const MultiFab& fine_rhs) final;
 
+	// virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+	// 			       const MultiFab*) final override;
 
 	virtual void prepareForSolve () final;
 	virtual bool isSingular (int amrlev) const final

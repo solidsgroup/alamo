@@ -35,7 +35,7 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 
 	Operator::define(a_geom,a_grids,a_dmap,a_info,a_factory);
 
-	int model_nghost = 1;
+	int model_nghost = 2;
 
 	model.resize(m_num_amr_levels);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -56,21 +56,18 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
 
+	int nghost = model[amrlev][0]->nGrow();
 	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
 		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
 		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
-			     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
-			     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]-nghost; m1<=bx.hiVect()[0]+nghost; m1++),
+			     for (int m2 = bx.loVect()[1]-nghost; m2<=bx.hiVect()[1]+nghost; m2++),
+			     for (int m3 = bx.loVect()[2]-nghost; m3<=bx.hiVect()[2]+nghost; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			//Util::Message(INFO,"box = ",bx);
-			//Util::Message(INFO,"Point = ",m);
-			//Util::Message(INFO,"Modelfab = ",modelfab(m));
-			//Util::Message(INFO,"InputModel fab = ",a_modelfab (m));
 			modelfab(m) = a_modelfab(m);
 		}
 	}
@@ -207,19 +204,10 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 				//
 
-				f =     C(m)(gradgradu);// + 
-					// AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-					// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-					// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
-
-				// if (amrlev == 1 && (m == amrex::IntVect(14,7) || m == amrex::IntVect(15,7)))
-				// {
-				//  	Util::Message(INFO,"m=",m," f = ",f.transpose());
-				//  	Util::Message(INFO,"m=",m,"    ufab(m)=",ufab(m,0)); 
-				//  	Util::Message(INFO,"m=",m,"    u = (",ufab(m-dx[0]),",",ufab(m),",",ufab(m+dx[0]),")");
-				//  	Util::Message(INFO,"m=",m,"    gradgradu[0](0,0) = ",gradgradu[0](0,0));
-				//  	Util::Message(INFO,"m=",m,"    recomp = (",(ufab(m-dx[0])-2.0*ufab(m)+ufab(m+dx[0]))/DX[0]/DX[0],")");
-				//  }
+				f =     C(m)(gradgradu) + 
+					AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+					 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+					 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 
 			}
 
@@ -316,11 +304,10 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 				else
 				{
 					Set::Vector f =
-						C(m)(gradgradu) // + 
-						// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-						//   	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-						//     	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2))
-						;
+						C(m)(gradgradu)  + 
+						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+						   	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+						     	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 					diagfab(m,i) += f(i);
 				}
 			}
