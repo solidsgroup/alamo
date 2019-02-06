@@ -41,7 +41,7 @@ BUILD_DIR         = ${shell pwd}
 
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
-CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb
+CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS) -ggdb -g3
 LINKER_FLAGS = -Bsymbolic-functions
 
 INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)

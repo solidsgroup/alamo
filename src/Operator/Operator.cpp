@@ -89,6 +89,8 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
 
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+
 	int ncomp = b.nComp();
 	int nghost = b.nGrow();
 	
@@ -103,11 +105,11 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
 
-		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,0); // Dx = x
-		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,0); // Dx *= diag  (Dx = x*diag)
+		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,2); // Dx = x
+		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,2); // Dx *= diag  (Dx = x*diag)
 
-		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,0); // Rx = Ax
-		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,0); // Rx -= Dx  (Rx = Ax - Dx)
+		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,1); // Rx = Ax
+		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
 
 		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 		{
@@ -119,18 +121,23 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 
 			for (int n = 0; n < ncomp; n++)
 			{
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 1; m1<=bx.hiVect()[0] + 1; m1++),
+					     for (int m2 = bx.loVect()[1] - 1; m2<=bx.hiVect()[1] + 1; m2++),
+					     for (int m3 = bx.loVect()[2] - 1; m3<=bx.hiVect()[2] + 1; m3++))
 				{
 
 					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
+					if (m[0] < domain.loVect()[0]) continue;
+					if (m[1] < domain.loVect()[1]) continue;
+					if (m[0] > domain.hiVect()[0]+1) continue;
+					if (m[1] > domain.hiVect()[1]+1) continue;
 
 					Set::Scalar xold = xfab(m,n);
 					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
 					residual += fabs(xold - xfab(m,n));
+
 				}
 			}
 		}
@@ -142,6 +149,8 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	BL_PROFILE("Operator::normalize()");
 	//Util::Message(INFO);
 	bool debug = false;		// Enable this for inverse approximation
+ 
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 
 	int ncomp = getNComp();
 	int nghost = 1; //x.nGrow();
@@ -171,11 +180,17 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 
 		for (int n = 0; n < ncomp; n++)
 		{
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+				     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+				     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
+				if (m[0] < domain.loVect()[0]) continue;
+				if (m[1] < domain.loVect()[1]) continue;
+				if (m[0] > domain.hiVect()[0]+1) continue;
+				if (m[1] > domain.hiVect()[1]+1) continue;
+
 				xfab(m,n) /= diagfab(m,n);
 			}
 		}
@@ -376,7 +391,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 
 	 MLNodeLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
-	 int nghost = 0;
+	 int nghost = 2;
 	 // Resize the multifab containing the operator diagonal
 	 m_diag.resize(m_num_amr_levels);
 	 for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -1009,7 +1024,7 @@ Operator::reflux (int crse_amrlev,
 						/**/ // If these are commented out, the solution converges super fast but to the 
 						/**/ // WRONG answer. TODO: figure out what's going on here.
 						/**/ 
-						/**/ //crse(m_crse,n) *= 2.0;
+						/**/ //crse(m_crse,n) *= 1.0;
 						/**/ //continue;
 
 

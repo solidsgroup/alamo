@@ -106,15 +106,15 @@ void Elastic::Define(int _ncells,
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  		{
  			dmap   [ilev].define(cgrids[ilev]);
- 			solution_numeric[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
- 			solution_exact  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
- 			solution_error  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
- 			rhs_prescribed  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
- 			rhs_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
- 			rhs_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1);
- 			res_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
- 			res_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
- 			ghost_force     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 1); 
+ 			solution_numeric[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
+ 			solution_exact  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
+ 			solution_error  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
+ 			rhs_prescribed  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
+ 			rhs_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
+ 			rhs_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
+ 			res_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
+ 			res_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
+ 			ghost_force     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
  		}
 
 }
@@ -242,7 +242,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	using model_type = Model::Solid::LinearElastic::Laplacian;
 	model_type model(alpha);
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
 	// Initialize: set the rhs_prescribed to sin(n pi x1 / L) * sin(n pi x2 / L), so that
@@ -297,7 +297,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 		// Uncomment this to initialize the numeric solution with the
 		// exact solution
 
-		// icexact.Initialize(ilev,solution_numeric); 
+		//icexact.Initialize(ilev,solution_numeric); 
 	}
 
 
@@ -345,11 +345,11 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 
 
-	// Call out specific value at a C/F point
-	if (nlevels > 1)
-		Util::Message(INFO,
-			      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
-			      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+	// // Call out specific value at a C/F point
+	// if (nlevels > 1)
+	// 	Util::Message(INFO,
+	// 		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+	// 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 
 	// Create MLMG solver and solve
@@ -370,34 +370,41 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	Set::Scalar tol_rel = 1E-8;
+	Set::Scalar tol_rel = 1E-12;
 	Set::Scalar tol_abs = 0;
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Call out specific value at C/F point
-	if (nlevels > 1)
-		Util::Message(INFO,
-			      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
-			      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+	// if (nlevels > 1)
+	// 	Util::Message(INFO,
+	// 		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+	// 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-	 	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
-	 	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,1);
+	 	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
+	 	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
 	}
 
 	//Compute numerical right hand side
+	Util::Message(INFO,"BEGIN");
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
+	Util::Message(INFO,"END");
 
 	// Check to make sure that point didn't change
-	if (nlevels > 1)
-		Util::Message(INFO,
-			      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
-			      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+	// if (nlevels > 1)
+	// 	Util::Message(INFO,
+	// 		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+	// 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 	// Compute exact right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
+
+	// amrex::MLCGSolver mlcg(&mlmg,elastic);
+	// elastic.prepareForSolve();
+	// mlcg.solve(solution_numeric[0],rhs_prescribed[0],tol_rel,tol_abs);
+
 
 	// Compute numerical residual
 	mlmg.compResidual(GetVecOfPtrs(res_numeric),GetVecOfPtrs(solution_numeric),GetVecOfConstPtrs(rhs_prescribed));
@@ -410,8 +417,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	
 	for (int i = 0; i < nlevels; i++)
 	{
-	 	amrex::MultiFab::Copy(ghost_force[i],rhs_prescribed[i],component,component,1,1);
-	 	amrex::MultiFab::Subtract(ghost_force[i],rhs_numeric[i],component,component,1,1);
+	 	amrex::MultiFab::Copy(ghost_force[i],rhs_prescribed[i],component,component,1,2);
+	 	amrex::MultiFab::Subtract(ghost_force[i],rhs_numeric[i],component,component,1,2);
 	}
 
 	// // Normalize so that they are all per unit area
