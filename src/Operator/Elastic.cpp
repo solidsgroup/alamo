@@ -92,12 +92,17 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 1; m1<=bx.hiVect()[0] + 1; m1++),
+			     for (int m2 = bx.loVect()[1] - 1; m2<=bx.hiVect()[1] + 1; m2++),
+			     for (int m3 = bx.loVect()[2] - 1; m3<=bx.hiVect()[2] + 1; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			
 
+			if (m[0] < domain.loVect()[0]) continue;
+			if (m[1] < domain.loVect()[1]) continue;
+			if (m[0] > domain.hiVect()[0]+1) continue;
+			if (m[1] > domain.hiVect()[1]+1) continue;
 
 
 			Set::Vector f = Set::Vector::Zero();
@@ -153,7 +158,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 					{
 						if (m[j] == domain.loVect()[j])
 						{
-					
 							if (m_bc_lo[j][i] == BC::Displacement)
 								f(i) = ufab(m,i);
 							else if (m_bc_lo[j][i] == BC::Traction) 
@@ -180,6 +184,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				// Fill gradu and gradgradu
 				for (int i = 0; i < AMREX_SPACEDIM; i++)
 				{
+			
 					AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx[0],i) - 2.0*ufab(m,i) + ufab(m-dx[0],i))/DX[0]/DX[0];
 						     ,// 2D
 						     gradgradu[i](0,1) = (ufab(m+dx[0]+dx[1],i) + ufab(m-dx[0]-dx[1],i) - ufab(m+dx[0]-dx[1],i) - ufab(m-dx[0]+dx[1],i))/(2.0*DX[0])/(2.0*DX[1]);
@@ -201,15 +206,27 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				// In index notation
 				//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 				//
-				f =     C(m)(gradgradu) + 
-					AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-						     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-						     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+
+				f =     C(m)(gradgradu);// + 
+					// AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+					// 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+					// 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+
+				// if (amrlev == 1 && (m == amrex::IntVect(14,7) || m == amrex::IntVect(15,7)))
+				// {
+				//  	Util::Message(INFO,"m=",m," f = ",f.transpose());
+				//  	Util::Message(INFO,"m=",m,"    ufab(m)=",ufab(m,0)); 
+				//  	Util::Message(INFO,"m=",m,"    u = (",ufab(m-dx[0]),",",ufab(m),",",ufab(m+dx[0]),")");
+				//  	Util::Message(INFO,"m=",m,"    gradgradu[0](0,0) = ",gradgradu[0](0,0));
+				//  	Util::Message(INFO,"m=",m,"    recomp = (",(ufab(m-dx[0])-2.0*ufab(m)+ufab(m+dx[0]))/DX[0]/DX[0],")");
+				//  }
+
 			}
 
 			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
 		}
 	}
+	//Util::Warning(INFO,"do not yet account for variable C! need to uncomment above lines (dont forget to fix Diagonal too)");
 }
 
 
@@ -229,11 +246,17 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
 		amrex::FArrayBox       &diagfab    = diag[mfi];
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-		 	     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-		 	     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 1; m1<=bx.hiVect()[0] + 1; m1++),
+		 	     for (int m2 = bx.loVect()[1] - 1; m2<=bx.hiVect()[1] + 1; m2++),
+		 	     for (int m3 = bx.loVect()[2] - 1; m3<=bx.hiVect()[2] + 1; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
+			if (m[0] < domain.loVect()[0]) continue;
+			if (m[1] < domain.loVect()[1]) continue;
+			if (m[0] > domain.hiVect()[0]+1) continue;
+			if (m[1] > domain.hiVect()[1]+1) continue;
+
 			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
 					     ymin = (m2 == domain.loVect()[1]),
 					     zmin = (m3 == domain.loVect()[2])),
@@ -293,10 +316,11 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 				else
 				{
 					Set::Vector f =
-						C(m)(gradgradu) + 
-						AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-						  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-						    	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+						C(m)(gradgradu) // + 
+						// AMREX_D_TERM(((C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+						//   	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+						//     	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2))
+						;
 					diagfab(m,i) += f(i);
 				}
 			}
