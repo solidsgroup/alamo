@@ -362,6 +362,25 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	return failed;
 }
 
+int Elastic::UniaxialTest(bool verbose,
+		 int component,
+		 int n,
+		 std::string plotfile)
+{
+  /// \todo Copy and paste code from TrigTest to use as template
+  /// \todo Run test to see if it works
+  /// \todo Modify so that the test does the following:
+  ///        - Dirichlet boundary conditions in the x direction, x displacement
+  ///        - Traction-free boundary conditions elsewhere
+  ///        - No body force
+  /// \todo Find the analytic solution to this problem
+  /// \todo Compare the numeric solution to the analytic solution
+  /// \todo If they match, then return 0. Otherwise return 1.
+  return 1;
+}
+
+
+
 int Elastic::RefluxTest(int verbose)
 {
 	int failed = 0;
