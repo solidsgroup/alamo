@@ -40,7 +40,7 @@ void Elastic::Define(int _ncells,
 	dim = _dim;
 	ncells = _ncells;
  	nlevels = _nlevels;
-	int max_grid_size = 100000;//ncells/2;
+	int max_grid_size = ncells/2;//100000;//ncells/2;
 	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -72,35 +72,36 @@ void Elastic::Define(int _ncells,
  			domain.refine(ref_ratio);
  		}
 	amrex::Box cdomain = CDomain;
- 	for (int ilev = 0; ilev < nlevels; ++ilev)
- 		{
- 			cgrids[ilev].define(cdomain);
- 			cgrids[ilev].maxSize(max_grid_size);
- 			// if (orientation == "h")
-			//cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0))); 
- 			// else if (orientation == "v")
- 			// 	cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0))); 
-			if (_config == Grid::XYZ)
-				cdomain.grow(amrex::IntVect(-ncells/4)); 
-			else if (_config == Grid::X)
-				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0)));
-			else if (_config == Grid::Y)
-				cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0)));
-			else if (_config == Grid::Z)
-				cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,0,-ncells/4)));
-			else if (_config == Grid::YZ)
-				cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,-ncells/4)));
-			else if (_config == Grid::ZX)
-				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,-ncells/4)));
-			else if (_config == Grid::XY)
-				cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,-ncells/4,0)));
-			
-			//cdomain.growHi(1,-ncells/2); 
 
- 			cdomain.refine(ref_ratio); 
- 			ngrids[ilev] = cgrids[ilev];
- 			ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
- 		}
+ 	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		cgrids[ilev].define(cdomain);
+		//cgrids[ilev].maxSize(max_grid_size);
+		if (ilev == 0 ) cgrids[ilev].maxSize(10000);
+		if (ilev == 1 ) cgrids[ilev].maxSize(16);
+
+
+		if (_config == Grid::XYZ)
+			cdomain.grow(amrex::IntVect(-ncells/4)); 
+		else if (_config == Grid::X)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0)));
+		else if (_config == Grid::Y)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0)));
+		else if (_config == Grid::Z)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,0,-ncells/4)));
+		else if (_config == Grid::YZ)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,-ncells/4)));
+		else if (_config == Grid::ZX)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,-ncells/4)));
+		else if (_config == Grid::XY)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,-ncells/4,0)));
+			
+		//cdomain.growHi(1,-ncells/2); 
+
+		cdomain.refine(ref_ratio); 
+		ngrids[ilev] = cgrids[ilev];
+		ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
+	}
 
  	int number_of_components = AMREX_SPACEDIM;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -360,7 +361,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	if (verbose)
  	{
  		mlmg.setVerbose(4);
- 		mlmg.setCGVerbose(0);
+ 		mlmg.setCGVerbose(4);
  	}
  	else
  	{
@@ -370,7 +371,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	Set::Scalar tol_rel = 1E-12;
+	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
@@ -388,9 +389,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	}
 
 	//Compute numerical right hand side
-	Util::Message(INFO,"BEGIN");
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
-	Util::Message(INFO,"END");
 
 	// Check to make sure that point didn't change
 	// if (nlevels > 1)
@@ -399,7 +398,13 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
 
 	// Compute exact right hand side
+	Util::Message(INFO,"BEGIN");
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
+	// elastic.Fapply(0,0,rhs_exact[0],solution_exact[0]);
+	// elastic.Fapply(1,0,rhs_exact[1],solution_exact[1]);
+	// elastic.reflux(0, rhs_exact[0], rhs_exact[0], rhs_exact[0], rhs_exact[1], rhs_exact[1], rhs_exact[1]);
+
+	Util::Message(INFO,"END");
 
 	// amrex::MLCGSolver mlcg(&mlmg,elastic);
 	// elastic.prepareForSolve();
@@ -413,7 +418,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.compResidual(GetVecOfPtrs(res_exact),GetVecOfPtrs(solution_exact),GetVecOfConstPtrs(rhs_prescribed));
 
 	// Compute the "ghost force" that introduces the error
-	//mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
+	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
 	
 	for (int i = 0; i < nlevels; i++)
 	{
@@ -432,7 +437,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		WritePlotFile(plotfile);
+		WritePlotFile(plotfile,{0,2});
 	}
 
 	// Find maximum solution error

@@ -82,6 +82,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
+	int nghost = 1; //(f.nGrow() && u.nGrow()) ? 1 : 0;
+	//Util::Message(INFO,"amrlev = ", amrlev, "nghost = ", nghost);
+
 	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
@@ -89,12 +92,16 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 1; m1<=bx.hiVect()[0] + 1; m1++),
-			     for (int m2 = bx.loVect()[1] - 1; m2<=bx.hiVect()[1] + 1; m2++),
-			     for (int m3 = bx.loVect()[2] - 1; m3<=bx.hiVect()[2] + 1; m3++))
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - nghost; m1<=bx.hiVect()[0] + nghost; m1++),
+			     for (int m2 = bx.loVect()[1] - nghost; m2<=bx.hiVect()[1] + nghost; m2++),
+			     for (int m3 = bx.loVect()[2] - nghost; m3<=bx.hiVect()[2] + nghost; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
 			
+			// Util::Message(INFO,"amrlev=",amrlev," m=",m," nghost = ", nghost);
+			// Util::Message(INFO,"domain =",domain.loVect()[0]," ",domain.loVect()[1]);
+			// Util::Message(INFO,"domain =",domain.hiVect()[0]," ",domain.hiVect()[1]);
 
 			if (m[0] < domain.loVect()[0]) continue;
 			if (m[1] < domain.loVect()[1]) continue;
@@ -205,11 +212,14 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				//
 
 				f =     C(m)(gradgradu) + 
-					AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
-					 	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
-					 	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
+					 AMREX_D_TERM(( ( C(m+dx[0]) - C(m-dx[0]))/2.0/DX[0])(gradu).col(0),
+					  	     + ((C(m+dx[1]) - C(m-dx[1]))/2.0/DX[1])(gradu).col(1),
+					  	     + ((C(m+dx[2]) - C(m-dx[2]))/2.0/DX[2])(gradu).col(2));
 
 			}
+
+			// if (amrlev == 1 && m == amrex::IntVect(15,15)) Util::Message(INFO,"m=",m,"f=",f.transpose());
+			// if (amrlev == 1 && m == amrex::IntVect(16,16)) Util::Message(INFO,"m=",m,"f=",f.transpose());
 
 			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
 		}

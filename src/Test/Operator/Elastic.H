@@ -74,14 +74,14 @@ public:
 	
 private: // Private member functions
 
-	void WritePlotFile(std::string plotfile, int nghost = 0)
+	void WritePlotFile(std::string plotfile, std::vector<int> nghost)
 	{
 		const int output_comp = varname.size();
 		amrex::Vector<amrex::MultiFab> plotmf(nlevels);
 		for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			ngrids[ilev].grow(nghost);
-			plotmf[ilev].define(ngrids[ilev], dmap[ilev], output_comp, nghost);
+			ngrids[ilev].grow(nghost[ilev]);
+			plotmf[ilev].define(ngrids[ilev], dmap[ilev], output_comp, nghost[ilev]);
 
 			amrex::MultiFab::Copy(plotmf	[ilev], solution_exact [ilev],  0, 0*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
 			amrex::MultiFab::Copy(plotmf	[ilev], solution_numeric[ilev], 0, 1*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
@@ -97,6 +97,11 @@ private: // Private member functions
 					       varname, geom, 0.0, amrex::Vector<int>(nlevels, 0),
 					       amrex::Vector<amrex::IntVect>(nlevels, amrex::IntVect{ref_ratio}));
 	}		
+	void WritePlotFile(std::string plotfile, int nghost = 0)
+	{
+		std::vector<int> ngs(nlevels,nghost);
+		WritePlotFile(plotfile,ngs);
+	}
 
 private: // Private member variables
 	int dim = 1;
