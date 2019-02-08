@@ -16,8 +16,8 @@ public:
 		IC(_geom)
 	{}
   
-	void Initialize(const int lev,
-			amrex::Vector<amrex::MultiFab *> &field)
+	void Add(const int lev,
+		 amrex::Vector<amrex::MultiFab *> &field)
 	{
 		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
 		{
@@ -35,26 +35,6 @@ public:
 
 	};
 
-
-	void Initialize(const int lev,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Initialize(lev,pfield);
-	};
-	void Initialize(const int lev,
-			amrex::Vector<amrex::MultiFab> &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Initialize(lev,pfield);
-	};
-	virtual void SetComp(const int a_comp)
-	{
-		comp = a_comp;
-	}
-
-private:
-	int comp;
 };
 }
 #endif

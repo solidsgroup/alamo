@@ -756,9 +756,9 @@ PolymerDegradation::DegradeMaterial(int lev)
 				Util::Message(INFO,"etafab(m-dy-dz) = ", etafab(m-dx[2]-dx[1]));
 				Util::Message(INFO,"etafab(m-dx-dy-dz) = ", etafab(m-dx[0]-dx[1]-dx[2]));
 			}
-			modelfab(m).DegradeModulus({temp});
+			modelfab(m).DegradeModulus(temp);
 		}
-		AMREX_D_TERM(for (int i = box.loVect()[0]-1; i<=box.hiVect()[0]+1; i++),
+		/*AMREX_D_TERM(for (int i = box.loVect()[0]-1; i<=box.hiVect()[0]+1; i++),
 		 		     for (int j = box.loVect()[1]-1; j<=box.hiVect()[1]+1; j++),
 		 		     for (int k = box.loVect()[2]-1; k<=box.hiVect()[2]+1; k++))
 	 	{
@@ -779,7 +779,7 @@ PolymerDegradation::DegradeMaterial(int lev)
 	 			modelfab(m) = modelfab(m-dx[2]);
 	 		#endif
 	 		#endif
-	 	}
+	 	}*/
 	}
 }
 

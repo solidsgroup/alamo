@@ -25,34 +25,55 @@ StressRelaxation::StressRelaxation():
 	pp_material.query("model",input_material);
 	if(input_material == "isotropic")
 	{
-		amrex::Real nu = 0.3;
-		int prony_terms = 0;
 		amrex::Vector<Set::Scalar> E_i;
 		amrex::Vector<Set::Scalar> tau_i;
 
+		amrex::Real nu = 0.3;
+		int prony_terms = 0;
+		
 		amrex::ParmParse pp_material_isotropic("material.isotropic");
 		pp_material_isotropic.query("nu",nu);
 		pp_material_isotropic.query("number_of_terms",prony_terms);
 		//Sanity check
 		if(prony_terms < 0) Util::Abort(INFO,"Number of prony series terms must be non-negative");
+		if(prony_terms > 8) Util::Abort(INFO,"Number of prony series terms must not exceed 8");
 
 		pp_material_isotropic.queryarr("E_i", E_i);
 		//Sanity check
 		if (E_i.size() == 0) Util::Abort(INFO, "E_i must contain at least one value");
 		if (E_i.size() != prony_terms+1) Util::Abort(INFO, "E_i must have prony_terms + 1 entries");
-		for (int i = 0; i < E_i.size(); i++)
-			if(E_i[i] < 0.0)  Util::Abort(INFO, "E_i can not be less than zero");
+		//for (int i = 0; i < E_i.size(); i++)
+		//	if(E_i[i] < 0.0)  Util::Abort(INFO, "E_i can not be less than zero");
 
 
 		pp_material_isotropic.queryarr("tau_i", tau_i);
 		//Sanity check
 		if(tau_i.size() == 0) Util::Abort(INFO, "tau_i must contain at least one value");
 		if(tau_i.size() != prony_terms) Util::Abort(INFO, "tau_i must have prony_terms entries");
-		for (int i = 0; i < tau_i.size(); i++)
-			if(tau_i[i] < 0.0)	Util::Abort(INFO, "tau_i can not be less than zero");
+		//for (int i = 0; i < tau_i.size(); i++)
+		//	if(tau_i[i] < 0.0)	Util::Abort(INFO, "tau_i can not be less than zero");
 
 
-		modeltype = Model::Solid::Viscoelastic::Isotropic(nu, E_i, tau_i);
+		std::array<Set::Scalar,9> youngs_modulus;
+		std::array<Set::Scalar,8> relaxation_times;
+
+		for(int i = 0; i < 9; i++)
+		{
+			if(i < prony_terms)
+			{
+				youngs_modulus[i] = E_i[i];
+				relaxation_times[i] = tau_i[i];
+			}
+			else if(i == prony_terms) youngs_modulus[i] = E_i[i];
+			else
+			{
+				youngs_modulus[i] = 0.0;
+				relaxation_times[i] = 0.0;
+			}
+
+		}
+		
+		modeltype = Model::Solid::Viscoelastic::Isotropic(nu, prony_terms, youngs_modulus, relaxation_times);
 	}
 	else
 		Util::Abort(INFO, "Not implemented yet");

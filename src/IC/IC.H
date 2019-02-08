@@ -12,11 +12,36 @@ public:
 	IC (amrex::Vector<amrex::Geometry> &_geom)
 		: geom(_geom) {} ;
   
-	virtual void Initialize(const int lev, amrex::Vector<std::unique_ptr<amrex::MultiFab> > &fab) = 0;
+	virtual void Add(const int lev, amrex::Vector<amrex::MultiFab *> &field) = 0;
+	void Add(const int lev,
+		 amrex::Vector<amrex::MultiFab> &field)
+	{
+		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
+		Add(lev,pfield);
+	};
+	void Initialize(const int lev,
+			amrex::Vector<amrex::MultiFab *> &field)
+	{
+		field[lev]->setVal(0.0);
+		Add(lev,field);
+	};
+	void Initialize(const int lev,
+			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+	{
+		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
+		Initialize(lev,pfield);
+	};
+	void Initialize(const int lev,
+			amrex::Vector<amrex::MultiFab> &field)
+	{
+		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
+		Initialize(lev,pfield);
+	};
 
-	virtual void SetComp(const int) {}
+	virtual void SetComp(int a_comp) final {comp = a_comp;}
 protected:
 	amrex::Vector<amrex::Geometry> &geom;
+	int comp = 0;
 };
 }
 #endif

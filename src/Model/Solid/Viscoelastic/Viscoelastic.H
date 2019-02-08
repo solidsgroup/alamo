@@ -21,6 +21,7 @@ class Viscoelastic : public Solid
 {
 public:
 	Viscoelastic() {};
+	virtual ~Viscoelastic() {};
 	virtual Set::Matrix operator () (Set::Matrix &eps) const = 0;
 };
 

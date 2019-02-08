@@ -34,8 +34,8 @@ public:
 
 	using BC::FillBoundary;
 	
-	amrex::BCRec GetBCRec() ;
-	amrex::Array<int,AMREX_SPACEDIM> IsPeriodic();
+	amrex::BCRec GetBCRec() override;
+	amrex::Array<int,AMREX_SPACEDIM> IsPeriodic() override;
 
 	template<class T>
 	const amrex::Array<amrex::Array<T,AMREX_SPACEDIM>,2> GetBCTypes()
@@ -48,8 +48,6 @@ public:
 private:
 	int bc_lo[BL_SPACEDIM];
 	int bc_hi[BL_SPACEDIM];
-	int bc_hi_flux[BL_SPACEDIM];
-	int bc_lo_flux[BL_SPACEDIM];
 	amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
 	amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
 #if AMREX_SPACEDIM > 2

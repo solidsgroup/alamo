@@ -23,8 +23,8 @@ public:
       }
   }
   
-void Initialize(const int lev,
-		amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+virtual void Add(const int lev,
+		amrex::Vector<amrex::MultiFab * > &field)
   {
     for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
       {

@@ -60,12 +60,7 @@ public:
 		     int component = 0,
 		     int n = 1,
 		     std::string plotfile = "");
-  
-        /// \todo: write documentation for this test
-	int UniaxialTest(bool verbose,
-		     int component = 0,
-		     int n = 1,
-		     std::string plotfile = "");
+
 
 	int SpatiallyVaryingCTest(int);
 	
@@ -91,16 +86,15 @@ private:
  	amrex::Vector<amrex::MultiFab>             res_numeric;
  	amrex::Vector<amrex::MultiFab>             ghost_force;
 
-	amrex::Vector<std::string> varname = {"solution_exact1", "solution_exact2",
-				       "solution_numeric1", "solution_numeric2",
-				       "solution_error1", "solution_error2",
-				       "rhs_prescribed1", "rhs_prescribed2",
-				       "rhs_exact1","rhs_exact2",
-				       "rhs_numeric1","rhs_numeric2",
-				       "res_exact1","res_exact2",
-				       "res_numeric1","res_numeric2",
-				       "ghost_force1", "ghost_force2"};
-
+	amrex::Vector<std::string> varname = {AMREX_D_DECL("solution_exact1", "solution_exact2","solution_exact3"),
+					      AMREX_D_DECL("solution_numeric1", "solution_numeric2","solution_numeric3"),
+					      AMREX_D_DECL("solution_error1", "solution_error2","solution_error3"),
+					      AMREX_D_DECL("rhs_prescribed1", "rhs_prescribed2","rhs_prescribed3"),
+					      AMREX_D_DECL("rhs_exact1","rhs_exact2","rhs_exact2"),
+					      AMREX_D_DECL("rhs_numeric1","rhs_numeric2","rhs_numeric3"),
+					      AMREX_D_DECL("res_exact1","res_exact2","res_exact3"),
+					      AMREX_D_DECL("res_numeric1","res_numeric2","res_numeric3"),
+					      AMREX_D_DECL("ghost_force1", "ghost_force2","ghost_force2")};
 };
 }
 }
