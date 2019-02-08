@@ -70,10 +70,6 @@ public:
 	}
 
 	
-
-
-private:
-	amrex::Real Tin, Tout;
 };
 }
 }

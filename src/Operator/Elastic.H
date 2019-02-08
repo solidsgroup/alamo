@@ -56,28 +56,20 @@ public:
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs)
 	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
-	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
-	{Fapply(amrlev,mglev,out,in);}
 
-	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
+	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const override;
 
-	inline Set::Vector apply (int amrlev, int mglev,
+	inline Set::Vector Apply (int amrlev, int mglev,
 				  const amrex::FArrayBox &ufab,
 				  TArrayBox &C,
 				  const amrex::IntVect &m) const;
-	
-	inline Set::Matrix flux (int amrlev, int mglev,
-				 const amrex::FArrayBox &ufab,
-				 TArrayBox &C,
-				 const amrex::IntVect &m,
-				 std::array<Boundary,AMREX_SPACEDIM>) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
 
-	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
+	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const override final;
 	//virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
@@ -85,27 +77,8 @@ protected:
 
 
 
-	///
-	/// This is a three step process.
-	/// **Note** it is implemented in 2D only and all documentation references the 2D implementation
-	/// where dimensionality is not general.
-	/// 
-	/// 1. Restriction.
-	///    Updates the residual on the coarse fab with the residual as calculated on the fine fab.
-	///    Restriction takes place only on the interior nodes.
-	///    In 2D the restriction scheme is:
-	///    \f{eqnarray*}{	
-	///       res_{c}(I,J)    &=& 4\,res_f(i,j) 
-	///                    \\ &+& 2\,\Big[res_f(i+1,j) + res_f(i-1,j) + res_f(i,j+1) + res_f(i,j-1)\Big] 
-	///                    \\ &+& \Big[res_f(i+1,j+1) + res_f(i+1,j-1) + res_f(i-1,j+1) + res_f(i-1,j-1)\Big]
-	///    \f}
-	///
 
-	virtual void reflux (int crse_amrlev,
-			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const;
-
-	virtual int getNComp() const {return AMREX_SPACEDIM;};
+	virtual int getNComp() const override {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
 	//virtual void Diagonal(bool recompute=false);
 	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
@@ -132,7 +105,7 @@ private:
 
 
 
-	virtual void averageDownCoeffs ();
+	virtual void averageDownCoeffs () override;
 	void averageDownCoeffsToCoarseAmrLevel (int flev);
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 
