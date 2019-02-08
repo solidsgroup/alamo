@@ -71,7 +71,7 @@ int main (int argc, char* argv[])
 		test.Define(16,2);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
 		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1));
 
 		test.Define(16,3);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");

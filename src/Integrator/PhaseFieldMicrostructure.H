@@ -27,11 +27,11 @@
 #include "Model/Interface/GrainBoundary/AbsSin.H"
 #include "Model/Interface/GrainBoundary/Read.H"
 
-#include "OperatorCell/Elastic/PolyCrystal/PolyCrystal.H"
-#include "OperatorCell/Elastic/Isotropic/Isotropic.H"
-#include "OperatorCell/Elastic/PolyCrystal/Isotropic/Isotropic.H"
-#include "OperatorCell/Elastic/PolyCrystal/Cubic/Cubic.H"
-#include "OperatorCell/Elastic/Cubic/Cubic.H"
+#include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
+#include "Operator/Elastic/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Isotropic/Isotropic.H"
+#include "Operator/Elastic/PolyCrystal/Cubic/Cubic.H"
+#include "Operator/Elastic/Cubic/Cubic.H"
 
 namespace Integrator
 {
@@ -108,10 +108,10 @@ private:
 	amrex::Real elastic_tstart = 0.0;
 	amrex::Vector<amrex::Real> elastic_load_t;
 	amrex::Vector<amrex::Real> elastic_load_disp;
-	OperatorCell::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	Operator::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 	BC::BC *elastic_bc;
 
-	std::vector<OperatorCell::Elastic::PolyCrystal::PolyCrystalModel *> models;
+	std::vector<Operator::Elastic::PolyCrystal::PolyCrystalModel *> models;
 	
 };
 }
