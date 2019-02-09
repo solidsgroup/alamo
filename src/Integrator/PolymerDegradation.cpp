@@ -204,8 +204,8 @@ PolymerDegradation::PolymerDegradation():
 			sum += d_i[temp];
 		}
 
-		if(sum != d_final) //need to replace this in the future
-			Util::Abort(INFO, "d_final is not equal to the sum of d_i");
+		if(std::abs(sum - d_final)>0.0001) //need to replace this in the future
+			Util::Abort(INFO, "d_final = ", d_final, " is not equal to the sum of d_i = ",sum);
 	}
 	else
 		Util::Abort(INFO, "This kind of damage model has not been implemented yet");
