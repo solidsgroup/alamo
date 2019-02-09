@@ -66,7 +66,7 @@ int main (int argc, char* argv[])
 		Test::Operator::Elastic test;
 
 		// number of AMR levels
-		int nlevels = 2; 
+		int nlevels = 2;
 		// dimension of the problem (must be less than or equal to AMREX_SPACEDIM
 		int problem_dimension = 2; 
 		// Configuration of the grid (can be "None" or "X", "Y", "Z", "YZ", "ZX", "XY", "XYZ")

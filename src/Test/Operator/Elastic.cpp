@@ -78,7 +78,7 @@ void Elastic::Define(int _ncells,
 		cgrids[ilev].define(cdomain);
 		//cgrids[ilev].maxSize(max_grid_size);
 		if (ilev == 0 ) cgrids[ilev].maxSize(10000);
-		if (ilev == 1 ) cgrids[ilev].maxSize(16);
+		if (ilev == 1 ) cgrids[ilev].maxSize(10000);
 
 
 		if (_config == Grid::XYZ)
@@ -433,11 +433,28 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// 	ghost_force[i].mult(1.0/DX[0]/DX[1]);
 	// }	
 
+
+	// for (int ilev = 0; ilev < nlevels; ++ilev)
+	// {
+	// 	solution_exact  [ilev].setVal(0.0);
+	// 	// solution_numeric[ilev].setVal(0.0);
+	// 	// solution_error  [ilev].setVal(0.0);
+	// 	// rhs_prescribed  [ilev].setVal(0.0);
+	// 	// rhs_exact       [ilev].setVal(0.0);
+	// 	// rhs_numeric     [ilev].setVal(0.0);
+	// 	// res_exact       [ilev].setVal(0.0);
+	// 	// res_numeric     [ilev].setVal(0.0);
+	// 	// ghost_force     [ilev].setVal(0.0);
+	// }
+
+
+
 	// Output plot file
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		WritePlotFile(plotfile,{0,2});
+		WritePlotFile(plotfile,0);
+		//WritePlotFile(plotfile,{1,1});
 	}
 
 	// Find maximum solution error
