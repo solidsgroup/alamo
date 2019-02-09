@@ -1029,6 +1029,11 @@ Operator::reflux (int crse_amrlev,
 						/**/ //crse(m_crse,n) *= 1.0;
 						/**/ //continue;
 
+						// crse(m_crse,n) = 
+						// 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+						// 	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+						// 	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+						// continue;
 
 						// Exterior corner
 						if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 1)
@@ -1054,20 +1059,16 @@ Operator::reflux (int crse_amrlev,
 							  (cellmask[mfi](m_crse-dx[0]) == cellmask[mfi](m_crse-dx[0]-dx[1])))
 							//m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
 						{
-							//if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
 							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
 						}
 						// ymin / ymax edge
 						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[0])) &&
 							  (cellmask[mfi](m_crse-dx[1]) == cellmask[mfi](m_crse-dx[1]-dx[0])))
-						//else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
 						{
-							//if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
 							crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
 						}
 						else
 						{
-							//if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
 							Util::Abort(INFO,"Coarse/fine node not on boundary of fab");
 						}
 					}				
