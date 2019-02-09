@@ -561,7 +561,8 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 						eta_new_box(m,n) = eta_old_box(m,n) + rhs*dt;
 						if(eta_new_box(m,n) > d_final)
 						{
-							Util::Abort(INFO, "eta exceeded ",d_final, ". Rhs = ", rhs, ", Water = ", water_conc_box(m,n));
+							Util::Warning(INFO, "eta exceeded ",d_final, ". Rhs = ", rhs, ", Water = ", water_conc_box(m,n));
+							eta_new_box(m,n) = d_final;
 						}
 					}
 
@@ -913,7 +914,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	int number_of_components = AMREX_SPACEDIM;
-	int number_of_ghost_cells = 1;
+	int number_of_ghost_cells = 2;
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -923,7 +924,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		strain		[ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
 		energy 		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 		stress_vm	[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
-		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 	}
 
 	info.setAgglomeration(agglomeration);
