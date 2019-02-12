@@ -108,7 +108,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,2); // Dx = x
 		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,2); // Dx *= diag  (Dx = x*diag)
 
-		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,1); // Rx = Ax
+		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,2); // Rx = Ax
 		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
 
 		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
@@ -121,9 +121,9 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 
 			for (int n = 0; n < ncomp; n++)
 			{
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 1; m1<=bx.hiVect()[0] + 1; m1++),
-					     for (int m2 = bx.loVect()[1] - 1; m2<=bx.hiVect()[1] + 1; m2++),
-					     for (int m3 = bx.loVect()[2] - 1; m3<=bx.hiVect()[2] + 1; m3++))
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1<=bx.hiVect()[0] + 2; m1++),
+					     for (int m2 = bx.loVect()[1] - 2; m2<=bx.hiVect()[1] + 2; m2++),
+					     for (int m3 = bx.loVect()[2] - 2; m3<=bx.hiVect()[2] + 2; m3++))
 				{
 
 					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
@@ -134,6 +134,13 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 					if (m[0] > domain.hiVect()[0]+1) continue;
 					if (m[1] > domain.hiVect()[1]+1) continue;
 
+					if (m[0] == bx.loVect()[0] - 2 || m[0] == bx.hiVect()[0] + 2 ||
+					    m[1] == bx.loVect()[1] - 2 || m[1] == bx.hiVect()[1] + 2)
+					{
+						xfab(m,n) = 0.0;
+						continue;
+					}
+
 					Set::Scalar xold = xfab(m,n);
 					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
 					residual += fabs(xold - xfab(m,n));
@@ -142,6 +149,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 			}
 		}
 	}
+	nodalSync(amrlev, mglev, x);
 }
 
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
@@ -1029,35 +1037,35 @@ Operator::reflux (int crse_amrlev,
 						/**/ //crse(m_crse,n) *= 1.0;
 						/**/ //continue;
 
-						// crse(m_crse,n) = 
-						// 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-						// 	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-						// 	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-						// continue;
+						crse(m_crse,n) = 
+							((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+							  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+						continue;
+
 
 						// Exterior corner
 						if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 1)
 						{
-							//if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
-
 							crse(m_crse,n) = fine(m_fine,n);
+							// crse(m_crse,n) = 
+							//   	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
+							//   	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
+							//   	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
 						}
 						// Interior corner - same as if not on C/F boundary
 						else if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 3)
 						{
-							//if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
 							crse(m_crse,n) = 
 								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
 								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
 								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
 
-							//if (m_crse == amrex::IntVect(8,4)) Util::Message(INFO);
 
 						}
 						// xmin / xmax edge
 						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[1])) &&
 							  (cellmask[mfi](m_crse-dx[0]) == cellmask[mfi](m_crse-dx[0]-dx[1])))
-							//m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
 						{
 							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
 						}
@@ -1117,10 +1125,9 @@ Operator::reflux (int crse_amrlev,
 							/**/ // solution to converge to the CORRECT answer.
 							/**/ // If these are commented out, the solution converges super fast but to the 
 							/**/ // WRONG answer. TODO: figure out what's going on here.
-							/**/    //crse(m_crse,n) *= 2.0;
-							/**/    //continue;
+							/**/    //crse(m_crse,n);
+							/**/    continue;
 
-							// DOES NOT CONTINUE BEYOND THIS POINT
 
 							// Corners
 							if ((xmin && ymin && zmin) ||
