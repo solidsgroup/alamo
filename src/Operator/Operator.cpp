@@ -129,13 +129,17 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-					if (m[0] < domain.loVect()[0]) continue;
-					if (m[1] < domain.loVect()[1]) continue;
-					if (m[0] > domain.hiVect()[0]+1) continue;
-					if (m[1] > domain.hiVect()[1]+1) continue;
+					// Skip ghost cells outside problem domain
+					if (AMREX_D_TERM(m[0] < domain.loVect()[0], ||
+							 m[1] < domain.loVect()[1], ||
+							 m[2] < domain.loVect()[2])) continue;
+					if (AMREX_D_TERM(m[0] > domain.hiVect()[0] + 1, ||
+							 m[1] > domain.hiVect()[1] + 1, ||
+							 m[2] > domain.hiVect()[2] + 1)) continue;
 
-					if (m[0] == bx.loVect()[0] - 2 || m[0] == bx.hiVect()[0] + 2 ||
-					    m[1] == bx.loVect()[1] - 2 || m[1] == bx.hiVect()[1] + 2)
+					if (AMREX_D_TERM(m[0] == bx.loVect()[0] - 2 || m[0] == bx.hiVect()[0] + 2, ||
+							 m[1] == bx.loVect()[1] - 2 || m[1] == bx.hiVect()[1] + 2, ||
+							 m[2] == bx.loVect()[2] - 2 || m[2] == bx.hiVect()[2] + 2))
 					{
 						xfab(m,n) = 0.0;
 						continue;
@@ -994,9 +998,6 @@ Operator::reflux (int crse_amrlev,
 					amrex::IntVect m_crse(m1,  m2);
 					amrex::IntVect m_fine(m1*2,m2*2);
 					
-					// if (m_crse == amrex::IntVect(7,16)) Util::Message(INFO);
-					// if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
-
 					// Domain boundaries
 					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] + 1 ||
 					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] + 1)
@@ -1017,72 +1018,13 @@ Operator::reflux (int crse_amrlev,
 						continue;
 					}
 					// Interior boundaries
-					if ((nodemask[mfi])(m_crse) == fine_fine_node)
+					if ((nodemask[mfi])(m_crse) == fine_fine_node ||
+					    (nodemask[mfi])(m_crse) == coarse_fine_node )
 					{
-						if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
 						crse(m_crse,n) = 
 						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
 						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
 						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-					}
-					else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
-					{
-						//if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
-
-						/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-						/**/ // solution to converge to the CORRECT answer.
-						/**/ // If these are commented out, the solution converges super fast but to the 
-						/**/ // WRONG answer. TODO: figure out what's going on here.
-						/**/ 
-						/**/ //crse(m_crse,n) *= 1.0;
-						/**/ //continue;
-
-						crse(m_crse,n) = 
-							((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-							  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-							  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-						continue;
-
-
-						// Exterior corner
-						if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 1)
-						{
-							crse(m_crse,n) = fine(m_fine,n);
-							// crse(m_crse,n) = 
-							//   	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-							//   	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-							//   	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-						}
-						// Interior corner - same as if not on C/F boundary
-						else if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 3)
-						{
-							crse(m_crse,n) = 
-								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-
-
-						}
-						// xmin / xmax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[1])) &&
-							  (cellmask[mfi](m_crse-dx[0]) == cellmask[mfi](m_crse-dx[0]-dx[1])))
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
-						}
-						// ymin / ymax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[0])) &&
-							  (cellmask[mfi](m_crse-dx[1]) == cellmask[mfi](m_crse-dx[1]-dx[0])))
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
-						}
-						else
-						{
-							Util::Abort(INFO,"Coarse/fine node not on boundary of fab");
-						}
-					}				
-					else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
-					{
-						//Util::Message(INFO,"Discovered coarse node while on fine fab: crse amrlev = ", crse_amrlev,", m_crse = ", m_crse, " box = ", bx);
 					}
 				}
 #elif AMREX_SPACEDIM == 3
@@ -1101,7 +1043,8 @@ Operator::reflux (int crse_amrlev,
 						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
 						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2] +1);
 						
-						if ((nodemask[mfi])(m_crse) == fine_fine_node)
+						if ((nodemask[mfi])(m_crse) == fine_fine_node ||
+						    (nodemask[mfi])(m_crse) == coarse_fine_node)
 						{
 							crse(m_crse,n) =
 								0.25*
@@ -1121,13 +1064,8 @@ Operator::reflux (int crse_amrlev,
 						}
 						else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
 						{
-							/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-							/**/ // solution to converge to the CORRECT answer.
-							/**/ // If these are commented out, the solution converges super fast but to the 
-							/**/ // WRONG answer. TODO: figure out what's going on here.
-							/**/    //crse(m_crse,n);
-							/**/    continue;
 
+							Util::Abort(INFO,"you should not be here!");
 
 							// Corners
 							if ((xmin && ymin && zmin) ||
