@@ -12,8 +12,8 @@ namespace IC
 class Random : public IC
 {
 public:
-	Random (amrex::Vector<amrex::Geometry> &_geom) :
-		IC(_geom)
+	Random (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar a_mult = 1.0) :
+		IC(_geom), mult(a_mult)
 	{}
   
 	void Add(const int lev,
@@ -29,11 +29,14 @@ public:
 				     for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++),
 				     for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++))
 			{
-				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) = Util::Random();
+				field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) += mult * Util::Random();
 			}
 		}
 
 	};
+	using IC::Add;
+private:
+	Set::Scalar mult;
 
 };
 }
