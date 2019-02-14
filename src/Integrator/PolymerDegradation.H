@@ -89,7 +89,7 @@ private:
 	amrex::Vector<amrex::MultiFab> stress; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<amrex::MultiFab> stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<amrex::MultiFab> rhs; ///< Multicomponent field variable storing pointwise displacements
-
+	amrex::Vector<amrex::MultiFab> residual;
 	amrex::Vector<amrex::MultiFab> energy; ///< Single component variable storing strain energy
 	amrex::Vector<amrex::MultiFab> energies; ///< Multicomponent field variable storing individual strain energies
 
