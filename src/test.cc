@@ -75,7 +75,7 @@ int main (int argc, char* argv[])
 
 		test.Define(32,nlevels,problem_dimension, config);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,8,"testoutput"));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,2,"testoutput"));
 	}
 
 	Util::Message(INFO,failed," tests failed");
