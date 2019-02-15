@@ -40,7 +40,7 @@ void Elastic::Define(int _ncells,
 	dim = _dim;
 	ncells = _ncells;
  	nlevels = _nlevels;
-	int max_grid_size = ncells/4;//100000;//ncells/2;
+	int max_grid_size = ncells/2;//100000;//ncells/2;
 	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -76,6 +76,7 @@ void Elastic::Define(int _ncells,
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		cgrids[ilev].define(cdomain);
+		//cgrids[ilev].maxSize(amrex::IntVect(1000000,max_grid_size));
 		cgrids[ilev].maxSize(max_grid_size);
 
 		if (_config == Grid::XYZ)
@@ -293,7 +294,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 		// Uncomment this to initialize the numeric solution with the
 		// exact solution
 
-		//icexact.Initialize(ilev,solution_numeric); 
+		icexact.Initialize(ilev,solution_numeric); 
 	}
 
 	// Create and configure the Elastic operator
@@ -349,7 +350,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
-	mlmg.setFixedIter(20);
+	mlmg.setFixedIter(4);
 	//mlmg.setMaxIter(1000);
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
@@ -368,20 +369,48 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
 
- 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
-	// Compute solution error
-	for (int i = 0; i < nlevels; i++)
+	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-	  	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
-	  	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
+		solution_error  [ilev].setVal(0.0);
+		res_numeric     [ilev].setVal(0.0);
 	}
 
-	//Compute numerical right hand side
-	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
 
-	// Compute RHS corresponding to the exact solution
-	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+
+	// Call out specific value at C/F point
+	// if (nlevels > 1)
+	// 	Util::Message(INFO,
+	// 		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+	// 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+
+	// Compute solution error
+	// for (int i = 0; i < nlevels; i++)
+	// {
+	//  	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
+	//  	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
+	// }
+
+	//Compute numerical right hand side
+	// mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
+
+	// Check to make sure that point didn't change
+	// if (nlevels > 1)
+	// 	Util::Message(INFO,
+	// 		      "crse=",solution_numeric[0][amrex::MFIter(solution_numeric[0])](amrex::IntVect(AMREX_D_DECL(4,8,8))), " ",
+	// 		      "fine=",solution_numeric[1][amrex::MFIter(solution_numeric[1])](amrex::IntVect(AMREX_D_DECL(8,16,16))));
+
+	// Compute exact right hand side
+	// mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
+	// elastic.Fapply(0,0,rhs_exact[0],solution_exact[0]);
+	// elastic.Fapply(1,0,rhs_exact[1],solution_exact[1]);
+	// elastic.reflux(0, rhs_exact[0], rhs_exact[0], rhs_exact[0], rhs_exact[1], rhs_exact[1], rhs_exact[1]);
+
+	// amrex::MLCGSolver mlcg(&mlmg,elastic);
+	// elastic.prepareForSolve();
+	// mlcg.solve(solution_numeric[0],rhs_prescribed[0],tol_rel,tol_abs);
+
 
 	// Compute numerical residual
 	mlmg.compResidual(GetVecOfPtrs(res_numeric),GetVecOfPtrs(solution_numeric),GetVecOfConstPtrs(rhs_prescribed));
@@ -390,19 +419,55 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.compResidual(GetVecOfPtrs(res_exact),GetVecOfPtrs(solution_exact),GetVecOfConstPtrs(rhs_prescribed));
 
 	// Compute the "ghost force" that introduces the error
-	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
+	// mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
 	
-	for (int i = 0; i < nlevels; i++)
+	// for (int i = 0; i < nlevels; i++)
+	// {
+	//  	amrex::MultiFab::Copy(ghost_force[i],rhs_prescribed[i],component,component,1,2);
+	//  	amrex::MultiFab::Subtract(ghost_force[i],rhs_numeric[i],component,component,1,2);
+	// }
+
+	// // Normalize so that they are all per unit area
+	// for (int i = 0; i < nlevels; i++)
+	// {
+	// 	const Real* DX = geom[i].CellSize();
+	// 	ghost_force[i].mult(1.0/DX[0]/DX[1]);
+	// }	
+
+
+	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-	  	amrex::MultiFab::Copy(ghost_force[i],rhs_prescribed[i],component,component,1,2);
-	  	amrex::MultiFab::Subtract(ghost_force[i],rhs_numeric[i],component,component,1,2);
+		//solution_exact  [ilev].setVal(0.0);
+		//solution_numeric[ilev].setVal(0.0);
+		solution_error  [ilev].setVal(0.0);
+		rhs_prescribed  [ilev].setVal(0.0);
+		rhs_exact       [ilev].setVal(0.0);
+		rhs_numeric     [ilev].setVal(0.0);
+		// res_exact       [ilev].setVal(0.0);
+		// res_numeric     [ilev].setVal(0.0);
+		ghost_force     [ilev].setVal(0.0);
 	}
+
+
+	
+
+
+	for (int alev=0; alev < nlevels; alev++)
+	{
+		varname[14] = "res";    MultiFab::Copy(res_numeric[alev], mlmg.res[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+		varname[4] = "cor";     MultiFab::Copy(solution_error[alev], *mlmg.cor[alev][0], 0, 0, AMREX_SPACEDIM, 2);    
+		varname[6] = "rhs";     MultiFab::Copy(rhs_prescribed[alev], mlmg.rhs[alev], 0, 0, AMREX_SPACEDIM, 2);
+		varname[16] = "rescor"; MultiFab::Copy(ghost_force[alev], mlmg.rescor[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+	}
+	
+
 
 	// Output plot file
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		WritePlotFile(plotfile);
+		WritePlotFile(plotfile,{0,2});
+		//WritePlotFile(plotfile);
 	}
 
 	// Find maximum solution error

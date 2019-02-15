@@ -153,7 +153,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 			}
 		}
 	}
-	nodalSync(amrlev, mglev, x);
+	//nodalSync(amrlev, mglev, x);
 }
 
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
@@ -865,7 +865,8 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());
 
 	if (!skip_fillboundary) {
-	 	phi.FillBoundary(geom.periodicity());
+	 	if (amrlev == 0) phi.FillBoundary(geom.periodicity());
+		else RealFillBoundary(phi);
 	}
 
 	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
@@ -1021,6 +1022,14 @@ Operator::reflux (int crse_amrlev,
 					if ((nodemask[mfi])(m_crse) == fine_fine_node ||
 					    (nodemask[mfi])(m_crse) == coarse_fine_node )
 					{
+						// if (m_crse == amrex::IntVect(7,16) ||
+						//     m_crse == amrex::IntVect(8,16) ||
+						//     m_crse == amrex::IntVect(24,16) ||
+						//     m_crse == amrex::IntVect(25,16) 
+						//     ) {
+						// 	Util::Message(INFO,"m = ", m_crse, " val = ", fine(m_fine      ,n));
+						// 	crse(m_crse,n) = 0.0;
+						// 	continue;}
 						crse(m_crse,n) = 
 						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
 						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
