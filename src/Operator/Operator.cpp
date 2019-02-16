@@ -864,8 +864,10 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 	const Geometry& geom = m_geom[amrlev][mglev];
 	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());
 
+	if (amrlev >0 && phi.contains_nan(0, phi.nComp(), 1)) std::cout << "amrlev= " << amrlev << " CONTAINS NAN" << std::endl;
 	if (!skip_fillboundary) {
-	 	if (amrlev == 0) phi.FillBoundary(geom.periodicity());
+		//RealFillBoundary(phi);
+		if (amrlev == 0) phi.FillBoundary(geom.periodicity());
 		else RealFillBoundary(phi);
 	}
 

@@ -76,8 +76,10 @@ void Elastic::Define(int _ncells,
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		cgrids[ilev].define(cdomain);
-		cgrids[ilev].maxSize(amrex::IntVect(1000000,max_grid_size));
-		//cgrids[ilev].maxSize(max_grid_size);
+		//cgrids[ilev].maxSize(amrex::IntVect(1000000,max_grid_size));
+		// if (ilev == 0) cgrids[ilev].maxSize(100000000);
+		// if (ilev == 1)
+		cgrids[ilev].maxSize(max_grid_size);
 
 		if (_config == Grid::XYZ)
 			cdomain.grow(amrex::IntVect(-ncells/4)); 
@@ -435,20 +437,6 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// }	
 
 
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		//solution_exact  [ilev].setVal(0.0);
-		//solution_numeric[ilev].setVal(0.0);
-		// solution_error  [ilev].setVal(0.0);
-		// rhs_prescribed  [ilev].setVal(0.0);
-		// rhs_exact       [ilev].setVal(0.0);
-		// rhs_numeric     [ilev].setVal(0.0);
-		// res_exact       [ilev].setVal(0.0);
-		// res_numeric     [ilev].setVal(0.0);
-		// ghost_force     [ilev].setVal(0.0);
-	}
-
-
 	
 
 
@@ -466,8 +454,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		//WritePlotFile(plotfile,{0,2});
-		WritePlotFile(plotfile);
+		WritePlotFile(plotfile,{0,2});
+		//WritePlotFile(plotfile);
 	}
 
 	// Find maximum solution error
