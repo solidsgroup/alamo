@@ -60,18 +60,18 @@ void Elastic::Define(int _ncells,
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	amrex::Geometry::Setup(&rb, 0);
 
-	amrex::Box Ndomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
+	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
 			   amrex::IntVect{AMREX_D_DECL(ncells,ncells,ncells)},
 			   amrex::IntVect::TheNodeVector());
-	amrex::Box Cdomain = amrex::convert(Ndomain, amrex::IntVect::TheCellVector());
+	amrex::Box CDomain = amrex::convert(NDomain, amrex::IntVect::TheCellVector());
 
-	amrex::Box domain = Cdomain;
+	amrex::Box domain = CDomain;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  		{
  			geom[ilev].define(domain);
  			domain.refine(ref_ratio);
  		}
-	amrex::Box cdomain = Cdomain;
+	amrex::Box cdomain = CDomain;
 
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -96,7 +96,7 @@ void Elastic::Define(int _ncells,
 			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,-ncells/4)));
 		else if (_config == Grid::XY)
 			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,-ncells/4,0)));
-	
+			
 		cdomain.refine(ref_ratio); 
 		ngrids[ilev] = cgrids[ilev];
 		ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
@@ -354,7 +354,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
-	mlmg.setFixedIter(10);
+	mlmg.setFixedIter(20);
 	//mlmg.setMaxIter(1000);
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
@@ -442,13 +442,13 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	
 
 
-	for (int alev=0; alev < nlevels; alev++)
-	{
-	 	varname[14] = "res";    MultiFab::Copy(res_numeric[alev], mlmg.res[alev][0], 0, 0, AMREX_SPACEDIM, 2);
-	 	varname[4] = "cor";     MultiFab::Copy(solution_error[alev], *mlmg.cor[alev][0], 0, 0, AMREX_SPACEDIM, 2);    
-	 	varname[6] = "rhs";     MultiFab::Copy(rhs_prescribed[alev], mlmg.rhs[alev], 0, 0, AMREX_SPACEDIM, 2);
-	 	varname[16] = "rescor"; MultiFab::Copy(ghost_force[alev], mlmg.rescor[alev][0], 0, 0, AMREX_SPACEDIM, 2);
-	}
+	// for (int alev=0; alev < nlevels; alev++)
+	// {
+	//  	varname[14] = "res";    MultiFab::Copy(res_numeric[alev], mlmg.res[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+	//  	varname[4] = "cor";     MultiFab::Copy(solution_error[alev], *mlmg.cor[alev][0], 0, 0, AMREX_SPACEDIM, 2);    
+	//  	varname[6] = "rhs";     MultiFab::Copy(rhs_prescribed[alev], mlmg.rhs[alev], 0, 0, AMREX_SPACEDIM, 2);
+	//  	varname[16] = "rescor"; MultiFab::Copy(ghost_force[alev], mlmg.rescor[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+	// }
 	
 
 
@@ -456,10 +456,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		//WritePlotFile(plotfile,{0,2});
-		std::vector<int> nghosts(nlevels); 
-		for (int i = 0; i < nlevels; i++) nghosts[i] = 2; nghosts[0] = 0;
-		WritePlotFile(plotfile,{0,2,2});
+		WritePlotFile(plotfile);
+		// std::vector<int> nghosts(nlevels); 
+		// for (int i = 0; i < nlevels; i++) nghosts[i] = 2; nghosts[0] = 0;
+		// WritePlotFile(plotfile,{0,2,2});
 	}
 
 	// Find maximum solution error
@@ -655,18 +655,18 @@ int SpatiallyVaryingCTest(int /*verbose*/)
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	amrex::Geometry::Setup(&rb, 0);
 
-	amrex::Box ndomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
+	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
 			   amrex::IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
 			   amrex::IntVect::TheNodeVector());
-	amrex::Box cdomain = amrex::convert(ndomain, amrex::IntVect::TheCellVector());
+	amrex::Box CDomain = amrex::convert(NDomain, amrex::IntVect::TheCellVector());
 
-	amrex::Box domain = cdomain;
+	amrex::Box domain = CDomain;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		geom[ilev].define(domain);
 		domain.refine(ref_ratio);
  	}
-	amrex::Box cdomain = cdomain;
+	amrex::Box cdomain = CDomain;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  	{
  		cgrids[ilev].define(cdomain);

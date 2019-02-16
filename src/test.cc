@@ -68,14 +68,14 @@ int main (int argc, char* argv[])
 		// number of AMR levels
 		int nlevels = 2;
 		// dimension of the problem (must be less than or equal to AMREX_SPACEDIM
-		int problem_dimension = 2; 
+		int problem_dimension = AMREX_SPACEDIM; 
 		// Configuration of the grid (can be "None" or "X", "Y", "Z", "YZ", "ZX", "XY", "XYZ")
 		// XYZ = fine level shrunk in x, y, z directions; X = fine level shrunk in x direction only, etc.
 		Test::Operator::Elastic::Grid config = Test::Operator::Elastic::Grid::XYZ;
 
 		test.Define(32,nlevels,problem_dimension, config);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,2,"testoutput"));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1,"testoutput"));
 	}
 
 	Util::Message(INFO,failed," tests failed");
