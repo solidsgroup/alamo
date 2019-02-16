@@ -34,6 +34,8 @@ public :
 			 const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 	virtual ~Operator ();
 
+	virtual int getNGrow() const override {return 2;}
+
 	Operator (const Operator&) = delete;
 	Operator (Operator&&) = delete;
 	Operator& operator= (const Operator&) = delete;
