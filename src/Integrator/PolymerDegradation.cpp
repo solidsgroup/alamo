@@ -302,6 +302,8 @@ PolymerDegradation::PolymerDegradation():
 		pp_elastic.query("verbose",elastic_verbose);
 		pp_elastic.query("cg_verbose", elastic_cgverbose);
 		pp_elastic.query("bottom_max_iter", elastic_bottom_max_iter);
+		pp_elastic.query("max_fixed_iter", elastic_max_fixed_iter);
+
 		if (pp_elastic.countval("body_force")) pp_elastic.getarr("body_force",body_force);
 
 		amrex::ParmParse pp_elastic_bc("elastic.bc");
@@ -453,6 +455,7 @@ PolymerDegradation::PolymerDegradation():
 		stress_vm.resize(nlevels);
 		energy.resize(nlevels);
 		model.resize(nlevels);
+		residual.resize(nlevels);
 	}
 }
 
@@ -801,21 +804,21 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	if (time > elastic_tend) return;
 
 #if AMREX_SPACEDIM == 1
-	const int ncomp = 5;
-	Vector<std::string> varname = {"u01", "rhs01", "stress11", "strain11", "energy"};
+	const int ncomp = 6;
+	Vector<std::string> varname = {"u01", "rhs01", "stress11", "strain11", "energy", "residual"};
 
 #elif AMREX_SPACEDIM == 2
-	const int ncomp = 11;
+	const int ncomp = 12;
 	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12",
-									"strain11", "strain22", "strain12", "energy"};
+									"strain11", "strain22", "strain12", "energy", "residual"};
 
 #elif AMREX_SPACEDIM == 3
-	const int ncomp = 19;
+	const int ncomp = 20;
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
 								 "stress33", "stress23", "stress13", "stress12", 
 								 "strain11", "strain22","strain33", "strain23", "strain13", 
 								 "strain12", 
-								 "energy"};
+								 "energy", "residual"};
 #endif
 
 	Vector<amrex::MultiFab> plotmf(nlevels);
@@ -829,6 +832,7 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], stress 		[ilev], 0, 2, 1, 0);
 		MultiFab::Copy(plotmf[ilev], strain 		[ilev], 0, 3, 1, 0);
 		MultiFab::Copy(plotmf[ilev], energy 		[ilev], 0, 4, 1, 0);
+		MultiFab::Copy(plotmf[ilev], residual 		[ilev], 0, 5, 1, 0);
 #elif AMREX_SPACEDIM == 2
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0, 1, 0);
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1, 1, 0);
@@ -843,6 +847,7 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], strain [ilev], 3, 8, 1, 0);
 		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 9, 1, 0);
 		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 10, 1, 0);
+		MultiFab::Copy(plotmf[ilev], residual [ilev], 0, 11, 1, 0);
 #elif AMREX_SPACEDIM == 3
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0,  1, 0);
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1,  1, 0);
@@ -866,6 +871,7 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 16, 1, 0);
 		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
 		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 18, 1, 0);
+		MultiFab::Copy(plotmf[ilev], residual [ilev], 0, 19, 1, 0);
 #endif 
 	}
 	//Util::Message(INFO);
@@ -903,6 +909,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	stress_vm.resize(nlevels);
 	energy.resize(nlevels);
 	model.resize(nlevels);
+	residual.resize(nlevels);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -913,7 +920,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	int number_of_components = AMREX_SPACEDIM;
-	int number_of_ghost_cells = 1;
+	int number_of_ghost_cells = 2;
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -923,7 +930,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		strain		[ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
 		energy 		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
 		stress_vm	[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
-		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
+		residual	[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
 	}
 
 	info.setAgglomeration(agglomeration);
@@ -960,6 +968,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 			stress_vm[ilev].setVal(0.0);
 			rhs[ilev].setVal(0.0);
 			energy[ilev].setVal(0.0);
+			residual[ilev].setVal(0.0);
 		}
 		model[ilev].setVal(modeltype);
 
@@ -1065,6 +1074,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	amrex::MLMG solver(elastic_operator);
 	solver.setMaxIter(elastic_max_iter);
 	solver.setMaxFmgIter(elastic_max_fmg_iter);
+	solver.setFixedIter(elastic_max_fixed_iter);
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
 	solver.setBottomMaxIter(elastic_bottom_max_iter);
@@ -1082,6 +1092,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		GetVecOfConstPtrs(rhs),
 		elastic_tol_rel,
 		elastic_tol_abs);
+
+	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
