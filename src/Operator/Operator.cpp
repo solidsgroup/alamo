@@ -153,7 +153,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 			}
 		}
 	}
-	//nodalSync(amrlev, mglev, x);
+	nodalSync(amrlev, mglev, x);
 }
 
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
@@ -866,9 +866,8 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 
 	if (amrlev >0 && phi.contains_nan(0, phi.nComp(), 1)) std::cout << "amrlev= " << amrlev << " CONTAINS NAN" << std::endl;
 	if (!skip_fillboundary) {
-		//RealFillBoundary(phi);
-		if (amrlev == 0) phi.FillBoundary(geom.periodicity());
-		else RealFillBoundary(phi);
+		RealFillBoundary(phi);
+		//if (amrlev == 0) phi.FillBoundary(geom.periodicity()); else RealFillBoundary(phi);
 	}
 
 	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
@@ -964,7 +963,7 @@ Operator::reflux (int crse_amrlev,
  	const BoxArray&            fba = fine_res.boxArray();
  	const DistributionMapping& fdm = fine_res.DistributionMap();
 
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
 	fine_res_for_coarse.ParallelCopy(res,0,0,ncomp,0,0,cgeom.periodicity());
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
@@ -1147,6 +1146,9 @@ Operator::reflux (int crse_amrlev,
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+	const int mglev = 0;
+	nodalSync(crse_amrlev, 0, res);
+
 	return;
 }
 
