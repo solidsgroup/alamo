@@ -33,6 +33,9 @@
 #include "OperatorCell/Elastic/PolyCrystal/Cubic/Cubic.H"
 #include "OperatorCell/Elastic/Cubic/Cubic.H"
 
+#include "Model/Solid/LinearElastic/Cubic.H"
+#include "Operator/Elastic.H"
+
 namespace Integrator
 {
 ///
