@@ -808,17 +808,17 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	Vector<std::string> varname = {"u01", "rhs01", "stress11", "strain11", "energy", "residual"};
 
 #elif AMREX_SPACEDIM == 2
-	const int ncomp = 12;
+	const int ncomp = 13;
 	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12",
-									"strain11", "strain22", "strain12", "energy", "residual"};
+									"strain11", "strain22", "strain12", "energy", "residual01", "residual02"};
 
 #elif AMREX_SPACEDIM == 3
-	const int ncomp = 20;
+	const int ncomp = 22;
 	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
 								 "stress33", "stress23", "stress13", "stress12", 
 								 "strain11", "strain22","strain33", "strain23", "strain13", 
 								 "strain12", 
-								 "energy", "residual"};
+								 "energy", "residual01", "residual02", "residual03"};
 #endif
 
 	Vector<amrex::MultiFab> plotmf(nlevels);
@@ -848,6 +848,7 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 9, 1, 0);
 		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 10, 1, 0);
 		MultiFab::Copy(plotmf[ilev], residual [ilev], 0, 11, 1, 0);
+		MultiFab::Copy(plotmf[ilev], residual [ilev], 1, 12, 1, 0);
 #elif AMREX_SPACEDIM == 3
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0,  1, 0);
 		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1,  1, 0);
@@ -872,6 +873,8 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
 		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 18, 1, 0);
 		MultiFab::Copy(plotmf[ilev], residual [ilev], 0, 19, 1, 0);
+		MultiFab::Copy(plotmf[ilev], residual [ilev], 1, 20, 1, 0);
+		MultiFab::Copy(plotmf[ilev], residual [ilev], 2, 21, 1, 0);
 #endif 
 	}
 	//Util::Message(INFO);
@@ -1088,12 +1091,17 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		solver.setBottomSmooth(0);
 	}
 
+	Util::Message(INFO,residual[0].nGrow());
+	Util::Message(INFO,displacement[0].nGrow());
+	Util::Message(INFO,rhs[0].nGrow());
+
+	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 	solver.solve(GetVecOfPtrs(displacement),
 		GetVecOfConstPtrs(rhs),
 		elastic_tol_rel,
 		elastic_tol_abs);
 
-	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
+	//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
