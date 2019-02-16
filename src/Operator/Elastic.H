@@ -8,7 +8,7 @@
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
-
+#include "Test/Operator/Elastic.H"
 using namespace amrex;
 
 namespace Operator
@@ -19,6 +19,8 @@ namespace Operator
 template<class T>
 class Elastic : public Operator
 {
+	friend Test::Operator::Elastic;
+	
 	using TArrayBox = amrex::BaseFab<T>;
 	using MultiTab  = amrex::FabArray<TArrayBox>;
 public:
