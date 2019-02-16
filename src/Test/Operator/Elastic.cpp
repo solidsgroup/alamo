@@ -60,26 +60,27 @@ void Elastic::Define(int _ncells,
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	amrex::Geometry::Setup(&rb, 0);
 
-	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
+	amrex::Box Ndomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
 			   amrex::IntVect{AMREX_D_DECL(ncells,ncells,ncells)},
 			   amrex::IntVect::TheNodeVector());
-	amrex::Box CDomain = amrex::convert(NDomain, amrex::IntVect::TheCellVector());
+	amrex::Box Cdomain = amrex::convert(Ndomain, amrex::IntVect::TheCellVector());
 
-	amrex::Box domain = CDomain;
+	amrex::Box domain = Cdomain;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  		{
  			geom[ilev].define(domain);
  			domain.refine(ref_ratio);
  		}
-	amrex::Box cdomain = CDomain;
+	amrex::Box cdomain = Cdomain;
 
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		cgrids[ilev].define(cdomain);
 		//cgrids[ilev].maxSize(amrex::IntVect(1000000,max_grid_size));
-		// if (ilev == 0) cgrids[ilev].maxSize(100000000);
-		// if (ilev == 1)
-		cgrids[ilev].maxSize(max_grid_size);
+		if (ilev == 0) cgrids[ilev].maxSize(max_grid_size);
+		if (ilev == 1) cgrids[ilev].maxSize(max_grid_size);
+		if (ilev == 2) cgrids[ilev].maxSize(max_grid_size);
+		//cgrids[ilev].maxSize(max_grid_size);
 
 		if (_config == Grid::XYZ)
 			cdomain.grow(amrex::IntVect(-ncells/4)); 
@@ -95,7 +96,7 @@ void Elastic::Define(int _ncells,
 			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,-ncells/4)));
 		else if (_config == Grid::XY)
 			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,-ncells/4,0)));
-			
+	
 		cdomain.refine(ref_ratio); 
 		ngrids[ilev] = cgrids[ilev];
 		ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
@@ -296,7 +297,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 		// Uncomment this to initialize the numeric solution with the
 		// exact solution
 
-		//icexact.Initialize(ilev,solution_numeric); 
+		// Util::Warning(INFO,"icexact.Initialize(ilev,solution_numeric);");
+		// icexact.Initialize(ilev,solution_numeric); 
 	}
 
 	// Create and configure the Elastic operator
@@ -440,13 +442,13 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	
 
 
-	// for (int alev=0; alev < nlevels; alev++)
-	// {
-	// 	varname[14] = "res";    MultiFab::Copy(res_numeric[alev], mlmg.res[alev][0], 0, 0, AMREX_SPACEDIM, 2);
-	// 	varname[4] = "cor";     MultiFab::Copy(solution_error[alev], *mlmg.cor[alev][0], 0, 0, AMREX_SPACEDIM, 2);    
-	// 	varname[6] = "rhs";     MultiFab::Copy(rhs_prescribed[alev], mlmg.rhs[alev], 0, 0, AMREX_SPACEDIM, 2);
-	// 	varname[16] = "rescor"; MultiFab::Copy(ghost_force[alev], mlmg.rescor[alev][0], 0, 0, AMREX_SPACEDIM, 2);
-	// }
+	for (int alev=0; alev < nlevels; alev++)
+	{
+	 	varname[14] = "res";    MultiFab::Copy(res_numeric[alev], mlmg.res[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+	 	varname[4] = "cor";     MultiFab::Copy(solution_error[alev], *mlmg.cor[alev][0], 0, 0, AMREX_SPACEDIM, 2);    
+	 	varname[6] = "rhs";     MultiFab::Copy(rhs_prescribed[alev], mlmg.rhs[alev], 0, 0, AMREX_SPACEDIM, 2);
+	 	varname[16] = "rescor"; MultiFab::Copy(ghost_force[alev], mlmg.rescor[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+	}
 	
 
 
@@ -454,8 +456,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		WritePlotFile(plotfile,{0,2});
-		//WritePlotFile(plotfile);
+		//WritePlotFile(plotfile,{0,2});
+		std::vector<int> nghosts(nlevels); 
+		for (int i = 0; i < nlevels; i++) nghosts[i] = 2; nghosts[0] = 0;
+		WritePlotFile(plotfile,{0,2,2});
 	}
 
 	// Find maximum solution error
@@ -651,18 +655,18 @@ int SpatiallyVaryingCTest(int /*verbose*/)
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
 	amrex::Geometry::Setup(&rb, 0);
 
-	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
+	amrex::Box ndomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
 			   amrex::IntVect{AMREX_D_DECL(n_cell,n_cell,n_cell)},
 			   amrex::IntVect::TheNodeVector());
-	amrex::Box CDomain = amrex::convert(NDomain, amrex::IntVect::TheCellVector());
+	amrex::Box cdomain = amrex::convert(ndomain, amrex::IntVect::TheCellVector());
 
-	amrex::Box domain = CDomain;
+	amrex::Box domain = cdomain;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		geom[ilev].define(domain);
 		domain.refine(ref_ratio);
  	}
-	amrex::Box cdomain = CDomain;
+	amrex::Box cdomain = cdomain;
  	for (int ilev = 0; ilev < nlevels; ++ilev)
  	{
  		cgrids[ilev].define(cdomain);
