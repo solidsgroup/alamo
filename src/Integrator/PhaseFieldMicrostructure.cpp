@@ -560,7 +560,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
  	for (int lev = 0; lev < displacement.size(); lev++)
  	{
- 		const amrex::Real* DX = geom[lev].CellSize();
+ 		//const amrex::Real* DX = geom[lev].CellSize();
 
  		elastic.op->Stress(lev,*stress[lev],*displacement[lev]);
  		//elastic_operator->Energy(lev,*energy[lev],*displacement[lev]);

@@ -239,8 +239,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// Define the "model" fab to be a Laplacian, so that this
 	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
 	Set::Scalar alpha = 1.0;
-	using model_type = Model::Solid::LinearElastic::Laplacian;
-	model_type model(alpha);
+	using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(alpha);
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
