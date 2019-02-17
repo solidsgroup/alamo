@@ -866,7 +866,41 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 
 	if (amrlev >0 && phi.contains_nan(0, phi.nComp(), 1)) std::cout << "amrlev= " << amrlev << " CONTAINS NAN" << std::endl;
 	if (!skip_fillboundary) {
-		RealFillBoundary(phi);
+
+
+		//
+		// This is special code to fill a boundary when there are TWO ghost nodes
+		//
+
+		MultiFab & mf = phi;
+
+		Geometry geom = m_geom[0][0];
+		const int ng1 = 1;
+		const int ng2 = 2;
+		const int ncomp = mf.nComp();
+		mf.FillBoundary(geom.periodicity()); 
+
+		BoxArray ba = mf.boxArray();
+		ba.grow(1);
+		MultiFab tmpmf(ba, mf.DistributionMap(), ncomp, ng1);
+		for (MFIter mfi(tmpmf,true); mfi.isValid(); ++mfi)
+		{
+			Box bx  = mfi.tilebox();
+			bx.grow(1);
+			tmpmf[mfi].copy(mf[mfi],bx,0,bx,0,ncomp);
+		}
+
+		tmpmf.FillBoundary(geom.periodicity());
+
+		for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)
+		{
+			Box bx  = mfi.tilebox();
+			bx.grow(2);
+			mf[mfi].copy(tmpmf[mfi],bx,0,bx,0,ncomp);
+		}
+
+
+		//RealFillBoundary(phi);
 		//if (amrlev == 0) phi.FillBoundary(geom.periodicity()); else RealFillBoundary(phi);
 	}
 
@@ -1147,10 +1181,30 @@ Operator::reflux (int crse_amrlev,
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
 	const int mglev = 0;
-	nodalSync(crse_amrlev, 0, res);
+	nodalSync(crse_amrlev,mglev, res);
 
 	return;
 }
+
+void
+Operator::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			    const MultiFab* /*crse_bcdata*/)
+{
+    const int mglev = 0;
+    const int ncomp = b.nComp();
+    apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+}
+
+void
+Operator::correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			      BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
+{
+    apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+    int ncomp = b.nComp();
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+}
+
 
 
 }

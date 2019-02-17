@@ -73,7 +73,7 @@ int main (int argc, char* argv[])
 		// XYZ = fine level shrunk in x, y, z directions; X = fine level shrunk in x direction only, etc.
 		Test::Operator::Elastic::Grid config = Test::Operator::Elastic::Grid::XYZ;
 
-		test.Define(32,nlevels,problem_dimension, config);
+		test.Define(16,nlevels,problem_dimension, config);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1,"testoutput"));
 	}

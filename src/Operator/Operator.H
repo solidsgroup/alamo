@@ -53,6 +53,11 @@ public :
 		      const Vector<const MultiFab*>& rhnd,
 		      const Vector<MultiFab*>& rhcc);
 
+	virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+				       const MultiFab* crse_bcdata=nullptr) override;
+	virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+					 BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override;
+
 	void compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& phi,
 				     const MultiFab& vold, const MultiFab* rhcc,
 				     const BoxArray& fine_grids, const IntVect& ref_ratio);
