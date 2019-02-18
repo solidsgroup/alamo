@@ -153,7 +153,7 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 			}
 		}
 	}
-	//nodalSync(amrlev, mglev, x);
+	nodalSync(amrlev, mglev, x);
 }
 
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
@@ -865,22 +865,24 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());
 
 	if (!skip_fillboundary) {
-	 	if (amrlev == 0) phi.FillBoundary(geom.periodicity());
-		else RealFillBoundary(phi);
+
+		//
+		// This is special code to fill a boundary when there are TWO ghost nodes
+		//
+
+		MultiFab & mf = phi;
+		mf.FillBoundary(geom.periodicity());
+		const int ncomp = mf.nComp();
+		const int ng1 = 1;
+		const int ng2 = 2;
+		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+		mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+
+
+
 	}
 
-	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
-	{
-		for (MFIter mfi(phi); mfi.isValid(); ++mfi)
-		{
-			if (!nd_domain.strictly_contains(mfi.fabbox()))
-			{
-				amrex_mlndlap_applybc(BL_TO_FORTRAN_ANYD(phi[mfi]),
-						      BL_TO_FORTRAN_BOX(nd_domain),
-						      m_lobc.data(), m_hibc.data());
-			}
-		}
-	}
 }
 
 const amrex::FArrayBox &
@@ -962,7 +964,7 @@ Operator::reflux (int crse_amrlev,
  	const BoxArray&            fba = fine_res.boxArray();
  	const DistributionMapping& fdm = fine_res.DistributionMap();
 
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
 	fine_res_for_coarse.ParallelCopy(res,0,0,ncomp,0,0,cgeom.periodicity());
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
@@ -1145,8 +1147,31 @@ Operator::reflux (int crse_amrlev,
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+	const int mglev = 0;
+	nodalSync(crse_amrlev,mglev, res);
+
 	return;
 }
+
+void
+Operator::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			    const MultiFab* /*crse_bcdata*/)
+{
+    const int mglev = 0;
+    const int ncomp = b.nComp();
+    apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+}
+
+void
+Operator::correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			      BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
+{
+    apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+    int ncomp = b.nComp();
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+}
+
 
 
 }

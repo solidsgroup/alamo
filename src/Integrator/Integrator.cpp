@@ -230,6 +230,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 			     int ncomp,
+			     int nghost,
 			     std::string name)
 {
 	int nlevs_max = maxLevel() + 1;
@@ -237,7 +238,7 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 	node.fab_array.push_back(&new_fab);
 	node.physbc_array.push_back(new BC::Nothing); 
 	node.ncomp_array.push_back(ncomp);
-	node.nghost_array.push_back(0);
+	node.nghost_array.push_back(nghost);
 	node.name_array.push_back(name);
 	node.number_of_fabs++;
 }
@@ -520,6 +521,7 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
+		WritePlotFile();
 		IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
 		TimeStepComplete(cur_time,step);

@@ -76,7 +76,10 @@ void Elastic::Define(int _ncells,
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		cgrids[ilev].define(cdomain);
-		cgrids[ilev].maxSize(amrex::IntVect(1000000,max_grid_size));
+		//cgrids[ilev].maxSize(amrex::IntVect(1000000,max_grid_size));
+		if (ilev == 0) cgrids[ilev].maxSize(max_grid_size);
+		if (ilev == 1) cgrids[ilev].maxSize(max_grid_size);
+		if (ilev == 2) cgrids[ilev].maxSize(max_grid_size);
 		//cgrids[ilev].maxSize(max_grid_size);
 
 		if (_config == Grid::XYZ)
@@ -236,8 +239,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// Define the "model" fab to be a Laplacian, so that this
 	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
 	Set::Scalar alpha = 1.0;
-	using model_type = Model::Solid::LinearElastic::Laplacian;
-	model_type model(alpha);
+	using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(alpha);
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
@@ -294,7 +296,8 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 		// Uncomment this to initialize the numeric solution with the
 		// exact solution
 
-		//icexact.Initialize(ilev,solution_numeric); 
+		// Util::Warning(INFO,"icexact.Initialize(ilev,solution_numeric);");
+		// icexact.Initialize(ilev,solution_numeric); 
 	}
 
 	// Create and configure the Elastic operator
@@ -350,7 +353,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
-	mlmg.setFixedIter(10);
+	mlmg.setFixedIter(20);
 	//mlmg.setMaxIter(1000);
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
@@ -435,29 +438,15 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// }	
 
 
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		//solution_exact  [ilev].setVal(0.0);
-		//solution_numeric[ilev].setVal(0.0);
-		// solution_error  [ilev].setVal(0.0);
-		// rhs_prescribed  [ilev].setVal(0.0);
-		// rhs_exact       [ilev].setVal(0.0);
-		// rhs_numeric     [ilev].setVal(0.0);
-		// res_exact       [ilev].setVal(0.0);
-		// res_numeric     [ilev].setVal(0.0);
-		// ghost_force     [ilev].setVal(0.0);
-	}
-
-
 	
 
 
 	// for (int alev=0; alev < nlevels; alev++)
 	// {
-	// 	varname[14] = "res";    MultiFab::Copy(res_numeric[alev], mlmg.res[alev][0], 0, 0, AMREX_SPACEDIM, 2);
-	// 	varname[4] = "cor";     MultiFab::Copy(solution_error[alev], *mlmg.cor[alev][0], 0, 0, AMREX_SPACEDIM, 2);    
-	// 	varname[6] = "rhs";     MultiFab::Copy(rhs_prescribed[alev], mlmg.rhs[alev], 0, 0, AMREX_SPACEDIM, 2);
-	// 	varname[16] = "rescor"; MultiFab::Copy(ghost_force[alev], mlmg.rescor[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+	//  	varname[14] = "res";    MultiFab::Copy(res_numeric[alev], mlmg.res[alev][0], 0, 0, AMREX_SPACEDIM, 2);
+	//  	varname[4] = "cor";     MultiFab::Copy(solution_error[alev], *mlmg.cor[alev][0], 0, 0, AMREX_SPACEDIM, 2);    
+	//  	varname[6] = "rhs";     MultiFab::Copy(rhs_prescribed[alev], mlmg.rhs[alev], 0, 0, AMREX_SPACEDIM, 2);
+	//  	varname[16] = "rescor"; MultiFab::Copy(ghost_force[alev], mlmg.rescor[alev][0], 0, 0, AMREX_SPACEDIM, 2);
 	// }
 	
 
@@ -466,8 +455,10 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	if (plotfile != "")
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
-		//WritePlotFile(plotfile,{0,2});
 		WritePlotFile(plotfile);
+		// std::vector<int> nghosts(nlevels); 
+		// for (int i = 0; i < nlevels; i++) nghosts[i] = 2; nghosts[0] = 0;
+		// WritePlotFile(plotfile,{0,2,2});
 	}
 
 	// Find maximum solution error
