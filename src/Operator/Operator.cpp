@@ -864,58 +864,25 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 	const Geometry& geom = m_geom[amrlev][mglev];
 	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());
 
-	if (amrlev >0 && phi.contains_nan(0, phi.nComp(), 1)) std::cout << "amrlev= " << amrlev << " CONTAINS NAN" << std::endl;
 	if (!skip_fillboundary) {
-
 
 		//
 		// This is special code to fill a boundary when there are TWO ghost nodes
 		//
 
 		MultiFab & mf = phi;
-
-		Geometry geom = m_geom[0][0];
+		mf.FillBoundary(geom.periodicity());
+		const int ncomp = mf.nComp();
 		const int ng1 = 1;
 		const int ng2 = 2;
-		const int ncomp = mf.nComp();
-		mf.FillBoundary(geom.periodicity()); 
-
-		BoxArray ba = mf.boxArray();
-		ba.grow(1);
-		MultiFab tmpmf(ba, mf.DistributionMap(), ncomp, ng1);
-		for (MFIter mfi(tmpmf,true); mfi.isValid(); ++mfi)
-		{
-			Box bx  = mfi.tilebox();
-			bx.grow(1);
-			tmpmf[mfi].copy(mf[mfi],bx,0,bx,0,ncomp);
-		}
-
-		tmpmf.FillBoundary(geom.periodicity());
-
-		for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)
-		{
-			Box bx  = mfi.tilebox();
-			bx.grow(2);
-			mf[mfi].copy(tmpmf[mfi],bx,0,bx,0,ncomp);
-		}
+		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+		mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
 
 
-		//RealFillBoundary(phi);
-		//if (amrlev == 0) phi.FillBoundary(geom.periodicity()); else RealFillBoundary(phi);
+
 	}
 
-	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
-	{
-		for (MFIter mfi(phi); mfi.isValid(); ++mfi)
-		{
-			if (!nd_domain.strictly_contains(mfi.fabbox()))
-			{
-				amrex_mlndlap_applybc(BL_TO_FORTRAN_ANYD(phi[mfi]),
-						      BL_TO_FORTRAN_BOX(nd_domain),
-						      m_lobc.data(), m_hibc.data());
-			}
-		}
-	}
 }
 
 const amrex::FArrayBox &

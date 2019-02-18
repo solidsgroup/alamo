@@ -201,6 +201,7 @@ protected:
 			     );
 	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 			       int ncomp,
+			       int nghost,
 			       std::string name
 			       );
 
@@ -236,6 +237,7 @@ private:
 	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
 	std::vector<std::string> PlotFileName (int lev) const;
+protected:
 	void WritePlotFile () const;
 
 	//
