@@ -140,6 +140,10 @@ private:
 
 	std::vector<OperatorCell::Elastic::PolyCrystal::PolyCrystalModel *> models;
 	
+	const std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,0,1)))}};
+
 };
 }
 #endif
