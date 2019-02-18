@@ -53,6 +53,11 @@ public :
 		      const Vector<const MultiFab*>& rhnd,
 		      const Vector<MultiFab*>& rhcc);
 
+	virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+				       const MultiFab* crse_bcdata=nullptr) override;
+	virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+					 BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override;
+
 	void compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& phi,
 				     const MultiFab& vold, const MultiFab* rhcc,
 				     const BoxArray& fine_grids, const IntVect& ref_ratio);
@@ -65,6 +70,10 @@ public :
 
 	void setCoarseningStrategy (CoarseningStrategy cs) { m_coarsening_strategy = cs; }
 
+	virtual void Reflux (int crse_amrlev,
+			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
+	{reflux(crse_amrlev,res,crse_sol,crse_rhs,fine_res,fine_sol,fine_rhs);}
 	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fapply(amrlev, mglev, out, in);};
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
