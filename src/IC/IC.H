@@ -3,6 +3,7 @@
 
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
+#include "Util/Util.H"
 
 namespace IC
 {
@@ -13,12 +14,7 @@ public:
 		: geom(_geom) {} ;
   
 	virtual void Add(const int lev, amrex::Vector<amrex::MultiFab *> &field) = 0;
-	void Add(const int lev,
-		 amrex::Vector<amrex::MultiFab> &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Add(lev,pfield);
-	};
+
 	void Initialize(const int lev,
 			amrex::Vector<amrex::MultiFab *> &field)
 	{
@@ -36,6 +32,19 @@ public:
 	{
 		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
 		Initialize(lev,pfield);
+	};
+	void Add(const int lev,
+			amrex::Vector<amrex::MultiFab> &field)
+	{
+		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
+		Add(lev,pfield);
+	};
+
+	void Add(const int lev,
+			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
+	{
+		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
+		Add(lev,pfield);
 	};
 
 	virtual void SetComp(int a_comp) final {comp = a_comp;}

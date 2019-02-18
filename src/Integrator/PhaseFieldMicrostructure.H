@@ -99,18 +99,32 @@ private:
 
 	Set::Scalar volume = 5;
 
-	bool        elastic_on = false;
-	int         elastic_int = 1;
-	std::string elastic_type;
-	int         elastic_max_iter = 200;
-	int         elastic_max_fmg_iter = 0;
-	int         elastic_verbose = 3;
-	int         elastic_cgverbose = 3;
-	amrex::Real elastic_tol_rel = 0.0;
-	amrex::Real elastic_tol_abs = 1.0E-10;
-	amrex::Real elastic_tstart = 0.0;
-	amrex::Vector<amrex::Real> elastic_load_t;
-	amrex::Vector<amrex::Real> elastic_load_disp;
+	struct
+	{
+		bool        on       = false;
+		int         interval = 1;
+		//std::string type;
+		int         max_iter = 20;
+		int         max_fmg_iter = 20;
+		int         verbose = 3;
+		int         cgverbose = 3;
+		amrex::Real tol_rel = 0.0;
+		amrex::Real tol_abs = 1.0E-10;
+		amrex::Real tstart = 0.0;
+		amrex::Vector<amrex::Real> elastic_load_t;
+		amrex::Vector<amrex::Real> elastic_load_disp;
+		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
+		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
+		std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
+		std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
+
+
+		Operator::Elastic<Model::Solid::LinearElastic::Cubic> *op;
+		//BC::BC *bc;
+
+	} elastic;
+	//#endif
+
 	//OperatorCell::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
 	Operator::Elastic<Model::Solid::LinearElastic::Cubic> *elastic_operator;
 	BC::BC *elastic_bc;
