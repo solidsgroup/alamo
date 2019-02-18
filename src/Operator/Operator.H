@@ -70,6 +70,10 @@ public :
 
 	void setCoarseningStrategy (CoarseningStrategy cs) { m_coarsening_strategy = cs; }
 
+	virtual void Reflux (int crse_amrlev,
+			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
+	{reflux(crse_amrlev,res,crse_sol,crse_rhs,fine_res,fine_sol,fine_rhs);}
 	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fapply(amrlev, mglev, out, in);};
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
