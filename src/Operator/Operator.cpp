@@ -89,6 +89,8 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
 
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+
 	int ncomp = b.nComp();
 	int nghost = b.nGrow();
 	
@@ -103,11 +105,11 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
 
-		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,0); // Dx = x
-		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,0); // Dx *= diag  (Dx = x*diag)
+		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,2); // Dx = x
+		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,2); // Dx *= diag  (Dx = x*diag)
 
-		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,0); // Rx = Ax
-		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,0); // Rx -= Dx  (Rx = Ax - Dx)
+		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,2); // Rx = Ax
+		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
 
 		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
 		{
@@ -119,22 +121,39 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 
 			for (int n = 0; n < ncomp; n++)
 			{
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1<=bx.hiVect()[0] + 2; m1++),
+					     for (int m2 = bx.loVect()[1] - 2; m2<=bx.hiVect()[1] + 2; m2++),
+					     for (int m3 = bx.loVect()[2] - 2; m3<=bx.hiVect()[2] + 2; m3++))
 				{
 
 					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
+					// Skip ghost cells outside problem domain
+					if (AMREX_D_TERM(m[0] < domain.loVect()[0], ||
+							 m[1] < domain.loVect()[1], ||
+							 m[2] < domain.loVect()[2])) continue;
+					if (AMREX_D_TERM(m[0] > domain.hiVect()[0] + 1, ||
+							 m[1] > domain.hiVect()[1] + 1, ||
+							 m[2] > domain.hiVect()[2] + 1)) continue;
+
+					if (AMREX_D_TERM(m[0] == bx.loVect()[0] - 2 || m[0] == bx.hiVect()[0] + 2, ||
+							 m[1] == bx.loVect()[1] - 2 || m[1] == bx.hiVect()[1] + 2, ||
+							 m[2] == bx.loVect()[2] - 2 || m[2] == bx.hiVect()[2] + 2))
+					{
+						xfab(m,n) = 0.0;
+						continue;
+					}
 
 					Set::Scalar xold = xfab(m,n);
 					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
 					residual += fabs(xold - xfab(m,n));
+
 				}
 			}
 		}
 	}
+	//nodalSync(amrlev, mglev, x);
 }
 
 void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
@@ -142,6 +161,8 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 	BL_PROFILE("Operator::normalize()");
 	//Util::Message(INFO);
 	bool debug = false;		// Enable this for inverse approximation
+ 
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 
 	int ncomp = getNComp();
 	int nghost = 1; //x.nGrow();
@@ -171,11 +192,17 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 
 		for (int n = 0; n < ncomp; n++)
 		{
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+				     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+				     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
+				if (m[0] < domain.loVect()[0]) continue;
+				if (m[1] < domain.loVect()[1]) continue;
+				if (m[0] > domain.hiVect()[0]+1) continue;
+				if (m[1] > domain.hiVect()[1]+1) continue;
+
 				xfab(m,n) /= diagfab(m,n);
 			}
 		}
@@ -376,7 +403,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 
 	 MLNodeLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
-	 int nghost = 0;
+	 int nghost = 2;
 	 // Resize the multifab containing the operator diagonal
 	 m_diag.resize(m_num_amr_levels);
 	 for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -838,7 +865,8 @@ Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());
 
 	if (!skip_fillboundary) {
-		phi.FillBoundary(geom.periodicity());
+	 	if (amrlev == 0) phi.FillBoundary(geom.periodicity());
+		else RealFillBoundary(phi);
 	}
 
 	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
@@ -971,65 +999,41 @@ Operator::reflux (int crse_amrlev,
 					amrex::IntVect m_crse(m1,  m2);
 					amrex::IntVect m_fine(m1*2,m2*2);
 					
-					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1||
-					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
-						continue;
-
-					if ((nodemask[mfi])(m_crse) == fine_fine_node)
+					// Domain boundaries
+					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] + 1 ||
+					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] + 1)
 					{
+						if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
+						// Domain corner
+						if ((m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.loVect()[1]     ) ||
+						    (m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.hiVect()[1] + 1 ) ||
+						    (m1 == c_cc_domain.hiVect()[0] + 1 && m2 == c_cc_domain.loVect()[1]     ) ||
+						    (m1 == c_cc_domain.hiVect()[0] + 1 && m2 == c_cc_domain.hiVect()[1] + 1 ))
+							crse(m_crse,n) = fine(m_fine,n);
+						// Domain xlo or xhi edge
+						else if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1)
+							crse(m_crse,n) = 0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n);
+						// Domain ylo or yhi edge
+						else if (m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
+							crse(m_crse,n) = 0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n);
+						continue;
+					}
+					// Interior boundaries
+					if ((nodemask[mfi])(m_crse) == fine_fine_node ||
+					    (nodemask[mfi])(m_crse) == coarse_fine_node )
+					{
+						// if (m_crse == amrex::IntVect(7,16) ||
+						//     m_crse == amrex::IntVect(8,16) ||
+						//     m_crse == amrex::IntVect(24,16) ||
+						//     m_crse == amrex::IntVect(25,16) 
+						//     ) {
+						// 	Util::Message(INFO,"m = ", m_crse, " val = ", fine(m_fine      ,n));
+						// 	crse(m_crse,n) = 0.0;
+						// 	continue;}
 						crse(m_crse,n) = 
 						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
 						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
 						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-					}
-					else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
-					{
-						/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-						/**/ // solution to converge to the CORRECT answer.
-						/**/ // If these are commented out, the solution converges super fast but to the 
-						/**/ // WRONG answer. TODO: figure out what's going on here.
-						/**/    crse(m_crse,n) *= 2.0;
-						/**/    continue;
-
-
-						// Exterior corner
-						if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 1)
-						{
-							crse(m_crse,n) = fine(m_fine,n);
-						}
-						// Interior corner - same as if not on C/F boundary
-						else if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 3)
-						{
-							crse(m_crse,n) = 
-								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-
-							if (m_crse == amrex::IntVect(8,4)) Util::Message(INFO);
-
-						}
-						// xmin / xmax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[1])) &&
-							  (cellmask[mfi](m_crse-dx[0]) == cellmask[mfi](m_crse-dx[0]-dx[1])))
-							//m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
-						}
-						// ymin / ymax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[0])) &&
-							  (cellmask[mfi](m_crse-dx[1]) == cellmask[mfi](m_crse-dx[1]-dx[0])))
-						//else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
-						}
-						else
-						{
-							Util::Abort(INFO,"Coarse/fine node not on boundary of fab");
-						}
-					}				
-					else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
-					{
-						//Util::Message(INFO,"Discovered coarse node while on fine fab: crse amrlev = ", crse_amrlev,", m_crse = ", m_crse, " box = ", bx);
 					}
 				}
 #elif AMREX_SPACEDIM == 3
@@ -1048,7 +1052,8 @@ Operator::reflux (int crse_amrlev,
 						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
 						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2] +1);
 						
-						if ((nodemask[mfi])(m_crse) == fine_fine_node)
+						if ((nodemask[mfi])(m_crse) == fine_fine_node ||
+						    (nodemask[mfi])(m_crse) == coarse_fine_node)
 						{
 							crse(m_crse,n) =
 								0.25*
@@ -1068,14 +1073,8 @@ Operator::reflux (int crse_amrlev,
 						}
 						else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
 						{
-							/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-							/**/ // solution to converge to the CORRECT answer.
-							/**/ // If these are commented out, the solution converges super fast but to the 
-							/**/ // WRONG answer. TODO: figure out what's going on here.
-							/**/    crse(m_crse,n) *= 2.0;
-							/**/    continue;
 
-							// DOES NOT CONTINUE BEYOND THIS POINT
+							Util::Abort(INFO,"you should not be here!");
 
 							// Corners
 							if ((xmin && ymin && zmin) ||

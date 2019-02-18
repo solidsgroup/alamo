@@ -1,6 +1,7 @@
 #ifndef TEST_OPERATOR_ELASTIC_H
 #define TEST_OPERATOR_ELASTIC_H
 
+#include"Util/Util.H"
 #include <AMReX_Vector.H>
 
 namespace Test
@@ -10,6 +11,9 @@ namespace Operator
 class Elastic
 {
 public:
+	enum Grid {None, X, Y, Z, YZ, ZX, XY, XYZ};
+
+public:
 	Elastic() {};
 
 	/// Create a simulation domain where the coarse level has ncells x ncells ( x ncells)
@@ -18,7 +22,9 @@ public:
 	/// the resolution.
 	/// \todo Add option to specify one of multiple refinement geometries
 	void Define(int _ncells,
-		    int _nlevels);
+		    int _nlevels,
+		    int _dim = AMREX_SPACEDIM,
+		    Grid config = Grid::XYZ);
 
 	/// Impose a set of prescribed values for \f$\mathbf{u}\f$.
 	/// Compute right hand side, then use Operator::Reflux to modify the residual \f$\mathbf{r}=\mathbf{b}-D\mathbf{u}\f$.
@@ -68,33 +74,38 @@ public:
 	
 private: // Private member functions
 
-	void WritePlotFile(std::string plotfile)
+	void WritePlotFile(std::string plotfile, std::vector<int> nghost)
 	{
 		const int output_comp = varname.size();
 		amrex::Vector<amrex::MultiFab> plotmf(nlevels);
 		for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			//if (ilev==1) ngrids[ilev].growHi(1,1);
-			plotmf			[ilev].define(ngrids[ilev], dmap[ilev], output_comp, 0);
-			amrex::MultiFab::Copy(plotmf	[ilev], solution_exact [ilev], 0, 0*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], solution_numeric[ilev],0, 1*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], solution_error [ilev], 0, 2*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], rhs_prescribed [ilev], 0, 3*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], rhs_exact      [ilev], 0, 4*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], rhs_numeric    [ilev], 0, 5*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], res_exact      [ilev], 0, 6*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], res_numeric    [ilev], 0, 7*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
-			amrex::MultiFab::Copy(plotmf	[ilev], ghost_force    [ilev], 0, 8*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			ngrids[ilev].grow(nghost[ilev]);
+			plotmf[ilev].define(ngrids[ilev], dmap[ilev], output_comp, nghost[ilev]);
+
+			amrex::MultiFab::Copy(plotmf	[ilev], solution_exact [ilev],  0, 0*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], solution_numeric[ilev], 0, 1*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], solution_error [ilev],  0, 2*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], rhs_prescribed [ilev],  0, 3*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], rhs_exact      [ilev],  0, 4*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], rhs_numeric    [ilev],  0, 5*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], res_exact      [ilev],  0, 6*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], res_numeric    [ilev],  0, 7*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
+			amrex::MultiFab::Copy(plotmf	[ilev], ghost_force    [ilev],  0, 8*AMREX_SPACEDIM, AMREX_SPACEDIM, 0); // 
 		}
-
-
 		amrex::WriteMultiLevelPlotfile(plotfile, nlevels, amrex::GetVecOfConstPtrs(plotmf),
 					       varname, geom, 0.0, amrex::Vector<int>(nlevels, 0),
 					       amrex::Vector<amrex::IntVect>(nlevels, amrex::IntVect{ref_ratio}));
 	}		
+	void WritePlotFile(std::string plotfile, int nghost = 0)
+	{
+		std::vector<int> ngs(nlevels,nghost);
+		WritePlotFile(plotfile,ngs);
+	}
 
-	
 private: // Private member variables
+	int dim = 1;
+
 	int nlevels = 1;
 	int ncells = 16;
 	const int ref_ratio = 2;
