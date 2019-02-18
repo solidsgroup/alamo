@@ -446,7 +446,7 @@ Integrator::WritePlotFile () const
 			for (int j = 1; j <= node.ncomp_array[i]; j++)
 				nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
 		else
-			nnames.push_back(cell.name_array[i]);
+			nnames.push_back(node.name_array[i]);
 	}
 
 	amrex::Vector<MultiFab> cplotmf(nlevels), nplotmf(nlevels);
@@ -521,7 +521,6 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
-		WritePlotFile();
 		IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
 		TimeStepComplete(cur_time,step);

@@ -1,4 +1,5 @@
 #include "PolymerDegradation.H"
+#include "AMReX_MLCGSolver.H"
 //#if AMREX_SPACEDIM == 1
 namespace Integrator
 {
@@ -133,7 +134,8 @@ PolymerDegradation::PolymerDegradation():
 			std::cout<< "Warning. Mu must be positive. Resetting back to default value" <<std::endl;
 			mu = 1.0;
 		}
-		modeltype = Model::Solid::LinearElastic::Degradable::Isotropic(lambda,mu);
+		modeltype = model_type(lambda,mu);
+		//modeltype = model_type(1.0);
 		//Model::Solid::Elastic::Degradable::Isotropic modeltype(lambda,mu);
 		//modeltype(lambda,mu);
 	}
@@ -303,6 +305,7 @@ PolymerDegradation::PolymerDegradation():
 		pp_elastic.query("cg_verbose", elastic_cgverbose);
 		pp_elastic.query("bottom_max_iter", elastic_bottom_max_iter);
 		pp_elastic.query("max_fixed_iter", elastic_max_fixed_iter);
+		pp_elastic.query("bottom_tol", elastic_bottom_tol);
 
 		if (pp_elastic.countval("body_force")) pp_elastic.getarr("body_force",body_force);
 
@@ -317,11 +320,11 @@ PolymerDegradation::PolymerDegradation():
 						pp_elastic_bc.queryarr("bc_y_hi",bc_y_hi_str);,
 						pp_elastic_bc.queryarr("bc_z_hi",bc_z_hi_str););
 
-		bc_map["displacement"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement;
-		bc_map["disp"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement;
-		bc_map["traction"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Traction;
-		bc_map["trac"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Traction;
-		bc_map["periodic"] = Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Periodic;
+		bc_map["displacement"] = Operator::Elastic<model_type>::BC::Displacement;
+		bc_map["disp"] = Operator::Elastic<model_type>::BC::Displacement;
+		bc_map["traction"] = Operator::Elastic<model_type>::BC::Traction;
+		bc_map["trac"] = Operator::Elastic<model_type>::BC::Traction;
+		bc_map["periodic"] = Operator::Elastic<model_type>::BC::Periodic;
 
 		AMREX_D_TERM(	bc_x_lo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]], bc_map[bc_x_lo_str[1]], bc_map[bc_x_lo_str[2]])};
 						bc_x_hi = {AMREX_D_DECL(bc_map[bc_x_hi_str[0]], bc_map[bc_x_hi_str[1]], bc_map[bc_x_hi_str[2]])};
@@ -446,16 +449,18 @@ PolymerDegradation::PolymerDegradation():
 		nlevels = maxLev+1;
 
 		ngrids.resize(nlevels);
-		//ndmap.resize(nlevels);
+		ndmap.resize(nlevels);
 
-		displacement.resize(nlevels);
-		rhs.resize(nlevels);
-		strain.resize(nlevels);
-		stress.resize(nlevels);
-		stress_vm.resize(nlevels);
-		energy.resize(nlevels);
-		model.resize(nlevels);
-		residual.resize(nlevels);
+		const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
+		//displacement.resize(nlevels);
+		RegisterNodalFab (displacement,AMREX_SPACEDIM,2,"displacement");;
+		RegisterNodalFab (rhs,AMREX_SPACEDIM,2,"rhs");;
+		RegisterNodalFab (strain,number_of_stress_components,2,"strain");;
+		RegisterNodalFab (stress,number_of_stress_components,2,"stress");;
+		RegisterNodalFab (stress_vm,1,2,"stress_vm");;
+		RegisterNodalFab (energy,1,2,"energy");;
+		RegisterNodalFab (residual,AMREX_SPACEDIM,2,"residual");;
+
 	}
 }
 
@@ -726,7 +731,7 @@ PolymerDegradation::DegradeMaterial(int lev)
 	for (amrex::MFIter mfi(model[lev],true); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box& box = mfi.tilebox();
-	 	amrex::BaseFab<Model::Solid::LinearElastic::Degradable::Isotropic> &modelfab = (model[lev])[mfi];
+	 	amrex::BaseFab<model_type> &modelfab = (model[lev])[mfi];
 		amrex::BaseFab<amrex::Real> &etafab = (*eta_new[lev])[mfi];
 
 	 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
@@ -803,95 +808,6 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
-#if AMREX_SPACEDIM == 1
-	const int ncomp = 6;
-	Vector<std::string> varname = {"u01", "rhs01", "stress11", "strain11", "energy", "residual"};
-
-#elif AMREX_SPACEDIM == 2
-	const int ncomp = 13;
-	Vector<std::string> varname = {"u01", "u02", "rhs01", "rhs02", "stress11", "stress22", "stress12",
-									"strain11", "strain22", "strain12", "energy", "residual01", "residual02"};
-
-#elif AMREX_SPACEDIM == 3
-	const int ncomp = 22;
-	Vector<std::string> varname = {"u01", "u02", "u03", "rhs01", "rhs02", "rhs03","stress11", "stress22",
-								 "stress33", "stress23", "stress13", "stress12", 
-								 "strain11", "strain22","strain33", "strain23", "strain13", 
-								 "strain12", 
-								 "energy", "residual01", "residual02", "residual03"};
-#endif
-
-	Vector<amrex::MultiFab> plotmf(nlevels);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		//plotmf[ilev].define(ngrids[ilev], ndmap[ilev], ncomp, 0);
-		plotmf[ilev].define(ngrids[ilev], dmap[ilev], ncomp, 0);
-#if AMREX_SPACEDIM == 1
-		MultiFab::Copy(plotmf[ilev], displacement 	[ilev], 0, 0, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    		[ilev], 0, 1, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress 		[ilev], 0, 2, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain 		[ilev], 0, 3, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy 		[ilev], 0, 4, 1, 0);
-		MultiFab::Copy(plotmf[ilev], residual 		[ilev], 0, 5, 1, 0);
-#elif AMREX_SPACEDIM == 2
-		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0, 1, 0);
-		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 2, 1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 3, 1, 0);
-		//MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 4, 1, 0);
-		//MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 5, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 4, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 3, 5, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 6, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 7, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 3, 8, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 9, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy [ilev], 0, 10, 1, 0);
-		MultiFab::Copy(plotmf[ilev], residual [ilev], 0, 11, 1, 0);
-		MultiFab::Copy(plotmf[ilev], residual [ilev], 1, 12, 1, 0);
-#elif AMREX_SPACEDIM == 3
-		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 0, 0,  1, 0);
-		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 1, 1,  1, 0);
-		MultiFab::Copy(plotmf[ilev], displacement      [ilev], 2, 2,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 0, 3,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 1, 4,  1, 0);
-		MultiFab::Copy(plotmf[ilev], rhs    [ilev], 2, 5,  1, 0);
-		//MultiFab::Copy(plotmf[ilev], res    [ilev], 0, 6,  1, 0);
-		//MultiFab::Copy(plotmf[ilev], res    [ilev], 1, 7,  1, 0);
-		//MultiFab::Copy(plotmf[ilev], res    [ilev], 2, 8,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 0, 6,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 4, 7,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 8, 8,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 5, 9,  1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 2, 10, 1, 0);
-		MultiFab::Copy(plotmf[ilev], stress [ilev], 1, 11, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 0, 12,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 4, 13,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 8, 14,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 5, 15,  1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 2, 16, 1, 0);
-		MultiFab::Copy(plotmf[ilev], strain [ilev], 1, 17, 1, 0);
-		MultiFab::Copy(plotmf[ilev], energy	[ilev], 0, 18, 1, 0);
-		MultiFab::Copy(plotmf[ilev], residual [ilev], 0, 19, 1, 0);
-		MultiFab::Copy(plotmf[ilev], residual [ilev], 1, 20, 1, 0);
-		MultiFab::Copy(plotmf[ilev], residual [ilev], 2, 21, 1, 0);
-#endif 
-	}
-	//Util::Message(INFO);
-	std::string plot_file_node = plot_file+"-node";
-	const std::vector<std::string>& plotfilename = PlotFileNameNode(plot_file_node,istep[0]);
-	//Util::Message(INFO);
-	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), varname,
-				Geom(), t_new[0], istep, refRatio());
-	//Util::Message(INFO);
-	if (ParallelDescriptor::IOProcessor())
-	{
-		Util::Message(INFO);
-		std::ofstream outfile;
-		if (istep[0]==0) outfile.open(plot_file_node+"/output.visit",std::ios_base::out);
-		else outfile.open(plot_file_node+"/output.visit",std::ios_base::app);
-		outfile << plotfilename[1] + "/Header" << std::endl;
-	}
 }
 
 void 
@@ -902,41 +818,19 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
-	ngrids.resize(nlevels);
-	//ndmap.resize(nlevels);
-
-	displacement.resize(nlevels);
-	rhs.resize(nlevels);
-	strain.resize(nlevels);
-	stress.resize(nlevels);
-	stress_vm.resize(nlevels);
-	energy.resize(nlevels);
-	model.resize(nlevels);
-	residual.resize(nlevels);
-
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		ngrids[ilev] = grids[ilev];
-		ngrids[ilev].convert(IntVect::TheNodeVector());
-		Util::Message(INFO,"ngrid size = ",ngrids[ilev].size(), ". Grids size = ", grids[ilev].size());
-	}
-
 	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	int number_of_components = AMREX_SPACEDIM;
 	int number_of_ghost_cells = 2;
 
-	for (int ilev = 0; ilev < nlevels; ++ilev)
+	if (iter==0 || time == elastic_tstart)
 	{
-		displacement[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-		rhs     	[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
-		stress 		[ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
-		strain		[ilev].define(ngrids[ilev], dmap[ilev], number_of_stress_components, number_of_ghost_cells);
-		energy 		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
-		stress_vm	[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
-		model		[ilev].define(ngrids[ilev], dmap[ilev], 1, number_of_ghost_cells);
-		residual	[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, number_of_ghost_cells);
+		model.resize(nlevels);
+		for (int ilev = 0; ilev < nlevels; ++ilev)
+		{
+			model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
+		}
 	}
-
+	
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
 	info.setMaxCoarseningLevel(max_coarsening_level);
@@ -963,21 +857,21 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
 		Util::Message(INFO);
-		//if (iter==0 || time == elastic_tstart)
+		if (iter==0 || time == elastic_tstart)
 		{
-			displacement[ilev].setVal(0.0);
-			strain[ilev].setVal(0.0);
-			stress[ilev].setVal(0.0);
-			stress_vm[ilev].setVal(0.0);
-			rhs[ilev].setVal(0.0);
-			energy[ilev].setVal(0.0);
-			residual[ilev].setVal(0.0);
+			displacement[ilev]->setVal(0.0);
+			strain[ilev]->setVal(0.0);
+			stress[ilev]->setVal(0.0);
+			stress_vm[ilev]->setVal(0.0);
+			rhs[ilev]->setVal(0.0);
+			energy[ilev]->setVal(0.0);
+			residual[ilev]->setVal(0.0);
 		}
 		model[ilev].setVal(modeltype);
 
-		AMREX_D_TERM(rhs[ilev].setVal(body_force[0]*volume,0,1);,
-					rhs[ilev].setVal(body_force[1]*volume,1,1);,
-					rhs[ilev].setVal(body_force[2]*volume,2,1););
+		AMREX_D_TERM(rhs[ilev]->setVal(body_force[0]*volume,0,1);,
+					rhs[ilev]->setVal(body_force[1]*volume,1,1);,
+					rhs[ilev]->setVal(body_force[2]*volume,2,1););
 
 		//Util::Message(INFO);
 		DegradeMaterial(ilev);
@@ -985,11 +879,11 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		elastic_operator.SetModel(ilev,model[ilev]);
 		//Util::Message(INFO);
 
-		for (amrex::MFIter mfi(rhs[ilev],true); mfi.isValid(); ++mfi)
+		for (amrex::MFIter mfi(*rhs[ilev],true); mfi.isValid(); ++mfi)
 		{
 		 	const amrex::Box& box = mfi.tilebox();
 
-		 	amrex::BaseFab<amrex::Real> &rhsfab = (rhs[ilev])[mfi];
+		 	amrex::BaseFab<amrex::Real> &rhsfab = (*rhs[ilev])[mfi];
 
 		 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
 		 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
@@ -1023,14 +917,14 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		 		}
 				for(int l = 0; l<AMREX_SPACEDIM; l++)
 				{
-					if(xmin && bc_x_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
+					if(xmin && bc_x_lo[l]==Operator::Elastic<model_type>::BC::Displacement)
 					{
 						if(elastic_bc_left.size() == 1)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_left[0](l);
 						else	
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_left(time)[l];
 					}
-					if(xmax && bc_x_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
+					if(xmax && bc_x_hi[l]==Operator::Elastic<model_type>::BC::Displacement)
 					{
 						if(elastic_bc_right.size() == 1)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_right[0](l);
@@ -1038,14 +932,14 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_right(time)[l];
 					}
 #if AMREX_SPACEDIM > 1
-					if(ymin && bc_y_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
+					if(ymin && bc_y_lo[l]==Operator::Elastic<model_type>::BC::Displacement)
 					{
 						if(elastic_bc_bottom.size() == 1)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_bottom[0](l);
 						else	
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_bottom(time)[l];
 					}
-					if(ymax && bc_y_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
+					if(ymax && bc_y_hi[l]==Operator::Elastic<model_type>::BC::Displacement)
 					{
 						if(elastic_bc_top.size() == 1)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_top[0](l);
@@ -1053,14 +947,14 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_top(time)[l];
 					}
 #if AMREX_SPACEDIM > 2
-					if(zmin && bc_z_lo[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
+					if(zmin && bc_z_lo[l]==Operator::Elastic<model_type>::BC::Displacement)
 					{
 						if(elastic_bc_back.size() == 1)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_back[0](l);
 						else	
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = interpolate_back(time)[l];
 					}
-					if(zmax && bc_z_hi[l]==Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC::Displacement)
+					if(zmax && bc_z_hi[l]==Operator::Elastic<model_type>::BC::Displacement)
 					{
 						if(elastic_bc_front.size() == 1)
 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),l) = elastic_bc_front[0](l);
@@ -1081,6 +975,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setVerbose(elastic_verbose);
 	solver.setCGVerbose(elastic_cgverbose);
 	solver.setBottomMaxIter(elastic_bottom_max_iter);
+	solver.setBottomTolerance(elastic_bottom_tol) ;
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
@@ -1091,23 +986,27 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		solver.setBottomSmooth(0);
 	}
 
-	Util::Message(INFO,residual[0].nGrow());
-	Util::Message(INFO,displacement[0].nGrow());
-	Util::Message(INFO,rhs[0].nGrow());
 
-	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
-	solver.solve(GetVecOfPtrs(displacement),
-		GetVecOfConstPtrs(rhs),
-		elastic_tol_rel,
-		elastic_tol_abs);
+	amrex::MLCGSolver mlcg(&solver,elastic_operator);
+	elastic_operator.PrepareForSolve();
+	mlcg.setVerbose(4);
+	mlcg.setMaxIter(elastic_bottom_max_iter);
+	int ret = mlcg.solve(*displacement[0],*rhs[0],elastic_tol_rel,elastic_tol_abs);
+	if (ParallelDescriptor::IOProcessor() &&  ret) Util::Abort(INFO,"Solver did not converge");
+
+	// solver.solve(GetVecOfPtrs(displacement),
+	// 	GetVecOfConstPtrs(rhs),
+	// 	elastic_tol_rel,
+	// 	elastic_tol_abs);
+	// solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 
 	//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
-		elastic_operator.Strain(lev,strain[lev],displacement[lev]);
-		elastic_operator.Stress(lev,stress[lev],displacement[lev]);
-		elastic_operator.Energy(lev,energy[lev],displacement[lev]);
+		elastic_operator.Strain(lev,*strain[lev],*displacement[lev]);
+		elastic_operator.Stress(lev,*stress[lev],*displacement[lev]);
+		elastic_operator.Energy(lev,*energy[lev],*displacement[lev]);
 	}
 }
 }
