@@ -34,10 +34,16 @@
 #include "OperatorCell/Elastic/Cubic/Cubic.H"
 
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Operator/Elastic.H"
 
 namespace Integrator
 {
+
+using model_type = Model::Solid::LinearElastic::Isotropic;
+
+
 ///
 /// \class PhaseFieldMicrostructure
 /// \brief Microstructure evolution with grain boundary anisotropy
@@ -74,6 +80,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etas_mf; ///< Color code order params
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
@@ -105,7 +112,9 @@ private:
 		int         interval = 1;
 		//std::string type;
 		int         max_iter = 20;
+		int         fixed_iter = 0;
 		int         max_fmg_iter = 20;
+		int         bottom_max_iter = 20;
 		int         verbose = 3;
 		int         cgverbose = 3;
 		amrex::Real tol_rel = 0.0;
@@ -115,11 +124,11 @@ private:
 		amrex::Vector<amrex::Real> elastic_load_disp;
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
-		std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
-		std::array<Operator::Elastic<Model::Solid::LinearElastic::Cubic>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
+		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
+		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
 
 
-		Operator::Elastic<Model::Solid::LinearElastic::Cubic> *op;
+		Operator::Elastic<model_type> *op;
 		//BC::BC *bc;
 
 	} elastic;
