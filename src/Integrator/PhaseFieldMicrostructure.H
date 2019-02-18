@@ -34,10 +34,16 @@
 #include "OperatorCell/Elastic/Cubic/Cubic.H"
 
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Operator/Elastic.H"
 
 namespace Integrator
 {
+
+using model_type = Model::Solid::LinearElastic::Isotropic;
+
+
 ///
 /// \class PhaseFieldMicrostructure
 /// \brief Microstructure evolution with grain boundary anisotropy
@@ -62,8 +68,8 @@ protected:
 
 	void TimeStepBegin(amrex::Real time, int iter) override;
 	void TimeStepComplete(amrex::Real time, int iter) override;
-	void Integrate(int amrlev, Set::Scalar time, int step,
-		       const amrex::MFIter &mfi, const amrex::Box &box) override;
+	// void Integrate(int amrlev, Set::Scalar time, int step,
+	// 	       const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 private:
 
@@ -74,6 +80,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etas_mf; ///< Color code order params
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
@@ -99,23 +106,44 @@ private:
 
 	Set::Scalar volume = 5;
 
-	bool        elastic_on = false;
-	int         elastic_int = 1;
-	std::string elastic_type;
-	int         elastic_max_iter = 200;
-	int         elastic_max_fmg_iter = 0;
-	int         elastic_verbose = 3;
-	int         elastic_cgverbose = 3;
-	amrex::Real elastic_tol_rel = 0.0;
-	amrex::Real elastic_tol_abs = 1.0E-10;
-	amrex::Real elastic_tstart = 0.0;
-	amrex::Vector<amrex::Real> elastic_load_t;
-	amrex::Vector<amrex::Real> elastic_load_disp;
-	OperatorCell::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	struct
+	{
+		bool        on       = false;
+		int         interval = 1;
+		//std::string type;
+		int         max_iter = 20;
+		int         fixed_iter = 0;
+		int         max_fmg_iter = 20;
+		int         bottom_max_iter = 20;
+		int         verbose = 3;
+		int         cgverbose = 3;
+		amrex::Real tol_rel = 0.0;
+		amrex::Real tol_abs = 1.0E-10;
+		amrex::Real tstart = 0.0;
+		amrex::Vector<amrex::Real> elastic_load_t;
+		amrex::Vector<amrex::Real> elastic_load_disp;
+		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
+		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
+		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
+		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
+
+
+		Operator::Elastic<model_type> *op;
+		//BC::BC *bc;
+
+	} elastic;
+	//#endif
+
+	//OperatorCell::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	Operator::Elastic<Model::Solid::LinearElastic::Cubic> *elastic_operator;
 	BC::BC *elastic_bc;
 
 	std::vector<OperatorCell::Elastic::PolyCrystal::PolyCrystalModel *> models;
 	
+	const std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
+									    amrex::IntVect(AMREX_D_DECL(0,0,1)))}};
+
 };
 }
 #endif
