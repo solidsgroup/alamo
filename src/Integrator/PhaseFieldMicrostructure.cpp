@@ -87,7 +87,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		else if (ic_type == "tabulated_interface")
 			ic = new IC::TabulatedInterface(geom);
 		else if (ic_type == "voronoi")
-			ic = new IC::Voronoi(geom,number_of_grains);
+		{
+			int total_grains = number_of_grains;
+			pp.query("voronoi.number_of_grains", total_grains);
+			ic = new IC::Voronoi(geom,total_grains);
+		}
 		else if (ic_type == "circle")
 			ic = new IC::Circle(geom);
 		else
