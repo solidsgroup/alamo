@@ -183,8 +183,6 @@ int ReplaceAll(std::string &str, const char before, const std::string after)
 	}
 	return 0;
 }
-
-
 std::string Wrap(std::string text, unsigned per_line)
 {
 	unsigned line_begin = 0;
@@ -221,7 +219,45 @@ std::string Wrap(std::string text, unsigned per_line)
 
 	return text;
 }
+std::vector<std::string> Split(std::string &str, const char delim)
+{
+	std::vector<std::string> ret;
+	std::stringstream ss(str);
+	std::string item;
+	while (std::getline(ss, item, delim)) {
+		ret.push_back(item);
+	}
+	return ret;
+}
+bool Contains(std::string &str, const std::string find)
+{
+  if (str.find(find) != std::string::npos) return true;
+  else return false;
+}
 
+template<>
+std::complex<int> Parse(std::string input)
+{
+	int re=0, im=0;
+
+	ReplaceAll(input, "+", " +");
+	ReplaceAll(input, "-", " -");
+	std::vector<std::string> tokens = Split(input,' ');
+	for (unsigned int i = 0; i < tokens.size(); i++)
+	{
+		if(tokens[i]=="") continue;
+		if(Contains(tokens[i],"i"))
+		{
+			ReplaceAll(tokens[i],"i","");
+			im += std::stoi(tokens[i]);
+		}
+		else 
+		{
+			re += std::stoi(tokens[i]);
+		}
+	}
+	return std::complex<int>(re,im);
+}
 
 
 }

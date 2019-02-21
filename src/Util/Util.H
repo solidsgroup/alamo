@@ -6,6 +6,8 @@
 #include <iomanip>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <iterator>
+#include <algorithm>
 
 #include <stdlib.h>
 
@@ -24,8 +26,13 @@ namespace String
 {
 int ReplaceAll(std::string &str, const std::string before, const std::string after);
 int ReplaceAll(std::string &str, const char before, const std::string after);
-
 std::string Wrap(std::string text, unsigned per_line);
+std::vector<std::string> Split(std::string &str, const char token = ' ');
+bool Contains(std::string &str, const std::string find);
+template<class T>
+T Parse(std::string);
+template<>
+std::complex<int> Parse(std::string);
 }
 
 Set::Scalar Random();
