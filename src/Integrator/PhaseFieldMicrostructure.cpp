@@ -112,6 +112,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	// Elasticity
 	{
 		amrex::ParmParse pp("elastic");
+		std::string elastic_grid_str;
+		pp.query("grid",elastic_grid_str);
+		if (elastic_grid_str == "node") elastic_grid = Grid::Node;
+		else if (elastic_grid_str == "cell") elastic_grid = Grid::Cell;
 		pp.query("on",elastic_on);
 		pp.query("int",elastic_int);
 		pp.query("type",elastic_type);
@@ -128,7 +132,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		if (elastic_load_t.size() != elastic_load_disp.size())
 			Util::Abort(INFO, "load_t and load_disp must have the same number of entries");
 
-		if (elastic_on)
+		if (elastic_on && elastic_grid == Grid::Cell)
 		{
 			RegisterNewFab(displacement, mybc,AMREX_SPACEDIM,1,"u");
 			RegisterNewFab(body_force,mybc,AMREX_SPACEDIM,0,"b");
@@ -162,8 +166,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		//
 		// Initialize elastic models
 		//
-		for (int n = 0; n <  number_of_grains; n++) 
-			models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
+		if (elastic_grid == Grid::Cell)
+		{
+			for (int n = 0; n <  number_of_grains; n++) 
+				models.push_back(new Operator::Elastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
+		}
 
 	}
 }
@@ -499,63 +506,63 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	if (iter%elastic_int) return;
 	if (time < elastic_tstart) return;
 
-	LPInfo info;
-	info.setAgglomeration(true);
-	info.setConsolidation(true);
-
-	elastic_operator = new Operator::Elastic::PolyCrystal::PolyCrystal();
-  
-	elastic_operator->define(geom,grids,dmap,*elastic_bc,info);
-	elastic_operator->SetEta(eta_new_mf,models);
-
-	for (int ilev = 0; ilev < displacement.size(); ++ilev)
+	if (elastic_grid == Grid::Node)
 	{
-		/// \todo Replace with proper driving force initialization
-		body_force[ilev]->setVal(0.0,0,1);
-		body_force[ilev]->setVal(0.0,1,1);
+		LPInfo info;
+		info.setAgglomeration(true);
+		info.setConsolidation(true);
+		elastic_operator = new Operator::Elastic::PolyCrystal::PolyCrystal();
+		elastic_operator->define(geom,grids,dmap,*elastic_bc,info);
+		elastic_operator->SetEta(eta_new_mf,models);
 
-		if (iter==0)
+		for (int ilev = 0; ilev < displacement.size(); ++ilev)
 		{
-			displacement[ilev]->setVal(0.0);
+			/// \todo Replace with proper driving force initialization
+			body_force[ilev]->setVal(0.0,0,1);
+			body_force[ilev]->setVal(0.0,1,1);
+
+			if (iter==0)
+			{
+				displacement[ilev]->setVal(0.0);
+			}
 		}
-	}
 
-	amrex::MLMG solver(*elastic_operator);
-	solver.setMaxIter(elastic_max_iter);
-	solver.setMaxFmgIter(elastic_max_fmg_iter);
-	solver.setVerbose(elastic_verbose);
-	solver.setCGVerbose(elastic_cgverbose);
+		amrex::MLMG solver(*elastic_operator);
+		solver.setMaxIter(elastic_max_iter);
+		solver.setMaxFmgIter(elastic_max_fmg_iter);
+		solver.setVerbose(elastic_verbose);
+		solver.setCGVerbose(elastic_cgverbose);
 
-	solver.solve(GetVecOfPtrs(displacement),
-		     GetVecOfConstPtrs(body_force),
-		     elastic_tol_rel,
-		     elastic_tol_abs);
+		solver.solve(GetVecOfPtrs(displacement),
+			     GetVecOfConstPtrs(body_force),
+			     elastic_tol_rel,
+			     elastic_tol_abs);
 
-	for (int lev = 0; lev < displacement.size(); lev++)
-	{
-		const amrex::Real* DX = geom[lev].CellSize();
-		const amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-						  dy(AMREX_D_DECL(0,1,0)),
-						  dz(AMREX_D_DECL(0,0,1)));
-
-		// elastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
-		// elastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
-
-		for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
+		for (int lev = 0; lev < displacement.size(); lev++)
 		{
-			const Box& bx = mfi.tilebox();
+			const amrex::Real* DX = geom[lev].CellSize();
+			const amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+							  dy(AMREX_D_DECL(0,1,0)),
+							  dz(AMREX_D_DECL(0,0,1)));
 
-			FArrayBox &ufab  = (*displacement[lev])[mfi];
-			FArrayBox &epsfab  = (*strain[lev])[mfi];
-			FArrayBox &sigmafab  = (*stress[lev])[mfi];
-			//FArrayBox &energyfab  = (*energy[lev])[mfi];
-			FArrayBox &energiesfab  = (*energies[lev])[mfi];
-			FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
+			// elastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
+			// elastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
+
+			for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
+			{
+				const Box& bx = mfi.tilebox();
+
+				FArrayBox &ufab  = (*displacement[lev])[mfi];
+				FArrayBox &epsfab  = (*strain[lev])[mfi];
+				FArrayBox &sigmafab  = (*stress[lev])[mfi];
+				//FArrayBox &energyfab  = (*energy[lev])[mfi];
+				FArrayBox &energiesfab  = (*energies[lev])[mfi];
+				FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
 
 
-			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-				     for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-				     for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
+				AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+					     for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+					     for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
 			 	{
 			 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 #if AMREX_SPACEDIM == 2
@@ -601,7 +608,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			 	}
 
 			
-			elastic_operator->Energies(energiesfab,ufab,lev,mfi);
+				elastic_operator->Energies(energiesfab,ufab,lev,mfi);
+			}
 		}
 	}
 }

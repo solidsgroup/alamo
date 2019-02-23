@@ -97,6 +97,7 @@ private:
 	Set::Scalar volume = 5;
 
 	bool        elastic_on = false;
+	Grid        elastic_grid = Grid::Cell;
 	int         elastic_int = 1;
 	std::string elastic_type;
 	int         elastic_max_iter = 200;
