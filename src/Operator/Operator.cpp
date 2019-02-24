@@ -152,6 +152,8 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 			}
 		}
 	}
+	amrex::Geometry geom = m_geom[amrlev][mglev];
+	realFillBoundary(x,geom);
 	nodalSync(amrlev, mglev, x);
 }
 
@@ -846,6 +848,21 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
 
 }
 
+void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) const
+{
+	for (int i = 0; i < 2; i++)
+	{
+		MultiFab & mf = phi;
+		mf.FillBoundary(geom.periodicity());
+		const int ncomp = mf.nComp();
+		const int ng1 = 1;
+		const int ng2 = 2;
+		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+	}
+}
+
 void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 		   amrex::MLLinOp::StateMode /**/, bool skip_fillboundary) const
 {
@@ -855,21 +872,7 @@ void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode
 
 	if (!skip_fillboundary) {
 
-		//
-		// This is special code to fill a boundary when there are TWO ghost nodes
-		//
-
-		for (int i = 0; i < 2; i++)
-		{
-			MultiFab & mf = phi;
-			mf.FillBoundary(geom.periodicity());
-			const int ncomp = mf.nComp();
-			const int ng1 = 1;
-			const int ng2 = 2;
-			MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-			MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
-			mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-		}
+		realFillBoundary(phi,geom);
 	}
 }
 
@@ -1136,23 +1139,8 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 
 	// Sync up ghost nodes
 	amrex::Geometry geom = m_geom[crse_amrlev][mglev];
-	for (int i = 0; i < 2; i++)
-	{
-		MultiFab & mf = res;
-		mf.FillBoundary(geom.periodicity());
-		const int ncomp = mf.nComp();
-		const int ng1 = 1;
-		const int ng2 = 2;
-		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
-		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-	}
-
+	realFillBoundary(res,geom);
 	nodalSync(crse_amrlev,mglev, res);
-
-
-
-
 	return;
 }
 
