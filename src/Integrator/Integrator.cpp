@@ -100,23 +100,37 @@ void Integrator::SetTimestep(Set::Scalar _timestep)
 /// \note **THIS OVERRIDES A PURE VIRTUAL METHOD - DO NOT CHANGE**
 ///
 void
-Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba, const DistributionMapping& dm)
+Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& cgrids, const DistributionMapping& dm)
 {
-	for (int n = 0; n < number_of_fabs; n++)
+	t_new[lev] = time;
+	t_old[lev] = time - 1.e200;
+
+	for (int n = 0; n < cell.number_of_fabs; n++)
 	{
-		const int ncomp = (*fab_array[n])[lev-1]->nComp();
-		const int nghost = (*fab_array[n])[lev-1]->nGrow();
+		const int ncomp  = (*cell.fab_array[n])[lev-1]->nComp();
+		const int nghost = (*cell.fab_array[n])[lev-1]->nGrow();
 
-		(*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp, nghost));
+		(*cell.fab_array[n])[lev].reset(new MultiFab(cgrids, dm, ncomp, nghost));
 		
-		(*fab_array[n])[lev]->setVal(0.0);
+		(*cell.fab_array[n])[lev]->setVal(0.0);
 
-		t_new[lev] = time;
-		t_old[lev] = time - 1.e200;
-
-		//if (physbc_array[n]) // only do this if there is a BC object
-		FillCoarsePatch(lev, time, *fab_array[n], *physbc_array[n], 0, ncomp);
+		FillCoarsePatch(lev, time, *cell.fab_array[n], *cell.physbc_array[n], 0, ncomp);
 	}
+
+	amrex::BoxArray ngrids = cgrids;
+	ngrids.convert(amrex::IntVect::TheNodeVector());
+
+	for (int n = 0; n < node.number_of_fabs; n++)
+	{
+		const int ncomp = (*node.fab_array[n])[lev-1]->nComp();
+		const int nghost = (*node.fab_array[n])[lev-1]->nGrow();
+
+		(*node.fab_array[n])[lev].reset(new MultiFab(ngrids, dm, ncomp, nghost));
+		(*node.fab_array[n])[lev]->setVal(0.0);
+
+		FillCoarsePatch(lev, time, *node.fab_array[n], *node.physbc_array[n], 0, ncomp);
+	}
+
 }
 
 
@@ -128,20 +142,32 @@ Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba, cons
 void
 Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 			 Real time,     ///<[in] Simulation time
-			 const BoxArray& ba, 
+			 const BoxArray& cgrids, 
 			 const DistributionMapping& dm)
 {
-	for (int n=0; n < number_of_fabs; n++)
+	for (int n=0; n < cell.number_of_fabs; n++)
 	{
+		const int ncomp  = (*cell.fab_array[n])[lev]->nComp();
+		const int nghost = (*cell.fab_array[n])[lev]->nGrow();
 
-		const int ncomp = (*fab_array[n])[lev]->nComp();
-		const int nghost = (*fab_array[n])[lev]->nGrow();
+		MultiFab new_state(cgrids, dm, ncomp, nghost); 
 
-		MultiFab new_state(ba, dm, ncomp, nghost); 
+		FillPatch(lev, time, *cell.fab_array[n], new_state, *cell.physbc_array[n], 0);
+		std::swap(new_state, *(*cell.fab_array[n])[lev]);
+	}
 
-		//if (physbc_array[n]) 
-		FillPatch(lev, time, *fab_array[n], new_state, *physbc_array[n], 0);
-		std::swap(new_state, *(*fab_array[n])[lev]);
+	amrex::BoxArray ngrids = cgrids;
+	ngrids.convert(amrex::IntVect::TheNodeVector());
+
+	for (int n=0; n < node.number_of_fabs; n++)
+	{
+		const int ncomp  = (*node.fab_array[n])[lev]->nComp();
+		const int nghost = (*node.fab_array[n])[lev]->nGrow();
+
+		MultiFab new_state(ngrids, dm, ncomp, nghost); 
+
+		FillPatch(lev, time, *node.fab_array[n], new_state, *node.physbc_array[n], 0);
+		std::swap(new_state, *(*node.fab_array[n])[lev]);
 	}
 
 	t_new[lev] = time;
@@ -156,9 +182,13 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 void
 Integrator::ClearLevel (int lev)
 {
-	for (int n = 0; n < number_of_fabs; n++)
+	for (int n = 0; n < cell.number_of_fabs; n++)
 	{
-		(*fab_array[n])[lev].reset(nullptr);
+		(*cell.fab_array[n])[lev].reset(nullptr);
+	}
+	for (int n = 0; n < node.number_of_fabs; n++)
+	{
+		(*node.fab_array[n])[lev].reset(nullptr);
 	}
 }
 
@@ -175,12 +205,12 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 {
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
-	fab_array.push_back(&new_fab);
-	physbc_array.push_back(new_bc); 
-	ncomp_array.push_back(ncomp);
-	nghost_array.push_back(nghost);
-	name_array.push_back(name);
-	number_of_fabs++;
+	cell.fab_array.push_back(&new_fab);
+	cell.physbc_array.push_back(new_bc); 
+	cell.ncomp_array.push_back(ncomp);
+	cell.nghost_array.push_back(nghost);
+	cell.name_array.push_back(name);
+	cell.number_of_fabs++;
 }
 
 void // CUSTOM METHOD - CHANGEABLE
@@ -190,12 +220,27 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 {
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
-	fab_array.push_back(&new_fab);
-	physbc_array.push_back(new BC::Nothing); 
-	ncomp_array.push_back(ncomp);
-	nghost_array.push_back(0);
-	name_array.push_back(name);
-	number_of_fabs++;
+	cell.fab_array.push_back(&new_fab);
+	cell.physbc_array.push_back(new BC::Nothing); 
+	cell.ncomp_array.push_back(ncomp);
+	cell.nghost_array.push_back(0);
+	cell.name_array.push_back(name);
+	cell.number_of_fabs++;
+}
+void // CUSTOM METHOD - CHANGEABLE
+Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+			     int ncomp,
+			     int nghost,
+			     std::string name)
+{
+	int nlevs_max = maxLevel() + 1;
+	new_fab.resize(nlevs_max); 
+	node.fab_array.push_back(&new_fab);
+	node.physbc_array.push_back(new BC::Nothing); 
+	node.ncomp_array.push_back(ncomp);
+	node.nghost_array.push_back(nghost);
+	node.name_array.push_back(name);
+	node.number_of_fabs++;
 }
 
 
@@ -316,12 +361,16 @@ Integrator::InitData ()
 {
 	const Real time = 0.0;
 	InitFromScratch(time);
+
 	for (int lev = finest_level-1; lev >= 0; --lev)
 	{
-		for (int n = 0; n < number_of_fabs; n++)
-			amrex::average_down(*(*fab_array[n])[lev+1], *(*fab_array[n])[lev],
+		for (int n = 0; n < cell.number_of_fabs; n++)
+			amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
 					    geom[lev+1], geom[lev],
-					    0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
+					    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
+		Util::Warning(INFO,"Not averaging down nodal fabs");
+		// for (int n = 0; n < node.number_of_fabs; n++)
+		// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
 	}
   
 	if (plot_int > 0) {
@@ -330,13 +379,21 @@ Integrator::InitData ()
 }
 
 void
-Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
+Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& cgrids,
 				     const DistributionMapping& dm)
 {
-	for (int n = 0 ; n < number_of_fabs; n++)
+	for (int n = 0 ; n < cell.number_of_fabs; n++)
 	{
-		(*fab_array[n])[lev].reset(new MultiFab(ba, dm, ncomp_array[n], nghost_array[n]));
-		(*fab_array[n])[lev]->setVal(0.0);
+		(*cell.fab_array[n])[lev].reset(new MultiFab(cgrids, dm, cell.ncomp_array[n], cell.nghost_array[n]));
+		(*cell.fab_array[n])[lev]->setVal(0.0);
+	}
+
+	amrex::BoxArray ngrids = cgrids;
+	ngrids.convert(amrex::IntVect::TheNodeVector());
+	for (int n = 0 ; n < node.number_of_fabs; n++)
+	{
+		(*node.fab_array[n])[lev].reset(new MultiFab(ngrids, dm, node.ncomp_array[n], node.nghost_array[n]));
+		(*node.fab_array[n])[lev]->setVal(0.0);
 	}
 
 	t_new[lev] = t;
@@ -344,14 +401,16 @@ Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& ba,
 
 	Initialize(lev);
   
-	for (int n = 0 ; n < number_of_fabs; n++)
+	for (int n = 0 ; n < cell.number_of_fabs; n++)
 	{
-		// if (physbc_array[n]) // NO PROBLEM
-		// {
-		physbc_array[n]->define(geom[lev]);
-		physbc_array[n]->FillBoundary(*(*fab_array[n])[lev],0,0,t,0);
-		// }
+		cell.physbc_array[n]->define(geom[lev]);
+		cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev],0,0,t,0);
+	}
 
+	for (int n = 0 ; n < node.number_of_fabs; n++)
+	{
+		node.physbc_array[n]->define(geom[lev]);
+		node.physbc_array[n]->FillBoundary(*(*node.fab_array[n])[lev],0,0,t,0);
 	}
 }
 
@@ -369,43 +428,75 @@ Integrator::WritePlotFile () const
 {
 	const int nlevels = finest_level+1;
 
-	int total_components = 0;
-	amrex::Vector<std::string> complete_name_array;
-	for (int i = 0; i < number_of_fabs; i++)
+	int ccomponents = 0, ncomponents = 0;
+	amrex::Vector<std::string> cnames, nnames;
+	for (int i = 0; i < cell.number_of_fabs; i++)
 	{
-		total_components += ncomp_array[i];
-		if (ncomp_array[i] > 1)
-			for (int j = 1; j <= ncomp_array[i]; j++)
-				complete_name_array.push_back(amrex::Concatenate(name_array[i], j, 3));
+		ccomponents += cell.ncomp_array[i];
+		if (cell.ncomp_array[i] > 1)
+			for (int j = 1; j <= cell.ncomp_array[i]; j++)
+				cnames.push_back(amrex::Concatenate(cell.name_array[i], j, 3));
 		else
-			complete_name_array.push_back(name_array[i]);
+			cnames.push_back(cell.name_array[i]);
+	}
+	for (int i = 0; i < node.number_of_fabs; i++)
+	{
+		ncomponents += node.ncomp_array[i];
+		if (node.ncomp_array[i] > 1)
+			for (int j = 1; j <= node.ncomp_array[i]; j++)
+				nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
+		else
+			nnames.push_back(cell.name_array[i]);
 	}
 
-	amrex::Vector<MultiFab> plotmf(nlevels);
+	amrex::Vector<MultiFab> cplotmf(nlevels), nplotmf(nlevels);
   
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		plotmf[ilev].define(grids[ilev], dmap[ilev], total_components, 0);
+		cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
+		amrex::BoxArray ngrids = grids[ilev];
+		ngrids.convert(amrex::IntVect::TheNodeVector());
+		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
 
 		int n = 0;
-		for (int i = 0; i < number_of_fabs; i++)
+		for (int i = 0; i < cell.number_of_fabs; i++)
 		{
-			MultiFab::Copy(plotmf[ilev], *(*fab_array[i])[ilev], 0, n, ncomp_array[i], 0);
-			n += ncomp_array[i];
+			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
+			n += cell.ncomp_array[i];
+		}
+
+		n = 0;
+		for (int i = 0; i < node.number_of_fabs; i++)
+		{
+			MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
+			n += node.ncomp_array[i];
 		}
 	}
 
 	const std::vector<std::string>& plotfilename = PlotFileName(istep[0]);
   
-	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1], nlevels, amrex::GetVecOfConstPtrs(plotmf), complete_name_array,
+	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
 				Geom(), t_new[0],istep, refRatio());
+
+	if (ncomponents > 0)
+		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
+					Geom(), t_new[0],istep, refRatio());
 
 	if (ParallelDescriptor::IOProcessor())
 	{
-		std::ofstream outfile;
-		if (istep[0]==0) outfile.open(plot_file+"/output.visit",std::ios_base::out);
-		else outfile.open(plot_file+"/output.visit",std::ios_base::app);
-		outfile << plotfilename[1] + "/Header" << std::endl;
+		std::ofstream coutfile, noutfile;
+		if (istep[0]==0)
+		{
+			coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
+			if (ncomponents > 0) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
+		}
+		else
+		{
+			coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
+			if (ncomponents > 0) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
+		}
+		coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
+		if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
 	}
 }
 
@@ -430,6 +521,7 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
+		WritePlotFile();
 		IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
 		TimeStepComplete(cur_time,step);
@@ -556,9 +648,11 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 			  << std::endl;
 	}
 
-	for (int n = 0 ; n < number_of_fabs ; n++)
-		//if (physbc_array[n])
-		FillPatch(lev,t_old[lev],*fab_array[n],*(*fab_array[n])[lev],*physbc_array[n],0);
+	for (int n = 0 ; n < cell.number_of_fabs ; n++)
+		FillPatch(lev,t_old[lev],*cell.fab_array[n],*(*cell.fab_array[n])[lev],*cell.physbc_array[n],0);
+	for (int n = 0 ; n < node.number_of_fabs ; n++)
+		FillPatch(lev,t_old[lev],*node.fab_array[n],*(*node.fab_array[n])[lev],*node.physbc_array[n],0);
+
 	Advance(lev, time, dt[lev]);
 	++istep[lev];
 
@@ -577,12 +671,18 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 		for (int i = 1; i <= nsubsteps[lev+1]; ++i)
 			TimeStep(lev+1, time+(i-1)*dt[lev+1], i);
 
-		for (int n = 0; n < number_of_fabs; n++)
+		for (int n = 0; n < cell.number_of_fabs; n++)
 		{
-			amrex::average_down(*(*fab_array[n])[lev+1], *(*fab_array[n])[lev],
+			amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
 					    geom[lev+1], geom[lev],
-					    0, (*fab_array[n])[lev]->nComp(), refRatio(lev));
+					    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
 		}
+		// for (int n = 0; n < node.number_of_fabs; n++)
+		// {
+		// 	amrex::average_down(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev],
+		// 			    geom[lev+1], geom[lev],
+		// 			    0, (*node.fab_array[n])[lev]->nComp(), refRatio(lev));
+		// }
 	}
 }
 }

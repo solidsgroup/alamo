@@ -1,5 +1,5 @@
-#ifndef OPERATORCELL_ELASTIC_POLYCRYSTAL_CUBIC_H_
-#define OPERATORCELL_ELASTIC_POLYCRYSTAL_CUBIC_H_
+#ifndef OPERATOR_CELLELASTIC_POLYCRYSTAL_CUBIC_H_
+#define OPERATOR_CELLELASTIC_POLYCRYSTAL_CUBIC_H_
 
 #include <limits>
 
@@ -10,13 +10,13 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 
-#include "Operator/Elastic/PolyCrystal/PolyCrystal.H"
+#include "Operator/CellElastic/PolyCrystal/PolyCrystal.H"
 
 using namespace amrex;
 
 namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
 namespace PolyCrystal
 {

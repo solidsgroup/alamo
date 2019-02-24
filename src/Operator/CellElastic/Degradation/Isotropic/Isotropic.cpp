@@ -6,14 +6,14 @@
 #include "Isotropic.H"
 
 
-Operator::Elastic::Degradation::Isotropic::Isotropic(amrex::Real _lambda1, amrex::Real _mu1):
+Operator::CellElastic::Degradation::Isotropic::Isotropic(amrex::Real _lambda1, amrex::Real _mu1):
   lambda1(_lambda1), mu1(_mu1)
 {
 
 }
 
 amrex::Real
-Operator::Elastic::Degradation::Isotropic::C(const int i, const int j, const int k, const int l) const
+Operator::CellElastic::Degradation::Isotropic::C(const int i, const int j, const int k, const int l) const
 {
   amrex::Real C = 0.0;
 

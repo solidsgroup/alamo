@@ -1,19 +1,19 @@
-#ifndef OPERATORCELL_ELASTIC_CUBIC_H_
-#define OPERATORCELL_ELASTIC_CUBIC_H_
+#ifndef OPERATOR_CELLELASTIC_CUBIC_H_
+#define OPERATOR_CELLELASTIC_CUBIC_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
 
-#include "Operator/Elastic/Elastic.H"
+#include "Operator/CellElastic/CellElastic.H"
 
 using namespace amrex;
 
 namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
-class Cubic : public Elastic
+class Cubic : public CellElastic
 {
 public:
 

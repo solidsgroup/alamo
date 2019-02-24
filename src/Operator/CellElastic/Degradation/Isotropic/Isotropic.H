@@ -1,17 +1,17 @@
-#ifndef OPERATORCELL_ELASTIC_DEGRADATION_ISOTROPIC_H_
-#define OPERATORCELL_ELASTIC_DEGRADATION_ISOTROPIC_H_
+#ifndef OPERATOR_CELLELASTIC_DEGRADATION_ISOTROPIC_H_
+#define OPERATOR_CELLELASTIC_DEGRADATION_ISOTROPIC_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
 
-#include "Operator/Elastic/Degradation/Degradation.H"
+#include "Operator/CellElastic/Degradation/Degradation.H"
 
 using namespace amrex;
 
 namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
 namespace Degradation
 {
