@@ -6,7 +6,7 @@
 #include "Isotropic.H"
 
 
-Operator::Elastic::PolyCrystal::Isotropic::Isotropic()
+Operator::CellElastic::PolyCrystal::Isotropic::Isotropic()
 {
   lambda1 = 1000.0;
   lambda2 = 1000.0;
@@ -15,7 +15,7 @@ Operator::Elastic::PolyCrystal::Isotropic::Isotropic()
 }
 
 amrex::Real
-Operator::Elastic::PolyCrystal::Isotropic::C(const int i, const int j, const int k, const int l) const
+Operator::CellElastic::PolyCrystal::Isotropic::C(const int i, const int j, const int k, const int l) const
 {
   amrex::Vector<amrex::Real> Cs;
 

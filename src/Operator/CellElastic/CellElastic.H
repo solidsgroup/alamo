@@ -12,22 +12,22 @@ using namespace amrex;
 
 namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
-class Elastic : public Operator<Grid::Cell>
+class CellElastic : public Operator<Grid::Cell>
 {
 public:
-	Elastic () {}
-	Elastic (const Vector<Geometry>& a_geom,
+	CellElastic () {}
+	CellElastic (const Vector<Geometry>& a_geom,
 		 const Vector<BoxArray>& a_grids,
 		 const Vector<DistributionMapping>& a_dmap,
 		 BC::BC& a_bc,
 		 const LPInfo& a_info);
-	virtual ~Elastic ();
-	Elastic (const Elastic&) = delete;
-	Elastic (Elastic&&) = delete;
-	Elastic& operator= (const Elastic&) = delete;
-	Elastic& operator= (Elastic&&) = delete;
+	virtual ~CellElastic ();
+	CellElastic (const CellElastic&) = delete;
+	CellElastic (CellElastic&&) = delete;
+	CellElastic& operator= (const CellElastic&) = delete;
+	CellElastic& operator= (CellElastic&&) = delete;
 
 	void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &);
 	void SetEigenstrain(amrex::Vector<amrex::MultiFab> &);

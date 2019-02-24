@@ -6,11 +6,11 @@
 #include "eigen3/Eigen/Core" //not sure if this import is necessary
 
 #include "Operator/Operator.H"
-#include "Operator/Elastic/CubicRotation/CubicRotation.H"
+#include "Operator/CellElastic/CubicRotation/CubicRotation.H"
 //#include "OperatorCell/Elastic/Cubic/Cubic.H"  //allows use of Cijkl internally
 amrex::Real Cpqst[AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM][AMREX_SPACEDIM];
 
-Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
+Operator::CellElastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX_SPACEDIM, AMREX_SPACEDIM> R,
 						amrex::Real C11in, amrex::Real C12in, amrex::Real C44in)
 {
   // Default values hard coded for now
@@ -72,7 +72,7 @@ Operator::Elastic::CubicRotation::CubicRotation(Eigen::Matrix<amrex::Real, AMREX
 // }
 
 amrex::Real
-Operator::Elastic::CubicRotation::C(const int i, const int j, const int k, const int l,
+Operator::CellElastic::CubicRotation::C(const int i, const int j, const int k, const int l,
 				    const amrex::IntVect /*loc*/,
 				    const int /*amrlev*/, const int /*mglev*/, const MFIter &/*mfi*/) const
 {

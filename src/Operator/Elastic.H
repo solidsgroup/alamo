@@ -8,7 +8,7 @@
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
-
+#include "Test/Operator/Elastic.H"
 using namespace amrex;
 
 namespace Operator
@@ -19,6 +19,8 @@ namespace Operator
 template<class T>
 class Elastic : public Operator<Grid::Node>
 {
+	friend Test::Operator::Elastic;
+	
 	using TArrayBox = amrex::BaseFab<T>;
 	using MultiTab  = amrex::FabArray<TArrayBox>;
 public:
@@ -59,11 +61,6 @@ public:
 
 	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const override;
 
-	inline Set::Vector Apply (int amrlev, int mglev,
-				  const amrex::FArrayBox &ufab,
-				  TArrayBox &C,
-				  const amrex::IntVect &m) const;
-
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 protected:
 
@@ -84,15 +81,6 @@ protected:
 	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
 
 private:
-	/// \todo: This function needs to be removed. It currently exists only to avoid
-	///        breaking other dependencies, but must never be called.
-	virtual amrex::Real C(const int , const int , const int , const int , const amrex::IntVect ,
-						  const int , const int , const MFIter &) const
-	{
-		Util::Abort(INFO, "This function is depricated and must not be used.");
-		return std::numeric_limits<Set::Scalar>::quiet_NaN();
-	};
-
 	/// Simple arrays storing boundary conditions for each component and each face.
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; // m_bc_lo[face][dimension]
 	std::array<std::array<BC,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; // m_bc_hi[face][dimension]

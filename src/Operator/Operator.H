@@ -10,6 +10,8 @@
 
 #include "BC/BC.H"
 
+#include "Test/Operator/Elastic.H"
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -47,8 +49,11 @@ template <Grid G> class Operator;
 template <>
 class Operator<Grid::Node> : public amrex::MLNodeLinOp
 {
+	friend Test::Operator::Elastic;
 public :
+
 	enum struct CoarseningStrategy { Sigma, RAP };
+
 	Operator () {}
 	Operator (const amrex::Vector<amrex::Geometry>& a_geom,
 		  const amrex::Vector<amrex::BoxArray>& a_grids,
@@ -56,6 +61,8 @@ public :
 		  const LPInfo& a_info = LPInfo(),
 		  const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 	virtual ~Operator ();
+
+	virtual int getNGrow() const override {return 2;}
 
 	Operator (const Operator&) = delete;
 	Operator (Operator&&) = delete;
@@ -74,6 +81,11 @@ public :
 		      const Vector<const MultiFab*>& rhnd,
 		      const Vector<MultiFab*>& rhcc);
 
+	virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+				       const MultiFab* crse_bcdata=nullptr) override;
+	virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+					 BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override;
+
 	void compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& phi,
 				     const MultiFab& vold, const MultiFab* rhcc,
 				     const BoxArray& fine_grids, const IntVect& ref_ratio);
@@ -86,6 +98,10 @@ public :
 
 	void setCoarseningStrategy (CoarseningStrategy cs) { m_coarsening_strategy = cs; }
 
+	virtual void Reflux (int crse_amrlev,
+			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const
+	{reflux(crse_amrlev,res,crse_sol,crse_rhs,fine_res,fine_sol,fine_rhs);}
 	virtual void FApply (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
 	{Fapply(amrlev, mglev, out, in);};
 	virtual void FSmooth (int amrlev, int mglev, MultiFab& out, const MultiFab& in)
@@ -146,12 +162,12 @@ protected:
 			     int mglev, 
 			     MultiFab& out,
 			     const MultiFab& in 
-			     ) const =0;
+			     ) const override =0;
 	virtual void Fsmooth (int amrlev,
 			      int mglev,
 			      MultiFab& x,
 			      const MultiFab& b
-			      ) const;
+			      ) const override;
 	virtual void normalize (int amrlev,
 				int mglev,
 				MultiFab& mf
@@ -159,10 +175,6 @@ protected:
 	virtual void reflux (int crse_amrlev,
 			     MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const override;
-
-	virtual Real getAScalar () const final { return  0.0; }
-	virtual Real getBScalar () const final { return -1.0; }
-
 
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
 
@@ -218,7 +230,7 @@ public:
 	friend class MLCGSolver;
 
 	Operator ();
-	virtual ~Operator ();
+	virtual ~Operator () {};
 
 	Operator (const Operator&) = delete;
 	Operator (Operator&&) = delete;
@@ -284,8 +296,8 @@ protected:
 	void updateSolBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
 	void updateCorBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
 
-	virtual void applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
-			      const amrex::MLMGBndry* bndry=nullptr, bool skip_fillboundary=false) const;
+	// virtual void applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
+	// 		      const amrex::MLMGBndry* bndry=nullptr, bool skip_fillboundary=false) const;
 
 	// virtual void restriction (int, int,
 	// 			  amrex::MultiFab& crse,
@@ -295,23 +307,23 @@ protected:
 	// 			    amrex::MultiFab& fine,
 	// 			    const amrex::MultiFab& crse) const override final;
 
-	virtual void averageDownSolutionRHS (int camrlev,
-					     amrex::MultiFab& crse_sol,
-					     amrex::MultiFab& crse_rhs,
-					     const amrex::MultiFab& fine_sol,
-					     const amrex::MultiFab& fine_rhs) override final;
+	// virtual void averageDownSolutionRHS (int camrlev,
+	// 				     amrex::MultiFab& crse_sol,
+	// 				     amrex::MultiFab& crse_rhs,
+	// 				     const amrex::MultiFab& fine_sol,
+	// 				     const amrex::MultiFab& fine_rhs) override final;
 
-	virtual void apply (int amrlev, int mglev,
-			    amrex::MultiFab& out,
-			    amrex::MultiFab& in,
-			    BCMode bc_mode,
-			    StateMode s_mode,
-			    const amrex::MLMGBndry* bndry=nullptr) const override final;
+	// virtual void apply (int amrlev, int mglev,
+	// 		    amrex::MultiFab& out,
+	// 		    amrex::MultiFab& in,
+	// 		    BCMode bc_mode,
+	// 		    StateMode s_mode,
+	// 		    const amrex::MLMGBndry* bndry=nullptr) const override final;
 
 
-	virtual void compGrad (int amrlev,
-			       const std::array<amrex::MultiFab*,AMREX_SPACEDIM>& grad,
-			       amrex::MultiFab& sol, amrex::MLLinOp::Location loc) const override final;
+	// virtual void compGrad (int amrlev,
+	// 		       const std::array<amrex::MultiFab*,AMREX_SPACEDIM>& grad,
+	// 		       amrex::MultiFab& sol, amrex::MLLinOp::Location loc) const override final;
 
 	virtual void prepareForSolve () override;
 
@@ -351,8 +363,8 @@ protected:
 
 private:
 
-	void defineAuxData ();
-	void defineBC ();
+	// void defineAuxData ();
+	// void defineBC ();
 
 	int m_num_a_fabs = 0;
 	// m_a_coeffs[index of fab][amrlevel][mglevel]
