@@ -231,7 +231,7 @@ Elastic::SPD(bool verbose,std::string plotfile)
 int
 Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 {
-	Set::Scalar tolerance = 0.01;
+	Set::Scalar tolerance = 0.02;
 
 	int failed = 0;
 
