@@ -357,7 +357,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
- 		mlmg.setVerbose(4);
+ 		mlmg.setVerbose(2);
  		mlmg.setCGVerbose(0);
  	}
  	else

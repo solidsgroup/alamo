@@ -140,6 +140,8 @@ public :
 	void BuildMasks() {buildMasks();}
 protected:
 
+	void realFillBoundary(MultiFab &phi, const Geometry &geom) const;
+
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
 	virtual void interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const override final;
 	virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
