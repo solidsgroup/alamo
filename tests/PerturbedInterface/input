@@ -5,15 +5,9 @@ stop_time = 0.005
 plot_file = tests/PerturbedInterface/output
 
 amr.plot_int = 10
-<<<<<<< HEAD
-amr.max_level = 1
-amr.n_cell = 64 8
-amr.blocking_factor = 4
-=======
 amr.max_level = 2
 amr.n_cell = 32 4
 amr.blocking_factor = 2
->>>>>>> development
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 amr.max_grid_size = 8

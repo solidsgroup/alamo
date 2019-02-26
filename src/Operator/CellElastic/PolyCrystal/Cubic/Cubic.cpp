@@ -7,7 +7,7 @@
 
 
 
-OperatorCell::Elastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44):
+Operator::CellElastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44):
   C11(_C11), C12(_C12), C44(_C44)
 {
   R = 
@@ -16,7 +16,7 @@ OperatorCell::Elastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real 
     Eigen::AngleAxisd(2.0*3.14159*((amrex::Real)rand())/((amrex::Real)RAND_MAX),Eigen::Vector3d::UnitZ());
 }
 
-OperatorCell::Elastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44,
+Operator::CellElastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44,
 					      amrex::Real phi1=0.0, amrex::Real Phi=0.0, amrex::Real phi2=0.0):
   C11(_C11), C12(_C12), C44(_C44)
 {
@@ -27,7 +27,7 @@ OperatorCell::Elastic::PolyCrystal::Cubic::Cubic (amrex::Real _C11, amrex::Real 
 }
 
 amrex::Real
-OperatorCell::Elastic::PolyCrystal::Cubic::C(const int p, const int q, const int s, const int t) const
+Operator::CellElastic::PolyCrystal::Cubic::C(const int p, const int q, const int s, const int t) const
 {
 
   amrex::Real Crot = 0.0;

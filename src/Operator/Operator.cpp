@@ -1,15 +1,16 @@
 
-#include "Operator.H"
+#include <AMReX_MLNodeLinOp.H>
+#include <AMReX_MLCellLinOp.H>
 #include <AMReX_MLLinOp_F.H>
 #include <AMReX_MultiFabUtil.H>
 #include "Util/Color.H"
 #include "Set/Set.H"
+#include "Operator.H"
 
 using namespace amrex;
 namespace Operator {
 
-
-void Operator::Diagonal (bool recompute)
+void Operator<Grid::Node>::Diagonal (bool recompute)
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Diagonal()" + Color::Reset);
 	//Util::Message(INFO);
@@ -26,7 +27,7 @@ void Operator::Diagonal (bool recompute)
 	}
 }
 
-void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
+void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 {
 	BL_PROFILE("Operator::Diagonal()");
 	//Util::Message(INFO);
@@ -41,9 +42,9 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 	amrex::MultiFab x(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Ax(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox       &diagfab = diag[mfi];
 		amrex::FArrayBox       &xfab    = x[mfi];
 		amrex::FArrayBox       &Axfab   = Ax[mfi];
@@ -83,9 +84,7 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 	}
 }
 
-
-
-void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
+void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
 
@@ -111,9 +110,9 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,2); // Rx = Ax
 		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
 
-		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+		for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 		{
-			const Box& bx = mfi.tilebox();
+			const Box& bx = mfi.validbox();
 			amrex::FArrayBox       &xfab    = x[mfi];
 			const amrex::FArrayBox &bfab    = b[mfi];
 			const amrex::FArrayBox &Rxfab   = Rx[mfi];
@@ -153,10 +152,12 @@ void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::M
 			}
 		}
 	}
-	//nodalSync(amrlev, mglev, x);
+	amrex::Geometry geom = m_geom[amrlev][mglev];
+	realFillBoundary(x,geom);
+	nodalSync(amrlev, mglev, x);
 }
 
-void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
+void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
 	//Util::Message(INFO);
@@ -184,9 +185,9 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0); // x = (I + R0)*x
 	}
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox       &xfab    = x[mfi];
 		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
@@ -211,7 +212,7 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 
 
 
-bool Operator::VerificationCheck (int amrlev,
+bool Operator<Grid::Node>::VerificationCheck (int amrlev,
 				  int mglev,
 				  amrex::MultiFab& test) const
 {
@@ -227,9 +228,9 @@ bool Operator::VerificationCheck (int amrlev,
 	Ax.setVal(0.0);
 	test.setVal(0.0);
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox	&testfab = test[mfi];
 		amrex::FArrayBox	&xfab    = x[mfi];
 		amrex::FArrayBox	&Axfab   = Ax[mfi];
@@ -360,7 +361,7 @@ bool Operator::VerificationCheck (int amrlev,
 }
 
 
-Operator::Operator (const Vector<Geometry>& a_geom,
+Operator<Grid::Node>::Operator (const Vector<Geometry>& a_geom,
 		    const Vector<BoxArray>& a_grids,
 		    const Vector<DistributionMapping>& a_dmap,
 		    const LPInfo& a_info,
@@ -375,17 +376,16 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
 
- Operator::~Operator ()
+ Operator<Grid::Node>::~Operator ()
  {}
 
- void
- Operator::define (const Vector<Geometry>& a_geom,
-		const Vector<BoxArray>& a_grids,
-		const Vector<DistributionMapping>& a_dmap,
-		const LPInfo& a_info,
-		const Vector<FabFactory<FArrayBox> const*>& a_factory)
- {
-	 BL_PROFILE("Operator::~Operator()");
+void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
+		       const Vector<BoxArray>& a_grids,
+		       const Vector<DistributionMapping>& a_dmap,
+		       const LPInfo& a_info,
+		       const Vector<FabFactory<FArrayBox> const*>& a_factory)
+{
+	BL_PROFILE("Operator::~Operator()");
 
 	 // Make sure we're not trying to parallelize in vain.
 	 if (amrex::ParallelDescriptor::NProcs() > a_grids[0].size())
@@ -419,8 +419,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
  }
 
 
-void
-Operator::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*vel*/,
+void Operator<Grid::Node>::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*vel*/,
 		   const Vector<const MultiFab*>& /*rhnd*/,
 		   const Vector<MultiFab*>& /*a_rhcc*/)
 {
@@ -430,8 +429,7 @@ Operator::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*
 
 
 
-void
-Operator::buildMasks ()
+void Operator<Grid::Node>::buildMasks ()
 {
 	BL_PROFILE("Operator::buildMasks()");
 	if (m_masks_built) return;
@@ -595,8 +593,7 @@ Operator::buildMasks ()
 }
 
 
-void
-Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
+void Operator<Grid::Node>::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 {
 	BL_PROFILE("Operator::fixUpResidualMask()");
 
@@ -618,8 +615,7 @@ Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 	//Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
 }
 
-void
-Operator::prepareForSolve ()
+void Operator<Grid::Node>::prepareForSolve ()
 {
 	BL_PROFILE("Operator::prepareForSolve()");
 
@@ -637,8 +633,7 @@ Operator::prepareForSolve ()
 
 }
 
-void
-Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
+void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
 	BL_PROFILE("Operator::restriction()");
 
@@ -740,8 +735,7 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in crse");
 }
 
-void
-Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const MultiFab& crse) const
+void Operator<Grid::Node>::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
@@ -837,8 +831,7 @@ Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const M
 	}
 }
 
-void
-Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
+void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
 				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
@@ -855,44 +848,43 @@ Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*c
 
 }
 
-void
-Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
+void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) const
+{
+	for (int i = 0; i < 2; i++)
+	{
+		MultiFab & mf = phi;
+		mf.FillBoundary(geom.periodicity());
+		const int ncomp = mf.nComp();
+		const int ng1 = 1;
+		const int ng2 = 2;
+		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+	}
+}
+
+void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 		   amrex::MLLinOp::StateMode /**/, bool skip_fillboundary) const
 {
 	BL_PROFILE("Operator::applyBC()");
 
 	const Geometry& geom = m_geom[amrlev][mglev];
-	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());
 
 	if (!skip_fillboundary) {
-	 	if (amrlev == 0) phi.FillBoundary(geom.periodicity());
-		else RealFillBoundary(phi);
-	}
 
-	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
-	{
-		for (MFIter mfi(phi); mfi.isValid(); ++mfi)
-		{
-			if (!nd_domain.strictly_contains(mfi.fabbox()))
-			{
-				amrex_mlndlap_applybc(BL_TO_FORTRAN_ANYD(phi[mfi]),
-						      BL_TO_FORTRAN_BOX(nd_domain),
-						      m_lobc.data(), m_hibc.data());
-			}
-		}
+		realFillBoundary(phi,geom);
 	}
 }
 
 const amrex::FArrayBox &
-Operator::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
+Operator<Grid::Node>::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
 {
 	BL_PROFILE("Operator::GetFab()");
 	Util::Message(INFO);
  	return m_a_coeffs[num][amrlev][mglev][mfi];
 }
 
-void
-Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
+void Operator<Grid::Node>::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 {
 	BL_PROFILE("Operator::RegisterNewFab()");
 	Util::Message(INFO);
@@ -917,8 +909,7 @@ Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 }
 
 
-void
-Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
+void Operator<Grid::Node>::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
 {
 	BL_PROFILE("Operator::RegisterNewFab()");
 	Util::Message(INFO);
@@ -942,10 +933,9 @@ Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input
 	m_num_a_fabs++;
 }
 
-void
-Operator::reflux (int crse_amrlev,
-		    MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
-		    MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
+void Operator<Grid::Node>::reflux (int crse_amrlev,
+		  MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
+		  MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
 {
 	BL_PROFILE("Operator::Elastic::reflux()");
 
@@ -962,7 +952,7 @@ Operator::reflux (int crse_amrlev,
  	const BoxArray&            fba = fine_res.boxArray();
  	const DistributionMapping& fdm = fine_res.DistributionMap();
 
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
 	fine_res_for_coarse.ParallelCopy(res,0,0,ncomp,0,0,cgeom.periodicity());
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
@@ -971,24 +961,24 @@ Operator::reflux (int crse_amrlev,
 	const int coarse_fine_node = 1;
 	const int fine_fine_node = 2;
 
-	amrex::iMultiFab nodemask(amrex::coarsen(fba,2), fdm, 1, 0);
+	amrex::iMultiFab nodemask(amrex::coarsen(fba,2), fdm, 1, 2);
 	nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev],0,0,1,0,0,cgeom.periodicity());
 
-	amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 1);
+	amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 2);
 	cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev],0,0,1,1,1,cgeom.periodicity());
 	
 
 
-	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
 		//const FArrayBox &crserhs = crse_rhs[mfi];
 		//const FArrayBox &finerhs = fine_rhs[mfi];
 		//const FArrayBox &ufab = fine_sol[mfi];
 		//TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
-
+		
 #if AMREX_SPACEDIM == 1
 		Util::Abort(INFO, "reflux not implemented in 1D. Turn AMR off or switch to 2D.");
 #elif AMREX_SPACEDIM == 2
@@ -1003,7 +993,6 @@ Operator::reflux (int crse_amrlev,
 					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] + 1 ||
 					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] + 1)
 					{
-						if (m_crse == amrex::IntVect(8,16)) Util::Message(INFO);
 						// Domain corner
 						if ((m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.loVect()[1]     ) ||
 						    (m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.hiVect()[1] + 1 ) ||
@@ -1145,7 +1134,226 @@ Operator::reflux (int crse_amrlev,
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+
+	const int mglev = 0;
+
+	// Sync up ghost nodes
+	amrex::Geometry geom = m_geom[crse_amrlev][mglev];
+	realFillBoundary(res,geom);
+	nodalSync(crse_amrlev,mglev, res);
 	return;
+}
+
+void
+Operator<Grid::Node>::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			    const MultiFab* /*crse_bcdata*/)
+{
+    const int mglev = 0;
+    const int ncomp = b.nComp();
+    apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+}
+
+void
+Operator<Grid::Node>::correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			      BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
+{
+    apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+    int ncomp = b.nComp();
+    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+}
+
+
+
+
+Operator<Grid::Cell>::Operator ()
+{
+	m_ixtype = amrex::IntVect::TheCellVector();
+}
+
+void
+Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
+		   const amrex::Vector<amrex::BoxArray>& a_grids,
+		   const amrex::Vector<amrex::DistributionMapping>& a_dmap,
+		   BC::BC& a_bc,
+		   const amrex::LPInfo& a_info,
+		   const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory)
+{
+	m_bc = &a_bc;
+
+	std::array<int,AMREX_SPACEDIM> is_periodic = m_bc->IsPeriodic();
+	// for (int ilev=0; ilev < a_geom.size(); ilev++)
+	// 	a_geom[ilev].SetPeriodicity(is_periodic);
+	
+	MLCellLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
+
+	m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+	m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+				  
+	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
+		setLevelBC(ilev,nullptr);
+
+}
+
+
+void
+Operator<Grid::Cell>::prepareForSolve ()
+{
+	BL_PROFILE("Operator<Grid::Cell>::prepareForSolve()");
+
+	const int ncomp = getNComp();
+	for (int amrlev = 0;  amrlev < m_num_amr_levels; ++amrlev)
+	{
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+		{
+			const auto& bcondloc = *m_bcondloc[amrlev][mglev];
+			const auto& maskvals = m_maskvals[amrlev][mglev];
+			const amrex::Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
+
+			amrex::BndryRegister& undrrelxr = m_undrrelxr[amrlev][mglev];
+			amrex::MultiFab foo(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], ncomp, 0, amrex::MFInfo().SetAlloc(false));
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+			for (amrex::MFIter mfi(foo, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
+			{
+				const amrex::Box& vbx = mfi.validbox();
+
+				const RealTuple & bdl = bcondloc.bndryLocs(mfi);
+				const BCTuple   & bdc = bcondloc.bndryConds(mfi);
+
+				for (amrex::OrientationIter oitr; oitr; ++oitr)
+				{
+					const amrex::Orientation ori = oitr();
+                    
+					int  cdr = ori;
+					amrex::Real bcl = bdl[ori];
+					int  bct = bdc[ori];
+                    
+					amrex::FArrayBox& ffab = undrrelxr[ori][mfi];
+					const amrex::Mask& m   =  maskvals[ori][mfi];
+
+					amrex_mllinop_comp_interp_coef0(BL_TO_FORTRAN_BOX(vbx),
+									BL_TO_FORTRAN_ANYD(ffab),
+									BL_TO_FORTRAN_ANYD(m),
+									cdr, bct, bcl, maxorder, dxinv, ncomp);
+				}
+			}
+		}
+	}
+	averageDownCoeffs();
+}
+
+Operator<Grid::Cell>::BndryCondLoc::BndryCondLoc (const amrex::BoxArray& ba, const amrex::DistributionMapping& dm)
+	: bcond(ba, dm),
+	  bcloc(ba, dm)
+{
+}
+
+void
+Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
+					  const std::array<BCType,AMREX_SPACEDIM>& lobc,
+					  const std::array<BCType,AMREX_SPACEDIM>& hibc,
+					  int ratio, const amrex::RealVect& a_loc)
+{
+	const amrex::Box&  domain = geom.Domain();
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (amrex::MFIter mfi(bcloc); mfi.isValid(); ++mfi)
+	{
+		const amrex::Box& bx = mfi.validbox();
+		RealTuple & bloc  = bcloc[mfi];
+		BCTuple   & bctag = bcond[mfi];
+
+		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc);
+	}
+}
+
+
+void
+Operator<Grid::Cell>::averageDownCoeffs ()
+{
+	for (int i = 0; i < m_num_a_fabs; i++)
+	{
+		for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+		{
+			auto& fine_a_coeffs = m_a_coeffs[i][amrlev];
+			averageDownCoeffsSameAmrLevel(fine_a_coeffs);
+		}
+		averageDownCoeffsSameAmrLevel(m_a_coeffs[i][0]);
+	}
+}
+
+void
+Operator<Grid::Cell>::averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>& a)
+{
+	int nmglevs = a.size();
+	for (int mglev = 1; mglev < nmglevs; ++mglev)
+	{
+		amrex::average_down(a[mglev-1], a[mglev], 0, a[0].nComp(), mg_coarsen_ratio);
+	}
+}
+
+
+
+const amrex::FArrayBox &
+Operator<Grid::Cell>::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
+{
+	return m_a_coeffs[num][amrlev][mglev][mfi];
+}
+
+
+void
+Operator<Grid::Cell>::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
+{
+	/// \todo assertions here
+	m_a_coeffs.resize(m_a_coeffs.size() + 1);
+	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+								       m_dmap[amrlev][mglev],
+								       input[amrlev].nComp(),
+								       input[amrlev].nGrow());
+
+		amrex::MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+				      input[amrlev], 0, 0,
+				      input[amrlev].nComp(),
+				      input[amrlev].nGrow());
+	}
+	m_num_a_fabs++;
+}
+
+
+void
+Operator<Grid::Cell>::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
+{
+	/// \todo assertions here
+	m_a_coeffs.resize(m_a_coeffs.size() + 1);
+	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+								       m_dmap[amrlev][mglev],
+								       input[amrlev]->nComp(),
+								       input[amrlev]->nGrow());
+
+		amrex::MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+			       *input[amrlev], 0, 0,
+			       input[amrlev]->nComp(),
+			       input[amrlev]->nGrow());
+	}
+	m_num_a_fabs++;
 }
 
 

@@ -1,33 +1,33 @@
-#ifndef OPERATORCELL_ELASTIC_H_
-#define OPERATORCELL_ELASTIC_H_
+#ifndef OPERATOR_ELASTIC_ELASTIC_H_
+#define OPERATOR_ELASTIC_ELASTIC_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
 
-#include "OperatorCell/Operator.H"
+#include "Operator/Operator.H"
 
 
 using namespace amrex;
 
-namespace OperatorCell
+namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
-class Elastic : public Operator
+class CellElastic : public Operator<Grid::Cell>
 {
 public:
-	Elastic () {}
-	Elastic (const Vector<Geometry>& a_geom,
+	CellElastic () {}
+	CellElastic (const Vector<Geometry>& a_geom,
 		 const Vector<BoxArray>& a_grids,
 		 const Vector<DistributionMapping>& a_dmap,
 		 BC::BC& a_bc,
 		 const LPInfo& a_info);
-	virtual ~Elastic ();
-	Elastic (const Elastic&) = delete;
-	Elastic (Elastic&&) = delete;
-	Elastic& operator= (const Elastic&) = delete;
-	Elastic& operator= (Elastic&&) = delete;
+	virtual ~CellElastic ();
+	CellElastic (const CellElastic&) = delete;
+	CellElastic (CellElastic&&) = delete;
+	CellElastic& operator= (const CellElastic&) = delete;
+	CellElastic& operator= (CellElastic&&) = delete;
 
 	void SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &);
 	void SetEigenstrain(amrex::Vector<amrex::MultiFab> &);
@@ -48,8 +48,9 @@ protected:
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const final;
 	virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh, int redblack) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
-						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
-						const FArrayBox& sol, const int face_only=0) const final;
+			    const Array<FArrayBox*,AMREX_SPACEDIM>& flux,
+			    const FArrayBox& sol, Location loc, const int face_only=0) const;
+
 	virtual int getNComp() const {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
 

@@ -7,7 +7,7 @@
 
 
 
-OperatorCell::Elastic::Degradation::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44,
+Operator::CellElastic::Degradation::Cubic::Cubic (amrex::Real _C11, amrex::Real _C12, amrex::Real _C44,
 					      amrex::Real phi1=0.0, amrex::Real Phi=0.0, amrex::Real phi2=0.0):
   C11(_C11), C12(_C12), C44(_C44)
 {
@@ -18,7 +18,7 @@ OperatorCell::Elastic::Degradation::Cubic::Cubic (amrex::Real _C11, amrex::Real 
 }
 
 amrex::Real
-OperatorCell::Elastic::Degradation::Cubic::C(const int p, const int q, const int s, const int t) const
+Operator::CellElastic::Degradation::Cubic::C(const int p, const int q, const int s, const int t) const
 {
 
   amrex::Real Crot = 0.0;
