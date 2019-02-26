@@ -1,17 +1,17 @@
-#ifndef OPERATORCELL_ELASTIC_POLYCRYSTAL_ISOTROPIC_H_
-#define OPERATORCELL_ELASTIC_POLYCRYSTAL_ISOTROPIC_H_
+#ifndef OPERATOR_CELLELASTIC_POLYCRYSTAL_ISOTROPIC_H_
+#define OPERATOR_CELLELASTIC_POLYCRYSTAL_ISOTROPIC_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
 
-#include "OperatorCell/Elastic/PolyCrystal/PolyCrystal.H"
+#include "Operator/CellElastic/PolyCrystal/PolyCrystal.H"
 
 using namespace amrex;
 
-namespace OperatorCell
+namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
 namespace PolyCrystal
 {

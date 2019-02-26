@@ -27,12 +27,11 @@
 #include "Model/Interface/GrainBoundary/AbsSin.H"
 #include "Model/Interface/GrainBoundary/Read.H"
 
-#include "OperatorCell/Elastic/PolyCrystal/PolyCrystal.H"
-#include "OperatorCell/Elastic/Isotropic/Isotropic.H"
-#include "OperatorCell/Elastic/PolyCrystal/Isotropic/Isotropic.H"
-#include "OperatorCell/Elastic/PolyCrystal/Cubic/Cubic.H"
-#include "OperatorCell/Elastic/Cubic/Cubic.H"
-
+#include "Operator/CellElastic/PolyCrystal/PolyCrystal.H"
+#include "Operator/CellElastic/Isotropic/Isotropic.H"
+#include "Operator/CellElastic/PolyCrystal/Isotropic/Isotropic.H"
+#include "Operator/CellElastic/PolyCrystal/Cubic/Cubic.H"
+#include "Operator/CellElastic/Cubic/Cubic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
@@ -68,8 +67,8 @@ protected:
 
 	void TimeStepBegin(amrex::Real time, int iter) override;
 	void TimeStepComplete(amrex::Real time, int iter) override;
-	// void Integrate(int amrlev, Set::Scalar time, int step,
-	// 	       const amrex::MFIter &mfi, const amrex::Box &box) override;
+	void Integrate(int amrlev, Set::Scalar time, int step,
+		       const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 private:
 
@@ -109,6 +108,7 @@ private:
 	struct
 	{
 		bool        on       = false;
+		Grid        grid = Grid::Cell;
 		int         interval = 1;
 		//std::string type;
 		int         max_iter = 20;
@@ -120,8 +120,10 @@ private:
 		amrex::Real tol_rel = 0.0;
 		amrex::Real tol_abs = 1.0E-10;
 		amrex::Real tstart = 0.0;
-		amrex::Vector<amrex::Real> elastic_load_t;
-		amrex::Vector<amrex::Real> elastic_load_disp;
+		amrex::Vector<amrex::Real> load_t;
+		amrex::Vector<amrex::Real> load_disp;
+
+		// Node only
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
 		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
@@ -134,11 +136,11 @@ private:
 	} elastic;
 	//#endif
 
-	//OperatorCell::Elastic::PolyCrystal::PolyCrystal *elastic_operator;
+	Operator::CellElastic::PolyCrystal::PolyCrystal *cellelastic_operator;
 	Operator::Elastic<Model::Solid::LinearElastic::Cubic> *elastic_operator;
 	BC::BC *elastic_bc;
 
-	std::vector<OperatorCell::Elastic::PolyCrystal::PolyCrystalModel *> models;
+	std::vector<Operator::CellElastic::PolyCrystal::PolyCrystalModel *> models;
 	
 	const std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
 									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
