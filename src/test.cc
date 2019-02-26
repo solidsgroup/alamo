@@ -64,18 +64,19 @@ int main (int argc, char* argv[])
 
 	{
 		Test::Operator::Elastic test;
+		test.Define(16,1);
+		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
-		// number of AMR levels
-		int nlevels = 2;
-		// dimension of the problem (must be less than or equal to AMREX_SPACEDIM
-		int problem_dimension = AMREX_SPACEDIM; 
-		// Configuration of the grid (can be "None" or "X", "Y", "Z", "YZ", "ZX", "XY", "XYZ")
-		// XYZ = fine level shrunk in x, y, z directions; X = fine level shrunk in x direction only, etc.
-		Test::Operator::Elastic::Grid config = Test::Operator::Elastic::Grid::XYZ;
-
-		test.Define(16,nlevels,problem_dimension, config);
+		test.Define(16,2);
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(2,0,1,"testoutput"));
+		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
+
+		test.Define(16,3);
+		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
+		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}
 
 	Util::Message(INFO,failed," tests failed");
