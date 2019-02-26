@@ -57,9 +57,9 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	BL_PROFILE("Operator::Elastic::SetModel()");
 
 	int nghost = model[amrlev][0]->nGrow();
-	for (MFIter mfi(a_model, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_model, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
 		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
 
@@ -85,9 +85,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 	int nghost = 1; //(f.nGrow() && u.nGrow()) ? 1 : 0;
 	//Util::Message(INFO,"amrlev = ", amrlev, "nghost = ", nghost);
 
-	for (MFIter mfi(f, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(f, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
 		const amrex::FArrayBox &ufab    = u[mfi];
 		amrex::FArrayBox       &ffab    = f[mfi];
@@ -238,9 +238,9 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	for (MFIter mfi(diag, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(diag, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
 		amrex::FArrayBox       &diagfab    = diag[mfi];
 

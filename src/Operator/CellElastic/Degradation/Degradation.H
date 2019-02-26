@@ -1,18 +1,18 @@
-#ifndef OPERATORCELL_ELASTIC_DEGRADATION_H_
-#define OPERATORCELL_ELASTIC_DEGRADATION_H_
+#ifndef OPERATOR_CELLELASTIC_DEGRADATION_H_
+#define OPERATOR_CELLELASTIC_DEGRADATION_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
 #include <limits>
 
 #include "BC/BC.H"
-#include "OperatorCell/Elastic/Elastic.H"
+#include "Operator/CellElastic/CellElastic.H"
 
 using namespace amrex;
 
-namespace OperatorCell
+namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
 namespace Degradation
 {
@@ -23,7 +23,7 @@ class PristineMaterialModel
 	virtual amrex::Real C(const int i, const int j, const int k, const int l) const = 0;
 };
 
-class Degradation : public Elastic
+class Degradation : public CellElastic
 {
 public:
 

@@ -6,7 +6,7 @@
 #include "Cubic.H"
 
 
-OperatorCell::Elastic::Cubic::Cubic()
+Operator::CellElastic::Cubic::Cubic()
 {
   E = 1.0; nu = 0.25; mu = 2.0;
 
@@ -16,7 +16,7 @@ OperatorCell::Elastic::Cubic::Cubic()
 }
 
 amrex::Real
-OperatorCell::Elastic::Cubic::C(const int i, const int j, const int k, const int l,
+Operator::CellElastic::Cubic::C(const int i, const int j, const int k, const int l,
 			    const amrex::IntVect /*loc*/,
 			    const int /*amrlev*/, const int /*mglev*/, const MFIter &/*mfi*/) const
 {

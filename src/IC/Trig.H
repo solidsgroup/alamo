@@ -51,7 +51,7 @@ public:
 				   
 		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
 		{
-			const amrex::Box& box = mfi.tilebox();
+			const amrex::Box& box = mfi.validbox();
 
 			amrex::BaseFab<amrex::Real> &field_box = (*field[lev])[mfi];
 
