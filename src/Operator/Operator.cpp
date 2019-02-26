@@ -42,9 +42,9 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
 	amrex::MultiFab x(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Ax(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox       &diagfab = diag[mfi];
 		amrex::FArrayBox       &xfab    = x[mfi];
 		amrex::FArrayBox       &Axfab   = Ax[mfi];
@@ -110,9 +110,9 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,2); // Rx = Ax
 		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
 
-		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+		for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 		{
-			const Box& bx = mfi.tilebox();
+			const Box& bx = mfi.validbox();
 			amrex::FArrayBox       &xfab    = x[mfi];
 			const amrex::FArrayBox &bfab    = b[mfi];
 			const amrex::FArrayBox &Rxfab   = Rx[mfi];
@@ -185,9 +185,9 @@ void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& x) const
 		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0); // x = (I + R0)*x
 	}
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox       &xfab    = x[mfi];
 		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
@@ -228,9 +228,9 @@ bool Operator<Grid::Node>::VerificationCheck (int amrlev,
 	Ax.setVal(0.0);
 	test.setVal(0.0);
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox	&testfab = test[mfi];
 		amrex::FArrayBox	&xfab    = x[mfi];
 		amrex::FArrayBox	&Axfab   = Ax[mfi];
@@ -969,9 +969,9 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 	
 
 
-	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
 		//const FArrayBox &crserhs = crse_rhs[mfi];
