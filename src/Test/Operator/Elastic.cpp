@@ -76,11 +76,10 @@ void Elastic::Define(int _ncells,
  	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		cgrids[ilev].define(cdomain);
-		//cgrids[ilev].maxSize(amrex::IntVect(1000000,max_grid_size));
-		if (ilev == 0) cgrids[ilev].maxSize(max_grid_size);
-		if (ilev == 1) cgrids[ilev].maxSize(max_grid_size);
-		if (ilev == 2) cgrids[ilev].maxSize(max_grid_size);
-		//cgrids[ilev].maxSize(max_grid_size);
+		// if (ilev == 0) cgrids[ilev].maxSize(10000000);
+		// if (ilev == 1) cgrids[ilev].maxSize(max_grid_size);
+		// if (ilev == 2) cgrids[ilev].maxSize(10000000);
+		cgrids[ilev].maxSize(max_grid_size);
 
 		if (_config == Grid::XYZ)
 			cdomain.grow(amrex::IntVect(-ncells/4)); 
@@ -96,7 +95,7 @@ void Elastic::Define(int _ncells,
 			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,-ncells/4)));
 		else if (_config == Grid::XY)
 			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,-ncells/4,0)));
-			
+	
 		cdomain.refine(ref_ratio); 
 		ngrids[ilev] = cgrids[ilev];
 		ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
@@ -232,7 +231,7 @@ Elastic::SPD(bool verbose,std::string plotfile)
 int
 Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 {
-	Set::Scalar tolerance = 0.01;
+	Set::Scalar tolerance = 0.02;
 
 	int failed = 0;
 
@@ -358,7 +357,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
- 		mlmg.setVerbose(4);
+ 		mlmg.setVerbose(2);
  		mlmg.setCGVerbose(0);
  	}
  	else
@@ -477,11 +476,13 @@ int Elastic::RefluxTest(int verbose)
 {
 	int failed = 0;
 
+	int nghost = 2;
+
 	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Isotropic> > >
 		modelfab(nlevels); 
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, nghost);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
 

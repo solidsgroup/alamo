@@ -17,7 +17,7 @@ namespace Operator
 /// \todo Remove Elastic derived classes. They have been replaced with the Model construction.
 /// 
 template<class T>
-class Elastic : public Operator
+class Elastic : public Operator<Grid::Node>
 {
 	friend Test::Operator::Elastic;
 	
