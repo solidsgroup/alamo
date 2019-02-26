@@ -1,5 +1,5 @@
-#ifndef OPERATORCELL_ELASTIC_CUBIC_ROTATION_H_
-#define OPERATORCELL_ELASTIC_CUBIC_ROTATION_H_
+#ifndef OPERATOR_CELLELASTIC_CUBIC_ROTATION_H_
+#define OPERATOR_CELLELASTIC_CUBIC_ROTATION_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
@@ -7,15 +7,15 @@
 
 #include "eigen3/Eigen/Core"
 
-#include "OperatorCell/Elastic/Elastic.H"
+#include "Operator/CellElastic/CellElastic.H"
 
 using namespace amrex;
 
-namespace OperatorCell
+namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
-  class CubicRotation : public Elastic
+  class CubicRotation : public CellElastic
   {
   public:
 

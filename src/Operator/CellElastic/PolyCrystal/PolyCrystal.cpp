@@ -8,7 +8,7 @@
 
 
 void
-OperatorCell::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta,
+Operator::CellElastic::PolyCrystal::PolyCrystal::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta,
 						    std::vector<PolyCrystalModel *> &models)
 {
   RegisterNewFab(eta);
@@ -23,7 +23,7 @@ OperatorCell::Elastic::PolyCrystal::PolyCrystal::SetEta(amrex::Vector<std::uniqu
 }
 
 amrex::Real
-OperatorCell::Elastic::PolyCrystal::PolyCrystal::C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
+Operator::CellElastic::PolyCrystal::PolyCrystal::C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 					       const int amrlev, const int mglev, const MFIter &mfi) const
 {
   const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
@@ -51,7 +51,7 @@ OperatorCell::Elastic::PolyCrystal::PolyCrystal::C(const int i, const int j, con
 
 
 void
-OperatorCell::Elastic::PolyCrystal::PolyCrystal::Energies (FArrayBox& energyfab,
+Operator::CellElastic::PolyCrystal::PolyCrystal::Energies (FArrayBox& energyfab,
 						       const FArrayBox& ufab,
 													   int amrlev, const MFIter& mfi)
 {

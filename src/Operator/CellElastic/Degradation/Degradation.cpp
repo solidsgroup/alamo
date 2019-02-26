@@ -5,13 +5,13 @@
 
 #include "Degradation.H"
 
-OperatorCell::Elastic::Degradation::Degradation::Degradation(const amrex::Real WInput)
+Operator::CellElastic::Degradation::Degradation::Degradation(const amrex::Real WInput)
 {
 	W = WInput;
 }
 
 void
-OperatorCell::Elastic::Degradation::Degradation::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta,
+Operator::CellElastic::Degradation::Degradation::SetEta(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eta,
 						    std::vector<PristineMaterialModel *> &models)
 {
 	RegisterNewFab(eta);
@@ -30,7 +30,7 @@ OperatorCell::Elastic::Degradation::Degradation::SetEta(amrex::Vector<std::uniqu
 }
 
 amrex::Real
-OperatorCell::Elastic::Degradation::Degradation::C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
+Operator::CellElastic::Degradation::Degradation::C(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 					       const int amrlev, const int mglev, const MFIter &mfi) const
 {
 
@@ -57,7 +57,7 @@ OperatorCell::Elastic::Degradation::Degradation::C(const int i, const int j, con
 }
 
 amrex::Real
-OperatorCell::Elastic::Degradation::Degradation::M(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
+Operator::CellElastic::Degradation::Degradation::M(const int i, const int j, const int k, const int l, const amrex::IntVect loc,
 					       const int amrlev, const int mglev, const MFIter &mfi) const
 {
 	const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
@@ -75,7 +75,7 @@ OperatorCell::Elastic::Degradation::Degradation::M(const int i, const int j, con
 }
 
 std::vector<amrex::Real>
-OperatorCell::Elastic::Degradation::Degradation::dMdEta(const int i, const int j, const int k, const int l,
+Operator::CellElastic::Degradation::Degradation::dMdEta(const int i, const int j, const int k, const int l,
 									const amrex::IntVect loc, const int amrlev, const int mglev, const MFIter &mfi) const
 {
 	const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
@@ -113,7 +113,7 @@ OperatorCell::Elastic::Degradation::Degradation::dMdEta(const int i, const int j
 }
 
 amrex::Real
-OperatorCell::Elastic::Degradation::Degradation::N(const int i, const int j, const amrex::IntVect loc,
+Operator::CellElastic::Degradation::Degradation::N(const int i, const int j, const amrex::IntVect loc,
 					       const int amrlev, const int mglev, const MFIter &mfi) const
 {
 	const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
@@ -129,7 +129,7 @@ OperatorCell::Elastic::Degradation::Degradation::N(const int i, const int j, con
 }
 
 std::vector<amrex::Real>
-OperatorCell::Elastic::Degradation::Degradation::dNdEta(const int i, const int j, const amrex::IntVect loc,
+Operator::CellElastic::Degradation::Degradation::dNdEta(const int i, const int j, const amrex::IntVect loc,
 								const int amrlev, const int mglev, const MFIter &mfi) const
 {
 	const FArrayBox &etafab = GetFab(0,amrlev,mglev,mfi);
@@ -158,7 +158,7 @@ OperatorCell::Elastic::Degradation::Degradation::dNdEta(const int i, const int j
 }
 
 void
-OperatorCell::Elastic::Degradation::Degradation::Energies (FArrayBox& energyfab,
+Operator::CellElastic::Degradation::Degradation::Energies (FArrayBox& energyfab,
 						       const FArrayBox& ufab,
 						       int amrlev, int mglev, const MFIter& mfi)
 {

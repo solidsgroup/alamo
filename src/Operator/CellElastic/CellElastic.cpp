@@ -6,19 +6,19 @@
 #include <AMReX_ArrayLim.H>
 
 #include "Set/Set.H"
-#include "Elastic.H"
+#include "CellElastic.H"
 
 
 
-namespace OperatorCell
+namespace Operator
 {
-namespace Elastic
+namespace CellElastic
 {
-/// \fn Operator::Elastic::MLPFStiffnessMatrix
+/// \fn Operator::CellElastic::MLPFStiffnessMatrix
 ///
 /// Relay to the define function
 /// Also define elastic constants here.
-Elastic::Elastic (const Vector<Geometry>& a_geom,
+CellElastic::CellElastic (const Vector<Geometry>& a_geom,
 		  const Vector<BoxArray>& a_grids,
 		  const Vector<DistributionMapping>& a_dmap,
 		  BC::BC& a_bc,
@@ -27,11 +27,11 @@ Elastic::Elastic (const Vector<Geometry>& a_geom,
 	define(a_geom, a_grids, a_dmap, a_bc, a_info);
 }
 
-Elastic::~Elastic ()
+CellElastic::~CellElastic ()
 {}
 
 void
-Elastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigenstrain)
+CellElastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigenstrain)
 {
 	usingEigenstrain = true;
 	AMREX_ASSERT(eigenstrain[0]->nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
@@ -39,7 +39,7 @@ Elastic::SetEigenstrain(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eigens
 }
 
 void
-Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain)
+CellElastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain)
 {
 	usingEigenstrain = true;
 	AMREX_ASSERT(eigenstrain[0].nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
@@ -47,13 +47,13 @@ Elastic::SetEigenstrain(amrex::Vector<amrex::MultiFab> &eigenstrain)
 }
 
 void
-Elastic::Fapply (int amrlev, ///<[in] AMR Level
+CellElastic::Fapply (int amrlev, ///<[in] AMR Level
 		 int mglev,  ///<[in]
 		 MultiFab& f,///<[out] The force vector
 		 const MultiFab& u ///<[in] The displacements vector
 		 ) const
 {
-	BL_PROFILE("Operator::Elastic::Elastic::Fapply()");
+	BL_PROFILE("Operator::CellElastic::CellElastic::Fapply()");
 
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
   
@@ -131,24 +131,24 @@ Elastic::Fapply (int amrlev, ///<[in] AMR Level
 }
 
 
-/// \fn Operator::Elastic::Fsmooth
+/// \fn Operator::CellElastic::Fsmooth
 ///
 /// Perform one half Gauss-Seidel iteration corresponding to the operator specified
-/// in Operator::Elastic::Fapply.
+/// in Operator::CellElastic::Fapply.
 /// The variable redblack corresponds to whether to smooth "red" nodes or "black"
 /// nodes, where red and black nodes are distributed in a checkerboard pattern.
 ///
 /// \todo Extend to 3D
 ///
 void
-Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
+CellElastic::Fsmooth (int amrlev,          ///<[in] AMR level
 		  int mglev,           ///<[in]
 		  MultiFab& u,       ///<[inout] Solution (displacement field)
 		  const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
 		  int redblack         ///<[in] Smooth even vs. odd modes
 		  ) const
 {
-	BL_PROFILE("Operator::Elastic::Elastic::Fsmooth()");
+	BL_PROFILE("Operator::CellElastic::CellElastic::Fsmooth()");
 
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
@@ -253,19 +253,18 @@ Elastic::Fsmooth (int amrlev,          ///<[in] AMR level
 	}
 }
 
-/// \fn Operator::Elastic::FFlux
+/// \fn Operator::CellElastic::FFlux
 ///
-/// Compute the "flux" corresponding to the operator in Operator::Elastic::Fapply.
+/// Compute the "flux" corresponding to the operator in Operator::CellElastic::Fapply.
 /// Because the operator is self-adjoint and positive-definite, the flux is not
 /// required for adequate convergence (?)
 /// Therefore, the fluxes are simply set to zero and returned.
 ///
 /// \todo Extend to 3D
 ///
-void
-Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
-		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
-		const FArrayBox& /*ufab*/, const int /*face_only*/) const
+void CellElastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
+		     const Array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
+		     const FArrayBox& /*sol*/, Location /*loc*/, const int /*face_only*/) const
 {
 	// amrex::BaseFab<amrex::Real> &fxfab = *sigmafab[0];
 	// amrex::BaseFab<amrex::Real> &fyfab = *sigmafab[1];
@@ -281,7 +280,7 @@ Elastic::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 
 }
 
-void Elastic::AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
+void CellElastic::AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
 {
 	for (int amrlev=0; amrlev < rhsfab.size(); amrlev ++)
 	{
@@ -293,10 +292,10 @@ void Elastic::AddEigenstrainToRHS (amrex::Vector<amrex::MultiFab>& rhsfab) const
 	}
 }
 
-void Elastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
+void CellElastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
 				   int amrlev, const MFIter& mfi) const
 {
-	BL_PROFILE("Operator::Elastic::AddEigenstrainToRHS()");
+	BL_PROFILE("Operator::CellElastic::AddEigenstrainToRHS()");
 
 	if (!usingEigenstrain) return;
 
@@ -386,7 +385,7 @@ void Elastic::AddEigenstrainToRHS (FArrayBox& rhsfab,
 }
 
 void
-Elastic::Stress (FArrayBox& sigmafab,
+CellElastic::Stress (FArrayBox& sigmafab,
 		 const FArrayBox& ufab,
 		 int amrlev, const MFIter& mfi,
 		 bool voigt) const
@@ -451,7 +450,7 @@ Elastic::Stress (FArrayBox& sigmafab,
 }
 
 void
-Elastic::Energy (FArrayBox& energyfab,
+CellElastic::Energy (FArrayBox& energyfab,
 		 const FArrayBox& ufab,
 		 int amrlev, const MFIter& mfi) const
 {
