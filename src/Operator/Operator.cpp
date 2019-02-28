@@ -210,157 +210,6 @@ void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& x) const
 	}
 }
 
-
-
-bool Operator<Grid::Node>::VerificationCheck (int amrlev,
-				  int mglev,
-				  amrex::MultiFab& test) const
-{
-	BL_PROFILE("Operator::VerificationCheck()");
-	Util::Message(INFO);
-	bool result = false;
-	int ncomp = test.nComp();
-	int nghost = test.nGrow();
-	amrex::MultiFab x(test.boxArray(), test.DistributionMap(), ncomp, nghost);
-	amrex::MultiFab Ax(test.boxArray(), test.DistributionMap(), ncomp, nghost);
-
-	x.setVal(0.0);
-	Ax.setVal(0.0);
-	test.setVal(0.0);
-
-	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
-	{
-		const Box& bx = mfi.validbox();
-		amrex::FArrayBox	&testfab = test[mfi];
-		amrex::FArrayBox	&xfab    = x[mfi];
-		amrex::FArrayBox	&Axfab   = Ax[mfi];
-
-		// Random point on inside
-		int pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		int pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		int pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point inside = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on left face
-		pointX = bx.loVect()[0];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point left = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on the right face
-		pointX = bx.hiVect()[0];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point right = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-		// Random point on bottom face
-		pointY = bx.loVect()[1];
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point bottom = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on the top face
-		pointY = bx.hiVect()[1];
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point top = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-		// Random point on back face
-		pointZ = bx.loVect()[2];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on the front face
-		pointZ = bx.hiVect()[2];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-	}
-	return result;
-}
-
-
 Operator<Grid::Node>::Operator (const Vector<Geometry>& a_geom,
 		    const Vector<BoxArray>& a_grids,
 		    const Vector<DistributionMapping>& a_dmap,
@@ -645,7 +494,7 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 	MultiFab cfine;
 	if (need_parallel_copy) {
 		const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-		cfine.define(ba, fine.DistributionMap(), fine.nComp(), 0);
+		cfine.define(ba, fine.DistributionMap(), fine.nComp(), fine.nGrow());
 	}
 
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
@@ -660,9 +509,9 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
 
-	for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(*pcrse, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		const amrex::FArrayBox &finefab = fine[mfi];
 		amrex::FArrayBox       &crsefab = (*pcrse)[mfi];
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
@@ -731,11 +580,16 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 		crse.ParallelCopy(cfine);
 	}
 
+	amrex::Geometry geom = m_geom[amrlev][cmglev];
+	realFillBoundary(crse,geom);
+	nodalSync(amrlev, cmglev, crse);
+
+
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in crse");
 }
 
-void Operator<Grid::Node>::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const MultiFab& crse) const
+void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
@@ -745,7 +599,7 @@ void Operator<Grid::Node>::interpolation (int /*amrlev*/, int /*fmglev*/, MultiF
 	const MultiFab* cmf = &crse;
 	if (need_parallel_copy) {
 		const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-		cfine.define(ba, fine.DistributionMap(), crse.nComp(), 0);
+		cfine.define(ba, fine.DistributionMap(), crse.nComp(), crse.nGrow());
 		cfine.ParallelCopy(crse);
 		cmf = &cfine;
 	}
@@ -756,9 +610,9 @@ void Operator<Grid::Node>::interpolation (int /*amrlev*/, int /*fmglev*/, MultiF
 #pragma omp parallel
 #endif
 	{
-		for (MFIter mfi(fine, true); mfi.isValid(); ++mfi)
+		for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
 		{
-			const Box& fine_bx = mfi.tilebox();
+			const Box& fine_bx = mfi.validbox();
 			const Box& course_bx = amrex::coarsen(fine_bx,2);
 			const Box& tmpbx = amrex::refine(course_bx,2);
 			FArrayBox tmpfab;
@@ -779,10 +633,10 @@ void Operator<Grid::Node>::interpolation (int /*amrlev*/, int /*fmglev*/, MultiF
 #if AMREX_SPACEDIM == 2
 					if (m[0]==2*M[0] && m[1]==2*M[1]) // Coincident
 						tmpfab(m,i) = crsefab(M,i);
-					else if (m[1]==2*M[1]) // X Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
-					else if (m[0]==2*M[0]) // Y Edge
+					else if (m[0]%2 == 0) // X Edge
 						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
+					else if (m[1]%2 == 0) // Y Edge
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
 					else // Center
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
 								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
@@ -829,6 +683,10 @@ void Operator<Grid::Node>::interpolation (int /*amrlev*/, int /*fmglev*/, MultiF
 			fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
 		}
 	}
+	amrex::Geometry geom = m_geom[amrlev][fmglev];
+	realFillBoundary(fine,geom);
+	nodalSync(amrlev, fmglev, fine);
+
 }
 
 void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
