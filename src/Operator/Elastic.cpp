@@ -713,7 +713,7 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 
 		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
  			{
-				if (AMREX_SPACEDIM > 2) Util::Abort("works in 2D only!");
+				if (AMREX_SPACEDIM > 2) Util::Abort(INFO,"works in 2D only!");
 
 				const Box& bx = mfi.tilebox();
 
