@@ -40,7 +40,8 @@ void Elastic::Define(int _ncells,
 	dim = _dim;
 	ncells = _ncells;
  	nlevels = _nlevels;
-	int max_grid_size = 100000;//ncells/2;
+	int max_grid_size = 100000;
+	//int max_grid_size = ncells/2;
 	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -306,7 +307,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	amrex::LPInfo info;
  	info.setAgglomeration(1);
  	info.setConsolidation(1);
- 	//info.setMaxCoarseningLevel(4);
+ 	info.setMaxCoarseningLevel(2);
  	nlevels = geom.size();
 	::Operator::Elastic<model_type> elastic;
  	elastic.define(geom, cgrids, dmap, info);
@@ -365,7 +366,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(200);
+ 	mlmg.setBottomMaxIter(20);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	Set::Scalar tol_rel = 1E-8;

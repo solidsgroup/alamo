@@ -488,7 +488,7 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 
 	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
 
-	//const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][cmglev].Domain());
+	amrex::Box cdomain = m_geom[amrlev][cmglev].Domain(); cdomain.convert(amrex::IntVect::TheNodeVector());
 
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
@@ -499,45 +499,30 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
-	// C++ version of Fortran (amrex_mlndlap_restriction)
-	// Set::Scalar fac1 = 1.0/64.0;
-	// Set::Scalar fac2 = 1.0/32.0;
-	// Set::Scalar fac3 = 1.0/16.0; 
-	// Set::Scalar fac4 = 1.0/8.0;
-
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
 
 	for (MFIter mfi(*pcrse, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.validbox();
+		const Box& bx = mfi.tilebox();
+		//const Box& bx = mfi.growntilebox(nghost) & cdomain;
 		const amrex::FArrayBox &finefab = fine[mfi];
 		amrex::FArrayBox       &crsefab = (*pcrse)[mfi];
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]+1; m1<=bx.hiVect()[0]-1; m1++),
+			     for (int m2 = bx.loVect()[1]+1; m2<=bx.hiVect()[1]-1; m2++),
+			     for (int m3 = bx.loVect()[2]+1; m3<=bx.hiVect()[2]-1; m3++))
 		{
 			amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 			amrex::IntVect m_fine(AMREX_D_DECL(2*m1, 2*m2, 2*m3));
 			for (int i=0; i<crse.nComp(); i++)
 			{
 #if AMREX_SPACEDIM == 2
-		
-				// // amrex_mlndlap_restriction
-				// for (int n = 0 ; n < ncomp; n++)
-				// {
-				// 	for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
-				// 		for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
-				// 	{
-				// 		amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-				// 		amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
-
 				crsefab(m_crse,i) =
 					(+     finefab(m_fine-dx[0]-dx[1],i) + 2.0*finefab(m_fine-dx[1],i) +     finefab(m_fine+dx[0]-dx[1],i)
 					 + 2.0*finefab(m_fine-dx[0]      ,i) + 4.0*finefab(m_fine      ,i) + 2.0*finefab(m_fine+dx[0]      ,i) 
 					 +     finefab(m_fine-dx[0]+dx[1],i) + 2.0*finefab(m_fine+dx[1],i) +     finefab(m_fine+dx[0]+dx[1],i))/16.0;
-				//}
 #endif
 #if AMREX_SPACEDIM == 3
 				crsefab(m_crse,i) =
@@ -591,9 +576,14 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 
 void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
+	// Util::Message(INFO,"fine nghost = ", fine.nGrow());
+	// Util::Abort(INFO,"crse nghost = ", crse.nGrow());
 	BL_PROFILE("Operator::interpolation()");
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
+	int nghost = getNGrow();
+	amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
+	
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
 	const MultiFab* cmf = &crse;
@@ -612,7 +602,10 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 	{
 		for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
 		{
-			const Box& fine_bx = mfi.validbox();
+			//const Box& fine_bx = mfi.validbox();
+			//const Box& fine_bx = mfi.growntilebox(nghost-1) & fdomain;
+			const Box& fine_bx = mfi.tilebox() & fdomain;
+
 			const Box& course_bx = amrex::coarsen(fine_bx,2);
 			const Box& tmpbx = amrex::refine(course_bx,2);
 			FArrayBox tmpfab;
@@ -642,6 +635,9 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
 #endif
 #if AMREX_SPACEDIM == 3
+					if (std::isinf(crsefab(M,i))) Util::Abort(INFO, "Inf detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
+					if (std::isnan(crsefab(M,i))) Util::Abort(INFO, "NaN detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
+
 					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
 						tmpfab(m,i) = crsefab(M,i);
 					else if (m[1]==2*M[1] && m[2]==2*M[2]) // X Edge
@@ -649,7 +645,7 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 					else if (m[2]==2*M[2] && m[0]==2*M[0]) // Y Edge
 						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
 					else if (m[0]==2*M[0] && m[1]==2*M[1]) // Z Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i));
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i)); // problem occurs here
 					else if (m[0]==2*M[0]) // X Face
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dy,i) +
 								      crsefab(M+dz,i) + crsefab(M+dy+dz,i));
@@ -660,23 +656,13 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
 								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
 					else // Center
-					{
 						tmpfab(m,i) = 0.125 * (crsefab(M,i) +
 								       crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dz,i) +
 								       crsefab(M+dy+dz,i) + crsefab(M+dz+dx,i) + crsefab(M+dx+dy,i) +
 								       crsefab(M+dx+dy+dz,i));
-					}
 
-					if (std::isinf(tmpfab(m,i)))
-					{
-						std::cout << m << M << std::endl;
-						Util::Abort(INFO, "Is Infinity");
-					}
-					if (std::isnan(tmpfab(m,i)))
-					{
-						std::cout << m << M << std::endl;
-						Util::Abort(INFO, "Is NaN");
-					}
+					if (std::isinf(tmpfab(m,i))) Util::Abort(INFO, "Inf detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
+					if (std::isnan(tmpfab(m,i))) Util::Abort(INFO, "NaN detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
 #endif
 				}
 			}
@@ -686,9 +672,8 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 	amrex::Geometry geom = m_geom[amrlev][fmglev];
 	realFillBoundary(fine,geom);
 	nodalSync(amrlev, fmglev, fine);
-
 }
-
+  
 void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
 				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
