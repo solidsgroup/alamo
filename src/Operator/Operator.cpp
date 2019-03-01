@@ -519,10 +519,14 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 			for (int i=0; i<crse.nComp(); i++)
 			{
 #if AMREX_SPACEDIM == 2
+				if (std::isinf(finefab(m_fine,i))) Util::Abort(INFO, "FINE Inf detected at amrlev=",amrlev," fmglev=",cmglev-1," m=",m_fine);
+				if (std::isnan(finefab(m_fine,i))) Util::Abort(INFO, "FINE NaN detected at amrlev=",amrlev," fmglev=",cmglev-1," m=",m_fine);
 				crsefab(m_crse,i) =
 					(+     finefab(m_fine-dx[0]-dx[1],i) + 2.0*finefab(m_fine-dx[1],i) +     finefab(m_fine+dx[0]-dx[1],i)
 					 + 2.0*finefab(m_fine-dx[0]      ,i) + 4.0*finefab(m_fine      ,i) + 2.0*finefab(m_fine+dx[0]      ,i) 
 					 +     finefab(m_fine-dx[0]+dx[1],i) + 2.0*finefab(m_fine+dx[1],i) +     finefab(m_fine+dx[0]+dx[1],i))/16.0;
+				if (std::isinf(crsefab(m_crse,i))) Util::Abort(INFO, "CRSE Inf detected at amrlev=",amrlev," cmglev=",cmglev," m=",m_crse);
+				if (std::isnan(crsefab(m_crse,i))) Util::Abort(INFO, "CRSE NaN detected at amrlev=",amrlev," cmglev=",cmglev," m=",m_crse);
 #endif
 #if AMREX_SPACEDIM == 3
 				crsefab(m_crse,i) =
@@ -624,6 +628,8 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
 
 #if AMREX_SPACEDIM == 2
+					if (std::isinf(crsefab(M,i))) Util::Abort(INFO, "CRSE Inf detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
+					if (std::isnan(crsefab(M,i))) Util::Abort(INFO, "CRSE NaN detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
 					if (m[0]==2*M[0] && m[1]==2*M[1]) // Coincident
 						tmpfab(m,i) = crsefab(M,i);
 					else if (m[0]%2 == 0) // X Edge
@@ -633,10 +639,10 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 					else // Center
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
 								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
+					if (std::isinf(tmpfab(m,i))) Util::Abort(INFO, "FINE Inf detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
+					if (std::isnan(tmpfab(m,i))) Util::Abort(INFO, "FINE NaN detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
 #endif
 #if AMREX_SPACEDIM == 3
-					if (std::isinf(crsefab(M,i))) Util::Abort(INFO, "Inf detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
-					if (std::isnan(crsefab(M,i))) Util::Abort(INFO, "NaN detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
 
 					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
 						tmpfab(m,i) = crsefab(M,i);
@@ -661,8 +667,6 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 								       crsefab(M+dy+dz,i) + crsefab(M+dz+dx,i) + crsefab(M+dx+dy,i) +
 								       crsefab(M+dx+dy+dz,i));
 
-					if (std::isinf(tmpfab(m,i))) Util::Abort(INFO, "Inf detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
-					if (std::isnan(tmpfab(m,i))) Util::Abort(INFO, "NaN detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
 #endif
 				}
 			}
@@ -991,19 +995,24 @@ void
 Operator<Grid::Node>::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
 			    const MultiFab* /*crse_bcdata*/)
 {
-    const int mglev = 0;
-    const int ncomp = b.nComp();
-    apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
-    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+	const int mglev = 0;
+	const int ncomp = b.nComp();
+	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
+	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
 }
 
 void
 Operator<Grid::Node>::correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
 			      BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
 {
-    apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
-    int ncomp = b.nComp();
-    MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+	if (x.contains_nan()) Util::Abort(INFO);
+	if (b.contains_nan()) Util::Abort(INFO);
+	resid.setVal(0.0);
+	apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+	int ncomp = b.nComp();
+	if (resid.contains_nan()) Util::Abort(INFO);
+	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+	if (resid.contains_nan()) Util::Abort(INFO);
 }
 
 

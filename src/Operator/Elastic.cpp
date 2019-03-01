@@ -222,6 +222,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			// if (amrlev == 1 && m == amrex::IntVect(16,16)) Util::Message(INFO,"m=",m,"f=",f.transpose());
 
 			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
+			if (std::isnan(ffab(m,0))) Util::Abort(INFO,"nan detected, amrlev = ", amrlev, " mglev = ", mglev, " m = ", m);
 		}
 	}
 	//Util::Warning(INFO,"do not yet account for variable C! need to uncomment above lines (dont forget to fix Diagonal too)");
