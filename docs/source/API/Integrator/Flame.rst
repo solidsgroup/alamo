@@ -1,5 +1,7 @@
+.. _API-Integrator-Flame:
+
 Flame
-----------
+-----
 
 .. doxygenclass:: Integrator::Flame
    :project: alamo
