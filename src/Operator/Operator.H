@@ -110,8 +110,6 @@ public :
 
 	virtual void PrepareForSolve () {prepareForSolve();};
 
-	bool VerificationCheck (int amrlev, int mglev, amrex::MultiFab& test) const;
-
 	int NanInfOnBoundary(const amrex::MultiFab &test) const
 	{
 		int ncomp = test.nComp(), ngrow = test.nGrow();

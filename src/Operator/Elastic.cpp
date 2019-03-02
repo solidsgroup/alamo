@@ -222,6 +222,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			// if (amrlev == 1 && m == amrex::IntVect(16,16)) Util::Message(INFO,"m=",m,"f=",f.transpose());
 
 			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
+			if (std::isnan(ffab(m,0))) Util::Abort(INFO,"nan detected, amrlev = ", amrlev, " mglev = ", mglev, " m = ", m);
 		}
 	}
 	//Util::Warning(INFO,"do not yet account for variable C! need to uncomment above lines (dont forget to fix Diagonal too)");
@@ -706,15 +707,13 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 		MultiTab cfine;
 		if (need_parallel_copy) {
 			const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-			cfine.define(ba, fine.DistributionMap(), 1, 1);
+			cfine.define(ba, fine.DistributionMap(), 1, 2);
 		}
 
 		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
 		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
  			{
-				if (AMREX_SPACEDIM > 2) Util::Abort("works in 2D only!");
-
 				const Box& bx = mfi.tilebox();
 
 				TArrayBox &crsetab = (*pcrse)[mfi];
@@ -728,17 +727,16 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 					amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 					amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
-					Set::Scalar total = 0.0;
 
 					if (m1 == bx.loVect()[0] - 1) ++m_fine[0];
 					if (m2 == bx.loVect()[1] - 1) ++m_fine[1];
 					if (m1 == bx.hiVect()[0] + 1) --m_fine[0];
 					if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
 					
+#if AMREX_SPACEDIM == 2
+					Set::Scalar total = 0.0;
 					crsetab(m_crse) = finetab(m_fine)*4.0; 
 					total += 4.0;
-
-
 					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1)
 					{
 						crsetab(m_crse) += finetab(m_fine-dx[0])*2.0 + finetab(m_fine+dx[0])*2.0;
@@ -758,6 +756,68 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 						total += 4.0;
 					}	
 					crsetab(m_crse) = crsetab(m_crse) / total;
+#elif AMREX_SPACEDIM == 3
+					crsetab(m_crse) = finetab(m_fine);
+					// corner
+					if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) &&
+					    (m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1) &&
+					    (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
+					{
+						crsetab(m_crse) = finetab(m_fine);
+					}
+					else if ((m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1) && // x edge
+						 (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
+					{
+						crsetab(m_crse) = finetab(m_fine-dx[0])*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dx[0])*0.25;
+					}
+					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) && // y edge
+						 (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
+					{
+						crsetab(m_crse) = finetab(m_fine-dx[1])*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dx[1])*0.25;
+					}
+					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) && // z edge
+						 (m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1))
+					{
+						crsetab(m_crse) = finetab(m_fine-dx[2])*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dx[2])*0.25;
+					}
+					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1)) // x face
+					{
+						crsetab(m_crse) =
+							(finetab(m_fine+dx[1]+dx[2]) + finetab(m_fine+dx[1]-dx[2]) + finetab(m_fine-dx[1]+dx[2]) + finetab(m_fine-dx[1]-dx[2])) / 16. +
+							(finetab(m_fine+dx[1]) + finetab(m_fine-dx[1]) + finetab(m_fine+dx[2]) + finetab(m_fine-dx[2])) / 8. +
+							(finetab(m_fine)) / 4.;							
+					}
+					else if ((m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1)) // y face
+					{
+						crsetab(m_crse) =
+							(finetab(m_fine+dx[2]+dx[0]) + finetab(m_fine+dx[2]-dx[0]) + finetab(m_fine-dx[2]+dx[0]) + finetab(m_fine-dx[2]-dx[0])) / 16. +
+							(finetab(m_fine+dx[2]) + finetab(m_fine-dx[2]) + finetab(m_fine+dx[0]) + finetab(m_fine-dx[0])) / 8. +
+							(finetab(m_fine)) / 4.;
+					}
+					else if ((m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1)) // z face
+					{
+						crsetab(m_crse) =
+							(finetab(m_fine+dx[0]+dx[1]) + finetab(m_fine+dx[0]-dx[1]) + finetab(m_fine-dx[0]+dx[1]) + finetab(m_fine-dx[0]-dx[1])) / 16. +
+							(finetab(m_fine+dx[0]) + finetab(m_fine-dx[0]) + finetab(m_fine+dx[1]) + finetab(m_fine-dx[1])) / 8. +
+							(finetab(m_fine)) / 4.;
+					}
+					else
+					{
+						crsetab(m_crse) =
+							(finetab(m_fine-dx[0]-dx[1]-dx[2]) + finetab(m_fine-dx[0]-dx[1]+dx[2]) + finetab(m_fine-dx[0]+dx[1]-dx[2]) + finetab(m_fine-dx[0]+dx[1]+dx[2]) +
+							 finetab(m_fine+dx[0]-dx[1]-dx[2]) + finetab(m_fine+dx[0]-dx[1]+dx[2]) + finetab(m_fine+dx[0]+dx[1]-dx[2]) + finetab(m_fine+dx[0]+dx[1]+dx[2])) / 64.0
+							+
+							(finetab(m_fine-dx[1]-dx[2]) + finetab(m_fine-dx[1]+dx[2]) + finetab(m_fine+dx[1]-dx[2]) + finetab(m_fine+dx[1]+dx[2]) +
+							 finetab(m_fine-dx[2]-dx[0]) + finetab(m_fine-dx[2]+dx[0]) + finetab(m_fine+dx[2]-dx[0]) + finetab(m_fine+dx[2]+dx[0]) +
+							 finetab(m_fine-dx[0]-dx[1]) + finetab(m_fine-dx[0]+dx[1]) + finetab(m_fine+dx[0]-dx[1]) + finetab(m_fine+dx[0]+dx[1])) / 32.0
+							+
+							(finetab(m_fine-dx[0]) + finetab(m_fine-dx[1]) + finetab(m_fine-dx[2]) +
+							 finetab(m_fine+dx[0]) + finetab(m_fine+dx[1]) + finetab(m_fine+dx[2])) / 16.0
+							+
+							finetab(m_fine) / 8.0;
+					}
+#endif
+					
 
 				}
  			}
