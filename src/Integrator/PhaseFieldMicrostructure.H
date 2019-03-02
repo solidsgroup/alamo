@@ -67,8 +67,8 @@ protected:
 
 	void TimeStepBegin(amrex::Real time, int iter) override;
 	void TimeStepComplete(amrex::Real time, int iter) override;
-	// void Integrate(int amrlev, Set::Scalar time, int step,
-	// 	       const amrex::MFIter &mfi, const amrex::Box &box) override;
+	void Integrate(int amrlev, Set::Scalar time, int step,
+		       const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 private:
 
