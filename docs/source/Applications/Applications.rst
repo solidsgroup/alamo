@@ -7,7 +7,6 @@ This is basic documentation for the Alamo.
    :maxdepth: 2
    :caption: Contents:
 
-   Alamo
    Flame
 
 
