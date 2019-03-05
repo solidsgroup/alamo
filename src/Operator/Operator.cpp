@@ -1,7 +1,7 @@
 
 #include <AMReX_MLNodeLinOp.H>
 #include <AMReX_MLCellLinOp.H>
-#include <AMReX_MLLinOp_F.H>
+//#include <AMReX_MLLinOp_F.H>
 #include <AMReX_MultiFabUtil.H>
 #include "Util/Color.H"
 #include "Set/Set.H"
@@ -1089,10 +1089,12 @@ Operator<Grid::Cell>::prepareForSolve ()
 					amrex::FArrayBox& ffab = undrrelxr[ori][mfi];
 					const amrex::Mask& m   =  maskvals[ori][mfi];
 
+	/*
 					amrex_mllinop_comp_interp_coef0(BL_TO_FORTRAN_BOX(vbx),
 									BL_TO_FORTRAN_ANYD(ffab),
 									BL_TO_FORTRAN_ANYD(m),
 									cdr, bct, bcl, maxorder, dxinv, ncomp);
+	*/
 				}
 			}
 		}
