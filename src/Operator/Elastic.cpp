@@ -707,7 +707,7 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 		MultiTab cfine;
 		if (need_parallel_copy) {
 			const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-			cfine.define(ba, fine.DistributionMap(), 1, 2);
+			cfine.define(ba, fine.DistributionMap(), 1, 1);
 		}
 
 		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;

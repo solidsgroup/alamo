@@ -40,8 +40,8 @@ void Elastic::Define(int _ncells,
 	dim = _dim;
 	ncells = _ncells;
  	nlevels = _nlevels;
-	//int max_grid_size = 100000;
-	int max_grid_size = ncells/2;
+	int max_grid_size = 100000;
+	//int max_grid_size = ncells/4;
 	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -307,7 +307,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	amrex::LPInfo info;
  	info.setAgglomeration(1);
  	info.setConsolidation(1);
- 	info.setMaxCoarseningLevel(3);
+ 	//info.setMaxCoarseningLevel(1);
  	nlevels = geom.size();
 	::Operator::Elastic<model_type> elastic;
  	elastic.define(geom, cgrids, dmap, info);
@@ -353,20 +353,20 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
-	mlmg.setFixedIter(1);
+	mlmg.setFixedIter(20);
 	//mlmg.setMaxIter(1000);
-	mlmg.setMaxFmgIter(20);
+	//mlmg.setMaxFmgIter(50);
  	if (verbose)
  	{
  		mlmg.setVerbose(4);
- 		mlmg.setCGVerbose(4);
+ 		mlmg.setCGVerbose(0);
  	}
  	else
  	{
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(20);
+ 	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 	Set::Scalar tol_rel = 1E-8;
