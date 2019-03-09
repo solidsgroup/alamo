@@ -1,6 +1,6 @@
 #include <AMReX_ParallelDescriptor.H>
 #include "Voronoi.H"
-
+#include "Util/Util.H"
 namespace IC
 {
 Voronoi::Voronoi (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains)
@@ -54,7 +54,7 @@ void Voronoi::Add(const int lev, amrex::Vector<amrex::MultiFab * > &field)
 	      int min_grain_id = -1;
 	      for (int n = 0; n<number_of_grains; n++)
 		{
-		  field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n) = 0.; // initialize
+		  field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),n % field_box.nComp()) = 0.; // initialize
 		  amrex::Real d = sqrt(AMREX_D_TERM((x-voronoi_x[n])*(x-voronoi_x[n]), + (y-voronoi_y[n])*(y-voronoi_y[n]), + (z-voronoi_z[n])*(z-voronoi_z[n])));
 
 		  if (geom[0].isPeriodic(0))
@@ -78,7 +78,7 @@ void Voronoi::Add(const int lev, amrex::Vector<amrex::MultiFab * > &field)
 		  if (d<min_distance)
 		    {
 		      min_distance = d;
-		      min_grain_id = n;
+		      min_grain_id = n % field_box.nComp();
 		    }
 		}
 	      field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),min_grain_id) = 1.;
