@@ -512,31 +512,26 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 			for (int i=0; i<crse.nComp(); i++)
 			{
 #if AMREX_SPACEDIM == 2
-				if (std::isinf(finefab(m_fine,i))) Util::Abort(INFO, "FINE Inf detected at amrlev=",amrlev," fmglev=",cmglev-1," m=",m_fine);
-				if (std::isnan(finefab(m_fine,i))) Util::Abort(INFO, "FINE NaN detected at amrlev=",amrlev," fmglev=",cmglev-1," m=",m_fine);
-
 				if ((m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) &&
-				    (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]))
+				    (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1])) // Corner
 				{
 					crsefab(m_crse,i) = finefab(m_fine,i);
 				}
-				else if (m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0])
+				else if (m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) // Y edge
 				{
 					crsefab(m_crse,i) = 0.25*finefab(m_fine-dy,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dy,i);
 				}
-				else if (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1])
+				else if (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) // X edge
 				{
 					crsefab(m_crse,i) = 0.25*finefab(m_fine-dx,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dx,i);
 				}
-				else
+				else // Interior
 				{
 					crsefab(m_crse,i) =
 						(+     finefab(m_fine-dx-dy,i) + 2.0*finefab(m_fine-dy,i) +     finefab(m_fine+dx-dy,i)
 						 + 2.0*finefab(m_fine-dx   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dx      ,i) 
 						 +     finefab(m_fine-dx+dy,i) + 2.0*finefab(m_fine+dy,i) +     finefab(m_fine+dx+dy,i))/16.0;
 				}
-				if (std::isinf(crsefab(m_crse,i))) Util::Abort(INFO, "CRSE Inf detected at amrlev=",amrlev," cmglev=",cmglev," m=",m_crse);
-				if (std::isnan(crsefab(m_crse,i))) Util::Abort(INFO, "CRSE NaN detected at amrlev=",amrlev," cmglev=",cmglev," m=",m_crse);
 #endif
 #if AMREX_SPACEDIM == 3
 				if ((m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) &&
@@ -567,7 +562,7 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 						(+     finefab(m_fine-dx-dy,i) + 2.0*finefab(m_fine-dy,i) +     finefab(m_fine+dx-dy,i)
 						 + 2.0*finefab(m_fine-dx   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dx   ,i) 
 						 +     finefab(m_fine-dx+dy,i) + 2.0*finefab(m_fine+dy,i) +     finefab(m_fine+dx+dy,i))/16.0;
-				else // Center
+				else // Interior
 					crsefab(m_crse,i) =
 						(finefab(m_fine-dx-dy-dz,i) + finefab(m_fine-dx-dy+dz,i) + finefab(m_fine-dx+dy-dz,i) + finefab(m_fine-dx+dy+dz,i) +
 						 finefab(m_fine+dx-dy-dz,i) + finefab(m_fine+dx-dy+dz,i) + finefab(m_fine+dx+dy-dz,i) + finefab(m_fine+dx+dy+dz,i)) / 64.0
