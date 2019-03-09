@@ -639,8 +639,6 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
 
 #if AMREX_SPACEDIM == 2
-					if (std::isinf(crsefab(M,i))) Util::Abort(INFO, "CRSE Inf detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
-					if (std::isnan(crsefab(M,i))) Util::Abort(INFO, "CRSE NaN detected at amrlev=",amrlev," cmglev=",fmglev+1," M=",M);
 					if (m[0]==2*M[0] && m[1]==2*M[1]) // Coincident
 						tmpfab(m,i) += crsefab(M,i);
 					else if (m[0]%2 == 0) // X Edge
@@ -649,8 +647,6 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 						tmpfab(m,i) += 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
 					else // Center
 					 	tmpfab(m,i) += 0.25 * (crsefab(M,i) + crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dx+dy,i));
-					if (std::isinf(tmpfab(m,i))) Util::Abort(INFO, "FINE Inf detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
-					if (std::isnan(tmpfab(m,i))) Util::Abort(INFO, "FINE NaN detected at amrlev=",amrlev," fmglev=",fmglev," m=",m);
 #endif
 #if AMREX_SPACEDIM == 3
 
