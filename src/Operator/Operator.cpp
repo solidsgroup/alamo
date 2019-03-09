@@ -10,6 +10,9 @@
 using namespace amrex;
 namespace Operator {
 
+constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Node>::dx,Operator<Grid::Node>::dy,Operator<Grid::Node>::dz);
+constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Cell>::dx,Operator<Grid::Cell>::dy,Operator<Grid::Cell>::dz);
+
 void Operator<Grid::Node>::Diagonal (bool recompute)
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Diagonal()" + Color::Reset);
@@ -492,9 +495,6 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-					   dy(AMREX_D_DECL(0,1,0)),
-					   dz(AMREX_D_DECL(0,0,1)));
 
 	for (MFIter mfi(*pcrse, false); mfi.isValid(); ++mfi)
 	{
@@ -531,45 +531,55 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 				else
 				{
 					crsefab(m_crse,i) =
-						(+     finefab(m_fine-dx[0]-dx[1],i) + 2.0*finefab(m_fine-dx[1],i) +     finefab(m_fine+dx[0]-dx[1],i)
-						 + 2.0*finefab(m_fine-dx[0]      ,i) + 4.0*finefab(m_fine      ,i) + 2.0*finefab(m_fine+dx[0]      ,i) 
-						 +     finefab(m_fine-dx[0]+dx[1],i) + 2.0*finefab(m_fine+dx[1],i) +     finefab(m_fine+dx[0]+dx[1],i))/16.0;
+						(+     finefab(m_fine-dx-dy,i) + 2.0*finefab(m_fine-dy,i) +     finefab(m_fine+dx-dy,i)
+						 + 2.0*finefab(m_fine-dx   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dx      ,i) 
+						 +     finefab(m_fine-dx+dy,i) + 2.0*finefab(m_fine+dy,i) +     finefab(m_fine+dx+dy,i))/16.0;
 				}
 				if (std::isinf(crsefab(m_crse,i))) Util::Abort(INFO, "CRSE Inf detected at amrlev=",amrlev," cmglev=",cmglev," m=",m_crse);
 				if (std::isnan(crsefab(m_crse,i))) Util::Abort(INFO, "CRSE NaN detected at amrlev=",amrlev," cmglev=",cmglev," m=",m_crse);
 #endif
 #if AMREX_SPACEDIM == 3
-				crsefab(m_crse,i) =
-					(finefab(m_fine-dx-dy-dz,i) +
-					 finefab(m_fine-dx-dy+dz,i) +
-					 finefab(m_fine-dx+dy-dz,i) +
-					 finefab(m_fine-dx+dy+dz,i) +
-					 finefab(m_fine+dx-dy-dz,i) +
-					 finefab(m_fine+dx-dy+dz,i) +
-					 finefab(m_fine+dx+dy-dz,i) +
-					 finefab(m_fine+dx+dy+dz,i)) / 64.0
-					+
-					(finefab(m_fine-dy-dz,i) +
-					 finefab(m_fine-dy+dz,i) +
-					 finefab(m_fine+dy-dz,i) +
-					 finefab(m_fine+dy+dz,i) +
-					 finefab(m_fine-dz-dx,i) +
-					 finefab(m_fine-dz+dx,i) +
-					 finefab(m_fine+dz-dx,i) +
-					 finefab(m_fine+dz+dx,i) +
-					 finefab(m_fine-dx-dy,i) +
-					 finefab(m_fine-dx+dy,i) +
-					 finefab(m_fine+dx-dy,i) +
-					 finefab(m_fine+dx+dy,i)) / 32.0
-					+
-					(finefab(m_fine-dx,i) +
-					 finefab(m_fine-dy,i) +
-					 finefab(m_fine-dz,i) +
-					 finefab(m_fine+dx,i) +
-					 finefab(m_fine+dy,i) +
-					 finefab(m_fine+dz,i)) / 16.0
-					+
-					finefab(m_fine,i) / 8.0;
+				if ((m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) &&
+				    (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) &&
+				    (m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2]))// Corner
+					crsefab(m_crse,i) = finefab(m_fine,i);
+				else if ((m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) &&
+					 (m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2])) // X edge
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dx,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dx,i);
+				else if ((m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2]) &&
+					 (m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0])) // Y edge
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dy,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dy,i);
+				else if ((m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) &&
+					 (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1])) // Z edge
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dz,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dz,i);
+				else if (m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) // X face
+					crsefab(m_crse,i) =
+						(+     finefab(m_fine-dy-dz,i) + 2.0*finefab(m_fine-dz,i) +     finefab(m_fine+dy-dz,i)
+						 + 2.0*finefab(m_fine-dy   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dy      ,i) 
+						 +     finefab(m_fine-dy+dz,i) + 2.0*finefab(m_fine+dz,i) +     finefab(m_fine+dy+dz,i))/16.0;
+				else if (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) // Y face
+					crsefab(m_crse,i) =
+						(+     finefab(m_fine-dz-dx,i) + 2.0*finefab(m_fine-dx,i) +     finefab(m_fine+dz-dx,i)
+						 + 2.0*finefab(m_fine-dz   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dz   ,i) 
+						 +     finefab(m_fine-dz+dx,i) + 2.0*finefab(m_fine+dx,i) +     finefab(m_fine+dz+dx,i))/16.0;
+				else if (m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2]) // Z face
+					crsefab(m_crse,i) =
+						(+     finefab(m_fine-dx-dy,i) + 2.0*finefab(m_fine-dy,i) +     finefab(m_fine+dx-dy,i)
+						 + 2.0*finefab(m_fine-dx   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dx   ,i) 
+						 +     finefab(m_fine-dx+dy,i) + 2.0*finefab(m_fine+dy,i) +     finefab(m_fine+dx+dy,i))/16.0;
+				else // Center
+					crsefab(m_crse,i) =
+						(finefab(m_fine-dx-dy-dz,i) + finefab(m_fine-dx-dy+dz,i) + finefab(m_fine-dx+dy-dz,i) + finefab(m_fine-dx+dy+dz,i) +
+						 finefab(m_fine+dx-dy-dz,i) + finefab(m_fine+dx-dy+dz,i) + finefab(m_fine+dx+dy-dz,i) + finefab(m_fine+dx+dy+dz,i)) / 64.0
+						+
+						(finefab(m_fine-dy-dz,i) + finefab(m_fine-dy+dz,i) + finefab(m_fine+dy-dz,i) + finefab(m_fine+dy+dz,i) +
+						 finefab(m_fine-dz-dx,i) + finefab(m_fine-dz+dx,i) + finefab(m_fine+dz-dx,i) + finefab(m_fine+dz+dx,i) +
+						 finefab(m_fine-dx-dy,i) + finefab(m_fine-dx+dy,i) + finefab(m_fine+dx-dy,i) + finefab(m_fine+dx+dy,i)) / 32.0
+						+
+						(finefab(m_fine-dx,i) + finefab(m_fine-dy,i) + finefab(m_fine-dz,i) +
+						 finefab(m_fine+dx,i) + finefab(m_fine+dy,i) + finefab(m_fine+dz,i)) / 16.0
+						+
+						finefab(m_fine,i) / 8.0;
 #endif
 			}
 		}
@@ -605,9 +615,6 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 		cfine.ParallelCopy(crse);
 		cmf = &cfine;
 	}
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-					   dy(AMREX_D_DECL(0,1,0)),
-					   dz(AMREX_D_DECL(0,0,1)));
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
@@ -659,7 +666,7 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 					else if (m[2]==2*M[2] && m[0]==2*M[0]) // Y Edge
 						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
 					else if (m[0]==2*M[0] && m[1]==2*M[1]) // Z Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i)); // problem occurs here
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i)); 
 					else if (m[0]==2*M[0]) // X Face
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dy,i) +
 								      crsefab(M+dz,i) + crsefab(M+dy+dz,i));
@@ -674,7 +681,6 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 								       crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dz,i) +
 								       crsefab(M+dy+dz,i) + crsefab(M+dz+dx,i) + crsefab(M+dx+dy,i) +
 								       crsefab(M+dx+dy+dz,i));
-
 #endif
 				}
 			}
@@ -856,10 +862,10 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 							crse(m_crse,n) = fine(m_fine,n);
 						// Domain xlo or xhi edge
 						else if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1)
-							crse(m_crse,n) = 0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n);
+							crse(m_crse,n) = 0.25*fine(m_fine-dy,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dy,n);
 						// Domain ylo or yhi edge
 						else if (m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
-							crse(m_crse,n) = 0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n);
+							crse(m_crse,n) = 0.25*fine(m_fine-dx,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx,n);
 						continue;
 					}
 					// Interior boundaries
@@ -875,9 +881,9 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 						// 	crse(m_crse,n) = 0.0;
 						// 	continue;}
 						crse(m_crse,n) = 
-						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+						 	((+     fine(m_fine-dx-dy,n) + 2.0*fine(m_fine-dy,n) +     fine(m_fine+dx-dy,n)
+						  	  + 2.0*fine(m_fine-dx      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx      ,n) 
+						  	  +     fine(m_fine-dx+dy,n) + 2.0*fine(m_fine+dy,n) +     fine(m_fine+dx+dy,n))/16.0);
 					}
 				}
 #elif AMREX_SPACEDIM == 3
@@ -901,19 +907,19 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 						{
 							crse(m_crse,n) =
 								0.25*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
-								  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+								((+ 0.25 *fine(m_fine-dx-dy-dz,n) + 0.5 *fine(m_fine-dy-dz,n) + 0.25 *fine(m_fine+dx-dy-dz,n)
+								  + 0.5  *fine(m_fine-dx      -dz,n) + 1.0 *fine(m_fine      -dz,n) + 0.5  *fine(m_fine+dx      -dz,n) 
+								  + 0.25 *fine(m_fine-dx+dy-dz,n) + 0.5 *fine(m_fine+dy-dz,n) + 0.25 *fine(m_fine+dx+dy-dz,n)) / 4.0)
 								+
 								0.5*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
-								  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+								((+ 0.25 *fine(m_fine-dx-dy      ,n) + 0.5 *fine(m_fine-dy      ,n) + 0.25 *fine(m_fine+dx-dy      ,n)
+								  + 0.5  *fine(m_fine-dx            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx            ,n) 
+								  + 0.25 *fine(m_fine-dx+dy      ,n) + 0.5 *fine(m_fine+dy      ,n) + 0.25 *fine(m_fine+dx+dy      ,n)) / 4.0)
 								+
 								0.25*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
-								  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+								((+ 0.25 *fine(m_fine-dx-dy+dz,n) + 0.5 *fine(m_fine-dy+dz,n) + 0.25 *fine(m_fine+dx-dy+dz,n)
+								  + 0.5  *fine(m_fine-dx      +dz,n) + 1.0 *fine(m_fine      +dz,n) + 0.5  *fine(m_fine+dx      +dz,n) 
+								  + 0.25 *fine(m_fine-dx+dy+dz,n) + 0.5 *fine(m_fine+dy+dz,n) + 0.25 *fine(m_fine+dx+dy+dz,n)) / 4.0);
 						}
 						else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
 						{
@@ -932,49 +938,49 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 								crse(m_crse,n) = fine(m_fine,n);
 							// X edges
 							else if ( (ymin && zmin) || (ymin && zmax) || (ymax && zmin) || (ymax && zmax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+								crse(m_crse,n) = (0.25*fine(m_fine-dx,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx,n));
 							// Y edges
 							else if ( (zmin && zmin) || (zmin && xmax) || (zmax && xmin) || (zmax && xmax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+								crse(m_crse,n) = (0.25*fine(m_fine-dy,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dy,n));
 							// Z edges
 							else if ( (xmin && ymin) || (xmin && ymax) || (xmax && ymin) || (xmax && ymax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[2],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[2],n));
+								crse(m_crse,n) = (0.25*fine(m_fine-dz,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dz,n));
 							// YZ face (X=const)
 							else if ( xmin || xmax )
 								crse(m_crse,n) =
-									((+     fine(m_fine-dx[1]-dx[2],n) + 2.0*fine(m_fine-dx[2],n) +     fine(m_fine+dx[1]-dx[2],n)
-									  + 2.0*fine(m_fine-dx[1]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[1]      ,n) 
-									  +     fine(m_fine-dx[1]+dx[2],n) + 2.0*fine(m_fine+dx[2],n) +     fine(m_fine+dx[1]+dx[2],n))/16.0);
+									((+     fine(m_fine-dy-dz,n) + 2.0*fine(m_fine-dz,n) +     fine(m_fine+dy-dz,n)
+									  + 2.0*fine(m_fine-dy      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dy      ,n) 
+									  +     fine(m_fine-dy+dz,n) + 2.0*fine(m_fine+dz,n) +     fine(m_fine+dy+dz,n))/16.0);
 							// ZX face (Y=const)
 							else if ( xmin || xmax )
 								crse(m_crse,n) =
-									((+     fine(m_fine-dx[2]-dx[0],n) + 2.0*fine(m_fine-dx[0],n) +     fine(m_fine+dx[2]-dx[2],n)
-									  + 2.0*fine(m_fine-dx[2]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[2]      ,n) 
-									  +     fine(m_fine-dx[2]+dx[0],n) + 2.0*fine(m_fine+dx[0],n) +     fine(m_fine+dx[2]+dx[2],n))/16.0);
+									((+     fine(m_fine-dz-dx,n) + 2.0*fine(m_fine-dx,n) +     fine(m_fine+dz-dz,n)
+									  + 2.0*fine(m_fine-dz      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dz      ,n) 
+									  +     fine(m_fine-dz+dx,n) + 2.0*fine(m_fine+dx,n) +     fine(m_fine+dz+dz,n))/16.0);
 							// XY face (Z=const)
 							else if ( xmin || xmax )
 								crse(m_crse,n) =
-									((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-									  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-									  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+									((+     fine(m_fine-dx-dy,n) + 2.0*fine(m_fine-dy,n) +     fine(m_fine+dx-dy,n)
+									  + 2.0*fine(m_fine-dx      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx      ,n) 
+									  +     fine(m_fine-dx+dy,n) + 2.0*fine(m_fine+dy,n) +     fine(m_fine+dx+dy,n))/16.0);
 							// Internal
 							else
 							{
 								crse(m_crse,n) =
 									0.25*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
-									  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+									((+ 0.25 *fine(m_fine-dx-dy-dz,n) + 0.5 *fine(m_fine-dy-dz,n) + 0.25 *fine(m_fine+dx-dy-dz,n)
+									  + 0.5  *fine(m_fine-dx      -dz,n) + 1.0 *fine(m_fine      -dz,n) + 0.5  *fine(m_fine+dx      -dz,n) 
+									  + 0.25 *fine(m_fine-dx+dy-dz,n) + 0.5 *fine(m_fine+dy-dz,n) + 0.25 *fine(m_fine+dx+dy-dz,n)) / 4.0)
 									+
 									0.5*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
-									  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+									((+ 0.25 *fine(m_fine-dx-dy      ,n) + 0.5 *fine(m_fine-dy      ,n) + 0.25 *fine(m_fine+dx-dy      ,n)
+									  + 0.5  *fine(m_fine-dx            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx            ,n) 
+									  + 0.25 *fine(m_fine-dx+dy      ,n) + 0.5 *fine(m_fine+dy      ,n) + 0.25 *fine(m_fine+dx+dy      ,n)) / 4.0)
 									+
 									0.25*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
-									  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+									((+ 0.25 *fine(m_fine-dx-dy+dz,n) + 0.5 *fine(m_fine-dy+dz,n) + 0.25 *fine(m_fine+dx-dy+dz,n)
+									  + 0.5  *fine(m_fine-dx      +dz,n) + 1.0 *fine(m_fine      +dz,n) + 0.5  *fine(m_fine+dx      +dz,n) 
+									  + 0.25 *fine(m_fine-dx+dy+dz,n) + 0.5 *fine(m_fine+dy+dz,n) + 0.25 *fine(m_fine+dx+dy+dz,n)) / 4.0);
 							}
 						}
 						else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
