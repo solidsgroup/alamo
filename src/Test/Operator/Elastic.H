@@ -62,7 +62,7 @@ public:
 	///     \f[u_i^{mn}  = \frac{b_i^{mn}}{(\alpha\ \pi^2\ (m^2 + n^2))}\f]
 	/// 
 	///
-	int TrigTest(bool verbose,
+	int TrigTest(int verbose,
 		     int component = 0,
 		     int n = 1,
 		     std::string plotfile = "");

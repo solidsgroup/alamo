@@ -93,29 +93,26 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	int ncomp = b.nComp();
 	int nghost = b.nGrow();
 	
+	Set::Scalar omega = 2./3.; // Damping factor (very important!)
+
 	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-	amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 
 	if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
 
 	Set::Scalar residual = 0.0;
-	//for (int redblack = 0; redblack < 2; redblack++)
+
+	// This is a JACOBI iteration, not Gauss-Seidel.
+	// So we need to do twice the number of iterations to get the same behavior as GS.
+	for (int ctr = 0; ctr < 2; ctr++)
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
-
-		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,2); // Dx = x
-		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,2); // Dx *= diag  (Dx = x*diag)
-
-		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,2); // Rx = Ax
-		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
 
 		for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 		{
 			const Box& bx = mfi.validbox();
 			amrex::FArrayBox       &xfab    = x[mfi];
 			const amrex::FArrayBox &bfab    = b[mfi];
-			const amrex::FArrayBox &Rxfab   = Rx[mfi];
+			const amrex::FArrayBox &Axfab   = Ax[mfi];
 			const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
 			for (int n = 0; n < ncomp; n++)
@@ -125,7 +122,6 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 					     for (int m3 = bx.loVect()[2] - 2; m3<=bx.hiVect()[2] + 2; m3++))
 				{
 
-					//if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
 					// Skip ghost cells outside problem domain
@@ -144,10 +140,7 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 						continue;
 					}
 
-					Set::Scalar xold = xfab(m,n);
-					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
-					residual += fabs(xold - xfab(m,n));
-
+					xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
 				}
 			}
 		}
