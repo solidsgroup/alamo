@@ -1,2 +1,3 @@
 set -e
 bin/test
+

@@ -1,15 +1,19 @@
 
-#include "Operator.H"
-#include <AMReX_MLLinOp_F.H>
+#include <AMReX_MLNodeLinOp.H>
+#include <AMReX_MLCellLinOp.H>
+//#include <AMReX_MLLinOp_F.H>
 #include <AMReX_MultiFabUtil.H>
 #include "Util/Color.H"
 #include "Set/Set.H"
+#include "Operator.H"
 
 using namespace amrex;
 namespace Operator {
 
+constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Node>::dx,Operator<Grid::Node>::dy,Operator<Grid::Node>::dz);
+constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Cell>::dx,Operator<Grid::Cell>::dy,Operator<Grid::Cell>::dz);
 
-void Operator::Diagonal (bool recompute)
+void Operator<Grid::Node>::Diagonal (bool recompute)
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Diagonal()" + Color::Reset);
 	//Util::Message(INFO);
@@ -26,7 +30,7 @@ void Operator::Diagonal (bool recompute)
 	}
 }
 
-void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
+void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 {
 	BL_PROFILE("Operator::Diagonal()");
 	//Util::Message(INFO);
@@ -41,9 +45,9 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 	amrex::MultiFab x(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Ax(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox       &diagfab = diag[mfi];
 		amrex::FArrayBox       &xfab    = x[mfi];
 		amrex::FArrayBox       &Axfab   = Ax[mfi];
@@ -83,65 +87,79 @@ void Operator::Diagonal (int amrlev, int mglev, amrex::MultiFab &diag)
 	}
 }
 
-
-
-void Operator::Fsmooth(int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
+void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
 	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
+
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 
 	int ncomp = b.nComp();
 	int nghost = b.nGrow();
 	
+	Set::Scalar omega = 2./3.; // Damping factor (very important!)
+
 	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-	amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 
 	if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
 
 	Set::Scalar residual = 0.0;
-	for (int redblack = 0; redblack < 2; redblack++)
+
+	// This is a JACOBI iteration, not Gauss-Seidel.
+	// So we need to do twice the number of iterations to get the same behavior as GS.
+	for (int ctr = 0; ctr < 2; ctr++)
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
 
-		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,0); // Dx = x
-		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,0); // Dx *= diag  (Dx = x*diag)
-
-		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,0); // Rx = Ax
-		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,0); // Rx -= Dx  (Rx = Ax - Dx)
-
-		for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+		for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 		{
-			const Box& bx = mfi.tilebox();
+			const Box& bx = mfi.validbox();
 			amrex::FArrayBox       &xfab    = x[mfi];
 			const amrex::FArrayBox &bfab    = b[mfi];
-			const amrex::FArrayBox &Rxfab   = Rx[mfi];
+			const amrex::FArrayBox &Axfab   = Ax[mfi];
 			const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
 			for (int n = 0; n < ncomp; n++)
 			{
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-					     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-					     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1<=bx.hiVect()[0] + 2; m1++),
+					     for (int m2 = bx.loVect()[1] - 2; m2<=bx.hiVect()[1] + 2; m2++),
+					     for (int m3 = bx.loVect()[2] - 2; m3<=bx.hiVect()[2] + 2; m3++))
 				{
 
-					if ((AMREX_D_TERM(m1, + m2, + m3))%2 == redblack) continue;
 					amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
+					// Skip ghost cells outside problem domain
+					if (AMREX_D_TERM(m[0] < domain.loVect()[0], ||
+							 m[1] < domain.loVect()[1], ||
+							 m[2] < domain.loVect()[2])) continue;
+					if (AMREX_D_TERM(m[0] > domain.hiVect()[0] + 1, ||
+							 m[1] > domain.hiVect()[1] + 1, ||
+							 m[2] > domain.hiVect()[2] + 1)) continue;
 
-					Set::Scalar xold = xfab(m,n);
-					xfab(m,n) = (bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
-					residual += fabs(xold - xfab(m,n));
+					if (AMREX_D_TERM(m[0] == bx.loVect()[0] - 2 || m[0] == bx.hiVect()[0] + 2, ||
+							 m[1] == bx.loVect()[1] - 2 || m[1] == bx.hiVect()[1] + 2, ||
+							 m[2] == bx.loVect()[2] - 2 || m[2] == bx.hiVect()[2] + 2))
+					{
+						xfab(m,n) = 0.0;
+						continue;
+					}
+
+					xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
 				}
 			}
 		}
 	}
+	amrex::Geometry geom = m_geom[amrlev][mglev];
+	realFillBoundary(x,geom);
+	nodalSync(amrlev, mglev, x);
 }
 
-void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
+void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& x) const
 {
 	BL_PROFILE("Operator::normalize()");
 	//Util::Message(INFO);
 	bool debug = false;		// Enable this for inverse approximation
+ 
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 
 	int ncomp = getNComp();
 	int nghost = 1; //x.nGrow();
@@ -163,177 +181,32 @@ void Operator::normalize (int amrlev, int mglev, MultiFab& x) const
 		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0); // x = (I + R0)*x
 	}
 
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		amrex::FArrayBox       &xfab    = x[mfi];
 		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
 		for (int n = 0; n < ncomp; n++)
 		{
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-				     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-				     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
+				     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
+				     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
+				if (m[0] < domain.loVect()[0]) continue;
+				if (m[1] < domain.loVect()[1]) continue;
+				if (m[0] > domain.hiVect()[0]+1) continue;
+				if (m[1] > domain.hiVect()[1]+1) continue;
+
 				xfab(m,n) /= diagfab(m,n);
 			}
 		}
 	}
 }
 
-
-
-bool Operator::VerificationCheck (int amrlev,
-				  int mglev,
-				  amrex::MultiFab& test) const
-{
-	BL_PROFILE("Operator::VerificationCheck()");
-	Util::Message(INFO);
-	bool result = false;
-	int ncomp = test.nComp();
-	int nghost = test.nGrow();
-	amrex::MultiFab x(test.boxArray(), test.DistributionMap(), ncomp, nghost);
-	amrex::MultiFab Ax(test.boxArray(), test.DistributionMap(), ncomp, nghost);
-
-	x.setVal(0.0);
-	Ax.setVal(0.0);
-	test.setVal(0.0);
-
-	for (MFIter mfi(x, true); mfi.isValid(); ++mfi)
-	{
-		const Box& bx = mfi.tilebox();
-		amrex::FArrayBox	&testfab = test[mfi];
-		amrex::FArrayBox	&xfab    = x[mfi];
-		amrex::FArrayBox	&Axfab   = Ax[mfi];
-
-		// Random point on inside
-		int pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		int pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		int pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point inside = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on left face
-		pointX = bx.loVect()[0];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point left = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on the right face
-		pointX = bx.hiVect()[0];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point right = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-		// Random point on bottom face
-		pointY = bx.loVect()[1];
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point bottom = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on the top face
-		pointY = bx.hiVect()[1];
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		pointZ = bx.loVect()[2] + rand() % (bx.hiVect()[2]-bx.loVect()[2]);
-		std::cout << "Point top = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-		// Random point on back face
-		pointZ = bx.loVect()[2];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-
-		// Random point on the front face
-		pointZ = bx.hiVect()[2];
-		pointY = bx.loVect()[1] + rand() % (bx.hiVect()[1]-bx.loVect()[1]);
-		pointX = bx.loVect()[0] + rand() % (bx.hiVect()[0]-bx.loVect()[0]);
-		std::cout << "Point back = (" << pointX << ", " << pointY << ", " << pointZ << ")" << std::endl;
-		for (int i = 0; i < ncomp; i++)
-		{
-			amrex::IntVect m(AMREX_D_DECL(pointX,pointY,pointZ));
-			xfab(m,i) = 1.0;
-			Fapply(amrlev,mglev,Ax,x);
-			testfab(m,i) = amrex::MultiFab::Dot(x,0,Ax,0,ncomp,nghost);
-			std::cout << "test value = " << testfab(m,i) << std::endl;
-			normalize(amrlev,mglev,x);
-			std::cout << "Normalized = " << xfab(m,i) << ". Inverse = " << 1.0/xfab(m,i) << std::endl;
-			xfab.setVal(0.0);
-			Axfab.setVal(0.0);
-		}
-	}
-	return result;
-}
-
-
-Operator::Operator (const Vector<Geometry>& a_geom,
+Operator<Grid::Node>::Operator (const Vector<Geometry>& a_geom,
 		    const Vector<BoxArray>& a_grids,
 		    const Vector<DistributionMapping>& a_dmap,
 		    const LPInfo& a_info,
@@ -348,17 +221,16 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 	define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
 
- Operator::~Operator ()
+ Operator<Grid::Node>::~Operator ()
  {}
 
- void
- Operator::define (const Vector<Geometry>& a_geom,
-		const Vector<BoxArray>& a_grids,
-		const Vector<DistributionMapping>& a_dmap,
-		const LPInfo& a_info,
-		const Vector<FabFactory<FArrayBox> const*>& a_factory)
- {
-	 BL_PROFILE("Operator::~Operator()");
+void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
+		       const Vector<BoxArray>& a_grids,
+		       const Vector<DistributionMapping>& a_dmap,
+		       const LPInfo& a_info,
+		       const Vector<FabFactory<FArrayBox> const*>& a_factory)
+{
+	BL_PROFILE("Operator::~Operator()");
 
 	 // Make sure we're not trying to parallelize in vain.
 	 if (amrex::ParallelDescriptor::NProcs() > a_grids[0].size())
@@ -376,7 +248,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
 
 	 MLNodeLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
-	 int nghost = 0;
+	 int nghost = 2;
 	 // Resize the multifab containing the operator diagonal
 	 m_diag.resize(m_num_amr_levels);
 	 for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -392,8 +264,7 @@ Operator::Operator (const Vector<Geometry>& a_geom,
  }
 
 
-void
-Operator::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*vel*/,
+void Operator<Grid::Node>::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*vel*/,
 		   const Vector<const MultiFab*>& /*rhnd*/,
 		   const Vector<MultiFab*>& /*a_rhcc*/)
 {
@@ -403,8 +274,7 @@ Operator::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*
 
 
 
-void
-Operator::buildMasks ()
+void Operator<Grid::Node>::buildMasks ()
 {
 	BL_PROFILE("Operator::buildMasks()");
 	if (m_masks_built) return;
@@ -449,7 +319,6 @@ Operator::buildMasks ()
 						const Box& ndbx = mfi.validbox();
 						const Box& ccbx = amrex::enclosedCells(ndbx);
 						const Box& ccbxg1 = amrex::grow(ccbx,1);
-						//IArrayBox& mskfab = dmask[mfi];
                         
 						ccfab.resize(ccbxg1);
 						ccfab.setVal(1);
@@ -569,8 +438,7 @@ Operator::buildMasks ()
 }
 
 
-void
-Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
+void Operator<Grid::Node>::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 {
 	BL_PROFILE("Operator::fixUpResidualMask()");
 
@@ -592,8 +460,7 @@ Operator::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 	//Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
 }
 
-void
-Operator::prepareForSolve ()
+void Operator<Grid::Node>::prepareForSolve ()
 {
 	BL_PROFILE("Operator::prepareForSolve()");
 
@@ -611,39 +478,31 @@ Operator::prepareForSolve ()
 
 }
 
-void
-Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
+void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const
 {
 	BL_PROFILE("Operator::restriction()");
 
 	applyBC(amrlev, cmglev-1, fine, BCMode::Homogeneous, StateMode::Solution);
 
-	//const Box& nd_domain = amrex::surroundingNodes(m_geom[amrlev][cmglev].Domain());
+	amrex::Box cdomain = m_geom[amrlev][cmglev].Domain(); cdomain.convert(amrex::IntVect::TheNodeVector());
 
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
 	if (need_parallel_copy) {
 		const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-		cfine.define(ba, fine.DistributionMap(), fine.nComp(), 0);
+		cfine.define(ba, fine.DistributionMap(), fine.nComp(), fine.nGrow());
 	}
 
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
-	// C++ version of Fortran (amrex_mlndlap_restriction)
-	// Set::Scalar fac1 = 1.0/64.0;
-	// Set::Scalar fac2 = 1.0/32.0;
-	// Set::Scalar fac3 = 1.0/16.0; 
-	// Set::Scalar fac4 = 1.0/8.0;
 
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-					   dy(AMREX_D_DECL(0,1,0)),
-					   dz(AMREX_D_DECL(0,0,1)));
-
-	for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(*pcrse, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
+		//const Box& bx = mfi.growntilebox(nghost) & cdomain;
 		const amrex::FArrayBox &finefab = fine[mfi];
 		amrex::FArrayBox       &crsefab = (*pcrse)[mfi];
+
 		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
 			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
 			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
@@ -653,54 +512,69 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 			for (int i=0; i<crse.nComp(); i++)
 			{
 #if AMREX_SPACEDIM == 2
-		
-				// // amrex_mlndlap_restriction
-				// for (int n = 0 ; n < ncomp; n++)
-				// {
-				// 	for (int m2 = bx.loVect()[1] +1; m2<=bx.hiVect()[1] -1; m2++)
-				// 		for (int m1 = bx.loVect()[0] +1; m1<=bx.hiVect()[0] -1; m1++)
-				// 	{
-				// 		amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-				// 		amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
-
-				crsefab(m_crse,i) =
-					(+     finefab(m_fine-dx[0]-dx[1],i) + 2.0*finefab(m_fine-dx[1],i) +     finefab(m_fine+dx[0]-dx[1],i)
-					 + 2.0*finefab(m_fine-dx[0]      ,i) + 4.0*finefab(m_fine      ,i) + 2.0*finefab(m_fine+dx[0]      ,i) 
-					 +     finefab(m_fine-dx[0]+dx[1],i) + 2.0*finefab(m_fine+dx[1],i) +     finefab(m_fine+dx[0]+dx[1],i))/16.0;
-				//}
+				if ((m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) &&
+				    (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1])) // Corner
+				{
+					crsefab(m_crse,i) = finefab(m_fine,i);
+				}
+				else if (m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) // Y edge
+				{
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dy,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dy,i);
+				}
+				else if (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) // X edge
+				{
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dx,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dx,i);
+				}
+				else // Interior
+				{
+					crsefab(m_crse,i) =
+						(+     finefab(m_fine-dx-dy,i) + 2.0*finefab(m_fine-dy,i) +     finefab(m_fine+dx-dy,i)
+						 + 2.0*finefab(m_fine-dx   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dx      ,i) 
+						 +     finefab(m_fine-dx+dy,i) + 2.0*finefab(m_fine+dy,i) +     finefab(m_fine+dx+dy,i))/16.0;
+				}
 #endif
 #if AMREX_SPACEDIM == 3
-				crsefab(m_crse,i) =
-					(finefab(m_fine-dx-dy-dz,i) +
-					 finefab(m_fine-dx-dy+dz,i) +
-					 finefab(m_fine-dx+dy-dz,i) +
-					 finefab(m_fine-dx+dy+dz,i) +
-					 finefab(m_fine+dx-dy-dz,i) +
-					 finefab(m_fine+dx-dy+dz,i) +
-					 finefab(m_fine+dx+dy-dz,i) +
-					 finefab(m_fine+dx+dy+dz,i)) / 64.0
-					+
-					(finefab(m_fine-dy-dz,i) +
-					 finefab(m_fine-dy+dz,i) +
-					 finefab(m_fine+dy-dz,i) +
-					 finefab(m_fine+dy+dz,i) +
-					 finefab(m_fine-dz-dx,i) +
-					 finefab(m_fine-dz+dx,i) +
-					 finefab(m_fine+dz-dx,i) +
-					 finefab(m_fine+dz+dx,i) +
-					 finefab(m_fine-dx-dy,i) +
-					 finefab(m_fine-dx+dy,i) +
-					 finefab(m_fine+dx-dy,i) +
-					 finefab(m_fine+dx+dy,i)) / 32.0
-					+
-					(finefab(m_fine-dx,i) +
-					 finefab(m_fine-dy,i) +
-					 finefab(m_fine-dz,i) +
-					 finefab(m_fine+dx,i) +
-					 finefab(m_fine+dy,i) +
-					 finefab(m_fine+dz,i)) / 16.0
-					+
-					finefab(m_fine,i) / 8.0;
+				if ((m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) &&
+				    (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) &&
+				    (m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2]))// Corner
+					crsefab(m_crse,i) = finefab(m_fine,i);
+				else if ((m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) &&
+					 (m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2])) // X edge
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dx,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dx,i);
+				else if ((m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2]) &&
+					 (m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0])) // Y edge
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dy,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dy,i);
+				else if ((m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) &&
+					 (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1])) // Z edge
+					crsefab(m_crse,i) = 0.25*finefab(m_fine-dz,i) + 0.5*finefab(m_fine,i) + 0.25*finefab(m_fine+dz,i);
+				else if (m_crse[0] == cdomain.loVect()[0] || m_crse[0] == cdomain.hiVect()[0]) // X face
+					crsefab(m_crse,i) =
+						(+     finefab(m_fine-dy-dz,i) + 2.0*finefab(m_fine-dz,i) +     finefab(m_fine+dy-dz,i)
+						 + 2.0*finefab(m_fine-dy   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dy      ,i) 
+						 +     finefab(m_fine-dy+dz,i) + 2.0*finefab(m_fine+dz,i) +     finefab(m_fine+dy+dz,i))/16.0;
+				else if (m_crse[1] == cdomain.loVect()[1] || m_crse[1] == cdomain.hiVect()[1]) // Y face
+					crsefab(m_crse,i) =
+						(+     finefab(m_fine-dz-dx,i) + 2.0*finefab(m_fine-dx,i) +     finefab(m_fine+dz-dx,i)
+						 + 2.0*finefab(m_fine-dz   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dz   ,i) 
+						 +     finefab(m_fine-dz+dx,i) + 2.0*finefab(m_fine+dx,i) +     finefab(m_fine+dz+dx,i))/16.0;
+				else if (m_crse[2] == cdomain.loVect()[2] || m_crse[2] == cdomain.hiVect()[2]) // Z face
+					crsefab(m_crse,i) =
+						(+     finefab(m_fine-dx-dy,i) + 2.0*finefab(m_fine-dy,i) +     finefab(m_fine+dx-dy,i)
+						 + 2.0*finefab(m_fine-dx   ,i) + 4.0*finefab(m_fine   ,i) + 2.0*finefab(m_fine+dx   ,i) 
+						 +     finefab(m_fine-dx+dy,i) + 2.0*finefab(m_fine+dy,i) +     finefab(m_fine+dx+dy,i))/16.0;
+				else // Interior
+					crsefab(m_crse,i) =
+						(finefab(m_fine-dx-dy-dz,i) + finefab(m_fine-dx-dy+dz,i) + finefab(m_fine-dx+dy-dz,i) + finefab(m_fine-dx+dy+dz,i) +
+						 finefab(m_fine+dx-dy-dz,i) + finefab(m_fine+dx-dy+dz,i) + finefab(m_fine+dx+dy-dz,i) + finefab(m_fine+dx+dy+dz,i)) / 64.0
+						+
+						(finefab(m_fine-dy-dz,i) + finefab(m_fine-dy+dz,i) + finefab(m_fine+dy-dz,i) + finefab(m_fine+dy+dz,i) +
+						 finefab(m_fine-dz-dx,i) + finefab(m_fine-dz+dx,i) + finefab(m_fine+dz-dx,i) + finefab(m_fine+dz+dx,i) +
+						 finefab(m_fine-dx-dy,i) + finefab(m_fine-dx+dy,i) + finefab(m_fine+dx-dy,i) + finefab(m_fine+dx+dy,i)) / 32.0
+						+
+						(finefab(m_fine-dx,i) + finefab(m_fine-dy,i) + finefab(m_fine-dz,i) +
+						 finefab(m_fine+dx,i) + finefab(m_fine+dy,i) + finefab(m_fine+dz,i)) / 16.0
+						+
+						finefab(m_fine,i) / 8.0;
 #endif
 			}
 		}
@@ -710,35 +584,43 @@ Operator::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) c
 		crse.ParallelCopy(cfine);
 	}
 
+	amrex::Geometry geom = m_geom[amrlev][cmglev];
+	realFillBoundary(crse,geom);
+	nodalSync(amrlev, cmglev, crse);
+
+
 	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in fine");
 	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in crse");
 }
 
-void
-Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const MultiFab& crse) const
+void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
+	// Util::Message(INFO,"fine nghost = ", fine.nGrow());
+	// Util::Abort(INFO,"crse nghost = ", crse.nGrow());
 	BL_PROFILE("Operator::interpolation()");
-	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in fine");
-	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "interpolation (beginning) - nan or inf detected in crse");
+	int nghost = getNGrow();
+	amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
+	
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
 	MultiFab cfine;
 	const MultiFab* cmf = &crse;
 	if (need_parallel_copy) {
 		const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-		cfine.define(ba, fine.DistributionMap(), crse.nComp(), 0);
+		cfine.define(ba, fine.DistributionMap(), crse.nComp(), crse.nGrow());
 		cfine.ParallelCopy(crse);
 		cmf = &cfine;
 	}
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-					   dy(AMREX_D_DECL(0,1,0)),
-					   dz(AMREX_D_DECL(0,0,1)));
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
 	{
-		for (MFIter mfi(fine, true); mfi.isValid(); ++mfi)
+		for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
 		{
-			const Box& fine_bx = mfi.tilebox();
+			//const Box& fine_bx = mfi.validbox();
+			//const Box& fine_bx = mfi.growntilebox(nghost-1) & fdomain;
+			//const Box& fine_bx = mfi.tilebox() & fdomain;
+			const Box& fine_bx = mfi.validbox() & fdomain;
+
 			const Box& course_bx = amrex::coarsen(fine_bx,2);
 			const Box& tmpbx = amrex::refine(course_bx,2);
 			FArrayBox tmpfab;
@@ -758,16 +640,16 @@ Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const M
 
 #if AMREX_SPACEDIM == 2
 					if (m[0]==2*M[0] && m[1]==2*M[1]) // Coincident
-						tmpfab(m,i) = crsefab(M,i);
-					else if (m[1]==2*M[1]) // X Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
-					else if (m[0]==2*M[0]) // Y Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
+						tmpfab(m,i) += crsefab(M,i);
+					else if (m[0]%2 == 0) // X Edge
+						tmpfab(m,i) += 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
+					else if (m[1]%2 == 0) // Y Edge
+						tmpfab(m,i) += 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
 					else // Center
-						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
-								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
+					 	tmpfab(m,i) += 0.25 * (crsefab(M,i) + crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dx+dy,i));
 #endif
 #if AMREX_SPACEDIM == 3
+
 					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
 						tmpfab(m,i) = crsefab(M,i);
 					else if (m[1]==2*M[1] && m[2]==2*M[2]) // X Edge
@@ -775,7 +657,7 @@ Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const M
 					else if (m[2]==2*M[2] && m[0]==2*M[0]) // Y Edge
 						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
 					else if (m[0]==2*M[0] && m[1]==2*M[1]) // Z Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i));
+						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i)); 
 					else if (m[0]==2*M[0]) // X Face
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dy,i) +
 								      crsefab(M+dz,i) + crsefab(M+dy+dz,i));
@@ -786,33 +668,22 @@ Operator::interpolation (int /*amrlev*/, int /*fmglev*/, MultiFab& fine, const M
 						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
 								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
 					else // Center
-					{
 						tmpfab(m,i) = 0.125 * (crsefab(M,i) +
 								       crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dz,i) +
 								       crsefab(M+dy+dz,i) + crsefab(M+dz+dx,i) + crsefab(M+dx+dy,i) +
 								       crsefab(M+dx+dy+dz,i));
-					}
-
-					if (std::isinf(tmpfab(m,i)))
-					{
-						std::cout << m << M << std::endl;
-						Util::Abort(INFO, "Is Infinity");
-					}
-					if (std::isnan(tmpfab(m,i)))
-					{
-						std::cout << m << M << std::endl;
-						Util::Abort(INFO, "Is NaN");
-					}
 #endif
 				}
 			}
 			fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
 		}
 	}
+	amrex::Geometry geom = m_geom[amrlev][fmglev];
+	realFillBoundary(fine,geom);
+	nodalSync(amrlev, fmglev, fine);
 }
-
-void
-Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
+  
+void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
 				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
@@ -829,43 +700,43 @@ Operator::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*c
 
 }
 
-void
-Operator::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
+void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) const
+{
+	for (int i = 0; i < 2; i++)
+	{
+		MultiFab & mf = phi;
+		mf.FillBoundary(geom.periodicity());
+		const int ncomp = mf.nComp();
+		const int ng1 = 1;
+		const int ng2 = 2;
+		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+	}
+}
+
+void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
 		   amrex::MLLinOp::StateMode /**/, bool skip_fillboundary) const
 {
 	BL_PROFILE("Operator::applyBC()");
 
 	const Geometry& geom = m_geom[amrlev][mglev];
-	const Box& nd_domain = amrex::surroundingNodes(geom.Domain());
 
 	if (!skip_fillboundary) {
-		phi.FillBoundary(geom.periodicity());
-	}
 
-	if (m_coarsening_strategy == CoarseningStrategy::Sigma)
-	{
-		for (MFIter mfi(phi); mfi.isValid(); ++mfi)
-		{
-			if (!nd_domain.strictly_contains(mfi.fabbox()))
-			{
-				amrex_mlndlap_applybc(BL_TO_FORTRAN_ANYD(phi[mfi]),
-						      BL_TO_FORTRAN_BOX(nd_domain),
-						      m_lobc.data(), m_hibc.data());
-			}
-		}
+		realFillBoundary(phi,geom);
 	}
 }
 
 const amrex::FArrayBox &
-Operator::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
+Operator<Grid::Node>::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
 {
 	BL_PROFILE("Operator::GetFab()");
 	Util::Message(INFO);
  	return m_a_coeffs[num][amrlev][mglev][mfi];
 }
 
-void
-Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
+void Operator<Grid::Node>::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 {
 	BL_PROFILE("Operator::RegisterNewFab()");
 	Util::Message(INFO);
@@ -890,8 +761,7 @@ Operator::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 }
 
 
-void
-Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
+void Operator<Grid::Node>::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
 {
 	BL_PROFILE("Operator::RegisterNewFab()");
 	Util::Message(INFO);
@@ -915,10 +785,9 @@ Operator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input
 	m_num_a_fabs++;
 }
 
-void
-Operator::reflux (int crse_amrlev,
-		    MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
-		    MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
+void Operator<Grid::Node>::reflux (int crse_amrlev,
+		  MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
+		  MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
 {
 	BL_PROFILE("Operator::Elastic::reflux()");
 
@@ -935,7 +804,7 @@ Operator::reflux (int crse_amrlev,
  	const BoxArray&            fba = fine_res.boxArray();
  	const DistributionMapping& fdm = fine_res.DistributionMap();
 
- 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 0);
+ 	MultiFab fine_res_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
 	fine_res_for_coarse.ParallelCopy(res,0,0,ncomp,0,0,cgeom.periodicity());
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
@@ -944,24 +813,24 @@ Operator::reflux (int crse_amrlev,
 	const int coarse_fine_node = 1;
 	const int fine_fine_node = 2;
 
-	amrex::iMultiFab nodemask(amrex::coarsen(fba,2), fdm, 1, 0);
+	amrex::iMultiFab nodemask(amrex::coarsen(fba,2), fdm, 1, 2);
 	nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev],0,0,1,0,0,cgeom.periodicity());
 
-	amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 1);
+	amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 2);
 	cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev],0,0,1,1,1,cgeom.periodicity());
 	
 
 
-	for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.tilebox();
+		const Box& bx = mfi.validbox();
 		FArrayBox &fine = fine_res[mfi];
 		FArrayBox &crse = fine_res_for_coarse[mfi];
 		//const FArrayBox &crserhs = crse_rhs[mfi];
 		//const FArrayBox &finerhs = fine_rhs[mfi];
 		//const FArrayBox &ufab = fine_sol[mfi];
 		//TArrayBox &C = (*(model[crse_amrlev+1][0]))[mfi];
-
+		
 #if AMREX_SPACEDIM == 1
 		Util::Abort(INFO, "reflux not implemented in 1D. Turn AMR off or switch to 2D.");
 #elif AMREX_SPACEDIM == 2
@@ -972,65 +841,40 @@ Operator::reflux (int crse_amrlev,
 					amrex::IntVect m_crse(m1,  m2);
 					amrex::IntVect m_fine(m1*2,m2*2);
 					
-					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1||
-					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
-						continue;
-
-					if ((nodemask[mfi])(m_crse) == fine_fine_node)
+					// Domain boundaries
+					if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] + 1 ||
+					    m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] + 1)
 					{
-						crse(m_crse,n) = 
-						 	((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-						  	  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-						  	  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-					}
-					else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
-					{
-						/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-						/**/ // solution to converge to the CORRECT answer.
-						/**/ // If these are commented out, the solution converges super fast but to the 
-						/**/ // WRONG answer. TODO: figure out what's going on here.
-						/**/    crse(m_crse,n) *= 2.0;
-						/**/    continue;
-
-
-						// Exterior corner
-						if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 1)
-						{
+						// Domain corner
+						if ((m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.loVect()[1]     ) ||
+						    (m1 == c_cc_domain.loVect()[0]     && m2 == c_cc_domain.hiVect()[1] + 1 ) ||
+						    (m1 == c_cc_domain.hiVect()[0] + 1 && m2 == c_cc_domain.loVect()[1]     ) ||
+						    (m1 == c_cc_domain.hiVect()[0] + 1 && m2 == c_cc_domain.hiVect()[1] + 1 ))
 							crse(m_crse,n) = fine(m_fine,n);
-						}
-						// Interior corner - same as if not on C/F boundary
-						else if (cellmask[mfi](m_crse) + cellmask[mfi](m_crse-dx[0]) + cellmask[mfi](m_crse-dx[1]) + cellmask[mfi](m_crse-dx[0]-dx[1]) == 3)
-						{
-							crse(m_crse,n) = 
-								((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-								  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-								  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
-
-							if (m_crse == amrex::IntVect(8,4)) Util::Message(INFO);
-
-						}
-						// xmin / xmax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[1])) &&
-							  (cellmask[mfi](m_crse-dx[0]) == cellmask[mfi](m_crse-dx[0]-dx[1])))
-							//m1 == bx.loVect()[0] || m1 == bx.hiVect()[0])
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n)));
-						}
-						// ymin / ymax edge
-						else if ( (cellmask[mfi](m_crse)       == cellmask[mfi](m_crse      -dx[0])) &&
-							  (cellmask[mfi](m_crse-dx[1]) == cellmask[mfi](m_crse-dx[1]-dx[0])))
-						//else if (m2 == bx.loVect()[1] || m2 == bx.hiVect()[1])
-						{
-							crse(m_crse,n) = ((0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n)));
-						}
-						else
-						{
-							Util::Abort(INFO,"Coarse/fine node not on boundary of fab");
-						}
-					}				
-					else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
+						// Domain xlo or xhi edge
+						else if (m1 == c_cc_domain.loVect()[0] || m1 == c_cc_domain.hiVect()[0] +1)
+							crse(m_crse,n) = 0.25*fine(m_fine-dy,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dy,n);
+						// Domain ylo or yhi edge
+						else if (m2 == c_cc_domain.loVect()[1] || m2 == c_cc_domain.hiVect()[1] +1)
+							crse(m_crse,n) = 0.25*fine(m_fine-dx,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx,n);
+						continue;
+					}
+					// Interior boundaries
+					if ((nodemask[mfi])(m_crse) == fine_fine_node ||
+					    (nodemask[mfi])(m_crse) == coarse_fine_node )
 					{
-						//Util::Message(INFO,"Discovered coarse node while on fine fab: crse amrlev = ", crse_amrlev,", m_crse = ", m_crse, " box = ", bx);
+						// if (m_crse == amrex::IntVect(7,16) ||
+						//     m_crse == amrex::IntVect(8,16) ||
+						//     m_crse == amrex::IntVect(24,16) ||
+						//     m_crse == amrex::IntVect(25,16) 
+						//     ) {
+						// 	Util::Message(INFO,"m = ", m_crse, " val = ", fine(m_fine      ,n));
+						// 	crse(m_crse,n) = 0.0;
+						// 	continue;}
+						crse(m_crse,n) = 
+						 	((+     fine(m_fine-dx-dy,n) + 2.0*fine(m_fine-dy,n) +     fine(m_fine+dx-dy,n)
+						  	  + 2.0*fine(m_fine-dx      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx      ,n) 
+						  	  +     fine(m_fine-dx+dy,n) + 2.0*fine(m_fine+dy,n) +     fine(m_fine+dx+dy,n))/16.0);
 					}
 				}
 #elif AMREX_SPACEDIM == 3
@@ -1049,34 +893,29 @@ Operator::reflux (int crse_amrlev,
 						bool zmin = (m3 == bx.loVect()[2]) || (m3 == c_cc_domain.loVect()[2]);
 						bool zmax = (m3 == bx.hiVect()[2]) || (m3 == c_cc_domain.hiVect()[2] +1);
 						
-						if ((nodemask[mfi])(m_crse) == fine_fine_node)
+						if ((nodemask[mfi])(m_crse) == fine_fine_node ||
+						    (nodemask[mfi])(m_crse) == coarse_fine_node)
 						{
 							crse(m_crse,n) =
 								0.25*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
-								  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+								((+ 0.25 *fine(m_fine-dx-dy-dz,n) + 0.5 *fine(m_fine-dy-dz,n) + 0.25 *fine(m_fine+dx-dy-dz,n)
+								  + 0.5  *fine(m_fine-dx      -dz,n) + 1.0 *fine(m_fine      -dz,n) + 0.5  *fine(m_fine+dx      -dz,n) 
+								  + 0.25 *fine(m_fine-dx+dy-dz,n) + 0.5 *fine(m_fine+dy-dz,n) + 0.25 *fine(m_fine+dx+dy-dz,n)) / 4.0)
 								+
 								0.5*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
-								  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+								((+ 0.25 *fine(m_fine-dx-dy      ,n) + 0.5 *fine(m_fine-dy      ,n) + 0.25 *fine(m_fine+dx-dy      ,n)
+								  + 0.5  *fine(m_fine-dx            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx            ,n) 
+								  + 0.25 *fine(m_fine-dx+dy      ,n) + 0.5 *fine(m_fine+dy      ,n) + 0.25 *fine(m_fine+dx+dy      ,n)) / 4.0)
 								+
 								0.25*
-								((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
-								  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
-								  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+								((+ 0.25 *fine(m_fine-dx-dy+dz,n) + 0.5 *fine(m_fine-dy+dz,n) + 0.25 *fine(m_fine+dx-dy+dz,n)
+								  + 0.5  *fine(m_fine-dx      +dz,n) + 1.0 *fine(m_fine      +dz,n) + 0.5  *fine(m_fine+dx      +dz,n) 
+								  + 0.25 *fine(m_fine-dx+dy+dz,n) + 0.5 *fine(m_fine+dy+dz,n) + 0.25 *fine(m_fine+dx+dy+dz,n)) / 4.0);
 						}
 						else if ((nodemask[mfi])(m_crse) == coarse_fine_node)
 						{
-							/**/ // This is a stop-gap measure - don't know why, but these two lines get the 
-							/**/ // solution to converge to the CORRECT answer.
-							/**/ // If these are commented out, the solution converges super fast but to the 
-							/**/ // WRONG answer. TODO: figure out what's going on here.
-							/**/    crse(m_crse,n) *= 2.0;
-							/**/    continue;
 
-							// DOES NOT CONTINUE BEYOND THIS POINT
+							Util::Abort(INFO,"you should not be here!");
 
 							// Corners
 							if ((xmin && ymin && zmin) ||
@@ -1090,49 +929,49 @@ Operator::reflux (int crse_amrlev,
 								crse(m_crse,n) = fine(m_fine,n);
 							// X edges
 							else if ( (ymin && zmin) || (ymin && zmax) || (ymax && zmin) || (ymax && zmax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[0],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[0],n));
+								crse(m_crse,n) = (0.25*fine(m_fine-dx,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx,n));
 							// Y edges
 							else if ( (zmin && zmin) || (zmin && xmax) || (zmax && xmin) || (zmax && xmax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[1],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[1],n));
+								crse(m_crse,n) = (0.25*fine(m_fine-dy,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dy,n));
 							// Z edges
 							else if ( (xmin && ymin) || (xmin && ymax) || (xmax && ymin) || (xmax && ymax) )
-								crse(m_crse,n) = (0.25*fine(m_fine-dx[2],n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dx[2],n));
+								crse(m_crse,n) = (0.25*fine(m_fine-dz,n) + 0.5*fine(m_fine,n) + 0.25*fine(m_fine+dz,n));
 							// YZ face (X=const)
 							else if ( xmin || xmax )
 								crse(m_crse,n) =
-									((+     fine(m_fine-dx[1]-dx[2],n) + 2.0*fine(m_fine-dx[2],n) +     fine(m_fine+dx[1]-dx[2],n)
-									  + 2.0*fine(m_fine-dx[1]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[1]      ,n) 
-									  +     fine(m_fine-dx[1]+dx[2],n) + 2.0*fine(m_fine+dx[2],n) +     fine(m_fine+dx[1]+dx[2],n))/16.0);
+									((+     fine(m_fine-dy-dz,n) + 2.0*fine(m_fine-dz,n) +     fine(m_fine+dy-dz,n)
+									  + 2.0*fine(m_fine-dy      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dy      ,n) 
+									  +     fine(m_fine-dy+dz,n) + 2.0*fine(m_fine+dz,n) +     fine(m_fine+dy+dz,n))/16.0);
 							// ZX face (Y=const)
 							else if ( xmin || xmax )
 								crse(m_crse,n) =
-									((+     fine(m_fine-dx[2]-dx[0],n) + 2.0*fine(m_fine-dx[0],n) +     fine(m_fine+dx[2]-dx[2],n)
-									  + 2.0*fine(m_fine-dx[2]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[2]      ,n) 
-									  +     fine(m_fine-dx[2]+dx[0],n) + 2.0*fine(m_fine+dx[0],n) +     fine(m_fine+dx[2]+dx[2],n))/16.0);
+									((+     fine(m_fine-dz-dx,n) + 2.0*fine(m_fine-dx,n) +     fine(m_fine+dz-dz,n)
+									  + 2.0*fine(m_fine-dz      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dz      ,n) 
+									  +     fine(m_fine-dz+dx,n) + 2.0*fine(m_fine+dx,n) +     fine(m_fine+dz+dz,n))/16.0);
 							// XY face (Z=const)
 							else if ( xmin || xmax )
 								crse(m_crse,n) =
-									((+     fine(m_fine-dx[0]-dx[1],n) + 2.0*fine(m_fine-dx[1],n) +     fine(m_fine+dx[0]-dx[1],n)
-									  + 2.0*fine(m_fine-dx[0]      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx[0]      ,n) 
-									  +     fine(m_fine-dx[0]+dx[1],n) + 2.0*fine(m_fine+dx[1],n) +     fine(m_fine+dx[0]+dx[1],n))/16.0);
+									((+     fine(m_fine-dx-dy,n) + 2.0*fine(m_fine-dy,n) +     fine(m_fine+dx-dy,n)
+									  + 2.0*fine(m_fine-dx      ,n) + 4.0*fine(m_fine      ,n) + 2.0*fine(m_fine+dx      ,n) 
+									  +     fine(m_fine-dx+dy,n) + 2.0*fine(m_fine+dy,n) +     fine(m_fine+dx+dy,n))/16.0);
 							// Internal
 							else
 							{
 								crse(m_crse,n) =
 									0.25*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]-dx[2],n) + 0.5 *fine(m_fine-dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]-dx[2],n)
-									  + 0.5  *fine(m_fine-dx[0]      -dx[2],n) + 1.0 *fine(m_fine      -dx[2],n) + 0.5  *fine(m_fine+dx[0]      -dx[2],n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]-dx[2],n) + 0.5 *fine(m_fine+dx[1]-dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]-dx[2],n)) / 4.0)
+									((+ 0.25 *fine(m_fine-dx-dy-dz,n) + 0.5 *fine(m_fine-dy-dz,n) + 0.25 *fine(m_fine+dx-dy-dz,n)
+									  + 0.5  *fine(m_fine-dx      -dz,n) + 1.0 *fine(m_fine      -dz,n) + 0.5  *fine(m_fine+dx      -dz,n) 
+									  + 0.25 *fine(m_fine-dx+dy-dz,n) + 0.5 *fine(m_fine+dy-dz,n) + 0.25 *fine(m_fine+dx+dy-dz,n)) / 4.0)
 									+
 									0.5*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]      ,n) + 0.5 *fine(m_fine-dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]-dx[1]      ,n)
-									  + 0.5  *fine(m_fine-dx[0]            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx[0]            ,n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]      ,n) + 0.5 *fine(m_fine+dx[1]      ,n) + 0.25 *fine(m_fine+dx[0]+dx[1]      ,n)) / 4.0)
+									((+ 0.25 *fine(m_fine-dx-dy      ,n) + 0.5 *fine(m_fine-dy      ,n) + 0.25 *fine(m_fine+dx-dy      ,n)
+									  + 0.5  *fine(m_fine-dx            ,n) + 1.0 *fine(m_fine            ,n) + 0.5  *fine(m_fine+dx            ,n) 
+									  + 0.25 *fine(m_fine-dx+dy      ,n) + 0.5 *fine(m_fine+dy      ,n) + 0.25 *fine(m_fine+dx+dy      ,n)) / 4.0)
 									+
 									0.25*
-									((+ 0.25 *fine(m_fine-dx[0]-dx[1]+dx[2],n) + 0.5 *fine(m_fine-dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]-dx[1]+dx[2],n)
-									  + 0.5  *fine(m_fine-dx[0]      +dx[2],n) + 1.0 *fine(m_fine      +dx[2],n) + 0.5  *fine(m_fine+dx[0]      +dx[2],n) 
-									  + 0.25 *fine(m_fine-dx[0]+dx[1]+dx[2],n) + 0.5 *fine(m_fine+dx[1]+dx[2],n) + 0.25 *fine(m_fine+dx[0]+dx[1]+dx[2],n)) / 4.0);
+									((+ 0.25 *fine(m_fine-dx-dy+dz,n) + 0.5 *fine(m_fine-dy+dz,n) + 0.25 *fine(m_fine+dx-dy+dz,n)
+									  + 0.5  *fine(m_fine-dx      +dz,n) + 1.0 *fine(m_fine      +dz,n) + 0.5  *fine(m_fine+dx      +dz,n) 
+									  + 0.25 *fine(m_fine-dx+dy+dz,n) + 0.5 *fine(m_fine+dy+dz,n) + 0.25 *fine(m_fine+dx+dy+dz,n)) / 4.0);
 							}
 						}
 						else if ((nodemask[mfi])(m_crse) == coarse_coarse_node)
@@ -1147,7 +986,229 @@ Operator::reflux (int crse_amrlev,
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
 	res.ParallelCopy(fine_res_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+
+	const int mglev = 0;
+
+	// Sync up ghost nodes
+	amrex::Geometry geom = m_geom[crse_amrlev][mglev];
+	realFillBoundary(res,geom);
+	nodalSync(crse_amrlev,mglev, res);
 	return;
+}
+
+void
+Operator<Grid::Node>::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			    const MultiFab* /*crse_bcdata*/)
+{
+	const int mglev = 0;
+	const int ncomp = b.nComp();
+	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
+	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+}
+
+void
+Operator<Grid::Node>::correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+			      BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/)
+{
+	resid.setVal(0.0);
+	apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
+	int ncomp = b.nComp();
+	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+}
+
+
+
+
+Operator<Grid::Cell>::Operator ()
+{
+	m_ixtype = amrex::IntVect::TheCellVector();
+}
+
+void
+Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
+		   const amrex::Vector<amrex::BoxArray>& a_grids,
+		   const amrex::Vector<amrex::DistributionMapping>& a_dmap,
+		   BC::BC& a_bc,
+		   const amrex::LPInfo& a_info,
+		   const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory)
+{
+	m_bc = &a_bc;
+
+	std::array<int,AMREX_SPACEDIM> is_periodic = m_bc->IsPeriodic();
+	// for (int ilev=0; ilev < a_geom.size(); ilev++)
+	// 	a_geom[ilev].SetPeriodicity(is_periodic);
+	
+	MLCellLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
+
+	m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+	m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+				  
+	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
+		setLevelBC(ilev,nullptr);
+
+}
+
+
+void
+Operator<Grid::Cell>::prepareForSolve ()
+{
+	BL_PROFILE("Operator<Grid::Cell>::prepareForSolve()");
+
+	const int ncomp = getNComp();
+	for (int amrlev = 0;  amrlev < m_num_amr_levels; ++amrlev)
+	{
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+		{
+			const auto& bcondloc = *m_bcondloc[amrlev][mglev];
+			const auto& maskvals = m_maskvals[amrlev][mglev];
+			const amrex::Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
+
+			amrex::BndryRegister& undrrelxr = m_undrrelxr[amrlev][mglev];
+			amrex::MultiFab foo(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], ncomp, 0, amrex::MFInfo().SetAlloc(false));
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+			for (amrex::MFIter mfi(foo, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
+			{
+				const amrex::Box& vbx = mfi.validbox();
+
+				const RealTuple & bdl = bcondloc.bndryLocs(mfi);
+				const BCTuple   & bdc = bcondloc.bndryConds(mfi);
+
+				for (amrex::OrientationIter oitr; oitr; ++oitr)
+				{
+					const amrex::Orientation ori = oitr();
+                    
+					int  cdr = ori;
+					amrex::Real bcl = bdl[ori];
+					int  bct = bdc[ori];
+                    
+					amrex::FArrayBox& ffab = undrrelxr[ori][mfi];
+					const amrex::Mask& m   =  maskvals[ori][mfi];
+
+	/*
+					amrex_mllinop_comp_interp_coef0(BL_TO_FORTRAN_BOX(vbx),
+									BL_TO_FORTRAN_ANYD(ffab),
+									BL_TO_FORTRAN_ANYD(m),
+									cdr, bct, bcl, maxorder, dxinv, ncomp);
+	*/
+				}
+			}
+		}
+	}
+	averageDownCoeffs();
+}
+
+Operator<Grid::Cell>::BndryCondLoc::BndryCondLoc (const amrex::BoxArray& ba, const amrex::DistributionMapping& dm)
+	: bcond(ba, dm),
+	  bcloc(ba, dm)
+{
+}
+
+void
+Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
+					  const std::array<BCType,AMREX_SPACEDIM>& lobc,
+					  const std::array<BCType,AMREX_SPACEDIM>& hibc,
+					  int ratio, const amrex::RealVect& a_loc)
+{
+	const amrex::Box&  domain = geom.Domain();
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (amrex::MFIter mfi(bcloc); mfi.isValid(); ++mfi)
+	{
+		const amrex::Box& bx = mfi.validbox();
+		RealTuple & bloc  = bcloc[mfi];
+		BCTuple   & bctag = bcond[mfi];
+
+		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc);
+	}
+}
+
+
+void
+Operator<Grid::Cell>::averageDownCoeffs ()
+{
+	for (int i = 0; i < m_num_a_fabs; i++)
+	{
+		for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+		{
+			auto& fine_a_coeffs = m_a_coeffs[i][amrlev];
+			averageDownCoeffsSameAmrLevel(fine_a_coeffs);
+		}
+		averageDownCoeffsSameAmrLevel(m_a_coeffs[i][0]);
+	}
+}
+
+void
+Operator<Grid::Cell>::averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>& a)
+{
+	int nmglevs = a.size();
+	for (int mglev = 1; mglev < nmglevs; ++mglev)
+	{
+		amrex::average_down(a[mglev-1], a[mglev], 0, a[0].nComp(), mg_coarsen_ratio);
+	}
+}
+
+
+
+const amrex::FArrayBox &
+Operator<Grid::Cell>::GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const
+{
+	return m_a_coeffs[num][amrlev][mglev][mfi];
+}
+
+
+void
+Operator<Grid::Cell>::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
+{
+	/// \todo assertions here
+	m_a_coeffs.resize(m_a_coeffs.size() + 1);
+	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+								       m_dmap[amrlev][mglev],
+								       input[amrlev].nComp(),
+								       input[amrlev].nGrow());
+
+		amrex::MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+				      input[amrlev], 0, 0,
+				      input[amrlev].nComp(),
+				      input[amrlev].nGrow());
+	}
+	m_num_a_fabs++;
+}
+
+
+void
+Operator<Grid::Cell>::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input)
+{
+	/// \todo assertions here
+	m_a_coeffs.resize(m_a_coeffs.size() + 1);
+	m_a_coeffs[m_num_a_fabs].resize(m_num_amr_levels);
+	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
+	{
+		m_a_coeffs[m_num_a_fabs][amrlev].resize(m_num_mg_levels[amrlev]);
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
+			m_a_coeffs[m_num_a_fabs][amrlev][mglev].define(m_grids[amrlev][mglev],
+								       m_dmap[amrlev][mglev],
+								       input[amrlev]->nComp(),
+								       input[amrlev]->nGrow());
+
+		amrex::MultiFab::Copy(m_a_coeffs[m_num_a_fabs][amrlev][0],
+			       *input[amrlev], 0, 0,
+			       input[amrlev]->nComp(),
+			       input[amrlev]->nGrow());
+	}
+	m_num_a_fabs++;
 }
 
 
