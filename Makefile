@@ -69,6 +69,7 @@ clean:
 	find src/ -name "*.o" -exec rm {} \;
 	rm -f bin/*
 	rm -rf obj/
+	rm -rf lib/
 	rm -f Backtrace*
 	rm -rf docs/build docs/doxygen docs/html docs/latex
 info:
@@ -78,6 +79,16 @@ info:
 	@$(CC) -show
 	@printf "\n"
 
+lib/alamo.a: ${OBJ_F} ${OBJ} 
+	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
+	@mkdir -p lib/
+	@ar rvs $@ $^
+
+py: lib/alamo.a
+	swig -c++ -python alamo.i
+	g++ -c -fpic alamo.cc alamo_wrap.cxx -I/usr/include/python2.7  -I/usr/include/mpich ${INCLUDE} ${CXX_COMPILE_FLAGS}
+	g++ -shared alamo.o alamo_wrap.o lib/alamo.a ${LIB} ${MPI_LIB} -o _alamo.so
+
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
 	@mkdir -p bin/
@@ -86,17 +97,17 @@ bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
 obj/test.cc.o: src/test.cc
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c -fPIC $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/%.cc.o: src/%.cc
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c -fPIC $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/%.cpp.o: 
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c -fPIC $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/%.cpp.d: src/%.cpp 
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
@@ -113,7 +124,7 @@ obj/%.cc.d: src/%.cc
 obj/IO/WriteMetaData.cpp.o: .FORCE
 	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   $(@:.o=) \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c -fPIC ${subst obj/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 .PHONY: .FORCE
 

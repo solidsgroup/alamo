@@ -1,0 +1,2 @@
+import alamo
+alamo.test()
