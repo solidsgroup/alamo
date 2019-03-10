@@ -8,13 +8,30 @@ namespace Test
 {
 namespace Operator
 {
+class List {
+public:
+	enum Grid {None, X, Y, Z, YZ, ZX, XY, XYZ};
+public:
+	List(){Util::Message(INFO,"constructing");};
+	~List(){};
+	int search(char *item) {Util::Message(INFO,"search");};
+	void insert(char *item) {};
+	void remove(char *item) {};
+	char *get(int n) {};
+	int length;
+};
+
+
 class Elastic
 {
 public:
 	enum Grid {None, X, Y, Z, YZ, ZX, XY, XYZ};
 
 public:
-	Elastic() {};
+	Elastic() {Util::Message(INFO,"constructing");};
+	~Elastic() {};
+
+	int hello(int i) {Util::Message(INFO,"hello");return 0;}
 
 	/// Create a simulation domain where the coarse level has ncells x ncells ( x ncells)
 	/// and nlevels.
