@@ -86,7 +86,7 @@ lib/alamo.a: ${OBJ_F} ${OBJ}
 
 py: lib/alamo.a
 	swig -c++ -python alamo.i
-	g++ -c -fpic alamo.cc alamo_wrap.cxx -I/usr/include/python2.7  -I/usr/include/mpich ${INCLUDE} ${CXX_COMPILE_FLAGS}
+	g++ -c -fpic alamo_wrap.cxx -I/usr/include/python2.7  -I/usr/include/mpich ${INCLUDE} ${CXX_COMPILE_FLAGS}
 	g++ -shared alamo.o alamo_wrap.o lib/alamo.a ${LIB} ${MPI_LIB} -o _alamo.so
 
 bin/%: ${OBJ_F} ${OBJ} obj/%.cc.o
