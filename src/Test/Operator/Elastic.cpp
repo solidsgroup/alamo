@@ -41,7 +41,7 @@ void Elastic::Define(int _ncells,
 	ncells = _ncells;
  	nlevels = _nlevels;
 	//int max_grid_size = 100000;
-	int max_grid_size = ncells/2;
+	int max_grid_size = ncells/4;
 	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -230,7 +230,7 @@ Elastic::SPD(bool verbose,std::string plotfile)
 // with u = 0 on the boundary.
 // Only one component is solved for, specified by the "component" argument.
 int
-Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
+Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 {
 	Set::Scalar tolerance = 0.02;
 
@@ -239,6 +239,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	// Define the "model" fab to be a Laplacian, so that this
 	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
 	Set::Scalar alpha = 1.0;
+	//using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
 	using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(alpha);
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
@@ -307,7 +308,7 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 	amrex::LPInfo info;
  	info.setAgglomeration(1);
  	info.setConsolidation(1);
- 	info.setMaxCoarseningLevel(3);
+ 	//info.setMaxCoarseningLevel(1);
  	nlevels = geom.size();
 	::Operator::Elastic<model_type> elastic;
  	elastic.define(geom, cgrids, dmap, info);
@@ -353,22 +354,25 @@ Elastic::TrigTest(bool verbose, int component, int n, std::string plotfile)
 
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
-	mlmg.setFixedIter(1);
+	mlmg.setFixedIter(20);
 	//mlmg.setMaxIter(1000);
-	mlmg.setMaxFmgIter(20);
+	//mlmg.setMaxFmgIter(50);
  	if (verbose)
  	{
- 		mlmg.setVerbose(4);
- 		mlmg.setCGVerbose(4);
+ 		mlmg.setVerbose(verbose);
+		if (verbose > 4) mlmg.setCGVerbose(verbose);
  	}
  	else
  	{
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(20);
+ 	mlmg.setBottomMaxIter(50);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	// mlmg.setPreSmooth(4);
+	// mlmg.setPostSmooth(4);
+
 	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
 

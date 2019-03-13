@@ -178,9 +178,10 @@ protected:
 
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
 
-	std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
-								      amrex::IntVect(AMREX_D_DECL(0,1,0)),
-								      amrex::IntVect(AMREX_D_DECL(0,0,1)))}};
+	
+	static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
+						     dy = {AMREX_D_DECL(0,1,0)},
+						     dz = {AMREX_D_DECL(0,0,1)});
 
 private:
 
@@ -361,6 +362,9 @@ protected:
 	void averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>&);
 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
+	static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
+						     dy = {AMREX_D_DECL(0,1,0)},
+						     dz = {AMREX_D_DECL(0,0,1)});
 private:
 
 	// void defineAuxData ();
