@@ -976,6 +976,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setCGVerbose(elastic_cgverbose);
 	solver.setBottomMaxIter(elastic_bottom_max_iter);
 	solver.setBottomTolerance(elastic_bottom_tol) ;
+	solver.setFinalFillBC(false);	
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
@@ -987,20 +988,19 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	}
 
 
-	amrex::MLCGSolver mlcg(&solver,elastic_operator);
-	elastic_operator.PrepareForSolve();
-	mlcg.setVerbose(4);
-	mlcg.setMaxIter(elastic_bottom_max_iter);
-	int ret = mlcg.solve(*displacement[0],*rhs[0],elastic_tol_rel,elastic_tol_abs);
-	if (ParallelDescriptor::IOProcessor() &&  ret) Util::Abort(INFO,"Solver did not converge");
+	//amrex::MLCGSolver mlcg(&solver,elastic_operator);
+	//elastic_operator.PrepareForSolve();
+	//mlcg.setVerbose(4);
+	//mlcg.setMaxIter(elastic_bottom_max_iter);
+	//int ret = mlcg.solve(*displacement[0],*rhs[0],elastic_tol_rel,elastic_tol_abs);
+	//if (ParallelDescriptor::IOProcessor() &&  ret) Util::Abort(INFO,"Solver did not converge");
 
-	// solver.solve(GetVecOfPtrs(displacement),
-	// 	GetVecOfConstPtrs(rhs),
-	// 	elastic_tol_rel,
-	// 	elastic_tol_abs);
-	// solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
+	solver.solve(GetVecOfPtrs(displacement),
+		GetVecOfConstPtrs(rhs),
+		elastic_tol_rel,
+		elastic_tol_abs);
 
-	//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
+	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
