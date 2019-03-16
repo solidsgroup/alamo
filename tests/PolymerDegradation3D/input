@@ -28,7 +28,7 @@ stop_time = 100
 #=============== AMR parameters ============================================
 amr.plot_int = 10
 amr.max_level = 0
-amr.n_cell = 128 64 16
+amr.n_cell = 16 16 16
 amr.max_grid_size = 32
 amr.blocking_factor = 4
 amr.regrid_int = 10
@@ -38,7 +38,7 @@ amr.plot_file = output
 
 #=============== Specify geometry and unrefined mesh =======================
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 25.5 12.7 3.25
+geometry.prob_hi = 12.7 12.7 12.7
 geometry.is_periodic= 0 0 0
 #===========================================================================
 
@@ -103,11 +103,12 @@ elastic.max_fmg_iter 	= 1000
 elastic.bottom_max_iter = 400
 elastic.max_fixed_iter = 10
 elastic.linop_maxorder 	= 2
-elastic.max_coarsening_level = 4
+elastic.max_coarsening_level = 1
 elastic.agglomeration 	= 1
 elastic.consolidation 	= 1
 elastic.tol_rel			=  1.0e-6
 elastic.tol_abs			=  1.0e-6
+elastic.bottom_tol = 1.0e-6
 elastic.tstart 			= 0.0
 elastic.tend			= 100.0
 elastic.use_fsmooth = 1
