@@ -730,9 +730,11 @@ PolymerDegradation::DegradeMaterial(int lev)
 
 	for (amrex::MFIter mfi(model[lev],true); mfi.isValid(); ++mfi)
 	{
-		const amrex::Box& box = mfi.tilebox();
+		const amrex::Box& box = mfi.validbox();
 	 	amrex::BaseFab<model_type> &modelfab = (model[lev])[mfi];
 		amrex::BaseFab<amrex::Real> &etafab = (*eta_new[lev])[mfi];
+
+		//Util::Message(INFO,"box = (",box.loVect()[0],",",box.loVect()[1],",",box.loVect()[2],")(",box.hiVect()[0],",",box.hiVect()[1],",",box.hiVect()[2],")");
 
 	 	AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
 		 		     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
@@ -818,8 +820,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
-	int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-	int number_of_components = AMREX_SPACEDIM;
+	//int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
+	//int number_of_components = AMREX_SPACEDIM;
 	int number_of_ghost_cells = 2;
 
 	if (iter==0 || time == elastic_tstart)
@@ -881,7 +883,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 		for (amrex::MFIter mfi(*rhs[ilev],true); mfi.isValid(); ++mfi)
 		{
-		 	const amrex::Box& box = mfi.tilebox();
+		 	const amrex::Box& box = mfi.validbox();
+
+		 	Util::Message(INFO,"box = (",box.loVect()[0],",",box.loVect()[1],",",box.loVect()[2],")(",box.hiVect()[0],",",box.hiVect()[1],",",box.hiVect()[2],")");
+		 	Util::Message(INFO,"domain = (",geom[ilev].Domain().loVect()[0],",",geom[ilev].Domain().loVect()[1],",",geom[ilev].Domain().loVect()[2],")(",geom[ilev].Domain().hiVect()[0],",",geom[ilev].Domain().hiVect()[1],",",geom[ilev].Domain().hiVect()[2],")");
 
 		 	amrex::BaseFab<amrex::Real> &rhsfab = (*rhs[ilev])[mfi];
 
@@ -901,15 +906,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		 						zmin = (k == geom[ilev].Domain().loVect()[2]);
 		 						zmax = (k == geom[ilev].Domain().hiVect()[2]+1););
 
-		 		if (	false
-						|| xmin || xmax
-#if AMREX_SPACEDIM > 1
-						|| ymin || ymax
-#if AMREX_SPACEDIM > 2
-						|| zmin || zmax
-#endif
-#endif
-						)
+		 		if(false || AMREX_D_TERM( xmin || xmax, || ymin || ymax, || zmin || zmax))
 		 		{
 		 			AMREX_D_TERM(	rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),0) = 0.0;,
 		 							rhsfab(amrex::IntVect(AMREX_D_DECL(i,j,k)),1) = 0.0;,

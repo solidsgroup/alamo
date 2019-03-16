@@ -138,7 +138,7 @@ private:
 	amrex::Vector<Set::Scalar> 	t_start_i;
 
 	// Elasticity parameters
-	Set::Scalar elastic_bottom_tol = 0;
+	Set::Scalar elastic_bottom_tol = 1.0E-6;
 	bool        elastic_on 				= false;
 	int         elastic_int 			= 1;
 	std::string elastic_type;
