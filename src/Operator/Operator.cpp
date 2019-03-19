@@ -99,7 +99,9 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	Set::Scalar omega = 2./3.; // Damping factor (very important!)
 
 	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-
+	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+	
 	if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
 
 	Set::Scalar residual = 0.0;
@@ -110,12 +112,19 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
 
+		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,2); // Dx = x
+		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,2); // Dx *= diag  (Dx = x*diag)
+
+		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,2); // Rx = Ax
+		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
+
 		for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 		{
 			const Box& bx = mfi.validbox();
 			amrex::FArrayBox       &xfab    = x[mfi];
 			const amrex::FArrayBox &bfab    = b[mfi];
 			const amrex::FArrayBox &Axfab   = Ax[mfi];
+			const amrex::FArrayBox &Rxfab   = Rx[mfi];
 			const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
 			for (int n = 0; n < ncomp; n++)
@@ -143,7 +152,8 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 						continue;
 					}
 
-					xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
+					//xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
+					xfab(m,n) = (1.-omega)*xfab(m,n) + omega*(bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
 				}
 			}
 		}
