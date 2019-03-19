@@ -166,6 +166,8 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 								f(i) = ufab(m,i);
 							else if (m_bc_lo[j][i] == BC::Traction) 
 								f(i) += -sig(i,j);
+							else if (m_bc_lo[j][i] == BC::Neumann) 
+								f(i) += -gradu(i,j);
 							else Util::Abort(INFO, "Invalid BC");
 						}
 						if (m[j] == domain.hiVect()[j] + 1)
@@ -174,6 +176,8 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 								f(i) = ufab(m,i);
 							else if (m_bc_hi[j][i] == BC::Traction) 
 								f(i) += +sig(i,j);
+							else if (m_bc_hi[j][i] == BC::Neumann) 
+								f(i) += +gradu(i,j);
 							else Util::Abort(INFO, "Invalid BC");
 
 						}
@@ -295,6 +299,8 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 								diagfab(m,i) += 1.0;
 							else if (m_bc_lo[j][i] == BC::Traction) 
 								diagfab(m,i) -= sig(i,j);
+							else if (m_bc_lo[j][i] == BC::Neumann) 
+								diagfab(m,i) -= gradu(i,j);
 							else Util::Abort(INFO, "Invalid BC");
 						}
 						if (m[j] == domain.hiVect()[j] + 1)
@@ -303,6 +309,8 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 								diagfab(m,i) += 1.0;
 							else if (m_bc_hi[j][i] == BC::Traction) 
 								diagfab(m,i) += sig(i,j);
+							else if (m_bc_lo[j][i] == BC::Neumann) 
+								diagfab(m,i) += gradu(i,j);
 							else Util::Abort(INFO, "Invalid BC");
 						}
 					}

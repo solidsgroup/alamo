@@ -24,8 +24,7 @@ class Elastic : public Operator<Grid::Node>
 	using TArrayBox = amrex::BaseFab<T>;
 	using MultiTab  = amrex::FabArray<TArrayBox>;
 public:
-	enum class BC {Displacement, Traction, Periodic}; 
-
+	enum class BC {Displacement, Traction, Periodic, Neumann}; 
 	enum class Boundary {Lo, Hi, None};
 
 	Elastic () {}
