@@ -27,6 +27,7 @@
 #include "IC/Random.H"
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
 
 namespace Test
 {
@@ -367,18 +368,190 @@ int Elastic::UniaxialTest(bool verbose,
 		 int n,
 		 std::string plotfile)
 {
-  /// \todo Copy and paste code from TrigTest to use as template
-  /// \todo Run test to see if it works
-  /// \todo Modify so that the test does the following:
-  ///        - Dirichlet boundary conditions in the x direction, x displacement
-  ///        - Traction-free boundary conditions elsewhere
-  ///        - No body force
-  /// \todo Find the analytic solution to this problem
-  /// \todo Compare the numeric solution to the analytic solution
-  /// \todo If they match, then return 0. Otherwise return 1.
-  return 1;
-}
+	Set::Scalar tolerance = 0.01;
 
+	int failed = 0;
+
+	// Set::Scalar alpha = 1.0;
+	// using model_type = Model::Solid::LinearElastic::Laplacian;
+	// model_type model(alpha);
+
+	using model_type = Model::Solid::LinearElastic::Isotropic;
+	model_type model(2.6,6.0);
+	//model.Randomize();
+	
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > >
+		modelfab(nlevels); 
+
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
+
+	Set::Vector myvec;
+	myvec[0]=1.0; myvec[1]=0.0;
+
+	std::complex<int> i(0,1);
+	//IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i)); //rhs_prescribed - BODY FORCE - Trig(Geometry , _alpha , AMREX_D_DECL(phi1,phi2,phi3) )
+	IC::Affine icrhs(geom, myvec , 1.0, Set::Vector::Zero(), false, 1.0);
+	icrhs.SetComp(component);
+
+	
+	//Affine(IC(_geom), n(a_n), alpha(a_alpha), b(a_b), halfspace(a_halfspace), m(a_m)
+	//Vector::geom , Vector::a_n, Scalar::a_alpha, Vector::a_b = Set::Vector::Zero(), bool::a_halfspace=false, Scalar::a_m = 1.0 
+	
+	Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
+	IC::Affine icexact(geom, myvec ,1.0, Set::Vector::Zero(), false, 1.0);
+	//IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i)); 
+	icexact.SetComp(component); //exact solution
+
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		solution_exact  [ilev].setVal(0.0);
+		solution_numeric[ilev].setVal(0.0);
+		solution_error  [ilev].setVal(0.0);
+		rhs_prescribed  [ilev].setVal(0.0);
+		rhs_exact       [ilev].setVal(0.0);
+		rhs_numeric     [ilev].setVal(0.0);
+		res_exact       [ilev].setVal(0.0);
+		res_numeric     [ilev].setVal(0.0);
+		ghost_force     [ilev].setVal(0.0);
+
+		icrhs.Initialize(ilev,rhs_prescribed);
+		icexact.Initialize(ilev,solution_exact);
+		//icexact.Initialize(ilev,solution_numeric);
+
+		// Sets values on the boundary of the Fab
+		for (amrex::MFIter mfi(rhs_prescribed[ilev],true); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box& box = mfi.tilebox();
+			amrex::BaseFab<amrex::Real> &rhs = (rhs_prescribed[ilev])[mfi];
+			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++), // Iterates over the grid
+				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
+				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
+			{ 
+			  amrex::IntVect m(AMREX_D_DECL(i,j,k)); // m = location of the point
+			  AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0])
+					  {rhs(m,0) = 0.0;rhs(m,1) = 0.0;}, //set components on x min face
+					if (j == geom[ilev].Domain().loVect()[1])
+					  {rhs(m,0) = 0.0;rhs(m,1) = 0.0;}, //set components on y min face
+					if (k == geom[ilev].Domain().loVect()[2])
+					  {rhs(m,0) = 0.0;rhs(m,2) = 0.0} ); //z min face
+			  AMREX_D_TERM( if (i == geom[ilev].Domain().hiVect()[0]+1)
+					  {rhs(m,0) = 0.0; rhs(m,1) = 0.1;}, //set components on x max face
+					if (j == geom[ilev].Domain().hiVect()[1]+1)
+					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0;}, //set components on y max face
+					if (k == geom[ilev].Domain().hiVect()[2]+1)
+					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0} ); //z max face
+			}
+		}
+	}
+	//rhs_prescribed[1].mult(0.5);
+
+	amrex::LPInfo info;
+ 	info.setAgglomeration(1);
+ 	info.setConsolidation(1);
+ 	info.setMaxCoarseningLevel(0);
+ 	nlevels = geom.size();
+
+	::Operator::Elastic<model_type> elastic;
+
+ 	elastic.define(geom, cgrids, dmap, info);
+ 	//elastic.setMaxOrder(linop_maxorder);
+	
+ 	using bctype = ::Operator::Elastic<model_type>::BC;
+
+
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
+ 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)},
+				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)})}},
+ 		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)},
+				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)})}});
+
+
+	amrex::MLMG mlmg(elastic);
+	mlmg.setMaxIter(100);
+	mlmg.setMaxFmgIter(20);
+ 	if (verbose)
+ 	{
+ 		mlmg.setVerbose(4);
+ 		mlmg.setCGVerbose(4);
+ 	}
+ 	else
+ 	{
+ 		mlmg.setVerbose(0);
+ 		mlmg.setCGVerbose(0);
+	}
+ 	mlmg.setBottomMaxIter(50);
+ 	mlmg.setFinalFillBC(false);	
+ 	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+
+#if 1
+	// Solution
+	
+	//Set::Scalar tol_rel = 1E-11;
+	//Set::Scalar tol_abs = 0;
+        // COMMENT OUT this line to keep the solver from running. (Useful if you want to just visualize solution_exact, rhs_prescribed)
+ 	//xmlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+
+	// Compute solution error
+	for (int i = 0; i < nlevels; i++)
+	{
+		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
+		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,1);
+	}
+	
+
+	// Compute numerical right hand side
+	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
+
+	// Compute exact right hand side
+	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
+
+	
+	// Compute the numeric residual
+	for (int i = 0; i < nlevels; i++)
+	{
+		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],component,component,1,0);
+		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],component,component,1,0);
+	}
+	for (int ilev = nlevels-1; ilev > 0; ilev--)
+	 	elastic.Reflux(0,
+	 		       res_numeric[ilev-1], solution_numeric[ilev-1], rhs_prescribed[ilev-1],
+	 		       res_numeric[ilev],   solution_numeric[ilev],   rhs_prescribed[ilev]);
+
+	// Compute the exact residual
+	for (int i = 0; i < nlevels; i++)
+	{
+		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],component,component,1,0);
+		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],component,component,1,0);
+	}
+	for (int ilev = nlevels-1; ilev > 0; ilev--)
+	 	elastic.Reflux(0,
+	 		       res_exact[ilev-1], solution_exact[ilev-1], rhs_prescribed[ilev-1],
+	 		       res_exact[ilev],   solution_exact[ilev],   rhs_prescribed[ilev]);
+
+	// Compute the "ghost force" that introduces the error
+	mlmg.apply(GetVecOfPtrs(ghost_force),GetVecOfPtrs(solution_error));
+
+#endif
+	if (plotfile != "")
+	{
+		Util::Message(INFO,"Printing plot file to ",plotfile);
+		WritePlotFile(plotfile);
+	}
+
+	// Find maximum solution error
+	std::vector<Set::Scalar> error_norm(nlevels);
+	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0].norm0(component,0,false) / solution_exact[0].norm0(component,0,false);
+	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
+
+	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");
+
+	if (maxnorm > tolerance) failed += 1;
+
+	return failed;
+}
 
 
 int Elastic::RefluxTest(int verbose)
