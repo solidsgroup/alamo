@@ -472,6 +472,8 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
 	std::swap(*eta_old[lev], *eta_new[lev]);
 
+	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
+
 	if(water_diffusion_on) std::swap(*water_conc_old[lev],*water_conc[lev]);
 
 	if(heat_diffusion_on) std::swap(*Temp_old[lev], *Temp[lev]);
@@ -587,6 +589,8 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 				}
 			}
 	}
+	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
+
 }
 
 void
@@ -815,11 +819,22 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 void 
 PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 {
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		displacement[ilev]->setVal(0.0);
+		strain[ilev]->setVal(0.0);
+		stress[ilev]->setVal(0.0);
+		stress_vm[ilev]->setVal(0.0);
+		energy[ilev]->setVal(0.0);
+		residual[ilev]->setVal(0.0);
+	}
+
 	if (!elastic_on) return;
 	if (iter%elastic_int) return;
 	if (time < elastic_tstart) return;
 	if (time > elastic_tend) return;
 
+	Util::Message(INFO,"HERE");
 	//int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	//int number_of_components = AMREX_SPACEDIM;
 	int number_of_ghost_cells = 2;
@@ -833,12 +848,14 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		}
 	}
 	
+	Util::Message(INFO,"HERE");
 	info.setAgglomeration(agglomeration);
 	info.setConsolidation(consolidation);
 	info.setMaxCoarseningLevel(max_coarsening_level);
 	
 	elastic_operator.define(geom, grids, dmap, info);
 	elastic_operator.setMaxOrder(linop_maxorder);
+	Util::Message(INFO,"HERE");
 
 	geom[0].isPeriodic(0);
 	elastic_operator.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
@@ -853,6 +870,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_back(elastic_bc_back,elastic_bc_back_t);
 					Numeric::Interpolator::Linear<Set::Vector> interpolate_front(elastic_bc_front,elastic_bc_front_t););
 	
+	Util::Message(INFO,"HERE");
+
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		const Real* DX = geom[ilev].CellSize();
@@ -876,7 +897,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					rhs[ilev]->setVal(body_force[2]*volume,2,1););
 
 		//Util::Message(INFO);
-		DegradeMaterial(ilev);
+		//DegradeMaterial(ilev);
 		//Util::Message(INFO);
 		elastic_operator.SetModel(ilev,model[ilev]);
 		//Util::Message(INFO);
@@ -974,6 +995,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setBottomMaxIter(elastic_bottom_max_iter);
 	solver.setBottomTolerance(elastic_bottom_tol) ;
 	solver.setFinalFillBC(false);	
+	Util::Message(INFO,"HERE");
+
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+
 	if (bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (bottom_solver == "bicgstab")
@@ -984,7 +1009,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		solver.setBottomSmooth(0);
 	}
 
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
 
+	Util::Message(INFO,"HERE");
 	//amrex::MLCGSolver mlcg(&solver,elastic_operator);
 	//elastic_operator.PrepareForSolve();
 	//mlcg.setVerbose(4);
@@ -992,19 +1019,65 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	//int ret = mlcg.solve(*displacement[0],*rhs[0],elastic_tol_rel,elastic_tol_abs);
 	//if (ParallelDescriptor::IOProcessor() &&  ret) Util::Abort(INFO,"Solver did not converge");
 
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+
+	Util::Message(INFO,"HERE");
+	for (int ilev = 0; ilev < nlevels; ilev++) if (rhs[ilev]->contains_nan()) Util::Abort(INFO);
+
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+
+	for (int ilev = 0; ilev < nlevels; ilev++) displacement[ilev]->setVal(0.0);
 	solver.solve(GetVecOfPtrs(displacement),
-		GetVecOfConstPtrs(rhs),
-		elastic_tol_rel,
-		elastic_tol_abs);
+		     GetVecOfConstPtrs(rhs),
+		     elastic_tol_rel,
+		     elastic_tol_abs);
+
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan())
+						   {
+							   for (int ilev = 0; ilev < nlevels; ilev++) displacement[ilev]->setVal(0.0);
+							   // Util::Message(INFO,(*displacement[ilev])[0]);
+							   // Util::Abort(INFO);
+						   }
+
+	for (int ilev = 0; ilev < nlevels; ilev++)
+		if (rhs[ilev]->contains_nan()) Util::Abort(INFO);
+
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
 
 	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 
+	for (int ilev = 0; ilev < nlevels; ilev++)
+		if (rhs[ilev]->contains_nan()) Util::Abort(INFO);
+
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+
+	Util::Message(INFO,"HERE");
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		elastic_operator.Strain(lev,*strain[lev],*displacement[lev]);
 		elastic_operator.Stress(lev,*stress[lev],*displacement[lev]);
 		elastic_operator.Energy(lev,*energy[lev],*displacement[lev]);
 	}
+
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		strain[ilev]->setVal(0.0);
+		stress[ilev]->setVal(0.0);
+		stress_vm[ilev]->setVal(0.0);
+		energy[ilev]->setVal(0.0);
+		residual[ilev]->setVal(0.0);
+	}
+
+
+	Util::Message(INFO,node.name_array[3]);
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+	for (int ilev = 0; ilev < nlevels; ilev++) if (rhs[ilev]->contains_nan()) Util::Abort(INFO);
+	for (int ilev = 0; ilev < nlevels; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
+	Util::Message(INFO,"HERE");
+
+
 }
+
 }
 //#endif
