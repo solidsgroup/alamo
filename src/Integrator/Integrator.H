@@ -257,6 +257,7 @@ private:
 	amrex::Real tstart = 0;	///< Default start time (default: 0)
 	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
+protected:
 	struct {
 		int number_of_fabs = 0;
 		amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;

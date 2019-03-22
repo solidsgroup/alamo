@@ -1004,6 +1004,8 @@ Operator<Grid::Node>::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x
 	const int ncomp = b.nComp();
 	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
 	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+	amrex::Geometry geom = m_geom[amrlev][mglev];
+	realFillBoundary(resid,geom);
 }
 
 void
@@ -1014,6 +1016,8 @@ Operator<Grid::Node>::correctionResidual (int amrlev, int mglev, MultiFab& resid
 	apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
 	int ncomp = b.nComp();
 	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
+	amrex::Geometry geom = m_geom[amrlev][mglev];
+	realFillBoundary(resid,geom);
 }
 
 
