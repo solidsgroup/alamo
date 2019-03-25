@@ -324,6 +324,7 @@ PolymerDegradation::PolymerDegradation():
 		bc_map["disp"] = Operator::Elastic<model_type>::BC::Displacement;
 		bc_map["traction"] = Operator::Elastic<model_type>::BC::Traction;
 		bc_map["trac"] = Operator::Elastic<model_type>::BC::Traction;
+		bc_map["neumann"] = Operator::Elastic<model_type>::BC::Neumann;
 		bc_map["periodic"] = Operator::Elastic<model_type>::BC::Periodic;
 
 		AMREX_D_TERM(	bc_x_lo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]], bc_map[bc_x_lo_str[1]], bc_map[bc_x_lo_str[2]])};
