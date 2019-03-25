@@ -1013,7 +1013,79 @@ Operator<Grid::Node>::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x
 	const int mglev = 0;
 	const int ncomp = b.nComp();
 	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
-	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+	//MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+
+	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+
+	int nghost = 2;
+	for (MFIter mfi(resid, false); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.validbox();
+		amrex::FArrayBox       &resfab  = resid[mfi];
+		amrex::FArrayBox       &xfab    = x[mfi];
+		const amrex::FArrayBox &bfab    = b[mfi];
+
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - nghost; m1<=bx.hiVect()[0] + nghost; m1++),
+			     for (int m2 = bx.loVect()[1] - nghost; m2<=bx.hiVect()[1] + nghost; m2++),
+			     for (int m3 = bx.loVect()[2] - nghost; m3<=bx.hiVect()[2] + nghost; m3++))
+		{
+			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
+			AMREX_D_TERM(if (m[0] < domain.loVect()[0]) continue;,
+				     if (m[1] < domain.loVect()[1]) continue;,
+				     if (m[2] < domain.loVect()[2]) continue;);
+			AMREX_D_TERM(if (m[0] > domain.hiVect()[0]+1) continue;,
+				     if (m[1] > domain.hiVect()[1]+1) continue;,
+				     if (m[2] > domain.hiVect()[2]+1) continue;);
+
+
+			bool    AMREX_D_DECL(xmin = (m[0] == domain.loVect()[0]),
+					     ymin = (m[1] == domain.loVect()[1]),
+					     zmin = (m[2] == domain.loVect()[2])),
+				AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]+1),
+					     ymax = (m[1] == domain.hiVect()[1]+1),
+					     zmax = (m[2] == domain.hiVect()[2]+1));
+
+			for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+			{
+				resfab(m,i) = bfab(m,i) - resfab(m,i);
+			}
+
+			if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
+			{
+				for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+				{
+					// for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+					// {
+					// if (m[j] == domain.loVect()[j])
+					// {
+					// 	// if (m_bc_lo[j][i] == BC::Displacement)
+					// 	// 	f(i) = ufab(m,i);
+					// 	// else if (m_bc_lo[j][i] == BC::Traction) 
+					// 	// 	f(i) += -sig(i,j);
+					// 	// else if (m_bc_lo[j][i] == BC::Neumann) 
+					// 	// 	f(i) += -gradu(i,j);
+					// 	// else Util::Abort(INFO, "Invalid BC");
+					// }
+					if (m[2] == domain.hiVect()[2] + 1)
+					{
+						//std::cout << "m = " << m << " res = " << resfab(m,i) << std::endl;
+						//Util::Message(INFO,m);
+						//resfab(m,i) = 0.0;
+						// if (m_bc_hi[j][i] == BC::Displacement)
+						// 	f(i) = ufab(m,i);
+						// else if (m_bc_hi[j][i] == BC::Traction) 
+						// 	f(i) += +sig(i,j);
+						// else if (m_bc_hi[j][i] == BC::Neumann) 
+						// 	f(i) += +gradu(i,j);
+						// else Util::Abort(INFO, "Invalid BC");
+
+					}
+					// }
+				}
+			}
+		}
+	}
 }
 
 void

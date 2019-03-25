@@ -103,10 +103,12 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			// Util::Message(INFO,"domain =",domain.loVect()[0]," ",domain.loVect()[1]);
 			// Util::Message(INFO,"domain =",domain.hiVect()[0]," ",domain.hiVect()[1]);
 
-			if (m[0] < domain.loVect()[0]) continue;
-			if (m[1] < domain.loVect()[1]) continue;
-			if (m[0] > domain.hiVect()[0]+1) continue;
-			if (m[1] > domain.hiVect()[1]+1) continue;
+			AMREX_D_TERM(if (m[0] < domain.loVect()[0]) continue;,
+				     if (m[1] < domain.loVect()[1]) continue;,
+				     if (m[2] < domain.loVect()[2]) continue;);
+			AMREX_D_TERM(if (m[0] > domain.hiVect()[0]+1) continue;,
+				     if (m[1] > domain.hiVect()[1]+1) continue;,
+				     if (m[2] > domain.hiVect()[2]+1) continue;);
 
 
 			Set::Vector f = Set::Vector::Zero();
