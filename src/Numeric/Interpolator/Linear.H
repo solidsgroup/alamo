@@ -15,9 +15,15 @@ template <class T>
 class Linear : public Interpolator<T>
 {
 public:
- 	Linear(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points) :
-		data_points(_data_points), interval_points(_interval_points)
+ 	Linear() {};
+ 	Linear(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points)
 	{
+		define(_data_points,_interval_points);
+	};
+ 	void define(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points) 
+	{
+		data_points = _data_points;
+		interval_points = _interval_points;
 		if(data_points.size() != interval_points.size())
 			Util::Abort(INFO,"Data points and interval points have different sizes");
 	};
