@@ -54,6 +54,7 @@ class PolymerDegradation : public Integrator::Integrator
 {
 public:
 	PolymerDegradation();
+	~PolymerDegradation();
 
 protected:
 
@@ -150,6 +151,8 @@ private:
 	int         elastic_cgverbose 		= 3;
 	Set::Scalar elastic_tol_rel 		= 1.0E-5;
 	Set::Scalar elastic_tol_abs 		= 1.0E-5;
+	Set::Scalar elastic_cg_tol_rel 		= 1.0E-5;
+	Set::Scalar elastic_cg_tol_abs 		= 1.0E-5;
 	Set::Scalar elastic_tstart 			= 0.0;
 	Set::Scalar elastic_tend 			= 0.0;
 	std::string bottom_solver			= "bicgstab";
@@ -190,7 +193,7 @@ private:
 
 	// Material model
 	//amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
-	model_type modeltype;
+	model_type *modeltype;
 	std::string 	input_material = "isotropic";
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;

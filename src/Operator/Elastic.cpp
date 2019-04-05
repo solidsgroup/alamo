@@ -57,6 +57,7 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	BL_PROFILE("Operator::Elastic::SetModel()");
 
 	int nghost = model[amrlev][0]->nGrow();
+	if (nghost != a_model.nGrow()) Util::Abort(INFO,"model.nGrow != a_model.nGrow");
 	for (MFIter mfi(a_model, false); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.validbox();
@@ -103,10 +104,13 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			// Util::Message(INFO,"domain =",domain.loVect()[0]," ",domain.loVect()[1]);
 			// Util::Message(INFO,"domain =",domain.hiVect()[0]," ",domain.hiVect()[1]);
 
-			if (m[0] < domain.loVect()[0]) continue;
-			if (m[1] < domain.loVect()[1]) continue;
-			if (m[0] > domain.hiVect()[0]+1) continue;
-			if (m[1] > domain.hiVect()[1]+1) continue;
+			AMREX_D_TERM(if (m[0] < domain.loVect()[0]) continue;,
+				     if (m[1] < domain.loVect()[1]) continue;,
+				     if (m[2] < domain.loVect()[2]) continue;);
+			AMREX_D_TERM(if (m[0] > domain.hiVect()[0]+1) continue;,
+				     if (m[1] > domain.hiVect()[1]+1) continue;,
+				     if (m[2] > domain.hiVect()[2]+1) continue;)
+					     
 
 
 			Set::Vector f = Set::Vector::Zero();
@@ -830,6 +834,21 @@ Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
 
 	sigma.FillBoundary(geom.periodicity());
+	// substitute for realfillboundary
+	// for (int i = 0; i < 2; i++)
+	// {
+	// 	amrex::FabArray<amrex::BaseFab<T> > & mf = sigma;
+	// 	mf.FillBoundary(geom.periodicity());
+	// 	const int ncomp = mf.nComp();
+	// 	const int ng1 = 1;
+	// 	const int ng2 = 2;
+	// 	MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+	// 	//MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+	// 	tmpmf.copy(mf,0,0,ncomp,ng2,ng1,geom.periodicity());
+
+	// 	//mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+	// }
+
 
 	//const Box& domain = geom.Domain();
 

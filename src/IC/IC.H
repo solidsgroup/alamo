@@ -12,7 +12,8 @@ class IC
 public:
 	IC (amrex::Vector<amrex::Geometry> &_geom)
 		: geom(_geom) {} ;
-  
+	virtual ~IC() {}
+
 	virtual void Add(const int lev, amrex::Vector<amrex::MultiFab *> &field) = 0;
 
 	void Initialize(const int lev,

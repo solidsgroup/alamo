@@ -6,7 +6,6 @@
 #include "Integrator.H"
 #include "IO/FileNameParse.H"
 #include "Util/Util.H"
-#include "BC/Nothing.H"
 #include <numeric>
 
 
@@ -221,7 +220,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	cell.fab_array.push_back(&new_fab);
-	cell.physbc_array.push_back(new BC::Nothing); 
+	cell.physbc_array.push_back(&bcnothing); 
 	cell.ncomp_array.push_back(ncomp);
 	cell.nghost_array.push_back(0);
 	cell.name_array.push_back(name);
@@ -236,7 +235,7 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	node.fab_array.push_back(&new_fab);
-	node.physbc_array.push_back(new BC::Nothing); 
+	node.physbc_array.push_back(&bcnothing); 
 	node.ncomp_array.push_back(ncomp);
 	node.nghost_array.push_back(nghost);
 	node.name_array.push_back(name);
