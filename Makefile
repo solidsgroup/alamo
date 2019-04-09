@@ -71,6 +71,9 @@ clean:
 	rm -rf obj/
 	rm -f Backtrace*
 	rm -rf docs/build docs/doxygen docs/html docs/latex
+tidy:
+	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
+	rm -f Backtrace*
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
