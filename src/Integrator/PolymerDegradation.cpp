@@ -835,9 +835,9 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 void 
 PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 {
-	for (int ilev = 0; ilev < nlevels; ++ilev)
+	//for (int ilev = 0; ilev < nlevels; ++ilev)
 	// {
-	displacement[ilev]->setVal(0.0);
+		//displacement[ilev]->setVal(0.0);
 	// 	rhs[ilev]->setVal(0.0);
 	// 	strain[ilev]->setVal(0.0);
 	// 	stress[ilev]->setVal(0.0);
@@ -982,7 +982,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	//solver.setBottomToleranceAbs(elastic_cg_tol_abs) ;
 	//Util::Message(INFO,"abs tol = ",solver.getBottomToleranceAbs());
 	solver.setFinalFillBC(false);	
-	//solver.setBottomToleranceAbs(elastic_cg_tol_abs) ;
+	solver.setBottomToleranceAbs(elastic_cg_tol_abs) ;
 	//Util::Message(INFO,"abs tol = ",solver.getBottomToleranceAbs());
 
 	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
