@@ -254,11 +254,14 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-			if (m[0] < domain.loVect()[0]) continue;
-			if (m[1] < domain.loVect()[1]) continue;
-			if (m[0] > domain.hiVect()[0]+1) continue;
-			if (m[1] > domain.hiVect()[1]+1) continue;
 
+			AMREX_D_TERM(if (m[0] < domain.loVect()[0]) continue;,
+				     if (m[1] < domain.loVect()[1]) continue;,
+				     if (m[2] < domain.loVect()[2]) continue;);
+			AMREX_D_TERM(if (m[0] > domain.hiVect()[0]+1) continue;,
+				     if (m[1] > domain.hiVect()[1]+1) continue;,
+				     if (m[2] > domain.hiVect()[2]+1) continue;)
+					     
 			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
 					     ymin = (m2 == domain.loVect()[1]),
 					     zmin = (m3 == domain.loVect()[2])),
@@ -631,6 +634,7 @@ template<class T>
 void
 Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
 {
+	/*
 	BL_PROFILE("Operator::Elastic::averageDownCoeffsToCoarseAmrLevel()");
 
 	//const int mglev = 0;
@@ -691,6 +695,7 @@ Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the pr
 		crsemt.copy(finemtcoarsened,0,0,ncomp);
 
 	}
+	*/
 }
 
 template<class T>
@@ -705,40 +710,81 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 
  	for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
  	{
+		amrex::Box domain_crse(m_geom[amrlev][mglev].Domain()); domain_crse.convert(amrex::IntVect::TheNodeVector());
+		amrex::Box domain_fine(m_geom[amrlev][mglev-1].Domain()); domain_fine.convert(amrex::IntVect::TheNodeVector());
+
 		MultiTab& crse = *model[amrlev][mglev];
 		MultiTab& fine = *model[amrlev][mglev-1];
 		
-		bool isMFIterSafe  = (crse.DistributionMap() == fine.DistributionMap()) && BoxArray::SameRefs(crse.boxArray(),fine.boxArray());
-		bool need_parallel_copy = !isMFIterSafe;
+		amrex::BoxArray crseba = crse.boxArray();
+		amrex::BoxArray fineba = fine.boxArray();
 
-		MultiTab cfine;
-		if (need_parallel_copy) {
-			const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-			cfine.define(ba, fine.DistributionMap(), 1, 1);
-		}
+		// Util::Message(INFO,crseba);
+		// Util::Message(INFO,fineba);
+		//fineba.grow(2);
+		//Util::Message(INFO,fineba);
+		// bool isMFIterSafe  = (crse.DistributionMap() == fine.DistributionMap()) && BoxArray::SameRefs(crseba,fineba);
+		// bool need_parallel_copy = !isMFIterSafe;
+		// MultiTab cfine;
+		// if (need_parallel_copy) {
+		// 	//const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
+		// 	const BoxArray& ba = amrex::coarsen(fineba, 2);
+		// 	cfine.define(ba, fine.DistributionMap(), 1, 2);
+		// }
 
-		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
-		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
+		// if (need_parallel_copy) {
+		// 	crse.ParallelCopy(cfine);
+		// }
+		
+		BoxArray newba = crseba;
+		newba.refine(2);
+		MultiTab fine_on_crseba;
+		fine_on_crseba.define(newba,crse.DistributionMap(),1,4);
+		fine_on_crseba.ParallelCopy(fine,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
+
+
+		// MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
+
+		for (MFIter mfi(crse, false); mfi.isValid(); ++mfi)
  			{
-				const Box& bx = mfi.tilebox();
+				const Box& bx = mfi.validbox() & domain_crse;
 
-				TArrayBox &crsetab = (*pcrse)[mfi];
-				TArrayBox &finetab = fine[mfi];
+				// TArrayBox &crsetab = (*pcrse)[mfi];
+				// TArrayBox &finetab = fine[mfi];
+				TArrayBox &crsetab = crse[mfi];
+				TArrayBox &finetab = fine_on_crseba[mfi];
 
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
-					     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
-					     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
+				// Util::Message(INFO,bx);
+				// Util::Message(INFO,bx.loVect()[0]," ",bx.hiVect()[0]);
+				// Util::Message(INFO,finetab.box());
+
+
+				// Util::Abort(INFO);
+				
+				AMREX_D_TERM(for (int m1 = bx.loVect()[0]-2; m1<=bx.hiVect()[0]+2; m1++),
+					     for (int m2 = bx.loVect()[1]-2; m2<=bx.hiVect()[1]+2; m2++),
+					     for (int m3 = bx.loVect()[2]-2; m3<=bx.hiVect()[2]+2; m3++))
 				{
 
 					amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
 					amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
 
 
-					if (m1 == bx.loVect()[0] - 1) ++m_fine[0];
-					if (m2 == bx.loVect()[1] - 1) ++m_fine[1];
-					if (m1 == bx.hiVect()[0] + 1) --m_fine[0];
-					if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
+					bool    AMREX_D_DECL(xmin = (m_crse[0] <= domain_crse.loVect()[0]) || (m_crse[0] == bx.loVect()[0]-2),
+							     ymin = (m_crse[1] <= domain_crse.loVect()[1]) || (m_crse[1] == bx.loVect()[1]-2),
+							     zmin = (m_crse[2] <= domain_crse.loVect()[2]) || (m_crse[2] == bx.loVect()[2]-2)),
+						AMREX_D_DECL(xmax = (m_crse[0] >= domain_crse.hiVect()[0]) || (m_crse[0] == bx.hiVect()[0]+2),
+							     ymax = (m_crse[1] >= domain_crse.hiVect()[1]) || (m_crse[1] == bx.hiVect()[1]+2),
+							     zmax = (m_crse[2] >= domain_crse.hiVect()[2]) || (m_crse[2] == bx.hiVect()[2]+2));
+
+
+					
+					// AMREX_D_TERM(if (m1 == bx.loVect()[0] - 1) ++m_fine[0];
+					// 	     if (m2 == bx.loVect()[1] - 1) ++m_fine[1];
+					// 	     if (m3 == bx.loVect()[2] - 1) ++m_fine[1];
+					// if (m1 == bx.hiVect()[0] + 1) --m_fine[0];
+					// if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
 					
 #if AMREX_SPACEDIM == 2
 					Set::Scalar total = 0.0;
@@ -766,42 +812,40 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 #elif AMREX_SPACEDIM == 3
 					crsetab(m_crse) = finetab(m_fine);
 					// corner
-					if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) &&
-					    (m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1) &&
-					    (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
+					if ((xmin || xmax) && (ymin || ymax) && (zmin || zmax))
 					{
 						crsetab(m_crse) = finetab(m_fine);
 					}
-					else if ((m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1) && // x edge
-						 (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
+					else if ((ymin || ymax) && // x edge
+						 (zmin || zmax))
 					{
 						crsetab(m_crse) = finetab(m_fine-dx)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dx)*0.25;
 					}
-					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) && // y edge
-						 (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
+					else if ((xmin || xmax) && // y edge
+						 (zmin || zmax))
 					{
 						crsetab(m_crse) = finetab(m_fine-dy)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dy)*0.25;
 					}
-					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) && // z edge
-						 (m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1))
+					else if ((xmin || xmax) && // z edge
+						 (ymin || ymax))
 					{
 						crsetab(m_crse) = finetab(m_fine-dz)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dz)*0.25;
 					}
-					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1)) // x face
+					else if ((xmin || xmax)) // x face
 					{
 						crsetab(m_crse) =
 							(finetab(m_fine+dy+dz) + finetab(m_fine+dy-dz) + finetab(m_fine-dy+dz) + finetab(m_fine-dy-dz)) / 16. +
 							(finetab(m_fine+dy) + finetab(m_fine-dy) + finetab(m_fine+dz) + finetab(m_fine-dz)) / 8. +
 							(finetab(m_fine)) / 4.;							
 					}
-					else if ((m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1)) // y face
+					else if ((ymin || ymax)) // y face
 					{
 						crsetab(m_crse) =
 							(finetab(m_fine+dz+dx) + finetab(m_fine+dz-dx) + finetab(m_fine-dz+dx) + finetab(m_fine-dz-dx)) / 16. +
 							(finetab(m_fine+dz) + finetab(m_fine-dz) + finetab(m_fine+dx) + finetab(m_fine-dx)) / 8. +
 							(finetab(m_fine)) / 4.;
 					}
-					else if ((m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1)) // z face
+					else if ((zmin || zmax)) // z face
 					{
 						crsetab(m_crse) =
 							(finetab(m_fine+dx+dy) + finetab(m_fine+dx-dy) + finetab(m_fine-dx+dy) + finetab(m_fine-dx-dy)) / 16. +
@@ -829,40 +873,39 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 				}
  			}
 
-		if (need_parallel_copy) {
-			crse.ParallelCopy(cfine);
-		}
+		// if (need_parallel_copy) {
+		// 	crse.ParallelCopy(cfine);
+		// }
  	}
 }
 
 template<class T>
 void
-Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
+Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
 
-	sigma.FillBoundary(geom.periodicity());
-	// substitute for realfillboundary
-	// for (int i = 0; i < 2; i++)
-	// {
-	// 	amrex::FabArray<amrex::BaseFab<T> > & mf = sigma;
-	// 	mf.FillBoundary(geom.periodicity());
-	// 	const int ncomp = mf.nComp();
-	// 	const int ng1 = 1;
-	// 	const int ng2 = 2;
-	// 	MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-	// 	//MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
-	// 	tmpmf.copy(mf,0,0,ncomp,ng2,ng1,geom.periodicity());
+	//sigma.FillBoundary(geom.periodicity());
+	for (int i = 0; i < 4; i++)
+	{
+		MultiTab & mf = sigma;
+		mf.FillBoundary(geom.periodicity());
+		const int ncomp = mf.nComp();
+		const int ng1 = 1;
+		const int ng2 = 2;
+		MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+		//MultiTab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+	  	tmpmf.copy(mf,0,0,ncomp,ng2,ng1,geom.periodicity());
 
-	// 	//mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-	// }
+		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+	}
 
 
 	//const Box& domain = geom.Domain();
 
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
+// #ifdef _OPENMP
+// #pragma omp parallel
+// #endif
 	// for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
 	// {
 	// 	if (!domain.contains(mfi.fabbox()))

@@ -96,7 +96,7 @@ private:
 	void averageDownCoeffsToCoarseAmrLevel (int flev);
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 
-	void FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom);
+	void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
 
 	bool m_testing = false;
 
