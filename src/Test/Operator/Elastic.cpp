@@ -339,7 +339,7 @@ int Elastic::UniaxialTest(bool verbose,
 		 int n,
 		 std::string plotfile)
 {
-	Set::Scalar tolerance = 0.01;
+        Set::Scalar tolerance = 0.01; //Relative error PASS < 10% (0.01)
 
 	int failed = 0;
 
@@ -348,8 +348,11 @@ int Elastic::UniaxialTest(bool verbose,
 	//model_type model(alpha);
 
 	using model_type = Model::Solid::LinearElastic::Isotropic;
-	model_type model(2.6,6.0);
-	//model.Randomize();
+	Set::Scalar lame=2.6;
+	Set::Scalar shear=6.0;
+	model_type model(lame,shear);
+	//IC::Random() model_type();
+	//model_type model.Random();
 	
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > >
 		modelfab(nlevels); 
@@ -360,20 +363,20 @@ int Elastic::UniaxialTest(bool verbose,
 	Set::Vector myvec;
 	myvec[0]=0.0; myvec[1]=0.0;
 	Set::Vector myvec1;
-	myvec1[0]=1.0; myvec1[1]=0.0;
+	myvec1[0]=0.1; myvec1[1]=0.0;
 	
 
-	//rhs_prescribed-BODY FORCE
+	//rhs_prescribed - BODY FORCE
 	std::complex<int> i(0,1);
 	//IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i));
-	IC::Affine icrhs(geom, myvec, 0.0,Set::Vector::Zero(), false, 1.0);
+	IC::Affine icrhs(geom, myvec, 1.0, Set::Vector::Zero() , false, 1.0);
 	icrhs.SetComp(component);
 
 	//Trig(Geometry , _alpha , AMREX_D_DECL(phi1,phi2,phi3) ) --- (Vector::geom, Scalar::Alpha , Scalar::AMREX)
 	//Affine(IC(_geom), n(a_n), alpha(a_alpha), b(a_b), halfspace(a_halfspace), m(a_m)
 	//Vector::geom , Vector::a_n, Scalar::a_alpha, Vector::a_b = Set::Vector::Zero(), bool::a_halfspace=false, Scalar::a_m = 1.0 
 
-	Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM); //dim=2 -> 2D ; dim=3 ->3D
+	//Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM); //dim=2 -> 2D ; dim=3 ->3D
 	//IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
 	IC::Affine icexact(geom, myvec1, 1.0, Set::Vector::Zero(), false, 1.0);
 	icexact.SetComp(component); //exact solution
@@ -391,9 +394,8 @@ int Elastic::UniaxialTest(bool verbose,
 		ghost_force     [ilev].setVal(0.0);
 
 		icrhs.Initialize(ilev,rhs_prescribed);
-		//icexact.Initialize(ilev,solution_exact);
-		//icexact.Initialize(ilev,solution_numeric);
-
+		icexact.Initialize(ilev,solution_exact);
+		
 		// Sets values on the boundary of the Fab
 		for (amrex::MFIter mfi(rhs_prescribed[ilev],true); mfi.isValid(); ++mfi)
 		{
@@ -411,15 +413,14 @@ int Elastic::UniaxialTest(bool verbose,
 					if (k == geom[ilev].Domain().loVect()[2])
 					  {rhs(m,0) = 0.0;rhs(m,1) = 0.0} ); //z min face
 			  AMREX_D_TERM( if (i == geom[ilev].Domain().hiVect()[0]+1)
-					  {rhs(m,0) = 0.1; rhs(m,1) = 0.1;}, //set components on x max face
+					  {rhs(m,0) = 0.1; rhs(m,1) = 0.0;}, //set components on x max face
 					if (j == geom[ilev].Domain().hiVect()[1]+1)
 					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0;}, //set components on y max face
 					if (k == geom[ilev].Domain().hiVect()[2]+1)
 					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0} ); //z max face
 			}
 		}
-		icexact.Initialize(ilev,solution_exact);
-		//icexact.Initialize(ilev,solution_numeric);
+		icexact.Initialize(ilev,solution_numeric); //function?
 				
 		
 	}
@@ -443,7 +444,7 @@ int Elastic::UniaxialTest(bool verbose,
  	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Traction)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)})}},
- 		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Displacement)},
+ 		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)})}});
 
@@ -468,10 +469,10 @@ int Elastic::UniaxialTest(bool verbose,
 #if 1
 	// Solution
 	
-	//Set::Scalar tol_rel = 1E-11;
-	//Set::Scalar tol_abs = 0;
+	Set::Scalar tol_rel = 1E-11;
+	Set::Scalar tol_abs = 0;
         // COMMENT OUT this line to keep the solver from running. (Useful if you want to just visualize solution_exact, rhs_prescribed)
- 	//mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
@@ -518,6 +519,7 @@ int Elastic::UniaxialTest(bool verbose,
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
 		WritePlotFile(plotfile);
+
 	}
 
 	// Find maximum solution error
@@ -526,10 +528,13 @@ int Elastic::UniaxialTest(bool verbose,
 	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
 
 	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");
+	           //Util::Message(INFO,"Max solution exact: ",solution_exact[0].norm0(component,0,false));
+	           //Util::Message(INFO,"Max solution numeric: ", GetVecOfPtrs(solution_numeric));
 
 	if (maxnorm > tolerance) failed += 1;
 
 	return failed;
+	
 }
 
 
