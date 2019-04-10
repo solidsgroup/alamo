@@ -68,14 +68,14 @@ int main (int argc, char* argv[])
 		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
-		test.Define(16,2);
-		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
-		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
-		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1/*,"TrigTest"*/));
+		// test.Define(16,2);
+		// Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
+		// failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
+		// failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1/*,"TrigTest"*/));
 
-		test.Define(16,2); //second number change the mesh levels.
+		test.Define(16,1); //second number change the mesh levels.
 		Util::Test::Message(          "Elastic Operator Uniaxial text,16x16, 1 level");
-		failed += Util::Test::Message("  └ Component 0, period=1",test.UniaxialTest(0,0,1,"UniaxialTest"));
+		failed += Util::Test::Message("  └ Component 0, period=1",test.UniaxialTest(3,0,1,"UniaxialTest"));
 	}
 
 	Util::Message(INFO,failed," tests failed");
