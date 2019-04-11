@@ -159,13 +159,13 @@ help:
 	@printf "\n"
 
 
-docs: docs/doxygen/index.html docs/build/html/index.html .FORCE
+docs: docs/doxygen/index.html docs/build/html/index.html .FORCE 
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
 	@cd docs && doxygen 
-docs/build/html/index.html: $(shell find docs/source/ -type f)
+docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.md
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html > /dev/null
 
