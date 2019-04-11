@@ -94,5 +94,22 @@ The following are some common error messages and problems encountered.
   This is a conflict in the **multigrid solver** because the grid size is not a power of 2.
   Solve by changing the domain dimensions (`amr.n_cell`) so that they are powers of two.
 
-* `static_cast<long>(i) < this->size() failed'
-  One common reason this happens is if Dirichlet/Neumann boundaries are specified but no boundary values are provided. 
+* `static_cast<long>(i) < this->size() failed`:
+  One common reason this happens is if Dirichlet/Neumann boundaries are specified but no boundary values are provided.
+
+## Generating Documentation ##
+
+You will need the following packages:
+
+* Doxygen (on Ubuntu: `sudo apt install doxygen`)
+* Sphinx (on Ubuntu: `sudo apt install python-sphinx`)
+* Breathe (on Ubuntu: `sudo apt install python-breathe`)
+* M2R (on Ubuntu: `pip install m2r`)
+* RTD theme (on Ubuntu: `pip install sphinx_rtd_theme`)
+* GraphViz (on Ubuntu: `sudo apt install graphviz`)
+
+To generate the documentation:
+
+    make docs
+
+Documentation will be generated in `docs/build/html` and can be viewed using a browser.

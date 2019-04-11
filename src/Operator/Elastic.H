@@ -47,6 +47,12 @@ public:
 
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
 	void Strain (int amrlev, amrex::MultiFab& epsfab, const amrex::MultiFab& ufab, bool voigt = false) const;
+
+	/// Compute stress \f$\mathbf{\sigma}\f$ given the displacement field \f$\mathbf{u}\f$
+	/// by
+	///   \f[\mathbf{\sigma}_{ij} = \mathbb{C}_{ijkl}\,u_{k,l}\f]
+	/// where, \f$\mathbb{C}\f$ is furnished by the templated `model`
+	/// 
 	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,

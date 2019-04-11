@@ -459,81 +459,65 @@ Elastic<T>::Strain  (int amrlev,
 template<class T>
 void
 Elastic<T>::Stress (int amrlev,
-		    amrex::MultiFab& sigma,
-		    const amrex::MultiFab& u,
+		    amrex::MultiFab& a_sigma,
+		    const amrex::MultiFab& a_u,
 		    bool voigt) const
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
-	Util::Message(INFO);
-	if (voigt)
-		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
-	else
-		AMREX_ASSERT(sigma.nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+	amrex::Box domain(m_geom[amrlev][0].Domain()); domain.convert(amrex::IntVect::TheNodeVector());
 
-	Util::Message(INFO,"u grow = ", u.nGrow());
-
-	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::BaseFab<T> &C          = (*(model[amrlev][0]))[mfi];
-		amrex::FArrayBox  &sigmafab   = sigma[mfi];
-		const amrex::FArrayBox  &ufab = u[mfi];
+		amrex::Array4<T> const& C                 = (*(model[amrlev][0])).array(mfi);
+		amrex::Array4<amrex::Real> const& sigma   = a_sigma.array(mfi);
+		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
+		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			//Util::Message(INFO,"m=",m," & box = (",bx.loVect()[0],",",bx.loVect()[1],",",bx.loVect()[2],")(",bx.hiVect()[0],",",bx.hiVect()[1],",",bx.hiVect()[2],")");
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+				    {
+					    Set::Matrix gradu;
 
-			bool    AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
-					     ymin = (m2 == bx.loVect()[1]),
-					     zmin = (m3 == bx.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
-					     ymax = (m2 == bx.hiVect()[1]),
-					     zmax = (m3 == bx.hiVect()[2]));
+					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-			Set::Matrix gradu;
+					    AMREX_D_TERM(gradu(0,0) = ((!xmax ? u(i+1,j,k,0) : u(i,j,k,0)) - (!xmin ? u(i-1,j,k,0) : u(i,j,k,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+							 ,
+							 gradu(0,1) = ((!ymax ? u(i,j+1,k,0) : u(i,j,k,0)) - (!ymin ? u(i,j-1,k,0) : u(i,j,k,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+							 gradu(1,0) = ((!xmax ? u(i+1,j,k,1) : u(i,j,k,1)) - (!xmin ? u(i-1,j,k,1) : u(i,j,k,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+							 gradu(1,1) = ((!ymax ? u(i,j+1,k,1) : u(i,j,k,1)) - (!ymin ? u(i,j-1,k,1) : u(i,j,k,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+							 ,
+							 gradu(0,2) = ((!zmax ? u(i,j,k+1,0) : u(i,j,k,0)) - (!zmin ? u(i,j,k-1,0) : u(i,j,k,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
+							 gradu(1,2) = ((!zmax ? u(i,j,k+1,1) : u(i,j,k,1)) - (!zmin ? u(i,j,k-1,1) : u(i,j,k,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
+							 gradu(2,0) = ((!xmax ? u(i+1,j,k,2) : u(i,j,k,2)) - (!xmin ? u(i-1,j,k,2) : u(i,j,k,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
+							 gradu(2,1) = ((!ymax ? u(i,j+1,k,2) : u(i,j,k,2)) - (!ymin ? u(i,j-1,k,2) : u(i,j,k,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
+							 gradu(2,2) = ((!zmax ? u(i,j,k+1,2) : u(i,j,k,2)) - (!zmin ? u(i,j,k-1,2) : u(i,j,k,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+					 
+					    Set::Matrix sig = C(i,j,k)(gradu);
 
-			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx,0) : ufab(m,0)) - (!xmin ? ufab(m-dx,0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     ,
-				     gradu(0,1) = ((!ymax ? ufab(m+dy,0) : ufab(m,0)) - (!ymin ? ufab(m-dy,0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(1,0) = ((!xmax ? ufab(m+dx,1) : ufab(m,1)) - (!xmin ? ufab(m-dx,1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(1,1) = ((!ymax ? ufab(m+dy,1) : ufab(m,1)) - (!ymin ? ufab(m-dy,1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     ,
-				     gradu(0,2) = ((!zmax ? ufab(m+dz,0) : ufab(m,0)) - (!zmin ? ufab(m-dz,0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(1,2) = ((!zmax ? ufab(m+dz,1) : ufab(m,1)) - (!zmin ? ufab(m-dz,1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(2,0) = ((!xmax ? ufab(m+dx,2) : ufab(m,2)) - (!xmin ? ufab(m-dx,2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(2,1) = ((!ymax ? ufab(m+dy,2) : ufab(m,2)) - (!ymin ? ufab(m-dy,2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(2,2) = ((!zmax ? ufab(m+dz,2) : ufab(m,2)) - (!zmin ? ufab(m-dz,2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
-			Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
-
-			Set::Matrix sig = C(m)(eps);
-
-			if (voigt)
-			{
-#if AMREX_SPACEDIM == 2
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(1,1); sigmafab(m,2) = sig(0,1); 
-#elif AMREX_SPACEDIM == 3
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(1,1); sigmafab(m,2) = sig(2,2); 
-				sigmafab(m,3) = sig(1,2); sigmafab(m,4) = sig(2,0); sigmafab(m,5) = sig(0,1); 
-#endif
-			}
-			else
-			{
-#if   AMREX_SPACEDIM == 2
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(0,1); 
-				sigmafab(m,2) = sig(1,0); sigmafab(m,3) = sig(1,1); 
-#elif AMREX_SPACEDIM == 3
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(0,1); sigmafab(m,2) = sig(0,2); 
-				sigmafab(m,3) = sig(1,0); sigmafab(m,4) = sig(1,1); sigmafab(m,5) = sig(1,2); 
-				sigmafab(m,6) = sig(2,0); sigmafab(m,7) = sig(2,1); sigmafab(m,8) = sig(2,2); 
-#endif
-			}
-			}
+					    if (voigt)
+					    {
+						    AMREX_D_PICK(sigma(i,j,k,0) = sig(0,0);
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(1,1); sigma(i,j,k,2) = sig(0,1); 
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(1,1); sigma(i,j,k,2) = sig(2,2); 
+								 sigma(i,j,k,3) = sig(1,2); sigma(i,j,k,4) = sig(2,0); sigma(i,j,k,5) = sig(0,1););
+					    }
+					    else
+					    {
+						    AMREX_D_PICK(sigma(i,j,k,0) = sig(0,0);
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(0,1); 
+								 sigma(i,j,k,2) = sig(1,0); sigma(i,j,k,3) = sig(1,1);
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(0,1); sigma(i,j,k,2) = sig(0,2); 
+								 sigma(i,j,k,3) = sig(1,0); sigma(i,j,k,4) = sig(1,1); sigma(i,j,k,5) = sig(1,2); 
+								 sigma(i,j,k,6) = sig(2,0); sigma(i,j,k,7) = sig(2,1); sigma(i,j,k,8) = sig(2,2););
+					    }
+				    });
 	}
 }
 
