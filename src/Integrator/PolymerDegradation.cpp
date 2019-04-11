@@ -771,19 +771,19 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 			//						|| j == geom[lev].Domain().loVect()[1] || j == geom[lev].Domain().hiVect()[1]+1,
 			//						|| k == geom[lev].Domain().loVect()[2] || k == geom[lev].Domain().hiVect()[2]+1))
 			//	continue;
-			if(temp > d_final || std::isnan(temp) || std::isinf(temp))
-			{
-				Util::Message(INFO,"Invalid value of temp = ", temp);
-				Util::Message(INFO," mul = ", mul);
-				Util::Message(INFO,"etafab(m) = ", etafab(m));
-				Util::Message(INFO,"etafab(m-dx) = ", etafab(m-dx));
-				Util::Message(INFO,"etafab(m-dy) = ", etafab(m-dy));
-				Util::Message(INFO,"etafab(m-dz) = ", etafab(m-dz));
-				Util::Message(INFO,"etafab(m-dx-dy) = ", etafab(m-dx-dy));
-				Util::Message(INFO,"etafab(m-dx-dz) = ", etafab(m-dx-dz));
-				Util::Message(INFO,"etafab(m-dy-dz) = ", etafab(m-dz-dy));
-				Util::Message(INFO,"etafab(m-dx-dy-dz) = ", etafab(m-dx-dy-dz));
-			}
+			// if(temp > d_final || std::isnan(temp) || std::isinf(temp))
+			// {
+			// 	Util::Message(INFO,"Invalid value of temp = ", temp);
+			// 	Util::Message(INFO," mul = ", mul);
+			// 	Util::Message(INFO,"etafab(m) = ", etafab(m));
+			// 	Util::Message(INFO,"etafab(m-dx) = ", etafab(m-dx));
+			// 	Util::Message(INFO,"etafab(m-dy) = ", etafab(m-dy));
+			// 	Util::Message(INFO,"etafab(m-dz) = ", etafab(m-dz));
+			// 	Util::Message(INFO,"etafab(m-dx-dy) = ", etafab(m-dx-dy));
+			// 	Util::Message(INFO,"etafab(m-dx-dz) = ", etafab(m-dx-dz));
+			// 	Util::Message(INFO,"etafab(m-dy-dz) = ", etafab(m-dz-dy));
+			// 	Util::Message(INFO,"etafab(m-dx-dy-dz) = ", etafab(m-dx-dy-dz));
+			// }
 			modelfab(m).DegradeModulus(temp);
 			//Util::Message(INFO,"Degrading! m=", m , "model = \n", modelfab(m)); 
 		}
