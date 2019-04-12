@@ -76,42 +76,66 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 
 template<class T>
 void
-Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
+Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) const
 {
 	BL_PROFILE("Operator::Elastic::Fapply()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
+
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
-	int nghost = 1; //(f.nGrow() && u.nGrow()) ? 1 : 0;
+	//	int nghost = 1; //(f.nGrow() && u.nGrow()) ? 1 : 0;
 	//Util::Message(INFO,"amrlev = ", amrlev, "nghost = ", nghost);
 
-	for (MFIter mfi(f, false); mfi.isValid(); ++mfi)
+	/// \TODO: replace mfi(f,false) with mfi(f,amrex::TilingIfNotGPU())
+	for (MFIter mfi(a_f, false); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.validbox();
-		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
-		const amrex::FArrayBox &ufab    = u[mfi];
-		amrex::FArrayBox       &ffab    = f[mfi];
+		if (0)
+		{
+		 	Box bx = mfi.validbox();
+		 	bx.grow(1);        // Expand to cover first layer of ghost nodes
+		 	bx = bx & domain;  // Take intersection of box an domain
+			
+			amrex::Array4<T> const& C                 = (*(model[amrlev][0])).array(mfi);
+			amrex::Array4<const amrex::Real> const& U = a_u.array(mfi);
+			amrex::Array4<amrex::Real> const& F       = a_f.array(mfi);
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - nghost; m1<=bx.hiVect()[0] + nghost; m1++),
-			     for (int m2 = bx.loVect()[1] - nghost; m2<=bx.hiVect()[1] + nghost; m2++),
-			     for (int m3 = bx.loVect()[2] - nghost; m3<=bx.hiVect()[2] + nghost; m3++))
+			const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+			
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+						AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+					
+					// The displacement gradient tensor
+					Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+
+					// Fill gradu and gradgradu
+					for (int p = 0; p < AMREX_SPACEDIM; i++)
+					{
+						AMREX_D_TERM(gradu(p,0) = ((!xmax ? U(i+1,j,k,p) : U(i,j,k,p)) - (!xmin ? U(i-1,j,k,p) : U(i,j,k,p)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+							     gradu(p,1) = ((!ymax ? U(i,j+1,k,p) : U(i,j,k,p)) - (!ymin ? U(i,j-1,k,p) : U(i,j,k,p)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+							     gradu(p,2) = ((!zmax ? U(i,j,k+1,p) : U(i,j,k,p)) - (!zmin ? U(i,j,k-1,p) : U(i,j,k,p)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+					}
+
+
+				});
+		}
+
+
+		Box bx = mfi.validbox();
+		bx.grow(1);        // Expand to cover first layer of ghost nodes
+		bx = bx & domain;  // Take intersection of box an domain
+
+		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
+		const amrex::FArrayBox &U    = a_u[mfi];
+		amrex::FArrayBox       &F    = a_f[mfi];
+
+		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
+			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
+			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
 		{
 			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-
-			
-			// Util::Message(INFO,"amrlev=",amrlev," m=",m," nghost = ", nghost);
-			// Util::Message(INFO,"domain =",domain.loVect()[0]," ",domain.loVect()[1]);
-			// Util::Message(INFO,"domain =",domain.hiVect()[0]," ",domain.hiVect()[1]);
-
-			AMREX_D_TERM(if (m[0] < domain.loVect()[0]) continue;,
-				     if (m[1] < domain.loVect()[1]) continue;,
-				     if (m[2] < domain.loVect()[2]) continue;);
-			AMREX_D_TERM(if (m[0] > domain.hiVect()[0]+1) continue;,
-				     if (m[1] > domain.hiVect()[1]+1) continue;,
-				     if (m[2] > domain.hiVect()[2]+1) continue;)
-					     
-
 
 			Set::Vector f = Set::Vector::Zero();
 			
@@ -119,9 +143,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			bool    AMREX_D_DECL(xmin = (m[0] == domain.loVect()[0]),
 					     ymin = (m[1] == domain.loVect()[1]),
 					     zmin = (m[2] == domain.loVect()[2])),
-				AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]+1),
-					     ymax = (m[1] == domain.hiVect()[1]+1),
-					     zmax = (m[2] == domain.hiVect()[2]+1));
+				AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]),
+					     ymax = (m[1] == domain.hiVect()[1]),
+					     zmax = (m[2] == domain.hiVect()[2]));
 
 			// The displacement gradient tensor
 			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
@@ -129,9 +153,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 			// Fill gradu and gradgradu
 			for (int i = 0; i < AMREX_SPACEDIM; i++)
 			{
-				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx,i) : ufab(m,i)) - (!xmin ? ufab(m-dx,i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-					     gradu(i,1) = ((!ymax ? ufab(m+dy,i) : ufab(m,i)) - (!ymin ? ufab(m-dy,i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-					     gradu(i,2) = ((!zmax ? ufab(m+dz,i) : ufab(m,i)) - (!zmin ? ufab(m-dz,i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+				AMREX_D_TERM(gradu(i,0) = ((!xmax ? U(m+dx,i) : U(m,i)) - (!xmin ? U(m-dx,i) : U(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+					     gradu(i,1) = ((!ymax ? U(m+dy,i) : U(m,i)) - (!ymin ? U(m-dy,i) : U(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+					     gradu(i,2) = ((!zmax ? U(m+dz,i) : U(m,i)) - (!zmin ? U(m-dz,i) : U(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
 			}
 
 			// Stress tensor computed using the model fab
@@ -167,17 +191,17 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 						if (m[j] == domain.loVect()[j])
 						{
 							if (m_bc_lo[j][i] == BC::Displacement)
-								f(i) = ufab(m,i);
+								f(i) = U(m,i);
 							else if (m_bc_lo[j][i] == BC::Traction) 
 								f(i) += -sig(i,j);
 							else if (m_bc_lo[j][i] == BC::Neumann) 
 								f(i) += -gradu(i,j);
 							else Util::Abort(INFO, "Invalid BC");
 						}
-						if (m[j] == domain.hiVect()[j] + 1)
+						if (m[j] == domain.hiVect()[j])
 						{
 							if (m_bc_hi[j][i] == BC::Displacement)
-								f(i) = ufab(m,i);
+								f(i) = U(m,i);
 							else if (m_bc_hi[j][i] == BC::Traction) 
 								f(i) += +sig(i,j);
 							else if (m_bc_hi[j][i] == BC::Neumann) 
@@ -197,17 +221,17 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 				for (int i = 0; i < AMREX_SPACEDIM; i++)
 				{
 			
-					AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx,i) - 2.0*ufab(m,i) + ufab(m-dx,i))/DX[0]/DX[0];
+					AMREX_D_TERM(gradgradu[i](0,0) = (U(m+dx,i) - 2.0*U(m,i) + U(m-dx,i))/DX[0]/DX[0];
 						     ,// 2D
-						     gradgradu[i](0,1) = (ufab(m+dx+dy,i) + ufab(m-dx-dy,i) - ufab(m+dx-dy,i) - ufab(m-dx+dy,i))/(2.0*DX[0])/(2.0*DX[1]);
+						     gradgradu[i](0,1) = (U(m+dx+dy,i) + U(m-dx-dy,i) - U(m+dx-dy,i) - U(m-dx+dy,i))/(2.0*DX[0])/(2.0*DX[1]);
 						     gradgradu[i](1,0) = gradgradu[i](0,1);
-						     gradgradu[i](1,1) = (ufab(m+dy,i) - 2.0*ufab(m,i) + ufab(m-dy,i))/DX[1]/DX[1];
+						     gradgradu[i](1,1) = (U(m+dy,i) - 2.0*U(m,i) + U(m-dy,i))/DX[1]/DX[1];
 						     ,// 3D
-						     gradgradu[i](0,2) = (ufab(m+dx+dz,i) + ufab(m-dx-dz,i) - ufab(m+dx-dz,i) - ufab(m-dx+dz,i))/(2.0*DX[0])/(2.0*DX[2]);
-						     gradgradu[i](1,2) = (ufab(m+dy+dz,i) + ufab(m-dy-dz,i) - ufab(m+dy-dz,i) - ufab(m-dy+dz,i))/(2.0*DX[1])/(2.0*DX[2]);
+						     gradgradu[i](0,2) = (U(m+dx+dz,i) + U(m-dx-dz,i) - U(m+dx-dz,i) - U(m-dx+dz,i))/(2.0*DX[0])/(2.0*DX[2]);
+						     gradgradu[i](1,2) = (U(m+dy+dz,i) + U(m-dy-dz,i) - U(m+dy-dz,i) - U(m-dy+dz,i))/(2.0*DX[1])/(2.0*DX[2]);
 						     gradgradu[i](2,0) = gradgradu[i](0,2);
 						     gradgradu[i](2,1) = gradgradu[i](1,2);
-						     gradgradu[i](2,2) = (ufab(m+dz,i) - 2.0*ufab(m,i) + ufab(m-dz,i))/DX[2]/DX[2];);
+						     gradgradu[i](2,2) = (U(m+dz,i) - 2.0*U(m,i) + U(m-dz,i))/DX[2]/DX[2];);
 				}
 	
 				//
@@ -226,7 +250,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 
 			}
 
-			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
+			AMREX_D_TERM(F(m,0) = f[0];, F(m,1) = f[1];, F(m,2) = f[2];);
 		}
 	}
 }
