@@ -65,16 +65,16 @@ int main (int argc, char* argv[])
 	{
 		Test::Operator::Elastic test;
 		test.Define(32,1);
-		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 1 level");
+		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 1 level");
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
 		test.Define(32,2);
-		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 2 levels");
+		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 2 levels");
 		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 
 		test.Define(32,3);
-		Util::Test::Message(          "Elastic Operator Trig Test 16x16, 3 levels");
+		Util::Test::Message(          "Elastic Operator Trig Test 32x32, 3 levels");
 		failed += Util::Test::Message("  ├ Reflux test",          test.RefluxTest(0));
 		failed += Util::Test::Message("  └ Component 0, period=1",test.TrigTest(0,0,1));
 	}

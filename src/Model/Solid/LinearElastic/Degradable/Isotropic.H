@@ -20,7 +20,7 @@ namespace Degradable
 class Isotropic : public Model::Solid::LinearElastic::LinearElastic
 {
 public:
-	Isotropic() {} ;
+	Isotropic() { } ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda), mu0(_mu), lambda0(_lambda) {} ;
 	~Isotropic() {} ;
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
@@ -103,7 +103,7 @@ public:
 	}
 
 private:
-	Set::Scalar mu, lambda, mu0, lambda0;
+	Set::Scalar mu = NAN, lambda = NAN, mu0 = NAN, lambda0 = NAN;
 };
 
 }

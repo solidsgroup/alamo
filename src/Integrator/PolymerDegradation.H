@@ -54,6 +54,7 @@ class PolymerDegradation : public Integrator::Integrator
 {
 public:
 	PolymerDegradation();
+	~PolymerDegradation();
 
 protected:
 
@@ -69,7 +70,7 @@ protected:
 
 	void TimeStepComplete(amrex::Real time, int iter);
 
-	void DegradeMaterial(int lev);
+	void DegradeMaterial(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
 
 private:
 
@@ -150,6 +151,8 @@ private:
 	int         elastic_cgverbose 		= 3;
 	Set::Scalar elastic_tol_rel 		= 1.0E-5;
 	Set::Scalar elastic_tol_abs 		= 1.0E-5;
+	Set::Scalar elastic_cg_tol_rel 		= 1.0E-5;
+	Set::Scalar elastic_cg_tol_abs 		= 1.0E-5;
 	Set::Scalar elastic_tstart 			= 0.0;
 	Set::Scalar elastic_tend 			= 0.0;
 	std::string bottom_solver			= "bicgstab";
@@ -185,15 +188,26 @@ private:
 
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
-	Operator::Elastic<model_type> elastic_operator;
-	LPInfo info;
+	//Operator::Elastic<model_type> elastic_operator;
+	//LPInfo info;
 
 	// Material model
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
-	model_type modeltype;
+	//amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
+	model_type *modeltype;
 	std::string 	input_material = "isotropic";
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
+
+	AMREX_D_TERM(	Numeric::Interpolator::Linear<Set::Vector> interpolate_left;
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_right;
+			,
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_bottom;
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_top;
+			,
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_back;
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_front;);
+
+
 
 };
 }
