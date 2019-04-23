@@ -352,7 +352,7 @@ int Elastic::UniaxialTest(bool verbose,
 	Set::Scalar shear=6.0;
 	model_type model(lame,shear);
 	//IC::Random() model_type();
-	//model_type model.Random();
+	//model.Randomize();
 	
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > >
 		modelfab(nlevels); 
@@ -364,7 +364,7 @@ int Elastic::UniaxialTest(bool verbose,
 	myvec[0]=0.0; myvec[1]=0.0;
 	Set::Vector myvec1;
 	myvec1[0]=0.1; myvec1[1]=0.0;
-	
+	//Use Amrex to work in 3D
 
 	//rhs_prescribed - BODY FORCE
 	std::complex<int> i(0,1);
@@ -528,9 +528,7 @@ int Elastic::UniaxialTest(bool verbose,
 	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
 
 	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");
-	           //Util::Message(INFO,"Max solution exact: ",solution_exact[0].norm0(component,0,false));
-	           //Util::Message(INFO,"Max solution numeric: ", GetVecOfPtrs(solution_numeric));
-
+	          
 	if (maxnorm > tolerance) failed += 1;
 
 	return failed;
