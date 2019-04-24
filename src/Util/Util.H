@@ -127,6 +127,7 @@ namespace Test
 int Message(std::string testname);
 int Message(std::string testname, int passed);
 int SubMessage(std::string testname, int passed);
+int SubFinalMessage(int failed);
 }
 
 
