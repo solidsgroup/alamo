@@ -575,7 +575,7 @@ Elastic<T>::averageDownCoeffs ()
 
 template<class T>
 void
-Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
+Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int /*flev*/) 
 {
 	/*
 	BL_PROFILE("Operator::Elastic::averageDownCoeffsToCoarseAmrLevel()");
@@ -686,9 +686,6 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 		fine_on_crseba.define(newba,crse.DistributionMap(),1,4);
 		fine_on_crseba.ParallelCopy(fine,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
 
-
-		// MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
-
 		for (MFIter mfi(crse, false); mfi.isValid(); ++mfi)
  			{
 				const Box& bx = mfi.validbox() & domain_crse;
@@ -730,32 +727,29 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 					// if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
 					
 #if AMREX_SPACEDIM == 2
-					Set::Scalar total = 0.0;
-					crsetab(m_crse) = finetab(m_fine)*4.0; 
-					total += 4.0;
-					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1)
+					if ((xmin || xmax) && (ymin || ymax)) // corner
 					{
-						crsetab(m_crse) += finetab(m_fine-dx)*2.0 + finetab(m_fine+dx)*2.0;
-						total += 4.0;
-					}	
-					if (m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1)
+						crsetab(m_crse) = finetab(m_fine);
+					}
+					else if (ymin || ymax) // x edge
 					{
-						crsetab(m_crse) += finetab(m_fine-dy)*2.0 + finetab(m_fine+dy)*2.0;
-						total += 4.0;
-					}	
-					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1 &&
-					    m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1 )
+						crsetab(m_crse) = finetab(m_fine-dx)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dx)*0.25;
+					}
+					else if (xmin || xmax) // y edge
 					{
-						crsetab(m_crse) +=
-							finetab(m_fine-dx-dy) + finetab(m_fine-dx+dy) +
-							finetab(m_fine+dx-dy) + finetab(m_fine+dx+dy);
-						total += 4.0;
-					}	
-					crsetab(m_crse) = crsetab(m_crse) / total;
+						crsetab(m_crse) = finetab(m_fine-dy)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dy)*0.25;
+					}
+					else 
+					{
+						crsetab(m_crse) =
+							(finetab(m_fine+dx+dy) + finetab(m_fine+dx-dy) + finetab(m_fine-dx+dy) + finetab(m_fine-dx-dy)) / 16. +
+							(finetab(m_fine+dx) + finetab(m_fine-dx) + finetab(m_fine+dy) + finetab(m_fine-dy)) / 8. +
+							(finetab(m_fine)) / 4.;
+					}
+
 #elif AMREX_SPACEDIM == 3
-					crsetab(m_crse) = finetab(m_fine);
-					// corner
-					if ((xmin || xmax) && (ymin || ymax) && (zmin || zmax))
+					//crsetab(m_crse) = finetab(m_fine);
+					if ((xmin || xmax) && (ymin || ymax) && (zmin || zmax)) // corner
 					{
 						crsetab(m_crse) = finetab(m_fine);
 					}

@@ -30,7 +30,7 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
 		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
 		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
-		failed += Util::Test::SubFinalMessage(failed);
+		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
 	Util::Test::Message("Model::Solid::LinearElastic<Degradable::Isotropic>");
@@ -41,7 +41,7 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
 		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
 		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
-		failed += Util::Test::SubFinalMessage(failed);
+		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
 	Util::Test::Message("Model::Solid::LinearElastic<Laplacian>");
@@ -49,7 +49,7 @@ int main (int argc, char* argv[])
 		int subfailed = 0;
 		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Laplacian> test;
 		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
-		failed += Util::Test::SubFinalMessage(failed);
+		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
 	Util::Test::Message("Numeric::Interpolator<Linear>");
@@ -57,7 +57,7 @@ int main (int argc, char* argv[])
 		int subfailed = 0;
 		Numeric::Interpolator::Test<Numeric::Interpolator::Linear<Set::Scalar> > test;
 		subfailed += Util::Test::SubMessage("Match",test.Match(0));
-		failed += Util::Test::SubFinalMessage(failed);
+		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
 	Util::Test::Message("Numeric::Stencil test");
@@ -70,7 +70,7 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("3-1-0",test.Derivative<3,1,0>(0));
 		subfailed += Util::Test::SubMessage("1-3-0",test.Derivative<1,3,0>(0));
 		subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
-		failed += Util::Test::SubFinalMessage(failed);
+		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
 	Util::Test::Message("Elastic Operator Trig Test 32x32");
@@ -85,7 +85,7 @@ int main (int argc, char* argv[])
 		test.Define(32,3);
 		subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
-		failed += Util::Test::SubFinalMessage(failed);
+		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
 	Util::Message(INFO,failed," tests failed");
