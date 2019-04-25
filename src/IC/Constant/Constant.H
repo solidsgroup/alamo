@@ -11,12 +11,12 @@ namespace IC
 class Constant : public IC
 {
 public:
-	Constant (amrex::Vector<amrex::Geometry> &_geom, amrex::Vector<amrex::Real> _value);  
-
+	Constant (amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> _value);  
+	~Constant() { };
 	void Add(const int lev,amrex::Vector<amrex::MultiFab * > &field);
 
 private:
-	amrex::Vector<amrex::Real> value;
+	std::vector<amrex::Real> value;
 };
 }
 #endif

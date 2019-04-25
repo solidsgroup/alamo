@@ -27,6 +27,7 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
 
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -38,6 +39,9 @@
 
 namespace Integrator
 {
+using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+//using model_type = Model::Solid::LinearElastic::Isotropic;
+//using model_type = Model::Solid::LinearElastic::Laplacian;
 
 ///
 /// \class PolymerDegradation
@@ -50,6 +54,7 @@ class PolymerDegradation : public Integrator::Integrator
 {
 public:
 	PolymerDegradation();
+	~PolymerDegradation();
 
 protected:
 
@@ -65,7 +70,7 @@ protected:
 
 	void TimeStepComplete(amrex::Real time, int iter);
 
-	void DegradeMaterial(int lev);
+	void DegradeMaterial(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
 
 private:
 
@@ -84,14 +89,14 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp_old;		///< Temperature for the __previous__timestep
 
 	// For mechanical degradation to be studied later
-	amrex::Vector<amrex::MultiFab> displacement; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<amrex::MultiFab> strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<amrex::MultiFab> stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<amrex::MultiFab> stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<amrex::MultiFab> rhs; ///< Multicomponent field variable storing pointwise displacements
-
-	amrex::Vector<amrex::MultiFab> energy; ///< Single component variable storing strain energy
-	amrex::Vector<amrex::MultiFab> energies; ///< Multicomponent field variable storing individual strain energies
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs; ///< Multicomponent field variable storing pointwise displacements
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
 	int nlevels = 1;
 
@@ -134,16 +139,20 @@ private:
 	amrex::Vector<Set::Scalar> 	t_start_i;
 
 	// Elasticity parameters
+	Set::Scalar elastic_bottom_tol = 1.0E-6;
 	bool        elastic_on 				= false;
 	int         elastic_int 			= 1;
 	std::string elastic_type;
 	int         elastic_max_iter 		= 200;
 	int         elastic_max_fmg_iter 	= 0;
 	int 		elastic_bottom_max_iter	= 200;
+	int 		elastic_max_fixed_iter 	= 5;
 	int         elastic_verbose 		= 3;
 	int         elastic_cgverbose 		= 3;
 	Set::Scalar elastic_tol_rel 		= 1.0E-5;
 	Set::Scalar elastic_tol_abs 		= 1.0E-5;
+	Set::Scalar elastic_cg_tol_rel 		= 1.0E-5;
+	Set::Scalar elastic_cg_tol_abs 		= 1.0E-5;
 	Set::Scalar elastic_tstart 			= 0.0;
 	Set::Scalar elastic_tend 			= 0.0;
 	std::string bottom_solver			= "bicgstab";
@@ -155,12 +164,12 @@ private:
 
 	// Elastic BC
 	//BC::BC *elastic_bc;
-	std::map<std::string,Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC > 			bc_map;
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_x_lo, bc_x_hi;
+	std::map<std::string,Operator::Elastic<model_type>::BC >        bc_map;
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM>    bc_x_lo, bc_x_hi;
 #if AMREX_SPACEDIM > 1
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
 #if AMREX_SPACEDIM > 2
-	std::array<Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
+	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
 #endif
 #endif
 
@@ -179,15 +188,26 @@ private:
 
 
 	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
-	Operator::Elastic<Model::Solid::LinearElastic::Degradable::Isotropic> elastic_operator;
-	LPInfo info;
+	//Operator::Elastic<model_type> elastic_operator;
+	//LPInfo info;
 
 	// Material model
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Degradable::Isotropic> > > model;
-	Model::Solid::LinearElastic::Degradable::Isotropic modeltype;
+	//amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
+	model_type *modeltype;
 	std::string 	input_material = "isotropic";
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
+
+	AMREX_D_TERM(	Numeric::Interpolator::Linear<Set::Vector> interpolate_left;
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_right;
+			,
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_bottom;
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_top;
+			,
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_back;
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_front;);
+
+
 
 };
 }

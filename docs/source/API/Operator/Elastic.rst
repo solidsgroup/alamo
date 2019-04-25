@@ -1,3 +1,5 @@
+.. _API-Operator-Elastic:
+
 .. role:: cpp(code)
    :language: c++
 
