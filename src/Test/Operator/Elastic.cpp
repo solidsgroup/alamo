@@ -255,7 +255,6 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	//Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
 	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi/n/n),AMREX_D_DECL(n*i,n*i,n*i),dim);
 	icexact.SetComp(component);
-
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		solution_exact  [ilev].setVal(0.0);
@@ -302,7 +301,6 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 		// Util::Warning(INFO,"icexact.Initialize(ilev,solution_numeric);");
 		// icexact.Initialize(ilev,solution_numeric); 
 	}
-	//rhs_prescribed[1].mult(0.5);
 
 	// Create and configure the Elastic operator
 	// See:
@@ -313,12 +311,8 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  	info.setConsolidation(1);
  	//info.setMaxCoarseningLevel(1);
  	nlevels = geom.size();
-
 	::Operator::Elastic<model_type> elastic;
-
  	elastic.define(geom, cgrids, dmap, info);
- 	//elastic.setMaxOrder(linop_maxorder);
-	
  	using bctype = ::Operator::Elastic<model_type>::BC;
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 
@@ -405,7 +399,6 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	  	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
 	  	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
 	}
-	
 
 	//Compute numerical right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
@@ -485,7 +478,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	return failed;
 }
 
-int Elastic::UniaxialTest(bool verbose,
+int Elastic::UniaxialTest(int verbose,
 		 int component,
 		 int n,
 		 std::string plotfile)
@@ -494,20 +487,19 @@ int Elastic::UniaxialTest(bool verbose,
 
 	int failed = 0;
 
-	//Set::Scalar alpha = 1.0;
 	//using model_type = Model::Solid::LinearElastic::Laplacian;
+	//Set::Scalar alpha = 1.0;
 	//model_type model(alpha);
 
 	using model_type = Model::Solid::LinearElastic::Isotropic;
-	Set::Scalar lame=2.6;
-	Set::Scalar shear=6.0;
+	Set::Scalar lame=2.6, shear=6.0;
 	model_type model(lame,shear);
 	//IC::Random() model_type(); NO!
 	//model.Randomize();
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
 
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
 	Set::Vector myvec(AMREX_D_DECL(0.0, 0.0, 0.0));
@@ -570,7 +562,7 @@ int Elastic::UniaxialTest(bool verbose,
 					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0} ); //z max face
 			}
 		}
-		icexact.Initialize(ilev,solution_numeric); //function?
+		//icexact.Initialize(ilev,solution_numeric); //function?
 				
 		
 	}
@@ -604,8 +596,8 @@ int Elastic::UniaxialTest(bool verbose,
 	mlmg.setMaxFmgIter(20);
  	if (verbose)
  	{
- 		mlmg.setVerbose(4);
- 		mlmg.setCGVerbose(4);
+ 		mlmg.setVerbose(verbose);
+		if (verbose > 4) mlmg.setCGVerbose(verbose);
  	}
  	else
  	{
@@ -619,9 +611,8 @@ int Elastic::UniaxialTest(bool verbose,
 #if 1
 	// Solution
 	
-	Set::Scalar tol_rel = 1E-11;
+	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
-        // COMMENT OUT this line to keep the solver from running. (Useful if you want to just visualize solution_exact, rhs_prescribed)
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Compute solution error
