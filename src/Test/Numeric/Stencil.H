@@ -46,7 +46,7 @@ public:
 		phi[0].setVal(0.0);
 		// Initial function is
 		//   cos(2*pi*x/L) * cos(2*pi*y/L) * cos(2*pi*z / L)
-		IC::Trig2 ic(geom,1.0,AMREX_D_DECL(0.0,0.0,0.0),AMREX_D_DECL(2,2,2));
+		IC::Trig2 ic(geom,1.0,AMREX_D_DECL(0.0,0.0,0.0),AMREX_D_DECL(1,1,1));
 		ic.Add(0,phi);
 	}
 
@@ -67,10 +67,10 @@ public:
 			      for (int q = 0; q < j; q++) theta2 += 0.5*Set::Constant::Pi;,
 			      for (int r = 0; r < k; r++) theta3 += 0.5*Set::Constant::Pi; );
 			      
-		AMREX_D_TERM( for (int p = 0; p < i; p++) fac *= 2.0*Set::Constant::Pi / L;,
-			      for (int q = 0; q < j; q++) fac *= 2.0*Set::Constant::Pi / L;,
-			      for (int r = 0; r < k; r++) fac *= 2.0*Set::Constant::Pi / L;);
-		IC::Trig2 ic(geom,fac,AMREX_D_DECL(theta1,theta2,theta3),AMREX_D_DECL(2,2,2));
+		AMREX_D_TERM( for (int p = 0; p < i; p++) fac *= 1.0*Set::Constant::Pi / L;,
+			      for (int q = 0; q < j; q++) fac *= 1.0*Set::Constant::Pi / L;,
+			      for (int r = 0; r < k; r++) fac *= 1.0*Set::Constant::Pi / L;);
+		IC::Trig2 ic(geom,fac,AMREX_D_DECL(theta1,theta2,theta3),AMREX_D_DECL(1,1,1));
 		ic.Add(0,DphiExact);
 
 
@@ -83,7 +83,7 @@ public:
 			const amrex::Box& bx = mfi.tilebox();
 			amrex::Array4<const amrex::Real> const& Phi = phi[0].array(mfi);
 			amrex::Array4<amrex::Real> const& DPhi    = DphiNumeric[0].array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int p, int q, int r){ DPhi(p,q,r) = ::Numeric::Stencil::D<i,j,k>(Phi,p,q,r,0,DX[0],DX[1],DX[2]); });
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int p, int q, int r){ DPhi(p,q,r) = ::Numeric::Stencil::D<i,j,k>(Phi,p,q,r,0,DX); });
 		}
 
 		amrex::MultiFab diff(grids[0],dmap[0],ncomp,nghost);

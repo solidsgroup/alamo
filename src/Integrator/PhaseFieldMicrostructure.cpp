@@ -304,41 +304,21 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
  							// amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
 		
 
-							Set::Scalar grad1111 = Numeric::Stencil::D<4,0,0>(eta,i,j,k,m,DX[0],DX[1],DX[2]);
-							 // Set::Scalar grad1111 = ((eta(i+1,j,k,m)) - 4.*(eta(i+1,j,k,m)) + 6.*(eta(i,j,k,m)) - 4.*(eta(i-1,j,k,m)) + (eta(i-2,j,k,m))) /
-							 // 	(DX[0]*DX[0]*DX[0]*DX[0]);
+							Set::Scalar grad1111 = Numeric::Stencil::D<4,0,0>(eta,i,j,k,m,DX);
 			
-							Set::Scalar grad2222 = Numeric::Stencil::D<0,4,0>(eta,i,j,k,m,DX[0],DX[1],DX[2]);
-								// ((eta(i,j+2,k,m)) - 4.*(eta(i,j+1,k,m)) + 6.*(eta(i,j,k,m)) - 4.*(eta(i,j-1,k,m)) + (eta(i,j-2,k,m))) /
-								// (DX[1]*DX[1]*DX[1]*DX[1]);
+							Set::Scalar grad2222 = Numeric::Stencil::D<0,4,0>(eta,i,j,k,m,DX);
 			
- 							amrex::Real grad1112 =
- 								((   -eta(i+2,j+2,k,m) + 8.0*eta(i+2,j+1,k,m) - 8.0*eta(i+2,j-1,k,m) + eta(i+2,j-2,k,m))
-								 -2*(-eta(i+1,j+2,k,m) + 8.0*eta(i+1,j+1,k,m) - 8.0*eta(i+1,j-1,k,m) + eta(i+1,j-2,k,m))
-								 +2*(-eta(i-1,j+2,k,m) + 8.0*eta(i-1,j+1,k,m) - 8.0*eta(i-1,j-1,k,m) + eta(i-1,j-2,k,m))
-								 -(  -eta(i-2,j+2,k,m) + 8.0*eta(i-2,j+1,k,m) - 8.0*eta(i-2,j-1,k,m) + eta(i-2,j-2,k,m))) /
-								(24.0*DX[0]*DX[0]*DX[0]*DX[1]);
+ 							amrex::Real grad1112 = Numeric::Stencil::D<3,1,0>(eta,i,j,k,m,DX);
 
-							amrex::Real grad1222 = 
- 								((   -eta(i+2,j+2,k,m) + 8.0*eta(i+1,j+2,k,m) - 8.0*eta(i-1,j+2,k,m) + eta(i-2,j+2,k,m))
- 								 -2*(-eta(i+2,j+1,k,m) + 8.0*eta(i+1,j+1,k,m) - 8.0*eta(i-1,j+1,k,m) + eta(i-2,j+1,k,m))
- 								 +2*(-eta(i+2,j-1,k,m) + 8.0*eta(i+1,j-1,k,m) - 8.0*eta(i-1,j-1,k,m) + eta(i-2,j-1,k,m))
- 								 -(  -eta(i+2,j-2,k,m) + 8.0*eta(i+1,j-2,k,m) - 8.0*eta(i-1,j-2,k,m) + eta(i-2,j-2,k,m))) /
-								(24.0*DX[0]*DX[1]*DX[1]*DX[1]) ;
+							amrex::Real grad1222 = Numeric::Stencil::D<1,3,0>(eta,i,j,k,m,DX);
 		
- 							amrex::Real grad1122 = 
- 								(-(   -eta(i+2,j+2,k,m)+16.0*eta(i+1,j+2,k,m)-30.0*eta(i  ,j+2,k,m) +16.0*eta(i-1,j+2,k,m)-eta(i-2,j+2,k,m))
- 								 +16*(-eta(i+2,j+1,k,m)+16.0*eta(i+1,j+1,k,m)-30.0*eta(i  ,j+1,k,m) +16.0*eta(i-1,j+1,k,m)-eta(i-2,j+1,k,m))
- 								 -30*(-eta(i+2,j  ,k,m)+16.0*eta(i+1,j  ,k,m)-30.0*eta(i  ,j  ,k,m) +16.0*eta(i-1,j  ,k,m)-eta(i-2,j  ,k,m))
- 								 +16*(-eta(i+2,j-1,k,m)+16.0*eta(i+1,j-1,k,m)-30.0*eta(i  ,j-1,k,m) +16.0*eta(i-1,j-1,k,m)-eta(i-2,j-1,k,m))
- 								 -(   -eta(i+2,j-2,k,m)+16.0*eta(i+1,j-2,k,m)-30.0*eta(i  ,j-2,k,m) +16.0*eta(i-1,j-2,k,m)-eta(i-2,j-2,k,m))) /
-								(144.0*DX[0]*DX[0]*DX[1]*DX[1]) ;
+ 							amrex::Real grad1122 = Numeric::Stencil::D<2,2,0>(eta,i,j,k,m,DX);
 			
  							amrex::Real Curvature_term =
  								grad1111*(sinTheta*sinTheta*sinTheta*sinTheta)
- 								+grad1112*(-4.0*sinTheta*sinTheta*sinTheta*cosTheta)
+ 								+grad1112*(4.0*sinTheta*sinTheta*sinTheta*cosTheta)
  								+grad1122*(6.0*sinTheta*sinTheta*cosTheta*cosTheta)
- 								+grad1222*(-4.0*sinTheta*cosTheta*cosTheta*cosTheta)
+ 								+grad1222*(4.0*sinTheta*cosTheta*cosTheta*cosTheta)
  								+grad2222*(cosTheta*cosTheta*cosTheta*cosTheta);
 
  							amrex::Real W =

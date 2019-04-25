@@ -64,12 +64,23 @@ int main (int argc, char* argv[])
 	{
 		int subfailed = 0;
 		Test::Numeric::Stencil test;
-		test.Define(128);
+		test.Define(32);
+		subfailed += Util::Test::SubMessage("1-0-0",test.Derivative<1,0,0>(0));
+		subfailed += Util::Test::SubMessage("0-1-0",test.Derivative<0,1,0>(0));
+		subfailed += Util::Test::SubMessage("2-0-0",test.Derivative<2,0,0>(0));
+		subfailed += Util::Test::SubMessage("0-2-0",test.Derivative<0,2,0>(0));
+		subfailed += Util::Test::SubMessage("1-1-0",test.Derivative<1,1,0>(0));
 		subfailed += Util::Test::SubMessage("4-0-0",test.Derivative<4,0,0>(0));
 		subfailed += Util::Test::SubMessage("0-4-0",test.Derivative<0,4,0>(0));
 		subfailed += Util::Test::SubMessage("3-1-0",test.Derivative<3,1,0>(0));
 		subfailed += Util::Test::SubMessage("1-3-0",test.Derivative<1,3,0>(0));
 		subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
+#if AMERX_SPACEDIM>2
+		subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,0,1>(0));
+		subfailed += Util::Test::SubMessage("0-0-2",test.Derivative<0,0,2>(0));
+		subfailed += Util::Test::SubMessage("1-0-1",test.Derivative<1,0,1>(0));
+		subfailed += Util::Test::SubMessage("0-1-1",test.Derivative<0,1,1>(0));
+#endif
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
