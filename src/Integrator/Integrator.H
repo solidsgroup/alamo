@@ -22,6 +22,7 @@
 #include <AMReX_PlotFileUtil.H>
 
 #include "BC/BC.H"
+#include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"
 
 ///
@@ -86,7 +87,7 @@ public:
 	/// ```
 	Integrator ();
 
-	virtual ~Integrator();
+	~Integrator();
 
 	/// \fn    FrontData
 	/// \brief Front-end method to initialize simulation
@@ -199,6 +200,11 @@ protected:
 			     int ncomp,
 			     std::string name
 			     );
+	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+			       int ncomp,
+			       int nghost,
+			       std::string name
+			       );
 
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
@@ -232,6 +238,7 @@ private:
 	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
 	std::vector<std::string> PlotFileName (int lev) const;
+protected:
 	void WritePlotFile () const;
 
 	//
@@ -251,13 +258,26 @@ private:
 	amrex::Real tstart = 0;	///< Default start time (default: 0)
 	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
-	// KEEPING TRACK OF ALL EVOLVING VARIABLES
-	int number_of_fabs = 0;	  ///< Number of evolving variables (updated automatically)
-	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;  ///< List of ptrs to all updated fabs
-	amrex::Vector<int> ncomp_array;								///< Array containing number of components for each fab array
-	amrex::Vector<int> nghost_array;								///< Array containing number of ghost cells in each fab array
-	amrex::Vector<std::string> name_array;								///< Array containing names for each variable in the fab array
-	amrex::Vector<BC::BC *> physbc_array;                   		                 	///< Array of pointers to BC objects
+protected:
+	struct {
+		int number_of_fabs = 0;
+		amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		amrex::Vector<int> ncomp_array;
+		amrex::Vector<int> nghost_array;
+		amrex::Vector<std::string> name_array;
+		amrex::Vector<BC::BC *> physbc_array;
+	} node;
+
+	struct {
+		int number_of_fabs = 0;
+		amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		amrex::Vector<int> ncomp_array;
+		amrex::Vector<int> nghost_array;
+		amrex::Vector<std::string> name_array;
+		amrex::Vector<BC::BC *> physbc_array;
+	} cell;
+
+	BC::Nothing bcnothing;
 
 	// KEEP TRACK OF ALL INTEGRATED VARIABLES
 	int intvar_int = 1;

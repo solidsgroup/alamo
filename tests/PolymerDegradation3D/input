@@ -26,25 +26,24 @@ stop_time = 100
 #===========================================================================
 
 #=============== AMR parameters ============================================
-amr.plot_int = 10
+amr.plot_int = 50
 amr.max_level = 0
-amr.n_cell = 32 16 4
-amr.max_grid_size = 4
+amr.n_cell = 16 16 16
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = tests/PolymerDegradation3D/output
+amr.plot_file = output
 #===========================================================================
 
 #=============== Specify geometry and unrefined mesh =======================
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 25.5 12.7 3.25
+geometry.prob_hi = 12.7 12.7 12.7
 geometry.is_periodic= 0 0 0
 #===========================================================================
 
 #=============== Water diffusion parameters ================================
 water.on = true
-water.diffusivity = 0.015
+water.diffusivity = 0.15
 water.refinement_threshold = 0.01
 
 water.ic_type = constant
@@ -75,10 +74,10 @@ material.isotropic.mu = 331.0
 damage.anisotropy = 0
 damage.type = relaxation
 damage.d_final = 0.99
-damage.number_of_terms = 4
-damage.d_i = 0.25 0.25 0.25 0.24
-damage.tau_i = 24 24 24 24
-damage.t_start_i = 0 24 48 72
+damage.number_of_terms = 2
+damage.d_i = 0.33 0.66
+damage.tau_i = 24 24
+damage.t_start_i = 0 24
 damage.ic_type = constant
 damage.ic.value = 0.0
 damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
@@ -96,39 +95,42 @@ elastic.on = true
 elastic.bottom_solver = bicgstab
 elastic.int = 100
 elastic.composite_solve	= 1
-elastic.verbose			= 4
-elastic.cg_verbose 		= 4
-elastic.max_iter		= 10000
-elastic.max_fmg_iter 	= 10000 
-elastic.bottom_max_iter = 10000
+elastic.verbose			= 2
+elastic.cg_verbose 		= 0
+elastic.max_iter		= 1000
+elastic.max_fmg_iter 	= 100
+elastic.bottom_max_iter = 400
+elastic.max_fixed_iter = 20
 elastic.linop_maxorder 	= 2
-elastic.max_coarsening_level = 0
-elastic.agglomeration 	= 0
-elastic.consolidation 	= 0
+elastic.max_coarsening_level = 10
+elastic.agglomeration 	= 1
+elastic.consolidation 	= 1
 elastic.tol_rel			=  1.0e-6
 elastic.tol_abs			=  1.0e-6
+elastic.cg_tol_rel = 1.0e-10
+elastic.cg_tol_abs = 1.0e-10
 elastic.tstart 			= 0.0
 elastic.tend			= 100.0
-elastic.use_fsmooth = 0
+elastic.use_fsmooth = 1
 
 elastic.body_force     = 0.0 -0.00001 0.0
 
-elastic.bc.bc_x_lo = disp disp disp
+elastic.bc.bc_x_lo = trac trac trac
 elastic.bc.bc_y_lo = trac trac trac
-elastic.bc.bc_z_lo = trac trac trac
+elastic.bc.bc_z_lo = disp disp disp
 #elastic.bc.bc_y_lo = disp disp disp
 #elastic.bc.bc_z_lo = disp disp disp
 
-elastic.bc.bc_x_hi = disp disp disp
+elastic.bc.bc_x_hi = trac trac trac
 elastic.bc.bc_y_hi = trac trac trac
 #elastic.bc.bc_y_hi = disp disp disp
 #elastic.bc.bc_z_hi = disp disp disp
-elastic.bc.bc_z_hi = trac trac trac
+elastic.bc.bc_z_hi = disp disp disp
 
 elastic.bc.left_face = 0.0 0.0 0.0
-elastic.bc.right_face = 1.0 0.0 0.0
+elastic.bc.right_face = 0.0 0.0 0.0
 elastic.bc.bottom_face = 0.0 0.0 0.0
 elastic.bc.top_face = 0.0 0.0 0.0
 elastic.bc.back_face = 0.0 0.0 0.0
-elastic.bc.front_face = 0.0 0.0 0.0
+elastic.bc.front_face = 0.0 0.0 1.0
 #===========================================================================
