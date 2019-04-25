@@ -490,7 +490,7 @@ int Elastic::UniaxialTest(bool verbose,
 		 int n,
 		 std::string plotfile)
 {
-        Set::Scalar tolerance = 0.01; //Relative error PASS < 10% (0.01)
+        Set::Scalar tolerance = 0.01;
 
 	int failed = 0;
 
@@ -502,17 +502,19 @@ int Elastic::UniaxialTest(bool verbose,
 	Set::Scalar lame=2.6;
 	Set::Scalar shear=6.0;
 	model_type model(lame,shear);
-	//IC::Random() model_type();
+	//IC::Random() model_type(); NO!
 	//model.Randomize();
-	
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > >
-		modelfab(nlevels); 
+
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
 	Set::Vector myvec(AMREX_D_DECL(0.0, 0.0, 0.0));
 	Set::Vector myvec1(AMREX_D_DECL(0.1, 0.0, 0.0));
+
+	//Set::Vector myvec; myvec[0]=0.0; myvec[1]=0.0;
+	//Set::Vector myvec1; myvec1[0]=0.1; myvec1[1]=0.0;
 
 	//rhs_prescribed - BODY FORCE
 	std::complex<int> i(0,1);
