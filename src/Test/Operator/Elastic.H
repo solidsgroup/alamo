@@ -67,9 +67,9 @@ public:
 		     int n = 1,
 		     std::string plotfile = "");
 
-        int UniaxialTest(bool verbose,
-                     int component,
-		     int n,
+        int UniaxialTest(int verbose,
+			 int component,
+			 int n,
 			 std::string plotfile = "");
 
 	int SPD(bool verbose,
