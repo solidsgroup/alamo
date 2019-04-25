@@ -5,7 +5,7 @@
 #include "Model/Solid/Viscoelastic/Isotropic.H"
 #include "Elastic.H"
 
-
+#include "Numeric/Stencil.H"
 namespace Operator
 {
 template<class T>
@@ -103,15 +103,27 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
 					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
+				// Determine if a special stencil will be necessary for first derivatives
+				Numeric::Stencil::Type sten[AMREX_SPACEDIM];
+				AMREX_D_TERM(sten[0] = (xmin ? Numeric::Stencil::Type::Hi :
+							xmax ? Numeric::Stencil::Type::Lo :
+							Numeric::Stencil::Type::Central);,
+					     sten[1] = (ymin ? Numeric::Stencil::Type::Hi :
+							ymax ? Numeric::Stencil::Type::Lo :
+							Numeric::Stencil::Type::Central);,
+					     sten[2] = (zmin ? Numeric::Stencil::Type::Hi :
+							zmax ? Numeric::Stencil::Type::Lo :
+							Numeric::Stencil::Type::Central););
+
 				// The displacement gradient tensor
 				Set::Matrix gradu; // gradu(i,j) = u_{i,j)
 
-				// Fill gradu and gradgradu
+				// Fill gradu
 				for (int p = 0; p < AMREX_SPACEDIM; p++)
 				{
-					AMREX_D_TERM(gradu(p,0) = ((!xmax ? U(i+1,j,k,p) : U(i,j,k,p)) - (!xmin ? U(i-1,j,k,p) : U(i,j,k,p)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-						     gradu(p,1) = ((!ymax ? U(i,j+1,k,p) : U(i,j,k,p)) - (!ymin ? U(i,j-1,k,p) : U(i,j,k,p)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-						     gradu(p,2) = ((!zmax ? U(i,j,k+1,p) : U(i,j,k,p)) - (!zmin ? U(i,j,k-1,p) : U(i,j,k,p)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+ 					AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil::D<1,0,0>(U, i,j,k,p, DX, sten));,
+						     gradu(p,1) = (Numeric::Stencil::D<0,1,0>(U, i,j,k,p, DX, sten));,
+						     gradu(p,2) = (Numeric::Stencil::D<0,0,1>(U, i,j,k,p, DX, sten)););
 				}
 					
 				// Stress tensor computed using the model fab
@@ -152,17 +164,17 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 					for (int p = 0; p < AMREX_SPACEDIM; p++)
 					{
 						// Diagonal terms:
-						AMREX_D_TERM(gradgradu[p](0,0) = (U(i+1,j,k,p) - 2.0*U(i,j,k,p) + U(i-1,j,k,p))/DX[0]/DX[0];,
-							     gradgradu[p](1,1) = (U(i,j+1,k,p) - 2.0*U(i,j,k,p) + U(i,j-1,k,p))/DX[1]/DX[1];,
-							     gradgradu[p](2,2) = (U(i,j,k+1,p) - 2.0*U(i,j,k,p) + U(i,j,k-1,p))/DX[2]/DX[2];);
+						AMREX_D_TERM(gradgradu[p](0,0) = (Numeric::Stencil::D<2,0,0>(U, i,j,k,p, DX));,
+							     gradgradu[p](1,1) = (Numeric::Stencil::D<0,2,0>(U, i,j,k,p, DX));,
+							     gradgradu[p](2,2) = (Numeric::Stencil::D<0,0,2>(U, i,j,k,p, DX)););
 
 						// Off-diagonal terms:
 						AMREX_D_TERM(,// 2D
-							     gradgradu[p](0,1) = (U(i+1,j+1,k,p) + U(i-1,j-1,k,p) - U(i+1,j-1,k,p) - U(i-1,j+1,k,p))/(2.0*DX[0])/(2.0*DX[1]);
+							     gradgradu[p](0,1) = (Numeric::Stencil::D<1,1,0>(U, i,j,k,p, DX));
 							     gradgradu[p](1,0) = gradgradu[i](0,1);
 							     ,// 3D
-							     gradgradu[p](0,2) = (U(i+1,j,k+1,p) + U(i-1,j,k-1,p) - U(i+1,j,k-1,p) - U(i-1,j,k+1,p))/(2.0*DX[0])/(2.0*DX[2]);
-							     gradgradu[p](1,2) = (U(i,j+1,k+1,p) + U(i,j-1,k-1,p) - U(i,j+1,k-1,p) - U(i,j-1,k+1,p))/(2.0*DX[1])/(2.0*DX[2]);
+							     gradgradu[p](0,2) = (Numeric::Stencil::D<1,0,1>(U, i,j,k,p, DX));
+							     gradgradu[p](1,2) = (Numeric::Stencil::D<0,1,1>(U, i,j,k,p, DX));
 							     gradgradu[p](2,0) = gradgradu[i](0,2);
 							     gradgradu[p](2,1) = gradgradu[i](1,2););
 					}

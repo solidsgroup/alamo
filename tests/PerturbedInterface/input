@@ -1,10 +1,10 @@
 timestep = 0.001
-stop_time = 2.0
+stop_time = 20.0
 #stop_time = 2.0
 
 plot_file = tests/PerturbedInterface/output
 
-amr.plot_int = 10
+amr.plot_int = 100
 amr.max_level = 3
 #amr.n_cell = 32 4
 amr.n_cell = 32 32
@@ -43,7 +43,8 @@ anisotropy.tstart= 1.
 anisotropy.theta0= 45
 anisotropy.sigma0=0.075
 anisotropy.sigma1=0.15
-anisotropy.beta= 0.00001
+#anisotropy.beta= 0.00001
+anisotropy.beta= 0.0001
 anisotropy.damp=1.0
 
 
