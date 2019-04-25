@@ -12,7 +12,7 @@ using namespace amrex;
 
 namespace Operator
 {
-class Diagonal : public Operator
+class Diagonal : public Operator<Grid::Node>
 {
 public:
 	Diagonal () {}

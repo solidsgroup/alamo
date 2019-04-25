@@ -4,8 +4,9 @@
 namespace IC
 {
 
-Constant::Constant(amrex::Vector<amrex::Geometry> &_geom, amrex::Vector<amrex::Real> _value)
-	: IC(_geom), value(_value) {}
+Constant::Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> _value)
+	: IC(_geom), value(_value)
+{}
 
 void Constant::Add(const int lev,
 		amrex::Vector<amrex::MultiFab * > &field)

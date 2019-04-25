@@ -27,6 +27,8 @@ class BC
 {
 
 public:
+	virtual ~BC() {};
+	
 	void define (const amrex::Geometry& a_geom) {m_geom = a_geom;};
 
 	virtual void FillBoundary (amrex::FArrayBox &in,

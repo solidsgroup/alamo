@@ -7,6 +7,7 @@ Documentation for alamo
 
    GettingStarted
    Convention
+   Applications/Applications
    API/API
 
 
