@@ -255,6 +255,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	//Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM);
 	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi/n/n),AMREX_D_DECL(n*i,n*i,n*i),dim);
 	icexact.SetComp(component);
+
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		solution_exact  [ilev].setVal(0.0);
@@ -301,6 +302,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 		// Util::Warning(INFO,"icexact.Initialize(ilev,solution_numeric);");
 		// icexact.Initialize(ilev,solution_numeric); 
 	}
+	//rhs_prescribed[1].mult(0.5);
 
 	// Create and configure the Elastic operator
 	// See:
@@ -311,8 +313,12 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  	info.setConsolidation(1);
  	//info.setMaxCoarseningLevel(1);
  	nlevels = geom.size();
+
 	::Operator::Elastic<model_type> elastic;
+
  	elastic.define(geom, cgrids, dmap, info);
+ 	//elastic.setMaxOrder(linop_maxorder);
+	
  	using bctype = ::Operator::Elastic<model_type>::BC;
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 
@@ -399,6 +405,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	  	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
 	  	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
 	}
+	
 
 	//Compute numerical right hand side
 	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
@@ -680,7 +687,6 @@ int Elastic::UniaxialTest(bool verbose,
 int Elastic::RefluxTest(int verbose)
 {
 	int failed = 0;
-
 	int nghost = 2;
 
 	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
