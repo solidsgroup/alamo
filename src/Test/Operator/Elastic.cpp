@@ -360,11 +360,8 @@ int Elastic::UniaxialTest(bool verbose,
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 1);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
-	Set::Vector myvec;
-	myvec[0]=0.0; myvec[1]=0.0;
-	Set::Vector myvec1;
-	myvec1[0]=0.1; myvec1[1]=0.0;
-	//Use Amrex to work in 3D
+	Set::Vector myvec(AMREX_D_DECL(0.0, 0.0, 0.0));
+	Set::Vector myvec1(AMREX_D_DECL(0.1, 0.0, 0.0));
 
 	//rhs_prescribed - BODY FORCE
 	std::complex<int> i(0,1);
@@ -441,7 +438,7 @@ int Elastic::UniaxialTest(bool verbose,
 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
- 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Traction)},
+ 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)})}},
  		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
