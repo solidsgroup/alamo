@@ -999,8 +999,6 @@ Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
 	m_bc = &a_bc;
 
 	std::array<int,AMREX_SPACEDIM> is_periodic = m_bc->IsPeriodic();
-	// for (int ilev=0; ilev < a_geom.size(); ilev++)
-	// 	a_geom[ilev].SetPeriodicity(is_periodic);
 	
 	MLCellLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
@@ -1020,51 +1018,7 @@ Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
 void
 Operator<Grid::Cell>::prepareForSolve ()
 {
-	BL_PROFILE("Operator<Grid::Cell>::prepareForSolve()");
-
-	const int ncomp = getNComp();
-	for (int amrlev = 0;  amrlev < m_num_amr_levels; ++amrlev)
-	{
-		for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
-		{
-			const auto& bcondloc = *m_bcondloc[amrlev][mglev];
-			const auto& maskvals = m_maskvals[amrlev][mglev];
-			const amrex::Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
-
-			amrex::BndryRegister& undrrelxr = m_undrrelxr[amrlev][mglev];
-			amrex::MultiFab foo(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], ncomp, 0, amrex::MFInfo().SetAlloc(false));
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
-			for (amrex::MFIter mfi(foo, amrex::MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
-			{
-				const amrex::Box& vbx = mfi.validbox();
-
-				const RealTuple & bdl = bcondloc.bndryLocs(mfi);
-				const BCTuple   & bdc = bcondloc.bndryConds(mfi);
-
-				for (amrex::OrientationIter oitr; oitr; ++oitr)
-				{
-					const amrex::Orientation ori = oitr();
-                    
-					int  cdr = ori;
-					amrex::Real bcl = bdl[ori];
-					int  bct = bdc[ori];
-                    
-					amrex::FArrayBox& ffab = undrrelxr[ori][mfi];
-					const amrex::Mask& m   =  maskvals[ori][mfi];
-
-	/*
-					amrex_mllinop_comp_interp_coef0(BL_TO_FORTRAN_BOX(vbx),
-									BL_TO_FORTRAN_ANYD(ffab),
-									BL_TO_FORTRAN_ANYD(m),
-									cdr, bct, bcl, maxorder, dxinv, ncomp);
-	*/
-				}
-			}
-		}
-	}
-	averageDownCoeffs();
+	MLCellLinOp::prepareForSolve();
 }
 
 Operator<Grid::Cell>::BndryCondLoc::BndryCondLoc (const amrex::BoxArray& ba, const amrex::DistributionMapping& dm)

@@ -1,7 +1,9 @@
+#include <AMReX_MLPoisson.H>
+
 #include "CahnHilliard.H"
 #include "BC/Nothing.H"
 #include "Numeric/Stencil.H"
-#include "Operator/Implicit/Implicit.H"
+
 namespace Integrator
 {
 CahnHilliard::CahnHilliard() : Integrator()
@@ -11,8 +13,32 @@ CahnHilliard::CahnHilliard() : Integrator()
 	RegisterNewFab(etanewmf, bc, ncomp, nghost, "Eta");
 	RegisterNewFab(etaoldmf, bc, ncomp, nghost, "EtaOld");
 	RegisterNewFab(intermediate, bc, ncomp, nghost, "int");
+	LPInfo info;
+	op.define(geom,grids,dmap,*bc,info);
 }
 
+
+void
+CahnHilliard::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
+{
+	// amrex::MLPoisson myop(geom,grids,dmap);
+	// amrex::MLMG solver(myop);
+	// solver.setMaxIter(elastic.max_iter);
+	// solver.setMaxFmgIter(elastic.max_fmg_iter);
+	// solver.setVerbose(elastic.verbose);
+	// solver.setCGVerbose(elastic.cgverbose);
+
+	// etanewmf[0]->setVal(0.0);
+	// etanewmf[0]->setVal(0.0);
+
+	// Set::Scalar tol_rel = 1E-8;
+	// Set::Scalar tol_abs = 0.0;
+	// solver.solve(GetVecOfPtrs(etanewmf),
+	// 	     GetVecOfConstPtrs(etaoldmf),
+	// 	     tol_rel,
+	// 	     tol_abs);
+	
+}
 
 void
 CahnHilliard::Advance (int lev, Set::Scalar time, Set::Scalar dt)
