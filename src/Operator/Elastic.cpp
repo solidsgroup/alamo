@@ -205,104 +205,89 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 
 template<class T>
 void
-Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
+Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 {
 	BL_PROFILE("Operator::Elastic::Diagonal()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	for (MFIter mfi(diag, false); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.validbox();
-		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
-		amrex::FArrayBox       &diagfab    = diag[mfi];
+		Box bx = mfi.validbox();
+		bx.grow(1);        // Expand to cover first layer of ghost nodes
+		bx = bx & domain;  // Take intersection of box and the problem domain
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 1; m1<=bx.hiVect()[0] + 1; m1++),
-		 	     for (int m2 = bx.loVect()[1] - 1; m2<=bx.hiVect()[1] + 1; m2++),
-		 	     for (int m3 = bx.loVect()[2] - 1; m3<=bx.hiVect()[2] + 1; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+		amrex::Array4<T> const& C                 = (*(model[amrlev][mglev])).array(mfi);
+		amrex::Array4<amrex::Real> const& diag    = a_diag.array(mfi);
 
-
-			AMREX_D_TERM(if (m[0] < domain.loVect()[0]) continue;,
-				     if (m[1] < domain.loVect()[1]) continue;,
-				     if (m[2] < domain.loVect()[2]) continue;);
-			AMREX_D_TERM(if (m[0] > domain.hiVect()[0]+1) continue;,
-				     if (m[1] > domain.hiVect()[1]+1) continue;,
-				     if (m[2] > domain.hiVect()[2]+1) continue;)
-					     
-			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
-					     ymin = (m2 == domain.loVect()[1]),
-					     zmin = (m3 == domain.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
-					     ymax = (m2 == domain.hiVect()[1] + 1),
-					     zmax = (m3 == domain.hiVect()[2] + 1));
-
-			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
-			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
-
-			for (int i = 0; i < AMREX_SPACEDIM; i++)
-			{
-				diagfab(m,i) = 0.0;
-				for (int k = 0; k < AMREX_SPACEDIM; k++)
-				{
-					AMREX_D_TERM(gradu(k,0) = ((!xmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!xmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-						     gradu(k,1) = ((!ymax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-						     gradu(k,2) = ((!zmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			
-					AMREX_D_TERM(gradgradu[k](0,0) = (i==k ? -2.0 : 0.0)/DX[0]/DX[0];
-						     ,// 2D
-						     gradgradu[k](0,1) = 0.0;
-						     gradgradu[k](1,0) = 0.0;
-						     gradgradu[k](1,1) = (i==k ? -2.0 : 0.0)/DX[1]/DX[1];
-						     ,// 3D
-						     gradgradu[k](0,2) = 0.0;
-						     gradgradu[k](1,2) = 0.0;
-						     gradgradu[k](2,0) = 0.0;
-						     gradgradu[k](2,1) = 0.0;
-						     gradgradu[k](2,2) = (i==k ? -2.0 : 0.0)/DX[2]/DX[2]);
-				}
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-				Set::Matrix sig = C(m)(gradu);
+				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
+				Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+				std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+				for (int p = 0; p < AMREX_SPACEDIM; p++)
 				{
-					for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+					diag(i,j,k,p) = 0.0;
+					for (int q = 0; q < AMREX_SPACEDIM; q++)
 					{
-						if (m[j] == domain.loVect()[j])
+						AMREX_D_TERM(gradu(q,0) = ((!xmax ? 0.0 : (p==q ? 1.0 : 0.0)) - (!xmin ? 0.0 : (p==q ? 1.0 : 0.0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+							     gradu(q,1) = ((!ymax ? 0.0 : (p==q ? 1.0 : 0.0)) - (!ymin ? 0.0 : (p==q ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+							     gradu(q,2) = ((!zmax ? 0.0 : (p==q ? 1.0 : 0.0)) - (!zmin ? 0.0 : (p==q ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			
+						AMREX_D_TERM(gradgradu[q](0,0) = (p==q ? -2.0 : 0.0)/DX[0]/DX[0];
+							     ,// 2D
+							     gradgradu[q](0,1) = 0.0;
+							     gradgradu[q](1,0) = 0.0;
+							     gradgradu[q](1,1) = (p==q ? -2.0 : 0.0)/DX[1]/DX[1];
+							     ,// 3D
+							     gradgradu[q](0,2) = 0.0;
+							     gradgradu[q](1,2) = 0.0;
+							     gradgradu[q](2,0) = 0.0;
+							     gradgradu[q](2,1) = 0.0;
+							     gradgradu[q](2,2) = (p==q ? -2.0 : 0.0)/DX[2]/DX[2]);
+					}
+
+					Set::Matrix sig = C(i,j,k)(gradu);
+
+					amrex::IntVect m(AMREX_D_DECL(i,j,k));
+					if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
+					{
+						for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
 						{
-							if (m_bc_lo[j][i] == BC::Displacement)
-								diagfab(m,i) += 1.0;
-							else if (m_bc_lo[j][i] == BC::Traction) 
-								diagfab(m,i) -= sig(i,j);
-							else if (m_bc_lo[j][i] == BC::Neumann) 
-								diagfab(m,i) -= gradu(i,j);
-							else Util::Abort(INFO, "Invalid BC");
-						}
-						if (m[j] == domain.hiVect()[j] + 1)
-						{
-							if (m_bc_hi[j][i] == BC::Displacement)
-								diagfab(m,i) += 1.0;
-							else if (m_bc_hi[j][i] == BC::Traction) 
-								diagfab(m,i) += sig(i,j);
-							else if (m_bc_lo[j][i] == BC::Neumann) 
-								diagfab(m,i) += gradu(i,j);
-							else Util::Abort(INFO, "Invalid BC");
+							if (m[q] == domain.loVect()[q])
+							{
+								if (m_bc_lo[q][p] == BC::Displacement)  diag(i,j,k,p) += 1.0;
+								else if (m_bc_lo[q][p] == BC::Traction) diag(i,j,k,p) += -sig(p,q);
+								else if (m_bc_lo[q][p] == BC::Neumann)  diag(i,j,k,p) += -gradu(p,q);
+								else Util::Abort(INFO, "Invalid BC");
+							}
+							if (m[q] == domain.hiVect()[q])
+							{
+								if (m_bc_hi[q][p] == BC::Displacement)  diag(i,j,k,p) += 1.0;
+								else if (m_bc_hi[q][p] == BC::Traction) diag(i,j,k,p) += sig(p,q);
+								else if (m_bc_lo[q][p] == BC::Neumann)  diag(i,j,k,p) += gradu(p,q);
+								else Util::Abort(INFO, "Invalid BC");
+							}
 						}
 					}
+					else
+					{
+						Set::Vector f =
+							C(i,j,k)(gradgradu)
+							AMREX_D_TERM(+ ((C(i+1,j,k) - C(i-1,j,k))/2.0/DX[0])(gradu).col(0),
+								     + ((C(i,j+1,k) - C(i,j-1,k))/2.0/DX[1])(gradu).col(1),
+								     + ((C(i,j,k+1) - C(i,j,k-1))/2.0/DX[2])(gradu).col(2));
+						diag(i,j,k,p) += f(p);
+					}
 				}
-				else
-				{
-					Set::Vector f =
-						C(m)(gradgradu)  + 
-						AMREX_D_TERM(((C(m+dx) - C(m-dx))/2.0/DX[0])(gradu).col(0),
-						   	     + ((C(m+dy) - C(m-dy))/2.0/DX[1])(gradu).col(1),
-						     	     + ((C(m+dz) - C(m-dz))/2.0/DX[2])(gradu).col(2));
-					diagfab(m,i) += f(i);
-				}
-			}
-		}
+			});
 	}
 }
 
@@ -354,74 +339,73 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 template<class T>
 void
 Elastic<T>::Strain  (int amrlev,
-		    amrex::MultiFab& eps,
-		    const amrex::MultiFab& u,
+		    amrex::MultiFab& a_eps,
+		    const amrex::MultiFab& a_u,
 		    bool voigt) const
 {
 	BL_PROFILE("Operator::Elastic::Strain()");
-	Util::Message(INFO);
 
-	if (voigt)
-		AMREX_ASSERT(eps.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
-	else
-		AMREX_ASSERT(eps.nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-	
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
-	
-	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
+
+
+	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::FArrayBox  &epsfab   = eps[mfi];
-		const amrex::FArrayBox  &ufab = u[mfi];
-		
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool	AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
-					     ymin = (m2 == bx.loVect()[1]),
-					     zmin = (m3 == bx.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
-					     ymax = (m2 == bx.hiVect()[1]),
-					     zmax = (m3 == bx.hiVect()[2]));
+		amrex::Array4<amrex::Real> const& epsilon = a_eps.array(mfi);
+		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
+		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 
-			Set::Matrix gradu;
-			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx,0) : ufab(m,0)) - (!xmin ? ufab(m-dx,0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     ,
-				     gradu(0,1) = ((!ymax ? ufab(m+dy,0) : ufab(m,0)) - (!ymin ? ufab(m-dy,0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(1,0) = ((!xmax ? ufab(m+dx,1) : ufab(m,1)) - (!xmin ? ufab(m-dx,1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(1,1) = ((!ymax ? ufab(m+dy,1) : ufab(m,1)) - (!ymin ? ufab(m-dy,1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     ,
-				     gradu(0,2) = ((!zmax ? ufab(m+dz,0) : ufab(m,0)) - (!zmin ? ufab(m-dz,0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(1,2) = ((!zmax ? ufab(m+dz,1) : ufab(m,1)) - (!zmin ? ufab(m-dz,1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(2,0) = ((!xmax ? ufab(m+dx,2) : ufab(m,2)) - (!xmin ? ufab(m-dx,2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(2,1) = ((!ymax ? ufab(m+dy,2) : ufab(m,2)) - (!ymin ? ufab(m-dy,2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(2,2) = ((!zmax ? ufab(m+dz,2) : ufab(m,2)) - (!zmin ? ufab(m-dz,2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
-			Set::Matrix strain = 0.5 * (gradu + gradu.transpose());
-			
-			if (voigt)
-			{
-#if AMREX_SPACEDIM == 2
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(1,1); epsfab(m,2) = strain(0,1); 
-#elif AMREX_SPACEDIM == 3
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(1,1); epsfab(m,2) = strain(2,2); 
-				epsfab(m,3) = strain(1,2); epsfab(m,4) = strain(2,0); epsfab(m,5) = strain(0,1); 
-#endif
-			}
-			else
-			{
-#if   AMREX_SPACEDIM == 2
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(0,1); 
-				epsfab(m,2) = strain(1,0); epsfab(m,3) = strain(1,1); 
-#elif AMREX_SPACEDIM == 3
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(0,1); epsfab(m,2) = strain(0,2); 
-				epsfab(m,3) = strain(1,0); epsfab(m,4) = strain(1,1); epsfab(m,5) = strain(1,2); 
-				epsfab(m,6) = strain(2,0); epsfab(m,7) = strain(2,1); epsfab(m,8) = strain(2,2); 
-#endif
-			}
-		}
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+				    {
+					    Set::Matrix gradu;
+
+					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+
+					    Numeric::Stencil::Type sten[AMREX_SPACEDIM];
+					    AMREX_D_TERM(sten[0] = (xmin ? Numeric::Stencil::Type::Hi :
+								    xmax ? Numeric::Stencil::Type::Lo :
+								    Numeric::Stencil::Type::Central);,
+							 sten[1] = (ymin ? Numeric::Stencil::Type::Hi :
+								    ymax ? Numeric::Stencil::Type::Lo :
+								    Numeric::Stencil::Type::Central);,
+							 sten[2] = (zmin ? Numeric::Stencil::Type::Hi :
+								    zmax ? Numeric::Stencil::Type::Lo :
+								    Numeric::Stencil::Type::Central););
+
+					    // Fill gradu
+					    for (int p = 0; p < AMREX_SPACEDIM; p++)
+					    {
+						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil::D<1,0,0>(u, i,j,k,p, DX, sten));,
+								 gradu(p,1) = (Numeric::Stencil::D<0,1,0>(u, i,j,k,p, DX, sten));,
+								 gradu(p,2) = (Numeric::Stencil::D<0,0,1>(u, i,j,k,p, DX, sten)););
+					    }
+
+					    Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
+
+					    if (voigt)
+					    {
+						    AMREX_D_PICK(epsilon(i,j,k,0) = eps(0,0);
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(1,1); epsilon(i,j,k,2) = eps(0,1); 
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(1,1); epsilon(i,j,k,2) = eps(2,2); 
+								 epsilon(i,j,k,3) = eps(1,2); epsilon(i,j,k,4) = eps(2,0); epsilon(i,j,k,5) = eps(0,1););
+					    }
+					    else
+					    {
+						    AMREX_D_PICK(epsilon(i,j,k,0) = eps(0,0);
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(0,1); 
+								 epsilon(i,j,k,2) = eps(1,0); epsilon(i,j,k,3) = eps(1,1);
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(0,1); epsilon(i,j,k,2) = eps(0,2); 
+								 epsilon(i,j,k,3) = eps(1,0); epsilon(i,j,k,4) = eps(1,1); epsilon(i,j,k,5) = eps(1,2); 
+								 epsilon(i,j,k,6) = eps(2,0); epsilon(i,j,k,7) = eps(2,1); epsilon(i,j,k,8) = eps(2,2););
+					    }
+				    });
 	}
 }
 
@@ -454,17 +438,24 @@ Elastic<T>::Stress (int amrlev,
 					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
 						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-					    AMREX_D_TERM(gradu(0,0) = ((!xmax ? u(i+1,j,k,0) : u(i,j,k,0)) - (!xmin ? u(i-1,j,k,0) : u(i,j,k,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-							 ,
-							 gradu(0,1) = ((!ymax ? u(i,j+1,k,0) : u(i,j,k,0)) - (!ymin ? u(i,j-1,k,0) : u(i,j,k,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-							 gradu(1,0) = ((!xmax ? u(i+1,j,k,1) : u(i,j,k,1)) - (!xmin ? u(i-1,j,k,1) : u(i,j,k,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-							 gradu(1,1) = ((!ymax ? u(i,j+1,k,1) : u(i,j,k,1)) - (!ymin ? u(i,j-1,k,1) : u(i,j,k,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-							 ,
-							 gradu(0,2) = ((!zmax ? u(i,j,k+1,0) : u(i,j,k,0)) - (!zmin ? u(i,j,k-1,0) : u(i,j,k,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-							 gradu(1,2) = ((!zmax ? u(i,j,k+1,1) : u(i,j,k,1)) - (!zmin ? u(i,j,k-1,1) : u(i,j,k,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-							 gradu(2,0) = ((!xmax ? u(i+1,j,k,2) : u(i,j,k,2)) - (!xmin ? u(i-1,j,k,2) : u(i,j,k,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-							 gradu(2,1) = ((!ymax ? u(i,j+1,k,2) : u(i,j,k,2)) - (!ymin ? u(i,j-1,k,2) : u(i,j,k,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-							 gradu(2,2) = ((!zmax ? u(i,j,k+1,2) : u(i,j,k,2)) - (!zmin ? u(i,j,k-1,2) : u(i,j,k,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+					    Numeric::Stencil::Type sten[AMREX_SPACEDIM];
+					    AMREX_D_TERM(sten[0] = (xmin ? Numeric::Stencil::Type::Hi :
+								    xmax ? Numeric::Stencil::Type::Lo :
+								    Numeric::Stencil::Type::Central);,
+							 sten[1] = (ymin ? Numeric::Stencil::Type::Hi :
+								    ymax ? Numeric::Stencil::Type::Lo :
+								    Numeric::Stencil::Type::Central);,
+							 sten[2] = (zmin ? Numeric::Stencil::Type::Hi :
+								    zmax ? Numeric::Stencil::Type::Lo :
+								    Numeric::Stencil::Type::Central););
+
+					    // Fill gradu
+					    for (int p = 0; p < AMREX_SPACEDIM; p++)
+					    {
+						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil::D<1,0,0>(u, i,j,k,p, DX, sten));,
+								 gradu(p,1) = (Numeric::Stencil::D<0,1,0>(u, i,j,k,p, DX, sten));,
+								 gradu(p,2) = (Numeric::Stencil::D<0,0,1>(u, i,j,k,p, DX, sten)););
+					    }
 					 
 					    Set::Matrix sig = C(i,j,k)(gradu);
 

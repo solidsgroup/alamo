@@ -52,7 +52,7 @@ class Operator<Grid::Node> : public amrex::MLNodeLinOp
 	friend Test::Operator::Elastic;
 
 	//
-	// Constructor/Destructor/Operators
+	// Public: Constructor/Destructor/Operators/defines
 	//
 public :
 	Operator () {}
@@ -66,7 +66,18 @@ public :
 	Operator (Operator&&) = delete;
 	Operator& operator= (const Operator&) = delete;
 	Operator& operator= (Operator&&) = delete;
+	void define (const Vector<Geometry>& a_geom, const Vector<BoxArray>& a_grids,
+		     const Vector<DistributionMapping>& a_dmap,
+		     const LPInfo& a_info = LPInfo(),
+		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
+	//
+	// Public Utilty functions
+	//
+public:
+	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
+	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
+	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 
 	//
 	// Pure Virtual: you MUST override these functions
@@ -88,7 +99,7 @@ protected:
 	virtual void reflux (int crse_amrlev, MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
 			     MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs) const override;
 	//
-	// Virtual: you CAN'T override these functions (they take care of AMReX business)
+	// Virtual: you CAN'T override these functions (they take care of AMReX business) and you SHOULDN'T
 	//
 protected:
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
@@ -99,42 +110,26 @@ protected:
 	virtual bool isBottomSingular () const final { return m_is_bottom_singular; }
 	virtual void applyBC (int amrlev, int mglev, MultiFab& phi, BCMode bc_mode, amrex::MLLinOp::StateMode /**/, bool skip_fillboundary=false) const final;
 	virtual void fixUpResidualMask (int amrlev, iMultiFab& resmsk) final;
-       
-
 public:
 	virtual int getNGrow() const override final {return 2;}
-
-
-	void define (const Vector<Geometry>& a_geom, const Vector<BoxArray>& a_grids,
-		     const Vector<DistributionMapping>& a_dmap,
-		     const LPInfo& a_info = LPInfo(),
-		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
-
 	virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
-				       const MultiFab* crse_bcdata=nullptr) override;
+				       const MultiFab* crse_bcdata=nullptr) override final;
 	virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
-					 BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override;
-
+					 BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override final;
+	//
+	// Private: internal machinery that you should never need to mess with
+	//
+private:
 	void buildMasks ();
-protected:
-
 	void realFillBoundary(MultiFab &phi, const Geometry &geom) const;
-
-
-	
-	static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
-	 					     dy = {AMREX_D_DECL(0,1,0)},
-	 					     dz = {AMREX_D_DECL(0,0,1)});
 
 private:
 	bool m_is_bottom_singular = false;
 	bool m_masks_built = false;
-public:
-	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
-	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
-	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
-
-
+	/// \todo we need to get rid of this
+	static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
+	   					     dy = {AMREX_D_DECL(0,1,0)},
+	   					     dz = {AMREX_D_DECL(0,0,1)});
 protected:
 	int m_num_a_fabs = 0;
 	bool m_diagonal_computed = false;
@@ -226,35 +221,6 @@ protected:
 	void updateSolBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
 	void updateCorBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
 
-	// virtual void applyBC (int amrlev, int mglev, amrex::MultiFab& in, BCMode bc_mode,
-	// 		      const amrex::MLMGBndry* bndry=nullptr, bool skip_fillboundary=false) const;
-
-	// virtual void restriction (int, int,
-	// 			  amrex::MultiFab& crse,
-	// 			  amrex::MultiFab& fine) const override final;
-
-	// virtual void interpolation (int amrlev, int fmglev,
-	// 			    amrex::MultiFab& fine,
-	// 			    const amrex::MultiFab& crse) const override final;
-
-	// virtual void averageDownSolutionRHS (int camrlev,
-	// 				     amrex::MultiFab& crse_sol,
-	// 				     amrex::MultiFab& crse_rhs,
-	// 				     const amrex::MultiFab& fine_sol,
-	// 				     const amrex::MultiFab& fine_rhs) override final;
-
-	// virtual void apply (int amrlev, int mglev,
-	// 		    amrex::MultiFab& out,
-	// 		    amrex::MultiFab& in,
-	// 		    BCMode bc_mode,
-	// 		    StateMode s_mode,
-	// 		    const amrex::MLMGBndry* bndry=nullptr) const override final;
-
-
-	// virtual void compGrad (int amrlev,
-	// 		       const std::array<amrex::MultiFab*,AMREX_SPACEDIM>& grad,
-	// 		       amrex::MultiFab& sol, amrex::MLLinOp::Location loc) const override final;
-
 	virtual void prepareForSolve () override;
 
 
@@ -296,11 +262,7 @@ protected:
 						     dz = {AMREX_D_DECL(0,0,1)});
 private:
 
-	// void defineAuxData ();
-	// void defineBC ();
-
 	int m_num_a_fabs = 0;
-	// m_a_coeffs[index of fab][amrlevel][mglevel]
 	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs; 
 
 };

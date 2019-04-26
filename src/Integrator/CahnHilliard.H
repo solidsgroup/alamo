@@ -16,6 +16,7 @@
 #include "IC/Random.H"
 #include "Integrator/Integrator.H"
 #include "BC/Nothing.H"
+#include "Operator/Implicit/Implicit.H"
 
 namespace Integrator
 {
@@ -27,8 +28,9 @@ public:
 
 protected:
 
-	void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
 	void Initialize (int lev) override;
+	void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
+	void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
 private:
@@ -43,6 +45,8 @@ private:
 	IC::IC *ic;
 	
 	const Set::Scalar gamma = 0.0005;
+
+	Operator::Implicit::Implicit op;
 };
 }
 #endif
