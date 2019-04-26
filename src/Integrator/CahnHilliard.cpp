@@ -1,7 +1,7 @@
 #include "CahnHilliard.H"
 #include "BC/Nothing.H"
 #include "Numeric/Stencil.H"
-//#include "Operator/Implicit/Implicit.H"
+#include "Operator/Implicit/Implicit.H"
 namespace Integrator
 {
 CahnHilliard::CahnHilliard() : Integrator()

@@ -163,55 +163,35 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	nodalSync(amrlev, mglev, x);
 }
 
-void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& x) const
+void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& a_x) const
 {
 	BL_PROFILE("Operator::normalize()");
-	//Util::Message(INFO);
-	bool debug = false;		// Enable this for inverse approximation
- 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
 
 	int ncomp = getNComp();
 	int nghost = 1; //x.nGrow();
 
-	//const Real* DX = m_geom[amrlev][mglev].CellSize();
-
 	if (!m_diagonal_computed)
 		Util::Abort(INFO,"Operator::Diagonal() must be called before using normalize");
-	
-	if(debug)
-	{
-		// We are trying to do a first order inverse correction here.
-		amrex::MultiFab xtemp(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-		xtemp.setVal(0.0);
-		amrex::MultiFab::Copy(xtemp,x,0,0,ncomp,0); // xtemp = x
-		amrex::MultiFab R0x(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-		R0x.setVal(0,0);
-		Error0x(amrlev,mglev,R0x,xtemp); 	// R0x = R0 * x = (I - A D0) * x
-		amrex::MultiFab::Add(x,R0x,0,0,ncomp,0); // x = (I + R0)*x
-	}
 
-	for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_x, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.validbox();
-		amrex::FArrayBox       &xfab    = x[mfi];
-		const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
+
+		Box bx = mfi.tilebox();
+		bx.grow(1);
+		bx = bx & domain;
+
+		amrex::Array4<amrex::Real> const& x = a_x.array(mfi);
+		amrex::Array4<const amrex::Real> const& diag = m_diag[amrlev][mglev]->array(mfi);
 
 		for (int n = 0; n < ncomp; n++)
 		{
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
-				     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
-				     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					
+					x(i,j,k) /= diag(i,j,k);
 
-				if (m[0] < domain.loVect()[0]) continue;
-				if (m[1] < domain.loVect()[1]) continue;
-				if (m[0] > domain.hiVect()[0]+1) continue;
-				if (m[1] > domain.hiVect()[1]+1) continue;
-
-				xfab(m,n) /= diagfab(m,n);
-			}
+				} );
 		}
 	}
 }
@@ -250,7 +230,7 @@ void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
 			       "You should decrease max_grid_size or you will not get proper scaling!");
 	 }
 
-	 // This makes sure grids are cell-centered;
+	 // This makes sure grids are node-centered;
 	 Vector<BoxArray> cc_grids = a_grids;
 	 for (auto& ba : cc_grids) {
 		 ba.enclosedCells();
@@ -274,16 +254,6 @@ void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
  }
 
 
-void Operator<Grid::Node>::compRHS (const Vector<MultiFab*>& /*rhs*/, const Vector<MultiFab*>& /*vel*/,
-		   const Vector<const MultiFab*>& /*rhnd*/,
-		   const Vector<MultiFab*>& /*a_rhcc*/)
-{
-	//Util::Message(INFO);
-	Util::Abort(INFO, "compRHS not implemented");
-}
-
-
-
 void Operator<Grid::Node>::buildMasks ()
 {
 	BL_PROFILE("Operator::buildMasks()");
@@ -293,8 +263,6 @@ void Operator<Grid::Node>::buildMasks ()
 	m_masks_built = true;
 
 	m_is_bottom_singular = false;
-	// auto itlo = std::find(m_lobc.begin(), m_lobc.end(), BCType::Dirichlet);
-	// auto ithi = std::find(m_hibc.begin(), m_hibc.end(), BCType::Dirichlet);
 
 #ifdef _OPENMP
 #pragma omp parallel
@@ -342,11 +310,6 @@ void Operator<Grid::Node>::buildMasks ()
 								ccfab.setVal(0, is.second-iv, 0, 1);
 							}
 						}
-                        
-						// amrex_mlndlap_set_dirichlet_mask(BL_TO_FORTRAN_ANYD(mskfab),
-						// 				 BL_TO_FORTRAN_ANYD(ccfab),
-						// 				 BL_TO_FORTRAN_BOX(nddomain),
-						// 				 m_lobc.data(), m_hibc.data());
 					}
 				}
 			}
@@ -426,10 +389,6 @@ void Operator<Grid::Node>::buildMasks ()
 		const Geometry& geom = m_geom[amrlev][mglev];
 		Box nddomain = amrex::surroundingNodes(geom.Domain());
 
-		if (m_coarsening_strategy != CoarseningStrategy::Sigma) {
-			nddomain.grow(1000); // hack to avoid masks being modified at Neuman boundary
-		}
-
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
@@ -473,19 +432,10 @@ void Operator<Grid::Node>::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 void Operator<Grid::Node>::prepareForSolve ()
 {
 	BL_PROFILE("Operator::prepareForSolve()");
-
-	AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_num_amr_levels == 1 ||
-					 m_coarsening_strategy != CoarseningStrategy::RAP,
-					 "Operator::prepareForSolve RAP TODO");
-
 	MLNodeLinOp::prepareForSolve();
-
 	buildMasks();
-
-
 	averageDownCoeffs();
 	Diagonal(true);
-
 }
 
 void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const

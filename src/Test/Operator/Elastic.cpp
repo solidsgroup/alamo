@@ -542,14 +542,14 @@ int Elastic::RefluxTest(int verbose)
 		ic.Initialize(0,solution_exact);
 		ic.Initialize(1,solution_exact);
 
-		mlabec.FApply(0,0,rhs_prescribed[0],solution_exact[0]);
-		mlabec.FApply(1,0,rhs_prescribed[1],solution_exact[1]);
+		mlabec.Fapply(0,0,rhs_prescribed[0],solution_exact[0]);
+		mlabec.Fapply(1,0,rhs_prescribed[1],solution_exact[1]);
 
 		res_numeric[0].setVal(0.0);
 		res_numeric[1].setVal(0.0);
 
-		mlabec.BuildMasks();
-		mlabec.Reflux(0,
+		mlabec.buildMasks();
+		mlabec.reflux(0,
 		 	      res_numeric[0], solution_exact[0], rhs_prescribed[0],
 		 	      res_numeric[1], solution_exact[1], rhs_prescribed[1]);
 

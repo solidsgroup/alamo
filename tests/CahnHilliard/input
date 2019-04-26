@@ -1,4 +1,4 @@
-timestep = 0.0000001
+timestep = 0.00001
 stop_time = 100.0
 
 plot_file = tests/CahnHilliard/output
