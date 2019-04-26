@@ -11,127 +11,121 @@
 
 namespace Operator
 {
-template<>
 class Implicit : public Operator<Grid::Cell>
 {
 public:
 
-	Implicit ();
-	virtual ~Implicit () {};
+ 	Implicit ();
+ 	virtual ~Implicit () {};
 
-	Implicit (const Implicit&) = delete;
-	Implicit (Implicit&&) = delete;
-	Implicit& operator= (const Implicit&) = delete;
-	Implicit& operator= (Implicit&&) = delete;
+// 	void define (amrex::Vector<amrex::Geometry> a_geom,
+// 		     const amrex::Vector<amrex::BoxArray>& a_grids,
+// 		     const amrex::Vector<amrex::DistributionMapping>& a_dmap,
+// 		     BC::BC& a_bc,
+// 		     const amrex::LPInfo& a_info = amrex::LPInfo(),
+// 		     const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory = {});
 
-	void define (amrex::Vector<amrex::Geometry> a_geom,
-		     const amrex::Vector<amrex::BoxArray>& a_grids,
-		     const amrex::Vector<amrex::DistributionMapping>& a_dmap,
-		     BC::BC& a_bc,
-		     const amrex::LPInfo& a_info = amrex::LPInfo(),
-		     const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory = {});
+// 	// virtual void setLevelBC (int amrlev, const amrex::MultiFab* levelbcdata) override final;
 
-	// virtual void setLevelBC (int amrlev, const amrex::MultiFab* levelbcdata) override final;
-
-protected:
+// protected:
 	
-	BC::BC *m_bc;
+// 	BC::BC *m_bc;
 
-	amrex::Vector<std::unique_ptr<amrex::MLMGBndry> >   m_bndry_sol;
-	amrex::Vector<std::unique_ptr<amrex::BndryRegister> > m_crse_sol_br;
+// 	amrex::Vector<std::unique_ptr<amrex::MLMGBndry> >   m_bndry_sol;
+// 	amrex::Vector<std::unique_ptr<amrex::BndryRegister> > m_crse_sol_br;
 
-	amrex::Vector<std::unique_ptr<amrex::MLMGBndry> > m_bndry_cor;
-	amrex::Vector<std::unique_ptr<amrex::BndryRegister> > m_crse_cor_br;
+// 	amrex::Vector<std::unique_ptr<amrex::MLMGBndry> > m_bndry_cor;
+// 	amrex::Vector<std::unique_ptr<amrex::BndryRegister> > m_crse_cor_br;
 
-	// In case of agglomeration, coarse MG grids on amr level 0 are
-	// not simply coarsened from fine MG grids.  So we need to build
-	// bcond and bcloc for each MG level.
-	using RealTuple = std::array<amrex::Real,2*BL_SPACEDIM>;
-	using BCTuple   = std::array<amrex::BoundCond,2*BL_SPACEDIM>;
-	class BndryCondLoc
-	{
-	public:
-		BndryCondLoc (const amrex::BoxArray& ba, const amrex::DistributionMapping& dm);
-		void setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
-				      const std::array<BCType,AMREX_SPACEDIM>& lobc,
-				      const std::array<BCType,AMREX_SPACEDIM>& hibc,
-				      int ratio, const amrex::RealVect& a_loc);
-		const BCTuple& bndryConds (const amrex::MFIter& mfi) const {
-			return bcond[mfi];
-		}
-		const RealTuple& bndryLocs (const amrex::MFIter& mfi) const {
-			return bcloc[mfi];
-		}
-	private:
-		amrex::LayoutData<BCTuple>   bcond;
-		amrex::LayoutData<RealTuple> bcloc;
-	};
-	amrex::Vector<amrex::Vector<std::unique_ptr<BndryCondLoc> > > m_bcondloc;
+// 	// In case of agglomeration, coarse MG grids on amr level 0 are
+// 	// not simply coarsened from fine MG grids.  So we need to build
+// 	// bcond and bcloc for each MG level.
+// 	using RealTuple = std::array<amrex::Real,2*BL_SPACEDIM>;
+// 	using BCTuple   = std::array<amrex::BoundCond,2*BL_SPACEDIM>;
+// 	class BndryCondLoc
+// 	{
+// 	public:
+// 		BndryCondLoc (const amrex::BoxArray& ba, const amrex::DistributionMapping& dm);
+// 		void setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
+// 				      const std::array<BCType,AMREX_SPACEDIM>& lobc,
+// 				      const std::array<BCType,AMREX_SPACEDIM>& hibc,
+// 				      int ratio, const amrex::RealVect& a_loc);
+// 		const BCTuple& bndryConds (const amrex::MFIter& mfi) const {
+// 			return bcond[mfi];
+// 		}
+// 		const RealTuple& bndryLocs (const amrex::MFIter& mfi) const {
+// 			return bcloc[mfi];
+// 		}
+// 	private:
+// 		amrex::LayoutData<BCTuple>   bcond;
+// 		amrex::LayoutData<RealTuple> bcloc;
+// 	};
+// 	amrex::Vector<amrex::Vector<std::unique_ptr<BndryCondLoc> > > m_bcondloc;
 
-	// used to save interpolation coefficients of the first interior cells
-	mutable amrex::Vector<amrex::Vector<amrex::BndryRegister> > m_undrrelxr;
+// 	// used to save interpolation coefficients of the first interior cells
+// 	mutable amrex::Vector<amrex::Vector<amrex::BndryRegister> > m_undrrelxr;
 
-	// boundary cell flags for covered, not_covered, outside_domain
-	amrex::Vector<amrex::Vector<std::array<amrex::MultiMask,2*AMREX_SPACEDIM> > > m_maskvals;
-
-
-
-	//
-	// functions
-	//
-
-	void updateSolBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
-	void updateCorBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
-
-	virtual void prepareForSolve () override;
+// 	// boundary cell flags for covered, not_covered, outside_domain
+// 	amrex::Vector<amrex::Vector<std::array<amrex::MultiMask,2*AMREX_SPACEDIM> > > m_maskvals;
 
 
-	// PURE VIRTUAL METHODS
 
-	virtual void Fapply (int amrlev, int mglev, amrex::MultiFab& out, const amrex::MultiFab& in) const = 0;
-	virtual void Fsmooth (int amrlev, int mglev, amrex::MultiFab& sol, const amrex::MultiFab& rsh, int redblack) const = 0;
-	virtual void FFlux (int amrlev, const MFIter& mfi,
-			    const Array<FArrayBox*,AMREX_SPACEDIM>& flux,
-			    const FArrayBox& sol, Location loc, const int face_only=0) const = 0;
+// 	//
+// 	// functions
+// 	//
 
-	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
-	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
-	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) ;
+// 	void updateSolBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
+// 	void updateCorBC (int amrlev, const amrex::MultiFab& crse_bcdata) const;
 
-	virtual bool isSingular (int /*amrlev*/) const final { return false; }
-	virtual bool isBottomSingular () const final { return false; }
+// 	virtual void prepareForSolve () override;
 
-	virtual amrex::Real getAScalar () const final { return 0.0; }
-	virtual amrex::Real getBScalar () const final { return 0.0; }
 
-	virtual amrex::MultiFab const* getACoeffs (int /*amrlev*/, int /*mglev*/) const final { return nullptr;}
-	virtual std::array<amrex::MultiFab const*,AMREX_SPACEDIM> getBCoeffs (int /*amrlev*/, int /*mglev*/) const final {
-		std::array<amrex::MultiFab const*,AMREX_SPACEDIM> ret;
-		AMREX_D_TERM(ret[0] = nullptr;, ret[1] = nullptr;,ret[2] = nullptr;);
-		return ret;}
+// 	// PURE VIRTUAL METHODS
 
-	virtual std::unique_ptr<amrex::MLLinOp> makeNLinOp (int /*grid_size*/) const final {
-		Util::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
-		return std::unique_ptr<MLLinOp>{};
-	}
+// 	virtual void Fapply (int amrlev, int mglev, amrex::MultiFab& out, const amrex::MultiFab& in) const = 0;
+// 	virtual void Fsmooth (int amrlev, int mglev, amrex::MultiFab& sol, const amrex::MultiFab& rsh, int redblack) const = 0;
+// 	virtual void FFlux (int amrlev, const MFIter& mfi,
+// 			    const Array<FArrayBox*,AMREX_SPACEDIM>& flux,
+// 			    const FArrayBox& sol, Location loc, const int face_only=0) const = 0;
 
-	void averageDownCoeffs ();
-	void averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>&);
-	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
+// 	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
+// 	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
+// 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) ;
 
-	static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
-						     dy = {AMREX_D_DECL(0,1,0)},
-						     dz = {AMREX_D_DECL(0,0,1)});
-private:
+// 	virtual bool isSingular (int /*amrlev*/) const final { return false; }
+// 	virtual bool isBottomSingular () const final { return false; }
 
-	// void defineAuxData ();
-	// void defineBC ();
+// 	virtual amrex::Real getAScalar () const final { return 0.0; }
+// 	virtual amrex::Real getBScalar () const final { return 0.0; }
 
-	int m_num_a_fabs = 0;
-	// m_a_coeffs[index of fab][amrlevel][mglevel]
-	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs; 
+// 	virtual amrex::MultiFab const* getACoeffs (int /*amrlev*/, int /*mglev*/) const final { return nullptr;}
+// 	virtual std::array<amrex::MultiFab const*,AMREX_SPACEDIM> getBCoeffs (int /*amrlev*/, int /*mglev*/) const final {
+// 		std::array<amrex::MultiFab const*,AMREX_SPACEDIM> ret;
+// 		AMREX_D_TERM(ret[0] = nullptr;, ret[1] = nullptr;,ret[2] = nullptr;);
+// 		return ret;}
 
-}
+// 	virtual std::unique_ptr<amrex::MLLinOp> makeNLinOp (int /*grid_size*/) const final {
+// 		Util::Abort("MLABecLaplacian::makeNLinOp: Not implmented");
+// 		return std::unique_ptr<MLLinOp>{};
+// 	}
+
+// 	void averageDownCoeffs ();
+// 	void averageDownCoeffsSameAmrLevel (amrex::Vector<amrex::MultiFab>&);
+// 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
+
+// 	static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
+// 						     dy = {AMREX_D_DECL(0,1,0)},
+// 						     dz = {AMREX_D_DECL(0,0,1)});
+// private:
+
+// 	// void defineAuxData ();
+// 	// void defineBC ();
+
+// 	int m_num_a_fabs = 0;
+// 	// m_a_coeffs[index of fab][amrlevel][mglevel]
+// 	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs; 
+
+};
 }
 	
 #endif
