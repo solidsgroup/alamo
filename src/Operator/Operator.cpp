@@ -456,10 +456,9 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 
 	MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
-
-	for (MFIter mfi(*pcrse, false); mfi.isValid(); ++mfi)
+	for (MFIter mfi(*pcrse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.validbox();
+		const Box& bx = mfi.tilebox();
 
 		amrex::Array4<const amrex::Real> const& fdata = fine.array(mfi);
 		amrex::Array4<amrex::Real> const& cdata       = pcrse->array(mfi);
@@ -526,16 +525,10 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 	amrex::Geometry geom = m_geom[amrlev][cmglev];
 	realFillBoundary(crse,geom);
 	nodalSync(amrlev, cmglev, crse);
-
-
-	// if (fine.contains_nan() || fine.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in fine");
-	// if (crse.contains_nan() || crse.contains_inf()) Util::Abort(INFO, "restriction (end) - nan or inf detected in crse");
 }
 
 void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
-	// Util::Message(INFO,"fine nghost = ", fine.nGrow());
-	// Util::Abort(INFO,"crse nghost = ", crse.nGrow());
 	BL_PROFILE("Operator::interpolation()");
 	int nghost = getNGrow();
 	amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
@@ -549,74 +542,57 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 		cfine.ParallelCopy(crse);
 		cmf = &cfine;
 	}
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
+
+	if (1)
+	for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
 	{
-		for (MFIter mfi(fine, false); mfi.isValid(); ++mfi)
+		const Box& fine_bx = mfi.validbox() & fdomain;
+		const Box& course_bx = amrex::coarsen(fine_bx,2);
+		const Box& tmpbx = amrex::refine(course_bx,2);
+		FArrayBox tmpfab;
+		tmpfab.resize(tmpbx,fine.nComp());
+		tmpfab.setVal(0.0);
+		const amrex::FArrayBox &crsefab = (*cmf)[mfi];
+
+		amrex::Array4<const amrex::Real> const& cdata = crsefab.const_array();
+		amrex::Array4<amrex::Real> const& fdata       = tmpfab.array();
+
+		for (int n = 0; n < crse.nComp(); n++)
 		{
-			//const Box& fine_bx = mfi.validbox();
-			//const Box& fine_bx = mfi.growntilebox(nghost-1) & fdomain;
-			//const Box& fine_bx = mfi.tilebox() & fdomain;
-			const Box& fine_bx = mfi.validbox() & fdomain;
+			// I,J,K == coarse coordinates
+			// i,j,k == fine coordinates
+			amrex::ParallelFor (fine_bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					
+					int I=i/2, J=j/2, K=k/2;
 
-			const Box& course_bx = amrex::coarsen(fine_bx,2);
-			const Box& tmpbx = amrex::refine(course_bx,2);
-			FArrayBox tmpfab;
-			tmpfab.resize(tmpbx,fine.nComp());
-			tmpfab.setVal(0.0);
-			
-			const amrex::FArrayBox &crsefab = (*cmf)[mfi];
-			
-			for (int i=0; i<crse.nComp(); i++)
-			{
-				AMREX_D_TERM(for (int m1 = fine_bx.loVect()[0]; m1<=fine_bx.hiVect()[0]; m1++),
-					     for (int m2 = fine_bx.loVect()[1]; m2<=fine_bx.hiVect()[1]; m2++),
-					     for (int m3 = fine_bx.loVect()[2]; m3<=fine_bx.hiVect()[2]; m3++))
-				{
-					amrex::IntVect m(AMREX_D_DECL(m1, m2, m3));
-					amrex::IntVect M(AMREX_D_DECL(m1/2, m2/2, m3/2));
-
-#if AMREX_SPACEDIM == 2
-					if (m[0]==2*M[0] && m[1]==2*M[1]) // Coincident
-						tmpfab(m,i) += crsefab(M,i);
-					else if (m[0]%2 == 0) // X Edge
-						tmpfab(m,i) += 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
-					else if (m[1]%2 == 0) // Y Edge
-						tmpfab(m,i) += 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
+					if (i%2 == 0 && j%2 == 0 && k%2 ==0) // Coincident
+						fdata(i,j,k,n) = cdata(I,J,K,n);
+					else if (j%2 == 0 && k%2 == 0) // X Edge
+						fdata(i,j,k,n) = 0.5 * (cdata(I,J,K,n) + cdata(I+1,J,K,n));
+					else if (k%2 == 0 && i%2 == 0) // Y Edge
+						fdata(i,j,k,n) = 0.5 * (cdata(I,J,K,n) + cdata(I,J+1,K,n));
+					else if (i%2 == 0 && j%2 == 0) // Z Edge
+						fdata(i,j,k,n) = 0.5 * (cdata(I,J,K,n) + cdata(I,J,K+1,n)); 
+					else if (i%2 == 0) // X Face
+						fdata(i,j,k,n) = 0.25 * (cdata(I,J,K,n)   + cdata(I,J+1,K,n) +
+									 cdata(I,J,K+1,n) + cdata(I,J+1,K+1,n));
+					else if (j%2 == 0) // Y Face
+						fdata(i,j,k,n) = 0.25 * (cdata(I,J,K,n)   + cdata(I,J,K+1,n) +
+									 cdata(I+1,J,K,n) + cdata(I+1,J,K+1,n));
+					else if (k%2 == 0) // Z Face
+						fdata(i,j,k,n) = 0.25 * (cdata(I,J,K,n)   + cdata(I+1,J,K,n) +
+									 cdata(I,J+1,K,n) + cdata(I+1,J+1,K,n));
 					else // Center
-					 	tmpfab(m,i) += 0.25 * (crsefab(M,i) + crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dx+dy,i));
-#endif
-#if AMREX_SPACEDIM == 3
+						fdata(i,j,k,n) = 0.125 * (cdata(I,J,K,n) +
+									  cdata(I+1,J,K,n)   + cdata(I,J+1,K,n)   + cdata(I,J,K+1,n) +
+									  cdata(I,J+1,K+1,n) + cdata(I+1,J,K+1,n) + cdata(I+1,J+1,K,n) +
+									  cdata(I+1,J+1,K+1,n));
 
-					if (m[0]==2*M[0] && m[1]==2*M[1] && m[2]==2*M[2]) // Coincident
-						tmpfab(m,i) = crsefab(M,i);
-					else if (m[1]==2*M[1] && m[2]==2*M[2]) // X Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dx,i));
-					else if (m[2]==2*M[2] && m[0]==2*M[0]) // Y Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dy,i));
-					else if (m[0]==2*M[0] && m[1]==2*M[1]) // Z Edge
-						tmpfab(m,i) = 0.5 * (crsefab(M,i) + crsefab(M+dz,i)); 
-					else if (m[0]==2*M[0]) // X Face
-						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dy,i) +
-								      crsefab(M+dz,i) + crsefab(M+dy+dz,i));
-					else if (m[1]==2*M[1]) // Y Face
-						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dz,i) +
-								      crsefab(M+dx,i) + crsefab(M+dz+dx,i));
-					else if (m[2]==2*M[2]) // Z Face
-						tmpfab(m,i) = 0.25 * (crsefab(M,i) + crsefab(M+dx,i) +
-								      crsefab(M+dy,i) + crsefab(M+dx+dy,i));
-					else // Center
-						tmpfab(m,i) = 0.125 * (crsefab(M,i) +
-								       crsefab(M+dx,i) + crsefab(M+dy,i) + crsefab(M+dz,i) +
-								       crsefab(M+dy+dz,i) + crsefab(M+dz+dx,i) + crsefab(M+dx+dy,i) +
-								       crsefab(M+dx+dy+dz,i));
-#endif
-				}
-			}
-			fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
+				});
 		}
+		fine[mfi].plus(tmpfab,fine_bx,fine_bx,0,0,fine.nComp());
 	}
+
 	amrex::Geometry geom = m_geom[amrlev][fmglev];
 	realFillBoundary(fine,geom);
 	nodalSync(amrlev, fmglev, fine);
