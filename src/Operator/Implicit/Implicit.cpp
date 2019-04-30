@@ -22,10 +22,10 @@ Implicit::Implicit (const Vector<Geometry>& a_geom,
 }
 
 void
-Implicit::Fapply (int amrlev, ///<[in] AMR Level
-		 int mglev,  ///<[in]
-		 MultiFab& f,///<[out] The force vector
-		 const MultiFab& u ///<[in] The displacements vector
+Implicit::Fapply (int /*amrlev*/, ///<[in] AMR Level
+		  int /*mglev*/,  ///<[in]
+		  MultiFab& /*f*/,///<[out] The force vector
+		  const MultiFab& /*u*/ ///<[in] The displacements vector
 		 ) const
 {
 	Util::Message(INFO);
@@ -33,11 +33,11 @@ Implicit::Fapply (int amrlev, ///<[in] AMR Level
 
 
 void
-Implicit::Fsmooth (int amrlev,          ///<[in] AMR level
-		  int mglev,           ///<[in]
-		  MultiFab& u,       ///<[inout] Solution (displacement field)
-		  const MultiFab& rhs, ///<[in] Body force vectors (rhs=right hand side)
-		  int redblack         ///<[in] Smooth even vs. odd modes
+Implicit::Fsmooth (int /*amrlev*/,          ///<[in] AMR level
+		   int /*mglev*/,           ///<[in]
+		   MultiFab& /*u*/,       ///<[inout] Solution (displacement field)
+		  const MultiFab& /*rhs*/, ///<[in] Body force vectors (rhs=right hand side)
+		   int /*redblack*/         ///<[in] Smooth even vs. odd modes
 		  ) const
 {
 	Util::Message(INFO);

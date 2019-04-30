@@ -94,7 +94,7 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 
 	int ncomp = b.nComp();
-	int nghost = b.nGrow();
+	int nghost = 2; //b.nGrow();
 	
 	Set::Scalar omega = 2./3.; // Damping factor (very important!)
 
@@ -104,26 +104,24 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	
 	if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
 
-	Set::Scalar residual = 0.0;
-
 	// This is a JACOBI iteration, not Gauss-Seidel.
 	// So we need to do twice the number of iterations to get the same behavior as GS.
 	for (int ctr = 0; ctr < 2; ctr++)
 	{
 		Fapply(amrlev,mglev,Ax,x); // find Ax
 
-		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,2); // Dx = x
-		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,2); // Dx *= diag  (Dx = x*diag)
+		amrex::MultiFab::Copy(Dx,x,0,0,ncomp,nghost); // Dx = x
+		amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,nghost); // Dx *= diag  (Dx = x*diag)
 
-		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,2); // Rx = Ax
-		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,2); // Rx -= Dx  (Rx = Ax - Dx)
+		amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,nghost); // Rx = Ax
+		amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,nghost); // Rx -= Dx  (Rx = Ax - Dx)
 
 		for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
 		{
 			const Box& bx = mfi.validbox();
 			amrex::FArrayBox       &xfab    = x[mfi];
 			const amrex::FArrayBox &bfab    = b[mfi];
-			const amrex::FArrayBox &Axfab   = Ax[mfi];
+			//const amrex::FArrayBox &Axfab   = Ax[mfi];
 			const amrex::FArrayBox &Rxfab   = Rx[mfi];
 			const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
@@ -144,9 +142,9 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 							 m[1] > domain.hiVect()[1] + 1, ||
 							 m[2] > domain.hiVect()[2] + 1)) continue;
 
-					if (AMREX_D_TERM(m[0] == bx.loVect()[0] - 2 || m[0] == bx.hiVect()[0] + 2, ||
-							 m[1] == bx.loVect()[1] - 2 || m[1] == bx.hiVect()[1] + 2, ||
-							 m[2] == bx.loVect()[2] - 2 || m[2] == bx.hiVect()[2] + 2))
+					if (AMREX_D_TERM(m[0] == bx.loVect()[0] - nghost || m[0] == bx.hiVect()[0] + nghost, ||
+							 m[1] == bx.loVect()[1] - nghost || m[1] == bx.hiVect()[1] + nghost, ||
+							 m[2] == bx.loVect()[2] - nghost || m[2] == bx.hiVect()[2] + nghost))
 					{
 						xfab(m,n) = 0.0;
 						continue;
@@ -179,7 +177,7 @@ void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& a_x) cons
 	{
 
 		Box bx = mfi.tilebox();
-		bx.grow(1);
+		bx.grow(nghost);
 		bx = bx & domain;
 
 		amrex::Array4<amrex::Real> const& x = a_x.array(mfi);
@@ -530,7 +528,7 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
 	BL_PROFILE("Operator::interpolation()");
-	int nghost = getNGrow();
+	//int nghost = getNGrow();
 	amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
 	
 	bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
@@ -717,7 +715,8 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 
  	applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
-	const int coarse_coarse_node = 0;
+	/// \todo Replace with Enum
+	// const int coarse_coarse_node = 0;
 	const int coarse_fine_node = 1;
 	const int fine_fine_node = 2;
 
@@ -732,7 +731,7 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 		const Box& bx = mfi.validbox();
 
 		amrex::Array4<const int> const& nmask = nodemask.array(mfi);
-		amrex::Array4<const int> const& cmask = cellmask.array(mfi);
+		//amrex::Array4<const int> const& cmask = cellmask.array(mfi);
 
 		amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
 		amrex::Array4<const amrex::Real> const& fdata       = fine_res.array(mfi);

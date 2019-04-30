@@ -41,7 +41,7 @@ CahnHilliard::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 }
 
 void
-CahnHilliard::Advance (int lev, Set::Scalar time, Set::Scalar dt)
+CahnHilliard::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
 {
 	std::swap(etaoldmf[lev], etanewmf[lev]);
 	const amrex::Real* DX = geom[lev].CellSize();
@@ -90,7 +90,7 @@ CahnHilliard::Initialize (int lev)
 
 
 void
-CahnHilliard::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+CahnHilliard::TagCellsForRefinement (int /*lev*/, amrex::TagBoxArray& /*tags*/, amrex::Real /*time*/, int /*ngrow*/)
 {
 }
 
