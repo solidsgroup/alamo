@@ -55,8 +55,8 @@ CahnHilliard::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 
 				Set::Scalar lap =
-					Numeric::Stencil::D<2,0,0>(eta,i,j,k,0,DX) +
-					Numeric::Stencil::D<0,2,0>(eta,i,j,k,0,DX);
+					Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,0,DX) +
+					Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,0,DX);
 
 				inter(i,j,k) =
 					eta(i,j,k)*eta(i,j,k)*eta(i,j,k)
@@ -70,8 +70,8 @@ CahnHilliard::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 
 				Set::Scalar lap = 
-					Numeric::Stencil::D<2,0,0>(inter,i,j,k,0,DX) +
-					Numeric::Stencil::D<0,2,0>(inter,i,j,k,0,DX);
+					Numeric::Stencil<Set::Scalar,2,0,0>::D(inter,i,j,k,0,DX) +
+					Numeric::Stencil<Set::Scalar,2,0,0>::D(inter,i,j,k,0,DX);
 
 				etanew(i,j,k) = eta(i,j,k) + dt*lap;
 			});

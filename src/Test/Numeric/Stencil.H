@@ -83,7 +83,7 @@ public:
 			const amrex::Box& bx = mfi.tilebox();
 			amrex::Array4<const amrex::Real> const& Phi = phi[0].array(mfi);
 			amrex::Array4<amrex::Real> const& DPhi    = DphiNumeric[0].array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int p, int q, int r){ DPhi(p,q,r) = ::Numeric::Stencil::D<i,j,k>(Phi,p,q,r,0,DX); });
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int p, int q, int r){ DPhi(p,q,r) = ::Numeric::Stencil<Set::Scalar,i,j,k>::D(Phi,p,q,r,0,DX); });
 		}
 
 		amrex::MultiFab diff(grids[0],dmap[0],ncomp,nghost);
