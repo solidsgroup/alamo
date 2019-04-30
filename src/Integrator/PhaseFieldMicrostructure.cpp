@@ -304,15 +304,15 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
  							// amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
 		
 
-							Set::Scalar grad1111 = Numeric::Stencil::D<4,0,0>(eta,i,j,k,m,DX);
+							Set::Scalar grad1111 = Numeric::Stencil<Set::Scalar,4,0,0>::D(eta,i,j,k,m,DX);
 			
-							Set::Scalar grad2222 = Numeric::Stencil::D<0,4,0>(eta,i,j,k,m,DX);
+							Set::Scalar grad2222 = Numeric::Stencil<Set::Scalar,0,4,0>::D(eta,i,j,k,m,DX);
 			
- 							amrex::Real grad1112 = Numeric::Stencil::D<3,1,0>(eta,i,j,k,m,DX);
+ 							amrex::Real grad1112 = Numeric::Stencil<Set::Scalar,3,1,0>::D(eta,i,j,k,m,DX);
 
-							amrex::Real grad1222 = Numeric::Stencil::D<1,3,0>(eta,i,j,k,m,DX);
+							amrex::Real grad1222 = Numeric::Stencil<Set::Scalar,1,3,0>::D(eta,i,j,k,m,DX);
 		
- 							amrex::Real grad1122 = Numeric::Stencil::D<2,2,0>(eta,i,j,k,m,DX);
+ 							amrex::Real grad1122 = Numeric::Stencil<Set::Scalar,2,2,0>::D(eta,i,j,k,m,DX);
 			
  							amrex::Real Curvature_term =
  								grad1111*(sinTheta*sinTheta*sinTheta*sinTheta)

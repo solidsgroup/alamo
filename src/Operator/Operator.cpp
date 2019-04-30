@@ -10,7 +10,7 @@
 using namespace amrex;
 namespace Operator {
 
-constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Node>::dx,Operator<Grid::Node>::dy,Operator<Grid::Node>::dz);
+// constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Node>::dx,Operator<Grid::Node>::dy,Operator<Grid::Node>::dz);
 constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Cell>::dx,Operator<Grid::Cell>::dy,Operator<Grid::Cell>::dz);
 
 void Operator<Grid::Node>::Diagonal (bool recompute)

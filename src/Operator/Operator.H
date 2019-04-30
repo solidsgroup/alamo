@@ -107,9 +107,9 @@ private:
 	bool m_is_bottom_singular = false;
 	bool m_masks_built = false;
 	/// \todo we need to get rid of this
-	static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
-	   					     dy = {AMREX_D_DECL(0,1,0)},
-	   					     dz = {AMREX_D_DECL(0,0,1)});
+	// static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
+	//    					     dy = {AMREX_D_DECL(0,1,0)},
+	//    					     dz = {AMREX_D_DECL(0,0,1)});
 protected:
 	int m_num_a_fabs = 0;
 	bool m_diagonal_computed = false;
