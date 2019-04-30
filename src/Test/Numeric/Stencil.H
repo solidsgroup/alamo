@@ -37,6 +37,7 @@ public:
 
 		geom[0].define(domain);
 		grids[0].define(domain);
+		grids[0].maxSize(ncells/2);
 		dmap[0].define(grids[0]);
 
 		phi[0].define(grids[0],dmap[0],1,nghost);

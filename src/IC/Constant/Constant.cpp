@@ -23,7 +23,7 @@ void Constant::Add(const int lev,
 				for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++)
 #endif
 			{
-				for (int m = 0; m < value.size(); m++)
+				for (unsigned int m = 0; m < value.size(); m++)
 					field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) = value[m];     
 			}
 	}

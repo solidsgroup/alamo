@@ -130,6 +130,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				Set::Matrix sig = C(i,j,k)(gradu);
 
 				// Boundary conditions
+				/// \todo Important: we need a way to handle corners and edges.
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
@@ -140,15 +141,15 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 							if (m[q] == domain.loVect()[q])
 							{
 								if      (m_bc_lo[q][p] == BC::Displacement) f(p) =   U(i,j,k,p);
-								else if (m_bc_lo[q][p] == BC::Traction)     f(p) += -sig(p,q);
-								else if (m_bc_lo[q][p] == BC::Neumann)      f(p) += -gradu(p,q);
+								else if (m_bc_lo[q][p] == BC::Traction)     f(p) = -sig(p,q);
+								else if (m_bc_lo[q][p] == BC::Neumann)      f(p) = -gradu(p,q);
 								else Util::Abort(INFO, "Invalid BC");
 							}
 							if (m[q] == domain.hiVect()[q])
 							{
 								if      (m_bc_hi[q][p] == BC::Displacement) f(p) = U(i,j,k,p);
-								else if (m_bc_hi[q][p] == BC::Traction)     f(p) += +sig(p,q);
-								else if (m_bc_hi[q][p] == BC::Neumann)      f(p) += +gradu(p,q);
+								else if (m_bc_hi[q][p] == BC::Traction)     f(p) = +sig(p,q);
+								else if (m_bc_hi[q][p] == BC::Neumann)      f(p) = +gradu(p,q);
 								else Util::Abort(INFO, "Invalid BC");
 
 							}
@@ -274,16 +275,16 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 						{
 							if (m[q] == domain.loVect()[q])
 							{
-								if      (m_bc_lo[q][p] == BC::Displacement) diag(i,j,k,p) += 1.0;
-								else if (m_bc_lo[q][p] == BC::Traction)     diag(i,j,k,p) += -sig(p,q);
-								else if (m_bc_lo[q][p] == BC::Neumann)      diag(i,j,k,p) += -gradu(p,q);
+								if      (m_bc_lo[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
+								else if (m_bc_lo[q][p] == BC::Traction)     diag(i,j,k,p) = -sig(p,q);
+								else if (m_bc_lo[q][p] == BC::Neumann)      diag(i,j,k,p) = -gradu(p,q);
 								else Util::Abort(INFO, "Invalid BC");
 							}
 							if (m[q] == domain.hiVect()[q])
 							{
-								if      (m_bc_hi[q][p] == BC::Displacement) diag(i,j,k,p) += 1.0;
-								else if (m_bc_hi[q][p] == BC::Traction)     diag(i,j,k,p) += sig(p,q);
-								else if (m_bc_hi[q][p] == BC::Neumann)      diag(i,j,k,p) += gradu(p,q);
+								if      (m_bc_hi[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
+								else if (m_bc_hi[q][p] == BC::Traction)     diag(i,j,k,p) = sig(p,q);
+								else if (m_bc_hi[q][p] == BC::Neumann)      diag(i,j,k,p) = gradu(p,q);
 								else Util::Abort(INFO, "Invalid BC");
 							}
 						}
@@ -743,7 +744,7 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 		}
 		//fine_on_crseba.ParallelCopy(fine,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
 		//fine.ParallelCopy(fine_on_crseba,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
-		FillBoundaryCoeff(crse,m_geom[amrlev][mglev+1]);
+		FillBoundaryCoeff(crse,m_geom[amrlev][mglev]);
 	}
 }
 

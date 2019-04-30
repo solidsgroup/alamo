@@ -879,7 +879,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	elastic_operator.SetBC({{AMREX_D_DECL(bc_x_lo,bc_y_lo,bc_z_lo)}},
 			       {{AMREX_D_DECL(bc_x_hi,bc_y_hi,bc_z_hi)}});
 
-	int number_of_ghost_cells = 2;
+	//int number_of_ghost_cells = 2;
 	
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)

@@ -43,9 +43,9 @@ struct Stencil<T,0,1,0>
 		   const Set::Scalar dx[AMREX_SPACEDIM],
 		   StencilType stencil[AMREX_SPACEDIM] = DefaultType)
 	{
-		if (stencil[0] == StencilType::Lo)
+		if (stencil[1] == StencilType::Lo)
 			return (f(i,j,k,m) - f(i,j-1,k,m)) / dx[1];
-		else if (stencil[0] == StencilType::Hi)
+		else if (stencil[1] == StencilType::Hi)
 			return (f(i,j+1,k,m) - f(i,j,k,m)) / dx[1];
 		else
 			return (f(i,j+1,k,m) - f(i,j-1,k,m))*0.5 / dx[1];
@@ -61,9 +61,9 @@ struct Stencil<T,0,0,1>
 		   const Set::Scalar dx[AMREX_SPACEDIM],
 		   StencilType stencil[AMREX_SPACEDIM] = DefaultType)
 	{
-		if (stencil[0] == StencilType::Lo)
+		if (stencil[2] == StencilType::Lo)
 			return (f(i,j,k,m) - f(i,j,k-1,m)) / dx[2];
-		else if (stencil[0] == StencilType::Hi)
+		else if (stencil[2] == StencilType::Hi)
 			return (f(i,j,k+1,m) - f(i,j,k,m)) / dx[2];
 		else
 			return (f(i,j,k+1,m) - f(i,j,k-1,m))*0.5 / dx[2];
