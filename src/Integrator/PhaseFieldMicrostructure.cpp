@@ -5,6 +5,7 @@
 #include "IC/Random.H"
 #include "IC/Trig.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Numeric/Stencil.H"
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -104,9 +105,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	 */
   
 	eta_new_mf.resize(maxLevel()+1);
-
-	// amrex::ParallelDescriptor::Barrier();
-	// amrex::Abort("No error, just exiting here");
 
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta");
 	//eta_old_mf.resize(maxLevel()+1);
@@ -242,170 +240,144 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
 
-	for ( amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi )
+	if (1)
 	{
-		const amrex::Box& bx = mfi.tilebox();
-		FArrayBox &eta_new_box     = (*eta_new_mf[lev])[mfi];
-		FArrayBox &eta_old     = (*eta_old_mf[lev])[mfi];
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
+		for ( amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi )
 		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+			const amrex::Box& bx = mfi.tilebox();
+			amrex::Array4<const amrex::Real> const& eta = (*eta_old_mf[lev]).array(mfi);
+			amrex::Array4<amrex::Real> const& etanew    = (*eta_new_mf[lev]).array(mfi);
+			//amrex::Array4<const amrex::Real> const& elasticenergy = (*energies[lev]).array(mfi);
+
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+					//amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			
-			for (int i = 0; i < number_of_grains; i++)
-			{
-		  
-				//
-				// CHEMICAL POTENTIAL
-				//
-
-				amrex::Real sum_of_squares = 0.;
-				for (int j = 0; j < number_of_grains; j++)
-				{
-					if (i==j) continue;
-					sum_of_squares += eta_old(m,j)*eta_old(m,j);
-				}
-
-				//
-				// BOUNDARY TERM
-				// and
-				// CURVATURE PENALTY
-				//
-
-				// amrex::Real grad1 =  grad1_normal;
-				// amrex::Real grad2 =  grad2_normal;
-				// amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
-				amrex::Real AMREX_D_DECL(grad11 = (eta_old(m+dx,i) - 2.*eta_old(m,i) + eta_old(m-dx,i))/DX[0]/DX[0],
-							 grad22 = (eta_old(m+dy,i) - 2.*eta_old(m,i) + eta_old(m-dy,i))/DX[1]/DX[1],
-							 grad33 = (eta_old(m+dz,i) - 2.*eta_old(m,i) + eta_old(m-dz,i))/DX[2]/DX[2]);
-		      
-				amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
-
-				amrex::Real kappa = l_gb*0.75*sigma0;
-				mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
-
-				if (anisotropy && time > anisotropy_tstart)
-				{
-#if AMREX_SPACEDIM == 2
-					amrex::Real grad1 = (eta_old(m+dx,i) - eta_old(m-dx,i))/(2*DX[0]);
-					amrex::Real grad2 = (eta_old(m+dy,i) - eta_old(m-dy,i))/(2*DX[1]);
-
-					amrex::Real grad12 = (eta_old(m+dx+dy,i) - eta_old(m-dx+dy,i) - eta_old(m+dx-dy,i) + eta_old(m-dx-dy))/(4.*DX[0]*DX[1]);
-
-					amrex::Real Theta = atan2(grad2,grad1);
-					amrex::Real Kappa = l_gb*0.75*boundary->W(Theta);
-					amrex::Real DKappa = l_gb*0.75*boundary->DW(Theta);
-					amrex::Real DDKappa = l_gb*0.75*boundary->DDW(Theta);
-					amrex::Real Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
-					amrex::Real Sine_theta = sin(Theta);
-					amrex::Real Cos_theta = cos(Theta);
-		
-					// amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
-		
-					amrex::Real grad1111=(1/(DX[0]*DX[0]*DX[0]*DX[0])) * ((ETA(m1+2,m2,m3,i)) - 4*(ETA(m1+1,m2,m3,i))+6*(ETA(m1,m2,m3,i)) - 4*(ETA(m1-1,m2,m3,i)) + (ETA(m1-2,m2,m3,i)));
-			
-					amrex::Real grad2222=(1/(DX[1]*DX[1]*DX[1]*DX[1])) * ((ETA(m1,m2+2,m3,i)) - 4*(ETA(m1,m2+1,m3,i))+6*(ETA(m1,m2,m3,i)) - 4*(ETA(m1,m2-1,m3,i)) + (ETA(m1,m2-2,m3,i)));
-			
-					amrex::Real grad1112= (1/(24*DX[0]*DX[0]*DX[0]*DX[1]))*
-						((-ETA(m1+2,m2+2,m3,i)+8*ETA(m1+2,m2+1,m3,i)
-						  -8*ETA(m1+2,m2-1,m3,i)+ETA(m1+2,m2-2,m3,i))
-						 -2*(-ETA(m1+1,m2+2,m3,i)+8*ETA(m1+1,m2+1,m3,i)
-						     -8*ETA(m1+1,m2-1,m3,i)+ETA(m1+1,m2-2,m3,i))
-						 +2*(-ETA(m1-1,m2+2,m3,i)+8*ETA(m1-1,m2+1,m3,i)
-						     -8*ETA(m1-1,m2-1,m3,i)+ETA(m1-1,m2-2,m3,i))
-						 -(-ETA(m1-2,m2+2,m3,i)+8*ETA(m1-2,m2+1,m3,i)
-						   -8*ETA(m1-2,m2-1,m3,i)+ETA(m1-2,m2-2,m3,i)));
-			
-					amrex::Real grad1222= (1/(24*DX[0]*DX[1]*DX[1]*DX[1]))*
-						((-ETA(m1+2,m2+2,m3,i)+8*ETA(m1+1,m2+2,m3,i)
-						  -8*ETA(m1-1,m2+2,m3,i)+ETA(m1-2,m2+2,m3,i))
-						 -2*(-ETA(m1+2,m2+1,m3,i)+8*ETA(m1+1,m2+1,m3,i)
-						     -8*ETA(m1-1,m2+1,m3,i)+ETA(m1-2,m2+1,m3,i))
-						 +2*(-ETA(m1+2,m2-1,m3,i)+8*ETA(m1+1,m2-1,m3,i)
-						     -8*ETA(m1-1,m2-1,m3,i)+ETA(m1-2,m2-1,m3,i))
-						 -(-ETA(m1+2,m2-2,m3,i)+8*ETA(m1+1,m2-2,m3,i)
-						   -8*ETA(m1-1,m2-2,m3,i)+ETA(m1-2,m2-2,m3,i)));
-			
-					amrex::Real grad1122= (1/(144*DX[0]*DX[0]*DX[1]*DX[1]))*
-						(-(-ETA(m1+2,m2+2,m3,i)+16*ETA(m1+1,m2+2,m3,i)-30*ETA(m1,m2+2,m3,i)
-						   +16*ETA(m1-1,m2+2,m3,i)-ETA(m1-2,m2+2,m3,i))
-						 +16*(-ETA(m1+2,m2+1,m3,i)+16*ETA(m1+1,m2+1,m3,i)-30*ETA(m1,m2+1,m3,i)
-						      +16*ETA(m1-1,m2+1,m3,i)-ETA(m1-2,m2+1,m3,i))
-						 -30*(-ETA(m1+2,m2,m3,i)+16*ETA(m1+1,m2,m3,i)-30*ETA(m1,m2,m3,i)
-						      +16*ETA(m1-1,m2,m3,i)-ETA(m1-2,m2,m3,i))
-						 +16*(-ETA(m1+2,m2-1,m3,i)+16*ETA(m1+1,m2-1,m3,i)-30*ETA(m1,m2-1,m3,i)
-						      +16*ETA(m1-1,m2-1,m3,i)-ETA(m1-2,m2-1,m3,i))
-						 -(-ETA(m1+2,m2-2,m3,i)+16*ETA(m1+1,m2-2,m3,i)-30*ETA(m1,m2-2,m3,i)
-						   +16*ETA(m1-1,m2-2,m3,i)-ETA(m1-2,m2-2,m3,i)));
-			
-					amrex::Real Curvature_term =
-						grad1111*(Sine_theta*Sine_theta*Sine_theta*Sine_theta)
-						+grad1112*(-4*Sine_theta*Sine_theta*Sine_theta*Cos_theta)
-						+grad1122*(6*Sine_theta*Sine_theta*Cos_theta*Cos_theta)
-						+grad1222*(-4*Sine_theta*Cos_theta*Cos_theta*Cos_theta)
-						+grad2222*(Cos_theta*Cos_theta*Cos_theta*Cos_theta);
-
-					amrex::Real W =
-						Mu*(ETA(m1,m2,m3,i)*ETA(m1,m2,m3,i)
-						    - 1.0 + 2.0*gamma*sum_of_squares)*ETA(m1,m2,m3,i);
-
-					amrex::Real Boundary_term =
-						Kappa*laplacian +
-						DKappa*(cos(2.0*Theta)*grad12 + 0.5*sin(2.0*Theta)*(grad22-grad11))
-						+ 0.5*DDKappa*(Sine_theta*Sine_theta*grad11 - 2.*Sine_theta*Cos_theta*grad12 + Cos_theta*Cos_theta*grad22);
-			
-			
-					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) =
-						ETA(m1,m2,m3,i) -
-						M*dt*(W - (Boundary_term) + beta*(Curvature_term));
-#else
-					Util::Abort(INFO, "Anisotropy is enabled but works in 2D ONLY");
-#endif
-				}
-				else // Isotropic response if less than anisotropy_tstart
-				{
-					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) =
-						ETA(m1,m2,m3,i) -
-						M*dt*(mu*(ETA(m1,m2,m3,i)*ETA(m1,m2,m3,i)
-							  - 1.0 +
-							  2.0*gamma*sum_of_squares)*ETA(m1,m2,m3,i)
-						      - kappa*laplacian);
-				}
-
-				//
-				// SYNTHETIC DRIVING FORCE
-				//
-				if (sdf_on)
-				{
-					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i) -=  M*dt*(sdf[i]);
-				}
-
-				//
-				// ELASTIC DRIVING FORCE
-				//
-				if (elastic.on && time > elastic.tstart)
-				{
-					if (elastic.grid == Grid::Cell)
+					for (int m = 0; m < number_of_grains; m++)
 					{
-					FArrayBox &energiesfab     = (*energies[lev])[mfi];
+						//
+						// CHEMICAL POTENTIAL
+						//
 
-					eta_new_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i)
-						-= M*dt*( energiesfab(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),i));
-					}
-				}
+						amrex::Real sum_of_squares = 0.;
+						for (int n = 0; n < number_of_grains; n++)
+						{
+							if (m==n) continue;
+							sum_of_squares += eta(i,j,k,n)*eta(i,j,k,n);
+						}
 
-			}
-	      
+						//
+						// BOUNDARY TERM
+						// and
+						// CURVATURE PENALTY
+						//
+
+						amrex::Real AMREX_D_DECL(grad11 = (eta(i+1,j,k,m) - 2.*eta(i,j,k,m) + eta(i-1,j,k,m))/DX[0]/DX[0],
+						 			 grad22 = (eta(i,j+1,k,m) - 2.*eta(i,j,k,m) + eta(i,j-1,k,m))/DX[1]/DX[1],
+						 			 grad33 = (eta(i,j,k+1,m) - 2.*eta(i,j,k,m) + eta(i,j,k-1,m))/DX[2]/DX[2]);
+		      
+						amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
+
+						amrex::Real kappa = l_gb*0.75*sigma0;
+						mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
+
+ 						if (anisotropy && time > anisotropy_tstart)
+ 						{
+#if AMREX_SPACEDIM == 2
+							Set::Vector Deta;
+							Deta(0) = (eta(i+1,j,k,m) - eta(i-1,j,k,m))/(2.*DX[0]); // replaces grad1
+							Deta(1) = (eta(i,j+1,k,m) - eta(i,j-1,k,m))/(2.*DX[0]); // replaces grad2
+
+							Set::Matrix DDeta;
+							DDeta(0,0) = (eta(i+1,j,k,m) - 2.*eta(i,j,k,m) + eta(i-1,j,k,m))/DX[0]/DX[0]; // replaces grad11
+							DDeta(1,1) = (eta(i,j+1,k,m) - 2.*eta(i,j,k,m) + eta(i,j-1,k,m))/DX[1]/DX[1]; // replaces grad22
+							DDeta(0,1) = (eta(i+1,j+1,k,m) - eta(i-1,j+1,k,m) - eta(i+1,j-1,k,m) + eta(i-1,j-1,k,m))/(4.*DX[0]*DX[1]); // replaces grad12
+
+ 							Set::Scalar Theta = atan2(Deta(1),Deta(0));
+							Set::Scalar Kappa = l_gb*0.75*boundary->W(Theta);
+ 							Set::Scalar DKappa = l_gb*0.75*boundary->DW(Theta);
+							Set::Scalar DDKappa = l_gb*0.75*boundary->DDW(Theta);
+ 							Set::Scalar Mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
+ 							Set::Scalar sinTheta = sin(Theta);
+ 							Set::Scalar cosTheta = cos(Theta);
+		
+ 							// amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
+		
+
+							Set::Scalar grad1111 = Numeric::Stencil<Set::Scalar,4,0,0>::D(eta,i,j,k,m,DX);
+			
+							Set::Scalar grad2222 = Numeric::Stencil<Set::Scalar,0,4,0>::D(eta,i,j,k,m,DX);
+			
+ 							amrex::Real grad1112 = Numeric::Stencil<Set::Scalar,3,1,0>::D(eta,i,j,k,m,DX);
+
+							amrex::Real grad1222 = Numeric::Stencil<Set::Scalar,1,3,0>::D(eta,i,j,k,m,DX);
+		
+ 							amrex::Real grad1122 = Numeric::Stencil<Set::Scalar,2,2,0>::D(eta,i,j,k,m,DX);
+			
+ 							amrex::Real Curvature_term =
+ 								grad1111*(sinTheta*sinTheta*sinTheta*sinTheta)
+ 								+grad1112*(4.0*sinTheta*sinTheta*sinTheta*cosTheta)
+ 								+grad1122*(6.0*sinTheta*sinTheta*cosTheta*cosTheta)
+ 								+grad1222*(4.0*sinTheta*cosTheta*cosTheta*cosTheta)
+ 								+grad2222*(cosTheta*cosTheta*cosTheta*cosTheta);
+
+ 							amrex::Real W =
+ 								Mu*(eta(i,j,k,m)*eta(i,j,k,m) - 1.0 + 2.0*gamma*sum_of_squares)*eta(i,j,k,m);
+							if (std::isnan(W)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+
+ 							amrex::Real Boundary_term =
+ 								Kappa*laplacian +
+ 								DKappa*(cos(2.0*Theta)*DDeta(0,1) + 0.5*sin(2.0*Theta)*(DDeta(1,1) - DDeta(0,0)))
+ 								+ 0.5*DDKappa*(sinTheta*sinTheta*DDeta(0,0) - 2.*sinTheta*cosTheta*DDeta(0,1) + cosTheta*cosTheta*DDeta(1,1));
+							if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+			
+			
+ 							etanew(i,j,k,m) = eta(i,j,k,m) - M*dt*(W - (Boundary_term) + beta*(Curvature_term));
+							if (std::isnan(etanew(i,j,k,m))) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+#else
+ 							Util::Abort(INFO, "Anisotropy is enabled but works in 2D ONLY");
+#endif
+ 						}
+ 						else // Isotropic response if less than anisotropy_tstart
+ 						{
+ 							etanew(i,j,k,m) =
+ 								eta(i,j,k,m) -
+ 								M*dt*(mu*(eta(i,j,k,m)*eta(i,j,k,m) - 1.0 + 2.0*gamma*sum_of_squares)*eta(i,j,k,m)
+ 								      - kappa*laplacian);
+ 						}
+
+ 						//
+ 						// SYNTHETIC DRIVING FORCE
+ 						//
+ 						if (sdf_on)
+ 						{
+ 							etanew(i,j,k,m) -=  M*dt*(sdf[i]);
+ 						}
+
+ 						//
+ 						// ELASTIC DRIVING FORCE
+ 						//
+
+ 						// if (elastic.on && time > elastic.tstart)
+ 						// {
+						// 	if (elastic.grid == Grid::Cell)
+						// 		etanew(i,j,k,m) -= M*dt*( elasticenergy(i,j,k,m));
+ 						// }
+
+ 					}
+					
+				});
 		}
 	}
-
 }
 
 void
 PhaseFieldMicrostructure::Initialize (int lev)
 {
+	eta_new_mf[lev]->setVal(0.0);
+	eta_old_mf[lev]->setVal(0.0);
+
+
 	ic->Initialize(lev,eta_new_mf);
 	ic->Initialize(lev,eta_old_mf);
   
