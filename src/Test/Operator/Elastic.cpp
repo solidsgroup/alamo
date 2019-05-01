@@ -494,7 +494,6 @@ int Elastic::UniaxialTest(int verbose,
 	using model_type = Model::Solid::LinearElastic::Isotropic;
 	Set::Scalar lame=2.6, shear=6.0;
 	model_type model(lame,shear);
-	//IC::Random() model_type(); NO!
 	//model.Randomize();
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
@@ -503,11 +502,8 @@ int Elastic::UniaxialTest(int verbose,
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
 	Set::Vector myvec(AMREX_D_DECL(0.0, 0.0, 0.0));
-	Set::Vector myvec1(AMREX_D_DECL(0.1, 0.0, 0.0));
-
-	//Set::Vector myvec; myvec[0]=0.0; myvec[1]=0.0;
-	//Set::Vector myvec1; myvec1[0]=0.1; myvec1[1]=0.0;
-
+	Set::Vector myvec1(AMREX_D_DECL(0.0, 0.1, 0.0));
+	
 	//rhs_prescribed - BODY FORCE
 	std::complex<int> i(0,1);
 	//IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i));
@@ -522,7 +518,7 @@ int Elastic::UniaxialTest(int verbose,
 	//IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
 	IC::Affine icexact(geom, myvec1, 1.0, Set::Vector::Zero(), false, 1.0);
 	icexact.SetComp(component); //exact solution
-
+	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		solution_exact  [ilev].setVal(0.0);
@@ -553,13 +549,13 @@ int Elastic::UniaxialTest(int verbose,
 					if (j == geom[ilev].Domain().loVect()[1])
 					  {rhs(m,0) = 0.0;rhs(m,1) = 0.0;}, //set components on y min face
 					if (k == geom[ilev].Domain().loVect()[2])
-					  {rhs(m,0) = 0.0;rhs(m,1) = 0.0} ); //z min face
+					  {rhs(m,0) = 0.0;rhs(m,1) = 0.0;}); //z min face
 			  AMREX_D_TERM( if (i == geom[ilev].Domain().hiVect()[0]+1)
-					  {rhs(m,0) = 0.1; rhs(m,1) = 0.0;}, //set components on x max face
+					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0;}, //set components on x max face
 					if (j == geom[ilev].Domain().hiVect()[1]+1)
-					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0;}, //set components on y max face
+					  {rhs(m,0) = 0.0; rhs(m,1) = 0.1;}, //set components on y max face
 					if (k == geom[ilev].Domain().hiVect()[2]+1)
-					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0} ); //z max face
+					  {rhs(m,0) = 0.0; rhs(m,1) = 0.0;} ); //z max face
 			}
 		}
 		//icexact.Initialize(ilev,solution_numeric); //function?
@@ -583,17 +579,18 @@ int Elastic::UniaxialTest(int verbose,
 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
- 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)},
-				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)})}},
- 		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)},
+ 	elastic.SetBC({{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}},
+ 		      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,bctype::Displacement)},
+				     {AMREX_D_DECL(bctype::Traction,bctype::Displacement,bctype::Displacement)},
 				     {AMREX_D_DECL(bctype::Traction,bctype::Traction,bctype::Traction)})}});
 
 
 	amrex::MLMG mlmg(elastic);
 	mlmg.setMaxIter(100);
 	mlmg.setMaxFmgIter(20);
+	//mlmg.setMaxCoarseningLevel(0); //New command
  	if (verbose)
  	{
  		mlmg.setVerbose(verbose);
