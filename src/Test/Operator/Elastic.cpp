@@ -517,7 +517,7 @@ int Elastic::UniaxialTest(int verbose,
 	//Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM); //dim=2 -> 2D ; dim=3 ->3D
 	//IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
 	IC::Affine icexact(geom, myvec1, 1.0, Set::Vector::Zero(), false, 1.0);
-	icexact.SetComp(component); //exact solution
+	icexact.SetComp(1); //exact solution
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -615,8 +615,9 @@ int Elastic::UniaxialTest(int verbose,
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
-		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,1);
+	        //amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
+		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],0,0,AMREX_SPACEDIM,1);
+		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],0,0,AMREX_SPACEDIM,1);
 	}
 	
 
@@ -630,8 +631,8 @@ int Elastic::UniaxialTest(int verbose,
 	// Compute the numeric residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],component,component,1,0);
-		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],component,component,1,0);
+		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],0,0,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],0,0,AMREX_SPACEDIM,0);
 	}
 	for (int ilev = nlevels-1; ilev > 0; ilev--)
 	 	elastic.Reflux(0,
@@ -641,8 +642,8 @@ int Elastic::UniaxialTest(int verbose,
 	// Compute the exact residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],component,component,1,0);
-		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],component,component,1,0);
+		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],0,0,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],0,0,AMREX_SPACEDIM,0);
 	}
 	for (int ilev = nlevels-1; ilev > 0; ilev--)
 	 	elastic.Reflux(0,
@@ -661,9 +662,16 @@ int Elastic::UniaxialTest(int verbose,
 	}
 
 	// Find maximum solution error
-	std::vector<Set::Scalar> error_norm(nlevels);
-	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0].norm0(component,0,false) / solution_exact[0].norm0(component,0,false);
-	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
+	Set::Scalar norm = 0.0, total = 0.0;
+	for (int i = 0; i < nlevels; i++)
+	  {
+	    for (int j = 0; j < AMREX_SPACEDIM; j++)
+	      {
+		total += solution_exact[i].norm0(j);
+		norm += solution_error[i].norm0(j) ;
+	      }
+	  }
+	Set::Scalar maxnorm = fabs(norm/total);
 
 	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");
 	          
