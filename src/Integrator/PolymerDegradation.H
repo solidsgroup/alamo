@@ -205,7 +205,7 @@ private:
 			Numeric::Interpolator::Linear<Set::Vector> interpolate_top;
 			,
 			Numeric::Interpolator::Linear<Set::Vector> interpolate_back;
-			Numeric::Interpolator::Linear<Set::Vector> interpolate_front;);
+			Numeric::Interpolator::Linear<Set::Vector> interpolate_front;)
 
 
 
