@@ -373,7 +373,7 @@ Integrator::InitData ()
 	}
   
 	if (plot_int > 0) {
-		for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
+		for (int ilev = 0; ilev < finest_level+1; ilev++) 
 		WritePlotFile();
 	}
 }
@@ -451,29 +451,28 @@ Integrator::WritePlotFile () const
 
 	amrex::Vector<MultiFab> cplotmf(nlevels), nplotmf(nlevels);
   
-	for (int ilev = 0; ilev < nlevels; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
-		if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		amrex::BoxArray ngrids = grids[ilev];
-		if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		ngrids.convert(amrex::IntVect::TheNodeVector());
-		if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
-		if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 
 		int n = 0;
 		for (int i = 0; i < cell.number_of_fabs; i++)
 		{
-			if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,cnames[i]," contains nans (i=",i,")");
-			if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,cnames[i]," contains inf (i=",i,")");
+			amrex::IntVect where;
+			// if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
+			// if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
+
+			if ((*cell.fab_array[i])[ilev]->contains_nan(0,(*cell.fab_array[i])[ilev]->nComp()))
+				for (MFIter mfi(*(*cell.fab_array[i])[ilev],false);mfi.isValid();++mfi)
+					if ((*(*cell.fab_array[i])[ilev])[mfi].contains_nan(where))
+						Util::Abort(INFO,cnames[i]," contains nans (i=",i,") on level ilev=",ilev," at ", where);
+
 			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 			n += cell.ncomp_array[i];
 		}
-
-		if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 
 		n = 0;
 		for (int i = 0; i < node.number_of_fabs; i++)
@@ -532,13 +531,9 @@ Integrator::Evolve ()
 		}
 		int lev = 0;
 		int iteration = 1;
-		for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		TimeStepBegin(cur_time,step);
-		for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		IntegrateVariables(cur_time,step);
-		for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		TimeStep(lev, cur_time, iteration);
-		for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		TimeStepComplete(cur_time,step);
 		cur_time += dt[0];
 
@@ -548,7 +543,6 @@ Integrator::Evolve ()
 				  << std::endl;
 		}
 
-		for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		// sync up time
 		for (int lev = 0; lev <= finest_level; ++lev) {
 			t_new[lev] = cur_time;
@@ -556,7 +550,6 @@ Integrator::Evolve ()
 
 		if (plot_int > 0 && (step+1) % plot_int == 0) {
 			last_plot_file_step = step+1;
-			for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 			WritePlotFile();
 			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));
 		}
@@ -564,7 +557,6 @@ Integrator::Evolve ()
 		if (cur_time >= stop_time - 1.e-6*dt[0]) break;
 	}
 	if (plot_int > 0 && istep[0] > last_plot_file_step) {
-		for (int ilev = 0; ilev < finest_level+1; ilev++) if ((*node.fab_array[3])[ilev]->contains_nan()) Util::Abort(INFO);
 		WritePlotFile();
 	}
 }
