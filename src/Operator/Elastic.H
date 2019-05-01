@@ -64,7 +64,7 @@ public:
 		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs)
 	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
 
-	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const override;
+	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 protected:

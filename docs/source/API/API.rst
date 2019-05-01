@@ -8,8 +8,11 @@ This is basic documentation for the Alamo.
    :caption: Contents:
 
    Integrator/Integrator
-   Operator/Operator
    Model/Model
+   Numeric/Numeric
+   Operator/Operator
    Test/Test
 
 
+
+.. todolist::

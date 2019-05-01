@@ -69,7 +69,7 @@ public:
 	{return Laplacian(alpha*beta);}
 
 private:
-	Set::Scalar alpha; ///< Coefficient
+	Set::Scalar alpha = NAN; ///< Coefficient
 };
 
 }
