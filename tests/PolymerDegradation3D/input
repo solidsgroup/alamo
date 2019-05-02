@@ -22,12 +22,13 @@
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 0.02
+stop_time = 0.01
 #===========================================================================
 
 #=============== AMR parameters ============================================
-amr.plot_int = 1
-amr.max_level = 0
+amr.plot_int = 5
+amr.max_level = 2
+#amr.max_grid_size = 4
 amr.n_cell = 16 16 16
 amr.blocking_factor = 4
 amr.regrid_int = 10
@@ -48,7 +49,8 @@ water.refinement_threshold = 0.01
 
 water.ic_type = constant
 water.ic.value = 0.0
-water.bc.lo = EXT_DIR EXT_DIR EXT_DIR
+water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
+#water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
 water.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 water.bc.lo_1 = 1.0
 water.bc.hi_1 = 1.0
@@ -80,7 +82,7 @@ damage.tau_i = 24 24
 damage.t_start_i = 0 24
 damage.ic_type = constant
 damage.ic.value = 0.0
-damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
+damage.bc.lo = INT_DIR INT_DIR INT_DIR
 damage.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 damage.bc.lo_1 = 0.0
 damage.bc.hi_1 = 0.0
@@ -98,11 +100,11 @@ elastic.composite_solve	= 1
 elastic.verbose			= 3
 elastic.cg_verbose 		= 0
 elastic.max_iter		= 1000
-elastic.max_fmg_iter 	= 100
-elastic.bottom_max_iter = 400
-elastic.max_fixed_iter = 50
+elastic.max_fmg_iter 	= 1000
+elastic.bottom_max_iter = 1000
+elastic.max_fixed_iter = 100
 elastic.linop_maxorder 	= 2
-elastic.max_coarsening_level = 10000
+elastic.max_coarsening_level = 100000
 elastic.agglomeration 	= 1
 elastic.consolidation 	= 1
 elastic.tol_rel			=  1.0e-6
@@ -113,32 +115,38 @@ elastic.tstart 			= 0.0
 elastic.tend			= 100.0
 elastic.use_fsmooth = 1
 
-elastic.body_force     = 0.0 -0.00001 0.0
+elastic.body_force     = 0.0 0.0001 0.0
 
-#elastic.bc.bc_x_lo = disp disp disp
-#elastic.bc.bc_x_lo = disp neumann neumann
+#
+# These BCs are for a SYMMETRIC simulation
+#
 elastic.bc.bc_x_lo = trac trac trac
-#################
-#elastic.bc.bc_y_lo = disp disp disp
-#elastic.bc.bc_y_lo = neumann disp neumann
 elastic.bc.bc_y_lo = trac trac trac
-#################
-elastic.bc.bc_z_lo = disp disp disp
-
-#elastic.bc.bc_x_hi = disp disp disp
+elastic.bc.bc_z_lo = trac trac disp
 elastic.bc.bc_x_hi = disp neumann neumann
-#elastic.bc.bc_x_hi = trac trac trac
-#################
-#elastic.bc.bc_y_hi = disp disp disp
 elastic.bc.bc_y_hi = neumann disp neumann
-#elastic.bc.bc_y_hi = trac trac trac
-#################
 elastic.bc.bc_z_hi = disp disp disp
-
 elastic.bc.left_face = 0.0 0.0 0.0
 elastic.bc.right_face = 0.0 0.0 0.0
 elastic.bc.bottom_face = 0.0 0.0 0.0
 elastic.bc.top_face = 0.0 0.0 0.0
 elastic.bc.back_face = 0.0 0.0 0.0
 elastic.bc.front_face = 0.0 0.0 1.0
+
+#
+# These BCs are for a FULL simulation
+#
+#elastic.bc.bc_x_lo = disp disp disp
+#elastic.bc.bc_y_lo = trac trac trac
+#elastic.bc.bc_z_lo = trac trac trac
+#elastic.bc.bc_x_hi = disp disp disp
+#elastic.bc.bc_y_hi = neumann disp neumann
+#elastic.bc.bc_z_hi = neumann neumann disp
+#elastic.bc.left_face = 0.0 0.0 0.0
+#elastic.bc.right_face = 1.0 0.0 0.0
+#elastic.bc.bottom_face = 0.0 0.0 0.0
+#elastic.bc.top_face = 0.0 0.0 0.0
+#elastic.bc.back_face = 0.0 0.0 0.0
+#elastic.bc.front_face = 0.0 0.0 0.0
+
 #===========================================================================

@@ -56,20 +56,23 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
 
-	int nghost = model[amrlev][0]->nGrow();
-	for (MFIter mfi(a_model, false); mfi.isValid(); ++mfi)
-	{
-		const Box& bx = mfi.validbox();
-		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
-		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]-nghost; m1<=bx.hiVect()[0]+nghost; m1++),
-			     for (int m2 = bx.loVect()[1]-nghost; m2<=bx.hiVect()[1]+nghost; m2++),
-			     for (int m3 = bx.loVect()[2]-nghost; m3<=bx.hiVect()[2]+nghost; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			modelfab(m) = a_modelfab(m);
-		}
+	int nghost = model[amrlev][0]->nGrow();
+
+	for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+	{
+		Box bx = mfi.tilebox();
+		bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+		bx = bx & domain;  // Take intersection of box and the problem domain
+			
+		amrex::Array4<T> const& C         = (*(model[amrlev][0])).array(mfi);
+		amrex::Array4<const T> const& a_C = a_model.array(mfi);
+
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				C(i,j,k) = a_C(i,j,k);
+			});
 	}
 }
 
@@ -686,13 +689,12 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 		for (MFIter mfi(crse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			Box bx = mfi.tilebox();
-			bx.grow(2);
 			bx = bx & cdomain;
 
 			amrex::Array4<const T> const& fdata = fine_on_crseba.array(mfi);
 			amrex::Array4<T> const& cdata       = crse.array(mfi);
 
-			const Dim3 lo= amrex::lbound(bx), hi = amrex::ubound(bx);
+			const Dim3 lo= amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
 
 			// I,J,K == coarse coordinates
 			// i,j,k == fine coordinates
@@ -753,8 +755,6 @@ void
 Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
-
-	//sigma.FillBoundary(geom.periodicity());
 	for (int i = 0; i < 2; i++)
 	{
 		MultiTab & mf = sigma;
@@ -763,30 +763,10 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 		const int ng1 = 1;
 		const int ng2 = 2;
 		MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-		//MultiTab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
 	  	tmpmf.copy(mf,0,0,ncomp,ng2,ng1,geom.periodicity());
-
 		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
 	}
-
-
-	//const Box& domain = geom.Domain();
-
-// #ifdef _OPENMP
-// #pragma omp parallel
-// #endif
-	// for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
-	// {
-	// 	if (!domain.contains(mfi.fabbox()))
-	// 	{
-			
-
-	// 	}
-	// }
-	///////Util::Warning(INFO, "FillBoundaryCoeff not fully implemented");
 }
-
-
 
 template class Elastic<Model::Solid::LinearElastic::Isotropic>;
 template class Elastic<Model::Solid::LinearElastic::Cubic>;
