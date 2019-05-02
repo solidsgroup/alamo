@@ -44,6 +44,12 @@ public:
 		lambda = Util::Random();
 	};
 
+	virtual void Print (std::ostream& os) const
+	{
+		os <<    "mu = " << mu <<
+			" lambda = " << lambda << std::endl;
+	}
+
 	Isotropic operator + (const Isotropic &rhs) const
 	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
 

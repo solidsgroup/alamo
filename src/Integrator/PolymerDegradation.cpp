@@ -464,6 +464,7 @@ PolymerDegradation::PolymerDegradation():
 			interpolate_back  .define(elastic_bc_back,elastic_bc_back_t);
 			interpolate_front .define(elastic_bc_front,elastic_bc_front_t););
 
+	nlevels = maxLevel() + 1;
 }
 
 
@@ -866,7 +867,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
-		DegradeMaterial(ilev,model[ilev]);
+		//DegradeMaterial(ilev,model[ilev]);
 	}
 
 	Operator::Elastic<model_type> elastic_operator;

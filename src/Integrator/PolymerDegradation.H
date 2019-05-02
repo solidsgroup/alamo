@@ -98,7 +98,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
-	int nlevels = 1;
+	int nlevels;
 
 	std::string ic_type, gb_type, filename;
 
