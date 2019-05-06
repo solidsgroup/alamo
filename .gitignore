@@ -26,3 +26,4 @@ docs/html
 docs/latex
 *.d
 testoutput*
+Makefile.conf
