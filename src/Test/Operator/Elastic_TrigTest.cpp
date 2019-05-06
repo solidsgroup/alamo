@@ -5,6 +5,7 @@
 #include "IC/Random.H"
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
+#include "BC/Operator/Elastic.H"
 
 namespace Test
 {
@@ -96,10 +97,18 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  	//info.setMaxCoarseningLevel(1);
  	nlevels = geom.size();
 	::Operator::Elastic<model_type> elastic;
+	elastic.SetHomogeneous(false);
  	elastic.define(geom, cgrids, dmap, info);
  	using bctype = ::Operator::Elastic<model_type>::BC;
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 
+	Set::Vector disp;
+	BC::Operator::Elastic<model_type> bc;
+	bc.SetBC(bc.min,bc.min,bc.min,
+		 BC::Operator::Elastic<model_type>::Displacement,
+		 disp,
+		 rhs_prescribed,
+		 geom);
 	//
 	// Set up different versions of the problem based on the problem dimension (dim).
 	// Note that this is not the actual dimension, just the dimension of the problem.
