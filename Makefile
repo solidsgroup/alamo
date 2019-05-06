@@ -1,5 +1,5 @@
 
-include Makefile.conf
+-include Makefile.conf
 
 COMP ?= GCC
 ifeq ($(COMP),INTEL)
@@ -77,6 +77,7 @@ clean:
 	rm -f bin/*
 	rm -rf obj
 	rm -f Backtrace*
+	rm -f Makefile.conf
 	rm -rf docs/build docs/doxygen docs/html docs/latex
 tidy:
 	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
