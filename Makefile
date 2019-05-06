@@ -61,10 +61,10 @@ SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=$(PREFIX))) 
-OBJ = $(subst src/,obj/, $(SRC:.cpp=.cpp$(PREFIX).o)) 
-DEP = $(subst src/,obj/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/, $(SRC_MAIN:.cc=.cc.d))
-OBJ_MAIN = $(subst src/,obj/, $(SRC_MAIN:.cpp=.cc$(PREFIX).o))
-OBJ_F = $(subst src/,obj/, $(SRC_F:.F90=.F90$(PREFIX).o))
+OBJ = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.o)) 
+DEP = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj$(PREFIX)/, $(SRC_MAIN:.cc=.cc.d))
+OBJ_MAIN = $(subst src/,obj/obj$(PREFIX)/, $(SRC_MAIN:.cpp=.cc.o))
+OBJ_F = $(subst src/,obj/obj$(PREFIX)/, $(SRC_F:.F90=.F90.o))
 
 .SECONDARY: 
 
@@ -88,42 +88,42 @@ info:
 	@$(CC) -show
 	@printf "\n"
 
-bin/%$(PREFIX): ${OBJ_F} ${OBJ} obj/%.cc$(PREFIX).o
+bin/%$(PREFIX): ${OBJ_F} ${OBJ} obj/obj$(PREFIX)/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
 	@mkdir -p bin/
 	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
 
-obj/test.cc$(PREFIX).o: src/test.cc
+obj/obj$(PREFIX)/test.cc.o: src/test.cc
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/%.cc$(PREFIX).o: src/%.cc
+obj/obj$(PREFIX)/%.cc.o: src/%.cc
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/%.cpp$(PREFIX).o: 
+obj/obj$(PREFIX)/%.cpp.o: 
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/%.cpp.d: src/%.cpp 
+obj/obj$(PREFIX)/%.cpp.d: src/%.cpp 
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
-	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp$(PREFIX).o) -MF $@
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
-obj/%.cc.d: src/%.cc
+obj/obj$(PREFIX)/%.cc.d: src/%.cc
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
-	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc$(PREFIX).o) -MF $@
+	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 
 
-obj/IO/WriteMetaData.cpp$(PREFIX).o: .FORCE
-	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   $(@:$(PREFIX).o=) \n" 
+obj/obj$(PREFIX)/IO/WriteMetaData.cpp.o: .FORCE
+	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   ${subst obj/obj$(PREFIX)/,src/,${@:.cpp.o=.cpp}} \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c ${subst obj/,src/,${@:.cpp$(PREFIX).o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c ${subst obj/obj$(PREFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 .PHONY: .FORCE
 
@@ -131,7 +131,7 @@ obj/IO/WriteMetaData.cpp$(PREFIX).o: .FORCE
 
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
-obj/%.F90$(PREFIX).o: src/%.F90 
+obj/obj$(PREFIX)/%.F90.o: src/%.F90 
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING  $(RESET)$<\n" 
 	@mkdir -p $(dir $@)
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
