@@ -192,12 +192,15 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 					//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 					//
 
-					T AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<T,1,0,0>::D(C,i,j,k,0,DX,sten)),
-						       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
-						       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
+					f = C(i,j,k)(gradgradu);
 
-					f = C(i,j,k)(gradgradu) + 
-						AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
+					if (!m_homogeneous)
+					{
+						T AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<T,1,0,0>::D(C,i,j,k,0,DX,sten)),
+							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
+							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
+						f += AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
+					}
 				}
 				AMREX_D_TERM(F(i,j,k,0) = f[0];, F(i,j,k,1) = f[1];, F(i,j,k,2) = f[2];);
 			});

@@ -89,7 +89,7 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
 
 void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
-	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
+	BL_PROFILE("Operator::Fsmooth()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 

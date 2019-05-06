@@ -67,6 +67,7 @@ public:
 	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
+	void SetHomogeneous(bool a_homogeneous) {m_homogeneous = a_homogeneous;}
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
@@ -105,6 +106,7 @@ private:
 	void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
 
 	bool m_testing = false;
+	bool m_homogeneous = false;
 
 };
 }
