@@ -35,6 +35,7 @@ public:
 
 public:
 	Elastic() {};
+	~Elastic() {};
 
 	/// Create a simulation domain where the coarse level has ncells x ncells ( x ncells)
 	/// and nlevels.
@@ -87,11 +88,6 @@ public:
 		     int n = 1,
 		     std::string plotfile = "");
 
-	int SPD(bool verbose,
-		std::string plotfile = "");
-
-	int SpatiallyVaryingCTest(int);
-	
 private: // Private member functions
 
 	void WritePlotFile(std::string plotfile, std::vector<int> nghost)
