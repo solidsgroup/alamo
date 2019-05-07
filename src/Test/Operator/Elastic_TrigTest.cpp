@@ -42,60 +42,16 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	icexact.SetComp(component);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		solution_exact  [ilev].setVal(0.0);
-		solution_numeric[ilev].setVal(0.0);
-		solution_error  [ilev].setVal(0.0);
-		rhs_prescribed  [ilev].setVal(0.0);
-		rhs_exact       [ilev].setVal(0.0);
-		rhs_numeric     [ilev].setVal(0.0);
-		res_exact       [ilev].setVal(0.0);
-		res_numeric     [ilev].setVal(0.0);
-		ghost_force     [ilev].setVal(0.0);
-
 		icrhs.Initialize(ilev,rhs_prescribed);
 		icexact.Initialize(ilev,solution_exact);
-
-
-		// Zero out the boundaries of the presecribed RHS
-		for (amrex::MFIter mfi(rhs_prescribed[ilev],true); mfi.isValid(); ++mfi)
-		{
-			const amrex::Box& box = mfi.tilebox();
-
-			amrex::BaseFab<amrex::Real> &rhs = (rhs_prescribed[ilev])[mfi];
-
-			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
-				     for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
-				     for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				for (int p = 0; p<AMREX_SPACEDIM; p++)
-				{
-					AMREX_D_TERM( if (i == geom[ilev].Domain().loVect()[0]) rhs(m,p) = 0.0;,
-						      if (j == geom[ilev].Domain().loVect()[1]) rhs(m,p) = 0.0;,
-						      if (k == geom[ilev].Domain().loVect()[2]) rhs(m,p) = 0.0; );
-					AMREX_D_TERM( if (i == geom[ilev].Domain().hiVect()[0]+1) rhs(m,p) = 0.0;,
-						      if (j == geom[ilev].Domain().hiVect()[1]+1) rhs(m,p) = 0.0;,
-						      if (k == geom[ilev].Domain().hiVect()[2]+1) rhs(m,p) = 0.0; );
-				}
-			}
-		}
-
-		// Uncomment this to initialize the numeric solution with the
-		// exact solution
-
-		// Util::Warning(INFO,"icexact.Initialize(ilev,solution_numeric);");
-		// icexact.Initialize(ilev,solution_numeric); 
 	}
 
-	// Create and configure the Elastic operator
-	// See:
-	//   - src/Operator/Elastic.cpp   <<  the actual operator
-	//   - src/Operator/Operator.cpp  <<  the abstract operator that Elastic inherits from. (where reflux is)
 	amrex::LPInfo info;
  	info.setAgglomeration(1);
  	info.setConsolidation(1);
  	//info.setMaxCoarseningLevel(1);
  	nlevels = geom.size();
+
 	::Operator::Elastic<model_type> elastic;
 	elastic.SetHomogeneous(false);
  	elastic.define(geom, cgrids, dmap, info);
@@ -104,46 +60,37 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 	Set::Vector disp;
 	BC::Operator::Elastic<model_type> bc;
-	bc.SetBC(bc.min,bc.min,bc.min,
-		 BC::Operator::Elastic<model_type>::Displacement,
-		 disp,
-		 rhs_prescribed,
-		 geom);
-	//
-	// Set up different versions of the problem based on the problem dimension (dim).
-	// Note that this is not the actual dimension, just the dimension of the problem.
-	//
+	elastic.SetBC(&bc);
 
 	if (dim == 1)
 	{
-		elastic.SetBC(
-			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,    bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Traction,    bctype::Displacement,bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Traction,    bctype::Traction,    bctype::Displacement)})}},
-			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Traction,    bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Traction,    bctype::Displacement,bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Traction,    bctype::Traction,    bctype::Displacement)})}});
-
+		AMREX_D_TERM(,// nothing to do in 1D case
+			     bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     ,
+			     bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom););
 	}
 	if (dim == 2)
 	{
-		elastic.SetBC(
-			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Traction,    bctype::Traction,    bctype::Displacement)})}},
-			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Traction)},
-					     {AMREX_D_DECL(bctype::Traction,    bctype::Traction,    bctype::Displacement)})}});
+		AMREX_D_TERM(, // nothing to do in 1D case
+			     , // nothing to do in 2D case
+			     bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom););
 	}
 	if (dim == 3)
 	{
-		elastic.SetBC(
-			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}},
-			      {{AMREX_D_DECL({AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)},
-					     {AMREX_D_DECL(bctype::Displacement,bctype::Displacement,bctype::Displacement)})}});
+		// nothing to do - displacement BC is default
 	}
 
 	// Create MLMG solver and solve

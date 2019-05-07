@@ -9,6 +9,8 @@
 #include "Model/Solid/Solid.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Test/Operator/Elastic.H"
+#include "BC/Operator/Elastic.H"
+
 using namespace amrex;
 
 namespace Operator
@@ -46,6 +48,10 @@ public:
 
 
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
+	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
+	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
+
+	void SetBC (::BC::Operator::Elastic<T> *a_bc) {m_bc = a_bc;};
 	void Strain (int amrlev, amrex::MultiFab& epsfab, const amrex::MultiFab& ufab, bool voigt = false) const;
 
 	/// Compute stress \f$\mathbf{\sigma}\f$ given the displacement field \f$\mathbf{u}\f$
@@ -108,6 +114,7 @@ private:
 	bool m_testing = false;
 	bool m_homogeneous = false;
 
+	::BC::Operator::Elastic<T> *m_bc;
 };
 }
 

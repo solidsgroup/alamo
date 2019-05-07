@@ -1,7 +1,7 @@
 #ifndef BC_OPERATOR_ELASTIC_H
 #define BC_OPERATOR_ELASTIC_H
 
-#include "Operator/Elastic.H"
+// #include "Operator/Elastic.H"
 
 namespace BC
 {
@@ -13,86 +13,117 @@ class Elastic
 public:
 	static const int min = 1, max = 2;
 
- 	friend     ::Operator::Elastic<T>;
-	friend Test::Operator::Elastic;
+ 	// friend     ::Operator::Elastic<T>;
+	// friend Test::Operator::Elastic;
 
 public:
-	enum BCType {Displacement, Traction, Periodic, Neumann}; 
+	enum Type {Displacement, Traction, Periodic, Neumann}; 
+	enum Face {AMREX_D_DECL(XLO=0,YLO=1,ZLO=2),AMREX_D_DECL(XHI=3,YHI=4,ZHI=5)}; 
+	enum Direction {AMREX_D_DECL(X=0,Y,Z)}; 
 
  	Elastic()
 	{
-		for (int i = 0; i < 3; i++)
-			for (int j = 0; j < 3; j++)
-				for (int k = 0; k < 3; k++)
-					bndry[i][j][k] = BCType::Traction;
+		// By default, all boundary conditions are displacement
+		for (int face = 0; face < AMREX_SPACEDIM; face++)
+			for (int direction = 0; direction < AMREX_SPACEDIM; direction++)
+			{
+				m_bc_lo[face][direction] = Type::Displacement;
+				m_bc_hi[face][direction] = Type::Displacement;
+			}
 	};
  	~Elastic() {};
 	
 	void
-	SetBC(int x, int y, int z,
-	      BCType type, Set::Vector value,
+	Set(const Face face,
+	      const Direction direction,
+	      const Type type,
+	      const Set::Scalar value,
 	      amrex::Vector<amrex::MultiFab> &a_rhs,
 	      const amrex::Vector<Geometry> &a_geom)
 	{
 		
+		if (AMREX_D_TERM(face == Face::XLO, || face == Face::YLO, ||  face == Face::ZLO))
+			m_bc_lo[face%AMREX_SPACEDIM][direction] = type;
+		if (AMREX_D_TERM(face == Face::XHI, || face == Face::YHI, ||  face == Face::ZHI))
+			m_bc_hi[face%AMREX_SPACEDIM][direction] = type;
+
 		for (int ilev = 0; ilev < a_rhs.size(); ilev++)
 		{
 			amrex::Box domain(a_geom[ilev].Domain());
 			domain.convert(amrex::IntVect::TheNodeVector());
-
+			const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			for (MFIter mfi(a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
 				Box bx = mfi.tilebox();
-				//bx.grow(1);        // Expand to cover first layer of ghost nodes
-				//Util::Message(INFO,bx);
-				
-
 				amrex::Array4<amrex::Real> const& rhs       = a_rhs[ilev].array(mfi);
-
-				const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-			
 				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+						AMREX_D_TERM(if (i == lo.x && face == Face::XLO)
+								     rhs(i,j,k,direction) = value;,
+							     if (j == lo.y && face == Face::YLO)
+								     rhs(i,j,k,direction) = value;,
+							     if (k == lo.z && face == Face::ZLO)
+								     rhs(i,j,k,direction) = value;)
+						AMREX_D_TERM(if (i == hi.x && face == Face::XHI)
+								     rhs(i,j,k,direction) = value;,
+							     if (j == hi.y && face == Face::YHI)
+								     rhs(i,j,k,direction) = value;,
+							     if (k == hi.z && face == Face::ZHI)
+								     rhs(i,j,k,direction) = value;)
 					});
-
 			}					
-
 		}
 	}
-	
 
  	AMREX_FORCE_INLINE
- 	Set::Vector operator () (const int &amrlev, const int &mglev,
- 				 const Set::Vector &u,
- 				 const Set::Vector &gradu,
- 				 const T & C,
+ 	Set::Vector operator () (const Set::Vector &u,
+ 				 const Set::Matrix &gradu,
+ 				 const Set::Matrix &sigma,
  				 const int &i, const int &j, const int &k,
-				 const Geometry &geom)
+				 const Box &domain)
  	{
- 		return u;
+		Set::Vector f;
+
+		const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+		
+		amrex::IntVect m(AMREX_D_DECL(i,j,k));
+		for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
+		{
+			for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
+			{
+				if (m[q] == domain.loVect()[q])
+				{
+					if      (m_bc_lo[q][p] == Type::Displacement)
+						f(p) =   u(p);
+					else if (m_bc_lo[q][p] == Type::Traction)
+						f(p) = -sigma(p,q);
+					else if (m_bc_lo[q][p] == Type::Neumann)
+						f(p) = -gradu(p,q);
+					else Util::Abort(INFO, "Invalid BC");
+				}
+				if (m[q] == domain.hiVect()[q])
+				{
+					if      (m_bc_hi[q][p] == Type::Displacement)
+						f(p) = u(p);
+					else if (m_bc_hi[q][p] == Type::Traction)
+						f(p) = +sigma(p,q);
+					else if (m_bc_hi[q][p] == Type::Neumann)
+						f(p) = +gradu(p,q);
+					else Util::Abort(INFO, "Invalid BC");
+				}
+			}
+		}
+		// bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+		// 	AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+		
+ 		return f;
  	}
 
 
 private:
-	BCType bndry[3][3][3];
-
-	// BODY
-	// bndry[0][0][0]
-
-	// FACE
-	// bndry[xmin][0][0] bndry[0][ymin][0] bndry[0][0][zmin]
-	// bndry[xmax][0][0] bndry[0][ymax][0] bndry[0][0][zmax]
-
-	// EDGE
-	// bndry[0][ymin][zmin] bndry[0][ymin][zmax] bndry[0][ymax][zmin] bndry[0][ymax][zmax]
-	// bndry[ymin][0][zmin] bndry[ymin][0][zmax] bndry[ymax][0][zmin] bndry[ymax][0][zmax]
-	// bndry[ymin][zmin][0] bndry[ymin][zmax][0] bndry[ymax][zmin][0] bndry[ymax][zmax][0]
-
-	// CORNER
-	// bndry[xmin][ymin][zmin] bndry[xmin][ymin][zmax] bndry[xmin][ymax][zmin] bndry[xmin][ymax][zax]
-	// bndry[xmax][ymin][zmin] bndry[xmax][ymin][zmax] bndry[xmax][ymax][zmin] bndry[xmax][ymax][zax]
-
-	// faces
-	// edges
+	// m_bc_lo[face][dimension]
+	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; 
+	// m_bc_hi[face][dimension]
+	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; 
 };
 
 }

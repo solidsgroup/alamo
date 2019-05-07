@@ -103,20 +103,16 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 					
 				Set::Vector f = Set::Vector::Zero();
 
+				Set::Vector u;
+				for (int p = 0; p < AMREX_SPACEDIM; p++) u(p) = U(i,j,k,p);
+				
+
 				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
 					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
 				// Determine if a special stencil will be necessary for first derivatives
-				Numeric::StencilType sten[AMREX_SPACEDIM];
-				AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-							xmax ? Numeric::StencilType::Lo :
-							Numeric::StencilType::Central);,
-					     sten[1] = (ymin ? Numeric::StencilType::Hi :
-							ymax ? Numeric::StencilType::Lo :
-							Numeric::StencilType::Central);,
-					     sten[2] = (zmin ? Numeric::StencilType::Hi :
-							zmax ? Numeric::StencilType::Lo :
-							Numeric::StencilType::Central););
+				std::array<Numeric::StencilType,AMREX_SPACEDIM>
+					sten = Numeric::GetStencil(i,j,k,domain);
 
 				// The displacement gradient tensor
 				Set::Matrix gradu; // gradu(i,j) = u_{i,j)
@@ -137,27 +133,40 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
-					for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
-					{
-						for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
-						{
-							if (m[q] == domain.loVect()[q])
-							{
-								if      (m_bc_lo[q][p] == BC::Displacement) f(p) =   U(i,j,k,p);
-								else if (m_bc_lo[q][p] == BC::Traction)     f(p) = -sig(p,q);
-								else if (m_bc_lo[q][p] == BC::Neumann)      f(p) = -gradu(p,q);
-								else Util::Abort(INFO, "Invalid BC");
-							}
-							if (m[q] == domain.hiVect()[q])
-							{
-								if      (m_bc_hi[q][p] == BC::Displacement) f(p) = U(i,j,k,p);
-								else if (m_bc_hi[q][p] == BC::Traction)     f(p) = +sig(p,q);
-								else if (m_bc_hi[q][p] == BC::Neumann)      f(p) = +gradu(p,q);
-								else Util::Abort(INFO, "Invalid BC");
 
-							}
-						}
-					}
+					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
+					
+					// for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
+					// {
+					// 	for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
+					// 	{
+					// 		if (m[q] == domain.loVect()[q])
+					// 		{
+					// 			if      (m_bc_lo[q][p] == BC::Displacement) f(p) =   U(i,j,k,p);
+					// 			else if (m_bc_lo[q][p] == BC::Traction)     f(p) = -sig(p,q);
+					// 			else if (m_bc_lo[q][p] == BC::Neumann)      f(p) = -gradu(p,q);
+					// 			else Util::Abort(INFO, "Invalid BC");
+					// 		}
+					// 		if (m[q] == domain.hiVect()[q])
+					// 		{
+					// 			if      (m_bc_hi[q][p] == BC::Displacement) f(p) = U(i,j,k,p);
+					// 			else if (m_bc_hi[q][p] == BC::Traction)     f(p) = +sig(p,q);
+					// 			else if (m_bc_hi[q][p] == BC::Neumann)      f(p) = +gradu(p,q);
+					// 			else Util::Abort(INFO, "Invalid BC");
+
+					// 		}
+					// 	}
+					// }
+
+					// if ((fnew - f).norm() > 1E-8) {
+					// 	Util::Message(INFO,"m = ", m);
+					// 	Util::Message(INFO,"fnew = ", fnew.transpose());
+					// 	Util::Message(INFO,"fold = ", f.transpose());
+					// 	Util::Message(INFO,"sigma = \n", sig);
+					// 	Util::Message(INFO,"gradu = \n", gradu);
+					// 	Util::Abort(INFO,"incorrect BC calculation");
+					// }
+
 				}
 				else
 				{
@@ -232,26 +241,23 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 			
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
+				Set::Vector f = Set::Vector::Zero();
+
 				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
 					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-				Numeric::StencilType sten[AMREX_SPACEDIM];
-				AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-							xmax ? Numeric::StencilType::Lo :
-							Numeric::StencilType::Central);,
-					     sten[1] = (ymin ? Numeric::StencilType::Hi :
-							ymax ? Numeric::StencilType::Lo :
-							Numeric::StencilType::Central);,
-					     sten[2] = (zmin ? Numeric::StencilType::Hi :
-							zmax ? Numeric::StencilType::Lo :
-							Numeric::StencilType::Central););
+				std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+					= Numeric::GetStencil(i,j,k,domain);
 
+
+				
 
 				Set::Matrix gradu; // gradu(i,j) = u_{i,j)
 				std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
 
 				for (int p = 0; p < AMREX_SPACEDIM; p++)
 				{
+
 					diag(i,j,k,p) = 0.0;
 					for (int q = 0; q < AMREX_SPACEDIM; q++)
 					{
@@ -277,23 +283,28 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 					amrex::IntVect m(AMREX_D_DECL(i,j,k));
 					if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 					{
-						for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
-						{
-							if (m[q] == domain.loVect()[q])
-							{
-								if      (m_bc_lo[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
-								else if (m_bc_lo[q][p] == BC::Traction)     diag(i,j,k,p) = -sig(p,q);
-								else if (m_bc_lo[q][p] == BC::Neumann)      diag(i,j,k,p) = -gradu(p,q);
-								else Util::Abort(INFO, "Invalid BC");
-							}
-							if (m[q] == domain.hiVect()[q])
-							{
-								if      (m_bc_hi[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
-								else if (m_bc_hi[q][p] == BC::Traction)     diag(i,j,k,p) = sig(p,q);
-								else if (m_bc_hi[q][p] == BC::Neumann)      diag(i,j,k,p) = gradu(p,q);
-								else Util::Abort(INFO, "Invalid BC");
-							}
-						}
+						Set::Vector u = Set::Vector::Zero();
+						u(p) = 1.0;
+						f = (*m_bc)(u,gradu,sig,i,j,k,domain);
+						diag(i,j,k,p) = f(p);
+						
+						// for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
+						// {
+						// 	if (m[q] == domain.loVect()[q])
+						// 	{
+						// 		if      (m_bc_lo[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
+						// 		else if (m_bc_lo[q][p] == BC::Traction)     diag(i,j,k,p) = -sig(p,q);
+						// 		else if (m_bc_lo[q][p] == BC::Neumann)      diag(i,j,k,p) = -gradu(p,q);
+						// 		else Util::Abort(INFO, "Invalid BC");
+						// 	}
+						// 	if (m[q] == domain.hiVect()[q])
+						// 	{
+						// 		if      (m_bc_hi[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
+						// 		else if (m_bc_hi[q][p] == BC::Traction)     diag(i,j,k,p) = sig(p,q);
+						// 		else if (m_bc_hi[q][p] == BC::Neumann)      diag(i,j,k,p) = gradu(p,q);
+						// 		else Util::Abort(INFO, "Invalid BC");
+						// 	}
+						// }
 					}
 					else
 					{
@@ -386,16 +397,17 @@ Elastic<T>::Strain  (int amrlev,
 					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
 						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-					    Numeric::StencilType sten[AMREX_SPACEDIM];
-					    AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-								    xmax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central);,
-							 sten[1] = (ymin ? Numeric::StencilType::Hi :
-								    ymax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central);,
-							 sten[2] = (zmin ? Numeric::StencilType::Hi :
-								    zmax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central););
+					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+						    = Numeric::GetStencil(i,j,k,domain);
+					    // AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
+					    // 			    xmax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central);,
+					    // 		 sten[1] = (ymin ? Numeric::StencilType::Hi :
+					    // 			    ymax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central);,
+					    // 		 sten[2] = (zmin ? Numeric::StencilType::Hi :
+					    // 			    zmax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central););
 
 					    // Fill gradu
 					    for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -460,16 +472,17 @@ Elastic<T>::Stress (int amrlev,
 					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
 						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-					    Numeric::StencilType sten[AMREX_SPACEDIM];
-					    AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-								    xmax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central);,
-							 sten[1] = (ymin ? Numeric::StencilType::Hi :
-								    ymax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central);,
-							 sten[2] = (zmin ? Numeric::StencilType::Hi :
-								    zmax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central););
+					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+						    = Numeric::GetStencil(i,j,k,domain);
+					    // AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
+					    // 			    xmax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central);,
+					    // 		 sten[1] = (ymin ? Numeric::StencilType::Hi :
+					    // 			    ymax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central);,
+					    // 		 sten[2] = (zmin ? Numeric::StencilType::Hi :
+					    // 			    zmax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central););
 
 					    // Fill gradu
 					    for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -534,16 +547,18 @@ Elastic<T>::Energy (int amrlev,
 					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
 						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-					    Numeric::StencilType sten[AMREX_SPACEDIM];
-					    AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-								    xmax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central);,
-							 sten[1] = (ymin ? Numeric::StencilType::Hi :
-								    ymax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central);,
-							 sten[2] = (zmin ? Numeric::StencilType::Hi :
-								    zmax ? Numeric::StencilType::Lo :
-								    Numeric::StencilType::Central););
+					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+						    = Numeric::GetStencil(i,j,k,domain);
+					    // Numeric::StencilType sten[AMREX_SPACEDIM];
+					    // AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
+					    // 			    xmax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central);,
+					    // 		 sten[1] = (ymin ? Numeric::StencilType::Hi :
+					    // 			    ymax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central);,
+					    // 		 sten[2] = (zmin ? Numeric::StencilType::Hi :
+					    // 			    zmax ? Numeric::StencilType::Lo :
+					    // 			    Numeric::StencilType::Central););
 
 					    // Fill gradu
 					    for (int p = 0; p < AMREX_SPACEDIM; p++)

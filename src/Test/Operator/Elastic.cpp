@@ -95,6 +95,20 @@ void Elastic::Define(int _ncells,
  			ghost_force     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
  		}
 
+	// Clear everything to zero
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		solution_exact  [ilev].setVal(0.0);
+		solution_numeric[ilev].setVal(0.0);
+		solution_error  [ilev].setVal(0.0);
+		rhs_prescribed  [ilev].setVal(0.0);
+		rhs_exact       [ilev].setVal(0.0);
+		rhs_numeric     [ilev].setVal(0.0);
+		res_exact       [ilev].setVal(0.0);
+		res_numeric     [ilev].setVal(0.0);
+		ghost_force     [ilev].setVal(0.0);
+	}
+
 }
 
 int
@@ -225,9 +239,14 @@ int Elastic::RefluxTest(int verbose)
  	nlevels = geom.size();
 
 
+
 	::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
  	elastic.define(geom, cgrids, dmap, info);
- 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
+
+ 	elastic.SetModel(modelfab);
+
+	BC::Operator::Elastic<model_type> bc;
+	elastic.SetBC(&bc);
 
 
 	std::vector<int> comps = {1};
@@ -249,13 +268,10 @@ int Elastic::RefluxTest(int verbose)
 	
 		mlabec.define(geom, cgrids, dmap, info);
 		mlabec.setMaxOrder(2);
-		for (int ilev = 0; ilev < nlevels; ++ilev) mlabec.SetModel(ilev,modelfab[ilev]);
-		mlabec.SetBC({{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
-					    ::Operator::Elastic<model_type>::BC::Displacement,
-					     ::Operator::Elastic<model_type>::BC::Displacement)}}},
-			{{{AMREX_D_DECL(::Operator::Elastic<model_type>::BC::Displacement,
-				       ::Operator::Elastic<model_type>::BC::Displacement,
-					::Operator::Elastic<model_type>::BC::Displacement)}}});
+		mlabec.SetModel(modelfab);
+
+		BC::Operator::Elastic<model_type> bc;
+		mlabec.SetBC(&bc);
 
 
 		solution_exact[0].setVal(0.0);
