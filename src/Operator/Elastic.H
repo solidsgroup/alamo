@@ -63,7 +63,10 @@ public:
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
-	{m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;};
+	{
+		Util::Abort(INFO,"This is now depricated. Use the other SetBC function.");
+		m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;
+	};
 
 	void Reflux(int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
