@@ -46,7 +46,7 @@ void SignalHandler(int s)
 	if (amrex::ParallelDescriptor::IOProcessor())
 	{
 		std::string filename = GetFileName();
-		IO::Status status;
+		IO::Status status = IO::Status::Running;
 		if (s == SIGSEGV) status = IO::Status::Segfault;
 		else if (s == SIGINT) status = IO::Status::Interrupt;
 		if (s == SIGABRT) status = IO::Status::Abort;

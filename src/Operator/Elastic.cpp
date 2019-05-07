@@ -388,26 +388,12 @@ Elastic<T>::Strain  (int amrlev,
 		const Box& bx = mfi.tilebox();
 		amrex::Array4<amrex::Real> const& epsilon = a_eps.array(mfi);
 		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
-		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 				    {
 					    Set::Matrix gradu;
 
-					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
-
 					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
 						    = Numeric::GetStencil(i,j,k,domain);
-					    // AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-					    // 			    xmax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central);,
-					    // 		 sten[1] = (ymin ? Numeric::StencilType::Hi :
-					    // 			    ymax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central);,
-					    // 		 sten[2] = (zmin ? Numeric::StencilType::Hi :
-					    // 			    zmax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central););
 
 					    // Fill gradu
 					    for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -463,26 +449,12 @@ Elastic<T>::Stress (int amrlev,
 		amrex::Array4<T> const& C                 = (*(model[amrlev][0])).array(mfi);
 		amrex::Array4<amrex::Real> const& sigma   = a_sigma.array(mfi);
 		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
-		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 				    {
 					    Set::Matrix gradu;
 
-					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
-
 					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
 						    = Numeric::GetStencil(i,j,k,domain);
-					    // AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-					    // 			    xmax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central);,
-					    // 		 sten[1] = (ymin ? Numeric::StencilType::Hi :
-					    // 			    ymax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central);,
-					    // 		 sten[2] = (zmin ? Numeric::StencilType::Hi :
-					    // 			    zmax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central););
 
 					    // Fill gradu
 					    for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -538,27 +510,12 @@ Elastic<T>::Energy (int amrlev,
 		amrex::Array4<T> const& C                  = (*(model[amrlev][0])).array(mfi);
 		amrex::Array4<amrex::Real> const& energy   = a_energy.array(mfi);
 		amrex::Array4<const amrex::Real> const& u  = a_u.array(mfi);
-		const Dim3 lo= amrex::lbound(domain), hi   = amrex::ubound(domain);
-
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 				    {
 					    Set::Matrix gradu;
 
-					    bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-						    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
-
 					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
 						    = Numeric::GetStencil(i,j,k,domain);
-					    // Numeric::StencilType sten[AMREX_SPACEDIM];
-					    // AMREX_D_TERM(sten[0] = (xmin ? Numeric::StencilType::Hi :
-					    // 			    xmax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central);,
-					    // 		 sten[1] = (ymin ? Numeric::StencilType::Hi :
-					    // 			    ymax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central);,
-					    // 		 sten[2] = (zmin ? Numeric::StencilType::Hi :
-					    // 			    zmax ? Numeric::StencilType::Lo :
-					    // 			    Numeric::StencilType::Central););
 
 					    // Fill gradu
 					    for (int p = 0; p < AMREX_SPACEDIM; p++)
