@@ -21,8 +21,8 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	// Define the "model" fab to be a Laplacian, so that this
 	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
 	Set::Scalar alpha = 1.0;
-	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
-	//using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(alpha);
+	//using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(alpha);
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
@@ -32,7 +32,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	// Set everything else to zero.
 	std::complex<int> i(0,1);
 	IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i),dim);
-	//icrhs.SetComp(component);
+	icrhs.SetComp(component);
 	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi/n/n),AMREX_D_DECL(n*i,n*i,n*i),dim);
 	icexact.SetComp(component);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -48,14 +48,13 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  	nlevels = geom.size();
 
 	::Operator::Elastic<model_type> elastic;
-	elastic.SetHomogeneous(true);
+	elastic.SetHomogeneous(false);
  	elastic.define(geom, cgrids, dmap, info);
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 
 	// Set up boundary conditions, and 
 	// configure the problem so that it is 1D, 2D, or 3D
 	BC::Operator::Elastic<model_type> bc;
-	bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
 	if (dim == 1)
 	{
 		AMREX_D_TERM(,// nothing to do in 1D case
