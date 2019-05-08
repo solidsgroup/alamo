@@ -9,6 +9,8 @@
 #include "Model/Solid/Solid.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Test/Operator/Elastic.H"
+#include "BC/Operator/Elastic.H"
+
 using namespace amrex;
 
 namespace Operator
@@ -46,6 +48,10 @@ public:
 
 
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
+	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
+	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
+
+	void SetBC (::BC::Operator::Elastic<T> *a_bc) {m_bc = a_bc;};
 	void Strain (int amrlev, amrex::MultiFab& epsfab, const amrex::MultiFab& ufab, bool voigt = false) const;
 
 	/// Compute stress \f$\mathbf{\sigma}\f$ given the displacement field \f$\mathbf{u}\f$
@@ -57,7 +63,10 @@ public:
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
-	{m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;};
+	{
+		Util::Abort(INFO,"This is now depricated. Use the other SetBC function.");
+		m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;
+	};
 
 	void Reflux(int crse_amrlev,
 		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
@@ -67,6 +76,7 @@ public:
 	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
+	void SetHomogeneous(bool a_homogeneous) {m_homogeneous = a_homogeneous;}
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
@@ -105,7 +115,9 @@ private:
 	void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
 
 	bool m_testing = false;
+	bool m_homogeneous = false;
 
+	::BC::Operator::Elastic<T> *m_bc;
 };
 }
 

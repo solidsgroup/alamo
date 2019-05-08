@@ -1,3 +1,3 @@
 set -e
-bin/test
+bin/test-$1d-gcc
 

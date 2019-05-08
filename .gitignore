@@ -27,3 +27,4 @@ docs/latex
 *.d
 TrigTest*
 testoutput*
+Makefile.conf

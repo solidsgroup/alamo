@@ -89,7 +89,7 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
 
 void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
-	BL_PROFILE(Color::FG::Yellow + "Operator::Fsmooth()" + Color::Reset);
+	BL_PROFILE("Operator::Fsmooth()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
 
@@ -705,6 +705,9 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 
 	int ncomp = AMREX_SPACEDIM;
 
+	amrex::Box cdomain(m_geom[crse_amrlev][0].Domain());
+	cdomain.convert(amrex::IntVect::TheNodeVector());
+
 	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
 
  	const BoxArray&            fba = fine_res.boxArray();
@@ -736,6 +739,8 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 		amrex::Array4<amrex::Real> const& cdata = fine_res_for_coarse.array(mfi);
 		amrex::Array4<const amrex::Real> const& fdata       = fine_res.array(mfi);
 
+		const Dim3 lo= amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+
 		for (int n = 0; n < fine_res.nComp(); n++)
 		{
 			// I,J,K == coarse coordinates
@@ -745,31 +750,47 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 					
 					if (nmask(I,J,K) == fine_fine_node || nmask(I,J,K) == coarse_fine_node)
 						{
-#if AMREX_SPACEDIM == 1
-							Util::Abort(INFO,"Reflux not implemented in 1D");
-#elif AMREX_SPACEDIM == 2
-							cdata(I,J,K,n) = 
-								((+     fdata(i-1,j-1,k,n) + 2.0*fdata(i,j-1,k,n) +     fdata(i+1,j-1,k,n)
-								  + 2.0*fdata(i-1,j  ,k,n) + 4.0*fdata(i,j  ,k,n) + 2.0*fdata(i+1,j  ,k,n) 
-								  +     fdata(i-1,j+1,k,n) + 2.0*fdata(i,j+1,k,n) +     fdata(i+1,j+1,k,n))/16.0);
-
-#elif AMREX_SPACEDIM == 3
-							cdata(I,J,K,n) =
-								0.25*
-								((+ 0.25 *fdata(i-1,j-1,k-1,n) + 0.5 *fdata(i,j-1,k-1,n) + 0.25 *fdata(i+1,j-1,k-1,n)
-								  + 0.5  *fdata(i-1,j  ,k-1,n) + 1.0 *fdata(i,j  ,k  ,n) + 0.5  *fdata(i+1,j  ,k-1,n) 
-								  + 0.25 *fdata(i-1,j+1,k-1,n) + 0.5 *fdata(i,j+1,k-1,n) + 0.25 *fdata(i+1,j+1,k-1,n)) / 4.0)
-								+
-								0.5*
-								((+ 0.25 *fdata(i-1,j-1,k  ,n) + 0.5 *fdata(i,j-1,k  ,n) + 0.25 *fdata(i+1,j-1,k  ,n)
-								  + 0.5  *fdata(i-1,j  ,k  ,n) + 1.0 *fdata(i,j  ,k  ,n) + 0.5  *fdata(i+1,j  ,k  ,n) 
-								  + 0.25 *fdata(i-1,j+1,k  ,n) + 0.5 *fdata(i,j+1,k  ,n) + 0.25 *fdata(i+1,j+1,k  ,n)) / 4.0)
-								+
-								0.25*
-								((+ 0.25 *fdata(i-1,j-1,k+1,n) + 0.5 *fdata(i,j-1,k+1,n) + 0.25 *fdata(i+1,j-1,k+1,n)
-								  + 0.5  *fdata(i-1,j  ,k+1,n) + 1.0 *fdata(i,j  ,k+1,n) + 0.5  *fdata(i+1,j  ,k+1,n) 
-								  + 0.25 *fdata(i-1,j+1,k+1,n) + 0.5 *fdata(i,j+1,k+1,n) + 0.25 *fdata(i+1,j+1,k+1,n)) / 4.0);
-#endif
+							if ((I == lo.x || I == hi.x) &&
+							    (J == lo.y || J == hi.y) &&
+							    (K == lo.z || K == hi.z)) // Corner
+								cdata(I,J,K,n) = fdata(i,j,k,n);
+							else if ((J == lo.y || J == hi.y) &&
+								 (K == lo.z || K == hi.z)) // X edge
+								cdata(I,J,K,n) = 0.25*fdata(i-1,j,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i+1,j,k,n);
+							else if ((K == lo.z || K == hi.z) &&
+								 (I == lo.x || I == hi.x)) // Y edge
+								cdata(I,J,K,n) = 0.25*fdata(i,j-1,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j+1,k,n);
+							else if ((I == lo.x || I == hi.x) &&
+								 (J == lo.y || J == hi.y)) // Z edge
+								cdata(I,J,K,n) = 0.25*fdata(i,j,k-1,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j,k+1,n);
+							else if (I == lo.x || I == hi.x) // X face
+								cdata(I,J,K,n) =
+									(+     fdata(i,j-1,k-1,n) + 2.0*fdata(i,j,k-1,n) +     fdata(i,j+1,k-1,n)
+									 + 2.0*fdata(i,j-1,k  ,n) + 4.0*fdata(i,j,k  ,n) + 2.0*fdata(i,j+1,k  ,n) 
+									 +     fdata(i,j-1,k+1,n) + 2.0*fdata(i,j,k+1,n) +     fdata(i,j+1,k+1,n))/16.0;
+							else if (J == lo.y || J == hi.y) // Y face
+								cdata(I,J,K,n) =
+									(+     fdata(i-1,j,k-1,n) + 2.0*fdata(i-1,j,k,n) +     fdata(i-1,j,k+1,n)
+									 + 2.0*fdata(i  ,j,k-1,n) + 4.0*fdata(i  ,j,k,n) + 2.0*fdata(i  ,j,k+1,n) 
+									 +     fdata(i+1,j,k-1,n) + 2.0*fdata(i+1,j,k,n) +     fdata(i+1,j,k+1,n))/16.0;
+							else if (K == lo.z || K == hi.z) // Z face
+								cdata(I,J,K,n) =
+									(+     fdata(i-1,j-1,k,n) + 2.0*fdata(i,j-1,k,n) +     fdata(i+1,j-1,k,n)
+									 + 2.0*fdata(i-1,j  ,k,n) + 4.0*fdata(i,j  ,k,n) + 2.0*fdata(i+1,j  ,k,n) 
+									 +     fdata(i-1,j+1,k,n) + 2.0*fdata(i,j+1,k,n) +     fdata(i+1,j+1,k,n))/16.0;
+							else // Interior
+								cdata(I,J,K,n) =
+									(fdata(i-1,j-1,k-1,n) + fdata(i-1,j-1,k+1,n) + fdata(i-1,j+1,k-1,n) + fdata(i-1,j+1,k+1,n) +
+									 fdata(i+1,j-1,k-1,n) + fdata(i+1,j-1,k+1,n) + fdata(i+1,j+1,k-1,n) + fdata(i+1,j+1,k+1,n)) / 64.0
+									+
+									(fdata(i,j-1,k-1,n) + fdata(i,j-1,k+1,n) + fdata(i,j+1,k-1,n) + fdata(i,j+1,k+1,n) +
+									 fdata(i-1,j,k-1,n) + fdata(i+1,j,k-1,n) + fdata(i-1,j,k+1,n) + fdata(i+1,j,k+1,n) +
+									 fdata(i-1,j-1,k,n) + fdata(i-1,j+1,k,n) + fdata(i+1,j-1,k,n) + fdata(i+1,j+1,k,n)) / 32.0
+									+
+									(fdata(i-1,j,k,n) + fdata(i,j-1,k,n) + fdata(i,j,k-1,n) +
+									 fdata(i+1,j,k,n) + fdata(i,j+1,k,n) + fdata(i,j,k+1,n)) / 16.0
+									+
+									fdata(i,j,k,n) / 8.0;
 						}
 
 				});

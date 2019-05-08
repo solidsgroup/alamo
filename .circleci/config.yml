@@ -28,7 +28,7 @@ jobs:
           command: 'bash ./.build.sh 2'
       - run:
           name: Running Unit Tests
-          command: 'bash ./.test.sh'
+          command: 'bash ./.test.sh 2'
   3D:
     docker:
       - image: buildpack-deps:trusty 
@@ -54,7 +54,7 @@ jobs:
           command: 'bash ./.build.sh 3'
       - run:
           name: Running Unit Tests
-          command: 'bash ./.test.sh'
+          command: 'bash ./.test.sh 3'
 
 workflows:
   version: 2

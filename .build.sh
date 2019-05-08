@@ -1,4 +1,5 @@
 set -e
 make clean
 make info
-make AMREX=./amrex$1d MPICHFORT=mpichf90 bin/test
+./configure --dim $1 --amrex ./amrex$1d
+make

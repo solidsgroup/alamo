@@ -1,0 +1,95 @@
+#!/usr/bin/python
+
+class color:
+    reset = "\033[0m"
+    red   = "\033[31m"
+    green   = "\033[32m"
+    boldgreen   = "\033[1m\033[32m"
+    boldyellow   = "\033[1m\033[33m"
+import argparse
+import os
+import re
+
+parser = argparse.ArgumentParser(description='Configure ALAMO');
+parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
+parser.add_argument('--comp', default="gcc", help='Compiler. Options: [gcc], clang, intel')
+parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
+parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
+parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
+parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
+parser.set_defaults(debug=False)
+args=parser.parse_args();
+
+f = open("Makefile.conf","w")
+
+#
+# DIMENSION
+#
+f.write("DIM = " + str(args.dim) + "\n")
+print(color.boldgreen + "Dimension:       " + color.reset + str(args.dim))
+
+#
+# COMPILER
+#
+if (args.comp == "gcc"): f.write("COMP = GCC\n")
+elif (args.comp == "clang"): f.write("COMP = CLANG\n")
+elif (args.comp == "intel"): f.write("COMP = INTEL\n")
+print(color.boldgreen + "Compiler:        " + color.reset + str(args.comp))
+
+#
+# DEBUG
+#
+f.write("DEBUG = " + str(args.debug) + "\n")
+print(color.boldgreen + "Debug Mode:      " + color.reset + str(args.debug))
+
+#
+# AMREX
+#
+if (args.amrex != ""):
+    # Check to make sure directory is valid 
+    if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
+        raise Exception(color.red+"ERROR"+color.reset+": AMReX directory must contain include/ and lib/ subdirectories ")
+
+    # Scan AMReX Config File
+    amrex_spacedim = 0
+    amrex_profiling = False
+    amrex_debug = False
+    for line in open(args.amrex + "/include/AMReX_Config.H"):
+        if "define BL_SPACEDIM 1" in line or "define AMREX_SPACEDIM 1" in line: amrex_spacedim = 1
+        if "define BL_SPACEDIM 2" in line or "define AMREX_SPACEDIM 2" in line: amrex_spacedim = 2
+        if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
+        if "AMREX_DEBUG 1" in line: amrex_debug = True
+        if "PROFILING 1" in line: amrex_profiling = True
+        
+    if args.dim != amrex_spacedim:
+        raise Exception(color.red+"ERROR"+color.reset+": AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
+    if args.debug != amrex_debug:
+        if args.debug:
+            raise Exception(color.red+"ERROR"+color.reset+": Alamo is in debug mode but AMReX is not")
+        else:
+            raise Exception(color.red+"ERROR"+color.reset+": Alamo is not in debug mode but AMReX is")
+    if not args.debug and amrex_profiling:
+        print(color.boldyellow+"WARNING"+color.reset+": Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+
+    print(color.boldgreen + "AMReX Directory: " + color.reset + args.amrex)
+    f.write("AMREX = " + args.amrex + "\n")
+else:
+    print(color.boldyellow+"WARNING"+color.reset+":         AMReX path not specified. This may cause compile errors.")
+
+#
+# EIGEN
+#
+if (args.eigen != ""):
+    if not os.path.isdir(args.amrex + "/eigen3"):
+        raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
+    print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
+    f.write("EIGEN = " + args.amrex + "\n")
+
+#
+# Specify Prefix
+#
+prefix = "-"
+prefix += str(args.dim)+"d"
+if args.debug: prefix += "-debug"
+prefix += "-" + args.comp
+f.write("PREFIX = " + prefix)
