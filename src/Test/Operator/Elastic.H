@@ -1,8 +1,28 @@
 #ifndef TEST_OPERATOR_ELASTIC_H
 #define TEST_OPERATOR_ELASTIC_H
 
-#include"Util/Util.H"
+#include <streambuf>
+#include <map>
+#include <complex>
+
+#include <AMReX.H>
 #include <AMReX_Vector.H>
+#include <AMReX_ParmParse.H>
+#include <AMReX_MLMG.H>
+#include <AMReX_MLCGSolver.H>
+#include <AMReX_MultiFabUtil.H>
+#include <AMReX_PlotFileUtil.H>
+#include <AMReX_MLNodeLaplacian.H>
+#include <AMReX.H>
+#include <AMReX_Vector.H>
+#include <AMReX_Geometry.H>
+#include <AMReX_BoxArray.H>
+#include <AMReX_DistributionMapping.H>
+#include <AMReX_MultiFab.H>
+#include <AMReX_MLMG.H>
+#include <AMReX_MLCGSolver.H>
+
+#include"Util/Util.H"
 
 namespace Test
 {
@@ -15,6 +35,7 @@ public:
 
 public:
 	Elastic() {};
+	~Elastic() {};
 
 	/// Create a simulation domain where the coarse level has ncells x ncells ( x ncells)
 	/// and nlevels.
@@ -72,11 +93,6 @@ public:
 			 int n,
 			 std::string plotfile = "");
 
-	int SPD(bool verbose,
-		std::string plotfile = "");
-
-	int SpatiallyVaryingCTest(int);
-	
 private: // Private member functions
 
 	void WritePlotFile(std::string plotfile, std::vector<int> nghost)
