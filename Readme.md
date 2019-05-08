@@ -44,14 +44,29 @@ The following are instructions for how to install these dependencies on your pla
 
 To build alamo, in the alamo directory type
 
-    make AMREX=/path/to/amrex EIGEN=/path/to/eigen
+    ./configure
+
+To see a list of options type 
+
+    ./configure --help
+
+To explicitly specify AMReX and Eigen locations (which you probably should), type 
+
+    ./configure --amrex /path/to/amrex --eigen /path/to/eigen
 
 where `/path/to/amrex` and `/path/to/eigen` should match the `--prefix` and the location of the Eigen directory, respectively.
+(The script will check this and error out if they do not.)
+To specify the spatial dimension,
+
+    ./configure --dim 2
+
+The default is to compile in 3 dimensions.
+If you specify AMReX directly, it will check to make sure that AMReX is also compiled in the same number of dimensions.
 To generate documentation, type
 
     make docs
     
-(Note that this requires the Sphinx and Doxygen libraries.)
+(Note that this requires several libraries -- see section below.)
 For additional help, type 
 
     make help
@@ -86,6 +101,9 @@ Upon successful compilation, run tests by
 
     ./bin/test
 
+The output will indicate wether the tests pass or fail.
+If you are committing changes, you should always make sure the tests pass in 2 and 3 dimensions before committing.
+
 ## Common Error Messages ##
 
 The following are some common error messages and problems encountered.
@@ -112,4 +130,5 @@ To generate the documentation:
 
     make docs
 
+(You do not need to run `configure` before generating documentation.)
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.

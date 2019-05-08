@@ -1,0 +1,154 @@
+#include "Elastic.H"
+#include "Set/Set.H"
+#include "IC/Trig.H"
+#include "IC/Affine.H"
+#include "IC/Random.H"
+#include "Operator/Elastic.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
+#include "BC/Operator/Elastic.H"
+
+namespace Test
+{
+namespace Operator
+{
+int
+Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
+{
+	Set::Scalar tolerance = 0.02;
+
+	int failed = 0;
+
+	// Define the "model" fab to be a Laplacian, so that this
+	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
+	Set::Scalar alpha = 1.0;
+	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	//using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(alpha);
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
+
+	// Initialize: set the rhs_prescribed to sin(n pi x1 / L) * sin(n pi x2 / L), so that
+	// the exact solution is sin(n pi x1 / L) * sin(n pi x2 / L) / pi / 2.
+	// Set everything else to zero.
+	std::complex<int> i(0,1);
+	IC::Trig icrhs(geom,1.0,AMREX_D_DECL(n*i,n*i,n*i),dim);
+	//icrhs.SetComp(component);
+	IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi/n/n),AMREX_D_DECL(n*i,n*i,n*i),dim);
+	icexact.SetComp(component);
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		icrhs.Initialize(ilev,rhs_prescribed);
+		icexact.Initialize(ilev,solution_exact);
+	}
+
+	amrex::LPInfo info;
+ 	info.setAgglomeration(1);
+ 	info.setConsolidation(1);
+ 	//info.setMaxCoarseningLevel(1);
+ 	nlevels = geom.size();
+
+	::Operator::Elastic<model_type> elastic;
+	elastic.SetHomogeneous(true);
+ 	elastic.define(geom, cgrids, dmap, info);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
+
+	// Set up boundary conditions, and 
+	// configure the problem so that it is 1D, 2D, or 3D
+	BC::Operator::Elastic<model_type> bc;
+	bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+	if (dim == 1)
+	{
+		AMREX_D_TERM(,// nothing to do in 1D case
+			     bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     ,
+			     bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_prescribed, geom););
+	}
+	if (dim == 2)
+	{
+		AMREX_D_TERM(, // nothing to do in 1D case
+			     , // nothing to do in 2D case
+			     bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom);
+			     bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_prescribed, geom););
+	}
+	if (dim == 3)
+	{
+		// nothing to do - displacement BC is default
+	}
+	elastic.SetBC(&bc);
+
+
+	// Create MLMG solver and solve
+	amrex::MLMG mlmg(elastic);
+	//mlmg.setFixedIter(1);
+	//mlmg.setMaxIter(1000);
+	//mlmg.setMaxFmgIter(50);
+ 	if (verbose)
+ 	{
+ 		mlmg.setVerbose(verbose);
+		if (verbose > 4) mlmg.setCGVerbose(verbose);
+ 	}
+ 	else
+ 	{
+ 		mlmg.setVerbose(0);
+ 		mlmg.setCGVerbose(0);
+	}
+ 	mlmg.setBottomMaxIter(50);
+ 	mlmg.setFinalFillBC(false);	
+ 	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	// mlmg.setPreSmooth(4);
+	// mlmg.setPostSmooth(4);
+
+	Set::Scalar tol_rel = 1E-8;
+	Set::Scalar tol_abs = 0;
+
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+
+	// Compute solution error
+	for (int i = 0; i < nlevels; i++)
+	{
+	  	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
+	  	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
+	}
+
+	//Compute numerical right hand side
+	mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
+
+	// Compute exact right hand side
+	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
+
+	// Compute numerical residual
+	mlmg.compResidual(GetVecOfPtrs(res_numeric),GetVecOfPtrs(solution_numeric),GetVecOfConstPtrs(rhs_prescribed));
+
+	// Compute exact residual
+	mlmg.compResidual(GetVecOfPtrs(res_exact),GetVecOfPtrs(solution_exact),GetVecOfConstPtrs(rhs_prescribed));
+
+	// If specified, output plot file
+	if (plotfile != "")
+	{
+		Util::Message(INFO,"Printing plot file to ",plotfile);
+		WritePlotFile(plotfile);
+	}
+
+	// Find maximum solution error
+	std::vector<Set::Scalar> error_norm(nlevels);
+	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0].norm0(component,0,false) / solution_exact[0].norm0(component,0,false);
+	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
+
+	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");
+	if (maxnorm > tolerance) failed += 1;
+	return failed;
+}
+}
+}

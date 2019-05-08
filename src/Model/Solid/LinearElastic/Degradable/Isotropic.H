@@ -102,6 +102,15 @@ public:
 			return;
 	}
 
+	virtual void Print (std::ostream& os) const
+	{
+		os <<    "mu = " << mu <<
+			" lambda = " << lambda <<
+			" mu0=" << mu0 <<
+			" lambda0=" << lambda0 << std::endl;
+	}
+
+
 private:
 	Set::Scalar mu = NAN, lambda = NAN, mu0 = NAN, lambda0 = NAN;
 };
