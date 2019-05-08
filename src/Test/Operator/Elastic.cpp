@@ -109,9 +109,6 @@ void Elastic::Define(int _ncells,
 	}
 
 }
-
-
-
 }
 }
 	     

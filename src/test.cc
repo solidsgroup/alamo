@@ -89,15 +89,15 @@ int main (int argc, char* argv[])
 		int subfailed = 0;
 		Test::Operator::Elastic test;
 		test.Define(32,1);
-		subfailed += Util::Test::SubMessage("1 level,  Component 0, period=1",test.TrigTest(3,0,1,"testoutput"));
-		// test.Define(32,2);
-		// subfailed += Util::Test::SubMessage("2 levels, Reflux test",          test.RefluxTest(0));
-		// subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.TrigTest(0,0,1));
-		// test.Define(32,3);
-		// subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
-		// subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
-		//test.Define(16,1); //second number change the mesh levels.
-		subfailed += Util::Test::Message("Uniaxial Test",test.UniaxialTest(5,0,1,"uniaxial"));
+		subfailed += Util::Test::SubMessage("1 level,  Component 0, period=1",test.TrigTest(0,0,1));
+		test.Define(32,2);
+		subfailed += Util::Test::SubMessage("2 levels, Reflux test",          test.RefluxTest(0));
+		subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.TrigTest(0,0,1));
+		test.Define(32,3);
+		subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
+		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
+		test.Define(32,1); //second number change the mesh levels.
+		subfailed += Util::Test::SubMessage("Uniaxial Test",test.UniaxialTest(0,0,1));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
