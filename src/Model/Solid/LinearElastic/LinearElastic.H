@@ -32,11 +32,14 @@ public:
 	/// \f[\mathbb{C}_{ijkl}u_{k,lj}\f]
 	///
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps) = 0;
+
+	virtual void Print(std::ostream& os) const;
 };
 
 std::ostream&
 operator<< (std::ostream& os,
-	    const LinearElastic&    b);
+	    const LinearElastic& b);
+
 }
 }
 }

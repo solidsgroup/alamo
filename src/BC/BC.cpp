@@ -38,14 +38,17 @@ int ReadString(std::string bcstring)
 }
 bool IsPeriodic(int bctype)
 {
-	if (bctype == INT_DIR) return true;
-	if (bctype == Interior) return true;
-	if (bctype == (int)amrex::LinOpBCType::interior) return true;
+	///\todo We need to clean up these operators
+	//if (bctype == INT_DIR) return true;
+	//if (bctype == Interior) return true;
+	//if (bctype == (int)amrex::LinOpBCType::interior) return true;
 	if (bctype == (int)amrex::LinOpBCType::Periodic) return true;
 	else return false;
 }
 bool IsNeumann(int bctype)
 {
+	if (bctype == INT_DIR) return true;
+	if (bctype == Interior) return true;
 	if (bctype == (int)amrex::LinOpBCType::Neumann) return true;
 	else return false;
 }
