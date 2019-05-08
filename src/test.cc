@@ -75,7 +75,7 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("3-1-0",test.Derivative<3,1,0>(0));
 		subfailed += Util::Test::SubMessage("1-3-0",test.Derivative<1,3,0>(0));
 		subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
-#if AMERX_SPACEDIM>2
+#if AMREX_SPACEDIM>2
 		subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,0,1>(0));
 		subfailed += Util::Test::SubMessage("0-0-2",test.Derivative<0,0,2>(0));
 		subfailed += Util::Test::SubMessage("1-0-1",test.Derivative<1,0,1>(0));
@@ -96,10 +96,29 @@ int main (int argc, char* argv[])
 		test.Define(32,3);
 		subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
-		test.Define(32,1); //second number change the mesh levels.
-		subfailed += Util::Test::SubMessage("Uniaxial Test",test.UniaxialTest(0,0,1));
+		failed += Util::Test::SubFinalMessage(subfailed);
+
+	}
+
+	Util::Test::Message("Elastic Operator Uniaxial Test 32x32"); //Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfile)
+	{
+		int subfailed = 0;
+		Test::Operator::Elastic test;
+	        test.Define(32,1); //second number change the mesh levels.
+		AMREX_D_TERM(subfailed += Util::Test::SubMessage("1 level, Component 0, period=1",test.UniaxialTest(0,0,1));,
+			     subfailed += Util::Test::SubMessage("1 level, Component 1, period=1",test.UniaxialTest(0,1,1));,
+			     subfailed += Util::Test::SubMessage("1 level, Component 2, period=1",test.UniaxialTest(0,2,1));)
+		test.Define(32,2); 
+		AMREX_D_TERM(subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.UniaxialTest(0,0,1));,
+			     subfailed += Util::Test::SubMessage("2 levels, Component 1, period=1",test.UniaxialTest(0,1,1));,
+			     subfailed += Util::Test::SubMessage("2 levels, Component 2, period=1",test.UniaxialTest(0,2,1));)
+		test.Define(32,3); 
+		AMREX_D_TERM(subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.UniaxialTest(0,0,1));,
+			     subfailed += Util::Test::SubMessage("3 levels, Component 1, period=1",test.UniaxialTest(0,1,1));,
+			     subfailed += Util::Test::SubMessage("3 levels, Component 2, period=1",test.UniaxialTest(0,2,1));)
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
+	
 
 	Util::Message(INFO,failed," tests failed");
 

@@ -10,19 +10,12 @@ namespace Test
 {
 namespace Operator
 {
-int Elastic::UniaxialTest(int verbose,
-		 int component,
-		 int n,
-		 std::string plotfile)
+int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfile)
 {
         Set::Scalar tolerance = 0.01;
 
 	int failed = 0;
-
-	//using model_type = Model::Solid::LinearElastic::Laplacian;
-	//Set::Scalar alpha = 1.0;
-	//model_type model(alpha);
-
+	
 	using model_type = Model::Solid::LinearElastic::Isotropic;
 	Set::Scalar lame=2.6, shear=6.0;
 	model_type model(lame,shear);
@@ -33,23 +26,16 @@ int Elastic::UniaxialTest(int verbose,
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
-	Set::Vector myvec(AMREX_D_DECL(0.0, 0.0, 0.0));
-	Set::Vector myvec1(AMREX_D_DECL(0.0, 0.1, 0.0));
 	
-	//rhs_prescribed - BODY FORCE
+	Set::Vector vec(AMREX_D_DECL(0.0, 0.0, 0.0));
+	vec[component]=0.1;
+	
 	std::complex<int> i(0,1);
-	//IC::Trig icrhs(geom,1.0,AMREX_D_DECL(i,i,i));
-	IC::Affine icrhs(geom, myvec, 1.0, Set::Vector::Zero() , false, 1.0);
+	IC::Affine icrhs(geom, Set::Vector::Zero(), 1.0, Set::Vector::Zero() , false, 1.0);
 	icrhs.SetComp(component);
 
-	//Trig(Geometry , _alpha , AMREX_D_DECL(phi1,phi2,phi3) ) --- (Vector::geom, Scalar::Alpha , Scalar::AMREX)
-	//Affine(IC(_geom), n(a_n), alpha(a_alpha), b(a_b), halfspace(a_halfspace), m(a_m)
-	//Vector::geom , Vector::a_n, Scalar::a_alpha, Vector::a_b = Set::Vector::Zero(), bool::a_halfspace=false, Scalar::a_m = 1.0 
-
-	//Set::Scalar dim = (Set::Scalar)(AMREX_SPACEDIM); //dim=2 -> 2D ; dim=3 ->3D
-	//IC::Trig icexact(geom,-(1./dim/Set::Constant::Pi/Set::Constant::Pi),AMREX_D_DECL(n*i,n*i,n*i));
-	IC::Affine icexact(geom, myvec1, 1.0, Set::Vector::Zero(), false, 1.0);
-	icexact.SetComp(1); //exact solution
+	IC::Affine icexact(geom, vec, 1.0, Set::Vector::Zero(), false, 1.0);
+	icexact.SetComp(component);
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -69,15 +55,54 @@ int Elastic::UniaxialTest(int verbose,
 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 	BC::Operator::Elastic<model_type> bc;
 
-	bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.01, rhs_prescribed, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	
+	if (component==0)
+	{
+	  AMREX_D_TERM(,
+	               bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+		       bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       ,
+		       bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
+	}
+	
+	
+	if (component==1)
+	{
+	  AMREX_D_TERM(,
+		       bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+		       ,
+		       bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+		       bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
+	}
+	
+	
+	if (component==2 && AMREX_SPACEDIM>2) //3D
+	{
+	  bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	  bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	  bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	  bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	  bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	  bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	  bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+	}
+	
+	
+	//bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+	//bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	//bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	//bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+	//bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
 	
 	elastic.SetBC(&bc);
-
-
 
 	amrex::MLMG mlmg(elastic);
 	// mlmg.setMaxIter(100);
@@ -100,14 +125,16 @@ int Elastic::UniaxialTest(int verbose,
 	
 	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
+        #if (component!=0)
+	  component-=component;
+        #endif  
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-	        //amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,1);
-		amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],0,0,AMREX_SPACEDIM,1);
-		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],0,0,AMREX_SPACEDIM,1);
+	        amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,AMREX_SPACEDIM,1);
+		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,AMREX_SPACEDIM,1);
 	}
 	
 
@@ -121,8 +148,8 @@ int Elastic::UniaxialTest(int verbose,
 	// Compute the numeric residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],0,0,AMREX_SPACEDIM,0);
-		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],0,0,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Copy(res_numeric[i],rhs_numeric[i],component,component,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Subtract(res_numeric[i],rhs_prescribed[i],component,component,AMREX_SPACEDIM,0);
 	}
 	for (int ilev = nlevels-1; ilev > 0; ilev--)
 	 	elastic.Reflux(0,
@@ -132,8 +159,8 @@ int Elastic::UniaxialTest(int verbose,
 	// Compute the exact residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],0,0,AMREX_SPACEDIM,0);
-		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],0,0,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Copy(res_exact[i],rhs_exact[i],component,component,AMREX_SPACEDIM,0);
+		amrex::MultiFab::Subtract(res_exact[i],rhs_prescribed[i],component,component,AMREX_SPACEDIM,0);
 	}
 	for (int ilev = nlevels-1; ilev > 0; ilev--)
 	 	elastic.Reflux(0,
