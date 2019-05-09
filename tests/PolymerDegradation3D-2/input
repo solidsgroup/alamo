@@ -27,7 +27,7 @@ stop_time = 100.0
 
 #=============== AMR parameters ============================================
 amr.plot_int = 10
-amr.max_level = 2
+amr.max_level = 1
 #amr.max_grid_size = 4
 amr.n_cell = 16 16 16
 amr.blocking_factor = 4
