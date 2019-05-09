@@ -22,12 +22,12 @@
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 0.01
+stop_time = 100.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
 amr.plot_int = 10
-amr.max_level = 0
+amr.max_level = 2
 #amr.max_grid_size = 4
 amr.n_cell = 16 16 16
 amr.blocking_factor = 4
@@ -49,8 +49,8 @@ water.refinement_threshold = 0.01
 
 water.ic_type = constant
 water.ic.value = 0.0
-water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
-#water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
+#water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
+water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
 water.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 water.bc.lo_1 = 1.0
 water.bc.hi_1 = 1.0
