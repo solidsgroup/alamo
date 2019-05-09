@@ -6,7 +6,7 @@ namespace Integrator
 PolymerDegradation::PolymerDegradation():
 	Integrator()
 {
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	//
 	// READ INPUT PARAMETERS
 	//
@@ -103,9 +103,12 @@ PolymerDegradation::PolymerDegradation():
 								,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 							  	,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 						);
-		RegisterNewFab(Temp,     thermal.bc, 1, number_of_ghost_cells, "Temperature");
-		RegisterNewFab(Temp_old, thermal.bc, 1, number_of_ghost_cells, "Temperature Old");
 	}
+	else
+		thermal.bc = new BC::Nothing();
+
+	RegisterNewFab(Temp,     thermal.bc, 1, number_of_ghost_cells, "Temperature");
+	RegisterNewFab(Temp_old, thermal.bc, 1, number_of_ghost_cells, "Temperature Old");
 
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
@@ -375,7 +378,7 @@ PolymerDegradation::PolymerDegradation():
 		amrex::Vector<Set::Scalar> bc_lo_2_t, bc_hi_2_t;
 		amrex::Vector<Set::Scalar> bc_lo_3_t, bc_hi_3_t;
 
-		Util::Message(INFO);
+		//Util::Message(INFO);
 
 		if (pp_elastic_bc.countval("left_face")) pp_elastic_bc.getarr("left_face",bc_lo_1);
 		if(bc_lo_1.size() % AMREX_SPACEDIM !=0)
@@ -410,7 +413,7 @@ PolymerDegradation::PolymerDegradation():
 		elastic.bc_front = Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2]));
 #endif
 #endif
-		Util::Message(INFO);
+		//Util::Message(INFO);
 		/*int tempSize = bc_lo_1.size()/AMREX_SPACEDIM;
 		for (int i = 0; i<tempSize; i++)
 			elastic.bc_left.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[AMREX_SPACEDIM*i],bc_lo_1[AMREX_SPACEDIM*i+1],bc_lo_1[AMREX_SPACEDIM*i+2])));
@@ -509,7 +512,7 @@ PolymerDegradation::PolymerDegradation():
 void
 PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
-	Util::Message(INFO);
+	//Util::Message(INFO, "Enter");
 	std::swap(*eta_old[lev], 	*eta_new[lev]);
 	std::swap(*eta_T_old[lev], 	*eta_T_new[lev]);
 	std::swap(*eta_w_old[lev],	*eta_w_new[lev]);
@@ -526,10 +529,11 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 	if(water.on)
 	{
+		//Util::Message(INFO);
 		for ( amrex::MFIter mfi(*water_conc[lev],true); mfi.isValid(); ++mfi )
 		{
 			const amrex::Box& bx = mfi.tilebox();
-			amrex::Array4<const amrex::Real> const& water_old_box = (*water_conc_old[lev]).array(mfi);
+			amrex::Array4<amrex::Real> const& water_old_box = (*water_conc_old[lev]).array(mfi);
 			amrex::Array4<amrex::Real> const& water_box = (*water_conc[lev]).array(mfi);
 
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
@@ -538,22 +542,23 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 				if(water_old_box(i,j,k,0) > 1.0)
 				{
 					Util::Warning(INFO,"Water concentration exceeded 1 at (", i, ",", j, ",", "k) and lev = ", lev, " Resetting");
-					//water_old_box(i,j,k,0) = 1.0;
-					water_box(i,j,k,0) =
-						water_old_box(i,j,k,0)
-						+ dt * water.diffusivity * (
-							AMREX_D_TERM((water_old_box(i+1,j,k,0) + water_old_box(i-1,j,k,0) - 2.0*water_old_box(i,j,k,0)) / DX[0] / DX[0],
-										+ (water_old_box(i,j+1,k,0) + water_old_box(i,j-1,k,0) - 2.0*water_old_box(i,j,k,0)) / DX[1] / DX[1],
-										+ (water_old_box(i,j,k+1,0) + water_old_box(i,j,k-1,0) - 2.0*water_old_box(i,j,k,0)) / DX[2] / DX[2])
+					water_old_box(i,j,k,0) = 1.0;
+				}
+				water_box(i,j,k,0) =
+					water_old_box(i,j,k,0)
+					+ dt * water.diffusivity * (
+						AMREX_D_TERM((water_old_box(i+1,j,k,0) + water_old_box(i-1,j,k,0) - 2.0*water_old_box(i,j,k,0)) / DX[0] / DX[0],
+									+ (water_old_box(i,j+1,k,0) + water_old_box(i,j-1,k,0) - 2.0*water_old_box(i,j,k,0)) / DX[1] / DX[1],
+									+ (water_old_box(i,j,k+1,0) + water_old_box(i,j,k-1,0) - 2.0*water_old_box(i,j,k,0)) / DX[2] / DX[2])
 							);
-					if(water_box(i,j,k,0) > 1.0)
-					{
-						Util::Warning(INFO, "Water concentration has exceeded one after computation. Resetting it to one");
-						water_box(i,j,k,0) = 1.0;
-					}
+				if(water_box(i,j,k,0) > 1.0)
+				{
+					Util::Warning(INFO, "Water concentration has exceeded one after computation. Resetting it to one");
+					water_box(i,j,k,0) = 1.0;
 				}
 			});
 		}
+		//Util::Message(INFO);
 	}
 
 	if(thermal.on)
@@ -573,9 +578,10 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			});
 		}
 	}
-
+	//Util::Message(INFO);
 	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
 	{
+		//Util::Message(INFO);
 		const amrex::Box& bx = mfi.tilebox();
 		amrex::Array4<amrex::Real> const& eta_new_box     = (*eta_new[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& eta_old_box     = (*eta_old[lev]).array(mfi);
@@ -585,12 +591,14 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 		amrex::Array4<const amrex::Real> const& eta_T_old_box   = (*eta_T_old[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& water_box 		= (*water_conc[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& Temp_box 		= (*Temp[lev]).array(mfi);
+		//Util::Message(INFO);
 
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			for (int n = 0; n < damage.number_of_eta; n++)
 			{
 				if(damage.type == "water")
 				{
+					//Util::Message(INFO);
 					Set::Scalar temp1 = 0.0;
 					if(water_box(i,j,k,0) > 0.0 && eta_old_box(i,j,k,n) < damage_w.d_final)
 					{
@@ -603,11 +611,13 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 				}
 				else if(damage.type == "thermal")
 				{
+					//Util::Message(INFO);
 					Set::Scalar gT = damage_T.c0 + damage_T.c1*(std::tanh((Temp_box(i,j,k,0)-damage_T.c2)/damage_T.c3));
 					eta_new_box(i,j,k,n) = eta_old_box(i,j,k,n) + dt*(1.0-gT)*std::exp(-time/damage_T.tau_T)/damage_T.tau_T;
 				}
 				else if(damage.type == "coupled")
 				{
+					//Util::Message(INFO);
 					Set::Scalar temp1 = 0.0;
 					if(water_box(i,j,k,0) > 0.0 && eta_old_box(i,j,k,n) < damage_w.d_final)
 					{
@@ -629,13 +639,13 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 		});
 	}
 	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
-
+	//Util::Message(INFO,"Exit");
 }
 
 void
 PolymerDegradation::Initialize (int lev)
 {
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	if(water.on)
 	{
 		water.ic->Initialize(lev,water_conc);
@@ -684,7 +694,7 @@ void
 PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	const amrex::Real* dx      = geom[lev].CellSize();
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	amrex::Vector<int>  itags;
 	if(water.on)
 	{
@@ -794,7 +804,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 
 	//bool isMFIterSafe  = (model[lev].DistributionMap() == (*eta_new[lev]).DistributionMap());
 	//Util::Message(INFO, "isMFIterSafe = ",isMFIterSafe);
-	Util::Message(INFO, "Enter");
+	//Util::Message(INFO, "Enter");
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box& box = mfi.validbox();
@@ -813,12 +823,12 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 								+ eta_box(i,j,k-1,n)	+ eta_box(i-1,j,k-1,n)
 								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
 									));
-				//modelfab(i,j,k,0).DegradeModulus(temp);
+				modelfab(i,j,k,0).DegradeModulus(temp);
 			}
 			
 		});
 	}
-	Util::Message(INFO, "Exit");
+	//Util::Message(INFO, "Exit");
 }
 
 std::vector<std::string>
@@ -843,7 +853,7 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 void 
 PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 {
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	if (!elastic.on) return;
 	if (iter%elastic.interval) return;
 	if (time < elastic.tstart) return;
@@ -862,10 +872,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
-		//DegradeMaterial(ilev,model[ilev]);
+		DegradeMaterial(ilev,model[ilev]);
 	}
 
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	Operator::Elastic<model_type> elastic_operator;
 	elastic_operator.define(geom, grids, dmap, info);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -875,7 +885,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	BC::Operator::Elastic<model_type> bc;
 	elastic_operator.SetBC(&bc);
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		const Real* DX = geom[ilev].CellSize();
@@ -892,7 +902,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	//Util::Message(INFO, "Interpolate left = ", interpolate_top(time)[0],interpolate_top(time)[1],interpolate_top(time)[2]);
 	//Util::Message(INFO, "Interpolate left = ", interpolate_back(time)[0],interpolate_back(time)[1],interpolate_back(time)[2]);
 	//Util::Message(INFO, "Interpolate left = ", interpolate_front(time)[0],interpolate_front(time)[1],interpolate_front(time)[2]);
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	/*AMREX_D_TERM(bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bc_xlo[0], interpolate_left(time)[0], rhs, geom);
 	 	     bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bc_xhi[0], interpolate_right(time)[0], rhs, geom);
 	 	     ,
@@ -937,7 +947,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	 	     bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], rhs, geom);
 	 	     );
 
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	amrex::MLMG solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
@@ -948,19 +958,19 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setBottomTolerance(elastic.cg_tol_rel) ;
 	solver.setFinalFillBC(false);	
 	solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
 
 	if (elastic.bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (elastic.bottom_solver == "bicgstab")
 		solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	solver.solve(GetVecOfPtrs(displacement),
 	 	     GetVecOfConstPtrs(rhs),
 	 	     elastic.tol_rel,
 	 	     elastic.tol_abs);
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < nlevels; lev++)
@@ -969,7 +979,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		elastic_operator.Stress(lev,*stress[lev],*displacement[lev]);
 		elastic_operator.Energy(lev,*energy[lev],*displacement[lev]);
 	}
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	//for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
 
 	// for (int ilev = 0; ilev < nlevels; ++ilev)
