@@ -33,8 +33,8 @@
 
 namespace Integrator
 {
-using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
-//using model_type = Model::Solid::LinearElastic::Isotropic;
+//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+using model_type = Model::Solid::LinearElastic::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Laplacian;
 
 ///
@@ -184,10 +184,10 @@ private:
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
-		amrex::Vector<Set::Vector> AMREX_D_DECL(bc_left,bc_bottom,bc_back);
-		amrex::Vector<Set::Vector> AMREX_D_DECL(bc_right,bc_top,bc_front);
-		amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_left_t,bc_bottom_t,bc_back_t);
-		amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_right_t,bc_top_t,bc_front_t);
+		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
+		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
+		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_left_t,bc_bottom_t,bc_back_t);
+		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_right_t,bc_top_t,bc_front_t);
 		
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	} elastic;
