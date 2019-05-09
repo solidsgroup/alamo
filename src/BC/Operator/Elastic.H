@@ -83,7 +83,7 @@ public:
  	{
 		Set::Vector f;
 
-		const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+		// const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 		
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 		for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
