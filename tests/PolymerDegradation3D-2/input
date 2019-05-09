@@ -27,7 +27,7 @@ stop_time = 0.01
 
 #=============== AMR parameters ============================================
 amr.plot_int = 10
-amr.max_level = 2
+amr.max_level = 0
 #amr.max_grid_size = 4
 amr.n_cell = 16 16 16
 amr.blocking_factor = 4
@@ -120,33 +120,33 @@ elastic.body_force     = 0.0 0.0001 0.0
 #
 # These BCs are for a SYMMETRIC simulation
 #
-elastic.bc.bc_x_lo = trac trac trac
-elastic.bc.bc_y_lo = trac trac trac
-elastic.bc.bc_z_lo = trac trac disp
-elastic.bc.bc_x_hi = disp neumann neumann
-elastic.bc.bc_y_hi = neumann disp neumann
-elastic.bc.bc_z_hi = disp disp disp
-elastic.bc.left_face = 0.0 0.0 0.0
-elastic.bc.right_face = 0.0 0.0 0.0
-elastic.bc.bottom_face = 0.0 0.0 0.0
-elastic.bc.top_face = 0.0 0.0 0.0
-elastic.bc.back_face = 0.0 0.0 0.0
-elastic.bc.front_face = 0.0 0.0 1.0
+#elastic.bc.bc_x_lo = trac trac trac
+#elastic.bc.bc_y_lo = trac trac trac
+#elastic.bc.bc_z_lo = trac trac disp
+#elastic.bc.bc_x_hi = disp neumann neumann
+#elastic.bc.bc_y_hi = neumann disp neumann
+#elastic.bc.bc_z_hi = disp disp disp
+#elastic.bc.left_face = 0.0 0.0 0.0
+#elastic.bc.right_face = 0.0 0.0 0.0
+#elastic.bc.bottom_face = 0.0 0.0 0.0
+#elastic.bc.top_face = 0.0 0.0 0.0
+#elastic.bc.back_face = 0.0 0.0 0.0
+#elastic.bc.front_face = 0.0 0.0 1.0
 
 #
 # These BCs are for a FULL simulation
 #
-#elastic.bc.bc_x_lo = disp disp disp
-#elastic.bc.bc_y_lo = trac trac trac
-#elastic.bc.bc_z_lo = trac trac trac
-#elastic.bc.bc_x_hi = disp disp disp
-#elastic.bc.bc_y_hi = neumann disp neumann
-#elastic.bc.bc_z_hi = neumann neumann disp
-#elastic.bc.left_face = 0.0 0.0 0.0
-#elastic.bc.right_face = 1.0 0.0 0.0
-#elastic.bc.bottom_face = 0.0 0.0 0.0
-#elastic.bc.top_face = 0.0 0.0 0.0
-#elastic.bc.back_face = 0.0 0.0 0.0
-#elastic.bc.front_face = 0.0 0.0 0.0
+elastic.bc.bc_x_lo = disp disp disp
+elastic.bc.bc_y_lo = trac trac trac
+elastic.bc.bc_z_lo = trac trac trac
+elastic.bc.bc_x_hi = disp disp disp
+elastic.bc.bc_y_hi = trac trac trac
+elastic.bc.bc_z_hi = trac trac trac
+elastic.bc.left_face = 0.0 0.0 0.0
+elastic.bc.right_face = 0.01 0.0 0.0
+elastic.bc.bottom_face = 0.0 0.0 0.0
+elastic.bc.top_face = 0.0 0.0 0.0
+elastic.bc.back_face = 0.0 0.0 0.0
+elastic.bc.front_face = 0.0 0.0 0.0
 
 #===========================================================================
