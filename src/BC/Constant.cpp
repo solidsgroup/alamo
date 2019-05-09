@@ -54,7 +54,6 @@ Constant::FillBoundary (amrex::FArrayBox &in,
 	{
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
-
 		if (mask != nullptr) 
 		 	if (AMREX_D_TERM(mask->loVect()[0] <= i && i <= mask->hiVect()[0],
 		 			 && mask->loVect()[1] <= j && j <= mask->hiVect()[1],
