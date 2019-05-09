@@ -460,8 +460,8 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
 
-	if(water_diffusion_on) std::swap(*water_conc_old[lev],*water_conc[lev]);
-	if(heat_diffusion_on) std::swap(*Temp_old[lev], *Temp[lev]);
+	if(water.diffusion_on) std::swap(*water_conc_old[lev],*water_conc[lev]);
+	if(thermal.on) std::swap(*Temp_old[lev], *Temp[lev]);
 
 	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)),
 						dy(AMREX_D_DECL(0,1,0)),
@@ -481,7 +481,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 				if(std::isinf(water_old_box(i,j,k,0))) Util::Abort(INFO, "Nan found in WATER_OLD(i,j,k)");
 				if(water_old_box(i,j,k,0) > 1.0)
 				{
-					Util::Warning(INFO,"Water concentration exceeded 1 at (", i, ",", j, ",", "k) and lev = ", lev, " Resetting").
+					Util::Warning(INFO,"Water concentration exceeded 1 at (", i, ",", j, ",", "k) and lev = ", lev, " Resetting");
 					water_old_box(i,j,k,0) = 1.0;
 					water_box(i,j,k,0) =
 						water_old_box(i,j,k,0)
@@ -729,7 +729,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 	  damage model.
 	  For now we are just using isotropic degradation.
 	*/
-	if(damage_anisotropy) Util::Abort(__FILE__,"DegradeModulus",__LINE__,"Not implemented yet");
+	if(damage.anisotropy) Util::Abort(__FILE__,"DegradeModulus",__LINE__,"Not implemented yet");
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
