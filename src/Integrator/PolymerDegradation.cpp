@@ -146,7 +146,7 @@ PolymerDegradation::PolymerDegradation():
 
 	pp_damage.query("type",damage.type);
 
-	if(damage.type == "water" || damage.type == "coupled") 
+	if(damage.type == "water") 
 	{
 		damage.number_of_eta = 1;
 		damage.anisotropy = 0;
@@ -176,7 +176,7 @@ PolymerDegradation::PolymerDegradation():
 		if(sum != damage_w.d_final) //need to replace this in the future
 			Util::Abort(INFO, "d_final is not equal to the sum of d_i");
 	}
-	if(damage.type == "thermal" || damage.type == "coupled")
+	else if(damage.type == "thermal")
 	{
 		damage.number_of_eta = 1;
 		damage.anisotropy = 0;
@@ -185,6 +185,42 @@ PolymerDegradation::PolymerDegradation():
 		pp_damage.query("c2",damage_T.c2);
 		pp_damage.query("c3",damage_T.c3);
 		pp_damage.query("tau_T",damage_T.tau_T);
+	}
+	else if(damage.type == "coupled")
+	{
+		damage.number_of_eta = 1;
+		damage.anisotropy = 0;
+		pp_damage.query("d_final",damage_w.d_final);
+		pp_damage.query("number_of_terms",damage_w.number_of_terms);
+		pp_damage.queryarr("d_i",damage_w.d_i);
+		pp_damage.queryarr("tau_i",damage_w.tau_i);
+		pp_damage.queryarr("t_start_i",damage_w.t_start_i);
+
+		pp_damage.query("c0",damage_T.c0);
+		pp_damage.query("c1",damage_T.c1);
+		pp_damage.query("c2",damage_T.c2);
+		pp_damage.query("c3",damage_T.c3);
+		pp_damage.query("tau_T",damage_T.tau_T);
+
+		if(damage_w.d_final > 1.0)
+		{
+			Util::Warning(INFO,"d_final can not be greater than 1. Resetting it to default");
+			damage_w.d_final = 1.0;
+		}
+
+		if(damage_w.d_i.size() != damage_w.number_of_terms || damage_w.tau_i.size() != damage_w.number_of_terms || damage_w.t_start_i.size() != damage_w.number_of_terms)
+			Util::Abort(INFO, "missing entries in d_i, tau_i or t_start_i");
+
+		amrex::Real sum = 0;
+		for (int i = 0; i < damage_w.d_i.size(); i++)
+		{
+			if(damage_w.d_i[i] < 0.0 || damage_w.d_i[i] > 1.0)
+			 	Util::Abort(INFO, "Invalid values for d_i. Must be between 0 and 1");
+			sum += damage_w.d_i[i];
+		}
+
+		if(sum != damage_w.d_final) //need to replace this in the future
+			Util::Abort(INFO, "d_final is not equal to the sum of d_i");
 	}
 	else
 		Util::Abort(INFO, "This kind of damage model has not been implemented yet");
@@ -767,7 +803,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 								,
 								+ eta_box(i,j,k-1,n)	+ eta_box(i-1,j,k-1,n)
 								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
-									)); Util::Warning(INFO,"I commented 'bc_xlo' out. Is that OK?"); //bc_xlo
+									));
 				modelfab(i,j,k,0).DegradeModulus(temp);
 			}
 			
