@@ -43,6 +43,7 @@ class StressRelaxation : public Integrator::Integrator
 {
 public:
 	StressRelaxation();
+	~StressRelaxation() {};
 
 protected:
 

@@ -16,6 +16,7 @@ class Linear : public Interpolator<T>
 {
 public:
  	Linear() {};
+ 	~Linear() {};
  	Linear(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points)
 	{
 		define(_data_points,_interval_points);
