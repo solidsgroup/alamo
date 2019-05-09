@@ -14,8 +14,8 @@ int main (int argc, char* argv[])
 
 	srand(1);
 	Integrator::Integrator *model =
-		//new Integrator::PhaseFieldMicrostructure();
-		new Integrator::CahnHilliard();
+		new Integrator::PhaseFieldMicrostructure();
+	//new Integrator::CahnHilliard();
 	model->InitData();
 	model->Evolve();
 	delete model;

@@ -50,13 +50,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 
 		if(gb_type=="abssin")
-			boundary = new Model::Interface::GrainBoundary::AbsSin(theta0,sigma0,sigma1);
+			boundary = new Model::Interface::GB::AbsSin(theta0,sigma0,sigma1);
 		else if(gb_type=="sin")
-			boundary = new Model::Interface::GrainBoundary::Sin(theta0,sigma0,sigma1);
+			boundary = new Model::Interface::GB::Sin(theta0,sigma0,sigma1);
 		else if(gb_type=="read")
-			boundary = new Model::Interface::GrainBoundary::Read(filename);
+			boundary = new Model::Interface::GB::Read(filename);
 		else
-			boundary = new Model::Interface::GrainBoundary::Sin(theta0,sigma0,sigma1);
+			boundary = new Model::Interface::GB::Sin(theta0,sigma0,sigma1);
 
     
 	}
@@ -272,9 +272,9 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						// CURVATURE PENALTY
 						//
 
-						amrex::Real AMREX_D_DECL(grad11 = (eta(i+1,j,k,m) - 2.*eta(i,j,k,m) + eta(i-1,j,k,m))/DX[0]/DX[0],
-						 			 grad22 = (eta(i,j+1,k,m) - 2.*eta(i,j,k,m) + eta(i,j-1,k,m))/DX[1]/DX[1],
-						 			 grad33 = (eta(i,j,k+1,m) - 2.*eta(i,j,k,m) + eta(i,j,k-1,m))/DX[2]/DX[2]);
+						amrex::Real AMREX_D_DECL(grad11 = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)),
+									 grad22 = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)),
+									 grad33 = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)));
 		      
 						amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
 
@@ -283,16 +283,17 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
  						if (anisotropy && time > anisotropy_tstart)
  						{
-#if AMREX_SPACEDIM == 2
 							Set::Vector Deta;
-							Deta(0) = (eta(i+1,j,k,m) - eta(i-1,j,k,m))/(2.*DX[0]); // replaces grad1
-							Deta(1) = (eta(i,j+1,k,m) - eta(i,j-1,k,m))/(2.*DX[0]); // replaces grad2
+							AMREX_D_TERM(Deta(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(eta,i,j,k,m,DX));, // replaces grad1
+								     Deta(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(eta,i,j,k,m,DX));, // replaces grad2
+								     Deta(2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX));); 
 
 							Set::Matrix DDeta;
-							DDeta(0,0) = (eta(i+1,j,k,m) - 2.*eta(i,j,k,m) + eta(i-1,j,k,m))/DX[0]/DX[0]; // replaces grad11
-							DDeta(1,1) = (eta(i,j+1,k,m) - 2.*eta(i,j,k,m) + eta(i,j-1,k,m))/DX[1]/DX[1]; // replaces grad22
-							DDeta(0,1) = (eta(i+1,j+1,k,m) - eta(i-1,j+1,k,m) - eta(i+1,j-1,k,m) + eta(i-1,j-1,k,m))/(4.*DX[0]*DX[1]); // replaces grad12
+							DDeta(0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)); // replaces grad11
+							DDeta(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)); // replaces grad22
+							DDeta(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(eta,i,j,k,m,DX)); // replaces grad12
 
+#if AMREX_SPACEDIM == 2
  							Set::Scalar Theta = atan2(Deta(1),Deta(0));
 							Set::Scalar Kappa = l_gb*0.75*boundary->W(Theta);
  							Set::Scalar DKappa = l_gb*0.75*boundary->DW(Theta);
@@ -302,16 +303,11 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
  							Set::Scalar cosTheta = cos(Theta);
 		
  							// amrex::Real norm_grad = grad1*grad1+grad2*grad2; //(UNUSED)
-		
 
 							Set::Scalar grad1111 = Numeric::Stencil<Set::Scalar,4,0,0>::D(eta,i,j,k,m,DX);
-			
 							Set::Scalar grad2222 = Numeric::Stencil<Set::Scalar,0,4,0>::D(eta,i,j,k,m,DX);
-			
  							amrex::Real grad1112 = Numeric::Stencil<Set::Scalar,3,1,0>::D(eta,i,j,k,m,DX);
-
 							amrex::Real grad1222 = Numeric::Stencil<Set::Scalar,1,3,0>::D(eta,i,j,k,m,DX);
-		
  							amrex::Real grad1122 = Numeric::Stencil<Set::Scalar,2,2,0>::D(eta,i,j,k,m,DX);
 			
  							amrex::Real Curvature_term =

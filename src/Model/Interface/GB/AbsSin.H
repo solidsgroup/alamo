@@ -1,11 +1,11 @@
-#ifndef MODEL_INTERFACE_GRAINBOUNDARY_ABSSIN_H
-#define MODEL_INTERFACE_GRAINBOUNDARY_ABSSIN_H
+#ifndef MODEL_INTERFACE_GB_ABSSIN_H
+#define MODEL_INTERFACE_GB_ABSSIN_H
 
 #include <iostream>
 #include <fstream>
 
 #include "AMReX.H"
-#include "GrainBoundary.H"
+#include "GB.H"
 
 #define PI 3.14159265 
 
@@ -13,9 +13,9 @@ namespace Model
 {
 namespace Interface
 {
-namespace GrainBoundary
+namespace GB
 {
-class AbsSin : public GrainBoundary
+class AbsSin : public GB
 {
 public:
   AbsSin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
