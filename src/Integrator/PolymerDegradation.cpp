@@ -512,7 +512,7 @@ PolymerDegradation::PolymerDegradation():
 void
 PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
-	//Util::Message(INFO, "Enter");
+	Util::Message(INFO, "Enter");
 	std::swap(*eta_old[lev], 	*eta_new[lev]);
 	std::swap(*eta_T_old[lev], 	*eta_T_new[lev]);
 	std::swap(*eta_w_old[lev],	*eta_w_new[lev]);
@@ -529,7 +529,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 	if(water.on)
 	{
-		//Util::Message(INFO);
+		Util::Message(INFO);
 		for ( amrex::MFIter mfi(*water_conc[lev],true); mfi.isValid(); ++mfi )
 		{
 			const amrex::Box& bx = mfi.tilebox();
@@ -558,7 +558,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 				}
 			});
 		}
-		//Util::Message(INFO);
+		Util::Message(INFO);
 	}
 
 	if(thermal.on)
@@ -578,7 +578,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			});
 		}
 	}
-	//Util::Message(INFO);
+	Util::Message(INFO);
 	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
 	{
 		//Util::Message(INFO);
@@ -639,13 +639,13 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 		});
 	}
 	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
-	//Util::Message(INFO,"Exit");
+	Util::Message(INFO,"Exit");
 }
 
 void
 PolymerDegradation::Initialize (int lev)
 {
-	//Util::Message(INFO);
+	Util::Message(INFO);
 	if(water.on)
 	{
 		water.ic->Initialize(lev,water_conc);
@@ -694,7 +694,7 @@ void
 PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	const amrex::Real* dx      = geom[lev].CellSize();
-	//Util::Message(INFO);
+	Util::Message(INFO);
 	amrex::Vector<int>  itags;
 	if(water.on)
 	{
@@ -786,6 +786,7 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 			}
 
 	}
+	Util::Message(INFO);
 }
 
 void
@@ -979,7 +980,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		elastic_operator.Stress(lev,*stress[lev],*displacement[lev]);
 		elastic_operator.Energy(lev,*energy[lev],*displacement[lev]);
 	}
-	//Util::Message(INFO);
+	Util::Message(INFO,"Exit");
 	//for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
 
 	// for (int ilev = 0; ilev < nlevels; ++ilev)
