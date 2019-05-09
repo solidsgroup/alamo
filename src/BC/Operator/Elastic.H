@@ -38,8 +38,8 @@ public:
 	      const Direction direction,
 	      const Type type,
 	      const Set::Scalar value,
-	      amrex::Vector<amrex::MultiFab> &a_rhs,
-	      const amrex::Vector<Geometry> &a_geom)
+	      amrex::Vector<amrex::MultiFab *> &a_rhs,
+	    const amrex::Vector<amrex::Geometry> &a_geom)
 	{
 		
 		if (AMREX_D_TERM(face == Face::XLO, || face == Face::YLO, ||  face == Face::ZLO))
@@ -51,11 +51,11 @@ public:
 		{
 			amrex::Box domain(a_geom[ilev].Domain());
 			domain.convert(amrex::IntVect::TheNodeVector());
-			const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-			for (MFIter mfi(a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+			const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+			for (amrex::MFIter mfi(*a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
-				Box bx = mfi.tilebox();
-				amrex::Array4<amrex::Real> const& rhs       = a_rhs[ilev].array(mfi);
+				amrex::Box bx = mfi.tilebox();
+				amrex::Array4<amrex::Real> const& rhs       = a_rhs[ilev]->array(mfi);
 				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 						AMREX_D_TERM(if (i == lo.x && face == Face::XLO)
 								     rhs(i,j,k,direction) = value;,
@@ -74,12 +74,37 @@ public:
 		}
 	}
 
+	void
+	Set(const Face face,
+	    const Direction direction,
+	    const Type type,
+	    const Set::Scalar value,
+	    amrex::Vector<amrex::MultiFab> &a_rhs,
+	    const amrex::Vector<amrex::Geometry> &a_geom)
+	{
+		amrex::Vector<amrex::MultiFab *> pa_rhs = amrex::GetVecOfPtrs(a_rhs);
+		Set(face,direction,type,value,pa_rhs,a_geom);
+	}
+
+	void
+	Set(const Face face,
+	    const Direction direction,
+	    const Type type,
+	    const Set::Scalar value,
+	    amrex::Vector<std::unique_ptr<amrex::MultiFab> > &a_rhs,
+	    const amrex::Vector<amrex::Geometry> &a_geom)
+	{
+		amrex::Vector<amrex::MultiFab *> pa_rhs = amrex::GetVecOfPtrs(a_rhs);
+		Set(face,direction,type,value,pa_rhs,a_geom);
+	}
+
+
  	AMREX_FORCE_INLINE
  	Set::Vector operator () (const Set::Vector &u,
  				 const Set::Matrix &gradu,
  				 const Set::Matrix &sigma,
  				 const int &i, const int &j, const int &k,
-				 const Box &domain)
+				 const amrex::Box &domain)
  	{
 		Set::Vector f;
 
