@@ -104,10 +104,6 @@ void Initialize (int argc, char* argv[])
 		IO::WriteMetaData(filename);
 	}
 }
-void Initialize()
-{
-	Initialize(0,nullptr);
-}
 
 void Finalize()
 {
