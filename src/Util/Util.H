@@ -42,6 +42,7 @@ std::string GetFileName();
 void SignalHandler(int s);
 
 void Initialize (int argc, char* argv[]);
+void Initialize ();
 
 void Finalize ();
 

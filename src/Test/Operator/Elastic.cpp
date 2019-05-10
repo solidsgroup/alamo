@@ -10,16 +10,30 @@ namespace Test
 {
 namespace Operator
 {
-void Elastic::Define(int _ncells,
-		     int _nlevels,
-		     int _dim,
-		     Grid _config)
+void Elastic::Define(const amrex::IntVect _ncells,
+		     const int _nlevels,
+		     const int _dim,
+		     const Grid _config)
 {
+
 	dim = _dim;
 	ncells = _ncells;
  	nlevels = _nlevels;
+	m_config = _config;
+}
+
+void Elastic::Define(const int _ncells,
+		     const int _nlevels,
+		     const int _dim,
+		     const Grid _config)
+{
+	Define(amrex::IntVect(AMREX_D_DECL(_ncells,_ncells,_ncells)),_nlevels,_dim,_config);
+}
+
+void Elastic::Generate()
+{
 	//int max_grid_size = 100000;
-	int max_grid_size = ncells/4;
+	int max_grid_size = ncells[0]/4;
 	//std::string orientation = "h";
  	geom.resize(nlevels);
  	cgrids.resize(nlevels);
@@ -36,11 +50,12 @@ void Elastic::Define(int _ncells,
  	res_exact.resize(nlevels);
 	ghost_force.resize(nlevels);
 
-	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(1.,1.,1.)});
+	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)},
+			  {AMREX_D_DECL(m_bounds[0],m_bounds[1],m_bounds[2])});
+	Util::Message(INFO,"realbox = " , rb);
 	amrex::Geometry::Setup(&rb, 0);
 
-	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
-			   amrex::IntVect{AMREX_D_DECL(ncells,ncells,ncells)},
+	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)}, ncells,
 			   amrex::IntVect::TheNodeVector());
 	amrex::Box CDomain = amrex::convert(NDomain, amrex::IntVect::TheCellVector());
 
@@ -60,20 +75,20 @@ void Elastic::Define(int _ncells,
 		// if (ilev == 2) cgrids[ilev].maxSize(10000000);
 		cgrids[ilev].maxSize(max_grid_size);
 
-		if (_config == Grid::XYZ)
-			cdomain.grow(amrex::IntVect(-ncells/4)); 
-		else if (_config == Grid::X)
-			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,0)));
-		else if (_config == Grid::Y)
-			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,0)));
-		else if (_config == Grid::Z)
-			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,0,-ncells/4)));
-		else if (_config == Grid::YZ)
-			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells/4,-ncells/4)));
-		else if (_config == Grid::ZX)
-			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,0,-ncells/4)));
-		else if (_config == Grid::XY)
-			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells/4,-ncells/4,0)));
+		if (m_config == Grid::XYZ)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells[0]/4,-ncells[1]/4,-ncells[2]/4))); 
+		else if (m_config == Grid::X)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells[0]/4,0,0)));
+		else if (m_config == Grid::Y)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells[1]/4,0)));
+		else if (m_config == Grid::Z)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,0,-ncells[2]/4)));
+		else if (m_config == Grid::YZ)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(0,-ncells[1]/4,-ncells[2]/4)));
+		else if (m_config == Grid::ZX)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells[0]/4,0,-ncells[2]/4)));
+		else if (m_config == Grid::XY)
+			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells[0]/4,-ncells[1]/4,0)));
 	
 		cdomain.refine(ref_ratio); 
 		ngrids[ilev] = cgrids[ilev];
