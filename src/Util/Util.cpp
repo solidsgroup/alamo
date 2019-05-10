@@ -70,6 +70,12 @@ void SignalHandler(int s)
 }
 
 
+void Initialize ()
+{
+	int argc = 0;
+	char * argv[0];
+	Initialize(argc,argv);
+}
 void Initialize (int argc, char* argv[])
 {
 	srand (time(NULL));
