@@ -42,10 +42,21 @@ public:
 	/// Each level is identical to the one below but with a quarter of the area and twice
 	/// the resolution.
 	/// \todo Add option to specify one of multiple refinement geometries
-	void Define(int _ncells,
-		    int _nlevels,
-		    int _dim = AMREX_SPACEDIM,
-		    Grid config = Grid::XYZ);
+	void Define(const amrex::IntVect _ncells,
+		    const int _nlevels,
+		    const int _dim = AMREX_SPACEDIM,
+		    const Grid config = Grid::XYZ);
+
+	void Define(const int _ncells,
+		    const int _nlevels,
+		    const int _dim = AMREX_SPACEDIM,
+		    const Grid config = Grid::XYZ);
+
+	void Define(const int _ncells,
+		    const int _nlevels)
+	{
+		Define(_ncells,_nlevels,AMREX_SPACEDIM,Grid::XYZ);
+	};
 
 	/// Impose a set of prescribed values for \f$\mathbf{u}\f$.
 	/// Compute right hand side, then use Operator::Reflux to modify the residual \f$\mathbf{r}=\mathbf{b}-D\mathbf{u}\f$.
@@ -87,8 +98,21 @@ public:
 		     int component = 0,
 		     int n = 1,
 		     std::string plotfile = "");
+	int mytest() {return 8;};
+
+	// Setter functions
+	void setMaxCoarseningLevel(int a_maxCoarseningLevel) {m_maxCoarseningLevel = a_maxCoarseningLevel;}
+	void setFixedIter(int a_fixedIter) {m_fixedIter = a_fixedIter;}
+	void setMaxIter(int a_maxIter) {m_maxIter = a_maxIter;}
+	void setMaxFmgIter(int a_maxFmgIter) {m_maxFmgIter = a_maxFmgIter;}
+	void setBottomMaxIter(int a_bottomMaxIter) {m_bottomMaxIter = a_bottomMaxIter;}
+	void setBounds(AMREX_D_DECL(Set::Scalar a_x,Set::Scalar a_y, Set::Scalar a_z))
+		       {m_bounds = {AMREX_D_DECL(a_x,a_y,a_z)};}
+	void setBounds(std::array<Set::Scalar,AMREX_SPACEDIM> a_bounds) {m_bounds = a_bounds;}
 
 private: // Private member functions
+
+	void Generate();
 
 	void WritePlotFile(std::string plotfile, std::vector<int> nghost)
 	{
@@ -132,8 +156,10 @@ private: // Private member variables
 	int dim = 1;
 
 	int nlevels = 1;
-	int ncells = 16;
+	amrex::IntVect ncells;
 	const int ref_ratio = 2;
+
+	Grid m_config = Grid::XYZ;
 
  	amrex::Vector<amrex::Geometry> 		   geom;
  	amrex::Vector<amrex::BoxArray> 		   cgrids, ngrids;
@@ -160,6 +186,15 @@ private: // Private member variables
 					      AMREX_D_DECL("res_exact1","res_exact2","res_exact3"),
 					      AMREX_D_DECL("res_numeric1","res_numeric2","res_numeric3"),
 					      AMREX_D_DECL("ghost_force1", "ghost_force2","ghost_force2")};
+
+	std::array<Set::Scalar,AMREX_SPACEDIM> m_bounds = {AMREX_D_DECL(1.0,1.0,1.0)};
+	int m_maxCoarseningLevel = 1000000;
+	int m_fixedIter       = 1000000;
+	int m_maxIter         = 1000000;
+	int m_maxFmgIter      = 1000000;
+	int m_bottomMaxIter   = 200;
+
+
 };
 }
 }

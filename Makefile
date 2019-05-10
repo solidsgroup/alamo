@@ -42,7 +42,7 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS = -fPIC -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 ifeq ($(DEBUG),TRUE)
  CXX_COMPILE_FLAGS += -ggdb -g3
 else 
@@ -51,7 +51,7 @@ endif
 
 LINKER_FLAGS = -Bsymbolic-functions
 
-INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done) -I/usr/include/python2.7/
 LIB     = -L${AMREX}/lib/ -lamrex 
 
 HDR_ALL = $(shell find src/ -name *.H)
@@ -71,6 +71,11 @@ OBJ_F = $(subst src/,obj/obj$(PREFIX)/, $(SRC_F:.F90=.F90.o))
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
+python: ${OBJ} 
+	$(CC) -c src/python.cc -fPIC -o alamo.o ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	g++ -shared -Wl,-soname,alamo.so -o alamo.so  alamo.o ${OBJ} ${LIB} ${MPI_LIB}  /usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.62.0
+
+
 clean:
 	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
 	find src/ -name "*.o" -exec rm {} \;
@@ -88,6 +93,9 @@ info:
 	@printf "$(B_ON)$(FG_BLUE)MPI Flags$(RESET)\n"
 	@$(CC) -show
 	@printf "\n"
+
+
+bin/%: bin/%$(PREFIX) ;
 
 bin/%$(PREFIX): ${OBJ_F} ${OBJ} obj/obj$(PREFIX)/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 

@@ -19,14 +19,13 @@ public:
 	Stencil() {};
 	~Stencil() {};
 
-	void Define(int _ncells)
+	void Define(amrex::IntVect _ncells)
 	{
 		ncells = _ncells;
 		amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(L,L,L)});
 		amrex::Geometry::Setup(&rb, 0);
 		
-		amrex::Box domain(amrex::IntVect{AMREX_D_DECL(0,0,0)},
-				  amrex::IntVect{AMREX_D_DECL(ncells,ncells,ncells)},
+		amrex::Box domain(amrex::IntVect{AMREX_D_DECL(0,0,0)}, ncells,
 				  amrex::IntVect::TheCellVector());
 		geom.resize(1);
 		grids.resize(1);
@@ -37,7 +36,7 @@ public:
 
 		geom[0].define(domain);
 		grids[0].define(domain);
-		grids[0].maxSize(ncells/2);
+		grids[0].maxSize(ncells[0]/2);
 		dmap[0].define(grids[0]);
 
 		phi[0].define(grids[0],dmap[0],1,nghost);
@@ -49,6 +48,10 @@ public:
 		//   cos(2*pi*x/L) * cos(2*pi*y/L) * cos(2*pi*z / L)
 		IC::Trig2 ic(geom,1.0,AMREX_D_DECL(0.0,0.0,0.0),AMREX_D_DECL(1,1,1));
 		ic.Add(0,phi);
+	}
+	void Define(int _ncells)
+	{
+		amrex::IntVect{AMREX_D_DECL(_ncells,_ncells,_ncells)};
 	}
 
 	template<int i,int j,int k>
@@ -93,7 +96,7 @@ public:
 
 		Set::Scalar error = diff.norm0(0,0,false) / DphiExact[0].norm0(0,0,false);
 
-		if (verbose) Util::Message(INFO,"Infinity norm of error = ", error);
+		if (verbose) Util::Message(INFO,"Infinity norm of error = ", 100*error,"%");
 
 		if (plotfile != "")
 			WritePlotFile(plotfile);
@@ -123,7 +126,7 @@ public:
 
 
 private:
-	int ncells;
+	amrex::IntVect ncells;
 	const Set::Scalar L = 1.0;
 	const int nlevels = 1, ref_ratio = 1, ncomp = 1, nghost = 2;
 	amrex::Vector<amrex::Geometry> geom;
