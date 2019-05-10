@@ -17,6 +17,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
+#include "BC/Operator/Elastic.H"
 #include "IC/IC.H"
 #include "IC/Constant/Constant.H"
 #include "Numeric/Interpolator/Linear.H"
@@ -29,13 +30,6 @@
 #include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 
-
-#define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define WATER_OLD(i,j,k) water_conc_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define WATER(i,j,k) water_conc_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define ETA_OLD(i,j,k,m) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
-#define ETA_NEW(i,j,k,m) eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
 
 namespace Integrator
 {
@@ -80,6 +74,12 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_old;		///< Degradation variable for the __previous__timestep
 
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_w_new; 		///< Degradation variable for the __current__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_w_old;		///< Degradation variable for the __previous__timestep
+
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_T_new; 		///< Degradation variable for the __current__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_T_old;		///< Degradation variable for the __previous__timestep
+
 	// For water induced degradation
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;		///< Water concentration for the __current__timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc_old;	///< Water concentration for the __previous__timestep
@@ -107,107 +107,98 @@ private:
 	amrex::Vector<amrex::DistributionMapping> ndmap;
 
 	// Water diffusion parameters
-	bool 			water_diffusion_on 			=	false;
-	Set::Scalar 	water_diffusivity			=	1.0;
-	Set::Scalar 	water_refinement_threshold 	=	0.01;
-	std::string 	water_ic_type;
-	IC::IC			*water_ic;
-	BC::BC			*water_bc;
+	struct{
+		bool 			on 						=	false;
+		Set::Scalar 	diffusivity				=	1.0;
+		Set::Scalar 	refinement_threshold 	=	0.01;
+		std::string 	ic_type;
+		IC::IC			*ic;
+		BC::BC			*bc;
+	} water;
 
 	// Thermal diffusion parameters
-	bool			heat_diffusion_on 				=	false;
-	Set::Scalar 	thermal_diffusivity 			=	1.0;
-	Set::Scalar 	thermal_refinement_threshold 	=	0.01;
-	std::string		thermal_ic_type;
-	IC::IC			*thermal_ic;
-	BC::BC			*thermal_bc;
+	struct{
+		bool			on 						=	false;
+		Set::Scalar 	diffusivity 			=	1.0;
+		Set::Scalar 	refinement_threshold 	=	0.01;
+		std::string		ic_type;
+		IC::IC			*ic;
+		BC::BC			*bc;
+	} thermal;
 
 	// Damage parameters
-	std::string		damage_type;
-	bool			damage_anisotropy 			= false;
-	int				number_of_eta 				= 1;
-	Set::Scalar		damage_refinement_threshold	= 0.01;
-	std::string 	eta_ic_type;
-	IC::IC			*eta_ic;
-	BC::BC			*eta_bc;
+	struct{
+		std::string		type;
+		bool			anisotropy 					= false;
+		int				number_of_eta 				= 1;
+		Set::Scalar		refinement_threshold		= 0.01;
+		std::string 	ic_type;
+		IC::IC			*ic;
+		BC::BC			*bc;
+	} damage;
 
 	// Damage model: water relaxation
-	int 						number_of_terms	= 4;
-	amrex::Vector<Set::Scalar> 	d_i;
-	Set::Scalar 				d_final 		= 1.0;
-	amrex::Vector<Set::Scalar> 	tau_i;
-	amrex::Vector<Set::Scalar> 	t_start_i;
+	struct{
+		int 						number_of_terms	= 4;
+		amrex::Vector<Set::Scalar> 	d_i;
+		Set::Scalar 				d_final 		= 1.0;
+		amrex::Vector<Set::Scalar> 	tau_i;
+		amrex::Vector<Set::Scalar> 	t_start_i;
+	} damage_w;
+
+	// Damage model: temperature
+	struct{
+		Set::Scalar c0;
+		Set::Scalar c1;
+		Set::Scalar c2;
+		Set::Scalar c3;
+		Set::Scalar tau_T;
+	} damage_T;
 
 	// Elasticity parameters
-	Set::Scalar elastic_bottom_tol = 1.0E-6;
-	bool        elastic_on 				= false;
-	int         elastic_int 			= 1;
-	std::string elastic_type;
-	int         elastic_max_iter 		= 200;
-	int         elastic_max_fmg_iter 	= 0;
-	int 		elastic_bottom_max_iter	= 200;
-	int 		elastic_max_fixed_iter 	= 5;
-	int         elastic_verbose 		= 3;
-	int         elastic_cgverbose 		= 3;
-	Set::Scalar elastic_tol_rel 		= 1.0E-5;
-	Set::Scalar elastic_tol_abs 		= 1.0E-5;
-	Set::Scalar elastic_cg_tol_rel 		= 1.0E-5;
-	Set::Scalar elastic_cg_tol_abs 		= 1.0E-5;
-	Set::Scalar elastic_tstart 			= 0.0;
-	Set::Scalar elastic_tend 			= 0.0;
-	std::string bottom_solver			= "bicgstab";
-	int 		linop_maxorder 	     	= 2;
-	bool	    elastic_use_fsmooth 	= false;
-	int 		max_coarsening_level	= 0;
-	bool agglomeration 	  = true;
-	bool consolidation 	  = false;
+	struct{
+		Set::Scalar bottom_tol 				= 1.0E-6;
+		bool        on 						= false;
+		int         interval	 			= 1;
+		std::string type;
+		int         max_iter 				= 200;
+		int         max_fmg_iter 			= 0;
+		int 		bottom_max_iter			= 200;
+		int 		max_fixed_iter 			= 5;
+		int         verbose 				= 3;
+		int         cgverbose 				= 3;
+		Set::Scalar tol_rel 				= 1.0E-5;
+		Set::Scalar tol_abs 				= 1.0E-5;
+		Set::Scalar cg_tol_rel 				= 1.0E-5;
+		Set::Scalar cg_tol_abs 				= 1.0E-5;
+		Set::Scalar tstart 					= 0.0;
+		Set::Scalar tend 					= 0.0;
+		std::string bottom_solver			= "bicgstab";
+		int 		linop_maxorder 	     	= 2;
+		bool	    use_fsmooth 			= false;
+		int 		max_coarsening_level	= 0;
+		bool 		agglomeration 	  		= true;
+		bool 		consolidation 	  		= false;
 
-	// Elastic BC
-	//BC::BC *elastic_bc;
-	std::map<std::string,Operator::Elastic<model_type>::BC >        bc_map;
-	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM>    bc_x_lo, bc_x_hi;
-#if AMREX_SPACEDIM > 1
-	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> 	bc_y_lo, bc_y_hi;
-#if AMREX_SPACEDIM > 2
-	std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> 	bc_z_lo, bc_z_hi;
-#endif
-#endif
+		// Elastic BC
+		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
+		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
-	amrex::Vector<Set::Vector> elastic_bc_left;
-	amrex::Vector<Set::Vector> elastic_bc_right;
-	amrex::Vector<Set::Vector> elastic_bc_bottom;
-	amrex::Vector<Set::Vector> elastic_bc_top;
-	amrex::Vector<Set::Vector> elastic_bc_back;
-	amrex::Vector<Set::Vector> elastic_bc_front;
-	amrex::Vector<Set::Scalar> elastic_bc_left_t;
-	amrex::Vector<Set::Scalar> elastic_bc_right_t;
-	amrex::Vector<Set::Scalar> elastic_bc_bottom_t;
-	amrex::Vector<Set::Scalar> elastic_bc_top_t;
-	amrex::Vector<Set::Scalar> elastic_bc_back_t;
-	amrex::Vector<Set::Scalar> elastic_bc_front_t;
+		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
+		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
+		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_left_t,bc_bottom_t,bc_back_t);
+		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_right_t,bc_top_t,bc_front_t);
+		
+		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
+	} elastic;
 
-
-	amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
-	//Operator::Elastic<model_type> elastic_operator;
-	//LPInfo info;
-
-	// Material model
-	//amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
-	model_type *modeltype;
+	model_type 		*modeltype;
 	std::string 	input_material = "isotropic";
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
 
-	AMREX_D_TERM(	Numeric::Interpolator::Linear<Set::Vector> interpolate_left;
-			Numeric::Interpolator::Linear<Set::Vector> interpolate_right;
-			,
-			Numeric::Interpolator::Linear<Set::Vector> interpolate_bottom;
-			Numeric::Interpolator::Linear<Set::Vector> interpolate_top;
-			,
-			Numeric::Interpolator::Linear<Set::Vector> interpolate_back;
-			Numeric::Interpolator::Linear<Set::Vector> interpolate_front;)
-
-
+	Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_left,interpolate_bottom,interpolate_back);
+	Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_right,interpolate_top,interpolate_front);
 
 };
 }

@@ -22,18 +22,18 @@
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 5.0
+stop_time = 100.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
-amr.plot_int = 5
-amr.max_level = 2
+amr.plot_int = 10
+amr.max_level = 1
 #amr.max_grid_size = 4
 amr.n_cell = 16 16 16
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = output
+amr.plot_file = tests/PolymerDegradation3D-2/output
 #===========================================================================
 
 #=============== Specify geometry and unrefined mesh =======================
@@ -49,8 +49,8 @@ water.refinement_threshold = 0.01
 
 water.ic_type = constant
 water.ic.value = 0.0
-water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
-#water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
+#water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
+water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
 water.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 water.bc.lo_1 = 1.0
 water.bc.hi_1 = 1.0
@@ -74,7 +74,7 @@ material.isotropic.mu = 331.0
 
 #=============== Damage evolution parameters ===============================
 damage.anisotropy = 0
-damage.type = relaxation
+damage.type = water 
 damage.d_final = 0.99
 damage.number_of_terms = 2
 damage.d_i = 0.33 0.66
@@ -112,7 +112,7 @@ elastic.tol_abs			=  1.0e-6
 elastic.cg_tol_rel = 1.0e-6
 elastic.cg_tol_abs = 1.0e-6
 elastic.tstart 			= 0.0
-elastic.tend			= 5.0
+elastic.tend			= 100.0
 elastic.use_fsmooth = 1
 
 elastic.body_force     = 0.0 0.0001 0.0
@@ -120,18 +120,18 @@ elastic.body_force     = 0.0 0.0001 0.0
 #
 # These BCs are for a SYMMETRIC simulation
 #
-elastic.bc.bc_x_lo = trac trac trac
+elastic.bc.bc_x_lo = disp disp disp
 elastic.bc.bc_y_lo = trac trac trac
 elastic.bc.bc_z_lo = trac trac disp
-elastic.bc.bc_x_hi = disp neumann neumann
-elastic.bc.bc_y_hi = neumann disp neumann
-elastic.bc.bc_z_hi = disp disp disp
+elastic.bc.bc_x_hi = disp disp disp
+elastic.bc.bc_y_hi = trac trac trac
+elastic.bc.bc_z_hi = trac trac disp 
 elastic.bc.left_face = 0.0 0.0 0.0
-elastic.bc.right_face = 0.0 0.0 0.0
+elastic.bc.right_face = 0.1 0.0 0.0
 elastic.bc.bottom_face = 0.0 0.0 0.0
 elastic.bc.top_face = 0.0 0.0 0.0
 elastic.bc.back_face = 0.0 0.0 0.0
-elastic.bc.front_face = 0.0 0.0 1.0
+elastic.bc.front_face = 0.0 0.0 0.0
 
 #
 # These BCs are for a FULL simulation
