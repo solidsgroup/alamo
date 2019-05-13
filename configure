@@ -9,8 +9,11 @@ class color:
     reset = "\033[0m"
     red   = "\033[31m"
     green   = "\033[32m"
+    lightgray = "\033[37m"
+    boldgray = "\033[1m\033[37m"
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
+
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
@@ -19,6 +22,7 @@ parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
+parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
 parser.set_defaults(debug=False)
 args=parser.parse_args();
 
@@ -87,14 +91,6 @@ if (args.eigen != ""):
     print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
     f.write("EIGEN = " + args.amrex + "\n")
 
-#
-# Specify Prefix
-#
-prefix = "-"
-prefix += str(args.dim)+"d"
-if args.debug: prefix += "-debug"
-prefix += "-" + args.comp
-f.write("PREFIX = " + prefix)
 
 #
 # Print Compiler information
@@ -113,3 +109,32 @@ for line in wrapper.wrap(subprocess.check_output(['mpicxx','-cxx='+args.comp,'-s
         print(pre + line)
         pre = "                 "
 
+#
+# Python information
+#
+if args.python:
+    python_include_dir = "/usr/include/python2.7/" # hard-coded for now
+    #python_boost_lib = "/usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.62.0"
+    python_boost_lib = "-lboost_python-py27"
+
+    if not (os.path.isdir(python_include_dir)):
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
+    #if not (os.path.isfile(python_boost_lib)):
+    #    raise Exception(color.red+"ERROR"+color.reset+": Python Boost library does not exist (Try installing libboost-python-dev)")
+
+    f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
+    f.write("PYTHON_LIB = " + python_boost_lib + '\n')
+    print(color.boldgreen + "Using Python:    " + color.reset + "True")
+    print(color.lightgray + "NOTE:            " + color.reset + "Be sure to add")
+    print(                  "                 USE_COMPILE_PIC=True")
+    print(                  "                 to the AMReX GNUMakefile!")
+
+
+#
+# Specify Prefix
+#
+prefix = "-"
+prefix += str(args.dim)+"d"
+if args.debug: prefix += "-debug"
+prefix += "-" + args.comp
+f.write("PREFIX = " + prefix + '\n')

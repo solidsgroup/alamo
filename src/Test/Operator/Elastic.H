@@ -37,6 +37,14 @@ public:
 	Elastic() {};
 	~Elastic() {};
 
+	std::vector<Set::Scalar> data()
+	{
+		std::vector<Set::Scalar> ret;
+		for (int i = 0; i < 10; i++)
+			ret.push_back((Set::Scalar)i);
+		return ret;
+	}
+
 	/// Create a simulation domain where the coarse level has ncells x ncells ( x ncells)
 	/// and nlevels.
 	/// Each level is identical to the one below but with a quarter of the area and twice
@@ -101,11 +109,11 @@ public:
 	int mytest() {return 8;};
 
 	// Setter functions
-	void setMaxCoarseningLevel(int a_maxCoarseningLevel) {m_maxCoarseningLevel = a_maxCoarseningLevel;}
-	void setFixedIter(int a_fixedIter) {m_fixedIter = a_fixedIter;}
-	void setMaxIter(int a_maxIter) {m_maxIter = a_maxIter;}
-	void setMaxFmgIter(int a_maxFmgIter) {m_maxFmgIter = a_maxFmgIter;}
-	void setBottomMaxIter(int a_bottomMaxIter) {m_bottomMaxIter = a_bottomMaxIter;}
+	void setMaxCoarseningLevel(int in) {m_maxCoarseningLevel = in;}
+	void setFixedIter(int in) {m_fixedIter = in;}
+	void setMaxIter(int in) {m_maxIter = in;}
+	void setMaxFmgIter(int in) {m_maxFmgIter = in;}
+	void setBottomMaxIter(int in) {m_bottomMaxIter = in;}
 	void setBounds(AMREX_D_DECL(Set::Scalar a_x,Set::Scalar a_y, Set::Scalar a_z))
 		       {m_bounds = {AMREX_D_DECL(a_x,a_y,a_z)};}
 	void setBounds(std::array<Set::Scalar,AMREX_SPACEDIM> a_bounds) {m_bounds = a_bounds;}
@@ -187,7 +195,7 @@ private: // Private member variables
 					      AMREX_D_DECL("res_numeric1","res_numeric2","res_numeric3"),
 					      AMREX_D_DECL("ghost_force1", "ghost_force2","ghost_force2")};
 
-	std::array<Set::Scalar,AMREX_SPACEDIM> m_bounds = {AMREX_D_DECL(1.0,1.0,1.0)};
+	std::array<Set::Scalar,AMREX_SPACEDIM> m_bounds = {{AMREX_D_DECL(1.0,1.0,1.0)}};
 	int m_maxCoarseningLevel = 1000000;
 	int m_fixedIter       = 1000000;
 	int m_maxIter         = 1000000;
