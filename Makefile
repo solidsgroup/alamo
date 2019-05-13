@@ -51,7 +51,7 @@ endif
 
 LINKER_FLAGS = -Bsymbolic-functions
 
-INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done) -I/usr/include/python2.7/
+INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -L${AMREX}/lib/ -lamrex 
 
 HDR_ALL = $(shell find src/ -name *.H)
@@ -59,7 +59,7 @@ HDR_TEST = $(shell find src/ -name *Test.H)
 HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
-SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
+SRC_MAIN = $(filter-out "src/python.cc,"$(shell find src/ -maxdepth 1  -name "*.cc" ))
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=$(PREFIX))) 
 OBJ = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj$(PREFIX)/, $(SRC_MAIN:.cc=.cc.d))
@@ -72,8 +72,9 @@ default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
 python: ${OBJ} 
-	$(CC) -c src/python.cc -fPIC -o alamo.o ${INCLUDE} ${CXX_COMPILE_FLAGS} 
-	g++ -shared -Wl,-soname,alamo.so -o alamo.so  alamo.o ${OBJ} ${LIB} ${MPI_LIB}  /usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.62.0
+	@printf "$(B_ON)$(FG_CYAN)LINKING$(RESET)     Python library \n" 
+	@$(CC) -c src/python.cc -fPIC -o alamo.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@g++ -shared -Wl,-soname,alamo.so -o alamo.so  alamo.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
 
 
 clean:
