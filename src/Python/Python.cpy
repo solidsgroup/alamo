@@ -25,7 +25,6 @@ template<typename containedType>
 struct ListToVec{
 	ListToVec(){ converter::registry::push_back(&convertible,&construct,type_id<std::vector<containedType> >()); }
 	static void* convertible(PyObject* obj_ptr){
-		// the second condition is important, for some reason otherwise there were attempted conversions of Body to list which failed afterwards.
 		if(!PySequence_Check(obj_ptr) || !PyObject_HasAttrString(obj_ptr,"__len__")) return 0;
 		return obj_ptr;
 	}
@@ -43,7 +42,6 @@ template<typename containedType,int dim>
 struct ListToArr{
 	ListToArr(){ converter::registry::push_back(&convertible,&construct,type_id<std::array<containedType,dim> >()); }
 	static void* convertible(PyObject* obj_ptr){
-		// the second condition is important, for some reason otherwise there were attempted conversions of Body to list which failed afterwards.
 		if(!PySequence_Check(obj_ptr) || !PyObject_HasAttrString(obj_ptr,"__len__")) return 0;
 		return obj_ptr;
 	}
@@ -60,7 +58,6 @@ struct ListToArr{
 struct ListToIntVec{
 	ListToIntVec(){ converter::registry::push_back(&convertible,&construct,type_id<amrex::IntVect >()); }
 	static void* convertible(PyObject* obj_ptr){
-		// the second condition is important, for some reason otherwise there were attempted conversions of Body to list which failed afterwards.
 		if(!PySequence_Check(obj_ptr) || !PyObject_HasAttrString(obj_ptr,"__len__")) return 0;
 		return obj_ptr;
 	}
@@ -75,7 +72,7 @@ struct ListToIntVec{
 };
 
 
-BOOST_PYTHON_MODULE(alamo)
+BOOST_PYTHON_MODULE(Operator)
 {
 
 	// converters from vectors to python lists

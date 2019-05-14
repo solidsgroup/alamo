@@ -73,7 +73,7 @@ default: $(DEP) $(EXE)
 
 python: ${OBJ} 
 	@printf "$(B_ON)$(FG_CYAN)LINKING$(RESET)     Python library \n" 
-	@$(CC) -c src/python.cc -fPIC -o alamo.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -x c++ -c src/Python/Python.cpy -fPIC -o alamo.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
 	@g++ -shared -Wl,-soname,alamo.so -o alamo.so  alamo.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
 
 
