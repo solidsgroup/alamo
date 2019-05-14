@@ -37,14 +37,6 @@ public:
 	Elastic() {};
 	~Elastic() {};
 
-	std::vector<Set::Scalar> data()
-	{
-		std::vector<Set::Scalar> ret;
-		for (int i = 0; i < 10; i++)
-			ret.push_back((Set::Scalar)i);
-		return ret;
-	}
-
 	/// Create a simulation domain where the coarse level has ncells x ncells ( x ncells)
 	/// and nlevels.
 	/// Each level is identical to the one below but with a quarter of the area and twice
@@ -114,8 +106,6 @@ public:
 	void setMaxIter(int in) {m_maxIter = in;}
 	void setMaxFmgIter(int in) {m_maxFmgIter = in;}
 	void setBottomMaxIter(int in) {m_bottomMaxIter = in;}
-	void setBounds(AMREX_D_DECL(Set::Scalar a_x,Set::Scalar a_y, Set::Scalar a_z))
-		       {m_bounds = {AMREX_D_DECL(a_x,a_y,a_z)};}
 	void setBounds(std::array<Set::Scalar,AMREX_SPACEDIM> a_bounds) {m_bounds = a_bounds;}
 
 private: // Private member functions
