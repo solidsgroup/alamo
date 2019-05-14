@@ -15,7 +15,6 @@ void Elastic::Define(const amrex::IntVect _ncells,
 		     const int _dim,
 		     const Grid _config)
 {
-
 	dim = _dim;
 	ncells = _ncells;
  	nlevels = _nlevels;
@@ -52,7 +51,6 @@ void Elastic::Generate()
 
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)},
 			  {AMREX_D_DECL(m_bounds[0],m_bounds[1],m_bounds[2])});
-	Util::Message(INFO,"realbox = " , rb);
 	amrex::Geometry::Setup(&rb, 0);
 
 	amrex::Box NDomain(amrex::IntVect{AMREX_D_DECL(0,0,0)}, ncells,
