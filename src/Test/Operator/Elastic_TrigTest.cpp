@@ -112,7 +112,9 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
 
- 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric),
+		   GetVecOfConstPtrs(rhs_prescribed),
+		   m_tol_rel,m_tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
