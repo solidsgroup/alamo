@@ -108,6 +108,11 @@ public:
 	void setBottomMaxIter(int in) {m_bottomMaxIter = in;}
 	void setBounds(std::array<Set::Scalar,AMREX_SPACEDIM> a_bounds) {m_bounds = a_bounds;}
 
+	void setAgglomeration(bool in) {m_agglomeration = in;}
+	void setConsolidation(bool in) {m_consolidation = in;}
+	void setTolRel(Set::Scalar in) {m_tol_rel = in;}
+	void setTolAbs(Set::Scalar in) {m_tol_abs = in;}
+
 private: // Private member functions
 
 	void Generate();
@@ -192,6 +197,10 @@ private: // Private member variables
 	int m_maxFmgIter      = 1000000;
 	int m_bottomMaxIter   = 200;
 
+	bool m_agglomeration = true;
+	bool m_consolidation = true;
+	Set::Scalar m_tol_rel = 1E-8;
+	Set::Scalar m_tol_abs = 0.0;
 
 };
 }

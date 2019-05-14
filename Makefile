@@ -58,6 +58,7 @@ HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
 HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
+
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(filter-out "src/python.cc,"$(shell find src/ -maxdepth 1  -name "*.cc" ))
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=$(PREFIX))) 
@@ -71,11 +72,9 @@ OBJ_F = $(subst src/,obj/obj$(PREFIX)/, $(SRC_F:.F90=.F90.o))
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
-python: ${OBJ} 
-	@printf "$(B_ON)$(FG_CYAN)LINKING$(RESET)     Python library \n" 
-	@$(CC) -x c++ -c src/Python/Python.cpy -fPIC -o alamo.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
-	@g++ -shared -Wl,-soname,alamo.so -o alamo.so  alamo.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
-
+python: $(OBJ)
+	@$(CC) -x c++ -c py/alamo.cpy -fPIC -o py/alamo.cpy.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -shared -Wl,-soname,alamo.so -o alamo.so py/alamo.cpy.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
 
 clean:
 	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
