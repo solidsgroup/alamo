@@ -57,18 +57,27 @@ public:
 				amrex::Box bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const& rhs       = a_rhs[ilev]->array(mfi);
 				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-						AMREX_D_TERM(if (i == lo.x && face == Face::XLO)
-								     rhs(i,j,k,direction) = value;,
-							     if (j == lo.y && face == Face::YLO)
-								     rhs(i,j,k,direction) = value;,
-							     if (k == lo.z && face == Face::ZLO)
-								     rhs(i,j,k,direction) = value;)
-						AMREX_D_TERM(if (i == hi.x && face == Face::XHI)
-								     rhs(i,j,k,direction) = value;,
-							     if (j == hi.y && face == Face::YHI)
-								     rhs(i,j,k,direction) = value;,
-							     if (k == hi.z && face == Face::ZHI)
-								     rhs(i,j,k,direction) = value;)
+						bool cont = true;
+						if (type != Type::Displacement)
+						{
+						 	if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
+						 		cont = false; // corner
+						 	else if ((j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
+						 		cont = false; // edge
+						 	else if ((i == lo.x || i == hi.x) && (k == lo.z || k == hi.z))
+						 		cont = false; // edge
+						 	else if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y))
+						 		cont = false; // edge
+						}
+						if (cont)
+						{
+							AMREX_D_TERM(if (i == lo.x && face == Face::XLO) rhs(i,j,k,direction) = value;,
+								     if (j == lo.y && face == Face::YLO) rhs(i,j,k,direction) = value;,
+								     if (k == lo.z && face == Face::ZLO) rhs(i,j,k,direction) = value;);
+							AMREX_D_TERM(if (i == hi.x && face == Face::XHI) rhs(i,j,k,direction) = value;,
+								     if (j == hi.y && face == Face::YHI) rhs(i,j,k,direction) = value;,
+								     if (k == hi.z && face == Face::ZHI) rhs(i,j,k,direction) = value;);
+						}
 					});
 			}					
 		}
@@ -108,11 +117,87 @@ public:
  	{
 		Set::Vector f;
 
-		// const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+		const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 		
+
+
+
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 		for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
 		{
+			if (i==lo.x                                && j==hi.y && 
+			    (m_bc_lo[0][p] == Type::Displacement || m_bc_hi[1][p] == Type::Displacement))
+			{
+				f(p) = u(p);
+				continue;
+			}
+			if (i==lo.x                                && k==hi.z && 
+			    (m_bc_lo[0][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
+			{
+				f(p) = u(p);
+				continue;
+			}
+			if (i==hi.x                                && j==hi.y && 
+			    (m_bc_hi[0][p] == Type::Displacement || m_bc_hi[1][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (i==hi.x                                && k==hi.z && 
+			    (m_bc_hi[0][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (i==hi.x                                && j==lo.y && 
+			    (m_bc_hi[0][p] == Type::Displacement || m_bc_lo[1][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (i==hi.x                                && k==lo.z && 
+			    (m_bc_hi[0][p] == Type::Displacement || m_bc_lo[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			
+
+			// Y-Z traction edges...
+			if (j == hi.y                       && k == hi.z &&
+			    m_bc_hi[1][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
+			{
+				Set::Vector n(0,1.0,1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (j == lo.y                       && k == hi.z &&
+			    m_bc_lo[1][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
+			{
+				Set::Vector n(0,-1.0,1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (j == hi.y                       && k == lo.z &&
+			    m_bc_hi[1][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
+			{
+				Set::Vector n(0,1.0,-1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (j == lo.y                       && k == lo.z &&
+			    m_bc_hi[1][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
+			{
+				Set::Vector n(0,-1.0,-1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+
+
 			for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
 			{
 				if (m[q] == domain.loVect()[q])
