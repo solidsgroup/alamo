@@ -93,6 +93,8 @@ public:
 			 int n,
 			 std::string plotfile = "");
 
+  
+
 private: // Private member functions
 
 	void WritePlotFile(std::string plotfile, std::vector<int> nghost)

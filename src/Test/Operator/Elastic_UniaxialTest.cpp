@@ -67,6 +67,7 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
 		       bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
 		       bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
 	}
+	
 #if AMREX_SPACEDIM > 1	
 	else if (component==1)
 	{
@@ -81,15 +82,9 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
 		       bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
 	}
 #endif
-#if AMREX_SPACEDIM > 2	
-	//if (component==2 && AMREX_SPACEDIM>2) // <<<< This is not a compile-time directive, which means it will
-	//                                              still show up when you compile in 2D.
-	//                                              Please take a look at the presentation
-	//                                                  https://solids.uccs.edu/teaching/bootcamp/Tutorial2/files/Tutorial2.pdf
-	//                                              and read the "C Preprocessor" section.
-	//                                              Delete this comment once you're sure you understand why what
-	//                                              you had would not work.
-	if (component==2 && AMREX_SPACEDIM>2) //3D 
+
+#if AMREX_SPACEDIM > 2
+	if (component==2) 
 	{
 	  bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
 	  bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
@@ -101,19 +96,13 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
 	}
 #endif	
 	
-	//bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
-	//bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-	//bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-	//bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-	//bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-	
 	elastic.SetBC(&bc);
 
-
-
 	amrex::MLMG mlmg(elastic);
-	// mlmg.setMaxIter(100);
-	// mlmg.setMaxFmgIter(20);
+	//mlmg.setMaxIter(100);
+	//mlmg.setMaxFmgIter(20);
+	//mlmg.setMaxCoarseningLevel(0);
+	
  	if (verbose)
  	{
  		mlmg.setVerbose(verbose);
@@ -132,16 +121,11 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
 	
 	Set::Scalar tol_rel = 1E-8;
 	Set::Scalar tol_abs = 0;
-        //#if (component!=0) // <<< You are using a preprocessor directive here instead 
-	//                          of a regular if statement. This will cause the code
-	//                          to ALWAYS execute this stement.
-	//                          Once you understand what was wrong with this, you can
-	//                          delete this comment.
+
         if (component!=0)
 	{
 		component-=component;
 	}
-        //#endif  
          
  	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
 
