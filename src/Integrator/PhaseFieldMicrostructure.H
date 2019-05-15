@@ -20,7 +20,7 @@
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi/Voronoi.H"
-#include "IC/Circle.H"
+#include "IC/Sphere.H"
 
 #include "Model/Interface/GB/Sin.H"
 #include "Model/Interface/GB/AbsSin.H"
@@ -77,6 +77,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etas_mf; ///< Color code order params
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > n_mf; ///< Color code order params
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)

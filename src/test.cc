@@ -9,6 +9,7 @@
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Interface/GB/Sin.H"
 
+#include "Model/Interface/GB/SH.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Operator/Elastic.H"
