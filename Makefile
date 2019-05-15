@@ -81,10 +81,6 @@ tidy:
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
-	@printf "$(B_ON)$(FG_BLUE)MPI Flags$(RESET)\n"
-	@$(CC) -show
-	@printf "\n"
-
 
 bin/%: bin/%$(PREFIX) ;
 
