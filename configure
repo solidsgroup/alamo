@@ -93,8 +93,11 @@ if (args.eigen != ""):
 
 
 #
-# Print Compiler information
+# Compiler
 #
+
+if not args.comp in ['g++','icc','clang++']:
+    raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
 pre = color.boldgreen + "Comp. version:   " + color.reset
 for line in subprocess.check_output([args.comp,'--version']).split('\n'):
@@ -108,6 +111,11 @@ for line in wrapper.wrap(subprocess.check_output(['mpicxx','-cxx='+args.comp,'-s
     if line != "\n":
         print(pre + line)
         pre = "                 "
+
+f.write("CC = mpicxx -cxx="+args.comp+"\n")
+if args.comp == 'g++':     f.write("MPI_LIB = -lgfortran -lmpich\n")
+if args.comp == 'clang++': f.write("MPI_LIB = -lgfortran -lmpich\n")
+if args.comp == 'icc':     f.write("MPI_LIB = -lifcore\n")
 
 #
 # Python information
