@@ -1,17 +1,8 @@
 
 -include Makefile.conf
 
-COMP ?= GCC
-ifeq ($(COMP),INTEL)
- CC = mpicxx -cxx=icc
- MPI_LIB = -lifcore
-else ifeq ($(COMP),GCC)
- CC = mpicxx -cxx=g++
- MPI_LIB = -lgfortran -lmpich
-else ifeq ($(COMP),CLANG)
- CC = mpicxx -cxx=clang++
- MPI_LIB = -lgfortran -lmpich
-endif
+CC ?= mpicxx -cxx=g++
+MPI_LIB ?= -lgfortran -lmpich
 
 RESET              = \033[0m
 B_ON               = \033[1m
