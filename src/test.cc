@@ -113,7 +113,7 @@ int main (int argc, char* argv[])
 			     subfailed += Util::Test::SubMessage("2 levels, Component 1, period=1",test.UniaxialTest(0,1,1));,
 			     subfailed += Util::Test::SubMessage("2 levels, Component 2, period=1",test.UniaxialTest(0,2,1));)
 		test.Define(32,3); 
-		AMREX_D_TERM(subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.UniaxialTest(3,0,1,));,
+		AMREX_D_TERM(subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.UniaxialTest(0,0,1));,
 			     subfailed += Util::Test::SubMessage("3 levels, Component 1, period=1",test.UniaxialTest(0,1,1));,
 			     subfailed += Util::Test::SubMessage("3 levels, Component 2, period=1",test.UniaxialTest(0,2,1));)
 		failed += Util::Test::SubFinalMessage(subfailed);
