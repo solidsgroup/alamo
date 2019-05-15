@@ -51,7 +51,7 @@ public:
 	}
 	void Define(int _ncells)
 	{
-		amrex::IntVect{AMREX_D_DECL(_ncells,_ncells,_ncells)};
+		Define(amrex::IntVect{AMREX_D_DECL(_ncells,_ncells,_ncells)});
 	}
 
 	template<int i,int j,int k>

@@ -10,11 +10,9 @@ void exportTestOperatorElastic()
 
 	using namespace Test::Operator;
 
-	void (Elastic::*Define_1)(int,int) = &Elastic::Define;
-	void (Elastic::*Define_2)(amrex::IntVect,int,int,Elastic::Grid) = &Elastic::Define;
+	void (Elastic::*Define_1)(amrex::IntVect,int,int,Elastic::Grid) = &Elastic::Define;
 	bp::scope the_scope = bp::class_<Elastic,boost::noncopyable>("Elastic")
 		.def("Define",Define_1)
-		.def("Define",Define_2)
 		.def("RefluxTest",&Elastic::RefluxTest)
 		.def("TrigTest",&Elastic::TrigTest)
 		.def("mytest",&Elastic::mytest)

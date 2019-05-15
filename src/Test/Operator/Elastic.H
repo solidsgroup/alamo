@@ -52,12 +52,6 @@ public:
 		    const int _dim = AMREX_SPACEDIM,
 		    const Grid config = Grid::XYZ);
 
-	void Define(const int _ncells,
-		    const int _nlevels)
-	{
-		Define(_ncells,_nlevels,AMREX_SPACEDIM,Grid::XYZ);
-	};
-
 	/// Impose a set of prescribed values for \f$\mathbf{u}\f$.
 	/// Compute right hand side, then use Operator::Reflux to modify the residual \f$\mathbf{r}=\mathbf{b}-D\mathbf{u}\f$.
 	/// Residual should always be zero unless something goes wrong with Reflux.
@@ -191,11 +185,11 @@ private: // Private member variables
 					      AMREX_D_DECL("ghost_force1", "ghost_force2","ghost_force2")};
 
 	std::array<Set::Scalar,AMREX_SPACEDIM> m_bounds = {{AMREX_D_DECL(1.0,1.0,1.0)}};
-	int m_maxCoarseningLevel = 1000000;
-	int m_fixedIter       = 1000000;
-	int m_maxIter         = 1000000;
-	int m_maxFmgIter      = 1000000;
-	int m_bottomMaxIter   = 200;
+	int m_maxCoarseningLevel = -1;
+	int m_fixedIter       = -1;
+	int m_maxIter         = -1;
+	int m_maxFmgIter      = -1;
+	int m_bottomMaxIter   = -1;
 
 	bool m_agglomeration = true;
 	bool m_consolidation = true;

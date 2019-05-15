@@ -124,6 +124,7 @@ if args.python:
 
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')
+    f.write("CXX_COMPILE_FLAGS += -fPIC \n")
     print(color.boldgreen + "Using Python:    " + color.reset + "True")
     print(color.lightgray + "NOTE:            " + color.reset + "Be sure to add")
     print(                  "                 USE_COMPILE_PIC=True")
@@ -136,5 +137,6 @@ if args.python:
 prefix = "-"
 prefix += str(args.dim)+"d"
 if args.debug: prefix += "-debug"
+if args.python: prefix += "-fpic"
 prefix += "-" + args.comp
 f.write("PREFIX = " + prefix + '\n')
