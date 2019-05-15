@@ -41,12 +41,10 @@ public:
 		sigma0 = Util::Random();
 		sigma1 = Util::Random();
 	};
-	amrex::Real W(amrex::Real theta)
+	amrex::Real W(Set::Scalar a_theta, Set::Scalar a_phi)
 	{
-		//theta = theta*PI/180;
-		//theta0 = theta0*PI/180;
-		//return sin(2.0*(theta-theta0))*sin(2.0*(theta-theta0))*sigma1+sigma0;
-		return sigma0 + 0.5*sigma1*(1.0 - cos(4.0*(theta-theta0)));
+		int n=1, m=1;
+		return boost::math::spherical_harmonic_r(n,m,a_theta,a_phi);
 	};
 	amrex::Real DW(amrex::Real theta)
 	{
