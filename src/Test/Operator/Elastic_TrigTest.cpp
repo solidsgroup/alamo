@@ -44,9 +44,9 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	}
 
 	amrex::LPInfo info;
- 	info.setAgglomeration(1);
- 	info.setConsolidation(1);
- 	info.setMaxCoarseningLevel(m_maxCoarseningLevel);
+ 	info.setAgglomeration(m_agglomeration);
+ 	info.setConsolidation(m_consolidation);
+ 	if (m_maxCoarseningLevel > -1) info.setMaxCoarseningLevel(m_maxCoarseningLevel);
  	nlevels = geom.size();
 
 	::Operator::Elastic<model_type> elastic;
@@ -92,9 +92,9 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 	// Create MLMG solver and solve
 	amrex::MLMG mlmg(elastic);
-	mlmg.setFixedIter(m_fixedIter);
-	mlmg.setMaxIter(m_maxIter);
-	mlmg.setMaxFmgIter(m_maxFmgIter);
+	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
+	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
+	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
  	if (verbose)
  	{
  		mlmg.setVerbose(verbose);
@@ -105,7 +105,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(m_bottomMaxIter);
+ 	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
 

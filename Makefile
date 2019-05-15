@@ -42,7 +42,7 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS = -fPIC -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 ifeq ($(DEBUG),TRUE)
  CXX_COMPILE_FLAGS += -ggdb -g3
 else 
@@ -58,9 +58,8 @@ HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
 HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
-
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
-SRC_MAIN = $(filter-out "src/python.cc,"$(shell find src/ -maxdepth 1  -name "*.cc" ))
+SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
 EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=$(PREFIX))) 
 OBJ = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.o)) 
 DEP = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj$(PREFIX)/, $(SRC_MAIN:.cc=.cc.d))
@@ -73,6 +72,7 @@ default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
 python: $(OBJ)
+	@printf "$(B_ON)$(FG_MAGENTA)PYTHON  $(RESET)    Compiling library\n" 
 	@$(CC) -x c++ -c py/alamo.cpy -fPIC -o py/alamo.cpy.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
 	@$(CC) -shared -Wl,-soname,alamo.so -o alamo.so py/alamo.cpy.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
 
