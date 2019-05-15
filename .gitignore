@@ -27,3 +27,4 @@ docs/latex
 *.d
 testoutput*
 Makefile.conf
+*.so
