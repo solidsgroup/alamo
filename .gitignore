@@ -28,3 +28,4 @@ docs/latex
 TrigTest*
 testoutput*
 Makefile.conf
+*.so

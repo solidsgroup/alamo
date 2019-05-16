@@ -25,6 +25,10 @@
 #include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"
 
+/// \brief Collection of numerical integrator objects
+namespace Integrator
+{
+
 ///
 /// \class Integrator
 /// \brief Pure abstract class for managing data structures, time integration (with substepping),
@@ -61,9 +65,6 @@
 ///     amr.refine_grid_layout = 
 ///     amr.check_input        = 
 ///
-
-namespace Integrator
-{
 class Integrator
 	: public amrex::AmrCore
 {

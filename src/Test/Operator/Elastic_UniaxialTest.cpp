@@ -12,6 +12,8 @@ namespace Operator
 {
 int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfile)
 {
+	Generate();
+
         Set::Scalar tolerance = 0.01;
 
 	int failed = 0;
@@ -43,9 +45,9 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
 	}
 
 	amrex::LPInfo info;
- 	info.setAgglomeration(1);
- 	info.setConsolidation(1);
- 	//info.setMaxCoarseningLevel(2);
+ 	info.setAgglomeration(m_agglomeration);
+ 	info.setConsolidation(m_consolidation);
+ 	if (m_maxCoarseningLevel > -1) info.setMaxCoarseningLevel(m_maxCoarseningLevel);
  	nlevels = geom.size();
 
 	::Operator::Elastic<model_type> elastic;
@@ -99,10 +101,9 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
 	elastic.SetBC(&bc);
 
 	amrex::MLMG mlmg(elastic);
-	//mlmg.setMaxIter(100);
-	//mlmg.setMaxFmgIter(20);
-	//mlmg.setMaxCoarseningLevel(0);
-	
+	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
+	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
+	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
  	if (verbose)
  	{
  		mlmg.setVerbose(verbose);
@@ -113,21 +114,18 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
  		mlmg.setVerbose(0);
  		mlmg.setCGVerbose(0);
 	}
- 	mlmg.setBottomMaxIter(50);
+ 	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-
-	// Solution
-	
-	Set::Scalar tol_rel = 1E-8;
-	Set::Scalar tol_abs = 0;
 
         if (component!=0)
 	{
 		component-=component;
 	}
          
- 	mlmg.solve(GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed), tol_rel,tol_abs);
+ 	mlmg.solve(GetVecOfPtrs(solution_numeric),
+		   GetVecOfConstPtrs(rhs_prescribed),
+		   m_tol_rel,m_tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)

@@ -1,17 +1,8 @@
 
 -include Makefile.conf
 
-COMP ?= GCC
-ifeq ($(COMP),INTEL)
- CC = mpicxx -cxx=icc
- MPI_LIB = -lifcore
-else ifeq ($(COMP),GCC)
- CC = mpicxx -cxx=g++
- MPI_LIB = -lgfortran -lmpich
-else ifeq ($(COMP),CLANG)
- CC = mpicxx -cxx=clang++
- MPI_LIB = -lgfortran -lmpich
-endif
+CC ?= mpicxx -cxx=g++
+MPI_LIB ?= -lgfortran -lmpich
 
 RESET              = \033[0m
 B_ON               = \033[1m
@@ -42,7 +33,7 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS = -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline -Wpedantic -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 ifeq ($(DEBUG),TRUE)
  CXX_COMPILE_FLAGS += -ggdb -g3
 else 
@@ -71,6 +62,11 @@ OBJ_F = $(subst src/,obj/obj$(PREFIX)/, $(SRC_F:.F90=.F90.o))
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
+python: $(OBJ)
+	@printf "$(B_ON)$(FG_MAGENTA)PYTHON  $(RESET)    Compiling library\n" 
+	@$(CC) -x c++ -c py/alamo.cpy -fPIC -o py/alamo.cpy.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -shared -Wl,-soname,alamo.so -o alamo.so py/alamo.cpy.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
+
 clean:
 	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
 	find src/ -name "*.o" -exec rm {} \;
@@ -85,9 +81,8 @@ tidy:
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
-	@printf "$(B_ON)$(FG_BLUE)MPI Flags$(RESET)\n"
-	@$(CC) -show
-	@printf "\n"
+
+bin/%: bin/%$(PREFIX) ;
 
 bin/%$(PREFIX): ${OBJ_F} ${OBJ} obj/obj$(PREFIX)/%.cc.o
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
@@ -169,6 +164,7 @@ help:
 
 docs: docs/doxygen/index.html docs/build/html/index.html .FORCE 
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
+	@xdg-open docs/build/html/index.html
 
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
