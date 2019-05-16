@@ -83,10 +83,42 @@ public:
 	///     \f[u_i^{mn}  = \frac{b_i^{mn}}{(\alpha\ \pi^2\ (m^2 + n^2))}\f]
 	/// 
 	///
+  
 	int TrigTest(int verbose,
 		     int component = 0,
 		     int n = 1,
 		     std::string plotfile = "");
+  
+        /// Compute the exact solution of the governing equation
+        ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
+        /// Where
+        ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
+        /// Stress-strain relationship
+        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]  
+	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
+  	/// In this case the two Lamé parameters are:
+	///   \f[ \mu=2.6    \lambda=6.0 \f]
+	/// Consider a simulation domain \f$\Omega = [0, 1]^3\f$
+        /// and subjected to stress in one direction but constrained in the other directions
+        /// so that the material only can contract or expand on one side, i.e on the testing component side.
+        /// 
+	/// Expand \f$\mathbf{u}\f$ and \f$\mathbf{b}\f$ out as affine series
+  	///       \f[ u_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
+	///       \f[ b_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
+        ///       \f[ b_i = div(\sigma)]
+        /// It
+        /// Then the strain tensor, the derivative of diplacement
+        ///   \f[\varepsilon_{ij}= \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+        ///
+        /// In the other hand equation to compare (Numerical Solution)
+        ///   \f[div(\sigma) = ]
+        /// In this case the transformation affine parameters are:
+        ///   \f[alpha = 1.0  -  m = 1.0  -  b = (0 ,0 ,0)/f]
+        /// and we fix the displacement value depending of the testing component
+        ///   \f[u_{i} = n = 0.1]
+        /// Where i correspond to the testing component
+        ///   \f[i=0 X component -  i=1 Y component - i=2 Z component/f]
+        ///
 
         int UniaxialTest(int verbose,
 			 int component,
