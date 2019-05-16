@@ -13,6 +13,19 @@ class color:
     boldgray = "\033[1m\033[37m"
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
+    boldred   = "\033[1m\033[31m"
+
+    bggray = "\033[47m\033[30m"
+
+width = 20
+def message(msg):
+    return(color.boldgreen + msg.ljust(width) + color.reset)
+def warning():
+    return(color.boldyellow + "WARNING".ljust(width) + color.reset)
+def error():
+    return(color.boldred + "ERROR".ljust(width) + color.reset)
+def code(code):
+    return(color.bggray + code + color.reset);
 
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
@@ -32,7 +45,7 @@ f = open("Makefile.conf","w")
 # DIMENSION
 #
 f.write("DIM = " + str(args.dim) + "\n")
-print(color.boldgreen + "Dimension:       " + color.reset + str(args.dim))
+print(message("Dimension")+ str(args.dim))
 
 #
 # COMPILER
@@ -40,13 +53,13 @@ print(color.boldgreen + "Dimension:       " + color.reset + str(args.dim))
 if (args.comp == "gcc"): f.write("COMP = GCC\n")
 elif (args.comp == "clang"): f.write("COMP = CLANG\n")
 elif (args.comp == "intel"): f.write("COMP = INTEL\n")
-print(color.boldgreen + "Compiler:        " + color.reset + str(args.comp))
+print(message("Compiler") + str(args.comp))
 
 #
 # DEBUG
 #
 f.write("DEBUG = " + str(args.debug) + "\n")
-print(color.boldgreen + "Debug Mode:      " + color.reset + str(args.debug))
+print(message("Debug Mode") + str(args.debug))
 
 #
 # AMREX
@@ -54,7 +67,7 @@ print(color.boldgreen + "Debug Mode:      " + color.reset + str(args.debug))
 if (args.amrex != ""):
     # Check to make sure directory is valid 
     if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
-        raise Exception(color.red+"ERROR"+color.reset+": AMReX directory must contain include/ and lib/ subdirectories ")
+        raise Exception(error()+" AMReX directory must contain include/ and lib/ subdirectories ")
 
     # Scan AMReX Config File
     amrex_spacedim = 0
@@ -68,19 +81,19 @@ if (args.amrex != ""):
         if "PROFILING 1" in line: amrex_profiling = True
         
     if args.dim != amrex_spacedim:
-        raise Exception(color.red+"ERROR"+color.reset+": AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
+        raise Exception(error()+"AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
     if args.debug != amrex_debug:
         if args.debug:
-            raise Exception(color.red+"ERROR"+color.reset+": Alamo is in debug mode but AMReX is not")
+            raise Exception(error()+"Alamo is in debug mode but AMReX is not")
         else:
-            raise Exception(color.red+"ERROR"+color.reset+": Alamo is not in debug mode but AMReX is")
+            raise Exception(error()+": Alamo is not in debug mode but AMReX is")
     if not args.debug and amrex_profiling:
-        print(color.boldyellow+"WARNING"+color.reset+": Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+        print(warning()+"Alamo compiled in production mode, but PROFILE is enabled in AMReX")
 
     print(color.boldgreen + "AMReX Directory: " + color.reset + args.amrex)
     f.write("AMREX = " + args.amrex + "\n")
 else:
-    print(color.boldyellow+"WARNING"+color.reset+":         AMReX path not specified. This may cause compile errors.")
+    print(warning()+"AMReX path not specified. This may cause compile errors.")
 
 #
 # EIGEN
@@ -99,18 +112,18 @@ if (args.eigen != ""):
 if not args.comp in ['g++','icc','clang++']:
     raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
-pre = color.boldgreen + "Comp. version:   " + color.reset
+pre = message("Comp. version")
 for line in subprocess.check_output([args.comp,'--version']).split('\n'):
     if line != "":
         print(pre + line)
-        pre = "                 "
+        pre = "".ljust(width)
 
-pre = color.boldgreen + "MPI flags:       " + color.reset
+pre = message("MPI flags")
 wrapper = textwrap.TextWrapper(width=70)
 for line in wrapper.wrap(subprocess.check_output(['mpicxx','-cxx='+args.comp,'-show'])):
     if line != "\n":
         print(pre + line)
-        pre = "                 "
+        pre = "".ljust(width)
 
 f.write("CC = mpicxx -cxx="+args.comp+"\n")
 if args.comp == 'g++':     f.write("MPI_LIB = -lgfortran -lmpich\n")
@@ -138,6 +151,24 @@ if args.python:
     print(                  "                 USE_COMPILE_PIC=True")
     print(                  "                 to the AMReX GNUMakefile!")
 
+#
+# Documentation check
+#
+#Doxygen
+try: print(message("Doxygen version") + subprocess.check_output(['doxygen','--version']).split('\n')[0])
+except: print(warning() + "Doxygen not installed - install using " + code("sudo apt install doxygen"))
+#GraphViz
+try: print(message("GraphViz version") + subprocess.check_output(['dot','-V'], stderr=subprocess.STDOUT).split('\n')[0])
+except: print(warning() + "GraphViz not installed - install using " + code("sudo apt install graphviz"))
+#Sphinx
+try: print(message("Sphinx Version") + subprocess.check_output(['sphinx-build','--version']).split('\n')[0])
+except: print(warning() + "Sphinx not installed - install using " + code("sudo apt install python-sphinx"))
+#Breathe
+try: import breathe; print(message("Breathe version") + str(breathe.__version__)+ " (python 2)")
+except: print(warning() + "Breathe not installed - install using " + code("pip install breathe"))
+#M2R
+try: import sphinx_rtd_theme; print(message("RTD Theme") + str(sphinx_rtd_theme.__version__) + " (python 2)")
+except: print(warning() + "RTD not installed - install using " + code("pip install sphinx_rtd_theme"))
 
 #
 # Specify Prefix
