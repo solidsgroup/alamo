@@ -8,6 +8,7 @@
 #include "IC/Trig2.H"
 #include "Numeric/Stencil.H"
 
+/// \brief This namespace contains a suite of numerical unit tests
 namespace Test
 {
 namespace Numeric
