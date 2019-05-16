@@ -26,10 +26,6 @@ public:
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
 	~Isotropic() {} ;
 
-<<<<<<< HEAD
-        /// \todo make this more robust!
-=======
->>>>>>> d1ad36dd2a2750b75bc491e904473d8e916da570
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
@@ -49,7 +45,6 @@ public:
 				f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
 		return f;
 	}
-#endif
 
 	void Randomize()
 	{

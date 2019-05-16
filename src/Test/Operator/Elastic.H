@@ -24,10 +24,14 @@
 
 #include"Util/Util.H"
 
+/// \brief This namespace contains a suite of numerical unit tests
 namespace Test
 {
+/// \brief This namespace contains the tests for different kinds of operators
 namespace Operator
 {
+/// \class Test::Operator::Elastic
+/// \brief This class contains tests for different types of elastic operators
 class Elastic
 {
 public:
@@ -93,8 +97,7 @@ public:
 		     int component = 0,
 		     int n = 1,
 		     std::string plotfile = "");
-<<<<<<< HEAD
-  
+
         /// Compute the exact solution of the governing equation
         ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
         /// Where
@@ -125,8 +128,10 @@ public:
         /// Where i correspond to the testing component
         ///   \f[i=0 X component -  i=1 Y component - i=2 Z component/f]
         ///
-=======
-	int mytest() {return 8;};
+        int UniaxialTest(int verbose,
+			 int component,
+			 int n,
+			 std::string plotfile = "");
 
 	// Setter functions
 	void setMaxCoarseningLevel(int in) {m_maxCoarseningLevel = in;}
@@ -140,13 +145,6 @@ public:
 	void setConsolidation(bool in) {m_consolidation = in;}
 	void setTolRel(Set::Scalar in) {m_tol_rel = in;}
 	void setTolAbs(Set::Scalar in) {m_tol_abs = in;}
->>>>>>> d1ad36dd2a2750b75bc491e904473d8e916da570
-
-        int UniaxialTest(int verbose,
-			 int component,
-			 int n,
-			 std::string plotfile = "");
-
   
 
 private: // Private member functions
