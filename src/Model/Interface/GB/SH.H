@@ -41,23 +41,24 @@ public:
 		sigma0 = Util::Random();
 		sigma1 = Util::Random();
 	};
-	amrex::Real W(Set::Scalar a_theta, Set::Scalar a_phi)
+	AMREX_FORCE_INLINE
+	amrex::Real W(Set::Scalar a_theta, Set::Scalar a_phi) const
 	{
-		int n=1, m=1;
-		return boost::math::spherical_harmonic_r(n,m,a_theta,a_phi);
+		int n=3, m=2;
+		//return boost::math::spherical_harmonic_r(n,m,a_theta,a_phi);
+		return cos(2*a_phi)*cos(2*a_phi) * sin(2*a_theta)*sin(2*a_theta);
+	};
+	amrex::Real W(amrex::Real theta)
+	{
+		return NAN;
 	};
 	amrex::Real DW(amrex::Real theta)
 	{
-		//theta = theta*PI/180;
-		//theta0 = theta0*PI/180;
-		//return 4.0*sigma1*sin(2.0*(theta-theta0))*cos(2.0*(theta-theta0));
-		return 2.0*sigma1*sin(4.0*(theta-theta0));
+		return NAN;
 	};
 	amrex::Real DDW(amrex::Real theta)
 	{
-		//theta = theta*PI/180;
-		//    theta0 = theta0*PI/180;
-		return 8.0*sigma1*cos(4.0*(theta-theta0));
+		return NAN;
 	};
   
 	//virtual amrex::Real operator()(amrex::Real theta)

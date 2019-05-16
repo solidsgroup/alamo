@@ -238,9 +238,11 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 	std::swap(eta_old_mf[lev], eta_new_mf[lev]);
 	const amrex::Real* DX = geom[lev].CellSize();
 
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-									   dy(AMREX_D_DECL(0,1,0)),
-									   dz(AMREX_D_DECL(0,0,1)));
+
+	Model::Interface::GB::SH gbmodel;
+	// static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+	// 								   dy(AMREX_D_DECL(0,1,0)),
+	// 								   dz(AMREX_D_DECL(0,0,1)));
 
 	for ( amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi )
 	{
@@ -276,17 +278,28 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 											 grad22 = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)),
 											 grad33 = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)));
 		      
+
 					Set::Vector normal(AMREX_D_DECL((Numeric::Stencil<Set::Scalar,1,0,0>::D(eta,i,j,k,m,DX)),
 											   (Numeric::Stencil<Set::Scalar,0,1,0>::D(eta,i,j,k,m,DX)),
 											   (Numeric::Stencil<Set::Scalar,0,0,1>::D(eta,i,j,k,m,DX))));
+
+					Set::Scalar normgrad = normal.lpNorm<2>();
+
+					if (normgrad < 1E-8) continue; // This ought to speed things up.
+
+					normal /= normgrad;
+
+					
+					Set::Scalar theta = std::acos(normal(2));
+					Set::Scalar phi   = std::atan2(normal(1),normal(0));
 
 					//Util::Message(INFO,normal.transpose());
 					// normal /= normal.lpNorm<2>();
 					if (m == 0)
 					{
-						N(i,j,k,0) = normal(0);
-						N(i,j,k,1) = normal(1);
-						N(i,j,k,2) = normal(2);
+						N(i,j,k,0) = theta;
+						N(i,j,k,1) = phi;
+						N(i,j,k,2) = gbmodel.W(theta,phi);
 					}
 
 					Set::Scalar laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
