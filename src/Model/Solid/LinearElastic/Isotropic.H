@@ -25,6 +25,9 @@ public:
 	Isotropic() {} ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
 	~Isotropic() {} ;
+
+        /// \todo make this more robust!
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
@@ -39,6 +42,7 @@ public:
 				f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
 		return f;
 	}
+#endif
 
 	void Randomize()
 	{
