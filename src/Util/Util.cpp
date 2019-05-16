@@ -70,6 +70,12 @@ void SignalHandler(int s)
 }
 
 
+void Initialize ()
+{
+	int argc = 0;
+	char * argv[0];
+	Initialize(argc,argv);
+}
 void Initialize (int argc, char* argv[])
 {
 	srand (time(NULL));
@@ -289,7 +295,7 @@ int Message(std::string testname, int failed)
 		else
 			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
 
-		int terminalwidth = 100; //std::min(w.ws_col,(short unsigned int) 100);
+		int terminalwidth = 80; //std::min(w.ws_col,(short unsigned int) 100);
 
 		std::cout << std::left
 			  << testname 
@@ -309,7 +315,7 @@ int SubMessage(std::string testname, int failed)
 		else
 			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
 
-		int terminalwidth = 100; 
+		int terminalwidth = 80; 
 
 		std::cout << std::left
 			  << "  ├ "

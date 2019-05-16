@@ -26,14 +26,21 @@ public:
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
 	~Isotropic() {} ;
 
+<<<<<<< HEAD
         /// \todo make this more robust!
+=======
+>>>>>>> d1ad36dd2a2750b75bc491e904473d8e916da570
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
+#endif
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
+#endif
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
 	{
 		Set::Vector f = Set::Vector::Zero();

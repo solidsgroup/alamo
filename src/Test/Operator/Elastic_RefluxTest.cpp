@@ -11,6 +11,7 @@ namespace Operator
 {
 int Elastic::RefluxTest(int verbose)
 {
+	Generate();
 	int failed = 0;
 
 	int nghost = 2;
