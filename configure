@@ -36,6 +36,7 @@ parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
+parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.set_defaults(debug=False)
 args=parser.parse_args();
 
@@ -154,21 +155,25 @@ if args.python:
 #
 # Documentation check
 #
-#Doxygen
-try: print(message("Doxygen version") + subprocess.check_output(['doxygen','--version']).split('\n')[0])
-except: print(warning() + "Doxygen not installed - install using " + code("sudo apt install doxygen"))
-#GraphViz
-try: print(message("GraphViz version") + subprocess.check_output(['dot','-V'], stderr=subprocess.STDOUT).split('\n')[0])
-except: print(warning() + "GraphViz not installed - install using " + code("sudo apt install graphviz"))
-#Sphinx
-try: print(message("Sphinx Version") + subprocess.check_output(['sphinx-build','--version']).split('\n')[0])
-except: print(warning() + "Sphinx not installed - install using " + code("sudo apt install python-sphinx"))
-#Breathe
-try: import breathe; print(message("Breathe version") + str(breathe.__version__)+ " (python 2)")
-except: print(warning() + "Breathe not installed - install using " + code("pip install breathe"))
-#M2R
-try: import sphinx_rtd_theme; print(message("RTD Theme") + str(sphinx_rtd_theme.__version__) + " (python 2)")
-except: print(warning() + "RTD not installed - install using " + code("pip install sphinx_rtd_theme"))
+if (args.docs):
+    #Doxygen
+    try: print(message("Doxygen version") + subprocess.check_output(['doxygen','--version']).split('\n')[0])
+    except: print(warning() + "Doxygen not installed - install using " + code("sudo apt install doxygen"))
+    #GraphViz
+    try: print(message("GraphViz version") + subprocess.check_output(['dot','-V'], stderr=subprocess.STDOUT).split('\n')[0])
+    except: print(warning() + "GraphViz not installed - install using " + code("sudo apt install graphviz"))
+    #Sphinx
+    try: print(message("Sphinx Version") + subprocess.check_output(['sphinx-build','--version']).split('\n')[0])
+    except: print(warning() + "Sphinx not installed - install using " + code("sudo apt install python-sphinx"))
+    #Breathe
+    try: import breathe; print(message("Breathe version") + str(breathe.__version__)+ " (python 2)")
+    except: print(warning() + "Breathe not installed - install using " + code("pip install breathe"))
+    #RTD
+    try: import sphinx_rtd_theme; print(message("RTD Theme") + str(sphinx_rtd_theme.__version__) + " (python 2)")
+    except: print(warning() + "RTD not installed - install using " + code("pip install sphinx_rtd_theme"))
+    #M2R
+    try: import m2r; print(message("M2R") + str(m2r.__version__) + " (python 2)")
+    except: print(warning() + "M2R not installed - install using " + code("pip install m2r"))
 
 #
 # Specify Prefix
