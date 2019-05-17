@@ -92,7 +92,6 @@ public:
 	///     \f[u_i^{mn}  = \frac{b_i^{mn}}{(\alpha\ \pi^2\ (m^2 + n^2))}\f]
 	/// 
 	///
-  
 	int TrigTest(int verbose,
 		     int component = 0,
 		     int n = 1,
@@ -114,19 +113,19 @@ public:
 	/// Expand \f$\mathbf{u}\f$ and \f$\mathbf{b}\f$ out as affine series
   	///       \f[ u_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
 	///       \f[ b_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
-        ///       \f[ b_i = div(\sigma)]
+        ///       \f[ b_i = div(\sigma)\f]
         /// It
         /// Then the strain tensor, the derivative of diplacement
         ///   \f[\varepsilon_{ij}= \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
         ///
         /// In the other hand equation to compare (Numerical Solution)
-        ///   \f[div(\sigma) = ]
+        ///   \f[div(\sigma) = \f]
         /// In this case the transformation affine parameters are:
-        ///   \f[alpha = 1.0  -  m = 1.0  -  b = (0 ,0 ,0)/f]
+        ///   \f[alpha = 1.0  -  m = 1.0  -  b = (0 ,0 ,0)\f]
         /// and we fix the displacement value depending of the testing component
-        ///   \f[u_{i} = n = 0.1]
+        ///   \f[u_{i} = n = 0.1\f]
         /// Where i correspond to the testing component
-        ///   \f[i=0 X component -  i=1 Y component - i=2 Z component/f]
+        ///   \f[i=0 X component -  i=1 Y component - i=2 Z component\f]
         ///
         int UniaxialTest(int verbose,
 			 int component,
