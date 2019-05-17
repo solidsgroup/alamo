@@ -112,7 +112,7 @@ public:
         /// i.e it will deformate only on the testing component side (Uniaxial strain).
         ///
         /// Component corresponds to each one 3D directions
-        ///   \f[i=0; X direction  -  i=1; Y direction  -  i=2; Z direction/f]
+        ///   \f[i=0; X direction  -  i=1; Y direction  -  i=2; Z direction \f]
         /// 
 	/// Expand \f$\mathbf{u}\f$ and \f$\mathbf{b}\f$ out as affine series
   	///       \f[ u_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
