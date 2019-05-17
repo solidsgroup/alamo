@@ -102,31 +102,34 @@ public:
         ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
         /// Where
         ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
-        /// Stress-strain relationship
-        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]  
 	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
   	/// In this case the two Lamé parameters are:
 	///   \f[ \mu=2.6    \lambda=6.0 \f]
+        ///
 	/// Consider a simulation domain \f$\Omega = [0, 1]^3\f$
-        /// and subjected to stress in one direction but constrained in the other directions
-        /// so that the material only can contract or expand on one side, i.e on the testing component side.
+        /// And a subjected material to stress in one direction but constrained in the other directions
+        /// so that the material only can contract or expand on one side,
+        /// i.e it will deformate only on the testing component side (Uniaxial strain).
+        ///
+        /// Component corresponds to each one 3D directions
+        ///   \f[i=0; X direction  -  i=1; Y direction  -  i=2; Z direction/f]
         /// 
 	/// Expand \f$\mathbf{u}\f$ and \f$\mathbf{b}\f$ out as affine series
-  	///       \f[ u_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
-	///       \f[ b_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
-        ///       \f[ b_i = div(\sigma)]
-        /// It
-        /// Then the strain tensor, the derivative of diplacement
-        ///   \f[\varepsilon_{ij}= \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+  	///       \f[ u_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
+	///       \f[ b_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
+        /// For the test, the fixed value of displacement are \f$\u_{i} = 0.1 \f$ according to the component.
         ///
-        /// In the other hand equation to compare (Numerical Solution)
-        ///   \f[div(\sigma) = ]
-        /// In this case the transformation affine parameters are:
-        ///   \f[alpha = 1.0  -  m = 1.0  -  b = (0 ,0 ,0)/f]
-        /// and we fix the displacement value depending of the testing component
-        ///   \f[u_{i} = n = 0.1]
-        /// Where i correspond to the testing component
-        ///   \f[i=0 X component -  i=1 Y component - i=2 Z component/f]
+        /// Strain tensor, the derivative of diplacement
+        ///   \f[\varepsilon_{ij}= sym(grad(u)) = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+        /// to simplify concider \f$\alpha = 1  m = 1.0  b = (0, 0, 0) \f$
+        ///
+        /// Then Stress caculate throught the stress-strain relationship
+        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
+        ///
+        /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
+        ///   \f[div(\sigma) = 0]
+        ///
+        ///
         ///
         int UniaxialTest(int verbose,
 			 int component,
