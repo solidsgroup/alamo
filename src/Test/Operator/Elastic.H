@@ -90,7 +90,6 @@ public:
 	///     \f[\alpha u_i^{mn} \pi^2 (m^2 + n^2) = b_i^{mn}\f]
 	/// or, simplifying
 	///     \f[u_i^{mn}  = \frac{b_i^{mn}}{(\alpha\ \pi^2\ (m^2 + n^2))}\f]
-	/// 
 	///
 	int TrigTest(int verbose,
 		     int component = 0,
@@ -106,26 +105,30 @@ public:
 	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
   	/// In this case the two Lamé parameters are:
 	///   \f[ \mu=2.6    \lambda=6.0 \f]
+        ///
 	/// Consider a simulation domain \f$\Omega = [0, 1]^3\f$
-        /// and subjected to stress in one direction but constrained in the other directions
-        /// so that the material only can contract or expand on one side, i.e on the testing component side.
+        /// And a subjected material to stress in one direction but constrained in the other directions
+        /// so that the material only can contract or expand on one side,
+        /// i.e it will deformate only on the testing component side (Uniaxial strain).
+        ///
+        /// Component corresponds to each one 3D directions
+        ///   \f[i=0; X direction  -  i=1; Y direction  -  i=2; Z direction\f]
         /// 
 	/// Expand \f$\mathbf{u}\f$ and \f$\mathbf{b}\f$ out as affine series
-  	///       \f[ u_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
-	///       \f[ b_i = \delta_{ij} \alpha ((x_i - b) n )^m \f]
-        ///       \f[ b_i = div(\sigma)\f]
-        /// It
-        /// Then the strain tensor, the derivative of diplacement
-        ///   \f[\varepsilon_{ij}= \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+  	///       \f[ u_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
+	///       \f[ b_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
+        /// For the test, the fixed value of displacement are \f$\u_{i} = 0.1 \f$ according to the component.
         ///
-        /// In the other hand equation to compare (Numerical Solution)
-        ///   \f[div(\sigma) = \f]
-        /// In this case the transformation affine parameters are:
-        ///   \f[alpha = 1.0  -  m = 1.0  -  b = (0 ,0 ,0)\f]
-        /// and we fix the displacement value depending of the testing component
-        ///   \f[u_{i} = n = 0.1\f]
-        /// Where i correspond to the testing component
-        ///   \f[i=0 X component -  i=1 Y component - i=2 Z component\f]
+        /// The (infinitesimal) strain tensor
+        ///   \f[\varepsilon_{ij} = sym(grad(u)) \f]
+        ///   \f[\varepsilon_{ij} = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+        /// to simplify concider \f$\alpha = 1  m = 1.0  b = (0, 0, 0) \f$
+        ///
+        /// Then stress caculation by means of the stress-strain relationship on isotropic model
+        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
+        ///
+        /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
+        ///   \f[div(\sigma) = 0\f]
         ///
         int UniaxialTest(int verbose,
 			 int component,
