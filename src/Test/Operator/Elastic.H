@@ -119,11 +119,12 @@ public:
 	///       \f[ b_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
         /// For the test, the fixed value of displacement are \f$\u_{i} = 0.1 \f$ according to the component.
         ///
-        /// Strain tensor, the derivative of diplacement
-        ///   \f[\varepsilon_{ij}= sym(grad(u)) = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+        /// The (infinitesimal) strain tensor
+        ///   \f[\varepsilon_{ij} = sym(grad(u)) \f]
+        ///   \f[\varepsilon_{ij} = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
         /// to simplify concider \f$\alpha = 1  m = 1.0  b = (0, 0, 0) \f$
         ///
-        /// Then Stress caculate throught the stress-strain relationship
+        /// Then stress caculation by means of the stress-strain relationship on isotropic model
         ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
         ///
         /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
