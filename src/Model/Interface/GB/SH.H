@@ -44,9 +44,9 @@ public:
 	AMREX_FORCE_INLINE
 	amrex::Real W(Set::Scalar a_theta, Set::Scalar a_phi) const
 	{
-		int n=3, m=2;
+		//int n=3, m=2;
 		//return boost::math::spherical_harmonic_r(n,m,a_theta,a_phi);
-		return cos(2*a_phi)*cos(2*a_phi) * sin(2*a_theta)*sin(2*a_theta);
+		return sigma0 - sigma1*cos(2*a_phi)*cos(2*a_phi) * sin(2*a_theta)*sin(2*a_theta);
 	};
 	amrex::Real W(amrex::Real theta)
 	{
