@@ -90,9 +90,7 @@ public:
 	///     \f[\alpha u_i^{mn} \pi^2 (m^2 + n^2) = b_i^{mn}\f]
 	/// or, simplifying
 	///     \f[u_i^{mn}  = \frac{b_i^{mn}}{(\alpha\ \pi^2\ (m^2 + n^2))}\f]
-	/// 
 	///
-  
 	int TrigTest(int verbose,
 		     int component = 0,
 		     int n = 1,
@@ -102,6 +100,8 @@ public:
         ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
         /// Where
         ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
+        /// Stress-strain relationship
+        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]  
 	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
   	/// In this case the two Lamé parameters are:
 	///   \f[ \mu=2.6    \lambda=6.0 \f]
@@ -128,9 +128,7 @@ public:
         ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
         ///
         /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
-        ///   \f[div(\sigma) = 0]
-        ///
-        ///
+        ///   \f[div(\sigma) = 0\f]
         ///
         int UniaxialTest(int verbose,
 			 int component,
