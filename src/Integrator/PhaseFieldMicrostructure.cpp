@@ -1,3 +1,6 @@
+
+#include <eigen3/Eigen/Eigenvalues>
+
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
 #include "Set/Set.H"
@@ -239,10 +242,16 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 	const amrex::Real* DX = geom[lev].CellSize();
 
 
-	Model::Interface::GB::SH gbmodel;
+	Model::Interface::GB::SH gbmodel(0.0, sigma0, 0.5*sigma0);
 	// static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 	// 								   dy(AMREX_D_DECL(0,1,0)),
 	// 								   dz(AMREX_D_DECL(0,0,1)));
+
+
+	// Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(3);
+	// Set::Matrix A = Set::Matrix::Random();
+	// A = A + A.transpose();
+	// eigensolver.compute(A);
 
 	for ( amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi )
 	{
@@ -274,20 +283,38 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					// CURVATURE PENALTY
 					//
 
+					Set::Vector normal(AMREX_D_DECL((Numeric::Stencil<Set::Scalar,1,0,0>::D(eta,i,j,k,m,DX)),
+													(Numeric::Stencil<Set::Scalar,0,1,0>::D(eta,i,j,k,m,DX)),
+													(Numeric::Stencil<Set::Scalar,0,0,1>::D(eta,i,j,k,m,DX))));
+
+					Set::Scalar normgrad = normal.lpNorm<2>();
+					if (normgrad < 1E-8) continue; // This ought to speed things up.
+					normal /= normgrad;
+
+					// Set::Matrix DDeta;
+					// DDeta(0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)); // replaces grad11
+					// DDeta(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)); // replaces grad22
+					// DDeta(2,2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)); // replaces grad33
+					// DDeta(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(eta,i,j,k,m,DX)); // replaces grad12
+					// DDeta(1,2) = (Numeric::Stencil<Set::Scalar,0,1,1>::D(eta,i,j,k,m,DX)); // replaces grad12
+					// DDeta(2,0) = (Numeric::Stencil<Set::Scalar,1,0,1>::D(eta,i,j,k,m,DX)); // replaces grad12
+					// DDeta(1,0) = DDeta(0,1); // replaces grad12
+					// DDeta(2,1) = DDeta(1,2); // replaces grad12
+					// DDeta(0,2) = DDeta(2,0); // replaces grad12
+
+					// Set::Matrix DDeta_sq = DDeta * DDeta;
+
+
+					// Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(3);
+					// eigensolver.computeDirect(DDeta);
+					// Set::Matrix vec = eigensolver.eigenvectors();
+
 					Set::Scalar AMREX_D_DECL(grad11 = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)),
 											 grad22 = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)),
 											 grad33 = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)));
 		      
 
-					Set::Vector normal(AMREX_D_DECL((Numeric::Stencil<Set::Scalar,1,0,0>::D(eta,i,j,k,m,DX)),
-											   (Numeric::Stencil<Set::Scalar,0,1,0>::D(eta,i,j,k,m,DX)),
-											   (Numeric::Stencil<Set::Scalar,0,0,1>::D(eta,i,j,k,m,DX))));
 
-					Set::Scalar normgrad = normal.lpNorm<2>();
-
-					if (normgrad < 1E-8) continue; // This ought to speed things up.
-
-					normal /= normgrad;
 
 					
 					Set::Scalar theta = std::acos(normal(2));
@@ -295,17 +322,30 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 					//Util::Message(INFO,normal.transpose());
 					// normal /= normal.lpNorm<2>();
+					Set::Scalar gbe = gbmodel.W(theta,phi);
+
 					if (m == 0)
 					{
 						N(i,j,k,0) = theta;
 						N(i,j,k,1) = phi;
-						N(i,j,k,2) = gbmodel.W(theta,phi);
+						N(i,j,k,2) = gbe;
+						// N(i,j,k,0) = normal(0);
+						// N(i,j,k,1) = normal(1);
+						// N(i,j,k,2) = normal(2);
+						// N(i,j,k,0) = eigensolver.eigenvalues().maxCoeff();
+						// N(i,j,k,1) = DDeta_sq.trace();
+						// N(i,j,k,2) =
+						// 	eigensolver.eigenvalues()(0)*eigensolver.eigenvalues()(0) +
+						// 	eigensolver.eigenvalues()(1)*eigensolver.eigenvalues()(1) +
+						// 	eigensolver.eigenvalues()(2)*eigensolver.eigenvalues()(2) -
+						// 	eigensolver.eigenvalues().maxCoeff()*eigensolver.eigenvalues().maxCoeff();
 					}
 
 					Set::Scalar laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
 
 					Set::Scalar kappa = l_gb*0.75*sigma0;
-					mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
+					//mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
+					mu = 0.75 * (1.0/0.23) * gbe / l_gb;
 
 					if (anisotropy && time > anisotropy_tstart)
 					{
