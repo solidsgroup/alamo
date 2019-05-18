@@ -101,38 +101,36 @@ public:
         /// Where
         ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
         /// Stress-strain relationship
-        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]  
-	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
+        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
+        ///
   	/// In this case the two Lamé parameters are:
-	///   \f[ \mu=2.6    \lambda=6.0 \f]
-        ///
+	///   \f[ \mu=2.6 \\\\ \lambda=6.0 \f]
+  	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
+	///
 	/// Consider a simulation domain \f$\Omega = [0, 1]^3\f$
-        /// And a subjected material to stress in one direction but constrained in the other directions
-        /// so that the material only can contract or expand on one side,
-        /// i.e it will deformate only on the testing component side (Uniaxial strain).
-        ///
-        /// Component corresponds to each one 3D directions
-        ///   \f[i=0; X direction  -  i=1; Y direction  -  i=2; Z direction \f]
+  	///
+	/// Let the material be subjected to stress in one direction but constrained in the other directions
+        /// so that the material can only contract or expand on one side,
+        /// i.e it will deform only on the testing component side (Uniaxial strain).
         /// 
-	/// Expand \f$\mathbf{u}\f$ and \f$\mathbf{b}\f$ out as affine series
+        /// The component variable determines in which of the directions the material is stressed
+        ///   \f[i=0 \ \ \text{- X direction}  \\\\  i=1 \ \ \text{- Y direction}  \\\\  i=2 \ \ \text{- Z direction} \f]
+        /// 
+	/// Let the solution \f$\mathbf{u}\f$ and right hand side \f$\mathbf{b}\f$ have the form
   	///       \f[ u_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
-	///       \f[ b_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
-        /// For the test, the fixed value of displacement are \f$\u_{i} = 0.1 \f$ according to the component.
+	///       \f[ b_{i} = 0 \f]
+        /// For the test, the fixed value of displacement are \f$ u_{i} = 0.1 \f$ according to the component.
         ///
         /// The (infinitesimal) strain tensor
-        ///   \f[\varepsilon_{ij} = sym(grad(u)) \f]
+        ///   \f[\varepsilon_{ij} = \operatorname{sym} ( \operatorname{grad} ( u ) ) \f]
         ///   \f[\varepsilon_{ij} = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
-        /// to simplify concider \f$\alpha = 1  m = 1.0  b = (0, 0, 0) \f$
-        ///
-        /// Then stress caculation by means of the stress-strain relationship on isotropic model
-        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
+        /// to simplify consider \f[ \alpha=1.0 \ \ m=1.0 \ \ b=(0, 0, 0) \f]
         ///
         /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
         ///   \f[div(\sigma) = 0\f]
         ///
         int UniaxialTest(int verbose,
 			 int component,
-			 int n,
 			 std::string plotfile = "");
 
 	// Setter functions
