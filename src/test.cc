@@ -105,17 +105,17 @@ int main (int argc, char* argv[])
 		int subfailed = 0;
 		Test::Operator::Elastic test;
 	        test.Define(32,1);
-		AMREX_D_TERM(subfailed += Util::Test::SubMessage("1 level, Component 0, period=1",test.UniaxialTest(0,0,1));,
-			     subfailed += Util::Test::SubMessage("1 level, Component 1, period=1",test.UniaxialTest(0,1,1));,
-			     subfailed += Util::Test::SubMessage("1 level, Component 2, period=1",test.UniaxialTest(0,2,1));)
-		test.Define(32,2); 
-		AMREX_D_TERM(subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.UniaxialTest(0,0,1));,
-			     subfailed += Util::Test::SubMessage("2 levels, Component 1, period=1",test.UniaxialTest(0,1,1));,
-			     subfailed += Util::Test::SubMessage("2 levels, Component 2, period=1",test.UniaxialTest(0,2,1));)
-		test.Define(32,3); 
-		AMREX_D_TERM(subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.UniaxialTest(0,0,1));,
-			     subfailed += Util::Test::SubMessage("3 levels, Component 1, period=1",test.UniaxialTest(0,1,1));,
-			     subfailed += Util::Test::SubMessage("3 levels, Component 2, period=1",test.UniaxialTest(0,2,1));)
+		subfailed += Util::Test::SubMessage("1 level, Component 0, period=1",test.UniaxialTest(0,0));
+		test.Define(32,2);
+		subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.UniaxialTest(0,0));
+		test.Define(32,3);
+		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.UniaxialTest(0,0));
+		
+		//AMREX_D_TERM(subfailed += Util::Test::SubMessage("1 level, Component 0, period=1",test.UniaxialTest(0,0));,subfailed += Util::Test::SubMessage("1 level, Component 1, period=1",test.UniaxialTest(0,1));,subfailed += Util::Test::SubMessage("1 level, Component 2, period=1",test.UniaxialTest(0,2));)
+	  //test.Define(32,2); 
+	  //AMREX_D_TERM(subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.UniaxialTest(0,0));,subfailed += Util::Test::SubMessage("2 levels, Component 1, period=1",test.UniaxialTest(0,1));,subfailed += Util::Test::SubMessage("2 levels, Component 2, period=1",test.UniaxialTest(0,2));)
+//test.Define(32,3); 
+//AMREX_D_TERM(subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.UniaxialTest(0,0));, subfailed += Util::Test::SubMessage("3 levels, Component 1, period=1",test.UniaxialTest(0,1));,subfailed += Util::Test::SubMessage("3 levels, Component 2, period=1",test.UniaxialTest(0,2));)
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 	

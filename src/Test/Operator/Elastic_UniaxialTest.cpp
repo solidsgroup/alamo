@@ -10,7 +10,7 @@ namespace Test
 {
 namespace Operator
 {
-int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfile)
+int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 {
 	Generate();
 
@@ -20,18 +20,16 @@ int Elastic::UniaxialTest(int verbose, int component, int n, std::string plotfil
 
 	using model_type = Model::Solid::LinearElastic::Isotropic;
 	Set::Scalar lame=2.6, shear=6.0;
-	model_type model(lame,shear);
-	//model.Randomize();
+	model_type model(lame, shear);
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
 
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
  	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
 
-	Set::Vector vec(AMREX_D_DECL(0.0, 0.0, 0.0));
+	Set::Vector vec = Set::Vector::Zero();
 	vec[component]=0.1;
-	
-	std::complex<int> i(0,1);
+
 	IC::Affine icrhs(geom, Set::Vector::Zero(), 1.0, Set::Vector::Zero() , false, 1.0);
 	icrhs.SetComp(component);
 
