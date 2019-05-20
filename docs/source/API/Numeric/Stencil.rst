@@ -1,4 +1,4 @@
-.. _API-Operator-Elastic:
+.. _API-Numeric-Stencil:
 
 .. role:: cpp(code)
    :language: c++

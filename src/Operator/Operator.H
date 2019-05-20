@@ -16,7 +16,9 @@ using namespace amrex;
 
 enum Grid { Cell, Node};
 
-namespace Operator {
+/// \brief Documentation for operator namespace
+namespace Operator
+{
 
 template <Grid G> class Operator;
 
