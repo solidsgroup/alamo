@@ -28,11 +28,13 @@ public:
 	Laplacian() {} ;
 	Laplacian(Set::Scalar _alpha) : alpha(_alpha)  {} ;
 	~Laplacian() {} ;
+	AMREX_FORCE_INLINE
 	virtual Set::Matrix operator () (Set::Matrix &gradu) const
 	{
 		//return alpha * 0.5*(gradu + gradu.transpose());
 		return alpha * gradu;
 	};
+	AMREX_FORCE_INLINE
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
 	{
 		Set::Vector f = Set::Vector::Zero();
@@ -68,8 +70,8 @@ public:
 	virtual Laplacian operator * (const Set::Scalar beta) const
 	{return Laplacian(alpha*beta);}
 
-private:
-	Set::Scalar alpha; ///< Coefficient
+public:
+	Set::Scalar alpha = NAN; ///< Coefficient
 };
 
 }

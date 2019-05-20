@@ -12,6 +12,7 @@
 #include <eigen3/Eigen/SVD>
 #include <AMReX_REAL.H>
 
+/// \brief A collection of data types and simple data structures
 namespace Set
 {
 using Scalar   = amrex::Real;

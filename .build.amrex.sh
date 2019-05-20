@@ -6,6 +6,6 @@ if [ $# -eq 2 ]
 then
     git checkout $2
 fi
-./configure --dim=$1 --prefix=../amrex$1d/ --debug=yes
+./configure --dim=$1 --prefix=../amrex$1d/ --debug=no
 make
 make install
