@@ -291,16 +291,32 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					if (normgrad < 1E-8) continue; // This ought to speed things up.
 					normal /= normgrad;
 
-					// Set::Matrix DDeta;
-					// DDeta(0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)); // replaces grad11
-					// DDeta(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)); // replaces grad22
-					// DDeta(2,2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)); // replaces grad33
-					// DDeta(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(eta,i,j,k,m,DX)); // replaces grad12
-					// DDeta(1,2) = (Numeric::Stencil<Set::Scalar,0,1,1>::D(eta,i,j,k,m,DX)); // replaces grad12
-					// DDeta(2,0) = (Numeric::Stencil<Set::Scalar,1,0,1>::D(eta,i,j,k,m,DX)); // replaces grad12
-					// DDeta(1,0) = DDeta(0,1); // replaces grad12
-					// DDeta(2,1) = DDeta(1,2); // replaces grad12
-					// DDeta(0,2) = DDeta(2,0); // replaces grad12
+					
+					const Set::Vector e1(1,0,0), e2(0,1,0), e3(0,0,1);
+					
+					Set::Vector t2, t3;
+					// if (normal(0) > normal(1) && normal(0) > normal(2))
+					// {
+					t2 = e2 - normal.dot(e2)*normal; t2 /= t2.lpNorm<2>();
+					t3 = e3 - normal.dot(e3)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
+					// }
+
+
+					Set::Matrix DDeta;
+					DDeta(0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)); // replaces grad11
+					DDeta(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)); // replaces grad22
+					DDeta(2,2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)); // replaces grad33
+					DDeta(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(eta,i,j,k,m,DX)); // replaces grad12
+					DDeta(1,2) = (Numeric::Stencil<Set::Scalar,0,1,1>::D(eta,i,j,k,m,DX)); // replaces grad12
+					DDeta(2,0) = (Numeric::Stencil<Set::Scalar,1,0,1>::D(eta,i,j,k,m,DX)); // replaces grad12
+					DDeta(1,0) = DDeta(0,1); // replaces grad12
+					DDeta(2,1) = DDeta(1,2); // replaces grad12
+					DDeta(0,2) = DDeta(2,0); // replaces grad12
+
+					Eigen::Matrix2d DDeta2D;
+					DDeta2D <<
+						t2.dot(DDeta*t2) , t2.dot(DDeta*t3),
+						t3.dot(DDeta*t2) , t3.dot(DDeta*t3);
 
 					// Set::Matrix DDeta_sq = DDeta * DDeta;
 
@@ -327,7 +343,8 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					if (m == 0)
 					{
 						N(i,j,k,0) = theta;
-						N(i,j,k,1) = phi;
+						N(i,j,k,1) = (DDeta2D*DDeta2D).trace();
+						if (std::isnan(N(i,j,k,1))) N(i,j,k,1) = 0.0;
 						N(i,j,k,2) = gbe;
 						// N(i,j,k,0) = normal(0);
 						// N(i,j,k,1) = normal(1);
