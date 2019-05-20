@@ -22,7 +22,12 @@
 #include <AMReX_PlotFileUtil.H>
 
 #include "BC/BC.H"
+#include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"
+
+/// \brief Collection of numerical integrator objects
+namespace Integrator
+{
 
 ///
 /// \class Integrator
@@ -60,9 +65,6 @@
 ///     amr.refine_grid_layout = 
 ///     amr.check_input        = 
 ///
-
-namespace Integrator
-{
 class Integrator
 	: public amrex::AmrCore
 {
@@ -86,7 +88,7 @@ public:
 	/// ```
 	Integrator ();
 
-	virtual ~Integrator();
+	~Integrator();
 
 	/// \fn    FrontData
 	/// \brief Front-end method to initialize simulation
@@ -257,6 +259,7 @@ private:
 	amrex::Real tstart = 0;	///< Default start time (default: 0)
 	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
+protected:
 	struct {
 		int number_of_fabs = 0;
 		amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
@@ -274,6 +277,8 @@ private:
 		amrex::Vector<std::string> name_array;
 		amrex::Vector<BC::BC *> physbc_array;
 	} cell;
+
+	BC::Nothing bcnothing;
 
 	// KEEP TRACK OF ALL INTEGRATED VARIABLES
 	int intvar_int = 1;

@@ -6,7 +6,6 @@
 #include "Integrator.H"
 #include "IO/FileNameParse.H"
 #include "Util/Util.H"
-#include "BC/Nothing.H"
 #include <numeric>
 
 
@@ -221,7 +220,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	cell.fab_array.push_back(&new_fab);
-	cell.physbc_array.push_back(new BC::Nothing); 
+	cell.physbc_array.push_back(&bcnothing); 
 	cell.ncomp_array.push_back(ncomp);
 	cell.nghost_array.push_back(0);
 	cell.name_array.push_back(name);
@@ -236,7 +235,7 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	node.fab_array.push_back(&new_fab);
-	node.physbc_array.push_back(new BC::Nothing); 
+	node.physbc_array.push_back(&bcnothing); 
 	node.ncomp_array.push_back(ncomp);
 	node.nghost_array.push_back(nghost);
 	node.name_array.push_back(name);
@@ -374,6 +373,7 @@ Integrator::InitData ()
 	}
   
 	if (plot_int > 0) {
+		for (int ilev = 0; ilev < finest_level+1; ilev++) 
 		WritePlotFile();
 	}
 }
@@ -446,7 +446,7 @@ Integrator::WritePlotFile () const
 			for (int j = 1; j <= node.ncomp_array[i]; j++)
 				nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
 		else
-			nnames.push_back(cell.name_array[i]);
+			nnames.push_back(node.name_array[i]);
 	}
 
 	amrex::Vector<MultiFab> cplotmf(nlevels), nplotmf(nlevels);
@@ -461,6 +461,15 @@ Integrator::WritePlotFile () const
 		int n = 0;
 		for (int i = 0; i < cell.number_of_fabs; i++)
 		{
+			amrex::IntVect where;
+			// if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
+			// if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
+
+			if ((*cell.fab_array[i])[ilev]->contains_nan(0,(*cell.fab_array[i])[ilev]->nComp()))
+				for (MFIter mfi(*(*cell.fab_array[i])[ilev],false);mfi.isValid();++mfi)
+					if ((*(*cell.fab_array[i])[ilev])[mfi].contains_nan(where))
+						Util::Abort(INFO,cnames[i]," contains nans (i=",i,") on level ilev=",ilev," at ", where);
+
 			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 			n += cell.ncomp_array[i];
 		}
@@ -468,6 +477,8 @@ Integrator::WritePlotFile () const
 		n = 0;
 		for (int i = 0; i < node.number_of_fabs; i++)
 		{
+			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
+			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
 			MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
 			n += node.ncomp_array[i];
 		}
@@ -521,7 +532,6 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
-		WritePlotFile();
 		IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
 		TimeStepComplete(cur_time,step);

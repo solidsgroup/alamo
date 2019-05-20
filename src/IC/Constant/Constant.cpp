@@ -4,8 +4,9 @@
 namespace IC
 {
 
-Constant::Constant(amrex::Vector<amrex::Geometry> &_geom, amrex::Vector<amrex::Real> _value)
-	: IC(_geom), value(_value) {}
+Constant::Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> _value)
+	: IC(_geom), value(_value)
+{}
 
 void Constant::Add(const int lev,
 		amrex::Vector<amrex::MultiFab * > &field)
@@ -22,7 +23,7 @@ void Constant::Add(const int lev,
 				for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++)
 #endif
 			{
-				for (int m = 0; m < value.size(); m++)
+				for (unsigned int m = 0; m < value.size(); m++)
 					field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) = value[m];     
 			}
 	}

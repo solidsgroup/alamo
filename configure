@@ -1,0 +1,186 @@
+#!/usr/bin/python
+import argparse
+import os
+import re
+import subprocess
+import textwrap
+
+class color:
+    reset = "\033[0m"
+    red   = "\033[31m"
+    green   = "\033[32m"
+    lightgray = "\033[37m"
+    boldgray = "\033[1m\033[37m"
+    boldgreen   = "\033[1m\033[32m"
+    boldyellow   = "\033[1m\033[33m"
+    boldred   = "\033[1m\033[31m"
+
+    bggray = "\033[47m\033[30m"
+
+width = 20
+def message(msg):
+    return(color.boldgreen + msg.ljust(width) + color.reset)
+def warning():
+    return(color.boldyellow + "WARNING".ljust(width) + color.reset)
+def error():
+    return(color.boldred + "ERROR".ljust(width) + color.reset)
+def code(code):
+    return(color.bggray + code + color.reset);
+
+
+parser = argparse.ArgumentParser(description='Configure ALAMO');
+parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
+parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
+parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
+parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
+parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
+parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
+parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
+parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
+parser.set_defaults(debug=False)
+args=parser.parse_args();
+
+f = open("Makefile.conf","w")
+
+#
+# DIMENSION
+#
+f.write("DIM = " + str(args.dim) + "\n")
+print(message("Dimension")+ str(args.dim))
+
+#
+# COMPILER
+#
+if (args.comp == "gcc"): f.write("COMP = GCC\n")
+elif (args.comp == "clang"): f.write("COMP = CLANG\n")
+elif (args.comp == "intel"): f.write("COMP = INTEL\n")
+print(message("Compiler") + str(args.comp))
+
+#
+# DEBUG
+#
+f.write("DEBUG = " + str(args.debug) + "\n")
+print(message("Debug Mode") + str(args.debug))
+
+#
+# AMREX
+#
+if (args.amrex != ""):
+    # Check to make sure directory is valid 
+    if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
+        raise Exception(error()+" AMReX directory must contain include/ and lib/ subdirectories ")
+
+    # Scan AMReX Config File
+    amrex_spacedim = 0
+    amrex_profiling = False
+    amrex_debug = False
+    for line in open(args.amrex + "/include/AMReX_Config.H"):
+        if "define BL_SPACEDIM 1" in line or "define AMREX_SPACEDIM 1" in line: amrex_spacedim = 1
+        if "define BL_SPACEDIM 2" in line or "define AMREX_SPACEDIM 2" in line: amrex_spacedim = 2
+        if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
+        if "AMREX_DEBUG 1" in line: amrex_debug = True
+        if "PROFILING 1" in line: amrex_profiling = True
+        
+    if args.dim != amrex_spacedim:
+        raise Exception(error()+"AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
+    if args.debug != amrex_debug:
+        if args.debug:
+            raise Exception(error()+"Alamo is in debug mode but AMReX is not")
+        else:
+            raise Exception(error()+": Alamo is not in debug mode but AMReX is")
+    if not args.debug and amrex_profiling:
+        print(warning()+"Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+
+    print(color.boldgreen + "AMReX Directory: " + color.reset + args.amrex)
+    f.write("AMREX = " + args.amrex + "\n")
+else:
+    print(warning()+"AMReX path not specified. This may cause compile errors.")
+
+#
+# EIGEN
+#
+if (args.eigen != ""):
+    if not os.path.isdir(args.amrex + "/eigen3"):
+        raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
+    print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
+    f.write("EIGEN = " + args.amrex + "\n")
+
+
+#
+# Compiler
+#
+
+if not args.comp in ['g++','icc','clang++']:
+    raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
+
+pre = message("Comp. version")
+for line in subprocess.check_output([args.comp,'--version']).split('\n'):
+    if line != "":
+        print(pre + line)
+        pre = "".ljust(width)
+
+pre = message("MPI flags")
+wrapper = textwrap.TextWrapper(width=70)
+for line in wrapper.wrap(subprocess.check_output(['mpicxx','-cxx='+args.comp,'-show'])):
+    if line != "\n":
+        print(pre + line)
+        pre = "".ljust(width)
+
+f.write("CC = mpicxx -cxx="+args.comp+"\n")
+if args.comp == 'g++':     f.write("MPI_LIB = -lgfortran -lmpich\n")
+if args.comp == 'clang++': f.write("MPI_LIB = -lgfortran -lmpich\n")
+if args.comp == 'icc':     f.write("MPI_LIB = -lifcore\n")
+
+#
+# Python information
+#
+if args.python:
+    python_include_dir = "/usr/include/python2.7/" # hard-coded for now
+    #python_boost_lib = "/usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.62.0"
+    python_boost_lib = "-lboost_python-py27"
+
+    if not (os.path.isdir(python_include_dir)):
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
+    #if not (os.path.isfile(python_boost_lib)):
+    #    raise Exception(color.red+"ERROR"+color.reset+": Python Boost library does not exist (Try installing libboost-python-dev)")
+
+    f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
+    f.write("PYTHON_LIB = " + python_boost_lib + '\n')
+    f.write("CXX_COMPILE_FLAGS += -fPIC \n")
+    print(color.boldgreen + "Using Python:    " + color.reset + "True")
+    print(color.lightgray + "NOTE:            " + color.reset + "Be sure to add")
+    print(                  "                 USE_COMPILE_PIC=True")
+    print(                  "                 to the AMReX GNUMakefile!")
+
+#
+# Documentation check
+#
+if (args.docs):
+    #Doxygen
+    try: print(message("Doxygen version") + subprocess.check_output(['doxygen','--version']).split('\n')[0])
+    except: print(warning() + "Doxygen not installed - install using " + code("sudo apt install doxygen"))
+    #GraphViz
+    try: print(message("GraphViz version") + subprocess.check_output(['dot','-V'], stderr=subprocess.STDOUT).split('\n')[0])
+    except: print(warning() + "GraphViz not installed - install using " + code("sudo apt install graphviz"))
+    #Sphinx
+    try: print(message("Sphinx Version") + subprocess.check_output(['sphinx-build','--version']).split('\n')[0])
+    except: print(warning() + "Sphinx not installed - install using " + code("sudo apt install python-sphinx"))
+    #Breathe
+    try: import breathe; print(message("Breathe version") + str(breathe.__version__)+ " (python 2)")
+    except: print(warning() + "Breathe not installed - install using " + code("pip install breathe"))
+    #RTD
+    try: import sphinx_rtd_theme; print(message("RTD Theme") + str(sphinx_rtd_theme.__version__) + " (python 2)")
+    except: print(warning() + "RTD not installed - install using " + code("pip install sphinx_rtd_theme"))
+    #M2R
+    try: import m2r; print(message("M2R") + str(m2r.__version__) + " (python 2)")
+    except: print(warning() + "M2R not installed - install using " + code("pip install m2r"))
+
+#
+# Specify Prefix
+#
+prefix = "-"
+prefix += str(args.dim)+"d"
+if args.debug: prefix += "-debug"
+if args.python: prefix += "-fpic"
+prefix += "-" + args.comp
+f.write("PREFIX = " + prefix + '\n')

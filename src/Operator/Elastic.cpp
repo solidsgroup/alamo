@@ -5,7 +5,7 @@
 #include "Model/Solid/Viscoelastic/Isotropic.H"
 #include "Elastic.H"
 
-
+#include "Numeric/Stencil.H"
 namespace Operator
 {
 template<class T>
@@ -56,170 +56,163 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
 
-	int nghost = model[amrlev][0]->nGrow();
-	for (MFIter mfi(a_model, false); mfi.isValid(); ++mfi)
-	{
-		const Box& bx = mfi.validbox();
-		amrex::BaseFab<T> &modelfab = (*(model[amrlev][0]))[mfi];
-		const amrex::BaseFab<T> &a_modelfab = a_model[mfi];
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]-nghost; m1<=bx.hiVect()[0]+nghost; m1++),
-			     for (int m2 = bx.loVect()[1]-nghost; m2<=bx.hiVect()[1]+nghost; m2++),
-			     for (int m3 = bx.loVect()[2]-nghost; m3<=bx.hiVect()[2]+nghost; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			modelfab(m) = a_modelfab(m);
-		}
+	int nghost = model[amrlev][0]->nGrow();
+
+	for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+	{
+		Box bx = mfi.tilebox();
+		bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+		bx = bx & domain;  // Take intersection of box and the problem domain
+			
+		amrex::Array4<T> const& C         = (*(model[amrlev][0])).array(mfi);
+		amrex::Array4<const T> const& a_C = a_model.array(mfi);
+
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				C(i,j,k) = a_C(i,j,k);
+			});
 	}
 }
 
 template<class T>
 void
-Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
+Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) const
 {
 	BL_PROFILE("Operator::Elastic::Fapply()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
+
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 
-	int nghost = 1; //(f.nGrow() && u.nGrow()) ? 1 : 0;
-	//Util::Message(INFO,"amrlev = ", amrlev, "nghost = ", nghost);
-
-	for (MFIter mfi(f, false); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_f, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.validbox();
-		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
-		const amrex::FArrayBox &ufab    = u[mfi];
-		amrex::FArrayBox       &ffab    = f[mfi];
-
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - nghost; m1<=bx.hiVect()[0] + nghost; m1++),
-			     for (int m2 = bx.loVect()[1] - nghost; m2<=bx.hiVect()[1] + nghost; m2++),
-			     for (int m3 = bx.loVect()[2] - nghost; m3<=bx.hiVect()[2] + nghost; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-
+		Box bx = mfi.tilebox();
+		bx.grow(1);        // Expand to cover first layer of ghost nodes
+		bx = bx & domain;  // Take intersection of box and the problem domain
 			
-			// Util::Message(INFO,"amrlev=",amrlev," m=",m," nghost = ", nghost);
-			// Util::Message(INFO,"domain =",domain.loVect()[0]," ",domain.loVect()[1]);
-			// Util::Message(INFO,"domain =",domain.hiVect()[0]," ",domain.hiVect()[1]);
+		amrex::Array4<T> const& C                 = (*(model[amrlev][mglev])).array(mfi);
+		amrex::Array4<const amrex::Real> const& U = a_u.array(mfi);
+		amrex::Array4<amrex::Real> const& F       = a_f.array(mfi);
 
-			if (m[0] < domain.loVect()[0]) continue;
-			if (m[1] < domain.loVect()[1]) continue;
-			if (m[0] > domain.hiVect()[0]+1) continue;
-			if (m[1] > domain.hiVect()[1]+1) continue;
-
-
-			Set::Vector f = Set::Vector::Zero();
+		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					
+				Set::Vector f = Set::Vector::Zero();
 
-			bool    AMREX_D_DECL(xmin = (m[0] == domain.loVect()[0]),
-					     ymin = (m[1] == domain.loVect()[1]),
-					     zmin = (m[2] == domain.loVect()[2])),
-				AMREX_D_DECL(xmax = (m[0] == domain.hiVect()[0]+1),
-					     ymax = (m[1] == domain.hiVect()[1]+1),
-					     zmax = (m[2] == domain.hiVect()[2]+1));
+				Set::Vector u;
+				for (int p = 0; p < AMREX_SPACEDIM; p++) u(p) = U(i,j,k,p);
+				
 
-			// The displacement gradient tensor
-			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
-			// Fill gradu and gradgradu
-			for (int i = 0; i < AMREX_SPACEDIM; i++)
-			{
-				AMREX_D_TERM(gradu(i,0) = ((!xmax ? ufab(m+dx,i) : ufab(m,i)) - (!xmin ? ufab(m-dx,i) : ufab(m,i)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-					     gradu(i,1) = ((!ymax ? ufab(m+dy,i) : ufab(m,i)) - (!ymin ? ufab(m-dy,i) : ufab(m,i)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-					     gradu(i,2) = ((!zmax ? ufab(m+dz,i) : ufab(m,i)) - (!zmin ? ufab(m-dz,i) : ufab(m,i)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			}
+				// Determine if a special stencil will be necessary for first derivatives
+				std::array<Numeric::StencilType,AMREX_SPACEDIM>
+					sten = Numeric::GetStencil(i,j,k,domain);
 
-			// Stress tensor computed using the model fab
-			Set::Matrix sig = C(m)(gradu);
+				// The displacement gradient tensor
+				Set::Matrix gradu; // gradu(i,j) = u_{i,j)
 
-			//
-			// Boundary conditions
-			//
-			// BCs are implemented as boundary operators.
-			//
-			// ┌                      ┐ ┌                     ┐   ┌              ┐
-			// │              |       │ │ interior		  │   │ body	     │
-			// │  Div C Grad  │       │ │ displacements	  │   │ forces	     │
-			// │              │       │ │			  │ = │		     │
-			// │ ─────────────┼────── │ │ ──────────────────  │   │ ──────────── │
-			// │              │ Bndry │ │ bndry displacements │   │ bndry values │
-			// └                      ┘ └			  ┘   └		     ┘
-			//
-			// For displacement:
-			//   (Bndry)(u) = u
-			// For traction:
-			//   (Bndry)(u) = C Grad (u) n   (n is surface normal)
-			//
-			// The displacement values or traction values are set as the boundary
-			// values of the rhs fab.
-			//
-			if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
-			{
-				for (int i = 0; i < AMREX_SPACEDIM; i++) // iterate over DIMENSIONS
+				// Fill gradu
+				for (int p = 0; p < AMREX_SPACEDIM; p++)
 				{
-					for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
-					{
-						if (m[j] == domain.loVect()[j])
-						{
-							if (m_bc_lo[j][i] == BC::Displacement)
-								f(i) = ufab(m,i);
-							else if (m_bc_lo[j][i] == BC::Traction) 
-								f(i) += -sig(i,j);
-							else Util::Abort(INFO, "Invalid BC");
-						}
-						if (m[j] == domain.hiVect()[j] + 1)
-						{
-							if (m_bc_hi[j][i] == BC::Displacement)
-								f(i) = ufab(m,i);
-							else if (m_bc_hi[j][i] == BC::Traction) 
-								f(i) += +sig(i,j);
-							else Util::Abort(INFO, "Invalid BC");
+ 					AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i,j,k,p,DX,sten));,
+					 	     gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i,j,k,p,DX,sten));,
+					 	     gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i,j,k,p,DX,sten)););
+				}
+					
+				// Stress tensor computed using the model fab
+				Set::Matrix sig = C(i,j,k)(gradu);
 
-						}
+				// Boundary conditions
+				/// \todo Important: we need a way to handle corners and edges.
+				amrex::IntVect m(AMREX_D_DECL(i,j,k));
+				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
+				{
+
+					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
+					
+					// for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
+					// {
+					// 	for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
+					// 	{
+					// 		if (m[q] == domain.loVect()[q])
+					// 		{
+					// 			if      (m_bc_lo[q][p] == BC::Displacement) f(p) =   U(i,j,k,p);
+					// 			else if (m_bc_lo[q][p] == BC::Traction)     f(p) = -sig(p,q);
+					// 			else if (m_bc_lo[q][p] == BC::Neumann)      f(p) = -gradu(p,q);
+					// 			else Util::Abort(INFO, "Invalid BC");
+					// 		}
+					// 		if (m[q] == domain.hiVect()[q])
+					// 		{
+					// 			if      (m_bc_hi[q][p] == BC::Displacement) f(p) = U(i,j,k,p);
+					// 			else if (m_bc_hi[q][p] == BC::Traction)     f(p) = +sig(p,q);
+					// 			else if (m_bc_hi[q][p] == BC::Neumann)      f(p) = +gradu(p,q);
+					// 			else Util::Abort(INFO, "Invalid BC");
+
+					// 		}
+					// 	}
+					// }
+
+					// if ((fnew - f).norm() > 1E-8) {
+					// 	Util::Message(INFO,"m = ", m);
+					// 	Util::Message(INFO,"fnew = ", fnew.transpose());
+					// 	Util::Message(INFO,"fold = ", f.transpose());
+					// 	Util::Message(INFO,"sigma = \n", sig);
+					// 	Util::Message(INFO,"gradu = \n", gradu);
+					// 	Util::Abort(INFO,"incorrect BC calculation");
+					// }
+
+				}
+				else
+				{
+					// The gradient of the displacement gradient tensor
+					std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+					// Fill gradu and gradgradu
+					for (int p = 0; p < AMREX_SPACEDIM; p++)
+					{
+						// Diagonal terms:
+						AMREX_D_TERM(gradgradu[p](0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(U,i,j,k,p,DX));,
+							     gradgradu[p](1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(U,i,j,k,p,DX));,
+							     gradgradu[p](2,2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(U,i,j,k,p,DX)););
+
+						// Off-diagonal terms:
+						AMREX_D_TERM(,// 2D
+							     gradgradu[p](0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(U, i,j,k,p, DX));
+							     gradgradu[p](1,0) = gradgradu[p](0,1);
+							     ,// 3D
+							     gradgradu[p](0,2) = (Numeric::Stencil<Set::Scalar,1,0,1>::D(U, i,j,k,p, DX));
+							     gradgradu[p](1,2) = (Numeric::Stencil<Set::Scalar,0,1,1>::D(U, i,j,k,p, DX));
+							     gradgradu[p](2,0) = gradgradu[p](0,2);
+							     gradgradu[p](2,1) = gradgradu[p](1,2););
+					}
+	
+					//
+					// Operator
+					//
+					// The return value is
+					//    f = C(grad grad u) + grad(C)*grad(u)
+					// In index notation
+					//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
+					//
+
+					f = C(i,j,k)(gradgradu);
+
+					if (!m_homogeneous)
+					{
+						T AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<T,1,0,0>::D(C,i,j,k,0,DX,sten)),
+							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
+							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
+						f += AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
 					}
 				}
-			}
-			else
-			{
-				// The gradient of the displacement gradient tensor
-				std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
-
-				// Fill gradu and gradgradu
-				for (int i = 0; i < AMREX_SPACEDIM; i++)
-				{
-			
-					AMREX_D_TERM(gradgradu[i](0,0) = (ufab(m+dx,i) - 2.0*ufab(m,i) + ufab(m-dx,i))/DX[0]/DX[0];
-						     ,// 2D
-						     gradgradu[i](0,1) = (ufab(m+dx+dy,i) + ufab(m-dx-dy,i) - ufab(m+dx-dy,i) - ufab(m-dx+dy,i))/(2.0*DX[0])/(2.0*DX[1]);
-						     gradgradu[i](1,0) = gradgradu[i](0,1);
-						     gradgradu[i](1,1) = (ufab(m+dy,i) - 2.0*ufab(m,i) + ufab(m-dy,i))/DX[1]/DX[1];
-						     ,// 3D
-						     gradgradu[i](0,2) = (ufab(m+dx+dz,i) + ufab(m-dx-dz,i) - ufab(m+dx-dz,i) - ufab(m-dx+dz,i))/(2.0*DX[0])/(2.0*DX[2]);
-						     gradgradu[i](1,2) = (ufab(m+dy+dz,i) + ufab(m-dy-dz,i) - ufab(m+dy-dz,i) - ufab(m-dy+dz,i))/(2.0*DX[1])/(2.0*DX[2]);
-						     gradgradu[i](2,0) = gradgradu[i](0,2);
-						     gradgradu[i](2,1) = gradgradu[i](1,2);
-						     gradgradu[i](2,2) = (ufab(m+dz,i) - 2.0*ufab(m,i) + ufab(m-dz,i))/DX[2]/DX[2];);
-				}
-	
-				//
-				// Operator
-				//
-				// The return value is
-				//    f = C(grad grad u) + grad(C)*grad(u)
-				// In index notation
-				//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
-				//
-
-				f =     C(m)(gradgradu) + 
-					 AMREX_D_TERM(( ( C(m+dx) - C(m-dx))/2.0/DX[0])(gradu).col(0),
-					  	     + ((C(m+dy) - C(m-dy))/2.0/DX[1])(gradu).col(1),
-					  	     + ((C(m+dz) - C(m-dz))/2.0/DX[2])(gradu).col(2));
-
-			}
-
-			AMREX_D_TERM(ffab(m,0) = f[0];, ffab(m,1) = f[1];, ffab(m,2) = f[2];);
-		}
+				AMREX_D_TERM(F(i,j,k,0) = f[0];, F(i,j,k,1) = f[1];, F(i,j,k,2) = f[2];);
+			});
 	}
 }
 
@@ -227,97 +220,107 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& f, const MultiFab& u) const
 
 template<class T>
 void
-Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& diag)
+Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 {
 	BL_PROFILE("Operator::Elastic::Diagonal()");
 
 	amrex::Box domain(m_geom[amrlev][mglev].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
 	const Real* DX = m_geom[amrlev][mglev].CellSize();
 	
-	for (MFIter mfi(diag, false); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_diag, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const Box& bx = mfi.validbox();
-		amrex::BaseFab<T> &C = (*(model[amrlev][mglev]))[mfi];
-		amrex::FArrayBox       &diagfab    = diag[mfi];
+		Box bx = mfi.validbox();
+		bx.grow(1);        // Expand to cover first layer of ghost nodes
+		bx = bx & domain;  // Take intersection of box and the problem domain
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 1; m1<=bx.hiVect()[0] + 1; m1++),
-		 	     for (int m2 = bx.loVect()[1] - 1; m2<=bx.hiVect()[1] + 1; m2++),
-		 	     for (int m3 = bx.loVect()[2] - 1; m3<=bx.hiVect()[2] + 1; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+		amrex::Array4<T> const& C                 = (*(model[amrlev][mglev])).array(mfi);
+		amrex::Array4<amrex::Real> const& diag    = a_diag.array(mfi);
 
-			if (m[0] < domain.loVect()[0]) continue;
-			if (m[1] < domain.loVect()[1]) continue;
-			if (m[0] > domain.hiVect()[0]+1) continue;
-			if (m[1] > domain.hiVect()[1]+1) continue;
-
-			bool    AMREX_D_DECL(xmin = (m1 == domain.loVect()[0]),
-					     ymin = (m2 == domain.loVect()[1]),
-					     zmin = (m3 == domain.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == domain.hiVect()[0] + 1),
-					     ymax = (m2 == domain.hiVect()[1] + 1),
-					     zmax = (m3 == domain.hiVect()[2] + 1));
-
-			Set::Matrix gradu; // gradu(i,j) = u_{i,j)
-			std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
-
-			for (int i = 0; i < AMREX_SPACEDIM; i++)
-			{
-				diagfab(m,i) = 0.0;
-				for (int k = 0; k < AMREX_SPACEDIM; k++)
-				{
-					AMREX_D_TERM(gradu(k,0) = ((!xmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!xmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
-						     gradu(k,1) = ((!ymax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!ymin ? 0.0 : (i==k ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
-						     gradu(k,2) = ((!zmax ? 0.0 : (i==k ? 1.0 : 0.0)) - (!zmin ? 0.0 : (i==k ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			
-					AMREX_D_TERM(gradgradu[k](0,0) = (i==k ? -2.0 : 0.0)/DX[0]/DX[0];
-						     ,// 2D
-						     gradgradu[k](0,1) = 0.0;
-						     gradgradu[k](1,0) = 0.0;
-						     gradgradu[k](1,1) = (i==k ? -2.0 : 0.0)/DX[1]/DX[1];
-						     ,// 3D
-						     gradgradu[k](0,2) = 0.0;
-						     gradgradu[k](1,2) = 0.0;
-						     gradgradu[k](2,0) = 0.0;
-						     gradgradu[k](2,1) = 0.0;
-						     gradgradu[k](2,2) = (i==k ? -2.0 : 0.0)/DX[2]/DX[2]);
-				}
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-				Set::Matrix sig = C(m)(gradu);
+				Set::Vector f = Set::Vector::Zero();
 
-				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
+				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+
+				std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+					= Numeric::GetStencil(i,j,k,domain);
+
+
+				
+
+				Set::Matrix gradu; // gradu(i,j) = u_{i,j)
+				std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
+
+				for (int p = 0; p < AMREX_SPACEDIM; p++)
 				{
-					for (int j = 0; j < AMREX_SPACEDIM; j++) // iterate over FACES
+
+					diag(i,j,k,p) = 0.0;
+					for (int q = 0; q < AMREX_SPACEDIM; q++)
 					{
-						if (m[j] == domain.loVect()[j])
-						{
-							if (m_bc_lo[j][i] == BC::Displacement)
-								diagfab(m,i) += 1.0;
-							else if (m_bc_lo[j][i] == BC::Traction) 
-								diagfab(m,i) -= sig(i,j);
-							else Util::Abort(INFO, "Invalid BC");
-						}
-						if (m[j] == domain.hiVect()[j] + 1)
-						{
-							if (m_bc_hi[j][i] == BC::Displacement)
-								diagfab(m,i) += 1.0;
-							else if (m_bc_hi[j][i] == BC::Traction) 
-								diagfab(m,i) += sig(i,j);
-							else Util::Abort(INFO, "Invalid BC");
-						}
+						AMREX_D_TERM(gradu(q,0) = ((!xmax ? 0.0 : (p==q ? 1.0 : 0.0)) - (!xmin ? 0.0 : (p==q ? 1.0 : 0.0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);,
+							     gradu(q,1) = ((!ymax ? 0.0 : (p==q ? 1.0 : 0.0)) - (!ymin ? 0.0 : (p==q ? 1.0 : 0.0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);,
+							     gradu(q,2) = ((!zmax ? 0.0 : (p==q ? 1.0 : 0.0)) - (!zmin ? 0.0 : (p==q ? 1.0 : 0.0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
+			
+						AMREX_D_TERM(gradgradu[q](0,0) = (p==q ? -2.0 : 0.0)/DX[0]/DX[0];
+							     ,// 2D
+							     gradgradu[q](0,1) = 0.0;
+							     gradgradu[q](1,0) = 0.0;
+							     gradgradu[q](1,1) = (p==q ? -2.0 : 0.0)/DX[1]/DX[1];
+							     ,// 3D
+							     gradgradu[q](0,2) = 0.0;
+							     gradgradu[q](1,2) = 0.0;
+							     gradgradu[q](2,0) = 0.0;
+							     gradgradu[q](2,1) = 0.0;
+							     gradgradu[q](2,2) = (p==q ? -2.0 : 0.0)/DX[2]/DX[2]);
 					}
+
+					Set::Matrix sig = C(i,j,k)(gradu);
+
+					amrex::IntVect m(AMREX_D_DECL(i,j,k));
+					if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
+					{
+						Set::Vector u = Set::Vector::Zero();
+						u(p) = 1.0;
+						f = (*m_bc)(u,gradu,sig,i,j,k,domain);
+						diag(i,j,k,p) = f(p);
+						
+						// for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
+						// {
+						// 	if (m[q] == domain.loVect()[q])
+						// 	{
+						// 		if      (m_bc_lo[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
+						// 		else if (m_bc_lo[q][p] == BC::Traction)     diag(i,j,k,p) = -sig(p,q);
+						// 		else if (m_bc_lo[q][p] == BC::Neumann)      diag(i,j,k,p) = -gradu(p,q);
+						// 		else Util::Abort(INFO, "Invalid BC");
+						// 	}
+						// 	if (m[q] == domain.hiVect()[q])
+						// 	{
+						// 		if      (m_bc_hi[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
+						// 		else if (m_bc_hi[q][p] == BC::Traction)     diag(i,j,k,p) = sig(p,q);
+						// 		else if (m_bc_hi[q][p] == BC::Neumann)      diag(i,j,k,p) = gradu(p,q);
+						// 		else Util::Abort(INFO, "Invalid BC");
+						// 	}
+						// }
+					}
+					else
+					{
+						T AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<T,1,0,0>::D(C,i,j,k,0,DX,sten)),
+							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
+							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
+
+						Set::Vector f = C(i,j,k)(gradgradu) + 
+							AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
+
+						diag(i,j,k,p) += f(p);
+					}
+					if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"nan at (", i, ",", j , ",",k);
+
 				}
-				else
-				{
-					Set::Vector f =
-						C(m)(gradgradu)  + 
-						AMREX_D_TERM(((C(m+dx) - C(m-dx))/2.0/DX[0])(gradu).col(0),
-						   	     + ((C(m+dy) - C(m-dy))/2.0/DX[1])(gradu).col(1),
-						     	     + ((C(m+dz) - C(m-dz))/2.0/DX[2])(gradu).col(2));
-					diagfab(m,i) += f(i);
-				}
-			}
-		}
+			});
 	}
 }
 
@@ -369,74 +372,60 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 template<class T>
 void
 Elastic<T>::Strain  (int amrlev,
-		    amrex::MultiFab& eps,
-		    const amrex::MultiFab& u,
+		    amrex::MultiFab& a_eps,
+		    const amrex::MultiFab& a_u,
 		    bool voigt) const
 {
 	BL_PROFILE("Operator::Elastic::Strain()");
-	Util::Message(INFO);
 
-	if (voigt)
-		AMREX_ASSERT(eps.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
-	else
-		AMREX_ASSERT(eps.nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
-	
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
-	
-	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
+
+
+	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::FArrayBox  &epsfab   = eps[mfi];
-		const amrex::FArrayBox  &ufab = u[mfi];
-		
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool	AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
-					     ymin = (m2 == bx.loVect()[1]),
-					     zmin = (m3 == bx.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
-					     ymax = (m2 == bx.hiVect()[1]),
-					     zmax = (m3 == bx.hiVect()[2]));
+		amrex::Array4<amrex::Real> const& epsilon = a_eps.array(mfi);
+		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+				    {
+					    Set::Matrix gradu;
 
-			Set::Matrix gradu;
-			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx,0) : ufab(m,0)) - (!xmin ? ufab(m-dx,0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     ,
-				     gradu(0,1) = ((!ymax ? ufab(m+dy,0) : ufab(m,0)) - (!ymin ? ufab(m-dy,0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(1,0) = ((!xmax ? ufab(m+dx,1) : ufab(m,1)) - (!xmin ? ufab(m-dx,1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(1,1) = ((!ymax ? ufab(m+dy,1) : ufab(m,1)) - (!ymin ? ufab(m-dy,1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     ,
-				     gradu(0,2) = ((!zmax ? ufab(m+dz,0) : ufab(m,0)) - (!zmin ? ufab(m-dz,0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(1,2) = ((!zmax ? ufab(m+dz,1) : ufab(m,1)) - (!zmin ? ufab(m-dz,1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(2,0) = ((!xmax ? ufab(m+dx,2) : ufab(m,2)) - (!xmin ? ufab(m-dx,2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(2,1) = ((!ymax ? ufab(m+dy,2) : ufab(m,2)) - (!ymin ? ufab(m-dy,2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(2,2) = ((!zmax ? ufab(m+dz,2) : ufab(m,2)) - (!zmin ? ufab(m-dz,2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
-			Set::Matrix strain = 0.5 * (gradu + gradu.transpose());
-			
-			if (voigt)
-			{
-#if AMREX_SPACEDIM == 2
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(1,1); epsfab(m,2) = strain(0,1); 
-#elif AMREX_SPACEDIM == 3
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(1,1); epsfab(m,2) = strain(2,2); 
-				epsfab(m,3) = strain(1,2); epsfab(m,4) = strain(2,0); epsfab(m,5) = strain(0,1); 
-#endif
-			}
-			else
-			{
-#if   AMREX_SPACEDIM == 2
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(0,1); 
-				epsfab(m,2) = strain(1,0); epsfab(m,3) = strain(1,1); 
-#elif AMREX_SPACEDIM == 3
-				epsfab(m,0) = strain(0,0); epsfab(m,1) = strain(0,1); epsfab(m,2) = strain(0,2); 
-				epsfab(m,3) = strain(1,0); epsfab(m,4) = strain(1,1); epsfab(m,5) = strain(1,2); 
-				epsfab(m,6) = strain(2,0); epsfab(m,7) = strain(2,1); epsfab(m,8) = strain(2,2); 
-#endif
-			}
-		}
+					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+						    = Numeric::GetStencil(i,j,k,domain);
+
+					    // Fill gradu
+					    for (int p = 0; p < AMREX_SPACEDIM; p++)
+					    {
+						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
+						    		 gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
+						     		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
+					    }
+
+					    Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
+
+					    if (voigt)
+					    {
+						    AMREX_D_PICK(epsilon(i,j,k,0) = eps(0,0);
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(1,1); epsilon(i,j,k,2) = eps(0,1); 
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(1,1); epsilon(i,j,k,2) = eps(2,2); 
+								 epsilon(i,j,k,3) = eps(1,2); epsilon(i,j,k,4) = eps(2,0); epsilon(i,j,k,5) = eps(0,1););
+					    }
+					    else
+					    {
+						    AMREX_D_PICK(epsilon(i,j,k,0) = eps(0,0);
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(0,1); 
+								 epsilon(i,j,k,2) = eps(1,0); epsilon(i,j,k,3) = eps(1,1);
+								 ,
+								 epsilon(i,j,k,0) = eps(0,0); epsilon(i,j,k,1) = eps(0,1); epsilon(i,j,k,2) = eps(0,2); 
+								 epsilon(i,j,k,3) = eps(1,0); epsilon(i,j,k,4) = eps(1,1); epsilon(i,j,k,5) = eps(1,2); 
+								 epsilon(i,j,k,6) = eps(2,0); epsilon(i,j,k,7) = eps(2,1); epsilon(i,j,k,8) = eps(2,2););
+					    }
+				    });
 	}
 }
 
@@ -444,81 +433,60 @@ Elastic<T>::Strain  (int amrlev,
 template<class T>
 void
 Elastic<T>::Stress (int amrlev,
-		    amrex::MultiFab& sigma,
-		    const amrex::MultiFab& u,
+		    amrex::MultiFab& a_sigma,
+		    const amrex::MultiFab& a_u,
 		    bool voigt) const
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
-	Util::Message(INFO);
-	if (voigt)
-		AMREX_ASSERT(sigma.nComp() == (AMREX_SPACEDIM*(AMREX_SPACEDIM-1)/2));
-	else
-		AMREX_ASSERT(sigma.nComp() == AMREX_SPACEDIM*AMREX_SPACEDIM);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
 
-	Util::Message(INFO,"u grow = ", u.nGrow());
-
-	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::BaseFab<T> &C          = (*(model[amrlev][0]))[mfi];
-		amrex::FArrayBox  &sigmafab   = sigma[mfi];
-		const amrex::FArrayBox  &ufab = u[mfi];
+		amrex::Array4<T> const& C                 = (*(model[amrlev][0])).array(mfi);
+		amrex::Array4<amrex::Real> const& sigma   = a_sigma.array(mfi);
+		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+				    {
+					    Set::Matrix gradu;
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			//Util::Message(INFO,"m=",m," & box = (",bx.loVect()[0],",",bx.loVect()[1],",",bx.loVect()[2],")(",bx.hiVect()[0],",",bx.hiVect()[1],",",bx.hiVect()[2],")");
+					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+						    = Numeric::GetStencil(i,j,k,domain);
 
-			bool    AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
-					     ymin = (m2 == bx.loVect()[1]),
-					     zmin = (m3 == bx.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
-					     ymax = (m2 == bx.hiVect()[1]),
-					     zmax = (m3 == bx.hiVect()[2]));
+					    // Fill gradu
+					    for (int p = 0; p < AMREX_SPACEDIM; p++)
+					    {
+						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
+						     		 gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
+						      		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
+					    }
+					 
+					    Set::Matrix sig = C(i,j,k)(gradu);
 
-			Set::Matrix gradu;
-
-			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx,0) : ufab(m,0)) - (!xmin ? ufab(m-dx,0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     ,
-				     gradu(0,1) = ((!ymax ? ufab(m+dy,0) : ufab(m,0)) - (!ymin ? ufab(m-dy,0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(1,0) = ((!xmax ? ufab(m+dx,1) : ufab(m,1)) - (!xmin ? ufab(m-dx,1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(1,1) = ((!ymax ? ufab(m+dy,1) : ufab(m,1)) - (!ymin ? ufab(m-dy,1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     ,
-				     gradu(0,2) = ((!zmax ? ufab(m+dz,0) : ufab(m,0)) - (!zmin ? ufab(m-dz,0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(1,2) = ((!zmax ? ufab(m+dz,1) : ufab(m,1)) - (!zmin ? ufab(m-dz,1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(2,0) = ((!xmax ? ufab(m+dx,2) : ufab(m,2)) - (!xmin ? ufab(m-dx,2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(2,1) = ((!ymax ? ufab(m+dy,2) : ufab(m,2)) - (!ymin ? ufab(m-dy,2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(2,2) = ((!zmax ? ufab(m+dz,2) : ufab(m,2)) - (!zmin ? ufab(m-dz,2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
-			Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
-
-			Set::Matrix sig = C(m)(eps);
-
-			if (voigt)
-			{
-#if AMREX_SPACEDIM == 2
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(1,1); sigmafab(m,2) = sig(0,1); 
-#elif AMREX_SPACEDIM == 3
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(1,1); sigmafab(m,2) = sig(2,2); 
-				sigmafab(m,3) = sig(1,2); sigmafab(m,4) = sig(2,0); sigmafab(m,5) = sig(0,1); 
-#endif
-			}
-			else
-			{
-#if   AMREX_SPACEDIM == 2
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(0,1); 
-				sigmafab(m,2) = sig(1,0); sigmafab(m,3) = sig(1,1); 
-#elif AMREX_SPACEDIM == 3
-				sigmafab(m,0) = sig(0,0); sigmafab(m,1) = sig(0,1); sigmafab(m,2) = sig(0,2); 
-				sigmafab(m,3) = sig(1,0); sigmafab(m,4) = sig(1,1); sigmafab(m,5) = sig(1,2); 
-				sigmafab(m,6) = sig(2,0); sigmafab(m,7) = sig(2,1); sigmafab(m,8) = sig(2,2); 
-#endif
-			}
-			}
+					    if (voigt)
+					    {
+						    AMREX_D_PICK(sigma(i,j,k,0) = sig(0,0);
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(1,1); sigma(i,j,k,2) = sig(0,1); 
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(1,1); sigma(i,j,k,2) = sig(2,2); 
+								 sigma(i,j,k,3) = sig(1,2); sigma(i,j,k,4) = sig(2,0); sigma(i,j,k,5) = sig(0,1););
+					    }
+					    else
+					    {
+						    AMREX_D_PICK(sigma(i,j,k,0) = sig(0,0);
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(0,1); 
+								 sigma(i,j,k,2) = sig(1,0); sigma(i,j,k,3) = sig(1,1);
+								 ,
+								 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(0,1); sigma(i,j,k,2) = sig(0,2); 
+								 sigma(i,j,k,3) = sig(1,0); sigma(i,j,k,4) = sig(1,1); sigma(i,j,k,5) = sig(1,2); 
+								 sigma(i,j,k,6) = sig(2,0); sigma(i,j,k,7) = sig(2,1); sigma(i,j,k,8) = sig(2,2););
+					    }
+				    });
 	}
 }
 
@@ -526,56 +494,41 @@ Elastic<T>::Stress (int amrlev,
 template<class T>
 void
 Elastic<T>::Energy (int amrlev,
-		    amrex::MultiFab& energy,
-		    const amrex::MultiFab& u) const
+		    amrex::MultiFab& a_energy,
+		    const amrex::MultiFab& a_u) const
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	Util::Message(INFO);
-	AMREX_ASSERT(energy.nComp() == 1);
-	AMREX_ASSERT(u.nComp() == AMREX_SPACEDIM);
+
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 
-	for (MFIter mfi(u, true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::BaseFab<T> &C          = (*(model[amrlev][0]))[mfi];
-		amrex::FArrayBox  &energyfab  = energy[mfi];
-		const amrex::FArrayBox  &ufab = u[mfi];
+		amrex::Array4<T> const& C                  = (*(model[amrlev][0])).array(mfi);
+		amrex::Array4<amrex::Real> const& energy   = a_energy.array(mfi);
+		amrex::Array4<const amrex::Real> const& u  = a_u.array(mfi);
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+				    {
+					    Set::Matrix gradu;
 
-		AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
-			     for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
-			     for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
-		{
-			amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-			bool    AMREX_D_DECL(xmin = (m1 == bx.loVect()[0]),
-					     ymin = (m2 == bx.loVect()[1]),
-					     zmin = (m3 == bx.loVect()[2])),
-				AMREX_D_DECL(xmax = (m1 == bx.hiVect()[0]),
-					     ymax = (m2 == bx.hiVect()[1]),
-					     zmax = (m3 == bx.hiVect()[2]));
-			
+					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+						    = Numeric::GetStencil(i,j,k,domain);
 
-			Set::Matrix gradu;
+					    // Fill gradu
+					    for (int p = 0; p < AMREX_SPACEDIM; p++)
+					    {
+						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
+						     		 gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
+						     		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
+					    }
+					 
+					    Set::Matrix sig = C(i,j,k)(gradu);
 
-			AMREX_D_TERM(gradu(0,0) = ((!xmax ? ufab(m+dx,0) : ufab(m,0)) - (!xmin ? ufab(m-dx,0) : ufab(m,0)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     ,
-				     gradu(0,1) = ((!ymax ? ufab(m+dy,0) : ufab(m,0)) - (!ymin ? ufab(m-dy,0) : ufab(m,0)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(1,0) = ((!xmax ? ufab(m+dx,1) : ufab(m,1)) - (!xmin ? ufab(m-dx,1) : ufab(m,1)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(1,1) = ((!ymax ? ufab(m+dy,1) : ufab(m,1)) - (!ymin ? ufab(m-dy,1) : ufab(m,1)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     ,
-				     gradu(0,2) = ((!zmax ? ufab(m+dz,0) : ufab(m,0)) - (!zmin ? ufab(m-dz,0) : ufab(m,0)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(1,2) = ((!zmax ? ufab(m+dz,1) : ufab(m,1)) - (!zmin ? ufab(m-dz,1) : ufab(m,1)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]);
-				     gradu(2,0) = ((!xmax ? ufab(m+dx,2) : ufab(m,2)) - (!xmin ? ufab(m-dx,2) : ufab(m,2)))/((xmin || xmax ? 1.0 : 2.0)*DX[0]);
-				     gradu(2,1) = ((!ymax ? ufab(m+dy,2) : ufab(m,2)) - (!ymin ? ufab(m-dy,2) : ufab(m,2)))/((ymin || ymax ? 1.0 : 2.0)*DX[1]);
-				     gradu(2,2) = ((!zmax ? ufab(m+dz,2) : ufab(m,2)) - (!zmin ? ufab(m-dz,2) : ufab(m,2)))/((zmin || zmax ? 1.0 : 2.0)*DX[2]););
-			
-			Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
-			Set::Matrix sig = C(m)(eps);
-
-			energyfab(m) = (eps.transpose() * sig).trace();
-
-		}
+					    energy(i,j,k) = (gradu.transpose() * sig).trace();
+				    });
 	}
 }
 
@@ -617,8 +570,9 @@ Elastic<T>::averageDownCoeffs ()
 
 template<class T>
 void
-Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the problem is happening
+Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int /*flev*/) 
 {
+	/*
 	BL_PROFILE("Operator::Elastic::averageDownCoeffsToCoarseAmrLevel()");
 
 	//const int mglev = 0;
@@ -679,6 +633,7 @@ Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int flev) // this is where the pr
 		crsemt.copy(finemtcoarsened,0,0,ncomp);
 
 	}
+	*/
 }
 
 template<class T>
@@ -687,167 +642,106 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 {
 	BL_PROFILE("Elastic::averageDownCoeffsSameAmrLevel()");
 
-// 	if (m_coarsening_strategy != CoarseningStrategy::Sigma) return;
-
-// 	const int nsigma = (m_use_harmonic_average) ? AMREX_SPACEDIM : 1;
-
  	for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
  	{
+		amrex::Box cdomain(m_geom[amrlev][mglev].Domain());
+		cdomain.convert(amrex::IntVect::TheNodeVector());
+		amrex::Box fdomain(m_geom[amrlev][mglev-1].Domain());
+		fdomain.convert(amrex::IntVect::TheNodeVector());
+
 		MultiTab& crse = *model[amrlev][mglev];
 		MultiTab& fine = *model[amrlev][mglev-1];
 		
-		bool isMFIterSafe  = (crse.DistributionMap() == fine.DistributionMap()) && BoxArray::SameRefs(crse.boxArray(),fine.boxArray());
-		bool need_parallel_copy = !isMFIterSafe;
+		amrex::BoxArray crseba = crse.boxArray();
+		amrex::BoxArray fineba = fine.boxArray();
+		
+		BoxArray newba = crseba;
+		newba.refine(2);
+		MultiTab fine_on_crseba;
+		fine_on_crseba.define(newba,crse.DistributionMap(),1,4);
+		fine_on_crseba.ParallelCopy(fine,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
 
-		MultiTab cfine;
-		if (need_parallel_copy) {
-			const BoxArray& ba = amrex::coarsen(fine.boxArray(), 2);
-			cfine.define(ba, fine.DistributionMap(), 1, 1);
+		for (MFIter mfi(crse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			Box bx = mfi.tilebox();
+			bx = bx & cdomain;
+
+			amrex::Array4<const T> const& fdata = fine_on_crseba.array(mfi);
+			amrex::Array4<T> const& cdata       = crse.array(mfi);
+
+			const Dim3 lo= amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+
+			// I,J,K == coarse coordinates
+			// i,j,k == fine coordinates
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int I, int J, int K) {
+					int i=2*I, j=2*J, k=2*K;
+
+					if ((I == lo.x || I == hi.x) &&
+					    (J == lo.y || J == hi.y) &&
+					    (K == lo.z || K == hi.z)) // Corner
+						cdata(I,J,K) = fdata(i,j,k);
+					else if ((J == lo.y || J == hi.y) &&
+						 (K == lo.z || K == hi.z)) // X edge
+						cdata(I,J,K) = fdata(i-1,j,k)*0.25 + fdata(i,j,k)*0.5 + fdata(i+1,j,k)*0.25;
+					else if ((K == lo.z || K == hi.z) &&
+					 	 (I == lo.x || I == hi.x)) // Y edge
+					 	cdata(I,J,K) = fdata(i,j-1,k)*0.25 + fdata(i,j,k)*0.5 + fdata(i,j+1,k)*0.25;
+					else if ((I == lo.x || I == hi.x) &&
+					 	 (J == lo.y || J == hi.y)) // Z edge
+					 	cdata(I,J,K) = fdata(i,j,k-1)*0.25 + fdata(i,j,k)*0.5 + fdata(i,j,k+1)*0.25;
+					else if (I == lo.x || I == hi.x) // X face
+					 	cdata(I,J,K) =
+					 		(  fdata(i,j-1,k-1)     + fdata(i,j,k-1)*2.0 + fdata(i,j+1,k-1)
+					 		 + fdata(i,j-1,k  )*2.0 + fdata(i,j,k  )*4.0 + fdata(i,j+1,k  )*2.0 
+					 		 + fdata(i,j-1,k+1)     + fdata(i,j,k+1)*2.0 + fdata(i,j+1,k+1)    )/16.0;
+					else if (J == lo.y || J == hi.y) // Y face
+					 	cdata(I,J,K) =
+					 		(  fdata(i-1,j,k-1)     + fdata(i-1,j,k)*2.0 + fdata(i-1,j,k+1)
+					 		 + fdata(i  ,j,k-1)*2.0 + fdata(i  ,j,k)*4.0 + fdata(i  ,j,k+1)*2.0 
+					 		 + fdata(i+1,j,k-1)     + fdata(i+1,j,k)*2.0 + fdata(i+1,j,k+1))/16.0;
+					 else if (K == lo.z || K == hi.z) // Z face
+					 	cdata(I,J,K) =
+					 		(  fdata(i-1,j-1,k)     + fdata(i,j-1,k)*2.0 + fdata(i+1,j-1,k)
+					 		 + fdata(i-1,j  ,k)*2.0 + fdata(i,j  ,k)*4.0 + fdata(i+1,j  ,k)*2.0 
+					 		 + fdata(i-1,j+1,k)     + fdata(i,j+1,k)*2.0 + fdata(i+1,j+1,k))/16.0;
+					 else // Interior
+						 cdata(I,J,K) =
+							 (fdata(i-1,j-1,k-1) + fdata(i-1,j-1,k+1) + fdata(i-1,j+1,k-1) + fdata(i-1,j+1,k+1) +
+							  fdata(i+1,j-1,k-1) + fdata(i+1,j-1,k+1) + fdata(i+1,j+1,k-1) + fdata(i+1,j+1,k+1)) / 64.0
+							 +
+							 (fdata(i,j-1,k-1) + fdata(i,j-1,k+1) + fdata(i,j+1,k-1) + fdata(i,j+1,k+1) +
+							  fdata(i-1,j,k-1) + fdata(i+1,j,k-1) + fdata(i-1,j,k+1) + fdata(i+1,j,k+1) +
+							  fdata(i-1,j-1,k) + fdata(i-1,j+1,k) + fdata(i+1,j-1,k) + fdata(i+1,j+1,k)) / 32.0
+							 +
+							 (fdata(i-1,j,k) + fdata(i,j-1,k) + fdata(i,j,k-1) +
+							  fdata(i+1,j,k) + fdata(i,j+1,k) + fdata(i,j,k+1)) / 16.0
+							 +
+							 fdata(i,j,k) / 8.0;
+				});
 		}
-
-		MultiTab* pcrse = (need_parallel_copy) ? &cfine : &crse;
-
-		for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
- 			{
-				const Box& bx = mfi.tilebox();
-
-				TArrayBox &crsetab = (*pcrse)[mfi];
-				TArrayBox &finetab = fine[mfi];
-
-				AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
-					     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
-					     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
-				{
-
-					amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-					amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
-
-
-					if (m1 == bx.loVect()[0] - 1) ++m_fine[0];
-					if (m2 == bx.loVect()[1] - 1) ++m_fine[1];
-					if (m1 == bx.hiVect()[0] + 1) --m_fine[0];
-					if (m2 == bx.hiVect()[1] + 1) --m_fine[1];
-					
-#if AMREX_SPACEDIM == 2
-					Set::Scalar total = 0.0;
-					crsetab(m_crse) = finetab(m_fine)*4.0; 
-					total += 4.0;
-					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1)
-					{
-						crsetab(m_crse) += finetab(m_fine-dx)*2.0 + finetab(m_fine+dx)*2.0;
-						total += 4.0;
-					}	
-					if (m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1)
-					{
-						crsetab(m_crse) += finetab(m_fine-dy)*2.0 + finetab(m_fine+dy)*2.0;
-						total += 4.0;
-					}	
-					if (m1 > bx.loVect()[0]-1 && m1 < bx.hiVect()[0]+1 &&
-					    m2 > bx.loVect()[1]-1 && m2 < bx.hiVect()[1]+1 )
-					{
-						crsetab(m_crse) +=
-							finetab(m_fine-dx-dy) + finetab(m_fine-dx+dy) +
-							finetab(m_fine+dx-dy) + finetab(m_fine+dx+dy);
-						total += 4.0;
-					}	
-					crsetab(m_crse) = crsetab(m_crse) / total;
-#elif AMREX_SPACEDIM == 3
-					crsetab(m_crse) = finetab(m_fine);
-					// corner
-					if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) &&
-					    (m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1) &&
-					    (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
-					{
-						crsetab(m_crse) = finetab(m_fine);
-					}
-					else if ((m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1) && // x edge
-						 (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
-					{
-						crsetab(m_crse) = finetab(m_fine-dx)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dx)*0.25;
-					}
-					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) && // y edge
-						 (m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1))
-					{
-						crsetab(m_crse) = finetab(m_fine-dy)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dy)*0.25;
-					}
-					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1) && // z edge
-						 (m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1))
-					{
-						crsetab(m_crse) = finetab(m_fine-dz)*0.25 + finetab(m_fine)*0.5 + finetab(m_fine+dz)*0.25;
-					}
-					else if ((m1 == bx.loVect()[0]-1 || m1 == bx.hiVect()[0]+1)) // x face
-					{
-						crsetab(m_crse) =
-							(finetab(m_fine+dy+dz) + finetab(m_fine+dy-dz) + finetab(m_fine-dy+dz) + finetab(m_fine-dy-dz)) / 16. +
-							(finetab(m_fine+dy) + finetab(m_fine-dy) + finetab(m_fine+dz) + finetab(m_fine-dz)) / 8. +
-							(finetab(m_fine)) / 4.;							
-					}
-					else if ((m2 == bx.loVect()[1]-1 || m2 == bx.hiVect()[1]+1)) // y face
-					{
-						crsetab(m_crse) =
-							(finetab(m_fine+dz+dx) + finetab(m_fine+dz-dx) + finetab(m_fine-dz+dx) + finetab(m_fine-dz-dx)) / 16. +
-							(finetab(m_fine+dz) + finetab(m_fine-dz) + finetab(m_fine+dx) + finetab(m_fine-dx)) / 8. +
-							(finetab(m_fine)) / 4.;
-					}
-					else if ((m3 == bx.loVect()[2]-1 || m3 == bx.hiVect()[2]+1)) // z face
-					{
-						crsetab(m_crse) =
-							(finetab(m_fine+dx+dy) + finetab(m_fine+dx-dy) + finetab(m_fine-dx+dy) + finetab(m_fine-dx-dy)) / 16. +
-							(finetab(m_fine+dx) + finetab(m_fine-dx) + finetab(m_fine+dy) + finetab(m_fine-dy)) / 8. +
-							(finetab(m_fine)) / 4.;
-					}
-					else
-					{
-						crsetab(m_crse) =
-							(finetab(m_fine-dx-dy-dz) + finetab(m_fine-dx-dy+dz) + finetab(m_fine-dx+dy-dz) + finetab(m_fine-dx+dy+dz) +
-							 finetab(m_fine+dx-dy-dz) + finetab(m_fine+dx-dy+dz) + finetab(m_fine+dx+dy-dz) + finetab(m_fine+dx+dy+dz)) / 64.0
-							+
-							(finetab(m_fine-dy-dz) + finetab(m_fine-dy+dz) + finetab(m_fine+dy-dz) + finetab(m_fine+dy+dz) +
-							 finetab(m_fine-dz-dx) + finetab(m_fine-dz+dx) + finetab(m_fine+dz-dx) + finetab(m_fine+dz+dx) +
-							 finetab(m_fine-dx-dy) + finetab(m_fine-dx+dy) + finetab(m_fine+dx-dy) + finetab(m_fine+dx+dy)) / 32.0
-							+
-							(finetab(m_fine-dx) + finetab(m_fine-dy) + finetab(m_fine-dz) +
-							 finetab(m_fine+dx) + finetab(m_fine+dy) + finetab(m_fine+dz)) / 16.0
-							+
-							finetab(m_fine) / 8.0;
-					}
-#endif
-					
-
-				}
- 			}
-
-		if (need_parallel_copy) {
-			crse.ParallelCopy(cfine);
-		}
- 	}
+		//fine_on_crseba.ParallelCopy(fine,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
+		//fine.ParallelCopy(fine_on_crseba,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
+		FillBoundaryCoeff(crse,m_geom[amrlev][mglev]);
+	}
 }
 
 template<class T>
 void
-Elastic<T>::FillBoundaryCoeff (amrex::FabArray<amrex::BaseFab<T> >& sigma, const Geometry& geom)
+Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
-
-	sigma.FillBoundary(geom.periodicity());
-
-	//const Box& domain = geom.Domain();
-
-#ifdef _OPENMP
-#pragma omp parallel
-#endif
-	// for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
-	// {
-	// 	if (!domain.contains(mfi.fabbox()))
-	// 	{
-			
-
-	// 	}
-	// }
-	///////Util::Warning(INFO, "FillBoundaryCoeff not fully implemented");
+	for (int i = 0; i < 2; i++)
+	{
+		MultiTab & mf = sigma;
+		mf.FillBoundary(geom.periodicity());
+		const int ncomp = mf.nComp();
+		const int ng1 = 1;
+		const int ng2 = 2;
+		MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+	  	tmpmf.copy(mf,0,0,ncomp,ng2,ng1,geom.periodicity());
+		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+	}
 }
-
-
 
 template class Elastic<Model::Solid::LinearElastic::Isotropic>;
 template class Elastic<Model::Solid::LinearElastic::Cubic>;

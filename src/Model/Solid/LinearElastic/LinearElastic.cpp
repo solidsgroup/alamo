@@ -11,6 +11,12 @@ std::ostream&
 operator<< (std::ostream& os,
 	    const LinearElastic&    b)
 {
+	b.Print(os);
+	return os;
+}
+void
+LinearElastic::Print (std::ostream& os) const
+{
 #if AMREX_SPACEDIM == 2
 	std::array<Set::Matrix,6> gradu, eps;
 	gradu[0] << 1,0, 0,0; eps[0] = 0.5*(gradu[0] + gradu[0].transpose());
@@ -28,7 +34,7 @@ operator<< (std::ostream& os,
 				if ((i==0 || i==1 || i==5) &&
 				    (j==0 || j==1 || j==5))
 				{
-					Set::Scalar comp = (eps[i].transpose() * b(eps[j])).trace();
+					Set::Scalar comp = (eps[i].transpose() * (*this)(eps[j])).trace();
 					os << std::setw(10) << (fabs(comp)>1E-10 ? comp : 0);
 				}
 				else
@@ -57,7 +63,7 @@ operator<< (std::ostream& os,
 			os << "│ ";
 			for (int j = 0; j < 6; j++)
 			{
-				Set::Scalar comp = (eps[i].transpose() * b(eps[j])).trace();
+				Set::Scalar comp = (eps[i].transpose() * (*this)(eps[j])).trace();
 				os << std::setw(10) << (fabs(comp)>1E-10 ? comp : 0);
 			}
 			os << "  │" << std::endl;
@@ -66,9 +72,7 @@ operator<< (std::ostream& os,
 
 	}
 #endif
-	return os;
 }
-
 }
 }
 }

@@ -46,7 +46,7 @@ void SignalHandler(int s)
 	if (amrex::ParallelDescriptor::IOProcessor())
 	{
 		std::string filename = GetFileName();
-		IO::Status status;
+		IO::Status status = IO::Status::Running;
 		if (s == SIGSEGV) status = IO::Status::Segfault;
 		else if (s == SIGINT) status = IO::Status::Interrupt;
 		if (s == SIGABRT) status = IO::Status::Abort;
@@ -70,6 +70,12 @@ void SignalHandler(int s)
 }
 
 
+void Initialize ()
+{
+	int argc = 0;
+	char * argv[0];
+	Initialize(argc,argv);
+}
 void Initialize (int argc, char* argv[])
 {
 	srand (time(NULL));
@@ -289,7 +295,7 @@ int Message(std::string testname, int failed)
 		else
 			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
 
-		int terminalwidth = 100; //std::min(w.ws_col,(short unsigned int) 100);
+		int terminalwidth = 80; //std::min(w.ws_col,(short unsigned int) 100);
 
 		std::cout << std::left
 			  << testname 
@@ -305,15 +311,34 @@ int SubMessage(std::string testname, int failed)
 		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 		std::stringstream ss;
 		if (!failed)
-			ss << "[" << Color::FG::Green << Color::Bold << "PASS" << Color::Reset << "]";
+			ss << "[" << Color::FG::LightGreen << Color::Bold << "PASS" << Color::Reset << "]";
 		else
 			ss << "[" << Color::FG::Red << Color::Bold << "FAIL" << Color::Reset << "]";
 
-		int terminalwidth = 100; //std::min(w.ws_col,(short unsigned int) 100);
+		int terminalwidth = 80; 
 
 		std::cout << std::left
-			  << Color::FG::White << Color::Bold << "    " + testname << Color::Reset
-			  << std::setw(terminalwidth - ( testname.size() + 6) + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+			  << "  ├ "
+			  << testname 
+			  << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
+	}
+	return failed;
+}
+int SubFinalMessage(int failed)
+{
+	if (amrex::ParallelDescriptor::IOProcessor())
+	{
+		winsize w;
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+		std::stringstream ss;
+		std::cout << std::left << "  └ ";
+
+		if (!failed)
+			std::cout << Color::FG::Green << Color::Bold << failed << " tests failed" << Color::Reset << std::endl;
+		else
+			std::cout << Color::FG::Red << Color::Bold << failed << " tests failed" << Color::Reset << std::endl;
+
+		
 	}
 	return failed;
 }

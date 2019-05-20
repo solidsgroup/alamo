@@ -25,10 +25,18 @@ public:
 	Isotropic() {} ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
 	~Isotropic() {} ;
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+	AMREX_FORCE_INLINE
+#endif
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
+
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+	AMREX_FORCE_INLINE
+#endif
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
 	{
 		Set::Vector f = Set::Vector::Zero();
@@ -43,6 +51,12 @@ public:
 		mu = Util::Random();
 		lambda = Util::Random();
 	};
+
+	virtual void Print (std::ostream& os) const
+	{
+		os <<    "mu = " << mu <<
+			" lambda = " << lambda << std::endl;
+	}
 
 	Isotropic operator + (const Isotropic &rhs) const
 	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
