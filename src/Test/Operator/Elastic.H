@@ -100,7 +100,7 @@ public:
         ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
         /// Where
         ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
-        /// Stress-strain relationship
+        /// Where the stress-strain relationship is given by
         ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
         ///
   	/// In this case the two Lamé parameters are:
@@ -114,7 +114,7 @@ public:
         /// i.e it will deform only on the testing component side (Uniaxial strain).
         /// 
         /// The component variable determines in which of the directions the material is stressed
-        ///   \f[i=0 \ \ \text{- X direction}  \\\\  i=1 \ \ \text{- Y direction}  \\\\  i=2 \ \ \text{- Z direction} \f]
+        ///   \f[i=0 \ \ \text{- X direction}  \ \ \ \  i=1 \ \ \text{- Y direction}  \\\\  i=2 \ \ \text{- Z direction} \f]
         /// 
 	/// Let the solution \f$\mathbf{u}\f$ and right hand side \f$\mathbf{b}\f$ have the form
   	///       \f[ u_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
