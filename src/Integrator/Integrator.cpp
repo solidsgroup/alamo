@@ -459,6 +459,8 @@ Integrator::WritePlotFile () const
 		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
 
 		int n = 0;
+		// Util::Warning(INFO,"Remove this line!");
+		// (*(*cell.fab_array[3])[ilev]).setVal(0.0);
 		for (int i = 0; i < cell.number_of_fabs; i++)
 		{
 			amrex::IntVect where;
