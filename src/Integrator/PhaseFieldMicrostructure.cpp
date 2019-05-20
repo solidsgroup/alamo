@@ -328,9 +328,6 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					Set::Scalar AMREX_D_DECL(grad11 = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)),
 											 grad22 = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)),
 											 grad33 = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)));
-		      
-
-
 
 					
 					Set::Scalar theta = std::acos(normal(2));
@@ -338,7 +335,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 					//Util::Message(INFO,normal.transpose());
 					// normal /= normal.lpNorm<2>();
-					Set::Scalar gbe = gbmodel.W(theta,phi);
+					Set::Scalar gbe = gbmodel.W(normal);
 
 					if (m == 0)
 					{
@@ -363,7 +360,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					Set::Scalar kappa = l_gb*0.75*sigma0;
 					//mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
 					mu = 0.75 * (1.0/0.23) * gbe / l_gb;
-
+					
 					if (anisotropy && time > anisotropy_tstart)
 					{
 						Set::Vector Deta;
