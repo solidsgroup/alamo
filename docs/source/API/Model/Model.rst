@@ -6,6 +6,7 @@ Model
    :caption: Contents:
 
    Solid/Solid.rst
+   Interface/Interface.rst
 
 
 No abstract implementation yet
