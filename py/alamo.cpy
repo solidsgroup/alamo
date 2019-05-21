@@ -20,6 +20,19 @@ struct VecToList
 	}
 };
 
+template<class T,int n>
+struct ArrToList
+{
+	static PyObject* convert(const std::array<T,n>& vec)
+	{
+		boost::python::list* l = new boost::python::list();
+		for(size_t i = 0; i < vec.size(); i++) {
+			l->append(vec[i]);
+		}
+		return l->ptr();
+	}
+};
+
 struct SetVectorToList
 {
 	static PyObject* convert(const Set::Vector& vec)
@@ -107,6 +120,7 @@ BOOST_PYTHON_MODULE(alamo)
 	// converters from vectors to python lists
 	boost::python::to_python_converter<std::vector<int, std::allocator<int> >, VecToList<int> >();
 	boost::python::to_python_converter<std::vector<double, std::allocator<double> >, VecToList<double> >();
+	boost::python::to_python_converter<std::array<double, 2>, ArrToList<double,2> >();
 	boost::python::to_python_converter<std::vector<std::string, std::allocator<std::string> >, VecToList<std::string> >();
 
 	boost::python::to_python_converter<Set::Vector, SetVectorToList >();

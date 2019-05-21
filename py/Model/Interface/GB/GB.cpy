@@ -17,12 +17,14 @@ void exportModelInterfaceGB()
 	Set::Scalar (SH::*W_1) (Set::Scalar)                   = &SH::W;
 	Set::Scalar (SH::*W_2) (Set::Scalar,Set::Scalar) const = &SH::W;
 	Set::Scalar (SH::*W_3) (Set::Vector) const             = &SH::W;
+	std::array<double,2> (SH::*DW_2)(Set::Scalar, Set::Scalar) const = &SH::DW;
 	Set::Vector (SH::*DW_3)(Set::Vector) const             = &SH::DW;
 	bp::scope the_scope = bp::class_<SH,boost::noncopyable>("SH")
 		.def("Define",&SH::Define)
 		.def("W",W_1)
 		.def("W",W_2)
 		.def("W",W_3)
+		.def("DW",DW_2)
 		.def("DW",DW_3)
 		;
 }
