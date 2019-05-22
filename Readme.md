@@ -14,7 +14,8 @@ The following are instructions for how to install these dependencies on your pla
 
 * The website for `eigen3` is http://eigen.tuxfamily.org. 
   Download the source and store it in a directory (e.g. /home/myusername/eigen3/). 
-  This is all you need to do. 
+  This is all you need to do.
+  (The directory must be named eigen3)
 * The website for `amrex` is https://github.com/AMReX-Codes/amrex
   To compile and install, clone the AMReX repository with 
   
@@ -46,7 +47,7 @@ To build alamo, in the alamo directory type
 
     ./configure
 
-To see a list of options type 
+To see a full list of options type 
 
     ./configure --help
 
@@ -58,7 +59,7 @@ where `/path/to/amrex` and `/path/to/eigen` should match the `--prefix` and the 
 (The script will check this and error out if they do not.)
 To specify the spatial dimension,
 
-    ./configure --dim 2
+    ./configure --dim #OfDimensions
 
 The default is to compile in 3 dimensions.
 If you specify AMReX directly, it will check to make sure that AMReX is also compiled in the same number of dimensions.
@@ -66,13 +67,7 @@ Immediately after running the `./configure` script, type
 
     make
 
-This again can be sped up using `make -jN`.
-
-To generate documentation, type
-
-    make docs
-    
-(Note that this requires several libraries -- see section below.)
+This again can be sped up using `make -j#OfProcessors`.
 For additional help, type 
 
     make help
@@ -84,7 +79,7 @@ Finally, type
 
 to clear out extra files that were generated.
 
-### Building - Using CMAKE ###
+### Building - Using CMAKE (Not up to Date)###
 
 To build ALAMO using CMAKE, you must have CMAKE installed. 
 1. Create a build directory.
@@ -123,7 +118,7 @@ The following are some common error messages and problems encountered.
 
 ## Generating Documentation ##
 
-You will need the following packages:
+Generating documentation requires the following packages:
 
 * Doxygen (on Ubuntu: `sudo apt install doxygen`)
 * Sphinx (on Ubuntu: `sudo apt install python-sphinx`)
@@ -132,9 +127,9 @@ You will need the following packages:
 * RTD theme (on Ubuntu: `pip install sphinx_rtd_theme`)
 * GraphViz (on Ubuntu: `sudo apt install graphviz`)
 
-To generate the documentation:
+To generate the documentation, type
 
     make docs
 
-(You do not need to run `configure` before generating documentation.)
+(You do not need to run `./configure` before generating documentation.)
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.
