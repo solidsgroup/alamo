@@ -18,7 +18,8 @@ public:
 
 public:
 	enum Type {Displacement, Traction, Periodic, Neumann}; 
-	enum Face {AMREX_D_DECL(XLO=0,YLO=1,ZLO=2),AMREX_D_DECL(XHI=3,YHI=4,ZHI=5)}; 
+	enum Face {AMREX_D_DECL(XLO=0,YLO=1,ZLO=2),
+		   AMREX_D_DECL(XHI=AMREX_SPACEDIM+0,YHI=AMREX_SPACEDIM+1,ZHI=AMREX_SPACEDIM+2)}; 
 	enum Direction {AMREX_D_DECL(X=0,Y,Z)}; 
 
  	Elastic()
@@ -41,7 +42,6 @@ public:
 	      amrex::Vector<amrex::MultiFab *> &a_rhs,
 	    const amrex::Vector<amrex::Geometry> &a_geom)
 	{
-		
 		if (AMREX_D_TERM(face == Face::XLO, || face == Face::YLO, ||  face == Face::ZLO))
 			m_bc_lo[face%AMREX_SPACEDIM][direction] = type;
 		if (AMREX_D_TERM(face == Face::XHI, || face == Face::YHI, ||  face == Face::ZHI))
