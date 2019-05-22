@@ -43,6 +43,12 @@ args=parser.parse_args();
 f = open("Makefile.conf","w")
 
 #
+# Current Repo settings
+#
+print(message("Current branch:")+ subprocess.check_output(['git','rev-parse','--abbrev-ref','HEAD']).split('\n')[0])
+print(message("Current Hash:")+ subprocess.check_output(['git','log','-1','--pretty=format:%H']).split('\n')[0])
+
+#
 # DIMENSION
 #
 f.write("DIM = " + str(args.dim) + "\n")
@@ -80,6 +86,7 @@ if (args.amrex != ""):
         if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
         if "AMREX_DEBUG 1" in line: amrex_debug = True
         if "PROFILING 1" in line: amrex_profiling = True
+        if "AMREX_GIT_VERSION" in line: githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','')
         
     if args.dim != amrex_spacedim:
         raise Exception(error()+"AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
@@ -91,7 +98,8 @@ if (args.amrex != ""):
     if not args.debug and amrex_profiling:
         print(warning()+"Alamo compiled in production mode, but PROFILE is enabled in AMReX")
 
-    print(color.boldgreen + "AMReX Directory: " + color.reset + args.amrex)
+    print(message("AMReX Directory") + args.amrex)
+    print(message("AMReX Git commit") + githash)
     f.write("AMREX = " + args.amrex + "\n")
 else:
     print(warning()+"AMReX path not specified. This may cause compile errors.")
@@ -100,7 +108,7 @@ else:
 # EIGEN
 #
 if (args.eigen != ""):
-    if not os.path.isdir(args.amrex + "/eigen3"):
+    if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
     print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
     f.write("EIGEN = " + args.amrex + "\n")
