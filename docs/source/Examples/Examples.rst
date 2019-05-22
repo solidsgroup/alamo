@@ -1,5 +1,5 @@
-Applications
-============
+Examples
+========
 
 This is basic documentation for the Alamo.
 
@@ -8,5 +8,5 @@ This is basic documentation for the Alamo.
    :caption: Contents:
 
    Flame
-
+   PerturbedInterface
 
