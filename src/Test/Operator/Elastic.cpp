@@ -108,7 +108,6 @@ void Elastic::Generate()
  			ghost_force     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
  		}
 
-	// Clear everything to zero
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		solution_exact  [ilev].setVal(0.0);
