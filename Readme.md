@@ -62,6 +62,12 @@ To specify the spatial dimension,
 
 The default is to compile in 3 dimensions.
 If you specify AMReX directly, it will check to make sure that AMReX is also compiled in the same number of dimensions.
+Immediately after running the `./configure` script, type
+
+    make
+
+This again can be sped up using `make -jN`.
+
 To generate documentation, type
 
     make docs
@@ -99,7 +105,7 @@ To build ALAMO using CMAKE, you must have CMAKE installed.
 
 Upon successful compilation, run tests by 
 
-    ./bin/test
+    ./bin/test-3d-debug-g++
 
 The output will indicate wether the tests pass or fail.
 If you are committing changes, you should always make sure the tests pass in 2 and 3 dimensions before committing.
