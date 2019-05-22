@@ -79,7 +79,7 @@ Finally, type
 
 to clear out extra files that were generated.
 
-### Building - Using CMAKE (Not up to Date)###
+### Building - Using CMAKE (Not up to Date) ###
 
 To build ALAMO using CMAKE, you must have CMAKE installed. 
 1. Create a build directory.
@@ -98,16 +98,16 @@ To build ALAMO using CMAKE, you must have CMAKE installed.
 
 ## Testing ##
 
-Upon successful compilation, run tests by 
+Upon successful compilation, run tests by typing
 
     ./bin/test-3d-debug-g++
 
-The output will indicate wether the tests pass or fail.
+The output will indicate whether the tests pass or fail.
 If you are committing changes, you should always make sure the tests pass in 2 and 3 dimensions before committing.
 
 ## Common Error Messages ##
 
-The following are some common error messages and problems encountered.
+The following are some common error messages and problems encountered:
 
 * `MLLinOp: grids not coarsenable between AMR levels`:
   This is a conflict in the **multigrid solver** because the grid size is not a power of 2.
