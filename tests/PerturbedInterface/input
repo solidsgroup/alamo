@@ -1,6 +1,5 @@
 timestep = 0.1
 stop_time = 50
-#stop_time = 2.0
 
 plot_file = tests/PerturbedInterface/output
 
@@ -39,7 +38,6 @@ anisotropy.tstart= 1.
 anisotropy.theta0= 45
 anisotropy.sigma0=0.075
 anisotropy.sigma1=0.07
-#anisotropy.beta= 0.00001
 anisotropy.beta= 0.00001
 anisotropy.damp=1.0
 
@@ -50,8 +48,8 @@ elastic.int=10
 elastic.type=isotropic
 elastic.verbose=2
 elastic.cgverbose=0
-elastic.tol_rel=0.8 #0.01
-elastic.tol_abs=0.05 #0.01
+elastic.tol_rel=0.8 
+elastic.tol_abs=0.05 
 elastic.tstart=0.0
 elastic.load_t=0.0 
 elastic.load_disp=0.01
