@@ -24,10 +24,14 @@
 
 #include"Util/Util.H"
 
+/// \brief This namespace contains a suite of numerical unit tests
 namespace Test
 {
+/// \brief This namespace contains the tests for different kinds of operators
 namespace Operator
 {
+/// \class Test::Operator::Elastic
+/// \brief This class contains tests for different types of elastic operators
 class Elastic
 {
 public:
@@ -86,13 +90,48 @@ public:
 	///     \f[\alpha u_i^{mn} \pi^2 (m^2 + n^2) = b_i^{mn}\f]
 	/// or, simplifying
 	///     \f[u_i^{mn}  = \frac{b_i^{mn}}{(\alpha\ \pi^2\ (m^2 + n^2))}\f]
-	/// 
 	///
 	int TrigTest(int verbose,
 		     int component = 0,
 		     int n = 1,
 		     std::string plotfile = "");
-	int mytest() {return 8;};
+
+        /// Compute the exact solution of the governing equation
+        ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
+        /// Where
+        ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
+        /// Where the stress-strain relationship is given by
+        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
+        ///
+  	/// In this case the two Lamé parameters are:
+	///   \f[ \mu=2.6 \\\\ \lambda=6.0 \f]
+  	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
+	///
+	/// Consider a simulation domain \f$\Omega = [0, 1]^3\f$
+  	///
+	/// Let the material be subjected to stress in one direction but constrained in the other directions
+        /// so that the material can only contract or expand on one side,
+        /// i.e it will deform only on the testing component side (Uniaxial strain).
+        /// 
+        /// The component variable determines in which of the directions the material is stressed
+        ///   \f[i=0 \ \ \text{- X direction}  \ \ \ \  i=1 \ \ \text{- Y direction}  \\\\  i=2 \ \ \text{- Z direction} \f]
+        /// 
+	/// Let the solution \f$\mathbf{u}\f$ and right hand side \f$\mathbf{b}\f$ have the form
+  	///       \f[ u_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
+	///       \f[ b_{i} = 0 \f]
+        /// For the test, the fixed value of displacement are \f$ u_{i} = 0.1 \f$ according to the component.
+        ///
+        /// The (infinitesimal) strain tensor
+        ///   \f[\varepsilon_{ij} = \operatorname{sym} ( \operatorname{grad} ( u ) ) \f]
+        ///   \f[\varepsilon_{ij} = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+        /// to simplify consider \f[ \alpha=1.0 \ \ m=1.0 \ \ b=(0, 0, 0) \f]
+        ///
+        /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
+        ///   \f[div(\sigma) = 0\f]
+        ///
+        int UniaxialTest(int verbose,
+			 int component,
+			 std::string plotfile = "");
 
 	// Setter functions
 	void setMaxCoarseningLevel(int in) {m_maxCoarseningLevel = in;}
@@ -106,6 +145,7 @@ public:
 	void setConsolidation(bool in) {m_consolidation = in;}
 	void setTolRel(Set::Scalar in) {m_tol_rel = in;}
 	void setTolAbs(Set::Scalar in) {m_tol_abs = in;}
+  
 
 private: // Private member functions
 

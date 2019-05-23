@@ -20,8 +20,10 @@
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
 
+/// \brief A collection of utility routines
 namespace Util
 {
+/// \brief A collection of string operations
 namespace String
 {
 int ReplaceAll(std::string &str, const std::string before, const std::string after);
@@ -123,6 +125,7 @@ void Warning (std::string file, std::string func, int line, Args const &... args
 void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
 
 
+/// \brief A collection of I/O routines for Unit Tests
 namespace Test
 {
 int Message(std::string testname);

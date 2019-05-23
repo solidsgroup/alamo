@@ -11,6 +11,7 @@
 
 #include "Util/Util.H"
 
+/// \brief Collection of boundary condition (BC) objects
 namespace BC
 {
 enum Orientation {

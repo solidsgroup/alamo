@@ -10,6 +10,7 @@
 
 namespace Test
 {
+/// Tests for the Numeric namespace classes
 namespace Numeric
 {
 class Stencil

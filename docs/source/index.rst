@@ -8,7 +8,7 @@ Documentation for alamo
    GettingStarted
    Python
    Convention
-   Applications/Applications
+   Examples/Examples
    API/API
 
 
