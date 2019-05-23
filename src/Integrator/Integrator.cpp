@@ -363,6 +363,7 @@ Integrator::InitData ()
 
 	for (int lev = finest_level-1; lev >= 0; --lev)
 	{
+		if (lev < max_level) regrid(lev,0.0);
 		for (int n = 0; n < cell.number_of_fabs; n++)
 			amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
 					    geom[lev+1], geom[lev],

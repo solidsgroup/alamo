@@ -5,7 +5,7 @@
 #include <AMReX_MultiFab.H>
 #include "Set/Set.H"
 
-
+/// \brief This namespace contains some numerical tools
 namespace Numeric
 {
 

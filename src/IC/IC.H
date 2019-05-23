@@ -5,6 +5,7 @@
 #include <AMReX_MultiFab.H>
 #include "Util/Util.H"
 
+/// \brief Collection of Initial Condition (IC) objects
 namespace IC
 {
 class IC
