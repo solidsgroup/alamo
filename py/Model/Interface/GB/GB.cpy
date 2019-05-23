@@ -14,11 +14,13 @@ void exportModelInterfaceGB()
 
 	using namespace Model::Interface::GB;
 
-	Set::Scalar (SH::*W_1) (Set::Scalar)                   = &SH::W;
-	Set::Scalar (SH::*W_2) (Set::Scalar,Set::Scalar) const = &SH::W;
-	Set::Scalar (SH::*W_3) (Set::Vector) const             = &SH::W;
-	std::array<double,2> (SH::*DW_2)(Set::Scalar, Set::Scalar) const = &SH::DW;
-	Set::Vector (SH::*DW_3)(Set::Vector) const             = &SH::DW;
+	Set::Scalar          (SH::*W_1) (const Set::Scalar)                         = &SH::W;
+	Set::Scalar          (SH::*W_2) (const Set::Scalar,const Set::Scalar) const = &SH::W;
+	Set::Scalar          (SH::*W_3) (const Set::Vector) const                   = &SH::W;
+	std::array<double,2> (SH::*DW_2)(const Set::Scalar,const Set::Scalar) const = &SH::DW;
+	Set::Vector          (SH::*DW_3)(const Set::Vector) const                   = &SH::DW;
+	Set::Scalar          (SH::*DW_4)(const Set::Vector,const Set::Vector) const = &SH::DW;
+	Set::Scalar          (SH::*DDW)(const Set::Vector,const Set::Vector) const  = &SH::DDW;
 	bp::scope the_scope = bp::class_<SH,boost::noncopyable>("SH")
 		.def("Define",&SH::Define)
 		.def("W",W_1)
@@ -26,5 +28,7 @@ void exportModelInterfaceGB()
 		.def("W",W_3)
 		.def("DW",DW_2)
 		.def("DW",DW_3)
+		.def("DW",DW_4)
+		.def("DDW",DDW)
 		;
 }
