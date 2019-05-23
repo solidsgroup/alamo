@@ -121,7 +121,7 @@ Abort (const char * msg) { Terminate(msg, SIGABRT, true); }
 void
 Terminate(const char * msg, int signal, bool /*backtrace*/)
 {
-	amrex::write_to_stderr_without_buffering(msg);
+	//amrex::write_to_stderr_without_buffering(msg);
 	SignalHandler(signal);
 }
 
