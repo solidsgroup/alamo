@@ -283,23 +283,34 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					// CURVATURE PENALTY
 					//
 
-					Set::Vector normal(AMREX_D_DECL((Numeric::Stencil<Set::Scalar,1,0,0>::D(eta,i,j,k,m,DX)),
-													(Numeric::Stencil<Set::Scalar,0,1,0>::D(eta,i,j,k,m,DX)),
-													(Numeric::Stencil<Set::Scalar,0,0,1>::D(eta,i,j,k,m,DX))));
+					Set::Vector Deta(AMREX_D_DECL((Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(eta, i, j, k, m, DX)), 
+								      			  (Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(eta, i, j, k, m, DX)), 
+								 	              (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(eta, i, j, k, m, DX))));
 
-					Set::Scalar normgrad = normal.lpNorm<2>();
+					Set::Scalar normgrad = Deta.lpNorm<2>();
 					if (normgrad < 1E-8) continue; // This ought to speed things up.
-					normal /= normgrad;
 
+					Set::Vector normal = Deta / normgrad;
 					
 					const Set::Vector e1(1,0,0), e2(0,1,0), e3(0,0,1);
 					
+					// Graham-Schmidt process to generate two tangent vectors
 					Set::Vector t2, t3;
-					// if (normal(0) > normal(1) && normal(0) > normal(2))
-					// {
-					t2 = e2 - normal.dot(e2)*normal; t2 /= t2.lpNorm<2>();
-					t3 = e3 - normal.dot(e3)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
-					// }
+					if (fabs(normal(0)) > fabs(normal(1)) && fabs(normal(0)) > fabs(normal(2)))
+					{
+ 						t2 = e2 - normal.dot(e2)*normal; t2 /= t2.lpNorm<2>();
+						t3 = e3 - normal.dot(e3)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
+					}
+					else if (fabs(normal(1)) > fabs(normal(0)) && fabs(normal(1)) > fabs(normal(2)))
+					{
+ 						t2 = e1 - normal.dot(e1)*normal; t2 /= t2.lpNorm<2>();
+						t3 = e3 - normal.dot(e3)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
+					}
+					else
+					{
+ 						t2 = e1 - normal.dot(e1)*normal; t2 /= t2.lpNorm<2>();
+						t3 = e2 - normal.dot(e2)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
+					}
 
 
 					Set::Matrix DDeta;
@@ -321,7 +332,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					// Set::Matrix DDeta_sq = DDeta * DDeta;
 
 
-					// Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(3);
+					Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(3);
 					// eigensolver.computeDirect(DDeta);
 					// Set::Matrix vec = eigensolver.eigenvectors();
 
@@ -339,42 +350,25 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 					if (m == 0)
 					{
-						N(i,j,k,0) = theta;
-						N(i,j,k,1) = (DDeta2D*DDeta2D).trace();
+						N(i,j,k,0) = gbmodel.DDW(normal,t2);
+						N(i,j,k,1) = gbmodel.DDW(normal,t3);
+						N(i,j,k,2) = (DDeta2D*DDeta2D).trace();
+						if (std::isnan(N(i,j,k,0))) N(i,j,k,0) = 0.0;
 						if (std::isnan(N(i,j,k,1))) N(i,j,k,1) = 0.0;
-						N(i,j,k,2) = gbe;
-						// N(i,j,k,0) = normal(0);
-						// N(i,j,k,1) = normal(1);
-						// N(i,j,k,2) = normal(2);
-						// N(i,j,k,0) = eigensolver.eigenvalues().maxCoeff();
-						// N(i,j,k,1) = DDeta_sq.trace();
-						// N(i,j,k,2) =
-						// 	eigensolver.eigenvalues()(0)*eigensolver.eigenvalues()(0) +
-						// 	eigensolver.eigenvalues()(1)*eigensolver.eigenvalues()(1) +
-						// 	eigensolver.eigenvalues()(2)*eigensolver.eigenvalues()(2) -
-						// 	eigensolver.eigenvalues().maxCoeff()*eigensolver.eigenvalues().maxCoeff();
+						if (std::isnan(N(i,j,k,2))) N(i,j,k,2) = 0.0;
+						
 					}
 
-					Set::Scalar laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
+					Set::Scalar laplacian = DDeta.trace();
 
 					Set::Scalar kappa = l_gb*0.75*sigma0;
-					//mu = 0.75 * (1.0/0.23) * sigma0 / l_gb;
 					mu = 0.75 * (1.0/0.23) * gbe / l_gb;
 					
 					if (anisotropy && time > anisotropy_tstart)
 					{
-						Set::Vector Deta;
-						AMREX_D_TERM(Deta(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(eta,i,j,k,m,DX));, // replaces grad1
-									 Deta(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(eta,i,j,k,m,DX));, // replaces grad2
-									 Deta(2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX));); 
-
-						Set::Matrix DDeta;
-						DDeta(0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)); // replaces grad11
-						DDeta(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)); // replaces grad22
-						DDeta(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(eta,i,j,k,m,DX)); // replaces grad12
-						DDeta(1,0) = DDeta(0,1); // replaces grad12
-
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 1
+						Util::Abort(INFO, "Anisotropy is enabled but works in 2D/3D ONLY");
+#elif AMREX_SPACEDIM == 2
 						Set::Scalar Theta = atan2(Deta(1),Deta(0));
 						Set::Scalar Kappa = l_gb*0.75*boundary->W(Theta);
 						Set::Scalar DKappa = l_gb*0.75*boundary->DW(Theta);
@@ -411,9 +405,29 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 			
 						etanew(i,j,k,m) = eta(i,j,k,m) - M*dt*(W - (Boundary_term) + beta*(Curvature_term));
 						if (std::isnan(etanew(i,j,k,m))) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
-#else
-						Util::Abort(INFO, "Anisotropy is enabled but works in 2D ONLY");
+#elif AMREX_SPACEDIM == 3
 #endif
+						Set::Scalar DDK2 = gbmodel.DDW(normal,t2) * l_gb * 0.75;
+						Set::Scalar DDK3 = gbmodel.DDW(normal,t3) * l_gb * 0.75;
+
+						etanew(i,j,k,m) =
+							eta(i,j,k,m) -
+							M*dt*(mu*(eta(i,j,k,m)*eta(i,j,k,m) - 1.0 + 2.0*gamma*sum_of_squares)*eta(i,j,k,m)
+								  - kappa*laplacian
+								  - DDK2*DDeta2D(0,0)
+								  - DDK3*DDeta2D(1,1)
+								 );
+						if (std::isnan(etanew(i,j,k,m)) || std::isinf(etanew(i,j,k,m))) 
+						{
+							Util::Abort(INFO,"nan detected at amrlev = ", lev," i=",i," j=",j," k=",k,"\n"
+											,"DDK2 = ", DDK2,"\n"
+											,"curvature2 = ", DDeta2D(0,0),"\n"
+											,"DDK3 = ", DDK3,"\n"
+											,"curvature3 = ",DDeta2D(1,1));
+
+						}
+
+
 					}
 					else // Isotropic response if less than anisotropy_tstart
 					{

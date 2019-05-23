@@ -4,7 +4,7 @@ stop_time = 200.0
 
 plot_file = output
 
-amr.plot_int = 10
+amr.plot_int = 1
 amr.max_level = 2
 #amr.n_cell = 32 4
 #amr.n_cell = 32 32 32
@@ -48,7 +48,7 @@ pf.gamma = 1.0
 pf.l_gb=0.1
 pf.sigma0=0.075
 
-anisotropy.on=0
+anisotropy.on=1
 anisotropy.timestep=0.0001
 anisotropy.tstart= 1.
 anisotropy.theta0= 45
