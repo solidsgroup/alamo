@@ -17,7 +17,7 @@ class color:
 
     bggray = "\033[47m\033[30m"
 
-width = 20
+width = 25
 def wrap(input_string):
     pre = ""
     wrapper = textwrap.TextWrapper(width=70)
@@ -32,6 +32,13 @@ def message(title,message="",wrap_message=True):
 def shellmessage(title,cmd):
     print(color.boldgreen + title.ljust(width) + color.reset,end="")
     wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
+def checkdpkg(package):
+    print(color.boldgreen + package.ljust(width) + color.reset,end="")
+    try:
+        subprocess.check_output(["dpkg","-s",package],stderr=subprocess.STDOUT).decode('ascii').replace('\n',' ')
+        print("Installed")
+    except:
+        print(color.red + "MISSING - install with " + color.bggray + "sudo apt install " + package + color.reset)
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
@@ -148,7 +155,7 @@ if args.comp == 'icc':     f.write("MPI_LIB = -lifcore\n")
 if args.python:
     python_include_dir = "/usr/include/python2.7/" # hard-coded for now
     #python_boost_lib = "/usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.62.0"
-    python_boost_lib = "-lboost_python-py27"
+    python_boost_lib = "-lboost_python-py27 -lboost_numpy"
 
     if not (os.path.isdir(python_include_dir)):
         raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
@@ -160,6 +167,8 @@ if args.python:
     f.write("CXX_COMPILE_FLAGS += -fPIC \n")
     message("Python","True")
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
+    checkdpkg("libboost-python-dev")
+    checkdpkg("libboost-numpy-dev")
 
 #
 # Documentation check
@@ -193,3 +202,4 @@ if args.debug: prefix += "-debug"
 if args.python: prefix += "-fpic"
 prefix += "-" + args.comp
 f.write("PREFIX = " + prefix + '\n')
+

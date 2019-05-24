@@ -26,9 +26,24 @@ public:
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
 	~Isotropic() {} ;
 
+	void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
+	{
+		mu = a_mu;
+		lambda = a_lambda;
+	}
+
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
+	virtual Set::Scalar W(Set::Matrix eps)
+	{
+		Set::Matrix sig = DW(eps);
+		return (sig.transpose()*eps).trace();
+	}
+	virtual Set::Matrix DW(Set::Matrix eps)
+	{
+		return (*this)(eps);
+	}
 	virtual Set::Matrix operator () (Set::Matrix &eps) const
 	{
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();

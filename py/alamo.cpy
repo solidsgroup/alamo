@@ -1,9 +1,12 @@
 #include <boost/python.hpp>
+#include <boost/python/numpy.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include <boost/python/arg_from_python.hpp>
 namespace bp = boost::python;
+namespace np = boost::python::numpy;
 #include "Util/Util.H"
 #include "Test/Operator/Elastic.H"
+#include "pygen/converters.h"
 //#include "Test/Operator.cpy"
 
 
@@ -15,6 +18,31 @@ struct VecToList
 		boost::python::list* l = new boost::python::list();
 		for(size_t i = 0; i < vec.size(); i++) {
 			l->append(vec[i]);
+		}
+		return l->ptr();
+	}
+};
+
+template<class T,int n>
+struct ArrToList
+{
+	static PyObject* convert(const std::array<T,n>& vec)
+	{
+		boost::python::list* l = new boost::python::list();
+		for(size_t i = 0; i < vec.size(); i++) {
+			l->append(vec[i]);
+		}
+		return l->ptr();
+	}
+};
+
+struct SetVectorToList
+{
+	static PyObject* convert(const Set::Vector& vec)
+	{
+		boost::python::list* l = new boost::python::list();
+		for(size_t i = 0; i < vec.size(); i++) {
+			l->append(vec(i));
 		}
 		return l->ptr();
 	}
@@ -70,27 +98,89 @@ struct ListToIntVec{
 	}
 };
 
-#include "Test/Operator/Elastic.cpy"
+struct ListToSetVector{
+	ListToSetVector(){ bp::converter::registry::push_back(&convertible,&construct,bp::type_id<Set::Vector>()); }
+	static void* convertible(PyObject* obj_ptr){
+		if(!PySequence_Check(obj_ptr) || !PyObject_HasAttrString(obj_ptr,"__len__")) return 0;
+		return obj_ptr;
+	}
+	static void construct(PyObject* obj_ptr, bp::converter::rvalue_from_python_stage1_data* data){
+		void* storage=((bp::converter::rvalue_from_python_storage<Set::Vector>*)(data))->storage.bytes;
+		new (storage) Set::Vector();
+		Set::Vector* v=(Set::Vector*)(storage);
+		int l=PySequence_Size(obj_ptr); if(l<0) abort();
+		for(int i=0; i<l; i++) {(*v)[i] = bp::extract<double>(PySequence_GetItem(obj_ptr,i)); }
+		data->convertible=storage;
+	}
+};
+
+//struct NdarrayToSetMatrix{
+//	NdarrayToSetMatrix(){ bp::converter::registry::push_back(&convertible,&construct,bp::type_id<Set::Matrix>()); }
+//	//static void* convertible(PyObject* obj_ptr){
+//	static void* convertible(PyObject* obj_ptr){
+//		Util::Message(INFO);
+//		if(!PySequence_Check(obj_ptr) || !PyObject_HasAttrString(obj_ptr,"__len__")) return 0;
+//		return obj_ptr;
+//	}
+//	static void construct(PyObject* obj_ptr, bp::converter::rvalue_from_python_stage1_data* data){
+//		Util::Message(INFO);
+//		void* storage=((bp::converter::rvalue_from_python_storage<Set::Matrix>*)(data))->storage.bytes;
+//		Util::Message(INFO);
+//		new (storage) Set::Matrix();
+//		Util::Message(INFO);
+//		Set::Matrix* v=(Set::Matrix*)(storage);
+//		Util::Message(INFO,PySequence_Size(obj_ptr));
+//		//int l=PySequence_Size(obj_ptr); if(l<0) abort();
+//		//Util::Message(INFO,"l=",l);
+//		//((np::ndarray*)(obj_ptr))->get_data();
+//		Util::Message(INFO,((np::ndarray*)(obj_ptr))->get_nd());
+//		char * rawdata = ((np::ndarray*)(obj_ptr))->get_data() ;
+//		Util::Message(INFO);
+//		Util::Message(INFO,rawdata[0]);
+//		Util::Message(INFO);
+//
+//		for(int i=0; i<AMREX_SPACEDIM; i++)
+//			for (int j=0; j<AMREX_SPACEDIM; j++)
+//			{
+//				(*v)(i,j) = bp::extract<double>(PySequence_GetItem(obj_ptr,i)); 
+//			}
+//		Util::Message(INFO);
+//		data->convertible=storage;
+//	}
+//};
+
+
 #include "Util.cpy"
+#include "Model/Solid/LinearElastic/LinearElastic.cpy"
+#include "Test/Operator/Elastic.cpy"
 
 BOOST_PYTHON_MODULE(alamo)
 {
+	Py_Initialize();
+	np::initialize();
+
 	// converters from vectors to python lists
 	boost::python::to_python_converter<std::vector<int, std::allocator<int> >, VecToList<int> >();
 	boost::python::to_python_converter<std::vector<double, std::allocator<double> >, VecToList<double> >();
+	boost::python::to_python_converter<std::array<double, 2>, ArrToList<double,2> >();
 	boost::python::to_python_converter<std::vector<std::string, std::allocator<std::string> >, VecToList<std::string> >();
+	boost::python::to_python_converter<Set::Vector, SetVectorToList >();
 
 	ListToIntVec();
+	ListToSetVector();
 	ListToArr<int,AMREX_SPACEDIM>();
 	ListToArr<Set::Scalar,AMREX_SPACEDIM>();
 	ListToVec<int>();
 	ListToVec<Set::Scalar>();
 	ListToVec<std::string>();
+	//NdarrayToSetMatrix();
 
+	pygen::convertMatrix<Set::Matrix>(false);
 
 	bp::object package = bp::scope();
 	package.attr("__path__") = "alamo";
 
 	exportUtil();
+	exportModelSolidLinearElastic();
 	exportTestOperatorElastic();
 }
