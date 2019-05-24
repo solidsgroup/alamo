@@ -295,21 +295,21 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					const Set::Vector e1(1,0,0), e2(0,1,0), e3(0,0,1);
 					
 					// Graham-Schmidt process to generate two tangent vectors
-					Set::Vector t2, t3;
+					Set::Vector _t2, _t3;
 					if (fabs(normal(0)) > fabs(normal(1)) && fabs(normal(0)) > fabs(normal(2)))
 					{
- 						t2 = e2 - normal.dot(e2)*normal; t2 /= t2.lpNorm<2>();
-						t3 = e3 - normal.dot(e3)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
+ 						_t2 = e2 - normal.dot(e2)*normal; _t2 /= _t2.lpNorm<2>();
+						_t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
 					}
 					else if (fabs(normal(1)) > fabs(normal(0)) && fabs(normal(1)) > fabs(normal(2)))
 					{
- 						t2 = e1 - normal.dot(e1)*normal; t2 /= t2.lpNorm<2>();
-						t3 = e3 - normal.dot(e3)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
+ 						_t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
+						_t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
 					}
 					else
 					{
- 						t2 = e1 - normal.dot(e1)*normal; t2 /= t2.lpNorm<2>();
-						t3 = e2 - normal.dot(e2)*normal - t2.dot(e3)*t2; t3 /= t3.lpNorm<2>();
+ 						_t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
+						_t3 = e2 - normal.dot(e2)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
 					}
 
 
@@ -326,23 +326,21 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 					Eigen::Matrix2d DDeta2D;
 					DDeta2D <<
-						t2.dot(DDeta*t2) , t2.dot(DDeta*t3),
-						t3.dot(DDeta*t2) , t3.dot(DDeta*t3);
+						_t2.dot(DDeta*_t2) , _t2.dot(DDeta*_t3),
+						_t3.dot(DDeta*_t2) , _t3.dot(DDeta*_t3);
+					Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> eigensolver(2);
+					eigensolver.computeDirect(DDeta2D);
+					Eigen::Matrix2d eigenvecs = eigensolver.eigenvectors();
 
-					// Set::Matrix DDeta_sq = DDeta * DDeta;
-
-
-					Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(3);
-					// eigensolver.computeDirect(DDeta);
-					// Set::Matrix vec = eigensolver.eigenvectors();
+					Set::Vector t2 = _t2*eigenvecs(0,0) + _t3*eigenvecs(0,1),
+								t3 = _t2*eigenvecs(1,0) + _t3*eigenvecs(1,1);
 
 					Set::Scalar AMREX_D_DECL(grad11 = (Numeric::Stencil<Set::Scalar,2,0,0>::D(eta,i,j,k,m,DX)),
 											 grad22 = (Numeric::Stencil<Set::Scalar,0,2,0>::D(eta,i,j,k,m,DX)),
 											 grad33 = (Numeric::Stencil<Set::Scalar,0,0,2>::D(eta,i,j,k,m,DX)));
 
-					
-					Set::Scalar theta = std::acos(normal(2));
-					Set::Scalar phi   = std::atan2(normal(1),normal(0));
+					//Set::Scalar theta = std::acos(normal(2));
+					//Set::Scalar phi   = std::atan2(normal(1),normal(0));
 
 					//Util::Message(INFO,normal.transpose());
 					// normal /= normal.lpNorm<2>();
@@ -350,15 +348,15 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 					if (m == 0)
 					{
-						N(i,j,k,0) = gbmodel.DDW(normal,t2);
-						N(i,j,k,1) = gbmodel.DDW(normal,t3);
+						//N(i,j,k,0) = gbmodel.DDW(normal,t2);
+						//N(i,j,k,1) = gbmodel.DDW(normal,t3);
 						N(i,j,k,2) = (DDeta2D*DDeta2D).trace();
-						if (std::isnan(N(i,j,k,0))) N(i,j,k,0) = 0.0;
-						if (std::isnan(N(i,j,k,1))) N(i,j,k,1) = 0.0;
+						//if (std::isnan(N(i,j,k,0))) N(i,j,k,0) = 0.0;
+						//if (std::isnan(N(i,j,k,1))) N(i,j,k,1) = 0.0;
 						if (std::isnan(N(i,j,k,2))) N(i,j,k,2) = 0.0;
 						
 					}
-
+					
 					Set::Scalar laplacian = DDeta.trace();
 
 					Set::Scalar kappa = l_gb*0.75*sigma0;
@@ -405,8 +403,23 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 			
 						etanew(i,j,k,m) = eta(i,j,k,m) - M*dt*(W - (Boundary_term) + beta*(Curvature_term));
 						if (std::isnan(etanew(i,j,k,m))) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+						
 #elif AMREX_SPACEDIM == 3
 #endif
+
+						Set::Matrix4<3,Set::Sym::Full> DDDDEta = Numeric::DoubleHessian(eta,i,j,k,m,DX);
+
+						Set::Scalar DH2 = 0.0, DH3 = 0.0;
+						for (int p = 0; p < 3; p++)
+							for (int q = 0; q < 3; q++)
+								for (int r = 0; r < 3; r++)
+									for (int s = 0; s < 3; s++)
+									{
+										DH2 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t2(r)*t2(s);
+										DH3 += DDDDEta(p,q,r,s)*t3(p)*t3(q)*t3(r)*t3(s);
+									}
+						//Util::Message(INFO,"DH2=",DH2," DH3=",DH3);
+
 						Set::Scalar DDK2 = gbmodel.DDW(normal,t2) * l_gb * 0.75;
 						Set::Scalar DDK3 = gbmodel.DDW(normal,t3) * l_gb * 0.75;
 
@@ -416,7 +429,17 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 								  - kappa*laplacian
 								  - DDK2*DDeta2D(0,0)
 								  - DDK3*DDeta2D(1,1)
+								  //+ beta*(DH2 + DH3)
 								 );
+								 
+						if (m == 0)
+						{
+							N(i,j,k,0) = DH2;
+							N(i,j,k,1) = DH3;
+							if (std::isnan(N(i,j,k,0))) N(i,j,k,0) = 0.0;
+							if (std::isnan(N(i,j,k,1))) N(i,j,k,1) = 0.0;
+						}
+
 						if (std::isnan(etanew(i,j,k,m)) || std::isinf(etanew(i,j,k,m))) 
 						{
 							Util::Abort(INFO,"nan detected at amrlev = ", lev," i=",i," j=",j," k=",k,"\n"
