@@ -60,6 +60,10 @@ To specify the spatial dimension,
 
     ./configure --dim 2
 
+Once you have run the configure script without errors, build with
+
+    make
+
 The default is to compile in 3 dimensions.
 If you specify AMReX directly, it will check to make sure that AMReX is also compiled in the same number of dimensions.
 To generate documentation, type
