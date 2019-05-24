@@ -93,6 +93,7 @@ private:
 	int anisotropy = 0;
 	amrex::Real anisotropy_timestep;
 	amrex::Real anisotropy_tstart;
+	int anisotropy_plot_int;
 
 	std::string ic_type, gb_type, filename;
 

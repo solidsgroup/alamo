@@ -210,6 +210,7 @@ protected:
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
 	void SetTimestep(Set::Scalar _timestep);
+	void SetPlotInt(int plot_int);
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
