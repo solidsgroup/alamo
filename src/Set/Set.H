@@ -1,6 +1,8 @@
 #ifndef SET_SET_
 #define SET_SET_
 
+#include <iomanip>
+
 #include "AMReX.H"
 #include "AMReX_REAL.H"
 #include "AMReX_SPACE.H"
@@ -77,6 +79,32 @@ public:
         if (uid==79 || uid==77 || uid==71 || uid==53 ) return data[13];
         // [2, 2, 2, 2]
         if (uid==80 ) return data[14];
+    }
+    void Print (std::ostream& os)
+    {
+        os.precision(4);
+        for (int k = 0; k < 3; k++)
+        {
+            for (int i = -1; i < 4; i++)
+            {
+                for (int l = 0; l < 3; l++)
+                {
+                    if (i==-1)       os << "┌                                     ┐ ";
+                    else if (i == 3) os << "└                                     ┘ ";
+                    else 
+                    {
+                        os << "│ ";
+                        for (int j = 0; j < 3; j++)
+                        {
+                            os << std::scientific << std::setw(11) << (fabs((*this)(i,j,k,l))>1E-10 ? (*this)(i,j,k,l) : 0);
+                            os << " "; 
+                        }
+                        os << "│ ";
+                    }
+                }
+                os<<std::endl;
+            }
+        }
     }
 };
 

@@ -51,7 +51,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("tstart", anisotropy_tstart);
 		anisotropy_timestep = timestep;
 		pp.query("timestep",anisotropy_timestep);
-
+		anisotropy_plot_int = plot_int;
+		pp.query("plot_int",anisotropy_plot_int);
 
 		if(gb_type=="abssin")
 			boundary = new Model::Interface::GB::AbsSin(theta0,sigma0,sigma1);
@@ -252,7 +253,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 	// Set::Matrix A = Set::Matrix::Random();
 	// A = A + A.transpose();
 	// eigensolver.compute(A);
-
+	
 	for ( amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi )
 	{
 		const amrex::Box& bx = mfi.tilebox();
@@ -260,7 +261,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 		amrex::Array4<amrex::Real> const& etanew    = (*eta_new_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const& N    = (*n_mf[lev]).array(mfi);
 		//amrex::Array4<const amrex::Real> const& elasticenergy = (*energies[lev]).array(mfi);
-
+		
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 				//amrex::IntVect m(AMREX_D_DECL(i,j,k));
 			
@@ -288,7 +289,9 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 								 	              (Numeric::Stencil<Set::Scalar, 0, 0, 1>::D(eta, i, j, k, m, DX))));
 
 					Set::Scalar normgrad = Deta.lpNorm<2>();
-					if (normgrad < 1E-8) continue; // This ought to speed things up.
+
+					if (m == 0) { N(i,j,k,0) = 0.0; N(i,j,k,1) = 0.0; N(i,j,k,2) = 0.0; }
+					if (normgrad < 1E-4) continue; // This ought to speed things up.
 
 					Set::Vector normal = Deta / normgrad;
 					
@@ -346,13 +349,39 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					// normal /= normal.lpNorm<2>();
 					Set::Scalar gbe = gbmodel.W(normal);
 
+					Set::Matrix4<3,Set::Sym::Full> DDDDEta = Numeric::DoubleHessian(eta,i,j,k,m,DX);
+					Set::Scalar DH2 = 0.0, DH3 = 0.0;
+					for (int p = 0; p < 3; p++)
+						for (int q = 0; q < 3; q++)
+							for (int r = 0; r < 3; r++)
+								for (int s = 0; s < 3; s++)
+								{
+									DH2 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t2(r)*t2(s);
+									DH3 += DDDDEta(p,q,r,s)*t3(p)*t3(q)*t3(r)*t3(s);
+								}
+					
+					Set::Scalar K23Curvature = (DDeta2D*DDeta2D).trace();
+					//if (fabs(K23Curvature) < 0.1) 
+					//{
+					//	DH2 = 0.0;
+					//	DH3 = 0.0;
+					//}					
+					// if (amrex::ParallelDescriptor::IOProcessor())
+					// {
+					// 	Util::Message(INFO,"Printing DDDDEta");
+					// 	DDDDEta.Print(std::cout);
+					// }
+					
+
 					if (m == 0)
 					{
 						//N(i,j,k,0) = gbmodel.DDW(normal,t2);
 						//N(i,j,k,1) = gbmodel.DDW(normal,t3);
-						N(i,j,k,2) = (DDeta2D*DDeta2D).trace();
-						//if (std::isnan(N(i,j,k,0))) N(i,j,k,0) = 0.0;
-						//if (std::isnan(N(i,j,k,1))) N(i,j,k,1) = 0.0;
+						N(i,j,k,0) = DH2;
+						N(i,j,k,1) = DH3;
+						N(i,j,k,2) = normgrad;//K23Curvature;
+						if (std::isnan(N(i,j,k,0))) N(i,j,k,0) = 0.0;
+						if (std::isnan(N(i,j,k,1))) N(i,j,k,1) = 0.0;
 						if (std::isnan(N(i,j,k,2))) N(i,j,k,2) = 0.0;
 						
 					}
@@ -407,17 +436,6 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 #elif AMREX_SPACEDIM == 3
 #endif
 
-						Set::Matrix4<3,Set::Sym::Full> DDDDEta = Numeric::DoubleHessian(eta,i,j,k,m,DX);
-
-						Set::Scalar DH2 = 0.0, DH3 = 0.0;
-						for (int p = 0; p < 3; p++)
-							for (int q = 0; q < 3; q++)
-								for (int r = 0; r < 3; r++)
-									for (int s = 0; s < 3; s++)
-									{
-										DH2 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t2(r)*t2(s);
-										DH3 += DDDDEta(p,q,r,s)*t3(p)*t3(q)*t3(r)*t3(s);
-									}
 						//Util::Message(INFO,"DH2=",DH2," DH3=",DH3);
 
 						Set::Scalar DDK2 = gbmodel.DDW(normal,t2) * l_gb * 0.75;
@@ -429,7 +447,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 								  - kappa*laplacian
 								  - DDK2*DDeta2D(0,0)
 								  - DDK3*DDeta2D(1,1)
-								  //+ beta*(DH2 + DH3)
+								  + beta*(DH2 + DH3)
 								 );
 								 
 						if (m == 0)
@@ -546,7 +564,7 @@ PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& ta
 						amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j,k),n) - eta_new_box(amrex::IntVect(i-1,j,k),n))/(2.*DX[0]);
 						amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1,k),n) - eta_new_box(amrex::IntVect(i,j-1,k),n))/(2.*DX[1]);
 						amrex::Real gradz = (eta_new_box(amrex::IntVect(i,j,k+1),n) - eta_new_box(amrex::IntVect(i,j,k-1),n))/(2.*DX[2]);
-						if (DX[0]*sqrt(gradx*gradx + grady*grady + gradz*gradz)>0.1) tag(amrex::IntVect(i,j,k)) = amrex::TagBox::SET;
+						if (DX[0]*sqrt(gradx*gradx + grady*grady + gradz*gradz)>0.0001) tag(amrex::IntVect(i,j,k)) = amrex::TagBox::SET;
 					}
 				}
 #endif
@@ -593,6 +611,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	if (anisotropy && time > anisotropy_tstart)
 	{
 		SetTimestep(anisotropy_timestep);
+		SetPlotInt(anisotropy_plot_int);
 	}
 
 	if (!elastic.on) return;

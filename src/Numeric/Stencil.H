@@ -468,5 +468,6 @@ DoubleHessian(const amrex::Array4<const Set::Scalar> &f,
 	return ret;
 };
 
+
 }
 #endif

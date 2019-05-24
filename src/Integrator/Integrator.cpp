@@ -93,6 +93,10 @@ void Integrator::SetTimestep(Set::Scalar _timestep)
 	for (int i = 1; i < nlevs_max; i++)
 		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
 }
+void Integrator::SetPlotInt(int a_plot_int)
+{
+	plot_int = a_plot_int;
+}
 
 /// \fn    Integrator::MakeNewLevelFromCoarse
 /// \brief Wrapper to call FillCoarsePatch
