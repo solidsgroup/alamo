@@ -1,6 +1,8 @@
 
 #include <eigen3/Eigen/Eigenvalues>
 
+#include <omp.h>
+
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
 #include "Set/Set.H"
@@ -236,7 +238,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 void
 PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
-
 	/// TODO Make this optional
 	//if (lev != max_level) return;
 	std::swap(eta_old_mf[lev], eta_new_mf[lev]);
@@ -244,17 +245,8 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 
 	Model::Interface::GB::SH gbmodel(0.0, sigma0, 0.5*sigma0);
-	// static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-	// 								   dy(AMREX_D_DECL(0,1,0)),
-	// 								   dz(AMREX_D_DECL(0,0,1)));
 
-
-	// Eigen::SelfAdjointEigenSolver<Set::Matrix> eigensolver(3);
-	// Set::Matrix A = Set::Matrix::Random();
-	// A = A + A.transpose();
-	// eigensolver.compute(A);
-	
-	for ( amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi )
+	for ( amrex::MFIter mfi(*eta_new_mf[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi )
 	{
 		const amrex::Box& bx = mfi.tilebox();
 		amrex::Array4<const amrex::Real> const& eta = (*eta_old_mf[lev]).array(mfi);
