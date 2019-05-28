@@ -35,8 +35,9 @@ def shellmessage(title,cmd):
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
-def error():
-    return(color.boldred + "ERROR".ljust(width) + color.reset)
+def error(message=""):
+    print(color.boldred + "ERROR".ljust(width) + color.reset,end="")
+    wrap(message)
 def code(code):
     return(color.bggray + code + color.reset);
 def note(message):
@@ -51,6 +52,7 @@ parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
+parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.set_defaults(debug=False)
@@ -71,14 +73,19 @@ f.write("DIM = " + str(args.dim) + "\n")
 message("Dimension",str(args.dim))
 
 #
-# COMPILER
-#
-
-#
 # DEBUG
 #
 f.write("DEBUG = " + str(args.debug) + "\n")
 message("Debug Mode",str(args.debug))
+
+#
+# OpenMP
+#
+message("OpenMP",str(args.omp))
+if args.omp:
+    f.write("CXX_COMPILE_FLAGS += -DOMP -fopenmp \n")
+    f.write("LINKER_FLAGS += -lgomp \n")
+
 
 #
 # AMREX
@@ -86,29 +93,42 @@ message("Debug Mode",str(args.debug))
 if (args.amrex != ""):
     # Check to make sure directory is valid 
     if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
-        raise Exception(error()+" AMReX directory must contain include/ and lib/ subdirectories ")
+        error("AMReX directory must contain include/ and lib/ subdirectories ")
+        raise Exception()
 
     # Scan AMReX Config File
     amrex_spacedim = 0
     amrex_profiling = False
     amrex_debug = False
+    amrex_omp = False
     for line in open(args.amrex + "/include/AMReX_Config.H"):
         if "define BL_SPACEDIM 1" in line or "define AMREX_SPACEDIM 1" in line: amrex_spacedim = 1
         if "define BL_SPACEDIM 2" in line or "define AMREX_SPACEDIM 2" in line: amrex_spacedim = 2
         if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
         if "AMREX_DEBUG 1" in line: amrex_debug = True
+        if "USE_OMP 1" in line: amrex_omp = True
         if "PROFILING 1" in line: amrex_profiling = True
         if "AMREX_GIT_VERSION" in line: githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','')
         
     if args.dim != amrex_spacedim:
-        raise Exception(error()+"AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
+        error("AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
+        raise Exception()
     if args.debug != amrex_debug:
         if args.debug:
-            raise Exception(error()+"Alamo is in debug mode but AMReX is not")
+            error("Alamo is in debug mode but AMReX is not")
+            raise Exception()
         else:
-            raise Exception(error()+": Alamo is not in debug mode but AMReX is")
+            error("Alamo is not in debug mode but AMReX is")
+            raise Exception()
     if not args.debug and amrex_profiling:
         warning("Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+    if args.omp and not amrex_omp:
+        error("Alamo is compiled with OMP but AMReX is not. Try compiling AMReX with "+code("./configure --with-omp=yes") + " or compile Alamo without "+code("--omp"))
+        raise Exception()
+    if not args.omp and amrex_omp:
+        error("Alamo is compiled without OMP but AMReX is. Try compiling AMReX with "+code("./configure --with-omp=no") + " or compile Alamo with " + code("--omp"))
+        raise Exception()
+
 
     message("AMReX Directory", args.amrex)
     message("AMReX Git commit", githash)
@@ -191,5 +211,6 @@ prefix = "-"
 prefix += str(args.dim)+"d"
 if args.debug: prefix += "-debug"
 if args.python: prefix += "-fpic"
+if args.omp: prefix += "-omp"
 prefix += "-" + args.comp
 f.write("PREFIX = " + prefix + '\n')
