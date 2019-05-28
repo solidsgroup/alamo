@@ -123,7 +123,7 @@ if (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
     print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
-    f.write("EIGEN = " + args.amrex + "\n")
+    f.write("EIGEN = " + args.eigen + "\n")
 
 #
 # Compiler
