@@ -525,19 +525,19 @@ Elastic<T>::Energy (int amrlev,
 						     		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
 					    }
 
-					 	//Set::Matrix eps = .5*(gradu + gradu.transpose());
+					 	Set::Matrix eps = .5*(gradu + gradu.transpose());
 					    Set::Matrix sig = C(i,j,k)(gradu);
 
-					    energy(i,j,k) = (gradu.transpose() * sig).trace();
-						//energy(i,j,k) = 0;
+					    // energy(i,j,k) = (gradu.transpose() * sig).trace();
+						energy(i,j,k) = 0;
 
-						/*for (int n = 0; n < AMREX_SPACEDIM; n++)
+						for (int n = 0; n < AMREX_SPACEDIM; n++)
 						{
 							for(int m = 0; m < AMREX_SPACEDIM; m++)
 							{
 							energy(i,j,k) += .5*sig(n,m)*eps(n,m);
 							}
-						}*/
+						}
 				    });
 	}
 }
