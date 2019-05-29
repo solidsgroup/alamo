@@ -51,7 +51,7 @@ public:
 	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
 
-	/// The different types of Boundary Condtiions are listed in the '::BC::Operator::Elastic' documentation
+	/// The different types of Boundary Condtiions are listed in the `::BC::Operator::Elastic` documentation
 	///
 	void SetBC (::BC::Operator::Elastic<T> *a_bc) {m_bc = a_bc;};
 
@@ -75,7 +75,7 @@ public:
 	///
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
 
-	/// This function is depricated and should not be used. Use the other SetBC function.
+	/// This function is depricated and should not be used. Use the other `SetBC` function.
 	///
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
