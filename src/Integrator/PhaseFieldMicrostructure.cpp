@@ -16,6 +16,7 @@ namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 {
+	BL_PROFILE("PhaseFieldMicrostructure::PhaseFieldMicrostructure()");
 	//
 	// READ INPUT PARAMETERS
 	//
@@ -238,6 +239,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 void
 PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
+	BL_PROFILE("PhaseFieldMicrostructure::Advance");
 	/// TODO Make this optional
 	//if (lev != max_level) return;
 	std::swap(eta_old_mf[lev], eta_new_mf[lev]);
@@ -246,6 +248,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 	Model::Interface::GB::SH gbmodel(0.0, sigma0, 0.5*sigma0);
 
+	#pragma omp parallel
 	for ( amrex::MFIter mfi(*eta_new_mf[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi )
 	{
 		const amrex::Box& bx = mfi.tilebox();
@@ -498,6 +501,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 void
 PhaseFieldMicrostructure::Initialize (int lev)
 {
+	BL_PROFILE("PhaseFieldMicrostructure::Initialize");
 	eta_new_mf[lev]->setVal(0.0);
 	eta_old_mf[lev]->setVal(0.0);
 	n_mf[lev]->setVal(0.0);
@@ -523,6 +527,7 @@ PhaseFieldMicrostructure::Initialize (int lev)
 void
 PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
+	BL_PROFILE("PhaseFieldMicrostructure::TagCellsForRefinement");
 	const amrex::Real* DX      = geom[lev].CellSize();
 
 	amrex::Vector<int>  itags;
@@ -600,6 +605,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+	BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
 	if (anisotropy && time > anisotropy_tstart)
 	{
 		SetTimestep(anisotropy_timestep);
@@ -937,6 +943,7 @@ void
 PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
 				    const amrex::MFIter &mfi, const amrex::Box &box)
 {
+	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
 	const amrex::Real* DX = geom[amrlev].CellSize();
 
 	amrex::FArrayBox &eta_new  = (*eta_new_mf[amrlev])[mfi];
