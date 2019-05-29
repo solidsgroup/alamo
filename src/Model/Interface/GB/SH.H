@@ -9,8 +9,6 @@
 #include "Set/Set.H"
 #include "Util/Util.H"
 
-#include <boost/math/special_functions/spherical_harmonic.hpp>
-
 #define PI 3.14159265 
 
 namespace Model
