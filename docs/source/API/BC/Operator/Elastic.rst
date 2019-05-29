@@ -3,8 +3,8 @@
 .. role:: cpp(code)
    :language: c++
 
-Elastic Boundary Conditions
-===========================
+Elastic
+=======
 There are four boundary conditions that can be used with :cpp:`Operator::Elastic`:
 
 Displacement
