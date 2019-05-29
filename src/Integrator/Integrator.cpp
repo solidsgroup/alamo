@@ -16,6 +16,7 @@ namespace Integrator
 
 Integrator::Integrator ()
 {
+	BL_PROFILE("Integrator::Integrator()");
 	{
 		ParmParse pp;   // Basic run parameters
 		pp.query("max_step", max_step);
@@ -80,12 +81,14 @@ Integrator::Integrator ()
 ///
 Integrator::~Integrator ()
 {
+	BL_PROFILE("Integrator::~Integrator");
 	if (ParallelDescriptor::IOProcessor())
 	  IO::WriteMetaData(plot_file,IO::Status::Complete);
 }
 
 void Integrator::SetTimestep(Set::Scalar _timestep)
 {
+	BL_PROFILE("Integrator::SetTimestep");
 	int nlevs_max = maxLevel() + 1;
 	timestep = _timestep;
 	dt.resize(nlevs_max, 1.e100);
@@ -95,6 +98,7 @@ void Integrator::SetTimestep(Set::Scalar _timestep)
 }
 void Integrator::SetPlotInt(int a_plot_int)
 {
+	BL_PROFILE("Integrator::SetPlotInt");
 	plot_int = a_plot_int;
 }
 
@@ -105,6 +109,7 @@ void Integrator::SetPlotInt(int a_plot_int)
 void
 Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& cgrids, const DistributionMapping& dm)
 {
+	BL_PROFILE("Integrator::MakeNewLevelFromCoarse");
 	t_new[lev] = time;
 	t_old[lev] = time - 1.e200;
 
@@ -148,6 +153,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 			 const BoxArray& cgrids, 
 			 const DistributionMapping& dm)
 {
+	BL_PROFILE("Integrator::RemakeLevel");
 	for (int n=0; n < cell.number_of_fabs; n++)
 	{
 		const int ncomp  = (*cell.fab_array[n])[lev]->nComp();
@@ -185,6 +191,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 void
 Integrator::ClearLevel (int lev)
 {
+	BL_PROFILE("Integrator::ClearLevel");
 	for (int n = 0; n < cell.number_of_fabs; n++)
 	{
 		(*cell.fab_array[n])[lev].reset(nullptr);
@@ -206,6 +213,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 			   int nghost,
 			   std::string name)
 {
+	BL_PROFILE("Integrator::RegisterNewFab_1");
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	cell.fab_array.push_back(&new_fab);
@@ -221,6 +229,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 			   int ncomp,
 			   std::string name)
 {
+	BL_PROFILE("Integrator::RegisterNewFab_2");
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	cell.fab_array.push_back(&new_fab);
@@ -236,6 +245,7 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 			     int nghost,
 			     std::string name)
 {
+	BL_PROFILE("Integrator::RegisterNodalFab");
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	node.fab_array.push_back(&new_fab);
@@ -250,6 +260,7 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name)
 {
+	BL_PROFILE("Integrator::RegisterIntegratedVariable");
 	intvar_array.push_back(integrated_variable);
 	intvar_names.push_back(name);
 	Util::Message(INFO,intvar_array[0]);
@@ -259,6 +270,7 @@ Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::st
 long // CUSTOM METHOD - CHANGEABLE
 Integrator::CountCells (int lev)
 {
+	BL_PROFILE("Integrator::CountCells");
 	const int N = grids[lev].size();
 
 	long cnt = 0;
@@ -277,6 +289,7 @@ Integrator::FillPatch (int lev, Real time,
 		       MultiFab &destination_mf,
 		       BC::BC &physbc, int icomp)
 {
+	BL_PROFILE("Integrator::FillPatch");
 	if (lev == 0)
 	{
       
@@ -334,6 +347,7 @@ Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 			     int icomp, ///<[in] start component
 			     int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
 {
+	BL_PROFILE("Integrator::FillCoarsePatch");
 	AMREX_ASSERT(lev > 0);
 
 	amrex::Vector<amrex::MultiFab* > cmf;
@@ -355,6 +369,7 @@ Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 void
 Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 {
+	BL_PROFILE("Integrator::ErrorEst");
 	TagCellsForRefinement(lev,tags,time,ngrow);
 }
 
@@ -362,6 +377,7 @@ Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 void
 Integrator::InitData ()
 {
+	BL_PROFILE("Integrator::InitData");
 	const Real time = 0.0;
 	InitFromScratch(time);
 
@@ -387,6 +403,7 @@ void
 Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& cgrids,
 				     const DistributionMapping& dm)
 {
+	BL_PROFILE("Integrator::MakeNewLevelFromScratch");
 	for (int n = 0 ; n < cell.number_of_fabs; n++)
 	{
 		(*cell.fab_array[n])[lev].reset(new MultiFab(cgrids, dm, cell.ncomp_array[n], cell.nghost_array[n]));
@@ -422,6 +439,7 @@ Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& cgrids,
 std::vector<std::string>
 Integrator::PlotFileName (int lev) const
 {
+	BL_PROFILE("Integrator::PlotFileName");
 	std::vector<std::string> name;
 	name.push_back(plot_file+"/");
 	name.push_back(amrex::Concatenate("", lev, 5));
@@ -431,6 +449,7 @@ Integrator::PlotFileName (int lev) const
 void
 Integrator::WritePlotFile () const
 {
+	BL_PROFILE("Integrator::WritePlotFile");
 	const int nlevels = finest_level+1;
 
 	int ccomponents = 0, ncomponents = 0;
@@ -471,11 +490,6 @@ Integrator::WritePlotFile () const
 			amrex::IntVect where;
 			// if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
 			// if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
-
-			if ((*cell.fab_array[i])[ilev]->contains_nan(0,(*cell.fab_array[i])[ilev]->nComp()))
-				for (MFIter mfi(*(*cell.fab_array[i])[ilev],false);mfi.isValid();++mfi)
-					if ((*(*cell.fab_array[i])[ilev])[mfi].contains_nan(where))
-						Util::Abort(INFO,cnames[i]," contains nans (i=",i,") on level ilev=",ilev," at ", where);
 
 			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 			n += cell.ncomp_array[i];
@@ -521,13 +535,14 @@ Integrator::WritePlotFile () const
 void
 Integrator::InitFromCheckpoint ()
 {
+	BL_PROFILE("Integrator::InitFromCheckpoint");
 	Util::Abort(INFO, "Integrator::InitFromCheckpoint: todo");
 }
 
 void
 Integrator::Evolve ()
 {
-	
+	BL_PROFILE("Integrator::Evolve");
 	Real cur_time = t_new[0];
 	int last_plot_file_step = 0;
 
@@ -571,6 +586,7 @@ Integrator::Evolve ()
 void
 Integrator::IntegrateVariables (Real time, int step)
 {
+	BL_PROFILE("Integrator::IntegrateVariables");
 	if (!number_of_intvars) return;
 
 	if (!(step % intvar_int))
@@ -583,6 +599,7 @@ Integrator::IntegrateVariables (Real time, int step)
 		{
 			const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
 
+			#pragma omp parallel
 			for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -597,6 +614,7 @@ Integrator::IntegrateVariables (Real time, int step)
 		}
 		// Now do the finest level
 		{
+			#pragma omp parallel
 			for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -635,6 +653,7 @@ Integrator::IntegrateVariables (Real time, int step)
 void
 Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 {
+	BL_PROFILE("Integrator::TimeStep");
 	if (regrid_int > 0)  // We may need to regrid
 	{
 		static Vector<int> last_regrid_step(max_level+1, 0);
