@@ -528,12 +528,12 @@ Elastic<T>::Energy (int amrlev,
 					 	Set::Matrix eps = .5*(gradu + gradu.transpose)
 					    Set::Matrix sig = C(i,j,k)(gradu);
 
-					    //energy(i,j,k) = (gradu.transpose() * sig).trace();
+					    energy(i,j,k) = (gradu.transpose() * sig).trace();
 
-						for (int i = 0, int j = 0; i < AMREX_SPACEDIM, j < AMREX_SPACEDIM; i++, j++)
-						{
-							energy(i,j,k) += .5*sig(i,j)*eps(i,j);
-						}
+						// for (int i = 0, int j = 0; i < AMREX_SPACEDIM, j < AMREX_SPACEDIM; i++, j++)
+						// {
+						// 	energy(i,j,k) += .5*sig(i,j)*eps(i,j);
+						// }
 				    });
 	}
 }
