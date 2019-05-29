@@ -121,10 +121,10 @@ The following are some common error messages and problems encountered:
 Generating documentation requires the following packages:
 
 * Doxygen (on Ubuntu: `sudo apt install doxygen`)
-* Sphinx (on Ubuntu: `sudo apt install python-sphinx`)
-* Breathe (on Ubuntu: `sudo apt install python-breathe`)
-* M2R (on Ubuntu: `pip install m2r`)
-* RTD theme (on Ubuntu: `pip install sphinx_rtd_theme`)
+* Sphinx (on Ubuntu: `sudo apt install python3-sphinx`)
+* Breathe (on Ubuntu: `sudo apt install python3-breathe`)
+* M2R (on Ubuntu: `python3 -m pip install m2r`)
+* RTD theme (on Ubuntu: `python3 -m pip install sphinx_rtd_theme`)
 * GraphViz (on Ubuntu: `sudo apt install graphviz`)
 
 To generate the documentation, type

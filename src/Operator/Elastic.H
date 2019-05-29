@@ -68,10 +68,10 @@ public:
 	/// 
 	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
 
-	/// Compute energy density \f$\mathbf{\sigma}\f$ given the displacement field \f$\mathbf{u}\f$
+	/// Compute energy density \f$\mathbb{W}\f$ given the displacement field \f$\mathbf{u}\f$
 	/// by
-	///   \f[\mathbf{W} = \Sigma\Sigma\mathbf{\sigma}_{ij}\mathbf{\epsilon}_{ij}\f]
-	/// where \f$\mathbf{\sigma}\f$ and \f%\mathbf{\epsilon}\f$ are as defined above
+	///   \f[\mathbb{W} = \mathbb{\Sigma}\mathbb{\Sigma}\mathbf{\sigma}_{ij}\mathbf{\epsilon}_{ij}\f]
+	/// where \f$\mathbf{\sigma}\f$ and \f$\mathbf{\epsilon}\f$ are as defined above
 	///
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
 
