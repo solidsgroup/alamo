@@ -29,3 +29,4 @@ TrigTest*
 testoutput*
 Makefile.conf
 *.so
+.vscode
