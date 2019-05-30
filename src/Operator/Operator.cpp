@@ -351,9 +351,9 @@ void Operator<Grid::Node>::buildMasks ()
 					if (!isects.empty()) has_cf[mfi] = 1;
 				}
 
-				amrex_mlndlap_fillbc_cc_i(BL_TO_FORTRAN_ANYD(fab),
-							  BL_TO_FORTRAN_BOX(ccdom),
-							  m_lobc.data(), m_hibc.data());
+//				amrex_mlndlap_fillbc_cc_i(BL_TO_FORTRAN_ANYD(fab),
+//							  BL_TO_FORTRAN_BOX(ccdom),
+//							  m_lobc.data(), m_hibc.data());
 			}
 		}
 
@@ -395,11 +395,11 @@ void Operator<Grid::Node>::buildMasks ()
 			const Box& bx = mfi.tilebox();
 			auto& dfab = m_bottom_dot_mask[mfi];
 			const auto& sfab = omask[mfi];
-			amrex_mlndlap_set_dot_mask(BL_TO_FORTRAN_BOX(bx),
-						   BL_TO_FORTRAN_ANYD(dfab),
-						   BL_TO_FORTRAN_ANYD(sfab),
-						   BL_TO_FORTRAN_BOX(nddomain),
-						   m_lobc.data(), m_hibc.data());
+//			amrex_mlndlap_set_dot_mask(BL_TO_FORTRAN_BOX(bx),
+//						   BL_TO_FORTRAN_ANYD(dfab),
+//						   BL_TO_FORTRAN_ANYD(sfab),
+//						   BL_TO_FORTRAN_BOX(nddomain),
+//						   m_lobc.data(), m_hibc.data());
 		}
 	}
 }
@@ -856,12 +856,12 @@ Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
 	
 	MLCellLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
-	m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
-	m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+//	m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+//			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+//			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+//	m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+//			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+//			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
 				  
 	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
 		setLevelBC(ilev,nullptr);
