@@ -115,8 +115,9 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
  	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
  	mlmg.setFinalFillBC(false);	
  	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-
-        if (component!=0)
+	mlmg.setCFStrategy(MLMG::CFStrategy::ghostnodes);
+	
+  if (component!=0)
 	{
 		component-=component;
 	}
