@@ -120,16 +120,10 @@ public:
 				if (m[q] == domain.loVect()[q])
 				{
 					if      (m_bc_lo[q][p] == Type::Displacement)
-					/// This is the implementation of the displacement condition.
-					///
 						f(p) =   u(p);
 					else if (m_bc_lo[q][p] == Type::Traction)
-					/// This is the implementation of the traction condition.
-					///
 						f(p) = -sigma(p,q);
 					else if (m_bc_lo[q][p] == Type::Neumann)
-					/// This is the implementation of the neumann condition.
-					///
 						f(p) = -gradu(p,q);
 					else Util::Abort(INFO, "Invalid BC");
 				}
