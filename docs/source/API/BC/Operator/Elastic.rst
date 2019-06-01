@@ -9,7 +9,7 @@ There are four boundary conditions that can be used with :cpp:`Operator::Elastic
 
 Dirchlet/Displacement
 ---------------------
-For a Dirichlet point the Dirichlet boundary operator is used, :math:`\f$D_{\Omega_1}\f$`.
+For a Dirichlet point the Dirichlet boundary operator is used, :math:`D_{\Omega_1}`.
 This is nothing other than the identity operator, i.e.
 
 :math:`D_{\Omega_1}(\mathbf{u}) = \mathbf{u},`
@@ -30,10 +30,21 @@ specified in the right hand side during the solve.
 
 Periodic
 --------
+The periodic boundary condition is similar to the displacement condition.
+It specifies that the displacement on two boundaries must be equal, i.e.
+
+:math:`\mathbf{u}(0) = \mathbf{u}(L)`
+
+This yields an algebraic expression that can be solved to obtain the solution.
 
 Neumann
 -------
+This operator is simply a typical Neumann boundary condition.
+The operator, denoted :math:`D_{\Omega_4}` is then simply the gradient operator, i,e.
 
+:math:`D_{\Omega_4}(\mathbf{u}) = \nabla\mathbf{u}`
+
+The value of the gradient at the boundary is determined by the right hand side during the solve.
 
 .. doxygenclass:: BC::Operator::Elastic
    :project: alamo
