@@ -424,13 +424,80 @@ struct Stencil<T,1,1,2>
 	};
 };
 
+AMREX_FORCE_INLINE
+Set::Vector
+Gradient(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k, const int &m,
+		const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Vector ret;
+	ret(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 1
+	ret(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 2
+	ret(2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx));
+#endif
+#endif
+	return ret;
+}
 
-
-// STILL MISSING <2,1,1>, <1,2,1>, <1,1,2> DERIVATIVES!
 
 AMREX_FORCE_INLINE
-Set::Matrix4<3,Set::Sym::Full>
+Set::Matrix
+Hessian(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k, const int &m,
+		const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Matrix ret;
+	ret(0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 1
+	ret(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(f,i,j,k,m,dx));
+	ret(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(f,i,j,k,m,dx));
+	ret(1,0) = ret(0,1);
+#if AMREX_SPACEDIM > 2
+	ret(2,2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(f,i,j,k,m,dx));
+	ret(1,2) = (Numeric::Stencil<Set::Scalar,0,1,1>::D(f,i,j,k,m,dx));
+	ret(2,0) = (Numeric::Stencil<Set::Scalar,1,0,1>::D(f,i,j,k,m,dx));
+	ret(2,1) = ret(1,2);
+	ret(0,2) = ret(2,0);
+#endif
+#endif
+	return ret;
+}
+
+
+template<int dim>
+AMREX_FORCE_INLINE
+Set::Matrix4<dim,Set::Sym::Full>
 DoubleHessian(const amrex::Array4<const Set::Scalar> &f,
+		   	  const int &i, const int &j, const int &k, const int &m,
+		      const Set::Scalar dx[AMREX_SPACEDIM]);
+
+template<>
+AMREX_FORCE_INLINE
+Set::Matrix4<2,Set::Sym::Full>
+DoubleHessian<2>(const amrex::Array4<const Set::Scalar> &f,
+		   	  const int &i, const int &j, const int &k, const int &m,
+		      const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Matrix4<2,Set::Sym::Full> ret;
+    // [0,0,0,0]
+	ret(0, 0, 0, 0) = Stencil<Set::Scalar,4,0,0>::D(f,i,j,k,m,dx);
+    // [0, 0, 0, 1]
+    ret(0, 0, 0, 1) = Stencil<Set::Scalar,3,1,0>::D(f,i,j,k,m,dx);
+    // [0, 0, 1, 1]
+	ret(0, 0, 1, 1) = Stencil<Set::Scalar,2,2,0>::D(f,i,j,k,m,dx);
+    // [0, 1, 1, 1]
+    ret(0, 1, 1, 1) = Stencil<Set::Scalar,1,3,0>::D(f,i,j,k,m,dx);
+    // [1, 1, 1, 1]
+	ret(1, 1, 1, 1) = Stencil<Set::Scalar,0,4,0>::D(f,i,j,k,m,dx);
+	return ret;
+}
+
+template<>
+AMREX_FORCE_INLINE
+Set::Matrix4<3,Set::Sym::Full>
+DoubleHessian<3>(const amrex::Array4<const Set::Scalar> &f,
 		   	  const int &i, const int &j, const int &k, const int &m,
 		      const Set::Scalar dx[AMREX_SPACEDIM])
 {
@@ -465,8 +532,8 @@ DoubleHessian(const amrex::Array4<const Set::Scalar> &f,
     ret(1, 2, 2, 2) = Stencil<Set::Scalar,0,1,3>::D(f,i,j,k,m,dx);
     // [2, 2, 2, 2]
 	ret(2, 2, 2, 2) = Stencil<Set::Scalar,0,0,4>::D(f,i,j,k,m,dx);
-	return ret;
-};
+    return ret;
+}
 
 
 }
