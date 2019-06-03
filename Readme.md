@@ -14,7 +14,8 @@ The following are instructions for how to install these dependencies on your pla
 
 * The website for `eigen3` is http://eigen.tuxfamily.org. 
   Download the source and store it in a directory (e.g. /home/myusername/eigen3/). 
-  This is all you need to do. 
+  This is all you need to do.
+  (The directory must be named eigen3)
 * The website for `amrex` is https://github.com/AMReX-Codes/amrex
   To compile and install, clone the AMReX repository with 
   
@@ -46,7 +47,7 @@ To build alamo, in the alamo directory type
 
     ./configure
 
-To see a list of options type 
+To see a full list of options type 
 
     ./configure --help
 
@@ -58,15 +59,15 @@ where `/path/to/amrex` and `/path/to/eigen` should match the `--prefix` and the 
 (The script will check this and error out if they do not.)
 To specify the spatial dimension,
 
-    ./configure --dim 2
+    ./configure --dim #OfDimensions
 
 The default is to compile in 3 dimensions.
 If you specify AMReX directly, it will check to make sure that AMReX is also compiled in the same number of dimensions.
-To generate documentation, type
+Immediately after running the `./configure` script, type
 
-    make docs
-    
-(Note that this requires several libraries -- see section below.)
+    make
+
+This again can be sped up using `make -j#OfProcessors`.
 For additional help, type 
 
     make help
@@ -78,7 +79,7 @@ Finally, type
 
 to clear out extra files that were generated.
 
-### Building - Using CMAKE ###
+### Building - Using CMAKE (Not up to Date) ###
 
 To build ALAMO using CMAKE, you must have CMAKE installed. 
 1. Create a build directory.
@@ -97,16 +98,16 @@ To build ALAMO using CMAKE, you must have CMAKE installed.
 
 ## Testing ##
 
-Upon successful compilation, run tests by 
+Upon successful compilation, run tests by typing
 
-    ./bin/test
+    ./bin/test-3d-debug-g++
 
-The output will indicate wether the tests pass or fail.
+The output will indicate whether the tests pass or fail.
 If you are committing changes, you should always make sure the tests pass in 2 and 3 dimensions before committing.
 
 ## Common Error Messages ##
 
-The following are some common error messages and problems encountered.
+The following are some common error messages and problems encountered:
 
 * `MLLinOp: grids not coarsenable between AMR levels`:
   This is a conflict in the **multigrid solver** because the grid size is not a power of 2.
@@ -117,18 +118,18 @@ The following are some common error messages and problems encountered.
 
 ## Generating Documentation ##
 
-You will need the following packages:
+Generating documentation requires the following packages:
 
 * Doxygen (on Ubuntu: `sudo apt install doxygen`)
-* Sphinx (on Ubuntu: `sudo apt install python-sphinx`)
-* Breathe (on Ubuntu: `sudo apt install python-breathe`)
-* M2R (on Ubuntu: `pip install m2r`)
-* RTD theme (on Ubuntu: `pip install sphinx_rtd_theme`)
+* Sphinx (on Ubuntu: `sudo apt install python3-sphinx`)
+* Breathe (on Ubuntu: `sudo apt install python3-breathe`)
+* M2R (on Ubuntu: `python3 -m pip install m2r`)
+* RTD theme (on Ubuntu: `python3 -m pip install sphinx_rtd_theme`)
 * GraphViz (on Ubuntu: `sudo apt install graphviz`)
 
-To generate the documentation:
+To generate the documentation, type
 
     make docs
 
-(You do not need to run `configure` before generating documentation.)
+(You do not need to run `./configure` before generating documentation.)
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.
