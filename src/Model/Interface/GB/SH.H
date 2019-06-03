@@ -38,15 +38,16 @@ public:
 	SH()
 	{
 	};
-	SH(const amrex::Real _theta0, const amrex::Real _sigma0, const amrex::Real _sigma1)
+	SH(const amrex::Real a_theta0, const amrex::Real a_phi0, const amrex::Real a_sigma0, const amrex::Real a_sigma1)
 	{
-		Define(_theta0,_sigma0,_sigma1);
+		Define(a_theta0,a_phi0,a_sigma0,a_sigma1);
 	};
-	void Define(const amrex::Real _theta0, const amrex::Real _sigma0, const amrex::Real _sigma1)
+	void Define(const amrex::Real a_theta0, const amrex::Real a_phi0, const amrex::Real a_sigma0, const amrex::Real a_sigma1)
 	{
-		theta0 = _theta0;
-		sigma0 = _sigma0;
-		sigma1 = _sigma1;
+		theta0 = a_theta0;
+		phi0   = a_phi0;
+		sigma0 = a_sigma0;
+		sigma1 = a_sigma1;
 	};
 	void Randomize()
 	{
@@ -56,36 +57,33 @@ public:
 	};
 	amrex::Real W(const Set::Scalar a_theta, const Set::Scalar a_phi) const
 	{
-		return sigma0 - sigma1*cos(2*a_phi)*cos(2*a_phi) * sin(2*a_theta)*sin(2*a_theta);
+		return sigma0 - sigma1*cos(2*(a_phi))*cos(2*(a_phi)) * sin(2*(a_theta))*sin(2*(a_theta));
 	};
 	std::array<Set::Scalar,2> DW(const Set::Scalar a_theta, const Set::Scalar a_phi) const
 	{
-		return {        - sigma1 * 4.0 * cos(2*a_phi) * cos(2*a_phi) * sin(2*a_theta) * cos(2*a_theta),
+		return {- sigma1 * 4.0 * cos(2*a_phi) * cos(2*a_phi) * sin(2*a_theta) * cos(2*a_theta),
 				+ sigma1 * 4.0 * sin(2*a_phi) * cos(2*a_phi) * sin(2*a_theta) * sin(2*a_theta)} ;
 	};
 
 	Set::Scalar W(const Set::Vector a_n) const
 	{
 		Set::Vector n = a_n / a_n.lpNorm<2>();
-		Set::Scalar theta = std::acos(n(2));
-		Set::Scalar phi   = std::atan2(n(1),n(0));
+		Set::Scalar theta = std::acos(n(0));
+		Set::Scalar phi   = std::atan2(n(2),n(1));
 		return W(theta,phi);
 	};
 	Set::Vector DW(const Set::Vector a_n) const
 	{
 		Util::Abort(INFO,"Can't seem to get this to work - not safe to use!");
-		Set::Vector n = a_n / a_n.lpNorm<2>();
 		Set::Vector dw;
-		Set::Scalar theta = std::acos(n(2));
-		Set::Scalar phi   = std::atan2(n(1),n(0));
-		std::array<Set::Scalar,2> dw1 = DW(theta,phi);
-			    
-		Set::Scalar w_theta = dw1[0], w_phi = dw1[1];
-
-		dw(0) =  -w_phi * sin(phi) + w_theta*cos(theta)*cos(phi) ; // stubbornly wrong
-		dw(1) =  +w_phi * cos(phi) + w_theta*cos(theta)*sin(phi) ; // stubbornly wrong
-		dw(2) =  -w_theta * sin(theta); // inexplicably correct
-
+		//Set::Vector n = a_n / a_n.lpNorm<2>();
+		//Set::Scalar theta = std::acos(n(2));
+		//Set::Scalar phi   = std::atan2(n(1),n(0));
+		//std::array<Set::Scalar,2> dw1 = DW(theta,phi);
+		//Set::Scalar w_theta = dw1[0], w_phi = dw1[1];
+		//dw(0) =  -w_phi * sin(phi) + w_theta*cos(theta)*cos(phi) ; // stubbornly wrong
+		//dw(1) =  +w_phi * cos(phi) + w_theta*cos(theta)*sin(phi) ; // stubbornly wrong
+		//dw(2) =  -w_theta * sin(theta); // inexplicably correct
 		return dw;
 	};
 	Set::Scalar DW(const Set::Vector a_n, const Set::Vector t_n) const
@@ -121,7 +119,7 @@ public:
 	//};
   
 private:
-	amrex::Real theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
+	amrex::Real theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;
 };
 }
 }

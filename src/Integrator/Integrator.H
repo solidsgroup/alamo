@@ -21,6 +21,7 @@
 #include <AMReX_Utility.H>
 #include <AMReX_PlotFileUtil.H>
 
+#include "Set/Set.H"
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"

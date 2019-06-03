@@ -269,11 +269,6 @@ std::complex<int> Parse(std::string input)
 }
 
 
-Set::Scalar Random()
-{
-	return ((Set::Scalar) rand()) / ((Set::Scalar) RAND_MAX);
-}
-
 namespace Test
 {
 int Message(std::string testname)
