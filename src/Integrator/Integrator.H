@@ -170,7 +170,7 @@ protected:
 	virtual void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*iter*/,
 			       const amrex::MFIter &/*mfi*/, const amrex::Box &/*box*/)
 	{
-		if (number_of_intvars > 0)
+		if (thermo.number > 0)
 			Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
 	}
 		
@@ -212,6 +212,8 @@ protected:
 
 	void SetTimestep(Set::Scalar _timestep);
 	void SetPlotInt(int plot_int);
+	void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
+	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot = a_thermo_plot_int;}
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
@@ -242,7 +244,7 @@ private:
 
 	std::vector<std::string> PlotFileName (int lev) const;
 protected:
-	void WritePlotFile () const;
+	void WritePlotFile (bool initial = false) const;
 
 	//
 	// MEMBER VARIABLES
@@ -283,11 +285,13 @@ protected:
 	BC::Nothing bcnothing;
 
 	// KEEP TRACK OF ALL INTEGRATED VARIABLES
-	int intvar_int = 1;
-	int intvar_plot = 1;
-	int number_of_intvars = 0;
-	std::vector<Set::Scalar *> intvar_array;
-	std::vector<std::string> intvar_names;
+	struct{
+		int interval = 1;
+		int plot = 1;
+		int number = 0;
+		std::vector<Set::Scalar *> vars;
+		std::vector<std::string> names;
+	} thermo;
 
 	// REGRIDDING
 	int regrid_int = 2; ///< Determine how often to regrid (default: 2)

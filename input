@@ -1,7 +1,7 @@
 timestep = 0.1
 stop_time = 200.0 
 
-plot_file = output
+#plot_file = output_%DD_%Y%m%d_%H%M%S
 
 amr.plot_int = 10
 amr.max_level = 2
@@ -19,10 +19,10 @@ amr.grid_eff = 1.0
 ic.type=perturbed_interface
 ic.normal=x
 ic.offset=4.0
-ic.wave_numbers=32
-ic.wave_numbers=2
-ic.wave_amplitudes=0.05
-ic.wave_amplitudes=1.0
+#ic.wave_numbers=2
+#ic.wave_amplitudes=1.0
+ic.wave_numbers=32 16 8
+ic.wave_amplitudes=0.1 0.05 0.05
 
 geometry.prob_lo = 0 0 -0.25
 geometry.prob_hi = 8 8 0.25
@@ -50,13 +50,16 @@ anisotropy.plot_int=50
 #anisotropy.timestep=0.001 # Works
 #anisotropy.timestep=0.01 # Breaks
 #anisotropy.timestep=0.005 # Breaks at 2.02
-anisotropy.timestep=0.0005
+#anisotropy.timestep=0.001
+anisotropy.timestep=0.001
 anisotropy.tstart= 2.
-anisotropy.theta0= 45
-anisotropy.sigma0=0.075
-anisotropy.sigma1=0.15
-#anisotropy.beta= 0.0001
-anisotropy.beta= 0.00005
+#anisotropy.theta0= 10
+anisotropy.theta0= 20
+#anisotropy.sigma0=0.075
+anisotropy.sigma0=0.5 #0.15
+anisotropy.sigma1=0.5 #0.15
+#anisotropy.beta= 0.00005
+anisotropy.beta= 0.000025
 anisotropy.damp=1.0
 
 

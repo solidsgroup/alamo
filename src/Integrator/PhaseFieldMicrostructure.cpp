@@ -3,6 +3,8 @@
 
 #include <omp.h>
 
+#include <AMReX_SPACE.H>
+
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
 #include "Set/Set.H"
@@ -124,6 +126,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 	volume = 10;
 	RegisterIntegratedVariable(&volume, "volume");
+	RegisterIntegratedVariable(&area, "area");
+	RegisterIntegratedVariable(&gbenergy, "gbenergy");
+	RegisterIntegratedVariable(&gbenergy, "realgbenergy");
   
 	// Elasticity
 	{
@@ -209,7 +214,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 				AMREX_D_TERM(elastic.bctype_xhi = {AMREX_D_DECL(bc[bctype_xhi_str[0]], bc[bctype_xhi_str[1]], bc[bctype_xhi_str[2]])};,
 				     elastic.bctype_yhi = {AMREX_D_DECL(bc[bctype_yhi_str[0]], bc[bctype_yhi_str[1]], bc[bctype_yhi_str[2]])};,
 				     elastic.bctype_zhi = {AMREX_D_DECL(bc[bctype_zhi_str[0]], bc[bctype_zhi_str[1]], bc[bctype_zhi_str[2]])};);
-
 
 				AMREX_D_TERM(pp_bc.queryarr("xlo",elastic.bc_xlo);, pp_bc.queryarr("ylo",elastic.bc_ylo);, pp_bc.queryarr("zlo",elastic.bc_zlo););
 				AMREX_D_TERM(pp_bc.queryarr("xhi",elastic.bc_xhi);, pp_bc.queryarr("yhi",elastic.bc_yhi);, pp_bc.queryarr("zhi",elastic.bc_zhi););
@@ -316,8 +320,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 							+ 0.5*DDkappa*(sinTheta*sinTheta*DDeta(0,0) - 2.*sinTheta*cosTheta*DDeta(0,1) + cosTheta*cosTheta*DDeta(1,1));
 						if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 			
-			
-						//driving_force += - (Boundary_term) + beta*(Curvature_term);
+						driving_force += - (Boundary_term) + beta*(Curvature_term);
 						if (std::isnan(driving_force)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 						
 #elif AMREX_SPACEDIM == 3
@@ -556,6 +559,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	{
 		SetTimestep(anisotropy.timestep);
 		SetPlotInt(anisotropy.plot_int);
+		SetThermoInt(anisotropy.plot_int);
+		SetThermoPlotInt(anisotropy.plot_int);
+
 	}
 
 	if (!elastic.on) return;
@@ -886,23 +892,43 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 
 void
-PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
+PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 				    const amrex::MFIter &mfi, const amrex::Box &box)
 {
 	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
 	const amrex::Real* DX = geom[amrlev].CellSize();
+	amrex::Array4<amrex::Real> const& eta    = (*eta_new_mf[amrlev]).array(mfi);
+	amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+		
+		Set::Scalar dv = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+		
+		volume += eta(i,j,k,0) * dv;
 
-	amrex::FArrayBox &eta_new  = (*eta_new_mf[amrlev])[mfi];
+		Set::Vector grad = Numeric::Gradient(eta,i,j,k,0,DX);
+		Set::Scalar normgrad = grad.lpNorm<2>();
 
-	
-	AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
-		     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
-		     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
-	{
-		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-		volume += eta_new(m,0)*AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
-	}
+		if (normgrad > 1E-8)
+		{
+			Set::Scalar da = normgrad * dv;
+			area += da;
+		
+			if (!anisotropy.on || time < anisotropy.tstart)
+			{
+				gbenergy += sigma0*da;
+			}
+			else
+			{
+#if AMREX_SPACEDIM == 2
+				Set::Scalar theta = atan2(grad(1),grad(0));
+				Set::Scalar sigma = boundary->W(theta);
+				gbenergy += sigma * da;
 
+				Set::Scalar k = 0.75 * sigma * l_gb;
+				realgbenergy += 0.5 * k * normgrad * normgrad * dv;
+#endif
+			}
+		}
+	});
 }
 
 }

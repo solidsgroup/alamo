@@ -113,6 +113,9 @@ private:
 	amrex::Vector<amrex::Real> sdf;
 
 	Set::Scalar volume = 5;
+	Set::Scalar area = 0.0;
+	Set::Scalar gbenergy = 0.0;
+	Set::Scalar realgbenergy = 0.0;
 
 	struct
 	{
