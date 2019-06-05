@@ -33,6 +33,7 @@ std::string GetFileName()
 		else if (pp.contains("plot_file"))
 		{
 			pp.query("plot_file", filename);
+			IO::FileNameParse(filename);
 		}
 		// else
 		// 	if (amrex::ParallelDescriptor::IOProcessor())
