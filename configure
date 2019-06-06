@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import argparse
 import os
 import re
@@ -18,14 +18,30 @@ class color:
     bggray = "\033[47m\033[30m"
 
 width = 20
-def message(msg):
-    return(color.boldgreen + msg.ljust(width) + color.reset)
-def warning():
-    return(color.boldyellow + "WARNING".ljust(width) + color.reset)
+def wrap(input_string):
+    pre = ""
+    wrapper = textwrap.TextWrapper(width=70)
+    for line in wrapper.wrap(input_string):
+        if line != "\n":
+            print(pre + line)
+            pre = "".ljust(width)
+def message(title,message="",wrap_message=True):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    if wrap_message: wrap(message)
+    else: print(message)
+def shellmessage(title,cmd):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
+def warning(message):
+    print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
+    wrap(message)
 def error():
     return(color.boldred + "ERROR".ljust(width) + color.reset)
 def code(code):
     return(color.bggray + code + color.reset);
+def note(message):
+    print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
+    wrap(message)
 
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
@@ -45,28 +61,24 @@ f = open("Makefile.conf","w")
 #
 # Current Repo settings
 #
-print(message("Current branch:")+ subprocess.check_output(['git','rev-parse','--abbrev-ref','HEAD']).split('\n')[0])
-print(message("Current Hash:")+ subprocess.check_output(['git','log','-1','--pretty=format:%H']).split('\n')[0])
+shellmessage("Current Branch", "git rev-parse --abbrev-ref HEAD")
+shellmessage("Current Hash",   "git log -1 --pretty=format:%H")
 
 #
 # DIMENSION
 #
 f.write("DIM = " + str(args.dim) + "\n")
-print(message("Dimension")+ str(args.dim))
+message("Dimension",str(args.dim))
 
 #
 # COMPILER
 #
-if (args.comp == "gcc"): f.write("COMP = GCC\n")
-elif (args.comp == "clang"): f.write("COMP = CLANG\n")
-elif (args.comp == "intel"): f.write("COMP = INTEL\n")
-print(message("Compiler") + str(args.comp))
 
 #
 # DEBUG
 #
 f.write("DEBUG = " + str(args.debug) + "\n")
-print(message("Debug Mode") + str(args.debug))
+message("Debug Mode",str(args.debug))
 
 #
 # AMREX
@@ -96,13 +108,13 @@ if (args.amrex != ""):
         else:
             raise Exception(error()+": Alamo is not in debug mode but AMReX is")
     if not args.debug and amrex_profiling:
-        print(warning()+"Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+        warning("Alamo compiled in production mode, but PROFILE is enabled in AMReX")
 
-    print(message("AMReX Directory") + args.amrex)
-    print(message("AMReX Git commit") + githash)
+    message("AMReX Directory", args.amrex)
+    message("AMReX Git commit", githash)
     f.write("AMREX = " + args.amrex + "\n")
 else:
-    print(warning()+"AMReX path not specified. This may cause compile errors.")
+    warning("AMReX path not specified. This may cause compile errors.")
 
 #
 # EIGEN
@@ -111,8 +123,7 @@ if (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
     print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
-    f.write("EIGEN = " + args.amrex + "\n")
-
+    f.write("EIGEN = " + args.eigen + "\n")
 
 #
 # Compiler
@@ -120,20 +131,12 @@ if (args.eigen != ""):
 
 if not args.comp in ['g++','icc','clang++']:
     raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
-
-pre = message("Comp. version")
-for line in subprocess.check_output([args.comp,'--version']).split('\n'):
-    if line != "":
-        print(pre + line)
-        pre = "".ljust(width)
-
-pre = message("MPI flags")
-wrapper = textwrap.TextWrapper(width=70)
-for line in wrapper.wrap(subprocess.check_output(['mpicxx','-cxx='+args.comp,'-show'])):
-    if line != "\n":
-        print(pre + line)
-        pre = "".ljust(width)
-
+if (args.comp == "gcc"): f.write("COMP = GCC\n")
+elif (args.comp == "clang"): f.write("COMP = CLANG\n")
+elif (args.comp == "intel"): f.write("COMP = INTEL\n")
+message("Compiler", str(args.comp))
+shellmessage("Comp. version",args.comp+" --version")
+shellmessage("MPI flags","mpicxx -cxx="+args.comp+" -show")
 f.write("CC = mpicxx -cxx="+args.comp+"\n")
 if args.comp == 'g++':     f.write("MPI_LIB = -lgfortran -lmpich\n")
 if args.comp == 'clang++': f.write("MPI_LIB = -lgfortran -lmpich\n")
@@ -155,33 +158,31 @@ if args.python:
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')
     f.write("CXX_COMPILE_FLAGS += -fPIC \n")
-    print(color.boldgreen + "Using Python:    " + color.reset + "True")
-    print(color.lightgray + "NOTE:            " + color.reset + "Be sure to add")
-    print(                  "                 USE_COMPILE_PIC=True")
-    print(                  "                 to the AMReX GNUMakefile!")
+    message("Python","True")
+    note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
 
 #
 # Documentation check
 #
 if (args.docs):
     #Doxygen
-    try: print(message("Doxygen version") + subprocess.check_output(['doxygen','--version']).split('\n')[0])
-    except: print(warning() + "Doxygen not installed - install using " + code("sudo apt install doxygen"))
+    try: shellmessage("Doxygen","doxygen --version")
+    except: print(color.red+ "Doxygen not installed - install using " + code("sudo apt install doxygen") )
     #GraphViz
-    try: print(message("GraphViz version") + subprocess.check_output(['dot','-V'], stderr=subprocess.STDOUT).split('\n')[0])
-    except: print(warning() + "GraphViz not installed - install using " + code("sudo apt install graphviz"))
+    try: shellmessage("GraphViz","dot -V")
+    except: print(color.red + "GraphViz not installed - install using " + code("sudo apt install graphviz"))
     #Sphinx
-    try: print(message("Sphinx Version") + subprocess.check_output(['sphinx-build','--version']).split('\n')[0])
-    except: print(warning() + "Sphinx not installed - install using " + code("sudo apt install python-sphinx"))
+    try: shellmessage("Sphinx","sphinx-build --version")
+    except: print(color.red + "Sphinx not installed - install using " + code("sudo apt install python-sphinx"))
     #Breathe
-    try: import breathe; print(message("Breathe version") + str(breathe.__version__)+ " (python 2)")
-    except: print(warning() + "Breathe not installed - install using " + code("pip install breathe"))
+    try: import breathe; message("Breathe version",str(breathe.__version__))
+    except: message("Breathe version", color.red + "Breathe not installed - install using " + code("pip install breathe"),False)
     #RTD
-    try: import sphinx_rtd_theme; print(message("RTD Theme") + str(sphinx_rtd_theme.__version__) + " (python 2)")
-    except: print(warning() + "RTD not installed - install using " + code("pip install sphinx_rtd_theme"))
+    try: import sphinx_rtd_theme; message("RTD Theme", str(sphinx_rtd_theme.__version__) + " (python 3)")
+    except: message("RTD Theme", color.red + "RTD not installed - install using " + code("pip install sphinx_rtd_theme"),False)
     #M2R
-    try: import m2r; print(message("M2R") + str(m2r.__version__) + " (python 2)")
-    except: print(warning() + "M2R not installed - install using " + code("pip install m2r"))
+    try: import m2r; message("M2R", str(m2r.__version__) + " (python 3)")
+    except: message("M2R",color.red + "M2R not installed - install using " + code("pip install m2r"))
 
 #
 # Specify Prefix

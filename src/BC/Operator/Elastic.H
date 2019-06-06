@@ -17,6 +17,8 @@ public:
 	// friend Test::Operator::Elastic;
 
 public:
+	/// The four types of boundary conditions are listed and evauluated here
+	///
 	enum Type {Displacement, Traction, Periodic, Neumann}; 
 	enum Face {AMREX_D_DECL(XLO=0,YLO=1,ZLO=2),
 		   AMREX_D_DECL(XHI=AMREX_SPACEDIM+0,YHI=AMREX_SPACEDIM+1,ZHI=AMREX_SPACEDIM+2)}; 
