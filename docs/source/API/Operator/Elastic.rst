@@ -19,25 +19,7 @@ Boundary operator
 -----------------
 
 If a point is located on the boundary then a boundary operator is used rather than the stress divergence operator.
-
-- Dirichlet/Essential/Displacement BC Operator:
-  For a Dirichlet point the Dirichlet boundary operator is used, \f$D_{\Omega_1}\f$.
-  This is nothing other than the identity operator, i.e.
-
-  :math:`D_{\Omega_1}(\mathbf{u}) = \mathbf{u},`
-
-  that is, it is the identity.
-  The value of the displacement is thus determined by the value of the corresponding point
-  in the right hand side during the solve.
- 
-- Natural/Traction BC Operator
-  This operator is similar to (but not the same as) a typical Neumann boundary condition.
-  The operator, denoted :math:`D_{\Omega_2}` is defined as
-
-  :math:`D_{\Omega_2}(\mathbf{u}) = \mathbb{C}\nabla\mathbf{u} \cdot \mathbf{n} = \sigma\cdot\mathbf{n}`
-
-  The output of this operator is a surface traction. The value of the surface traction is
-  specified in the right hand side during the solve.
+This can be found on the :cpp:`::BC::Operator::Elastic` page of the documentation.
 
 Solid Model Template Class
 --------------------------
