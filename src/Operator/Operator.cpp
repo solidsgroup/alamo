@@ -249,7 +249,10 @@ void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
 		 						  m_dmap[amrlev][mglev], getNComp(), nghost));
 		 }
 	 }
- }
+
+	 m_lobc.resize(getNComp(),{{AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)}});
+	 m_hibc.resize(getNComp(),{{AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)}});
+}
 
 
 void Operator<Grid::Node>::buildMasks ()
@@ -281,7 +284,7 @@ void Operator<Grid::Node>::buildMasks ()
 
 				Box ccdomain_p = ccdomain;
 				for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-					if (Geometry::isPeriodic(idim)) {
+					if (geom.isPeriodic(idim)) {
 						ccdomain_p.grow(idim, 1);
 					}
 				}
@@ -856,13 +859,17 @@ Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
 	
 	MLCellLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
-	m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
-	m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
-				  
+	Util::Warning(INFO,"This section of code has not been tested.");
+	for (int n = 0; n < getNComp(); n++)
+	{
+		m_lobc.push_back( {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+				       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+				       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)});
+		m_hibc.push_back( {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+				       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+				       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)});
+	}
+
 	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
 		setLevelBC(ilev,nullptr);
 
@@ -883,12 +890,12 @@ Operator<Grid::Cell>::BndryCondLoc::BndryCondLoc (const amrex::BoxArray& ba, con
 
 void
 Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
-					  const std::array<BCType,AMREX_SPACEDIM>& lobc,
-					  const std::array<BCType,AMREX_SPACEDIM>& hibc,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& lobc,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& hibc,
 					  int ratio, const amrex::RealVect& a_loc)
 {
 	const amrex::Box&  domain = geom.Domain();
-
+	Util::Warning(INFO,"This code has not been properlyt tested");
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
@@ -897,8 +904,7 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom
 		const amrex::Box& bx = mfi.validbox();
 		RealTuple & bloc  = bcloc[mfi];
 		BCTuple   & bctag = bcond[mfi];
-
-		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc);
+		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
 	}
 }
 
