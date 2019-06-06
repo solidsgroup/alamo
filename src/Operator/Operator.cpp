@@ -281,7 +281,7 @@ void Operator<Grid::Node>::buildMasks ()
 
 				Box ccdomain_p = ccdomain;
 				for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
-					if (Geometry::isPeriodic(idim)) {
+					if (geom.isPeriodic(idim)) {
 						ccdomain_p.grow(idim, 1);
 					}
 				}
@@ -856,12 +856,13 @@ Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
 	
 	MLCellLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
-	m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
-	m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
-			       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+	Util::Abort(INFO,"had to remove this to compile - need to address");
+	// m_lobc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+	// 		       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+	// 		       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
+	// m_hibc = {AMREX_D_DECL(is_periodic[0] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+	// 		       is_periodic[1] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet,
+	// 		       is_periodic[2] ? amrex::LinOpBCType::Periodic : amrex::LinOpBCType::Dirichlet)};
 				  
 	for (int ilev = 0; ilev < a_geom.size(); ++ilev)
 		setLevelBC(ilev,nullptr);
@@ -898,7 +899,8 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom
 		RealTuple & bloc  = bcloc[mfi];
 		BCTuple   & bctag = bcond[mfi];
 
-		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc);
+		Util::Abort(INFO,"Removed for compatibility. Need to fix.");
+		// amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc);
 	}
 }
 
