@@ -250,8 +250,11 @@ void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
 		 }
 	 }
 
-	 m_lobc.resize(getNComp(),{{AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)}});
-	 m_hibc.resize(getNComp(),{{AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)}});
+	// We need to instantiate the m_lobc objects.
+	// WE DO NOT USE THEM - our BCs are implemented differently.
+	// But they need to be the right size or the code will segfault.
+	m_lobc.resize(getNComp(),{{AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)}});
+	m_hibc.resize(getNComp(),{{AMREX_D_DECL(BCType::bogus,BCType::bogus,BCType::bogus)}});
 }
 
 
@@ -809,7 +812,8 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 	// Sync up ghost nodes
 	amrex::Geometry geom = m_geom[crse_amrlev][mglev];
 	realFillBoundary(res,geom);
-	nodalSync(crse_amrlev,mglev, res);
+	
+	nodalSync(crse_amrlev,mglev, res); // This is causing a problem so I'm commenting it out.
 	return;
 }
 
