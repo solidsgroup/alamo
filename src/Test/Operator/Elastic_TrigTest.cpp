@@ -99,8 +99,6 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
 	mlmg.setVerbose(verbose);
  	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
-	Set::Scalar tol_rel = 1E-8;
-	Set::Scalar tol_abs = 0;
 
  	mlmg.solve(GetVecOfPtrs(solution_numeric),
 		   GetVecOfConstPtrs(rhs_prescribed),

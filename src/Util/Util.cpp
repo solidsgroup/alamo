@@ -73,7 +73,7 @@ void SignalHandler(int s)
 void Initialize ()
 {
 	int argc = 0;
-	char * argv[0];
+	char **argv = nullptr;
 	Initialize(argc,argv);
 }
 void Initialize (int argc, char* argv[])
