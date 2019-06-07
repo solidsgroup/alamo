@@ -54,6 +54,7 @@ parser.add_argument('--debug', dest='debug', action='store_true', help='Compile 
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
+parser.add_argument('--python3',dest='python3',action='store_true',help='Compile python3 interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.set_defaults(debug=False)
 args=parser.parse_args();
@@ -174,6 +175,19 @@ if args.python:
         raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
     #if not (os.path.isfile(python_boost_lib)):
     #    raise Exception(color.red+"ERROR"+color.reset+": Python Boost library does not exist (Try installing libboost-python-dev)")
+
+    f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
+    f.write("PYTHON_LIB = " + python_boost_lib + '\n')
+    f.write("CXX_COMPILE_FLAGS += -fPIC \n")
+    message("Python","True")
+    note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
+
+if args.python3:
+    python_include_dir = "/usr/include/python3.6/" 
+    python_boost_lib = "-lboost_python3-py36"
+
+    if not (os.path.isdir(python_include_dir)):
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
 
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')

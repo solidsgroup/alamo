@@ -1,14 +1,13 @@
 #ifndef UTIL_UTIL_H
 #define UTIL_UTIL_H
 
-#include "Set/Set.H"
 #include <iostream>
 #include <iomanip>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <iterator>
 #include <algorithm>
-
+#include <complex>
 #include <stdlib.h>
 
 #include <string>
@@ -36,8 +35,6 @@ T Parse(std::string);
 template<>
 std::complex<int> Parse(std::string);
 }
-
-Set::Scalar Random();
 
 std::string GetFileName();
 

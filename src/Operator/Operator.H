@@ -173,8 +173,8 @@ protected:
 	public:
 		BndryCondLoc (const amrex::BoxArray& ba, const amrex::DistributionMapping& dm);
 		void setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
-				      const std::array<BCType,AMREX_SPACEDIM>& lobc,
-				      const std::array<BCType,AMREX_SPACEDIM>& hibc,
+				      const amrex::Array<BCType,AMREX_SPACEDIM>& lobc,
+				      const amrex::Array<BCType,AMREX_SPACEDIM>& hibc,
 				      int ratio, const amrex::RealVect& a_loc);
 		const BCTuple& bndryConds (const amrex::MFIter& mfi) const {
 			return bcond[mfi];

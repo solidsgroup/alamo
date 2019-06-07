@@ -51,7 +51,14 @@ public:
 	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
 
+	/// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
+	///
 	void SetBC (::BC::Operator::Elastic<T> *a_bc) {m_bc = a_bc;};
+
+	/// Compute strain \f$\mathbf{\epsilon}\f$ given the displacement field \f$\mathbf{u}\f$
+	/// by
+	///   \f[\mathbf{\epsilon}_{ij} = \frac{1}{2}(u_{i,j} + u_{j,i})\f]
+	/// 
 	void Strain (int amrlev, amrex::MultiFab& epsfab, const amrex::MultiFab& ufab, bool voigt = false) const;
 
 	/// Compute stress \f$\mathbf{\sigma}\f$ given the displacement field \f$\mathbf{u}\f$
@@ -60,7 +67,16 @@ public:
 	/// where, \f$\mathbb{C}\f$ is furnished by the templated `model`
 	/// 
 	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
+
+	/// Compute energy density \f$\mathbb{W}\f$ given the displacement field \f$\mathbf{u}\f$
+	/// by
+	///   \f[\mathbb{W} = \mathbb{\Sigma}\mathbb{\Sigma}\mathbf{\sigma}_{ij}\mathbf{\epsilon}_{ij}\f]
+	/// where \f$\mathbf{\sigma}\f$ and \f$\mathbf{\epsilon}\f$ are as defined above
+	///
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
+
+	/// This function is depricated and should not be used. Use the other `SetBC` function.
+	///
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
 		   const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_hi)
 	{
