@@ -57,8 +57,12 @@ Integrator::Integrator ()
 	}
 	{
 		ParmParse pp("amr.thermo"); // AMR specific parameters
-		pp.query("intvar_int", intvar_int);     // ALL processors
-		pp.query("intvar_plot", intvar_plot);         // ALL processors
+		thermo.interval = 1; // Default: integrate every time.
+		pp.query("int", thermo.interval);     // ALL processors
+		thermo.plot = thermo.interval; // by default, plot every time integrated variable is captured
+		pp.query("plot", plot_int);         // ALL processors
+		if (thermo.plot < thermo.interval) Util::Abort(INFO,"amr.thermo.interval must be greater than or equal to amr.thermo.plot");
+		if (thermo.plot % thermo.interval) Util::Abort(INFO,"amr.thermo.plot must be divisible by amr.thermo.interval");
 	}
 
 
@@ -261,10 +265,9 @@ void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name)
 {
 	BL_PROFILE("Integrator::RegisterIntegratedVariable");
-	intvar_array.push_back(integrated_variable);
-	intvar_names.push_back(name);
-	Util::Message(INFO,intvar_array[0]);
-	number_of_intvars++;
+	thermo.vars.push_back(integrated_variable);
+	thermo.names.push_back(name);
+	thermo.number++;
 }
 
 long // CUSTOM METHOD - CHANGEABLE
@@ -394,7 +397,6 @@ Integrator::InitData ()
 	}
   
 	if (plot_int > 0) {
-		for (int ilev = 0; ilev < finest_level+1; ilev++) 
 		WritePlotFile();
 	}
 }
@@ -447,7 +449,7 @@ Integrator::PlotFileName (int lev) const
 }
 
 void
-Integrator::WritePlotFile () const
+Integrator::WritePlotFile (bool initial) const
 {
 	BL_PROFILE("Integrator::WritePlotFile");
 	const int nlevels = finest_level+1;
@@ -487,10 +489,6 @@ Integrator::WritePlotFile () const
 		// (*(*cell.fab_array[3])[ilev]).setVal(0.0);
 		for (int i = 0; i < cell.number_of_fabs; i++)
 		{
-			amrex::IntVect where;
-			// if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
-			// if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
-
 			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 			n += cell.ncomp_array[i];
 		}
@@ -505,7 +503,8 @@ Integrator::WritePlotFile () const
 		}
 	}
 
-	const std::vector<std::string>& plotfilename = PlotFileName(istep[0]);
+	std::vector<std::string> plotfilename = PlotFileName(istep[0]);
+	if (initial) plotfilename[1] = plotfilename[1] + "init";
   
 	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
 				Geom(), t_new[0],istep, refRatio());
@@ -587,12 +586,12 @@ void
 Integrator::IntegrateVariables (Real time, int step)
 {
 	BL_PROFILE("Integrator::IntegrateVariables");
-	if (!number_of_intvars) return;
+	if (!thermo.number) return;
 
-	if (!(step % intvar_int))
+	if (!(step % thermo.interval))
 	{
 		// Zero out all variables
-		for (int i = 0; i < number_of_intvars; i++) *intvar_array[i] = 0; 
+		for (int i = 0; i < thermo.number; i++) *thermo.vars[i] = 0; 
 
 		// All levels except the finest
 		for (int ilev = 0; ilev < max_level; ilev++)
@@ -623,26 +622,26 @@ Integrator::IntegrateVariables (Real time, int step)
 		}
 
 		// Sum up across all processors
-		for (int i = 0; i < number_of_intvars; i++) 
+		for (int i = 0; i < thermo.number; i++) 
 		{
-			amrex::ParallelDescriptor::ReduceRealSum(*intvar_array[i]);
+			amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
 		}
 	}
-	if (!(step % intvar_plot) && 	ParallelDescriptor::IOProcessor())
+	if (!(step % thermo.plot) && 	ParallelDescriptor::IOProcessor())
 	{
 		std::ofstream outfile;
 		if (step==0)
 		{
 			outfile.open(plot_file+"/thermo.dat",std::ios_base::out);
 			outfile << "time";
-			for (int i = 0; i < number_of_intvars; i++) 
-				outfile << "\t" << intvar_names[i];
+			for (int i = 0; i < thermo.number; i++) 
+				outfile << "\t" << thermo.names[i];
 			outfile << std::endl;
 		}
 		else outfile.open(plot_file+"/thermo.dat",std::ios_base::app);
 		outfile << time;
-		for (int i = 0; i < number_of_intvars; i++)
-			outfile << "\t" << *intvar_array[i];
+		for (int i = 0; i < thermo.number; i++)
+			outfile << "\t" << *thermo.vars[i];
 		outfile << std::endl;
 		outfile.close();
 	}

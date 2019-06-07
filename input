@@ -1,17 +1,13 @@
-#timestep = 0.05
 timestep = 0.1
-#stop_time = 200.0 
-stop_time = 1.0
+stop_time = 200.0 
 
-plot_file = output
+#plot_file = output_%DD_%Y%m%d_%H%M%S
 
 amr.plot_int = 10
-#amr.max_level = 3
 amr.max_level = 2
-#amr.n_cell = 32 4
-#amr.n_cell = 32 32 32
-amr.n_cell = 64 64 64
-amr.blocking_factor = 8
+amr.n_cell = 64 64 4
+#amr.n_cell = 64 64 64
+amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 #amr.max_grid_size = 8
@@ -21,27 +17,25 @@ amr.grid_eff = 1.0
 #ic.radius = 2
 
 ic.type=perturbed_interface
-ic.normal=z
+ic.normal=x
 ic.offset=4.0
-ic.wave_numbers=32
-ic.wave_numbers=2
-ic.wave_amplitudes=0.05
-ic.wave_amplitudes=1.0
+#ic.wave_numbers=2
+#ic.wave_amplitudes=1.0
+ic.wave_numbers=32 16 8
+ic.wave_amplitudes=0.1 0.05 0.05
 
-#geometry.prob_lo = 0 -0.5
-#geometry.prob_hi = 8 0.5
-geometry.prob_lo = 0 0 0
-geometry.prob_hi = 8 8 8
-geometry.is_periodic= 1 1 0
+geometry.prob_lo = 0 0 -0.25
+geometry.prob_hi = 8 8 0.25
+geometry.is_periodic= 0 1 1
 
-bc.hi = INT_DIR INT_DIR EXT_DIR
-bc.lo = INT_DIR INT_DIR EXT_DIR
-bc.lo_1 = 0.0 1.0
+bc.hi = EXT_DIR INT_DIR INT_DIR
+bc.lo = EXT_DIR INT_DIR INT_DIR
+bc.lo_1 = 1.0 0.0
 bc.hi_1 = 0.0 1.0
-bc.lo_2 = 0.0 1.0
-bc.hi_2 = 0.0 1.0
-bc.lo_3 = 1.0 0.0
-bc.hi_3 = 0.0 1.0
+bc.lo_2 = 0.0 0.0
+bc.hi_2 = 0.0 0.0
+bc.lo_3 = 0.0 0.0
+bc.hi_3 = 0.0 0.0
 
 pf.number_of_grains = 2
 pf.M = 1.0
@@ -51,17 +45,21 @@ pf.l_gb=0.1
 pf.sigma0=0.075
 
 anisotropy.on=1
-anisotropy.plot_int=100
+#anisotropy.plot_int=200
+anisotropy.plot_int=50
 #anisotropy.timestep=0.001 # Works
 #anisotropy.timestep=0.01 # Breaks
 #anisotropy.timestep=0.005 # Breaks at 2.02
+#anisotropy.timestep=0.001
 anisotropy.timestep=0.001
 anisotropy.tstart= 2.
-anisotropy.theta0= 45
-anisotropy.sigma0=0.075
-anisotropy.sigma1=0.15
-#anisotropy.beta= 0.0001
-anisotropy.beta= 0.00005
+#anisotropy.theta0= 10
+anisotropy.theta0= 20
+#anisotropy.sigma0=0.075
+anisotropy.sigma0=0.5 #0.15
+anisotropy.sigma1=0.5 #0.15
+#anisotropy.beta= 0.00005
+anisotropy.beta= 0.000025
 anisotropy.damp=1.0
 
 

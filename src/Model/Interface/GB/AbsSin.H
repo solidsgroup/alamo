@@ -6,8 +6,8 @@
 
 #include "AMReX.H"
 #include "GB.H"
-
-#define PI 3.14159265 
+#include "Set/Set.H"
+#include "Util/Util.H"
 
 namespace Model
 {
@@ -18,12 +18,25 @@ namespace GB
 class AbsSin : public GB
 {
 public:
+  AbsSin()
+  {       
+  };
   AbsSin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
   {       
-    theta0 = _theta0;
-    sigma0 = _sigma0;
-    sigma1 = _sigma1;
+    Define(_theta0,sigma0,sigma1);
   };
+	void Define(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
+	{
+		theta0 = _theta0;
+		sigma0 = _sigma0;
+		sigma1 = _sigma1;
+	};
+	void Randomize()
+	{
+		theta0 = Util::Random()*Set::Constant::Pi;
+		sigma0 = Util::Random();
+		sigma1 = Util::Random();
+	};
   amrex::Real W(amrex::Real theta)
   {
     //sigma(theta)=sigma0+sigma1*fabs(sin(n*(theta-theta0)))

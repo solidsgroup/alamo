@@ -90,10 +90,18 @@ private:
 	BC::BC *mybc;
 
 	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
-	int anisotropy = 0;
-	amrex::Real anisotropy_timestep;
-	amrex::Real anisotropy_tstart;
-	int anisotropy_plot_int;
+
+	struct {
+		int on = 0;
+		Set::Scalar timestep;
+		Set::Scalar tstart;
+		int plot_int;
+		Set::Scalar theta0,sigma0,sigma1;
+	} anisotropy;
+	
+	//amrex::Real anisotropy_timestep;
+	//amrex::Real anisotropy_tstart;
+	//int anisotropy_plot_int;
 
 	std::string ic_type, gb_type, filename;
 
@@ -105,6 +113,9 @@ private:
 	amrex::Vector<amrex::Real> sdf;
 
 	Set::Scalar volume = 5;
+	Set::Scalar area = 0.0;
+	Set::Scalar gbenergy = 0.0;
+	Set::Scalar realgbenergy = 0.0;
 
 	struct
 	{

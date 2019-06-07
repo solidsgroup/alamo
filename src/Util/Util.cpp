@@ -33,6 +33,7 @@ std::string GetFileName()
 		else if (pp.contains("plot_file"))
 		{
 			pp.query("plot_file", filename);
+			IO::FileNameParse(filename);
 		}
 		// else
 		// 	if (amrex::ParallelDescriptor::IOProcessor())
@@ -268,11 +269,6 @@ std::complex<int> Parse(std::string input)
 
 }
 
-
-Set::Scalar Random()
-{
-	return ((Set::Scalar) rand()) / ((Set::Scalar) RAND_MAX);
-}
 
 namespace Test
 {
