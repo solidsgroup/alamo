@@ -99,6 +99,11 @@ private:
 		Set::Scalar theta0,sigma0,sigma1;
 	} anisotropy;
 	
+	struct { 
+		int on = 0;
+		amrex::Vector<amrex::Real> val;
+	} sdf;
+
 	//amrex::Real anisotropy_timestep;
 	//amrex::Real anisotropy_tstart;
 	//int anisotropy_plot_int;
@@ -108,9 +113,6 @@ private:
 	Model::Interface::GB::GB *boundary;
 
 	IC::IC *ic;
-
-	bool sdf_on = false;
-	amrex::Vector<amrex::Real> sdf;
 
 	Set::Scalar volume = 5;
 	Set::Scalar area = 0.0;

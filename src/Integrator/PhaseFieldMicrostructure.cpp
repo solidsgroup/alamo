@@ -30,16 +30,22 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("gamma", gamma);
 		pp.query("sigma0", sigma0);
 		pp.query("l_gb", l_gb);
-		pp.query("sdf_on", sdf_on);
-		if (sdf_on)
-		{
-			sdf.resize(number_of_grains);
-			pp.queryarr("sdf",sdf);
-		}
 	}
 	{
 		amrex::ParmParse pp("amr");
 		pp.query("max_level",max_level);
+	}
+	{
+		amrex::ParmParse pp("sdf");
+		pp.query("on", sdf.on);
+		if (sdf.on)
+		{
+			sdf.val.resize(number_of_grains);
+			pp.queryarr("val",sdf.val);
+			SetThermoInt(1);
+			SetPlotInt(1);
+
+		}
 	}
 	{
 		amrex::ParmParse pp("anisotropy"); // Phase-field model parameters
@@ -124,7 +130,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterNewFab(etas_mf, 1, "Etas");
 	RegisterNewFab(n_mf, mybc, AMREX_SPACEDIM, number_of_ghost_cells, "N");
 
-	volume = 10;
+	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
 	RegisterIntegratedVariable(&area, "area");
 	RegisterIntegratedVariable(&gbenergy, "gbenergy");
@@ -422,10 +428,10 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					//
 					// SYNTHETIC DRIVING FORCE
 					//
-					// if (sdf_on)
-					// {
-					// 	etanew(i,j,k,m) -=  M*dt*(sdf[i]);
-					// }
+					if (sdf.on && m==0 && time > 2.0)
+					{
+					 	driving_force +=  0.1 * (volume - 10.0);
+					}
 
 					//
 					// ELASTIC DRIVING FORCE
