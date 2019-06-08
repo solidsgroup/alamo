@@ -1,7 +1,8 @@
 timestep = 0.1
-stop_time = 200.0 
+stop_time = 400.0 
 
 #plot_file = output_%DD_%Y%m%d_%H%M%S
+plot_file = output
 
 amr.plot_int = 10
 amr.max_level = 2
@@ -12,17 +13,12 @@ amr.regrid_int = 10
 amr.grid_eff = 1.0
 #amr.max_grid_size = 8
 
-#ic.type = sphere
-#ic.center = 4 4 4
-#ic.radius = 2
 
-ic.type=perturbed_interface
-ic.normal=x
-ic.offset=4.0
-#ic.wave_numbers=2
-#ic.wave_amplitudes=1.0
-ic.wave_numbers=32 16 8
-ic.wave_amplitudes=0.1 0.05 0.05
+#ic.type=perturbed_interface
+#ic.normal=x
+#ic.offset=4.0
+#ic.wave_numbers=32 16 8
+#ic.wave_amplitudes=0.1 0.05 0.05
 
 geometry.prob_lo = 0 0 -0.25
 geometry.prob_hi = 8 8 0.25
@@ -37,27 +33,36 @@ bc.hi_2 = 0.0 0.0
 bc.lo_3 = 0.0 0.0
 bc.hi_3 = 0.0 0.0
 
+ic.type = sphere
+ic.center = 4 4 4
+ic.radius = 2
+sdf.on = 1
+sdf.val = 0.5 0.0
+bc.lo_1 = 0.0 1.0
+bc.hi_1 = 0.0 1.0
+
+
 pf.number_of_grains = 2
 pf.M = 1.0
 pf.mu = 10.0 
 pf.gamma = 1.0
 pf.l_gb=0.1
+#pf.sigma0=0.075
 pf.sigma0=0.075
+
+
 
 anisotropy.on=1
 #anisotropy.plot_int=200
 anisotropy.plot_int=50
-#anisotropy.timestep=0.001 # Works
-#anisotropy.timestep=0.01 # Breaks
-#anisotropy.timestep=0.005 # Breaks at 2.02
-#anisotropy.timestep=0.001
 anisotropy.timestep=0.001
-anisotropy.tstart= 2.
+anisotropy.tstart= 20.
 #anisotropy.theta0= 10
 anisotropy.theta0= 20
-#anisotropy.sigma0=0.075
-anisotropy.sigma0=0.5 #0.15
-anisotropy.sigma1=0.5 #0.15
+anisotropy.sigma0=0.075
+#anisotropy.sigma0=0.5 #0.15
+#anisotropy.sigma1=0.5 #0.15
+anisotropy.sigma1=0.075 #0.15
 #anisotropy.beta= 0.00005
 anisotropy.beta= 0.000025
 anisotropy.damp=1.0
