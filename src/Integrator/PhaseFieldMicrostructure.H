@@ -101,7 +101,8 @@ private:
 	
 	struct { 
 		int on = 0;
-		amrex::Vector<amrex::Real> val;
+		Set::Scalar vol0 = 0.0;
+		Set::Scalar lambda = 0.0;
 	} sdf;
 
 	//amrex::Real anisotropy_timestep;

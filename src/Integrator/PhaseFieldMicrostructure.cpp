@@ -11,6 +11,7 @@
 #include "Util/Util.H"
 #include "IC/Random.H"
 #include "IC/Trig.H"
+#include "IC/Sphere.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
@@ -40,10 +41,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("on", sdf.on);
 		if (sdf.on)
 		{
-			sdf.val.resize(number_of_grains);
-			pp.queryarr("val",sdf.val);
+			pp.query("lambda",sdf.lambda);
+			pp.query("vol0",sdf.vol0);
 			SetThermoInt(1);
-			SetPlotInt(1);
+			//SetPlotInt(1);
 
 		}
 	}
@@ -430,7 +431,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					//
 					if (sdf.on && m==0 && time > 2.0)
 					{
-					 	driving_force +=  0.1 * (volume - 10.0);
+					 	driving_force +=  sdf.lambda * (volume - sdf.vol0);
 					}
 
 					//
@@ -813,7 +814,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 
 
-	WritePlotFile();
+	//WritePlotFile();
 	//Util::Message(INFO,(*displacement[0])[0]);
 	Util::Abort(INFO);
 	//Util::Message(INFO,(*displacement[0])[0]);
