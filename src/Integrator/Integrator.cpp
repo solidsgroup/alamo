@@ -29,6 +29,7 @@ Integrator::Integrator ()
 		//pp.query("check_file", check_file);   // Not currently used
 		//pp.query("check_int", check_int);     // Not currently used
 		pp.query("plot_int", plot_int);         // ALL processors
+		pp.query("plot_dt", plot_dt);         // ALL processors
 		pp.query("plot_file", plot_file);       // IO Processor only
 		//pp.query("restart", restart_chkfile); // Not currently used
 		pp.query("plot_file", plot_file);       // IO Processor only
@@ -59,10 +60,8 @@ Integrator::Integrator ()
 		ParmParse pp("amr.thermo"); // AMR specific parameters
 		thermo.interval = 1; // Default: integrate every time.
 		pp.query("int", thermo.interval);     // ALL processors
-		thermo.plot = thermo.interval; // by default, plot every time integrated variable is captured
-		pp.query("plot", plot_int);         // ALL processors
-		if (thermo.plot < thermo.interval) Util::Abort(INFO,"amr.thermo.interval must be greater than or equal to amr.thermo.plot");
-		if (thermo.plot % thermo.interval) Util::Abort(INFO,"amr.thermo.plot must be divisible by amr.thermo.interval");
+		pp.query("plot_int", thermo.plot_int);         // ALL processors
+		pp.query("plot_dt", thermo.plot_dt);         // ALL processors
 	}
 
 
@@ -396,7 +395,7 @@ Integrator::InitData ()
 		// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
 	}
   
-	if (plot_int > 0) {
+	if (plot_int > 0 || plot_dt > 0.0) {
 		WritePlotFile();
 	}
 }
@@ -570,6 +569,13 @@ Integrator::Evolve ()
 		}
 
 		if (plot_int > 0 && (step+1) % plot_int == 0) {
+			Util::Message(INFO,"plot_int=",plot_int," step = ",step);
+			last_plot_file_step = step+1;
+			WritePlotFile();
+			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));
+		}
+		else if (std::fabs(std::remainder(cur_time,plot_dt)) < 0.5*dt[0])
+		{
 			last_plot_file_step = step+1;
 			WritePlotFile();
 			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));
@@ -588,7 +594,8 @@ Integrator::IntegrateVariables (Real time, int step)
 	BL_PROFILE("Integrator::IntegrateVariables");
 	if (!thermo.number) return;
 
-	if (!(step % thermo.interval))
+	if ( (thermo.interval > 0 && (step) % thermo.interval == 0) ||
+		 (thermo.dt > 0.0 & std::fabs(std::remainder(time,plot_dt)) < 0.5*dt[0]))
 	{
 		// Zero out all variables
 		for (int i = 0; i < thermo.number; i++) *thermo.vars[i] = 0; 
@@ -627,7 +634,11 @@ Integrator::IntegrateVariables (Real time, int step)
 			amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
 		}
 	}
-	if (!(step % thermo.plot) && 	ParallelDescriptor::IOProcessor())
+	if ( ParallelDescriptor::IOProcessor() &&
+		 (
+			 (thermo.plot_int > 0 && step % thermo.plot_int == 0) ||
+			 (thermo.dt > 0.0 && std::fabs(std::remainder(time,thermo.plot_dt) < dt[0]))
+		 ))
 	{
 		std::ofstream outfile;
 		if (step==0)

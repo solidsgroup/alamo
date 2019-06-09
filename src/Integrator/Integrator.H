@@ -213,7 +213,7 @@ protected:
 	void SetTimestep(Set::Scalar _timestep);
 	void SetPlotInt(int plot_int);
 	void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
-	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot = a_thermo_plot_int;}
+	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot_int = a_thermo_plot_int;}
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
@@ -286,8 +286,10 @@ protected:
 
 	// KEEP TRACK OF ALL INTEGRATED VARIABLES
 	struct{
-		int interval = 1;
-		int plot = 1;
+		int interval = -1;
+		Set::Scalar dt = -1.0;
+		int plot_int = -1;
+		Set::Scalar plot_dt = -1.0;
 		int number = 0;
 		std::vector<Set::Scalar *> vars;
 		std::vector<std::string> names;
@@ -303,6 +305,7 @@ protected:
 
 protected:
 	int plot_int = -1;               ///< How frequently to dump plot file (default: never)
+	Set::Scalar plot_dt = -1.0;
 };
 }
 #endif

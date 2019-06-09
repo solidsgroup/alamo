@@ -4,7 +4,9 @@ stop_time = 400.0
 #plot_file = output_%DD_%Y%m%d_%H%M%S
 plot_file = output
 
-amr.plot_int = 10
+thermo.plot_dt = 0.1
+
+amr.plot_dt = 1.0
 amr.max_level = 2
 amr.n_cell = 64 64 4
 #amr.n_cell = 64 64 64
@@ -36,8 +38,11 @@ bc.hi_3 = 0.0 0.0
 ic.type = sphere
 ic.center = 4 4 4
 ic.radius = 2
+
 sdf.on = 1
-sdf.val = 0.5 0.0
+sdf.lambda = 0.1
+sdf.vol0 = 12.7
+
 bc.lo_1 = 0.0 1.0
 bc.hi_1 = 0.0 1.0
 
@@ -53,12 +58,11 @@ pf.sigma0=0.075
 
 
 anisotropy.on=1
-#anisotropy.plot_int=200
-anisotropy.plot_int=50
 anisotropy.timestep=0.001
-anisotropy.tstart= 20.
+anisotropy.tstart= 5.0
 #anisotropy.theta0= 10
-anisotropy.theta0= 20
+anisotropy.gb_type = abssin
+anisotropy.theta0= 0.0
 anisotropy.sigma0=0.075
 #anisotropy.sigma0=0.5 #0.15
 #anisotropy.sigma1=0.5 #0.15
