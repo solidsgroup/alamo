@@ -43,6 +43,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		{
 			pp.query("lambda",sdf.lambda);
 			pp.query("vol0",sdf.vol0);
+			pp.query("tstart",sdf.tstart);
 			SetThermoInt(1);
 			//SetPlotInt(1);
 
@@ -63,6 +64,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("timestep",anisotropy.timestep);
 		anisotropy.plot_int = plot_int;
 		pp.query("plot_int",anisotropy.plot_int);
+		anisotropy.plot_dt = plot_dt;
+		pp.query("plot_int",anisotropy.plot_dt);
 
 		if(gb_type=="abssin")
 			boundary = new Model::Interface::GB::AbsSin(anisotropy.theta0,
@@ -429,7 +432,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					//
 					// SYNTHETIC DRIVING FORCE
 					//
-					if (sdf.on && m==0 && time > 2.0)
+					if (sdf.on && m==0 && time > sdf.tstart)
 					{
 					 	driving_force +=  sdf.lambda * (volume - sdf.vol0);
 					}

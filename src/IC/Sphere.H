@@ -17,6 +17,7 @@ public:
 		amrex::ParmParse pp("ic");
 		pp.queryarr("center",center);
 		pp.query("radius",radius);
+		pp.query("dim",dim);
 	}
   
 	void Add(const int lev,
@@ -45,9 +46,12 @@ public:
 									 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
 									 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
 					}
-					if ( AMREX_D_TERM((x-center[0])*(x-center[0]), +
-									  (y-center[1])*(y-center[1]), +
-									  (z-center[2])*(z-center[2])) < radius*radius)
+					Set::Scalar rsq = 0.0;
+
+					AMREX_D_TERM(if (dim >= 1) rsq += (x-center[0])*(x-center[0]);,
+								 if (dim >= 2) rsq += (y-center[1])*(y-center[1]);,
+								 if (dim >= 3) rsq += (z-center[2])*(z-center[2]););
+					if ( rsq < radius*radius)
 					{
 						field(i,j,k,0) = 1.;     
 						field(i,j,k,1) = 0.;     
@@ -63,6 +67,7 @@ public:
 	};
   
 private:
+	int dim = AMREX_SPACEDIM;
 	amrex::Vector<amrex::Real> center;
 	amrex::Real radius;
 };

@@ -62,6 +62,7 @@ Integrator::Integrator ()
 		pp.query("int", thermo.interval);     // ALL processors
 		pp.query("plot_int", thermo.plot_int);         // ALL processors
 		pp.query("plot_dt", thermo.plot_dt);         // ALL processors
+		Util::Message(INFO,thermo.plot_int," ",thermo.plot_dt);
 	}
 
 
@@ -634,10 +635,11 @@ Integrator::IntegrateVariables (Real time, int step)
 			amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
 		}
 	}
+	Util::Message(INFO,thermo.plot_int," ",thermo.plot_dt);
 	if ( ParallelDescriptor::IOProcessor() &&
 		 (
 			 (thermo.plot_int > 0 && step % thermo.plot_int == 0) ||
-			 (thermo.dt > 0.0 && std::fabs(std::remainder(time,thermo.plot_dt) < dt[0]))
+			 (thermo.plot_dt > 0.0 && std::fabs(std::remainder(time,thermo.plot_dt) < dt[0]))
 		 ))
 	{
 		std::ofstream outfile;

@@ -95,12 +95,14 @@ private:
 		int on = 0;
 		Set::Scalar timestep;
 		Set::Scalar tstart;
-		int plot_int;
+		int plot_int = -1;
+		Set::Scalar plot_dt = -1.0;
 		Set::Scalar theta0,sigma0,sigma1;
 	} anisotropy;
 	
 	struct { 
 		int on = 0;
+		Set::Scalar tstart = 0.0;
 		Set::Scalar vol0 = 0.0;
 		Set::Scalar lambda = 0.0;
 	} sdf;
