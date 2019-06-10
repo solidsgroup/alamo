@@ -85,12 +85,16 @@ public:
 				}
 
 				amrex::Real bdry = 0.;
+				Set::Scalar s1, s2;
+				if (normal==Direction::X) {s1 = x2; s2 = x3;}
+				if (normal==Direction::Y) {s1 = x3; s2 = x1;}
+				if (normal==Direction::Z) {s1 = x1; s2 = x1;}
 				for (int n = 0; n < wave_numbers.size(); n++)
 					bdry += wave_amplitudes[n]
-						* (fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*x1 / L1) +
-						   fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*x1 / L1))
-						* (fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*x2 / L1) +
-						   fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*x2 / L1));
+						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s1 / L1) +
+							fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s1 / L1))
+						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s2 / L1) +
+					 	    fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s2 / L1));
 
 				
 				if ((normal == Direction::X && x1 < bdry + offset)||

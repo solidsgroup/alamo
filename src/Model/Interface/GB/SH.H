@@ -57,7 +57,7 @@ public:
 	};
 	amrex::Real W(const Set::Scalar a_theta, const Set::Scalar a_phi) const
 	{
-		return sigma0 - sigma1*cos(2*(a_phi))*cos(2*(a_phi)) * sin(2*(a_theta))*sin(2*(a_theta));
+		return sigma0 + sigma1*(1.0 - (cos(2*(a_phi))*cos(2*(a_phi)) * sin(2*(a_theta))*sin(2*(a_theta))));
 	};
 	std::array<Set::Scalar,2> DW(const Set::Scalar a_theta, const Set::Scalar a_phi) const
 	{
