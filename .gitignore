@@ -25,5 +25,8 @@ docs/doxygen
 docs/html
 docs/latex
 *.d
+TrigTest*
 testoutput*
 Makefile.conf
+*.so
+.vscode

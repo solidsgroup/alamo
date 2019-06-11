@@ -1,46 +1,84 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+import argparse
+import os
+import re
+import subprocess
+import textwrap
 
 class color:
     reset = "\033[0m"
     red   = "\033[31m"
     green   = "\033[32m"
+    lightgray = "\033[37m"
+    boldgray = "\033[1m\033[37m"
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
-import argparse
-import os
-import re
+    boldred   = "\033[1m\033[31m"
+
+    bggray = "\033[47m\033[30m"
+
+width = 20
+def wrap(input_string):
+    pre = ""
+    wrapper = textwrap.TextWrapper(width=70)
+    for line in wrapper.wrap(input_string):
+        if line != "\n":
+            print(pre + line)
+            pre = "".ljust(width)
+def message(title,message="",wrap_message=True):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    if wrap_message: wrap(message)
+    else: print(message)
+def shellmessage(title,cmd):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
+def warning(message):
+    print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
+    wrap(message)
+def error():
+    return(color.boldred + "ERROR".ljust(width) + color.reset)
+def code(code):
+    return(color.bggray + code + color.reset);
+def note(message):
+    print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
+    wrap(message)
+
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
-parser.add_argument('--comp', default="gcc", help='Compiler. Options: [gcc], clang, intel')
+parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
+parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
+parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.set_defaults(debug=False)
 args=parser.parse_args();
 
 f = open("Makefile.conf","w")
 
 #
+# Current Repo settings
+#
+shellmessage("Current Branch", "git rev-parse --abbrev-ref HEAD")
+shellmessage("Current Hash",   "git log -1 --pretty=format:%H")
+
+#
 # DIMENSION
 #
 f.write("DIM = " + str(args.dim) + "\n")
-print(color.boldgreen + "Dimension:       " + color.reset + str(args.dim))
+message("Dimension",str(args.dim))
 
 #
 # COMPILER
 #
-if (args.comp == "gcc"): f.write("COMP = GCC\n")
-elif (args.comp == "clang"): f.write("COMP = CLANG\n")
-elif (args.comp == "intel"): f.write("COMP = INTEL\n")
-print(color.boldgreen + "Compiler:        " + color.reset + str(args.comp))
 
 #
 # DEBUG
 #
 f.write("DEBUG = " + str(args.debug) + "\n")
-print(color.boldgreen + "Debug Mode:      " + color.reset + str(args.debug))
+message("Debug Mode",str(args.debug))
 
 #
 # AMREX
@@ -48,7 +86,7 @@ print(color.boldgreen + "Debug Mode:      " + color.reset + str(args.debug))
 if (args.amrex != ""):
     # Check to make sure directory is valid 
     if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
-        raise Exception(color.red+"ERROR"+color.reset+": AMReX directory must contain include/ and lib/ subdirectories ")
+        raise Exception(error()+" AMReX directory must contain include/ and lib/ subdirectories ")
 
     # Scan AMReX Config File
     amrex_spacedim = 0
@@ -60,30 +98,91 @@ if (args.amrex != ""):
         if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
         if "AMREX_DEBUG 1" in line: amrex_debug = True
         if "PROFILING 1" in line: amrex_profiling = True
+        if "AMREX_GIT_VERSION" in line: githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','')
         
     if args.dim != amrex_spacedim:
-        raise Exception(color.red+"ERROR"+color.reset+": AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
+        raise Exception(error()+"AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
     if args.debug != amrex_debug:
         if args.debug:
-            raise Exception(color.red+"ERROR"+color.reset+": Alamo is in debug mode but AMReX is not")
+            raise Exception(error()+"Alamo is in debug mode but AMReX is not")
         else:
-            raise Exception(color.red+"ERROR"+color.reset+": Alamo is not in debug mode but AMReX is")
+            raise Exception(error()+": Alamo is not in debug mode but AMReX is")
     if not args.debug and amrex_profiling:
-        print(color.boldyellow+"WARNING"+color.reset+": Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+        warning("Alamo compiled in production mode, but PROFILE is enabled in AMReX")
 
-    print(color.boldgreen + "AMReX Directory: " + color.reset + args.amrex)
+    message("AMReX Directory", args.amrex)
+    message("AMReX Git commit", githash)
     f.write("AMREX = " + args.amrex + "\n")
 else:
-    print(color.boldyellow+"WARNING"+color.reset+":         AMReX path not specified. This may cause compile errors.")
+    warning("AMReX path not specified. This may cause compile errors.")
 
 #
 # EIGEN
 #
 if (args.eigen != ""):
-    if not os.path.isdir(args.amrex + "/eigen3"):
+    if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
     print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
-    f.write("EIGEN = " + args.amrex + "\n")
+    f.write("EIGEN = " + args.eigen + "\n")
+
+#
+# Compiler
+#
+
+if not args.comp in ['g++','icc','clang++']:
+    raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
+if (args.comp == "gcc"): f.write("COMP = GCC\n")
+elif (args.comp == "clang"): f.write("COMP = CLANG\n")
+elif (args.comp == "intel"): f.write("COMP = INTEL\n")
+message("Compiler", str(args.comp))
+shellmessage("Comp. version",args.comp+" --version")
+shellmessage("MPI flags","mpicxx -cxx="+args.comp+" -show")
+f.write("CC = mpicxx -cxx="+args.comp+"\n")
+if args.comp == 'g++':     f.write("MPI_LIB = -lgfortran -lmpich\n")
+if args.comp == 'clang++': f.write("MPI_LIB = -lgfortran -lmpich\n")
+if args.comp == 'icc':     f.write("MPI_LIB = -lifcore\n")
+
+#
+# Python information
+#
+if args.python:
+    python_include_dir = "/usr/include/python2.7/" # hard-coded for now
+    #python_boost_lib = "/usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.62.0"
+    python_boost_lib = "-lboost_python-py27"
+
+    if not (os.path.isdir(python_include_dir)):
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
+    #if not (os.path.isfile(python_boost_lib)):
+    #    raise Exception(color.red+"ERROR"+color.reset+": Python Boost library does not exist (Try installing libboost-python-dev)")
+
+    f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
+    f.write("PYTHON_LIB = " + python_boost_lib + '\n')
+    f.write("CXX_COMPILE_FLAGS += -fPIC \n")
+    message("Python","True")
+    note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
+
+#
+# Documentation check
+#
+if (args.docs):
+    #Doxygen
+    try: shellmessage("Doxygen","doxygen --version")
+    except: print(color.red+ "Doxygen not installed - install using " + code("sudo apt install doxygen") )
+    #GraphViz
+    try: shellmessage("GraphViz","dot -V")
+    except: print(color.red + "GraphViz not installed - install using " + code("sudo apt install graphviz"))
+    #Sphinx
+    try: shellmessage("Sphinx","sphinx-build --version")
+    except: print(color.red + "Sphinx not installed - install using " + code("sudo apt install python-sphinx"))
+    #Breathe
+    try: import breathe; message("Breathe version",str(breathe.__version__))
+    except: message("Breathe version", color.red + "Breathe not installed - install using " + code("pip install breathe"),False)
+    #RTD
+    try: import sphinx_rtd_theme; message("RTD Theme", str(sphinx_rtd_theme.__version__) + " (python 3)")
+    except: message("RTD Theme", color.red + "RTD not installed - install using " + code("pip install sphinx_rtd_theme"),False)
+    #M2R
+    try: import m2r; message("M2R", str(m2r.__version__) + " (python 3)")
+    except: message("M2R",color.red + "M2R not installed - install using " + code("pip install m2r"))
 
 #
 # Specify Prefix
@@ -91,5 +190,6 @@ if (args.eigen != ""):
 prefix = "-"
 prefix += str(args.dim)+"d"
 if args.debug: prefix += "-debug"
+if args.python: prefix += "-fpic"
 prefix += "-" + args.comp
-f.write("PREFIX = " + prefix)
+f.write("PREFIX = " + prefix + '\n')
