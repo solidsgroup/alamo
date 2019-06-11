@@ -56,7 +56,9 @@ public:
 	{
 		bool cellcentered = (field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
-		Set::Scalar L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
+		Set::Scalar AMREX_D_DECL(L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0],
+								 L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1],
+								 L3 = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2]);
 
 		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
 		{
@@ -85,17 +87,27 @@ public:
 				}
 
 				amrex::Real bdry = 0.;
-				Set::Scalar s1, s2;
-				if (normal==Direction::X) {s1 = x2; s2 = x3;}
-				if (normal==Direction::Y) {s1 = x3; s2 = x1;}
-				if (normal==Direction::Z) {s1 = x1; s2 = x1;}
+#if AMREX_SPACEDIM == 2				
+				Set::Scalar s1, l1;
+				if (normal==Direction::X) {s1 = x2; l1 = L2;}
+				if (normal==Direction::Y) {s1 = x1; l1 = L1;}
 				for (int n = 0; n < wave_numbers.size(); n++)
 					bdry += wave_amplitudes[n]
-						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s1 / L1) +
-							fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s1 / L1))
-						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s2 / L1) +
-					 	    fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s2 / L1));
-
+						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s1 / l1) +
+							fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s1 / l1));
+#elif AMREX_SPACEDIM == 3				
+				Set::Scalar s1, s2, l1, l2;
+				if (normal==Direction::X) {s1 = x2; s2 = x3; l1 = L2; l2 = L3;}
+				if (normal==Direction::Y) {s1 = x3; s2 = x1; l1 = L3; l2 = L1;}
+				if (normal==Direction::Z) {s1 = x1; s2 = x1; l1 = L1; l2 = L2;}
+				for (int n = 0; n < wave_numbers.size(); n++)
+					bdry += wave_amplitudes[n]
+						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s1 / l1) +
+							fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s1 / l1))
+						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s2 / l2) +
+					 	    fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s2 / l2))
+					;
+#endif
 				
 				if ((normal == Direction::X && x1 < bdry + offset)||
 					(normal == Direction::Y && x2 < bdry + offset)||
