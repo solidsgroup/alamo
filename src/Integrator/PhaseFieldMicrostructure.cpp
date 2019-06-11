@@ -349,20 +349,23 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						// GRAHM-SCHMIDT PROCESS 
 						const Set::Vector e1(1,0,0), e2(0,1,0), e3(0,0,1);
 						Set::Vector _t2, _t3;
-						if (fabs(normal(0)) > fabs(normal(1)) && fabs(normal(0)) > fabs(normal(2)))
+						if      (fabs(normal(0)) > fabs(normal(1)) && fabs(normal(0)) > fabs(normal(2)))
 						{
 	 						_t2 = e2 - normal.dot(e2)*normal; _t2 /= _t2.lpNorm<2>();
 							_t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
+							if (m==0) N(i,j,k,1) = 1.0;
 						}
 						else if (fabs(normal(1)) > fabs(normal(0)) && fabs(normal(1)) > fabs(normal(2)))
 						{
 	 						_t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
 							_t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
+							if (m==0) N(i,j,k,1) = 2.0;
 						}
 						else
 						{
 	 						_t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
 							_t3 = e2 - normal.dot(e2)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
+							if (m==0) N(i,j,k,1) = 3.0;
 						}
 												
 						// Compute Hessian projected into tangent space (spanned by _t1,_t2)
@@ -407,8 +410,9 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 							//Set::Scalar ev1 = eigensolver.eigenvalues()(0); 
 							//Set::Scalar ev2 = eigensolver.eigenvalues()(1); 
 						 	N(i,j,k,0) = gbe;
-							N(i,j,k,1) = DH2;
-							N(i,j,k,2) = DH3;
+							//N(i,j,k,1) = DH2;
+							//N(i,j,k,2) = DH3;
+							N(i,j,k,2) = 0.0;
 						 	//N(i,j,k,1) = DH2;//eigensolver.eigenvalues().lpNorm<2>();
 						 	//N(i,j,k,2) = DH3;//0.0;
 						}
