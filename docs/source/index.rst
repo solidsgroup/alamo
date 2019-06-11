@@ -6,8 +6,9 @@ Documentation for alamo
    :caption: Contents:
 
    GettingStarted
+   Python
    Convention
-   Applications/Applications
+   Examples/Examples
    API/API
 
 

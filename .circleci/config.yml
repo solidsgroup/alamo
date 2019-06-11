@@ -22,7 +22,7 @@ jobs:
                     export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
       - run:
           name: Building AMReX
-          command: 'bash ./.build.amrex.sh 2 nodeghostcells'
+          command: 'bash ./.build.amrex.sh 2 development'
       - run:
           name: Building Alamo
           command: 'bash ./.build.sh 2'
@@ -48,7 +48,7 @@ jobs:
                     export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
       - run:
           name: Building AMReX
-          command: 'bash ./.build.amrex.sh 3 nodeghostcells'
+          command: 'bash ./.build.amrex.sh 3 development'
       - run:
           name: Building Alamo
           command: 'bash ./.build.sh 3'
