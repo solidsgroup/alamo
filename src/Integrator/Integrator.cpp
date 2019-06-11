@@ -635,7 +635,6 @@ Integrator::IntegrateVariables (Real time, int step)
 			amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
 		}
 	}
-	Util::Message(INFO,thermo.plot_int," ",thermo.plot_dt);
 	if ( ParallelDescriptor::IOProcessor() &&
 		 (
 			 (thermo.plot_int > 0 && step % thermo.plot_int == 0) ||

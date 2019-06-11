@@ -73,6 +73,7 @@ private:
 
 	int number_of_grains = 2;
 	int number_of_ghost_cells = 2;
+	Set::Scalar ref_threshold = 0.1;
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep

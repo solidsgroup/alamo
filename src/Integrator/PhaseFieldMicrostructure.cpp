@@ -35,6 +35,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	{
 		amrex::ParmParse pp("amr");
 		pp.query("max_level",max_level);
+		pp.query("ref_threshold",ref_threshold);
 	}
 	{
 		amrex::ParmParse pp("sdf");
@@ -332,6 +333,17 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 			
 						driving_force += - (Boundary_term) + beta*(Curvature_term);
 						if (std::isnan(driving_force)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+
+													 
+						if (m == 0)
+						{
+							//Set::Scalar ev1 = eigensolver.eigenvalues()(0); 
+							//Set::Scalar ev2 = eigensolver.eigenvalues()(1); 
+						 	N(i,j,k,0) = Curvature_term;
+							N(i,j,k,1) = 0.0;
+						 	//N(i,j,k,1) = DH2;//eigensolver.eigenvalues().lpNorm<2>();
+						 	//N(i,j,k,2) = DH3;//0.0;
+						}
 						
 #elif AMREX_SPACEDIM == 3
 						// GRAHM-SCHMIDT PROCESS 
@@ -352,11 +364,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 	 						_t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
 							_t3 = e2 - normal.dot(e2)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
 						}
-						
-
-						
-						
-						
+												
 						// Compute Hessian projected into tangent space (spanned by _t1,_t2)
 						Eigen::Matrix2d DDeta2D;
 						DDeta2D <<
@@ -385,8 +393,8 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						//Set::Scalar kappa = l_gb*0.75*gbe;
 						kappa = l_gb*0.75*gbe;
 						mu = 0.75 * (1.0/0.23) * gbe / l_gb;
-						Set::Scalar DDK2 = gbmodel.DDW(normal,t2) * l_gb * 0.75;
-						Set::Scalar DDK3 = gbmodel.DDW(normal,t3) * l_gb * 0.75;
+						Set::Scalar DDK2 = gbmodel.DDW(normal,_t2) * l_gb * 0.75;
+						Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * l_gb * 0.75;
 
 						// GB energy anisotropy term
 						driving_force += - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
@@ -396,9 +404,13 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 								 
 						if (m == 0)
 						{
+							//Set::Scalar ev1 = eigensolver.eigenvalues()(0); 
+							//Set::Scalar ev2 = eigensolver.eigenvalues()(1); 
 						 	N(i,j,k,0) = gbe;
-						 	N(i,j,k,1) = eigensolver.eigenvalues().lpNorm<2>();
-						 	N(i,j,k,2) = 0.0;
+							N(i,j,k,1) = DH2;
+							N(i,j,k,2) = DH3;
+						 	//N(i,j,k,1) = DH2;//eigensolver.eigenvalues().lpNorm<2>();
+						 	//N(i,j,k,2) = DH3;//0.0;
 						}
 
 						if (std::isnan(driving_force) || std::isinf(driving_force))
@@ -484,53 +496,34 @@ PhaseFieldMicrostructure::Initialize (int lev)
 
 
 void
-PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+PhaseFieldMicrostructure::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	BL_PROFILE("PhaseFieldMicrostructure::TagCellsForRefinement");
 	const amrex::Real* DX      = geom[lev].CellSize();
+	const Set::Vector dx(DX);
+	const Set::Scalar dxnorm = dx.lpNorm<2>();
 
-	amrex::Vector<int>  itags;
-
-	for (amrex::MFIter mfi(*eta_new_mf[lev],true); mfi.isValid(); ++mfi)
+	#pragma omp parallel
+	for (amrex::MFIter mfi(*eta_new_mf[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const amrex::Box&  bx  = mfi.tilebox();
-		amrex::TagBox&     tag  = tags[mfi];
-		amrex::BaseFab<amrex::Real> &eta_new_box = (*eta_new_mf[lev])[mfi];
-
-#if BL_SPACEDIM==2
-		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-			for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-			{
-				for (int n = 0; n < number_of_grains; n++)
-				{
-					amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j),n) - eta_new_box(amrex::IntVect(i-1,j),n))/(2.*DX[0]);
-					amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1),n) - eta_new_box(amrex::IntVect(i,j-1),n))/(2.*DX[1]);
-					if (DX[0]*sqrt(gradx*gradx + grady*grady)>0.1) tag(amrex::IntVect(i,j)) = amrex::TagBox::SET;
-				}
-			}
-
-#elif BL_SPACEDIM==3
-
-		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-			for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-				for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-				{
-					for (int n = 0; n < number_of_grains; n++)
-					{
-						amrex::Real gradx = (eta_new_box(amrex::IntVect(i+1,j,k),n) - eta_new_box(amrex::IntVect(i-1,j,k),n))/(2.*DX[0]);
-						amrex::Real grady = (eta_new_box(amrex::IntVect(i,j+1,k),n) - eta_new_box(amrex::IntVect(i,j-1,k),n))/(2.*DX[1]);
-						amrex::Real gradz = (eta_new_box(amrex::IntVect(i,j,k+1),n) - eta_new_box(amrex::IntVect(i,j,k-1),n))/(2.*DX[2]);
-						if (DX[0]*sqrt(gradx*gradx + grady*grady + gradz*gradz)>0.0001) tag(amrex::IntVect(i,j,k)) = amrex::TagBox::SET;
-					}
-				}
-#endif
-
+		const amrex::Box& bx = mfi.tilebox();
+		amrex::Array4<const amrex::Real> const& etanew    = (*eta_new_mf[lev]).array(mfi);
+		amrex::Array4<char> const& tags    = a_tags.array(mfi);
+		
+		for (int n = 0; n < number_of_grains; n++)
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+		{
+			Set::Vector grad = Numeric::Gradient(etanew,i,j,k,n,DX);
+			
+			if (dxnorm * grad.lpNorm<2>() > ref_threshold) tags(i,j,k) = amrex::TagBox::SET;
+		});
 	}
 }
 
 
 void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 {
+	BL_PROFILE("PhaseFieldMicrostructure::TimeStepComplete");
 	if (!(iter % plot_int))
 	{
 		if (elastic.grid == Grid::Cell)
@@ -565,12 +558,15 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int iter)
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
 	BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
-	if (anisotropy.on && time > anisotropy.tstart)
+
+	//Util::Message(INFO,"here now: time = ", time , " and anisotropy.tstart = ",anisotropy.tstart-anisotropy.timestep);
+	if (anisotropy.on && time >= anisotropy.tstart-anisotropy.timestep)
 	{
 		SetTimestep(anisotropy.timestep);
 		SetPlotInt(anisotropy.plot_int);
-		SetThermoInt(anisotropy.plot_int);
-		SetThermoPlotInt(anisotropy.plot_int);
+		//SetThermoInt(anisotropy.plot_int);
+		//SetThermoPlotInt(anisotropy.plot_int);
+		//Util::Message(INFO,"Setting timestep now: time = ", time , " and anisotropy.tstart = ",anisotropy.tstart);
 
 	}
 
