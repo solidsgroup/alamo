@@ -177,7 +177,7 @@ PolymerDegradation::PolymerDegradation():
 			sum += damage_w.d_i[i];
 		}
 
-		if(sum != damage_w.d_final) //need to replace this in the future
+		if(std::abs(sum-damage_w.d_final)>=0.001) //need to replace this in the future
 			Util::Abort(INFO, "d_final is not equal to the sum of d_i");
 	}
 	else if(damage.type == "thermal")
