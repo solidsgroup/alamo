@@ -104,7 +104,7 @@ if (args.buildamrex == True):
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix
     if args.debug: amrex_configure += ' --debug=yes'
-    #if fpic: amrex_configure += ' --enable-pic=yes'
+    if fpic: amrex_configure += ' --enable-pic=yes'
     note(amrex_configure)
     args.amrex = "amrex/"+postfix
     f.write("AMREX = amrex/" + postfix + "/\n")
@@ -117,7 +117,7 @@ if (args.buildamrex == True):
     f2.write("amrex/"+postfix+": amrex\n")
     f2.write("\t" + amrex_configure + "\n")
     #f2.write("\tmake -C amrex realclean \n")
-    f2.write("\tmake -C amrex" + (" USE_COMPILE_PIC=TRUE" if fpic else "") + " -j" + str(args.nprocs) + " \n")
+    #f2.write("\tmake -C amrex" + (" USE_COMPILE_PIC=TRUE" if fpic else "") + " -j" + str(args.nprocs) + " \n")
     f2.write("\tmake -C amrex install \n")
         
     message("AMReX", "Downloading/building automatically")
@@ -192,7 +192,7 @@ if args.python:
     python_boost_lib = "-lboost_python-py27"
 
     if not (os.path.isdir(python_include_dir)):
-        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist. Install using " + code("sudo apt install python-dev"))
     #if not (os.path.isfile(python_boost_lib)):
     #    raise Exception(color.red+"ERROR"+color.reset+": Python Boost library does not exist (Try installing libboost-python-dev)")
 
@@ -207,7 +207,7 @@ if args.python3:
     python_boost_lib = "-lboost_python3-py36"
 
     if not (os.path.isdir(python_include_dir)):
-        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist. Install using " + code("sudo apt install python3-dev"))
 
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')
