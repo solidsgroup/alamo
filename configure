@@ -57,6 +57,7 @@ parser.add_argument('--debug', dest='debug', action='store_true', help='Compile 
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
 parser.add_argument('--python3',dest='python3',action='store_true',help='Compile python3 interface library')
+parser.add_argument('--python3-version',dest='python3version',default='3.6',help='Python3 Version')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.set_defaults(debug=False)
 args=parser.parse_args()
@@ -203,8 +204,8 @@ if args.python:
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
 
 if args.python3:
-    python_include_dir = "/usr/include/python3.6/" 
-    python_boost_lib = "-lboost_python3-py36"
+    python_include_dir = "/usr/include/python"+args.python3version+"/"
+    python_boost_lib = "-lboost_python3-py"+args.python3version.replace(".","")
 
     if not (os.path.isdir(python_include_dir)):
         raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist. Install using " + code("sudo apt install python3-dev"))
