@@ -57,7 +57,8 @@ water.refinement_threshold = 0.01
 
 water.ic_type = constant
 water.ic.value = 0.0
-water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
+#water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
+water.bc.lo = REFLECT_EVEN REFLECT_EVEN REFLECT_EVEN # SYMMETRIC simulation
 #water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
 water.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 water.bc.lo_1 = 0.0
