@@ -364,7 +364,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						else
 						{
 	 						_t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
-							_t3 = e2 - normal.dot(e2)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
+							_t3 = e2 - normal.dot(e2)*normal - _t2.dot(e2)*_t2; _t3 /= _t3.lpNorm<2>();
 							if (m==0) N(i,j,k,1) = 3.0;
 						}
 												
@@ -412,7 +412,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						 	N(i,j,k,0) = gbe;
 							//N(i,j,k,1) = DH2;
 							//N(i,j,k,2) = DH3;
-							N(i,j,k,2) = 0.0;
+							N(i,j,k,2) = (DDeta2D*DDeta2D.transpose()).trace();
 						 	//N(i,j,k,1) = DH2;//eigensolver.eigenvalues().lpNorm<2>();
 						 	//N(i,j,k,2) = DH3;//0.0;
 						}
