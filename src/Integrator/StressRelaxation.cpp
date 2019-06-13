@@ -146,19 +146,19 @@ StressRelaxation::StressRelaxation():
 		amrex::Vector<Set::Scalar> bc_lo_2_t, bc_hi_2_t;
 		amrex::Vector<Set::Scalar> bc_lo_3_t, bc_hi_3_t;
 
-		if (pp_elastic_bc.countval("left_face")) pp_elastic_bc.getarr("left_face",bc_lo_1);
+		if (pp_elastic_bc.countval("x_min")) pp_elastic_bc.getarr("x_min",bc_lo_1);
 		if(bc_lo_1.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for left_face displacement");
 
-		if (pp_elastic_bc.countval("right_face")) pp_elastic_bc.getarr("right_face",bc_hi_1);
+		if (pp_elastic_bc.countval("x_max")) pp_elastic_bc.getarr("x_max",bc_hi_1);
 		if(bc_hi_1.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for right_face displacement");
 
-		if (pp_elastic_bc.countval("bottom_face")) pp_elastic_bc.getarr("bottom_face",bc_lo_2);
+		if (pp_elastic_bc.countval("y_min")) pp_elastic_bc.getarr("y_min",bc_lo_2);
 		if(bc_lo_2.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for bottom_face displacement");
 
-		if (pp_elastic_bc.countval("top_face")) pp_elastic_bc.getarr("top_face",bc_hi_2);
+		if (pp_elastic_bc.countval("y_max")) pp_elastic_bc.getarr("y_max",bc_hi_2);
 		if(bc_hi_2.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for top_face displacement");
 
