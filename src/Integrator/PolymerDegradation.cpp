@@ -335,12 +335,12 @@ PolymerDegradation::PolymerDegradation():
 		amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
 		amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 
-		AMREX_D_TERM(	pp_elastic_bc.queryarr("bc_x_lo",bc_x_lo_str);,
-						pp_elastic_bc.queryarr("bc_y_lo",bc_y_lo_str);,
-						pp_elastic_bc.queryarr("bc_z_lo",bc_z_lo_str););
-		AMREX_D_TERM(	pp_elastic_bc.queryarr("bc_x_hi",bc_x_hi_str);,
-						pp_elastic_bc.queryarr("bc_y_hi",bc_y_hi_str);,
-						pp_elastic_bc.queryarr("bc_z_hi",bc_z_hi_str););
+		AMREX_D_TERM(	pp_elastic_bc.queryarr("bc_x_min",bc_x_lo_str);,
+						pp_elastic_bc.queryarr("bc_y_min",bc_y_lo_str);,
+						pp_elastic_bc.queryarr("bc_z_min",bc_z_lo_str););
+		AMREX_D_TERM(	pp_elastic_bc.queryarr("bc_x_max",bc_x_hi_str);,
+						pp_elastic_bc.queryarr("bc_y_max",bc_y_hi_str);,
+						pp_elastic_bc.queryarr("bc_z_max",bc_z_hi_str););
 
 		std::map<std::string,BC::Operator::Elastic<model_type>::Type >        bc_map;
 		bc_map["displacement"] 	= BC::Operator::Elastic<model_type>::Type::Displacement;
@@ -381,34 +381,34 @@ PolymerDegradation::PolymerDegradation():
 
 		//Util::Message(INFO);
 
-		if (pp_elastic_bc.countval("left_face")) pp_elastic_bc.getarr("left_face",bc_lo_1);
+		if (pp_elastic_bc.countval("x_min")) pp_elastic_bc.getarr("x_min",bc_lo_1);
 		if(bc_lo_1.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for left_face displacement");
 		elastic.bc_left = Set::Vector(AMREX_D_DECL(bc_lo_1[0],bc_lo_1[1],bc_lo_1[2]));
 
-		if (pp_elastic_bc.countval("right_face")) pp_elastic_bc.getarr("right_face",bc_hi_1);
+		if (pp_elastic_bc.countval("x_max")) pp_elastic_bc.getarr("x_max",bc_hi_1);
 		if(bc_hi_1.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for right_face displacement");
 		elastic.bc_right = Set::Vector(AMREX_D_DECL(bc_hi_1[0],bc_hi_1[1],bc_hi_1[2]));
 
 #if AMREX_SPACEDIM > 1
-		if (pp_elastic_bc.countval("bottom_face")) pp_elastic_bc.getarr("bottom_face",bc_lo_2);
+		if (pp_elastic_bc.countval("y_min")) pp_elastic_bc.getarr("y_min",bc_lo_2);
 		if(bc_lo_2.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for bottom_face displacement");
 		elastic.bc_bottom = Set::Vector(AMREX_D_DECL(bc_lo_2[0],bc_lo_2[1],bc_lo_2[2]));
 
-		if (pp_elastic_bc.countval("top_face")) pp_elastic_bc.getarr("top_face",bc_hi_2);
+		if (pp_elastic_bc.countval("y_max")) pp_elastic_bc.getarr("y_max",bc_hi_2);
 		if(bc_hi_2.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for top_face displacement");
 		elastic.bc_top = Set::Vector(AMREX_D_DECL(bc_hi_2[0],bc_hi_2[1],bc_hi_2[2]));
 
 #if AMREX_SPACEDIM>2
-		if (pp_elastic_bc.countval("back_face")) pp_elastic_bc.getarr("back_face",bc_lo_3);
+		if (pp_elastic_bc.countval("z_min")) pp_elastic_bc.getarr("z_min",bc_lo_3);
 		if(bc_lo_3.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for back_face displacement");
 		elastic.bc_back = Set::Vector(AMREX_D_DECL(bc_lo_3[0],bc_lo_3[1],bc_lo_3[2]));
 
-		if (pp_elastic_bc.countval("front_face")) pp_elastic_bc.getarr("front_face",bc_hi_3);
+		if (pp_elastic_bc.countval("z_max")) pp_elastic_bc.getarr("z_max",bc_hi_3);
 		if(bc_hi_3.size() % AMREX_SPACEDIM !=0)
 			Util::Abort(INFO, "Invalid number of values for front_face displacement");
 		elastic.bc_front = Set::Vector(AMREX_D_DECL(bc_hi_3[0],bc_hi_3[1],bc_hi_3[2]));

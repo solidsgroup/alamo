@@ -138,33 +138,33 @@ elastic.body_force     = 0.0 0.0 0.0
 #
 # These BCs are for a SYMMETRIC simulation
 #
-#elastic.bc.bc_x_lo = disp disp disp
-#elastic.bc.bc_y_lo = neumann disp neumann
-#elastic.bc.bc_z_lo = neumann neumann disp 
-#elastic.bc.bc_x_hi = disp disp disp
-#elastic.bc.bc_y_hi = trac trac trac
-#elastic.bc.bc_z_hi = trac trac trac
-#elastic.bc.left_face = 0.0 0.0 0.0
-#elastic.bc.right_face = 0.1 0.0 0.0
-#elastic.bc.bottom_face = 0.0 0.0 0.0
-#elastic.bc.top_face = 0.0 0.0 0.0
-#elastic.bc.back_face = 0.0 0.0 0.0
-#elastic.bc.front_face = 0.0 0.0 0.0
+#elastic.bc.bc_x_min = disp disp disp
+#elastic.bc.bc_y_min = neumann disp neumann
+#elastic.bc.bc_z_min = neumann neumann disp 
+#elastic.bc.bc_x_max = disp disp disp
+#elastic.bc.bc_y_max = trac trac trac
+#elastic.bc.bc_z_max = trac trac trac
+#elastic.bc.x_min = 0.0 0.0 0.0
+#elastic.bc.x_max = 0.1 0.0 0.0
+#elastic.bc.y_min = 0.0 0.0 0.0
+#elastic.bc.y_max = 0.0 0.0 0.0
+#elastic.bc.z_min = 0.0 0.0 0.0
+#elastic.bc.z_max = 0.0 0.0 0.0
 
 #
 # These BCs are for a FULL simulation
 #
-elastic.bc.bc_x_lo = disp neumann neumann
-elastic.bc.bc_y_lo = neumann disp neumann
-elastic.bc.bc_z_lo = neumann neumann disp
-elastic.bc.bc_x_hi = disp disp disp
-elastic.bc.bc_y_hi = trac trac trac
-elastic.bc.bc_z_hi = trac trac trac
-elastic.bc.left_face = 0.0 0.0 0.0
-elastic.bc.right_face = 0.5 0.0 0.0
-elastic.bc.bottom_face = 0.0 0.0 0.0
-elastic.bc.top_face = 0.0 0.0 0.0
-elastic.bc.back_face = 0.0 0.0 0.0
-elastic.bc.front_face = 0.0 0.0 0.0
+elastic.bc.bc_x_min = disp neumann neumann
+elastic.bc.bc_y_min = neumann disp neumann
+elastic.bc.bc_z_min = neumann neumann disp
+elastic.bc.bc_x_max = disp disp disp
+elastic.bc.bc_y_max = trac trac trac
+elastic.bc.bc_z_max = trac trac trac
+elastic.bc.x_min = 0.0 0.0 0.0
+elastic.bc.x_max = 0.5 0.0 0.0
+elastic.bc.y_min = 0.0 0.0 0.0
+elastic.bc.y_max = 0.0 0.0 0.0
+elastic.bc.z_min = 0.0 0.0 0.0
+elastic.bc.z_max = 0.0 0.0 0.0
 
 #===========================================================================
