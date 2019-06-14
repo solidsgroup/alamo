@@ -22,16 +22,13 @@ Integrator::Integrator ()
 		pp.query("max_step", max_step);
 		pp.query("stop_time", stop_time);
 		pp.query("timestep",timestep);
+		pp.query("restart", restart_file); 
 	}
 	{
 		ParmParse pp("amr"); // AMR specific parameters
 		pp.query("regrid_int", regrid_int);     // ALL processors
-		//pp.query("check_file", check_file);   // Not currently used
-		//pp.query("check_int", check_int);     // Not currently used
 		pp.query("plot_int", plot_int);         // ALL processors
 		pp.query("plot_dt", plot_dt);         // ALL processors
-		pp.query("plot_file", plot_file);       // IO Processor only
-		//pp.query("restart", restart_chkfile); // Not currently used
 		pp.query("plot_file", plot_file);       // IO Processor only
 
 		IO::FileNameParse(plot_file);
@@ -381,23 +378,134 @@ void
 Integrator::InitData ()
 {
 	BL_PROFILE("Integrator::InitData");
-	const Real time = 0.0;
-	InitFromScratch(time);
-
-	for (int lev = finest_level-1; lev >= 0; --lev)
+	
+	if (restart_file != "")
 	{
-		if (lev < max_level) regrid(lev,0.0);
-		for (int n = 0; n < cell.number_of_fabs; n++)
-			amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
-					    geom[lev+1], geom[lev],
-					    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
-		Util::Warning(INFO,"Not averaging down nodal fabs");
-		// for (int n = 0; n < node.number_of_fabs; n++)
-		// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
+		Restart(restart_file);
 	}
-  
+	else
+	{
+		const Real time = 0.0;
+		InitFromScratch(time);
+
+		for (int lev = finest_level-1; lev >= 0; --lev)
+		{
+			if (lev < max_level) regrid(lev,0.0);
+			for (int n = 0; n < cell.number_of_fabs; n++)
+				amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
+						    geom[lev+1], geom[lev],
+						    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
+			Util::Warning(INFO,"Not averaging down nodal fabs");
+			// for (int n = 0; n < node.number_of_fabs; n++)
+			// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
+		}
+	
+	}
 	if (plot_int > 0 || plot_dt > 0.0) {
 		WritePlotFile();
+	}
+}
+
+void
+Integrator::Restart(const std::string dirname)
+{
+	BL_PROFILE("Integrator::Restart");
+	std::string filename = dirname + "/Header";
+	std::string chkptfilename = dirname + "/Checkpoint";
+	amrex::VisMF::IO_Buffer io_buffer(amrex::VisMF::GetIOBufferSize());
+	amrex::Vector<char> fileCharPtr,chkptfileCharPtr;
+	amrex::ParallelDescriptor::ReadAndBcastFile(filename,fileCharPtr);
+	amrex::ParallelDescriptor::ReadAndBcastFile(chkptfilename,chkptfileCharPtr);
+	std::string fileCharPtrString(fileCharPtr.dataPtr());
+	std::string chkptfileCharPtrString(chkptfileCharPtr.dataPtr());
+	std::istringstream is(fileCharPtrString,std::istringstream::in);
+	std::istringstream chkpt_is(chkptfileCharPtrString,std::istringstream::in);
+
+	std::string line, word;
+
+	// Get version
+	std::getline(is,line); 
+	Util::Message(INFO,"Version: ", line);
+
+	// Get number of fabs
+	int tmp_numfabs;
+	std::getline(is,line); tmp_numfabs = std::stoi(line);
+	
+	int ctr = 0;
+	for (int i = 0; i < cell.fab_array.size(); i++)
+	{
+		for (int j = 0; j < cell.ncomp_array[i]; j++)
+		{
+			std::getline(is,line);
+			if (! Util::String::Contains(line,cell.name_array[i])) 
+				Util::Abort(INFO,"Mismatched Fab names! Input fab name " + line + " does not match registered fab name " + cell.name_array[i]);
+			Util::Message(INFO,"Reading: ",cell.name_array[i]," <-- ",line);
+			ctr++;
+		}
+	}
+	if (ctr != tmp_numfabs) Util::Abort(INFO,"Trying to read in more fabs than have been registered");
+	
+	// Dimension?
+	std::getline(is,line); 
+	Util::Warning(INFO,"Dimension: " + line);
+	
+	// Current time
+	Set::Scalar tmp_time = 0.0;
+	std::getline(is,line); tmp_time = std::stof(line); Util::Message(INFO,"Current time: ", tmp_time);
+	for (int i = 0; i < max_level + 1; i++)
+	{
+		t_new[i] = tmp_time; t_old[i] = tmp_time;
+	}
+	
+	// AMR level
+	int tmp_max_level;
+	std::getline(is,line); tmp_max_level = std::stoi(line); Util::Message(INFO,"Max AMR level: ", line);
+	if (tmp_max_level != max_level)
+		Util::Abort(INFO,"The max level specified (",max_level,") does not match the max level in the restart file (",tmp_max_level,")");
+	finest_level = tmp_max_level;
+	// Geometry ?
+	std::getline(is,line); Util::Message(INFO,"Input geometry: ", line);
+	std::getline(is,line); Util::Message(INFO,"                ", line);
+
+	// Mesh refinement ratio?
+	std::getline(is,line); Util::Message(INFO,"Mesh refinement ratio: ",line);
+	
+	// Domain
+	std::getline(is,line); Util::Warning(INFO,"Domain: ",line);
+
+	// Domain
+	std::getline(is,line); 
+	std::vector<std::string> tmp_iters = Util::String::Split(line);
+	if (tmp_iters.size() != max_level+1) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
+	for (int lev = 0; lev <= max_level; lev++) {istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO,"Iter on level " , lev , " = ", istep[lev]);}
+
+	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
+	int total_ncomp = 0; 
+	for (int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+	int total_nghost = cell.nghost_array[0];
+
+	for (int lev = 0; lev <= max_level; lev++)
+	{
+		amrex::BoxArray tmp_ba;
+		tmp_ba.readFrom(chkpt_is);
+		SetBoxArray(lev,tmp_ba);
+		amrex::DistributionMapping tmp_dm(tmp_ba,ParallelDescriptor::NProcs());
+		SetDistributionMap(lev,tmp_dm);
+
+		tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
+		amrex::VisMF::Read( tmpdata[lev],
+							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_","Cell"));
+
+		int compctr = 0;
+		for (int i = 0; i < cell.fab_array.size(); i++)
+		{
+			Util::Message(INFO,"Initializing ", cell.name_array[i], "; ncomp=", cell.ncomp_array[i], "; nghost=",cell.nghost_array[i] );
+			(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
+
+			MultiFab::Copy(*((*cell.fab_array[i])[lev]).get(),tmpdata[lev],compctr,0,cell.ncomp_array[i],cell.nghost_array[i]);
+			compctr += cell.ncomp_array[i];
+		}
+							
 	}
 }
 
@@ -508,6 +616,11 @@ Integrator::WritePlotFile (bool initial) const
   
 	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
 				Geom(), t_new[0],istep, refRatio());
+	
+	std::ofstream chkptfile;
+	chkptfile.open(plotfilename[0]+plotfilename[1]+"cell/Checkpoint");
+	for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
+	chkptfile.close();
 
 	if (ncomponents > 0)
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
@@ -529,13 +642,6 @@ Integrator::WritePlotFile (bool initial) const
 		coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
 		if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
 	}
-}
-
-void
-Integrator::InitFromCheckpoint ()
-{
-	BL_PROFILE("Integrator::InitFromCheckpoint");
-	Util::Abort(INFO, "Integrator::InitFromCheckpoint: todo");
 }
 
 void
