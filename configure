@@ -113,7 +113,7 @@ if (args.buildamrex == True):
     
     f2 = open("Makefile.amrex.conf","w")
     f2.write("amrex:\n")
-    f2.write("\t@git clone git@github.com:AMReX-Codes/amrex.git\n")
+    f2.write("\t@git clone https://github.com/AMReX-Codes/amrex.git\n")
     f2.write("\n")
     f2.write("amrex/"+postfix+": amrex\n")
     f2.write("\t" + amrex_configure + "\n")
