@@ -95,6 +95,8 @@ public:
 	/// \brief Front-end method to initialize simulation
 	void InitData ();
 
+	void Restart (std::string restartfile);
+
 	/// \fn    Evolve
 	/// \brief Front-end method to start simulation
 	void Evolve ();
@@ -236,7 +238,6 @@ private:
 			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
 			amrex::MultiFab &destination_multifab, BC::BC &physbc,
 			int icomp);
-	void InitFromCheckpoint ();
 	long CountCells (int lev);
 	void TimeStep (int lev, amrex::Real time, int iteration);
 	void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, BC::BC &physbc, int icomp, int ncomp);
@@ -298,10 +299,7 @@ protected:
 	// REGRIDDING
 	int regrid_int = 2; ///< Determine how often to regrid (default: 2)
 
-	// RESTART CHECKFILE -- NOT CURRENTLY USED!
-	//std::string restart_chkfile;     ///< Checkfile name __Not currently used__
-	//std::string check_file {"chk"};  ///< Checkfiles __Not currently used__
-	//int check_int = -1;              ///< How frequently to dump checkfile __Not currently used__
+	std::string restart_file = "";
 
 protected:
 	int plot_int = -1;               ///< How frequently to dump plot file (default: never)
