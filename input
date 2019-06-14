@@ -1,9 +1,9 @@
-timestep = 0.05
+timestep = 0.005
 #stop_time = 5.0 
-stop_time = 500.0
+stop_time = 100.0
 
-#plot_file = output_%DD_%Y%m%d_%H%M%S
-plot_file = output%DD 
+plot_file = output%DD_%Y%m%d_%H%M%S
+#plot_file = output%DD 
 
 #amr.thermo.plot_int = 0.1
 amr.thermo.dt = 0.1
@@ -11,13 +11,10 @@ amr.thermo.plot_dt = 0.1
 
 amr.plot_dt = 1.0
 amr.max_level = 1
-#amr.n_cell = 64 64 4
-#amr.n_cell = 64 64 64
 amr.n_cell = 64 8 8
 amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-#amr.max_grid_size = 8
 amr.ref_threshold = 0.1
 amr.ref_ratio = 8
 
@@ -51,14 +48,12 @@ pf.M = 1.0
 pf.mu = 10.0 
 pf.gamma = 1.0
 pf.l_gb=0.1
-pf.sigma0=0.075
+pf.sigma0=0.75
 
 
 ### ANISOTROPY ###
 anisotropy.on=1
 anisotropy.plot_int = 100
-anisotropy.timestep=0.0001
-anisotropy.timestep=0.00005
 anisotropy.tstart= 5.0
 #anisotropy.theta0= 10
 #anisotropy.gb_type = sin
@@ -73,8 +68,8 @@ anisotropy.beta= 0.0002
 ##### INCLUSION
 #amr.plot_int = 1
 geometry.is_periodic = 0 0 0
-amr.n_cell = 32 32 32
-geometry.prob_hi = 4 4 4
+amr.n_cell = 16 16 16
+geometry.prob_hi = 2 2 2
 bc.lo = REFLECT_EVEN REFLECT_EVEN REFLECT_EVEN
 bc.hi = REFLECT_EVEN REFLECT_EVEN REFLECT_EVEN
 ic.type = sphere
@@ -85,12 +80,12 @@ ic.dim = 3
 #ic.offset = 0.5
 #ic.wave_amplitudes = 0.4
 anisotropy.on = 1
-anisotropy.timestep = 0.00001
+anisotropy.timestep = 0.000025
 anisotropy.tstart = 2.0
-anisotropy.plot_int = 100
+anisotropy.plot_int = 50
 #anisotropy.sigma1 = 0.0
 #anisotropy.beta = 0.0
 sdf.on = 1
-sdf.tstart = 2.0
-sdf.vol0 = 6.0 # 3D
-sdf.lambda = 0.1 # 3D
+sdf.tstart = 0.1
+sdf.vol0 = 1.0 # 3D
+sdf.lambda = 10.0 # 3D

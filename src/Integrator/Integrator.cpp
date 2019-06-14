@@ -744,7 +744,7 @@ Integrator::IntegrateVariables (Real time, int step)
 	if ( ParallelDescriptor::IOProcessor() &&
 		 (
 			 (thermo.plot_int > 0 && step % thermo.plot_int == 0) ||
-			 (thermo.plot_dt > 0.0 && std::fabs(std::remainder(time,thermo.plot_dt) < dt[0]))
+			 (thermo.plot_dt > 0.0 && std::fabs(std::remainder(time,thermo.plot_dt)) < 0.5*dt[0])
 		 ))
 	{
 		std::ofstream outfile;
