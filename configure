@@ -119,6 +119,7 @@ if (args.buildamrex == True):
     f2.write("\t" + amrex_configure + "\n")
     #f2.write("\tmake -C amrex realclean \n")
     #f2.write("\tmake -C amrex" + (" USE_COMPILE_PIC=TRUE" if fpic else "") + " -j" + str(args.nprocs) + " \n")
+    f2.write("\tmake -C amrex\n")
     f2.write("\tmake -C amrex install \n")
         
     message("AMReX", "Downloading/building automatically")
