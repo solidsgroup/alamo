@@ -41,6 +41,19 @@ The following are instructions for how to install these dependencies on your pla
       make install
   
 
+### Building - Quick Start on Ubuntu ###
+
+First, install Eigen
+
+    sudo apt install libeigen3-dev
+
+Then checkout alamo, and in the alamo directory type
+
+    ./configure --build-amrex
+    make
+
+This will automatically download and configure amrex. 
+
 ### Building - Using Makefile ###
 
 To build alamo, in the alamo directory type
@@ -51,7 +64,7 @@ To see a full list of options type
 
     ./configure --help
 
-To explicitly specify AMReX and Eigen locations (which you probably should), type 
+To explicitly specify AMReX and Eigen locations, type 
 
     ./configure --amrex /path/to/amrex --eigen /path/to/eigen
 
