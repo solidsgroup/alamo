@@ -35,8 +35,9 @@ def shellmessage(title,cmd):
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
-def error():
-    return(color.boldred + "ERROR".ljust(width) + color.reset)
+def error(message=""):
+    print(color.boldred + "ERROR".ljust(width) + color.reset,end="")
+    wrap(message)
 def code(code):
     return(color.bggray + code + color.reset);
 def note(message):
@@ -48,15 +49,31 @@ parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
+parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=False, help='Download and build AMReX automatically')
+parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="development", help='AMReX Branch (You probably don\'t need to use this!' )
+parser.add_argument('--nprocs',default=1,help='Number of processors needed to build AMReX' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
+parser.add_argument('--python3',dest='python3',action='store_true',help='Compile python3 interface library')
+parser.add_argument('--python3-version',dest='python3version',default='3.6',help='Python3 Version')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.set_defaults(debug=False)
-args=parser.parse_args();
+args=parser.parse_args()
+
+fpic = args.python or args.python3
 
 f = open("Makefile.conf","w")
+#
+# Specify Postfix
+#
+postfix = ""
+postfix += str(args.dim)+"d"
+if args.debug: postfix += "-debug"
+if fpic: postfix += "-fpic"
+postfix += "-" + args.comp
+f.write("POSTFIX = " + postfix + '\n')
 
 #
 # Current Repo settings
@@ -83,7 +100,32 @@ message("Debug Mode",str(args.debug))
 #
 # AMREX
 #
-if (args.amrex != ""):
+if (args.buildamrex == True):
+    amrex_configure = 'cd amrex; git checkout ' + args.buildamrexbranch +'; ./configure '
+    amrex_configure += ' --dim=' + str(args.dim)
+    amrex_configure += ' --prefix=' + postfix
+    if args.debug: amrex_configure += ' --debug=yes'
+    if fpic: amrex_configure += ' --enable-pic=yes'
+    note(amrex_configure)
+    args.amrex = "amrex/"+postfix
+    f.write("AMREX = amrex/" + postfix + "/\n")
+    f.write("AMREX_TARGET = amrex/" + postfix + "\n")
+    
+    f2 = open("Makefile.amrex.conf","w")
+    f2.write("amrex:\n")
+    f2.write("\t@git clone https://github.com/AMReX-Codes/amrex.git\n")
+    f2.write("\n")
+    f2.write("amrex/"+postfix+": amrex\n")
+    f2.write("\t" + amrex_configure + "\n")
+    #f2.write("\tmake -C amrex realclean \n")
+    #f2.write("\tmake -C amrex" + (" USE_COMPILE_PIC=TRUE" if fpic else "") + " -j" + str(args.nprocs) + " \n")
+    f2.write("\tmake -C amrex install \n")
+        
+    message("AMReX", "Downloading/building automatically")
+    message("AMReX Branch", args.buildamrexbranch)
+    message("AMReX Install Dir", "amrex/"+postfix)
+
+elif (args.amrex != ""):
     # Check to make sure directory is valid 
     if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
         raise Exception(error()+" AMReX directory must contain include/ and lib/ subdirectories ")
@@ -151,9 +193,22 @@ if args.python:
     python_boost_lib = "-lboost_python-py27"
 
     if not (os.path.isdir(python_include_dir)):
-        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist. Install using " + code("sudo apt install python-dev"))
     #if not (os.path.isfile(python_boost_lib)):
     #    raise Exception(color.red+"ERROR"+color.reset+": Python Boost library does not exist (Try installing libboost-python-dev)")
+
+    f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
+    f.write("PYTHON_LIB = " + python_boost_lib + '\n')
+    f.write("CXX_COMPILE_FLAGS += -fPIC \n")
+    message("Python","True")
+    note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
+
+if args.python3:
+    python_include_dir = "/usr/include/python"+args.python3version+"/"
+    python_boost_lib = "-lboost_python3-py"+args.python3version.replace(".","")
+
+    if not (os.path.isdir(python_include_dir)):
+        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist. Install using " + code("sudo apt install python3-dev"))
 
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')
@@ -184,12 +239,3 @@ if (args.docs):
     try: import m2r; message("M2R", str(m2r.__version__) + " (python 3)")
     except: message("M2R",color.red + "M2R not installed - install using " + code("pip install m2r"))
 
-#
-# Specify Prefix
-#
-prefix = "-"
-prefix += str(args.dim)+"d"
-if args.debug: prefix += "-debug"
-if args.python: prefix += "-fpic"
-prefix += "-" + args.comp
-f.write("PREFIX = " + prefix + '\n')
