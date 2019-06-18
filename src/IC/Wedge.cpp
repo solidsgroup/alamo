@@ -3,8 +3,6 @@
 
 namespace IC
 {
-namespace Flame
-{
 Wedge::Wedge (amrex::Vector<amrex::Geometry> &_geom)
 	: IC(_geom)
 {
@@ -48,4 +46,4 @@ void Wedge::Add(const int lev, amrex::Vector<amrex::MultiFab * > &field)
 	}
 }
 }
-}
+

@@ -28,11 +28,13 @@ Integrator::Integrator ()
 		ParmParse pp("amr"); // AMR specific parameters
 		pp.query("regrid_int", regrid_int);     // ALL processors
 		pp.query("plot_int", plot_int);         // ALL processors
-		pp.query("plot_dt", plot_dt);         // ALL processors
+		pp.query("plot_dt", plot_dt);           // ALL processors
 		pp.query("plot_file", plot_file);       // IO Processor only
 
+		Util::Message(INFO,"Parsing file name: before = ",plot_file);
 		IO::FileNameParse(plot_file);
-
+		Util::Message(INFO,"Parsing file name: before = ",plot_file);
+		//Util::Abort(INFO);
 		nsubsteps.resize(maxLevel()+1,1);
 		int cnt = pp.countval("nsubsteps");
 		if (cnt != 0)
@@ -784,15 +786,8 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 		{
 			if (istep[lev] % regrid_int == 0)
 			{
-				/// \todo Delete this section (except for the regrid call) once it is verified that it is no longer needed
-				//int old_finest = finest_level; // regrid changes finest_level
 				regrid(lev, time, false); 
-				// for (int k = lev; k <= finest_level; ++k) {
-				// 	last_regrid_step[k] = istep[k];
-				// }
-				// for (int k = old_finest+1; k <= finest_level; ++k) {
-				// 	dt[k] = dt[k-1] / MaxRefRatio(k-1);
-				// }
+				Regrid(lev,time);
 			}
 		}
 	}
