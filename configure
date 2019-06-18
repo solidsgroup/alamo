@@ -55,6 +55,7 @@ parser.add_argument('--nprocs',default=1,help='Number of processors needed to bu
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
+parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
 parser.add_argument('--python3',dest='python3',action='store_true',help='Compile python3 interface library')
 parser.add_argument('--python3-version',dest='python3version',default='3.6',help='Python3 Version')
@@ -98,6 +99,15 @@ f.write("DEBUG = " + str(args.debug) + "\n")
 message("Debug Mode",str(args.debug))
 
 #
+# OpenMP
+#
+message("OpenMP",str(args.omp))
+if args.omp:
+    f.write("CXX_COMPILE_FLAGS += -DOMP -fopenmp \n")
+    f.write("LINKER_FLAGS += -lgomp \n")
+
+
+#
 # AMREX
 #
 if (args.buildamrex == True):
@@ -134,11 +144,13 @@ elif (args.amrex != ""):
     amrex_spacedim = 0
     amrex_profiling = False
     amrex_debug = False
+    amrex_omp = False
     for line in open(args.amrex + "/include/AMReX_Config.H"):
         if "define BL_SPACEDIM 1" in line or "define AMREX_SPACEDIM 1" in line: amrex_spacedim = 1
         if "define BL_SPACEDIM 2" in line or "define AMREX_SPACEDIM 2" in line: amrex_spacedim = 2
         if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
         if "AMREX_DEBUG 1" in line: amrex_debug = True
+        if "USE_OMP 1" in line: amrex_omp = True
         if "PROFILING 1" in line: amrex_profiling = True
         if "AMREX_GIT_VERSION" in line: githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','')
         
@@ -151,6 +163,10 @@ elif (args.amrex != ""):
             raise Exception(error()+": Alamo is not in debug mode but AMReX is")
     if not args.debug and amrex_profiling:
         warning("Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+    if args.omp and not amrex_omp:
+        raise Exception(error() + "Alamo is compiled with OMP but AMReX is not. Try compiling AMReX with "+code("./configure --with-omp=yes") + " or compile Alamo without "+code("--omp"))
+    if not args.omp and amrex_omp:
+        raise Exception(error() + "Alamo is compiled without OMP but AMReX is. Try compiling AMReX with "+code("./configure --with-omp=no") + " or compile Alamo with " + code("--omp"))
 
     message("AMReX Directory", args.amrex)
     message("AMReX Git commit", githash)

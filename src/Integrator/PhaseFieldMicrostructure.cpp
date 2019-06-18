@@ -96,8 +96,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("voronoi.number_of_grains", total_grains);
 			ic = new IC::Voronoi(geom,total_grains);
 		}
-		else if (ic_type == "circle")
-			ic = new IC::Circle(geom);
+		else if (ic_type == "circle" || ic_type == "sphere")
+			ic = new IC::Sphere(geom);
 		else
 			Util::Abort(INFO, "No valid initial condition specified");
 	}

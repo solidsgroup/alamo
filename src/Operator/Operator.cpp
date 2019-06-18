@@ -812,8 +812,7 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 	// Sync up ghost nodes
 	amrex::Geometry geom = m_geom[crse_amrlev][mglev];
 	realFillBoundary(res,geom);
-	
-	nodalSync(crse_amrlev,mglev, res); // This is causing a problem so I'm commenting it out.
+	nodalSync(crse_amrlev,mglev, res);
 	return;
 }
 

@@ -33,6 +33,7 @@ std::string GetFileName()
 		else if (pp.contains("plot_file"))
 		{
 			pp.query("plot_file", filename);
+			IO::FileNameParse(filename);
 		}
 		// else
 		// 	if (amrex::ParallelDescriptor::IOProcessor())
@@ -121,7 +122,6 @@ Abort (const char * msg) { Terminate(msg, SIGABRT, true); }
 void
 Terminate(const char * msg, int signal, bool /*backtrace*/)
 {
-	amrex::write_to_stderr_without_buffering(msg);
 	SignalHandler(signal);
 }
 
@@ -268,11 +268,6 @@ std::complex<int> Parse(std::string input)
 
 }
 
-
-Set::Scalar Random()
-{
-	return ((Set::Scalar) rand()) / ((Set::Scalar) RAND_MAX);
-}
 
 namespace Test
 {
