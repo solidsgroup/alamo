@@ -108,6 +108,7 @@ public:
  				 const int &i, const int &j, const int &k,
 				 const amrex::Box &domain)
  	{
+		(void)i; (void)j; (void)k; // Suppress "unused variable" warnings
 		Set::Vector f;
 
 		// const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);

@@ -12,6 +12,7 @@
 #include "IC/Random.H"
 #include "IC/Trig.H"
 #include "IC/Sphere.H"
+#include "IC/Wulff.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
@@ -67,6 +68,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("plot_int",anisotropy.plot_int);
 		anisotropy.plot_dt = plot_dt;
 		pp.query("plot_int",anisotropy.plot_dt);
+		pp.query("thermo_int",anisotropy.thermo_int);
+		pp.query("thermo_plot_int",anisotropy.thermo_plot_int);
 
 		std::map<std::string,RegularizationType> regularization_type;
 		regularization_type["wilmore"] = RegularizationType::Wilmore;
@@ -128,6 +131,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		}
 		else if (ic_type == "sphere")
 			ic = new IC::Sphere(geom);
+		else if (ic_type == "wulff")
+			ic = new IC::Wulff(geom);
 		else
 			Util::Abort(INFO, "No valid initial condition specified");
 	}
@@ -590,7 +595,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	{
 		SetTimestep(anisotropy.timestep);
 		SetPlotInt(anisotropy.plot_int);
-		//SetThermoInt(anisotropy.plot_int);
+		if (anisotropy.thermo_int > 0) SetThermoInt(anisotropy.thermo_int);
+		if (anisotropy.thermo_plot_int > 0) SetThermoPlotInt(anisotropy.thermo_plot_int);
 		//SetThermoPlotInt(anisotropy.plot_int);
 		//Util::Message(INFO,"Setting timestep now: time = ", time , " and anisotropy.tstart = ",anisotropy.tstart);
 

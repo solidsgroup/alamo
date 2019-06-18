@@ -1,6 +1,7 @@
 
 -include Makefile.conf
 
+AMERX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
 MPI_LIB ?= -lgfortran -lmpich
 
@@ -51,11 +52,13 @@ HDR = $(filter-out $(HDR_TEST),$(HDR_ALL))
 SRC = $(shell find src/ -mindepth 2  -name "*.cpp" )
 SRC_F = $(shell find src/ -mindepth 2  -name "*.F90" )
 SRC_MAIN = $(shell find src/ -maxdepth 1  -name "*.cc" )
-EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=$(PREFIX))) 
-OBJ = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.o)) 
-DEP = $(subst src/,obj/obj$(PREFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj$(PREFIX)/, $(SRC_MAIN:.cc=.cc.d))
-OBJ_MAIN = $(subst src/,obj/obj$(PREFIX)/, $(SRC_MAIN:.cpp=.cc.o))
-OBJ_F = $(subst src/,obj/obj$(PREFIX)/, $(SRC_F:.F90=.F90.o))
+EXE = $(subst src/,bin/, $(SRC_MAIN:.cc=-$(POSTFIX))) 
+OBJ = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.o)) 
+DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cc=.cc.d))
+OBJ_MAIN = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cpp=.cc.o))
+OBJ_F = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_F:.F90=.F90.o))
+
+
 
 .SECONDARY: 
 
@@ -73,94 +76,68 @@ clean:
 	rm -f bin/*
 	rm -rf obj
 	rm -f Backtrace*
-	rm -f Makefile.conf
 	rm -rf docs/build docs/doxygen docs/html docs/latex
+
+realclean: clean
+	@printf "$(B_ON)$(FG_RED)CLEANING AMREX $(RESET)\n" 
+	-make -C amrex realclean
+	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
+	rm -f Makefile.conf Makefile.amrex.conf
+
 tidy:
 	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
 	rm -f Backtrace*
+
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
 
-bin/%: bin/%$(PREFIX) ;
+bin/%: bin/%-$(POSTFIX) ;
 
-bin/%$(PREFIX): ${OBJ_F} ${OBJ} obj/obj$(PREFIX)/%.cc.o
+bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o 
 	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
 	@mkdir -p bin/
 	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
 
-obj/obj$(PREFIX)/test.cc.o: src/test.cc
+obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/obj$(PREFIX)/%.cc.o: src/%.cc
+obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET}
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/obj$(PREFIX)/%.cpp.o: 
+obj/obj-$(POSTFIX)/%.cpp.o: 
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/obj$(PREFIX)/%.cpp.d: src/%.cpp 
+obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
 	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
-obj/obj$(PREFIX)/%.cc.d: src/%.cc
+obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
 	@mkdir -p $(dir $@)
 	@g++ -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
-
-
-obj/obj$(PREFIX)/IO/WriteMetaData.cpp.o: .FORCE
-	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   ${subst obj/obj$(PREFIX)/,src/,${@:.cpp.o=.cpp}} \n" 
+obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
+	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} \n" 
 	@mkdir -p $(dir $@)
-	@$(CC) -c ${subst obj/obj$(PREFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 .PHONY: .FORCE
 
-
-
 FORT_INCL = $(shell for i in ${CPLUS_INCLUDE_PATH//:/ }; do echo -I'$i'; done)
 
-obj/obj$(PREFIX)/%.F90.o: src/%.F90 
+obj/obj-$(POSTFIX)/%.F90.o: src/%.F90 
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING  $(RESET)$<\n" 
 	@mkdir -p $(dir $@)
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
-
-
-help:
-	@printf "$(B_ON)$(FG_YELLOW)\n\n============================== ALAMO Makefile help ==============================$(RESET)""\n\n"
-	@printf "$(B_ON)Overview: \n$(RESET)"
-	@printf "   This makefile automatically compiles all .cpp and .F90 files in \n"
-	@printf "   the src directory, and compiles AND LINKS all .cc files into an \n"
-	@printf "   executable in the bin directory. \n"
-	@printf "   Any modification to a .H file causes everything to recompile. \n"
-	@printf "   The file WriteMetaData.cpp recompiles every time to ensure that \n"
-	@printf "   all metadata macros are up-to-date. \n"
-	@printf "$(B_ON)Usage: $(RESET)\n"
-	@printf "$(FG_LIGHTGREEN)   make [exe name] [COMP=INTEL/GCC] [EIGEN=/path/to/eigen]$(RESET)\n"
-	@printf "$(FG_LIGHTGREEN)        [ALAMO=/path/to/alamo] [-jNUM]$(RESET) \n"
-	@printf "$(B_ON)Examples: $(RESET)\n"
-	@printf "$(FG_LIGHTGREEN)   make                              $(RESET) (makes everything using default options)\n"
-	@printf "$(FG_LIGHTGREEN)   make bin/alamo                    $(RESET) (makes bin/alamo only)\n"
-	@printf "$(FG_LIGHTGREEN)   make COMP=INTEL                   $(RESET) (make using Intel compiler options)\n"
-	@printf "$(FG_LIGHTGREEN)   make AMREX=/path/to/amrex         $(RESET) (specify location of AMReX)\n"
-	@printf "$(FG_LIGHTGREEN)   make EIGEN=/path/to/eigen         $(RESET) (specify location of Eigen)\n" 
-	@printf "$(FG_LIGHTGREEN)   make MPICHFORT=mpichfort,mpichf90 $(RESET) (backwards compatibility for mpichfort)\n" 
-	@printf "$(FG_LIGHTGREEN)   make -j8                          $(RESET) (compile in parallel with 8 processors)\n"
-	@printf "$(B_ON)Notes: $(RESET)\n"
-	@printf "   - Specifying AMREX and EIGEN paths $(FG_LIGHTRED)does not$(RESET) override libraries\n"
-	@printf "     that are already loaded in path.   \n"
-	@printf "   - The AMREX path must contain directories called $(FG_LIGHTBLUE)lib/ include/$(RESET)   \n"
-	@printf "   - The EIGEN path must contain a directory called $(FG_LIGHTBLUE)eigen3$(RESET)   \n"
-	@printf "\n"
-
 
 docs: docs/doxygen/index.html docs/build/html/index.html .FORCE 
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
@@ -174,6 +151,7 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.md
 
 
 ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),realclean)
 ifneq ($(MAKECMDGOALS),info)
 ifneq ($(MAKECMDGOALS),help)
 ifneq ($(MAKECMDGOALS),docs)
@@ -182,4 +160,6 @@ endif
 endif
 endif
 endif
+endif
 
+-include Makefile.amrex.conf
