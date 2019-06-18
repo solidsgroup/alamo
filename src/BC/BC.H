@@ -79,6 +79,7 @@ namespace BCUtil
 int ReadString(std::string bcstring);
 bool IsPeriodic(int bctype);
 bool IsNeumann(int bctype);
+bool IsReflectEven(int bctype);
 bool IsDirichlet(int bctype);
 }
 

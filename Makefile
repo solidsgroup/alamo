@@ -41,7 +41,7 @@ else
  CXX_COMPILE_FLAGS += -O3
 endif
 
-LINKER_FLAGS = -Bsymbolic-functions
+LINKER_FLAGS += -Bsymbolic-functions
 
 INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -L${AMREX}/lib/ -lamrex 
