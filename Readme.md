@@ -3,6 +3,21 @@
 **Note**: this README page is also the Doxygen main page, the Github readme page, and the Docs main page.
 You can view it by running `make docs` in the root directory, then opening `docs/doxygen/html/index.html` or `docs/build/html/index.html` in a web browser. 
 
+### Quick Start on Ubuntu ###
+
+First, install Eigen
+
+    sudo apt install libeigen3-dev
+
+Then checkout alamo, and in the alamo directory type
+
+    ./configure --build-amrex
+    make
+
+This will automatically download and configure amrex, compile amrex, and compile alamo.
+You can add other options (see below) and amrex will be built accordingly. 
+
+
 ## Compiling Alamo ##
 
 This section describes how to compile and install Alamo and its dependencies.
@@ -40,20 +55,6 @@ The following are instructions for how to install these dependencies on your pla
   
       make install
   
-
-### Building - Quick Start on Ubuntu ###
-
-First, install Eigen
-
-    sudo apt install libeigen3-dev
-
-Then checkout alamo, and in the alamo directory type
-
-    ./configure --build-amrex
-    make
-
-This will automatically download and configure amrex, compile amrex, and compile alamo.
-You can add other options (see below) and amrex will be built accordingly. 
 
 ### Building - Using Makefile ###
 
