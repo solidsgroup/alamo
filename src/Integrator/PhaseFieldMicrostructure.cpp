@@ -68,6 +68,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		anisotropy.plot_dt = plot_dt;
 		pp.query("plot_int",anisotropy.plot_dt);
 
+		std::map<std::string,RegularizationType> regularization_type;
+		regularization_type["wilmore"] = RegularizationType::Wilmore;
+		regularization_type["k12"] = RegularizationType::K12;
+		std::string regularization_type_input;
+		pp.query("regularization", regularization_type_input);
+		regularization = regularization_type[regularization_type_input];
+
 		if(gb_type=="abssin")
 			boundary = new Model::Interface::GB::AbsSin(anisotropy.theta0,
 														anisotropy.sigma0,
@@ -383,6 +390,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 						// Compute components of second Hessian in t2,t3 directions
 						Set::Scalar DH2 = 0.0, DH3 = 0.0;
+						Set::Scalar DH23 = 0.0;
 						for (int p = 0; p < 3; p++)
 							for (int q = 0; q < 3; q++)
 								for (int r = 0; r < 3; r++)
@@ -390,6 +398,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 									{
 										DH2 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t2(r)*t2(s);
 										DH3 += DDDDEta(p,q,r,s)*t3(p)*t3(q)*t3(r)*t3(s);
+										DH23 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t3(r)*t3(s);
 									}
 
 						Set::Scalar gbe = gbmodel.W(normal);
@@ -403,7 +412,20 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						driving_force += - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
 								  
 						// Second order curvature term
-						driving_force += beta*(DH2 + DH3);
+						switch(regularization)
+						{
+							case Wilmore:
+								driving_force += beta*(DH2 + DH3 + DH23);
+								break;
+							case K12:
+								driving_force += beta*(DH2+DH3);
+								break;
+							default:
+								Util::Abort(INFO, " This kind of regularization is not implemented yet.");
+								break;
+						}
+
+						//driving_force += beta*(DH2 + DH3);
 								 
 						if (m == 0)
 						{
