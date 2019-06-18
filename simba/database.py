@@ -9,6 +9,7 @@ import re
 parser = argparse.ArgumentParser(description='Sift through outputs');
 parser.add_argument('directories', nargs='*', help='List of directories containing ALAMO output');
 parser.add_argument('-d','--database', default='results.db', help='Name of database');
+parser.add_argument('-r','--remove', nargs='*', help='Tables to remove');
 parser.add_argument('-t','--table', default='simulation_data', help='Table name in database');
 
 args=parser.parse_args();
@@ -36,9 +37,6 @@ def parse(filename):
 
     return things
     
-
-
-
 
 #
 # Scan metadata files to determine columns
@@ -72,6 +70,11 @@ for directory in args.directories:
 #
 cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
 tables = [r[0] for r in cur.fetchall()]
+if "__tables__" not in tables:
+    cur.execute('CREATE TABLE __tables__ ('
+#                'HASH VARCHAR(255) UNIQUE, ' +
+                'NAME UNIQUE,' +
+                'Description VARCHAR(8000));')
 if args.table not in tables:
     cur.execute('CREATE TABLE ' + args.table + ' ('
                 'HASH VARCHAR(255) UNIQUE, ' +
@@ -84,6 +87,17 @@ if args.table not in tables:
     print('\033[1;32mADDED TABLE\033[1;0m: ' + args.table)
 else:
     print('\033[1;34mUSING TABLE\033[1;0m: ' + args.table)
+
+#cur.execute('DROP TABLE __tables__')
+cur.execute('SELECT * FROM __tables__ WHERE NAME = \"' + args.table + '\";')
+if (len(cur.fetchall()) == 0): cur.execute('INSERT INTO __tables__ (NAME, Description) VALUES (\"' + args.table + '\", \"Description\");')
+
+#
+# If there are tables to delete, delete them
+#
+if args.remove:
+    for tab in list(args.remove):
+        cur.execute('DROP TABLE ' + tab)
 
 #
 # If the table exists, but new columns have been added, modify the table

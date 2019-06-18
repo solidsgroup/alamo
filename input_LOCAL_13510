@@ -1,0 +1,93 @@
+timestep = 0.005
+#stop_time = 5.0 
+stop_time = 100.0
+
+plot_file = output%DD_%Y%m%d_%H%M%S
+#plot_file = output%DD 
+
+#amr.thermo.plot_int = 0.1
+amr.thermo.dt = 0.1
+amr.thermo.plot_dt = 0.1
+
+amr.plot_dt = 1.0
+amr.max_level = 1
+amr.n_cell = 64 8 8
+amr.blocking_factor = 8
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+amr.ref_threshold = 0.1
+amr.ref_ratio = 8
+
+
+ic.type = perturbed_interface
+ic.normal = x
+ic.offset = 4.0
+ic.wave_numbers = 2
+ic.wave_amplitudes = 1.0
+ic.wave_amplitudes = 0.5
+
+#geometry.prob_lo = 0 0 -0.25
+#geometry.prob_hi = 8 8 0.25
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 8 1 1
+geometry.is_periodic= 0 1 1
+
+bc.hi = EXT_DIR INT_DIR INT_DIR
+bc.lo = EXT_DIR INT_DIR INT_DIR
+bc.lo_1 = 1.0 0.0
+bc.hi_1 = 0.0 1.0
+bc.lo_2 = 0.0 0.0
+bc.hi_2 = 0.0 0.0
+bc.lo_3 = 0.0 0.0
+bc.hi_3 = 0.0 0.0
+
+
+
+pf.number_of_grains = 2
+pf.M = 1.0
+pf.mu = 10.0 
+pf.gamma = 1.0
+pf.l_gb=0.1
+pf.sigma0=0.75
+
+
+### ANISOTROPY ###
+anisotropy.on=1
+anisotropy.plot_int = 100
+anisotropy.tstart= 5.0
+#anisotropy.theta0= 10
+#anisotropy.gb_type = sin
+anisotropy.theta0= 45.0
+anisotropy.sigma0=0.5
+anisotropy.sigma1=0.5
+#anisotropy.beta= 0.00005 
+anisotropy.beta= 0.0002
+#anisotropy.regularization = wilmore
+anisotropy.regularization = k12
+
+
+
+##### INCLUSION
+#amr.plot_int = 1
+geometry.is_periodic = 0 0 0
+amr.n_cell = 16 16 16
+geometry.prob_hi = 2 2 2
+bc.lo = REFLECT_EVEN REFLECT_EVEN REFLECT_EVEN
+bc.hi = REFLECT_EVEN REFLECT_EVEN REFLECT_EVEN
+ic.type = sphere
+ic.center = 0 0 0
+ic.radius = 1 1 1
+ic.dim = 3
+#ic.normal = z
+#ic.offset = 0.5
+#ic.wave_amplitudes = 0.4
+anisotropy.on = 1
+anisotropy.timestep = 0.000025
+anisotropy.tstart = 2.0
+anisotropy.plot_int = 50
+#anisotropy.sigma1 = 0.0
+#anisotropy.beta = 0.0
+sdf.on = 1
+sdf.tstart = 0.1
+sdf.vol0 = 1.0 # 3D
+sdf.lambda = 10.0 # 3D
