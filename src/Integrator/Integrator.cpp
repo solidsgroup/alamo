@@ -476,7 +476,7 @@ Integrator::Restart(const std::string dirname)
 	// Domain
 	std::getline(is,line); 
 	std::vector<std::string> tmp_iters = Util::String::Split(line);
-	if (tmp_iters.size() != max_level+1) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
+	if ((int)tmp_iters.size() != max_level+1) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
 	for (int lev = 0; lev <= max_level; lev++) {istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO,"Iter on level " , lev , " = ", istep[lev]);}
 
 	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
@@ -701,8 +701,8 @@ Integrator::IntegrateVariables (Real time, int step)
 	BL_PROFILE("Integrator::IntegrateVariables");
 	if (!thermo.number) return;
 
-	if ( (thermo.interval > 0 && (step) % thermo.interval == 0) ||
-		 (thermo.dt > 0.0 & std::fabs(std::remainder(time,plot_dt)) < 0.5*dt[0]))
+	if ( ((thermo.interval > 0) && (step) % thermo.interval == 0) ||
+		 ((thermo.dt > 0.0)     && std::fabs(std::remainder(time,plot_dt)) < 0.5*dt[0]))
 	{
 		// Zero out all variables
 		for (int i = 0; i < thermo.number; i++) *thermo.vars[i] = 0; 
@@ -712,7 +712,9 @@ Integrator::IntegrateVariables (Real time, int step)
 		{
 			const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
 
+#ifdef OMP
 			#pragma omp parallel
+#endif
 			for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -727,7 +729,9 @@ Integrator::IntegrateVariables (Real time, int step)
 		}
 		// Now do the finest level
 		{
+			#ifdef OMP
 			#pragma omp parallel
+			#endif 
 			for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();

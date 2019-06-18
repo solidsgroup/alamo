@@ -120,7 +120,7 @@ void
 Abort (const char * msg) { Terminate(msg, SIGABRT, true); }
 
 void
-Terminate(const char * msg, int signal, bool /*backtrace*/)
+Terminate(const char * /* msg */, int signal, bool /*backtrace*/)
 {
 	SignalHandler(signal);
 }

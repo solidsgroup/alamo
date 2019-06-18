@@ -118,17 +118,16 @@ if (args.buildamrex == True):
     if fpic: amrex_configure += ' --enable-pic=yes'
     note(amrex_configure)
     args.amrex = "amrex/"+postfix
-    f.write("AMREX = amrex/" + postfix + "/\n")
-    f.write("AMREX_TARGET = amrex/" + postfix + "\n")
+    f.write("AMREX = amrex/" + postfix + "\n")
+    f.write("AMREX_TARGET = amrex/" + postfix + "/lib/libamrex.a\n")
     
     f2 = open("Makefile.amrex.conf","w")
     f2.write("amrex:\n")
     f2.write("\t@git clone https://github.com/AMReX-Codes/amrex.git\n")
     f2.write("\n")
-    f2.write("amrex/"+postfix+": amrex\n")
+    f2.write("amrex/"+postfix+"/lib/libamrex.a: amrex\n")
     f2.write("\t" + amrex_configure + "\n")
-    #f2.write("\tmake -C amrex realclean \n")
-    #f2.write("\tmake -C amrex" + (" USE_COMPILE_PIC=TRUE" if fpic else "") + " -j" + str(args.nprocs) + " \n")
+    f2.write("\tmake -C amrex -j"+args.nprocs+" | tee amrex.build.log\n")
     f2.write("\tmake -C amrex install \n")
         
     message("AMReX", "Downloading/building automatically")
