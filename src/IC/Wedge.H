@@ -5,8 +5,6 @@
 
 namespace IC
 {
-namespace Flame
-{
 class Wedge : public IC
 {
 public:
@@ -17,6 +15,5 @@ public:
   
 private:
 };
-}
 }
 #endif

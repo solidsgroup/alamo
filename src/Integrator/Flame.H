@@ -9,8 +9,8 @@
 #include "Util/Util.H"
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
-#include "IC/Flame/Voronoi.H"
-#include "IC/Flame/Wedge.H"
+#include "IC/Voronoi.H"
+#include "IC/Wedge.H"
 
 namespace Integrator
 {
@@ -23,7 +23,7 @@ protected:
 	void Initialize (int lev) ;
 	void Advance (int lev, amrex::Real time, amrex::Real dt);
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
-
+	void Regrid(int lev, Set::Scalar time) override;
 private:
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;
@@ -33,7 +33,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > FlameSpeedFab;
 	BC::BC *TempBC;
 	BC::BC *EtaBC;
-	IC::Flame::Voronoi *VoronoiIC;
+	IC::Voronoi *VoronoiIC;
 
 	// int number_of_fabs = 1;
 	// int number_of_components = 2;
