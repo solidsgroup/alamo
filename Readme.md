@@ -52,7 +52,8 @@ Then checkout alamo, and in the alamo directory type
     ./configure --build-amrex
     make
 
-This will automatically download and configure amrex. 
+This will automatically download and configure amrex, compile amrex, and compile alamo.
+You can add other options (see below) and amrex will be built accordingly. 
 
 ### Building - Using Makefile ###
 
