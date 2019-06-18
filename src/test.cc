@@ -30,8 +30,8 @@ int main (int argc, char* argv[])
 	{
 		int subfailed = 0;
 		Test::Model::Interface::GB::GB<Model::Interface::GB::Sin> test;
-		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
-		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(1));
+		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(1));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 

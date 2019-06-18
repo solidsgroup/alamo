@@ -40,7 +40,9 @@ namespace Integrator
 {
 
 using model_type = Model::Solid::LinearElastic::Isotropic;
-
+enum RegularizationType{
+	Wilmore = 1,
+	K12 = 2};
 
 ///
 /// \class PhaseFieldMicrostructure
@@ -91,6 +93,7 @@ private:
 	BC::BC *mybc;
 
 	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
+	RegularizationType regularization = RegularizationType::K12;
 
 	struct {
 		int on = 0;
