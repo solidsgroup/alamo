@@ -226,7 +226,7 @@ void Flame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Rea
 		}
 
 }
-void Flame::Regrid(int lev, Set::Scalar time)
+void Flame::Regrid(int lev, Set::Scalar /* time */)
 {
 	FlameSpeedFab[lev]->setVal(0.0);
 	VoronoiIC->Initialize(lev,FlameSpeedFab);

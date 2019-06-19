@@ -9,6 +9,7 @@
 
 namespace IC
 {
+/// \brief Set each point to a random value.
 class Random : public IC
 {
 public:
