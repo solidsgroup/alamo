@@ -50,14 +50,23 @@ public:
 		number_of_grains = a_number_of_grains;
 		alpha = a_alpha;
 		type = a_type;
+
+		voronoi.resize(number_of_grains);
+
+		for (int n = 0; n<number_of_grains; n++)
+		{
+			AMREX_D_TERM(voronoi[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 voronoi[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 voronoi[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+		}
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
-					size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
-					size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
+					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
+					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
 
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
