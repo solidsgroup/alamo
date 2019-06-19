@@ -176,7 +176,7 @@ protected:
 			Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
 	}
 		
-	virtual void Regrid(int amrlev, Set::Scalar time)
+	virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
 	{}
 
 

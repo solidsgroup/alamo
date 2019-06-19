@@ -8,6 +8,7 @@ This is basic documentation for the Alamo.
    :caption: Contents:
 
    BC/BC
+   IC/IC
    Integrator/Integrator
    Model/Model
    Numeric/Numeric
