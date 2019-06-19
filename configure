@@ -127,7 +127,7 @@ if (args.buildamrex == True):
     f2.write("\n")
     f2.write("amrex/"+postfix+"/lib/libamrex.a: amrex\n")
     f2.write("\t" + amrex_configure + "\n")
-    f2.write("\tmake -C amrex -j"+args.nprocs+" | tee amrex.build.log\n")
+    f2.write("\tmake -C amrex -j"+str(args.nprocs)+" | tee amrex.build.log\n")
     f2.write("\tmake -C amrex install \n")
         
     message("AMReX", "Downloading/building automatically")
