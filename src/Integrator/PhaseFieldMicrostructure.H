@@ -26,11 +26,11 @@
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
 
-#include "Operator/CellElastic/PolyCrystal/PolyCrystal.H"
-#include "Operator/CellElastic/Isotropic/Isotropic.H"
-#include "Operator/CellElastic/PolyCrystal/Isotropic/Isotropic.H"
-#include "Operator/CellElastic/PolyCrystal/Cubic/Cubic.H"
-#include "Operator/CellElastic/Cubic/Cubic.H"
+//#include "Operator/CellElastic/PolyCrystal/PolyCrystal.H"
+//#include "Operator/CellElastic/Isotropic/Isotropic.H"
+//#include "Operator/CellElastic/PolyCrystal/Isotropic/Isotropic.H"
+//#include "Operator/CellElastic/PolyCrystal/Cubic/Cubic.H"
+//#include "Operator/CellElastic/Cubic/Cubic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
@@ -158,11 +158,11 @@ private:
 	} elastic;
 	//#endif
 
-	Operator::CellElastic::PolyCrystal::PolyCrystal *cellelastic_operator;
+	//Operator::CellElastic::PolyCrystal::PolyCrystal *cellelastic_operator;
 	Operator::Elastic<Model::Solid::LinearElastic::Cubic> *elastic_operator;
 	BC::BC *elastic_bc;
 
-	std::vector<Operator::CellElastic::PolyCrystal::PolyCrystalModel *> models;
+	//std::vector<Operator::CellElastic::PolyCrystal::PolyCrystalModel *> models;
 	
 	const std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
 									    amrex::IntVect(AMREX_D_DECL(0,1,0)),

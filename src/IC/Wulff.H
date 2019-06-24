@@ -37,7 +37,7 @@ public:
             {
                 for (Set::Scalar phi = 0.0; phi <= 0.5*Set::Constant::Pi; phi += 0.01)
                 {
-                    Set::Vector n(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta));
+                    Set::Vector n(AMREX_D_DECL(sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)));
                     Set::Scalar W = model.W(n);
                     //Util::Message(INFO,"phi=",phi," theta=",theta," W=",W);
             

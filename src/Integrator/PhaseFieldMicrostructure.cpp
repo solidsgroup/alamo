@@ -255,8 +255,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		//
 		if (elastic.grid == Grid::Cell)
 		{
-			for (int n = 0; n <  number_of_grains; n++) 
-				models.push_back(new Operator::CellElastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
+			Util::Abort(INFO,"This is not longer supported");
+//			for (int n = 0; n <  number_of_grains; n++) 
+//				models.push_back(new Operator::CellElastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
 		}
 
 	}
@@ -611,107 +612,108 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		LPInfo info;
 		info.setAgglomeration(true);
 		info.setConsolidation(true);
-		cellelastic_operator = new Operator::CellElastic::PolyCrystal::PolyCrystal();
-		cellelastic_operator->define(geom,grids,dmap,*elastic_bc,info);
-		cellelastic_operator->SetEta(eta_new_mf,models);
-
-		for (int ilev = 0; ilev < displacement.size(); ++ilev)
-		{
-			/// \todo Replace with proper driving force initialization
-			body_force[ilev]->setVal(0.0,0,1);
-			body_force[ilev]->setVal(0.0,1,1);
-
-			if (iter==0)
-			{
-				displacement[ilev]->setVal(0.0);
-			}
-		}
-	
-
-		amrex::MLMG solver(*cellelastic_operator);
-		solver.setMaxIter(elastic.max_iter);
-		solver.setMaxFmgIter(elastic.max_fmg_iter);
-		solver.setVerbose(elastic.verbose);
-		solver.setCGVerbose(elastic.cgverbose);
-
-		solver.solve(GetVecOfPtrs(displacement),
-			     GetVecOfConstPtrs(body_force),
-			     elastic.tol_rel,
-			     elastic.tol_abs);
-
-		for (int lev = 0; lev < displacement.size(); lev++)
-		{
-			const amrex::Real* DX = geom[lev].CellSize();
-			const amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-							  dy(AMREX_D_DECL(0,1,0)),
-							  dz(AMREX_D_DECL(0,0,1)));
-
-			// cellelastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
-			// cellelastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
-
-			for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
-			{
-				const Box& bx = mfi.tilebox();
-
-				FArrayBox &ufab  = (*displacement[lev])[mfi];
-				FArrayBox &epsfab  = (*strain[lev])[mfi];
-				FArrayBox &sigmafab  = (*stress[lev])[mfi];
-				//FArrayBox &energyfab  = (*energy[lev])[mfi];
-				FArrayBox &energiesfab  = (*energies[lev])[mfi];
-				FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
-
-
-				AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-					     for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-					     for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
-			 	{
-			 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
-#if AMREX_SPACEDIM == 2
-			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
-			 		 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
-					epsfab(m,2) = epsfab(m,1);
-			 		epsfab(m,3) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-#elif AMREX_SPACEDIM == 3
-			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
-			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) + 0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
-			 		epsfab(m,2) = 0.5*(ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]) + 0.5*(ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]);
-					epsfab(m,3) = epsfab(m,1);
-					epsfab(m,4) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
-					epsfab(m,5) = 0.5*(ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]) + 0.5*(ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
-					epsfab(m,6) = epsfab(m,2);
-					epsfab(m,7) = epsfab(m,5);
-			 		epsfab(m,8) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
-#endif
-
-					cellelastic_operator->Stress((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
-					cellelastic_operator->Energy((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
-
-
-			 		sigmavmfab(m,0) = 0.0;
-
-#if AMREX_SPACEDIM == 2
-			 		sigmavmfab(m) =
-			 		 	sqrt(0.5*(sigmafab(m,0) - sigmafab(m,1)*(sigmafab(m,0) - sigmafab(m,1))
-			 		 		  + sigmafab(m,0)*sigmafab(m,0)
-			 		 		  + sigmafab(m,1)*sigmafab(m,1)
-			 		 		  + 6.0*sigmafab(m,2)*sigmafab(m,2)));
-#elif AMREX_SPACEDIM == 3
-			 		sigmavmfab(m) =
-			 		 	sqrt(0.5*((sigmafab(m,0) - sigmafab(m,4))*(sigmafab(m,0) - sigmafab(m,4)) +
-							  (sigmafab(m,4) - sigmafab(m,8))*(sigmafab(m,4) - sigmafab(m,8)) +
-							  (sigmafab(m,8) - sigmafab(m,0))*(sigmafab(m,8) - sigmafab(m,0)))+
-						     + 3.0 * (sigmafab(m,1)*sigmafab(m,1) +
-							      sigmafab(m,2)*sigmafab(m,2) +
-							      sigmafab(m,5)*sigmafab(m,5)));
-#endif
-
-			 	}
-
-			
-				cellelastic_operator->Energies(energiesfab,ufab,lev,mfi);
-			}
-		}
+		Util::Abort(INFO);
+//		cellelastic_operator = new Operator::CellElastic::PolyCrystal::PolyCrystal();
+//		cellelastic_operator->define(geom,grids,dmap,*elastic_bc,info);
+//		cellelastic_operator->SetEta(eta_new_mf,models);
+//
+//		for (int ilev = 0; ilev < displacement.size(); ++ilev)
+//		{
+//			/// \todo Replace with proper driving force initialization
+//			body_force[ilev]->setVal(0.0,0,1);
+//			body_force[ilev]->setVal(0.0,1,1);
+//
+//			if (iter==0)
+//			{
+//				displacement[ilev]->setVal(0.0);
+//			}
+//		}
+//	
+//
+//		amrex::MLMG solver(*cellelastic_operator);
+//		solver.setMaxIter(elastic.max_iter);
+//		solver.setMaxFmgIter(elastic.max_fmg_iter);
+//		solver.setVerbose(elastic.verbose);
+//		solver.setCGVerbose(elastic.cgverbose);
+//
+//		solver.solve(GetVecOfPtrs(displacement),
+//			     GetVecOfConstPtrs(body_force),
+//			     elastic.tol_rel,
+//			     elastic.tol_abs);
+//
+//		for (int lev = 0; lev < displacement.size(); lev++)
+//		{
+//			const amrex::Real* DX = geom[lev].CellSize();
+//			const amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+//							  dy(AMREX_D_DECL(0,1,0)),
+//							  dz(AMREX_D_DECL(0,0,1)));
+//
+//			// cellelastic_operator->Stress(lev,*stress[lev],*displacement[lev]);
+//			// cellelastic_operator->Energy(lev,*energy[lev],*displacement[lev]);
+//
+//			for ( amrex::MFIter mfi(*strain[lev],true); mfi.isValid(); ++mfi )
+//			{
+//				const Box& bx = mfi.tilebox();
+//
+//				FArrayBox &ufab  = (*displacement[lev])[mfi];
+//				FArrayBox &epsfab  = (*strain[lev])[mfi];
+//				FArrayBox &sigmafab  = (*stress[lev])[mfi];
+//				//FArrayBox &energyfab  = (*energy[lev])[mfi];
+//				FArrayBox &energiesfab  = (*energies[lev])[mfi];
+//				FArrayBox &sigmavmfab  = (*stress_vm[lev])[mfi];
+//
+//
+//				AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+//					     for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+//					     for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
+//			 	{
+//			 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
+//#if AMREX_SPACEDIM == 2
+//			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+//			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) +
+//			 		 	0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+//					epsfab(m,2) = epsfab(m,1);
+//			 		epsfab(m,3) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+//#elif AMREX_SPACEDIM == 3
+//			 		epsfab(m,0) = (ufab(m+dx,0) - ufab(m-dx,0))/(2.0*DX[0]);
+//			 		epsfab(m,1) = 0.5*(ufab(m+dx,1) - ufab(m-dx,1))/(2.0*DX[0]) + 0.5*(ufab(m+dy,0) - ufab(m-dy,0))/(2.0*DX[1]);
+//			 		epsfab(m,2) = 0.5*(ufab(m+dx,2) - ufab(m-dx,2))/(2.0*DX[0]) + 0.5*(ufab(m+dz,0) - ufab(m-dz,0))/(2.0*DX[2]);
+//					epsfab(m,3) = epsfab(m,1);
+//					epsfab(m,4) = (ufab(m+dy,1) - ufab(m-dy,1))/(2.0*DX[1]);
+//					epsfab(m,5) = 0.5*(ufab(m+dy,2) - ufab(m-dy,2))/(2.0*DX[1]) + 0.5*(ufab(m+dz,1) - ufab(m-dz,1))/(2.0*DX[2]);
+//					epsfab(m,6) = epsfab(m,2);
+//					epsfab(m,7) = epsfab(m,5);
+//			 		epsfab(m,8) = (ufab(m+dz,2) - ufab(m-dz,2))/(2.0*DX[2]);
+//#endif
+//
+//					cellelastic_operator->Stress((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+//					cellelastic_operator->Energy((*stress[lev])[mfi],(*displacement[lev])[mfi],lev,mfi);
+//
+//
+//			 		sigmavmfab(m,0) = 0.0;
+//
+//#if AMREX_SPACEDIM == 2
+//			 		sigmavmfab(m) =
+//			 		 	sqrt(0.5*(sigmafab(m,0) - sigmafab(m,1)*(sigmafab(m,0) - sigmafab(m,1))
+//			 		 		  + sigmafab(m,0)*sigmafab(m,0)
+//			 		 		  + sigmafab(m,1)*sigmafab(m,1)
+//			 		 		  + 6.0*sigmafab(m,2)*sigmafab(m,2)));
+//#elif AMREX_SPACEDIM == 3
+//			 		sigmavmfab(m) =
+//			 		 	sqrt(0.5*((sigmafab(m,0) - sigmafab(m,4))*(sigmafab(m,0) - sigmafab(m,4)) +
+//							  (sigmafab(m,4) - sigmafab(m,8))*(sigmafab(m,4) - sigmafab(m,8)) +
+//							  (sigmafab(m,8) - sigmafab(m,0))*(sigmafab(m,8) - sigmafab(m,0)))+
+//						     + 3.0 * (sigmafab(m,1)*sigmafab(m,1) +
+//							      sigmafab(m,2)*sigmafab(m,2) +
+//							      sigmafab(m,5)*sigmafab(m,5)));
+//#endif
+//
+//			 	}
+//
+//			
+//				cellelastic_operator->Energies(energiesfab,ufab,lev,mfi);
+//			}
+//		}
 	}
 	if (elastic.grid == Grid::Node)
 	{
