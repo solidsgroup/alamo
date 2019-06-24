@@ -151,7 +151,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterIntegratedVariable(&volume, "volume");
 	RegisterIntegratedVariable(&area, "area");
 	RegisterIntegratedVariable(&gbenergy, "gbenergy");
-	RegisterIntegratedVariable(&gbenergy, "realgbenergy");
+	RegisterIntegratedVariable(&realgbenergy, "realgbenergy");
   
 	// Elasticity
 	{
