@@ -255,7 +255,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		//
 		if (elastic.grid == Grid::Cell)
 		{
-			Util::Abort(INFO,"This is not longer supported");
+//			Util::Abort(INFO,"This is not longer supported");
 //			for (int n = 0; n <  number_of_grains; n++) 
 //				models.push_back(new Operator::CellElastic::PolyCrystal::Cubic(107.3, 60.9, 28.30)); // randomized angles
 		}
