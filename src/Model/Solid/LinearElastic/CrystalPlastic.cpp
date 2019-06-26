@@ -62,10 +62,11 @@ void CrystalPlastic::initializeSlip()
 	sigma = Set::Matrix::Zero();
 	
 }
-double CrystalPlastic::CalcSSigN (Set::Vector ss, Set::Vector nn) const
+double CrystalPlastic::CalcSSigN (Set::Vector ss, Set::Vector nn) 
 {
 	double a;
 	a = ss.transpose()*sigma*nn;
+	//Util::Message(INFO,"a = ", a);
 	return a;
 }
 void CrystalPlastic::GetActivePlains()
@@ -73,7 +74,7 @@ void CrystalPlastic::GetActivePlains()
 	double a = 0;
 	for(int i = 0; i < 12; i++)
 	{
-		Util::Message(INFO,"Normal Vectors ", slipSystem[i].n.transpose());
+		//Util::Message(INFO,"Normal Vectors ", slipSystem[i].n.transpose());
 		//Util::Message(INFO,"Slip Vectors ", slipSystem[i].s.transpose());
 		
 		//calculate a = abs(s*sigma*n)
@@ -87,7 +88,7 @@ void CrystalPlastic::GetActivePlains()
 Set::Scalar CrystalPlastic::GetGammaDot(Set::Vector ss, Set::Vector nn)
 {
 	double gamma;
-	gamma = gamma0*sgn(CalcSSigN(ss,nn)*pow((abs(CalcSSigN(ss,nn))/Tcrss),n));
+	gamma = gamma0*sgn(CalcSSigN(ss,nn))*pow((abs(CalcSSigN(ss,nn))/Tcrss),n);
 	//Util::Message(INFO,"gamma = ", gamma);
 	return gamma;
 }
@@ -99,7 +100,7 @@ Set::Matrix CrystalPlastic::AdvanceEsp()
 	
 	for(int i = 0; i < 12; i++)
 	{
-		if(!Systems[i]) continue;
+		if(Systems[i]) continue;
 		else
 		{
 			int sign = sgn(CalcSSigN(slipSystem[i].s,slipSystem[i].n));
@@ -112,6 +113,14 @@ Set::Matrix CrystalPlastic::AdvanceEsp()
 	return esp;
 }
 
+Set::Matrix CrystalPlastic::GetSigma()
+{
+	return sigma;
+}
+Set::Matrix CrystalPlastic::GetEsp()
+{
+	return esp;
+}
 void CrystalPlastic::UpdateSigma()
 {
 	sigma = E*(es-esp); 
@@ -120,6 +129,10 @@ void CrystalPlastic::UpdateSigma()
 void CrystalPlastic::SetEs(Set::Matrix _es)
 {
 	es = _es;
+}
+void CrystalPlastic::Setdt(double _dt)
+{
+	dt = _dt;
 }
 void
 CrystalPlastic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R)

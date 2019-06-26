@@ -40,12 +40,15 @@ public:
 		if (a < 0) return -1;
 		return 0;
 	}
-	double CalcSSigN (Set::Vector ss, Set::Vector nn) const;
+	double CalcSSigN (Set::Vector ss, Set::Vector nn);
 
 	void UpdateSigma();
-	void SetEs(Set::Matrix _es); 
 	Set::Scalar GetGammaDot(Set::Vector ss, Set::Vector nn);
 	Set::Matrix AdvanceEsp();
+	void SetEs(Set::Matrix _es); 
+	void Setdt(double _dt);
+	Set::Matrix GetSigma();
+	Set::Matrix GetEsp();
 //-----------------------//
 	void Randomize();
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
