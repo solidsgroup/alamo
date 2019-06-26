@@ -8,6 +8,7 @@
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Interface/GB/Sin.H"
+#include "Model/Interface/GB/AbsSin.H"
 
 #include "Model/Interface/GB/SH.H"
 
@@ -30,8 +31,17 @@ int main (int argc, char* argv[])
 	{
 		int subfailed = 0;
 		Test::Model::Interface::GB::GB<Model::Interface::GB::Sin> test;
-		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(1));
-		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(1));
+		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+		failed += Util::Test::SubFinalMessage(subfailed);
+	}
+
+	Util::Test::Message("Model::Interface::GB::GB<AbsSin>");
+	{
+		int subfailed = 0;
+		Test::Model::Interface::GB::GB<Model::Interface::GB::AbsSin> test;
+		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 

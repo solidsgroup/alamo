@@ -955,6 +955,9 @@ PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 			if (!anisotropy.on || time < anisotropy.tstart)
 			{
 				gbenergy += sigma0*da;
+				
+				Set::Scalar k = 0.75 * sigma0 * l_gb;
+				realgbenergy += 0.5 * k * normgrad * normgrad * dv;
 			}
 			else
 			{
