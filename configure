@@ -65,7 +65,7 @@ parser.add_argument('--docs',dest='docs',action='store_true',help='Check install
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 
-fpic = args.python or args.python3
+fpic = args.python 
 
 f = open("Makefile.conf","w")
 #
