@@ -206,9 +206,11 @@ if args.comp == 'icc':     f.write("MPI_LIB = -lifcore\n")
 # Python information
 #
 if args.python:
-    python_include_dir = "/usr/include/python"+str(args.python)+"/"
-
-    if not (os.path.isdir(python_include_dir)):
+    if os.path.isdir("/usr/include/python"+str(args.python)+"/"):
+        python_include_dir = "/usr/include/python"+str(args.python)+"/"
+    elif os.path.isdir("/usr/include/python"+str(args.python)+"m/"):
+        python_include_dir = "/usr/include/python"+str(args.python)+"m/"
+    else:
         message("Py incl. dirs",' '.join(glob.glob(("/usr/include/python*"))))
         raise Exception(error("Python include directory does not exist. Version may be incorrect, or you may need to install using either" 
                         + code("sudo apt install python3-dev") + " or " + code("sudo apt install python-dev")))
