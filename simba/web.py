@@ -73,7 +73,7 @@ def table(table):
             cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table));
 
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = [r[0] for r in cur.fetchall()]
+    tables = [r[0] for r in sorted(cur.fetchall())]
     if "__tables__" in tables: tables.remove("__tables__")
 
     if not table: table_name = tables[0]
@@ -124,7 +124,7 @@ imgfiles = []
 
 def find_images(path):
     global imgfiles
-    img_fmts = ['.jpg', '.jpeg', '.png', '.pdf', '.gif']
+    img_fmts = ['.jpg', '.jpeg', '.png', '.gif','.svg']
     imgfiles = []
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
     imgfiles.sort()
