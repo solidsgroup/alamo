@@ -103,6 +103,7 @@ private:
 		Set::Scalar plot_dt = -1.0;
 		int thermo_int = -1, thermo_plot_int = -1;
 		Set::Scalar theta0,sigma0,sigma1;
+		Set::Scalar phi0 = 0.0;
 	} anisotropy;
 	
 	struct { 
