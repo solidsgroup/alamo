@@ -2,5 +2,5 @@
    :maxdepth: 2
    :caption: Contents:
 
-.. mdinclude:: ../../Readme.md
+.. include:: ../../Readme.rst
  

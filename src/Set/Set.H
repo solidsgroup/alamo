@@ -26,5 +26,8 @@ static const Set::Scalar Pi = 3.14159265359;
 }
 }
 
-
+namespace Util
+{
+    Set::Scalar Random();
+}
 #endif

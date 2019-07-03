@@ -21,6 +21,7 @@
 #include <AMReX_Utility.H>
 #include <AMReX_PlotFileUtil.H>
 
+#include "Set/Set.H"
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"
@@ -93,6 +94,8 @@ public:
 	/// \fn    FrontData
 	/// \brief Front-end method to initialize simulation
 	void InitData ();
+
+	void Restart (std::string restartfile);
 
 	/// \fn    Evolve
 	/// \brief Front-end method to start simulation
@@ -169,10 +172,13 @@ protected:
 	virtual void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*iter*/,
 			       const amrex::MFIter &/*mfi*/, const amrex::Box &/*box*/)
 	{
-		if (number_of_intvars > 0)
+		if (thermo.number > 0)
 			Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
 	}
 		
+	virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
+	{}
+
 
 	/// \fn    RegisterNewFab
 	/// \brief Register a field variable for AMR with this class 
@@ -210,6 +216,9 @@ protected:
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
 	void SetTimestep(Set::Scalar _timestep);
+	void SetPlotInt(int plot_int);
+	void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
+	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot_int = a_thermo_plot_int;}
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
@@ -232,7 +241,6 @@ private:
 			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
 			amrex::MultiFab &destination_multifab, BC::BC &physbc,
 			int icomp);
-	void InitFromCheckpoint ();
 	long CountCells (int lev);
 	void TimeStep (int lev, amrex::Real time, int iteration);
 	void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, BC::BC &physbc, int icomp, int ncomp);
@@ -240,7 +248,7 @@ private:
 
 	std::vector<std::string> PlotFileName (int lev) const;
 protected:
-	void WritePlotFile () const;
+	void WritePlotFile (bool initial = false) const;
 
 	//
 	// MEMBER VARIABLES
@@ -281,22 +289,24 @@ protected:
 	BC::Nothing bcnothing;
 
 	// KEEP TRACK OF ALL INTEGRATED VARIABLES
-	int intvar_int = 1;
-	int intvar_plot = 1;
-	int number_of_intvars = 0;
-	std::vector<Set::Scalar *> intvar_array;
-	std::vector<std::string> intvar_names;
+	struct{
+		int interval = -1;
+		Set::Scalar dt = -1.0;
+		int plot_int = -1;
+		Set::Scalar plot_dt = -1.0;
+		int number = 0;
+		std::vector<Set::Scalar *> vars;
+		std::vector<std::string> names;
+	} thermo;
 
 	// REGRIDDING
 	int regrid_int = 2; ///< Determine how often to regrid (default: 2)
 
-	// RESTART CHECKFILE -- NOT CURRENTLY USED!
-	//std::string restart_chkfile;     ///< Checkfile name __Not currently used__
-	//std::string check_file {"chk"};  ///< Checkfiles __Not currently used__
-	//int check_int = -1;              ///< How frequently to dump checkfile __Not currently used__
+	std::string restart_file = "";
 
 protected:
 	int plot_int = -1;               ///< How frequently to dump plot file (default: never)
+	Set::Scalar plot_dt = -1.0;
 };
 }
 #endif

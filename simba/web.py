@@ -5,6 +5,7 @@ import fnmatch
 import sqlite3
 import argparse
 from flask import Flask, request, render_template, send_file, redirect
+from flaskext.markdown import Markdown
 
 print("====================================")
 print("SIMBA: SIMulation Browser Analysis")
@@ -31,6 +32,7 @@ if not args.safe and not args.ip == '127.0.0.1' or args.ip == 'localhost':
 script_directory = os.path.realpath(__file__)
 
 app = Flask(__name__)
+Markdown(app)
 
 
 @app.route("/", methods=['GET','POST'])
@@ -51,6 +53,8 @@ def root():
 
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in cur.fetchall()]
+    if "__tables__" in tables: tables.remove("__tables__")
+
 
     if len(tables) > 0:
         return redirect('/table/'+tables[0])
@@ -62,8 +66,15 @@ def table(table):
     db = sqlite3.connect(args.database)
     db.text_factory = str
     cur= db.cursor()
+
+    if request.method == 'POST':
+        if request.form.get('table-description') and not args.safe:
+            print(request.form.get('table-description'))
+            cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table));
+
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in cur.fetchall()]
+    if "__tables__" in tables: tables.remove("__tables__")
 
     if not table: table_name = tables[0]
     else: table_name = table
@@ -79,6 +90,9 @@ def table(table):
 
     cur.execute("SELECT * FROM " + table_name )
     data = cur.fetchall()
+
+    cur.execute("SELECT Description FROM __tables__ WHERE Name = \"" + table_name  + "\"")
+    desc = list(cur.fetchall()[0])[0]
 
     cur.execute("PRAGMA table_info("+table_name+")")
     columns=[a[1] for a in cur.fetchall()]
@@ -101,6 +115,7 @@ def table(table):
     return render_template('template.html',
                            tables=tables,
                            table_name=table,
+                           table_description=desc,
                            table=data,
                            status=status,
                            numfiles=numfiles,
@@ -109,7 +124,7 @@ imgfiles = []
 
 def find_images(path):
     global imgfiles
-    img_fmts = ['.jpg', '.jpeg', '.png', '.pdf']
+    img_fmts = ['.jpg', '.jpeg', '.png', '.pdf', '.gif']
     imgfiles = []
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
     imgfiles.sort()

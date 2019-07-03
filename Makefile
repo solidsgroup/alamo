@@ -1,7 +1,7 @@
 
 -include Makefile.conf
 
-AMERX_TARGET ?= 
+AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
 MPI_LIB ?= -lgfortran -lmpich
 
@@ -41,7 +41,7 @@ else
  CXX_COMPILE_FLAGS += -O3
 endif
 
-LINKER_FLAGS = -Bsymbolic-functions
+LINKER_FLAGS += -Bsymbolic-functions
 
 INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     = -L${AMREX}/lib/ -lamrex 
@@ -65,32 +65,39 @@ OBJ_F = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_F:.F90=.F90.o))
 default: $(DEP) $(EXE)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
+
 python: $(OBJ)
 	@printf "$(B_ON)$(FG_MAGENTA)PYTHON  $(RESET)    Compiling library\n" 
 	@$(CC) -x c++ -c py/alamo.cpy -fPIC -o py/alamo.cpy.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
 	@$(CC) -shared -Wl,-soname,alamo.so -o alamo.so py/alamo.cpy.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
 
-clean:
+tidy:
+	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
+	rm -f Backtrace*
+	rm -f amrex.build.log
+	
+clean: tidy
 	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
 	find src/ -name "*.o" -exec rm {} \;
 	rm -f bin/*
 	rm -rf obj
 	rm -f Backtrace*
 	rm -rf docs/build docs/doxygen docs/html docs/latex
+	rm -f amrex.build.log
 
 realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING AMREX $(RESET)\n" 
 	-make -C amrex realclean
+	rm -rf amrex/1d* amrex/2d* amrex/3d*
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -f Makefile.conf Makefile.amrex.conf
 
-tidy:
-	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
-	rm -f Backtrace*
 
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
+
+-include Makefile.amrex.conf
 
 bin/%: bin/%-$(POSTFIX) ;
 
@@ -145,7 +152,7 @@ docs: docs/doxygen/index.html docs/build/html/index.html .FORCE
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
 	@cd docs && doxygen 
-docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.md
+docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html > /dev/null
 
@@ -162,4 +169,3 @@ endif
 endif
 endif
 
--include Makefile.amrex.conf

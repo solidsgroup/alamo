@@ -5,14 +5,9 @@
 #include <sstream>
 #include <chrono>
 
-std::time_t t = 0;
+#include "Util/Util.H"
 
-int ReplaceAll(std::string &str, const std::string before, const std::string after)
-{
-  while(str.find(before) != std::string::npos)
-    str.replace(str.find(before), before.size(), after);
-  return 0;
-}
+std::time_t t = 0;
 
 void IO::FileNameParse(std::string &filename)
 {
@@ -31,36 +26,42 @@ void IO::FileNameParse(std::string &filename)
 	ss.str("");
 	ss << year;
 	std::string _Y = ss.str();
+	Util::String::ReplaceAll(filename,"%Y",_Y);
 	
 	// _m: month (01..12)
 	ss.str("");
 	ss << std::setfill('0') << std::setw(2) << month;
 	std::string _m = ss.str();
+	Util::String::ReplaceAll(filename,"%m",_m);
 	
 	// _d: day of month (01..31)
 	ss.str("");
 	ss << std::setfill('0') << std::setw(2) << day;
 	std::string _d = ss.str();
+	Util::String::ReplaceAll(filename,"%d",_d);
 	
 	// _H: hour (00..23)
 	ss.str("");
 	ss << std::setfill('0') << std::setw(2) << hour;
 	std::string _H = ss.str();
+	Util::String::ReplaceAll(filename,"%H",_H);
 	
 	// _M: minute (00..59)
 	ss.str("");
 	ss << std::setfill('0') << std::setw(2) << minute;
 	std::string _M = ss.str();
+	Util::String::ReplaceAll(filename,"%M",_M);
 
 	// _S: second (00..59)
 	ss.str("");
 	ss << std::setfill('0') << std::setw(2) << second;
 	std::string _S = ss.str();
+	Util::String::ReplaceAll(filename,"%S",_S);
 
-	ReplaceAll(filename,"%Y",_Y);
-	ReplaceAll(filename,"%m",_m);
-	ReplaceAll(filename,"%d",_d);
-	ReplaceAll(filename,"%H",_H);
-	ReplaceAll(filename,"%M",_M);
-	ReplaceAll(filename,"%S",_S);
+	// _D: spatial dimension (1,2,3)
+	ss.str("");
+	ss << AMREX_SPACEDIM;
+	std::string _D = ss.str();
+	Util::String::ReplaceAll(filename,"%D",_D);
+	
 }
