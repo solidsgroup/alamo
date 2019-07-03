@@ -145,13 +145,14 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	//eta_old_mf.resize(maxLevel()+1);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
 	RegisterNewFab(etas_mf, 1, "Etas");
-	RegisterNewFab(n_mf, mybc, AMREX_SPACEDIM, number_of_ghost_cells, "N");
+	RegisterNewFab(n_mf, mybc, 6, number_of_ghost_cells, "N");
 
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
 	RegisterIntegratedVariable(&area, "area");
 	RegisterIntegratedVariable(&gbenergy, "gbenergy");
 	RegisterIntegratedVariable(&realgbenergy, "realgbenergy");
+	RegisterIntegratedVariable(&regenergy, "regenergy");
   
 	// Elasticity
 	{
@@ -323,6 +324,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 #if AMREX_SPACEDIM == 1
 						//Util::Abort(INFO, "Anisotropy is enabled but works in 2D/3D ONLY");
 #elif AMREX_SPACEDIM == 2
+						Set::Vector tangent(normal[1],-normal[0]);
 						Set::Scalar Theta = atan2(Deta(1),Deta(0));
 						Set::Scalar kappa = l_gb*0.75*boundary->W(Theta);
 						Set::Scalar Dkappa = l_gb*0.75*boundary->DW(Theta);
@@ -340,7 +342,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 						Set::Scalar Boundary_term =
 							kappa*laplacian +
-							//Dkappa*(cos(2.0*Theta)*DDeta(0,1) + 0.5*sin(2.0*Theta)*(DDeta(1,1) - DDeta(0,0)))
+							Dkappa*(cos(2.0*Theta)*DDeta(0,1) + 0.5*sin(2.0*Theta)*(DDeta(1,1) - DDeta(0,0)))
 							+ 0.5*DDkappa*(sinTheta*sinTheta*DDeta(0,0) - 2.*sinTheta*cosTheta*DDeta(0,1) + cosTheta*cosTheta*DDeta(1,1));
 						if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 			
@@ -352,8 +354,13 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						{
 							//Set::Scalar ev1 = eigensolver.eigenvalues()(0); 
 							//Set::Scalar ev2 = eigensolver.eigenvalues()(1); 
-						 	N(i,j,k,0) = Curvature_term;
-							N(i,j,k,1) = 0.0;
+							Set::Scalar k2 = (DDeta*tangent).dot(tangent);
+						 	N(i,j,k,0) = 0.5*beta*k2*k2;
+							N(i,j,k,1) = kappa;
+							N(i,j,k,2) = Dkappa;
+							N(i,j,k,3) = DDkappa;
+							N(i,j,k,4) = Boundary_term;
+							N(i,j,k,5) = beta*Curvature_term;
 						 	//N(i,j,k,1) = DH2;//eigensolver.eigenvalues().lpNorm<2>();
 						 	//N(i,j,k,2) = DH3;//0.0;
 						}
@@ -949,6 +956,8 @@ PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 
 		if (normgrad > 1E-8)
 		{
+			Set::Vector normal = grad/normgrad;
+
 			Set::Scalar da = normgrad * dv;
 			area += da;
 		
@@ -958,6 +967,7 @@ PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 				
 				Set::Scalar k = 0.75 * sigma0 * l_gb;
 				realgbenergy += 0.5 * k * normgrad * normgrad * dv;
+				regenergy = 0.0;
 			}
 			else
 			{
@@ -968,6 +978,11 @@ PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 
 				Set::Scalar k = 0.75 * sigma * l_gb;
 				realgbenergy += 0.5 * k * normgrad * normgrad * dv;
+
+				Set::Matrix DDeta = Numeric::Hessian(eta,i,j,k,0,DX);
+				Set::Vector tangent(normal[1],-normal[0]);
+				Set::Scalar k2 = (DDeta*tangent).dot(tangent);
+				regenergy += 0.5 * beta * k2 * k2;
 #endif
 			}
 		}

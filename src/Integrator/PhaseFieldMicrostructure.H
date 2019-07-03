@@ -126,6 +126,7 @@ private:
 	Set::Scalar area = 0.0;
 	Set::Scalar gbenergy = 0.0;
 	Set::Scalar realgbenergy = 0.0;
+	Set::Scalar regenergy = 0.0;
 
 	struct
 	{
