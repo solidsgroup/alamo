@@ -23,5 +23,6 @@ void exportModelCrystalPlastic()
 		.def("GetSigma",&CrystalPlastic::GetSigma)
 		.def("GetEsp", &CrystalPlastic::GetEsp)
 		.def("Setdt", &CrystalPlastic::Setdt)
+		.def("reset", &CrystalPlastic::reset)
 		;
 }

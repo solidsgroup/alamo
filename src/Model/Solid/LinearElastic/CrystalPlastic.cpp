@@ -59,8 +59,6 @@ void CrystalPlastic::initializeSlip()
 	slipSystem[10] = slp11;
 	slipSystem[11] = slp12;
 	
-	sigma = Set::Matrix::Zero();
-	
 }
 double CrystalPlastic::CalcSSigN (Set::Vector ss, Set::Vector nn) 
 {
@@ -80,8 +78,14 @@ void CrystalPlastic::GetActivePlains()
 		//calculate a = abs(s*sigma*n)
 		a = abs(CalcSSigN(slipSystem[i].s,slipSystem[i].n));
 		//Util::Message(INFO,"a = ", a);
-		if(a > Tcrss) Systems[i] = true;		
-		else Systems[i] = false;
+		if(a > Tcrss) 
+		{
+			slipSystem[i].on = true;
+		}		
+		else 
+		{
+			slipSystem[i].on = false;
+		}
 	}	
 }
 
@@ -93,14 +97,14 @@ Set::Scalar CrystalPlastic::GetGammaDot(Set::Vector ss, Set::Vector nn)
 	return gamma;
 }
 
-Set::Matrix CrystalPlastic::AdvanceEsp()
+void CrystalPlastic::AdvanceEsp()
 {
 	GetActivePlains();
 	Set::Matrix temp = Set::Matrix::Zero();
 	
 	for(int i = 0; i < 12; i++)
 	{
-		if(Systems[i]) continue;
+		if(slipSystem[i].on) continue;
 		else
 		{
 			int sign = sgn(CalcSSigN(slipSystem[i].s,slipSystem[i].n));
@@ -110,9 +114,16 @@ Set::Matrix CrystalPlastic::AdvanceEsp()
 	}
 	// Euler integration
 	esp = esp + temp*dt;
-	return esp;
 }
-
+void CrystalPlastic::UpdateSigma()
+{
+	sigma = E*(es-esp); 
+	//Util::Message(INFO,"es = ", sigma);
+}
+void CrystalPlastic::reset()
+{
+	esp = Set::Matrix::Zero();
+}
 Set::Matrix CrystalPlastic::GetSigma()
 {
 	return sigma;
@@ -121,11 +132,7 @@ Set::Matrix CrystalPlastic::GetEsp()
 {
 	return esp;
 }
-void CrystalPlastic::UpdateSigma()
-{
-	sigma = E*(es-esp); 
-	//Util::Message(INFO,"es = ", sigma);
-}
+
 void CrystalPlastic::SetEs(Set::Matrix _es)
 {
 	es = _es;

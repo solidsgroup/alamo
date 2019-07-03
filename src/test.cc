@@ -7,6 +7,7 @@
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+#include "Model/Solid/LinearElastic/CrystalPlastic.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Operator/Elastic.H"

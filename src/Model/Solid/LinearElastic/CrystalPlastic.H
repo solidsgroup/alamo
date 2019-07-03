@@ -44,7 +44,8 @@ public:
 
 	void UpdateSigma();
 	Set::Scalar GetGammaDot(Set::Vector ss, Set::Vector nn);
-	Set::Matrix AdvanceEsp();
+	void AdvanceEsp();
+	void reset();
 	void SetEs(Set::Matrix _es); 
 	void Setdt(double _dt);
 	Set::Matrix GetSigma();
@@ -78,10 +79,12 @@ public:
 private:
 	void GetActivePlains(); //used in update esp function
 	void initializeSlip();
+	
 	struct slip
 {
 	Set::Vector n;
 	Set::Vector s;
+	bool on;
 };
 	std::array<Set::Scalar,21> C;
 	//********Matrial Slip Data**********//
@@ -104,7 +107,6 @@ private:
 	Set::Vector s43 = {-1,-1,0};
 
 	std::array<slip,12> slipSystem;
-	std::array<bool,12> Systems;
 	slip slp1;
 	slip slp2;
 	slip slp3;
@@ -118,18 +120,17 @@ private:
 	slip slp11;
 	slip slp12;
 	//********Matrial Matrices**********//
-	Set::Matrix sigma;
+	Set::Matrix sigma = Set::Matrix::Zero();
 	Set::Matrix esp = Set::Matrix::Zero();
 	Set::Matrix es = Set::Matrix::Zero();
 
 	//********Matrial Constants**********//
-	Set::Scalar Tcrss = .1;
-	Set::Scalar E = 1; 
-	Set::Scalar n = 2.1;
-	Set::Scalar gammadot0 = .5;
-	double gamma0 = 0.1;
-	Set::Scalar dt = 1e-5;
-
+	Set::Scalar Tcrss = .4;
+	Set::Scalar E = .8; 
+	Set::Scalar n = 200.5;
+	Set::Scalar gammadot0 = 1.2;
+	Set::Scalar gamma0 = 0.5;
+	Set::Scalar dt = 1e-8;
 	
 
 };
