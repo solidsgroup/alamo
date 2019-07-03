@@ -55,9 +55,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		amrex::ParmParse pp("anisotropy"); // Phase-field model parameters
 		pp.query("on", anisotropy.on);
 		pp.query("theta0", anisotropy.theta0);
+		pp.query("phi0", anisotropy.phi0);
 		pp.query("filename", filename);
 		pp.query("gb_type", gb_type);
 		anisotropy.theta0 *= 0.01745329251; // convert degrees into radians
+		anisotropy.phi0 *= 0.01745329251; // convert degrees into radians
 		pp.query("sigma0", anisotropy.sigma0);
 		pp.query("sigma1", anisotropy.sigma1);
 		pp.query("beta", beta);
@@ -88,6 +90,16 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 													 anisotropy.sigma1);
 		else if(gb_type=="read")
 			boundary = new Model::Interface::GB::Read(filename);
+
+		else if(gb_type == "sh")
+		{
+			//Need to make this check for other gb_types as well.
+			if (AMREX_SPACEDIM < 2) Util::Abort(INFO,"SH model is only for 3D");
+			boundary = new Model::Interface::GB::SH(anisotropy.theta0,
+													anisotropy.phi0,
+													anisotropy.sigma0,
+													anisotropy.sigma1);
+		}
 		else
 			boundary = new Model::Interface::GB::Sin(anisotropy.theta0,anisotropy.sigma0,anisotropy.sigma1);
 
