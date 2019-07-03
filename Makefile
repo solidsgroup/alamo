@@ -1,5 +1,5 @@
 
--include Makefile.conf
+include Makefile.conf
 
 AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
@@ -88,6 +88,7 @@ clean: tidy
 realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING AMREX $(RESET)\n" 
 	-make -C amrex realclean
+	rm -rf amrex/1d* amrex/2d* amrex/3d*
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -f Makefile.conf Makefile.amrex.conf
 
