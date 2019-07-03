@@ -58,5 +58,10 @@ bool IsDirichlet(int bctype)
 	if (bctype == (int)amrex::LinOpBCType::Dirichlet) return true;
 	else return false;
 }
+bool IsReflectEven(int bctype)
+{
+	if (bctype == REFLECT_EVEN) return true;
+	else return false;
+}
 }
 }

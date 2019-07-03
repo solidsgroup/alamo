@@ -31,4 +31,6 @@ Makefile.conf
 Makefile.amrex.conf
 *.so
 .vscode
+visitlog.py
 amrex
+amrex.build.log

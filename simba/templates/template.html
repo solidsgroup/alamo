@@ -1,8 +1,26 @@
 {% extends "layout.html" %}
 {% block content %}
 
-{% include 'tables.html' %}
-
+<div class="container-fluid">
+  <div class="row justify-content-start">
+    <div class="col-md-4">
+      {% include 'tables.html' %}
+    </div>
+    <div class="col-md-8">
+      <div width="100%">
+	{{ table_description | markdown }}
+	<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-description">Edit Description</button>
+      </div>
+      <br/>
+      <div width="100%">
+	<form class="form-group collapse out" id="form-description" action="/table/{{table_name}}" method="post">
+	  <textarea class="form-control" rows="5" name='table-description'>{{ table_description }}</textarea>
+	  <button class="btn btn-success pull-right" type="Update">Update</button>
+	</form>
+      </div>
+    </div>
+  </div>
+</div>
 <br/>
 
 {% set status_column = -1 %}
