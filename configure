@@ -139,7 +139,7 @@ if (args.buildamrex == True):
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
     
     message("Configuring amrex",amrex_configure,False)
-    subprocess.run(amrex_configure.split(),cwd="amrex")
+    subprocess.Popen(amrex_configure.split(),cwd="amrex")
     
     f2 = open("Makefile.amrex.conf","w")
     f2.write("amrex/"+postfix+":\n")
