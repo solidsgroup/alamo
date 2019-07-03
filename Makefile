@@ -1,5 +1,5 @@
 
-include Makefile.conf
+-include Makefile.conf
 
 AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
@@ -152,7 +152,7 @@ docs: docs/doxygen/index.html docs/build/html/index.html .FORCE
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
 	@cd docs && doxygen 
-docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.md
+docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html > /dev/null
 

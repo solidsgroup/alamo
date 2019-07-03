@@ -143,7 +143,7 @@ if (args.buildamrex == True):
     
     f2 = open("Makefile.amrex.conf","w")
     f2.write("amrex/"+postfix+":\n")
-    f2.write("\t$(MAKE) -C amrex $(MAKECMD) --output-sync=target \n")
+    f2.write("\t$(MAKE) -C amrex $(MAKECMD)\n") # --output-sync=target
     f2.write("\tmake -C amrex install\n")
         
     message("AMReX", "Downloading/building automatically")

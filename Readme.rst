@@ -1,139 +1,110 @@
-# Getting Started #
+Getting Started
+===============
 
-**Note**: this README page is also the Doxygen main page, the Github readme page, and the Docs main page.
-You can view it by running `make docs` in the root directory, then opening `docs/doxygen/html/index.html` or `docs/build/html/index.html` in a web browser. 
+Note: this README page is also the Doxygen main page, the Github readme page, 
+and the Docs main page.
+You can view it by running :code:`make docs` in the root directory, then opening 
+:code:`docs/doxygen/html/index.html` or :code:`docs/build/html/index.html` in a web browser. 
 
-## Compiling Alamo ##
+Compiling Alamo
+---------------
 
 This section describes how to compile and install Alamo and its dependencies.
 
-### Dependencies ###
+**Installing Eigen**: You need to have the Eigen3 library installed. You can do this in one of two ways:
 
-Alamo requires `eigen3` and `AMReX` to compile. 
-The following are instructions for how to install these dependencies on your platform.
+1.  Install using your package manager. In Ubuntu, you can install using
 
-* The website for `eigen3` is http://eigen.tuxfamily.org. 
-  Download the source and store it in a directory (e.g. /home/myusername/eigen3/). 
-  This is all you need to do.
-  (The directory must be named eigen3)
-* The website for `amrex` is https://github.com/AMReX-Codes/amrex
-  To compile and install, clone the AMReX repository with 
-  
-      git clone https://github.com/AMReX-Codes/amrex.git
-    
-  Change into the AMReX directory with 
-  
-      cd amrex
-  
-  Configure AMReX by typing
-  
-      ./configure --dim=3 --debug=yes --prefix=/home/myusername/amrex/
-  
-  Note that you can compile in 3D with `--dim=2`, you can compile in non-debug mode with `--debug=no`, 
-  and you can change the installation directory by changing the path in `--prefix`.
-  Next, compile AMReX by typing
-  
-      make
-      
-  This may take some time. You can speed it up by compiling in parallel with `make -j2`(where 2 == two processors).
-  Finally, install by typing
-  
-      make install
-  
+    .. code-block::
 
-### Building - Using Makefile ###
+        sudo apt install libeigen3-dev
 
-To build alamo, in the alamo directory type
+2. Download `eigen3` from the website http://eigen.tuxfamily.org.
+   Store it in a directory (e.g. /home/myusername/eigen3/).
 
-    ./configure
+**Cloning**: Clone the repository using the command
 
-To see a full list of options type 
+.. code-block::
 
-    ./configure --help
+    git clone https://github.com/solidsuccs/alamo.git
 
-To explicitly specify AMReX and Eigen locations (which you probably should), type 
+**Configuring**: Navigate to the :code:`alamo` directory, and run the configure script:
 
-    ./configure --amrex /path/to/amrex --eigen /path/to/eigen
+.. code-block::
 
-where `/path/to/amrex` and `/path/to/eigen` should match the `--prefix` and the location of the Eigen directory, respectively.
-(The script will check this and error out if they do not.)
-To specify the spatial dimension,
+    ./configure --build-amrex
 
-    ./configure --dim #OfDimensions
+This will download and configure the AMReX repository for use by Alamo.
+If you are compiling in 2D, add the argument :code:`--dim 2` to the command.
+For a full list of options run :code:`./configure --help`.
 
-Once you have run the configure script without errors, build with
+.. NOTE:: 
+    If you used option (2) to obtain Eigen, you need to add 
+    :code:`--eigen /path/to/eigen` to your configure command:
+
+**Making**: To build the code:
+.. code-block::
 
     make
 
-The default is to compile in 3 dimensions.
-If you specify AMReX directly, it will check to make sure that AMReX is also compiled in the same number of dimensions.
-Immediately after running the `./configure` script, type
+This will automatically build the appropriate version of AMReX as well as Alamo.
+To build in parallel, add the :code:`-jN` argument where :code:`N` is the number of processors.
 
-    make
+.. WARNING::
+    There is an issue with GNU Make that can cause I/O errors during parallel builds.
+    You may get the following error:
 
-This again can be sped up using `make -j#OfProcessors`.
-For additional help, type 
+    .. code-block::
 
-    make help
+        make[1]: write error: stdout
 
-to get an extensive help message.
-Finally, type 
+    To continue the build, just issue the :code:`make` command again and it should continue normally.
+    You can also add the :code:`--output-sync=target` option which may help eliminate the issue.
 
-    make clean
+**Python Interface** See :ref:`building-python`
 
-to clear out extra files that were generated.
-
-### Building - Using CMAKE (Not up to Date) ###
-
-To build ALAMO using CMAKE, you must have CMAKE installed. 
-1. Create a build directory.
-   **Do not use the ALAMO root directory as your build directory**.
-   The `.gitignore` file is configured to ignore the `./build` directory, but you can choose whatever directory you wish.
-2. Within the build directory, run CMAKE with the following:
-
-       cmake /path/to/alamo/root -DAMREX=/path/to/amrex
-	   
-   Note that `/path/to/amrex` must contain two directories: `lib` and `include`
-3. Within the build directory, type
-
-       make
-		
-   to generate executables.
-
-## Testing ##
+Testing
+-------
 
 Upon successful compilation, run tests by typing
+
+.. code-block::
 
     ./bin/test-3d-debug-g++
 
 The output will indicate whether the tests pass or fail.
 If you are committing changes, you should always make sure the tests pass in 2 and 3 dimensions before committing.
 
-## Common Error Messages ##
+Common Error Messages
+---------------------
 
 The following are some common error messages and problems encountered:
 
-* `MLLinOp: grids not coarsenable between AMR levels`:
+* :code:`MLLinOp: grids not coarsenable between AMR levels`
   This is a conflict in the **multigrid solver** because the grid size is not a power of 2.
   Solve by changing the domain dimensions (`amr.n_cell`) so that they are powers of two.
 
-* `static_cast<long>(i) < this->size() failed`:
-  One common reason this happens is if Dirichlet/Neumann boundaries are specified but no boundary values are provided.
+* :code:`static_cast<long>(i) < this->size() failed`
+  One common reason this happens is if Dirichlet/Neumann
+  boundaries are specified but no boundary values are provided.
 
-## Generating Documentation ##
+Generating this documentation
+-----------------------------
 
 Generating documentation requires the following packages:
 
-* Doxygen (on Ubuntu: `sudo apt install doxygen`)
-* Sphinx (on Ubuntu: `sudo apt install python3-sphinx`)
-* Breathe (on Ubuntu: `sudo apt install python3-breathe`)
-* M2R (on Ubuntu: `python3 -m pip install m2r`)
-* RTD theme (on Ubuntu: `python3 -m pip install sphinx_rtd_theme`)
-* GraphViz (on Ubuntu: `sudo apt install graphviz`)
+* Doxygen (on Ubuntu: :code:`sudo apt install doxygen`)
+* Sphinx (on Ubuntu: :code:`sudo apt install python3-sphinx`)
+* Breathe (on Ubuntu: :code:`sudo apt install python3-breathe`)
+* M2R (on Ubuntu: :code:`python3 -m pip install m2r`)
+* RTD theme (on Ubuntu: :code:`python3 -m pip install sphinx_rtd_theme`)
+* GraphViz (on Ubuntu: :code:`sudo apt install graphviz`)
 
 To generate the documentation, type
 
+.. code-block::
+
     make docs
 
-(You do not need to run `./configure` before generating documentation.)
+(You do not need to run :code:`./configure` before generating documentation.)
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.
