@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import argparse
 import os
 import re
@@ -115,9 +115,9 @@ if (args.buildamrex == True):
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix
-    if   args.comp == "g++": amrex_configure += ' --comp=gnu'
+    if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
     elif args.comp == "clang++": amrex_configure += ' --comp=llvm'
-    elif args.comp == "icc": amrex_configure += ' --comp=intel'
+    elif args.comp == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
     if fpic: amrex_configure += ' --enable-pic=yes'
     note(amrex_configure)
@@ -213,9 +213,20 @@ message("Compiler", str(args.comp))
 shellmessage("Comp. version",args.comp+" --version")
 shellmessage("MPI flags","mpicxx -cxx="+args.comp+" -show")
 f.write("CC = mpicxx -cxx="+args.comp+"\n")
-if args.comp == 'g++':     f.write("MPI_LIB = -lgfortran -lmpich\n")
-if args.comp == 'clang++': f.write("MPI_LIB = -lgfortran -lmpich\n")
-if args.comp == 'icc':     f.write("MPI_LIB = -lifcore\n")
+if args.comp == 'g++':     
+    f.write("MPI_LIB = -lgfortran -lmpich\n")
+    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3")
+if args.comp == 'clang++': 
+    f.write("MPI_LIB = -lgfortran -lmpich\n")
+    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3")
+if args.comp == 'icc':     
+    f.write("MPI_LIB = -lifcore\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3 -inline-forceinline")
 
 #
 # Python information

@@ -17,7 +17,7 @@ geometry.prob_hi    = 1.5 0.5 0.1     # Problem domain: furthest point to the up
 geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
 
 timestep            = 0.001     # Timestep
-stop_time           = 50
+stop_time           = 12.5
 
 physics.M           = 1.0    # Mobility - controls flame speed
 physics.kappa		= 0.01   # Width of burn region

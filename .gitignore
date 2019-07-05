@@ -34,3 +34,4 @@ Makefile.amrex.conf
 visitlog.py
 amrex
 amrex.build.log
+.diff.html
