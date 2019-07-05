@@ -19,7 +19,10 @@ This section describes how to compile and install Alamo and its dependencies.
 
         sudo apt install libeigen3-dev
 
-2. Download `eigen3` from the website http://eigen.tuxfamily.org.
+2.  Use the :code:`--get-eigen` flag in the :code:`./configure` script.
+    This will download Eigen into the root alamo directory.
+
+3. Download `eigen3` from the website http://eigen.tuxfamily.org.
    Store it in a directory (e.g. /home/myusername/eigen3/).
 
 **Cloning**: Clone the repository using the command
@@ -43,6 +46,7 @@ For a full list of options run :code:`./configure --help`.
     :code:`--eigen /path/to/eigen` to your configure command:
 
 **Making**: To build the code:
+
 .. code-block::
 
     make
@@ -114,10 +118,22 @@ Compiling on STAMPEDE2
 
 To compile on STAMPEDE2 you must first load the following modules:
 
-.. code-block:: 
+.. code-block::
 
     module load python3
     module load mvapich2
 
+This will load the Python3 and MPICH modules.
+The following configure script is recommended:
 
+.. code-block::
+
+    ./configure --build-amrex --get-eigen --comp=icc
+
+where other arguments (e.g. :code:`--dim=2`) can be added as necessary.
+Finally, make with
+
+.. code-block::
+
+    make
 
