@@ -56,6 +56,7 @@ parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=False, help='Download and build AMReX automatically')
 parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="master", help='AMReX Branch (You probably don\'t need to change this!' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
+parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
@@ -107,7 +108,6 @@ if args.omp:
     f.write("CXX_COMPILE_FLAGS += -DOMP -fopenmp \n")
     f.write("LINKER_FLAGS += -lgomp \n")
 
-
 #
 # AMREX
 #
@@ -126,22 +126,22 @@ if (args.buildamrex == True):
     f.write("AMREX_TARGET = amrex/" + postfix + "\n")
     
     if os.path.isdir("amrex"):
-        message("AMReX","Checking out branch " + args.buildamrexbranch,False)
+        message("AMReX-Checkout","Checking out branch " + args.buildamrexbranch,False)
         p = subprocess.Popen(("git -C amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        message("AMReX","Updating branch " + args.buildamrexbranch,False)
+        message("AMReX-Update","Updating branch " + args.buildamrexbranch,False)
         p = subprocess.Popen("git -C amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
     else:
-        message("AMReX","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
+        message("AMReX-Clone","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
         p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
     
-    message("Configuring amrex",amrex_configure,False)
+    message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="amrex")
     
     f2 = open("Makefile.amrex.conf","w")
@@ -149,8 +149,8 @@ if (args.buildamrex == True):
     f2.write("\t$(MAKE) -C amrex $(MAKECMD)\n") # --output-sync=target
     f2.write("\tmake -C amrex install\n")
         
-    message("AMReX", "Downloading/building automatically")
-    message("AMReX Install Dir", "amrex/"+postfix)
+    message("AMReX-Status", "Downloading/building automatically")
+    message("AMReX-Directory", "amrex/"+postfix)
 
 elif (args.amrex != ""):
     # Check to make sure directory is valid 
@@ -194,10 +194,20 @@ else:
 #
 # EIGEN
 #
-if (args.eigen != ""):
+if (args.geteigen):
+    if not os.path.isdir("eigen3"):
+        message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
+        p = subprocess.Popen(("git clone https://github.com/eigenteam/eigen-git-mirror").split(),
+                             stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        subprocess.run("mv eigen-git-mirror eigen3".split())
+    message("Eigen-Directory",".")
+    f.write("EIGEN = .\n")
+elif (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
-    print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
+    message("Eigen-Directory",args.eigen)
     f.write("EIGEN = " + args.eigen + "\n")
 
 #
@@ -209,9 +219,9 @@ if not args.comp in ['g++','icc','clang++']:
 if (args.comp == "gcc"): f.write("COMP = GCC\n")
 elif (args.comp == "clang"): f.write("COMP = CLANG\n")
 elif (args.comp == "intel"): f.write("COMP = INTEL\n")
-message("Compiler", str(args.comp))
-shellmessage("Comp. version",args.comp+" --version")
-shellmessage("MPI flags","mpicxx -cxx="+args.comp+" -show")
+message("Comp-Type", str(args.comp))
+shellmessage("Comp-Version",args.comp+" --version")
+shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
 f.write("CC = mpicxx -cxx="+args.comp+"\n")
 if args.comp == 'g++':     
     f.write("MPI_LIB = -lgfortran -lmpich\n")
@@ -226,7 +236,7 @@ if args.comp == 'clang++':
 if args.comp == 'icc':     
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3 -inline-forceinline")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3") # -inline-forceinline
 
 #
 # Python information
