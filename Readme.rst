@@ -6,6 +6,17 @@ and the Docs main page.
 You can view it by running :code:`make docs` in the root directory, then opening 
 :code:`docs/doxygen/html/index.html` or :code:`docs/build/html/index.html` in a web browser. 
 
+Quick Start:
+------------
+
+.. code-block::
+
+    git clone https://github.com/solidsuccs/alamo.git
+    cd alamo
+    ./configure --build-amrex --get-eigen
+    make
+
+
 Compiling Alamo
 ---------------
 
