@@ -108,3 +108,16 @@ To generate the documentation, type
 
 (You do not need to run :code:`./configure` before generating documentation.)
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.
+
+Compiling on STAMPEDE2
+----------------------
+
+To compile on STAMPEDE2 you must first load the following modules:
+
+.. code-block:: 
+
+    module load python3
+    module load mvapich2
+
+
+
