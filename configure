@@ -115,6 +115,9 @@ if (args.buildamrex == True):
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix
+    if   args.comp == "g++": amrex_configure += ' --comp=gnu'
+    elif args.comp == "clang++": amrex_configure += ' --comp=llvm'
+    elif args.comp == "icc": amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
     if fpic: amrex_configure += ' --enable-pic=yes'
     note(amrex_configure)

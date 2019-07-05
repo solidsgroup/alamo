@@ -23,7 +23,7 @@ FG_MAGENTA         = \033[35m
 
 
 
-METADATA_GITHASH  = $(shell git log --pretty=format:'%H' -n 1)
+METADATA_GITHASH  = $(shell git describe --always --dirty)
 METADATA_USER     = $(shell whoami)
 METADATA_PLATFORM = $(shell hostname)
 METADATA_COMPILER = $(COMP)
@@ -62,7 +62,8 @@ OBJ_F = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_F:.F90=.F90.o))
 
 .SECONDARY: 
 
-default: $(DEP) $(EXE)
+
+default: $(DEP) $(EXE) .diff.html
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
 
@@ -75,10 +76,11 @@ tidy:
 	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
 	rm -f Backtrace*
 	rm -f amrex.build.log
-	
+
 clean: tidy
 	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
 	find src/ -name "*.o" -exec rm {} \;
+	rm -f .diff.html
 	rm -f bin/*
 	rm -rf obj
 	rm -f Backtrace*
@@ -99,6 +101,10 @@ info:
 
 -include Makefile.amrex.conf
 
+.diff.html: .FORCE
+	-@rm -rf .diff.html
+	-@diff2html -F .diff.html --hwt simba/diff-template.html --style side
+
 bin/%: bin/%-$(POSTFIX) ;
 
 bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o 
@@ -111,7 +117,7 @@ obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
-obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET}
+obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET} 
 	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
