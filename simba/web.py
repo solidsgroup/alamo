@@ -121,9 +121,6 @@ def table(table):
                            numfiles=numfiles,
                            columns=columns)
 imgfiles = []
-tarballfiles = []
-metadatafile = None
-thermofile = None
 
 def find_images(path):
     global imgfiles

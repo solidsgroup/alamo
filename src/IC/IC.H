@@ -8,6 +8,7 @@
 /// \brief Collection of Initial Condition (IC) objects
 namespace IC
 {
+/// \brief Pure abstract IC object from which all other IC objects inherit.
 class IC
 {
 public:

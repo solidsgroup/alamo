@@ -19,7 +19,7 @@
 #include "BC/Constant.H"
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
-#include "IC/Voronoi/Voronoi.H"
+#include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 
 #include "Model/Interface/GB/Sin.H"

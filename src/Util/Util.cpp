@@ -33,8 +33,9 @@ std::string GetFileName()
 		else if (pp.contains("plot_file"))
 		{
 			pp.query("plot_file", filename);
-			IO::FileNameParse(filename);
+			
 		}
+		IO::FileNameParse(filename);
 		// else
 		// 	if (amrex::ParallelDescriptor::IOProcessor())
 		// 		Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
@@ -120,9 +121,8 @@ void
 Abort (const char * msg) { Terminate(msg, SIGABRT, true); }
 
 void
-Terminate(const char * msg, int signal, bool /*backtrace*/)
+Terminate(const char * /* msg */, int signal, bool /*backtrace*/)
 {
-	//amrex::write_to_stderr_without_buffering(msg);
 	SignalHandler(signal);
 }
 

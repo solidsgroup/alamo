@@ -176,6 +176,9 @@ protected:
 			Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
 	}
 		
+	virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
+	{}
+
 
 	/// \fn    RegisterNewFab
 	/// \brief Register a field variable for AMR with this class 
