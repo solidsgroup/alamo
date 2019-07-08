@@ -76,7 +76,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		std::map<std::string,RegularizationType> regularization_type;
 		regularization_type["wilmore"] = RegularizationType::Wilmore;
 		regularization_type["k12"] = RegularizationType::K12;
-		std::string regularization_type_input;
+		std::string regularization_type_input = "k12";
 		pp.query("regularization", regularization_type_input);
 		regularization = regularization_type[regularization_type_input];
 
@@ -445,7 +445,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 							case K12:
 								driving_force += beta*(DH2+DH3);
 								break;
-							default:
+							Default:
 								Util::Abort(INFO, " This kind of regularization is not implemented yet.");
 								break;
 						}
