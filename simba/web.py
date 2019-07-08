@@ -129,10 +129,26 @@ def find_images(path):
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
     imgfiles.sort()
 
+def find_tarballs(path):
+    global tarballfiles
+    img_fmts = ['.tar.gz']
+    tarballfiles = []
+    for fmt in img_fmts: tarballfiles += glob.glob(path+'/*'+fmt)
+    tarballfiles.sort()
+
 @app.route('/img/<number>')
 def serve_image(number):
     global imgfiles
     return send_file(imgfiles[int(number)],cache_timeout=-1)
+
+@app.route('/tarball/<filename>/<number>')
+def serve_tarball(filename,number):
+    print (filename)
+    global tarballfiles
+    response = send_file(tarballfiles[int(number)],cache_timeout=-1,as_attachment=True)
+    response.headers["x-filename"] = filename
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
 
 @app.route('/table/<table>/entry/<entry>', methods=['GET','POST'])
 def table_entry(table,entry):
@@ -158,6 +174,7 @@ def table_entry(table,entry):
     data = cur.fetchall()[0]
 
     find_images(data[1])
+    find_tarballs(data[1])
     
     db.commit()
     db.close()
@@ -167,7 +184,8 @@ def table_entry(table,entry):
                            entry=entry,
                            columns=columns,
                            data=data,
-                           imgfiles=[os.path.split(im)[1] for im in imgfiles])
+                           imgfiles=[os.path.split(im)[1] for im in imgfiles],
+                           tarballfiles=[os.path.split(tb)[1] for tb in tarballfiles])
 
 if __name__ == '__main__':
     app.run(debug=True,

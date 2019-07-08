@@ -79,6 +79,16 @@
   {% endfor %}
 </table>
 
+<h3>Simulation Files</h3>
+
+<div class="row">
+  <ul>
+	{% for i in range(0,tarballfiles|length) %}
+	<ul><a href="/tarball/heythere/{{i}}"> {{tarballfiles[i]}}</a></ul>
+	{% endfor %}
+</ul>
+</div>
+
 <h3>Simulation Analysis</h3>
 
 <div class="row">
