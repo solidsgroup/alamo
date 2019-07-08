@@ -121,6 +121,9 @@ def table(table):
                            numfiles=numfiles,
                            columns=columns)
 imgfiles = []
+tarballfiles = []
+metadatafile = None
+thermofile = None
 
 def find_images(path):
     global imgfiles
@@ -136,10 +139,32 @@ def find_tarballs(path):
     for fmt in img_fmts: tarballfiles += glob.glob(path+'/*'+fmt)
     tarballfiles.sort()
 
+def find_thermo(path):
+    global thermofile
+    if os.path.isfile(path+'/thermo.dat'): thermofile = path+"/thermo.dat"
+    else: thermofile = None
+
 @app.route('/img/<number>')
 def serve_image(number):
     global imgfiles
     return send_file(imgfiles[int(number)],cache_timeout=-1)
+
+@app.route('/metadata/')
+def serve_metadata():
+    global metadatafile
+    response = send_file(metadatafile,cache_timeout=-1,as_attachment=True)
+    response.headers["x-filename"] = "metadata"
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
+
+
+@app.route('/thermo/')
+def serve_thermo():
+    global thermofile
+    response = send_file(thermofile,cache_timeout=-1,as_attachment=True)
+    response.headers["x-filename"] = "thermo.dat"
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
 
 @app.route('/tarball/<filename>/<number>')
 def serve_tarball(filename,number):
@@ -154,6 +179,8 @@ def serve_tarball(filename,number):
 def table_entry(table,entry):
 
     global imgfiles
+    global metadatafile
+    global thermofile
 
     db = sqlite3.connect('results.db')
     db.text_factory = str
@@ -175,6 +202,8 @@ def table_entry(table,entry):
 
     find_images(data[1])
     find_tarballs(data[1])
+    metadatafile=data[1]+"/metadata"
+    find_thermo(data[1])
     
     db.commit()
     db.close()
@@ -184,6 +213,7 @@ def table_entry(table,entry):
                            entry=entry,
                            columns=columns,
                            data=data,
+                           thermofile=thermofile,
                            imgfiles=[os.path.split(im)[1] for im in imgfiles],
                            tarballfiles=[os.path.split(tb)[1] for tb in tarballfiles])
 
