@@ -33,3 +33,6 @@ Makefile.amrex.conf
 .vscode
 visitlog.py
 amrex
+amrex.build.log
+.diff.html
+eigen3

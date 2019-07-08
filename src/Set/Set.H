@@ -16,7 +16,6 @@
 
 #include "Util/Util.H"
 
-
 /// \brief A collection of data types and simple data structures
 namespace Set
 {

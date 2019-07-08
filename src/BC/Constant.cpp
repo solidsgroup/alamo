@@ -32,7 +32,7 @@ void
 Constant::FillBoundary (amrex::FArrayBox &a_in,
 			const amrex::Box &a_box,
 			int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
-			Orientation face, const amrex::Mask *mask)
+			Orientation face, const amrex::Mask * /*mask*/)
 {
 	const amrex::Real* DX = m_geom.CellSize();
 

@@ -71,7 +71,7 @@ public:
 						 for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
 			{
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				amrex::Real x1, x2, x3;
+				amrex::Real x1=NAN, x2=NAN, x3=NAN;
 
 				if (cellcentered)
 				{
@@ -88,7 +88,7 @@ public:
 
 				amrex::Real bdry = 0.;
 #if AMREX_SPACEDIM == 2				
-				Set::Scalar s1, l1;
+				Set::Scalar s1=NAN, l1=NAN;
 				if (normal==Direction::X) {s1 = x2; l1 = L2;}
 				if (normal==Direction::Y) {s1 = x1; l1 = L1;}
 				for (int n = 0; n < wave_numbers.size(); n++)
@@ -96,7 +96,7 @@ public:
 						* ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s1 / l1) +
 							fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s1 / l1));
 #elif AMREX_SPACEDIM == 3				
-				Set::Scalar s1, s2, l1, l2;
+				Set::Scalar s1=NAN, s2=NAN, l1=NAN, l2=NAN;
 				if (normal==Direction::X) {s1 = x2; s2 = x3; l1 = L2; l2 = L3;}
 				if (normal==Direction::Y) {s1 = x3; s2 = x1; l1 = L3; l2 = L1;}
 				if (normal==Direction::Z) {s1 = x1; s2 = x1; l1 = L1; l2 = L2;}
