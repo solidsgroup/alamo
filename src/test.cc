@@ -36,14 +36,14 @@ int main (int argc, char* argv[])
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
-	Util::Test::Message("Model::Interface::GB::GB<AbsSin>");
-	{
-		int subfailed = 0;
-		Test::Model::Interface::GB::GB<Model::Interface::GB::AbsSin> test;
-		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
-		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
+//	Util::Test::Message("Model::Interface::GB::GB<AbsSin>");
+//	{
+//		int subfailed = 0;
+//		Test::Model::Interface::GB::GB<Model::Interface::GB::AbsSin> test;
+//		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+//		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
 
 	Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
 	{

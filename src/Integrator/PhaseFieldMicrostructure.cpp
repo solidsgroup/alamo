@@ -442,10 +442,10 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						switch(regularization)
 						{
 							case Wilmore:
-								reg_df += beta*(DH2 + DH3 + 2.0*DH23);
+								reg_df = beta*(DH2 + DH3 + 2.0*DH23);
 								break;
 							case K12:
-								reg_df += beta*(DH2+DH3);
+								reg_df = beta*(DH2+DH3);
 								break;
 							Default:
 								Util::Abort(INFO, " This kind of regularization is not implemented yet.");
@@ -455,8 +455,8 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 								 
 						if (m == 0)
 						{
-						 	N(i,j,k,0) = reg_df;
-							N(i,j,k,1) = kappa;
+						 	N(i,j,k,0) = gbe;
+							N(i,j,k,1) = reg_df;
 							N(i,j,k,2) = DDK2;
 							N(i,j,k,3) = DDK3;
 							N(i,j,k,4) = gbenergy_df;
