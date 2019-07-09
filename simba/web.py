@@ -4,7 +4,9 @@ import glob
 import fnmatch
 import sqlite3
 import argparse
-from flask import Flask, request, render_template, send_file, redirect
+import getpass
+from functools import wraps
+from flask import Flask, request, render_template, send_file, redirect, Response
 from flaskext.markdown import Markdown
 
 print("====================================")
@@ -17,7 +19,36 @@ parser.add_argument('-p','--port', default='5000', help='Port (default: 5000)');
 parser.add_argument('-d','--database',default='results.db',help='Name of database to read from')
 parser.add_argument('-s','--safe',dest='safe',action='store_true',help='Safe mode - disallow permanent record deletion')
 parser.add_argument('-f','--fast',dest='fast',action='store_true',help='Fast mode - fewer features for working with large datasets')
+parser.add_argument('--pwd',default=False,action='store_true')
 args=parser.parse_args()
+
+pwd = None
+usr = None
+if args.pwd:
+    usr = getpass.getuser()
+    pwd = getpass.getpass()
+
+def check_auth(username, password):
+    """This function is called to check if a username /
+    password combination is valid.
+    """
+    return username == usr and password == pwd
+
+def authenticate():
+    """Sends a 401 response that enables basic auth"""
+    return Response(
+    'Could not verify your access level for that URL.\n'
+    'You have to login with proper credentials', 401,
+    {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated    
 
 if not args.safe and not args.ip == '127.0.0.1' or args.ip == 'localhost':
     print("=============  WARNING =============")
@@ -36,6 +67,7 @@ Markdown(app)
 
 
 @app.route("/", methods=['GET','POST'])
+@requires_auth
 def root():
     db = sqlite3.connect(args.database)
     db.text_factory = str
@@ -62,6 +94,7 @@ def root():
                            tables=tables)
 
 @app.route("/table/<table>", methods=['GET','POST'])
+@requires_auth
 def table(table):
     db = sqlite3.connect(args.database)
     db.text_factory = str
@@ -142,11 +175,13 @@ def find_thermo(path):
     else: thermofile = None
 
 @app.route('/img/<number>')
+@requires_auth
 def serve_image(number):
     global imgfiles
     return send_file(imgfiles[int(number)],cache_timeout=-1)
 
 @app.route('/metadata/')
+@requires_auth
 def serve_metadata():
     global metadatafile
     response = send_file(metadatafile,cache_timeout=-1,as_attachment=True)
@@ -156,6 +191,7 @@ def serve_metadata():
 
 
 @app.route('/thermo/')
+@requires_auth
 def serve_thermo():
     global thermofile
     response = send_file(thermofile,cache_timeout=-1,as_attachment=True)
@@ -164,6 +200,7 @@ def serve_thermo():
     return response
 
 @app.route('/tarball/<filename>/<number>')
+@requires_auth
 def serve_tarball(filename,number):
     print (filename)
     global tarballfiles
@@ -173,6 +210,7 @@ def serve_tarball(filename,number):
     return response
 
 @app.route('/table/<table>/entry/<entry>', methods=['GET','POST'])
+@requires_auth
 def table_entry(table,entry):
 
     global imgfiles
