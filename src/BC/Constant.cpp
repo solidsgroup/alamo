@@ -58,6 +58,8 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 				in(i,j,k,n) = in(i+1,j,k,n) - bc_lo_1[n]*DX[0];
 			else if(BCUtil::IsReflectEven(bc_lo[0]))
 				in(i,j,k,n) = in(1-glevel[0],j,k,n);
+			else if(BCUtil::IsReflectOdd(bc_lo[0]))
+				in(i,j,k,n) = -in(1-glevel[0],j,k,n);
 			else if(BCUtil::IsPeriodic(bc_lo[0])) {}
 			else
 				Util::Abort(INFO, "Incorrect boundary conditions");
@@ -70,6 +72,8 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 				in(i,j,k,n) = in(i-1,j,k,n) - bc_hi_1[n]*DX[0];
 			else if(BCUtil::IsReflectEven(bc_hi[0]))
 				in(i,j,k,n) = in(hi.x-glevel[0],j,k,n);
+			else if(BCUtil::IsReflectOdd(bc_hi[0]))
+				in(i,j,k,n) = -in(hi.x-glevel[0],j,k,n);
 			else if(BCUtil::IsPeriodic(bc_hi[0])) {}
 			else
 				Util::Abort(INFO, "Incorrect boundary conditions");
@@ -83,6 +87,8 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 				in(i,j,k,n) = in(i,j+1,k,n) - bc_lo_2[n]*DX[1];
 			else if (BCUtil::IsReflectEven(bc_lo[1]))
 				in(i,j,k,n) = in(i,j-glevel[1],k,n);
+			else if (BCUtil::IsReflectOdd(bc_lo[1]))
+				in(i,j,k,n) = -in(i,j-glevel[1],k,n);
 			else if(BCUtil::IsPeriodic(bc_lo[1])) {}
 			else
 				Util::Abort(INFO, "Incorrect boundary conditions");
@@ -95,6 +101,8 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 				in(i,j,k,n) = in(i,j-1,k,n) - bc_hi_2[n]*DX[1];
 			else if (BCUtil::IsReflectEven(bc_hi[1]))
 				in(i,j,k,n) = in(i,hi.y-glevel[1],k,n);
+			else if (BCUtil::IsReflectOdd(bc_hi[1]))
+				in(i,j,k,n) = -in(i,hi.y-glevel[1],k,n);
 			else if(BCUtil::IsPeriodic(bc_hi[1])) {}
 			else
 				Util::Abort(INFO, "Incorrect boundary conditions");
@@ -109,6 +117,8 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 				in(i,j,k,n) = in(i,j,k+1,n) - bc_lo_3[n]*DX[2];
 			else if (BCUtil::IsReflectEven(bc_lo[2]))
 				in(i,j,k,n) = in(i,j,1-glevel[2],n);
+			else if (BCUtil::IsReflectOdd(bc_lo[2]))
+				in(i,j,k,n) = -in(i,j,1-glevel[2],n);
 			else if(BCUtil::IsPeriodic(bc_lo[2])) {}
 			else Util::Abort(INFO, "Incorrect boundary conditions");
 		}
@@ -120,6 +130,8 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 				in(i,j,k,n) = in(i,j,k-1,n) - bc_hi_3[n]*DX[2];
 			else if(BCUtil::IsReflectEven(bc_hi[2]))
 				in(i,j,k,n) = in(i,j,hi.z-glevel[2],n);
+			else if(BCUtil::IsReflectOdd(bc_hi[2]))
+				in(i,j,k,n) = -in(i,j,hi.z-glevel[2],n);
 			else if(BCUtil::IsPeriodic(bc_hi[2])) {}
 			else Util::Abort(INFO, "Incorrect boundary conditions");
 		}
