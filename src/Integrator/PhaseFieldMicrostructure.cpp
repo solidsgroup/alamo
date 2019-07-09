@@ -434,34 +434,34 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 						Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * l_gb * 0.75;
 
 						// GB energy anisotropy term
-						driving_force += - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
+						Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
+						driving_force += gbenergy_df;
 								  
 						// Second order curvature term
+						Set::Scalar reg_df = NAN;
 						switch(regularization)
 						{
 							case Wilmore:
-								driving_force += beta*(DH2 + DH3 + DH23);
+								reg_df += beta*(DH2 + DH3 + 2.0*DH23);
 								break;
 							case K12:
-								driving_force += beta*(DH2+DH3);
+								reg_df += beta*(DH2+DH3);
 								break;
 							Default:
 								Util::Abort(INFO, " This kind of regularization is not implemented yet.");
 								break;
 						}
-
-						//driving_force += beta*(DH2 + DH3);
+						driving_force += reg_df;
 								 
 						if (m == 0)
 						{
-							//Set::Scalar ev1 = eigensolver.eigenvalues()(0); 
-							//Set::Scalar ev2 = eigensolver.eigenvalues()(1); 
-						 	N(i,j,k,0) = gbe;
-							//N(i,j,k,1) = DH2;
-							//N(i,j,k,2) = DH3;
-							N(i,j,k,2) = (DDeta2D*DDeta2D.transpose()).trace();
-						 	//N(i,j,k,1) = DH2;//eigensolver.eigenvalues().lpNorm<2>();
-						 	//N(i,j,k,2) = DH3;//0.0;
+						 	N(i,j,k,0) = reg_df;
+							N(i,j,k,1) = kappa;
+							N(i,j,k,2) = DDK2;
+							N(i,j,k,3) = DDK3;
+							N(i,j,k,4) = gbenergy_df;
+							N(i,j,k,5) = 0.5*beta*(DDeta2D*DDeta2D.transpose()).trace();
+
 						}
 
 						if (std::isnan(driving_force) || std::isinf(driving_force))
@@ -475,7 +475,7 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 										Util::Message(INFO,p,q,r,s," ",DDDDEta(p,q,r,s));
 									}
 
-							Util::Abort(INFO,"nan detected at amrlev = ", lev," i=",i," j=",j," k=",k);
+							Util::Abort(INFO,"nan/inf detected at amrlev = ", lev," i=",i," j=",j," k=",k);
 						}
 #endif
 					}
@@ -954,6 +954,8 @@ void
 PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 				    const amrex::MFIter &mfi, const amrex::Box &box)
 {
+	Model::Interface::GB::SH gbmodel(0.0,0.0, anisotropy.sigma0, anisotropy.sigma1);
+
 	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
 	const amrex::Real* DX = geom[amrlev].CellSize();
 	amrex::Array4<amrex::Real> const& eta    = (*eta_new_mf[amrlev]).array(mfi);
@@ -995,6 +997,8 @@ PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 				Set::Vector tangent(normal[1],-normal[0]);
 				Set::Scalar k2 = (DDeta*tangent).dot(tangent);
 				regenergy += 0.5 * beta * k2 * k2;
+#elif AMREX_SPACEDIM == 3
+				gbenergy += gbmodel.W(normal) * da;				
 #endif
 			}
 		}
