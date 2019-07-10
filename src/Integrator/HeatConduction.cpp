@@ -27,9 +27,11 @@ HeatConduction::HeatConduction() :
 	if (ic_type == "cylinder")
 		ic = new IC::Cylinder(geom);
 	else if (ic_type == "constant")
-		ic = new IC::Constant(geom);
+		Util::Abort(INFO,"Need to fix this");
+		//ic = new IC::Constant(geom,alpha);
 	else
-		ic = new IC::Constant(geom);
+		Util::Abort(INFO,"Need to fix this");
+		//ic = new IC::Constant(geom,alpha);
     
 	{
 		amrex::ParmParse pp("bc");
