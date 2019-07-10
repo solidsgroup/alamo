@@ -23,7 +23,7 @@ protected:
 	void Initialize (int lev) ;
 	void Advance (int lev, amrex::Real time, amrex::Real dt);
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
-
+	void Regrid(int lev, Set::Scalar time) override;
 private:
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;

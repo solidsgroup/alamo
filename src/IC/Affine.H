@@ -9,6 +9,7 @@
 
 namespace IC
 {
+/// \brief Initialize with the function \f$\alpha[(\mathbf{x}-\mathbf{b})\cdot\mathbf{n}]^m\f$
 class Affine : public IC
 {
 public:

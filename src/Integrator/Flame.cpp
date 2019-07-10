@@ -63,7 +63,11 @@ Flame::Flame () : Integrator()
 			     AMREX_D_DECL(bc_hi_1,bc_hi_2,bc_hi_3));
   }
 
-  VoronoiIC = new IC::Voronoi(geom,fs_number);
+  VoronoiIC = new IC::Voronoi(geom);
+  std::vector<Set::Scalar> fs(fs_number);
+  for (int i = 0; i < fs_number; i++) fs[i] = 0.5*(1.0 + Util::Random());
+  VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
+
   eta_ic = new IC::Wedge(geom);
 
   RegisterNewFab(Temp,     TempBC, 1, 1, "Temp");
@@ -221,5 +225,11 @@ void Flame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Rea
 						}
 		}
 
+}
+void Flame::Regrid(int lev, Set::Scalar /* time */)
+{
+	FlameSpeedFab[lev]->setVal(0.0);
+	VoronoiIC->Initialize(lev,FlameSpeedFab);
+	Util::Message(INFO,"Regridding on level ", lev);
 }
 }
