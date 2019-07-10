@@ -63,8 +63,8 @@ Flame::Flame () : Integrator()
 			     AMREX_D_DECL(bc_hi_1,bc_hi_2,bc_hi_3));
   }
 
-  VoronoiIC = new IC::Flame::Voronoi(geom,fs_number);
-  eta_ic = new IC::Flame::Wedge(geom);
+  VoronoiIC = new IC::Voronoi(geom,fs_number);
+  eta_ic = new IC::Wedge(geom);
 
   RegisterNewFab(Temp,     TempBC, 1, 1, "Temp");
   RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old");

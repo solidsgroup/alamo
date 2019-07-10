@@ -1,11 +1,9 @@
-#ifndef IC_EIGENSTRAIN_SPHERE_H_
-#define IC_EIGENSTRAIN_SPHERE_H_
+#ifndef IC_SPHERE_H_
+#define IC_SPHERE_H_
 
 #include "IC/IC.H"
 
 namespace IC
-{
-namespace Eigenstrain
 {
 class Sphere : public IC::IC
 {
@@ -71,6 +69,5 @@ public:
 
 	
 };
-}
 }
 #endif
