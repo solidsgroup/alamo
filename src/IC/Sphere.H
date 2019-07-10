@@ -2,72 +2,73 @@
 #define IC_SPHERE_H_
 
 #include "IC/IC.H"
+#include "Util/Util.H"
 
+/// \brief Initialize a spherical (or cylindrical) inclusion
 namespace IC
 {
-class Sphere : public IC::IC
+class Sphere : public IC
 {
 public:
 	Sphere (amrex::Vector<amrex::Geometry> &_geom) :
-		IC::IC(_geom) {}
-  
-	void Initialize(const int lev,
-						 amrex::Vector<std::unique_ptr<amrex::MultiFab> > &eps0)
+		IC(_geom)
 	{
-		Initialize(lev,*eps0[lev].get());
-	}
-
-	void Initialize(const int lev,
-						 amrex::Vector<amrex::MultiFab> &eps0)
-	{
-		Initialize(lev,eps0[lev]);
+		amrex::ParmParse pp("ic");
+		pp.queryarr("center",center);
+		pp.query("radius",radius);
+		pp.query("dim",dim);
 	}
   
-	void Initialize(const int lev,
-						 amrex::MultiFab &eps0)
+	void Add(const int lev,
+			amrex::Vector<amrex::MultiFab * > &a_field)
 	{
-		eps0.setVal(0.0);
-		const amrex::Real L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
-		const amrex::Real L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];
-#if AMREX_SPACEDIM==3
-		const amrex::Real L3 = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];
-#endif
-		for (amrex::MFIter mfi(eps0,true); mfi.isValid(); ++mfi)
-			{
-				const amrex::Box& box = mfi.tilebox();
+		bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
-				amrex::FArrayBox &eps0fab = (eps0)[mfi];
+		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			amrex::Box bx = mfi.tilebox();
+			bx.grow(a_field[lev]->nGrow());
 
-				for (int i = box.loVect()[0]-eps0.nGrow(); i<=box.hiVect()[0]+eps0.nGrow(); i++) 
-					for (int j = box.loVect()[1]-eps0.nGrow(); j<=box.hiVect()[1]+eps0.nGrow(); j++)
-#if AMREX_SPACEDIM==3
-						for (int k = box.loVect()[2]-eps0.nGrow(); k<=box.hiVect()[2]+eps0.nGrow(); k++)
-#endif
-							{
-								amrex::IntVect m(AMREX_D_DECL(i,j,k));
+			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-								amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
-								amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-#if AMREX_SPACEDIM==3
-								amrex::Real z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];
-#endif
+					Set::Scalar AMREX_D_DECL(x,y,z);
+					if (cellcentered)
+					{
+						AMREX_D_TERM(x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
+									 y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
+									 z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+					}
+					else
+					{
+						AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
+									 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
+									 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
+					}
+					Set::Scalar rsq = 0.0;
 
-								amrex::Real eX = (x - (geom[lev].ProbLo()[0] + 0.5*L1))/(0.25*L1);
-								amrex::Real eY = (y - (geom[lev].ProbLo()[1] + 0.5*L2))/(0.25*L2);
-#if AMREX_SPACEDIM==3
-								amrex::Real eZ = (z - (geom[lev].ProbLo()[2] + 0.5*L3))/(0.25*L3);
-#endif
+					AMREX_D_TERM(if (dim >= 1) rsq += (x-center[0])*(x-center[0]);,
+								 if (dim >= 2) rsq += (y-center[1])*(y-center[1]);,
+								 if (dim >= 3) rsq += (z-center[2])*(z-center[2]););
+					if ( rsq < radius*radius)
+					{
+						field(i,j,k,0) = 1.;     
+						field(i,j,k,1) = 0.;     
+					}
+					else
+					{
+						field(i,j,k,0) = 0.;     
+						field(i,j,k,1) = 1.;     
+					}
+				});
+		}
 
-								if (AMREX_D_TERM(eX*eX, + eY*eY, + eZ*eZ) < 1.0)
-									eps0fab(m,0) = 1.0;     
-								else
-								 	eps0fab(amrex::IntVect(AMREX_D_DECL(i,j,k))) = 0.0;     
-							}
-			}
-
-	}
-
-	
+	};
+  
+private:
+	int dim = AMREX_SPACEDIM;
+	amrex::Vector<amrex::Real> center;
+	amrex::Real radius;
 };
 }
 #endif
