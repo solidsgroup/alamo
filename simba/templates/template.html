@@ -63,7 +63,7 @@
 		<span class="label label-primary"> {{numfiles[j]}} </span>
 		{% endif %}{% endif %}
 		{% else %}
-		{{table[j][i]}}
+		{{table[j][i] | string | truncate (50)}}
 		{% endif %}
 	  </td>
 	  {% endfor %}
