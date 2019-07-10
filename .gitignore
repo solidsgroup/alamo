@@ -28,4 +28,13 @@ docs/latex
 TrigTest*
 testoutput*
 Makefile.conf
+Makefile.amrex.conf
+Makefile.pre.conf
+Makefile.post.conf
 *.so
+.vscode
+visitlog.py
+amrex
+amrex.build.log
+.diff.html
+eigen3

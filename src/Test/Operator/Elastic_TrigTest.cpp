@@ -6,6 +6,7 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "BC/Operator/Elastic.H"
+#include "Solver/Linear.H"
 
 namespace Test
 {
@@ -91,26 +92,13 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 
 	// Create MLMG solver and solve
-	amrex::MLMG mlmg(elastic);
+	//amrex::MLMG mlmg(elastic);
+	Solver::Linear mlmg(elastic);
 	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
- 	if (verbose)
- 	{
- 		mlmg.setVerbose(verbose);
-		if (verbose > 4) mlmg.setCGVerbose(verbose);
- 	}
- 	else
- 	{
- 		mlmg.setVerbose(0);
- 		mlmg.setCGVerbose(0);
-	}
+	mlmg.setVerbose(verbose);
  	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
- 	mlmg.setFinalFillBC(false);	
- 	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-
-	Set::Scalar tol_rel = 1E-8;
-	Set::Scalar tol_abs = 0;
 
  	mlmg.solve(GetVecOfPtrs(solution_numeric),
 		   GetVecOfConstPtrs(rhs_prescribed),

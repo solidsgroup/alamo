@@ -105,7 +105,7 @@ int main (int argc, char* argv[])
 	{
 		int subfailed = 0;
 		Test::Operator::Elastic test;
-	        test.Define(32,1);
+	    test.Define(32,1);
 		subfailed += Util::Test::SubMessage("1 level, Component 0, period=1",test.UniaxialTest(0,0));
 		test.Define(32,2);
 		subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.UniaxialTest(0,0));

@@ -1,3 +1,4 @@
+.. _building-python:
 .. role:: cpp(code)
    :language: c++
 

@@ -16,24 +16,25 @@ namespace Integrator
 
 Integrator::Integrator ()
 {
+	BL_PROFILE("Integrator::Integrator()");
 	{
 		ParmParse pp;   // Basic run parameters
 		pp.query("max_step", max_step);
 		pp.query("stop_time", stop_time);
 		pp.query("timestep",timestep);
+		pp.query("restart", restart_file); 
 	}
 	{
 		ParmParse pp("amr"); // AMR specific parameters
 		pp.query("regrid_int", regrid_int);     // ALL processors
-		//pp.query("check_file", check_file);   // Not currently used
-		//pp.query("check_int", check_int);     // Not currently used
 		pp.query("plot_int", plot_int);         // ALL processors
-		pp.query("plot_file", plot_file);       // IO Processor only
-		//pp.query("restart", restart_chkfile); // Not currently used
+		pp.query("plot_dt", plot_dt);           // ALL processors
 		pp.query("plot_file", plot_file);       // IO Processor only
 
+		Util::Message(INFO,"Parsing file name: before = ",plot_file);
 		IO::FileNameParse(plot_file);
-
+		Util::Message(INFO,"Parsing file name: before = ",plot_file);
+		//Util::Abort(INFO);
 		nsubsteps.resize(maxLevel()+1,1);
 		int cnt = pp.countval("nsubsteps");
 		if (cnt != 0)
@@ -56,8 +57,11 @@ Integrator::Integrator ()
 	}
 	{
 		ParmParse pp("amr.thermo"); // AMR specific parameters
-		pp.query("intvar_int", intvar_int);     // ALL processors
-		pp.query("intvar_plot", intvar_plot);         // ALL processors
+		thermo.interval = 1; // Default: integrate every time.
+		pp.query("int", thermo.interval);     // ALL processors
+		pp.query("plot_int", thermo.plot_int);         // ALL processors
+		pp.query("plot_dt", thermo.plot_dt);         // ALL processors
+		Util::Message(INFO,thermo.plot_int," ",thermo.plot_dt);
 	}
 
 
@@ -80,18 +84,25 @@ Integrator::Integrator ()
 ///
 Integrator::~Integrator ()
 {
+	BL_PROFILE("Integrator::~Integrator");
 	if (ParallelDescriptor::IOProcessor())
 	  IO::WriteMetaData(plot_file,IO::Status::Complete);
 }
 
 void Integrator::SetTimestep(Set::Scalar _timestep)
 {
+	BL_PROFILE("Integrator::SetTimestep");
 	int nlevs_max = maxLevel() + 1;
 	timestep = _timestep;
 	dt.resize(nlevs_max, 1.e100);
 	dt[0] = timestep;
 	for (int i = 1; i < nlevs_max; i++)
 		dt[i] = dt[i-1] / (amrex::Real)nsubsteps[i];
+}
+void Integrator::SetPlotInt(int a_plot_int)
+{
+	BL_PROFILE("Integrator::SetPlotInt");
+	plot_int = a_plot_int;
 }
 
 /// \fn    Integrator::MakeNewLevelFromCoarse
@@ -101,6 +112,7 @@ void Integrator::SetTimestep(Set::Scalar _timestep)
 void
 Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& cgrids, const DistributionMapping& dm)
 {
+	BL_PROFILE("Integrator::MakeNewLevelFromCoarse");
 	t_new[lev] = time;
 	t_old[lev] = time - 1.e200;
 
@@ -144,6 +156,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 			 const BoxArray& cgrids, 
 			 const DistributionMapping& dm)
 {
+	BL_PROFILE("Integrator::RemakeLevel");
 	for (int n=0; n < cell.number_of_fabs; n++)
 	{
 		const int ncomp  = (*cell.fab_array[n])[lev]->nComp();
@@ -181,6 +194,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 void
 Integrator::ClearLevel (int lev)
 {
+	BL_PROFILE("Integrator::ClearLevel");
 	for (int n = 0; n < cell.number_of_fabs; n++)
 	{
 		(*cell.fab_array[n])[lev].reset(nullptr);
@@ -202,6 +216,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 			   int nghost,
 			   std::string name)
 {
+	BL_PROFILE("Integrator::RegisterNewFab_1");
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	cell.fab_array.push_back(&new_fab);
@@ -217,6 +232,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 			   int ncomp,
 			   std::string name)
 {
+	BL_PROFILE("Integrator::RegisterNewFab_2");
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	cell.fab_array.push_back(&new_fab);
@@ -232,6 +248,7 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 			     int nghost,
 			     std::string name)
 {
+	BL_PROFILE("Integrator::RegisterNodalFab");
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	node.fab_array.push_back(&new_fab);
@@ -246,15 +263,16 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name)
 {
-	intvar_array.push_back(integrated_variable);
-	intvar_names.push_back(name);
-	Util::Message(INFO,intvar_array[0]);
-	number_of_intvars++;
+	BL_PROFILE("Integrator::RegisterIntegratedVariable");
+	thermo.vars.push_back(integrated_variable);
+	thermo.names.push_back(name);
+	thermo.number++;
 }
 
 long // CUSTOM METHOD - CHANGEABLE
 Integrator::CountCells (int lev)
 {
+	BL_PROFILE("Integrator::CountCells");
 	const int N = grids[lev].size();
 
 	long cnt = 0;
@@ -273,6 +291,7 @@ Integrator::FillPatch (int lev, Real time,
 		       MultiFab &destination_mf,
 		       BC::BC &physbc, int icomp)
 {
+	BL_PROFILE("Integrator::FillPatch");
 	if (lev == 0)
 	{
       
@@ -330,6 +349,7 @@ Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 			     int icomp, ///<[in] start component
 			     int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
 {
+	BL_PROFILE("Integrator::FillCoarsePatch");
 	AMREX_ASSERT(lev > 0);
 
 	amrex::Vector<amrex::MultiFab* > cmf;
@@ -351,6 +371,7 @@ Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 void
 Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 {
+	BL_PROFILE("Integrator::ErrorEst");
 	TagCellsForRefinement(lev,tags,time,ngrow);
 }
 
@@ -358,23 +379,135 @@ Integrator::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow)
 void
 Integrator::InitData ()
 {
-	const Real time = 0.0;
-	InitFromScratch(time);
-
-	for (int lev = finest_level-1; lev >= 0; --lev)
+	BL_PROFILE("Integrator::InitData");
+	
+	if (restart_file != "")
 	{
-		for (int n = 0; n < cell.number_of_fabs; n++)
-			amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
-					    geom[lev+1], geom[lev],
-					    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
-		Util::Warning(INFO,"Not averaging down nodal fabs");
-		// for (int n = 0; n < node.number_of_fabs; n++)
-		// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
+		Restart(restart_file);
 	}
-  
-	if (plot_int > 0) {
-		for (int ilev = 0; ilev < finest_level+1; ilev++) 
+	else
+	{
+		const Real time = 0.0;
+		InitFromScratch(time);
+
+		for (int lev = finest_level-1; lev >= 0; --lev)
+		{
+			if (lev < max_level) regrid(lev,0.0);
+			for (int n = 0; n < cell.number_of_fabs; n++)
+				amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
+						    geom[lev+1], geom[lev],
+						    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
+			Util::Warning(INFO,"Not averaging down nodal fabs");
+			// for (int n = 0; n < node.number_of_fabs; n++)
+			// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
+		}
+	
+	}
+	if (plot_int > 0 || plot_dt > 0.0) {
 		WritePlotFile();
+	}
+}
+
+void
+Integrator::Restart(const std::string dirname)
+{
+	BL_PROFILE("Integrator::Restart");
+	std::string filename = dirname + "/Header";
+	std::string chkptfilename = dirname + "/Checkpoint";
+	amrex::VisMF::IO_Buffer io_buffer(amrex::VisMF::GetIOBufferSize());
+	amrex::Vector<char> fileCharPtr,chkptfileCharPtr;
+	amrex::ParallelDescriptor::ReadAndBcastFile(filename,fileCharPtr);
+	amrex::ParallelDescriptor::ReadAndBcastFile(chkptfilename,chkptfileCharPtr);
+	std::string fileCharPtrString(fileCharPtr.dataPtr());
+	std::string chkptfileCharPtrString(chkptfileCharPtr.dataPtr());
+	std::istringstream is(fileCharPtrString,std::istringstream::in);
+	std::istringstream chkpt_is(chkptfileCharPtrString,std::istringstream::in);
+
+	std::string line, word;
+
+	// Get version
+	std::getline(is,line); 
+	Util::Message(INFO,"Version: ", line);
+
+	// Get number of fabs
+	int tmp_numfabs;
+	std::getline(is,line); tmp_numfabs = std::stoi(line);
+	
+	int ctr = 0;
+	for (int i = 0; i < cell.fab_array.size(); i++)
+	{
+		for (int j = 0; j < cell.ncomp_array[i]; j++)
+		{
+			std::getline(is,line);
+			if (! Util::String::Contains(line,cell.name_array[i])) 
+				Util::Abort(INFO,"Mismatched Fab names! Input fab name " + line + " does not match registered fab name " + cell.name_array[i]);
+			Util::Message(INFO,"Reading: ",cell.name_array[i]," <-- ",line);
+			ctr++;
+		}
+	}
+	if (ctr != tmp_numfabs) Util::Abort(INFO,"Trying to read in more fabs than have been registered");
+	
+	// Dimension?
+	std::getline(is,line); 
+	Util::Warning(INFO,"Dimension: " + line);
+	
+	// Current time
+	Set::Scalar tmp_time = 0.0;
+	std::getline(is,line); tmp_time = std::stof(line); Util::Message(INFO,"Current time: ", tmp_time);
+	for (int i = 0; i < max_level + 1; i++)
+	{
+		t_new[i] = tmp_time; t_old[i] = tmp_time;
+	}
+	
+	// AMR level
+	int tmp_max_level;
+	std::getline(is,line); tmp_max_level = std::stoi(line); Util::Message(INFO,"Max AMR level: ", line);
+	if (tmp_max_level != max_level)
+		Util::Abort(INFO,"The max level specified (",max_level,") does not match the max level in the restart file (",tmp_max_level,")");
+	finest_level = tmp_max_level;
+	// Geometry ?
+	std::getline(is,line); Util::Message(INFO,"Input geometry: ", line);
+	std::getline(is,line); Util::Message(INFO,"                ", line);
+
+	// Mesh refinement ratio?
+	std::getline(is,line); Util::Message(INFO,"Mesh refinement ratio: ",line);
+	
+	// Domain
+	std::getline(is,line); Util::Warning(INFO,"Domain: ",line);
+
+	// Domain
+	std::getline(is,line); 
+	std::vector<std::string> tmp_iters = Util::String::Split(line);
+	if ((int)tmp_iters.size() != max_level+1) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
+	for (int lev = 0; lev <= max_level; lev++) {istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO,"Iter on level " , lev , " = ", istep[lev]);}
+
+	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
+	int total_ncomp = 0; 
+	for (int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+	int total_nghost = cell.nghost_array[0];
+
+	for (int lev = 0; lev <= max_level; lev++)
+	{
+		amrex::BoxArray tmp_ba;
+		tmp_ba.readFrom(chkpt_is);
+		SetBoxArray(lev,tmp_ba);
+		amrex::DistributionMapping tmp_dm(tmp_ba,ParallelDescriptor::NProcs());
+		SetDistributionMap(lev,tmp_dm);
+
+		tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
+		amrex::VisMF::Read( tmpdata[lev],
+							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_","Cell"));
+
+		int compctr = 0;
+		for (int i = 0; i < cell.fab_array.size(); i++)
+		{
+			Util::Message(INFO,"Initializing ", cell.name_array[i], "; ncomp=", cell.ncomp_array[i], "; nghost=",cell.nghost_array[i] );
+			(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
+
+			MultiFab::Copy(*((*cell.fab_array[i])[lev]).get(),tmpdata[lev],compctr,0,cell.ncomp_array[i],cell.nghost_array[i]);
+			compctr += cell.ncomp_array[i];
+		}
+							
 	}
 }
 
@@ -382,6 +515,7 @@ void
 Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& cgrids,
 				     const DistributionMapping& dm)
 {
+	BL_PROFILE("Integrator::MakeNewLevelFromScratch");
 	for (int n = 0 ; n < cell.number_of_fabs; n++)
 	{
 		(*cell.fab_array[n])[lev].reset(new MultiFab(cgrids, dm, cell.ncomp_array[n], cell.nghost_array[n]));
@@ -417,6 +551,7 @@ Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& cgrids,
 std::vector<std::string>
 Integrator::PlotFileName (int lev) const
 {
+	BL_PROFILE("Integrator::PlotFileName");
 	std::vector<std::string> name;
 	name.push_back(plot_file+"/");
 	name.push_back(amrex::Concatenate("", lev, 5));
@@ -424,8 +559,9 @@ Integrator::PlotFileName (int lev) const
 }
 
 void
-Integrator::WritePlotFile () const
+Integrator::WritePlotFile (bool initial) const
 {
+	BL_PROFILE("Integrator::WritePlotFile");
 	const int nlevels = finest_level+1;
 
 	int ccomponents = 0, ncomponents = 0;
@@ -459,17 +595,10 @@ Integrator::WritePlotFile () const
 		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
 
 		int n = 0;
+		// Util::Warning(INFO,"Remove this line!");
+		// (*(*cell.fab_array[3])[ilev]).setVal(0.0);
 		for (int i = 0; i < cell.number_of_fabs; i++)
 		{
-			amrex::IntVect where;
-			// if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
-			// if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
-
-			if ((*cell.fab_array[i])[ilev]->contains_nan(0,(*cell.fab_array[i])[ilev]->nComp()))
-				for (MFIter mfi(*(*cell.fab_array[i])[ilev],false);mfi.isValid();++mfi)
-					if ((*(*cell.fab_array[i])[ilev])[mfi].contains_nan(where))
-						Util::Abort(INFO,cnames[i]," contains nans (i=",i,") on level ilev=",ilev," at ", where);
-
 			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 			n += cell.ncomp_array[i];
 		}
@@ -484,10 +613,16 @@ Integrator::WritePlotFile () const
 		}
 	}
 
-	const std::vector<std::string>& plotfilename = PlotFileName(istep[0]);
+	std::vector<std::string> plotfilename = PlotFileName(istep[0]);
+	if (initial) plotfilename[1] = plotfilename[1] + "init";
   
 	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
 				Geom(), t_new[0],istep, refRatio());
+	
+	std::ofstream chkptfile;
+	chkptfile.open(plotfilename[0]+plotfilename[1]+"cell/Checkpoint");
+	for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
+	chkptfile.close();
 
 	if (ncomponents > 0)
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
@@ -512,15 +647,9 @@ Integrator::WritePlotFile () const
 }
 
 void
-Integrator::InitFromCheckpoint ()
-{
-	Util::Abort(INFO, "Integrator::InitFromCheckpoint: todo");
-}
-
-void
 Integrator::Evolve ()
 {
-	
+	BL_PROFILE("Integrator::Evolve");
 	Real cur_time = t_new[0];
 	int last_plot_file_step = 0;
 
@@ -549,6 +678,13 @@ Integrator::Evolve ()
 		}
 
 		if (plot_int > 0 && (step+1) % plot_int == 0) {
+			Util::Message(INFO,"plot_int=",plot_int," step = ",step);
+			last_plot_file_step = step+1;
+			WritePlotFile();
+			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));
+		}
+		else if (std::fabs(std::remainder(cur_time,plot_dt)) < 0.5*dt[0])
+		{
 			last_plot_file_step = step+1;
 			WritePlotFile();
 			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));
@@ -564,18 +700,23 @@ Integrator::Evolve ()
 void
 Integrator::IntegrateVariables (Real time, int step)
 {
-	if (!number_of_intvars) return;
+	BL_PROFILE("Integrator::IntegrateVariables");
+	if (!thermo.number) return;
 
-	if (!(step % intvar_int))
+	if ( ((thermo.interval > 0) && (step) % thermo.interval == 0) ||
+		 ((thermo.dt > 0.0)     && std::fabs(std::remainder(time,plot_dt)) < 0.5*dt[0]))
 	{
 		// Zero out all variables
-		for (int i = 0; i < number_of_intvars; i++) *intvar_array[i] = 0; 
+		for (int i = 0; i < thermo.number; i++) *thermo.vars[i] = 0; 
 
 		// All levels except the finest
 		for (int ilev = 0; ilev < max_level; ilev++)
 		{
 			const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
 
+#ifdef OMP
+			#pragma omp parallel
+#endif
 			for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -590,6 +731,9 @@ Integrator::IntegrateVariables (Real time, int step)
 		}
 		// Now do the finest level
 		{
+			#ifdef OMP
+			#pragma omp parallel
+			#endif 
 			for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -598,26 +742,30 @@ Integrator::IntegrateVariables (Real time, int step)
 		}
 
 		// Sum up across all processors
-		for (int i = 0; i < number_of_intvars; i++) 
+		for (int i = 0; i < thermo.number; i++) 
 		{
-			amrex::ParallelDescriptor::ReduceRealSum(*intvar_array[i]);
+			amrex::ParallelDescriptor::ReduceRealSum(*thermo.vars[i]);
 		}
 	}
-	if (!(step % intvar_plot) && 	ParallelDescriptor::IOProcessor())
+	if ( ParallelDescriptor::IOProcessor() &&
+		 (
+			 (thermo.plot_int > 0 && step % thermo.plot_int == 0) ||
+			 (thermo.plot_dt > 0.0 && std::fabs(std::remainder(time,thermo.plot_dt)) < 0.5*dt[0])
+		 ))
 	{
 		std::ofstream outfile;
 		if (step==0)
 		{
 			outfile.open(plot_file+"/thermo.dat",std::ios_base::out);
 			outfile << "time";
-			for (int i = 0; i < number_of_intvars; i++) 
-				outfile << "\t" << intvar_names[i];
+			for (int i = 0; i < thermo.number; i++) 
+				outfile << "\t" << thermo.names[i];
 			outfile << std::endl;
 		}
 		else outfile.open(plot_file+"/thermo.dat",std::ios_base::app);
 		outfile << time;
-		for (int i = 0; i < number_of_intvars; i++)
-			outfile << "\t" << *intvar_array[i];
+		for (int i = 0; i < thermo.number; i++)
+			outfile << "\t" << *thermo.vars[i];
 		outfile << std::endl;
 		outfile.close();
 	}
@@ -628,6 +776,7 @@ Integrator::IntegrateVariables (Real time, int step)
 void
 Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 {
+	BL_PROFILE("Integrator::TimeStep");
 	if (regrid_int > 0)  // We may need to regrid
 	{
 		static Vector<int> last_regrid_step(max_level+1, 0);
@@ -637,15 +786,8 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 		{
 			if (istep[lev] % regrid_int == 0)
 			{
-				/// \todo Delete this section (except for the regrid call) once it is verified that it is no longer needed
-				//int old_finest = finest_level; // regrid changes finest_level
 				regrid(lev, time, false); 
-				// for (int k = lev; k <= finest_level; ++k) {
-				// 	last_regrid_step[k] = istep[k];
-				// }
-				// for (int k = old_finest+1; k <= finest_level; ++k) {
-				// 	dt[k] = dt[k-1] / MaxRefRatio(k-1);
-				// }
+				Regrid(lev,time);
 			}
 		}
 	}

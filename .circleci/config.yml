@@ -21,9 +21,6 @@ jobs:
                     apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev &&
                     export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
       - run:
-          name: Building AMReX
-          command: 'bash ./.build.amrex.sh 2 nodeghostcells'
-      - run:
           name: Building Alamo
           command: 'bash ./.build.sh 2'
       - run:
@@ -46,9 +43,6 @@ jobs:
                     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90 &&
                     apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev &&
                     export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
-      - run:
-          name: Building AMReX
-          command: 'bash ./.build.amrex.sh 3 nodeghostcells'
       - run:
           name: Building Alamo
           command: 'bash ./.build.sh 3'

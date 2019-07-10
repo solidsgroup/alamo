@@ -1,5 +1,6 @@
 #include "PolymerDegradation.H"
-#include "AMReX_MLCGSolver.H"
+#include "Solver/Linear.H"
+
 //#if AMREX_SPACEDIM == 1
 namespace Integrator
 {
@@ -949,7 +950,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	 	     );
 
 	//Util::Message(INFO);
-	amrex::MLMG solver(elastic_operator);
+	Solver::Linear solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
 	solver.setFixedIter(elastic.max_fixed_iter);
@@ -957,7 +958,6 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setCGVerbose(elastic.cgverbose);
 	solver.setBottomMaxIter(elastic.bottom_max_iter);
 	solver.setBottomTolerance(elastic.cg_tol_rel) ;
-	solver.setFinalFillBC(false);	
 	solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
 	//Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);

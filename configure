@@ -1,9 +1,14 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import argparse
 import os
 import re
 import subprocess
 import textwrap
+import sys
+import ctypes.util
+import glob
+
+python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
 
 class color:
     reset = "\033[0m"
@@ -17,10 +22,10 @@ class color:
 
     bggray = "\033[47m\033[30m"
 
-width = 25
+width = 20
 def wrap(input_string):
     pre = ""
-    wrapper = textwrap.TextWrapper(width=70)
+    wrapper = textwrap.TextWrapper(width=70,)
     for line in wrapper.wrap(input_string):
         if line != "\n":
             print(pre + line)
@@ -32,38 +37,49 @@ def message(title,message="",wrap_message=True):
 def shellmessage(title,cmd):
     print(color.boldgreen + title.ljust(width) + color.reset,end="")
     wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
-def checkdpkg(package):
-    print(color.boldgreen + package.ljust(width) + color.reset,end="")
-    try:
-        subprocess.check_output(["dpkg","-s",package],stderr=subprocess.STDOUT).decode('ascii').replace('\n',' ')
-        print("Installed")
-    except:
-        print(color.red + "MISSING - install with " + color.bggray + "sudo apt install " + package + color.reset)
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
-def error():
-    return(color.boldred + "ERROR".ljust(width) + color.reset)
+def error(message):
+    print(color.boldred + "ERROR".ljust(width) + color.reset,end="")
+    wrap(message)
 def code(code):
-    return(color.bggray + code + color.reset);
+    return(color.green + code + color.reset);
 def note(message):
     print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
     wrap(message)
-
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
+parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=False, help='Download and build AMReX automatically')
+parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="master", help='AMReX Branch (You probably don\'t need to change this!' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
+parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
-parser.add_argument('--python',dest='python',action='store_true',help='Compile python interface library')
+parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
+parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
+parser.add_argument('--diff',dest='diff',action='store_true',help='Use diff2html to generate git diff reports')
 parser.set_defaults(debug=False)
-args=parser.parse_args();
+args=parser.parse_args()
 
-f = open("Makefile.conf","w")
+fpic = args.python 
+
+f = open("Makefile.pre.conf","w")
+f2 = open("Makefile.post.conf","w")
+
+#
+# Specify Postfix
+#
+postfix = ""
+postfix += str(args.dim)+"d"
+if args.debug: postfix += "-debug"
+if fpic: postfix += "-fpic"
+postfix += "-" + args.comp
+f.write("POSTFIX = " + postfix + '\n')
 
 #
 # Current Repo settings
@@ -88,9 +104,57 @@ f.write("DEBUG = " + str(args.debug) + "\n")
 message("Debug Mode",str(args.debug))
 
 #
+# OpenMP
+#
+message("OpenMP",str(args.omp))
+if args.omp:
+    f.write("CXX_COMPILE_FLAGS += -DOMP -fopenmp \n")
+    f.write("LINKER_FLAGS += -lgomp \n")
+
+#
 # AMREX
 #
-if (args.amrex != ""):
+if (args.buildamrex == True):
+    amrex_configure = './configure '
+    amrex_configure += ' --dim=' + str(args.dim)
+    amrex_configure += ' --prefix=' + postfix
+    if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
+    elif args.comp == "clang++": amrex_configure += ' --comp=llvm'
+    elif args.comp == "icc":     amrex_configure += ' --comp=intel'
+    if args.debug: amrex_configure += ' --debug=yes'
+    if fpic: amrex_configure += ' --enable-pic=yes'
+    note(amrex_configure)
+    args.amrex = "amrex/"+postfix
+    f.write("AMREX = amrex/" + postfix + "/\n")
+    f.write("AMREX_TARGET = amrex/" + postfix + "\n")
+    
+    if os.path.isdir("amrex"):
+        message("AMReX-Checkout","Checking out branch " + args.buildamrexbranch,False)
+        p = subprocess.Popen(("git -C amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        message("AMReX-Update","Updating branch " + args.buildamrexbranch,False)
+        p = subprocess.Popen("git -C amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+    else:
+        message("AMReX-Clone","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
+        p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
+                             stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+    
+    message("AMReX-Configure",amrex_configure,False)
+    subprocess.Popen(amrex_configure.split(),cwd="amrex")
+    
+    f2.write("amrex/"+postfix+":\n")
+    f2.write("\t$(MAKE) -C amrex $(MAKECMD)\n") # --output-sync=target
+    f2.write("\tmake -C amrex install\n")
+        
+    message("AMReX-Status", "Downloading/building automatically")
+    message("AMReX-Directory", "amrex/"+postfix)
+
+elif (args.amrex != ""):
     # Check to make sure directory is valid 
     if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
         raise Exception(error()+" AMReX directory must contain include/ and lib/ subdirectories ")
@@ -99,11 +163,13 @@ if (args.amrex != ""):
     amrex_spacedim = 0
     amrex_profiling = False
     amrex_debug = False
+    amrex_omp = False
     for line in open(args.amrex + "/include/AMReX_Config.H"):
         if "define BL_SPACEDIM 1" in line or "define AMREX_SPACEDIM 1" in line: amrex_spacedim = 1
         if "define BL_SPACEDIM 2" in line or "define AMREX_SPACEDIM 2" in line: amrex_spacedim = 2
         if "define BL_SPACEDIM 3" in line or "define AMREX_SPACEDIM 3" in line: amrex_spacedim = 3
         if "AMREX_DEBUG 1" in line: amrex_debug = True
+        if "USE_OMP 1" in line: amrex_omp = True
         if "PROFILING 1" in line: amrex_profiling = True
         if "AMREX_GIT_VERSION" in line: githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','')
         
@@ -116,6 +182,10 @@ if (args.amrex != ""):
             raise Exception(error()+": Alamo is not in debug mode but AMReX is")
     if not args.debug and amrex_profiling:
         warning("Alamo compiled in production mode, but PROFILE is enabled in AMReX")
+    if args.omp and not amrex_omp:
+        raise Exception(error() + "Alamo is compiled with OMP but AMReX is not. Try compiling AMReX with "+code("./configure --with-omp=yes") + " or compile Alamo without "+code("--omp"))
+    if not args.omp and amrex_omp:
+        raise Exception(error() + "Alamo is compiled without OMP but AMReX is. Try compiling AMReX with "+code("./configure --with-omp=no") + " or compile Alamo with " + code("--omp"))
 
     message("AMReX Directory", args.amrex)
     message("AMReX Git commit", githash)
@@ -126,11 +196,21 @@ else:
 #
 # EIGEN
 #
-if (args.eigen != ""):
+if (args.geteigen):
+    if not os.path.isdir("eigen3"):
+        message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
+        p = subprocess.Popen(("git clone https://github.com/eigenteam/eigen-git-mirror").split(),
+                             stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        subprocess.run("mv eigen-git-mirror eigen3".split())
+    message("Eigen-Directory",".")
+    f.write("EIGEN = .\n")
+elif (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
-    print(color.boldgreen + "Eigen Directory: " + color.reset + args.eigen)
-    f.write("EIGEN = " + args.amrex + "\n")
+    message("Eigen-Directory",args.eigen)
+    f.write("EIGEN = " + args.eigen + "\n")
 
 #
 # Compiler
@@ -141,34 +221,60 @@ if not args.comp in ['g++','icc','clang++']:
 if (args.comp == "gcc"): f.write("COMP = GCC\n")
 elif (args.comp == "clang"): f.write("COMP = CLANG\n")
 elif (args.comp == "intel"): f.write("COMP = INTEL\n")
-message("Compiler", str(args.comp))
-shellmessage("Comp. version",args.comp+" --version")
-shellmessage("MPI flags","mpicxx -cxx="+args.comp+" -show")
+message("Comp-Type", str(args.comp))
+shellmessage("Comp-Version",args.comp+" --version")
+shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
 f.write("CC = mpicxx -cxx="+args.comp+"\n")
-if args.comp == 'g++':     f.write("MPI_LIB = -lgfortran -lmpich\n")
-if args.comp == 'clang++': f.write("MPI_LIB = -lgfortran -lmpich\n")
-if args.comp == 'icc':     f.write("MPI_LIB = -lifcore\n")
+if args.comp == 'g++':     
+    f.write("MPI_LIB = -lgfortran -lmpich\n")
+    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+if args.comp == 'clang++': 
+    f.write("MPI_LIB = -lgfortran -lmpich\n")
+    f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+if args.comp == 'icc':     
+    f.write("MPI_LIB = -lifcore\n")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3\n") # -inline-forceinline
 
 #
 # Python information
 #
 if args.python:
-    python_include_dir = "/usr/include/python2.7/" # hard-coded for now
-    #python_boost_lib = "/usr/lib/x86_64-linux-gnu/libboost_python-py27.so.1.62.0"
-    python_boost_lib = "-lboost_python-py27 -lboost_numpy"
+    if os.path.isdir("/usr/include/python"+str(args.python)+"/"):
+        python_include_dir = "/usr/include/python"+str(args.python)+"/"
+    elif os.path.isdir("/usr/include/python"+str(args.python)+"m/"):
+        python_include_dir = "/usr/include/python"+str(args.python)+"m/"
+    else:
+        message("Py incl. dirs",' '.join(glob.glob(("/usr/include/python*"))))
+        raise Exception(error("Python include directory does not exist. Version may be incorrect, or you may need to install using either" 
+                        + code("sudo apt install python3-dev") + " or " + code("sudo apt install python-dev")))
 
-    if not (os.path.isdir(python_include_dir)):
-        raise Exception(color.red+"ERROR"+color.reset+": Python include directory does not exist")
-    #if not (os.path.isfile(python_boost_lib)):
-    #    raise Exception(color.red+"ERROR"+color.reset+": Python Boost library does not exist (Try installing libboost-python-dev)")
-
+    if ctypes.util.find_library("boost_python-py"+args.python.replace(".","")):
+        python_boost_lib = "-lboost_python-py"+str(args.python).replace(".","")
+    elif ctypes.util.find_library("boost_python3-py"+args.python.replace(".","")):
+        python_boost_lib = "-lboost_python3-py"+str(args.python).replace(".","")
+    else:
+        raise Exception(error("Cannot find python boost lib. Install using " + code("sudo apt install libboost-python-dev")))
+    
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')
     f.write("CXX_COMPILE_FLAGS += -fPIC \n")
     message("Python","True")
+    message("Pythin include dir:",python_include_dir)
+    message("Pythin boost lib:",python_boost_lib)
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
-    checkdpkg("libboost-python-dev")
-    checkdpkg("libboost-numpy-dev")
+
+if args.diff:
+    f.write("CXX_COMPILE_FLAGS = -DGIT_DIFF_OUTPUT\n")
+    f.write("DEP_EXTRA += .diff.html\n")
+    f2.write(".diff.html: .FORCE\n")
+    f2.write("\t-@rm -rf .diff.html\n")
+    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side\n")
+
 
 #
 # Documentation check
@@ -192,14 +298,4 @@ if (args.docs):
     #M2R
     try: import m2r; message("M2R", str(m2r.__version__) + " (python 3)")
     except: message("M2R",color.red + "M2R not installed - install using " + code("pip install m2r"))
-
-#
-# Specify Prefix
-#
-prefix = "-"
-prefix += str(args.dim)+"d"
-if args.debug: prefix += "-debug"
-if args.python: prefix += "-fpic"
-prefix += "-" + args.comp
-f.write("PREFIX = " + prefix + '\n')
 
