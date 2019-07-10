@@ -49,7 +49,7 @@
 	{% if columns[i] == "Description" %}
 	<td>
 	  <div width="100%">
-		{{data[i]}}
+		{{data[i] | string | markdown}}
 		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-description">Edit Description</button>
 	  </div>
 	  <br/>
