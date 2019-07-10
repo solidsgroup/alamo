@@ -43,30 +43,31 @@ import matplotlib.pyplot as plt
 alamo.Util.Initialize()
 
 model = alamo.Model.Solid.CrystalPlastic.CrystalPlastic()
+model.Randomize()
 es = np.ndarray(shape=(3,3))
-final = 2/1e-7
-model.Setdt(1e-4)
-dt = 1e-3
+sigma = np.ndarray(shape=(3,3))
+T = 3.0
+dt = 1e-6
+model.Setdt(dt)
+counter = 0
+t = 0
+
 stressx = []
 strainx = []
-for i in range(int(9e3)):
-	es[0][0] = dt * i
-	model.SetEs(es)
-	
-	for j in range(int(1e4)):
-		model.UpdateSigma()
-		model.AdvanceEsp()
-	if i%1 == 0:
-		sigma = model.GetSigma()
-		print(sigma)
+
+while(t<T):
+	es[0][0] = t
+	sigma = model.UpdateSigma(es)
+	model.Update(es,sigma,dt)
+	t += dt
+	if(counter % 100 ==0):
 		strainx.append(es[0][0])
 		stressx.append(sigma[0][0])
-esp = model.GetEsp()
-print(esp)
+	counter= counter + 1
+
 plt.plot(strainx, stressx)
 plt.xlabel('Strain')
 plt.ylabel('Stress')
 plt.title('Crystal plastic stress-strain curve')
 plt.show()
-
 alamo.Util.Finalize()

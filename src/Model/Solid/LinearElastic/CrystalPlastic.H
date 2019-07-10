@@ -22,10 +22,12 @@ public:
 	CrystalPlastic() 
 	{
 		initializeSlip();
+		define(.5,.2,.01);
+	
 	} 
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
-	~CrystalPlastic() {} ;
+	~CrystalPlastic() {};
 	virtual Set::Matrix operator () (Set::Matrix &eps) const;
 #if AMREX_SPACEDIM==2
 	virtual Set::Vector operator () (std::array<Set::Matrix,2> &gradeps);
@@ -40,15 +42,13 @@ public:
 		if (a < 0) return -1;
 		return 0;
 	}
-	double CalcSSigN (Set::Vector ss, Set::Vector nn);
-
-	void UpdateSigma();
-	Set::Scalar GetGammaDot(Set::Vector ss, Set::Vector nn);
-	void AdvanceEsp();
-	void reset();
-	void SetEs(Set::Matrix _es); 
+	double CalcSSigN (Set::Vector ss, Set::Vector nn, Set::Matrix sig);
+	void GetActivePlains(Set::Matrix sig); //used in update esp function
+	Set::Matrix UpdateSigma(Set::Matrix es);
+	Set::Scalar GetGammaDot(Set::Vector ss, Set::Vector nn, Set::Matrix sig);
+	void update(Set::Matrix es, Set::Matrix sigma, Set::Scalar _dt);
+	void AdvanceEsp(Set::Matrix sig);
 	void Setdt(double _dt);
-	Set::Matrix GetSigma();
 	Set::Matrix GetEsp();
 //-----------------------//
 	void Randomize();
@@ -77,15 +77,15 @@ public:
 	{CrystalPlastic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]*alpha; return ret;}
 
 private:
-	void GetActivePlains(); //used in update esp function
 	void initializeSlip();
 	
 	struct slip
-{
+	{
 	Set::Vector n;
 	Set::Vector s;
 	bool on;
-};
+	};
+	
 	std::array<Set::Scalar,21> C;
 	//********Matrial Slip Data**********//
 	Set::Vector n1 = {1,1,1};
@@ -107,31 +107,22 @@ private:
 	Set::Vector s43 = {-1,-1,0};
 
 	std::array<slip,12> slipSystem;
-	slip slp1;
-	slip slp2;
-	slip slp3;
-	slip slp4;
-	slip slp5;
-	slip slp6;
-	slip slp7;
-	slip slp8;
-	slip slp9;
-	slip slp10;
-	slip slp11;
-	slip slp12;
-	//********Matrial Matrices**********//
-	Set::Matrix sigma = Set::Matrix::Zero();
+	slip slp1; slip slp2;
+	slip slp3; slip slp4;
+	slip slp5; slip slp6; 
+	slip slp7; slip slp8;
+	slip slp9; slip slp10;
+	slip slp11; slip slp12;
+	//********Matrial Matrix**********//
+	
 	Set::Matrix esp = Set::Matrix::Zero();
-	Set::Matrix es = Set::Matrix::Zero();
 
 	//********Matrial Constants**********//
-	Set::Scalar Tcrss = .4;
-	Set::Scalar E = .8; 
-	Set::Scalar n = 200.5;
-	Set::Scalar gammadot0 = 1.2;
-	Set::Scalar gamma0 = 0.5;
-	Set::Scalar dt = 1e-8;
-	
+	static Set::Scalar constexpr Tcrss = 0.8;
+	static Set::Scalar constexpr n = 2;
+	static Set::Scalar constexpr gammadot0 = 0.5;
+	static Set::Scalar constexpr gamma0 = 0.5;
+	Set::Scalar dt = 1e-5;
 
 };
 
@@ -140,5 +131,3 @@ private:
 }
 
 #endif 
-
-

@@ -17,12 +17,11 @@ void exportModelCrystalPlastic()
 	using namespace Model::Solid::CrystalPlastic;
 
 	bp::scope the_scope = bp::class_<CrystalPlastic,boost::noncopyable>("CrystalPlastic")
-		.def("UpdateSigma",&CrystalPlastic::UpdateSigma)
-		.def("SetEs",&CrystalPlastic::SetEs)
-		.def("AdvanceEsp",&CrystalPlastic::AdvanceEsp)
-		.def("GetSigma",&CrystalPlastic::GetSigma)
-		.def("GetEsp", &CrystalPlastic::GetEsp)
+		.def("UpdateSigma", &CrystalPlastic::UpdateSigma)
+		.def("AdvanceEsp", &CrystalPlastic::AdvanceEsp)
+		.def("Update", &CrystalPlastic::update)
 		.def("Setdt", &CrystalPlastic::Setdt)
-		.def("reset", &CrystalPlastic::reset)
+		.def("Randomize", &CrystalPlastic::Randomize)
+		
 		;
 }
