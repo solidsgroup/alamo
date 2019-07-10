@@ -18,6 +18,7 @@ AMREX_FORCE_INLINE
 std::array<StencilType,AMREX_SPACEDIM>
 GetStencil(const int i, const int j, const int k, const amrex::Box domain)
 {
+	(void)i; (void)j; (void)k; // Suppress "unused variable" warnings.
 	std::array<StencilType,AMREX_SPACEDIM> sten;
 	const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 	AMREX_D_TERM(sten[0] = (i == lo.x ? Numeric::StencilType::Hi :

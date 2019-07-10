@@ -1,7 +1,7 @@
 IC
 ---
 
-This is the documentation for the various initial conditions that Alamo applies.
+This namespace contains a set of Initial Condition (`IC`) objects.
 These simply represent the shape that the mesh takes.
 
 .. toctree::

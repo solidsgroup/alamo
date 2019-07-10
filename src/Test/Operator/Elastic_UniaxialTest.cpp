@@ -1,10 +1,9 @@
-#include <AMReX_MLMG.H>
-
 #include "Test/Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
+#include "Solver/Linear.H"
 
 namespace Test
 {
@@ -98,25 +97,14 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	
 	elastic.SetBC(&bc);
 
-	amrex::MLMG mlmg(elastic);
+	Solver::Linear mlmg(elastic);
 	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
- 	if (verbose)
- 	{
- 		mlmg.setVerbose(verbose);
-		if (verbose > 4) mlmg.setCGVerbose(verbose);
- 	}
- 	else
- 	{
- 		mlmg.setVerbose(0);
- 		mlmg.setCGVerbose(0);
-	}
+ 	mlmg.setVerbose(verbose);
  	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
- 	mlmg.setFinalFillBC(false);	
- 	mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
-
-        if (component!=0)
+	
+  if (component!=0)
 	{
 		component-=component;
 	}

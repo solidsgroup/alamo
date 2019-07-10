@@ -19,8 +19,8 @@
 #include "BC/Constant.H"
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
-#include "IC/Voronoi/Voronoi.H"
-#include "IC/Circle.H"
+#include "IC/Voronoi.H"
+#include "IC/Sphere.H"
 
 #include "Model/Interface/GrainBoundary/GrainBoundary.H"
 #include "Model/Interface/GrainBoundary/Sin.H"
