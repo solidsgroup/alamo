@@ -4,7 +4,7 @@
 namespace IC
 {
 
-Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> _value)
+Constant::Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> _value)
 	: IC(_geom), value(_value)
 {}
 

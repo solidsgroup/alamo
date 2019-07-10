@@ -62,12 +62,15 @@ parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Com
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
+parser.add_argument('--diff',dest='diff',action='store_true',help='Use diff2html to generate git diff reports')
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 
 fpic = args.python 
 
-f = open("Makefile.conf","w")
+f = open("Makefile.pre.conf","w")
+f2 = open("Makefile.post.conf","w")
+
 #
 # Specify Postfix
 #
@@ -144,7 +147,6 @@ if (args.buildamrex == True):
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="amrex")
     
-    f2 = open("Makefile.amrex.conf","w")
     f2.write("amrex/"+postfix+":\n")
     f2.write("\t$(MAKE) -C amrex $(MAKECMD)\n") # --output-sync=target
     f2.write("\tmake -C amrex install\n")
@@ -226,17 +228,17 @@ f.write("CC = mpicxx -cxx="+args.comp+"\n")
 if args.comp == 'g++':     
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
 if args.comp == 'clang++': 
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3")
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
 if args.comp == 'icc':     
     f.write("MPI_LIB = -lifcore\n")
-    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3") # -inline-forceinline
+    if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3\n") # -inline-forceinline
 
 #
 # Python information
@@ -265,6 +267,14 @@ if args.python:
     message("Pythin include dir:",python_include_dir)
     message("Pythin boost lib:",python_boost_lib)
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
+
+if args.diff:
+    f.write("CXX_COMPILE_FLAGS = -DGIT_DIFF_OUTPUT\n")
+    f.write("DEP_EXTRA += .diff.html\n")
+    f2.write(".diff.html: .FORCE\n")
+    f2.write("\t-@rm -rf .diff.html\n")
+    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side\n")
+
 
 #
 # Documentation check
