@@ -430,20 +430,14 @@ Integrator::Restart(const std::string dirname)
 	// Get number of fabs
 	int tmp_numfabs;
 	std::getline(is,line); tmp_numfabs = std::stoi(line);
+	Util::Message(INFO,"number of fabs:",tmp_numfabs);
+	std::vector<std::string> tmp_name_array;
 	
-	int ctr = 0;
-	for (int i = 0; i < cell.fab_array.size(); i++)
+	for (int i = 0; i < tmp_numfabs; i++)
 	{
-		for (int j = 0; j < cell.ncomp_array[i]; j++)
-		{
-			std::getline(is,line);
-			if (! Util::String::Contains(line,cell.name_array[i])) 
-				Util::Abort(INFO,"Mismatched Fab names! Input fab name " + line + " does not match registered fab name " + cell.name_array[i]);
-			Util::Message(INFO,"Reading: ",cell.name_array[i]," <-- ",line);
-			ctr++;
-		}
+		std::getline(is,line);
+		tmp_name_array.push_back(line);
 	}
-	if (ctr != tmp_numfabs) Util::Abort(INFO,"Trying to read in more fabs than have been registered");
 	
 	// Dimension?
 	std::getline(is,line); 
@@ -476,7 +470,7 @@ Integrator::Restart(const std::string dirname)
 	// Domain
 	std::getline(is,line); 
 	std::vector<std::string> tmp_iters = Util::String::Split(line);
-	if (tmp_iters.size() != max_level+1) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
+	if (tmp_iters.size() != (unsigned int)(max_level+1)) Util::Abort(INFO, "Error reading in interation counts: line = ", line);
 	for (int lev = 0; lev <= max_level; lev++) {istep[lev] = std::stoi(tmp_iters[lev]); Util::Message(INFO,"Iter on level " , lev , " = ", istep[lev]);}
 
 	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
@@ -495,17 +489,28 @@ Integrator::Restart(const std::string dirname)
 		tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
 		amrex::VisMF::Read( tmpdata[lev],
 							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_","Cell"));
-
-		int compctr = 0;
-		for (int i = 0; i < cell.fab_array.size(); i++)
-		{
-			Util::Message(INFO,"Initializing ", cell.name_array[i], "; ncomp=", cell.ncomp_array[i], "; nghost=",cell.nghost_array[i] );
-			(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
-
-			MultiFab::Copy(*((*cell.fab_array[i])[lev]).get(),tmpdata[lev],compctr,0,cell.ncomp_array[i],cell.nghost_array[i]);
-			compctr += cell.ncomp_array[i];
-		}
 							
+
+		for (int i = 0; i < cell.number_of_fabs; i++)
+		{
+			(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
+		}
+		for (int i = 0; i < tmp_numfabs; i++)
+		{
+			bool match = false;
+			for (int j = 0; j < cell.number_of_fabs; j++)
+				for (int k = 0; k < cell.ncomp_array[j]; k++)
+				{
+					//Util::Message(INFO,tmp_name_array[i]," ",cell.name_array[j]," k=",);
+					if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j],k+1,3))
+					{
+						match = true;
+						Util::Message(INFO,"Initializing ", cell.name_array[j], "[",k,"]; ncomp=", cell.ncomp_array[j], "; nghost=",cell.nghost_array[j], " with ", tmp_name_array[i] );
+						MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,cell.nghost_array[j]);
+					}
+				}
+			if (!match) Util::Warning(INFO,"Fab ",tmp_name_array[i]," is in the restart file, but there is no fab with that name here.");
+		}							
 	}
 }
 
@@ -702,7 +707,7 @@ Integrator::IntegrateVariables (Real time, int step)
 	if (!thermo.number) return;
 
 	if ( (thermo.interval > 0 && (step) % thermo.interval == 0) ||
-		 (thermo.dt > 0.0 & std::fabs(std::remainder(time,plot_dt)) < 0.5*dt[0]))
+		 ((thermo.dt > 0.0) && (std::fabs(std::remainder(time,plot_dt)) < 0.5*dt[0])) )
 	{
 		// Zero out all variables
 		for (int i = 0; i < thermo.number; i++) *thermo.vars[i] = 0; 
@@ -712,7 +717,9 @@ Integrator::IntegrateVariables (Real time, int step)
 		{
 			const BoxArray& cfba = amrex::coarsen(grids[ilev+1], refRatio(ilev));
 
+#ifdef OMP
 			#pragma omp parallel
+#endif
 			for ( amrex::MFIter mfi(grids[ilev],dmap[ilev],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -727,7 +734,9 @@ Integrator::IntegrateVariables (Real time, int step)
 		}
 		// Now do the finest level
 		{
+			#ifdef OMP
 			#pragma omp parallel
+			#endif 
 			for ( amrex::MFIter mfi(grids[max_level],dmap[max_level],true); mfi.isValid(); ++mfi )
 			{
 				const amrex::Box& box = mfi.tilebox();
@@ -780,15 +789,7 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 		{
 			if (istep[lev] % regrid_int == 0)
 			{
-				/// \todo Delete this section (except for the regrid call) once it is verified that it is no longer needed
-				//int old_finest = finest_level; // regrid changes finest_level
 				regrid(lev, time, false); 
-				// for (int k = lev; k <= finest_level; ++k) {
-				// 	last_regrid_step[k] = istep[k];
-				// }
-				// for (int k = old_finest+1; k <= finest_level; ++k) {
-				// 	dt[k] = dt[k-1] / MaxRefRatio(k-1);
-				// }
 			}
 		}
 	}

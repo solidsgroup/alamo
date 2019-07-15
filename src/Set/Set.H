@@ -16,7 +16,6 @@
 
 #include "Util/Util.H"
 
-
 /// \brief A collection of data types and simple data structures
 namespace Set
 {
@@ -83,6 +82,7 @@ class Matrix4<3,Sym::Full>
         // [2, 2, 2, 2]
         else if (uid==80 ) return data[14];
         else Util::Abort(INFO,"uid not in range (uid=",uid,")");
+        return NAN;
     }
 
 public:
