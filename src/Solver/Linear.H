@@ -29,12 +29,12 @@ class Linear : public amrex::MLMG
     void setVerbose(int verbosity)
     {
         MLMG::setVerbose(verbosity);
-		if (verbosity > 4) MLMG::setCGVerbose(verbosity);
-     	else
- 	    {
- 		    MLMG::setVerbose(0);
- 		    MLMG::setCGVerbose(0);
-	    }
+		//if (verbosity >= 4) MLMG::setCGVerbose(verbosity);
+     	//else
+ 	    //{
+ 		//    MLMG::setVerbose(0);
+ 		//    MLMG::setCGVerbose(0);
+	    //}
     }
 
 };

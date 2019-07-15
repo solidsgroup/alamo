@@ -26,8 +26,8 @@ stop_time = 100.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
-amr.plot_int = 10
-amr.max_level = 1
+amr.plot_int = 100
+amr.max_level = 0
 #amr.max_grid_size = 4
 #amr.n_cell = 128 32 8
 #amr.n_cell = 32 32 32   ## A
@@ -42,34 +42,35 @@ amr.plot_file = tests/PolymerDegradation3D-2/output
 
 #=============== Specify geometry and unrefined mesh =======================
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 54.16 13.21 4.10
+geometry.prob_hi = 27.08 6.605 2.05
 #geometry.prob_hi = 54.16 27.08 13.54
 #geometry.prob_hi = 54.16 54.16 54.16  ## A
 #geometry.prob_hi = 216.64 54.16 54.16  ## B
-geometry.prob_hi = 216.64 54.16 27.08  ## C
+#geometry.prob_hi = 216.64 54.16 27.08  ## C
 geometry.is_periodic= 0 0 0
 #===========================================================================
 
 #=============== Water diffusion parameters ================================
 water.on = true
-water.diffusivity = 0.15
+water.diffusivity = 0.5
 water.refinement_threshold = 0.01
 
 water.ic_type = constant
 water.ic.value = 0.0
 #water.bc.lo = INT_DIR INT_DIR INT_DIR # SYMMETRIC simulation
-water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
+water.bc.lo = REFLECT_EVEN REFLECT_EVEN REFLECT_EVEN # SYMMETRIC simulation
+#water.bc.lo = EXT_DIR EXT_DIR EXT_DIR # FULL simulation
 water.bc.hi = EXT_DIR EXT_DIR EXT_DIR
-water.bc.lo_1 = 1.0
+water.bc.lo_1 = 0.0
 water.bc.hi_1 = 1.0
-water.bc.lo_2 = 1.0
+water.bc.lo_2 = 0.0
 water.bc.hi_2 = 1.0
-water.bc.lo_3 = 1.0
+water.bc.lo_3 = 0.0
 water.bc.hi_3 = 1.0
 #===========================================================================
 
 #=============== Heat diffusion parameters =================================
-thermal.on = true
+thermal.on = false
 thermal.diffusivity = 0.01
 thermal.refinement_threshold = 0.01
 thermal.ic_type = constant
@@ -86,21 +87,21 @@ thermal.bc.hi_3 = 368.0
 
 #=============== Material model parameters =================================
 material.model = isotropic
-material.isotropic.lambda = 497.0
-material.isotropic.mu = 331.0
+material.isotropic.lambda = 490.7
+material.isotropic.mu = 320.1
 #===========================================================================
 
 #=============== Damage evolution parameters ===============================
 damage.anisotropy = 0
 damage.type = water 
-damage.d_final = 0.99
+damage.d_final = 0.90
 damage.number_of_terms = 2
-damage.d_i = 0.33 0.66
-damage.tau_i = 24 24
-damage.t_start_i = 0 24
+damage.d_i = 0.60 0.30
+damage.tau_i = 24 96
+damage.t_start_i = 0 0
 damage.ic_type = constant
 damage.ic.value = 0.0
-damage.bc.lo = INT_DIR INT_DIR INT_DIR
+damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
 damage.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 damage.bc.lo_1 = 0.0
 damage.bc.hi_1 = 0.0
@@ -112,10 +113,10 @@ damage.bc.hi_3 = 0.0
 
 #=============== Elasticity parameters =====================================
 elastic.on = true
-elastic.bottom_solver = smoother
+elastic.bottom_solver = bicgstab
 elastic.int = 100
 elastic.composite_solve	= 1
-elastic.verbose			= 3
+elastic.verbose			= 2
 elastic.cg_verbose 		= 0
 elastic.max_iter		= 1000
 elastic.max_fmg_iter 	= 10000
@@ -138,33 +139,33 @@ elastic.body_force     = 0.0 0.0 0.0
 #
 # These BCs are for a SYMMETRIC simulation
 #
-elastic.bc.bc_x_lo = disp disp disp
-elastic.bc.bc_y_lo = neumann disp neumann
-elastic.bc.bc_z_lo = neumann neumann disp 
-elastic.bc.bc_x_hi = disp disp disp
-elastic.bc.bc_y_hi = trac trac trac
-elastic.bc.bc_z_hi = trac trac trac
-elastic.bc.left_face = 0.0 0.0 0.0
-elastic.bc.right_face = 0.1 0.0 0.0
-elastic.bc.bottom_face = 0.0 0.0 0.0
-elastic.bc.top_face = 0.0 0.0 0.0
-elastic.bc.back_face = 0.0 0.0 0.0
-elastic.bc.front_face = 0.0 0.0 0.0
+#elastic.bc.bc_x_min = disp disp disp
+#elastic.bc.bc_y_min = neumann disp neumann
+#elastic.bc.bc_z_min = neumann neumann disp 
+#elastic.bc.bc_x_max = disp disp disp
+#elastic.bc.bc_y_max = trac trac trac
+#elastic.bc.bc_z_max = trac trac trac
+#elastic.bc.x_min = 0.0 0.0 0.0
+#elastic.bc.x_max = 0.1 0.0 0.0
+#elastic.bc.y_min = 0.0 0.0 0.0
+#elastic.bc.y_max = 0.0 0.0 0.0
+#elastic.bc.z_min = 0.0 0.0 0.0
+#elastic.bc.z_max = 0.0 0.0 0.0
 
 #
 # These BCs are for a FULL simulation
 #
-#elastic.bc.bc_x_lo = disp disp disp
-#elastic.bc.bc_y_lo = trac trac trac
-#elastic.bc.bc_z_lo = trac trac trac
-#elastic.bc.bc_x_hi = disp disp disp
-#elastic.bc.bc_y_hi = neumann disp neumann
-#elastic.bc.bc_z_hi = neumann neumann disp
-#elastic.bc.left_face = 0.0 0.0 0.0
-#elastic.bc.right_face = 1.0 0.0 0.0
-#elastic.bc.bottom_face = 0.0 0.0 0.0
-#elastic.bc.top_face = 0.0 0.0 0.0
-#elastic.bc.back_face = 0.0 0.0 0.0
-#elastic.bc.front_face = 0.0 0.0 0.0
+elastic.bc.bc_x_min = disp neumann neumann
+elastic.bc.bc_y_min = neumann disp neumann
+elastic.bc.bc_z_min = neumann neumann disp
+elastic.bc.bc_x_max = disp disp disp
+elastic.bc.bc_y_max = trac trac trac
+elastic.bc.bc_z_max = trac trac trac
+elastic.bc.x_min = 0.0 0.0 0.0
+elastic.bc.x_max = 0.5 0.0 0.0
+elastic.bc.y_min = 0.0 0.0 0.0
+elastic.bc.y_max = 0.0 0.0 0.0
+elastic.bc.z_min = 0.0 0.0 0.0
+elastic.bc.z_max = 0.0 0.0 0.0
 
 #===========================================================================

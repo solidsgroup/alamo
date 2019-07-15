@@ -109,7 +109,7 @@ imgfiles = []
 
 def find_images(path):
     global imgfiles
-    img_fmts = ['.jpg', '.jpeg', '.png', '.pdf']
+    img_fmts = ['.jpg', '.jpeg', '.png', '.pdf', '.gif']
     imgfiles = []
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
     imgfiles.sort()
