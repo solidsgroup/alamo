@@ -1,5 +1,5 @@
 
--include Makefile.conf
+-include Makefile.pre.conf
 
 AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
@@ -58,7 +58,7 @@ OBJ_F = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_F:.F90=.F90.o))
 .SECONDARY: 
 
 
-default: $(DEP) $(EXE) .diff.html
+default: $(DEP) $(EXE) $(DEP_EXTRA)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
 
@@ -94,11 +94,7 @@ info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
 
--include Makefile.amrex.conf
-
-.diff.html: .FORCE
-	-@rm -rf .diff.html
-	-@diff2html -F .diff.html --hwt simba/diff-template.html --style side
+-include Makefile.post.conf
 
 bin/%: bin/%-$(POSTFIX) ;
 

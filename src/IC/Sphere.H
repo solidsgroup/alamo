@@ -4,7 +4,8 @@
 #include "IC/IC.H"
 #include "Util/Util.H"
 
-/// \brief Initialize a spherical (or cylindrical) inclusion
+/// \class Sphere
+/// \brief Initialize a spherical inclusion
 namespace IC
 {
 class Sphere : public IC
