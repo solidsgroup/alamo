@@ -7,9 +7,13 @@
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+#include "Model/Interface/GB/Sin.H"
+
+#include "Model/Interface/GB/SH.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Operator/Elastic.H"
+#include "Test/Model/Interface/GB/GB.H"
 
 #include "Operator/Elastic.H"
 
@@ -21,6 +25,15 @@ int main (int argc, char* argv[])
 	Util::Initialize(argc, argv);
 
 	int failed = 0;
+
+	Util::Test::Message("Model::Interface::GB::GB<Sin>");
+	{
+		int subfailed = 0;
+		Test::Model::Interface::GB::GB<Model::Interface::GB::Sin> test;
+		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+		failed += Util::Test::SubFinalMessage(subfailed);
+	}
 
 	Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
 	{
@@ -65,21 +78,38 @@ int main (int argc, char* argv[])
 		int subfailed = 0;
 		Test::Numeric::Stencil test;
 		test.Define(32);
+		// first order
 		subfailed += Util::Test::SubMessage("1-0-0",test.Derivative<1,0,0>(0));
 		subfailed += Util::Test::SubMessage("0-1-0",test.Derivative<0,1,0>(0));
+		// second order
 		subfailed += Util::Test::SubMessage("2-0-0",test.Derivative<2,0,0>(0));
 		subfailed += Util::Test::SubMessage("0-2-0",test.Derivative<0,2,0>(0));
+		subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,2,0>(0));
 		subfailed += Util::Test::SubMessage("1-1-0",test.Derivative<1,1,0>(0));
-		subfailed += Util::Test::SubMessage("4-0-0",test.Derivative<4,0,0>(0));
-		subfailed += Util::Test::SubMessage("0-4-0",test.Derivative<0,4,0>(0));
+		// fourth order
 		subfailed += Util::Test::SubMessage("3-1-0",test.Derivative<3,1,0>(0));
 		subfailed += Util::Test::SubMessage("1-3-0",test.Derivative<1,3,0>(0));
 		subfailed += Util::Test::SubMessage("2-2-0",test.Derivative<2,2,0>(0));
+		subfailed += Util::Test::SubMessage("4-0-0",test.Derivative<4,0,0>(0));
+		subfailed += Util::Test::SubMessage("0-4-0",test.Derivative<0,4,0>(0));
 #if AMREX_SPACEDIM>2
+		// first order
 		subfailed += Util::Test::SubMessage("0-0-1",test.Derivative<0,0,1>(0));
+		// second order
 		subfailed += Util::Test::SubMessage("0-0-2",test.Derivative<0,0,2>(0));
 		subfailed += Util::Test::SubMessage("1-0-1",test.Derivative<1,0,1>(0));
 		subfailed += Util::Test::SubMessage("0-1-1",test.Derivative<0,1,1>(0));
+		// fourth order
+		subfailed += Util::Test::SubMessage("0-0-4",test.Derivative<0,0,4>(0));
+		subfailed += Util::Test::SubMessage("0-1-3",test.Derivative<0,1,3>(0));
+		subfailed += Util::Test::SubMessage("0-3-1",test.Derivative<0,3,1>(0));
+		subfailed += Util::Test::SubMessage("3-0-1",test.Derivative<3,0,1>(0));
+		subfailed += Util::Test::SubMessage("1-0-3",test.Derivative<1,0,3>(0));
+		subfailed += Util::Test::SubMessage("0-2-2",test.Derivative<0,2,2>(0));
+		subfailed += Util::Test::SubMessage("2-0-2",test.Derivative<2,0,2>(0));
+		subfailed += Util::Test::SubMessage("2-1-1",test.Derivative<2,1,1>(0));
+		subfailed += Util::Test::SubMessage("1-2-1",test.Derivative<1,2,1>(0));
+		subfailed += Util::Test::SubMessage("1-1-2",test.Derivative<1,1,2>(0));
 #endif
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
