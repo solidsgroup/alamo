@@ -19,9 +19,10 @@
 #include "BC/Constant.H"
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
-#include "IC/Voronoi/Voronoi.H"
+#include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 
+#include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
@@ -73,12 +74,10 @@ private:
 
 	int number_of_grains = 2;
 	int number_of_ghost_cells = 2;
-	Set::Scalar ref_threshold = 0.1;
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etas_mf; ///< Color code order params
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > n_mf; ///< Color code order params
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
@@ -91,26 +90,9 @@ private:
 	BC::BC *mybc;
 
 	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
-
-	struct {
-		int on = 0;
-		Set::Scalar timestep;
-		Set::Scalar tstart;
-		int plot_int = -1;
-		Set::Scalar plot_dt = -1.0;
-		Set::Scalar theta0,sigma0,sigma1;
-	} anisotropy;
-	
-	struct { 
-		int on = 0;
-		Set::Scalar tstart = 0.0;
-		Set::Scalar vol0 = 0.0;
-		Set::Scalar lambda = 0.0;
-	} sdf;
-
-	//amrex::Real anisotropy_timestep;
-	//amrex::Real anisotropy_tstart;
-	//int anisotropy_plot_int;
+	int anisotropy = 0;
+	amrex::Real anisotropy_timestep;
+	amrex::Real anisotropy_tstart;
 
 	std::string ic_type, gb_type, filename;
 
@@ -118,10 +100,10 @@ private:
 
 	IC::IC *ic;
 
+	bool sdf_on = false;
+	amrex::Vector<amrex::Real> sdf;
+
 	Set::Scalar volume = 5;
-	Set::Scalar area = 0.0;
-	Set::Scalar gbenergy = 0.0;
-	Set::Scalar realgbenergy = 0.0;
 
 	struct
 	{

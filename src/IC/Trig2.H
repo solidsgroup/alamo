@@ -10,6 +10,7 @@
 
 namespace IC
 {
+/// \brief Initialize using a trigonometric series
 class Trig2 : public IC
 {
 public:
