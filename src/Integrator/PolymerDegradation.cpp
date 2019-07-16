@@ -518,7 +518,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 	std::swap(*eta_T_old[lev], 	*eta_T_new[lev]);
 	std::swap(*eta_w_old[lev],	*eta_w_new[lev]);
 
-	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
+	//	if (elastic.on) if (rhs[lev]->contains_nan()) Util::Abort(INFO);
 
 	if(water.on) std::swap(*water_conc_old[lev],*water_conc[lev]);
 	if(thermal.on) std::swap(*Temp_old[lev], *Temp[lev]);
@@ -639,7 +639,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			}
 		});
 	}
-	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
+	//if(elastic.on)	if (rhs[lev]->contains_nan()) Util::Abort(INFO);
 	Util::Message(INFO,"Exit");
 }
 
@@ -667,14 +667,16 @@ PolymerDegradation::Initialize (int lev)
 	damage.ic->Initialize(lev,eta_T_new);
 	damage.ic->Initialize(lev,eta_T_old);
 
-	displacement[lev]->setVal(0.0);
-	strain[lev]->setVal(0.0);
-	stress[lev]->setVal(0.0);
-	stress_vm[lev]->setVal(0.0);
-	rhs[lev]->setVal(0.0);
-	energy[lev]->setVal(0.0);
-	residual[lev]->setVal(0.0);
-
+	if (elastic.on)
+	{
+		displacement[lev]->setVal(0.0);
+		strain[lev]->setVal(0.0);
+		stress[lev]->setVal(0.0);
+		stress_vm[lev]->setVal(0.0);
+		rhs[lev]->setVal(0.0);
+		energy[lev]->setVal(0.0);
+		residual[lev]->setVal(0.0);
+	}
 }
 
 PolymerDegradation::~PolymerDegradation()
@@ -960,7 +962,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	solver.setBottomTolerance(elastic.cg_tol_rel) ;
 	solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
 	//Util::Message(INFO);
-	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Warning(INFO);
 
 	if (elastic.bottom_solver == "cg")
 		solver.setBottomSolver(MLMG::BottomSolver::cg);
