@@ -1,5 +1,5 @@
 #==========================================================================
-# name:		PolymerDegradation01
+# Name:		PolymerDegradation01
 # author:	Vinamra Agrawal
 # date:		2018 May 28
 #
@@ -21,12 +21,12 @@
 #===========================================================================
 
 #=============== Simulation length =========================================
-timestep = 0.01
+timestep = 0.001
 stop_time = 100.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
-amr.plot_int = 100
+amr.plot_int = 10
 amr.max_level = 0
 #amr.max_grid_size = 4
 #amr.n_cell = 128 32 8
@@ -114,7 +114,7 @@ damage.bc.hi_3 = 0.0
 #=============== Elasticity parameters =====================================
 elastic.on = true
 elastic.bottom_solver = bicgstab
-elastic.int = 100
+elastic.int = 10
 elastic.composite_solve	= 1
 elastic.verbose			= 2
 elastic.cg_verbose 		= 0
