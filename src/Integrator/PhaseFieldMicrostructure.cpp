@@ -50,13 +50,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 
 		if(gb_type=="abssin")
-			boundary = new Model::Interface::GrainBoundary::AbsSin(theta0,sigma0,sigma1);
+			boundary = new Model::Interface::GB::AbsSin(theta0,sigma0,sigma1);
 		else if(gb_type=="sin")
-			boundary = new Model::Interface::GrainBoundary::Sin(theta0,sigma0,sigma1);
+			boundary = new Model::Interface::GB::Sin(theta0,sigma0,sigma1);
 		else if(gb_type=="read")
-			boundary = new Model::Interface::GrainBoundary::Read(filename);
+			boundary = new Model::Interface::GB::Read(filename);
 		else
-			boundary = new Model::Interface::GrainBoundary::Sin(theta0,sigma0,sigma1);
+			boundary = new Model::Interface::GB::Sin(theta0,sigma0,sigma1);
 
     
 	}
