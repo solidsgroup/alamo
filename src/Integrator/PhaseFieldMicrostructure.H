@@ -22,10 +22,10 @@
 #include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 
-#include "Model/Interface/GrainBoundary/GrainBoundary.H"
-#include "Model/Interface/GrainBoundary/Sin.H"
-#include "Model/Interface/GrainBoundary/AbsSin.H"
-#include "Model/Interface/GrainBoundary/Read.H"
+#include "Model/Interface/GB/GB.H"
+#include "Model/Interface/GB/Sin.H"
+#include "Model/Interface/GB/AbsSin.H"
+#include "Model/Interface/GB/Read.H"
 
 #include "Operator/CellElastic/PolyCrystal/PolyCrystal.H"
 #include "Operator/CellElastic/Isotropic/Isotropic.H"
@@ -96,7 +96,7 @@ private:
 
 	std::string ic_type, gb_type, filename;
 
-	Model::Interface::GrainBoundary::GrainBoundary *boundary;
+	Model::Interface::GB::GB *boundary;
 
 	IC::IC *ic;
 
