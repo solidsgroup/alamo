@@ -863,7 +863,6 @@ PolymerDegradation::TimeStepComplete(amrex::Real time, int iter)
 void 
 PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 {
-	//Util::Message(INFO);
 	if (!elastic.on) return;
 	if (iter%elastic.interval) return;
 	if (time < elastic.tstart) return;
@@ -875,7 +874,6 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	info.setMaxCoarseningLevel(elastic.max_coarsening_level);
 
 
-
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -885,13 +883,11 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		DegradeMaterial(ilev,model[ilev]);
 	}
 
-	//Util::Message(INFO);
 	Operator::Elastic<model_type> elastic_operator;
 	elastic_operator.define(geom, grids, dmap, info);
+
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
 		elastic_operator.SetModel(ilev,model[ilev]);
-	}
 	
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	BC::Operator::Elastic<model_type> bc;
@@ -936,27 +932,28 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	 	     bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], interpolate_front(time)[2], rhs, geom);
 	 	     );*/
 
-	AMREX_D_TERM(bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bc_xlo[0], elastic.bc_left[0], rhs, geom);
-	 	     bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bc_xhi[0], elastic.bc_right[0], rhs, geom);
-	 	     ,
-	 	     bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bc_xlo[1], elastic.bc_left[1], rhs, geom);
-	 	     bc.Set(bc.Face::XHI, bc.Direction::Y, elastic.bc_xhi[1], elastic.bc_right[1], rhs, geom);
-	 	     bc.Set(bc.Face::YLO, bc.Direction::X, elastic.bc_ylo[0], elastic.bc_bottom[0], rhs, geom);
-	 	     bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bc_ylo[1], elastic.bc_bottom[1], rhs, geom);
-	 	     bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bc_yhi[0], elastic.bc_top[0], rhs, geom);
-	 	     bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bc_yhi[1], elastic.bc_top[1], rhs, geom);
-	 	     ,
-	 	     bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bc_xlo[2], elastic.bc_left[2], rhs, geom);
-	 	     bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bc_xhi[2], elastic.bc_right[2], rhs, geom);
-	 	     bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bc_ylo[2], elastic.bc_bottom[2], rhs, geom);
-	 	     bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bc_yhi[2], elastic.bc_top[2], rhs, geom);
-	 	     bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bc_zlo[0], elastic.bc_back[0], rhs, geom);
-	 	     bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bc_zlo[1], elastic.bc_back[1], rhs, geom);
-	 	     bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bc_zlo[2], elastic.bc_back[2], rhs, geom);
-	 	     bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bc_zhi[0], elastic.bc_front[0], rhs, geom);
-	 	     bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], elastic.bc_front[1], rhs, geom);
-	 	     bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], rhs, geom);
-	 	     );
+	AMREX_D_TERM(
+			bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bc_xlo[0], elastic.bc_left[0], 	rhs, geom);
+	 	    bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bc_xhi[0], elastic.bc_right[0], 	rhs, geom);
+	 	    ,
+	 	    bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bc_xlo[1], elastic.bc_left[1], 	rhs, geom);
+	 	    bc.Set(bc.Face::XHI, bc.Direction::Y, elastic.bc_xhi[1], elastic.bc_right[1], 	rhs, geom);
+	 	    bc.Set(bc.Face::YLO, bc.Direction::X, elastic.bc_ylo[0], elastic.bc_bottom[0], 	rhs, geom);
+	 	    bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bc_ylo[1], elastic.bc_bottom[1], 	rhs, geom);
+	 	    bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bc_yhi[0], elastic.bc_top[0], 	rhs, geom);
+	 	    bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bc_yhi[1], elastic.bc_top[1], 	rhs, geom);
+	 	    ,
+	 	    bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bc_xlo[2], elastic.bc_left[2], 	rhs, geom);
+	 	    bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bc_xhi[2], elastic.bc_right[2], 	rhs, geom);
+	 	    bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bc_ylo[2], elastic.bc_bottom[2], 	rhs, geom);
+	 	    bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bc_yhi[2], elastic.bc_top[2], 	rhs, geom);
+	 	    bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bc_zlo[0], elastic.bc_back[0], 	rhs, geom);
+	 	    bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bc_zlo[1], elastic.bc_back[1], 	rhs, geom);
+	 	    bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bc_zlo[2], elastic.bc_back[2], 	rhs, geom);
+	 	    bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bc_zhi[0], elastic.bc_front[0], 	rhs, geom);
+	 	    bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], elastic.bc_front[1], 	rhs, geom);
+	 	    bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	rhs, geom);
+	 	    );
 
 	//Util::Message(INFO);
 	Solver::Linear solver(elastic_operator);
