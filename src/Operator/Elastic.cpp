@@ -2,6 +2,7 @@
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
 #include "Model/Solid/Viscoelastic/Isotropic.H"
 #include "Elastic.H"
 
@@ -757,6 +758,7 @@ template class Elastic<Model::Solid::LinearElastic::Isotropic>;
 template class Elastic<Model::Solid::LinearElastic::Cubic>;
 template class Elastic<Model::Solid::LinearElastic::Laplacian>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
+template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic2>;
 template class Elastic<Model::Solid::Viscoelastic::Isotropic>;
 }
 

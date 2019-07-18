@@ -116,23 +116,35 @@ PolymerDegradation::PolymerDegradation():
 	// ---------------------------------------------------------------------
 	amrex::ParmParse pp_material("material");
 	pp_material.query("model",input_material);
-	if(input_material == "isotropic")
+	
+	if(input_material == "isotropic2")
 	{
+		Set::Scalar E1 = 1.0, E2 = 0.5, Tg = 273.0+42.0, Ts = 17.0, temp = 298.0;
+		Set::Scalar nu = 0.3;
+		amrex::ParmParse pp_material_isotropic2("material.isotropic2");
+		pp_material_isotropic2.query("E10", E1);
+		pp_material_isotropic2.query("E20", E2);
+		pp_material_isotropic2.query("Tg", Tg);
+		pp_material_isotropic2.query("Ts", Ts);
+		pp_material_isotropic2.query("nu",nu);
+		pp_material_isotropic2.query("temp",temp);
+		if(E1 <= 0) {Util::Warning(INFO, "E1 must be positive. Restting to default"); E1 = 1.0;} 
+		if(E2 <= 0) {Util::Warning(INFO, "E2 must be positive. Restting to default"); E2 = 0.5;} 
+		if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
+		if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
+		if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
+		modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
+	}
+	else if(input_material == "isotropic")
+	{
+		Util::Abort(INFO, "Check for model_type in PD.H");
 		amrex::Real lambda = 1.0;
 		amrex::Real mu = 1.0;
 		amrex::ParmParse pp_material_isotropic("material.isotropic");
 		pp_material_isotropic.query("lambda",lambda);
 		pp_material_isotropic.query("mu",mu);
-		if(lambda <=0)
-		{
-			Util::Warning(INFO,"Lambda must be positive. Resetting back to default value");
-			lambda = 1.0;
-		}
-		if(mu <= 0)
-		{
-			Util::Warning(INFO,"Mu must be positive. Resetting back to default value");
-			mu = 1.0;
-		}
+		if(lambda <=0) { Util::Warning(INFO,"Lambda must be positive. Resetting back to default value"); lambda = 1.0; }
+		if(mu <= 0) { Util::Warning(INFO,"Mu must be positive. Resetting back to default value"); mu = 1.0; }
 		modeltype = new model_type(lambda,mu);
 	}
 	else
@@ -155,77 +167,113 @@ PolymerDegradation::PolymerDegradation():
 	{
 		damage.number_of_eta = 1;
 		damage.anisotropy = 0;
-		pp_damage.query("d_final",damage_w.d_final);
-		pp_damage.query("number_of_terms",damage_w.number_of_terms);
-		pp_damage.queryarr("d_i",damage_w.d_i);
-		pp_damage.queryarr("tau_i",damage_w.tau_i);
-		pp_damage.queryarr("t_start_i",damage_w.t_start_i);
 
-		if(damage_w.d_final > 1.0)
-		{
-			Util::Warning(INFO,"d_final can not be greater than 1. Resetting it to default");
-			damage_w.d_final = 1.0;
-		}
+		damage.d_final.resize(damage.number_of_eta);
+		damage.d_i.resize(damage.number_of_eta);
+		damage.tau_i.resize(damage.number_of_eta);
+		damage.t_start_i.resize(damage.number_of_eta);
+		damage.number_of_terms.resize(damage.number_of_eta);
 
-		if(damage_w.d_i.size() != damage_w.number_of_terms || damage_w.tau_i.size() != damage_w.number_of_terms || damage_w.t_start_i.size() != damage_w.number_of_terms)
-			Util::Abort(INFO, "missing entries in d_i, tau_i or t_start_i");
+		Set::Scalar dfinal;
+		pp_damage.query("d_final",dfinal);
 
-		amrex::Real sum = 0;
-		for (int i = 0; i < damage_w.d_i.size(); i++)
-		{
-			if(damage_w.d_i[i] < 0.0 || damage_w.d_i[i] > 1.0)
-			 	Util::Abort(INFO, "Invalid values for d_i. Must be between 0 and 1");
-			sum += damage_w.d_i[i];
-		}
+		int numberofterms = 4;
+		pp_damage.query("number_of_terms",numberofterms);
+		if(numberofterms < 1) {Util::Warning(INFO,"number of terms can't be less than one. Resetting it to default"); numberofterms=1;}
+		damage.number_of_terms.push_back(numberofterms);
 
-		if(std::abs(sum-damage_w.d_final)>=0.001) //need to replace this in the future
-			Util::Abort(INFO, "d_final is not equal to the sum of d_i");
-	}
-	else if(damage.type == "thermal")
-	{
-		damage.number_of_eta = 1;
-		damage.anisotropy = 0;
-		pp_damage.query("c0",damage_T.c0);
-		pp_damage.query("c1",damage_T.c1);
-		pp_damage.query("c2",damage_T.c2);
-		pp_damage.query("c3",damage_T.c3);
-		pp_damage.query("tau_T",damage_T.tau_T);
-	}
-	else if(damage.type == "coupled")
-	{
-		damage.number_of_eta = 1;
-		damage.anisotropy = 0;
-		pp_damage.query("d_final",damage_w.d_final);
-		pp_damage.query("number_of_terms",damage_w.number_of_terms);
-		pp_damage.queryarr("d_i",damage_w.d_i);
-		pp_damage.queryarr("tau_i",damage_w.tau_i);
-		pp_damage.queryarr("t_start_i",damage_w.t_start_i);
+		amrex::Vector<Set::Scalar> di,taui,tstarti;
+		pp_damage.queryarr("d_i",di);
+		pp_damage.queryarr("tau_i",taui);
+		pp_damage.queryarr("t_start_i",tstarti);
 
-		pp_damage.query("c0",damage_T.c0);
-		pp_damage.query("c1",damage_T.c1);
-		pp_damage.query("c2",damage_T.c2);
-		pp_damage.query("c3",damage_T.c3);
-		pp_damage.query("tau_T",damage_T.tau_T);
+		if(dfinal > 1.0) {Util::Warning(INFO,"d_final can not be greater than 1. Resetting it to default"); dfinal = 0.99;}
+		damage.d_final.push_back(dfinal);
 
-		if(damage_w.d_final > 1.0)
-		{
-			Util::Warning(INFO,"d_final can not be greater than 1. Resetting it to default");
-			damage_w.d_final = 1.0;
-		}
-
-		if(damage_w.d_i.size() != damage_w.number_of_terms || damage_w.tau_i.size() != damage_w.number_of_terms || damage_w.t_start_i.size() != damage_w.number_of_terms)
-			Util::Abort(INFO, "missing entries in d_i, tau_i or t_start_i");
+		if(di.size() != numberofterms || taui.size() != numberofterms || tstarti.size() != numberofterms) Util::Abort(INFO, "missing entries in d_i, tau_i or t_start_i");
 
 		amrex::Real sum = 0;
-		for (int i = 0; i < damage_w.d_i.size(); i++)
+		for (int i = 0; i < di.size(); i++)
 		{
-			if(damage_w.d_i[i] < 0.0 || damage_w.d_i[i] > 1.0)
-			 	Util::Abort(INFO, "Invalid values for d_i. Must be between 0 and 1");
-			sum += damage_w.d_i[i];
+			if(di[i] < 0.0 || di[i] > 1.0) Util::Abort(INFO, "Invalid values for d_i. Must be between 0 and 1");
+			sum += di[i];
+		}
+		if(std::abs(sum-1.0)>=0.001)	Util::Abort(INFO, "Sum of d_i is not equal to 1.0");
+		for (int i = 0; i <di.size(); i++)
+		{
+			damage.d_i[0].push_back(di[i]);
+			damage.tau_i[0].push_back(taui[i]);
+			damage.t_start_i[0].push_back(tstarti[i]);
+		}
+	}
+	else if(damage.type == "water2")
+	{
+		damage.number_of_eta = 3;
+		damage.anisotropy = 0;
+
+		damage.d_final.resize(damage.number_of_eta);
+		damage.d_i.resize(damage.number_of_eta);
+		damage.tau_i.resize(damage.number_of_eta);
+		damage.t_start_i.resize(damage.number_of_eta);
+		damage.number_of_terms.resize(damage.number_of_eta);
+
+		amrex::Vector<Set::Scalar> dfinal;
+		pp_damage.queryarr("d_final",dfinal);
+
+		if(dfinal.size()!=damage.number_of_eta) Util::Abort(INFO, "Incorrect size of d_final");
+		for (int i = 0; i < damage.number_of_eta; i++)
+		{
+			if(dfinal[i] <0 || dfinal[i] > 1.0) Util::Abort(INFO,"Incorrect value of d_final");
+			damage.d_final[i] = dfinal[i];
 		}
 
-		if(sum != damage_w.d_final) //need to replace this in the future
-			Util::Abort(INFO, "d_final is not equal to the sum of d_i");
+		int totalnumberofterms = 0, tempIndex = 0, tempIndex2 = 0;
+		amrex::Vector<int> numberofterms;
+		pp_damage.queryarr("number_of_terms",numberofterms);
+		if(numberofterms.size()!=damage.number_of_eta) Util::Abort(INFO, "Incorrect size of number_of_terms");
+		for (int i = 0; i<damage.number_of_eta; i++)
+		{
+			if(numberofterms[i] < 1) {Util::Abort(INFO, "number_of_terms can not be less than 1. Resetting"); numberofterms[i]=1;}
+			damage.number_of_terms[i] = numberofterms[i];
+			totalnumberofterms += numberofterms[i];
+		}
+
+		amrex::Vector<Set::Scalar> di, taui, tstarti;
+		Set::Scalar sum = 0.;
+		pp_damage.queryarr("d_i",di);
+		pp_damage.queryarr("tau_i",taui);
+		pp_damage.queryarr("t_start_i",tstarti);
+		if(di.size()!=totalnumberofterms || taui.size()!=totalnumberofterms || tstarti.size()!=totalnumberofterms) Util::Abort(INFO,"Incorrect number of terms in di, taui or tstarti");
+		for (int i=0; i<totalnumberofterms; i++)
+		{
+			if(tempIndex2 == damage.number_of_terms[tempIndex]) 
+			{
+				if(sum != 1.0) Util::Abort(INFO, "d_i's don't add to 1");
+				tempIndex2 = 0; tempIndex+=1; sum = 0.;
+			}
+			
+			if(di[i] < 0. || di[i] > 1.) Util::Abort(INFO, "Invalid values of d_i. Must be between 0 and 1");
+			if(taui[i] < 0.) Util::Abort(INFO,"Invalid values of tau");
+
+			sum += di[i];
+			damage.d_i[tempIndex].push_back(di[i]);
+			damage.tau_i[tempIndex].push_back(taui[i]);
+			damage.t_start_i[tempIndex].push_back(tstarti[i]);
+
+			tempIndex2 += 1;
+		}
+		for (int i = 0; i < damage.number_of_eta; i++)
+		{
+			Util::Message(INFO, "number of terms = ", damage.number_of_terms[i]);
+			Util::Message(INFO, "d_final = ", damage.d_final[i]);
+			for (int j = 0; j < damage.number_of_terms[i]; j++)
+			{
+				Util::Message(INFO, "d_i[", i, "][", j, "]=",damage.d_i[i][j]);
+				Util::Message(INFO, "tau_i[", i, "][", j, "]=",damage.tau_i[i][j]);
+				Util::Message(INFO, "t_start_i[", i, "][", j, "]=",damage.t_start_i[i][j]);
+			}
+		}
+		//Util::Abort("Testing");
 	}
 	else
 		Util::Abort(INFO, "This kind of damage model has not been implemented yet");
@@ -268,10 +316,6 @@ PolymerDegradation::PolymerDegradation():
 
 	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
 	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
-	RegisterNewFab(eta_w_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
-	RegisterNewFab(eta_w_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
-	RegisterNewFab(eta_T_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
-	RegisterNewFab(eta_T_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
 
 	//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
@@ -515,9 +559,6 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
 	Util::Message(INFO, "Enter");
 	std::swap(*eta_old[lev], 	*eta_new[lev]);
-	std::swap(*eta_T_old[lev], 	*eta_T_new[lev]);
-	std::swap(*eta_w_old[lev],	*eta_w_new[lev]);
-
 	//	if (elastic.on) if (rhs[lev]->contains_nan()) Util::Abort(INFO);
 
 	if(water.on) std::swap(*water_conc_old[lev],*water_conc[lev]);
@@ -533,7 +574,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 		Util::Message(INFO);
 		for ( amrex::MFIter mfi(*water_conc[lev],true); mfi.isValid(); ++mfi )
 		{
-			const amrex::Box& bx = mfi.tilebox();
+			const amrex::Box& bx = mfi.validbox();
 			amrex::Array4<amrex::Real> const& water_old_box = (*water_conc_old[lev]).array(mfi);
 			amrex::Array4<amrex::Real> const& water_box = (*water_conc[lev]).array(mfi);
 
@@ -566,7 +607,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 	{
 		for ( amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi )
 		{
-			const amrex::Box& bx = mfi.tilebox();
+			const amrex::Box& bx = mfi.validbox();
 			amrex::Array4<const amrex::Real> const& Temp_old_box = (*Temp_old[lev]).array(mfi);
 			amrex::Array4<amrex::Real> const& Temp_box = (*Temp[lev]).array(mfi);
 			
@@ -582,57 +623,27 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 	Util::Message(INFO);
 	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
 	{
-		//Util::Message(INFO);
-		const amrex::Box& bx = mfi.tilebox();
-		amrex::Array4<amrex::Real> const& eta_new_box     = (*eta_new[lev]).array(mfi);
+		const amrex::Box& bx = mfi.validbox();
+		amrex::Array4<amrex::Real> const& eta_new_box     		= (*eta_new[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& eta_old_box     = (*eta_old[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const& eta_w_box     	= (*eta_w_new[lev]).array(mfi);
-		amrex::Array4<const amrex::Real> const& eta_w_old_box	= (*eta_w_old[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const& eta_T_box     	= (*eta_T_new[lev]).array(mfi);
-		amrex::Array4<const amrex::Real> const& eta_T_old_box   = (*eta_T_old[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& water_box 		= (*water_conc[lev]).array(mfi);
-		amrex::Array4<const amrex::Real> const& Temp_box 		= (*Temp[lev]).array(mfi);
+		//amrex::Array4<const amrex::Real> const& Temp_box 		= (*Temp[lev]).array(mfi);
 		//Util::Message(INFO);
 
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			for (int n = 0; n < damage.number_of_eta; n++)
 			{
-				if(damage.type == "water")
+				if(damage.type == "water" || damage.type == "water2")
 				{
-					//Util::Message(INFO);
 					Set::Scalar temp1 = 0.0;
-					if(water_box(i,j,k,0) > 0.0 && eta_old_box(i,j,k,n) < damage_w.d_final)
+					if(water_box(i,j,k,0) > 0.0 && eta_old_box(i,j,k,n) < damage.d_final[n])
 					{
-						for (int l = 0; l < damage_w.number_of_terms; l++)
-								temp1 += damage_w.d_i[l]*water_box(i,j,k,0)*std::exp(-std::max(0.0,time-damage_w.t_start_i[l])/damage_w.tau_i[l])/(damage_w.tau_i[l]);
+						for (int l = 0; l < damage.number_of_terms[n]; l++)
+								temp1 += damage.d_final[n]*damage.d_i[n][l]*water_box(i,j,k,0)*std::exp(-std::max(0.0,time-damage.t_start_i[n][l])/damage.tau_i[n][l])/(damage.tau_i[n][l]);
 					}
 					eta_new_box(i,j,k,n) = eta_old_box(i,j,k,n) + temp1*dt;
-					if(eta_new_box(i,j,k,n) > damage_w.d_final)
-						Util::Abort(INFO, "eta exceeded ",damage_w.d_final, ". Rhs = ", temp1, ", Water = ", water_box(i,j,k,n));
-				}
-				else if(damage.type == "thermal")
-				{
-					//Util::Message(INFO);
-					Set::Scalar gT = damage_T.c0 + damage_T.c1*(std::tanh((Temp_box(i,j,k,0)-damage_T.c2)/damage_T.c3));
-					eta_new_box(i,j,k,n) = eta_old_box(i,j,k,n) + dt*(1.0-gT)*std::exp(-time/damage_T.tau_T)/damage_T.tau_T;
-				}
-				else if(damage.type == "coupled")
-				{
-					//Util::Message(INFO);
-					Set::Scalar temp1 = 0.0;
-					if(water_box(i,j,k,0) > 0.0 && eta_old_box(i,j,k,n) < damage_w.d_final)
-					{
-						for (int l = 0; l < damage_w.number_of_terms; l++)
-								temp1 += damage_w.d_i[l]*water_box(i,j,k,0)*std::exp(-std::max(0.0,time-damage_w.t_start_i[l])/damage_w.tau_i[l])/(damage_w.tau_i[l]);
-					}
-					eta_w_box(i,j,k,n) = eta_w_old_box(i,j,k,n) + temp1*dt;
-					if(eta_w_box(i,j,k,n) > damage_w.d_final)
-						Util::Abort(INFO, "eta exceeded ",damage_w.d_final, ". Rhs = ", temp1, ", Water = ", water_box(i,j,k,n));
-
-					Set::Scalar gT = damage_T.c0 + damage_T.c1*(std::tanh((Temp_box(i,j,k,0)-damage_T.c2)/damage_T.c3));
-					eta_T_box(i,j,k,n) = eta_T_old_box(i,j,k,n) + dt*(1.0-gT)*std::exp(-time/damage_T.tau_T)/damage_T.tau_T;
-
-					eta_new_box(i,j,k,n) = 1.0 - (1.0 - eta_w_box(i,j,k,n))*(1.0 - eta_T_box(i,j,k,n));
+					if(eta_new_box(i,j,k,n) > damage.d_final[n])
+						Util::Abort(INFO, "eta exceeded ",damage.d_final[n], ". Rhs = ", temp1, ", Water = ", water_box(i,j,k,n));
 				}
 				else
 					Util::Abort(INFO, "Damage model not implemented yet");
@@ -662,11 +673,7 @@ PolymerDegradation::Initialize (int lev)
 
 	damage.ic->Initialize(lev,eta_new);
 	damage.ic->Initialize(lev,eta_old);
-	damage.ic->Initialize(lev,eta_w_new);
-	damage.ic->Initialize(lev,eta_w_old);
-	damage.ic->Initialize(lev,eta_T_new);
-	damage.ic->Initialize(lev,eta_T_old);
-
+	
 	if (elastic.on)
 	{
 		displacement[lev]->setVal(0.0);
@@ -806,9 +813,6 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
 
-	//bool isMFIterSafe  = (model[lev].DistributionMap() == (*eta_new[lev]).DistributionMap());
-	//Util::Message(INFO, "isMFIterSafe = ",isMFIterSafe);
-	//Util::Message(INFO, "Enter");
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box& box = mfi.validbox();
@@ -817,19 +821,21 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+			amrex::Vector<Set::Scalar> temp;
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
-				Set::Scalar temp = mul*(AMREX_D_TERM(	
+				temp.push_back( mul*(AMREX_D_TERM(	
 								eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
 								,
 								+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
 								,
 								+ eta_box(i,j,k-1,n)	+ eta_box(i-1,j,k-1,n)
 								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
-									));
-				modelfab(i,j,k,0).DegradeModulus(temp);
+									)));
 			}
-			
+			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(temp[0]);
+			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(temp[0],temp[1],temp[2]);
+			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}
 	//Util::Message(INFO, "Exit");
@@ -886,6 +892,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		elastic_operator.SetModel(ilev,model[ilev]);
 	}
+	
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	BC::Operator::Elastic<model_type> bc;
 	elastic_operator.SetBC(&bc);
