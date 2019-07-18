@@ -1,5 +1,6 @@
 #include "Test/Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
@@ -17,9 +18,12 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 
 	int failed = 0;
 
-	using model_type = Model::Solid::LinearElastic::Isotropic;
-	Set::Scalar lame=2.6, shear=6.0;
-	model_type model(lame, shear);
+	//using model_type = Model::Solid::LinearElastic::Isotropic;
+	using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
+	Set::Scalar E10 = 1.0, E20 = 0.18, Tg = 319.0, Ts = 17.0, nu = 0.3, temp = 298;
+	//Set::Scalar lame=2.6, shear=6.0;
+	//model_type model(lame, shear);
+	model_type model(E10,E20,Tg,Ts,nu,temp);
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
 
@@ -116,7 +120,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-	        amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,AMREX_SPACEDIM,1);
+	    amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,AMREX_SPACEDIM,1);
 		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,AMREX_SPACEDIM,1);
 	}
 	
