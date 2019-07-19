@@ -1,6 +1,12 @@
 #include "PolymerDegradation.H"
 #include "Solver/Linear.H"
 
+Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E10_iso;
+Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E20_iso; 
+Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Tg0_iso;
+Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Ts0_iso;
+Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::temp_iso;
+Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::nu_iso;
 //#if AMREX_SPACEDIM == 1
 namespace Integrator
 {
@@ -821,10 +827,10 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-			amrex::Vector<Set::Scalar> temp;
+			amrex::Vector<Set::Scalar> _temp;
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
-				temp.push_back( mul*(AMREX_D_TERM(	
+				_temp.push_back( mul*(AMREX_D_TERM(	
 								eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
 								,
 								+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
@@ -833,8 +839,8 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
 									)));
 			}
-			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(temp[0]);
-			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(temp[0],temp[1],temp[2]);
+			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
+			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
 			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}

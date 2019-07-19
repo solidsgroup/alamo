@@ -18,12 +18,12 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 
 	int failed = 0;
 
-	//using model_type = Model::Solid::LinearElastic::Isotropic;
-	using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
-	Set::Scalar E10 = 1.0, E20 = 0.18, Tg = 319.0, Ts = 17.0, nu = 0.3, temp = 298;
-	//Set::Scalar lame=2.6, shear=6.0;
-	//model_type model(lame, shear);
-	model_type model(E10,E20,Tg,Ts,nu,temp);
+	using model_type = Model::Solid::LinearElastic::Isotropic;
+	//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
+	//Set::Scalar _E10 = 1.0, _E20 = 0.18, _Tg = 319.0, _Ts = 17.0, _nu = 0.3, _temp = 298;
+	Set::Scalar lame=2.6, shear=6.0;
+	model_type model(lame, shear);
+	//model_type model(_E10,_E20,_Tg,_Ts,_nu,_temp);
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
 
@@ -97,7 +97,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	  bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
 	  bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
 	}
-#endif	
+#endif	temp
 	
 	elastic.SetBC(&bc);
 
