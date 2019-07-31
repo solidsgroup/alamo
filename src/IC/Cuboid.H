@@ -1,6 +1,9 @@
 #ifndef IC_CUBOID_H_
 #define IC_CUBOID_H_
 
+#include <iostream>
+#include <cstdlib>
+#include <climits>
 #include "IC/IC.H"
 #include "Util/Util.H"
 
@@ -16,7 +19,7 @@ public:
 	{
 		amrex::ParmParse pp("ic");
 		pp.queryarr("center",center);
-		pp.query("radius",radius);
+		pp.queryarr("length",length);
 		pp.query("dim",dim);
 	}
   
@@ -48,14 +51,10 @@ public:
 					}
 					Set::Scalar rsq = 0.0;
 
-					//AMREX_D_TERM(if (dim >= 1) rsq += (x-center[0])*(x-center[0]);,
-					//			 if (dim >= 2) rsq += (y-center[1])*(y-center[1]);,
-					//			 if (dim >= 3) rsq += (z-center[2])*(z-center[2]););
-					if (AMREX_D_DECL(std::abs(x-center[0]) < 0.5*length[0], && std::abs(y-center[1]) < 0.5*length[1], && std::abs(z-center[1]) < 0.5*length[1]))
-						field(i,j,k,0) = 0.
+					if (AMREX_D_TERM(std::abs(x-center[0]) <= 0.5*length[0], && std::abs(y-center[1]) <= 0.5*length[1], && std::abs(z-center[2]) <= 0.5*length[2]))
+						field(i,j,k,0) = 0.;
 					else
-						field(i,j,k,0) = 1.;     
-					
+						field(i,j,k,0) = 1.;  
 				});
 		}
 
