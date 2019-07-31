@@ -47,6 +47,7 @@ public:
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
 
+	void SetModel (T &a_model);
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
 	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
@@ -110,6 +111,12 @@ protected:
 	virtual bool isCrossStencil () const { return false; }
 	//virtual void Diagonal(bool recompute=false);
 	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
+	virtual void prepareForSolve ()
+	{
+		if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
+		if (!m_bc_set) Util::Warning(INFO,"Attempting to use operator before calling SetBC!");
+		Operator<Grid::Node>::prepareForSolve();
+	};
 
 private:
 	/// Simple arrays storing boundary conditions for each component and each face.
@@ -134,6 +141,9 @@ private:
 	bool m_homogeneous = false;
 
 	::BC::Operator::Elastic<T> *m_bc;
+
+	bool m_model_set = false;
+	bool m_bc_set = false;
 };
 }
 

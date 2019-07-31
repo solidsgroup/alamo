@@ -11,18 +11,6 @@
 
 namespace Integrator
 {
-/// \fn    Fracture::Integrator::Integrator
-///
-/// Read in the following simulation parameters
-///
-///     heat.alpha                (default 1.0)
-///     heat.refinement_threshold (default 0.01)
-///     ic.type
-///
-
-/// Initialize initial condition pointer #ic, and register
-/// the #Temp, #Temp_old Multifab arrays.
-
 Fracture::Fracture() :
 	Integrator()
 {
@@ -43,7 +31,7 @@ Fracture::Fracture() :
 //		ic = new IC::PS(geom,20,0.0,1.0);
 	else
 		ic = new IC::Constant(geom);
-    
+    */
 	{
 		amrex::ParmParse pp("bc");
 		amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
@@ -64,85 +52,97 @@ Fracture::Fracture() :
 					AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
 					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 	}
-*/
+	
 
 	RegisterNewFab(m_c,     mybc, number_of_components, number_of_ghost_cells, "c");
 	RegisterNewFab(m_cold, mybc, number_of_components, number_of_ghost_cells, "cold");
 	RegisterNodalFab(m_disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
 	RegisterNodalFab(m_rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
-	//RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
 }
 
 Fracture::~Fracture()
 {
 }
 
-/// \fn Fracture::Integrator::Initialize
-///
-/// Use the #ic object to initialize #Temp
 void
 Fracture::Initialize (int lev)
 {
+	//TODO: initiaize
+
 	//ic->Initialize(lev,TempFab);
-	//disp[lev]->setVal(0.0);
-	//rhs[lev]->setVal(0.0);
+	//m_c[lev]->setVal(0.0);
+	//m_cold[lev]->setVal(0.0);
+	//m_disp[lev]->setVal(0.0);
+	//m_rhs[lev]->setVal(0.0);
 }
 
 void 
 Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
-	/*
+	Util::Message(INFO);
 	if (iter % plot_int) return;
 	Set::Scalar lame = 2.6, shear = 6.0;
 	Model::Solid::LinearElastic::Isotropic model(lame,shear);
 	Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
 	elastic.SetHomogeneous(false);
 	elastic.define(geom,grids,dmap);
-	//elastic.SetModel(model);
+	elastic.SetModel(model);
+	Util::Message(INFO);
 
 	BC::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> bc;
 	elastic.SetBC(&bc);
-
+	Util::Message(INFO);
+	/*
 	for (int lev = 0; lev < m_c.size(); lev++) 
 	{
 		m_rhs[lev]->setVal(0.0);
 		m_disp[lev]->setVal(0.0);
 		const amrex::Real* DX = geom[lev].CellSize();
-		
-		for (MFIter mfi(*rhs[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		Util::Message(INFO);	
+		for (MFIter mfi(*m_rhs[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		{
+			Util::Message(INFO);	
 			amrex::Box bx = mfi.tilebox();
 			bx.grow(2);
-			amrex::Array4<Set::Scalar> const & Rhs = rhs[lev]->array(mfi);
-			amrex::Array4<const Set::Scalar> const & temp = TempOldFab[lev]->array(mfi);
+			Util::Message(INFO);	
+			amrex::Array4<Set::Scalar> const & Rhs = m_rhs[lev]->array(mfi);
+			amrex::Array4<const Set::Scalar> const & temp = m_cold[lev]->array(mfi);
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
+				Util::Message(INFO,"A");	
 				std::array<Numeric::StencilType,AMREX_SPACEDIM> stencil 
 				= {{AMREX_D_DECL(Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode)}};
+				Util::Message(INFO,"B");	
 				Set::Vector GradT = Numeric::Gradient(temp,i,j,k,0,DX,stencil);
 
+				Util::Message(INFO,"C");	
 				Set::Matrix eps = Set::Matrix::Identity();
+				Util::Message(INFO,"D");	
 				Set::Matrix sig = model(eps);
 
+				Util::Message(INFO,"E");	
 				Set::Vector f = sig*GradT;
 				AMREX_D_TERM(Rhs(i,j,k,0) = f(0);,
 							 Rhs(i,j,k,1) = f(1);,	
 							 Rhs(i,j,k,2) = f(2););	
 			});
+			Util::Message(INFO);	
 		}
+		Util::Message(INFO);	
 	}
+	Util::Message(INFO);	*/
 
 	Solver::Linear solver(elastic);
 	solver.setVerbose(3);
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 	//solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(eigendef));
-	solver.solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),tol_rel,tol_abs);
-	for (int lev = 0; lev < sigma.size(); lev++)
-	{
-		elastic.Stress(lev,*sigma[lev],*disp[lev]);
+	solver.solve(GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs),tol_rel,tol_abs);
+	//for (int lev = 0; lev < sigma.size(); lev++)
+	//{
+		//elastic.Stress(lev,*sigma[lev],*disp[lev]);
 		//disp[lev]->setVal(0.0);
-	}
-	 */
+	//}
+	Util::Message(INFO);
+
 }
 
 
