@@ -20,7 +20,6 @@ public:
 		amrex::ParmParse pp("ic");
 		pp.queryarr("center",center);
 		pp.queryarr("length",length);
-		pp.query("dim",dim);
 	}
   
 	void Add(const int lev,
@@ -61,7 +60,6 @@ public:
 	};
   
 private:
-	int dim = AMREX_SPACEDIM;
 	amrex::Vector<amrex::Real> center;
 	amrex::Vector<amrex::Real> length;
 };
