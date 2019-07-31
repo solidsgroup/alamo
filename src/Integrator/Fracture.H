@@ -62,14 +62,12 @@ private:
   int number_of_components = 1;					///< Number of components
   int number_of_ghost_cells = 2;				///< Number of ghost cells
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempFab;	///< Temperature field variable (current timestep)
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempOldFab;	///< Temperature field variable (previous timestep)
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp;  	///< Displacement
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs;  	///< Right Hand Side
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > sigma;  	///< Right Hand Side
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_cold;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
 
-  amrex::Real alpha = 1.0;					///< Thermal diffusivity
-  amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
+  Set::Scalar refinement_threshold = 0.01;			///< Criterion for cell refinement
 
   std::string ic_type;						///< String to determine what kind of initial condition to use
   IC::IC *ic;            					///< Pointer to abstract IC object

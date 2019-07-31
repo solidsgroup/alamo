@@ -26,6 +26,7 @@ namespace Integrator
 Fracture::Fracture() :
 	Integrator()
 {
+	/*
 	amrex::ParmParse pp("heat");
 	pp.query("alpha", alpha);
 	pp.query("refinement_threshold", refinement_threshold);
@@ -38,8 +39,8 @@ Fracture::Fracture() :
 		ic = new IC::Sphere(geom);
 	else if (ic_type == "constant")
 		ic = new IC::Constant(geom);
-	else if (ic_type == "packed_spheres")
-		ic = new IC::PS(geom,20,0.0,1.0);
+//	else if (ic_type == "packed_spheres")
+//		ic = new IC::PS(geom,20,0.0,1.0);
 	else
 		ic = new IC::Constant(geom);
     
@@ -63,13 +64,13 @@ Fracture::Fracture() :
 					AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
 					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 	}
+*/
 
-
-	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp");
-	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
-	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
-	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
-	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
+	RegisterNewFab(m_c,     mybc, number_of_components, number_of_ghost_cells, "c");
+	RegisterNewFab(m_cold, mybc, number_of_components, number_of_ghost_cells, "cold");
+	RegisterNodalFab(m_disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
+	RegisterNodalFab(m_rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
+	//RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
 }
 
 Fracture::~Fracture()
@@ -82,29 +83,30 @@ Fracture::~Fracture()
 void
 Fracture::Initialize (int lev)
 {
-	ic->Initialize(lev,TempFab);
-	disp[lev]->setVal(0.0);
-	rhs[lev]->setVal(0.0);
+	//ic->Initialize(lev,TempFab);
+	//disp[lev]->setVal(0.0);
+	//rhs[lev]->setVal(0.0);
 }
 
 void 
 Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
+	/*
 	if (iter % plot_int) return;
 	Set::Scalar lame = 2.6, shear = 6.0;
 	Model::Solid::LinearElastic::Isotropic model(lame,shear);
 	Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
 	elastic.SetHomogeneous(false);
 	elastic.define(geom,grids,dmap);
-	elastic.SetModel(model);
+	//elastic.SetModel(model);
 
 	BC::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> bc;
 	elastic.SetBC(&bc);
 
-	for (int lev = 0; lev < rhs.size(); lev++) 
+	for (int lev = 0; lev < m_c.size(); lev++) 
 	{
-		rhs[lev]->setVal(0.0);
-		disp[lev]->setVal(0.0);
+		m_rhs[lev]->setVal(0.0);
+		m_disp[lev]->setVal(0.0);
 		const amrex::Real* DX = geom[lev].CellSize();
 		
 		for (MFIter mfi(*rhs[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
@@ -116,7 +118,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
 				std::array<Numeric::StencilType,AMREX_SPACEDIM> stencil 
-					= {{AMREX_D_DECL(Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode)}};
+				= {{AMREX_D_DECL(Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode)}};
 				Set::Vector GradT = Numeric::Gradient(temp,i,j,k,0,DX,stencil);
 
 				Set::Matrix eps = Set::Matrix::Identity();
@@ -140,6 +142,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		elastic.Stress(lev,*sigma[lev],*disp[lev]);
 		//disp[lev]->setVal(0.0);
 	}
+	 */
 }
 
 
@@ -152,9 +155,10 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 void
 Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
+	/*
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-												  dy(AMREX_D_DECL(0,1,0)),
-												  dz(AMREX_D_DECL(0,0,1)));
+									  dy(AMREX_D_DECL(0,1,0)),
+									  dz(AMREX_D_DECL(0,0,1)));
 
 	std::swap(*TempFab[lev], *TempOldFab[lev]);
 
@@ -176,19 +180,13 @@ Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 							  			  			   + (Numeric::Stencil<Set::Scalar,0,0,2>::D(TempOld,i,j,k,0,DX)) ));
 			});
 		}
+		*/
 }
 
-
-/// \fn    Integrator::Fracture::TagCellsForRefinement
-///
-/// The following criterion is used to determine if a cell should be refined:
-/// \f[|\nabla T|\,|\mathbf{r}| > h\f]
-/// where
-/// \f[\mathbf{r} = \sqrt{\Delta x_1^2 + \Delta x_2^2 + \Delta x_3^2}\f]
-/// and \f$h\f$ is stored in #refinement_threshold
 void
 Fracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
+	/*
 	const amrex::Real* DX      = geom[lev].CellSize();
 
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
@@ -220,6 +218,7 @@ Fracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real 
 								tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
 						}
 		}
+		*/
 }
 
 }
