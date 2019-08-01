@@ -37,6 +37,10 @@ template<class T,int x, int y, int z>
 struct Stencil
 {};
 
+//
+// FIRST order derivatives
+//
+
 template<class T>
 struct Stencil<T,1,0,0>
 {
@@ -96,6 +100,10 @@ struct Stencil<T,0,0,1>
 			return (f(i,j,k+1,m) - f(i,j,k-1,m))*0.5 / dx[2];
 	};
 };
+
+//
+// SECOND order derivatives
+//
 
 template<class T>
 struct Stencil<T,2,0,0>
@@ -166,6 +174,11 @@ struct Stencil<T,0,1,1>
 		return 0.25*(f(i,j+1,k+1,m) + f(i,j-1,k-1,m) - f(i,j+1,k-1,m) - f(i,j-1,k+1,m))/(dx[1]*dx[2]);
 	};
 };
+
+//
+// FOURTH order derivatives
+//
+
 template<class T>
 struct Stencil<T,4,0,0>
 {
@@ -174,12 +187,8 @@ struct Stencil<T,4,0,0>
 		   const int &i, const int &j, const int &k, const int &m,
 		   const Set::Scalar dx[AMREX_SPACEDIM])
 	{
-		return (+    (f(i+2,j,k,m))
-			- 4.*(f(i+1,j,k,m))
-			+ 6.*(f(i  ,j,k,m))
-			- 4.*(f(i-1,j,k,m))
-			+    (f(i-2,j,k,m))) /
-			(dx[0]*dx[0]*dx[0]*dx[0]);
+		return ((f(i+2,j,k,m)) - 4.*(f(i+1,j,k,m)) + 6.*(f(i,j,k,m)) - 4.*(f(i-1,j,k,m)) + (f(i-2,j,k,m))) /
+				(dx[0]*dx[0]*dx[0]*dx[0]);
 	};
 };
 template<class T>
@@ -191,9 +200,24 @@ struct Stencil<T,0,4,0>
 		   const Set::Scalar dx[AMREX_SPACEDIM])
 	{
 		return ((f(i,j+2,k,m)) - 4.*(f(i,j+1,k,m)) + 6.*(f(i,j,k,m)) - 4.*(f(i,j-1,k,m)) + (f(i,j-2,k,m))) /
-			(dx[1]*dx[1]*dx[1]*dx[1]);
+				(dx[1]*dx[1]*dx[1]*dx[1]);
 	};
 };
+template<class T>
+struct Stencil<T,0,0,4>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return ((f(i,j,k+2,m)) - 4.*(f(i,j,k+1,m)) + 6.*(f(i,j,k,m)) - 4.*(f(i,j,k-1,m)) + (f(i,j,k-2,m))) /
+				(dx[2]*dx[2]*dx[2]*dx[2]);
+	};
+};
+
+/// Compute
+/// \f[ \frac{\partial^4}{\partial^3 x_1\partial x_2\f]
 template<class T>
 struct Stencil<T,3,1,0>
 {
@@ -202,19 +226,16 @@ struct Stencil<T,3,1,0>
 		   const int &i, const int &j, const int &k, const int &m,
 		   const Set::Scalar dx[AMREX_SPACEDIM])
 	{
-		// (2nd order in x, 4th order in y)
 		return	((   -f(i+2,j+2,k,m) + 8.0*f(i+2,j+1,k,m) - 8.0*f(i+2,j-1,k,m) + f(i+2,j-2,k,m))
-			 -2*(-f(i+1,j+2,k,m) + 8.0*f(i+1,j+1,k,m) - 8.0*f(i+1,j-1,k,m) + f(i+1,j-2,k,m))
-			 +2*(-f(i-1,j+2,k,m) + 8.0*f(i-1,j+1,k,m) - 8.0*f(i-1,j-1,k,m) + f(i-1,j-2,k,m))
-			 -(  -f(i-2,j+2,k,m) + 8.0*f(i-2,j+1,k,m) - 8.0*f(i-2,j-1,k,m) + f(i-2,j-2,k,m))) /
+				 -2*(-f(i+1,j+2,k,m) + 8.0*f(i+1,j+1,k,m) - 8.0*f(i+1,j-1,k,m) + f(i+1,j-2,k,m))
+				 +2*(-f(i-1,j+2,k,m) + 8.0*f(i-1,j+1,k,m) - 8.0*f(i-1,j-1,k,m) + f(i-1,j-2,k,m))
+			 	   -(-f(i-2,j+2,k,m) + 8.0*f(i-2,j+1,k,m) - 8.0*f(i-2,j-1,k,m) + f(i-2,j-2,k,m))) /
 			(24.0*dx[0]*dx[0]*dx[0]*dx[1]);
-		// (2nd order in x, 2nd order in y)
-		// return 
-		// 	0.5*( - (- 0.5*f(i-2,j-1,k,m) + f(i-1,j-1,k,m) - f(i+1,j-1,k,m) + 0.5*f(i+2,j-1,k,m))
-		// 	      + (- 0.5*f(i-2,j+1,k,m) + f(i-1,j+1,k,m) - f(i+1,j+1,k,m) + 0.5*f(i+2,j+1,k,m)) ) /
-		// 	(dx*dx*dx*dy);
 	};
 };
+
+/// Compute
+/// \f[ \frac{\partial^4}{\partial^3 x_2\partial x_1\f]
 template<class T>
 struct Stencil<T,1,3,0>
 {
@@ -223,13 +244,82 @@ struct Stencil<T,1,3,0>
 		   const int &i, const int &j, const int &k, const int &m,
 		   const Set::Scalar dx[AMREX_SPACEDIM])
 	{
-		return ((   -f(i+2,j+2,k,m) + 8.0*f(i+1,j+2,k,m) - 8.0*f(i-1,j+2,k,m) + f(i-2,j+2,k,m))
-			-2*(-f(i+2,j+1,k,m) + 8.0*f(i+1,j+1,k,m) - 8.0*f(i-1,j+1,k,m) + f(i-2,j+1,k,m))
-			+2*(-f(i+2,j-1,k,m) + 8.0*f(i+1,j-1,k,m) - 8.0*f(i-1,j-1,k,m) + f(i-2,j-1,k,m))
-			-(  -f(i+2,j-2,k,m) + 8.0*f(i+1,j-2,k,m) - 8.0*f(i-1,j-2,k,m) + f(i-2,j-2,k,m))) /
+		return ((-f(i+2,j+2,k,m) + 8.0*f(i+1,j+2,k,m) - 8.0*f(i-1,j+2,k,m) + f(i-2,j+2,k,m))
+			 -2*(-f(i+2,j+1,k,m) + 8.0*f(i+1,j+1,k,m) - 8.0*f(i-1,j+1,k,m) + f(i-2,j+1,k,m))
+			 +2*(-f(i+2,j-1,k,m) + 8.0*f(i+1,j-1,k,m) - 8.0*f(i-1,j-1,k,m) + f(i-2,j-1,k,m))
+			 -(  -f(i+2,j-2,k,m) + 8.0*f(i+1,j-2,k,m) - 8.0*f(i-1,j-2,k,m) + f(i-2,j-2,k,m))) /
 			(24.0*dx[0]*dx[1]*dx[1]*dx[1]) ;
 	};
 };
+
+/// Compute
+/// \f[ \frac{\partial^4}{\partial^3 x_2\partial x_3\f]
+template<class T>
+struct Stencil<T,0,3,1>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return	((   -f(i,j+2,k+2,m) + 8.0*f(i,j+2,k+1,m) - 8.0*f(i,j+2,k-1,m) + f(i,j+2,k-2,m))
+				 -2*(-f(i,j+1,k+2,m) + 8.0*f(i,j+1,k+1,m) - 8.0*f(i,j+1,k-1,m) + f(i,j+1,k-2,m))
+				 +2*(-f(i,j-1,k+2,m) + 8.0*f(i,j-1,k+1,m) - 8.0*f(i,j-1,k-1,m) + f(i,j-1,k-2,m))
+			 	   -(-f(i,j-2,k+2,m) + 8.0*f(i,j-2,k+1,m) - 8.0*f(i,j-2,k-1,m) + f(i,j-2,k-2,m))) /
+			(24.0*dx[1]*dx[1]*dx[1]*dx[2]);
+	};
+};
+/// \brief Compute \f[ \frac{\partial^4}{\partial^3 x_3\partial x_2}\f]
+template<class T>
+struct Stencil<T,0,1,3>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return	((   -f(i,j+2,k+2,m) + 8.0*f(i,j+1,k+2,m) - 8.0*f(i,j-1,k+2,m) + f(i,j-2,k+2,m))
+				 -2*(-f(i,j+2,k+1,m) + 8.0*f(i,j+1,k+1,m) - 8.0*f(i,j-1,k+1,m) + f(i,j-2,k+1,m))
+				 +2*(-f(i,j+2,k-1,m) + 8.0*f(i,j+1,k-1,m) - 8.0*f(i,j-1,k-1,m) + f(i,j-2,k-1,m))
+			 	   -(-f(i,j+2,k-2,m) + 8.0*f(i,j+1,k-2,m) - 8.0*f(i,j-1,k-2,m) + f(i,j-2,k-2,m))) /
+			(24.0*dx[1]*dx[2]*dx[2]*dx[2]);
+	};
+};
+/// \brief Compute \f[ \frac{\partial^4}{\partial^3 x_3\partial x_1}\f]
+template<class T>
+struct Stencil<T,1,0,3>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return	((   -f(i+2,j,k+2,m) + 8.0*f(i+1,j,k+2,m) - 8.0*f(i-1,j,k+2,m) + f(i-2,j,k+2,m))
+				 -2*(-f(i+2,j,k+1,m) + 8.0*f(i+1,j,k+1,m) - 8.0*f(i-1,j,k+1,m) + f(i-2,j,k+1,m))
+				 +2*(-f(i+2,j,k-1,m) + 8.0*f(i+1,j,k-1,m) - 8.0*f(i-1,j,k-1,m) + f(i-2,j,k-1,m))
+			 	   -(-f(i+2,j,k-2,m) + 8.0*f(i+1,j,k-2,m) - 8.0*f(i-1,j,k-2,m) + f(i-2,j,k-2,m))) /
+			(24.0*dx[0]*dx[2]*dx[2]*dx[2]);
+
+	};
+};
+/// \brief Compute \f[ \frac{\partial^4}{\partial^3 x_1\partial x_3}\f]
+template<class T>
+struct Stencil<T,3,0,1>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return	((   -f(i+2,j,k+2,m) + 8.0*f(i+2,j,k+1,m) - 8.0*f(i+2,j,k-1,m) + f(i+2,j,k-2,m))
+				 -2*(-f(i+1,j,k+2,m) + 8.0*f(i+1,j,k+1,m) - 8.0*f(i+1,j,k-1,m) + f(i+1,j,k-2,m))
+				 +2*(-f(i-1,j,k+2,m) + 8.0*f(i-1,j,k+1,m) - 8.0*f(i-1,j,k-1,m) + f(i-1,j,k-2,m))
+			 	   -(-f(i-2,j,k+2,m) + 8.0*f(i-2,j,k+1,m) - 8.0*f(i-2,j,k-1,m) + f(i-2,j,k-2,m))) /
+			(24.0*dx[0]*dx[0]*dx[0]*dx[2]);
+
+	};
+};
+/// \brief Compute \f[ \frac{\partial^4}{\partial^2 x_1\partial^2 x_2}\f]
 template<class T>
 struct Stencil<T,2,2,0>
 {
@@ -239,12 +329,213 @@ struct Stencil<T,2,2,0>
 		   const Set::Scalar dx[AMREX_SPACEDIM])
 	{
 		return 	(-(   -f(i+2,j+2,k,m)+16.0*f(i+1,j+2,k,m)-30.0*f(i  ,j+2,k,m) +16.0*f(i-1,j+2,k,m)-f(i-2,j+2,k,m))
-			 +16*(-f(i+2,j+1,k,m)+16.0*f(i+1,j+1,k,m)-30.0*f(i  ,j+1,k,m) +16.0*f(i-1,j+1,k,m)-f(i-2,j+1,k,m))
-			 -30*(-f(i+2,j  ,k,m)+16.0*f(i+1,j  ,k,m)-30.0*f(i  ,j  ,k,m) +16.0*f(i-1,j  ,k,m)-f(i-2,j  ,k,m))
-			 +16*(-f(i+2,j-1,k,m)+16.0*f(i+1,j-1,k,m)-30.0*f(i  ,j-1,k,m) +16.0*f(i-1,j-1,k,m)-f(i-2,j-1,k,m))
-			 -(   -f(i+2,j-2,k,m)+16.0*f(i+1,j-2,k,m)-30.0*f(i  ,j-2,k,m) +16.0*f(i-1,j-2,k,m)-f(i-2,j-2,k,m))) /
+			     +16*(-f(i+2,j+1,k,m)+16.0*f(i+1,j+1,k,m)-30.0*f(i  ,j+1,k,m) +16.0*f(i-1,j+1,k,m)-f(i-2,j+1,k,m))
+			     -30*(-f(i+2,j  ,k,m)+16.0*f(i+1,j  ,k,m)-30.0*f(i  ,j  ,k,m) +16.0*f(i-1,j  ,k,m)-f(i-2,j  ,k,m))
+			     +16*(-f(i+2,j-1,k,m)+16.0*f(i+1,j-1,k,m)-30.0*f(i  ,j-1,k,m) +16.0*f(i-1,j-1,k,m)-f(i-2,j-1,k,m))
+			     -(   -f(i+2,j-2,k,m)+16.0*f(i+1,j-2,k,m)-30.0*f(i  ,j-2,k,m) +16.0*f(i-1,j-2,k,m)-f(i-2,j-2,k,m))) /
 			(144.0*dx[0]*dx[0]*dx[1]*dx[1]) ;
 	};
 };
+
+/// \brief Compute \f[ \frac{\partial^4}{\partial^2 x_2\partial^2 x_3}\f]
+template<class T>
+struct Stencil<T,0,2,2>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return 	(-(   -f(i,j+2,k+2,m)+16.0*f(i,j+2,k+1,m)-30.0*f(i,j+2,k,m) +16.0*f(i,j+2,k-1,m)-f(i,j+2,k-2,m))
+			     +16*(-f(i,j+1,k+2,m)+16.0*f(i,j+1,k+1,m)-30.0*f(i,j+1,k,m) +16.0*f(i,j+1,k-1,m)-f(i,j+1,k-2,m))
+			     -30*(-f(i,j  ,k+2,m)+16.0*f(i,j  ,k+1,m)-30.0*f(i,j  ,k,m) +16.0*f(i,j  ,k-1,m)-f(i,j  ,k-2,m))
+			     +16*(-f(i,j-1,k+2,m)+16.0*f(i,j-1,k+1,m)-30.0*f(i,j-1,k,m) +16.0*f(i,j-1,k-1,m)-f(i,j-1,k-2,m))
+			     -(   -f(i,j-2,k+2,m)+16.0*f(i,j-2,k+1,m)-30.0*f(i,j-2,k,m) +16.0*f(i,j-2,k-1,m)-f(i,j-2,k-2,m))) /
+			(144.0*dx[0]*dx[0]*dx[2]*dx[2]) ;
+	};
+};
+/// \brief Compute \f[ \frac{\partial^4}{\partial^2 x_1\partial^2 x_3}\f]
+template<class T>
+struct Stencil<T,2,0,2>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   	   const int &i, const int &j, const int &k, const int &m,
+		       const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return 	(-(   -f(i+2,j,k+2,m)+16.0*f(i+2,j,k+1,m)-30.0*f(i+2,j,k,m) +16.0*f(i+2,j,k-1,m)-f(i+2,j,k-2,m))
+			     +16*(-f(i+1,j,k+2,m)+16.0*f(i+1,j,k+1,m)-30.0*f(i+1,j,k,m) +16.0*f(i+1,j,k-1,m)-f(i+1,j,k-2,m))
+			     -30*(-f(i  ,j,k+2,m)+16.0*f(i  ,j,k+1,m)-30.0*f(i  ,j,k,m) +16.0*f(i  ,j,k-1,m)-f(i  ,j,k-2,m))
+			     +16*(-f(i-1,j,k+2,m)+16.0*f(i-1,j,k+1,m)-30.0*f(i-1,j,k,m) +16.0*f(i-1,j,k-1,m)-f(i-1,j,k-2,m))
+			     -(   -f(i-2,j,k+2,m)+16.0*f(i-2,j,k+1,m)-30.0*f(i-2,j,k,m) +16.0*f(i-2,j,k-1,m)-f(i-2,j,k-2,m))) /
+			(144.0*dx[0]*dx[0]*dx[2]*dx[2]) ;
+	};
+};
+
+
+/// \brief Compute \f[ \frac{\partial^4}{\partial^2 x_1\partial x_2\partial x_3}\f]
+template<class T>
+struct Stencil<T,2,1,1>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return	( + (f(i+1,j+1,k+1,m) - 2.0*f(i,j+1,k+1,m) + f(i-1,j+1,k+1,m))
+				  - (f(i+1,j-1,k+1,m) - 2.0*f(i,j-1,k+1,m) + f(i-1,j-1,k+1,m))
+				  - (f(i+1,j+1,k-1,m) - 2.0*f(i,j+1,k-1,m) + f(i-1,j+1,k-1,m))
+				  + (f(i+1,j-1,k-1,m) - 2.0*f(i,j-1,k-1,m) + f(i-1,j-1,k-1,m)))
+				/ (4.0*dx[0]*dx[0]*dx[1]*dx[2]);
+
+	};
+};
+/// \brief Compute \f[ \frac{\partial^4}{\partial x_1\partial^2 x_2\partial x_3}\f]
+template<class T>
+struct Stencil<T,1,2,1>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return	( + (f(i+1,j+1,k+1,m) - 2.0*f(i+1,j,k+1,m) + f(i+1,j-1,k+1,m))
+				  - (f(i-1,j+1,k+1,m) - 2.0*f(i-1,j,k+1,m) + f(i-1,j-1,k+1,m))
+				  - (f(i+1,j+1,k-1,m) - 2.0*f(i+1,j,k-1,m) + f(i+1,j-1,k-1,m))
+				  + (f(i-1,j+1,k-1,m) - 2.0*f(i-1,j,k-1,m) + f(i-1,j-1,k-1,m)))
+				/ (4.0*dx[0]*dx[1]*dx[1]*dx[2]);
+
+	};
+};
+/// \brief Compute \f[ \frac{\partial^4}{\partial x_1\partial x_2\partial^2 x_3}\f]
+template<class T>
+struct Stencil<T,1,1,2>
+{
+	AMREX_FORCE_INLINE
+	static T D(const amrex::Array4<const T> &f,
+		   const int &i, const int &j, const int &k, const int &m,
+		   const Set::Scalar dx[AMREX_SPACEDIM])
+	{
+		return	( + (f(i+1,j+1,k+1,m) - 2.0*f(i+1,j+1,k,m) + f(i+1,j+1,k-1,m))
+				  - (f(i-1,j+1,k+1,m) - 2.0*f(i-1,j+1,k,m) + f(i-1,j+1,k-1,m))
+				  - (f(i+1,j-1,k+1,m) - 2.0*f(i+1,j-1,k,m) + f(i+1,j-1,k-1,m))
+				  + (f(i-1,j-1,k+1,m) - 2.0*f(i-1,j-1,k,m) + f(i-1,j-1,k-1,m)))
+				/ (4.0*dx[0]*dx[1]*dx[1]*dx[2]);
+
+	};
+};
+
+AMREX_FORCE_INLINE
+Set::Vector
+Gradient(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k, const int &m,
+		const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Vector ret;
+	ret(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 1
+	ret(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 2
+	ret(2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx));
+#endif
+#endif
+	return ret;
+}
+
+
+AMREX_FORCE_INLINE
+Set::Matrix
+Hessian(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k, const int &m,
+		const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Matrix ret;
+	ret(0,0) = (Numeric::Stencil<Set::Scalar,2,0,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 1
+	ret(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(f,i,j,k,m,dx));
+	ret(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(f,i,j,k,m,dx));
+	ret(1,0) = ret(0,1);
+#if AMREX_SPACEDIM > 2
+	ret(2,2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(f,i,j,k,m,dx));
+	ret(1,2) = (Numeric::Stencil<Set::Scalar,0,1,1>::D(f,i,j,k,m,dx));
+	ret(2,0) = (Numeric::Stencil<Set::Scalar,1,0,1>::D(f,i,j,k,m,dx));
+	ret(2,1) = ret(1,2);
+	ret(0,2) = ret(2,0);
+#endif
+#endif
+	return ret;
+}
+
+
+template<int dim>
+AMREX_FORCE_INLINE
+Set::Matrix4<dim,Set::Sym::Full>
+DoubleHessian(const amrex::Array4<const Set::Scalar> &f,
+		   	  const int &i, const int &j, const int &k, const int &m,
+		      const Set::Scalar dx[AMREX_SPACEDIM]);
+
+template<>
+AMREX_FORCE_INLINE
+Set::Matrix4<2,Set::Sym::Full>
+DoubleHessian<2>(const amrex::Array4<const Set::Scalar> &f,
+		   	  const int &i, const int &j, const int &k, const int &m,
+		      const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Matrix4<2,Set::Sym::Full> ret;
+    // [0,0,0,0]
+	ret(0, 0, 0, 0) = Stencil<Set::Scalar,4,0,0>::D(f,i,j,k,m,dx);
+    // [0, 0, 0, 1]
+    ret(0, 0, 0, 1) = Stencil<Set::Scalar,3,1,0>::D(f,i,j,k,m,dx);
+    // [0, 0, 1, 1]
+	ret(0, 0, 1, 1) = Stencil<Set::Scalar,2,2,0>::D(f,i,j,k,m,dx);
+    // [0, 1, 1, 1]
+    ret(0, 1, 1, 1) = Stencil<Set::Scalar,1,3,0>::D(f,i,j,k,m,dx);
+    // [1, 1, 1, 1]
+	ret(1, 1, 1, 1) = Stencil<Set::Scalar,0,4,0>::D(f,i,j,k,m,dx);
+	return ret;
+}
+
+template<>
+AMREX_FORCE_INLINE
+Set::Matrix4<3,Set::Sym::Full>
+DoubleHessian<3>(const amrex::Array4<const Set::Scalar> &f,
+		   	  const int &i, const int &j, const int &k, const int &m,
+		      const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Matrix4<3,Set::Sym::Full> ret;
+    // [0,0,0,0]
+	ret(0, 0, 0, 0) = Stencil<Set::Scalar,4,0,0>::D(f,i,j,k,m,dx);
+    // [0, 0, 0, 1]
+    ret(0, 0, 0, 1) = Stencil<Set::Scalar,3,1,0>::D(f,i,j,k,m,dx);
+    // [0, 0, 0, 2]
+    ret(0, 0, 0, 2) = Stencil<Set::Scalar,3,0,1>::D(f,i,j,k,m,dx);
+    // [0, 0, 1, 1]
+	ret(0, 0, 1, 1) = Stencil<Set::Scalar,2,2,0>::D(f,i,j,k,m,dx);
+    // [0, 0, 1, 2]
+    ret(0, 0, 1, 2) = Stencil<Set::Scalar,2,1,1>::D(f,i,j,k,m,dx);
+    // [0, 0, 2, 2]
+    ret(0, 0, 2, 2) = Stencil<Set::Scalar,2,0,2>::D(f,i,j,k,m,dx);
+    // [0, 1, 1, 1]
+    ret(0, 1, 1, 1) = Stencil<Set::Scalar,1,3,0>::D(f,i,j,k,m,dx);
+    // [0, 1, 1, 2]
+    ret(0, 1, 1, 2) = Stencil<Set::Scalar,1,2,1>::D(f,i,j,k,m,dx);
+    // [0, 1, 2, 2]
+    ret(0, 1, 2, 2) = Stencil<Set::Scalar,1,1,2>::D(f,i,j,k,m,dx);
+    // [0, 2, 2, 2]
+    ret(0, 2, 2, 2) = Stencil<Set::Scalar,1,0,3>::D(f,i,j,k,m,dx);
+    // [1, 1, 1, 1]
+	ret(1, 1, 1, 1) = Stencil<Set::Scalar,0,4,0>::D(f,i,j,k,m,dx);
+    // [1, 1, 1, 2]
+    ret(1, 1, 1, 2) = Stencil<Set::Scalar,0,3,1>::D(f,i,j,k,m,dx);
+    // [1, 1, 2, 2]
+    ret(1, 1, 2, 2) = Stencil<Set::Scalar,0,2,2>::D(f,i,j,k,m,dx);
+    // [1, 2, 2, 2]
+    ret(1, 2, 2, 2) = Stencil<Set::Scalar,0,1,3>::D(f,i,j,k,m,dx);
+    // [2, 2, 2, 2]
+	ret(2, 2, 2, 2) = Stencil<Set::Scalar,0,0,4>::D(f,i,j,k,m,dx);
+    return ret;
+}
+
+
 }
 #endif
