@@ -139,11 +139,12 @@ PolymerDegradation::PolymerDegradation():
 		if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
 		if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
 		if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
-		modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
+		Util::Abort(INFO,"Isotropic2 model has been disabled for now");
+		//modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
 	}
 	else if(input_material == "isotropic")
 	{
-		Util::Abort(INFO, "Check for model_type in PD.H");
+		//Util::Abort(INFO, "Check for model_type in PD.H");
 		amrex::Real lambda = 1.0;
 		amrex::Real mu = 1.0;
 		amrex::ParmParse pp_material_isotropic("material.isotropic");
@@ -322,6 +323,7 @@ PolymerDegradation::PolymerDegradation():
 
 	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
 	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
+	RegisterNewFab(damage_start_time,damage.bc,1,2,"Start time");
 
 	//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
@@ -583,6 +585,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			const amrex::Box& bx = mfi.validbox();
 			amrex::Array4<amrex::Real> const& water_old_box = (*water_conc_old[lev]).array(mfi);
 			amrex::Array4<amrex::Real> const& water_box = (*water_conc[lev]).array(mfi);
+			amrex::Array4<amrex::Real> const& time_box = (*damage_start_time[lev]).array(mfi);
 
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 				if(std::isnan(water_old_box(i,j,k,0))) Util::Abort(INFO, "Nan found in WATER_OLD(i,j,k)");
@@ -604,6 +607,8 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 					Util::Warning(INFO, "Water concentration has exceeded one after computation. Resetting it to one");
 					water_box(i,j,k,0) = 1.0;
 				}
+				if(water_old_box(i,j,k,0) < 1.E-2 && water_box(i,j,k,0) > 1.E-2)
+					time_box(i,j,k,0) = time;
 			});
 		}
 		Util::Message(INFO);
@@ -633,6 +638,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 		amrex::Array4<amrex::Real> const& eta_new_box     		= (*eta_new[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& eta_old_box     = (*eta_old[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& water_box 		= (*water_conc[lev]).array(mfi);
+		amrex::Array4<const amrex::Real> const& time_box 		= (*damage_start_time[lev]).array(mfi);
 		//amrex::Array4<const amrex::Real> const& Temp_box 		= (*Temp[lev]).array(mfi);
 		//Util::Message(INFO);
 
@@ -645,7 +651,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 					if(water_box(i,j,k,0) > 0.0 && eta_old_box(i,j,k,n) < damage.d_final[n])
 					{
 						for (int l = 0; l < damage.number_of_terms[n]; l++)
-								temp1 += damage.d_final[n]*damage.d_i[n][l]*water_box(i,j,k,0)*std::exp(-std::max(0.0,time-damage.t_start_i[n][l])/damage.tau_i[n][l])/(damage.tau_i[n][l]);
+								temp1 += damage.d_final[n]*damage.d_i[n][l]*water_box(i,j,k,0)*std::exp(-std::max(0.0,time-time_box(i,j,k,0)-damage.t_start_i[n][l])/damage.tau_i[n][l])/(damage.tau_i[n][l]);
 					}
 					eta_new_box(i,j,k,n) = eta_old_box(i,j,k,n) + temp1*dt;
 					if(eta_new_box(i,j,k,n) > damage.d_final[n])
@@ -668,6 +674,7 @@ PolymerDegradation::Initialize (int lev)
 	{
 		water.ic->Initialize(lev,water_conc);
 		water.ic->Initialize(lev,water_conc_old);
+		damage.ic->Initialize(lev,damage_start_time);
 	}
 
 	if(thermal.on)
@@ -840,7 +847,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 									)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
-			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
+			//else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
 			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}

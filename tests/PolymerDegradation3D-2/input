@@ -76,39 +76,41 @@ thermal.bc.hi_3 = 368.0
 #===========================================================================
 
 #=============== Material model parameters =================================
-material.model = isotropic2
-material.isotropic2.E10 = 1.0
-material.isotropic2.E20 = 0.148
-material.isotropic2.Tg = 319.3
-material.isotropic2.Ts = 17.0
-material.isotropic2.temp = 298.0
+material.model = isotropic
+material.isotropic.lambda = 410.1
+material.isotropic.mu = 350.5
+#material.isotropic2.E10 = 1.0
+#material.isotropic2.E20 = 0.148
+#material.isotropic2.Tg = 319.3
+#material.isotropic2.Ts = 17.0
+#material.isotropic2.temp = 298.0
 #===========================================================================
 
 #=============== Damage evolution parameters ===============================
+damage.anisotropy = 0
+damage.type = water
+damage.d_final = 0.90
+damage.number_of_terms = 2
+damage.d_i = 0.60 0.40
+damage.tau_i = 24 96
+damage.t_start_i = 0 0
 #damage.anisotropy = 0
 #damage.type = water2
-#damage.d_final = 0.90
-#damage.number_of_terms = 2
-#damage.d_i = 0.60 0.30
-#damage.tau_i = 24 96
-#damage.t_start_i = 0 0
-damage.anisotropy = 0
-damage.type = water2
-damage.d_final = 0.85 0.01 0.8
-damage.number_of_terms = 2 2 2
-damage.d_i = 0.70 0.30 0.70 0.30 0.70 0.30
-damage.tau_i = 96 24 96 24 96 24
-damage.t_start_i = 0 0 0 0 0 0
+#damage.d_final = 0.85 0.01 0.8
+#damage.number_of_terms = 2 2 2
+#damage.d_i = 0.70 0.30 0.70 0.30 0.70 0.30
+#damage.tau_i = 96 24 96 24 96 24
+#damage.t_start_i = 0 0 0 0 0 0
 damage.ic_type = constant
-damage.ic.value = 0.0 0.0 0.0
+damage.ic.value = 0.0
 damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
 damage.bc.hi = EXT_DIR EXT_DIR EXT_DIR
-damage.bc.lo_1 = 0.0 0.0 0.0
-damage.bc.hi_1 = 0.0 0.0 0.0
-damage.bc.lo_2 = 0.0 0.0 0.0
-damage.bc.hi_2 = 0.0 0.0 0.0
-damage.bc.lo_3 = 0.0 0.0 0.0
-damage.bc.hi_3 = 0.0 0.0 0.0
+damage.bc.lo_1 = 0.0
+damage.bc.hi_1 = 0.0
+damage.bc.lo_2 = 0.0
+damage.bc.hi_2 = 0.0
+damage.bc.lo_3 = 0.0
+damage.bc.hi_3 = 0.0
 #===========================================================================
 
 #=============== Elasticity parameters =====================================

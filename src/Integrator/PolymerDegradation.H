@@ -34,8 +34,8 @@
 
 namespace Integrator
 {
-using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
-//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
+using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Laplacian;
 
@@ -79,6 +79,7 @@ private:
 	// For water induced degradation
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;		///< Water concentration for the __current__timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc_old;	///< Water concentration for the __previous__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >damage_start_time;
 
 	// For temperature induced degradation
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp;			///< Temperature for the __current__timestep
