@@ -26,11 +26,6 @@
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
 
-//#include "Operator/CellElastic/PolyCrystal/PolyCrystal.H"
-//#include "Operator/CellElastic/Isotropic/Isotropic.H"
-//#include "Operator/CellElastic/PolyCrystal/Isotropic/Isotropic.H"
-//#include "Operator/CellElastic/PolyCrystal/Cubic/Cubic.H"
-//#include "Operator/CellElastic/Cubic/Cubic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
@@ -111,11 +106,7 @@ private:
 		Set::Scalar tstart = 0.0;
 		Set::Scalar vol0 = 0.0;
 		Set::Scalar lambda = 0.0;
-	} sdf;
-
-	//amrex::Real anisotropy_timestep;
-	//amrex::Real anisotropy_tstart;
-	//int anisotropy_plot_int;
+	} lagrange;
 
 	std::string ic_type, gb_type, filename;
 
@@ -132,9 +123,8 @@ private:
 	struct
 	{
 		bool        on       = false;
-		Grid        grid = Grid::Cell;
+		Grid        grid     = Grid::Node;
 		int         interval = 1;
-		//std::string type;
 		int         max_iter = 20;
 		int         fixed_iter = 0;
 		int         max_fmg_iter = 20;
@@ -152,23 +142,8 @@ private:
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
 		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
 		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
-
-
 		Operator::Elastic<model_type> *op;
-		//BC::BC *bc;
-
 	} elastic;
-	//#endif
-
-	//Operator::CellElastic::PolyCrystal::PolyCrystal *cellelastic_operator;
-	Operator::Elastic<Model::Solid::LinearElastic::Cubic> *elastic_operator;
-	BC::BC *elastic_bc;
-
-	//std::vector<Operator::CellElastic::PolyCrystal::PolyCrystalModel *> models;
-	
-	const std::array<amrex::IntVect,AMREX_SPACEDIM> dx = {{AMREX_D_DECL(amrex::IntVect(AMREX_D_DECL(1,0,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,1,0)),
-									    amrex::IntVect(AMREX_D_DECL(0,0,1)))}};
 
 };
 }
