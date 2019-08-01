@@ -1,3 +1,5 @@
+#ifndef PY_UTIL_H
+#define PY_UTIL_H
 void exportUtil()
 {
 	bp::object utilModule(bp::handle<>(bp::borrowed(PyImport_AddModule("alamo.Util"))));
@@ -8,3 +10,4 @@ void exportUtil()
 	bp::def("Initialize",Initialize1);
 	bp::def("Finalize",&Util::Finalize);
 }
+#endif
