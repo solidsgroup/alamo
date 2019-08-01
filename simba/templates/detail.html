@@ -34,6 +34,8 @@
 
 
 <h3>Simulation Information</h3>
+<button onclick="window.location.href = '/metadata/';" class="btn btn-primary"><span class="glyphicon glyphicon-cog"></span> Download metadata file</button>
+{% if thermofile == None %} {% else %} <button onclick="window.location.href = '/thermo/';" class="btn btn-primary"><span class="glyphicon glyphicon-signal"></span> Download thermo.dat</button> {% endif %}
 <button type="button" class="btn btn-danger pull-right" data-href="/delete.php?id=54" data-toggle="modal" data-target="#confirm-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
 <table class="table" style="width:100%;">
   <thead>
@@ -47,7 +49,7 @@
 	{% if columns[i] == "Description" %}
 	<td>
 	  <div width="100%">
-		{{data[i]}}
+		{{data[i] | string | markdown}}
 		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-description">Edit Description</button>
 	  </div>
 	  <br/>
@@ -78,6 +80,16 @@
   </tr>
   {% endfor %}
 </table>
+
+<h3>Simulation Files</h3>
+
+<div class="row">
+  <ul class="list-group row">
+	{% for i in range(0,tarballfiles|length) %}
+	<ul><span class="glyphicon glyphicon-circle-arrow-down"</span><a href="/tarball/{{tarballfiles[i]}}/{{i}}"> {{tarballfiles[i]}}</a></ul>
+	{% endfor %}
+</ul>
+</div>
 
 <h3>Simulation Analysis</h3>
 

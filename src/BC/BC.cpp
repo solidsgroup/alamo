@@ -63,5 +63,10 @@ bool IsReflectEven(int bctype)
 	if (bctype == REFLECT_EVEN) return true;
 	else return false;
 }
+bool IsReflectOdd(int bctype)
+{
+	if (bctype == REFLECT_ODD) return true;
+	else return false;
+}
 }
 }
