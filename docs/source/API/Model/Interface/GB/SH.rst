@@ -80,7 +80,7 @@ Therefore the final expression is
 
 .. danger::
 
-   So, despite a full afternoon of working on this, it doesn't actually work.
+   This does not actually work.
    Instead, a numerical approximation is implemented for :code:`DW` and :code:`DDW`
 
 

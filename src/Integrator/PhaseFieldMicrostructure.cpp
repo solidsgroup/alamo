@@ -39,16 +39,14 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("ref_threshold",ref_threshold);
 	}
 	{
-		amrex::ParmParse pp("sdf");
-		pp.query("on", sdf.on);
-		if (sdf.on)
+		amrex::ParmParse pp("lagrange");
+		pp.query("on", lagrange.on);
+		if (lagrange.on)
 		{
-			pp.query("lambda",sdf.lambda);
-			pp.query("vol0",sdf.vol0);
-			pp.query("tstart",sdf.tstart);
+			pp.query("lambda",lagrange.lambda);
+			pp.query("vol0",lagrange.vol0);
+			pp.query("tstart",lagrange.tstart);
 			SetThermoInt(1);
-			//SetPlotInt(1);
-
 		}
 	}
 	{
@@ -193,6 +191,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 			if (elastic.grid == Grid::Cell)
 			{
+				Util::Abort(INFO,"No longer supported");
 				RegisterNewFab(displacement, mybc,AMREX_SPACEDIM,1,"u");
 				RegisterNewFab(body_force,mybc,AMREX_SPACEDIM,0,"b");
 				RegisterNewFab(strain,    mybc,AMREX_SPACEDIM*AMREX_SPACEDIM,0,"eps");
@@ -221,9 +220,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 				if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 				if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-				elastic_bc = new BC::Constant(bc_hi_str, bc_lo_str,
-						      AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
-						      AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
+				//elastic_bc = new BC::Constant(bc_hi_str, bc_lo_str,
+				//		      AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
+				//		      AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 			}
 			if (elastic.grid == Grid::Node)
 			{
@@ -495,9 +494,9 @@ PhaseFieldMicrostructure::Advance (int lev, amrex::Real time, amrex::Real dt)
 					//
 					// SYNTHETIC DRIVING FORCE
 					//
-					if (sdf.on && m==0 && time > sdf.tstart)
+					if (lagrange.on && m==0 && time > lagrange.tstart)
 					{
-					 	driving_force +=  sdf.lambda * (volume - sdf.vol0);
+					 	driving_force +=  lagrange.lambda * (volume - lagrange.vol0);
 					}
 
 					//
