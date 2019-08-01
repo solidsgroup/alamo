@@ -22,8 +22,6 @@ public:
 	CrystalPlastic() 
 	{
 		initializeSlip();
-		define(.5,.2,.01);
-	
 	} 
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
@@ -46,9 +44,10 @@ public:
 	void GetActivePlains(Set::Matrix sig); //used in update esp function
 	Set::Matrix UpdateSigma(Set::Matrix es);
 	Set::Scalar GetGammaDot(Set::Vector ss, Set::Vector nn, Set::Matrix sig);
-	void update(Set::Matrix es, Set::Matrix sigma, Set::Scalar _dt);
+	void update(Set::Matrix es, Set::Matrix& sigma, Set::Scalar _dt);
 	void AdvanceEsp(Set::Matrix sig);
 	void Setdt(double _dt);
+	double removeStress(Set::Matrix& es, double g) const;
 	Set::Matrix GetEsp();
 //-----------------------//
 	void Randomize();
@@ -88,23 +87,6 @@ private:
 	
 	std::array<Set::Scalar,21> C;
 	//********Matrial Slip Data**********//
-	Set::Vector n1 = {1,1,1};
-	Set::Vector n2 = {-1,-1,1};
-	Set::Vector n3 = {-1,1,1};
-	Set::Vector n4 = {1,-1,1};
-	
-	Set::Vector s11 = {0,-1,1};
-	Set::Vector s12 = {1,0,1};
-	Set::Vector s13 = {-1,1,0};
-	Set::Vector s21 = {0,1,1};
-	Set::Vector s22 = {-1,0,-1};
-	Set::Vector s23 = {1,-1,0};
-	Set::Vector s31 = {0,-1,1};
-	Set::Vector s32 = {-1,0,-1};
-	Set::Vector s33 = {1,1,0};
-	Set::Vector s41 = {0,-1,1};
-	Set::Vector s42 = {1,0,-1};
-	Set::Vector s43 = {-1,-1,0};
 
 	std::array<slip,12> slipSystem;
 	slip slp1; slip slp2;
@@ -118,10 +100,9 @@ private:
 	Set::Matrix esp = Set::Matrix::Zero();
 
 	//********Matrial Constants**********//
-	static Set::Scalar constexpr Tcrss = 0.8;
+	static Set::Scalar constexpr Tcrss = 0.5;
 	static Set::Scalar constexpr n = 2;
-	static Set::Scalar constexpr gammadot0 = 0.5;
-	static Set::Scalar constexpr gamma0 = 0.5;
+	static Set::Scalar constexpr gammadot0 = .5;
 	Set::Scalar dt = 1e-5;
 
 };

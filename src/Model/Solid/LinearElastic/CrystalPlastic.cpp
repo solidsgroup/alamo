@@ -32,6 +32,24 @@ CrystalPlastic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::S
 }
 void CrystalPlastic::initializeSlip()
 {
+		Set::Vector n1 = {1,1,1};
+	Set::Vector n2 = {-1,-1,1};
+	Set::Vector n3 = {-1,1,1};
+	Set::Vector n4 = {1,-1,1};
+	
+	Set::Vector s11 = {0,-1,1};
+	Set::Vector s12 = {1,0,-1};
+	Set::Vector s13 = {-1,1,0};
+	Set::Vector s21 = {0,1,1};
+	Set::Vector s22 = {-1,0,-1};
+	Set::Vector s23 = {1,-1,0};
+	Set::Vector s31 = {0,-1,1};
+	Set::Vector s32 = {-1,0,-1};
+	Set::Vector s33 = {1,1,0};
+	Set::Vector s41 = {0,1,1};
+	Set::Vector s42 = {1,0,-1};
+	Set::Vector s43 = {-1,-1,0};
+
 	this->slp1.n = n1; this->slp1.s = s11;
 	this->slp2.n = n1; this->slp2.s = s12;
 	this->slp3.n = n1; this->slp3.s = s13;
@@ -50,16 +68,20 @@ void CrystalPlastic::initializeSlip()
 
 	slipSystem[0] = slp1;
 	slipSystem[1] = slp2;
-	slipSystem[2] = slp3;
+	slipSystem[2] = slp3; 
 	slipSystem[3] = slp4;
 	slipSystem[4] = slp5;
-	slipSystem[5] = slp6;
+	slipSystem[5] = slp6; 
 	slipSystem[6] = slp7;
 	slipSystem[7] = slp8;
-	slipSystem[8] = slp9;
+	slipSystem[8] = slp9; 
 	slipSystem[9] = slp10;
-	slipSystem[10] = slp11;
+	slipSystem[10] = slp11; 
 	slipSystem[11] = slp12;
+	for(int i = 0; i < 12; i++)
+	{
+		slipSystem[i].on = false;
+	}
 	
 }
 double CrystalPlastic::CalcSSigN (Set::Vector ss, Set::Vector nn, Set::Matrix sig) 
@@ -72,22 +94,14 @@ double CrystalPlastic::CalcSSigN (Set::Vector ss, Set::Vector nn, Set::Matrix si
 void CrystalPlastic::GetActivePlains(Set::Matrix sig)
 {
 	double a = 0;
-	for(int i = 0; i < 12; i++)
+	for(int i = 0; i <= 12; i++)
 	{
-		//	for(int i = 0;i < 21; i++)
-		//{
-		//	Util::Message(INFO,"C = ", C[i]);
-		//}
-		//Util::Message(INFO,"Normal Vectors ", slipSystem[i].n.transpose());
-		//Util::Message(INFO,"Slip Vectors ", slipSystem[i].s.transpose());
-		
 		//calculate a = abs(s*sigma*n)
 		a = abs(CalcSSigN(slipSystem[i].s,slipSystem[i].n, sig));
 		
 		if(a > Tcrss) 
 		{
 			slipSystem[i].on = true;
-			//Util::Message(INFO,"a = ", a);
 		}		
 		else 
 		{
@@ -99,8 +113,8 @@ void CrystalPlastic::GetActivePlains(Set::Matrix sig)
 Set::Scalar CrystalPlastic::GetGammaDot(Set::Vector ss, Set::Vector nn,Set::Matrix sig)
 {
 	double gamma;
-	gamma = gamma0*sgn(CalcSSigN(ss,nn,sig))*pow((abs(CalcSSigN(ss,nn,sig))/Tcrss),n);
-	//Util::Message(INFO,"gamma = ", gamma);
+	double power = pow((abs(CalcSSigN(ss,nn,sig))/Tcrss),n);
+	gamma = gammadot0*power;
 	return gamma;
 }
 
@@ -111,30 +125,29 @@ void CrystalPlastic::AdvanceEsp(Set::Matrix sig)
 	
 	for(int i = 0; i < 12; i++)
 	{
-		if(slipSystem[i].on) continue;
-		else
+		double a = CalcSSigN(slipSystem[i].s,slipSystem[i].n,sig);
+		if(abs(a) > Tcrss && slipSystem[i].on)
 		{
-			int sign = sgn(CalcSSigN(slipSystem[i].s,slipSystem[i].n,sig));
-			temp += gammadot0*GetGammaDot(slipSystem[i].s,slipSystem[i].n,sig)*sign*slipSystem[i].s*slipSystem[i].n.transpose();
+			double gammadot = GetGammaDot(slipSystem[i].s,slipSystem[i].n,sig);
+			int sign = sgn(a);
+			temp += gammadot*sign*slipSystem[i].s*slipSystem[i].n.transpose();
 		}
-		//Util::Message(INFO,"esp = ", temp);
 	}
 	// Euler integration
 	esp = esp + temp*dt;
 }
-void CrystalPlastic::update(Set::Matrix es, Set::Matrix sigma, Set::Scalar _dt)
+void CrystalPlastic::update(Set::Matrix es, Set::Matrix& sigma, Set::Scalar _dt)
 {
-	for(double t = 0.0; t <= _dt; t+=dt)
+	for(double t = 0.0; t < _dt; t+=dt)
 	{
 		AdvanceEsp(sigma);
-		//sigma = UpdateSigma(es);
+		sigma = UpdateSigma(es);
 	}
 }
 Set::Matrix CrystalPlastic::UpdateSigma(Set::Matrix es)
 {
-	Set::Matrix temp = es - esp;
+	Set::Matrix temp = (es - esp);
 	Set::Matrix sigma = operator()(temp); 
-	//Util::Message(INFO,"sig = ", sigma);
 	return sigma;
 }
 Set::Matrix CrystalPlastic::GetEsp()
@@ -145,6 +158,35 @@ Set::Matrix CrystalPlastic::GetEsp()
 void CrystalPlastic::Setdt(double _dt)
 {
 	dt = _dt;
+}
+
+double CrystalPlastic::removeStress(Set::Matrix& es, double g) const
+{
+	double x0 = g;
+	double xn = es(1,1) + 2.0;
+	double tol = dt/100;
+	while (abs((x0 - xn)) > tol)
+	{
+		//double f = C[ 1]*es(0,0) + C[ 6]*(x0 ) + C[ 7]*es(2,2) + 2.0 * ( C[ 8]*es(1,2) + C[ 9]*es(2,0) + C[10]*es(0,1));
+		//double df = C[ 1]*es(0,0) + C[ 6]*(x0 + dt) + C[ 7]*es(2,2) + 2.0 * ( C[ 8]*es(1,2) + C[ 9]*es(2,0) + C[10]*es(0,1));
+		//double f = C[ 1]*es(0,0) + C[ 6]*x0 + 2.0*(  C[10]*es(0,1) ); 
+		//double df = C[ 1]*es(0,0) + C[ 6]*(x0 + dt) + 2.0*( C[10]*es(0,1) ); 
+
+		double f = C[ 5]*es(0,0) + C[10]*es(1,0) + C[14]*es(2,0) + 2.0 * ( C[17]*es(2,0) + C[19]*es(0,0) + C[20]*es(1,0)) +
+		C[ 1]*es(0,1) + C[ 6]*x0 + C[ 7]*es(2,1) + 2.0 * ( C[ 8]*es(2,1) + C[ 9]*es(0,1) + C[10]*x0) +
+		C[ 3]*es(0,2) + C[ 8]*es(1,2) + C[12]*es(2,2) + 2.0 * ( C[15]*es(2,2) + C[16]*es(0,2) + C[17]*es(1,2));
+
+		double df = C[ 5]*es(0,0) + C[10]*es(1,0) + C[14]*es(2,0) + 2.0 * ( C[17]*es(2,0) + C[19]*es(0,0) + C[20]*es(1,0)) +
+		C[ 1]*es(0,1) + C[ 6]*(x0+dt) + C[ 7]*es(2,1) + 2.0 * ( C[ 8]*es(2,1) + C[ 9]*es(0,1) + C[10]*(x0+dt)) +
+		C[ 3]*es(0,2) + C[ 8]*es(1,2) + C[12]*es(2,2) + 2.0 * ( C[15]*es(2,2) + C[16]*es(0,2) + C[17]*es(1,2));
+
+		//Util::Message(INFO,"f = ", f);
+		//Util::Message(INFO,"df = ", df, "\n");
+		xn = x0 - .002*f/df;
+		x0 = xn;
+		//Util::Message(INFO,"x0 = ", x0, "\n");
+	}
+	return x0;
 }
 void
 CrystalPlastic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R)
