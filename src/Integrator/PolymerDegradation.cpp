@@ -179,7 +179,7 @@ PolymerDegradation::PolymerDegradation():
 		damage.d_i.resize(damage.number_of_eta);
 		damage.tau_i.resize(damage.number_of_eta);
 		damage.t_start_i.resize(damage.number_of_eta);
-		damage.number_of_terms.resize(damage.number_of_eta);
+		//damage.number_of_terms.resize(damage.number_of_eta);
 
 		Set::Scalar dfinal;
 		pp_damage.query("d_final",dfinal);
@@ -195,7 +195,7 @@ PolymerDegradation::PolymerDegradation():
 		pp_damage.queryarr("t_start_i",tstarti);
 
 		if(dfinal > 1.0) {Util::Warning(INFO,"d_final can not be greater than 1. Resetting it to default"); dfinal = 0.99;}
-		damage.d_final.push_back(dfinal);
+		damage.d_final[0] = dfinal;
 
 		if(di.size() != numberofterms || taui.size() != numberofterms || tstarti.size() != numberofterms) Util::Abort(INFO, "missing entries in d_i, tau_i or t_start_i");
 
