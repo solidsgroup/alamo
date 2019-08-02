@@ -196,6 +196,7 @@ private:
 
 	model_type 		*modeltype;
 	std::string 	input_material = "isotropic";
+	Set::Scalar		yieldstrength = 18.;
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
 
