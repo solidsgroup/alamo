@@ -162,7 +162,12 @@ private:
 		Set::Scalar bottom_tol 				= 1.0E-6;
 		bool        on 						= false;
 		int         interval	 			= 1;
-		std::string type;
+		std::string type					= "single";
+		amrex::Vector<Set::Scalar> test_time;
+		Set::Scalar test_rate				= 1.; 
+		Set::Scalar test_duration			= 2.;
+		Set::Scalar test_dt					= 0.01;
+		int			current_test			= 0;
 		int         max_iter 				= 200;
 		int         max_fmg_iter 			= 0;
 		int 		bottom_max_iter			= 200;
