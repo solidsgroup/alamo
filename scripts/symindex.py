@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 dim = 3
 
 
@@ -35,12 +35,10 @@ for t in them:
                         if ((sorted([i,j])+sorted([k,l])) == t or
                             (sorted([k,l])+sorted([i,j])) == t):
                             indices.append(i + dim*j + dim*dim*k + dim*dim*dim*l)
-    print ("if (0 ",end="")
+    print (("if" if ctr==0 else "else if") + " (0 ",end="")
     for n in indices:
         print("|| uid=="+str(n)+" ",end="")
-    print(") return &data["+str(ctr)+"]")
+    print(") return data["+str(ctr)+"];")
     ctr += 1
 
-print("Total of " + str(len(them)))
-print(sorted(indices))
-
+print("Total of " + str(len(them)) + " unique constants")

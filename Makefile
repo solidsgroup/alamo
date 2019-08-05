@@ -154,12 +154,14 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
 	@make -C docs html > /dev/null
 
 
+ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),realclean)
 ifneq ($(MAKECMDGOALS),info)
 ifneq ($(MAKECMDGOALS),help)
 ifneq ($(MAKECMDGOALS),docs)
 -include $(DEP)
+endif
 endif
 endif
 endif
