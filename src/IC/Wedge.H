@@ -5,7 +5,7 @@
 
 namespace IC
 {
-/// \brief Initialize a coupon-shaped IC (for the Flame simulation)
+/// Initialize a coupon-shaped IC (for the Flame simulation)
 class Wedge : public IC
 {
 public:

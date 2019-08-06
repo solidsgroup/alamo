@@ -3,7 +3,7 @@ Random
 
 
 
-.. doxygenclass:: IC:: Random
+.. doxygenclass:: IC::Random
    :project: alamo
    :members:
    :protected-members:

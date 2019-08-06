@@ -3,7 +3,7 @@ Constant
 
 
 
-.. doxygenclass:: IC:: Constant
+.. doxygenclass:: IC::Constant
    :project: alamo
    :members:
    :protected-members:

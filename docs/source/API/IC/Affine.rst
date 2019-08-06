@@ -3,7 +3,7 @@ Affine
 
 
 
-.. doxygenclass:: IC:: Affine
+.. doxygenclass:: IC::Affine
    :project: alamo
    :members:
    :protected-members:

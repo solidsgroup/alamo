@@ -3,7 +3,7 @@ Peturbed Interface
 
 
 
-.. doxygenclass:: IC:: Peturbed
+.. doxygenclass:: IC::Peturbed
    :project: alamo
    :members:
    :protected-members:

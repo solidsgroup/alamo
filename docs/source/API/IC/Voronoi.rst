@@ -3,7 +3,7 @@ Voronoi
 
 
 
-.. doxygenclass:: IC:: Voronoi
+.. doxygenclass:: IC::Voronoi
    :project: alamo
    :members:
    :protected-members:
