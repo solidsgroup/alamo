@@ -3,7 +3,7 @@ Trig
 
 
 
-.. doxygenclass:: IC:: Trig
+.. doxygenclass:: IC::Trig
    :project: alamo
    :members:
    :protected-members:

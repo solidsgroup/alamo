@@ -3,7 +3,7 @@ Sphere
 
 
 
-.. doxygenclass:: IC:: Sphere
+.. doxygenclass:: IC::Sphere
    :project: alamo
    :members:
    :protected-members:

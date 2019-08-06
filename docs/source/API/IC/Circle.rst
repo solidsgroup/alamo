@@ -3,7 +3,7 @@ Circle
 
 
 
-.. doxygenclass:: IC:: Circle
+.. doxygenclass:: IC::Circle
    :project: alamo
    :members:
    :protected-members:
