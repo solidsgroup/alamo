@@ -7,6 +7,7 @@ Documentation for alamo
 
    GettingStarted
    Python
+   Simba
    Convention
    Examples/Examples
    API/API

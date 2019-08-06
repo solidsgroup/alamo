@@ -1,10 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 import os
 import glob
 import fnmatch
 import sqlite3
 import argparse
-from flask import Flask, request, render_template, send_file, redirect
+import getpass
+from functools import wraps
+from flask import Flask, request, render_template, send_file, redirect, Response
 from flaskext.markdown import Markdown
 
 print("====================================")
@@ -17,7 +19,37 @@ parser.add_argument('-p','--port', default='5000', help='Port (default: 5000)');
 parser.add_argument('-d','--database',default='results.db',help='Name of database to read from')
 parser.add_argument('-s','--safe',dest='safe',action='store_true',help='Safe mode - disallow permanent record deletion')
 parser.add_argument('-f','--fast',dest='fast',action='store_true',help='Fast mode - fewer features for working with large datasets')
+parser.add_argument('--pwd',default=False,action='store_true')
 args=parser.parse_args()
+
+pwd = None
+usr = None
+if args.pwd:
+    usr = getpass.getuser()
+    pwd = getpass.getpass()
+
+def check_auth(username, password):
+    """This function is called to check if a username /
+    password combination is valid.
+    """
+    return username == usr and password == pwd
+
+def authenticate():
+    """Sends a 401 response that enables basic auth"""
+    return Response(
+    'Could not verify your access level for that URL.\n'
+    'You have to login with proper credentials', 401,
+    {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if (pwd and usr):
+            if not auth or not check_auth(auth.username, auth.password):
+                return authenticate()
+        return f(*args, **kwargs)
+    return decorated    
 
 if not args.safe and not args.ip == '127.0.0.1' or args.ip == 'localhost':
     print("=============  WARNING =============")
@@ -36,6 +68,7 @@ Markdown(app)
 
 
 @app.route("/", methods=['GET','POST'])
+@requires_auth
 def root():
     db = sqlite3.connect(args.database)
     db.text_factory = str
@@ -62,6 +95,7 @@ def root():
                            tables=tables)
 
 @app.route("/table/<table>", methods=['GET','POST'])
+@requires_auth
 def table(table):
     db = sqlite3.connect(args.database)
     db.text_factory = str
@@ -73,7 +107,7 @@ def table(table):
             cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table));
 
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = [r[0] for r in cur.fetchall()]
+    tables = [r[0] for r in sorted(cur.fetchall())]
     if "__tables__" in tables: tables.remove("__tables__")
 
     if not table: table_name = tables[0]
@@ -124,20 +158,65 @@ imgfiles = []
 
 def find_images(path):
     global imgfiles
-    img_fmts = ['.jpg', '.jpeg', '.png', '.pdf', '.gif']
+    img_fmts = ['.jpg', '.jpeg', '.png', '.gif','.svg']
     imgfiles = []
     for fmt in img_fmts: imgfiles += glob.glob(path+'/*'+fmt)
     imgfiles.sort()
 
+def find_tarballs(path):
+    global tarballfiles
+    img_fmts = ['.tar.gz']
+    tarballfiles = []
+    for fmt in img_fmts: tarballfiles += glob.glob(path+'/*'+fmt)
+    tarballfiles.sort()
+
+def find_thermo(path):
+    global thermofile
+    if os.path.isfile(path+'/thermo.dat'): thermofile = path+"/thermo.dat"
+    else: thermofile = None
+
 @app.route('/img/<number>')
+@requires_auth
 def serve_image(number):
     global imgfiles
     return send_file(imgfiles[int(number)],cache_timeout=-1)
 
+@app.route('/metadata/')
+@requires_auth
+def serve_metadata():
+    global metadatafile
+    response = send_file(metadatafile,cache_timeout=-1,as_attachment=True)
+    response.headers["x-filename"] = "metadata"
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
+
+
+@app.route('/thermo/')
+@requires_auth
+def serve_thermo():
+    global thermofile
+    response = send_file(thermofile,cache_timeout=-1,as_attachment=True)
+    response.headers["x-filename"] = "thermo.dat"
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
+
+@app.route('/tarball/<filename>/<number>')
+@requires_auth
+def serve_tarball(filename,number):
+    print (filename)
+    global tarballfiles
+    response = send_file(tarballfiles[int(number)],cache_timeout=-1,as_attachment=True)
+    response.headers["x-filename"] = filename
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
+
 @app.route('/table/<table>/entry/<entry>', methods=['GET','POST'])
+@requires_auth
 def table_entry(table,entry):
 
     global imgfiles
+    global metadatafile
+    global thermofile
 
     db = sqlite3.connect('results.db')
     db.text_factory = str
@@ -158,6 +237,9 @@ def table_entry(table,entry):
     data = cur.fetchall()[0]
 
     find_images(data[1])
+    find_tarballs(data[1])
+    metadatafile=data[1]+"/metadata"
+    find_thermo(data[1])
     
     db.commit()
     db.close()
@@ -167,7 +249,9 @@ def table_entry(table,entry):
                            entry=entry,
                            columns=columns,
                            data=data,
-                           imgfiles=[os.path.split(im)[1] for im in imgfiles])
+                           thermofile=thermofile,
+                           imgfiles=[os.path.split(im)[1] for im in imgfiles],
+                           tarballfiles=[os.path.split(tb)[1] for tb in tarballfiles])
 
 if __name__ == '__main__':
     app.run(debug=True,

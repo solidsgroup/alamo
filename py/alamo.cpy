@@ -116,7 +116,6 @@ struct ListToSetVector{
 #include "Model/Solid/LinearElastic/CrystalPlastic.cpy"
 #include "Model/Interface/GB/GB.cpy"
 #include "Test/Operator/Elastic.cpy"
-#include "Util.cpy"
 
 BOOST_PYTHON_MODULE(alamo)
 {
@@ -147,5 +146,6 @@ BOOST_PYTHON_MODULE(alamo)
 	exportUtil();
 	exportModelSolidLinearElastic();
 	exportModelCrystalPlastic();
+	exportModelInterfaceGB();
 	exportTestOperatorElastic();
 }

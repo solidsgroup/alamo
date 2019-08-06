@@ -64,6 +64,7 @@
 <h2>Tables</h2>
 <div class="list-group">
   {% for tab in tables %}
+  {% if table_name is not sameas "__tables__" %}
   {% if table_name == tab %}
   <a href="/table/{{tab}}" class="list-group-item active">
 	{{tab}}
@@ -76,6 +77,7 @@
   <a href="/table/{{tab}}" class="list-group-item">
 	{{tab}}
   </a>
+  {% endif %}
   {% endif %}
   {% endfor %}
 </div>

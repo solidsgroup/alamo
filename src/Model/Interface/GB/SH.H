@@ -9,8 +9,6 @@
 #include "Set/Set.H"
 #include "Util/Util.H"
 
-#include <boost/math/special_functions/spherical_harmonic.hpp>
-
 #define PI 3.14159265 
 
 namespace Model
@@ -19,21 +17,37 @@ namespace Interface
 {
 namespace GB
 {
+///
+/// A 2D interface model class. Under construction
+///
+/// Here are some useful trig identities for reference:
+///
+///     \f{align}{\sin(2 \arcsin x) &= 2 x \sqrt{1-x^2} &
+///               \cos(2 \arcsin x) &= 1 - 2 x^2 \\
+///               \sin(2 \arccos x) &= 2 x \sqrt{1-x^2} &
+///               \cos(2 \arccos x) &= 2 x^2 - 1 \\
+///               \sin(2 \arctan x) &= \frac{2 x}{1 + x^2}  &
+///               \cos(2 \arctan x) &= \frac{1-x^2}{1+x^2}	\f}
+/// Specializing for tangent:
+///     \f{align}{\sin(2 \arctan y/x) &= \frac{2 x y}{x^2 + y^2}	 &
+///               \cos(2 \arctan y/x) &= \frac{x^2-y^2}{x^2+y^2}  \f}
+///
 class SH : public GB
 {
 public:
 	SH()
 	{
 	};
-	SH(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
+	SH(const amrex::Real a_theta0, const amrex::Real a_phi0, const amrex::Real a_sigma0, const amrex::Real a_sigma1)
 	{
-		Define(_theta0,_sigma0,_sigma1);
+		Define(a_theta0,a_phi0,a_sigma0,a_sigma1);
 	};
-	void Define(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
+	void Define(const amrex::Real a_theta0, const amrex::Real a_phi0, const amrex::Real a_sigma0, const amrex::Real a_sigma1)
 	{
-		theta0 = _theta0;
-		sigma0 = _sigma0;
-		sigma1 = _sigma1;
+		theta0 = a_theta0;
+		phi0   = a_phi0;
+		sigma0 = a_sigma0;
+		sigma1 = a_sigma1;
 	};
 	void Randomize()
 	{
@@ -41,25 +55,60 @@ public:
 		sigma0 = Util::Random();
 		sigma1 = Util::Random();
 	};
-	amrex::Real W(amrex::Real theta)
+	amrex::Real W(const Set::Scalar a_theta, const Set::Scalar a_phi) const
 	{
-		//theta = theta*PI/180;
-		//theta0 = theta0*PI/180;
-		//return sin(2.0*(theta-theta0))*sin(2.0*(theta-theta0))*sigma1+sigma0;
-		return sigma0 + 0.5*sigma1*(1.0 - cos(4.0*(theta-theta0)));
+		return sigma0 + sigma1*(1.0 - (cos(2*(a_phi))*cos(2*(a_phi)) * sin(2*(a_theta))*sin(2*(a_theta))));
+	};
+	std::array<Set::Scalar,2> DW(const Set::Scalar a_theta, const Set::Scalar a_phi) const
+	{
+		return {- sigma1 * 4.0 * cos(2*a_phi) * cos(2*a_phi) * sin(2*a_theta) * cos(2*a_theta),
+				+ sigma1 * 4.0 * sin(2*a_phi) * cos(2*a_phi) * sin(2*a_theta) * sin(2*a_theta)} ;
+	};
+
+	Set::Scalar W(const Set::Vector a_n) const
+	{
+		Set::Vector n = a_n / a_n.lpNorm<2>();
+		Set::Scalar theta = std::acos(n(0));
+		Set::Scalar phi   = std::atan2(n(2),n(1));
+		return W(theta,phi);
+	};
+	Set::Vector DW(const Set::Vector a_n) const
+	{
+		Util::Abort(INFO,"Can't seem to get this to work - not safe to use!");
+		Set::Vector dw;
+		//Set::Vector n = a_n / a_n.lpNorm<2>();
+		//Set::Scalar theta = std::acos(n(2));
+		//Set::Scalar phi   = std::atan2(n(1),n(0));
+		//std::array<Set::Scalar,2> dw1 = DW(theta,phi);
+		//Set::Scalar w_theta = dw1[0], w_phi = dw1[1];
+		//dw(0) =  -w_phi * sin(phi) + w_theta*cos(theta)*cos(phi) ; // stubbornly wrong
+		//dw(1) =  +w_phi * cos(phi) + w_theta*cos(theta)*sin(phi) ; // stubbornly wrong
+		//dw(2) =  -w_theta * sin(theta); // inexplicably correct
+		return dw;
+	};
+	Set::Scalar DW(const Set::Vector a_n, const Set::Vector t_n) const
+	{
+		const Set::Scalar alpha = 1E-4;
+		return (W(a_n + alpha*t_n) - W(a_n - alpha*t_n)) / 2.0 / alpha;
+	};
+	Set::Scalar DDW(const Set::Vector a_n, const Set::Vector t_n) const
+	{
+		const Set::Scalar alpha = 1E-4;
+		return (W(a_n + alpha*t_n) - 2.0*W(a_n) + W(a_n - alpha*t_n)) / alpha / alpha;
+	};
+
+
+	amrex::Real W(amrex::Real theta) 
+	{
+		return NAN;
 	};
 	amrex::Real DW(amrex::Real theta)
 	{
-		//theta = theta*PI/180;
-		//theta0 = theta0*PI/180;
-		//return 4.0*sigma1*sin(2.0*(theta-theta0))*cos(2.0*(theta-theta0));
-		return 2.0*sigma1*sin(4.0*(theta-theta0));
+		return NAN;
 	};
 	amrex::Real DDW(amrex::Real theta)
 	{
-		//theta = theta*PI/180;
-		//    theta0 = theta0*PI/180;
-		return 8.0*sigma1*cos(4.0*(theta-theta0));
+		return NAN;
 	};
   
 	//virtual amrex::Real operator()(amrex::Real theta)
@@ -70,7 +119,7 @@ public:
 	//};
   
 private:
-	amrex::Real theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
+	amrex::Real theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;
 };
 }
 }

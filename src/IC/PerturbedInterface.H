@@ -4,13 +4,13 @@
 #include "IC/IC.H"
 #include "Util/Util.H"
 
-namespace IC
-{
+/// \class PerturbedInterface
 /// \brief Initialize a perturbed interface using Fourier Modes
 ///
 /// \todo Extend this class to allow for 3D perturbations, currently only 2D are allowed
 /// \todo Allow for cosine (or complex exponential) expansions rather than just sin.
 /// \note This is a **two grain only** initial condition.
+/// \note This replaces the depricated "perturbed_bar" initial condition from previous versions
 ///
 /// The interface is defined as the \f$x=0\f$ plane (2D), or the \f$x=0,z=0\f$ plane (3D).
 /// The equation for the interface is given by
@@ -20,6 +20,8 @@ namespace IC
 /// and \f$L_x\f$ is the length in the x direction (obtained using the #geom object).
 ///
 /// Grain 1 is defined as being above \f$y(x,z)\f$, Grain 2 is defined as being below.
+namespace IC
+{
 class PerturbedInterface : public IC
 {
 public:
