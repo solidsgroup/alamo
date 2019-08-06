@@ -1,5 +1,5 @@
-#ifndef IC_FLAME_WEDGE_H_
-#define IC_FLAME_WEDGE_H_
+#ifndef IC_WEDGE_H_
+#define IC_WEDGE_H_
 
 #include "IC/IC.H"
 
