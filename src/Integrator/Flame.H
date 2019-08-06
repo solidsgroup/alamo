@@ -11,6 +11,7 @@
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
 #include "IC/Wedge.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {

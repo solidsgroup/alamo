@@ -69,6 +69,7 @@ Flame::Flame () : Integrator()
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
 
   eta_ic = new IC::Wedge(geom);
+  // eta_ic = new IC::Constant(geom,value);
 
   RegisterNewFab(Temp,     TempBC, 1, 1, "Temp");
   RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old");
