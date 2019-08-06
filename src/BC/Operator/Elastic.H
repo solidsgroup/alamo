@@ -128,26 +128,68 @@ public:
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 		for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
 		{
-			if (i==lo.x                                && j==hi.y && 
-			    (m_bc_lo[0][p] == Type::Displacement || m_bc_hi[1][p] == Type::Displacement))
-			{
-				f(p) = u(p);
-				continue;
-			}
-			if (i==lo.x                                && k==hi.z && 
-			    (m_bc_lo[0][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
-			{
-				f(p) = u(p);
-				continue;
-			}
-			if (i==hi.x                                && j==hi.y && 
-			    (m_bc_hi[0][p] == Type::Displacement || m_bc_hi[1][p] == Type::Displacement))
+			// corners
+			AMREX_D_TERM(
+			if (AMREX_D_TERM( i==lo.x, && j==lo.y, && k==lo.z) &&
+			    (AMREX_D_TERM(m_bc_lo[0][p] == Type::Displacement, || m_bc_lo[1][p] == Type::Displacement, || m_bc_lo[2][p] == Type::Displacement)))
 			{
 			 	f(p) = u(p);
 			 	continue;
 			}
-			if (i==hi.x                                && k==hi.z && 
-			    (m_bc_hi[0][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
+			if (AMREX_D_TERM(i==hi.x,&& j==lo.y,&& k==lo.z) &&
+			    (AMREX_D_TERM(m_bc_hi[0][p] == Type::Displacement, || m_bc_lo[1][p] == Type::Displacement, || m_bc_lo[2][p] == Type::Displacement)))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			},
+			if (AMREX_D_TERM(i==lo.x, && j==hi.y, && k==lo.z) &&
+			    (AMREX_D_TERM(m_bc_lo[0][p] == Type::Displacement, || m_bc_hi[1][p] == Type::Displacement, || m_bc_lo[2][p] == Type::Displacement)))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (AMREX_D_TERM(i==hi.x,&& j==hi.y, && k==lo.z) &&
+			    (AMREX_D_TERM(m_bc_hi[0][p] == Type::Displacement, || m_bc_hi[1][p] == Type::Displacement, || m_bc_lo[2][p] == Type::Displacement)))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			},
+			if (AMREX_D_TERM(i==lo.x, && j==lo.y, && k==hi.z) &&
+			    (AMREX_D_TERM(m_bc_lo[0][p] == Type::Displacement, || m_bc_lo[1][p] == Type::Displacement, || m_bc_hi[2][p] == Type::Displacement)))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (AMREX_D_TERM(i==lo.x, && j==hi.y, && k==hi.z) &&
+			    (AMREX_D_TERM(m_bc_lo[0][p] == Type::Displacement, || m_bc_hi[1][p] == Type::Displacement, || m_bc_hi[2][p] == Type::Displacement)))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (AMREX_D_TERM(i==hi.x, && j==lo.y, && k==hi.z) &&
+			    (AMREX_D_TERM(m_bc_hi[0][p] == Type::Displacement, || m_bc_lo[1][p] == Type::Displacement, || m_bc_hi[2][p] == Type::Displacement)))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (AMREX_D_TERM(i==hi.x, && j==hi.y, && k==hi.z) &&
+			    (AMREX_D_TERM(m_bc_hi[0][p] == Type::Displacement, || m_bc_hi[1][p] == Type::Displacement, || m_bc_hi[2][p] == Type::Displacement)))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			});
+
+			// Displacement edges
+			AMREX_D_TERM(
+			,
+			if (i==lo.x                                && j==lo.y && 
+			    (m_bc_lo[0][p] == Type::Displacement || m_bc_lo[1][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (i==lo.x                                && j==hi.y && 
+			    (m_bc_lo[0][p] == Type::Displacement || m_bc_hi[1][p] == Type::Displacement))
 			{
 			 	f(p) = u(p);
 			 	continue;
@@ -158,14 +200,99 @@ public:
 			 	f(p) = u(p);
 			 	continue;
 			}
+			if (i==hi.x                                && j==hi.y && 
+			    (m_bc_hi[0][p] == Type::Displacement || m_bc_hi[1][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			,
+			if (i==lo.x                                && k==hi.z && 
+			    (m_bc_lo[0][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (i==lo.x                                && k==lo.z && 
+			    (m_bc_lo[0][p] == Type::Displacement || m_bc_lo[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (i==hi.x                                && k==hi.z && 
+			    (m_bc_hi[0][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
 			if (i==hi.x                                && k==lo.z && 
 			    (m_bc_hi[0][p] == Type::Displacement || m_bc_lo[2][p] == Type::Displacement))
 			{
 			 	f(p) = u(p);
 			 	continue;
 			}
-			
+			if (j==lo.y                                && k==lo.z && 
+			    (m_bc_lo[1][p] == Type::Displacement || m_bc_lo[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (j==lo.y                                && k==hi.z && 
+			    (m_bc_lo[1][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (j==hi.y                                && k==lo.z && 
+			    (m_bc_hi[1][p] == Type::Displacement || m_bc_lo[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			if (j==hi.y                                && k==hi.z && 
+			    (m_bc_hi[1][p] == Type::Displacement || m_bc_hi[2][p] == Type::Displacement))
+			{
+			 	f(p) = u(p);
+			 	continue;
+			}
+			);
 
+			AMREX_D_TERM(
+			,
+			// X-Y traction edges...
+			if (i == hi.x                       && j == hi.y &&
+			    m_bc_hi[0][p] == Type::Traction && m_bc_hi[1][p] == Type::Traction)
+			{
+				Set::Vector n(1.0,1.0,0.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (i == lo.x                       && j == hi.y &&
+			    m_bc_lo[0][p] == Type::Traction && m_bc_hi[1][p] == Type::Traction)
+			{
+				Set::Vector n(-1.0,1.0,0.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (i == hi.x                       && j == lo.y &&
+			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[1][p] == Type::Traction)
+			{
+				Set::Vector n(1.0,-1.0,0.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (i == lo.x                       && j == lo.y &&
+			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[1][p] == Type::Traction)
+			{
+				Set::Vector n(-1.0,-1.0,0.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			,
 			// Y-Z traction edges...
 			if (j == hi.y                       && k == hi.z &&
 			    m_bc_hi[1][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
@@ -200,6 +327,40 @@ public:
 				continue;
 			}
 
+			// X-Z traction edges...
+			if (i == hi.x                       && k == hi.z &&
+			    m_bc_hi[0][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
+			{
+				Set::Vector n(1.0,0.0,1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (i == lo.x                       && k == hi.z &&
+			    m_bc_lo[0][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
+			{
+				Set::Vector n(-1.0,0.0,1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (i == hi.x                       && k == lo.z &&
+			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
+			{
+				Set::Vector n(1.0,0.0,-1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			if (i == lo.x                       && k == lo.z &&
+			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
+			{
+				Set::Vector n(-1.0,0.0,-1.0);
+				Set::Vector t = sigma*n;
+				f(p) = t(p);
+				continue;
+			}
+			);
 
 			for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
 			{

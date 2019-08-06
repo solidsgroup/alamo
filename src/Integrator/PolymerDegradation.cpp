@@ -346,13 +346,22 @@ PolymerDegradation::PolymerDegradation():
 
 		if(elastic.type == "tensile_test" || elastic.type == "tensile")
 		{
-			AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("disp", "neumann", "neumann")};
+			/*AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("disp", "neumann", "neumann")};
 							bc_x_hi_str = {AMREX_D_DECL("disp", "trac", "trac")};
 							,
 							bc_y_lo_str = {AMREX_D_DECL("neumann", "disp", "neumann")};
 							bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
 							,
 							bc_z_lo_str = {AMREX_D_DECL("neumann", "neumann", "disp")};
+							bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};);*/
+
+			AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("disp", "trac", "trac")};
+							bc_x_hi_str = {AMREX_D_DECL("disp", "trac", "trac")};
+							,
+							bc_y_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
+							bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
+							,
+							bc_z_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
 							bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};);
 
 			AMREX_D_TERM(	elastic.bc_xlo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]],bc_map[bc_x_lo_str[1]],bc_map[bc_x_lo_str[2]])};
