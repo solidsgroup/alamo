@@ -27,12 +27,14 @@
 
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 
 
 namespace Integrator
 {
+//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
 using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Laplacian;
@@ -74,15 +76,10 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_old;		///< Degradation variable for the __previous__timestep
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_w_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_w_old;		///< Degradation variable for the __previous__timestep
-
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_T_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_T_old;		///< Degradation variable for the __previous__timestep
-
 	// For water induced degradation
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;		///< Water concentration for the __current__timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc_old;	///< Water concentration for the __previous__timestep
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> >damage_start_time;
 
 	// For temperature induced degradation
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp;			///< Temperature for the __current__timestep
@@ -128,13 +125,18 @@ private:
 
 	// Damage parameters
 	struct{
-		std::string		type;
-		bool			anisotropy 					= false;
-		int				number_of_eta 				= 1;
-		Set::Scalar		refinement_threshold		= 0.01;
-		std::string 	ic_type;
-		IC::IC			*ic;
-		BC::BC			*bc;
+		std::string									type;
+		bool										anisotropy 					= false;
+		int											number_of_eta 				= 1;
+		amrex::Vector<Set::Scalar>					d_final;
+		amrex::Vector<int>							number_of_terms;
+		amrex::Vector<amrex::Vector<Set::Scalar> > 	d_i;
+		amrex::Vector<amrex::Vector<Set::Scalar> > 	tau_i;
+		amrex::Vector<amrex::Vector<Set::Scalar> > 	t_start_i;
+		Set::Scalar									refinement_threshold		= 0.01;
+		std::string 								ic_type;
+		IC::IC										*ic;
+		BC::BC										*bc;
 	} damage;
 
 	// Damage model: water relaxation
@@ -160,7 +162,12 @@ private:
 		Set::Scalar bottom_tol 				= 1.0E-6;
 		bool        on 						= false;
 		int         interval	 			= 1;
-		std::string type;
+		std::string type					= "single";
+		amrex::Vector<Set::Scalar> test_time;
+		Set::Scalar test_rate				= 1.; 
+		Set::Scalar test_duration			= 2.;
+		Set::Scalar test_dt					= 0.01;
+		int			current_test			= 0;
 		int         max_iter 				= 200;
 		int         max_fmg_iter 			= 0;
 		int 		bottom_max_iter			= 200;
@@ -194,6 +201,7 @@ private:
 
 	model_type 		*modeltype;
 	std::string 	input_material = "isotropic";
+	Set::Scalar		yieldstrength = 18.;
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
 
