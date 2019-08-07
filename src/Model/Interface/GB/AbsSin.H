@@ -23,7 +23,7 @@ public:
   };
   AbsSin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
   {       
-    Define(_theta0,sigma0,sigma1);
+    Define(_theta0,_sigma0,_sigma1);
   };
 	void Define(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
 	{
@@ -58,7 +58,7 @@ public:
   };
  
 private:
-  amrex::Real theta0, sigma0, sigma1;
+  amrex::Real theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
 };
 }
 }
