@@ -57,7 +57,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	if (component==0)
 	{
 	  AMREX_D_TERM(,
-	               bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+	           bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
 		       bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
 		       bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
 		       bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
@@ -116,7 +116,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-	        amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,AMREX_SPACEDIM,1);
+	    amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,AMREX_SPACEDIM,1);
 		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,AMREX_SPACEDIM,1);
 	}
 	
@@ -157,7 +157,6 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	{
 		Util::Message(INFO,"Printing plot file to ",plotfile);
 		WritePlotFile(plotfile);
-
 	}
 
 	// Find maximum solution error

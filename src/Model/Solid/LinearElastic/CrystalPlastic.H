@@ -31,8 +31,7 @@ private:
 	Set::Vector s;
 	bool on;
 	};
-	
-	std::array<Set::Scalar,21> C;
+	Set::Matrix4<3,Set::Sym::MajorMinor> C;
 	//********Matrial Slip Data**********//
 
 	std::array<slip,12> slipSystem;
@@ -53,8 +52,8 @@ private:
 	Set::Scalar dt = 1e-5;
 	//***********DFP************//
 
-	double w1 = 10.0;
-	double w2 = 10.0;
+	//double w1 = 10.0;
+	//double w2 = 10.0;
 
 public:
 	CrystalPlastic() 
@@ -64,12 +63,13 @@ public:
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	~CrystalPlastic() {};
+
 	virtual Set::Matrix operator () (Set::Matrix &eps) const;
-#if AMREX_SPACEDIM==2
-	virtual Set::Vector operator () (std::array<Set::Matrix,2> &gradeps);
-#elif AMREX_SPACEDIM==3
-	virtual Set::Vector operator () (std::array<Set::Matrix,3> &gradeps);
-#endif
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	virtual Set::Scalar    W (Set::Matrix &eps) const;
+	virtual Set::Matrix   DW (Set::Matrix &eps) const;
+	virtual Set::Vector   DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	virtual Set::Matrix4<3,Set::Sym::MajorMinor> DDW (Set::Matrix &eps) const;
 //----------------------//
 	template <typename T> inline constexpr
 	int sgn(T a)
@@ -92,35 +92,30 @@ public:
 	Set::Scalar f(vector2d x, const Set::Matrix& es);
 	vector2d getGrad(vector2d x, double dx, const Set::Matrix& sig);
 	vector2d DFP(vector2d x0, double tol, double alpha1, double alpha2, double dx, const Set::Matrix& sig);
-
-	matrix22 Jacobi(vector2d x, const Set::Matrix& es, double dx);
-	vector2d newtonrap(double dx, vector2d x0, const Set::Matrix& es);
-	vector2d newtonfunc(vector2d x, const Set::Matrix& es);
 //
 	void Randomize();
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	
 	CrystalPlastic operator + (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] + rhs.C[i]; return ret;}
-
-	void operator += (const CrystalPlastic &rhs)
-	{for (unsigned int i = 0; i < C.size(); i++) C[i] += rhs.C[i];}
+	{CrystalPlastic ret = *this; ret.C += rhs.C; return ret;}
 
 	CrystalPlastic operator - (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] - rhs.C[i]; return ret;}
+	{CrystalPlastic ret = *this; ret.C -= rhs.C; return ret;}
 
 	CrystalPlastic operator * (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] * rhs.C[i]; return ret;}
+	{CrystalPlastic ret = *this; ret.C *= rhs.C; return ret;}
 
 	CrystalPlastic operator / (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] / rhs.C[i]; return ret;}
-
-	CrystalPlastic operator / (const Set::Scalar alpha) const
-	{CrystalPlastic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]/alpha; return ret;}
+	{CrystalPlastic ret = *this; ret.C /= rhs.C; return ret;}
 
 	CrystalPlastic operator * (const Set::Scalar alpha) const
-	{CrystalPlastic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]*alpha; return ret;}
+	{CrystalPlastic ret = *this; ret.C *= alpha; return ret;}
+
+	CrystalPlastic operator / (const Set::Scalar alpha) const
+	{CrystalPlastic ret = *this; ret.C /= alpha; return ret;}
+
+	void operator += (const CrystalPlastic &rhs) {C += rhs.C;}
 
 
 };
