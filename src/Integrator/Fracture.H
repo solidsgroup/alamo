@@ -1,5 +1,5 @@
-#ifndef HEATCONDUCTION_INTEGRATOR_H
-#define HEATCONDUCTION_INTEGRATOR_H
+#ifndef FRACTURE_INTEGRATOR_H
+#define FRACTURE_INTEGRATOR_H
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -16,10 +16,22 @@
 #include "IC/HeatConduction/Cylinder.H"
 #include "IC/HeatConduction/Constant.H"
 #include "IC/Cuboid.H"
+#include "IC/Sphere.H"
 
-#define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
+#include "BC/Operator/Elastic.H"
+#include "BC/Constant.H"
 
+#include "Operator/Elastic.H"
+#include "Solver/Linear.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
+#include "Model/Solid/LinearElastic/LinearElastic.H"
+#include "Model/Solid/LinearElastic/Laplacian.H"
+
+#include "Model/Interface/Crack/Crack.H"
+#include "Model/Interface/Crack/Constant.H"
+
+#include "Numeric/Stencil.H"
 
 /// \class Fracture::Integrator
 /// \brief Solve the heat diffusion equation in 2D or 3D.
@@ -60,15 +72,63 @@ protected:
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
 
 private:
-  int number_of_components = 1;					///< Number of components
   int number_of_ghost_cells = 2;				///< Number of ghost cells
 
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_cold;
+
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressvm;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
+
+  struct{
+		Set::Scalar bottom_tol 				= 1.0E-6;
+		int         interval	 			= 1;
+		std::string type					= "single";
+		amrex::Vector<Set::Scalar> test_time;
+		Set::Scalar test_rate				= 1.; 
+		//Set::Scalar test_duration			= 2.;
+		//Set::Scalar test_dt					= 0.01;
+		int			current_test			= 0;
+		int         max_iter 				= 200;
+		int         max_fmg_iter 			= 0;
+		int 		bottom_max_iter			= 200;
+		int 		max_fixed_iter 			= 5;
+		int         verbose 				= 3;
+		int         cgverbose 				= 3;
+		Set::Scalar tol_rel 				= 1.0E-5;
+		Set::Scalar tol_abs 				= 1.0E-5;
+		Set::Scalar cg_tol_rel 				= 1.0E-5;
+		Set::Scalar cg_tol_abs 				= 1.0E-5;
+		Set::Scalar tstart 					= 0.0;
+		Set::Scalar tend 					= 0.0;
+		std::string bottom_solver			= "bicgstab";
+		int 		linop_maxorder 	     	= 2;
+		bool	    use_fsmooth 			= false;
+		int 		max_coarsening_level	= 0;
+		bool 		agglomeration 	  		= true;
+		bool 		consolidation 	  		= false;
+
+		// Elastic BC
+		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
+		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
+
+		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
+		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
+		
+		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
+	} elastic;
+
+	model_type 		*modeltype;
+	std::string 	input_material = "isotropic";
+	Model::Interface::Crack::Crack *boundary;
 
   Set::Scalar refinement_threshold = 0.01;			///< Criterion for cell refinement
+  int nlevels;
 
   std::string ic_type;						///< String to determine what kind of initial condition to use
   IC::IC *ic;            					///< Pointer to abstract IC object
