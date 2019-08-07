@@ -8,6 +8,7 @@ import getpass
 from functools import wraps
 from flask import Flask, request, render_template, send_file, redirect, Response
 from flaskext.markdown import Markdown
+import datetime
 
 print("====================================")
 print("SIMBA: SIMulation Browser Analysis")
@@ -51,6 +52,21 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated    
 
+def format_datetime(value, format='medium'):
+    #t = parser.parse(value)
+    #datetime.
+    if not value: return value
+    
+    for fmt in ["%a %b%d %H:%M:%S %Y", "%a %b %d %H:%M:%S %Y"]:
+        try:
+            dt = datetime.datetime.strptime(str(value),fmt)
+            return(dt.strftime("%Y-%m-%d %H:%M:%S (%a)"))
+        except ValueError:
+            pass
+    print("Date parsing failed for string " + value + "")
+    return value
+
+
 if not args.safe and not args.ip == '127.0.0.1' or args.ip == 'localhost':
     print("=============  WARNING =============")
     print("It appears that you are starting    ")
@@ -66,6 +82,7 @@ script_directory = os.path.realpath(__file__)
 app = Flask(__name__)
 Markdown(app)
 
+app.jinja_env.filters['datetime'] = format_datetime
 
 @app.route("/", methods=['GET','POST'])
 @requires_auth
