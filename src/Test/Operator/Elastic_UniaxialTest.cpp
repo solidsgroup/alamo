@@ -4,7 +4,7 @@
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
-#include "Solver/Linear.H"
+#include "Solver/Nonlocal/Linear.H"
 
 namespace Test
 {
@@ -100,7 +100,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	
 	elastic.SetBC(&bc);
 
-	Solver::Linear mlmg(elastic);
+	Solver::Nonlocal::Linear mlmg(elastic);
 	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
