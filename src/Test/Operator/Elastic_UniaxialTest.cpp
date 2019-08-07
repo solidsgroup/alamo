@@ -1,6 +1,6 @@
 #include "Test/Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
+#include "Model/Solid/LinearElastic/Cubic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
@@ -19,11 +19,10 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	int failed = 0;
 
 	using model_type = Model::Solid::LinearElastic::Isotropic;
-	//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
-	//Set::Scalar _E10 = 1.0, _E20 = 0.18, _Tg = 319.0, _Ts = 17.0, _nu = 0.3, _temp = 298;
 	Set::Scalar lame=2.6, shear=6.0;
 	model_type model(lame, shear);
-	//model_type model(_E10,_E20,_Tg,_Ts,_nu,_temp);
+	//Use this instead to run for Cubic elastic case.
+	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model; model.Randomize(); 
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
 
@@ -97,7 +96,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	  bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
 	  bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
 	}
-#endif	temp
+#endif	
 	
 	elastic.SetBC(&bc);
 
@@ -120,7 +119,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-	    amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,AMREX_SPACEDIM,1);
+	        amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,AMREX_SPACEDIM,1);
 		amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,AMREX_SPACEDIM,1);
 	}
 	

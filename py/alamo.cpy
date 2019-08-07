@@ -114,7 +114,6 @@ struct ListToSetVector{
 #include "Util.cpy"
 #include "Model/Interface/GB/GB.cpy"
 #include "Test/Operator/Elastic.cpy"
-#include "Util.cpy"
 
 BOOST_PYTHON_MODULE(alamo)
 {
