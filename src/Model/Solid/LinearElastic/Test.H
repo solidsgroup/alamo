@@ -43,8 +43,8 @@ public:
 				if (verbose>1)
 				{
 					Util::Message(INFO,"Test failed");
-					Util::Message(INFO,"f1 = ", f1);
-					Util::Message(INFO,"f2 = ", f2);
+					Util::Message(INFO,"Implemented = ", f1.transpose());
+					Util::Message(INFO,"Calculated  = ", f2.transpose());
 				}
 				return 1;
 			}

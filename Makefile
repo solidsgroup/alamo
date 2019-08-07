@@ -39,7 +39,7 @@ CXX_COMPILE_FLAGS += -Winline -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 LINKER_FLAGS += -Bsymbolic-functions
 
 INCLUDE = $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
-LIB     = -L${AMREX}/lib/ -lamrex 
+LIB     = -L${AMREX}/lib/ -lamrex -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
 HDR_TEST = $(shell find src/ -name *Test.H)
@@ -154,12 +154,14 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
 	@make -C docs html > /dev/null
 
 
+ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),realclean)
 ifneq ($(MAKECMDGOALS),info)
 ifneq ($(MAKECMDGOALS),help)
 ifneq ($(MAKECMDGOALS),docs)
 -include $(DEP)
+endif
 endif
 endif
 endif

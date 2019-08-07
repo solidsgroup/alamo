@@ -247,8 +247,10 @@ private:
 	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
 	std::vector<std::string> PlotFileName (int lev) const;
+	std::vector<std::string> PlotFileName(std::string _name, int lev) const;
 protected:
 	void WritePlotFile (bool initial = false) const;
+	void WritePlotFile(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial=false) const;
 
 	//
 	// MEMBER VARIABLES
