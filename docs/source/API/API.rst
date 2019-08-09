@@ -13,8 +13,8 @@ This is basic documentation for the Alamo.
    Model/Model
    Numeric/Numeric
    Operator/Operator
+   Solver/Solver
    Test/Test
    Util/Util
-
 
 .. todolist::
