@@ -1,9 +1,10 @@
 #include "Test/Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/Cubic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
-#include "Solver/Linear.H"
+#include "Solver/Nonlocal/Linear.H"
 
 namespace Test
 {
@@ -20,6 +21,8 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	using model_type = Model::Solid::LinearElastic::Isotropic;
 	Set::Scalar lame=2.6, shear=6.0;
 	model_type model(lame, shear);
+	//Use this instead to run for Cubic elastic case.
+	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model; model.Randomize(); 
 
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
 
@@ -97,7 +100,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	
 	elastic.SetBC(&bc);
 
-	Solver::Linear mlmg(elastic);
+	Solver::Nonlocal::Linear mlmg(elastic);
 	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);

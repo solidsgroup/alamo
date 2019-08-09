@@ -22,6 +22,7 @@
 #include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 
+#include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
