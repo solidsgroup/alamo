@@ -892,10 +892,10 @@ Operator<Grid::Cell>::BndryCondLoc::BndryCondLoc (const amrex::BoxArray& ba, con
 }
 
 void
-Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
-					  const amrex::Array<BCType,AMREX_SPACEDIM>& lobc,
-					  const amrex::Array<BCType,AMREX_SPACEDIM>& hibc,
-					  int ratio, const amrex::RealVect& a_loc)
+Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& /*geom*/, const amrex::Real* /*dx*/,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& /*lobc*/,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& /*hibc*/,
+					  int /*ratio*/, const amrex::RealVect& /*a_loc*/)
 {
 	Util::Abort(INFO,"Functionality was disabled here due to compatibility");
 //	const amrex::Box&  domain = geom.Domain();
