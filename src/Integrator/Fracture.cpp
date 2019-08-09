@@ -1,7 +1,7 @@
 #include "Fracture.H"
 #include "BC/Constant.H"
 #include "Operator/Elastic.H"
-#include "Solver/Linear.H"
+#include "Solver/Nonlocal/Linear.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "BC/Operator/Elastic.H"
 //#include "IC/X.H"
@@ -131,10 +131,10 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 	}
 	Util::Message(INFO);	*/
 
-	Solver::Linear solver(elastic);
+	Solver::Nonlocal::Linear solver(elastic);
 	solver.setVerbose(3);
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	//solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(eigendef));
+	//solver.apply(GtVecOfPtrs(rhs),GetVecOfPtrs(eigendef));
 	solver.solve(GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs),tol_rel,tol_abs);
 	//for (int lev = 0; lev < sigma.size(); lev++)
 	//{
