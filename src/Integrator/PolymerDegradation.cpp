@@ -1,5 +1,5 @@
 #include "PolymerDegradation.H"
-#include "Solver/Linear.H"
+#include "Solver/Nonlocal/Linear.H"
 
 //#if AMREX_SPACEDIM == 1
 namespace Integrator
@@ -950,7 +950,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	 	     );
 
 	//Util::Message(INFO);
-	Solver::Linear solver(elastic_operator);
+	Solver::Nonlocal::Linear solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
 	solver.setFixedIter(elastic.max_fixed_iter);

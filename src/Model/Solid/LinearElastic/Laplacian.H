@@ -22,7 +22,7 @@ namespace LinearElastic
 /// \f[ \sigma_{ij} = \alpha\delta_{ik}\delta_{jl}u_{k,l} = \alpha u_{i,j} \f]
 /// \f[ f_{i} = \mathbb{C}_{ijkl}u_{k,jl} = \alpha\delta_{ik}\delta_{jl}u_{k,jl} = \alpha u_{i,jj} \f]
 ///
-class Laplacian : public Model::Solid::LinearElastic::LinearElastic
+class Laplacian : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Isotropic>
 {
 public:
 	Laplacian() {} ;

@@ -19,7 +19,7 @@ namespace LinearElastic
 /// Isotropic implements the following elastic model
 /// \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
 ///
-class Isotropic : public Model::Solid::LinearElastic::LinearElastic
+class Isotropic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Isotropic>
 {
 public:
 	Isotropic() {} ;
