@@ -10,15 +10,76 @@ namespace CrystalPlastic
 
 CrystalPlastic::CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R)
 {
-	initializeSlip();
+	initializeSlip(R);
 	define(C11, C12, C44, R);
-
-	
 }
 CrystalPlastic::CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
 {
-	initializeSlip();
+	initializeSlip(phi1, Phi, phi2);
 	define(C11, C12, C44, phi1, Phi, phi2);
+}
+void CrystalPlastic::initializeSlip(Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+{
+	Eigen::Matrix3d m;
+	m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+	Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+	initializeSlip(m);
+}
+void CrystalPlastic::initializeSlip(Set::Matrix R)
+{
+	Set::Vector n1 = {1,1,1};
+	Set::Vector n2 = {-1,-1,1};
+	Set::Vector n3 = {-1,1,1};
+	Set::Vector n4 = {1,-1,1};
+	
+	Set::Vector s11 = {0,-1,1};
+	Set::Vector s12 = {1,0,-1};
+	Set::Vector s13 = {-1,1,0};
+	Set::Vector s21 = {0,1,1};
+	Set::Vector s22 = {-1,0,-1};
+	Set::Vector s23 = {1,-1,0};
+	Set::Vector s31 = {0,-1,1};
+	Set::Vector s32 = {-1,0,-1};
+	Set::Vector s33 = {1,1,0};
+	Set::Vector s41 = {0,1,1};
+	Set::Vector s42 = {1,0,-1};
+	Set::Vector s43 = {-1,-1,0};
+
+	this->slp1.n = R*n1; this->slp1.s = R*s11;
+	this->slp2.n = R*n1; this->slp2.s = R*s12;
+	this->slp3.n = R*n1; this->slp3.s = R*s13;
+
+	this->slp4.n = R*n2; this->slp4.s = R*s21;
+	this->slp5.n = R*n2; this->slp5.s = R*s22;
+	this->slp6.n = R*n2; this->slp6.s = R*s23;
+
+	this->slp7.n = R*n3; this->slp7.s = R*s31;
+	this->slp8.n = R*n3; this->slp8.s = R*s32;
+	this->slp9.n = R*n3; this->slp9.s = R*s33;
+
+	this->slp10.n = R*n4; this->slp10.s = R*s41;
+	this->slp11.n = R*n4; this->slp11.s = R*s42;
+	this->slp12.n = R*n4; this->slp12.s = R*s43;
+
+	slipSystem[0] = slp1;
+	slipSystem[1] = slp2;
+	slipSystem[2] = slp3; 
+	slipSystem[3] = slp4;
+	slipSystem[4] = slp5;
+	slipSystem[5] = slp6; 
+	slipSystem[6] = slp7;
+	slipSystem[7] = slp8;
+	slipSystem[8] = slp9; 
+	slipSystem[9] = slp10;
+	slipSystem[10] = slp11; 
+	slipSystem[11] = slp12;
+	for(int i = 0; i < 12; i++)
+	{
+		slipSystem[i].on = false;
+		Util::Message(INFO,"n = ", slipSystem[i].n.transpose());
+		Util::Message(INFO,"s = ", slipSystem[i].s.transpose());
+	}
 }
 void CrystalPlastic::initializeSlip()
 {
@@ -80,7 +141,7 @@ double CrystalPlastic::CalcSSigN (const Set::Vector ss, const Set::Vector nn, co
 	a = ss.transpose()*sig*nn;
 	return a;
 }
-void CrystalPlastic::GetActivePlains(const Set::Matrix sig)
+void CrystalPlastic::GetActivePlains(const Set::Matrix& sig)
 {
 	double a = 0;
 	for(int i = 0; i <= 12; i++)
@@ -93,7 +154,7 @@ void CrystalPlastic::GetActivePlains(const Set::Matrix sig)
 	}	
 }
 
-Set::Scalar CrystalPlastic::GetGammaDot(const Set::Vector ss, const Set::Vector nn, const Set::Matrix sig)
+Set::Scalar CrystalPlastic::GetGammaDot(const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig)
 {
 	double gamma;
 	double power = pow( (abs(CalcSSigN( ss,nn,sig )) /Tcrss ) ,n );
@@ -101,7 +162,7 @@ Set::Scalar CrystalPlastic::GetGammaDot(const Set::Vector ss, const Set::Vector 
 	return gamma;
 }
 
-void CrystalPlastic::AdvanceEsp( const Set::Matrix sig)
+void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 {
 	GetActivePlains(sig);
 	Set::Matrix temp = Set::Matrix::Zero();
@@ -212,7 +273,7 @@ Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::getGrad(vector2d x
 	return grad;
 }
 //--------------------------------//
-Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::reflux(const Set::Matrix& sig, const double e) 
+Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::relax(const Set::Matrix& sig, const double e) 
 {
 	
 	vector2d x; x(0) = -e+1; x(1) = -e + 1; //w1 = 10; w2 = 10;
@@ -231,10 +292,6 @@ Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::reflux(const Set::
 		//Util::Message(INFO,"ffff= ", counter);
 	}
 	return x;
-	
-//vector2d x; x(0) = -e; x(1) = -e;
-//	vector2d a = newtonrap(1e-5,x, sig);
-//	return a;
 }
 void
 CrystalPlastic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)

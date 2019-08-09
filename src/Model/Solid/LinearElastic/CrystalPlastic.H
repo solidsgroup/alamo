@@ -24,6 +24,8 @@ private:
 	using matrix22 = Eigen::Matrix<amrex::Real,dim,dim>;
 
 	void initializeSlip();
+	void initializeSlip(Set::Matrix R);
+	void initializeSlip(Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	
 	struct slip
 	{
@@ -31,7 +33,6 @@ private:
 	Set::Vector s;
 	bool on;
 	};
-	Set::Matrix4<3,Set::Sym::MajorMinor> C;
 	//********Matrial Slip Data**********//
 
 	std::array<slip,12> slipSystem;
@@ -42,7 +43,8 @@ private:
 	slip slp9; slip slp10;
 	slip slp11; slip slp12;
 	//********Matrial Matrix**********//
-	
+
+	Set::Matrix4<3,Set::Sym::MajorMinor> C;
 	Set::Matrix esp = Set::Matrix::Zero();
 	//********Matrial Constants**********//
 
@@ -79,13 +81,13 @@ public:
 		return 0;
 	}
 	double CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix sig);
-	void GetActivePlains(const Set::Matrix sig); //used in update esp function
+	void GetActivePlains(const Set::Matrix& sig); //used in update esp function
 	Set::Matrix UpdateSigma(const Set::Matrix es);
-	Set::Scalar GetGammaDot(const Set::Vector ss, const Set::Vector nn, const Set::Matrix sig);
+	Set::Scalar GetGammaDot(const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig);
 	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
-	void AdvanceEsp(const Set::Matrix sig);
+	void AdvanceEsp(const Set::Matrix& sig);
 	void Setdt(const double _dt);
-	vector2d reflux(const Set::Matrix& sig, double e);
+	vector2d relax(const Set::Matrix& sig, double e);
 	Set::Matrix GetEsp() const;
 //DFP
 	double secantMethod(double dx, double a1, double a2, double tol, vector2d x_new, vector2d r, const Set::Matrix& sig);

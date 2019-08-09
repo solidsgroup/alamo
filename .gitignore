@@ -33,6 +33,7 @@ Makefile.pre.conf
 Makefile.post.conf
 *.so
 .vscode
+*.mypy_cache
 visitlog.py
 amrex
 amrex.build.log
