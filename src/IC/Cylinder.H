@@ -10,17 +10,20 @@
 ///
 namespace IC
 {
-class Cylinder : public IC::IC
+class Cylinder : public IC
 {
 public:
-  Cylinder (amrex::Vector<amrex::Geometry> &_geom) :
-    IC::IC(_geom)
+  Cylinder (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)
   {
-    amrex::ParmParse pp("ic");
-    pp.query("Tin", Tin);
-    pp.query("Tout", Tout);
+	Define(_Tin,_Tout)
   }
-  
+
+void Define (amrex::Real _Tin, amrex::Real _Tout)
+  {
+	Tin = _Tin;
+	Tout = _Tout;
+  }
+
 virtual void Add(const int lev,
 		amrex::Vector<amrex::MultiFab * > &field)
   {
@@ -56,7 +59,7 @@ virtual void Add(const int lev,
   };
   
 private:
-  amrex::Real Tin, Tout;
+	amrex::Real Tin, Tout;
 };
 }
 #endif

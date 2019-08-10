@@ -67,8 +67,8 @@ private:
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
 
   std::string ic_type;						///< String to determine what kind of initial condition to use
-  IC::IC *ic;            					///< Pointer to abstract IC object
-  BC::BC *mybc;                   				///< Stock generic boundary condition object
+  IC::IC *IC;            					///< Pointer to abstract IC object
+  BC::BC *BC;                   				///< Stock generic boundary condition object
 };
 }
 #endif
