@@ -51,7 +51,7 @@ private:
 	amrex::Real fs_min = -1.0;
 	amrex::Real fs_max = 1.0;
 	
-	IC::IC *eta_ic;
+	IC::IC *EtaIC;
 
 };
 }
