@@ -96,6 +96,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("voronoi.number_of_grains", total_grains);
 			ic = new IC::Voronoi(geom,total_grains);
 		}
+		else if (ic_type == "packedspheres")
+		{
+			int total_grains = number_of_grains;
+			pp.query("packedspheres.number_of_grains", total_grains);
+			ic = new IC::PackedSpheres(geom,total_grains);
+		}
 		else if (ic_type == "circle" || ic_type == "sphere")
 			ic = new IC::Sphere(geom);
 		else

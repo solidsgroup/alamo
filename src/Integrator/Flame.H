@@ -10,6 +10,7 @@
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
+#include "IC/PackedSpheres.H"
 #include "IC/Wedge.H"
 
 namespace Integrator
@@ -34,6 +35,7 @@ private:
 	BC::BC *TempBC;
 	BC::BC *EtaBC;
 	IC::Voronoi *VoronoiIC;
+	IC::PackedSpheres *PackedSpheresIC;
 
 	// int number_of_fabs = 1;
 	// int number_of_components = 2;

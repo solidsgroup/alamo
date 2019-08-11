@@ -64,9 +64,11 @@ Flame::Flame () : Integrator()
   }
 
   VoronoiIC = new IC::Voronoi(geom);
+  PackedSpheresIC = new IC::PackedSpheres(geom);
   std::vector<Set::Scalar> fs(fs_number);
   for (int i = 0; i < fs_number; i++) fs[i] = 0.5*(1.0 + Util::Random());
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
+  PackedSpheresIC->Define(fs_number,fs,IC::PackedSpheres::Type::Values);
 
   eta_ic = new IC::Wedge(geom);
 
@@ -102,6 +104,7 @@ void Flame::Initialize (int lev)
 	eta_ic->Initialize(lev,Eta_old);
 	
 	VoronoiIC->Initialize(lev,FlameSpeedFab);
+	PackedSpheresIC->Initialize(lev,FlameSpeedFab);
 }
 
 
@@ -230,6 +233,7 @@ void Flame::Regrid(int lev, Set::Scalar /* time */)
 {
 	FlameSpeedFab[lev]->setVal(0.0);
 	VoronoiIC->Initialize(lev,FlameSpeedFab);
+	PackedSpheresIC->Initialize(lev,FlameSpeedFab);
 	Util::Message(INFO,"Regridding on level ", lev);
 }
 }
