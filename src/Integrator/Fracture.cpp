@@ -174,10 +174,11 @@ Fracture::Fracture() :
 	
 	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp");
 	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_cells, "RHS");
-	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_cells,	"strain");;
-	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_cells,	"stress");;
-	RegisterNodalFab (m_stressvm,	1,								number_of_ghost_cells,	"stress_vm");;
-	RegisterNodalFab (m_energy,		1,								number_of_ghost_cells,	"energy");;
+	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_cells,	"strain");
+	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_cells,	"stress");
+	RegisterNodalFab (m_stressvm,	1,								number_of_ghost_cells,	"stress_vm");
+	RegisterNodalFab (m_energy,		1,								number_of_ghost_cells,	"energy");
+	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_cells,	"energy");;
 	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_cells,	"residual");
 }
 
@@ -188,9 +189,11 @@ Fracture::~Fracture()
 void
 Fracture::Initialize (int lev)
 {
+	Util::Message(INFO);
 	ic->Initialize(lev,m_c);
 	ic->Initialize(lev,m_cold);
 
+	Util::Message(INFO);
 	m_disp[lev]->setVal(0.0);
 	m_strain[lev]->setVal(0.0);
 	m_stress[lev]->setVal(0.0);
@@ -199,6 +202,7 @@ Fracture::Initialize (int lev)
 	m_energy[lev]->setVal(0.0);
 	m_residual[lev]->setVal(0.0);
 	m_energy_pristine[lev] -> setVal(0.);
+	Util::Message(INFO);
 }
 
 void
@@ -209,6 +213,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 	  fracture model.
 	  For now we are just using isotropic degradation.
 	*/
+	Util::Message(INFO);
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
@@ -241,6 +246,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 void 
 Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
+	Util::Message(INFO);
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
