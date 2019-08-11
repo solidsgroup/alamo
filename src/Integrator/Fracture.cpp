@@ -27,6 +27,8 @@ Fracture::Fracture() :
 
 	if(ic_type == "cuboid")
 		ic = new IC::Cuboid(geom);
+	else if(ic_type == "ellipsoid")
+		ic = new IC::Ellipsoid(geom);
 	else
 		Util::Abort(INFO,"This type of IC hasn't been implemented yet");
 	

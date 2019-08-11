@@ -17,6 +17,7 @@
 #include "IC/HeatConduction/Constant.H"
 #include "IC/Cuboid.H"
 #include "IC/Sphere.H"
+#include "IC/Ellipsoid.H"
 
 #include "BC/Operator/Elastic.H"
 #include "BC/Constant.H"
