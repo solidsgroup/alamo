@@ -45,7 +45,7 @@ namespace LinearElastic
 ///    2. Passing in Bunge Euler angles
 /// If no matrix is specified, the Identity is used by default.
 /// 
-class Cubic : public Model::Solid::LinearElastic::LinearElastic
+class Cubic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::MajorMinor>
 {
 public:
 	Cubic() {} ;

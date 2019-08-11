@@ -2,6 +2,8 @@
 
 namespace Solver
 {
+namespace Nonlocal
+{
 /// \brief Multigrid Linear solver for multicomponent, multi-level operators
 /// 
 /// This class is a thin wrapper for the `amrex::MLMG` solver.
@@ -38,4 +40,5 @@ class Linear : public amrex::MLMG
     }
 
 };
+}
 }

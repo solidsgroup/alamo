@@ -19,7 +19,7 @@ namespace LinearElastic
 {
 namespace Degradable
 {
-class Isotropic2 : public Model::Solid::LinearElastic::LinearElastic
+class Isotropic2 : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Isotropic>
 {
 
 public:

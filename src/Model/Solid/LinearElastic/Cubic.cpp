@@ -31,7 +31,6 @@ Cubic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d
 {
   
 	amrex::Real Ctmp[3][3][3][3];
-	amrex::Real Crot[3][3][3][3];
 	C = Set::Matrix4<3,Set::Sym::MajorMinor>::Zero();
 
 	for(int i = 0; i < 3; i++) 
@@ -107,7 +106,7 @@ Cubic::DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
 	return (*this)(gradgradu);
 }
 Set::Matrix4<3,Set::Sym::MajorMinor>
-Cubic::DDW(Set::Matrix &gradu) const
+Cubic::DDW(Set::Matrix &/*gradu*/) const
 {
 	return C;
 }
