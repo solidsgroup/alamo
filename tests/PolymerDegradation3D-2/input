@@ -120,7 +120,6 @@ damage.bc.hi_3 = 0.0 0.0
 #=============== Elasticity parameters =====================================
 elastic.on 				=	true
 elastic.bottom_solver 	=	bicgstab
-
 elastic.composite_solve	=	1
 elastic.verbose			=	2
 elastic.cg_verbose 		=	0
