@@ -270,7 +270,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 	
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	BC::Operator::Elastic<model_type> bc;
-	elastic_operator.SetBC(&bc);
+	
 	Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -305,6 +305,8 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	m_rhs, geom);
 	);
 	Util::Message(INFO);
+
+	elastic_operator.SetBC(&bc);
 	Solver::Nonlocal::Linear solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
@@ -318,6 +320,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 	if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
+
 	solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
 	solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
 	for (int lev = 0; lev < nlevels; lev++)
