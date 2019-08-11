@@ -22,7 +22,7 @@
 #include "BC/Constant.H"
 
 #include "Operator/Elastic.H"
-#include "Solver/Linear.H"
+#include "Solver/Nonlocal/Linear.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"

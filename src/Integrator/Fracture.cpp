@@ -295,7 +295,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], elastic.bc_front[1], 	m_rhs, geom);
 		bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	m_rhs, geom);
 	);
-	Solver::Linear solver(elastic_operator);
+	Solver::Nonlocal::Linear solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
 	solver.setFixedIter(elastic.max_fixed_iter);
