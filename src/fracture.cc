@@ -5,7 +5,7 @@
 
 #include "Util/Util.H"
 #include "Integrator/CahnHilliard.H"
-#include "Integrator/PhaseFieldMicrostructure.H"
+#include "Integrator/Fracture.H"
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
 
@@ -15,11 +15,12 @@ int main (int argc, char* argv[])
 	Util::Initialize(argc,argv);
 
 	srand(1);
-	Integrator::Integrator *model =
-		new Integrator::PhaseFieldMicrostructure();
-	model->InitData();
-	model->Evolve();
-	delete model;
+	Integrator::Integrator *fracturemodel =
+		//new Integrator::PhaseFieldMicrostructure();
+		new Integrator::Fracture();
+	fracturemodel->InitData();
+	fracturemodel->Evolve();
+	delete fracturemodel;
 
 	Util::Finalize();
 } 

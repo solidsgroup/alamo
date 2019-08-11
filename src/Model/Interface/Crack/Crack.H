@@ -32,7 +32,7 @@ class Crack
     
 		for(amrex::Real theta=0; theta<2*pi; theta=theta+dTheta)
 			{
-				outFile << theta << " " << W(theta) << std::endl;   
+				outFile << theta << " " << Epc(theta) << std::endl;   
 			}
 		outFile.close();
     
