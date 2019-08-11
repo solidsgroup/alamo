@@ -180,6 +180,7 @@ Fracture::Fracture() :
 	RegisterNodalFab (m_energy,		1,								number_of_ghost_cells,	"energy");
 	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_cells,	"energy");;
 	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_cells,	"residual");
+	nlevels = maxLevel() + 1;
 }
 
 Fracture::~Fracture()
@@ -260,7 +261,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		model[ilev].setVal(*modeltype);
 		ScaledModulus(ilev,model[ilev]);
 	}
-
+	Util::Message(INFO);
 	Operator::Elastic<model_type> elastic_operator;
 	elastic_operator.define(geom, grids, dmap, info);
 
@@ -270,7 +271,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	BC::Operator::Elastic<model_type> bc;
 	elastic_operator.SetBC(&bc);
-
+	Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		const Real* DX = geom[ilev].CellSize();
@@ -303,6 +304,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], elastic.bc_front[1], 	m_rhs, geom);
 		bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	m_rhs, geom);
 	);
+	Util::Message(INFO);
 	Solver::Nonlocal::Linear solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
