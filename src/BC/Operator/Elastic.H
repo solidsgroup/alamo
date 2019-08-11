@@ -263,7 +263,7 @@ public:
 			if (i == hi.x                       && j == hi.y &&
 			    m_bc_hi[0][p] == Type::Traction && m_bc_hi[1][p] == Type::Traction)
 			{
-				Set::Vector n(1.0,1.0,0.0);
+				Set::Vector n(AMREX_D_DECL(1.0,1.0,0.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -271,7 +271,7 @@ public:
 			if (i == lo.x                       && j == hi.y &&
 			    m_bc_lo[0][p] == Type::Traction && m_bc_hi[1][p] == Type::Traction)
 			{
-				Set::Vector n(-1.0,1.0,0.0);
+				Set::Vector n(AMREX_D_DECL(-1.0,1.0,0.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -279,7 +279,7 @@ public:
 			if (i == hi.x                       && j == lo.y &&
 			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[1][p] == Type::Traction)
 			{
-				Set::Vector n(1.0,-1.0,0.0);
+				Set::Vector n(AMREX_D_DECL(1.0,-1.0,0.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -287,7 +287,7 @@ public:
 			if (i == lo.x                       && j == lo.y &&
 			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[1][p] == Type::Traction)
 			{
-				Set::Vector n(-1.0,-1.0,0.0);
+				Set::Vector n(AMREX_D_DECL(-1.0,-1.0,0.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -297,7 +297,7 @@ public:
 			if (j == hi.y                       && k == hi.z &&
 			    m_bc_hi[1][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
 			{
-				Set::Vector n(0,1.0,1.0);
+				Set::Vector n(AMREX_D_DECL(0,1.0,1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -305,7 +305,7 @@ public:
 			if (j == lo.y                       && k == hi.z &&
 			    m_bc_lo[1][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
 			{
-				Set::Vector n(0,-1.0,1.0);
+				Set::Vector n(AMREX_D_DECL(0,-1.0,1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -313,7 +313,7 @@ public:
 			if (j == hi.y                       && k == lo.z &&
 			    m_bc_hi[1][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
 			{
-				Set::Vector n(0,1.0,-1.0);
+				Set::Vector n(AMREX_D_DECL(0,1.0,-1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -321,7 +321,7 @@ public:
 			if (j == lo.y                       && k == lo.z &&
 			    m_bc_hi[1][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
 			{
-				Set::Vector n(0,-1.0,-1.0);
+				Set::Vector n(AMREX_D_DECL(0,-1.0,-1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -331,7 +331,7 @@ public:
 			if (i == hi.x                       && k == hi.z &&
 			    m_bc_hi[0][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
 			{
-				Set::Vector n(1.0,0.0,1.0);
+				Set::Vector n(AMREX_D_DECL(1.0,0.0,1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -339,7 +339,7 @@ public:
 			if (i == lo.x                       && k == hi.z &&
 			    m_bc_lo[0][p] == Type::Traction && m_bc_hi[2][p] == Type::Traction)
 			{
-				Set::Vector n(-1.0,0.0,1.0);
+				Set::Vector n(AMREX_D_DECL(-1.0,0.0,1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -347,7 +347,7 @@ public:
 			if (i == hi.x                       && k == lo.z &&
 			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
 			{
-				Set::Vector n(1.0,0.0,-1.0);
+				Set::Vector n(AMREX_D_DECL(1.0,0.0,-1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;
@@ -355,7 +355,7 @@ public:
 			if (i == lo.x                       && k == lo.z &&
 			    m_bc_hi[0][p] == Type::Traction && m_bc_lo[2][p] == Type::Traction)
 			{
-				Set::Vector n(-1.0,0.0,-1.0);
+				Set::Vector n(AMREX_D_DECL(-1.0,0.0,-1.0));
 				Set::Vector t = sigma*n;
 				f(p) = t(p);
 				continue;

@@ -117,9 +117,9 @@ Fracture::Fracture() :
 	bc_map["periodic"] 		= BC::Operator::Elastic<model_type>::Type::Periodic;
 
 		
-	bc_lo_1.clear(); bc_hi_1.clear();
-	bc_lo_2.clear(); bc_hi_2.clear();
-	bc_lo_3.clear(); bc_hi_3.clear();
+	AMREX_D_TERM(	bc_lo_1.clear(); bc_hi_1.clear();,
+					bc_lo_2.clear(); bc_hi_2.clear();,
+					bc_lo_3.clear(); bc_hi_3.clear(););
 	//amrex::Vector<Set::Scalar> bc_lo_1, bc_hi_1;
 	//amrex::Vector<Set::Scalar> bc_lo_2, bc_hi_2;
 	//amrex::Vector<Set::Scalar> bc_lo_3, bc_hi_3;
