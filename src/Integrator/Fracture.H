@@ -50,6 +50,7 @@
 ///    - See #Cylinder or #Constant
 namespace Integrator
 {
+using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 class Fracture : public Integrator
 {
 public:
@@ -70,6 +71,8 @@ protected:
 
   /// \brief Tag cells for mesh refinement based on temperature gradient
   void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
+  
+  void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
 
 private:
   int number_of_ghost_cells = 2;				///< Number of ghost cells
@@ -84,6 +87,7 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;
 
   struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
@@ -92,7 +96,7 @@ private:
 		amrex::Vector<Set::Scalar> test_time;
 		Set::Scalar test_rate				= 1.; 
 		//Set::Scalar test_duration			= 2.;
-		//Set::Scalar test_dt					= 0.01;
+		Set::Scalar test_dt					= 0.01;
 		int			current_test			= 0;
 		int         max_iter 				= 200;
 		int         max_fmg_iter 			= 0;

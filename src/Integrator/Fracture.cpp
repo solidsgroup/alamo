@@ -6,7 +6,7 @@ Fracture::Fracture() :
 	Integrator()
 {
 	// Crack model
-	arex::ParmParse pp_crack("crack");
+	amrex::ParmParse pp_crack("crack");
 	std::string crack_type;
 	pp_crack.query("type",crack_type);
 
@@ -16,7 +16,7 @@ Fracture::Fracture() :
 		Set::Scalar G_c, zeta;
 		pp_crack.query("G_c",G_c);
 		pp_crack.query("zeta",zeta);
-		boundary = new Crack::Constant(G_c,zeta);
+		boundary = new Model::Interface::Crack::Constant(G_c,zeta);
 	}
 	else
 		Util::Abort(INFO,"This crack model hasn't been implemented yet");
@@ -75,7 +75,7 @@ Fracture::Fracture() :
 
 	// Crack properties
 	
-	pp_crack.query("C_phi",crack.C_phi);
+	//pp_crack.query("C_phi",crack.C_phi);
 
 	// Elasticity properties
 	amrex::ParmParse pp_elastic("elastic");
@@ -117,9 +117,12 @@ Fracture::Fracture() :
 	bc_map["periodic"] 		= BC::Operator::Elastic<model_type>::Type::Periodic;
 
 		
-	amrex::Vector<Set::Scalar> bc_lo_1, bc_hi_1;
-	amrex::Vector<Set::Scalar> bc_lo_2, bc_hi_2;
-	amrex::Vector<Set::Scalar> bc_lo_3, bc_hi_3;
+	bc_lo_1.clear(); bc_hi_1.clear();
+	bc_lo_2.clear(); bc_hi_2.clear();
+	bc_lo_3.clear(); bc_hi_3.clear();
+	//amrex::Vector<Set::Scalar> bc_lo_1, bc_hi_1;
+	//amrex::Vector<Set::Scalar> bc_lo_2, bc_hi_2;
+	//amrex::Vector<Set::Scalar> bc_lo_3, bc_hi_3;
 
 	/* Need to replace this later with a proper specification of boundary.
 	   Right now we are hard-coding the tensile test and just requesting
@@ -193,6 +196,7 @@ Fracture::Initialize (int lev)
 	m_rhs[lev]->setVal(0.0);
 	m_energy[lev]->setVal(0.0);
 	m_residual[lev]->setVal(0.0);
+	m_energy_pristine[lev] -> setVal(0.);
 }
 
 void
@@ -219,14 +223,14 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 			// Right now this is a temporary fix.
 			amrex::Vector<Set::Scalar> _temp;
 			_temp.push_back( mul*(AMREX_D_TERM(	
-								boundary.Dw_phi(c_new(i,j,k,n)) + boundary.Dw_phi(c_new(i-1,j,k,n))
+								boundary->w_phi(c_new(i,j,k,0)) + boundary->w_phi(c_new(i-1,j,k,0))
 								, 
-								+ boundary.Dw_phi(c_new(i,j-1,k,n)) + boundary.Dw_phi(c_new(i-1,j-1,k,n))
+								+ boundary->w_phi(c_new(i,j-1,k,0)) + boundary->w_phi(c_new(i-1,j-1,k,0))
 								, 
-								+ boundary.Dw_phi(c_new(i,j,k-1,n)) + boundary.Dw_phi(c_new(i-1,j,k-1,n))
-								+ boundary.Dw_phi(c_new(i,j-1,k-1,n)) + boundary.Dw_phi(c_new(i-1,j-1,k-1,n)))
+								+ boundary->w_phi(c_new(i,j,k-1,0)) + boundary->w_phi(c_new(i-1,j,k-1,0))
+								+ boundary->w_phi(c_new(i,j-1,k-1,0)) + boundary->w_phi(c_new(i-1,j-1,k-1,0)))
 								));
-			modelfab(i,j,k,0).DegradeModulus(1.-_temp[0]);
+			modelfab(i,j,k,0).DegradeModulus(_temp[0]);
 		});
 	}
 	//Util::Message(INFO, "Exit");
@@ -244,7 +248,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
+		model[ilev].define(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
 		ScaledModulus(ilev,model[ilev]);
 	}
@@ -264,11 +268,83 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		const Real* DX = geom[ilev].CellSize();
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
-		AMREX_D_TERM(rhs[ilev]->setVal(elastic.body_force[0]*volume,0,1);,
-			     rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
-			     rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
+		AMREX_D_TERM(m_rhs[ilev]->setVal(elastic.body_force[0]*volume,0,1);,
+			     m_rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
+			     m_rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
 	}
 	elastic.bc_right[0] += elastic.test_rate*elastic.test_dt;
+	AMREX_D_TERM(
+		bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bc_xlo[0], elastic.bc_left[0], 	m_rhs, geom);
+		bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bc_xhi[0], elastic.bc_right[0], 	m_rhs, geom);
+		,
+		bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bc_xlo[1], elastic.bc_left[1], 	m_rhs, geom);
+		bc.Set(bc.Face::XHI, bc.Direction::Y, elastic.bc_xhi[1], elastic.bc_right[1], 	m_rhs, geom);
+		bc.Set(bc.Face::YLO, bc.Direction::X, elastic.bc_ylo[0], elastic.bc_bottom[0], 	m_rhs, geom);
+		bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bc_ylo[1], elastic.bc_bottom[1], 	m_rhs, geom);
+		bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bc_yhi[0], elastic.bc_top[0], 	m_rhs, geom);
+		bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bc_yhi[1], elastic.bc_top[1], 	m_rhs, geom);
+		,
+		bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bc_xlo[2], elastic.bc_left[2], 	m_rhs, geom);
+		bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bc_xhi[2], elastic.bc_right[2], 	m_rhs, geom);
+		bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bc_ylo[2], elastic.bc_bottom[2], 	m_rhs, geom);
+		bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bc_yhi[2], elastic.bc_top[2], 	m_rhs, geom);
+		bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bc_zlo[0], elastic.bc_back[0], 	m_rhs, geom);
+		bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bc_zlo[1], elastic.bc_back[1], 	m_rhs, geom);
+		bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bc_zlo[2], elastic.bc_back[2], 	m_rhs, geom);
+		bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bc_zhi[0], elastic.bc_front[0], 	m_rhs, geom);
+		bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], elastic.bc_front[1], 	m_rhs, geom);
+		bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	m_rhs, geom);
+	);
+	Solver::Linear solver(elastic_operator);
+	solver.setMaxIter(elastic.max_iter);
+	solver.setMaxFmgIter(elastic.max_fmg_iter);
+	solver.setFixedIter(elastic.max_fixed_iter);
+	solver.setVerbose(elastic.verbose);
+	solver.setCGVerbose(elastic.cgverbose);
+	solver.setBottomMaxIter(elastic.bottom_max_iter);
+	solver.setBottomTolerance(elastic.cg_tol_rel) ;
+	solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
+	for (int ilev = 0; ilev < nlevels; ilev++) if (m_disp[ilev]->contains_nan()) Util::Warning(INFO);
+
+	if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
+	else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
+	solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
+	for (int lev = 0; lev < nlevels; lev++)
+	{
+		elastic_operator.Strain(lev,*m_strain[lev],*m_disp[lev]);
+		elastic_operator.Stress(lev,*m_stress[lev],*m_disp[lev]);
+		elastic_operator.Energy(lev,*m_energy[lev],*m_disp[lev]);
+	}
+	for (int lev = 0; lev < nlevels; lev++)
+	{
+		for (amrex::MFIter mfi(*m_strain[lev],true); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box& box = mfi.validbox();
+			amrex::Array4<const Set::Scalar> const& strain_box = (*m_strain[lev]).array(mfi);
+			amrex::Array4<Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
+			amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+				Set::Matrix eps;
+				AMREX_D_PICK(
+					eps(0,0) = strain_box(i,j,k,0);
+					,
+					eps(0,0) = strain_box(i,j,k,0); eps(0,1) = strain_box(i,j,k,1);
+					eps(1,0) = strain_box(i,j,k,2); eps(1,1) = strain_box(i,j,k,3);
+					,
+					eps(0,0) = strain_box(i,j,k,0); eps(0,1) = strain_box(i,j,k,1); eps(0,2) = strain_box(i,j,k,2);
+					eps(1,0) = strain_box(i,j,k,3); eps(1,1) = strain_box(i,j,k,4); eps(1,2) = strain_box(i,j,k,5);
+					eps(2,0) = strain_box(i,j,k,6); eps(2,1) = strain_box(i,j,k,7); eps(2,2) = strain_box(i,j,k,8);
+				);
+				Set::Matrix sig;
+				sig = (*modeltype)(eps);
+				for (int m = 0; m < AMREX_SPACEDIM; m++)
+				{
+					for (int n = 0; n < AMREX_SPACEDIM; n++)
+						energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
+				}
+			});
+		}
+	}
 }
 
 void
@@ -284,17 +360,60 @@ Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		const amrex::Box& bx = mfi.validbox();
 		amrex::Array4<amrex::Real> const& c_old = (*m_cold[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
+		amrex::Array4<const Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
 
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+			amrex::Real AMREX_D_DECL(grad11 = (c_old(i+1,j,k,0) - 2.*c_old(i,j,k,0) + c_old(i-1,j,k,0))/DX[0]/DX[0],
+						 			 grad22 = (c_old(i,j+1,k,0) - 2.*c_old(i,j,k,0) + c_old(i,j-1,k,0))/DX[1]/DX[1],
+						 			 grad33 = (c_old(i,j,k+1,0) - 2.*c_old(i,j,k,0) + c_old(i,j,k-1,0))/DX[2]/DX[2]);
+			Set::Scalar rhs = 0.;	
+			amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
+			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+			Set::Scalar en_cell = mul*(AMREX_D_TERM(	
+								energy_box(i,j,k,0) + energy_box(i+1,j,k,0)
+								, 
+								+ energy_box(i,j+1,k,0) + energy_box(i+1,j+1,k,0)
+								, 
+								+ energy_box(i,j,k+1,0) + energy_box(i+1,j,k+1,0)
+								+ energy_box(i,j+1,k+1,0) + energy_box(i+1,j+1,k+1,0)
+								));
 
+			rhs += boundary->Epc(c_old(i,j,k,0)) > en_cell ? boundary->Dw_phi(c_old(i,j,k,0))*(boundary->Epc(c_old(i,j,k,0))-en_cell) : 0.;
+			rhs += boundary->kappa(c_old(i,j,k,0))*laplacian;
+			c_new(i,j,k,0) = c_old(i,j,k,0) + dt*rhs;
 		});
 	}
 }
 
+#define C_NEW(i,j,k,m) c_new(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
 void
 Fracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
-	
+	const amrex::Real* dx      = geom[lev].CellSize();
+	amrex::Vector<int>  itags;
+	for (amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi)
+	{
+		const amrex::Box&  bx  = mfi.tilebox();
+		amrex::TagBox&     tag  = tags[mfi];
+		amrex::BaseFab<amrex::Real> &c_new = (*m_c[lev])[mfi];
+
+		AMREX_D_TERM(		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
+					)
+			{
+				AMREX_D_TERM(	Set::Scalar gradx = (C_NEW(i+1,j,k,0) - C_NEW(i-1,j,k,0))/(2.*dx[0]);,
+								Set::Scalar grady = (C_NEW(i,j+1,k,0) - C_NEW(i,j-1,k,0))/(2.*dx[1]);,
+								Set::Scalar gradz = (C_NEW(i,j,k+1,0) - C_NEW(i,j,k-1,0))/(2.*dx[2]);
+					)
+				Set::Scalar grad = sqrt(AMREX_D_TERM(gradx*gradx, + grady*grady, + gradz*gradz));
+				Set::Scalar dr = sqrt(AMREX_D_TERM(dx[0]*dx[0], + dx[1]*dx[1], + dx[2]*dx[2]));
+
+				if(grad*dr > refinement_threshold)
+					tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
+			}
+
+	}
 }
 
 }
