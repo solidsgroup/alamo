@@ -238,7 +238,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 								+ boundary->w_phi(c_new(i,j,k-1,0)) + boundary->w_phi(c_new(i-1,j,k-1,0))
 								+ boundary->w_phi(c_new(i,j-1,k-1,0)) + boundary->w_phi(c_new(i-1,j-1,k-1,0)))
 								));
-			modelfab(i,j,k,0).DegradeModulus(_temp[0]);
+			modelfab(i,j,k,0).DegradeModulus(std::min(_temp[0],0.8));
 		});
 	}
 	//Util::Message(INFO, "Exit");
