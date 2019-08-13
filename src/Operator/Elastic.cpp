@@ -1,5 +1,6 @@
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Solid/Viscoelastic/Isotropic.H"
@@ -755,6 +756,7 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 
 template class Elastic<Model::Solid::LinearElastic::Isotropic>;
 template class Elastic<Model::Solid::LinearElastic::Cubic>;
+template class Elastic<Model::Solid::LinearElastic::Multiwell>;
 template class Elastic<Model::Solid::LinearElastic::Laplacian>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 template class Elastic<Model::Solid::Viscoelastic::Isotropic>;
