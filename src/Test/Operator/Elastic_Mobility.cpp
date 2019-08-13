@@ -4,7 +4,7 @@
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
-#include "Operator/Elastic.H"
+#include "Operator/Elastic2.H"
 #include "Solver/Nonlocal/Linear.H"
 
 namespace Test
@@ -52,7 +52,7 @@ int Elastic::Mobility(int verbose, int component, std::string plotfile)
  	if (m_maxCoarseningLevel > -1) info.setMaxCoarseningLevel(m_maxCoarseningLevel);
  	nlevels = geom.size();
 
-	::Operator::Elastic<model_type> elastic;
+	::Operator::Elastic2<model_type> elastic;
 	elastic.SetHomogeneous(false);
  	elastic.define(geom, cgrids, dmap, info);
 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
