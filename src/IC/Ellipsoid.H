@@ -52,7 +52,7 @@ public:
 								 if (dim >= 2) rsq += (y-center[1])*(y-center[1])/(radius[1]*radius[1]);,
 								 if (dim >= 3) rsq += (z-center[2])*(z-center[2])/(radius[2]*radius[2]););
 					if ( rsq < 1.0)
-						field(i,j,k,0) = 0.01;     
+						field(i,j,k,0) = 0.0;     
 					else
 						field(i,j,k,0) = 1.;
 				});
