@@ -75,6 +75,8 @@ protected:
   
   void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
 
+  void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
+
 private:
   int number_of_ghost_cells = 2;				///< Number of ghost cells
 
@@ -131,6 +133,8 @@ private:
 	model_type 		*modeltype;
 	std::string 	input_material = "isotropic";
 	Model::Interface::Crack::Crack *boundary;
+
+	Set::Scalar crack_energy, crack_energy_old;
 
   Set::Scalar refinement_threshold = 0.01;			///< Criterion for cell refinement
   int nlevels;

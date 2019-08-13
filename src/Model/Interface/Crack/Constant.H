@@ -33,6 +33,9 @@ public:
     
     Set::Scalar Dw_phi(Set::Scalar c)
     {
+        //Set::Scalar derivative = -12.*std::pow(c,2) + 12.*std::pow(c,3);
+        //if(std::abs(derivative) < 1e-2) return 0.;
+        //return derivative;
         return -12.*std::pow(c,2) + 12.*std::pow(c,3);
     };
 
@@ -41,11 +44,11 @@ public:
     
     Set::Scalar Epc(Set::Scalar /*theta*/)
     {
-        return Gc/(4.*C_phi*zeta);
+        return Gc/(4.0*C_phi*zeta);
     };
     Set::Scalar kappa(Set::Scalar /*theta*/)
     {
-        return Gc*zeta/(2*C_phi);
+        return Gc*zeta/(2.0*C_phi);
     };
 
 private:
