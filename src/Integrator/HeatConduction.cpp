@@ -26,11 +26,10 @@ HeatConduction::HeatConduction() :
 	// // Determine initial condition
 	if (ic_type == "cylinder")
 	{
-		IC = new IC::Cylinder(geom);
 		amrex::Real Tin, Tout;
 		pp.query("Tin", Tin);
     	pp.query("Tout", Tout);
-		IC->Define(Tin,Tout)
+		IC = new IC::Cylinder(geom,Tin,Tout);
 	}
 	else if (ic_type == "constant")
 		Util::Abort(INFO,"Need to fix this");
