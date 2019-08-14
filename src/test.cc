@@ -134,6 +134,7 @@ int main (int argc, char* argv[])
 		int subfailed = 0;
 		Test::Operator::Elastic test;
 	    test.Define(32,1);
+		Util::Message(INFO,"GOING...");
 		test.Mobility(1,0,"testoutput");
 		//subfailed += Util::Test::SubMessage("1 level,  Component 0",test.UniaxialTest(0,0));
 		//test.Define(32,2);

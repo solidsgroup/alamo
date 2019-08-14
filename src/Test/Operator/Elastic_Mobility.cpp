@@ -34,8 +34,8 @@ int Elastic::Mobility(int verbose, int component, std::string plotfile)
 	Set::Vector vec = Set::Vector::Zero();
 	vec[component]=0.1;
 
-	IC::Affine icrhs(geom, Set::Vector::Zero(), 1.0, Set::Vector::Zero() , false, 1.0);
-	icrhs.SetComp(component);
+	IC::Affine icrhs(geom, {0,1}, 0.2, {0.0,0.5} , true, 1.0);
+	icrhs.SetComp(0);
 
 	IC::Affine icexact(geom, vec, 1.0, Set::Vector::Zero(), false, 1.0);
 	icexact.SetComp(component);
@@ -56,17 +56,16 @@ int Elastic::Mobility(int verbose, int component, std::string plotfile)
 	elastic.SetHomogeneous(false);
  	elastic.define(geom, cgrids, dmap, info);
 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
-	BC::Operator::Elastic<model_type> bc;
 	
+	BC::Operator::Elastic<model_type> bc;
     bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
     bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
     bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
     bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
     bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_prescribed, geom);
     bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_prescribed, geom);
     bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-
 	elastic.SetBC(&bc);
 
 	Solver::Nonlocal::Linear mlmg(elastic);
@@ -75,6 +74,23 @@ int Elastic::Mobility(int verbose, int component, std::string plotfile)
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
  	mlmg.setVerbose(verbose);
  	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
+	
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		icrhs.Initialize(ilev,rhs_exact);
+		icexact.Initialize(ilev,solution_exact);
+	}
+
+	mlmg.apply(GetVecOfPtrs(rhs_prescribed),GetVecOfPtrs(rhs_exact));
+	bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+    bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_prescribed, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+
 	
     if (component!=0) component-=component;
          
