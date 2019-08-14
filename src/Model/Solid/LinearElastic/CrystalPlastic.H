@@ -8,7 +8,6 @@
 #include "Set/Set.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
 
-
 namespace Model
 {
 namespace Solid
@@ -23,14 +22,15 @@ private:
 	using vector2d = Eigen::Matrix<amrex::Real,dim,1>;
 	using matrix22 = Eigen::Matrix<amrex::Real,dim,dim>;
 
-	void initializeSlip();
-	void initializeSlip(Set::Matrix R);
+	void initializeSlip(Set::Matrix R = Set::Matrix::Identity());
 	void initializeSlip(Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	
 	struct slip
 	{
 	Set::Vector n;
 	Set::Vector s;
+	Set::Scalar Tcrss;
+	Set::Scalar galpha;
 	bool on;
 	};
 	//********Matrial Slip Data**********//
@@ -48,10 +48,16 @@ private:
 	Set::Matrix esp = Set::Matrix::Zero();
 	//********Matrial Constants**********//
 
-	static Set::Scalar constexpr Tcrss = 0.5;
-	static Set::Scalar constexpr n = 2.0;
-	static Set::Scalar constexpr gammadot0 = 0.5;
+	//static Set::Scalar constexpr Tcrss = 0.5;
+	static Set::Scalar constexpr n = 2.0; // 300
+	static Set::Scalar constexpr gammadot0 = .0001; //0.0001 1/s
+	static Set::Scalar constexpr hs = .1; // 0.01 MPa
+	static Set::Scalar constexpr h0 = .2; // 100 MPa
+	static Set::Scalar constexpr ts = .1; // 6.3 Mpa
+	static Set::Scalar constexpr t0 = .2; // 6 MPa
+	static Set::Scalar constexpr q = 1.4; // 1
 	Set::Scalar dt = 1e-5;
+	double Time = 0.0;
 	//***********DFP************//
 
 	//double w1 = 10.0;
@@ -87,8 +93,11 @@ public:
 	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
 	void AdvanceEsp(const Set::Matrix& sig);
 	void Setdt(const double _dt);
+	void LatentHardening();
+	bool coplanar(Set::Vector nn, int i) const;
 	vector2d relax(const Set::Matrix& sig, double e);
 	Set::Matrix GetEsp() const;
+	double getGamma(int index) const;
 //DFP
 	double secantMethod(double dx, double a1, double a2, double tol, vector2d x_new, vector2d r, const Set::Matrix& sig);
 	Set::Scalar f(vector2d x, const Set::Matrix& es);
