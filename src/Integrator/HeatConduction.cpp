@@ -3,8 +3,10 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/LinearElastic/MultiWell.H"
 #include "BC/Operator/Elastic.H"
 #include "IC/Sphere.H"
+#include "IC/Affine.H"
 //#include "IC/PS.H"
 #include "Numeric/Stencil.H"
 
@@ -64,9 +66,8 @@ HeatConduction::HeatConduction() :
 	}
 
 
-	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp");
-	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
 	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
+	RegisterNodalFab(ugb, AMREX_SPACEDIM, number_of_ghost_cells, "Ugb");
 	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
 	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
 }
@@ -81,7 +82,7 @@ HeatConduction::~HeatConduction()
 void
 HeatConduction::Initialize (int lev)
 {
-	ic->Initialize(lev,TempFab);
+	//ic->Initialize(lev,TempFab);
 	disp[lev]->setVal(0.0);
 	rhs[lev]->setVal(0.0);
 }
@@ -89,56 +90,105 @@ HeatConduction::Initialize (int lev)
 void 
 HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
-	if (iter % plot_int) return;
 	Set::Scalar lame = 2.6, shear = 6.0;
-	Model::Solid::LinearElastic::Isotropic model(lame,shear);
-	Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
+	using model_type = Model::Solid::LinearElastic::Multiwell;
+	
+	Operator::Elastic<model_type> elastic;
 	elastic.SetHomogeneous(false);
 	elastic.define(geom,grids,dmap);
-	elastic.SetModel(model);
-
-	BC::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> bc;
-	elastic.SetBC(&bc);
-
-	for (int lev = 0; lev < rhs.size(); lev++) 
+	
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model_mf;
+	model_mf.resize(disp.size());
+	for (int lev = 0; lev < disp.size(); ++lev)
 	{
-		rhs[lev]->setVal(0.0);
-		disp[lev]->setVal(0.0);
-		const amrex::Real* DX = geom[lev].CellSize();
-		
-		for (MFIter mfi(*rhs[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		model_mf[lev].define(disp[lev]->boxArray(), disp[lev]->DistributionMap(), 1, number_of_ghost_cells);
+		const amrex::Real* DX  = geom[lev].CellSize();
+		//model_mf[ilev].setVal(model);
+
+		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		{
-			amrex::Box bx = mfi.tilebox();
-			bx.grow(2);
-			amrex::Array4<Set::Scalar> const & Rhs = rhs[lev]->array(mfi);
-			amrex::Array4<const Set::Scalar> const & temp = TempOldFab[lev]->array(mfi);
+			amrex::Box bx = mfi.growntilebox(2);
+
+			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
+
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				Set::Matrix Fgb = Set::Matrix::Zero();
+				if (j > 32) Fgb(0,1) = 0.1;
+				model(i,j,k) = model_type(lame,shear,Fgb);
+				//model(i,j,k) = model_type(lame,shear);
+			});
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				// gradgradu[p](q,r) = u_{p,qr}
+				// gradFgb = Fgb_{p,qr}
+				// std::array<Set::Matrix,AMREX_SPACEDIM> &gradFgb;
 
-				std::array<Numeric::StencilType,AMREX_SPACEDIM> stencil 
-					= {{AMREX_D_DECL(Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode)}};
-				Set::Vector GradT = Numeric::Gradient(temp,i,j,k,0,DX,stencil);
-
-				Set::Matrix eps = Set::Matrix::Identity();
-				Set::Matrix sig = model(eps);
-
-				Set::Vector f = sig*GradT;
-				AMREX_D_TERM(Rhs(i,j,k,0) = f(0);,
-							 Rhs(i,j,k,1) = f(1);,	
-							 Rhs(i,j,k,2) = f(2););	
+				for (int p = 0; p < 2; p++)
+				{
+					for (int q = 0; q < 2; q++)
+					{
+						model(i,j,k).gradFgb[p](q,0) = - ((model(i+1,j,k).Fgb - model(i-1,j,k).Fgb)/2./DX[0])(p,q);
+						model(i,j,k).gradFgb[p](q,1) = - ((model(i,j+1,k).Fgb - model(i,j-1,k).Fgb)/2./DX[1])(p,q);
+					}
+					//Util::Message(INFO,model(i,j,k).gradFgb[p]);
+				}
 			});
 		}
 	}
 
+	elastic.SetModel(model_mf);
+	elastic.SetHomogeneous(true);
+
+	BC::Operator::Elastic<model_type> bc;
+	for (int lev = 0; lev < rhs.size(); lev++) rhs[lev]->setVal(0.0);
+    bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
+
+	elastic.SetBC(&bc);
 	Solver::Nonlocal::Linear solver(elastic);
-	solver.setVerbose(3);
+	solver.setVerbose(10);
+	solver.setFixedIter(10);
+	
+
+	solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(disp));
+	bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
+
+
+	for (int lev = 0; lev < disp.size(); ++lev)
+	{
+		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		{
+			amrex::Box bx = mfi.growntilebox(2);
+			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+			for (int p = 0; p < 2; p++) model(i,j,k).gradFgb[p] = Set::Matrix::Zero();
+			});
+		}
+	}
+	elastic.SetModel(model_mf);
+
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	//solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(eigendef));
+	//solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(disp));
 	solver.solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),tol_rel,tol_abs);
 	for (int lev = 0; lev < sigma.size(); lev++)
 	{
+		//amrex::MultiFab::Subtract(*disp[lev],*ugb[lev],0,0,2,2); // Rx -= Dx  (Rx = Ax - Dx)
 		elastic.Stress(lev,*sigma[lev],*disp[lev]);
 		//disp[lev]->setVal(0.0);
 	}
+	
 }
 
 
@@ -151,30 +201,11 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 void
 HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-												  dy(AMREX_D_DECL(0,1,0)),
-												  dz(AMREX_D_DECL(0,0,1)));
-
-	std::swap(*TempFab[lev], *TempOldFab[lev]);
-
-	const amrex::Real* DX = geom[lev].CellSize();
-
-	for ( amrex::MFIter mfi(*TempFab[lev],true); mfi.isValid(); ++mfi )
-		{
-			amrex::Box bx = mfi.tilebox();
-			bx.grow(1);
-			bx = bx & geom[lev].Domain();
-
-			amrex::Array4<const Set::Scalar> const & TempOld = (*TempOldFab[lev]).array(mfi);
-			amrex::Array4<      Set::Scalar> const & Temp    = (*TempFab[lev]).array(mfi);
-
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-				Temp(i,j,k) = TempOld(i,j,k) 
-						      + dt*alpha*(AMREX_D_TERM((Numeric::Stencil<Set::Scalar,2,0,0>::D(TempOld,i,j,k,0,DX)),
-							  			  			   + (Numeric::Stencil<Set::Scalar,0,2,0>::D(TempOld,i,j,k,0,DX)) ,
-							  			  			   + (Numeric::Stencil<Set::Scalar,0,0,2>::D(TempOld,i,j,k,0,DX)) ));
-			});
-		}
+	IC::Affine icrhs(geom, {0,1}, 0.2, {0.0,0.5} , true, 1.0);
+	for (int ilev = 0; ilev < ugb.size(); ++ilev)
+	{
+		icrhs.Initialize(ilev,ugb);
+	}
 }
 
 
@@ -186,39 +217,27 @@ HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 /// \f[\mathbf{r} = \sqrt{\Delta x_1^2 + \Delta x_2^2 + \Delta x_3^2}\f]
 /// and \f$h\f$ is stored in #refinement_threshold
 void
-HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	const amrex::Real* DX      = geom[lev].CellSize();
+	const Set::Scalar dxnorm = sqrt(DX[0]*DX[0] +  DX[1]*DX[1]);
 
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-												  dy(AMREX_D_DECL(0,1,0)),
-												  dz(AMREX_D_DECL(0,0,1)));
-
-	for (amrex::MFIter mfi(*TempFab[lev],true); mfi.isValid(); ++mfi)
+	for (amrex::MFIter mfi(*ugb[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
+	{
+		amrex::Box bx = mfi.tilebox();
+		bx.grow(-1);
+		amrex::Array4<const amrex::Real> const& RHS    = (*rhs[lev]).array(mfi);
+		amrex::Array4<char> const& tags    = a_tags.array(mfi);
+		
+		for (int n = 0; n < 2 ; n++)
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
-			const amrex::Box&  bx  = mfi.tilebox();
-			amrex::TagBox&     tag  = tags[mfi];
- 	    
-			amrex::FArrayBox &Temp = (*TempFab[lev])[mfi];
-
-			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-							 for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-							 for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
-						{
-							amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
-							AMREX_D_TERM(amrex::Real grad1 = (Temp(m+dx) - Temp(m-dx));,
-											 amrex::Real grad2 = (Temp(m+dy) - Temp(m-dy));,
-											 amrex::Real grad3 = (Temp(m+dz) - Temp(m-dz));)
-
-							amrex::Real grad = sqrt(AMREX_D_TERM(grad1*grad1, + grad2*grad2, + grad3*grad3));
-
-							amrex::Real dr = sqrt(AMREX_D_TERM(DX[0]*DX[0], + DX[1]*DX[1], + DX[2]*DX[2]));
-
-							if (grad*dr > refinement_threshold)
-								tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
-						}
-		}
+			//Set::Vector grad = Numeric::Gradient(UGB,i,j,k,n,DX);
+			//if (dxnorm * grad.lpNorm<2>() > 0.01) 
+			//if (fabs(RHS(i,j,k,n)) > 0.01) amrex::TagBox::SET;
+		});
+	}
+	
 }
 
 }

@@ -1,0 +1,59 @@
+#
+# name:        HeatConduction01
+# author:      Brandon Runnels
+# date:        2018 Feb 19
+#
+# description: Compute transient heat transfer simulation in 2D or 3D.
+#              In this example the 3rd dimension (if used) is periodic so
+#              the simulation is still 2D.
+#              The boundary conditions are:
+#                - Dirichlet in X and Y
+#                    o  T=1 at x=0, y=0
+#                    o  T=0 at x=1, y=1
+#                - Periodic in Z
+#              The initial condition is a circle (in 2D) and a cylinder
+#              (in 3D) with Tin on the inside and Tout on the outside.
+#
+# usage:       [alamo]$> bin/heat tests/HeatConduction01/input
+#
+# output:      tests/HeatConduction01/output
+#
+
+# Simulation length
+timestep  = 0.0000001
+stop_time = 0.0000002
+
+# AMR parameters
+amr.plot_int = 1
+amr.max_level = 0
+amr.n_cell = 64 64 2
+amr.blocking_factor = 1
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+amr.plot_file = hcoutput
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 0.25
+geometry.is_periodic= 0 0 1
+
+# Criterion for mesh refinement
+heat.alpha = 1.0
+heat.refinement_threshold = 0.01
+heat.ic_type = cylinder
+
+# Specify initial conditions
+ic.Tin = 1.0
+ic.Tout = 0.0
+
+
+# Boundary conditions
+bc.hi = EXT_DIR EXT_DIR INT_DIR
+bc.lo = EXT_DIR EXT_DIR INT_DIR
+bc.lo_1 = 0.0 
+bc.hi_1 = 0.0 
+bc.lo_2 = 0.0 
+bc.hi_2 = 0.0 
+
+
+
