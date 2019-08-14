@@ -62,9 +62,8 @@ private:
   int number_of_components = 1;					///< Number of components
   int number_of_ghost_cells = 2;				///< Number of ghost cells
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempFab;	///< Temperature field variable (current timestep)
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempOldFab;	///< Temperature field variable (previous timestep)
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp;  	///< Displacement
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > ugb;  	///< Displacement
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > sigma;  	///< Right Hand Side
 

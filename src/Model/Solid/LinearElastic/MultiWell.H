@@ -19,27 +19,35 @@ class Multiwell : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Is
 {
 public:
 	Multiwell() {} ;
-	Multiwell(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
+	Multiwell(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _Fgb=Set::Matrix::Zero()) {Define(_mu,_lambda,_Fgb);} ;
 	~Multiwell() {} ;
+	void Define(Set::Scalar _mu, Set::Scalar _lambda,Set::Matrix _Fgb)
+	{
+		mu = _mu; lambda = _lambda; Fgb = _Fgb;
+	}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
 	virtual Set::Matrix operator () (Set::Matrix &gradu) const
 	{
-
-		return mu*(gradu + gradu.transpose()) + lambda*Set::Matrix::Identity()*gradu.trace();
+		Set::Matrix eps = gradu - Fgb;
+		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
 	{
+		std::array<Set::Matrix,AMREX_SPACEDIM> gradeps;
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] = gradgradu[i] - gradFgb[i];
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
-				f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
+				{
+					f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
+				}
 		return f;
 	}
 
@@ -56,30 +64,32 @@ public:
 	}
 
 	Multiwell operator + (const Multiwell &rhs) const
-	{return Multiwell(mu+rhs.mu, lambda+rhs.lambda);}
+	{return Multiwell(mu+rhs.mu, lambda+rhs.lambda,Fgb + rhs.Fgb);}
 
 	void operator += (const Multiwell &rhs)
-	{mu+=rhs.mu; lambda+=rhs.lambda;}
+	{mu+=rhs.mu; lambda+=rhs.lambda; Fgb += rhs.Fgb;}
 
 	Multiwell operator - (const Multiwell &rhs) const
-	{return Multiwell(mu-rhs.mu, lambda-rhs.lambda);}
+	{return Multiwell(mu-rhs.mu, lambda-rhs.lambda,Fgb-rhs.Fgb);}
 
-	Multiwell operator * (const Multiwell &rhs) const
-	{return Multiwell(mu*rhs.mu, lambda*rhs.lambda);}
+	//Multiwell operator * (const Multiwell &rhs) const
+	//{return Multiwell(mu*rhs.mu, lambda*rhs.lambda,Fgb);}
 
-	Multiwell operator / (const Multiwell &rhs) const
-	{return Multiwell(mu/rhs.mu, lambda/rhs.lambda);}
+	//Multiwell operator / (const Multiwell &rhs) const
+	//{return Multiwell(mu/rhs.mu, lambda/rhs.lambda);}
 
 	virtual Multiwell operator / (const Set::Scalar alpha) const
-	{return Multiwell(mu/alpha, lambda/alpha);}
+	{return Multiwell(mu/alpha, lambda/alpha, Fgb/alpha);}
 
 	virtual Multiwell operator * (const Set::Scalar alpha) const
-	{return Multiwell(mu*alpha, lambda*alpha);}
+	{return Multiwell(mu*alpha, lambda*alpha,Fgb*alpha);}
 
 private:
 	Set::Scalar mu; ///< First Lame parameter \f$\mu\f$
 	Set::Scalar lambda; ///< Second Lame parameter \f$\lambda\f$
-	Set::Matrix Fgb = Set::Matrix::Identity();
+public:
+	Set::Matrix Fgb = Set::Matrix::Zero();
+	std::array<Set::Matrix,AMREX_SPACEDIM> gradFgb;
 };
 
 }

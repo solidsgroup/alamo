@@ -166,6 +166,8 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				}
 				else
 				{
+					
+
 					// The gradient of the displacement gradient tensor
 					std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
 
