@@ -13,9 +13,10 @@ namespace IC
 class Cylinder : public IC
 {
 public:
-  Cylinder (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)
+  Cylinder (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+  Cylinder (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _Tin, Set::Scalar _Tout) : IC(_geom) 
   {
-	Define(_Tin,_Tout)
+	  Define(_Tin,_Tout);
   }
 
 void Define (amrex::Real _Tin, amrex::Real _Tout)
