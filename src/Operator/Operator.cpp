@@ -907,7 +907,7 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom
 		const amrex::Box& bx = mfi.validbox();
 		RealTuple & bloc  = bcloc[mfi];
 		BCTuple   & bctag = bcond[mfi];
-		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
+		//amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
 	}
 }
 
