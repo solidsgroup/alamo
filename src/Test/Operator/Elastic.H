@@ -22,8 +22,8 @@
 #include <AMReX_MLMG.H>
 #include <AMReX_MLCGSolver.H>
 
-#include "Set/Set.H"
 #include "Util/Util.H"
+#include "Set/Set.H"
 
 /// \brief This namespace contains a suite of numerical unit tests
 namespace Test
