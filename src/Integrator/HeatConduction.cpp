@@ -1,5 +1,12 @@
 #include "HeatConduction.H"
 #include "BC/Constant.H"
+#include "Operator/Elastic.H"
+#include "Solver/Nonlocal/Linear.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "BC/Operator/Elastic.H"
+#include "IC/Sphere.H"
+//#include "IC/PS.H"
+#include "Numeric/Stencil.H"
 
 namespace Integrator
 {
@@ -26,8 +33,12 @@ HeatConduction::HeatConduction() :
 	// // Determine initial condition
 	if (ic_type == "cylinder")
 		ic = new IC::Cylinder(geom);
+	else if (ic_type == "sphere")
+		ic = new IC::Sphere(geom);
 	else if (ic_type == "constant")
 		ic = new IC::Constant(geom);
+//	else if (ic_type == "packed_spheres")
+//		ic = new IC::PS(geom,20,0.0,1.0);
 	else
 		ic = new IC::Constant(geom);
     
@@ -55,6 +66,9 @@ HeatConduction::HeatConduction() :
 
 	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp");
 	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
+	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
+	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
+	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
 }
 
 HeatConduction::~HeatConduction()
@@ -68,6 +82,63 @@ void
 HeatConduction::Initialize (int lev)
 {
 	ic->Initialize(lev,TempFab);
+	disp[lev]->setVal(0.0);
+	rhs[lev]->setVal(0.0);
+}
+
+void 
+HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
+{
+	if (iter % plot_int) return;
+	Set::Scalar lame = 2.6, shear = 6.0;
+	Model::Solid::LinearElastic::Isotropic model(lame,shear);
+	Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
+	elastic.SetHomogeneous(false);
+	elastic.define(geom,grids,dmap);
+	elastic.SetModel(model);
+
+	BC::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> bc;
+	elastic.SetBC(&bc);
+
+	for (int lev = 0; lev < rhs.size(); lev++) 
+	{
+		rhs[lev]->setVal(0.0);
+		disp[lev]->setVal(0.0);
+		const amrex::Real* DX = geom[lev].CellSize();
+		
+		for (MFIter mfi(*rhs[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		{
+			amrex::Box bx = mfi.tilebox();
+			bx.grow(2);
+			amrex::Array4<Set::Scalar> const & Rhs = rhs[lev]->array(mfi);
+			amrex::Array4<const Set::Scalar> const & temp = TempOldFab[lev]->array(mfi);
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+				std::array<Numeric::StencilType,AMREX_SPACEDIM> stencil 
+					= {{AMREX_D_DECL(Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode,Numeric::StencilType::CellToNode)}};
+				Set::Vector GradT = Numeric::Gradient(temp,i,j,k,0,DX,stencil);
+
+				Set::Matrix eps = Set::Matrix::Identity();
+				Set::Matrix sig = model(eps);
+
+				Set::Vector f = sig*GradT;
+				AMREX_D_TERM(Rhs(i,j,k,0) = f(0);,
+							 Rhs(i,j,k,1) = f(1);,	
+							 Rhs(i,j,k,2) = f(2););	
+			});
+		}
+	}
+
+	Solver::Nonlocal::Linear solver(elastic);
+	solver.setVerbose(3);
+	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
+	//solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(eigendef));
+	solver.solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),tol_rel,tol_abs);
+	for (int lev = 0; lev < sigma.size(); lev++)
+	{
+		elastic.Stress(lev,*sigma[lev],*disp[lev]);
+		//disp[lev]->setVal(0.0);
+	}
 }
 
 
@@ -90,22 +161,19 @@ HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 
 	for ( amrex::MFIter mfi(*TempFab[lev],true); mfi.isValid(); ++mfi )
 		{
-			const amrex::Box& bx = mfi.tilebox();
+			amrex::Box bx = mfi.tilebox();
+			bx.grow(1);
+			bx = bx & geom[lev].Domain();
 
-			amrex::FArrayBox &TempOld = (*TempOldFab[lev])[mfi];
-			amrex::FArrayBox &Temp    = (*TempFab[lev])[mfi];
+			amrex::Array4<const Set::Scalar> const & TempOld = (*TempOldFab[lev]).array(mfi);
+			amrex::Array4<      Set::Scalar> const & Temp    = (*TempFab[lev]).array(mfi);
 
-			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-							 for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-							 for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
-				{
-					amrex::IntVect m(AMREX_D_DECL(i,j,k));
-					Temp(m)
-						= TempOld(m)
-						+ dt * alpha * (AMREX_D_TERM((TempOld(m+dx) + TempOld(m-dx) - 2*TempOld(m)) / DX[0] / DX[0],
-															  + (TempOld(m+dy) + TempOld(m-dy) - 2*TempOld(m)) / DX[1] / DX[1],
-															  + (TempOld(m+dz) + TempOld(m-dz) - 2*TempOld(m)) / DX[2] / DX[2]));
-				}
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				Temp(i,j,k) = TempOld(i,j,k) 
+						      + dt*alpha*(AMREX_D_TERM((Numeric::Stencil<Set::Scalar,2,0,0>::D(TempOld,i,j,k,0,DX)),
+							  			  			   + (Numeric::Stencil<Set::Scalar,0,2,0>::D(TempOld,i,j,k,0,DX)) ,
+							  			  			   + (Numeric::Stencil<Set::Scalar,0,0,2>::D(TempOld,i,j,k,0,DX)) ));
+			});
 		}
 }
 

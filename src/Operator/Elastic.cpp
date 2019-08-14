@@ -52,6 +52,33 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 }
 
 template <class T>
+void 
+Elastic<T>::SetModel (T &a_model)
+{
+	for (int amrlev = 0; amrlev < model.size(); amrlev++)
+	{
+		amrex::Box domain(m_geom[amrlev][0].Domain());
+		domain.convert(amrex::IntVect::TheNodeVector());
+
+		int nghost = model[amrlev][0]->nGrow();
+
+		for (MFIter mfi(*model[amrlev][0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			Box bx = mfi.tilebox();
+			bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+			bx = bx & domain;  // Take intersection of box and the problem domain
+				
+			amrex::Array4<T> const& C         = (*(model[amrlev][0])).array(mfi);
+	
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					C(i,j,k) = a_model;
+				});
+		}
+	}
+	m_model_set = true;
+}
+
+template <class T>
 void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
@@ -75,6 +102,7 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 				C(i,j,k) = a_C(i,j,k);
 			});
 	}
+	m_model_set = true;
 }
 
 template<class T>
@@ -134,40 +162,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
-
 					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
-					
-					// for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
-					// {
-					// 	for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
-					// 	{
-					// 		if (m[q] == domain.loVect()[q])
-					// 		{
-					// 			if      (m_bc_lo[q][p] == BC::Displacement) f(p) =   U(i,j,k,p);
-					// 			else if (m_bc_lo[q][p] == BC::Traction)     f(p) = -sig(p,q);
-					// 			else if (m_bc_lo[q][p] == BC::Neumann)      f(p) = -gradu(p,q);
-					// 			else Util::Abort(INFO, "Invalid BC");
-					// 		}
-					// 		if (m[q] == domain.hiVect()[q])
-					// 		{
-					// 			if      (m_bc_hi[q][p] == BC::Displacement) f(p) = U(i,j,k,p);
-					// 			else if (m_bc_hi[q][p] == BC::Traction)     f(p) = +sig(p,q);
-					// 			else if (m_bc_hi[q][p] == BC::Neumann)      f(p) = +gradu(p,q);
-					// 			else Util::Abort(INFO, "Invalid BC");
-
-					// 		}
-					// 	}
-					// }
-
-					// if ((fnew - f).norm() > 1E-8) {
-					// 	Util::Message(INFO,"m = ", m);
-					// 	Util::Message(INFO,"fnew = ", fnew.transpose());
-					// 	Util::Message(INFO,"fold = ", f.transpose());
-					// 	Util::Message(INFO,"sigma = \n", sig);
-					// 	Util::Message(INFO,"gradu = \n", gradu);
-					// 	Util::Abort(INFO,"incorrect BC calculation");
-					// }
-
 				}
 				else
 				{
@@ -318,7 +313,7 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 
 						diag(i,j,k,p) += f(p);
 					}
-					if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"nan at (", i, ",", j , ",",k);
+					if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"diagonal is nan at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
 
 				}
 			});

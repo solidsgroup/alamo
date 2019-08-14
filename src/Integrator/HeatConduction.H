@@ -48,20 +48,25 @@ public:
 protected:
 
   /// \brief Use the #ic object to initialize #Temp
-  void Initialize (int lev);
+  void Initialize (int lev) override;
+
+  void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
 
   /// \brief Integrate the heat equation
-  void Advance (int lev, amrex::Real /*time*/, amrex::Real dt);
+  void Advance (int lev, amrex::Real /*time*/, amrex::Real dt) override;
 
   /// \brief Tag cells for mesh refinement based on temperature gradient
-  void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
+  void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
 
 private:
   int number_of_components = 1;					///< Number of components
-  int number_of_ghost_cells = 1;				///< Number of ghost cells
+  int number_of_ghost_cells = 2;				///< Number of ghost cells
 
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempFab;	///< Temperature field variable (current timestep)
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempOldFab;	///< Temperature field variable (previous timestep)
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp;  	///< Displacement
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs;  	///< Right Hand Side
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > sigma;  	///< Right Hand Side
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
