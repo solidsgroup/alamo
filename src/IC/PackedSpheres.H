@@ -3,6 +3,10 @@
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+using namespace std;
+#include <iostream>
+#include <vector>
+#include <algorithm>
 
 namespace IC
 {
@@ -42,7 +46,7 @@ public:
 	{
     	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),Type::Partition);
   	}
-
+	   
 	void Define (int a_number_of_grains,
 				std::vector<Set::Scalar> a_alpha,
 				Type a_type = Type::Values)
@@ -50,15 +54,97 @@ public:
 		number_of_grains = a_number_of_grains;
 		alpha = a_alpha;
 		type = a_type;
-
+	    std::vector <amrex::Real> dd(number_of_grains-1);
+		std::vector <amrex::Real> R_n(number_of_grains-1);
+		std::vector <amrex::Real> count(number_of_grains);
+		
+		
+        int p=0;
 		packedspheres.resize(number_of_grains);
+		
+		Set::Vector size;
+		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
+					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
+					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
+					 int total=0;
+		do
+		{			 
 
 		for (int n = 0; n<number_of_grains; n++)
 		{
 			AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
-		}
+			R_new.resize(number_of_grains);	
+			//amrex::Real R_max=0.1;
+			//amrex::Real R_min=0.05;
+			//amrex::Real R=R_max-R_min;
+			//R_new[n]=(int)(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
+			R_new[n]=0.05;
+			//Util::Message(INFO,"R_new	    ", R_new[n]);			
+
+			std::vector<bool> df(number_of_grains-1);
+            std::fill(df.begin(), df.end(), true);	
+
+	if (n>0)								
+    {
+ 		p=0;
+
+ while (p<n)
+	 {		
+
+                         dd[p] = (packedspheres[p] - packedspheres[n]).lpNorm<2>();
+
+	   if (geom[0].isPeriodic(0))
+						{
+						 dd[p] = std::min( (packedspheres[p]-packedspheres[n] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										   (packedspheres[p]-packedspheres[n] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+						}
+		#if AMREX_SPACEDIM>1
+					if (geom[0].isPeriodic(1))
+						{
+						 dd[p] = std::min( (packedspheres[p]-packedspheres[n] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										   (packedspheres[p]-packedspheres[n] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
+						}
+		#endif
+		#if AMREX_SPACEDIM>2
+					if (geom[0].isPeriodic(2))
+						{
+						 dd[p] = std::min( (packedspheres[p]-packedspheres[n] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										   (packedspheres[p]-packedspheres[n] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+						}
+		#endif
+
+       R_n[p]=R_new[n]+R_new[p];
+           if (dd[p]>(R_n[p]))
+			{
+				df[p]=true;
+			}
+			else
+			{
+				df[p]=false;
+			}          
+	   
+	   		p++;
+	 }
+
+	 		if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
+										
+			{
+												
+				count[n]=1;
+						
+			}
+		
+	}
+		total = accumulate(count.begin(), count.end(), 0, plus<int>());
+		total=total+1;
+		Util::Message(INFO,"count:	    ", total);
+	    
+    }
+	    
+	}
+	while (total<number_of_grains);
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
@@ -80,14 +166,14 @@ public:
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 							
-				amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
+				//amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
 				//amrex::Real min_distance = 0.2;
 				int min_grain_id = -1;
 
 				for (int n = 0; n<number_of_grains; n++)
 				{
-					//Set::Scalar d = (x - packedspheres[n]).lpNorm<2>();
-					  Set::Scalar d = 1;
+					Set::Scalar d = (x - packedspheres[n]).lpNorm<2>();
+					 
 
 					if (geom[0].isPeriodic(0))
 						{
@@ -108,9 +194,9 @@ public:
 										  (x-packedspheres[n] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
-					if ((d<min_distance) & (d<0.2))
+					if (d<R_new[n])
 						{
-							min_distance = d;
+							//min_distance = d;
 							min_grain_id = n;
 						}
 				}
@@ -125,6 +211,13 @@ private:
 	int number_of_grains;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
+	std::vector <amrex::Real> R_new;
+	//std::vector <int> count;
+    //std::vector <amrex::Real> dd;
+	//std::vector <bool> df;
+   // std::vector <amrex::Real> R_n;
+	//int p;
+	//int total;
 	Type type;
 	amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<amrex::Real> packedspheres_y;
