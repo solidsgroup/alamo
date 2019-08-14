@@ -892,26 +892,23 @@ Operator<Grid::Cell>::BndryCondLoc::BndryCondLoc (const amrex::BoxArray& ba, con
 }
 
 void
-Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& /*geom*/, const amrex::Real* /*dx*/,
-					  const amrex::Array<BCType,AMREX_SPACEDIM>& /*lobc*/,
-					  const amrex::Array<BCType,AMREX_SPACEDIM>& /*hibc*/,
-					  int /*ratio*/, const amrex::RealVect& /*a_loc*/)
+Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& lobc,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& hibc,
+					  int ratio, const amrex::RealVect& a_loc)
 {
-	Util::Abort(INFO,"Functionality was disabled here due to compatibility");
-//	const amrex::Box&  domain = geom.Domain();
-//	Util::Warning(INFO,"This code has not been properlyt tested");
-//#ifdef _OPENMP
-//#pragma omp parallel
-//#endif
-//	for (amrex::MFIter mfi(bcloc); mfi.isValid(); ++mfi)
-//	{
-//		const amrex::Box& bx = mfi.validbox();
-//		RealTuple & bloc  = bcloc[mfi];
-//		BCTuple   & bctag = bcond[mfi];
-//		
-//      // The following line causes compatibility issues.
-//		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
-//	}
+	const amrex::Box&  domain = geom.Domain();
+	Util::Warning(INFO,"This code has not been properlyt tested");
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+	for (amrex::MFIter mfi(bcloc); mfi.isValid(); ++mfi)
+	{
+		const amrex::Box& bx = mfi.validbox();
+		RealTuple & bloc  = bcloc[mfi];
+		BCTuple   & bctag = bcond[mfi];
+		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
+	}
 }
 
 

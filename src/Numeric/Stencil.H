@@ -9,7 +9,7 @@
 namespace Numeric
 {
 
-enum StencilType {Lo, Hi, Central};
+enum StencilType {Lo, Hi, Central, CellToNode};
 static std::array<StencilType,AMREX_SPACEDIM>
 DefaultType = {AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central)};
 
@@ -51,11 +51,20 @@ struct Stencil<T,1,0,0>
 		   std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 	{
 		if (stencil[0] == StencilType::Lo)
-			//return (f(i,j,k,m) - f(i-1,j,k,m)) / dx[0];
 			return (f(i,j,k,m)*(1.5) + f(i-1,j,k,m)*(-2.0) + f(i-2,j,k,m)*(0.5)) / dx[0]; // 2nd order stencil
 		else if (stencil[0] == StencilType::Hi)
-			//return (f(i+1,j,k,m) - f(i,j,k,m)) / dx[0]; // 1st order stencil
 			return (f(i,j,k,m)*(-1.5) + f(i+1,j,k,m)*(2.0) + f(i+2,j,k,m)*(-0.5)) / dx[0]; // 2nd order stencil
+		else if (stencil[0] == StencilType::CellToNode)
+		{
+			#if AMREX_SPACEDIM == 2
+				return ( (f(i,j,k) - f(i-1,j,k)) + (f(i,j-1,k) - f(i-1,j-1,k)) ) * 0.5 / dx[0];
+			#elif AMREX_SPACEDIM == 3
+				return ( (f(i,j,k) - f(i-1,j,k)) + 
+				 		 (f(i,j-1,k) - f(i-1,j-1,k)) + 
+				  		 (f(i,j,k-1) - f(i-1,j,k-1)) + 
+				  		 (f(i,j-1,k-1) - f(i-1,j-1,k-1)) ) * 0.25 / dx[0];
+			#endif
+		}
 		else
 			return (f(i+1,j,k,m) - f(i-1,j,k,m))*0.5 / dx[0];
 	};
@@ -76,6 +85,17 @@ struct Stencil<T,0,1,0>
 		else if (stencil[1] == StencilType::Hi)
 			//return (f(i,j+1,k,m) - f(i,j,k,m)) / dx[1];
 			return (f(i,j,k,m)*(-1.5) + f(i,j+1,k,m)*(2.0) + f(i,j+2,k,m)*(-0.5)) / dx[1]; // 2nd order stencil
+		else if (stencil[1] == StencilType::CellToNode)
+		{
+			#if AMREX_SPACEDIM == 2
+				return ( (f(i,j,k) - f(i,j-1,k)) + (f(i-1,j,k) - f(i-1,j-1,k)) ) * 0.5/ dx[1];
+			#elif AMREX_SPACEDIM == 3
+				return ( (f(i,j,k) - f(i,j-1,k)) +
+						 (f(i-1,j,k) - f(i-1,j-1,k)) +
+						 (f(i,j,k-1) - f(i,j-1,k-1)) +
+						 (f(i-1,j,k-1) - f(i-1,j-1,k-1)) ) * 0.25 / dx[1];	
+			#endif
+		}
 		else
 			return (f(i,j+1,k,m) - f(i,j-1,k,m))*0.5 / dx[1];
 	};
@@ -96,6 +116,17 @@ struct Stencil<T,0,0,1>
 		else if (stencil[2] == StencilType::Hi)
 			//return (f(i,j,k+1,m) - f(i,j,k,m)) / dx[2];
 			return (f(i,j,k,m)*(-1.5) + f(i,j,k+1,m)*( 2.0) + f(i,j,k+2,m)*(-0.5)) / dx[2]; // 2nd order stencil
+		else if (stencil[2] == StencilType::CellToNode)
+		{
+			#if AMREX_SPACEDIM == 2
+				return 0.0;	
+			#elif AMREX_SPACEDIM == 3
+				return ( (f(i,j,k) - f(i,j,k-1)) +
+					 		 (f(i-1,j,k) - f(i-1,j,k-1)) +
+							 (f(i,j-1,k) - f(i,j-1,k-1)) +
+							 (f(i-1,j-1,k) - f(i-1,j-1,k-1)) ) * 0.25 / dx[2];
+			#endif
+		}
 		else
 			return (f(i,j,k+1,m) - f(i,j,k-1,m))*0.5 / dx[2];
 	};
@@ -429,14 +460,15 @@ AMREX_FORCE_INLINE
 Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar> &f,
 		const int &i, const int &j, const int &k, const int &m,
-		const Set::Scalar dx[AMREX_SPACEDIM])
+		const Set::Scalar dx[AMREX_SPACEDIM],
+		std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 {
 	Set::Vector ret;
-	ret(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,m,dx));
+	ret(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,m,dx,stencil));
 #if AMREX_SPACEDIM > 1
-	ret(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx));
+	ret(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx,stencil));
 #if AMREX_SPACEDIM > 2
-	ret(2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx));
+	ret(2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx,stencil));
 #endif
 #endif
 	return ret;
