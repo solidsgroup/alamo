@@ -100,9 +100,13 @@ HeatConduction::Initialize (int lev)
 						 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
 						 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
 
-			// Single Disconnection
-			if (x < 0.5 && y > 0.6)  gammagb(i,j,k) = 0.1;
-			else if (x >= 0.5 && y > 0.4) gammagb(i,j,k) = 0.1;
+			//// Single Disconnection
+			//if (x < 0.5 && y > 0.6)  gammagb(i,j,k) = 0.1;
+			//else if (x >= 0.5 && y > 0.4) gammagb(i,j,k) = 0.1;
+			//else gammagb(i,j,k)=-0.1;
+
+			// Sinusoidal perturbation
+			if (y > 0.7 + 0.01*sin(8. * Set::Constant::Pi * x))  gammagb(i,j,k) = 0.1;
 			else gammagb(i,j,k)=-0.1;
 
 			// // Ramp
@@ -183,7 +187,7 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
     bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
     bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
     bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Traction, -3.5, rhs, geom);
     bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
     bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
     bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
@@ -200,7 +204,7 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
     bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
     bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
     bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Traction, -3.5, rhs, geom);
     bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
     bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
     bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
@@ -272,7 +276,9 @@ HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			df += - 10.*(Set::Constant::Pi/0.1) * sin(Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
 			//df += 2.0 * (Set::Constant::Pi/0.1) * cos(2*Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
 
-			df += - 1000.0*Sigma(i,j,k,1);
+			//df += - 1000.0*Sigma(i,j,k,1);
+			//df += - 300.0*Sigma(i,j,k,1);
+			df += - 100.0*Sigma(i,j,k,1);
 
 			df += - 0.1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
 			
