@@ -20,21 +20,21 @@
 #
 
 # Simulation length
-timestep  = 0.0000001
-stop_time = 0.0000005
+timestep  = 0.00025
+stop_time = 5
 
 # AMR parameters
-amr.plot_int = 1
+amr.plot_int = 10
 amr.max_level = 0
-amr.n_cell = 128 128 128
-amr.blocking_factor = 1
+amr.n_cell = 128 64
+amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 amr.plot_file = testoutput
 
 # Specify geometry and unrefined mesh
-geometry.prob_lo = 0 0 0
-geometry.prob_hi = 1 1 0.25
+geometry.prob_lo = 0 0.25 0
+geometry.prob_hi = 1 0.75 0.25
 geometry.is_periodic= 0 0 1
 
 # Criterion for mesh refinement

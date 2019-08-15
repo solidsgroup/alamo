@@ -31,7 +31,8 @@ public:
 #endif
 	virtual Set::Matrix operator () (Set::Matrix &gradu) const
 	{
-		Set::Matrix eps = gradu - Fgb;
+		Set::Matrix eps = gradu;
+		if (!m_homogeneous) eps -= Fgb;
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
 
@@ -41,7 +42,8 @@ public:
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
 	{
 		std::array<Set::Matrix,AMREX_SPACEDIM> gradeps;
-		for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] = gradgradu[i] - gradFgb[i];
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] = gradgradu[i];
+		if (!m_homogeneous) for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] -= gradFgb[i];
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
@@ -83,10 +85,13 @@ public:
 
 	virtual Multiwell operator * (const Set::Scalar alpha) const
 	{return Multiwell(mu*alpha, lambda*alpha,Fgb*alpha);}
+	
+	void SetHomogeneous(bool a_homogeneous) {m_homogeneous = a_homogeneous;}
 
 private:
 	Set::Scalar mu; ///< First Lame parameter \f$\mu\f$
 	Set::Scalar lambda; ///< Second Lame parameter \f$\lambda\f$
+	bool m_homogeneous = false;
 public:
 	Set::Matrix Fgb = Set::Matrix::Zero();
 	std::array<Set::Matrix,AMREX_SPACEDIM> gradFgb;
