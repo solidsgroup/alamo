@@ -19,6 +19,8 @@ Flame::Flame () : Integrator()
   pp.query("cp0",cp0);
   pp.query("qdotburn",qdotburn);
   pp.query("fs_number",fs_number);
+  pp.query("std_deviation",std_deviation);
+  pp.query("mean",mean);
   pp.query("fs_min",fs_min);
   pp.query("fs_max",fs_max);
 

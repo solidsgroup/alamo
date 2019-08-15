@@ -57,7 +57,10 @@ public:
 	    std::vector <amrex::Real> dd(number_of_grains-1);
 		std::vector <amrex::Real> R_n(number_of_grains-1);
 		std::vector <amrex::Real> count(number_of_grains);
-		
+        //amrex::Real mean;
+        //amrex::Real std_deviation;
+
+         
 		
         int p=0;
 		packedspheres.resize(number_of_grains);
@@ -80,8 +83,14 @@ public:
 			amrex::Real R_min=0.1;
 			amrex::Real R=R_max-R_min;
 			R_new[n]=(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
-			//R_new[n]=0.1;
-			//Util::Message(INFO,"R_new	    ", R_new[n]);			
+			/*amrex::Real R_old=Set::Scalar Gaussian (mean,std_deviation);
+            if ((R_old>0) & (R_old<mean))
+	     {
+	        R_new[n]= R_old;
+	        //Util::Message(INFO,"R_new	    ", R_new[n]);
+	     }*/
+		
+
 
 			std::vector<bool> df(number_of_grains-1);
             std::fill(df.begin(), df.end(), true);	
@@ -212,12 +221,8 @@ private:
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
 	std::vector <amrex::Real> R_new;
-	//std::vector <int> count;
-    //std::vector <amrex::Real> dd;
-	//std::vector <bool> df;
-   // std::vector <amrex::Real> R_n;
-	//int p;
-	//int total;
+    //amrex::Real mean;
+    //amrex::Real std_deviation;
 	Type type;
 	amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<amrex::Real> packedspheres_y;
