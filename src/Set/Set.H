@@ -39,6 +39,7 @@ operator<< (std::ostream& os, const Matrix4<dim,sym>& b)
 namespace Util
 {
 Set::Scalar Random();
+Set::Scalar Gaussian(amrex::Real mean,amrex::Real std_deviation);
 }
 
 namespace Set
