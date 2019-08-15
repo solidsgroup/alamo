@@ -139,8 +139,8 @@ PolymerDegradation::PolymerDegradation():
 		if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
 		if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
 		if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
-		//Util::Abort(INFO,"Isotropic2 model has been disabled for now");
-		modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
+		Util::Abort(INFO,"Isotropic2 model has been disabled for now");
+		//modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
 	}
 	else if(input_material == "isotropic")
 	{
@@ -694,6 +694,7 @@ PolymerDegradation::Initialize (int lev)
 		energy[lev]->setVal(0.0);
 		residual[lev]->setVal(0.0);
 	}
+	Util::Message(INFO);
 }
 
 PolymerDegradation::~PolymerDegradation()
@@ -812,6 +813,7 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 void
 PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &model)
 {
+	Util::Message(INFO);
 	/*
 	  This function is supposed to degrade material parameters based on certain
 	  damage model.
@@ -844,7 +846,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 									)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
-			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
+			//else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
 			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}
@@ -881,6 +883,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	if ((elastic.type == "tensile.single" || elastic.type == "single") && time < elastic.tstart) return;
 	if ((elastic.type == "tensile.single" || elastic.type == "single") && time > elastic.tend) return;
 	if ((elastic.type == "tensile_test" || elastic.type == "tensile") && std::abs(time-elastic.test_time[elastic.current_test]) > 1.e-4) return;
+
+	Util::Message(INFO);
 
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);

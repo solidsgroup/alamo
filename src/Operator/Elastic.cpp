@@ -117,17 +117,54 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 
 				// The displacement gradient tensor
 				Set::Matrix gradu; // gradu(i,j) = u_{i,j)
-
+				Set::Matrix AMREX_D_DECL(gradu_l,gradu_bt,gradu_bk);
+				Set::Matrix AMREX_D_DECL(gradu_r,gradu_t,gradu_f);
+				
 				// Fill gradu
 				for (int p = 0; p < AMREX_SPACEDIM; p++)
 				{
  					AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i,j,k,p,DX,sten));,
 					 	     gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i,j,k,p,DX,sten));,
 					 	     gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i,j,k,p,DX,sten)););
+					
+					AMREX_D_TERM(
+						AMREX_D_TERM(gradu_l(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i-1,j,k,p,DX,sten));,
+					 	     gradu_l(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i-1,j,k,p,DX,sten));,
+					 	     gradu_l(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i-1,j,k,p,DX,sten)););
+						AMREX_D_TERM(gradu_r(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i+1,j,k,p,DX,sten));,
+					 	     gradu_r(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i+1,j,k,p,DX,sten));,
+					 	     gradu_r(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i+1,j,k,p,DX,sten)););
+						,
+						AMREX_D_TERM(gradu_bt(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i,j-1,k,p,DX,sten));,
+					 	     gradu_bt(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i,j-1,k,p,DX,sten));,
+					 	     gradu_bt(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i,j-1,k,p,DX,sten)););
+						AMREX_D_TERM(gradu_t(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i,j+1,k,p,DX,sten));,
+					 	     gradu_t(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i,j+1,k,p,DX,sten));,
+					 	     gradu_t(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i,j+1,k,p,DX,sten)););
+						,
+						AMREX_D_TERM(gradu_bk(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i,j,k-1,p,DX,sten));,
+					 	     gradu_bk(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i,j,k-1,p,DX,sten));,
+					 	     gradu_bk(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i,j,k-1,p,DX,sten)););
+						AMREX_D_TERM(gradu_f(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(U,i,j,k+1,p,DX,sten));,
+					 	     gradu_f(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(U,i,j,k+1,p,DX,sten));,
+					 	     gradu_f(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,1,j,k+1,p,DX,sten)););
+					);
 				}
 					
 				// Stress tensor computed using the model fab
 				Set::Matrix sig = C(i,j,k)(gradu);
+				Set::Matrix AMREX_D_DECL(sig_l,sig_bt,sig_bk);
+				Set::Matrix AMREX_D_DECL(sig_r,sig_t,sig_f);
+				AMREX_D_TERM(
+					sig_l = C(i-1,j,k)(gradu_l);
+					sig_r = C(i+1,j,k)(gradu_l);
+					,
+					sig_bt = C(i,j-1,k)(gradu_l);
+					sig_t = C(i,j+1,k)(gradu_l);
+					,
+					sig_bk = C(i,j,k-1)(gradu_l);
+					sig_f = C(i,j,k+1)(gradu_l);
+				);
 
 				// Boundary conditions
 				/// \todo Important: we need a way to handle corners and edges.
@@ -201,8 +238,15 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 					// In index notation
 					//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 					//
+					for (int p=0; p < AMREX_SPACEDIM; p++)
+					{
+						f(p) = AMREX_D_TERM(	(sig_r(p,0) - sig_l(p,0))/(2.0*DX[0]),
+												+ (sig_t(p,1) - sig_bt(p,1))/(2.0*DX[1]),
+												+ (sig_f(p,2) - sig_bk(p,2))/(2.0*DX[2])
+											);
+					}
 
-					f = C(i,j,k)(gradgradu);
+					/* f = C(i,j,k)(gradgradu);
 
 					if (!m_homogeneous)
 					{
@@ -210,7 +254,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
 							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
 						f += AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
-					}
+					}*/
 				}
 				AMREX_D_TERM(F(i,j,k,0) = f[0];, F(i,j,k,1) = f[1];, F(i,j,k,2) = f[2];);
 			});
@@ -313,8 +357,8 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
 							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
 
-						Set::Vector f = C(i,j,k)(gradgradu) + 
-							AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
+						Set::Vector f = C(i,j,k)(gradgradu); // + 
+							//AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
 
 						diag(i,j,k,p) += f(p);
 					}

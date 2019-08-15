@@ -34,8 +34,8 @@
 
 namespace Integrator
 {
-using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
-//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
+using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Laplacian;
 
