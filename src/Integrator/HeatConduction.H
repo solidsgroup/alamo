@@ -63,9 +63,9 @@ private:
   int number_of_ghost_cells = 2;				///< Number of ghost cells
 
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp;  	///< Displacement
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > ugb;  	///< Displacement
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > sigma;  	///< Right Hand Side
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagb;  	///< Right Hand Side
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement

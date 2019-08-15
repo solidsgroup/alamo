@@ -426,6 +426,23 @@ struct Stencil<T,1,1,2>
 };
 
 AMREX_FORCE_INLINE
+Set::Scalar
+Laplacian(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k, const int &m,
+		const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Scalar ret = 0.0;
+	ret += (Numeric::Stencil<Set::Scalar,2,0,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 1
+	ret += (Numeric::Stencil<Set::Scalar,0,2,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 2
+	ret += (Numeric::Stencil<Set::Scalar,0,0,2>::D(f,i,j,k,m,dx));
+#endif
+#endif
+	return ret;
+}
+
+AMREX_FORCE_INLINE
 Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar> &f,
 		const int &i, const int &j, const int &k, const int &m,

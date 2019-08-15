@@ -67,7 +67,6 @@ HeatConduction::HeatConduction() :
 
 
 	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
-	RegisterNodalFab(ugb, AMREX_SPACEDIM, number_of_ghost_cells, "Ugb");
 	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
 	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
 }
@@ -92,7 +91,7 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
 	Set::Scalar lame = 2.6, shear = 6.0;
 	using model_type = Model::Solid::LinearElastic::Multiwell;
-	
+	Util::Message(INFO);
 	Operator::Elastic<model_type> elastic;
 	elastic.SetHomogeneous(false);
 	elastic.define(geom,grids,dmap);
@@ -101,19 +100,31 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 	model_mf.resize(disp.size());
 	for (int lev = 0; lev < disp.size(); ++lev)
 	{
+		rhs[lev]->setVal(0.0);
 		model_mf[lev].define(disp[lev]->boxArray(), disp[lev]->DistributionMap(), 1, number_of_ghost_cells);
+		Util::Message(INFO,lev);
 		const amrex::Real* DX  = geom[lev].CellSize();
+		Util::Message(INFO);
 		//model_mf[ilev].setVal(model);
 
+		Util::Message(INFO);
 		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		{
 			amrex::Box bx = mfi.growntilebox(2);
 
 			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
 
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+			{
+				Set::Scalar AMREX_D_DECL(x,y,z);
+				AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
+							 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
+							 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
+
 				Set::Matrix Fgb = Set::Matrix::Zero();
-				if (j > 32) Fgb(0,1) = 0.1;
+				if (x < 0.5 && y > 0.525) Fgb(0,1) = 0.1;
+				if (x >= 0.5 && y > 0.475) Fgb(0,1) = 0.1;
+
 				model(i,j,k) = model_type(lame,shear,Fgb);
 				//model(i,j,k) = model_type(lame,shear);
 			});
@@ -126,18 +137,20 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 				{
 					for (int q = 0; q < 2; q++)
 					{
-						model(i,j,k).gradFgb[p](q,0) = - ((model(i+1,j,k).Fgb - model(i-1,j,k).Fgb)/2./DX[0])(p,q);
-						model(i,j,k).gradFgb[p](q,1) = - ((model(i,j+1,k).Fgb - model(i,j-1,k).Fgb)/2./DX[1])(p,q);
+						model(i,j,k).gradFgb[p](q,0) = ((model(i+1,j,k).Fgb - model(i-1,j,k).Fgb)/2./DX[0])(p,q);
+						model(i,j,k).gradFgb[p](q,1) = ((model(i,j+1,k).Fgb - model(i,j-1,k).Fgb)/2./DX[1])(p,q);
 					}
 					//Util::Message(INFO,model(i,j,k).gradFgb[p]);
 				}
 			});
 		}
 	}
+	Util::Message(INFO);
 
 	elastic.SetModel(model_mf);
 	elastic.SetHomogeneous(true);
 
+	Util::Message(INFO);
 	BC::Operator::Elastic<model_type> bc;
 	for (int lev = 0; lev < rhs.size(); lev++) rhs[lev]->setVal(0.0);
     bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
@@ -154,6 +167,7 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 	solver.setVerbose(10);
 	solver.setFixedIter(10);
 	
+	Util::Message(INFO);
 
 	solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(disp));
 	bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
@@ -177,6 +191,8 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 			});
 		}
 	}
+	Util::Message(INFO);
+
 	elastic.SetModel(model_mf);
 
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
@@ -184,6 +200,7 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 	solver.solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),tol_rel,tol_abs);
 	for (int lev = 0; lev < sigma.size(); lev++)
 	{
+	Util::Message(INFO);
 		//amrex::MultiFab::Subtract(*disp[lev],*ugb[lev],0,0,2,2); // Rx -= Dx  (Rx = Ax - Dx)
 		elastic.Stress(lev,*sigma[lev],*disp[lev]);
 		//disp[lev]->setVal(0.0);
@@ -201,11 +218,11 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 void
 HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
-	IC::Affine icrhs(geom, {0,1}, 0.2, {0.0,0.5} , true, 1.0);
-	for (int ilev = 0; ilev < ugb.size(); ++ilev)
-	{
-		icrhs.Initialize(ilev,ugb);
-	}
+//	IC::Affine icrhs(geom, {0,1}, 0.2, {0.0,0.5} , true, 1.0);
+//	for (int ilev = 0; ilev < ugb.size(); ++ilev)
+//	{
+//		icrhs.Initialize(ilev,ugb);
+//	}
 }
 
 
@@ -217,24 +234,41 @@ HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 /// \f[\mathbf{r} = \sqrt{\Delta x_1^2 + \Delta x_2^2 + \Delta x_3^2}\f]
 /// and \f$h\f$ is stored in #refinement_threshold
 void
-HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real /*time*/, int /*ngrow*/)
+HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real time, int /*ngrow*/)
 {
 	const amrex::Real* DX      = geom[lev].CellSize();
 	const Set::Scalar dxnorm = sqrt(DX[0]*DX[0] +  DX[1]*DX[1]);
 
-	for (amrex::MFIter mfi(*ugb[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
+	for (amrex::MFIter mfi(*rhs[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		amrex::Box bx = mfi.tilebox();
 		bx.grow(-1);
 		amrex::Array4<const amrex::Real> const& RHS    = (*rhs[lev]).array(mfi);
+		amrex::Array4<const amrex::Real> const& u    = (*disp[lev]).array(mfi);
 		amrex::Array4<char> const& tags    = a_tags.array(mfi);
 		
 		for (int n = 0; n < 2 ; n++)
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
+			Set::Scalar AMREX_D_DECL(x,y,z);
+			AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
+							 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
+							 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
+
+			//if (y > 0.4 && y < 0.6) tags(i,j,k) = amrex::TagBox::SET;
+			if (time < 1E-8) tags(i,j,k) = amrex::TagBox::SET;
+			
+			if (fabs(Numeric::Laplacian(u,i,j,k,0,DX)) > 0.1) Util::Message(INFO);
+			if (fabs(Numeric::Laplacian(u,i,j,k,1,DX)) > 0.1) Util::Message(INFO);
+
 			//Set::Vector grad = Numeric::Gradient(UGB,i,j,k,n,DX);
 			//if (dxnorm * grad.lpNorm<2>() > 0.01) 
-			//if (fabs(RHS(i,j,k,n)) > 0.01) amrex::TagBox::SET;
+			//Util::Message(INFO);
+			//if (fabs(RHS(i,j,k,n)) > 0.01) 
+			//{
+			//	tags(i,j,k) = amrex::TagBox::SET;
+			//	Util::Message(INFO);
+			//}
 		});
 	}
 	
