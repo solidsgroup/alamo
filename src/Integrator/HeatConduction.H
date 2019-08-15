@@ -65,7 +65,9 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp;  	///< Displacement
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > sigma;  	///< Right Hand Side
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy_mf;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagb_mf;  	///< Right Hand Side
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagbold_mf;  	///< Right Hand Side
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement

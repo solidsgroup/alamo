@@ -609,8 +609,8 @@ Integrator::WritePlotFile (bool initial) const
 		n = 0;
 		for (int i = 0; i < node.number_of_fabs; i++)
 		{
-			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
-			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
+			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,nnames[i]," contains nans (i=",i,")");
+			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
 			MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
 			n += node.ncomp_array[i];
 		}
