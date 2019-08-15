@@ -76,11 +76,11 @@ public:
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 			R_new.resize(number_of_grains);	
-			//amrex::Real R_max=0.1;
-			//amrex::Real R_min=0.05;
-			//amrex::Real R=R_max-R_min;
-			//R_new[n]=(int)(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
-			R_new[n]=0.05;
+			amrex::Real R_max=0.15;
+			amrex::Real R_min=0.1;
+			amrex::Real R=R_max-R_min;
+			R_new[n]=(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
+			//R_new[n]=0.1;
 			//Util::Message(INFO,"R_new	    ", R_new[n]);			
 
 			std::vector<bool> df(number_of_grains-1);
@@ -93,25 +93,25 @@ public:
  while (p<n)
 	 {		
 
-                         dd[p] = (packedspheres[p] - packedspheres[n]).lpNorm<2>();
+                         dd[p] = (packedspheres[n] - packedspheres[p]).lpNorm<2>();
 
 	   if (geom[0].isPeriodic(0))
 						{
-						 dd[p] = std::min( (packedspheres[p]-packedspheres[n] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-										   (packedspheres[p]-packedspheres[n] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										   (packedspheres[n]-packedspheres[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						}
 		#if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-						 dd[p] = std::min( (packedspheres[p]-packedspheres[n] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
-										   (packedspheres[p]-packedspheres[n] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
+						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										   (packedspheres[n]-packedspheres[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 		#endif
 		#if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-						 dd[p] = std::min( (packedspheres[p]-packedspheres[n] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										   (packedspheres[p]-packedspheres[n] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 		#endif
 
