@@ -79,16 +79,19 @@ public:
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 			R_new.resize(number_of_grains);	
-			amrex::Real R_max=0.15;
-			amrex::Real R_min=0.1;
-			amrex::Real R=R_max-R_min;
-			R_new[n]=(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
-			/*amrex::Real R_old=Set::Scalar Gaussian (mean,std_deviation);
+			//amrex::Real R_max=0.15;
+			//amrex::Real R_min=0.1;
+			//amrex::Real R=R_max-R_min;
+			//R_new[n]=(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
+            Util::Message(INFO,"mean	    ", mean);
+            Util::Message(INFO,"std_deviation	    ", std_deviation);
+			amrex::Real R_old=Util::Gaussian (mean,std_deviation);
+            Util::Message(INFO,"R_old	    ", R_old);
             if ((R_old>0) & (R_old<mean))
 	     {
 	        R_new[n]= R_old;
-	        //Util::Message(INFO,"R_new	    ", R_new[n]);
-	     }*/
+	        Util::Message(INFO,"R_new	    ", R_new[n]);
+	     }
 		
 
 
@@ -221,8 +224,8 @@ private:
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
 	std::vector <amrex::Real> R_new;
-    //amrex::Real mean;
-    //amrex::Real std_deviation;
+    amrex::Real mean;
+    amrex::Real std_deviation;
 	Type type;
 	amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<amrex::Real> packedspheres_y;
