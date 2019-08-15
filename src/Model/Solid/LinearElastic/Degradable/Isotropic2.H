@@ -47,6 +47,13 @@ public:
 
 		E1 = _E1; E2 = _E2; Tg = _Tg; Ts = _Ts;
 
+		Util::Message(INFO, "E10_iso = ", E10_iso,
+						". E20_iso = ", E20_iso, 
+						". Tg0_iso = ", Tg0_iso, 
+						". Ts0_iso = ", Ts0_iso, 
+						". temp_iso = ", temp_iso,
+						". nu_iso = ", nu_iso);
+
 		//E = 0.5*(E1 + E2) - 0.5*(E1-E2)*tanh((temp - Tg)/Ts);
 		//lambda = E*nu/((1.+nu)*(1.-2.*nu));
 		//mu = E/(2.*(1.+nu));
