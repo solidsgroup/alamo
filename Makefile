@@ -2,7 +2,7 @@
 -include Makefile.pre.conf
 
 AMREX_TARGET ?= 
-CC ?= mpicxx -cxx=g++
+CC ?= mpicxx 
 MPI_LIB ?= -lgfortran -lmpich
 
 RESET              = \033[0m
