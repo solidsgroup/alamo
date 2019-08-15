@@ -80,14 +80,14 @@ thermal.bc.hi_3 = 368.0
 #===========================================================================
 
 #=============== Material model parameters =================================
-material.model = isotropic
-material.isotropic.lambda = 410.1
-material.isotropic.mu = 350.5
-#material.isotropic2.E10 = 1.0
-#material.isotropic2.E20 = 0.148
-#material.isotropic2.Tg = 319.3
-#material.isotropic2.Ts = 17.0
-#material.isotropic2.temp = 298.0
+material.model = isotropic2
+#material.isotropic.lambda = 410.1
+#material.isotropic.mu = 350.5
+material.isotropic2.E10 = 410.0
+material.isotropic2.E20 = 148.0
+material.isotropic2.Tg = 319.3
+material.isotropic2.Ts = 17.0
+material.isotropic2.temp = 298.0
 #===========================================================================
 
 #=============== Damage evolution parameters ===============================
@@ -147,11 +147,13 @@ elastic.type            =   single
 elastic.int 			=	100
 elastic.tstart 			=	0.0
 elastic.tend			=	100.0
+
 #elastic.bc.bc_x_min 	=	disp neumann neumann
 #elastic.bc.bc_y_min	=	neumann disp neumann
 #elastic.bc.bc_z_min 	=	neumann neumann disp
+
 elastic.bc.bc_x_min 	=	disp trac trac
-elastic.bc.bc_y_min	=	trac trac trac
+elastic.bc.bc_y_min	    =	trac trac trac
 elastic.bc.bc_z_min 	=	trac trac trac
 elastic.bc.bc_x_max 	=	disp trac trac
 elastic.bc.bc_y_max 	=	trac trac trac
