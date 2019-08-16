@@ -37,27 +37,38 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, amrex::Real _mean, amrex::Real _std_deviation,Set::Scalar a_alpha = 1.0) : IC(_geom) 
+	//PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, amrex::Real _mean, amrex::Real _std_deviation,Set::Scalar a_alpha = 1.0) : IC(_geom)
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, Set::Scalar a_alpha = 1.0) : IC(_geom) 
+ 
 	{
-    	Define(_number_of_grains,_mean,_std_deviation,a_alpha);
+    	//Define(_number_of_grains,_mean,_std_deviation,a_alpha);
+		Define(_number_of_grains,a_alpha);
   	}
 
-  	void Define (int a_number_of_grains,amrex::Real a_mean, amrex::Real a_std_deviation, Set::Scalar a_alpha = 1.0)
+  	//void Define (int a_number_of_grains,amrex::Real a_mean, amrex::Real a_std_deviation, Set::Scalar a_alpha = 1.0)
+	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0)  
 	{
-    	Define(a_number_of_grains,a_mean, a_std_deviation, std::vector<Set::Scalar>(a_number_of_grains,a_mean, a_std_deviation,a_alpha),Type::Partition);
+    	//Define(a_number_of_grains,a_mean, a_std_deviation, std::vector<Set::Scalar>(a_number_of_grains,a_mean, a_std_deviation,a_alpha),Type::Partition);
+		Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),Type::Partition);
   	}
 
 	void Define (int a_number_of_grains,
-                 amrex::Real a_mean,
-                 amrex::Real a_std_deviation,
+                 //amrex::Real a_mean,
+                 //amrex::Real a_std_deviation,
 				std::vector<Set::Scalar> a_alpha,
 				Type a_type = Type::Values)
+				//Type b_type = Type::Value2,
+				//Type c_type = Type::Value3)
 	{
 		number_of_grains = a_number_of_grains;
-        mean= a_mean;
-        std_deviation=a_std_deviation;
+       // mean= a_mean;
+       // std_deviation=a_std_deviation;
 		alpha = a_alpha;
 		type = a_type;
+		//type_b = b_type;
+		//type_c = c_type;
+
+
 
 	    std::vector <amrex::Real> dd(number_of_grains-1);
 		std::vector <amrex::Real> R_n(number_of_grains-1);
@@ -88,9 +99,9 @@ public:
 			//amrex::Real R=R_max-R_min;
 			//R_new[n]=(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
            
-			amrex::Real R_old=Util::Gaussian (mean,std_deviation);
+			amrex::Real R_old=Util::Gaussian (mean=0.1,std_deviation=0);
             Util::Message(INFO,"R_old	    ", R_old);
-            if ((R_old>0) & (R_old<mean))
+            if (R_old>0)
 	     {
 	        R_new[n]= R_old;
 	        Util::Message(INFO,"R_new	    ", R_new[n]);
