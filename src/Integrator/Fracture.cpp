@@ -14,10 +14,13 @@ Fracture::Fracture() :
 	{
 		amrex::ParmParse pp_crack_constant("crack.constant");
 		Set::Scalar G_c, zeta;
+		eta_epsilon = 1.; mobility = 1e-2;
 		pp_crack_constant.query("G_c",G_c);
 		pp_crack_constant.query("zeta",zeta);
-		Util::Message(INFO, "G_c = ", G_c, ". zeta = ", zeta);
-		boundary = new Model::Interface::Crack::Constant(G_c,zeta);
+		pp_crack_constant.query("mobility",mobility);
+		pp_crack_constant.query("eta_epsilon",eta_epsilon);
+		//Util::Message(INFO, "G_c = ", G_c, ". zeta = ", zeta);
+		boundary = new Model::Interface::Crack::Constant(G_c,zeta,mobility);
 	}
 	else
 		Util::Abort(INFO,"This crack model hasn't been implemented yet");
@@ -235,14 +238,14 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 			// Right now this is a temporary fix.
 			amrex::Vector<Set::Scalar> _temp;
 			_temp.push_back( mul*(AMREX_D_TERM(	
-								boundary->w_phi(c_new(i,j,k,0)) + boundary->w_phi(c_new(i-1,j,k,0))
+								boundary->g_phi(c_new(i,j,k,0)) + boundary->g_phi(c_new(i-1,j,k,0))
 								, 
-								+ boundary->w_phi(c_new(i,j-1,k,0)) + boundary->w_phi(c_new(i-1,j-1,k,0))
+								+ boundary->g_phi(c_new(i,j-1,k,0)) + boundary->g_phi(c_new(i-1,j-1,k,0))
 								, 
-								+ boundary->w_phi(c_new(i,j,k-1,0)) + boundary->w_phi(c_new(i-1,j,k-1,0))
-								+ boundary->w_phi(c_new(i,j-1,k-1,0)) + boundary->w_phi(c_new(i-1,j-1,k-1,0)))
+								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
+								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
 								));
-			modelfab(i,j,k,0).DegradeModulus(std::min(_temp[0],0.8));
+			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],0.90));
 		});
 	}
 	//Util::Message(INFO, "Exit");
@@ -253,7 +256,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
 	if(iter>0 && std::abs(crack_energy - crack_energy_old) > 1e-4)
 	{
-		Util::Message(INFO, "crack_energy_old = ", crack_energy_old, ". crack_energy = ", crack_energy);
+		//Util::Message(INFO, "crack_energy_old = ", crack_energy_old, ". crack_energy = ", crack_energy);
 		//crack_energy_old = crack_energy;
 		return;
 	}
@@ -405,12 +408,15 @@ Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 								+ energy_box(i,j+1,k+1,0) + energy_box(i+1,j+1,k+1,0)
 								));
 
-			rhs += (1. - en_cell/boundary->Epc(c_old(i,j,k,0)))*boundary->Dw_phi(c_old(i,j,k,0));
-			rhs += boundary->kappa(c_old(i,j,k,0))*laplacian/boundary->Epc(c_old(i,j,k,0));
-			if(std::abs(rhs)>1.e5) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)), ". c_old = ", c_old(i,j,k,0));
+			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->w_phi(c_old(i,j,k,0));
+			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
+
+			//rhs += (1. - en_cell/boundary->Epc(c_old(i,j,k,0)))*boundary->Dw_phi(c_old(i,j,k,0));
+			//rhs += boundary->kappa(c_old(i,j,k,0))*laplacian/boundary->Epc(c_old(i,j,k,0));
+			//if(std::abs(rhs)>1.e5) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)), ". c_old = ", c_old(i,j,k,0));
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
 			//Util::Message(INFO, "rhs = ", rhs);
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs);
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
 			//if(c_new(i,j,k,0) > 1.0) {c_new(i,j,k,0) = 1.0;}
 			//if(c_new(i,j,k,0) < 0.0) {c_new(i,j,k,0) = 0.0;}
 		});

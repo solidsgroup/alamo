@@ -134,7 +134,7 @@ private:
 	std::string 	input_material = "isotropic";
 	Model::Interface::Crack::Crack *boundary;
 
-	Set::Scalar crack_energy, crack_energy_old;
+	Set::Scalar crack_energy, crack_energy_old, eta_epsilon, mobility;
 
   Set::Scalar refinement_threshold = 0.01;			///< Criterion for cell refinement
   int nlevels;

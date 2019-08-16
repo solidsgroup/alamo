@@ -1,4 +1,4 @@
-timestep = 1e-5
+timestep = 1e-4
 stop_time = 10.0
 
 amr.plot_int = 1
@@ -16,16 +16,18 @@ geometry.prob_hi = 1 1
 geometry.is_periodic= 0 0
 
 crack.type = constant
-crack.constant.G_c = 2.0
-crack.constant.zeta = 0.001
+crack.constant.G_c = 8e-3
+crack.constant.zeta = 1.e-4
+crack.consant.mobility = 1.0e-2
+crack.constant.eta_epsilon = 0.01
 
 ic.type = ellipsoid
 ic.center = 0.5 0.5
 ic.radius = 0.05 0.01
 
 material.model = isotropic
-material.isotropic.lambda = 1e3
-material.isotropic.mu = 6.66e2
+material.isotropic.lambda = 1e2
+material.isotropic.mu = 8e1
 
 elastic.bottom_solver 	=	bicgstab
 elastic.composite_solve	=	1
@@ -34,7 +36,7 @@ elastic.cg_verbose 		=	0
 elastic.max_iter		=	10000
 elastic.max_fmg_iter 	=	10000
 elastic.bottom_max_iter =	100
-elastic.max_fixed_iter 	=	1000
+elastic.max_fixed_iter 	=	200
 elastic.linop_maxorder 	=	2
 elastic.max_coarsening_level = 100000
 elastic.agglomeration 	=	1
