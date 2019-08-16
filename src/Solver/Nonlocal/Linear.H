@@ -14,7 +14,7 @@ namespace Nonlocal
 /// with AMReX can be implemented here.
 class Linear : public amrex::MLMG
 {
-    public:
+public:
     /// This constructor sets several defaults for NODAL solves
     Linear (Operator::Operator<Grid::Node>& a_lp) : MLMG(a_lp)
     {
@@ -28,13 +28,12 @@ class Linear : public amrex::MLMG
 	    MLMG::setCFStrategy(MLMG::CFStrategy::none);
         MLMG::setFinalFillBC(false);	
     }
-    void setVerbose(int verbosity)
+    void SetVerbose(int verbosity)
     {
         MLMG::setVerbose(verbosity);
 		if (verbosity > 4) MLMG::setCGVerbose(verbosity);
      	else
  	    {
- 		    MLMG::setVerbose(0);
  		    MLMG::setCGVerbose(0);
 	    }
     }

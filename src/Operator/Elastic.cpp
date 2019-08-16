@@ -87,6 +87,12 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
 
+	if (a_model.boxArray()        != model[amrlev][0]->boxArray()) Util::Abort(INFO,"Inconsistent box arrays");
+	if (a_model.DistributionMap() != model[amrlev][0]->DistributionMap()) Util::Abort(INFO,"Inconsistent distribution maps");
+	if (a_model.nComp()           != model[amrlev][0]->nComp()) Util::Abort(INFO,"Inconsistent # of components - should be ",model[amrlev][0]->nComp());
+	if (a_model.nGrow()           != model[amrlev][0]->nGrow()) Util::Abort(INFO,"Inconsistent # of ghost nodes, should be ",model[amrlev][0]->nGrow());
+
+
 	int nghost = model[amrlev][0]->nGrow();
 
 	for (MFIter mfi(a_model, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -102,6 +108,9 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 				C(i,j,k) = a_C(i,j,k);
 			});
 	}
+	//FillBoundaryCoeff(*model[amrlev][0], m_geom[amrlev][0]);
+
+
 	m_model_set = true;
 }
 
