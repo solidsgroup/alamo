@@ -139,8 +139,8 @@ PolymerDegradation::PolymerDegradation():
 		if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
 		if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
 		if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
-		Util::Abort(INFO,"Isotropic2 model has been disabled for now");
-		//modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
+		//Util::Abort(INFO,"Isotropic2 model has been disabled for now");
+		modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
 	}
 	else if(input_material == "isotropic")
 	{
@@ -846,7 +846,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 									)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
-			//else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
+			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
 			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}
@@ -898,7 +898,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
-		DegradeMaterial(ilev,model[ilev]);
+		//DegradeMaterial(ilev,model[ilev]);
 	}
 
 	Operator::Elastic<model_type> elastic_operator;
