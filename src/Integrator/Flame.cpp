@@ -70,7 +70,7 @@ Flame::Flame () : Integrator()
   std::vector<Set::Scalar> fs(fs_number);
   for (int i = 0; i < fs_number; i++) fs[i] = 0.5*(1.0 + Util::Random());
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
-  PackedSpheresIC->Define(fs_number,fs,IC::PackedSpheres::Type::Values);
+  PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
 
   eta_ic = new IC::Wedge(geom);
 
