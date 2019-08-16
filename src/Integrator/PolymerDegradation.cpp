@@ -898,7 +898,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
-		//DegradeMaterial(ilev,model[ilev]);
+		DegradeMaterial(ilev,model[ilev]);
 	}
 
 	Operator::Elastic<model_type> elastic_operator;
