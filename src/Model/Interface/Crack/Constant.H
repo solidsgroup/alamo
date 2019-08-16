@@ -29,12 +29,12 @@ public:
     };
     Set::Scalar w_phi(Set::Scalar c)
     {
-        return (1.-c)*(1.-c);
+        return 1. - c*c;
     };
     
     Set::Scalar Dw_phi(Set::Scalar c)
     {
-        return -2.0*(1.-c);
+        return -2.0*c;
     };
 
     Set::Scalar g_phi(Set::Scalar c)
