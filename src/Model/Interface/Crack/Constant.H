@@ -21,22 +21,30 @@ public:
     Constant()
     {       
     };
-    Constant(Set::Scalar _Gc, Set::Scalar _zeta)
+    Constant(Set::Scalar _Gc, Set::Scalar _zeta, Set::Scalar _mob)
     {
         Gc = _Gc;
         zeta = _zeta;
+        mobility = _mob;
     };
     Set::Scalar w_phi(Set::Scalar c)
     {
-        return 1. - 4.*std::pow(c,3) + 3.*std::pow(c,4);
+        return (1.-c)*(1.-c);
     };
     
     Set::Scalar Dw_phi(Set::Scalar c)
     {
-        //Set::Scalar derivative = -12.*std::pow(c,2) + 12.*std::pow(c,3);
-        //if(std::abs(derivative) < 1e-2) return 0.;
-        //return derivative;
-        return -12.*std::pow(c,2) + 12.*std::pow(c,3);
+        return -2.0*(1.-c);
+    };
+
+    Set::Scalar g_phi(Set::Scalar c)
+    {
+        return c*c;
+    };
+
+    Set::Scalar Dg_phi(Set::Scalar c)
+    {
+        return 2.*c;
     };
 
     //Set::Scalar g_phi(Set::Scalar c) { return 1. - w_phi(c); }
@@ -44,15 +52,15 @@ public:
     
     Set::Scalar Epc(Set::Scalar /*theta*/)
     {
-        return Gc/(4.0*C_phi*zeta);
+        return Gc/(4.0*zeta);
     };
     Set::Scalar kappa(Set::Scalar /*theta*/)
     {
-        return Gc*zeta/(2.0*C_phi);
+        return 2.0*Gc*zeta;
     };
 
 private:
-    amrex::Real Gc = NAN, zeta = NAN, C_phi = 0.71658;
+    amrex::Real Gc = NAN, zeta = NAN, mobility = NAN;
 };
 }
 }

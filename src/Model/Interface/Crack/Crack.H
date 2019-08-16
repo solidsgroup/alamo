@@ -21,7 +21,9 @@ class Crack
 	//virtual amrex::Real DW(amrex::Real theta) = 0;
 	//virtual amrex::Real DDW(amrex::Real theta) = 0;
 	virtual Set::Scalar w_phi(Set::Scalar c) = 0;
+	virtual Set::Scalar g_phi(Set::Scalar c) = 0;
 	virtual Set::Scalar Dw_phi(Set::Scalar c) = 0;
+	virtual Set::Scalar Dg_phi(Set::Scalar c) = 0;
 	virtual Set::Scalar Epc(Set::Scalar theta) = 0;
 	virtual Set::Scalar kappa(Set::Scalar theta) = 0;
 
