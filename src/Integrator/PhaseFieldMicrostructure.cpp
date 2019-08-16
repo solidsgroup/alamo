@@ -99,8 +99,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		else if (ic_type == "packedspheres")
 		{
 			int total_grains = number_of_grains;
+			amrex::Real mean =mean;
+			amrex::Real std_deviation= std_deviation;
+
 			pp.query("packedspheres.number_of_grains", total_grains);
-			ic = new IC::PackedSpheres(geom,total_grains);
+			pp.query("mean", mean);
+			pp.query("std_deviation",std_deviation);
+			ic = new IC::PackedSpheres(geom,total_grains,mean,std_deviation);
 		}
 		else if (ic_type == "circle" || ic_type == "sphere")
 			ic = new IC::Sphere(geom);

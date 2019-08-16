@@ -37,38 +37,27 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	//PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, amrex::Real _mean, amrex::Real _std_deviation,Set::Scalar a_alpha = 1.0) : IC(_geom)
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, Set::Scalar a_alpha = 1.0) : IC(_geom) 
- 
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _mean =0.05, amrex::Real _std_deviation=0) : IC(_geom) 
 	{
-    	//Define(_number_of_grains,_mean,_std_deviation,a_alpha);
-		Define(_number_of_grains,a_alpha);
+    	Define(_number_of_grains,a_alpha,_mean,_std_deviation);
   	}
 
-  	//void Define (int a_number_of_grains,amrex::Real a_mean, amrex::Real a_std_deviation, Set::Scalar a_alpha = 1.0)
-	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0)  
+  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_mean=0.05, amrex::Real a_std_deviation =0)
 	{
-    	//Define(a_number_of_grains,a_mean, a_std_deviation, std::vector<Set::Scalar>(a_number_of_grains,a_mean, a_std_deviation,a_alpha),Type::Partition);
-		Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),Type::Partition);
+    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_mean, a_std_deviation,Type::Partition);
   	}
 
 	void Define (int a_number_of_grains,
-                 //amrex::Real a_mean,
-                 //amrex::Real a_std_deviation,
-				std::vector<Set::Scalar> a_alpha,
-				Type a_type = Type::Values)
-				//Type b_type = Type::Value2,
-				//Type c_type = Type::Value3)
+				 std::vector<Set::Scalar> a_alpha,
+				 amrex::Real a_mean,
+                 amrex::Real a_std_deviation,
+				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
-       // mean= a_mean;
-       // std_deviation=a_std_deviation;
 		alpha = a_alpha;
+		mean= a_mean;
+        std_deviation=a_std_deviation;
 		type = a_type;
-		//type_b = b_type;
-		//type_c = c_type;
-
-
 
 	    std::vector <amrex::Real> dd(number_of_grains-1);
 		std::vector <amrex::Real> R_n(number_of_grains-1);
@@ -94,14 +83,9 @@ public:
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 			R_new.resize(number_of_grains);	
-			//amrex::Real R_max=0.15;
-			//amrex::Real R_min=0.1;
-			//amrex::Real R=R_max-R_min;
-			//R_new[n]=(((((amrex::Real)rand())/((amrex::Real)RAND_MAX))*R+R_min)*100.0)/100.0;
-           
-			amrex::Real R_old=Util::Gaussian (mean=0.1,std_deviation=0);
-            Util::Message(INFO,"R_old	    ", R_old);
-            if (R_old>0)
+			
+			amrex::Real R_old=Util::Gaussian (mean,std_deviation);
+            if (R_old>0) 
 	     {
 	        R_new[n]= R_old;
 	        Util::Message(INFO,"R_new	    ", R_new[n]);
@@ -192,8 +176,6 @@ public:
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 							
-				//amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
-				//amrex::Real min_distance = 0.2;
 				int min_grain_id = -1;
 
 				for (int n = 0; n<number_of_grains; n++)
@@ -222,7 +204,6 @@ public:
 #endif
 					if (d<R_new[n])
 						{
-							//min_distance = d;
 							min_grain_id = n;
 						}
 				}
