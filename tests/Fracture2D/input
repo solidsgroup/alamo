@@ -16,7 +16,7 @@ geometry.prob_hi = 1 1
 geometry.is_periodic= 0 0
 
 crack.type = constant
-crack.constant.G_c = 8e-3
+crack.constant.G_c = 1.0e-1
 crack.constant.zeta = 1.e-4
 crack.consant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01

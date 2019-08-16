@@ -47,6 +47,8 @@ Fracture::Fracture() :
 	// try symmetric simulation.
 	bc_lo_str = {AMREX_D_DECL("Neumann", "Neumann", "Neumann")};
 	bc_hi_str = {AMREX_D_DECL("Neumann", "Neumann", "Neumann")};
+	//bc_lo_str = {AMREX_D_DECL("Dirichlet", "Dirichlet", "Dirichlet")};
+	//bc_hi_str = {AMREX_D_DECL("Dirichlet", "Dirichlet", "Dirichlet")};
 	/*/bc_lo_str = {AMREX_D_DECL("REFLECT_EVEN", "REFLECT_EVEN", "REFLECT_EVEN")};
 	bc_hi_str = {AMREX_D_DECL("Neumann", "Neumann", "Neumann")};*/
 	AMREX_D_TERM( 	bc_lo_1 = {0.}; bc_hi_1 = {0.};,
@@ -408,7 +410,7 @@ Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 								+ energy_box(i,j+1,k+1,0) + energy_box(i+1,j+1,k+1,0)
 								));
 
-			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->w_phi(c_old(i,j,k,0));
+			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
 
 			//rhs += (1. - en_cell/boundary->Epc(c_old(i,j,k,0)))*boundary->Dw_phi(c_old(i,j,k,0));
