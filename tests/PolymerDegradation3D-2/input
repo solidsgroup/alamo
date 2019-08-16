@@ -23,7 +23,7 @@
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 0.01
+stop_time = 2.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
@@ -83,7 +83,7 @@ thermal.bc.hi_3 = 368.0
 material.model = isotropic2
 #material.isotropic.lambda = 410.1
 #material.isotropic.mu = 350.5
-material.isotropic2.E10 = 410.0
+material.isotropic2.E10 = 510.0
 material.isotropic2.E20 = 148.0
 material.isotropic2.Tg = 319.3
 material.isotropic2.Ts = 17.0
@@ -140,7 +140,7 @@ elastic.cg_verbose 		=	0
 elastic.max_iter		=	10000
 elastic.max_fmg_iter 	=	10000
 elastic.bottom_max_iter =	100
-elastic.max_fixed_iter 	=	100
+elastic.max_fixed_iter 	=	1000
 elastic.linop_maxorder 	=	2
 elastic.max_coarsening_level = 100000
 elastic.agglomeration 	=	1
@@ -163,10 +163,10 @@ elastic.tend			=	100.0
 #elastic.bc.bc_y_min	=	neumann disp neumann
 #elastic.bc.bc_z_min 	=	neumann neumann disp
 
-elastic.bc.bc_x_min 	=	disp trac trac
+elastic.bc.bc_x_min 	=	disp disp disp
 elastic.bc.bc_y_min	    =	trac trac trac
 elastic.bc.bc_z_min 	=	trac trac trac
-elastic.bc.bc_x_max 	=	disp trac trac
+elastic.bc.bc_x_max 	=	disp disp disp
 elastic.bc.bc_y_max 	=	trac trac trac
 elastic.bc.bc_z_max 	=	trac trac trac
 elastic.bc.x_min = 0.0 0.0 0.0
