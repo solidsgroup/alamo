@@ -1,7 +1,7 @@
 timestep = 1e-4
 stop_time = 10.0
 
-amr.plot_int = 1
+amr.plot_int = 100
 amr.max_level = 2
 amr.n_cell = 128 128
 amr.blocking_factor = 4
@@ -16,7 +16,7 @@ geometry.prob_hi = 1 1
 geometry.is_periodic= 0 0
 
 crack.type = constant
-crack.constant.G_c = 1.0e-1
+crack.constant.G_c = 5.0e-1
 crack.constant.zeta = 1.e-4
 crack.consant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01
