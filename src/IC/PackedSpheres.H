@@ -7,7 +7,8 @@ using namespace std;
 #include <iostream>
 #include <vector>
 #include <algorithm>
-
+#include <AMReX.H>
+#include <mpi.h>
 namespace IC
 {
 /// \brief Create a series of patches using the packedspheres Tesselation
@@ -33,7 +34,9 @@ namespace IC
 ///
 class PackedSpheres : public IC
 {
-public:
+public:       
+     
+
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
@@ -53,6 +56,8 @@ public:
                  amrex::Real a_std_deviation,
 				 Type a_type = Type::Values)
 	{
+		
+		 
 		number_of_grains = a_number_of_grains;
 		alpha = a_alpha;
 		mean= a_mean;
@@ -63,7 +68,7 @@ public:
 		std::vector <amrex::Real> R_n(number_of_grains-1);
 		std::vector <amrex::Real> count(number_of_grains);
        
-
+       
          
 		
         int p=0;
@@ -76,7 +81,7 @@ public:
 					 int total=0;
 		do
 		{			 
-
+          
 		for (int n = 0; n<number_of_grains; n++)
 		{
 			AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
@@ -150,11 +155,12 @@ public:
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
 		Util::Message(INFO,"count:	    ", total);
-	    
+	  
     }
 	    
 	}
 	while (total<number_of_grains);
+	   
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
@@ -204,11 +210,13 @@ public:
 #endif
 					if (d<R_new[n])
 						{
-							min_grain_id = n;
+							min_grain_id = 0;
 						}
 				}
-
+               
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
+			
+			
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
 			});
 		}
@@ -227,6 +235,7 @@ private:
 #if BL_SPACEDIM==3
 	amrex::Vector<amrex::Real> packedspheres_z;
 #endif
+  
 };
 }
 #endif
