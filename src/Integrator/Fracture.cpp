@@ -236,8 +236,6 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-			// We need to introduce a fracture model in Model/Interface for this. 
-			// Right now this is a temporary fix.
 			amrex::Vector<Set::Scalar> _temp;
 			_temp.push_back( mul*(AMREX_D_TERM(	
 								boundary->g_phi(c_new(i,j,k,0)) + boundary->g_phi(c_new(i-1,j,k,0))
@@ -250,21 +248,18 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],0.90));
 		});
 	}
-	//Util::Message(INFO, "Exit");
 }
 
 void 
 Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
-	if(iter>0 && std::abs(crack_energy - crack_energy_old) > 1e-4)
+	if(iter>0)
 	{
-		//Util::Message(INFO, "crack_energy_old = ", crack_energy_old, ". crack_energy = ", crack_energy);
-		//crack_energy_old = crack_energy;
+		Util::Message(INFO, "crack_energy_old = ", crack_energy_old, ". crack_energy = ", crack_energy, ". Difference = ",
+			std::abs((crack_energy - crack_energy_old)/crack_energy_old));
+		crack_energy_old = crack_energy;
 		return;
 	}
-	//do the tensile test
-
-	Util::Message(INFO, "crack_energy_old = ", crack_energy_old, ". crack_energy = ", crack_energy);
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
@@ -413,14 +408,8 @@ Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
 
-			//rhs += (1. - en_cell/boundary->Epc(c_old(i,j,k,0)))*boundary->Dw_phi(c_old(i,j,k,0));
-			//rhs += boundary->kappa(c_old(i,j,k,0))*laplacian/boundary->Epc(c_old(i,j,k,0));
-			//if(std::abs(rhs)>1.e5) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)), ". c_old = ", c_old(i,j,k,0));
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
-			//Util::Message(INFO, "rhs = ", rhs);
 			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
-			//if(c_new(i,j,k,0) > 1.0) {c_new(i,j,k,0) = 1.0;}
-			//if(c_new(i,j,k,0) < 0.0) {c_new(i,j,k,0) = 0.0;}
 		});
 	}
 }
@@ -463,7 +452,8 @@ Fracture::Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &
 	const amrex::Real* DX = geom[amrlev].CellSize();
 
 	amrex::FArrayBox &c_new  = (*m_c[amrlev])[mfi];
-	amrex::FArrayBox &energy_box  = (*m_energy_pristine[amrlev])[mfi];
+	//amrex::FArrayBox &c_old  = (*m_cold[amrlev])[mfi];
+	//amrex::FArrayBox &energy_box  = (*m_energy_pristine[amrlev])[mfi];
 
 	AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
 		     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
@@ -471,23 +461,7 @@ Fracture::Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &
 	{
 		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
 
-		Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-		Set::Scalar en_cell = mul*(AMREX_D_TERM(	
-								energy_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3)),0) + energy_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3)),0)
-								, 
-								+ energy_box(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3)),0) + energy_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3)),0)
-								, 
-								+ energy_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3+1)),0) + energy_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3+1)),0)
-								+ energy_box(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3+1)),0) + energy_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3+1)),0)
-								));
-
-		AMREX_D_TERM(	Set::Scalar gradx = (c_new(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3)),0) - c_new(amrex::IntVect(AMREX_D_DECL(m1-1,m2,m3)),0))/(2.*DX[0]);,
-						Set::Scalar grady = (c_new(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3)),0) - c_new(amrex::IntVect(AMREX_D_DECL(m1,m2-1,m3)),0))/(2.*DX[1]);,
-						Set::Scalar gradz = (c_new(amrex::IntVect(AMREX_D_DECL(m1,m2,m3+1)),0) - c_new(amrex::IntVect(AMREX_D_DECL(m1,m2,m3-1)),0))/(2.*DX[2]););
-		
-		Set::Scalar gradsq = AMREX_D_TERM(gradx*gradx, + grady*grady, + gradz*gradz);
-		Set::Scalar rhs = boundary->w_phi(c_new(m,0))*(boundary->Epc(0.) - en_cell);
-		crack_energy += (rhs + 0.5*boundary->kappa(0.)*gradsq)*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+		crack_energy += (c_new(m,0)*c_new(m,0))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 	}
 	//Util::Message(INFO,"crack_energy = ", crack_energy);
 }
