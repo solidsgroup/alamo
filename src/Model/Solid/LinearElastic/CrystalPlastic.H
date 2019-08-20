@@ -7,7 +7,6 @@
 
 #include "Set/Set.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
-
 namespace Model
 {
 namespace Solid
@@ -27,11 +26,11 @@ private:
 	
 	struct slip
 	{
-	Set::Vector n;
-	Set::Vector s;
-	Set::Scalar Tcrss;
-	Set::Scalar galpha;
-	bool on;
+		Set::Vector n;
+		Set::Vector s;
+		Set::Scalar Tcrss;
+		Set::Scalar galpha;
+		bool on;
 	};
 	//********Matrial Slip Data**********//
 
@@ -46,17 +45,19 @@ private:
 
 	Set::Matrix4<3,Set::Sym::MajorMinor> C;
 	Set::Matrix esp = Set::Matrix::Zero();
+	Eigen::Matrix<double,12,12> Q;
 	//********Matrial Constants**********//
 
-	//static Set::Scalar constexpr Tcrss = 0.5;
-	static Set::Scalar constexpr n = 2.0; // 300
-	static Set::Scalar constexpr gammadot0 = .0001; //0.0001 1/s
-	static Set::Scalar constexpr hs = .1; // 0.01 MPa
-	static Set::Scalar constexpr h0 = .2; // 100 MPa
-	static Set::Scalar constexpr ts = .1; // 6.3 Mpa
-	static Set::Scalar constexpr t0 = .2; // 6 MPa
-	static Set::Scalar constexpr q = 1.4; // 1
-	Set::Scalar dt = 1e-5;
+	static Set::Scalar constexpr tcrss = 0.2;
+	static Set::Scalar constexpr n = 50.0; // 300
+	static Set::Scalar constexpr gammadot0 = 0.001; // 1/s
+	static Set::Scalar constexpr t0 = 2.0e-3; // MPa
+	static Set::Scalar constexpr hs = 1.5*t0; // MPa
+	static Set::Scalar constexpr h0 = 90*t0; // MPa
+	static Set::Scalar constexpr ts = 1.3*t0; //Mpa
+	
+	static Set::Scalar constexpr q = 1.0; // 1
+	Set::Scalar dt = 1.0e-5;
 	double Time = 0.0;
 	//***********DFP************//
 
@@ -94,8 +95,8 @@ public:
 	void AdvanceEsp(const Set::Matrix& sig);
 	void Setdt(const double _dt);
 	void LatentHardening();
-	bool coplanar(Set::Vector nn, int i) const;
-	vector2d relax(const Set::Matrix& sig, double e);
+	Eigen::Matrix<double,12,12> coplanar();
+	Set::Matrix relax(const Set::Matrix& sig, double e);
 	Set::Matrix GetEsp() const;
 	double getGamma(int index) const;
 //DFP

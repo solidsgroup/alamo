@@ -30,7 +30,7 @@ Set::Matrix CG (Set::Matrix4<3,Set::Sym::MajorMinor> A,
     }
 
     Set::Matrix p = r;
-    for (int k = 0; k < 100; k++)
+    for (int k = 0; k < 500; k++)
     {
         Set::Scalar alpha = (r.transpose()*r).trace() / (p.transpose() * (A*p)).trace();
         x = x + (p * alpha);
@@ -41,7 +41,7 @@ Set::Matrix CG (Set::Matrix4<3,Set::Sym::MajorMinor> A,
                 if (mask(i,j)) rnew(i,j) = 0.0;
 
         if (verbose) Util::Message(INFO,"Iteration ", k, ": Resid=" , std::sqrt(rnew.lpNorm<2>()));
-        if (std::sqrt(rnew.lpNorm<2>()) < 1E-12) return x;
+        if (std::sqrt(rnew.lpNorm<2>()) < 1E-8) return x;
 
         Set::Scalar beta = (rnew.transpose()*rnew).trace() / (r.transpose()*r).trace();
 

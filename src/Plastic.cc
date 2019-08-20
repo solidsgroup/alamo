@@ -33,7 +33,6 @@ void savefile(std::array<double,12> g, double time,const char* loc)
 			myfile << g[i] << "," << time << std::endl;
 		}
 	}
-	//myfile << std::endl;
  	myfile.close();
 }
 void deletefile(const char* loc)
@@ -48,12 +47,18 @@ Values for the elastic tensor, C:
 
 	K=Bulk Modulus, G=Shear Modulus
 	Copper -> K = 123x10^9 Pa (N/m^2) G = 45x10^9 Pa
+	Aluminum -> K = 69x10^9 Pa G = 27x10^9 Pa
 	L = K - 2/3*G = 9.3x10^10 Pa
 	mu = 2/3(K-L) = 2x10^10 Pa
-	C11 = L+2*mu, C12 = L, C44 = mu
+	C11 = L+2*mu, C12 = L, C44 = mu L = 5.1x10^10 Pa mu = 1.2x10^10
+	Copper
 	C11 = 1.33x10^11 Pa -> 1.33e2 GPa
-	C12 = 9.3x10^10 Pa  ->  9.3e GPa
-	C44 = 2.0x10^10 Pa  ->  2.0e GPa
+	C12 = 9.3x10^10 Pa  ->  9.3e1 GPa
+	C44 = 2.0x10^10 Pa  ->  2.0e1 GPa
+	Aluminum
+	C11 = 7.5x10^10 Pa -> 7.5e1 GPa
+	C12 = 2.1x10^10 Pa -> 2.1e1 GPa
+	C44 = 1.2x10^10 Pa -> 1.2e1 GPa
  */
 int main (int argc, char* argv[])
 {
@@ -61,20 +66,22 @@ int main (int argc, char* argv[])
 	auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
 	deletefile(src); deletefile(src2);
 	Util::Initialize(argc,argv);
-	CrystalPlastic cp(1.33e2, 9.3e1, 2.0e1); //0.4, 0.1, 0.01
+	CrystalPlastic cp(168.4,121.4,75.4); //0.4, 0.1, 0.01
 	std::array<double,12> gamma;
+	//CrystalPlastic cp(0.4,0.1,0.01,.4,.1,.6);
 	//cp.Randomize();
 	Util::Message(INFO,"Working...");
 	Set::Matrix es = Set::Matrix::Zero();
 	Set::Matrix sigma = Set::Matrix::Zero();
 	Set::Matrix esp = Set::Matrix::Zero();
+
 	Set::Matrix sig = Set::Matrix::Zero();
 	Set::iMatrix mask = Set::iMatrix::Zero();
 	mask(0,0) = 1;
 	
 	double dt = 1e-8;
-	double c = 10.0;
-	double T = 0.15/c;
+	double c = 70.0;
+	double T = .02;
 	cp.Setdt(dt);
 	int counter = 0;
 	for(double t = 0.0; t <= T; t += dt)
@@ -82,12 +89,9 @@ int main (int argc, char* argv[])
 		Set::Matrix esp = cp.GetEsp();
 		Set::Matrix temp;
 		es(0,0) = c*t;
-		Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> s = cp.relax(es, es(0,0));
-		es(1,1) = s(0);
-		es(2,2) = s(1);
-
-		//temp = es ;
-		//es = Solver::Local::CG(cp.DDW(temp),sig,temp,mask,false);
+		es = cp.relax(es, es(0,0));
+	//	temp = (es - esp);
+	//	es = Solver::Local::CG(cp.DDW(es),-cp.DW(temp),es,mask,false);
 
 		cp.update(es,sigma,dt);
 
