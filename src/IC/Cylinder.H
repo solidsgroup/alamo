@@ -5,21 +5,20 @@
 
 #include "IC/IC.H"
 
-/// \class Cylinder
-/// \brief 
-///
 namespace IC
 {
 class Cylinder : public IC
 {
 public:
   Cylinder (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+  /// Constructor requires temperature inputs for either side of the boundary.
+  /// The radius is defaulted to 1, and the cylinder is centered on the axis.
   Cylinder (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _Tin, Set::Scalar _Tout) : IC(_geom) 
   {
 	  Define(_Tin,_Tout);
   }
 
-void Define (amrex::Real _Tin, amrex::Real _Tout)
+void Define (Set::Scalar _Tin, Set::Scalar _Tout)
   {
 	Tin = _Tin;
 	Tout = _Tout;
@@ -60,7 +59,7 @@ virtual void Add(const int lev,
   };
   
 private:
-	amrex::Real Tin, Tout;
+	Set::Scalar Tin, Tout;
 };
 }
 #endif
