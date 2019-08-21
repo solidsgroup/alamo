@@ -36,7 +36,7 @@ HeatConduction::HeatConduction() :
 		//ic = new IC::Constant(geom,alpha);
 	else
 		Util::Abort(INFO,"Need to fix this");
-		//ic = new IC::Constant(geom,alpha);
+		//IC = new IC::Sphere(radius,center,XY)
     
 	{
 		amrex::ParmParse pp("bc");

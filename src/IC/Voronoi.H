@@ -6,33 +6,13 @@
 
 namespace IC
 {
-/// \brief Create a series of patches using the Voronoi Tesselation
-///
-/// For a thorough discussion of the Voronoi tesselation algorithm, see
-/// [this wikipedia article](https://en.wikipedia.org/wiki/Voronoi_diagram)
-///
-/// Let `N` be the number of patches in the tesselation, 
-/// and let \f$\alpha_1,\ldots,\alpha_n\f$ be a set of scalar values.
-/// There are two methods for applying the tesselation IC:
-///
-///   * `Partition`: This requires an `N`-component multifab. 
-///     (There is currently no check for this.)
-///     Each component of the fab corresponds to one of the patches
-///     Then fab component i is equal to \f$\alpha_i\f$ within the patch and
-///     zero elsewhere. (This is mostly useful for multiphase field 
-///     microstructure)
-///   * `Values`: This uses a 1-component fab. It sets the value of the ith fab 
-///     equal to \f$\alpha_i\f$.
-///
-/// Note on periodicity: This IC uses the `amrex::Geometry` object to determine
-/// if it is periodic, and if so, it will generate a periodic tesselation.
-///
 class Voronoi : public IC
 {
 public:
 	enum Type {Partition, Values};
 
 	Voronoi (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+	/// Voronoi constructor defines the number of grains and sets the set of \f${\alpha}_{i}\f$ to a default of 1
 	Voronoi (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, Set::Scalar a_alpha = 1.0) : IC(_geom) 
 	{
     	Define(_number_of_grains,a_alpha);

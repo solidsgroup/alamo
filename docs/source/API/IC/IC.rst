@@ -10,8 +10,8 @@ It should be noted that this namespace includes a purely abstract IC object that
    :caption: Contents:
 
    Affine
-   Circle
    Constant
+   Cylinder
    PerturbedInterface
    Random
    Sphere

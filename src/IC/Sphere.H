@@ -11,13 +11,28 @@ namespace IC
 class Sphere : public IC
 {
 public:
-	Sphere (amrex::Vector<amrex::Geometry> &_geom) :
-		IC(_geom)
+/// Sphere is also used for a cylindrical case, but switching from the default type to the desired orientation.
+/// For instance, XY refers to a cylinder with the circular faces in the XY plane.
+	enum Type {XYZ, XY, YZ, XZ}
+
+	Sphere (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+	/// Constructor defining radius, center, and dimension/orientation.
+	Sphere (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _radius, amrex::Vector<Set::Scalar> _center, Type::XYZ) : IC(_geom)
 	{
-		amrex::ParmParse pp("ic");
-		pp.queryarr("center",center);
-		pp.query("radius",radius);
-		pp.query("dim",dim);
+		Define(_radius, _center, _type);
+		// amrex::ParmParse pp("ic");
+		// pp.queryarr("center",center);
+		// pp.query("radius",radius);
+		// pp.query("dim",dim);
+	}
+
+	void Define(amrex::real _radius,
+				amrex::Vector<amrex::Real> _center,
+				Type _type = Type::XYZ)
+	{
+		radius = _radius;
+		center = _center;
+		type = _type;
 	}
   
 	void Add(const int lev,
@@ -46,21 +61,43 @@ public:
 									 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
 									 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
 					}
-					Set::Scalar rsq = 0.0;
 
-					AMREX_D_TERM(if (dim >= 1) rsq += (x-center[0])*(x-center[0]);,
-								 if (dim >= 2) rsq += (y-center[1])*(y-center[1]);,
-								 if (dim >= 3) rsq += (z-center[2])*(z-center[2]););
+					if (type == Type::XYZ)
+					{
+						// 3D Sphere
+						AMREX_D_TERM(Set::Scalar rsq = (x-center[0])*(x-center[0])
+										 			 + (y-center[1])*(y-center[1])
+										 			 + (z-center[2])*(z-center[2]));
+					}
+					else if (type == Type::XY)
+					{
+						// Cylinder along Z axis
+						AMREX_D_TERM(Set::Scalar rsq = (x-center[0])*(x-center[0])
+										 			 + (y-center[1])*(y-center[1]));
+					}
+					else if (type == Type::YZ)
+					{
+						// Cylinder along X axis
+						AMREX_D_TERM(Set::Scalar rsq = (y-center[1])*(y-center[1])
+										 			 + (z-center[2])*(z-center[2]));
+					}
+					else if (type == Type::XZ)
+					{
+						// Cylinder along Y axis
+						AMREX_D_TERM(Set::Scalar rsq = (x-center[0])*(x-center[0])
+										 			 + (z-center[2])*(z-center[2]));
+					}
+
 					if ( rsq < radius*radius)
-					{
-						field(i,j,k,0) = 1.;     
-						field(i,j,k,1) = 0.;     
-					}
-					else
-					{
-						field(i,j,k,0) = 0.;     
-						field(i,j,k,1) = 1.;     
-					}
+						{
+							field(i,j,k,0) = 1.;     
+							field(i,j,k,1) = 0.;     
+						}
+						else
+						{
+							field(i,j,k,0) = 0.;     
+							field(i,j,k,1) = 1.;     
+						}
 				});
 		}
 
@@ -68,8 +105,9 @@ public:
   
 private:
 	int dim = AMREX_SPACEDIM;
-	amrex::Vector<amrex::Real> center;
-	amrex::Real radius;
+	amrex::Vector<Set::Scalar> center;
+	Set::Scalar radius;
+	Type type;
 };
 }
 #endif
