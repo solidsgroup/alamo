@@ -12,12 +12,14 @@ CrystalPlastic::CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44
 {
 	initializeSlip(R);
 	Q = coplanar();
+	F = setF(); 
 	define(C11, C12, C44, R);
 }
 CrystalPlastic::CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
 {
 	initializeSlip(phi1, Phi, phi2);
 	Q = coplanar();
+	F = setF(); 
 	define(C11, C12, C44, phi1, Phi, phi2);
 }
 void CrystalPlastic::initializeSlip(Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
@@ -27,6 +29,25 @@ void CrystalPlastic::initializeSlip(Set::Scalar phi1, Set::Scalar Phi, Set::Scal
 	Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
 	initializeSlip(m);
+}
+Eigen::Matrix<double,12,12> CrystalPlastic::setF()
+{
+	Eigen::Matrix<double,12,12> f = Eigen::Matrix<double,12,12>::Zero();
+	Eigen::Matrix<double,12,12> ggg = Eigen::Matrix<double,12,12>::Zero();
+	f(0,1) = cc; f(1,2) = cc; f(2,3) = hh; f(3,4) = cc; f(4,5) = cc; f(5,6) = hh; f(6,7) = cc; f(7,8) = cc; f(8,9) = gg; f(9,10) = cc; f(10,11) = cc;
+	f(0,2) = cc; f(1,3) = gg; f(2,4) = gg; f(3,5) = cc; f(4,6) = ss; f(5,7) = gg; f(6,8) = cc; f(7,9) = ss; f(8,10) = nn; f(9,11) = cc;
+	f(0,3) = ss; f(1,4) = nn; f(2,5) = ss; f(3,6) = gg; f(4,7) = gg; f(5,8) = ss; f(6,9) = hh; f(7,10) = gg; f(8,11) = gg;
+	f(0,4) = gg; f(1,5) = gg; f(2,6) = gg; f(3,7) = nn; f(4,8) = hh; f(5,9) = nn; f(6,10) = gg; f(7,11) = hh;
+	f(0,5) = hh; f(1,6) = gg; f(2,7) = hh; f(3,8) = gg; f(4,9) = gg; f(5,10) = gg; f(6,11) = ss;
+	f(0,6) = nn; f(1,7) = ss; f(2,8) = ss; f(3,9) = gg; f(4,10) = hh; f(5,11) = gg;
+	f(0,7) = gg; f(1,8) = hh; f(2,9) = gg; f(3,10) = ss; f(4,11) = ss;
+	f(0,8) = gg; f(1,9) = ss; f(2,10) = gg; f(3,11) = hh;
+	f(0,9) = hh; f(1,10) = hh; f(2,11) = nn;
+	f(0,10) = ss; f(1,11) = gg;
+	f(0,11) = gg;
+	ggg = f.transpose() + f;
+	//Util::Message(INFO,g);
+	return ggg;
 }
 void CrystalPlastic::initializeSlip(Set::Matrix R)
 {
@@ -47,7 +68,25 @@ void CrystalPlastic::initializeSlip(Set::Matrix R)
 	Set::Vector s41 = {1,0,-1}; //{0,1,1};
 	Set::Vector s42 = {0,-1,1}; //{1,0,-1};
 	Set::Vector s43 = {1,-1,0}; //{-1,-1,0};
-
+/*
+	Set::Vector n1 = {1,1,1};
+	Set::Vector n2 = {-1,-1,1};
+	Set::Vector n3 = {-1,1,1};
+	Set::Vector n4 = {1,-1,1};
+	
+	Set::Vector s11 = {0,-1,1};
+	Set::Vector s12 = {1,0,-1};
+	Set::Vector s13 = {-1,1,0};
+	Set::Vector s21 = {0,1,1};
+	Set::Vector s22 = {-1,0,-1};
+	Set::Vector s23 = {1,-1,0};
+	Set::Vector s31 = {0,-1,1};
+	Set::Vector s32 = {-1,0,-1};
+	Set::Vector s33 = {1,1,0};
+	Set::Vector s41 = {0,1,1};
+	Set::Vector s42 = {1,0,-1};
+	Set::Vector s43 = {-1,-1,0};
+*/
 	this->slp1.n = R*n1; this->slp1.s = R*s11;
 	this->slp2.n = R*n1; this->slp2.s = R*s12;
 	this->slp3.n = R*n1; this->slp3.s = R*s13;
@@ -81,10 +120,10 @@ void CrystalPlastic::initializeSlip(Set::Matrix R)
 		slipSystem[i].on = false;
 		slipSystem[i].galpha = 0;
 		slipSystem[i].Tcrss = tcrss;
-		Util::Message(INFO,"n = ", slipSystem[i].n.transpose());
-		Util::Message(INFO,"s = ", slipSystem[i].s.transpose());
-		Util::Message(INFO,"galpha = ", slipSystem[i].galpha);
-		Util::Message(INFO,"Tcrss = ", slipSystem[i].Tcrss);
+		//Util::Message(INFO,"n = ", slipSystem[i].n.transpose());
+		//Util::Message(INFO,"s = ", slipSystem[i].s.transpose());
+		//Util::Message(INFO,"galpha = ", slipSystem[i].galpha);
+		//Util::Message(INFO,"Tcrss = ", slipSystem[i].Tcrss);
 	}
 }
 Eigen::Matrix<double,12,12> CrystalPlastic::coplanar()
@@ -117,7 +156,7 @@ void CrystalPlastic::GetActivePlains(const Set::Matrix& sig)
 	for(int i = 0; i < 12; i++)
 	{
 		a = abs(CalcSSigN(slipSystem[i].s,slipSystem[i].n, sig));
-		//if(Time > 0.0015) Util::Message(INFO, a ,"\n");
+		//if(Time > 0.01) Util::Message(INFO, a ,"\n");
 		if(a > slipSystem[i].Tcrss) slipSystem[i].on = true;		
 		else slipSystem[i].on = false;
 	}	
@@ -141,26 +180,42 @@ void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 		if(slipSystem[i].on)
 		{
 			double a = CalcSSigN(slipSystem[i].s,slipSystem[i].n,sig);
-			double gammadot = gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
-			slipSystem[i].galpha = gammadot;
 			int sign = sgn(a);
-			temp += gammadot*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
+			double gammadot = (double)sign*gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
+			//if(Time > 0.01) Util::Message(INFO, sgn(a));
+			slipSystem[i].galpha = gammadot * (double)sign;
+			temp += slipSystem[i].galpha*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
 		}
 	}
 	// Euler integration
 	esp = esp + temp*dt;
 }
+Eigen::Matrix<double,12,1> CrystalPlastic::G()
+{
+	Eigen::Matrix<double,12,1> a = Eigen::Matrix<double,12,1>::Zero();;
+	for(int i = 0; i < 12; i++)
+	{
+		for(int j = 0; j < 12; j++)
+		{
+			if (i == j) continue;
+			a(i) += F(i,j)*tanh(gam/gammadot0);
+		}
+		a(i) += 1.0;
+	}
+	return a;
+}
 void CrystalPlastic::LatentHardening()
 {
-	double g = 0; 
-	Eigen::Matrix<double,12,12> H;
+	Eigen::Matrix<double,12,12> H = Eigen::Matrix<double,12,12>::Identity();
+	Eigen::Matrix<double,12,1> haa = Eigen::Matrix<double,12,1>::Zero();
+	double gammatemp = 0;
 	for(int i = 0; i < 12; i++) 
 	{
-		g += abs(slipSystem[i].galpha);
+		gammatemp += abs(slipSystem[i].galpha);
 	}
-	g = g*Time;
-	
-	double h = hs + (hs - h0) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * g ) , 2);
+	gam = gam + gammatemp*dt;
+	/*
+	double h = hs + (h0 - hs) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * gam ) , 2);
 	H = Q*h;
 	//if(Time > 0.0028) Util::Message(INFO, h,"\n");
 	for(int a = 0; a < 12; a++)
@@ -177,6 +232,46 @@ void CrystalPlastic::LatentHardening()
 			//slipSystem[a].Tcrss = tcrss;
 		}
 	}
+	*/
+/*
+	for(int i = 0; i < 12; i++)
+	{
+		double G = 0; 
+		double a =  hs + (h0 - hs) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * slipSystem[i].galpha ) , 2);
+		for(int j = 0; j < 12; j++)
+		{
+			if(i == j) continue;
+			G = F(i,j) * tanh(slipSystem[j].galpha/gammadot0);
+		}
+		G += 1;
+		haa(i) = a*G;
+	}
+*/
+
+	haa = G();
+	double a =  hs + (h0 - hs) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * gam ) , 2);
+	haa = a* haa;
+	for(int i = 0; i < 12; i++)
+	{
+		for(int j = 0; j < 12; j++)
+		{
+			if(i == j) H(i,j) = haa(i);
+
+			else H(i,j) = q * haa(i);
+		}
+	}
+	for(int a = 0; a < 12; a++)
+	{
+		double temp = 0;
+		for(int b = 0; b < 12; b++)
+		{
+			temp += H(a,b) * abs(slipSystem[b].galpha);
+		}
+		//if(temp < tcrss) temp = tcrss;
+		slipSystem[a].Tcrss = slipSystem[a].Tcrss + temp*dt;
+	}
+	//Util::Message(INFO, haa.transpose() ,"\n");
+	//Util::Message(INFO, H ,"\n");
 }
 
 void CrystalPlastic::update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt)

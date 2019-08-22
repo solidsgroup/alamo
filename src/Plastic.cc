@@ -50,7 +50,7 @@ Values for the elastic tensor, C:
 	Aluminum -> K = 69x10^9 Pa G = 27x10^9 Pa
 	L = K - 2/3*G = 9.3x10^10 Pa
 	mu = 2/3(K-L) = 2x10^10 Pa
-	C11 = L+2*mu, C12 = L, C44 = mu L = 5.1x10^10 Pa mu = 1.2x10^10
+	C11 = L+2*mu, C12 = L, C44 = mu 
 	Copper
 	C11 = 1.33x10^11 Pa -> 1.33e2 GPa
 	C12 = 9.3x10^10 Pa  ->  9.3e1 GPa
@@ -62,11 +62,11 @@ Values for the elastic tensor, C:
  */
 int main (int argc, char* argv[])
 {
-	auto src = static_cast<const char*>("/home/icrman/Python/data_n1.dat");
+	auto src = static_cast<const char*>("/home/icrman/Python/data_n0.dat");
 	auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
 	deletefile(src); deletefile(src2);
 	Util::Initialize(argc,argv);
-	CrystalPlastic cp(168.4,121.4,75.4); //0.4, 0.1, 0.01
+	CrystalPlastic cp(10e3*1.5e-3,7.35e3*1.5e-3,3.8e3*1.5e-3); //0.4, 0.1, 0.01 C11 = c11*t0
 	std::array<double,12> gamma;
 	//CrystalPlastic cp(0.4,0.1,0.01,.4,.1,.6);
 	//cp.Randomize();
@@ -79,9 +79,9 @@ int main (int argc, char* argv[])
 	Set::iMatrix mask = Set::iMatrix::Zero();
 	mask(0,0) = 1;
 	
-	double dt = 1e-8;
-	double c = 70.0;
-	double T = .02;
+	double dt = 1e-7;
+	double c = 10.0;
+	double T = 0.05;
 	cp.Setdt(dt);
 	int counter = 0;
 	for(double t = 0.0; t <= T; t += dt)
