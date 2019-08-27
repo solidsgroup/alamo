@@ -313,20 +313,21 @@ HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 
 		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
 		amrex::Array4<const Set::Scalar> const & gammagbold = gammagbold_mf[lev]->array(mfi);
-		//amrex::Array4<const Set::Scalar> const & Sigma = sigma[lev]->array(mfi);
+		amrex::Array4<const Set::Scalar> const & Sigma = sigma[lev]->array(mfi);
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 		{
 			Set::Scalar df = 0.0;
 			
-			df += - 10.*(Set::Constant::Pi/0.1) * sin(Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
+			df += - 100.*(Set::Constant::Pi/0.1) * sin(Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
 			//df += 2.0 * (Set::Constant::Pi/0.1) * cos(2*Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
 
-			//df += - 1000.0*Sigma(i,j,k,1);
+			Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
+			df += - 200.0*sig12;
 			//df += - 300.0*Sigma(i,j,k,1);
 			//df += - 100.0*Sigma(i,j,k,1);
 
-			//df += - 0.1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
-			df += -1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
+			df += - 0.4*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
+			//df += -1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
 			
 			gammagb(i,j,k) = gammagbold(i,j,k) - dt * L * df;
 			
@@ -362,7 +363,7 @@ HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amre
 		{
 			Set::Vector grad = Numeric::Gradient(gammagb,i,j,k,0,DX);
 			//tags(i,j,k) = amrex::TagBox::SET;
-			if (grad.lpNorm<2>()*dxnorm > 1E-8) tags(i,j,k) = amrex::TagBox::SET;
+			if (grad.lpNorm<2>()*dxnorm > 0.00001) tags(i,j,k) = amrex::TagBox::SET;
 		});
 	}
 	
