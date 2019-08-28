@@ -11,14 +11,14 @@ namespace CrystalPlastic
 CrystalPlastic::CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R)
 {
 	initializeSlip(R);
-	Q = coplanar();
+	//Q = coplanar();
 	F = setF(); 
 	define(C11, C12, C44, R);
 }
 CrystalPlastic::CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
 {
 	initializeSlip(phi1, Phi, phi2);
-	Q = coplanar();
+	//Q = coplanar();
 	F = setF(); 
 	define(C11, C12, C44, phi1, Phi, phi2);
 }
@@ -68,25 +68,7 @@ void CrystalPlastic::initializeSlip(Set::Matrix R)
 	Set::Vector s41 = {1,0,-1}; //{0,1,1};
 	Set::Vector s42 = {0,-1,1}; //{1,0,-1};
 	Set::Vector s43 = {1,-1,0}; //{-1,-1,0};
-/*
-	Set::Vector n1 = {1,1,1};
-	Set::Vector n2 = {-1,-1,1};
-	Set::Vector n3 = {-1,1,1};
-	Set::Vector n4 = {1,-1,1};
-	
-	Set::Vector s11 = {0,-1,1};
-	Set::Vector s12 = {1,0,-1};
-	Set::Vector s13 = {-1,1,0};
-	Set::Vector s21 = {0,1,1};
-	Set::Vector s22 = {-1,0,-1};
-	Set::Vector s23 = {1,-1,0};
-	Set::Vector s31 = {0,-1,1};
-	Set::Vector s32 = {-1,0,-1};
-	Set::Vector s33 = {1,1,0};
-	Set::Vector s41 = {0,1,1};
-	Set::Vector s42 = {1,0,-1};
-	Set::Vector s43 = {-1,-1,0};
-*/
+
 	this->slp1.n = R*n1; this->slp1.s = R*s11;
 	this->slp2.n = R*n1; this->slp2.s = R*s12;
 	this->slp3.n = R*n1; this->slp3.s = R*s13;
@@ -144,12 +126,14 @@ Eigen::Matrix<double,12,12> CrystalPlastic::coplanar()
 	//Util::Message(INFO, D);
 	return D;
 }
+
 double CrystalPlastic::CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix sig) 
 {
 	double a;
 	a = ss.transpose()*sig*nn;
 	return a;
 }
+
 void CrystalPlastic::GetActivePlains(const Set::Matrix& sig)
 {
 	double a = 0;
@@ -160,14 +144,6 @@ void CrystalPlastic::GetActivePlains(const Set::Matrix& sig)
 		if(a > slipSystem[i].Tcrss) slipSystem[i].on = true;		
 		else slipSystem[i].on = false;
 	}	
-}
-
-Set::Scalar CrystalPlastic::GetGammaDot(const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig)
-{
-	//double gamma;
-	//double power = pow( (abs(CalcSSigN( ss,nn,sig )) /slipSystem[i].Tcrss ) ,n );
-	//gamma = gammadot0*power;
-	//return gamma;
 }
 
 void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
@@ -181,9 +157,8 @@ void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 		{
 			double a = CalcSSigN(slipSystem[i].s,slipSystem[i].n,sig);
 			int sign = sgn(a);
-			double gammadot = (double)sign*gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
+			slipSystem[i].galpha = (double)sign*gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
 			//if(Time > 0.01) Util::Message(INFO, sgn(a));
-			slipSystem[i].galpha = gammadot * (double)sign;
 			temp += slipSystem[i].galpha*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
 		}
 	}
@@ -192,7 +167,7 @@ void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 }
 Eigen::Matrix<double,12,1> CrystalPlastic::G()
 {
-	Eigen::Matrix<double,12,1> a = Eigen::Matrix<double,12,1>::Zero();;
+	Eigen::Matrix<double,12,1> a = Eigen::Matrix<double,12,1>::Ones();;
 	for(int i = 0; i < 12; i++)
 	{
 		for(int j = 0; j < 12; j++)
@@ -200,8 +175,9 @@ Eigen::Matrix<double,12,1> CrystalPlastic::G()
 			if (i == j) continue;
 			a(i) += F(i,j)*tanh(gam/gammadot0);
 		}
-		a(i) += 1.0;
+		//a(i) += 1.0;
 	}
+	//Util::Message(INFO, a,"\n");
 	return a;
 }
 void CrystalPlastic::LatentHardening()
@@ -278,7 +254,7 @@ void CrystalPlastic::update(const Set::Matrix es, Set::Matrix& sigma, const Set:
 {
 	for(double t = 0.0; t < _dt; t += dt)
 	{
-		Time += dt;
+		//Time += dt;
 		AdvanceEsp(sigma);
 		LatentHardening();
 		sigma = UpdateSigma(es);
@@ -304,7 +280,7 @@ void CrystalPlastic::Setdt(double _dt)
 }
 //----------DFP Functions-----------//
 
-Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::DFP(vector2d x0, double tol, double alpha1, double alpha2, double dx, const Set::Matrix& sig)
+Eigen::Matrix<amrex::Real,8,1> CrystalPlastic::DFP(vector2d x0, double tol, double alpha1, double alpha2, double dx, const Set::Matrix& sig)
 {
 	vector2d xnew = x0;
 	vector2d xprev = -xnew; xprev(1) -= 100;
@@ -315,7 +291,6 @@ Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::DFP(vector2d x0, d
 	{
 		vector2d R = -Hnew * getGrad(xnew, dx, sig);
 		R.normalize();
-		
 		
 		double temp = secantMethod(dx, alpha1, alpha2, tol, xnew, R, sig);
 		//Util::Message(INFO,"temp = ", temp);
@@ -328,7 +303,6 @@ Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::DFP(vector2d x0, d
 		Hprev = Hnew;
 		Hnew = Hprev + (del * del.transpose()) / (del.transpose() * del) - (Hprev * (gamma*gamma.transpose()) * Hprev) / (gamma.transpose() * Hprev * gamma);
 		//Util::Message(INFO,"x = ", xnew.transpose());
-		
 	}
 	return xnew;
 }
@@ -350,14 +324,17 @@ double CrystalPlastic::secantMethod(double dx, double a1, double a2, double tol,
 
 Set::Scalar CrystalPlastic::f(vector2d x, const Set::Matrix& es)
 {
-	Set::Matrix epsilon = es; epsilon(1,1) = x(0); epsilon(2,2) = x(1);
+	Set::Matrix epsilon = es; 
+						 epsilon(0,1) = x(0); epsilon(0,2) = x(1);
+	epsilon(1,0) = x(2); epsilon(1,1) = x(3); epsilon(1,2) = x(4);
+	epsilon(2,0) = x(5); epsilon(2,1) = x(6); epsilon(2,2) = x(7);
 	Set::Matrix temp = epsilon - esp;
 	Set::Scalar s = W(temp);
 	//Util::Message(INFO,"W = ",s);
 	return s;
 }
 
-Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::getGrad(vector2d x, double dx, const Set::Matrix& sig)
+Eigen::Matrix<amrex::Real,8,1> CrystalPlastic::getGrad(vector2d x, double dx, const Set::Matrix& sig)
 {
 	vector2d grad = vector2d::Zero();
 	for (int i = 0; i < dim; i++)
@@ -374,25 +351,21 @@ Eigen::Matrix<amrex::Real,AMREX_SPACEDIM-1,1> CrystalPlastic::getGrad(vector2d x
 //--------------------------------//
 Set::Matrix CrystalPlastic::relax(const Set::Matrix& sig, const double e) 
 {
-	vector2d x; x(0) = -e+1; x(1) = -e + 1; //w1 = 10; w2 = 10;
+	vector2d x = vector2d::Zero(); x(3) = -e-1e-2; x(7) = -e-1e-2;
 	vector2d xprev = vector2d::Zero(); xprev(1) = 100;
-	int counter = 1;
+	Set::Matrix ep = Set::Matrix::Zero();
+
 	while(abs(x.norm() - xprev.norm()) >= 1e-5)
 	{
 		xprev = x;
 		x = DFP(x,1e-5,0.1,0.8,1e-5,sig);
-		if(counter % 1 == 0)
-		{
-			//w1 = w1 * 1.1;
-			//w2 = w2 * 1.1;
-		}
-		counter++;
 		//Util::Message(INFO,"ffff= ", counter);
 	}
-	Set::Matrix ep = Set::Matrix::Zero();
-	ep(0,0) = e; ep(1,1) = x(0); ep(2,2) = x(1);
+
+	ep(0,0) = e;	ep(0,1) = x(0); ep(0,2) = x(1);
+	ep(1,0) = x(2); ep(1,1) = x(3); ep(1,2) = x(4);
+	ep(2,0) = x(5); ep(2,1) = x(6); ep(2,2) = x(7);
 	return ep;
-	
 }
 void
 CrystalPlastic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)

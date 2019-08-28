@@ -17,7 +17,7 @@ namespace CrystalPlastic
 class CrystalPlastic : public Model::Solid::LinearElastic::LinearElastic
 {
 private:
-	static constexpr int dim = AMREX_SPACEDIM-1;
+	static constexpr int dim = 8;
 	using vector2d = Eigen::Matrix<amrex::Real,dim,1>;
 	using matrix22 = Eigen::Matrix<amrex::Real,dim,dim>;
 
@@ -51,13 +51,13 @@ private:
 	Eigen::Matrix<double,12,12> F;
 	//********Matrial Constants**********//
 
-	static Set::Scalar constexpr tcrss = 1.5e-3;
+	static Set::Scalar constexpr tcrss = 2.0e-3;
 	static Set::Scalar constexpr n = 1/0.02; 
-	static Set::Scalar constexpr gammadot0 = 0.001; // 1/s
+	static Set::Scalar constexpr gammadot0 = 0.001; // 0.001 1/s
 	static Set::Scalar constexpr t0 = tcrss; 	// MPa
 	static Set::Scalar constexpr hs = 1.5*t0; 	// MPa
 	static Set::Scalar constexpr h0 = 90*t0; 	// MPa
-	static Set::Scalar constexpr ts = 1.3*t0;//1.3*t0; 	// MPa
+	static Set::Scalar constexpr ts = 1.3*t0; 	// MPa
 
 	static Set::Scalar constexpr cc = 200.0; 
 	static Set::Scalar constexpr gg = 8.0;
@@ -66,12 +66,11 @@ private:
 	static Set::Scalar constexpr nn = 0.0;
 	
 	static Set::Scalar constexpr q = 0; // 1
-	Set::Scalar gam = 0.001;
+	Set::Scalar gam = gammadot0;
 
 	Set::Scalar dt = 1.0e-5;
 	double Time = 0.0;
 	//***********DFP************//
-
 	//double w1 = 10.0;
 	//double w2 = 10.0;
 
@@ -101,7 +100,6 @@ public:
 	double CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix sig);
 	void GetActivePlains(const Set::Matrix& sig); //used in update esp function
 	Set::Matrix UpdateSigma(const Set::Matrix es);
-	Set::Scalar GetGammaDot(const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig);
 	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
 	void AdvanceEsp(const Set::Matrix& sig);
 	void Setdt(const double _dt);

@@ -66,42 +66,45 @@ int main (int argc, char* argv[])
 	auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
 	deletefile(src); deletefile(src2);
 	Util::Initialize(argc,argv);
-	CrystalPlastic cp(10e3*1.5e-3,7.35e3*1.5e-3,3.8e3*1.5e-3); //0.4, 0.1, 0.01 C11 = c11*t0
+	CrystalPlastic cp(10e3 *  2.0e-3, 7.35e3 *  2.0e-3, 3.8e3 *  2.0e-3); //0.4, 0.1, 0.01 C11 = c11*t0
+	// 10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3
 	std::array<double,12> gamma;
-	//CrystalPlastic cp(0.4,0.1,0.01,.4,.1,.6);
 	//cp.Randomize();
 	Util::Message(INFO,"Working...");
 	Set::Matrix es = Set::Matrix::Zero();
 	Set::Matrix sigma = Set::Matrix::Zero();
 	Set::Matrix esp = Set::Matrix::Zero();
 
-	Set::Matrix sig = Set::Matrix::Zero();
-	Set::iMatrix mask = Set::iMatrix::Zero();
-	mask(0,0) = 1;
+	//Set::Matrix sig = Set::Matrix::Zero();
+	//Set::iMatrix mask = Set::iMatrix::Zero();
+	//mask(0,0) = 1;
 	
-	double dt = 1e-7;
-	double c = 10.0;
-	double T = 0.05;
+	static double constexpr dt = 5e-4;
+	static double constexpr c = 1e-3;
+	static double constexpr T = 1/c;
 	cp.Setdt(dt);
 	int counter = 0;
 	for(double t = 0.0; t <= T; t += dt)
 	{
-		Set::Matrix esp = cp.GetEsp();
-		Set::Matrix temp;
+		//Set::Matrix esp = cp.GetEsp();
+		//Set::Matrix temp;
 		es(0,0) = c*t;
 		es = cp.relax(es, es(0,0));
-	//	temp = (es - esp);
-	//	es = Solver::Local::CG(cp.DDW(es),-cp.DW(temp),es,mask,false);
+		//temp = (es - esp);
+		//es = Solver::Local::CG(cp.DDW(es),sig - sigma,es,mask,false);
 
 		cp.update(es,sigma,dt);
 
-		if( counter % 1000 == 0)
+		if( counter % 10000 == 0)
 		{
 			for(int i = 0; i < 12; i++)
 			{
 				gamma[i] = cp.getGamma(i);
 			}
+			//Util::Message(INFO,"t = ", t);
+			//Set::Matrix esp = cp.GetEsp();
 			Util::Message(INFO,"es() = ", es);
+			//Util::Message(INFO,"sig() = ", sigma);
 			savefile( (float)sigma(0,0), (float)es(0,0), src); 
 			savefile(gamma,t,src2);
 		}
