@@ -127,13 +127,14 @@ HeatConduction::Initialize (int lev)
 void 
 HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
-	if (iter%plot_int) return;
+	//if (iter%plot_int) return;
 
 	for (int lev = 0; lev < disp.size(); ++lev)
 	{
 		disp[lev]->setVal(0.0);
 		rhs[lev]->setVal(0.0);
 	}
+	return;
 
 	Set::Scalar lame = 2.6, shear = 6.0;
 	using model_type = Model::Solid::LinearElastic::Multiwell;
@@ -194,7 +195,7 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 	elastic.SetBC(&bc);
 	Solver::Nonlocal::Linear solver(elastic);
-	solver.setVerbose(2);
+	solver.setVerbose(3);
 	solver.setFixedIter(10);
 	
 	Util::Message(INFO);
@@ -234,7 +235,6 @@ HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 		}
 	}
 	elastic.SetModel(model_mf);
-	solver.solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),tol_rel,tol_abs);
 	
 	
 	for (int lev = 0; lev < sigma.size(); lev++)
@@ -278,9 +278,10 @@ HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 
 			//df += - 1000.0*Sigma(i,j,k,1);
 			//df += - 300.0*Sigma(i,j,k,1);
-			df += - 100.0*Sigma(i,j,k,1);
+			//df += - 100.0*Sigma(i,j,k,1);
 
-			df += - 0.1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
+			//df += - 0.1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
+			df += - 10.0*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
 			
 			gammagb(i,j,k) = gammagbold(i,j,k) - dt * L * df;
 			

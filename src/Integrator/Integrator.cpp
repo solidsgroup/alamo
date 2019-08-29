@@ -110,6 +110,7 @@ void Integrator::SetPlotInt(int a_plot_int)
 void
 Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& cgrids, const DistributionMapping& dm)
 {
+	Util::Message(INFO);
 	BL_PROFILE("Integrator::MakeNewLevelFromCoarse");
 	t_new[lev] = time;
 	t_old[lev] = time - 1.e200;
@@ -154,6 +155,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 			 const BoxArray& cgrids, 
 			 const DistributionMapping& dm)
 {
+	Util::Message(INFO);
 	BL_PROFILE("Integrator::RemakeLevel");
 	for (int n=0; n < cell.number_of_fabs; n++)
 	{
@@ -192,6 +194,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 void
 Integrator::ClearLevel (int lev)
 {
+	Util::Message(INFO);
 	BL_PROFILE("Integrator::ClearLevel");
 	for (int n = 0; n < cell.number_of_fabs; n++)
 	{
@@ -242,6 +245,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 }
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+			   	 BC::BC *new_bc,
 			     int ncomp,
 			     int nghost,
 			     std::string name)
@@ -250,11 +254,19 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	node.fab_array.push_back(&new_fab);
-	node.physbc_array.push_back(&bcnothing); 
+	node.physbc_array.push_back(new_bc); 
 	node.ncomp_array.push_back(ncomp);
 	node.nghost_array.push_back(nghost);
 	node.name_array.push_back(name);
 	node.number_of_fabs++;
+}
+void // CUSTOM METHOD - CHANGEABLE
+Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+			     int ncomp,
+			     int nghost,
+			     std::string name)
+{
+	RegisterNodalFab(new_fab,&bcnothing,ncomp,nghost,name);
 }
 
 
@@ -289,6 +301,7 @@ Integrator::FillPatch (int lev, Real time,
 		       MultiFab &destination_mf,
 		       BC::BC &physbc, int icomp)
 {
+	Util::Message(INFO);
 	BL_PROFILE("Integrator::FillPatch");
 	if (lev == 0)
 	{
@@ -319,19 +332,17 @@ Integrator::FillPatch (int lev, Real time,
 		ftime.push_back(time);
 
 		physbc.define(geom[lev]);
-		Interpolater* mapper = &cell_cons_interp;
+		Interpolater* mapper = &node_bilinear_interp;
 
 		amrex::Vector<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
-		amrex::ParallelDescriptor::Barrier();
-      
-		amrex::ParallelDescriptor::Barrier();
+		if (destination_mf.contains_nan()) Util::Abort(INFO);
 		amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
 					  0, icomp, destination_mf.nComp(), geom[lev-1], geom[lev],
 					  physbc, 0,
 					  physbc, 0,
 					  refRatio(lev-1),
 					  mapper, bcs, 0);
-		amrex::ParallelDescriptor::Barrier();
+		if (destination_mf.contains_nan()) Util::Abort(INFO);
 	}
 }
 

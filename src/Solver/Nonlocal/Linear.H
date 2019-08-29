@@ -34,7 +34,7 @@ class Linear : public amrex::MLMG
 		if (verbosity > 4) MLMG::setCGVerbose(verbosity);
      	else
  	    {
- 		    MLMG::setVerbose(0);
+ 		    MLMG::setVerbose(verbosity);
  		    MLMG::setCGVerbose(0);
 	    }
     }
