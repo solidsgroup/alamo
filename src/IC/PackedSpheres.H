@@ -8,7 +8,8 @@ using namespace std;
 #include <vector>
 #include <algorithm>
 #include <AMReX.H>
-#include "mpi.h"
+#include <mpi.h>
+
 namespace IC
 {
 /// \brief Create a series of patches using the packedspheres Tesselation
@@ -35,10 +36,10 @@ namespace IC
 class PackedSpheres : public IC
 {
 public:       
-    
+     
+
 	enum Type {Partition, Values};
-   
-	
+
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _mean =0.05, amrex::Real _std_deviation=0) : IC(_geom) 
 	{
@@ -63,32 +64,32 @@ public:
 		mean= a_mean;
         std_deviation=a_std_deviation;
 		type = a_type;
-	    
         
-        	
 		
-
+		
 	    std::vector <amrex::Real> dd(number_of_grains-1);
 		std::vector <amrex::Real> R_n(number_of_grains-1);
 		std::vector <amrex::Real> count(number_of_grains);
-
-	
-		
-        int p=0;
+		int p=0;
 		packedspheres.resize(number_of_grains);
+		int total=0;
+		
+        MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+			
+        if (rank==0)
+		{
+         
+		
+        
 		
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
-					 int total=0;
-
-		MPI_Comm_rank( MPI_COMM_WORLD, &rank );			 
-        std::cout<<"rank  = "<<rank<<std::endl;
 					 
-		if (rank==0)
-		{
-		   std::cout<<"inside loop"<<endl;
+
+		
+		 		 
 		do
 		{			 
           
@@ -103,7 +104,7 @@ public:
             if (R_old>0) 
 	     {
 	        R_new[n]= R_old;
-	        
+	       // Util::Message(INFO,"R_new	    ", R_new[n]);
 	     }
 		
 
@@ -141,7 +142,7 @@ public:
 		#endif
 
        R_n[p]=R_new[n]+R_new[p];
-           if (dd[p]>(R_n[p]))
+           if (dd[p]>(R_n[p]+0.001))
 			{
 				df[p]=true;
 			}
@@ -158,32 +159,34 @@ public:
 			{
 												
 				count[n]=1;
+				
 						
 			}
 		
 	}
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
-		
+		Util::Message(INFO,"count:	    ", total);
 	  
     }
 	    
 	}
-	while (total<number_of_grains) ;
+	while (total<number_of_grains);
+	
 	}
-	
-	
+	t=0;
+	MPI_Bcast(&t,number_of_grains, MPI_INT, 0, MPI_COMM_WORLD); 
+	  
 	};
-	
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
-		
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
-
+						 
+		
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
@@ -195,6 +198,8 @@ public:
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+
+							
 							
 				int min_grain_id = -1;
 
@@ -222,6 +227,7 @@ public:
 										  (x-packedspheres[n] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
+        R_new.resize(number_of_grains);	 
 					if (d<R_new[n])
 						{
 							min_grain_id = 0;
@@ -233,13 +239,11 @@ public:
 			
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
 			});
+		
 		}
-
-	   
 	}
 
-
-
+	
 	
 private:
 	int number_of_grains;
@@ -249,13 +253,14 @@ private:
     amrex::Real mean;
     amrex::Real std_deviation;
 	int rank;
+	int t;
 	Type type;
 	amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<amrex::Real> packedspheres_y;
 #if BL_SPACEDIM==3
 	amrex::Vector<amrex::Real> packedspheres_z;
 #endif
- 
+  
 };
 }
 #endif
