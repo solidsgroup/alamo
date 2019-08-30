@@ -67,27 +67,27 @@ public:
         
 		
 		
-	    std::vector <amrex::Real> dd(number_of_grains-1);
-		std::vector <amrex::Real> R_n(number_of_grains-1);
-		std::vector <amrex::Real> count(number_of_grains);
-		int p=0;
-		packedspheres.resize(number_of_grains);
-		int total=0;
+	  
+		
+		
 		
         MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 			
         if (rank==0)
 		{
-         
-		
-        
-		
+        p=0; 
+		total=0;
+        packedspheres.resize(number_of_grains);
+		dd.resize(number_of_grains-1);
+	    R_n.resize(number_of_grains-1);
+	    count.resize(number_of_grains);
+
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
 					 
-
+        
 		
 		 		 
 		do
@@ -199,7 +199,7 @@ public:
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 
-							
+				packedspheres.resize(number_of_grains);			
 							
 				int min_grain_id = -1;
 
@@ -249,11 +249,16 @@ private:
 	int number_of_grains;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
+	std::vector <amrex::Real> dd;
+	std::vector <amrex::Real> R_n;
+	std::vector <amrex::Real> count;
 	std::vector <amrex::Real> R_new;
     amrex::Real mean;
     amrex::Real std_deviation;
 	int rank;
 	int t;
+	int p;
+	int total;
 	Type type;
 	amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<amrex::Real> packedspheres_y;
