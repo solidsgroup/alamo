@@ -56,43 +56,54 @@ class Fracture : public Integrator
 {
 public:
 
-  /// \brief Read in parameters and register field variables
-  Fracture();
-  ~Fracture();
+	/// \brief Read in parameters and register field variables
+	Fracture();
+	~Fracture();
 
 protected:
 
-  /// \brief Use the #ic object to initialize #Temp
-  void Initialize (int lev) override;
+	/// \brief Use the #ic object to initialize #Temp
+	void Initialize (int lev) override;
 
-  void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
+	void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
 
-  /// \brief Integrate the heat equation
-  void Advance (int lev, amrex::Real /*time*/, amrex::Real dt) override;
+	void TimeStepComplete(amrex::Real /*time*/,int /*iter*/) override;
 
-  /// \brief Tag cells for mesh refinement based on temperature gradient
-  void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
-  
-  void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
+	/// \brief Integrate the heat equation
+	void Advance (int lev, amrex::Real /*time*/, amrex::Real dt) override;
 
-  void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
+	/// \brief Tag cells for mesh refinement based on temperature gradient
+	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
+
+	void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
+
+	void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
+
+	void CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt);
+	void ElasticityProblem(amrex::Real /*time*/);
 
 private:
-  int number_of_ghost_cells = 2;				///< Number of ghost cells
+	int number_of_ghost_cells = 2;				///< Number of ghost cells
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_cold;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_conv;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_temp;
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressvm;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_old;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_conv;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_temp;
 
-  struct{
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressvm;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;
+
+	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
 		int         interval	 			= 1;
 		std::string type					= "single";
@@ -134,14 +145,19 @@ private:
 	std::string 	input_material = "isotropic";
 	Model::Interface::Crack::Crack *boundary;
 
-	Set::Scalar crack_energy, crack_energy_old, eta_epsilon, mobility;
+	Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
+	Set::Scalar disp_norm, disp_norm_old, disp_norm_conv; 
+	Set::Scalar eta_epsilon, mobility;
+	Set::Scalar max_error;
 
-  Set::Scalar refinement_threshold = 0.01;			///< Criterion for cell refinement
-  int nlevels;
+	Set::Scalar refinement_threshold = 0.01;			///< Criterion for cell refinement
+	int nlevels;
 
-  std::string ic_type;						///< String to determine what kind of initial condition to use
-  IC::IC *ic;            					///< Pointer to abstract IC object
-  BC::BC *mybc;                   				///< Stock generic boundary condition object
+	std::string ic_type;						///< String to determine what kind of initial condition to use
+	IC::IC *ic;            					///< Pointer to abstract IC object
+	BC::BC *mybc;                   				///< Stock generic boundary condition object
+
+	bool newCrackProblem=true, solveCrack=false, solveElasticity=false;
 };
 }
 #endif
