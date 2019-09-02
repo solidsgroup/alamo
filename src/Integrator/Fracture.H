@@ -67,7 +67,7 @@ protected:
 
 	void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
 
-	void TimeStepComplete(amrex::Real /*time*/,int /*iter*/) override;
+	void TimeStepComplete(amrex::Real time,int /*iter*/) override;
 
 	/// \brief Integrate the heat equation
 	void Advance (int lev, amrex::Real /*time*/, amrex::Real dt) override;
@@ -110,7 +110,7 @@ private:
 		amrex::Vector<Set::Scalar> test_time;
 		Set::Scalar test_rate				= 1.; 
 		//Set::Scalar test_duration			= 2.;
-		Set::Scalar test_dt					= 0.01;
+		Set::Scalar test_max				= 1.0;
 		int			current_test			= 0;
 		int         max_iter 				= 200;
 		int         max_fmg_iter 			= 0;

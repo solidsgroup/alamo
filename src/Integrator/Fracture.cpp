@@ -144,8 +144,10 @@ Fracture::Fracture() :
 	/* Need to replace this later with a proper specification of boundary.
 	   Right now we are hard-coding the tensile test and just requesting
 	   rate of pulling. */
-	pp_elastic_bc.query("rate",elastic.test_rate);
-	if(elastic.test_rate < 0.) { Util::Warning(INFO,"Rate can't be less than zero. Resetting to 1.0"); elastic.test_rate = 1.0; }
+	pp_elastic_bc.query("disp_step",elastic.test_rate);
+	pp_elastic_bc.query("max_disp",elastic.test_max);
+	if(elastic.test_rate < 0.) { Util::Warning(INFO,"Rate can't be less than zero. Resetting to 1.0"); elastic.test_rate = 0.1; }
+	if(elastic.test_max < 0. ||  elastic.test_max < elastic.test_rate) {Util::Warning(INFO,"Max can't be less than load step. Resetting to load step"); elastic.test_max = elastic.test_rate;}
 
 	//Below are the conditions for full tensile test simulation. 
 	// If this doesn't work we can try symmetric simulation
@@ -267,17 +269,21 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 }
 
 void 
-Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
+Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
 	//if(~newCrackProblem) return;
+	Util::Message(INFO);
 	if(newCrackProblem)
 	{
 		elastic.bc_top[1] += elastic.test_rate;
 		for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp_conv)[ilev], number_of_ghost_cells, number_of_ghost_cells, AMREX_SPACEDIM, number_of_ghost_cells);
-			amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c_conv)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
-			amrex::MultiFab::Copy(*(m_c_temp)[ilev], *(m_c_conv)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
+			Util::Message(INFO);
+			amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c_conv)[ilev], 0, 0, 1, number_of_ghost_cells);
+			Util::Message(INFO);
+			amrex::MultiFab::Copy(*(m_c_temp)[ilev], *(m_c_conv)[ilev], 0, 0, 1, number_of_ghost_cells);
+			Util::Message(INFO);
+			amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp_conv)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
 		}
 		ElasticityProblem(0.);
 		newCrackProblem = false;
@@ -304,13 +310,17 @@ Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 }
 
 void
-Fracture::TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
+Fracture::TimeStepComplete(amrex::Real time,int /*iter*/)
 {
 	//IntegrateVariables(time,iter);
 	Set::Scalar err_crack = std::abs(crack_norm - crack_norm_old)/crack_norm;
 	Set::Scalar err_crack_temp = std::abs(crack_norm - crack_norm_temp)/crack_norm;
 	Set::Scalar err_disp = std::abs(disp_norm - disp_norm_old)/disp_norm;
 	Set::Scalar err = std::max(err_crack, err_disp);
+	Util::Message(INFO, "err_crack = ", err_crack);
+	Util::Message(INFO, "err_crack_temp = ", err_crack_temp);
+	Util::Message(INFO, "err_disp = ", err_disp);
+	Util::Message(INFO, "err = ", err);
 
 	if(err_crack_temp > 1e-10)
 	{
@@ -322,8 +332,8 @@ Fracture::TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
-		amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp)[ilev], number_of_ghost_cells, number_of_ghost_cells, AMREX_SPACEDIM, number_of_ghost_cells);
+		amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c)[ilev], 0, 0, 1, number_of_ghost_cells);
+		amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
 	}
 	disp_norm_old = disp_norm;
 	crack_norm_old = crack_norm;
@@ -332,10 +342,14 @@ Fracture::TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
 	{
 		for(int ilev = 0; ilev < nlevels; ++ilev)
 		{
-			amrex::MultiFab::Copy(*(m_c_conv)[ilev], *(m_c)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
-			amrex::MultiFab::Copy(*(m_disp_conv)[ilev], *(m_disp)[ilev], number_of_ghost_cells, number_of_ghost_cells, AMREX_SPACEDIM, number_of_ghost_cells);
+			amrex::MultiFab::Copy(*(m_c_conv)[ilev], *(m_c)[ilev], 0, 0, 1, number_of_ghost_cells);
+			amrex::MultiFab::Copy(*(m_disp_conv)[ilev], *(m_disp)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
 		}
 		newCrackProblem = true;
+		if(elastic.bc_top[1] >= elastic.test_max)
+		{
+			SetStopTime(time-0.01);
+		}
 		disp_norm_conv = disp_norm;
 		crack_norm_conv = crack_norm;
 	}

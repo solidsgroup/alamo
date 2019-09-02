@@ -219,6 +219,7 @@ protected:
 	void SetPlotInt(int plot_int);
 	void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
 	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot_int = a_thermo_plot_int;}
+	void SetStopTime(Set::Scalar a_stop_time) {stop_time = a_stop_time;}
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
