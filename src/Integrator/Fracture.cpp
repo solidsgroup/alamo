@@ -60,11 +60,17 @@ Fracture::Fracture() :
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
 	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells, "c");
-	RegisterNewFab(m_cold, 	mybc, 1, number_of_ghost_cells, "cold");
-	crack_energy = 0.;
-	crack_energy_old = 1.e4;
-	RegisterIntegratedVariable(&crack_energy, "crack_energy");
+	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells, "c_old");
+	RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells, "c_conv");
+	RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells, "c_temp");
+	
+	crack_norm = 0.; 	crack_norm_old = 1.e4; crack_norm_conv = 0, crack_norm_temp = 1.e4;
+	disp_norm = 0.; disp_norm_old = 1.e4; disp_norm_conv = 0.;
 
+	//cell_vars.push_back(&crack_norm);
+	//node_vars.push_back(&disp_norm);
+	RegisterIntegratedVariable(&crack_norm, "crack_norm");
+	RegisterIntegratedVariable(&disp_norm, "disp_norm");
 
 	// Material input
 	amrex::ParmParse pp_material("material");
@@ -182,6 +188,10 @@ Fracture::Fracture() :
 	const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	
 	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp");
+	RegisterNodalFab (m_disp_old, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_old");
+	RegisterNodalFab (m_disp_conv, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_conv");
+	RegisterNodalFab (m_disp_temp, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_temp");
+
 	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_cells, "RHS");
 	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_cells,	"strain");
 	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_cells,	"stress");
@@ -201,10 +211,16 @@ Fracture::Initialize (int lev)
 {
 	Util::Message(INFO);
 	ic->Initialize(lev,m_c);
-	ic->Initialize(lev,m_cold);
+	ic->Initialize(lev,m_c_old);
+	ic->Initialize(lev,m_c_conv);
+	ic->Initialize(lev,m_c_temp);
 
 	Util::Message(INFO);
 	m_disp[lev]->setVal(0.0);
+	m_disp_old[lev]->setVal(0.0);
+	m_disp_conv[lev]->setVal(0.0);
+	m_disp_temp[lev]->setVal(0.0);
+	
 	m_strain[lev]->setVal(0.0);
 	m_stress[lev]->setVal(0.0);
 	m_stressvm[lev]->setVal(0.0);
@@ -253,13 +269,129 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 void 
 Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
-	if(iter>0)
+	//if(~newCrackProblem) return;
+	if(newCrackProblem)
 	{
-		Util::Message(INFO, "crack_energy_old = ", crack_energy_old, ". crack_energy = ", crack_energy, ". Difference = ",
-			std::abs((crack_energy - crack_energy_old)/crack_energy_old));
-		crack_energy_old = crack_energy;
+		elastic.bc_top[1] += elastic.test_rate;
+		for (int ilev = 0; ilev < nlevels; ++ilev)
+		{
+			amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp_conv)[ilev], number_of_ghost_cells, number_of_ghost_cells, AMREX_SPACEDIM, number_of_ghost_cells);
+			amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c_conv)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
+			amrex::MultiFab::Copy(*(m_c_temp)[ilev], *(m_c_conv)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
+		}
+		ElasticityProblem(0.);
+		newCrackProblem = false;
+		solveCrack = true;
+		solveElasticity = false;
 		return;
 	}
+	
+	else
+	{
+		if(!solveElasticity) return;
+		ElasticityProblem(0.);
+		solveElasticity = false;
+		//solveCrack = true;
+	}
+}
+
+
+void
+Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
+{
+	if(!solveCrack) return;
+	CrackProblem(lev,0.,dt);
+}
+
+void
+Fracture::TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
+{
+	//IntegrateVariables(time,iter);
+	Set::Scalar err_crack = std::abs(crack_norm - crack_norm_old)/crack_norm;
+	Set::Scalar err_crack_temp = std::abs(crack_norm - crack_norm_temp)/crack_norm;
+	Set::Scalar err_disp = std::abs(disp_norm - disp_norm_old)/disp_norm;
+	Set::Scalar err = std::max(err_crack, err_disp);
+
+	if(err_crack_temp > 1e-10)
+	{
+		solveCrack = true;
+		solveElasticity = false;
+		crack_norm_temp = crack_norm;
+		return;
+	}
+
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
+		amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp)[ilev], number_of_ghost_cells, number_of_ghost_cells, AMREX_SPACEDIM, number_of_ghost_cells);
+	}
+	disp_norm_old = disp_norm;
+	crack_norm_old = crack_norm;
+
+	if(err < 1e-10)
+	{
+		for(int ilev = 0; ilev < nlevels; ++ilev)
+		{
+			amrex::MultiFab::Copy(*(m_c_conv)[ilev], *(m_c)[ilev], number_of_ghost_cells, number_of_ghost_cells, 1, number_of_ghost_cells);
+			amrex::MultiFab::Copy(*(m_disp_conv)[ilev], *(m_disp)[ilev], number_of_ghost_cells, number_of_ghost_cells, AMREX_SPACEDIM, number_of_ghost_cells);
+		}
+		newCrackProblem = true;
+		disp_norm_conv = disp_norm;
+		crack_norm_conv = crack_norm;
+	}
+	else
+	{
+		newCrackProblem = false;
+		solveElasticity = true;
+		solveCrack = true;
+	}
+	
+}
+
+void
+Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
+{
+	std::swap(*m_c_temp[lev], 	*m_c[lev]);
+
+	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
+	const amrex::Real* DX = geom[lev].CellSize();
+
+	for ( amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi )
+	{
+		const amrex::Box& bx = mfi.validbox();
+		amrex::Array4<amrex::Real> const& c_old = (*m_c_temp[lev]).array(mfi);
+		amrex::Array4<amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
+		amrex::Array4<const Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
+
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+			amrex::Real AMREX_D_DECL(grad11 = (c_old(i+1,j,k,0) - 2.*c_old(i,j,k,0) + c_old(i-1,j,k,0))/DX[0]/DX[0],
+						 			 grad22 = (c_old(i,j+1,k,0) - 2.*c_old(i,j,k,0) + c_old(i,j-1,k,0))/DX[1]/DX[1],
+						 			 grad33 = (c_old(i,j,k+1,0) - 2.*c_old(i,j,k,0) + c_old(i,j,k-1,0))/DX[2]/DX[2]);
+			
+			Set::Scalar rhs = 0.;	
+			amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
+			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+			Set::Scalar en_cell = mul*(AMREX_D_TERM(	
+								energy_box(i,j,k,0) + energy_box(i+1,j,k,0)
+								, 
+								+ energy_box(i,j+1,k,0) + energy_box(i+1,j+1,k,0)
+								, 
+								+ energy_box(i,j,k+1,0) + energy_box(i+1,j,k+1,0)
+								+ energy_box(i,j+1,k+1,0) + energy_box(i+1,j+1,k+1,0)
+								));
+
+			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
+			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
+
+			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
+		});
+	}
+}
+
+void
+Fracture::ElasticityProblem(amrex::Real /*time*/)
+{
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
@@ -293,8 +425,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 			     m_rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
 			     m_rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
 	}
-	elastic.bc_top[1] = elastic.test_rate;
-	//elastic.bc_top[0] += elastic.test_rate*elastic.test_dt;
+	
 	AMREX_D_TERM(
 		bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bc_xlo[0], elastic.bc_left[0], 	m_rhs, geom);
 		bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bc_xhi[0], elastic.bc_right[0], 	m_rhs, geom);
@@ -317,7 +448,6 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], elastic.bc_front[1], 	m_rhs, geom);
 		bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	m_rhs, geom);
 	);
-	Util::Message(INFO);
 
 	elastic_operator.SetBC(&bc);
 	Solver::Nonlocal::Linear solver(elastic_operator);
@@ -373,47 +503,6 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 	}
 }
 
-void
-Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
-{
-	std::swap(*m_cold[lev], 	*m_c[lev]);
-
-	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
-	const amrex::Real* DX = geom[lev].CellSize();
-
-	for ( amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi )
-	{
-		const amrex::Box& bx = mfi.validbox();
-		amrex::Array4<amrex::Real> const& c_old = (*m_cold[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
-		amrex::Array4<const Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
-
-		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-			amrex::Real AMREX_D_DECL(grad11 = (c_old(i+1,j,k,0) - 2.*c_old(i,j,k,0) + c_old(i-1,j,k,0))/DX[0]/DX[0],
-						 			 grad22 = (c_old(i,j+1,k,0) - 2.*c_old(i,j,k,0) + c_old(i,j-1,k,0))/DX[1]/DX[1],
-						 			 grad33 = (c_old(i,j,k+1,0) - 2.*c_old(i,j,k,0) + c_old(i,j,k-1,0))/DX[2]/DX[2]);
-			
-			Set::Scalar rhs = 0.;	
-			amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
-			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-			Set::Scalar en_cell = mul*(AMREX_D_TERM(	
-								energy_box(i,j,k,0) + energy_box(i+1,j,k,0)
-								, 
-								+ energy_box(i,j+1,k,0) + energy_box(i+1,j+1,k,0)
-								, 
-								+ energy_box(i,j,k+1,0) + energy_box(i+1,j,k+1,0)
-								+ energy_box(i,j+1,k+1,0) + energy_box(i+1,j+1,k+1,0)
-								));
-
-			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
-			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
-
-			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
-		});
-	}
-}
-
 #define C_NEW(i,j,k,m) c_new(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
 void
 Fracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
@@ -452,18 +541,30 @@ Fracture::Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &
 	const amrex::Real* DX = geom[amrlev].CellSize();
 
 	amrex::FArrayBox &c_new  = (*m_c[amrlev])[mfi];
-	//amrex::FArrayBox &c_old  = (*m_cold[amrlev])[mfi];
-	//amrex::FArrayBox &energy_box  = (*m_energy_pristine[amrlev])[mfi];
+	amrex::FArrayBox &disp_box = (*m_disp[amrlev])[mfi];
+	Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
 
 	AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
 		     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
 		     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
 	{
 		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+		Set::Vector disp_cell;
+		
+		for (int i = 0; i < AMREX_SPACEDIM; i++)
+		{
+			disp_cell[i] = mul*(	AMREX_D_TERM(
+				disp_box(m,i) + disp_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3)),i)
+				,
+				+ disp_box(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3)),i) + disp_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3)),i)
+				,
+				+ disp_box(amrex::IntVect(AMREX_D_DECL(m1,m2,m3+1)),i) + disp_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3+1)),i)
+				+ disp_box(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3+1)),i) + disp_box(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3+1)),i)
+			));
+		}
 
-		crack_energy += (c_new(m,0)*c_new(m,0))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+		crack_norm += (c_new(m,0)*c_new(m,0))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+		disp_norm += (disp_cell.squaredNorm())*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 	}
-	//Util::Message(INFO,"crack_energy = ", crack_energy);
 }
-
 }

@@ -793,8 +793,7 @@ Integrator::IntegrateVariables (Real time, int step)
 
 				for (int i = 0; i < comp.size(); i++)
 				{
-					Integrate(ilev,time, step,
-						  mfi, comp[i]);
+					Integrate(ilev, time, step, mfi, comp[i]);
 				}
 			}
 		}
