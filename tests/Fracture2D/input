@@ -1,5 +1,5 @@
 timestep = 1e-4
-stop_time = 10.0
+stop_time = 100.0
 
 amr.plot_int = 100
 amr.max_level = 2
@@ -48,4 +48,5 @@ elastic.cg_tol_abs 		=	1.0e-6
 elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.0 0.0 0.0
 
-elastic.rate = 1e-2
+elastic.disp_step = 1e-2
+elastic.max_disp = 1e-2
