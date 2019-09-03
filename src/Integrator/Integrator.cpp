@@ -613,6 +613,8 @@ Integrator::WritePlotFile (bool initial) const
 		// (*(*cell.fab_array[3])[ilev]).setVal(0.0);
 		for (int i = 0; i < cell.number_of_fabs; i++)
 		{
+			if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,cnames[i]," contains nan (i=",i,")");
+			if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
 			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 			n += cell.ncomp_array[i];
 		}
@@ -620,7 +622,11 @@ Integrator::WritePlotFile (bool initial) const
 		n = 0;
 		for (int i = 0; i < node.number_of_fabs; i++)
 		{
-			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,nnames[i]," contains nans (i=",i,")");
+			if ((*node.fab_array[i])[ilev]->contains_nan()) 
+			{
+				Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
+				(*node.fab_array[i])[ilev]->setVal(0.0);
+			}
 			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
 			MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
 			n += node.ncomp_array[i];
@@ -815,6 +821,7 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 
 	for (int n = 0 ; n < cell.number_of_fabs ; n++)
 		FillPatch(lev,t_old[lev],*cell.fab_array[n],*(*cell.fab_array[n])[lev],*cell.physbc_array[n],0);
+	Util::Warning(INFO,"Not filling patch for nodal fabs yet.");
 	for (int n = 0 ; n < node.number_of_fabs ; n++)
 		FillPatch(lev,t_old[lev],*node.fab_array[n],*(*node.fab_array[n])[lev],*node.physbc_array[n],0);
 

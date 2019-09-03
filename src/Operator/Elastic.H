@@ -54,7 +54,11 @@ public:
 
 	/// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
 	///
-	void SetBC (::BC::Operator::Elastic<T> *a_bc) {m_bc = a_bc;};
+	void SetBC (::BC::Operator::Elastic<T> *a_bc) 
+	{
+		m_bc = a_bc;
+		m_bc_set = true;
+	};
 
 	/// Compute strain \f$\mathbf{\epsilon}\f$ given the displacement field \f$\mathbf{u}\f$
 	/// by
