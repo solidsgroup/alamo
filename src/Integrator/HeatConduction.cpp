@@ -121,20 +121,44 @@ HeatConduction::Initialize (int lev)
 
 		});
 	}
+//	//ic->Initialize(lev,TempFab);
+//	disp[lev]->setVal(0.0);
+//	rhs[lev]->setVal(0.0);
+//
+//	for (amrex::MFIter mfi(*gammagb_mf[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+//	{
+//		amrex::Box bx = mfi.growntilebox(2);
+//
+//		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
+//		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+//		{
+//			Set::Scalar AMREX_D_DECL(x,y,z);
+//			AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
+//						 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
+//						 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
+//
+//			Set::Matrix Fgb = Set::Matrix::Zero();
+//			if (x < 0.5 && y > 0.525)  gammagb(i,j,k) = 0.1;
+//			else if (x >= 0.5 && y > 0.475) gammagb(i,j,k) = 0.1;
+//			else gammagb(i,j,k)=-0.1;
+//		});
+//	}
+
+	
 
 }
 
 void 
 HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
-//	for (int lev = 0; lev < disp.size(); ++lev)
-//	{
-//		disp[lev]->setVal(0.0);
-//		rhs[lev]->setVal(0.0);
-//		energy_mf[lev]->setVal(0.0);
-//		sigma[lev]->setVal(0.0);
-//	}
-//	return;
+	for (int lev = 0; lev < disp.size(); ++lev)
+	{
+		disp[lev]->setVal(0.0);
+		rhs[lev]->setVal(0.0);
+		energy_mf[lev]->setVal(0.0);
+		sigma[lev]->setVal(0.0);
+	}
+	return;
 
 	//for (int lev = 0; lev < disp.size(); ++lev)	{disp[lev]->setVal(0.0);rhs[lev]->setVal(0.0);energy_mf[lev]->setVal(0.0);sigma[lev]->setVal(0.0);} Util::Warning(INFO,"Note, settting everything to zero!"); return; 
 	if (iter%plot_int) return;
@@ -318,15 +342,15 @@ HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		{
 			Set::Scalar df = 0.0;
 			
-			df += - 100.*(Set::Constant::Pi/0.1) * sin(Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
+			df += - 10.*(Set::Constant::Pi/0.1) * sin(Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
 			//df += 2.0 * (Set::Constant::Pi/0.1) * cos(2*Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
 
-			Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
-			df += - 200.0*sig12;
+			//Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
+			//df += - 200.0*sig12;
 			//df += - 300.0*Sigma(i,j,k,1);
 			//df += - 100.0*Sigma(i,j,k,1);
 
-			df += - 0.4*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
+			df += - 1.0*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
 			//df += -1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
 			
 			gammagb(i,j,k) = gammagbold(i,j,k) - dt * L * df;
@@ -358,33 +382,9 @@ HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amre
 		{
 			Set::Vector grad = Numeric::Gradient(gammagb,i,j,k,0,DX);
 			//tags(i,j,k) = amrex::TagBox::SET;
-			if (grad.lpNorm<2>()*dxnorm > 0.00001) tags(i,j,k) = amrex::TagBox::SET;
+			if (grad.lpNorm<2>()*dxnorm > 0.01) tags(i,j,k) = amrex::TagBox::SET;
 		});
 	}
-	
-//	//ic->Initialize(lev,TempFab);
-//	disp[lev]->setVal(0.0);
-//	rhs[lev]->setVal(0.0);
-//
-//	for (amrex::MFIter mfi(*gammagb_mf[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//	{
-//		amrex::Box bx = mfi.growntilebox(2);
-//
-//		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
-//		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
-//		{
-//			Set::Scalar AMREX_D_DECL(x,y,z);
-//			AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
-//						 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
-//						 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
-//
-//			Set::Matrix Fgb = Set::Matrix::Zero();
-//			if (x < 0.5 && y > 0.525)  gammagb(i,j,k) = 0.1;
-//			else if (x >= 0.5 && y > 0.475) gammagb(i,j,k) = 0.1;
-//			else gammagb(i,j,k)=-0.1;
-//		});
-//	}
-
 	
 }
 

@@ -332,10 +332,16 @@ Integrator::FillPatch (int lev, Real time,
 		ftime.push_back(time);
 
 		physbc.define(geom[lev]);
-		Interpolater* mapper = &node_bilinear_interp;
+		
+		Interpolater* mapper;
+
+		if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
+			mapper = &node_bilinear_interp;
+		else
+			mapper = &cell_cons_interp;
 
 		amrex::Vector<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
-		if (destination_mf.contains_nan()) Util::Abort(INFO);
+		//if (destination_mf.contains_nan()) Util::Abort(INFO);
 		amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
 					  0, icomp, destination_mf.nComp(), geom[lev-1], geom[lev],
 					  physbc, 0,
