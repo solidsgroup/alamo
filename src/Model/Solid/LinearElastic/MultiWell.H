@@ -24,6 +24,7 @@ public:
 	void Define(Set::Scalar _mu, Set::Scalar _lambda,Set::Matrix _Fgb)
 	{
 		mu = _mu; lambda = _lambda; Fgb = _Fgb;
+		for (int p = 0; p < AMREX_SPACEDIM; p++) gradFgb[p] = Set::Matrix::Zero();
 	}
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -66,13 +67,24 @@ public:
 	}
 
 	Multiwell operator + (const Multiwell &rhs) const
-	{return Multiwell(mu+rhs.mu, lambda+rhs.lambda,Fgb + rhs.Fgb);}
+	{
+		Multiwell ret(mu+rhs.mu, lambda+rhs.lambda,Fgb + rhs.Fgb);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradFgb[i] = gradFgb[i] + rhs.gradFgb[i];
+		return ret;
+	}
 
 	void operator += (const Multiwell &rhs)
-	{mu+=rhs.mu; lambda+=rhs.lambda; Fgb += rhs.Fgb;}
+	{
+		mu+=rhs.mu; lambda+=rhs.lambda; Fgb += rhs.Fgb;
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradFgb[i] += rhs.gradFgb[i];
+	}
 
 	Multiwell operator - (const Multiwell &rhs) const
-	{return Multiwell(mu-rhs.mu, lambda-rhs.lambda,Fgb-rhs.Fgb);}
+	{
+		Multiwell ret(mu-rhs.mu, lambda-rhs.lambda,Fgb-rhs.Fgb);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradFgb[i] = gradFgb[i] - rhs.gradFgb[i];
+		return ret;
+	}
 
 	//Multiwell operator * (const Multiwell &rhs) const
 	//{return Multiwell(mu*rhs.mu, lambda*rhs.lambda,Fgb);}
@@ -81,10 +93,18 @@ public:
 	//{return Multiwell(mu/rhs.mu, lambda/rhs.lambda);}
 
 	virtual Multiwell operator / (const Set::Scalar alpha) const
-	{return Multiwell(mu/alpha, lambda/alpha, Fgb/alpha);}
+	{
+		Multiwell ret(mu/alpha, lambda/alpha,Fgb/alpha);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradFgb[i] = gradFgb[i]/alpha;
+		return ret;
+	}
 
 	virtual Multiwell operator * (const Set::Scalar alpha) const
-	{return Multiwell(mu*alpha, lambda*alpha,Fgb*alpha);}
+	{
+		Multiwell ret(mu*alpha, lambda*alpha,Fgb*alpha);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradFgb[i] = gradFgb[i]*alpha;
+		return ret;
+	}
 	
 	void SetHomogeneous(bool a_homogeneous) {m_homogeneous = a_homogeneous;}
 
