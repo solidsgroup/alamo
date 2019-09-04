@@ -1,5 +1,5 @@
-#ifndef OPERATOR_ELASTIC_H_
-#define OPERATOR_ELASTIC_H_
+#ifndef OPERATOR_ELASTIC2_H_
+#define OPERATOR_ELASTIC2_H_
 
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_Array.H>
@@ -16,7 +16,7 @@ using namespace amrex;
 namespace Operator
 {
 /// 
-/// \todo Remove Elastic derived classes. They have been replaced with the Model construction.
+/// \todo Remove Elastic2 derived classes. They have been replaced with the Model construction.
 /// 
 template<class T>
 class Elastic2 : public Operator<Grid::Node>
@@ -47,13 +47,18 @@ public:
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
 
+	void SetModel (T &a_model);
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
 	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
 
 	/// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
 	///
-	void SetBC (::BC::Operator::Elastic<T> *a_bc) {m_bc = a_bc;};
+	void SetBC (::BC::Operator::Elastic<T> *a_bc) 
+	{
+		m_bc = a_bc;
+		m_bc_set = true;
+	};
 
 	/// Compute strain \f$\mathbf{\epsilon}\f$ given the displacement field \f$\mathbf{u}\f$
 	/// by
@@ -110,6 +115,12 @@ protected:
 	virtual bool isCrossStencil () const { return false; }
 	//virtual void Diagonal(bool recompute=false);
 	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
+	virtual void prepareForSolve ()
+	{
+		if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
+		if (!m_bc_set) Util::Warning(INFO,"Attempting to use operator before calling SetBC!");
+		Operator<Grid::Node>::prepareForSolve();
+	};
 
 private:
 	/// Simple arrays storing boundary conditions for each component and each face.
@@ -122,8 +133,7 @@ private:
 	/// The models contain elastic constants and contain methods for converting strain to stress
 	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > model;
 
-	typedef std::array<std::array<Set::Matrix,4> ,4> StiffnessMatrix;
-	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<StiffnessMatrix> > > > > K;
+
 
 	virtual void averageDownCoeffs () override;
 	void averageDownCoeffsToCoarseAmrLevel (int flev);
@@ -135,6 +145,9 @@ private:
 	bool m_homogeneous = false;
 
 	::BC::Operator::Elastic<T> *m_bc;
+
+	bool m_model_set = false;
+	bool m_bc_set = false;
 };
 }
 
