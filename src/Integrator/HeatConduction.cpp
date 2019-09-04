@@ -1,14 +1,5 @@
 #include "HeatConduction.H"
 #include "BC/Constant.H"
-#include "Operator/Elastic.H"
-#include "Solver/Nonlocal/Linear.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/MultiWell.H"
-#include "BC/Operator/Elastic.H"
-#include "IC/Sphere.H"
-#include "IC/Affine.H"
-//#include "IC/PS.H"
-#include "Numeric/Stencil.H"
 
 namespace Integrator
 {
@@ -35,12 +26,8 @@ HeatConduction::HeatConduction() :
 	// // Determine initial condition
 	if (ic_type == "cylinder")
 		ic = new IC::Cylinder(geom);
-	else if (ic_type == "sphere")
-		ic = new IC::Sphere(geom);
 	else if (ic_type == "constant")
 		ic = new IC::Constant(geom);
-//	else if (ic_type == "packed_spheres")
-//		ic = new IC::PS(geom,20,0.0,1.0);
 	else
 		ic = new IC::Constant(geom);
     
@@ -65,14 +52,9 @@ HeatConduction::HeatConduction() :
 					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 	}
 
-	RegisterNewFab(gammagb_mf,    mybc, 1, 2, "gammagb");
-	RegisterNewFab(gammagbold_mf, mybc, 1, 2, "gammagbold");
 
-	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
-	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
-	RegisterNodalFab(res,  AMREX_SPACEDIM, number_of_ghost_cells, "res");
-	RegisterNodalFab(energy_mf, 1, number_of_ghost_cells, "energy");
-	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
+	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp");
+	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
 }
 
 HeatConduction::~HeatConduction()
@@ -85,246 +67,7 @@ HeatConduction::~HeatConduction()
 void
 HeatConduction::Initialize (int lev)
 {
-	//ic->Initialize(lev,TempFab);
-	disp[lev]->setVal(0.0);
-	rhs[lev]->setVal(0.0);
-
-	for (amrex::MFIter mfi(*gammagb_mf[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-	{
-		amrex::Box bx = mfi.growntilebox(2);
-
-		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
-		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
-		{
-			Set::Scalar AMREX_D_DECL(x,y,z);
-			AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
-						 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
-						 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
-
-			// Simple bicrystal
-			if (y >= 0.5)  gammagb(i,j,k) = 0.1;
-			else gammagb(i,j,k)=-0.1;
-
-			//// Single Disconnection
-			//if (x < 0.5 && y > 0.6)  gammagb(i,j,k) = 0.1;
-			//else if (x >= 0.5 && y > 0.4) gammagb(i,j,k) = 0.1;
-			//else gammagb(i,j,k)=-0.1;
-
-			//// Sinusoidal perturbation
-			//if (y > 0.7 + 0.01*sin(8. * Set::Constant::Pi * x))  gammagb(i,j,k) = 0.1;
-			//else gammagb(i,j,k)=-0.1;
-
-			// // Ramp
-			//if (y > (0.55 - 0.1 * x)) gammagb(i,j,k) = 0.1;
-			//else gammagb(i,j,k) = -0.1;
-
-			// // Single Disconnection
-			//if (x < 0.25 && y > 0.525)  gammagb(i,j,k) = 0.1;
-			//else if (0.25 <= x && x < 0.75 && y > 0.475) gammagb(i,j,k) = 0.1;
-			//else if (0.75 <= x && y > 0.525)  gammagb(i,j,k) = 0.1;
-			//else gammagb(i,j,k)=0;
-
-		});
-	}
-//	//ic->Initialize(lev,TempFab);
-//	disp[lev]->setVal(0.0);
-//	rhs[lev]->setVal(0.0);
-//
-//	for (amrex::MFIter mfi(*gammagb_mf[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//	{
-//		amrex::Box bx = mfi.growntilebox(2);
-//
-//		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
-//		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
-//		{
-//			Set::Scalar AMREX_D_DECL(x,y,z);
-//			AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
-//						 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
-//						 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
-//
-//			Set::Matrix Fgb = Set::Matrix::Zero();
-//			if (x < 0.5 && y > 0.525)  gammagb(i,j,k) = 0.1;
-//			else if (x >= 0.5 && y > 0.475) gammagb(i,j,k) = 0.1;
-//			else gammagb(i,j,k)=-0.1;
-//		});
-//	}
-
-	
-
-}
-
-void 
-HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
-{
-	//for (int lev = 0; lev < disp.size(); ++lev)
-	//{
-	//	disp[lev]->setVal(0.0);
-	//	rhs[lev]->setVal(0.0);
-	//	energy_mf[lev]->setVal(0.0);
-	//	sigma[lev]->setVal(0.0);
-	//}
-	//return;
-
-	//for (int lev = 0; lev < disp.size(); ++lev)	{disp[lev]->setVal(0.0);rhs[lev]->setVal(0.0);energy_mf[lev]->setVal(0.0);sigma[lev]->setVal(0.0);} Util::Warning(INFO,"Note, settting everything to zero!"); return; 
-	if (iter == 0) return;
-	if (iter%plot_int) return;
-
-Util::Message(INFO);
-
-	for (int lev = 0; lev < disp.size(); ++lev)
-	{
-		disp[lev]->setVal(0.0);
-		rhs[lev]->setVal(0.0);
-	}
-
-Util::Message(INFO);
-	Set::Scalar lame = 2.6, shear = 6.0;
-	using model_type = Model::Solid::LinearElastic::Multiwell;
-	Util::Message(INFO);
-	Operator::Elastic<model_type> elastic;
-	elastic.SetHomogeneous(false);
-
-	amrex::LPInfo info;
-	info.setMaxCoarseningLevel(0);
-	elastic.define(geom,grids,dmap,info);
-	
-
-Util::Message(INFO);
-	model_type mymodel(lame,shear,Set::Matrix::Zero());
-	
-Util::Message(INFO);
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model_mf;
-	model_mf.resize(disp.size());
-
-Util::Message(INFO);
-	for (int lev = 0; lev < disp.size(); ++lev)
-	{
-		amrex::Box domain(geom[lev].Domain());
-		domain.convert(amrex::IntVect::TheNodeVector());
-		model_mf[lev].define(disp[lev]->boxArray(), disp[lev]->DistributionMap(), 1, 2);
-		model_mf[lev].setVal(mymodel);
-		
-		const amrex::Real* DX  = geom[lev].CellSize();
-
-		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
-		{
-			//amrex::Box bx = mfi.growntilebox(2);
-			amrex::Box bx = mfi.tilebox();
-			bx.grow(1);
-			//bx = bx & domain;
-
-			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
-			amrex::Array4<const Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
-			amrex::Array4<Set::Scalar> const & RHS = rhs[lev]->array(mfi);
-
-			amrex::Dim3 lo= amrex::lbound(bx), hi = amrex::ubound(bx);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
-			{
-				Set::Matrix Fgb = Set::Matrix::Zero();
-				//if      (i == lo.x && j == lo.y) Fgb(0,1) = gammagb(i,j,k);
-				//else if (i == lo.x && j == hi.y) Fgb(0,1) = gammagb(i,j-1,k);
-				//else if (i == hi.x && j == lo.y) Fgb(0,1) = gammagb(i-1,j,k);
-				//else if (i == hi.x && j == hi.y) Fgb(0,1) = gammagb(i-1,j-1,k);
-				//else if (i == lo.x) Fgb(0,1) = 0.5*(gammagb(i,j,k) + gammagb(i,j-1,k));
-				//else if (i == hi.x) Fgb(0,1) = 0.5*(gammagb(i-1,j,k) + gammagb(i-1,j-1,k));
-				//else if (i == lo.y) Fgb(0,1) = 0.5*(gammagb(i,j,k) + gammagb(i-1,j,k));
-				//else if (i == hi.y) Fgb(0,1) = 0.5*(gammagb(i,j-1,k) + gammagb(i-1,j-1,k));
-				//else 
-				
-				Fgb(0,1) = 0.25*(gammagb(i,j,k) + gammagb(i-1,j,k) + gammagb(i,j-1,k)+ gammagb(i-1,j-1,k));
-
-				//Util::Message(INFO,Fgb(0,1));
-				//RHS(i,j,k,0)=Fgb(0,1);
-				RHS(i,j,k,0)=gammagb(i,j,k);
-				
-				model(i,j,k) = model_type(lame,shear,Fgb);
-
-			});
-			bx = mfi.tilebox();
-			Util::Message(INFO);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
-			{
-				model(i,j,k).gradFgb[0](1,0) = ((model(i+1,j,k).Fgb - model(i-1,j,k).Fgb)/2./DX[0])(0,1);
-				model(i,j,k).gradFgb[0](1,1) = ((model(i,j+1,k).Fgb - model(i,j-1,k).Fgb)/2./DX[1])(0,1);
-			});
-			Util::Message(INFO);
-		}
-	}
-
-	elastic.SetModel(model_mf);
-
-	BC::Operator::Elastic<model_type> bc;
-	for (int lev = 0; lev < rhs.size(); lev++) rhs[lev]->setVal(0.0);
-    bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
-    bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
-    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
-    bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
-
-	elastic.SetBC(&bc);
-	Solver::Nonlocal::Linear solver(elastic);
-	solver.setVerbose(4);
-	solver.setBottomMaxIter(20);
-	//solver.setBottomSolver(amrex::MLMG::BottomSolver::smoother);
-	solver.setFixedIter(10000);
-
-	solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(disp));
-
-	bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
-    bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
-    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
-    bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
-
-
-	for (int lev = 0; lev < disp.size(); ++lev)
-	{
-		amrex::Box domain(geom[lev].Domain());
-		domain.convert(amrex::IntVect::TheNodeVector());
-
-		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
-		{
-			amrex::Box bx = mfi.tilebox();
-			bx.grow(model_mf[lev].nGrow());
-			bx = bx & domain;
-
-			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k).SetHomogeneous(true);} );
-		}
-	}
-	elastic.SetModel(model_mf);
-	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	solver.solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),tol_rel,tol_abs);
-	
-	solver.compResidual(GetVecOfPtrs(res),GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs));
-
-	for (int lev = 0; lev < disp.size(); ++lev)
-	{
-		amrex::Box domain(geom[lev].Domain());
-		domain.convert(amrex::IntVect::TheNodeVector());
-		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
-		{
-			amrex::Box bx = mfi.tilebox();
-			bx.grow(model_mf[lev].nGrow());
-			bx = bx & domain;
-			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k).SetHomogeneous(false);} );
-		}
-	}
-	elastic.SetModel(model_mf);
-	
-	for (int lev = 0; lev < sigma.size(); lev++)
-	{
-		elastic.Stress(lev,*sigma[lev],*disp[lev]);
-		elastic.Energy(lev,*energy_mf[lev],*disp[lev]);
-	}
-	
+	ic->Initialize(lev,TempFab);
 }
 
 
@@ -337,66 +80,77 @@ Util::Message(INFO);
 void
 HeatConduction::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
-	std::swap(gammagbold_mf[lev], gammagb_mf[lev]);
-	Set::Scalar L = 0.1;
+	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+												  dy(AMREX_D_DECL(0,1,0)),
+												  dz(AMREX_D_DECL(0,0,1)));
+
+	std::swap(*TempFab[lev], *TempOldFab[lev]);
+
 	const amrex::Real* DX = geom[lev].CellSize();
 
-	for (amrex::MFIter mfi(*gammagb_mf[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-	{
-		amrex::Box bx = mfi.tilebox();
-		bx.grow(1);
-
-		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
-		amrex::Array4<const Set::Scalar> const & gammagbold = gammagbold_mf[lev]->array(mfi);
-		amrex::Array4<const Set::Scalar> const & Sigma = sigma[lev]->array(mfi);
-		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+	for ( amrex::MFIter mfi(*TempFab[lev],true); mfi.isValid(); ++mfi )
 		{
-			Set::Scalar df = 0.0;
-			
-			df += - 10.*(Set::Constant::Pi/0.1) * sin(Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
-			//df += 2.0 * (Set::Constant::Pi/0.1) * cos(2*Set::Constant::Pi * gammagbold(i,j,k) / 0.1);
+			const amrex::Box& bx = mfi.tilebox();
 
-			//Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
-			//df += - 200.0*sig12;
-			//df += - 300.0*Sigma(i,j,k,1);
-			//df += - 100.0*Sigma(i,j,k,1);
+			amrex::FArrayBox &TempOld = (*TempOldFab[lev])[mfi];
+			amrex::FArrayBox &Temp    = (*TempFab[lev])[mfi];
 
-			df += - 1.0*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
-			//df += -1*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
-			
-			gammagb(i,j,k) = gammagbold(i,j,k) - dt * L * df;
-			
-			//Set::Matrix Fgb = Set::Matrix::Zero();
-			//if (x < 0.5 && y > 0.525)  gammagb(i,j,k) = 0.1;
-			//if (x >= 0.5 && y > 0.475) gammagb(i,j,k) = 0.1;
-		});
-	}
+			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							 for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							 for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
+				{
+					amrex::IntVect m(AMREX_D_DECL(i,j,k));
+					Temp(m)
+						= TempOld(m)
+						+ dt * alpha * (AMREX_D_TERM((TempOld(m+dx) + TempOld(m-dx) - 2*TempOld(m)) / DX[0] / DX[0],
+															  + (TempOld(m+dy) + TempOld(m-dy) - 2*TempOld(m)) / DX[1] / DX[1],
+															  + (TempOld(m+dz) + TempOld(m-dz) - 2*TempOld(m)) / DX[2] / DX[2]));
+				}
+		}
 }
 
+
+/// \fn    Integrator::HeatConduction::TagCellsForRefinement
+///
+/// The following criterion is used to determine if a cell should be refined:
+/// \f[|\nabla T|\,|\mathbf{r}| > h\f]
+/// where
+/// \f[\mathbf{r} = \sqrt{\Delta x_1^2 + \Delta x_2^2 + \Delta x_3^2}\f]
+/// and \f$h\f$ is stored in #refinement_threshold
 void
-HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real time, int /*ngrow*/)
+HeatConduction::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	const amrex::Real* DX      = geom[lev].CellSize();
-	const Set::Scalar dxnorm = sqrt(DX[0]*DX[0] +  DX[1]*DX[1]);
 
-	for (amrex::MFIter mfi(*gammagb_mf[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
-	{
-		amrex::Box bx = mfi.tilebox();
-		bx.grow(-1);
-		//amrex::Array4<const amrex::Real> const& RHS    = (*rhs[lev]).array(mfi);
-		//amrex::Array4<const amrex::Real> const& u    = (*disp[lev]).array(mfi);
-		amrex::Array4<char> const& tags    = a_tags.array(mfi);
-		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
+	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+												  dy(AMREX_D_DECL(0,1,0)),
+												  dz(AMREX_D_DECL(0,0,1)));
 
-		for (int n = 0; n < 2 ; n++)
-		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+	for (amrex::MFIter mfi(*TempFab[lev],true); mfi.isValid(); ++mfi)
 		{
-			Set::Vector grad = Numeric::Gradient(gammagb,i,j,k,0,DX);
-			//tags(i,j,k) = amrex::TagBox::SET;
-			if (grad.lpNorm<2>()*dxnorm > 0.01) tags(i,j,k) = amrex::TagBox::SET;
-		});
-	}
-	
+			const amrex::Box&  bx  = mfi.tilebox();
+			amrex::TagBox&     tag  = tags[mfi];
+ 	    
+			amrex::FArrayBox &Temp = (*TempFab[lev])[mfi];
+
+			AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
+							 for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
+							 for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
+						{
+							amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
+							AMREX_D_TERM(amrex::Real grad1 = (Temp(m+dx) - Temp(m-dx));,
+											 amrex::Real grad2 = (Temp(m+dy) - Temp(m-dy));,
+											 amrex::Real grad3 = (Temp(m+dz) - Temp(m-dz));)
+
+							amrex::Real grad = sqrt(AMREX_D_TERM(grad1*grad1, + grad2*grad2, + grad3*grad3));
+
+							amrex::Real dr = sqrt(AMREX_D_TERM(DX[0]*DX[0], + DX[1]*DX[1], + DX[2]*DX[2]));
+
+							if (grad*dr > refinement_threshold)
+								tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
+						}
+		}
 }
 
 }

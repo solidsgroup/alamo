@@ -27,9 +27,7 @@ public:
 		for (int p = 0; p < AMREX_SPACEDIM; p++) gradFgb[p] = Set::Matrix::Zero();
 	}
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
-#endif
 	virtual Set::Matrix operator () (Set::Matrix &gradu) const
 	{
 		Set::Matrix eps = gradu;
@@ -37,9 +35,7 @@ public:
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
-#endif
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
 	{
 		std::array<Set::Matrix,AMREX_SPACEDIM> gradeps;
@@ -53,6 +49,20 @@ public:
 				}
 		return f;
 	}
+
+	AMREX_FORCE_INLINE
+	virtual Set::Matrix DW (Set::Matrix &gradu) const
+	{
+		Set::Matrix eps = gradu - Fgb;
+		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
+	};
+	AMREX_FORCE_INLINE
+	virtual Set::Matrix4<3,Set::Sym::Isotropic> DDW (Set::Matrix &gradu) const
+	{
+		Set::Matrix4<3,Set::Sym::Isotropic> ret(lambda,mu);
+		return ret;
+	};
+
 
 	void Randomize()
 	{
@@ -106,12 +116,15 @@ public:
 		return ret;
 	}
 	
-	void SetHomogeneous(bool a_homogeneous) {m_homogeneous = a_homogeneous;}
+	void SetHomogeneous(bool a_homogeneous) 
+	{
+		m_homogeneous = a_homogeneous;
+	}
 
 private:
 	Set::Scalar mu; ///< First Lame parameter \f$\mu\f$
 	Set::Scalar lambda; ///< Second Lame parameter \f$\lambda\f$
-	bool m_homogeneous = false;
+	bool m_homogeneous = true;
 public:
 	Set::Matrix Fgb = Set::Matrix::Zero();
 	std::array<Set::Matrix,AMREX_SPACEDIM> gradFgb;

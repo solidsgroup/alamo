@@ -52,6 +52,33 @@ Elastic2<T>::define (const Vector<Geometry>& a_geom,
 }
 
 template <class T>
+void 
+Elastic2<T>::SetModel (T &a_model)
+{
+	for (int amrlev = 0; amrlev < model.size(); amrlev++)
+	{
+		amrex::Box domain(m_geom[amrlev][0].Domain());
+		domain.convert(amrex::IntVect::TheNodeVector());
+
+		int nghost = model[amrlev][0]->nGrow();
+
+		for (MFIter mfi(*model[amrlev][0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			Box bx = mfi.tilebox();
+			bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+			bx = bx & domain;  // Take intersection of box and the problem domain
+				
+			amrex::Array4<T> const& C         = (*(model[amrlev][0])).array(mfi);
+	
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					C(i,j,k) = a_model;
+				});
+		}
+	}
+	m_model_set = true;
+}
+
+template <class T>
 void
 Elastic2<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
@@ -59,6 +86,12 @@ Elastic2<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_
 
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
+
+	if (a_model.boxArray()        != model[amrlev][0]->boxArray()) Util::Abort(INFO,"Inconsistent box arrays");
+	if (a_model.DistributionMap() != model[amrlev][0]->DistributionMap()) Util::Abort(INFO,"Inconsistent distribution maps");
+	if (a_model.nComp()           != model[amrlev][0]->nComp()) Util::Abort(INFO,"Inconsistent # of components - should be ",model[amrlev][0]->nComp());
+	if (a_model.nGrow()           != model[amrlev][0]->nGrow()) Util::Abort(INFO,"Inconsistent # of ghost nodes, should be ",model[amrlev][0]->nGrow());
+
 
 	int nghost = model[amrlev][0]->nGrow();
 
@@ -75,6 +108,10 @@ Elastic2<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_
 				C(i,j,k) = a_C(i,j,k);
 			});
 	}
+	//FillBoundaryCoeff(*model[amrlev][0], m_geom[amrlev][0]);
+
+
+	m_model_set = true;
 }
 
 template<class T>
@@ -134,43 +171,12 @@ Elastic2<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) 
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
-
-					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
-					
-					// for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
-					// {
-					// 	for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
-					// 	{
-					// 		if (m[q] == domain.loVect()[q])
-					// 		{
-					// 			if      (m_bc_lo[q][p] == BC::Displacement) f(p) =   U(i,j,k,p);
-					// 			else if (m_bc_lo[q][p] == BC::Traction)     f(p) = -sig(p,q);
-					// 			else if (m_bc_lo[q][p] == BC::Neumann)      f(p) = -gradu(p,q);
-					// 			else Util::Abort(INFO, "Invalid BC");
-					// 		}
-					// 		if (m[q] == domain.hiVect()[q])
-					// 		{
-					// 			if      (m_bc_hi[q][p] == BC::Displacement) f(p) = U(i,j,k,p);
-					// 			else if (m_bc_hi[q][p] == BC::Traction)     f(p) = +sig(p,q);
-					// 			else if (m_bc_hi[q][p] == BC::Neumann)      f(p) = +gradu(p,q);
-					// 			else Util::Abort(INFO, "Invalid BC");
-
-					// 		}
-					// 	}
-					// }
-
-					// if ((fnew - f).norm() > 1E-8) {
-					// 	Util::Message(INFO,"m = ", m);
-					// 	Util::Message(INFO,"fnew = ", fnew.transpose());
-					// 	Util::Message(INFO,"fold = ", f.transpose());
-					// 	Util::Message(INFO,"sigma = \n", sig);
-					// 	Util::Message(INFO,"gradu = \n", gradu);
-					// 	Util::Abort(INFO,"incorrect BC calculation");
-					// }
-
+					// for right now ... do nothing.
+					//f = (*m_bc)(u,gradu,sig,i,j,k,domain);
 				}
 				else
 				{
+
 					// The gradient of the displacement gradient tensor
 					std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
 
@@ -318,7 +324,7 @@ Elastic2<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 
 						diag(i,j,k,p) += f(p);
 					}
-					if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"nan at (", i, ",", j , ",",k);
+					if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"diagonal is nan at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
 
 				}
 			});
@@ -754,10 +760,6 @@ Elastic2<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 	}
 }
 
-template class Elastic2<Model::Solid::LinearElastic::Isotropic>;
-template class Elastic2<Model::Solid::LinearElastic::Cubic>;
 template class Elastic2<Model::Solid::LinearElastic::Multiwell>;
-template class Elastic2<Model::Solid::LinearElastic::Laplacian>;
-template class Elastic2<Model::Solid::LinearElastic::Degradable::Isotropic>;
 }
 

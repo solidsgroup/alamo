@@ -20,7 +20,8 @@ class Linear : public amrex::MLMG
     {
         MLMG::setBottomSolver(MLMG::BottomSolver::bicgstab);
 	    MLMG::setCFStrategy(MLMG::CFStrategy::ghostnodes);
-        MLMG::setFinalFillBC(false);	
+        MLMG::setFinalFillBC(false);
+        MLMG::setMaxFmgIter(100000000);
     }
     Linear (Operator::Operator<Grid::Cell>& a_lp): MLMG(a_lp)
     {

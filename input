@@ -22,14 +22,14 @@
 # Simulation length
 timestep  = 0.00001
 #stop_time = 5
-stop_time = 0.00011
+stop_time = 0.00101
 
 # AMR parameters
 amr.plot_int = 10
-amr.max_level = 0
+amr.max_level = 1
 #amr.n_cell = 256 128
-#amr.n_cell = 128 64
-amr.n_cell = 4 2
+amr.n_cell = 128 64
+#amr.n_cell = 16 8
 #amr.n_cell = 128 64
 #amr.blocking_factor = 8
 amr.blocking_factor = 1
@@ -37,6 +37,11 @@ amr.max_grid_size = 10000000
 amr.regrid_int = 50
 amr.grid_eff = 1.0
 amr.plot_file = outputdisconnections/output
+
+solver.verbose = 2
+solver.bottom_max_iter = 20
+solver.fixed_iter = 100
+#solver.max_coarsening_level = 0
 
 # Specify geometry and unrefined mesh
 geometry.prob_lo = 0 0.25 0
