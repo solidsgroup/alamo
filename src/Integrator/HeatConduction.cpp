@@ -70,6 +70,7 @@ HeatConduction::HeatConduction() :
 
 	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
 	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
+	RegisterNodalFab(res,  AMREX_SPACEDIM, number_of_ghost_cells, "res");
 	RegisterNodalFab(energy_mf, 1, number_of_ghost_cells, "energy");
 	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
 }
@@ -100,10 +101,14 @@ HeatConduction::Initialize (int lev)
 						 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
 						 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
 
-			// Single Disconnection
-			if (x < 0.5 && y > 0.6)  gammagb(i,j,k) = 0.1;
-			else if (x >= 0.5 && y > 0.4) gammagb(i,j,k) = 0.1;
+			// Simple bicrystal
+			if (y >= 0.5)  gammagb(i,j,k) = 0.1;
 			else gammagb(i,j,k)=-0.1;
+
+			//// Single Disconnection
+			//if (x < 0.5 && y > 0.6)  gammagb(i,j,k) = 0.1;
+			//else if (x >= 0.5 && y > 0.4) gammagb(i,j,k) = 0.1;
+			//else gammagb(i,j,k)=-0.1;
 
 			//// Sinusoidal perturbation
 			//if (y > 0.7 + 0.01*sin(8. * Set::Constant::Pi * x))  gammagb(i,j,k) = 0.1;
@@ -151,16 +156,17 @@ HeatConduction::Initialize (int lev)
 void 
 HeatConduction::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
-	for (int lev = 0; lev < disp.size(); ++lev)
-	{
-		disp[lev]->setVal(0.0);
-		rhs[lev]->setVal(0.0);
-		energy_mf[lev]->setVal(0.0);
-		sigma[lev]->setVal(0.0);
-	}
-	return;
+	//for (int lev = 0; lev < disp.size(); ++lev)
+	//{
+	//	disp[lev]->setVal(0.0);
+	//	rhs[lev]->setVal(0.0);
+	//	energy_mf[lev]->setVal(0.0);
+	//	sigma[lev]->setVal(0.0);
+	//}
+	//return;
 
 	//for (int lev = 0; lev < disp.size(); ++lev)	{disp[lev]->setVal(0.0);rhs[lev]->setVal(0.0);energy_mf[lev]->setVal(0.0);sigma[lev]->setVal(0.0);} Util::Warning(INFO,"Note, settting everything to zero!"); return; 
+	if (iter == 0) return;
 	if (iter%plot_int) return;
 
 Util::Message(INFO);
@@ -177,7 +183,10 @@ Util::Message(INFO);
 	Util::Message(INFO);
 	Operator::Elastic<model_type> elastic;
 	elastic.SetHomogeneous(false);
-	elastic.define(geom,grids,dmap);
+
+	amrex::LPInfo info;
+	info.setMaxCoarseningLevel(0);
+	elastic.define(geom,grids,dmap,info);
 	
 
 Util::Message(INFO);
@@ -257,9 +266,10 @@ Util::Message(INFO);
 
 	elastic.SetBC(&bc);
 	Solver::Nonlocal::Linear solver(elastic);
-	solver.setVerbose(2);
+	solver.setVerbose(4);
 	solver.setBottomMaxIter(20);
-	solver.setFixedIter(10);
+	//solver.setBottomSolver(amrex::MLMG::BottomSolver::smoother);
+	solver.setFixedIter(10000);
 
 	solver.apply(GetVecOfPtrs(rhs),GetVecOfPtrs(disp));
 
@@ -292,6 +302,7 @@ Util::Message(INFO);
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 	solver.solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),tol_rel,tol_abs);
 	
+	solver.compResidual(GetVecOfPtrs(res),GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < disp.size(); ++lev)
 	{
