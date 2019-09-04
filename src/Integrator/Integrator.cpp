@@ -301,7 +301,6 @@ Integrator::FillPatch (int lev, Real time,
 		       MultiFab &destination_mf,
 		       BC::BC &physbc, int icomp)
 {
-	Util::Message(INFO);
 	BL_PROFILE("Integrator::FillPatch");
 	if (lev == 0)
 	{
@@ -827,7 +826,6 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 
 	for (int n = 0 ; n < cell.number_of_fabs ; n++)
 		FillPatch(lev,t_old[lev],*cell.fab_array[n],*(*cell.fab_array[n])[lev],*cell.physbc_array[n],0);
-	Util::Warning(INFO,"Not filling patch for nodal fabs yet.");
 	for (int n = 0 ; n < node.number_of_fabs ; n++)
 		FillPatch(lev,t_old[lev],*node.fab_array[n],*(*node.fab_array[n])[lev],*node.physbc_array[n],0);
 

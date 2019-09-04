@@ -602,7 +602,7 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 }
   
 void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
-				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
+				                                  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
 	const auto& amrrr = AMRRefRatio(camrlev);

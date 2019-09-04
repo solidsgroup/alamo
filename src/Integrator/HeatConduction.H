@@ -64,6 +64,7 @@ private:
 
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp;  	///< Displacement
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs;  	///< Right Hand Side
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > res;  	///< Residual
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > sigma;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy_mf;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagb_mf;  	///< Right Hand Side
