@@ -102,6 +102,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine_old;
 
 	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
