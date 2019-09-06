@@ -62,14 +62,30 @@ public:
 						bool cont = true;
 						if (type != Type::Displacement)
 						{
-						 	if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
-						 		cont = false; // corner
-						 	else if ((j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
-						 		cont = false; // edge
-						 	else if ((i == lo.x || i == hi.x) && (k == lo.z || k == hi.z))
-						 		cont = false; // edge
-						 	else if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y))
-						 		cont = false; // edge
+							AMREX_D_PICK(
+								if(i == lo.x || i == hi.x) //end points of a line
+									cont = false;
+								,
+								if((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y)) // corners of the square
+									cont = false;
+								,
+								if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
+									cont = false;	// corners of the cube
+								else if ((j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
+						 			cont = false; // edge of the cube
+						 		else if ((i == lo.x || i == hi.x) && (k == lo.z || k == hi.z))
+						 			cont = false; // edge of the cube
+						 		else if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y))
+						 			cont = false; // edge of the cube
+							);
+						 	//if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
+						 	//	cont = false; // corner
+						 	//else if ((j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
+						 	//	cont = false; // edge
+						 	//else if ((i == lo.x || i == hi.x) && (k == lo.z || k == hi.z))
+						 	//	cont = false; // edge
+						 	//else if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y))
+						 	//	cont = false; // edge
 						}
 						if (cont)
 						{

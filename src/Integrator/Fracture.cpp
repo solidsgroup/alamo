@@ -154,8 +154,8 @@ Fracture::Fracture() :
 	AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
 					bc_x_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
 					,
-					bc_y_lo_str = {AMREX_D_DECL("trac", "disp", "trac")};
-					bc_y_hi_str = {AMREX_D_DECL("trac", "disp", "trac")};
+					bc_y_lo_str = {AMREX_D_DECL("disp", "disp", "disp")};
+					bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
 					,
 					bc_z_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
 					bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};);
@@ -285,6 +285,8 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 			Util::Message(INFO);
 			amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp_conv)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
 		}
+		crack_norm = 0.; 	crack_norm_old = 1.e4;	crack_norm_temp = 1.e4;
+		disp_norm = 0.; 	disp_norm_old = 1.e4;
 		ElasticityProblem(0.);
 		newCrackProblem = false;
 		solveCrack = true;
@@ -322,7 +324,7 @@ Fracture::TimeStepComplete(amrex::Real time,int /*iter*/)
 	Util::Message(INFO, "err_disp = ", err_disp);
 	Util::Message(INFO, "err = ", err);
 
-	if(err_crack_temp > 1e-10)
+	if(err_crack_temp > 1e-7)
 	{
 		solveCrack = true;
 		solveElasticity = false;
@@ -335,10 +337,10 @@ Fracture::TimeStepComplete(amrex::Real time,int /*iter*/)
 		amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c)[ilev], 0, 0, 1, number_of_ghost_cells);
 		amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
 	}
-	disp_norm_old = disp_norm;
+	//disp_norm_old = disp_norm;
 	crack_norm_old = crack_norm;
 
-	if(err < 1e-10)
+	if(err < 1.e-6)
 	{
 		for(int ilev = 0; ilev < nlevels; ++ilev)
 		{
@@ -406,6 +408,7 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 void
 Fracture::ElasticityProblem(amrex::Real /*time*/)
 {
+	disp_norm_old = disp_norm;
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);

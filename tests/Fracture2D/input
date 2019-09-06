@@ -2,8 +2,8 @@ timestep = 1e-4
 stop_time = 100.0
 
 amr.plot_int = 100
-amr.max_level = 2
-amr.n_cell = 128 128
+amr.max_level = 0
+amr.n_cell = 512 512
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -18,7 +18,7 @@ geometry.is_periodic= 0 0
 crack.type = constant
 crack.constant.G_c = 5.0e-1
 crack.constant.zeta = 1.e-4
-crack.consant.mobility = 1.0e-2
+crack.constant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01
 
 ic.type = ellipsoid
@@ -48,5 +48,5 @@ elastic.cg_tol_abs 		=	1.0e-6
 elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.0 0.0 0.0
 
-elastic.disp_step = 1e-2
-elastic.max_disp = 1e-2
+elastic.bc.disp_step = 1.69e2
+elastic.bc.max_disp = 1.69e2
