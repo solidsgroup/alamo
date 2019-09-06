@@ -154,8 +154,10 @@ Fracture::Fracture() :
 	AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
 					bc_x_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
 					,
-					bc_y_lo_str = {AMREX_D_DECL("disp", "disp", "disp")};
-					bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
+					//bc_y_lo_str = {AMREX_D_DECL("disp", "disp", "disp")};
+					//bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
+					bc_y_lo_str = {AMREX_D_DECL("trac", "disp", "trac")};
+					bc_y_hi_str = {AMREX_D_DECL("trac", "disp", "trac")};
 					,
 					bc_z_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
 					bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};);
@@ -200,6 +202,7 @@ Fracture::Fracture() :
 	RegisterNodalFab (m_stressvm,	1,								number_of_ghost_cells,	"stress_vm");
 	RegisterNodalFab (m_energy,		1,								number_of_ghost_cells,	"energy");
 	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_cells,	"energyP");
+	RegisterNodalFab (m_energy_pristine_old,	1,					number_of_ghost_cells,	"energyPOld");
 	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_cells,	"residual");
 	nlevels = maxLevel() + 1;
 }
@@ -230,6 +233,7 @@ Fracture::Initialize (int lev)
 	m_energy[lev]->setVal(0.0);
 	m_residual[lev]->setVal(0.0);
 	m_energy_pristine[lev] -> setVal(0.);
+	m_energy_pristine_old[lev] -> setVal(0.);
 	Util::Message(INFO);
 }
 
@@ -263,7 +267,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
 								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
 								));
-			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],0.90));
+			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],0.92));
 		});
 	}
 }
@@ -271,6 +275,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 void 
 Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
+	Util::Message(INFO,"new Crack problem = ", newCrackProblem, ". solveElasticity = ", solveElasticity, ". solveCrack = ",  solveCrack);
 	//if(~newCrackProblem) return;
 	Util::Message(INFO);
 	if(newCrackProblem)
@@ -324,7 +329,7 @@ Fracture::TimeStepComplete(amrex::Real time,int /*iter*/)
 	Util::Message(INFO, "err_disp = ", err_disp);
 	Util::Message(INFO, "err = ", err);
 
-	if(err_crack_temp > 1e-7)
+	if(err_crack_temp > 1e-6)
 	{
 		solveCrack = true;
 		solveElasticity = false;
@@ -340,7 +345,7 @@ Fracture::TimeStepComplete(amrex::Real time,int /*iter*/)
 	//disp_norm_old = disp_norm;
 	crack_norm_old = crack_norm;
 
-	if(err < 1.e-6)
+	if(err < 1.e-3)
 	{
 		for(int ilev = 0; ilev < nlevels; ++ilev)
 		{
@@ -409,6 +414,7 @@ void
 Fracture::ElasticityProblem(amrex::Real /*time*/)
 {
 	disp_norm_old = disp_norm;
+
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
@@ -420,6 +426,8 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 	{
 		model[ilev].define(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
+		m_energy_pristine[ilev]->setVal(0.);
+		//std::swap(*m_energy_pristine_old[ilev], 	*m_energy_pristine[ilev]);
 		ScaledModulus(ilev,model[ilev]);
 	}
 	Util::Message(INFO);
@@ -496,7 +504,9 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 			const amrex::Box& box = mfi.validbox();
 			amrex::Array4<const Set::Scalar> const& strain_box = (*m_strain[lev]).array(mfi);
 			amrex::Array4<Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
+			amrex::Array4<Set::Scalar> const& energy_box_old = (*m_energy_pristine_old[lev]).array(mfi);
 			amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+				//energy_box(i,j,k,0) = 0.;
 				Set::Matrix eps;
 				AMREX_D_PICK(
 					eps(0,0) = strain_box(i,j,k,0);
@@ -515,6 +525,7 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 					for (int n = 0; n < AMREX_SPACEDIM; n++)
 						energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
 				}
+				//energy_box(i,j,k,0) 
 			});
 		}
 	}
