@@ -48,7 +48,7 @@ public:
 									 y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
 									 z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
 					}
-					Set::Scalar rsq = 0.0;
+					//Set::Scalar rsq = 0.0;
 
 					if (AMREX_D_TERM(std::abs(x-center[0]) <= 0.5*length[0], && std::abs(y-center[1]) <= 0.5*length[1], && std::abs(z-center[2]) <= 0.5*length[2]))
 						field(i,j,k,0) = 0.;

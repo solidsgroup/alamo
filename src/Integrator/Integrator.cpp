@@ -572,7 +572,7 @@ Integrator::PlotFileName(std::string _name, int lev) const
 }
 
 void
-Integrator::WritePlotFile(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial) const
+Integrator::WritePlotFileNode(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial) const
 {
 	BL_PROFILE("Integrator::WritePlotFile");
 	const int nlevels = finest_level+1;
@@ -627,6 +627,91 @@ Integrator::WritePlotFile(std::string &name, amrex::Vector<Set::Scalar> &_time, 
 		if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
 	}
 }
+
+void
+Integrator::WritePlotFile(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial) const
+{
+	BL_PROFILE("Integrator::WritePlotFile");
+	const int nlevels = finest_level+1;
+
+	int ccomponents = 0, ncomponents = 0;
+	amrex::Vector<std::string> cnames, nnames;
+	for (int i = 0; i < cell.number_of_fabs; i++)
+	{
+		ccomponents += cell.ncomp_array[i];
+		if (cell.ncomp_array[i] > 1)
+			for (int j = 1; j <= cell.ncomp_array[i]; j++)
+				cnames.push_back(amrex::Concatenate(cell.name_array[i], j, 3));
+		else
+			cnames.push_back(cell.name_array[i]);
+	}
+	for (int i = 0; i < node.number_of_fabs; i++)
+	{
+		ncomponents += node.ncomp_array[i];
+		if (node.ncomp_array[i] > 1)
+			for (int j = 1; j <= node.ncomp_array[i]; j++)
+				nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
+		else
+			nnames.push_back(node.name_array[i]);
+	}
+
+	amrex::Vector<MultiFab> cplotmf(nlevels), nplotmf(nlevels);
+  
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
+		cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
+		amrex::BoxArray ngrids = grids[ilev];
+		ngrids.convert(amrex::IntVect::TheNodeVector());
+		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
+
+		int n = 0;
+		// Util::Warning(INFO,"Remove this line!");
+		// (*(*cell.fab_array[3])[ilev]).setVal(0.0);
+		for (int i = 0; i < cell.number_of_fabs; i++)
+		{
+			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
+			n += cell.ncomp_array[i];
+		}
+
+		n = 0;
+		for (int i = 0; i < node.number_of_fabs; i++)
+		{
+			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
+			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
+			MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
+			n += node.ncomp_array[i];
+		}
+	}
+
+	std::vector<std::string> plotfilename = PlotFileName(name,_step[0]);
+	if (initial) plotfilename[1] = plotfilename[1] + "init";
+  
+	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
+				Geom(), _time[0], _step, refRatio());
+	
+
+	if (ncomponents > 0)
+		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
+					Geom(), _time[0], _step, refRatio());
+
+	if (ParallelDescriptor::IOProcessor())
+	{
+		std::ofstream coutfile, noutfile;
+		if (_step[0]==0)
+		{
+			coutfile.open(plot_file+"/"+name+"/celloutput.visit",std::ios_base::out);
+			if (ncomponents > 0) noutfile.open(plot_file+"/"+name+"/nodeoutput.visit",std::ios_base::out);
+		}
+		else
+		{
+			coutfile.open(plot_file+"/"+name+"/celloutput.visit",std::ios_base::app);
+			if (ncomponents > 0) noutfile.open(plot_file+"/"+name+"/nodeoutput.visit",std::ios_base::app);
+		}
+		coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
+		if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
+	}
+}
+
 void
 Integrator::WritePlotFile (bool initial) const
 {
