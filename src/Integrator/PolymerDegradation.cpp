@@ -1096,7 +1096,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					});
 				}
 			}
-			WritePlotFile(plotfolder,plottime,plotstep);
+			WritePlotFileNode(plotfolder,plottime,plotstep);
 		}
 		elastic.current_test++;
 	}

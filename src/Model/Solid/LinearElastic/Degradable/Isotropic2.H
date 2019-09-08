@@ -35,7 +35,7 @@ public:
 		Set::Scalar lambda = _lambda;
 		Set::Scalar mu = _mu;
 		Set::Scalar E = mu*(3.*lambda + 2*mu)/(lambda + mu);
-		Set::Scalar nu = lambda/(2*(lambda+mu));
+		//Set::Scalar nu = lambda/(2*(lambda+mu));
 		Tg = 319.0; //some default value
 		Ts = 17.0; //some default value
 		E1 = E/0.928;

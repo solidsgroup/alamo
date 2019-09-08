@@ -112,6 +112,8 @@ private:
 		Set::Scalar test_rate				= 1.; 
 		//Set::Scalar test_duration			= 2.;
 		Set::Scalar test_max				= 1.0;
+		Set::Scalar test_init 				= 0.01;
+		int 		test_step				= 0;
 		int			current_test			= 0;
 		int         max_iter 				= 200;
 		int         max_fmg_iter 			= 0;
@@ -148,10 +150,12 @@ private:
 
 	Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
 	Set::Scalar disp_norm, disp_norm_old, disp_norm_conv; 
+
 	Set::Scalar eta_epsilon, mobility;
 	Set::Scalar max_error;
 
-	Set::Scalar refinement_threshold = 0.01;			///< Criterion for cell refinement
+	Set::Scalar refinement_threshold = 0.001;			///< Criterion for cell refinement
+	Set::Scalar tol_crack = 1e-7, tol_step = 1e-3;
 	int nlevels;
 
 	std::string ic_type;						///< String to determine what kind of initial condition to use

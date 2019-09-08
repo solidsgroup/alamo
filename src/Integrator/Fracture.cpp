@@ -36,6 +36,8 @@ Fracture::Fracture() :
 	else
 		Util::Abort(INFO,"This type of IC hasn't been implemented yet");
 	
+	pp_crack.query("tol_crack",tol_crack);
+	pp_crack.query("tol_step",tol_step);
 	// BCs
 	// Crack field should have a zero neumann BC. So we just code it up here.
 	// In case this needs to change, we can add options to read it from input.
@@ -145,7 +147,11 @@ Fracture::Fracture() :
 	   Right now we are hard-coding the tensile test and just requesting
 	   rate of pulling. */
 	pp_elastic_bc.query("disp_step",elastic.test_rate);
+	pp_elastic_bc.query("disp_init",elastic.test_init);
 	pp_elastic_bc.query("max_disp",elastic.test_max);
+
+	elastic.bc_top[1] = elastic.test_init;
+
 	if(elastic.test_rate < 0.) { Util::Warning(INFO,"Rate can't be less than zero. Resetting to 1.0"); elastic.test_rate = 0.1; }
 	if(elastic.test_max < 0. ||  elastic.test_max < elastic.test_rate) {Util::Warning(INFO,"Max can't be less than load step. Resetting to load step"); elastic.test_max = elastic.test_rate;}
 
@@ -280,7 +286,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	Util::Message(INFO);
 	if(newCrackProblem)
 	{
-		elastic.bc_top[1] += elastic.test_rate;
+		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 		for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			Util::Message(INFO);
@@ -329,7 +335,7 @@ Fracture::TimeStepComplete(amrex::Real time,int /*iter*/)
 	Util::Message(INFO, "err_disp = ", err_disp);
 	Util::Message(INFO, "err = ", err);
 
-	if(err_crack_temp > 1e-6)
+	if(err_crack_temp > tol_crack)
 	{
 		solveCrack = true;
 		solveElasticity = false;
@@ -345,14 +351,25 @@ Fracture::TimeStepComplete(amrex::Real time,int /*iter*/)
 	//disp_norm_old = disp_norm;
 	crack_norm_old = crack_norm;
 
-	if(err < 1.e-3)
+	if(err < tol_step)
 	{
 		for(int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			amrex::MultiFab::Copy(*(m_c_conv)[ilev], *(m_c)[ilev], 0, 0, 1, number_of_ghost_cells);
 			amrex::MultiFab::Copy(*(m_disp_conv)[ilev], *(m_disp)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
 		}
+		
+		amrex::Vector<Set::Scalar> plottime;
+		amrex::Vector<int> plotstep;
+		std::string plotfolder = "crack";
+
+		plottime.resize(nlevels);
+		plotstep.resize(nlevels);
+		for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
+		WritePlotFile(plotfolder,plottime,plotstep);
+
 		newCrackProblem = true;
+		elastic.test_step++;
 		if(elastic.bc_top[1] >= elastic.test_max)
 		{
 			SetStopTime(time-0.01);
@@ -426,8 +443,8 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 	{
 		model[ilev].define(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
+		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		m_energy_pristine[ilev]->setVal(0.);
-		//std::swap(*m_energy_pristine_old[ilev], 	*m_energy_pristine[ilev]);
 		ScaledModulus(ilev,model[ilev]);
 	}
 	Util::Message(INFO);
@@ -525,7 +542,7 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 					for (int n = 0; n < AMREX_SPACEDIM; n++)
 						energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
 				}
-				//energy_box(i,j,k,0) 
+				energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
 			});
 		}
 	}
