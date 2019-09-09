@@ -281,12 +281,13 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 void 
 Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
-	Util::Message(INFO,"new Crack problem = ", newCrackProblem, ". solveElasticity = ", solveElasticity, ". solveCrack = ",  solveCrack);
+	//Util::Message(INFO,"new Crack problem = ", newCrackProblem, ". solveElasticity = ", solveElasticity, ". solveCrack = ",  solveCrack);
 	//if(~newCrackProblem) return;
 	Util::Message(INFO);
 	if(newCrackProblem)
 	{
 		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
+		Util::Message(INFO, "Loading step = ", elastic.test_step, ". Top displacement = ", elastic.bc_top[1]);
 		for (int ilev = 0; ilev < nlevels; ++ilev)
 		{
 			Util::Message(INFO);

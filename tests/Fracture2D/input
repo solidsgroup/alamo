@@ -1,4 +1,4 @@
-timestep = 1e-4
+timestep = 1e-5
 stop_time = 100.0
 
 amr.plot_int = -1
@@ -21,8 +21,8 @@ crack.constant.zeta = 1.e-3
 crack.constant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01
 
-crack.tol_crack = 1e-7
-crack.tol_step = 1e-3
+crack.tol_crack = 5e-8
+crack.tol_step = 5e-4
 
 ic.type = ellipsoid
 ic.center = 0.5 0.5
@@ -52,5 +52,5 @@ elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.0 0.0 0.0
 
 elastic.bc.disp_step = 1.e-1
-elastic.bc.disp_init = 1.e-1
-elastic.bc.max_disp = 6.e-1
+elastic.bc.disp_init = 3.e-1
+elastic.bc.max_disp = 8.e-1
