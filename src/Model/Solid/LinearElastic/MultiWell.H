@@ -116,15 +116,9 @@ public:
 		return ret;
 	}
 	
-	void SetHomogeneous(bool a_homogeneous) 
-	{
-		m_homogeneous = a_homogeneous;
-	}
-
 private:
 	Set::Scalar mu; ///< First Lame parameter \f$\mu\f$
 	Set::Scalar lambda; ///< Second Lame parameter \f$\lambda\f$
-	bool m_homogeneous = true;
 public:
 	Set::Matrix Fgb = Set::Matrix::Zero();
 	std::array<Set::Matrix,AMREX_SPACEDIM> gradFgb;

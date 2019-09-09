@@ -78,10 +78,17 @@ private:
     std::string bottomsolver = "bicgstab";
   } solver;
 
+  struct {
+    Set::Scalar gamma = 1.0;
+    Set::Scalar elastic_mult = 1.0;
+    Set::Scalar kappa = 1.0;
+    Set::Scalar L = 1.0;
+    Set::Scalar gammagb0 = 0.1;
+  } physics;
+
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
 
-  std::string ic_type;						///< String to determine what kind of initial condition to use
   IC::IC *ic;            					///< Pointer to abstract IC object
   BC::BC *mybc;                   				///< Stock generic boundary condition object
 };
