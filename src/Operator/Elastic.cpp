@@ -114,6 +114,37 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	m_model_set = true;
 }
 
+template <class T>
+void
+Elastic<T>::SetHomogeneous (bool a_homogeneous)
+{
+	BL_PROFILE("Operator::Elastic::SetModel()");
+	if (!m_model_set) Util::Abort(INFO,"SetHomogeneous called before SetModel");
+
+	for (int amrlev = 0; amrlev < m_num_amr_levels; amrlev++)
+	{	
+		for (int mglev = 0; mglev < m_num_mg_levels[amrlev];mglev++)
+		{
+			amrex::Box domain(m_geom[amrlev][mglev].Domain());
+			domain.convert(amrex::IntVect::TheNodeVector());
+			int nghost = model[amrlev][mglev]->nGrow();
+
+			for (MFIter mfi(*model[amrlev][mglev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+			{
+				Box bx = mfi.tilebox();
+				bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+				bx = bx & domain;  // Take intersection of box and the problem domain
+
+				amrex::Array4<T> const& C         = (*(model[amrlev][mglev])).array(mfi);
+
+				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+						C(i,j,k).SetHomogeneous(a_homogeneous);
+					});
+			}
+		}
+	}
+}
+
 template<class T>
 void
 Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) const
@@ -210,7 +241,7 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 
 					f = C(i,j,k)(gradgradu);
 
-					if (!m_homogeneous)
+					if (!m_uniform)
 					{
 						T AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<T,1,0,0>::D(C,i,j,k,0,DX,sten)),
 							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
@@ -442,9 +473,10 @@ void
 Elastic<T>::Stress (int amrlev,
 		    amrex::MultiFab& a_sigma,
 		    const amrex::MultiFab& a_u,
-		    bool voigt) const
+		    bool voigt)
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
+	SetHomogeneous(false);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 	amrex::Box domain(m_geom[amrlev][0].Domain());
@@ -502,9 +534,10 @@ template<class T>
 void
 Elastic<T>::Energy (int amrlev,
 		    amrex::MultiFab& a_energy,
-		    const amrex::MultiFab& a_u) const
+		    const amrex::MultiFab& a_u)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
+	SetHomogeneous(false);
 
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());

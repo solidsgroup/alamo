@@ -51,7 +51,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
  	nlevels = geom.size();
 
 	::Operator::Elastic<model_type> elastic;
-	elastic.SetHomogeneous(false);
+	elastic.SetUniform(false);
  	elastic.define(geom, cgrids, dmap, info);
 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 	BC::Operator::Elastic<model_type> bc;

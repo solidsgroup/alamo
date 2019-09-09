@@ -134,8 +134,6 @@ public:
 			 int component,
 			 std::string plotfile = "");
 
-    int Mobility(int verbose,int component,std::string plotfile = "");
-
 	// Setter functions
 	void setMaxCoarseningLevel(int in) {m_maxCoarseningLevel = in;}
 	void setFixedIter(int in) {m_fixedIter = in;}
