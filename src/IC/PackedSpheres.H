@@ -67,28 +67,28 @@ public:
         
 		
 		
-	  
+	    
 		
-		
-		
-        MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-			
-        if (rank==0)
-		{
-        p=0; 
-		total=0;
-        packedspheres.resize(number_of_grains);
+        
+         
 		dd.resize(number_of_grains-1);
-	    R_n.resize(number_of_grains-1);
-	    count.resize(number_of_grains);
-
+		R_n.resize(number_of_grains-1);
+		count.resize(number_of_grains);
+		p=0;
+		packedspheres.resize(number_of_grains);
+	    total=0;
+        
+		
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
 					 
-        
-		
+
+		MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+		Util::Message(INFO,"Rank	    ", rank);	
+        if (rank==0)
+		{
 		 		 
 		do
 		{			 
@@ -109,7 +109,7 @@ public:
 		
 
 
-			std::vector<bool> df(number_of_grains-1);
+			df.resize(number_of_grains-1);
             std::fill(df.begin(), df.end(), true);	
 
 	if (n>0)								
@@ -174,19 +174,29 @@ public:
 	while (total<number_of_grains);
 	
 	}
-	t=0;
-	MPI_Bcast(&t,number_of_grains, MPI_INT, 0, MPI_COMM_WORLD); 
-	  
+	Util::Message(INFO,"Rank	    ", rank);
+	MPI_Bcast(&rank,number_of_grains, MPI_INT, rank, MPI_COMM_WORLD); 
+	//MPI_Bcast(&rank,1, MPI_INT, 0, MPI_COMM_WORLD); 
+	MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+	Util::Message(INFO,"Rank after	    ", rank);  
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
+		 //MPI_Comm_rank( MPI_COMM_WORLD, &rank1);
+		//Util::Message(INFO,"Rank	    ", rank1);	
+		//if (rank1>0)
+	//{
+		//Util::Message(INFO,"Rank inide	    ", rank1);	
+
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
 						 
-		
+		packedspheres.resize(number_of_grains);
+		//Util::Message(INFO,"Rank	    ", rank);
+		//Util::Message(INFO,"inside Add function	    ");
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
@@ -199,9 +209,10 @@ public:
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 
-				packedspheres.resize(number_of_grains);			
+							
 							
 				int min_grain_id = -1;
+				
 
 				for (int n = 0; n<number_of_grains; n++)
 				{
@@ -241,6 +252,7 @@ public:
 			});
 		
 		}
+	//}
 	}
 
 	
@@ -249,16 +261,18 @@ private:
 	int number_of_grains;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
+	std::vector <amrex::Real> R_new;
 	std::vector <amrex::Real> dd;
 	std::vector <amrex::Real> R_n;
 	std::vector <amrex::Real> count;
-	std::vector <amrex::Real> R_new;
+	std::vector<bool> df;
     amrex::Real mean;
     amrex::Real std_deviation;
 	int rank;
+	int rank1;
 	int t;
-	int p;
 	int total;
+	int p;
 	Type type;
 	amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<amrex::Real> packedspheres_y;
