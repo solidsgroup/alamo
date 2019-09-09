@@ -20,7 +20,7 @@
 #
 
 # Simulation length
-timestep  = 0.00001
+timestep  = 0.000001
 #stop_time = 5
 stop_time = 0.10001
 
@@ -37,7 +37,9 @@ amr.blocking_factor = 1
 amr.regrid_int = 50
 amr.grid_eff = 1.0
 amr.plot_file = outputdisconnections/output
+amr.ref_criterion = 0.001
 
+solver.interval = 10
 solver.verbose = 2
 solver.bottom_max_iter = 20
 solver.fixed_iter = 100
@@ -58,11 +60,8 @@ heat.ic_type = cylinder
 #ic.Tout = 0.0
 
 ic.type = "tabulated"
-#ic.xs = 0.0 0.49999 0.50001 1.0
-#ic.ys = 0.4 0.4     0.6     0.6
-
-ic.xs = 0.0 0.39999 0.40001 1.0
-ic.ys = 0.6 0.6     0.4     0.4
+ic.xs = 0.0 0.5     0.50001 1.0
+ic.ys = 0.4 0.4     0.6     0.6
 
 physics.gamma = 10.0
 physics.elastic_mult = 100.0

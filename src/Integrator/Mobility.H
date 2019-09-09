@@ -71,6 +71,11 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagbold_mf;  	///< Right Hand Side
 
   struct {
+    Set::Scalar ref_criterion = 0.01;    
+  } amr;
+
+  struct {
+    int interval = 0;
     int fixed_iter = -1;
     int verbose = -1;
     int bottom_max_iter = -1;

@@ -34,6 +34,11 @@ Mobility::Mobility() :
 	//pp.query("ic_type", ic_type);
 
 	{
+		amrex::ParmParse pp("amr");
+		pp.query("ref_criterion", amr.ref_criterion);
+	}
+
+	{
 		amrex::ParmParse pp("ic");
 		std::string type;
 		pp.query("type", type);
@@ -122,7 +127,7 @@ void
 Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 {
 	Util::Message(INFO);
-	if (iter%plot_int) return;
+	if (!solver.interval || iter%solver.interval) return;
 	Util::Message(INFO);
 
 	for (int lev = 0; lev < disp.size(); ++lev)
@@ -282,7 +287,7 @@ Mobility::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Rea
 	for (amrex::MFIter mfi(*gammagb_mf[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		amrex::Box bx = mfi.tilebox();
-		bx.grow(-1);
+		//bx.grow(-1);
 		//amrex::Array4<const amrex::Real> const& RHS    = (*rhs[lev]).array(mfi);
 		//amrex::Array4<const amrex::Real> const& u    = (*disp[lev]).array(mfi);
 		amrex::Array4<char> const& tags    = a_tags.array(mfi);
@@ -293,7 +298,7 @@ Mobility::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Rea
 		{
 			Set::Vector grad = Numeric::Gradient(gammagb,i,j,k,0,DX);
 			//tags(i,j,k) = amrex::TagBox::SET;
-			if (grad.lpNorm<2>()*dxnorm > 0.01) tags(i,j,k) = amrex::TagBox::SET;
+			if (grad.lpNorm<2>()*dxnorm > amr.ref_criterion) tags(i,j,k) = amrex::TagBox::SET;
 		});
 	}
 	
