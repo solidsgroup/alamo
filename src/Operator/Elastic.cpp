@@ -132,7 +132,7 @@ Elastic<T>::SetHomogeneous (bool a_homogeneous)
 			for (MFIter mfi(*model[amrlev][mglev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
 				Box bx = mfi.tilebox();
-				bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+				bx.grow(2);   
 				bx = bx & domain;  // Take intersection of box and the problem domain
 
 				amrex::Array4<T> const& C         = (*(model[amrlev][mglev])).array(mfi);
@@ -473,7 +473,7 @@ void
 Elastic<T>::Stress (int amrlev,
 		    amrex::MultiFab& a_sigma,
 		    const amrex::MultiFab& a_u,
-		    bool voigt)
+		    bool voigt) 
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
 	SetHomogeneous(false);

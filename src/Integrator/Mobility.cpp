@@ -13,18 +13,6 @@
 
 namespace Integrator
 {
-/// \fn    Mobility::Integrator::Integrator
-///
-/// Read in the following simulation parameters
-///
-///     heat.alpha                (default 1.0)
-///     heat.refinement_threshold (default 0.01)
-///     ic.type
-///
-
-/// Initialize initial condition pointer #ic, and register
-/// the #Temp, #Temp_old Multifab arrays.
-
 Mobility::Mobility() :
 	Integrator()
 {
@@ -80,6 +68,7 @@ Mobility::Mobility() :
 	}
 	{
 		amrex::ParmParse pp("solver");
+		pp.query("interval",solver.interval);
 		pp.query("bottom_max_iter",solver.bottom_max_iter);
 		pp.query("bottomsolver",solver.bottomsolver);
 		pp.query("fixed_iter",solver.fixed_iter);
@@ -96,8 +85,8 @@ Mobility::Mobility() :
 		pp.query("gammagb0",physics.gammagb0);
 	}
 
-	RegisterNewFab(gammagb_mf,    mybc, 1, 2, "gammagb");
-	RegisterNewFab(gammagbold_mf, mybc, 1, 2, "gammagbold");
+	RegisterNewFab(gammagb_mf,    mybc, 1, 3, "gammagb");
+	RegisterNewFab(gammagbold_mf, mybc, 1, 3, "gammagbold");
 
 	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
 	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
@@ -110,9 +99,6 @@ Mobility::~Mobility()
 {
 }
 
-/// \fn Mobility::Integrator::Initialize
-///
-/// Use the #ic object to initialize #Temp
 void
 Mobility::Initialize (int lev)
 {
@@ -132,7 +118,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 	for (int lev = 0; lev < disp.size(); ++lev)
 	{
-		disp[lev]->setVal(0.0);
+		//disp[lev]->setVal(0.0);
 		rhs[lev]->setVal(0.0);
 	}
 
@@ -151,6 +137,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model_mf;
 	model_mf.resize(disp.size());
 
+
 	for (int lev = 0; lev < disp.size(); ++lev)
 	{
 		amrex::Box domain(geom[lev].Domain());
@@ -164,7 +151,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 		{
 			//amrex::Box bx = mfi.growntilebox(2);
 			amrex::Box bx = mfi.tilebox();
-			bx.grow(1);
+			bx.grow(2);
 			//bx = bx & domain;
 
 			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
@@ -217,6 +204,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 	linearsolver.solveaffine(disp,rhs,tol_rel,tol_abs);
 	
+	elastic.SetHomogeneous(false);
 	linearsolver.compResidual(GetVecOfPtrs(res),GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < disp.size(); ++lev)
@@ -242,13 +230,6 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	
 }
 
-
-/// \fn    Integrator::Mobility::Advance
-///
-/// Integrate the heat diffusion equation
-/// \f[\nabla^2T = \alpha \frac{\partial T}{\partial t}\f]
-/// using an explicit forward Euler method.
-/// \f$\alpha\f$ is stored in #alpha
 void
 Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
@@ -259,7 +240,7 @@ Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 	for (amrex::MFIter mfi(*gammagb_mf[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		amrex::Box bx = mfi.tilebox();
-		bx.grow(1);
+		bx.grow(2);
 
 		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
 		amrex::Array4<const Set::Scalar> const & gammagbold = gammagbold_mf[lev]->array(mfi);
