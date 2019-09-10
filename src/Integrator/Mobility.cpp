@@ -144,6 +144,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 		domain.convert(amrex::IntVect::TheNodeVector());
 		model_mf[lev].define(disp[lev]->boxArray(), disp[lev]->DistributionMap(), 1, 2);
 		model_mf[lev].setVal(mymodel);
+		gammagb_mf[lev]->FillBoundary();
 		
 		const amrex::Real* DX  = geom[lev].CellSize();
 
@@ -202,9 +203,9 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	linearsolver.solveaffine(disp,rhs,tol_rel,tol_abs);
+	linearsolver.solveaffine(disp,rhs,tol_rel,tol_abs,true);
 	
-	elastic.SetHomogeneous(false);
+	//elastic.SetHomogeneous(false);
 	linearsolver.compResidual(GetVecOfPtrs(res),GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs));
 
 	for (int lev = 0; lev < disp.size(); ++lev)

@@ -36,7 +36,8 @@ public:
 
     Set::Scalar solveaffine (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
                        amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
-                       Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
+                       Real a_tol_rel, Real a_tol_abs, bool copyrhs = false, 
+                       const char* checkpoint_file = nullptr)
     {
         amrex::Vector<amrex::MultiFab *> rhs_tmp(a_rhs.size());
         amrex::Vector<amrex::MultiFab *> zero_tmp(a_rhs.size());
@@ -80,6 +81,8 @@ public:
         for (int lev = 0; lev < rhs_tmp.size(); lev++)
         {
             amrex::Add(*rhs_tmp[lev],*a_rhs[lev],0,0,rhs_tmp[lev]->nComp(),rhs_tmp[lev]->nGrow());
+            if (copyrhs)
+                amrex::Copy(*a_rhs[lev],*rhs_tmp[lev],0,0,rhs_tmp[lev]->nComp(),rhs_tmp[lev]->nGrow());
         }
 
         linop.SetHomogeneous(true);
