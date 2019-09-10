@@ -26,19 +26,19 @@ stop_time = 0.10001
 
 # AMR parameters
 amr.plot_int = 10
-amr.max_level = 2
+amr.max_level = 1
 #amr.n_cell = 256 128
 #amr.n_cell = 128 64
 amr.n_cell = 64 32
 #amr.n_cell = 16 8
 #amr.n_cell = 128 64
 #amr.blocking_factor = 8
-amr.blocking_factor = 1
+amr.blocking_factor = 8
 #amr.max_grid_size = 10000000
 amr.regrid_int = 50
 amr.grid_eff = 1.0
 amr.plot_file = outputdisconnections/output
-amr.ref_criterion = 0.01
+amr.ref_criterion = 0.005
 
 solver.interval = 10
 solver.verbose = 2
@@ -62,12 +62,13 @@ heat.ic_type = cylinder
 
 ic.type = "tabulated"
 ic.xs = 0.0 0.5     0.50001 1.0
-ic.ys = 0.4 0.4     0.6     0.6
+#ic.ys = 0.4 0.4     0.6     0.6
+ic.ys = 0.45 0.45     0.55     0.55
 
-physics.gamma = 100.0
-physics.elastic_mult = 50000.0
+physics.gamma = 1000.0
+physics.elastic_mult = 100000.0
 physics.gammagb0 = 0.1
-physics.kappa = 0.2
+physics.kappa = 0.1
 
 # Boundary conditions
 bc.lo = REFLECT_EVEN EXT_DIR
