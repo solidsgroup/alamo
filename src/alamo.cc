@@ -7,17 +7,31 @@
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
+#include "AMReX_ParmParse.H"
+
+#include "Integrator/Mobility.H"
 
 int main (int argc, char* argv[])
 {
 	Util::Initialize(argc,argv);
 
-	srand(1);
-	Integrator::Integrator *model =
-		new Integrator::PhaseFieldMicrostructure();
-	model->InitData();
-	model->Evolve();
-	delete model;
+	std::string program = "microstructure";
+	amrex::ParmParse pp("alamo");
+	pp.query("program",program);
+
+	if (program == "microstructure")
+	{
+		srand(1);
+		Integrator::PhaseFieldMicrostructure pfm;
+		pfm.InitData();
+		pfm.Evolve();
+	}
+	else if (program == "mobility")
+	{	
+		Integrator::Mobility mobility;
+		mobility.InitData();
+		mobility.Evolve();
+	}
 
 	Util::Finalize();
 } 
