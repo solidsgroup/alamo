@@ -91,6 +91,12 @@ private:
     Set::Scalar gammagb0 = 0.1;
   } physics;
 
+  struct {
+    struct {
+      Set::Scalar yhi_x = 0.0;
+    } disp;
+  } bc;
+
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
 
