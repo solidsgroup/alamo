@@ -22,15 +22,21 @@ int main (int argc, char* argv[])
 	if (program == "microstructure")
 	{
 		srand(1);
-		Integrator::PhaseFieldMicrostructure pfm;
-		pfm.InitData();
-		pfm.Evolve();
+		Integrator::Integrator *pfm = new Integrator::PhaseFieldMicrostructure();
+		//Integrator::PhaseFieldMicrostructure pfm;
+		pfm->InitData();
+		pfm->Evolve();
+		delete pfm;
 	}
 	else if (program == "mobility")
 	{	
 		Integrator::Mobility mobility;
 		mobility.InitData();
 		mobility.Evolve();
+	}
+	else
+	{
+		Util::Abort(INFO,"Error: ",program," is not a valid program.");
 	}
 
 	Util::Finalize();

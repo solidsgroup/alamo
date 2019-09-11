@@ -17,7 +17,7 @@ class Linear : public amrex::MLMG
 {
 public:
     /// This constructor sets several defaults for NODAL solves
-    Linear (Operator::Operator<Grid::Node>& a_lp) : linop(a_lp), MLMG(a_lp)
+    Linear (Operator::Operator<Grid::Node>& a_lp) : MLMG(a_lp), linop(a_lp)
     {
         MLMG::setBottomSolver(MLMG::BottomSolver::bicgstab);
 	    MLMG::setCFStrategy(MLMG::CFStrategy::ghostnodes);

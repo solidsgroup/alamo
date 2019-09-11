@@ -163,7 +163,6 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 			amrex::Array4<const Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
 			amrex::Array4<Set::Scalar> const & RHS = rhs[lev]->array(mfi);
 
-			amrex::Dim3 lo= amrex::lbound(bx), hi = amrex::ubound(bx);
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
 				Set::Matrix Fgb = Set::Matrix::Zero();
@@ -239,7 +238,6 @@ void
 Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
 	std::swap(gammagbold_mf[lev], gammagb_mf[lev]);
-	Set::Scalar L = 0.1;
 	const amrex::Real* DX = geom[lev].CellSize();
 
 	for (amrex::MFIter mfi(*gammagb_mf[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -265,7 +263,7 @@ Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 }
 
 void
-Mobility::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real time, int /*ngrow*/)
+Mobility::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	const amrex::Real* DX      = geom[lev].CellSize();
 	const Set::Scalar dxnorm = sqrt(DX[0]*DX[0] +  DX[1]*DX[1]);
