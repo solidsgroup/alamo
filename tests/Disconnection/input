@@ -1,3 +1,4 @@
+alamo.program = mobility
 # Simulation length
 timestep  = 0.0001
 #stop_time = 5
