@@ -67,6 +67,10 @@ Mobility::Mobility() :
 					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 	}
 	{
+		amrex::ParmParse pp("bc.disp");
+		pp.query("yhi_x",bc.disp.yhi_x);
+	}
+	{
 		amrex::ParmParse pp("solver");
 		pp.query("interval",solver.interval);
 		pp.query("bottom_max_iter",solver.bottom_max_iter);
@@ -182,14 +186,14 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	BC::Operator::Elastic<model_type> bc;
 	for (int lev = 0; lev < rhs.size(); lev++) rhs[lev]->setVal(0.0);
 	for (int lev = 0; lev < rhs.size(); lev++) disp[lev]->setVal(0.0);
-    	bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    	bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    	bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    	bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    	bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
-    	bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
-    	bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
-    	bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, this->bc.disp.yhi_x, rhs, geom);
+    bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
 
 	elastic.SetBC(&bc);
 	Solver::Nonlocal::Linear linearsolver(elastic);
