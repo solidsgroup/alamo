@@ -59,7 +59,6 @@ Integrator::Integrator ()
 		pp.query("int", thermo.interval);     // ALL processors
 		pp.query("plot_int", thermo.plot_int);         // ALL processors
 		pp.query("plot_dt", thermo.plot_dt);         // ALL processors
-		Util::Message(INFO,thermo.plot_int," ",thermo.plot_dt);
 	}
 
 
@@ -155,7 +154,6 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 			 const BoxArray& cgrids, 
 			 const DistributionMapping& dm)
 {
-	Util::Message(INFO);
 	BL_PROFILE("Integrator::RemakeLevel");
 	for (int n=0; n < cell.number_of_fabs; n++)
 	{
@@ -704,7 +702,6 @@ Integrator::Evolve ()
 		}
 
 		if (plot_int > 0 && (step+1) % plot_int == 0) {
-			Util::Message(INFO,"plot_int=",plot_int," step = ",step);
 			last_plot_file_step = step+1;
 			WritePlotFile();
 			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));

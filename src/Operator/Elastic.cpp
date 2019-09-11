@@ -132,7 +132,7 @@ Elastic<T>::SetHomogeneous (bool a_homogeneous)
 			for (MFIter mfi(*model[amrlev][mglev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
 				Box bx = mfi.tilebox();
-				bx.grow(2);   
+				bx.grow(nghost);   
 				bx = bx & domain;  // Take intersection of box and the problem domain
 
 				amrex::Array4<T> const& C         = (*(model[amrlev][mglev])).array(mfi);

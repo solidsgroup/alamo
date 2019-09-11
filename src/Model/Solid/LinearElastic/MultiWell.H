@@ -50,20 +50,6 @@ public:
 		return f;
 	}
 
-	AMREX_FORCE_INLINE
-	virtual Set::Matrix DW (Set::Matrix &gradu) const
-	{
-		Set::Matrix eps = gradu - Fgb;
-		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
-	};
-	AMREX_FORCE_INLINE
-	virtual Set::Matrix4<3,Set::Sym::Isotropic> DDW (Set::Matrix &gradu) const
-	{
-		Set::Matrix4<3,Set::Sym::Isotropic> ret(lambda,mu);
-		return ret;
-	};
-
-
 	void Randomize()
 	{
 		mu = Util::Random();
@@ -81,6 +67,13 @@ public:
 		Multiwell ret(mu+rhs.mu, lambda+rhs.lambda,Fgb + rhs.Fgb);
 		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradFgb[i] = gradFgb[i] + rhs.gradFgb[i];
 		return ret;
+	}
+
+	Multiwell & operator = (const Multiwell &rhs)
+	{
+		mu=rhs.mu; lambda=rhs.lambda; Fgb = rhs.Fgb;
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradFgb[i] = rhs.gradFgb[i];
+		return *this;
 	}
 
 	void operator += (const Multiwell &rhs)
