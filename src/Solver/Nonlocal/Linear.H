@@ -60,7 +60,7 @@ public:
             for (MFIter mfi(*rhs_tmp[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		    {
 		    	amrex::Box bx = mfi.tilebox();
-		    	bx.grow(rhs_tmp[lev]->nComp());
+		    	bx.grow(rhs_tmp[lev]->nGrow());
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhstmp = rhs_tmp[lev]->array(mfi);
                 for (int n = 0; n < rhs_tmp[lev]->nComp(); n++)
