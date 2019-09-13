@@ -10,6 +10,7 @@
 #include "AMReX_ParmParse.H"
 
 #include "Integrator/Mobility.H"
+#include "Integrator/Eshelby.H"
 
 int main (int argc, char* argv[])
 {
@@ -33,6 +34,12 @@ int main (int argc, char* argv[])
 		Integrator::Mobility mobility;
 		mobility.InitData();
 		mobility.Evolve();
+	}
+	else if (program == "eshelby")
+	{
+		Integrator::Eshelby eshelby;
+		eshelby.InitData();
+		eshelby.Evolve();		
 	}
 	else
 	{

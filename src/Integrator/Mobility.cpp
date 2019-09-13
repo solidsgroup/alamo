@@ -128,7 +128,6 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 	Set::Scalar lame = 2.6, shear = 6.0;
 	using model_type = Model::Solid::LinearElastic::Multiwell;
-	Util::Message(INFO);
 	Operator::Elastic<model_type> elastic;
 	elastic.SetUniform(false);
 
@@ -221,7 +220,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 			bx.grow(model_mf[lev].nGrow());
 			bx = bx & domain;
 			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k).SetHomogeneous(false);} );
+			//amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k).SetHomogeneous(false);} );
 		}
 	}
 	elastic.SetModel(model_mf);

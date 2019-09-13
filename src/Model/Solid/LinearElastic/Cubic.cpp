@@ -79,7 +79,7 @@ Cubic::W(Set::Matrix &gradu) const
 }
 
 Set::Matrix
-Cubic::operator () (Set::Matrix &gradu) const
+Cubic::operator () (Set::Matrix &gradu,bool a_homogeneous) const
 {
 	return C*gradu;
 }
@@ -90,7 +90,7 @@ Cubic::DW (Set::Matrix &gradu) const
 }
 
 Set::Vector
-Cubic::operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
+Cubic::operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool a_homogeneous)
 {
 	Set::Vector ret = Set::Vector::Zero();
 	for (int i = 0; i < AMREX_SPACEDIM; i++)

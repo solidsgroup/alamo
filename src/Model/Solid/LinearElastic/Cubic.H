@@ -52,8 +52,8 @@ public:
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	~Cubic() {} ;
-	virtual Set::Matrix operator () (Set::Matrix &eps) const;
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	virtual Set::Matrix operator () (Set::Matrix &eps,bool a_homogeneous=true) const;
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool a_homogeneous=true);
 
 	virtual Set::Scalar    W (Set::Matrix &eps) const;
 	virtual Set::Matrix   DW (Set::Matrix &eps) const;
