@@ -162,6 +162,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 
 		MultiFab new_state(cgrids, dm, ncomp, nghost); 
 
+		new_state.setVal(0.0);
 		FillPatch(lev, time, *cell.fab_array[n], new_state, *cell.physbc_array[n], 0);
 		std::swap(new_state, *(*cell.fab_array[n])[lev]);
 	}
@@ -176,6 +177,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 
 		MultiFab new_state(ngrids, dm, ncomp, nghost); 
 
+		new_state.setVal(0.0);
 		FillPatch(lev, time, *node.fab_array[n], new_state, *node.physbc_array[n], 0);
 		std::swap(new_state, *(*node.fab_array[n])[lev]);
 	}
@@ -319,19 +321,22 @@ Integrator::FillPatch (int lev, Real time,
 		ftime.push_back(time);
 
 		physbc.define(geom[lev]);
-		Interpolater* mapper = &cell_cons_interp;
+		
+		Interpolater* mapper;
+
+		if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
+			mapper = &node_bilinear_interp;
+		else
+			mapper = &cell_cons_interp;
 
 		amrex::Vector<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
-		amrex::ParallelDescriptor::Barrier();
-      
-		amrex::ParallelDescriptor::Barrier();
 		amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
 					  0, icomp, destination_mf.nComp(), geom[lev-1], geom[lev],
 					  physbc, 0,
 					  physbc, 0,
 					  refRatio(lev-1),
 					  mapper, bcs, 0);
-		amrex::ParallelDescriptor::Barrier();
+		if (destination_mf.contains_nan()) Util::Abort(INFO);
 	}
 }
 
