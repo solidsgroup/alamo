@@ -67,7 +67,7 @@ protected:
 
 	void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
 
-	void TimeStepComplete(amrex::Real time,int /*iter*/) override;
+	void TimeStepComplete(amrex::Real time,int iter) override;
 
 	/// \brief Integrate the heat equation
 	void Advance (int lev, amrex::Real /*time*/, amrex::Real dt) override;
@@ -148,8 +148,12 @@ private:
 	std::string 	input_material = "isotropic";
 	Model::Interface::Crack::Crack *boundary;
 
-	Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
-	Set::Scalar disp_norm, disp_norm_old, disp_norm_conv; 
+	//Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
+	//Set::Scalar disp_norm, disp_norm_old, disp_norm_conv; 
+	Set::Scalar crack_err_norm, crack_err_norm_init, crack_err_temp_norm, crack_err_temp_norm_init;
+	Set::Scalar disp_err_norm, disp_err_norm_init;
+
+	bool err_crack_init = true, err_crack_temp_init = true, err_disp_init = true;
 
 	Set::Scalar eta_epsilon, mobility;
 	Set::Scalar max_error;

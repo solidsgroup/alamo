@@ -226,6 +226,8 @@ protected:
 	// PLOT FILES
 	std::string plot_file {"plt"};   ///< Plotfile name
 
+	void IntegrateVariables(Set::Scalar cur_time, int step);
+
 private:
 	virtual void MakeNewLevelFromScratch (int lev, amrex::Real time, const amrex::BoxArray& ba,
 					      const amrex::DistributionMapping& dm) override;
@@ -236,7 +238,7 @@ private:
 	virtual void ClearLevel              (int lev) override;
 	virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-	void IntegrateVariables(Set::Scalar cur_time, int step);
+	//void IntegrateVariables(Set::Scalar cur_time, int step);
 
 	void FillPatch (int lev, amrex::Real time,
 			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
