@@ -210,19 +210,19 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	//elastic.SetHomogeneous(false);
 	linearsolver.compResidual(GetVecOfPtrs(res),GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs));
 
-	for (int lev = 0; lev < disp.size(); ++lev)
-	{
-		amrex::Box domain(geom[lev].Domain());
-		domain.convert(amrex::IntVect::TheNodeVector());
-		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
-		{
-			amrex::Box bx = mfi.tilebox();
-			bx.grow(model_mf[lev].nGrow());
-			bx = bx & domain;
-			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
-			//amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k).SetHomogeneous(false);} );
-		}
-	}
+	//for (int lev = 0; lev < disp.size(); ++lev)
+	//{
+	//	amrex::Box domain(geom[lev].Domain());
+	//	domain.convert(amrex::IntVect::TheNodeVector());
+	//	for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+	//	{
+	//		amrex::Box bx = mfi.tilebox();
+	//		bx.grow(model_mf[lev].nGrow());
+	//		bx = bx & domain;
+	//		//amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
+	//		//amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k).SetHomogeneous(false);} );
+	//	}
+	//}
 	elastic.SetModel(model_mf);
 	
 	for (int lev = 0; lev < sigma.size(); lev++)

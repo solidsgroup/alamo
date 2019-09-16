@@ -29,7 +29,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
-	virtual Set::Matrix operator () (Set::Matrix &eps,bool a_homogeneous=true) const
+	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const
 	{
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
@@ -37,7 +37,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool a_homogeneous=true)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true)
 	{
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)

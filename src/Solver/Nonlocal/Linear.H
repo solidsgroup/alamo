@@ -1,5 +1,6 @@
 #include "Operator/Operator.H"
 #include <AMReX_MLMG.H>
+#include "IC/Trig.H"
 
 namespace Solver
 {
@@ -59,8 +60,7 @@ public:
       		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*rhs_tmp[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		    {
-		    	amrex::Box bx = mfi.tilebox();
-		    	bx.grow(rhs_tmp[lev]->nGrow());
+		    	amrex::Box bx = mfi.growntilebox(rhs_tmp[lev]->nGrow());
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhstmp = rhs_tmp[lev]->array(mfi);
                 for (int n = 0; n < rhs_tmp[lev]->nComp(); n++)
@@ -76,6 +76,8 @@ public:
                     });
                 }
             }
+            linop.realFillBoundary(*rhs_tmp[lev],linop.Geom(lev));
+            //rhs_tmp[lev]->FillBoundary();
         }
 
         for (int lev = 0; lev < rhs_tmp.size(); lev++)

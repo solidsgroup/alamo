@@ -37,9 +37,10 @@ int main (int argc, char* argv[])
 	}
 	else if (program == "eshelby")
 	{
-		Integrator::Eshelby eshelby;
-		eshelby.InitData();
-		eshelby.Evolve();		
+		Integrator::Integrator *eshelby = new Integrator::Eshelby();
+		eshelby->InitData();
+		eshelby->Evolve();		
+		delete eshelby;
 	}
 	else
 	{
