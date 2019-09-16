@@ -353,7 +353,9 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
 
 						Set::Vector f = C(i,j,k)(gradgradu,m_homogeneous) + 
-							AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
+							AMREX_D_TERM(Cgrad1(gradu,m_homogeneous).col(0),
+										+Cgrad2(gradu,m_homogeneous).col(1),
+										+Cgrad3(gradu,m_homogeneous).col(2));
 
 						diag(i,j,k,p) += f(p);
 					}

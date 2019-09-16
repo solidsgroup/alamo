@@ -9,7 +9,7 @@ namespace Viscoelastic
 {
 std::ostream&
 operator<< (std::ostream& os,
-	    const Viscoelastic&    b)
+	    const Viscoelastic&    /*b*/)
 {
 //#if AMREX_SPACEDIM == 2
 //	std::array<Set::Matrix,6> gradu, eps;
@@ -66,7 +66,7 @@ operator<< (std::ostream& os,
 //
 //	}
 //#endif
-//	return os;
+	return os;
 }
 
 }

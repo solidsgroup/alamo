@@ -29,13 +29,13 @@ public:
 	Laplacian(Set::Scalar _alpha) : alpha(_alpha)  {} ;
 	~Laplacian() {} ;
 	AMREX_FORCE_INLINE
-	virtual Set::Matrix operator () (Set::Matrix &gradu,bool a_homogeneous=true) const
+	virtual Set::Matrix operator () (Set::Matrix &gradu,bool =true) const
 	{
 		//return alpha * 0.5*(gradu + gradu.transpose());
 		return alpha * gradu;
 	};
 	AMREX_FORCE_INLINE
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool a_homogeneous=true)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool =true)
 	{
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)

@@ -33,13 +33,13 @@ public:
       RegisterNodalFab(eta_mf,1,2,"eta");
       RegisterNodalFab(disp_mf,AMREX_SPACEDIM,2,"disp");
       RegisterNodalFab(rhs_mf,AMREX_SPACEDIM,2,"rhs");
+      RegisterNodalFab(res_mf,AMREX_SPACEDIM,2,"res");
       RegisterNodalFab(stress_mf,AMREX_SPACEDIM*AMREX_SPACEDIM,2,"stress");
       Set::Matrix A = Set::Matrix::Identity();
-      A(0,0) = 64.0; A(1,1) = 32.0; A(2,2) = 0.0;
+      A(0,0) = 64.0; A(1,1) = 32.0; A(2,2) = 32.0;
       Set::Vector x0 = Set::Vector::Ones()*0.5;
       Set::Scalar eps = 0.01;
       ic = new IC::Ellipse(geom,A,x0,IC::Ellipse::Mollifier::Gaussian,eps);
-      //ic = new IC::Ellipse(geom,A,x0,IC::Ellipse::Mollifier::Dirac,eps);
   }
 
 protected:
@@ -57,7 +57,9 @@ protected:
       Util::Message(INFO,"rhs_mf.size() = ",rhs_mf.size());
       
     if (finest_level != rhs_mf.size()-1)
+    {
         Util::Abort(INFO,"amr.max_level is larger than necessary. Set to ", finest_level," or less");
+    }
    	for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
 	for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
@@ -65,7 +67,9 @@ protected:
 	using model_type = Model::Solid::LinearElastic::Multiwell;
 	Operator::Elastic<model_type> elastic;
     elastic.SetUniform(false);
-    elastic.define(geom,grids,dmap);
+    amrex::LPInfo info;
+    //info.setMaxCoarseningLevel(0);
+    elastic.define(geom,grids,dmap,info);
 
     // Set linear elastic model
    	model_type mymodel(lame,shear,Set::Matrix::Zero());
@@ -85,11 +89,10 @@ protected:
 
         Set::Vector DX(geom[lev].CellSize());
 
-		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		//for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		for (MFIter mfi(model_mf[lev],false);mfi.isValid();++mfi)
 		{
-			//amrex::Box bx = mfi.growntilebox(2);
-			amrex::Box bx = mfi.tilebox();
-			bx.grow(2);
+			amrex::Box bx = mfi.growntilebox(2);
 
 			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
 			amrex::Array4<const Set::Scalar> const & eta = eta_mf[lev]->array(mfi);
@@ -99,7 +102,8 @@ protected:
                 Set::Matrix Fgb = (1.0 - eta(i,j,k))*Fmatrix + eta(i,j,k)*Finclusion;
 				model(i,j,k) = model_type(lame,shear,Fgb);
 			});
-			bx = mfi.tilebox();
+
+			bx = mfi.growntilebox(1);
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
                 for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -110,7 +114,22 @@ protected:
 				                 model(i,j,k).gradFgb[p](q,2) = ((model(i,j,k+1).Fgb - model(i,j,k-1).Fgb)/2./DX(2))(p,q);)
                 }
 			});
+
 		}
+
+        amrex::Geometry geom = elastic.Geom(lev);
+        for (int i = 0; i < 2; i++)
+    	{
+    		amrex::FabArray<amrex::BaseFab<model_type> > & mf = model_mf[lev];
+    		mf.FillBoundary(geom.periodicity());
+    		const int ncomp = mf.nComp();
+    		const int ng1 = 1;
+    		const int ng2 = 2;
+    		amrex::FabArray<amrex::BaseFab<model_type> > tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+            amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+    		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+    	}
+        //model_mf[lev].FillBoundary();
 	}
     elastic.SetModel(model_mf);
 
@@ -121,11 +140,12 @@ protected:
    	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 	Solver::Nonlocal::Linear linearsolver(elastic);
     linearsolver.setVerbose(2);
-    linearsolver.setFixedIter(10);
+    //linearsolver.setFixedIter(20);
     linearsolver.solveaffine(disp_mf,rhs_mf,tol_rel,tol_abs,true);
     
     //elastic.SetHomogeneous(false);
     //linearsolver.apply(GetVecOfPtrs(rhs_mf),GetVecOfPtrs(disp_mf));
+    linearsolver.compResidual(GetVecOfPtrs(res_mf),GetVecOfPtrs(disp_mf),GetVecOfConstPtrs(rhs_mf));
     
     for (int lev = 0; lev < disp_mf.size(); lev++)
     {
@@ -164,12 +184,11 @@ protected:
   }
 
 private:
-  int number_of_components = 1;					///< Number of components
-  int number_of_ghost_cells = 1;				///< Number of ghost cells
 
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_mf;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp_mf;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs_mf;
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > res_mf;
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_mf;
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
