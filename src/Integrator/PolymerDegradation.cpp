@@ -607,6 +607,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			});
 		}
 		Util::Message(INFO);
+		water_conc[lev]->FillBoundary();
 	}
 
 	if(thermal.on)
@@ -629,14 +630,12 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 	Util::Message(INFO);
 	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
 	{
-		const amrex::Box& bx = mfi.validbox();
+		const amrex::Box& bx = mfi.growntilebox(3);
 		amrex::Array4<amrex::Real> const& eta_new_box     		= (*eta_new[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& eta_old_box     = (*eta_old[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& water_box 		= (*water_conc[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& time_box 		= (*damage_start_time[lev]).array(mfi);
-		//amrex::Array4<const amrex::Real> const& Temp_box 		= (*Temp[lev]).array(mfi);
-		//Util::Message(INFO);
-
+		
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			for (int n = 0; n < damage.number_of_eta; n++)
 			{
@@ -824,26 +823,29 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
+	//eta_new[lev]->FillBoundary();
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
-		const amrex::Box& box = mfi.validbox();
+		amrex::Box box = mfi.tilebox();
+		box.grow(2);
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
 		amrex::Array4<model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+
 			amrex::Vector<Set::Scalar> _temp;
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
-				_temp.push_back( mul*(AMREX_D_TERM(	
+				_temp.push_back(	mul* (AMREX_D_TERM(
 								eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
 								,
 								+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
 								,
-								+ eta_box(i,j,k-1,n)	+ eta_box(i-1,j,k-1,n)
+								+ eta_box(i,j,k-1,n) + eta_box(i-1,j,k-1,n)
 								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
-									)));
+								)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
 			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
