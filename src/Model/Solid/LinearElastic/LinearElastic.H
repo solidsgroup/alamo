@@ -22,6 +22,7 @@ class LinearElastic : public Solid
 {
 public:
 	LinearElastic() {};
+	AMREX_FORCE_INLINE
 	virtual ~LinearElastic() {};
 	///
 	/// Returns
