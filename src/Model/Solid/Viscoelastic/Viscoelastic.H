@@ -22,11 +22,6 @@ class Viscoelastic : public Solid
 public:
 	Viscoelastic() {};
 	virtual ~Viscoelastic() {};
-	virtual Set::Matrix operator () (Set::Matrix &eps) const = 0;
-	void SetHomogeneous(bool a_homogeneous = true) {m_homogeneous = a_homogeneous;}
-
-protected:
-	bool m_homogeneous = true;
 };
 
 std::ostream&
