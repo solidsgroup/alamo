@@ -168,6 +168,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 
 		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			
+		#ifdef __INTEL_COMPILER
+		#pragma forceinline recursive
+		#endif
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 					
 				Set::Vector f = Set::Vector::Zero();
@@ -277,6 +280,9 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 
 		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			
+		#ifdef __INTEL_COMPILER
+		#pragma forceinline recursive
+		#endif
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
 				Set::Vector f = Set::Vector::Zero();
@@ -426,6 +432,10 @@ Elastic<T>::Strain  (int amrlev,
 		const Box& bx = mfi.tilebox();
 		amrex::Array4<amrex::Real> const& epsilon = a_eps.array(mfi);
 		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
+
+		#ifdef __INTEL_COMPILER
+		#pragma forceinline recursive
+		#endif
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 				    {
 					    Set::Matrix gradu;
@@ -488,6 +498,10 @@ Elastic<T>::Stress (int amrlev,
 		amrex::Array4<T> const& C                 = (*(model[amrlev][0])).array(mfi);
 		amrex::Array4<amrex::Real> const& sigma   = a_sigma.array(mfi);
 		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
+
+		#ifdef __INTEL_COMPILER
+		#pragma forceinline recursive
+		#endif
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 				    {
 					    Set::Matrix gradu;
@@ -550,6 +564,10 @@ Elastic<T>::Energy (int amrlev,
 		amrex::Array4<T> const& C                  = (*(model[amrlev][0])).array(mfi);
 		amrex::Array4<amrex::Real> const& energy   = a_energy.array(mfi);
 		amrex::Array4<const amrex::Real> const& u  = a_u.array(mfi);
+
+		#ifdef __INTEL_COMPILER
+		#pragma forceinline recursive
+		#endif
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 				    {
 					    Set::Matrix gradu;
@@ -723,6 +741,9 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 
 			// I,J,K == coarse coordinates
 			// i,j,k == fine coordinates
+			#ifdef __INTEL_COMPILER
+			#pragma forceinline recursive
+			#endif
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int I, int J, int K) {
 					int i=2*I, j=2*J, k=2*K;
 

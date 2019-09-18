@@ -20,6 +20,7 @@ class Multiwell : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Is
 public:
 	Multiwell() {} ;
 	Multiwell(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _Fgb=Set::Matrix::Zero()) {Define(_mu,_lambda,_Fgb);} ;
+	AMREX_FORCE_INLINE
 	~Multiwell() {} ;
 	void Define(Set::Scalar _mu, Set::Scalar _lambda,Set::Matrix _Fgb)
 	{

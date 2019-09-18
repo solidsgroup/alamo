@@ -13,6 +13,7 @@ namespace IC
 class Affine : public IC
 {
 public:
+	__attribute__((noinline))
 	Affine (amrex::Vector<amrex::Geometry> &_geom) :
 		IC(_geom)
 	{
@@ -23,6 +24,7 @@ public:
 		pp.query("alpha",alpha);
 	}
   
+	__attribute__((noinline))
 	Affine (amrex::Vector<amrex::Geometry> &_geom,
 		Set::Vector a_n,
 		Set::Scalar a_alpha,
