@@ -480,31 +480,44 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 					if ((I == lo.x || I == hi.x) &&
 					    (J == lo.y || J == hi.y) &&
 					    (K == lo.z || K == hi.z)) // Corner
-						cdata(I,J,K,n) = fdata(i,j,k,n);
+						{
+							cdata(I,J,K,n) = fdata(i,j,k,n);
+						}
 					else if ((J == lo.y || J == hi.y) &&
 						 (K == lo.z || K == hi.z)) // X edge
-						cdata(I,J,K,n) = 0.25*fdata(i-1,j,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i+1,j,k,n);
+						 {
+							 cdata(I,J,K,n) = 0.25*fdata(i-1,j,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i+1,j,k,n);
+						 }
 					else if ((K == lo.z || K == hi.z) &&
 						 (I == lo.x || I == hi.x)) // Y edge
-						cdata(I,J,K,n) = 0.25*fdata(i,j-1,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j+1,k,n);
+						{
+							cdata(I,J,K,n) = 0.25*fdata(i,j-1,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j+1,k,n);
+						}
 					else if ((I == lo.x || I == hi.x) &&
 						 (J == lo.y || J == hi.y)) // Z edge
-						cdata(I,J,K,n) = 0.25*fdata(i,j,k-1,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j,k+1,n);
+						{
+							cdata(I,J,K,n) = 0.25*fdata(i,j,k-1,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j,k+1,n);
+						}
 					else if (I == lo.x || I == hi.x) // X face
-						cdata(I,J,K,n) =
+						{
+							cdata(I,J,K,n) =
 							(+     fdata(i,j-1,k-1,n) + 2.0*fdata(i,j,k-1,n) +     fdata(i,j+1,k-1,n)
 							 + 2.0*fdata(i,j-1,k  ,n) + 4.0*fdata(i,j,k  ,n) + 2.0*fdata(i,j+1,k  ,n) 
 							 +     fdata(i,j-1,k+1,n) + 2.0*fdata(i,j,k+1,n) +     fdata(i,j+1,k+1,n))/16.0;
+						}
 					else if (J == lo.y || J == hi.y) // Y face
-						cdata(I,J,K,n) =
+						{
+							cdata(I,J,K,n) =
 							(+     fdata(i-1,j,k-1,n) + 2.0*fdata(i-1,j,k,n) +     fdata(i-1,j,k+1,n)
 							 + 2.0*fdata(i  ,j,k-1,n) + 4.0*fdata(i  ,j,k,n) + 2.0*fdata(i  ,j,k+1,n) 
 							 +     fdata(i+1,j,k-1,n) + 2.0*fdata(i+1,j,k,n) +     fdata(i+1,j,k+1,n))/16.0;
+						}
 					else if (K == lo.z || K == hi.z) // Z face
-						cdata(I,J,K,n) =
+						{cdata(I,J,K,n) =
 							(+     fdata(i-1,j-1,k,n) + 2.0*fdata(i,j-1,k,n) +     fdata(i+1,j-1,k,n)
 							 + 2.0*fdata(i-1,j  ,k,n) + 4.0*fdata(i,j  ,k,n) + 2.0*fdata(i+1,j  ,k,n) 
 							 +     fdata(i-1,j+1,k,n) + 2.0*fdata(i,j+1,k,n) +     fdata(i+1,j+1,k,n))/16.0;
+							 }
 					else // Interior
 						cdata(I,J,K,n) =
 							(fdata(i-1,j-1,k-1,n) + fdata(i-1,j-1,k+1,n) + fdata(i-1,j+1,k-1,n) + fdata(i-1,j+1,k+1,n) +
@@ -602,7 +615,7 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 }
   
 void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
-				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
+				                                  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
 	const auto& amrrr = AMRRefRatio(camrlev);
@@ -897,9 +910,8 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& /*ge
 					  const amrex::Array<BCType,AMREX_SPACEDIM>& /*hibc*/,
 					  int /*ratio*/, const amrex::RealVect& /*a_loc*/)
 {
-	Util::Abort(INFO,"Functionality was disabled here due to compatibility");
 //	const amrex::Box&  domain = geom.Domain();
-//	Util::Warning(INFO,"This code has not been properlyt tested");
+	Util::Warning(INFO,"This code has not been properlyt tested");
 //#ifdef _OPENMP
 //#pragma omp parallel
 //#endif
@@ -908,9 +920,7 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& /*ge
 //		const amrex::Box& bx = mfi.validbox();
 //		RealTuple & bloc  = bcloc[mfi];
 //		BCTuple   & bctag = bcond[mfi];
-//		
-//      // The following line causes compatibility issues.
-//		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
+//		//amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
 //	}
 }
 
