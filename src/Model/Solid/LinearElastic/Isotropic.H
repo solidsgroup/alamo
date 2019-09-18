@@ -24,8 +24,7 @@ class Isotropic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Is
 public:
 	Isotropic() {} ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda) {} ;
-        AMREX_FORCE_INLINE
-  	~Isotropic() {} ;
+	~Isotropic() {} ;
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
