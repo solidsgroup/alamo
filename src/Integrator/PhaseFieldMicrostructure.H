@@ -70,7 +70,7 @@ protected:
 private:
 
 	int number_of_grains = 2;
-	int number_of_ghost_cells = 2;
+	int number_of_ghost_cells = 3;
 	Set::Scalar ref_threshold = 0.1;
 
 	// Cell fab
@@ -82,7 +82,7 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > res_mf; 
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_mf;
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
@@ -142,8 +142,8 @@ private:
 		// Node only
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
-		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
-		std::array<Operator::Elastic<model_type>::BC,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
+		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
+		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
 		Operator::Elastic<model_type> *op;
 	} elastic;
 

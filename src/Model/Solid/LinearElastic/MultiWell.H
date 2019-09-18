@@ -28,19 +28,19 @@ public:
 	}
 
 	AMREX_FORCE_INLINE
-	virtual Set::Matrix operator () (Set::Matrix &gradu) const
+	virtual Set::Matrix operator () (Set::Matrix &gradu,bool a_homogeneous=true) const
 	{
 		Set::Matrix eps = gradu;
-		if (!m_homogeneous) eps -= Fgb;
+		if (!a_homogeneous) eps -= Fgb;
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
 
 	AMREX_FORCE_INLINE
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool a_homogeneous=true)
 	{
 		std::array<Set::Matrix,AMREX_SPACEDIM> gradeps;
 		for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] = gradgradu[i];
-		if (!m_homogeneous) for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] -= gradFgb[i];
+		if (!a_homogeneous) for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] -= gradFgb[i];
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)

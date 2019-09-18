@@ -22,7 +22,7 @@ public:
 	enum Type {Displacement, Traction, Periodic, Neumann}; 
 	enum Face {AMREX_D_DECL(XLO=0,YLO=1,ZLO=2),
 		   AMREX_D_DECL(XHI=AMREX_SPACEDIM+0,YHI=AMREX_SPACEDIM+1,ZHI=AMREX_SPACEDIM+2)}; 
-	enum Direction {AMREX_D_DECL(X=0,Y,Z)}; 
+	enum Direction {AMREX_D_DECL(X=0,Y=1,Z=2)}; 
 
  	Elastic()
 	{
@@ -51,8 +51,10 @@ public:
 
 		for (int ilev = 0; ilev < a_rhs.size(); ilev++)
 		{
+			Util::Message(INFO,"I'm at level ",ilev);
 			amrex::Box domain(a_geom[ilev].Domain());
 			domain.convert(amrex::IntVect::TheNodeVector());
+			Util::Message(INFO,"domain at this level is ",domain);
 			const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			for (amrex::MFIter mfi(*a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{

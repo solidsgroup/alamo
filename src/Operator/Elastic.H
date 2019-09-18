@@ -46,7 +46,7 @@ public:
 		     const LPInfo& a_info = LPInfo(),
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
-	virtual void SetHomogeneous (bool a_homogeneous) override;
+	virtual void SetHomogeneous (bool a_homogeneous) override {m_homogeneous = a_homogeneous;}
 	void SetModel (T &a_model);
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
 	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
@@ -56,6 +56,10 @@ public:
 	///
 	void SetBC (::BC::Operator::Elastic<T> *a_bc) 
 	{
+		if (this->Geom(0).isAnyPeriodic()) 
+		{
+			Util::Warning(INFO,"Looks like you're using a periodic domain. \nThat is currently VERY DANGEROUS when using linear elastic solver!!!");
+		}
 		m_bc = a_bc;
 		m_bc_set = true;
 	};
@@ -143,6 +147,7 @@ private:
 
 	bool m_testing = false;
 	bool m_uniform = false;
+	bool m_homogeneous = false;
 
 	::BC::Operator::Elastic<T> *m_bc;
 
