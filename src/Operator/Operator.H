@@ -104,7 +104,8 @@ public:
 	//
 private:
 	void buildMasks ();
-	void realFillBoundary(MultiFab &phi, const Geometry &geom) const;
+public:
+	static void realFillBoundary(MultiFab &phi, const Geometry &geom);
 
 private:
 	bool m_is_bottom_singular = false;
