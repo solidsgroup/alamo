@@ -51,10 +51,8 @@ public:
 
 		for (int ilev = 0; ilev < a_rhs.size(); ilev++)
 		{
-			Util::Message(INFO,"I'm at level ",ilev);
 			amrex::Box domain(a_geom[ilev].Domain());
 			domain.convert(amrex::IntVect::TheNodeVector());
-			Util::Message(INFO,"domain at this level is ",domain);
 			const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 			for (amrex::MFIter mfi(*a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{

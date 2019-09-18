@@ -138,6 +138,7 @@ private:
 		amrex::Real tstart = 0.0;
 		amrex::Vector<amrex::Real> load_t;
 		amrex::Vector<amrex::Real> load_disp;
+		std::vector<model_type> model;
 
 		// Node only
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
