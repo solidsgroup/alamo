@@ -73,18 +73,20 @@ private:
 	int number_of_ghost_cells = 2;
 	Set::Scalar ref_threshold = 0.1;
 
+	// Cell fab
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etas_mf; ///< Color code order params
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > n_mf; ///< Color code order params
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	// Node fab
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp_mf; 
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs_mf; 
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > res_mf; 
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
 
 	BC::BC *mybc;
 
@@ -124,14 +126,13 @@ private:
 	struct
 	{
 		bool        on       = false;
-		Grid        grid     = Grid::Node;
-		int         interval = 1;
-		int         max_iter = 20;
-		int         fixed_iter = 0;
-		int         max_fmg_iter = 20;
-		int         bottom_max_iter = 20;
-		int         verbose = 3;
-		int         cgverbose = 3;
+		int         interval = -1;
+		int         max_iter = -1;
+		int         fixed_iter = -1;
+		int         max_fmg_iter = -1;
+		int         bottom_max_iter = -1;
+		int         max_coarsening_level = -1;
+		int         verbose = -1;
 		amrex::Real tol_rel = 0.0;
 		amrex::Real tol_abs = 1.0E-10;
 		amrex::Real tstart = 0.0;
