@@ -215,6 +215,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			RegisterNodalFab(res_mf,  AMREX_SPACEDIM,2,"res");
 			RegisterNodalFab(stress_mf,  AMREX_SPACEDIM*AMREX_SPACEDIM,2,"stress");
 
+			elastic.model.resize(number_of_grains);
+			for (int i = 0 ; i < number_of_grains; i++) elastic.model[i].Randomize();
+
 		}
 	}
 }
@@ -484,6 +487,8 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+	if (time < elastic.tstart) return;
+
         if (finest_level != rhs_mf.size() - 1)
         {
             Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
@@ -497,8 +502,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
         //info.setMaxCoarseningLevel(0);
         elasticop.define(geom, grids, dmap, info);
 
+
+
         // Set linear elastic model
-        model_type mymodel(lame, shear);
+        //model_type mymodel(lame, shear);
         amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
         model_mf.resize(disp_mf.size());
         Set::Matrix Fmatrix = Set::Matrix::Zero();
@@ -509,7 +516,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
             amrex::Box domain(geom[lev].Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev].setVal(mymodel);
+            //model_mf[lev].setVal(mymodel);
 
             eta_new_mf[lev]->FillBoundary();
 
@@ -524,8 +531,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
                 amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					model(i,j,k) = model_type() * 0.0;
+					for (int n = 0; n < number_of_grains; n++) model(i,j,k) += elastic.model[n]*eta(i,j,k,n);
                     //Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = model_type(lame, shear);
+                    //model(i, j, k) = model_type(lame, shear);
                     //model(i, j, k) = model_type(lame, shear, Fmatrix);
                 });
             }
