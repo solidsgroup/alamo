@@ -57,10 +57,6 @@ HeatConduction::HeatConduction() :
 	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
 }
 
-HeatConduction::~HeatConduction()
-{
-}
-
 /// \fn HeatConduction::Integrator::Initialize
 ///
 /// Use the #ic object to initialize #Temp

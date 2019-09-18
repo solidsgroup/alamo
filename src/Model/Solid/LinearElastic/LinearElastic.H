@@ -33,8 +33,11 @@ public:
 	/// \f[\mathbb{C}_{ijkl}u_{k,lj}\f]
 	///
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps) = 0;
+	
+	void SetHomogeneous(bool a_homogeneous = true) {m_homogeneous = a_homogeneous;}
 
-	//virtual void Print(std::ostream& os) const;
+protected:
+	bool m_homogeneous = true;
 };
 
 //template<Set::Sym sym>
