@@ -631,7 +631,7 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
 
 }
 
-void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) const
+void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) 
 {
 	for (int i = 0; i < 2; i++)
 	{
