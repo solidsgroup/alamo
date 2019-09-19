@@ -63,11 +63,14 @@ Cubic::Randomize()
 	Set::Scalar C11 = 0.5 + 0.5*Util::Random();
 	Set::Scalar C12 = 0.5 + 0.5*Util::Random();
 	Set::Scalar C44 = 0.5 + 0.5*Util::Random();
-
+	Randomize(C11,C12,C44);
+}
+void
+Cubic::Randomize(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
+{
 	Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random();
 	Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random();
 	Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
-
 	define(C11,C12,C44,phi1,Phi,phi2);
 }
 

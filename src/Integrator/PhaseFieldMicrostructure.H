@@ -35,7 +35,7 @@
 namespace Integrator
 {
 
-using model_type = Model::Solid::LinearElastic::Isotropic;
+using model_type = Model::Solid::LinearElastic::Cubic;
 enum RegularizationType{
 	Wilmore = 1,
 	K12 = 2};

@@ -2,11 +2,11 @@ alamo.program               = microstructure
 plot_file		    = tests/VoronoiElastic/output
 
 timestep		    = 0.05
-#stop_time		    = 400
-stop_time		    = 10
+stop_time		    = 400
+#stop_time		    = 10
 
-amr.plot_int		    = 1
-amr.max_level		    = 3
+amr.plot_int		    = 100
+amr.max_level		    = 2
 amr.n_cell		    = 64 64 
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 10
@@ -31,10 +31,10 @@ pf.l_gb			    = 0.05
 pf.sigma0		    = 0.075
 
 elastic.on  = 1
-elastic.interval = 1
-elastic.int=10
+elastic.interval = 100
+#elastic.int=1
 elastic.type=cubic
-elastic.tstart=1.0
+elastic.tstart=0.1
 elastic.load_t=0.0 
 elastic.load_disp=0.01
 elastic.bc.type_xlo = neumann neumann
@@ -46,6 +46,6 @@ elastic.bc.type_yhi = disp disp
 elastic.bc.yhi = 0.0 0.0
 elastic.bc.ylo = 0.1 0.0
 
-elastic.fixed_iter = 100
+elastic.fixed_iter = 1000
 #elastic.max_coarsening_level = 0
 elastic.verbose = 5
