@@ -13,9 +13,10 @@ int main (int argc, char* argv[])
 {
 	Util::Initialize(argc,argv);
 
-	Integrator::HeatConduction heatconduction;
-	heatconduction.InitData();
-	heatconduction.Evolve();
+	Integrator::Integrator *heatconduction = new Integrator::HeatConduction();
+	heatconduction->InitData();
+	heatconduction->Evolve();
+	delete heatconduction;
 
 	Util::Finalize();
 	return 0;

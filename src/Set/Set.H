@@ -22,8 +22,9 @@ using Scalar   = amrex::Real;
 using Vector   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,1>;
 using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
+using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
-enum Sym {None,Major,Minor,MajorMinor,Full};
+enum Sym {None,Major,Minor,MajorMinor,Full,Isotropic};
 template<int dim,int sym> class Matrix4{};
 template<int dim, int sym>
 std::ostream&
@@ -97,6 +98,7 @@ public:
         // [2, 2, 2, 2]
         else if (uid==80 ) return data[14];
         else Util::Abort(INFO,"uid not in range (uid=",uid,")");        
+        return data[-1];
     }
     void Print (std::ostream& os)
     {
@@ -163,13 +165,15 @@ public:
         // [0, 0, 0, 0]
         if (uid==0 ) return data[0];
         // [0, 0, 0, 1]
-        if (uid==8 || uid==4 || uid==2 || uid==1 ) return data[1];
+        else if (uid==8 || uid==4 || uid==2 || uid==1 ) return data[1];
         // [0, 0, 1, 1]
-        if (uid==12 || uid==10 || uid==6 || uid==9 || uid==5 || uid==3 ) return data[2];
+        else if (uid==12 || uid==10 || uid==6 || uid==9 || uid==5 || uid==3 ) return data[2];
         // [0, 1, 1, 1]
-        if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[3];
+        else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[3];
         // [1, 1, 1, 1]
-        if (uid==15 ) return data[4];
+        else if (uid==15 ) return data[4];
+        else Util::Abort(INFO,"Index out of range");
+        return data[-1];
     }
     static Matrix4<2,Sym::Full> Randomize()
     {
@@ -192,6 +196,47 @@ public:
         return zero;
     }
 };
+
+template<>
+class Matrix4<3,Sym::Isotropic>
+{
+    Set::Scalar lambda=NAN, mu=NAN;
+public:
+    Matrix4() {};
+    Matrix4(Set::Scalar a_lambda, Set::Scalar a_mu) : lambda(a_lambda), mu(a_mu) {};
+    AMREX_FORCE_INLINE
+    Scalar operator () (const int i, const int j, const int k, const int l)
+    {
+        Set::Scalar ret = 0.0;
+        if (i==k && j==l) ret += mu;
+        if (i==l && j==k) ret += mu;
+        if (i==j && k==l) ret += lambda;
+        return ret;
+    }
+    void Randomize()
+    {
+        lambda = Util::Random();
+        mu = Util::Random();
+    }
+    void Print (std::ostream& /* os */)
+    {
+        Util::Abort(INFO,"Not yet implemented");
+    }
+    static Matrix4<3,Sym::Isotropic> Zero()
+    {
+        Matrix4<3,Sym::Isotropic> zero;
+        zero.lambda = 0.0;
+        zero.mu = 0.0;
+        return zero;
+    }
+    void operator += (Matrix4<3,Sym::Isotropic> a) {lambda += a.lambda; mu += a.mu;}
+    void operator -= (Matrix4<3,Sym::Isotropic> a) {lambda -= a.lambda; mu -= a.mu;}
+    void operator *= (Matrix4<3,Sym::Isotropic> a) {lambda *= a.lambda; mu *= a.mu;}
+    void operator /= (Matrix4<3,Sym::Isotropic> a) {lambda /= a.lambda; mu /= a.mu;}
+    void operator *= (Set::Scalar alpha) {lambda *= alpha; mu *= alpha;}
+    void operator /= (Set::Scalar alpha) {lambda /= alpha; mu /= alpha;}
+};
+
 
 /// \brief Data structure for a 4th order 3D tensor with major and minor symmetry
 ///
@@ -260,6 +305,8 @@ public:
         else if (0 || uid==79 || uid==77 || uid==71 || uid==53 ) return data[19];
         // [2, 2, 2, 2]
         else if (0 || uid==80 ) return data[20];
+        else Util::Abort(INFO,"Index out of range");
+        return data[-1]; 
     }
     void Print (std::ostream& os)
     {

@@ -7,7 +7,7 @@ template <int dim, int sym>
 class Matrix4
 {
 public:
-    int SymmetryTest(int verbose)
+    int SymmetryTest(int /*verbose*/)
     {
         ::Set::Matrix4<dim,sym> matrix = ::Set::Matrix4<dim,sym>::Randomize();
 
