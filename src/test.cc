@@ -156,6 +156,8 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("2 levels, Component 0",test.UniaxialTest(0,0));
 		test.Define(32,3);
 		subfailed += Util::Test::SubMessage("3 levels, Component 0",test.UniaxialTest(0,0));
+		test.Define(32,2,AMREX_SPACEDIM,test.Grid::YZ);
+		subfailed += Util::Test::SubMessage("2 non-centered levels, Component 0",test.UniaxialTest(0,0));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 	

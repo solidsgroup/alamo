@@ -57,6 +57,8 @@ public:
 			for (amrex::MFIter mfi(*a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
 				amrex::Box bx = mfi.tilebox();
+				bx.grow(2);
+				bx = bx & domain;
 				amrex::Array4<amrex::Real> const& rhs       = a_rhs[ilev]->array(mfi);
 				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 						AMREX_D_TERM(if (i == lo.x && face == Face::XLO)

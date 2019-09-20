@@ -176,8 +176,8 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				for (int p = 0; p < AMREX_SPACEDIM; p++) u(p) = U(i,j,k,p);
 				
 
-				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+				bool AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+					 AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
 				// Determine if a special stencil will be necessary for first derivatives
 				std::array<Numeric::StencilType,AMREX_SPACEDIM>
@@ -203,6 +203,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
 					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
+					if (amrlev == 1 && i == 8  && j == 2) Util::Message(INFO,"ON C/F Bndry", f.transpose());
+					if (amrlev == 1 && i == 8  && j == 1) Util::Message(INFO,"ON C/F Bndry Ghost node", f.transpose());
+						
 				}
 				else
 				{
@@ -284,7 +287,7 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 				Set::Vector f = Set::Vector::Zero();
 
 				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+					    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
 				std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
 					= Numeric::GetStencil(i,j,k,domain);
@@ -327,24 +330,6 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 						u(p) = 1.0;
 						f = (*m_bc)(u,gradu,sig,i,j,k,domain);
 						diag(i,j,k,p) = f(p);
-						
-						// for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
-						// {
-						// 	if (m[q] == domain.loVect()[q])
-						// 	{
-						// 		if      (m_bc_lo[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
-						// 		else if (m_bc_lo[q][p] == BC::Traction)     diag(i,j,k,p) = -sig(p,q);
-						// 		else if (m_bc_lo[q][p] == BC::Neumann)      diag(i,j,k,p) = -gradu(p,q);
-						// 		else Util::Abort(INFO, "Invalid BC");
-						// 	}
-						// 	if (m[q] == domain.hiVect()[q])
-						// 	{
-						// 		if      (m_bc_hi[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
-						// 		else if (m_bc_hi[q][p] == BC::Traction)     diag(i,j,k,p) = sig(p,q);
-						// 		else if (m_bc_hi[q][p] == BC::Neumann)      diag(i,j,k,p) = gradu(p,q);
-						// 		else Util::Abort(INFO, "Invalid BC");
-						// 	}
-						// }
 					}
 					else
 					{
