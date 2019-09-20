@@ -228,7 +228,7 @@ if args.comp == 'g++':
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
 if args.comp == 'clang++': 
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")

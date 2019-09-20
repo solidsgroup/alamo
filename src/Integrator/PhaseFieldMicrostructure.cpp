@@ -2,6 +2,7 @@
 #include <eigen3/Eigen/Eigenvalues>
 
 #include <omp.h>
+#include <cmath>
 
 #include <AMReX_SPACE.H>
 
@@ -30,12 +31,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	{
 		amrex::ParmParse pp("pf"); // Phase-field model parameters
 		pp.query("number_of_grains", number_of_grains);
-		pp.query("M", M);
+		pp.query("M", pf.M);
 		if (pp.contains("mu"))
-			pp.query("mu", mu);
-		pp.query("gamma", gamma);
-		pp.query("sigma0", sigma0);
-		pp.query("l_gb", l_gb);
+			pp.query("mu", pf.mu);
+		pp.query("gamma", pf.gamma);
+		pp.query("sigma0", pf.sigma0);
+		pp.query("l_gb", pf.l_gb);
+		pp.query("elastic_mult",pf.elastic_mult);
 	}
 	{
 		amrex::ParmParse pp("amr");
@@ -64,7 +66,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		anisotropy.phi0 *= 0.01745329251;   // convert degrees into radians
 		pp.query("sigma0", anisotropy.sigma0);
 		pp.query("sigma1", anisotropy.sigma1);
-		pp.query("beta", beta);
+		pp.query("beta", anisotropy.beta);
 		pp.query("tstart", anisotropy.tstart);
 		anisotropy.timestep = timestep;
 		pp.query("timestep", anisotropy.timestep);
@@ -156,9 +158,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	 */
 
 	eta_new_mf.resize(maxLevel() + 1);
-	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta");
+	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	//eta_old_mf.resize(maxLevel()+1);
-	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old");
+	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
 
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
@@ -216,19 +218,17 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 				AMREX_D_TERM(pp_bc.queryarr("xhi", elastic.bc_xhi);, pp_bc.queryarr("yhi", elastic.bc_yhi);, pp_bc.queryarr("zhi", elastic.bc_zhi););
 			}
 
-			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp");
-			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs");
-			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res");
-			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress");
+			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
+			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
+			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
+			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
+
 
 			elastic.model.resize(number_of_grains);
 			for (int i = 0; i < number_of_grains; i++)
 			{
-				Set::Scalar mu = 6.0, lambda = 2.6;
 				elastic.model[i].Randomize(1.68, 1.21, 0.75);
-
-				//elastic.model[i] = model_type(mu,lambda);
-				//elastic.model[i] = model_type(lambda + 2.*mu, lambda, mu);
 			}
 		}
 	}
@@ -247,12 +247,12 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 	//Model::Interface::GB::SH gbmodel(0.0,0.0, sigma0, 0.5*sigma0);
 	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
-#pragma omp parallel
 	for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box &bx = mfi.tilebox();
 		amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
+		amrex::Array4<amrex::Real> const &energies = (*energies_mf[lev]).array(mfi);
 
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 			//amrex::IntVect m(AMREX_D_DECL(i,j,k));
@@ -277,8 +277,8 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 				if (!anisotropy.on || time < anisotropy.tstart)
 				{
-					kappa = l_gb * 0.75 * sigma0;
-					mu = 0.75 * (1.0 / 0.23) * sigma0 / l_gb;
+					kappa = pf.l_gb * 0.75 * pf.sigma0;
+					mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
 					driving_force += -kappa * laplacian;
 				}
 				else
@@ -291,10 +291,10 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 #elif AMREX_SPACEDIM == 2
 						Set::Vector tangent(normal[1],-normal[0]);
 						Set::Scalar Theta = atan2(Deta(1),Deta(0));
-						Set::Scalar kappa = l_gb*0.75*boundary->W(Theta);
-						Set::Scalar Dkappa = l_gb*0.75*boundary->DW(Theta);
-						Set::Scalar DDkappa = l_gb*0.75*boundary->DDW(Theta);
-						mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / l_gb;
+						Set::Scalar kappa = pf.l_gb*0.75*boundary->W(Theta);
+						Set::Scalar Dkappa = pf.l_gb*0.75*boundary->DW(Theta);
+						Set::Scalar DDkappa = pf.l_gb*0.75*boundary->DDW(Theta);
+						mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / pf.l_gb;
 						Set::Scalar sinTheta = sin(Theta);
 						Set::Scalar cosTheta = cos(Theta);
 			
@@ -311,7 +311,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 							+ 0.5*DDkappa*(sinTheta*sinTheta*DDeta(0,0) - 2.*sinTheta*cosTheta*DDeta(0,1) + cosTheta*cosTheta*DDeta(1,1));
 						if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 			
-						driving_force += - (Boundary_term) + beta*(Curvature_term);
+						driving_force += - (Boundary_term) + anisotropy.beta*(Curvature_term);
 						if (std::isnan(driving_force)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 
 #elif AMREX_SPACEDIM == 3
@@ -362,10 +362,10 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 						Set::Scalar gbe = gbmodel.W(normal);
 						//Set::Scalar kappa = l_gb*0.75*gbe;
-						kappa = l_gb*0.75*gbe;
-						mu = 0.75 * (1.0/0.23) * gbe / l_gb;
-						Set::Scalar DDK2 = gbmodel.DDW(normal,_t2) * l_gb * 0.75;
-						Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * l_gb * 0.75;
+						kappa = pf.l_gb*0.75*gbe;
+						mu = 0.75 * (1.0/0.23) * gbe / pf.l_gb;
+						Set::Scalar DDK2 = gbmodel.DDW(normal,_t2) * pf.l_gb * 0.75;
+						Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * pf.l_gb * 0.75;
 
 						// GB energy anisotropy term
 						Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
@@ -376,13 +376,10 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						switch(regularization)
 						{
 							case Wilmore:
-								reg_df = beta*(DH2 + DH3 + 2.0*DH23);
+								reg_df = anisotropy.beta*(DH2 + DH3 + 2.0*DH23);
 								break;
 							case K12:
-								reg_df = beta*(DH2+DH3);
-								break;
-							Default:
-								Util::Abort(INFO, " This kind of regularization is not implemented yet.");
+								reg_df = anisotropy.beta*(DH2+DH3);
 								break;
 						}
 						driving_force += reg_df;
@@ -412,7 +409,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						continue;
 					sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
 				}
-				driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * gamma * sum_of_squares) * eta(i, j, k, m);
+				driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
 				//
 				// SYNTHETIC DRIVING FORCE
@@ -426,16 +423,15 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				// ELASTIC DRIVING FORCE
 				//
 
-				// if (elastic.on && time > elastic.tstart)
-				// {
-				// 	if (elastic.grid == Grid::Cell)
-				// 		etanew(i,j,k,m) -= M*dt*( elasticenergy(i,j,k,m));
-				// }
+				if (elastic.on && time > elastic.tstart)
+				{
+					driving_force += energies(i,j,k,m);
+				}
 
 				//
 				// EVOLVE ETA
 				//
-				etanew(i, j, k, m) = eta(i, j, k, m) - M * dt * driving_force;
+				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
 				if (std::isnan(driving_force))
 					Util::Abort(INFO, i, " ", j, " ", k, " ", m);
 			}
@@ -468,7 +464,6 @@ void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray
 	const Set::Vector dx(DX);
 	const Set::Scalar dxnorm = dx.lpNorm<2>();
 
-#pragma omp parallel
 	for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box &bx = mfi.tilebox();
@@ -503,7 +498,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < rhs_mf.size(); lev++)
 		rhs_mf[lev]->setVal(0.0);
 
-	Set::Scalar lame = 2.6, shear = 6.0;
 	Operator::Elastic<model_type> elasticop;
 	elasticop.SetUniform(false);
 	amrex::LPInfo info;
@@ -511,12 +505,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elasticop.define(geom, grids, dmap, info);
 
 	// Set linear elastic model
-	//model_type mymodel(lame, shear);
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
 	model_mf.resize(disp_mf.size());
-	Set::Matrix Fmatrix = Set::Matrix::Zero();
-	Set::Matrix Finclusion = Set::Matrix::Zero();
-	Finclusion(0, 0) = 0.1;
 	for (int lev = 0; lev < rhs_mf.size(); ++lev)
 	{
 		amrex::Box domain(geom[lev].Domain());
@@ -586,6 +576,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < disp_mf.size(); lev++)
 	{
 		elasticop.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+		elasticop.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
 	}
 }
 
@@ -614,9 +605,9 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 
 			if (!anisotropy.on || time < anisotropy.tstart)
 			{
-				gbenergy += sigma0 * da;
+				gbenergy += pf.sigma0 * da;
 
-				Set::Scalar k = 0.75 * sigma0 * l_gb;
+				Set::Scalar k = 0.75 * pf.sigma0 * pf.l_gb;
 				realgbenergy += 0.5 * k * normgrad * normgrad * dv;
 				regenergy = 0.0;
 			}
@@ -627,13 +618,13 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 				Set::Scalar sigma = boundary->W(theta);
 				gbenergy += sigma * da;
 
-				Set::Scalar k = 0.75 * sigma * l_gb;
+				Set::Scalar k = 0.75 * sigma * pf.l_gb;
 				realgbenergy += 0.5 * k * normgrad * normgrad * dv;
 
 				Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, 0, DX);
 				Set::Vector tangent(normal[1], -normal[0]);
 				Set::Scalar k2 = (DDeta * tangent).dot(tangent);
-				regenergy += 0.5 * beta * k2 * k2;
+				regenergy += 0.5 * anisotropy.beta * k2 * k2;
 #elif AMREX_SPACEDIM == 3
 				gbenergy += gbmodel.W(normal) * da;
 #endif

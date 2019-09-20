@@ -215,7 +215,8 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 			   BC::BC *new_bc,
 			   int ncomp,
 			   int nghost,
-			   std::string name)
+			   std::string name,
+			   bool writeout)
 {
 	BL_PROFILE("Integrator::RegisterNewFab_1");
 	int nlevs_max = maxLevel() + 1;
@@ -225,13 +226,15 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	cell.ncomp_array.push_back(ncomp);
 	cell.nghost_array.push_back(nghost);
 	cell.name_array.push_back(name);
+	cell.writeout_array.push_back(writeout);
 	cell.number_of_fabs++;
 }
 
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 			   int ncomp,
-			   std::string name)
+			   std::string name,
+			   bool writeout)
 {
 	BL_PROFILE("Integrator::RegisterNewFab_2");
 	int nlevs_max = maxLevel() + 1;
@@ -241,6 +244,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	cell.ncomp_array.push_back(ncomp);
 	cell.nghost_array.push_back(0);
 	cell.name_array.push_back(name);
+	cell.writeout_array.push_back(writeout);
 	cell.number_of_fabs++;
 }
 void // CUSTOM METHOD - CHANGEABLE
@@ -248,7 +252,8 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 			   	 BC::BC *new_bc,
 			     int ncomp,
 			     int nghost,
-			     std::string name)
+			     std::string name,
+				 bool writeout)
 {
 	BL_PROFILE("Integrator::RegisterNodalFab");
 	int nlevs_max = maxLevel() + 1;
@@ -258,15 +263,17 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 	node.ncomp_array.push_back(ncomp);
 	node.nghost_array.push_back(nghost);
 	node.name_array.push_back(name);
+	node.writeout_array.push_back(writeout);
 	node.number_of_fabs++;
 }
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 			     int ncomp,
 			     int nghost,
-			     std::string name)
+			     std::string name,
+				 bool writeout)
 {
-	RegisterNodalFab(new_fab,&bcnothing,ncomp,nghost,name);
+	RegisterNodalFab(new_fab,&bcnothing,ncomp,nghost,name,writeout);
 }
 
 
@@ -490,7 +497,7 @@ Integrator::Restart(const std::string dirname)
 
 	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
 	int total_ncomp = 0; 
-	for (int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+	for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
 	int total_nghost = cell.nghost_array[0];
 
 	for (int lev = 0; lev <= max_level; lev++)
@@ -586,6 +593,7 @@ Integrator::WritePlotFile (bool initial) const
 	amrex::Vector<std::string> cnames, nnames;
 	for (int i = 0; i < cell.number_of_fabs; i++)
 	{
+		if (!cell.writeout_array[i]) continue;
 		ccomponents += cell.ncomp_array[i];
 		if (cell.ncomp_array[i] > 1)
 			for (int j = 1; j <= cell.ncomp_array[i]; j++)
@@ -595,6 +603,7 @@ Integrator::WritePlotFile (bool initial) const
 	}
 	for (int i = 0; i < node.number_of_fabs; i++)
 	{
+		if (!node.writeout_array[i]) continue;
 		ncomponents += node.ncomp_array[i];
 		if (node.ncomp_array[i] > 1)
 			for (int j = 1; j <= node.ncomp_array[i]; j++)
@@ -614,6 +623,7 @@ Integrator::WritePlotFile (bool initial) const
 			int n = 0;
 			for (int i = 0; i < cell.number_of_fabs; i++)
 			{
+				if (!cell.writeout_array[i]) continue;
 				if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,cnames[i]," contains nan (i=",i,")");
 				if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
 				MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
@@ -630,6 +640,7 @@ Integrator::WritePlotFile (bool initial) const
 			int n = 0;
 			for (int i = 0; i < node.number_of_fabs; i++)
 			{
+				if (!node.writeout_array[i]) continue;
 				if ((*node.fab_array[i])[ilev]->contains_nan()) 
 				{
 					Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");

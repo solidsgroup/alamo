@@ -84,6 +84,8 @@ public:
 	///
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u);
 
+	void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<T> models);
+
 	/// This function is depricated and should not be used. Use the other `SetBC` function.
 	///
 	void SetBC(const std::array<std::array<BC,AMREX_SPACEDIM>,AMREX_SPACEDIM> &a_bc_lo,
