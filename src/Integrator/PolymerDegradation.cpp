@@ -1027,7 +1027,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	 	    bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	rhs, geom);
 	 	);
 		//Util::Message(INFO);
-		Solver::Linear solver(elastic_operator);
+		Solver::Nonlocal::Linear solver(elastic_operator);
 		solver.setMaxIter(elastic.max_iter);
 		solver.setMaxFmgIter(elastic.max_fmg_iter);
 		solver.setFixedIter(elastic.max_fixed_iter);
@@ -1125,7 +1125,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	 	    bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	rhs, geom);
 	 	    );
 			//Util::Message(INFO);
-			Solver::Linear solver(elastic_operator);
+			Solver::Nonlocal::Linear solver(elastic_operator);
 			solver.setMaxIter(elastic.max_iter);
 			solver.setMaxFmgIter(elastic.max_fmg_iter);
 			solver.setFixedIter(elastic.max_fixed_iter);
