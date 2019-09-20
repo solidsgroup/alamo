@@ -84,6 +84,7 @@ private:
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_mf;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies_mf;
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
@@ -91,11 +92,20 @@ private:
 
 	BC::BC *mybc;
 
-	amrex::Real M, mu, gamma, sigma0, l_gb, beta;
+	//amrex::Real M, mu, gamma, sigma0, l_gb, beta;
 	RegularizationType regularization = RegularizationType::K12;
+	struct {
+		Set::Scalar M;
+		Set::Scalar mu;
+		Set::Scalar gamma;
+		Set::Scalar sigma0;
+		Set::Scalar l_gb;
+		Set::Scalar elastic_mult = 1.0;
+	} pf;
 
 	struct {
 		int on = 0;
+		Set::Scalar beta;
 		Set::Scalar timestep;
 		Set::Scalar tstart;
 		int plot_int = -1;
