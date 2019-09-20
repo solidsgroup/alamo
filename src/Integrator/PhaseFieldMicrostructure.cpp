@@ -154,12 +154,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		else
 			Util::Abort(INFO, "No valid initial condition specified");
 	}
-	/*
-	 */
 
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
-	//eta_old_mf.resize(maxLevel()+1);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
 
 	volume = 1.0;
@@ -187,6 +184,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("tol_abs", elastic.tol_abs);
 			pp.query("tstart", elastic.tstart);
 
+			pp.query("C11",elastic.C11);
+			pp.query("C12",elastic.C12);
+			pp.query("C44",elastic.C44);
+
 			{
 				amrex::ParmParse pp_bc("elastic.bc");
 				// Read in boundary types as strings, then convert to Operator::Elastic::BC types and store for future use.
@@ -206,13 +207,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 				bc["periodic"] = BC::Operator::Elastic<model_type>::Type::Periodic;
 				AMREX_D_TERM(
 					elastic.bctype_xlo = {AMREX_D_DECL(bc[bctype_xlo_str[0]], bc[bctype_xlo_str[1]], bc[bctype_xlo_str[2]])};,
-																															 elastic.bctype_ylo = {AMREX_D_DECL(bc[bctype_ylo_str[0]], bc[bctype_ylo_str[1]], bc[bctype_ylo_str[2]])};
-					,
+					elastic.bctype_ylo = {AMREX_D_DECL(bc[bctype_ylo_str[0]], bc[bctype_ylo_str[1]], bc[bctype_ylo_str[2]])};,
 					elastic.bctype_zlo = {AMREX_D_DECL(bc[bctype_zlo_str[0]], bc[bctype_zlo_str[1]], bc[bctype_zlo_str[2]])};);
 				AMREX_D_TERM(
 					elastic.bctype_xhi = {AMREX_D_DECL(bc[bctype_xhi_str[0]], bc[bctype_xhi_str[1]], bc[bctype_xhi_str[2]])};,
-																															 elastic.bctype_yhi = {AMREX_D_DECL(bc[bctype_yhi_str[0]], bc[bctype_yhi_str[1]], bc[bctype_yhi_str[2]])};
-					,
+					elastic.bctype_yhi = {AMREX_D_DECL(bc[bctype_yhi_str[0]], bc[bctype_yhi_str[1]], bc[bctype_yhi_str[2]])};,
 					elastic.bctype_zhi = {AMREX_D_DECL(bc[bctype_zhi_str[0]], bc[bctype_zhi_str[1]], bc[bctype_zhi_str[2]])};);
 				AMREX_D_TERM(pp_bc.queryarr("xlo", elastic.bc_xlo);, pp_bc.queryarr("ylo", elastic.bc_ylo);, pp_bc.queryarr("zlo", elastic.bc_zlo););
 				AMREX_D_TERM(pp_bc.queryarr("xhi", elastic.bc_xhi);, pp_bc.queryarr("yhi", elastic.bc_yhi);, pp_bc.queryarr("zhi", elastic.bc_zhi););
@@ -224,11 +223,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
 			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
 
-
 			elastic.model.resize(number_of_grains);
 			for (int i = 0; i < number_of_grains; i++)
 			{
-				elastic.model[i].Randomize(1.68, 1.21, 0.75);
+				elastic.model[i].Randomize(elastic.C11, elastic.C12, elastic.C44);
 			}
 		}
 	}
@@ -244,7 +242,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 	std::swap(eta_old_mf[lev], eta_new_mf[lev]);
 	const amrex::Real *DX = geom[lev].CellSize();
 
-	//Model::Interface::GB::SH gbmodel(0.0,0.0, sigma0, 0.5*sigma0);
 	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
 	for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -255,8 +252,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		amrex::Array4<amrex::Real> const &energies = (*energies_mf[lev]).array(mfi);
 
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-			//amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
 			for (int m = 0; m < number_of_grains; m++)
 			{
 				Set::Scalar driving_force = 0.0;
