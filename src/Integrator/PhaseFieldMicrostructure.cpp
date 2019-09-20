@@ -549,6 +549,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	BC::Operator::Elastic<model_type> bc;
 	//bc.Set(bc.Face::XHI,bc.Direction::X,elastic.bctype_xhi[0],elastic.bc_xhi[0],rhs_mf,geom);
+	#if AMREX_SPACEDIM > 1
 	bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bctype_xlo[bc.Direction::X], elastic.bc_xlo[bc.Direction::X], rhs_mf, geom);
 	bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bctype_xlo[bc.Direction::Y], elastic.bc_xlo[bc.Direction::Y], rhs_mf, geom);
 	bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bctype_xhi[bc.Direction::X], elastic.bc_xhi[bc.Direction::X], rhs_mf, geom);
@@ -557,6 +558,19 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bctype_ylo[bc.Direction::Y], elastic.bc_ylo[bc.Direction::Y], rhs_mf, geom);
 	bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bctype_yhi[bc.Direction::X], elastic.bc_yhi[bc.Direction::X], rhs_mf, geom);
 	bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bctype_yhi[bc.Direction::Y], elastic.bc_yhi[bc.Direction::Y], rhs_mf, geom);
+	#endif
+	#if AMREX_SPACEDIM > 2
+	bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bctype_xlo[bc.Direction::Z], elastic.bc_xlo[bc.Direction::Z], rhs_mf, geom);
+	bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bctype_xhi[bc.Direction::Z], elastic.bc_xhi[bc.Direction::Z], rhs_mf, geom);
+	bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bctype_ylo[bc.Direction::Z], elastic.bc_ylo[bc.Direction::Z], rhs_mf, geom);
+	bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bctype_yhi[bc.Direction::Z], elastic.bc_yhi[bc.Direction::Z], rhs_mf, geom);
+	bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bctype_zlo[bc.Direction::X], elastic.bc_zlo[bc.Direction::X], rhs_mf, geom);
+	bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bctype_zlo[bc.Direction::Y], elastic.bc_zlo[bc.Direction::Y], rhs_mf, geom);
+	bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bctype_zlo[bc.Direction::Z], elastic.bc_zlo[bc.Direction::Z], rhs_mf, geom);
+	bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bctype_zhi[bc.Direction::X], elastic.bc_zhi[bc.Direction::X], rhs_mf, geom);
+	bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bctype_zhi[bc.Direction::Y], elastic.bc_zhi[bc.Direction::Y], rhs_mf, geom);
+	bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bctype_zhi[bc.Direction::Z], elastic.bc_zhi[bc.Direction::Z], rhs_mf, geom);
+	#endif
 
 	elasticop.SetBC(&bc);
 
