@@ -9,7 +9,6 @@
 #include "IC/Affine.H"
 #include "IC/Constant.H"
 #include "IC/TabulatedInterface.H"
-//#include "IC/PS.H"
 #include "Numeric/Stencil.H"
 
 namespace Integrator

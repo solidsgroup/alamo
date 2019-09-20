@@ -151,7 +151,8 @@ private:
 		amrex::Vector<amrex::Real> load_disp;
 		std::vector<model_type> model;
 
-		// Node only
+		Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
+
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
