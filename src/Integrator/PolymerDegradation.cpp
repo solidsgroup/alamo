@@ -649,7 +649,10 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 					}
 					eta_new_box(i,j,k,n) = eta_old_box(i,j,k,n) + temp1*dt;
 					if(eta_new_box(i,j,k,n) > damage.d_final[n])
-						Util::Abort(INFO, "eta exceeded ",damage.d_final[n], ". Rhs = ", temp1, ", Water = ", water_box(i,j,k,n));
+					{
+						Util::Warning(INFO, "eta exceeded ",damage.d_final[n], ". Rhs = ", temp1, ", Water = ", water_box(i,j,k,n));
+						eta_new_box(i,j,k,n) = damage.d_final[n];
+					}
 				}
 				else
 					Util::Abort(INFO, "Damage model not implemented yet");
