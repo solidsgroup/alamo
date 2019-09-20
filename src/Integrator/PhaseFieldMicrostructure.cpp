@@ -223,7 +223,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 			elastic.model.resize(number_of_grains);
 			for (int i = 0; i < number_of_grains; i++)
-				elastic.model[i].Randomize(168.3,1.221,0.757);
+			{
+				Set::Scalar mu = 6.0, lambda = 2.6;
+				elastic.model[i].Randomize(1.68, 1.21, 0.75);
+
+				//elastic.model[i] = model_type(mu,lambda);
+				//elastic.model[i] = model_type(lambda + 2.*mu, lambda, mu);
+			}
 		}
 	}
 }
@@ -572,7 +578,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 	Solver::Nonlocal::Linear linearsolver(elasticop);
 	if (elastic.verbose >= 0)
-		linearsolver.setVerbose(2);
+		linearsolver.setVerbose(elastic.verbose);
 	if (elastic.fixed_iter >= 0)
 		linearsolver.setFixedIter(elastic.fixed_iter);
 	linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
