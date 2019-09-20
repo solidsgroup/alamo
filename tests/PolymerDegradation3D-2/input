@@ -120,8 +120,10 @@ damage.t_start_i = 0 12 0 12 0 12 0 12
 
 damage.ic_type = constant
 damage.ic.value = 0.0 0.0 0.0 0.0
-damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
-damage.bc.hi = EXT_DIR EXT_DIR EXT_DIR
+damage.bc.lo = NEUMANN NEUMANN NEUMANN
+damage.bc.hi = NEUMANN NEUMANN NEUMANN
+#damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
+#damage.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 damage.bc.lo_1 = 0.0 0.0 0.0 0.0
 damage.bc.hi_1 = 0.0 0.0 0.0 0.0
 damage.bc.lo_2 = 0.0 0.0 0.0 0.0

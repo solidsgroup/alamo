@@ -898,7 +898,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
+		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes);
 		model[ilev].setVal(*modeltype);
 		DegradeMaterial(ilev,model[ilev]);
 	}
