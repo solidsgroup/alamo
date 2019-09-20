@@ -1,5 +1,3 @@
-
-
 #ifndef MODEL_SOLID_LINEARELASTIC_DEGRADABLE_ISOTROPIC2_H_
 #define MODEL_SOLID_LINEARELASTIC_DEGRADABLE_ISOTROPIC2_H_
 
@@ -19,7 +17,7 @@ namespace LinearElastic
 {
 namespace Degradable
 {
-class Isotropic2 : public Model::Solid::LinearElastic::LinearElastic
+class Isotropic2 : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Isotropic>
 {
 
 public:

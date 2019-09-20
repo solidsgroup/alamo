@@ -132,9 +132,8 @@ To compile on STAMPEDE2 you must first load the following modules:
 .. code-block::
 
     module load python3
-    module load mvapich2
 
-This will load the Python3 and MPICH modules.
+This will load Python3.
 The following configure script is recommended:
 
 .. code-block::
@@ -147,4 +146,11 @@ Finally, make with
 .. code-block::
 
     make
+
+.. WARNING::
+   Remember to use good stewardship when compiling and running on a supercomputer.
+   (For instance, do *not* use :code:`make -j16` to build.)
+   Be sure to consult the Stampede2 user guide: https://portal.tacc.utexas.edu/user-guides/stampede2;
+   along with https://solids.uccs.edu/resources/xsede.php for general Stampede2/XSEDE instructions.
+   
 

@@ -45,15 +45,15 @@ namespace LinearElastic
 ///    2. Passing in Bunge Euler angles
 /// If no matrix is specified, the Identity is used by default.
 /// 
-class Cubic : public Model::Solid::LinearElastic::LinearElastic
+class Cubic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::MajorMinor>
 {
 public:
 	Cubic() {} ;
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	~Cubic() {} ;
-	virtual Set::Matrix operator () (Set::Matrix &eps) const;
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
 
 	virtual Set::Scalar    W (Set::Matrix &eps) const;
 	virtual Set::Matrix   DW (Set::Matrix &eps) const;

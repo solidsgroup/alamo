@@ -1,5 +1,6 @@
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
@@ -52,6 +53,33 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 }
 
 template <class T>
+void 
+Elastic<T>::SetModel (T &a_model)
+{
+	for (int amrlev = 0; amrlev < model.size(); amrlev++)
+	{
+		amrex::Box domain(m_geom[amrlev][0].Domain());
+		domain.convert(amrex::IntVect::TheNodeVector());
+
+		int nghost = model[amrlev][0]->nGrow();
+
+		for (MFIter mfi(*model[amrlev][0], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			Box bx = mfi.tilebox();
+			bx.grow(nghost);   // Expand to cover first layer of ghost nodes
+			bx = bx & domain;  // Take intersection of box and the problem domain
+				
+			amrex::Array4<T> const& C         = (*(model[amrlev][0])).array(mfi);
+	
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					C(i,j,k) = a_model;
+				});
+		}
+	}
+	m_model_set = true;
+}
+
+template <class T>
 void
 Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model)
 {
@@ -59,6 +87,12 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
+
+	if (a_model.boxArray()        != model[amrlev][0]->boxArray()) Util::Abort(INFO,"Inconsistent box arrays");
+	if (a_model.DistributionMap() != model[amrlev][0]->DistributionMap()) Util::Abort(INFO,"Inconsistent distribution maps");
+	if (a_model.nComp()           != model[amrlev][0]->nComp()) Util::Abort(INFO,"Inconsistent # of components - should be ",model[amrlev][0]->nComp());
+	if (a_model.nGrow()           != model[amrlev][0]->nGrow()) Util::Abort(INFO,"Inconsistent # of ghost nodes, should be ",model[amrlev][0]->nGrow());
+
 
 	int nghost = model[amrlev][0]->nGrow();
 
@@ -75,7 +109,42 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 				C(i,j,k) = a_C(i,j,k);
 			});
 	}
+	//FillBoundaryCoeff(*model[amrlev][0], m_geom[amrlev][0]);
+
+
+	m_model_set = true;
 }
+
+//template <class T>
+//void
+//Elastic<T>::SetHomogeneous (bool a_homogeneous)
+//{
+//	BL_PROFILE("Operator::Elastic::SetModel()");
+//	if (!m_model_set) Util::Abort(INFO,"SetHomogeneous called before SetModel");
+//
+//	for (int amrlev = 0; amrlev < m_num_amr_levels; amrlev++)
+//	{	
+//		for (int mglev = 0; mglev < m_num_mg_levels[amrlev];mglev++)
+//		{
+//			amrex::Box domain(m_geom[amrlev][mglev].Domain());
+//			domain.convert(amrex::IntVect::TheNodeVector());
+//			int nghost = model[amrlev][mglev]->nGrow();
+//
+//			for (MFIter mfi(*model[amrlev][mglev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+//			{
+//				Box bx = mfi.grownnodaltilebox(nghost);
+//				//bx.grow(nghost);   
+//				//bx = bx & domain;  // Take intersection of box and the problem domain
+//
+//				amrex::Array4<T> const& C         = (*(model[amrlev][mglev])).array(mfi);
+//
+//				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+//						C(i,j,k).SetHomogeneous(a_homogeneous);
+//					});
+//			}
+//		}
+//	}
+//}
 
 template<class T>
 void
@@ -127,50 +196,19 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				}
 					
 				// Stress tensor computed using the model fab
-				Set::Matrix sig = C(i,j,k)(gradu);
+				Set::Matrix sig = C(i,j,k)(gradu,m_homogeneous);
 
 				// Boundary conditions
 				/// \todo Important: we need a way to handle corners and edges.
 				amrex::IntVect m(AMREX_D_DECL(i,j,k));
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
-
 					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
-					
-					// for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
-					// {
-					// 	for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
-					// 	{
-					// 		if (m[q] == domain.loVect()[q])
-					// 		{
-					// 			if      (m_bc_lo[q][p] == BC::Displacement) f(p) =   U(i,j,k,p);
-					// 			else if (m_bc_lo[q][p] == BC::Traction)     f(p) = -sig(p,q);
-					// 			else if (m_bc_lo[q][p] == BC::Neumann)      f(p) = -gradu(p,q);
-					// 			else Util::Abort(INFO, "Invalid BC");
-					// 		}
-					// 		if (m[q] == domain.hiVect()[q])
-					// 		{
-					// 			if      (m_bc_hi[q][p] == BC::Displacement) f(p) = U(i,j,k,p);
-					// 			else if (m_bc_hi[q][p] == BC::Traction)     f(p) = +sig(p,q);
-					// 			else if (m_bc_hi[q][p] == BC::Neumann)      f(p) = +gradu(p,q);
-					// 			else Util::Abort(INFO, "Invalid BC");
-
-					// 		}
-					// 	}
-					// }
-
-					// if ((fnew - f).norm() > 1E-8) {
-					// 	Util::Message(INFO,"m = ", m);
-					// 	Util::Message(INFO,"fnew = ", fnew.transpose());
-					// 	Util::Message(INFO,"fold = ", f.transpose());
-					// 	Util::Message(INFO,"sigma = \n", sig);
-					// 	Util::Message(INFO,"gradu = \n", gradu);
-					// 	Util::Abort(INFO,"incorrect BC calculation");
-					// }
-
 				}
 				else
 				{
+					
+
 					// The gradient of the displacement gradient tensor
 					std::array<Set::Matrix,AMREX_SPACEDIM> gradgradu; // gradgradu[k](l,j) = u_{k,lj}
 
@@ -202,14 +240,16 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 					//    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
 					//
 
-					f = C(i,j,k)(gradgradu);
+					f = C(i,j,k)(gradgradu,m_homogeneous);
 
-					if (!m_homogeneous)
+					if (!m_uniform)
 					{
 						T AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<T,1,0,0>::D(C,i,j,k,0,DX,sten)),
 							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
 							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
-						f += AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
+						f += AMREX_D_TERM(Cgrad1(gradu,m_homogeneous).col(0),
+										 +Cgrad2(gradu,m_homogeneous).col(1),
+										 +Cgrad3(gradu,m_homogeneous).col(2));
 					}
 				}
 				AMREX_D_TERM(F(i,j,k,0) = f[0];, F(i,j,k,1) = f[1];, F(i,j,k,2) = f[2];);
@@ -279,7 +319,7 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 							     gradgradu[q](2,2) = (p==q ? -2.0 : 0.0)/DX[2]/DX[2]);
 					}
 
-					Set::Matrix sig = C(i,j,k)(gradu);
+					Set::Matrix sig = C(i,j,k)(gradu,m_homogeneous);
 
 					amrex::IntVect m(AMREX_D_DECL(i,j,k));
 					if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
@@ -313,12 +353,14 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 							       Cgrad2 = (Numeric::Stencil<T,0,1,0>::D(C,i,j,k,0,DX,sten)),
 							       Cgrad3 = (Numeric::Stencil<T,0,0,1>::D(C,i,j,k,0,DX,sten)));
 
-						Set::Vector f = C(i,j,k)(gradgradu) + 
-							AMREX_D_TERM(Cgrad1(gradu).col(0),+Cgrad2(gradu).col(1),+Cgrad3(gradu).col(2));
+						Set::Vector f = C(i,j,k)(gradgradu,m_homogeneous) + 
+							AMREX_D_TERM(Cgrad1(gradu,m_homogeneous).col(0),
+										+Cgrad2(gradu,m_homogeneous).col(1),
+										+Cgrad3(gradu,m_homogeneous).col(2));
 
 						diag(i,j,k,p) += f(p);
 					}
-					if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"nan at (", i, ",", j , ",",k);
+					if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"diagonal is nan at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
 
 				}
 			});
@@ -436,9 +478,10 @@ void
 Elastic<T>::Stress (int amrlev,
 		    amrex::MultiFab& a_sigma,
 		    const amrex::MultiFab& a_u,
-		    bool voigt) const
+		    bool voigt) 
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
+	SetHomogeneous(false);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 	amrex::Box domain(m_geom[amrlev][0].Domain());
@@ -465,7 +508,7 @@ Elastic<T>::Stress (int amrlev,
 						      		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
 					    }
 					 
-					    Set::Matrix sig = C(i,j,k)(gradu);
+					    Set::Matrix sig = C(i,j,k)(gradu),m_homogeneous;
 
 					    if (voigt)
 					    {
@@ -496,9 +539,10 @@ template<class T>
 void
 Elastic<T>::Energy (int amrlev,
 		    amrex::MultiFab& a_energy,
-		    const amrex::MultiFab& a_u) const
+		    const amrex::MultiFab& a_u)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
+	SetHomogeneous(false);
 
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
@@ -527,7 +571,7 @@ Elastic<T>::Energy (int amrlev,
 					    }
 
 					 	Set::Matrix eps = .5 * (gradu + gradu.transpose());
-					    Set::Matrix sig = C(i,j,k)(gradu);
+					    Set::Matrix sig = C(i,j,k)(gradu,m_homogeneous);
 
 					    // energy(i,j,k) = (gradu.transpose() * sig).trace();
 						
@@ -756,6 +800,7 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 
 template class Elastic<Model::Solid::LinearElastic::Isotropic>;
 template class Elastic<Model::Solid::LinearElastic::Cubic>;
+template class Elastic<Model::Solid::LinearElastic::Multiwell>;
 template class Elastic<Model::Solid::LinearElastic::Laplacian>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic2>;

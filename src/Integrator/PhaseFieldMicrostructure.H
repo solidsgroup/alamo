@@ -66,7 +66,6 @@ protected:
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
 	void TimeStepBegin(amrex::Real time, int iter) override;
-	void TimeStepComplete(amrex::Real time, int iter) override;
 	void Integrate(int amrlev, Set::Scalar time, int step,
 		       const amrex::MFIter &mfi, const amrex::Box &box) override;
 
@@ -77,7 +76,6 @@ private:
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etas_mf; ///< Color code order params
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)

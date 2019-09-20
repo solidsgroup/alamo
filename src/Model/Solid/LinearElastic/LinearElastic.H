@@ -17,6 +17,7 @@ namespace LinearElastic
 /// For a general material \f$\mathbb{C}\f$ contains 81 constants.
 /// This can be reduced by making assumptions about the material.
 ///
+template<Set::Sym sym>
 class LinearElastic : public Solid
 {
 public:
@@ -26,19 +27,18 @@ public:
 	/// Returns
 	/// \f[\mathbb{C}_{ijkl}u_{k,l}\f]
 	///
-	virtual Set::Matrix operator () (Set::Matrix &eps) const = 0;
+	virtual Set::Matrix operator () (Set::Matrix &eps, bool a_homogeneous=true) const = 0;
 	///
 	/// Returns
 	/// \f[\mathbb{C}_{ijkl}u_{k,lj}\f]
 	///
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps) = 0;
-
-	virtual void Print(std::ostream& os) const;
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps, bool a_homogeneous=true) = 0;
+	
+protected:
 };
 
-std::ostream&
-operator<< (std::ostream& os,
-	    const LinearElastic& b);
+//template<Set::Sym sym>
+//std::ostream& operator<< (std::ostream& os, const LinearElastic<sym>& b);
 
 }
 }
