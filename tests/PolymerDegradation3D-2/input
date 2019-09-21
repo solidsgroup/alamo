@@ -23,14 +23,14 @@
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 25.0
+stop_time = 50.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
 amr.plot_int = 100
 amr.max_level = 0
-#amr.n_cell = 64 16 8
-amr.n_cell = 256 64 32
+amr.n_cell = 64 16 8
+#amr.n_cell = 256 64 32
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -148,10 +148,10 @@ elastic.linop_maxorder 	=	2
 elastic.max_coarsening_level = 100000
 elastic.agglomeration 	=	1
 elastic.consolidation 	=	1
-elastic.tol_rel			=	1.0e-6
-elastic.tol_abs			= 	1.0e-6
-elastic.cg_tol_rel 		=	1.0e-6
-elastic.cg_tol_abs 		=	1.0e-6
+elastic.tol_rel			=	1.0e-4
+elastic.tol_abs			= 	1.0e-4
+elastic.cg_tol_rel 		=	1.0e-4
+elastic.cg_tol_abs 		=	1.0e-4
 elastic.use_fsmooth 	=	1
 
 elastic.body_force		=	0.001 0.0 0.0

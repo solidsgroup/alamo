@@ -630,7 +630,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 	Util::Message(INFO);
 	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
 	{
-		const amrex::Box& bx = mfi.growntilebox(3);
+		const amrex::Box& bx = mfi.growntilebox(1);
 		amrex::Array4<amrex::Real> const& eta_new_box     		= (*eta_new[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& eta_old_box     = (*eta_old[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& water_box 		= (*water_conc[lev]).array(mfi);
@@ -831,7 +831,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
 		amrex::Box box = mfi.tilebox();
-		box.grow(2);
+		//box.grow(2);
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
 		amrex::Array4<model_type> const& modelfab = model.array(mfi);
 
@@ -841,14 +841,15 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 			amrex::Vector<Set::Scalar> _temp;
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
-				_temp.push_back(	mul* (AMREX_D_TERM(
+				Set::Scalar _temp2 = mul* (AMREX_D_TERM(
 								eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
 								,
 								+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
 								,
 								+ eta_box(i,j,k-1,n) + eta_box(i-1,j,k-1,n)
 								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
-								)));
+								));
+				_temp.push_back(std::min(damage.d_final[n],std::max(0.,_temp2)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
 			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);

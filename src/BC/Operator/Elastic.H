@@ -64,7 +64,7 @@ public:
 						bool cont = true;
 						if (type != Type::Displacement)
 						{
-						 	if ((i == lo.x || i == hi.x) && (j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
+						 	if (AMREX_D_TERM((i == lo.x || i == hi.x), && (j == lo.y || j == hi.y), && (k == lo.z || k == hi.z)))
 						 		cont = false; // corner
 						 	else if ((j == lo.y || j == hi.y) && (k == lo.z || k == hi.z))
 						 		cont = false; // edge
