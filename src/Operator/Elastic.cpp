@@ -507,7 +507,7 @@ Elastic<T>::Stress (int amrlev,
 						      		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
 					    }
 					 
-					    Set::Matrix sig = C(i,j,k)(gradu),m_homogeneous;
+					    Set::Matrix sig = C(i,j,k)(gradu,m_homogeneous);
 
 					    if (voigt)
 					    {

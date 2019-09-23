@@ -48,6 +48,29 @@ public:
                 Set::Scalar eps = 0.01;
                 pp.query("eps",eps);
                 ic = new IC::Ellipse(geom, A, x0, IC::Ellipse::Mollifier::Gaussian, eps);
+
+                if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
+                if (pp.contains("Fmatrix")) pp.queryarr("Fmatrix",Fmatrix);
+            }
+        }
+        {
+            IO::ParmParse pp("elastic");
+            {
+                if (pp.contains("lame") && pp.contains("shear"))
+                {
+                    pp.query("lame",lame);
+                    pp.query("shear",shear);
+                }
+                else if (pp.contains("E") && pp.contains("nu"))
+                {
+                    Set::Scalar E, nu;
+                    pp.query("E",E);
+                    pp.query("nu",nu);
+                    lame = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
+                    shear = E / 2.0 / (1.0 + nu);
+                    Util::Message(INFO,"lame = ", lame);
+                    Util::Message(INFO,"shear = ", shear);
+                }
             }
         }
     }
@@ -75,7 +98,6 @@ protected:
         for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
         //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
-        Set::Scalar lame = 2.6, shear = 6.0;
         using model_type = Model::Solid::LinearElastic::Multiwell;
         Operator::Elastic<model_type> elastic;
         elastic.SetUniform(false);
@@ -87,8 +109,6 @@ protected:
         model_type mymodel(lame, shear, Set::Matrix::Zero());
         amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
         model_mf.resize(disp_mf.size());
-        Set::Matrix Fmatrix = Set::Matrix::Zero();
-        Set::Matrix Finclusion = Set::Matrix::Zero();
         Finclusion(0, 0) = 0.1;
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
@@ -199,6 +219,12 @@ private:
     std::string ic_type; ///< String to determine what kind of initial condition to use
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC *mybc;        ///< Stock generic boundary condition object
+    
+    Set::Scalar lame = 2.6, shear = 6.0;
+
+    Set::Matrix Fmatrix = Set::Matrix::Zero();
+    Set::Matrix Finclusion = Set::Matrix::Zero();
+
 };
 } // namespace Integrator
 #endif

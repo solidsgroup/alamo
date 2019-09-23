@@ -59,7 +59,7 @@ public:
                 }
 
 
-                field(i,j,k) = 0.5 - 0.5*std::erf(((x-x0).transpose() * A * (x-x0) - 1.0) / 0.2);
+                field(i,j,k) = 0.5 - 0.5*std::erf(((x-x0).transpose() * A * (x-x0) - 1.0) / eps);
 
 //                if (moll == Mollifier::Dirac)
 //                {
