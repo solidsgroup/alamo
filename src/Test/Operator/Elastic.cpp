@@ -72,7 +72,6 @@ void Elastic::Generate()
 		// if (ilev == 1) cgrids[ilev].maxSize(max_grid_size);
 		// if (ilev == 2) cgrids[ilev].maxSize(10000000);
 		cgrids[ilev].maxSize(max_grid_size);
-
 		if (m_config == Grid::XYZ)
 			cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells[0]/4,-ncells[1]/4,-ncells[2]/4))); 
 		else if (m_config == Grid::X)

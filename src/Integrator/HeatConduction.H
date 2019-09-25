@@ -14,7 +14,7 @@
 #include "BC/BC.H"
 
 #include "IC/HeatConduction/Cylinder.H"
-#include "IC/HeatConduction/Constant.H"
+#include "IC/Constant.H"
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))

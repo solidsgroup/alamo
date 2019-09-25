@@ -1,5 +1,6 @@
 #include "HeatConduction.H"
 #include "BC/Constant.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {
@@ -53,8 +54,8 @@ HeatConduction::HeatConduction() :
 	}
 
 
-	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp");
-	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
+	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp",true);
+	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old",false);
 }
 
 /// \fn HeatConduction::Integrator::Initialize

@@ -13,8 +13,6 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 
-#include "IC/HeatConduction/Cylinder.H"
-#include "IC/HeatConduction/Constant.H"
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
 
@@ -31,10 +29,10 @@ public:
     /// \brief Read in parameters and register field variables
     Eshelby()
     {
-        RegisterNodalFab(eta_mf, 1, 2, "eta");
-        RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp");
-        RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs");
-        RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress");
+        RegisterNodalFab(eta_mf, 1, 2, "eta",true);
+        RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
+        RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+        RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         {
             IO::ParmParse pp("ic");
             std::string type;

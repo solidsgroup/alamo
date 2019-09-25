@@ -7,8 +7,8 @@
 #include "BC/Operator/Elastic.H"
 #include "IC/Sphere.H"
 #include "IC/Affine.H"
+#include "IC/Constant.H"
 #include "IC/TabulatedInterface.H"
-//#include "IC/PS.H"
 #include "Numeric/Stencil.H"
 
 namespace Integrator
@@ -89,14 +89,14 @@ Mobility::Mobility() :
 		pp.query("gammagb0",physics.gammagb0);
 	}
 
-	RegisterNewFab(gammagb_mf,    mybc, 1, 3, "gammagb");
-	RegisterNewFab(gammagbold_mf, mybc, 1, 3, "gammagbold");
+	RegisterNewFab(gammagb_mf,    mybc, 1, 3, "gammagb",true);
+	RegisterNewFab(gammagbold_mf, mybc, 1, 3, "gammagbold",false);
 
-	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp");
-	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS");
-	RegisterNodalFab(res,  AMREX_SPACEDIM, number_of_ghost_cells, "res");
-	RegisterNodalFab(energy_mf, 1, number_of_ghost_cells, "energy");
-	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma");
+	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp",true);
+	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS",true);
+	RegisterNodalFab(res,  AMREX_SPACEDIM, number_of_ghost_cells, "res",true);
+	RegisterNodalFab(energy_mf, 1, number_of_ghost_cells, "energy",true);
+	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma",true);
 }
 
 Mobility::~Mobility()
