@@ -32,7 +32,7 @@ public:
 	{
 		Set::Matrix eps = gradu;
 		if (!a_homogeneous) eps -= Fgb;
-		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
+		return 0.5*mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
 
 	AMREX_FORCE_INLINE
@@ -45,7 +45,7 @@ public:
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
 				{
-					f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
+					f(i) += 0.5*mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
 				}
 		return f;
 	}

@@ -181,7 +181,7 @@ protected:
         bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
         
@@ -189,7 +189,7 @@ protected:
         bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
 
         bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
@@ -197,7 +197,7 @@ protected:
         bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
 
         elastic.SetBC(&bc);
 
@@ -288,7 +288,7 @@ private:
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC *mybc;        ///< Stock generic boundary condition object
     
-    Set::Scalar lame = 2.6, shear = 6.0;
+    Set::Scalar lame = 121.154, shear = 80.7692;
 
     Set::Matrix Fmatrix = Set::Matrix::Zero();
     Set::Matrix Finclusion = Set::Matrix::Zero();
