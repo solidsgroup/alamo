@@ -36,6 +36,7 @@ public:
 //        RegisterNodalFab(disp0_mf, AMREX_SPACEDIM, 2, "disp0");
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs");
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress");
+        RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain");
 //        RegisterNodalFab(stress0_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress0");
         {
             IO::ParmParse pp("ic");
@@ -120,7 +121,7 @@ protected:
         elastic.define(geom, grids, dmap, info);
 
         // Set linear elastic model
-        model_type mymodel(lame, shear, Set::Matrix::Zero());
+        model_type mymodel(shear, lame, Set::Matrix::Zero());
         amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
         model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
@@ -145,7 +146,7 @@ protected:
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = model_type(lame, shear, Fgb);
+                    model(i, j, k) = model_type(shear, lame, Fgb);
                     //model(i, j, k) = model_type(lame, shear, Set::Matrix::Zero());
                     //rhs(i,j,k,0) = eta(i,j,k);
                 });
@@ -237,7 +238,7 @@ protected:
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
             elastic.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            //elastic.Stress(lev, *stress0_mf[lev], *disp0_mf[lev]);
+            elastic.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
         }
     }
 
@@ -279,6 +280,7 @@ private:
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> rhs_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> res_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress_mf;
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> strain_mf;
     //amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress0_mf;
 
     amrex::Real alpha = 1.0;                 ///< Thermal diffusivity
