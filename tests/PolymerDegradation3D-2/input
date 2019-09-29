@@ -29,18 +29,18 @@ stop_time = 50.0
 #=============== AMR parameters ============================================
 amr.plot_int = 100
 amr.max_level = 0
-amr.n_cell = 64 16 8
+amr.n_cell = 128 32 8
 #amr.n_cell = 256 64 32
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = tests/PolymerDegradation3D-2/output
+amr.plot_file = output
 #===========================================================================
 
 #=============== Specify geometry and unrefined mesh =======================
 geometry.prob_lo = 0 0 0
 #geometry.prob_hi = 27.08 6.605 2.05
-geometry.prob_hi = 54.16 13.21 4.10
+geometry.prob_hi =  32.0 8.0 2.0
 geometry.is_periodic= 0 0 0
 #===========================================================================
 
@@ -115,8 +115,8 @@ damage.anisotropy = 0
 damage.type = water2
 damage.d_final = 0.85 0.01 0.8 0.90
 damage.number_of_terms = 2 2 2 2
-damage.d_i = 0.70 0.30 0.70 0.30 0.70 0.30 0.80 0.20
-damage.tau_i = 24 96 24 96 24 96 12 96
+damage.d_i = 0.60 0.40 0.60 0.40 0.60 0.40 0.80 0.20
+damage.tau_i = 3 3 3 3 3 3 12 96
 damage.t_start_i = 0 12 0 12 0 12 0 12
 
 damage.ic_type = constant
@@ -142,16 +142,16 @@ elastic.verbose			=	2
 elastic.cg_verbose 		=	0
 elastic.max_iter		=	10000
 elastic.max_fmg_iter 	=	10000
-elastic.bottom_max_iter =	100
+elastic.bottom_max_iter =	300
 elastic.max_fixed_iter 	=	1000
 elastic.linop_maxorder 	=	2
 elastic.max_coarsening_level = 100000
 elastic.agglomeration 	=	1
 elastic.consolidation 	=	1
-elastic.tol_rel			=	1.0e-4
-elastic.tol_abs			= 	1.0e-4
-elastic.cg_tol_rel 		=	1.0e-4
-elastic.cg_tol_abs 		=	1.0e-4
+elastic.tol_rel			=	1.0e-5
+elastic.tol_abs			= 	1.0e-5
+elastic.cg_tol_rel 		=	1.0e-5
+elastic.cg_tol_abs 		=	1.0e-5
 elastic.use_fsmooth 	=	1
 
 elastic.body_force		=	0.001 0.0 0.0

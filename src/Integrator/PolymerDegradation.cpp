@@ -607,7 +607,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			});
 		}
 		Util::Message(INFO);
-		water_conc[lev]->FillBoundary();
+		//water_conc[lev]->FillBoundary();
 	}
 
 	if(thermal.on)
@@ -826,12 +826,12 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
-	//eta_new[lev]->FillBoundary();
+	eta_new[lev]->FillBoundary();
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
 		amrex::Box box = mfi.tilebox();
-		//box.grow(2);
+		//box.grow(1);
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
 		amrex::Array4<model_type> const& modelfab = model.array(mfi);
 
