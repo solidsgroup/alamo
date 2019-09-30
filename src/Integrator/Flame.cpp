@@ -71,11 +71,11 @@ Flame::Flame () : Integrator()
   EtaIC = new IC::Wedge(geom);
   // EtaIC = new IC::Constant(geom,value);
 
-  RegisterNewFab(Temp,     TempBC, 1, 1, "Temp");
-  RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old");
-  RegisterNewFab(Eta,      EtaBC,  1, 1, "Eta");
-  RegisterNewFab(Eta_old,  EtaBC,  1, 1, "Eta_old");
-  RegisterNewFab(FlameSpeedFab, EtaBC,  1, 1, "FlameSpeed");
+  RegisterNewFab(Temp,     TempBC, 1, 1, "Temp", true);
+  RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old", false);
+  RegisterNewFab(Eta,      EtaBC,  1, 1, "Eta", true);
+  RegisterNewFab(Eta_old,  EtaBC,  1, 1, "Eta_old", false);
+  RegisterNewFab(FlameSpeedFab, EtaBC,  1, 1, "FlameSpeed",true);
 }
 
 void Flame::Initialize (int lev)

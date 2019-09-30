@@ -123,7 +123,6 @@ if (args.buildamrex == True):
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
     if fpic: amrex_configure += ' --enable-pic=yes'
-    note(amrex_configure)
     args.amrex = "amrex/"+postfix
     f.write("AMREX = amrex/" + postfix + "/\n")
     f.write("AMREX_TARGET = amrex/" + postfix + "\n")
@@ -229,7 +228,7 @@ if args.comp == 'g++':
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
 if args.comp == 'clang++': 
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
@@ -238,7 +237,7 @@ if args.comp == 'clang++':
 if args.comp == 'icc':     
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n") # -inline-forceinline
+    else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
 
 #
 # Python information

@@ -1,5 +1,6 @@
 #include "HeatConduction.H"
 #include "BC/Constant.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {

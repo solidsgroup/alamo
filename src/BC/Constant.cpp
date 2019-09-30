@@ -55,7 +55,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 			if (BCUtil::IsDirichlet(bc_lo[0]))
 				in(i,j,k,n) = bc_lo_1[n];
 			else if(BCUtil::IsNeumann(bc_lo[0]))
-				in(i,j,k,n) = in(i+1,j,k,n) - bc_lo_1[n]*DX[0];
+				in(i,j,k,n) = in(i+1,j,k,n) - (bc_lo_1.size() > 0 ? bc_lo_1[n]*DX[0] : 0);
 			else if(BCUtil::IsReflectEven(bc_lo[0]))
 				in(i,j,k,n) = in(1-glevel[0],j,k,n);
 			else if(BCUtil::IsReflectOdd(bc_lo[0]))
@@ -69,7 +69,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 			if (BCUtil::IsDirichlet(bc_hi[0]))
 				in(i,j,k,n) = bc_hi_1[n];
 			else if(BCUtil::IsNeumann(bc_hi[0]))
-				in(i,j,k,n) = in(i-1,j,k,n) - bc_hi_1[n]*DX[0];
+				in(i,j,k,n) = in(i-1,j,k,n) - (bc_hi_1.size() > 0 ? bc_hi_1[n]*DX[0] : 0);
 			else if(BCUtil::IsReflectEven(bc_hi[0]))
 				in(i,j,k,n) = in(hi.x-glevel[0],j,k,n);
 			else if(BCUtil::IsReflectOdd(bc_hi[0]))
@@ -84,7 +84,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 			if (BCUtil::IsDirichlet(bc_lo[1]))
 				in(i,j,k,n) = bc_lo_2[n];
 			else if (BCUtil::IsNeumann(bc_lo[1]))
-				in(i,j,k,n) = in(i,j+1,k,n) - bc_lo_2[n]*DX[1];
+				in(i,j,k,n) = in(i,j+1,k,n) - (bc_lo_2.size() > 0 ? bc_lo_2[n]*DX[1] : 0);
 			else if (BCUtil::IsReflectEven(bc_lo[1]))
 				in(i,j,k,n) = in(i,j-glevel[1],k,n);
 			else if (BCUtil::IsReflectOdd(bc_lo[1]))
@@ -98,7 +98,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 			if (BCUtil::IsDirichlet(bc_hi[1]))
 				in(i,j,k,n) = bc_hi_2[n];
 			else if (BCUtil::IsNeumann(bc_hi[1]))
-				in(i,j,k,n) = in(i,j-1,k,n) - bc_hi_2[n]*DX[1];
+				in(i,j,k,n) = in(i,j-1,k,n) - (bc_hi_2.size() > 0 ? bc_hi_2[n]*DX[1] : 0);
 			else if (BCUtil::IsReflectEven(bc_hi[1]))
 				in(i,j,k,n) = in(i,hi.y-glevel[1],k,n);
 			else if (BCUtil::IsReflectOdd(bc_hi[1]))
@@ -114,7 +114,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 			if (BCUtil::IsDirichlet(bc_lo[2]))
 				in(i,j,k,n) = bc_lo_3[n];
 			else if (BCUtil::IsNeumann(bc_lo[2]))
-				in(i,j,k,n) = in(i,j,k+1,n) - bc_lo_3[n]*DX[2];
+				in(i,j,k,n) = in(i,j,k+1,n) - (bc_lo_3.size() > 0 ? bc_lo_3[n]*DX[2] : 0);
 			else if (BCUtil::IsReflectEven(bc_lo[2]))
 				in(i,j,k,n) = in(i,j,1-glevel[2],n);
 			else if (BCUtil::IsReflectOdd(bc_lo[2]))
@@ -127,7 +127,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 			if (BCUtil::IsDirichlet(bc_hi[2]))
 				in(i,j,k,n) = bc_hi_3[n];
 			else if(BCUtil::IsNeumann(bc_hi[2]))
-				in(i,j,k,n) = in(i,j,k-1,n) - bc_hi_3[n]*DX[2];
+				in(i,j,k,n) = in(i,j,k-1,n) - (bc_hi_3.size() > 0 ? bc_hi_3[n]*DX[2] : 0);
 			else if(BCUtil::IsReflectEven(bc_hi[2]))
 				in(i,j,k,n) = in(i,j,hi.z-glevel[2],n);
 			else if(BCUtil::IsReflectOdd(bc_hi[2]))
