@@ -19,14 +19,14 @@ public:
 
 	Sphere (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
 	/// Constructor defining radius, center, dimension/orientation, and field values within and outside of the area.
-	Sphere (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _radius, amrex::Vector<Set::Scalar> _center, Type _type = Type::XYZ ,Set::Scalar, _alpha_in, _alpha_out) : IC(_geom)
+	Sphere (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _radius, amrex::Vector<Set::Scalar> _center, Type _type = Type::XYZ ,Set::Scalar _alpha_in = 1, Set::Scalar _alpha_out = 0) : IC(_geom)
 	{
 		Define(_radius, _center, _type,_alpha_in,_alpha_out);
 	}
 
 	void Define(Set::Scalar _radius,
 				amrex::Vector<amrex::Real> _center,
-				Type _type = Type::XYZ,
+				Type _type,
 				Set::Scalar _alpha_in,
 				Set::Scalar _alpha_out)
 	{
