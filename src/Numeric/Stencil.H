@@ -426,6 +426,23 @@ struct Stencil<T,1,1,2>
 };
 
 AMREX_FORCE_INLINE
+Set::Scalar
+Laplacian(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k, const int &m,
+		const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Scalar ret = 0.0;
+	ret += (Numeric::Stencil<Set::Scalar,2,0,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 1
+	ret += (Numeric::Stencil<Set::Scalar,0,2,0>::D(f,i,j,k,m,dx));
+#if AMREX_SPACEDIM > 2
+	ret += (Numeric::Stencil<Set::Scalar,0,0,2>::D(f,i,j,k,m,dx));
+#endif
+#endif
+	return ret;
+}
+
+AMREX_FORCE_INLINE
 Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar> &f,
 		const int &i, const int &j, const int &k, const int &m,
@@ -437,6 +454,29 @@ Gradient(const amrex::Array4<const Set::Scalar> &f,
 	ret(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx));
 #if AMREX_SPACEDIM > 2
 	ret(2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx));
+#endif
+#endif
+	return ret;
+}
+
+AMREX_FORCE_INLINE
+Set::Matrix
+Gradient(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k,
+		const Set::Scalar dx[AMREX_SPACEDIM])
+{
+	Set::Matrix ret;
+	ret(0,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,0,dx));
+#if AMREX_SPACEDIM > 1
+	ret(0,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,0,dx));
+	ret(1,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,1,dx));
+	ret(1,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,1,dx));
+#if AMREX_SPACEDIM > 2
+	ret(0,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,0,dx));
+	ret(2,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,2,dx));
+	ret(1,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,1,dx));
+	ret(2,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,2,dx));
+	ret(2,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,2,dx));
 #endif
 #endif
 	return ret;

@@ -199,18 +199,28 @@ protected:
 			     int nghost,
 			     ///<[in] Number of ghost cells. Depends on the order of the
 			     ///      maximum numerical derivative. (e.g. a Laplacian would require one.)
-			     std::string name
+			     std::string name,
 			     ///<[in] The name of the field to be used when dumping output
+				 bool writeout
 			     );
 
 	void RegisterNewFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 			     int ncomp,
-			     std::string name
+			     std::string name,
+				 bool writeout
 			     );
 	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 			       int ncomp,
 			       int nghost,
-			       std::string name
+			       std::string name,
+				   bool writeout
+			       );
+	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+				   BC::BC *new_bc,
+			       int ncomp,
+			       int nghost,
+			       std::string name,
+				   bool writeout
 			       );
 
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
@@ -270,20 +280,22 @@ private:
 protected:
 	struct {
 		int number_of_fabs = 0;
-		amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
-		amrex::Vector<int> ncomp_array;
-		amrex::Vector<int> nghost_array;
-		amrex::Vector<std::string> name_array;
-		amrex::Vector<BC::BC *> physbc_array;
+		std::vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		std::vector<int> ncomp_array;
+		std::vector<int> nghost_array;
+		std::vector<std::string> name_array;
+		std::vector<BC::BC *> physbc_array;
+		std::vector<bool> writeout_array;
 	} node;
 
 	struct {
 		int number_of_fabs = 0;
-		amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
-		amrex::Vector<int> ncomp_array;
-		amrex::Vector<int> nghost_array;
-		amrex::Vector<std::string> name_array;
-		amrex::Vector<BC::BC *> physbc_array;
+		std::vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		std::vector<int> ncomp_array;
+		std::vector<int> nghost_array;
+		std::vector<std::string> name_array;
+		std::vector<BC::BC *> physbc_array;
+		std::vector<bool> writeout_array;
 	} cell;
 
 	BC::Nothing bcnothing;
