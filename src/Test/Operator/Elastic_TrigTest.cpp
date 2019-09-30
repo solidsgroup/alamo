@@ -51,7 +51,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  	nlevels = geom.size();
 
 	::Operator::Elastic<model_type> elastic;
-	elastic.SetHomogeneous(false);
+	elastic.SetUniform(false);
  	elastic.define(geom, cgrids, dmap, info);
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 

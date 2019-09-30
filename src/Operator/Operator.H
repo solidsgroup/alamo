@@ -52,6 +52,7 @@ public :
 		     const Vector<DistributionMapping>& a_dmap,
 		     const LPInfo& a_info = LPInfo(),
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
+	const Geometry& Geom (int amr_lev, int mglev=0) const noexcept { return m_geom[amr_lev][mglev]; }
 
 	//
 	// Public Utilty functions
@@ -60,7 +61,7 @@ public:
 	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
 	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
-
+	virtual void SetHomogeneous (bool) {};
 	//
 	// Pure Virtual: you MUST override these functions
 	//
@@ -103,7 +104,8 @@ public:
 	//
 private:
 	void buildMasks ();
-	void realFillBoundary(MultiFab &phi, const Geometry &geom) const;
+public:
+	static void realFillBoundary(MultiFab &phi, const Geometry &geom);
 
 private:
 	bool m_is_bottom_singular = false;

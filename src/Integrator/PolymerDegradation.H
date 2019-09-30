@@ -34,8 +34,8 @@
 
 namespace Integrator
 {
-//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
-using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+using model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
+//using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Laplacian;
 
@@ -70,7 +70,8 @@ protected:
 
 private:
 
-	int number_of_ghost_cells = 2;
+	int number_of_ghost_cells = 3;
+	int number_of_ghost_nodes = 2;
 
 	// Degradation variable
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep
