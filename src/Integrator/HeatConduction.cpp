@@ -61,12 +61,8 @@ HeatConduction::HeatConduction() :
 	}
 
 
-	RegisterNewFab(TempFab,     BC, number_of_components, number_of_ghost_cells, "Temp");
-	RegisterNewFab(TempOldFab, BC, number_of_components, number_of_ghost_cells, "Temp old");
-}
-
-HeatConduction::~HeatConduction()
-{
+	RegisterNewFab(TempFab,     BC, number_of_components, number_of_ghost_cells, "Temp",true);
+	RegisterNewFab(TempOldFab, BC, number_of_components, number_of_ghost_cells, "Temp old",false);
 }
 
 /// \fn HeatConduction::Integrator::Initialize

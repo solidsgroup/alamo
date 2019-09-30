@@ -36,7 +36,8 @@ public:
 						field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) = value[m];     
 				}
 		}
-	}	
+	
+	}
 private:
 	std::vector<amrex::Real> value;
 };

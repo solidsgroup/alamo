@@ -12,17 +12,16 @@ public:
 	enum Type {Partition, Values};
 
 	Voronoi (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	/// Voronoi constructor defines the number of grains and sets the set of \f${\alpha}_{i}\f$ to a default of 1
-	Voronoi (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, Set::Scalar a_alpha = 1.0) : IC(_geom) 
+	Voronoi (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, Set::Scalar a_alpha) : IC(_geom) 
 	{
     	Define(_number_of_grains,a_alpha);
   	}
 	Voronoi (amrex::Vector<amrex::Geometry> &a_geom, int a_number_of_grains) : IC(a_geom) 
 	{
-    	Define(a_number_of_grains);
+    	Define(a_number_of_grains,1.0);
   	}
 
-  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0)
+  	void Define (int a_number_of_grains, Set::Scalar a_alpha)
 	{
     	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),Type::Partition);
   	}
