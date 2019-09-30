@@ -139,8 +139,8 @@ PolymerDegradation::PolymerDegradation():
 		if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
 		if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
 		if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
-		Util::Abort(INFO,"Isotropic2 model has been disabled for now");
-		//modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
+		//Util::Abort(INFO,"Isotropic2 model has been disabled for now");
+		modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
 	}
 	else if(input_material == "isotropic")
 	{
@@ -176,7 +176,7 @@ PolymerDegradation::PolymerDegradation():
 	if(damage.type == "water" || damage.type == "water2") 
 	{
 		if(damage.type == "water") damage.number_of_eta = 2;
-		else damage.number_of_eta = 3;
+		else damage.number_of_eta = 4;
 
 		damage.anisotropy = 0;
 
@@ -607,6 +607,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			});
 		}
 		Util::Message(INFO);
+		//water_conc[lev]->FillBoundary();
 	}
 
 	if(thermal.on)
@@ -629,14 +630,12 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 	Util::Message(INFO);
 	for ( amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi )
 	{
-		const amrex::Box& bx = mfi.validbox();
+		const amrex::Box& bx = mfi.growntilebox(1);
 		amrex::Array4<amrex::Real> const& eta_new_box     		= (*eta_new[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& eta_old_box     = (*eta_old[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& water_box 		= (*water_conc[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const& time_box 		= (*damage_start_time[lev]).array(mfi);
-		//amrex::Array4<const amrex::Real> const& Temp_box 		= (*Temp[lev]).array(mfi);
-		//Util::Message(INFO);
-
+		
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			for (int n = 0; n < damage.number_of_eta; n++)
 			{
@@ -650,7 +649,10 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 					}
 					eta_new_box(i,j,k,n) = eta_old_box(i,j,k,n) + temp1*dt;
 					if(eta_new_box(i,j,k,n) > damage.d_final[n])
-						Util::Abort(INFO, "eta exceeded ",damage.d_final[n], ". Rhs = ", temp1, ", Water = ", water_box(i,j,k,n));
+					{
+						Util::Warning(INFO, "eta exceeded ",damage.d_final[n], ". Rhs = ", temp1, ", Water = ", water_box(i,j,k,n));
+						eta_new_box(i,j,k,n) = damage.d_final[n];
+					}
 				}
 				else
 					Util::Abort(INFO, "Damage model not implemented yet");
@@ -694,6 +696,7 @@ PolymerDegradation::Initialize (int lev)
 		energy[lev]->setVal(0.0);
 		residual[lev]->setVal(0.0);
 	}
+	Util::Message(INFO);
 }
 
 PolymerDegradation::~PolymerDegradation()
@@ -812,6 +815,7 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 void
 PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &model)
 {
+	Util::Message(INFO);
 	/*
 	  This function is supposed to degrade material parameters based on certain
 	  damage model.
@@ -822,29 +826,33 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
+	eta_new[lev]->FillBoundary();
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
-		const amrex::Box& box = mfi.validbox();
+		amrex::Box box = mfi.tilebox();
+		//box.grow(1);
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
 		amrex::Array4<model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+
 			amrex::Vector<Set::Scalar> _temp;
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
-				_temp.push_back( mul*(AMREX_D_TERM(	
+				Set::Scalar _temp2 = mul* (AMREX_D_TERM(
 								eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
 								,
 								+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
 								,
-								+ eta_box(i,j,k-1,n)	+ eta_box(i-1,j,k-1,n)
+								+ eta_box(i,j,k-1,n) + eta_box(i-1,j,k-1,n)
 								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
-									)));
+								));
+				_temp.push_back(std::min(damage.d_final[n],std::max(0.,_temp2)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
-			//else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
+			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
 			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}
@@ -882,6 +890,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	if ((elastic.type == "tensile.single" || elastic.type == "single") && time > elastic.tend) return;
 	if ((elastic.type == "tensile_test" || elastic.type == "tensile") && std::abs(time-elastic.test_time[elastic.current_test]) > 1.e-4) return;
 
+	Util::Message(INFO);
+
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
@@ -892,7 +902,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells);
+		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes);
 		model[ilev].setVal(*modeltype);
 		DegradeMaterial(ilev,model[ilev]);
 	}
@@ -916,6 +926,85 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 			     rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
 			     rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
 	}
+
+
+	//Util::Message(INFO);
+	//Util::Message(INFO, "Interpolate left = ", interpolate_left(time)[0],interpolate_left(time)[1],interpolate_left(time)[2]);
+	//Util::Message(INFO, "Interpolate left = ", interpolate_right(time)[0],interpolate_right(time)[1],interpolate_right(time)[2]);
+	//Util::Message(INFO, "Interpolate left = ", interpolate_bottom(time)[0],interpolate_bottom(time)[1],interpolate_bottom(time)[2]);
+	//Util::Message(INFO, "Interpolate left = ", interpolate_top(time)[0],interpolate_top(time)[1],interpolate_top(time)[2]);
+	//Util::Message(INFO, "Interpolate left = ", interpolate_back(time)[0],interpolate_back(time)[1],interpolate_back(time)[2]);
+	//Util::Message(INFO, "Interpolate left = ", interpolate_front(time)[0],interpolate_front(time)[1],interpolate_front(time)[2]);
+	//Util::Message(INFO);
+	/*AMREX_D_TERM(bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bc_xlo[0], interpolate_left(time)[0], rhs, geom);
+	 	     bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bc_xhi[0], interpolate_right(time)[0], rhs, geom);
+	 	     ,
+	 	     bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bc_xlo[1], interpolate_left(time)[1], rhs, geom);
+	 	     bc.Set(bc.Face::XHI, bc.Direction::Y, elastic.bc_xhi[1], interpolate_right(time)[1], rhs, geom);
+	 	     bc.Set(bc.Face::YLO, bc.Direction::X, elastic.bc_ylo[0], interpolate_bottom(time)[0], rhs, geom);
+	 	     bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bc_ylo[1], interpolate_bottom(time)[1], rhs, geom);
+	 	     bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bc_yhi[0], interpolate_top(time)[0], rhs, geom);
+	 	     bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bc_yhi[1], interpolate_top(time)[1], rhs, geom);
+	 	     ,
+	 	     bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bc_xlo[2], interpolate_left(time)[2], rhs, geom);
+	 	     bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bc_xhi[2], interpolate_right(time)[2], rhs, geom);
+	 	     bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bc_ylo[2], interpolate_bottom(time)[2], rhs, geom);
+	 	     bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bc_yhi[2], interpolate_top(time)[2], rhs, geom);
+	 	     bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bc_zlo[0], interpolate_back(time)[0], rhs, geom);
+	 	     bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bc_zlo[1], interpolate_back(time)[1], rhs, geom);
+	 	     bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bc_zlo[2], interpolate_back(time)[2], rhs, geom);
+	 	     bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bc_zhi[0], interpolate_front(time)[0], rhs, geom);
+	 	     bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], interpolate_front(time)[1], rhs, geom);
+	 	     bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], interpolate_front(time)[2], rhs, geom);
+	 	     );*/
+
+	AMREX_D_TERM(bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bc_xlo[0], elastic.bc_left[0], rhs, geom);
+	 	     bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bc_xhi[0], elastic.bc_right[0], rhs, geom);
+	 	     ,
+	 	     bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bc_xlo[1], elastic.bc_left[1], rhs, geom);
+	 	     bc.Set(bc.Face::XHI, bc.Direction::Y, elastic.bc_xhi[1], elastic.bc_right[1], rhs, geom);
+	 	     bc.Set(bc.Face::YLO, bc.Direction::X, elastic.bc_ylo[0], elastic.bc_bottom[0], rhs, geom);
+	 	     bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bc_ylo[1], elastic.bc_bottom[1], rhs, geom);
+	 	     bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bc_yhi[0], elastic.bc_top[0], rhs, geom);
+	 	     bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bc_yhi[1], elastic.bc_top[1], rhs, geom);
+	 	     ,
+	 	     bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bc_xlo[2], elastic.bc_left[2], rhs, geom);
+	 	     bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bc_xhi[2], elastic.bc_right[2], rhs, geom);
+	 	     bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bc_ylo[2], elastic.bc_bottom[2], rhs, geom);
+	 	     bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bc_yhi[2], elastic.bc_top[2], rhs, geom);
+	 	     bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bc_zlo[0], elastic.bc_back[0], rhs, geom);
+	 	     bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bc_zlo[1], elastic.bc_back[1], rhs, geom);
+	 	     bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bc_zlo[2], elastic.bc_back[2], rhs, geom);
+	 	     bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bc_zhi[0], elastic.bc_front[0], rhs, geom);
+	 	     bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bc_zhi[1], elastic.bc_front[1], rhs, geom);
+	 	     bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], rhs, geom);
+	 	     );
+
+	//Util::Message(INFO);
+	Solver::Nonlocal::Linear solver(elastic_operator);
+	solver.setMaxIter(elastic.max_iter);
+	solver.setMaxFmgIter(elastic.max_fmg_iter);
+	solver.setFixedIter(elastic.max_fixed_iter);
+	solver.setVerbose(elastic.verbose);
+	solver.setCGVerbose(elastic.cgverbose);
+	solver.setBottomMaxIter(elastic.bottom_max_iter);
+	solver.setBottomTolerance(elastic.cg_tol_rel) ;
+	solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
+	//Util::Message(INFO);
+	for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Abort(INFO);
+
+	if (elastic.bottom_solver == "cg")
+		solver.setBottomSolver(MLMG::BottomSolver::cg);
+	else if (elastic.bottom_solver == "bicgstab")
+		solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
+	//Util::Message(INFO);
+	solver.solve(GetVecOfPtrs(displacement),
+	 	     GetVecOfConstPtrs(rhs),
+	 	     elastic.tol_rel,
+	 	     elastic.tol_abs);
+	//Util::Message(INFO);
+	solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
+
 
 	if (elastic.type == "single" || elastic.type == "tensile_single")
 	{

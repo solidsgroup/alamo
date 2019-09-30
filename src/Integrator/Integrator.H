@@ -212,6 +212,12 @@ protected:
 			       int nghost,
 			       std::string name
 			       );
+	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+				   BC::BC *new_bc,
+			       int ncomp,
+			       int nghost,
+			       std::string name
+			       );
 
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
