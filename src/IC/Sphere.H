@@ -16,23 +16,23 @@ public:
 	enum Type {XYZ, XY, YZ, XZ}
 
 	Sphere (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	/// Constructor defining radius, center, and dimension/orientation.
-	Sphere (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _radius, amrex::Vector<Set::Scalar> _center, Type::XYZ) : IC(_geom)
+	/// Constructor defining radius, center, dimension/orientation, and field values within and outside of the area.
+	Sphere (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _radius, amrex::Vector<Set::Scalar> _center, Type::XYZ,Set::Scalar,_alpha_in,_alpha_out) : IC(_geom)
 	{
-		Define(_radius, _center, _type);
-		// amrex::ParmParse pp("ic");
-		// pp.queryarr("center",center);
-		// pp.query("radius",radius);
-		// pp.query("dim",dim);
+		Define(_radius, _center, _type,_alpha_in,_alpha_out);
 	}
 
 	void Define(amrex::real _radius,
 				amrex::Vector<amrex::Real> _center,
-				Type _type = Type::XYZ)
+				Type _type = Type::XYZ,
+				Set::Scalar _alpha_in,
+				Set::Scalar _alpha_out)
 	{
 		radius = _radius;
 		center = _center;
 		type = _type;
+		alpha_in = _alpha_in;
+		alpha_out = _alpha_out;
 	}
   
 	void Add(const int lev,
@@ -90,13 +90,13 @@ public:
 
 					if ( rsq < radius*radius)
 						{
-							field(i,j,k,0) = 1.;     
+							field(i,j,k,0) = alpha_in;     
 							field(i,j,k,1) = 0.;     
 						}
 						else
 						{
-							field(i,j,k,0) = 0.;     
-							field(i,j,k,1) = 1.;     
+							field(i,j,k,0) = alpha_out;     
+							field(i,j,k,1) = 1;     
 						}
 				});
 		}
@@ -106,7 +106,7 @@ public:
 private:
 	int dim = AMREX_SPACEDIM;
 	amrex::Vector<Set::Scalar> center;
-	Set::Scalar radius;
+	Set::Scalar radius,alpha_in,alpha_out;
 	Type type;
 };
 }
