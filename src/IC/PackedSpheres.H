@@ -58,20 +58,21 @@ public:
 		mean= a_mean;
         std_deviation=a_std_deviation;
 		type = a_type;
-//label:
+
 	    std::vector <amrex::Real> dd(number_of_grains-1);
 		std::vector <amrex::Real> R_n(number_of_grains-1);
 		std::vector <amrex::Real> count(number_of_grains);
-		 std::fill(count.begin(), count.end(), 0);
-       
-       // MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-			
-        //if (rank==0)
-		//{
-         
+		std::fill(count.begin(), count.end(), 0);
+	
+	   	
 		
-        int p=0;
+		int p=0;
 		packedspheres.resize(number_of_grains);
+       
+	    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+			
+        if (rank==0)
+		{
 		
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
@@ -85,39 +86,63 @@ public:
 
 		for (int n = 0; n<number_of_grains; n++)
 		{
-			AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+			/*AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
-			
-		label:	
-			amrex::Real R_old=Util::Gaussian (mean,std_deviation);
-            if (R_old>0.001) 
-	     {
-	        R_new[n]= R_old;
-	        Util::Message(INFO,"R_new	    ", R_new[n]);
-	     }
-
-		 else
-		 {
-			 goto label;
-		 }
-		 
-		
-
+						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););*/
+			 
 
 			std::vector<bool> df(number_of_grains-1);
             std::fill(df.begin(), df.end(), true);	
 
 	if(n==0)
 	{
-		R_new[n]=R_new[0];
+            AMREX_D_TERM(packedspheres[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 packedspheres[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 packedspheres[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+
+		label:	
+			amrex::Real R_old=Util::Gaussian (mean,std_deviation);
+            if (R_old>0.01) 
+	     {
+	        R_new[0]= R_old;
+	        //Util::Message(INFO,"R_new	    ", R_new[0]);
+			std::cout<<"R_new 0	    "<< R_new[0]<<endl;
+	     }
+
+		 else
+		 {
+			 goto label;
+		 }
+		   //R_new[n]=R_new[0];
 	}
 
 	 	
-	if (n>0)								
+	else if (n>0)								
     {
-	
-loop:	p=0;
+		    
+	int i=0;
+while (i<1000)
+{
+			label1:	
+			amrex::Real R_old=Util::Gaussian (mean,std_deviation);
+            if (R_old>0.01) 
+	     {
+	        R_new[n]= R_old;
+	        //Util::Message(INFO,"R_new	    ", R_new[n]);
+			std::cout<<"R_new	    "<< R_new[n]<<endl;
+	     }
+
+		 else
+		 {
+			 goto label1;
+		 }
+
+
+		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+
+	p=0;
 
 
  while (p<n)
@@ -153,22 +178,7 @@ loop:	p=0;
 			}
 			else
 			{
-				df[p]=false;
-
-			label1:	
-			amrex::Real R_old=Util::Gaussian (mean,std_deviation);
-            if (R_old>0.001) 
-	     {
-	        R_new[n]= R_old;
-	        Util::Message(INFO,"R_new	    ", R_new[n]);
-	     }
-
-		 else
-		 {
-			 goto label1;
-		 }
-				goto loop;
-				
+				df[p]=false;						
 			}           
 	   
 	   		p++;
@@ -180,69 +190,83 @@ loop:	p=0;
 			{
 												
 				count[n]=1;
+				i=1000;
 						
 			}
 			else if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
 			{
 				count[n]=0;
-			
+				i++;
+			    
 			}
-		
+       }
 	}
 
-	//else 
-	//{
-		//Util::Message(INFO,"do nothing	    ");
-	//}
+
 	
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
-		Util::Message(INFO,"count:	    ", total);
+		//Util::Message(INFO,"count:	    ", total);
+		std::cout<<"count  "<<total<<endl;
 	    
     }
 
 	}
 	while (total<number_of_grains);
-	//if (std::any_of(R_new.begin(),R_new.end(),[](float i) {return i<=0.001;}))
-	//{
-	//	goto label;
-	//}
-	//}
+	
+	}
 
-	//R_new.resize(number_of_grains);
-	//MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    R_new.resize(number_of_grains);
+	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	
+
+	
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
+		//if (rank==1)
+	//	{
+		
 		R_new.resize(number_of_grains);
 		for(int i=0;i<number_of_grains;i++)
 		{
-			Util::Message(INFO,"R_new in Add	    ",i,"   ", R_new[i]);
-			//std::cout<< "R_new    "<<i<<"   "<<R_new[i]<<endl;
+			//Util::Message(INFO,"R_new in Add	    ",i+1,"   ", R_new[i]);
+			std::cout<<"R_new in Add   "<<i+1<<"   "<<R_new[i]<<endl;
 		}
 		std::cout<<"    "<<endl;
 		Set::Vector size;
-		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
-					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
-					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
+		AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
+					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
+					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 
+		MPI_Gather(R_new.data(), R_new.size(), MPI_DOUBLE, R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);			 
+        MPI_Gather(packedspheres.data(), packedspheres.size(), MPI_DOUBLE, packedspheres.data(), packedspheres.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);	
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
 			bx.grow(a_field[lev]->nGrow());
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
+                
 				Set::Vector x;
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 							
+				
+				
 				int min_grain_id = -1;
-
+				 //if (rank==0)
+				//{
+				packedspheres.resize(number_of_grains);
+				
+                
 				for (int n = 0; n<number_of_grains; n++)
 				{
+					
+					
 					Set::Scalar d = (x - packedspheres[n]).lpNorm<2>();
 					Set::Scalar d1 = 2;                
 					if (geom[0].isPeriodic(0))
@@ -265,21 +289,36 @@ loop:	p=0;
 						}
 #endif
                             d= std::min(d,d1); 
-							//Util::Message(INFO,"d values	    ", d);
 
                     R_new.resize(number_of_grains);
 					
 					
+					/*if (n==0)
+					{
+					 if (d<R_new[0])
+						{
+							min_grain_id = 0;
+							
+						}
+					}	*/
+
+					//else if(n>0)
+					//{
 					if (d<R_new[n])
 						{
 							min_grain_id = n;
-						}
-				}
+							
+						}	
+					//}	
+				}	
+				//}
+				//MPI_Bcast(&min_grain_id, number_of_grains, MPI_INT, 0, MPI_COMM_WORLD);
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
 			});
 		}
+	//}
 	}
 	
 private:
