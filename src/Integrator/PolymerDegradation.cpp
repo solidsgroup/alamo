@@ -63,8 +63,8 @@ PolymerDegradation::PolymerDegradation():
 							  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 							  );
 
-		RegisterNewFab(water_conc,     water.bc, 1, number_of_ghost_cells, "Water Concentration");
-		RegisterNewFab(water_conc_old, water.bc, 1, number_of_ghost_cells, "Water Concentration Old");
+		RegisterNewFab(water_conc,     water.bc, 1, number_of_ghost_cells, "Water Concentration",true);
+		RegisterNewFab(water_conc_old, water.bc, 1, number_of_ghost_cells, "Water Concentration Old",false);
 	}
 
 	// ---------------------------------------------------------------------
@@ -114,8 +114,8 @@ PolymerDegradation::PolymerDegradation():
 	else
 		thermal.bc = new BC::Nothing();
 
-	RegisterNewFab(Temp,     thermal.bc, 1, number_of_ghost_cells, "Temperature");
-	RegisterNewFab(Temp_old, thermal.bc, 1, number_of_ghost_cells, "Temperature Old");
+	RegisterNewFab(Temp,     thermal.bc, 1, number_of_ghost_cells, "Temperature",true);
+	RegisterNewFab(Temp_old, thermal.bc, 1, number_of_ghost_cells, "Temperature Old",false);
 
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
@@ -282,9 +282,9 @@ PolymerDegradation::PolymerDegradation():
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
-	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
-	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
-	RegisterNewFab(damage_start_time,damage.bc,1,2,"Start time");
+	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta",true);
+	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old",true);
+	RegisterNewFab(damage_start_time,damage.bc,1,2,"Start time",true);
 
 	//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
@@ -531,13 +531,13 @@ PolymerDegradation::PolymerDegradation():
 		//-----------------------------------------------------------------------
 
 		const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-		RegisterNodalFab (displacement,	AMREX_SPACEDIM,					2,	"displacement");;
-		RegisterNodalFab (rhs,			AMREX_SPACEDIM,					2,	"rhs");;
-		RegisterNodalFab (strain,		number_of_stress_components,	2,	"strain");;
-		RegisterNodalFab (stress,		number_of_stress_components,	2,	"stress");;
-		RegisterNodalFab (stress_vm,	1,								2,	"stress_vm");;
-		RegisterNodalFab (energy,		1,								2,	"energy");;
-		RegisterNodalFab (residual,		AMREX_SPACEDIM,					2,	"residual");;
+		RegisterNodalFab (displacement,	AMREX_SPACEDIM,					2,	"displacement",true);;
+		RegisterNodalFab (rhs,			AMREX_SPACEDIM,					2,	"rhs",true);;
+		RegisterNodalFab (strain,		number_of_stress_components,	2,	"strain",true);;
+		RegisterNodalFab (stress,		number_of_stress_components,	2,	"stress",true);;
+		RegisterNodalFab (stress_vm,	1,								2,	"stress_vm",true);;
+		RegisterNodalFab (energy,		1,								2,	"energy",true);;
+		RegisterNodalFab (residual,		AMREX_SPACEDIM,					2,	"residual",true);;
 
 	}
 

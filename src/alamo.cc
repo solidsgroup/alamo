@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <omp.h>
 
 #include "Util/Util.H"
 #include "Integrator/CahnHilliard.H"
@@ -15,7 +14,6 @@
 
 int main (int argc, char* argv[])
 {
-	//omp_set_num_threads(1);
 	Util::Initialize(argc,argv);
 
 	std::string program = "microstructure";
@@ -24,7 +22,7 @@ int main (int argc, char* argv[])
 
 	if (program == "microstructure")
 	{
-		srand(1);
+		srand(2);
 		Integrator::Integrator *pfm = new Integrator::PhaseFieldMicrostructure();
 		//Integrator::PhaseFieldMicrostructure pfm;
 		pfm->InitData();

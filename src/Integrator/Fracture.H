@@ -13,8 +13,8 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 
-#include "IC/HeatConduction/Cylinder.H"
-#include "IC/HeatConduction/Constant.H"
+//#include "IC/HeatConduction/Cylinder.H"
+//#include "IC/HeatConduction/Constant.H"
 #include "IC/Cuboid.H"
 #include "IC/Sphere.H"
 #include "IC/Ellipsoid.H"

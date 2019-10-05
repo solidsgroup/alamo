@@ -177,8 +177,8 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				for (int p = 0; p < AMREX_SPACEDIM; p++) u(p) = U(i,j,k,p);
 				
 
-				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+				bool AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+					 AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
 				// Determine if a special stencil will be necessary for first derivatives
 				std::array<Numeric::StencilType,AMREX_SPACEDIM>
@@ -204,6 +204,9 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
 					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
+					if (amrlev == 1 && i == 8  && j == 2) Util::Message(INFO,"ON C/F Bndry", f.transpose());
+					if (amrlev == 1 && i == 8  && j == 1) Util::Message(INFO,"ON C/F Bndry Ghost node", f.transpose());
+						
 				}
 				else
 				{
@@ -285,7 +288,7 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 				Set::Vector f = Set::Vector::Zero();
 
 				bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-					AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+					    AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
 
 				std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
 					= Numeric::GetStencil(i,j,k,domain);
@@ -328,24 +331,6 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 						u(p) = 1.0;
 						f = (*m_bc)(u,gradu,sig,i,j,k,domain);
 						diag(i,j,k,p) = f(p);
-						
-						// for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
-						// {
-						// 	if (m[q] == domain.loVect()[q])
-						// 	{
-						// 		if      (m_bc_lo[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
-						// 		else if (m_bc_lo[q][p] == BC::Traction)     diag(i,j,k,p) = -sig(p,q);
-						// 		else if (m_bc_lo[q][p] == BC::Neumann)      diag(i,j,k,p) = -gradu(p,q);
-						// 		else Util::Abort(INFO, "Invalid BC");
-						// 	}
-						// 	if (m[q] == domain.hiVect()[q])
-						// 	{
-						// 		if      (m_bc_hi[q][p] == BC::Displacement) diag(i,j,k,p) = 1.0;
-						// 		else if (m_bc_hi[q][p] == BC::Traction)     diag(i,j,k,p) = sig(p,q);
-						// 		else if (m_bc_hi[q][p] == BC::Neumann)      diag(i,j,k,p) = gradu(p,q);
-						// 		else Util::Abort(INFO, "Invalid BC");
-						// 	}
-						// }
 					}
 					else
 					{
@@ -584,6 +569,58 @@ Elastic<T>::Energy (int amrlev,
 							}
 						}
 				    });
+	}
+}
+
+template <class T>
+void 
+Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models)
+{
+	BL_PROFILE("Operator::Elastic::Energy()");
+	SetHomogeneous(false);
+
+	if ((unsigned int)a_energies.nComp() != a_models.size())
+	{
+		Util::Abort(INFO,"Number of energy components (",a_energies.nComp(), ") does not equal number of models (",a_models.size(),")");
+	}
+
+	amrex::Box domain(m_geom[amrlev][0].Domain());
+	domain.convert(amrex::IntVect::TheNodeVector());
+
+	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
+
+	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.tilebox();
+		amrex::Array4<amrex::Real> const& energies   = a_energies.array(mfi);
+		amrex::Array4<const amrex::Real> const& u  = a_u.array(mfi);
+		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+	    {
+		    Set::Matrix gradu;
+		    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+			    		= Numeric::GetStencil(i,j,k,domain);
+		    // Fill gradu
+		    for (int p = 0; p < AMREX_SPACEDIM; p++)
+		    {
+			    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
+			     		 gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
+			     		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
+		    }
+		 	Set::Matrix eps = .5 * (gradu + gradu.transpose());
+			 
+			for (unsigned int p = 0; p < a_models.size(); p++)
+			{
+		    	Set::Matrix sig = a_models[p](gradu,m_homogeneous);
+				energies(i,j,k,p) = 0;
+				for (int m = 0; m < AMREX_SPACEDIM; m++)
+				{
+					for(int n = 0; n < AMREX_SPACEDIM; n++)
+					{
+						energies(i,j,k,p) += .5 * sig(m,n) * eps(m,n);
+					}
+				}
+			}
+	    });
 	}
 }
 
