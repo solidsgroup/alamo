@@ -1,11 +1,11 @@
-#ifndef IC_FLAME_WEDGE_H_
-#define IC_FLAME_WEDGE_H_
+#ifndef IC_WEDGE_H_
+#define IC_WEDGE_H_
 
 #include "IC/IC.H"
 
 namespace IC
 {
-/// \brief Initialize a coupon-shaped IC (for the Flame simulation)
+/// Initialize a coupon-shaped IC (for the Flame simulation)
 class Wedge : public IC
 {
 public:
@@ -19,7 +19,7 @@ public:
 		// 	     amrex::Real sizey = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 		// 	     amrex::Real sizez = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
 		
-
+/// The angle of the wedge is currently hardcoded as 45 degrees
 		amrex::Real angle = 45.0 * 0.01745329251;
 
 

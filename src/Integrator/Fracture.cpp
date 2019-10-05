@@ -61,10 +61,10 @@ Fracture::Fracture() :
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
-	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells, "c");
-	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells, "c_old");
-	RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells, "c_conv");
-	RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells, "c_temp");
+	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells, "c",		true);
+	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells, "c_old",	true);
+	RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells, "c_conv",	true);
+	RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells, "c_temp",	true);
 	
 	//crack_norm = 0.; 	crack_norm_old = 1.e4; crack_norm_conv = 0, crack_norm_temp = 1.e4;
 	//disp_norm = 0.; disp_norm_old = 1.e4; disp_norm_conv = 0.;
@@ -200,19 +200,19 @@ Fracture::Fracture() :
 	
 	const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	
-	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp");
-	RegisterNodalFab (m_disp_old, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_old");
-	RegisterNodalFab (m_disp_conv, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_conv");
-	RegisterNodalFab (m_disp_temp, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_temp");
+	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp",true);
+	RegisterNodalFab (m_disp_old, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_old",true);
+	RegisterNodalFab (m_disp_conv, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_conv",true);
+	RegisterNodalFab (m_disp_temp, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_temp",true);
 
-	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_cells, "RHS");
-	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_cells,	"strain");
-	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_cells,	"stress");
-	RegisterNodalFab (m_stressvm,	1,								number_of_ghost_cells,	"stress_vm");
-	RegisterNodalFab (m_energy,		1,								number_of_ghost_cells,	"energy");
-	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_cells,	"energyP");
-	RegisterNodalFab (m_energy_pristine_old,	1,					number_of_ghost_cells,	"energyPOld");
-	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_cells,	"residual");
+	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_cells, "RHS",true);
+	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_cells,	"strain",true);
+	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_cells,	"stress",true);
+	RegisterNodalFab (m_stressvm,	1,								number_of_ghost_cells,	"stress_vm",true);
+	RegisterNodalFab (m_energy,		1,								number_of_ghost_cells,	"energy",true);
+	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_cells,	"energyP",true);
+	RegisterNodalFab (m_energy_pristine_old,	1,					number_of_ghost_cells,	"energyPOld",true);
+	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_cells,	"residual",true);
 	nlevels = maxLevel() + 1;
 }
 
