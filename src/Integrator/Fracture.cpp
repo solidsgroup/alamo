@@ -29,10 +29,10 @@ Fracture::Fracture() :
 	amrex::ParmParse pp("ic"); // Phase-field model parameters
 	pp.query("type", ic_type);
 
-	if(ic_type == "cuboid")
-		ic = new IC::Cuboid(geom);
-	else if(ic_type == "ellipsoid")
+	if(ic_type == "ellipsoid")
 		ic = new IC::Ellipsoid(geom);
+	else if(ic_type == "notch")
+		ic = new IC::Notch(geom);
 	else
 		Util::Abort(INFO,"This type of IC hasn't been implemented yet");
 	
@@ -276,7 +276,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
 								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
 								));
-			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],0.92));
+			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],0.90));
 		});
 	}
 }
