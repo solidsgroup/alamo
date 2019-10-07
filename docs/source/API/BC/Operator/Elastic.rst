@@ -20,7 +20,7 @@ in the right hand side during the solve.
 
 Natural/Traction
 ----------------
-This operator is similar to (but not the same as) a typical Neumann boundary condition.
+This operator is similar to (but not the same as) a typical Neumann boundary condition. 
 The operator, denoted :math:`D_{\Omega_2}` is defined as
 
 :math:`D_{\Omega_2}(\mathbf{u}) = \mathbb{C}\nabla\mathbf{u} \cdot \mathbf{n} = \sigma\cdot\mathbf{n}`
