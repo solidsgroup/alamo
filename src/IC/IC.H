@@ -5,7 +5,6 @@
 #include <AMReX_MultiFab.H>
 #include "Util/Util.H"
 
-/// \brief Collection of Initial Condition (IC) objects
 namespace IC
 {
 /// \brief Pure abstract IC object from which all other IC objects inherit.
@@ -17,7 +16,7 @@ public:
 	virtual ~IC() {}
 
 	virtual void Add(const int lev, amrex::Vector<amrex::MultiFab *> &field) = 0;
-
+/// Function that IC's inherit to initialize the geometry's mesh
 	void Initialize(const int lev,
 			amrex::Vector<amrex::MultiFab *> &field)
 	{

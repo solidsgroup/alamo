@@ -56,6 +56,10 @@ public:
 	///
 	void SetBC (::BC::Operator::Elastic<T> *a_bc) 
 	{
+		if (this->Geom(0).isAnyPeriodic()) 
+		{
+			Util::Warning(INFO,"Looks like you're using a periodic domain. \nThat is currently VERY DANGEROUS when using linear elastic solver!!!");
+		}
 		m_bc = a_bc;
 		m_bc_set = true;
 	};
@@ -79,6 +83,8 @@ public:
 	/// where \f$\mathbf{\sigma}\f$ and \f$\mathbf{\epsilon}\f$ are as defined above
 	///
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u);
+
+	void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<T> models);
 
 	/// This function is depricated and should not be used. Use the other `SetBC` function.
 	///
