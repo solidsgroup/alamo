@@ -15,7 +15,7 @@ StressRelaxation::StressRelaxation():
 							  ,AMREX_D_DECL({0.}, {0.}, {0.})
 							  ,AMREX_D_DECL({0.}, {0.}, {0.})
 							  );
-	RegisterNewFab(water_conc,water_bc, 1, 1, "Water Concentration");
+	RegisterNewFab(water_conc,water_bc, 1, 1, "Water Concentration",true);
 	water_ic = new IC::Constant(geom,{0.0});
 
 	// ---------------------------------------------------------------------

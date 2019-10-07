@@ -19,7 +19,7 @@
 #include "BC/BC.H"
 #include "BC/Constant.H"
 #include "IC/IC.H"
-#include "IC/Constant/Constant.H"
+#include "IC/Constant.H"
 #include "Numeric/Interpolator/Linear.H"
 #include "Util/Util.H"
 #include "IO/FileNameParse.H"

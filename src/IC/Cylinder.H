@@ -1,28 +1,31 @@
-#ifndef IC_HEATCONDUCTION_SPHERE_H_
-#define IC_HEATCONDUCTION_SPHERE_H_
+#ifndef HEATCONDUCTION_INITIALCONDITION_CYLINDER_H_
+#define HEATCONDUCTION_INITIALCONDITION_CYLINDER_H_
+
+#include <AMReX_ParallelDescriptor.H>
 
 #include "IC/IC.H"
 
-/// \class Cylinder
-/// \brief Prescribe a cylindrical (3D) / circular (2D) region at a certain temperature.
-///
-namespace HeatConduction
-{
 namespace IC
 {
-class Sphere : public IC
+class Cylinder : public IC
 {
 public:
-  PerturbedInterface (amrex::Array<amrex::Geometry> &_geom) :
-    IC::IC(_geom)
+  Cylinder (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+  /// Constructor requires temperature inputs for either side of the boundary.
+  /// The radius is defaulted to 1, and the cylinder is centered on the axis.
+  Cylinder (amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _Tin, Set::Scalar _Tout) : IC(_geom) 
   {
-      amrex::ParmParse pp("ic");
-      pp.queryarr("Tin",Tin);
-      pp.queryarr("Tout",Tout);
+	  Define(_Tin,_Tout);
   }
-  
-void Initialize(const int lev,
-		amrex::Array<std::unique_ptr<amrex::MultiFab> > &field)
+
+void Define (Set::Scalar _Tin, Set::Scalar _Tout)
+  {
+	Tin = _Tin;
+	Tout = _Tout;
+  }
+
+virtual void Add(const int lev,
+		amrex::Vector<amrex::MultiFab * > &field)
   {
     const amrex::Real L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
     const amrex::Real L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];
@@ -31,7 +34,7 @@ void Initialize(const int lev,
       {
 	const amrex::Box& box = mfi.tilebox();
 
-	amrex::BaseFab<Real> &field_box = (*field[lev])[mfi];
+	amrex::FArrayBox &field_box = (*field[lev])[mfi];
 
 	for (int i = box.loVect()[0]-field[lev]->nGrow(); i<=box.hiVect()[0]+field[lev]->nGrow(); i++) 
 	  for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++)
@@ -39,8 +42,6 @@ void Initialize(const int lev,
 	    for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++)
 #endif
 	      {
-		amrex::real
-
 		amrex::Real x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
 		amrex::Real y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
 
@@ -58,8 +59,7 @@ void Initialize(const int lev,
   };
   
 private:
-  amrex::Real Tin, Tout;
+	Set::Scalar Tin, Tout;
 };
-}
 }
 #endif

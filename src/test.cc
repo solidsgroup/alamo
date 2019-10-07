@@ -33,6 +33,23 @@ int main (int argc, char* argv[])
 		Test::Set::Matrix4<3,Set::Sym::MajorMinor> test_3d_majorminor;
 		subfailed += Util::Test::SubMessage("3D - MajorMinor", test_3d_majorminor.SymmetryTest(0));
 	}
+//	Util::Test::Message("Model::Interface::GB::GB<Sin>");
+//	{
+//		int subfailed = 0;
+//		Test::Model::Interface::GB::GB<Model::Interface::GB::Sin> test;
+//		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+//		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
+//
+//	Util::Test::Message("Model::Interface::GB::GB<AbsSin>");
+//	{
+//		int subfailed = 0;
+//		Test::Model::Interface::GB::GB<Model::Interface::GB::AbsSin> test;
+//		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+//		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
 
 	Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
 	{
@@ -139,6 +156,8 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("2 levels, Component 0",test.UniaxialTest(0,0));
 		test.Define(32,3);
 		subfailed += Util::Test::SubMessage("3 levels, Component 0",test.UniaxialTest(0,0));
+		test.Define(32,2,AMREX_SPACEDIM,test.Grid::YZ);
+		subfailed += Util::Test::SubMessage("2 non-centered levels, Component 0",test.UniaxialTest(0,0));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 	

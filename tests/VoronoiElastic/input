@@ -1,0 +1,56 @@
+
+alamo.program               = microstructure
+plot_file		    = tests/VoronoiElastic/output
+
+timestep		    = 0.05
+stop_time		    = 400
+
+#amr.plot_int		    = 100
+amr.plot_dt                 = 5.0
+amr.max_level		    = 0
+amr.n_cell		    = 64 64 64
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 10
+amr.grid_eff		    = 1.0
+amr.ref_threshold = 0.1
+#amr.max_grid_size = 10
+
+ic.type			    = voronoi
+ic.voronoi.number_of_grains = 100
+
+geometry.prob_lo	    = 0 0 0
+geometry.prob_hi	    = 5 5 5
+geometry.is_periodic	    = 0 0 0
+
+bc.hi			    = neumann neumann neumann
+bc.lo			    = neumann neumann neumann
+
+pf.number_of_grains	    = 10
+pf.M			    = 1.0 
+pf.mu			    = 10.0
+pf.gamma		    = 1.0
+pf.l_gb			    = 0.05
+pf.sigma0		    = 0.075
+
+elastic.on  = 1
+elastic.interval = 100
+elastic.type=cubic
+#elastic.tstart=0.1
+elastic.load_t=0.0 
+elastic.load_disp=0.01
+elastic.bc.type_xlo = disp disp disp
+elastic.bc.type_xhi = disp disp disp
+elastic.bc.xhi = 0.0 0.1 0.0
+elastic.bc.xlo = 0.0 0.0 0.0
+elastic.bc.type_ylo = neumann neumann neumann
+elastic.bc.type_yhi = neumann neumann neumann
+elastic.bc.yhi = 0.0 0.0 0.0
+elastic.bc.ylo = 0.0 0.0 0.0
+elastic.bc.type_zlo = neumann neumann neumann
+elastic.bc.type_zhi = neumann neumann neumann
+elastic.bc.zhi = 0.0 0.0 0.0
+elastic.bc.zlo = 0.0 0.0 0.0
+
+elastic.fixed_iter = 1000
+#elastic.max_coarsening_level = 0
+elastic.verbose = 2

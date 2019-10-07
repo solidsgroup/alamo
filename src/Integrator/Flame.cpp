@@ -68,13 +68,14 @@ Flame::Flame () : Integrator()
   for (int i = 0; i < fs_number; i++) fs[i] = 0.5*(1.0 + Util::Random());
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
 
-  eta_ic = new IC::Wedge(geom);
+  EtaIC = new IC::Wedge(geom);
+  // EtaIC = new IC::Constant(geom,value);
 
-  RegisterNewFab(Temp,     TempBC, 1, 1, "Temp");
-  RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old");
-  RegisterNewFab(Eta,      EtaBC,  1, 1, "Eta");
-  RegisterNewFab(Eta_old,  EtaBC,  1, 1, "Eta_old");
-  RegisterNewFab(FlameSpeedFab, EtaBC,  1, 1, "FlameSpeed");
+  RegisterNewFab(Temp,     TempBC, 1, 1, "Temp", true);
+  RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old", false);
+  RegisterNewFab(Eta,      EtaBC,  1, 1, "Eta", true);
+  RegisterNewFab(Eta_old,  EtaBC,  1, 1, "Eta_old", false);
+  RegisterNewFab(FlameSpeedFab, EtaBC,  1, 1, "FlameSpeed",true);
 }
 
 void Flame::Initialize (int lev)
@@ -98,8 +99,8 @@ void Flame::Initialize (int lev)
 					Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) =  0.0;
 				}
 		}
-	eta_ic->Initialize(lev,Eta);
-	eta_ic->Initialize(lev,Eta_old);
+	EtaIC->Initialize(lev,Eta);
+	EtaIC->Initialize(lev,Eta_old);
 	
 	VoronoiIC->Initialize(lev,FlameSpeedFab);
 }
