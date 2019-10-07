@@ -15,9 +15,8 @@
 
 //#include "IC/HeatConduction/Cylinder.H"
 //#include "IC/HeatConduction/Constant.H"
-#include "IC/Cuboid.H"
-#include "IC/Sphere.H"
 #include "IC/Ellipsoid.H"
+#include "IC/Notch.H"
 
 #include "BC/Operator/Elastic.H"
 #include "BC/Constant.H"
@@ -25,7 +24,6 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 
