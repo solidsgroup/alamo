@@ -13,6 +13,8 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 
+#include "IC/HeatConduction/Cylinder.H"
+#include "IC/HeatConduction/Constant.H"
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
 
