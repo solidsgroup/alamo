@@ -14,11 +14,12 @@ Fracture::Fracture() :
 	{
 		amrex::ParmParse pp_crack_constant("crack.constant");
 		Set::Scalar G_c, zeta;
-		eta_epsilon = 1.; mobility = 1e-2;
+		eta_epsilon = 1.; mobility = 1e-2; scaleModulusMax = 0.2;
 		pp_crack_constant.query("G_c",G_c);
 		pp_crack_constant.query("zeta",zeta);
 		pp_crack_constant.query("mobility",mobility);
 		pp_crack_constant.query("eta_epsilon",eta_epsilon);
+		pp_crack_constant.query("modulus_scaling_max",scaleModulusMax);
 		//Util::Message(INFO, "G_c = ", G_c, ". zeta = ", zeta);
 		boundary = new Model::Interface::Crack::Constant(G_c,zeta,mobility);
 	}
@@ -152,6 +153,7 @@ Fracture::Fracture() :
 	pp_elastic_bc.query("disp_step",elastic.test_rate);
 	pp_elastic_bc.query("disp_init",elastic.test_init);
 	pp_elastic_bc.query("max_disp",elastic.test_max);
+	pp_elastic_bc.query("crackStressTest",crackStressTest);
 
 	elastic.bc_top[1] = elastic.test_init;
 
@@ -258,6 +260,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
+	m_c[lev]->FillBoundary();
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
@@ -276,7 +279,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
 								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
 								));
-			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],0.90));
+			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
 		});
 	}
 }
@@ -287,6 +290,13 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	//Util::Message(INFO,"new Crack problem = ", newCrackProblem, ". solveElasticity = ", solveElasticity, ". solveCrack = ",  solveCrack);
 	//if(~newCrackProblem) return;
 	Util::Message(INFO);
+	if(crackStressTest)
+	{
+		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
+		ElasticityProblem(0.);
+		solveElasticity = false;
+		return;
+	}
 	if(newCrackProblem)
 	{
 		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
@@ -326,6 +336,7 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 void
 Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
+	if(crackStressTest) return;
 	if(!solveCrack) return;
 	CrackProblem(lev,0.,dt);
 }
@@ -333,6 +344,19 @@ Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 void
 Fracture::TimeStepComplete(amrex::Real time,int iter)
 {
+	if(crackStressTest) 
+	{
+		amrex::Vector<Set::Scalar> plottime;
+		amrex::Vector<int> plotstep;
+		std::string plotfolder = "crack";
+
+		plottime.resize(nlevels);
+		plotstep.resize(nlevels);
+		for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
+		WritePlotFile(plotfolder,plottime,plotstep);
+
+		SetStopTime(time-0.01);return;
+	}
 	IntegrateVariables(time,iter);
 	if(err_crack_temp_init)
 	{
