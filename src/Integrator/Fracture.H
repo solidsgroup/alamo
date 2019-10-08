@@ -153,7 +153,7 @@ private:
 
 	bool err_crack_init = true, err_crack_temp_init = true, err_disp_init = true;
 
-	Set::Scalar eta_epsilon, mobility;
+	Set::Scalar eta_epsilon, mobility, scaleModulusMax;
 	Set::Scalar max_error;
 
 	Set::Scalar refinement_threshold = 0.001;			///< Criterion for cell refinement
@@ -165,6 +165,8 @@ private:
 	BC::BC *mybc;                   				///< Stock generic boundary condition object
 
 	bool newCrackProblem=true, solveCrack=false, solveElasticity=false;
+
+	bool crackStressTest = false;
 };
 }
 #endif
