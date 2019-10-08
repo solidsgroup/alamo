@@ -23,9 +23,9 @@ namespace GB
 /// Here are some useful trig identities for reference:
 ///
 ///     \f{align}{\sin(2 \arcsin x) &= 2 x \sqrt{1-x^2} &
-///               \cos(2 \arcsin x) &= 1 - 2 x^2 \\
+///               \cos(2 \arcsin x) &= 1 - 2 x^2 \\ %
 ///               \sin(2 \arccos x) &= 2 x \sqrt{1-x^2} &
-///               \cos(2 \arccos x) &= 2 x^2 - 1 \\
+///               \cos(2 \arccos x) &= 2 x^2 - 1 \\ %
 ///               \sin(2 \arctan x) &= \frac{2 x}{1 + x^2}  &
 ///               \cos(2 \arctan x) &= \frac{1-x^2}{1+x^2}	\f}
 /// Specializing for tangent:
@@ -72,20 +72,6 @@ public:
 		Set::Scalar phi   = std::atan2(n(2),n(1));
 		return W(theta,phi);
 	};
-	Set::Vector DW(const Set::Vector a_n) const
-	{
-		Util::Abort(INFO,"Can't seem to get this to work - not safe to use!");
-		Set::Vector dw;
-		//Set::Vector n = a_n / a_n.lpNorm<2>();
-		//Set::Scalar theta = std::acos(n(2));
-		//Set::Scalar phi   = std::atan2(n(1),n(0));
-		//std::array<Set::Scalar,2> dw1 = DW(theta,phi);
-		//Set::Scalar w_theta = dw1[0], w_phi = dw1[1];
-		//dw(0) =  -w_phi * sin(phi) + w_theta*cos(theta)*cos(phi) ; // stubbornly wrong
-		//dw(1) =  +w_phi * cos(phi) + w_theta*cos(theta)*sin(phi) ; // stubbornly wrong
-		//dw(2) =  -w_theta * sin(theta); // inexplicably correct
-		return dw;
-	};
 	Set::Scalar DW(const Set::Vector a_n, const Set::Vector t_n) const
 	{
 		const Set::Scalar alpha = 1E-4;
@@ -98,25 +84,9 @@ public:
 	};
 
 
-	amrex::Real W(amrex::Real theta) 
-	{
-		return NAN;
-	};
-	amrex::Real DW(amrex::Real theta)
-	{
-		return NAN;
-	};
-	amrex::Real DDW(amrex::Real theta)
-	{
-		return NAN;
-	};
-  
-	//virtual amrex::Real operator()(amrex::Real theta)
-	//{
-	//amrex::Real d_gbenergy;
-	//d_gbenergy= 
-	//return d_gbenergy;    
-	//};
+	amrex::Real W(amrex::Real )   {return NAN;};
+	amrex::Real DW(amrex::Real )  {return NAN;};
+	amrex::Real DDW(amrex::Real ) {return NAN;};
   
 private:
 	amrex::Real theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;

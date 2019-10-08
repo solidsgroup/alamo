@@ -12,6 +12,7 @@
 #include "IC/Voronoi.H"
 #include "IC/PackedSpheres.H"
 #include "IC/Wedge.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {
@@ -54,7 +55,7 @@ private:
 	amrex::Real mean = 0.1;
 	amrex::Real std_deviation = 0.05;
 	
-	IC::IC *eta_ic;
+	IC::IC *EtaIC;
 
 };
 }
