@@ -62,10 +62,10 @@ Fracture::Fracture() :
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
-	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells, "c",		true);
-	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells, "c_old",	true);
-	RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells, "c_conv",	true);
-	RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells, "c_temp",	true);
+	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells+1, "c",		true);
+	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells+1, "c_old",	true);
+	RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells+1, "c_conv",	true);
+	RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells+1, "c_temp",	true);
 	
 	//crack_norm = 0.; 	crack_norm_old = 1.e4; crack_norm_conv = 0, crack_norm_temp = 1.e4;
 	//disp_norm = 0.; disp_norm_old = 1.e4; disp_norm_conv = 0.;
@@ -264,7 +264,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
-		const amrex::Box& box = mfi.validbox();
+		amrex::Box box = mfi.growntilebox(2);
 		amrex::Array4<const amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
 		amrex::Array4<model_type> const& modelfab = model.array(mfi);
 
@@ -281,6 +281,22 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 								));
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
 		});
+
+        amrex::Geometry tmp_geom = geom[lev];
+        for (int i = 0; i < 2; i++)
+        {
+			Util::Message(INFO);
+        	amrex::FabArray<amrex::BaseFab<model_type>> &mf = model;
+            mf.FillBoundary(tmp_geom.periodicity());
+            mf.FillBoundary();
+            const int ncomp = mf.nComp();
+            const int ng1 = 1;
+            const int ng2 = 2;
+            amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+            amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
+            mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
+        }
+
 	}
 }
 
@@ -514,13 +530,18 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 	}
 	Util::Message(INFO);
 	Operator::Elastic<model_type> elastic_operator;
+	Util::Message(INFO);
 	elastic_operator.define(geom, grids, dmap, info);
+	Util::Message(INFO);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		elastic_operator.SetModel(ilev,model[ilev]);
+	Util::Message(INFO);
 	
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
+	Util::Message(INFO);
 	BC::Operator::Elastic<model_type> bc;
+	Util::Message(INFO);
 	
 	Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
