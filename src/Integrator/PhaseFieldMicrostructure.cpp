@@ -161,7 +161,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			ic = new IC::PackedSpheres(geom,total_grains,mean,std_deviation);
 		}
 		else if (ic_type == "circle" || ic_type == "sphere")
-		else if (ic_type == "sphere")
+		//else if (ic_type == "sphere")
 			ic = new IC::Sphere(geom);
 		else
 			Util::Abort(INFO, "No valid initial condition specified");
