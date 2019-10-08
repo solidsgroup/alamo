@@ -10,9 +10,9 @@ CahnHilliard::CahnHilliard() : Integrator()
 {
 	bc = new BC::Nothing();
 	ic = new IC::Random(geom,2.0);
-	RegisterNewFab(etanewmf, bc, ncomp, nghost, "Eta");
-	RegisterNewFab(etaoldmf, bc, ncomp, nghost, "EtaOld");
-	RegisterNewFab(intermediate, bc, ncomp, nghost, "int");
+	RegisterNewFab(etanewmf, bc, ncomp, nghost, "Eta",true);
+	RegisterNewFab(etaoldmf, bc, ncomp, nghost, "EtaOld",false);
+	RegisterNewFab(intermediate, bc, ncomp, nghost, "int",false);
 	LPInfo info;
 	op.define(geom,grids,dmap,*bc,info);
 }
