@@ -86,11 +86,6 @@ public:
 
 		for (int n = 0; n<number_of_grains; n++)
 		{
-			/*AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
-						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););*/
-			 
-
 			std::vector<bool> df(number_of_grains-1);
             std::fill(df.begin(), df.end(), true);	
 
@@ -105,7 +100,6 @@ public:
             if (R_old>0.01) 
 	     {
 	        R_new[0]= R_old;
-	        //Util::Message(INFO,"R_new	    ", R_new[0]);
 			std::cout<<"R_new 0	    "<< R_new[0]<<endl;
 	     }
 
@@ -113,7 +107,6 @@ public:
 		 {
 			 goto label;
 		 }
-		   //R_new[n]=R_new[0];
 	}
 
 	 	
@@ -128,7 +121,6 @@ while (i<1000)
             if (R_old>0.01) 
 	     {
 	        R_new[n]= R_old;
-	        //Util::Message(INFO,"R_new	    ", R_new[n]);
 			std::cout<<"R_new	    "<< R_new[n]<<endl;
 	     }
 
@@ -206,7 +198,6 @@ while (i<1000)
 	
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
-		//Util::Message(INFO,"count:	    ", total);
 		std::cout<<"count  "<<total<<endl;
 	    
     }
@@ -226,13 +217,12 @@ while (i<1000)
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
-		//if (rank==1)
-	//	{
+
 		
 		R_new.resize(number_of_grains);
 		for(int i=0;i<number_of_grains;i++)
 		{
-			//Util::Message(INFO,"R_new in Add	    ",i+1,"   ", R_new[i]);
+			
 			std::cout<<"R_new in Add   "<<i+1<<"   "<<R_new[i]<<endl;
 		}
 		std::cout<<"    "<<endl;
@@ -241,8 +231,7 @@ while (i<1000)
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 
-		MPI_Gather(R_new.data(), R_new.size(), MPI_DOUBLE, R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);			 
-        MPI_Gather(packedspheres.data(), packedspheres.size(), MPI_DOUBLE, packedspheres.data(), packedspheres.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);	
+			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
@@ -254,12 +243,12 @@ while (i<1000)
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-							
+				int min_grain_id = -1;			
+				 
 				
 				
-				int min_grain_id = -1;
-				 //if (rank==0)
-				//{
+				
+				
 				packedspheres.resize(number_of_grains);
 				
                 
@@ -293,32 +282,19 @@ while (i<1000)
                     R_new.resize(number_of_grains);
 					
 					
-					/*if (n==0)
-					{
-					 if (d<R_new[0])
-						{
-							min_grain_id = 0;
-							
-						}
-					}	*/
-
-					//else if(n>0)
-					//{
 					if (d<R_new[n])
 						{
 							min_grain_id = n;
 							
 						}	
-					//}	
+					
 				}	
-				//}
-				//MPI_Bcast(&min_grain_id, number_of_grains, MPI_INT, 0, MPI_COMM_WORLD);
+				
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
 			});
 		}
-	//}
 	}
 	
 private:
