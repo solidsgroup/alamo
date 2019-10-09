@@ -240,7 +240,7 @@ while (i<1000)
 					
 					
 					Set::Scalar d = (x - packedspheres[n]).lpNorm<2>();
-					Set::Scalar d1 = 2;                
+					Set::Scalar d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
 						    d1 = std::min( (x-packedspheres[n] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
@@ -267,7 +267,7 @@ while (i<1000)
 					
 					if (d<R_new[n])
 						{
-							min_grain_id = n;
+							min_grain_id = 0;
 							
 						}	
 					
