@@ -100,7 +100,6 @@ public:
             if (R_old>0.01) 
 	     {
 	        R_new[0]= R_old;
-			std::cout<<"R_new 0	    "<< R_new[0]<<endl;
 	     }
 
 		 else
@@ -121,7 +120,6 @@ while (i<1000)
             if (R_old>0.01) 
 	     {
 	        R_new[n]= R_old;
-			std::cout<<"R_new	    "<< R_new[n]<<endl;
 	     }
 
 		 else
@@ -133,6 +131,7 @@ while (i<1000)
 		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+						 
 
 	p=0;
 
@@ -207,25 +206,70 @@ while (i<1000)
 	
 	}
 
-    R_new.resize(number_of_grains);
-	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
+	R_new.resize(number_of_grains);
+	packedspheres.resize(number_of_grains);
 
+     if (rank==0) 
+	{
+	for(int i=0;i<number_of_grains;i++)
+		
+		{
+			
+			std::cout<<"R_new rank 0  "<<i+1<<"   "<<R_new[i]<<endl;
+		}
+		    std::cout<<"    "<<endl;
+	}
+
+	
+    if (rank==0) 
+	{
+	for(int i=0;i<number_of_grains;i++)
+		
+		{
+			
+			std::cout<<"packedspheres  rank 0 "<<i+1<<"   "<<packedspheres[i]<<endl;
+		}
+		    std::cout<<"    "<<endl;
+	}
+
+    R_new.resize(number_of_grains);
+	packedspheres.resize(number_of_grains);
+	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+
+	 if (rank==1) 
+	{
+	for(int i=0;i<number_of_grains;i++)
+		
+		{
+			
+			std::cout<<"R_new  rank 1 "<<i+1<<"   "<<R_new[i]<<endl;
+		}
+		    std::cout<<"    "<<endl;
+	}
+
+	if (rank==1) 
+	{
+	for(int i=0;i<number_of_grains;i++)
+		
+		{
+			packedspheres.resize(number_of_grains);
+			std::cout<<" packedspheres rank 1  "<<i+1<<"   "<<packedspheres[i]<<endl;
+		}
+		    std::cout<<"    "<<endl;
+	}
+
+	 
+
+    
+	
 	
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
 
-		
-		R_new.resize(number_of_grains);
-		for(int i=0;i<number_of_grains;i++)
-		{
-			
-			std::cout<<"R_new in Add   "<<i+1<<"   "<<R_new[i]<<endl;
-		}
-		std::cout<<"    "<<endl;
+
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
