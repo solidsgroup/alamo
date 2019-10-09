@@ -12,9 +12,7 @@ namespace IC
 {
 /// \brief Create a series of patches using the packedspheres Tesselation
 ///
-/// For a thorough discussion of the packedspheres tesselation algorithm, see
-/// [this wikipedia article](https://en.wikipedia.org/wiki/packedspheres_diagram)
-///
+/// 
 /// Let `N` be the number of patches in the tesselation, 
 /// and let \f$\alpha_1,\ldots,\alpha_n\f$ be a set of scalar values.
 /// There are two methods for applying the tesselation IC:
@@ -197,7 +195,7 @@ while (i<1000)
 	
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
-		std::cout<<"count  "<<total<<endl;
+		//std::cout<<"count  "<<total<<endl;
 	    
     }
 
@@ -206,64 +204,11 @@ while (i<1000)
 	
 	}
 
-	R_new.resize(number_of_grains);
-	packedspheres.resize(number_of_grains);
-
-     if (rank==0) 
-	{
-	for(int i=0;i<number_of_grains;i++)
-		
-		{
-			
-			std::cout<<"R_new rank 0  "<<i+1<<"   "<<R_new[i]<<endl;
-		}
-		    std::cout<<"    "<<endl;
-	}
-
-	
-    if (rank==0) 
-	{
-	for(int i=0;i<number_of_grains;i++)
-		
-		{
-			
-			std::cout<<"packedspheres  rank 0 "<<i+1<<"   "<<packedspheres[i]<<endl;
-		}
-		    std::cout<<"    "<<endl;
-	}
-
     R_new.resize(number_of_grains);
 	packedspheres.resize(number_of_grains);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
 
-	 if (rank==1) 
-	{
-	for(int i=0;i<number_of_grains;i++)
-		
-		{
-			
-			std::cout<<"R_new  rank 1 "<<i+1<<"   "<<R_new[i]<<endl;
-		}
-		    std::cout<<"    "<<endl;
-	}
-
-	if (rank==1) 
-	{
-	for(int i=0;i<number_of_grains;i++)
-		
-		{
-			packedspheres.resize(number_of_grains);
-			std::cout<<" packedspheres rank 1  "<<i+1<<"   "<<packedspheres[i]<<endl;
-		}
-		    std::cout<<"    "<<endl;
-	}
-
-	 
-
-    
-	
-	
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
@@ -288,13 +233,7 @@ while (i<1000)
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 				int min_grain_id = -1;			
-				 
-				
-				
-				
-				
 				packedspheres.resize(number_of_grains);
-				
                 
 				for (int n = 0; n<number_of_grains; n++)
 				{
@@ -321,7 +260,7 @@ while (i<1000)
 										  (x-packedspheres[n] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
-                            d= std::min(d,d1); 
+                    d= std::min(d,d1); 
 
                     R_new.resize(number_of_grains);
 					
