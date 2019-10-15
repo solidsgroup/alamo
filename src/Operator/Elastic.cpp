@@ -204,9 +204,6 @@ Elastic<T>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) c
 				if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
 				{
 					f = (*m_bc)(u,gradu,sig,i,j,k,domain);
-					if (amrlev == 1 && i == 8  && j == 2) Util::Message(INFO,"ON C/F Bndry", f.transpose());
-					if (amrlev == 1 && i == 8  && j == 1) Util::Message(INFO,"ON C/F Bndry Ghost node", f.transpose());
-						
 				}
 				else
 				{
