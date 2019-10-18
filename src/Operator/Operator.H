@@ -88,7 +88,7 @@ protected:
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
 	virtual void interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const override final;
 	virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs, const MultiFab& fine_sol, const MultiFab& fine_rhs) final;
-	virtual void prepareForSolve ();
+	virtual void prepareForSolve () override;
 	virtual bool isSingular (int amrlev) const final {return (amrlev == 0) ? m_is_bottom_singular : false; }
 	virtual bool isBottomSingular () const final { return m_is_bottom_singular; }
 	virtual void applyBC (int amrlev, int mglev, MultiFab& phi, BCMode bc_mode, amrex::MLLinOp::StateMode /**/, bool skip_fillboundary=false) const final;
@@ -210,11 +210,11 @@ protected:
 
 	// PURE VIRTUAL METHODS
 
-	virtual void Fapply (int amrlev, int mglev, amrex::MultiFab& out, const amrex::MultiFab& in) const = 0;
-	virtual void Fsmooth (int amrlev, int mglev, amrex::MultiFab& sol, const amrex::MultiFab& rsh, int redblack) const = 0;
+	virtual void Fapply (int amrlev, int mglev, amrex::MultiFab& out, const amrex::MultiFab& in) const override = 0;
+	virtual void Fsmooth (int amrlev, int mglev, amrex::MultiFab& sol, const amrex::MultiFab& rsh, int redblack) const override = 0;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 			    const Array<FArrayBox*,AMREX_SPACEDIM>& flux,
-			    const FArrayBox& sol, Location loc, const int face_only=0) const = 0;
+			    const FArrayBox& sol, Location loc, const int face_only=0) const override = 0;
 
 	void RegisterNewFab(amrex::Vector<amrex::MultiFab> &input);
 	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);

@@ -1,0 +1,26 @@
+alamo.program               = eshelby
+
+plot_file		    = tests/Eshelby/output
+timestep		    = 0.1
+stop_time		    = 0.1
+
+amr.plot_int		    = 1
+amr.max_level		    = 5
+amr.n_cell		    = 32 32 32
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 1
+amr.grid_eff		    = 1.0
+
+geometry.prob_lo	    = -8 -8 -8 
+geometry.prob_hi	    = 8 8 8
+geometry.is_periodic	    = 0 0 0
+
+ic.type = ellipse
+ic.a = 1.0 0.75 0.5
+ic.x0 = 0 0 0
+ic.eps = 0.1
+ic.Finclusion = 0.001 0 0 0 0.001 0 0 0 0.001
+
+elastic.E = 210
+elastic.nu = 0.3
+
