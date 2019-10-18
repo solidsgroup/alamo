@@ -133,7 +133,7 @@ PolymerDegradation::PolymerDegradation():
 			Util::Warning(INFO,"Mu must be positive. Resetting back to default value");
 			mu = 1.0;
 		}
-		modeltype = new model_type(lambda,mu);
+		modeltype = new pd_model_type(lambda,mu);
 	}
 	else
 		Util::Abort(INFO, "Not implemented yet");
@@ -342,13 +342,13 @@ PolymerDegradation::PolymerDegradation():
 						pp_elastic_bc.queryarr("bc_y_hi",bc_y_hi_str);,
 						pp_elastic_bc.queryarr("bc_z_hi",bc_z_hi_str););
 
-		std::map<std::string,BC::Operator::Elastic<model_type>::Type >        bc_map;
-		bc_map["displacement"] 	= BC::Operator::Elastic<model_type>::Type::Displacement;
-		bc_map["disp"] 			= BC::Operator::Elastic<model_type>::Type::Displacement;
-		bc_map["traction"] 		= BC::Operator::Elastic<model_type>::Type::Traction;
-		bc_map["trac"] 			= BC::Operator::Elastic<model_type>::Type::Traction;
-		bc_map["neumann"] 		= BC::Operator::Elastic<model_type>::Type::Neumann;
-		bc_map["periodic"] 		= BC::Operator::Elastic<model_type>::Type::Periodic;
+		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
+		bc_map["displacement"] 	= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
+		bc_map["disp"] 			= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
+		bc_map["traction"] 		= BC::Operator::Elastic<pd_model_type>::Type::Traction;
+		bc_map["trac"] 			= BC::Operator::Elastic<pd_model_type>::Type::Traction;
+		bc_map["neumann"] 		= BC::Operator::Elastic<pd_model_type>::Type::Neumann;
+		bc_map["periodic"] 		= BC::Operator::Elastic<pd_model_type>::Type::Periodic;
 
 		
 		AMREX_D_TERM(	elastic.bc_xlo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]],
@@ -791,7 +791,7 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 }
 
 void
-PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &model)
+PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_model_type> > &model)
 {
 	/*
 	  This function is supposed to degrade material parameters based on certain
@@ -811,7 +811,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 	{
 		const amrex::Box& box = mfi.validbox();
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
-		amrex::Array4<model_type> const& modelfab = model.array(mfi);
+		amrex::Array4<pd_model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
@@ -868,7 +868,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<pd_model_type> > > model;
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -878,14 +878,14 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	}
 
 	//Util::Message(INFO);
-	Operator::Elastic<model_type> elastic_operator;
+	Operator::Elastic<pd_model_type> elastic_operator;
 	elastic_operator.define(geom, grids, dmap, info);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		elastic_operator.SetModel(ilev,model[ilev]);
 	}
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
-	BC::Operator::Elastic<model_type> bc;
+	BC::Operator::Elastic<pd_model_type> bc;
 	elastic_operator.SetBC(&bc);
 	//Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
