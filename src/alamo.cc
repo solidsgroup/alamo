@@ -3,14 +3,17 @@
 #include <iomanip>
 
 #include "Util/Util.H"
-#include "Integrator/CahnHilliard.H"
-#include "Integrator/PhaseFieldMicrostructure.H"
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
 #include "AMReX_ParmParse.H"
 
+#include "Integrator/CahnHilliard.H"
+#include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mobility.H"
 #include "Integrator/Eshelby.H"
+#include "Integrator/Flame.H"
+#include "Integrator/PolymerDegradation.H"
+#include "Integrator/HeatConduction.H"
 
 int main (int argc, char* argv[])
 {
@@ -42,9 +45,30 @@ int main (int argc, char* argv[])
 		eshelby->Evolve();		
 		delete eshelby;
 	}
+	else if (program == "flame")
+	{
+		Integrator::Integrator *flame = new Integrator::Flame();
+		flame->InitData();
+		flame->Evolve();
+		delete flame;
+	}
+	else if (program == "heat")
+	{
+		Integrator::Integrator *heatconduction = new Integrator::HeatConduction();
+		heatconduction->InitData();
+		heatconduction->Evolve();
+		delete heatconduction;
+	}
+	else if (program == "degradation")
+	{
+		srand(1.0*amrex::ParallelDescriptor::MyProc());
+		Integrator::PolymerDegradation model;
+		model.InitData();
+		model.Evolve();
+	}
 	else
 	{
-		Util::Abort(INFO,"Error: ",program," is not a valid program.");
+		Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 	}
 
 	Util::Finalize();
