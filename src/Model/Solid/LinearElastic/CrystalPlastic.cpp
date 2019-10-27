@@ -51,23 +51,25 @@ Eigen::Matrix<double,12,12> CrystalPlastic::setF()
 }
 void CrystalPlastic::initializeSlip(Set::Matrix R)
 {
-	Set::Vector n1 = {1,1,-1}; //{1,1,1};
-	Set::Vector n2 = {1,-1,1}; //{-1,-1,1};
-	Set::Vector n3 = {1,-1,-1}; //{-1,1,1};
-	Set::Vector n4 = {1,1,1}; //{1,-1,1};
+	double n = 1/sqrt(3);
+	double s = 1/sqrt(2);
+	Set::Vector n1 = {n,n,-n}; //{1,1,1};
+	Set::Vector n2 = {n,-n,n}; //{-1,-1,1};
+	Set::Vector n3 = {n,-n,-n}; //{-1,1,1};
+	Set::Vector n4 = {n,n,n}; //{1,-1,1};
 	
-	Set::Vector s11 = {1,0,1}; //{0,-1,1};
-	Set::Vector s12 = {0,1,1}; //{1,0,-1};
-	Set::Vector s13 = {1,-1,0}; //{-1,1,0};
-	Set::Vector s21 = {1,1,0}; //{0,1,1};
-	Set::Vector s22 = {0,1,1}; //{-1,0,-1};
-	Set::Vector s23 = {1,0,-1}; //{1,-1,0};
-	Set::Vector s31 = {1,0,1}; //{0,-1,1};
-	Set::Vector s32 = {1,1,0}; //{-1,0,-1};
-	Set::Vector s33 = {0,1,-1}; //{1,1,0};
-	Set::Vector s41 = {1,0,-1}; //{0,1,1};
-	Set::Vector s42 = {0,-1,1}; //{1,0,-1};
-	Set::Vector s43 = {1,-1,0}; //{-1,-1,0};
+	Set::Vector s11 = {s,0,s}; //{0,-1,1};
+	Set::Vector s12 = {0,s,s}; //{1,0,-1};
+	Set::Vector s13 = {s,-s,0}; //{-1,1,0};
+	Set::Vector s21 = {s,s,0}; //{0,1,1};
+	Set::Vector s22 = {0,s,s}; //{-1,0,-1};
+	Set::Vector s23 = {s,0,-s}; //{1,-1,0};
+	Set::Vector s31 = {s,0,s}; //{0,-1,1};
+	Set::Vector s32 = {s,s,0}; //{-1,0,-1};
+	Set::Vector s33 = {0,s,-s}; //{1,1,0};
+	Set::Vector s41 = {s,0,-s}; //{0,1,1};
+	Set::Vector s42 = {0,-s,s}; //{1,0,-1};
+	Set::Vector s43 = {s,-s,0}; //{-1,-1,0};
 
 	this->slp1.n = R*n1; this->slp1.s = R*s11;
 	this->slp2.n = R*n1; this->slp2.s = R*s12;
@@ -127,13 +129,21 @@ Eigen::Matrix<double,12,12> CrystalPlastic::coplanar()
 	return D;
 }
 
-double CrystalPlastic::CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix sig) 
+double CrystalPlastic::CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig) 
 {
 	double a;
 	a = ss.transpose()*sig*nn;
 	return a;
 }
-
+std::array<double, 12> CrystalPlastic::StressSlipSystem(const Set::Matrix& sig)
+{
+	std::array<double,12> a;
+	for(int i = 0; i < 12; i++)
+	{
+		a[i] = CalcSSigN(slipSystem[i].s, slipSystem[i].n, sig);
+	}
+	return a;
+}
 void CrystalPlastic::GetActivePlains(const Set::Matrix& sig)
 {
 	double a = 0;
@@ -175,7 +185,7 @@ Eigen::Matrix<double,12,1> CrystalPlastic::G()
 			if (i == j) continue;
 			a(i) += F(i,j)*tanh(gam/gammadot0);
 		}
-		//a(i) += 1.0;
+		a(i) += 1.0;
 	}
 	//Util::Message(INFO, a,"\n");
 	return a;
@@ -189,7 +199,7 @@ void CrystalPlastic::LatentHardening()
 	{
 		gammatemp += abs(slipSystem[i].galpha);
 	}
-	gam = gam + gammatemp*dt;
+	gam = gammatemp;// gam + gammatemp*dt;
 	/*
 	double h = hs + (h0 - hs) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * gam ) , 2);
 	H = Q*h;
@@ -254,7 +264,7 @@ void CrystalPlastic::update(const Set::Matrix es, Set::Matrix& sigma, const Set:
 {
 	for(double t = 0.0; t < _dt; t += dt)
 	{
-		//Time += dt;
+		Time += dt;
 		AdvanceEsp(sigma);
 		LatentHardening();
 		sigma = UpdateSigma(es);
@@ -285,10 +295,11 @@ Eigen::Matrix<amrex::Real,8,1> CrystalPlastic::DFP(vector2d x0, double tol, doub
 	vector2d xnew = x0;
 	vector2d xprev = -xnew; xprev(1) -= 100;
 	matrix22 Hnew, Hprev;
-	Hnew = matrix22::Identity(); Hprev = matrix22::Zero();
+	Hnew = matrix22::Identity(); Hprev = matrix22::Identity();
 
 	while (abs(xnew.norm() - xprev.norm()) >= tol)
 	{
+		
 		vector2d R = -Hnew * getGrad(xnew, dx, sig);
 		R.normalize();
 		
@@ -301,8 +312,22 @@ Eigen::Matrix<amrex::Real,8,1> CrystalPlastic::DFP(vector2d x0, double tol, doub
 		vector2d del = xnew - xprev;
 
 		Hprev = Hnew;
-		Hnew = Hprev + (del * del.transpose()) / (del.transpose() * del) - (Hprev * (gamma*gamma.transpose()) * Hprev) / (gamma.transpose() * Hprev * gamma);
+		Hnew = Hprev + (del * del.transpose()) / (del.transpose() * del) 
+		- (Hprev * (gamma*gamma.transpose()) * Hprev) / (gamma.transpose() * Hprev * gamma);
 		//Util::Message(INFO,"x = ", xnew.transpose());
+		
+	/*
+		vector2d p = -Hnew * getGrad(xnew, dx, sig);
+
+		double temp = secantMethod(dx, alpha1, alpha2, tol, xnew, p, sig);
+		vector2d s = temp*p;
+		xprev = xnew;
+		xnew = xnew + s;
+		vector2d y = getGrad(xnew, dx, sig) - getGrad(xprev,dx, sig);
+
+		Hprev = Hnew;
+		//Hnew = Hprev + ( (s.transpose() * y + y.transpose() * Hprev * y) * (s*s.transpose()) ) /  (s.transpose()*y*s.transpose()*y);// - (Hprev * y * s.transpose() + s * y.transpose() * Hprev) / (s.transpose() * y); 
+    */
 	}
 	return xnew;
 }

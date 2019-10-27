@@ -66,7 +66,7 @@ int main (int argc, char* argv[])
 	auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
 	deletefile(src); deletefile(src2);
 	Util::Initialize(argc,argv);
-	CrystalPlastic cp(10e3 *  2.0e-3, 7.35e3 *  2.0e-3, 3.8e3 *  2.0e-3); //0.4, 0.1, 0.01 C11 = c11*t0
+	CrystalPlastic cp(10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3); //0.4, 0.1, 0.01 C11 = c11*t0
 	// 10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3
 	std::array<double,12> gamma;
 	//cp.Randomize();
@@ -79,8 +79,8 @@ int main (int argc, char* argv[])
 	//Set::iMatrix mask = Set::iMatrix::Zero();
 	//mask(0,0) = 1;
 	
-	static double constexpr dt = 5e-4;
-	static double constexpr c = 1e-3;
+	static double constexpr dt = 1e-6;
+	static double constexpr c = 1;
 	static double constexpr T = 1/c;
 	cp.Setdt(dt);
 	int counter = 0;
@@ -95,12 +95,13 @@ int main (int argc, char* argv[])
 
 		cp.update(es,sigma,dt);
 
-		if( counter % 10000 == 0)
+		if( counter % 5000 == 0)
 		{
-			for(int i = 0; i < 12; i++)
-			{
-				gamma[i] = cp.getGamma(i);
-			}
+			gamma = cp.StressSlipSystem(sigma);
+			//for(int i = 0; i < 12; i++)
+			//{
+			//	gamma[i] = cp.getGamma(i);
+			//}
 			//Util::Message(INFO,"t = ", t);
 			//Set::Matrix esp = cp.GetEsp();
 			Util::Message(INFO,"es() = ", es);

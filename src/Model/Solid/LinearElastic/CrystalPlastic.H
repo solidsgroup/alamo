@@ -31,7 +31,7 @@ private:
 		Set::Vector n;
 		Set::Vector s;
 		Set::Scalar Tcrss;
-		Set::Scalar galpha;
+		std::array<double,12> galpha;
 		bool on;
 	};
 	//********Matrial Slip Data**********//
@@ -51,22 +51,22 @@ private:
 	Eigen::Matrix<double,12,12> F;
 	//********Matrial Constants**********//
 
-	static Set::Scalar constexpr tcrss = 2.0e-3;
-	static Set::Scalar constexpr n = 1/0.02; 
+	static Set::Scalar constexpr tcrss = .02;//0.75e-3;
+	static Set::Scalar constexpr n = 50.0; 
 	static Set::Scalar constexpr gammadot0 = 0.001; // 0.001 1/s
 	static Set::Scalar constexpr t0 = tcrss; 	// MPa
 	static Set::Scalar constexpr hs = 1.5*t0; 	// MPa
 	static Set::Scalar constexpr h0 = 90*t0; 	// MPa
 	static Set::Scalar constexpr ts = 1.3*t0; 	// MPa
 
-	static Set::Scalar constexpr cc = 200.0; 
+	static Set::Scalar constexpr cc = 20.0; 
 	static Set::Scalar constexpr gg = 8.0;
 	static Set::Scalar constexpr hh = 15.0; 
 	static Set::Scalar constexpr ss = 20.0; 
 	static Set::Scalar constexpr nn = 0.0;
 	
 	static Set::Scalar constexpr q = 0; // 1
-	Set::Scalar gam = gammadot0;
+	std::array<double,12> gam;
 
 	Set::Scalar dt = 1.0e-5;
 	double Time = 0.0;
@@ -97,7 +97,8 @@ public:
 		if (a < 0) return -1;
 		return 0;
 	}
-	double CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix sig);
+	std::array<double,12> StressSlipSystem(const Set::Matrix& sig);
+	double CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig);
 	void GetActivePlains(const Set::Matrix& sig); //used in update esp function
 	Set::Matrix UpdateSigma(const Set::Matrix es);
 	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
