@@ -54,15 +54,17 @@ parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=False, help='Download and build AMReX automatically')
-parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="master", help='AMReX Branch (You probably don\'t need to change this!' )
+parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="19.09", help='AMReX Branch (You probably don\'t need to change this!' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
+parser.add_argument('--offline', dest='offline', action='store_true',default=False, help='[Compile in production mode]')
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',action='store_true',help='Use diff2html to generate git diff reports')
+parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 
@@ -78,6 +80,7 @@ postfix = ""
 postfix += str(args.dim)+"d"
 if args.debug: postfix += "-debug"
 if fpic: postfix += "-fpic"
+if args.profile: postfix += "-profile"
 postfix += "-" + args.comp
 f.write("POSTFIX = " + postfix + '\n')
 
@@ -123,21 +126,26 @@ if (args.buildamrex == True):
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
     if fpic: amrex_configure += ' --enable-pic=yes'
-    note(amrex_configure)
+    if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     args.amrex = "amrex/"+postfix
     f.write("AMREX = amrex/" + postfix + "/\n")
     f.write("AMREX_TARGET = amrex/" + postfix + "\n")
     
     if os.path.isdir("amrex"):
-        message("AMReX-Checkout","Checking out branch " + args.buildamrexbranch,False)
-        p = subprocess.Popen(("git -C amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        message("AMReX-Update","Updating branch " + args.buildamrexbranch,False)
-        p = subprocess.Popen("git -C amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        if not args.offline:
+            message("AMReX-Checkout","Checking out branch " + args.buildamrexbranch,False)
+            p = subprocess.Popen(("git -C amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+            for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+            message("AMReX-Update","Updating branch " + args.buildamrexbranch,False)
+            p = subprocess.Popen("git -C amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+            for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+        else:
+            message("AMReX","In offline mode, using existing version of AMReX")
     else:
+        if args.offline:
+            raise Exception(error() + "Cannot download AMReX and no version currently exists!")
         message("AMReX-Clone","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
         p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE)
@@ -151,7 +159,10 @@ if (args.buildamrex == True):
     f2.write("\t$(MAKE) -C amrex $(MAKECMD)\n") # --output-sync=target
     f2.write("\tmake -C amrex install\n")
         
-    message("AMReX-Status", "Downloading/building automatically")
+    if not args.offline:
+        message("AMReX-Status", "Downloading/building automatically")
+    else:        
+        message("AMReX-Status", "Using pre-downloaded version")
     message("AMReX-Directory", "amrex/"+postfix)
 
 elif (args.amrex != ""):
@@ -229,7 +240,7 @@ if args.comp == 'g++':
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
+    else:          f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
 if args.comp == 'clang++': 
     f.write("MPI_LIB = -lgfortran -lmpich\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
@@ -238,7 +249,7 @@ if args.comp == 'clang++':
 if args.comp == 'icc':     
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
-    else:          f.write("CXX_COMPILE_FLAGS += -O3\n") # -inline-forceinline
+    else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
 
 #
 # Python information

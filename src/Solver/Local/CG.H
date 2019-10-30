@@ -30,7 +30,7 @@ Set::Matrix CG (Set::Matrix4<3,Set::Sym::MajorMinor> A,
     }
 
     Set::Matrix p = r;
-    for (int k = 0; k < 500; k++)
+    for (int k = 0; k < 10; k++)
     {
         Set::Scalar alpha = (r.transpose()*r).trace() / (p.transpose() * (A*p)).trace();
         x = x + (p * alpha);

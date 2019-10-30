@@ -6,7 +6,7 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "BC/Operator/Elastic.H"
-#include "Solver/Linear.H"
+#include "Solver/Nonlocal/Linear.H"
 
 namespace Test
 {
@@ -51,7 +51,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  	nlevels = geom.size();
 
 	::Operator::Elastic<model_type> elastic;
-	elastic.SetHomogeneous(false);
+	elastic.SetUniform(false);
  	elastic.define(geom, cgrids, dmap, info);
  	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
 
@@ -93,7 +93,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 	// Create MLMG solver and solve
 	//amrex::MLMG mlmg(elastic);
-	Solver::Linear mlmg(elastic);
+	Solver::Nonlocal::Linear mlmg(elastic);
 	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);

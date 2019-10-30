@@ -19,7 +19,7 @@
 #include "BC/Constant.H"
 #include "BC/Operator/Elastic.H"
 #include "IC/IC.H"
-#include "IC/Constant/Constant.H"
+#include "IC/Constant.H"
 #include "Numeric/Interpolator/Linear.H"
 #include "Util/Util.H"
 #include "IO/FileNameParse.H"
@@ -33,9 +33,9 @@
 
 namespace Integrator
 {
-using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
-//using model_type = Model::Solid::LinearElastic::Isotropic;
-//using model_type = Model::Solid::LinearElastic::Laplacian;
+using pd_model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+//using pd_model_type = Model::Solid::LinearElastic::Isotropic;
+//using pd_model_type = Model::Solid::LinearElastic::Laplacian;
 
 ///
 /// \class PolymerDegradation
@@ -64,7 +64,7 @@ protected:
 
 	void TimeStepComplete(amrex::Real time, int iter);
 
-	void DegradeMaterial(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
+	void DegradeMaterial(int lev,amrex::FabArray<amrex::BaseFab<pd_model_type> > &model);
 
 private:
 
@@ -181,8 +181,8 @@ private:
 		bool 		consolidation 	  		= false;
 
 		// Elastic BC
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
+		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
+		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
 		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
 		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
@@ -192,7 +192,7 @@ private:
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	} elastic;
 
-	model_type 		*modeltype;
+	pd_model_type 		*modeltype;
 	std::string 	input_material = "isotropic";
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;

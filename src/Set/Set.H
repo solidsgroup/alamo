@@ -98,7 +98,7 @@ public:
         // [2, 2, 2, 2]
         else if (uid==80 ) return data[14];
         else Util::Abort(INFO,"uid not in range (uid=",uid,")");        
-        return data[-1];
+        return data[0]; // this return statement is unreachable.
     }
     void Print (std::ostream& os)
     {
@@ -173,7 +173,7 @@ public:
         // [1, 1, 1, 1]
         else if (uid==15 ) return data[4];
         else Util::Abort(INFO,"Index out of range");
-        return data[-1];
+        return data[0]; // this code is unreachable
     }
     static Matrix4<2,Sym::Full> Randomize()
     {
@@ -196,6 +196,47 @@ public:
         return zero;
     }
 };
+
+template<>
+class Matrix4<3,Sym::Isotropic>
+{
+    Set::Scalar lambda=NAN, mu=NAN;
+public:
+    Matrix4() {};
+    Matrix4(Set::Scalar a_lambda, Set::Scalar a_mu) : lambda(a_lambda), mu(a_mu) {};
+    AMREX_FORCE_INLINE
+    Scalar operator () (const int i, const int j, const int k, const int l)
+    {
+        Set::Scalar ret = 0.0;
+        if (i==k && j==l) ret += mu;
+        if (i==l && j==k) ret += mu;
+        if (i==j && k==l) ret += lambda;
+        return ret;
+    }
+    void Randomize()
+    {
+        lambda = Util::Random();
+        mu = Util::Random();
+    }
+    void Print (std::ostream& /* os */)
+    {
+        Util::Abort(INFO,"Not yet implemented");
+    }
+    static Matrix4<3,Sym::Isotropic> Zero()
+    {
+        Matrix4<3,Sym::Isotropic> zero;
+        zero.lambda = 0.0;
+        zero.mu = 0.0;
+        return zero;
+    }
+    void operator += (Matrix4<3,Sym::Isotropic> a) {lambda += a.lambda; mu += a.mu;}
+    void operator -= (Matrix4<3,Sym::Isotropic> a) {lambda -= a.lambda; mu -= a.mu;}
+    void operator *= (Matrix4<3,Sym::Isotropic> a) {lambda *= a.lambda; mu *= a.mu;}
+    void operator /= (Matrix4<3,Sym::Isotropic> a) {lambda /= a.lambda; mu /= a.mu;}
+    void operator *= (Set::Scalar alpha) {lambda *= alpha; mu *= alpha;}
+    void operator /= (Set::Scalar alpha) {lambda /= alpha; mu /= alpha;}
+};
+
 
 /// \brief Data structure for a 4th order 3D tensor with major and minor symmetry
 ///

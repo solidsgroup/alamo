@@ -102,7 +102,7 @@ void CrystalPlastic::initializeSlip(Set::Matrix R)
 	for(int i = 0; i < 12; i++)
 	{
 		slipSystem[i].on = false;
-		slipSystem[i].galpha = 0;
+		slipSystem[i].galpha[i] = gammadot0;
 		slipSystem[i].Tcrss = tcrss;
 		//Util::Message(INFO,"n = ", slipSystem[i].n.transpose());
 		//Util::Message(INFO,"s = ", slipSystem[i].s.transpose());
@@ -167,9 +167,9 @@ void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 		{
 			double a = CalcSSigN(slipSystem[i].s,slipSystem[i].n,sig);
 			int sign = sgn(a);
-			slipSystem[i].galpha = (double)sign*gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
+			slipSystem[i].galpha[i] = (double)sign*gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
 			//if(Time > 0.01) Util::Message(INFO, sgn(a));
-			temp += slipSystem[i].galpha*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
+			temp += slipSystem[i].galpha[i]*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
 		}
 	}
 	// Euler integration
@@ -183,7 +183,7 @@ Eigen::Matrix<double,12,1> CrystalPlastic::G()
 		for(int j = 0; j < 12; j++)
 		{
 			if (i == j) continue;
-			a(i) += F(i,j)*tanh(gam/gammadot0);
+			a(i) += F(i,j)*tanh(slipSystem[i].galpha[i]/gammadot0);
 		}
 		a(i) += 1.0;
 	}
@@ -194,12 +194,12 @@ void CrystalPlastic::LatentHardening()
 {
 	Eigen::Matrix<double,12,12> H = Eigen::Matrix<double,12,12>::Identity();
 	Eigen::Matrix<double,12,1> haa = Eigen::Matrix<double,12,1>::Zero();
-	double gammatemp = 0;
+	std::array<double,12> gammatemp;
 	for(int i = 0; i < 12; i++) 
 	{
-		gammatemp += abs(slipSystem[i].galpha);
+		gammatemp[i] += abs(slipSystem[i].galpha[i]);
+		slipSystem[i].galpha[i] = slipSystem[i].galpha[i] + gammatemp[i] * dt; 
 	}
-	gam = gammatemp;// gam + gammatemp*dt;
 	/*
 	double h = hs + (h0 - hs) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * gam ) , 2);
 	H = Q*h;
@@ -235,7 +235,8 @@ void CrystalPlastic::LatentHardening()
 */
 
 	haa = G();
-	double a =  hs + (h0 - hs) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * gam ) , 2);
+	//change
+	double a =  hs + (h0 - hs) * 1/pow(cosh( ((h0 - hs)/( ts - t0)) * slipSystem[1].galpha[1] ) , 2);
 	haa = a* haa;
 	for(int i = 0; i < 12; i++)
 	{
@@ -251,7 +252,7 @@ void CrystalPlastic::LatentHardening()
 		double temp = 0;
 		for(int b = 0; b < 12; b++)
 		{
-			temp += H(a,b) * abs(slipSystem[b].galpha);
+			temp += H(a,b) * abs(slipSystem[b].galpha[b]);
 		}
 		//if(temp < tcrss) temp = tcrss;
 		slipSystem[a].Tcrss = slipSystem[a].Tcrss + temp*dt;
@@ -282,7 +283,7 @@ Set::Matrix CrystalPlastic::GetEsp() const
 }
 double CrystalPlastic::getGamma(int index) const
 {
-	return slipSystem[index].galpha;
+	//return slipSystem[index].galpha;
 }
 void CrystalPlastic::Setdt(double _dt)
 {

@@ -11,6 +11,7 @@
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Operator/Elastic.H"
+#include "Test/Set/Matrix4.H"
 
 #include "Operator/Elastic.H"
 
@@ -22,6 +23,34 @@ int main (int argc, char* argv[])
 	Util::Initialize(argc, argv);
 
 	int failed = 0;
+
+	Util::Test::Message("Set::Matrix4");
+	{
+		int subfailed = 0;
+		Test::Set::Matrix4<2,Set::Sym::Full> test_2d_full;
+		subfailed += Util::Test::SubMessage("2D - Full", test_2d_full.SymmetryTest(0));
+		Test::Set::Matrix4<3,Set::Sym::Full> test_3d_full;
+		subfailed += Util::Test::SubMessage("3D - Full", test_3d_full.SymmetryTest(0));
+		Test::Set::Matrix4<3,Set::Sym::MajorMinor> test_3d_majorminor;
+		subfailed += Util::Test::SubMessage("3D - MajorMinor", test_3d_majorminor.SymmetryTest(0));
+	}
+//	Util::Test::Message("Model::Interface::GB::GB<Sin>");
+//	{
+//		int subfailed = 0;
+//		Test::Model::Interface::GB::GB<Model::Interface::GB::Sin> test;
+//		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+//		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
+//
+//	Util::Test::Message("Model::Interface::GB::GB<AbsSin>");
+//	{
+//		int subfailed = 0;
+//		Test::Model::Interface::GB::GB<Model::Interface::GB::AbsSin> test;
+//		subfailed += Util::Test::SubMessage("DerivativeTest1",   test.DerivativeTest1(0));
+//		subfailed += Util::Test::SubMessage("DerivativeTest2",   test.DerivativeTest2(0));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
 
 	Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
 	{
@@ -102,7 +131,7 @@ int main (int argc, char* argv[])
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
-	Util::Test::Message("Elastic Operator Trig Test 32x32");
+	Util::Test::Message("Elastic Operator Trig Test 32^n");
 	{
 		int subfailed = 0;
 		Test::Operator::Elastic test;
@@ -118,16 +147,18 @@ int main (int argc, char* argv[])
 
 	}
 
-	Util::Test::Message("Elastic Operator Uniaxial Test 32x32");
+	Util::Test::Message("Elastic Operator Uniaxial Test 32^n");
 	{
 		int subfailed = 0;
 		Test::Operator::Elastic test;
 	    test.Define(32,1);
-		subfailed += Util::Test::SubMessage("1 level, Component 0, period=1",test.UniaxialTest(0,0));
+		subfailed += Util::Test::SubMessage("1 level,  Component 0",test.UniaxialTest(0,0));
 		test.Define(32,2);
-		subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.UniaxialTest(0,0));
+		subfailed += Util::Test::SubMessage("2 levels, Component 0",test.UniaxialTest(0,0));
 		test.Define(32,3);
-		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.UniaxialTest(0,0));
+		subfailed += Util::Test::SubMessage("3 levels, Component 0",test.UniaxialTest(0,0));
+		test.Define(32,2,AMREX_SPACEDIM,test.Grid::YZ);
+		subfailed += Util::Test::SubMessage("2 non-centered levels, Component 0",test.UniaxialTest(0,0));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 	

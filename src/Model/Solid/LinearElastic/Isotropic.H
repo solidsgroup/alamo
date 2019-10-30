@@ -19,7 +19,7 @@ namespace LinearElastic
 /// Isotropic implements the following elastic model
 /// \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
 ///
-class Isotropic : public Model::Solid::LinearElastic::LinearElastic
+class Isotropic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Isotropic>
 {
 public:
 	Isotropic() {} ;
@@ -35,16 +35,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
-	virtual Set::Scalar W(Set::Matrix eps)
-	{
-		Set::Matrix sig = DW(eps);
-		return (sig.transpose()*eps).trace();
-	}
-	virtual Set::Matrix DW(Set::Matrix eps)
-	{
-		return (*this)(eps);
-	}
-	virtual Set::Matrix operator () (Set::Matrix &eps) const
+	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const
 	{
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
@@ -52,7 +43,7 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 	AMREX_FORCE_INLINE
 #endif
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true)
 	{
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)

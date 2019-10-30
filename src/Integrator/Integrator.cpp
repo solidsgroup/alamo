@@ -59,7 +59,6 @@ Integrator::Integrator ()
 		pp.query("int", thermo.interval);     // ALL processors
 		pp.query("plot_int", thermo.plot_int);         // ALL processors
 		pp.query("plot_dt", thermo.plot_dt);         // ALL processors
-		Util::Message(INFO,thermo.plot_int," ",thermo.plot_dt);
 	}
 
 
@@ -110,6 +109,7 @@ void Integrator::SetPlotInt(int a_plot_int)
 void
 Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& cgrids, const DistributionMapping& dm)
 {
+	Util::Message(INFO);
 	BL_PROFILE("Integrator::MakeNewLevelFromCoarse");
 	t_new[lev] = time;
 	t_old[lev] = time - 1.e200;
@@ -162,6 +162,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 
 		MultiFab new_state(cgrids, dm, ncomp, nghost); 
 
+		new_state.setVal(0.0);
 		FillPatch(lev, time, *cell.fab_array[n], new_state, *cell.physbc_array[n], 0);
 		std::swap(new_state, *(*cell.fab_array[n])[lev]);
 	}
@@ -176,6 +177,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 
 		MultiFab new_state(ngrids, dm, ncomp, nghost); 
 
+		new_state.setVal(0.0);
 		FillPatch(lev, time, *node.fab_array[n], new_state, *node.physbc_array[n], 0);
 		std::swap(new_state, *(*node.fab_array[n])[lev]);
 	}
@@ -212,7 +214,8 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 			   BC::BC *new_bc,
 			   int ncomp,
 			   int nghost,
-			   std::string name)
+			   std::string name,
+			   bool writeout)
 {
 	BL_PROFILE("Integrator::RegisterNewFab_1");
 	int nlevs_max = maxLevel() + 1;
@@ -222,13 +225,15 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	cell.ncomp_array.push_back(ncomp);
 	cell.nghost_array.push_back(nghost);
 	cell.name_array.push_back(name);
+	cell.writeout_array.push_back(writeout);
 	cell.number_of_fabs++;
 }
 
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
 			   int ncomp,
-			   std::string name)
+			   std::string name,
+			   bool writeout)
 {
 	BL_PROFILE("Integrator::RegisterNewFab_2");
 	int nlevs_max = maxLevel() + 1;
@@ -238,23 +243,36 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	cell.ncomp_array.push_back(ncomp);
 	cell.nghost_array.push_back(0);
 	cell.name_array.push_back(name);
+	cell.writeout_array.push_back(writeout);
 	cell.number_of_fabs++;
 }
 void // CUSTOM METHOD - CHANGEABLE
 Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+			   	 BC::BC *new_bc,
 			     int ncomp,
 			     int nghost,
-			     std::string name)
+			     std::string name,
+				 bool writeout)
 {
 	BL_PROFILE("Integrator::RegisterNodalFab");
 	int nlevs_max = maxLevel() + 1;
 	new_fab.resize(nlevs_max); 
 	node.fab_array.push_back(&new_fab);
-	node.physbc_array.push_back(&bcnothing); 
+	node.physbc_array.push_back(new_bc); 
 	node.ncomp_array.push_back(ncomp);
 	node.nghost_array.push_back(nghost);
 	node.name_array.push_back(name);
+	node.writeout_array.push_back(writeout);
 	node.number_of_fabs++;
+}
+void // CUSTOM METHOD - CHANGEABLE
+Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+			     int ncomp,
+			     int nghost,
+			     std::string name,
+				 bool writeout)
+{
+	RegisterNodalFab(new_fab,&bcnothing,ncomp,nghost,name,writeout);
 }
 
 
@@ -319,19 +337,22 @@ Integrator::FillPatch (int lev, Real time,
 		ftime.push_back(time);
 
 		physbc.define(geom[lev]);
-		Interpolater* mapper = &cell_cons_interp;
+		
+		Interpolater* mapper;
+
+		if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
+			mapper = &node_bilinear_interp;
+		else
+			mapper = &cell_cons_interp;
 
 		amrex::Vector<BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); // todo
-		amrex::ParallelDescriptor::Barrier();
-      
-		amrex::ParallelDescriptor::Barrier();
 		amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
 					  0, icomp, destination_mf.nComp(), geom[lev-1], geom[lev],
 					  physbc, 0,
 					  physbc, 0,
 					  refRatio(lev-1),
 					  mapper, bcs, 0);
-		amrex::ParallelDescriptor::Barrier();
+//		if (destination_mf.contains_nan()) Util::Abort(INFO);
 	}
 }
 
@@ -475,7 +496,7 @@ Integrator::Restart(const std::string dirname)
 
 	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
 	int total_ncomp = 0; 
-	for (int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+	for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
 	int total_nghost = cell.nghost_array[0];
 
 	for (int lev = 0; lev <= max_level; lev++)
@@ -571,6 +592,7 @@ Integrator::WritePlotFile (bool initial) const
 	amrex::Vector<std::string> cnames, nnames;
 	for (int i = 0; i < cell.number_of_fabs; i++)
 	{
+		if (!cell.writeout_array[i]) continue;
 		ccomponents += cell.ncomp_array[i];
 		if (cell.ncomp_array[i] > 1)
 			for (int j = 1; j <= cell.ncomp_array[i]; j++)
@@ -580,6 +602,7 @@ Integrator::WritePlotFile (bool initial) const
 	}
 	for (int i = 0; i < node.number_of_fabs; i++)
 	{
+		if (!node.writeout_array[i]) continue;
 		ncomponents += node.ncomp_array[i];
 		if (node.ncomp_array[i] > 1)
 			for (int j = 1; j <= node.ncomp_array[i]; j++)
@@ -592,44 +615,62 @@ Integrator::WritePlotFile (bool initial) const
   
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
-		amrex::BoxArray ngrids = grids[ilev];
-		ngrids.convert(amrex::IntVect::TheNodeVector());
-		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
-
-		int n = 0;
-		// Util::Warning(INFO,"Remove this line!");
-		// (*(*cell.fab_array[3])[ilev]).setVal(0.0);
-		for (int i = 0; i < cell.number_of_fabs; i++)
+		if (ccomponents > 0)
 		{
-			MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
-			n += cell.ncomp_array[i];
+			cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
+
+			int n = 0;
+			for (int i = 0; i < cell.number_of_fabs; i++)
+			{
+				if (!cell.writeout_array[i]) continue;
+				if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,cnames[i]," contains nan (i=",i,")");
+				if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
+				MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
+				n += cell.ncomp_array[i];
+			}
 		}
 
-		n = 0;
-		for (int i = 0; i < node.number_of_fabs; i++)
+		if (ncomponents > 0)
 		{
-			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
-			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
-			MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
-			n += node.ncomp_array[i];
+			amrex::BoxArray ngrids = grids[ilev];
+			ngrids.convert(amrex::IntVect::TheNodeVector());
+			nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
+			
+			int n = 0;
+			for (int i = 0; i < node.number_of_fabs; i++)
+			{
+				if (!node.writeout_array[i]) continue;
+				if ((*node.fab_array[i])[ilev]->contains_nan()) 
+				{
+					Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
+					(*node.fab_array[i])[ilev]->setVal(0.0);
+				}
+				if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
+				MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
+				n += node.ncomp_array[i];
+			}
 		}
 	}
 
 	std::vector<std::string> plotfilename = PlotFileName(istep[0]);
 	if (initial) plotfilename[1] = plotfilename[1] + "init";
   
-	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
-				Geom(), t_new[0],istep, refRatio());
+	if (ccomponents > 0)
+	{
+		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
+					Geom(), t_new[0],istep, refRatio());
 	
-	std::ofstream chkptfile;
-	chkptfile.open(plotfilename[0]+plotfilename[1]+"cell/Checkpoint");
-	for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
-	chkptfile.close();
+		std::ofstream chkptfile;
+		chkptfile.open(plotfilename[0]+plotfilename[1]+"cell/Checkpoint");
+		for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
+		chkptfile.close();
+	}
 
 	if (ncomponents > 0)
+	{
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
 					Geom(), t_new[0],istep, refRatio());
+	}
 
 	if (ParallelDescriptor::IOProcessor())
 	{
@@ -681,7 +722,6 @@ Integrator::Evolve ()
 		}
 
 		if (plot_int > 0 && (step+1) % plot_int == 0) {
-			Util::Message(INFO,"plot_int=",plot_int," step = ",step);
 			last_plot_file_step = step+1;
 			WritePlotFile();
 			IO::WriteMetaData(plot_file,IO::Status::Running,(int)(100.0*cur_time/stop_time));

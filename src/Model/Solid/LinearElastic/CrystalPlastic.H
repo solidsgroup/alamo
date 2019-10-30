@@ -14,7 +14,7 @@ namespace Solid
 namespace CrystalPlastic
 {
 
-class CrystalPlastic : public Model::Solid::LinearElastic::LinearElastic
+class CrystalPlastic : public Solid
 {
 private:
 	static constexpr int dim = 8;
@@ -66,7 +66,7 @@ private:
 	static Set::Scalar constexpr nn = 0.0;
 	
 	static Set::Scalar constexpr q = 0; // 1
-	std::array<double,12> gam;
+	//double \ gam = gammadot0;
 
 	Set::Scalar dt = 1.0e-5;
 	double Time = 0.0;

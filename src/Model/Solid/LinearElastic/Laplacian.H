@@ -22,20 +22,20 @@ namespace LinearElastic
 /// \f[ \sigma_{ij} = \alpha\delta_{ik}\delta_{jl}u_{k,l} = \alpha u_{i,j} \f]
 /// \f[ f_{i} = \mathbb{C}_{ijkl}u_{k,jl} = \alpha\delta_{ik}\delta_{jl}u_{k,jl} = \alpha u_{i,jj} \f]
 ///
-class Laplacian : public Model::Solid::LinearElastic::LinearElastic
+class Laplacian : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Isotropic>
 {
 public:
 	Laplacian() {} ;
 	Laplacian(Set::Scalar _alpha) : alpha(_alpha)  {} ;
 	~Laplacian() {} ;
 	AMREX_FORCE_INLINE
-	virtual Set::Matrix operator () (Set::Matrix &gradu) const
+	virtual Set::Matrix operator () (Set::Matrix &gradu,bool =true) const
 	{
 		//return alpha * 0.5*(gradu + gradu.transpose());
 		return alpha * gradu;
 	};
 	AMREX_FORCE_INLINE
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool =true)
 	{
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)

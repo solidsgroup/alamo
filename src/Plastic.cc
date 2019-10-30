@@ -6,6 +6,7 @@
 #include <string>
 #include "Util/Util.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
+#include "Integrator/EshelbyPlastic.H"
 #include "Solver/Local/CG.H"
 using namespace Model::Solid::CrystalPlastic;
 

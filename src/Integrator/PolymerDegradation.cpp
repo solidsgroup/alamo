@@ -1,5 +1,5 @@
 #include "PolymerDegradation.H"
-#include "Solver/Linear.H"
+#include "Solver/Nonlocal/Linear.H"
 
 //#if AMREX_SPACEDIM == 1
 namespace Integrator
@@ -57,8 +57,8 @@ PolymerDegradation::PolymerDegradation():
 							  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 							  );
 
-		RegisterNewFab(water_conc,     water.bc, 1, number_of_ghost_cells, "Water Concentration");
-		RegisterNewFab(water_conc_old, water.bc, 1, number_of_ghost_cells, "Water Concentration Old");
+		RegisterNewFab(water_conc,     water.bc, 1, number_of_ghost_cells, "Water Concentration",true);
+		RegisterNewFab(water_conc_old, water.bc, 1, number_of_ghost_cells, "Water Concentration Old",false);
 	}
 
 	// ---------------------------------------------------------------------
@@ -108,8 +108,8 @@ PolymerDegradation::PolymerDegradation():
 	else
 		thermal.bc = new BC::Nothing();
 
-	RegisterNewFab(Temp,     thermal.bc, 1, number_of_ghost_cells, "Temperature");
-	RegisterNewFab(Temp_old, thermal.bc, 1, number_of_ghost_cells, "Temperature Old");
+	RegisterNewFab(Temp,     thermal.bc, 1, number_of_ghost_cells, "Temperature",true);
+	RegisterNewFab(Temp_old, thermal.bc, 1, number_of_ghost_cells, "Temperature Old",false);
 
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
@@ -133,7 +133,7 @@ PolymerDegradation::PolymerDegradation():
 			Util::Warning(INFO,"Mu must be positive. Resetting back to default value");
 			mu = 1.0;
 		}
-		modeltype = new model_type(lambda,mu);
+		modeltype = new pd_model_type(lambda,mu);
 	}
 	else
 		Util::Abort(INFO, "Not implemented yet");
@@ -266,12 +266,12 @@ PolymerDegradation::PolymerDegradation():
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
-	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
-	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
-	RegisterNewFab(eta_w_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
-	RegisterNewFab(eta_w_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
-	RegisterNewFab(eta_T_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta");
-	RegisterNewFab(eta_T_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old");
+	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta",true);
+	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old",true);
+	RegisterNewFab(eta_w_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta",true);
+	RegisterNewFab(eta_w_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old",true);
+	RegisterNewFab(eta_T_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta",true);
+	RegisterNewFab(eta_T_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old",true);
 
 	//std::cout << __FILE__ << ": " << __LINE__ << std::endl;
 	// ---------------------------------------------------------------------
@@ -342,13 +342,13 @@ PolymerDegradation::PolymerDegradation():
 						pp_elastic_bc.queryarr("bc_y_hi",bc_y_hi_str);,
 						pp_elastic_bc.queryarr("bc_z_hi",bc_z_hi_str););
 
-		std::map<std::string,BC::Operator::Elastic<model_type>::Type >        bc_map;
-		bc_map["displacement"] 	= BC::Operator::Elastic<model_type>::Type::Displacement;
-		bc_map["disp"] 			= BC::Operator::Elastic<model_type>::Type::Displacement;
-		bc_map["traction"] 		= BC::Operator::Elastic<model_type>::Type::Traction;
-		bc_map["trac"] 			= BC::Operator::Elastic<model_type>::Type::Traction;
-		bc_map["neumann"] 		= BC::Operator::Elastic<model_type>::Type::Neumann;
-		bc_map["periodic"] 		= BC::Operator::Elastic<model_type>::Type::Periodic;
+		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
+		bc_map["displacement"] 	= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
+		bc_map["disp"] 			= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
+		bc_map["traction"] 		= BC::Operator::Elastic<pd_model_type>::Type::Traction;
+		bc_map["trac"] 			= BC::Operator::Elastic<pd_model_type>::Type::Traction;
+		bc_map["neumann"] 		= BC::Operator::Elastic<pd_model_type>::Type::Neumann;
+		bc_map["periodic"] 		= BC::Operator::Elastic<pd_model_type>::Type::Periodic;
 
 		
 		AMREX_D_TERM(	elastic.bc_xlo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]],
@@ -484,13 +484,13 @@ PolymerDegradation::PolymerDegradation():
 		//-----------------------------------------------------------------------
 
 		const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
-		RegisterNodalFab (displacement,	AMREX_SPACEDIM,					2,	"displacement");;
-		RegisterNodalFab (rhs,			AMREX_SPACEDIM,					2,	"rhs");;
-		RegisterNodalFab (strain,		number_of_stress_components,	2,	"strain");;
-		RegisterNodalFab (stress,		number_of_stress_components,	2,	"stress");;
-		RegisterNodalFab (stress_vm,	1,								2,	"stress_vm");;
-		RegisterNodalFab (energy,		1,								2,	"energy");;
-		RegisterNodalFab (residual,		AMREX_SPACEDIM,					2,	"residual");;
+		RegisterNodalFab (displacement,	AMREX_SPACEDIM,					2,	"displacement",true);;
+		RegisterNodalFab (rhs,			AMREX_SPACEDIM,					2,	"rhs",true);;
+		RegisterNodalFab (strain,		number_of_stress_components,	2,	"strain",true);;
+		RegisterNodalFab (stress,		number_of_stress_components,	2,	"stress",true);;
+		RegisterNodalFab (stress_vm,	1,								2,	"stress_vm",true);;
+		RegisterNodalFab (energy,		1,								2,	"energy",true);;
+		RegisterNodalFab (residual,		AMREX_SPACEDIM,					2,	"residual",true);;
 
 	}
 
@@ -791,7 +791,7 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 }
 
 void
-PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &model)
+PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_model_type> > &model)
 {
 	/*
 	  This function is supposed to degrade material parameters based on certain
@@ -811,7 +811,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 	{
 		const amrex::Box& box = mfi.validbox();
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
-		amrex::Array4<model_type> const& modelfab = model.array(mfi);
+		amrex::Array4<pd_model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
@@ -868,7 +868,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<pd_model_type> > > model;
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -878,14 +878,14 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	}
 
 	//Util::Message(INFO);
-	Operator::Elastic<model_type> elastic_operator;
+	Operator::Elastic<pd_model_type> elastic_operator;
 	elastic_operator.define(geom, grids, dmap, info);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		elastic_operator.SetModel(ilev,model[ilev]);
 	}
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
-	BC::Operator::Elastic<model_type> bc;
+	BC::Operator::Elastic<pd_model_type> bc;
 	elastic_operator.SetBC(&bc);
 	//Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -950,7 +950,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	 	     );
 
 	//Util::Message(INFO);
-	Solver::Linear solver(elastic_operator);
+	Solver::Nonlocal::Linear solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
 	solver.setFixedIter(elastic.max_fixed_iter);

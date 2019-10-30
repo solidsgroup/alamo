@@ -29,7 +29,7 @@ public:
 			Util::Abort(INFO,"Data points and interval points have different sizes");
 	};
 
- 	T operator() (Set::Scalar point)
+ 	T operator() (const Set::Scalar point) const
 	{
 
 		// Do this if point is below interpolation range

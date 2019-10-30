@@ -1,6 +1,10 @@
+#include "Operator/Operator.H"
 #include <AMReX_MLMG.H>
+#include "IC/Trig.H"
 
 namespace Solver
+{
+namespace Nonlocal
 {
 /// \brief Multigrid Linear solver for multicomponent, multi-level operators
 /// 
@@ -12,19 +16,14 @@ namespace Solver
 /// with AMReX can be implemented here.
 class Linear : public amrex::MLMG
 {
-    public:
+public:
     /// This constructor sets several defaults for NODAL solves
-    Linear (Operator::Operator<Grid::Node>& a_lp) : MLMG(a_lp)
+    Linear (Operator::Operator<Grid::Node>& a_lp) : MLMG(a_lp), linop(a_lp)
     {
         MLMG::setBottomSolver(MLMG::BottomSolver::bicgstab);
 	    MLMG::setCFStrategy(MLMG::CFStrategy::ghostnodes);
-        MLMG::setFinalFillBC(false);	
-    }
-    Linear (Operator::Operator<Grid::Cell>& a_lp): MLMG(a_lp)
-    {
-        MLMG::setBottomSolver(MLMG::BottomSolver::bicgstab);
-	    MLMG::setCFStrategy(MLMG::CFStrategy::none);
-        MLMG::setFinalFillBC(false);	
+        MLMG::setFinalFillBC(false);
+        MLMG::setMaxFmgIter(100000000);
     }
     void setVerbose(int verbosity)
     {
@@ -32,10 +31,75 @@ class Linear : public amrex::MLMG
 		if (verbosity > 4) MLMG::setCGVerbose(verbosity);
      	else
  	    {
- 		    MLMG::setVerbose(0);
  		    MLMG::setCGVerbose(0);
 	    }
     }
 
+    Set::Scalar solveaffine (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
+                       amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
+                       Real a_tol_rel, Real a_tol_abs, bool copyrhs = false, 
+                       const char* checkpoint_file = nullptr)
+    {
+        amrex::Vector<amrex::MultiFab *> rhs_tmp(a_rhs.size());
+        amrex::Vector<amrex::MultiFab *> zero_tmp(a_rhs.size());
+        for (int i = 0; i < rhs_tmp.size(); i++)
+        {
+            rhs_tmp[i]  = new amrex::MultiFab(a_rhs[i]->boxArray(),a_rhs[i]->DistributionMap(),a_rhs[i]->nComp(),a_rhs[i]->nGrow());
+            zero_tmp[i] = new amrex::MultiFab(a_rhs[i]->boxArray(),a_rhs[i]->DistributionMap(),a_rhs[i]->nComp(),a_rhs[i]->nGrow());
+            rhs_tmp[i]->setVal(0.0);
+            zero_tmp[i]->setVal(0.0);
+        }
+
+        linop.SetHomogeneous(false);
+        MLMG::apply(rhs_tmp,zero_tmp);
+
+        for (int lev = 0; lev < rhs_tmp.size(); lev++)
+        {
+            amrex::Box domain = linop.Geom(lev).Domain();
+            domain.convert(amrex::IntVect::TheNodeVector());
+      		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+            for (MFIter mfi(*rhs_tmp[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		    {
+		    	amrex::Box bx = mfi.growntilebox(rhs_tmp[lev]->nGrow());
+                bx = bx & domain;
+                amrex::Array4<amrex::Real> const& rhstmp = rhs_tmp[lev]->array(mfi);
+                for (int n = 0; n < rhs_tmp[lev]->nComp(); n++)
+                {
+                    amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                    {
+  			            bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+			        	    	AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+                        if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
+                            rhstmp(i,j,k,n) = 0.0;
+                        else
+                            rhstmp(i,j,k,n) *= -1.0;
+                    });
+                }
+            }
+            linop.realFillBoundary(*rhs_tmp[lev],linop.Geom(lev));
+            //rhs_tmp[lev]->FillBoundary();
+        }
+
+        for (int lev = 0; lev < rhs_tmp.size(); lev++)
+        {
+            amrex::Add(*rhs_tmp[lev],*a_rhs[lev],0,0,rhs_tmp[lev]->nComp(),rhs_tmp[lev]->nGrow());
+            if (copyrhs)
+                amrex::Copy(*a_rhs[lev],*rhs_tmp[lev],0,0,rhs_tmp[lev]->nComp(),rhs_tmp[lev]->nGrow());
+        }
+
+        linop.SetHomogeneous(true);
+        return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(rhs_tmp),a_tol_rel,a_tol_abs,checkpoint_file);
+    }
+
+    Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
+                       amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
+                       Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
+    {
+        return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
+    };
+    using MLMG::solve;
+private:
+    Operator::Operator<Grid::Node> &linop;
 };
+}
 }
