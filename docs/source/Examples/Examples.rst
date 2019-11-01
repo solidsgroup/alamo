@@ -9,4 +9,5 @@ This is basic documentation for the Alamo.
    Voronoi
    Flame
    PerturbedInterface
+   Eshelby
 

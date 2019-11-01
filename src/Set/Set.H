@@ -98,7 +98,7 @@ public:
         // [2, 2, 2, 2]
         else if (uid==80 ) return data[14];
         else Util::Abort(INFO,"uid not in range (uid=",uid,")");        
-        return data[-1];
+        return data[0]; // this return statement is unreachable.
     }
     void Print (std::ostream& os)
     {
@@ -173,7 +173,7 @@ public:
         // [1, 1, 1, 1]
         else if (uid==15 ) return data[4];
         else Util::Abort(INFO,"Index out of range");
-        return data[-1];
+        return data[0]; // this code is unreachable
     }
     static Matrix4<2,Sym::Full> Randomize()
     {
