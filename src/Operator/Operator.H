@@ -102,6 +102,13 @@ public:
 	//
 	// Private: internal machinery that you should never need to mess with
 	//
+	virtual void applyInhomogNeumannTerm (int /*armlev*/, MultiFab& /*rhs*/) const override
+	{
+		// Do nothing
+		// (We don't handle BCs this way)
+	}
+
+
 private:
 	void buildMasks ();
 public:
@@ -195,8 +202,6 @@ protected:
 
 	// boundary cell flags for covered, not_covered, outside_domain
 	amrex::Vector<amrex::Vector<std::array<amrex::MultiMask,2*AMREX_SPACEDIM> > > m_maskvals;
-
-
 
 	//
 	// functions
