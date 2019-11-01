@@ -21,6 +21,13 @@ public:
         Define(a_A,a_x0,a_moll,a_eps);
     }
 
+	Ellipse (amrex::Vector<amrex::Geometry> &_geom, Set::Vector a_a, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps) : IC(_geom) 
+    {
+        Set::Matrix A = Set::Matrix::Zero();
+        for (int d = 0; d < AMREX_SPACEDIM; d++) A(d,d) = 1./a_a(d)/a_a(d);
+        Define(A,a_x0,a_moll,a_eps);
+    }
+
   	void Define (Set::Matrix a_A, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps)
 	{
         moll = a_moll;
@@ -59,7 +66,8 @@ public:
                 }
 
 
-                field(i,j,k) = 0.5 - 0.5*std::erf(((x-x0).transpose() * A * (x-x0) - 1.0) / 0.2);
+                Set::Scalar norm = (A*(x-x0)).lpNorm<2>();
+                field(i,j,k) = 0.5 - 0.5*std::erf(((x-x0).transpose() * A * (x-x0) - 1.0) / eps / norm);
 
 //                if (moll == Mollifier::Dirac)
 //                {

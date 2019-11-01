@@ -17,8 +17,12 @@ The following is the result in 2D; the problem can be run in 3D as well.
 (Notice that there are 100 initial grains in the tesselation, but only 10 actual grains in the simulation.
 Therefore, some grains will eventually merge together when the boundary between them disappears.)
 
-Test problem
-------------
+.. literalinclude:: ../../../tests/Voronoi/input
+   :caption: Voronoi input file (tests/Voronoi/input)
+   :language: makefile
+
+Running the example
+-------------------
 
 Run the test problem (2D or 3D) via
 
@@ -29,7 +33,7 @@ Run the test problem (2D or 3D) via
 This will generate an output directory :code:`tests/Voronoi/output/`, and will re-name the old directory if it exists already.
 Use VisIt to open :code:`tests/Flame/output/output.visit`.
 
-See also:
+See also
 ---------
 
 - :bash:`./src/alamo.cc`: Entry point for the solver
