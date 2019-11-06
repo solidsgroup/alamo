@@ -22,7 +22,7 @@ public:
 	enum Type {Displacement, Traction, Periodic, Neumann}; 
 	enum Face {AMREX_D_DECL(XLO=0,YLO=1,ZLO=2),
 		   AMREX_D_DECL(XHI=AMREX_SPACEDIM+0,YHI=AMREX_SPACEDIM+1,ZHI=AMREX_SPACEDIM+2)}; 
-	enum Direction {AMREX_D_DECL(X=0,Y,Z)}; 
+	enum Direction {AMREX_D_DECL(X=0,Y=1,Z=2)}; 
 
  	Elastic()
 	{
@@ -57,6 +57,8 @@ public:
 			for (amrex::MFIter mfi(*a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
 				amrex::Box bx = mfi.tilebox();
+				bx.grow(2);
+				bx = bx & domain;
 				amrex::Array4<amrex::Real> const& rhs       = a_rhs[ilev]->array(mfi);
 				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 						AMREX_D_TERM(if (i == lo.x && face == Face::XLO)
@@ -126,7 +128,10 @@ public:
 						f(p) = -sigma(p,q);
 					else if (m_bc_lo[q][p] == Type::Neumann)
 						f(p) = -gradu(p,q);
-					else Util::Abort(INFO, "Invalid BC");
+					else if (m_bc_lo[q][p] == Type::Periodic)
+						continue;
+					else
+						Util::Abort(INFO, "Invalid BC");
 				}
 				if (m[q] == domain.hiVect()[q])
 				{
@@ -136,6 +141,8 @@ public:
 						f(p) = +sigma(p,q);
 					else if (m_bc_hi[q][p] == Type::Neumann)
 						f(p) = +gradu(p,q);
+					else if (m_bc_hi[q][p] == Type::Periodic)
+						continue;
 					else Util::Abort(INFO, "Invalid BC");
 				}
 			}

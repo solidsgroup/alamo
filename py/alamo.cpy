@@ -4,7 +4,6 @@
 namespace bp = boost::python;
 #include "Util/Util.H"
 #include "Test/Operator/Elastic.H"
-//#include "Test/Operator.cpy"
 
 
 template<class T>
@@ -114,6 +113,7 @@ struct ListToSetVector{
 #include "Util.cpy"
 #include "Model/Interface/GB/GB.cpy"
 #include "Test/Operator/Elastic.cpy"
+#include "Element/Q4.cpy"
 
 BOOST_PYTHON_MODULE(alamo)
 {
@@ -140,4 +140,5 @@ BOOST_PYTHON_MODULE(alamo)
 	exportUtil();
 	exportModelInterfaceGB();
 	exportTestOperatorElastic();
+	exportElementQ4();
 }

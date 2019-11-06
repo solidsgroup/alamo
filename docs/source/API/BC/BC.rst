@@ -1,5 +1,5 @@
 BC
---------
+---
 
 This is the documentation for the various boundary conditions that Alamo applies.
 Boundary conditions are the constraints neccessary to solve a differential equation that has known conditions on the boundaries of the domain.

@@ -10,7 +10,8 @@ B_ON               = \033[1m
 FG_RED             = \033[31m
 FG_DIM             = \033[2m
 FG_LIGHTRED        = \033[91m
-FG_LIGHTGRAY       = \033[90m
+FG_LIGHTGRAY       = \033[37m
+FG_GRAY            = \033[90m
 FG_GREEN           = \033[32m
 FG_LIGHTGREEN      = \033[92m
 FG_YELLOW          = \033[33m
@@ -53,7 +54,12 @@ DEP = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC:.cpp=.cpp.d)) $(subst src/,obj/obj
 OBJ_MAIN = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_MAIN:.cpp=.cc.o))
 OBJ_F = $(subst src/,obj/obj-$(POSTFIX)/, $(SRC_F:.F90=.F90.o))
 
-
+NUM = $(words $(SRC) $(SRC_F) $(SRC_MAIN))
+CTR = 0
+NUM_DEP = $(words $(DEP))
+CTR_DEP = 0
+NUM_EXE = $(words $(EXE))
+CTR_EXE = 0
 
 .SECONDARY: 
 
@@ -99,37 +105,57 @@ info:
 bin/%: bin/%-$(POSTFIX) ;
 
 bin/%-$(POSTFIX): ${OBJ_F} ${OBJ} obj/obj-$(POSTFIX)/%.cc.o 
-	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)     $@ \n" 
+	$(eval CTR_EXE=$(shell echo $$(($(CTR_EXE)+1))))
+	@printf "$(B_ON)$(FG_BLUE)LINKING$(RESET)$(FG_LIGHTBLUE)     " 
+	@printf '%9s' "($(CTR_EXE)/$(NUM_EXE)) " 
+	@printf "$(RESET)$@\n"
 	@mkdir -p bin/
 	@$(CC) -o $@ $^ ${LIB}  ${MPI_LIB}  ${LINKER_FLAGS}
 
 obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
-	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
+	$(eval CTR=$(shell echo $$(($(CTR)+1))))
+	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
+	@printf '%9s' "($(CTR)/$(NUM)) " 
+	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET} 
-	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
+	$(eval CTR=$(shell echo $$(($(CTR)+1))))
+	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
+	@printf '%9s' "($(CTR)/$(NUM)) " 
+	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cpp.o: 
-	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)   $< \n" 
+	$(eval CTR=$(shell echo $$(($(CTR)+1))))
+	@printf "$(B_ON)$(FG_YELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
+	@printf '%9s' "($(CTR)/$(NUM)) " 
+	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
 	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
-	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
+	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
+	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
+	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
+	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
 	@$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
-	@printf "$(B_ON)$(FG_LIGHTGRAY)DEPENDENCY$(RESET)  $< \n" 
-	@mkdir -p $(dir $@)
+	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
+	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
+	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
+	@printf "$(RESET)$<\n"
 	@$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
-	@printf "$(B_ON)$(FG_LIGHTYELLOW)$(FG_DIM)COMPILING$(RESET)   ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} \n" 
+	$(eval CTR=$(shell echo $$(($(CTR)+1))))
+	@printf "$(B_ON)$(FG_LIGHTYELLOW)COMPILING$(RESET)$(FG_LIGHTYELLOW)   "
+	@printf '%9s' "($(CTR)/$(NUM)) " 
+	@printf "$(RESET)${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} \n"
 	@mkdir -p $(dir $@)
 	@$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
 
@@ -154,12 +180,14 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
 	@make -C docs html > /dev/null
 
 
+ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),realclean)
 ifneq ($(MAKECMDGOALS),info)
 ifneq ($(MAKECMDGOALS),help)
 ifneq ($(MAKECMDGOALS),docs)
 -include $(DEP)
+endif
 endif
 endif
 endif

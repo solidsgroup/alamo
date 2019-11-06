@@ -45,46 +45,49 @@ namespace LinearElastic
 ///    2. Passing in Bunge Euler angles
 /// If no matrix is specified, the Identity is used by default.
 /// 
-class Cubic : public Model::Solid::LinearElastic::LinearElastic
+class Cubic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::MajorMinor>
 {
 public:
 	Cubic() {} ;
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	~Cubic() {} ;
-	virtual Set::Matrix operator () (Set::Matrix &eps) const;
-#if AMREX_SPACEDIM==2
-	virtual Set::Vector operator () (std::array<Set::Matrix,2> &gradeps);
-#elif AMREX_SPACEDIM==3
-	virtual Set::Vector operator () (std::array<Set::Matrix,3> &gradeps);
-#endif
+	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
+
+	virtual Set::Scalar    W (Set::Matrix &eps) const;
+	virtual Set::Matrix   DW (Set::Matrix &eps) const;
+	virtual Set::Vector   DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	virtual Set::Matrix4<3,Set::Sym::MajorMinor> DDW (Set::Matrix &eps) const;
 
 	void Randomize();
+	void Randomize(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44);
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	
 	Cubic operator + (const Cubic &rhs) const
-	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] + rhs.C[i]; return ret;}
-
-	void operator += (const Cubic &rhs)
-	{for (unsigned int i = 0; i < C.size(); i++) C[i] += rhs.C[i];}
+	{Cubic ret = *this; ret.C += rhs.C; return ret;}
 
 	Cubic operator - (const Cubic &rhs) const
-	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] - rhs.C[i]; return ret;}
+	{Cubic ret = *this; ret.C -= rhs.C; return ret;}
 
 	Cubic operator * (const Cubic &rhs) const
-	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] * rhs.C[i]; return ret;}
+	{Cubic ret = *this; ret.C *= rhs.C; return ret;}
 
 	Cubic operator / (const Cubic &rhs) const
-	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i] / rhs.C[i]; return ret;}
-
-	Cubic operator / (const Set::Scalar alpha) const
-	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]/alpha; return ret;}
+	{Cubic ret = *this; ret.C /= rhs.C; return ret;}
 
 	Cubic operator * (const Set::Scalar alpha) const
-	{Cubic ret; for (unsigned int i = 0; i < C.size(); i++) ret.C[i] = C[i]*alpha; return ret;}
+	{Cubic ret = *this; ret.C *= alpha; return ret;}
+
+	Cubic operator / (const Set::Scalar alpha) const
+	{Cubic ret = *this; ret.C /= alpha; return ret;}
+
+	void operator += (const Cubic &rhs) {C += rhs.C;}
+
 private:
-	std::array<Set::Scalar,21> C;
+	Set::Matrix4<3,Set::Sym::MajorMinor> C;
+	//std::array<Set::Scalar,21> C;
 
 };
 

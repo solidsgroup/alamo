@@ -6,6 +6,7 @@ Documentation for alamo
    :caption: Contents:
 
    GettingStarted
+   Running
    Python
    Simba
    Convention

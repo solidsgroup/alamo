@@ -46,14 +46,23 @@ public:
 		     const LPInfo& a_info = LPInfo(),
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
-
+	virtual void SetHomogeneous (bool a_homogeneous) override {m_homogeneous = a_homogeneous;}
+	void SetModel (T &a_model);
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
 	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
 
 	/// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
 	///
-	void SetBC (::BC::Operator::Elastic<T> *a_bc) {m_bc = a_bc;};
+	void SetBC (::BC::Operator::Elastic<T> *a_bc) 
+	{
+		if (this->Geom(0).isAnyPeriodic()) 
+		{
+			Util::Warning(INFO,"Looks like you're using a periodic domain. \nThat is currently VERY DANGEROUS when using linear elastic solver!!!");
+		}
+		m_bc = a_bc;
+		m_bc_set = true;
+	};
 
 	/// Compute strain \f$\mathbf{\epsilon}\f$ given the displacement field \f$\mathbf{u}\f$
 	/// by
@@ -66,14 +75,16 @@ public:
 	///   \f[\mathbf{\sigma}_{ij} = \mathbb{C}_{ijkl}\,u_{k,l}\f]
 	/// where, \f$\mathbb{C}\f$ is furnished by the templated `model`
 	/// 
-	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false) const;
+	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false);
 
 	/// Compute energy density \f$\mathbb{W}\f$ given the displacement field \f$\mathbf{u}\f$
 	/// by
 	///   \f[\mathbb{W} = \mathbb{\Sigma}\mathbb{\Sigma}\mathbf{\sigma}_{ij}\mathbf{\epsilon}_{ij}\f]
 	/// where \f$\mathbf{\sigma}\f$ and \f$\mathbf{\epsilon}\f$ are as defined above
 	///
-	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u) const;
+	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u);
+
+	void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<T> models);
 
 	/// This function is depricated and should not be used. Use the other `SetBC` function.
 	///
@@ -92,7 +103,7 @@ public:
 	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
-	void SetHomogeneous(bool a_homogeneous) {m_homogeneous = a_homogeneous;}
+	void SetUniform(bool a_uniform) {m_uniform = a_uniform;}
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
@@ -110,6 +121,12 @@ protected:
 	virtual bool isCrossStencil () const { return false; }
 	//virtual void Diagonal(bool recompute=false);
 	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
+	virtual void prepareForSolve ()
+	{
+		if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
+		if (!m_bc_set) Util::Warning(INFO,"Attempting to use operator before calling SetBC!");
+		Operator<Grid::Node>::prepareForSolve();
+	};
 
 private:
 	/// Simple arrays storing boundary conditions for each component and each face.
@@ -131,9 +148,13 @@ private:
 	void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
 
 	bool m_testing = false;
+	bool m_uniform = false;
 	bool m_homogeneous = false;
 
 	::BC::Operator::Elastic<T> *m_bc;
+
+	bool m_model_set = false;
+	bool m_bc_set = false;
 };
 }
 

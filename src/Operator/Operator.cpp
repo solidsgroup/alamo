@@ -2,6 +2,8 @@
 #include <AMReX_MLNodeLinOp.H>
 #include <AMReX_MLCellLinOp.H>
 //#include <AMReX_MLLinOp_F.H>
+#include <AMReX_MLNodeLap_F.H>
+#include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
 #include "Util/Color.H"
 #include "Set/Set.H"
@@ -345,33 +347,38 @@ void Operator<Grid::Node>::buildMasks ()
 			for (MFIter mfi(cc_mask); mfi.isValid(); ++mfi)
 			{
 				has_cf[mfi] = 0;
-				IArrayBox& fab = cc_mask[mfi];
-				const Box& bx = fab.box();
+				const Box& bx = mfi.fabbox();
+				Array4<int> const& fab = cc_mask.array(mfi);
 				for (const auto& iv : pshifts)
 				{
 					cfba.intersections(bx+iv, isects);
 					for (const auto& is : isects)
 					{
-						fab.setVal(1, is.second-iv, 0, 1);
-					}
+						Box const& b = is.second-iv;
+                        			AMREX_HOST_DEVICE_PARALLEL_FOR_3D(b,i,j,k,
+                        			{
+                            				fab(i,j,k) = 1;
+                        			});
+                    			}
 					if (!isects.empty()) has_cf[mfi] = 1;
 				}
 
-				amrex_mlndlap_fillbc_cc_i(BL_TO_FORTRAN_ANYD(fab),
-							  BL_TO_FORTRAN_BOX(ccdom),
-							  m_lobc.data(), m_hibc.data());
+				mlndlap_fillbc_cc<int>(mfi.validbox(),fab,ccdom,m_lobc[0],m_hibc[0]);
 			}
 		}
 
 #ifdef _OPENMP
-#pragma omp parallel
+#pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
-		for (MFIter mfi(nd_mask,true); mfi.isValid(); ++mfi)
+		for (MFIter mfi(nd_mask,TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			const Box& bx = mfi.tilebox();
-			amrex_mlndlap_set_nodal_mask(BL_TO_FORTRAN_BOX(bx),
-						     BL_TO_FORTRAN_ANYD(nd_mask[mfi]),
-						     BL_TO_FORTRAN_ANYD(cc_mask[mfi]));
+			Array4<int> const& nmsk = nd_mask.array(mfi);
+			Array4<int const> const& cmsk = cc_mask.const_array(mfi);
+			AMREX_HOST_DEVICE_PARALLEL_FOR_3D (bx, i, j, k,
+			{
+				mlndlap_set_nodal_mask(i,j,k,nmsk,cmsk);
+			});
 		}
 	}
 
@@ -393,19 +400,21 @@ void Operator<Grid::Node>::buildMasks ()
 		const Geometry& geom = m_geom[amrlev][mglev];
 		Box nddomain = amrex::surroundingNodes(geom.Domain());
 
+        const auto lobc = m_lobc[0];
+        const auto hibc = m_hibc[0];
+
 #ifdef _OPENMP
-#pragma omp parallel
+#pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
 		for (MFIter mfi(m_bottom_dot_mask,true); mfi.isValid(); ++mfi)
 		{
 			const Box& bx = mfi.tilebox();
-			auto& dfab = m_bottom_dot_mask[mfi];
-			const auto& sfab = omask[mfi];
-			amrex_mlndlap_set_dot_mask(BL_TO_FORTRAN_BOX(bx),
-						   BL_TO_FORTRAN_ANYD(dfab),
-						   BL_TO_FORTRAN_ANYD(sfab),
-						   BL_TO_FORTRAN_BOX(nddomain),
-						   m_lobc.data(), m_hibc.data());
+			Array4<Real> const& dfab = m_bottom_dot_mask.array(mfi);
+			Array4<int const> const& sfab = omask.const_array(mfi);
+			AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( bx, tbx,
+			{
+				mlndlap_set_dot_mask(tbx, dfab, sfab, nddomain, lobc, hibc);
+			});
 		}
 	}
 }
@@ -420,17 +429,18 @@ void Operator<Grid::Node>::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 	const iMultiFab& cfmask = *m_nd_fine_mask[amrlev];
 
 #ifdef _OPENMP
-#pragma omp parallel
+#pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
-	for (MFIter mfi(resmsk,true); mfi.isValid(); ++mfi)
+	for (MFIter mfi(resmsk,TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex_mlndlap_fixup_res_mask(BL_TO_FORTRAN_BOX(bx),
-					     BL_TO_FORTRAN_ANYD(resmsk[mfi]),
-					     BL_TO_FORTRAN_ANYD(cfmask[mfi]));
+		Array4<int> const& rmsk = resmsk.array(mfi);
+		Array4<int const> const& fmsk = cfmask.const_array(mfi);
+		AMREX_HOST_DEVICE_PARALLEL_FOR_3D ( bx, i, j, k,
+		{
+			if (fmsk(i,j,k) == crse_fine_node) rmsk(i,j,k) = 1;
+		});
 	}
-
-	//Util::Message(INFO, "Not implemented (and shouldn't need to be!)");
 }
 
 void Operator<Grid::Node>::prepareForSolve ()
@@ -480,31 +490,44 @@ void Operator<Grid::Node>::restriction (int amrlev, int cmglev, MultiFab& crse, 
 					if ((I == lo.x || I == hi.x) &&
 					    (J == lo.y || J == hi.y) &&
 					    (K == lo.z || K == hi.z)) // Corner
-						cdata(I,J,K,n) = fdata(i,j,k,n);
+						{
+							cdata(I,J,K,n) = fdata(i,j,k,n);
+						}
 					else if ((J == lo.y || J == hi.y) &&
 						 (K == lo.z || K == hi.z)) // X edge
-						cdata(I,J,K,n) = 0.25*fdata(i-1,j,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i+1,j,k,n);
+						 {
+							 cdata(I,J,K,n) = 0.25*fdata(i-1,j,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i+1,j,k,n);
+						 }
 					else if ((K == lo.z || K == hi.z) &&
 						 (I == lo.x || I == hi.x)) // Y edge
-						cdata(I,J,K,n) = 0.25*fdata(i,j-1,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j+1,k,n);
+						{
+							cdata(I,J,K,n) = 0.25*fdata(i,j-1,k,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j+1,k,n);
+						}
 					else if ((I == lo.x || I == hi.x) &&
 						 (J == lo.y || J == hi.y)) // Z edge
-						cdata(I,J,K,n) = 0.25*fdata(i,j,k-1,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j,k+1,n);
+						{
+							cdata(I,J,K,n) = 0.25*fdata(i,j,k-1,n) + 0.5*fdata(i,j,k,n) + 0.25*fdata(i,j,k+1,n);
+						}
 					else if (I == lo.x || I == hi.x) // X face
-						cdata(I,J,K,n) =
+						{
+							cdata(I,J,K,n) =
 							(+     fdata(i,j-1,k-1,n) + 2.0*fdata(i,j,k-1,n) +     fdata(i,j+1,k-1,n)
 							 + 2.0*fdata(i,j-1,k  ,n) + 4.0*fdata(i,j,k  ,n) + 2.0*fdata(i,j+1,k  ,n) 
 							 +     fdata(i,j-1,k+1,n) + 2.0*fdata(i,j,k+1,n) +     fdata(i,j+1,k+1,n))/16.0;
+						}
 					else if (J == lo.y || J == hi.y) // Y face
-						cdata(I,J,K,n) =
+						{
+							cdata(I,J,K,n) =
 							(+     fdata(i-1,j,k-1,n) + 2.0*fdata(i-1,j,k,n) +     fdata(i-1,j,k+1,n)
 							 + 2.0*fdata(i  ,j,k-1,n) + 4.0*fdata(i  ,j,k,n) + 2.0*fdata(i  ,j,k+1,n) 
 							 +     fdata(i+1,j,k-1,n) + 2.0*fdata(i+1,j,k,n) +     fdata(i+1,j,k+1,n))/16.0;
+						}
 					else if (K == lo.z || K == hi.z) // Z face
-						cdata(I,J,K,n) =
+						{cdata(I,J,K,n) =
 							(+     fdata(i-1,j-1,k,n) + 2.0*fdata(i,j-1,k,n) +     fdata(i+1,j-1,k,n)
 							 + 2.0*fdata(i-1,j  ,k,n) + 4.0*fdata(i,j  ,k,n) + 2.0*fdata(i+1,j  ,k,n) 
 							 +     fdata(i-1,j+1,k,n) + 2.0*fdata(i,j+1,k,n) +     fdata(i+1,j+1,k,n))/16.0;
+							 }
 					else // Interior
 						cdata(I,J,K,n) =
 							(fdata(i-1,j-1,k-1,n) + fdata(i-1,j-1,k+1,n) + fdata(i-1,j+1,k-1,n) + fdata(i-1,j+1,k+1,n) +
@@ -602,7 +625,7 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 }
   
 void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
-				  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
+				                                  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
 	const auto& amrrr = AMRRefRatio(camrlev);
@@ -618,7 +641,7 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
 
 }
 
-void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) const
+void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) 
 {
 	for (int i = 0; i < 2; i++)
 	{
@@ -892,14 +915,13 @@ Operator<Grid::Cell>::BndryCondLoc::BndryCondLoc (const amrex::BoxArray& ba, con
 }
 
 void
-Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom, const amrex::Real* dx,
-					  const amrex::Array<BCType,AMREX_SPACEDIM>& lobc,
-					  const amrex::Array<BCType,AMREX_SPACEDIM>& hibc,
-					  int ratio, const amrex::RealVect& a_loc)
+Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& /*geom*/, const amrex::Real* /*dx*/,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& /*lobc*/,
+					  const amrex::Array<BCType,AMREX_SPACEDIM>& /*hibc*/,
+					  int /*ratio*/, const amrex::RealVect& /*a_loc*/)
 {
-	Util::Abort(INFO,"Functionality was disabled here due to compatibility");
 //	const amrex::Box&  domain = geom.Domain();
-//	Util::Warning(INFO,"This code has not been properlyt tested");
+	Util::Warning(INFO,"This code has not been properlyt tested");
 //#ifdef _OPENMP
 //#pragma omp parallel
 //#endif
@@ -908,9 +930,7 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& geom
 //		const amrex::Box& bx = mfi.validbox();
 //		RealTuple & bloc  = bcloc[mfi];
 //		BCTuple   & bctag = bcond[mfi];
-//		
-//      // The following line causes compatibility issues.
-//		amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
+//		//amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
 //	}
 }
 
