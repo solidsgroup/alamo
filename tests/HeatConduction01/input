@@ -19,7 +19,9 @@
 # output:      tests/HeatConduction01/output
 #
 
-# Simulation lenght
+alamo.program = heat
+
+# Simulation length
 timestep = 0.0001
 stop_time = 0.1
 

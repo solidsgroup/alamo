@@ -4,9 +4,10 @@ Examples
 This is basic documentation for the Alamo.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 0
 
+   Voronoi
    Flame
    PerturbedInterface
+   Eshelby
 

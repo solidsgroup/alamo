@@ -1,0 +1,63 @@
+alamo.program = mobility
+# Simulation length
+timestep  = 0.0001
+#stop_time = 5
+stop_time = 0.10001
+
+# AMR parameters
+amr.plot_int = 10
+amr.max_level = 3
+#amr.n_cell = 256 128
+#amr.n_cell = 128 64
+amr.n_cell = 64 64
+#amr.n_cell = 16 8
+#amr.n_cell = 128 64
+#amr.blocking_factor = 8
+amr.blocking_factor = 8
+#amr.max_grid_size = 10000000
+amr.regrid_int = 50
+amr.grid_eff = 1.0
+amr.plot_file = tests/Disconnection/output
+amr.ref_criterion = 0.005
+
+solver.interval = 10
+solver.verbose = 2
+solver.bottom_max_iter = 20
+solver.fixed_iter = 100
+#solver.max_coarsening_level = 0
+
+# Specify geometry and unrefined mesh
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 1 1 0.25
+geometry.is_periodic= 0 0 1
+
+# Criterion for mesh refinement
+heat.alpha = 1.0
+heat.refinement_threshold = 0.01
+heat.ic_type = cylinder
+
+# Specify initial conditions
+#ic.Tin = 1.0
+#ic.Tout = 0.0
+
+ic.type = "tabulated"
+ic.xs = 0.0 0.4     0.40001 0.6  0.60001 1.0
+#ic.ys = 0.4 0.4     0.6     0.6
+ic.ys = 0.45 0.45     0.55     0.55 0.45 0.45
+
+physics.gamma = 10.0
+physics.elastic_mult = 1000.0
+physics.gammagb0 = 0.1
+physics.kappa = 0.01
+
+# Boundary conditions
+bc.lo = REFLECT_EVEN EXT_DIR
+bc.hi = REFLECT_EVEN EXT_DIR
+bc.lo_1 = 0.0 
+bc.hi_1 = 0.0 
+bc.lo_2 = -0.1
+bc.hi_2 = 0.1
+
+bc.disp.yhi_x = -0.1
+
+

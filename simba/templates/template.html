@@ -42,28 +42,35 @@
 	  {% for i in range (1,table[j]|length) %}
 	  <td>
 		{% if columns[i] == "DIR" %}
-		<a href="/table/{{table_name}}/entry/{{table[j][0]}}"{{table[j][i]}}\"">{{table[j][i]}} </a> 
-		{% if "Complete" in status[j] %} <span class="label label-success" alt="Simulation completed" style="display:inline-block;min-width:40px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
-                {% elif "Running" in status[j] %} <span class="label label-warning" style="display:inline-block;min-width:40px;"> 
-                     {% if  status[j].split(' ')|length > 1 %}
-                        {{status[j].split(' ')[1]}}
-                     {% else %}
-                        <span class="glyphicon glyphicon-cog"/></span>
-                     {% endif %}
-                </span>&nbsp;
-                {% elif "Interrupt" in status[j] or "Abort" in status[j] or "Segfault" in status[j] %} <span class="label label-danger" style="display:inline-block;min-width:40px;"> 
-                     {% if  status[j].split(' ')|length > 1 %}
-                        {{status[j].split(' ')[1]}}
-                     {% else %}
-                        <span class="glyphicon glyphicon-remove"/></span>
-                     {% endif %}
-                </span>&nbsp;
-		{%   endif%}
-		{% if numfiles|length > 0 %}{% if numfiles[j] > 0 %}
-		<span class="label label-primary"> {{numfiles[j]}} </span>
-		{% endif %}{% endif %}
+			<a href="/table/{{table_name}}/entry/{{table[j][0]}}"{{table[j][i]}}\"">{{table[j][i]}} </a> 
+			{% if status[j] %}
+				{% if "Complete" in status[j] %} 
+					<span class="label label-success" alt="Simulation completed" style="display:inline-block;min-width:40px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+				{% elif "Running" in status[j] %} 
+					<span class="label label-warning" style="display:inline-block;min-width:40px;"> 
+            	    {% if  status[j].split(' ')|length > 1 %}
+            	       {{status[j].split(' ')[1]}}
+            	    {% else %}
+            	       <span class="glyphicon glyphicon-cog"/></span>
+            	    {% endif %}
+            	    </span>&nbsp;
+            	{% elif "Interrupt" in status[j] or "Abort" in status[j] or "Segfault" in status[j] %} <span class="label label-danger" style="display:inline-block;min-width:40px;"> 
+            	    {% if  status[j].split(' ')|length > 1 %}
+            	       {{status[j].split(' ')[1]}}
+            	    {% else %}
+            	       <span class="glyphicon glyphicon-remove"/></span>
+            		{% endif %}
+            	    </span>&nbsp;
+				{%  endif %}
+			{% endif %}
+			{% if numfiles|length > 0 %}{% if numfiles[j] > 0 %}
+				<span class="label label-primary"> {{numfiles[j]}} </span>
+			{% endif %}
+		{% endif %}
+		{% elif "Simulation_end_time" in columns[i] or "Simulation_start_time" in columns[i] %}
+			{{table[j][i] | datetime}}
 		{% else %}
-		{{table[j][i] | string | truncate (50)}}
+			{{table[j][i] | string | truncate (50)}}
 		{% endif %}
 	  </td>
 	  {% endfor %}

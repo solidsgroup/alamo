@@ -1,3 +1,5 @@
+alamo.program=microstructure
+
 timestep = 0.005
 stop_time = 20.0
 

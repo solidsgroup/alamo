@@ -1,5 +1,6 @@
 #include "HeatConduction.H"
 #include "BC/Constant.H"
+#include "IC/Constant.H"
 
 namespace Integrator
 {
@@ -25,11 +26,18 @@ HeatConduction::HeatConduction() :
 
 	// // Determine initial condition
 	if (ic_type == "cylinder")
-		ic = new IC::Cylinder(geom);
+	{
+		amrex::Real Tin, Tout;
+		pp.query("Tin", Tin);
+    	pp.query("Tout", Tout);
+		IC = new IC::Cylinder(geom,Tin,Tout);
+	}
 	else if (ic_type == "constant")
-		ic = new IC::Constant(geom);
+		Util::Abort(INFO,"Need to fix this");
+		//ic = new IC::Constant(geom,alpha);
 	else
-		ic = new IC::Constant(geom);
+		Util::Abort(INFO,"Need to fix this");
+		//IC = new IC::Sphere(radius,center,XY)
     
 	{
 		amrex::ParmParse pp("bc");
@@ -47,18 +55,14 @@ HeatConduction::HeatConduction() :
 		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-		mybc = new BC::Constant(bc_hi_str, bc_lo_str,
+		BC = new BC::Constant(bc_hi_str, bc_lo_str,
 					AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
 					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 	}
 
 
-	RegisterNewFab(TempFab,     mybc, number_of_components, number_of_ghost_cells, "Temp");
-	RegisterNewFab(TempOldFab, mybc, number_of_components, number_of_ghost_cells, "Temp old");
-}
-
-HeatConduction::~HeatConduction()
-{
+	RegisterNewFab(TempFab,     BC, number_of_components, number_of_ghost_cells, "Temp",true);
+	RegisterNewFab(TempOldFab, BC, number_of_components, number_of_ghost_cells, "Temp old",false);
 }
 
 /// \fn HeatConduction::Integrator::Initialize
@@ -67,7 +71,7 @@ HeatConduction::~HeatConduction()
 void
 HeatConduction::Initialize (int lev)
 {
-	ic->Initialize(lev,TempFab);
+	IC->Initialize(lev,TempFab);
 }
 
 
