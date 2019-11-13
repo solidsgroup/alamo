@@ -1,3 +1,6 @@
+#ifndef SOLVER_NONLOCAL_LINEAR
+#define SOLVER_NONLOCAL_LINEAR
+
 #include "Operator/Operator.H"
 #include <AMReX_MLMG.H>
 #include "IC/Trig.H"
@@ -103,3 +106,4 @@ private:
 };
 }
 }
+#endif
