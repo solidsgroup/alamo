@@ -49,7 +49,7 @@
 ///    - See #Cylinder or #Constant
 namespace Integrator
 {
-using model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+using fracture_model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 class Fracture : public Integrator
 {
 public:
@@ -73,7 +73,7 @@ protected:
 	/// \brief Tag cells for mesh refinement based on temperature gradient
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
 
-	void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<model_type> > &model);
+	void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<fracture_model_type> > &model);
 
 	void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
 
@@ -133,8 +133,8 @@ private:
 		bool 		consolidation 	  		= false;
 
 		// Elastic BC
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
+		std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
+		std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
 		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
 		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
@@ -142,7 +142,7 @@ private:
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	} elastic;
 
-	model_type 		*modeltype;
+	fracture_model_type 		*modeltype;
 	std::string 	input_material = "isotropic";
 	Model::Interface::Crack::Crack *boundary;
 
