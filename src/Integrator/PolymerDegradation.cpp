@@ -140,7 +140,7 @@ PolymerDegradation::PolymerDegradation():
 		if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
 		if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
 		//Util::Abort(INFO,"Isotropic2 model has been disabled for now");
-		modeltype = new model_type(E1,E2,Tg,Ts,nu,temp);
+		modeltype = new pd_model_type(E1,E2,Tg,Ts,nu,temp);
 	}
 	else if(input_material == "isotropic")
 	{
@@ -155,7 +155,7 @@ PolymerDegradation::PolymerDegradation():
 		if(lambda <=0) { Util::Warning(INFO,"Lambda must be positive. Resetting back to default value"); lambda = 410.0; }
 		if(mu <= 0) { Util::Warning(INFO,"Mu must be positive. Resetting back to default value"); mu = 305.0; }
 		if(yield <= 0) { Util::Warning(INFO, "Yield must be positive. Resetting back to default value"); yield = 18.0; }
-		modeltype = new model_type(lambda,mu);
+		modeltype = new pd_model_type(lambda,mu);
 	}
 	else
 		Util::Abort(INFO, "Not implemented yet");
@@ -323,13 +323,13 @@ PolymerDegradation::PolymerDegradation():
 		amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
 		amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 
-		std::map<std::string,BC::Operator::Elastic<model_type>::Type >        bc_map;
-		bc_map["displacement"] 	= BC::Operator::Elastic<model_type>::Type::Displacement;
-		bc_map["disp"] 			= BC::Operator::Elastic<model_type>::Type::Displacement;
-		bc_map["traction"] 		= BC::Operator::Elastic<model_type>::Type::Traction;
-		bc_map["trac"] 			= BC::Operator::Elastic<model_type>::Type::Traction;
-		bc_map["neumann"] 		= BC::Operator::Elastic<model_type>::Type::Neumann;
-		bc_map["periodic"] 		= BC::Operator::Elastic<model_type>::Type::Periodic;
+		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
+		bc_map["displacement"] 	= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
+		bc_map["disp"] 			= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
+		bc_map["traction"] 		= BC::Operator::Elastic<pd_model_type>::Type::Traction;
+		bc_map["trac"] 			= BC::Operator::Elastic<pd_model_type>::Type::Traction;
+		bc_map["neumann"] 		= BC::Operator::Elastic<pd_model_type>::Type::Neumann;
+		bc_map["periodic"] 		= BC::Operator::Elastic<pd_model_type>::Type::Periodic;
 
 		
 		amrex::Vector<Set::Scalar> bc_lo_1, bc_hi_1;
@@ -813,7 +813,7 @@ PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, am
 }
 
 void
-PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &model)
+PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_model_type> > &model)
 {
 	Util::Message(INFO);
 	/*
@@ -833,7 +833,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<mode
 		amrex::Box box = mfi.tilebox();
 		//box.grow(1);
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
-		amrex::Array4<model_type> const& modelfab = model.array(mfi);
+		amrex::Array4<pd_model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
@@ -898,7 +898,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	info.setMaxCoarseningLevel(elastic.max_coarsening_level);
 
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<pd_model_type> > > model;
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -907,14 +907,15 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		DegradeMaterial(ilev,model[ilev]);
 	}
 
-	Operator::Elastic<model_type> elastic_operator;
+	//Util::Message(INFO);
+	Operator::Elastic<pd_model_type> elastic_operator;
 	elastic_operator.define(geom, grids, dmap, info);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 		elastic_operator.SetModel(ilev,model[ilev]);
 	
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
-	BC::Operator::Elastic<model_type> bc;
+	BC::Operator::Elastic<pd_model_type> bc;
 	elastic_operator.SetBC(&bc);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)

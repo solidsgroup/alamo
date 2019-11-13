@@ -91,7 +91,7 @@ Fracture::Fracture() :
 		pp_material_isotropic.query("mu",mu);
 		if(lambda <=0) { Util::Warning(INFO,"Lambda must be positive. Resetting back to default value"); lambda = 410.0; }
 		if(mu <= 0) { Util::Warning(INFO,"Mu must be positive. Resetting back to default value"); mu = 305.0; }
-		modeltype = new model_type(lambda,mu);
+		modeltype = new fracture_model_type(lambda,mu);
 	}
 	else
 		Util::Abort(INFO,"This model has not been implemented yet.");
@@ -131,13 +131,13 @@ Fracture::Fracture() :
 	amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
 	amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 
-	std::map<std::string,BC::Operator::Elastic<model_type>::Type >        bc_map;
-	bc_map["displacement"] 	= BC::Operator::Elastic<model_type>::Type::Displacement;
-	bc_map["disp"] 			= BC::Operator::Elastic<model_type>::Type::Displacement;
-	bc_map["traction"] 		= BC::Operator::Elastic<model_type>::Type::Traction;
-	bc_map["trac"] 			= BC::Operator::Elastic<model_type>::Type::Traction;
-	bc_map["neumann"] 		= BC::Operator::Elastic<model_type>::Type::Neumann;
-	bc_map["periodic"] 		= BC::Operator::Elastic<model_type>::Type::Periodic;
+	std::map<std::string,BC::Operator::Elastic<fracture_model_type>::Type >        bc_map;
+	bc_map["displacement"] 	= BC::Operator::Elastic<fracture_model_type>::Type::Displacement;
+	bc_map["disp"] 			= BC::Operator::Elastic<fracture_model_type>::Type::Displacement;
+	bc_map["traction"] 		= BC::Operator::Elastic<fracture_model_type>::Type::Traction;
+	bc_map["trac"] 			= BC::Operator::Elastic<fracture_model_type>::Type::Traction;
+	bc_map["neumann"] 		= BC::Operator::Elastic<fracture_model_type>::Type::Neumann;
+	bc_map["periodic"] 		= BC::Operator::Elastic<fracture_model_type>::Type::Periodic;
 
 		
 	AMREX_D_TERM(	bc_lo_1.clear(); bc_hi_1.clear();,
@@ -249,7 +249,7 @@ Fracture::Initialize (int lev)
 }
 
 void
-Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &model)
+Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_model_type> > &model)
 {
 	/*
 	  This function is supposed to degrade material parameters based on certain
@@ -266,7 +266,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
 	{
 		amrex::Box box = mfi.growntilebox(2);
 		amrex::Array4<const amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
-		amrex::Array4<model_type> const& modelfab = model.array(mfi);
+		amrex::Array4<fracture_model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
@@ -288,13 +288,13 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<model_type> > &m
     for (int i = 0; i < 2; i++)
     {
 		Util::Message(INFO);
-    	amrex::FabArray<amrex::BaseFab<model_type>> &mf = model;
+    	amrex::FabArray<amrex::BaseFab<fracture_model_type>> &mf = model;
         mf.FillBoundary(tmp_geom.periodicity());
         mf.FillBoundary();
         const int ncomp = mf.nComp();
         const int ng1 = 1;
         const int ng2 = 2;
-        amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+        amrex::FabArray<amrex::BaseFab<fracture_model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
         amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
         mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
     }
@@ -519,7 +519,7 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 	info.setConsolidation(elastic.consolidation);
 	info.setMaxCoarseningLevel(elastic.max_coarsening_level);
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<fracture_model_type> > > model;
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -530,7 +530,7 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 		ScaledModulus(ilev,model[ilev]);
 	}
 	Util::Message(INFO);
-	Operator::Elastic<model_type> elastic_operator;
+	Operator::Elastic<fracture_model_type> elastic_operator;
 	Util::Message(INFO);
 	elastic_operator.define(geom, grids, dmap, info);
 	Util::Message(INFO);
@@ -541,7 +541,7 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 	
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	Util::Message(INFO);
-	BC::Operator::Elastic<model_type> bc;
+	BC::Operator::Elastic<fracture_model_type> bc;
 	Util::Message(INFO);
 	
 	Util::Message(INFO);
