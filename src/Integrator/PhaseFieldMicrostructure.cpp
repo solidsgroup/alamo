@@ -261,8 +261,13 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		const amrex::Box &bx = mfi.tilebox();
 		amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const &energies = (*energies_mf[lev]).array(mfi);
-
+		amrex::Array4<amrex::Real> const *energies;
+		if (elastic.on)
+		{
+			amrex::Array4<amrex::Real> const &tmp_energies = (*energies_mf[lev]).array(mfi);
+			energies = &tmp_energies;
+		}
+		
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 			for (int m = 0; m < number_of_grains; m++)
 			{
@@ -432,7 +437,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 				if (elastic.on && time > elastic.tstart)
 				{
-					driving_force += energies(i,j,k,m);
+					driving_force += (*energies)(i,j,k,m);
 				}
 
 				//
@@ -494,6 +499,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+	if (!elastic.on) return;
 	if (time < elastic.tstart)   return;
 	if (iter % elastic.interval) return;
 
