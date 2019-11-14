@@ -33,19 +33,55 @@ public:
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
+        RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
         {
             IO::ParmParse pp("ic");
             std::string type;
             pp.query("type",type);
             if (type=="ellipse")
             {
-                Set::Matrix A = Set::Matrix::Identity();
-                if (pp.contains("A")) pp.queryarr("A",A);
                 Set::Vector x0 = Set::Vector::Zero();
                 if (pp.contains("x0")) pp.queryarr("x0",x0);
                 Set::Scalar eps = 0.01;
                 pp.query("eps",eps);
-                ic = new IC::Ellipse(geom, A, x0, IC::Ellipse::Mollifier::Gaussian, eps);
+                
+                if (pp.contains("A")) 
+                {
+                    Set::Matrix A = Set::Matrix::Identity();
+                    pp.queryarr("A",A);
+                    ic = new IC::Ellipse(geom, A, x0, IC::Ellipse::Mollifier::Gaussian, eps);
+                }
+                else if (pp.contains("a"))
+                {
+                    Set::Vector a = Set::Vector::Ones();
+                    pp.queryarr("a",a);
+                    ic = new IC::Ellipse(geom, a, x0, IC::Ellipse::Mollifier::Gaussian, eps);
+                }
+
+                if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
+                Util::Message(INFO,Finclusion);
+                if (pp.contains("Fmatrix")) pp.queryarr("Fmatrix",Fmatrix);
+                Util::Message(INFO,Fmatrix);
+            }
+        }
+        {
+            IO::ParmParse pp("elastic");
+            {
+                if (pp.contains("lame") && pp.contains("shear"))
+                {
+                    pp.query("lame",lame);
+                    pp.query("shear",shear);
+                }
+                else if (pp.contains("E") && pp.contains("nu"))
+                {
+                    Set::Scalar E, nu;
+                    pp.query("E",E);
+                    pp.query("nu",nu);
+                    lame = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
+                    shear = E / 2.0 / (1.0 + nu);
+                    Util::Message(INFO,"lame = ", lame);
+                    Util::Message(INFO,"shear = ", shear);
+                }
             }
         }
     }
@@ -73,7 +109,6 @@ protected:
         for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
         //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
-        Set::Scalar lame = 2.6, shear = 6.0;
         using model_type = Model::Solid::LinearElastic::Multiwell;
         Operator::Elastic<model_type> elastic;
         elastic.SetUniform(false);
@@ -82,12 +117,9 @@ protected:
         elastic.define(geom, grids, dmap, info);
 
         // Set linear elastic model
-        model_type mymodel(lame, shear, Set::Matrix::Zero());
+        model_type mymodel(shear, lame, Set::Matrix::Zero());
         amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
         model_mf.resize(disp_mf.size());
-        Set::Matrix Fmatrix = Set::Matrix::Zero();
-        Set::Matrix Finclusion = Set::Matrix::Zero();
-        Finclusion(0, 0) = 0.1;
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
             amrex::Box domain(geom[lev].Domain());
@@ -106,10 +138,13 @@ protected:
 
                 amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+                //amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = model_type(lame, shear, Fgb);
+                    model(i, j, k) = model_type(shear, lame, Fgb);
+                    //model(i, j, k) = model_type(lame, shear, Set::Matrix::Zero());
+                    //rhs(i,j,k,0) = eta(i,j,k);
                 });
 
                 bx = mfi.growntilebox(1);
@@ -140,16 +175,68 @@ protected:
         elastic.SetModel(model_mf);
 
         BC::Operator::Elastic<model_type> bc;
+
+        bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
+#if AMREX_SPACEDIM>1
+        bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
+#if AMREX_SPACEDIM>2
+        bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
+#endif
+#endif
         elastic.SetBC(&bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
         Solver::Nonlocal::Linear linearsolver(elastic);
         linearsolver.setVerbose(2);
+        linearsolver.setFixedIter(20);
         linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
+        //linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
+
+//        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+//        {
+//            Set::Vector DX(geom[lev].CellSize());
+//            for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
+//            {
+//                amrex::Box bx = mfi.growntilebox(2);
+//                amrex::Array4<model_type>  const &model = model_mf[lev].array(mfi);
+//                amrex::Array4<Set::Scalar> const &eta  = eta_mf[lev]->array(mfi);
+//                amrex::Array4<Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
+//                amrex::Array4<Set::Scalar> const &disp0  = disp0_mf[lev]->array(mfi);
+//
+//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+//
+//                    Set::Vector x;
+//                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
+//				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
+//				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+//
+//                    Set::Vector u0 = eta(i,j,k) * Finclusion * x;
+//                    disp0(i,j,k,0) = disp(i,j,k,0) - u0(0);                    
+//                    disp0(i,j,k,1) = disp(i,j,k,1) - u0(1);                    
+//                    disp0(i,j,k,2) = disp(i,j,k,2) - u0(2);                    
+//                });
+//            }
+//        }
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
             elastic.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+            elastic.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
         }
     }
 
@@ -187,9 +274,12 @@ protected:
 private:
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> eta_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp_mf;
+    //amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp0_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> rhs_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> res_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress_mf;
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> strain_mf;
+    //amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress0_mf;
 
     amrex::Real alpha = 1.0;                 ///< Thermal diffusivity
     amrex::Real refinement_threshold = 0.01; ///< Criterion for cell refinement
@@ -197,6 +287,12 @@ private:
     std::string ic_type; ///< String to determine what kind of initial condition to use
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC *mybc;        ///< Stock generic boundary condition object
+    
+    Set::Scalar lame = 121.154, shear = 80.7692;
+
+    Set::Matrix Fmatrix = Set::Matrix::Zero();
+    Set::Matrix Finclusion = Set::Matrix::Zero();
+
 };
 } // namespace Integrator
 #endif

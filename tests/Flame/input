@@ -1,3 +1,5 @@
+alamo.program = flame
+
 # * = you probably don't need to change this
 
 #amr.max_grid_size	= 10000       # * Maximum grid size 
