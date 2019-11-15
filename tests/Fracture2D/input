@@ -1,7 +1,9 @@
+alamo.program = fracture
+
 timestep = 1e-3
 stop_time = 1.e4
 
-amr.plot_int = 1
+amr.plot_int = 0
 amr.max_level = 4
 #amr.n_cell = 512 512
 amr.n_cell = 64 64 
@@ -64,5 +66,5 @@ elastic.body_force		=	0.0 0.0 0.0
 
 elastic.bc.disp_step = 1.e-2
 elastic.bc.disp_init = 2.e-1
-elastic.bc.max_disp = 2.5e-1
-elastic.bc.crackStressTest = true
+elastic.bc.max_disp = 2.e-1
+elastic.bc.crackStressTest = false
