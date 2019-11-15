@@ -85,13 +85,13 @@ private:
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_conv;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_temp;
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_conv;
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_temp;
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_old;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_conv;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_temp;
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_old;
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_conv;
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_temp;
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
