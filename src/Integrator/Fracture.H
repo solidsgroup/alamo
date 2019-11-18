@@ -148,7 +148,7 @@ private:
 
 	//Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
 	//Set::Scalar disp_norm, disp_norm_old, disp_norm_conv; 
-	Set::Scalar crack_err_norm, crack_err_norm_init, crack_err_temp_norm, crack_err_temp_norm_init;
+	Set::Scalar crack_err_norm, crack_err_norm_init, crack_err_temp_norm, crack_err_temp_norm_init, c_new_norm;
 	Set::Scalar disp_err_norm, disp_err_norm_init;
 
 	bool err_crack_init = true, err_crack_temp_init = true, err_disp_init = true;

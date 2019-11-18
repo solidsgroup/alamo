@@ -75,6 +75,7 @@ Fracture::Fracture() :
 	disp_err_norm = 0.; disp_err_norm_init = 1.e4;
 
 	RegisterIntegratedVariable(&crack_err_norm, "crack_err_norm");
+	RegisterIntegratedVariable(&c_new_norm,"c_new_norm");
 	//RegisterIntegratedVariable(&crack_err_temp_norm, "crack_err_temp_norm");
 	//RegisterIntegratedVariable(&disp_err_norm, "disp_err_norm");
 
@@ -383,24 +384,26 @@ Fracture::TimeStepComplete(amrex::Real time,int iter)
 		SetStopTime(time-0.01);return;
 	}
 	IntegrateVariables(time,iter);
-	if(err_crack_temp_init)
-	{
-		crack_err_temp_norm_init = crack_err_norm;
-		err_crack_temp_init = false;
-	}
+	//if(err_crack_temp_init)
+	//{
+	//	crack_err_temp_norm_init = crack_err_norm;
+	//	err_crack_temp_init = false;
+	//}
 
 	//Set::Scalar err_crack = std::abs(crack_norm - crack_norm_old)/crack_norm;
 	//Set::Scalar err_crack_temp = crack_err_temp_norm_init > 1.e-10 ? crack_err_temp_norm/crack_err_temp_norm_init : crack_err_temp_norm_init;
-	Set::Scalar err_crack_temp = crack_err_norm/crack_err_temp_norm_init;
-	Util::Message(INFO, "err_crack_temp = ", err_crack_temp);
-	Util::Message(INFO, "crack_err_temp_norm = ", crack_err_norm);
-	Util::Message(INFO, "crack_err_temp_norm_init = ", crack_err_temp_norm_init);
+	//Set::Scalar err_crack_temp = crack_err_norm/crack_err_temp_norm_init;
+	//Util::Message(INFO, "err_crack_temp = ", err_crack_temp);
+	Util::Message(INFO, "crack_err_norm = ", crack_err_norm);
+	Util::Message(INFO, "c_new_norm = ", c_new_norm);
+	Util::Message(INFO, "relative error = ", crack_err_norm/c_new_norm);
+	//Util::Message(INFO, "crack_err_temp_norm_init = ", crack_err_temp_norm_init);
 	//Util::Message(INFO, "crack_err_norm = ", crack_err_norm);
 	//Util::Message(INFO, "crack_err_norm_init = ", crack_err_norm_init);
 	//Util::Message(INFO, "disp_err_norm = ", disp_err_norm);
 	//Util::Message(INFO, "disp_err_norm_init = ", disp_err_norm_init);
 	
-	if(err_crack_temp > tol_crack && crack_err_norm > 1.e-11)
+	if(crack_err_norm/c_new_norm > tol_crack)// && crack_err_norm > 1.e-11)
 	{
 		//solveCrack = true;
 		//solveElasticity = false;
@@ -437,9 +440,9 @@ Fracture::TimeStepComplete(amrex::Real time,int iter)
 	//}
 	//disp_norm_old = disp_norm;
 	//crack_norm_old = crack_norm;
-	crack_err_norm = 0.; 
-	crack_err_temp_norm_init = 1.e4; 
-	err_crack_temp_init = true;
+	crack_err_norm = 0.; c_new_norm = 0.;
+	//crack_err_temp_norm_init = 1.e4; 
+	//err_crack_temp_init = true;
 
 	//if(err < tol_step)
 	//{
@@ -466,7 +469,7 @@ Fracture::TimeStepComplete(amrex::Real time,int iter)
 		}
 		//disp_norm_conv = disp_norm;
 		//crack_norm_conv = crack_norm;
-		crack_err_norm = 0.; crack_err_norm_init = 1.e4; err_crack_init = true;
+		crack_err_norm = 0.; c_new_norm = 0.;//crack_err_norm_init = 1.e4; err_crack_init = true;
 		//disp_err_norm = 0.; disp_err_norm_init = 1.e4; err_disp_init = true;
 	//}
 	//else
@@ -513,8 +516,10 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
 
+			//Util::Message(INFO,"rhs = ",rhs,". en_cell =",en_cell, ". laplacian = ", laplacian);
+			//Util::Message(INFO, "rhs = ", rhs);
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::min(0.,rhs)*mobility;
 		});
 	}
 }
@@ -686,6 +691,8 @@ Fracture::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::
 	//amrex::FArrayBox &c_temp  = (*m_c_temp[amrlev])[mfi];
 	amrex::FArrayBox &c_old  = (*m_c_old[amrlev])[mfi];
 
+	//Set::Scalar c_new_norm = 0.;
+
 	//amrex::FArrayBox &disp_new = (*m_disp[amrlev])[mfi];
 	//amrex::FArrayBox &disp_old = (*m_disp_old[amrlev])[mfi];
 
@@ -720,7 +727,10 @@ Fracture::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::
 
 		//crack_err_temp_norm += ((c_new(m,0)-c_temp(m,0))*(c_new(m,0)-c_temp(m,0)))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 		crack_err_norm += ((c_new(m,0)-c_old(m,0))*(c_new(m,0)-c_old(m,0)))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+		c_new_norm += c_new(m,0)*c_new(m,0)*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 		//disp_err_norm += ((disp_cell-disp_cell_old).squaredNorm())*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 	}
+	//crack_err_norm = crack_err_norm/c_new_norm;
+	//Util::Message(INFO,"c_new_norm = ",c_new_norm,". crack_err_norm = ",crack_err_norm);
 }
 }
