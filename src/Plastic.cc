@@ -45,7 +45,6 @@ void deletefile(const char* loc)
 }
 /*
 Values for the elastic tensor, C:
-
 	K=Bulk Modulus, G=Shear Modulus
 	Copper -> K = 123x10^9 Pa (N/m^2) G = 45x10^9 Pa
 	Aluminum -> K = 69x10^9 Pa G = 27x10^9 Pa
@@ -67,7 +66,7 @@ int main (int argc, char* argv[])
 	auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
 	deletefile(src); deletefile(src2);
 	Util::Initialize(argc,argv);
-	CrystalPlastic cp(10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3); //0.4, 0.1, 0.01 C11 = c11*t0
+	CrystalPlastic cp( 10e3 * 6e-3, 7.35e3 * 6e-3, 3.8e3 * 6e-3); //0.4, 0.1, 0.01 C11 = c11*t0
 	// 10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3
 	std::array<double,12> gamma;
 	//cp.Randomize();
@@ -76,27 +75,27 @@ int main (int argc, char* argv[])
 	Set::Matrix sigma = Set::Matrix::Zero();
 	Set::Matrix esp = Set::Matrix::Zero();
 
-	//Set::Matrix sig = Set::Matrix::Zero();
-	//Set::iMatrix mask = Set::iMatrix::Zero();
-	//mask(0,0) = 1;
+	Set::Matrix sig = Set::Matrix::Zero();
+	Set::iMatrix mask = Set::iMatrix::Zero();
+	mask(0,0) = 1;
 	
-	static double constexpr dt = 1e-6;
-	static double constexpr c = 1;
+	static double constexpr dt = 5e-7;
+	static double constexpr c = 20;
 	static double constexpr T = 1/c;
 	cp.Setdt(dt);
 	int counter = 0;
 	for(double t = 0.0; t <= T; t += dt)
 	{
-		//Set::Matrix esp = cp.GetEsp();
-		//Set::Matrix temp;
+		Set::Matrix esp = cp.GetEsp();
+		Set::Matrix temp;
 		es(0,0) = c*t;
-		es = cp.relax(es, es(0,0));
-		//temp = (es - esp);
-		//es = Solver::Local::CG(cp.DDW(es),sig - sigma,es,mask,false);
+		//es = cp.relax(es, es(0,0));
+		temp = (es - esp);
+		es = Solver::Local::CG(cp.DDW(temp),sig - sigma,es,mask,false);
 
 		cp.update(es,sigma,dt);
 
-		if( counter % 5000 == 0)
+		if( counter % 1 == 0)
 		{
 			gamma = cp.StressSlipSystem(sigma);
 			//for(int i = 0; i < 12; i++)
@@ -105,7 +104,8 @@ int main (int argc, char* argv[])
 			//}
 			//Util::Message(INFO,"t = ", t);
 			//Set::Matrix esp = cp.GetEsp();
-			Util::Message(INFO,"es() = ", es);
+			//Util::Message(INFO,"es() = ", es);
+			//Util::Message(INFO,"esp() = ", esp);
 			//Util::Message(INFO,"sig() = ", sigma);
 			savefile( (float)sigma(0,0), (float)es(0,0), src); 
 			savefile(gamma,t,src2);
@@ -113,7 +113,7 @@ int main (int argc, char* argv[])
 		counter++;
 	}
 	esp = cp.GetEsp();
-	Util::Message(INFO,"esp = ", esp.trace());
+	Util::Message(INFO,"esp = ", esp);
 	Util::Message(INFO,"sig = ", sigma);
 	Util::Message(INFO,"Done");
 

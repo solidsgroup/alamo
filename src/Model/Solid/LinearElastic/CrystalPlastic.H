@@ -31,7 +31,7 @@ private:
 		Set::Vector n;
 		Set::Vector s;
 		Set::Scalar Tcrss;
-		std::array<double,12> galpha;
+		Set::Scalar galpha;
 		bool on;
 	};
 	//********Matrial Slip Data**********//
@@ -51,19 +51,19 @@ private:
 	Eigen::Matrix<double,12,12> F;
 	//********Matrial Constants**********//
 
-	static Set::Scalar constexpr tcrss = .02;//0.75e-3;
-	static Set::Scalar constexpr n = 50.0; 
-	static Set::Scalar constexpr gammadot0 = 0.001; // 0.001 1/s
+	static Set::Scalar constexpr tcrss = 6e-3;//0.75e-3;
+	static Set::Scalar constexpr n = 20.0; 
+	static Set::Scalar constexpr gammadot0 = 1e-3; // 0.001 1/s
 	static Set::Scalar constexpr t0 = tcrss; 	// MPa
 	static Set::Scalar constexpr hs = 1.5*t0; 	// MPa
 	static Set::Scalar constexpr h0 = 90*t0; 	// MPa
 	static Set::Scalar constexpr ts = 1.3*t0; 	// MPa
 
-	static Set::Scalar constexpr cc = 20.0; 
-	static Set::Scalar constexpr gg = 8.0;
-	static Set::Scalar constexpr hh = 15.0; 
+	static Set::Scalar constexpr cc = 8.0; 
+	static Set::Scalar constexpr gg = 15.0;
+	static Set::Scalar constexpr hh = 8.0; 
 	static Set::Scalar constexpr ss = 20.0; 
-	static Set::Scalar constexpr nn = 0.0;
+	static Set::Scalar constexpr nn = 8.0;
 	
 	static Set::Scalar constexpr q = 0; // 1
 	//double \ gam = gammadot0;
@@ -75,16 +75,22 @@ private:
 	//double w2 = 10.0;
 
 public:
+	Set::Matrix Epsp = Set::Matrix::Zero();
+	std::array<Set::Matrix,AMREX_SPACEDIM> gradEpsp;
 	CrystalPlastic() 
 	{
 		initializeSlip();
 	} 
+	CrystalPlastic(Set::Matrix Fgb)
+	{
+		esp = Fgb;
+	}
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	~CrystalPlastic() {};
 
-	virtual Set::Matrix operator () (Set::Matrix &eps) const;
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
 	virtual Set::Scalar    W (Set::Matrix &eps) const;
 	virtual Set::Matrix   DW (Set::Matrix &eps) const;
 	virtual Set::Vector   DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);

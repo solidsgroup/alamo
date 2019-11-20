@@ -9,6 +9,7 @@
 #include "AMReX_ParmParse.H"
 
 #include "Integrator/Integrator.H"
+#include "Operator/Elastic.H"
 
 #include "IC/IC.H"
 #include "BC/BC.H"
@@ -16,7 +17,7 @@
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
 
-#include "Model/Solid/LinearElastic/MultiWell.H"
+//#include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
 #include "Solver/Nonlocal/Linear.H"
 
@@ -120,7 +121,7 @@ protected:
         cp.define(geom, grids, dmap, info);
           
         // Set linear elastic model
-        model_type mymodel(shear, lame, Set::Matrix::Zero());
+        model_type mymodel(Set::Matrix::Zero());
         amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
         model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
@@ -144,8 +145,8 @@ protected:
                 //amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = model_type(shear, lame, Fgb);
+                    Set::Matrix Epsp = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
+                    model(i, j, k) = model_type(Epsp);
                     //model(i, j, k) = model_type(lame, shear, Set::Matrix::Zero());
                     //rhs(i,j,k,0) = eta(i,j,k);
                 });
@@ -155,9 +156,9 @@ protected:
                     for (int p = 0; p < AMREX_SPACEDIM; p++)
                         for (int q = 0; q < AMREX_SPACEDIM; q++)
                         {
-                            AMREX_D_TERM(model(i, j, k).gradFgb[p](q, 0) = ((model(i + 1, j, k).Fgb - model(i - 1, j, k).Fgb) / 2. / DX(0))(p, q);,
-                                         model(i, j, k).gradFgb[p](q, 1) = ((model(i, j + 1, k).Fgb - model(i, j - 1, k).Fgb) / 2. / DX(1))(p, q);,
-                                         model(i, j, k).gradFgb[p](q, 2) = ((model(i, j, k + 1).Fgb - model(i, j, k - 1).Fgb) / 2. / DX(2))(p, q);)
+                            AMREX_D_TERM(model(i, j, k).gradEpsp[p](q, 0) = ((model(i + 1, j, k).Epsp - model(i - 1, j, k).Epsp) / 2. / DX(0))(p, q);,
+                                         model(i, j, k).gradEpsp[p](q, 1) = ((model(i, j + 1, k).Epsp - model(i, j - 1, k).Epsp) / 2. / DX(1))(p, q);,
+                                         model(i, j, k).gradEpsp[p](q, 2) = ((model(i, j, k + 1).Epsp - model(i, j, k - 1).Epsp) / 2. / DX(2))(p, q);)
                         }
                 });
             }
@@ -201,10 +202,10 @@ protected:
         bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
 #endif
 #endif
-        elastic.SetBC(&bc);
+        cp.SetBC(&bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-        Solver::Nonlocal::Linear linearsolver(elastic);
+        Solver::Nonlocal::Linear linearsolver(cp);
         linearsolver.setVerbose(2);
         linearsolver.setFixedIter(20);
         linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
@@ -238,8 +239,8 @@ protected:
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
-            elastic.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            elastic.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            cp.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+            cp.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
         }
     }
 
