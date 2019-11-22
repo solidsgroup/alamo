@@ -20,12 +20,12 @@ geometry.is_periodic= 0 0
 
 crack.type = constant
 crack.constant.G_c = 5.0e-2
-crack.constant.zeta = 0.02
+crack.constant.zeta = 0.01
 crack.constant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01
 crack.constant.modulus_scaling_max = 0.01
 
-crack.tol_crack = 1e-5
+crack.tol_crack = 1e-9
 crack.tol_step = 1e-2
 
 #ic.type = ellipsoid
