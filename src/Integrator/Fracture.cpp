@@ -64,6 +64,7 @@ Fracture::Fracture() :
 
 	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells+1, "c",		true);
 	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells+1, "c_old",	true);
+	RegisterNewFab(m_driving_force, mybc, 3, number_of_ghost_cells+1, "driving_force",true);
 	//RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells+1, "c_conv",	true);
 	//RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells+1, "c_temp",	true);
 	
@@ -229,6 +230,7 @@ Fracture::Initialize (int lev)
 	Util::Message(INFO);
 	ic->Initialize(lev,m_c);
 	ic->Initialize(lev,m_c_old);
+	m_driving_force[lev]->setVal(0.0);
 	//ic->Initialize(lev,m_c_conv);
 	//ic->Initialize(lev,m_c_temp);
 
@@ -493,6 +495,7 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 	{
 		const amrex::Box& bx = mfi.validbox();
 		amrex::Array4<amrex::Real> const& c_old = (*m_c_old[lev]).array(mfi);
+		amrex::Array4<amrex::Real> const& df = (*m_driving_force[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
 		amrex::Array4<const Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
 
@@ -512,6 +515,9 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 								+ energy_box(i,j,k+1,0) + energy_box(i+1,j,k+1,0)
 								+ energy_box(i,j+1,k+1,0) + energy_box(i+1,j+1,k+1,0)
 								));
+			df(i,j,k,0) = boundary->Dg_phi(c_old(i,j,k,0))*en_cell;
+			df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
+			df(i,j,k,2) = boundary->kappa(c_old(i,j,k,0))*laplacian;
 
 			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
@@ -519,7 +525,7 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 			//Util::Message(INFO,"rhs = ",rhs,". en_cell =",en_cell, ". laplacian = ", laplacian);
 			//Util::Message(INFO, "rhs = ", rhs);
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::min(0.,rhs)*mobility;
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
 		});
 	}
 }

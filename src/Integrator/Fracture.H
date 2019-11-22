@@ -85,6 +85,7 @@ private:
 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_driving_force;
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_conv;
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_temp;
 

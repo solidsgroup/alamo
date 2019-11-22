@@ -1,9 +1,9 @@
 alamo.program = fracture
 
-timestep = 1e-3
-stop_time = 1.e4
+timestep = 1e-1
+stop_time = 1.e6
 
-amr.plot_int = 0
+amr.plot_int = 100
 amr.max_level = 4
 #amr.n_cell = 512 512
 amr.n_cell = 64 64 
@@ -19,13 +19,13 @@ geometry.prob_hi = 4 4
 geometry.is_periodic= 0 0
 
 crack.type = constant
-crack.constant.G_c = 5.0e-1
-crack.constant.zeta = 1.e-3
+crack.constant.G_c = 5.0e-2
+crack.constant.zeta = 0.02
 crack.constant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01
 crack.constant.modulus_scaling_max = 0.01
 
-crack.tol_crack = 1e-2
+crack.tol_crack = 1e-5
 crack.tol_step = 1e-2
 
 #ic.type = ellipsoid
