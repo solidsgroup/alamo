@@ -64,7 +64,7 @@ Fracture::Fracture() :
 
 	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells+1, "c",		true);
 	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells+1, "c_old",	true);
-	RegisterNewFab(m_driving_force, mybc, 3, number_of_ghost_cells+1, "driving_force",true);
+	RegisterNewFab(m_driving_force, mybc, 4, number_of_ghost_cells+1, "driving_force",true);
 	//RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells+1, "c_conv",	true);
 	//RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells+1, "c_temp",	true);
 	
@@ -519,13 +519,18 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 			df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			df(i,j,k,2) = boundary->kappa(c_old(i,j,k,0))*laplacian;
 
-			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell + boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
+			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell;
+			rhs += boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
+
+			df(i,j,k,3) = rhs;
 
 			//Util::Message(INFO,"rhs = ",rhs,". en_cell =",en_cell, ". laplacian = ", laplacian);
 			//Util::Message(INFO, "rhs = ", rhs);
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::min(0.,rhs)*mobility;
+			//c_new(i,j,k,0) = c_old(i,j,k,0) - dt*rhs*mobility;
+			//c_new(i,j,k,0) = c_new(i,j,k,0) > c_old(i,j,k,0) ? c_new(i,j,k,0) : c_old(i,j,k,0);
 		});
 	}
 }
@@ -650,7 +655,7 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 					for (int n = 0; n < AMREX_SPACEDIM; n++)
 						energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
 				}
-				energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
+				//energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
 			});
 		}
 	}
