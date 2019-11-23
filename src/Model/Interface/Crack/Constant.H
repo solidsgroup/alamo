@@ -30,13 +30,13 @@ public:
     Set::Scalar w_phi(Set::Scalar c)
     {
         //return 1. - g_phi(c);
-        return (1. - c)*(1. - c);
+        return (1. - c)*(1. - c)*c*c;
     };
     
     Set::Scalar Dw_phi(Set::Scalar c)
     {
         //return -1.*Dg_phi(c);
-        return -2.0*(1.-c);
+        return 2.0*c*(1.-c)*(1.-2.*c);
     };
 
     Set::Scalar g_phi(Set::Scalar c)

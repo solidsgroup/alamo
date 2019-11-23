@@ -10,7 +10,7 @@ amr.n_cell = 128 128
 amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = tests/Fracture2D/output
+amr.plot_file = output
 
 amr.thermo.int = 1
 
@@ -21,9 +21,9 @@ geometry.is_periodic= 0 0
 crack.type = constant
 crack.constant.G_c = 5.0e-2
 crack.constant.zeta = 5e-3
-crack.constant.mobility = 1.0e-2
+crack.constant.mobility = 1.0e-1
 crack.constant.eta_epsilon = 0.01
-crack.constant.modulus_scaling_max = 0.01
+crack.constant.modulus_scaling_max = 0.05
 
 crack.tol_crack = 1e-15
 crack.tol_step = 1e-2
