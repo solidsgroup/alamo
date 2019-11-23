@@ -282,7 +282,7 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_model_t
 								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
 								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
 								));
-			modelfab(i,j,k,0).DegradeModulus(std::min(_temp[0],1.-scaleModulusMax));
+			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
 		});
 
 
@@ -512,12 +512,12 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs += boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
 
-			df(i,j,k,3) = rhs;
+			df(i,j,k,3) = max(0.,rhs);
 
 			//Util::Message(INFO,"rhs = ",rhs,". en_cell =",en_cell, ". laplacian = ", laplacian);
 			//Util::Message(INFO, "rhs = ", rhs);
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::min(0.,rhs)*mobility;
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
 			//c_new(i,j,k,0) = c_old(i,j,k,0) - dt*rhs*mobility;
 			//c_new(i,j,k,0) = c_new(i,j,k,0) > c_old(i,j,k,0) ? c_new(i,j,k,0) : c_old(i,j,k,0);
 		});
