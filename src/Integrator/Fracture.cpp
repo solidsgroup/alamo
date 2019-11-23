@@ -500,21 +500,10 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<const Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
 
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-			amrex::Real AMREX_D_DECL(grad11 = (c_old(i+1,j,k,0) - 2.*c_old(i,j,k,0) + c_old(i-1,j,k,0))/DX[0]/DX[0],
-						 			 grad22 = (c_old(i,j+1,k,0) - 2.*c_old(i,j,k,0) + c_old(i,j-1,k,0))/DX[1]/DX[1],
-						 			 grad33 = (c_old(i,j,k+1,0) - 2.*c_old(i,j,k,0) + c_old(i,j,k-1,0))/DX[2]/DX[2]);
+			Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
 			
 			Set::Scalar rhs = 0.;	
-			amrex::Real laplacian = AMREX_D_TERM(grad11, + grad22, + grad33);
-			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-			Set::Scalar en_cell = mul*(AMREX_D_TERM(	
-								energy_box(i,j,k,0) + energy_box(i+1,j,k,0)
-								, 
-								+ energy_box(i,j+1,k,0) + energy_box(i+1,j+1,k,0)
-								, 
-								+ energy_box(i,j,k+1,0) + energy_box(i+1,j,k+1,0)
-								+ energy_box(i,j+1,k+1,0) + energy_box(i+1,j+1,k+1,0)
-								));
+			Set::Scalar en_cell = Numeric::Interpolate::CellToNodeAverage(energy_box,i,j,k,0);
 			df(i,j,k,0) = boundary->Dg_phi(c_old(i,j,k,0))*en_cell;
 			df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			df(i,j,k,2) = boundary->kappa(c_old(i,j,k,0))*laplacian;
@@ -634,7 +623,6 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 			const amrex::Box& box = mfi.validbox();
 			amrex::Array4<const Set::Scalar> const& strain_box = (*m_strain[lev]).array(mfi);
 			amrex::Array4<Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
-			amrex::Array4<Set::Scalar> const& energy_box_old = (*m_energy_pristine_old[lev]).array(mfi);
 			amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 				//energy_box(i,j,k,0) = 0.;
 				Set::Matrix eps;

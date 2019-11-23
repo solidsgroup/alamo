@@ -608,6 +608,24 @@ DoubleHessian<3>(const amrex::Array4<const Set::Scalar> &f,
     return ret;
 }
 
+struct Interpolate
+{
+public:
+	template<class T>
+	AMREX_FORCE_INLINE
+	static T CellToNodeAverage(const amrex::Array4<const T> &f,
+		   					   const int &i, const int &j, const int &k, const int &m)
+	{
+		return ( AMREX_D_TERM(	  f(i  ,j  ,k  ,m) + f(i+1,j  ,k  ,m)
+								, 
+								+ f(i  ,j+1,k  ,m) + f(i+1,j+1,k  ,m)
+								, 
+								+ f(i  ,j  ,k+1,m) + f(i+1,j  ,k+1,m)
+								+ f(i  ,j+1,k+1,m) + f(i+1,j+1,k+1,m)
+								)) * fac;
+	}
+	constexpr static Set::Scalar fac = AMREX_D_PICK(0.5,0.25,0.125);
+};
 
 }
 #endif
