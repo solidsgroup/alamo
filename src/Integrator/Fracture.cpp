@@ -20,6 +20,7 @@ Fracture::Fracture() :
 		pp_crack_constant.query("mobility",mobility);
 		pp_crack_constant.query("eta_epsilon",eta_epsilon);
 		pp_crack_constant.query("modulus_scaling_max",scaleModulusMax);
+		pp_crack_constant.query("refinement_threshold",refinement_threshold);
 		//Util::Message(INFO, "G_c = ", G_c, ". zeta = ", zeta);
 		boundary = new Model::Interface::Crack::Constant(G_c,zeta,mobility);
 	}
