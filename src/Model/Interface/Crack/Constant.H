@@ -42,14 +42,14 @@ public:
     Set::Scalar g_phi(Set::Scalar c)
     {
         //return 4.*c*c*c - 3.*c*c*c*c;
-        return c*c*c*c;
+        return c*c;
     };
 
     Set::Scalar Dg_phi(Set::Scalar c)
     {
         //return 12.*c*c*(1.-c);
         //return 2.*c;
-        return 4.*c*c*c;
+        return 2.*c*c;
     };
 
     //Set::Scalar g_phi(Set::Scalar c) { return 1. - w_phi(c); }
