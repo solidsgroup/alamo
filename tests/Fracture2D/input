@@ -42,8 +42,8 @@ ic.thickness = 0.1
 ic.eps = 0.03
 
 material.model = isotropic
-material.isotropic.lambda = 1e2
-material.isotropic.mu = 8e1
+material.isotropic.lambda = 1e3
+material.isotropic.mu = 8e2
 
 elastic.bottom_solver 	=	bicgstab
 elastic.composite_solve	=	1

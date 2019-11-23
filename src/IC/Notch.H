@@ -94,7 +94,7 @@ public:
                 if(std::abs((x-nCenter).transpose()*nOrientation) <= nLength)
                 {
                     Set::Scalar t = std::abs((x-nCenter).transpose()*nNormal) - (nThickness/2.0);
-                    field(i,j,k) = 0.5 - 0.5*std::erf(t / eps);
+                    field(i,j,k) = 0.5 + 0.5*std::erf(t / eps);
                 }
 
                 Set::Vector nLeft =  nCenter - 0.5*nLength*nOrientation;
@@ -103,9 +103,9 @@ public:
                 Set::Scalar distRight = (x-nRight).transpose()*nOrientation;
 
                 if(distLeft < 0.)
-                    field(i,j,k) = 0.5 - 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness/2.0) / eps );
+                    field(i,j,k) = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness/2.0) / eps );
                 if(distRight > 0.)
-                    field(i,j,k) = 0.5 - 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness/2.0) / eps );
+                    field(i,j,k) = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness/2.0) / eps );
             
 
 //                field(i,j,k) = 0.5 - 0.5*std::erf()
