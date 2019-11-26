@@ -89,6 +89,17 @@ Mobility::Mobility() :
 		pp.query("gammagb0",physics.gammagb0);
 	}
 
+	{
+		IO::ParmParse pp("elastic");
+		pp.query("C11",elastic.C11);
+		pp.query("C12",elastic.C11);
+		pp.query("C44",elastic.C44);
+		elastic.Rot1 = Set::Matrix::Identity();
+		elastic.Rot2 = Set::Matrix::Identity();
+		pp.queryarr("Rot1",elastic.Rot1);
+		pp.queryarr("Rot2",elastic.Rot2);
+	}
+
 	RegisterNewFab(gammagb_mf,    mybc, 1, 3, "gammagb",true);
 	RegisterNewFab(gammagbold_mf, mybc, 1, 3, "gammagbold",false);
 

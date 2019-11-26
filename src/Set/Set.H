@@ -43,6 +43,38 @@ Set::Scalar Random();
 
 namespace Set
 {
+    
+class Matrix3
+{
+public:
+    Set::Matrix data[AMREX_SPACEDIM];
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Scalar & operator () (const int i, const int j, const int k)
+    {
+        return data[i](j,k);
+    }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    Matrix & operator [] (const int i)
+    {
+        return data[i];
+    }
+
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator  = (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i]  = a.data[i];}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator += (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] += a.data[i];}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator -= (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] -= a.data[i];}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator *= (Set::Scalar alpha) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] *= alpha;}
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator /= (Set::Scalar alpha) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] /= alpha;}
+
+    static Matrix3 Zero()
+    {
+        Matrix3 ret;
+        for (int i = 0; i < AMREX_SPACEDIM; i++) ret.data[i] = Set::Matrix::Zero();
+        return ret;
+    }
+
+
+};
+    
 /// \brief Data structure for a symmetrix 4th order 3D tensor
 ///
 /// Let the tensor
@@ -62,8 +94,9 @@ class Matrix4<3,Sym::Full>
                         NAN,NAN,NAN,NAN,NAN};
 
 public:
-    Matrix4() {};
+    AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
         int uid = i + 3*j + 9*k + 27*l;
@@ -157,8 +190,9 @@ class Matrix4<2,Sym::Full>
 {
     Scalar data[5] = {NAN,NAN,NAN,NAN,NAN};
 public:
-    Matrix4() {};
+    AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_FORCE_INLINE
+    AMREX_GPU_HOST_DEVICE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
         int uid = i + 2*j + 4*k + 8*l;
@@ -202,8 +236,8 @@ class Matrix4<3,Sym::Isotropic>
 {
     Set::Scalar lambda=NAN, mu=NAN;
 public:
-    Matrix4() {};
-    Matrix4(Set::Scalar a_lambda, Set::Scalar a_mu) : lambda(a_lambda), mu(a_mu) {};
+    AMREX_GPU_HOST_DEVICE Matrix4() {};
+    AMREX_GPU_HOST_DEVICE Matrix4(Set::Scalar a_lambda, Set::Scalar a_mu) : lambda(a_lambda), mu(a_mu) {};
     AMREX_FORCE_INLINE
     Scalar operator () (const int i, const int j, const int k, const int l)
     {
@@ -229,12 +263,13 @@ public:
         zero.mu = 0.0;
         return zero;
     }
-    void operator += (Matrix4<3,Sym::Isotropic> a) {lambda += a.lambda; mu += a.mu;}
-    void operator -= (Matrix4<3,Sym::Isotropic> a) {lambda -= a.lambda; mu -= a.mu;}
-    void operator *= (Matrix4<3,Sym::Isotropic> a) {lambda *= a.lambda; mu *= a.mu;}
-    void operator /= (Matrix4<3,Sym::Isotropic> a) {lambda /= a.lambda; mu /= a.mu;}
-    void operator *= (Set::Scalar alpha) {lambda *= alpha; mu *= alpha;}
-    void operator /= (Set::Scalar alpha) {lambda /= alpha; mu /= alpha;}
+    AMREX_GPU_HOST_DEVICE void operator =  (Matrix4<3,Sym::Isotropic> a) {lambda =  a.lambda; mu =  a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::Isotropic> a) {lambda += a.lambda; mu += a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::Isotropic> a) {lambda -= a.lambda; mu -= a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<3,Sym::Isotropic> a) {lambda *= a.lambda; mu *= a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator /= (Matrix4<3,Sym::Isotropic> a) {lambda /= a.lambda; mu /= a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator *= (Set::Scalar alpha) {lambda *= alpha; mu *= alpha;}
+    AMREX_GPU_HOST_DEVICE void operator /= (Set::Scalar alpha) {lambda /= alpha; mu /= alpha;}
 };
 
 
@@ -258,7 +293,7 @@ class Matrix4<3,Sym::MajorMinor>
                         NAN,NAN,NAN,NAN,NAN,NAN,NAN };
 
 public:
-    Matrix4() {};
+    AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
@@ -338,12 +373,13 @@ public:
             }
         }
     }
-    void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
-    void operator -= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] -= a.data[i];}
-    void operator *= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] *= a.data[i];}
-    void operator /= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] /= a.data[i];}
-    void operator *= (Set::Scalar alpha) {for (int i = 0; i < 21; i++) data[i] *= alpha;}
-    void operator /= (Set::Scalar alpha) {for (int i = 0; i < 21; i++) data[i] /= alpha;}
+    AMREX_GPU_HOST_DEVICE void operator  =  (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] -= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] *= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator /= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] /= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator *= (Set::Scalar alpha) {for (int i = 0; i < 21; i++) data[i] *= alpha;}
+    AMREX_GPU_HOST_DEVICE void operator /= (Set::Scalar alpha) {for (int i = 0; i < 21; i++) data[i] /= alpha;}
 
     static Matrix4<3,Sym::MajorMinor> Increment()
     {
@@ -364,10 +400,10 @@ public:
         return ret;
      }
 };
-Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
-Eigen::Matrix<amrex::Real,2,2> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,2,2> b);
-Eigen::Matrix<amrex::Real,3,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,3,3>,3> b);
-Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
+AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
+AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,2,2> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,2,2> b);
+AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,3,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,3,3>,3> b);
+AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
  
 namespace Constant
 {

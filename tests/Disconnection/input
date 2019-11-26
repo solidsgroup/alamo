@@ -49,6 +49,7 @@ physics.gamma = 10.0
 physics.elastic_mult = 1000.0
 physics.gammagb0 = 0.1
 physics.kappa = 0.01
+physics.L = 1.0
 
 # Boundary conditions
 bc.lo = REFLECT_EVEN EXT_DIR

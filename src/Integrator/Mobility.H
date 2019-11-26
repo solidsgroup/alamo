@@ -12,6 +12,7 @@
 
 #include "IC/IC.H"
 #include "BC/BC.H"
+#include "IO/ParmParse.H"
 
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
@@ -93,6 +94,14 @@ private:
       Set::Scalar yhi_x = 0.0;
     } disp;
   } bc;
+
+  struct {
+    Set::Scalar C11;
+    Set::Scalar C12;
+    Set::Scalar C44;
+    Set::Matrix Rot1;
+    Set::Matrix Rot2;
+  } elastic;
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
