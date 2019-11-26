@@ -4,6 +4,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/MultiWell.H"
+#include "Model/Solid/LinearElastic/Cubic.H"
 #include "BC/Operator/Elastic.H"
 #include "IC/Sphere.H"
 #include "IC/Affine.H"
@@ -89,15 +90,22 @@ Mobility::Mobility() :
 		pp.query("gammagb0",physics.gammagb0);
 	}
 
+	//Set::Scalar lame = 2.6, shear = 6.0;
+	constitutive.C11 = 1.68; // lame + 2.0*shear;
+	constitutive.C12 = 1.21; // lame;
+	constitutive.C44 = 0.75; // shear;
+	Util::Message(INFO,constitutive.C11);
+	Util::Message(INFO,constitutive.C12);
+	Util::Message(INFO,constitutive.C44);
 	{
-		IO::ParmParse pp("elastic");
-		pp.query("C11",elastic.C11);
-		pp.query("C12",elastic.C11);
-		pp.query("C44",elastic.C44);
-		elastic.Rot1 = Set::Matrix::Identity();
-		elastic.Rot2 = Set::Matrix::Identity();
-		pp.queryarr("Rot1",elastic.Rot1);
-		pp.queryarr("Rot2",elastic.Rot2);
+		IO::ParmParse pp("constitutive");
+		pp.query("C11",constitutive.C11);
+		pp.query("C12",constitutive.C11);
+		pp.query("C44",constitutive.C44);
+		constitutive.Rot1 = Set::Matrix::Identity();
+		constitutive.Rot2 = Set::Matrix::Identity();
+		pp.queryarr("Rot1",constitutive.Rot1);
+		pp.queryarr("Rot2",constitutive.Rot2);
 	}
 
 	RegisterNewFab(gammagb_mf,    mybc, 1, 3, "gammagb",true);
@@ -138,7 +146,9 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	}
 
 	Set::Scalar lame = 2.6, shear = 6.0;
-	using model_type = Model::Solid::LinearElastic::Multiwell;
+	//using model_type = Model::Solid::LinearElastic::Multiwell;
+	using model_type = Model::Solid::LinearElastic::Cubic;
+
 	Operator::Elastic<model_type> elastic;
 	elastic.SetUniform(false);
 
@@ -146,7 +156,8 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	if (solver.max_coarsening_level > -1) info.setMaxCoarseningLevel(solver.max_coarsening_level);
 	elastic.define(geom,grids,dmap,info);
 
-	model_type mymodel(lame,shear,Set::Matrix::Zero());
+	model_type mymodel(constitutive.C11, constitutive.C12, constitutive.C44);
+	//model_type mymodel(lame,shear,Set::Matrix::Zero());
 	
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model_mf;
 	model_mf.resize(disp.size());
@@ -178,13 +189,18 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 				Set::Matrix Fgb = Set::Matrix::Zero();
 				Fgb(0,1) = 0.25*(gammagb(i,j,k) + gammagb(i-1,j,k) + gammagb(i,j-1,k)+ gammagb(i-1,j-1,k));
 				RHS(i,j,k,0)=gammagb(i,j,k);
-				model(i,j,k) = model_type(lame,shear,Fgb);
+				//model(i,j,k) = model_type(lame,shear);
+				//model(i,j,k) = model_type(lame,shear,Fgb);
+				model(i,j,k) = model_type(constitutive.C11, constitutive.C12, constitutive.C44);//lame,shear,Fgb);
+				model(i,j,k).F0 = Fgb;
 			});
 			bx = mfi.tilebox();
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
-				model(i,j,k).gradFgb[0](1,0) = ((model(i+1,j,k).Fgb - model(i-1,j,k).Fgb)/2./DX[0])(0,1);
-				model(i,j,k).gradFgb[0](1,1) = ((model(i,j+1,k).Fgb - model(i,j-1,k).Fgb)/2./DX[1])(0,1);
+				//model(i,j,k).gradFgb[0](1,0) = ((model(i+1,j,k).Fgb - model(i-1,j,k).Fgb)/2./DX[0])(0,1);
+				//model(i,j,k).gradFgb[0](1,1) = ((model(i,j+1,k).Fgb - model(i,j-1,k).Fgb)/2./DX[1])(0,1);
+				model(i,j,k).gradF0[0](1,0) = ((model(i+1,j,k).F0 - model(i-1,j,k).F0)/2./DX[0])(0,1);
+				model(i,j,k).gradF0[0](1,1) = ((model(i,j+1,k).F0 - model(i,j-1,k).F0)/2./DX[1])(0,1);
 			});
 		}
 	}
@@ -217,6 +233,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 	linearsolver.solveaffine(disp,rhs,tol_rel,tol_abs,true);
+	//linearsolver.solve(disp,rhs,tol_rel,tol_abs);
 	
 	//elastic.SetHomogeneous(false);
 	linearsolver.compResidual(GetVecOfPtrs(res),GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs));
@@ -276,7 +293,7 @@ void
 Mobility::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	const amrex::Real* DX      = geom[lev].CellSize();
-	const Set::Scalar dxnorm = sqrt(DX[0]*DX[0] +  DX[1]*DX[1]);
+	const Set::Scalar dxnorm = std::sqrt(DX[0]*DX[0] +  DX[1]*DX[1]);
 
 	for (amrex::MFIter mfi(*gammagb_mf[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{

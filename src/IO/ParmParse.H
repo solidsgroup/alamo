@@ -18,6 +18,7 @@ public:
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {} ;
     void queryarr(std::string name, Set::Vector & value)
     {
+        if (! amrex::ParmParse::contains(name.c_str())) return;
         std::vector<Set::Scalar> vals;
         amrex::ParmParse::queryarr(name.c_str(), vals);
         if (vals.size() < AMREX_SPACEDIM) 
@@ -28,6 +29,7 @@ public:
     }
     void queryarr(std::string name, Set::Matrix & value)
     {
+        if (! amrex::ParmParse::contains(name.c_str())) return;
         std::vector<Set::Scalar> vals;
         amrex::ParmParse::queryarr(name.c_str(), vals);
         if (vals.size() < AMREX_SPACEDIM*AMREX_SPACEDIM) 

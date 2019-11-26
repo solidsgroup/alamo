@@ -101,7 +101,7 @@ private:
     Set::Scalar C44;
     Set::Matrix Rot1;
     Set::Matrix Rot2;
-  } elastic;
+  } constitutive;
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
