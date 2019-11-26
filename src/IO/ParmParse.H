@@ -1,3 +1,5 @@
+#ifndef IO_PARMPARSE_H
+#define IO_PARMPARSE_H
 #include "Set/Set.H"
 #include "AMReX_ParmParse.H"
 
@@ -40,3 +42,4 @@ public:
 
 };
 }
+#endif
