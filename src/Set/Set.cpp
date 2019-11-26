@@ -1,6 +1,7 @@
 #include "Set.H"
 namespace Set
 {
+	AMREX_GPU_HOST_DEVICE
 	Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b)
 	{
     	Eigen::Matrix<amrex::Real,3,3> ret = Eigen::Matrix<amrex::Real,3,3>::Zero();
@@ -11,6 +12,7 @@ namespace Set
 						ret(i,j) += a(i,j,k,l)*b(k,l);
 		return ret;
 	}
+	AMREX_GPU_HOST_DEVICE
 	Eigen::Matrix<amrex::Real,2,2> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,2,2> b)
 	{
     	Eigen::Matrix<amrex::Real,2,2> ret = Eigen::Matrix<amrex::Real,2,2>::Zero();

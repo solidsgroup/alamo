@@ -53,11 +53,11 @@ public:
 	Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	~Cubic() {} ;
 	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
+	virtual Set::Vector operator () (Set::Matrix3 &gradeps,bool =true);
 
 	virtual Set::Scalar    W (Set::Matrix &eps) const;
 	virtual Set::Matrix   DW (Set::Matrix &eps) const;
-	virtual Set::Vector   DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
+	virtual Set::Vector   DW (Set::Matrix3 &gradeps);
 	virtual Set::Matrix4<3,Set::Sym::MajorMinor> DDW (Set::Matrix &eps) const;
 
 	void Randomize();
