@@ -93,18 +93,18 @@ Cubic::DW (Set::Matrix &gradu) const
 }
 
 Set::Vector
-Cubic::operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool)
+Cubic::operator () (Set::Matrix3 &gradgradu,bool)
 {
 	Set::Vector ret = Set::Vector::Zero();
 	for (int i = 0; i < AMREX_SPACEDIM; i++)
 		for (int j = 0; j < AMREX_SPACEDIM; j++)
 			for (int k = 0; k < AMREX_SPACEDIM; k++)
 				for (int l = 0; l < AMREX_SPACEDIM; l++)
-					ret(i) += C(i,j,k,l)*gradgradu[k](l,j);
+					ret(i) += C(i,j,k,l)*gradgradu(k,l,j);
 	return ret;
 }
 Set::Vector
-Cubic::DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu)
+Cubic::DW (Set::Matrix3 &gradgradu)
 {
 	return (*this)(gradgradu);
 }
