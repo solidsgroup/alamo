@@ -37,8 +37,9 @@ public:
 	AMREX_FORCE_INLINE
 	virtual Set::Vector operator () (Set::Matrix3 &gradgradu,bool a_homogeneous=true)
 	{
-		Set::Matrix3 gradeps = gradgradu;
-		if (!a_homogeneous) gradeps -= gradFgb; //for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] -= gradFgb[i];
+		Set::Matrix3 gradeps;
+		gradeps = gradgradu;
+		if (!a_homogeneous) gradeps -= gradFgb;
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
@@ -63,24 +64,27 @@ public:
 	Multiwell operator + (const Multiwell &rhs) const
 	{
 		Multiwell ret(mu+rhs.mu, lambda+rhs.lambda,Fgb + rhs.Fgb);
-		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradFgb[i] = gradFgb[i] + rhs.gradFgb[i];
+		ret.gradFgb = gradFgb; ret.gradFgb += rhs.gradFgb;
 		return ret;
 	}
 
 	Multiwell & operator = (const Multiwell &rhs)
 	{
-		mu=rhs.mu; lambda=rhs.lambda; Fgb = rhs.Fgb; gradFgb = rhs.gradFgb;
+		mu=rhs.mu; lambda=rhs.lambda; Fgb = rhs.Fgb;
+		gradFgb = rhs.gradFgb;
 		return *this;
 	}
 
 	void operator += (const Multiwell &rhs)
 	{
-		mu+=rhs.mu; lambda+=rhs.lambda; Fgb += rhs.Fgb; gradFgb += rhs.gradFgb;
+		mu+=rhs.mu; lambda+=rhs.lambda; Fgb += rhs.Fgb;
+		gradFgb += rhs.gradFgb;
 	}
 
 	Multiwell operator - (const Multiwell &rhs) const
 	{
-		Multiwell ret(mu-rhs.mu, lambda-rhs.lambda,Fgb-rhs.Fgb); ret.gradFgb = gradFgb - rhs.gradFgb;
+		Multiwell ret(mu-rhs.mu, lambda-rhs.lambda,Fgb-rhs.Fgb);
+		ret.gradFgb = gradFgb; ret.gradFgb -= rhs.gradFgb;
 		return ret;
 	}
 
@@ -92,13 +96,15 @@ public:
 
 	virtual Multiwell operator / (const Set::Scalar alpha) const
 	{
-		Multiwell ret(mu/alpha, lambda/alpha,Fgb/alpha); ret.gradFgb = gradFgb/alpha;
+		Multiwell ret(mu/alpha, lambda/alpha,Fgb/alpha);
+		ret.gradFgb = gradFgb; ret.gradFgb /= alpha;
 		return ret;
 	}
 
 	virtual Multiwell operator * (const Set::Scalar alpha) const
 	{
-		Multiwell ret(mu*alpha, lambda*alpha,Fgb*alpha); ret.gradFgb = gradFgb*alpha;
+		Multiwell ret(mu*alpha, lambda*alpha,Fgb*alpha);
+		ret.gradFgb = gradFgb; ret.gradFgb *= alpha;
 		return ret;
 	}
 	

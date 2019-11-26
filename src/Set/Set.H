@@ -71,7 +71,12 @@ public:
         for (int i = 0; i < AMREX_SPACEDIM; i++) ret.data[i] = Set::Matrix::Zero();
         return ret;
     }
-
+    static Matrix3 Random()
+    {
+        Matrix3 ret;
+        for (int i = 0; i < AMREX_SPACEDIM; i++) ret.data[i] = Set::Matrix::Random();
+        return ret;
+    }
 
 };
     
