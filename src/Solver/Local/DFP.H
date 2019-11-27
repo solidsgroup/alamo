@@ -1,4 +1,5 @@
 #include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Dense>
 #include "Set/Set.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
 
@@ -10,18 +11,29 @@ namespace Local
 {
     class DFP
     {
-    private:
-    
-	static constexpr int dim = 8;
-    using vector2d = Eigen::Matrix<amrex::Real,dim,1>;
-	using matrix22 = Eigen::Matrix<amrex::Real,dim,dim>;
+        private: 
+        static constexpr double dx = 1e-5;
 
-    vector2d getGrad(vector2d x, double dx, const Set::Matrix& sig);
-    double secantMethod(double dx, double a1, double a2, double tol, vector2d x_new, vector2d r, const Set::Matrix& sig);
-    Set::Scalar f(vector2d x, const Set::Matrix& es);
-    vector2d DFPfunc(vector2d x0, double tol, double alpha1, double alpha2, double dx, const Set::Matrix& sig);
+        int rows,cols;
+        Set::Matrix sig, esp;
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> H, Hpre;
+        Eigen::Matrix<double, Eigen::Dynamic, 1> a, b, c, d;
+        
+        //using vector2d = Eigen::Matrix<double, Eigen::Dynamic, 1>;
+        //using matrix22 = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+
+        Eigen::Matrix<double, Eigen::Dynamic, 1> getGrad();
+        double f(Eigen::Matrix<double, Eigen::Dynamic, 1> x, const Set::Matrix& es);
     public:
-    Set::Matrix relax(const Set::Matrix& sig, double e);
-    };
-}
+        DFP(int _rows, int _cols,double c11, double c12, double c44 )
+    :
+    cp(c11,c12,c44)
+        {
+            rows = _rows; cols = _cols;
+            H.resize(rows,cols); Hpre.resize(rows, cols);
+            a.resize(rows); b.resize(rows); c.resize(rows); d.resize(rows);
+        }
+        Model::Solid::CrystalPlastic::CrystalPlastic cp;
+        };
+    }
 }

@@ -17,7 +17,7 @@ namespace CrystalPlastic
 class CrystalPlastic : public Solid
 {
 private:
-	static constexpr int dim = 8;
+	static constexpr int dim = 9;
 	using vector2d = Eigen::Matrix<amrex::Real,dim,1>;
 	using matrix22 = Eigen::Matrix<amrex::Real,dim,dim>;
 
@@ -31,7 +31,8 @@ private:
 		Set::Vector n;
 		Set::Vector s;
 		Set::Scalar Tcrss;
-		Set::Scalar galpha;
+		Set::Scalar galphad;
+		Set::Scalar gam;
 		bool on;
 	};
 	//********Matrial Slip Data**********//
@@ -51,26 +52,26 @@ private:
 	Eigen::Matrix<double,12,12> F;
 	//********Matrial Constants**********//
 
-	static Set::Scalar constexpr tcrss = 6e-3;//0.75e-3;
-	static Set::Scalar constexpr n = 20.0; 
+	static Set::Scalar constexpr tcrss = 0.4e-3;//0.75e-3;
+	static Set::Scalar constexpr n = 50.0; 
 	static Set::Scalar constexpr gammadot0 = 1e-3; // 0.001 1/s
 	static Set::Scalar constexpr t0 = tcrss; 	// MPa
 	static Set::Scalar constexpr hs = 1.5*t0; 	// MPa
 	static Set::Scalar constexpr h0 = 90*t0; 	// MPa
 	static Set::Scalar constexpr ts = 1.3*t0; 	// MPa
 
-	static Set::Scalar constexpr cc = 8.0; 
+	static Set::Scalar constexpr cc = 200.0; 
 	static Set::Scalar constexpr gg = 15.0;
 	static Set::Scalar constexpr hh = 8.0; 
 	static Set::Scalar constexpr ss = 20.0; 
 	static Set::Scalar constexpr nn = 8.0;
 	
-	static Set::Scalar constexpr q = 0; // 1
-	//double \ gam = gammadot0;
+	static Set::Scalar constexpr q = .5; // 1
 
 	Set::Scalar dt = 1.0e-5;
 	double Time = 0.0;
 	//***********DFP************//
+	Set::iMatrix Mask = Set::iMatrix::Zero();
 	//double w1 = 10.0;
 	//double w2 = 10.0;
 
@@ -112,14 +113,17 @@ public:
 	void Setdt(const double _dt);
 	void LatentHardening();
 	Eigen::Matrix<double,12,12> coplanar();
-	Set::Matrix relax(const Set::Matrix& sig, double e);
+	Set::Matrix relax(const Set::Matrix& _es, double e, const Set::iMatrix& _mask);
 	Set::Matrix GetEsp() const;
 	double getGamma(int index) const;
 //DFP
+
 	double secantMethod(double dx, double a1, double a2, double tol, vector2d x_new, vector2d r, const Set::Matrix& sig);
 	Set::Scalar f(vector2d x, const Set::Matrix& es);
 	vector2d getGrad(vector2d x, double dx, const Set::Matrix& sig);
 	vector2d DFP(vector2d x0, double tol, double alpha1, double alpha2, double dx, const Set::Matrix& sig);
+	Eigen::Matrix<amrex::Real,9,1> mat2vec(const Set::Matrix epsilon);
+	Set::Matrix vec2mat(const Eigen::Matrix<amrex::Real,9,1> ep);
 //
 	void Randomize();
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
