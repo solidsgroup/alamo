@@ -107,7 +107,8 @@ public:
                 if(distRight > 0.)
                     field(i,j,k) = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness/2.0) / eps );
             
-
+                if (field(i,j,k) < 0.) field(i,j,k) = 0.;
+                if (field(i,j,k) > 1.) field(i,j,k) = 1.;
 //                field(i,j,k) = 0.5 - 0.5*std::erf()
 //                Set::Scalar norm = (A*(x-x0)).lpNorm<2>();
 //                field(i,j,k) = 0.5 - 0.5*std::erf(((x-x0).transpose() * A * (x-x0) - 1.0) / eps / norm);

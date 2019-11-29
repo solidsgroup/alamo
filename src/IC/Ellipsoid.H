@@ -69,7 +69,7 @@ public:
 					}
 
 					Set::Scalar norm = (A*(x-center)).lpNorm<2>();
-                	field(i,j,k) = 0.5 - 0.5*std::erf(((x-center).transpose() * A * (x-center) - 1.0) / eps / norm);
+                	field(i,j,k) = 0.5 + 0.5*std::erf(((x-center).transpose() * A * (x-center) - 1.0) / eps / norm);
 				});
 		}
 		a_field[lev]->FillBoundary();

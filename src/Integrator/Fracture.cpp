@@ -13,7 +13,7 @@ Fracture::Fracture() :
 	if(crack_type=="constant")
 	{
 		amrex::ParmParse pp_crack_constant("crack.constant");
-		Set::Scalar G_c, zeta;
+		Set::Scalar G_c, zeta, mult_Gc = 1.0, mult_Lap = 1.0;
 		eta_epsilon = 1.; mobility = 1e-2; scaleModulusMax = 0.2;
 		pp_crack_constant.query("G_c",G_c);
 		pp_crack_constant.query("zeta",zeta);
@@ -21,8 +21,10 @@ Fracture::Fracture() :
 		pp_crack_constant.query("eta_epsilon",eta_epsilon);
 		pp_crack_constant.query("modulus_scaling_max",scaleModulusMax);
 		pp_crack_constant.query("refinement_threshold",refinement_threshold);
+		pp_crack_constant.query("mult_Gc",mult_Gc);
+		pp_crack_constant.query("mult_Lap", mult_Lap);
 		//Util::Message(INFO, "G_c = ", G_c, ". zeta = ", zeta);
-		boundary = new Model::Interface::Crack::Constant(G_c,zeta,mobility);
+		boundary = new Model::Interface::Crack::Constant(G_c,zeta,mobility,mult_Gc,mult_Lap);
 	}
 	else
 		Util::Abort(INFO,"This crack model hasn't been implemented yet");
@@ -283,6 +285,8 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_model_t
 								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
 								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
 								));
+			if(_temp[0] < 0.0) _temp[0] = 0.;
+			if(_temp[0] > 1.0) _temp[0] = 1.0;
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
 		});
 
@@ -517,8 +521,11 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 
 			//Util::Message(INFO,"rhs = ",rhs,". en_cell =",en_cell, ". laplacian = ", laplacian);
 			//Util::Message(INFO, "rhs = ", rhs);
-			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)));
+			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
+
+			if(c_new(i,j,k,0) > 1.0) {Util::Message(INFO, "cnew exceeded 1.0, resetting to 1.0"); c_new(i,j,k,0) = 1.;}
+			if(c_new(i,j,k,0) < 0.0) {Util::Message(INFO, "cnew is below 0.0, resetting to 0.0"); c_new(i,j,k,0) = 0.;}
 			//c_new(i,j,k,0) = c_old(i,j,k,0) - dt*rhs*mobility;
 			//c_new(i,j,k,0) = c_new(i,j,k,0) > c_old(i,j,k,0) ? c_new(i,j,k,0) : c_old(i,j,k,0);
 		});

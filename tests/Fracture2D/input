@@ -19,12 +19,14 @@ geometry.prob_hi = 4 4
 geometry.is_periodic= 0 0
 
 crack.type = constant
-crack.constant.G_c = 5.0e-2
-crack.constant.zeta = 5e-3
-crack.constant.mobility = 1.0e-1
+crack.constant.G_c = 7.0e-2
+crack.constant.zeta = 1.e-3
+crack.constant.mobility = 5.0e-2
 crack.constant.eta_epsilon = 0.01
 crack.constant.modulus_scaling_max = 0.05
 crack.constant.refinement_threshold = 0.01
+crack.constant.mult_Gc = 1.0e0
+crack.constant.mult_Lap = 1.0e0
 
 crack.tol_crack = 1e-15
 crack.tol_step = 1e-2
@@ -39,8 +41,8 @@ ic.type = notch
 ic.center = 0.0 0.01
 ic.orientation = 1.0 0.0
 ic.length = 1.0
-ic.thickness = 0.1
-ic.eps = 0.03
+ic.thickness = 0.0675
+ic.eps = 0.02
 
 material.model = isotropic
 material.isotropic.lambda = 1e3
