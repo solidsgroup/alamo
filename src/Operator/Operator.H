@@ -3,7 +3,6 @@
 
 #include <AMReX_MLNodeLinOp.H>
 #include <AMReX_MLCellLinOp.H>
-#include <AMReX_MLNodeLap_F.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_BaseFab.H>
 #include "AMReX_BaseFab_f.H"
