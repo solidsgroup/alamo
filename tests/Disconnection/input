@@ -2,11 +2,11 @@ alamo.program = mobility
 # Simulation length
 timestep  = 0.0001
 #stop_time = 5
-stop_time = 0.10001
+stop_time = 10.0001
 
 # AMR parameters
-amr.plot_int = 10
-amr.max_level = 4
+amr.plot_int = 100
+amr.max_level = 2
 #amr.n_cell = 256 128
 #amr.n_cell = 128 64
 amr.n_cell = 64 64
@@ -17,6 +17,7 @@ amr.blocking_factor = 8
 #amr.max_grid_size = 10000000
 amr.regrid_int = 50
 amr.grid_eff = 1.0
+#amr.plot_file = tests/Disconnection/output_%Y%m%d_%H%m%S
 amr.plot_file = tests/Disconnection/output
 amr.ref_criterion = 0.005
 
@@ -47,17 +48,22 @@ ic.type = "tabulated"
 #ic.ys = 0.45 0.45     0.55     0.55 0.45 0.45
 
 # Single disconnection
-ic.xs = 0.0 0.5 0.5000001 1.0
-ic.ys = 0.48 0.48 0.52       0.52
+#ic.xs = 0.0 0.5 0.5000001 1.0
+#ic.ys = 0.3 0.3 0.7       0.7
+ic.xs = 0.0  1.0
+ic.ys = 0.3  0.7
 
 # Ramp
 #ic.xs = 0.0 1.0
 #ic.ys = 0.3 0.7
 
-physics.gamma = 10.0
-physics.elastic_mult = 1000.0
-physics.gammagb0 = 0.1
-physics.kappa = 0.005
+physics.gamma = 100.0
+# physics.elastic_mult 500.0 huge
+#physics.elastic_mult = 0.0 no impact
+#physics.elastic_mult = 1.0 very small impact
+physics.elastic_mult = 10.0 very small impact
+physics.gammagb0 = 0.5
+physics.kappa = 0.05
 physics.L = 1.0
 
 # Boundary conditions
@@ -65,8 +71,9 @@ bc.lo = REFLECT_EVEN EXT_DIR
 bc.hi = REFLECT_EVEN EXT_DIR
 bc.lo_1 = 0.0 
 bc.hi_1 = 0.0 
-bc.lo_2 = -0.1
-bc.hi_2 = 0.1
+bc.lo_2 = -0.5
+bc.hi_2 = 0.5
+bc.freezetime = 0.01
 
 #bc.disp.yhi_x = -0.1
 bc.disp.yhi_x = 0
