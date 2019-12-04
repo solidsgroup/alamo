@@ -14,6 +14,7 @@
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
+#include "Model/Solid/Elastic/Elastic.H"
 
 int main (int argc, char* argv[])
 {

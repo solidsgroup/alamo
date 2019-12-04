@@ -410,6 +410,184 @@ AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,2,2> operator * (Matrix4<3,Sym::
 AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,3,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,3,3>,3> b);
 AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
  
+template<>
+class Matrix4<3,Sym::Major>
+{
+    Scalar data[45] = { NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,
+                        NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,
+                        NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,
+                        NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,
+                        NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN,NAN };
+public:
+    AMREX_GPU_HOST_DEVICE Matrix4() {};
+    AMREX_FORCE_INLINE
+    Scalar & operator () (const int i, const int j, const int k, const int l)
+    {
+        int uid = i + 3*j + 9*k + 27*l;
+        // [0, 0, 0, 0]
+        if (0 || uid==0 ) return data[0];
+        // [0, 0, 0, 1]
+        else if (0 || uid==27 || uid==3 ) return data[1];
+        // [0, 0, 0, 2]
+        else if (0 || uid==54 || uid==6 ) return data[2];
+        // [0, 0, 1, 0]
+        else if (0 || uid==9 || uid==1 ) return data[3];
+        // [0, 0, 1, 1]
+        else if (0 || uid==36 || uid==4 ) return data[4];
+        // [0, 0, 1, 2]
+        else if (0 || uid==63 || uid==7 ) return data[5];
+        // [0, 0, 2, 0]
+        else if (0 || uid==18 || uid==2 ) return data[6];
+        // [0, 0, 2, 1]
+        else if (0 || uid==45 || uid==5 ) return data[7];
+        // [0, 0, 2, 2]
+        else if (0 || uid==72 || uid==8 ) return data[8];
+        // [0, 1, 0, 1]
+        else if (0 || uid==30 ) return data[9];
+        // [0, 1, 0, 2]
+        else if (0 || uid==57 || uid==33 ) return data[10];
+        // [0, 1, 1, 0]
+        else if (0 || uid==12 || uid==28 ) return data[11];
+        // [0, 1, 1, 1]
+        else if (0 || uid==39 || uid==31 ) return data[12];
+        // [0, 1, 1, 2]
+        else if (0 || uid==66 || uid==34 ) return data[13];
+        // [0, 1, 2, 0]
+        else if (0 || uid==21 || uid==29 ) return data[14];
+        // [0, 1, 2, 1]
+        else if (0 || uid==48 || uid==32 ) return data[15];
+        // [0, 1, 2, 2]
+        else if (0 || uid==75 || uid==35 ) return data[16];
+        // [0, 2, 0, 2]
+        else if (0 || uid==60 ) return data[17];
+        // [0, 2, 1, 0]
+        else if (0 || uid==15 || uid==55 ) return data[18];
+        // [0, 2, 1, 1]
+        else if (0 || uid==42 || uid==58 ) return data[19];
+        // [0, 2, 1, 2]
+        else if (0 || uid==69 || uid==61 ) return data[20];
+        // [0, 2, 2, 0]
+        else if (0 || uid==24 || uid==56 ) return data[21];
+        // [0, 2, 2, 1]
+        else if (0 || uid==51 || uid==59 ) return data[22];
+        // [0, 2, 2, 2]
+        else if (0 || uid==78 || uid==62 ) return data[23];
+        // [1, 0, 1, 0]
+        else if (0 || uid==10 ) return data[24];
+        // [1, 0, 1, 1]
+        else if (0 || uid==37 || uid==13 ) return data[25];
+        // [1, 0, 1, 2]
+        else if (0 || uid==64 || uid==16 ) return data[26];
+        // [1, 0, 2, 0]
+        else if (0 || uid==19 || uid==11 ) return data[27];
+        // [1, 0, 2, 1]
+        else if (0 || uid==46 || uid==14 ) return data[28];
+        // [1, 0, 2, 2]
+        else if (0 || uid==73 || uid==17 ) return data[29];
+        // [1, 1, 1, 1]
+        else if (0 || uid==40 ) return data[30];
+        // [1, 1, 1, 2]
+        else if (0 || uid==67 || uid==43 ) return data[31];
+        // [1, 1, 2, 0]
+        else if (0 || uid==22 || uid==38 ) return data[32];
+        // [1, 1, 2, 1]
+        else if (0 || uid==49 || uid==41 ) return data[33];
+        // [1, 1, 2, 2]
+        else if (0 || uid==76 || uid==44 ) return data[34];
+        // [1, 2, 1, 2]
+        else if (0 || uid==70 ) return data[35];
+        // [1, 2, 2, 0]
+        else if (0 || uid==25 || uid==65 ) return data[36];
+        // [1, 2, 2, 1]
+        else if (0 || uid==52 || uid==68 ) return data[37];
+        // [1, 2, 2, 2]
+        else if (0 || uid==79 || uid==71 ) return data[38];
+        // [2, 0, 2, 0]
+        else if (0 || uid==20 ) return data[39];
+        // [2, 0, 2, 1]
+        else if (0 || uid==47 || uid==23 ) return data[40];
+        // [2, 0, 2, 2]
+        else if (0 || uid==74 || uid==26 ) return data[41];
+        // [2, 1, 2, 1]
+        else if (0 || uid==50 ) return data[42];
+        // [2, 1, 2, 2]
+        else if (0 || uid==77 || uid==53 ) return data[43];
+        // [2, 2, 2, 2]
+        else if (0 || uid==80 ) return data[44];
+        else Util::Abort(INFO,"Index out of range");
+        return data[-1]; 
+    }
+    void Print (std::ostream& os)
+    {
+        for (int i = 0; i < 45; i++)
+            os << "i = " << i << " " << data[i] << std::endl;
+        
+        os.precision(4);
+        for (int k = 0; k < 3; k++)
+        {
+            for (int i = -1; i < 4; i++)
+            {
+                for (int l = 0; l < 3; l++)
+                {
+                    if (i==-1)       os << "┌                                     ┐ ";
+                    else if (i == 3) os << "└                                     ┘ ";
+                    else 
+                    {
+                        os << "│ ";
+                        for (int j = 0; j < 3; j++)
+                        {
+                            const Set::Scalar &val = (*this)(i,j,k,l);
+                            os << std::scientific << std::setw(11) << val ; //(fabs(val)>1E-10 ? val : 0);
+                            os << " "; 
+                        }
+                        os << "│ ";
+                    }
+                }
+                os<<std::endl;
+            }
+        }
+    }
+    AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::Major> a) {for (int i = 0; i < 45; i++) data[i] = a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::Major> a) {for (int i = 0; i < 45; i++) data[i] += a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::Major> a) {for (int i = 0; i < 45; i++) data[i] -= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<3,Sym::Major> a) {for (int i = 0; i < 45; i++) data[i] *= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator /= (Matrix4<3,Sym::Major> a) {for (int i = 0; i < 45; i++) data[i] /= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator *= (Set::Scalar alpha) {for (int i = 0; i < 45; i++) data[i] *= alpha;}
+    AMREX_GPU_HOST_DEVICE void operator /= (Set::Scalar alpha) {for (int i = 0; i < 45; i++) data[i] /= alpha;}
+
+    static Matrix4<3,Sym::Major> Increment()
+    {
+        Matrix4<3,Sym::Major> ret;
+        for (int i = 0 ; i < 45; i++) ret.data[i] = (Set::Scalar)i;
+        return ret;
+     }
+    static Matrix4<3,Sym::Major> Randomize()
+    {
+        Matrix4<3,Sym::Major> ret;
+        for (int i = 0 ; i < 45; i++) ret.data[i] = (Util::Random());
+        return ret;
+     }
+    static Matrix4<3,Sym::Major> Zero()
+    {
+        Matrix4<3,Sym::Major> ret;
+        for (int i = 0 ; i < 45; i++) ret.data[i] = 0.0;
+        return ret;
+    }
+
+    Set::Scalar norm()
+    {
+        Set::Scalar normsq = 0.0;
+        for (int i = 0; i < 3; i++)
+			for (int j = 0; j < 3; j++)
+				for (int k = 0; k < 3; k++)
+					for (int l = 0; l < 3; l++)
+                        normsq += (*this)(i,j,k,l) * (*this)(i,j,k,l);
+        return std::sqrt(normsq);
+    }
+};
+AMREX_GPU_HOST_DEVICE Matrix4<3,Sym::Major> operator - (Matrix4<3,Sym::Major> a, Matrix4<3,Sym::Major> b);
+
+ 
 namespace Constant
 {
 static const Set::Scalar Pi = 3.14159265359;

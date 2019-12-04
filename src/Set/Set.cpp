@@ -23,6 +23,18 @@ namespace Set
 						ret(i,j) += a(i,j,k,l)*b(k,l);
 		return ret;
 	}
+	AMREX_GPU_HOST_DEVICE 
+	Matrix4<3,Sym::Major> operator - (Matrix4<3,Sym::Major> a, Matrix4<3,Sym::Major> b)
+	{
+		Matrix4<3,Sym::Major> ret;
+		for (int i = 0; i < 3; i++)
+			for (int j = 0; j < 3; j++)
+				for (int k = 0; k < 3; k++)
+					for (int l = 0; l < 3; l++)
+						ret(i,j,k,l) = a(i,j,k,l) - b(i,j,k,l);
+		return ret;
+	}
+
 }
 
 namespace Util

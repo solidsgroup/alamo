@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_H_
-#define MODEL_SOLID_ELASTIC_H_
+#ifndef MODEL_SOLID_LINEARELASTIC_H_
+#define MODEL_SOLID_LINEARELASTIC_H_
 
 #include "Model/Solid/Solid.H"
 #include "Set/Set.H"
