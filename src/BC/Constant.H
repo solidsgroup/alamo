@@ -7,6 +7,7 @@
 #include <AMReX_PhysBCFunct.H>
 #include <AMReX_Array.H>
 
+#include "Set/Set.H"
 #include "BC/BC.H"
 
 namespace BC
@@ -17,6 +18,7 @@ class Constant
 
 public:
 	//Constant (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
+	Constant () {} ;
 	Constant (amrex::Vector<std::string> bc_hi_str,
 		  amrex::Vector<std::string> bc_lo_str,
 		  AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
