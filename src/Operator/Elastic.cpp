@@ -3,6 +3,8 @@
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+
+#include "Model/Solid/Elastic/Elastic.H"
 #include "Elastic.H"
 
 #include "Numeric/Stencil.H"
@@ -835,5 +837,7 @@ template class Elastic<Model::Solid::LinearElastic::Cubic>;
 template class Elastic<Model::Solid::LinearElastic::Multiwell>;
 template class Elastic<Model::Solid::LinearElastic::Laplacian>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
+
+template class Elastic<Model::Solid::Elastic::Elastic>;
 }
 

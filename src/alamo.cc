@@ -11,6 +11,7 @@
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mobility.H"
 #include "Integrator/Eshelby.H"
+#include "Integrator/FiniteKinematics.H"
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
@@ -45,6 +46,13 @@ int main (int argc, char* argv[])
 		eshelby->InitData();
 		eshelby->Evolve();		
 		delete eshelby;
+	}
+	else if (program == "finitekinematics")
+	{
+		Integrator::Integrator *fk = new Integrator::FiniteKinematics();
+		fk->InitData();
+		fk->Evolve();		
+		delete fk;
 	}
 	else if (program == "flame")
 	{
