@@ -20,7 +20,7 @@ public:
 	virtual Set::Matrix operator () (Set::Matrix &F, bool a_homogeneous=true) const
     {
         //return mu*(F + F.transpose()) + kappa*Set::Matrix::Identity()*F.trace();
-
+        //Util::Message(INFO,"begin");
         Set::Matrix P;
         for (int i = 0; i < 3; i++)
             for (int J = 0; J < 3; J++)
@@ -36,6 +36,7 @@ public:
                 }
 
             }
+        //Util::Message(INFO,"end");
         return P;
 
     };
@@ -43,12 +44,13 @@ public:
     AMREX_FORCE_INLINE
 	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool a_homogeneous=true)
     {
-		//Set::Vector _f = Set::Vector::Zero();
-		//for (int i = 0; i < AMREX_SPACEDIM; i++)
-		//	for (int j=0; j < AMREX_SPACEDIM; j++)
-		//		{
-		//			_f(i) += mu*(gradF(i,j,j) + gradF(j,i,j))  + kappa*gradF(j,j,i);
-		//		}
+//        //Util::Message(INFO,"begin");
+//		Set::Vector _f = Set::Vector::Zero();
+//		for (int i = 0; i < AMREX_SPACEDIM; i++)
+//			for (int j=0; j < AMREX_SPACEDIM; j++)
+//				{
+//					_f(i) += mu*(gradF(i,j,j) + gradF(j,i,j))  + kappa*gradF(j,j,i);
+//				}
 		//return _f;
 
         Set::Vector f;
@@ -58,15 +60,22 @@ public:
             for (int J = 0; J < 3; J++)
                 for (int k = 0; k < 3; k++)
                     for (int L = 0; L < 3; L++)
-                        f(i) += ddw(i,J,k,L) * gradF(i,J,L);
+                    {
+                        //if (i==J && k==L) f(i) += kappa * gradF(k,L,J);
+                        //if (i==k && J==L) f(i) += mu * gradF(k,L,J);
+                        //if (i==L && J==k) f(i) += mu * gradF(k,L,J);
+                        f(i) += ddw(i,J,k,L) * gradF(k,L,J);
+                    }
             if (std::isnan(f(i)))
             {
                 Util::Message(INFO,ddw);
                 Util::Abort(INFO,f.transpose());
             }
         }    
-        return f;
 
+//        if ((f-_f).norm() > 1E-8) Util::Abort(INFO,"_f = ",_f.transpose(),"\nf = ",f.transpose());
+        //Util::Message(INFO,"end");
+        return f;
     };
 
     Set::Scalar W(Set::Matrix F)
@@ -107,18 +116,23 @@ public:
                 for (int k = 0; k < 3; k++)
                     for (int l = 0; l < 3; l++)
                     {
-//                        Set::Scalar t1 = 0.0, t2 = 0.0;
-//
-//                        if (i==k && j==l) t1 += 1.0;
-//                        t1 -= (2./3.) * F(i,j)*FinvT(k,l);
-//                        t1 -= (2./3.) * FinvT(i,j)*F(k,l);
-//                        t1 += (2./9.) * (F*F.transpose()).trace() * FinvT(i,j) * FinvT(k,l);
-//                        t1 += (1./3.) * (F*F.transpose()).trace() * FinvT(i,l) * FinvT(k,j);
-//
-//                        t2 += (2.*J - 1.) * FinvT(i,j)*FinvT(k,l);
-//                        t2 += (1. - J) * FinvT(i,l) * FinvT(k,j);
-//
-//                        ddw(i,j,k,l) = (mu/J23)*t1 + kappa*J*t2;
+                        ddw(i,j,k,l) = 0.0;
+//                        if (i==j && k==l) ddw(i,j,k,l) += kappa;
+//                        if (i==k && j==l) ddw(i,j,k,l) += mu;
+//                        if (i==l && j==k) ddw(i,j,k,l) += mu;
+
+                        Set::Scalar t1 = 0.0, t2 = 0.0;
+
+                        if (i==k && j==l) t1 += 1.0;
+                        t1 -= (2./3.) * F(i,j)*FinvT(k,l);
+                        t1 -= (2./3.) * FinvT(i,j)*F(k,l);
+                        t1 += (2./9.) * (F*F.transpose()).trace() * FinvT(i,j) * FinvT(k,l);
+                        t1 += (1./3.) * (F*F.transpose()).trace() * FinvT(i,l) * FinvT(k,j);
+
+                        t2 += (2.*J - 1.) * FinvT(i,j)*FinvT(k,l);
+                        t2 += (1. - J) * FinvT(i,l) * FinvT(k,j);
+
+                        ddw(i,j,k,l) = (mu/J23)*t1 + kappa*J*t2;
                     }
         return ddw;
     }

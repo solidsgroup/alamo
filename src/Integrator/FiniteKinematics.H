@@ -158,7 +158,7 @@ protected:
 
                 bx = mfi.growntilebox(1);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    for (int p = 0; p <= AMREX_SPACEDIM; p++)
+                    for (int p = 0; p < AMREX_SPACEDIM; p++)
                         model(i,j,k).divdw(p) = 
                             (model(i+1,j,k).dw(p,0) - model(i-1,j,k).dw(p,0))/2./DX(0) + 
                             (model(i,j+1,k).dw(p,1) - model(i,j-1,k).dw(p,1))/2./DX(1) + 
@@ -210,7 +210,7 @@ protected:
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
         Solver::Nonlocal::Linear linearsolver(elastic);
-        linearsolver.setVerbose(4);
+        linearsolver.setVerbose(2);
         linearsolver.setFixedIter(200);
         //linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
         linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
