@@ -13,8 +13,6 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 
-//#include "IC/HeatConduction/Cylinder.H"
-//#include "IC/HeatConduction/Constant.H"
 #include "IC/Ellipsoid.H"
 #include "IC/Notch.H"
 
@@ -145,6 +143,7 @@ private:
 
 	fracture_model_type 		*modeltype;
 	std::string 	input_material = "isotropic";
+
 	Model::Interface::Crack::Crack *boundary;
 
 	//Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
