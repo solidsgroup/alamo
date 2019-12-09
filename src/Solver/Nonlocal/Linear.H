@@ -91,7 +91,7 @@ public:
 
         linop.SetHomogeneous(true);
         return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(rhs_tmp),a_tol_rel,a_tol_abs,checkpoint_file);
-    }
+    };
 
     Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
                        amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
@@ -99,6 +99,17 @@ public:
     {
         return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
     };
+
+
+    Set::Scalar newtonraphson(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
+                              amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
+                              Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
+    {
+        
+    }
+
+
+    
     using MLMG::solve;
 private:
     Operator::Operator<Grid::Node> &linop;

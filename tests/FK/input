@@ -11,8 +11,9 @@ amr.plot_int		    = 1
 amr.max_level		    = 0
 #amr.max_level		    = 2
 amr.n_cell		    = 32 32 32
+#amr.n_cell		    = 64 64 64
 amr.blocking_factor	    = 4
-amr.regrid_int		    = 1
+amr.regrid_int		    = 0
 amr.grid_eff		    = 1.0
 
 # geometry
@@ -28,6 +29,9 @@ ic.eps         = 0.1 # diffuse boundary
 ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
 
 # elastic moduli
-elastic.E = 210 
+elastic.E = 210
 elastic.nu = 0.3
+
+elastic.disp = 1.0
+elastic.fixediter = 11
 
