@@ -212,8 +212,73 @@ protected:
         Solver::Nonlocal::Linear linearsolver(elastic);
         linearsolver.setVerbose(2);
         linearsolver.setFixedIter(200);
-        //linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
-        linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
+        linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, false);
+        
+
+        
+
+        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+        {
+            amrex::Box domain(geom[lev].Domain());
+            domain.convert(amrex::IntVect::TheNodeVector());
+            model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
+            model_mf[lev].setVal(mymodel);
+
+            eta_mf[lev]->FillBoundary();
+
+            const Set::Scalar * DX =geom[lev].CellSize();
+            
+
+            //for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+            for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+
+                amrex::Box bx = mfi.growntilebox(2);
+
+                amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
+                amrex::Array4<Set::Scalar> const &u = disp_mf[lev]->array(mfi);
+                //amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    //Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
+                    
+                    Set::Matrix F = Numeric::Gradient(u,i,j,k,DX) + Set::Matrix::Identity();
+                    
+                    model(i, j, k) = model_type();//(shear, lame, Fgb);
+                    //Set::Matrix F = Set::Matrix::Identity();
+                    model(i,j,k).dw  = model(i,j,k).DW(F);
+                    model(i,j,k).ddw = model(i,j,k).DDW(F);
+                    if (std::isnan((model(i,j,k).DDW(F))(0,0,0,0)))
+                        Util::Abort(INFO,model(i,j,k).DDW(F));
+                });
+
+                bx = mfi.growntilebox(1);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    for (int p = 0; p < AMREX_SPACEDIM; p++)
+                        model(i,j,k).divdw(p) = 
+                            (model(i+1,j,k).dw(p,0) - model(i-1,j,k).dw(p,0))/2./DX[0] + 
+                            (model(i,j+1,k).dw(p,1) - model(i,j-1,k).dw(p,1))/2./DX[1] + 
+                            (model(i,j,k+1).dw(p,2) - model(i,j,k-1).dw(p,2))/2./DX[2];
+                        
+                });
+            }
+
+            amrex::Geometry geom = elastic.Geom(lev);
+            for (int i = 0; i < 2; i++)
+            {
+                amrex::FabArray<amrex::BaseFab<model_type>> &mf = model_mf[lev];
+                mf.FillBoundary(geom.periodicity());
+                const int ncomp = mf.nComp();
+                const int ng1 = 1;
+                const int ng2 = 2;
+                amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+                amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
+                mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+            }
+        }
+        elastic.SetModel(model_mf);
+        
+        //linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
 
 //        for (int lev = 0; lev < rhs_mf.size(); ++lev)
 //        {

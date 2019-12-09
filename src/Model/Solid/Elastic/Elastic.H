@@ -36,6 +36,8 @@ public:
                 }
 
             }
+
+        if (!a_homogeneous) P += dw;
         //Util::Message(INFO,"end");
         return P;
 
@@ -73,37 +75,33 @@ public:
             }
         }    
 
-//        if ((f-_f).norm() > 1E-8) Util::Abort(INFO,"_f = ",_f.transpose(),"\nf = ",f.transpose());
+        if (!a_homogeneous) f += divdw;
+//      if ((f-_f).norm() > 1E-8) Util::Abort(INFO,"_f = ",_f.transpose(),"\nf = ",f.transpose());
         //Util::Message(INFO,"end");
         return f;
     };
 
     Set::Scalar W(Set::Matrix F)
     {
-        return 0.0;
-
-        //Set::Scalar J = F.determinant();
-        //Set::Scalar J23 = std::pow(fabs(J),2./3.);
-        //Set::Scalar w = 0.0;
-        //w += 0.5 * mu * ((F*F.transpose()).trace() / J23 - 3);
-        //w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
-        //return w;
+        Set::Scalar J = F.determinant();
+        Set::Scalar J23 = std::pow(fabs(J),2./3.);
+        Set::Scalar w = 0.0;
+        w += 0.5 * mu * ((F*F.transpose()).trace() / J23 - 3);
+        w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
+        return w;
     }
     Set::Matrix DW(Set::Matrix F)
     {
+        Set::Scalar J = F.determinant();
+        Set::Scalar J23 = std::pow(fabs(J),2./3.);
+        Set::Matrix FinvT = F.inverse().transpose();
 
-        
+        dw = Set::Matrix::Zero();
 
-//        Set::Scalar J = F.determinant();
-//        Set::Scalar J23 = std::pow(fabs(J),2./3.);
-//        Set::Matrix FinvT = F.inverse().transpose();
-//
-//        dw = Set::Matrix::Zero();
-//
-//        dw += mu * (F/J23 - (F*F.transpose()).trace()*FinvT / (3.*J23));
-//        dw += kappa*(J-1)*J*FinvT;
-//
-//        return dw;
+        dw += mu * (F/J23 - (F*F.transpose()).trace()*FinvT / (3.*J23));
+        dw += kappa*(J-1)*J*FinvT;
+
+        return dw;
     }
     Set::Matrix4<3,Set::Sym::Major> DDW(Set::Matrix F)
     {
@@ -117,9 +115,9 @@ public:
                     for (int l = 0; l < 3; l++)
                     {
                         ddw(i,j,k,l) = 0.0;
-//                        if (i==j && k==l) ddw(i,j,k,l) += kappa;
-//                        if (i==k && j==l) ddw(i,j,k,l) += mu;
-//                        if (i==l && j==k) ddw(i,j,k,l) += mu;
+//                      if (i==j && k==l) ddw(i,j,k,l) += kappa;
+//                      if (i==k && j==l) ddw(i,j,k,l) += mu;
+//                      if (i==l && j==k) ddw(i,j,k,l) += mu;
 
                         Set::Scalar t1 = 0.0, t2 = 0.0;
 
