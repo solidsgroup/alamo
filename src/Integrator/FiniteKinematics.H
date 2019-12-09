@@ -33,6 +33,7 @@ public:
     {
         RegisterNodalFab(eta_mf, 1, 2, "eta",true);
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
+        RegisterNodalFab(ddisp_mf, AMREX_SPACEDIM, 2, "ddisp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
@@ -83,7 +84,9 @@ public:
                     shear = E / 2.0 / (1.0 + nu);
                     Util::Message(INFO,"lame = ", lame);
                     Util::Message(INFO,"shear = ", shear);
-                }
+               }
+                pp.query("disp",disp);
+                pp.query("fixediter",fixediter);
             }
         }
     }
@@ -96,10 +99,11 @@ protected:
         ic->Initialize(lev, eta_mf);
 
         disp_mf[lev]->setVal(0.);
+        ddisp_mf[lev]->setVal(0.);
         rhs_mf[lev]->setVal(0.);
     }
 
-    void TimeStepBegin(Set::Scalar, int) override
+    void TimeStepBegin(Set::Scalar, int iter) override
     {
         Util::Message(INFO, "finest_level = ", finest_level);
         Util::Message(INFO, "rhs_mf.size() = ", rhs_mf.size());
@@ -127,11 +131,16 @@ protected:
         {
             amrex::Box domain(geom[lev].Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
-            model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev].setVal(mymodel);
+            if (iter == 0)
+            {
+                model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
+                model_mf[lev].setVal(mymodel);
+                disp_mf[lev]->setVal(0.0);
+                ddisp_mf[lev]->setVal(0.0);
+                eta_mf[lev]->FillBoundary();
+            }
 
-            eta_mf[lev]->FillBoundary();
-
+            const Set::Scalar * dx = geom[lev].CellSize();
             Set::Vector DX(geom[lev].CellSize());
 
             //for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
@@ -141,19 +150,32 @@ protected:
 
                 amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const &u = disp_mf[lev]->array(mfi);
                 //amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     //Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
                     
+
+		            std::array<Numeric::StencilType,AMREX_SPACEDIM> sten = Numeric::GetStencil(i,j,k,bx);
+                    
+                    //Numeric::Gradient(u,i,j,k,dx);
                     model(i, j, k) = model_type();//(shear, lame, Fgb);
-                    Set::Matrix F = Set::Matrix::Identity();
+                    Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
+                    
+                    Set::Matrix F = gradu + Set::Matrix::Identity();
                     model(i,j,k).dw  = model(i,j,k).DW(F);
                     model(i,j,k).ddw = model(i,j,k).DDW(F);
                     if (std::isnan((model(i,j,k).DDW(F))(0,0,0,0)))
-                        Util::Abort(INFO,model(i,j,k).DDW(F));
+                    {
+                        Util::Message(INFO,"u = (",u(i,j,k,0),",",u(i,j,k,0),",",u(i,j,k,0),")");
+                        Util::Message(INFO,"lev = ",lev);
+                        Util::Message(INFO,"ijk = (",i,",",j,",",k,")");
+                        Util::Message(INFO,gradu);
+                        Util::Abort(INFO,model(i,j,k).DDW(F),"\n F = \n",F);
                     //model(i, j, k) = model_type(lame, shear, Set::Matrix::Zero());
                     //rhs(i,j,k,0) = eta(i,j,k);
+                    }
                 });
 
                 bx = mfi.growntilebox(1);
@@ -185,25 +207,25 @@ protected:
         BC::Operator::Elastic<model_type> bc;
 
         bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.01, rhs_mf, geom);
+        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, disp, rhs_mf, geom);
 #if AMREX_SPACEDIM>1
         bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom);
 #if AMREX_SPACEDIM>2
         bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom);
 #endif
 #endif
         elastic.SetBC(&bc);
@@ -211,55 +233,68 @@ protected:
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
         Solver::Nonlocal::Linear linearsolver(elastic);
         linearsolver.setVerbose(2);
-        linearsolver.setFixedIter(200);
-        linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, false);
+        linearsolver.setFixedIter(fixediter);
+        linearsolver.solveaffine(ddisp_mf, rhs_mf, tol_rel, tol_abs,false);
+        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+            amrex::MultiFab::Add(*disp_mf[lev],*ddisp_mf[lev],0,0,AMREX_SPACEDIM,2);
         
 
-        
+        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        elastic.SetBC(&bc);
 
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
             amrex::Box domain(geom[lev].Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
-            model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev].setVal(mymodel);
+            const Set::Scalar * dx = geom[lev].CellSize();
+            Set::Vector DX(geom[lev].CellSize());
 
-            eta_mf[lev]->FillBoundary();
-
-            const Set::Scalar * DX =geom[lev].CellSize();
-            
-
-            //for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
             for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-
                 amrex::Box bx = mfi.growntilebox(2);
+                bx = bx & domain;
 
                 amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
+                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> const &u = disp_mf[lev]->array(mfi);
-                //amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const &f = rhs_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     //Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
                     
-                    Set::Matrix F = Numeric::Gradient(u,i,j,k,DX) + Set::Matrix::Identity();
+
+		            std::array<Numeric::StencilType,AMREX_SPACEDIM> sten = Numeric::GetStencil(i,j,k,bx);
                     
+                    //Numeric::Gradient(u,i,j,k,dx);
                     model(i, j, k) = model_type();//(shear, lame, Fgb);
-                    //Set::Matrix F = Set::Matrix::Identity();
+                    Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
+                    
+                    Set::Matrix F = gradu + Set::Matrix::Identity();
                     model(i,j,k).dw  = model(i,j,k).DW(F);
                     model(i,j,k).ddw = model(i,j,k).DDW(F);
                     if (std::isnan((model(i,j,k).DDW(F))(0,0,0,0)))
-                        Util::Abort(INFO,model(i,j,k).DDW(F));
+                    {
+                        Util::Message(INFO,"u = (",u(i,j,k,0),",",u(i,j,k,0),",",u(i,j,k,0),")");
+                        Util::Message(INFO,"lev = ",lev);
+                        Util::Message(INFO,"ijk = (",i,",",j,",",k,")");
+                        Util::Message(INFO,gradu);
+                        Util::Abort(INFO,model(i,j,k).DDW(F),"\n F = \n",F);
+                    //model(i, j, k) = model_type(lame, shear, Set::Matrix::Zero());
+                    //rhs(i,j,k,0) = eta(i,j,k);
+                    }
                 });
 
                 bx = mfi.growntilebox(1);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     for (int p = 0; p < AMREX_SPACEDIM; p++)
+                    {
                         model(i,j,k).divdw(p) = 
-                            (model(i+1,j,k).dw(p,0) - model(i-1,j,k).dw(p,0))/2./DX[0] + 
-                            (model(i,j+1,k).dw(p,1) - model(i,j-1,k).dw(p,1))/2./DX[1] + 
-                            (model(i,j,k+1).dw(p,2) - model(i,j,k-1).dw(p,2))/2./DX[2];
-                        
+                            (model(i+1,j,k).dw(p,0) - model(i-1,j,k).dw(p,0))/2./DX(0) + 
+                            (model(i,j+1,k).dw(p,1) - model(i,j-1,k).dw(p,1))/2./DX(1) + 
+                            (model(i,j,k+1).dw(p,2) - model(i,j,k-1).dw(p,2))/2./DX(2);
+                        //f(i,j,k,p) = model(i,j,k).divdw(p);
+
+                    }
                 });
             }
 
@@ -277,8 +312,87 @@ protected:
             }
         }
         elastic.SetModel(model_mf);
-        
-        //linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
+        linearsolver.solveaffine(ddisp_mf, rhs_mf, tol_rel, tol_abs,true);
+        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+            amrex::MultiFab::Add(*disp_mf[lev],*ddisp_mf[lev],0,0,AMREX_SPACEDIM,2);
+
+
+
+//        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+//        {
+//            amrex::Box domain(geom[lev].Domain());
+//            domain.convert(amrex::IntVect::TheNodeVector());
+//            const Set::Scalar * dx = geom[lev].CellSize();
+//            Set::Vector DX(geom[lev].CellSize());
+//
+//            for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
+//            {
+//                amrex::Box bx = mfi.growntilebox(2);
+//                bx = bx & domain;
+//
+//                amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
+//                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+//                amrex::Array4<Set::Scalar> const &u = disp_mf[lev]->array(mfi);
+//                amrex::Array4<Set::Scalar> const &f = rhs_mf[lev]->array(mfi);
+//
+//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+//                    //Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
+//                    
+//
+//		            std::array<Numeric::StencilType,AMREX_SPACEDIM> sten = Numeric::GetStencil(i,j,k,bx);
+//                    
+//                    //Numeric::Gradient(u,i,j,k,dx);
+//                    model(i, j, k) = model_type();//(shear, lame, Fgb);
+//                    Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
+//                    
+//                    Set::Matrix F = gradu + Set::Matrix::Identity();
+//                    model(i,j,k).dw  = model(i,j,k).DW(F);
+//                    model(i,j,k).ddw = model(i,j,k).DDW(F);
+//                    if (std::isnan((model(i,j,k).DDW(F))(0,0,0,0)))
+//                    {
+//                        Util::Message(INFO,"u = (",u(i,j,k,0),",",u(i,j,k,0),",",u(i,j,k,0),")");
+//                        Util::Message(INFO,"lev = ",lev);
+//                        Util::Message(INFO,"ijk = (",i,",",j,",",k,")");
+//                        Util::Message(INFO,gradu);
+//                        Util::Abort(INFO,model(i,j,k).DDW(F),"\n F = \n",F);
+//                    //model(i, j, k) = model_type(lame, shear, Set::Matrix::Zero());
+//                    //rhs(i,j,k,0) = eta(i,j,k);
+//                    }
+//                });
+//
+//                bx = mfi.growntilebox(1);
+//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+//                    for (int p = 0; p < AMREX_SPACEDIM; p++)
+//                    {
+//                        model(i,j,k).divdw(p) = 
+//                            (model(i+1,j,k).dw(p,0) - model(i-1,j,k).dw(p,0))/2./DX(0) + 
+//                            (model(i,j+1,k).dw(p,1) - model(i,j-1,k).dw(p,1))/2./DX(1) + 
+//                            (model(i,j,k+1).dw(p,2) - model(i,j,k-1).dw(p,2))/2./DX(2);
+//                        //f(i,j,k,p) = model(i,j,k).divdw(p);
+//
+//                    }
+//                });
+//            }
+//
+//            amrex::Geometry geom = elastic.Geom(lev);
+//            for (int i = 0; i < 2; i++)
+//            {
+//                amrex::FabArray<amrex::BaseFab<model_type>> &mf = model_mf[lev];
+//                mf.FillBoundary(geom.periodicity());
+//                const int ncomp = mf.nComp();
+//                const int ng1 = 1;
+//                const int ng2 = 2;
+//                amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+//                amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
+//                mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+//            }
+//        }
+//        elastic.SetModel(model_mf);
+//        linearsolver.solveaffine(ddisp_mf, rhs_mf, tol_rel, tol_abs,true);
+//        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+//            amrex::MultiFab::Add(*disp_mf[lev],*ddisp_mf[lev],0,0,AMREX_SPACEDIM,2);
+
+
 
 //        for (int lev = 0; lev < rhs_mf.size(); ++lev)
 //        {
@@ -347,6 +461,7 @@ protected:
 private:
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> eta_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp_mf;
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> ddisp_mf;
     //amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp0_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> rhs_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> res_mf;
@@ -365,6 +480,9 @@ private:
 
     Set::Matrix Fmatrix = Set::Matrix::Zero();
     Set::Matrix Finclusion = Set::Matrix::Zero();
+    Set::Scalar disp = 0.0;
+
+    int fixediter = 100;
 
 };
 } // namespace Integrator

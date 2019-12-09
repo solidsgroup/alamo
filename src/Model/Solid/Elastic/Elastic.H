@@ -137,6 +137,7 @@ public:
 	
 public:
     Set::Scalar mu = 6.0, kappa = 2.6;
+    //Set::Scalar mu = 0.793, kappa = 1.60;
 
     Set::Scalar                               w;
     Set::Matrix                              dw;
