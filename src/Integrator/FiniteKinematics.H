@@ -22,8 +22,9 @@
 #include "IO/ParmParse.H"
 
 #include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
 
-#include "Solver/Nonlocal/NewtonRaphson.H"
+#include "Solver/Nonlocal/Newton.H"
 
 namespace Integrator
 {
@@ -122,7 +123,7 @@ protected:
         //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
         //using model_type = Model::Solid::LinearElastic::Multiwell;
-        using model_type = Model::Solid::Elastic::Elastic;
+        using model_type = Model::Solid::Elastic::NeoHookean;
         Operator::Elastic<model_type> elastic;
         elastic.SetUniform(false);
         amrex::LPInfo info;
@@ -242,11 +243,11 @@ protected:
         elastic.SetBC(&bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-        Solver::Nonlocal::NewtonRaphson<model_type> nr(elastic);
+        Solver::Nonlocal::Newton<model_type> nr(elastic);
         nr.setVerbose(2);
         nr.setFixedIter(fixediter);
         nr.setNRIters(m_nriters);
-        nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,true);
         
 /*        
 

@@ -18,6 +18,7 @@
 #include "Numeric/Interpolator/Linear.H"
 
 #include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
 
 int main (int argc, char* argv[])
 {
@@ -28,8 +29,8 @@ int main (int argc, char* argv[])
 	Util::Test::Message("Model::Solid::Elastic::NeoHookean");
 	{
 		int subfailed = 0;
-		Util::Test::SubMessage("DerivativeTest1", Model::Solid::Elastic::Elastic::DerivativeTest1(true));
-		Util::Test::SubMessage("DerivativeTest2", Model::Solid::Elastic::Elastic::DerivativeTest2(true));
+		Util::Test::SubMessage("DerivativeTest1", Model::Solid::Elastic::Elastic::DerivativeTest1<Model::Solid::Elastic::NeoHookean>(true));
+		Util::Test::SubMessage("DerivativeTest2", Model::Solid::Elastic::Elastic::DerivativeTest2<Model::Solid::Elastic::NeoHookean>(true));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
