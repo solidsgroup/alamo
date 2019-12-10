@@ -111,7 +111,7 @@ public:
 
     
     using MLMG::solve;
-private:
+protected:
     Operator::Operator<Grid::Node> &linop;
 };
 }

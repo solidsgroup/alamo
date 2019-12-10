@@ -32,6 +32,7 @@ public:
                 if (std::isnan(P(i,J)))
                 {
                     Util::Message(INFO,ddw);
+                    Util::Message(INFO,F);
                     Util::Abort(INFO);
                 }
 
@@ -131,13 +132,28 @@ public:
                         t2 += (1. - J) * FinvT(i,l) * FinvT(k,j);
 
                         ddw(i,j,k,l) = (mu/J23)*t1 + kappa*J*t2;
+
+                        if (std::isnan(ddw(i,j,k,l)) && amrex::ParallelDescriptor::IOProcessor())
+                        {
+                            Util::Message(INFO,"t1=",t1);
+                            Util::Message(INFO,"t2=",t2);
+                            Util::Message(INFO,"FinvT=",FinvT);
+                            Util::Message(INFO,"J=",J);
+                            Util::Message(INFO,"J23=",J23);
+                            Util::Message(INFO,"kappa=",kappa);
+                            Util::Message(INFO,"mu=",mu);
+                            Util::Abort(INFO);
+                        }
                     }
         return ddw;
     }
 	
 public:
-    Set::Scalar mu = 6.0, kappa = 2.6;
-    //Set::Scalar mu = 0.793, kappa = 1.60;
+    //Set::Scalar mu = 6.0, kappa = 2.6; // works
+    
+    //Set::Scalar mu = 0.793, kappa = 1.60; // from steel, doesn't work
+    Set::Scalar mu = NAN, kappa = NAN;
+
 
     Set::Scalar                               w;
     Set::Matrix                              dw;
@@ -150,6 +166,8 @@ public:
         for (int iter = 0; iter < 10; iter++)
         {
             Elastic model;
+            model.mu = Util::Random();
+            model.kappa = Util::Random();
 
             Set::Scalar dx = 1E-8, tol = 1E-6;
 
@@ -166,10 +184,12 @@ public:
                     dw_numeric(i,j) = (model.W(F+dF) - model.W(F-dF)) / (2.0 * dx);
                 }
             Set::Scalar relnorm = (dw_numeric-dw_exact).norm()/(dw_numeric.norm());
-            if (relnorm > tol)
+            if (relnorm > tol || std::isnan(relnorm) || std::isinf(relnorm))
             {
                 if (verbose)
                 {
+                    Util::Message(INFO,"mu    = ",model.mu);
+                    Util::Message(INFO,"kappa = ",model.kappa);
                     Util::Message(INFO,"F \n",F);
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"dw exact \n",dw_exact);
@@ -186,6 +206,9 @@ public:
         for (int iter = 0; iter < 10; iter++)
         {
             Elastic model;
+            model.mu = Util::Random();
+            model.kappa = Util::Random();
+
             Set::Scalar dx = 1E-8, tol = 1E-6;
             Set::Matrix F = Set::Matrix::Random();
             while (fabs(F.determinant()) < 1.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
@@ -203,10 +226,12 @@ public:
                         }
             Set::Matrix4<3,Set::Sym::Major> error = ddw_numeric-ddw_exact;
             Set::Scalar relnorm = error.norm()/ddw_numeric.norm();
-            if (relnorm > tol)
+            if (relnorm > tol || std::isnan(relnorm) || std::isinf(relnorm))
             {
                 if (verbose)
                 {
+                    Util::Message(INFO,"mu    = ",model.mu);
+                    Util::Message(INFO,"kappa = ",model.kappa);
                     Util::Message(INFO,"F \n",F);
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"ddw exact \n",ddw_exact);

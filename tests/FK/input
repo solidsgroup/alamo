@@ -29,9 +29,17 @@ ic.eps         = 0.1 # diffuse boundary
 ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
 
 # elastic moduli
-elastic.E = 210
-elastic.nu = 0.3
+#lastic.E = 210
+#lastic.nu = 0.3
 
-elastic.disp = 1.0
-elastic.fixediter = 11
+elastic.disp = 4.0
+elastic.fixediter = 10
 
+elastic.mu = 6.0    # WORKS
+elastic.kappa = 2.6 # WORKS
+
+elastic.nriters = 2
+
+
+#elastic.mu = 3.0    # WORKS
+#elastic.kappa = 2.6 # WORKS

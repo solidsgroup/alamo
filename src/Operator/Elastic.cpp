@@ -460,10 +460,10 @@ void
 Elastic<T>::Stress (int amrlev,
 		    amrex::MultiFab& a_sigma,
 		    const amrex::MultiFab& a_u,
-		    bool voigt) 
+		    bool voigt, bool a_homogeneous) 
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 	amrex::Box domain(m_geom[amrlev][0].Domain());
@@ -521,10 +521,10 @@ template<class T>
 void
 Elastic<T>::Energy (int amrlev,
 		    amrex::MultiFab& a_energy,
-		    const amrex::MultiFab& a_u)
+		    const amrex::MultiFab& a_u, bool a_homogeneous)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
@@ -571,10 +571,10 @@ Elastic<T>::Energy (int amrlev,
 
 template <class T>
 void 
-Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models)
+Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models, bool a_homogeneous)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	if ((unsigned int)a_energies.nComp() != a_models.size())
 	{
