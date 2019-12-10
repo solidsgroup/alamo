@@ -39,7 +39,11 @@ public:
             value(i/AMREX_SPACEDIM, i%AMREX_SPACEDIM) = vals[i];
         }
     }
-
+    template<class T>
+    void queryclass(std::string name, T & value)
+    {
+        T::Parse(name, value, *this);
+    }
 };
 }
 #endif

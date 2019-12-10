@@ -4,6 +4,8 @@
 #include "Set/Set.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
+#include "IO/ParmParse.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
 
 namespace Solver
 {
@@ -140,8 +142,19 @@ public:
 
 private:
     int m_nriters = 1;
+
+public:
+    static void Parse(std::string name, Newton<T> & value, amrex::ParmParse & pp)
+    {
+        Linear::Parse(name,value,pp);
+        
+        pp.query("nriters",value.m_nriters);
+        
+         //value.m_nriters
+    }
 };
 } // namespace Nonlocal
 } // namespace Solver
+
 
 #endif
