@@ -75,16 +75,16 @@ public:
 	///   \f[\mathbf{\sigma}_{ij} = \mathbb{C}_{ijkl}\,u_{k,l}\f]
 	/// where, \f$\mathbb{C}\f$ is furnished by the templated `model`
 	/// 
-	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false);
+	void Stress (int amrlev, amrex::MultiFab& sigmafab, const amrex::MultiFab& ufab, bool voigt = false, bool a_homogeneous=false);
 
 	/// Compute energy density \f$\mathbb{W}\f$ given the displacement field \f$\mathbf{u}\f$
 	/// by
 	///   \f[\mathbb{W} = \mathbb{\Sigma}\mathbb{\Sigma}\mathbf{\sigma}_{ij}\mathbf{\epsilon}_{ij}\f]
 	/// where \f$\mathbf{\sigma}\f$ and \f$\mathbf{\epsilon}\f$ are as defined above
 	///
-	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u);
+	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u, bool a_homogeneous=false);
 
-	void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<T> models);
+	void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<T> models, bool a_homogeneous=false);
 
 	/// This function is depricated and should not be used. Use the other `SetBC` function.
 	///
