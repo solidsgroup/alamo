@@ -32,14 +32,15 @@ ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
 #lastic.E = 210
 #lastic.nu = 0.3
 
-elastic.disp = 4.0
-elastic.fixediter = 10
+#elastic.disp = 4.0
+elastic.disp = 2.0
+elastic.fixediter = 40
 
-elastic.mu = 6.0    # WORKS
-elastic.kappa = 2.6 # WORKS
-
-elastic.nriters = 2
-
-
-#elastic.mu = 3.0    # WORKS
+#elastic.mu = 6.0    # WORKS
 #elastic.kappa = 2.6 # WORKS
+
+elastic.nriters = 4
+
+
+elastic.mu = 3.0    # WORKS
+elastic.kappa = 2.6 # WORKS
