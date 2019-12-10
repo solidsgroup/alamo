@@ -100,19 +100,23 @@ public:
         return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
     };
 
-
-    Set::Scalar newtonraphson(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
-                              amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
-                              Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
-    {
-        
-    }
-
-
-    
     using MLMG::solve;
 protected:
     Operator::Operator<Grid::Node> &linop;
+
+public:
+    static void Parse(std::string name, Linear & value, amrex::ParmParse & pp)
+    {
+        if (pp.contains("fixed_iter"))
+        { int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
+
+        if (pp.contains("verbose"))
+        { int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
+
+
+    }
+
+    
 };
 }
 }
