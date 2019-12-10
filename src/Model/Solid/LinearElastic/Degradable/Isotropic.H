@@ -21,15 +21,27 @@ class Isotropic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Is
 {
 public:
 	Isotropic() { } ;
-	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda), mu0(_mu), lambda0(_lambda) {} ;
+	Isotropic(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _epsp=Set::Matrix::Zero()) {Define(_mu,_lambda,_epsp);} ;
 	~Isotropic() {} ;
-	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const
+
+	void Define(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _epsp)
 	{
+		mu = _mu; mu0 = _mu;
+		lambda = _lambda; lambda0 = _lambda;
+		epsp = _epsp;
+		
+		for (int p = 0; p < AMREX_SPACEDIM; p++) gradEpsp[p] = Set::Matrix::Zero();
+	}
+	virtual Set::Matrix operator () (Set::Matrix &eps,bool a_homogeneous=true) const
+	{
+		if (!a_homogeneous) eps -= epsp;
 		return mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
 	};
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true)
+	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool a_homogeneous=true)
 	{
 		Set::Vector f = Set::Vector::Zero();
+		if (!a_homogeneous) for (int i = 0; i < AMREX_SPACEDIM; i++) gradeps[i] -= gradEpsp[i];
+
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
 				f(i) += mu*(gradeps[i](j,j) + gradeps[j](i,j))  + lambda*gradeps[j](j,i);
@@ -40,8 +52,7 @@ public:
 	{
 		mu = Util::Random();
 		lambda = Util::Random();
-		mu0 = mu;
-		lambda0 = lambda;
+		mu0 = mu; lambda0 = lambda;
 		amrex::Vector<Set::Scalar> eta(2);
 		eta[0] = Util::Random();
 		eta[1] = Util::Random();
@@ -50,25 +61,52 @@ public:
 	};
 
 	Isotropic operator + (const Isotropic &rhs) const
-	{return Isotropic(mu+rhs.mu, lambda+rhs.lambda);}
+	{
+		Isotropic ret(mu+rhs.mu, lambda+rhs.lambda,epsp+rhs.epsp);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradEpsp[i] = gradEpsp[i] + rhs.gradEpsp[i];
+		return ret;
+	}
 
 	void operator += (const Isotropic &rhs)
-	{mu+=rhs.mu; lambda+=rhs.lambda;}
+	{
+		mu+=rhs.mu; lambda+=rhs.lambda;
+		epsp += rhs.epsp;
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradEpsp[i] = rhs.gradEpsp[i];	
+	}
+
+	Isotropic & operator = (const Isotropic &rhs)
+	{
+		mu=rhs.mu; lambda=rhs.lambda; epsp = rhs.epsp;
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradEpsp[i] = rhs.gradEpsp[i];
+		return *this;
+	}
 
 	Isotropic operator - (const Isotropic &rhs) const
-	{return Isotropic(mu-rhs.mu, lambda-rhs.lambda);}
+	{
+		Isotropic ret(mu-rhs.mu, lambda-rhs.lambda,epsp-rhs.epsp);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradEpsp[i] = gradEpsp[i] - rhs.gradEpsp[i];
+		return ret;
+	}
 
-	Isotropic operator * (const Isotropic &rhs) const
-	{return Isotropic(mu*rhs.mu, lambda*rhs.lambda);}
+	//Isotropic operator * (const Isotropic &rhs) const
+	//{return Isotropic(mu*rhs.mu, lambda*rhs.lambda);}
 
-	Isotropic operator / (const Isotropic &rhs) const
-	{return Isotropic(mu/rhs.mu, lambda/rhs.lambda);}
+	//Isotropic operator / (const Isotropic &rhs) const
+	//{return Isotropic(mu/rhs.mu, lambda/rhs.lambda);}
 
 	virtual Isotropic operator / (const Set::Scalar alpha) const
-	{return Isotropic(mu/alpha, lambda/alpha);}
+	{
+		Isotropic ret(mu/alpha, lambda/alpha, epsp/alpha);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradEpsp[i] = gradEpsp[i]/alpha;
+		return ret;
+	}
 
 	virtual Isotropic operator * (const Set::Scalar alpha) const
-	{return Isotropic(mu*alpha, lambda*alpha);}
+	{
+		Isotropic ret(mu*alpha, lambda*alpha, epsp*alpha);
+		for (int i = 0; i < AMREX_SPACEDIM; i++) ret.gradEpsp[i] = gradEpsp[i]*alpha;
+		return ret;
+	}
 
 	void DegradeModulus(const Set::Scalar eta)
 	{
@@ -113,6 +151,9 @@ public:
 
 private:
 	Set::Scalar mu = NAN, lambda = NAN, mu0 = NAN, lambda0 = NAN;
+public:
+	Set::Matrix epsp = Set::Matrix::Zero();
+	std::array<Set::Matrix,AMREX_SPACEDIM> gradEpsp;
 };
 
 }

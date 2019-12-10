@@ -205,8 +205,7 @@ protected:
         linearsolver.setVerbose(2);
         linearsolver.setFixedIter(20);
         linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
-        //linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
-
+//      linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
 //        for (int lev = 0; lev < rhs_mf.size(); ++lev)
 //        {
 //            Set::Vector DX(geom[lev].CellSize());

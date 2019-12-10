@@ -1,8 +1,8 @@
-#include "Fracture.H"
+#include "BrittleFracture.H"
 
 namespace Integrator
 {
-Fracture::Fracture() :
+BrittleFracture::BrittleFracture() :
 	Integrator()
 {
 	// Crack model
@@ -75,11 +75,7 @@ Fracture::Fracture() :
 	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells+1, "c",		true);
 	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells+1, "c_old",	true);
 	RegisterNewFab(m_driving_force, mybc, 4, number_of_ghost_cells+1, "driving_force",true);
-	//RegisterNewFab(m_c_conv,mybc, 1, number_of_ghost_cells+1, "c_conv",	true);
-	//RegisterNewFab(m_c_temp,mybc, 1, number_of_ghost_cells+1, "c_temp",	true);
 	
-	//crack_norm = 0.; 	crack_norm_old = 1.e4; crack_norm_conv = 0, crack_norm_temp = 1.e4;
-	//disp_norm = 0.; disp_norm_old = 1.e4; disp_norm_conv = 0.;
 	crack_err_norm = 0.; crack_err_temp_norm = 0.;
 	crack_err_norm_init = 1.e4; crack_err_temp_norm_init = 1.e4;
 
@@ -87,9 +83,7 @@ Fracture::Fracture() :
 
 	RegisterIntegratedVariable(&crack_err_norm, "crack_err_norm");
 	RegisterIntegratedVariable(&c_new_norm,"c_new_norm");
-	//RegisterIntegratedVariable(&crack_err_temp_norm, "crack_err_temp_norm");
-	//RegisterIntegratedVariable(&disp_err_norm, "disp_err_norm");
-
+	
 	// Material input
 	amrex::ParmParse pp_material("material");
 	pp_material.query("model",input_material);
@@ -215,10 +209,6 @@ Fracture::Fracture() :
 	const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	
 	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp",true);
-	//RegisterNodalFab (m_disp_old, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_old",true);
-	//RegisterNodalFab (m_disp_conv, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_conv",true);
-	//RegisterNodalFab (m_disp_temp, 	AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp_temp",true);
-
 	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_cells, "RHS",true);
 	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_cells,	"strain",true);
 	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_cells,	"stress",true);
@@ -230,26 +220,20 @@ Fracture::Fracture() :
 	nlevels = maxLevel() + 1;
 }
 
-Fracture::~Fracture()
+BrittleFracture::~BrittleFracture()
 {
 }
 
 void
-Fracture::Initialize (int lev)
+BrittleFracture::Initialize (int lev)
 {
 	Util::Message(INFO);
 	ic->Initialize(lev,m_c);
 	ic->Initialize(lev,m_c_old);
 	m_driving_force[lev]->setVal(0.0);
-	//ic->Initialize(lev,m_c_conv);
-	//ic->Initialize(lev,m_c_temp);
-
+	
 	Util::Message(INFO);
 	m_disp[lev]->setVal(0.0);
-	//m_disp_old[lev]->setVal(0.0);
-	//m_disp_conv[lev]->setVal(0.0);
-	//m_disp_temp[lev]->setVal(0.0);
-	
 	m_strain[lev]->setVal(0.0);
 	m_stress[lev]->setVal(0.0);
 	m_stressvm[lev]->setVal(0.0);
@@ -262,7 +246,7 @@ Fracture::Initialize (int lev)
 }
 
 void
-Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_model_type> > &model)
+BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_model_type> > &model)
 {
 	/*
 	  This function is supposed to degrade material parameters based on certain
@@ -317,10 +301,8 @@ Fracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_model_t
 }
 
 void 
-Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
+BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
-	//Util::Message(INFO,"new Crack problem = ", newCrackProblem, ". solveElasticity = ", solveElasticity, ". solveCrack = ",  solveCrack);
-	//if(~newCrackProblem) return;
 	Util::Message(INFO);
 	if(crackStressTest)
 	{
@@ -334,55 +316,19 @@ Fracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 		newCrackProblem = false;
 	}
-	ElasticityProblem(0.);
-
-	/*if(newCrackProblem)
-	{
-		//elastic.bc_top[1] = elastic.test_init;
-		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
-		Util::Message(INFO, "Loading step = ", elastic.test_step, ". Top displacement = ", elastic.bc_top[1]);
-		for (int ilev = 0; ilev < nlevels; ++ilev)
-		{
-			Util::Message(INFO);
-			amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c_conv)[ilev], 0, 0, 1, number_of_ghost_cells);
-			Util::Message(INFO);
-			amrex::MultiFab::Copy(*(m_c_temp)[ilev], *(m_c_conv)[ilev], 0, 0, 1, number_of_ghost_cells);
-			Util::Message(INFO);
-			amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp_conv)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
-		}
-		crack_err_norm = 0.; crack_err_norm_init = 1.e4;
-		crack_err_temp_norm = 0.; crack_err_temp_norm_init = 1.e4;
-		disp_err_norm = 0.; 	disp_err_norm_init = 1.e4;
-
-		err_crack_init = true; err_crack_temp_init = true; err_disp_init = true;
-
-		ElasticityProblem(0.);
-		newCrackProblem = false;
-		solveCrack = true;
-		solveElasticity = false;
-		return;
-	}
-	
-	else
-	{
-		if(!solveElasticity) return;
-		ElasticityProblem(0.);
-		solveElasticity = false;
-		//solveCrack = true;
-	}*/
+	ElasticityProblem(0.);	
 }
 
 
 void
-Fracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
+BrittleFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
 	if(crackStressTest) return;
-	//if(!solveCrack) return;
 	CrackProblem(lev,0.,dt);
 }
 
 void
-Fracture::TimeStepComplete(amrex::Real time,int iter)
+BrittleFracture::TimeStepComplete(amrex::Real time,int iter)
 {
 	if(crackStressTest) 
 	{
@@ -398,105 +344,33 @@ Fracture::TimeStepComplete(amrex::Real time,int iter)
 		SetStopTime(time-0.01);return;
 	}
 	IntegrateVariables(time,iter);
-	//if(err_crack_temp_init)
-	//{
-	//	crack_err_temp_norm_init = crack_err_norm;
-	//	err_crack_temp_init = false;
-	//}
-
-	//Set::Scalar err_crack = std::abs(crack_norm - crack_norm_old)/crack_norm;
-	//Set::Scalar err_crack_temp = crack_err_temp_norm_init > 1.e-10 ? crack_err_temp_norm/crack_err_temp_norm_init : crack_err_temp_norm_init;
-	//Set::Scalar err_crack_temp = crack_err_norm/crack_err_temp_norm_init;
-	//Util::Message(INFO, "err_crack_temp = ", err_crack_temp);
+	
 	Util::Message(INFO, "crack_err_norm = ", crack_err_norm);
 	Util::Message(INFO, "c_new_norm = ", c_new_norm);
 	Util::Message(INFO, "relative error = ", crack_err_norm/c_new_norm);
-	//Util::Message(INFO, "crack_err_temp_norm_init = ", crack_err_temp_norm_init);
-	//Util::Message(INFO, "crack_err_norm = ", crack_err_norm);
-	//Util::Message(INFO, "crack_err_norm_init = ", crack_err_norm_init);
-	//Util::Message(INFO, "disp_err_norm = ", disp_err_norm);
-	//Util::Message(INFO, "disp_err_norm_init = ", disp_err_norm_init);
 	
-	if(crack_err_norm/c_new_norm > tol_crack)// && crack_err_norm > 1.e-11)
-	{
-		//solveCrack = true;
-		//solveElasticity = false;
-		//crack_norm_temp = crack_norm;
-		return;
-	}
+	if(crack_err_norm/c_new_norm > tol_crack) return;
 
-	/*if(err_crack_init)
-	{
-		crack_err_norm_init = crack_err_norm;
-		err_crack_init = false;
-	}
-	if(err_disp_init)
-	{
-		disp_err_norm_init = disp_err_norm;
-		err_disp_init = false;
-	}*/
-
-	//Set::Scalar err_crack = crack_err_norm_init > 1.e-10 ? crack_err_norm/crack_err_norm_init : crack_err_norm_init;
-	//Set::Scalar err_disp = disp_err_norm_init > 1.e-10 ? disp_err_norm/disp_err_norm_init : disp_err_norm_init;
-	//Set::Scalar err_crack = crack_err_norm/crack_err_norm_init;
-	//Set::Scalar err_disp = disp_err_norm/disp_err_norm_init;
-
-	//Set::Scalar err = std::max(err_crack, err_disp);
-	//Util::Message(INFO, "err_crack = ", err_crack);
-	//Util::Message(INFO, "err_disp = ", err_disp);
-	//Util::Message(INFO, "err = ", err);
-
-
-	//for (int ilev = 0; ilev < nlevels; ++ilev)
-	//{
-	//	amrex::MultiFab::Copy(*(m_c_old)[ilev], *(m_c)[ilev], 0, 0, 1, number_of_ghost_cells);
-	//	amrex::MultiFab::Copy(*(m_disp_old)[ilev], *(m_disp)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
-	//}
-	//disp_norm_old = disp_norm;
-	//crack_norm_old = crack_norm;
 	crack_err_norm = 0.; c_new_norm = 0.;
-	//crack_err_temp_norm_init = 1.e4; 
-	//err_crack_temp_init = true;
-
-	//if(err < tol_step)
-	//{
-	//	for(int ilev = 0; ilev < nlevels; ++ilev)
-	//	{
-	//		amrex::MultiFab::Copy(*(m_c_conv)[ilev], *(m_c)[ilev], 0, 0, 1, number_of_ghost_cells);
-	//		amrex::MultiFab::Copy(*(m_disp_conv)[ilev], *(m_disp)[ilev], 0, 0, AMREX_SPACEDIM, number_of_ghost_cells);
-	//	}
-		
-		amrex::Vector<Set::Scalar> plottime;
-		amrex::Vector<int> plotstep;
-		std::string plotfolder = "crack";
-
-		plottime.resize(nlevels);
-		plotstep.resize(nlevels);
-		for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
-		WritePlotFile(plotfolder,plottime,plotstep);
-
-		newCrackProblem = true;
-		elastic.test_step++;
-		if(elastic.bc_top[1] >= elastic.test_max)
-		{
-			SetStopTime(time-0.01);
-		}
-		//disp_norm_conv = disp_norm;
-		//crack_norm_conv = crack_norm;
-		crack_err_norm = 0.; c_new_norm = 0.;//crack_err_norm_init = 1.e4; err_crack_init = true;
-		//disp_err_norm = 0.; disp_err_norm_init = 1.e4; err_disp_init = true;
-	//}
-	//else
-	//{
-	//	newCrackProblem = false;
-	//	solveElasticity = true;
-	//	solveCrack = true;
-	//}
 	
+	amrex::Vector<Set::Scalar> plottime;
+	amrex::Vector<int> plotstep;
+	std::string plotfolder = "crack";
+
+	plottime.resize(nlevels);
+	plotstep.resize(nlevels);
+	for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
+	WritePlotFile(plotfolder,plottime,plotstep);
+
+	newCrackProblem = true;
+	elastic.test_step++;
+	if(elastic.bc_top[1] >= elastic.test_max) SetStopTime(time-0.01);
+	
+	crack_err_norm = 0.; c_new_norm = 0.;
 }
 
 void
-Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
+BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 {
 	std::swap(*m_c_old[lev], *m_c[lev]);
 
@@ -525,25 +399,19 @@ Fracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
 
 			df(i,j,k,3) = max(0.,rhs);
-
-			//Util::Message(INFO,"rhs = ",rhs,". en_cell =",en_cell, ". laplacian = ", laplacian);
-			//Util::Message(INFO, "rhs = ", rhs);
+			
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Message(INFO, "cnew exceeded 1.0, resetting to 1.0"); c_new(i,j,k,0) = 1.;}
 			if(c_new(i,j,k,0) < 0.0) {Util::Message(INFO, "cnew is below 0.0, resetting to 0.0"); c_new(i,j,k,0) = 0.;}
-			//c_new(i,j,k,0) = c_old(i,j,k,0) - dt*rhs*mobility;
-			//c_new(i,j,k,0) = c_new(i,j,k,0) > c_old(i,j,k,0) ? c_new(i,j,k,0) : c_old(i,j,k,0);
 		});
 	}
 }
 
 void
-Fracture::ElasticityProblem(amrex::Real /*time*/)
+BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 {
-	//disp_norm_old = disp_norm;
-
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
@@ -666,7 +534,7 @@ Fracture::ElasticityProblem(amrex::Real /*time*/)
 
 #define C_NEW(i,j,k,m) c_new(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
 void
-Fracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+BrittleFracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
 {
 	const amrex::Real* dx      = geom[lev].CellSize();
 	amrex::Vector<int>  itags;
@@ -696,55 +564,20 @@ Fracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real 
 }
 
 void 
-Fracture::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter &mfi, const amrex::Box &box)
+BrittleFracture::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter &mfi, const amrex::Box &box)
 {
-	//Util::Message(INFO);
 	const amrex::Real* DX = geom[amrlev].CellSize();
 
 	amrex::FArrayBox &c_new  = (*m_c[amrlev])[mfi];
-	//amrex::FArrayBox &c_temp  = (*m_c_temp[amrlev])[mfi];
 	amrex::FArrayBox &c_old  = (*m_c_old[amrlev])[mfi];
-
-	//Set::Scalar c_new_norm = 0.;
-
-	//amrex::FArrayBox &disp_new = (*m_disp[amrlev])[mfi];
-	//amrex::FArrayBox &disp_old = (*m_disp_old[amrlev])[mfi];
-
-	//Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
 
 	AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
 		     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
 		     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
 	{
 		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-		//Set::Vector disp_cell, disp_cell_old;
-		
-		//for (int i = 0; i < AMREX_SPACEDIM; i++)
-		//{
-			/*disp_cell[i] = mul*(	AMREX_D_TERM(
-				disp_new(m,i) + disp_new(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3)),i)
-				,
-				+ disp_new(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3)),i) + disp_new(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3)),i)
-				,
-				+ disp_new(amrex::IntVect(AMREX_D_DECL(m1,m2,m3+1)),i) + disp_new(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3+1)),i)
-				+ disp_new(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3+1)),i) + disp_new(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3+1)),i)
-			));
-			disp_cell_old[i] = mul*(	AMREX_D_TERM(
-				disp_old(m,i) + disp_old(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3)),i)
-				,
-				+ disp_old(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3)),i) + disp_old(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3)),i)
-				,
-				+ disp_old(amrex::IntVect(AMREX_D_DECL(m1,m2,m3+1)),i) + disp_old(amrex::IntVect(AMREX_D_DECL(m1+1,m2,m3+1)),i)
-				+ disp_old(amrex::IntVect(AMREX_D_DECL(m1,m2+1,m3+1)),i) + disp_old(amrex::IntVect(AMREX_D_DECL(m1+1,m2+1,m3+1)),i)
-			));*/
-		//}
-
-		//crack_err_temp_norm += ((c_new(m,0)-c_temp(m,0))*(c_new(m,0)-c_temp(m,0)))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 		crack_err_norm += ((c_new(m,0)-c_old(m,0))*(c_new(m,0)-c_old(m,0)))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 		c_new_norm += c_new(m,0)*c_new(m,0)*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
-		//disp_err_norm += ((disp_cell-disp_cell_old).squaredNorm())*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 	}
-	//crack_err_norm = crack_err_norm/c_new_norm;
-	//Util::Message(INFO,"c_new_norm = ",c_new_norm,". crack_err_norm = ",crack_err_norm);
 }
 }
