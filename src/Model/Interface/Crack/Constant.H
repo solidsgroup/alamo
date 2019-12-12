@@ -29,7 +29,7 @@ public:
         mult_Gc = 1.0;
         mult_Lap = 1.0;
     };
-    Constant(Set::Scalar _Gc, Set::Scalar _zeta, Set::Scalar _mob,PhiType a_type)
+    Constant(Set::Scalar _Gc, Set::Scalar _zeta, Set::Scalar _mob, PhiType a_type)
     {
         Gc = _Gc;
         zeta = _zeta;
@@ -38,6 +38,17 @@ public:
         mult_Lap = 1.0;
         
         SetPhiType(a_type);
+    };
+    Constant(Set::Scalar _Gc, Set::Scalar _zeta, Set::Scalar _mob, DuctilePhiType a_type, Set::Scalar a_exponent=1.0)
+    {
+        Gc = _Gc;
+        zeta = _zeta;
+        mobility = _mob;
+        mult_Gc = 1.0;
+        mult_Lap = 1.0;
+        
+        SetDuctilePhiType(a_type);
+        SetDuctileExponent(a_exponent);
     };
     Constant(Set::Scalar _Gc, Set::Scalar _zeta, Set::Scalar _mob, Set::Scalar _mult_Gc, Set::Scalar _mult_Lap)
     {
@@ -57,6 +68,18 @@ public:
         mult_Lap = _mult_Lap;
 
         SetPhiType(a_type);
+    };
+
+    Constant(Set::Scalar _Gc, Set::Scalar _zeta, Set::Scalar _mob, Set::Scalar _mult_Gc, Set::Scalar _mult_Lap, DuctilePhiType a_type, Set::Scalar a_exponent=1.0)
+    {
+        Gc = _Gc;
+        zeta = _zeta;
+        mobility = _mob;
+        mult_Gc = _mult_Gc;
+        mult_Lap = _mult_Lap;
+
+        SetDuctilePhiType(a_type);
+        SetDuctileExponent(a_exponent);
     };
     /*Set::Scalar w_phi(Set::Scalar c)
     {

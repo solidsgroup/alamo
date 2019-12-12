@@ -87,6 +87,8 @@ private:
 	
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_p;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_pold;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressvm;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
