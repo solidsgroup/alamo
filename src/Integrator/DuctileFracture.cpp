@@ -272,18 +272,23 @@ DuctileFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<ductile_f
 		amrex::Box box = mfi.growntilebox(2);
 		amrex::Array4<const amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
 		amrex::Array4<ductile_fracture_model_type> const& modelfab = model.array(mfi);
+		amrex::Array4<const Set::Scalar> const& p_box = (*m_p[lev]).array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
 			amrex::Vector<Set::Scalar> _temp;
 			_temp.push_back( mul*(AMREX_D_TERM(	
-								boundary->g_phi(c_new(i,j,k,0)) + boundary->g_phi(c_new(i-1,j,k,0))
+								boundary->g_phi(c_new(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)) 
+								+ boundary->g_phi(c_new(i-1,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i-1,j,k,0))
 								, 
-								+ boundary->g_phi(c_new(i,j-1,k,0)) + boundary->g_phi(c_new(i-1,j-1,k,0))
+								+ boundary->g_phi(c_new(i,j-1,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j-1,k,0)) 
+								+ boundary->g_phi(c_new(i-1,j-1,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i-1,j-1,k,0))
 								, 
-								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
-								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
-								));
+								+ boundary->g_phi(c_new(i,j,k-1,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k-1,0)) 
+								+ boundary->g_phi(c_new(i-1,j,k-1,0),Numeric::Interpolate::NodeToCellAverage(p_box,i-1,j,k-1,0))
+								+ boundary->g_phi(c_new(i,j-1,k-1,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j-1,k-1,0)) 
+								+ boundary->g_phi(c_new(i-1,j-1,k-1,0),Numeric::Interpolate::NodeToCellAverage(p_box,i-1,j-1,k-1,0))
+								)));
 			if(_temp[0] < 0.0) _temp[0] = 0.;
 			if(_temp[0] > 1.0) _temp[0] = 1.0;
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
@@ -552,6 +557,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<Set::Scalar> const& c_new		= (*m_c[lev]).array(mfi);
 		amrex::Array4<const Set::Scalar> const& c_old 	= (*m_c_old[lev]).array(mfi);
 		amrex::Array4<const Set::Scalar> const& energy_box 	= (*m_energy_pristine[lev]).array(mfi);
+		amrex::Array4<const Set::Scalar> const& p_box 				= (*m_p[lev]).array(mfi);
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			
 			Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
@@ -562,8 +568,8 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			//df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
 			//df(i,j,k,2) = boundary->kappa(c_old(i,j,k,0))*laplacian;
 
-			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell;
-			rhs += boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
+			rhs += boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
+			rhs += boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
 
 			//df(i,j,k,3) = max(0.,rhs);
