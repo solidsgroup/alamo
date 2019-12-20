@@ -616,6 +616,19 @@ public:
 	static T CellToNodeAverage(const amrex::Array4<const T> &f,
 		   					   const int &i, const int &j, const int &k, const int &m)
 	{
+		return ( AMREX_D_TERM(	  f(i  ,j  ,k  ,m) + f(i-1,j  ,k  ,m)
+								, 
+								+ f(i  ,j-1,k  ,m) + f(i-1,j-1,k  ,m)
+								, 
+								+ f(i  ,j  ,k-1,m) + f(i-1,j  ,k-1,m)
+								+ f(i  ,j-1,k-1,m) + f(i-1,j-1,k-1,m)
+								)) * fac;
+	}
+	template<class T>
+	AMREX_FORCE_INLINE
+	static T NodeToCellAverage(const amrex::Array4<const T> &f,
+		   					   const int &i, const int &j, const int &k, const int &m)
+	{
 		return ( AMREX_D_TERM(	  f(i  ,j  ,k  ,m) + f(i+1,j  ,k  ,m)
 								, 
 								+ f(i  ,j+1,k  ,m) + f(i+1,j+1,k  ,m)

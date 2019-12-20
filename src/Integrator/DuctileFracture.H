@@ -88,9 +88,15 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_p;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_p;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambda;
+
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_pold;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_pold;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambdaold;
+
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressvm;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressdev;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
@@ -138,7 +144,10 @@ private:
 	} elastic;
 
 	ductile_fracture_model_type 		*modeltype;
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type> > > model;
+
 	std::string 	input_material = "isotropic";
+	Set::Scalar yield_strength = 1.e3, hardening_modulus = 1., epscrit = 1.0;
 
 	Model::Interface::Crack::Crack *boundary;
 
@@ -163,6 +172,7 @@ private:
 	bool newCrackProblem=true, solveCrack=false, solveElasticity=false;
 
 	bool crackStressTest = false;
+	Set::Matrix identity = Set::Matrix::Zero();
 };
 }
 #endif

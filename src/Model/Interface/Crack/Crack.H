@@ -17,7 +17,7 @@ class Crack
 {
 	public:
 	enum PhiType {PhiSq, PhiMultiWell, Phi4c3}; 
-	enum DuctilePhiType {PhiSqP, PhiSqPM}
+	enum DuctilePhiType {PhiSqP, PhiSqPM};
 
 	Crack() {};
 	//virtual amrex::Real W(amrex::Real theta) = 0;

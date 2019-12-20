@@ -140,6 +140,9 @@ public:
 			return;
 	}
 
+	Set::Scalar GetMu() {return mu;}
+	Set::Scalar GetLambda() {return lambda;}
+
 	virtual void Print (std::ostream& os) const
 	{
 		os <<    "mu = " << mu <<
