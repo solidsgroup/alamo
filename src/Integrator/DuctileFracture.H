@@ -75,9 +75,6 @@ protected:
 
 	void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
 
-	void CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt);
-	void ElasticityProblem(amrex::Real /*time*/);
-
 private:
 	int number_of_ghost_cells = 2;				///< Number of ghost cells
 
@@ -101,7 +98,6 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine_old;
 
 	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
@@ -151,8 +147,6 @@ private:
 
 	Model::Interface::Crack::Crack *boundary;
 
-	//Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
-	//Set::Scalar disp_norm, disp_norm_old, disp_norm_conv; 
 	Set::Scalar crack_err_norm, crack_err_norm_init, crack_err_temp_norm, crack_err_temp_norm_init, c_new_norm;
 	Set::Scalar disp_err_norm, disp_err_norm_init;
 
