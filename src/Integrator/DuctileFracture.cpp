@@ -82,6 +82,9 @@ DuctileFracture::DuctileFracture() :
 	RegisterNewFab(m_c,     mybc, 1, number_of_ghost_cells+1, "c",		true);
 	RegisterNewFab(m_c_old, mybc, 1, number_of_ghost_cells+1, "c_old",	true);
 	RegisterNewFab(m_driving_force, mybc, 4, number_of_ghost_cells+1, "driving_force",true);
+
+	RegisterIntegratedVariable(&crack_err_norm, "crack_err_norm");
+	RegisterIntegratedVariable(&c_new_norm,"c_new_norm");
 	
 	// Material input
 	amrex::ParmParse pp_material("material");
@@ -226,11 +229,12 @@ DuctileFracture::DuctileFracture() :
 
 	// Model fab.
 	model.resize(nlevels);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
+	/*for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		model[ilev].define(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_cells);
 		model[ilev].setVal(*modeltype);
 	}
+	Util::Message(INFO);*/
 }
 
 DuctileFracture::~DuctileFracture(){}
@@ -238,7 +242,7 @@ DuctileFracture::~DuctileFracture(){}
 void
 DuctileFracture::Initialize (int lev)
 {
-	// Initialize crack field
+	// Initialize crack fiel
 	ic->Initialize(lev,m_c);
 	ic->Initialize(lev,m_c_old);
 	m_driving_force[lev]->setVal(0.0);
@@ -263,6 +267,8 @@ DuctileFracture::Initialize (int lev)
 	m_rhs[lev]->setVal(0.0);
 	m_residual[lev]->setVal(0.0);
 	
+	model[lev].define(m_disp[lev]->boxArray(), m_disp[lev]->DistributionMap(), 1, number_of_ghost_cells);
+	model[lev].setVal(*modeltype);
 }
 
 void
@@ -324,6 +330,8 @@ DuctileFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<ductile_f
 void 
 DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
+	Util::Message(INFO);
+
 	elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
@@ -370,12 +378,15 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 			});
 		}
 	}
+
+	Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		m_energy_pristine[ilev]->setVal(0.);
 		ScaledModulus(ilev,model[ilev]);
 	}
 
+	Util::Message(INFO);
 	Operator::Elastic<ductile_fracture_model_type> elastic_operator;
 	elastic_operator.define(geom, grids, dmap, info);
 	
@@ -385,6 +396,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	BC::Operator::Elastic<ductile_fracture_model_type> bc;
 	
+	Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		const Real* DX = geom[ilev].CellSize();
@@ -418,6 +430,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bc_zhi[2], elastic.bc_front[2], 	m_rhs, geom);
 	);
 
+	Util::Message(INFO);
 	elastic_operator.SetBC(&bc);
 	Solver::Nonlocal::Linear solver(elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
@@ -434,15 +447,19 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
 	// This is where we solve the inhomogeneous problem
+	Util::Message(INFO);
 	solver.solveaffine(m_disp, m_rhs, elastic.tol_rel, elastic.tol_abs, true);
 	solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
 
+	Util::Message(INFO);
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		elastic_operator.Strain(lev,*m_strain[lev],*m_disp[lev]);
 		elastic_operator.Stress(lev,*m_stress[lev],*m_disp[lev]);
 		elastic_operator.Energy(lev,*m_energy[lev],*m_disp[lev]);
 	}
+
+	Util::Message(INFO);
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		for (amrex::MFIter mfi(*m_strain[lev],true); mfi.isValid(); ++mfi)
