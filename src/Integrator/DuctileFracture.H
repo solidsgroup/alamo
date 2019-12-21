@@ -61,43 +61,47 @@ protected:
 	/// \brief Use the #ic object to initialize #Temp
 	void Initialize (int lev) override;
 
+	/// \brief This primarily solves the inhomogeneous elasticity problem.
 	void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
 
+	/// \brief This function checks for whether the solution has converged or not.
 	void TimeStepComplete(amrex::Real time,int iter) override;
 
-	/// \brief Integrate the heat equation
+	/// \brief This function advances the crack field, plastic variable fields.
 	void Advance (int lev, amrex::Real /*time*/, amrex::Real dt) override;
 
-	/// \brief Tag cells for mesh refinement based on temperature gradient
+	/// \brief Tag cells for mesh refinement based on crack field gradient
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
 
+	/// \brief Scales the elastic modulus in the domain based on crack and plasticity field variables.
 	void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type> > &model);
 
+	/// \brief Computes the error norm at every time step
 	void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 private:
-	int number_of_ghost_cells = 2;				///< Number of ghost cells
+	int number_of_ghost_cells = 2;											///< Number of ghost cells
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_driving_force;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;					///< Crack field fab
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;				///< Crack field fab at previous time step
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_driving_force;		///< Crack driving force
 	
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_p;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_p;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambda;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;				///< Displacement variable
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;				///< Total strain variable
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_p;			///< Plastic strain variable
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_p;					///< Plastic exponent for crack function g(c)
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambda;				///< Evolving hardening variable
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_pold;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_pold;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambdaold;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_pold;			///< Plastic strain at previous time step
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_pold;				///< Plastic exponent at previous time step
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambdaold;			///< Hardening variable at previous time step
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressdev;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;				///< Stress field
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressdev;			///< Deviatoric Stress field
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;					///< RHS field for inhomogeneous problem
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;			///< Implicit problem residual field
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;				///< Elastic energy field
+	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;		///< Elastic energy field as if crack doesn't exist.
 
 	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
@@ -139,18 +143,20 @@ private:
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	} elastic;
 
-	ductile_fracture_model_type 		*modeltype;
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type> > > model;
+	ductile_fracture_model_type 		*modeltype;											///< Type of material model
+	amrex::Vector<amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type> > > model;	///< Model fab
+	Model::Interface::Crack::Crack *boundary;												///< Type of crack boundary
 
-	std::string 	input_material = "isotropic";
-	Set::Scalar yield_strength = 1.e3, hardening_modulus = 1., epscrit = 1.0;
+	std::string input_material = "isotropic";
+	Set::Scalar yield_strength = 1.e3;
+	Set::Scalar hardening_modulus = 1.;
+	Set::Scalar epscrit = 1.0;
+	
 
-	Model::Interface::Crack::Crack *boundary;
-
-	Set::Scalar crack_err_norm, crack_err_norm_init, crack_err_temp_norm, crack_err_temp_norm_init, c_new_norm;
-	Set::Scalar disp_err_norm, disp_err_norm_init;
-
-	bool err_crack_init = true, err_crack_temp_init = true, err_disp_init = true;
+	Set::Scalar crack_err_norm, c_new_norm;
+	bool err_crack_init = true;
+	bool err_crack_temp_init = true;
+	bool err_disp_init = true;
 
 	Set::Scalar eta_epsilon, mobility, scaleModulusMax;
 	Set::Scalar max_error;
@@ -160,8 +166,8 @@ private:
 	int nlevels;
 
 	std::string ic_type;						///< String to determine what kind of initial condition to use
-	IC::IC *ic;            					///< Pointer to abstract IC object
-	BC::BC *mybc;                   				///< Stock generic boundary condition object
+	IC::IC *ic;            						///< Pointer to abstract IC object
+	BC::BC *mybc;                   			///< Stock generic boundary condition object
 
 	bool newCrackProblem=true, solveCrack=false, solveElasticity=false;
 
