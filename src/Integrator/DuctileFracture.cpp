@@ -8,32 +8,13 @@ DuctileFracture::DuctileFracture() :
 	amrex::ParmParse pp_crack("crack");
 	std::string crack_type;
 	pp_crack.query("type",crack_type);
-
-	std::map<std::string,Model::Interface::Crack::Crack::DuctilePhiType>  phi_map;
-	phi_map["square"] = Model::Interface::Crack::Crack::DuctilePhiType::PhiSqP;
-	phi_map["squareexp"] = Model::Interface::Crack::Crack::DuctilePhiType::PhiSqPM;
+	pp_crack.query("modulus_scaling_max",scaleModulusMax);
+	pp_crack.query("refinement_threshold",refinement_threshold);
 
 	if(crack_type=="constant")
-	{
-		amrex::ParmParse pp_crack_constant("crack.constant");
-		Set::Scalar G_c, zeta, mult_Gc = 1.0, mult_Lap = 1.0, ductile_exponent = 1.0;
-		eta_epsilon = 1.; mobility = 1e-2; scaleModulusMax = 0.2;
-		std::string phitype = "";
-		
-		pp_crack_constant.query("G_c",G_c);
-		pp_crack_constant.query("zeta",zeta);
-		pp_crack_constant.query("mobility",mobility);
-		pp_crack_constant.query("eta_epsilon",eta_epsilon);
-		pp_crack_constant.query("modulus_scaling_max",scaleModulusMax);
-		pp_crack_constant.query("refinement_threshold",refinement_threshold);
-		pp_crack_constant.query("mult_Gc",mult_Gc);
-		pp_crack_constant.query("mult_Lap", mult_Lap);
-		pp_crack_constant.query("phitype",phitype);
-		if(phitype == "squareexp")
-			pp_crack_constant.query("exponent",ductile_exponent);
-		
-		boundary = new Model::Interface::Crack::Constant(G_c,zeta,mobility,mult_Gc,mult_Lap,phi_map[phitype],ductile_exponent);
-	}
+		boundary = new Model::Interface::Crack::Constant();
+	else if(crack_type == "sin")
+		boundary = new Model::Interface::Crack::Sin();
 	else
 		Util::Abort(INFO,"This crack model hasn't been implemented yet");
 	
@@ -592,8 +573,8 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			Set::Scalar rhs = 0.;	
 			Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
 
-			df(i,j,k,0) = boundary->Dg_phi(c_old(i,j,k,0))*en_cell;
-			df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
+			df(i,j,k,0) = boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
+			df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
 			df(i,j,k,2) = boundary->kappa(c_old(i,j,k,0))*laplacian;
 
 			rhs += boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
@@ -602,8 +583,8 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 
 			df(i,j,k,3) = max(0.,rhs);
 			
-			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
+			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*boundary->GetMobility(c_old(i,j,k,0));
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Warning(INFO, "cnew exceeded 1.0, resetting to 1.0"); c_new(i,j,k,0) = 1.;}
 			if(c_new(i,j,k,0) < 0.0) {Util::Warning(INFO, "cnew is below 0.0, resetting to 0.0"); c_new(i,j,k,0) = 0.;}

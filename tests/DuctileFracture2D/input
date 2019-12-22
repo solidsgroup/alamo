@@ -19,12 +19,13 @@ geometry.prob_hi = 4 4
 geometry.is_periodic= 0 0
 
 crack.type = constant
+crack.modulus_scaling_max = 0.05
+crack.refinement_threshold = 0.01
+
 crack.constant.G_c = 7.0e-2
 crack.constant.zeta = 1.e-3
 crack.constant.mobility = 5.0e-2
 crack.constant.eta_epsilon = 0.01
-crack.constant.modulus_scaling_max = 0.05
-crack.constant.refinement_threshold = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
 crack.constant.phitype = square
