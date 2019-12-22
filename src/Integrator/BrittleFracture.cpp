@@ -9,30 +9,13 @@ BrittleFracture::BrittleFracture() :
 	amrex::ParmParse pp_crack("crack");
 	std::string crack_type;
 	pp_crack.query("type",crack_type);
-
-	std::map<std::string,Model::Interface::Crack::Crack::PhiType>  phi_map;
-	phi_map["square"] = Model::Interface::Crack::Crack::PhiType::PhiSq;
-	phi_map["multiwell"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell;
-	phi_map["4c3"] = Model::Interface::Crack::Crack::PhiType::Phi4c3;
+	pp_crack.query("modulus_scaling_max",scaleModulusMax);
+	pp_crack.query("refinement_threshold",refinement_threshold);
 
 	if(crack_type=="constant")
-	{
-		amrex::ParmParse pp_crack_constant("crack.constant");
-		Set::Scalar G_c, zeta, mult_Gc = 1.0, mult_Lap = 1.0;
-		eta_epsilon = 1.; mobility = 1e-2; scaleModulusMax = 0.2;
-		std::string phitype = "";
-		pp_crack_constant.query("G_c",G_c);
-		pp_crack_constant.query("zeta",zeta);
-		pp_crack_constant.query("mobility",mobility);
-		pp_crack_constant.query("eta_epsilon",eta_epsilon);
-		pp_crack_constant.query("modulus_scaling_max",scaleModulusMax);
-		pp_crack_constant.query("refinement_threshold",refinement_threshold);
-		pp_crack_constant.query("mult_Gc",mult_Gc);
-		pp_crack_constant.query("mult_Lap", mult_Lap);
-		pp_crack_constant.query("phitype",phitype);
-		//Util::Message(INFO, "G_c = ", G_c, ". zeta = ", zeta);
-		boundary = new Model::Interface::Crack::Constant(G_c,zeta,mobility,mult_Gc,mult_Lap,phi_map[phitype]);
-	}
+		boundary = new Model::Interface::Crack::Constant();
+	else if(crack_type == "sin")
+		boundary = new Model::Interface::Crack::Sin();
 	else
 		Util::Abort(INFO,"This crack model hasn't been implemented yet");
 
@@ -269,12 +252,12 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
 			amrex::Vector<Set::Scalar> _temp;
 			_temp.push_back( mul*(AMREX_D_TERM(	
-								boundary->g_phi(c_new(i,j,k,0)) + boundary->g_phi(c_new(i-1,j,k,0))
+								boundary->g_phi(c_new(i,j,k,0),0.) + boundary->g_phi(c_new(i-1,j,k,0),0.)
 								, 
-								+ boundary->g_phi(c_new(i,j-1,k,0)) + boundary->g_phi(c_new(i-1,j-1,k,0))
+								+ boundary->g_phi(c_new(i,j-1,k,0),0.) + boundary->g_phi(c_new(i-1,j-1,k,0),0.)
 								, 
-								+ boundary->g_phi(c_new(i,j,k-1,0)) + boundary->g_phi(c_new(i-1,j,k-1,0))
-								+ boundary->g_phi(c_new(i,j-1,k-1,0)) + boundary->g_phi(c_new(i-1,j-1,k-1,0)))
+								+ boundary->g_phi(c_new(i,j,k-1,0),0.) + boundary->g_phi(c_new(i-1,j,k-1,0),0.)
+								+ boundary->g_phi(c_new(i,j-1,k-1,0),0.) + boundary->g_phi(c_new(i-1,j-1,k-1,0),0.))
 								));
 			if(_temp[0] < 0.0) _temp[0] = 0.;
 			if(_temp[0] > 1.0) _temp[0] = 1.0;
@@ -390,18 +373,18 @@ BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 			
 			Set::Scalar rhs = 0.;	
 			Set::Scalar en_cell = Numeric::Interpolate::CellToNodeAverage(energy_box,i,j,k,0);
-			df(i,j,k,0) = boundary->Dg_phi(c_old(i,j,k,0))*en_cell;
-			df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
+			df(i,j,k,0) = boundary->Dg_phi(c_old(i,j,k,0),0.)*en_cell;
+			df(i,j,k,1) = boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0),0.);
 			df(i,j,k,2) = boundary->kappa(c_old(i,j,k,0))*laplacian;
 
-			rhs += boundary->Dg_phi(c_old(i,j,k,0))*en_cell;
-			rhs += boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0));
+			rhs += boundary->Dg_phi(c_old(i,j,k,0),0.)*en_cell;
+			rhs += boundary->Epc(c_old(i,j,k,0))*boundary->Dw_phi(c_old(i,j,k,0),0.);
 			rhs -= boundary->kappa(c_old(i,j,k,0))*laplacian;
 
 			df(i,j,k,3) = max(0.,rhs);
 			
-			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*mobility;
+			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0),0.),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*boundary->GetMobility(c_old(i,j,k,0));
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Message(INFO, "cnew exceeded 1.0, resetting to 1.0"); c_new(i,j,k,0) = 1.;}
 			if(c_new(i,j,k,0) < 0.0) {Util::Message(INFO, "cnew is below 0.0, resetting to 0.0"); c_new(i,j,k,0) = 0.;}

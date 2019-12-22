@@ -27,6 +27,7 @@
 
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
+#include "Model/Interface/Crack/Sin.H"
 
 #include "Numeric/Stencil.H"
 
