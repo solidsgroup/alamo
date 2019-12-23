@@ -21,17 +21,29 @@ class Isotropic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Is
 {
 public:
 	Isotropic() { } ;
-	Isotropic(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _epsp=Set::Matrix::Zero()) {Define(_mu,_lambda,_epsp);} ;
+	Isotropic(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _epsp=Set::Matrix::Zero()) 
+	{
+		mu = _mu; 
+		mu0 = _mu;
+		lambda = _lambda; 
+		lambda0 = _lambda;
+		epsp = _epsp;
+		
+		for (int p = 0; p < AMREX_SPACEDIM; p++) 
+			gradEpsp[p] = Set::Matrix::Zero();
+
+		//Define(_mu,_lambda,_epsp);
+	} ;
 	~Isotropic() {} ;
 
-	void Define(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _epsp)
+	/*void Define(Set::Scalar _mu, Set::Scalar _lambda, Set::Matrix _epsp)
 	{
 		mu = _mu; mu0 = _mu;
 		lambda = _lambda; lambda0 = _lambda;
 		epsp = _epsp;
 		
 		for (int p = 0; p < AMREX_SPACEDIM; p++) gradEpsp[p] = Set::Matrix::Zero();
-	}
+	}*/
 	virtual Set::Matrix operator () (Set::Matrix &eps,bool a_homogeneous=true) const
 	{
 		if (!a_homogeneous) eps -= epsp;
@@ -71,7 +83,7 @@ public:
 	{
 		mu+=rhs.mu; lambda+=rhs.lambda;
 		epsp += rhs.epsp;
-		for (int i = 0; i < AMREX_SPACEDIM; i++) gradEpsp[i] = rhs.gradEpsp[i];	
+		for (int i = 0; i < AMREX_SPACEDIM; i++) gradEpsp[i] += rhs.gradEpsp[i];	
 	}
 
 	Isotropic & operator = (const Isotropic &rhs)
@@ -111,6 +123,8 @@ public:
 	void DegradeModulus(const Set::Scalar eta)
 	{
 		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
+		if(std::isnan(lambda0)) Util::Abort(INFO, "Nans in lambda0");
+		if(std::isnan(mu0)) Util::Abort(INFO, "Nans in mu0");
 
 		lambda = lambda0*(1.0 - eta);
 		mu = mu0*(1.0-eta);
@@ -140,8 +154,8 @@ public:
 			return;
 	}
 
-	Set::Scalar GetMu() {return mu;}
-	Set::Scalar GetLambda() {return lambda;}
+	Set::Scalar GetMu() {return mu0;}
+	Set::Scalar GetLambda() {return lambda0;}
 
 	virtual void Print (std::ostream& os) const
 	{
