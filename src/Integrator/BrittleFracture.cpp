@@ -81,6 +81,7 @@ BrittleFracture::BrittleFracture() :
 		if(lambda <=0) { Util::Warning(INFO,"Lambda must be positive. Resetting back to default value"); lambda = 410.0; }
 		if(mu <= 0) { Util::Warning(INFO,"Mu must be positive. Resetting back to default value"); mu = 305.0; }
 		modeltype = new fracture_model_type(lambda,mu);
+		//Util::Message(INFO, "lambda = ", modeltype->GetLambda(), " mu = ", modeltype->GetMu());
 	}
 	else
 		Util::Abort(INFO,"This model has not been implemented yet.");
@@ -249,7 +250,7 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 		amrex::Array4<fracture_model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
+			Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
 			amrex::Vector<Set::Scalar> _temp;
 			_temp.push_back( mul*(AMREX_D_TERM(	
 								boundary->g_phi(c_new(i,j,k,0),0.) + boundary->g_phi(c_new(i-1,j,k,0),0.)
@@ -259,12 +260,13 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 								+ boundary->g_phi(c_new(i,j,k-1,0),0.) + boundary->g_phi(c_new(i-1,j,k-1,0),0.)
 								+ boundary->g_phi(c_new(i,j-1,k-1,0),0.) + boundary->g_phi(c_new(i-1,j-1,k-1,0),0.))
 								));
+			//Util::Message(INFO, "c = ", c_new(i,j,k,0) ," temp = ", _temp[0], " ScaleModulusMax = ", scaleModulusMax);
 			if(_temp[0] < 0.0) _temp[0] = 0.;
 			if(_temp[0] > 1.0) _temp[0] = 1.0;
+			Util::Message(INFO, modelfab(i,j,k,0).GetMu(), " ", modelfab(i,j,k,0).GetLambda());
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
+			Util::Message(INFO, modelfab(i,j,k,0).GetMu(), " ", modelfab(i,j,k,0).GetLambda());
 		});
-
-
 	}
 	amrex::Geometry tmp_geom = geom[lev];
     for (int i = 0; i < 2; i++)
@@ -289,6 +291,7 @@ BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	Util::Message(INFO);
 	if(crackStressTest)
 	{
+		Util::Message(INFO);
 		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 		ElasticityProblem(0.);
 		solveElasticity = false;
@@ -296,6 +299,7 @@ BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	}
 	if(newCrackProblem)
 	{
+		Util::Message(INFO);
 		elastic.bc_top[1] = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 		newCrackProblem = false;
 	}
@@ -408,8 +412,56 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 		model[ilev].setVal(*modeltype);
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		m_energy_pristine[ilev]->setVal(0.);
-		ScaledModulus(ilev,model[ilev]);
+		//ScaledModulus(ilev,model[ilev]);
 	}
+
+	// Testing scaled modulus routine here. 
+	for (int lev = 0; lev < nlevels; ++lev)
+	{
+		m_c[lev]->FillBoundary();
+
+		for (amrex::MFIter mfi(model[lev],true); mfi.isValid(); ++mfi)
+		{
+			amrex::Box box = mfi.growntilebox(2);
+			amrex::Array4<const amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
+			amrex::Array4<fracture_model_type> const& modelfab = model[lev].array(mfi);
+
+			amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+				Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
+				amrex::Vector<Set::Scalar> _temp;
+				_temp.push_back( mul*(AMREX_D_TERM(	
+									boundary->g_phi(c_new(i,j,k,0),0.) + boundary->g_phi(c_new(i-1,j,k,0),0.)
+									, 
+									+ boundary->g_phi(c_new(i,j-1,k,0),0.) + boundary->g_phi(c_new(i-1,j-1,k,0),0.)
+									, 
+									+ boundary->g_phi(c_new(i,j,k-1,0),0.) + boundary->g_phi(c_new(i-1,j,k-1,0),0.)
+									+ boundary->g_phi(c_new(i,j-1,k-1,0),0.) + boundary->g_phi(c_new(i-1,j-1,k-1,0),0.))
+									));
+				//Util::Message(INFO, "c = ", c_new(i,j,k,0) ," temp = ", _temp[0], " ScaleModulusMax = ", scaleModulusMax);
+				if(_temp[0] < 0.0) _temp[0] = 0.;
+				if(_temp[0] > 1.0) _temp[0] = 1.0;
+				Util::Message(INFO, modelfab(i,j,k,0).GetMu(), " ", modelfab(i,j,k,0).GetLambda());
+				modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
+				Util::Message(INFO, modelfab(i,j,k,0).GetMu(), " ", modelfab(i,j,k,0).GetLambda());
+			});
+		}
+		amrex::Geometry tmp_geom = geom[lev];
+		for (int i = 0; i < 2; i++)
+		{
+			Util::Message(INFO);
+			amrex::FabArray<amrex::BaseFab<fracture_model_type>> &mf = model[lev];
+			mf.FillBoundary(tmp_geom.periodicity());
+			mf.FillBoundary();
+			const int ncomp = mf.nComp();
+			const int ng1 = 1;
+			const int ng2 = 2;
+			amrex::FabArray<amrex::BaseFab<fracture_model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+			amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
+			mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
+		}
+	}
+
+
 	Util::Message(INFO);
 	Operator::Elastic<fracture_model_type> elastic_operator;
 	Util::Message(INFO);
@@ -469,13 +521,25 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	solver.setBottomMaxIter(elastic.bottom_max_iter);
 	solver.setBottomTolerance(elastic.cg_tol_rel) ;
 	solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
+
 	for (int ilev = 0; ilev < nlevels; ilev++) if (m_disp[ilev]->contains_nan()) Util::Warning(INFO);
 
 	if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
+	/*amrex::Vector<Set::Scalar> plottime;
+	amrex::Vector<int> plotstep;
+	std::string plotfolder = "crack";
+
+	plottime.resize(nlevels);
+	plotstep.resize(nlevels);
+	for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
+	WritePlotFile(plotfolder,plottime,plotstep);*/
+
 	solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
 	solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
+	//solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
+
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		elastic_operator.Strain(lev,*m_strain[lev],*m_disp[lev]);
