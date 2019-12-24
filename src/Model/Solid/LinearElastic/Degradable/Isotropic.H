@@ -83,12 +83,14 @@ public:
 	{
 		mu+=rhs.mu; lambda+=rhs.lambda;
 		epsp += rhs.epsp;
+		mu0 += rhs.mu0; lambda0 += rhs.lambda0;
 		for (int i = 0; i < AMREX_SPACEDIM; i++) gradEpsp[i] += rhs.gradEpsp[i];	
 	}
 
 	Isotropic & operator = (const Isotropic &rhs)
 	{
 		mu=rhs.mu; lambda=rhs.lambda; epsp = rhs.epsp;
+		mu0 = rhs.mu0; lambda0 = rhs.lambda0;
 		for (int i = 0; i < AMREX_SPACEDIM; i++) gradEpsp[i] = rhs.gradEpsp[i];
 		return *this;
 	}
