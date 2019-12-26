@@ -26,11 +26,14 @@ public:
         amrex::Vector<Set::Scalar> center;
 		pp.queryarr("center",center);
         if(center.size()>=AMREX_SPACEDIM){AMREX_D_TERM(nCenter(0) = center[0];,nCenter(1) = center[1];,nCenter(2) = center[2];);}
+        //Util::Message(INFO,"ncenter = (", nCenter(0),",",nCenter(1),")");
 
         amrex::Vector<Set::Scalar> orientation;
 		pp.queryarr("orientation",orientation);
         if(orientation.size()>=AMREX_SPACEDIM){AMREX_D_TERM(nOrientation(0) = orientation[0];,nOrientation(1) = orientation[1];,nOrientation(2) = orientation[2];);}
+        //Util::Message(INFO,"nOrientation = (", nOrientation(0),",",nOrientation(1),")");
         if(nOrientation.lpNorm<2>() <= 0.) nOrientation = Set::Vector::Random();
+       // Util::Message(INFO,"nOrientation = (", nOrientation(0),",",nOrientation(1),")");
 
         pp.query("thickness", nThickness);
         pp.query("length", nLength);
@@ -48,6 +51,7 @@ public:
             moll = Mollifier::Gaussian;
 
         nOrientation = nOrientation / nOrientation.lpNorm<2>();
+        //Util::Message(INFO,"nOrientation = (", nOrientation(0),",",nOrientation(1),")");
         eps_sq = eps*eps;
         window = 6.0*eps;
 
@@ -63,6 +67,7 @@ public:
             nNormal(1) = -(AMREX_D_TERM(nOrientation(0), + 0.0, + nOrientation(2)))/nOrientation(1);
             nNormal = nNormal/nNormal.lpNorm<2>();
         }
+        //Util::Message(INFO,"nOrientation = (", nNormal(0),",",nNormal(1),")");
     }
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
@@ -91,57 +96,26 @@ public:
 				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                 }
 
-                if(std::abs((x-nCenter).transpose()*nOrientation) <= nLength)
+                if(std::abs((x-nCenter).transpose()*nOrientation) <= 0.5*nLength)
                 {
                     Set::Scalar t = std::abs((x-nCenter).transpose()*nNormal) - (nThickness/2.0);
                     field(i,j,k) = 0.5 + 0.5*std::erf(t / eps);
                 }
+                else
+                {
+                    Set::Vector nLeft =  nCenter - 0.5*nLength*nOrientation;
+                    Set::Vector nRight = nCenter + 0.5*nLength*nOrientation;
+                    Set::Scalar distLeft = (x-nLeft).transpose()*nOrientation;
+                    Set::Scalar distRight = (x-nRight).transpose()*nOrientation;
 
-                Set::Vector nLeft =  nCenter - 0.5*nLength*nOrientation;
-                Set::Vector nRight = nCenter + 0.5*nLength*nOrientation;
-                Set::Scalar distLeft = (x-nLeft).transpose()*nOrientation;
-                Set::Scalar distRight = (x-nRight).transpose()*nOrientation;
-
-                if(distLeft < 0.)
-                    field(i,j,k) = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness/2.0) / eps );
-                if(distRight > 0.)
-                    field(i,j,k) = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness/2.0) / eps );
+                    if(distLeft < 0.)
+                        field(i,j,k) = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness/2.0) / eps );
+                    if(distRight > 0.)
+                        field(i,j,k) = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness/2.0) / eps );
+                }
             
                 if (field(i,j,k) < 0.) field(i,j,k) = 0.;
                 if (field(i,j,k) > 1.) field(i,j,k) = 1.;
-//                field(i,j,k) = 0.5 - 0.5*std::erf()
-//                Set::Scalar norm = (A*(x-x0)).lpNorm<2>();
-//                field(i,j,k) = 0.5 - 0.5*std::erf(((x-x0).transpose() * A * (x-x0) - 1.0) / eps / norm);
-//
-//                if (moll == Mollifier::Dirac)
-//                {
-//                    if ((x-x0).transpose() * A * (x-x0) < 1.0) field(i,j,k) += 1.0;
-//                }
-//                else if (moll == Mollifier::Gaussian)
-//                {
-//                    Set::Scalar conv = 0.0;
-//                    Set::Vector _x;
-//                    AMREX_D_TERM(for (_x(0) = x(0) - window; _x(0) <= x(0) + window; _x(0) += DX(0)),
-//                                 for (_x(1) = x(1) - window; _x(1) <= x(1) + window; _x(1) += DX(1)),
-//                                 for (_x(2) = x(2) - window; _x(2) <= x(2) + window; _x(2) += DX(2)))
-//                        {
-//#if AMREX_SPACEDIM==2
-//                            if ((_x-x0).transpose() * A * (_x-x0) < 1.0)
-//                            {
-//                                Set::Scalar mollifier = std::exp( - (_x - x).squaredNorm() / eps_sq) / (eps_sq * Set::Constant::Pi);
-//                                conv += mollifier * DX(0) * DX(1);
-//                            }
-//#elif AMREX_SPACEDIM==3
-//                            if ((_x-x0).transpose() * A * (_x-x0) < 1.0)
-//                            {
-//                                Set::Scalar mollifier = std::exp( - (_x - x).squaredNorm() / eps_sq) / pow(eps_sq * Set::Constant::Pi,1.5);
-//                                conv += mollifier * DX(0) * DX(1) * DX(2);
-//                            }
-//#endif
-//                        }
-//                    field(i,j,k) += conv;
-//                }
-
 			});
 		}
         a_field[lev]->FillBoundary();

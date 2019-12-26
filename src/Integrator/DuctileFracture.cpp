@@ -601,7 +601,7 @@ DuctileFracture::TimeStepComplete(amrex::Real time,int iter)
 	Util::Message(INFO, "c_new_norm = ", c_new_norm);
 	Util::Message(INFO, "relative error = ", crack_err_norm/c_new_norm);
 	
-	if(crack_err_norm/c_new_norm > tol_crack) return;
+	/*if(crack_err_norm/c_new_norm > tol_crack) return;
 
 	crack_err_norm = 0.; c_new_norm = 0.;
 	
@@ -618,7 +618,7 @@ DuctileFracture::TimeStepComplete(amrex::Real time,int iter)
 	elastic.test_step++;
 	if(elastic.bc_top[1] >= elastic.test_max) SetStopTime(time-0.01);
 	
-	crack_err_norm = 0.; c_new_norm = 0.;
+	crack_err_norm = 0.; c_new_norm = 0.;*/
 }
 
 void
