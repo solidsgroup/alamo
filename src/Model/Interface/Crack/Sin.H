@@ -39,8 +39,8 @@ public:
 	    phi_map["square"] = Model::Interface::Crack::Crack::PhiType::PhiSq;
 	    phi_map["multiwell"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell;
 	    phi_map["4c3"] = Model::Interface::Crack::Crack::PhiType::Phi4c3;
-        phi_map["square"] = Model::Interface::Crack::Crack::PhiType::PhiSqP;
-	    phi_map["squareexp"] = Model::Interface::Crack::Crack::PhiType::PhiSqPM;
+        phi_map["squarep"] = Model::Interface::Crack::Crack::PhiType::PhiSqP;
+	    phi_map["squarepexp"] = Model::Interface::Crack::Crack::PhiType::PhiSqPM;
 
         SetPhiType(phi_map[phitype]);
         SetDuctileExponent(ductile_exponent);
