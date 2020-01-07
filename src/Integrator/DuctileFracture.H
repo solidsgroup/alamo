@@ -173,7 +173,6 @@ private:
 	bool newCrackProblem=true, solveCrack=false, solveElasticity=false;
 
 	bool crackStressTest = false;
-	Set::Matrix identity = Set::Matrix::Zero();
 };
 }
 #endif
