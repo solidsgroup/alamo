@@ -1,12 +1,12 @@
 alamo.program = ductilefracture
 
-timestep = 1e-1
+timestep = 1e-7
 stop_time = 1.e6
 plot_file = tests/DuctileFracture2D/output
 
-amr.plot_int = 10
+amr.plot_int = 1
 amr.max_level = 4
-#amr.n_cell = 512 512
+#amr.n_cell = 1024 1024
 amr.n_cell = 128 128 
 amr.blocking_factor = 32
 amr.regrid_int = 10
@@ -24,7 +24,7 @@ crack.refinement_threshold = 0.01
 
 crack.constant.G_c = 7.0e-2
 crack.constant.zeta = 1.e-3
-crack.constant.mobility = 5.0e-2
+crack.constant.mobility = 0.0
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
@@ -46,12 +46,12 @@ ic.length = 1.0
 ic.thickness = 0.0675
 ic.eps = 0.02
 
-material.model = isotropic
-material.isotropic.lambda = 1e3
-material.isotropic.mu = 8e2
-material.isotropic.yield_strength = 1.e3
-material.isotropic.hardening_modulus = 1.0
-material.isotropic.eps_critical = 1.0
+material.model = isotropicplastic
+material.isotropicplastic.lambda = 1e3
+material.isotropicplastic.mu = 8e2
+material.isotropicplastic.yield_strength = 1.e0
+material.isotropicplastic.hardening_modulus = 0.0
+material.isotropicplastic.eps_critical = 1.0
 
 elastic.bottom_solver 	=	bicgstab
 elastic.composite_solve	=	1
@@ -60,7 +60,7 @@ elastic.cg_verbose 		=	0
 elastic.max_iter		=	10000
 elastic.max_fmg_iter 	=	10000
 elastic.bottom_max_iter =	500
-elastic.max_fixed_iter 	=	200
+elastic.max_fixed_iter 	=	100
 elastic.linop_maxorder 	=	2
 elastic.max_coarsening_level = 100000
 elastic.agglomeration 	=	1
@@ -72,7 +72,7 @@ elastic.cg_tol_abs 		=	1.0e-6
 elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.0 0.0 0.0
 
-elastic.bc.disp_step = 1.e-2
-elastic.bc.disp_init = 2.e-1
+elastic.bc.disp_step = 1.e-3
+elastic.bc.disp_init = 1.e-3
 elastic.bc.max_disp = 2.e-1
 elastic.bc.crackStressTest = false

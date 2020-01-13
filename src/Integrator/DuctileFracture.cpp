@@ -68,11 +68,11 @@ DuctileFracture::DuctileFracture() :
 	// Material input
 	amrex::ParmParse pp_material("material");
 	pp_material.query("model",input_material);
-	if(input_material == "isotropic")
+	if(input_material == "isotropicplastic")
 	{
 		Set::Scalar lambda = 410.0;
 		Set::Scalar mu = 305.0;
-		amrex::ParmParse pp_material_isotropic("material.isotropic");
+		amrex::ParmParse pp_material_isotropic("material.isotropicplastic");
 		pp_material_isotropic.query("lambda",lambda);
 		pp_material_isotropic.query("mu",mu);
 		pp_material_isotropic.query("yield_strength",yield_strength);
@@ -85,7 +85,7 @@ DuctileFracture::DuctileFracture() :
 		if(hardening_modulus <= 0) 	{ Util::Warning(INFO,"Hardening modulus must be positive. Resetting to default value"); hardening_modulus = 1.;}
 		if(epscrit <= 0)			{ Util::Warning(INFO,"Critical plastic strain must be positive. Resetting to default value"); epscrit = 1.;}
 
-		modeltype = new ductile_fracture_model_type(lambda,mu,Set::Matrix::Zero());
+		modeltype = new ductile_fracture_model_type(lambda,mu,yield_strength,hardening_modulus,Set::Matrix::Zero());
 	}
 	else
 		Util::Abort(INFO,"This model has not been implemented yet.");
@@ -287,6 +287,7 @@ DuctileFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<ductile_f
 			if(_temp[0] < 0.0) _temp[0] = 0.;
 			if(_temp[0] > 1.0) _temp[0] = 1.0;
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
+			modelfab(i,j,k,0).DegradeYieldSurface(std::min(1.-_temp[0],1.-scaleModulusMax));
 		});
 
 
@@ -515,8 +516,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<Set::Scalar>					const& strainp_box 			= (*m_strain_p[lev]).array(mfi);
 		amrex::Array4<const Set::Scalar>			const& strainpold_box 		= (*m_strain_pold[lev]).array(mfi);
 		amrex::Array4<ductile_fracture_model_type>	const& model_box 			= model[lev].array(mfi);
-		amrex::Array4<const Set::Scalar>			const& c_new				= (*m_c[lev]).array(mfi);
-
+		
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Matrix sigdev, epsp, epspold;
 
@@ -539,9 +539,11 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 				epspold(2,0) = strainpold_box(i,j,k,6); epspold(2,1) = strainpold_box(i,j,k,7); epspold(2,2) = strainpold_box(i,j,k,8);
 			);
 
-			Set::Scalar temp1 = sqrt(3./2.)*sigdev.norm() / (yield_strength + hardening_modulus*lambdaold_box(i,j,k));
-			Set::Scalar temp2 = 1.0;
-			Set::Scalar temp3 = std::max(0.0, (temp1 - 1)/temp2);
+			//Set::Scalar temp1 = sqrt(3./2.)*sigdev.norm() / (boundary->g_phi(Numeric::Interpolate::CellToNodeAverage(c_new,i,j,k,0),p_box(i,j,k,0))*(yield_strength + hardening_modulus*lambdaold_box(i,j,k)));
+			//Set::Scalar temp1 = sqrt(3./2.)*sigdev.norm() / ((yield_strength + hardening_modulus*lambdaold_box(i,j,k)));
+			Set::Scalar temp1 = sqrt(3./2.)*sigdev.norm() / (model_box(i,j,k,0).YieldSurface(lambdaold_box(i,j,k,0)));
+			Set::Scalar temp2 = 10.;
+			//Set::Scalar temp3 = std::max(0.0, (temp1 - 1)/temp2);
 
 			if(temp1 < 1.0)
 			{
@@ -553,7 +555,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			{
 				lambda_box(i,j,k,0) = lambdaold_box(i,j,k,0) + dt*std::exp( (temp1 - 1)/temp2 );
 				p_box(i,j,k,0) = pold_box(i,j,k,0) + dt*std::exp( (temp1 - 1)/temp2 );
-				epsp = epspold + dt*(std::exp( (temp1 - 1)/temp2 ))*(boundary->g_phi(Numeric::Interpolate::CellToNodeAverage(c_new,i,j,k,0),p_box(i,j,k,0)))*sigdev/sigdev.norm();
+				epsp = epspold + dt*(std::exp( (temp1 - 1)/temp2 ))*sigdev/sigdev.norm();
 			}
 
 			/*Set::Scalar yield_surface = std::sqrt(3.*sigdev.norm()/2.) - (yield_strength + hardening_modulus*lambdaold_box(i,j,k));
@@ -608,7 +610,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 
 			df(i,j,k,3) = max(0.,rhs);
 			
-			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+			//if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*boundary->GetMobility(c_old(i,j,k,0));
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Warning(INFO, "cnew exceeded 1.0, resetting to 1.0"); c_new(i,j,k,0) = 1.;}
@@ -640,7 +642,7 @@ DuctileFracture::TimeStepComplete(amrex::Real time,int iter)
 	WritePlotFile(plotfolder,plottime,plotstep);
 
 	newCrackProblem = true;*/
-	//elastic.test_step++;
+	elastic.test_step++;
 	//if(elastic.bc_top[1] >= elastic.test_max) SetStopTime(time-0.01);
 	
 	//crack_err_norm = 0.; c_new_norm = 0.;
