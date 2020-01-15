@@ -37,13 +37,21 @@ Mobility::Mobility() :
 		// // Determine initial condition
 		if (type=="tabulated")
 		{
-			std::vector<Set::Scalar> xs, ys;
 			pp.queryarr("xs",xs);
 			pp.queryarr("ys",ys);
-			Set::Scalar gammagb1 = -0.1, gammagb2 = 0.1;
 			pp.query("gammagb1",gammagb1);
 			pp.query("gammagb2",gammagb2);
 			ic = new IC::TabulatedInterface(geom,xs,ys,gammagb1,gammagb2);
+		}
+		else if (type == "circle")
+		{
+			amrex::Vector<Set::Scalar> center;
+			pp.queryarr("center",center);
+			pp.query("gammagb1",gammagb1);
+			pp.query("gammagb2",gammagb2);
+
+			ic = new IC::Sphere(geom, 0.1, center, IC::Sphere::Type::XYZ ,gammagb1, gammagb2);
+
 		}
 		else
 			ic = new IC::Constant(geom);
@@ -65,12 +73,12 @@ Mobility::Mobility() :
 		if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
 		if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
 
-//		mybc = new BC::Constant(bc_hi_str, bc_lo_str,
-//					AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
-//					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
-		mybc = new BC::Step(bc_hi_str, bc_lo_str,
+		mybc = new BC::Constant(bc_hi_str, bc_lo_str,
 					AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
 					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
+//		mybc = new BC::Step(bc_hi_str, bc_lo_str,
+//					AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
+//					AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3),ys[0],ys[ys.size()-1],gammagb1,gammagb2);
 
 	}
 	{
@@ -281,14 +289,23 @@ Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<const Set::Scalar> const & Sigma = sigma[lev]->array(mfi);
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 		{
-			Set::Scalar df = 0.0;
-			
-			
-			df += - physics.gamma *(Set::Constant::Pi/physics.gammagb0) * sin(Set::Constant::Pi * gammagbold(i,j,k) / physics.gammagb0);
-			Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
-			df += - physics.elastic_mult*sig12;
-			df += - physics.kappa*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
-			gammagb(i,j,k) = gammagbold(i,j,k) - dt * physics.L * df;
+			Set::Scalar x1 = geom[lev].ProbLo()[0] + ((Set::Scalar)(i)) * geom[lev].CellSize()[0];
+
+			//if (x1 >= xs[1] && x1 <= xs[xs.size()-2]) 
+			{
+				Set::Scalar df = 0.0;
+
+				df += - physics.gamma *(Set::Constant::Pi/physics.gammagb0) * sin(Set::Constant::Pi * gammagbold(i,j,k) / physics.gammagb0);
+				Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
+				df += - physics.elastic_mult*sig12;
+				df += - physics.kappa*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
+				gammagb(i,j,k) = gammagbold(i,j,k) - dt * physics.L * df;
+				//gammagb(i,j,k) = 0.0;
+			}
+			//else
+			//{
+			//	gammagb(i,j,k) = gammagbold(i,j,k);
+			//}
 		});
 	}
 }
