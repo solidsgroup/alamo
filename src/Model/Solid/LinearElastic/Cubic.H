@@ -81,11 +81,12 @@ public:
 		return ret;
 	}
 
-	virtual Set::Scalar    W (Set::Matrix &gradu) const
+	AMREX_FORCE_INLINE
+	virtual Set::Scalar    W (Set::Matrix &a_gradu) const
 	{
-		Util::Abort(INFO,"Depricated");
+		Set::Matrix gradu = a_gradu - F0;
 		Set::Matrix sig = C*gradu;
-		return 0.5 * (sig*gradu).trace();
+		return (sig*gradu.transpose()).trace();
 	}
 
 	virtual Set::Matrix   DW (Set::Matrix &gradu) const

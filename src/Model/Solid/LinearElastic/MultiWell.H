@@ -49,6 +49,14 @@ public:
 		return f;
 	}
 
+	AMREX_FORCE_INLINE
+	virtual Set::Scalar W (Set::Matrix &gradu) const override
+	{
+		Set::Matrix eps = gradu - Fgb;
+		Set::Matrix sig = mu*(eps + eps.transpose()) + lambda*Set::Matrix::Identity()*eps.trace();
+		return (eps*sig.transpose()).trace();
+	};
+
 	void Randomize()
 	{
 		mu = Util::Random();

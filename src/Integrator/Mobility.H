@@ -106,6 +106,9 @@ private:
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
 
+	std::vector<Set::Scalar> xs, ys;
+	Set::Scalar gammagb1 = -0.1, gammagb2 = 0.1;
+
   IC::IC *ic;            					///< Pointer to abstract IC object
   BC::BC *mybc;                   				///< Stock generic boundary condition object
 };
