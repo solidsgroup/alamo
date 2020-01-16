@@ -39,6 +39,9 @@ public:
                                                   a_rhs_mf[lev]->nComp(), a_rhs_mf[lev]->nGrow()));
 
             dsol_mf[lev]->setVal(0.0);
+            
+            //rhs_mf[lev]->setVal(0.0); Util::Warning(INFO,"Should not need to do this");
+            
             amrex::MultiFab::Copy(*rhs_mf[lev], *a_rhs_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
@@ -52,59 +55,81 @@ public:
                 const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 Set::Vector DX(linop.Geom(lev).CellSize());
 
-                // homogenize boundary conditions for subsequent iterations (not the first)
-                if (nriter > 0)
-                {
-                    for (MFIter mfi(a_model[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
-                    {
-                        amrex::Box bx = mfi.tilebox();
-
-                        amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
-
-                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                            if (i == domain.loVect()[0] || j == domain.loVect()[1] || k == domain.loVect()[2] ||
-                                i == domain.hiVect()[0] || j == domain.hiVect()[1] || k == domain.hiVect()[2])
-                            {
-                                rhs(i, j, k, 0) = 0.0;
-                                rhs(i, j, k, 1) = 0.0;
-                                rhs(i, j, k, 2) = 0.0;
-                            }
-                        });
-                    }
-                }
+//
+//  TODO: re-enable this. Don't need it now since BCs are already homogenized.
+//
+//                // homogenize boundary conditions for subsequent iterations (not the first)
+//                if (nriter > 0)
+//                {
+//                    for (MFIter mfi(a_model[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
+//                    {
+//                        amrex::Box bx = mfi.tilebox();
+//
+//                        amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
+//
+//                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+//                            if (i == domain.loVect()[0] || j == domain.loVect()[1] || k == domain.loVect()[2] ||
+//                                i == domain.hiVect()[0] || j == domain.hiVect()[1] || k == domain.hiVect()[2])
+//                            {
+//                                rhs(i, j, k, 0) = 0.0;
+//                                rhs(i, j, k, 1) = 0.0;
+//                                rhs(i, j, k, 2) = 0.0;
+//                            }
+//                        });
+//                    }
+//                }
 
                 for (MFIter mfi(a_model[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.growntilebox(2);
+                    amrex::Box domainint = domain;
+                    domainint.grow(-1); // shrink so that we are only on the interior of the domain
                     bx = bx & domain;
 
                     amrex::Array4<Set::Scalar> const &u = a_sol_mf[lev]->array(mfi);
-                    amrex::Array4<Set::Scalar> const &f = a_rhs_mf[lev]->array(mfi);
+                    //amrex::Array4<Set::Scalar> const &f = a_rhs_mf[lev]->array(mfi);
+                    amrex::Array4<Set::Scalar> const &graddw = rhs_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Scalar> const &b = a_rhs_mf[lev]->array(mfi);
                     amrex::Array4<T> const &model = a_model[lev].array(mfi);
 
+                    // Set model internal dw and ddw.
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
 
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-                        Set::Matrix F = gradu + Set::Matrix::Identity();
+                        Set::Matrix F = gradu;// + Set::Matrix::Identity();
 
                         model(i, j, k).dw = model(i, j, k).DW(F);
+                        //Util::Message(INFO,model(i, j, k).dw);
                         model(i, j, k).ddw = model(i, j, k).DDW(F);
                     });
 
-                    bx = mfi.growntilebox(1);
+                    if (nriter > 0)
+                    rhs_mf[lev]->setVal(0.0);
+
+                    //bx = bx & domainint;
+                    //bx = mfi.growntilebox(1);
+                    bx = mfi.validbox() & domainint;
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         for (int p = 0; p < AMREX_SPACEDIM; p++)
                         {
-                            model(i, j, k).divdw(p) =
-                                (model(i + 1, j, k).dw(p, 0) - model(i - 1, j, k).dw(p, 0)) / 2. / DX(0) +
+//                            model(i, j, k).divdw(p) =
+//                                (model(i + 1, j, k).dw(p, 0) - model(i - 1, j, k).dw(p, 0)) / 2. / DX(0) +
+//                                (model(i, j + 1, k).dw(p, 1) - model(i, j - 1, k).dw(p, 1)) / 2. / DX(1) +
+//                                (model(i, j, k + 1).dw(p, 2) - model(i, j, k - 1).dw(p, 2)) / 2. / DX(2);
+
+
+//                            if (nriter == 0)
+//                                graddw(i,j,k,p) = b(i,j,k,p);
+                            
+                            graddw(i,j,k,p) = b(i,j,k,p) -   // exact same as above
+                                ((model(i + 1, j, k).dw(p, 0) - model(i - 1, j, k).dw(p, 0)) / 2. / DX(0) +
                                 (model(i, j + 1, k).dw(p, 1) - model(i, j - 1, k).dw(p, 1)) / 2. / DX(1) +
-                                (model(i, j, k + 1).dw(p, 2) - model(i, j, k - 1).dw(p, 2)) / 2. / DX(2);
-                            //if (nriter > 0) f(i, j, k, p) = model(i, j, k).divdw(p);
+                                (model(i, j, k + 1).dw(p, 2) - model(i, j, k - 1).dw(p, 2)) / 2. / DX(2));
+
                         }
                     });
                 }
-                //if (nriter > 0) return 0.0;
 
                 amrex::Geometry geom = elastic.Geom(lev);
                 for (int i = 0; i < 2; i++)
@@ -122,7 +147,13 @@ public:
             elastic.SetModel(a_model);
 
 
-            solveaffine(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, false);
+            if (nriter == m_nriters - 1) break;
+            
+            Solver::Nonlocal::Linear::solve(dsol_mf,rhs_mf, a_tol_rel, a_tol_abs);
+            //solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs);
+            
+            
+            //solveaffine(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, false);
                 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
             {
@@ -136,8 +167,11 @@ public:
         }
 
         if (copyrhs)
+        {
             for (int lev = 0; lev < a_sol_mf.size(); lev++)
                 amrex::MultiFab::Copy(*a_rhs_mf[lev], *rhs_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+            Util::Message(INFO,"Copying");
+        }
     }
 
 private:

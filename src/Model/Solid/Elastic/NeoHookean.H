@@ -9,7 +9,7 @@ namespace Solid
 {
 namespace Elastic
 {
-class NeoHookean : public Elastic
+class NeoHookean : public Elastic<Set::Sym::Major>
 {
 public:
 	NeoHookean() {};
@@ -49,9 +49,6 @@ public:
                     for (int l = 0; l < 3; l++)
                     {
                         ddw(i,j,k,l) = 0.0;
-//                      if (i==j && k==l) ddw(i,j,k,l) += kappa;
-//                      if (i==k && j==l) ddw(i,j,k,l) += mu;
-//                      if (i==l && j==k) ddw(i,j,k,l) += mu;
 
                         Set::Scalar t1 = 0.0, t2 = 0.0;
 
@@ -82,9 +79,6 @@ public:
     }
 	
 public:
-    //Set::Scalar mu = 6.0, kappa = 2.6; // works
-    
-    //Set::Scalar mu = 0.793, kappa = 1.60; // from steel, doesn't work
     Set::Scalar mu = NAN, kappa = NAN;
 
 	NeoHookean operator + (const NeoHookean &rhs) const

@@ -50,6 +50,7 @@ public:
             zero_tmp[i] = new amrex::MultiFab(a_rhs[i]->boxArray(),a_rhs[i]->DistributionMap(),a_rhs[i]->nComp(),a_rhs[i]->nGrow());
             rhs_tmp[i]->setVal(0.0);
             zero_tmp[i]->setVal(0.0);
+            Util::Message(INFO,rhs_tmp[i]->norm0());
         }
 
         linop.SetHomogeneous(false);
@@ -78,15 +79,19 @@ public:
                     });
                 }
             }
+            Util::Message(INFO,rhs_tmp[lev]->norm0());
             linop.realFillBoundary(*rhs_tmp[lev],linop.Geom(lev));
+            Util::Message(INFO,rhs_tmp[lev]->norm0());
             //rhs_tmp[lev]->FillBoundary();
         }
 
         for (int lev = 0; lev < rhs_tmp.size(); lev++)
         {
+            Util::Message(INFO,rhs_tmp[lev]->norm0());
             amrex::Add(*rhs_tmp[lev],*a_rhs[lev],0,0,rhs_tmp[lev]->nComp(),rhs_tmp[lev]->nGrow());
             if (copyrhs)
                 amrex::Copy(*a_rhs[lev],*rhs_tmp[lev],0,0,rhs_tmp[lev]->nComp(),rhs_tmp[lev]->nGrow());
+            Util::Message(INFO,rhs_tmp[lev]->norm0());
         }
 
         linop.SetHomogeneous(true);
