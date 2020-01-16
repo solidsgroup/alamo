@@ -10,6 +10,7 @@ namespace Solid
 {
 namespace Elastic
 {
+template<int Sym>
 class Elastic : public Solid
 {
 public:
@@ -35,10 +36,9 @@ public:
                     Util::Message(INFO,F);
                     Util::Abort(INFO);
                 }
-
             }
 
-        if (!a_homogeneous) P += dw;
+        //if (!a_homogeneous) P += dw;
         //Util::Message(INFO,"end");
         return P;
 
@@ -76,7 +76,7 @@ public:
             }
         }    
 
-        if (!a_homogeneous) f += divdw;
+        //if (!a_homogeneous) f += divdw;
 //      if ((f-_f).norm() > 1E-8) Util::Abort(INFO,"_f = ",_f.transpose(),"\nf = ",f.transpose());
         //Util::Message(INFO,"end");
         return f;
@@ -84,13 +84,13 @@ public:
 
     virtual Set::Scalar W(Set::Matrix F) = 0;
     virtual Set::Matrix DW(Set::Matrix F) = 0;
-    virtual Set::Matrix4<3,Set::Sym::Major> DDW(Set::Matrix F) = 0;
+    virtual Set::Matrix4<3,Sym> DDW(Set::Matrix F) = 0;
 	
 public:
     Set::Scalar                               w;
     Set::Matrix                              dw;
     Set::Vector                           divdw;
-    mutable Set::Matrix4<3,Set::Sym::Major> ddw;
+    mutable Set::Matrix4<3,Sym> ddw;
 
 public: 
     template <class T>

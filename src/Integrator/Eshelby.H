@@ -18,6 +18,8 @@
 
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Solver/Nonlocal/Linear.H"
+#include "Solver/Nonlocal/Newton.H"
+#include "Model/Solid/Elastic/IsotropicMultiWell.H"
 
 #include "IO/ParmParse.H"
 
@@ -109,7 +111,8 @@ protected:
         for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
         //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
-        using model_type = Model::Solid::LinearElastic::Multiwell;
+        //using model_type = Model::Solid::LinearElastic::Multiwell;
+        using model_type = Model::Solid::Elastic::IsotropicMultiWell;
         Operator::Elastic<model_type> elastic;
         elastic.SetUniform(false);
         amrex::LPInfo info;
@@ -138,25 +141,22 @@ protected:
 
                 amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-                //amrex::Array4<Set::Scalar> const &rhs = rhs_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = model_type(shear, lame, Fgb);
-                    //model(i, j, k) = model_type(lame, shear, Set::Matrix::Zero());
-                    //rhs(i,j,k,0) = eta(i,j,k);
+                    model(i, j, k).Define(shear, lame, Fgb);
                 });
 
-                bx = mfi.growntilebox(1);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    for (int p = 0; p < AMREX_SPACEDIM; p++)
-                        for (int q = 0; q < AMREX_SPACEDIM; q++)
-                        {
-                            AMREX_D_TERM(model(i, j, k).gradFgb[p](q, 0) = ((model(i + 1, j, k).Fgb - model(i - 1, j, k).Fgb) / 2. / DX(0))(p, q);,
-                                         model(i, j, k).gradFgb[p](q, 1) = ((model(i, j + 1, k).Fgb - model(i, j - 1, k).Fgb) / 2. / DX(1))(p, q);,
-                                         model(i, j, k).gradFgb[p](q, 2) = ((model(i, j, k + 1).Fgb - model(i, j, k - 1).Fgb) / 2. / DX(2))(p, q);)
-                        }
-                });
+//                bx = mfi.growntilebox(1);
+//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+//                    for (int p = 0; p < AMREX_SPACEDIM; p++)
+//                        for (int q = 0; q < AMREX_SPACEDIM; q++)
+//                        {
+//                            AMREX_D_TERM(model(i, j, k).gradFgb[p](q, 0) = ((model(i + 1, j, k).Fgb - model(i - 1, j, k).Fgb) / 2. / DX(0))(p, q);,
+//                                         model(i, j, k).gradFgb[p](q, 1) = ((model(i, j + 1, k).Fgb - model(i, j - 1, k).Fgb) / 2. / DX(1))(p, q);,
+//                                         model(i, j, k).gradFgb[p](q, 2) = ((model(i, j, k + 1).Fgb - model(i, j, k - 1).Fgb) / 2. / DX(2))(p, q);)
+//                        }
+//                });
             }
 
             amrex::Geometry geom = elastic.Geom(lev);
@@ -201,11 +201,17 @@ protected:
         elastic.SetBC(&bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-        Solver::Nonlocal::Linear linearsolver(elastic);
-        linearsolver.setVerbose(2);
-        linearsolver.setFixedIter(20);
-        linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
+        //Solver::Nonlocal::Linear linearsolver(elastic);
+        //linearsolver.setVerbose(2);
+        //linearsolver.setFixedIter(20);
+        //linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
         //linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
+
+        Solver::Nonlocal::Newton<model_type> newtonsolver(elastic);
+        IO::ParmParse mypp("myelastic");
+        mypp.queryclass("myelastic",newtonsolver);
+        newtonsolver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,true);
+
 
 //        for (int lev = 0; lev < rhs_mf.size(); ++lev)
 //        {

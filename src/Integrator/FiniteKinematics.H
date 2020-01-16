@@ -90,6 +90,7 @@ public:
 
                }
                 pp.query("disp",disp);
+                pp.queryarr("b",b);
                 pp.query("fixediter",fixediter);
                 pp.query("mu",mu);
                 pp.query("kappa",kappa);
@@ -147,6 +148,9 @@ protected:
                 disp_mf[lev]->setVal(0.0);
                 ddisp_mf[lev]->setVal(0.0);
                 eta_mf[lev]->FillBoundary();
+                rhs_mf[lev]->setVal(b(0),0,1,2);
+                rhs_mf[lev]->setVal(b(1),1,1,2);
+                rhs_mf[lev]->setVal(b(2),2,1,2);
             }
 
         }
@@ -159,7 +163,7 @@ protected:
         bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
         bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
         bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
         bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
         bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
 #if AMREX_SPACEDIM>2
@@ -169,7 +173,7 @@ protected:
         bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
         bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
         bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
         bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
         bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
         bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
@@ -254,6 +258,7 @@ private:
     Set::Matrix Fmatrix = Set::Matrix::Zero();
     Set::Matrix Finclusion = Set::Matrix::Zero();
     Set::Scalar disp = 0.0;
+    Set::Vector b = Set::Vector::Zero();
 
     int fixediter = 100;
     int m_nriters = 2;

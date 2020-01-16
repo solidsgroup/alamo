@@ -34,7 +34,9 @@ ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
 #elastic.nu = 0.3
 
 #elastic.disp = 4.0
-elastic.disp = 0.1
+#elastic.disp = 0.1
+elastic.disp = 1.0
+elastic.b = 0 0 0
 
 #elastic.mu = 6.0    # WORKS
 #elastic.kappa = 2.6 # WORKS
@@ -46,4 +48,4 @@ elastic.kappa = 2.6 # WORKS
 
 myelastic.verbose = 2
 myelastic.fixed_iter = 400
-myelastic.nriters = 6
+myelastic.nriters = 2

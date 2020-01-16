@@ -30,3 +30,6 @@ ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
 elastic.E = 210 
 elastic.nu = 0.3
 
+myelastic.verbose = 2
+myelastic.nriters = 2
+

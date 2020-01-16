@@ -5,6 +5,7 @@
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Elastic/IsotropicMultiWell.H"
 #include "Elastic.H"
 
 #include "Numeric/Stencil.H"
@@ -839,5 +840,6 @@ template class Elastic<Model::Solid::LinearElastic::Laplacian>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 
 template class Elastic<Model::Solid::Elastic::NeoHookean>;
+template class Elastic<Model::Solid::Elastic::IsotropicMultiWell>;
 }
 
