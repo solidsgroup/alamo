@@ -20,42 +20,12 @@ public:
     AMREX_FORCE_INLINE
 	virtual Set::Matrix operator () (Set::Matrix &F, bool a_homogeneous=true) const
     {
-        //return mu*(F + F.transpose()) + kappa*Set::Matrix::Identity()*F.trace();
-        //Util::Message(INFO,"begin");
-        Set::Matrix P;
-        for (int i = 0; i < 3; i++)
-            for (int J = 0; J < 3; J++)
-            {
-                P(i,J) = 0.0;
-                for (int k = 0; k < 3; k++)
-                    for (int L = 0; L < 3; L++)
-                        P(i,J) += ddw(i,J,k,L) * F(k,L);
-                if (std::isnan(P(i,J)))
-                {
-                    Util::Message(INFO,ddw);
-                    Util::Message(INFO,F);
-                    Util::Abort(INFO);
-                }
-            }
-
-        //if (!a_homogeneous) P += dw;
-        //Util::Message(INFO,"end");
-        return P;
-
+        return ddw*F;
     };
 
     AMREX_FORCE_INLINE
 	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool a_homogeneous=true)
     {
-//        //Util::Message(INFO,"begin");
-//		Set::Vector _f = Set::Vector::Zero();
-//		for (int i = 0; i < AMREX_SPACEDIM; i++)
-//			for (int j=0; j < AMREX_SPACEDIM; j++)
-//				{
-//					_f(i) += mu*(gradF(i,j,j) + gradF(j,i,j))  + kappa*gradF(j,j,i);
-//				}
-		//return _f;
-
         Set::Vector f;
         for (int i = 0; i < 3; i++)
         {
@@ -64,9 +34,6 @@ public:
                 for (int k = 0; k < 3; k++)
                     for (int L = 0; L < 3; L++)
                     {
-                        //if (i==J && k==L) f(i) += kappa * gradF(k,L,J);
-                        //if (i==k && J==L) f(i) += mu * gradF(k,L,J);
-                        //if (i==L && J==k) f(i) += mu * gradF(k,L,J);
                         f(i) += ddw(i,J,k,L) * gradF(k,L,J);
                     }
             if (std::isnan(f(i)))
@@ -75,16 +42,12 @@ public:
                 Util::Abort(INFO,f.transpose());
             }
         }    
-
-        //if (!a_homogeneous) f += divdw;
-//      if ((f-_f).norm() > 1E-8) Util::Abort(INFO,"_f = ",_f.transpose(),"\nf = ",f.transpose());
-        //Util::Message(INFO,"end");
         return f;
     };
 
-    virtual Set::Scalar W(Set::Matrix F) = 0;
-    virtual Set::Matrix DW(Set::Matrix F) = 0;
-    virtual Set::Matrix4<3,Sym> DDW(Set::Matrix F) = 0;
+    virtual Set::Scalar W(Set::Matrix F) {};
+    virtual Set::Matrix DW(Set::Matrix F) {};
+    virtual Set::Matrix4<3,Sym> DDW(Set::Matrix F) {};
 	
 public:
     Set::Scalar                               w;
@@ -178,6 +141,74 @@ public:
         }
         return 0;
     }
+
+   	Elastic operator + (const Elastic &rhs) const
+	{
+        Elastic ret;
+        //ret.mu    = mu + rhs.mu;
+        //ret.lambda = lambda + rhs.lambda;
+        ret.w     = w + rhs.w;
+        ret.dw    = dw + rhs.dw;
+        ret.divdw = divdw + rhs.divdw;
+        ret.ddw   = ddw; ret.ddw += rhs.ddw;
+        return ret;
+	}
+	Elastic & operator = (const Elastic &rhs)
+	{
+		//mu    = rhs.mu; 
+        //lambda = rhs.lambda;
+        w     = rhs.w;
+        dw    = rhs.dw;
+        divdw = rhs.divdw;
+        ddw   = rhs.ddw;
+		return *this;
+	}
+   	virtual Elastic operator * (const Set::Scalar alpha) const
+	{
+        Elastic ret;
+        //ret.mu = mu*alpha;
+        //ret.lambda = lambda*alpha;
+        ret.w     = w;     ret.w     *= alpha;
+        ret.dw    = dw;    ret.dw    *= alpha;
+        ret.divdw = divdw; ret.divdw *= alpha;
+        ret.ddw   = ddw;   ret.ddw   *= alpha;
+        return ret;
+	}
+	virtual Elastic operator / (const Set::Scalar alpha) const
+	{
+        Elastic ret;
+        //ret.mu = mu/alpha;
+        //ret.lambda = lambda/alpha;
+        ret.w     = w;     ret.w     /= alpha;
+        ret.dw    = dw;    ret.dw    /= alpha;
+        ret.divdw = divdw; ret.divdw /= alpha;
+        ret.ddw   = ddw;   ret.ddw   /= alpha;
+        return ret;
+	}
+	void operator += (const Elastic &rhs)
+	{
+        //mu += rhs.mu;
+        //lambda += rhs.lambda;
+        w += rhs.w;
+        dw += rhs.dw;
+        divdw += rhs.divdw;
+        ddw += rhs.ddw;
+	}
+
+	Elastic operator - (const Elastic &rhs) const
+	{
+        Elastic ret;
+        //ret.mu = mu - rhs.mu;
+        //ret.lambda = lambda - rhs.lambda;
+        ret.w = w - rhs.w;
+        ret.dw = dw - rhs.dw;
+        ret.divdw = divdw - rhs.divdw;
+        ret.ddw = ddw; ret.ddw -= rhs.ddw;
+        return ret;
+	}
+
+
+
     
 };
 
