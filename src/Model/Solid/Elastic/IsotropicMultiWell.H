@@ -1,7 +1,7 @@
 #ifndef MODEL_SOLID_ELASTIC_ISOTROPICMULTIWELL_H_
 #define MODEL_SOLID_ELASTIC_ISOTROPICMULTIWELL_H_
 
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Solid.H"
 
 namespace Model
 {
@@ -9,11 +9,11 @@ namespace Solid
 {
 namespace Elastic
 {
-class IsotropicMultiWell : public Elastic<Set::Sym::Isotropic>
+class IsotropicMultiWell : public Solid<Set::Sym::Isotropic>
 {
 public:
 	IsotropicMultiWell() {};
-    IsotropicMultiWell(Elastic<Set::Sym::Isotropic> base) : Elastic<Set::Sym::Isotropic>(base) {};
+    IsotropicMultiWell(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     IsotropicMultiWell(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0=Set::Matrix::Zero()) 
     {
         Util::Message(INFO);
