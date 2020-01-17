@@ -176,6 +176,9 @@ protected:
 
         BC::Operator::Elastic<model_type> bc;
 
+        IO::ParmParse ppbc("elastic.bc");
+        ppbc.queryclass("bc",bc);
+
         bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
 #if AMREX_SPACEDIM>1

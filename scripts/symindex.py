@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-dim = 3
+dim = 2
 
 
 #sym = "full"

@@ -38,9 +38,9 @@ public:
 
         return dw;
     }
-    Set::Matrix4<3,Set::Sym::Major> DDW(Set::Matrix F)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(Set::Matrix F)
     {
-        Set::Matrix4<3,Set::Sym::Major> ddw;
+        Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw;
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J),2./3.);
         Set::Matrix FinvT = F.inverse().transpose();
@@ -69,6 +69,7 @@ public:
 	
 public:
     Set::Scalar mu = NAN, kappa = NAN;
+    KinematicVariable kinvar = KinematicVariable::F;
 
 public:
     static NeoHookean Random()

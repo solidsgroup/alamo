@@ -11,6 +11,9 @@ namespace Model
 {
 namespace Solid
 {
+
+enum KinematicVariable{gradu,epsilon,F};
+
 template<int Sym>
 class Solid
 {
@@ -19,42 +22,44 @@ public:
 	virtual ~Solid() {};
 
     AMREX_FORCE_INLINE
-	virtual Set::Matrix operator () (Set::Matrix &F, bool a_homogeneous=true) const
+	virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/) const
     {
         return ddw*F;
     };
 
     AMREX_FORCE_INLINE
-	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool a_homogeneous=true)
+	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/)
     {
-        Set::Vector f;
-        for (int i = 0; i < 3; i++)
-        {
-            f(i) = 0.0;
-            for (int J = 0; J < 3; J++)
-                for (int k = 0; k < 3; k++)
-                    for (int L = 0; L < 3; L++)
-                    {
-                        f(i) += ddw(i,J,k,L) * gradF(k,L,J);
-                    }
-            if (std::isnan(f(i)))
-            {
-                Util::Message(INFO,ddw);
-                Util::Abort(INFO,f.transpose());
-            }
-        }    
-        return f;
+        return ddw*gradF;
+
+//        Set::Vector f;
+//        for (int i = 0; i < AMREX_SPACEDIM; i++)
+//        {
+//            f(i) = 0.0;
+//            for (int J = 0; J < AMREX_SPACEDIM; J++)
+//                for (int k = 0; k < AMREX_SPACEDIM; k++)
+//                    for (int L = 0; L < AMREX_SPACEDIM; L++)
+//                        f(i) += ddw(i,J,k,L) * gradF(k,L,J);
+//            if (std::isnan(f(i)))
+//            {
+//                Util::Message(INFO,ddw);
+//                Util::Abort(INFO,f.transpose());
+//            }
+//        }    
+//        return f;
     };
 
-    virtual Set::Scalar W(Set::Matrix F)           {Util::Abort(INFO,"W not implemented");  return w;};
-    virtual Set::Matrix DW(Set::Matrix F)          {Util::Abort(INFO,"DW not implemented"); return dw;};
-    virtual Set::Matrix4<3,Sym> DDW(Set::Matrix F) {Util::Abort(INFO,"DDW not implemented");return ddw;};
+    virtual Set::Scalar W(Set::Matrix)           {Util::Abort(INFO,"W not implemented");  return w;};
+    virtual Set::Matrix DW(Set::Matrix)          {Util::Abort(INFO,"DW not implemented"); return dw;};
+    virtual Set::Matrix4<AMREX_SPACEDIM,Sym> DDW(Set::Matrix) {Util::Abort(INFO,"DDW not implemented");return ddw;};
 	
 public:
     Set::Scalar                                w;
     Set::Matrix                               dw;
     Set::Vector                            divdw;
     mutable Set::Matrix4<AMREX_SPACEDIM,Sym> ddw;
+
+    KinematicVariable kinvar = KinematicVariable::F;
 
    	Solid operator + (const Solid &rhs) const
 	{
@@ -127,8 +132,8 @@ public:
 
             Set::Matrix dw_exact = model.DW(F);
             Set::Matrix dw_numeric = Set::Matrix::Zero();
-            for (int i = 0; i < 3; i++)
-                for (int j = 0; j < 3; j++)
+            for (int i = 0; i < AMREX_SPACEDIM; i++)
+                for (int j = 0; j < AMREX_SPACEDIM; j++)
                 {
                     Set::Matrix dF = Set::Matrix::Zero();
                     dF(i,j) = dx;
@@ -166,18 +171,18 @@ public:
             Set::Matrix F = Set::Matrix::Random();
             while (fabs(F.determinant()) < 1.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
 
-            Set::Matrix4<3,Set::Sym::Major> ddw_exact = model.DDW(F);
-            Set::Matrix4<3,Set::Sym::Major> ddw_numeric = Set::Matrix4<3,Set::Sym::Major>::Zero();
-            for (int i = 0; i < 3; i++)
-                for (int j = 0; j < 3; j++)
-                    for (int k = 0; k < 3; k++)
-                        for (int l = 0; l < 3; l++)
+            Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_exact = model.DDW(F);
+            Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_numeric = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major>::Zero();
+            for (int i = 0; i < AMREX_SPACEDIM; i++)
+                for (int j = 0; j < AMREX_SPACEDIM; j++)
+                    for (int k = 0; k < AMREX_SPACEDIM; k++)
+                        for (int l = 0; l < AMREX_SPACEDIM; l++)
                         {
                             Set::Matrix dF = Set::Matrix::Zero();
                             dF(k,l) = dx;
                             ddw_numeric(i,j,k,l) = (model.DW(F+dF) - model.DW(F-dF))(i,j) / (2.0 * dx);
                         }
-            Set::Matrix4<3,Set::Sym::Major> error = ddw_numeric-ddw_exact;
+            Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> error = ddw_numeric-ddw_exact;
             Set::Scalar relnorm = error.norm()/ddw_numeric.norm();
             if (relnorm > tol || std::isnan(relnorm) || std::isinf(relnorm))
             {

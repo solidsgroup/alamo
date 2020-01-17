@@ -97,11 +97,24 @@ public:
                         std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
 
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-                        Set::Matrix F = gradu;// + Set::Matrix::Identity();
 
-                        model(i, j, k).dw = model(i, j, k).DW(F);
-                        //Util::Message(INFO,model(i, j, k).dw);
-                        model(i, j, k).ddw = model(i, j, k).DDW(F);
+                        if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu)
+                        {
+                            model(i, j, k).dw = model(i, j, k).DW(gradu);
+                            model(i, j, k).ddw = model(i, j, k).DDW(gradu);
+                        }
+                        else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::epsilon)
+                        {
+                            Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
+                            model(i, j, k).dw = model(i, j, k).DW(eps);
+                            model(i, j, k).ddw = model(i, j, k).DDW(eps);
+                        }
+                        else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
+                        {
+                            Set::Matrix F = gradu + Set::Matrix::Identity();
+                            model(i, j, k).dw = model(i, j, k).DW(F);
+                            model(i, j, k).ddw = model(i, j, k).DDW(F);
+                        }
                     });
 
                     if (nriter > 0)
@@ -124,8 +137,8 @@ public:
                             
                             graddw(i,j,k,p) = b(i,j,k,p) -   // exact same as above
                                 ((model(i + 1, j, k).dw(p, 0) - model(i - 1, j, k).dw(p, 0)) / 2. / DX(0) +
-                                (model(i, j + 1, k).dw(p, 1) - model(i, j - 1, k).dw(p, 1)) / 2. / DX(1) +
-                                (model(i, j, k + 1).dw(p, 2) - model(i, j, k - 1).dw(p, 2)) / 2. / DX(2));
+                                 (model(i, j + 1, k).dw(p, 1) - model(i, j - 1, k).dw(p, 1)) / 2. / DX(1) +
+                                 (model(i, j, k + 1).dw(p, 2) - model(i, j, k - 1).dw(p, 2)) / 2. / DX(2));
 
                         }
                     });
@@ -178,9 +191,9 @@ private:
     int m_nriters = 1;
 
 public:
-    static void Parse(std::string name, Newton<T> & value, amrex::ParmParse & pp)
+    static void Parse(Newton<T> & value, amrex::ParmParse & pp)
     {
-        Linear::Parse(name,value,pp);
+        Linear::Parse(value,pp);
         
         pp.query("nriters",value.m_nriters);
         
