@@ -12,6 +12,7 @@ namespace Elastic
 class IsotropicMultiWell : public Solid<Set::Sym::Isotropic>
 {
 public:
+
 	IsotropicMultiWell() {};
     IsotropicMultiWell(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     IsotropicMultiWell(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0=Set::Matrix::Zero()) 
