@@ -25,7 +25,7 @@ public:
 	void Define(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0)
 	{
 		mu = a_mu; lambda = a_lambda; F0 = a_F0;
-        ddw = Set::Matrix4<3,Set::Sym::Isotropic>(lambda,mu);
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(lambda,mu);
 	}
 
     Set::Scalar W(Set::Matrix F)
@@ -36,7 +36,7 @@ public:
     {
         return ddw*(F-F0);
     }
-    Set::Matrix4<3,Set::Sym::Isotropic> DDW(Set::Matrix F)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(Set::Matrix /*F*/)
     {
         return ddw;
     }
@@ -44,6 +44,7 @@ public:
 public:
     Set::Scalar mu = NAN, lambda = NAN;
     Set::Matrix F0;
+    KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:
     static IsotropicMultiWell Random()

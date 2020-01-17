@@ -5,6 +5,127 @@
 
 namespace Set
 {
+    
+template <>
+class Matrix4<2, Sym::Major>
+{
+    Scalar data[10] = {NAN, NAN, NAN, NAN, NAN,
+                       NAN, NAN, NAN, NAN, NAN};
+
+public:
+    AMREX_GPU_HOST_DEVICE Matrix4(){};
+    AMREX_FORCE_INLINE
+    Scalar &operator()(const int i, const int j, const int k, const int l)
+    {
+        int uid = i + 2 * j + 4 * k + 8 * l;
+        if      (uid==0 )             return data[0]; // [0000]
+        else if (uid==8  || uid==2 )  return data[1]; // [0001] [0100]
+        else if (uid==4  || uid==1 )  return data[2]; // [0010] [1000]
+        else if (uid==12 || uid==3 )  return data[3]; // [0011] [1100]
+        else if (uid==10 )            return data[4]; // [0101] 
+        else if (uid==6  || uid==9 )  return data[5]; // [0110] [1001]
+        else if (uid==14 || uid==11 ) return data[6]; // [0111] [1101]
+        else if (uid==5 )             return data[7]; // [1010] 
+        else if (uid==13 || uid==7 )  return data[8]; // [1011] [1110]
+        else if (uid==15 )            return data[9]; // [1111] 
+        else
+            Util::Abort(INFO, "Index out of range");
+        return data[-1];
+    }
+    void Print(std::ostream &os)
+    {
+        os.precision(4);
+        for (int k = 0; k < 2; k++)
+        {
+            for (int i = -1; i < 3; i++)
+            {
+                for (int l = 0; l < 2; l++)
+                {
+                    if (i == -1)
+                        os << "┌                                     ┐ ";
+                    else if (i == 2)
+                        os << "└                                     ┘ ";
+                    else
+                    {
+                        os << "│ ";
+                        for (int j = 0; j < 2; j++)
+                        {
+                            const Set::Scalar &val = (*this)(i, j, k, l);
+                            os << std::scientific << std::setw(11) << val; //(fabs(val)>1E-10 ? val : 0);
+                            os << " ";
+                        }
+                        os << "│ ";
+                    }
+                }
+                os << std::endl;
+            }
+        }
+    }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    void operator=(Matrix4<2, Sym::Major> a)  { for (int i = 0; i < 10; i++) data[i]  = a.data[i]; }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    void operator+=(Matrix4<2, Sym::Major> a) { for (int i = 0; i < 10; i++) data[i] += a.data[i]; }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    void operator-=(Matrix4<2, Sym::Major> a) { for (int i = 0; i < 10; i++) data[i] -= a.data[i]; }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    void operator*=(Matrix4<2, Sym::Major> a) { for (int i = 0; i < 10; i++) data[i] *= a.data[i]; }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    void operator/=(Matrix4<2, Sym::Major> a) { for (int i = 0; i < 10; i++) data[i] /= a.data[i]; }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    void operator*=(Set::Scalar alpha)        { for (int i = 0; i < 10; i++) data[i] *= alpha; }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    void operator/=(Set::Scalar alpha)        { for (int i = 0; i < 10; i++) data[i] /= alpha; }
+
+    static Matrix4<2, Sym::Major> Increment()
+    {
+        Matrix4<2, Sym::Major> ret;
+        for (int i = 0; i < 10; i++) ret.data[i] = (Set::Scalar)i;
+        return ret;
+    }
+    static Matrix4<2, Sym::Major> Randomize()
+    {
+        Matrix4<2, Sym::Major> ret;
+        for (int i = 0; i < 10; i++) ret.data[i] = (Util::Random());
+        return ret;
+    }
+    static Matrix4<2, Sym::Major> Zero()
+    {
+        Matrix4<2, Sym::Major> ret;
+        for (int i = 0; i < 10; i++) ret.data[i] = 0.0;
+        return ret;
+    }
+    Set::Scalar norm()
+    {
+        Set::Scalar normsq = 0.0;
+        for (int i = 0; i < 10; i++) normsq += data[i]*data[i];
+        return std::sqrt(normsq);
+    }
+
+    friend Matrix4<2, Sym::Major> operator-(Matrix4<2, Sym::Major> a, Matrix4<2, Sym::Major> b);
+    friend Set::Matrix operator*(Matrix4<2, Sym::Major> a, Set::Matrix b);
+};
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2, Sym::Major> operator-(Matrix4<2, Sym::Major> a, Matrix4<2, Sym::Major> b)
+{
+	Matrix4<2,Sym::Major> ret;
+	for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] - b.data[i];
+	return ret;
+}
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Matrix operator*(Matrix4<2, Sym::Major> a, Set::Matrix b)
+{
+    Set::Matrix ret;
+    ret(0,0) = a.data[0]*b(0,0) + a.data[1]*b(0,1) + a.data[2]*b(1,0) + a.data[3]*b(1,1);
+    ret(0,1) = a.data[1]*b(0,0) + a.data[4]*b(0,1) + a.data[5]*b(1,0) + a.data[6]*b(1,1);
+    ret(1,0) = a.data[2]*b(0,0) + a.data[5]*b(0,1) + a.data[7]*b(1,0) + a.data[8]*b(1,1);
+    ret(1,1) = a.data[3]*b(0,0) + a.data[6]*b(0,1) + a.data[8]*b(1,0) + a.data[9]*b(1,1);
+    return ret;
+}    
+    
+    
+    
 template <>
 class Matrix4<3, Sym::Major>
 {
@@ -169,5 +290,21 @@ Set::Matrix operator*(Matrix4<3, Sym::Major> a, Set::Matrix b)
     ret(2,2) = a.data[ 8]*b(0,0) + a.data[16]*b(0,1) + a.data[23]*b(0,2) + a.data[29]*b(1,0) + a.data[34]*b(1,1) + a.data[38]*b(1,2) + a.data[41]*b(2,0) + a.data[43]*b(2,1) + a.data[44]*b(2,2);
     return ret;
 }
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Vector operator * (Matrix4<AMREX_SPACEDIM,Sym::Major> a, Set::Matrix3 b)
+{
+    // TODO: improve efficiency of this method
+    Set::Vector ret = Set::Vector::Zero();
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+    {
+        for (int J = 0; J < AMREX_SPACEDIM; J++)
+            for (int k = 0; k < AMREX_SPACEDIM; k++)
+                for (int L = 0; L < AMREX_SPACEDIM; L++)
+                    ret(i) += a(i,J,k,L) * b(k,L,J);
+    }    
+    return ret;
+}
+
 } 
 #endif

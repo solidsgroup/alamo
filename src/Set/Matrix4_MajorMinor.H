@@ -132,7 +132,8 @@ public:
         return ret;
      }
 };
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b)
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b)
 {
    	Eigen::Matrix<amrex::Real,3,3> ret = Eigen::Matrix<amrex::Real,3,3>::Zero();
 	for (int i = 0; i < 3; i++)
@@ -142,7 +143,8 @@ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,3,3> operator
 					ret(i,j) += a(i,j,k,l)*b(k,l);
 	return ret;
 }
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,2,2> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,2,2> b)
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Eigen::Matrix<amrex::Real,2,2> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,2,2> b)
 {
    	Eigen::Matrix<amrex::Real,2,2> ret = Eigen::Matrix<amrex::Real,2,2>::Zero();
 	for (int i = 0; i < 2; i++)
@@ -152,9 +154,26 @@ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,2,2> operator
 					ret(i,j) += a(i,j,k,l)*b(k,l);
 	return ret;
 }
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,3,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,3,3>,3> b);
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Eigen::Matrix<amrex::Real,3,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,3,3>,3> b);
 
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Vector operator * (Matrix4<AMREX_SPACEDIM,Sym::MajorMinor> a, Set::Matrix3 b)
+{
+    // TODO: improve efficiency of this method
+    Set::Vector ret = Set::Vector::Zero();
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+    {
+        for (int J = 0; J < AMREX_SPACEDIM; J++)
+            for (int k = 0; k < AMREX_SPACEDIM; k++)
+                for (int L = 0; L < AMREX_SPACEDIM; L++)
+                    ret(i) += a(i,J,k,L) * b(k,L,J);
+    }    
+    return ret;
+}
 
 }
 #endif

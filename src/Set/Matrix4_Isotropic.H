@@ -7,7 +7,7 @@
 namespace Set
 {
 template<>
-class Matrix4<3,Sym::Isotropic>
+class Matrix4<AMREX_SPACEDIM,Sym::Isotropic>
 {
     Set::Scalar lambda=NAN, mu=NAN;
 public:
@@ -31,35 +31,57 @@ public:
     {
         Util::Message(INFO,"lambda = ", lambda, " mu = ", mu);
     }
-    static Matrix4<3,Sym::Isotropic> Zero()
+    static Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Zero()
     {
-        Matrix4<3,Sym::Isotropic> zero;
+        Matrix4<AMREX_SPACEDIM,Sym::Isotropic> zero;
         zero.lambda = 0.0;
         zero.mu = 0.0;
         return zero;
     }
-    friend Set::Matrix operator * (Matrix4<3,Sym::Isotropic> a, Set::Matrix b);
-    AMREX_GPU_HOST_DEVICE void operator =  (Matrix4<3,Sym::Isotropic> a) {lambda =  a.lambda; mu =  a.mu;}
-    AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::Isotropic> a) {lambda += a.lambda; mu += a.mu;}
-    AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::Isotropic> a) {lambda -= a.lambda; mu -= a.mu;}
-    AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<3,Sym::Isotropic> a) {lambda *= a.lambda; mu *= a.mu;}
-    AMREX_GPU_HOST_DEVICE void operator /= (Matrix4<3,Sym::Isotropic> a) {lambda /= a.lambda; mu /= a.mu;}
+    friend Set::Matrix operator * (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a, Set::Matrix  b);
+    friend Set::Vector operator * (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a, Set::Matrix3 b);
+    AMREX_GPU_HOST_DEVICE void operator =  (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a) {lambda =  a.lambda; mu =  a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator += (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a) {lambda += a.lambda; mu += a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a) {lambda -= a.lambda; mu -= a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a) {lambda *= a.lambda; mu *= a.mu;}
+    AMREX_GPU_HOST_DEVICE void operator /= (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a) {lambda /= a.lambda; mu /= a.mu;}
     AMREX_GPU_HOST_DEVICE void operator *= (Set::Scalar alpha) {lambda *= alpha; mu *= alpha;}
     AMREX_GPU_HOST_DEVICE void operator /= (Set::Scalar alpha) {lambda /= alpha; mu /= alpha;}
 };
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE Set::Matrix operator * (Matrix4<3,Sym::Isotropic> a, Set::Matrix b)
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Matrix operator * (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a, Set::Matrix b)
 {
 	Set::Matrix ret;
 		
+    #if   AMREX_SPACEDIM == 2
+	ret(0,0) = (a.lambda + 2.*a.mu) * b(0,0) +       a.lambda      *b(1,1);
+	ret(1,1) =        a.lambda      * b(0,0) + (a.lambda + 2.*a.mu)*b(1,1);
+	ret(0,1) = a.mu*(b(0,1) + b(1,0)); ret(1,0) = ret(0,1);
+    
+    #elif AMREX_SPACEDIM == 3
 	ret(0,0) = (a.lambda + 2.*a.mu) * b(0,0) +       a.lambda      *b(1,1) +       a.lambda      *b(2,2);
 	ret(1,1) =        a.lambda      * b(0,0) + (a.lambda + 2.*a.mu)*b(1,1) +       a.lambda      *b(2,2);
 	ret(2,2) =        a.lambda      * b(0,0) +       a.lambda      *b(1,1) + (a.lambda + 2.*a.mu)*b(2,2);
-
 	ret(1,2) = a.mu*(b(1,2) + b(2,1)); ret(2,1) = ret(1,2);
 	ret(2,0) = a.mu*(b(2,0) + b(0,2)); ret(0,2) = ret(2,0);
 	ret(0,1) = a.mu*(b(0,1) + b(1,0)); ret(1,0) = ret(0,1);
-		
+    
+    #endif 		
 	return ret;
 }
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Vector operator * (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> a, Set::Matrix3 b)
+{
+    Set::Vector ret = Set::Vector::Zero();
+    
+	for (int i = 0; i < AMREX_SPACEDIM; i++)
+		for (int j=0; j < AMREX_SPACEDIM; j++)
+	        ret(i) += a.mu*(b(i,j,j) + b(j,i,j)) + a.lambda*b(j,j,i);
+
+	return ret;
+}
+
+
 }
 #endif

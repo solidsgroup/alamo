@@ -110,7 +110,7 @@ protected:
     Operator::Operator<Grid::Node> &linop;
 
 public:
-    static void Parse(std::string name, Linear & value, amrex::ParmParse & pp)
+    static void Parse(Linear & value, amrex::ParmParse & pp)
     {
         if (pp.contains("fixed_iter"))
         { int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
