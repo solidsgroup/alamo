@@ -13,6 +13,7 @@ class NeoHookean : public Elastic<Set::Sym::Major>
 {
 public:
 	NeoHookean() {};
+    NeoHookean(Elastic<Set::Sym::Major> base) : Elastic<Set::Sym::Major>(base) {};
 	virtual ~NeoHookean() {};
 
     Set::Scalar W(Set::Matrix F)
@@ -62,93 +63,12 @@ public:
                         t2 += (1. - J) * FinvT(i,l) * FinvT(k,j);
 
                         ddw(i,j,k,l) = (mu/J23)*t1 + kappa*J*t2;
-
-                        if (std::isnan(ddw(i,j,k,l)) && amrex::ParallelDescriptor::IOProcessor())
-                        {
-                            Util::Message(INFO,"t1=",t1);
-                            Util::Message(INFO,"t2=",t2);
-                            Util::Message(INFO,"FinvT=",FinvT);
-                            Util::Message(INFO,"J=",J);
-                            Util::Message(INFO,"J23=",J23);
-                            Util::Message(INFO,"kappa=",kappa);
-                            Util::Message(INFO,"mu=",mu);
-                            Util::Abort(INFO);
-                        }
                     }
         return ddw;
     }
 	
 public:
     Set::Scalar mu = NAN, kappa = NAN;
-
-	NeoHookean operator + (const NeoHookean &rhs) const
-	{
-        NeoHookean ret;
-        ret.mu    = mu + rhs.mu;
-        ret.kappa = kappa + rhs.kappa;
-        ret.w     = w + rhs.w;
-        ret.dw    = dw + rhs.dw;
-        ret.divdw = divdw + rhs.divdw;
-        ret.ddw   = ddw; ret.ddw += rhs.ddw;
-        return ret;
-	}
-
-	void operator += (const NeoHookean &rhs)
-	{
-        mu += rhs.mu;
-        kappa += rhs.kappa;
-        w += rhs.w;
-        dw += rhs.dw;
-        divdw += rhs.divdw;
-        ddw += rhs.ddw;
-	}
-
-	NeoHookean operator - (const NeoHookean &rhs) const
-	{
-        NeoHookean ret;
-        ret.mu = mu - rhs.mu;
-        ret.kappa = kappa - rhs.kappa;
-        ret.w = w - rhs.w;
-        ret.dw = dw - rhs.dw;
-        ret.divdw = divdw - rhs.divdw;
-        ret.ddw = ddw; ret.ddw -= rhs.ddw;
-        return ret;
-	}
-
-	NeoHookean & operator = (const NeoHookean &rhs)
-	{
-		mu    = rhs.mu; 
-        kappa = rhs.kappa;
-        w     = rhs.w;
-        dw    = rhs.dw;
-        divdw = rhs.divdw;
-        ddw   = rhs.ddw;
-		return *this;
-	}
-
-	virtual NeoHookean operator / (const Set::Scalar alpha) const
-	{
-        NeoHookean ret;
-        ret.mu = mu/alpha;
-        ret.kappa = kappa/alpha;
-        ret.w     = w;     ret.w     /= alpha;
-        ret.dw    = dw;    ret.dw    /= alpha;
-        ret.divdw = divdw; ret.divdw /= alpha;
-        ret.ddw   = ddw;   ret.ddw   /= alpha;
-        return ret;
-	}
-
-	virtual NeoHookean operator * (const Set::Scalar alpha) const
-	{
-        NeoHookean ret;
-        ret.mu = mu*alpha;
-        ret.kappa = kappa*alpha;
-        ret.w     = w;     ret.w     *= alpha;
-        ret.dw    = dw;    ret.dw    *= alpha;
-        ret.divdw = divdw; ret.divdw *= alpha;
-        ret.ddw   = ddw;   ret.ddw   *= alpha;
-        return ret;
-	}
 
 public:
     static NeoHookean Random()
@@ -158,8 +78,6 @@ public:
         ret.kappa = Util::Random();
         return ret;
     }
-
-
 };
 
 
