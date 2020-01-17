@@ -46,21 +46,19 @@ public:
         return f;
     };
 
-    virtual Set::Scalar W(Set::Matrix F)           {Util::Abort(INFO,"W not implemented");};
-    virtual Set::Matrix DW(Set::Matrix F)          {Util::Abort(INFO,"DW not implemented");};
-    virtual Set::Matrix4<3,Sym> DDW(Set::Matrix F) {Util::Abort(INFO,"DDW not implemented");};
+    virtual Set::Scalar W(Set::Matrix F)           {Util::Abort(INFO,"W not implemented");  return w;};
+    virtual Set::Matrix DW(Set::Matrix F)          {Util::Abort(INFO,"DW not implemented"); return dw;};
+    virtual Set::Matrix4<3,Sym> DDW(Set::Matrix F) {Util::Abort(INFO,"DDW not implemented");return ddw;};
 	
 public:
-    Set::Scalar                               w;
-    Set::Matrix                              dw;
-    Set::Vector                           divdw;
-    mutable Set::Matrix4<3,Sym> ddw;
+    Set::Scalar                                w;
+    Set::Matrix                               dw;
+    Set::Vector                            divdw;
+    mutable Set::Matrix4<AMREX_SPACEDIM,Sym> ddw;
 
    	Solid operator + (const Solid &rhs) const
 	{
         Solid ret;
-        //ret.mu    = mu + rhs.mu;
-        //ret.lambda = lambda + rhs.lambda;
         ret.w     = w + rhs.w;
         ret.dw    = dw + rhs.dw;
         ret.divdw = divdw + rhs.divdw;
