@@ -18,7 +18,7 @@ namespace LinearElastic
 /// This can be reduced by making assumptions about the material.
 ///
 template<Set::Sym sym>
-class LinearElastic : public Solid
+class LinearElastic
 {
 public:
 	LinearElastic() {};

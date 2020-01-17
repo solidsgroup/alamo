@@ -1,7 +1,7 @@
 #ifndef MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
 #define MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
 
-#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Solid.H"
 
 namespace Model
 {
@@ -9,11 +9,11 @@ namespace Solid
 {
 namespace Elastic
 {
-class NeoHookean : public Elastic<Set::Sym::Major>
+class NeoHookean : public Solid<Set::Sym::Major>
 {
 public:
 	NeoHookean() {};
-    NeoHookean(Elastic<Set::Sym::Major> base) : Elastic<Set::Sym::Major>(base) {};
+    NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
 	virtual ~NeoHookean() {};
 
     Set::Scalar W(Set::Matrix F)
