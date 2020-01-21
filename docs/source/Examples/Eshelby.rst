@@ -10,7 +10,7 @@ Eshelby Inclusion
    :scale: 50%
    :align: center
 
-   Hello there
+   This is an application of the Elastic solver to the classical Eshelby problem.
 
 .. literalinclude:: ../../../tests/Eshelby/input
    :caption: Eshelby input file (tests/Eshelby/input)
