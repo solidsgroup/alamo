@@ -159,6 +159,7 @@ private:
 	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; 
 	// m_bc_hi[face][dimension]
 	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; 
+
 };
 
 }

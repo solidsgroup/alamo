@@ -1,5 +1,5 @@
-#ifndef INTEGRATOR_ESHELBY_H
-#define INTEGRATOR_ESHELBY_H
+#ifndef INTEGRATOR_FINITEKINEMATICS_H
+#define INTEGRATOR_FINITEKINEMATICS_H
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -18,21 +18,25 @@
 
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Solver/Nonlocal/Linear.H"
-#include "Solver/Nonlocal/Newton.H"
-#include "Model/Solid/Affine/Isotropic.H"
 
 #include "IO/ParmParse.H"
 
+#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
+
+#include "Solver/Nonlocal/Newton.H"
+
 namespace Integrator
 {
-class Eshelby : public Integrator
+class FiniteKinematics : public Integrator
 {
 public:
     /// \brief Read in parameters and register field variables
-    Eshelby()
+    FiniteKinematics()
     {
         RegisterNodalFab(eta_mf, 1, 2, "eta",true);
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
+        RegisterNodalFab(ddisp_mf, AMREX_SPACEDIM, 2, "ddisp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
@@ -83,7 +87,14 @@ public:
                     shear = E / 2.0 / (1.0 + nu);
                     Util::Message(INFO,"lame = ", lame);
                     Util::Message(INFO,"shear = ", shear);
-                }
+
+               }
+                pp.query("disp",disp);
+                pp.queryarr("b",b);
+                pp.query("fixediter",fixediter);
+                pp.query("mu",mu);
+                pp.query("kappa",kappa);
+                pp.query("nriters",m_nriters);
             }
         }
     }
@@ -96,10 +107,11 @@ protected:
         ic->Initialize(lev, eta_mf);
 
         disp_mf[lev]->setVal(0.);
+        ddisp_mf[lev]->setVal(0.);
         rhs_mf[lev]->setVal(0.);
     }
 
-    void TimeStepBegin(Set::Scalar, int) override
+    void TimeStepBegin(Set::Scalar, int iter) override
     {
         Util::Message(INFO, "finest_level = ", finest_level);
         Util::Message(INFO, "rhs_mf.size() = ", rhs_mf.size());
@@ -112,7 +124,7 @@ protected:
         //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
         //using model_type = Model::Solid::LinearElastic::Multiwell;
-        using model_type = Model::Solid::Affine::Isotropic;
+        using model_type = Model::Solid::Elastic::NeoHookean;
         Operator::Elastic<model_type> elastic;
         elastic.SetUniform(false);
         amrex::LPInfo info;
@@ -120,123 +132,72 @@ protected:
         elastic.define(geom, grids, dmap, info);
 
         // Set linear elastic model
-        model_type mymodel(shear, lame, Set::Matrix::Zero());
+        model_type mymodel;//(shear, lame, Set::Matrix::Zero());
+        mymodel.mu = mu; mymodel.kappa = kappa;
+        
         amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
         model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
             amrex::Box domain(geom[lev].Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
-            model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev].setVal(mymodel);
-
-            eta_mf[lev]->FillBoundary();
-
-            Set::Vector DX(geom[lev].CellSize());
-
-            for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
+            if (iter == 0)
             {
-                amrex::Box bx = mfi.growntilebox(2);
-
-                amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
-                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k).Define(shear, lame, Fgb);
-                });
+                model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
+                model_mf[lev].setVal(mymodel);
+                disp_mf[lev]->setVal(0.0);
+                ddisp_mf[lev]->setVal(0.0);
+                eta_mf[lev]->FillBoundary();
+                rhs_mf[lev]->setVal(b(0),0,1,2);
+                rhs_mf[lev]->setVal(b(1),1,1,2);
+                rhs_mf[lev]->setVal(b(2),2,1,2);
             }
 
-            amrex::Geometry geom = elastic.Geom(lev);
-            for (int i = 0; i < 2; i++)
-            {
-                amrex::FabArray<amrex::BaseFab<model_type>> &mf = model_mf[lev];
-                mf.FillBoundary(geom.periodicity());
-                const int ncomp = mf.nComp();
-                const int ng1 = 1;
-                const int ng2 = 2;
-                amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-                amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
-                mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-            }
         }
-        elastic.SetModel(model_mf);
-
+        
         BC::Operator::Elastic<model_type> bc;
 
         bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, disp, rhs_mf, geom);
 #if AMREX_SPACEDIM>1
-        bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
+        bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
+        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
 #if AMREX_SPACEDIM>2
-        bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
+        bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
+        bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
+        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
 #endif
 #endif
         elastic.SetBC(&bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-        //Solver::Nonlocal::Linear linearsolver(elastic);
-        //linearsolver.setVerbose(2);
-        //linearsolver.setFixedIter(20);
-        //linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
-        //linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
-
-        for (int lev = 0; lev < rhs_mf.size(); ++lev)
-            {
-                if (rhs_mf[lev]->contains_inf()) Util::Abort(INFO,"lev = ",lev);
-                if (rhs_mf[lev]->contains_inf()) Util::Abort(INFO,"lev = ",lev);
-            }
-
-        Solver::Nonlocal::Newton<model_type> newtonsolver(elastic);
+        Solver::Nonlocal::Newton<model_type> nr(elastic);
         IO::ParmParse mypp("myelastic");
-        mypp.queryclass("myelastic",newtonsolver);
-        newtonsolver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,true);
+        //mypp.queryclass("solver",nr);
+        mypp.queryclass("myelastic",nr);
+        //Solver::Nonlocal::Newton<model_type>::Parse("myelastic",nr);
 
-
-//        for (int lev = 0; lev < rhs_mf.size(); ++lev)
-//        {
-//            Set::Vector DX(geom[lev].CellSize());
-//            for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
-//            {
-//                amrex::Box bx = mfi.growntilebox(2);
-//                amrex::Array4<model_type>  const &model = model_mf[lev].array(mfi);
-//                amrex::Array4<Set::Scalar> const &eta  = eta_mf[lev]->array(mfi);
-//                amrex::Array4<Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
-//                amrex::Array4<Set::Scalar> const &disp0  = disp0_mf[lev]->array(mfi);
-//
-//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-//
-//                    Set::Vector x;
-//                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
-//				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
-//				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
-//
-//                    Set::Vector u0 = eta(i,j,k) * Finclusion * x;
-//                    disp0(i,j,k,0) = disp(i,j,k,0) - u0(0);                    
-//                    disp0(i,j,k,1) = disp(i,j,k,1) - u0(1);                    
-//                    disp0(i,j,k,2) = disp(i,j,k,2) - u0(2);                    
-//                });
-//            }
-//        }
+        
+        //nr.setVerbose(2);
+        //nr.setFixedIter(fixediter);
+        //nr.setNRIters(m_nriters);
+        nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,true);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
-            elastic.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            elastic.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            elastic.Stress(lev, *stress_mf[lev], *disp_mf[lev],false,true);
+            elastic.Strain(lev, *strain_mf[lev], *disp_mf[lev],false);
         }
     }
 
@@ -274,12 +235,15 @@ protected:
 private:
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> eta_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp_mf;
+    amrex::Vector<std::unique_ptr<amrex::MultiFab>> ddisp_mf;
     //amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp0_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> rhs_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> res_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress_mf;
     amrex::Vector<std::unique_ptr<amrex::MultiFab>> strain_mf;
     //amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress0_mf;
+
+    model_type mymodel;
 
     amrex::Real alpha = 1.0;                 ///< Thermal diffusivity
     amrex::Real refinement_threshold = 0.01; ///< Criterion for cell refinement
@@ -289,9 +253,15 @@ private:
     BC::BC *mybc;        ///< Stock generic boundary condition object
     
     Set::Scalar lame = 121.154, shear = 80.7692;
+    Set::Scalar kappa, mu;
 
     Set::Matrix Fmatrix = Set::Matrix::Zero();
     Set::Matrix Finclusion = Set::Matrix::Zero();
+    Set::Scalar disp = 0.0;
+    Set::Vector b = Set::Vector::Zero();
+
+    int fixediter = 100;
+    int m_nriters = 2;
 
 };
 } // namespace Integrator

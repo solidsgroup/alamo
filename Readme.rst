@@ -103,6 +103,14 @@ The following are some common error messages and problems encountered:
   One common reason this happens is if Dirichlet/Neumann
   boundaries are specified but no boundary values are provided.
 
+* :code:`error: lvalue required as left operand of assignment`
+  This can happen when using the :code:`()` operator with a :code:`Isotropic` :code:`Matrix4`-type object.
+  Because this data structure only stores two constants, it is not possible to define any of the values using
+  indices. 
+  (Similarly, you cannot set an :code:`Isotropic` 4-matrix to a :code:`Cubic` 4-matrix since the Cubic
+  matrix has lower symmetry).
+  If you get this error, you should use a lower-symmetry 4-matrix.
+
 Generating this documentation
 -----------------------------
 

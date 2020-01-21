@@ -1,5 +1,5 @@
-#ifndef MODEL_SOLID_ELASTIC_H_
-#define MODEL_SOLID_ELASTIC_H_
+#ifndef MODEL_SOLID_LINEARELASTIC_H_
+#define MODEL_SOLID_LINEARELASTIC_H_
 
 #include "Model/Solid/Solid.H"
 #include "Set/Set.H"
@@ -18,7 +18,7 @@ namespace LinearElastic
 /// This can be reduced by making assumptions about the material.
 ///
 template<Set::Sym sym>
-class LinearElastic : public Solid
+class LinearElastic
 {
 public:
 	LinearElastic() {};

@@ -3,6 +3,10 @@
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+
+#include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Affine/Isotropic.H"
 #include "Elastic.H"
 
 #include "Numeric/Stencil.H"
@@ -458,10 +462,10 @@ void
 Elastic<T>::Stress (int amrlev,
 		    amrex::MultiFab& a_sigma,
 		    const amrex::MultiFab& a_u,
-		    bool voigt) 
+		    bool voigt, bool a_homogeneous) 
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 	amrex::Box domain(m_geom[amrlev][0].Domain());
@@ -519,10 +523,10 @@ template<class T>
 void
 Elastic<T>::Energy (int amrlev,
 		    amrex::MultiFab& a_energy,
-		    const amrex::MultiFab& a_u)
+		    const amrex::MultiFab& a_u, bool a_homogeneous)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
@@ -569,10 +573,10 @@ Elastic<T>::Energy (int amrlev,
 
 template <class T>
 void 
-Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models)
+Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models, bool a_homogeneous)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	if ((unsigned int)a_energies.nComp() != a_models.size())
 	{
@@ -835,5 +839,9 @@ template class Elastic<Model::Solid::LinearElastic::Cubic>;
 template class Elastic<Model::Solid::LinearElastic::Multiwell>;
 template class Elastic<Model::Solid::LinearElastic::Laplacian>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
+
+template class Elastic<Model::Solid::Elastic::NeoHookean>;
+template class Elastic<Model::Solid::Affine::Isotropic>;
+template class Elastic<Model::Solid::Linear::Isotropic>;
 }
 
