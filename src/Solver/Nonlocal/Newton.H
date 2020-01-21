@@ -20,11 +20,10 @@ public:
 
     void setNRIters(int a_nriters) { m_nriters = a_nriters; }
 
-    Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol_mf,
-                      amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs_mf,
-                      amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model,
-                      Set::Scalar a_tol_rel, Set::Scalar a_tol_abs,
-                      bool copyrhs = false, const char *checkpoint_file = nullptr)
+    Set::Scalar solve (const amrex::Vector<MultiFab*>& a_sol_mf, 
+                       const amrex::Vector<MultiFab*>& a_rhs_mf,
+                       amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model,
+                       Real a_tol_rel, Real a_tol_abs, bool copyrhs = false, const char* checkpoint_file = nullptr)
     {
         Operator::Elastic<T> &elastic = dynamic_cast<Operator::Elastic<T> &>(linop);
 
@@ -49,7 +48,8 @@ public:
 
         for (int nriter = 0; nriter < (copyrhs ? m_nriters+1 : m_nriters); nriter++)
         {
-            Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
+            //Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
+
             for (int lev = 0; lev < a_rhs_mf.size(); ++lev)
             {
                 amrex::Box domain(linop.Geom(lev).Domain());
@@ -158,13 +158,14 @@ public:
             elastic.SetModel(a_model);
 
 
-            if (nriter == m_nriters - 1) break;
+            if (nriter == m_nriters) break;
             
-            Solver::Nonlocal::Linear::solve(dsol_mf,rhs_mf, a_tol_rel, a_tol_abs);
+            Solver::Nonlocal::Linear::solve(dsol_mf,rhs_mf, a_tol_rel, a_tol_abs,checkpoint_file);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
             {
-                Util::Message(INFO,"DSol Norm Level ", lev, " = (",dsol_mf[lev]->norm2(0),",", dsol_mf[lev]->norm2(1) ,",", dsol_mf[lev]->norm2(2),")");
+                //amrex::IntVect::TheUnitVector()
+                //Util::Message(INFO,"DSol Norm Level ", lev, " = (",dsol_mf[lev]->norm2(0,elastic.Geom(lev).periodicity()),",", dsol_mf[lev]->norm2(1,elastic.Geom(lev).periodicity()) ,",", dsol_mf[lev]->norm2(2,elastic.Geom(lev).periodicity()),")");
                 //Util::Message(INFO,"RHS  Norm Level ", lev, " = (",rhs_mf[lev]->norm2(0) ,",", rhs_mf[lev]->norm2(1)  ,",", rhs_mf[lev]->norm2(2),")");
             }
 
@@ -177,9 +178,20 @@ public:
         {
             for (int lev = 0; lev < a_sol_mf.size(); lev++)
                 amrex::MultiFab::Copy(*a_rhs_mf[lev], *rhs_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
-            Util::Message(INFO,"Copying");
         }
+        return 0.0;
     }
+
+    Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol_mf,
+                      amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs_mf,
+                      amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model,
+                      Set::Scalar a_tol_rel, Set::Scalar a_tol_abs,
+                      bool copyrhs = false, const char *checkpoint_file = nullptr)
+    {
+        return solve(GetVecOfPtrs(a_sol_mf),
+                     GetVecOfPtrs(a_rhs_mf),a_model,a_tol_rel,a_tol_abs,copyrhs,checkpoint_file);
+    }
+
 
 private:
     int m_nriters = 1;
@@ -193,6 +205,7 @@ public:
         
          //value.m_nriters
     }
+
 };
 } // namespace Nonlocal
 } // namespace Solver

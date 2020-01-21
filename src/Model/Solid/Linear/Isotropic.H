@@ -17,7 +17,6 @@ public:
     Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
-        Util::Message(INFO);
         Define(a_mu,a_lambda);
     };
 	virtual ~Isotropic() {};
