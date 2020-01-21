@@ -1,26 +1,27 @@
-#ifndef MODEL_SOLID_ELASTIC_ISOTROPICMULTIWELL_H_
-#define MODEL_SOLID_ELASTIC_ISOTROPICMULTIWELL_H_
+#ifndef MODEL_SOLID_AFFINE_ISOTROPIC_H_
+#define MODEL_SOLID_AFFINE_ISOTROPIC_H_
 
+#include "AMReX.H"
 #include "Model/Solid/Solid.H"
 
 namespace Model
 {
 namespace Solid
 {
-namespace Elastic
+namespace Affine
 {
-class IsotropicMultiWell : public Solid<Set::Sym::Isotropic>
+class Isotropic : public Solid<Set::Sym::Isotropic>
 {
 public:
 
-	IsotropicMultiWell() {};
-    IsotropicMultiWell(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
-    IsotropicMultiWell(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0=Set::Matrix::Zero()) 
+	Isotropic() {};
+    Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
+    Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0=Set::Matrix::Zero()) 
     {
         Util::Message(INFO);
         Define(a_mu,a_lambda,a_F0);
     };
-	virtual ~IsotropicMultiWell() {};
+	virtual ~Isotropic() {};
 
 	void Define(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0)
 	{
@@ -47,9 +48,9 @@ public:
     KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:
-    static IsotropicMultiWell Random()
+    static Isotropic Random()
     {
-        IsotropicMultiWell ret;
+        Isotropic ret;
         ret.mu = Util::Random();
         ret.lambda = Util::Random();
         return ret;

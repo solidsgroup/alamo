@@ -21,7 +21,7 @@ public:
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J),2./3.);
         Set::Scalar w = 0.0;
-        w += 0.5 * mu * ((F*F.transpose()).trace() / J23 - 3);
+        w += 0.5 * mu * ((F*F.transpose()).trace() / J23 - 3.);
         w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
         return w;
     }
