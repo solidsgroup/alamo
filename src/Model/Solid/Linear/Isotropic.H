@@ -2,6 +2,7 @@
 #define MODEL_SOLID_LINEAR_ISOTROPIC_H_
 
 #include "Model/Solid/Solid.H"
+#include "IO/ParmParse.H"
 
 namespace Model
 {
