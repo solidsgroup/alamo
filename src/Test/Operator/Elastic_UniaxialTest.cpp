@@ -1,10 +1,12 @@
 #include "Test/Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/Linear/Isotropic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
+#include "Solver/Nonlocal/Newton.H"
 
 namespace Test
 {
@@ -18,7 +20,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 
 	int failed = 0;
 
-	using model_type = Model::Solid::LinearElastic::Isotropic;
+	using model_type = Model::Solid::Linear::Isotropic;
 	Set::Scalar lame = 2.6, shear = 6.0;
 	model_type model(lame, shear);
 	//Use this instead to run for Cubic elastic case.
@@ -103,7 +105,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 
 	elastic.SetBC(&bc);
 
-	Solver::Nonlocal::Linear mlmg(elastic);
+	Solver::Nonlocal::Newton<model_type> mlmg(elastic);
 	if (m_fixedIter > -1)
 		mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1)
@@ -120,8 +122,9 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	}
 
 	mlmg.solve(GetVecOfPtrs(solution_numeric),
-			   GetVecOfConstPtrs(rhs_prescribed),
-			   m_tol_rel, m_tol_abs);
+			   GetVecOfPtrs(rhs_prescribed),
+			   modelfab,
+			   m_tol_rel, m_tol_abs,false, nullptr);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)

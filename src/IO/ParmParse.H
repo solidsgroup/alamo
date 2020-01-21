@@ -1,3 +1,5 @@
+#ifndef IO_PARMPARSE
+#define IO_PARMPARSE
 #include "Set/Set.H"
 #include "AMReX_ParmParse.H"
 
@@ -37,6 +39,18 @@ public:
             value(i/AMREX_SPACEDIM, i%AMREX_SPACEDIM) = vals[i];
         }
     }
-
+    template<class T>
+    void queryclass(std::string /*name*/, T & value)
+    {
+        // this->pushPrefix(name); // TODO I want to be able to use this but we need this routine to be protected, not private
+        T::Parse(value, *this);
+        //this->popPrefix(); // TODO same
+    }
+    template<class T>
+    void queryclass(T & value)
+    {
+        T::Parse(value, *this);
+    }
 };
 }
+#endif
