@@ -40,11 +40,11 @@ public:
         }
     }
     template<class T>
-    void queryclass(std::string /*name*/, T & value)
+    void queryclass(std::string name, T & value)
     {
-        // this->pushPrefix(name); // TODO I want to be able to use this but we need this routine to be protected, not private
+        this->pushPrefix(name);
         T::Parse(value, *this);
-        //this->popPrefix(); // TODO same
+        this->popPrefix();
     }
     template<class T>
     void queryclass(T & value)
