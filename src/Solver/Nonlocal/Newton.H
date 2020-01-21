@@ -6,6 +6,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "IO/ParmParse.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
+#include "Numeric/Stencil.H"
 
 namespace Solver
 {
@@ -18,9 +19,10 @@ public:
     Newton(Operator::Elastic<T> &a_op) : Linear(a_op){};
 
     void setNRIters(int a_nriters) { m_nriters = a_nriters; }
-    Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab>> &a_sol_mf,
-                      amrex::Vector<std::unique_ptr<amrex::MultiFab>> &a_rhs_mf,
-                      amrex::Vector<amrex::FabArray<amrex::BaseFab<T>>> &a_model,
+
+    Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol_mf,
+                      amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs_mf,
+                      amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model,
                       Set::Scalar a_tol_rel, Set::Scalar a_tol_abs,
                       bool copyrhs = false, const char *checkpoint_file = nullptr)
     {
@@ -45,7 +47,7 @@ public:
             amrex::MultiFab::Copy(*rhs_mf[lev], *a_rhs_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
-        for (int nriter = 0; nriter < m_nriters; nriter++)
+        for (int nriter = 0; nriter < (copyrhs ? m_nriters+1 : m_nriters); nriter++)
         {
             Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
             for (int lev = 0; lev < a_rhs_mf.size(); ++lev)
@@ -126,20 +128,16 @@ public:
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         for (int p = 0; p < AMREX_SPACEDIM; p++)
                         {
-//                            model(i, j, k).divdw(p) =
-//                                (model(i + 1, j, k).dw(p, 0) - model(i - 1, j, k).dw(p, 0)) / 2. / DX(0) +
-//                                (model(i, j + 1, k).dw(p, 1) - model(i, j - 1, k).dw(p, 1)) / 2. / DX(1) +
-//                                (model(i, j, k + 1).dw(p, 2) - model(i, j, k - 1).dw(p, 2)) / 2. / DX(2);
-
-
-//                            if (nriter == 0)
-//                                graddw(i,j,k,p) = b(i,j,k,p);
-                            
+                            #if AMREX_SPACEDIM == 2
+                            graddw(i,j,k,p) = b(i,j,k,p) -   // exact same as above
+                                ((model(i + 1, j, k).dw(p, 0) - model(i - 1, j, k).dw(p, 0)) / 2. / DX(0) +
+                                 (model(i, j + 1, k).dw(p, 1) - model(i, j - 1, k).dw(p, 1)) / 2. / DX(1));
+                            #elif AMREX_SPACEDIM == 3
                             graddw(i,j,k,p) = b(i,j,k,p) -   // exact same as above
                                 ((model(i + 1, j, k).dw(p, 0) - model(i - 1, j, k).dw(p, 0)) / 2. / DX(0) +
                                  (model(i, j + 1, k).dw(p, 1) - model(i, j - 1, k).dw(p, 1)) / 2. / DX(1) +
                                  (model(i, j, k + 1).dw(p, 2) - model(i, j, k - 1).dw(p, 2)) / 2. / DX(2));
-
+                            #endif
                         }
                     });
                 }
@@ -163,11 +161,7 @@ public:
             if (nriter == m_nriters - 1) break;
             
             Solver::Nonlocal::Linear::solve(dsol_mf,rhs_mf, a_tol_rel, a_tol_abs);
-            //solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs);
-            
-            
-            //solveaffine(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs, false);
-                
+
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
             {
                 Util::Message(INFO,"DSol Norm Level ", lev, " = (",dsol_mf[lev]->norm2(0),",", dsol_mf[lev]->norm2(1) ,",", dsol_mf[lev]->norm2(2),")");

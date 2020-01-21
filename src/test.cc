@@ -19,6 +19,7 @@
 
 #include "Model/Solid/Elastic/Elastic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Linear/Isotropic.H"
 
 int main (int argc, char* argv[])
 {
@@ -26,11 +27,11 @@ int main (int argc, char* argv[])
 
 	int failed = 0;
 	
-	Util::Test::Message("Model::Solid::Elastic::NeoHookean");
+	Util::Test::Message("Model::Solid::Linear::Isotropic");
 	{
 		int subfailed = 0;
-		Util::Test::SubMessage("DerivativeTest1", Model::Solid::Solid<Set::Sym::Major>::DerivativeTest1<Model::Solid::Elastic::NeoHookean>(true));
-		Util::Test::SubMessage("DerivativeTest2", Model::Solid::Solid<Set::Sym::Major>::DerivativeTest2<Model::Solid::Elastic::NeoHookean>(true));
+		subfailed += Util::Test::SubMessage("DerivativeTest1", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest1<Model::Solid::Linear::Isotropic>(true));
+		subfailed += Util::Test::SubMessage("DerivativeTest2", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest2<Model::Solid::Linear::Isotropic>(true));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 

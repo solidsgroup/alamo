@@ -59,7 +59,7 @@ public:
     Set::Vector                            divdw;
     mutable Set::Matrix4<AMREX_SPACEDIM,Sym> ddw;
 
-    KinematicVariable kinvar = KinematicVariable::F;
+    static const KinematicVariable kinvar = KinematicVariable::F;
 
    	Solid operator + (const Solid &rhs) const
 	{
@@ -70,14 +70,14 @@ public:
         ret.ddw   = ddw; ret.ddw += rhs.ddw;
         return ret;
 	}
-	Solid & operator = (const Solid &rhs)
-	{
-        w     = rhs.w;
-        dw    = rhs.dw;
-        divdw = rhs.divdw;
-        ddw   = rhs.ddw;
-		return *this;
-	}
+//	Solid & operator = (const Solid &rhs)
+//	{
+//        w     = rhs.w;
+//        dw    = rhs.dw;
+//        divdw = rhs.divdw;
+//        ddw   = rhs.ddw;
+//		return *this;
+//	}
    	virtual Solid operator * (const Set::Scalar alpha) const
 	{
         Solid ret;
@@ -114,6 +114,16 @@ public:
         return ret;
 	}
 
+   	friend std::ostream& operator<<(std::ostream &out, const Solid &a)
+    {
+        a.Print(out);
+        return out;
+    }
+    virtual void Print(std::ostream &out) const
+    {
+        out << "No print function written for this model.";
+    }
+
 
 public: 
     template <class T>
@@ -121,9 +131,7 @@ public:
     {
         for (int iter = 0; iter < 10; iter++)
         {
-            T model;
-            model.mu = Util::Random();
-            model.kappa = Util::Random();
+            T model = T::Random();
 
             Set::Scalar dx = 1E-8, tol = 1E-6;
 
@@ -144,8 +152,6 @@ public:
             {
                 if (verbose)
                 {
-                    Util::Message(INFO,"mu    = ",model.mu);
-                    Util::Message(INFO,"kappa = ",model.kappa);
                     Util::Message(INFO,"F \n",F);
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"dw exact \n",dw_exact);
@@ -163,9 +169,7 @@ public:
     {
         for (int iter = 0; iter < 10; iter++)
         {
-            T model;
-            model.mu = Util::Random();
-            model.kappa = Util::Random();
+            T model = T::Random();
 
             Set::Scalar dx = 1E-8, tol = 1E-6;
             Set::Matrix F = Set::Matrix::Random();
@@ -188,8 +192,6 @@ public:
             {
                 if (verbose)
                 {
-                    Util::Message(INFO,"mu    = ",model.mu);
-                    Util::Message(INFO,"kappa = ",model.kappa);
                     Util::Message(INFO,"F \n",F);
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"ddw exact \n",ddw_exact);

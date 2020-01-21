@@ -7,6 +7,109 @@ namespace Set
 {
 /// \brief Data structure for a 4th order 3D tensor with major and minor symmetry
 ///
+/// 2D version. See full explanation below.
+///
+template<>
+class Matrix4<2,Sym::MajorMinor>
+{
+    Scalar data[6] = {NAN,NAN,NAN,NAN,NAN,NAN};
+
+public:
+    AMREX_GPU_HOST_DEVICE Matrix4() {};
+    AMREX_FORCE_INLINE
+    Scalar & operator () (const int i, const int j, const int k, const int l)
+    {
+        int uid = i + 2*j + 4*k + 8*l;
+        if      (uid==0 )                                  return data[0]; // [0000]
+        else if (uid==8  || uid==4 || uid==2 || uid==1 )   return data[1]; // [0001] [0010] [0100] [1000]
+        else if (uid==12 || uid==3 )                       return data[2]; // [0011] [1100]
+        else if (uid==10 || uid==6 || uid==9 || uid==5 )   return data[3]; // [0101] [1001] [0110] [1010]
+        else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[4]; // [0111] [1011] [1101] [1110]
+        else if (uid==15 )                                 return data[5]; // [1111]
+        else Util::Abort(INFO,"Index out of range");
+        return data[-1]; 
+    }
+    void Print (std::ostream& os)
+    {
+        os.precision(4);
+        for (int k = 0; k < 2; k++)
+        {
+            for (int i = -1; i < 3; i++)
+            {
+                for (int l = 0; l < 2; l++)
+                {
+                    if (i==-1)       os << "┌                                     ┐ ";
+                    else if (i == 2) os << "└                                     ┘ ";
+                    else 
+                    {
+                        os << "│ ";
+                        for (int j = 0; j < 2; j++)
+                        {
+                            const Set::Scalar &val = (*this)(i,j,k,l);
+                            os << std::scientific << std::setw(11) << val ; //(fabs(val)>1E-10 ? val : 0);
+                            os << " "; 
+                        }
+                        os << "│ ";
+                    }
+                }
+                os<<std::endl;
+            }
+        }
+    }
+    AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] =  a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator += (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] += a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] -= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] *= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator /= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] /= a.data[i];}
+    AMREX_GPU_HOST_DEVICE void operator *= (Set::Scalar alpha)            {for (int i = 0; i < 6; i++) data[i] *= alpha;}
+    AMREX_GPU_HOST_DEVICE void operator /= (Set::Scalar alpha)            {for (int i = 0; i < 6; i++) data[i] /= alpha;}
+
+    static Matrix4<2,Sym::MajorMinor> Increment()
+    {
+        Matrix4<2,Sym::MajorMinor> ret;
+        for (int i = 0 ; i < 6; i++) ret.data[i] = (Set::Scalar)i;
+        return ret;
+     }
+    static Matrix4<2,Sym::MajorMinor> Randomize()
+    {
+        Matrix4<2,Sym::MajorMinor> ret;
+        for (int i = 0 ; i < 6; i++) ret.data[i] = (Util::Random());
+        return ret;
+     }
+    static Matrix4<2,Sym::MajorMinor> Zero()
+    {
+        Matrix4<2,Sym::MajorMinor> ret;
+        for (int i = 0 ; i < 6; i++) ret.data[i] = 0.0;
+        return ret;
+    }
+    friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
+    friend Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
+};
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b)
+{
+   	Eigen::Matrix<Set::Scalar,2,2> ret = Eigen::Matrix<Set::Scalar,2,2>::Zero();
+    ret(0,0) = a.data[0]*b(0,0) + a.data[1]*(b(0,1) + b(1,0)) + a.data[2]*b(1,1);
+    ret(0,1) = a.data[1]*b(0,0) + a.data[3]*(b(0,1) + b(1,0)) + a.data[4]*b(1,1);
+    ret(1,1) = a.data[2]*b(0,0) + a.data[4]*(b(0,1) + b(1,0)) + a.data[5]*b(1,1);
+    ret(1,0) = ret(0,1);
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<2,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
+
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b)
+{
+    // TODO: improve efficiency of this method
+    Set::Vector ret = Set::Vector::Zero();
+    ret(0) = a.data[0]*b(0,0,0) + a.data[1]*(b(0,1,0) + b(1,0,0) + b(0,0,1)) + a.data[2]*b(1,1,0)  + a.data[3]*(b(0,1,1) + b(1,0,1)) + a.data[4]*b(1,1,1);
+    ret(1) = a.data[1]*b(0,0,0) + a.data[2]*b(0,0,1) + a.data[3]*(b(0,1,0) + b(1,0,0)) + a.data[4]*(b(1,1,0)  + b(0,1,1) + b(1,0,1)) + a.data[5]*b(1,1,1);
+    return ret;
+}
+    
+/// \brief Data structure for a 4th order 3D tensor with major and minor symmetry
+///
 /// Let the tensor
 /// \f$\mathbb{C}\in\mathbb{R}^3\times\mathbb{R}^3\times\mathbb{R}^3\times\mathbb{R}^3\f$
 /// be have major symmetry (\f$\mathbb{C}_{ijkl}=\mathbb{C}_{klij}\f$)
@@ -161,15 +264,15 @@ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
 Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
-Set::Vector operator * (Matrix4<AMREX_SPACEDIM,Sym::MajorMinor> a, Set::Matrix3 b)
+Set::Vector operator * (Matrix4<3,Sym::MajorMinor> a, Set::Matrix3 b)
 {
     // TODO: improve efficiency of this method
     Set::Vector ret = Set::Vector::Zero();
-    for (int i = 0; i < AMREX_SPACEDIM; i++)
+    for (int i = 0; i < 3; i++)
     {
-        for (int J = 0; J < AMREX_SPACEDIM; J++)
-            for (int k = 0; k < AMREX_SPACEDIM; k++)
-                for (int L = 0; L < AMREX_SPACEDIM; L++)
+        for (int J = 0; J < 3; J++)
+            for (int k = 0; k < 3; k++)
+                for (int L = 0; L < 3; L++)
                     ret(i) += a(i,J,k,L) * b(k,L,J);
     }    
     return ret;

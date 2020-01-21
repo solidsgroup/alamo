@@ -3,8 +3,8 @@ dim = 2
 
 
 #sym = "full"
-#sym = "majorminor"
-sym = "major"
+sym = "majorminor"
+#sym = "major"
 
 them = []
 for i in range(0,dim):

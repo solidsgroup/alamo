@@ -19,7 +19,7 @@
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
-#include "Model/Solid/Elastic/IsotropicMultiWell.H"
+#include "Model/Solid/Affine/Isotropic.H"
 
 #include "IO/ParmParse.H"
 
@@ -112,7 +112,7 @@ protected:
         //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
         //using model_type = Model::Solid::LinearElastic::Multiwell;
-        using model_type = Model::Solid::Elastic::IsotropicMultiWell;
+        using model_type = Model::Solid::Affine::Isotropic;
         Operator::Elastic<model_type> elastic;
         elastic.SetUniform(false);
         amrex::LPInfo info;
@@ -209,6 +209,12 @@ protected:
         //linearsolver.setFixedIter(20);
         //linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
         //linearsolver.solve(disp_mf, rhs_mf, tol_rel, tol_abs);
+
+        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+            {
+                if (rhs_mf[lev]->contains_inf()) Util::Abort(INFO,"lev = ",lev);
+                if (rhs_mf[lev]->contains_inf()) Util::Abort(INFO,"lev = ",lev);
+            }
 
         Solver::Nonlocal::Newton<model_type> newtonsolver(elastic);
         IO::ParmParse mypp("myelastic");

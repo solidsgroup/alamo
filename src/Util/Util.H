@@ -18,6 +18,7 @@
 
 #include "Color.H"
 #define INFO __FILE__, __func__, __LINE__
+#define TEST(x) #x, x
 
 /// \brief A collection of utility routines
 namespace Util
@@ -48,6 +49,24 @@ void Finalize ();
 void Terminate(const char * msg, int signal, bool backtrace);
 
 void Abort (const char * msg);
+
+AMREX_FORCE_INLINE
+void Assert (std::string file, std::string func, int line, std::string smt, bool pass)
+{
+	if (pass) return;
+
+	std::ostringstream infostream;
+	infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
+	infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
+	infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+	infostream << "Assertion failed: " << Color::BG::DarkGray << Color::Underlined << Color::Bold <<  Color::FG::LightGreen << smt << Color::Reset;
+	std::string info = infostream.str();
+
+
+	std::cout << info << std::endl;
+
+	Abort("Fatal Error");
+}
 
 template<typename... Args>
 void Abort (std::string file, std::string func, int line, Args const &... args)

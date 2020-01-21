@@ -1,10 +1,12 @@
 #include "Test/Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/Linear/Isotropic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
+#include "Solver/Nonlocal/Newton.H"
 
 namespace Test
 {
@@ -18,6 +20,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 
 	int failed = 0;
 
+	//using model_type = Model::Solid::Linear::Isotropic;
 	using model_type = Model::Solid::LinearElastic::Isotropic;
 	Set::Scalar lame = 2.6, shear = 6.0;
 	model_type model(lame, shear);
@@ -103,6 +106,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 
 	elastic.SetBC(&bc);
 
+	//Solver::Nonlocal::Newton<model_type> mlmg(elastic);
 	Solver::Nonlocal::Linear mlmg(elastic);
 	if (m_fixedIter > -1)
 		mlmg.setFixedIter(m_fixedIter);

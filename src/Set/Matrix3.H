@@ -15,6 +15,11 @@ public:
         return data[i](j,k);
     }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
+    const Scalar & operator () (const int i, const int j, const int k) const
+    {
+        return data[i](j,k);
+    }
+    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
     Matrix & operator [] (const int i)
     {
         return data[i];
