@@ -160,18 +160,6 @@ private:
 	// m_bc_hi[face][dimension]
 	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; 
 
-public:
-    static void Parse(Elastic<T> & value, amrex::ParmParse & pp)
-    {
-        //if (pp.contains("fixed_iter"))
-        //{ int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
-
-        //if (pp.contains("verbose"))
-        //{ int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
-
-
-    }
-	
 };
 
 }

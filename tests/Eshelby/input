@@ -31,5 +31,5 @@ elastic.E = 210
 elastic.nu = 0.3
 
 myelastic.verbose = 2
-myelastic.nriters = 4
+myelastic.nriters = 1
 

@@ -134,7 +134,6 @@ protected:
 
             Set::Vector DX(geom[lev].CellSize());
 
-            //for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
             for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.growntilebox(2);
@@ -146,17 +145,6 @@ protected:
                     Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
                     model(i, j, k).Define(shear, lame, Fgb);
                 });
-
-//                bx = mfi.growntilebox(1);
-//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-//                    for (int p = 0; p < AMREX_SPACEDIM; p++)
-//                        for (int q = 0; q < AMREX_SPACEDIM; q++)
-//                        {
-//                            AMREX_D_TERM(model(i, j, k).gradFgb[p](q, 0) = ((model(i + 1, j, k).Fgb - model(i - 1, j, k).Fgb) / 2. / DX(0))(p, q);,
-//                                         model(i, j, k).gradFgb[p](q, 1) = ((model(i, j + 1, k).Fgb - model(i, j - 1, k).Fgb) / 2. / DX(1))(p, q);,
-//                                         model(i, j, k).gradFgb[p](q, 2) = ((model(i, j, k + 1).Fgb - model(i, j, k - 1).Fgb) / 2. / DX(2))(p, q);)
-//                        }
-//                });
             }
 
             amrex::Geometry geom = elastic.Geom(lev);
@@ -175,9 +163,6 @@ protected:
         elastic.SetModel(model_mf);
 
         BC::Operator::Elastic<model_type> bc;
-
-        IO::ParmParse ppbc("elastic.bc");
-        ppbc.queryclass("bc",bc);
 
         bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
         bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
