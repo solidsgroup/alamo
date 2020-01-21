@@ -29,8 +29,9 @@ public:
     }
     void setVerbose(int verbosity)
     {
-        MLMG::setVerbose(verbosity);
-		if (verbosity > 4) MLMG::setCGVerbose(verbosity);
+        m_verbose = verbosity;
+        MLMG::setVerbose(m_verbose);
+		if (m_verbose > 4) MLMG::setCGVerbose(m_verbose);
      	else
  	    {
  		    MLMG::setCGVerbose(0);
@@ -108,6 +109,7 @@ public:
     using MLMG::solve;
 protected:
     Operator::Operator<Grid::Node> &linop;
+    int m_verbose = 0;
 
 public:
     static void Parse(Linear & value, amrex::ParmParse & pp)

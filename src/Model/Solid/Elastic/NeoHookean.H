@@ -31,7 +31,7 @@ public:
         Set::Scalar J23 = std::pow(fabs(J),2./3.);
         Set::Matrix FinvT = F.inverse().transpose();
 
-        dw = Set::Matrix::Zero();
+        Set::Matrix dw = Set::Matrix::Zero();
 
         dw += mu * (F/J23 - (F*F.transpose()).trace()*FinvT / (3.*J23));
         dw += kappa*(J-1)*J*FinvT;

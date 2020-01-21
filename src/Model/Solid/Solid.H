@@ -49,14 +49,11 @@ public:
 //        return f;
     };
 
-    virtual Set::Scalar W(Set::Matrix)           {Util::Abort(INFO,"W not implemented");  return w;};
-    virtual Set::Matrix DW(Set::Matrix)          {Util::Abort(INFO,"DW not implemented"); return dw;};
-    virtual Set::Matrix4<AMREX_SPACEDIM,Sym> DDW(Set::Matrix) {Util::Abort(INFO,"DDW not implemented");return ddw;};
+    virtual Set::Scalar W(Set::Matrix)           {Util::Abort(INFO,"W not implemented"); return 0.0;};
+    virtual Set::Matrix DW(Set::Matrix)          {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
+    virtual Set::Matrix4<AMREX_SPACEDIM,Sym> DDW(Set::Matrix) {Util::Abort(INFO,"DDW not implemented"); return ddw;};
 	
 public:
-    Set::Scalar                                w;
-    Set::Matrix                               dw;
-    Set::Vector                            divdw;
     mutable Set::Matrix4<AMREX_SPACEDIM,Sym> ddw;
 
     static const KinematicVariable kinvar = KinematicVariable::F;
@@ -64,52 +61,29 @@ public:
    	Solid operator + (const Solid &rhs) const
 	{
         Solid ret;
-        ret.w     = w + rhs.w;
-        ret.dw    = dw + rhs.dw;
-        ret.divdw = divdw + rhs.divdw;
         ret.ddw   = ddw; ret.ddw += rhs.ddw;
         return ret;
 	}
-//	Solid & operator = (const Solid &rhs)
-//	{
-//        w     = rhs.w;
-//        dw    = rhs.dw;
-//        divdw = rhs.divdw;
-//        ddw   = rhs.ddw;
-//		return *this;
-//	}
    	virtual Solid operator * (const Set::Scalar alpha) const
 	{
         Solid ret;
-        ret.w     = w;     ret.w     *= alpha;
-        ret.dw    = dw;    ret.dw    *= alpha;
-        ret.divdw = divdw; ret.divdw *= alpha;
         ret.ddw   = ddw;   ret.ddw   *= alpha;
         return ret;
 	}
 	virtual Solid operator / (const Set::Scalar alpha) const
 	{
         Solid ret;
-        ret.w     = w;     ret.w     /= alpha;
-        ret.dw    = dw;    ret.dw    /= alpha;
-        ret.divdw = divdw; ret.divdw /= alpha;
         ret.ddw   = ddw;   ret.ddw   /= alpha;
         return ret;
 	}
 	void operator += (const Solid &rhs)
 	{
-        w += rhs.w;
-        dw += rhs.dw;
-        divdw += rhs.divdw;
         ddw += rhs.ddw;
 	}
 
 	Solid operator - (const Solid &rhs) const
 	{
         Solid ret;
-        ret.w = w - rhs.w;
-        ret.dw = dw - rhs.dw;
-        ret.divdw = divdw - rhs.divdw;
         ret.ddw = ddw; ret.ddw -= rhs.ddw;
         return ret;
 	}

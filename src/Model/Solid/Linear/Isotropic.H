@@ -23,8 +23,8 @@ public:
 
 	void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
 	{
-		mu = a_mu; lambda = a_lambda;
-        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(lambda,mu);
+		//mu = a_mu; lambda = a_lambda;
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
 	}
 
     Set::Scalar W(Set::Matrix gradu)
@@ -41,11 +41,10 @@ public:
     }
     virtual void Print(std::ostream &out) const override 
     {
-        out << "mu = " << mu << " lambda = " << lambda;
+        out << ddw;
     }
 
 public:
-    Set::Scalar mu = NAN, lambda = NAN;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:

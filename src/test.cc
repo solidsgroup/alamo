@@ -26,7 +26,7 @@ int main (int argc, char* argv[])
 	Util::Initialize(argc, argv);
 
 	int failed = 0;
-	
+
 	Util::Test::Message("Model::Solid::Linear::Isotropic");
 	{
 		int subfailed = 0;
@@ -155,7 +155,6 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
 		failed += Util::Test::SubFinalMessage(subfailed);
-
 	}
 
 	Util::Test::Message("Elastic Operator Uniaxial Test 32^n");

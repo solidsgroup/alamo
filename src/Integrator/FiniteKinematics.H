@@ -162,21 +162,21 @@ protected:
 #if AMREX_SPACEDIM>1
         bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
         bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
-        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
 #if AMREX_SPACEDIM>2
         bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
         bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Displacement
-        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
-        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Traction, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
+        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom); // Traction
 #endif
 #endif
         elastic.SetBC(&bc);
