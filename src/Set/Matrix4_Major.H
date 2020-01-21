@@ -15,6 +15,7 @@ class Matrix4<2, Sym::Major>
 public:
     AMREX_GPU_HOST_DEVICE Matrix4(){};
 
+    #if AMREX_SPACEDIM == 2
     Matrix4(const Matrix4<2,Sym::Isotropic> &in)
     {
         // TODO: very inefficient, need to optimize
@@ -24,6 +25,7 @@ public:
         for (int l = 0; l < 2; l++)
             (*this)(i,j,k,l) = in(i,j,k,l);
     }
+    #endif
     
     AMREX_FORCE_INLINE
     const Scalar &operator()(const int i, const int j, const int k, const int l) const
@@ -167,6 +169,19 @@ class Matrix4<3, Sym::Major>
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4(){};
+    
+    #if AMREX_SPACEDIM == 3
+    Matrix4(const Matrix4<3,Sym::Isotropic> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+        for (int k = 0; k < 3; k++)
+        for (int l = 0; l < 3; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
+    #endif
+
     AMREX_FORCE_INLINE
     Scalar &operator()(const int i, const int j, const int k, const int l)
     {
@@ -221,6 +236,64 @@ public:
             Util::Abort(INFO, "Index out of range");
         return data[-1];
     }
+    
+
+    AMREX_FORCE_INLINE
+    const Scalar &operator()(const int i, const int j, const int k, const int l) const
+    {
+        int uid = i + 3 * j + 9 * k + 27 * l;
+        
+        if (uid == 0)                    return data[0];  // [0000]
+        else if (uid == 27 || uid == 3)  return data[1];  // [0001] [0100]
+        else if (uid == 54 || uid == 6)  return data[2];  // [0002] [0200]
+        else if (uid == 9 || uid == 1)   return data[3];  // [0010] [1000]
+        else if (uid == 36 || uid == 4)  return data[4];  // [0011] [1100]
+        else if (uid == 63 || uid == 7)  return data[5];  // [0012] [1200]
+        else if (uid == 18 || uid == 2)  return data[6];  // [0020] [2000]
+        else if (uid == 45 || uid == 5)  return data[7];  // [0021] [2100]
+        else if (uid == 72 || uid == 8)  return data[8];  // [0022] [2200]
+        else if (uid == 30)              return data[9];  // [0101]
+        else if (uid == 57 || uid == 33) return data[10]; // [0102] [0201]
+        else if (uid == 12 || uid == 28) return data[11]; // [0110] [1001]
+        else if (uid == 39 || uid == 31) return data[12]; // [0111] [1101]
+        else if (uid == 66 || uid == 34) return data[13]; // [0112] [1201]
+        else if (uid == 21 || uid == 29) return data[14]; // [0120] [2001]
+        else if (uid == 48 || uid == 32) return data[15]; // [0121] [2101]
+        else if (uid == 75 || uid == 35) return data[16]; // [0122] [2201]
+        else if (uid == 60)              return data[17]; // [0202]
+        else if (uid == 15 || uid == 55) return data[18]; // [0210] [1002]
+        else if (uid == 42 || uid == 58) return data[19]; // [0211] [1102]
+        else if (uid == 69 || uid == 61) return data[20]; // [0212] [1202]
+        else if (uid == 24 || uid == 56) return data[21]; // [0220] [2002]
+        else if (uid == 51 || uid == 59) return data[22]; // [0221] [2102]
+        else if (uid == 78 || uid == 62) return data[23]; // [0222] [2202]
+        else if (uid == 10)              return data[24]; // [1010]
+        else if (uid == 37 || uid == 13) return data[25]; // [1011] [1110]
+        else if (uid == 64 || uid == 16) return data[26]; // [1012] [1210]
+        else if (uid == 19 || uid == 11) return data[27]; // [1020] [2010]
+        else if (uid == 46 || uid == 14) return data[28]; // [1021] [2110]
+        else if (uid == 73 || uid == 17) return data[29]; // [1022] [2210]
+        else if (uid == 40)              return data[30]; // [1111]
+        else if (uid == 67 || uid == 43) return data[31]; // [1112] [1211]
+        else if (uid == 22 || uid == 38) return data[32]; // [1120] [2011]
+        else if (uid == 49 || uid == 41) return data[33]; // [1121] [2111]
+        else if (uid == 76 || uid == 44) return data[34]; // [1122] [2211]
+        else if (uid == 70)              return data[35]; // [1212]
+        else if (uid == 25 || uid == 65) return data[36]; // [1220] [2012]
+        else if (uid == 52 || uid == 68) return data[37]; // [1221] [2112]
+        else if (uid == 79 || uid == 71) return data[38]; // [1222] [2212]
+        else if (uid == 20)              return data[39]; // [2020]
+        else if (uid == 47 || uid == 23) return data[40]; // [2021] [2120]
+        else if (uid == 74 || uid == 26) return data[41]; // [2022] [2220]
+        else if (uid == 50)              return data[42]; // [2121]
+        else if (uid == 77 || uid == 53) return data[43]; // [2122] [2221]
+        else if (uid == 80)              return data[44]; // [2222]
+        else
+            Util::Abort(INFO, "Index out of range");
+        return data[-1];
+    }
+    
+    
     void Print(std::ostream &os)
     {
         for (int i = 0; i < 45; i++)
