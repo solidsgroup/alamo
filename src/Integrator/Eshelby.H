@@ -17,7 +17,6 @@
 #include "Numeric/Stencil.H"
 
 #include "Model/Solid/Solid.H"
-#include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/Affine/Isotropic.H"
@@ -64,7 +63,7 @@ public:
 
                 // TODO: figure out how to initialize solvers in
                 // here instead of TimeStepBegin...
-            
+            }
         }
     }
 
