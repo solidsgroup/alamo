@@ -35,4 +35,6 @@ elastic.solver.verbose = 2
 elastic.solver.nriters = 1
 
 #elastic.bc.type.ylo = dirichlet dirichlet dirichlet
-elastic.bc.val.xhi  = 0.2 0.0 0.0 
+#elastic.bc.val.xhi  = 0.2 0.0 0.0
+#elastic.bc.type.ylo = trac trac trac
+#elastic.bc.type.yhi = trac trac trac
