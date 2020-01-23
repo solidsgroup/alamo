@@ -136,31 +136,6 @@ protected:
             }
         }
 
-
-        //BC::Operator::Elastic<model_type> bc;
-
-//        elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::X, elastic.bc.Type::Displacement, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::X, elastic.bc.Type::Displacement, 0.1);
-//#if AMREX_SPACEDIM>1
-//        elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Y, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Y, elastic.bc.Type::Displacement, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Y, elastic.bc.Type::Displacement, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, elastic.bc.Type::Displacement, 0.0);
-//#if AMREX_SPACEDIM>2
-//        elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Y, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Z, elastic.bc.Type::Displacement, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Y, elastic.bc.Type::Neumann, 0.0);
-//        elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Z, elastic.bc.Type::Displacement, 0.0);
-//#endif
-//#endif
         elastic.bc.Init(rhs_mf,geom);
 
 
