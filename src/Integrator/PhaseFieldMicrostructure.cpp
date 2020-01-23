@@ -168,7 +168,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 	// Elasticity
 	{
-		amrex::ParmParse pp("elastic");
+		IO::ParmParse pp("elastic");
 		pp.query("on", elastic.on);
 		if (elastic.on)
 		{
@@ -188,10 +188,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("C12",elastic.C12);
 			pp.query("C44",elastic.C44);
 
-			{
-				IO::ParmParse pp_bc("elastic");
-				pp_bc.queryclass("bc",elastic.bc);
-			}
+			pp.queryclass("bc",elastic.bc);
 
 			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
 			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
