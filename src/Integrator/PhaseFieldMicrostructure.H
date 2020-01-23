@@ -158,6 +158,8 @@ private:
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
 		Operator::Elastic<model_type> *op;
+
+		BC::Operator::Elastic<model_type> bc;
 	} elastic;
 
 };
