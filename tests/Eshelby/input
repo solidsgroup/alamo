@@ -8,7 +8,8 @@ stop_time		    = 0.1
 
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 5
+#amr.max_level		    = 5
+amr.max_level		    = 3
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
@@ -33,3 +34,5 @@ elastic.model.nu = 0.3
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
 
+#elastic.bc.type.ylo = dirichlet dirichlet dirichlet
+elastic.bc.val.xhi  = 0.2 0.0 0.0 

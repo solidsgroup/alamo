@@ -16,7 +16,7 @@ class ParmParse : public amrex::ParmParse
 {
 public:
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {} ;
-    void queryarr(std::string name, Set::Vector & value)
+    int queryarr(std::string name, Set::Vector & value)
     {
         std::vector<Set::Scalar> vals;
         amrex::ParmParse::queryarr(name.c_str(), vals);
@@ -25,8 +25,9 @@ public:
             Util::Abort(INFO,name," requires at least ", AMREX_SPACEDIM, " arguments, got ",vals.size());
         }
         for (int i = 0; i < AMREX_SPACEDIM; i++) value(i) = vals[i];
+        return 0;
     }
-    void queryarr(std::string name, Set::Matrix & value)
+    int queryarr(std::string name, Set::Matrix & value)
     {
         std::vector<Set::Scalar> vals;
         amrex::ParmParse::queryarr(name.c_str(), vals);
@@ -38,7 +39,9 @@ public:
         {
             value(i/AMREX_SPACEDIM, i%AMREX_SPACEDIM) = vals[i];
         }
+        return 0;
     }
+    using amrex::ParmParse::queryarr;
     template<class T>
     void queryclass(std::string name, T & value)
     {

@@ -49,7 +49,11 @@ public:
                 pp.queryclass("ellipse",*tmpic);
                 ic = tmpic;
             }
-            if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
+            if (pp.contains("Finclusion")) 
+            {
+                Util::Message(INFO);
+                pp.queryarr("Finclusion",Finclusion);
+            }
             Util::Message(INFO,Finclusion);
             if (pp.contains("Fmatrix")) pp.queryarr("Fmatrix",Fmatrix);
             Util::Message(INFO,Fmatrix);
@@ -63,6 +67,8 @@ public:
 
                 // TODO: figure out how to initialize solvers in
                 // here instead of TimeStepBegin...
+
+                pp.queryclass("bc",elastic.bc);
             }
         }
     }
@@ -131,37 +137,38 @@ protected:
         }
 
 
-        BC::Operator::Elastic<model_type> bc;
+        //BC::Operator::Elastic<model_type> bc;
 
-        bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.0, rhs_mf, geom);
-#if AMREX_SPACEDIM>1
-        bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs_mf, geom);
-#if AMREX_SPACEDIM>2
-        bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZLO, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_mf, geom);
-        bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.0, rhs_mf, geom);
-#endif
-#endif
+//        elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::X, elastic.bc.Type::Displacement, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::X, elastic.bc.Type::Displacement, 0.1);
+//#if AMREX_SPACEDIM>1
+//        elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Y, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Y, elastic.bc.Type::Displacement, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Y, elastic.bc.Type::Displacement, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, elastic.bc.Type::Displacement, 0.0);
+//#if AMREX_SPACEDIM>2
+//        elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Z, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Y, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Z, elastic.bc.Type::Displacement, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::X, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Y, elastic.bc.Type::Neumann, 0.0);
+//        elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Z, elastic.bc.Type::Displacement, 0.0);
+//#endif
+//#endif
+        elastic.bc.Init(rhs_mf,geom);
 
 
         amrex::LPInfo info;
         elastic.op.define(geom, grids, dmap, info);
         elastic.op.SetUniform(false);
         elastic.op.SetModel(model_mf);
-        elastic.op.SetBC(&bc);
+        elastic.op.SetBC(&elastic.bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
@@ -227,6 +234,7 @@ private:
         Model::Solid::Affine::Isotropic model;
         Operator::Elastic<Model::Solid::Affine::Isotropic> op;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
+        BC::Operator::Elastic<model_type> bc;
     } elastic;
 
 };
