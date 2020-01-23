@@ -195,7 +195,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
 			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
-			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
+			//RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
 			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
 			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
 
@@ -428,7 +428,7 @@ void PhaseFieldMicrostructure::Initialize(int lev)
 	{
 		disp_mf[lev].get()->setVal(0.0);
 		rhs_mf[lev].get()->setVal(0.0);
-		res_mf[lev].get()->setVal(0.0);
+		//res_mf[lev].get()->setVal(0.0);
 		stress_mf[lev].get()->setVal(0.0);
 	}
 }

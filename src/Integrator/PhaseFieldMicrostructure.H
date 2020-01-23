@@ -80,7 +80,7 @@ private:
 	// Node fab
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp_mf; 
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs_mf; 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > res_mf; 
+	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > res_mf; 
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
 	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_mf;
