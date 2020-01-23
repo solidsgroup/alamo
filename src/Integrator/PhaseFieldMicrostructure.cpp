@@ -189,32 +189,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("C44",elastic.C44);
 
 			{
-				amrex::ParmParse pp_bc("elastic.bc");
-				// Read in boundary types as strings, then convert to Operator::Elastic::BC types and store for future use.
-				amrex::Vector<std::string> AMREX_D_DECL(bctype_xlo_str, bctype_ylo_str, bctype_zlo_str);
-				amrex::Vector<std::string> AMREX_D_DECL(bctype_xhi_str, bctype_yhi_str, bctype_zhi_str);
-				AMREX_D_TERM(pp_bc.queryarr("type_xlo", bctype_xlo_str);, pp_bc.queryarr("type_ylo", bctype_ylo_str);, pp_bc.queryarr("type_zlo", bctype_zlo_str););
-				AMREX_D_TERM(pp_bc.queryarr("type_xhi", bctype_xhi_str);, pp_bc.queryarr("type_yhi", bctype_yhi_str);, pp_bc.queryarr("type_zhi", bctype_zhi_str););
-				if (AMREX_D_TERM(bctype_xlo_str.size() < AMREX_SPACEDIM, || bctype_ylo_str.size() < AMREX_SPACEDIM, || bctype_zlo_str.size() < AMREX_SPACEDIM) ||
-					AMREX_D_TERM(bctype_xhi_str.size() < AMREX_SPACEDIM, || bctype_yhi_str.size() < AMREX_SPACEDIM, || bctype_zhi_str.size() < AMREX_SPACEDIM))
-					Util::Abort(INFO, "incorrect number of terms specified in bctype");
-				std::map<std::string, BC::Operator::Elastic<model_type>::Type> bc;
-				bc["displacement"] = BC::Operator::Elastic<model_type>::Type::Displacement;
-				bc["disp"] = BC::Operator::Elastic<model_type>::Type::Displacement;
-				bc["neumann"] = BC::Operator::Elastic<model_type>::Type::Neumann;
-				bc["traction"] = BC::Operator::Elastic<model_type>::Type::Traction;
-				bc["trac"] = BC::Operator::Elastic<model_type>::Type::Traction;
-				bc["periodic"] = BC::Operator::Elastic<model_type>::Type::Periodic;
-				AMREX_D_TERM(
-					elastic.bctype_xlo = {AMREX_D_DECL(bc[bctype_xlo_str[0]], bc[bctype_xlo_str[1]], bc[bctype_xlo_str[2]])};,
-					elastic.bctype_ylo = {AMREX_D_DECL(bc[bctype_ylo_str[0]], bc[bctype_ylo_str[1]], bc[bctype_ylo_str[2]])};,
-					elastic.bctype_zlo = {AMREX_D_DECL(bc[bctype_zlo_str[0]], bc[bctype_zlo_str[1]], bc[bctype_zlo_str[2]])};);
-				AMREX_D_TERM(
-					elastic.bctype_xhi = {AMREX_D_DECL(bc[bctype_xhi_str[0]], bc[bctype_xhi_str[1]], bc[bctype_xhi_str[2]])};,
-					elastic.bctype_yhi = {AMREX_D_DECL(bc[bctype_yhi_str[0]], bc[bctype_yhi_str[1]], bc[bctype_yhi_str[2]])};,
-					elastic.bctype_zhi = {AMREX_D_DECL(bc[bctype_zhi_str[0]], bc[bctype_zhi_str[1]], bc[bctype_zhi_str[2]])};);
-				AMREX_D_TERM(pp_bc.queryarr("xlo", elastic.bc_xlo);, pp_bc.queryarr("ylo", elastic.bc_ylo);, pp_bc.queryarr("zlo", elastic.bc_zlo););
-				AMREX_D_TERM(pp_bc.queryarr("xhi", elastic.bc_xhi);, pp_bc.queryarr("yhi", elastic.bc_yhi);, pp_bc.queryarr("zhi", elastic.bc_zhi););
+				IO::ParmParse pp_bc("elastic");
+				pp_bc.queryclass("bc",elastic.bc);
 			}
 
 			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
@@ -553,32 +529,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	}
 	elasticop.SetModel(model_mf);
 
-	BC::Operator::Elastic<model_type> bc;
-	//bc.Set(bc.Face::XHI,bc.Direction::X,elastic.bctype_xhi[0],elastic.bc_xhi[0],rhs_mf,geom);
-	#if AMREX_SPACEDIM > 1
-	bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bctype_xlo[bc.Direction::X], elastic.bc_xlo[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bctype_xlo[bc.Direction::Y], elastic.bc_xlo[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bctype_xhi[bc.Direction::X], elastic.bc_xhi[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::XHI, bc.Direction::Y, elastic.bctype_xhi[bc.Direction::Y], elastic.bc_xhi[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::X, elastic.bctype_ylo[bc.Direction::X], elastic.bc_ylo[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bctype_ylo[bc.Direction::Y], elastic.bc_ylo[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bctype_yhi[bc.Direction::X], elastic.bc_yhi[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bctype_yhi[bc.Direction::Y], elastic.bc_yhi[bc.Direction::Y], rhs_mf, geom);
-	#endif
-	#if AMREX_SPACEDIM > 2
-	bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bctype_xlo[bc.Direction::Z], elastic.bc_xlo[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bctype_xhi[bc.Direction::Z], elastic.bc_xhi[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bctype_ylo[bc.Direction::Z], elastic.bc_ylo[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bctype_yhi[bc.Direction::Z], elastic.bc_yhi[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bctype_zlo[bc.Direction::X], elastic.bc_zlo[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bctype_zlo[bc.Direction::Y], elastic.bc_zlo[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bctype_zlo[bc.Direction::Z], elastic.bc_zlo[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bctype_zhi[bc.Direction::X], elastic.bc_zhi[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bctype_zhi[bc.Direction::Y], elastic.bc_zhi[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bctype_zhi[bc.Direction::Z], elastic.bc_zhi[bc.Direction::Z], rhs_mf, geom);
-	#endif
-
-	elasticop.SetBC(&bc);
+	elastic.bc.Init(rhs_mf,geom);
+	elasticop.SetBC(&elastic.bc);
 
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 	Solver::Nonlocal::Linear linearsolver(elasticop);
