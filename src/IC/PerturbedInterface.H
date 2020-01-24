@@ -3,6 +3,7 @@
 
 #include "IC/IC.H"
 #include "Util/Util.H"
+#include "IO/ParmParse.H"
 
 /// \class PerturbedInterface
 /// \brief Initialize a perturbed interface using Fourier Modes
