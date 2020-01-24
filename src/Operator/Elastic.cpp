@@ -6,6 +6,7 @@
 
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Elastic.H"
 
@@ -843,5 +844,6 @@ template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 template class Elastic<Model::Solid::Elastic::NeoHookean>;
 template class Elastic<Model::Solid::Affine::Isotropic>;
 template class Elastic<Model::Solid::Linear::Isotropic>;
+template class Elastic<Model::Solid::Linear::Cubic>;
 }
 

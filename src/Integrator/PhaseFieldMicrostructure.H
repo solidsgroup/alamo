@@ -27,6 +27,7 @@
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
 
+#include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
@@ -34,9 +35,10 @@
 
 namespace Integrator
 {
-
 //using model_type = Model::Solid::LinearElastic::Isotropic;
-using model_type = Model::Solid::LinearElastic::Cubic;
+//using model_type = Model::Solid::LinearElastic::Cubic;
+using model_type = Model::Solid::Linear::Cubic;
+
 enum RegularizationType{
 	Wilmore = 1,
 	K12 = 2};
@@ -138,12 +140,7 @@ private:
 	{
 		bool        on       = false;
 		int         interval = -1;
-		int         max_iter = -1;
-		int         fixed_iter = -1;
-		int         max_fmg_iter = -1;
-		int         bottom_max_iter = -1;
 		int         max_coarsening_level = -1;
-		int         verbose = -1;
 		amrex::Real tol_rel = 0.0;
 		amrex::Real tol_abs = 1.0E-10;
 		amrex::Real tstart = 0.0;
@@ -151,13 +148,11 @@ private:
 		amrex::Vector<amrex::Real> load_disp;
 		std::vector<model_type> model;
 
-		Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
-
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
-		Operator::Elastic<model_type> *op;
+		Operator::Elastic<model_type> op;
 
 		BC::Operator::Elastic<model_type> bc;
 	} elastic;

@@ -38,8 +38,8 @@ public:
             {
                 for (int l = 0; l < 2; l++)
                 {
-                    if (i==-1)       os << "┌                                     ┐ ";
-                    else if (i == 2) os << "└                                     ┘ ";
+                    if (i==-1)       os << "┌                         ┐ ";
+                    else if (i == 2) os << "└                         ┘ ";
                     else 
                     {
                         os << "│ ";

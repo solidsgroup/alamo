@@ -7,7 +7,7 @@ stop_time		    = 400
 
 #amr.plot_int		    = 100
 amr.plot_dt                 = 5.0
-amr.max_level		    = 0
+amr.max_level		    = 3
 amr.n_cell		    = 64 64 64
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 10
@@ -51,6 +51,12 @@ elastic.bc.type.zhi = neumann neumann neumann
 elastic.bc.val.zhi  = 0.0 0.0 0.0
 elastic.bc.val.zlo  = 0.0 0.0 0.0
 
+elastic.model.C11 = 1.68
+elastic.model.C12 = 1.21
+elastic.model.C44 = 0.75
+elastic.model.random
+
 elastic.fixed_iter = 1000
 #elastic.max_coarsening_level = 0
-elastic.verbose = 2
+elastic.solver.verbose = 2
+

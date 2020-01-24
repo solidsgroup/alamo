@@ -172,34 +172,27 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("on", elastic.on);
 		if (elastic.on)
 		{
+			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
+			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
+			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
+
 			pp.query("interval", elastic.interval);
-			//pp.query("type",elastic_type);
-			pp.query("max_iter", elastic.max_iter);
-			pp.query("fixed_iter", elastic.fixed_iter);
-			pp.query("max_fmg_iter", elastic.max_fmg_iter);
-			pp.query("bottom_max_iter", elastic.bottom_max_iter); //todo
 			pp.query("max_coarsening_level", elastic.max_coarsening_level);
-			pp.query("verbose", elastic.verbose);
 			pp.query("tol_rel", elastic.tol_rel);
 			pp.query("tol_abs", elastic.tol_abs);
 			pp.query("tstart", elastic.tstart);
 
-			pp.query("C11",elastic.C11);
-			pp.query("C12",elastic.C12);
-			pp.query("C44",elastic.C44);
+			pp.queryclass("op",elastic.op);
 
 			pp.queryclass("bc",elastic.bc);
 
-			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
-			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
-			//RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
-			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
-			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
 
 			elastic.model.resize(number_of_grains);
 			for (int i = 0; i < number_of_grains; i++)
 			{
-				elastic.model[i].Randomize(elastic.C11, elastic.C12, elastic.C44);
+				model_type mymodel;
+				pp.queryclass("model",elastic.model[i]);
 			}
 		}
 	}
@@ -472,11 +465,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < rhs_mf.size(); lev++)
 		rhs_mf[lev]->setVal(0.0);
 
-	Operator::Elastic<model_type> elasticop;
-	elasticop.SetUniform(false);
+	//Operator::Elastic<model_type> elasticop;
+	elastic.op.SetUniform(false);
 	amrex::LPInfo info;
 	//info.setMaxCoarseningLevel(0);
-	elasticop.define(geom, grids, dmap, info);
+	elastic.op.define(geom, grids, dmap, info);
 
 	// Set linear elastic model
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
@@ -492,7 +485,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		Set::Vector DX(geom[lev].CellSize());
 
-		//for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.growntilebox(2);
@@ -504,14 +496,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				model(i, j, k) = elastic.model[0] * 0.0;
 				for (int n = 0; n < number_of_grains; n++)
 					model(i, j, k) += elastic.model[n] * eta(i, j, k, n);
-
-				//Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-				//model(i, j, k) = model_type(lame, shear);
-				//model(i, j, k) = model_type(lame, shear, Fmatrix);
 			});
 		}
 
-		amrex::Geometry geom = elasticop.Geom(lev);
+		amrex::Geometry geom = elastic.op.Geom(lev);
 		for (int i = 0; i < 2; i++)
 		{
 			amrex::FabArray<amrex::BaseFab<model_type>> &mf = model_mf[lev];
@@ -524,23 +512,20 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
 		}
 	}
-	elasticop.SetModel(model_mf);
+	elastic.op.SetModel(model_mf);
 
 	elastic.bc.Init(rhs_mf,geom);
-	elasticop.SetBC(&elastic.bc);
+	elastic.op.SetBC(&elastic.bc);
 
-	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	Solver::Nonlocal::Linear linearsolver(elasticop);
-	if (elastic.verbose >= 0)
-		linearsolver.setVerbose(elastic.verbose);
-	if (elastic.fixed_iter >= 0)
-		linearsolver.setFixedIter(elastic.fixed_iter);
-	linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
+	Solver::Nonlocal::Linear linearsolver(elastic.op);
+	IO::ParmParse pp("elastic");
+	pp.queryclass("solver",linearsolver);
+	linearsolver.solve(disp_mf, rhs_mf);
 
 	for (int lev = 0; lev < disp_mf.size(); lev++)
 	{
-		elasticop.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-		elasticop.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
+		elastic.op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+		elastic.op.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
 	}
 }
 

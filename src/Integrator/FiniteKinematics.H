@@ -16,7 +16,6 @@
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
 
-#include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Solver/Nonlocal/Linear.H"
 
 #include "IO/ParmParse.H"
@@ -123,7 +122,6 @@ protected:
         for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
         //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
-        //using model_type = Model::Solid::LinearElastic::Multiwell;
         using model_type = Model::Solid::Elastic::NeoHookean;
         Operator::Elastic<model_type> elastic;
         elastic.SetUniform(false);
