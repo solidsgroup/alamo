@@ -137,10 +137,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	}
 
 	{
-		amrex::ParmParse pp("ic"); // Phase-field model parameters
+		IO::ParmParse pp("ic"); // Phase-field model parameters
 		pp.query("type", ic_type);
-		if (ic_type == "perturbed_interface")
+		if (ic_type == "perturbed_interface") 
+		{
 			ic = new IC::PerturbedInterface(geom);
+			pp.queryclass(static_cast<IC::PerturbedInterface*>(ic));
+		}
 		else if (ic_type == "tabulated_interface")
 			ic = new IC::TabulatedInterface(geom);
 		else if (ic_type == "voronoi")

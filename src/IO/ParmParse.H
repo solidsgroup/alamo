@@ -43,11 +43,23 @@ public:
     }
     using amrex::ParmParse::queryarr;
     template<class T>
+    void queryclass(std::string name, T * value)
+    {
+        this->pushPrefix(name);
+        T::Parse(*value, *this);
+        this->popPrefix();
+    }
+    template<class T>
     void queryclass(std::string name, T & value)
     {
         this->pushPrefix(name);
         T::Parse(value, *this);
         this->popPrefix();
+    }
+    template<class T>
+    void queryclass(T * value)
+    {
+        T::Parse(*value, *this);
     }
     template<class T>
     void queryclass(T & value)
