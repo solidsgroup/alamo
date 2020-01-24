@@ -234,16 +234,23 @@ public:
         return ret;
     }
     friend Set::Vector operator * (Matrix4<3,Sym::MajorMinor> a, Set::Matrix3 b);
+    friend Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b)
 {
-   	Eigen::Matrix<amrex::Real,3,3> ret = Eigen::Matrix<amrex::Real,3,3>::Zero();
-	for (int i = 0; i < 3; i++)
-		for (int j = 0; j < 3; j++)
-			for (int k = 0; k < 3; k++)
-				for (int l = 0; l < 3; l++)
-					ret(i,j) += a(i,j,k,l)*b(k,l);
+    Eigen::Matrix<amrex::Real,3,3> ret = Eigen::Matrix<amrex::Real,3,3>::Zero();
+	ret(0,0) += a.data[   0]*b(0,0) + a.data[   1]*(b(0,1) + b(1,0)) + a.data[   2]*(b(0,2) + b(2,0)) + a.data[   3]*b(1,1) + a.data[   4]*(b(1,2) + b(2,1)) + a.data[   5]*b(2,2);
+   	ret(1,1) += a.data[   3]*b(0,0) + a.data[   8]*(b(0,1) + b(1,0)) + a.data[  12]*(b(0,2) + b(2,0)) + a.data[  15]*b(1,1) + a.data[  16]*(b(1,2) + b(2,1)) + a.data[  17]*b(2,2);
+  	ret(2,2) += a.data[   5]*b(0,0) + a.data[  10]*(b(0,1) + b(1,0)) + a.data[  14]*(b(0,2) + b(2,0)) + a.data[  17]*b(1,1) + a.data[  19]*(b(1,2) + b(2,1)) + a.data[  20]*b(2,2);
+  	ret(1,2) += a.data[   4]*b(0,0) + a.data[   9]*(b(0,1) + b(1,0)) + a.data[  13]*(b(0,2) + b(2,0)) + a.data[  16]*b(1,1) + a.data[  18]*(b(1,2) + b(2,1)) + a.data[  19]*b(2,2);
+    ret(2,0) += a.data[   2]*b(0,0) + a.data[   7]*(b(0,1) + b(1,0)) + a.data[  11]*(b(0,2) + b(2,0)) + a.data[  12]*b(1,1) + a.data[  13]*(b(1,2) + b(2,1)) + a.data[  14]*b(2,2);
+  	ret(0,1) += a.data[   1]*b(0,0) + a.data[   6]*(b(0,1) + b(1,0)) + a.data[   7]*(b(0,2) + b(2,0)) + a.data[   8]*b(1,1) + a.data[   9]*(b(1,2) + b(2,1)) + a.data[  10]*b(2,2);
+
+  	ret(2,1) += ret(1,2);
+  	ret(0,2) += ret(2,0);
+	ret(1,0) += ret(0,1);
+
 	return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 

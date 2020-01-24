@@ -502,18 +502,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			});
 		}
 
-		amrex::Geometry geom = elastic.op.Geom(lev);
-		for (int i = 0; i < 2; i++)
-		{
-			amrex::FabArray<amrex::BaseFab<model_type>> &mf = model_mf[lev];
-			mf.FillBoundary(geom.periodicity());
-			const int ncomp = mf.nComp();
-			const int ng1 = 1;
-			const int ng2 = 2;
-			amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-			amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
-			mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-		}
+		Util::RealFillBoundary(model_mf[lev],elastic.op.Geom(lev));
 	}
 	elastic.op.SetModel(model_mf);
 

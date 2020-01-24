@@ -48,14 +48,8 @@ public:
                 ic = new IC::Ellipse(geom);
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
-            if (pp.contains("Finclusion")) 
-            {
-                Util::Message(INFO);
-                pp.queryarr("Finclusion",Finclusion);
-            }
-            Util::Message(INFO,Finclusion);
-            if (pp.contains("Fmatrix")) pp.queryarr("Fmatrix",Fmatrix);
-            Util::Message(INFO,Fmatrix);
+            if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
+            if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
         }
         {
             IO::ParmParse pp("elastic");
@@ -122,17 +116,7 @@ protected:
                 });
             }
 
-            for (int i = 0; i < 2; i++)
-            {
-                amrex::FabArray<amrex::BaseFab<model_type>> &mf = model_mf[lev];
-                mf.FillBoundary(geom[lev].periodicity());
-                const int ncomp = mf.nComp();
-                const int ng1 = 1;
-                const int ng2 = 2;
-                amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-                amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
-                mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom[lev].periodicity());
-            }
+            Util::RealFillBoundary(model_mf[lev],geom[lev]);
         }
 
         elastic.bc.Init(rhs_mf,geom);
