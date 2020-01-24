@@ -45,9 +45,8 @@ public:
             pp.query("type",type);
             if (type=="ellipse")
             {
-                IC::Ellipse *tmpic = new IC::Ellipse(geom);
-                pp.queryclass("ellipse",*tmpic);
-                ic = tmpic;
+                ic = new IC::Ellipse(geom);
+                pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
             if (pp.contains("Finclusion")) 
             {
