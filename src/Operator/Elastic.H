@@ -155,6 +155,12 @@ private:
 
 	bool m_model_set = false;
 	bool m_bc_set = false;
+	
+public:
+    static void Parse(Elastic<T> & /*value*/, IO::ParmParse & /*pp*/)
+    {
+    }
+
 };
 }
 
