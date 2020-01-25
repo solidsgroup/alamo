@@ -26,15 +26,17 @@
 
 
 #include "Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+#include "Model/Solid/Linear/IsotropicDegradableTanh.H"
+#include "Model/Solid/Linear/IsotropicDegradable.H"
+//#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+//#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
+//#include "Model/Solid/LinearElastic/LinearElastic.H"
+//#include "Model/Solid/LinearElastic/Laplacian.H"
 
 
 namespace Integrator
 {
-using pd_model_type = Model::Solid::LinearElastic::Degradable::Isotropic2;
+using pd_model_type = Model::Solid::Linear::IsotropicDegradableTanh;
 //using pd_model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
 //using pd_model_type = Model::Solid::LinearElastic::Isotropic;
 //using pd_model_type = Model::Solid::LinearElastic::Laplacian;

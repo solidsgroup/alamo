@@ -2,6 +2,7 @@
 #define BC_OPERATOR_ELASTIC_H
 
 // #include "Operator/Elastic.H"
+#include "IO/ParmParse.H"
 
 namespace BC
 {
@@ -31,11 +32,31 @@ public:
 			for (int direction = 0; direction < AMREX_SPACEDIM; direction++)
 			{
 				m_bc_lo[face][direction] = Type::Displacement;
+				m_bc_lo_val[face][direction] = 0.0;
 				m_bc_hi[face][direction] = Type::Displacement;
+				m_bc_hi_val[face][direction] = 0.0;
 			}
 	};
  	~Elastic() {};
 	
+	void
+	Set(const Face face,
+	      const Direction direction,
+	      const Type type,
+	      const Set::Scalar value)
+	{
+		if (AMREX_D_TERM(face == Face::XLO, || face == Face::YLO, ||  face == Face::ZLO))
+		{
+			m_bc_lo[face%AMREX_SPACEDIM][direction] = type;
+			m_bc_lo_val[face%AMREX_SPACEDIM][direction] = value;
+		}
+		if (AMREX_D_TERM(face == Face::XHI, || face == Face::YHI, ||  face == Face::ZHI))
+		{
+			m_bc_hi[face%AMREX_SPACEDIM][direction] = type;
+			m_bc_hi_val[face%AMREX_SPACEDIM][direction] = value;
+		}
+	}
+
 	void
 	Set(const Face face,
 	      const Direction direction,
@@ -45,9 +66,15 @@ public:
 	    const amrex::Vector<amrex::Geometry> &a_geom)
 	{
 		if (AMREX_D_TERM(face == Face::XLO, || face == Face::YLO, ||  face == Face::ZLO))
+		{
 			m_bc_lo[face%AMREX_SPACEDIM][direction] = type;
+			m_bc_lo_val[face%AMREX_SPACEDIM][direction] = value;
+		}
 		if (AMREX_D_TERM(face == Face::XHI, || face == Face::YHI, ||  face == Face::ZHI))
+		{
 			m_bc_hi[face%AMREX_SPACEDIM][direction] = type;
+			m_bc_hi_val[face%AMREX_SPACEDIM][direction] = value;
+		}
 
 		for (int ilev = 0; ilev < a_rhs.size(); ilev++)
 		{
@@ -125,6 +152,52 @@ public:
 	{
 		amrex::Vector<amrex::MultiFab *> pa_rhs = amrex::GetVecOfPtrs(a_rhs);
 		Set(face,direction,type,value,pa_rhs,a_geom);
+	}
+
+	void
+	Init(amrex::Vector<amrex::MultiFab *> &a_rhs,
+	     const amrex::Vector<amrex::Geometry> &a_geom)
+	{
+		#if AMREX_SPACEDIM > 0
+		Set(Face::XLO,Direction::X,m_bc_lo[Face::XLO%AMREX_SPACEDIM][Direction::X],m_bc_lo_val[Face::XLO%AMREX_SPACEDIM][Direction::X],a_rhs,a_geom);
+		Set(Face::XHI,Direction::X,m_bc_hi[Face::XHI%AMREX_SPACEDIM][Direction::X],m_bc_hi_val[Face::XHI%AMREX_SPACEDIM][Direction::X],a_rhs,a_geom);
+		#endif
+		#if AMREX_SPACEDIM > 1
+		Set(Face::XLO,Direction::Y,m_bc_lo[Face::XLO%AMREX_SPACEDIM][Direction::Y],m_bc_lo_val[Face::XLO%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
+		Set(Face::XHI,Direction::Y,m_bc_hi[Face::XHI%AMREX_SPACEDIM][Direction::Y],m_bc_hi_val[Face::XHI%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
+		Set(Face::YLO,Direction::X,m_bc_lo[Face::YLO%AMREX_SPACEDIM][Direction::X],m_bc_lo_val[Face::YLO%AMREX_SPACEDIM][Direction::X],a_rhs,a_geom);
+		Set(Face::YLO,Direction::Y,m_bc_lo[Face::YLO%AMREX_SPACEDIM][Direction::Y],m_bc_lo_val[Face::YLO%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
+		Set(Face::YHI,Direction::X,m_bc_hi[Face::YHI%AMREX_SPACEDIM][Direction::X],m_bc_hi_val[Face::YHI%AMREX_SPACEDIM][Direction::X],a_rhs,a_geom);
+		Set(Face::YHI,Direction::Y,m_bc_hi[Face::YHI%AMREX_SPACEDIM][Direction::Y],m_bc_hi_val[Face::YHI%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
+		#endif
+		#if AMREX_SPACEDIM > 2
+		Set(Face::XLO,Direction::Z,m_bc_lo[Face::XLO%AMREX_SPACEDIM][Direction::Z],m_bc_lo_val[Face::XLO%AMREX_SPACEDIM][Direction::Z],a_rhs,a_geom);
+		Set(Face::XHI,Direction::Z,m_bc_hi[Face::XHI%AMREX_SPACEDIM][Direction::Z],m_bc_hi_val[Face::XHI%AMREX_SPACEDIM][Direction::Z],a_rhs,a_geom);
+		Set(Face::YLO,Direction::Z,m_bc_lo[Face::YLO%AMREX_SPACEDIM][Direction::Z],m_bc_lo_val[Face::YLO%AMREX_SPACEDIM][Direction::Z],a_rhs,a_geom);
+		Set(Face::YHI,Direction::Z,m_bc_hi[Face::YHI%AMREX_SPACEDIM][Direction::Z],m_bc_hi_val[Face::YHI%AMREX_SPACEDIM][Direction::Z],a_rhs,a_geom);
+		Set(Face::ZLO,Direction::X,m_bc_lo[Face::ZLO%AMREX_SPACEDIM][Direction::X],m_bc_lo_val[Face::ZLO%AMREX_SPACEDIM][Direction::X],a_rhs,a_geom);
+		Set(Face::ZLO,Direction::Y,m_bc_lo[Face::ZLO%AMREX_SPACEDIM][Direction::Y],m_bc_lo_val[Face::ZLO%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
+		Set(Face::ZLO,Direction::Z,m_bc_lo[Face::ZLO%AMREX_SPACEDIM][Direction::Z],m_bc_lo_val[Face::ZLO%AMREX_SPACEDIM][Direction::Z],a_rhs,a_geom);
+		Set(Face::ZHI,Direction::X,m_bc_hi[Face::ZHI%AMREX_SPACEDIM][Direction::X],m_bc_hi_val[Face::ZHI%AMREX_SPACEDIM][Direction::X],a_rhs,a_geom);
+		Set(Face::ZHI,Direction::Y,m_bc_hi[Face::ZHI%AMREX_SPACEDIM][Direction::Y],m_bc_hi_val[Face::ZHI%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
+		Set(Face::ZHI,Direction::Z,m_bc_hi[Face::ZHI%AMREX_SPACEDIM][Direction::Z],m_bc_hi_val[Face::ZHI%AMREX_SPACEDIM][Direction::Z],a_rhs,a_geom);
+		#endif
+	}
+
+	void
+	Init(amrex::Vector<amrex::MultiFab> &a_rhs,
+	    const amrex::Vector<amrex::Geometry> &a_geom)
+	{
+		amrex::Vector<amrex::MultiFab *> pa_rhs = amrex::GetVecOfPtrs(a_rhs);
+		Init(pa_rhs,a_geom);
+	}
+
+	void
+	Init(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &a_rhs,
+	    const amrex::Vector<amrex::Geometry> &a_geom)
+	{
+		amrex::Vector<amrex::MultiFab *> pa_rhs = amrex::GetVecOfPtrs(a_rhs);
+		Init(pa_rhs,a_geom);
 	}
 
 
@@ -418,9 +491,49 @@ public:
 
 private:
 	// m_bc_lo[face][dimension]
-	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo; 
+	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM>        m_bc_lo; 
+	std::array<std::array<Set::Scalar,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_lo_val; 
 	// m_bc_hi[face][dimension]
-	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi; 
+	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM>        m_bc_hi; 
+	std::array<std::array<Set::Scalar,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi_val;
+
+public:
+    static void Parse(Elastic & value, IO::ParmParse & pp)
+    {
+		std::map<std::string, Type> bcmap;
+		bcmap["displacement"] = Type::Displacement;
+		bcmap["disp"]         = Type::Displacement;
+		bcmap["neumann"]      = Type::Neumann;
+		bcmap["traction"]     = Type::Traction;
+		bcmap["trac"]         = Type::Traction;
+		bcmap["periodic"]     = Type::Periodic;
+		
+		std::vector<std::string> str;
+		if (pp.contains("type.xlo")) { pp.queryarr("type.xlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_lo[Face::XLO%AMREX_SPACEDIM][i] = bcmap[str[i]]; }
+		if (pp.contains("type.xhi")) { pp.queryarr("type.xhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_hi[Face::XHI%AMREX_SPACEDIM][i] = bcmap[str[i]]; }
+		#if AMREX_SPACEDIM > 1
+		if (pp.contains("type.ylo")) { pp.queryarr("type.ylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_lo[Face::YLO%AMREX_SPACEDIM][i] = bcmap[str[i]]; }
+		if (pp.contains("type.yhi")) { pp.queryarr("type.yhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_hi[Face::YHI%AMREX_SPACEDIM][i] = bcmap[str[i]]; }
+		#endif
+		#if AMREX_SPACEDIM > 2
+		if (pp.contains("type.zlo")) { pp.queryarr("type.zlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_lo[Face::ZLO%AMREX_SPACEDIM][i] = bcmap[str[i]]; }
+		if (pp.contains("type.zhi")) { pp.queryarr("type.zhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_hi[Face::ZHI%AMREX_SPACEDIM][i] = bcmap[str[i]]; }
+		#endif
+
+		std::vector<Set::Scalar> val;
+		if (pp.contains("val.xlo"))  { pp.queryarr("val.xlo", val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_lo_val[Face::XLO%AMREX_SPACEDIM][i] = val[i];}
+		if (pp.contains("val.xhi"))  { pp.queryarr("val.xhi", val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_hi_val[Face::XHI%AMREX_SPACEDIM][i] = val[i];}
+		#if AMREX_SPACEDIM > 1
+		if (pp.contains("val.ylo"))  { pp.queryarr("val.ylo", val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_lo_val[Face::YLO%AMREX_SPACEDIM][i] = val[i];}
+		if (pp.contains("val.yhi"))  { pp.queryarr("val.yhi", val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_hi_val[Face::YHI%AMREX_SPACEDIM][i] = val[i];}
+		#endif
+		#if AMREX_SPACEDIM > 2
+		if (pp.contains("val.zlo"))  { pp.queryarr("val.zlo", val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_lo_val[Face::ZLO%AMREX_SPACEDIM][i] = val[i];}
+		if (pp.contains("val.zhi"))  { pp.queryarr("val.zhi", val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_hi_val[Face::ZHI%AMREX_SPACEDIM][i] = val[i];}
+		#endif
+		//if (pp.contains("val.xlo")) for (int i = 0; i < AMREX_SPACEDIM; i++) 
+
+    }
 };
 
 }

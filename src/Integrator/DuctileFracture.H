@@ -20,10 +20,10 @@
 #include "BC/Constant.H"
 
 #include "Operator/Elastic.H"
-#include "Solver/Nonlocal/Linear.H"
-#include "Model/Solid/LinearElastic/Degradable/IsotropicPlastic.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+#include "Solver/Nonlocal/Newton.H"
+#include "Model/Solid/Affine/IsotropicDegradablePlastic.H"
+//#include "Model/Solid/LinearElastic/LinearElastic.H"
+//#include "Model/Solid/LinearElastic/Laplacian.H"
 
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
@@ -48,7 +48,7 @@
 ///    - See #Cylinder or #Constant
 namespace Integrator
 {
-using ductile_fracture_model_type = Model::Solid::LinearElastic::Degradable::IsotropicPlastic;
+using ductile_fracture_model_type = Model::Solid::Affine::IsotropicDegradablePlastic;
 class DuctileFracture : public Integrator
 {
 public:
@@ -135,24 +135,38 @@ private:
 		bool 		consolidation 	  		= false;
 
 		// Elastic BC
-		std::array<BC::Operator::Elastic<ductile_fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
-		std::array<BC::Operator::Elastic<ductile_fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
+		//std::array<BC::Operator::Elastic<ductile_fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
+		//std::array<BC::Operator::Elastic<ductile_fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
-		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
-		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
+		//Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
+		//Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
 		
-		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
+		Set::Vector body_force = Set::Vector::Zero();
+		Operator::Elastic<ductile_fracture_model_type> op;
+		BC::Operator::Elastic<ductile_fracture_model_type> bc;
+		Set::Scalar bc_top 							= 0.;
 	} elastic;
 
-	ductile_fracture_model_type 		*modeltype;											///< Type of material model
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type> > > model;	///< Model fab
-	Model::Interface::Crack::Crack *boundary;												///< Type of crack boundary
+	struct{
+		Model::Interface::Crack::Crack *boundary;
+		std::string ic_type;
+		IC::IC *ic;            						///< Pointer to abstract IC object
+		BC::BC *mybc;                   			///< Stock generic boundary condition object
 
-	std::string input_material = "isotropic";
-	Set::Scalar yield_strength = 1.e3;
-	Set::Scalar hardening_modulus = 1.;
-	Set::Scalar epscrit = 1.0;
-	
+		bool newCrackProblem=true;
+		bool solveCrack=false;
+		bool solveElasticity=false;
+		bool crackStressTest = false;
+	}crack;
+
+	struct{
+		ductile_fracture_model_type 		*modeltype;
+		amrex::Vector<amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type> > > model;
+		std::string input_material = "isotropic";
+		Set::Scalar yield_strength = 1.e3;
+		Set::Scalar hardening_modulus = 1.;
+		Set::Scalar epscrit = 1.0;
+	}material;
 
 	Set::Scalar crack_err_norm, c_new_norm;
 	bool err_crack_init = true;
@@ -165,14 +179,6 @@ private:
 	Set::Scalar refinement_threshold = 0.001;			///< Criterion for cell refinement
 	Set::Scalar tol_crack = 1e-7, tol_step = 1e-3;
 	int nlevels;
-
-	std::string ic_type;						///< String to determine what kind of initial condition to use
-	IC::IC *ic;            						///< Pointer to abstract IC object
-	BC::BC *mybc;                   			///< Stock generic boundary condition object
-
-	bool newCrackProblem=true, solveCrack=false, solveElasticity=false;
-
-	bool crackStressTest = false;
 };
 }
 #endif

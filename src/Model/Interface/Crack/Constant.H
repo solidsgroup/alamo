@@ -18,30 +18,7 @@ namespace Crack
 class Constant : public Crack
 {
 public:
-    Constant()
-    {
-        amrex::ParmParse pp("crack.constant");
-        pp.query("G_c",Gc);
-		pp.query("zeta",zeta);
-		pp.query("mobility",mobility);
-		pp.query("mult_Gc",mult_Gc);
-		pp.query("mult_Lap", mult_Lap);
-        std::string phitype = "";
-        pp.query("phitype", phitype);
-
-        Set::Scalar ductile_exponent = 1.;
-        if(phitype == "squarepexp") pp.query("exponent",ductile_exponent);
-
-        std::map<std::string,Model::Interface::Crack::Crack::PhiType>  phi_map;
-	    phi_map["square"] = Model::Interface::Crack::Crack::PhiType::PhiSq;
-	    phi_map["multiwell"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell;
-	    phi_map["4c3"] = Model::Interface::Crack::Crack::PhiType::Phi4c3;
-        phi_map["squarep"] = Model::Interface::Crack::Crack::PhiType::PhiSqP;
-	    phi_map["squarepexp"] = Model::Interface::Crack::Crack::PhiType::PhiSqPM;
-
-        SetPhiType(phi_map[phitype]);
-        SetDuctileExponent(ductile_exponent);
-    };
+    Constant(){};
     Set::Scalar Epc(Set::Scalar /*theta*/)
     {
         return mult_Gc*Gc/(4.0*zeta);
@@ -58,6 +35,31 @@ public:
 private:
     Set::Scalar Gc = 1.0, zeta = 1.e-2, mobility = 1.e-2;
     Set::Scalar mult_Gc = 1.0, mult_Lap = 1.0;
+
+public:
+    static void Parse(Constant & value, IO::ParmParse & pp)
+    {
+        pp.query("G_c",value.Gc);
+		pp.query("zeta",value.zeta);
+		pp.query("mobility",value.mobility);
+		pp.query("mult_Gc",value.mult_Gc);
+		pp.query("mult_Lap", value.mult_Lap);
+        std::string phitype = "";
+        pp.query("phitype", phitype);
+
+        Set::Scalar ductile_exponent = 1.;
+        if(phitype == "squarepexp") pp.query("exponent",ductile_exponent);
+
+        std::map<std::string,Model::Interface::Crack::Crack::PhiType>  phi_map;
+	    phi_map["square"] = Model::Interface::Crack::Crack::PhiType::PhiSq;
+	    phi_map["multiwell"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell;
+	    phi_map["4c3"] = Model::Interface::Crack::Crack::PhiType::Phi4c3;
+        phi_map["squarep"] = Model::Interface::Crack::Crack::PhiType::PhiSqP;
+	    phi_map["squarepexp"] = Model::Interface::Crack::Crack::PhiType::PhiSqPM;
+
+        value.SetPhiType(phi_map[phitype]);
+        value.SetDuctileExponent(ductile_exponent);
+    }
 };
 }
 }
