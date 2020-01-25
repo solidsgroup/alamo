@@ -12,18 +12,19 @@
 
 #include "IC/IC.H"
 #include "BC/BC.H"
+#include "BC/Constant.H"
 
 #include "IC/Ellipsoid.H"
 #include "IC/Notch.H"
 
-#include "BC/Operator/Elastic.H"
-#include "BC/Constant.H"
-
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+#include "Solver/Nonlocal/Newton.H"
+
+#include "Model/Solid/Solid.H"
+#include "Model/Solid/Linear/IsotropicDegradable.H"
+//#include "Model/Solid/LinearElastic/LinearElastic.H"
+//#include "Model/Solid/LinearElastic/Laplacian.H"
 
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
@@ -48,7 +49,7 @@
 ///    - See #Cylinder or #Constant
 namespace Integrator
 {
-using fracture_model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
+using fracture_model_type = Model::Solid::Linear::IsotropicDegradable;
 class BrittleFracture : public Integrator
 {
 public:
@@ -85,14 +86,8 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_driving_force;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_conv;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_temp;
-
+	
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_old;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_conv;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp_temp;
-
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressvm;
@@ -103,6 +98,8 @@ private:
 	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine_old;
 
 	struct{
+
+
 		Set::Scalar bottom_tol 				= 1.0E-6;
 		int         interval	 			= 1;
 		std::string type					= "single";
@@ -133,22 +130,37 @@ private:
 		bool 		consolidation 	  		= false;
 
 		// Elastic BC
-		std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
-		std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
+		//std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
+		//std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
-		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
-		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
-		
-		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
+		//Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
+		//Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
+		fracture_model_type 						*modeltype;
+		BC::Operator::Elastic<fracture_model_type> 	bc;
+		Operator::Elastic<fracture_model_type> elastic_operator;
+		Set::Vector body_force 						= Set::Vector::Zero();
+		Set::Scalar bc_top 							= 0.;
+
 	} elastic;
 
-	fracture_model_type 		*modeltype;
-	std::string 	input_material = "isotropic";
+	std::string input_material = "isotropic";
 
-	Model::Interface::Crack::Crack *boundary;
+	struct
+	{
+		Model::Interface::Crack::Crack *boundary;
+		std::string ic_type;
+		IC::IC *ic;
+		BC::BC *mybc;
 
-	//Set::Scalar crack_norm, crack_norm_old, crack_norm_conv, crack_norm_temp;
-	//Set::Scalar disp_norm, disp_norm_old, disp_norm_conv; 
+		bool newCrackProblem	=true;
+		bool solveCrack			=false; 
+		bool solveElasticity	=false;
+
+		bool crackStressTest 	=false;
+	} crack;
+
+	
+
 	Set::Scalar crack_err_norm, crack_err_norm_init, crack_err_temp_norm, crack_err_temp_norm_init, c_new_norm;
 	Set::Scalar disp_err_norm, disp_err_norm_init;
 
@@ -161,13 +173,7 @@ private:
 	Set::Scalar tol_crack = 1e-7, tol_step = 1e-3;
 	int nlevels;
 
-	std::string ic_type;						///< String to determine what kind of initial condition to use
-	IC::IC *ic;            					///< Pointer to abstract IC object
-	BC::BC *mybc;                   				///< Stock generic boundary condition object
-
-	bool newCrackProblem=true, solveCrack=false, solveElasticity=false;
-
-	bool crackStressTest = false;
+	
 };
 }
 #endif

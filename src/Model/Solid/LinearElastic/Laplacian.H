@@ -35,12 +35,12 @@ public:
 		return alpha * gradu;
 	};
 	AMREX_FORCE_INLINE
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool =true)
+	virtual Set::Vector operator () (Set::Matrix3 &gradgradu,bool =true)
 	{
 		Set::Vector f = Set::Vector::Zero();
 		for (int i = 0; i < AMREX_SPACEDIM; i++)
 			for (int j=0; j < AMREX_SPACEDIM; j++)
-				f(i) += alpha *gradgradu[i](j,j);
+				f(i) += alpha *gradgradu(i,j,j);
 		return f;
 	}
 

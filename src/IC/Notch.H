@@ -20,54 +20,6 @@ public:
         nLength = 0.1;
         moll = Mollifier::Dirac;
         eps = 1e-5;
-
-        amrex::ParmParse pp("ic");
-
-        amrex::Vector<Set::Scalar> center;
-		pp.queryarr("center",center);
-        if(center.size()>=AMREX_SPACEDIM){AMREX_D_TERM(nCenter(0) = center[0];,nCenter(1) = center[1];,nCenter(2) = center[2];);}
-        //Util::Message(INFO,"ncenter = (", nCenter(0),",",nCenter(1),")");
-
-        amrex::Vector<Set::Scalar> orientation;
-		pp.queryarr("orientation",orientation);
-        if(orientation.size()>=AMREX_SPACEDIM){AMREX_D_TERM(nOrientation(0) = orientation[0];,nOrientation(1) = orientation[1];,nOrientation(2) = orientation[2];);}
-        //Util::Message(INFO,"nOrientation = (", nOrientation(0),",",nOrientation(1),")");
-        if(nOrientation.lpNorm<2>() <= 0.) nOrientation = Set::Vector::Random();
-       // Util::Message(INFO,"nOrientation = (", nOrientation(0),",",nOrientation(1),")");
-
-        pp.query("thickness", nThickness);
-        pp.query("length", nLength);
-        pp.query("eps", eps);
-
-        if(nThickness <= 0.) nThickness = 0.01;
-        if(nLength <= 0.) nLength = 0.1;
-        if(eps <= 0.) eps = 1.e-5;
-
-        std::string mollifier;
-        pp.query("mollifier",mollifier);
-        if(mollifier == "Dirac" || mollifier == "dirac") 
-            moll = Mollifier::Dirac;
-        else 
-            moll = Mollifier::Gaussian;
-
-        nOrientation = nOrientation / nOrientation.lpNorm<2>();
-        //Util::Message(INFO,"nOrientation = (", nOrientation(0),",",nOrientation(1),")");
-        eps_sq = eps*eps;
-        window = 6.0*eps;
-
-        if(nOrientation(0) != 0.)
-        {
-            AMREX_D_TERM(nNormal(0) = 1.;, nNormal(1) = 1.;, nNormal(2) = 1.;);
-            nNormal(0) = -(AMREX_D_TERM(0.,+nOrientation(1),+nOrientation(2)))/nOrientation(0);
-            nNormal = nNormal/nNormal.lpNorm<2>();
-        }
-        else if(nOrientation(1) != 0.)
-        {
-            AMREX_D_TERM(nNormal(0) = 1.;, nNormal(1) = 1.;, nNormal(2) = 1.;);
-            nNormal(1) = -(AMREX_D_TERM(nOrientation(0), + 0.0, + nOrientation(2)))/nOrientation(1);
-            nNormal = nNormal/nNormal.lpNorm<2>();
-        }
-        //Util::Message(INFO,"nOrientation = (", nNormal(0),",",nNormal(1),")");
     }
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
@@ -127,6 +79,60 @@ private:
     Set::Scalar window = 6.0*eps;
     Mollifier moll = Mollifier::Dirac;
     bool nRad = true;
+
+public:
+    static void Parse(Notch & value, IO::ParmParse & pp)
+    {
+        amrex::Vector<Set::Scalar> center;
+		pp.queryarr("center",center);
+        if(center.size()>=AMREX_SPACEDIM)
+        {
+            AMREX_D_TERM(value.nCenter(0) = center[0];,value.nCenter(1) = center[1];,value.nCenter(2) = center[2];);
+        }
+        
+        amrex::Vector<Set::Scalar> orientation;
+		pp.queryarr("orientation",orientation);
+
+        if(orientation.size()>=AMREX_SPACEDIM)
+        {
+            AMREX_D_TERM(value.nOrientation(0) = orientation[0];,value.nOrientation(1) = orientation[1];,value.nOrientation(2) = orientation[2];);
+        }
+
+        if(value.nOrientation.lpNorm<2>() <= 0.) value.nOrientation = Set::Vector::Random();
+
+        pp.query("thickness", value.nThickness);
+        pp.query("length", value.nLength);
+        pp.query("eps", value.eps);
+
+        if(value.nThickness <= 0.) value.nThickness = 0.01;
+        if(value.nLength <= 0.) value.nLength = 0.1;
+        if(value.eps <= 0.) value.eps = 1.e-5;
+
+        std::string mollifier;
+        pp.query("mollifier",mollifier);
+        if(mollifier == "Dirac" || mollifier == "dirac") 
+            value.moll = Mollifier::Dirac;
+        else 
+            value.moll = Mollifier::Gaussian;
+
+        value.nOrientation = value.nOrientation / value.nOrientation.lpNorm<2>();
+        value.eps_sq = value.eps*value.eps;
+        value.window = 6.0*value.eps;
+
+        if(value.nOrientation(0) != 0.)
+        {
+            AMREX_D_TERM(value.nNormal(0) = 1.;, value.nNormal(1) = 1.;, value.nNormal(2) = 1.;);
+            value.nNormal(0) = -(AMREX_D_TERM(0.,+value.nOrientation(1),+value.nOrientation(2)))/value.nOrientation(0);
+            value.nNormal = value.nNormal/value.nNormal.lpNorm<2>();
+        }
+        else if(value.nOrientation(1) != 0.)
+        {
+            AMREX_D_TERM(value.nNormal(0) = 1.;, value.nNormal(1) = 1.;, value.nNormal(2) = 1.;);
+            value.nNormal(1) = -(AMREX_D_TERM(value.nOrientation(0), + 0.0, + value.nOrientation(2)))/value.nOrientation(1);
+            value.nNormal = value.nNormal/value.nNormal.lpNorm<2>();
+        }
+        //Util::Message(INFO,"nOrientation = (", nNormal(0),",",nNormal(1),")");
+    }
 };
 }
 #endif

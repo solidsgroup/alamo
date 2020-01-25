@@ -6,7 +6,7 @@
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+//#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Test/Numeric/Stencil.H"
 #include "Test/Operator/Elastic.H"
@@ -17,11 +17,23 @@
 #include "Numeric/Interpolator/Test.H"
 #include "Numeric/Interpolator/Linear.H"
 
+#include "Model/Solid/Elastic/Elastic.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Linear/Isotropic.H"
+
 int main (int argc, char* argv[])
 {
 	Util::Initialize(argc, argv);
 
 	int failed = 0;
+
+	Util::Test::Message("Model::Solid::Linear::Isotropic");
+	{
+		int subfailed = 0;
+		subfailed += Util::Test::SubMessage("DerivativeTest1", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest1<Model::Solid::Linear::Isotropic>(true));
+		subfailed += Util::Test::SubMessage("DerivativeTest2", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest2<Model::Solid::Linear::Isotropic>(true));
+		failed += Util::Test::SubFinalMessage(subfailed);
+	}
 
 	Util::Test::Message("Set::Matrix4");
 	{
@@ -62,16 +74,16 @@ int main (int argc, char* argv[])
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
-	Util::Test::Message("Model::Solid::LinearElastic<Degradable::Isotropic>");
-	{
-		int subfailed = 0;
-		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Degradable::Isotropic> test;
-		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
-		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
+	// Util::Test::Message("Model::Solid::LinearElastic<Degradable::Isotropic>");
+	// {
+	// 	int subfailed = 0;
+	// 	Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Degradable::Isotropic> test;
+	// 	subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
+	// 	subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
+	// 	subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
+	// 	subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
+	// 	failed += Util::Test::SubFinalMessage(subfailed);
+	// }
 
 	Util::Test::Message("Model::Solid::LinearElastic<Laplacian>");
 	{
@@ -143,7 +155,6 @@ int main (int argc, char* argv[])
 		subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
 		failed += Util::Test::SubFinalMessage(subfailed);
-
 	}
 
 	Util::Test::Message("Elastic Operator Uniaxial Test 32^n");

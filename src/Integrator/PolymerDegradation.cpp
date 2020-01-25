@@ -1,13 +1,13 @@
 #include "PolymerDegradation.H"
 #include "Solver/Nonlocal/Linear.H"
 
-Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E10_iso;
-Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E20_iso; 
-Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Tg0_iso;
-Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Ts0_iso;
-Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::temp_iso;
-Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::nu_iso;
-//#if AMREX_SPACEDIM == 1
+// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E10_iso;
+// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E20_iso; 
+// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Tg0_iso;
+// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Ts0_iso;
+// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::temp_iso;
+// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::nu_iso;
+#if AMREX_SPACEDIM == 1
 namespace Integrator
 {
 PolymerDegradation::PolymerDegradation():
@@ -120,42 +120,44 @@ PolymerDegradation::PolymerDegradation():
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
 	// ---------------------------------------------------------------------
-	amrex::ParmParse pp_material("material");
+	IO::ParmParse pp_material("material");
 	pp_material.query("model",input_material);
 	
 	if(input_material == "isotropic2")
 	{
-		Set::Scalar E1 = 1.0, E2 = 0.5, Tg = 273.0+42.0, Ts = 17.0, temp = 298.0;
-		Set::Scalar nu = 0.3;
-		amrex::ParmParse pp_material_isotropic2("material.isotropic2");
-		pp_material_isotropic2.query("E10", E1);
-		pp_material_isotropic2.query("E20", E2);
-		pp_material_isotropic2.query("Tg", Tg);
-		pp_material_isotropic2.query("Ts", Ts);
-		pp_material_isotropic2.query("nu",nu);
-		pp_material_isotropic2.query("temp",temp);
-		if(E1 <= 0) {Util::Warning(INFO, "E1 must be positive. Restting to default"); E1 = 1.0;} 
-		if(E2 <= 0) {Util::Warning(INFO, "E2 must be positive. Restting to default"); E2 = 0.5;} 
-		if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
-		if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
-		if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
-		//Util::Abort(INFO,"Isotropic2 model has been disabled for now");
-		modeltype = new pd_model_type(E1,E2,Tg,Ts,nu,temp);
+		// Set::Scalar E1 = 1.0, E2 = 0.5, Tg = 273.0+42.0, Ts = 17.0, temp = 298.0;
+		// Set::Scalar nu = 0.3;
+		// amrex::ParmParse pp_material_isotropic2("material.isotropic2");
+		// pp_material_isotropic2.query("E10", E1);
+		// pp_material_isotropic2.query("E20", E2);
+		// pp_material_isotropic2.query("Tg", Tg);
+		// pp_material_isotropic2.query("Ts", Ts);
+		// pp_material_isotropic2.query("nu",nu);
+		// pp_material_isotropic2.query("temp",temp);
+		// if(E1 <= 0) {Util::Warning(INFO, "E1 must be positive. Restting to default"); E1 = 1.0;} 
+		// if(E2 <= 0) {Util::Warning(INFO, "E2 must be positive. Restting to default"); E2 = 0.5;} 
+		// if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
+		// if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
+		// if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
+		// //Util::Abort(INFO,"Isotropic2 model has been disabled for now");
+		// modeltype = new pd_model_type(E1,E2,Tg,Ts,nu,temp);
+		pp_material.queryclass("isotropic2",modeltype);
 	}
 	else if(input_material == "isotropic")
 	{
-		//Util::Abort(INFO, "Check for model_type in PD.H");
-		Set::Scalar lambda = 410.0;
-		Set::Scalar mu = 305.0;
-		Set::Scalar yield = 18.0;
-		amrex::ParmParse pp_material_isotropic("material.isotropic");
-		pp_material_isotropic.query("lambda",lambda);
-		pp_material_isotropic.query("mu",mu);
-		pp_material_isotropic.query("yield",yield);
-		if(lambda <=0) { Util::Warning(INFO,"Lambda must be positive. Resetting back to default value"); lambda = 410.0; }
-		if(mu <= 0) { Util::Warning(INFO,"Mu must be positive. Resetting back to default value"); mu = 305.0; }
-		if(yield <= 0) { Util::Warning(INFO, "Yield must be positive. Resetting back to default value"); yield = 18.0; }
-		modeltype = new pd_model_type(lambda,mu);
+		// //Util::Abort(INFO, "Check for model_type in PD.H");
+		// Set::Scalar lambda = 410.0;
+		// Set::Scalar mu = 305.0;
+		// Set::Scalar yield = 18.0;
+		// amrex::ParmParse pp_material_isotropic("material.isotropic");
+		// pp_material_isotropic.query("lambda",lambda);
+		// pp_material_isotropic.query("mu",mu);
+		// pp_material_isotropic.query("yield",yield);
+		// if(lambda <=0) { Util::Warning(INFO,"Lambda must be positive. Resetting back to default value"); lambda = 410.0; }
+		// if(mu <= 0) { Util::Warning(INFO,"Mu must be positive. Resetting back to default value"); mu = 305.0; }
+		// if(yield <= 0) { Util::Warning(INFO, "Yield must be positive. Resetting back to default value"); yield = 18.0; }
+		// modeltype = new pd_model_type(lambda,mu);
+		pp_material.queryclass("isotropic",modeltype);
 	}
 	else
 		Util::Abort(INFO, "Not implemented yet");
@@ -1195,4 +1197,4 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 }
 
 }
-//#endif
+#endif

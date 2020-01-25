@@ -41,7 +41,7 @@ public:
 
 	virtual void FillBoundary (amrex::MultiFab& mf,
 				   int dcomp, int ncomp,
-				   amrex::Real time, int /*bccomp*/) override
+				   amrex::Real time, int /*bccomp*/)
 	{
 		mf.FillBoundary(m_geom.periodicity());
 		for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
@@ -50,9 +50,15 @@ public:
 			amrex::FArrayBox &in = mf[mfi];
 			FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
 		}
+
 	}
 
-
+	virtual void FillBoundary (amrex::MultiFab& mf,
+				   int dcomp, int ncomp, amrex::IntVect const & /*nghost*/,
+				   amrex::Real time, int bccomp) override
+	{
+		FillBoundary(mf,dcomp,ncomp,time,bccomp);
+	}
 
 	virtual amrex::BCRec GetBCRec() = 0;
 

@@ -1,8 +1,6 @@
 
 #include <AMReX_MLNodeLinOp.H>
 #include <AMReX_MLCellLinOp.H>
-//#include <AMReX_MLLinOp_F.H>
-#include <AMReX_MLNodeLap_F.H>
 #include <AMReX_MLNodeLap_K.H>
 #include <AMReX_MultiFabUtil.H>
 #include "Util/Color.H"
