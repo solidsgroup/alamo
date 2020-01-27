@@ -67,6 +67,7 @@ public:
 	      amrex::Vector<amrex::MultiFab *> &a_rhs,
 	    const amrex::Vector<amrex::Geometry> &a_geom)
 	{
+		Util::Abort(INFO,"This has been depricated");
 		m_bc_type[face][direction] = type;
 		m_bc_val [face][direction] = value;
 
