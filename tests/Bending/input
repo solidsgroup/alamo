@@ -32,7 +32,7 @@ elastic.model.nu = 0.3
 
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
-elastic.solver.fixed_iter = 400
+elastic.solver.fixed_iter = 200
 
 ### UNIAXIAL TENSION ###
 elastic.bc.val.xhi = 0.1 0.0 0.0
@@ -53,18 +53,18 @@ elastic.bc.type.ylozhi = trac trac trac
 elastic.bc.type.yhizlo = trac trac trac
 elastic.bc.type.ylozlo = trac trac trac
 
-#elastic.bc.type.xhi    = trac trac trac
-#elastic.bc.val.xhi = 0.01 0.0 0.0
-#elastic.bc.type.xhiylo = trac trac trac
+
+
+#### UNIAXIAL TENSION ###
+#elastic.bc.type.xhi = trac trac trac
+#elastic.bc.val.xhiylo = 0.0 0.1 0.0
 #elastic.bc.type.xhiyhi = trac trac trac
 #elastic.bc.type.zloxhi = trac trac trac
 #elastic.bc.type.zhixhi = trac trac trac
-#
-#elastic.bc.type.xhiylozlo = trac trac trac
-##elastic.bc.type.xhiylozhi = trac trac trac
-##elastic.bc.type.xhiyhizlo = trac trac trac
-##elastic.bc.type.xhiyhizhi = trac trac trac
-#
+#elastic.bc.val.xhiylozlo = 0.0 0.1 0.0
+#elastic.bc.val.xhiylozhi = 0.0 0.1 0.0
+#elastic.bc.type.xhiyhizlo = trac trac trac
+#elastic.bc.type.xhiyhizhi = trac trac trac
 #elastic.bc.type.yhi = trac trac trac
 #elastic.bc.type.zhi = trac trac trac
 #elastic.bc.type.ylo = trac trac trac
@@ -73,4 +73,3 @@ elastic.bc.type.ylozlo = trac trac trac
 #elastic.bc.type.ylozhi = trac trac trac
 #elastic.bc.type.yhizlo = trac trac trac
 #elastic.bc.type.ylozlo = trac trac trac
-
