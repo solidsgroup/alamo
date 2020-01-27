@@ -32,13 +32,45 @@ elastic.model.nu = 0.3
 
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
-elastic.solver.fixed_iter = 40
+elastic.solver.fixed_iter = 400
 
-elastic.bc.type.xlo = disp disp disp
-elastic.bc.type.xhi = disp disp disp
-elastic.bc.val.xhi = 0.0 0.1 0.0
-
-elastic.bc.type.ylo = trac trac trac
+### UNIAXIAL TENSION ###
+elastic.bc.val.xhi = 0.1 0.0 0.0
+elastic.bc.val.xhiylo = 0.1 0.0 0.0
+elastic.bc.val.xhiyhi = 0.1 0.0 0.0
+elastic.bc.val.zloxhi = 0.1 0.0 0.0
+elastic.bc.val.zhixhi = 0.1 0.0 0.0
+elastic.bc.val.xhiylozlo = 0.1 0.0 0.0
+elastic.bc.val.xhiylozhi = 0.1 0.0 0.0
+elastic.bc.val.xhiyhizlo = 0.1 0.0 0.0
+elastic.bc.val.xhiyhizhi = 0.1 0.0 0.0
 elastic.bc.type.yhi = trac trac trac
-elastic.bc.type.zlo = trac trac trac
 elastic.bc.type.zhi = trac trac trac
+elastic.bc.type.ylo = trac trac trac
+elastic.bc.type.zlo = trac trac trac
+elastic.bc.type.yhizhi = trac trac trac
+elastic.bc.type.ylozhi = trac trac trac
+elastic.bc.type.yhizlo = trac trac trac
+elastic.bc.type.ylozlo = trac trac trac
+
+#elastic.bc.type.xhi    = trac trac trac
+#elastic.bc.val.xhi = 0.01 0.0 0.0
+#elastic.bc.type.xhiylo = trac trac trac
+#elastic.bc.type.xhiyhi = trac trac trac
+#elastic.bc.type.zloxhi = trac trac trac
+#elastic.bc.type.zhixhi = trac trac trac
+#
+#elastic.bc.type.xhiylozlo = trac trac trac
+##elastic.bc.type.xhiylozhi = trac trac trac
+##elastic.bc.type.xhiyhizlo = trac trac trac
+##elastic.bc.type.xhiyhizhi = trac trac trac
+#
+#elastic.bc.type.yhi = trac trac trac
+#elastic.bc.type.zhi = trac trac trac
+#elastic.bc.type.ylo = trac trac trac
+#elastic.bc.type.zlo = trac trac trac
+#elastic.bc.type.yhizhi = trac trac trac
+#elastic.bc.type.ylozhi = trac trac trac
+#elastic.bc.type.yhizlo = trac trac trac
+#elastic.bc.type.ylozlo = trac trac trac
+
