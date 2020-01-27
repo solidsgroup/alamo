@@ -157,6 +157,10 @@ public:
 		Set(Face::ZHI,Direction::Y,m_bc_hi[Face::ZHI%AMREX_SPACEDIM][Direction::Y],m_bc_hi_val[Face::ZHI%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
 		Set(Face::ZHI,Direction::Z,m_bc_hi[Face::ZHI%AMREX_SPACEDIM][Direction::Z],m_bc_hi_val[Face::ZHI%AMREX_SPACEDIM][Direction::Z],a_rhs,a_geom);
 		#endif
+
+		//TMP
+		Set(Face::XHI,Direction::Y,m_bc_hi[Face::XHI%AMREX_SPACEDIM][Direction::Y],m_bc_hi_val[Face::XHI%AMREX_SPACEDIM][Direction::Y],a_rhs,a_geom);
+
 	}
 
 	void
@@ -189,6 +193,54 @@ public:
 		// const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 		
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
+
+		if (m[0] > domain.loVect()[0] && m[0] < domain.hiVect()[0])
+		{
+			if (m[1] == domain.hiVect()[1] && m[2] == domain.hiVect()[2])
+			{
+				Set::Vector n(0,0.70710678118,0.70710678118);
+				f = sigma*n;
+				return f;
+			}
+
+			if (m[1] == domain.loVect()[1] && m[2] == domain.loVect()[2])
+			{
+				Set::Vector n(0,-0.70710678118,-0.70710678118);
+				f = sigma*n;
+				return f;
+			}
+
+			if (m[1] == domain.loVect()[1] && m[2] == domain.hiVect()[2])
+			{
+				Set::Vector n(0,0.70710678118,-0.70710678118);
+				f = sigma*n;
+				return f;
+			}
+
+			if (m[1] == domain.hiVect()[1] && m[2] == domain.loVect()[2])
+			{
+				Set::Vector n(0,-0.70710678118,0.70710678118);
+				f = sigma*n;
+				return f;
+			}
+		}
+		else if (m[0] == domain.loVect()[0] && m[1] == domain.loVect()[0])
+		{
+			return u;
+		} 
+		else if (m[0] == domain.hiVect()[0])
+		{
+			return u;
+		}
+		//if (m[0] == domain.loVect()[0] && m[1] == domain.loVect()[1])
+		//	{
+ 		//		f(0) = u(0);
+		//		f(1) = u(1);
+		//		f(2) = u(2);
+		//		return f;
+		//	}
+
+
 		for (int p = 0; p < AMREX_SPACEDIM; p++) // iterate over DIMENSIONS
 		{
 			for (int q = 0; q < AMREX_SPACEDIM; q++) // iterate over FACES
@@ -234,6 +286,9 @@ private:
 	// m_bc_hi[face][dimension]
 	std::array<std::array<Type,AMREX_SPACEDIM>, AMREX_SPACEDIM>        m_bc_hi; 
 	std::array<std::array<Set::Scalar,AMREX_SPACEDIM>, AMREX_SPACEDIM> m_bc_hi_val;
+
+	Type xloylo = Type::Displacement;
+	Set::Scalar xloylo_val = 0.0;
 
 public:
     static void Parse(Elastic & value, IO::ParmParse & pp)
