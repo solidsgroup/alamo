@@ -55,24 +55,6 @@ public:
         ret.Define(Util::Random(),Util::Random());
         return ret;
     }
-    static void Parse(Isotropic & value, IO::ParmParse & pp)
-    {
-        Set::Scalar mu, lambda;
-        if (pp.contains("lame") && pp.contains("shear"))
-        {
-            pp.query("lame",lambda);
-            pp.query("shear",mu);
-        }
-        else if (pp.contains("E") && pp.contains("nu"))
-        {
-            Set::Scalar E, nu;
-            pp.query("E",E);
-            pp.query("nu",nu);
-            lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
-            mu = E / 2.0 / (1.0 + nu);
-        }
-        value.Define(mu,lambda);
-    }
 };
 
 

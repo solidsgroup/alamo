@@ -64,6 +64,10 @@ public:
 		m_bc = a_bc;
 		m_bc_set = true;
 	};
+	const ::BC::Operator::Elastic<T> & GetBC()
+	{
+		return *m_bc;
+	}
 
 	/// Compute strain \f$\mathbf{\epsilon}\f$ given the displacement field \f$\mathbf{u}\f$
 	/// by
@@ -105,6 +109,8 @@ public:
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 	void SetUniform(bool a_uniform) {m_uniform = a_uniform;}
+	
+	
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;

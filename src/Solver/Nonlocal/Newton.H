@@ -53,7 +53,9 @@ public:
 
         for (int nriter = 0; nriter < (copyrhs ? m_nriters+1 : m_nriters); nriter++)
         {
-            if (m_verbose > 0) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
+            if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
+
+            //
 
             BL_PROFILE_VAR_START(newton_initialization);
             for (int lev = 0; lev < a_rhs_mf.size(); ++lev)
@@ -67,7 +69,8 @@ public:
                 //  TODO: implement a general method for handling homogeneous / inhomogeneous BCs
                 //        Right now, only Dirichlet works.
                 //
-
+                //if (nriter > 0) elastic.GetBC().Init((rhs_mf[lev]).get(),elastic.Geom(lev),true);
+                
                 for (MFIter mfi(a_model[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.growntilebox(2);
@@ -147,12 +150,23 @@ public:
             
             Solver::Nonlocal::Linear::solve(dsol_mf,rhs_mf, a_tol_rel, a_tol_abs,checkpoint_file);
 
+            Set::Scalar cornorm = 0, solnorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
             {
-                //
-                // TODO: calculate norm and print for NR iterations
-                //
+                for (int comp = 0; comp < AMREX_SPACEDIM; comp++)
+                {
+                    Set::Scalar tmpcornorm = dsol_mf[lev]->norm0(comp,0);
+                    if (tmpcornorm > cornorm) cornorm = tmpcornorm;
+
+                    Set::Scalar tmpsolnorm = a_sol_mf[lev]->norm0(comp,0);
+                    if (tmpsolnorm > solnorm) solnorm = tmpsolnorm;
+                }
+
             }
+            Set::Scalar relnorm;
+            if (solnorm == 0) relnorm = cornorm;
+            else relnorm = cornorm / solnorm;
+            if (m_verbose > 1) Util::Message(INFO,"NR relative norm(ddisp) = ",relnorm);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 amrex::MultiFab::Add(*a_sol_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
