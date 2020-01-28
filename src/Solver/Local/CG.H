@@ -41,7 +41,7 @@ Set::Matrix CG (Set::Matrix4<3,Set::Sym::MajorMinor> A,
                 if (mask(i,j)) rnew(i,j) = 0.0;
 
         if (verbose) Util::Message(INFO,"Iteration ", k, ": Resid=" , std::sqrt(rnew.lpNorm<2>()));
-        if (std::sqrt(rnew.lpNorm<2>()) < 1E-8) return x;
+        if (std::sqrt(rnew.lpNorm<2>()) < 1E-7) return x;
 
         Set::Scalar beta = (rnew.transpose()*rnew).trace() / (r.transpose()*r).trace();
 
