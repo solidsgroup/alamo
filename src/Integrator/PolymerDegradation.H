@@ -28,18 +28,14 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/Linear/IsotropicDegradableTanh.H"
 #include "Model/Solid/Linear/IsotropicDegradable.H"
-//#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-//#include "Model/Solid/LinearElastic/Degradable/Isotropic2.H"
-//#include "Model/Solid/LinearElastic/LinearElastic.H"
-//#include "Model/Solid/LinearElastic/Laplacian.H"
 
+#include "Numeric/Stencil.H"
+#include "Numeric/Interpolator/Interpolator.H"
 
 namespace Integrator
 {
 using pd_model_type = Model::Solid::Linear::IsotropicDegradableTanh;
-//using pd_model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
-//using pd_model_type = Model::Solid::LinearElastic::Isotropic;
-//using pd_model_type = Model::Solid::LinearElastic::Laplacian;
+//using pd_model_type = Model::Solid::Linear::IsotropicDegradable;
 
 ///
 /// \class PolymerDegradation
@@ -202,9 +198,11 @@ private:
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 	} elastic;
 
-	pd_model_type 		*modeltype;
-	std::string 	input_material = "isotropic";
-	Set::Scalar		yieldstrength = 18.;
+	struct{
+		pd_model_type 		*modeltype;
+		std::string 	input_material = "isotropic";
+		Set::Scalar		yieldstrength = 18.;
+	} material;
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
 
