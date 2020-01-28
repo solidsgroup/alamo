@@ -515,34 +515,24 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	}
 }
 
-#define C_NEW(i,j,k,m) c_new(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
 void
-BrittleFracture::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+BrittleFracture::TagCellsForRefinement (int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/)
 {
-	const amrex::Real* dx      = geom[lev].CellSize();
-	amrex::Vector<int>  itags;
-	for (amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi)
+	const amrex::Real *DX = geom[lev].CellSize();
+	const Set::Vector dx(DX);
+	const Set::Scalar dxnorm = dx.lpNorm<2>();
+
+	for (amrex::MFIter mfi(*m_c[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const amrex::Box&  bx  = mfi.tilebox();
-		amrex::TagBox&     tag  = tags[mfi];
-		amrex::BaseFab<amrex::Real> &c_new = (*m_c[lev])[mfi];
-
-		AMREX_D_TERM(		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-					)
-			{
-				AMREX_D_TERM(	Set::Scalar gradx = (C_NEW(i+1,j,k,0) - C_NEW(i-1,j,k,0))/(2.*dx[0]);,
-								Set::Scalar grady = (C_NEW(i,j+1,k,0) - C_NEW(i,j-1,k,0))/(2.*dx[1]);,
-								Set::Scalar gradz = (C_NEW(i,j,k+1,0) - C_NEW(i,j,k-1,0))/(2.*dx[2]);
-					)
-				Set::Scalar grad = sqrt(AMREX_D_TERM(gradx*gradx, + grady*grady, + gradz*gradz));
-				Set::Scalar dr = sqrt(AMREX_D_TERM(dx[0]*dx[0], + dx[1]*dx[1], + dx[2]*dx[2]));
-
-				if(grad*dr > refinement_threshold)
-					tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
-			}
-
+		const amrex::Box 							&bx 	= mfi.tilebox();
+		amrex::Array4<char> const 					&tags 	= a_tags.array(mfi);
+		amrex::Array4<const Set::Scalar> const 		&c_new 	= (*m_c[lev]).array(mfi);
+		
+		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+			Set::Vector grad = Numeric::Gradient(c_new, i, j, k, 0, DX);
+			if (dxnorm * grad.lpNorm<2>() > refinement_threshold)
+				tags(i, j, k) = amrex::TagBox::SET;
+		});
 	}
 }
 

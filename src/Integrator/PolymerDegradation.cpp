@@ -1,13 +1,7 @@
 #include "PolymerDegradation.H"
 #include "Solver/Nonlocal/Linear.H"
 
-// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E10_iso;
-// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::E20_iso; 
-// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Tg0_iso;
-// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::Ts0_iso;
-// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::temp_iso;
-// Set::Scalar Model::Solid::LinearElastic::Degradable::Isotropic2::nu_iso;
-#if AMREX_SPACEDIM == 1
+//#if AMREX_SPACEDIM == 1
 namespace Integrator
 {
 PolymerDegradation::PolymerDegradation():
@@ -120,45 +114,22 @@ PolymerDegradation::PolymerDegradation():
 	// ---------------------------------------------------------------------
 	// --------------------- Material model --------------------------------
 	// ---------------------------------------------------------------------
+	std::string input_material;
 	IO::ParmParse pp_material("material");
 	pp_material.query("model",input_material);
 	
 	if(input_material == "isotropic2")
 	{
-		// Set::Scalar E1 = 1.0, E2 = 0.5, Tg = 273.0+42.0, Ts = 17.0, temp = 298.0;
-		// Set::Scalar nu = 0.3;
-		// amrex::ParmParse pp_material_isotropic2("material.isotropic2");
-		// pp_material_isotropic2.query("E10", E1);
-		// pp_material_isotropic2.query("E20", E2);
-		// pp_material_isotropic2.query("Tg", Tg);
-		// pp_material_isotropic2.query("Ts", Ts);
-		// pp_material_isotropic2.query("nu",nu);
-		// pp_material_isotropic2.query("temp",temp);
-		// if(E1 <= 0) {Util::Warning(INFO, "E1 must be positive. Restting to default"); E1 = 1.0;} 
-		// if(E2 <= 0) {Util::Warning(INFO, "E2 must be positive. Restting to default"); E2 = 0.5;} 
-		// if(Tg <= 0) {Util::Warning(INFO, "Tg must be positive. Restting to default"); Tg = 319.0;} 
-		// if(Ts <= 0) {Util::Warning(INFO, "Ts must be positive. Restting to default"); Ts = 17.0;}
-		// if(temp <= 0) {Util::Warning(INFO, "temp must be positive. Restting to default"); temp = 298.0;}  
-		// //Util::Abort(INFO,"Isotropic2 model has been disabled for now");
-		// modeltype = new pd_model_type(E1,E2,Tg,Ts,nu,temp);
-		pp_material.queryclass("isotropic2",modeltype);
+		pp_material.queryclass("isotropic2",material.modeltype);
+		pp_material.query("yield_strength",material.yieldstrength);
 	}
+	
 	else if(input_material == "isotropic")
 	{
-		// //Util::Abort(INFO, "Check for model_type in PD.H");
-		// Set::Scalar lambda = 410.0;
-		// Set::Scalar mu = 305.0;
-		// Set::Scalar yield = 18.0;
-		// amrex::ParmParse pp_material_isotropic("material.isotropic");
-		// pp_material_isotropic.query("lambda",lambda);
-		// pp_material_isotropic.query("mu",mu);
-		// pp_material_isotropic.query("yield",yield);
-		// if(lambda <=0) { Util::Warning(INFO,"Lambda must be positive. Resetting back to default value"); lambda = 410.0; }
-		// if(mu <= 0) { Util::Warning(INFO,"Mu must be positive. Resetting back to default value"); mu = 305.0; }
-		// if(yield <= 0) { Util::Warning(INFO, "Yield must be positive. Resetting back to default value"); yield = 18.0; }
-		// modeltype = new pd_model_type(lambda,mu);
-		pp_material.queryclass("isotropic",modeltype);
+		pp_material.queryclass("isotropic",material.modeltype);
+		pp_material.query("yield_strength",material.yieldstrength);
 	}
+	
 	else
 		Util::Abort(INFO, "Not implemented yet");
 
@@ -233,17 +204,6 @@ PolymerDegradation::PolymerDegradation():
 
 			tempIndex2 += 1;
 		}
-		/*for (int i = 0; i < damage.number_of_eta; i++)
-		{
-			Util::Message(INFO, "number of terms = ", damage.number_of_terms[i]);
-			Util::Message(INFO, "d_final = ", damage.d_final[i]);
-			for (int j = 0; j < damage.number_of_terms[i]; j++)
-			{
-				Util::Message(INFO, "d_i[", i, "][", j, "]=",damage.d_i[i][j]);
-				Util::Message(INFO, "tau_i[", i, "][", j, "]=",damage.tau_i[i][j]);
-				Util::Message(INFO, "t_start_i[", i, "][", j, "]=",damage.t_start_i[i][j]);
-			}
-		}*/
 	}
 	else
 		Util::Abort(INFO, "This kind of damage model has not been implemented yet");
@@ -462,71 +422,7 @@ PolymerDegradation::PolymerDegradation():
 		}
 		else
 			Util::Abort(INFO, "Not implemented this type of test yet");
-		
-		//Util::Message(INFO);
-		/*int tempSize = bc_lo_1.size()/AMREX_SPACEDIM;
-		for (int i = 0; i<tempSize; i++)
-			elastic.bc_left.push_back(Set::Vector(AMREX_D_DECL(bc_lo_1[AMREX_SPACEDIM*i],bc_lo_1[AMREX_SPACEDIM*i+1],bc_lo_1[AMREX_SPACEDIM*i+2])));
-		if(pp_elastic_bc.countval("left_face_t")) pp_elastic_bc.getarr("left_face_t",bc_lo_1_t);
-		if(bc_lo_1_t.size() == tempSize)
-			elastic.bc_left_t = bc_lo_1_t;
-		else
-			for (int j = 0; j < tempSize; j++)
-				elastic.bc_left_t.push_back(elastic.tstart + j*(elastic.tend - elastic.tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
-
-		tempSize = bc_hi_1.size()/AMREX_SPACEDIM;
-		for (int i = 0; i<tempSize; i++)
-			elastic.bc_right.push_back(Set::Vector(AMREX_D_DECL(bc_hi_1[AMREX_SPACEDIM*i],bc_hi_1[AMREX_SPACEDIM*i+1],bc_hi_1[AMREX_SPACEDIM*i+2])));
-		if(pp_elastic_bc.countval("right_face_t")) pp_elastic_bc.getarr("right_face_t",bc_hi_1_t);
-		if(bc_hi_1_t.size() == tempSize)
-			elastic.bc_right_t = bc_hi_1_t;
-		else
-			for (int j = 0; j < tempSize; j++)
-				elastic.bc_right_t.push_back(elastic.tstart + j*(elastic.tend - elastic.tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
-
-#if AMREX_SPACEDIM > 1
-		tempSize = bc_lo_2.size()/AMREX_SPACEDIM;
-		for (int i = 0; i<tempSize; i++)
-			elastic.bc_bottom.push_back(Set::Vector(AMREX_D_DECL(bc_lo_2[AMREX_SPACEDIM*i],bc_lo_2[AMREX_SPACEDIM*i+1],bc_lo_2[AMREX_SPACEDIM*i+2])));
-		if(pp_elastic_bc.countval("bottom_face_t")) pp_elastic_bc.getarr("bottom_face_t",bc_lo_2_t);
-		if(bc_lo_2_t.size() == tempSize)
-			elastic.bc_bottom_t = bc_lo_2_t;
-		else
-			for (int j = 0; j < tempSize; j++)
-				elastic.bc_bottom_t.push_back(elastic.tstart + j*(elastic.tend - elastic.tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
-
-		tempSize = bc_hi_2.size()/AMREX_SPACEDIM;
-		for (int i = 0; i<tempSize; i++)
-			elastic.bc_top.push_back(Set::Vector(AMREX_D_DECL(bc_hi_2[AMREX_SPACEDIM*i],bc_hi_2[AMREX_SPACEDIM*i+1],bc_hi_2[AMREX_SPACEDIM*i+2])));
-		if(pp_elastic_bc.countval("top_face_t")) pp_elastic_bc.getarr("top_face_t",bc_hi_2_t);
-		if(bc_hi_2_t.size() == tempSize)
-			elastic.bc_top_t = bc_hi_2_t;
-		else
-			for (int j = 0; j < tempSize; j++)
-				elastic.bc_top_t.push_back(elastic.tstart + j*(elastic.tend - elastic.tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
-
-#if AMREX_SPACEDIM > 2
-		tempSize = bc_lo_3.size()/AMREX_SPACEDIM;
-		for (int i = 0; i<tempSize; i++)
-			elastic.bc_back.push_back(Set::Vector(AMREX_D_DECL(bc_lo_3[AMREX_SPACEDIM*i],bc_lo_3[AMREX_SPACEDIM*i+1],bc_lo_3[AMREX_SPACEDIM*i+2])));
-		if(pp_elastic_bc.countval("back_face_t")) pp_elastic_bc.getarr("back_face_t",bc_lo_3_t);
-		if(bc_lo_3_t.size() == tempSize)
-			elastic.bc_back_t = bc_lo_3_t;
-		else
-			for (int j = 0; j < tempSize; j++)
-				elastic.bc_back_t.push_back(elastic.tstart + j*(elastic.tend - elastic.tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
-
-		tempSize = bc_hi_3.size()/AMREX_SPACEDIM;
-		for (int i = 0; i<tempSize; i++)
-			elastic.bc_front.push_back(Set::Vector(AMREX_D_DECL(bc_hi_3[AMREX_SPACEDIM*i],bc_hi_3[AMREX_SPACEDIM*i+1],bc_hi_3[AMREX_SPACEDIM*i+2])));
-		if(pp_elastic_bc.countval("front_face_t")) pp_elastic_bc.getarr("front_face_t",bc_hi_3_t);
-		if(bc_hi_3_t.size() == tempSize)
-			elastic.bc_front_t = bc_hi_3_t;
-		else
-			for (int j = 0; j < tempSize; j++)
-				elastic.bc_front_t.push_back(elastic.tstart + j*(elastic.tend - elastic.tstart)/(tempSize-1.0 != 0.0 ? tempSize-1.0 : 1.0));
-#endif
-#endif*/
+	
 		//----------------------------------------------------------------------
 		// The following routine should be replaced by RegisterNewFab in the
 		// future. For now, we are manually defining and resizing
@@ -542,18 +438,6 @@ PolymerDegradation::PolymerDegradation():
 		RegisterNodalFab (residual,		AMREX_SPACEDIM,					2,	"residual",true);;
 
 	}
-
-	//
-	// Boundary condition interpolators
-	//
-	/*AMREX_D_TERM(	interpolate_left  .define(elastic.bc_left,elastic.bc_left_t);
-					interpolate_right .define(elastic.bc_right,elastic.bc_right_t);
-					,
-					interpolate_bottom.define(elastic.bc_bottom,elastic.bc_bottom_t);
-					interpolate_top   .define(elastic.bc_top,elastic.bc_top_t);
-					,
-					interpolate_back  .define(elastic.bc_back,elastic.bc_back_t);
-					interpolate_front .define(elastic.bc_front,elastic.bc_front_t););*/
 
 	nlevels = maxLevel() + 1;
 }
@@ -587,18 +471,15 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 				if(std::isnan(water_old_box(i,j,k,0))) Util::Abort(INFO, "Nan found in WATER_OLD(i,j,k)");
 				if(std::isinf(water_old_box(i,j,k,0))) Util::Abort(INFO, "Nan found in WATER_OLD(i,j,k)");
+				
 				if(water_old_box(i,j,k,0) > 1.0)
 				{
 					Util::Warning(INFO,"Water concentration exceeded 1 at (", i, ",", j, ",", "k) and lev = ", lev, " Resetting");
 					water_old_box(i,j,k,0) = 1.0;
 				}
-				water_box(i,j,k,0) =
-					water_old_box(i,j,k,0)
-					+ dt * water.diffusivity * (
-						AMREX_D_TERM((water_old_box(i+1,j,k,0) + water_old_box(i-1,j,k,0) - 2.0*water_old_box(i,j,k,0)) / DX[0] / DX[0],
-									+ (water_old_box(i,j+1,k,0) + water_old_box(i,j-1,k,0) - 2.0*water_old_box(i,j,k,0)) / DX[1] / DX[1],
-									+ (water_old_box(i,j,k+1,0) + water_old_box(i,j,k-1,0) - 2.0*water_old_box(i,j,k,0)) / DX[2] / DX[2])
-							);
+				
+				water_box(i,j,k,0) = water_old_box(i,j,k,0) + dt * water.diffusivity * Numeric::Hessian(water_old_box,i,j,k,0,DX).trace();
+				
 				if(water_box(i,j,k,0) > 1.0)
 				{
 					Util::Warning(INFO, "Water concentration has exceeded one after computation. Resetting it to one");
@@ -621,11 +502,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			amrex::Array4<amrex::Real> const& Temp_box = (*Temp[lev]).array(mfi);
 			
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-				Temp_box(i,j,k,0) =
-						Temp_old_box(i,j,k,0)
-						+ dt * thermal.diffusivity * (AMREX_D_TERM((Temp_old_box(i+1,j,k,0) + Temp_old_box(i-1,j,k,0) - 2.0*Temp_old_box(i,j,k,0)) / DX[0] / DX[0],
-						+ (Temp_old_box(i,j+1,k,0) + Temp_old_box(i,j-1,k,0) - 2.0*Temp_old_box(i,j,k,0)) / DX[1] / DX[1],
-						+ (Temp_old_box(i,j,k+1,0) + Temp_old_box(i,j,k-1,0) - 2.0*Temp_old_box(i,j,k,0)) / DX[2] / DX[2]));
+				Temp_box(i,j,k,0) = Temp_old_box(i,j,k,0) + dt * thermal.diffusivity * Numeric::Hessian(Temp_old_box,i,j,k,0,DX).trace();
 			});
 		}
 	}
@@ -709,107 +586,53 @@ PolymerDegradation::~PolymerDegradation()
 	delete damage.bc;
 }
 
-#define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define WATER_OLD(i,j,k) water_conc_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define WATER(i,j,k) water_conc_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define ETA_OLD(i,j,k,m) eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
-#define ETA_NEW(i,j,k,m) eta_new_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m)
 void
-PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
+PolymerDegradation::TagCellsForRefinement (int lev, amrex::TagBoxArray& a_tags, amrex::Real /*time*/, int /*ngrow*/)
 {
-	const amrex::Real* dx      = geom[lev].CellSize();
-	Util::Message(INFO);
-	amrex::Vector<int>  itags;
+	const amrex::Real *DX = geom[lev].CellSize();
+	const Set::Vector dx(DX);
+	const Set::Scalar dxnorm = dx.lpNorm<2>();
+
 	if(water.on)
 	{
-		for (amrex::MFIter mfi(*water_conc[lev],true); mfi.isValid(); ++mfi)
+		for (amrex::MFIter mfi(*water_conc[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
-			const amrex::Box&  bx  = mfi.tilebox();
-			amrex::TagBox&     tag  = tags[mfi];
-
-			amrex::FArrayBox &water_conc_box = (*water_conc[lev])[mfi];
-
-			AMREX_D_TERM(	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-						)
-				{
-					AMREX_D_TERM(	amrex::Real grad1 = (WATER(i+1,j,k) - WATER(i-1,j,k))/(2.*dx[0]);,
-									amrex::Real grad2 = (WATER(i,j+1,k) - WATER(i,j-1,k))/(2.*dx[1]);,
-									amrex::Real grad3 = (WATER(i,j,k+1) - WATER(i,j,k-1))/(2.*dx[2]););
-					amrex::Real grad = sqrt(AMREX_D_TERM(grad1*grad1,
-						+ grad2*grad2,
-						+ grad3*grad3));
-
-					amrex::Real dr = sqrt(AMREX_D_TERM(dx[0]*dx[0],
-						+ dx[1]*dx[1],
-						+ dx[2]*dx[2]));
-
-					if (grad*dr > water.refinement_threshold)
-						tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
-				}
+			const amrex::Box 							&bx 		= mfi.tilebox();
+			amrex::Array4<char> const 					&tags 		= a_tags.array(mfi);
+			amrex::Array4<const Set::Scalar> const 		&water_box 	= (*water_conc[lev]).array(mfi);
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				Set::Vector grad = Numeric::Gradient(water_box, i, j, k, 0, DX);
+				if (dxnorm * grad.lpNorm<2>() > water.refinement_threshold)
+					tags(i, j, k) = amrex::TagBox::SET;
+			});
 		}
 	}
 
 	if(thermal.on)
 	{
-		for (amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi)
+		for (amrex::MFIter mfi(*Temp[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
-			const amrex::Box&  bx  = mfi.tilebox();
-			amrex::TagBox&     tag  = tags[mfi];
-
-			amrex::FArrayBox &Temp_box = (*Temp[lev])[mfi];
-
-			AMREX_D_TERM(	for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-						)
-				{
-					AMREX_D_TERM(	amrex::Real grad1 = (TEMP(i+1,j,k) - TEMP(i-1,j,k))/(2.*dx[0]);,
-									amrex::Real grad2 = (TEMP(i,j+1,k) - TEMP(i,j-1,k))/(2.*dx[1]);,
-									amrex::Real grad3 = (TEMP(i,j,k+1) - TEMP(i,j,k-1))/(2.*dx[2]);
-								)
-					amrex::Real grad = sqrt(AMREX_D_TERM(grad1*grad1,
-						+ grad2*grad2,
-						+ grad3*grad3));
-
-					amrex::Real dr = sqrt(AMREX_D_TERM(dx[0]*dx[0],
-						+ dx[1]*dx[1],
-						+ dx[2]*dx[2]));
-
-					if (grad*dr > thermal.refinement_threshold)
-						tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
-				}
+			const amrex::Box 							&bx 		= mfi.tilebox();
+			amrex::Array4<char> const 					&tags 		= a_tags.array(mfi);
+			amrex::Array4<const Set::Scalar> const 		&Temp_box 	= (*Temp[lev]).array(mfi);
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				Set::Vector grad = Numeric::Gradient(Temp_box, i, j, k, 0, DX);
+				if (dxnorm * grad.lpNorm<2>() > thermal.refinement_threshold)
+					tags(i, j, k) = amrex::TagBox::SET;
+			});
 		}
 	}
 
-
-	for (amrex::MFIter mfi(*eta_new[lev],true); mfi.isValid(); ++mfi)
+	for (amrex::MFIter mfi(*eta_new[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		const amrex::Box&  bx  = mfi.tilebox();
-		amrex::TagBox&     tag  = tags[mfi];
-		amrex::BaseFab<amrex::Real> &eta_new_box = (*eta_new[lev])[mfi];
-
-		AMREX_D_TERM(		for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-							for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-							for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-					)
-			{
-				for (int m = 0; m < damage.number_of_eta; m++)
-				{
-					AMREX_D_TERM(	Set::Scalar gradx = (ETA_NEW(i+1,j,k,m) - ETA_NEW(i-1,j,k,m))/(2.*dx[0]);,
-									Set::Scalar grady = (ETA_NEW(i,j+1,k,m) - ETA_NEW(i,j-1,k,m))/(2.*dx[1]);,
-									Set::Scalar gradz = (ETA_NEW(i,j,k+1,m) - ETA_NEW(i,j,k-1,m))/(2.*dx[2]);
-					)
-					Set::Scalar grad = sqrt(AMREX_D_TERM(gradx*gradx, + grady*grady, + gradz*gradz));
-					Set::Scalar dr = sqrt(AMREX_D_TERM(dx[0]*dx[0], + dx[1]*dx[1], + dx[2]*dx[2]));
-
-					if(grad*dr > damage.refinement_threshold)
-						tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
-				}
-			}
-
+		const amrex::Box 							&bx 		= mfi.tilebox();
+		amrex::Array4<char> const 					&tags 		= a_tags.array(mfi);
+		amrex::Array4<const Set::Scalar> const 		&eta_box 	= (*eta_new[lev]).array(mfi);
+		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+			Set::Vector grad = Numeric::Gradient(eta_box, i, j, k, 0, DX);
+			if (dxnorm * grad.lpNorm<2>() > damage.refinement_threshold)
+				tags(i, j, k) = amrex::TagBox::SET;
+		});
 	}
 	Util::Message(INFO);
 }
@@ -832,7 +655,7 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_m
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
-		amrex::Box box = mfi.tilebox();
+		amrex::Box box = mfi.growntilebox(2);
 		//box.grow(1);
 		amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[lev]).array(mfi);
 		amrex::Array4<pd_model_type> const& modelfab = model.array(mfi);
@@ -843,14 +666,15 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_m
 			amrex::Vector<Set::Scalar> _temp;
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
-				Set::Scalar _temp2 = mul* (AMREX_D_TERM(
-								eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
-								,
-								+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
-								,
-								+ eta_box(i,j,k-1,n) + eta_box(i-1,j,k-1,n)
-								+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
-								));
+				Set::Scalar _temp2 = mul*Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,n);
+				//Set::Scalar _temp2 = mul* (AMREX_D_TERM(
+				//				eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
+				//				,
+				//				+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
+				//				,
+				//				+ eta_box(i,j,k-1,n) + eta_box(i-1,j,k-1,n)
+				//				+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
+				//				));
 				_temp.push_back(std::min(damage.d_final[n],std::max(0.,_temp2)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
@@ -858,6 +682,21 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_m
 			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}
+
+	amrex::Geometry tmp_geom = geom[lev];
+    for (int i = 0; i < 2; i++)
+    {
+		Util::Message(INFO);
+    	amrex::FabArray<amrex::BaseFab<pd_model_type>> &mf = model;
+        mf.FillBoundary(tmp_geom.periodicity());
+        mf.FillBoundary();
+        const int ncomp = mf.nComp();
+        const int ng1 = 1;
+        const int ng2 = 2;
+        amrex::FabArray<amrex::BaseFab<pd_model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+        amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
+        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
+    }
 	//Util::Message(INFO, "Exit");
 }
 
@@ -905,7 +744,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes);
-		model[ilev].setVal(*modeltype);
+		model[ilev].setVal(*(material.modeltype));
 		DegradeMaterial(ilev,model[ilev]);
 	}
 
@@ -1086,7 +925,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					);
 					Set::Matrix sigmadev = sigma - sigma.trace()/((double) AMREX_SPACEDIM)*Set::Matrix::Identity();
 					Set::Scalar temp2 = std::sqrt(1.5*sigmadev.squaredNorm());
-					stress_vm_box(i,j,k,0) =  temp2 < (1.-temp)*yieldstrength ? temp2 : (1.-temp)*yieldstrength;
+					stress_vm_box(i,j,k,0) =  temp2 < (1.-temp)*material.yieldstrength ? temp2 : (1.-temp)*material.yieldstrength;
 				});
 			}
 		}
@@ -1184,7 +1023,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 						);
 						Set::Matrix sigmadev = sigma - sigma.trace()/((double) AMREX_SPACEDIM)*Set::Matrix::Identity();
 						Set::Scalar temp2 = std::sqrt(1.5*sigmadev.squaredNorm());
-						stress_vm_box(i,j,k,0) =  temp2 < (1.-temp)*yieldstrength ? temp2 : (1.-temp)*yieldstrength;
+						stress_vm_box(i,j,k,0) =  temp2 < (1.-temp)*material.yieldstrength ? temp2 : (1.-temp)*material.yieldstrength;
 					});
 				}
 			}
@@ -1197,4 +1036,4 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 }
 
 }
-#endif
+//#endif
