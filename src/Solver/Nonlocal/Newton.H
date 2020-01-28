@@ -53,7 +53,7 @@ public:
 
         for (int nriter = 0; nriter < (copyrhs ? m_nriters+1 : m_nriters); nriter++)
         {
-            if (m_verbose > 0) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
+            if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
             //
 
@@ -166,7 +166,7 @@ public:
             Set::Scalar relnorm;
             if (solnorm == 0) relnorm = cornorm;
             else relnorm = cornorm / solnorm;
-            Util::Message(INFO,"NR relative norm(ddisp) = ",relnorm);
+            if (m_verbose > 1) Util::Message(INFO,"NR relative norm(ddisp) = ",relnorm);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 amrex::MultiFab::Add(*a_sol_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);

@@ -27,6 +27,7 @@ public:
 	enum Face{
 		XLO, YLO, XHI, YHI, 
 		XLO_YLO, XLO_YHI, XHI_YLO, XHI_YHI,
+		INT
 	};
 	#elif AMREX_SPACEDIM==3
 	enum Face{
@@ -35,7 +36,8 @@ public:
 		ZLO_XLO, ZLO_XHI, ZHI_XLO, ZHI_XHI,
 		XLO_YLO, XLO_YHI, XHI_YLO, XHI_YHI,
 		XLO_YLO_ZLO, XLO_YLO_ZHI, XLO_YHI_ZLO, XLO_YHI_ZHI, // 8
-		XHI_YLO_ZLO, XHI_YLO_ZHI, XHI_YHI_ZLO, XHI_YHI_ZHI
+		XHI_YLO_ZLO, XHI_YLO_ZHI, XHI_YHI_ZLO, XHI_YHI_ZHI,
+		INT
 	};
 	#endif
 
@@ -44,8 +46,8 @@ public:
  	Elastic()
 	{
 		// By default, all boundary conditions are displacement
-		for (int face = 0; face < 26; face++)
-			for (int direction = 0; direction < 3; direction++)
+		for (int face = 0; face < m_nfaces; face++)
+			for (int direction = 0; direction < AMREX_SPACEDIM; direction++)
 			{
 				m_bc_type[face][direction] = Type::Displacement;
 				m_bc_val [face][direction] = 0.0;
@@ -75,36 +77,6 @@ public:
 	    const amrex::Vector<amrex::Geometry> &/*a_geom*/)
 	{
 		Util::Abort(INFO,"This has been depricated");
-//		m_bc_type[face][direction] = type;
-//		m_bc_val [face][direction] = value;
-//
-//		for (int ilev = 0; ilev < a_rhs.size(); ilev++)
-//		{
-//			amrex::Box domain(a_geom[ilev].Domain());
-//			domain.convert(amrex::IntVect::TheNodeVector());
-//			const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-//			for (amrex::MFIter mfi(*a_rhs[ilev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//			{
-//				amrex::Box bx = mfi.tilebox();
-//				bx.grow(2);
-//				bx = bx & domain;
-//				amrex::Array4<amrex::Real> const& rhs       = a_rhs[ilev]->array(mfi);
-//				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-//						AMREX_D_TERM(if (i == lo.x && face == Face::XLO)
-//								     rhs(i,j,k,direction) = value;,
-//							     if (j == lo.y && face == Face::YLO)
-//								     rhs(i,j,k,direction) = value;,
-//							     if (k == lo.z && face == Face::ZLO)
-//								     rhs(i,j,k,direction) = value;)
-//						AMREX_D_TERM(if (i == hi.x && face == Face::XHI)
-//								     rhs(i,j,k,direction) = value;,
-//							     if (j == hi.y && face == Face::YHI)
-//								     rhs(i,j,k,direction) = value;,
-//							     if (k == hi.z && face == Face::ZHI)
-//								     rhs(i,j,k,direction) = value;)
-//					});
-//			}					
-//		}
 	}
 
 	void
@@ -149,19 +121,19 @@ public:
 					
 				for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
 				{
-					Face face;
+					Face face = Face::INT;
 						
 					#if AMREX_SPACEDIM == 2
 						
-					if      (i==lo.x && j==lo.y) rhs(i,j,k,dir) = m_bc_val[Face::XLO_YLO][dir](m_time);
-					else if (i==lo.x && j==hi.y) rhs(i,j,k,dir) = m_bc_val[Face::XLO_YHI][dir](m_time);
-					else if (i==hi.x && j==lo.y) rhs(i,j,k,dir) = m_bc_val[Face::XHI_YLO][dir](m_time);
-					else if (i==hi.x && j==hi.y) rhs(i,j,k,dir) = m_bc_val[Face::XHI_YHI][dir](m_time);
+					if      (i==lo.x && j==lo.y) face = Face::XLO_YLO;
+					else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
+					else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
+					else if (i==hi.x && j==hi.y) face = Face::XHI_YHI;
 
-					else if (i==lo.x) rhs(i,j,k,dir) = m_bc_val[Face::XLO][dir](m_time);
-					else if (i==hi.x) rhs(i,j,k,dir) = m_bc_val[Face::XHI][dir](m_time);
-					else if (j==lo.y) rhs(i,j,k,dir) = m_bc_val[Face::YLO][dir](m_time);
-					else if (j==hi.y) rhs(i,j,k,dir) = m_bc_val[Face::YHI][dir](m_time);
+					else if (i==lo.x) face = Face::XLO;
+					else if (i==hi.x) face = Face::XHI;
+					else if (j==lo.y) face = Face::YLO;
+					else if (j==hi.y) face = Face::YHI;
 
 					#elif AMREX_SPACEDIM == 3
 
@@ -194,13 +166,15 @@ public:
 					else if (k==lo.z) face = Face::ZLO;
 					else if (k==hi.z) face = Face::ZHI;
 
-					if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
-						rhs(i,j,k,dir) = 0.0;
-					else 
-						rhs(i,j,k,dir) = m_bc_val[face][dir](m_time);
-
 					#endif
-						
+
+					if (!(face == Face::INT))
+					{
+						if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+							rhs(i,j,k,dir) = 0.0;
+						else 
+							rhs(i,j,k,dir) = m_bc_val[face][dir](m_time);
+					}
 				}
 			});
 		}					
@@ -310,7 +284,7 @@ public:
  	}
 
 	AMREX_FORCE_INLINE
-	Set::Vector set(std::array<Type,3> &bc_type, 
+	Set::Vector set(std::array<Type,AMREX_SPACEDIM> &bc_type, 
 					const Set::Vector &u, const Set::Matrix &gradu, const Set::Matrix &sigma, Set::Vector n) const
 	{
 		Set::Vector f = Set::Vector::Zero();
@@ -330,8 +304,15 @@ public:
 
 protected:
 	Set::Scalar m_time = 0.0;
-	std::array<std::array<Type,       3>, 26> m_bc_type; 
-	std::array<std::array<Numeric::Interpolator::Linear<Set::Scalar>,3>, 26> m_bc_val; 
+	
+	#if AMREX_SPACEDIM==2
+	static const int m_nfaces = 8;
+	#elif AMREX_SPACEDIM==3
+	static const int m_nfaces = 26;
+	#endif
+
+	std::array<std::array<Type,                                      AMREX_SPACEDIM>, m_nfaces> m_bc_type; 
+	std::array<std::array<Numeric::Interpolator::Linear<Set::Scalar>,AMREX_SPACEDIM>, m_nfaces> m_bc_val; 
 
 public:
     static void Parse(Elastic & value, IO::ParmParse & pp)

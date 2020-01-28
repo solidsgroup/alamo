@@ -84,8 +84,6 @@ protected:
             Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
         }
         
-        //Operator::Elastic<model_type> elasticop;
-
         // Set linear elastic model
         amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
         model_mf.resize(disp_mf.size());
@@ -121,7 +119,6 @@ protected:
 
         elastic.bc.Init(rhs_mf,geom);
 
-
         amrex::LPInfo info;
         elastic.op.define(geom, grids, dmap, info);
         elastic.op.SetUniform(false);
@@ -134,7 +131,7 @@ protected:
         elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic.op);
         pp.queryclass("solver",*elastic.solver);
 
-        elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,true);
+        elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
