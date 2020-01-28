@@ -14,6 +14,9 @@
 #include "BC/BC.H"
 #include "IO/ParmParse.H"
 
+#include "Model/Solid/Affine/Cubic.H"
+#include "Solver/Nonlocal/Newton.H"
+
 #define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 #define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
 
@@ -37,6 +40,8 @@ namespace Integrator
 {
 class Mobility : public Integrator
 {
+  	using model_type = Model::Solid::Affine::Cubic;
+
 public:
 
   /// \brief Read in parameters and register field variables
@@ -86,7 +91,8 @@ private:
     Set::Scalar elastic_mult = 1.0;
     Set::Scalar kappa = 1.0;
     Set::Scalar L = 1.0;
-    Set::Scalar gammagb0 = 0.1;
+    Set::Scalar gammagb1 = 0.1;
+    Set::Scalar gammagb2 = -0.1;
   } physics;
 
   struct {
@@ -95,13 +101,20 @@ private:
     } disp;
   } bc;
 
+  //struct {
+  //  Set::Scalar C11;
+  //  Set::Scalar C12;
+  //  Set::Scalar C44;
+  //  Set::Matrix Rot1;
+  //  Set::Matrix Rot2;
+  //} constitutive;
+
   struct {
-    Set::Scalar C11;
-    Set::Scalar C12;
-    Set::Scalar C44;
-    Set::Matrix Rot1;
-    Set::Matrix Rot2;
-  } constitutive;
+    model_type model;
+    //Operator::Elastic<model_type> op; // causing problems to have a persistent solver...
+    BC::Operator::Elastic<model_type> bc;
+    Solver::Nonlocal::Newton<model_type> *newton;
+  } elastic;
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement

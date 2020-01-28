@@ -3,6 +3,12 @@
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
+
+#include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Linear/Cubic.H"
+#include "Model/Solid/Affine/Isotropic.H"
+#include "Model/Solid/Affine/Cubic.H"
 #include "Elastic.H"
 
 #include "Numeric/Stencil.H"
@@ -86,7 +92,7 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
 
-	if (a_model.boxArray()        != model[amrlev][0]->boxArray()) Util::Abort(INFO,"Inconsistent box arrays");
+	if (a_model.boxArray()        != model[amrlev][0]->boxArray()) Util::Abort(INFO,"Inconsistent box arrays\n","a_model.boxArray()=\n",a_model.boxArray(),"\n but the current box array is \n",model[amrlev][0]->boxArray());
 	if (a_model.DistributionMap() != model[amrlev][0]->DistributionMap()) Util::Abort(INFO,"Inconsistent distribution maps");
 	if (a_model.nComp()           != model[amrlev][0]->nComp()) Util::Abort(INFO,"Inconsistent # of components - should be ",model[amrlev][0]->nComp());
 	if (a_model.nGrow()           != model[amrlev][0]->nGrow()) Util::Abort(INFO,"Inconsistent # of ghost nodes, should be ",model[amrlev][0]->nGrow());
@@ -458,10 +464,10 @@ void
 Elastic<T>::Stress (int amrlev,
 		    amrex::MultiFab& a_sigma,
 		    const amrex::MultiFab& a_u,
-		    bool voigt) 
+		    bool voigt, bool a_homogeneous) 
 {
 	BL_PROFILE("Operator::Elastic::Stress()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	const amrex::Real* DX = m_geom[amrlev][0].CellSize();
 	amrex::Box domain(m_geom[amrlev][0].Domain());
@@ -519,10 +525,10 @@ template<class T>
 void
 Elastic<T>::Energy (int amrlev,
 		    amrex::MultiFab& a_energy,
-		    const amrex::MultiFab& a_u)
+		    const amrex::MultiFab& a_u, bool a_homogeneous)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
@@ -569,10 +575,10 @@ Elastic<T>::Energy (int amrlev,
 
 template <class T>
 void 
-Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models)
+Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models, bool a_homogeneous)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
-	SetHomogeneous(false);
+	SetHomogeneous(a_homogeneous);
 
 	if ((unsigned int)a_energies.nComp() != a_models.size())
 	{
@@ -835,5 +841,11 @@ template class Elastic<Model::Solid::LinearElastic::Cubic>;
 template class Elastic<Model::Solid::LinearElastic::Multiwell>;
 template class Elastic<Model::Solid::LinearElastic::Laplacian>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
+
+template class Elastic<Model::Solid::Elastic::NeoHookean>;
+template class Elastic<Model::Solid::Affine::Isotropic>;
+template class Elastic<Model::Solid::Affine::Cubic>;
+template class Elastic<Model::Solid::Linear::Isotropic>;
+template class Elastic<Model::Solid::Linear::Cubic>;
 }
 

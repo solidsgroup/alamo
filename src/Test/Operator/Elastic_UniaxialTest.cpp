@@ -1,10 +1,12 @@
 #include "Test/Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
+#include "Model/Solid/Linear/Isotropic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
+#include "Solver/Nonlocal/Newton.H"
 
 namespace Test
 {
@@ -18,7 +20,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 
 	int failed = 0;
 
-	using model_type = Model::Solid::LinearElastic::Isotropic;
+	using model_type = Model::Solid::Linear::Isotropic;
 	Set::Scalar lame = 2.6, shear = 6.0;
 	model_type model(lame, shear);
 	//Use this instead to run for Cubic elastic case.
@@ -63,47 +65,70 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	if (component == 0)
 	{
 		AMREX_D_TERM(,
-					 bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
-					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+					 bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1);
+					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+			 		 bc.Set(bc.Face::XHI_YHI,bc.Direction::X,bc.Type::Displacement,0.1);
+			 		 bc.Set(bc.Face::XHI_YLO,bc.Direction::X,bc.Type::Displacement,0.1);
 					 ,
-					 bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
+					 bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 // edges
+					 bc.Set(bc.Face::ZHI_XHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::ZLO_XHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 // corners
+					 bc.Set(bc.Face::XHI_YLO_ZLO,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::XHI_YLO_ZHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::XHI_YHI_ZLO,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::XHI_YHI_ZHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 // free corners		
+					 bc.Set(bc.Face::YLO_ZLO,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YLO_ZLO,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YLO_ZHI,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YLO_ZHI,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZLO,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZLO,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZHI,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZHI,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 );
+
+
 	}
 
 #if AMREX_SPACEDIM > 1
 	else if (component == 1)
 	{
 		AMREX_D_TERM(,
-					 bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+					 bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.1);
 					 ,
-					 bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
+					 bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0););
 	}
 #endif
 
 #if AMREX_SPACEDIM > 2
 	if (component == 2)
 	{
-		bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+		bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.1);
 	}
 #endif
 
+	bc.Init(rhs_prescribed,geom);
 	elastic.SetBC(&bc);
 
-	Solver::Nonlocal::Linear mlmg(elastic);
+	Solver::Nonlocal::Newton<model_type> mlmg(elastic);
 	if (m_fixedIter > -1)
 		mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1)
@@ -120,8 +145,9 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	}
 
 	mlmg.solve(GetVecOfPtrs(solution_numeric),
-			   GetVecOfConstPtrs(rhs_prescribed),
-			   m_tol_rel, m_tol_abs);
+			   GetVecOfPtrs(rhs_prescribed),
+			   modelfab,
+			   m_tol_rel, m_tol_abs,false, nullptr);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
