@@ -27,12 +27,12 @@ public:
 	/// Returns
 	/// \f[\mathbb{C}_{ijkl}u_{k,l}\f]
 	///
-	//virtual Set::Matrix operator () (Set::Matrix &eps, bool a_homogeneous=true) const = 0;
+	virtual Set::Matrix operator () (Set::Matrix &eps, bool a_homogeneous=true) const = 0;
 	///
 	/// Returns
 	/// \f[\mathbb{C}_{ijkl}u_{k,lj}\f]
 	///
-	//virtual Set::Vector operator () (Set::Matrix3 &gradeps, bool a_homogeneous=true) = 0;
+	virtual Set::Vector operator () (Set::Matrix3 &gradeps, bool a_homogeneous=true) = 0;
 	
 protected:
 };

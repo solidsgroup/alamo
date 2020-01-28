@@ -65,44 +65,67 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	if (component == 0)
 	{
 		AMREX_D_TERM(,
-					 bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
-					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
+					 bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Displacement, 0.1);
+					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+			 		 bc.Set(bc.Face::XHI_YHI,bc.Direction::X,bc.Type::Displacement,0.1);
+			 		 bc.Set(bc.Face::XHI_YLO,bc.Direction::X,bc.Type::Displacement,0.1);
 					 ,
-					 bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
+					 bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZLO, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 // edges
+					 bc.Set(bc.Face::ZHI_XHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::ZLO_XHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 // corners
+					 bc.Set(bc.Face::XHI_YLO_ZLO,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::XHI_YLO_ZHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::XHI_YHI_ZLO,bc.Direction::X,bc.Type::Displacement,0.1);
+					 bc.Set(bc.Face::XHI_YHI_ZHI,bc.Direction::X,bc.Type::Displacement,0.1);
+					 // free corners		
+					 bc.Set(bc.Face::YLO_ZLO,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YLO_ZLO,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YLO_ZHI,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YLO_ZHI,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZLO,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZLO,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZHI,bc.Direction::X,bc.Type::Neumann,0.0);
+					 bc.Set(bc.Face::YHI_ZHI,bc.Direction::Y,bc.Type::Neumann,0.0);
+					 );
+
+
 	}
 
 #if AMREX_SPACEDIM > 1
 	else if (component == 1)
 	{
 		AMREX_D_TERM(,
-					 bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+					 bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.1);
 					 ,
-					 bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-					 bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom););
+					 bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZLO, bc.Direction::Y, bc.Type::Neumann, 0.0);
+					 bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0););
 	}
 #endif
 
 #if AMREX_SPACEDIM > 2
 	if (component == 2)
 	{
-		bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0, rhs_prescribed, geom);
-		bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.1, rhs_prescribed, geom);
+		bc.Set(bc.Face::XLO, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::XHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::YLO, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::YHI, bc.Direction::Z, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::ZHI, bc.Direction::X, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::ZHI, bc.Direction::Y, bc.Type::Neumann, 0.0);
+		bc.Set(bc.Face::ZHI, bc.Direction::Z, bc.Type::Displacement, 0.1);
 	}
 #endif
 
+	bc.Init(rhs_prescribed,geom);
 	elastic.SetBC(&bc);
 
 	Solver::Nonlocal::Newton<model_type> mlmg(elastic);

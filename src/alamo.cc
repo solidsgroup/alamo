@@ -13,7 +13,7 @@
 #include "Integrator/Eshelby.H"
 #include "Integrator/FiniteKinematics.H"
 #include "Integrator/Flame.H"
-//#include "Integrator/PolymerDegradation.H"
+#include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/BrittleFracture.H"
 #include "Integrator/DuctileFracture.H"
@@ -70,14 +70,14 @@ int main (int argc, char* argv[])
 		heatconduction->Evolve();
 		delete heatconduction;
 	}
-	/*else if (program == "degradation")
+	else if (program == "degradation")
 	{
 		srand(1.0*amrex::ParallelDescriptor::MyProc());
 		Integrator::PolymerDegradation model;
 		model.InitData();
 		model.Evolve();
 		//delete model;
-	}*/
+	}
 	else if (program == "brittlefracture")
 	{
                 srand(1.0*amrex::ParallelDescriptor::MyProc());

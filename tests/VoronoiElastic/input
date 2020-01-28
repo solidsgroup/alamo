@@ -7,7 +7,7 @@ stop_time		    = 400
 
 #amr.plot_int		    = 100
 amr.plot_dt                 = 5.0
-amr.max_level		    = 0
+amr.max_level		    = 3
 amr.n_cell		    = 64 64 64
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 10
@@ -38,19 +38,26 @@ elastic.type=cubic
 #elastic.tstart=0.1
 elastic.load_t=0.0 
 elastic.load_disp=0.01
-elastic.bc.type_xlo = disp disp disp
-elastic.bc.type_xhi = disp disp disp
-elastic.bc.xhi = 0.0 0.1 0.0
-elastic.bc.xlo = 0.0 0.0 0.0
-elastic.bc.type_ylo = neumann neumann neumann
-elastic.bc.type_yhi = neumann neumann neumann
-elastic.bc.yhi = 0.0 0.0 0.0
-elastic.bc.ylo = 0.0 0.0 0.0
-elastic.bc.type_zlo = neumann neumann neumann
-elastic.bc.type_zhi = neumann neumann neumann
-elastic.bc.zhi = 0.0 0.0 0.0
-elastic.bc.zlo = 0.0 0.0 0.0
+elastic.bc.type.xlo = disp disp disp
+elastic.bc.type.xhi = disp disp disp
+elastic.bc.val.xhi  = 0.0 0.1 0.0
+elastic.bc.val.xlo  = 0.0 0.0 0.0
+elastic.bc.type.ylo = neumann neumann neumann
+elastic.bc.type.yhi = neumann neumann neumann
+elastic.bc.val.yhi  = 0.0 0.0 0.0
+elastic.bc.val.ylo  = 0.0 0.0 0.0
+elastic.bc.type.zlo = neumann neumann neumann
+elastic.bc.type.zhi = neumann neumann neumann
+elastic.bc.val.zhi  = 0.0 0.0 0.0
+elastic.bc.val.zlo  = 0.0 0.0 0.0
+
+elastic.model.C11 = 1.68
+elastic.model.C12 = 1.21
+elastic.model.C44 = 0.75
+elastic.model.random
 
 elastic.fixed_iter = 1000
 #elastic.max_coarsening_level = 0
-elastic.verbose = 2
+elastic.solver.verbose = 2
+
+
