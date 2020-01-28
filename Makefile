@@ -75,6 +75,7 @@ python: $(OBJ)
 
 tidy:
 	@printf "$(B_ON)$(FG_RED)TIDYING  $(RESET)\n" 
+	find src -name "*.orig" -exec rm -rf {} \;
 	rm -f Backtrace*
 	rm -f amrex.build.log
 

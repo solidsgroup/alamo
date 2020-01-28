@@ -1,12 +1,12 @@
 alamo.program = mobility
 # Simulation length
-timestep  = 0.0001
+timestep  = 0.001
 #stop_time = 5
 stop_time = 10.0001
 
 # AMR parameters
 amr.plot_int = 100
-amr.max_level = 5
+amr.max_level = 2
 
 #amr.n_cell = 256 128
 #amr.n_cell = 128 64
@@ -24,9 +24,9 @@ amr.plot_file = tests/Disconnection/output
 amr.ref_criterion = 0.005
 
 solver.interval = 100 #10
-solver.verbose = 3
-solver.bottom_max_iter = 20
-solver.fixed_iter = 100
+#solver.verbose = 3
+#solver.bottom_max_iter = 20
+#solver.fixed_iter = 100
 #solver.max_coarsening_level = 0
 
 # Specify geometry and unrefined mesh
@@ -43,7 +43,7 @@ heat.ic_type = cylinder
 #ic.Tin = 1.0
 #ic.Tout = 0.0
 
-ic.type = "tabulated"
+ic.type = tabulated
 
 # Step
 #ic.xs = 0.0 0.4     0.40001 0.6  0.60001 1.0
@@ -55,16 +55,15 @@ ic.type = "tabulated"
 # Ramp between two fixed pts
 #ic.xs = 0.0   0.9    1.1   2.0
 #ic.ys = 0.45  0.45   0.55  0.55
-#ic.xs = 0.0   0.899999   0.9   1.0   1.00001  1.1    1.100001   2.0
-#ic.ys = 0.45  0.45       0.47       0.47   0.53    0.53             0.55  0.55
-ic.xs = 0.0  0.45
-ic.ys = 0.5  0.
+ic.xs = 0.0   0.899999   0.9   1.0   1.00001  1.1    1.100001   2.0
+ic.ys = 0.45  0.45       0.47       0.47   0.53    0.53             0.55  0.55
+#ic.xs = 0.0  0.45
+#ic.ys = 0.5  0.
 
-ic.gammagb1 = -0.5
-ic.gammagb2 = 0.5
+physics.gammagb1 = -0.25
+physics.gammagb2 = 0.25
 
-ic.type=circle
-ic.gammagb1 = 0.0
+#ic.type=circle
 #ic.center = 1.0 0.5 0.0
 
 
@@ -72,32 +71,54 @@ ic.gammagb1 = 0.0
 #ic.xs = 0.0 1.0
 #ic.ys = 0.3 0.7
 
-physics.gamma = 100.0
+physics.gamma = 10.0
 # physics.elastic_mult 500.0 huge
 #physics.elastic_mult = 0.0 no impact
 #physics.elastic_mult = 1.0 very small impact
 #physics.elastic_mult = 10.0 # Moderat impact
 #physics.elastic_mult = 100.0 # significant impact
-physics.elastic_mult = 500.0 # Definite impact! Seeing distinct micro disconnections as well as macro
+physics.elastic_mult = 10.0 # Definite impact! Seeing distinct micro disconnections as well as macro
 #physics.elastic_mult = 1000.0 # a little too much maybe?
-physics.gammagb0 = 0.5
+physics.gammagb0 = 0.25
 #physics.kappa = 0.05
 #physics.kappa = 0.01
-physics.kappa = 0.001
-physics.L = 1.0
+physics.kappa = 0.01
+#physics.L = 0.01
+physics.L = 0.0
 
 # Boundary conditions
 bc.lo = REFLECT_EVEN EXT_DIR
 bc.hi = REFLECT_EVEN EXT_DIR
 bc.lo_1 = 0.0 
 bc.hi_1 = 0.0 
-#bc.lo_2 = -0.5
-#bc.hi_2 = 0.5
-bc.lo_2 = 0.0
-bc.hi_2 = 0.0
+bc.lo_2 = -0.25
+bc.hi_2 = 0.25
+#bc.lo_2 = 0.0
+#bc.hi_2 = 0.0
 bc.freezetime = 0.01
 
 #bc.disp.yhi_x = -0.1
 bc.disp.yhi_x = 0
+
+
+elastic.model.C11 = 1.68
+elastic.model.C12 = 1.21
+elastic.model.C12 = 0.75
+
+elastic.newton.verbose = 3
+elastic.newton.fixed_iter = 20
+
+
+
+elastic.bc.type.yhi = trac disp
+elastic.bc.val.yhi = 0.01 0.0
+elastic.bc.type.xloyhi = trac trac
+elastic.bc.val.xloyhi = 0.01 0.0
+elastic.bc.type.xhiyhi = trac trac
+elastic.bc.val.xhiyhi = 0.01 0.0
+
+elastic.bc.type.xhi =  neumann neumann neumann
+elastic.bc.type.xlo = neumann neumann neumann
+
 
 

@@ -10,4 +10,5 @@ This is basic documentation for the Alamo.
    Flame
    PerturbedInterface
    Eshelby
+   NeoHookean
 
