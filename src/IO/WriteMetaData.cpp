@@ -71,6 +71,13 @@ void WriteMetaData(std::string plot_file, Status status, int per)
 				}
 			metadatafile << "Simulation_run_time = " << std::difftime(now,starttime) << " seconds " << std::endl;
 
+			#ifdef GIT_DIFF_OUTPUT
+			std::ifstream src(GIT_DIFF_OUTPUT,std::ios::binary);
+			std::ofstream dst(plot_file+"/diff.html",std::ios::binary);
+			dst << src.rdbuf();
+			src.close();
+			dst.close();
+			#endif
 
 			metadatafile.close();
 		}
