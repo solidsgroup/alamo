@@ -280,10 +280,9 @@ if args.python:
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
 
 if args.diff:
-    #try: shellmessage("diff2html","diff2html --version")
-    #except: 
-    raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
-    f.write("CXX_COMPILE_FLAGS = -DGIT_DIFF_OUTPUT\n")
+    try: shellmessage("diff2html","diff2html --version")
+    except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
+    f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff.html)\"'+'\n')
     f.write("DEP_EXTRA += .diff.html\n")
     f2.write(".diff.html: .FORCE\n")
     f2.write("\t-@rm -rf .diff.html\n")
