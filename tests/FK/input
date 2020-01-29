@@ -22,7 +22,7 @@ geometry.prob_lo	    = -8 -8 -8
 geometry.prob_hi	    = 8 8 8
 geometry.is_periodic	    = 0 0 0
 
-elastic.b = 0 0 0
+elastic.b = 0.0 0 0
 
 elastic.mu = 3.0    # WORKS
 elastic.kappa = 6.2 # WORKS

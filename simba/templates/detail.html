@@ -74,6 +74,8 @@
 		</form>
 	  </div>
 	</td>
+	{% elif columns[i] == "diff" %}
+	<td>{{ data[i]|safe }}</td>
 	{% else %}
 	<td> {{ data[i] }}</td>
 	{% endif %}
