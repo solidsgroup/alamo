@@ -7,19 +7,23 @@
 #include "Util/Util.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
 #include "Integrator/EshelbyPlastic.H"
+#include "IO/ParmParse.H"
 #include "Solver/Local/CG.H"
 using namespace Model::Solid::CrystalPlastic;
 
 void savefile(float s,float es,const char* loc)
 {
+	Util::Message(INFO);
 	std::fstream myfile;
   	myfile.open (loc, std::ios::out | std::ios::app); 
 
 	myfile << s << "," << es << std::endl;
  	myfile.close();
+		Util::Message(INFO);
 }
 void savefile(std::array<double,12> g, double time,const char* loc)
 {
+		Util::Message(INFO);
 	std::fstream myfile;
   	myfile.open (loc, std::ios::out | std::ios::app); 
 
@@ -35,13 +39,16 @@ void savefile(std::array<double,12> g, double time,const char* loc)
 		}
 	}
  	myfile.close();
+	Util::Message(INFO);
 }
 void deletefile(const char* loc)
 {
+	Util::Message(INFO);
 	if( remove(loc) != 0 )
     perror( "Error deleting file" );
  	else
     puts( "successfully deleted" );
+		Util::Message(INFO);
 }
 /*
 Values for the elastic tensor, C:
@@ -62,10 +69,21 @@ Values for the elastic tensor, C:
  */
 int main (int argc, char* argv[])
 {
-	auto src = static_cast<const char*>("/home/icrman/Python/data_n0.dat");
-	auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
-	deletefile(src); deletefile(src2);
 	Util::Initialize(argc,argv);
+
+	amrex::ParmParse pp;
+	std::string src = "/home/icrman/Python/data_n0.dat";
+	std::string src2 = "/home/icrman/Python/gamma.dat";
+	pp.query("src",src);
+	pp.query("src2",src2);
+
+	std::ofstream fsrc;  fsrc.open(src);
+	//std::ofstream fsrc2; fsrc2.open(src);
+
+
+	//auto src = static_cast<const char*>("/home/icrman/Python/data_n0.dat");
+	//auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
+	//deletefile(src); deletefile(src2);
 	CrystalPlastic cp( 10e3 * 1e-3, 7.35e3 * 1e-3, 3.8e3 * 1e-3); //0.4, 0.1, 0.01 C11 = c11*t0
 	// 10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3
 	std::array<double,12> gamma;
@@ -75,23 +93,27 @@ int main (int argc, char* argv[])
 	Set::Matrix sigma = Set::Matrix::Zero();
 	Set::Matrix esp = Set::Matrix::Zero();
 
+
 	Set::iMatrix mask = Set::iMatrix::Zero();
 	mask(0,1) = 1;
 	
-	static double constexpr dt = 1e-11;
-	static double constexpr c = 100000;
-	static double constexpr T = 1.8/c;
+	Set::Scalar dt = 0.0001;
+	Set::Scalar c = 10.;
+	Set::Scalar T = 1.8/c;
 	cp.Setdt(dt);
 	int counter = 0;
+		
 	for(double t = 0.0; t <= T; t += dt)
 	{
+		Util::Message(INFO,"t=",t," T=",T);
 		Set::Matrix esp = cp.GetEsp();
 		Set::Matrix temp;
 	 	//es(0,0) = c*t;
 		es(0,1) = c*t;
-		//es = cp.relax(es, es(0,1),mask);
+		es = cp.relax(es, es(0,1),mask);
 		temp = (es - esp);
-		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,false);
+		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,true);
+		Util::Message(INFO,sigma);
 		cp.update(es,sigma,dt);
 
 		if( counter % 10 == 0)
@@ -101,16 +123,23 @@ int main (int argc, char* argv[])
 			//{
 			//	gamma[i] = cp.getGamma(i);
 			//}
-			//Util::Message(INFO,"t = ", t);
-			//Set::Matrix esp = cp.GetEsp();
+			Set::Matrix esp = cp.GetEsp();
 			//Util::Message(INFO,"es() = ", es);
 			//Util::Message(INFO,"esp() = ", esp);
 			//Util::Message(INFO,"sig() = ", sigma);
-			savefile( (float)sigma(0,1), (float)es(0,1), src); 
-			savefile(gamma,t,src2);
+			//Util::Message(INFO);
+			Util::Message(INFO,"t=",t," es(0,1)=",es(0,1));
+			fsrc << es(0,1) << " " << sigma(0,1) << std::endl;
+			//fsrc1 << es(0,1) << "," << sigma(0,1) << std::endl;
+			//savefile((float)es(0,1), (float)sigma(0,1), src.c_str()); 
+			savefile(gamma,t,src2.c_str());
 		}
+		Util::Message(INFO);
 		counter++;
+		Util::Message(INFO);
 	}
+	Util::Finalize(); return 0;
+
 	esp = cp.GetEsp();
 	Util::Message(INFO,"es = ", es);
 	Util::Message(INFO,"esp = ", esp);
