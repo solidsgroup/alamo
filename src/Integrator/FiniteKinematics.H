@@ -44,29 +44,9 @@ public:
         {
             IO::ParmParse pp("elastic");
             {
-                if (pp.contains("lame") && pp.contains("shear"))
-                {
-                    pp.query("lame",lame);
-                    pp.query("shear",shear);
-                }
-                else if (pp.contains("E") && pp.contains("nu"))
-                {
-                    Set::Scalar E, nu;
-                    pp.query("E",E);
-                    pp.query("nu",nu);
-                    lame = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
-                    shear = E / 2.0 / (1.0 + nu);
-                    Util::Message(INFO,"lame = ", lame);
-                    Util::Message(INFO,"shear = ", shear);
-
-                }
-                pp.query("disp",disp);
                 pp.queryarr("b",b);
-                pp.query("fixediter",fixediter);
                 pp.query("mu",mu);
                 pp.query("kappa",kappa);
-                pp.query("nriters",m_nriters);
-                
                 pp.queryclass("bc",elastic.bc);
             }
         }
@@ -93,7 +73,7 @@ protected:
             Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
         }
         for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
-        //for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
+        for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
         Operator::Elastic<model_type> op;
         op.SetUniform(false);
@@ -132,7 +112,7 @@ protected:
         IO::ParmParse mypp("elastic");
         mypp.queryclass("newton",nr);
         
-        nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,true);
+        nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,false);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
