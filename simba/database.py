@@ -65,6 +65,9 @@ for directory in args.directories:
         if key not in types:
             types[key] = 'VARCHAR(1000)'
 
+    if os.path.isfile(directory+"/diff.html"):
+        types["diff"] = 'BLOB'
+
 #
 # If the table does not exist, create it
 #
@@ -146,6 +149,13 @@ for directory in args.directories:
         cur.execute('INSERT INTO ' + args.table + ' (' + ','.join([c for c in data]) + ') ' +
                     'VALUES (' + ','.join(['"'+data[c]+'"' for c in data]) + ')')
         print(u'  \u251C\u2574'+'\033[1;32mInserting\033[1;0m: ' + directory)
+    
+    if os.path.isfile(directory+"/diff.html"):
+        difffile = open(directory+"/diff.html")
+        #print(difffile.readlines())
+        cur.execute("UPDATE " + args.table + " SET diff = ? WHERE HASH = ?",(difffile.read(),sim_hash))
+
+        
 print(u'  \u2514\u2574' + 'Done')
 
 
