@@ -76,19 +76,19 @@ int main (int argc, char* argv[])
 	Set::Matrix esp = Set::Matrix::Zero();
 
 	Set::iMatrix mask = Set::iMatrix::Zero();
-	mask(0,0) = 1;
+	mask(0,1) = 1;
 	
 	static double constexpr dt = 1e-11;
 	static double constexpr c = 100000;
-	static double constexpr T = 4.8/c;
+	static double constexpr T = 1.8/c;
 	cp.Setdt(dt);
 	int counter = 0;
 	for(double t = 0.0; t <= T; t += dt)
 	{
 		Set::Matrix esp = cp.GetEsp();
 		Set::Matrix temp;
-	 	es(0,0) = c*t;
-		//es(1,0) = c*t;
+	 	//es(0,0) = c*t;
+		es(0,1) = c*t;
 		//es = cp.relax(es, es(0,1),mask);
 		temp = (es - esp);
 		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,false);
@@ -106,7 +106,7 @@ int main (int argc, char* argv[])
 			//Util::Message(INFO,"es() = ", es);
 			//Util::Message(INFO,"esp() = ", esp);
 			//Util::Message(INFO,"sig() = ", sigma);
-			savefile( (float)sigma(0,0), (float)es(0,0), src); 
+			savefile( (float)sigma(0,1), (float)es(0,1), src); 
 			savefile(gamma,t,src2);
 		}
 		counter++;
