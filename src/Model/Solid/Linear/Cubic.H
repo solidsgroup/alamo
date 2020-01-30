@@ -57,15 +57,15 @@ public:
     									ddw(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
     				}
     }
-    Set::Scalar W(Set::Matrix gradu)
+    Set::Scalar W(Set::Matrix gradu) const
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(Set::Matrix gradu)
+    Set::Matrix DW(Set::Matrix gradu) const
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/) const
     {
         return ddw;
     }

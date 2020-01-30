@@ -63,35 +63,35 @@ int main (int argc, char* argv[])
 //		failed += Util::Test::SubFinalMessage(subfailed);
 //	}
 
-	Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
-	{
-		int subfailed = 0;
-		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Cubic> test;
-		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
-		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
-
-	Util::Test::Message("Model::Solid::LinearElastic<Degradable::Isotropic>");
-	{
-		int subfailed = 0;
-		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Degradable::Isotropic> test;
-		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
-		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
-
-	Util::Test::Message("Model::Solid::LinearElastic<Laplacian>");
-	{
-		int subfailed = 0;
-		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Laplacian> test;
-		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
+//	Util::Test::Message("Model::Solid::LinearElastic<Cubic>");
+//	{
+//		int subfailed = 0;
+//		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Cubic> test;
+//		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
+//		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
+//		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
+//		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
+//
+//	Util::Test::Message("Model::Solid::LinearElastic<Degradable::Isotropic>");
+//	{
+//		int subfailed = 0;
+//		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Degradable::Isotropic> test;
+//		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
+//		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
+//		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
+//		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
+//
+//	Util::Test::Message("Model::Solid::LinearElastic<Laplacian>");
+//	{
+//		int subfailed = 0;
+//		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Laplacian> test;
+//		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
+//		failed += Util::Test::SubFinalMessage(subfailed);
+//	}
 
 	Util::Test::Message("Numeric::Interpolator<Linear>");
 	{

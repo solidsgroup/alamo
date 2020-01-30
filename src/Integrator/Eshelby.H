@@ -131,7 +131,7 @@ protected:
         elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic.op);
         pp.queryclass("solver",*elastic.solver);
 
-        elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        elastic.solver->solve(GetVecOfPtrs(disp_mf),GetVecOfConstPtrs(rhs_mf),model_mf,tol_rel,tol_abs);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
