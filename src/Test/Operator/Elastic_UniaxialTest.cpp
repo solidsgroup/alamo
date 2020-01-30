@@ -144,8 +144,8 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 		component -= component;
 	}
 
-	mlmg.solve(GetVecOfPtrs(solution_numeric),
-			   GetVecOfPtrs(rhs_prescribed),
+	mlmg.solve(solution_numeric,
+			   rhs_prescribed,
 			   modelfab,
 			   m_tol_rel, m_tol_abs,nullptr);
 
