@@ -112,7 +112,9 @@ protected:
         IO::ParmParse mypp("elastic");
         mypp.queryclass("newton",nr);
         
-        nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs,false);
+        nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+
+        nr.compResidual(disp_mf,disp_mf,disp_mf,model_mf);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
