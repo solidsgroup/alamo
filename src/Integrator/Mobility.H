@@ -72,6 +72,7 @@ private:
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy_mf;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagb_mf;  	///< Right Hand Side
   amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagbold_mf;  	///< Right Hand Side
+  amrex::Vector<std::unique_ptr<amrex::MultiFab> > L_mf;  	///< Mobility
 
   struct {
     Set::Scalar ref_criterion = 0.01;    

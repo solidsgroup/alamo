@@ -101,7 +101,7 @@ public:
 		return (*this)(gradgradu);
 	}
 
-	virtual Set::Matrix4<3,Set::Sym::MajorMinor> DDW (Set::Matrix & /*gradu*/) const
+	virtual Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW (Set::Matrix & /*gradu*/) const
 	{
 		Util::Abort(INFO,"Depricated");
 		return C;
@@ -125,7 +125,7 @@ public:
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
 	{
 		amrex::Real Ctmp[3][3][3][3];
-		C = Set::Matrix4<3,Set::Sym::MajorMinor>::Zero();
+		C = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
 	
 		for(int i = 0; i < 3; i++) 
 			for(int j = 0; j < 3; j++) 
@@ -180,7 +180,7 @@ public:
 	{C += rhs.C; F0 += rhs.F0; gradF0 += rhs.gradF0;}
 
 private:
-	Set::Matrix4<3,Set::Sym::MajorMinor> C;
+	Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> C;
 
 public:
 	Set::Matrix F0      = Set::Matrix::Zero();

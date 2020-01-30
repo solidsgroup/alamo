@@ -8,14 +8,16 @@
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/Cubic.H"
 #include "BC/Operator/Elastic.H"
+//#include "BC/Step.H"
 #include "IC/Sphere.H"
 #include "IC/Affine.H"
 #include "IC/Constant.H"
 #include "IC/TabulatedInterface.H"
+#include "IC/DoubleNotch.H"
 #include "Numeric/Stencil.H"
 
 #include "Util/Util.H"
-#include "BC/Step.H"
+//#include "BC/Step.H"
 
 #include "IO/ParmParse.H"
 
@@ -115,12 +117,14 @@ Mobility::Mobility() :
 
 	RegisterNewFab(gammagb_mf,    mybc, 1, 3, "gammagb",true);
 	RegisterNewFab(gammagbold_mf, mybc, 1, 3, "gammagbold",false);
+	RegisterNewFab(L_mf, mybc, 1, number_of_ghost_cells, "L",true);
 
 	RegisterNodalFab(disp, AMREX_SPACEDIM, number_of_ghost_cells, "Disp",true);
 	RegisterNodalFab(rhs,  AMREX_SPACEDIM, number_of_ghost_cells, "RHS",true);
 	RegisterNodalFab(res,  AMREX_SPACEDIM, number_of_ghost_cells, "res",true);
 	RegisterNodalFab(energy_mf, 1, number_of_ghost_cells, "energy",true);
 	RegisterNodalFab(sigma,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_cells, "sigma",true);
+
 }
 
 Mobility::~Mobility()
@@ -135,6 +139,11 @@ Mobility::Initialize (int lev)
 	rhs[lev]->setVal(0.0);
 	
 	ic->Initialize(lev,gammagb_mf);
+
+	IO::ParmParse pp("io");
+	IC::DoubleNotch icdn(geom);
+	pp.queryclass("doublenotch",icdn);
+	icdn.Initialize(lev,L_mf);
 }
 
 void 
@@ -155,6 +164,8 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 	for (int lev = 0; lev < disp.size(); ++lev)
 	{
+		rhs[lev]->setVal(0.0);
+		disp[lev]->setVal(0.0);
 		amrex::Box domain(geom[lev].Domain());
 
 		domain.convert(amrex::IntVect::TheNodeVector());
@@ -186,55 +197,20 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 
 	elastic.bc.Init(rhs,geom);
-	/*elastic.*/op.SetBC(&elastic.bc);
+	op.SetBC(&elastic.bc);
 	
-	//for (int lev = 0; lev < rhs.size(); lev++) rhs[lev]->setVal(0.0);
-	//for (int lev = 0; lev < rhs.size(); lev++) disp[lev]->setVal(0.0);
-    //bc.Set(bc.Face::XLO, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    //bc.Set(bc.Face::XLO, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    //bc.Set(bc.Face::XHI, bc.Direction::X, bc.Type::Neumann, 0.0,      rhs, geom);
-    //bc.Set(bc.Face::XHI, bc.Direction::Y, bc.Type::Neumann, 0.0,      rhs, geom);
-    //bc.Set(bc.Face::YLO, bc.Direction::X, bc.Type::Displacement, 0.0, rhs, geom);
-    //bc.Set(bc.Face::YLO, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
-    //bc.Set(bc.Face::YHI, bc.Direction::X, bc.Type::Displacement, this->bc.disp.yhi_x, rhs, geom);
-    //bc.Set(bc.Face::YHI, bc.Direction::Y, bc.Type::Displacement, 0.0, rhs, geom);
-	// elastic.SetBC(&bc);
-	
-	elastic.newton = new Solver::Nonlocal::Newton<model_type>(/*elastic.*/op);
+	elastic.newton = new Solver::Nonlocal::Newton<model_type>(op);
 	IO::ParmParse pp("elastic");
 	pp.queryclass("newton",*elastic.newton);
 	
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	elastic.newton->solve(disp,rhs,model_mf,tol_rel,tol_abs,false);
-	//linearsolver.solveaffine(disp,rhs,tol_rel,tol_abs,true);
-	//linearsolver.solve(disp,rhs,tol_rel,tol_abs);
-	Util::Message(INFO);	
-	
-	//elastic.SetHomogeneous(false);
-	//linearsolver.compResidual(GetVecOfPtrs(res),GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs));
-
-	//for (int lev = 0; lev < disp.size(); ++lev)
-	//{
-	//	amrex::Box domain(geom[lev].Domain());
-	//	domain.convert(amrex::IntVect::TheNodeVector());
-	//	for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
-	//	{
-	//		amrex::Box bx = mfi.tilebox();
-	//		bx.grow(model_mf[lev].nGrow());
-	//		bx = bx & domain;
-	//		//amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
-	//		//amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) { model(i,j,k).SetHomogeneous(false);} );
-	//	}
-	//}
-	//elastic.SetModel(model_mf);
+	elastic.newton->solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),model_mf,tol_rel,tol_abs);
 	
 	for (int lev = 0; lev < sigma.size(); lev++)
 	{
-		/*elastic.*/op.Stress(lev,*sigma[lev],*disp[lev]);
-		/*elastic.*/op.Energy(lev,*energy_mf[lev],*disp[lev]);
+		op.Stress(lev,*sigma[lev],*disp[lev]);
+		op.Energy(lev,*energy_mf[lev],*disp[lev]);
 	}
-	Util::Message(INFO);	
-	
 }
 
 void
@@ -251,6 +227,7 @@ Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
 		amrex::Array4<const Set::Scalar> const & gammagbold = gammagbold_mf[lev]->array(mfi);
 		amrex::Array4<const Set::Scalar> const & Sigma = sigma[lev]->array(mfi);
+		amrex::Array4<const Set::Scalar> const & L = L_mf[lev]->array(mfi);
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 		{
 			Set::Scalar x1 = geom[lev].ProbLo()[0] + ((Set::Scalar)(i)) * geom[lev].CellSize()[0];
@@ -265,7 +242,7 @@ Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 				Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
 				df += - physics.elastic_mult*sig12;
 				df += - physics.kappa*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
-				gammagb(i,j,k) = gammagbold(i,j,k) - dt * physics.L * df;
+				gammagb(i,j,k) = gammagbold(i,j,k) - dt * L(i,j,k) * df;
 				//gammagb(i,j,k) = 0.0;
 			}
 			//else
