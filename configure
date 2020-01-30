@@ -286,7 +286,7 @@ if args.diff:
     f.write("DEP_EXTRA += .diff.html\n")
     f2.write(".diff.html: .FORCE\n")
     f2.write("\t-@rm -rf .diff.html\n")
-    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side\n")
+    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n")
 
 
 #
