@@ -63,7 +63,7 @@ parser.add_argument('--offline', dest='offline', action='store_true',default=Fal
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
-parser.add_argument('--diff',dest='diff',action='store_true',help='Use diff2html to generate git diff reports')
+parser.add_argument('--no-diff',dest='diff',default=True,action='store_false',help='Suppress using diff2html to generate git diff reports')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.set_defaults(debug=False)
 args=parser.parse_args()
@@ -280,11 +280,13 @@ if args.python:
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
 
 if args.diff:
-    f.write("CXX_COMPILE_FLAGS = -DGIT_DIFF_OUTPUT\n")
+    try: shellmessage("diff2html","diff2html --version")
+    except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
+    f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff.html)\"'+'\n')
     f.write("DEP_EXTRA += .diff.html\n")
     f2.write(".diff.html: .FORCE\n")
     f2.write("\t-@rm -rf .diff.html\n")
-    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side\n")
+    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n")
 
 
 #
