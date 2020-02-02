@@ -203,17 +203,15 @@ private: // Private member variables
  	amrex::Vector<amrex::BoxArray> 		   cgrids, ngrids;
  	amrex::Vector<amrex::DistributionMapping>  dmap;
 	
- 	amrex::Vector<amrex::MultiFab>             solution_exact;
- 	amrex::Vector<amrex::MultiFab>             solution_numeric;
- 	amrex::Vector<amrex::MultiFab>             solution_error;
-
- 	amrex::Vector<amrex::MultiFab>             rhs_prescribed;
- 	amrex::Vector<amrex::MultiFab>             rhs_exact;
- 	amrex::Vector<amrex::MultiFab>             rhs_numeric;
-
- 	amrex::Vector<amrex::MultiFab>             res_exact;
- 	amrex::Vector<amrex::MultiFab>             res_numeric;
- 	amrex::Vector<amrex::MultiFab>             ghost_force;
+ 	Set::Field<Set::Scalar>             solution_exact;
+ 	Set::Field<Set::Scalar>             solution_numeric;
+ 	Set::Field<Set::Scalar>             solution_error;
+ 	Set::Field<Set::Scalar>             rhs_prescribed;
+ 	Set::Field<Set::Scalar>             rhs_exact;
+ 	Set::Field<Set::Scalar>             rhs_numeric;
+ 	Set::Field<Set::Scalar>             res_exact;
+ 	Set::Field<Set::Scalar>             res_numeric;
+ 	Set::Field<Set::Scalar>             ghost_force;
 
 	amrex::Vector<std::string> varname = {AMREX_D_DECL("solution_exact1", "solution_exact2","solution_exact3"),
 					      AMREX_D_DECL("solution_numeric1", "solution_numeric2","solution_numeric3"),
