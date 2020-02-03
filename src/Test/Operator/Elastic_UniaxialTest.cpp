@@ -144,16 +144,16 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 		component -= component;
 	}
 
-	mlmg.solve(GetVecOfPtrs(solution_numeric),
-			   GetVecOfPtrs(rhs_prescribed),
+	mlmg.solve(solution_numeric,
+			   rhs_prescribed,
 			   modelfab,
-			   m_tol_rel, m_tol_abs,false, nullptr);
+			   m_tol_rel, m_tol_abs,nullptr);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(solution_error[i], solution_numeric[i], component, component, AMREX_SPACEDIM, 1);
-		amrex::MultiFab::Subtract(solution_error[i], solution_exact[i], component, component, AMREX_SPACEDIM, 1);
+		amrex::MultiFab::Copy(*solution_error[i], *solution_numeric[i], component, component, AMREX_SPACEDIM, 1);
+		amrex::MultiFab::Subtract(*solution_error[i], *solution_exact[i], component, component, AMREX_SPACEDIM, 1);
 	}
 
 	// Compute numerical right hand side
@@ -165,13 +165,18 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	// Compute the numeric residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		mlmg.compResidual(GetVecOfPtrs(res_numeric), GetVecOfPtrs(solution_numeric), GetVecOfConstPtrs(rhs_prescribed));
+		//mlmg.solve(GetVecOfPtrs(res_numeric),
+		//   GetVecOfPtrs(rhs_prescribed),
+		//	   modelfab,
+		//	   m_tol_rel, m_tol_abs,nullptr);
+		GetVecOfPtrs(res_numeric);
+		//mlmg.compResidual(GetVecOfPtrs(res_numeric), GetVecOfPtrs(solution_numeric), GetVecOfPtrs(rhs_prescribed), modelfab);
 	}
 
 	// Compute the exact residual
 	for (int i = 0; i < nlevels; i++)
 	{
-		mlmg.compResidual(GetVecOfPtrs(res_exact), GetVecOfPtrs(solution_exact), GetVecOfConstPtrs(rhs_prescribed));
+		//mlmg.compResidual(GetVecOfPtrs(res_exact), GetVecOfPtrs(solution_exact), GetVecOfPtrs(rhs_prescribed), modelfab);
 	}
 
 	// Compute the "ghost force" that introduces the error
@@ -189,8 +194,8 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	{
 		for (int j = 0; j < AMREX_SPACEDIM; j++)
 		{
-			total += solution_exact[i].norm0(j);
-			norm += solution_error[i].norm0(j);
+			total += solution_exact[i]->norm0(j);
+			norm += solution_error[i]->norm0(j);
 		}
 	}
 	Set::Scalar maxnorm = fabs(norm/total);
