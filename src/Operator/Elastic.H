@@ -51,6 +51,8 @@ public:
 	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
 	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
+	void SetModel (const Set::Field<T> & a_model)
+	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,*a_model[ilev]);}
 
 	/// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
 	///
