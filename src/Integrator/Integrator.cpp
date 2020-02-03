@@ -416,7 +416,7 @@ Integrator::InitData ()
 				amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
 						    geom[lev+1], geom[lev],
 						    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
-			Util::Warning(INFO,"Not averaging down nodal fabs");
+			//Util::Warning(INFO,"Not averaging down nodal fabs");
 			// for (int n = 0; n < node.number_of_fabs; n++)
 			// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
 		}
@@ -677,12 +677,12 @@ Integrator::WritePlotFile (bool initial) const
 		std::ofstream coutfile, noutfile;
 		if (istep[0]==0)
 		{
-			coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
+			if (ccomponents > 0) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
 			if (ncomponents > 0) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
 		}
 		else
 		{
-			coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
+			if (ccomponents > 0) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
 			if (ncomponents > 0) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
 		}
 		coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;

@@ -21,9 +21,6 @@ Therefore, some grains will eventually merge together when the boundary between 
    :caption: Voronoi input file (tests/Voronoi/input)
    :language: makefile
 
-Running the example
--------------------
-
 Run the test problem (2D or 3D) via
 
 .. code-block:: bash
@@ -33,8 +30,7 @@ Run the test problem (2D or 3D) via
 This will generate an output directory :code:`tests/Voronoi/output/`, and will re-name the old directory if it exists already.
 Use VisIt to open :code:`tests/Flame/output/output.visit`.
 
-See also
----------
+See also:
 
 - :bash:`./src/alamo.cc`: Entry point for the solver
 - :ref:`API-Integrator-PhaseFieldMicrostructure`: Integrator that explicitly evolves the order parameter
