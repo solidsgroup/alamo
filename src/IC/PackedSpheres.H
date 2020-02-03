@@ -195,7 +195,7 @@ while (i<1000)
 	
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
-		//std::cout<<"count  "<<total<<endl;
+		std::cout<<"count  "<<total<<endl;
 	    
     }
 
