@@ -204,7 +204,8 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	pp.queryclass("newton",*elastic.newton);
 	
 	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	elastic.newton->solve(GetVecOfPtrs(disp),GetVecOfConstPtrs(rhs),model_mf,tol_rel,tol_abs);
+	elastic.newton->solve(disp,rhs,model_mf,tol_rel,tol_abs);
+	elastic.newton->compResidual(res,disp,rhs,model_mf);
 	
 	for (int lev = 0; lev < sigma.size(); lev++)
 	{
