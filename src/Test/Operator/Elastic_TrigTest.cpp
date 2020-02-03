@@ -107,8 +107,8 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-	  	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
-	  	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
+	  	amrex::MultiFab::Copy(*solution_error[i],*solution_numeric[i],component,component,1,2);
+	  	amrex::MultiFab::Subtract(*solution_error[i],*solution_exact[i],component,component,1,2);
 	}
 
 	//Compute numerical right hand side
@@ -132,7 +132,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 	// Find maximum solution error
 	std::vector<Set::Scalar> error_norm(nlevels);
-	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0].norm0(component,0,false) / solution_exact[0].norm0(component,0,false);
+	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0]->norm0(component,0,false) / solution_exact[0]->norm0(component,0,false);
 	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
 
 	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");

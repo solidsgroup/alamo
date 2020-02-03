@@ -152,8 +152,8 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-		amrex::MultiFab::Copy(solution_error[i], solution_numeric[i], component, component, AMREX_SPACEDIM, 1);
-		amrex::MultiFab::Subtract(solution_error[i], solution_exact[i], component, component, AMREX_SPACEDIM, 1);
+		amrex::MultiFab::Copy(*solution_error[i], *solution_numeric[i], component, component, AMREX_SPACEDIM, 1);
+		amrex::MultiFab::Subtract(*solution_error[i], *solution_exact[i], component, component, AMREX_SPACEDIM, 1);
 	}
 
 	// Compute numerical right hand side
@@ -194,8 +194,8 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	{
 		for (int j = 0; j < AMREX_SPACEDIM; j++)
 		{
-			total += solution_exact[i].norm0(j);
-			norm += solution_error[i].norm0(j);
+			total += solution_exact[i]->norm0(j);
+			norm += solution_error[i]->norm0(j);
 		}
 	}
 	Set::Scalar maxnorm = fabs(norm/total);
