@@ -16,13 +16,19 @@ template <class T>
 class Newton : public Linear
 {
 public:
-    Newton(Operator::Elastic<T> &a_op) : Linear(a_op), m_elastic(dynamic_cast<Operator::Elastic<T> &>(linop))
+    Newton(Operator::Elastic<T> &a_op) : 
+        Linear(a_op), 
+        m_elastic(dynamic_cast<Operator::Elastic<T> &>(linop)),
+        m_bc(m_elastic.GetBC())
     {};
 
     void setNRIters(int a_nriters) { m_nriters = a_nriters; }
 
 
 private:
+
+#define SQRT3INV 0.57735026919
+#define SQRT2INV 0.70710678118
 
     void prepareForSolve(const amrex::Vector<MultiFab*>& a_u_mf, 
                          const amrex::Vector<MultiFab*>& a_b_mf,
@@ -36,12 +42,12 @@ private:
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 Set::Vector DX(linop.Geom(lev).CellSize());
+
+                const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 
                 for (MFIter mfi(a_model_mf[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.growntilebox(2);
-                    amrex::Box domainint = domain;
-                    domainint.grow(-1); // shrink so that we are only on the interior of the domain
                     bx = bx & domain;
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
@@ -76,21 +82,56 @@ private:
                     });
 
 
-                    bx = mfi.validbox() & domainint;
+                    amrex::Box domainint = domain; domainint.grow(-1); // shrink so that we are only on the interior of the domain
+                    
+                    bx               = mfi.validbox() & domain;
+                    //amrex::Box bxint = mfi.validbox() & domainint;
+                    //Util::Message(INFO,bx);
+                    //Util::Message(INFO,bxint);
+
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        for (int p = 0; p < AMREX_SPACEDIM; p++)
+                        #if AMREX_SPACEDIM == 2
+                        if (i == lo.x || i == hi.x || j == lo.y || j == hi.y)
                         {
-                            #if AMREX_SPACEDIM == 2
-                            rhs(i,j,k,p) = b(i,j,k,p) - 
-                                ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
-                                 (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1));
-                            #elif AMREX_SPACEDIM == 3
-                            rhs(i,j,k,p) = b(i,j,k,p) - 
-                                ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
-                                 (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1) +
-                                 (dw(i, j, k + 1)(p, 2) - dw(i, j, k - 1)(p, 2)) / 2. / DX(2));
-                            #endif
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+
+                            Set::Vector U(u(i,j,k,0),u(i,j,k,1));
+                            Set::Vector ret = m_bc(U, gradu, dw(i,j,k), i, j, k, bx);
+
+                            for (int p = 0; p < 2; p++)
+                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p);
                         }
+                        else
+                        {
+                            for (int p = 0; p < 2; p++)
+                                rhs(i,j,k,p) = b(i,j,k,p) - 
+                                    ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
+                                     (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1));
+                        }
+
+                        #elif AMREX_SPACEDIM == 3
+
+                        if (i == lo.x || i == hi.x || j == lo.y || j == hi.y || k == lo.z || k == hi.z)
+                        {
+//                            std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+//                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+//
+//                            Set::Vector U(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2));
+//                            Set::Vector ret = m_bc(U, gradu, dw(i,j,k), i, j, k, bx);
+//
+//                            for (int p = 0; p < 3; p++)
+//                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p);
+                        }
+                        else
+                        {
+                            for (int p = 0; p < 3; p++)
+                                rhs(i,j,k,p) = b(i,j,k,p) - 
+                                    ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
+                                     (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1) +
+                                     (dw(i, j, k + 1)(p, 2) - dw(i, j, k - 1)(p, 2)) / 2. / DX(2));
+                        }
+                        #endif
                     });
                 }
                 Util::RealFillBoundary(a_model_mf[lev],m_elastic.Geom(lev));
@@ -127,6 +168,9 @@ public:
             
             amrex::MultiFab::Copy(rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
+
+//        for (int lev = 0; lev < a_b_mf.size(); ++lev)
+//            m_elastic.GetBC().Init(&(rhs_mf[lev]),m_elastic.Geom(lev),false);
 
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
@@ -193,8 +237,8 @@ public:
             dw_mf[lev].setVal(Set::Matrix::Zero());
         }
         
-        for (int lev = 0; lev < a_b_mf.size(); ++lev)
-            m_elastic.GetBC().Init(a_b_mf[lev],m_elastic.Geom(lev),true);
+        //for (int lev = 0; lev < a_b_mf.size(); ++lev)
+        //    m_elastic.GetBC().Init(a_b_mf[lev],m_elastic.Geom(lev),true);
             
         prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, a_model_mf);
         
@@ -210,6 +254,7 @@ public:
 private:
     int m_nriters = 1;
     Operator::Elastic<T> &m_elastic;
+    BC::Operator::Elastic<T> &m_bc;
 
 public:
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)

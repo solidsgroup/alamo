@@ -22,26 +22,26 @@ geometry.prob_lo	    = -8 -8 -8
 geometry.prob_hi	    = 8 8 8
 geometry.is_periodic	    = 0 0 0
 
-elastic.b = 0 0 0
+elastic.b = 0.1 0 0
 
 elastic.mu = 3.0    # WORKS
 elastic.kappa = 6.5 # WORKS
 
 
 elastic.newton.verbose = 3
-elastic.newton.fixed_iter = 50
-elastic.newton.nriters = 5
+elastic.newton.fixed_iter = 20
+elastic.newton.nriters = 1
 
 ### UNIAXIAL TENSION ###
-elastic.bc.val.xhi       = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.xhiylo    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.xhiyhi    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.zloxhi    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.zhixhi    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.xhiylozlo = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.xhiylozhi = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.xhiyhizlo = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
-elastic.bc.val.xhiyhizhi = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.xhi       = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.xhiylo    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.xhiyhi    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.zloxhi    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.zhixhi    = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.xhiylozlo = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.xhiylozhi = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.xhiyhizlo = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
+#elastic.bc.val.xhiyhizhi = (0,0.5,1.5,2:0,-4,4,0) 0.0 0.0
 elastic.bc.type.yhi = trac trac trac
 elastic.bc.type.zhi = trac trac trac
 elastic.bc.type.ylo = trac trac trac
