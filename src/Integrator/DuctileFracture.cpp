@@ -421,7 +421,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	// solver.solveaffine(m_disp, m_rhs, elastic.tol_rel, elastic.tol_abs, true);
 	// solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
 
-	solver.solve(m_disp,m_rhs,material.model,elastic.tol_rel,elastic.tol_abs,true);
+	solver.solve(m_disp,m_rhs,material.model,elastic.tol_rel,elastic.tol_abs);
 
 	Util::Message(INFO);
 	for (int lev = 0; lev < nlevels; lev++)
