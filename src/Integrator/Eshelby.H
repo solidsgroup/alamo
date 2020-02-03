@@ -85,7 +85,7 @@ protected:
         }
         
         // Set linear elastic model
-        amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
+        Set::Field<model_type> model_mf;
         model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
@@ -93,18 +93,18 @@ protected:
 
             amrex::Box domain(geom[lev].Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
-            model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev].setVal(elastic.model);
+            model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
+            model_mf[lev]->setVal(elastic.model);
 
             eta_mf[lev]->FillBoundary();
 
             Set::Vector DX(geom[lev].CellSize());
 
-            for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
+            for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.growntilebox(2);
 
-                amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
+                amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -114,7 +114,7 @@ protected:
                 });
             }
 
-            Util::RealFillBoundary(model_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*model_mf[lev],geom[lev]);
         }
 
         elastic.bc.Init(rhs_mf,geom);
@@ -172,12 +172,12 @@ protected:
     }
 
 private:
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> eta_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> rhs_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> res_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> strain_mf;
+    Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> disp_mf;
+    Set::Field<Set::Scalar> rhs_mf;
+    Set::Field<Set::Scalar> res_mf;
+    Set::Field<Set::Scalar> stress_mf;
+    Set::Field<Set::Scalar> strain_mf;
 
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC *mybc;        ///< Stock generic boundary condition object
