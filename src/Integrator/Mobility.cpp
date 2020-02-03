@@ -159,7 +159,7 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 	op.define(geom,grids,dmap,info);
 	op.SetUniform(false);
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > model_mf;
+	Set::Field<model_type> model_mf;
 	model_mf.resize(disp.size());
 
 	for (int lev = 0; lev < disp.size(); ++lev)
@@ -169,18 +169,18 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 		amrex::Box domain(geom[lev].Domain());
 
 		domain.convert(amrex::IntVect::TheNodeVector());
-		model_mf[lev].define(disp[lev]->boxArray(), disp[lev]->DistributionMap(), 1, 2);
-		model_mf[lev].setVal(elastic.model);
+		model_mf.Define(lev,disp[lev]->boxArray(), disp[lev]->DistributionMap(), 1, 2);
+		model_mf[lev]->setVal(elastic.model);
 		gammagb_mf[lev]->FillBoundary();
 		
 		const amrex::Real* DX  = geom[lev].CellSize();
 
-		for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
+		for (MFIter mfi(*model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
 			bx.grow(2);
 
-			amrex::Array4<model_type> const & model = model_mf[lev].array(mfi);
+			amrex::Array4<model_type> const & model = model_mf[lev]->array(mfi);
 			amrex::Array4<const Set::Scalar> const & gammagb = gammagb_mf[lev]->array(mfi);
 
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 

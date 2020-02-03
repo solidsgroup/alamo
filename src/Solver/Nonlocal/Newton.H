@@ -27,9 +27,6 @@ public:
 
 private:
 
-#define SQRT3INV 0.57735026919
-#define SQRT2INV 0.70710678118
-
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf, 
                          const Set::Field<Set::Scalar>& a_b_mf,
                          const Set::Field<Set::Scalar>& a_rhs_mf,
@@ -42,6 +39,7 @@ private:
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 Set::Vector DX(linop.Geom(lev).CellSize());
+                const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 
                 for (MFIter mfi(*a_model_mf[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
                 {
@@ -82,13 +80,7 @@ private:
                     });
 
 
-                    amrex::Box domainint = domain; domainint.grow(-1); // shrink so that we are only on the interior of the domain
-                    
-                    bx               = mfi.validbox() & domain;
-                    //amrex::Box bxint = mfi.validbox() & domainint;
-                    //Util::Message(INFO,bx);
-                    //Util::Message(INFO,bxint);
-
+                    //bx = mfi.validbox() & domainint;
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         #if AMREX_SPACEDIM == 2
                         if (i == lo.x || i == hi.x || j == lo.y || j == hi.y)
@@ -171,15 +163,16 @@ public:
             amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
-//        for (int lev = 0; lev < a_b_mf.size(); ++lev)
-//            m_elastic.GetBC().Init(&(rhs_mf[lev]),m_elastic.Geom(lev),false);
+        for (int lev = 0; lev < a_b_mf.size(); ++lev)
+            m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),false);
 
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
             if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
-            for (int lev = 0; lev < a_b_mf.size(); ++lev)
-                m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),nriter>0);
+            //std::unique_ptr<amrex::MultiFab> myptr = rhs_mf[0];
+            //for (int lev = 0; lev < a_b_mf.size(); ++lev)
+            //    m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),nriter>0);
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, a_model_mf);
 
@@ -240,6 +233,7 @@ public:
 private:
     int m_nriters = 1;
     Operator::Elastic<T> &m_elastic;
+    BC::Operator::Elastic<T> &m_bc;
 
 public:
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)
