@@ -105,22 +105,38 @@ public:
     {
         return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
     };
+    Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
+                       amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs)
+    {
+        return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),m_tol_rel,m_tol_abs);
+    };
 
     using MLMG::solve;
 protected:
     Operator::Operator<Grid::Node> &linop;
     int m_verbose = 0;
+    Set::Scalar m_tol_rel = 1E-8, m_tol_abs = 1E-8;
 
 public:
     static void Parse(Linear & value, amrex::ParmParse & pp)
     {
+        if (pp.contains("max_iter"))
+        { int max_iter; pp.query("max_iter",max_iter);value.setMaxIter(max_iter);}
+
+        if (pp.contains("bottom_max_iter"))
+        { int bottom_max_iter; pp.query("bottom_max_iter",bottom_max_iter);value.setBottomMaxIter(bottom_max_iter);}
+
+        if (pp.contains("max_fmg_iter"))
+        { int max_fmg_iter; pp.query("max_fmg_iter",max_fmg_iter);value.setMaxFmgIter(max_fmg_iter);}
+
         if (pp.contains("fixed_iter"))
         { int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
 
         if (pp.contains("verbose"))
         { int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
 
-
+        pp.query("tol_rel",value.m_tol_rel);
+        pp.query("tol_abs",value.m_tol_abs);
     }
 
     

@@ -66,10 +66,10 @@ int Elastic::RefluxTest(int verbose)
 		mlabec.SetBC(&bc);
 
 
-		solution_exact[0].setVal(0.0);
-		solution_exact[1].setVal(0.0);
-		rhs_prescribed[0].setVal(0.0);
-		rhs_prescribed[1].setVal(0.0);
+		solution_exact[0]->setVal(0.0);
+		solution_exact[1]->setVal(0.0);
+		rhs_prescribed[0]->setVal(0.0);
+		rhs_prescribed[1]->setVal(0.0);
 
 		IC::Affine ic(geom,*n,1.0,*b,true,*m);
 
@@ -77,21 +77,21 @@ int Elastic::RefluxTest(int verbose)
 		ic.Initialize(0,solution_exact);
 		ic.Initialize(1,solution_exact);
 
-		mlabec.Fapply(0,0,rhs_prescribed[0],solution_exact[0]);
-		mlabec.Fapply(1,0,rhs_prescribed[1],solution_exact[1]);
+		mlabec.Fapply(0,0,*rhs_prescribed[0],*solution_exact[0]);
+		mlabec.Fapply(1,0,*rhs_prescribed[1],*solution_exact[1]);
 
-		res_numeric[0].setVal(0.0);
-		res_numeric[1].setVal(0.0);
+		res_numeric[0]->setVal(0.0);
+		res_numeric[1]->setVal(0.0);
 
 		mlabec.buildMasks();
 		mlabec.reflux(0,
-		 	      res_numeric[0], solution_exact[0], rhs_prescribed[0],
-		 	      res_numeric[1], solution_exact[1], rhs_prescribed[1]);
+		 	      *res_numeric[0], *solution_exact[0], *rhs_prescribed[0],
+		 	      *res_numeric[1], *solution_exact[1], *rhs_prescribed[1]);
 
 		
-		Set::Scalar residual = res_numeric[0].norm0();
+		Set::Scalar residual = res_numeric[0]->norm0();
 
-		if (rhs_prescribed[0].norm0() > 1E-15) residual /= rhs_prescribed[0].norm0();
+		if (rhs_prescribed[0]->norm0() > 1E-15) residual /= rhs_prescribed[0]->norm0();
 
 		std::stringstream ss;
 		ss << "n=["<< std::setw(5) << (n->transpose()) << "], "

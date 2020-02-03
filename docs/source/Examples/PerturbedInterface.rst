@@ -23,9 +23,6 @@ Notice that the equilibrium shape has a sharp corner - this is the result of the
    :language: makefile
 
 
-Test problem
-------------
-
 Run the test problem (2D or 3D) via
 
 .. code-block:: bash
@@ -39,7 +36,6 @@ The input file has the following form:
 
 
 See also:
----------
 
 - :bash:`./src/alamo.cc`: Entry point for the solver
 - :ref:`API-Integrator-PhaseFieldMicrostructure`: Integrator that explicitly evolves the order parameter

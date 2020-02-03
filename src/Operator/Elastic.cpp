@@ -6,6 +6,7 @@
 
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Elastic.H"
 
@@ -90,7 +91,7 @@ Elastic<T>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_m
 	amrex::Box domain(m_geom[amrlev][0].Domain());
 	domain.convert(amrex::IntVect::TheNodeVector());
 
-	if (a_model.boxArray()        != model[amrlev][0]->boxArray()) Util::Abort(INFO,"Inconsistent box arrays");
+	if (a_model.boxArray()        != model[amrlev][0]->boxArray()) Util::Abort(INFO,"Inconsistent box arrays\n","a_model.boxArray()=\n",a_model.boxArray(),"\n but the current box array is \n",model[amrlev][0]->boxArray());
 	if (a_model.DistributionMap() != model[amrlev][0]->DistributionMap()) Util::Abort(INFO,"Inconsistent distribution maps");
 	if (a_model.nComp()           != model[amrlev][0]->nComp()) Util::Abort(INFO,"Inconsistent # of components - should be ",model[amrlev][0]->nComp());
 	if (a_model.nGrow()           != model[amrlev][0]->nGrow()) Util::Abort(INFO,"Inconsistent # of ghost nodes, should be ",model[amrlev][0]->nGrow());
@@ -843,5 +844,6 @@ template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 template class Elastic<Model::Solid::Elastic::NeoHookean>;
 template class Elastic<Model::Solid::Affine::Isotropic>;
 template class Elastic<Model::Solid::Linear::Isotropic>;
+template class Elastic<Model::Solid::Linear::Cubic>;
 }
 

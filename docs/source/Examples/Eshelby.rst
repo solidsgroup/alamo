@@ -6,6 +6,8 @@
 Eshelby Inclusion
 ======================
 
+For background see Runnels *et al*: https://arxiv.org/abs/2001.04789
+
 .. figure:: Eshelby.png
    :scale: 50%
    :align: center

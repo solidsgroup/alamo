@@ -51,11 +51,11 @@ struct Stencil<T,1,0,0>
 		   std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 	{
 		if (stencil[0] == StencilType::Lo)
-			//return (f(i,j,k,m) - f(i-1,j,k,m)) / dx[0];
-			return (f(i,j,k,m)*(1.5) + f(i-1,j,k,m)*(-2.0) + f(i-2,j,k,m)*(0.5)) / dx[0]; // 2nd order stencil
+			return (f(i,j,k,m) - f(i-1,j,k,m)) / dx[0]; // 1st order stencil
+			//return (f(i,j,k,m)*(1.5) + f(i-1,j,k,m)*(-2.0) + f(i-2,j,k,m)*(0.5)) / dx[0]; // 2nd order stencil
 		else if (stencil[0] == StencilType::Hi)
-			//return (f(i+1,j,k,m) - f(i,j,k,m)) / dx[0]; // 1st order stencil
-			return (f(i,j,k,m)*(-1.5) + f(i+1,j,k,m)*(2.0) + f(i+2,j,k,m)*(-0.5)) / dx[0]; // 2nd order stencil
+			return (f(i+1,j,k,m) - f(i,j,k,m)) / dx[0]; // 1st order stencil
+			//return (f(i,j,k,m)*(-1.5) + f(i+1,j,k,m)*(2.0) + f(i+2,j,k,m)*(-0.5)) / dx[0]; // 2nd order stencil
 		else
 			return (f(i+1,j,k,m) - f(i-1,j,k,m))*0.5 / dx[0];
 	};
@@ -71,11 +71,11 @@ struct Stencil<T,0,1,0>
 		   std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 	{
 		if (stencil[1] == StencilType::Lo)
-			//return (f(i,j,k,m) - f(i,j-1,k,m)) / dx[1];
-			return (f(i,j,k,m)*( 1.5) + f(i,j-1,k,m)*(-2.0) + f(i,j-2,k,m)*(0.5)) / dx[1]; // 2nd order stencil
+			return (f(i,j,k,m) - f(i,j-1,k,m)) / dx[1];
+			//return (f(i,j,k,m)*( 1.5) + f(i,j-1,k,m)*(-2.0) + f(i,j-2,k,m)*(0.5)) / dx[1]; // 2nd order stencil
 		else if (stencil[1] == StencilType::Hi)
-			//return (f(i,j+1,k,m) - f(i,j,k,m)) / dx[1];
-			return (f(i,j,k,m)*(-1.5) + f(i,j+1,k,m)*(2.0) + f(i,j+2,k,m)*(-0.5)) / dx[1]; // 2nd order stencil
+			return (f(i,j+1,k,m) - f(i,j,k,m)) / dx[1];
+			//return (f(i,j,k,m)*(-1.5) + f(i,j+1,k,m)*(2.0) + f(i,j+2,k,m)*(-0.5)) / dx[1]; // 2nd order stencil
 		else
 			return (f(i,j+1,k,m) - f(i,j-1,k,m))*0.5 / dx[1];
 	};
@@ -91,11 +91,11 @@ struct Stencil<T,0,0,1>
 		   std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 	{
 		if (stencil[2] == StencilType::Lo)
-			//return (f(i,j,k,m) - f(i,j,k-1,m)) / dx[2];
-			return (f(i,j,k,m)*( 1.5) + f(i,j,k-1,m)*(-2.0) + f(i,j,k-2,m)*(0.5)) / dx[2]; // 2nd order stencil
+			return (f(i,j,k,m) - f(i,j,k-1,m)) / dx[2];
+			//return (f(i,j,k,m)*( 1.5) + f(i,j,k-1,m)*(-2.0) + f(i,j,k-2,m)*(0.5)) / dx[2]; // 2nd order stencil
 		else if (stencil[2] == StencilType::Hi)
-			//return (f(i,j,k+1,m) - f(i,j,k,m)) / dx[2];
-			return (f(i,j,k,m)*(-1.5) + f(i,j,k+1,m)*( 2.0) + f(i,j,k+2,m)*(-0.5)) / dx[2]; // 2nd order stencil
+			return (f(i,j,k+1,m) - f(i,j,k,m)) / dx[2];
+			//return (f(i,j,k,m)*(-1.5) + f(i,j,k+1,m)*( 2.0) + f(i,j,k+2,m)*(-0.5)) / dx[2]; // 2nd order stencil
 		else
 			return (f(i,j,k+1,m) - f(i,j,k-1,m))*0.5 / dx[2];
 	};

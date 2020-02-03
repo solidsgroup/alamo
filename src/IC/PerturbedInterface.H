@@ -3,6 +3,7 @@
 
 #include "IC/IC.H"
 #include "Util/Util.H"
+#include "IO/ParmParse.H"
 
 /// \class PerturbedInterface
 /// \brief Initialize a perturbed interface using Fourier Modes
@@ -28,27 +29,6 @@ public:
 	PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
 		IC(_geom)
 	{
-		amrex::ParmParse pp("ic");
-
-		std::vector<std::string> wave_numbers_str;
-		pp.queryarr("wave_numbers",wave_numbers_str);
-		for (unsigned int i = 0; i<wave_numbers_str.size(); ++i)
-		{
-			wave_numbers.push_back(Util::String::Parse<std::complex<int> >(wave_numbers_str[i]));
-			phis.push_back(std::atan2(wave_numbers[i].imag(),wave_numbers[i].real()));
-		}
-		pp.queryarr("wave_amplitudes",wave_amplitudes);
-
-		std::string normal_str;
-		pp.query("normal",normal_str);
-		if (normal_str == "x") normal = Direction::X;
-		if (normal_str == "y") normal = Direction::Y;
-		if (normal_str == "z") normal = Direction::Z;
-		std::string offset_str;
-		pp.query("offset",offset);
-		
-		if (wave_numbers.size() != wave_amplitudes.size())
-			Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 	}
   
 	void Add(const int lev,
@@ -133,6 +113,31 @@ private:
 	amrex::Vector<std::complex<int> > wave_numbers; ///< Store mode amplitudes \f$A_n\f$
 	amrex::Vector<Set::Scalar> wave_amplitudes;
 	std::vector<Set::Scalar> phis;
+
+public:
+	static void Parse(PerturbedInterface & value, IO::ParmParse & pp)
+    {
+		std::vector<std::string> wave_numbers_str;
+		pp.queryarr("wave_numbers",wave_numbers_str);
+		for (unsigned int i = 0; i<wave_numbers_str.size(); ++i)
+		{
+			value.wave_numbers.push_back(Util::String::Parse<std::complex<int> >(wave_numbers_str[i]));
+			value.phis.push_back(std::atan2(value.wave_numbers[i].imag(),value.wave_numbers[i].real()));
+		}
+		pp.queryarr("wave_amplitudes",value.wave_amplitudes);
+
+		std::string normal_str;
+		pp.query("normal",normal_str);
+		if (normal_str == "x") value.normal = Direction::X;
+		if (normal_str == "y") value.normal = Direction::Y;
+		if (normal_str == "z") value.normal = Direction::Z;
+		std::string offset_str;
+		pp.query("offset",value.offset);
+		
+		if (value.wave_numbers.size() != value.wave_amplitudes.size())
+			Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
+    }
+
 };
 }
 #endif
