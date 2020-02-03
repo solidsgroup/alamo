@@ -169,15 +169,15 @@ private: // Private member functions
 				amrex::Box bx = mfi.validbox();
 				bx &= ndomain; // Intersect the box with the domain (that's what &= does)
 				
-				plotmf[ilev][mfi].copy(solution_exact[ilev][mfi]  ,bx, 0, bx, 0*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(solution_numeric[ilev][mfi],bx, 0, bx, 1*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(solution_error[ilev][mfi]  ,bx, 0, bx, 2*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(rhs_prescribed[ilev][mfi]  ,bx, 0, bx, 3*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(rhs_exact[ilev][mfi]       ,bx, 0, bx, 4*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(rhs_numeric[ilev][mfi]     ,bx, 0, bx, 5*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(res_exact[ilev][mfi]       ,bx, 0, bx, 6*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(res_numeric[ilev][mfi]     ,bx, 0, bx, 7*AMREX_SPACEDIM, AMREX_SPACEDIM); 
-				plotmf[ilev][mfi].copy(ghost_force[ilev][mfi]     ,bx, 0, bx, 8*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(solution_exact[ilev]))[mfi]  ,bx, 0, bx, 0*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(solution_numeric[ilev]))[mfi],bx, 0, bx, 1*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(solution_error[ilev]))[mfi]  ,bx, 0, bx, 2*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(rhs_prescribed[ilev]))[mfi]  ,bx, 0, bx, 3*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(rhs_exact[ilev]))[mfi]       ,bx, 0, bx, 4*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(rhs_numeric[ilev]))[mfi]     ,bx, 0, bx, 5*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(res_exact[ilev]))[mfi]       ,bx, 0, bx, 6*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(res_numeric[ilev]))[mfi]     ,bx, 0, bx, 7*AMREX_SPACEDIM, AMREX_SPACEDIM); 
+				plotmf[ilev][mfi].copy((*(ghost_force[ilev]))[mfi]     ,bx, 0, bx, 8*AMREX_SPACEDIM, AMREX_SPACEDIM); 
 			}
 		}
 		amrex::WriteMultiLevelPlotfile(plotfile, nlevels, amrex::GetVecOfConstPtrs(plotmf),
@@ -203,17 +203,15 @@ private: // Private member variables
  	amrex::Vector<amrex::BoxArray> 		   cgrids, ngrids;
  	amrex::Vector<amrex::DistributionMapping>  dmap;
 	
- 	amrex::Vector<amrex::MultiFab>             solution_exact;
- 	amrex::Vector<amrex::MultiFab>             solution_numeric;
- 	amrex::Vector<amrex::MultiFab>             solution_error;
-
- 	amrex::Vector<amrex::MultiFab>             rhs_prescribed;
- 	amrex::Vector<amrex::MultiFab>             rhs_exact;
- 	amrex::Vector<amrex::MultiFab>             rhs_numeric;
-
- 	amrex::Vector<amrex::MultiFab>             res_exact;
- 	amrex::Vector<amrex::MultiFab>             res_numeric;
- 	amrex::Vector<amrex::MultiFab>             ghost_force;
+ 	Set::Field<Set::Scalar>             solution_exact;
+ 	Set::Field<Set::Scalar>             solution_numeric;
+ 	Set::Field<Set::Scalar>             solution_error;
+ 	Set::Field<Set::Scalar>             rhs_prescribed;
+ 	Set::Field<Set::Scalar>             rhs_exact;
+ 	Set::Field<Set::Scalar>             rhs_numeric;
+ 	Set::Field<Set::Scalar>             res_exact;
+ 	Set::Field<Set::Scalar>             res_numeric;
+ 	Set::Field<Set::Scalar>             ghost_force;
 
 	amrex::Vector<std::string> varname = {AMREX_D_DECL("solution_exact1", "solution_exact2","solution_exact3"),
 					      AMREX_D_DECL("solution_numeric1", "solution_numeric2","solution_numeric3"),

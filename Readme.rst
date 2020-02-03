@@ -46,11 +46,15 @@ This section describes how to compile and install Alamo and its dependencies.
 
 .. code-block::
 
-    ./configure --build-amrex
+    ./configure
 
 This will download and configure the AMReX repository for use by Alamo.
 If you are compiling in 2D, add the argument :code:`--dim 2` to the command.
 For a full list of options run :code:`./configure --help`.
+
+.. NOTE:: 
+    If amrex is installed and built elsewhere, you can just add 
+    :code:`--eigen /path/to/amrex` to your configure command.
 
 .. NOTE:: 
     If you used option (2) to obtain Eigen, you need to add 
