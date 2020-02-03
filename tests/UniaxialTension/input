@@ -1,0 +1,55 @@
+alamo.program               = eshelby
+plot_file		    = tests/UniaxialTension/output
+
+# this is not a time integration, so do
+# exactly one timestep and then quit
+timestep		    = 0.1
+stop_time		    = 0.1
+
+# amr parameters
+amr.plot_int		    = 1
+amr.max_level		    = 0
+amr.n_cell		    = 32 32 32
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 1
+amr.grid_eff		    = 1.0
+
+# geometry
+geometry.prob_lo	    = -8 -8 -8 
+geometry.prob_hi	    = 8 8 8
+geometry.is_periodic	    = 0 0 0
+
+# ellipse configuration
+ic.type        = ellipse
+ic.ellipse.a   = 1.0 0.75 0.5  # ellipse radii
+ic.ellipse.x0  = 0 0 0 # location of ellipse center
+ic.ellipse.eps = 0.1 # diffuse boundary
+#ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
+
+# elastic moduli
+elastic.model.E = 210 
+elastic.model.nu = 0.3
+
+elastic.solver.verbose = 2
+elastic.solver.nriters = 1
+elastic.solver.fixed_iter = 200
+
+### UNIAXIAL TENSION ###
+elastic.bc.val.xhi = 0.1 0.0 0.0
+elastic.bc.val.xhiylo = 0.1 0.0 0.0
+elastic.bc.val.xhiyhi = 0.1 0.0 0.0
+elastic.bc.val.zloxhi = 0.1 0.0 0.0
+elastic.bc.val.zhixhi = 0.1 0.0 0.0
+elastic.bc.val.xhiylozlo = 0.1 0.0 0.0
+elastic.bc.val.xhiylozhi = 0.1 0.0 0.0
+elastic.bc.val.xhiyhizlo = 0.1 0.0 0.0
+elastic.bc.val.xhiyhizhi = 0.1 0.0 0.0
+elastic.bc.type.yhi = trac trac trac
+elastic.bc.type.zhi = trac trac trac
+elastic.bc.type.ylo = trac trac trac
+elastic.bc.type.zlo = trac trac trac
+elastic.bc.type.yhizhi = trac trac trac
+elastic.bc.type.ylozhi = trac trac trac
+elastic.bc.type.yhizlo = trac trac trac
+elastic.bc.type.ylozlo = trac trac trac
+

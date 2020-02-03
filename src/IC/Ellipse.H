@@ -3,6 +3,7 @@
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+#include "IO/ParmParse.H"
 
 namespace IC
 {
@@ -68,47 +69,33 @@ public:
 
                 Set::Scalar norm = (A*(x-x0)).lpNorm<2>();
                 field(i,j,k) = 0.5 - 0.5*std::erf(((x-x0).transpose() * A * (x-x0) - 1.0) / eps / norm);
-
-//                if (moll == Mollifier::Dirac)
-//                {
-//                    if ((x-x0).transpose() * A * (x-x0) < 1.0) field(i,j,k) += 1.0;
-//                }
-//                else if (moll == Mollifier::Gaussian)
-//                {
-//                    Set::Scalar conv = 0.0;
-//                    Set::Vector _x;
-//                    AMREX_D_TERM(for (_x(0) = x(0) - window; _x(0) <= x(0) + window; _x(0) += DX(0)),
-//                                 for (_x(1) = x(1) - window; _x(1) <= x(1) + window; _x(1) += DX(1)),
-//                                 for (_x(2) = x(2) - window; _x(2) <= x(2) + window; _x(2) += DX(2)))
-//                        {
-//#if AMREX_SPACEDIM==2
-//                            if ((_x-x0).transpose() * A * (_x-x0) < 1.0)
-//                            {
-//                                Set::Scalar mollifier = std::exp( - (_x - x).squaredNorm() / eps_sq) / (eps_sq * Set::Constant::Pi);
-//                                conv += mollifier * DX(0) * DX(1);
-//                            }
-//#elif AMREX_SPACEDIM==3
-//                            if ((_x-x0).transpose() * A * (_x-x0) < 1.0)
-//                            {
-//                                Set::Scalar mollifier = std::exp( - (_x - x).squaredNorm() / eps_sq) / pow(eps_sq * Set::Constant::Pi,1.5);
-//                                conv += mollifier * DX(0) * DX(1) * DX(2);
-//                            }
-//#endif
-//                        }
-//                    field(i,j,k) += conv;
-//                }
-
 			});
 		}
         a_field[lev]->FillBoundary();
 	}
 	
 private:
-    Set::Vector x0;
+    Set::Vector x0 = Set::Vector::Zero();
     Set::Scalar eps = 0.01, eps_sq = eps*eps;
     Set::Scalar window = 6.0*eps;
     Set::Matrix A = Set::Matrix::Identity();    
-    Mollifier moll = Mollifier::Dirac;
+    Mollifier moll = Mollifier::Gaussian;
+public:
+    static void Parse(Ellipse & value, IO::ParmParse & pp)
+    {
+        pp.queryarr("x0",value.x0);
+        pp.query("eps",value.eps);
+        if (pp.contains("A"))
+        {
+            pp.queryarr("A",value.A);
+        }
+        else if (pp.contains("a"))
+        {
+            Set::Vector a = Set::Vector::Ones();
+            pp.queryarr("a",a);
+            for (int d = 0; d < AMREX_SPACEDIM; d++) value.A(d,d) = 1./a(d)/a(d);
+        }
+    }
 };
 }
 #endif

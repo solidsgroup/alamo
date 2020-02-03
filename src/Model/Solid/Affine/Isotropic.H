@@ -18,15 +18,14 @@ public:
     Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0=Set::Matrix::Zero()) 
     {
-        Util::Message(INFO);
         Define(a_mu,a_lambda,a_F0);
     };
 	virtual ~Isotropic() {};
 
 	void Define(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0)
 	{
-		mu = a_mu; lambda = a_lambda; F0 = a_F0;
-        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(lambda,mu);
+		F0 = a_F0;
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
 	}
 
     Set::Scalar W(Set::Matrix F)
@@ -43,7 +42,6 @@ public:
     }
 	
 public:
-    Set::Scalar mu = NAN, lambda = NAN;
     Set::Matrix F0;
     KinematicVariable kinvar = KinematicVariable::gradu;
 
@@ -51,9 +49,34 @@ public:
     static Isotropic Random()
     {
         Isotropic ret;
-        ret.mu = Util::Random();
-        ret.lambda = Util::Random();
+        Set::Scalar mu = Util::Random();
+        Set::Scalar lambda = Util::Random();
+        Set::Matrix F0 = Set::Matrix::Random();
+        ret.Define(mu,lambda,F0);
         return ret;
+    }
+    static void Parse(Isotropic & value, IO::ParmParse & pp)
+    {
+        Set::Scalar mu, lambda;
+        Set::Matrix F0 = Set::Matrix::Zero();
+        if (pp.contains("lame") && pp.contains("shear"))
+        {
+            pp.query("lame",lambda);
+            pp.query("shear",mu);
+        }
+        else if (pp.contains("E") && pp.contains("nu"))
+        {
+            Set::Scalar E, nu;
+            pp.query("E",E);
+            pp.query("nu",nu);
+            lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
+            mu = E / 2.0 / (1.0 + nu);
+        }
+        if (pp.contains("F0"))
+        {
+            pp.queryarr("F0",F0);
+        }
+        value.Define(mu,lambda,F0);
     }
 };
 
