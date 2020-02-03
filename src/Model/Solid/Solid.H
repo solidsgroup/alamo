@@ -31,22 +31,6 @@ public:
 	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/)
     {
         return ddw*gradF;
-
-//        Set::Vector f;
-//        for (int i = 0; i < AMREX_SPACEDIM; i++)
-//        {
-//            f(i) = 0.0;
-//            for (int J = 0; J < AMREX_SPACEDIM; J++)
-//                for (int k = 0; k < AMREX_SPACEDIM; k++)
-//                    for (int L = 0; L < AMREX_SPACEDIM; L++)
-//                        f(i) += ddw(i,J,k,L) * gradF(k,L,J);
-//            if (std::isnan(f(i)))
-//            {
-//                Util::Message(INFO,ddw);
-//                Util::Abort(INFO,f.transpose());
-//            }
-//        }    
-//        return f;
     };
 
     virtual Set::Scalar W(Set::Matrix)           {Util::Abort(INFO,"W not implemented"); return 0.0;};
