@@ -65,14 +65,14 @@ private:
   int number_of_components = 1;					///< Number of components
   int number_of_ghost_cells = 2;				///< Number of ghost cells
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp;  	///< Displacement
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs;  	///< Right Hand Side
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > res;  	///< Residual
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > sigma;  	///< Right Hand Side
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy_mf;  	///< Right Hand Side
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagb_mf;  	///< Right Hand Side
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > gammagbold_mf;  	///< Right Hand Side
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > L_mf;  	///< Mobility
+  Set::Field<Set::Scalar> disp;  	///< Displacement
+  Set::Field<Set::Scalar> rhs;  	///< Right Hand Side
+  Set::Field<Set::Scalar> res;  	///< Residual
+  Set::Field<Set::Scalar> sigma;  	///< Right Hand Side
+  Set::Field<Set::Scalar> energy_mf;  	///< Right Hand Side
+  Set::Field<Set::Scalar> gammagb_mf;  	///< Right Hand Side
+  Set::Field<Set::Scalar> gammagbold_mf;  	///< Right Hand Side
+  Set::Field<Set::Scalar> L_mf;  	///< Mobility
 
   struct {
     Set::Scalar ref_criterion = 0.01;    
