@@ -52,7 +52,7 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_water_bc.countval("lo_3")) pp_water_bc.getarr("lo_3",bc_lo_3);
 		if (pp_water_bc.countval("hi_3")) pp_water_bc.getarr("hi_3",bc_hi_3);
 
-		water.bc = new BC::Constant(bc_hi_str, bc_lo_str
+		water.bc = new BC::Constant(1, bc_hi_str, bc_lo_str
 							  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 							  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 							  );
@@ -100,7 +100,7 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_heat_bc.countval("lo_3")) pp_heat_bc.getarr("lo_3",bc_lo_3);
 		if (pp_heat_bc.countval("hi_3")) pp_heat_bc.getarr("hi_3",bc_hi_3);
 
-		thermal.bc = new BC::Constant(bc_hi_str, bc_lo_str
+		thermal.bc = new BC::Constant(1,bc_hi_str, bc_lo_str
 								,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 							  	,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 						);
@@ -262,7 +262,7 @@ PolymerDegradation::PolymerDegradation():
 	if (pp_damage_bc.countval("lo_3")) pp_damage_bc.getarr("lo_3",bc_lo_3);
 	if (pp_damage_bc.countval("hi_3")) pp_damage_bc.getarr("hi_3",bc_hi_3);
 
-	damage.bc = new BC::Constant(bc_hi_str, bc_lo_str
+	damage.bc = new BC::Constant(1,bc_hi_str, bc_lo_str
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
