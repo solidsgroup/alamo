@@ -29,7 +29,7 @@ private:
 
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf, 
                          const Set::Field<Set::Scalar>& a_b_mf,
-                         const Set::Field<Set::Scalar>& a_rhs_mf,
+                         Set::Field<Set::Scalar>& a_rhs_mf,
                          Set::Field<Set::Matrix> &a_dw_mf,
                          Set::Field<T> &a_model_mf)
     {
@@ -82,7 +82,9 @@ private:
 
                     //amrex::Box domainint = domain; domainint.grow(-1); // shrink so that we are only on the interior of the domain
                     
-                    bx               = mfi.validbox() & domain;
+                    bx               = mfi.validbox();
+                    bx.grow(1);
+                    bx = bx & domain;
                     //amrex::Box bxint = mfi.validbox() & domainint;
                     //Util::Message(INFO,bx);
                     //Util::Message(INFO,bxint);
@@ -112,14 +114,14 @@ private:
 
                         if (i == lo.x || i == hi.x || j == lo.y || j == hi.y || k == lo.z || k == hi.z)
                         {
-//                            std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
-//                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-//
-//                            Set::Vector U(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2));
-//                            Set::Vector ret = m_bc(U, gradu, dw(i,j,k), i, j, k, bx);
-//
-//                            for (int p = 0; p < 3; p++)
-//                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p);
+                            std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
+
+                            Set::Vector U(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2));
+                            Set::Vector ret = m_bc(U, gradu, dw(i,j,k), i, j, k, bx);
+
+                            for (int p = 0; p < 3; p++)
+                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p);
                         }
                         else
                         {
@@ -133,6 +135,7 @@ private:
                     });
                 }
                 Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
+                //Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
             }
     }
 
@@ -169,15 +172,15 @@ public:
             amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
-        for (int lev = 0; lev < a_b_mf.size(); ++lev)
-            m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),false);
+        //for (int lev = 0; lev < a_b_mf.size(); ++lev)
+        //    m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),false);
 
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
             if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
-            for (int lev = 0; lev < a_b_mf.size(); ++lev)
-                m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),nriter>0);
+            //for (int lev = 0; lev < a_b_mf.size(); ++lev)
+            //    m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),nriter>0);
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, a_model_mf);
 
@@ -237,8 +240,8 @@ public:
             dw_mf[lev]->setVal(Set::Matrix::Zero());
         }
         
-        for (int lev = 0; lev < a_b_mf.size(); ++lev)
-            m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
+        //for (int lev = 0; lev < a_b_mf.size(); ++lev)
+        //m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
             
         prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, a_model_mf);
         

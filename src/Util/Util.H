@@ -177,6 +177,21 @@ void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geom
     }
 }
 
+AMREX_FORCE_INLINE
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &a_geom)
+{
+    for (int i = 0; i < 2; i++)
+    {
+        a_mf.FillBoundary(a_geom.periodicity());
+        const int ncomp = a_mf.nComp();
+        const int ng1 = 1;
+        const int ng2 = 2;
+        amrex::MultiFab tmpmf(a_mf.boxArray(), a_mf.DistributionMap(), ncomp, ng1);
+        amrex::Copy(tmpmf, a_mf, 0, 0, ncomp, ng1);
+        a_mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, a_geom.periodicity());
+    }
+}
+
 
 
 }
