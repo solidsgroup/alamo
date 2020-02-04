@@ -179,13 +179,8 @@ public:
         {
             if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
-<<<<<<< HEAD
             //for (int lev = 0; lev < a_b_mf.size(); ++lev)
             //    m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),nriter>0);
-=======
-            for (int lev = 0; lev < a_b_mf.size(); ++lev)
-                m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),nriter>0);
->>>>>>> development
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, a_model_mf);
 
