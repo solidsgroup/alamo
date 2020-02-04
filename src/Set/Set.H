@@ -19,6 +19,10 @@ class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFa
 {
 public:
     Field() {} 
+    Field(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost) 
+    {
+        Define(a_levs,a_grids,a_dmap,a_ncomp,a_nghost);
+    } 
     Field(int size) : amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>(size) {}
     void Define(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost)
     {

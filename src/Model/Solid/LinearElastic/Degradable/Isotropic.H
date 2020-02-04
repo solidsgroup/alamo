@@ -7,6 +7,7 @@
 
 #include "Set/Set.H"
 #include "Model/Solid/Solid.H"
+#include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Util/Util.H"
 
 namespace Model
