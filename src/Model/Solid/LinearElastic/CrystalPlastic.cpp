@@ -111,7 +111,6 @@ void CrystalPlastic::initializeSlip(Set::Matrix R)
 		//Util::Message(INFO,"galpha = ", slipSystem[i].galpha);
 		//Util::Message(INFO,"Tcrss = ", slipSystem[i].Tcrss);
 	}
-	
 }
 
 double CrystalPlastic::CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig) 
@@ -125,7 +124,7 @@ std::array<double, 12> CrystalPlastic::StressSlipSystem(const Set::Matrix& sig)
 	std::array<double,12> a;
 	for(int i = 0; i < 12; i++)
 	{
-		a[i] = CalcSSigN(slipSystem[i].s, slipSystem[i].n, sig);
+		a[i] = slipSystem[i].s.transpose()*sig*slipSystem[i].n;
 	}
 	return a;
 }
@@ -134,8 +133,8 @@ void CrystalPlastic::GetActivePlains(const Set::Matrix& sig)
 	double a = 0;
 	for(int i = 0; i < 12; i++)
 	{
-		a = abs(CalcSSigN(slipSystem[i].s,slipSystem[i].n, sig));
-		//Util::Message(INFO,"a = ", a);
+		a = abs(slipSystem[i].s.transpose()*sig*slipSystem[i].n);
+		//if(Time>.0035) Util::Message(INFO,"a = ", a);
 		//Util::Message(INFO,"sig = ", sig);
 		
 		if(a > slipSystem[i].Tcrss) slipSystem[i].on = true;		
@@ -150,12 +149,14 @@ void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 	
 	for(int i = 0; i < 12; i++)
 	{ 
+		//double a = slipSystem[i].s.transpose()*sig*slipSystem[i].n;
+		//if(Time >.0035) Util::Message(INFO,"tcrss = ", slipSystem[i].Tcrss," a = ", a, "\n sig = ",sig);
 		if(slipSystem[i].on)
 		{
-			double a = CalcSSigN(slipSystem[i].s,slipSystem[i].n,sig);
+			double a = slipSystem[i].s.transpose()*sig*slipSystem[i].n;
 			int sign = sgn(a);
 			slipSystem[i].galphad = (double)sign*gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
-			//if(Time > 0.000001) Util::Message(INFO,"tcrss = ", slipSystem[i].Tcrss," a = ", a );
+			
 			temp += slipSystem[i].galphad*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
 		}
 	}
@@ -215,11 +216,10 @@ void CrystalPlastic::update(const Set::Matrix es, Set::Matrix& sigma, const Set:
 		sigma = UpdateSigma(es);
 	//}
 }
-Set::Matrix CrystalPlastic::UpdateSigma(const Set::Matrix es)
+Set::Matrix CrystalPlastic::UpdateSigma(const Set::Matrix& es)
 {
 	Set::Matrix temp = (es - esp);
-	Set::Matrix sigma = operator()(temp); 
-	return sigma;
+	return operator()(temp); 
 }
 Set::Matrix CrystalPlastic::GetEsp() const
 {
@@ -404,14 +404,12 @@ CrystalPlastic::Randomize()
 
 	define(C11,C12,C44,phi1,Phi,phi2);
 }
-
 Set::Scalar 
 CrystalPlastic::W(Set::Matrix &gradu) const
 {
 	Set::Matrix sig = C*gradu;
 	return 0.5 * (sig*gradu).trace();
 }
-
 Set::Matrix CrystalPlastic::operator () (Set::Matrix &gradu,bool) const
 {
 	return C*gradu;
@@ -421,8 +419,6 @@ CrystalPlastic::DW (Set::Matrix &gradu) const
 {
 	return (*this)(gradu);
 }
-
-
 Set::Vector
 CrystalPlastic::operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool)
 {

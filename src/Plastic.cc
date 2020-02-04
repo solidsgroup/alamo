@@ -7,6 +7,7 @@
 #include "Util/Util.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
 #include "Integrator/EshelbyPlastic.H"
+//#include "IO/ParmParse.H"
 #include "Solver/Local/CG.H"
 using namespace Model::Solid::CrystalPlastic;
 
@@ -62,27 +63,34 @@ Values for the elastic tensor, C:
  */
 int main (int argc, char* argv[])
 {
-	auto src = static_cast<const char*>("/home/icrman/Python/data_n0.dat");
-	auto src2 = static_cast<const char*>("/home/icrman/Python/gamma.dat");
-	deletefile(src); deletefile(src2);
 	Util::Initialize(argc,argv);
-	CrystalPlastic cp( 10e3 * 1e-3, 7.35e3 * 1e-3, 3.8e3 * 1e-3); //0.4, 0.1, 0.01 C11 = c11*t0
+
+	amrex::ParmParse pp;
+	std::string src = "/home/icrman/Python/data_n0.dat";
+	std::string src2 = "/home/icrman/Python/gamma.dat";
+	pp.query("src",src);
+	pp.query("src2",src2);
+
+	//std::ofstream fsrc;  fsrc.open(src);
+	//std::ofstream fsrc2; fsrc2.open(src);
+
+	deletefile(src.c_str()); deletefile(src2.c_str());
+	CrystalPlastic cp( 10e3 * 1e4, 7.35e3 * 1e4, 3.8e3 * 1e4); //0.4, 0.1, 0.01 C11 = c11*t0
 	// 10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3
 	std::array<double,12> gamma;
-	//cp.Randomize();
 	Util::Message(INFO,"Working...");
 	Set::Matrix es = Set::Matrix::Zero();
 	Set::Matrix sigma = Set::Matrix::Zero();
-	Set::Matrix esp = Set::Matrix::Zero();
 
 	Set::iMatrix mask = Set::iMatrix::Zero();
 	mask(0,1) = 1;
 	
-	static double constexpr dt = 1e-11;
-	static double constexpr c = 100000;
-	static double constexpr T = 1.8/c;
+	Set::Scalar dt = 1e-6;
+	Set::Scalar c = 1.0;
+	Set::Scalar T = 0.8/c;
 	cp.Setdt(dt);
 	int counter = 0;
+		
 	for(double t = 0.0; t <= T; t += dt)
 	{
 		Set::Matrix esp = cp.GetEsp();
@@ -94,28 +102,27 @@ int main (int argc, char* argv[])
 		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,false);
 		cp.update(es,sigma,dt);
 
-		if( counter % 10 == 0)
+		if( counter % 100 == 0)
 		{
 			gamma = cp.StressSlipSystem(sigma);
 			//for(int i = 0; i < 12; i++)
 			//{
 			//	gamma[i] = cp.getGamma(i);
 			//}
-			//Util::Message(INFO,"t = ", t);
-			//Set::Matrix esp = cp.GetEsp();
 			//Util::Message(INFO,"es() = ", es);
 			//Util::Message(INFO,"esp() = ", esp);
 			//Util::Message(INFO,"sig() = ", sigma);
-			savefile( (float)sigma(0,1), (float)es(0,1), src); 
-			savefile(gamma,t,src2);
+			//Util::Message(INFO,"t=",t," es(0,1)=",es(0,1));
+			//fsrc << es(0,0) << " " << sigma(0,0) << std::endl;
+			//fsrc1 << es(0,1) << "," << sigma(0,1) << std::endl;
+			savefile((float)es(0,1), (float)sigma(0,1), src.c_str()); 
+			//savefile(gamma,t,src2.c_str());
 		}
 		counter++;
 	}
-	esp = cp.GetEsp();
-	Util::Message(INFO,"es = ", es);
-	Util::Message(INFO,"esp = ", esp);
-	Util::Message(INFO,"sig = ", sigma);
-	Util::Message(INFO,"Done");
-
-Util::Finalize();
+	Util::Message(INFO,"es() = ", es);
+	//Util::Message(INFO,"esp() = ", esp);
+	Util::Message(INFO,"sig() = ", sigma);
+	//fsrc.close();
+	Util::Finalize(); return 0;
 }
