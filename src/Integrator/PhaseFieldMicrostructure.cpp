@@ -110,30 +110,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	}
 
 	{
-		amrex::ParmParse pp("bc");
-		amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
-		amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
-		pp.queryarr("lo", bc_lo_str, 0, BL_SPACEDIM);
-		pp.queryarr("hi", bc_hi_str, 0, BL_SPACEDIM);
-		amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-		if (pp.countval("lo_1"))
-			pp.getarr("lo_1", bc_lo_1);
-		if (pp.countval("hi_1"))
-			pp.getarr("hi_1", bc_hi_1);
-		amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-		if (pp.countval("lo_2"))
-			pp.getarr("lo_2", bc_lo_2);
-		if (pp.countval("hi_2"))
-			pp.getarr("hi_2", bc_hi_2);
-		amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-		if (pp.countval("lo_3"))
-			pp.getarr("lo_3", bc_lo_3);
-		if (pp.countval("hi_3"))
-			pp.getarr("hi_3", bc_hi_3);
-
-		mybc = new BC::Constant(number_of_grains, bc_hi_str, bc_lo_str,
-								AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
-								AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
+		IO::ParmParse pp("bc");
+		mybc = new BC::Constant(number_of_grains);
+		pp.queryclass("eta",*static_cast<BC::Constant *>(mybc));
 	}
 
 	{
@@ -185,8 +164,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("tol_rel", elastic.tol_rel);
 			pp.query("tol_abs", elastic.tol_abs);
 			pp.query("tstart", elastic.tstart);
-
-			pp.queryclass("op",elastic.op);
 
 			pp.queryclass("bc",elastic.bc);
 
@@ -470,11 +447,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < rhs_mf.size(); lev++)
 		rhs_mf[lev]->setVal(0.0);
 
-	//Operator::Elastic<model_type> elasticop;
-	elastic.op.SetUniform(false);
+	Operator::Elastic<model_type> elasticop;
+	elasticop.SetUniform(false);
 	amrex::LPInfo info;
 	//info.setMaxCoarseningLevel(0);
-	elastic.op.define(geom, grids, dmap, info);
+	elasticop.define(geom, grids, dmap, info);
 
 	// Set linear elastic model
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
@@ -504,22 +481,22 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			});
 		}
 
-		Util::RealFillBoundary(model_mf[lev],elastic.op.Geom(lev));
+		Util::RealFillBoundary(model_mf[lev],elasticop.Geom(lev));
 	}
-	elastic.op.SetModel(model_mf);
+	elasticop.SetModel(model_mf);
 
 	elastic.bc.Init(rhs_mf,geom);
-	elastic.op.SetBC(&elastic.bc);
+	elasticop.SetBC(&elastic.bc);
 
-	Solver::Nonlocal::Linear linearsolver(elastic.op);
+	Solver::Nonlocal::Linear linearsolver(elasticop);
 	IO::ParmParse pp("elastic");
 	pp.queryclass("solver",linearsolver);
 	linearsolver.solve(disp_mf, rhs_mf);
 
 	for (int lev = 0; lev < disp_mf.size(); lev++)
 	{
-		elastic.op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-		elastic.op.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
+		elasticop.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+		elasticop.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
 	}
 }
 
