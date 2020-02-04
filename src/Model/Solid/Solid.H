@@ -22,13 +22,13 @@ public:
 	virtual ~Solid() {};
 
     AMREX_FORCE_INLINE
-	virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/) const
+	virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/=true) const
     {
         return ddw*F;
     };
 
     AMREX_FORCE_INLINE
-	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/)
+	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/=true)
     {
         return ddw*gradF;
     };

@@ -1,6 +1,4 @@
 #include "Test/Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/Linear/Isotropic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"

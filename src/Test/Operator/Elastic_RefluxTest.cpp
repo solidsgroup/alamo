@@ -2,7 +2,7 @@
 
 #include "Operator/Elastic.H"
 #include "IC/Affine.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/Linear/Isotropic.H"
 #include "Elastic.H"
 
 namespace Test
@@ -16,12 +16,10 @@ int Elastic::RefluxTest(int verbose)
 
 	int nghost = 2;
 
-	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	using model_type = Model::Solid::Linear::Isotropic; model_type model(2.6,6.0); 
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Isotropic> > >
-		modelfab(nlevels); 
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, nghost);
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
+	Set::Field<Model::Solid::Linear::Isotropic> modelfab(nlevels,ngrids,dmap,1,nghost); 
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev]->setVal(model);
 
 
  	LPInfo info;
@@ -32,7 +30,7 @@ int Elastic::RefluxTest(int verbose)
 
 
 
-	::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
+	::Operator::Elastic<Model::Solid::Linear::Isotropic> elastic;
  	elastic.define(geom, cgrids, dmap, info);
 
  	elastic.SetModel(modelfab);
