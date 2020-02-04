@@ -5,7 +5,7 @@ stop_time = 50
 
 plot_file = tests/PerturbedInterface/output
 
-amr.plot_int = 1
+amr.plot_int = 1000
 amr.max_level = 2
 #amr.n_cell = 32 4
 amr.n_cell = 64 64 64
