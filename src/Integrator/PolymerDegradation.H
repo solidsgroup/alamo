@@ -28,7 +28,7 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+//#include "Model/Solid/LinearElastic/Laplacian.H"
 
 
 namespace Integrator

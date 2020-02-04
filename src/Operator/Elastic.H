@@ -7,7 +7,6 @@
 #include "Set/Set.H"
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Test/Operator/Elastic.H"
 #include "BC/Operator/Elastic.H"
 
