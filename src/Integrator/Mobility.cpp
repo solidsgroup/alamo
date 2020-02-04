@@ -5,8 +5,6 @@
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/MultiWell.H"
-#include "Model/Solid/LinearElastic/Cubic.H"
 #include "BC/Operator/Elastic.H"
 //#include "BC/Step.H"
 #include "IC/Sphere.H"

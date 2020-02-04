@@ -4,7 +4,6 @@
 #include "IC/Affine.H"
 #include "IC/Random.H"
 #include "Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
 
 namespace Test
 {
