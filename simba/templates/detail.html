@@ -45,8 +45,8 @@
   </thead>
   {% for i in range (0,columns|length) %}
   <tr>
-	<td> {{ columns[i] }}</td>
 	{% if columns[i] == "Description" %}
+	<td> {{ columns[i] }}</td>
 	<td>
 	  <div width="100%">
 		{{data[i] | string | markdown}}
@@ -61,6 +61,7 @@
 	  </div>
 	</td>
 	{% elif columns[i] == "Tags" %}
+	<td> {{ columns[i] }}</td>
 	<td>
 	  <div width="100%">
 		{{data[i]}}
@@ -74,7 +75,11 @@
 		</form>
 	  </div>
 	</td>
+	{% elif columns[i] == "diff" %}
+	<td colspan=2> {{ columns[i] }}<br/>
+	{{ data[i]|safe }}</td>
 	{% else %}
+	<td> {{ columns[i] }}</td>
 	<td> {{ data[i] }}</td>
 	{% endif %}
   </tr>

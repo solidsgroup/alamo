@@ -16,5 +16,6 @@ This is basic documentation for the Alamo.
    Solver/Solver
    Test/Test
    Util/Util
+   IO/IO
 
 .. todolist::

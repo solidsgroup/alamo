@@ -46,11 +46,15 @@ This section describes how to compile and install Alamo and its dependencies.
 
 .. code-block::
 
-    ./configure --build-amrex
+    ./configure
 
 This will download and configure the AMReX repository for use by Alamo.
 If you are compiling in 2D, add the argument :code:`--dim 2` to the command.
 For a full list of options run :code:`./configure --help`.
+
+.. NOTE:: 
+    If amrex is installed and built elsewhere, you can just add 
+    :code:`--eigen /path/to/amrex` to your configure command.
 
 .. NOTE:: 
     If you used option (2) to obtain Eigen, you need to add 
@@ -102,6 +106,14 @@ The following are some common error messages and problems encountered:
 * :code:`static_cast<long>(i) < this->size() failed`
   One common reason this happens is if Dirichlet/Neumann
   boundaries are specified but no boundary values are provided.
+
+* :code:`error: lvalue required as left operand of assignment`
+  This can happen when using the :code:`()` operator with a :code:`Isotropic` :code:`Matrix4`-type object.
+  Because this data structure only stores two constants, it is not possible to define any of the values using
+  indices. 
+  (Similarly, you cannot set an :code:`Isotropic` 4-matrix to a :code:`Cubic` 4-matrix since the Cubic
+  matrix has lower symmetry).
+  If you get this error, you should use a lower-symmetry 4-matrix.
 
 Generating this documentation
 -----------------------------
