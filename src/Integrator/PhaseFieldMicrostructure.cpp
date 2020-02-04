@@ -456,10 +456,12 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+	if (time >= anisotropy.tstart)
+		SetTimestep(anisotropy.timestep);
+	
 	if (!elastic.on) return;
 	if (time < elastic.tstart)   return;
 	if (iter % elastic.interval) return;
-
 
 	if (finest_level != rhs_mf.size() - 1)
 	{
