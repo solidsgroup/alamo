@@ -13,9 +13,9 @@
 #include "IC/Random.H"
 #include "IC/Trig.H"
 #include "IC/Sphere.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
+//#include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/MultiWell.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+//#include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -137,10 +137,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	}
 
 	{
-		amrex::ParmParse pp("ic"); // Phase-field model parameters
+		IO::ParmParse pp("ic"); // Phase-field model parameters
 		pp.query("type", ic_type);
-		if (ic_type == "perturbed_interface")
+		if (ic_type == "perturbed_interface") 
+		{
 			ic = new IC::PerturbedInterface(geom);
+			pp.queryclass(static_cast<IC::PerturbedInterface*>(ic));
+		}
 		else if (ic_type == "tabulated_interface")
 			ic = new IC::TabulatedInterface(geom);
 		else if (ic_type == "voronoi")
@@ -168,65 +171,31 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 	// Elasticity
 	{
-		amrex::ParmParse pp("elastic");
+		IO::ParmParse pp("elastic");
 		pp.query("on", elastic.on);
 		if (elastic.on)
 		{
+			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
+			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
+			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
+
 			pp.query("interval", elastic.interval);
-			//pp.query("type",elastic_type);
-			pp.query("max_iter", elastic.max_iter);
-			pp.query("fixed_iter", elastic.fixed_iter);
-			pp.query("max_fmg_iter", elastic.max_fmg_iter);
-			pp.query("bottom_max_iter", elastic.bottom_max_iter); //todo
 			pp.query("max_coarsening_level", elastic.max_coarsening_level);
-			pp.query("verbose", elastic.verbose);
 			pp.query("tol_rel", elastic.tol_rel);
 			pp.query("tol_abs", elastic.tol_abs);
 			pp.query("tstart", elastic.tstart);
 
-			pp.query("C11",elastic.C11);
-			pp.query("C12",elastic.C12);
-			pp.query("C44",elastic.C44);
+			pp.queryclass("op",elastic.op);
 
-			{
-				amrex::ParmParse pp_bc("elastic.bc");
-				// Read in boundary types as strings, then convert to Operator::Elastic::BC types and store for future use.
-				amrex::Vector<std::string> AMREX_D_DECL(bctype_xlo_str, bctype_ylo_str, bctype_zlo_str);
-				amrex::Vector<std::string> AMREX_D_DECL(bctype_xhi_str, bctype_yhi_str, bctype_zhi_str);
-				AMREX_D_TERM(pp_bc.queryarr("type_xlo", bctype_xlo_str);, pp_bc.queryarr("type_ylo", bctype_ylo_str);, pp_bc.queryarr("type_zlo", bctype_zlo_str););
-				AMREX_D_TERM(pp_bc.queryarr("type_xhi", bctype_xhi_str);, pp_bc.queryarr("type_yhi", bctype_yhi_str);, pp_bc.queryarr("type_zhi", bctype_zhi_str););
-				if (AMREX_D_TERM(bctype_xlo_str.size() < AMREX_SPACEDIM, || bctype_ylo_str.size() < AMREX_SPACEDIM, || bctype_zlo_str.size() < AMREX_SPACEDIM) ||
-					AMREX_D_TERM(bctype_xhi_str.size() < AMREX_SPACEDIM, || bctype_yhi_str.size() < AMREX_SPACEDIM, || bctype_zhi_str.size() < AMREX_SPACEDIM))
-					Util::Abort(INFO, "incorrect number of terms specified in bctype");
-				std::map<std::string, BC::Operator::Elastic<model_type>::Type> bc;
-				bc["displacement"] = BC::Operator::Elastic<model_type>::Type::Displacement;
-				bc["disp"] = BC::Operator::Elastic<model_type>::Type::Displacement;
-				bc["neumann"] = BC::Operator::Elastic<model_type>::Type::Neumann;
-				bc["traction"] = BC::Operator::Elastic<model_type>::Type::Traction;
-				bc["trac"] = BC::Operator::Elastic<model_type>::Type::Traction;
-				bc["periodic"] = BC::Operator::Elastic<model_type>::Type::Periodic;
-				AMREX_D_TERM(
-					elastic.bctype_xlo = {AMREX_D_DECL(bc[bctype_xlo_str[0]], bc[bctype_xlo_str[1]], bc[bctype_xlo_str[2]])};,
-					elastic.bctype_ylo = {AMREX_D_DECL(bc[bctype_ylo_str[0]], bc[bctype_ylo_str[1]], bc[bctype_ylo_str[2]])};,
-					elastic.bctype_zlo = {AMREX_D_DECL(bc[bctype_zlo_str[0]], bc[bctype_zlo_str[1]], bc[bctype_zlo_str[2]])};);
-				AMREX_D_TERM(
-					elastic.bctype_xhi = {AMREX_D_DECL(bc[bctype_xhi_str[0]], bc[bctype_xhi_str[1]], bc[bctype_xhi_str[2]])};,
-					elastic.bctype_yhi = {AMREX_D_DECL(bc[bctype_yhi_str[0]], bc[bctype_yhi_str[1]], bc[bctype_yhi_str[2]])};,
-					elastic.bctype_zhi = {AMREX_D_DECL(bc[bctype_zhi_str[0]], bc[bctype_zhi_str[1]], bc[bctype_zhi_str[2]])};);
-				AMREX_D_TERM(pp_bc.queryarr("xlo", elastic.bc_xlo);, pp_bc.queryarr("ylo", elastic.bc_ylo);, pp_bc.queryarr("zlo", elastic.bc_zlo););
-				AMREX_D_TERM(pp_bc.queryarr("xhi", elastic.bc_xhi);, pp_bc.queryarr("yhi", elastic.bc_yhi);, pp_bc.queryarr("zhi", elastic.bc_zhi););
-			}
+			pp.queryclass("bc",elastic.bc);
 
-			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
-			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
-			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
-			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
-			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
 
 			elastic.model.resize(number_of_grains);
 			for (int i = 0; i < number_of_grains; i++)
 			{
-				elastic.model[i].Randomize(elastic.C11, elastic.C12, elastic.C44);
+				model_type mymodel;
+				pp.queryclass("model",elastic.model[i]);
 			}
 		}
 	}
@@ -452,7 +421,7 @@ void PhaseFieldMicrostructure::Initialize(int lev)
 	{
 		disp_mf[lev].get()->setVal(0.0);
 		rhs_mf[lev].get()->setVal(0.0);
-		res_mf[lev].get()->setVal(0.0);
+		//res_mf[lev].get()->setVal(0.0);
 		stress_mf[lev].get()->setVal(0.0);
 	}
 }
@@ -499,11 +468,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < rhs_mf.size(); lev++)
 		rhs_mf[lev]->setVal(0.0);
 
-	Operator::Elastic<model_type> elasticop;
-	elasticop.SetUniform(false);
+	//Operator::Elastic<model_type> elasticop;
+	elastic.op.SetUniform(false);
 	amrex::LPInfo info;
 	//info.setMaxCoarseningLevel(0);
-	elasticop.define(geom, grids, dmap, info);
+	elastic.op.define(geom, grids, dmap, info);
 
 	// Set linear elastic model
 	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
@@ -519,7 +488,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		Set::Vector DX(geom[lev].CellSize());
 
-		//for (MFIter mfi(model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.growntilebox(2);
@@ -531,67 +499,25 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				model(i, j, k) = elastic.model[0] * 0.0;
 				for (int n = 0; n < number_of_grains; n++)
 					model(i, j, k) += elastic.model[n] * eta(i, j, k, n);
-
-				//Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-				//model(i, j, k) = model_type(lame, shear);
-				//model(i, j, k) = model_type(lame, shear, Fmatrix);
 			});
 		}
 
-		amrex::Geometry geom = elasticop.Geom(lev);
-		for (int i = 0; i < 2; i++)
-		{
-			amrex::FabArray<amrex::BaseFab<model_type>> &mf = model_mf[lev];
-			mf.FillBoundary(geom.periodicity());
-			const int ncomp = mf.nComp();
-			const int ng1 = 1;
-			const int ng2 = 2;
-			amrex::FabArray<amrex::BaseFab<model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-			amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
-			mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-		}
+		Util::RealFillBoundary(model_mf[lev],elastic.op.Geom(lev));
 	}
-	elasticop.SetModel(model_mf);
+	elastic.op.SetModel(model_mf);
 
-	BC::Operator::Elastic<model_type> bc;
-	//bc.Set(bc.Face::XHI,bc.Direction::X,elastic.bctype_xhi[0],elastic.bc_xhi[0],rhs_mf,geom);
-	#if AMREX_SPACEDIM > 1
-	bc.Set(bc.Face::XLO, bc.Direction::X, elastic.bctype_xlo[bc.Direction::X], elastic.bc_xlo[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::XLO, bc.Direction::Y, elastic.bctype_xlo[bc.Direction::Y], elastic.bc_xlo[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::XHI, bc.Direction::X, elastic.bctype_xhi[bc.Direction::X], elastic.bc_xhi[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::XHI, bc.Direction::Y, elastic.bctype_xhi[bc.Direction::Y], elastic.bc_xhi[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::X, elastic.bctype_ylo[bc.Direction::X], elastic.bc_ylo[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::Y, elastic.bctype_ylo[bc.Direction::Y], elastic.bc_ylo[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::X, elastic.bctype_yhi[bc.Direction::X], elastic.bc_yhi[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::Y, elastic.bctype_yhi[bc.Direction::Y], elastic.bc_yhi[bc.Direction::Y], rhs_mf, geom);
-	#endif
-	#if AMREX_SPACEDIM > 2
-	bc.Set(bc.Face::XLO, bc.Direction::Z, elastic.bctype_xlo[bc.Direction::Z], elastic.bc_xlo[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::XHI, bc.Direction::Z, elastic.bctype_xhi[bc.Direction::Z], elastic.bc_xhi[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::YLO, bc.Direction::Z, elastic.bctype_ylo[bc.Direction::Z], elastic.bc_ylo[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::YHI, bc.Direction::Z, elastic.bctype_yhi[bc.Direction::Z], elastic.bc_yhi[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::ZLO, bc.Direction::X, elastic.bctype_zlo[bc.Direction::X], elastic.bc_zlo[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::ZLO, bc.Direction::Y, elastic.bctype_zlo[bc.Direction::Y], elastic.bc_zlo[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::ZLO, bc.Direction::Z, elastic.bctype_zlo[bc.Direction::Z], elastic.bc_zlo[bc.Direction::Z], rhs_mf, geom);
-	bc.Set(bc.Face::ZHI, bc.Direction::X, elastic.bctype_zhi[bc.Direction::X], elastic.bc_zhi[bc.Direction::X], rhs_mf, geom);
-	bc.Set(bc.Face::ZHI, bc.Direction::Y, elastic.bctype_zhi[bc.Direction::Y], elastic.bc_zhi[bc.Direction::Y], rhs_mf, geom);
-	bc.Set(bc.Face::ZHI, bc.Direction::Z, elastic.bctype_zhi[bc.Direction::Z], elastic.bc_zhi[bc.Direction::Z], rhs_mf, geom);
-	#endif
+	elastic.bc.Init(rhs_mf,geom);
+	elastic.op.SetBC(&elastic.bc);
 
-	elasticop.SetBC(&bc);
-
-	Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-	Solver::Nonlocal::Linear linearsolver(elasticop);
-	if (elastic.verbose >= 0)
-		linearsolver.setVerbose(elastic.verbose);
-	if (elastic.fixed_iter >= 0)
-		linearsolver.setFixedIter(elastic.fixed_iter);
-	linearsolver.solveaffine(disp_mf, rhs_mf, tol_rel, tol_abs, true);
+	Solver::Nonlocal::Linear linearsolver(elastic.op);
+	IO::ParmParse pp("elastic");
+	pp.queryclass("solver",linearsolver);
+	linearsolver.solve(disp_mf, rhs_mf);
 
 	for (int lev = 0; lev < disp_mf.size(); lev++)
 	{
-		elasticop.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-		elasticop.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
+		elastic.op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+		elastic.op.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
 	}
 }
 

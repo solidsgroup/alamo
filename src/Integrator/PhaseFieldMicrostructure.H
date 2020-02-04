@@ -27,16 +27,18 @@
 #include "Model/Interface/GB/AbsSin.H"
 #include "Model/Interface/GB/Read.H"
 
-#include "Model/Solid/LinearElastic/Cubic.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+#include "Model/Solid/Linear/Cubic.H"
+//#include "Model/Solid/LinearElastic/Cubic.H"
+//#include "Model/Solid/LinearElastic/Isotropic.H"
+//#include "Model/Solid/Linear/Laplacian.H"
 #include "Operator/Elastic.H"
 
 namespace Integrator
 {
-
 //using model_type = Model::Solid::LinearElastic::Isotropic;
-using model_type = Model::Solid::LinearElastic::Cubic;
+//using model_type = Model::Solid::LinearElastic::Cubic;
+using model_type = Model::Solid::Linear::Cubic;
+
 enum RegularizationType{
 	Wilmore = 1,
 	K12 = 2};
@@ -75,20 +77,13 @@ private:
 	Set::Scalar ref_threshold = 0.1;
 
 	// Cell fab
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+	Set::Field<Set::Scalar> eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+	Set::Field<Set::Scalar> eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 	// Node fab
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp_mf; 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs_mf; 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > res_mf; 
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_mf;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies_mf;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	Set::Field<Set::Scalar> disp_mf; 
+	Set::Field<Set::Scalar> rhs_mf; 
+	Set::Field<Set::Scalar> stress_mf;
+	Set::Field<Set::Scalar> energies_mf;
 
 	BC::BC *mybc;
 
@@ -138,12 +133,7 @@ private:
 	{
 		bool        on       = false;
 		int         interval = -1;
-		int         max_iter = -1;
-		int         fixed_iter = -1;
-		int         max_fmg_iter = -1;
-		int         bottom_max_iter = -1;
 		int         max_coarsening_level = -1;
-		int         verbose = -1;
 		amrex::Real tol_rel = 0.0;
 		amrex::Real tol_abs = 1.0E-10;
 		amrex::Real tstart = 0.0;
@@ -151,13 +141,13 @@ private:
 		amrex::Vector<amrex::Real> load_disp;
 		std::vector<model_type> model;
 
-		Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
-
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
 		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
-		Operator::Elastic<model_type> *op;
+		Operator::Elastic<model_type> op;
+
+		BC::Operator::Elastic<model_type> bc;
 	} elastic;
 
 };

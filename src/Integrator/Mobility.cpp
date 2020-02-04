@@ -2,7 +2,7 @@
 #include "BC/Constant.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
+//#include "Model/Solid/LinearElastic/Isotropic.H"
 #include "Model/Solid/LinearElastic/MultiWell.H"
 #include "BC/Operator/Elastic.H"
 #include "IC/Sphere.H"

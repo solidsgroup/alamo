@@ -13,9 +13,6 @@ The flame simulation uses a phase field type model to simulate the burn front of
    :language: makefile
 
 
-Test problem
-------------
-
 Run the test problem (2D or 3D) via
 
 .. code-block:: bash
@@ -26,7 +23,6 @@ This will generate an output directory :code:`tests/Flame/output/`, and will re-
 Use VisIt to open :code:`tests/Flame/output/output.visit`.
 
 See also:
----------
 
 - :bash:`./src/flame.cc`: Entry point for the Flame solver
 - :ref:`API-Integrator-Flame`: Integrator that explicitly evolves the order parameter

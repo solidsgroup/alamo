@@ -2,7 +2,7 @@
 
 #include "Operator/Elastic.H"
 #include "IC/Affine.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
+#include "Model/Solid/Linear/Isotropic.H"
 #include "Elastic.H"
 
 namespace Test
@@ -16,12 +16,10 @@ int Elastic::RefluxTest(int verbose)
 
 	int nghost = 2;
 
-	using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
+	using model_type = Model::Solid::Linear::Isotropic; model_type model(2.6,6.0); 
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<Model::Solid::LinearElastic::Isotropic> > >
-		modelfab(nlevels); 
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, nghost);
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
+	Set::Field<Model::Solid::Linear::Isotropic> modelfab(nlevels,ngrids,dmap,1,nghost); 
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev]->setVal(model);
 
 
  	LPInfo info;
@@ -32,7 +30,7 @@ int Elastic::RefluxTest(int verbose)
 
 
 
-	::Operator::Elastic<Model::Solid::LinearElastic::Isotropic> elastic;
+	::Operator::Elastic<Model::Solid::Linear::Isotropic> elastic;
  	elastic.define(geom, cgrids, dmap, info);
 
  	elastic.SetModel(modelfab);
@@ -66,10 +64,10 @@ int Elastic::RefluxTest(int verbose)
 		mlabec.SetBC(&bc);
 
 
-		solution_exact[0].setVal(0.0);
-		solution_exact[1].setVal(0.0);
-		rhs_prescribed[0].setVal(0.0);
-		rhs_prescribed[1].setVal(0.0);
+		solution_exact[0]->setVal(0.0);
+		solution_exact[1]->setVal(0.0);
+		rhs_prescribed[0]->setVal(0.0);
+		rhs_prescribed[1]->setVal(0.0);
 
 		IC::Affine ic(geom,*n,1.0,*b,true,*m);
 
@@ -77,21 +75,21 @@ int Elastic::RefluxTest(int verbose)
 		ic.Initialize(0,solution_exact);
 		ic.Initialize(1,solution_exact);
 
-		mlabec.Fapply(0,0,rhs_prescribed[0],solution_exact[0]);
-		mlabec.Fapply(1,0,rhs_prescribed[1],solution_exact[1]);
+		mlabec.Fapply(0,0,*rhs_prescribed[0],*solution_exact[0]);
+		mlabec.Fapply(1,0,*rhs_prescribed[1],*solution_exact[1]);
 
-		res_numeric[0].setVal(0.0);
-		res_numeric[1].setVal(0.0);
+		res_numeric[0]->setVal(0.0);
+		res_numeric[1]->setVal(0.0);
 
 		mlabec.buildMasks();
 		mlabec.reflux(0,
-		 	      res_numeric[0], solution_exact[0], rhs_prescribed[0],
-		 	      res_numeric[1], solution_exact[1], rhs_prescribed[1]);
+		 	      *res_numeric[0], *solution_exact[0], *rhs_prescribed[0],
+		 	      *res_numeric[1], *solution_exact[1], *rhs_prescribed[1]);
 
 		
-		Set::Scalar residual = res_numeric[0].norm0();
+		Set::Scalar residual = res_numeric[0]->norm0();
 
-		if (rhs_prescribed[0].norm0() > 1E-15) residual /= rhs_prescribed[0].norm0();
+		if (rhs_prescribed[0]->norm0() > 1E-15) residual /= rhs_prescribed[0]->norm0();
 
 		std::stringstream ss;
 		ss << "n=["<< std::setw(5) << (n->transpose()) << "], "

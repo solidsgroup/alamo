@@ -14,7 +14,7 @@ namespace Solid
 namespace CrystalPlastic
 {
 
-class CrystalPlastic : public Solid
+class CrystalPlastic : public Solid<Set::Sym::MajorMinor>
 {
 private:
 	static constexpr int dim = 9;
