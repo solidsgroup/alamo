@@ -13,14 +13,17 @@ using namespace Model::Solid::CrystalPlastic;
 
 void savefile(float s,float es,const char* loc)
 {
+	Util::Message(INFO);
 	std::fstream myfile;
   	myfile.open (loc, std::ios::out | std::ios::app); 
 
 	myfile << s << "," << es << std::endl;
  	myfile.close();
+		Util::Message(INFO);
 }
 void savefile(std::array<double,12> g, double time,const char* loc)
 {
+		Util::Message(INFO);
 	std::fstream myfile;
   	myfile.open (loc, std::ios::out | std::ios::app); 
 
@@ -36,13 +39,16 @@ void savefile(std::array<double,12> g, double time,const char* loc)
 		}
 	}
  	myfile.close();
+	Util::Message(INFO);
 }
 void deletefile(const char* loc)
 {
+	Util::Message(INFO);
 	if( remove(loc) != 0 )
     perror( "Error deleting file" );
  	else
     puts( "successfully deleted" );
+		Util::Message(INFO);
 }
 /*
 Values for the elastic tensor, C:
@@ -82,6 +88,7 @@ int main (int argc, char* argv[])
 	Set::Matrix es = Set::Matrix::Zero();
 	Set::Matrix sigma = Set::Matrix::Zero();
 
+
 	Set::iMatrix mask = Set::iMatrix::Zero();
 	mask(0,1) = 1;
 	
@@ -93,13 +100,15 @@ int main (int argc, char* argv[])
 		
 	for(double t = 0.0; t <= T; t += dt)
 	{
+		Util::Message(INFO,"t=",t," T=",T);
 		Set::Matrix esp = cp.GetEsp();
 		Set::Matrix temp;
 	 	//es(0,0) = c*t;
 		es(0,1) = c*t;
-		//es = cp.relax(es, es(0,1),mask);
+		es = cp.relax(es, es(0,1),mask);
 		temp = (es - esp);
-		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,false);
+		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,true);
+		Util::Message(INFO,sigma);
 		cp.update(es,sigma,dt);
 
 		if( counter % 100 == 0)
@@ -118,7 +127,9 @@ int main (int argc, char* argv[])
 			savefile((float)es(0,1), (float)sigma(0,1), src.c_str()); 
 			//savefile(gamma,t,src2.c_str());
 		}
+		Util::Message(INFO);
 		counter++;
+		Util::Message(INFO);
 	}
 	Util::Message(INFO,"es() = ", es);
 	//Util::Message(INFO,"esp() = ", esp);
