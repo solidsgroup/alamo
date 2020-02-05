@@ -84,6 +84,14 @@ private:
 	std::vector<Set::Scalar> xs;
 	std::vector<Set::Scalar> ys;
 	Set::Scalar alpha1, alpha2;
+
+public:
+	static void Parse(TabulatedInterface & value, amrex::ParmParse & pp)
+	{
+		pp.queryarr("xs",value.xs);
+		pp.queryarr("ys",value.ys);
+		value.Define(value.xs,value.ys);
+	}
 };
 }
 #endif
