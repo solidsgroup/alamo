@@ -122,7 +122,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.queryclass(static_cast<IC::PerturbedInterface*>(ic));
 		}
 		else if (ic_type == "tabulated_interface")
+		{
+			Util::Assert(INFO,TEST(number_of_grains == 2));
 			ic = new IC::TabulatedInterface(geom);
+			pp.queryclass(static_cast<IC::TabulatedInterface*>(ic));
+		}
 		else if (ic_type == "voronoi")
 		{
 			int total_grains = number_of_grains;
@@ -431,7 +435,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
-	if (time >= anisotropy.tstart)
+	if (anisotropy.on && time >= anisotropy.tstart)
 		SetTimestep(anisotropy.timestep);
 	
 	if (!elastic.on) return;
