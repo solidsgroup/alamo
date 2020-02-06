@@ -14,7 +14,7 @@
 #include "IC/Trig.H"
 #include "IC/Sphere.H"
 //#include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/MultiWell.H"
+//#include "Model/Solid/LinearElastic/MultiWell.H"
 //#include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
@@ -56,16 +56,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		}
 	}
 	{
-		amrex::ParmParse pp("anisotropy"); // Phase-field model parameters
+		IO::ParmParse pp("anisotropy"); // Phase-field model parameters
 		pp.query("on", anisotropy.on);
-		pp.query("theta0", anisotropy.theta0);
-		pp.query("phi0", anisotropy.phi0);
-		pp.query("filename", filename);
-		pp.query("gb_type", gb_type);
-		anisotropy.theta0 *= 0.01745329251; // convert degrees into radians
-		anisotropy.phi0 *= 0.01745329251;   // convert degrees into radians
-		pp.query("sigma0", anisotropy.sigma0);
-		pp.query("sigma1", anisotropy.sigma1);
+
 		pp.query("beta", anisotropy.beta);
 		pp.query("tstart", anisotropy.tstart);
 		anisotropy.timestep = timestep;
@@ -84,29 +77,34 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("regularization", regularization_type_input);
 		regularization = regularization_type[regularization_type_input];
 
+		pp.query("gb_type", gb_type);
 		if (gb_type == "abssin")
-			boundary = new Model::Interface::GB::AbsSin(anisotropy.theta0,
-														anisotropy.sigma0,
-														anisotropy.sigma1);
+		{
+			boundary = new Model::Interface::GB::AbsSin();
+			pp.queryclass(*static_cast<Model::Interface::GB::AbsSin *>(boundary));
+		}
 		else if (gb_type == "sin")
-			boundary = new Model::Interface::GB::Sin(anisotropy.theta0,
-													 anisotropy.sigma0,
-													 anisotropy.sigma1);
+		{
+			boundary = new Model::Interface::GB::Sin();
+			pp.queryclass(*static_cast<Model::Interface::GB::Sin *>(boundary));
+			
+		}
 		else if (gb_type == "read")
-			boundary = new Model::Interface::GB::Read(filename);
+		{
+			boundary = new Model::Interface::GB::Read();
+			pp.queryclass(*static_cast<Model::Interface::GB::Read *>(boundary));
+		}
 
 		else if (gb_type == "sh")
 		{
-			//Need to make this check for other gb_types as well.
-			if (AMREX_SPACEDIM < 2)
-				Util::Abort(INFO, "SH model is only for 3D");
-			boundary = new Model::Interface::GB::SH(anisotropy.theta0,
-													anisotropy.phi0,
-													anisotropy.sigma0,
-													anisotropy.sigma1);
+			Util::Assert(INFO, TEST(AMREX_SPACEDIM == 3));
+			boundary = new Model::Interface::GB::SH();
+			pp.queryclass(*static_cast<Model::Interface::GB::SH *>(boundary));
 		}
 		else
-			boundary = new Model::Interface::GB::Sin(anisotropy.theta0, anisotropy.sigma0, anisotropy.sigma1);
+		{
+			boundary = nullptr;
+		}
 	}
 
 	{
@@ -124,7 +122,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.queryclass(static_cast<IC::PerturbedInterface*>(ic));
 		}
 		else if (ic_type == "tabulated_interface")
+		{
+			Util::Assert(INFO,TEST(number_of_grains == 2));
 			ic = new IC::TabulatedInterface(geom);
+			pp.queryclass(static_cast<IC::TabulatedInterface*>(ic));
+		}
 		else if (ic_type == "voronoi")
 		{
 			int total_grains = number_of_grains;
@@ -433,7 +435,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
-	if (time >= anisotropy.tstart)
+	if (anisotropy.on && time >= anisotropy.tstart)
 		SetTimestep(anisotropy.timestep);
 	
 	if (!elastic.on) return;
@@ -476,8 +478,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 				model(i, j, k) = elastic.model[0] * 0.0;
+				Set::Scalar etasum = 0.0;
+				for (int n = 0; n < number_of_grains; n++) etasum += eta(i,j,k,n);
 				for (int n = 0; n < number_of_grains; n++)
-					model(i, j, k) += elastic.model[n] * eta(i, j, k, n);
+					model(i, j, k) += elastic.model[n] * eta(i, j, k, n) / etasum;
 			});
 		}
 
