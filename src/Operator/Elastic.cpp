@@ -837,7 +837,7 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 }
 
 // TODO : Remove these template specializations once Mobility and PD are upgraded
-template class Elastic<Model::Solid::LinearElastic::MultiWell>;
+template class Elastic<Model::Solid::LinearElastic::Multiwell>;
 template class Elastic<Model::Solid::Linear::IsotropicDegradable>;
 template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
 
