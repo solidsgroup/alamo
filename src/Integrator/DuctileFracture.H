@@ -83,26 +83,26 @@ protected:
 private:
 	int number_of_ghost_cells = 2;											///< Number of ghost cells
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;					///< Crack field fab
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;				///< Crack field fab at previous time step
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_driving_force;		///< Crack driving force
+	Set::Field<Set::Scalar> m_c;					///< Crack field fab
+	Set::Field<Set::Scalar> m_c_old;				///< Crack field fab at previous time step
+	Set::Field<Set::Scalar> m_driving_force;		///< Crack driving force
 	
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;				///< Displacement variable
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;				///< Total strain variable
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_p;			///< Plastic strain variable
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_p;					///< Plastic exponent for crack function g(c)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambda;				///< Evolving hardening variable
+	Set::Field<Set::Scalar> m_disp;				///< Displacement variable
+	Set::Field<Set::Scalar> m_strain;				///< Total strain variable
+	Set::Field<Set::Scalar> m_strain_p;			///< Plastic strain variable
+	Set::Field<Set::Scalar> m_p;					///< Plastic exponent for crack function g(c)
+	Set::Field<Set::Scalar> m_lambda;				///< Evolving hardening variable
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain_pold;			///< Plastic strain at previous time step
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_pold;				///< Plastic exponent at previous time step
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_lambdaold;			///< Hardening variable at previous time step
+	Set::Field<Set::Scalar> m_strain_pold;			///< Plastic strain at previous time step
+	Set::Field<Set::Scalar> m_pold;				///< Plastic exponent at previous time step
+	Set::Field<Set::Scalar> m_lambdaold;			///< Hardening variable at previous time step
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;				///< Stress field
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressdev;			///< Deviatoric Stress field
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;					///< RHS field for inhomogeneous problem
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;			///< Implicit problem residual field
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;				///< Elastic energy field
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;		///< Elastic energy field as if crack doesn't exist.
+	Set::Field<Set::Scalar> m_stress;				///< Stress field
+	Set::Field<Set::Scalar> m_stressdev;			///< Deviatoric Stress field
+	Set::Field<Set::Scalar> m_rhs;					///< RHS field for inhomogeneous problem
+	Set::Field<Set::Scalar> m_residual;			///< Implicit problem residual field
+	Set::Field<Set::Scalar> m_energy;				///< Elastic energy field
+	Set::Field<Set::Scalar> m_energy_pristine;		///< Elastic energy field as if crack doesn't exist.
 
 	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
@@ -161,7 +161,7 @@ private:
 
 	struct{
 		ductile_fracture_model_type 		*modeltype;
-		amrex::Vector<amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type> > > model;
+		Set::Field<ductile_fracture_model_type> model;
 		std::string input_material = "isotropic";
 		Set::Scalar yield_strength = 1.e3;
 		Set::Scalar hardening_modulus = 1.;

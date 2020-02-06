@@ -28,9 +28,9 @@
 #include "Model/Interface/GB/Read.H"
 
 #include "Model/Solid/Linear/Cubic.H"
-#include "Model/Solid/LinearElastic/Cubic.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+//#include "Model/Solid/LinearElastic/Cubic.H"
+//#include "Model/Solid/LinearElastic/Isotropic.H"
+//#include "Model/Solid/Linear/Laplacian.H"
 #include "Operator/Elastic.H"
 
 namespace Integrator
@@ -77,20 +77,13 @@ private:
 	Set::Scalar ref_threshold = 0.1;
 
 	// Cell fab
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+	Set::Field<Set::Scalar> eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+	Set::Field<Set::Scalar> eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 	// Node fab
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > disp_mf; 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs_mf; 
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > res_mf; 
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual; ///< Multicomponent field variable storing pointwise displacements
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_mf;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies_mf;
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > body_force; ///< Multicomponent field variable storing pointwise displacements
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-	//amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	Set::Field<Set::Scalar> disp_mf; 
+	Set::Field<Set::Scalar> rhs_mf; 
+	Set::Field<Set::Scalar> stress_mf;
+	Set::Field<Set::Scalar> energies_mf;
 
 	BC::BC *mybc;
 

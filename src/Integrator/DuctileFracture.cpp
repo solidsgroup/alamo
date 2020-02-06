@@ -70,7 +70,7 @@ DuctileFracture::DuctileFracture() :
 					bc_lo_2 = {0.}; bc_hi_2 = {0.};,
 					bc_lo_3 = {0.}; bc_hi_3 = {0.};
 	);
-	crack.mybc = new BC::Constant(bc_hi_str, bc_lo_str
+	crack.mybc = new BC::Constant(1, bc_hi_str, bc_lo_str
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
@@ -248,8 +248,8 @@ DuctileFracture::Initialize (int lev)
 	m_rhs[lev]->setVal(0.0);
 	m_residual[lev]->setVal(0.0);
 	
-	material.model[lev].define(m_disp[lev]->boxArray(), m_disp[lev]->DistributionMap(), 1, number_of_ghost_cells);
-	material.model[lev].setVal(*(material.modeltype));
+	material.model[lev].reset(new amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type>>(m_disp[lev]->boxArray(), m_disp[lev]->DistributionMap(), 1, number_of_ghost_cells));
+	material.model[lev]->setVal(*(material.modeltype));
 }
 
 void
@@ -321,10 +321,10 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		m_strain_p[ilev]->FillBoundary();
 		Set::Vector DX(geom[ilev].CellSize());
 
-		for (MFIter mfi(material.model[ilev], false); mfi.isValid(); ++mfi)
+		for (MFIter mfi(*(material.model)[ilev], false); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.growntilebox(2);
-			amrex::Array4<ductile_fracture_model_type>	const &model_box	= material.model[ilev].array(mfi);
+			amrex::Array4<ductile_fracture_model_type>	const &model_box	= material.model[ilev]->array(mfi);
 			amrex::Array4<const Set::Scalar>			const &strain_p_box	= (*m_strain_p[ilev]).array(mfi);
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
@@ -349,7 +349,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		m_energy_pristine[ilev]->setVal(0.);
-		ScaledModulus(ilev,material.model[ilev]);
+		ScaledModulus(ilev,*(material.model)[ilev]);
 	}
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -371,8 +371,8 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	info.setMaxCoarseningLevel(elastic.max_coarsening_level);
 
 	elastic.op.define(geom, grids, dmap, info);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-		elastic.op.SetModel(ilev,material.model[ilev]);
+	//for (int ilev = 0; ilev < nlevels; ++ilev)
+	//	elastic.op.SetModel(ilev,material.model[ilev]);
 		
 	elastic.op.setMaxOrder(elastic.linop_maxorder);
 
@@ -506,7 +506,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<const Set::Scalar>			const& lambdaold_box 		= (*m_lambdaold[lev]).array(mfi);
 		amrex::Array4<Set::Scalar>					const& strainp_box 			= (*m_strain_p[lev]).array(mfi);
 		amrex::Array4<const Set::Scalar>			const& strainpold_box 		= (*m_strain_pold[lev]).array(mfi);
-		amrex::Array4<ductile_fracture_model_type>	const& model_box 			= material.model[lev].array(mfi);
+		amrex::Array4<ductile_fracture_model_type>	const& model_box 			= material.model[lev]->array(mfi);
 		
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			Set::Matrix sigdev, epsp, epspold;

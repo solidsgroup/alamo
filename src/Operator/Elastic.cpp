@@ -1,14 +1,12 @@
-#include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/Cubic.H"
+// TODO: Remove these 
 #include "Model/Solid/LinearElastic/MultiWell.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
-//#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
 #include "Model/Solid/Linear/IsotropicDegradable.H"
 #include "Model/Solid/Linear/IsotropicDegradableTanh.H"
 #include "Model/Solid/Linear/Cubic.H"
+#include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Affine/IsotropicDegradablePlastic.H"
 #include "Elastic.H"
@@ -838,13 +836,8 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 	}
 }
 
-template class Elastic<Model::Solid::LinearElastic::Isotropic>;
-template class Elastic<Model::Solid::LinearElastic::Cubic>;
-template class Elastic<Model::Solid::LinearElastic::Multiwell>;
-template class Elastic<Model::Solid::LinearElastic::Laplacian>;
-// template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
-// template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic2>;
-// template class Elastic<Model::Solid::LinearElastic::Degradable::IsotropicPlastic>;
+// TODO : Remove these template specializations once Mobility and PD are upgraded
+template class Elastic<Model::Solid::LinearElastic::MultiWell>;
 template class Elastic<Model::Solid::Linear::IsotropicDegradable>;
 template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
 
@@ -853,6 +846,8 @@ template class Elastic<Model::Solid::Elastic::NeoHookean>;
 template class Elastic<Model::Solid::Affine::Isotropic>;
 template class Elastic<Model::Solid::Affine::IsotropicDegradablePlastic>;
 template class Elastic<Model::Solid::Linear::Isotropic>;
+template class Elastic<Model::Solid::Linear::Laplacian>;
 template class Elastic<Model::Solid::Linear::Cubic>;
+
 }
 

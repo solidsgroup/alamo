@@ -4,9 +4,10 @@
 #include "IC/Affine.H"
 #include "IC/Random.H"
 #include "Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+#include "Model/Solid/Linear/Laplacian.H"
 #include "BC/Operator/Elastic.H"
-#include "Solver/Nonlocal/Linear.H"
+//#include "Solver/Nonlocal/Linear.H"
+#include "Solver/Nonlocal/Newton.H"
 
 namespace Test
 {
@@ -23,12 +24,10 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 	// Define the "model" fab to be a Laplacian, so that this
 	// elastic operator acts as a Laplacian on the "component-th" component of the fab.
-	Set::Scalar alpha = 1.0;
-	//using model_type = Model::Solid::LinearElastic::Isotropic; model_type model(2.6,6.0); 
-	using model_type = Model::Solid::LinearElastic::Laplacian; model_type model(alpha);
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type> > > modelfab(nlevels); 
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
- 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev].setVal(model);
+	//using model_type = Model::Solid::Linear::Laplacian; model_type model;
+	using model_type = Model::Solid::Linear::Laplacian; model_type model;
+	Set::Field<model_type> modelfab(nlevels,ngrids,dmap,1,2);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) modelfab[ilev]->setVal(model);
 
 	// Initialize: set the rhs_prescribed to sin(n pi x1 / L) * sin(n pi x2 / L), so that
 	// the exact solution is sin(n pi x1 / L) * sin(n pi x2 / L) / pi / 2.
@@ -53,7 +52,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	::Operator::Elastic<model_type> elastic;
 	elastic.SetUniform(false);
  	elastic.define(geom, cgrids, dmap, info);
- 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,modelfab[ilev]);
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,*modelfab[ilev]);
 
 	// Set up boundary conditions, and 
 	// configure the problem so that it is 1D, 2D, or 3D
@@ -88,27 +87,27 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	{
 		// nothing to do - displacement BC is default
 	}
+	bc.Init(rhs_prescribed,geom);
 	elastic.SetBC(&bc);
 
 
 	// Create MLMG solver and solve
 	//amrex::MLMG mlmg(elastic);
-	Solver::Nonlocal::Linear mlmg(elastic);
+	//Solver::Nonlocal::Linear mlmg(elastic);
+	Solver::Nonlocal::Newton<model_type> mlmg(elastic);
 	if (m_fixedIter > -1)     mlmg.setFixedIter(m_fixedIter);
 	if (m_maxIter > -1 )      mlmg.setMaxIter(m_maxIter);
 	if (m_maxFmgIter > -1)    mlmg.setMaxFmgIter(m_maxFmgIter);
 	mlmg.setVerbose(verbose);
  	if (m_bottomMaxIter > -1) mlmg.setBottomMaxIter(m_bottomMaxIter);
 
- 	mlmg.solve(GetVecOfPtrs(solution_numeric),
-		   GetVecOfConstPtrs(rhs_prescribed),
-		   m_tol_rel,m_tol_abs);
+ 	mlmg.solve(solution_numeric, rhs_prescribed, modelfab, m_tol_rel,m_tol_abs);
 
 	// Compute solution error
 	for (int i = 0; i < nlevels; i++)
 	{
-	  	amrex::MultiFab::Copy(solution_error[i],solution_numeric[i],component,component,1,2);
-	  	amrex::MultiFab::Subtract(solution_error[i],solution_exact[i],component,component,1,2);
+	  	amrex::MultiFab::Copy(*solution_error[i],*solution_numeric[i],component,component,1,2);
+	  	amrex::MultiFab::Subtract(*solution_error[i],*solution_exact[i],component,component,1,2);
 	}
 
 	//Compute numerical right hand side
@@ -118,10 +117,10 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
 
 	// Compute numerical residual
-	mlmg.compResidual(GetVecOfPtrs(res_numeric),GetVecOfPtrs(solution_numeric),GetVecOfConstPtrs(rhs_prescribed));
+	mlmg.compResidual(res_numeric,solution_numeric,rhs_prescribed, modelfab);
 
 	// Compute exact residual
-	mlmg.compResidual(GetVecOfPtrs(res_exact),GetVecOfPtrs(solution_exact),GetVecOfConstPtrs(rhs_prescribed));
+	mlmg.compResidual(res_exact,solution_exact,rhs_prescribed, modelfab);
 
 	// If specified, output plot file
 	if (plotfile != "")
@@ -132,7 +131,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 	// Find maximum solution error
 	std::vector<Set::Scalar> error_norm(nlevels);
-	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0].norm0(component,0,false) / solution_exact[0].norm0(component,0,false);
+	for (int i = 0; i < nlevels; i++) error_norm[i] = solution_error[0]->norm0(component,0,false) / solution_exact[0]->norm0(component,0,false);
 	Set::Scalar maxnorm = fabs(*std::max_element(error_norm.begin(),error_norm.end()));
 
 	if (verbose) Util::Message(INFO,"relative error = ", 100*maxnorm, " %");

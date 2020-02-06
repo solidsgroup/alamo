@@ -72,27 +72,27 @@ private:
 	int number_of_ghost_nodes = 2;
 
 	// Degradation variable
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_old;		///< Degradation variable for the __previous__timestep
+	Set::Field<Set::Scalar> eta_new; 		///< Degradation variable for the __current__timestep
+	Set::Field<Set::Scalar> eta_old;		///< Degradation variable for the __previous__timestep
 
 	// For water induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;		///< Water concentration for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc_old;	///< Water concentration for the __previous__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >damage_start_time;
+	Set::Field<Set::Scalar> water_conc;		///< Water concentration for the __current__timestep
+	Set::Field<Set::Scalar> water_conc_old;	///< Water concentration for the __previous__timestep
+	Set::Field<Set::Scalar> damage_start_time;
 
 	// For temperature induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp;			///< Temperature for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp_old;		///< Temperature for the __previous__timestep
+	Set::Field<Set::Scalar> Temp;			///< Temperature for the __current__timestep
+	Set::Field<Set::Scalar> Temp_old;		///< Temperature for the __previous__timestep
 
 	// For mechanical degradation to be studied later
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	Set::Field<Set::Scalar>  displacement; ///< Multicomponent field variable storing pointwise displacements
+	Set::Field<Set::Scalar>  strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+	Set::Field<Set::Scalar>  stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	Set::Field<Set::Scalar>  stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+	Set::Field<Set::Scalar>  rhs; ///< Multicomponent field variable storing pointwise displacements
+	Set::Field<Set::Scalar>  residual;
+	Set::Field<Set::Scalar>  energy; ///< Single component variable storing strain energy
+	Set::Field<Set::Scalar>  energies; ///< Multicomponent field variable storing individual strain energies
 
 	int nlevels;
 
@@ -194,7 +194,7 @@ private:
 
 		BC::Operator::Elastic<pd_model_type> bc;
 		Operator::Elastic<pd_model_type> op;
-		amrex::Vector<amrex::FabArray<amrex::BaseFab<pd_model_type> > > model;
+		Set::Field<pd_model_type> model;
 		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
 
 	} elastic;
@@ -207,8 +207,8 @@ private:
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
 
-	Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_left,interpolate_bottom,interpolate_back);
-	Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_right,interpolate_top,interpolate_front);
+	//Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_left,interpolate_bottom,interpolate_back);
+	//Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_right,interpolate_top,interpolate_front);
 
 };
 }

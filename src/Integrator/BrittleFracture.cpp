@@ -69,7 +69,7 @@ BrittleFracture::BrittleFracture() :
 					bc_lo_2 = {0.}; bc_hi_2 = {0.};,
 					bc_lo_3 = {0.}; bc_hi_3 = {0.};
 	);
-	crack.mybc = new BC::Constant(bc_hi_str, bc_lo_str
+	crack.mybc = new BC::Constant(1,bc_hi_str, bc_lo_str
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
@@ -411,15 +411,16 @@ BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 void
 BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 {
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<fracture_model_type> > > model;
+	Set::Field<fracture_model_type> model;
 	model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		model[ilev].define(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_cells);
-		model[ilev].setVal(*(elastic.modeltype));
+		//model[ilev].define(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_cells);
+		model[ilev].reset(new amrex::FabArray<amrex::BaseFab<fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
+		model[ilev]->setVal(*(elastic.modeltype));
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		m_energy_pristine[ilev]->setVal(0.);
-		ScaledModulus(ilev,model[ilev]);
+		ScaledModulus(ilev,*(model)[ilev]);
 	}
 
 	Util::Message(INFO);
@@ -442,13 +443,13 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	info.setMaxCoarseningLevel(elastic.max_coarsening_level);
 
 	elastic.elastic_operator.define(geom, grids, dmap, info);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-		elastic.elastic_operator.SetModel(ilev,model[ilev]);
+	//for (int ilev = 0; ilev < nlevels; ++ilev)
+	//	elastic.elastic_operator.SetModel(ilev,model[ilev]);
 		
 	elastic.elastic_operator.setMaxOrder(elastic.linop_maxorder);
 
 	elastic.elastic_operator.SetBC(&(elastic.bc));
-	Solver::Nonlocal::Linear solver(elastic.elastic_operator);
+	Solver::Nonlocal::Newton<fracture_model_type>  solver(elastic.elastic_operator);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
 	solver.setFixedIter(elastic.max_fixed_iter);
@@ -472,8 +473,9 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
 	WritePlotFile(plotfolder,plottime,plotstep);*/
 
-	solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
-	solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
+	solver.solve(m_disp, m_rhs, model, elastic.tol_rel, elastic.tol_abs);
+	//solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
+	//solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
 	//solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
 
 	for (int lev = 0; lev < nlevels; lev++)
