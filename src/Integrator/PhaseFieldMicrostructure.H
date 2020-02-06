@@ -28,6 +28,7 @@
 #include "Model/Interface/GB/Read.H"
 
 #include "Model/Solid/Linear/Cubic.H"
+#include "Model/Solid/Affine/Cubic.H"
 //#include "Model/Solid/LinearElastic/Cubic.H"
 //#include "Model/Solid/LinearElastic/Isotropic.H"
 //#include "Model/Solid/Linear/Laplacian.H"
@@ -37,7 +38,8 @@ namespace Integrator
 {
 //using model_type = Model::Solid::LinearElastic::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Cubic;
-using model_type = Model::Solid::Linear::Cubic;
+//using model_type = Model::Solid::Linear::Cubic;
+using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
 	Wilmore = 1,
