@@ -71,5 +71,6 @@ elastic.model.random = yes
 elastic.fixed_iter = 1000
 #elastic.max_coarsening_level = 0
 elastic.solver.verbose = 2
-
+elastic.solver.tol_rel = 1E-8
+elastic.solver.tol_abs = 1E-8
 
