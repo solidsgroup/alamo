@@ -5,7 +5,7 @@ stop_time = 50
 
 plot_file = tests/ShearCoupling/output
 
-amr.plot_int = 1000
+amr.plot_int = 10
 amr.max_level = 2
 #amr.n_cell = 32 4
 amr.n_cell = 64 64 64
@@ -25,10 +25,10 @@ ic.ys = -1.0 -1.0 1.0 1.0 -1.0 -1.0
 
 geometry.prob_lo = 0 -4 0
 geometry.prob_hi = 8 4 8
-geometry.is_periodic= 1 0 1
+geometry.is_periodic= 0 0 0
 
-bc.eta.type.xlo = INT_DIR
-bc.eta.type.xhi = INT_DIR
+bc.eta.type.xlo = neumann
+bc.eta.type.xhi = neumann
 bc.eta.type.ylo = EXT_DIR
 bc.eta.type.yhi = EXT_DIR
 bc.eta.val.ylo  = 1.0 0.0
@@ -41,7 +41,7 @@ pf.gamma = 1.0
 pf.l_gb=0.1
 pf.sigma0=0.075
 
-anisotropy.on=1
+anisotropy.on=0
 anisotropy.gb_type = sin
 anisotropy.timestep=0.001
 anisotropy.tstart= 1.
@@ -52,6 +52,31 @@ anisotropy.sigma1=0.07
 anisotropy.beta= 0.00001
 anisotropy.damp=1.0
 
+elastic.on = 1
+elastic.interval = 10
+
+elastic.model1.C11 = 1.68
+elastic.model1.C12 = 1.21
+elastic.model1.C44 = 0.75
+#elastic.model1.F0 = 0 0.1 0 0 
+
+elastic.model2.C11 = 1.68
+elastic.model2.C12 = 1.21
+elastic.model2.C44 = 0.75
+#elastic.model1.F0 = 0 -0.1 0 0 
+#elastic.model2.C11 = 3.0
+#elastic.model2.C12 = 2.4
+#elastic.model2.C44 = 1.5
 
 
 
+elastic.bc.type.xlo = neumann neumann
+elastic.bc.type.xhi = neumann neumann
+elastic.bc.type.xloyhi = disp disp disp
+elastic.bc.type.xhiyhi = disp disp disp
+elastic.bc.val.xhiyhi  = 0.01 0.0 0.0
+elastic.bc.val.xloyhi  = 0.01 0.0 0.0
+elastic.bc.val.yhi     = 0.01 0.0 0.0
+
+elastic.solver.verbose = 2
+elastic.solver.fixed_iter = 10

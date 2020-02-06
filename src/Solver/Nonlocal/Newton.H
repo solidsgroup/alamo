@@ -41,16 +41,17 @@ private:
                 Set::Vector DX(linop.Geom(lev).CellSize());
     			const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 
-                for (MFIter mfi(*a_model_mf[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
+                //for (MFIter mfi(*a_model_mf[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
+                for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.growntilebox(2);
+                    //amrex::Box bx = mfi.validbox();
+                    amrex::Box bx = mfi.grownnodaltilebox(2);
+                    //bx.grow(2);
                     //amrex::Box domainint = domain;
                     //domainint.grow(-1); // shrink so that we are only on the interior of the domain
                     bx = bx & domain;
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
-                    amrex::Array4<const Set::Scalar> const &b     = a_b_mf[lev]->array(mfi);
-                    amrex::Array4<Set::Scalar>       const &rhs   = a_rhs_mf[lev]->array(mfi);
                     amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
                     amrex::Array4<T>                 const &model = a_model_mf[lev]->array(mfi);
 
@@ -78,16 +79,19 @@ private:
                             model(i, j, k).ddw = model(i, j, k).DDW(F);
                         }
                     });
+                }
 
+                Util::RealFillBoundary(*a_dw_mf[lev],m_elastic.Geom(lev));
 
-                    //amrex::Box domainint = domain; domainint.grow(-1); // shrink so that we are only on the interior of the domain
-                    
-                    bx               = mfi.validbox();
-                    bx.grow(1);
+                for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
+                {
+                    amrex::Box bx  = mfi.grownnodaltilebox(1);
                     bx = bx & domain;
-                    //amrex::Box bxint = mfi.validbox() & domainint;
-                    //Util::Message(INFO,bx);
-                    //Util::Message(INFO,bxint);
+
+                    amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Scalar> const &b     = a_b_mf[lev]->array(mfi);
+                    amrex::Array4<Set::Scalar>       const &rhs   = a_rhs_mf[lev]->array(mfi);
+                    amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         #if AMREX_SPACEDIM == 2
@@ -100,7 +104,7 @@ private:
                             Set::Vector ret = m_bc(U, gradu, dw(i,j,k), i, j, k, bx);
 
                             for (int p = 0; p < 2; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p);
+                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p); // problem is in computation of ret...
                         }
                         else
                         {
@@ -135,7 +139,7 @@ private:
                     });
                 }
                 Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
-                //Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
+                Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
             }
     }
 

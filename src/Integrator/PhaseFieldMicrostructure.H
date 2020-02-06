@@ -82,6 +82,7 @@ private:
 	// Node fab
 	Set::Field<Set::Scalar> disp_mf; 
 	Set::Field<Set::Scalar> rhs_mf; 
+	Set::Field<Set::Scalar> res_mf; 
 	Set::Field<Set::Scalar> stress_mf;
 	Set::Field<Set::Scalar> energies_mf;
 
