@@ -29,10 +29,16 @@ public:
     };
     void Define (Set::Scalar _E1, Set::Scalar _E2, Set::Scalar _Tg, Set::Scalar _Ts, Set::Scalar _nu, Set::Scalar _temp)
     {
-        m_E10 = _E1; m_E20 = _E2; m_Tg0 = _Tg; m_Ts0 = _Ts; m_nu = _nu; m_temp = _temp;
+        m_E10 = _E1; 
+        m_E20 = _E2; 
+        m_Tg0 = _Tg; 
+        m_Ts0 = _Ts; 
+        m_nu = _nu; 
+        m_temp = _temp;
+        
         Set::Scalar E = 0.5*(_E1 + _E2) - 0.5*(_E1 - _E2)*tanh((_temp - _Tg)/_Ts);
         Set::Scalar lambda = E*_nu/((1.+_nu)*(1.-2.*_nu));
-		Set::Scalar mu = E/(2.*(1.+_nu));
+        Set::Scalar mu = E/(2.*(1.+_nu));
         Isotropic::Define(lambda, mu);
     }
     void DegradeModulus(const Set::Scalar eta)
@@ -57,7 +63,7 @@ public:
 		Set::Scalar mu = E/(2.*(1.+m_nu));
 		Isotropic::Define(lambda,mu);
 	}
-private:
+public:
     Set::Scalar m_E10 = NAN, m_E20 = NAN, m_Tg0 = NAN, m_Ts0 = NAN, m_nu = NAN, m_temp = NAN;
 
 public:
@@ -70,7 +76,7 @@ public:
         pp.query("Ts", Ts);
         pp.query("nu", nu);
         pp.query("temp", tmp);
-		value.Define(E1,E2,Tg,Ts,nu,tmp);
+        value.Define(E1,E2,Tg,Ts,nu,tmp);
     }
 };
 }

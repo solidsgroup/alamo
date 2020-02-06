@@ -36,7 +36,7 @@ amr.n_cell = 128 32 8
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = output
+amr.plot_file = tests/PolymerDegradation3D-2/output
 #===========================================================================
 
 #=============== Specify geometry and unrefined mesh =======================
@@ -86,10 +86,11 @@ thermal.bc.hi_3 = 368.0
 material.model = isotropic2
 #material.isotropic.lambda = 410.1
 #material.isotropic.mu = 350.5
-material.isotropic2.E10 = 510.0
-material.isotropic2.E20 = 148.0
+material.isotropic2.E1 = 510.0
+material.isotropic2.E2 = 148.0
 material.isotropic2.Tg = 319.3
 material.isotropic2.Ts = 17.0
+material.isotropic2.nu = 0.3
 material.isotropic2.temp = 298.0
 #===========================================================================
 
@@ -158,6 +159,7 @@ elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.001 0.0 0.0
 
 # Use the following arguments for a single tension experiment.
+
 elastic.type            =   single
 elastic.int 			=	100
 elastic.tstart 			=	0.0
@@ -167,18 +169,36 @@ elastic.tend			=	100.0
 #elastic.bc.bc_y_min	=	neumann disp neumann
 #elastic.bc.bc_z_min 	=	neumann neumann disp
 
-elastic.bc.bc_x_min 	=	disp disp disp
-elastic.bc.bc_y_min	    =	trac trac trac
-elastic.bc.bc_z_min 	=	trac trac trac
-elastic.bc.bc_x_max 	=	disp disp disp
-elastic.bc.bc_y_max 	=	trac trac trac
-elastic.bc.bc_z_max 	=	trac trac trac
-elastic.bc.x_min = 0.0 0.0 0.0
-elastic.bc.x_max = 0.05 0.0 0.0
-elastic.bc.y_min = 0.0 0.0 0.0
-elastic.bc.y_max = 0.0 0.0 0.0
-elastic.bc.z_min = 0.0 0.0 0.0
-elastic.bc.z_max = 0.0 0.0 0.0
+elastic.bc.type.xlo =	disp disp disp
+elastic.bc.type.ylo =	trac trac trac
+elastic.bc.type.zlo =	trac trac trac
+elastic.bc.type.xhi =	disp disp disp
+elastic.bc.type.yhi =	trac trac trac
+elastic.bc.type.zhi =	trac trac trac
+elastic.bc.type.yhizhi = trac trac trac
+elastic.bc.type.ylozhi = trac trac trac
+elastic.bc.type.yhizlo = trac trac trac
+elastic.bc.type.ylozlo = trac trac trac
+
+elastic.bc.val.xlo = 0.0 0.0 0.0
+elastic.bc.val.xloylo = 0.0 0.0 0.0
+elastic.bc.val.xloyhi = 0.0 0.0 0.0
+elastic.bc.val.xlozlo = 0.0 0.0 0.0
+elastic.bc.val.xlozhi = 0.0 0.0 0.0
+elastic.bc.val.xloylozlo = 0.0 0.0 0.0
+elastic.bc.val.xloyhizlo = 0.0 0.0 0.0
+elastic.bc.val.xloylozhi = 0.0 0.0 0.0
+elastic.bc.val.xloyhizhi = 0.0 0.0 0.0
+
+elastic.bc.val.xhi = 0.05 0.0 0.0
+elastic.bc.val.xhiylo = 0.05 0.0 0.0
+elastic.bc.val.xhiyhi = 0.05 0.0 0.0
+elastic.bc.val.xhizlo = 0.05 0.0 0.0
+elastic.bc.val.xhizhi = 0.05 0.0 0.0
+elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
+elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
+elastic.bc.val.xhiylozhi = 0.05 0.0 0.0
+elastic.bc.val.xhiyhizhi = 0.05 0.0 0.0
 
 # Use the following arguments for a full tensile test experiment.
 #elastic.type            = tensile

@@ -190,16 +190,17 @@ private:
 		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
 		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
-		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
-		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
-		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_left_t,bc_bottom_t,bc_back_t);
-		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_right_t,bc_top_t,bc_front_t);
-		
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
+
+		BC::Operator::Elastic<pd_model_type> bc;
+		Operator::Elastic<pd_model_type> op;
+		amrex::Vector<amrex::FabArray<amrex::BaseFab<pd_model_type> > > model;
+		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
+
 	} elastic;
 
 	struct{
-		pd_model_type 		*modeltype;
+		pd_model_type 		modeltype;
 		std::string 	input_material = "isotropic";
 		Set::Scalar		yieldstrength = 18.;
 	} material;
