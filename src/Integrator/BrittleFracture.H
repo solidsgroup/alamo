@@ -83,19 +83,19 @@ protected:
 private:
 	int number_of_ghost_cells = 2;				///< Number of ghost cells
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_c_old;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_driving_force;
+	Set::Field<Set::Scalar> m_c;
+	Set::Field<Set::Scalar> m_c_old;
+	Set::Field<Set::Scalar> m_driving_force;
 	
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_disp;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_strain;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stress;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_stressvm;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_rhs;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_residual;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > m_energy_pristine_old;
+	Set::Field<Set::Scalar> m_disp;
+	Set::Field<Set::Scalar> m_strain;
+	Set::Field<Set::Scalar> m_stress;
+	Set::Field<Set::Scalar> m_stressvm;
+	Set::Field<Set::Scalar> m_rhs;
+	Set::Field<Set::Scalar> m_residual;
+	Set::Field<Set::Scalar> m_energy;
+	Set::Field<Set::Scalar> m_energy_pristine;
+	Set::Field<Set::Scalar> m_energy_pristine_old;
 
 	struct{
 

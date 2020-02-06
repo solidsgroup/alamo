@@ -4,7 +4,6 @@
 #include "IC/Affine.H"
 #include "IC/Random.H"
 #include "Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
 
 namespace Test
 {
@@ -93,31 +92,28 @@ void Elastic::Generate()
 	}
 
  	int number_of_components = AMREX_SPACEDIM;
- 	for (int ilev = 0; ilev < nlevels; ++ilev)
- 		{
- 			dmap   [ilev].define(cgrids[ilev]);
- 			solution_numeric[ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
- 			solution_exact  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
- 			solution_error  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
- 			rhs_prescribed  [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
- 			rhs_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
- 			rhs_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2);
- 			res_numeric     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
- 			res_exact       [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
- 			ghost_force     [ilev].define(ngrids[ilev], dmap[ilev], number_of_components, 2); 
- 		}
+ 	for (int ilev = 0; ilev < nlevels; ++ilev) dmap   [ilev].define(cgrids[ilev]);
+ 	solution_numeric.Define(nlevels, ngrids, dmap, number_of_components, 2); 
+ 	solution_exact  .Define(nlevels, ngrids, dmap, number_of_components, 2);
+ 	solution_error  .Define(nlevels, ngrids, dmap, number_of_components, 2);
+ 	rhs_prescribed  .Define(nlevels, ngrids, dmap, number_of_components, 2);
+ 	rhs_numeric     .Define(nlevels, ngrids, dmap, number_of_components, 2);
+ 	rhs_exact       .Define(nlevels, ngrids, dmap, number_of_components, 2);
+ 	res_numeric     .Define(nlevels, ngrids, dmap, number_of_components, 2); 
+ 	res_exact       .Define(nlevels, ngrids, dmap, number_of_components, 2); 
+ 	ghost_force     .Define(nlevels, ngrids, dmap, number_of_components, 2); 
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		solution_exact  [ilev].setVal(0.0);
-		solution_numeric[ilev].setVal(0.0);
-		solution_error  [ilev].setVal(0.0);
-		rhs_prescribed  [ilev].setVal(0.0);
-		rhs_exact       [ilev].setVal(0.0);
-		rhs_numeric     [ilev].setVal(0.0);
-		res_exact       [ilev].setVal(0.0);
-		res_numeric     [ilev].setVal(0.0);
-		ghost_force     [ilev].setVal(0.0);
+		solution_exact  [ilev]->setVal(0.0);
+		solution_numeric[ilev]->setVal(0.0);
+		solution_error  [ilev]->setVal(0.0);
+		rhs_prescribed  [ilev]->setVal(0.0);
+		rhs_exact       [ilev]->setVal(0.0);
+		rhs_numeric     [ilev]->setVal(0.0);
+		res_exact       [ilev]->setVal(0.0);
+		res_numeric     [ilev]->setVal(0.0);
+		ghost_force     [ilev]->setVal(0.0);
 	}
 
 }

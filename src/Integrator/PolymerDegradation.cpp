@@ -1,5 +1,5 @@
 #include "PolymerDegradation.H"
-#include "Solver/Nonlocal/Linear.H"
+#include "Solver/Nonlocal/Newton.H"
 
 //#if AMREX_SPACEDIM == 1
 namespace Integrator
@@ -52,7 +52,7 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_water_bc.countval("lo_3")) pp_water_bc.getarr("lo_3",bc_lo_3);
 		if (pp_water_bc.countval("hi_3")) pp_water_bc.getarr("hi_3",bc_hi_3);
 
-		water.bc = new BC::Constant(bc_hi_str, bc_lo_str
+		water.bc = new BC::Constant(1, bc_hi_str, bc_lo_str
 							  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 							  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 							  );
@@ -101,7 +101,7 @@ PolymerDegradation::PolymerDegradation():
 		if (pp_heat_bc.countval("lo_3")) pp_heat_bc.getarr("lo_3",bc_lo_3);
 		if (pp_heat_bc.countval("hi_3")) pp_heat_bc.getarr("hi_3",bc_hi_3);
 
-		thermal.bc = new BC::Constant(bc_hi_str, bc_lo_str
+		thermal.bc = new BC::Constant(1,bc_hi_str, bc_lo_str
 								,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 							  	,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
 						);
@@ -243,7 +243,7 @@ PolymerDegradation::PolymerDegradation():
 	if (pp_damage_bc.countval("lo_3")) pp_damage_bc.getarr("lo_3",bc_lo_3);
 	if (pp_damage_bc.countval("hi_3")) pp_damage_bc.getarr("hi_3",bc_hi_3);
 
-	damage.bc = new BC::Constant(bc_hi_str, bc_lo_str
+	damage.bc = new BC::Constant(1,bc_hi_str, bc_lo_str
 				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
 				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
 
@@ -660,16 +660,16 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		elastic.model[ilev].define(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes);
-		elastic.model[ilev].setVal((material.modeltype));
-		DegradeMaterial(ilev,elastic.model[ilev]);
+		elastic.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<pd_model_type>>(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells));
+		elastic.model[ilev]->setVal((material.modeltype));
+		DegradeMaterial(ilev,*(elastic.model)[ilev]);
 	}
 
 	//Util::Message(INFO);
 	elastic.op.define(geom, grids, dmap, info);
 
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-		elastic.op.SetModel(ilev,elastic.model[ilev]);
+	//for (int ilev = 0; ilev < nlevels; ++ilev)
+	//	elastic.op.SetModel(ilev,elastic.model[ilev]);
 	
 	elastic.op.setMaxOrder(elastic.linop_maxorder);
 	
@@ -691,7 +691,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		elastic.op.SetBC(&(elastic.bc));
 
 		//Util::Message(INFO);
-		Solver::Nonlocal::Linear solver(elastic.op);
+		Solver::Nonlocal::Newton<pd_model_type> solver(elastic.op);
 		solver.setMaxIter(elastic.max_iter);
 		solver.setMaxFmgIter(elastic.max_fmg_iter);
 		solver.setFixedIter(elastic.max_fixed_iter);
@@ -704,8 +704,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 		if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 		else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
-		solver.solve(GetVecOfPtrs(displacement), GetVecOfConstPtrs(rhs), elastic.tol_rel, elastic.tol_abs);
-		solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
+		solver.solve(displacement,rhs,elastic.model,elastic.tol_rel,elastic.tol_abs);
+		//solver.solve(GetVecOfPtrs(displacement), GetVecOfConstPtrs(rhs), elastic.tol_rel, elastic.tol_abs);
+		//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 		for (int lev = 0; lev < nlevels; lev++)
 		{
 			elastic.op.Strain(lev,*strain[lev],*displacement[lev]);
@@ -880,7 +881,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 			elastic.op.SetBC(&(elastic.bc));
 
 			//Util::Message(INFO);
-			Solver::Nonlocal::Linear solver(elastic.op);
+			Solver::Nonlocal::Newton<pd_model_type> solver(elastic.op);
 			solver.setMaxIter(elastic.max_iter);
 			solver.setMaxFmgIter(elastic.max_fmg_iter);
 			solver.setFixedIter(elastic.max_fixed_iter);
@@ -893,8 +894,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 			if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 			else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
-			solver.solve(GetVecOfPtrs(displacement), GetVecOfConstPtrs(rhs), elastic.tol_rel, elastic.tol_abs);
-			solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
+			solver.solve(displacement, rhs, elastic.model, elastic.tol_rel, elastic.tol_abs);
+			//solver.solve(GetVecOfPtrs(displacement), GetVecOfConstPtrs(rhs), elastic.tol_rel, elastic.tol_abs);
+			//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 			for (int lev = 0; lev < nlevels; lev++)
 			{
 				elastic.op.Strain(lev,*strain[lev],*displacement[lev]);
