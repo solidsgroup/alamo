@@ -112,13 +112,6 @@ void CrystalPlastic::initializeSlip(Set::Matrix R)
 		//Util::Message(INFO,"Tcrss = ", slipSystem[i].Tcrss);
 	}
 }
-
-double CrystalPlastic::CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig) 
-{
-	double a;
-	a = ss.transpose()*sig*nn;
-	return a;
-}
 std::array<double, 12> CrystalPlastic::StressSlipSystem(const Set::Matrix& sig)
 {
 	std::array<double,12> a;
@@ -156,11 +149,9 @@ void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 			double a = slipSystem[i].s.transpose()*sig*slipSystem[i].n;
 			int sign = sgn(a);
 			slipSystem[i].galphad = (double)sign*gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
-			
 			temp += slipSystem[i].galphad*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
 		}
 	}
-	// Euler integration
 	esp = esp + temp*dt;
 }
 Eigen::Matrix<double,12,1> CrystalPlastic::G()
@@ -181,7 +172,6 @@ Eigen::Matrix<double,12,1> CrystalPlastic::G()
 	//Util::Message(INFO, k,"\n");
 	return k;
 }
-
 void CrystalPlastic::LatentHardening()
 {
 	Eigen::Matrix<double,12,12> H = Eigen::Matrix<double,12,12>::Identity();
@@ -205,16 +195,12 @@ void CrystalPlastic::LatentHardening()
 	//Util::Message(INFO, haa.transpose() ,"\n");
 	//Util::Message(INFO, H ,"\n");
 }
-
 void CrystalPlastic::update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt)
 {
-	//for(double t = 0.0; t < _dt; t += dt)
-	//{
-		Time += dt;
-		AdvanceEsp(sigma);
-		LatentHardening();
-		sigma = UpdateSigma(es);
-	//}
+	Time += dt;
+	AdvanceEsp(sigma);
+	LatentHardening();
+	sigma = UpdateSigma(es);
 }
 Set::Matrix CrystalPlastic::UpdateSigma(const Set::Matrix& es)
 {
@@ -227,129 +213,11 @@ Set::Matrix CrystalPlastic::GetEsp() const
 }
 double CrystalPlastic::getGamma(int index) const
 {
-	//return slipSystem[index].galpha;
+	return slipSystem[index].gam;
 }
 void CrystalPlastic::Setdt(double _dt)
 {
 	dt = _dt;
-}
-//----------DFP Functions-----------//
-
-Eigen::Matrix<amrex::Real,9,1> CrystalPlastic::DFP(vector2d x0, double tol, double alpha1, double alpha2, double dx, const Set::Matrix& sig)
-{
-	vector2d xnew = x0;
-	vector2d xprev = -xnew; xprev(1) -= 100;
-	matrix22 Hnew, Hprev;
-	Hnew = matrix22::Identity(); Hprev = matrix22::Identity();
-
-	while (abs(xnew.norm() - xprev.norm()) >= tol)
-	{
-		
-		vector2d R = -Hnew * getGrad(xnew, dx, sig);
-		R.normalize();
-		
-		double temp = secantMethod(dx, alpha1, alpha2, tol, xnew, R, sig);
-		//Util::Message(INFO,"temp = ", temp);
-		xprev = xnew;
-		xnew = xnew + temp * R;
-
-		vector2d gamma = getGrad(xnew, dx, sig) - getGrad(xprev,dx, sig);
-		vector2d del = xnew - xprev;
-
-		Hprev = Hnew;
-		Hnew = Hprev + (del * del.transpose()) / (del.transpose() * del) 
-		- (Hprev * (gamma*gamma.transpose()) * Hprev) / (gamma.transpose() * Hprev * gamma);
-		//Util::Message(INFO,"x = ", xnew.transpose());
-	}
-	return xnew;
-}
-
-double CrystalPlastic::secantMethod(double dx, double a1, double a2, double tol, vector2d x_new, vector2d r, const Set::Matrix& sig)
-{
-	double a = a1; double b = a2;
-	while (abs(a - b) >= tol)
-	{
-		double df1 = (f(x_new + (b + dx) * r, sig) - f(x_new + (b - dx) * r, sig)) / (2 * dx);
-		double df2 = (f(x_new + (a + dx) * r, sig) - f(x_new + (a - dx) * r, sig)) / (2 * dx);
-		double temp = b - 0.8*((df1*(b - a)) / (df1 - df2));
-
-		a = b;
-		b = temp;
-	}
-	return b;
-}
-
-Set::Scalar CrystalPlastic::f(vector2d x, const Set::Matrix& es)
-{
-	Set::Matrix epsilon = es; 
-	for(int i= 0; i < 3; i++)
-	{
-		for(int j = 0; j < 3; j++)
-		{
-			if(Mask(i,j)) epsilon(i,j) = es(i,j); 
-			else epsilon(i,j) = x(i*3+j);
-		}
-	}
-
-	//					 epsilon(0,1) = x(0); epsilon(0,2) = x(1);
-	//epsilon(1,0) = x(2); epsilon(1,1) = x(3); epsilon(1,2) = x(4);
-	//epsilon(2,0) = x(5); epsilon(2,1) = x(6); epsilon(2,2) = x(7);
-	Set::Matrix temp = epsilon - esp;
-	Set::Scalar s = W(temp);
-	//Util::Message(INFO,"W = ",s);
-	return s;
-}
-
-Eigen::Matrix<amrex::Real,9,1> CrystalPlastic::getGrad(vector2d x, double dx, const Set::Matrix& sig)
-{
-	vector2d grad = vector2d::Zero();
-	for (int i = 0; i < dim; i++)
-	{
-		vector2d xp = x; vector2d xm = x;
-		xp(i) = x(i) + dx;
-		xm(i) = x(i) - dx;
-
-		grad(i) = ( f(xp, sig) - f(xm, sig) ) / (2 * dx);
-	}
-	//Util::Message(INFO,"grad = ", grad);
-	return grad;
-}
-//--------------------------------//
-Set::Matrix CrystalPlastic::relax(const Set::Matrix& _es, const double e, const Set::iMatrix& _mask) 
-{
-	Mask = _mask;
-	vector2d x;
-	for(int i= 0; i < 3; i++)
-	{
-		for(int j = 0; j < 3; j++)
-		{
-			if(Mask(i,j)) x(i*3+j) = _es(i,j); 
-			else x(i*3+j) = 0;
-		}
-	}
-	x(4) = -e-1e-2; x(8) = -e-1e-2; //for extension 
-	//x(3) = e-1e-2; //x(7) = -e-1e-2; // for shear
-	vector2d xprev = vector2d::Zero(); xprev(1) = 100;
-	Set::Matrix ep = Set::Matrix::Zero();
-
-	while(abs(x.norm() - xprev.norm()) >= 1e-5)
-	{
-		xprev = x;
-		x = DFP(x,1e-5,0.1,0.8,1e-5,_es);
-		//Util::Message(INFO,"ffff= ", counter);
-	}
-	for(int i= 0; i < 3; i++)
-	{
-		for(int j = 0; j < 3; j++)
-		{
-			if(Mask(i,j)) ep(i,j) = _es(i,j); 
-			else ep(i,j) = x(i*3+j);
-		}
-	}
-	//ep(0,0) = e;	ep(0,1) = x(0); ep(0,2) = x(1);
-	//ep(1,0) = x(2); ep(1,1) = x(3); ep(1,2) = x(4);
-	//(2,0) = x(5); ep(2,1) = x(6); ep(2,2) = x(7);
-	return ep;
 }
 void
 CrystalPlastic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)

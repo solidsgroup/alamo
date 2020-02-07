@@ -14,18 +14,10 @@ namespace Solid
 namespace CrystalPlastic
 {
 
-class CrystalPlastic : public Solid<Set::Sym::MajorMinor>
+class CrystalPlastic : public Model::Solid::Solid<Set::Sym::MajorMinor>
 {
 private:
-	static constexpr int dim = 9;
-	using vector2d = Eigen::Matrix<amrex::Real,dim,1>;
-	using matrix22 = Eigen::Matrix<amrex::Real,dim,dim>;
 
-	void initializeSlip(Set::Matrix R = Set::Matrix::Identity());
-	void initializeSlip(Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
-	Eigen::Matrix<double,12,12> setF();
-	Eigen::Matrix<double,12,1> G();
-	
 	struct slip
 	{
 		Set::Vector n;
@@ -65,16 +57,31 @@ private:
 	static Set::Scalar constexpr ss = 20.0; 
 	static Set::Scalar constexpr nn = 8.0;
 	
-	static Set::Scalar constexpr q = 0; // 1
+	static Set::Scalar constexpr q = 0; 
 
 	Set::Scalar dt = 1.0e-5;
 	double Time = 0.0;
-	//***********DFP************//
-	Set::iMatrix Mask = Set::iMatrix::Zero();
-	//double w1 = 10.0;
-	//double w2 = 10.0;
+	//******** Functions **********//
+
+	void initializeSlip(Set::Matrix R = Set::Matrix::Identity());
+	void initializeSlip(Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
+	template <typename T> inline constexpr
+	int sgn(T a)
+	{
+		if (a > 0) return 1;
+		if (a < 0) return -1;
+		return 0;
+	}
+	Eigen::Matrix<double,12,12> setF();
+	Eigen::Matrix<double,12,1> G();
+	void GetActivePlains(const Set::Matrix& sig); 
+	Set::Matrix UpdateSigma(const Set::Matrix& es);
+	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
+	void AdvanceEsp(const Set::Matrix& sig);
+	void LatentHardening();
 
 public:
+
 	Set::Matrix Epsp = Set::Matrix::Zero(); // Eshelby
 	std::array<Set::Matrix,AMREX_SPACEDIM> gradEpsp;
 	CrystalPlastic() 
@@ -96,34 +103,12 @@ public:
 	virtual Set::Vector   DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
 	virtual Set::Matrix4<3,Set::Sym::MajorMinor> DDW (Set::Matrix &eps) const;
 //----------------------//
-	template <typename T> inline constexpr
-	int sgn(T a)
-	{
-		if (a > 0) return 1;
-		if (a < 0) return -1;
-		return 0;
-	}
+
 	std::array<double,12> StressSlipSystem(const Set::Matrix& sig);
-	double CalcSSigN (const Set::Vector ss, const Set::Vector nn, const Set::Matrix& sig);
-	void GetActivePlains(const Set::Matrix& sig); 
-	Set::Matrix UpdateSigma(const Set::Matrix& es);
-	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
-	void AdvanceEsp(const Set::Matrix& sig);
 	void Setdt(const double _dt);
-	void LatentHardening();
-	Eigen::Matrix<double,12,12> coplanar();
-	Set::Matrix relax(const Set::Matrix& _es, double e, const Set::iMatrix& _mask);
 	Set::Matrix GetEsp() const;
 	double getGamma(int index) const;
-//DFP
 
-	double secantMethod(double dx, double a1, double a2, double tol, vector2d x_new, vector2d r, const Set::Matrix& sig);
-	Set::Scalar f(vector2d x, const Set::Matrix& es);
-	vector2d getGrad(vector2d x, double dx, const Set::Matrix& sig);
-	vector2d DFP(vector2d x0, double tol, double alpha1, double alpha2, double dx, const Set::Matrix& sig);
-	Eigen::Matrix<amrex::Real,9,1> mat2vec(const Set::Matrix epsilon);
-	Set::Matrix vec2mat(const Eigen::Matrix<amrex::Real,9,1> ep);
-//
 	void Randomize();
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
@@ -147,8 +132,6 @@ public:
 	{CrystalPlastic ret = *this; ret.C /= alpha; return ret;}
 
 	void operator += (const CrystalPlastic &rhs) {C += rhs.C;}
-
-
 };
 
 }

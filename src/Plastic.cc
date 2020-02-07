@@ -6,8 +6,8 @@
 #include <string>
 #include "Util/Util.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
-#include "Integrator/EshelbyPlastic.H"
-//#include "IO/ParmParse.H"
+//#include "Integrator/EshelbyPlastic.H"
+#include "IO/ParmParse.H"
 #include "Solver/Local/CG.H"
 using namespace Model::Solid::CrystalPlastic;
 
@@ -105,7 +105,6 @@ int main (int argc, char* argv[])
 		Set::Matrix temp;
 	 	//es(0,0) = c*t;
 		es(0,1) = c*t;
-		es = cp.relax(es, es(0,1),mask);
 		temp = (es - esp);
 		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,true);
 		Util::Message(INFO,sigma);
