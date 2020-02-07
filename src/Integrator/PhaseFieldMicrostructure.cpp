@@ -143,6 +143,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
+	RegisterNewFab(elasticdf_mf, mybc, number_of_grains, number_of_ghost_cells, "elastic df",true);
 
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
@@ -202,11 +203,12 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const *energies;
+		amrex::Array4<amrex::Real> const &edf = (*elasticdf_mf[lev]).array(mfi);
+		//amrex::Array4<amrex::Real> const *energies;
 		if (elastic.on)
 		{
-			amrex::Array4<amrex::Real> const &tmp_energies = (*energies_mf[lev]).array(mfi);
-			energies = &tmp_energies;
+			//amrex::Array4<amrex::Real> const &tmp_energies = (*energies_mf[lev]).array(mfi);
+			//energies = &tmp_energies;
 		}
 		
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -380,8 +382,19 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				{
 					//driving_force += (*energies)(i,j,k,m);
 
-					Set::Scalar sig12 = 0.25*(sigma(i,j,k,1) + sigma(i+1,j,k,1) + sigma(i,j+1,k,1)+ sigma(i+1,j+1,k,1));
-					driving_force += + pf.elastic_mult*sig12;
+
+					Set::Matrix sig;
+					sig(0,0) = 0.25*(sigma(i,j,k,0) + sigma(i+1,j,k,0) + sigma(i,j+1,k,0)+ sigma(i+1,j+1,k,0));
+					sig(0,1) = 0.25*(sigma(i,j,k,1) + sigma(i+1,j,k,1) + sigma(i,j+1,k,1)+ sigma(i+1,j+1,k,1));
+					sig(1,0) = 0.25*(sigma(i,j,k,2) + sigma(i+1,j,k,2) + sigma(i,j+1,k,2)+ sigma(i+1,j+1,k,2));
+					sig(1,1) = 0.25*(sigma(i,j,k,3) + sigma(i+1,j,k,3) + sigma(i,j+1,k,3)+ sigma(i+1,j+1,k,3));
+
+					edf(i,j,k,m) = pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
+					driving_force += pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
+
+					//if (m == 0) driving_force += pf.elastic_mult model1.F0
+
+					//driving_force += + pf.elastic_mult*sig12;
 				}
 
 				//

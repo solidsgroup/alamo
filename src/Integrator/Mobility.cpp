@@ -171,8 +171,6 @@ Mobility::TimeStepBegin(amrex::Real /*time*/, int iter)
 		model_mf[lev]->setVal(elastic.model);
 		gammagb_mf[lev]->FillBoundary();
 		
-		const amrex::Real* DX  = geom[lev].CellSize();
-
 		for (MFIter mfi(*model_mf[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
@@ -229,25 +227,13 @@ Mobility::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<const Set::Scalar> const & L = L_mf[lev]->array(mfi);
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 		{
-			Set::Scalar x1 = geom[lev].ProbLo()[0] + ((Set::Scalar)(i)) * geom[lev].CellSize()[0];
-
-			//if (x1 >= xs[1] && x1 <= xs[xs.size()-2]) 
-			{
-				Set::Scalar df = 0.0;
-
-				Set::Scalar gammagb0 = 0.5*fabs(physics.gammagb2 - physics.gammagb1);
-
-				df += - physics.gamma *(Set::Constant::Pi/gammagb0) * sin(Set::Constant::Pi * gammagbold(i,j,k) / gammagb0);
-				Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
-				df += - physics.elastic_mult*sig12;
-				df += - physics.kappa*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
-				gammagb(i,j,k) = gammagbold(i,j,k) - dt * L(i,j,k) * df;
-				//gammagb(i,j,k) = 0.0;
-			}
-			//else
-			//{
-			//	gammagb(i,j,k) = gammagbold(i,j,k);
-			//}
+			Set::Scalar df = 0.0;
+			Set::Scalar gammagb0 = 0.5*fabs(physics.gammagb2 - physics.gammagb1);
+			df += - physics.gamma *(Set::Constant::Pi/gammagb0) * sin(Set::Constant::Pi * gammagbold(i,j,k) / gammagb0);
+			Set::Scalar sig12 = 0.25*(Sigma(i,j,k,1) + Sigma(i+1,j,k,1) + Sigma(i,j+1,k,1)+ Sigma(i+1,j+1,k,1));
+			df += - physics.elastic_mult*sig12;
+			df += - physics.kappa*Numeric::Laplacian(gammagbold,i,j,k,0,DX);
+			gammagb(i,j,k) = gammagbold(i,j,k) - dt * L(i,j,k) * df;
 		});
 	}
 }

@@ -25,6 +25,8 @@ public:
 	Linear(const std::string a_str)
 	{
 		std::string str = a_str;
+		Util::Message(INFO,str);
+		
 		if (Util::String::Contains(str,"(") || Util::String::Contains(str,":") || Util::String::Contains(str,")") || Util::String::Contains(str,","))
 		{
 			if (!Util::String::Contains(str,"(")) Util::Abort(INFO,"Mismatched parentheses while trying to parse ",str);
