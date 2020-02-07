@@ -26,10 +26,10 @@ public:
 
 	TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom,
 						std::vector<Set::Scalar> a_xs, std::vector<Set::Scalar> a_ys,
-						Set::Scalar a_alpha1, Set::Scalar a_alpha2, Type a_type = Type::Partition) :
+						Set::Scalar a_alpha1, Set::Scalar a_alpha2, Type a_type = Type::Values) :
 	IC(_geom)
 	{
-		Define(a_xs,a_ys,Type::Values,a_alpha1,a_alpha2);
+		Define(a_xs,a_ys,a_type,a_alpha1,a_alpha2);
 	}
 
 	void Define(std::vector<Set::Scalar> a_xs, std::vector<Set::Scalar> a_ys, 
