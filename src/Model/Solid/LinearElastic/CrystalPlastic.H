@@ -96,22 +96,22 @@ public:
 	}
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
-	~CrystalPlastic() {};
+	virtual ~CrystalPlastic() {};
 
-	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
-	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
-Set::Scalar W(Set::Matrix gradu)
-{
-	return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
-}
-Set::Matrix DW(Set::Matrix gradu)
-{
-	return ddw*gradu;
-}
-Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/)
-{
-	return ddw;
-}
+	//virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
+	//virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
+	Set::Scalar W(Set::Matrix gradu)
+	{
+		return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
+	}
+	Set::Matrix DW(Set::Matrix gradu)
+	{
+		return ddw*gradu;
+	}
+	Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/)
+	{
+		return ddw;
+	}
 //----------------------//
 
 	std::array<double,12> StressSlipSystem(const Set::Matrix& sig);
