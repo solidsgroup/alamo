@@ -15,7 +15,7 @@ PolymerDegradation::PolymerDegradation():
 	// ---------------------------------------------------------------------
 	// --------------------- Water diffusion -------------------------------
 	// ---------------------------------------------------------------------
-	amrex::ParmParse pp_water("water");
+	IO::ParmParse pp_water("water");
 	pp_water.query("on",water.on);
 	if(water.on)
 	{
@@ -26,7 +26,7 @@ PolymerDegradation::PolymerDegradation():
 		// // Determine initial condition
 		if (water.ic_type == "constant")
 		{
-			amrex::ParmParse pp_water_ic("water.ic");
+			IO::ParmParse pp_water_ic("water.ic");
 			std::vector<amrex::Real> value;
 			pp_water_ic.queryarr("value",value);
 			water.ic = new IC::Constant(geom,value);
@@ -34,28 +34,8 @@ PolymerDegradation::PolymerDegradation():
 		else
 			Util::Abort(INFO, "This kind of IC has not been implemented yet");
 
-		amrex::ParmParse pp_water_bc("water.bc");
-
-		amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
-		amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
-
-		pp_water_bc.queryarr("lo",bc_lo_str,0,AMREX_SPACEDIM);
-		pp_water_bc.queryarr("hi",bc_hi_str,0,AMREX_SPACEDIM);
-		amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-		amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-		amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-
-		if (pp_water_bc.countval("lo_1")) pp_water_bc.getarr("lo_1",bc_lo_1);
-		if (pp_water_bc.countval("hi_1")) pp_water_bc.getarr("hi_1",bc_hi_1);
-		if (pp_water_bc.countval("lo_2")) pp_water_bc.getarr("lo_2",bc_lo_2);
-		if (pp_water_bc.countval("hi_2")) pp_water_bc.getarr("hi_2",bc_hi_2);
-		if (pp_water_bc.countval("lo_3")) pp_water_bc.getarr("lo_3",bc_lo_3);
-		if (pp_water_bc.countval("hi_3")) pp_water_bc.getarr("hi_3",bc_hi_3);
-
-		water.bc = new BC::Constant(1, bc_hi_str, bc_lo_str
-							  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
-							  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
-							  );
+		water.bc = new BC::Constant(1);
+		pp_water.queryclass("bc",*static_cast<BC::Constant *>(water.bc));
 
 		RegisterNewFab(water_conc,     water.bc, 1, number_of_ghost_cells, "Water Concentration",true);
 		RegisterNewFab(water_conc_old, water.bc, 1, number_of_ghost_cells, "Water Concentration Old",false);
@@ -65,7 +45,7 @@ PolymerDegradation::PolymerDegradation():
 	// ---------------------------------------------------------------------
 	// --------------------- Heat diffusion -------------------------------
 	// ---------------------------------------------------------------------
-	amrex::ParmParse pp_heat("thermal");
+	IO::ParmParse pp_heat("thermal");
 	pp_heat.query("on",thermal.on);
 	if(thermal.on)
 	{
@@ -83,28 +63,8 @@ PolymerDegradation::PolymerDegradation():
 		else
 			Util::Abort(INFO, "This kind of IC has not been implemented yet");
 
-		amrex::ParmParse pp_heat_bc("thermal.bc");
-
-		amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
-		amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
-
-		pp_heat_bc.queryarr("lo",bc_lo_str,0,AMREX_SPACEDIM);
-		pp_heat_bc.queryarr("hi",bc_hi_str,0,AMREX_SPACEDIM);
-		amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-		amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-		amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-
-		if (pp_heat_bc.countval("lo_1")) pp_heat_bc.getarr("lo_1",bc_lo_1);
-		if (pp_heat_bc.countval("hi_1")) pp_heat_bc.getarr("hi_1",bc_hi_1);
-		if (pp_heat_bc.countval("lo_2")) pp_heat_bc.getarr("lo_2",bc_lo_2);
-		if (pp_heat_bc.countval("hi_2")) pp_heat_bc.getarr("hi_2",bc_hi_2);
-		if (pp_heat_bc.countval("lo_3")) pp_heat_bc.getarr("lo_3",bc_lo_3);
-		if (pp_heat_bc.countval("hi_3")) pp_heat_bc.getarr("hi_3",bc_hi_3);
-
-		thermal.bc = new BC::Constant(1,bc_hi_str, bc_lo_str
-								,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
-							  	,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3)
-						);
+		thermal.bc = new BC::Constant(1);
+		pp_heat.queryclass("bc",*static_cast<BC::Constant *>(thermal.bc));
 	}
 	else
 		thermal.bc = new BC::Nothing();
@@ -139,7 +99,7 @@ PolymerDegradation::PolymerDegradation():
 	// --------------------- Damage model ----------------------------------
 	// ---------------------------------------------------------------------
 	Util::Message(INFO);
-	amrex::ParmParse pp_damage("damage"); // Phase-field model parameters
+	IO::ParmParse pp_damage("damage"); // Phase-field model parameters
 	pp_damage.query("anisotropy",damage.anisotropy);
 
 	if(damage.anisotropy == 0)
@@ -223,29 +183,8 @@ PolymerDegradation::PolymerDegradation():
 	else
 		Util::Abort(INFO, "This kind of IC has not been implemented yet");
 
-	amrex::ParmParse pp_damage_bc("damage.bc");
-
-	amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
-	amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
-
-	pp_damage_bc.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
-	pp_damage_bc.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
-	amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-	amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-	amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-
-	if (pp_damage_bc.countval("lo_1")) pp_damage_bc.getarr("lo_1",bc_lo_1);
-	if (pp_damage_bc.countval("hi_1")) pp_damage_bc.getarr("hi_1",bc_hi_1);
-
-	if (pp_damage_bc.countval("lo_2")) pp_damage_bc.getarr("lo_2",bc_lo_2);
-	if (pp_damage_bc.countval("hi_2")) pp_damage_bc.getarr("hi_2",bc_hi_2);
-
-	if (pp_damage_bc.countval("lo_3")) pp_damage_bc.getarr("lo_3",bc_lo_3);
-	if (pp_damage_bc.countval("hi_3")) pp_damage_bc.getarr("hi_3",bc_hi_3);
-
-	damage.bc = new BC::Constant(1,bc_hi_str, bc_lo_str
-				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
-				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
+	damage.bc = new BC::Constant(damage.number_of_eta);
+	pp_damage.queryclass("bc",*static_cast<BC::Constant *>(damage.bc));
 
 	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old",true);
