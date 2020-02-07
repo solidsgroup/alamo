@@ -118,30 +118,41 @@ public:
 		
 		std::vector<std::string> str;
 		pp.queryarr("type.xlo",str); 
-			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO][i] = bcmap[str[i]]; 
+		Util::Message(INFO,str[0], " ", str.size(), " ", value.m_ncomp);
+			if (str.size() == value.m_ncomp) 
+			{
+				for (unsigned int i = 0; i < value.m_ncomp; i++) 
+					value.m_bc_type[Face::XLO][i] = bcmap[str[i]]; 
+			}
 			else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of BC args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+		Util::Message(INFO);
 		pp.queryarr("type.xhi",str);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI][i] = bcmap[str[i]]; 
 			else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of BC args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+		Util::Message(INFO);
 		pp.queryarr("type.ylo",str);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO][i] = bcmap[str[i]]; 
 			else if (str.size() == 1) value.m_bc_type[Face::YLO].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of BC args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+		Util::Message(INFO);
 		pp.queryarr("type.yhi",str);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI][i] = bcmap[str[i]]; 
 			else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of BC args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+		Util::Message(INFO);
 		#if AMREX_SPACEDIM==3
 		pp.queryarr("type.zlo",str);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO][i] = bcmap[str[i]]; 
 			else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of BC args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+		Util::Message(INFO);
 		pp.queryarr("type.zhi",str);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI][i] = bcmap[str[i]]; 
 			else if (str.size() == 1) value.m_bc_type[Face::ZHI].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of BC args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+		Util::Message(INFO);
 		#endif
 
 		// VALS

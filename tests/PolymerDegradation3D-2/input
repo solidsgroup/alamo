@@ -53,17 +53,23 @@ water.refinement_threshold = 0.01
 
 water.ic_type = constant
 water.ic.value = 0.0
-water.bc.lo = EXT_DIR EXT_DIR EXT_DIR
+#water.bc.lo = EXT_DIR EXT_DIR EXT_DIR
+water.bc.type.xlo = EXT_DIR 
+water.bc.type.ylo = EXT_DIR
+water.bc.type.zlo = EXT_DIR
+water.bc.type.xhi = EXT_DIR 
+water.bc.type.yhi = EXT_DIR
+water.bc.type.zhi = EXT_DIR
+
+water.bc.val.xlo = 0.0
+water.bc.val.xhi = 0.0
+water.bc.val.ylo = 1.0
+water.bc.val.yhi = 1.0
+water.bc.val.zlo = 1.0
+water.bc.val.zhi = 1.0
+
 #water.bc.lo = REFLECT_EVEN REFLECT_EVEN REFLECT_EVEN
-water.bc.hi = EXT_DIR EXT_DIR EXT_DIR
-water.bc.lo_1 = 0.0
-water.bc.hi_1 = 0.0
-#water.bc.lo_2 = 0.0
-water.bc.lo_2 = 1.0
-water.bc.hi_2 = 1.0
-#water.bc.lo_3 = 0.0
-water.bc.lo_3 = 1.0
-water.bc.hi_3 = 1.0
+
 #===========================================================================
 
 #=============== Heat diffusion parameters =================================
@@ -124,8 +130,8 @@ damage.t_start_i = 0 12 0 12 0 12 0 12
 
 damage.ic_type = constant
 damage.ic.value = 0.0 0.0 0.0 0.0
-damage.bc.lo = NEUMANN NEUMANN NEUMANN
-damage.bc.hi = NEUMANN NEUMANN NEUMANN
+damage.bc.lo = NEUMANN NEUMANN NEUMANN NEUMANN
+damage.bc.hi = NEUMANN NEUMANN NEUMANN NEUMANN
 #damage.bc.lo = EXT_DIR EXT_DIR EXT_DIR
 #damage.bc.hi = EXT_DIR EXT_DIR EXT_DIR
 damage.bc.lo_1 = 0.0 0.0 0.0 0.0
