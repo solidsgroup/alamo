@@ -76,7 +76,6 @@ private:
 	Eigen::Matrix<double,12,1> G();
 	void GetActivePlains(const Set::Matrix& sig); 
 	Set::Matrix UpdateSigma(const Set::Matrix& es);
-	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
 	void AdvanceEsp(const Set::Matrix& sig);
 	void LatentHardening();
 
@@ -108,6 +107,7 @@ public:
 	void Setdt(const double _dt);
 	Set::Matrix GetEsp() const;
 	double getGamma(int index) const;
+	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
 
 	void Randomize();
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());

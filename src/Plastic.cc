@@ -100,7 +100,6 @@ int main (int argc, char* argv[])
 		
 	for(double t = 0.0; t <= T; t += dt)
 	{
-		Util::Message(INFO,"t=",t," T=",T);
 		Set::Matrix esp = cp.GetEsp();
 		Set::Matrix temp;
 	 	//es(0,0) = c*t;
@@ -112,7 +111,7 @@ int main (int argc, char* argv[])
 
 		if( counter % 100 == 0)
 		{
-			gamma = cp.StressSlipSystem(sigma);
+			//gamma = cp.StressSlipSystem(sigma);
 			//for(int i = 0; i < 12; i++)
 			//{
 			//	gamma[i] = cp.getGamma(i);
@@ -126,9 +125,7 @@ int main (int argc, char* argv[])
 			savefile((float)es(0,1), (float)sigma(0,1), src.c_str()); 
 			//savefile(gamma,t,src2.c_str());
 		}
-		Util::Message(INFO);
 		counter++;
-		Util::Message(INFO);
 	}
 	Util::Message(INFO,"es() = ", es);
 	//Util::Message(INFO,"esp() = ", esp);
