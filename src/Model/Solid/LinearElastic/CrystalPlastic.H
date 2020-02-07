@@ -7,6 +7,8 @@
 
 #include "Set/Set.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
+#include "Model/Solid/Solid.H"
+
 namespace Model
 {
 namespace Solid
@@ -14,7 +16,7 @@ namespace Solid
 namespace CrystalPlastic
 {
 
-class CrystalPlastic : public Model::Solid::Solid<Set::Sym::MajorMinor>
+class CrystalPlastic : public Solid<Set::Sym::MajorMinor>
 {
 private:
 
@@ -80,9 +82,10 @@ private:
 	void LatentHardening();
 
 public:
-
+	static const KinematicVariable kinvar = KinematicVariable::gradu;
 	Set::Matrix Epsp = Set::Matrix::Zero(); // Eshelby
 	std::array<Set::Matrix,AMREX_SPACEDIM> gradEpsp;
+	CrystalPlastic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
 	CrystalPlastic() 
 	{
 		initializeSlip();
@@ -97,10 +100,18 @@ public:
 
 	virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
 	virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
-	virtual Set::Scalar    W (Set::Matrix &eps) const;
-	virtual Set::Matrix   DW (Set::Matrix &eps) const;
-	virtual Set::Vector   DW (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps);
-	virtual Set::Matrix4<3,Set::Sym::MajorMinor> DDW (Set::Matrix &eps) const;
+Set::Scalar W(Set::Matrix gradu)
+{
+	return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
+}
+Set::Matrix DW(Set::Matrix gradu)
+{
+	return ddw*gradu;
+}
+Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/)
+{
+	return ddw;
+}
 //----------------------//
 
 	std::array<double,12> StressSlipSystem(const Set::Matrix& sig);
@@ -109,10 +120,23 @@ public:
 	double getGamma(int index) const;
 	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
 
-	void Randomize();
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	
+	static CrystalPlastic Random()
+    {
+        return Random(Util::Random(), Util::Random(), Util::Random());
+    }
+    static CrystalPlastic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
+    {
+        CrystalPlastic ret;
+	    Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random();
+	    Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random();
+	    Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
+        ret.define(C11,C12,C44,phi1,Phi,phi2);
+        return ret;
+    }
+/*
 	CrystalPlastic operator + (const CrystalPlastic &rhs) const
 	{CrystalPlastic ret = *this; ret.C += rhs.C; return ret;}
 
@@ -132,6 +156,7 @@ public:
 	{CrystalPlastic ret = *this; ret.C /= alpha; return ret;}
 
 	void operator += (const CrystalPlastic &rhs) {C += rhs.C;}
+	*/
 };
 
 }
