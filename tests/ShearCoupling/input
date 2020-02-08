@@ -1,12 +1,12 @@
 alamo.program = microstructure
 
-timestep = 0.1
+timestep = 0.05
 stop_time = 500
 
 plot_file = tests/ShearCoupling/output
 
 #amr.plot_int = 50
-amr.plot_dt = 0.1
+amr.plot_dt = 1.0
 amr.max_level = 3
 #amr.n_cell = 32 4
 amr.n_cell = 64 64 64
@@ -20,16 +20,18 @@ ic.wave_numbers=2
 ic.wave_amplitudes=1.0
 
 ic.type=tabulated_interface
-ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
-ic.ys = -0.5 -0.5 0.5 0.5 -0.5 -0.5
+#ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
+#ic.ys = -0.5 -0.5 0.5 0.5 -0.5 -0.5
 #ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
 #ic.ys = -1.0 -1.0 1.0 1.0 -1.0 -1.0
 #ic.xs = 0.0  2.49999 2.5 2.99999 3.0     5.0  5.00001 8.0
 #ic.ys = -1.0 -1.0    -0.9 -0.9    1.0     1.0 -1.0     -1.0
 #ic.xs = 0.0 3.99999 4.0     8.0
 #ic.ys = 0.5 0.5 -0.5 -0.5
-ic.xs = 0.0  8.0
-ic.ys = 0.5 -0.5
+#ic.xs = 0.0  8.0
+#ic.ys = 0.5 -0.5
+ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
+ic.ys = -0.0 -0.0 0.5 0.5 -0.0 -0.0
 
 
 geometry.prob_lo = 0 -4 0
@@ -48,24 +50,28 @@ pf.M = 1.0
 pf.mu = 10.0
 pf.gamma = 1.0
 pf.l_gb=0.05
+#pf.l_gb=0.025
 pf.sigma0=0.075
-pf.elastic_mult = -10
+pf.elastic_mult = 400 ############################################################
 
 anisotropy.on=1
 anisotropy.gb_type = sin
-anisotropy.filename = energy_abssin.dat
+#anisotropy.filename = energy_abssin.dat
 anisotropy.timestep=0.01
+anisotropy.elastic_int = 100
 anisotropy.tstart= 1.
 #anisotropy.theta0= 45
 anisotropy.theta0= 0
-anisotropy.sigma0=0.075
+#anisotropy.sigma0=0.075
+anisotropy.sigma0=0.03
 anisotropy.sigma1=0.07
 #anisotropy.beta= 0.00001
 anisotropy.beta= 0.000001
 anisotropy.damp=1.0
 
 elastic.on = 1
-elastic.interval = 100
+#elastic.interval = 100
+elastic.interval = -10
 
 elastic.model1.C11 = 1.68
 elastic.model1.C12 = 1.21
