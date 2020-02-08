@@ -70,6 +70,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("plot_int", anisotropy.plot_dt);
 		pp.query("thermo_int", anisotropy.thermo_int);
 		pp.query("thermo_plot_int", anisotropy.thermo_plot_int);
+		pp.query("elastic_int",anisotropy.elastic_int);
 
 		std::map<std::string, RegularizationType> regularization_type;
 		regularization_type["wilmore"] = RegularizationType::Wilmore;
@@ -380,6 +381,16 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 				if (elastic.on && time > elastic.tstart)
 				{
+					Set::Scalar etasum = 0.0;
+					Set::Matrix F0avg = Set::Matrix::Zero();
+					
+					for (int n = 0; n < number_of_grains; n++)
+					{
+						etasum += eta(i,j,k,n);
+						F0avg  += eta(i,j,k,n) * elastic.model[n].F0;
+					} 
+					
+					Set::Matrix dF0deta = (etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
 					//driving_force += (*energies)(i,j,k,m);
 
 
@@ -389,12 +400,20 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					sig(1,0) = 0.25*(sigma(i,j,k,2) + sigma(i+1,j,k,2) + sigma(i,j+1,k,2)+ sigma(i+1,j+1,k,2));
 					sig(1,1) = 0.25*(sigma(i,j,k,3) + sigma(i+1,j,k,3) + sigma(i,j+1,k,3)+ sigma(i+1,j+1,k,3));
 
-					edf(i,j,k,m) = pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
-					driving_force += pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
+					//edf(i,j,k,m) = pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
+					//driving_force += pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
 
-					//if (m == 0) driving_force += pf.elastic_mult model1.F0
+					if (m == 0)
+					{
+						edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+						driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+					}
+					if (m == 1)
+					{
+						//edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+						//driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+					}
 
-					//driving_force += + pf.elastic_mult*sig12;
 				}
 
 				//
@@ -457,11 +476,16 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
 	if (anisotropy.on && time >= anisotropy.tstart)
+	{
 		SetTimestep(anisotropy.timestep);
+		if (anisotropy.elastic_int > 0) 
+			if (iter % anisotropy.elastic_int) return;
+	}
 	
 	if (!elastic.on) return;
 	if (time < elastic.tstart)   return;
 	if (iter % elastic.interval) return;
+	
 
 	if (finest_level != rhs_mf.size() - 1)
 	{
@@ -495,7 +519,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
 		//for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
-			amrex::Box bx = mfi.growntilebox(2);
+			amrex::Box bx = mfi.grownnodaltilebox(2);
 
 			amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
 			//amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
