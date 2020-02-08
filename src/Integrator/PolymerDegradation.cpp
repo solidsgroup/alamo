@@ -596,7 +596,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		elastic.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<pd_model_type>>(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes));
 		elastic.model[ilev]->setVal((material.modeltype));
-		DegradeMaterial(ilev,*(elastic.model)[ilev]);
+		//DegradeMaterial(ilev,*(elastic.model)[ilev]);
 	}
 
 	elastic.op.define(geom, grids, dmap, info);
@@ -608,9 +608,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		const Real* DX = geom[ilev].CellSize();
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
-		AMREX_D_TERM(rhs[ilev]->setVal(elastic.body_force[0]*volume,0,1);,
-			     rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
-			     rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
+		AMREX_D_TERM(	rhs[ilev]->setVal(elastic.body_force[0]*volume,0,1);,
+			    		rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
+			    		rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
 	}
 
 
@@ -630,12 +630,14 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		solver.setBottomMaxIter(elastic.bottom_max_iter);
 		solver.setBottomTolerance(elastic.cg_tol_rel) ;
 		solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
+		
 		for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Warning(INFO);
 
 		if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 		else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
 		solver.solve(displacement,rhs,elastic.model,elastic.tol_rel,elastic.tol_abs);
 		solver.compResidual(residual,displacement,rhs,elastic.model);
+		
 		for (int lev = 0; lev < nlevels; lev++)
 		{
 			elastic.op.Strain(lev,*strain[lev],*displacement[lev]);
