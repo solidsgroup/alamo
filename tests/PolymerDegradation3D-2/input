@@ -25,14 +25,13 @@ alamo.program = degradation
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 1.0
+stop_time = 2.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
 amr.plot_int = 100
 amr.max_level = 0
 amr.n_cell = 128 32 8
-#amr.n_cell = 256 64 32
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -41,7 +40,6 @@ amr.plot_file = tests/PolymerDegradation3D-2/output
 
 #=============== Specify geometry and unrefined mesh =======================
 geometry.prob_lo = 0 0 0
-#geometry.prob_hi = 27.08 6.605 2.05
 geometry.prob_hi =  32.0 8.0 2.0
 geometry.is_periodic= 0 0 0
 #===========================================================================
@@ -182,7 +180,7 @@ elastic.max_fmg_iter 	=	10000
 elastic.bottom_max_iter =	300
 elastic.max_fixed_iter 	=	1000
 elastic.linop_maxorder 	=	2
-elastic.max_coarsening_level = 100000
+elastic.max_coarsening_level = 1000
 elastic.agglomeration 	=	1
 elastic.consolidation 	=	1
 elastic.tol_rel			=	1.0e-5
@@ -198,22 +196,40 @@ elastic.body_force		=	0.001 0.0 0.0
 elastic.type            =   single
 elastic.int 			=	100
 elastic.tstart 			=	0.0
-elastic.tend			=	1.0
+elastic.tend			=	2.0
+
+elastic.bc.val.xhi       = 0.05 0.0 0.0
+elastic.bc.val.xhiylo    = 0.05 0.0 0.0
+elastic.bc.val.xhiyhi    = 0.05 0.0 0.0
+elastic.bc.val.zloxhi    = 0.05 0.0 0.0
+elastic.bc.val.zhixhi    = 0.05 0.0 0.0
+elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
+elastic.bc.val.xhiylozhi = 0.05 0.0 0.0
+elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
+elastic.bc.val.xhiyhizhi = 0.05 0.0 0.0
+elastic.bc.type.yhi = trac trac trac
+elastic.bc.type.zhi = trac trac trac
+elastic.bc.type.ylo = trac trac trac
+elastic.bc.type.zlo = trac trac trac
+elastic.bc.type.yhizhi = trac trac trac
+elastic.bc.type.ylozhi = trac trac trac
+elastic.bc.type.yhizlo = trac trac trac
+elastic.bc.type.ylozlo = trac trac trac
 
 #elastic.bc.bc_x_min 	=	disp neumann neumann
 #elastic.bc.bc_y_min	=	neumann disp neumann
 #elastic.bc.bc_z_min 	=	neumann neumann disp
 
 #elastic.bc.type.xlo =	disp disp disp
-elastic.bc.type.ylo =	trac trac trac
-elastic.bc.type.zlo =	trac trac trac
+#elastic.bc.type.ylo =	trac trac trac
+#elastic.bc.type.zlo =	trac trac trac
 #elastic.bc.type.xhi =	disp disp disp
-elastic.bc.type.yhi =	trac trac trac
-elastic.bc.type.zhi =	trac trac trac
-elastic.bc.type.yhizhi = trac trac trac
-elastic.bc.type.ylozhi = trac trac trac
-elastic.bc.type.yhizlo = trac trac trac
-elastic.bc.type.ylozlo = trac trac trac
+#elastic.bc.type.yhi =	trac trac trac
+#elastic.bc.type.zhi =	trac trac trac
+#elastic.bc.type.yhizhi = trac trac trac
+#elastic.bc.type.ylozhi = trac trac trac
+#elastic.bc.type.yhizlo = trac trac trac
+#elastic.bc.type.ylozlo = trac trac trac
 
 #elastic.bc.val.xlo = 0.0 0.0 0.0
 #elastic.bc.val.xloylo = 0.0 0.0 0.0
@@ -225,15 +241,15 @@ elastic.bc.type.ylozlo = trac trac trac
 #elastic.bc.val.xloylozhi = 0.0 0.0 0.0
 #elastic.bc.val.xloyhizhi = 0.0 0.0 0.0
 
-elastic.bc.val.xhi = 0.05 0.0 0.0
-elastic.bc.val.xhiylo = 0.05 0.0 0.0
-elastic.bc.val.xhiyhi = 0.05 0.0 0.0
-elastic.bc.val.zloxhi = 0.05 0.0 0.0
-elastic.bc.val.zhixhi = 0.05 0.0 0.0
-elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
-elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
-elastic.bc.val.xhiylozhi = 0.05 0.0 0.0
-elastic.bc.val.xhiyhizhi = 0.05 0.0 0.0
+#elastic.bc.val.xhi = 0.05 0.0 0.0
+#elastic.bc.val.xhiylo = 0.05 0.0 0.0
+#elastic.bc.val.xhiyhi = 0.05 0.0 0.0
+#elastic.bc.val.zloxhi = 0.05 0.0 0.0
+#elastic.bc.val.zhixhi = 0.05 0.0 0.0
+#elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
+#elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
+#elastic.bc.val.xhiylozhi = 0.05 0.0 0.0
+#elastic.bc.val.xhiyhizhi = 0.05 0.0 0.0
 
 # Use the following arguments for a full tensile test experiment.
 #elastic.type            = tensile
