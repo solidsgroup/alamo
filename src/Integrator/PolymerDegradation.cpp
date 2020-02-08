@@ -186,9 +186,12 @@ PolymerDegradation::PolymerDegradation():
 	damage.bc = new BC::Constant(damage.number_of_eta);
 	pp_damage.queryclass("bc",*static_cast<BC::Constant *>(damage.bc));
 
+	damage.bc_time = new BC::Constant(1);
+	pp_damage.queryclass("bc_time",*static_cast<BC::Constant *>(damage.bc_time));
+
 	RegisterNewFab(eta_new, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old, damage.bc, damage.number_of_eta, number_of_ghost_cells, "Eta old",true);
-	RegisterNewFab(damage_start_time,damage.bc,1,2,"Start time",true);
+	RegisterNewFab(damage_start_time,damage.bc_time,1,number_of_ghost_cells,"Start time",true);
 
 	Util::Message(INFO);
 	// ---------------------------------------------------------------------
@@ -526,18 +529,10 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_m
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
 				Set::Scalar _temp2 = mul*Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,n);
-				//Set::Scalar _temp2 = mul* (AMREX_D_TERM(
-				//				eta_box(i,j,k,n) + eta_box(i-1,j,k,n)
-				//				,
-				//				+ eta_box(i,j-1,k,n) + eta_box(i-1,j-1,k,n)
-				//				,
-				//				+ eta_box(i,j,k-1,n) + eta_box(i-1,j,k-1,n)
-				//				+ eta_box(i,j-1,k-1,n) + eta_box(i-1,j-1,k-1,n)
-				//				));
 				_temp.push_back(std::min(damage.d_final[n],std::max(0.,_temp2)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
-			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp[0],_temp[1],_temp[2]);
+			else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp);
 			else Util::Abort(INFO, "Damage model not implemented yet");
 		});
 	}
@@ -599,17 +594,13 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		elastic.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<pd_model_type>>(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_cells));
+		elastic.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<pd_model_type>>(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes));
 		elastic.model[ilev]->setVal((material.modeltype));
 		DegradeMaterial(ilev,*(elastic.model)[ilev]);
 	}
 
-	//Util::Message(INFO);
 	elastic.op.define(geom, grids, dmap, info);
 
-	//for (int ilev = 0; ilev < nlevels; ++ilev)
-	//	elastic.op.SetModel(ilev,elastic.model[ilev]);
-	
 	elastic.op.setMaxOrder(elastic.linop_maxorder);
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
