@@ -34,8 +34,8 @@
 
 namespace Integrator
 {
-using pd_model_type = Model::Solid::Linear::IsotropicDegradableTanh;
-//using pd_model_type = Model::Solid::Linear::IsotropicDegradable;
+//using pd_model_type = Model::Solid::Linear::IsotropicDegradableTanh;
+using pd_model_type = Model::Solid::Linear::IsotropicDegradable;
 
 ///
 /// \class PolymerDegradation
@@ -136,6 +136,7 @@ private:
 		std::string 								ic_type;
 		IC::IC										*ic;
 		BC::BC										*bc;
+		BC::BC										*bc_time;
 	} damage;
 
 	// Damage model: water relaxation

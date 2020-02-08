@@ -67,10 +67,10 @@ public:
 	static void Parse(IsotropicDegradable & value, IO::ParmParse & pp)
     {
         Set::Scalar mu, lambda;
-        if (pp.contains("lame") && pp.contains("shear"))
+        if (pp.contains("lambda") && pp.contains("mu"))
         {
-            pp.query("lame",lambda);
-            pp.query("shear",mu);
+            pp.query("lambda",lambda);
+            pp.query("mu",mu);
         }
         else if (pp.contains("E") && pp.contains("nu"))
         {

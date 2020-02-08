@@ -63,6 +63,14 @@ public:
 		Set::Scalar mu = E/(2.*(1.+m_nu));
 		Isotropic::Define(lambda,mu);
 	}
+    void DegradeModulus(const amrex::Vector<Set::Scalar> &eta)
+    {
+        if (eta.size() == 0) return;
+        else if (eta.size() == 1) DegradeModulus(eta[0]);
+        else if (eta.size() == 2) DegradeModulus(eta[0],eta[1],eta[1]);
+        else if (eta.size() == 3) DegradeModulus(eta[0],eta[1],eta[2]);
+        else return;
+    }
 public:
     Set::Scalar m_E10 = NAN, m_E20 = NAN, m_Tg0 = NAN, m_Ts0 = NAN, m_nu = NAN, m_temp = NAN;
 
