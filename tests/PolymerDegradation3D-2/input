@@ -25,7 +25,7 @@ alamo.program = degradation
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 50.0
+stop_time = 1.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
@@ -198,16 +198,16 @@ elastic.body_force		=	0.001 0.0 0.0
 elastic.type            =   single
 elastic.int 			=	100
 elastic.tstart 			=	0.0
-elastic.tend			=	50.0
+elastic.tend			=	1.0
 
 #elastic.bc.bc_x_min 	=	disp neumann neumann
 #elastic.bc.bc_y_min	=	neumann disp neumann
 #elastic.bc.bc_z_min 	=	neumann neumann disp
 
-elastic.bc.type.xlo =	disp disp disp
+#elastic.bc.type.xlo =	disp disp disp
 elastic.bc.type.ylo =	trac trac trac
 elastic.bc.type.zlo =	trac trac trac
-elastic.bc.type.xhi =	disp disp disp
+#elastic.bc.type.xhi =	disp disp disp
 elastic.bc.type.yhi =	trac trac trac
 elastic.bc.type.zhi =	trac trac trac
 elastic.bc.type.yhizhi = trac trac trac
@@ -215,21 +215,21 @@ elastic.bc.type.ylozhi = trac trac trac
 elastic.bc.type.yhizlo = trac trac trac
 elastic.bc.type.ylozlo = trac trac trac
 
-elastic.bc.val.xlo = 0.0 0.0 0.0
-elastic.bc.val.xloylo = 0.0 0.0 0.0
-elastic.bc.val.xloyhi = 0.0 0.0 0.0
-elastic.bc.val.xlozlo = 0.0 0.0 0.0
-elastic.bc.val.xlozhi = 0.0 0.0 0.0
-elastic.bc.val.xloylozlo = 0.0 0.0 0.0
-elastic.bc.val.xloyhizlo = 0.0 0.0 0.0
-elastic.bc.val.xloylozhi = 0.0 0.0 0.0
-elastic.bc.val.xloyhizhi = 0.0 0.0 0.0
+#elastic.bc.val.xlo = 0.0 0.0 0.0
+#elastic.bc.val.xloylo = 0.0 0.0 0.0
+#elastic.bc.val.xloyhi = 0.0 0.0 0.0
+#elastic.bc.val.zloxlo = 0.0 0.0 0.0
+#elastic.bc.val.zhixlo = 0.0 0.0 0.0
+#elastic.bc.val.xloylozlo = 0.0 0.0 0.0
+#elastic.bc.val.xloyhizlo = 0.0 0.0 0.0
+#elastic.bc.val.xloylozhi = 0.0 0.0 0.0
+#elastic.bc.val.xloyhizhi = 0.0 0.0 0.0
 
 elastic.bc.val.xhi = 0.05 0.0 0.0
 elastic.bc.val.xhiylo = 0.05 0.0 0.0
 elastic.bc.val.xhiyhi = 0.05 0.0 0.0
-elastic.bc.val.xhizlo = 0.05 0.0 0.0
-elastic.bc.val.xhizhi = 0.05 0.0 0.0
+elastic.bc.val.zloxhi = 0.05 0.0 0.0
+elastic.bc.val.zhixhi = 0.05 0.0 0.0
 elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
 elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
 elastic.bc.val.xhiylozhi = 0.05 0.0 0.0

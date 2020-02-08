@@ -635,8 +635,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 		else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
 		solver.solve(displacement,rhs,elastic.model,elastic.tol_rel,elastic.tol_abs);
-		//solver.solve(GetVecOfPtrs(displacement), GetVecOfConstPtrs(rhs), elastic.tol_rel, elastic.tol_abs);
-		//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
+		solver.compResidual(residual,displacement,rhs,elastic.model);
 		for (int lev = 0; lev < nlevels; lev++)
 		{
 			elastic.op.Strain(lev,*strain[lev],*displacement[lev]);
