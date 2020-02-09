@@ -135,15 +135,18 @@ private:
 
 		//Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
 		//Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
-		fracture_model_type 						*modeltype;
 		BC::Operator::Elastic<fracture_model_type> 	bc;
-		Operator::Elastic<fracture_model_type> elastic_operator;
+		Operator::Elastic<fracture_model_type> op;
 		Set::Vector body_force 						= Set::Vector::Zero();
 		Set::Scalar bc_top 							= 0.;
 
 	} elastic;
 
-	std::string input_material = "isotropic";
+	struct{
+		fracture_model_type modeltype;
+		Set::Field<fracture_model_type> model;
+		std::string input_material = "isotropic";
+	} material;
 
 	struct
 	{
@@ -151,6 +154,7 @@ private:
 		std::string ic_type;
 		IC::IC *ic;
 		BC::BC *mybc;
+		BC::BC *mybcdf;
 
 		bool newCrackProblem	=true;
 		bool solveCrack			=false; 
