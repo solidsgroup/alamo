@@ -53,29 +53,16 @@ BrittleFracture::BrittleFracture() :
 	// BCs
 	// Crack field should have a zero neumann BC. So we just code it up here.
 	// In case this needs to change, we can add options to read it from input.
-	amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM), bc_lo_str(AMREX_SPACEDIM);
-	amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_lo_1,bc_lo_2,bc_lo_3);
-	amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_hi_1,bc_hi_2,bc_hi_3);
-
 	// Below are conditions for full simulation.  If this doesn't work, we can
 	// try symmetric simulation.
-	bc_lo_str = {AMREX_D_DECL("Neumann", "Neumann", "Neumann")};
-	bc_hi_str = {AMREX_D_DECL("Neumann", "Neumann", "Neumann")};
-	//bc_lo_str = {AMREX_D_DECL("Dirichlet", "Dirichlet", "Dirichlet")};
-	//bc_hi_str = {AMREX_D_DECL("Dirichlet", "Dirichlet", "Dirichlet")};
-	/*/bc_lo_str = {AMREX_D_DECL("REFLECT_EVEN", "REFLECT_EVEN", "REFLECT_EVEN")};
-	bc_hi_str = {AMREX_D_DECL("Neumann", "Neumann", "Neumann")};*/
-	AMREX_D_TERM( 	bc_lo_1 = {0.}; bc_hi_1 = {0.};,
-					bc_lo_2 = {0.}; bc_hi_2 = {0.};,
-					bc_lo_3 = {0.}; bc_hi_3 = {0.};
-	);
-	crack.mybc = new BC::Constant(1,bc_hi_str, bc_lo_str
-				  ,AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3)
-				  ,AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
+	crack.mybc = new BC::Constant(1);
+	crack.mybcdf = new BC::Constant(4);
+	pp_crack.queryclass("bc",*static_cast<BC::Constant *>(crack.mybc));
+	pp_crack.queryclass("bc_df",*static_cast<BC::Constant *>(crack.mybcdf));
 
 	RegisterNewFab(m_c,     crack.mybc, 1, number_of_ghost_cells+1, "c",		true);
 	RegisterNewFab(m_c_old, crack.mybc, 1, number_of_ghost_cells+1, "c_old",	true);
-	RegisterNewFab(m_driving_force, crack.mybc, 4, number_of_ghost_cells+1, "driving_force",true);
+	RegisterNewFab(m_driving_force, crack.mybcdf, 4, number_of_ghost_cells+1, "driving_force",true);
 	
 	crack_err_norm = 0.; crack_err_temp_norm = 0.;
 	crack_err_norm_init = 1.e4; crack_err_temp_norm_init = 1.e4;
@@ -87,10 +74,10 @@ BrittleFracture::BrittleFracture() :
 	
 	// Material input
 	IO::ParmParse pp_material("material");
-	pp_material.query("model",input_material);
-	if(input_material == "isotropic")
+	pp_material.query("model",material.input_material);
+	if(material.input_material == "isotropic")
 	{
-		pp_material.queryclass("isotropic",elastic.modeltype);
+		pp_material.queryclass("isotropic",material.modeltype);
 	}
 	else
 		Util::Abort(INFO,"This model has not been implemented yet.");
@@ -157,46 +144,6 @@ BrittleFracture::BrittleFracture() :
 	if(elastic.test_rate < 0.) { Util::Warning(INFO,"Rate can't be less than zero. Resetting to 1.0"); elastic.test_rate = 0.1; }
 	if(elastic.test_max < 0. ||  elastic.test_max < elastic.test_rate) {Util::Warning(INFO,"Max can't be less than load step. Resetting to load step"); elastic.test_max = elastic.test_rate;}
 
-	//Below are the conditions for full tensile test simulation. 
-	// If this doesn't work we can try symmetric simulation
-	//AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
-	//				bc_x_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
-	//				,
-	//				//bc_y_lo_str = {AMREX_D_DECL("disp", "disp", "disp")};
-	//				//bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
-	//				bc_y_lo_str = {AMREX_D_DECL("trac", "disp", "trac")};
-	//				bc_y_hi_str = {AMREX_D_DECL("trac", "disp", "trac")};
-	//				,
-	//				bc_z_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
-	//				bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};);
-
-	/*AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("disp", "neumann", "neumann")};
-					bc_x_hi_str = {AMREX_D_DECL("disp", "trac", "trac")};
-					,
-					bc_y_lo_str = {AMREX_D_DECL("neumann", "disp", "neumann")};
-					bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
-					,
-					bc_z_lo_str = {AMREX_D_DECL("neumann", "neumann", "disp")};
-					bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};);*/
-
-	//AMREX_D_TERM(	elastic.bc_xlo = {AMREX_D_DECL(bc_map[bc_x_lo_str[0]],bc_map[bc_x_lo_str[1]],bc_map[bc_x_lo_str[2]])};
-	//				elastic.bc_xhi = {AMREX_D_DECL(bc_map[bc_x_hi_str[0]],bc_map[bc_x_hi_str[1]],bc_map[bc_x_hi_str[2]])};
-	//				,
-	//				elastic.bc_ylo = {AMREX_D_DECL(bc_map[bc_y_lo_str[0]],bc_map[bc_y_lo_str[1]],bc_map[bc_y_lo_str[2]])};
-	//				elastic.bc_yhi = {AMREX_D_DECL(bc_map[bc_y_hi_str[0]],bc_map[bc_y_hi_str[1]],bc_map[bc_y_hi_str[2]])};
-	//				,
-	//				elastic.bc_zlo = {AMREX_D_DECL(bc_map[bc_z_lo_str[0]],bc_map[bc_z_lo_str[1]],bc_map[bc_z_lo_str[2]])};
-	//				elastic.bc_zhi = {AMREX_D_DECL(bc_map[bc_z_hi_str[0]],bc_map[bc_z_hi_str[1]],bc_map[bc_z_hi_str[2]])};);
-
-	//AMREX_D_TERM(	elastic.bc_left = Set::Vector(AMREX_D_DECL(0.,0.,0.));
-	//				elastic.bc_right = Set::Vector(AMREX_D_DECL(0.,0.,0.));
-	//				,
-	//				elastic.bc_bottom = Set::Vector(AMREX_D_DECL(0.,0.,0.));
-	//				elastic.bc_top = Set::Vector(AMREX_D_DECL(0.,0.,0.));
-	//				,
-	//				elastic.bc_back = Set::Vector(AMREX_D_DECL(0.,0.,0.));
-	//				elastic.bc_front = Set::Vector(AMREX_D_DECL(0.,0.,0.)););
-	
 	const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	
 	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp",true);
@@ -209,6 +156,8 @@ BrittleFracture::BrittleFracture() :
 	RegisterNodalFab (m_energy_pristine_old,	1,					number_of_ghost_cells,	"energyPOld",true);
 	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_cells,	"residual",true);
 	nlevels = maxLevel() + 1;
+
+	material.model.resize(nlevels);
 }
 
 BrittleFracture::~BrittleFracture()
@@ -244,7 +193,7 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 	  fracture model.
 	  For now we are just using isotropic degradation.
 	*/
-	Util::Message(INFO);
+	Util::Message(INFO, lev);
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
@@ -267,29 +216,25 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 								+ crack.boundary->g_phi(c_new(i,j,k-1,0),0.) + crack.boundary->g_phi(c_new(i-1,j,k-1,0),0.)
 								+ crack.boundary->g_phi(c_new(i,j-1,k-1,0),0.) + crack.boundary->g_phi(c_new(i-1,j-1,k-1,0),0.))
 								));
-			//Util::Message(INFO, "c = ", c_new(i,j,k,0) ," temp = ", _temp[0], " ScaleModulusMax = ", scaleModulusMax);
+			if (std::isnan(_temp[0])) Util::Abort(INFO);
 			if(_temp[0] < 0.0) _temp[0] = 0.;
 			if(_temp[0] > 1.0) _temp[0] = 1.0;
-			//Util::Message(INFO, modelfab(i,j,k,0).GetMu(), " ", modelfab(i,j,k,0).GetLambda());
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
-			//Util::Message(INFO, modelfab(i,j,k,0).GetMu(), " ", modelfab(i,j,k,0).GetLambda());
 		});
 	}
 	amrex::Geometry tmp_geom = geom[lev];
     for (int i = 0; i < 2; i++)
     {
-		Util::Message(INFO);
-    	amrex::FabArray<amrex::BaseFab<fracture_model_type>> &mf = model;
+		amrex::FabArray<amrex::BaseFab<fracture_model_type>> &mf = model;
         mf.FillBoundary(tmp_geom.periodicity());
-        mf.FillBoundary();
-        const int ncomp = mf.nComp();
+		mf.FillBoundary();
+		const int ncomp = mf.nComp();
         const int ng1 = 1;
         const int ng2 = 2;
         amrex::FabArray<amrex::BaseFab<fracture_model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
+		amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
+		mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
     }
-
 }
 
 void 
@@ -411,16 +356,17 @@ BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 void
 BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 {
-	Set::Field<fracture_model_type> model;
-	model.resize(nlevels);
+	Util::Message(INFO);
+
+	material.model.resize(nlevels);
+	Util::Message(INFO,m_disp.size());
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		//model[ilev].define(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_cells);
-		model[ilev].reset(new amrex::FabArray<amrex::BaseFab<fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
-		model[ilev]->setVal(*(elastic.modeltype));
+		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
+		material.model[ilev]->setVal((material.modeltype));
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		m_energy_pristine[ilev]->setVal(0.);
-		ScaledModulus(ilev,*(model)[ilev]);
+		ScaledModulus(ilev,*(material.model)[ilev]);
 	}
 
 	Util::Message(INFO);
@@ -434,22 +380,25 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 			     m_rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
 	}
 
+	elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
 	elastic.bc.Init(m_rhs,geom);
-	elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top, m_rhs, geom);
-
+	
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
 	info.setMaxCoarseningLevel(elastic.max_coarsening_level);
 
-	elastic.elastic_operator.define(geom, grids, dmap, info);
+	elastic.op.define(geom, grids, dmap, info);
 	//for (int ilev = 0; ilev < nlevels; ++ilev)
 	//	elastic.elastic_operator.SetModel(ilev,model[ilev]);
 		
-	elastic.elastic_operator.setMaxOrder(elastic.linop_maxorder);
+	elastic.op.setMaxOrder(elastic.linop_maxorder);
 
-	elastic.elastic_operator.SetBC(&(elastic.bc));
-	Solver::Nonlocal::Newton<fracture_model_type>  solver(elastic.elastic_operator);
+	elastic.op.SetBC(&(elastic.bc));
+
+	Solver::Nonlocal::Newton<fracture_model_type>  solver(elastic.op);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
 	solver.setFixedIter(elastic.max_fixed_iter);
@@ -473,16 +422,17 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
 	WritePlotFile(plotfolder,plottime,plotstep);*/
 
-	solver.solve(m_disp, m_rhs, model, elastic.tol_rel, elastic.tol_abs);
+	solver.solve(m_disp, m_rhs, material.model, elastic.tol_rel, elastic.tol_abs);
+	solver.compResidual(m_residual,m_disp,m_rhs,material.model);
 	//solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
 	//solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
 	//solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
-		elastic.elastic_operator.Strain(lev,*m_strain[lev],*m_disp[lev]);
-		elastic.elastic_operator.Stress(lev,*m_stress[lev],*m_disp[lev]);
-		elastic.elastic_operator.Energy(lev,*m_energy[lev],*m_disp[lev]);
+		elastic.op.Strain(lev,*m_strain[lev],*m_disp[lev]);
+		elastic.op.Stress(lev,*m_stress[lev],*m_disp[lev]);
+		elastic.op.Energy(lev,*m_energy[lev],*m_disp[lev]);
 	}
 	for (int lev = 0; lev < nlevels; lev++)
 	{
@@ -505,7 +455,7 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 					eps(2,0) = strain_box(i,j,k,6); eps(2,1) = strain_box(i,j,k,7); eps(2,2) = strain_box(i,j,k,8);
 				);
 				Set::Matrix sig;
-				sig = (*(elastic.modeltype)).DW(eps);
+				sig = ((material.modeltype)).DW(eps);
 				for (int m = 0; m < AMREX_SPACEDIM; m++)
 				{
 					for (int n = 0; n < AMREX_SPACEDIM; n++)

@@ -32,7 +32,8 @@ public:
 
     void DegradeModulus(const Set::Scalar eta)
 	{
-		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
+		if(std::isnan(eta)) Util::Abort(INFO, "Nans in eta");
+		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta ", eta);
 		if(std::isnan(m_lambda0)) Util::Abort(INFO, "Nans in lambda0");
 		if(std::isnan(m_mu0)) Util::Abort(INFO, "Nans in mu0");
 
@@ -66,6 +67,7 @@ private:
 public:
 	static void Parse(IsotropicDegradable & value, IO::ParmParse & pp)
     {
+		Util::Message(INFO);
         Set::Scalar mu, lambda;
         if (pp.contains("lambda") && pp.contains("mu"))
         {
