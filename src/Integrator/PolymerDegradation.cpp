@@ -598,6 +598,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		elastic.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<pd_model_type>>(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes));
 		elastic.model[ilev]->setVal((material.modeltype));
 		DegradeMaterial(ilev,*(elastic.model)[ilev]);
+		rhs[ilev]->setVal(0.0);
 	}
 
 	Operator::Elastic<pd_model_type> elastic_op;
@@ -618,7 +619,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	if (elastic.type == "single" || elastic.type == "tensile_single")
 	{
-		elastic.bc.SetTime(time);
+		elastic.bc.SetTime(0.0);
         elastic.bc.Init(rhs,geom);
 		elastic_op.SetBC(&(elastic.bc));
 
