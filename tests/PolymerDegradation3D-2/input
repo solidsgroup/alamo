@@ -216,45 +216,28 @@ elastic.bc.type.ylozhi = trac trac trac
 elastic.bc.type.yhizlo = trac trac trac
 elastic.bc.type.ylozlo = trac trac trac
 
-#elastic.bc.bc_x_min 	=	disp neumann neumann
-#elastic.bc.bc_y_min	=	neumann disp neumann
-#elastic.bc.bc_z_min 	=	neumann neumann disp
-
-#elastic.bc.type.xlo =	disp disp disp
-#elastic.bc.type.ylo =	trac trac trac
-#elastic.bc.type.zlo =	trac trac trac
-#elastic.bc.type.xhi =	disp disp disp
-#elastic.bc.type.yhi =	trac trac trac
-#elastic.bc.type.zhi =	trac trac trac
-#elastic.bc.type.yhizhi = trac trac trac
-#elastic.bc.type.ylozhi = trac trac trac
-#elastic.bc.type.yhizlo = trac trac trac
-#elastic.bc.type.ylozlo = trac trac trac
-
-#elastic.bc.val.xlo = 0.0 0.0 0.0
-#elastic.bc.val.xloylo = 0.0 0.0 0.0
-#elastic.bc.val.xloyhi = 0.0 0.0 0.0
-#elastic.bc.val.zloxlo = 0.0 0.0 0.0
-#elastic.bc.val.zhixlo = 0.0 0.0 0.0
-#elastic.bc.val.xloylozlo = 0.0 0.0 0.0
-#elastic.bc.val.xloyhizlo = 0.0 0.0 0.0
-#elastic.bc.val.xloylozhi = 0.0 0.0 0.0
-#elastic.bc.val.xloyhizhi = 0.0 0.0 0.0
-
-#elastic.bc.val.xhi = 0.05 0.0 0.0
-#elastic.bc.val.xhiylo = 0.05 0.0 0.0
-#elastic.bc.val.xhiyhi = 0.05 0.0 0.0
-#elastic.bc.val.zloxhi = 0.05 0.0 0.0
-#elastic.bc.val.zhixhi = 0.05 0.0 0.0
-#elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
-#elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
-#elastic.bc.val.xhiylozhi = 0.05 0.0 0.0
-#elastic.bc.val.xhiyhizhi = 0.05 0.0 0.0
-
 # Use the following arguments for a full tensile test experiment.
 #elastic.type            = tensile
 #elasitc.rate            = 1.3   # in mm/min
 #elastic.test_time       = 0. 3. # this says that I want to do the test at 0 hr and 3 hr of degradation time
 #elastic.test_duration   = 1.0   # in minutes
 #elastic.test_dt         = 0.01  # in minutes
+
+#elastic.bc.val.xhi       = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiylo    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiyhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.zloxhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.zhixhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiylozlo = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiylozhi = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiyhizlo = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiyhizhi = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.type.yhi = trac trac trac
+#elastic.bc.type.zhi = trac trac trac
+#elastic.bc.type.ylo = trac trac trac
+#elastic.bc.type.zlo = trac trac trac
+#elastic.bc.type.yhizhi = trac trac trac
+#elastic.bc.type.ylozhi = trac trac trac
+#elastic.bc.type.yhizlo = trac trac trac
+#elastic.bc.type.ylozlo = trac trac trac
 #===========================================================================
