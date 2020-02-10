@@ -25,7 +25,7 @@ alamo.program = degradation
 
 #=============== Simulation length =========================================
 timestep = 0.01
-stop_time = 2.0
+stop_time = 5.0
 #===========================================================================
 
 #=============== AMR parameters ============================================
@@ -198,7 +198,7 @@ elastic.body_force		=	0.001 0.0 0.0
 elastic.type            =   single
 elastic.int 			=	100
 elastic.tstart 			=	0.0
-elastic.tend			=	2.0
+elastic.tend			=	5.0
 
 elastic.bc.val.xhi       = 0.05 0.0 0.0
 elastic.bc.val.xhiylo    = 0.05 0.0 0.0

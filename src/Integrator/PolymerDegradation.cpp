@@ -246,6 +246,7 @@ PolymerDegradation::PolymerDegradation():
 
 		if(elastic.type == "tensile_test" || elastic.type == "tensile")
 		{
+			pp_elastic.queryclass("bc",elastic.bc);
 			pp_elastic_bc.query("rate",elastic.test_rate);
 			if(elastic.test_rate < 0.) { Util::Warning(INFO,"Rate can't be less than zero. Resetting to 1.0"); elastic.test_rate = 1.0; }
 		
@@ -596,7 +597,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		elastic.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<pd_model_type>>(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes));
 		elastic.model[ilev]->setVal((material.modeltype));
-		//DegradeMaterial(ilev,*(elastic.model)[ilev]);
+		DegradeMaterial(ilev,*(elastic.model)[ilev]);
 	}
 
 	Operator::Elastic<pd_model_type> elastic_op;
@@ -678,8 +679,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		Set::Scalar test_t = 0.;
 		int countstep = 0;
-		Set::Scalar bc_right = 0.0;
-
+		
 		amrex::Vector<Set::Scalar> plottime;
 		amrex::Vector<int> plotstep;
 		std::string plotfolder = "elastic_"+ std::to_string(elastic.current_test);
@@ -687,129 +687,13 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		plottime.resize(nlevels);
 		plotstep.resize(nlevels);
 
-		elastic.bc.Init(rhs,geom);
-
-		amrex::Vector<std::string> AMREX_D_DECL(bc_x_lo_str,bc_y_lo_str,bc_z_lo_str);
-		amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
-
-		AMREX_D_TERM( 	bc_x_lo_str = {AMREX_D_DECL("disp", "trac", "trac")};
-						bc_x_hi_str = {AMREX_D_DECL("disp", "trac", "trac")};
-						,
-						bc_y_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
-						bc_y_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};
-						,
-						bc_z_lo_str = {AMREX_D_DECL("trac", "trac", "trac")};
-						bc_z_hi_str = {AMREX_D_DECL("trac", "trac", "trac")};);
-
-		AMREX_D_TERM(	elastic.bc_xlo = {AMREX_D_DECL(elastic.bc_map[bc_x_lo_str[0]],elastic.bc_map[bc_x_lo_str[1]],elastic.bc_map[bc_x_lo_str[2]])};
-						elastic.bc_xhi = {AMREX_D_DECL(elastic.bc_map[bc_x_hi_str[0]],elastic.bc_map[bc_x_hi_str[1]],elastic.bc_map[bc_x_hi_str[2]])};
-						,
-						elastic.bc_ylo = {AMREX_D_DECL(elastic.bc_map[bc_y_lo_str[0]],elastic.bc_map[bc_y_lo_str[1]],elastic.bc_map[bc_y_lo_str[2]])};
-						elastic.bc_yhi = {AMREX_D_DECL(elastic.bc_map[bc_y_hi_str[0]],elastic.bc_map[bc_y_hi_str[1]],elastic.bc_map[bc_y_hi_str[2]])};
-						,
-						elastic.bc_zlo = {AMREX_D_DECL(elastic.bc_map[bc_z_lo_str[0]],elastic.bc_map[bc_z_lo_str[1]],elastic.bc_map[bc_z_lo_str[2]])};
-						elastic.bc_zhi = {AMREX_D_DECL(elastic.bc_map[bc_z_hi_str[0]],elastic.bc_map[bc_z_hi_str[1]],elastic.bc_map[bc_z_hi_str[2]])};);
-
-		AMREX_D_TERM(
-			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			,
-			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
-			
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XHI_YLO, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
-		
-			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::X, elastic.bc_ylo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Y, elastic.bc_ylo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, elastic.bc_yhi[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, elastic.bc_yhi[1], 0.0);
-			,
-			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Z, elastic.bc_ylo[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Z, elastic.bc_yhi[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::X, elastic.bc_zlo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Y, elastic.bc_zlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Z, elastic.bc_zlo[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::X, elastic.bc_zhi[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Y, elastic.bc_zhi[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Z, elastic.bc_zhi[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XHI_YLO, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			
-			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZLO_XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZLO_XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
-		);
-		
 		while (test_t < elastic.test_duration)
 		{
 			test_t += elastic.test_dt; countstep++;
 			for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = test_t; plotstep[lev]=countstep-1;}
 			
-			bc_right += elastic.test_rate*elastic.test_dt;
-
-			AMREX_D_TERM(
-				elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::X, elastic.bc_xhi[0], bc_right, 	rhs, geom);
-	 	    	,
-				elastic.bc.Set(elastic.bc.Face::XHI_YLO, elastic.bc.Direction::X, elastic.bc_xhi[0], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::X, elastic.bc_xhi[0], bc_right, 	rhs, geom);
-				,
-				elastic.bc.Set(elastic.bc.Face::ZLO_XHI, elastic.bc.Direction::X, elastic.bc_xhi[0], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::ZHI_XHI, elastic.bc.Direction::X, elastic.bc_xhi[0], bc_right, 	rhs, geom);
-				
-				elastic.bc.Set(elastic.bc.Face::XHI_YLO_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YLO_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YLO_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], bc_right, 	rhs, geom);
-
-				elastic.bc.Set(elastic.bc.Face::XHI_YLO_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YLO_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YLO_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], bc_right, 	rhs, geom);
-
-				elastic.bc.Set(elastic.bc.Face::XHI_YHI_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YHI_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YHI_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], bc_right, 	rhs, geom);
-
-				elastic.bc.Set(elastic.bc.Face::XHI_YHI_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YHI_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], bc_right, 	rhs, geom);
-				elastic.bc.Set(elastic.bc.Face::XHI_YHI_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], bc_right, 	rhs, geom);
-	 	    );
-
+			elastic.bc.SetTime(test_t);
+			elastic.bc.Init(rhs,geom);
 			elastic_op.SetBC(&(elastic.bc));
 
 			//Util::Message(INFO);
