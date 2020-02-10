@@ -710,70 +710,70 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 						elastic.bc_zhi = {AMREX_D_DECL(elastic.bc_map[bc_z_hi_str[0]],elastic.bc_map[bc_z_hi_str[1]],elastic.bc_map[bc_z_hi_str[2]])};);
 
 		AMREX_D_TERM(
-			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 		rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
 			,
-			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
 			
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 		rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 		rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
 			
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XHI_YLO, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XHI_YLO, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
 		
-			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::X, elastic.bc_ylo[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Y, elastic.bc_ylo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, elastic.bc_yhi[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, elastic.bc_yhi[1], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::X, elastic.bc_ylo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Y, elastic.bc_ylo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, elastic.bc_yhi[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, elastic.bc_yhi[1], 0.0);
 			,
-			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Z, elastic.bc_ylo[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Z, elastic.bc_yhi[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::YLO, elastic.bc.Direction::Z, elastic.bc_ylo[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Z, elastic.bc_yhi[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::X, elastic.bc_zlo[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Y, elastic.bc_zlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Z, elastic.bc_zlo[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::X, elastic.bc_zhi[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Y, elastic.bc_zhi[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Z, elastic.bc_zhi[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::X, elastic.bc_zlo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Y, elastic.bc_zlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZLO, elastic.bc.Direction::Z, elastic.bc_zlo[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::X, elastic.bc_zhi[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Y, elastic.bc_zhi[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI, elastic.bc.Direction::Z, elastic.bc_zhi[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XHI_YLO, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XHI_YLO, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
 			
-			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZLO_XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZLO_XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI_XHI, elastic.bc.Direction::Y, elastic.bc_xhi[1], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZLO_XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::ZHI_XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::ZLO_XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI_XLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZLO_XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
+			elastic.bc.Set(elastic.bc.Face::ZHI_XHI, elastic.bc.Direction::Z, elastic.bc_xhi[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YLO_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZLO, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
 
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0, 	rhs, geom);
-			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0, 	rhs, geom);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::X, elastic.bc_xlo[0], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::Y, elastic.bc_xlo[1], 0.0);
+			elastic.bc.Set(elastic.bc.Face::XLO_YHI_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], 0.0);
 		);
 		
 		while (test_t < elastic.test_duration)
