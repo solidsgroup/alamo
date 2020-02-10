@@ -599,9 +599,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		//DegradeMaterial(ilev,*(elastic.model)[ilev]);
 	}
 
-	elastic.op.define(geom, grids, dmap, info);
+	Operator::Elastic<pd_model_type> elastic_op;
+	elastic_op.define(geom, grids, dmap, info);
 
-	elastic.op.setMaxOrder(elastic.linop_maxorder);
+	elastic_op.setMaxOrder(elastic.linop_maxorder);
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -618,10 +619,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		elastic.bc.SetTime(time);
         elastic.bc.Init(rhs,geom);
-		elastic.op.SetBC(&(elastic.bc));
+		elastic_op.SetBC(&(elastic.bc));
 
 		//Util::Message(INFO);
-		Solver::Nonlocal::Newton<pd_model_type> solver(elastic.op);
+		Solver::Nonlocal::Newton<pd_model_type> solver(elastic_op);
 		solver.setMaxIter(elastic.max_iter);
 		solver.setMaxFmgIter(elastic.max_fmg_iter);
 		solver.setFixedIter(elastic.max_fixed_iter);
@@ -640,9 +641,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		
 		for (int lev = 0; lev < nlevels; lev++)
 		{
-			elastic.op.Strain(lev,*strain[lev],*displacement[lev]);
-			elastic.op.Stress(lev,*stress[lev],*displacement[lev]);
-			elastic.op.Energy(lev,*energy[lev],*displacement[lev]);
+			elastic_op.Strain(lev,*strain[lev],*displacement[lev]);
+			elastic_op.Stress(lev,*stress[lev],*displacement[lev]);
+			elastic_op.Energy(lev,*energy[lev],*displacement[lev]);
 		}
 		for (int lev = 0; lev < nlevels; lev++)
 		{
@@ -809,10 +810,10 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 				elastic.bc.Set(elastic.bc.Face::XHI_YHI_ZHI, elastic.bc.Direction::Z, elastic.bc_xlo[2], bc_right, 	rhs, geom);
 	 	    );
 
-			elastic.op.SetBC(&(elastic.bc));
+			elastic_op.SetBC(&(elastic.bc));
 
 			//Util::Message(INFO);
-			Solver::Nonlocal::Newton<pd_model_type> solver(elastic.op);
+			Solver::Nonlocal::Newton<pd_model_type> solver(elastic_op);
 			solver.setMaxIter(elastic.max_iter);
 			solver.setMaxFmgIter(elastic.max_fmg_iter);
 			solver.setFixedIter(elastic.max_fixed_iter);
@@ -830,9 +831,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 			//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 			for (int lev = 0; lev < nlevels; lev++)
 			{
-				elastic.op.Strain(lev,*strain[lev],*displacement[lev]);
-				elastic.op.Stress(lev,*stress[lev],*displacement[lev]);
-				elastic.op.Energy(lev,*energy[lev],*displacement[lev]);
+				elastic_op.Strain(lev,*strain[lev],*displacement[lev]);
+				elastic_op.Stress(lev,*stress[lev],*displacement[lev]);
+				elastic_op.Energy(lev,*energy[lev],*displacement[lev]);
 			}
 			for (int lev = 0; lev < nlevels; lev++)
 			{
