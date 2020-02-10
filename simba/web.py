@@ -235,7 +235,7 @@ def table_entry(table,entry):
     global metadatafile
     global thermofile
 
-    db = sqlite3.connect('results.db')
+    db = sqlite3.connect(args.database)
     db.text_factory = str
     cur= db.cursor()
     
