@@ -136,7 +136,7 @@ private:
 		//Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
 		//Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
 		BC::Operator::Elastic<fracture_model_type> 	bc;
-		Operator::Elastic<fracture_model_type> op;
+		//Operator::Elastic<fracture_model_type> op;
 		Set::Vector body_force 						= Set::Vector::Zero();
 		Set::Scalar bc_top 							= 0.;
 

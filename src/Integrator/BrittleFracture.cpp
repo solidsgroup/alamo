@@ -390,15 +390,16 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	info.setConsolidation(elastic.consolidation);
 	info.setMaxCoarseningLevel(elastic.max_coarsening_level);
 
-	elastic.op.define(geom, grids, dmap, info);
+	Operator::Elastic<fracture_model_type> elastic_op;
+	elastic_op.define(geom, grids, dmap, info);
 	//for (int ilev = 0; ilev < nlevels; ++ilev)
 	//	elastic.elastic_operator.SetModel(ilev,model[ilev]);
 		
-	elastic.op.setMaxOrder(elastic.linop_maxorder);
+	elastic_op.setMaxOrder(elastic.linop_maxorder);
 
-	elastic.op.SetBC(&(elastic.bc));
+	elastic_op.SetBC(&(elastic.bc));
 
-	Solver::Nonlocal::Newton<fracture_model_type>  solver(elastic.op);
+	Solver::Nonlocal::Newton<fracture_model_type>  solver(elastic_op);
 	solver.setMaxIter(elastic.max_iter);
 	solver.setMaxFmgIter(elastic.max_fmg_iter);
 	solver.setFixedIter(elastic.max_fixed_iter);
@@ -430,9 +431,9 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 
 	for (int lev = 0; lev < nlevels; lev++)
 	{
-		elastic.op.Strain(lev,*m_strain[lev],*m_disp[lev]);
-		elastic.op.Stress(lev,*m_stress[lev],*m_disp[lev]);
-		elastic.op.Energy(lev,*m_energy[lev],*m_disp[lev]);
+		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
+		elastic_op.Stress(lev,*m_stress[lev],*m_disp[lev]);
+		elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
 	}
 	for (int lev = 0; lev < nlevels; lev++)
 	{
