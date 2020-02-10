@@ -372,6 +372,7 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	Util::Message(INFO);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
+		m_disp[ilev]->setVal(0.0);
 		const Real* DX = geom[ilev].CellSize();
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
