@@ -9,6 +9,9 @@ import argparse
 import configparser
 import sqlite3
 import simba
+import ansi2html
+
+
 
 timestamp = datetime.today().strftime('%Y%m%d_%H%M%S')
 
@@ -26,53 +29,79 @@ config.read(args.inifile)
 print(config)
 print(config.sections())
 for s in config.sections():
-    simba.updateTable(cur,s,types)
+    simba.updateTable(cur,s,types,verbose=False)
     print(config[s])
     for r in config[s]:
         print(r,config[s][r])
 
-tests = [ { "name" : "TrigTest" } ,
-          { "name" : "Eshelby"  } ]
+simba.updateRegTestTable(cur,"regtest",verbose=False)
 
-#benchmark = False
+
+
 
 for test in config.sections():
 
-    print("[",test,"]")
+    status = simba.Status()
 
+    run_id = timestamp
+
+    #
+    # Settings from Config File
+    # 
+
+    if 'input' in config[test]: input_file = config[test]['input']
+    else:                       input_file = "tests/"+test+"/input"
     
-    if 'input' in config[test]:
-        input_file = config[test]['input']
-    else:
-        input_file = "tests/"+test+"/input"
-    print("------------- Input file:  ", input_file)
+    if 'dim' in config[test]:   dim = int(config[test]['dim'])
+    else:                       dim = 3
     
-    if 'dim' in config[test]:
-        dim = int(config[test]['dim'])
-    else:
-        dim = 3
-    print("------------- Dimnension:  ", dim)
-    
+    if 'nprocs' in config[test]: nprocs = int(config[test]['nprocs'])
+    else:                        nprocs = 1
+
+
 
     #test_dir = "tests/" + test['name'] + "/"
-    rt_plot_dir = "rt-" + timestamp + "/" + test + "/"
-    bm_plot_dir = "bm-" + timestamp + "/" + test + "/"
+    rt_plot_dir = "rt-" + run_id + "/" + test + "/"
+    bm_plot_dir = "bm-" + run_id + "/" + test + "/"
     print("------------- rt_plot_dir: ", rt_plot_dir)
     print("------------- bm_plot_dir: ", bm_plot_dir)
 
     subprocess.run(["mkdir", "-p", rt_plot_dir])
 
     print("Running ...... ",end="")
-    #if os.path.isfile(test_dir + "/input"):
+    #if os.path.isfile(test_dir + "/input"): ## TODO enable this check
     fstdout = open(rt_plot_dir+"/"+"stdout","w")
     fstderr = open(rt_plot_dir+"/"+"stderr","w")
-    ret = subprocess.run(["./bin/alamo-2d-g++", input_file, "plot_file={}/output".format(rt_plot_dir)],stdout=fstdout,stderr=fstderr)
+    ret = subprocess.run(["mpirun", "-np", str(nprocs),
+                            "./bin/alamo-{}d-g++".format(dim), 
+                            input_file, 
+                            "plot_file={}/output".format(rt_plot_dir)],
+                            stdout=fstdout,stderr=fstderr)
+    fstdout.close()
+    fstderr.close()
+    conv = ansi2html.Ansi2HTMLConverter()
+    fstdout = open(rt_plot_dir+"/"+"stdout","r")
+    ansi = "".join(fstdout.readlines())
+    fstderr.close()
+    fstdout = open(rt_plot_dir+"/output/"+"stdout","w")
+    fstdout.writelines(conv.convert(ansi))
+    fstdout.close()
+    #print(conv.convert(ansi))
+
+    #fstderr = open(rt_plot_dir+"/"+"stderr","w")
+
+
+
+    
+    #subprocess.run(['cp', rt_plot_dir+"/"+"stdout", rt_plot_dir+"/output/"+"stdout" ])
+    #subprocess.run(['cp', rt_plot_dir+"/"+"stderr", rt_plot_dir+"/output/"+"stderr" ])
+    
     if (ret.returncode == 0): print("[PASS]")
     else:                     print("[FAIL]")
+    status.runcode = ret.returncode
     
     
-    
-    if True:
+    if False:
         subprocess.run(["mkdir", "-p", bm_plot_dir])
         subprocess.run(["cp", "{}/output".format(rt_plot_dir), "{}/output".format(bm_plot_dir), "-rf" ])
 
@@ -83,21 +112,30 @@ for test in config.sections():
             bm_plot_dir = bm_dir + "/" + test
             break
 
+
+
     print("Comparing: [", rt_plot_dir, "] <==> [", bm_plot_dir, "]")
 
     #
     # Do a direct file-by-file comparison
     #
-    match = True
+    match = False
     for rt in sorted(glob(rt_plot_dir+"/output/**",recursive=True)):
         if not os.path.isfile(rt): continue
         if os.path.basename(rt) in ["output", "metadata", "diff.html"]: continue
         bm = rt.replace(rt_plot_dir,bm_plot_dir)
+        if not os.path.isfile(bm):
+            print("Error - mismatched files")
+            match = False
+            continue
         if not filecmp.cmp(bm,rt):
             print(bm, " does not match ", rt)
             match = False
+            continue
     if (match) : print("OK - files match")
     else: print("Error - files do not match")
+    if (match) : status.compare = "YES"
+    else : status.compare = "NO"
             
     #
     # Check timing
@@ -105,21 +143,24 @@ for test in config.sections():
     rt_metadata_f = open(rt_plot_dir+"/output/metadata","r")
     rt_run_time = float(re.findall("Simulation_run_time = (\S*)","".join(rt_metadata_f.readlines()))[0])
 
-    bm_metadata_f = open(bm_plot_dir+"/output/metadata","r")
-    bm_run_time = float(re.findall("Simulation_run_time = (\S*)","".join(bm_metadata_f.readlines()))[0])
+    bm_metadata_f = open(bm_plot_dir+"/output/metadata","r").readlines()
+    bm_hash       = re.findall("HASH = (\S*)","".join(bm_metadata_f))[0]
+    print("Benchmark hash is ", bm_hash)
+    bm_run_time   = float(re.findall("Simulation_run_time = (\S*)","".join(bm_metadata_f))[0])
 
-    print("Run time: ",rt_run_time, " (this test) compared to ", bm_run_time," (benchmark)")
-    if (rt_run_time > bm_run_time): print(" --> Performance increase!")
-    if (rt_run_time < bm_run_time): print(" --> Performance decrease :-(")
+    status.performance = (rt_run_time - bm_run_time)/bm_run_time if bm_run_time>0 else 0
+
     
     data = simba.parse(rt_plot_dir+'/output')
+    print(data['STDOUT'])
     types = simba.getTypes(data)
-    simba.updateTable(cur,test,types)
-    simba.updateRecord(cur,test,data)
+    simba.updateTable(cur,test,types,verbose=False)
+    simba.updateRecord(cur,test,data,verbose=False)
+
+    simba.updateRegTestRecord(cur,"regtest",data['HASH'],run_id,test,status,bm_hash)
+    db.commit()
 
 
-
-db.commit()
 db.close()
 #exit()
     

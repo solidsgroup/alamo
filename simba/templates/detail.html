@@ -97,11 +97,11 @@
 	{% elif columns[i] == "DIFF" %}
 		<td> {{ columns[i] }}</td>
 		<td>
-			<button type="button" class="btn btn-warning" data-toggle="modal" data-target="#exampleModal">
+			<button type="button" class="btn btn-warning" data-toggle="modal" data-target="#modal-diff">
 				<span class="glyphicon glyphicon-retweet"></span> View diff of changes made since most recent commit
 			</button>
 			<div style="width=0px;">
-				<div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal fade" id="modal-diff" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
 					<div class="modal-dialog modal-lg" role="document">
 	  					<div class="modal-content">
 							<div class="modal-header">
@@ -121,6 +121,8 @@
 				</div>			
 			</div>
 		</td>
+	{% elif columns[i] == "STDOUT" %}
+	{% elif columns[i] == "STDERR" %}
 	{% else %}
 	<td> {{ columns[i] }}</td>
 	<td> {{ data[i] }}</td>

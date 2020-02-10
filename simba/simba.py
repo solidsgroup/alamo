@@ -3,6 +3,10 @@ import re
 import sqlite3
 
 
+class Status:
+    runcode = -1
+    compare = "NO"
+    performance = 0.0
 
 #
 # Scan an output directory and bundle all of the stuff in a dictionary
@@ -30,6 +34,18 @@ def parse(directory):
         things['DIFF'] = difffile.read()
         difffile.close()
 
+    if os.path.isfile(directory+"/stdout"):
+        print("TRYING TO OPEN ", directory+"/stdout")
+        difffile = open(directory+"/stdout","r")
+        things['STDOUT'] = difffile.read()
+        print('READING STDOUT',directory+"/stdout",things['STDOUT'])
+        difffile.close()
+
+    if os.path.isfile(directory+"/stderr"):
+        difffile = open(directory+"/stderr")
+        things['STDERR'] = difffile.read()
+        difffile.close()
+
     return things
 
 #
@@ -41,8 +57,8 @@ def getTypes(data):
         val = data[key]
         if (key == 'HASH'): 
             continue
-        if (key == 'DIFF'):
-            types['DIFF'] = 'BLOB'
+        if (key == 'DIFF' or key == 'STDOUT' or key == 'STDERR'):
+            types[key] = 'BLOB'
         if key not in types:
             try:
                 int(val)
@@ -59,30 +75,34 @@ def getTypes(data):
             types[key] = 'VARCHAR(1000)'     
     return types 
 
-
 #
 # Create a table if it does not exist, or update the table if it does.
 #
-def updateTable(cur,tablename,types):
+def updateTable(cur,tablename,types,mode="results",verbose=True):
     # If the table does not exist, create it
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in cur.fetchall()]
     if "__tables__" not in tables:
-        cur.execute('CREATE TABLE __tables__ ('
-                    'NAME UNIQUE,' +
-                    'Description VARCHAR(8000));')
+        cur.execute('CREATE TABLE __tables__ (NAME UNIQUE, Description VARCHAR(8000));')
     if tablename not in tables:
-        cur.execute('CREATE TABLE ' + tablename + ' ('
-                    'HASH VARCHAR(255) UNIQUE, ' +
-                    'DIR,' +
-                    'Description VARCHAR(8000),' +
-                    'Tags VARCHAR(1000)' +
-                    (',' if len(types)>0 else '') +
-                    ','.join([key+' '+types[key] for key in sorted(types)]) +
-                    ');')
-        print('\033[1;32mADDED TABLE\033[1;0m: ' + tablename)
+        if mode == "results":
+            cur.execute('CREATE TABLE ' + tablename + ' ('
+                        'HASH VARCHAR(255) UNIQUE, ' +
+                        'DIR,' +
+                        'Description VARCHAR(8000),' +
+                        'Tags VARCHAR(1000)' +
+                        (',' if len(types)>0 else '') +
+                        ','.join([key+' '+types[key] for key in sorted(types)]) +
+                        ');')
+        elif mode == "regtest":
+            cur.execute('CREATE TABLE ' + tablename + ' ('
+                        'HASH VARCHAR(255) UNIQUE ' +
+                        (',' if len(types)>0 else '') +
+                        ','.join([key+' '+types[key] for key in sorted(types)]) +
+                        ');')
+        if (verbose): print('\033[1;32mADDED TABLE\033[1;0m: ' + tablename)
     else:
-        print('\033[1;34mUSING TABLE\033[1;0m: ' + tablename)
+        if (verbose): print('\033[1;34mUSING TABLE\033[1;0m: ' + tablename)
 
     cur.execute('SELECT * FROM __tables__ WHERE NAME = \"' + tablename + '\";')
     if (len(cur.fetchall()) == 0): cur.execute('INSERT INTO __tables__ (NAME, Description) VALUES (\"' + tablename + '\", \"Description\");')
@@ -91,22 +111,20 @@ def updateTable(cur,tablename,types):
     # accordingly
     cur.execute("PRAGMA table_info("+tablename+")")
     columns=[a[1] for a in cur.fetchall()]
-    print(types)
-    print(columns)
     for key in types:
         if key not in columns:
             cur.execute('ALTER TABLE ' + tablename + ' ADD ' + key + ' ' + types[key])
-            print('\033[1;34mADDED COLUMN\033[1;0m: ' + key + ' to ' + tablename)
+            if (verbose): print('\033[1;34mADDED COLUMN\033[1;0m: ' + key + ' to ' + tablename)
 
 
-def updateRecord(cur,tablename,data,hash=None):
+def updateRecord(cur,tablename,data,hash=None,verbose=True):
     if not hash: hash = data['HASH']
     new_dir = data['DIR']
     
     cur.execute('SELECT HASH FROM ' + tablename + ' WHERE HASH = ?',(hash,))
     if (len(cur.fetchall()) == 0):
         cur.execute("INSERT INTO {} (HASH) VALUES (?)".format(tablename),(hash,))
-        print(u'  \u251C\u2574'+'\033[1;32mInserting\033[1;0m: ' + new_dir)
+        if(verbose): print(u'  \u251C\u2574'+'\033[1;32mInserting\033[1;0m: ' + new_dir)
         old_dir = None
     else:
         cur.execute('SELECT DIR FROM {} WHERE HASH = ?'.format(tablename),(hash,))
@@ -115,18 +133,25 @@ def updateRecord(cur,tablename,data,hash=None):
     for col in data:
         cur.execute('UPDATE {} SET {} = ? WHERE HASH = ?'.format(tablename,col),(data[col],hash))
     
-    # Are we merely updating and changing the home location of a record?
-    # If so, let's let the user know.
     if old_dir:
         if (old_dir == new_dir):
-            print(u'  \u251C\u2574'+'\033[1;33mUpdating\033[1;0m:  ' + new_dir + ' ( record already exists )')
+            if (verbose): print(u'  \u251C\u2574'+'\033[1;33mUpdating\033[1;0m:  ' + new_dir + ' ( record already exists )')
         else:
-            print(u'  \u251C\u2574'+'\033[1;36mMoving\033[1;0m:    ' + old_dir + ' --> ' + new_dir)
+            if (verbose): print(u'  \u251C\u2574'+'\033[1;36mMoving\033[1;0m:    ' + old_dir + ' --> ' + new_dir)
 
-    #else:
-    #    cur.execute('INSERT INTO ' + tablename + ' (' + ','.join(data.keys()) + ') ' +
-    #                'VALUES (' + ','.join(data.values()) + ')')
-    #    print(u'  \u251C\u2574'+'\033[1;32mInserting\033[1;0m: ' + new_dir)
-    
     if 'DIFF' in data:
         cur.execute("UPDATE " + tablename + " SET DIFF = ? WHERE HASH = ?",(data['DIFF'],hash))
+
+def updateRegTestTable(cur,tablename,verbose=False):
+    types = dict()
+    types['RUN'] = 'VARCHAR(255)'
+    types['TEST_NAME'] = 'VARCHAR(255)'
+    types['RUNCODE'] = 'INT'
+    types['COMPARE'] = 'VARCHAR(16)'
+    types['PERFORMANCE'] = 'FLOAT'
+    types['BENCHMARK_HASH'] = 'VARCHAR(24)'
+    updateTable(cur,tablename,types,mode="regtest",verbose=False)
+
+def updateRegTestRecord(cur,tablename,hash,run,test_name,status,benchmark_hash):
+    cur.execute("INSERT INTO {} (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,PERFORMANCE,BENCHMARK_HASH) VALUES (?,?,?,?,?,?,?)".format(tablename),
+                (hash,run,test_name,status.runcode,status.compare,float(status.performance),benchmark_hash))
