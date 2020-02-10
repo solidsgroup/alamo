@@ -194,7 +194,7 @@ private:
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 
 		BC::Operator::Elastic<pd_model_type> bc;
-		Operator::Elastic<pd_model_type> op;
+		//Operator::Elastic<pd_model_type> op;
 		Set::Field<pd_model_type> model;
 		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
 
