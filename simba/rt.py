@@ -17,6 +17,7 @@ timestamp = datetime.today().strftime('%Y%m%d_%H%M%S')
 
 parser = argparse.ArgumentParser(description='Sift through outputs')
 parser.add_argument('inifile', help='Configuration file')
+parser.add_argument('benchmark',action='store_true',default=False,help='Set this run as benchmark for all tests')
 args = parser.parse_args()
 
 db = sqlite3.connect('regtest.db')
@@ -35,9 +36,6 @@ for s in config.sections():
         print(r,config[s][r])
 
 simba.updateRegTestTable(cur,"regtest",verbose=False)
-
-
-
 
 for test in config.sections():
 
@@ -80,22 +78,14 @@ for test in config.sections():
     fstdout.close()
     fstderr.close()
     conv = ansi2html.Ansi2HTMLConverter()
-    fstdout = open(rt_plot_dir+"/"+"stdout","r")
-    ansi = "".join(fstdout.readlines())
-    fstderr.close()
-    fstdout = open(rt_plot_dir+"/output/"+"stdout","w")
-    fstdout.writelines(conv.convert(ansi))
-    fstdout.close()
-    #print(conv.convert(ansi))
+    for outfiletype in ["stdout","stderr"]:
+        f = open(rt_plot_dir+"/"+outfiletype,"r")
+        ansi = "".join(f.readlines())
+        f.close()
+        f = open(rt_plot_dir+"/output/"+outfiletype,"w")
+        f.writelines(conv.convert(ansi))
+        f.close()
 
-    #fstderr = open(rt_plot_dir+"/"+"stderr","w")
-
-
-
-    
-    #subprocess.run(['cp', rt_plot_dir+"/"+"stdout", rt_plot_dir+"/output/"+"stdout" ])
-    #subprocess.run(['cp', rt_plot_dir+"/"+"stderr", rt_plot_dir+"/output/"+"stderr" ])
-    
     if (ret.returncode == 0): print("[PASS]")
     else:                     print("[FAIL]")
     status.runcode = ret.returncode
@@ -119,19 +109,19 @@ for test in config.sections():
     #
     # Do a direct file-by-file comparison
     #
-    match = False
+    match = True
     for rt in sorted(glob(rt_plot_dir+"/output/**",recursive=True)):
         if not os.path.isfile(rt): continue
-        if os.path.basename(rt) in ["output", "metadata", "diff.html"]: continue
+        if os.path.basename(rt) in ["output", "metadata", "diff.html", "stdout", "stderr"]: continue
         bm = rt.replace(rt_plot_dir,bm_plot_dir)
         if not os.path.isfile(bm):
             print("Error - mismatched files")
             match = False
-            continue
+            break
         if not filecmp.cmp(bm,rt):
             print(bm, " does not match ", rt)
             match = False
-            continue
+            break
     if (match) : print("OK - files match")
     else: print("Error - files do not match")
     if (match) : status.compare = "YES"
@@ -152,7 +142,6 @@ for test in config.sections():
 
     
     data = simba.parse(rt_plot_dir+'/output')
-    print(data['STDOUT'])
     types = simba.getTypes(data)
     simba.updateTable(cur,test,types,verbose=False)
     simba.updateRecord(cur,test,data,verbose=False)
