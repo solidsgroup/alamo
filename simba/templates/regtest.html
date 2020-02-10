@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h2>Regression Test Summary</h2>
+<div class="table">
+  <table class="table table-striped table-bordered" style="width:100%;">
+	<thead>
+	  <tr>
+        <th> Run ID </th> 
+		{% for i in range(0,tests|length) %}
+		<th> <a target="_blank" href="/table/{{tests[i]}}">{{tests[i]}} </a></th> 
+		{% endfor %}
+	  </tr>
+    </thead>
+    {% for i in range(0,runs|length) %}
+    <tr>
+        <td>{{runs[i]}}</td>
+        {% for j in range(0,tests|length) %}
+        <td>
+            {% for p in range(0,data|length) %}
+                {% if data[p]['RUN'] == runs[i] %}
+                    {% if data[p]['TEST_NAME'] == tests[j] %}
+                        <a data-toggle="modal" data-target="#modal-{{data[p]['HASH']}}" >
+                        {% if data[p]['RUNCODE'] == 0 %}
+                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span>
+                        {% else %}
+                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span>
+                        {% endif %}
+                        
+                        {% if data[p]['COMPARE'] == "YES" %}
+                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+                        {% elif data[p]['COMPARE'] == "NO" %}
+                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+                        {% endif %}
+
+                        {{data[p]['PERFORMANCE']}}
+                        </a>
+
+                        <div class="modal fade" id="modal-{{data[p]['HASH']}}" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-lg" role="document">
+                                  <div class="modal-content">
+                                    <div class="modal-header">
+                                          <h5 class="modal-title" id="exampleModalLabel">Git DIFF</h5>
+                                          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                          </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><b> Simulation detail page: </b> <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}</a></p>
+
+                                        <p><b> <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stdout">STDOUT</b> </a></p>
+
+                                        <p>
+                                        {% if data[p]['RUNCODE'] == 0 %}
+                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span> Ran to completion
+                                        {% else %}
+                                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span> Errored out!
+                                        {% endif %}
+                                        </p>
+
+                                        <p>
+                                        {% if data[p]['COMPARE'] == "YES" %}
+                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+                                            Comparison passed (<b>Benchmark</b>>: <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a>)
+                                        {% elif data[p]['COMPARE'] == "NO" %}
+                                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+                                            Comparison failed (<b>Benchmark</b>: <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a>)
+                                        {% endif %}
+                                        </p>
+
+                                        <p>
+                                            Benchmark hash is {{data[p]['BENCHMARK_HASH']}}
+                                        </p>
+            
+                                    </div>
+                                    <div class="modal-footer">
+                                          <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+                                    </div>
+                                  </div>
+                            </div>
+                        </div>			
+                        
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+
+        </td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</table>
+
+
+
+{% endblock %}
