@@ -31,7 +31,8 @@ stop_time = 2.0
 #=============== AMR parameters ============================================
 amr.plot_int = 100
 amr.max_level = 0
-amr.n_cell = 128 32 8
+#amr.n_cell = 128 32 8
+amr.n_cell = 64 32 32
 amr.blocking_factor = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -40,7 +41,8 @@ amr.plot_file = tests/PolymerDegradation3D-2/output
 
 #=============== Specify geometry and unrefined mesh =======================
 geometry.prob_lo = 0 0 0
-geometry.prob_hi =  32.0 8.0 2.0
+#geometry.prob_hi =  32.0 8.0 2.0
+geometry.prob_hi =  16.0 8.0 8.0
 geometry.is_periodic= 0 0 0
 #===========================================================================
 
