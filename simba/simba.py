@@ -35,10 +35,8 @@ def parse(directory):
         difffile.close()
 
     if os.path.isfile(directory+"/stdout"):
-        print("TRYING TO OPEN ", directory+"/stdout")
         difffile = open(directory+"/stdout","r")
         things['STDOUT'] = difffile.read()
-        print('READING STDOUT',directory+"/stdout",things['STDOUT'])
         difffile.close()
 
     if os.path.isfile(directory+"/stderr"):

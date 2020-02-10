@@ -22,25 +22,32 @@
                     {% if data[p]['TEST_NAME'] == tests[j] %}
                         <a data-toggle="modal" data-target="#modal-{{data[p]['HASH']}}" >
                         {% if data[p]['RUNCODE'] == 0 %}
-                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span>
+                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-step-forward"/> </span></span>
                         {% else %}
-                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span>
+                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-step-forward"/> </span></span>
                         {% endif %}
                         
                         {% if data[p]['COMPARE'] == "YES" %}
-                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
                         {% elif data[p]['COMPARE'] == "NO" %}
-                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
                         {% endif %}
 
-                        {{data[p]['PERFORMANCE']}}
+                        {% if data[p]['PERFORMANCE'] == 0 %}
+                        <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                        {% elif data[p]['PERFORMANCE']|float() < 0|float() %}
+                        <span class="label label-default" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                        {% elif data[p]['PERFORMANCE']|float() > 0|float() %}
+                        <span class="label label-warning" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                        {% endif %}
+
                         </a>
 
                         <div class="modal fade" id="modal-{{data[p]['HASH']}}" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
                             <div class="modal-dialog modal-lg" role="document">
                                   <div class="modal-content">
                                     <div class="modal-header">
-                                          <h5 class="modal-title" id="exampleModalLabel">Git DIFF</h5>
+                                          <h5 class="modal-title" id="exampleModalLabel">Regression Test Detail Page</h5>
                                           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                                             <span aria-hidden="true">&times;</span>
                                           </button>
@@ -52,26 +59,37 @@
 
                                         <p>
                                         {% if data[p]['RUNCODE'] == 0 %}
-                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span> Ran to completion
+                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-forward"/> </span></span> 
+                                            Ran to completion
                                         {% else %}
-                                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-play"/> </span></span> Errored out!
+                                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-forward"/> </span></span> 
+                                            Errored out!
                                         {% endif %}
                                         </p>
 
                                         <p>
                                         {% if data[p]['COMPARE'] == "YES" %}
-                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
-                                            Comparison passed (<b>Benchmark</b>>: <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a>)
+                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
+                                            Comparison passed (<b>Benchmark</b>: <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a>)
                                         {% elif data[p]['COMPARE'] == "NO" %}
-                                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+                                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
                                             Comparison failed (<b>Benchmark</b>: <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a>)
                                         {% endif %}
                                         </p>
 
                                         <p>
-                                            Benchmark hash is {{data[p]['BENCHMARK_HASH']}}
+                                            {% if data[p]['PERFORMANCE'] == 0 %}
+                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                                            Performance match
+                                            {% elif data[p]['PERFORMANCE']|float() < 0|float() %}
+                                            <span class="label label-default" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                                            Performance increase (factor of {{data[p]['PERFORMANCE']}})
+                                            {% elif data[p]['PERFORMANCE']|float() > 0|float() %}
+                                            <span class="label label-warning" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                                            Performance decrease (factor of {{data[p]['PERFORMANCE']}})
+                                            {% endif %}
                                         </p>
-            
+
                                     </div>
                                     <div class="modal-footer">
                                           <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
@@ -83,8 +101,6 @@
                     {% endif %}
                 {% endif %}
             {% endfor %}
-
-
         </td>
         {% endfor %}
     </tr>
