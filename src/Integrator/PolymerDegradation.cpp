@@ -608,6 +608,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
+		displacement[ilev]->setVal(0.0);
 		const Real* DX = geom[ilev].CellSize();
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
@@ -619,8 +620,9 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	if (elastic.type == "single" || elastic.type == "tensile_single")
 	{
-		elastic.bc.SetTime(0.0);
-        elastic.bc.Init(rhs,geom);
+		//elastic.bc.SetTime(0.0);
+		elastic.bc.Init(rhs,geom);
+
 		elastic_op.SetBC(&(elastic.bc));
 
 		//Util::Message(INFO);
@@ -680,6 +682,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	{
 		Set::Scalar test_t = 0.;
 		int countstep = 0;
+		Util::Message(INFO, "Performing tensile test at t = ",elastic.test_time[elastic.current_test]);
 		
 		amrex::Vector<Set::Scalar> plottime;
 		amrex::Vector<int> plotstep;
@@ -690,8 +693,20 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 		while (test_t < elastic.test_duration)
 		{
+			Util::Message(INFO, "test time = ", test_t);
 			test_t += elastic.test_dt; countstep++;
-			for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = test_t; plotstep[lev]=countstep-1;}
+
+			for (int lev = 0; lev < nlevels; lev++) 
+			{
+				displacement[lev]->setVal(0.0);
+				const Real* DX = geom[lev].CellSize();
+				Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+
+				AMREX_D_TERM(	rhs[lev]->setVal(elastic.body_force[0]*volume,0,1);,
+								rhs[lev]->setVal(elastic.body_force[1]*volume,1,1);,
+								rhs[lev]->setVal(elastic.body_force[2]*volume,2,1););
+				plottime[lev] = test_t; plotstep[lev]=countstep-1;
+			}
 			
 			elastic.bc.SetTime(test_t);
 			elastic.bc.Init(rhs,geom);

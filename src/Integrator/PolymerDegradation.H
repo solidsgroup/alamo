@@ -34,8 +34,8 @@
 
 namespace Integrator
 {
-//using pd_model_type = Model::Solid::Linear::IsotropicDegradableTanh;
-using pd_model_type = Model::Solid::Linear::IsotropicDegradable;
+using pd_model_type = Model::Solid::Linear::IsotropicDegradableTanh;
+//using pd_model_type = Model::Solid::Linear::IsotropicDegradable;
 
 ///
 /// \class PolymerDegradation
