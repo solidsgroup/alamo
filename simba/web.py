@@ -235,7 +235,7 @@ def table_entry(table,entry):
     global metadatafile
     global thermofile
 
-    db = sqlite3.connect('results.db')
+    db = sqlite3.connect(args.database)
     db.text_factory = str
     cur= db.cursor()
     
@@ -269,6 +269,69 @@ def table_entry(table,entry):
                            thermofile=thermofile,
                            imgfiles=[os.path.split(im)[1] for im in imgfiles],
                            tarballfiles=[os.path.split(tb)[1] for tb in tarballfiles])
+                           
+@app.route('/table/<table>/entry/<entry>/stdout', methods=['GET','POST'])
+@requires_auth
+def table_entry_stdout(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT STDOUT FROM {} WHERE HASH = ?".format(table),(entry,))
+    return cur.fetchall()[0][0]
+
+@app.route('/table/<table>/entry/<entry>/stderr', methods=['GET','POST'])
+@requires_auth
+def table_entry_stderr(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT STDERR FROM {} WHERE HASH = ?".format(table),(entry,))
+    return cur.fetchall()[0][0]
+                           
+@app.route('/regtest/<regtest>/<run>/stdout', methods=['GET','POST'])
+@requires_auth
+def regtest_run_stdout(regtest,run):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT STDIO FROM regtest_runs WHERE RUN = ?",(run,))
+    ret = cur.fetchall()
+    if len(ret) > 0:
+        if len(ret[0]) > 0:
+            return ret[0][0]
+    else: return "<h2>None</h2>"
+
+
+@app.route("/regtest/<regtest>", methods=['GET','POST'])
+@requires_auth
+def regtest(regtest):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+
+    cur.execute("SELECT DISTINCT TEST_NAME FROM {}".format(regtest))
+    test_names = [tn[0] for tn in cur.fetchall()]
+
+    cur.execute("SELECT RUN,COMPILECODE FROM regtest_runs ORDER BY RUN DESC".format(regtest))
+    runs = cur.fetchall()#sorted([tn[0] for tn in cur.fetchall()],reverse=True)
+        
+    cur.execute("PRAGMA table_info({})".format(regtest))
+    columns=[a[1] for a in cur.fetchall()]
+
+    cur.execute("SELECT * FROM {}".format(regtest))
+    rawdata = cur.fetchall()
+
+
+    data = []
+    for d in rawdata: data.append(dict(zip(columns,d)))
+
+    return render_template('regtest.html',
+                            runs=runs,
+                            tests=test_names,
+                            data=data,
+                            columns=columns)
+                           
+                           
 
 if __name__ == '__main__':
     app.run(debug=True,

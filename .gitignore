@@ -25,7 +25,6 @@ docs/doxygen
 docs/html
 docs/latex
 *.d
-TrigTest*
 testoutput*
 Makefile.conf
 Makefile.amrex.conf
