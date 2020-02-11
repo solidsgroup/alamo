@@ -91,7 +91,7 @@ for test in config.sections():
     status.runcode = ret.returncode
     
     
-    if False:
+    if args.benchmark:
         subprocess.run(["mkdir", "-p", bm_plot_dir])
         subprocess.run(["cp", "{}/output".format(rt_plot_dir), "{}/output".format(bm_plot_dir), "-rf" ])
 
