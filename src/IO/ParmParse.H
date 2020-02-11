@@ -16,6 +16,7 @@ class ParmParse : public amrex::ParmParse
 {
 public:
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {} ;
+    ParmParse() : amrex::ParmParse::ParmParse() {} ;
     int queryarr(std::string name, Set::Vector & value)
     {
         std::vector<Set::Scalar> vals;

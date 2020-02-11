@@ -7,6 +7,7 @@ This is basic documentation for the Alamo.
    :maxdepth: 0
 
    Voronoi
+   VoronoiElastic
    Flame
    PerturbedInterface
    Eshelby
