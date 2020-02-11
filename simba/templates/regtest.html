@@ -15,7 +15,7 @@
     {% for i in range(0,runs|length) %}
     <tr>
         <td>
-            <a target="_blank" href="http://127.0.0.1:5000/regtest/regtest/{{runs[i][0]}}/stdout">{{runs[i][0]}}</a>
+            <a target="_blank" href="/regtest/regtest/{{runs[i][0]}}/stdout">{{runs[i][0]}}</a>
             {% if runs[i][1] == 0 %} <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-cog"/> </span></span> {% endif %}
         </td>
         {% for j in range(0,tests|length) %}
