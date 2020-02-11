@@ -295,7 +295,11 @@ def regtest_run_stdout(regtest,run):
     db.text_factory = str
     cur= db.cursor()
     cur.execute("SELECT STDIO FROM regtest_runs WHERE RUN = ?",(run,))
-    return cur.fetchall()[0][0]
+    ret = cur.fetchall()
+    if len(ret) > 0:
+        if len(ret[0]) > 0:
+            return ret[0][0]
+    else: return "<h2>None</h2>"
 
 
 @app.route("/regtest/<regtest>", methods=['GET','POST'])

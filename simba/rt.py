@@ -80,40 +80,40 @@ for branch in branches:
         ret = subprocess.run(['./configure','--dim=2']+alamo_configure_flags.split(),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
         print(ret.stdout.decode())
+        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
+        db.commit()
         if (ret.returncode): 
             print("Encountered error configuring {} in 2D".format(branch))
-            simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-            db.commit()
             continue
         
         # Compile 2D
         ret = subprocess.run(['make','-j{}'.format(nprocs_build)],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
         print(ret.stdout.decode())
+        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
+        db.commit()
         if (ret.returncode): 
             print("Encountered error making {} in 2D".format(branch))
-            simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-            db.commit()
             continue
 
         # Configure 3D
-        ret = subprocess.run(['./configure','--dim=3'],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        ret = subprocess.run(['./configure','--dim=3']+alamo_configure_flags.split(),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
         print(ret.stdout.decode())
+        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
+        db.commit()
         if (ret.returncode): 
             print("Encountered error configuring {} in 3D".format(branch))
-            simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-            db.commit()
             continue
         
         # Compile 3D
         ret = subprocess.run(['make','-j{}'.format(nprocs_build)],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
         print(ret.stdout.decode())
+        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
+        db.commit()
         if (ret.returncode): 
             print("Encountered error making {} in 3D".format(branch))
-            simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-            db.commit()
             continue
 
     simba.updateRegTestRun(cur,run_id,0,conv.convert(build_stdout))

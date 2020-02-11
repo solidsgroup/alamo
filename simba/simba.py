@@ -167,6 +167,11 @@ def updateRegTestRecord(cur,hash,run,test_name,status,benchmark_hash,benchmark_r
                 (hash,run,test_name,status.runcode,status.compare,float(status.performance),benchmark_hash,benchmark_run))
 
 def updateRegTestRun(cur,run,compilecode,stdio):
-    print("Updating Reg Test Run!")
-    cur.execute("INSERT INTO regtest_runs (RUN,COMPILECODE,STDIO) VALUES (?,?,?)",
-                (run,compilecode,stdio))
+    cur.execute('SELECT RUN FROM regtest_runs WHERE RUN = ?',(run,))
+    if (len(cur.fetchall()) == 0):
+        cur.execute("INSERT INTO regtest_runs (RUN,COMPILECODE,STDIO) VALUES (?,?,?)",
+                    (run,compilecode,stdio))
+    else:
+        cur.execute("UPDATE regtest_runs SET COMPILECODE=?, STDIO=? WHERE RUN=?",(compilecode,stdio,run))
+    
+
