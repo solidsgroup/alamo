@@ -93,8 +93,14 @@ def updateTable(cur,tablename,types,mode="results",verbose=True):
                         ','.join([key+' '+types[key] for key in sorted(types)]) +
                         ');')
         elif mode == "regtest":
-            cur.execute('CREATE TABLE ' + tablename + ' ('
+            cur.execute('CREATE TABLE regtest ('
                         'HASH VARCHAR(255) UNIQUE ' +
+                        (',' if len(types)>0 else '') +
+                        ','.join([key+' '+types[key] for key in sorted(types)]) +
+                        ');')
+        elif mode == "regtest_runs":
+            cur.execute('CREATE TABLE regtest_runs ('
+                        'RUN VARCHAR(255) UNIQUE ' +
                         (',' if len(types)>0 else '') +
                         ','.join([key+' '+types[key] for key in sorted(types)]) +
                         ');')
@@ -140,7 +146,7 @@ def updateRecord(cur,tablename,data,hash=None,verbose=True):
     if 'DIFF' in data:
         cur.execute("UPDATE " + tablename + " SET DIFF = ? WHERE HASH = ?",(data['DIFF'],hash))
 
-def updateRegTestTable(cur,tablename,verbose=False):
+def updateRegTestTable(cur,verbose=False):
     types = dict()
     types['RUN'] = 'VARCHAR(255)'
     types['TEST_NAME'] = 'VARCHAR(255)'
@@ -148,8 +154,19 @@ def updateRegTestTable(cur,tablename,verbose=False):
     types['COMPARE'] = 'VARCHAR(16)'
     types['PERFORMANCE'] = 'FLOAT'
     types['BENCHMARK_HASH'] = 'VARCHAR(24)'
-    updateTable(cur,tablename,types,mode="regtest",verbose=False)
+    types['BENCHMARK_RUN'] = 'VARCHAR(64)'
+    updateTable(cur,"regtest",types,mode="regtest",verbose=False)
+    types = dict()
+    types['COMPILECODE'] = 'INT'
+    types['STDIO']       = 'BLOB'
+    updateTable(cur,"regtest_runs",types,mode="regtest_runs",verbose=False)
 
-def updateRegTestRecord(cur,tablename,hash,run,test_name,status,benchmark_hash):
-    cur.execute("INSERT INTO {} (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,PERFORMANCE,BENCHMARK_HASH) VALUES (?,?,?,?,?,?,?)".format(tablename),
-                (hash,run,test_name,status.runcode,status.compare,float(status.performance),benchmark_hash))
+
+def updateRegTestRecord(cur,hash,run,test_name,status,benchmark_hash,benchmark_run):
+    cur.execute("INSERT INTO regtest (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,PERFORMANCE,BENCHMARK_HASH,BENCHMARK_RUN) VALUES (?,?,?,?,?,?,?,?)",
+                (hash,run,test_name,status.runcode,status.compare,float(status.performance),benchmark_hash,benchmark_run))
+
+def updateRegTestRun(cur,run,compilecode,stdio):
+    print("Updating Reg Test Run!")
+    cur.execute("INSERT INTO regtest_runs (RUN,COMPILECODE,STDIO) VALUES (?,?,?)",
+                (run,compilecode,stdio))
