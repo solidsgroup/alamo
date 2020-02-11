@@ -37,15 +37,17 @@ for s in config.sections():
         print(r,config[s][r])
 
 alamo_path = os.path.abspath('.')
+alamo_configure_flags = ''
 regtest_dir = os.path.abspath('.')
 branches = ['']
 nprocs_build = 1
 benchmark_run = None
 if 'main' in config:
-    if 'alamo_path'      in config['main']: alamo_path = os.path.abspath(config['main']['alamo_path'])
-    if 'regtest_dir'     in config['main']: regtest_dir = os.path.abspath(config['main']['regtest_dir'])
-    if 'branches'        in config['main']: branches = config['main']['branches'].split(' ')
-    if 'nprocs_build'    in config['main']: nprocs_build = int(config['main']['nprocs_build'])
+    if 'alamo_path'            in config['main']: alamo_path = os.path.abspath(config['main']['alamo_path'])
+    if 'alamo_configure_flags' in config['main']: alamo_configure_flags = config['main']['alamo_configure_flags']
+    if 'regtest_dir'           in config['main']: regtest_dir = os.path.abspath(config['main']['regtest_dir'])
+    if 'branches'              in config['main']: branches = config['main']['branches'].split(' ')
+    if 'nprocs_build'          in config['main']: nprocs_build = int(config['main']['nprocs_build'])
 
 simba.updateRegTestTable(cur,verbose=False)
 
@@ -75,7 +77,7 @@ for branch in branches:
             raise(Exception("There was an error checking out branch \""+branch+"\":"))
 
         # Configure 2D
-        ret = subprocess.run(['./configure','--dim=2'],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        ret = subprocess.run(['./configure','--dim=2']+alamo_configure_flags.split(),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
         print(ret.stdout.decode())
         if (ret.returncode): 
