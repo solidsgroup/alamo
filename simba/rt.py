@@ -76,6 +76,13 @@ for branch in branches:
             print(ret.stderr.decode()+"\033[0m")
             raise(Exception("There was an error checking out branch \""+branch+"\":"))
 
+        ret = subprocess.run(['git','pull'],cwd=alamo_path,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        build_stdout += ret.stdout.decode()
+        if (ret.returncode):
+            print("\033[31m"+ret.stdout.decode())
+            print(ret.stderr.decode()+"\033[0m")
+            raise(Exception("There was an error pulling"))
+
         # Configure 2D
         ret = subprocess.run(['./configure','--dim=2']+alamo_configure_flags.split(),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
