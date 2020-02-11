@@ -17,7 +17,7 @@ timestamp = datetime.today().strftime('%Y%m%d_%H%M%S')
 
 parser = argparse.ArgumentParser(description='Sift through outputs')
 parser.add_argument('inifile', help='Configuration file')
-parser.add_argument('benchmark',action='store_true',default=False,help='Set this run as benchmark for all tests')
+parser.add_argument('--benchmark',action='store_true',default=False,help='Set this run as benchmark for all tests')
 args = parser.parse_args()
 
 db = sqlite3.connect('regtest.db')
