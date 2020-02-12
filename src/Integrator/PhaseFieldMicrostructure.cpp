@@ -39,6 +39,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("sigma0", pf.sigma0);
 		pp.query("l_gb", pf.l_gb);
 		pp.query("elastic_mult",pf.elastic_mult);
+		pp.query("elastic_threshold",pf.elastic_threshold);
 	}
 	{
 		amrex::ParmParse pp("amr");
@@ -250,11 +251,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						Set::Scalar kappa = pf.l_gb*0.75*boundary->W(Theta);
 						Set::Scalar Dkappa = pf.l_gb*0.75*boundary->DW(Theta);
 						Set::Scalar DDkappa = pf.l_gb*0.75*boundary->DDW(Theta);
-						//Util::Message(INFO,Theta);
-						//for (Set::Scalar theta = -7.0; theta < 7.0; theta+=0.01)
-						//	std::cout << theta << " " << boundary->W(theta) << " " << boundary->DW(theta) << " " << boundary->DDW(theta) << " " << std::endl;
-						//Util::Abort(INFO);
-						//Util::Message(INFO,boundary->W(Theta)," ",boundary->DW(Theta)," ",boundary->DDW(Theta));
 						mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / pf.l_gb;
 						Set::Scalar sinTheta = sin(Theta);
 						Set::Scalar cosTheta = cos(Theta);
@@ -395,8 +391,10 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						F0avg  += eta(i,j,k,n) * elastic.model[n].F0;
 					} 
 					
-					Set::Matrix dF0deta = (etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
+					//Set::Matrix dF0deta = (etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
+					Set::Matrix dF0deta = elastic.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
 					//driving_force += (*energies)(i,j,k,m);
+					//Util::Message(INFO,"m=",m,"dF0deta = \n",dF0deta);
 
 
 					Set::Matrix sig;
@@ -405,19 +403,37 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					sig(1,0) = 0.25*(sigma(i,j,k,2) + sigma(i+1,j,k,2) + sigma(i,j+1,k,2)+ sigma(i+1,j+1,k,2));
 					sig(1,1) = 0.25*(sigma(i,j,k,3) + sigma(i+1,j,k,3) + sigma(i,j+1,k,3)+ sigma(i+1,j+1,k,3));
 
-					//edf(i,j,k,m) = pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
-					//driving_force += pf.elastic_mult * (elastic.model[m].F0.transpose() * sig).trace();
 
-					if (m == 0)
+					Set::Scalar tmpdf = pf.elastic_mult * (dF0deta.transpose() * sig).trace();
+
+					//edf(i,j,k,m) = tmpdf;
+					//driving_force += tmpdf;
+
+					if (tmpdf > pf.elastic_threshold)
 					{
-						edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
-						driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+						edf(i,j,k,m) = tmpdf-pf.elastic_threshold;
+						driving_force += tmpdf-pf.elastic_threshold;
 					}
-					if (m == 1)
+					else if (-tmpdf < -pf.elastic_threshold)
 					{
-						//edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
-						//driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+						edf(i,j,k,m) = tmpdf+pf.elastic_threshold;
+						driving_force += tmpdf+pf.elastic_threshold;
 					}
+					else
+					{
+						edf(i,j,k,m) = 0.0;
+					}
+
+					//if (m == 0)
+					//{
+					//	edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+					//	driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+					//}
+					//if (m == 1)
+					//{
+					//	//edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+					//	//driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
+					//}
 
 				}
 

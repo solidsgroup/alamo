@@ -100,6 +100,7 @@ private:
 		Set::Scalar sigma0;
 		Set::Scalar l_gb;
 		Set::Scalar elastic_mult = 1.0;
+		Set::Scalar elastic_threshold = 0.0;
 	} pf;
 
 	struct {

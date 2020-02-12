@@ -74,14 +74,23 @@ public:
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
         Set::Scalar etasum = 0.;
-        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n]*eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
         for (unsigned int n = 0 ; n < models.size(); n++)
         {
-            ret.ddw += models[n].ddw * (eta[n]*eta[n] / etasum);
-            ret.F0  += models[n].F0  * (eta[n]*eta[n] / etasum);
+            ret.ddw += models[n].ddw * (eta[n] / etasum);
+            ret.F0  += models[n].F0  * (eta[n] / etasum);
         }
+        //if (eta[0] > eta[1])
+        //{
+        //    ret.ddw = models[0].ddw;
+        //    ret.F0  = models[0].F0;
+        //}
+        //else
+        //{
+        //    ret.ddw = models[1].ddw;
+        //    ret.F0  = models[1].F0;
+        //}
         return ret;
-        //return models[0];
     }
 };
 

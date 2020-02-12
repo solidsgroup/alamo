@@ -30,8 +30,12 @@ ic.type=tabulated_interface
 #ic.ys = 0.5 0.5 -0.5 -0.5
 #ic.xs = 0.0  8.0
 #ic.ys = 0.5 -0.5
-ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
-ic.ys = -0.0 -0.0 0.5 0.5 -0.0 -0.0
+# single disconnection
+#ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
+#ic.ys = -0.0 -0.0 0.5 0.5 -0.0 -0.0
+# ramp
+ic.xs = 0.0 4 8.0
+ic.ys = -0.5 0.5 -0.5
 
 
 geometry.prob_lo = 0 -4 0
@@ -52,13 +56,14 @@ pf.gamma = 1.0
 pf.l_gb=0.05
 #pf.l_gb=0.025
 pf.sigma0=0.075
-pf.elastic_mult = 400 ############################################################
+pf.elastic_mult = -200 ############################################################
+pf.elastic_threshold = 0.6
 
 anisotropy.on=1
 anisotropy.gb_type = read
 anisotropy.filename = energy_abssin.dat
 anisotropy.timestep=0.01
-anisotropy.elastic_int = 100
+anisotropy.elastic_int = 50
 anisotropy.tstart= 1.
 #anisotropy.theta0= 45
 anisotropy.theta0= 0
@@ -70,8 +75,9 @@ anisotropy.beta= 0.000001
 anisotropy.damp=1.0
 
 elastic.on = 1
+elastic.tstart = 5.0
 #elastic.interval = 100
-elastic.interval = -10
+elastic.interval = 1
 
 elastic.model1.C11 = 1.68
 elastic.model1.C12 = 1.21
@@ -98,12 +104,12 @@ elastic.bc.type.xhiyhi  = disp disp disp
 elastic.bc.type.xloyhi  = disp disp disp
 elastic.bc.type.yhi     = disp disp disp
 
-#elastic.bc.val.xhiyhi  =  (0,1.0:0,0.1) 0.0 0.0
-#elastic.bc.val.xloyhi  =  (0,1.0:0,0.1) 0.0 0.0
-#elastic.bc.val.yhi     =  (0,1.0:0,0.1) 0.0 0.0
-elastic.bc.val.xhiyhi  = 0.0 0.0 0.0
-elastic.bc.val.xloyhi  = 0.0 0.0 0.0
-elastic.bc.val.yhi     = 0.0 0.0 0.0
+elastic.bc.val.xhiyhi  =  (0,10.0:0,10.0) 0.0 0.0
+elastic.bc.val.xloyhi  =  (0,10.0:0,10.0) 0.0 0.0
+elastic.bc.val.yhi     =  (0,10.0:0,10.0) 0.0 0.0
+#elastic.bc.val.xhiyhi  = 0.2 0.0
+#elastic.bc.val.xloyhi  = 0.2 0.0
+#elastic.bc.val.yhi     = 0.2 0.0
 
 elastic.solver.verbose = 2
 #elastic.solver.fixed_iter = 10
