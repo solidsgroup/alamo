@@ -14,7 +14,7 @@ import random
 
 
 
-timestamp = datetime.today().strftime('%Y%m%d_%H%M%S')
+timestamp = datetime.today().strftime('%Y-%m-%d_%H%M%S')
 
 parser = argparse.ArgumentParser(description='Sift through outputs')
 parser.add_argument('inifile', help='Configuration file')
@@ -213,21 +213,24 @@ for branch in branches:
         else:
             status.compare = "NONE"
 
+        # Get timing
+        rt_metadata_f = open(rt_plot_dir+"/output/metadata","r")
+        rt_run_time = float(re.findall("Simulation_run_time = (\S*)","".join(rt_metadata_f.readlines()))[0])
+        status.runtime = rt_run_time
+
         #
         # Get metadata and check timing
         #
+            
         if benchmark_run:
-            rt_metadata_f = open(rt_plot_dir+"/output/metadata","r")
-            rt_run_time = float(re.findall("Simulation_run_time = (\S*)","".join(rt_metadata_f.readlines()))[0])
             bm_metadata_f = open(bm_plot_dir+"/output/metadata","r").readlines()
             bm_hash       = re.findall("HASH = (\S*)","".join(bm_metadata_f))[0]
             print("Benchmark hash is ", bm_hash)
             bm_run_time   = float(re.findall("Simulation_run_time = (\S*)","".join(bm_metadata_f))[0])
-            status.performance = (rt_run_time - bm_run_time)/bm_run_time if bm_run_time>0 else 0
+            status.bm_runtime = bm_run_time
         else:
             bm_hash = "NONE"
-            status.performance = 0
-
+            status.bm_runtime = 0
 
         data = simba.parse(rt_plot_dir+'/output')
         types = simba.getTypes(data)
