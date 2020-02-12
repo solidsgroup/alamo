@@ -139,18 +139,23 @@ def table(table):
             cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
     
 
+    cur.execute("PRAGMA table_info("+table_name+")")
+    columns=[a[1] for a in cur.fetchall()]
+
     cur.execute("SELECT * FROM " + table_name )
-    data = cur.fetchall()
+    rawdata = cur.fetchall()
+
+    data = []
+    for d in rawdata: data.append(dict(zip(columns,d)))
+
 
     cur.execute("SELECT Description FROM __tables__ WHERE Name = \"" + table_name  + "\"")
     desc = list(cur.fetchall()[0])[0]
 
-    cur.execute("PRAGMA table_info("+table_name+")")
-    columns=[a[1] for a in cur.fetchall()]
 
     status = []
     if ("Status" in columns):
-        status = [d[columns.index("Status")] for d in data]
+        status = [d["Status"] for d in data]
 
     db.commit()
     db.close()
@@ -160,20 +165,26 @@ def table(table):
     numfiles = []
     if not args.fast:
         for d in data:
-            find_images(d[columns.index("DIR")])
+            find_images(d['DIR'])
             numfiles.append(len(imgfiles))
+
+    columns.insert(0,columns.pop(columns.index('DIR')))
+    columns.insert(1,columns.pop(columns.index('Description')))
+    columns.insert(1,columns.pop(columns.index('Tags')))
+
 
     return render_template('template.html',
                            tables=tables,
                            table_name=table,
                            table_description=desc,
-                           table=data,
+                           data=data,
                            status=status,
                            numfiles=numfiles,
                            columns=columns)
 imgfiles = []
 
 def find_images(path):
+    print("Path is ",path)
     global imgfiles
     img_fmts = ['.jpg', '.jpeg', '.png', '.gif','.svg']
     imgfiles = []
@@ -251,15 +262,21 @@ def table_entry(table,entry):
     columns=[a[1] for a in cur.fetchall()]
 
     cur.execute("SELECT * FROM " + table + " WHERE HASH='" + entry + "'")
-    data = cur.fetchall()[0]
+    d = cur.fetchall()[0]
 
-    find_images(data[1])
-    find_tarballs(data[1])
-    metadatafile=data[1]+"/metadata"
-    find_thermo(data[1])
-    
+    data = dict(zip(columns,d))
+
+    find_images(data['DIR'])
+    find_tarballs(data['DIR'])
+    metadatafile=data['DIR']+"/metadata"
+    find_thermo(data['DIR'])
+
     db.commit()
     db.close()
+    
+    columns.insert(0,columns.pop(columns.index('DIR')))
+    columns.insert(1,columns.pop(columns.index('Description')))
+    columns.insert(1,columns.pop(columns.index('Tags')))
     
     return render_template('detail.html',
                            table=table,
@@ -277,6 +294,15 @@ def table_entry_stdout(table,entry):
     db.text_factory = str
     cur= db.cursor()
     cur.execute("SELECT STDOUT FROM {} WHERE HASH = ?".format(table),(entry,))
+    return cur.fetchall()[0][0]
+
+@app.route('/table/<table>/entry/<entry>/diff', methods=['GET','POST'])
+@requires_auth
+def table_entry_diff(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT DIFF FROM {} WHERE HASH = ?".format(table),(entry,))
     return cur.fetchall()[0][0]
 
 @app.route('/table/<table>/entry/<entry>/stderr', methods=['GET','POST'])
