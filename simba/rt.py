@@ -46,7 +46,11 @@ db = sqlite3.connect(db_path + '/regtest.db')
 db.text_factory = str
 cur= db.cursor()
 types = dict()
-
+for s in config.sections():
+    simba.updateTable(cur,s,types,verbose=False)
+    print(config[s])
+    for r in config[s]:
+        print(r,config[s][r])
 
 simba.updateRegTestTable(cur,verbose=False)
 
@@ -121,6 +125,12 @@ for branch in branches:
         if (ret.returncode): 
             print("Encountered error making {} in 3D".format(branch))
             continue
+
+    else:
+        ret = subprocess.run(['git','status'],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        print(ret.stdout.decode())
+        build_stdout += ret.stdout.decode()
+    
 
     simba.updateRegTestRun(cur,run_id,0,conv.convert(build_stdout))
     db.commit()
