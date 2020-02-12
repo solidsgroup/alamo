@@ -21,33 +21,36 @@ parser.add_argument('inifile', help='Configuration file')
 parser.add_argument('--benchmark',action='store_true',default=False,help='Set this run as benchmark for all tests')
 args = parser.parse_args()
 
-db = sqlite3.connect('regtest.db')
-db.text_factory = str
-cur= db.cursor()
-types = dict()
 
 config = configparser.ConfigParser()
 config.read(args.inifile)
 print(config)
 print(config.sections())
-for s in config.sections():
-    simba.updateTable(cur,s,types,verbose=False)
-    print(config[s])
-    for r in config[s]:
-        print(r,config[s][r])
 
 alamo_path = os.path.abspath('.')
 alamo_configure_flags = ''
 regtest_dir = os.path.abspath('.')
+db_path = os.path.abspath('.')
 branches = ['']
 nprocs_build = 1
 benchmark_run = None
 if 'main' in config:
     if 'alamo_path'            in config['main']: alamo_path = os.path.abspath(config['main']['alamo_path'])
     if 'alamo_configure_flags' in config['main']: alamo_configure_flags = config['main']['alamo_configure_flags']
+    if 'db_path'               in config['main']: db_path = os.path.abspath(config['main']['db_path'])
     if 'regtest_dir'           in config['main']: regtest_dir = os.path.abspath(config['main']['regtest_dir'])
     if 'branches'              in config['main']: branches = config['main']['branches'].split(' ')
     if 'nprocs_build'          in config['main']: nprocs_build = int(config['main']['nprocs_build'])
+
+db = sqlite3.connect(db_path + '/regtest.db')
+db.text_factory = str
+cur= db.cursor()
+types = dict()
+for s in config.sections():
+    simba.updateTable(cur,s,types,verbose=False)
+    print(config[s])
+    for r in config[s]:
+        print(r,config[s][r])
 
 simba.updateRegTestTable(cur,verbose=False)
 
@@ -122,6 +125,12 @@ for branch in branches:
         if (ret.returncode): 
             print("Encountered error making {} in 3D".format(branch))
             continue
+
+    else:
+        ret = subprocess.run(['git','status'],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        print(ret.stdout.decode())
+        build_stdout += ret.stdout.decode()
+    
 
     simba.updateRegTestRun(cur,run_id,0,conv.convert(build_stdout))
     db.commit()
