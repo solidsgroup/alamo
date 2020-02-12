@@ -6,7 +6,8 @@ import sqlite3
 class Status:
     runcode = -1
     compare = "NO"
-    performance = 0.0
+    runtime = 0.0
+    bm_runtime = 0.0
 
 #
 # Scan an output directory and bundle all of the stuff in a dictionary
@@ -86,7 +87,6 @@ def updateTable(cur,tablename,types,mode="results",verbose=True):
         if mode == "results":
             cur.execute('CREATE TABLE ' + tablename + ' ('
                         'HASH VARCHAR(255) UNIQUE, ' +
-                        'DIR,' +
                         'Description VARCHAR(8000),' +
                         'Tags VARCHAR(1000)' +
                         (',' if len(types)>0 else '') +
@@ -113,7 +113,9 @@ def updateTable(cur,tablename,types,mode="results",verbose=True):
 
     # If the table exists, but new columns have been added, modify the table
     # accordingly
-    cur.execute("PRAGMA table_info("+tablename+")")
+    sqlstring = "PRAGMA table_info("+tablename+")"
+    print(sqlstring)
+    cur.execute(sqlstring)
     columns=[a[1] for a in cur.fetchall()]
     for key in types:
         if key not in columns:
@@ -152,7 +154,8 @@ def updateRegTestTable(cur,verbose=False):
     types['TEST_NAME'] = 'VARCHAR(255)'
     types['RUNCODE'] = 'INT'
     types['COMPARE'] = 'VARCHAR(16)'
-    types['PERFORMANCE'] = 'FLOAT'
+    types['RUNTIME'] = 'FLOAT'
+    types['BM_RUNTIME'] = 'FLOAT'
     types['BENCHMARK_HASH'] = 'VARCHAR(24)'
     types['BENCHMARK_RUN'] = 'VARCHAR(64)'
     updateTable(cur,"regtest",types,mode="regtest",verbose=False)
@@ -163,8 +166,8 @@ def updateRegTestTable(cur,verbose=False):
 
 
 def updateRegTestRecord(cur,hash,run,test_name,status,benchmark_hash,benchmark_run):
-    cur.execute("INSERT INTO regtest (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,PERFORMANCE,BENCHMARK_HASH,BENCHMARK_RUN) VALUES (?,?,?,?,?,?,?,?)",
-                (hash,run,test_name,status.runcode,status.compare,float(status.performance),benchmark_hash,benchmark_run))
+    cur.execute("INSERT INTO regtest (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,RUNTIME,BM_RUNTIME,BENCHMARK_HASH,BENCHMARK_RUN) VALUES (?,?,?,?,?,?,?,?,?)",
+                (hash,run,test_name,status.runcode,status.compare,float(status.runtime),float(status.bm_runtime),benchmark_hash,benchmark_run))
 
 def updateRegTestRun(cur,run,compilecode,stdio):
     cur.execute('SELECT RUN FROM regtest_runs WHERE RUN = ?',(run,))
