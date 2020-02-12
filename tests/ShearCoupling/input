@@ -55,8 +55,8 @@ pf.sigma0=0.075
 pf.elastic_mult = 400 ############################################################
 
 anisotropy.on=1
-anisotropy.gb_type = sin
-#anisotropy.filename = energy_abssin.dat
+anisotropy.gb_type = read
+anisotropy.filename = energy_abssin.dat
 anisotropy.timestep=0.01
 anisotropy.elastic_int = 100
 anisotropy.tstart= 1.
