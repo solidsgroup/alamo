@@ -26,26 +26,27 @@
                         <a data-toggle="modal" data-target="#modal-{{data[p]['HASH']}}" >
                         {% if data[p]['RUNCODE'] == 0 %}
                             <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-step-forward"/> </span></span>
+
+                            {% if data[p]['COMPARE'] == "YES" %}
+                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
+                            {% elif data[p]['COMPARE'] == "NO" %}
+                                <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
+                            {% endif %}
+
+                            {% if not data[p]['COMPARE'] == "NONE" %}
+                                {% if (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float)|abs < 1 %}
+                                    <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                                {% elif (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float) < 0|float() %}
+                                    <span class="label label-info" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                                {% elif (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float) > 0|float() %}
+                                    <span class="label label-warning" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                            {% endif %}
+                            {% endif %}
+                            
                         {% else %}
                             <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-step-forward"/> </span></span>
                         {% endif %}
-                        
-                        {% if data[p]['COMPARE'] == "YES" %}
-                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
-                        {% elif data[p]['COMPARE'] == "NO" %}
-                            <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
-                        {% endif %}
-
-                        {% if not data[p]['COMPARE'] == "NONE" %}
-                        {% if data[p]['PERFORMANCE'] == 0%}
-                        <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
-                        {% elif data[p]['PERFORMANCE']|float() < 0|float() %}
-                        <span class="label label-info" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
-                        {% elif data[p]['PERFORMANCE']|float() > 0|float() %}
-                        <span class="label label-warning" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
-                        {% endif %}
-                        {% endif %}
-
+    
                         </a>
 
                         <div class="modal fade" id="modal-{{data[p]['HASH']}}" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -91,17 +92,20 @@
 
                                         {% if not data[p]['COMPARE'] == "NONE" %}
                                         <p>
-                                            
-                                            {% if data[p]['PERFORMANCE'] == 0 %}
-                                                <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
-                                                Performance match
-                                            {% elif data[p]['PERFORMANCE']|float() < 0|float() %}
-                                                <span class="label label-info" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
-                                                Performance increase (factor of {{data[p]['PERFORMANCE']}})
-                                            {% elif data[p]['PERFORMANCE']|float() > 0|float() %}
-                                                <span class="label label-warning" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
-                                                Performance decrease (factor of {{data[p]['PERFORMANCE']}})
+                                            {% if (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float)|abs < 1 %}
+                                            <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                                            {% elif (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float) < 0|float() %}
+                                            <span class="label label-info" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
+                                            {% elif (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float) > 0|float() %}
+                                            <span class="label label-warning" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-dashboard"/> </span></span>
                                             {% endif %}
+
+                                            {% if (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float) < 0 %}
+                                            ({{ (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float)|abs|round(4) }} seconds faster)
+                                            {% elif (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float) > 0 %}
+                                            ({{ (data[p]['RUNTIME']|float - data[p]['BM_RUNTIME']|float)|abs|round(4) }} seconds slower)
+                                            {% endif %}
+
                                         </p>
                                         {% endif %}
 

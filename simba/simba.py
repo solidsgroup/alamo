@@ -6,7 +6,8 @@ import sqlite3
 class Status:
     runcode = -1
     compare = "NO"
-    performance = 0.0
+    runtime = 0.0
+    bm_runtime = 0.0
 
 #
 # Scan an output directory and bundle all of the stuff in a dictionary
@@ -152,7 +153,8 @@ def updateRegTestTable(cur,verbose=False):
     types['TEST_NAME'] = 'VARCHAR(255)'
     types['RUNCODE'] = 'INT'
     types['COMPARE'] = 'VARCHAR(16)'
-    types['PERFORMANCE'] = 'FLOAT'
+    types['RUNTIME'] = 'FLOAT'
+    types['BM_RUNTIME'] = 'FLOAT'
     types['BENCHMARK_HASH'] = 'VARCHAR(24)'
     types['BENCHMARK_RUN'] = 'VARCHAR(64)'
     updateTable(cur,"regtest",types,mode="regtest",verbose=False)
@@ -163,8 +165,8 @@ def updateRegTestTable(cur,verbose=False):
 
 
 def updateRegTestRecord(cur,hash,run,test_name,status,benchmark_hash,benchmark_run):
-    cur.execute("INSERT INTO regtest (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,PERFORMANCE,BENCHMARK_HASH,BENCHMARK_RUN) VALUES (?,?,?,?,?,?,?,?)",
-                (hash,run,test_name,status.runcode,status.compare,float(status.performance),benchmark_hash,benchmark_run))
+    cur.execute("INSERT INTO regtest (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,RUNTIME,BM_RUNTIME,BENCHMARK_HASH,BENCHMARK_RUN) VALUES (?,?,?,?,?,?,?,?,?)",
+                (hash,run,test_name,status.runcode,status.compare,float(status.runtime),float(status.bm_runtime),benchmark_hash,benchmark_run))
 
 def updateRegTestRun(cur,run,compilecode,stdio):
     cur.execute('SELECT RUN FROM regtest_runs WHERE RUN = ?',(run,))
