@@ -68,13 +68,13 @@
 	<td> {{ columns[i] }}</td>
 	<td>
 	  <div width="100%">
-		{{data[i] | string | markdown}}
+		{{data[columns[i]] | string | markdown}}
 		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-description">Edit Description</button>
 	  </div>
 	  <br/>
 	  <div width="100%">
 		<form width="100%" class="form-group collapse out" id="form-description" action="/table/{{table}}/entry/{{entry}}" method="post">
-		  <textarea class="form-control" rows="5" name='description'>{{data[i]}}</textarea>
+		  <textarea class="form-control" rows="5" name='description'>{{data[columns[i]]}}</textarea>
 		  <button class="btn btn-success pull-right" type="Update">Update</button>
 		</form>
 	  </div>
@@ -83,13 +83,13 @@
 	<td> {{ columns[i] }}</td>
 	<td>
 	  <div width="100%">
-		{{data[i]}}
+		{{data[columns[i]]}}
 		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-tags">Edit Tags</button>
 	  </div>
 	  <br/>
 	  <div width="100%">
 		<form width="100%" class="form-group collapse out" id="form-tags" action="/table/{{table}}/entry/{{entry}}" method="post">
-		  <textarea class="form-control" rows="5" name="tags">{{data[i]}}</textarea>
+		  <textarea class="form-control" rows="5" name="tags">{{data[columns[i]]}}</textarea>
 		  <button class="btn btn-success pull-right" type="Update">Update</button>
 		</form>
 	  </div>
@@ -111,7 +111,7 @@
 		  						</button>
 							</div>
 							<div class="modal-body">
-								{{ data[i] | safe}}
+								{{ data[columns[i]] | safe}}
 							</div>
 							<div class="modal-footer">
 		  						<button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
@@ -125,7 +125,7 @@
 	{% elif columns[i] == "STDERR" %}
 	{% else %}
 	<td> {{ columns[i] }}</td>
-	<td> {{ data[i] }}</td>
+	<td> {{ data[columns[i]] }}</td>
 	{% endif %}
   </tr>
   {% endfor %}
