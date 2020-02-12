@@ -87,7 +87,6 @@ def updateTable(cur,tablename,types,mode="results",verbose=True):
         if mode == "results":
             cur.execute('CREATE TABLE ' + tablename + ' ('
                         'HASH VARCHAR(255) UNIQUE, ' +
-                        'DIR,' +
                         'Description VARCHAR(8000),' +
                         'Tags VARCHAR(1000)' +
                         (',' if len(types)>0 else '') +
@@ -114,7 +113,9 @@ def updateTable(cur,tablename,types,mode="results",verbose=True):
 
     # If the table exists, but new columns have been added, modify the table
     # accordingly
-    cur.execute("PRAGMA table_info("+tablename+")")
+    sqlstring = "PRAGMA table_info("+tablename+")"
+    print(sqlstring)
+    cur.execute(sqlstring)
     columns=[a[1] for a in cur.fetchall()]
     for key in types:
         if key not in columns:
