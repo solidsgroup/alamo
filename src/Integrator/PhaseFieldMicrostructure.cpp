@@ -105,7 +105,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		}
 		else
 		{
-			boundary = nullptr;
+			Util::Abort(INFO,"A GB model must be specified");
 		}
 	}
 
@@ -144,7 +144,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
-	RegisterNewFab(elasticdf_mf, mybc, number_of_grains, number_of_ghost_cells, "elastic df",true);
+	
 
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
@@ -164,6 +164,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
 			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
 			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
+			RegisterNewFab(elasticdf_mf, mybc, number_of_grains, number_of_ghost_cells, "elastic df",true);
 
 			pp.query("interval", elastic.interval);
 			pp.query("max_coarsening_level", elastic.max_coarsening_level);
@@ -205,11 +206,10 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &edf = (*elasticdf_mf[lev]).array(mfi);
-		//amrex::Array4<amrex::Real> const *energies;
+		
 		if (elastic.on)
 		{
-			//amrex::Array4<amrex::Real> const &tmp_energies = (*energies_mf[lev]).array(mfi);
-			//energies = &tmp_energies;
+			 
 		}
 		
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -250,6 +250,11 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						Set::Scalar kappa = pf.l_gb*0.75*boundary->W(Theta);
 						Set::Scalar Dkappa = pf.l_gb*0.75*boundary->DW(Theta);
 						Set::Scalar DDkappa = pf.l_gb*0.75*boundary->DDW(Theta);
+						//Util::Message(INFO,Theta);
+						//for (Set::Scalar theta = -7.0; theta < 7.0; theta+=0.01)
+						//	std::cout << theta << " " << boundary->W(theta) << " " << boundary->DW(theta) << " " << boundary->DDW(theta) << " " << std::endl;
+						//Util::Abort(INFO);
+						//Util::Message(INFO,boundary->W(Theta)," ",boundary->DW(Theta)," ",boundary->DDW(Theta));
 						mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / pf.l_gb;
 						Set::Scalar sinTheta = sin(Theta);
 						Set::Scalar cosTheta = cos(Theta);
