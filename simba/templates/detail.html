@@ -83,7 +83,12 @@
 	<td> {{ columns[i] }}</td>
 	<td>
 	  <div width="100%">
-		{{data[columns[i]]}}
+		{% if data['Tags'] %}
+		{% set taglist = data['Tags'].split(',') %}
+		{% for tag in taglist %}
+			<span class="label label-primary">{{tag}} </span>&nbsp;
+		{% endfor %}
+		{% endif %}
 		<button type="button" class="btn btn-primary pull-right btn-xs" data-toggle="collapse" data-target="#form-tags">Edit Tags</button>
 	  </div>
 	  <br/>
