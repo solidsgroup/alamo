@@ -13,17 +13,14 @@ using namespace Model::Solid::CrystalPlastic;
 
 void savefile(float s,float es,const char* loc)
 {
-	Util::Message(INFO);
 	std::fstream myfile;
   	myfile.open (loc, std::ios::out | std::ios::app); 
 
 	myfile << s << "," << es << std::endl;
  	myfile.close();
-		Util::Message(INFO);
 }
 void savefile(std::array<double,12> g, double time,const char* loc)
 {
-		Util::Message(INFO);
 	std::fstream myfile;
   	myfile.open (loc, std::ios::out | std::ios::app); 
 
@@ -39,16 +36,13 @@ void savefile(std::array<double,12> g, double time,const char* loc)
 		}
 	}
  	myfile.close();
-	Util::Message(INFO);
 }
 void deletefile(const char* loc)
 {
-	Util::Message(INFO);
 	if( remove(loc) != 0 )
     perror( "Error deleting file" );
  	else
     puts( "successfully deleted" );
-		Util::Message(INFO);
 }
 /*
 Values for the elastic tensor, C:
@@ -81,17 +75,16 @@ int main (int argc, char* argv[])
 	//std::ofstream fsrc2; fsrc2.open(src);
 
 	deletefile(src.c_str()); deletefile(src2.c_str());
-	CrystalPlastic cp( 10e3 * 1e4, 7.35e3 * 1e4, 3.8e3 * 1e4); //0.4, 0.1, 0.01 C11 = c11*t0
+	CrystalPlastic cp( 10e3 * 3.75e-3, 7.35e3 * 3.75e-3, 3.8e3 * 3.75e-3); //0.4, 0.1, 0.01 C11 = c11*t0
 	// 10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3
 	std::array<double,12> gamma;
 	Util::Message(INFO,"Working...");
 	Set::Matrix es = Set::Matrix::Zero();
 	Set::Matrix sigma = Set::Matrix::Zero();
-
-
+	Set::Matrix esp = Set::Matrix::Zero();
 	Set::iMatrix mask = Set::iMatrix::Zero();
-	mask(0,1) = 1;
-	
+	//mask(0,1) = 1; mask(1,0) = 1;
+	mask(0,0) = 1;
 	Set::Scalar dt = 1e-6;
 	Set::Scalar c = 1.0;
 	Set::Scalar T = 0.8/c;
@@ -100,35 +93,34 @@ int main (int argc, char* argv[])
 		
 	for(double t = 0.0; t <= T; t += dt)
 	{
-		Set::Matrix esp = cp.GetEsp();
+		esp = cp.GetEsp();
 		Set::Matrix temp;
-	 	//es(0,0) = c*t;
-		es(0,1) = c*t;
+		es(0,0) = c*t; 
+		//es(0,1) = c*t; es(1,0) = c*t;
 		temp = (es - esp);
-		es = Solver::Local::CG(cp.DDW(temp),-sigma,es,mask,true);
-		Util::Message(INFO,sigma);
-		cp.update(es,sigma,dt);
+		es = Solver::Local::CG(cp.DDW(es),-sigma,es,mask,false);
+		cp.update(es,sigma);
 
-		if( counter % 100 == 0)
+		if( counter % 10 == 0)
 		{
-			//gamma = cp.StressSlipSystem(sigma);
-			//for(int i = 0; i < 12; i++)
-			//{
-			//	gamma[i] = cp.getGamma(i);
-			//}
+			gamma = cp.StressSlipSystem(sigma);
+			for(int i = 0; i < 12; i++)
+			{
+				gamma[i] = cp.getGamma(i);
+			}
 			//Util::Message(INFO,"es() = ", es);
 			//Util::Message(INFO,"esp() = ", esp);
 			//Util::Message(INFO,"sig() = ", sigma);
 			//Util::Message(INFO,"t=",t," es(0,1)=",es(0,1));
 			//fsrc << es(0,0) << " " << sigma(0,0) << std::endl;
 			//fsrc1 << es(0,1) << "," << sigma(0,1) << std::endl;
-			savefile((float)es(0,1), (float)sigma(0,1), src.c_str()); 
-			//savefile(gamma,t,src2.c_str());
+			savefile((float)es(0,0), (float)sigma(0,0), src.c_str()); 
+			savefile(gamma,t,src2.c_str());
 		}
 		counter++;
 	}
 	Util::Message(INFO,"es() = ", es);
-	//Util::Message(INFO,"esp() = ", esp);
+	Util::Message(INFO,"esp() = ", esp);
 	Util::Message(INFO,"sig() = ", sigma);
 	//fsrc.close();
 	Util::Finalize(); return 0;

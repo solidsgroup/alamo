@@ -45,7 +45,7 @@ private:
 	Eigen::Matrix<double,12,12> F;
 	//********Matrial Constants**********//
 
-	static Set::Scalar constexpr tcrss = 1e4;//1e-3;
+	static Set::Scalar constexpr tcrss = 3.75e-3;//1e-3;
 	static Set::Scalar constexpr n = 50.0; 
 	static Set::Scalar constexpr gammadot0 = 1e-3; // 0.001 1/s
 	static Set::Scalar constexpr t0 = tcrss; 	// MPa
@@ -118,7 +118,7 @@ public:
 	void Setdt(const double _dt);
 	Set::Matrix GetEsp() const;
 	double getGamma(int index) const;
-	void update(const Set::Matrix es, Set::Matrix& sigma, const Set::Scalar _dt);
+	void update(const Set::Matrix es, Set::Matrix& sigma);
 
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	void define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
