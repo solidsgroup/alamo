@@ -2,7 +2,8 @@ $(document).ready(function() {
     var table = $('#bigtable').DataTable( {
 		"scrollX": true,
 		"lengthMenu": [ [10, 25, 50, -1], [10, 25, 50, "All"] ],
-		stateSave: true,
+    "stateSave": true,
+    "stateDuration": 31556952,
 		buttons: ['copy','colvis'],
     } );
     table.buttons().container()
