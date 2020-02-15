@@ -4,7 +4,7 @@
 #include "AMReX.H"
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
-
+#include "Affine.H"
 #include "Set/Set.H"
 
 namespace Model
@@ -104,16 +104,24 @@ public:
                                     break;
 
         }
-        epsp_old = Set::Matrix::Zero();
-        epsp_new = Set::Matrix::Zero();
+        prev.epsp = Set::Matrix::Zero();
+        curr.epsp = Set::Matrix::Zero();
+        prev.beta = Set::Matrix::Zero();
+        curr.beta = Set::Matrix::Zero();
+        prev.alpha = 0.0;
+        curr.alpha = 0.0;
         T::Define(a_C11, a_C12, a_C44, m);
     }
 
     void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Eigen::Matrix3d m, amrex::Vector<slipsystem> &a_slip)
     {
         slip = a_slip;
-        epsp_old = Set::Matrix::Zero();
-        epsp_new = Set::Matrix::Zero();
+        prev.epsp = Set::Matrix::Zero();
+        curr.epsp = Set::Matrix::Zero();
+        prev.beta = Set::Matrix::Zero();
+        curr.beta = Set::Matrix::Zero();
+        prev.alpha = 0.0;
+        curr.alpha = 0.0;
         T::Define(a_C11, a_C12, a_C44, m);
     }
 
@@ -134,21 +142,34 @@ public:
 
     void EvolvePlasticStrain(Set::Matrix sigma, Set::Scalar dt)
     {
-        epsp_new = epsp_old;
+        curr.epsp = prev.epsp;
         for (int i = 0; i < slip.size(); i++)
         {
             if(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss < 1.0) continue;
 
             if(slip[i].exp == 1.0)
-                epsp_new += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
+                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
             else if(slip[i].exp == 2.0)
-                epsp_new += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
+                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
             else if(slip[i].exp == 3.0)
-                epsp_new += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
+                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
             else
-                epsp_new += dt*slip[i].gam0dot*std::pow((slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss), slip[i].exp);
+                curr.epsp += dt*slip[i].gam0dot*std::pow((slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss), slip[i].exp);
         }
-        T.UpdateF0(epsp_new);
+        curr.alpha = sqrt(2.0/3.0)*curr.epsp.norm();
+        T.UpdateF0(curr.epsp);
+    }
+
+    void SetPlasticStrains(Model::Solid::Affine::Affine::PlasticState &a_state)
+    {
+        prev.epsp = a_state.eps; curr.epsp = a_state.epsp;
+        prev.beta = a_state.beta; curr.beta = a_state.beta;
+        prev.alpha = a_state.alpha; curr.alpha = a_state.alpha;
+    }
+
+    Model::Solid::Affine::Affine::PlasticState GetPlasticState()
+    {
+        return curr;
     }
 
 public:
@@ -162,7 +183,7 @@ public:
         Set::Scalar gam0dot;    // gamma0 dot.
     } slipsystem;
     amrex::Vector<slipsystem> slip; 
-    Set::Matrix epsp_old, epsp_new;
+    Model::Solid::Affine::Affine::PlasticState curr, prev;
 
 public:
     static void Parse(CrystalPlastic<T> & value, IO::ParmParse & pp)

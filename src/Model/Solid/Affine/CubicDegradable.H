@@ -22,9 +22,10 @@ public:
 
     CubicDegradable(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Scalar a_phi1, Set::Scalar a_Phi, Set::Scalar a_phi2)
     {
-        Eigen::Matrix3d m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
-    		Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
-    	 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+        Eigen::Matrix3d m;
+        m =  Eigen::AngleAxisd(a_phi2, Eigen::Vector3d::UnitX()) *
+    		Eigen::AngleAxisd(a_Phi,  Eigen::Vector3d::UnitZ()) *
+    	 	Eigen::AngleAxisd(a_phi1, Eigen::Vector3d::UnitX());
         Define(a_C11, a_C12, a_C44, m);
     }
 
@@ -73,22 +74,24 @@ public:
     Eigen::Matrix3d R;
 
 public:
-    static CubicCrystalPlastic Random()
+    static CubicDegradable Random()
     {
-        Random(Util::Random(), Util::Random(), Util::Random());
+        return Random(Util::Random(), Util::Random(), Util::Random());
     }
 
-    static CubicCrystalPlastic Random(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44)
+    static CubicDegradable Random(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44)
     {
-        CubicCrystalPlastic ret;
+        CubicDegradable ret;
         Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random();
 	    Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random();
 	    Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
-        Eigen::Matrix3d m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+        Eigen::Matrix3d m;
+        m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
     		Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
     	 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
 
         ret.Define(a_C11,a_C12,a_C44,m);
+        return ret;
     }
 
     static void Parse(CubicDegradable & value, IO::ParmParse & pp)

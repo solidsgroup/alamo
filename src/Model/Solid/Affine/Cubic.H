@@ -18,7 +18,7 @@ public:
     Cubic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
     Cubic(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Scalar a_phi1, Set::Scalar a_Phi, Set::Scalar a_phi2, Set::Matrix a_F0=Set::Matrix::Zero()) 
     {
-        Define(a_C11, a_C12, a_C44, a_phi1, a_Phi, a_Phi2, a_F0);
+        Define(a_C11, a_C12, a_C44, a_phi1, a_Phi, a_phi2, a_F0);
     };
 	virtual ~Cubic() {};
 
