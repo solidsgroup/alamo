@@ -21,7 +21,7 @@
 
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Newton.H"
-#include "Model/Solid/Affine/IsotropicDegradablePlastic.H"
+#include "Model/Solid/Affine/CrystalPlastic.H"
 //#include "Model/Solid/LinearElastic/LinearElastic.H"
 //#include "Model/Solid/LinearElastic/Laplacian.H"
 
@@ -48,7 +48,8 @@
 ///    - See #Cylinder or #Constant
 namespace Integrator
 {
-using ductile_fracture_model_type = Model::Solid::Affine::IsotropicDegradablePlastic;
+using ductile_fracture_model_type = Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::CubicDegradable>;
+
 class DuctileFracture : public Integrator
 {
 public:
