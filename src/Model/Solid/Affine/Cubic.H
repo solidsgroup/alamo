@@ -62,6 +62,8 @@ public:
     									ddw(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
     				}
     }
+    void UpdateF0(Set::Matrix a_F0) { F0 = a_F0; }
+    
     Set::Scalar W(Set::Matrix gradu)
     {
         return ( 0.5 * (gradu-F0).transpose() * (ddw*(gradu-F0)) ).trace();

@@ -45,7 +45,7 @@ public:
     {
         return ddw;
     }
-	
+	void UpdateF0(Set::Matrix a_F0) { F0 = a_F0; }
 public:
     Set::Matrix F0;
     KinematicVariable kinvar = KinematicVariable::gradu;
