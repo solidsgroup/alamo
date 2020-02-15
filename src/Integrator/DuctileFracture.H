@@ -22,8 +22,6 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/Affine/CrystalPlastic.H"
-//#include "Model/Solid/LinearElastic/LinearElastic.H"
-//#include "Model/Solid/LinearElastic/Laplacian.H"
 
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
@@ -49,6 +47,7 @@
 namespace Integrator
 {
 using ductile_fracture_model_type = Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::CubicDegradable>;
+using ductile_fracture_model_type = Model::Solid::Affine::J2Plastic<Model::Solid::Affine::IsotropicDegradable>;
 
 class DuctileFracture : public Integrator
 {
@@ -83,6 +82,7 @@ protected:
 
 private:
 	int number_of_ghost_cells = 2;											///< Number of ghost cells
+	int number_of_ghost_nodes = 2;											///< Number of ghost nodes
 
 	Set::Field<Set::Scalar> m_c;					///< Crack field fab
 	Set::Field<Set::Scalar> m_c_old;				///< Crack field fab at previous time step
@@ -90,20 +90,16 @@ private:
 	
 	Set::Field<Set::Scalar> m_disp;				///< Displacement variable
 	Set::Field<Set::Scalar> m_strain;				///< Total strain variable
-	Set::Field<Set::Scalar> m_strain_p;			///< Plastic strain variable
-	Set::Field<Set::Scalar> m_p;					///< Plastic exponent for crack function g(c)
-	Set::Field<Set::Scalar> m_lambda;				///< Evolving hardening variable
-
-	Set::Field<Set::Scalar> m_strain_pold;			///< Plastic strain at previous time step
-	Set::Field<Set::Scalar> m_pold;				///< Plastic exponent at previous time step
-	Set::Field<Set::Scalar> m_lambdaold;			///< Hardening variable at previous time step
-
 	Set::Field<Set::Scalar> m_stress;				///< Stress field
 	Set::Field<Set::Scalar> m_stressdev;			///< Deviatoric Stress field
 	Set::Field<Set::Scalar> m_rhs;					///< RHS field for inhomogeneous problem
 	Set::Field<Set::Scalar> m_residual;			///< Implicit problem residual field
 	Set::Field<Set::Scalar> m_energy;				///< Elastic energy field
 	Set::Field<Set::Scalar> m_energy_pristine;		///< Elastic energy field as if crack doesn't exist.
+
+	Set::Field<Set::Scalar> m_strain_p;
+	Set::Field<Set::Scalar> m_beta;
+	Set::Field<Set::Scalar> m_alpha;
 
 	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
@@ -143,7 +139,6 @@ private:
 		//Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
 		
 		Set::Vector body_force = Set::Vector::Zero();
-		Operator::Elastic<ductile_fracture_model_type> op;
 		BC::Operator::Elastic<ductile_fracture_model_type> bc;
 		Set::Scalar bc_top 							= 0.;
 	} elastic;
@@ -153,6 +148,7 @@ private:
 		std::string ic_type;
 		IC::IC *ic;            						///< Pointer to abstract IC object
 		BC::BC *mybc;                   			///< Stock generic boundary condition object
+		BC::BC *mybcdf;
 
 		bool newCrackProblem=true;
 		bool solveCrack=false;

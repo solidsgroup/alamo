@@ -8,7 +8,9 @@
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/Isotropic.H"
-#include "Model/Solid/Affine/IsotropicDegradablePlastic.H"
+#include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Affine/IsotropicDegradable.H"
+#include "Model/Solid/Affine/CubicDegradable.H"
 #include "Elastic.H"
 
 #include "Numeric/Stencil.H"
@@ -844,7 +846,9 @@ template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
 template class Elastic<Model::Solid::Elastic::NeoHookean>;
 
 template class Elastic<Model::Solid::Affine::Isotropic>;
-template class Elastic<Model::Solid::Affine::IsotropicDegradablePlastic>;
+template class Elastic<Model::Solid::Affine::IsotropicDegradable>;
+template class Elastic<Model::Solid::Affine::Cubic>;
+template class Elastic<Model::Solid::Affine::CubicDegradable>;
 template class Elastic<Model::Solid::Linear::Isotropic>;
 template class Elastic<Model::Solid::Linear::Laplacian>;
 template class Elastic<Model::Solid::Linear::Cubic>;

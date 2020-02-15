@@ -4,7 +4,7 @@
 #include "AMReX.H"
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
-
+#include "Affine.H"
 #include "Set/Set.H"
 
 namespace Model
@@ -13,7 +13,7 @@ namespace Solid
 {
 namespace Affine
 {
-template <T>
+template <class T>
 class J2Plastic : public T
 {
 public:
@@ -33,11 +33,12 @@ public:
         hardening_modulus = a_hardening;
         hardening_modulus0 = a_hardening;
 
-        epsp_new = Set::Matrix::Zero(); 
-        epsp_old = Set::Matrix::Zero();
-        beta_new = Set::Matrix::Zero();
-        beta_old = Set::Matrix::Zero();
-        alpha_new = 0.0; alpha_old = 0.0;
+        curr.epsp = Set::Matrix::Zero(); 
+        prev.epsp = Set::Matrix::Zero();
+        curr.beta = Set::Matrix::Zero();
+        prev.beta = Set::Matrix::Zero();
+        curr.alpha = 0.0; 
+        prev.alpha = 0.0;
 
         T::Define(a_mu, a_lambda);
     }
@@ -76,27 +77,37 @@ public:
     void EvolvePlasticStrain(Set::Matrix sigma, Set::Scalar /*dt*/)
     {
         Set::Scalar SQ2O3 = sqrt(2.0/3.0);
-        Set::Matrix zeta_trial = sigma - beta_old;
-        Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(yield_strength + theta*hardening_modulus*alpha_old);
+        Set::Matrix zeta_trial = sigma - prev.beta;
+        Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(yield_strength + theta*hardening_modulus*prev.alpha);
         if( f_trial < 0.0)
         {
-            epsp_new = epsp_old; alpha_new = alpha_old; beta_new = beta_old; 
+            curr.epsp = curr.epsp; curr.alpha = prev.alpha; curr.beta = prev.beta; 
             return;
         }
         Set::Matrix n_new = zeta_trial/zeta_trial.norm();
         Set::Scalar dGamma = f_trial/(2.0*T.mu*(1.0 + (hardening_modulus/(3.0*T.mu))));
         Set::Scalar dH = SQ2O3*(1.0-theta)*hardening_modulus*dGamma;
 
-        alpha_new = alpha_old + SQ2O3*dGamma;
-        beta_new = beta_old + SQ2O3*dH*n_new;
-        epsp_new = epsp_old + dGamma*n_new;
-        T.UpdateF0(epsp_new);
+        curr.alpha = prev.alpha + SQ2O3*dGamma;
+        curr.beta = prev.beta + SQ2O3*dH*n_new;
+        curr.epsp = prev.epsp + dGamma*n_new;
+        T.UpdateF0(curr.epsp);
+    }
+
+    void SetPlasticStrains(Model::Solid::Affine::Affine::PlasticState &a_state)
+    {
+        prev.epsp = a_state.eps; curr.epsp = a_state.epsp;
+        prev.beta = a_state.beta; curr.beta = a_state.beta;
+        prev.alpha = a_state.alpha; curr.alpha = a_state.alpha;
+    }
+
+    Model::Solid::Affine::Affine::PlasticState GetPlasticState()
+    {
+        return curr;
     }
 
 public:
-    Set::Matrix epsp_new, epsp_old;
-    Set::Matrix beta_new, beta_old;
-    Set::Scalar alpha_new, alpha_old;   // equivalent plastic strain
+    Model::Solid::Affine::Affine::PlasticState curr, prev;
     Set::Scalar theta;                  // isotropic and kinematic hardening parameter
     Set::Scalar yield_strength, yield_strength0;          // yield strength
     Set::Scalar hardening_modulus, hardening_modulus0;  // hardening modulus
