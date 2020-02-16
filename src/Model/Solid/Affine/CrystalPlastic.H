@@ -13,26 +13,41 @@ namespace Solid
 {
 namespace Affine
 {
-template <T>
+template <class T>
 class CrystalPlastic : public T
 {
 public:
+    struct slipsystem{
+        bool on;        // slip system active or not
+        Set::Vector n;  // slip plane normal
+        Set::Vector s;  // slip direction
+        Set::Scalar tcrss;      // critically resolved shear stress
+        Set::Scalar tcrss0;     // pristine material
+        Set::Scalar exp;        // power law exponent
+        Set::Scalar gam0dot;    // gamma0 dot.
+    };
+
     enum LatticeType {FCC, BCC, HCP};   // standard Bravais lattices. More to be added later
     CrystalPlastic(){};
     CrystalPlastic(Solid<Set::Sym::MajorMinor> base) : T(base) {};
     CrystalPlastic(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Scalar a_phi1, Set::Scalar a_Phi, Set::Scalar a_phi2, LatticeType lattice=LatticeType::FCC)
     {
-        Eigen::Matrix3d m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
-    		Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
-    	 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
-        Define(a_C11, a_C12, a_C44, m, lattice);
+        Set::Matrix R =
+        AMREX_D_PICK( 1.0,
+            Eigen::AngleAxisd(a_Phi, Eigen::Vector2d::UnitZ())
+            ,
+            Eigen::AngleAxisd(a_phi2, Eigen::Vector3d::UnitX()) *
+    		Eigen::AngleAxisd(a_Phi,  Eigen::Vector3d::UnitZ()) *
+    	 	Eigen::AngleAxisd(a_phi1, Eigen::Vector3d::UnitX())
+        );
+        Define(a_C11, a_C12, a_C44, R, lattice);
     }
-    CrystalPlastic(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Eigen::Matrix3d m, LatticeType lattice=LatticeType::FCC)
+    CrystalPlastic(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Matrix m, LatticeType lattice=LatticeType::FCC)
     {
         Define(a_C11, a_C12, a_C44, m, lattice);
     }
 
-    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Eigen::Matrix3d m, LatticeType lattice=LatticeType::FCC)
+    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Matrix m, LatticeType lattice=LatticeType::FCC)
     {
         amrex::Vector<Set::Scalar> tcrss, exp0, gam0dot;
         if(lattice == LatticeType::FCC)
@@ -47,63 +62,62 @@ public:
         }
         else 
             Util::Abort(INFO, "This type of lattice has not been implemented yet");
-        Define(a_C11, a_C12, a_C44, m, lattice, tcrss, exp0, gam0dot);
+        Define(a_C11, a_C12, a_C44, m, tcrss, exp0, gam0dot, lattice);
     }
     
-    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Eigen::Matrix3d m, LatticeType lattice=LatticeType::FCC, amrex::Vector<Set::Scalar> &a_tcrss, amrex::Vector<Set::Scalar> &a_exp, amrex::Vector<Set::Scalar> &a_gam0dot)
+    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Matrix m, amrex::Vector<Set::Scalar> &a_tcrss, amrex::Vector<Set::Scalar> &a_exp, amrex::Vector<Set::Scalar> &a_gam0dot, LatticeType lattice=LatticeType::FCC)
     {
-        switch(lattice)
+        if(lattice == LatticeType::FCC)
         {
-            case LatticeType::FCC : if(a_tcrss.size()!=12 || a_exp.size() !=12 || a_gam0dot.size() != 12) Util::Abort(INFO, "Incorrect size of slip system input information");
-                                    
-                                    int size = 12; 
-                                    Set::Scalar INVSQ2 = 1.0/sqrt(2.0), INVSQ3 = 1.0/sqrt(3.0);
-                                    Set::Scalar s = AMREX_D_PICK(1.0,1.0,INVSQ2);
-                                    Set::Scalar n = AMREX_D_PICK(1.0, INVSQ2, INVSQ3);
-                                    
-                                    slip.resize(size);
-                                    slip[0].n = m*Set::Vector(AMREX_D_DECL(n, n, n));
-                                    slip[1].n = m*Set::Vector(AMREX_D_DECL(n, n, n));
-                                    slip[2].n = m*Set::Vector(AMREX_D_DECL(n, n, n));
-                                    slip[0].s = m*Set::Vector(AMREX_D_DECL(0.0, -s, s));
-                                    slip[1].s = m*Set::Vector(AMREX_D_DECL(s, 0.0, -s));
-                                    slip[2].s = m*Set::Vector(AMREX_D_DECL(-s, s, 0.0));
+            if(a_tcrss.size()!=12 || a_exp.size() !=12 || a_gam0dot.size() != 12) 
+                Util::Abort(INFO, "Incorrect size of slip system input information");
+            
+            int size = 12; 
+            Set::Scalar INVSQ2 = 1.0/sqrt(2.0), INVSQ3 = 1.0/sqrt(3.0);
+            Set::Scalar s = AMREX_D_PICK(1.0,1.0,INVSQ2);
+            Set::Scalar n = AMREX_D_PICK(1.0, INVSQ2, INVSQ3);
+            
+            slip.resize(size);
+            slip[0].n = m*Set::Vector(AMREX_D_DECL(n, n, n));
+            slip[1].n = m*Set::Vector(AMREX_D_DECL(n, n, n));
+            slip[2].n = m*Set::Vector(AMREX_D_DECL(n, n, n));
+            slip[0].s = m*Set::Vector(AMREX_D_DECL(0.0, -s, s));
+            slip[1].s = m*Set::Vector(AMREX_D_DECL(s, 0.0, -s));
+            slip[2].s = m*Set::Vector(AMREX_D_DECL(-s, s, 0.0));
 
-                                    slip[3].n = m*Set::Vector(AMREX_D_DECL(-n, -n, n));
-                                    slip[4].n = m*Set::Vector(AMREX_D_DECL(-n, -n, n));
-                                    slip[5].n = m*Set::Vector(AMREX_D_DECL(-n, -n, n));
-                                    slip[3].s = m*Set::Vector(AMREX_D_DECL(0.0, s, s));
-                                    slip[4].s = m*Set::Vector(AMREX_D_DECL(-s, 0.0, -s));
-                                    slip[5].s = m*Set::Vector(AMREX_D_DECL(s, -s, 0.0));
+            slip[3].n = m*Set::Vector(AMREX_D_DECL(-n, -n, n));
+            slip[4].n = m*Set::Vector(AMREX_D_DECL(-n, -n, n));
+            slip[5].n = m*Set::Vector(AMREX_D_DECL(-n, -n, n));
+            slip[3].s = m*Set::Vector(AMREX_D_DECL(0.0, s, s));
+            slip[4].s = m*Set::Vector(AMREX_D_DECL(-s, 0.0, -s));
+            slip[5].s = m*Set::Vector(AMREX_D_DECL(s, -s, 0.0));
 
-                                    slip[6].n = m*Set::Vector(AMREX_D_DECL(-n, n, n));
-                                    slip[7].n = m*Set::Vector(AMREX_D_DECL(-n, n, n));
-                                    slip[8].n = m*Set::Vector(AMREX_D_DECL(-n, n, n));
-                                    slip[6].s = m*Set::Vector(AMREX_D_DECL(0.0, -s, s));
-                                    slip[7].s = m*Set::Vector(AMREX_D_DECL(-s, 0.0, -s));
-                                    slip[8].s = m*Set::Vector(AMREX_D_DECL(s, s, 0.0));
+            slip[6].n = m*Set::Vector(AMREX_D_DECL(-n, n, n));
+            slip[7].n = m*Set::Vector(AMREX_D_DECL(-n, n, n));
+            slip[8].n = m*Set::Vector(AMREX_D_DECL(-n, n, n));
+            slip[6].s = m*Set::Vector(AMREX_D_DECL(0.0, -s, s));
+            slip[7].s = m*Set::Vector(AMREX_D_DECL(-s, 0.0, -s));
+            slip[8].s = m*Set::Vector(AMREX_D_DECL(s, s, 0.0));
 
-                                    slip[9].n = m*Set::Vector(AMREX_D_DECL(n, -n, n));
-                                    slip[10].n = m*Set::Vector(AMREX_D_DECL(n, -n, n));
-                                    slip[11].n = m*Set::Vector(AMREX_D_DECL(n, -n, n));
-                                    slip[9].s = m*Set::Vector(AMREX_D_DECL(0.0, s, s));
-                                    slip[10].s = m*Set::Vector(AMREX_D_DECL(s, 0.0, -s));
-                                    slip[11].s = m*Set::Vector(AMREX_D_DECL(-s, -s, 0.0));
+            slip[9].n = m*Set::Vector(AMREX_D_DECL(n, -n, n));
+            slip[10].n = m*Set::Vector(AMREX_D_DECL(n, -n, n));
+            slip[11].n = m*Set::Vector(AMREX_D_DECL(n, -n, n));
+            slip[9].s = m*Set::Vector(AMREX_D_DECL(0.0, s, s));
+            slip[10].s = m*Set::Vector(AMREX_D_DECL(s, 0.0, -s));
+            slip[11].s = m*Set::Vector(AMREX_D_DECL(-s, -s, 0.0));
 
-                                    for (int i = 0; i < size; i++)
-                                    {
-                                        slip[i].on = true;
-                                        slip[i].tcrss = a_tcrss[i];
-                                        slip[i].tcrss0 = a_tcrss[i];
-                                        slip[i].exp = a_exp[i];
-                                        slip[i].gam0dot = a_gam0dot[i];
-                                    }
-                                    break;
-
-            default :               Util::Abort(INFO, "Slip system not implemented yet");
-                                    break;
-
+            for (int i = 0; i < size; i++)
+            {
+                slip[i].on = true;
+                slip[i].tcrss = a_tcrss[i];
+                slip[i].tcrss0 = a_tcrss[i];
+                slip[i].exp = a_exp[i];
+                slip[i].gam0dot = a_gam0dot[i];
+            }
         }
+        else
+            Util::Abort(INFO, "Slip system not implemented yet");
+
         prev.epsp = Set::Matrix::Zero();
         curr.epsp = Set::Matrix::Zero();
         prev.beta = Set::Matrix::Zero();
@@ -143,47 +157,43 @@ public:
     void EvolvePlasticStrain(Set::Matrix sigma, Set::Scalar dt)
     {
         curr.epsp = prev.epsp;
+        Set::Matrix R = Set::Matrix::Zero();
         for (int i = 0; i < slip.size(); i++)
         {
+            for (int j = 0; j < AMREX_SPACEDIM; j++)
+                for (int k = 0; k < AMREX_SPACEDIM; k++)
+                    R(j,k) = slip[i].s(j)*slip[i].n(k);
+
             if(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss < 1.0) continue;
 
             if(slip[i].exp == 1.0)
-                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
+                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*R;
             else if(slip[i].exp == 2.0)
-                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
+                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*R;
             else if(slip[i].exp == 3.0)
-                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss);
+                curr.epsp += dt*slip[i].gam0dot*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*(slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss)*R;
             else
-                curr.epsp += dt*slip[i].gam0dot*std::pow((slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss), slip[i].exp);
+                curr.epsp += dt*slip[i].gam0dot*std::pow((slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss), slip[i].exp)*R;
         }
         curr.alpha = sqrt(2.0/3.0)*curr.epsp.norm();
-        T.UpdateF0(curr.epsp);
+        T::UpdateF0(curr.epsp);
     }
 
-    void SetPlasticStrains(Model::Solid::Affine::Affine::PlasticState &a_state)
+    void SetPlasticStrains(PlasticState &a_state)
     {
-        prev.epsp = a_state.eps; curr.epsp = a_state.epsp;
+        prev.epsp = a_state.epsp; curr.epsp = a_state.epsp;
         prev.beta = a_state.beta; curr.beta = a_state.beta;
         prev.alpha = a_state.alpha; curr.alpha = a_state.alpha;
     }
 
-    Model::Solid::Affine::Affine::PlasticState GetPlasticState()
+    PlasticState GetPlasticState()
     {
         return curr;
     }
 
 public:
-    struct{
-        bool on;        // slip system active or not
-        Set::Vector n;  // slip plane normal
-        Set::Vector s;  // slip direction
-        Set::Scalar tcrss;      // critically resolved shear stress
-        Set::Scalar tcrss0;     // pristine material
-        Set::Scalar exp;        // power law exponent
-        Set::Scalar gam0dot;    // gamma0 dot.
-    } slipsystem;
     amrex::Vector<slipsystem> slip; 
-    Model::Solid::Affine::Affine::PlasticState curr, prev;
+    PlasticState curr, prev;
 
 public:
     static void Parse(CrystalPlastic<T> & value, IO::ParmParse & pp)
@@ -204,11 +214,16 @@ public:
         pp.query("Phi",Phi);
         pp.query("phi2",phi2);
 
-        Eigen::Matrix3d m;
-    	m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+        Set::Matrix m = 
+        AMREX_D_PICK(1.0,
+            Eigen::AngleAxisd(phi2, Eigen::Vector2d::UnitX()) *
+    		Eigen::AngleAxisd(Phi,  Eigen::Vector2d::UnitZ()) *
+    	 	Eigen::AngleAxisd(phi1, Eigen::Vector2d::UnitX());
+            ,
+    	    Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
     		Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
     	 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
-
+        );
         std::string lattice;
         LatticeType input_lattice;
         int number_of_slip_systems;
@@ -230,7 +245,7 @@ public:
         latticeslipsystemmap[LatticeType::FCC] = 12;
         latticeslipsystemmap[LatticeType::BCC] = 48;
         latticeslipsystemmap[LatticeType::HCP] = 2;
-        if(pp.contains("lattice")
+        if(pp.contains("lattice"))
         {
             pp.query("lattice",lattice);
             input_lattice = latticemap[lattice];
@@ -263,6 +278,7 @@ public:
         }
 
         amrex::Vector<Set::Scalar> input_tcrss, input_exp, input_gam0dot;
+
         if(pp.contains("tcrss"))
         {
             pp.queryarr("tcrss", input_tcrss);
@@ -296,7 +312,7 @@ public:
 
         if(latticeinput)
         {
-            value.Define(C11,C12,C44,m,input_lattice,input_tcrss,input_exp,input_gam0dot);
+            value.Define(C11,C12,C44,m,input_tcrss,input_exp,input_gam0dot, input_lattice);
         }
         else
         {
@@ -315,7 +331,7 @@ public:
             value.Define(C11,C12,C44,m,a_slipsystem);
         }
     }
-}
+};
 
 }
 }
