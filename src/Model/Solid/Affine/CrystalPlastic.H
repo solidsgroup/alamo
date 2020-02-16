@@ -37,8 +37,8 @@ public:
             Eigen::AngleAxisd(a_Phi, Eigen::Vector2d::UnitZ())
             ,
             Eigen::AngleAxisd(a_phi2, Eigen::Vector3d::UnitX()) *
-    		Eigen::AngleAxisd(a_Phi,  Eigen::Vector3d::UnitZ()) *
-    	 	Eigen::AngleAxisd(a_phi1, Eigen::Vector3d::UnitX())
+    		Eigen::AngleAxisd(a_Phi,  Eigen::Vector3d::UnitY()) *
+    	 	Eigen::AngleAxisd(a_phi1, Eigen::Vector3d::UnitZ())
         );
         Define(a_C11, a_C12, a_C44, R, lattice);
     }
@@ -124,10 +124,20 @@ public:
         curr.beta = Set::Matrix::Zero();
         prev.alpha = 0.0;
         curr.alpha = 0.0;
-        T::Define(a_C11, a_C12, a_C44, m);
+
+        Eigen::Matrix3d m2;
+        AMREX_D_TERM(
+            m2(0,0) = m(0,0);
+            ,
+            m2(0,1) = m(0,1); m2(1,0) = m(1,0); m2(1,1) = m(1,1);
+            ,
+            m2(0,2) = m(0,2); m2(2,0) = m(2,0); m2(2,2) = m(2,2);
+            m2(2,1) = m(2,1); m2(1,2) = m(1,2);
+        );
+        T::Define(a_C11, a_C12, a_C44, m2);
     }
 
-    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Eigen::Matrix3d m, amrex::Vector<slipsystem> &a_slip)
+    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Set::Matrix m, amrex::Vector<slipsystem> &a_slip)
     {
         slip = a_slip;
         prev.epsp = Set::Matrix::Zero();
@@ -136,7 +146,16 @@ public:
         curr.beta = Set::Matrix::Zero();
         prev.alpha = 0.0;
         curr.alpha = 0.0;
-        T::Define(a_C11, a_C12, a_C44, m);
+        Eigen::Matrix3d m2;
+        AMREX_D_TERM(
+            m2(0,0) = m(0,0);
+            ,
+            m2(0,1) = m(0,1); m2(1,0) = m(1,0); m2(1,1) = m(1,1);
+            ,
+            m2(0,2) = m(0,2); m2(2,0) = m(2,0); m2(2,2) = m(2,2);
+            m2(2,1) = m(2,1); m2(1,2) = m(1,2);
+        );
+        T::Define(a_C11, a_C12, a_C44, m2);
     }
 
     void DegradeYieldSurface(Set::Scalar eta)
@@ -214,15 +233,19 @@ public:
         pp.query("Phi",Phi);
         pp.query("phi2",phi2);
 
-        Set::Matrix m = 
-        AMREX_D_PICK(1.0,
-            Eigen::AngleAxisd(phi2, Eigen::Vector2d::UnitX()) *
-    		Eigen::AngleAxisd(Phi,  Eigen::Vector2d::UnitZ()) *
-    	 	Eigen::AngleAxisd(phi1, Eigen::Vector2d::UnitX());
+        Set::Matrix R;
+
+        Eigen::Matrix3d m;
+        m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitZ());
+        AMREX_D_TERM(
+            R(0,0) = m(0,0);
             ,
-    	    Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
-    		Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
-    	 	Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+            R(0,1) = m(0,1); R(1,0) = m(1,0); R(1,1) = m(1,1);
+            ,
+            R(0,2) = m(0,2); R(1,2) = m(1,2); R(2,0) = m(2,0); 
+            R(2,1) = m(2,1); R(2,2) = m(2,2);
         );
         std::string lattice;
         LatticeType input_lattice;
@@ -312,7 +335,7 @@ public:
 
         if(latticeinput)
         {
-            value.Define(C11,C12,C44,m,input_tcrss,input_exp,input_gam0dot, input_lattice);
+            value.Define(C11,C12,C44,R,input_tcrss,input_exp,input_gam0dot, input_lattice);
         }
         else
         {
@@ -328,7 +351,7 @@ public:
                 a_slipsystem[i].exp = input_exp[i];
                 a_slipsystem[i].gam0dot = input_gam0dot[i];
             }
-            value.Define(C11,C12,C44,m,a_slipsystem);
+            value.Define(C11,C12,C44,R,a_slipsystem);
         }
     }
 };

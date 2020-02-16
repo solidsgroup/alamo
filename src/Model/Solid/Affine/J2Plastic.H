@@ -85,29 +85,29 @@ public:
             return;
         }
         Set::Matrix n_new = zeta_trial/zeta_trial.norm();
-        Set::Scalar dGamma = f_trial/(2.0*T.mu*(1.0 + (hardening_modulus/(3.0*T.mu))));
+        Set::Scalar dGamma = f_trial/(2.0*(T::mu)*(1.0 + (hardening_modulus/(3.0*T::mu))));
         Set::Scalar dH = SQ2O3*(1.0-theta)*hardening_modulus*dGamma;
 
         curr.alpha = prev.alpha + SQ2O3*dGamma;
         curr.beta = prev.beta + SQ2O3*dH*n_new;
         curr.epsp = prev.epsp + dGamma*n_new;
-        T.UpdateF0(curr.epsp);
+        T::UpdateF0(curr.epsp);
     }
 
-    void SetPlasticStrains(Model::Solid::Affine::Affine::PlasticState &a_state)
+    void SetPlasticStrains(PlasticState &a_state)
     {
-        prev.epsp = a_state.eps; curr.epsp = a_state.epsp;
+        prev.epsp = a_state.epsp; curr.epsp = a_state.epsp;
         prev.beta = a_state.beta; curr.beta = a_state.beta;
         prev.alpha = a_state.alpha; curr.alpha = a_state.alpha;
     }
 
-    Model::Solid::Affine::Affine::PlasticState GetPlasticState()
+    PlasticState GetPlasticState()
     {
         return curr;
     }
 
 public:
-    Model::Solid::Affine::Affine::PlasticState curr, prev;
+    PlasticState curr, prev;
     Set::Scalar theta;                  // isotropic and kinematic hardening parameter
     Set::Scalar yield_strength, yield_strength0;          // yield strength
     Set::Scalar hardening_modulus, hardening_modulus0;  // hardening modulus
