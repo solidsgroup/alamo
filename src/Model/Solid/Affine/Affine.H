@@ -13,16 +13,24 @@ namespace Solid
 {
 namespace Affine
 {
-class Affine
-{
-public:
-    struct
-    {
+//class Affine
+//{
+//public:
+    struct PlasticState{
         Set::Matrix epsp;
         Set::Scalar alpha;
         Set::Matrix beta;
-    }PlasticState;
-};
+    };
+    /*struct{
+        bool on;        // slip system active or not
+        Set::Vector n;  // slip plane normal
+        Set::Vector s;  // slip direction
+        Set::Scalar tcrss;      // critically resolved shear stress
+        Set::Scalar tcrss0;     // pristine material
+        Set::Scalar exp;        // power law exponent
+        Set::Scalar gam0dot;    // gamma0 dot.
+    } slipsystem;*/
+//};
 }
 }
 }

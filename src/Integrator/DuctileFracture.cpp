@@ -128,6 +128,7 @@ DuctileFracture::DuctileFracture() :
 	RegisterNodalFab (m_stressdev,	number_of_stress_components,	number_of_ghost_nodes,	"stress_dev",	true);
 	RegisterNodalFab (m_energy,		1,								number_of_ghost_nodes,	"energy",		true);
 	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_nodes,	"energyP",		true);
+	RegisterNodalFab (m_energy_pristine_old,		1,				number_of_ghost_nodes,	"energyPOld",		true);
 	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_nodes,	"residual",		true);
 
 	RegisterNodalFab (m_strain_p,	number_of_stress_components,	number_of_ghost_nodes,	"strainp",		true);
@@ -154,6 +155,7 @@ DuctileFracture::Initialize (int lev)
 	m_strain[lev]->setVal(0.0);
 	m_energy[lev]->setVal(0.0);
 	m_energy_pristine[lev] -> setVal(0.);
+	m_energy_pristine_old[lev] -> setVal(0.);
 
 	// Initialize stress fields
 	m_stress[lev]->setVal(0.0);
@@ -238,7 +240,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
-		material.model[ilev]->setVal((material.modeltype));
+		material.model[ilev]->setVal(*(material.modeltype));
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		m_energy_pristine[ilev]->setVal(0.);
 		ScaledModulus(ilev,*(material.model)[ilev]);
@@ -278,8 +280,8 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 					beta(1,0) = beta_box(i,j,k,3); beta(1,1) = beta_box(i,j,k,4); beta(1,2) = beta_box(i,j,k,5);
 					beta(2,0) = beta_box(i,j,k,6); beta(2,1) = beta_box(i,j,k,7); beta(2,2) = beta_box(i,j,k,8);
 				);
-				Model::Solid::Affine::Affine::PlasticState state;
-				state.eps = eps; state.beta = beta; state.alpha = alpha_box(i,j,k,0);
+				Model::Solid::Affine::PlasticState state;
+				state.epsp = eps; state.beta = beta; state.alpha = alpha_box(i,j,k,0);
 				model_box(i, j, k, 0).SetPlasticStrains(state);
             });
 		}
@@ -451,6 +453,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		const amrex::Box& box = mfi.validbox();
 		amrex::Array4<Set::Scalar>			const& c_new		= (*m_c[lev]).array(mfi);
 		amrex::Array4<const Set::Scalar>	const& c_old		= (*m_c_old[lev]).array(mfi);
+		amrex::Array4<const Set::Scalar> 	const& p_box		= (*m_alpha[lev]).array(mfi);
 		amrex::Array4<Set::Scalar>			const& df			= (*m_driving_force[lev]).array(mfi);
 		amrex::Array4<const Set::Scalar>	const& energy_box	= (*m_energy_pristine[lev]).array(mfi);
 		
@@ -467,7 +470,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
 			rhs += crack.boundary->Epc(c_old(i,j,k,0))*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
 			rhs -= crack.boundary->kappa(c_old(i,j,k,0))*laplacian;
-			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype->OriginalYieldSurface(lambda_box(i,j,k)));
+			//rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype->OriginalYieldSurface(lambda_box(i,j,k)));
 			//(yield_strength + 0.5*hardening_modulus*lambda_box(i,j,k));
 
 			df(i,j,k,3) = max(0.,rhs);

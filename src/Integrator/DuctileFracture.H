@@ -22,6 +22,8 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/Affine/CrystalPlastic.H"
+#include "Model/Solid/Affine/CubicDegradable.H"
+#include "Model/Solid/Affine/Affine.H"
 
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
@@ -47,7 +49,7 @@
 namespace Integrator
 {
 using ductile_fracture_model_type = Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::CubicDegradable>;
-using ductile_fracture_model_type = Model::Solid::Affine::J2Plastic<Model::Solid::Affine::IsotropicDegradable>;
+//using ductile_fracture_model_type = Model::Solid::Affine::J2Plastic<Model::Solid::Affine::IsotropicDegradable>;
 
 class DuctileFracture : public Integrator
 {
@@ -96,6 +98,7 @@ private:
 	Set::Field<Set::Scalar> m_residual;			///< Implicit problem residual field
 	Set::Field<Set::Scalar> m_energy;				///< Elastic energy field
 	Set::Field<Set::Scalar> m_energy_pristine;		///< Elastic energy field as if crack doesn't exist.
+	Set::Field<Set::Scalar> m_energy_pristine_old;	
 
 	Set::Field<Set::Scalar> m_strain_p;
 	Set::Field<Set::Scalar> m_beta;

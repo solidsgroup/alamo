@@ -3,6 +3,8 @@
 
 #include "AMReX.H"
 #include "Model/Solid/Solid.H"
+#include "Model/Solid/Affine/Affine.H"
+#include "Model/Solid/Affine/Cubic.H"
 
 namespace Model
 {
@@ -18,7 +20,7 @@ public:
 
     CubicDegradable() {};
     CubicDegradable(Solid<Set::Sym::MajorMinor> base) : Cubic(base) {};
-    CubicDegradable(Cubic base) : Cubic(base) {}
+    CubicDegradable(Cubic base) : Cubic(base) {};
 
     CubicDegradable(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Scalar a_phi1, Set::Scalar a_Phi, Set::Scalar a_phi2)
     {
@@ -27,7 +29,7 @@ public:
     		Eigen::AngleAxisd(a_Phi,  Eigen::Vector3d::UnitZ()) *
     	 	Eigen::AngleAxisd(a_phi1, Eigen::Vector3d::UnitX());
         Define(a_C11, a_C12, a_C44, m);
-    }
+    };
 
     void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Eigen::Matrix3d m)
     {
