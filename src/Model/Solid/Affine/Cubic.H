@@ -66,11 +66,13 @@ public:
     
     Set::Scalar W(Set::Matrix gradu)
     {
-        return ( 0.5 * (gradu-F0).transpose() * (ddw*(gradu-F0)) ).trace();
+        Set::Matrix eps = gradu - F0;
+        return ( 0.5 * eps.transpose() * (ddw * eps) ).trace();
     }
     Set::Matrix DW(Set::Matrix gradu)
     {
-        return ddw*(gradu-F0);
+        Set::Matrix eps = gradu - F0;
+        return ddw*eps;
     }
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/)
     {
