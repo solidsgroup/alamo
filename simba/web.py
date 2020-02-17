@@ -313,6 +313,15 @@ def table_entry_stderr(table,entry):
     cur= db.cursor()
     cur.execute("SELECT STDERR FROM {} WHERE HASH = ?".format(table),(entry,))
     return cur.fetchall()[0][0]
+
+@app.route('/regtest/<regtest>/testentry/<hash>/diff_stdout', methods=['GET','POST'])
+@requires_auth
+def table_entry_diff_stdout(regtest,hash):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT diff_stdout FROM {} WHERE HASH = ?".format(regtest),(hash,))
+    return cur.fetchall()[0][0]
                            
 @app.route('/regtest/<regtest>/<run>/stdout', methods=['GET','POST'])
 @requires_auth

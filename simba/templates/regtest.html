@@ -60,11 +60,18 @@
                                     </div>
                                     <div class="modal-body">
                                         <p><b> Simulation detail page: </b> <a target='_blank' href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}</a></p>
+                                        {% if not data[p]['COMPARE'] == "NONE" %}
+                                            <p><b>Benchmark</b>: <span class="label label-default"> {{data[p]['BENCHMARK_RUN']}} </span> &nbsp; <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a></p>
+                                        {% endif %}
 
                                         <p>
                                             <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stdout"><span class="label label-info"> STDOUT  </b></span></a>
                                             &nbsp;
-                                            <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stderr"><span class="label label-danger"> STDERR  </b></span></a>
+                                            <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stderr"><span class="label label-danger"> STDERR  </b></span></a>&nbsp;
+                                            {% if not data[p]['COMPARE'] == "NONE" %}
+                                                <a target="_blank" href="/regtest/regtest/testentry/{{data[p]['HASH']}}/diff_stdout"><span class="label label-default">DIFF</b></span></a>
+                                            {% endif %}
+
                                         </p>
 
                                         {% if data[p]['RUNCODE'] == 0 %}
@@ -82,7 +89,6 @@
                                                     <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
                                                     Comparison failed
                                                 {% endif %}
-                                                (<b>Benchmark</b>: <span class="label label-default"> {{data[p]['BENCHMARK_RUN']}} </span> &nbsp; <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a>)
                                                 </p>
                                             {% endif %}
     
