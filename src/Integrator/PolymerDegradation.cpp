@@ -608,7 +608,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		displacement[ilev]->setVal(0.0);
+		//displacement[ilev]->setVal(0.0);
 		const Real* DX = geom[ilev].CellSize();
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
