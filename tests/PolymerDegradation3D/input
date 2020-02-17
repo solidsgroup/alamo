@@ -95,66 +95,42 @@ thermal.bc.val.zhi = 368.0
 #===========================================================================
 
 #=============== Material model parameters =================================
-material.model = isotropic2
-#material.isotropic.lambda = 410.1
-#material.isotropic.mu = 350.5
-material.isotropic2.E1 = 510.0
-material.isotropic2.E2 = 148.0
-material.isotropic2.Tg = 319.3
-material.isotropic2.Ts = 17.0
-material.isotropic2.nu = 0.3
-material.isotropic2.temp = 298.0
+material.model = isotropic
+material.isotropic.lambda = 410.1
+material.isotropic.mu = 350.5
+#material.isotropic2.E1 = 510.0
+#material.isotropic2.E2 = 148.0
+#material.isotropic2.Tg = 319.3
+#material.isotropic2.Ts = 17.0
+#material.isotropic2.nu = 0.3
+#material.isotropic2.temp = 298.0
 #===========================================================================
 
 #=============== Damage evolution parameters ===============================
 damage.anisotropy = 0
 
-#damage.type = water
-#damage.d_final = 0.85 0.90 
-#damage.number_of_terms = 2 2
-#damage.d_i = 0.60 0.40 0.80 0.20
-#damage.tau_i = 24 96 12 96
-#damage.t_start_i = 0 12 0 12
-
-#damage.ic_type = constant
-#damage.ic.value = 0.0 0.0
-#damage.bc.type.xlo = NEUMANN NEUMANN
-#damage.bc.type.xhi = NEUMANN NEUMANN
-#damage.bc.type.ylo = NEUMANN NEUMANN
-#damage.bc.type.yhi = NEUMANN NEUMANN
-#damage.bc.type.zlo = NEUMANN NEUMANN
-#damage.bc.type.zhi = NEUMANN NEUMANN
-
-#damage.bc.val.xlo = 0.0 0.0
-#damage.bc.val.xhi = 0.0 0.0
-#damage.bc.val.ylo = 0.0 0.0
-#damage.bc.val.yhi = 0.0 0.0
-#damage.bc.val.zlo = 0.0 0.0
-#damage.bc.val.zhi = 0.0 0.0
-
-damage.type = water2
-damage.d_final = 0.85 0.01 0.8 0.90
-damage.number_of_terms = 2 2 2 2
-damage.d_i = 0.60 0.40 0.60 0.40 0.60 0.40 0.80 0.20
-damage.tau_i = 3 3 3 3 3 3 12 96
-damage.t_start_i = 0 12 0 12 0 12 0 12
+damage.type = water
+damage.d_final = 0.85 0.90 
+damage.number_of_terms = 2 2
+damage.d_i = 0.60 0.40 0.80 0.20
+damage.tau_i = 24 96 12 96
+damage.t_start_i = 0 12 0 12
 
 damage.ic_type = constant
-damage.ic.value = 0.0 0.0 0.0 0.0
+damage.ic.value = 0.0 0.0
+damage.bc.type.xlo = NEUMANN NEUMANN
+damage.bc.type.xhi = NEUMANN NEUMANN
+damage.bc.type.ylo = NEUMANN NEUMANN
+damage.bc.type.yhi = NEUMANN NEUMANN
+damage.bc.type.zlo = NEUMANN NEUMANN
+damage.bc.type.zhi = NEUMANN NEUMANN
 
-damage.bc.type.xlo = NEUMANN NEUMANN NEUMANN NEUMANN
-damage.bc.type.xhi = NEUMANN NEUMANN NEUMANN NEUMANN
-damage.bc.type.ylo = NEUMANN NEUMANN NEUMANN NEUMANN
-damage.bc.type.yhi = NEUMANN NEUMANN NEUMANN NEUMANN
-damage.bc.type.zlo = NEUMANN NEUMANN NEUMANN NEUMANN
-damage.bc.type.zhi = NEUMANN NEUMANN NEUMANN NEUMANN
-
-damage.bc.val.xlo = 0.0 0.0 0.0 0.0
-damage.bc.val.xhi = 0.0 0.0 0.0 0.0
-damage.bc.val.ylo = 0.0 0.0 0.0 0.0
-damage.bc.val.yhi = 0.0 0.0 0.0 0.0
-damage.bc.val.zlo = 0.0 0.0 0.0 0.0
-damage.bc.val.zhi = 0.0 0.0 0.0 0.0
+damage.bc.val.xlo = 0.0 0.0
+damage.bc.val.xhi = 0.0 0.0
+damage.bc.val.ylo = 0.0 0.0
+damage.bc.val.yhi = 0.0 0.0
+damage.bc.val.zlo = 0.0 0.0
+damage.bc.val.zhi = 0.0 0.0
 
 damage.bc_time.type.xlo = NEUMANN
 damage.bc_time.type.xhi = NEUMANN
@@ -169,6 +145,44 @@ damage.bc_time.val.ylo = 0.0
 damage.bc_time.val.yhi = 0.0
 damage.bc_time.val.zlo = 0.0
 damage.bc_time.val.zhi = 0.0
+
+#damage.type = water2
+#damage.d_final = 0.85 0.01 0.8 0.90
+#damage.number_of_terms = 2 2 2 2
+#damage.d_i = 0.60 0.40 0.60 0.40 0.60 0.40 0.80 0.20
+#damage.tau_i = 3 3 3 3 3 3 12 96
+#damage.t_start_i = 0 12 0 12 0 12 0 12
+
+#damage.ic_type = constant
+#damage.ic.value = 0.0 0.0 0.0 0.0
+
+#damage.bc.type.xlo = NEUMANN NEUMANN NEUMANN NEUMANN
+#damage.bc.type.xhi = NEUMANN NEUMANN NEUMANN NEUMANN
+#damage.bc.type.ylo = NEUMANN NEUMANN NEUMANN NEUMANN
+#damage.bc.type.yhi = NEUMANN NEUMANN NEUMANN NEUMANN
+#damage.bc.type.zlo = NEUMANN NEUMANN NEUMANN NEUMANN
+#damage.bc.type.zhi = NEUMANN NEUMANN NEUMANN NEUMANN
+
+#damage.bc.val.xlo = 0.0 0.0 0.0 0.0
+#damage.bc.val.xhi = 0.0 0.0 0.0 0.0
+#damage.bc.val.ylo = 0.0 0.0 0.0 0.0
+#damage.bc.val.yhi = 0.0 0.0 0.0 0.0
+#damage.bc.val.zlo = 0.0 0.0 0.0 0.0
+#damage.bc.val.zhi = 0.0 0.0 0.0 0.0
+
+#damage.bc_time.type.xlo = NEUMANN
+#damage.bc_time.type.xhi = NEUMANN
+#damage.bc_time.type.ylo = NEUMANN
+#damage.bc_time.type.yhi = NEUMANN
+#damage.bc_time.type.zlo = NEUMANN
+#damage.bc_time.type.zhi = NEUMANN
+
+#damage.bc_time.val.xlo = 0.0
+#damage.bc_time.val.xhi = 0.0
+#damage.bc_time.val.ylo = 0.0
+#damage.bc_time.val.yhi = 0.0
+#damage.bc_time.val.zlo = 0.0
+#damage.bc_time.val.zhi = 0.0
 #===========================================================================
 
 #=============== Elasticity parameters =====================================
@@ -195,45 +209,20 @@ elastic.body_force		=	0.001 0.0 0.0
 
 # Use the following arguments for a single tension experiment.
 
-#elastic.type            =   single
-#elastic.int 			=	100
-#elastic.tstart 			=	0.0
-#elastic.tend			=	5.0
+elastic.type            =   single
+elastic.int 			=	100
+elastic.tstart 			=	0.0
+elastic.tend			=	5.0
 
-#elastic.bc.val.xhi       = 0.05 0.0 0.0
-#elastic.bc.val.xhiylo    = 0.05 0.0 0.0
-#elastic.bc.val.xhiyhi    = 0.05 0.0 0.0
-#elastic.bc.val.zloxhi    = 0.05 0.0 0.0
-#elastic.bc.val.zhixhi    = 0.05 0.0 0.0
-#elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
-#elastic.bc.val.xhiylozhi = 0.05 0.0 0.0
-#elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
-#elastic.bc.val.xhiyhizhi = 0.05 0.0 0.0
-#elastic.bc.type.yhi = trac trac trac
-#elastic.bc.type.zhi = trac trac trac
-#elastic.bc.type.ylo = trac trac trac
-#elastic.bc.type.zlo = trac trac trac
-#elastic.bc.type.yhizhi = trac trac trac
-#elastic.bc.type.ylozhi = trac trac trac
-#elastic.bc.type.yhizlo = trac trac trac
-#elastic.bc.type.ylozlo = trac trac trac
-
-# Use the following arguments for a full tensile test experiment.
-elastic.type            = tensile
-elasitc.rate            = 1.3   # in mm/min
-elastic.test_time       = 0. 3. # this says that I want to do the test at 0 hr and 3 hr of degradation time
-elastic.test_duration   = 1.0   # in minutes
-elastic.test_dt         = 0.01  # in minutes
-
-elastic.bc.val.xhi       = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.xhiylo    = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.xhiyhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.zloxhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.zhixhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.xhiylozlo = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.xhiylozhi = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.xhiyhizlo = (0.0,1.0:0.0,1.3) 0.0 0.0
-elastic.bc.val.xhiyhizhi = (0.0,1.0:0.0,1.3) 0.0 0.0
+elastic.bc.val.xhi       = 0.05 0.0 0.0
+elastic.bc.val.xhiylo    = 0.05 0.0 0.0
+elastic.bc.val.xhiyhi    = 0.05 0.0 0.0
+elastic.bc.val.zloxhi    = 0.05 0.0 0.0
+elastic.bc.val.zhixhi    = 0.05 0.0 0.0
+elastic.bc.val.xhiylozlo = 0.05 0.0 0.0
+elastic.bc.val.xhiylozhi = 0.05 0.0 0.0
+elastic.bc.val.xhiyhizlo = 0.05 0.0 0.0
+elastic.bc.val.xhiyhizhi = 0.05 0.0 0.0
 elastic.bc.type.yhi = trac trac trac
 elastic.bc.type.zhi = trac trac trac
 elastic.bc.type.ylo = trac trac trac
@@ -242,4 +231,29 @@ elastic.bc.type.yhizhi = trac trac trac
 elastic.bc.type.ylozhi = trac trac trac
 elastic.bc.type.yhizlo = trac trac trac
 elastic.bc.type.ylozlo = trac trac trac
+
+# Use the following arguments for a full tensile test experiment.
+#elastic.type            = tensile
+#elasitc.rate            = 1.3   # in mm/min
+#elastic.test_time       = 0. 3. # this says that I want to do the test at 0 hr and 3 hr of degradation time
+#elastic.test_duration   = 1.0   # in minutes
+#elastic.test_dt         = 0.01  # in minutes
+
+#elastic.bc.val.xhi       = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiylo    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiyhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.zloxhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.zhixhi    = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiylozlo = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiylozhi = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiyhizlo = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.val.xhiyhizhi = (0.0,1.0:0.0,1.3) 0.0 0.0
+#elastic.bc.type.yhi = trac trac trac
+#elastic.bc.type.zhi = trac trac trac
+#elastic.bc.type.ylo = trac trac trac
+#elastic.bc.type.zlo = trac trac trac
+#elastic.bc.type.yhizhi = trac trac trac
+#elastic.bc.type.ylozhi = trac trac trac
+#elastic.bc.type.yhizlo = trac trac trac
+#elastic.bc.type.ylozlo = trac trac trac
 #===========================================================================
