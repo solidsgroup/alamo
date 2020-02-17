@@ -44,11 +44,6 @@ if 'main' in config:
     if 'nprocs_build'          in config['main']: nprocs_build = int(config['main']['nprocs_build'])
     if 'fcompare_exe'          in config['main']: fcompare_exe = config['main']['fcompare_exe']
 
-if not os.path.isfile(alamo_path + '/bin/alamo-2d-g++'):
-    raise(Exception("Cannot access " + alamo_path + '/bin/alamo-2d-g++'))
-if not os.path.isfile(alamo_path + '/bin/alamo-3d-g++'):
-    raise(Exception("Cannot access " + alamo_path + '/bin/alamo-3d-g++'))
-
 db = sqlite3.connect(db_path + '/regtest.db')
 db.text_factory = str
 cur= db.cursor()
