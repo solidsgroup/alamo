@@ -104,7 +104,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			boundary = new Model::Interface::GB::SH();
 			pp.queryclass(*static_cast<Model::Interface::GB::SH *>(boundary));
 		}
-		else
+		else if (anisotropy.on)
 		{
 			Util::Abort(INFO,"A GB model must be specified");
 		}
