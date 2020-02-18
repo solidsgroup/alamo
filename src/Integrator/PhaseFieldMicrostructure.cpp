@@ -563,6 +563,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	}
 	elasticop.SetModel(model_mf);
 
+	elastic.bc.SetTime(time);
 	elastic.bc.Init(rhs_mf,geom);
 	elasticop.SetBC(&elastic.bc);
 
