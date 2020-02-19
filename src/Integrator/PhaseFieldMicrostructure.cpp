@@ -145,6 +145,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
+	RegisterNewFab(chempotdf_mf,mybc,number_of_grains, number_of_ghost_cells, "ChemPotdf",true);
+	RegisterNewFab(anisotdf_mf, mybc,number_of_grains, number_of_ghost_cells, "Anisodf",true);
 	
 
 	volume = 1.0;
@@ -153,6 +155,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterIntegratedVariable(&gbenergy, "gbenergy");
 	RegisterIntegratedVariable(&realgbenergy, "realgbenergy");
 	RegisterIntegratedVariable(&regenergy, "regenergy");
+	RegisterIntegratedVariable(&elastic.strainenergy, "strainenergy");
+	RegisterIntegratedVariable(&elastic.force, "force");
 
 	// Elasticity
 	{
@@ -164,7 +168,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
 			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
 			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
-			RegisterNodalFab(energies_mf, number_of_grains, 2, "energies",false);
+			RegisterNodalFab(energy_mf, 1, 2, "energy",true);
 			RegisterNewFab(elasticdf_mf, mybc, number_of_grains, number_of_ghost_cells, "elastic df",true);
 
 			pp.query("interval", elastic.interval);
@@ -184,6 +188,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			}
 			pp.queryclass("model1",elastic.model[0]);
 			pp.queryclass("model2",elastic.model[1]);
+			pp.queryclass("disp",elastic.disp);
 		}
 	}
 }
@@ -207,6 +212,8 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &edf = (*elasticdf_mf[lev]).array(mfi);
+		amrex::Array4<amrex::Real> const &chempotdf = (*chempotdf_mf[lev]).array(mfi);
+		amrex::Array4<amrex::Real> const &anisotdf = (*anisotdf_mf[lev]).array(mfi);
 		
 		if (elastic.on)
 		{
@@ -237,6 +244,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					kappa = pf.l_gb * 0.75 * pf.sigma0;
 					mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
 					driving_force += -kappa * laplacian;
+					anisotdf(i,j,k,m) = -kappa * laplacian;
 				}
 				else
 				{
@@ -269,6 +277,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 			
 						driving_force += - (Boundary_term) + anisotropy.beta*(Curvature_term);
+						anisotdf(i,j,k,m) = - (Boundary_term) + anisotropy.beta*(Curvature_term);
 						if (std::isnan(driving_force)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 
 #elif AMREX_SPACEDIM == 3
@@ -367,6 +376,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
 				}
 				driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+				chempotdf(i,j,k,m) = mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
 				//
 				// SYNTHETIC DRIVING FORCE
@@ -404,20 +414,20 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					sig(1,1) = 0.25*(sigma(i,j,k,3) + sigma(i+1,j,k,3) + sigma(i,j+1,k,3)+ sigma(i+1,j+1,k,3));
 
 
-					Set::Scalar tmpdf = pf.elastic_mult * (dF0deta.transpose() * sig).trace();
+					Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
 
 					//edf(i,j,k,m) = tmpdf;
 					//driving_force += tmpdf;
 
 					if (tmpdf > pf.elastic_threshold)
 					{
-						edf(i,j,k,m) = tmpdf-pf.elastic_threshold;
-						driving_force += tmpdf-pf.elastic_threshold;
+						edf(i,j,k,m)   = pf.elastic_mult * (tmpdf-pf.elastic_threshold);
+						driving_force -= pf.elastic_mult * (tmpdf-pf.elastic_threshold);
 					}
-					else if (-tmpdf < -pf.elastic_threshold)
+					else if (tmpdf < -pf.elastic_threshold)
 					{
-						edf(i,j,k,m) = tmpdf+pf.elastic_threshold;
-						driving_force += tmpdf+pf.elastic_threshold;
+						edf(i,j,k,m)   = pf.elastic_mult * (tmpdf+pf.elastic_threshold);
+						driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
 					}
 					else
 					{
@@ -575,11 +585,12 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	linearsolver.compResidual(res_mf, disp_mf, rhs_mf, model_mf);
 	//linearsolver.solve(disp_mf, rhs_mf);
 
+	linearsolver.W(energy_mf,disp_mf,model_mf);
 	linearsolver.DW(stress_mf,disp_mf,model_mf);
 	for (int lev = 0; lev < disp_mf.size(); lev++)
 	{
 		//elasticop.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-		elasticop.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
+		//elasticop.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
 	}
 }
 
@@ -587,10 +598,13 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 										 const amrex::MFIter &mfi, const amrex::Box &box)
 {
 	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
-
+	
 	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
 	const amrex::Real *DX = geom[amrlev].CellSize();
+	
 	amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
+	amrex::Array4<amrex::Real> const &w   = (*energy_mf[amrlev]).array(mfi);
+	amrex::Array4<amrex::Real> const &stress   = (*stress_mf[amrlev]).array(mfi);
 	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 		Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
@@ -632,6 +646,15 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 				gbenergy += gbmodel.W(normal) * da;
 #endif
 			}
+		}
+		if (elastic.on)
+		{
+			if (j==0)
+			{
+				elastic.force += stress(i,j,k,1) * DX[0];
+			}
+
+			elastic.strainenergy += 0.25 * (w(i,j,k) + w(i+1,j,k) + w(i,j+1,k) + w(i+1,j+1,k)) * volume;
 		}
 	});
 }

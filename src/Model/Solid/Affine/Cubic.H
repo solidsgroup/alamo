@@ -31,15 +31,15 @@ public:
         Linear::Cubic::Define(C11,C12,C44,R);
         F0 = a_F0;
     }
-    Set::Scalar W(Set::Matrix gradu)
+    Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return Linear::Cubic::W(gradu - F0);
     }
-    Set::Matrix DW(Set::Matrix gradu)
+    Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return Linear::Cubic::DW(gradu - F0);
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix gradu)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & gradu) const override
     {
         return Linear::Cubic::DDW(gradu - F0);
     }

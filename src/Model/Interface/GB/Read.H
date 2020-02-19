@@ -59,7 +59,12 @@ public:
 		m_ddw.define(ddw,thetasmall);
 
 		for (Set::Scalar t = -0.001; t < 2*Set::Constant::Pi+1.0; t+=0.001)
-			Util::Message(INFO,t," ",m_w(t)," ",m_dw(t)," ",m_ddw(t));
+		{
+			Set::Scalar w = m_w(t), dw = m_dw(t), ddw = m_ddw(t);
+			if (std::isnan(w) || std::isnan(dw) || std::isnan(ddw) ||
+				std::isinf(w) || std::isinf(dw) || std::isinf(ddw)) 
+				Util::Abort(INFO,"Error in GB Read: t=",t," w=",w," dw=",dw," ddw=",ddw);
+		}
 	};
 	Set::Scalar W(amrex::Real theta)
 	{
