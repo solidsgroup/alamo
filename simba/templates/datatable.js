@@ -8,6 +8,5 @@ $(document).ready(function() {
     } );
     table.buttons().container()
         .appendTo( '#bigtable_wrapper .col-sm-6:eq(0)' );
+
 });
-
-

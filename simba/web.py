@@ -121,7 +121,19 @@ def table(table):
     if request.method == 'POST':
         if request.form.get('table-description') and not args.safe:
             print(request.form.get('table-description'))
-            cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table));
+            cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table))
+        items = request.form.items()
+        for f in items:
+            print(f)
+            if str(f[0]).startswith('hash_'):
+                hash = str(f[0]).replace('hash_','')
+                dir = str(f[1])
+                print("DELETING ",hash)
+                cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(hash,))
+                print("DELETING ",dir)
+                os.system('rm -rf ' + dir)
+
+
 
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in sorted(cur.fetchall())]
