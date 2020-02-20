@@ -35,6 +35,5 @@ Makefile.post.conf
 visitlog.py
 amrex
 amrex.build.log
-.diff.html
-.diff.patch
+.diff
 eigen3
