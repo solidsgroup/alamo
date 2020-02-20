@@ -105,6 +105,7 @@
 			<button type="button" class="btn btn-warning" data-toggle="modal" data-target="#modal-diff">
 				<span class="glyphicon glyphicon-retweet"></span> View diff of changes made since most recent commit
 			</button>
+			<a href="/table/{{table}}/entry/{{entry}}/diff.patch">Diff Patch</a>
 			<div style="width=0px;">
 				<div class="modal fade" id="modal-diff" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
 					<div class="modal-dialog modal-lg" role="document">
@@ -125,7 +126,6 @@
 					</div>
 				</div>			
 			</div>
-			{{data['DIFF_PATCH'] | safe}}
 		</td>
 	{% elif columns[i] == "STDOUT" %}
 	{% elif columns[i] == "STDERR" %}
