@@ -317,6 +317,16 @@ def table_entry_diff(table,entry):
     cur.execute("SELECT DIFF FROM {} WHERE HASH = ?".format(table),(entry,))
     return cur.fetchall()[0][0]
 
+@app.route('/table/<table>/entry/<entry>/diff.patch')
+@requires_auth
+def table_entry_diff_patch(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT DIFF_PATCH FROM {} WHERE HASH = ?".format(table),(entry,))
+    return Response(cur.fetchall()[0][0],content_type='File')
+    #return cur.fetchall()[0][0]
+
 @app.route('/table/<table>/entry/<entry>/stderr', methods=['GET','POST'])
 @requires_auth
 def table_entry_stderr(table,entry):
