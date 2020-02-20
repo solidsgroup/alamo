@@ -143,7 +143,7 @@ public:
 					else if (i==lo.x && j==hi.y && k==hi.z) face = Face::XLO_YHI_ZHI;
 					else if (i==hi.x && j==lo.y && k==lo.z) face = Face::XHI_YLO_ZLO;
 					else if (i==hi.x && j==lo.y && k==hi.z) face = Face::XHI_YLO_ZHI;
-					else if (i==hi.x && j==hi.y && k==lo.z) face = Face::XHI_YHI_ZLO;STEP 227 starts ...
+					else if (i==hi.x && j==hi.y && k==lo.z) face = Face::XHI_YHI_ZLO;
 
 					else if (i==hi.x && j==hi.y && k==hi.z) face = Face::XHI_YHI_ZHI;
 

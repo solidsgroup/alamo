@@ -88,12 +88,21 @@ void WriteMetaData(std::string plot_file, Status status, int per)
 			metadatafile << "Simulation_run_time = " << (float)milliseconds.count()/1000.0 << " " << std::endl;
 
 			#ifdef GIT_DIFF_OUTPUT
-			std::ifstream src(GIT_DIFF_OUTPUT,std::ios::binary);
-			std::ofstream dst(plot_file+"/diff.html",std::ios::binary);
-			dst << src.rdbuf();
-			src.close();
-			dst.close();
+			{
+				std::ifstream src(GIT_DIFF_OUTPUT,std::ios::binary);
+				std::ofstream dst(plot_file+"/diff.html",std::ios::binary);
+				dst << src.rdbuf();
+				src.close();
+				dst.close();
+			}
 			#endif
+			{
+				std::ifstream src(GIT_DIFF_PATCH_OUTPUT,std::ios::binary);
+				std::ofstream dst(plot_file+"/diff.patch",std::ios::binary);
+				dst << src.rdbuf();
+				src.close();
+				dst.close();
+			}
 
 			metadatafile.close();
 		}

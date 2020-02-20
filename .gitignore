@@ -36,4 +36,5 @@ visitlog.py
 amrex
 amrex.build.log
 .diff.html
+.diff.patch
 eigen3

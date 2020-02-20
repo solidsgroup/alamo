@@ -116,7 +116,7 @@
 		  						</button>
 							</div>
 							<div class="modal-body">
-								{{ data[columns[i]] | safe}}
+								{{ data['DIFF'] | safe}}
 							</div>
 							<div class="modal-footer">
 		  						<button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
@@ -125,6 +125,7 @@
 					</div>
 				</div>			
 			</div>
+			{{data['DIFF_PATCH'] | safe}}
 		</td>
 	{% elif columns[i] == "STDOUT" %}
 	{% elif columns[i] == "STDERR" %}

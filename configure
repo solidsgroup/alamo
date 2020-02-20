@@ -292,6 +292,12 @@ if args.diff:
     f2.write("\t-@rm -rf .diff.html\n")
     f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n")
 
+f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff.patch)\"'+'\n')
+f.write("DEP_EXTRA += .diff.patch\n")
+f2.write(".diff.patch: .FORCE\n")
+f2.write("\t-@rm -rf .diff.patch\n")
+f2.write("\t-@git diff > .diff.patch\n")
+
 
 #
 # Documentation check

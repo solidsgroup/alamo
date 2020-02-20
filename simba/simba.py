@@ -35,6 +35,11 @@ def parse(directory):
         things['DIFF'] = difffile.read()
         difffile.close()
 
+    if os.path.isfile(directory+"/diff.patch"):
+        difffile = open(directory+"/diff.patch")
+        things['DIFF_PATCH'] = difffile.read()
+        difffile.close()
+
     if os.path.isfile(directory+"/stdout"):
         difffile = open(directory+"/stdout","r")
         things['STDOUT'] = difffile.read()
@@ -56,7 +61,7 @@ def getTypes(data):
         val = data[key]
         if (key == 'HASH'): 
             continue
-        if (key == 'DIFF' or key == 'STDOUT' or key == 'STDERR'):
+        if (key == 'DIFF' or key == 'DIFF_PATCH' or key == 'STDOUT' or key == 'STDERR'):
             types[key] = 'BLOB'
         if key not in types:
             try:
