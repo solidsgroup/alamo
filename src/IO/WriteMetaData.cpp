@@ -1,6 +1,7 @@
 #include "WriteMetaData.H"
 #include <sstream>
 #include <functional>
+#include "Util/Util.H"
 
 /// \todo We need to update ParmParse so that the FORMATTED input file gets recorded permanently.
 
@@ -98,10 +99,18 @@ void WriteMetaData(std::string plot_file, Status status, int per)
 			#endif
 			{
 				std::ifstream src(GIT_DIFF_PATCH_OUTPUT,std::ios::binary);
-				std::ofstream dst(plot_file+"/diff.patch",std::ios::binary);
-				dst << src.rdbuf();
-				src.close();
-				dst.close();
+				if (src.is_open())
+				{
+					std::ofstream dst(plot_file+"/diff.patch",std::ios::binary);
+					dst << src.rdbuf();
+					src.close();
+					dst.close();
+				}
+				else
+				{
+					Util::Warning(INFO,"Could not open ",GIT_DIFF_PATCH_OUTPUT);
+				}
+				
 			}
 
 			metadatafile.close();
