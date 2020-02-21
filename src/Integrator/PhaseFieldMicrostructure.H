@@ -157,9 +157,9 @@ private:
 
 		BC::Operator::Elastic<model_type> bc;
 
-		Numeric::Interpolator::Linear<Set::Scalar> disp;
 		Set::Scalar strainenergy = 0.0;
 		Set::Scalar force = 0.0;
+		Set::Scalar disp = 0.0;
 	} elastic;
 
 };

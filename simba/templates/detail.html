@@ -129,6 +129,7 @@
 		</td>
 	{% elif columns[i] == "STDOUT" %}
 	{% elif columns[i] == "STDERR" %}
+	{% elif columns[i] == "DIFF_PATCH" %}
 	{% else %}
 	<td> {{ columns[i] }}</td>
 	<td> {{ data[columns[i]] }}</td>
