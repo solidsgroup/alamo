@@ -1,12 +1,12 @@
 alamo.program = microstructure
 
 timestep = 0.05
-stop_time = 500
+stop_time = 600
 
 plot_file = tests/ShearCoupling/output
 
 #amr.plot_int = 50
-amr.plot_dt = 0.1
+amr.plot_dt = 1.0
 amr.max_level = 3
 #amr.n_cell = 32 4
 amr.n_cell = 64 64 64
@@ -39,8 +39,8 @@ ic.type=tabulated_interface
 #ic.xs = 0.0 3.99999 4.0 8.0
 #ic.ys = 0.5 0.5 -0.5 -0.5
 # sloped disconnection
-ic.xs = 0.0 3 5.0     8.0
-ic.ys = 1.0 1.0 -1.0 -1.0
+ic.xs = 0.0 3 4.0     8.0
+ic.ys = 1.0 1.0 0.0 0.0
 # simple shallow ramp
 #ic.xs = 0.0 8.0
 #ic.ys = 1 -1
@@ -73,7 +73,7 @@ pf.gamma = 1.0
 pf.l_gb=0.05
 #pf.l_gb=0.0255
 pf.sigma0=0.075
-pf.elastic_mult = 10000 ############################################################
+pf.elastic_mult = 20000 ############################################################
 pf.elastic_threshold = 0.005
 
 anisotropy.on=1
@@ -116,33 +116,13 @@ elastic.model2.F0 = 0 -0.1 0 0 #elastic.bc.val.xhiyhi  =  (5.0,100.0:0.15,0.30) 
 elastic.bc.type.xlo = neumann neumann
 elastic.bc.type.xhi = neumann neumann
 
-elastic.bc.type.xloyhi = trac disp disp
-elastic.bc.type.xloyhi = trac disp disp
-elastic.bc.type.xhiyhi = trac disp disp
+#elastic.bc.type.xloyhi = trac disp disp
+#elastic.bc.type.xloyhi = trac disp disp
+#elastic.bc.type.xhiyhi = trac disp disp
 
-
-#elastic.bc.type.xhiyhi  = disp dis0.0 3.99999 4.0 8.0
-
-
-#elastic.bc.val.xhiyhi  =  (5.0,100.0:0.15,0.30) 0.0 0.0
-#elastic.bc.val.xloyhi  =  (5.0,100.0:0.15,0.30) 0.0 0.0
-#elastic.bc.val.yhi     =  (5.0,100.0:0.15,0.30) 0.0 0.0
-
-
-#elastic.disp.str       =  (5.0,26.0:0.0,0.50)
-#elastic.bc.val.xhiyhi  =  (5.0,26.0:0.0,0.50) 0.0 0.0
-#elastic.bc.val.xloyhi  =  (5.0,26.0:0.0,0.50) 0.0 0.0
-#elastic.bc.val.yhi     =  (5.0,26.0:0.0,0.50) 0.0 0.0
-
-elastic.disp.str       =  (2.0,10.0:0.25,0.25)
-#elastic.bc.val.xhiyhi  =  (2.0,10.0:0.25,0.25) 0.0 0.0
-#elastic.bc.val.xloyhi  =  (2.0,10.0:0.25,0.25) 0.0 0.0
-#elastic.bc.val.yhi     =  (2.0,10.0:0.25,0.25) 0.0 0.0
-
-
-elastic.bc.val.xhiyhi  = 0.0 0.0
-elastic.bc.val.xloyhi  = 0.0 0.0
-elastic.bc.val.yhi     = (2.0,10.0:0.2,0.5) 
+elastic.bc.val.xhiyhi  = (2,4.0,600.0:0,0.3,0.92) 0
+elastic.bc.val.xloyhi  = (2,4.0,600.0:0,0.3,0.92) 0
+elastic.bc.val.yhi     = (2,4.0,600.0:0,0.3,0.92) 0
 
 elastic.solver.verbose = 2
 #elastic.solver.fixed_iter = 10

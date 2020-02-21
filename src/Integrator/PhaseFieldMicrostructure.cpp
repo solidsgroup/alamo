@@ -157,6 +157,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterIntegratedVariable(&regenergy, "regenergy");
 	RegisterIntegratedVariable(&elastic.strainenergy, "strainenergy");
 	RegisterIntegratedVariable(&elastic.force, "force");
+	RegisterIntegratedVariable(&elastic.disp, "disp");
 
 	// Elasticity
 	{
@@ -188,7 +189,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			}
 			pp.queryclass("model1",elastic.model[0]);
 			pp.queryclass("model2",elastic.model[1]);
-			pp.queryclass("disp",elastic.disp);
 		}
 	}
 }
@@ -202,6 +202,8 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 	//if (lev != max_level) return;
 	std::swap(eta_old_mf[lev], eta_new_mf[lev]);
 	const amrex::Real *DX = geom[lev].CellSize();
+
+	// Hi
 
 	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
@@ -605,6 +607,7 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 	amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
 	amrex::Array4<amrex::Real> const &w   = (*energy_mf[amrlev]).array(mfi);
 	amrex::Array4<amrex::Real> const &stress   = (*stress_mf[amrlev]).array(mfi);
+	amrex::Array4<amrex::Real> const &u        = (*disp_mf[amrlev]).array(mfi);
 	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 		Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
@@ -649,11 +652,11 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 		}
 		if (elastic.on)
 		{
-			if (j==0)
+			if (j == geom[amrlev].Domain().hiVect()[1])
 			{
-				elastic.force += stress(i,j,k,1) * DX[0];
+				elastic.force += 0.5*(stress(i,j+1,k,1) + stress(i+1,j+1,k,1)) * DX[0];
+				elastic.disp  += 0.5*(u(i,j+1,k,0)      + u(i+1,j+1,k,0)     ) * DX[0];
 			}
-
 			elastic.strainenergy += 0.25 * (w(i,j,k) + w(i+1,j,k) + w(i,j+1,k) + w(i+1,j+1,k)) * volume;
 		}
 	});
