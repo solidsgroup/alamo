@@ -524,12 +524,10 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_m
 		amrex::Array4<pd_model_type> const& modelfab = model.array(mfi);
 
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-			Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-
 			amrex::Vector<Set::Scalar> _temp;
 			for(int n=0; n<damage.number_of_eta; n++)
 			{
-				Set::Scalar _temp2 = mul*Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,n);
+				Set::Scalar _temp2 = Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,n);
 				_temp.push_back(std::min(damage.d_final[n],std::max(0.,_temp2)));
 			}
 			if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
@@ -659,8 +657,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 				amrex::Array4<const Set::Scalar> const& eta_box = (*eta_new[lev]).array(mfi);
 				amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 					Set::Matrix sigma;
-					Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-					Set::Scalar temp = mul*Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,damage.number_of_eta-1);
+					Set::Scalar temp = Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,damage.number_of_eta-1);
 					AMREX_D_PICK(	
 						sigma(0,0) = stress_box(i,j,k,0);
 						,
@@ -745,8 +742,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					amrex::Array4<const Set::Scalar> const& eta_box = (*eta_new[lev]).array(mfi);
 					amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 						Set::Matrix sigma;
-						Set::Scalar mul = 1.0/(AMREX_D_TERM(2.0,+2.0,+4.0));
-						Set::Scalar temp = mul*Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,damage.number_of_eta-1);
+						Set::Scalar temp = Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,damage.number_of_eta-1);
 						AMREX_D_PICK(	
 							sigma(0,0) = stress_box(i,j,k,0);
 							,
