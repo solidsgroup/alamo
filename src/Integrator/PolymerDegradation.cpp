@@ -247,15 +247,15 @@ PolymerDegradation::PolymerDegradation():
 		if(elastic.type == "tensile_test" || elastic.type == "tensile")
 		{
 			pp_elastic.queryclass("bc",elastic.bc);
-			pp_elastic_bc.query("rate",elastic.test_rate);
+			pp_elastic.query("rate",elastic.test_rate);
 			if(elastic.test_rate < 0.) { Util::Warning(INFO,"Rate can't be less than zero. Resetting to 1.0"); elastic.test_rate = 1.0; }
 		
-			pp_elastic_bc.queryarr("test_time",elastic.test_time);
+			pp_elastic.queryarr("test_time",elastic.test_time);
 			if(elastic.test_time.size() < 1){Util::Warning(INFO,"No test time provided. Providing default value"); elastic.test_time={0.,stop_time};}
 			std::sort(elastic.test_time.begin(),elastic.test_time.end());
-			pp_elastic_bc.query("test_duration",elastic.test_duration);
+			pp_elastic.query("test_duration",elastic.test_duration);
 			if(elastic.test_duration < 0.) { Util::Warning(INFO,"Test duration must be positive. Resetting it to 2.0"); elastic.test_duration = 1.0; }
-			pp_elastic_bc.query("test_dt",elastic.test_dt);
+			pp_elastic.query("test_dt",elastic.test_dt);
 			if(elastic.test_dt < 0.) { Util::Warning(INFO,"Test dt must be positive. Resetting it to 0.01"); elastic.test_duration = 0.01; }
 		}
 
@@ -695,7 +695,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 			for (int lev = 0; lev < nlevels; lev++) 
 			{
-				displacement[lev]->setVal(0.0);
+				//displacement[lev]->setVal(0.0);
 				const Real* DX = geom[lev].CellSize();
 				Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
