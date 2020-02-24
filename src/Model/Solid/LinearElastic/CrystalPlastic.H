@@ -41,11 +41,11 @@ private:
 	//********Matrial Matrix**********//
 
 	Set::Matrix4<3,Set::Sym::MajorMinor> C;
-	Set::Matrix esp = Set::Matrix::Zero();
+	//Set::Matrix esp = Set::Matrix::Zero();
 	Eigen::Matrix<double,12,12> F;
 	//********Matrial Constants**********//
 
-	static Set::Scalar constexpr tcrss = 3.75e-3;//1e-3;
+	static Set::Scalar constexpr tcrss = 2.75e-3;//1e-3;
 	static Set::Scalar constexpr n = 50.0; 
 	static Set::Scalar constexpr gammadot0 = 1e-3; // 0.001 1/s
 	static Set::Scalar constexpr t0 = tcrss; 	// MPa
@@ -75,31 +75,24 @@ private:
 		return 0;
 	}
 	Eigen::Matrix<double,12,12> setF();
-	Eigen::Matrix<double,12,1> G();
-	void GetActivePlains(const Set::Matrix& sig); 
+	Eigen::Matrix<double,12,1> G(); 
 	Set::Matrix UpdateSigma(const Set::Matrix& es);
 	void AdvanceEsp(const Set::Matrix& sig);
 	void LatentHardening();
 
 public:
 	static const KinematicVariable kinvar = KinematicVariable::gradu;
-	Set::Matrix Epsp = Set::Matrix::Zero(); // Eshelby
+	Set::Matrix esp = Set::Matrix::Zero(); // Eshelby
 	std::array<Set::Matrix,AMREX_SPACEDIM> gradEpsp;
 	CrystalPlastic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
 	CrystalPlastic() 
 	{
 		initializeSlip();
 	} 
-	CrystalPlastic(Set::Matrix Fgb)
-	{
-		esp = Fgb;
-	}
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R = Eigen::Matrix3d::Identity());
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	virtual ~CrystalPlastic() {};
 
-	//virtual Set::Matrix operator () (Set::Matrix &eps,bool =true) const;
-	//virtual Set::Vector operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradeps,bool =true);
 	Set::Scalar W(Set::Matrix gradu)
 	{
 		return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
@@ -136,27 +129,6 @@ public:
         ret.define(C11,C12,C44,phi1,Phi,phi2);
         return ret;
     }
-/*
-	CrystalPlastic operator + (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret = *this; ret.C += rhs.C; return ret;}
-
-	CrystalPlastic operator - (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret = *this; ret.C -= rhs.C; return ret;}
-
-	CrystalPlastic operator * (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret = *this; ret.C *= rhs.C; return ret;}
-
-	CrystalPlastic operator / (const CrystalPlastic &rhs) const
-	{CrystalPlastic ret = *this; ret.C /= rhs.C; return ret;}
-
-	CrystalPlastic operator * (const Set::Scalar alpha) const
-	{CrystalPlastic ret = *this; ret.C *= alpha; return ret;}
-
-	CrystalPlastic operator / (const Set::Scalar alpha) const
-	{CrystalPlastic ret = *this; ret.C /= alpha; return ret;}
-
-	void operator += (const CrystalPlastic &rhs) {C += rhs.C;}
-	*/
 };
 
 }

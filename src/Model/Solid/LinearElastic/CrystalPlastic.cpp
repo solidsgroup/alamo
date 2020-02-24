@@ -98,18 +98,12 @@ void CrystalPlastic::initializeSlip(Set::Matrix R)
 	slipSystem[10] = slp11; 
 	slipSystem[11] = slp12;
 
-	//Util::Message(INFO,"R = ", R );
-
 	for(int i = 0; i < 12; i++)
 	{
 		slipSystem[i].on = false;
 		slipSystem[i].galphad = gammadot0;
 		slipSystem[i].Tcrss = tcrss;
-		slipSystem[i].gam = 0;
-		//Util::Message(INFO,"n = ", slipSystem[i].n.transpose());
-		//Util::Message(INFO,"s = ", slipSystem[i].s.transpose());
-		//Util::Message(INFO,"galpha = ", slipSystem[i].galpha);
-		//Util::Message(INFO,"Tcrss = ", slipSystem[i].Tcrss);
+		slipSystem[i].gam = gammadot0;
 	}
 }
 std::array<double, 12> CrystalPlastic::StressSlipSystem(const Set::Matrix& sig)
@@ -121,39 +115,19 @@ std::array<double, 12> CrystalPlastic::StressSlipSystem(const Set::Matrix& sig)
 	}
 	return a;
 }
-void CrystalPlastic::GetActivePlains(const Set::Matrix& sig)
-{
-	double a = 0;
-	for(int i = 0; i < 12; i++)
-	{
-		a = abs(slipSystem[i].s.transpose()*sig*slipSystem[i].n);
-		//if(Time>.000001) 
-		//{
-		//Util::Message(INFO,"a = ", a, "\n");
-		//Util::Message(INFO,"sig = ", sig);
-		//}
-		
-		if(a > slipSystem[i].Tcrss) slipSystem[i].on = true;		
-		else slipSystem[i].on = false;
-	}	
-}
 
 void CrystalPlastic::AdvanceEsp( const Set::Matrix& sig)
 {
-	//GetActivePlains(sig);
 	Set::Matrix Dp = Set::Matrix::Zero();
 	
 	for(int i = 0; i < 12; i++)
 	{ 
 		double a = slipSystem[i].s.transpose()*sig*slipSystem[i].n;
-		//if(Time >.00035) Util::Message(INFO,"tcrss = ", slipSystem[i].Tcrss," a = ", a, "\n sig = ",sig);
 		if(abs(a) > slipSystem[i].Tcrss)
 		{
-			//double a = slipSystem[i].s.transpose()*sig*slipSystem[i].n;
 			int sign = sgn(a);
 			slipSystem[i].galphad = /* (double)sign* */gammadot0*pow( abs(a)/slipSystem[i].Tcrss, n);
 			Dp += slipSystem[i].galphad*(double)sign*slipSystem[i].s*slipSystem[i].n.transpose();
-			//Dp += (slipSystem[i].s*slipSystem[i].n.transpose() + slipSystem[i].n*slipSystem[i].s.transpose())*slipSystem[i].galphad/2;
 			slipSystem[i].on = true;
 		}
 		else slipSystem[i].on = false;
@@ -175,7 +149,6 @@ Eigen::Matrix<double,12,1> CrystalPlastic::G()
 		k(a) += 1.0;
 		k(a) = k(a)*l;
 	}
-	//Util::Message(INFO, k,"\n");
 	return k;
 }
 void CrystalPlastic::LatentHardening()
@@ -204,16 +177,13 @@ void CrystalPlastic::LatentHardening()
 			slipSystem[a].Tcrss = slipSystem[a].Tcrss + temp*dt;
 		}
 	}
-	//Util::Message(INFO, haa.transpose() ,"\n");
-	//Util::Message(INFO, H ,"\n");
 }
 void CrystalPlastic::update(const Set::Matrix es, Set::Matrix& sigma)
 {
-	Time += dt;
+	//Time += dt;
 	AdvanceEsp(sigma);
-	//if(Time >.00035) Util::Message(INFO,"esp = ", esp);
-	sigma = UpdateSigma(es);
 	LatentHardening();
+	sigma = UpdateSigma(es);
 }
 Set::Matrix CrystalPlastic::UpdateSigma(const Set::Matrix& es)
 {
@@ -269,19 +239,7 @@ CrystalPlastic::define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen:
 								for(int l = 0; l < 3; l++) 
 									ddw(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
 }
-/*
-Set::Vector
-CrystalPlastic::operator () (std::array<Set::Matrix,AMREX_SPACEDIM> &gradgradu,bool)
-{
-	Set::Vector ret = Set::Vector::Zero();
-	for (int i = 0; i < AMREX_SPACEDIM; i++)
-		for (int j = 0; j < AMREX_SPACEDIM; j++)
-			for (int k = 0; k < AMREX_SPACEDIM; k++)
-				for (int l = 0; l < AMREX_SPACEDIM; l++)
-					ret(i) += C(i,j,k,l)*gradgradu[k](l,j);
-	return ret;
-}
-*/
+
 }
 }
 }

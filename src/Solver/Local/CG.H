@@ -23,14 +23,14 @@ Set::Matrix CG (Set::Matrix4<3,Set::Sym::MajorMinor> A,
     for (int i = 0; i < AMREX_SPACEDIM; i++) 
         for (int j = 0; j < AMREX_SPACEDIM; j++) 
             if (mask(i,j)) r(i,j) = 0.0;
-    if (std::sqrt(r.lpNorm<2>()) < 1E-8) 
+    if (std::sqrt(r.lpNorm<2>()) < 1E-7) 
     {
         if (verbose) Util::Message(INFO,"No iterations needed");
         return x;
     }
 
     Set::Matrix p = r;
-    for (int k = 0; k < 120; k++)
+    for (int k = 0; k < 520; k++)
     {
         Set::Scalar alpha = (r.transpose()*r).trace() / (p.transpose() * (A*p)).trace();
         x = x + (p * alpha);

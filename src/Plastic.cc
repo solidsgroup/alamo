@@ -75,7 +75,7 @@ int main (int argc, char* argv[])
 	//std::ofstream fsrc2; fsrc2.open(src);
 
 	deletefile(src.c_str()); deletefile(src2.c_str());
-	CrystalPlastic cp( 10e3 * 3.75e-3, 7.35e3 * 3.75e-3, 3.8e3 * 3.75e-3); //0.4, 0.1, 0.01 C11 = c11*t0
+	CrystalPlastic cp( 10e3 * 2.75e-3, 7.35e3 * 2.75e-3, 3.8e3 * 2.75e-3); //0.4, 0.1, 0.01 C11 = c11*t0
 	// 10e3 * 0.75e-3, 7.35e3 * 0.75e-3, 3.8e3 * 0.75e-3
 	std::array<double,12> gamma;
 	Util::Message(INFO,"Working...");
@@ -83,10 +83,10 @@ int main (int argc, char* argv[])
 	Set::Matrix sigma = Set::Matrix::Zero();
 	Set::Matrix esp = Set::Matrix::Zero();
 	Set::iMatrix mask = Set::iMatrix::Zero();
-	//mask(0,1) = 1; mask(1,0) = 1;
-	mask(0,0) = 1;
-	Set::Scalar dt = 1e-6;
-	Set::Scalar c = 1.0;
+	mask(0,1) = 1; mask(1,0) = 1;
+	//mask(0,0) = 1;
+	Set::Scalar dt = 1e-4;
+	Set::Scalar c = 0.1;
 	Set::Scalar T = 0.8/c;
 	cp.Setdt(dt);
 	int counter = 0;
@@ -95,8 +95,8 @@ int main (int argc, char* argv[])
 	{
 		esp = cp.GetEsp();
 		Set::Matrix temp;
-		es(0,0) = c*t; 
-		//es(0,1) = c*t; es(1,0) = c*t;
+		//es(0,0) = c*t; 
+		es(0,1) = c*t; es(1,0) = c*t;
 		temp = (es - esp);
 		es = Solver::Local::CG(cp.DDW(es),-sigma,es,mask,false);
 		cp.update(es,sigma);
@@ -114,14 +114,15 @@ int main (int argc, char* argv[])
 			//Util::Message(INFO,"t=",t," es(0,1)=",es(0,1));
 			//fsrc << es(0,0) << " " << sigma(0,0) << std::endl;
 			//fsrc1 << es(0,1) << "," << sigma(0,1) << std::endl;
-			savefile((float)es(0,0), (float)sigma(0,0), src.c_str()); 
+			savefile((float)es(0,1), (float)sigma(0,1), src.c_str()); 
 			savefile(gamma,t,src2.c_str());
 		}
 		counter++;
 	}
-	Util::Message(INFO,"es() = ", es);
+	Util::Message(INFO,"es() = ", es, "\ntr(esp) = ", esp.trace());
 	Util::Message(INFO,"esp() = ", esp);
 	Util::Message(INFO,"sig() = ", sigma);
+
 	//fsrc.close();
 	Util::Finalize(); return 0;
 }

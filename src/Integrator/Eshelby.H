@@ -20,6 +20,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/Affine/Isotropic.H"
+#include "Model/Solid/LinearElastic/CrystalPlastic.H"
 
 #include "Operator/Operator.H"
 
@@ -45,7 +46,7 @@ public:
             pp.query("type",type);
             if (type=="ellipse")
             {
-                ic = new IC::Ellipse(geom);
+                ic = new IC::Ellipse(geom); 
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
             if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
