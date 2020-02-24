@@ -29,7 +29,7 @@ namespace Integrator
 {
 class EshelbyPlastic : public Integrator
 {
-    using model_type = Model::Solid::CrystalPlastic::CrystalPlastic;//Model::Solid::Affine::Isotropic;
+    using model_type = Model::Solid::CrystalPlastic::CrystalPlastic;
 public:
     /// \brief Read in parameters and register field variables
     EshelbyPlastic()

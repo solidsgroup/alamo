@@ -6,7 +6,7 @@
 #include <string>
 #include "Util/Util.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
-//#include "Integrator/EshelbyPlastic.H"
+#include "Integrator/EshelbyPlastic.H"
 #include "IO/ParmParse.H"
 #include "Solver/Local/CG.H"
 using namespace Model::Solid::CrystalPlastic;
@@ -86,7 +86,7 @@ int main (int argc, char* argv[])
 	mask(0,1) = 1; mask(1,0) = 1;
 	//mask(0,0) = 1;
 	Set::Scalar dt = 1e-4;
-	Set::Scalar c = 0.1;
+	Set::Scalar c = 1.0;
 	Set::Scalar T = 0.8/c;
 	cp.Setdt(dt);
 	int counter = 0;
