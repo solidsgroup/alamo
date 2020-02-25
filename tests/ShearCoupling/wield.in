@@ -1,12 +1,15 @@
 $Energy1D
+#$CSL
 $a 3.615
-$Sigma1 $a*0.175
+#$Sigma1 $a*0.05
+#$Sigma1 $a*0.175
+$Sigma1 $a*0.25
 $Sigma2 $Sigma1
 $Epsilon 0.5
 $GroundZ1 1 1 1
 $GroundZ2 1 1 1
-$GroundX1 -1 1 0
-$GroundX2 -1 1 0
+$GroundX1 1 -1 0
+$GroundX2 1 -1 0
 $Tolerance 1E-8
 $AlphaX1 $a
 $AlphaY1 $a
@@ -22,13 +25,27 @@ $Order2  $Order1
 $X2      $X1
 $Y2      $Y1
 $Z2      $Z1
+## SIGMA 5
+#$AxisX1 1 0 0
+#$AxisZ1 0 -1 3
+#$AxisX2 1 0 0
+#$AxisZ2 0 1 3
+
+## SIGMA 3
+#$AxisX1 1 1 0
+#$AxisX2 1 1 0
+#$AxisZ1 1 -1 0
+#$AxisZ2 1 -1 0
+
+# SIGMA 13
 $AxisX1 1 0 0
-$AxisZ1 0 -1 3
 $AxisX2 1 0 0
-$AxisZ2 0 1 3
-$ThetaRotX1 1
-$ThetaRotX2 1
-$ThetaMin -190
-$ThetaMax 190
-$DTheta 0.25
-$OutFile = output.dat
+$AxisZ1 0 1 5
+$AxisZ2 0 1 -5
+
+$ThetaRotY1 1
+$ThetaRotY2 1
+$ThetaMin -370 # -180 #-190
+$ThetaMax 370 #180 #190
+$DTheta 0.5
+$OutFile = test2.dat
