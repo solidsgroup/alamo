@@ -6,7 +6,7 @@ stop_time = 600
 plot_file = tests/ShearCoupling/output
 
 #amr.plot_int = 50
-amr.plot_dt = 1.0
+amr.plot_dt = 0.5
 amr.max_level = 3
 #amr.n_cell = 32 4
 amr.n_cell = 64 64 64
@@ -14,46 +14,11 @@ amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 amr.max_grid_size = 8
-
 amr.thermo.plot_dt = 0.1
 
-#ic.type=perturbed_interface
-#ic.wave_numbers=2
-#ic.wave_amplitudes=1.0
-
-#ic.type = perturbed_interface
-#ic.normal = y
-#ic.offset = 0.0
-#ic.wave_numbers = 32 16 8
-#ic.wave_amplitudes = 0.1 0.05 0.05
-
-
 ic.type=tabulated_interface
-#ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
-#ic.ys = -0.5 -0.5 0.5 0.5 -0.5 -0.5
-#ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
-#ic.ys = -1.0 -1.0 1.0 1.0 -1.0 -1.0
-#ic.xs = 0.0  2.49999 2.5 2.99999 3.0     5.0  5.00001 8.0
-#ic.ys = -1.0 -1.0    -0.9 -0.9    1.0     1.0 -1.0     -1.0
-## single disconnection
-#ic.xs = 0.0 3.99999 4.0 8.0
-#ic.ys = 0.5 0.5 -0.5 -0.5
-# sloped disconnection
-ic.xs = 0.0 3 4.0     8.0
+ic.xs = 0.0 0.5 1.0 8.0
 ic.ys = 1.0 1.0 0.0 0.0
-# simple shallow ramp
-#ic.xs = 0.0 8.0
-#ic.ys = 1 -1
-## simple shallower ramp
-#ic.xs = 0.0  8.0
-#ic.ys = 0.5 -0.5
-## double disconnection
-#ic.xs = 0.0 2.99999 3.0     5.0  5.00001 8.0
-#ic.ys = -0.0 -0.0 0.5 0.5 -0.0 -0.0
-## ramp
-#ic.xs = 0.0 4 8.0
-#ic.ys = -0.5 0.5 -0.5
-
 
 geometry.prob_lo = 0 -4 0
 geometry.prob_hi = 8 4 8
@@ -71,58 +36,62 @@ pf.M = 1.0
 pf.mu = 10.0
 pf.gamma = 1.0
 pf.l_gb=0.05
-#pf.l_gb=0.0255
 pf.sigma0=0.075
-pf.elastic_mult = 20000 ############################################################
-pf.elastic_threshold = 0.005
+pf.elastic_mult = 5000
+pf.elastic_threshold = 0.012
 
 anisotropy.on=1
 anisotropy.gb_type = read
 #anisotropy.filename = tests/ShearCoupling/energy_abssin.dat
-anisotropy.filename = tests/ShearCoupling/energy_fcc_sigma5_smooth.dat
-anisotropy.timestep=0.001
+#anisotropy.filename = tests/ShearCoupling/energy_fcc_sigma5_smooth_reg.dat
+anisotropy.filename = tests/ShearCoupling/test2_smooth.dat
+anisotropy.timestep=0.0005
 anisotropy.elastic_int = 100
 anisotropy.thermo_int = 10
-anisotropy.tstart= 1.
-#anisotropy.theta0= 45
-anisotropy.theta0= 0
-#anisotropy.sigma0=0.075
-anisotropy.sigma0=0.03
-anisotropy.sigma1=0.07
-anisotropy.beta= 0.00002
+anisotropy.tstart= 1.0
+#anisotropy.theta0= 0
+#anisotropy.sigma0=0.03
+#anisotropy.sigma1=0.07
+anisotropy.beta= 0.00005
 anisotropy.damp=1.0
 
 elastic.on = 1
 elastic.tstart = 2.0
-#elastic.interval = 100
 elastic.interval = 1
 
-elastic.model1.C11 = 1.68
-elastic.model1.C12 = 1.21
+# Update elastic constant properties with
+#   "First-principles equations of state and elastic properties of seven metals"
+#   Bercegeay & Bernard, PRB
+#   page 7, table VII
+
+# Copper (Bercegeau & Bernard, PRB) - Sigma13
+elastic.model1.C11 = 1.71
+elastic.model1.C12 = 1.22
 elastic.model1.C44 = 0.75
-elastic.model1.F0 = 0 0.1 0 0 
+elastic.model2.Phi = 0.19739674 
+elastic.model1.F0 = 0 0.2  0 0 
 
-
-elastic.model2.C11 = 1.68
-elastic.model2.C12 = 1.21
+# Sigma13
+elastic.model2.C11 = 1.71
+elastic.model2.C12 = 1.22
 elastic.model2.C44 = 0.75
-elastic.model2.F0 = 0 -0.1 0 0 #elastic.bc.val.xhiyhi  =  (5.0,100.0:0.15,0.30) 0.0 0.0
-#elastic.bc.val.xloyhi  =  (5.0,100.0:0.15,0.30) 0.0 0.0
-#elastic.bc.val.yhi     =  (5.0,100.0:0.15,0.30) 0.0 0.0
-
-
-
+elastic.model2.Phi = -0.19739674 
+elastic.model2.F0 = 0 -0.2 0 0 
 
 elastic.bc.type.xlo = neumann neumann
 elastic.bc.type.xhi = neumann neumann
 
-#elastic.bc.type.xloyhi = trac disp disp
-#elastic.bc.type.xloyhi = trac disp disp
-#elastic.bc.type.xhiyhi = trac disp disp
 
-elastic.bc.val.xhiyhi  = (2,4.0,600.0:0,0.3,0.92) 0
-elastic.bc.val.xloyhi  = (2,4.0,600.0:0,0.3,0.92) 0
-elastic.bc.val.yhi     = (2,4.0,600.0:0,0.3,0.92) 0
+#elastic.bc.val.xhiyhi  = (2,4.0,300.0:0,0.3,0.92) 0
+#elastic.bc.val.xloyhi  = (2,4.0,300.0:0,0.3,0.92) 0
+#elastic.bc.val.yhi     = (2,4.0,300.0:0,0.3,0.92) 0
+
+elastic.bc.val.xhiyhi  = (2,40.0:0.2,0.6) 0
+elastic.bc.val.xloyhi  = (2,40.0:0.2,0.6) 0
+elastic.bc.val.yhi     = (2,40.0:0.2,0.6) 0
+
+
 
 elastic.solver.verbose = 2
 #elastic.solver.fixed_iter = 10
+
