@@ -13,21 +13,10 @@
 namespace BC
 {
 class Step
-	: public Constant
+	: public BC
 {
-
 public:
-Step (amrex::Vector<std::string> bc_hi_str,
-		    amrex::Vector<std::string> bc_lo_str,
-		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
-				 amrex::Vector<amrex::Real> _bc_lo_2,
-				 amrex::Vector<amrex::Real> _bc_lo_3),
-		    AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_hi_1,
-				 amrex::Vector<amrex::Real> _bc_hi_2,
-				 amrex::Vector<amrex::Real> _bc_hi_3),
-				 Set::Scalar a_h1, Set::Scalar a_h2, Set::Scalar a_val1, Set::Scalar a_val2)
-	: Constant(bc_hi_str,bc_lo_str,_bc_lo_1,_bc_lo_2,_bc_hi_1,_bc_hi_2),
-	m_h1(a_h1), m_h2(a_h2), m_val1(a_val1), m_val2(a_val2)
+Step ()
 {
 }
 
@@ -36,6 +25,7 @@ void FillBoundary (amrex::FArrayBox &a_in,
 			int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
 			Orientation face, const amrex::Mask * /*mask*/) override
 {
+	
 	const amrex::Real* DX = m_geom.CellSize();
 
 	amrex::Box box = a_box;
@@ -44,78 +34,77 @@ void FillBoundary (amrex::FArrayBox &a_in,
 
 	amrex::Array4<amrex::Real> const& in = a_in.array();
 
-
-
-	for (int n = 0; n < a_in.nComp(); n++)
 	amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
 		amrex::IntVect glevel;
 		AMREX_D_TERM(glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,
 					 glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
 					 glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
-    
-        Set::Vector x;
-        AMREX_D_TERM(x(0) = m_geom.ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * m_geom.CellSize()[0];,
-		    		 x(1) = m_geom.ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * m_geom.CellSize()[1];,
-			    	 x(2) = m_geom.ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * m_geom.CellSize()[2];);
+
+	    Set::Vector x;
+	    AMREX_D_TERM(x(0) = m_geom.ProbLo()[0] + ((Set::Scalar)(i) + 0.5) * DX[0];,
+		    		 x(1) = m_geom.ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * DX[1];,
+			    	 x(2) = m_geom.ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * DX[2];);
 
 		
-		if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
+		if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) 
 		{
-            if (x(1) > m_h1) in(i,j,k,n) = m_val2;
-            else in(i,j,k,n) = m_val1;
+	        if (x(1) > m_h1) 
+			{
+				in(i,j,k,0) = 0.;
+				in(i,j,k,1) = 1.;
+			}
+	        else 
+			{
+				in(i,j,k,0) = 1.;
+				in(i,j,k,1) = 0.;
+			}
 		}
-		else if (glevel[0]>0)// && (face == Orientation::xhi || face == Orientation::All)) // Right boundary
+		else if (glevel[0]>0)
 		{
-            if (x(1) > m_h2) in(i,j,k,n) = m_val2;
-            else in(i,j,k,n) = m_val1;
+	        if (x(1) > m_h2) 
+			{
+				in(i,j,k,0) = 0.;
+				in(i,j,k,1) = 1.;
+			}
+	        else 
+			{
+				in(i,j,k,0) = 1.;
+				in(i,j,k,1) = 0.;
+			}
 		}
-		
-		else if (glevel[1]<0)// && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
+		else if (glevel[1]<0) // Bottom boundary
 		{
-            in(i,j,k,n) = m_val1;
+				in(i,j,k,0) = 1.;
+				in(i,j,k,1) = 0.;
 		}
 		else if (glevel[1]>0 && (face == Orientation::yhi || face == Orientation::All)) // Top boundary
 		{
-            in(i,j,k,n) = m_val2;
+				in(i,j,k,0) = 0.;
+				in(i,j,k,1) = 1.;
 		}
 	});
+
+	
 }
+	amrex::BCRec GetBCRec() override
+	{
+		int bc_lo[AMREX_SPACEDIM] = {AMREX_D_DECL(INT_DIR,INT_DIR,INT_DIR)};
+		int bc_hi[AMREX_SPACEDIM] = {AMREX_D_DECL(INT_DIR,INT_DIR,INT_DIR)};
+
+		return amrex::BCRec(bc_lo,bc_hi);
+	}
+
 private:
 	Set::Scalar m_h1 = NAN, m_h2 = NAN, m_val1 = NAN, m_val2=NAN;
-//Step (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
-//	Step () {};
 
-//	//virtual ~Step() {};
-//
-//	virtual void FillBoundary (amrex::FArrayBox &in, const amrex::Box &box,
-//				   int ngrow, int dcomp, int ncomp, amrex::Real time,
-//				   Orientation face = Orientation::All,
-//				   const amrex::Mask *mask = nullptr) override
-//    {
-//        Util::Message(INFO,"time = ", time);
-//    }
-//	
-//	amrex::BCRec GetBCRec() override;
-//	virtual amrex::Array<int,AMREX_SPACEDIM> IsPeriodic() override;
-//	virtual amrex::Periodicity Periodicity () const override;
-//	virtual amrex::Periodicity Periodicity (const amrex::Box& b) override;
-//
-//
-//
-//	template<class T>
-//	const amrex::Array<amrex::Array<T,AMREX_SPACEDIM>,2> GetBCTypes()
-//	{
-//		return {{{AMREX_D_DECL((T)bc_lo[0],(T)bc_lo[1],(T)bc_lo[2])},
-//		 			{AMREX_D_DECL((T)bc_lo[0],(T)bc_lo[1],(T)bc_lo[2])}}};
-//	}
-//
-//
-//private:
-//	int bc_lo[BL_SPACEDIM];
-//	int bc_hi[BL_SPACEDIM];
-//	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3);
-//	amrex::Vector<amrex::Real> AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3);
+public:
+    static void Parse(Step & value, amrex::ParmParse & pp)
+    {
+		pp.query("h1",value.m_h1);
+		pp.query("h2",value.m_h2);
+    }
+
 };
 }
 #endif
