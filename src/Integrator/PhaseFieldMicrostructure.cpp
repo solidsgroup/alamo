@@ -8,6 +8,7 @@
 
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
+#include "BC/Step.H"
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "IC/Random.H"
@@ -112,8 +113,18 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 	{
 		IO::ParmParse pp("bc");
-		mybc = new BC::Constant(number_of_grains);
-		pp.queryclass("eta",*static_cast<BC::Constant *>(mybc));
+		std::string bc_type = "constant";
+		pp.query("eta.type",bc_type);
+		if (bc_type == "constant")
+		{
+			mybc = new BC::Constant(number_of_grains);
+			pp.queryclass("eta",*static_cast<BC::Constant *>(mybc));
+		}
+		else if (bc_type == "step")
+		{
+			mybc = new BC::Step();
+			pp.queryclass("eta",*static_cast<BC::Step *>(mybc));
+		}
 	}
 
 	{
