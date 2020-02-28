@@ -11,14 +11,21 @@ $(document).ready(function() {
                   {
                     table.columns().every( function ( ) {
                       var data = this.data().unique();
-                      console.log(data);
-                      
-                      
                       if(data.length == 1)
                       {
                         console.log(data.length);
                         this.visible(false);
                       }
+                    } );
+                  }
+                
+                },
+                {
+                  text:'Show All Columns',
+                  action: function()
+                  {
+                    table.columns().every( function ( ) {
+                      this.visible(true);
                     } );
                   }
                 
