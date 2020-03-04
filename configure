@@ -19,7 +19,6 @@ class color:
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
     boldred   = "\033[1m\033[31m"
-
     bggray = "\033[47m\033[30m"
 
 width = 20
@@ -48,6 +47,10 @@ def code(code):
 def note(message):
     print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
     wrap(message)
+
+message("Python",python_version)
+if sys.version_info.minor < 5:
+    raise Exception(error("You need Python 3.5 or greater"))
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
