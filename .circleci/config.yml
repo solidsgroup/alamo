@@ -5,7 +5,7 @@ dependencies:
 jobs:
   2D:
     docker:
-      - image: buildpack-deps:trusty 
+      - image: buildpack-deps:bionic
     steps:
       - checkout
       - run:
@@ -28,7 +28,7 @@ jobs:
           command: 'bash ./.test.sh 2'
   3D:
     docker:
-      - image: buildpack-deps:trusty 
+      - image: buildpack-deps:bionic
     steps:
       - checkout
       - run:
