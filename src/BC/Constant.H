@@ -7,6 +7,7 @@
 #include <AMReX_PhysBCFunct.H>
 #include <AMReX_Array.H>
 
+#include "Set/Set.H"
 #include "BC/BC.H"
 #include "Numeric/Interpolator/Linear.H"
 

@@ -71,8 +71,9 @@ args=parser.parse_args()
 
 fpic = args.python 
 
-f = open("Makefile.pre.conf","w")
-f2 = open("Makefile.post.conf","w")
+subprocess.run(['mkdir','-p','.make'])
+f = open(".make/Makefile.pre.conf","w")
+f2 = open(".make/Makefile.post.conf","w")
 
 #
 # Specify Postfix
@@ -283,14 +284,25 @@ if args.python:
     message("Pythin boost lib:",python_boost_lib)
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
 
+#
+# DIFF
+#
 if args.diff:
     try: shellmessage("diff2html","diff2html --version")
     except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
-    f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff.html)\"'+'\n')
-    f.write("DEP_EXTRA += .diff.html\n")
-    f2.write(".diff.html: .FORCE\n")
-    f2.write("\t-@rm -rf .diff.html\n")
-    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n")
+    f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff/{}.diff.html)\"'.format(postfix)+'\n')
+    f.write("DEP_EXTRA += .diff/{}.diff.html\n".format(postfix))
+    f2.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
+    f2.write("\t-@mkdir -p .diff\n".format(postfix))
+    f2.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
+    f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n".format(postfix))
+
+f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
+f.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
+f2.write(".diff/{}.diff.patch: .FORCE\n".format(postfix))
+f2.write("\t-@mkdir -p .diff\n".format(postfix))
+f2.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
+f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 
 
 #

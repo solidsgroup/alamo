@@ -121,7 +121,19 @@ def table(table):
     if request.method == 'POST':
         if request.form.get('table-description') and not args.safe:
             print(request.form.get('table-description'))
-            cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table));
+            cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table))
+        items = request.form.items()
+        for f in items:
+            print(f)
+            if str(f[0]).startswith('hash_'):
+                hash = str(f[0]).replace('hash_','')
+                dir = str(f[1])
+                print("DELETING ",hash)
+                cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(hash,))
+                print("DELETING ",dir)
+                os.system('rm -rf ' + dir)
+
+
 
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in sorted(cur.fetchall())]
@@ -305,6 +317,16 @@ def table_entry_diff(table,entry):
     cur.execute("SELECT DIFF FROM {} WHERE HASH = ?".format(table),(entry,))
     return cur.fetchall()[0][0]
 
+@app.route('/table/<table>/entry/<entry>/diff.patch')
+@requires_auth
+def table_entry_diff_patch(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT DIFF_PATCH FROM {} WHERE HASH = ?".format(table),(entry,))
+    return Response(cur.fetchall()[0][0],content_type='File')
+    #return cur.fetchall()[0][0]
+
 @app.route('/table/<table>/entry/<entry>/stderr', methods=['GET','POST'])
 @requires_auth
 def table_entry_stderr(table,entry):
@@ -312,15 +334,6 @@ def table_entry_stderr(table,entry):
     db.text_factory = str
     cur= db.cursor()
     cur.execute("SELECT STDERR FROM {} WHERE HASH = ?".format(table),(entry,))
-    return cur.fetchall()[0][0]
-
-@app.route('/regtest/<regtest>/testentry/<hash>/diff_stdout', methods=['GET','POST'])
-@requires_auth
-def table_entry_diff_stdout(regtest,hash):
-    db = sqlite3.connect(args.database)
-    db.text_factory = str
-    cur= db.cursor()
-    cur.execute("SELECT diff_stdout FROM {} WHERE HASH = ?".format(regtest),(hash,))
     return cur.fetchall()[0][0]
                            
 @app.route('/regtest/<regtest>/<run>/stdout', methods=['GET','POST'])
