@@ -46,13 +46,13 @@
 	<h3 class="pull-left">Simulation Information</h3>
 </div>
 <div class="container-fluid">
-	<button onclick="window.location.href = '/metadata/';" class="btn btn-primary pull-left"><span class="glyphicon glyphicon-cog"></span> Download metadata file</button>
+	<button onclick="window.location.href = '/metadata/';" class="btn btn-primary pull-left"><span class="glyphicon glyphicon-cog margin-right px-2"></span> Download metadata file</button>
 	{% if thermofile == None %} 
-		<button onclick="window.location.href = '/thermo/';" class="btn btn-disabled pull-left" disabled><span class="glyphicon glyphicon-signal"></span> Download thermo.dat</button> 
+		<button onclick="window.location.href = '/thermo/';" class="btn btn-disabled pull-left" disabled><span class="glyphicon glyphicon-signal"></span> Download thermo.dat</button> &nbsp;
 	{% else %} 
-		<button onclick="window.location.href = '/thermo/';" class="btn btn-primary pull-left"><span class="glyphicon glyphicon-signal"></span> Download thermo.dat</button> 
+		<button onclick="window.location.href = '/thermo/';" class="btn btn-primary pull-left"><span class="glyphicon glyphicon-signal"></span> Download thermo.dat</button> &nbsp;
 	{% endif %}
-	<button type="button" class="btn btn-danger pull-left" data-href="/delete.php?id=54" data-toggle="modal" data-target="#confirm-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+	<button type="button" class="btn btn-danger pull-left" data-href="/delete.php?id=54" data-toggle="modal" data-target="#confirm-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>&nbsp;
 </div>
 
 <div class="container-fluid">
@@ -105,6 +105,7 @@
 			<button type="button" class="btn btn-warning" data-toggle="modal" data-target="#modal-diff">
 				<span class="glyphicon glyphicon-retweet"></span> View diff of changes made since most recent commit
 			</button>
+			<a href="/table/{{table}}/entry/{{entry}}/diff.patch">Diff Patch</a>
 			<div style="width=0px;">
 				<div class="modal fade" id="modal-diff" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
 					<div class="modal-dialog modal-lg" role="document">
@@ -116,7 +117,7 @@
 		  						</button>
 							</div>
 							<div class="modal-body">
-								{{ data[columns[i]] | safe}}
+								{{ data['DIFF'] | safe}}
 							</div>
 							<div class="modal-footer">
 		  						<button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
@@ -128,6 +129,7 @@
 		</td>
 	{% elif columns[i] == "STDOUT" %}
 	{% elif columns[i] == "STDERR" %}
+	{% elif columns[i] == "DIFF_PATCH" %}
 	{% else %}
 	<td> {{ columns[i] }}</td>
 	<td> {{ data[columns[i]] }}</td>
