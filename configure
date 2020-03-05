@@ -69,6 +69,8 @@ parser.add_argument('--python',dest='python',nargs='?',const=python_version,help
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--no-diff',dest='diff',default=True,action='store_false',help='Suppress using diff2html to generate git diff reports')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
+parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
+                    help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 
@@ -258,6 +260,19 @@ if args.comp == 'icc':
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
+
+#
+# LibGFortran?
+#
+if args.gfortranln:
+    shellmessage("Gfort Link","ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so")
+run = subprocess.run(['ld','-lgfortran'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+if run.returncode:
+    warning("Could not find -lgfortran, which will probably cause linking errors. You can try running " 
+            + code("ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so"))
+subprocess.run(['rm','a.out','-rf'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+
 
 #
 # Python information
