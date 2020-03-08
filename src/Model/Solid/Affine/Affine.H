@@ -17,8 +17,8 @@ namespace Affine
 //{
 //public:
     struct PlasticState{
-        Set::Matrix epsp;
-        Set::Scalar alpha;
+        Set::Matrix epsp;   // Plastic strain
+        Set::Scalar alpha;  // Equivalent plastic strain
         Set::Matrix beta;
     };
     /*struct{

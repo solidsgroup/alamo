@@ -74,6 +74,16 @@ public:
         else return;
     }
 
+    Set::Scalar YieldSurface()
+    {
+        return yield_strength + curr.alpha*hardening_modulus;
+    }
+
+    Set::Scalar OriginalYieldSurface()
+    {
+        return yield_strength0 + curr.alpha*hardening_modulus0;
+    }
+
     void EvolvePlasticStrain(Set::Matrix sigma, Set::Scalar /*dt*/)
     {
         Set::Scalar SQ2O3 = sqrt(2.0/3.0);
@@ -129,13 +139,13 @@ public:
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
-
         Set::Scalar yield = 1.0, hardening = 1.0, theta_tmp = 1.0;
+
         pp.query("yield", yield);
         pp.query("hardening", hardening);
         pp.query("theta", theta_tmp);
 
-        value.Define(mu,lambda,yield,hardening,theta_tmp);
+        value.Define(mu, lambda, yield, hardening, theta_tmp);
     }
 };
 
