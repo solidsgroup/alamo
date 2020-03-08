@@ -25,6 +25,9 @@
 #include "Model/Solid/Affine/CubicDegradable.H"
 #include "Model/Solid/Affine/Affine.H"
 
+#include "Model/Solid/Affine/J2Plastic.H"
+#include "Model/Solid/Affine/IsotropicDegradable.H"
+
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
 #include "Model/Interface/Crack/Sin.H"
@@ -48,8 +51,8 @@
 ///    - See #Cylinder or #Constant
 namespace Integrator
 {
-using ductile_fracture_model_type = Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::CubicDegradable>;
-//using ductile_fracture_model_type = Model::Solid::Affine::J2Plastic<Model::Solid::Affine::IsotropicDegradable>;
+//using ductile_fracture_model_type = Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::CubicDegradable>;
+using ductile_fracture_model_type = Model::Solid::Affine::J2Plastic<Model::Solid::Affine::IsotropicDegradable>;
 
 class DuctileFracture : public Integrator
 {
@@ -160,7 +163,7 @@ private:
 	}crack;
 
 	struct{
-		ductile_fracture_model_type 		*modeltype;
+		ductile_fracture_model_type 		modeltype;
 		Set::Field<ductile_fracture_model_type> model;
 		std::string input_material = "isotropic";
 		Set::Scalar yield_strength = 1.e3;

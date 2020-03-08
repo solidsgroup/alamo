@@ -19,12 +19,18 @@ public:
     IsotropicDegradable(Isotropic base) : Isotropic(base) {}
     IsotropicDegradable(Set::Scalar a_mu, Set::Scalar a_lambda)
     {
+        Define(a_mu, a_lambda);
+    }
+
+    void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
+    {
         Define(a_mu, a_mu, a_lambda, a_lambda);
     }
     
     void Define(Set::Scalar a_mu, Set::Scalar a_mu0, Set::Scalar a_lambda, Set::Scalar a_lambda0, Set::Matrix a_F0=Set::Matrix::Zero())
     {
         mu0 = a_mu0; lambda0 = a_lambda0; 
+        mu = a_mu0; lambda = a_lambda0;
         F0 = a_F0;
         Isotropic::Define(a_mu, a_lambda, a_F0);
     }
@@ -34,8 +40,8 @@ public:
 		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
 		if(std::isnan(lambda0)) Util::Abort(INFO, "Nans in lambda0");
 		if(std::isnan(mu0)) Util::Abort(INFO, "Nans in mu0");
-
-		Isotropic::Define( mu0*(1.-eta), lambda0*(1.-eta) );
+        mu = mu0*(1.-eta); lambda = lambda0*(1.-eta);
+		Isotropic::Define( mu, lambda );
 	}
 
     void DegradeModulus(const amrex::Vector<Set::Scalar> &eta)
@@ -46,14 +52,16 @@ public:
 			if(std::isnan(eta[0])) Util::Abort(INFO,"Nans in eta");
 			if(std::isinf(eta[0])) Util::Abort(INFO,"Infs in eta");
 			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta",eta[0]);
-			Isotropic::Define( mu0*(1.-eta[0]), lambda0*(1.-eta[0]) );
+            mu = mu0*(1.-eta[0]); lambda = lambda0*(1.-eta[0]);
+			Isotropic::Define( mu, lambda );
 		}
 		else if(eta.size() == 2)
 		{
 			if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Nans in eta");
 			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
 			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
-			Isotropic::Define( mu0*(1.-eta[0]), lambda0*(1.-eta[1]) );
+            mu = mu0*(1.-eta[0]); lambda = lambda0*(1.-eta[1]);
+			Isotropic::Define( mu, lambda );
 		}
 		else
 			return;
@@ -62,6 +70,9 @@ public:
 private:
     Set::Scalar mu0 = NAN, lambda0 = NAN;
     Set::Matrix F0;
+
+protected:
+    Set::Scalar mu = NAN, lambda = NAN;
 
 public:
     static IsotropicDegradable Random()

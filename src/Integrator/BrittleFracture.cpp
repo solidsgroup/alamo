@@ -133,7 +133,7 @@ BrittleFracture::BrittleFracture() :
 	/* Need to replace this later with a proper specification of boundary.
 	   Right now we are hard-coding the tensile test and just requesting
 	   rate of pulling. */
-	IO::ParmParse pp_elastic_bc("elastic.bc");
+	IO::ParmParse pp_elastic_bc("elaswtic.bc");
 	pp_elastic_bc.query("disp_step",elastic.test_rate);
 	pp_elastic_bc.query("disp_init",elastic.test_init);
 	pp_elastic_bc.query("max_disp",elastic.test_max);

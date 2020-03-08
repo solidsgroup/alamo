@@ -28,7 +28,7 @@ crack.constant.mobility = 0.0
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
-crack.constant.phitype = square
+crack.constant.phitype = multiwell
 
 crack.tol_crack = 1e-15
 crack.tol_step = 1e-2
@@ -46,12 +46,32 @@ ic.length = 1.0
 ic.thickness = 0.0675
 ic.eps = 0.02
 
-material.model = isotropicplastic
-material.isotropicplastic.lambda = 1e3
-material.isotropicplastic.mu = 8e2
-material.isotropicplastic.yield_strength = 1.e0
-material.isotropicplastic.hardening_modulus = 0.0
-material.isotropicplastic.eps_critical = 1.0
+crack.bc.type.xlo = NEUMANN
+crack.bc.type.xhi = NEUMANN
+crack.bc.type.ylo = NEUMANN
+crack.bc.type.yhi = NEUMANN
+
+crack.bc.val.xlo = 0.0 
+crack.bc.val.xhi = 0.0 
+crack.bc.val.ylo = 0.0 
+crack.bc.val.yhi = 0.0 
+
+crack.bc_df.type.xlo = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.xhi = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.ylo = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.yhi = NEUMANN NEUMANN NEUMANN NEUMANN
+
+crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
+crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
+crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
+crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
+
+material.model = isotropicj2plastic
+material.isotropicj2plastic.lambda = 1e3
+material.isotropicj2plastic.mu = 8e2
+material.isotropicj2plastic.yield = 1.e0
+material.isotropicj2plastic.hardening = 0.0
+material.isotropicj2plastic.eps_critical = 1.0
 
 elastic.bottom_solver 	=	bicgstab
 elastic.composite_solve	=	1
