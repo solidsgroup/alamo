@@ -199,7 +199,7 @@ public:
         return yield.norm();
     }
 
-    void EvolvePlasticStrain(Set::Matrix sigma, Set::Scalar dt)
+    void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix /*strain*/, Set::Scalar dt)
     {
         curr.epsp = prev.epsp;
         Set::Matrix R = Set::Matrix::Zero();

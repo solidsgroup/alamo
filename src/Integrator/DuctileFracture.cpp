@@ -181,10 +181,10 @@ DuctileFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<ductile_f
 	  For now we are just using isotropic degradation.
 	*/
 	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
-	Util::Message(INFO);
+	//Util::Message(INFO);
 
 	m_c[lev]->FillBoundary();
-	Util::Message(INFO);
+	//Util::Message(INFO);
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
@@ -213,7 +213,7 @@ DuctileFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<ductile_f
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp[0],1.-scaleModulusMax));
 			modelfab(i,j,k,0).DegradeYieldSurface(std::min(1.-_temp[0],1.-scaleModulusMax));
 		});
-	Util::Message(INFO);
+	//Util::Message(INFO);
 
 	}
 	amrex::Geometry tmp_geom = geom[lev];
@@ -229,30 +229,27 @@ DuctileFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<ductile_f
         amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
         mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
     }
-	Util::Message(INFO);
+	//Util::Message(INFO);
 }
 
 void 
 DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
 	Util::Message(INFO);
-	elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
+	//elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	Util::Message(INFO,m_disp.size());
 	material.model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		Util::Message(INFO, "lev = ", ilev);
 		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
 		material.model[ilev]->setVal((material.modeltype));
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		m_energy_pristine[ilev]->setVal(0.);
 		ScaledModulus(ilev,*(material.model)[ilev]);
-		Util::Message(INFO, "lev = ", ilev);
 	}
-	Util::Message(INFO);
-
+	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		m_strain_p[ilev]->FillBoundary();
@@ -304,14 +301,12 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 			     m_rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
 			     m_rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
 	}
-	Util::Message(INFO);
-
+	
 	elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<ductile_fracture_model_type>::Type::Displacement, elastic.bc_top);
 	elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<ductile_fracture_model_type>::Type::Displacement, elastic.bc_top);
 	elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<ductile_fracture_model_type>::Type::Displacement, elastic.bc_top);
 	elastic.bc.Init(m_rhs,geom);
-	Util::Message(INFO);
-
+	
 	LPInfo info;
 	info.setAgglomeration(elastic.agglomeration);
 	info.setConsolidation(elastic.consolidation);
@@ -418,26 +413,33 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 	{
 		const amrex::Box& box = mfi.validbox();
 		amrex::Array4<const Set::Scalar>			const& stress_box 			= (*m_stress[lev]).array(mfi);
+		amrex::Array4<const Set::Scalar>			const& strain_box 			= (*m_strain[lev]).array(mfi);
 		amrex::Array4<Set::Scalar>					const& strainp_box 			= (*m_strain_p[lev]).array(mfi);
 		amrex::Array4<Set::Scalar>					const& beta_box 			= (*m_beta[lev]).array(mfi);
 		amrex::Array4<Set::Scalar>					const& alpha_box 			= (*m_alpha[lev]).array(mfi);
 		amrex::Array4<ductile_fracture_model_type>	const& model_box 			= material.model[lev]->array(mfi);
 		
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-			Set::Matrix sig;
+			Set::Matrix sig, epse;
 
 			AMREX_D_PICK(
 				sig(0,0) = stress_box(i,j,k,0);
+				epse(0,0) = strain_box(i,j,k,0);
 				,
 				sig(0,0) = stress_box(i,j,k,0); sig(0,1) = stress_box(i,j,k,1);
 				sig(1,0) = stress_box(i,j,k,2); sig(1,1) = stress_box(i,j,k,3);
+				epse(0,0) = strain_box(i,j,k,0); epse(0,1) = strain_box(i,j,k,1);
+				epse(1,0) = strain_box(i,j,k,2); epse(1,1) = strain_box(i,j,k,3);
 				,
 				sig(0,0) = stress_box(i,j,k,0); sig(0,1) = stress_box(i,j,k,1); sig(0,2) = stress_box(i,j,k,2);
 				sig(1,0) = stress_box(i,j,k,3); sig(1,1) = stress_box(i,j,k,4); sig(1,2) = stress_box(i,j,k,5);
 				sig(2,0) = stress_box(i,j,k,6); sig(2,1) = stress_box(i,j,k,7); sig(2,2) = stress_box(i,j,k,8);
+				epse(0,0) = strain_box(i,j,k,0); epse(0,1) = strain_box(i,j,k,1); epse(0,2) = strain_box(i,j,k,2);
+				epse(1,0) = strain_box(i,j,k,3); epse(1,1) = strain_box(i,j,k,4); epse(1,2) = strain_box(i,j,k,5);
+				epse(2,0) = strain_box(i,j,k,6); epse(2,1) = strain_box(i,j,k,7); epse(2,2) = strain_box(i,j,k,8);
 			);
 
-			model_box(i,j,k,0).EvolvePlasticStrain(sig,dt);
+			model_box(i,j,k,0).EvolvePlasticStrain(sig,epse,dt);
 
 			AMREX_D_PICK(
 				strainp_box(i,j,k,0) = model_box(i,j,k,0).curr.epsp(0,0);

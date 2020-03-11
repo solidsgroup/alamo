@@ -7,8 +7,8 @@ plot_file = tests/DuctileFracture2D/output
 amr.plot_int = 1
 amr.max_level = 4
 #amr.n_cell = 1024 1024
-amr.n_cell = 128 128 
-amr.blocking_factor = 32
+amr.n_cell = 256 256
+amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 
@@ -40,11 +40,11 @@ crack.tol_step = 1e-2
 #ic.eps = 0.05
 
 ic.type = notch
-ic.center = 0.0 0.01
-ic.orientation = 1.0 0.0
-ic.length = 1.0
-ic.thickness = 0.0675
-ic.eps = 0.02
+ic.notch.center = 0.0 0.0
+ic.notch.orientation = 1.0 0.0
+ic.notch.length = 1.0
+ic.notch.thickness = 0.0675
+ic.notch.eps = 0.02
 
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.xhi = NEUMANN
@@ -73,6 +73,14 @@ material.isotropicj2plastic.yield = 1.e0
 material.isotropicj2plastic.hardening = 0.0
 material.isotropicj2plastic.eps_critical = 1.0
 
+#material.model = cubiccrystalplastic
+#material.cubiccrystalplastic.C11 = 1.68e3
+#material.cubiccrystalplastic.C12 = 1.21e3
+#material.cubiccrystalplastic.C44 = 0.75e3
+#material.cubiccrystalplastic.lattice = fcc
+#material.cubiccrystalplastic.tcrss = 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+
+
 elastic.bottom_solver 	=	bicgstab
 elastic.composite_solve	=	1
 elastic.verbose			=	2
@@ -92,7 +100,13 @@ elastic.cg_tol_abs 		=	1.0e-6
 elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.0 0.0 0.0
 
-elastic.bc.disp_step = 1.e-3
-elastic.bc.disp_init = 1.e-3
-elastic.bc.max_disp = 2.e-1
+elastic.bc.disp_step = 0.0
+elastic.bc.disp_init = 1.e-2
+elastic.bc.max_disp = 1.e-2
 elastic.bc.crackStressTest = false
+
+elastic.bc.type.xlo = trac trac
+elastic.bc.type.xhi = trac trac
+
+elastic.bc.val.xlo = 0.0 0.0
+elastic.bc.val.xhi = 0.0 0.0
