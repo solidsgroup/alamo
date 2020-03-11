@@ -239,7 +239,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	//elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 
 	//Util::Message(INFO);
-	Util::Message(INFO,m_disp.size());
+	//Util::Message(INFO,m_disp.size());
 	material.model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -290,7 +290,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
             });
 		}
 	}
-	Util::Message(INFO);
+	//Util::Message(INFO);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
@@ -339,7 +339,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 
 	solver.solve(m_disp,m_rhs,material.model,elastic.tol_rel,elastic.tol_abs);
 
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
@@ -347,7 +347,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
 	}
 
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		for (amrex::MFIter mfi(*m_strain[lev],true); mfi.isValid(); ++mfi)
@@ -399,16 +399,19 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 			});
 		}
 	}
+	Util::Message(INFO);
 }
 
 void
 DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
+	Util::Message(INFO);
 	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
 	const amrex::Real* DX = geom[lev].CellSize();
 
 	std::swap(*m_c[lev],*m_c_old[lev]);
-	
+
+	Util::Message(INFO);
 	for (MFIter mfi(*(material.model)[lev], false); mfi.isValid(); ++mfi)
 	{
 		const amrex::Box& box = mfi.validbox();
@@ -460,6 +463,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			alpha_box(i,j,k,0) = model_box(i,j,k,0).curr.alpha;
 		});
 	}
+	Util::Message(INFO);
 	for ( amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi )
 	{
 		const amrex::Box& box = mfi.validbox();
@@ -475,18 +479,27 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			Set::Scalar rhs = 0.;	
 			Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
 
+			//Util::Message(INFO);			
 			df(i,j,k,0) = crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
+			//Util::Message(INFO);
 			df(i,j,k,1) = crack.boundary->Epc(c_old(i,j,k,0))*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
+			//Util::Message(INFO);
 			df(i,j,k,2) = crack.boundary->kappa(c_old(i,j,k,0))*laplacian;
 
+			//Util::Message(INFO);
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
+			//Util::Message(INFO);
 			rhs += crack.boundary->Epc(c_old(i,j,k,0))*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
+			//Util::Message(INFO);
 			rhs -= crack.boundary->kappa(c_old(i,j,k,0))*laplacian;
+			//Util::Message(INFO);
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype.OriginalYieldSurface());
 			//(yield_strength + 0.5*hardening_modulus*lambda_box(i,j,k));
 
+			//Util::Message(INFO);
 			df(i,j,k,3) = max(0.,rhs);
 			
+			//Util::Message(INFO);
 			//if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*crack.boundary->GetMobility(c_old(i,j,k,0));
 
@@ -494,11 +507,13 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			if(c_new(i,j,k,0) < 0.0) {Util::Warning(INFO, "cnew is below 0.0, resetting to 0.0"); c_new(i,j,k,0) = 0.;}
 		});
 	}
+	Util::Message(INFO);
 }
 
 void
 DuctileFracture::TimeStepComplete(amrex::Real time,int iter)
 {
+	//Util::Message(INFO);
 	IntegrateVariables(time,iter);
 	
 	Util::Message(INFO, "crack_err_norm = ", crack_err_norm);

@@ -1,6 +1,6 @@
 alamo.program = ductilefracture
 
-timestep = 1e-7
+timestep = 1e-3
 stop_time = 1.e6
 plot_file = tests/DuctileFracture2D/output
 
@@ -24,7 +24,7 @@ crack.refinement_threshold = 0.01
 
 crack.constant.G_c = 7.0e-2
 crack.constant.zeta = 1.e-3
-crack.constant.mobility = 0.0
+crack.constant.mobility = 1.0
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
