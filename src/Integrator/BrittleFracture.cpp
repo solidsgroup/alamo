@@ -201,7 +201,7 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 
 	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
 	{
-		amrex::Box box = mfi.growntilebox(2);
+		amrex::Box box = mfi.validbox();
 		amrex::Array4<const amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
 		amrex::Array4<fracture_model_type> const& modelfab = model.array(mfi);
 
