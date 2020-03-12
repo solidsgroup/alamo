@@ -186,9 +186,11 @@ DuctileFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<ductile_f
 	m_c[lev]->FillBoundary();
 	//Util::Message(INFO);
 
-	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
+	for (amrex::MFIter mfi(model,amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
-		amrex::Box box = mfi.growntilebox(2);
+		//amrex::Box box = mfi.growntilebox(2);
+		amrex::Box box = mfi.tilebox();
+		box.grow(1);
 		amrex::Array4<const amrex::Real> 			const& c_new	= (*m_c[lev]).array(mfi);
 		amrex::Array4<ductile_fracture_model_type> 	const& modelfab	= model.array(mfi);
 		amrex::Array4<const Set::Scalar> 			const& p_box	= (*m_alpha[lev]).array(mfi);
