@@ -86,8 +86,8 @@ public:
 
     void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix /*strain*/, Set::Scalar /*dt*/)
     {
-        Set::Scalar SQ2O3 = sqrt(2.0/3.0);
-        Set::Matrix sigdev = sigma - sigma.trace()*Set::Matrix::Identity();
+        Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));
+        Set::Matrix sigdev = sigma - (1.0/((double)AMREX_SPACEDIM))*sigma.trace()*Set::Matrix::Identity();
         //Set::Matrix epsdev = strain - strain.trace()*Set::Matrix::Identity();
 
         Set::Matrix zeta_trial = sigdev - prev.beta;
