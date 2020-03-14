@@ -56,9 +56,9 @@ DuctileFracture::DuctileFracture() :
 	pp_crack.queryclass("bc",*static_cast<BC::Constant *>(crack.mybc));
 	pp_crack.queryclass("bc_df",*static_cast<BC::Constant *>(crack.mybcdf));
 
-	RegisterNewFab(m_c,     crack.mybc, 1, number_of_ghost_cells+1, "c",		true);
-	RegisterNewFab(m_c_old, crack.mybc, 1, number_of_ghost_cells+1, "c_old",	true);
-	RegisterNewFab(m_driving_force, crack.mybcdf, 4, number_of_ghost_cells+1, "driving_force",true);
+	RegisterNewFab(m_c,     		crack.mybc, 	1, number_of_ghost_cells+1, "c",		true);
+	RegisterNewFab(m_c_old, 		crack.mybc, 	1, number_of_ghost_cells+1, "c_old",	true);
+	RegisterNewFab(m_driving_force, crack.mybcdf, 	4, number_of_ghost_cells+1, "driving_force",true);
 
 	RegisterIntegratedVariable(&crack_err_norm, "crack_err_norm");
 	RegisterIntegratedVariable(&c_new_norm,"c_new_norm");
@@ -240,9 +240,9 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	Util::Message(INFO);
 	//elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 
-	//Util::Message(INFO);
-	//Util::Message(INFO,m_disp.size());
 	material.model.resize(nlevels);
+	material.modeltype.UpdateF0(Set::Matrix::Zero());
+
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
@@ -334,12 +334,15 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
-	// This is where we solve the inhomogeneous problem
-	// Util::Message(INFO);
-	// solver.solveaffine(m_disp, m_rhs, elastic.tol_rel, elastic.tol_abs, true);
-	// solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
-
 	solver.solve(m_disp,m_rhs,material.model,elastic.tol_rel,elastic.tol_abs);
+
+	//Util::Message(INFO);
+	//for (int lev = 0; lev < nlevels; lev++)
+	//{
+	//	elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
+	//	elastic_op.Stress(lev,*m_stress[lev],*m_disp[lev]);
+	//	elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
+	//}
 
 	//Util::Message(INFO);
 	for (int lev = 0; lev < nlevels; lev++)
@@ -347,11 +350,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
 		elastic_op.Stress(lev,*m_stress[lev],*m_disp[lev]);
 		elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
-	}
 
-	//Util::Message(INFO);
-	for (int lev = 0; lev < nlevels; lev++)
-	{
 		for (amrex::MFIter mfi(*m_strain[lev],true); mfi.isValid(); ++mfi)
 		{
 			const amrex::Box& box = mfi.validbox();
@@ -383,13 +382,13 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 					eps(2,0) = eps_box(i,j,k,6); eps(2,1) = eps_box(i,j,k,7); eps(2,2) = eps_box(i,j,k,8);
 				);
 				
-				sigdev = sig - sig.trace()*Set::Matrix::Identity()/3.;
+				sigdev = sig - (1.0/((double)AMREX_SPACEDIM))*sig.trace()*Set::Matrix::Identity();
 				
-				for (int m = 0; m < AMREX_SPACEDIM; m++)
-				{
-					for (int n = 0; n < AMREX_SPACEDIM; n++)
-						energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
-				}
+				//for (int m = 0; m < AMREX_SPACEDIM; m++)
+				//{
+				//	for (int n = 0; n < AMREX_SPACEDIM; n++)
+				//		energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
+				//}
 
 				AMREX_D_PICK(
 					sigdev_box(i,j,k,0) = sigdev(0,0);
@@ -404,6 +403,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 				//energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
 
 				model_box(i,j,k,0).EvolvePlasticStrain(sig,eps,0);
+				
 				AMREX_D_PICK(
 					strainp_box(i,j,k,0) = model_box(i,j,k,0).curr.epsp(0,0);
 					beta_box(i,j,k,0) = model_box(i,j,k,0).curr.beta(0,0);
@@ -421,8 +421,20 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 					beta_box(i,j,k,6) = model_box(i,j,k,0).curr.beta(2,0); beta_box(i,j,k,7) = model_box(i,j,k,0).curr.beta(2,1); beta_box(i,j,k,8) = model_box(i,j,k,0).curr.beta(2,2);
 				);
 				alpha_box(i,j,k,0) = model_box(i,j,k,0).curr.alpha;
+
+				material.modeltype.UpdateF0(model_box(i,j,k).curr.epsp);
+				sig = material.modeltype.DW(eps);
+				for (int m = 0; m < AMREX_SPACEDIM; m++)
+				{
+					for (int n = 0; n < AMREX_SPACEDIM; n++)
+						energy_box(i,j,k,0) += 0.5*sig(m,n)*(eps(m,n)-model_box(i,j,k).curr.epsp(m,n));
+				}
 			});
 		}
+
+		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
+		elastic_op.Stress(lev,*m_stress[lev],*m_disp[lev]);
+		elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
 	}
 	Util::Message(INFO);
 }
