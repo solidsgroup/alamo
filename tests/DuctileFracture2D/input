@@ -28,8 +28,9 @@ crack.constant.mobility = 1.0e-1
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
-crack.constant.phitype = square
-#crack.constant.phitype = multiwell2
+crack.constant.wtype = square
+crack.constant.gtype = cubicm
+crack.constant.exponent = 1e-2
 
 crack.tol_crack = 1e-15
 crack.tol_step = 1e-2

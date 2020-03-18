@@ -51,21 +51,31 @@ public:
 		pp.query("mult_Gc",value.mult_Gc);
 		pp.query("mult_Lap", value.mult_Lap);
 
-        std::string phitype = "";
-        pp.query("phitype", phitype);
+        std::string gtype = "";
+        std::string wtype = "";
+        pp.query("gtype", gtype);
+        pp.query("wtype", wtype);
 
         Set::Scalar ductile_exponent = 1.;
-        if(phitype == "squareexp") pp.query("exponent",ductile_exponent);
+        if(gtype == "squarepexp"|| gtype == "cubicm") pp.query("exponent",ductile_exponent);
 
-        std::map<std::string,Model::Interface::Crack::Crack::PhiType>  phi_map;
-	    phi_map["square"] = Model::Interface::Crack::Crack::PhiType::PhiSq;
-	    phi_map["multiwell"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell;
-        phi_map["multiwell2"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell2;
-	    phi_map["4c3"] = Model::Interface::Crack::Crack::PhiType::Phi4c3;
-        phi_map["squarep"] = Model::Interface::Crack::Crack::PhiType::PhiSqP;
-	    phi_map["squarepexp"] = Model::Interface::Crack::Crack::PhiType::PhiSqPM;
+        std::map<std::string,Model::Interface::Crack::Crack::GType>  g_map;
+	    g_map["square"] = Model::Interface::Crack::Crack::GType::GSQUARE;
+	    g_map["multiwell"] = Model::Interface::Crack::Crack::GType::GMULTIWELL;
+        g_map["4c3"] = Model::Interface::Crack::Crack::GType::GPHI4C3;
+        g_map["squarep"] = Model::Interface::Crack::Crack::GType::GSQUAREP;
+	    g_map["squarepexp"] = Model::Interface::Crack::Crack::GType::GSQUAREPM;
+        g_map["cubicm"] = Model::Interface::Crack::Crack::GType::GCUBICM;
 
-        value.SetPhiType(phi_map[phitype]);
+        std::map<std::string,Model::Interface::Crack::Crack::WType>  w_map;
+        w_map["square"] = Model::Interface::Crack::Crack::WType::WSQUARE;
+	    w_map["multiwell"] = Model::Interface::Crack::Crack::WType::WMULTIWELL;
+        w_map["multiwell2"] = Model::Interface::Crack::Crack::WType::WMULTIWELL2;
+        w_map["4c3"] = Model::Interface::Crack::Crack::WType::WPHI4C3;
+
+        value.SetGType(g_map[gtype]);
+        value.SetWType(w_map[wtype]);
+
         value.SetDuctileExponent(ductile_exponent);
     }
 };
