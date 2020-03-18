@@ -60,6 +60,7 @@ public:
         std::map<std::string,Model::Interface::Crack::Crack::PhiType>  phi_map;
 	    phi_map["square"] = Model::Interface::Crack::Crack::PhiType::PhiSq;
 	    phi_map["multiwell"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell;
+        phi_map["multiwell2"] = Model::Interface::Crack::Crack::PhiType::PhiMultiWell2;
 	    phi_map["4c3"] = Model::Interface::Crack::Crack::PhiType::Phi4c3;
         phi_map["squarep"] = Model::Interface::Crack::Crack::PhiType::PhiSqP;
 	    phi_map["squarepexp"] = Model::Interface::Crack::Crack::PhiType::PhiSqPM;

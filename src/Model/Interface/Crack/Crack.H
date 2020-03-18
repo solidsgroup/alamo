@@ -16,7 +16,7 @@ namespace Crack
 class Crack
 {
 	public:
-	enum PhiType {PhiSq, PhiMultiWell, Phi4c3, PhiSqP, PhiSqPM}; 
+	enum PhiType {PhiSq, PhiMultiWell, PhiMultiWell2, Phi4c3, PhiSqP, PhiSqPM}; 
 	//enum DuctilePhiType {PhiSqP, PhiSqPM};
 
 	Crack() {};
@@ -27,8 +27,9 @@ class Crack
 		switch (m_type)
 		{
 			// Brittle
-			case PhiSq:			return 1. - c*c;
+			case PhiSq:			return (1. - c)*(1.-c);
 			case PhiMultiWell: 	return (1.-c)*(1.-c)*c*c;
+			case PhiMultiWell2:	return (1.+c)*(1.+c)*(1.-c)*(1.-c);
 			case Phi4c3: 		return 1. - 4.*c*c*c + 3.*c*c*c*c;
 			// Ductile
 			case PhiSqP:		return 1. - c*c;
@@ -44,6 +45,7 @@ class Crack
 			// Brittle
 			case PhiSq:			return c*c;
 			case PhiMultiWell: 	return c*c;
+			case PhiMultiWell2:	return (2.-c)*(2.-c)*c*c;
 			case Phi4c3: 		return 4.*c*c*c - 3.*c*c*c*c;
 			// Ductile
 			case PhiSqP:		return std::pow(c,2.*p);
@@ -57,8 +59,9 @@ class Crack
 		switch (m_type)
 		{
 			// Brittle
-			case PhiSq:			return -2.*c;
+			case PhiSq:			return -2.*(1.-c);
 			case PhiMultiWell: 	return 2.0*c*(1.-c)*(1.-2.*c);
+			case PhiMultiWell2:	return 4.*c*c*c - 4.*c;
 			case Phi4c3: 		return -12.*c*c*(1.-c);;
 			// Ductile
 			case PhiSqP:		return -2.*c;
@@ -74,7 +77,8 @@ class Crack
 			// Brittle
 			case PhiSq:			return 2.*c;
 			case PhiMultiWell: 	return 2.0*c;
-			case Phi4c3: 		return 12.*c*c*(1.-c);;
+			case PhiMultiWell2:	return 4.*c*c*c - 12.*c*c + 8.*c;
+			case Phi4c3: 		return 12.*c*c*(1.-c);
 			// Ductile
 			case PhiSqP:		return 2.*p*std::pow(c,2.*p - 1.);
 			case PhiSqPM:		return 2.*std::pow(p,m_d_exponent)*std::pow(c,2.*(std::pow(p,m_d_exponent)-1.));

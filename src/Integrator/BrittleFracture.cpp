@@ -168,8 +168,10 @@ void
 BrittleFracture::Initialize (int lev)
 {
 	Util::Message(INFO);
+	
 	crack.ic->Initialize(lev,m_c);
 	crack.ic->Initialize(lev,m_c_old);
+	
 	m_driving_force[lev]->setVal(0.0);
 	
 	Util::Message(INFO);

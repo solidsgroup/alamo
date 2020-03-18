@@ -423,12 +423,13 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 				alpha_box(i,j,k,0) = model_box(i,j,k,0).curr.alpha;
 
 				material.modeltype.UpdateF0(model_box(i,j,k).curr.epsp);
-				sig = material.modeltype.DW(eps);
+				energy_box(i,j,k,0) = material.modeltype.W(eps);
+				/*sig = material.modeltype.DW(eps);
 				for (int m = 0; m < AMREX_SPACEDIM; m++)
 				{
 					for (int n = 0; n < AMREX_SPACEDIM; n++)
 						energy_box(i,j,k,0) += 0.5*sig(m,n)*(eps(m,n)-model_box(i,j,k).curr.epsp(m,n));
-				}
+				}*/
 			});
 		}
 
@@ -471,7 +472,7 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
 			rhs += crack.boundary->Epc(c_old(i,j,k,0))*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
 			rhs -= crack.boundary->kappa(c_old(i,j,k,0))*laplacian;
-			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype.OriginalYieldSurface());
+			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype.OriginalPlasticEnergy());
 			//(yield_strength + 0.5*hardening_modulus*lambda_box(i,j,k));
 
 			df(i,j,k,3) = max(0.,rhs);
