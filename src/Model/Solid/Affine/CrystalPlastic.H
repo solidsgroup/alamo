@@ -199,6 +199,32 @@ public:
         return yield.norm();
     }
 
+    Set::Scalar OriginalPlasticEnergy()
+    {
+        Set::Matrix yield = Set::Matrix::Zero(), R = Set::Matrix::Zero();
+        for(int i=0; i<slip.size(); i++)
+        {
+            for (int j = 0; j < AMREX_SPACEDIM; j++)
+                for (int k = 0; k < AMREX_SPACEDIM; k++)
+                    R(j,k) = slip[i].s(j)*slip[i].n(k);
+            yield += slip[i].tcrss0*R;
+        }
+        return yield.norm()*curr.alpha;
+    }
+
+    Set::Scalar PlasticEnergy()
+    {
+        Set::Matrix yield = Set::Matrix::Zero(), R = Set::Matrix::Zero();
+        for(int i=0; i<slip.size(); i++)
+        {
+            for (int j = 0; j < AMREX_SPACEDIM; j++)
+                for (int k = 0; k < AMREX_SPACEDIM; k++)
+                    R(j,k) = slip[i].s(j)*slip[i].n(k);
+            yield += slip[i].tcrss*R;
+        }
+        return yield.norm()*curr.alpha;
+    }
+
     void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix /*strain*/, Set::Scalar dt)
     {
         curr.epsp = prev.epsp;
