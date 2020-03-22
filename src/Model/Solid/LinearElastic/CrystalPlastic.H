@@ -8,6 +8,7 @@
 #include "Set/Set.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Model/Solid/Solid.H"
+#include "IO/ParmParse.H"
 
 namespace Model
 {
@@ -40,8 +41,7 @@ private:
 	slip slp11; slip slp12;
 	//********Matrial Matrix**********//
 
-	Set::Matrix4<3,Set::Sym::MajorMinor> C;
-	//Set::Matrix esp = Set::Matrix::Zero();
+	Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> C;
 	Eigen::Matrix<double,12,12> F;
 	//********Matrial Constants**********//
 
@@ -84,7 +84,10 @@ public:
 	static const KinematicVariable kinvar = KinematicVariable::gradu;
 	Set::Matrix esp = Set::Matrix::Zero(); // Eshelby
 	std::array<Set::Matrix,AMREX_SPACEDIM> gradEpsp;
-	CrystalPlastic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) {};
+	CrystalPlastic(Solid<Set::Sym::MajorMinor> base) : Solid<Set::Sym::MajorMinor>(base) 
+	{
+		initializeSlip();
+	}
 	CrystalPlastic() 
 	{
 		initializeSlip();
@@ -105,11 +108,30 @@ public:
 	{
 		return ddw;
 	}
+	static void Parse(CrystalPlastic & value, IO::ParmParse & pp)
+    {
+        Set::Scalar C11, C12, C44 = 0; 
+		Set::Scalar phi, phi1, phi2 = 0;
+        if (pp.contains("c11") && pp.contains("c12") && pp.contains("c44")
+			&& pp.contains("phi") && pp.contains("phi1") && pp.contains("phi2") )
+        {
+            pp.query("c11",C11); pp.query("phi",phi);
+            pp.query("c12",C12); pp.query("phi1", phi1);
+			pp.query("c44",C44); pp.query("phi2", phi2);
+			value.define(C11,C12,C44,phi1,phi,phi2);
+        }
+		else if(pp.contains("c11") && pp.contains("c12") && pp.contains("c44"))
+		{
+			pp.query("c11",C11); 
+            pp.query("c12",C12); 
+			pp.query("c44",C44); 
+			value.define(C11,C12,C44);
+		}
+    }
 //----------------------//
 
 	std::array<double,12> StressSlipSystem(const Set::Matrix& sig);
 	void Setdt(const double _dt);
-	Set::Matrix GetEsp() const;
 	double getGamma(int index) const;
 	void update(const Set::Matrix es, Set::Matrix& sigma);
 

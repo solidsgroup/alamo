@@ -6,7 +6,7 @@
 #include <string>
 #include "Util/Util.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
-#include "Integrator/EshelbyPlastic.H"
+//#include "Integrator/EshelbyPlastic.H"
 #include "IO/ParmParse.H"
 #include "Solver/Local/CG.H"
 using namespace Model::Solid::CrystalPlastic;
@@ -93,7 +93,7 @@ int main (int argc, char* argv[])
 		
 	for(double t = 0.0; t <= T; t += dt)
 	{
-		esp = cp.GetEsp();
+		esp = cp.esp;
 		Set::Matrix temp;
 		//es(0,0) = c*t; 
 		es(0,1) = c*t; es(1,0) = c*t;

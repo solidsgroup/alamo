@@ -3,12 +3,12 @@ plot_file		    = tests/EshelbyPlastic/output
 
 # this is not a time integration, so do
 # exactly one timestep and then quit
-timestep		    = 0.1
-stop_time		    = 0.1
-
+timestep		    = 0.001
+stop_time		    = 0.001
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 5
+amr.max_level		    = 0
+amr.max_grid_size(1)	    = 1000000000000
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
@@ -28,6 +28,7 @@ ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
 
 # elastic moduli
 # Normalized values with Tcrss
+# c11 = 10e3 c12 = 7.35e3 c44 = 3.8e3 Tcrss = 2.75e-3
 elastic.model.c11 = 27.5 
 elastic.model.c12 = 20.2125
 elastic.model.c44 = 10.45
@@ -35,7 +36,31 @@ elastic.model.c44 = 10.45
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
 
-#elastic.bc.type.ylo = dirichlet dirichlet dirichlet
-#elastic.bc.val.xhi  = 0.2 0.0 0.0
-#elastic.bc.type.ylo = trac trac trac
-#elastic.bc.type.yhi = trac trac trac
+# displacement types
+elastic.bc.type.ylo = disp disp disp
+elastic.bc.type.yhi = disp disp disp
+elastic.bc.type.xlo = disp disp disp
+elastic.bc.type.xhi = disp disp disp
+elastic.bc.type.zlo = disp disp disp
+elastic.bc.type.zhi = disp disp disp
+# displacement values
+elastic.bc.val.xlo = 0 0 0.1 
+elastic.bc.val.xhi = 0 0 -0.1 
+# vertices 
+elastic.bc.type.xloylozlo = disp disp disp
+elastic.bc.type.xhiylozlo = disp disp disp
+elastic.bc.type.xhiyhizlo = disp disp disp
+elastic.bc.type.xhiyhizhi = disp disp disp
+elastic.bc.type.xloyhizhi = disp disp disp
+elastic.bc.type.xloylozhi = disp disp disp
+elastic.bc.type.xloyhizlo = disp disp disp
+elastic.bc.type.xhiylozhi = disp disp disp
+
+elastic.bc.val.xloylozlo = 0 0 0.1 
+elastic.bc.val.xhiylozlo = 0 0 -0.1 
+elastic.bc.val.xhiyhizlo = 0 0 -0.1 
+elastic.bc.val.xhiyhizhi = 0 0 -0.1 
+elastic.bc.val.xloyhizhi = 0 0 0.1 
+elastic.bc.val.xloylozhi = 0 0 0.1 
+elastic.bc.val.xloyhizlo = 0 0 0.1 
+elastic.bc.val.xhiylozhi = 0 0 -0.1 

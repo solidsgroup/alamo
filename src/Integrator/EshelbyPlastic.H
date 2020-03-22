@@ -20,6 +20,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
+#include "Solver/Local/CG.H"
 
 #include "Operator/Operator.H"
 
@@ -39,6 +40,7 @@ public:
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
+        //RegisterNodalFab(esp_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "esplastic", true);
         {
             IO::ParmParse pp("ic");
             std::string type;
@@ -50,6 +52,7 @@ public:
             }
             if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
             if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
+            //if (pp.contains("t")) pp.query("t",t);
         }
         {
             IO::ParmParse pp("elastic");
@@ -85,7 +88,7 @@ protected:
         }
         
         // Set linear elastic model
-        Set::Field<model_type> model_mf;
+        //Set::Field<model_type> model_mf;
         model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
@@ -103,17 +106,32 @@ protected:
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.growntilebox(2);
-
                 amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> sig = stress_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &es = strain_mf[lev]->array(mfi);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                {
                     Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
                     model(i, j, k) = elastic.model;
                     model(i, j, k).esp = Fgb;
+                    Set::Matrix s,e; 
+                    s(0,0) = sig(i,j,k,0); s(0,1) = sig(i,j,k,1); s(0,2) = sig(i,j,k,2); 
+                    s(1,0) = sig(i,j,k,3); s(1,1) = sig(i,j,k,4); s(1,2) = sig(i,j,k,5);
+                    s(2,0) = sig(i,j,k,6); s(2,1) = sig(i,j,k,7); s(2,2) = sig(i,j,k,8); 
+
+                    e(0,0) = es(i,j,k,0); e(0,1) = es(i,j,k,1); e(0,2) = es(i,j,k,2); 
+                    e(1,0) = es(i,j,k,3); e(1,1) = es(i,j,k,4); e(1,2) = es(i,j,k,5);
+                    e(2,0) = es(i,j,k,6); e(2,1) = es(i,j,k,7); e(2,2) = es(i,j,k,8); 
+
+                    model(i,j,k).update(e,s); 
+
+                    sig(i,j,k,0) = s(0,0); sig(i,j,k,1) = s(0,1); sig(i,j,k,2) = s(0,2);
+                    sig(i,j,k,3) = s(1,0); sig(i,j,k,4) = s(1,1); sig(i,j,k,5) = s(1,2);
+                    sig(i,j,k,6) = s(2,0); sig(i,j,k,7) = s(2,1); sig(i,j,k,8) = s(2,2); 
                 });
             }
-
             Util::RealFillBoundary(*model_mf[lev],geom[lev]);
         }
 
@@ -140,11 +158,11 @@ protected:
         }
     }
 
-    void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/) override
+    void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar dt) override
     {
-        // Nothing to do here.
+        elastic.model.Setdt(dt);
     }
-
+    
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
     {
         Set::Vector DX(geom[lev].CellSize());
@@ -178,6 +196,8 @@ private:
     Set::Field<Set::Scalar> res_mf;
     Set::Field<Set::Scalar> stress_mf;
     Set::Field<Set::Scalar> strain_mf;
+    //Set::Field<Set::Scalar> esp_mf;
+    Set::Field<model_type> model_mf;
 
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC *mybc;        ///< Stock generic boundary condition object

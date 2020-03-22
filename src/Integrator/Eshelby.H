@@ -20,7 +20,6 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "Model/Solid/Affine/Isotropic.H"
-#include "Model/Solid/LinearElastic/CrystalPlastic.H"
 
 #include "Operator/Operator.H"
 

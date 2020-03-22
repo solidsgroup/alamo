@@ -190,10 +190,6 @@ Set::Matrix CrystalPlastic::UpdateSigma(const Set::Matrix& es)
 	Set::Matrix temp = (es - esp);
 	return operator()(temp); 
 }
-Set::Matrix CrystalPlastic::GetEsp() const
-{
-	return esp;
-}
 double CrystalPlastic::getGamma(int index) const
 {
 	return slipSystem[index].gam;

@@ -62,7 +62,6 @@ CahnHilliard::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
 				 	- eta(i,j,k)
 				 	- gamma*lap;
 
-
 				etanew(i,j,k) = eta(i,j,k) - dt*inter(i,j,k); // Allen Cahn
 			});
 
@@ -73,7 +72,6 @@ CahnHilliard::Advance (int lev, Set::Scalar /*time*/, Set::Scalar dt)
 
 				etanew(i,j,k) = eta(i,j,k) + dt*lap;
 			});
-
 	}
 }
 
