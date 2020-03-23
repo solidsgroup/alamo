@@ -4,7 +4,7 @@ timestep = 1e-2
 stop_time = 1.e1
 plot_file = tests/Fracture2D/output
 
-amr.plot_int = 10
+amr.plot_int = 1
 amr.max_level = 4
 #amr.n_cell = 512 512
 amr.n_cell = 128 128 
@@ -28,7 +28,9 @@ crack.constant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
-crack.constant.phitype = 4c3
+crack.constant.gtype = cubicm
+crack.constant.wtype = square
+crack.constant.exponent = 1.e-3
 
 #crack.type = sin
 #crack.sin.Gc0 = 1.4e-1
@@ -51,10 +53,18 @@ crack.tol_step = 1e-2
 #ic.eps = 0.05
 
 ic.type = notch
-ic.notch.center = 0.0 0.0
-ic.notch.orientation = 1.0 0.0
-ic.notch.length = 1.0
-ic.notch.thickness = 0.0675
+# Enable for multiple notches
+ic.notch.center = 0.0 -1.0 0.0 1.0
+ic.notch.orientation = 1.0 0.0 1.0 0.0
+ic.notch.length = 1.0 1.0
+ic.notch.thickness = 0.0675 0.0675
+
+# Enable for a single notch
+#ic.notch.center = 0.0 0.0
+#ic.notch.orientation = 1.0 0.0
+#ic.notch.length = 1.0
+#ic.notch.thickness = 0.0675 0.0675
+
 ic.notch.eps = 0.02
 
 crack.bc.type.xlo = NEUMANN
@@ -88,7 +98,7 @@ elastic.cg_verbose 		=	0
 elastic.max_iter		=	10000
 elastic.max_fmg_iter 	=	10000
 elastic.bottom_max_iter =	500
-elastic.max_fixed_iter 	=	200
+elastic.max_fixed_iter 	=	1000
 elastic.linop_maxorder 	=	2
 elastic.max_coarsening_level = 100000
 elastic.agglomeration 	=	1
