@@ -344,10 +344,10 @@ BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs += crack.boundary->Epc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.);
 			rhs -= crack.boundary->kappa(Theta)*laplacian;
 
-			df(i,j,k,3) = std::max(0.,rhs);
+			df(i,j,k,3) = std::max(0.,rhs - crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)));
 			
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.boundary->Dw_phi(c_old(i,j,k,0),0.),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*crack.boundary->GetMobility(c_old(i,j,k,0));
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)))*crack.boundary->GetMobility(c_old(i,j,k,0));
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 1.0"); c_new(i,j,k,0) = 1.;}
 			if(c_new(i,j,k,0) < 0.0) {Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 0.0"); c_new(i,j,k,0) = 0.;}
@@ -497,16 +497,12 @@ BrittleFracture::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const 
 {
 	const amrex::Real* DX = geom[amrlev].CellSize();
 
-	amrex::FArrayBox &c_new  = (*m_c[amrlev])[mfi];
-	amrex::FArrayBox &c_old  = (*m_c_old[amrlev])[mfi];
+	amrex::Array4<const Set::Scalar> const &c_new = (*m_c[amrlev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &c_old = (*m_c_old[amrlev]).array(mfi);
 
-	AMREX_D_TERM(for (int m1 = box.loVect()[0]; m1<=box.hiVect()[0]; m1++),
-		     for (int m2 = box.loVect()[1]; m2<=box.hiVect()[1]; m2++),
-		     for (int m3 = box.loVect()[2]; m3<=box.hiVect()[2]; m3++))
-	{
-		amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-		crack_err_norm += ((c_new(m,0)-c_old(m,0))*(c_new(m,0)-c_old(m,0)))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
-		c_new_norm += c_new(m,0)*c_new(m,0)*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
-	}
+	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+		crack_err_norm += ((c_new(i,j,k,0)-c_old(i,j,k,0))*(c_new(i,j,k,0)-c_old(i,j,k,0)))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+		c_new_norm += c_new(i,j,k,0)*c_new(i,j,k,0)*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+	});
 }
 }

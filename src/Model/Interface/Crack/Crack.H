@@ -77,6 +77,7 @@ class Crack
 	virtual Set::Scalar Epc(Set::Scalar theta) = 0;
 	virtual Set::Scalar kappa(Set::Scalar theta) = 0;
 	virtual Set::Scalar GetMobility(Set::Scalar theta) = 0;
+	virtual Set::Scalar DrivingForceThreshold(Set::Scalar theta) = 0;
 
 	void ExportToFile(std::string filename, amrex::Real dTheta)
 	{

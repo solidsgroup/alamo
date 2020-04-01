@@ -32,6 +32,10 @@ public:
     {
         return mobility;
     }
+	Set::Scalar DrivingForceThreshold(Set::Scalar /*theta*/)
+	{
+		return threshold;
+	}
 
 private:
     Set::Scalar zeta = 1.e-2, mobility = 1.e-2;
@@ -39,6 +43,7 @@ private:
     Set::Scalar Gc0 = 1.0;
     Set::Scalar Gc1 = 0.49;
     Set::Scalar theta0 = 3.14;
+	Set::Scalar threshold = 0.0;
 
 public:
     static void Parse(Sin & value, IO::ParmParse & pp)
@@ -50,6 +55,7 @@ public:
 		pp.query("mobility",value.mobility);
 		pp.query("mult_Gc",value.mult_Gc);
 		pp.query("mult_Lap", value.mult_Lap);
+		pp.query("threshold",value.threshold);
 
         std::string gtype = "";
         std::string wtype = "";

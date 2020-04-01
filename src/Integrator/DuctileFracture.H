@@ -104,6 +104,7 @@ private:
 	Set::Field<Set::Scalar> m_energy_pristine_old;	
 
 	Set::Field<Set::Scalar> m_strain_p;
+	Set::Field<Set::Scalar> m_strain_p_old;
 	Set::Field<Set::Scalar> m_beta;
 	Set::Field<Set::Scalar> m_alpha;
 
@@ -171,7 +172,7 @@ private:
 		Set::Scalar epscrit = 1.0;
 	}material;
 
-	Set::Scalar crack_err_norm, c_new_norm;
+	Set::Scalar crack_err_norm, c_new_norm, ep_norm, ep_err_norm;
 	bool err_crack_init = true;
 	bool err_crack_temp_init = true;
 	bool err_disp_init = true;
@@ -180,7 +181,7 @@ private:
 	Set::Scalar max_error;
 
 	Set::Scalar refinement_threshold = 0.001;			///< Criterion for cell refinement
-	Set::Scalar tol_crack = 1e-7, tol_step = 1e-3;
+	Set::Scalar tol_crack = 1e-7, tol_ep = 1e-3;
 	int nlevels;
 };
 }

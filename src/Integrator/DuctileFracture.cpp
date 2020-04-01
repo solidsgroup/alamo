@@ -28,7 +28,7 @@ DuctileFracture::DuctileFracture() :
 		Util::Abort(INFO,"This crack model hasn't been implemented yet");
 	
 	pp_crack.query("tol_crack",tol_crack);
-	pp_crack.query("tol_step",tol_step);
+	pp_crack.query("tol_ep",tol_ep);
 
 	// ICs
 	IO::ParmParse pp("ic"); // Phase-field model parameters
@@ -62,6 +62,8 @@ DuctileFracture::DuctileFracture() :
 
 	RegisterIntegratedVariable(&crack_err_norm, "crack_err_norm");
 	RegisterIntegratedVariable(&c_new_norm,"c_new_norm");
+	RegisterIntegratedVariable(&ep_norm, "Ep_norm");
+	RegisterIntegratedVariable(&ep_err_norm, "Ep_err_norm");
 	
 	// Material input
 	IO::ParmParse pp_material("material");
@@ -132,6 +134,7 @@ DuctileFracture::DuctileFracture() :
 	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_nodes,	"residual",		true);
 
 	RegisterNodalFab (m_strain_p,	number_of_stress_components,	number_of_ghost_nodes,	"strainp",		true);
+	RegisterNodalFab (m_strain_p_old,	number_of_stress_components,	number_of_ghost_nodes,	"strainp_old",	true);
 	RegisterNodalFab (m_beta,		number_of_stress_components,	number_of_ghost_nodes,	"beta",			true);
 	RegisterNodalFab (m_alpha,		1,								number_of_ghost_nodes,	"strain",		true);
 
@@ -165,6 +168,7 @@ DuctileFracture::Initialize (int lev)
 
 	// Initialize plastic fields
 	m_strain_p[lev] -> setVal(0.0);
+	m_strain_p_old[lev] -> setVal(0.0);
 	m_beta[lev] -> setVal(0.0);
 	m_alpha[lev] -> setVal(0.0);
 	
@@ -238,6 +242,12 @@ void
 DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
 	Util::Message(INFO);
+	if(crack.newCrackProblem)
+	{
+		Util::Message(INFO);
+		elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
+		crack.newCrackProblem = false;
+	}
 	//elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 
 	material.model.resize(nlevels);
@@ -247,8 +257,12 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	{
 		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
 		material.model[ilev]->setVal((material.modeltype));
+
+		std::swap(*m_strain_p_old[ilev], *m_strain_p[ilev]);
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
+		
 		m_energy_pristine[ilev]->setVal(0.);
+		m_strain_p[ilev]->setVal(0.);
 		ScaledModulus(ilev,*(material.model)[ilev]);
 	}
 	
@@ -336,15 +350,6 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 
 	solver.solve(m_disp,m_rhs,material.model,elastic.tol_rel,elastic.tol_abs);
 
-	//Util::Message(INFO);
-	//for (int lev = 0; lev < nlevels; lev++)
-	//{
-	//	elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
-	//	elastic_op.Stress(lev,*m_stress[lev],*m_disp[lev]);
-	//	elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
-	//}
-
-	//Util::Message(INFO);
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
@@ -384,12 +389,6 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 				
 				sigdev = sig - (1.0/((double)AMREX_SPACEDIM))*sig.trace()*Set::Matrix::Identity();
 				
-				//for (int m = 0; m < AMREX_SPACEDIM; m++)
-				//{
-				//	for (int n = 0; n < AMREX_SPACEDIM; n++)
-				//		energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
-				//}
-
 				AMREX_D_PICK(
 					sigdev_box(i,j,k,0) = sigdev(0,0);
 					,
@@ -424,12 +423,6 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 
 				material.modeltype.UpdateF0(model_box(i,j,k).curr.epsp);
 				energy_box(i,j,k,0) = material.modeltype.W(eps);
-				/*sig = material.modeltype.DW(eps);
-				for (int m = 0; m < AMREX_SPACEDIM; m++)
-				{
-					for (int n = 0; n < AMREX_SPACEDIM; n++)
-						energy_box(i,j,k,0) += 0.5*sig(m,n)*(eps(m,n)-model_box(i,j,k).curr.epsp(m,n));
-				}*/
 			});
 		}
 
@@ -443,13 +436,11 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 void
 DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 {
-	Util::Message(INFO);
 	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
 	const amrex::Real* DX = geom[lev].CellSize();
 
 	std::swap(*m_c[lev],*m_c_old[lev]);
 
-	Util::Message(INFO);
 	for ( amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi )
 	{
 		const amrex::Box& box = mfi.validbox();
@@ -473,19 +464,15 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 			rhs += crack.boundary->Epc(c_old(i,j,k,0))*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
 			rhs -= crack.boundary->kappa(c_old(i,j,k,0))*laplacian;
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype.OriginalPlasticEnergy());
-			//(yield_strength + 0.5*hardening_modulus*lambda_box(i,j,k));
-
-			df(i,j,k,3) = max(0.,rhs);
 			
-			//Util::Message(INFO);
-			//if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs)*crack.boundary->GetMobility(c_old(i,j,k,0));
+			df(i,j,k,3) = max(0.,rhs-crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)));
+			
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,(rhs-crack.boundary->DrivingForceThreshold(c_old(i,j,k,0))))*crack.boundary->GetMobility(c_old(i,j,k,0));
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Warning(INFO, "cnew exceeded 1.0, resetting to 1.0"); c_new(i,j,k,0) = 1.;}
 			if(c_new(i,j,k,0) < 0.0) {Util::Warning(INFO, "cnew is below 0.0, resetting to 0.0"); c_new(i,j,k,0) = 0.;}
 		});
 	}
-	Util::Message(INFO);
 }
 
 void
@@ -494,26 +481,33 @@ DuctileFracture::TimeStepComplete(amrex::Real time,int iter)
 	//Util::Message(INFO);
 	IntegrateVariables(time,iter);
 	
+	Set::Scalar rel_c_err = crack_err_norm/c_new_norm;
+	Set::Scalar rel_ep_err = ep_err_norm/ep_norm;
 	Util::Message(INFO, "crack_err_norm = ", crack_err_norm);
 	Util::Message(INFO, "c_new_norm = ", c_new_norm);
-	Util::Message(INFO, "relative error = ", crack_err_norm/c_new_norm);
+	Util::Message(INFO, "plastic strain norm = ", ep_norm);
+	Util::Message(INFO, "plastic strain error norm = ", ep_err_norm);
+	Util::Message(INFO, "crack relative error= ", rel_c_err);
+	Util::Message(INFO, "plastic strain relative error= ", rel_c_err);
 	
-	/*if(crack_err_norm/c_new_norm > tol_crack) return;
+	if(rel_c_err > tol_crack) return;
+	if(rel_ep_err > tol_ep) return;
 
 	crack_err_norm = 0.; c_new_norm = 0.;
+	ep_err_norm = 0.; ep_norm = 0.;
 	
-	amrex::Vector<Set::Scalar> plottime;
+	/*amrex::Vector<Set::Scalar> plottime;
 	amrex::Vector<int> plotstep;
 	std::string plotfolder = "crack";
 
 	plottime.resize(nlevels);
 	plotstep.resize(nlevels);
 	for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
-	WritePlotFile(plotfolder,plottime,plotstep);
+	WritePlotFile(plotfolder,plottime,plotstep);*/
 
-	newCrackProblem = true;*/
+	crack.newCrackProblem = true;
 	elastic.test_step++;
-	//if(elastic.bc_top[1] >= elastic.test_max) SetStopTime(time-0.01);
+	if(elastic.bc_top >= elastic.test_max) SetStopTime(time-0.01);
 	
 	//crack_err_norm = 0.; c_new_norm = 0.;
 }
@@ -546,10 +540,25 @@ DuctileFracture::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const 
 
 	amrex::Array4<const Set::Scalar> const &c_new = (*m_c[amrlev]).array(mfi);
 	amrex::Array4<const Set::Scalar> const &c_old = (*m_c_old[amrlev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &ep_old = (*m_strain_p[amrlev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &ep_new = (*m_strain_p_old[amrlev]).array(mfi);
 
 	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 		crack_err_norm += ((c_new(i,j,k,0)-c_old(i,j,k,0))*(c_new(i,j,k,0)-c_old(i,j,k,0)))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 		c_new_norm += c_new(i,j,k,0)*c_new(i,j,k,0)*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+
+		for (int n=0; n<AMREX_SPACEDIM*AMREX_SPACEDIM; n++)
+		{
+			ep_norm += ep_new(i,j,k,n)*ep_new(i,j,k,n)*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+			ep_err_norm += (ep_new(i,j,k,n)-ep_old(i,j,k,n))*(ep_new(i,j,k,n)-ep_old(i,j,k,n))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+			//ep_norm += (Numeric::Interpolate::NodeToCellAverage(ep_new,i,j,k,n)*Numeric::Interpolate::NodeToCellAverage(ep_new,i,j,k,n))*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+			//ep_err_norm += 	(Numeric::Interpolate::NodeToCellAverage(ep_new,i,j,k,n)
+			//				- Numeric::Interpolate::NodeToCellAverage(ep_old,i,j,k,n))
+			//				*(Numeric::Interpolate::NodeToCellAverage(ep_new,i,j,k,n)
+			//				- Numeric::Interpolate::NodeToCellAverage(ep_old,i,j,k,n))
+			//				*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
+		}
+		
 	});
 }
 
