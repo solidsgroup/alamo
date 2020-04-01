@@ -31,6 +31,7 @@ crack.constant.mult_Lap = 1.0e0
 crack.constant.gtype = cubicm
 crack.constant.wtype = square
 crack.constant.exponent = 1.e-3
+crack.constant.threshold = 1.e2
 
 #crack.type = sin
 #crack.sin.Gc0 = 1.4e-1
@@ -43,8 +44,8 @@ crack.constant.exponent = 1.e-3
 #crack.sin.mult_Lap = 1.0e0
 #crack.sin.phitype = multiwell
 
-crack.tol_crack = 1e-15
-crack.tol_step = 1e-2
+crack.tol_crack = 1e-10
+crack.tol_ep = 1e-2
 
 #ic.type = ellipsoid
 #ic.center = 2 2
@@ -54,16 +55,16 @@ crack.tol_step = 1e-2
 
 ic.type = notch
 # Enable for multiple notches
-ic.notch.center = 0.0 -1.0 0.0 1.0
-ic.notch.orientation = 1.0 0.0 1.0 0.0
-ic.notch.length = 1.0 1.0
-ic.notch.thickness = 0.0675 0.0675
+#ic.notch.center = 0.0 -1.0 0.0 1.0
+#ic.notch.orientation = 1.0 0.0 1.0 0.0
+#ic.notch.length = 1.0 1.0
+#ic.notch.thickness = 0.0675 0.0675
 
 # Enable for a single notch
-#ic.notch.center = 0.0 0.0
-#ic.notch.orientation = 1.0 0.0
-#ic.notch.length = 1.0
-#ic.notch.thickness = 0.0675 0.0675
+ic.notch.center = 0.0 0.0
+ic.notch.orientation = 1.0 0.0
+ic.notch.length = 1.0
+ic.notch.thickness = 0.0675
 
 ic.notch.eps = 0.02
 
