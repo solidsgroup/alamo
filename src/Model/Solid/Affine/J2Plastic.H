@@ -94,6 +94,11 @@ public:
         return (yield_strength0*curr.alpha + 0.5*hardening_modulus0*curr.alpha*curr.alpha);
     }
 
+    Set::Scalar OriginalPlasticEnergy(Set::Scalar alpha)
+    {
+        return (yield_strength0*alpha + 0.5*hardening_modulus0*alpha*alpha);
+    }
+
     void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix /*strain*/, Set::Scalar /*dt*/)
     {
         Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));

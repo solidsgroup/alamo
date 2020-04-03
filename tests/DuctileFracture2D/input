@@ -5,7 +5,7 @@ stop_time = 1.e6
 plot_file = tests/DuctileFracture2D/output
 
 amr.plot_int = 1
-amr.max_level = 4
+amr.max_level = 6
 #amr.n_cell = 1024 1024
 amr.n_cell = 128 128
 amr.blocking_factor = 8
@@ -22,19 +22,20 @@ crack.type = constant
 crack.modulus_scaling_max = 0.05
 crack.refinement_threshold = 0.01
 
+crack.type = constant
 crack.constant.G_c = 5.0e-2
-crack.constant.zeta = 1.e-3
+crack.constant.zeta = 5.e-2
 crack.constant.mobility = 1.0e-1
-crack.constant.threshold = 5.e2
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
-crack.constant.wtype = square
 crack.constant.gtype = cubicm
-crack.constant.exponent = 1e-2
+crack.constant.wtype = square
+crack.constant.exponent = 1.e-3
+crack.constant.threshold = 1.0e0
 
-crack.tol_crack = 1e-8
-crack.tol_ep = 1e-8
+crack.tol_crack = 1e-15
+crack.tol_ep = 1e-15
 
 #ic.type = ellipsoid
 #ic.center = 2 2
@@ -52,8 +53,8 @@ ic.type = notch
 ic.notch.center = 0.0 0.0
 ic.notch.orientation = 1.0 0.0
 ic.notch.length = 0.5
-ic.notch.thickness = 0.05
-ic.notch.eps = 0.01
+ic.notch.thickness = 0.03
+ic.notch.eps = 0.02
 
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.xhi = NEUMANN
@@ -65,20 +66,20 @@ crack.bc.val.xhi = 0.0
 crack.bc.val.ylo = 0.0 
 crack.bc.val.yhi = 0.0 
 
-crack.bc_df.type.xlo = NEUMANN NEUMANN NEUMANN NEUMANN
-crack.bc_df.type.xhi = NEUMANN NEUMANN NEUMANN NEUMANN
-crack.bc_df.type.ylo = NEUMANN NEUMANN NEUMANN NEUMANN
-crack.bc_df.type.yhi = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.xlo = NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.xhi = NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.ylo = NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.yhi = NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN NEUMANN
 
-crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
-crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
-crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
-crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
+crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0 0.0 0.0
+crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0 0.0 0.0
+crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0 0.0 0.0
+crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0 0.0 0.0
 
 material.model = isotropicj2plastic
 material.isotropicj2plastic.lambda = 1e3
 material.isotropicj2plastic.mu = 8e2
-material.isotropicj2plastic.yield = 1.e0
+material.isotropicj2plastic.yield = 3.e0
 material.isotropicj2plastic.hardening = 0.0
 material.isotropicj2plastic.eps_critical = 1.0
 
@@ -109,13 +110,19 @@ elastic.cg_tol_abs 		=	1.0e-6
 elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.0 0.0 0.0
 
-elastic.bc.disp_step = 0.0
-elastic.bc.disp_init = 1.e-2
-elastic.bc.max_disp = 1.e-2
-elastic.bc.crackStressTest = false
+elastic.disp_step = 0.0
+elastic.disp_init = 5.e-2
+elastic.max_disp = 5.e-2
+elastic.crackStressTest = false
 
 elastic.bc.type.xlo = trac trac
 elastic.bc.type.xhi = trac trac
+elastic.bc.type.ylo = trac disp
+elastic.bc.type.yhi = trac disp
+elastic.bc.type.xloylo = trac disp
+elastic.bc.type.xloyhi = trac disp
+elastic.bc.type.xhiylo = trac disp
+elastic.bc.type.xhiyhi = trac disp
 
-elastic.bc.val.xlo = 0.0 0.0
-elastic.bc.val.xhi = 0.0 0.0
+#elastic.bc.val.xlo = 0.0 0.0
+#elastic.bc.val.xhi = 0.0 0.0
