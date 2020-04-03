@@ -1,12 +1,12 @@
 alamo.program = brittlefracture
 
-timestep = 1e-2
-stop_time = 1.e1
+timestep = 1e-1
+stop_time = 1.e2
 plot_file = tests/Fracture2D/output
 
 amr.plot_int = 1
-amr.max_level = 4
-#amr.n_cell = 512 512
+amr.max_level = 6
+#amr.n_cell = 256 256
 amr.n_cell = 128 128 
 amr.blocking_factor = 32
 amr.regrid_int = 10
@@ -23,7 +23,7 @@ crack.refinement_threshold = 0.01
 
 crack.type = constant
 crack.constant.G_c = 5.0e-2
-crack.constant.zeta = 1.e-3
+crack.constant.zeta = 5.e-2
 crack.constant.mobility = 1.0e-2
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
@@ -31,7 +31,7 @@ crack.constant.mult_Lap = 1.0e0
 crack.constant.gtype = cubicm
 crack.constant.wtype = square
 crack.constant.exponent = 1.e-3
-crack.constant.threshold = 1.e2
+crack.constant.threshold = 3.e2
 
 #crack.type = sin
 #crack.sin.Gc0 = 1.4e-1
@@ -44,7 +44,7 @@ crack.constant.threshold = 1.e2
 #crack.sin.mult_Lap = 1.0e0
 #crack.sin.phitype = multiwell
 
-crack.tol_crack = 1e-10
+crack.tol_crack = 1e-15
 crack.tol_ep = 1e-2
 
 #ic.type = ellipsoid
@@ -63,10 +63,10 @@ ic.type = notch
 # Enable for a single notch
 ic.notch.center = 0.0 0.0
 ic.notch.orientation = 1.0 0.0
-ic.notch.length = 1.0
-ic.notch.thickness = 0.0675
+ic.notch.length = 0.5
+ic.notch.thickness = 0.03
 
-ic.notch.eps = 0.02
+ic.notch.eps = 0.01
 
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.xhi = NEUMANN
@@ -99,7 +99,7 @@ elastic.cg_verbose 		=	0
 elastic.max_iter		=	10000
 elastic.max_fmg_iter 	=	10000
 elastic.bottom_max_iter =	500
-elastic.max_fixed_iter 	=	1000
+elastic.max_fixed_iter 	=	200
 elastic.linop_maxorder 	=	2
 elastic.max_coarsening_level = 100000
 elastic.agglomeration 	=	1
@@ -113,9 +113,15 @@ elastic.body_force		=	0.0 0.0 0.0
 
 elastic.bc.type.xlo = trac trac
 elastic.bc.type.xhi = trac trac
+elastic.bc.type.ylo = trac disp
+elastic.bc.type.yhi = trac disp
+elastic.bc.type.xloylo = trac disp
+elastic.bc.type.xloyhi = trac disp
+elastic.bc.type.xhiylo = trac disp
+elastic.bc.type.xhiyhi = trac disp
 
-elastic.bc.val.xlo = 0.0 0.0
-elastic.bc.val.xhi = 0.0 0.0
+#elastic.bc.val.xlo = 0.0 0.0
+#elastic.bc.val.xhi = 0.0 0.0
 
 elastic.bc.disp_step = 1.e-2
 elastic.bc.disp_init = 2.e-2

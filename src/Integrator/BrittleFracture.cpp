@@ -317,6 +317,7 @@ BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 
 	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
 	const amrex::Real* DX = geom[lev].CellSize();
+	Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
 
 	for ( amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi )
 	{
@@ -417,21 +418,9 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 	else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
 
-	/*amrex::Vector<Set::Scalar> plottime;
-	amrex::Vector<int> plotstep;
-	std::string plotfolder = "crack";
-
-	plottime.resize(nlevels);
-	plotstep.resize(nlevels);
-	for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)elastic.test_step; plotstep[lev]=elastic.test_step;}
-	WritePlotFile(plotfolder,plottime,plotstep);*/
-
 	solver.solve(m_disp, m_rhs, material.model, elastic.tol_rel, elastic.tol_abs);
 	solver.compResidual(m_residual,m_disp,m_rhs,material.model);
-	//solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
-	//solver.compResidual(GetVecOfPtrs(m_residual),GetVecOfPtrs(m_disp),GetVecOfConstPtrs(m_rhs));
-	//solver.solve(GetVecOfPtrs(m_disp), GetVecOfConstPtrs(m_rhs), elastic.tol_rel, elastic.tol_abs);
-
+	
 	for (int lev = 0; lev < nlevels; lev++)
 	{
 		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
@@ -458,14 +447,7 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 					eps(1,0) = strain_box(i,j,k,3); eps(1,1) = strain_box(i,j,k,4); eps(1,2) = strain_box(i,j,k,5);
 					eps(2,0) = strain_box(i,j,k,6); eps(2,1) = strain_box(i,j,k,7); eps(2,2) = strain_box(i,j,k,8);
 				);
-				Set::Matrix sig;
-				sig = ((material.modeltype)).DW(eps);
-				for (int m = 0; m < AMREX_SPACEDIM; m++)
-				{
-					for (int n = 0; n < AMREX_SPACEDIM; n++)
-						energy_box(i,j,k,0) += 0.5*sig(m,n)*eps(m,n);
-				}
-				//energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
+				energy_box(i,j,k,0) = material.modeltype.W(eps);
 			});
 		}
 	}
