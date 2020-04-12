@@ -98,8 +98,6 @@ private:
 	Set::Field<Set::Scalar> m_energy_pristine_old;
 
 	struct{
-
-
 		Set::Scalar bottom_tol 				= 1.0E-6;
 		int         interval	 			= 1;
 		std::string type					= "single";

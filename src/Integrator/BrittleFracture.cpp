@@ -133,7 +133,7 @@ BrittleFracture::BrittleFracture() :
 	/* Need to replace this later with a proper specification of boundary.
 	   Right now we are hard-coding the tensile test and just requesting
 	   rate of pulling. */
-	IO::ParmParse pp_elastic_bc("elaswtic.bc");
+	IO::ParmParse pp_elastic_bc("elastic.bc");
 	pp_elastic_bc.query("disp_step",elastic.test_rate);
 	pp_elastic_bc.query("disp_init",elastic.test_init);
 	pp_elastic_bc.query("max_disp",elastic.test_max);
@@ -167,14 +167,14 @@ BrittleFracture::~BrittleFracture()
 void
 BrittleFracture::Initialize (int lev)
 {
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	
 	crack.ic->Initialize(lev,m_c);
 	crack.ic->Initialize(lev,m_c_old);
 	
 	m_driving_force[lev]->setVal(0.0);
 	
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	m_disp[lev]->setVal(0.0);
 	m_strain[lev]->setVal(0.0);
 	m_stress[lev]->setVal(0.0);
@@ -184,7 +184,7 @@ BrittleFracture::Initialize (int lev)
 	m_residual[lev]->setVal(0.0);
 	m_energy_pristine[lev] -> setVal(0.);
 	m_energy_pristine_old[lev] -> setVal(0.);
-	Util::Message(INFO);
+	//Util::Message(INFO);
 }
 
 void
@@ -195,7 +195,7 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 	  fracture model.
 	  For now we are just using isotropic degradation.
 	*/
-	Util::Message(INFO, lev);
+	//Util::Message(INFO, lev);
 	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
 					   dy(AMREX_D_DECL(0,1,0)),
 					   dz(AMREX_D_DECL(0,0,1)));
@@ -242,10 +242,10 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 void 
 BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 {
-	Util::Message(INFO);
+	//Util::Message(INFO);
 	if(crack.crackStressTest)
 	{
-		Util::Message(INFO);
+		//Util::Message(INFO);
 		elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 		ElasticityProblem(0.);
 		crack.solveElasticity = false;
@@ -253,7 +253,7 @@ BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	}
 	if(crack.newCrackProblem)
 	{
-		Util::Message(INFO);
+		//Util::Message(INFO);
 		elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 		crack.newCrackProblem = false;
 	}
@@ -317,7 +317,7 @@ BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 
 	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
 	const amrex::Real* DX = geom[lev].CellSize();
-	Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
+	//Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
 
 	for ( amrex::MFIter mfi(*m_c[lev],true); mfi.isValid(); ++mfi )
 	{
@@ -359,10 +359,10 @@ BrittleFracture::CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt)
 void
 BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 {
-	Util::Message(INFO);
+	//Util::Message(INFO);
 
 	material.model.resize(nlevels);
-	Util::Message(INFO,m_disp.size());
+	//Util::Message(INFO,m_disp.size());
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
 		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
@@ -384,9 +384,16 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 			     m_rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
 	}
 
+	// Mode I
 	elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
 	elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
 	elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+
+	//Mode II
+	//elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	//elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	//elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	
 	elastic.bc.Init(m_rhs,geom);
 	
 	LPInfo info;
