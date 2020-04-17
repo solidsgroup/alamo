@@ -19,8 +19,6 @@ public:
 	void Add(const int lev,
 			amrex::Vector<amrex::MultiFab * > &a_field)
 	{
-		//bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
-
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
@@ -44,8 +42,17 @@ public:
 									x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 					}
 
-					Set::Scalar norm = (A*(x-center)).lpNorm<2>();
-                	field(i,j,k) = 0.5 + 0.5*std::erf(((x-center).transpose() * A * (x-center) - 1.0) / eps / norm);
+					Set::Scalar min_value = 100.0;
+					for (int i=0 ; i < center.size(); i++)
+					{
+						Set::Scalar value = 0.;
+						Set::Scalar norm = (A[i]*(x-center[i])).lpNorm<2>();
+						value = 0.5 + 0.5*std::erf(((x-center[i]).transpose() * A[i] * (x-center[i]) - 1.0) / eps[i] / norm);
+						min_value = value < min_value ? value : min_value;
+					}
+					field(i,j,k) = min_value;
+					if (field(i,j,k) < 0.) field(i,j,k) = 0.;
+                	if (field(i,j,k) > 1.) field(i,j,k) = 1.;
 				});
 		}
 		a_field[lev]->FillBoundary();
@@ -53,27 +60,73 @@ public:
   
 private:
 	int dim = AMREX_SPACEDIM;
-	Set::Vector center = Set::Vector::Zero();
-	Set::Scalar eps = 0.01, eps_sq = eps*eps;
-	Set::Scalar window = 6.0*eps;
-	Set::Matrix A = Set::Matrix::Identity();
+	amrex::Vector<Set::Vector> center; 
+	amrex::Vector<Set::Scalar> eps;
+	amrex::Vector<Set::Matrix> A;
 	Mollifier moll = Mollifier::Dirac;
 
 public:
     static void Parse(Ellipsoid & value, IO::ParmParse & pp)
     {
-        if(pp.contains("center")) pp.queryarr("center",value.center);
+		amrex::Vector<Set::Scalar> center;
+        if(pp.contains("center")) pp.queryarr("center",center);
+
+		if(center.size() < AMREX_SPACEDIM) value.center.push_back(Set::Vector::Zero());
+		else
+		{
+			for (int i = 0; i<center.size(); i+=AMREX_SPACEDIM)
+				value.center.push_back(Set::Vector(AMREX_D_DECL(center[i],center[i+1],center[i+2])));
+		}
 		
-		if (pp.contains("A")) pp.queryarr("A",value.A);
+		amrex::Vector<Set::Scalar> A;
+		if (pp.contains("A"))
+		{
+			pp.queryarr("A", A);
+			if(A.size() < AMREX_SPACEDIM*AMREX_SPACEDIM) value.A.push_back(Set::Matrix::Identity());
+			else
+			{
+				int i=0, j=0;
+				Set::Matrix temp = Set::Matrix::Zero();
+				for (i=0; i<A.size(); i+=AMREX_SPACEDIM)
+				{
+					for (j=0; j<AMREX_SPACEDIM; j++)
+						temp(i,j) = A[i+j];
+					
+					if((i+j) % (AMREX_SPACEDIM*AMREX_SPACEDIM) == 0) 
+					{
+						value.A.push_back(temp);
+						temp = Set::Matrix::Zero();
+					}
+				}
+			}
+		}
 		if (pp.contains("radius"))
 		{ 
-			Set::Vector a_radius; 
+			amrex::Vector<Set::Scalar> a_radius; 
 			pp.queryarr("radius",a_radius);  
-			AMREX_D_TERM( value.A(0,0) = 1./a_radius[0];, value.A(1,1) = 1./a_radius[1];, value.A(2,2) = 1./a_radius[2]; );
+
+			if (a_radius.size() <= AMREX_SPACEDIM) value.A.push_back(Set::Matrix::Identity());
+			else
+			{
+				for (int i = 0; i<a_radius.size(); i+=AMREX_SPACEDIM)
+				{
+					Set::Matrix temp = Set::Matrix::Zero();
+					AMREX_D_TERM( temp(0,0) = 1./a_radius[i] ;, temp(1,1) = 1./a_radius[i+1] ;, temp(2,2) = 1./a_radius[i+2] ; );
+					value.A.push_back(temp);
+				}
+			}
 		}
 
-		pp.query("eps", value.eps);
-		if(value.eps <= 0.) value.eps = 1.e-5;
+		amrex::Vector<Set::Scalar> eps;
+		pp.queryarr("eps", eps);
+
+		if(eps.size() < 1) value.eps.push_back(1.e-5);
+		for (int i =0; i < value.A.size(); i++)
+		{
+			if (eps[i] <= 0.0) eps[i] = 1.e-5;
+			value.eps.push_back(eps[i]);
+		}
+		//if(value.eps <= 0.) value.eps = 1.e-5;
 
 		std::string mollifier;
         pp.query("mollifier",mollifier);

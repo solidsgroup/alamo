@@ -123,20 +123,21 @@ DuctileFracture::DuctileFracture() :
 
 	const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	
-	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_nodes, 	"Disp",			true);
-	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_nodes, 	"RHS",			true);
-	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_nodes,	"strain",		true);
-	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_nodes,	"stress",		true);
-	RegisterNodalFab (m_stressdev,	number_of_stress_components,	number_of_ghost_nodes,	"stress_dev",	true);
-	RegisterNodalFab (m_energy,		1,								number_of_ghost_nodes,	"energy",		true);
-	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_nodes,	"energyP",		true);
-	RegisterNodalFab (m_energy_pristine_old,		1,				number_of_ghost_nodes,	"energyPOld",		true);
-	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_nodes,	"residual",		true);
-
-	RegisterNodalFab (m_strain_p,	number_of_stress_components,	number_of_ghost_nodes,	"strainp",		true);
-	RegisterNodalFab (m_strain_p_old,	number_of_stress_components,	number_of_ghost_nodes,	"strainp_old",	true);
-	RegisterNodalFab (m_beta,		number_of_stress_components,	number_of_ghost_nodes,	"beta",			true);
-	RegisterNodalFab (m_alpha,		1,								number_of_ghost_nodes,	"strain",		true);
+	RegisterNodalFab (m_disp, 					AMREX_SPACEDIM, 				number_of_ghost_nodes, 	"Disp",			true);
+	RegisterNodalFab (m_rhs,  					AMREX_SPACEDIM, 				number_of_ghost_nodes, 	"RHS",			true);
+	RegisterNodalFab (m_strain,					number_of_stress_components,	number_of_ghost_nodes,	"strain",		true);
+	RegisterNodalFab (m_strain_old,				number_of_stress_components,	number_of_ghost_nodes,	"strain_old",	false);
+	RegisterNodalFab (m_stress,					number_of_stress_components,	number_of_ghost_nodes,	"stress",		true);
+	RegisterNodalFab (m_stressvm,				1,								number_of_ghost_nodes,	"stress_vm",	true);
+	RegisterNodalFab (m_stressdev,				number_of_stress_components,	number_of_ghost_nodes,	"stress_dev",	false);
+	RegisterNodalFab (m_energy,					1,								number_of_ghost_nodes,	"energy",		true);
+	RegisterNodalFab (m_energy_pristine,		1,								number_of_ghost_nodes,	"energyP",		true);
+	RegisterNodalFab (m_energy_pristine_old,	1,								number_of_ghost_nodes,	"energyPOld",	false);
+	RegisterNodalFab (m_residual,				AMREX_SPACEDIM,					number_of_ghost_nodes,	"residual",		true);
+	RegisterNodalFab (m_strain_p,				number_of_stress_components,	number_of_ghost_nodes,	"strainp",		true);
+	RegisterNodalFab (m_strain_p_old,			number_of_stress_components,	number_of_ghost_nodes,	"strainp_old",	false);
+	RegisterNodalFab (m_beta,					number_of_stress_components,	number_of_ghost_nodes,	"beta",			true);
+	RegisterNodalFab (m_alpha,					1,								number_of_ghost_nodes,	"eqv_strain",		true);
 
 	nlevels = maxLevel() + 1;
 
@@ -156,12 +157,14 @@ DuctileFracture::Initialize (int lev)
 	// Initialize elastic fields
 	m_disp[lev]->setVal(0.0);
 	m_strain[lev]->setVal(0.0);
+	m_strain_old[lev]->setVal(0.0);
 	m_energy[lev]->setVal(0.0);
 	m_energy_pristine[lev] -> setVal(0.);
 	m_energy_pristine_old[lev] -> setVal(0.);
 
 	// Initialize stress fields
 	m_stress[lev]->setVal(0.0);
+	m_stressvm[lev]->setVal(0.0);
 	m_stressdev[lev]->setVal(0.0);
 	m_rhs[lev]->setVal(0.0);
 	m_residual[lev]->setVal(0.0);
@@ -248,8 +251,8 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 		crack.newCrackProblem = false;
 	}
-	//elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
-
+	
+	// Let's first update the model fab
 	material.model.resize(nlevels);
 	material.modeltype.UpdateF0(Set::Matrix::Zero());
 
@@ -257,51 +260,40 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	{
 		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
 		material.model[ilev]->setVal((material.modeltype));
+		ScaledModulus(ilev,*(material.model)[ilev]);
+	}
 
+	// Next, let's swap old and new.. and update the fields
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
 		std::swap(*m_strain_p_old[ilev], *m_strain_p[ilev]);
+		std::swap(*m_strain_old[ilev], *m_strain[ilev]);
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		
-		m_energy_pristine[ilev]->setVal(0.);
-		m_strain_p[ilev]->setVal(0.);
-		ScaledModulus(ilev,*(material.model)[ilev]);
+		m_strain_p[ilev]->FillBoundary();
+		m_strain_p_old[ilev]->FillBoundary();
+		m_alpha[ilev]->FillBoundary();
+		m_beta[ilev]->FillBoundary();
 	}
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		m_strain_p[ilev]->FillBoundary();
-		m_alpha[ilev]->FillBoundary();
-		m_beta[ilev]->FillBoundary();
 		Set::Vector DX(geom[ilev].CellSize());
 
 		for (MFIter mfi(*(material.model)[ilev], false); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.growntilebox(2);
 			amrex::Array4<ductile_fracture_model_type>	const &model_box	= material.model[ilev]->array(mfi);
-			amrex::Array4<const Set::Scalar>			const &strain_p_box	= (*m_strain_p[ilev]).array(mfi);
+			amrex::Array4<const Set::Scalar>			const &strain_p_box	= (*m_strain_p_old[ilev]).array(mfi);
 			amrex::Array4<const Set::Scalar>			const &beta_box		= (*m_beta[ilev]).array(mfi);
 			amrex::Array4<const Set::Scalar>			const &alpha_box	= (*m_alpha[ilev]).array(mfi);
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
-				Set::Matrix eps, beta;
-				AMREX_D_PICK(
-					eps(0,0) = strain_p_box(i,j,k,0);
-					beta(0,0) = beta_box(i,j,k,0);
-					,
-					eps(0,0) = strain_p_box(i,j,k,0); eps(0,1) = strain_p_box(i,j,k,1);
-					eps(1,0) = strain_p_box(i,j,k,2); eps(1,1) = strain_p_box(i,j,k,3);
-					beta(0,0) = beta_box(i,j,k,0); beta(0,1) = beta_box(i,j,k,1);
-					beta(1,0) = beta_box(i,j,k,2); beta(1,1) = beta_box(i,j,k,3);
-					,
-					eps(0,0) = strain_p_box(i,j,k,0); eps(0,1) = strain_p_box(i,j,k,1); eps(0,2) = strain_p_box(i,j,k,2);
-					eps(1,0) = strain_p_box(i,j,k,3); eps(1,1) = strain_p_box(i,j,k,4); eps(1,2) = strain_p_box(i,j,k,5);
-					eps(2,0) = strain_p_box(i,j,k,6); eps(2,1) = strain_p_box(i,j,k,7); eps(2,2) = strain_p_box(i,j,k,8);
-					beta(0,0) = beta_box(i,j,k,0); beta(0,1) = beta_box(i,j,k,1); beta(0,2) = beta_box(i,j,k,2);
-					beta(1,0) = beta_box(i,j,k,3); beta(1,1) = beta_box(i,j,k,4); beta(1,2) = beta_box(i,j,k,5);
-					beta(2,0) = beta_box(i,j,k,6); beta(2,1) = beta_box(i,j,k,7); beta(2,2) = beta_box(i,j,k,8);
-				);
 				Model::Solid::Affine::PlasticState state;
-				state.epsp = eps; state.beta = beta; state.alpha = alpha_box(i,j,k,0);
+				state.epsp = Numeric::FieldToMatrix(strain_p_box,i,j,k);
+				state.beta = Numeric::FieldToMatrix(beta_box,i,j,k);
+				state.alpha = alpha_box(i,j,k,0);
 				model_box(i, j, k, 0).SetPlasticStrains(state);
             });
 		}
@@ -360,78 +352,41 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		{
 			const amrex::Box& box = mfi.validbox();
 			amrex::Array4<Set::Scalar>					const& sig_box 		= (*m_stress[lev]).array(mfi);
+			amrex::Array4<Set::Scalar>					const& sigvm_box 	= (*m_stressvm[lev]).array(mfi);
 			amrex::Array4<const Set::Scalar>			const& eps_box 		= (*m_strain[lev]).array(mfi);
+			amrex::Array4<const Set::Scalar>			const& eps_old_box 	= (*m_strain_old[lev]).array(mfi);
 			amrex::Array4<Set::Scalar>					const& strainp_box 	= (*m_strain_p[lev]).array(mfi);
 			amrex::Array4<Set::Scalar>					const& beta_box 	= (*m_beta[lev]).array(mfi);
 			amrex::Array4<Set::Scalar>					const& alpha_box 	= (*m_alpha[lev]).array(mfi);
 			amrex::Array4<Set::Scalar>					const& sigdev_box 	= (*m_stressdev[lev]).array(mfi);
 			amrex::Array4<Set::Scalar>					const& energy_box 	= (*m_energy_pristine[lev]).array(mfi);
-			//amrex::Array4<Set::Scalar>					const& energy_box_old 	= (*m_energy_pristine_old[lev]).array(mfi);
+			amrex::Array4<Set::Scalar>					const& energy_box_old 	= (*m_energy_pristine_old[lev]).array(mfi);
 			amrex::Array4<ductile_fracture_model_type>	const& model_box 	= material.model[lev]->array(mfi);
 
 			amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-				Set::Matrix eps, sig, sigdev;
-				AMREX_D_PICK(
-					sig(0,0) = sig_box(i,j,k,0);
-					eps(0,0) = eps_box(i,j,k,0);
-					,
-					sig(0,0) = sig_box(i,j,k,0); sig(0,1) = sig_box(i,j,k,1);
-					sig(1,0) = sig_box(i,j,k,2); sig(1,1) = sig_box(i,j,k,3);
-					eps(0,0) = eps_box(i,j,k,0); eps(0,1) = eps_box(i,j,k,1);
-					eps(1,0) = eps_box(i,j,k,2); eps(1,1) = eps_box(i,j,k,3);
-					,
-					sig(0,0) = sig_box(i,j,k,0); sig(0,1) = sig_box(i,j,k,1); sig(0,2) = sig_box(i,j,k,2);
-					sig(1,0) = sig_box(i,j,k,3); sig(1,1) = sig_box(i,j,k,4); sig(1,2) = sig_box(i,j,k,5);
-					sig(2,0) = sig_box(i,j,k,6); sig(2,1) = sig_box(i,j,k,7); sig(2,2) = sig_box(i,j,k,8);
-					eps(0,0) = eps_box(i,j,k,0); eps(0,1) = eps_box(i,j,k,1); eps(0,2) = eps_box(i,j,k,2);
-					eps(1,0) = eps_box(i,j,k,3); eps(1,1) = eps_box(i,j,k,4); eps(1,2) = eps_box(i,j,k,5);
-					eps(2,0) = eps_box(i,j,k,6); eps(2,1) = eps_box(i,j,k,7); eps(2,2) = eps_box(i,j,k,8);
-				);
-				
-				sigdev = sig - (1.0/((double)AMREX_SPACEDIM))*sig.trace()*Set::Matrix::Identity();
-				
-				AMREX_D_PICK(
-					sigdev_box(i,j,k,0) = sigdev(0,0);
-					,
-					sigdev_box(i,j,k,0) = sigdev(0,0); sigdev_box(i,j,k,1) = sigdev(0,1);
-					sigdev_box(i,j,k,2) = sigdev(1,0); sigdev_box(i,j,k,3) = sigdev(1,1);
-					,
-					sigdev_box(i,j,k,0) = sigdev(0,0); sigdev_box(i,j,k,1) = sigdev(0,1); sigdev_box(i,j,k,2) = sigdev(0,2);
-					sigdev_box(i,j,k,3) = sigdev(1,0); sigdev_box(i,j,k,4) = sigdev(1,1); sigdev_box(i,j,k,5) = sigdev(1,2);
-					sigdev_box(i,j,k,6) = sigdev(2,0); sigdev_box(i,j,k,7) = sigdev(2,1); sigdev_box(i,j,k,8) = sigdev(2,2);
-				);
-				//energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
+				Set::Matrix sig = Numeric::FieldToMatrix(sig_box,i,j,k);
+				Set::Matrix eps = Numeric::FieldToMatrix(eps_box,i,j,k);
+				Set::Matrix eps_old = Numeric::FieldToMatrix(eps_old_box,i,j,k);
+				Set::Matrix sigdev = sig - (1.0/((double)AMREX_SPACEDIM))*sig.trace()*Set::Matrix::Identity();
+				Set::Matrix epsdev = eps - (1.0/((double)AMREX_SPACEDIM))*eps.trace()*Set::Matrix::Identity();
+				Set::Matrix epsolddev = eps_old - (1.0/((double)AMREX_SPACEDIM))*eps_old.trace()*Set::Matrix::Identity();
 
-				model_box(i,j,k,0).EvolvePlasticStrain(sig,eps,0);
-				sig = model_box(i,j,k,0).DW(eps);
+				Numeric::MatrixToField(sigdev_box,i,j,k,sigdev);
 				
-				AMREX_D_PICK(
-					strainp_box(i,j,k,0) = model_box(i,j,k,0).curr.epsp(0,0);
-					beta_box(i,j,k,0) = model_box(i,j,k,0).curr.beta(0,0);
-					sig_box(i,j,k,0) = sig(0,0);
-					,
-					strainp_box(i,j,k,0) = model_box(i,j,k,0).curr.epsp(0,0); strainp_box(i,j,k,1) = model_box(i,j,k,0).curr.epsp(0,1);
-					strainp_box(i,j,k,2) = model_box(i,j,k,0).curr.epsp(1,0); strainp_box(i,j,k,3) = model_box(i,j,k,0).curr.epsp(1,1);
-					beta_box(i,j,k,0) = model_box(i,j,k,0).curr.beta(0,0); beta_box(i,j,k,1) = model_box(i,j,k,0).curr.beta(0,1);
-					beta_box(i,j,k,2) = model_box(i,j,k,0).curr.beta(1,0); beta_box(i,j,k,3) = model_box(i,j,k,0).curr.beta(1,1);
-					sig_box(i,j,k,0) = sig(0,0); sig_box(i,j,k,1) = sig(0,1);
-					sig_box(i,j,k,2) = sig(1,0); sig_box(i,j,k,3) = sig(1,1);
-					,
-					strainp_box(i,j,k,0) = model_box(i,j,k,0).curr.epsp(0,0); strainp_box(i,j,k,1) = model_box(i,j,k,0).curr.epsp(0,1); strainp_box(i,j,k,2) = model_box(i,j,k,0).curr.epsp(0,2);
-					strainp_box(i,j,k,3) = model_box(i,j,k,0).curr.epsp(1,0); strainp_box(i,j,k,4) = model_box(i,j,k,0).curr.epsp(1,1); strainp_box(i,j,k,5) = model_box(i,j,k,0).curr.epsp(1,2);
-					strainp_box(i,j,k,6) = model_box(i,j,k,0).curr.epsp(2,0); strainp_box(i,j,k,7) = model_box(i,j,k,0).curr.epsp(2,1); strainp_box(i,j,k,8) = model_box(i,j,k,0).curr.epsp(2,2);
-					beta_box(i,j,k,0) = model_box(i,j,k,0).curr.beta(0,0); beta_box(i,j,k,1) = model_box(i,j,k,0).curr.beta(0,1); beta_box(i,j,k,2) = model_box(i,j,k,0).curr.beta(0,2);
-					beta_box(i,j,k,3) = model_box(i,j,k,0).curr.beta(1,0); beta_box(i,j,k,4) = model_box(i,j,k,0).curr.beta(1,1); beta_box(i,j,k,5) = model_box(i,j,k,0).curr.beta(1,2);
-					beta_box(i,j,k,6) = model_box(i,j,k,0).curr.beta(2,0); beta_box(i,j,k,7) = model_box(i,j,k,0).curr.beta(2,1); beta_box(i,j,k,8) = model_box(i,j,k,0).curr.beta(2,2);
-					sig_box(i,j,k,0) = sig(0,0); sig_box(i,j,k,1) = sig(0,1); sig_box(i,j,k,2) = sig(0,2);
-					sig_box(i,j,k,3) = sig(1,0); sig_box(i,j,k,4) = sig(1,1); sig_box(i,j,k,5) = sig(1,2);
-					sig_box(i,j,k,6) = sig(2,0); sig_box(i,j,k,7) = sig(2,1); sig_box(i,j,k,8) = sig(2,2);
-				);
+				model_box(i,j,k,0).EvolvePlasticStrain(sig,epsdev-epsolddev,dt[lev]);
+				
+				sig = model_box(i,j,k,0).DW(eps);
+				sigvm_box(i,j,k,0) = (sig - 1.0/((double)AMREX_SPACEDIM)*sig.trace()*Set::Matrix::Identity()).norm();
+
+				Numeric::MatrixToField(strainp_box,i,j,k,model_box(i,j,k,0).curr.epsp);
+				Numeric::MatrixToField(beta_box,i,j,k,model_box(i,j,k,0).curr.beta);
+				Numeric::MatrixToField(sig_box,i,j,k,sig);
+				
 				alpha_box(i,j,k,0) = model_box(i,j,k,0).curr.alpha;
 
 				material.modeltype.UpdateF0(model_box(i,j,k).curr.epsp);
 				energy_box(i,j,k,0) = material.modeltype.W(eps);
-				//energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
+				energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
 			});
 		}
 
@@ -569,7 +524,8 @@ DuctileFracture::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const 
 			//				- Numeric::Interpolate::NodeToCellAverage(ep_old,i,j,k,n))
 			//				*(AMREX_D_TERM(DX[0],*DX[1],*DX[2]));
 		}
-		
+		ep_norm *= crack.boundary->g_phi(c_old(i,j,k,0),0);
+		ep_err_norm *= crack.boundary->g_phi(c_old(i,j,k,0),0);
 	});
 }
 

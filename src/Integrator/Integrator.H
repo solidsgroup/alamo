@@ -273,8 +273,9 @@ protected:
 	// TIME (STEP) KEEPING
 protected:
 	amrex::Real timestep;	///< Timestep for the base level of refinement
-private:
 	amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
+private:
+	
 	amrex::Vector<int> nsubsteps;	///< how many substeps on each level?
   
   

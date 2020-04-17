@@ -127,14 +127,7 @@ private:
 		bool 		agglomeration 	  		= true;
 		bool 		consolidation 	  		= false;
 
-		// Elastic BC
-		//std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
-		//std::array<BC::Operator::Elastic<fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
-
-		//Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
-		//Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
 		BC::Operator::Elastic<fracture_model_type> 	bc;
-		//Operator::Elastic<fracture_model_type> op;
 		Set::Vector body_force 						= Set::Vector::Zero();
 		Set::Scalar bc_top 							= 0.;
 
