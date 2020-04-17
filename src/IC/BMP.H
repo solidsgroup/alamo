@@ -49,8 +49,19 @@ public:
 
 				Set::Scalar x, y;
 
-                x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
-                y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
+                if (fit == Fit::Stretch)
+                {
+                    x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
+                    y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
+                }
+                else if (fit == Fit::FitWidth)
+                {
+                    x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
+                    y = ((Set::Scalar)(j - domain.hiVect()[1]/2) / (Set::Scalar)(domain.hiVect()[1])) * (img_width / img_height);
+
+                    y = std::min(y,1.0);
+                    y = std::max(y,0.0);
+                }
 
                 
                 Set::Scalar img_x = (img_width)  * x;
@@ -104,7 +115,8 @@ public:
   
 private:
     Util::BMP bmp;
-    Fit fit = Fit::Stretch;
+    //Fit fit = Fit::Stretch;
+    Fit fit = Fit::FitWidth;
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
