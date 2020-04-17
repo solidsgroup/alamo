@@ -95,8 +95,10 @@ private:
 	
 	Set::Field<Set::Scalar> m_disp;				///< Displacement variable
 	Set::Field<Set::Scalar> m_strain;				///< Total strain variable
+	Set::Field<Set::Scalar> m_strain_old;			///< Total strain variable
 	Set::Field<Set::Scalar> m_stress;				///< Stress field
 	Set::Field<Set::Scalar> m_stressdev;			///< Deviatoric Stress field
+	Set::Field<Set::Scalar> m_stressvm;
 	Set::Field<Set::Scalar> m_rhs;					///< RHS field for inhomogeneous problem
 	Set::Field<Set::Scalar> m_residual;			///< Implicit problem residual field
 	Set::Field<Set::Scalar> m_energy;				///< Elastic energy field
@@ -182,6 +184,7 @@ private:
 
 	Set::Scalar refinement_threshold = 0.001;			///< Criterion for cell refinement
 	Set::Scalar tol_crack = 1e-7, tol_ep = 1e-3;
+	//int plastic_iter = 25;
 	int nlevels;
 };
 }
