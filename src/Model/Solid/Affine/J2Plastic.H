@@ -130,6 +130,7 @@ public:
         prev.epsp = a_state.epsp; curr.epsp = a_state.epsp;
         prev.beta = a_state.beta; curr.beta = a_state.beta;
         prev.alpha = a_state.alpha; curr.alpha = a_state.alpha;
+        T::UpdateF0(curr.epsp);
     }
 
     PlasticState GetPlasticState()
