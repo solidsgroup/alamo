@@ -12,7 +12,8 @@ namespace IC
 class BMP : public IC
 {
 public:
-	enum Type {XYZ, XY, YZ, XZ};
+	//enum Type {XYZ, XY, YZ, XZ};
+    enum Fit {Stretch,FitWidth};
 
 	BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
     {
@@ -47,21 +48,9 @@ public:
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
 				Set::Scalar x, y;
-                // NODE
-                if (a_field[0]->ixType() == amrex::IndexType::TheNodeType())
-                {
-                    x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
-                    y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
 
-				    //x = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];
-				    //y = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];
-                }
-                else if (a_field[0]->ixType() == amrex::IndexType::TheCellType())
-                {
-                    Util::Abort(INFO,"Unsupported");
-				    //x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
-				    //y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-                }
+                x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
+                y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
 
                 
                 Set::Scalar img_x = (img_width)  * x;
@@ -73,11 +62,11 @@ public:
                 int I = (int)(img_x);
                 int J = (int)(img_y);
 
+                Set::Scalar x1 = I*img_dx, x2 = (I+1)*img_dx;
+                Set::Scalar y1 = J*img_dy, y2 = (J+1)*img_dy;
+
                 if (I < bmp.nx-1 && J < bmp.ny - 1)
                 {
-                    Set::Scalar x1 = I*img_dx, x2 = (I+1)*img_dx;
-                    Set::Scalar y1 = J*img_dy, y2 = (J+1)*img_dy;
-
                     Set::Scalar fQ11 = ((Set::Scalar)(bmp(I,  J  )[1]) - 136.0) / (255.0 - 136.0);
                     Set::Scalar fQ12 = ((Set::Scalar)(bmp(I,  J+1)[1]) - 136.0) / (255.0 - 136.0);
                     Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[1]) - 136.0) / (255.0 - 136.0);
@@ -85,6 +74,23 @@ public:
 
                     field(i,j,k) =
                         (fQ11*(x2-img_x)*(y2-img_y) + fQ21*(img_x-x1)*(y2-img_y) + fQ12*(x2-img_x)*(img_y-y1) + fQ22*(img_x-x1)*(img_y-y1)) / (img_dx * img_dy);
+                }
+                else if (I == bmp.nx-1 && J <  bmp.ny - 1)
+                {
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[1]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I  ,J+1)[1]) - 136.0) / (255.0 - 136.0);
+                    field(i,j,k) = fQ11 + (fQ12-fQ11) * (img_y - y1);
+                }
+                else if (I <  bmp.nx-1 && J == bmp.ny - 1)
+                {
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[1]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[1]) - 136.0) / (255.0 - 136.0);
+                    field(i,j,k) = fQ11 + (fQ21-fQ11) * (img_x - x1);
+                }
+                else if (I ==  bmp.nx-1 && J == bmp.ny - 1)
+                {
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[1]) - 136.0) / (255.0 - 136.0);
+                    field(i,j,k) = fQ11;
                 }
                 else
                 {
@@ -98,10 +104,7 @@ public:
   
 private:
     Util::BMP bmp;
-	int dim = AMREX_SPACEDIM;
-	amrex::Vector<Set::Scalar> center;
-	Set::Scalar radius,alpha_in,alpha_out;
-	Type type;
+    Fit fit = Fit::Stretch;
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
