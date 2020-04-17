@@ -14,6 +14,7 @@
 #include "BC/BC.H"
 
 #include "IC/Ellipse.H"
+#include "IC/BMP.H"
 #include "Numeric/Stencil.H"
 
 #include "Model/Solid/Solid.H"
@@ -47,6 +48,11 @@ public:
             {
                 ic = new IC::Ellipse(geom);
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
+            }
+            else if (type=="bmp")
+            {
+                ic = new IC::BMP(geom);
+                pp.queryclass("ellipse",static_cast<IC::BMP*>(ic));
             }
             if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
             if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
