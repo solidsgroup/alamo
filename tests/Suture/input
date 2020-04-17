@@ -8,7 +8,7 @@ stop_time		    = 0.1
 
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 4
+amr.max_level		    = 3
 amr.n_cell		    = 64 32 32
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
@@ -40,6 +40,7 @@ elastic.solver.nriters = 1
 
 elastic.bc.type.xlo = disp trac
 elastic.bc.type.xhi = disp trac
+
 elastic.bc.type.yhi = disp trac
 elastic.bc.type.xloyhi = disp trac
 elastic.bc.type.xhiyhi = disp trac
