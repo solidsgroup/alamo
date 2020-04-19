@@ -107,7 +107,7 @@ public:
         Set::Matrix sigdev = sigma - (1.0/((double)AMREX_SPACEDIM))*sigma.trace()*Set::Matrix::Identity();
         //Set::Matrix epsdev = strain - strain.trace()*Set::Matrix::Identity();
 
-        Set::Matrix zeta_trial = sigdev + 2.0*T::mu*strain - prev.beta;
+        Set::Matrix zeta_trial = sigdev  - prev.beta;
 
         Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(yield_strength + theta*hardening_modulus*prev.alpha);
         if( f_trial <= 0.0)
@@ -130,7 +130,7 @@ public:
         prev.epsp = a_state.epsp; curr.epsp = a_state.epsp;
         prev.beta = a_state.beta; curr.beta = a_state.beta;
         prev.alpha = a_state.alpha; curr.alpha = a_state.alpha;
-        T::UpdateF0(curr.epsp);
+        //T::UpdateF0(curr.epsp);
     }
 
     PlasticState GetPlasticState()
