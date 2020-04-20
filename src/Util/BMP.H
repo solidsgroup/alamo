@@ -47,6 +47,28 @@ public:
         Util::Assert(INFO,TEST(j < ny),"j = ",j," ny = ", ny);
         return data[nx*j + i];
     }
+    std::array<int,3> min()
+    {
+        std::array<int,3> _min = {std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
+        for (unsigned int i = 0; i < data.size(); i++)
+        {
+            if (_min[0] < data[i][0]) _min[0] = data[i][0];
+            if (_min[1] < data[i][1]) _min[1] = data[i][1];
+            if (_min[2] < data[i][2]) _min[2] = data[i][2];
+        }
+        return _min;
+    }
+    std::array<int,3> max()
+    {
+        std::array<int,3> _max = {0, 0, 0};
+        for (unsigned int i = 0; i < data.size(); i++)
+        {
+            if (_max[0] > data[i][0]) _max[0] = data[i][0];
+            if (_max[1] > data[i][1]) _max[1] = data[i][1];
+            if (_max[2] > data[i][2]) _max[2] = data[i][2];
+        }
+        return _max;
+    }
 
 public:
     int nx, ny;

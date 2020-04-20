@@ -14,6 +14,7 @@ class BMP : public IC
 public:
 	//enum Type {XYZ, XY, YZ, XZ};
     enum Fit {Stretch,FitWidth,FitHeight};
+    enum Channel {R=0, G=1, B=2};
 
 	BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
 
@@ -29,8 +30,8 @@ public:
         Set::Vector DX(geom[lev].CellSize());
         amrex::Box domain = geom[lev].Domain();
 
-        Set::Scalar width  = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
-        Set::Scalar height = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];
+        //Set::Scalar width  = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
+        //Set::Scalar height = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];
 
         Set::Scalar img_width = (Set::Scalar)(bmp.nx-1);
         Set::Scalar img_height = (Set::Scalar)(bmp.ny-1);
@@ -75,9 +76,6 @@ public:
                 Set::Scalar img_x = (img_width)  * x;
                 Set::Scalar img_y = (img_height) * y;
 
-                //Util::Message(INFO,"imgx = ", img_x);
-                //Util::Message(INFO,"imgy = ", img_y);
-
                 int I = (int)(img_x);
                 int J = (int)(img_y);
 
@@ -86,29 +84,29 @@ public:
 
                 if (I < bmp.nx-1 && J < bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I,  J  )[1]) - 136.0) / (255.0 - 136.0);
-                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I,  J+1)[1]) - 136.0) / (255.0 - 136.0);
-                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[1]) - 136.0) / (255.0 - 136.0);
-                    Set::Scalar fQ22 = ((Set::Scalar)(bmp(I+1,J+1)[1]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I,  J  )[channel]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I,  J+1)[channel]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[channel]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ22 = ((Set::Scalar)(bmp(I+1,J+1)[channel]) - 136.0) / (255.0 - 136.0);
 
                     field(i,j,k) =
                         (fQ11*(x2-img_x)*(y2-img_y) + fQ21*(img_x-x1)*(y2-img_y) + fQ12*(x2-img_x)*(img_y-y1) + fQ22*(img_x-x1)*(img_y-y1)) / (img_dx * img_dy);
                 }
                 else if (I == bmp.nx-1 && J <  bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[1]) - 136.0) / (255.0 - 136.0);
-                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I  ,J+1)[1]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ12 = ((Set::Scalar)(bmp(I  ,J+1)[channel]) - 136.0) / (255.0 - 136.0);
                     field(i,j,k) = fQ11 + (fQ12-fQ11) * (img_y - y1);
                 }
                 else if (I <  bmp.nx-1 && J == bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[1]) - 136.0) / (255.0 - 136.0);
-                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[1]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[channel]) - 136.0) / (255.0 - 136.0);
                     field(i,j,k) = fQ11 + (fQ21-fQ11) * (img_x - x1);
                 }
                 else if (I ==  bmp.nx-1 && J == bmp.ny - 1)
                 {
-                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[1]) - 136.0) / (255.0 - 136.0);
+                    Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - 136.0) / (255.0 - 136.0);
                     field(i,j,k) = fQ11;
                 }
                 else
@@ -124,14 +122,15 @@ public:
 private:
     Util::BMP bmp;
     Fit fit = Fit::Stretch;
-    //Fit fit = Fit::FitHeight;
+    Channel channel = Channel::G;
+    Set::Scalar min=0.0, max=255.0;
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
         std::string filename;
         pp.query("filename",filename);
-        value.Define(filename);
+        value.bmp.Define(filename);
 
         std::string fit = "stretch";
         pp.query("fit",fit);
@@ -139,7 +138,19 @@ public:
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
-    }    
+
+        std::string channel = "g";
+        pp.query("channel",channel);
+        if      (channel=="r" || channel=="R") value.channel = Channel::R;
+        else if (channel=="g" || channel=="G") value.channel = Channel::G;
+        else if (channel=="b" || channel=="B") value.channel = Channel::B;
+        else Util::Abort(INFO,"Invalid value for bmp channel - should be r/g/b but received '",channel,"'");
+
+        value.min = (Set::Scalar) value.bmp.min()[value.channel];
+        value.max = (Set::Scalar) value.bmp.max()[value.channel];
+        pp.query("min",value.min);
+        pp.query("max",value.max);
+}    
 };
 }
 #endif
