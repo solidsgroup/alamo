@@ -41,6 +41,33 @@ public:
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
         {
+            IO::ParmParse pp("elastic");
+            {
+                // Initialize elastic model
+                //if (pp.contains("model"))
+                //{
+                //    pp.queryclass("model",elastic.model1);
+                //    pp.queryclass("model",elastic.model2);
+                //}
+                //else if (pp.contains("model1") && pp.contains("model2"))
+                //{
+                pp.queryclass("model1",elastic.model1);
+                pp.queryclass("model2",elastic.model2);
+                //}
+                //else
+                //{
+                //    Util::Abort(INFO,"Did not find (model) or (model1 & model2) when querying");
+                //}
+                
+
+                // TODO: figure out how to initialize solvers in
+                // here instead of TimeStepBegin...
+
+                pp.queryclass("bc",elastic.bc);
+            }
+        }
+
+        {
             IO::ParmParse pp("ic");
             std::string type;
             pp.query("type",type);
@@ -52,23 +79,10 @@ public:
             else if (type=="bmp")
             {
                 ic = new IC::BMP(geom);
-                pp.queryclass("ellipse",static_cast<IC::BMP*>(ic));
+                pp.queryclass("bmp",static_cast<IC::BMP*>(ic));
             }
-            if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
-            if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
-        }
-        {
-            IO::ParmParse pp("elastic");
-            {
-                // Initialize elastic model
-                pp.queryclass("model",elastic.model);
-                elastic.model.F0 = Set::Matrix::Zero();
-
-                // TODO: figure out how to initialize solvers in
-                // here instead of TimeStepBegin...
-
-                pp.queryclass("bc",elastic.bc);
-            }
+            if (pp.contains("Fmatrix"))    {pp.queryarr("Fmatrix",   elastic.model1.F0); Util::Warning(INFO,"This is going to be depricated"); }
+            if (pp.contains("Finclusion")) {pp.queryarr("Finclusion",elastic.model2.F0); Util::Warning(INFO,"This is going to be depricated"); }
         }
     }
 
@@ -100,7 +114,7 @@ protected:
             amrex::Box domain(geom[lev].Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
             model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev]->setVal(elastic.model);
+            model_mf[lev]->setVal(elastic.model1);
 
             eta_mf[lev]->FillBoundary();
 
@@ -114,9 +128,8 @@ protected:
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = elastic.model;
-                    model(i, j, k).F0 = Fgb;
+                    model(i, j, k).ddw = elastic.model1.ddw * (1.0 - eta(i, j, k)) + elastic.model2.ddw * eta(i, j, k);
+                    model(i, j, k).F0 = (1.0 - eta(i, j, k)) * elastic.model1.F0     + eta(i, j, k) * elastic.model2.F0;
                 });
             }
 
@@ -139,10 +152,12 @@ protected:
 
         elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
 
+        elastic.solver->DW(stress_mf,disp_mf,model_mf);
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
-            elastic.op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            elastic.op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            //elastic.op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+            //elastic.op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            strain_mf[lev]->setVal(0.0);
         }
     }
 
@@ -192,7 +207,7 @@ private:
     Set::Matrix Finclusion = Set::Matrix::Zero();
 
     struct {
-        Model::Solid::Affine::Isotropic model;
+        model_type model1, model2;
         Operator::Elastic<Model::Solid::Affine::Isotropic> op;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic<model_type> bc;

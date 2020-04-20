@@ -21,14 +21,19 @@ geometry.is_periodic	    = 0 0 0
 
 # ellipse configuration
 ic.type        = bmp
-ic.ellipse.a   = 1.0 0.75 0.5  # elliqpse radii
-ic.ellipse.x0  = 0 0 0 # location of ellipse center
-ic.ellipse.eps = 0.1 # diffuse boundary
-ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
+ic.bmp.filename = Interface_Blur2.bmp
+ic.bmp.fit      = fitwidth
+#ic.ellipse.a   = 1.0 0.75 0.5  # elliqpse radii
+#ic.ellipse.x0  = 0 0 0 # location of ellipse center
+#ic.ellipse.eps = 0.1 # diffuse boundary
 
-# elastic moduli
-elastic.model.E = 210 
-elastic.model.nu = 0.3
+
+elastic.model1.E = 210 
+elastic.model1.nu = 0.3
+#elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
+elastic.model2.E = 210 
+elastic.model2.nu = 0.3
+elastic.model2.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
@@ -38,9 +43,14 @@ elastic.solver.nriters = 1
 #elastic.bc.type.ylo = trac trac trac
 #elastic.bc.type.yhi = trac trac trac
 
-elastic.bc.type.xlo = disp trac
-elastic.bc.type.xhi = disp trac
 
-elastic.bc.type.yhi = disp trac
+elastic.bc.type.xlo    = disp trac
+elastic.bc.type.xhi    = disp trac
+
+elastic.bc.type.yhi    = disp trac
 elastic.bc.type.xloyhi = disp trac
 elastic.bc.type.xhiyhi = disp trac
+
+#elastic.bc.type.ylo    = trac trac
+#elastic.bc.type.xloylo = disp trac
+#elastic.bc.type.xhiylo = disp trac

@@ -33,9 +33,9 @@ public:
         return ddw*gradF;
     };
 
-    virtual Set::Scalar W(Set::Matrix)           {Util::Abort(INFO,"W not implemented"); return 0.0;};
-    virtual Set::Matrix DW(Set::Matrix)          {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
-    virtual Set::Matrix4<AMREX_SPACEDIM,Sym> DDW(Set::Matrix) {Util::Abort(INFO,"DDW not implemented"); return ddw;};
+    virtual Set::Scalar W(const Set::Matrix &) const          {Util::Abort(INFO,"W not implemented"); return 0.0;};
+    virtual Set::Matrix DW(const Set::Matrix &) const         {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
+    virtual Set::Matrix4<AMREX_SPACEDIM,Sym> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
 	
 public:
     mutable Set::Matrix4<AMREX_SPACEDIM,Sym> ddw;

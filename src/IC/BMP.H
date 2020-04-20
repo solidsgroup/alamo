@@ -13,15 +13,13 @@ class BMP : public IC
 {
 public:
 	//enum Type {XYZ, XY, YZ, XZ};
-    enum Fit {Stretch,FitWidth};
+    enum Fit {Stretch,FitWidth,FitHeight};
 
-	BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
-    {
-        Define();
-    }
-	void Define()
+	BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
+
+	void Define(std::string bmpfilename)
 	{
-        bmp.Define("Interface_Blur2.bmp");
+        bmp.Define(bmpfilename);//"Interface_Blur2.bmp");
 	}
   
 	void Add(const int lev,
@@ -56,13 +54,23 @@ public:
                 }
                 else if (fit == Fit::FitWidth)
                 {
+                    Set::Scalar aspect_ratio = img_width / img_height;
                     x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
-                    y = ((Set::Scalar)(j - domain.hiVect()[1]/2) / (Set::Scalar)(domain.hiVect()[1])) * (img_width / img_height);
-
-                    y = std::min(y,1.0);
-                    y = std::max(y,0.0);
+                    y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
+                    y -= 0.5 - 0.5 / aspect_ratio;
+                    y *= aspect_ratio;
+                }
+                else if (fit == Fit::FitHeight)
+                {
+                    Set::Scalar aspect_ratio = img_height / img_width;
+                    x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
+                    y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
+                    x -= 0.5 - 0.5 / aspect_ratio;
+                    x *= aspect_ratio;
                 }
 
+                x = std::min(x,1.0); y = std::min(y,1.0);
+                x = std::max(x,0.0); y = std::max(y,0.0);
                 
                 Set::Scalar img_x = (img_width)  * x;
                 Set::Scalar img_y = (img_height) * y;
@@ -115,24 +123,22 @@ public:
   
 private:
     Util::BMP bmp;
-    //Fit fit = Fit::Stretch;
-    Fit fit = Fit::FitWidth;
+    Fit fit = Fit::Stretch;
+    //Fit fit = Fit::FitHeight;
 
 public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
-        //pp.queryarr("x0",value.x0);
-        //pp.query("eps",value.eps);
-        //if (pp.contains("A"))
-        //{
-        //    pp.queryarr("A",value.A);
-        //}
-        //else if (pp.contains("a"))
-        //{
-        //    Set::Vector a = Set::Vector::Ones();
-        //    pp.queryarr("a",a);
-        //    for (int d = 0; d < AMREX_SPACEDIM; d++) value.A(d,d) = 1./a(d)/a(d);
-        //}
+        std::string filename;
+        pp.query("filename",filename);
+        value.Define(filename);
+
+        std::string fit = "stretch";
+        pp.query("fit",fit);
+        if (fit=="stretch")        value.fit = Fit::Stretch;
+        else if (fit=="fitheight") value.fit = Fit::FitHeight;
+        else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
+        else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
     }    
 };
 }
