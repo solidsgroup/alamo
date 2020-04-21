@@ -120,8 +120,6 @@ public:
         curr.alpha = prev.alpha + SQ2O3*dGamma;
         curr.beta = prev.beta + SQ2O3*dH*n_new;
         curr.epsp = prev.epsp + dGamma*n_new;
-        //curr.alpha = curr.epsp(0,0);
-
         T::UpdateF0(curr.epsp);
     }
 
@@ -136,7 +134,7 @@ public:
         prev.epsp = a_state.epsp; curr.epsp = a_state.epsp;
         prev.beta = a_state.beta; curr.beta = a_state.beta;
         prev.alpha = a_state.alpha; curr.alpha = a_state.alpha;
-        //T::UpdateF0(curr.epsp);
+        T::UpdateF0(curr.epsp);
     }
 
     PlasticState GetPlasticState()
