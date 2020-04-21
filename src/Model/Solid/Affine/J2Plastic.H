@@ -99,10 +99,8 @@ public:
         return (yield_strength0*alpha + 0.5*hardening_modulus0*alpha*alpha);
     }
 
-    void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix strain, Set::Scalar /*dt*/)
+    void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix /*strain*/, Set::Scalar /*dt*/)
     {
-        // Note that in this case strain matrix is actually change in deviatoric strain tensor
-
         Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));
         Set::Matrix sigdev = sigma - (1.0/((double)AMREX_SPACEDIM))*sigma.trace()*Set::Matrix::Identity();
         //Set::Matrix epsdev = strain - strain.trace()*Set::Matrix::Identity();
@@ -112,7 +110,7 @@ public:
         Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(yield_strength + theta*hardening_modulus*prev.alpha);
         if( f_trial <= 0.0)
         {
-            curr.epsp = curr.epsp; curr.alpha = prev.alpha; curr.beta = prev.beta; 
+            curr.epsp = prev.epsp; curr.alpha = prev.alpha; curr.beta = prev.beta; 
             return;
         }
         Set::Matrix n_new = zeta_trial/zeta_trial.norm();
@@ -122,7 +120,15 @@ public:
         curr.alpha = prev.alpha + SQ2O3*dGamma;
         curr.beta = prev.beta + SQ2O3*dH*n_new;
         curr.epsp = prev.epsp + dGamma*n_new;
+        //curr.alpha = curr.epsp(0,0);
+
         T::UpdateF0(curr.epsp);
+    }
+
+    void SetPlasticStrains()
+    {
+        prev.epsp = Set::Matrix::Zero(); prev.beta = Set::Matrix::Zero(); prev.alpha = 0.0;
+        curr.epsp = Set::Matrix::Zero(); curr.beta = Set::Matrix::Zero(); curr.alpha = 0.0;
     }
 
     void SetPlasticStrains(PlasticState &a_state)

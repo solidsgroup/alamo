@@ -108,7 +108,9 @@ private:
 	Set::Field<Set::Scalar> m_strain_p;
 	Set::Field<Set::Scalar> m_strain_p_old;
 	Set::Field<Set::Scalar> m_beta;
+	Set::Field<Set::Scalar> m_beta_old;
 	Set::Field<Set::Scalar> m_alpha;
+	Set::Field<Set::Scalar> m_alpha_old;
 
 	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
