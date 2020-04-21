@@ -20,19 +20,14 @@ geometry.prob_hi	    = 8 8 8
 geometry.is_periodic	    = 0 0 0
 
 # ellipse configuration
-ic.type        = bmp
-ic.bmp.filename = Interface_Blur2.bmp
+ic.type         = bmp
+ic.bmp.filename = tests/Suture/Interface_Blur2.bmp
 ic.bmp.fit      = fitwidth
-#ic.ellipse.a   = 1.0 0.75 0.5  # elliqpse radii
-#ic.ellipse.x0  = 0 0 0 # location of ellipse center
-#ic.ellipse.eps = 0.1 # diffuse boundary
-
+ic.bmp.channel  = g
 
 #Aluminum Oxide
 elastic.model1.E = 370 #GPa
 elastic.model1.nu = 0.22
-# CTE 
-#elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 #Nickel
 elastic.model2.E = 207 #GPa
 elastic.model2.nu = 0.31
@@ -41,12 +36,6 @@ elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
 
-#elastic.bc.type.ylo = dirichlet dirichlet dirichlet
-#elastic.bc.val.xhi  = 0.2 0.0 0.0
-#elastic.bc.type.ylo = trac trac trac
-#elastic.bc.type.yhi = trac trac trac
-
-
 elastic.bc.type.xlo    = disp trac
 elastic.bc.type.xhi    = disp trac
 
@@ -54,6 +43,3 @@ elastic.bc.type.yhi    = disp trac
 elastic.bc.type.xloyhi = disp trac
 elastic.bc.type.xhiyhi = disp trac
 
-#elastic.bc.type.ylo    = trac trac
-#elastic.bc.type.xloylo = disp trac
-#elastic.bc.type.xhiylo = disp trac
