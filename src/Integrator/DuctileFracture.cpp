@@ -131,15 +131,14 @@ DuctileFracture::DuctileFracture() :
 	RegisterNodalFab (m_stressdev,			number_of_stress_components,	number_of_ghost_nodes,	"stress_dev",	true);
 	RegisterNodalFab (m_energy,				1,								number_of_ghost_nodes,	"energy",		true);
 	RegisterNodalFab (m_energy_pristine,	1,								number_of_ghost_nodes,	"energyP",		true);
-	RegisterNodalFab (m_energy_pristine_old,1,								number_of_ghost_nodes,	"energyPOld",	false);
+	RegisterNodalFab (m_energy_pristine_old,1,								number_of_ghost_nodes,	"energyPOld",	true);
 	RegisterNodalFab (m_residual,			AMREX_SPACEDIM,					number_of_ghost_nodes,	"residual",		true);
 	RegisterNodalFab (m_strain_p,			number_of_stress_components,	number_of_ghost_nodes,	"strainp",		true);
-	RegisterNodalFab (m_strain_p_old,		number_of_stress_components,	number_of_ghost_nodes,	"strainp_old",	false);
-	RegisterNodalFab (m_beta,				number_of_stress_components,	number_of_ghost_nodes,	"beta",			true);
-	RegisterNodalFab (m_beta_old,			number_of_stress_components,	number_of_ghost_nodes,	"beta_old",		false);
+	RegisterNodalFab (m_strain_p_old,		number_of_stress_components,	number_of_ghost_nodes,	"strainp_old",	true);
 	RegisterNodalFab (m_alpha,				1,								number_of_ghost_nodes,	"eqv_strp",		true);
-	RegisterNodalFab (m_alpha_old,			1,								number_of_ghost_nodes,	"eqv_strp_old",	false);
-
+	RegisterNodalFab (m_alpha_old,			1,								number_of_ghost_nodes,	"eqv_strp_old",	true);
+	RegisterNodalFab (m_beta,				number_of_stress_components,	number_of_ghost_nodes,	"beta",			true);
+	RegisterNodalFab (m_beta_old,			number_of_stress_components,	number_of_ghost_nodes,	"beta_old",		true);
 	nlevels = maxLevel() + 1;
 
 	material.model.resize(nlevels);
@@ -241,7 +240,11 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 	{
 		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<ductile_fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
 		material.model[ilev]->setVal((material.modeltype));
+		ScaledModulus(ilev,*(material.model)[ilev]);
+	}
 
+	for (int ilev = 0; ilev < nlevels; ++ilev)
+	{
 		std::swap(*m_strain_p_old[ilev], *m_strain_p[ilev]);
 		std::swap(*m_beta_old[ilev], *m_beta[ilev]);
 		std::swap(*m_alpha_old[ilev], *m_alpha[ilev]);
@@ -251,9 +254,6 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		m_strain_p[ilev]->setVal(0.);
 		m_beta[ilev]->setVal(0.);
 		m_alpha[ilev]->setVal(0.);
-
-		ScaledModulus(ilev,*(material.model)[ilev]);
-		//Util::RealFillBoundary(*material.model[ilev],geom[ilev]);
 	}
 	
 	for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -263,10 +263,9 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 		m_beta_old[ilev]->FillBoundary();
 		Set::Vector DX(geom[ilev].CellSize());
 
-		for (MFIter mfi(*(material.model)[ilev], false); mfi.isValid(); ++mfi)
+		for (MFIter mfi(*(m_strain_p_old)[ilev], false); mfi.isValid(); ++mfi)
 		{
-			amrex::Box bx = mfi.tilebox();//validbox();//growntilebox(2);
-			//bx.grow(1);
+			amrex::Box bx = mfi.validbox();
 			amrex::Array4<ductile_fracture_model_type>	const &model_box	= material.model[ilev]->array(mfi);
 			amrex::Array4<const Set::Scalar>			const &strain_p_box	= (*m_strain_p_old[ilev]).array(mfi);
 			amrex::Array4<const Set::Scalar>			const &beta_box		= (*m_beta_old[ilev]).array(mfi);
@@ -274,11 +273,12 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
-				Set::Matrix eps, beta;
-				eps = Numeric::FieldToMatrix(strain_p_box,i,j,k);
-				beta = Numeric::FieldToMatrix(beta_box,i,j,k);
 				Model::Solid::Affine::PlasticState state;
-				state.epsp = eps; state.beta = beta; state.alpha = alpha_box(i,j,k,0);
+				state.epsp = Numeric::FieldToMatrix(strain_p_box,i,j,k); 
+				state.beta = Numeric::FieldToMatrix(beta_box,i,j,k);
+				state.alpha = alpha_box(i,j,k,0);
+
+				if (std::abs(alpha_box(i,j,k,0)>1.e2)) Util::Abort(INFO);
 				model_box(i, j, k, 0).SetPlasticStrains(state);
             });
 		}
@@ -329,15 +329,15 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 
 	solver.solve(m_disp,m_rhs,material.model,elastic.tol_rel,elastic.tol_abs);
 
-	for (int lev = 0; lev < nlevels; lev++)
+	for (int lev = 0; lev < nlevels; ++lev)
 	{
 		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
 		elastic_op.Stress(lev,*m_stress[lev],*m_disp[lev]);
 		elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
 
-		for (amrex::MFIter mfi(*m_strain[lev],true); mfi.isValid(); ++mfi)
+		for (amrex::MFIter mfi(*m_strain_p[lev],true); mfi.isValid(); ++mfi)
 		{
-			const amrex::Box& box = mfi.tilebox();//validbox();
+			const amrex::Box& box = mfi.validbox();
 			amrex::Array4<Set::Scalar>					const& sig_box 		= (*m_stress[lev]).array(mfi);
 			amrex::Array4<Set::Scalar>					const& sigvm_box 	= (*m_stressvm[lev]).array(mfi);
 			amrex::Array4<const Set::Scalar>			const& eps_box 		= (*m_strain[lev]).array(mfi);
@@ -366,6 +366,7 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 				Numeric::MatrixToField(sig_box,i,j,k,sig);
 
 				alpha_box(i,j,k,0) = model_box(i,j,k,0).curr.alpha;
+				if (std::abs(alpha_box(i,j,k,0)>1.e2)) Util::Abort(INFO);
 
 				material.modeltype.UpdateF0(model_box(i,j,k).curr.epsp);
 				energy_box(i,j,k,0) = material.modeltype.W(eps);
@@ -373,12 +374,16 @@ DuctileFracture::TimeStepBegin(amrex::Real /*time*/, int /*iter*/)
 			});
 		}
 
+		//for (int ilev = 0; ilev < nlevels; ++ilev) m_alpha[ilev]->setVal(0.0);
+
 		Util::RealFillBoundary(*material.model[lev],geom[lev]);
 
 		elastic_op.Strain(lev,*m_strain[lev],*m_disp[lev]);
 		//elastic_op.Stress(lev,*m_stress[lev],*m_disp[lev]);
 		elastic_op.Energy(lev,*m_energy[lev],*m_disp[lev]);
 	}
+	//Util::Message(INFO);
+	//for (int lev = 0; lev < nlevels; ++lev) m_alpha[lev]->setVal(0.0);
 	Util::Message(INFO);
 }
 
