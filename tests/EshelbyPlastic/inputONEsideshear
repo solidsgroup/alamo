@@ -4,11 +4,11 @@ plot_file		    = tests/EshelbyPlastic/output
 # this is not a time integration, so do
 # exactly one timestep and then quit
 timestep		    = 0.00001
-stop_time		    = 0.01
+stop_time		    = 0.00001
 # amr parameters
 amr.plot_int		    = 1
 amr.max_level		    = 0
-amr.max_grid_size(1000000000000)
+amr.max_grid_size(1)	    = 1000000000000
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
@@ -44,24 +44,23 @@ elastic.bc.type.xhi = disp disp disp
 elastic.bc.type.zlo = trac trac trac
 elastic.bc.type.zhi = trac trac trac
 # displacement values
-elastic.bc.val.xlo = 0 -0.000001 0 
-elastic.bc.val.xhi = 0 0.000001 0 
-
-# vertices 
+elastic.bc.val.xlo = 0 0 0 
+elastic.bc.val.xhi = 0 0.01 0 
+ # vertices 
 elastic.bc.type.xhiylozlo = disp disp disp
 elastic.bc.type.xhiyhizlo = disp disp disp
 elastic.bc.type.xhiyhizhi = disp disp disp
 elastic.bc.type.xhiylozhi = disp disp disp
 
-elastic.bc.val.xhiylozlo = 0 0.000001 0 
-elastic.bc.val.xhiyhizlo = 0 0.000001 0 
-elastic.bc.val.xhiyhizhi = 0 0.000001 0 
-elastic.bc.val.xhiylozhi = 0 0.000001 0 
+elastic.bc.val.xhiylozlo = 0 0.01 0 
+elastic.bc.val.xhiyhizlo = 0 0.01 0 
+elastic.bc.val.xhiyhizhi = 0 0.01 0 
+elastic.bc.val.xhiylozhi = 0 0.01 0 
 
-elastic.bc.val.xloylozlo = 0 -0.000001 0 
-elastic.bc.val.xloyhizlo = 0 -0.000001 0 
-elastic.bc.val.xloyhizhi = 0 -0.000001 0 
-elastic.bc.val.xloylozhi = 0 -0.000001 0 
+elastic.bc.val.xloylozlo = 0 0 0 
+elastic.bc.val.xloyhizlo = 0 0 0 
+elastic.bc.val.xloyhizhi = 0 0 0 
+elastic.bc.val.xloylozhi = 0 0 0 
 # edge type
 
 elastic.bc.type.zloxhi = disp disp disp
@@ -81,14 +80,18 @@ elastic.bc.type.ylozlo = trac trac trac
 
 #edge values
 
-elastic.bc.val.zloxhi = 0 0.000001 0 
-elastic.bc.val.zloxlo = 0 -0.000001 0 
-elastic.bc.val.zhixhi = 0 0.000001 0 
-elastic.bc.val.zhixlo = 0 -0.000001 0 
+elastic.bc.val.zloxhi = 0 0.01 0 
+elastic.bc.val.zloxlo = 0 0 0 
+elastic.bc.val.zhixhi = 0 0.01 0 
+elastic.bc.val.zhixlo = 0 0 0 
 
-elastic.bc.val.xhiylo = 0 0.000001 0 
-elastic.bc.val.xhiyhi = 0 0.000001 0 
-elastic.bc.val.xloylo = 0 -0.000001 0 
-elastic.bc.val.xloyhi = 0 -0.000001 0 
+elastic.bc.val.xhiylo = 0 0.01 0 
+elastic.bc.val.xhiyhi = 0 0.01 0 
+elastic.bc.val.xloylo = 0 0 0 
+elastic.bc.val.xloyhi = 0 0 0 
 
+#elastic.bc.val.yhizhi = 0.01 0 -0.01
+#elastic.bc.val.ylozhi = 0.01 0 -0.01
+#elastic.bc.val.yhizlo = 0.01 0 -0.01
+#elastic.bc.val.ylozlo = 0.01 0 -0.01
 

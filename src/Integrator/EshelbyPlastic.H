@@ -35,12 +35,11 @@ public:
     /// \brief Read in parameters and register field variables
     EshelbyPlastic()
     {
-        RegisterNodalFab(eta_mf, 1, 2, "eta",true);
+       // RegisterNodalFab(eta_mf, 1, 2, "eta",true);
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
-        //RegisterNodalFab(esp_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "esplastic", true);
         {
             IO::ParmParse pp("ic");
             std::string type;
@@ -50,9 +49,8 @@ public:
                 ic = new IC::Ellipse(geom); 
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
-            if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
-            if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
-            //if (pp.contains("t")) pp.query("t",t);
+           // if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
+           // if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
         }
         {
             IO::ParmParse pp("elastic");
@@ -60,24 +58,25 @@ public:
                 // Initialize elastic model
                 pp.queryclass("model",elastic.model);
                 elastic.model.esp = Set::Matrix::Zero();
-
+                
                 // TODO: figure out how to initialize solvers in
                 // here instead of TimeStepBegin...
 
                 pp.queryclass("bc",elastic.bc);
             }
         }
+        
     }
 
 protected:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
-        eta_mf[lev]->setVal(0.0);
-        ic->Initialize(lev, eta_mf);
+       //eta_mf[lev]->setVal(0.0);
+        //ic->Initialize(lev, eta_mf);
 
-        disp_mf[lev]->setVal(0.);
-        rhs_mf[lev]->setVal(0.);
+        disp_mf[lev]->setVal(0.0);
+        rhs_mf[lev]->setVal(0.0);
     }
 
     void TimeStepBegin(Set::Scalar, int) override
@@ -99,7 +98,7 @@ protected:
             model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
             model_mf[lev]->setVal(elastic.model);
 
-            eta_mf[lev]->FillBoundary();
+            //eta_mf[lev]->FillBoundary();
 
             Set::Vector DX(geom[lev].CellSize());
 
@@ -107,15 +106,15 @@ protected:
             {
                 amrex::Box bx = mfi.growntilebox(2);
                 amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+                //amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar> sig = stress_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &es = strain_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
                 {
-                    Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
+                    //Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
                     model(i, j, k) = elastic.model;
-                    model(i, j, k).esp = Fgb;
+                   // model(i, j, k).esp = Fgb;
                     Set::Matrix s,e; 
                     s(0,0) = sig(i,j,k,0); s(0,1) = sig(i,j,k,1); s(0,2) = sig(i,j,k,2); 
                     s(1,0) = sig(i,j,k,3); s(1,1) = sig(i,j,k,4); s(1,2) = sig(i,j,k,5);
@@ -126,7 +125,23 @@ protected:
                     e(2,0) = es(i,j,k,6); e(2,1) = es(i,j,k,7); e(2,2) = es(i,j,k,8); 
 
                     model(i,j,k).update(e,s); 
+                    
+                    bool nan = false;
+                    for(int h = 0; h < 3; h++)
+                    {
+                        for(int l = 0; l < 3; l++)
+                        {
+                            if(isnan(e(h,l))) nan = true;
+                            if(isnan(s(h,l))) nan = true;
 
+                        }
+
+                    }
+                    
+                    if( nan )
+                    {
+                        Util::Message(INFO,"nan = true");
+                    }
                     sig(i,j,k,0) = s(0,0); sig(i,j,k,1) = s(0,1); sig(i,j,k,2) = s(0,2);
                     sig(i,j,k,3) = s(1,0); sig(i,j,k,4) = s(1,1); sig(i,j,k,5) = s(1,2);
                     sig(i,j,k,6) = s(2,0); sig(i,j,k,7) = s(2,1); sig(i,j,k,8) = s(2,2); 
@@ -143,7 +158,7 @@ protected:
         elastic.op.SetModel(model_mf);
         elastic.op.SetBC(&elastic.bc);
 
-        Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
+        Set::Scalar tol_rel = 1E-7, tol_abs = 1E-7;
 
         IO::ParmParse pp("elastic");
         elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::CrystalPlastic::CrystalPlastic>(elastic.op);
@@ -161,10 +176,12 @@ protected:
     void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar dt) override
     {
         elastic.model.Setdt(dt);
+        Util::Message(INFO,"dt = ", dt);
     }
     
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
     {
+        /*
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
         a_tags.setVal(amrex::TagBox::CLEAR);
@@ -172,13 +189,13 @@ protected:
         {
             amrex::Box bx = mfi.tilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
-            amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+            //amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &disp = eta_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 {
-                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
-                    if (grad.lpNorm<2>() * DXnorm > 0.01)
-                        tags(i, j, k) = amrex::TagBox::SET;
+                    //Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
+                   // if (grad.lpNorm<2>() * DXnorm > 0.01)
+                   //     tags(i, j, k) = amrex::TagBox::SET;
                 }
                 {
                     Set::Vector grad = Numeric::Gradient(disp, i, j, k, 0, DX.data());
@@ -187,23 +204,23 @@ protected:
                 }
             });
         }
+        */
     }
 
 private:
-    Set::Field<Set::Scalar> eta_mf;
+   // Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> disp_mf;
     Set::Field<Set::Scalar> rhs_mf;
     Set::Field<Set::Scalar> res_mf;
     Set::Field<Set::Scalar> stress_mf;
     Set::Field<Set::Scalar> strain_mf;
-    //Set::Field<Set::Scalar> esp_mf;
     Set::Field<model_type> model_mf;
 
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC *mybc;        ///< Stock generic boundary condition object
     
-    Set::Matrix Fmatrix = Set::Matrix::Zero();
-    Set::Matrix Finclusion = Set::Matrix::Zero();
+    //Set::Matrix Fmatrix = Set::Matrix::Zero();
+   // Set::Matrix Finclusion = Set::Matrix::Zero();
 
     struct {
         Model::Solid::CrystalPlastic::CrystalPlastic model;

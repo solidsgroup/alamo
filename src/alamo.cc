@@ -50,10 +50,10 @@ int main (int argc, char* argv[])
 	}
 	else if (program == "crystalPlastic")
 	{
-		//Integrator::Integrator *cp = new Integrator::EshelbyPlastic();
-		//cp->InitData();
-		//cp->Evolve();		
-		//delete cp;
+		Integrator::Integrator *cp = new Integrator::EshelbyPlastic();
+		cp->InitData();
+		cp->Evolve();		
+		delete cp;
 	}
 	else if (program == "finitekinematics")
 	{
