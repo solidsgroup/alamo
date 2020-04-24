@@ -95,7 +95,7 @@ private:
 	
 	Set::Field<Set::Scalar> m_disp;				///< Displacement variable
 	Set::Field<Set::Scalar> m_strain;				///< Total strain variable
-	Set::Field<Set::Scalar> m_strain_old;			///< Total strain variable
+	Set::Field<Set::Scalar> m_strain_old;			///< Total strain variable - previous
 	Set::Field<Set::Scalar> m_stress;				///< Stress field
 	Set::Field<Set::Scalar> m_stressdev;			///< Deviatoric Stress field
 	Set::Field<Set::Scalar> m_stressvm;
@@ -111,7 +111,6 @@ private:
 	Set::Field<Set::Scalar> m_beta_old;
 	Set::Field<Set::Scalar> m_alpha;
 	Set::Field<Set::Scalar> m_alpha_old;
-	//Set::Field<Set::Scalar> m_test;
 
 	struct{
 		Set::Scalar bottom_tol 				= 1.0E-6;
@@ -143,13 +142,6 @@ private:
 		bool 		agglomeration 	  		= true;
 		bool 		consolidation 	  		= false;
 
-		// Elastic BC
-		//std::array<BC::Operator::Elastic<ductile_fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
-		//std::array<BC::Operator::Elastic<ductile_fracture_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
-
-		//Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
-		//Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
-		
 		Set::Vector body_force = Set::Vector::Zero();
 		BC::Operator::Elastic<ductile_fracture_model_type> bc;
 		Set::Scalar bc_top 							= 0.;
