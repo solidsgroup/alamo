@@ -99,13 +99,13 @@ public:
         return (yield_strength0*alpha + 0.5*hardening_modulus0*alpha*alpha);
     }
 
-    void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix /*strain*/, Set::Scalar /*dt*/)
+    void EvolvePlasticStrain(Set::Matrix sigma, Set::Matrix strain, Set::Scalar /*dt*/)
     {
         Set::Scalar SQ2O3 = sqrt(1.0 - 1.0/((double)AMREX_SPACEDIM));
         Set::Matrix sigdev = sigma - (1.0/((double)AMREX_SPACEDIM))*sigma.trace()*Set::Matrix::Identity();
-        //Set::Matrix epsdev = strain - strain.trace()*Set::Matrix::Identity();
+        Set::Matrix epsdev = strain - strain.trace()*Set::Matrix::Identity();
 
-        Set::Matrix zeta_trial = sigdev  - prev.beta;
+        Set::Matrix zeta_trial = sigdev  - prev.beta + 2.0*T::mu*epsdev;
 
         Set::Scalar f_trial = zeta_trial.norm() - SQ2O3*(yield_strength + theta*hardening_modulus*prev.alpha);
         if( f_trial <= 0.0)

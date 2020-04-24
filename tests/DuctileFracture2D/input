@@ -111,18 +111,23 @@ elastic.use_fsmooth 	=	1
 elastic.body_force		=	0.0 0.0 0.0
 
 elastic.disp_step = 0.0
-elastic.disp_init = 5.e-2
-elastic.max_disp = 5.e-2
+elastic.disp_init = 5.e-1
+elastic.max_disp = 5.e-1
 elastic.crackStressTest = false
 
 elastic.bc.type.xlo = trac trac
 elastic.bc.type.xhi = trac trac
 elastic.bc.type.ylo = trac disp
-elastic.bc.type.yhi = trac disp
 elastic.bc.type.xloylo = trac disp
-elastic.bc.type.xloyhi = trac disp
 elastic.bc.type.xhiylo = trac disp
-elastic.bc.type.xhiyhi = trac disp
+
+#elastic.bc.type.yhi = trac disp
+#elastic.bc.type.xloyhi = trac disp
+#elastic.bc.type.xhiyhi = trac disp
+
+elastic.bc.type.yhi = trac trac
+elastic.bc.type.xloyhi = trac trac
+elastic.bc.type.xhiyhi = trac trac
 
 #elastic.bc.val.xlo = 0.0 0.0
 #elastic.bc.val.xhi = 0.0 0.0
