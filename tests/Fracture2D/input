@@ -5,7 +5,7 @@ stop_time = 1.e2
 plot_file = tests/Fracture2D/output
 
 amr.plot_int = 1
-amr.max_level = 6
+amr.max_level = 7
 #amr.n_cell = 256 256
 amr.n_cell = 128 128 
 amr.blocking_factor = 32
@@ -23,7 +23,7 @@ crack.refinement_threshold = 0.01
 
 crack.type = constant
 crack.constant.G_c = 5.0e-5
-crack.constant.zeta = 5.e-2
+crack.constant.zeta = 5.e-1
 crack.constant.mobility = 1.0e0
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
@@ -64,9 +64,9 @@ ic.type = notch
 ic.notch.center = 0.0 0.0
 ic.notch.orientation = 1.0 0.0
 ic.notch.length = 0.5
-ic.notch.thickness = 0.03
+ic.notch.thickness = 0.04
 
-ic.notch.eps = 0.02
+ic.notch.eps = 0.01
 
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.xhi = NEUMANN

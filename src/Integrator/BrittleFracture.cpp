@@ -355,14 +355,14 @@ BrittleFracture::ElasticityProblem(amrex::Real /*time*/)
 	}
 
 	// Mode I
-	//elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
-	//elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
-	//elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::Y, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
 
 	//Mode II
-	elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
-	elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
-	elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	//elastic.bc.Set(elastic.bc.Face::YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	//elastic.bc.Set(elastic.bc.Face::XLO_YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
+	//elastic.bc.Set(elastic.bc.Face::XHI_YHI, elastic.bc.Direction::X, BC::Operator::Elastic<fracture_model_type>::Type::Displacement, elastic.bc_top);
 	
 	elastic.bc.Init(m_rhs,geom);
 	
