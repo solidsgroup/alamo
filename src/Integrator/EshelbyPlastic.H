@@ -131,11 +131,9 @@ protected:
                     {
                         for(int l = 0; l < 3; l++)
                         {
-                            if(isnan(e(h,l))) nan = true;
-                            if(isnan(s(h,l))) nan = true;
-
+                            if(std::isnan(e(h,l))) nan = true;
+                            if(std::isnan(s(h,l))) nan = true;
                         }
-
                     }
                     
                     if( nan )
