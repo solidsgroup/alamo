@@ -25,7 +25,6 @@ docs/doxygen
 docs/html
 docs/latex
 *.d
-TrigTest*
 testoutput*
 Makefile.conf
 Makefile.amrex.conf
@@ -37,5 +36,5 @@ Makefile.post.conf
 visitlog.py
 amrex
 amrex.build.log
-.diff.html
+.diff
 eigen3

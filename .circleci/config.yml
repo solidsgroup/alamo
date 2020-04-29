@@ -5,7 +5,7 @@ dependencies:
 jobs:
   2D:
     docker:
-      - image: buildpack-deps:trusty 
+      - image: buildpack-deps:bionic
     steps:
       - checkout
       - run:
@@ -18,7 +18,7 @@ jobs:
                     apt-get update -qq &&
                     apt-get install -qq g++-6  &&
                     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90 &&
-                    apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev &&
+                    apt-get install -y mpich libmpich-dev libmpich12 gfortran libeigen3-dev &&
                     export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
       - run:
           name: Building Alamo
@@ -28,7 +28,7 @@ jobs:
           command: 'bash ./.test.sh 2'
   3D:
     docker:
-      - image: buildpack-deps:trusty 
+      - image: buildpack-deps:bionic
     steps:
       - checkout
       - run:
@@ -41,7 +41,7 @@ jobs:
                     apt-get update -qq &&
                     apt-get install -qq g++-6  &&
                     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90 &&
-                    apt-get install -y mpich2 libmpich-dev gfortran libeigen3-dev &&
+                    apt-get install -y mpich libmpich-dev libmpich12 gfortran libeigen3-dev &&
                     export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/'
       - run:
           name: Building Alamo

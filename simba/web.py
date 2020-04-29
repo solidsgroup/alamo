@@ -121,7 +121,19 @@ def table(table):
     if request.method == 'POST':
         if request.form.get('table-description') and not args.safe:
             print(request.form.get('table-description'))
-            cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table));
+            cur.execute("UPDATE __tables__ SET Description = ? WHERE NAME = ?;", (request.form.get('table-description'), table))
+        items = request.form.items()
+        for f in items:
+            print(f)
+            if str(f[0]).startswith('hash_'):
+                hash = str(f[0]).replace('hash_','')
+                dir = str(f[1])
+                print("DELETING ",hash)
+                cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(hash,))
+                print("DELETING ",dir)
+                os.system('rm -rf ' + dir)
+
+
 
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in sorted(cur.fetchall())]
@@ -139,18 +151,23 @@ def table(table):
             cur.execute("DELETE FROM " + table + " WHERE HASH = ?;",(request.form.get('entry-hash'),))
     
 
+    cur.execute("PRAGMA table_info("+table_name+")")
+    columns=[a[1] for a in cur.fetchall()]
+
     cur.execute("SELECT * FROM " + table_name )
-    data = cur.fetchall()
+    rawdata = cur.fetchall()
+
+    data = []
+    for d in rawdata: data.append(dict(zip(columns,d)))
+
 
     cur.execute("SELECT Description FROM __tables__ WHERE Name = \"" + table_name  + "\"")
     desc = list(cur.fetchall()[0])[0]
 
-    cur.execute("PRAGMA table_info("+table_name+")")
-    columns=[a[1] for a in cur.fetchall()]
 
     status = []
     if ("Status" in columns):
-        status = [d[columns.index("Status")] for d in data]
+        status = [d["Status"] for d in data]
 
     db.commit()
     db.close()
@@ -160,20 +177,26 @@ def table(table):
     numfiles = []
     if not args.fast:
         for d in data:
-            find_images(d[columns.index("DIR")])
+            find_images(d['DIR'])
             numfiles.append(len(imgfiles))
+
+    columns.insert(0,columns.pop(columns.index('DIR')))
+    columns.insert(1,columns.pop(columns.index('Description')))
+    columns.insert(1,columns.pop(columns.index('Tags')))
+
 
     return render_template('template.html',
                            tables=tables,
                            table_name=table,
                            table_description=desc,
-                           table=data,
+                           data=data,
                            status=status,
                            numfiles=numfiles,
                            columns=columns)
 imgfiles = []
 
 def find_images(path):
+    print("Path is ",path)
     global imgfiles
     img_fmts = ['.jpg', '.jpeg', '.png', '.gif','.svg']
     imgfiles = []
@@ -235,7 +258,7 @@ def table_entry(table,entry):
     global metadatafile
     global thermofile
 
-    db = sqlite3.connect('results.db')
+    db = sqlite3.connect(args.database)
     db.text_factory = str
     cur= db.cursor()
     
@@ -251,15 +274,21 @@ def table_entry(table,entry):
     columns=[a[1] for a in cur.fetchall()]
 
     cur.execute("SELECT * FROM " + table + " WHERE HASH='" + entry + "'")
-    data = cur.fetchall()[0]
+    d = cur.fetchall()[0]
 
-    find_images(data[1])
-    find_tarballs(data[1])
-    metadatafile=data[1]+"/metadata"
-    find_thermo(data[1])
-    
+    data = dict(zip(columns,d))
+
+    find_images(data['DIR'])
+    find_tarballs(data['DIR'])
+    metadatafile=data['DIR']+"/metadata"
+    find_thermo(data['DIR'])
+
     db.commit()
     db.close()
+    
+    columns.insert(0,columns.pop(columns.index('DIR')))
+    columns.insert(1,columns.pop(columns.index('Description')))
+    columns.insert(1,columns.pop(columns.index('Tags')))
     
     return render_template('detail.html',
                            table=table,
@@ -269,6 +298,88 @@ def table_entry(table,entry):
                            thermofile=thermofile,
                            imgfiles=[os.path.split(im)[1] for im in imgfiles],
                            tarballfiles=[os.path.split(tb)[1] for tb in tarballfiles])
+                           
+@app.route('/table/<table>/entry/<entry>/stdout', methods=['GET','POST'])
+@requires_auth
+def table_entry_stdout(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT STDOUT FROM {} WHERE HASH = ?".format(table),(entry,))
+    return cur.fetchall()[0][0]
+
+@app.route('/table/<table>/entry/<entry>/diff', methods=['GET','POST'])
+@requires_auth
+def table_entry_diff(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT DIFF FROM {} WHERE HASH = ?".format(table),(entry,))
+    return cur.fetchall()[0][0]
+
+@app.route('/table/<table>/entry/<entry>/diff.patch')
+@requires_auth
+def table_entry_diff_patch(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT DIFF_PATCH FROM {} WHERE HASH = ?".format(table),(entry,))
+    return Response(cur.fetchall()[0][0],content_type='File')
+    #return cur.fetchall()[0][0]
+
+@app.route('/table/<table>/entry/<entry>/stderr', methods=['GET','POST'])
+@requires_auth
+def table_entry_stderr(table,entry):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT STDERR FROM {} WHERE HASH = ?".format(table),(entry,))
+    return cur.fetchall()[0][0]
+                           
+@app.route('/regtest/<regtest>/<run>/stdout', methods=['GET','POST'])
+@requires_auth
+def regtest_run_stdout(regtest,run):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT STDIO FROM regtest_runs WHERE RUN = ?",(run,))
+    ret = cur.fetchall()
+    if len(ret) > 0:
+        if len(ret[0]) > 0:
+            return ret[0][0]
+    else: return "<h2>None</h2>"
+
+
+@app.route("/regtest/<regtest>", methods=['GET','POST'])
+@requires_auth
+def regtest(regtest):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+
+    cur.execute("SELECT DISTINCT TEST_NAME FROM {}".format(regtest))
+    test_names = [tn[0] for tn in cur.fetchall()]
+
+    cur.execute("SELECT RUN,COMPILECODE FROM regtest_runs ORDER BY RUN DESC".format(regtest))
+    runs = cur.fetchall()#sorted([tn[0] for tn in cur.fetchall()],reverse=True)
+        
+    cur.execute("PRAGMA table_info({})".format(regtest))
+    columns=[a[1] for a in cur.fetchall()]
+
+    cur.execute("SELECT * FROM {}".format(regtest))
+    rawdata = cur.fetchall()
+
+
+    data = []
+    for d in rawdata: data.append(dict(zip(columns,d)))
+
+    return render_template('regtest.html',
+                            runs=runs,
+                            tests=test_names,
+                            data=data,
+                            columns=columns)
+                           
+                           
 
 if __name__ == '__main__':
     app.run(debug=True,

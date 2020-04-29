@@ -83,6 +83,12 @@ int main (int argc, char* argv[])
 		model.InitData();
 		model.Evolve();
 	}
+	else if (program == "trigtest")
+	{
+		Test::Operator::Elastic test;
+		test.Define(32,1);
+		test.TrigTest(0,0,1,Util::GetFileName());
+	}
 	else
 	{
 		Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
