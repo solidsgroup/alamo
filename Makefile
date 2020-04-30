@@ -3,7 +3,7 @@
 
 AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
-MPI_LIB ?= -lgfortran -lmpich
+MPI_LIB ?= -lmpich
 
 RESET              = \033[0m
 B_ON               = \033[1m
