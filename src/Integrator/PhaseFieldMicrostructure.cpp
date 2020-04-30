@@ -411,17 +411,11 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 					if (tmpdf > pf.elastic_threshold)
 					{
-						edf(i,j,k,m)   =                   (tmpdf-pf.elastic_threshold);
 						driving_force -= pf.elastic_mult * (tmpdf-pf.elastic_threshold);
 					}
 					else if (tmpdf < -pf.elastic_threshold)
 					{
-						edf(i,j,k,m)   =                   (tmpdf+pf.elastic_threshold);
 						driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
-					}
-					else
-					{
-						edf(i,j,k,m) = 0.0;
 					}
 
 				}
@@ -548,7 +542,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	IO::ParmParse pp("elastic");
 	pp.queryclass("solver",linearsolver);
 	linearsolver.solve(disp_mf, rhs_mf, model_mf, 1E-8, 1E-8);
-	linearsolver.compResidual(res_mf, disp_mf, rhs_mf, model_mf);
 
 	linearsolver.W(energy_mf,disp_mf,model_mf);
 	linearsolver.DW(stress_mf,disp_mf,model_mf);
