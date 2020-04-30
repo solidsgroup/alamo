@@ -400,14 +400,24 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 
 					Set::Matrix sig;
-					sig(0,0) = 0.25*(sigma(i,j,k,0) + sigma(i+1,j,k,0) + sigma(i,j+1,k,0)+ sigma(i+1,j+1,k,0));
-					sig(0,1) = 0.25*(sigma(i,j,k,1) + sigma(i+1,j,k,1) + sigma(i,j+1,k,1)+ sigma(i+1,j+1,k,1));
-					sig(1,0) = 0.25*(sigma(i,j,k,2) + sigma(i+1,j,k,2) + sigma(i,j+1,k,2)+ sigma(i+1,j+1,k,2));
-					sig(1,1) = 0.25*(sigma(i,j,k,3) + sigma(i+1,j,k,3) + sigma(i,j+1,k,3)+ sigma(i+1,j+1,k,3));
-
+					#if AMREX_SPACEDIM == 2
+					sig(0,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,0);
+					sig(0,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,1);
+					sig(1,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,2);
+					sig(1,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,3);
+					#elif AMREX_SPACEDIM == 3
+					sig(0,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,0);
+					sig(0,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,1);
+					sig(0,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,2);
+					sig(1,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,3);
+					sig(1,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,4);
+					sig(1,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,5);
+					sig(2,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,6);
+					sig(2,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,7);
+					sig(2,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,8);
+					#endif
 
 					Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
-
 
 					if (tmpdf > pf.elastic_threshold)
 					{
