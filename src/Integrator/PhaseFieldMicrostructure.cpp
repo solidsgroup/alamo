@@ -156,9 +156,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
-	RegisterNewFab(chempotdf_mf,mybc,number_of_grains, number_of_ghost_cells, "ChemPotdf",true);
-	RegisterNewFab(anisotdf_mf, mybc,number_of_grains, number_of_ghost_cells, "Anisodf",true);
-	
 
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
@@ -178,10 +175,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		{
 			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
 			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
-			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
 			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
 			RegisterNodalFab(energy_mf, 1, 2, "energy",true);
-			RegisterNewFab(elasticdf_mf, mybc, number_of_grains, number_of_ghost_cells, "elastic df",true);
 
 			pp.query("interval", elastic.interval);
 			pp.query("max_coarsening_level", elastic.max_coarsening_level);
@@ -214,8 +209,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 	std::swap(eta_old_mf[lev], eta_new_mf[lev]);
 	const amrex::Real *DX = geom[lev].CellSize();
 
-	// Hi
-
 	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
 	for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -224,14 +217,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 		amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const &edf = (*elasticdf_mf[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const &chempotdf = (*chempotdf_mf[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const &anisotdf = (*anisotdf_mf[lev]).array(mfi);
-		
-		if (elastic.on)
-		{
-			 
-		}
 		
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 			for (int m = 0; m < number_of_grains; m++)
@@ -257,7 +242,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					kappa = pf.l_gb * 0.75 * pf.sigma0;
 					mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
 					driving_force += -kappa * laplacian;
-					anisotdf(i,j,k,m) = -kappa * laplacian;
 				}
 				else
 				{
@@ -290,7 +274,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 			
 						driving_force += - (Boundary_term) + anisotropy.beta*(Curvature_term);
-						anisotdf(i,j,k,m) = - (Boundary_term) + anisotropy.beta*(Curvature_term);
 						if (std::isnan(driving_force)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 
 #elif AMREX_SPACEDIM == 3
@@ -389,7 +372,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
 				}
 				driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
-				chempotdf(i,j,k,m) = mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
 				//
 				// SYNTHETIC DRIVING FORCE
@@ -414,10 +396,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						F0avg  += eta(i,j,k,n) * elastic.model[n].F0;
 					} 
 					
-					//Set::Matrix dF0deta = (etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
 					Set::Matrix dF0deta = elastic.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
-					//driving_force += (*energies)(i,j,k,m);
-					//Util::Message(INFO,"m=",m,"dF0deta = \n",dF0deta);
 
 
 					Set::Matrix sig;
@@ -429,8 +408,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 					Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
 
-					//edf(i,j,k,m) = tmpdf;
-					//driving_force += tmpdf;
 
 					if (tmpdf > pf.elastic_threshold)
 					{
@@ -446,17 +423,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					{
 						edf(i,j,k,m) = 0.0;
 					}
-
-					//if (m == 0)
-					//{
-					//	edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
-					//	driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
-					//}
-					//if (m == 1)
-					//{
-					//	//edf(i,j,k,m)   = -std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
-					//	//driving_force -= std::max(pf.elastic_mult * (dF0deta.transpose() * sig).trace(),0.0);
-					//}
 
 				}
 
@@ -529,7 +495,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	if (!elastic.on) return;
 	if (time < elastic.tstart)   return;
 	if (iter % elastic.interval) return;
-	
 
 	if (finest_level != rhs_mf.size() - 1)
 	{
@@ -546,43 +511,32 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	// Set linear elastic model
 	Set::Field<model_type> model_mf;
-	//amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
 	model_mf.resize(disp_mf.size());
 	for (int lev = 0; lev < rhs_mf.size(); ++lev)
 	{
 		amrex::Box domain(geom[lev].Domain());
 		domain.convert(amrex::IntVect::TheNodeVector());
 		model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-		//model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-		//model_mf[lev].setVal(mymodel);
 
 		eta_new_mf[lev]->FillBoundary();
 
 		Set::Vector DX(geom[lev].CellSize());
 
 		for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
-		//for (MFIter mfi(model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.grownnodaltilebox(2);
 
 			amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
-			//amrex::Array4<model_type> const &model = model_mf[lev].array(mfi);
 			amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 				std::vector<Set::Scalar> etas(number_of_grains);
 				for (int n = 0; n < number_of_grains; n++) etas[n] = 0.25*(eta(i,j,k,n) + eta(i,j-1,k,n) + eta(i-1,j,k,n) + eta(i-1,j-1,k,n));
 				model(i, j, k) = model_type::Combine(elastic.model,etas);
-				//model(i, j, k) = elastic.model[0] * 0.0;
-				//Set::Scalar etasum = 0.0;
-				//for (int n = 0; n < number_of_grains; n++) etasum += eta(i,j,k,n);
-				//for (int n = 0; n < number_of_grains; n++)
-				//	model(i, j, k) += elastic.model[n] * eta(i, j, k, n) / etasum;
 			});
 		}
 
 		Util::RealFillBoundary(*model_mf[lev],elasticop.Geom(lev));
-		//Util::RealFillBoundary(model_mf[lev],elasticop.Geom(lev));
 	}
 	elasticop.SetModel(model_mf);
 
@@ -591,30 +545,22 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elasticop.SetBC(&elastic.bc);
 
 	Solver::Nonlocal::Newton<model_type> linearsolver(elasticop);
-	//Solver::Nonlocal::Linear linearsolver(elasticop);
 	IO::ParmParse pp("elastic");
 	pp.queryclass("solver",linearsolver);
 	linearsolver.solve(disp_mf, rhs_mf, model_mf, 1E-8, 1E-8);
 	linearsolver.compResidual(res_mf, disp_mf, rhs_mf, model_mf);
-	//linearsolver.solve(disp_mf, rhs_mf);
 
 	linearsolver.W(energy_mf,disp_mf,model_mf);
 	linearsolver.DW(stress_mf,disp_mf,model_mf);
-	for (int lev = 0; lev < disp_mf.size(); lev++)
-	{
-		//elasticop.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-		//elasticop.Energy(lev,*energies_mf[lev],*disp_mf[lev],elastic.model);
-	}
 }
 
 void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
 										 const amrex::MFIter &mfi, const amrex::Box &box)
 {
 	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
-	
+
 	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
 	const amrex::Real *DX = geom[amrlev].CellSize();
-	
 	amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
 	amrex::Array4<amrex::Real> const &w   = (*energy_mf[amrlev]).array(mfi);
 	amrex::Array4<amrex::Real> const &stress   = (*stress_mf[amrlev]).array(mfi);

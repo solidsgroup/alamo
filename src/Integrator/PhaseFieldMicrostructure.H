@@ -81,13 +81,9 @@ private:
 	// Cell fab
 	Set::Field<Set::Scalar> eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	Set::Field<Set::Scalar> eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-	Set::Field<Set::Scalar> elasticdf_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-	Set::Field<Set::Scalar> chempotdf_mf;
-	Set::Field<Set::Scalar> anisotdf_mf;
 	// Node fab
 	Set::Field<Set::Scalar> disp_mf; 
 	Set::Field<Set::Scalar> rhs_mf; 
-	Set::Field<Set::Scalar> res_mf; 
 	Set::Field<Set::Scalar> stress_mf;
 	Set::Field<Set::Scalar> energy_mf;
 
