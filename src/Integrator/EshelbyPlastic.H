@@ -87,7 +87,7 @@ protected:
         }
         
         // Set linear elastic model
-        //Set::Field<model_type> model_mf;
+        Set::Field<model_type> model_mf;
         model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
