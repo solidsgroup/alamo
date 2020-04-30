@@ -6,6 +6,7 @@ import sqlite3
 class Status:
     runcode = -1
     compare = "NO"
+    diff_stdout = ""
     runtime = 0.0
     bm_runtime = 0.0
 
@@ -156,9 +157,11 @@ def updateRecord(cur,tablename,data,hash=None,verbose=True):
 def updateRegTestTable(cur,verbose=False):
     types = dict()
     types['RUN'] = 'VARCHAR(255)'
+    types['DIR'] = 'VARCHAR(255)'
     types['TEST_NAME'] = 'VARCHAR(255)'
     types['RUNCODE'] = 'INT'
     types['COMPARE'] = 'VARCHAR(16)'
+    types['DIFF_STDOUT'] = 'BLOB'
     types['RUNTIME'] = 'FLOAT'
     types['BM_RUNTIME'] = 'FLOAT'
     types['BENCHMARK_HASH'] = 'VARCHAR(24)'
@@ -170,9 +173,9 @@ def updateRegTestTable(cur,verbose=False):
     updateTable(cur,"regtest_runs",types,mode="regtest_runs",verbose=False)
 
 
-def updateRegTestRecord(cur,hash,run,test_name,status,benchmark_hash,benchmark_run):
-    cur.execute("INSERT INTO regtest (HASH,RUN,TEST_NAME,RUNCODE,COMPARE,RUNTIME,BM_RUNTIME,BENCHMARK_HASH,BENCHMARK_RUN) VALUES (?,?,?,?,?,?,?,?,?)",
-                (hash,run,test_name,status.runcode,status.compare,float(status.runtime),float(status.bm_runtime),benchmark_hash,benchmark_run))
+def updateRegTestRecord(cur,hash,run,test_name,status,benchmark_hash,benchmark_run,rt_dir):
+    cur.execute("INSERT INTO regtest (HASH,DIR,RUN,TEST_NAME,RUNCODE,COMPARE,DIFF_STDOUT,RUNTIME,BM_RUNTIME,BENCHMARK_HASH,BENCHMARK_RUN) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (hash,rt_dir,run,test_name,status.runcode,status.compare,status.diff_stdout,float(status.runtime),float(status.bm_runtime),benchmark_hash,benchmark_run))
 
 def updateRegTestRun(cur,run,compilecode,stdio):
     cur.execute('SELECT RUN FROM regtest_runs WHERE RUN = ?',(run,))
