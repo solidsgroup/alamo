@@ -115,6 +115,14 @@ The following are some common error messages and problems encountered:
   matrix has lower symmetry).
   If you get this error, you should use a lower-symmetry 4-matrix.
 
+* :code:`Inconsistent box arrays`
+  This is known to happen when using an :code:`Operator::Elastic` inside an :code:`Integrator`, e.g. in :code:`TimeStepBegin`.
+  Typically this happens when the Elastic operator is not initialized within the routine in which it is used - i.e.e if it is declared as a member variable inside the :code:`Integrator` - derived class.
+  (The reason is that there are AMReX-specific functions that only get called by the constructor.)
+  The fix is to initialize the operator object inside the routine in which it is used - either by making the member variable a pointer and using the :code:`new` keyword, or by just creating the variable inside the function.
+  
+  
+
 Generating this documentation
 -----------------------------
 

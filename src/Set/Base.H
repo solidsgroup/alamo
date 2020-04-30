@@ -19,7 +19,7 @@ using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
-enum Sym {None,Major,Minor,MajorMinor,Full,Isotropic};
+enum Sym {None,Major,Minor,MajorMinor,Diagonal,Full,Isotropic};
 template<int dim,int sym> class Matrix4{};
 template<int dim, int sym>
 std::ostream&

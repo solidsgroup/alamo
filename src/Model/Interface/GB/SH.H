@@ -90,6 +90,18 @@ public:
   
 private:
 	amrex::Real theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;
+	
+public:
+	static void Parse(SH & value, amrex::ParmParse & pp)
+	{
+		pp.query("theta0",value.theta0);
+		value.theta0 *= 0.01745329251; // convert degrees into radians
+		pp.query("phi0",value.phi0);
+		value.phi0 *= 0.01745329251;   // convert degrees into radians
+		pp.query("sigma0",value.sigma0);
+		pp.query("sigma1",value.sigma1);
+	}
+
 };
 }
 }

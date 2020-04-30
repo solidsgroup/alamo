@@ -24,11 +24,11 @@ public:
 
 private:
 
-    void prepareForSolve(const amrex::Vector<MultiFab*>& a_u_mf, 
-                         const amrex::Vector<MultiFab*>& a_b_mf,
-                         const amrex::Vector<MultiFab*>& a_rhs_mf,
-                         amrex::Vector<amrex::FabArray<amrex::BaseFab<Set::Matrix> > > &a_dw_mf,
-                         amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model_mf)
+    void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf, 
+                         const Set::Field<Set::Scalar>& a_b_mf,
+                         const Set::Field<Set::Scalar>& a_rhs_mf,
+                         Set::Field<Set::Matrix> &a_dw_mf,
+                         Set::Field<T> &a_model_mf)
     {
             for (int lev = 0; lev < a_b_mf.size(); ++lev)
             {
@@ -37,7 +37,7 @@ private:
                 const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 Set::Vector DX(linop.Geom(lev).CellSize());
                 
-                for (MFIter mfi(a_model_mf[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
+                for (MFIter mfi(*a_model_mf[lev], amrex::TilingIfNotGPU); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.growntilebox(2);
                     amrex::Box domainint = domain;
@@ -47,8 +47,8 @@ private:
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Scalar> const &b     = a_b_mf[lev]->array(mfi);
                     amrex::Array4<Set::Scalar>       const &rhs   = a_rhs_mf[lev]->array(mfi);
-                    amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev].array(mfi);
-                    amrex::Array4<T>                 const &model = a_model_mf[lev].array(mfi);
+                    amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
+                    amrex::Array4<T>                 const &model = a_model_mf[lev]->array(mfi);
 
                     // Set model internal dw and ddw.
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -93,49 +93,54 @@ private:
                         }
                     });
                 }
-                Util::RealFillBoundary(a_model_mf[lev],m_elastic.Geom(lev));
+                Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
             }
     }
 
 public:
-    Set::Scalar solve (const amrex::Vector<MultiFab*>& a_u_mf, 
-                       const amrex::Vector<MultiFab*>& a_b_mf,
-                       amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model_mf,
+    Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
+                       const Set::Field<Set::Scalar> & a_b_mf,
+                       Set::Field<T> &a_model_mf,
                        Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
-        //Operator::Elastic<T> &elastic = dynamic_cast<Operator::Elastic<T> &>(linop);
+        Set::Field<Set::Scalar> dsol_mf, rhs_mf;
+        Set::Field<Set::Matrix> dw_mf;
 
-        amrex::Vector<amrex::MultiFab> dsol_mf, rhs_mf;
-        amrex::Vector<amrex::FabArray<amrex::BaseFab<Set::Matrix> > > dw_mf;
         dsol_mf.resize(a_u_mf.size());
         dw_mf.resize(a_u_mf.size());
         rhs_mf.resize(a_u_mf.size());
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
-            dsol_mf[lev].define(a_u_mf[lev]->boxArray(),
+            dsol_mf.Define(lev, a_u_mf[lev]->boxArray(),
                                 a_u_mf[lev]->DistributionMap(),
-                                a_u_mf[lev]->nComp(), a_u_mf[lev]->nGrow());
-            dw_mf[lev].define(a_b_mf[lev]->boxArray(),
-                              a_b_mf[lev]->DistributionMap(),
-                              1, a_b_mf[lev]->nGrow());
-            rhs_mf[lev].define(a_b_mf[lev]->boxArray(),
-                               a_b_mf[lev]->DistributionMap(),
-                               a_b_mf[lev]->nComp(), a_b_mf[lev]->nGrow());
+                                a_u_mf[lev]->nComp(), 
+                                a_u_mf[lev]->nGrow());
+            dw_mf.Define(lev,   a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                1, 
+                                a_b_mf[lev]->nGrow());
+            rhs_mf.Define(lev,  a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                a_b_mf[lev]->nComp(), 
+                                a_b_mf[lev]->nGrow());
             
-            dsol_mf[lev].setVal(0.0);
-            dw_mf[lev].setVal(Set::Matrix::Zero());
+            dsol_mf[lev]->setVal(0.0);
+            dw_mf[lev]->setVal(Set::Matrix::Zero());
             
-            amrex::MultiFab::Copy(rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+            amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
+
+        for (int lev = 0; lev < a_b_mf.size(); ++lev)
+            m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),false);
 
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
             if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
             for (int lev = 0; lev < a_b_mf.size(); ++lev)
-                m_elastic.GetBC().Init(&(rhs_mf[lev]),m_elastic.Geom(lev),nriter>0);
+                m_elastic.GetBC().Init(rhs_mf[lev].get(),m_elastic.Geom(lev),nriter>0);
 
-            prepareForSolve(a_u_mf, a_b_mf, GetVecOfPtrs(rhs_mf), dw_mf, a_model_mf);
+            prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, a_model_mf);
 
             m_elastic.SetModel(a_model_mf);
 
@@ -148,7 +153,7 @@ public:
             {
                 for (int comp = 0; comp < AMREX_SPACEDIM; comp++)
                 {
-                    Set::Scalar tmpcornorm = dsol_mf[lev].norm0(comp,0);
+                    Set::Scalar tmpcornorm = dsol_mf[lev]->norm0(comp,0);
                     if (tmpcornorm > cornorm) cornorm = tmpcornorm;
 
                     Set::Scalar tmpsolnorm = a_u_mf[lev]->norm0(comp,0);
@@ -162,50 +167,43 @@ public:
             if (m_verbose > 1) Util::Message(INFO,"NR relative norm(ddisp) = ",relnorm);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
-                amrex::MultiFab::Add(*a_u_mf[lev], dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+                amrex::MultiFab::Add(*a_u_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
 
         return 0.0;
     }
 
-    Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_u_mf,
-                      amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_b_mf,
-                      amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model,
-                      Set::Scalar a_tol_rel, Set::Scalar a_tol_abs,
-                      const char *checkpoint_file = nullptr)
-    {
-        return solve(GetVecOfPtrs(a_u_mf),
-                     GetVecOfPtrs(a_b_mf),a_model,a_tol_rel,a_tol_abs,checkpoint_file);
-    }
+//    Set::Scalar solve(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_u_mf,
+//                      amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_b_mf,
+//                      amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model,
+//                      Set::Scalar a_tol_rel, Set::Scalar a_tol_abs,
+//                      const char *checkpoint_file = nullptr)
+//    {
+//        return solve(GetVecOfPtrs(a_u_mf),
+//                     GetVecOfPtrs(a_b_mf),a_model,a_tol_rel,a_tol_abs,checkpoint_file);
+//    }
 
-    void compResidual (const amrex::Vector<MultiFab*>& a_res_mf, 
-                       const amrex::Vector<MultiFab*>& a_u_mf,
-                       const amrex::Vector<MultiFab*>& a_b_mf,
-                       amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model_mf)
+    void compResidual(Set::Field<Set::Scalar> & a_res_mf,
+                      Set::Field<Set::Scalar> & a_u_mf,
+                      Set::Field<Set::Scalar> & a_b_mf,
+                      Set::Field<T> &a_model_mf)
     {
-        amrex::Vector<amrex::FabArray<amrex::BaseFab<Set::Matrix> > > dw_mf;
+        Set::Field<Set::Matrix> dw_mf;
         dw_mf.resize(a_u_mf.size());
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
-            dw_mf[lev].define(a_b_mf[lev]->boxArray(),
+            dw_mf.Define(lev, a_b_mf[lev]->boxArray(),
                               a_b_mf[lev]->DistributionMap(),
                               1, a_b_mf[lev]->nGrow());
-            dw_mf[lev].setVal(Set::Matrix::Zero());
+            dw_mf[lev]->setVal(Set::Matrix::Zero());
         }
         
         for (int lev = 0; lev < a_b_mf.size(); ++lev)
-            m_elastic.GetBC().Init(a_b_mf[lev],m_elastic.Geom(lev),true);
+            m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
             
         prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, a_model_mf);
         
     }
-    void compResidual(amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_res_mf,
-                      amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_u_mf,
-                      amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_b_mf,
-                      amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > &a_model_mf)
-    {
-        compResidual(GetVecOfPtrs(a_res_mf),GetVecOfPtrs(a_u_mf),GetVecOfPtrs(a_b_mf),a_model_mf);
-    }                      
 
 private:
     int m_nriters = 1;

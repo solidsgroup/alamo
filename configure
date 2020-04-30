@@ -19,7 +19,6 @@ class color:
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
     boldred   = "\033[1m\033[31m"
-
     bggray = "\033[47m\033[30m"
 
 width = 20
@@ -49,6 +48,10 @@ def note(message):
     print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
     wrap(message)
 
+message("Python",python_version)
+if sys.version_info.minor < 5:
+    raise Exception(error("You need Python 3.5 or greater"))
+
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
@@ -66,13 +69,16 @@ parser.add_argument('--python',dest='python',nargs='?',const=python_version,help
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--no-diff',dest='diff',default=True,action='store_false',help='Suppress using diff2html to generate git diff reports')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
+parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
+                    help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 
 fpic = args.python 
 
-f = open("Makefile.pre.conf","w")
-f2 = open("Makefile.post.conf","w")
+subprocess.run(['mkdir','-p','.make'])
+f = open(".make/Makefile.pre.conf","w")
+f2 = open(".make/Makefile.post.conf","w")
 
 #
 # Specify Postfix
@@ -256,6 +262,19 @@ if args.comp == 'icc':
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
 
 #
+# LibGFortran?
+#
+if args.gfortranln:
+    shellmessage("Gfort Link","ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so")
+run = subprocess.run(['ld','-lgfortran'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+if run.returncode:
+    warning("Could not find -lgfortran, which will probably cause linking errors. You can try running " 
+            + code("ln -s /usr/lib/x86_64-linux-gnu/libgfortran.so.4 /usr/lib/libgfortran.so"))
+subprocess.run(['rm','a.out','-rf'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+
+
+#
 # Python information
 #
 if args.python:
@@ -283,14 +302,25 @@ if args.python:
     message("Pythin boost lib:",python_boost_lib)
     note("Be sure to add " + code("USE_COMPILE_PIC=True") + " to the AMReX GNUMakefile")
 
+#
+# DIFF
+#
 if args.diff:
     try: shellmessage("diff2html","diff2html --version")
     except: raise Exception(error("Cannot find diff2html. Install using " + code("npm install diff2html") + " or compile with " + code("--no-diff")))
-    f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff.html)\"'+'\n')
-    f.write("DEP_EXTRA += .diff.html\n")
-    f2.write(".diff.html: .FORCE\n")
-    f2.write("\t-@rm -rf .diff.html\n")
-    f2.write("\t-@diff2html -F .diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n")
+    f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_OUTPUT=\"$(abspath .diff/{}.diff.html)\"'.format(postfix)+'\n')
+    f.write("DEP_EXTRA += .diff/{}.diff.html\n".format(postfix))
+    f2.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
+    f2.write("\t-@mkdir -p .diff\n".format(postfix))
+    f2.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
+    f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n".format(postfix))
+
+f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
+f.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
+f2.write(".diff/{}.diff.patch: .FORCE\n".format(postfix))
+f2.write("\t-@mkdir -p .diff\n".format(postfix))
+f2.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
+f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 
 
 #
