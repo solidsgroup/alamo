@@ -16,13 +16,38 @@ namespace Set
 //};
 template <class T>
 class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>
-{};
+{
+public:
+    Field() {} 
+    Field(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost) 
+    {
+        Define(a_levs,a_grids,a_dmap,a_ncomp,a_nghost);
+    } 
+    Field(int size) : amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>(size) {}
+    void Define(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost)
+    {
+        Util::Assert(INFO,TEST(a_levs == a_grids.size()));
+        Util::Assert(INFO,TEST(a_levs == a_dmap.size()));
+        this->resize(a_levs);
+        for (int lev = 0; lev < a_levs; lev++)
+        {
+            (*this)[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(a_grids[lev],a_dmap[lev],a_ncomp,a_nghost));
+        }
+    }
+    void Define(int a_lev, const amrex::BoxArray & a_grid, const amrex::DistributionMapping & a_dmap, int a_ncomp, int a_nghost)
+    {
+        Util::Assert(INFO,TEST(a_lev < this->size()));
+        (*this)[a_lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(a_grid,a_dmap,a_ncomp,a_nghost));
+    }
+};
 
 template <>
 class Field<Set::Scalar> : public amrex::Vector<std::unique_ptr<amrex::MultiFab>>
 {
 public:
-    void Define(int a_levs, amrex::Vector<amrex::BoxArray> a_grids, amrex::Vector<amrex::DistributionMapping> a_dmap, int a_ncomp, int a_nghost)
+    Field() {} 
+    Field(int size) : amrex::Vector<std::unique_ptr<amrex::MultiFab>>(size) {}
+    void Define(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost)
     {
         Util::Assert(INFO,TEST(a_levs == a_grids.size()));
         Util::Assert(INFO,TEST(a_levs == a_dmap.size()));
@@ -31,6 +56,11 @@ public:
         {
             (*this)[lev].reset(new amrex::MultiFab(a_grids[lev],a_dmap[lev],a_ncomp,a_nghost));
         }
+    }
+    void Define(int a_lev, const amrex::BoxArray & a_grid, const amrex::DistributionMapping & a_dmap, int a_ncomp, int a_nghost)
+    {
+        Util::Assert(INFO,TEST(a_lev < this->size()));
+        (*this)[a_lev].reset(new amrex::MultiFab(a_grid,a_dmap,a_ncomp,a_nghost));
     }
 };
 }

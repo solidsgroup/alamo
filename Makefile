@@ -1,9 +1,9 @@
 
--include Makefile.pre.conf
+-include .make/Makefile.pre.conf
 
 AMREX_TARGET ?= 
 CC ?= mpicxx -cxx=g++
-MPI_LIB ?= -lgfortran -lmpich
+MPI_LIB ?= -lmpich
 
 RESET              = \033[0m
 B_ON               = \033[1m
@@ -82,7 +82,7 @@ tidy:
 clean: tidy
 	@printf "$(B_ON)$(FG_RED)CLEANING  $(RESET)\n" 
 	find src/ -name "*.o" -exec rm {} \;
-	rm -f .diff.html
+	rm -rf .diff*
 	rm -f bin/*
 	rm -rf obj
 	rm -f Backtrace*
@@ -94,14 +94,14 @@ realclean: clean
 	-make -C amrex realclean
 	rm -rf amrex/1d* amrex/2d* amrex/3d*
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
-	rm -f Makefile.conf Makefile.amrex.conf
+	rm -rf Makefile.conf Makefile.amrex.conf .make
 
 
 info:
 	@printf "$(B_ON)$(FG_BLUE)Compiler version information$(RESET)\n"
 	@$(CC) --version
 
--include Makefile.post.conf
+-include .make/Makefile.post.conf
 
 bin/%: bin/%-$(POSTFIX) ;
 

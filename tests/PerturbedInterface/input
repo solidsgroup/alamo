@@ -22,10 +22,12 @@ geometry.prob_lo = 0 -4 0
 geometry.prob_hi = 8 4 8
 geometry.is_periodic= 1 0 1
 
-bc.hi = INT_DIR EXT_DIR INT_DIR
-bc.lo = INT_DIR EXT_DIR INT_DIR
-bc.lo_2 = 1.0 0.0 0.0 0.0
-bc.hi_2 = 0.0 1.0 0.0 0.0
+bc.eta.type.xlo = INT_DIR
+bc.eta.type.xhi = INT_DIR
+bc.eta.type.ylo = EXT_DIR
+bc.eta.type.yhi = EXT_DIR
+bc.eta.val.ylo  = 1.0 0.0
+bc.eta.val.yhi  = 0.0 1.0
 
 pf.number_of_grains = 2
 pf.M = 1.0 
@@ -44,32 +46,5 @@ anisotropy.beta= 0.00001
 anisotropy.damp=1.0
 
 
-elastic.on=0
-elastic.max_iter = 20
-elastic.int=10
-elastic.type=isotropic
-elastic.verbose=2
-elastic.cgverbose=0
-elastic.tol_rel=0.8 
-elastic.tol_abs=0.05 
-elastic.tstart=0.0
-elastic.load_t=0.0 
-elastic.load_disp=0.01
-
-elastic.bc.type_xlo = disp disp disp
-elastic.bc.type_ylo = disp disp disp
-elastic.bc.type_zlo = disp disp disp
-elastic.bc.type_xhi = disp disp disp
-elastic.bc.type_yhi = disp disp disp
-elastic.bc.type_zhi = disp disp disp
-elastic.bc.type_xlo = disp trac trac
-elastic.bc.type_xhi = disp trac trac
-
-elastic.bc.xlo = 0.0 0.0 0.0
-elastic.bc.ylo = 0.0 0.0 0.0
-elastic.bc.zlo = 0.0 0.0 0.0
-elastic.bc.xhi = 0.0 0.0 0.0
-elastic.bc.yhi = 0.0 0.1 0.0
-elastic.bc.zhi = 0.0 0.0 0.0
 
 
