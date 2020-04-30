@@ -32,15 +32,15 @@ public:
 	{
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>(Set::Matrix::Ones());
 	}
-    Set::Scalar W(Set::Matrix gradu)
+    Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(Set::Matrix gradu)
+    Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal> DDW(Set::Matrix /*gradu*/)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal> DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;
     }

@@ -112,6 +112,22 @@ void Message (std::string file, std::string func, int line, Args const &... args
 }
 
 template<typename... Args>
+void ParallelMessage (std::string file, std::string func, int line, Args const &... args)
+{
+	std::ostringstream infostream;
+	infostream << Color::Bold << Color::FG::Blue << "MESSAGE("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ": ";
+	infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
+	infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+	std::string info = infostream.str();
+	std::ostringstream messagestream;
+	using List= int[];
+	(void)List{0, ( (void)(messagestream << args), 0 ) ... };
+	std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+	String::ReplaceAll(message,'\n',"\n"+info);
+	std::cout << info << message << std::endl;
+}
+
+template<typename... Args>
 void Warning (std::string file, std::string func, int line, Args const &... args)
 {
 	if (amrex::ParallelDescriptor::IOProcessor())
@@ -156,6 +172,21 @@ void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geom
         const int ng1 = 1;
         const int ng2 = 2;
         amrex::FabArray<amrex::BaseFab<T>> tmpmf(a_mf.boxArray(), a_mf.DistributionMap(), ncomp, ng1);
+        amrex::Copy(tmpmf, a_mf, 0, 0, ncomp, ng1);
+        a_mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, a_geom.periodicity());
+    }
+}
+
+AMREX_FORCE_INLINE
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &a_geom)
+{
+    for (int i = 0; i < 2; i++)
+    {
+        a_mf.FillBoundary(a_geom.periodicity());
+        const int ncomp = a_mf.nComp();
+        const int ng1 = 1;
+        const int ng2 = 2;
+        amrex::MultiFab tmpmf(a_mf.boxArray(), a_mf.DistributionMap(), ncomp, ng1);
         amrex::Copy(tmpmf, a_mf, 0, 0, ncomp, ng1);
         a_mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, a_geom.periodicity());
     }
