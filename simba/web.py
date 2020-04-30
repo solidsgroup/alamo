@@ -377,9 +377,12 @@ def regtest(regtest):
                 if str(f[0]).startswith('run_'):
                     run = str(f[0]).replace('run_','')
                     cur.execute("SELECT DIR FROM " + regtest + " WHERE RUN = ?;",(run,))
-                    dir = cur.fetchall()[0][0]
-                    print("Directory to delete is: ", dir)
-                    os.system('rm -rf ' + dir)
+                    res = cur.fetchall()
+                    if len(res)>0:
+                        if len(res[0])>0:
+                            dir = res[0][0]
+                            print("Directory to delete is: ", dir)
+                            os.system('rm -rf ' + dir)
                     cur.execute("DELETE FROM regtest_runs WHERE RUN = ?;",(run,))
                     cur.execute("DELETE FROM regtest WHERE RUN = ?;",(run,))
                     db.commit()
