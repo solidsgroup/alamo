@@ -34,6 +34,10 @@ public:
 	///
 	virtual Set::Vector operator () (Set::Matrix3 &gradeps, bool a_homogeneous=true) = 0;
 	
+    virtual Set::Scalar W(Set::Matrix &) const           {Util::Abort(INFO,"W not implemented"); return NAN;};
+    virtual Set::Matrix DW(Set::Matrix &) const         {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
+    virtual Set::Matrix4<AMREX_SPACEDIM,sym> DDW(Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,sym>(); };
+	
 protected:
 };
 

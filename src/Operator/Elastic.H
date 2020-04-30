@@ -64,7 +64,7 @@ public:
 		m_bc = a_bc;
 		m_bc_set = true;
 	};
-	const ::BC::Operator::Elastic<T> & GetBC()
+	::BC::Operator::Elastic<T> & GetBC()
 	{
 		return *m_bc;
 	}

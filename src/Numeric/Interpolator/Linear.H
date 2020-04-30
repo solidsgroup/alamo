@@ -6,6 +6,7 @@
 #include "Set/Set.H"
 #include "Util/Util.H"
 #include "Numeric/Interpolator/Interpolator.H"
+#include "IO/ParmParse.H"
 
 namespace Numeric
 {
@@ -24,7 +25,17 @@ public:
 	}
 	Linear(const std::string a_str)
 	{
+		define(a_str);
+	}
+ 	Linear(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points)
+	{
+		define(_data_points,_interval_points);
+	};
+	
+	void define(const std::string a_str)
+	{
 		std::string str = a_str;
+		
 		if (Util::String::Contains(str,"(") || Util::String::Contains(str,":") || Util::String::Contains(str,")") || Util::String::Contains(str,","))
 		{
 			if (!Util::String::Contains(str,"(")) Util::Abort(INFO,"Mismatched parentheses while trying to parse ",str);
@@ -55,10 +66,7 @@ public:
 			data_points.push_back(std::stod(a_str));
 		}
 	}
- 	Linear(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points)
-	{
-		define(_data_points,_interval_points);
-	};
+
  	void define(const std::vector<T> _data_points, const std::vector<Set::Scalar> _interval_points) 
 	{
 		data_points = _data_points;
@@ -77,8 +85,19 @@ public:
 		{
 			return data_points[0];
 		}
+
+		Set::Scalar interval = interval_points[1]-interval_points[0];
+		int start = 0;
+		if (uniform)
+		{
+			start = (int)( (point - interval_points[0]) / interval);
+			start -= 1;
+			start = std::max(start,0);
+			start = std::min(start,(int)(interval_points.size()-2));
+		}
+
 		// Do this if point is within interpolation range
-		for (unsigned int i = 0; i<interval_points.size(); i++)
+		for (unsigned int i = start; i<interval_points.size(); i++)
 		{
 			if (interval_points[i] <= point && point <= interval_points[i+1])
 			{
@@ -94,10 +113,17 @@ public:
 		return  data_points[interval_points.size()-1];
 	}
 
+    static void Parse(Linear<T> & value, IO::ParmParse & pp)
+    {
+		std::string in;
+		pp.query("str",in);
+		value.define(in);
+    }
 
 protected:
  	std::vector<T> data_points;
  	std::vector<Set::Scalar> interval_points;
+	bool uniform = true;
 };
 }
 }
