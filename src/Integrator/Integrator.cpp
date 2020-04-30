@@ -111,9 +111,6 @@ Integrator::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& cgrids, 
 {
 	Util::Message(INFO);
 	BL_PROFILE("Integrator::MakeNewLevelFromCoarse");
-	//t_new[lev] = time;
-	//t_old[lev] = time - dt[lev];
-	//t_old[lev] = time - 1.e200;
 
 	for (int n = 0; n < cell.number_of_fabs; n++)
 	{
@@ -183,8 +180,6 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 		std::swap(new_state, *(*node.fab_array[n])[lev]);
 	}
 
-	//t_new[lev] = time;
-	//t_old[lev] = time - 1.e200;
 }
 
 //
@@ -557,7 +552,6 @@ Integrator::MakeNewLevelFromScratch (int lev, Real t, const BoxArray& cgrids,
 
 	t_new[lev] = t;
 	t_old[lev] = t - dt[lev];
-	//t_old[lev] = t - 1.e200;
 
 	Initialize(lev);
   
@@ -845,10 +839,8 @@ Integrator::TimeStep (int lev, Real time, int /*iteration*/)
 	}
 
 	for (int n = 0 ; n < cell.number_of_fabs ; n++)
-		//FillPatch(lev,t_old[lev],*cell.fab_array[n],*(*cell.fab_array[n])[lev],*cell.physbc_array[n],0);
 		FillPatch(lev,time,*cell.fab_array[n],*(*cell.fab_array[n])[lev],*cell.physbc_array[n],0);
 	for (int n = 0 ; n < node.number_of_fabs ; n++)
-		//FillPatch(lev,t_old[lev],*node.fab_array[n],*(*node.fab_array[n])[lev],*node.physbc_array[n],0);
 		FillPatch(lev,time,*node.fab_array[n],*(*node.fab_array[n])[lev],*node.physbc_array[n],0);
 
 	Advance(lev, time, dt[lev]);
