@@ -96,15 +96,15 @@ public:
 	CrystalPlastic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2);
 	virtual ~CrystalPlastic() {};
 
-	Set::Scalar W(Set::Matrix gradu)
+	Set::Scalar W(Set::Matrix gradu) const 
 	{
 		return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
 	}
-	Set::Matrix DW(Set::Matrix gradu)
+	Set::Matrix DW(Set::Matrix gradu) const 
 	{
 		return ddw*gradu;
 	}
-	Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/)
+	Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/) const 
 	{
 		return ddw;
 	}

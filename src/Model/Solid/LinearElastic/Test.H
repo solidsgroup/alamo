@@ -1,6 +1,6 @@
 #ifndef MODEL_SOLID_LINEARELASTIC_TEST_H
 #define MODEL_SOLID_LINEARELASTIC_TEST_H
-#include "LinearElastic.H"
+#include "Model/Solid/LinearElastic/LinearElastic.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
 
@@ -145,5 +145,3 @@ public:
 
 
 #endif
-
-

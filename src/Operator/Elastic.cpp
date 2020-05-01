@@ -1,5 +1,4 @@
 // TODO: Remove these 
-#include "Model/Solid/LinearElastic/MultiWell.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Model/Solid/Elastic/NeoHookean.H"
@@ -7,6 +6,7 @@
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/Isotropic.H"
+#include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/LinearElastic/CrystalPlastic.H"
 #include "Elastic.H"
 
@@ -560,7 +560,7 @@ Elastic<T>::Energy (int amrlev,
 
 					    // energy(i,j,k) = (gradu.transpose() * sig).trace();
 						
-						energy(i,j,k) = 0;
+						energy(i,j,k) = C(i,j,k).W(gradu);
 						for (int m = 0; m < AMREX_SPACEDIM; m++)
 						{
 							for(int n = 0; n < AMREX_SPACEDIM; n++)
@@ -593,6 +593,7 @@ Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiF
 	{
 		const Box& bx = mfi.tilebox();
 		amrex::Array4<amrex::Real> const& energies   = a_energies.array(mfi);
+		//amrex::Array4<amrex::Real> const& u  = a_u.array(mfi);
 		amrex::Array4<const amrex::Real> const& u  = a_u.array(mfi);
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
 	    {
@@ -606,19 +607,10 @@ Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiF
 			     		 gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
 			     		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
 		    }
-		 	Set::Matrix eps = .5 * (gradu + gradu.transpose());
 			 
 			for (unsigned int p = 0; p < a_models.size(); p++)
 			{
-		    	Set::Matrix sig = a_models[p](gradu,m_homogeneous);
-				energies(i,j,k,p) = 0;
-				for (int m = 0; m < AMREX_SPACEDIM; m++)
-				{
-					for(int n = 0; n < AMREX_SPACEDIM; n++)
-					{
-						energies(i,j,k,p) += .5 * sig(m,n) * eps(m,n);
-					}
-				}
+				energies(i,j,k,p) = a_models[p].W(gradu);
 			}
 	    });
 	}
@@ -836,11 +828,11 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 }
 
 // TODO : Remove these template specializations once Mobility and PD are upgraded
-template class Elastic<Model::Solid::LinearElastic::Multiwell>;
 template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
 
 template class Elastic<Model::Solid::Elastic::NeoHookean>;
 template class Elastic<Model::Solid::Affine::Isotropic>;
+template class Elastic<Model::Solid::Affine::Cubic>;
 template class Elastic<Model::Solid::Linear::Isotropic>;
 template class Elastic<Model::Solid::Linear::Laplacian>;
 template class Elastic<Model::Solid::Linear::Cubic>;

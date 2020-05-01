@@ -3,9 +3,12 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #include "AMReX.H"
 #include "GB.H"
+
+#include "Numeric/Interpolator/Linear.H"
 
 #define PI 3.14159265 
 
@@ -32,188 +35,52 @@ public:
 		Define(filename);
 	}
 
-	void Define(std::string fileName)
+	void Define(std::string filename)
 	{
-		//Define
-		int i;
+		std::ifstream input;
+		input.open(filename);
 		std::string line;
-		amrex::Real data1, data2; 
-		std::ifstream inFile;  
-
-	    //Open file
-	    inFile.open(fileName);       
-	
-	    //Error Check
-	    if(inFile.fail()){
-	      Util::Abort (INFO, "UNABLE TO OPEN THE FILE");
-	    }
-
-	    //Read the file and fill out the vectors thetas and sigmasW with the read values
-	    while(getline(inFile, line))
-		{ 
-	    	int pos = line.find_first_of(' ');
-	    	std::string second=line.substr(pos+1);
-	    	std::string first=line.substr(0, pos);
-	
-	    	data1=stod(first);
-	    	data2=stod(second);
-	
-	    	thetas.push_back(data1);
-	    	sigmasW.push_back(data2);
-	    }
-
-	    size= thetas.size();
-
-	    //Close file
-	    inFile.close();
-
-	    //Check that the file we have read contains the whole range of thetas (from 0 to 2pi)
-	    if((thetas[size-1]+(thetas[1]-thetas[0]))<2*pi){
-	      Util::Abort(INFO, "FILE DID NOT CONTAIN THE WHOLE RANGES OF THETAS (FROM 0 TO 2PI)");
-	    }
-	
-	    //Create vector sigmas DW    
-	    for(i=0; i<size; i++)
+		std::vector<Set::Scalar> theta, thetasmall, w, dw, ddw;
+		while(std::getline(input,line))
 		{
-			if(i==(size-1))
-			{
-	       		sigmasDW.push_back((sigmasW[0]-sigmasW[i])/(2*pi + thetas[0]-thetas[i]));
-	      	}
-	      	else
-			{
-	  			sigmasDW.push_back((sigmasW[i+1]-sigmasW[i])/(thetas[i+1]-thetas[i]));
-	    	}
-	  	}
-
-	    //Create vector sigmas DDW
-	    for(i=0; i<size; i++)
-		{
-			if(i==(size-1))
-			{
-				sigmasDDW.push_back((sigmasDW[0]-sigmasDW[i])/(2*pi + thetas[0]-thetas[i]));
-			}
-	      	else
-			{
-				sigmasDDW.push_back((sigmasDW[i+1]-sigmasDW[i])/(thetas[i+1]-thetas[i]));
-			}
-	    }
-	    //Print Thetas Sigmas Sigmas' and Sigmas''
-	};
-	amrex::Real W(amrex::Real theta)
-	{
-	    // put in code so that 0 <= theta < 2*pi
-	    if(theta>=2*pi)
-	    {
-			int div=theta/(2*pi);
-			theta=theta-(div*2*pi);
+			std::vector<std::string> dat = Util::String::Split(line);
+			theta.push_back(std::stof(dat[0]));
+			w.push_back(std::stof(dat[1]));
+			Util::Message(INFO,theta[theta.size()-1]," ",w[theta.size()-1]);
 		}
-	    else if(theta<0)
+		for (unsigned int i = 1; i < theta.size()-1; i++)
 		{
-			int div=fabs(theta)/(2*pi);
-			theta=theta+((div+1)*2*pi);
-	    }
-	
-	    //Find out the value of theta inside our vector thetas
-	
-	    for(int i=0; i<size; i++)
-		{
-			if(i==(size-1))
-			{
-	  			if(theta >= thetas[i])
-				{
-	    			//Interpolate to get the value of sigma
-	    			return ((theta-thetas[i])*(sigmasW[0]-sigmasW[i])/(2*pi+thetas[0]-thetas[i]))+sigmasW[i];
-	  			}
-	    	}
-	    	else
-			{
-	  			if(theta >= thetas[i] && theta < thetas[i+1])
-				{
-	    			//Interpolate to get the value of sigma	  
-	    			return ((theta-thetas[i])*(sigmasW[i+1]-sigmasW[i])/(thetas[i+1]-thetas[i]))+sigmasW[i];
-	  			}
-	    	} 
-	    }
-	    return 0;
-	};
-	amrex::Real DW(amrex::Real theta)
-	{
-		// put in code so that 0 <= theta < 2*pi
-	    if(theta>=2*pi)
-		{
-			int div=theta/(2*pi);
-			theta=theta-(div*2*pi);
-	    }
-	    else if(theta<0)
-	    {
-			int div=fabs(theta)/(2*pi);
-			theta=theta+((div+1)*2*pi);
+			thetasmall.push_back(theta[i]);
+			dw.push_back((w[i+1] - w[i-1]) / (theta[i+1] - theta[i-1]));
+			ddw.push_back((w[i+1] - 2.0*w[i] + w[i-1]) / ((theta[i+1]-theta[i]) * (theta[i]-theta[i-1])));
 		}
-	
-	    //Find out the value of theta inside our vector thetas
-	
-	    for(int i=0; i<size; i++)
+		m_w.define(w,theta);
+		m_dw.define(dw,thetasmall);
+		m_ddw.define(ddw,thetasmall);
+
+		for (Set::Scalar t = -0.001; t < 2*Set::Constant::Pi+1.0; t+=0.001)
 		{
-	    	if(i==(size-1))
-			{
-				if(theta >= thetas[i])
-				{
-					//Interpolate to get the value of sigma
-					return ((theta-thetas[i])*(sigmasDW[0]-sigmasDW[i])/(2*pi+thetas[0]-thetas[i]))+sigmasDW[i];
-	  			}
-	      	}
-	      	else
-			{
-	  			if(theta >= thetas[i] && theta < thetas[i+1])
-				{
-	    			//Interpolate to get the value of sigma	  
-	    			return ((theta-thetas[i])*(sigmasDW[i+1]-sigmasDW[i])/(thetas[i+1]-thetas[i]))+sigmasDW[i];
-	  			}
-	    	}
-	    }
-	    return 0;
+			Set::Scalar w = m_w(t), dw = m_dw(t), ddw = m_ddw(t);
+			if (std::isnan(w) || std::isnan(dw) || std::isnan(ddw) ||
+				std::isinf(w) || std::isinf(dw) || std::isinf(ddw)) 
+				Util::Abort(INFO,"Error in GB Read: t=",t," w=",w," dw=",dw," ddw=",ddw);
+		}
 	};
-	amrex::Real DDW(amrex::Real theta)
+	Set::Scalar W(amrex::Real theta)
 	{
-		// put in code so that 0 <= theta < 2*pi
-		if(theta>=2*pi)
-	    {
-			int div=theta/(2*pi);
-			theta=theta-(div*2*pi);
-	    }
-	    else if(theta<0)
-	    {
-			int div=fabs(theta)/(2*pi);
-			theta=theta+((div+1)*2*pi);
-	    }
-	
-	    //Find out the value of theta inside our vector thetas
-	
-	    for(int i=0; i<size; i++)
-		{
-			if(i==(size-1))
-			{
-				if(theta >= thetas[i])
-				{
-					//Interpolate to get the value of sigma
-					return ((theta-thetas[i])*(sigmasDDW[0]-sigmasDDW[i])/(2*pi+thetas[0]-thetas[i]))+sigmasDDW[i];
-				}
-			}
-	      	else
-			{
-	  			if(theta >= thetas[i] && theta < thetas[i+1])
-				{
-	    			//Interpolate to get the value of sigma	  
-	    			return ((theta-thetas[i])*(sigmasDDW[i+1]-sigmasDDW[i])/(thetas[i+1]-thetas[i]))+sigmasDDW[i];
-	  			}
-	      	} 
-	    }
-	    return 0;
+		return m_w(theta);
+	};
+	Set::Scalar DW(amrex::Real theta)
+	{
+		return m_dw(theta);
+	};
+	Set::Scalar DDW(amrex::Real theta)
+	{
+		return m_ddw(theta);
 	};
 
 private:
-  	std::vector<amrex::Real> thetas, sigmasW, sigmasDW, sigmasDDW;
-  	int size;
+	Numeric::Interpolator::Linear<Set::Scalar> m_w, m_dw, m_ddw;
 	  
 public:
 	static void Parse(Read & value, amrex::ParmParse & pp)

@@ -29,15 +29,15 @@ public:
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
 	}
 
-    Set::Scalar W(Set::Matrix F)
+    Set::Scalar W(const Set::Matrix & F) const override
     {
         return ((F-F0).transpose() * (ddw*((F-F0)))).trace();
     }
-    Set::Matrix DW(Set::Matrix F)
+    Set::Matrix DW(const Set::Matrix & F) const override
     {
         return ddw*(F-F0);
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(Set::Matrix /*F*/)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> DDW(const Set::Matrix & /*F*/) const override
     {
         return ddw;
     }

@@ -9,7 +9,6 @@
 
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
-#include "Integrator/Mobility.H"
 #include "Integrator/Eshelby.H"
 #include "Integrator/EshelbyPlastic.H"
 #include "Integrator/FiniteKinematics.H"
@@ -34,12 +33,6 @@ int main (int argc, char* argv[])
 		pfm->InitData();
 		pfm->Evolve();
 		delete pfm;
-	}
-	else if (program == "mobility")
-	{	
-		Integrator::Mobility mobility;
-		mobility.InitData();
-		mobility.Evolve();
 	}
 	else if (program == "eshelby")
 	{

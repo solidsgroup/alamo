@@ -335,6 +335,15 @@ def table_entry_stderr(table,entry):
     cur= db.cursor()
     cur.execute("SELECT STDERR FROM {} WHERE HASH = ?".format(table),(entry,))
     return cur.fetchall()[0][0]
+
+@app.route('/regtest/<regtest>/testentry/<hash>/diff_stdout', methods=['GET','POST'])
+@requires_auth
+def table_entry_diff_stdout(regtest,hash):
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT diff_stdout FROM {} WHERE HASH = ?".format(regtest),(hash,))
+    return cur.fetchall()[0][0]
                            
 @app.route('/regtest/<regtest>/<run>/stdout', methods=['GET','POST'])
 @requires_auth
@@ -357,6 +366,27 @@ def regtest(regtest):
     db.text_factory = str
     cur= db.cursor()
 
+    if request.method == 'POST':
+        print("GOT POST REQUEST")
+        print(request.form.get('action'))
+        if request.form.get('action')=="delete-regtests" and not args.safe:
+            print("ATTEMPTING TO DELETE TABLES")
+            items = request.form.items()
+            for f in items:
+                print(f)
+                if str(f[0]).startswith('run_'):
+                    run = str(f[0]).replace('run_','')
+                    cur.execute("SELECT DIR FROM " + regtest + " WHERE RUN = ?;",(run,))
+                    res = cur.fetchall()
+                    if len(res)>0:
+                        if len(res[0])>0:
+                            dir = res[0][0]
+                            print("Directory to delete is: ", dir)
+                            os.system('rm -rf ' + dir)
+                    cur.execute("DELETE FROM regtest_runs WHERE RUN = ?;",(run,))
+                    cur.execute("DELETE FROM regtest WHERE RUN = ?;",(run,))
+                    db.commit()
+                    
     cur.execute("SELECT DISTINCT TEST_NAME FROM {}".format(regtest))
     test_names = [tn[0] for tn in cur.fetchall()]
 
