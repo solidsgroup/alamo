@@ -77,9 +77,6 @@ protected:
 
 	void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
 
-	void CrackProblem(int lev, amrex::Real /*time*/, amrex::Real dt);
-	void ElasticityProblem(amrex::Real /*time*/);
-
 private:
 	int number_of_ghost_cells = 2;				///< Number of ghost cells
 
@@ -126,6 +123,7 @@ private:
 		int 		max_coarsening_level	= 0;
 		bool 		agglomeration 	  		= true;
 		bool 		consolidation 	  		= false;
+		Set::Scalar df_mult					= 1.0;
 
 		BC::Operator::Elastic<fracture_model_type> 	bc;
 		Set::Vector body_force 						= Set::Vector::Zero();
