@@ -28,56 +28,78 @@
 <div class="row">
 <div class="col-sm-12">
 <h2>Table Entries</h2>
+<form action='/table/{{table_name}}' method="POST" id="deleterecordsform">
 <div class="table-responsive">
   <table id="bigtable" class="table table-striped table-bordered" style="width:100%;">
 	<thead>
 	  <tr>
-		{% for i in range(1,columns|length) %}
+		{% for i in range(0,columns|length) %}
+		{% if columns[i] == "DIFF" or columns[i] == "HASH"%}
+		{% else %}
 		<th> {{columns[i]}} </th> 
+		{% endif %}
 		{% endfor %}
 	  </tr>
 	</thead>
-	{% for j in range(0,table|length) %}
-	<tr>
-	  {% for i in range (1,table[j]|length) %}
-	  <td>
-		{% if columns[i] == "DIR" %}
-			<a href="/table/{{table_name}}/entry/{{table[j][0]}}"{{table[j][i]}}\"">{{table[j][i]}} </a> 
-			{% if status[j] %}
-				{% if "Complete" in status[j] %} 
-					<span class="label label-success" alt="Simulation completed" style="display:inline-block;min-width:40px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
-				{% elif "Running" in status[j] %} 
-					<span class="label label-warning" style="display:inline-block;min-width:40px;"> 
-            	    {% if  status[j].split(' ')|length > 1 %}
-            	       {{status[j].split(' ')[1]}}
-            	    {% else %}
-            	       <span class="glyphicon glyphicon-cog"/></span>
-            	    {% endif %}
-            	    </span>&nbsp;
-            	{% elif "Interrupt" in status[j] or "Abort" in status[j] or "Segfault" in status[j] %} <span class="label label-danger" style="display:inline-block;min-width:40px;"> 
-            	    {% if  status[j].split(' ')|length > 1 %}
-            	       {{status[j].split(' ')[1]}}
-            	    {% else %}
-            	       <span class="glyphicon glyphicon-remove"/></span>
-            		{% endif %}
-            	    </span>&nbsp;
-				{%  endif %}
+	{% for j in range(0,data|length) %}
+		<tr>
+		{% for i in range (0,columns|length) %}
+			{% if columns[i] == "DIFF" or columns[i] == "HASH"%}
+			{% elif columns[i] == "DIR" %}
+				<td>
+				<input type="checkbox" name="hash_{{data[j]['HASH']}}" value="{{data[j]['DIR']}}"/>
+				<a href="/table/{{table_name}}/entry/{{data[j]['HASH']}}">{{data[j]['DIR']}} </a> 
+				{% if data[j]['DIFF'] %}
+					<a target="_blank" href="/table/{{table_name}}/entry/{{data[j]['HASH']}}/diff"><span class="label label-default"> DIFF</span></a>
+				{% endif %}
+				{% if status[j] %}
+						{% if "Complete" in status[j] %} 
+							<span class="label label-success" alt="Simulation completed" style="display:inline-block;min-width:40px;"> <span class="glyphicon glyphicon-ok"/> </span></span>
+						{% elif "Running" in status[j] %} 
+							<span class="label label-warning" style="display:inline-block;min-width:40px;"> 
+    	    	    		{% if  status[j].split(' ')|length > 1 %}
+    	    	    	    	{{status[j].split(' ')[1]}}
+    	    	    		{% else %}
+    	    	    	    	<span class="glyphicon glyphicon-cog"/></span>
+    	    	    		{% endif %}
+    	    	    		</span>&nbsp;
+    	    	    	{% elif "Interrupt" in status[j] or "Abort" in status[j] or "Segfault" in status[j] %} <span class="label label-danger" style="display:inline-block;min-width:40px;"> 
+    	    	    		{% if  status[j].split(' ')|length > 1 %}
+    	    	    	    	{{status[j].split(' ')[1]}}
+    	    	    		{% else %}
+    	    	    	    	<span class="glyphicon glyphicon-remove"/></span>
+	    	    	    	{% endif %}
+    	    	    		</span>&nbsp;
+						{% endif %}
+					{% endif %}
+					{% if numfiles|length > 0 %}{% if numfiles[j] > 0 %}
+						<span class="label label-primary"> {{numfiles[j]}} </span>
+					{% endif %}
+					</td>
+				{% endif %}
+			{% elif columns[i] == "Tags" and data[j]['Tags']%}
+				<td>
+					{% set taglist = data[j]['Tags'].split(',') %}
+					{% for tag in taglist %}
+						<span class="label label-primary">{{tag}} </span>&nbsp;
+					{% endfor %}
+				</td>
+			{% elif "Simulation_end_time" in columns[i] or "Simulation_start_time" in columns[i] %}
+				<td>
+				{{data[j][columns[i]] | datetime}}
+				</td>
+			{% else %}
+				<td>
+				{{data[j][columns[i]] | string | truncate (50)}}
+				</td>
 			{% endif %}
-			{% if numfiles|length > 0 %}{% if numfiles[j] > 0 %}
-				<span class="label label-primary"> {{numfiles[j]}} </span>
-			{% endif %}
-		{% endif %}
-		{% elif "Simulation_end_time" in columns[i] or "Simulation_start_time" in columns[i] %}
-			{{table[j][i] | datetime}}
-		{% else %}
-			{{table[j][i] | string | truncate (50)}}
-		{% endif %}
-	  </td>
-	  {% endfor %}
-	</tr>
+		{% endfor %}
+		</tr>
 	{% endfor %}
   </table>
 </div>
+<button type="submit" class="btn btn-danger btn-ok" ><span class="glyphicon glyphicon-trash" data-toggle="modal" data-target="#confirm-delete"></span> Delete Selected Records</button>
+</form>
 </div>
 </div>
 

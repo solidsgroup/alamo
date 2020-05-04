@@ -28,6 +28,7 @@
 #include "Model/Interface/GB/Read.H"
 
 #include "Model/Solid/Linear/Cubic.H"
+#include "Model/Solid/Affine/Cubic.H"
 //#include "Model/Solid/LinearElastic/Cubic.H"
 //#include "Model/Solid/LinearElastic/Isotropic.H"
 //#include "Model/Solid/Linear/Laplacian.H"
@@ -37,7 +38,8 @@ namespace Integrator
 {
 //using model_type = Model::Solid::LinearElastic::Isotropic;
 //using model_type = Model::Solid::LinearElastic::Cubic;
-using model_type = Model::Solid::Linear::Cubic;
+//using model_type = Model::Solid::Linear::Cubic;
+using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
 	Wilmore = 1,
@@ -83,7 +85,7 @@ private:
 	Set::Field<Set::Scalar> disp_mf; 
 	Set::Field<Set::Scalar> rhs_mf; 
 	Set::Field<Set::Scalar> stress_mf;
-	Set::Field<Set::Scalar> energies_mf;
+	Set::Field<Set::Scalar> energy_mf;
 
 	BC::BC *mybc;
 
@@ -96,6 +98,7 @@ private:
 		Set::Scalar sigma0;
 		Set::Scalar l_gb;
 		Set::Scalar elastic_mult = 1.0;
+		Set::Scalar elastic_threshold = 0.0;
 	} pf;
 
 	struct {
@@ -108,6 +111,7 @@ private:
 		int thermo_int = -1, thermo_plot_int = -1;
 		Set::Scalar theta0,sigma0,sigma1;
 		Set::Scalar phi0 = 0.0;
+		int elastic_int = -1;
 	} anisotropy;
 	
 	struct { 
@@ -148,6 +152,10 @@ private:
 		Operator::Elastic<model_type> op;
 
 		BC::Operator::Elastic<model_type> bc;
+
+		Set::Scalar strainenergy = 0.0;
+		Set::Scalar force = 0.0;
+		Set::Scalar disp = 0.0;
 	} elastic;
 
 };

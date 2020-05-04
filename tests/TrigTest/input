@@ -1,0 +1,2 @@
+alamo.program = trigtest
+trigtest.plot_file = tests/TrigTest/%G_%DD

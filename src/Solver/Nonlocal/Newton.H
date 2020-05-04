@@ -43,8 +43,7 @@ private:
                 
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.tilebox(); // mfi.grownnodaltilebox(2);
-                    bx.grow(2);
+                    amrex::Box bx = mfi.grownnodaltilebox(2);
                     bx = bx & domain;
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
@@ -81,8 +80,7 @@ private:
 
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx  = mfi.tilebox();
-                    bx.grow(1);
+                    amrex::Box bx  = mfi.grownnodaltilebox(1);
                     bx = bx & domain;
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
@@ -232,6 +230,50 @@ public:
         
     }
 
+    void W(Set::Field<Set::Scalar> & a_w_mf,
+           Set::Field<Set::Scalar> & a_u_mf,
+           Set::Field<T> &a_model_mf)
+    {
+        for (int lev = 0; lev < a_u_mf.size(); lev++)
+        {
+        	BL_PROFILE("Solver::Nonlocal::Newton::DW()");
+
+        	const amrex::Real* DX = linop.Geom(lev).CellSize();
+        	amrex::Box domain(linop.Geom(lev).Domain());
+        	domain.convert(amrex::IntVect::TheNodeVector());
+
+        	for (MFIter mfi(*a_u_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        	{
+        		const Box& bx = mfi.tilebox();
+        		amrex::Array4<T> const& C                 = a_model_mf[lev]->array(mfi);
+        		amrex::Array4<amrex::Real> const& w       = a_w_mf[lev]->array(mfi);
+        		amrex::Array4<const amrex::Real> const& u = a_u_mf[lev]->array(mfi);
+        		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+        				    {
+        					    Set::Matrix gradu;
+
+        					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+        						    = Numeric::GetStencil(i,j,k,domain);
+
+        					    // Fill gradu
+        					    for (int p = 0; p < AMREX_SPACEDIM; p++)
+        					    {
+        						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
+        						     		     gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
+        						      		     gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
+        					    }
+
+                                if      (C(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu) 
+                                    w(i,j,k) = C(i,j,k).W(gradu);
+                                else if (C(i,j,k).kinvar == Model::Solid::KinematicVariable::epsilon) 
+                                    w(i,j,k) = C(i,j,k).W(0.5*(gradu + gradu.transpose()));
+                                else if (C(i,j,k).kinvar == Model::Solid::KinematicVariable::F) 
+                                    w(i,j,k) = C(i,j,k).W(gradu + Set::Matrix::Identity());
+        				    });
+        	}
+        }
+    }
+
     void DW(Set::Field<Set::Scalar> & a_dw_mf,
             Set::Field<Set::Scalar> & a_u_mf,
             Set::Field<T> &a_model_mf)
@@ -289,6 +331,7 @@ public:
         	}
         }
     }
+
 
 private:
     int m_nriters = 1;
