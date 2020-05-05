@@ -81,8 +81,6 @@ public:
 
 private:
 	Numeric::Interpolator::Linear<Set::Scalar> m_w, m_dw, m_ddw;
-  	//std::vector<amrex::Real> thetas, sigmasW, sigmasDW, sigmasDDW;
-  	//int size;
 	  
 public:
 	static void Parse(Read & value, amrex::ParmParse & pp)

@@ -29,19 +29,27 @@ print(config.sections())
 
 alamo_path = os.path.abspath('.')
 alamo_configure_flags = ''
-regtest_dir = os.path.abspath('.')
+regtest_root_dir = os.path.abspath('.')
 db_path = os.path.abspath('.')
 branches = ['']
+dimensions = ['2','3']
 nprocs_build = 1
 benchmark_run = None
+clean_cmd = 'make realclean'
+fcompare_exe = None
 if 'main' in config:
     if 'alamo_path'            in config['main']: alamo_path = os.path.abspath(config['main']['alamo_path'])
     if 'alamo_configure_flags' in config['main']: alamo_configure_flags = config['main']['alamo_configure_flags']
     if 'db_path'               in config['main']: db_path = os.path.abspath(config['main']['db_path'])
-    if 'regtest_dir'           in config['main']: regtest_dir = os.path.abspath(config['main']['regtest_dir'])
+    if 'regtest_root_dir'      in config['main']: regtest_root_dir = os.path.abspath(config['main']['regtest_root_dir'])
     if 'branches'              in config['main']: branches = config['main']['branches'].split(' ')
+    if 'dimensions'            in config['main']: dimensions = config['main']['dimensions'].split(' ')
     if 'nprocs_build'          in config['main']: nprocs_build = int(config['main']['nprocs_build'])
+    if 'clean_cmd'             in config['main']: clean_cmd = config['main']['clean_cmd']
+    if 'fcompare_exe'          in config['main']: fcompare_exe = config['main']['fcompare_exe']
 
+if fcompare_exe and not os.path.isfile(fcompare_exe):
+    raise Exception("fcompere_exe {} does not exist".format(fcompare_exe))
 db = sqlite3.connect(db_path + '/regtest.db')
 db.text_factory = str
 cur= db.cursor()
@@ -65,7 +73,7 @@ for branch in branches:
     if branch != '':
         run_id += "-" + branch
 
-        ret = subprocess.run(['make','realclean'],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        ret = subprocess.run(clean_cmd.split(' '),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
         if (ret.returncode):
             print("\033[31m"+ret.stdout.decode())
@@ -86,45 +94,26 @@ for branch in branches:
             print(ret.stderr.decode()+"\033[0m")
             raise(Exception("There was an error pulling"))
 
-        # Configure 2D
-        ret = subprocess.run(['./configure','--dim=2']+alamo_configure_flags.split(),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-        build_stdout += ret.stdout.decode()
-        print(ret.stdout.decode())
-        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-        db.commit()
-        if (ret.returncode): 
-            print("Encountered error configuring {} in 2D".format(branch))
-            continue
-        
-        # Compile 2D
-        ret = subprocess.run(['make','-j{}'.format(nprocs_build)],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-        build_stdout += ret.stdout.decode()
-        print(ret.stdout.decode())
-        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-        db.commit()
-        if (ret.returncode): 
-            print("Encountered error making {} in 2D".format(branch))
-            continue
-
-        # Configure 3D
-        ret = subprocess.run(['./configure','--dim=3']+alamo_configure_flags.split(),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-        build_stdout += ret.stdout.decode()
-        print(ret.stdout.decode())
-        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-        db.commit()
-        if (ret.returncode): 
-            print("Encountered error configuring {} in 3D".format(branch))
-            continue
-        
-        # Compile 3D
-        ret = subprocess.run(['make','-j{}'.format(nprocs_build)],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
-        build_stdout += ret.stdout.decode()
-        print(ret.stdout.decode())
-        simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
-        db.commit()
-        if (ret.returncode): 
-            print("Encountered error making {} in 3D".format(branch))
-            continue
+        for d in dimensions:
+            # Configure ND
+            ret = subprocess.run(['./configure','--dim='+d]+alamo_configure_flags.split(),cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+            build_stdout += ret.stdout.decode()
+            print(ret.stdout.decode())
+            simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
+            db.commit()
+            if (ret.returncode): 
+                print("Encountered error configuring {} in {}D".format(branch,d))
+                continue
+            
+            # Compile ND
+            ret = subprocess.run(['make','-j{}'.format(nprocs_build)],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+            build_stdout += ret.stdout.decode()
+            print(ret.stdout.decode())
+            simba.updateRegTestRun(cur,run_id,ret.returncode,conv.convert(build_stdout))
+            db.commit()
+            if (ret.returncode): 
+                print("Encountered error making {} in {}D".format(branch,d))
+                continue
 
     else:
         ret = subprocess.run(['git','status'],cwd=alamo_path,stderr=subprocess.PIPE,stdout=subprocess.PIPE)
@@ -161,64 +150,88 @@ for branch in branches:
         if 'nprocs' in config[test]: nprocs = int(config[test]['nprocs'])
         else:                        nprocs = 1
 
-
-
-        #test_dir = "tests/" + test['name'] + "/"
-        rt_plot_dir = regtest_dir + "/rt-" + run_id + "/" + test + "/"
-        print("------------- rt_plot_dir: ", rt_plot_dir)
+        rt_dir      = regtest_root_dir + "/" + run_id
+        rt_plot_dir = rt_dir + "/" + test + "/"
 
         if 'benchmark_run' in config[test]:
             benchmark_run = config[test]['benchmark_run']
 
         if benchmark_run:
-            bm_plot_dir = regtest_dir + "/rt-" + benchmark_run + "/" + test + "/"
+            bm_plot_dir = regtest_root_dir + "/" + benchmark_run + "/" + test + "/"
             print("------------- bm_plot_dir: ", bm_plot_dir)
 
-        subprocess.run(["mkdir", "-p", rt_plot_dir])
+        if 'compare' in config[test]:
+            rt_plot_dir = regtest_root_dir  + '/' + config[test]['compare'] + '/' + test + '/'
+        else:
+            rt_plot_dir = regtest_root_dir + "/" + run_id + "/" + test + "/"
+            print("------------- rt_plot_dir: ", rt_plot_dir)
 
-        print(rt_plot_dir+"/output/")
-        print("Running ...... ")
-        ret = subprocess.run(["mpirun", "-np", str(nprocs), "./bin/alamo-{}d-g++".format(dim), input_file, "plot_file={}/output".format(rt_plot_dir)],
-                             cwd=alamo_path,
-                             stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        status.runcode = ret.returncode
-        print(rt_plot_dir+"/output/")
-        if not os.path.isdir(rt_plot_dir+"/output/"):
-            print("CREATING DIRECTORY!\n")
-            print(status.runcode)
-            print(os.path.isdir(rt_plot_dir+"/output/"))
-            subprocess.run(["mkdir","-p",rt_plot_dir+"/output/"])
-            with open(rt_plot_dir+"/output/metadata","w") as f:
-                f.write("Simulation_run_time = 0\n")
-                f.write("HASH = " + ''.join(random.choice('0123456789') for i in range(20))+'\n')
-        with open(rt_plot_dir+"/output/stdout","w") as f: f.writelines(conv.convert(ret.stdout.decode()))
-        with open(rt_plot_dir+"/output/stderr","w") as f: f.writelines(conv.convert(ret.stderr.decode()))
 
-        print("[PASS]" if status.runcode == 0 else "[FAIL]")
+            subprocess.run(["mkdir", "-p", rt_plot_dir])
+
+            print(rt_plot_dir+"/output/")
+            print("Running ...... ")
+            ret = subprocess.run(["mpirun", "-np", str(nprocs), "./bin/alamo-{}d-g++".format(dim), input_file, "plot_file={}/output".format(rt_plot_dir)],
+                                 cwd=alamo_path,
+                                 stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            status.runcode = ret.returncode
+            print(rt_plot_dir+"/output/")
+            if not os.path.isdir(rt_plot_dir+"/output/"):
+                print("CREATING DIRECTORY!\n")
+                print(status.runcode)
+                print(os.path.isdir(rt_plot_dir+"/output/"))
+                subprocess.run(["mkdir","-p",rt_plot_dir+"/output/"])
+                with open(rt_plot_dir+"/output/metadata","w") as f:
+                    f.write("Simulation_run_time = 0\n")
+                    f.write("HASH = " + ''.join(random.choice('0123456789') for i in range(20))+'\n')
+            with open(rt_plot_dir+"/output/stdout","w") as f: f.writelines(conv.convert(ret.stdout.decode()))
+            with open(rt_plot_dir+"/output/stderr","w") as f: f.writelines(conv.convert(ret.stderr.decode()))
+
+            print("[PASS]" if status.runcode == 0 else "[FAIL]")
 
 
         #
         # Do a direct file-by-file comparison
         #
+        diff_stdout = ""
         if benchmark_run:
             print("Comparing: [", rt_plot_dir, "] <==> [", bm_plot_dir, "]")
-            match = True
-            for rt in sorted(glob(rt_plot_dir+"/output/**",recursive=True)):
-                if not os.path.isfile(rt): continue
-                if os.path.basename(rt) in ["output", "metadata", "diff.html", "stdout", "stderr"]: continue
-                bm = rt.replace(rt_plot_dir,bm_plot_dir)
-                if not os.path.isfile(bm):
-                    print("Error - mismatched files")
-                    match = False
-                    break
-                if not filecmp.cmp(bm,rt):
-                    print(bm, " does not match ", rt)
-                    match = False
-                    break
-            if (match) : print("OK - files match")
-            else: print("Error - files do not match")
-            if (match) : status.compare = "YES"
-            else : status.compare = "NO"
+            if fcompare_exe:
+                match = True
+                print("FCOMPARE")
+                for f in sorted(glob(bm_plot_dir+"/**/Header",recursive=True),reverse=True)[:2]:
+                    bm_plt = os.path.dirname(f)
+                    rt_plt = bm_plt.replace(bm_plot_dir,rt_plot_dir)
+                    diff_stdout += "Comparing: [{}] <==> [{}]\n".format(bm_plt,rt_plt)
+                    if os.path.isdir(rt_plt):
+                        run = subprocess.run([fcompare_exe,'--allow_diff_grids','--rel_tol','1E-10',bm_plt,rt_plt],
+                                            stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                        diff_stdout += run.stdout.decode()
+                        diff_stdout += run.stderr.decode()
+                        if run.returncode: match = False
+                    else:
+                        diff_stdout += "{} not found!\n".format(rt_plt)
+                status.compare = "YES" if match else "NO"
+                status.diff_stdout = conv.convert(diff_stdout)
+
+            else:
+                match = True
+                for rt in sorted(glob(rt_plot_dir+"/output/**",recursive=True)):
+                    if not os.path.isfile(rt): continue
+                    if os.path.basename(rt) in ["output", "metadata", "diff.html", "stdout", "stderr"]: continue
+                    bm = rt.replace(rt_plot_dir,bm_plot_dir)
+                    if not os.path.isfile(bm):
+                        print("Error - mismatched files")
+                        match = False
+                        break
+                    if not filecmp.cmp(bm,rt):
+                        print(bm, " does not match ", rt)
+                        match = False
+                        break
+                if (match) : print("OK - files match")
+                else: print("Error - files do not match")
+                if (match) : status.compare = "YES"
+                else : status.compare = "NO"
         else:
             status.compare = "NONE"
 
@@ -246,7 +259,7 @@ for branch in branches:
         simba.updateTable(cur,test,types,verbose=False)
         simba.updateRecord(cur,test,data,verbose=False)
 
-        simba.updateRegTestRecord(cur,data['HASH'],run_id,test,status,bm_hash,benchmark_run)
+        simba.updateRegTestRecord(cur,data['HASH'],run_id,test,status,bm_hash,benchmark_run,rt_dir)
         db.commit()
 
 

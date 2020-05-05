@@ -1,0 +1,139 @@
+alamo.program = brittlefracture
+
+timestep = 1e-1
+stop_time = 1.e2
+plot_file = tests/Fracture2D/output
+
+amr.plot_int = 1
+amr.max_level = 7
+#amr.n_cell = 256 256
+amr.n_cell = 128 128 
+amr.blocking_factor = 32
+amr.regrid_int = 10
+amr.grid_eff = 1.0
+
+amr.thermo.int = 1
+
+geometry.prob_lo = -4 -4
+geometry.prob_hi = 4 4
+geometry.is_periodic= 0 0
+
+crack.modulus_scaling_max = 0.02
+crack.refinement_threshold = 0.01
+
+crack.type = constant
+crack.constant.G_c = 5.0e-5
+crack.constant.zeta = 5.e-1
+crack.constant.mobility = 1.0e0
+crack.constant.eta_epsilon = 0.01
+crack.constant.mult_Gc = 1.0e0
+crack.constant.mult_Lap = 1.0e0
+crack.constant.gtype = cubicm
+crack.constant.wtype = square
+crack.constant.exponent = 1.e-3
+crack.constant.threshold = 3.0e-1
+
+#crack.type = sin
+#crack.sin.Gc0 = 1.4e-1
+#crack.sin.Gc1 = 7.0e-2
+#crack.sin.theta0 = 0.785
+#crack.sin.zeta = 1.e-3
+#crack.sin.mobility = 5.0e-2
+#crack.sin.eta_epsilon = 0.01
+#crack.sin.mult_Gc = 1.0e0
+#crack.sin.mult_Lap = 1.0e0
+#crack.sin.phitype = multiwell
+
+crack.tol_crack = 1e-15
+crack.tol_ep = 1e-2
+
+#ic.type = ellipsoid
+#ic.center = 2 2
+##ic.A = 8.0 0.0 0.0 512.0
+#ic.A = 4.0 0.0 0.0 128.0
+#ic.eps = 0.05
+
+ic.type = notch
+# Enable for multiple notches
+#ic.notch.center = 0.0 -1.0 0.0 1.0
+#ic.notch.orientation = 1.0 0.0 1.0 0.0
+#ic.notch.length = 1.0 1.0
+#ic.notch.thickness = 0.0675 0.0675
+
+# Enable for a single notch
+ic.notch.center = 0.0 0.0
+ic.notch.orientation = 1.0 0.0
+ic.notch.length = 0.5
+ic.notch.thickness = 0.04
+
+ic.notch.eps = 0.01
+
+crack.bc.type.xlo = NEUMANN
+crack.bc.type.xhi = NEUMANN
+crack.bc.type.ylo = NEUMANN
+crack.bc.type.yhi = NEUMANN
+
+crack.bc.val.xlo = 0.0 
+crack.bc.val.xhi = 0.0 
+crack.bc.val.ylo = 0.0 
+crack.bc.val.yhi = 0.0 
+
+crack.bc_df.type.xlo = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.xhi = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.ylo = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.yhi = NEUMANN NEUMANN NEUMANN NEUMANN
+
+crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
+crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
+crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
+crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
+
+material.model = isotropic
+material.isotropic.lambda = 1e3
+material.isotropic.mu = 8e2
+
+elastic.bottom_solver 	=	bicgstab
+elastic.composite_solve	=	1
+elastic.verbose			=	2
+elastic.cg_verbose 		=	0
+elastic.max_iter		=	10000
+elastic.max_fmg_iter 	=	10000
+elastic.bottom_max_iter =	500
+elastic.max_fixed_iter 	=	500
+elastic.linop_maxorder 	=	2
+elastic.max_coarsening_level = 100000
+elastic.agglomeration 	=	1
+elastic.consolidation 	=	1
+elastic.tol_rel			=	1.0e-6
+elastic.tol_abs			= 	1.0e-6
+elastic.cg_tol_rel 		=	1.0e-6
+elastic.cg_tol_abs 		=	1.0e-6
+elastic.use_fsmooth 	=	1
+elastic.body_force		=	0.0 0.0 0.0
+
+elastic.bc.type.xlo = trac trac
+elastic.bc.type.xhi = trac trac
+
+# Mode I
+elastic.bc.type.ylo = trac disp
+elastic.bc.type.yhi = trac disp
+elastic.bc.type.xloylo = trac disp
+elastic.bc.type.xloyhi = trac disp
+elastic.bc.type.xhiylo = trac disp
+elastic.bc.type.xhiyhi = trac disp
+
+# Mode II
+#elastic.bc.type.ylo = disp disp
+#elastic.bc.type.yhi = disp disp
+#elastic.bc.type.xloylo = disp disp
+#elastic.bc.type.xloyhi = disp disp
+#elastic.bc.type.xhiylo = disp disp
+#elastic.bc.type.xhiyhi = disp disp
+
+#elastic.bc.val.xlo = 0.0 0.0
+#elastic.bc.val.xhi = 0.0 0.0
+
+elastic.bc.disp_step = 1.e-2
+elastic.bc.disp_init = 2.e-2
+elastic.bc.max_disp = 2.e-2
+elastic.bc.crackStressTest = false

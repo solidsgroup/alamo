@@ -268,6 +268,9 @@ void Operator<Grid::Node>::buildMasks ()
 
 	m_is_bottom_singular = false;
 
+	const auto lobc = LoBC();
+	const auto hibc = HiBC();
+
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
@@ -361,7 +364,7 @@ void Operator<Grid::Node>::buildMasks ()
 					if (!isects.empty()) has_cf[mfi] = 1;
 				}
 
-				mlndlap_fillbc_cc<int>(mfi.validbox(),fab,ccdom,m_lobc[0],m_hibc[0]);
+				mlndlap_fillbc_cc<int>(mfi.validbox(),fab,ccdom,lobc,hibc);
 			}
 		}
 
@@ -398,8 +401,6 @@ void Operator<Grid::Node>::buildMasks ()
 		const Geometry& geom = m_geom[amrlev][mglev];
 		Box nddomain = amrex::surroundingNodes(geom.Domain());
 
-        const auto lobc = m_lobc[0];
-        const auto hibc = m_hibc[0];
 
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
