@@ -27,6 +27,18 @@ BrittleFracture::BrittleFracture() :
 	else
 		Util::Abort(INFO,"This crack model hasn't been implemented yet");
 
+	// Anistropy
+	IO::ParmParse pp_anisotropy("crack.anisotropy");
+	pp_anisotropy.query("on", anisotropy.on);
+	pp_anisotropy.query("tstart",anisotropy.tstart);
+	anisotropy.timestep = timestep;
+	pp_anisotropy.query("timestep", anisotropy.timestep);
+	anisotropy.plot_int = plot_int;
+	pp_anisotropy.query("plot_int", anisotropy.plot_int);
+	anisotropy.plot_dt = plot_dt;
+	pp_anisotropy.query("plot_dt", anisotropy.plot_dt);
+	pp_anisotropy.query("beta", anisotropy.beta);
+
 	// ICs
 	IO::ParmParse pp("ic"); // Phase-field model parameters
 	pp.query("type", crack.ic_type);
@@ -124,15 +136,15 @@ BrittleFracture::BrittleFracture() :
 
 	const int number_of_stress_components = AMREX_SPACEDIM*AMREX_SPACEDIM;
 	
-	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_cells, "Disp",true);
-	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_cells, "RHS",true);
-	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_cells,	"strain",true);
-	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_cells,	"stress",true);
-	RegisterNodalFab (m_stressvm,	1,								number_of_ghost_cells,	"stress_vm",true);
-	RegisterNodalFab (m_energy,		1,								number_of_ghost_cells,	"energy",true);
-	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_cells,	"energyP",true);
-	RegisterNodalFab (m_energy_pristine_old,	1,					number_of_ghost_cells,	"energyPOld",true);
-	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_cells,	"residual",true);
+	RegisterNodalFab (m_disp, 		AMREX_SPACEDIM, 				number_of_ghost_nodes, "Disp",true);
+	RegisterNodalFab (m_rhs,  		AMREX_SPACEDIM, 				number_of_ghost_nodes, "RHS",true);
+	RegisterNodalFab (m_strain,		number_of_stress_components,	number_of_ghost_nodes,	"strain",true);
+	RegisterNodalFab (m_stress,		number_of_stress_components,	number_of_ghost_nodes,	"stress",true);
+	RegisterNodalFab (m_stressvm,	1,								number_of_ghost_nodes,	"stress_vm",true);
+	RegisterNodalFab (m_energy,		1,								number_of_ghost_nodes,	"energy",true);
+	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_nodes,	"energyP",true);
+	RegisterNodalFab (m_energy_pristine_old,	1,					number_of_ghost_nodes,	"energyPOld",true);
+	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_nodes,	"residual",true);
 	nlevels = maxLevel() + 1;
 
 	material.model.resize(nlevels);
@@ -203,32 +215,24 @@ BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_
 			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-scaleModulusMax));
 		});
 	}
-	/*amrex::Geometry tmp_geom = geom[lev];
-    for (int i = 0; i < 2; i++)
-    {
-		Util::Message(INFO);
-    	amrex::FabArray<amrex::BaseFab<fracture_model_type>> &mf = model;
-        mf.FillBoundary(tmp_geom.periodicity());
-        mf.FillBoundary();
-        const int ncomp = mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        amrex::FabArray<amrex::BaseFab<fracture_model_type>> tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        amrex::Copy(tmpmf, mf, 0, 0, ncomp, ng1);
-        mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, tmp_geom.periodicity());
-    }*/
 }
 
 void 
-BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int iter)
+BrittleFracture::TimeStepBegin(amrex::Real time, int iter)
 {
+	if (anisotropy.on && time >= anisotropy.tstart)
+	{
+		SetTimestep(anisotropy.timestep);
+		if (anisotropy.elastic_int > 0) 
+			if (iter % anisotropy.elastic_int) return;
+	}
 	if(iter%elastic.interval) return;
 
 	elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
 	material.model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, 2));
+		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_nodes));
 		material.model[ilev]->setVal((material.modeltype));
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
 		ScaledModulus(ilev,*(material.model)[ilev]);
@@ -242,9 +246,9 @@ BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		const Real* DX = geom[ilev].CellSize();
 		Set::Scalar volume = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
-		AMREX_D_TERM(m_rhs[ilev]->setVal(elastic.body_force[0]*volume,0,1);,
-			     m_rhs[ilev]->setVal(elastic.body_force[1]*volume,1,1);,
-			     m_rhs[ilev]->setVal(elastic.body_force[2]*volume,2,1););
+		AMREX_D_TERM(m_rhs[ilev]->setVal(elastic.body_force(0)*volume,0,1);,
+			     m_rhs[ilev]->setVal(elastic.body_force(1)*volume,1,1);,
+			     m_rhs[ilev]->setVal(elastic.body_force(2)*volume,2,1););
 	}
 
 	// Mode I - displacement
@@ -306,7 +310,7 @@ BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 		
 		for (amrex::MFIter mfi(*m_strain[lev],true); mfi.isValid(); ++mfi)
 		{
-			const amrex::Box& box = mfi.growntilebox(2);//validbox();
+			const amrex::Box& box = mfi.growntilebox(number_of_ghost_nodes);//validbox();
 			amrex::Array4<const Set::Scalar> const& strain_box 	= (*m_strain[lev]).array(mfi);
 			amrex::Array4<Set::Scalar> const& energy_box 		= (*m_energy_pristine[lev]).array(mfi);
 			amrex::Array4<Set::Scalar> const& energy_box_old 	= (*m_energy_pristine_old[lev]).array(mfi);
@@ -322,7 +326,7 @@ BrittleFracture::TimeStepBegin(amrex::Real /*time*/, int iter)
 
 
 void
-BrittleFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
+BrittleFracture::Advance (int lev, amrex::Real time, amrex::Real dt)
 {
 	if(crack.crackStressTest) return;
 	std::swap(*m_c_old[lev], *m_c[lev]);
@@ -339,25 +343,91 @@ BrittleFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::Array4<const Set::Scalar> const& energy_box = (*m_energy_pristine[lev]).array(mfi);
 
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-			Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
 
-			Set::Vector Dcold = Numeric::Gradient(c_old, i, j, k, 0, DX);
-			Set::Scalar Theta = atan2(Dcold(1),Dcold(0));
-			
-			Set::Scalar rhs = 0.;	
+			Set::Scalar rhs = 0.0;
+
+			// Elastic component of the driving force
 			Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
 			df(i,j,k,0) = crack.boundary->Dg_phi(c_old(i,j,k,0),0.)*en_cell*elastic.df_mult;
-			df(i,j,k,1) = crack.boundary->Epc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.);
-			df(i,j,k,2) = crack.boundary->kappa(Theta)*laplacian;
-
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),0.)*en_cell*elastic.df_mult;
-			rhs += crack.boundary->Epc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.);
-			rhs -= crack.boundary->kappa(Theta)*laplacian;
+
+			// Boundary terms
+			Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
+			Set::Scalar Theta = atan2(Dc(1),Dc(0));
+
+			Set::Scalar normgrad = Dc.lpNorm<2>();
+			//if (normgrad < 1E-4) continue; // This ought to speed things up.
+
+			Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
+			Set::Scalar laplacian = DDc.trace();
+
+			if (!anisotropy.on || time < anisotropy.tstart)
+			{
+				df(i,j,k,1) = crack.boundary->Gc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.boundary->Zeta(Theta));
+				df(i,j,k,2) = 2.0*crack.boundary->Zeta(Theta)*laplacian;
+
+				rhs += crack.boundary->Gc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.boundary->Zeta(Theta));
+				rhs -= 2.0*crack.boundary->Zeta(Theta)*laplacian;
+			}
+			else
+			{
+#if AMREX_SPACEDIM == 1
+				Util::Abort(INFO, "Anisotropy is not enabled in 1D.");
+#elif AMREX_SPACEDIM == 2
+				Set::Vector normal = Dc / normgrad;
+				Set::Vector tangent(normal[1],-normal[0]);
+
+				Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDc = Numeric::DoubleHessian<AMREX_SPACEDIM>(c_old, i, j, k, 0, DX);
+				Set::Scalar sinTheta = sin(Theta);
+				Set::Scalar cosTheta = cos(Theta);
+				Set::Scalar sin2Theta = sin(2.0*Theta);
+				Set::Scalar cos2Theta = cos(2.0*Theta);
+
+				Set::Scalar zeta = crack.boundary->Zeta(Theta);
+				Set::Scalar ws = crack.boundary->w_phi(c_old(i,j,k,0),0.0)/(4.0*zeta*normgrad*normgrad);
+				
+				if( std::isnan(ws)) Util::Abort(INFO, "nan at m=",i,",",j,",",k);
+				if( std::isinf(ws)) ws = 0.0;
+
+				Set::Scalar Boundary_term = 0.;
+				Boundary_term += crack.boundary->Gc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.boundary->Zeta(Theta));
+				Boundary_term -= 2.0*crack.boundary->Zeta(Theta)*laplacian;
+
+				if(std::isinf(ws/(4.0*zeta*normgrad*normgrad)))
+
+				Boundary_term += crack.boundary->DGc(Theta)
+								* (zeta - ws)
+								* (sin2Theta*(DDc(0,0)-DDc(1,1)) - 2.0*cos2Theta*DDc(0,1));
+				Boundary_term += crack.boundary->DDGc(Theta)
+								* (-zeta - ws)
+								* (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
+
+				if(std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+				df(i,j,k,1) = Boundary_term;
+				rhs += Boundary_term;
+
+
+				Set::Scalar Curvature_term =
+						DDDDc(0,0,0,0)*(    sinTheta*sinTheta*sinTheta*sinTheta) +
+						DDDDc(0,0,0,1)*(4.0*sinTheta*sinTheta*sinTheta*cosTheta) +
+						DDDDc(0,0,1,1)*(6.0*sinTheta*sinTheta*cosTheta*cosTheta) +
+						DDDDc(0,1,1,1)*(4.0*sinTheta*cosTheta*cosTheta*cosTheta) +
+						DDDDc(1,1,1,1)*(    cosTheta*cosTheta*cosTheta*cosTheta);
+
+				if(std::isnan(Curvature_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+				df(i,j,k,2) = anisotropy.beta*Curvature_term;
+				rhs += anisotropy.beta*Curvature_term;
+				
+				
+#elif AMREX_SPACEDIM == 3
+				Util::Abort(INFO, "3D model hasn't been implemented yet");
+#endif
+			}
 
 			df(i,j,k,3) = std::max(0.,rhs - crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)));
 			
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.boundary->Dw_phi(c_old(i,j,k,0),0.),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)))*crack.boundary->GetMobility(c_old(i,j,k,0));
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)))*crack.boundary->Mobility(c_old(i,j,k,0));
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 1.0"); c_new(i,j,k,0) = 1.;}
 			if(c_new(i,j,k,0) < 0.0) {Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 0.0"); c_new(i,j,k,0) = 0.;}

@@ -418,23 +418,27 @@ DuctileFracture::Advance (int lev, amrex::Real /*time*/, amrex::Real dt)
 		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
 			
 			Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);
+
+			Set::Vector Dcold = Numeric::Gradient(c_old, i, j, k, 0, DX);
+			Set::Scalar Theta = atan2(Dcold(1),Dcold(0));
+
 			Set::Scalar rhs = 0.;	
 			Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
 
 			df(i,j,k,0) = crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
-			df(i,j,k,1) = crack.boundary->Epc(c_old(i,j,k,0))*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
-			df(i,j,k,2) = crack.boundary->kappa(c_old(i,j,k,0))*laplacian;
+			df(i,j,k,1) = crack.boundary->Gc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))/(4.0*crack.boundary->Zeta(Theta));
+			df(i,j,k,2) = 2.0*crack.boundary->Zeta(Theta)*laplacian;
 			df(i,j,k,3) = crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype.OriginalPlasticEnergy(Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)));
 
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*en_cell;
-			rhs += crack.boundary->Epc(c_old(i,j,k,0))*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0));
-			rhs -= crack.boundary->kappa(c_old(i,j,k,0))*laplacian;
+			rhs += crack.boundary->Gc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))/(4.0*crack.boundary->Zeta(Theta));
+			rhs -= 2.0*crack.boundary->Zeta(Theta)*laplacian;
 			rhs += crack.boundary->Dg_phi(c_old(i,j,k,0),Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0))*(material.modeltype.OriginalPlasticEnergy(Numeric::Interpolate::NodeToCellAverage(p_box,i,j,k,0)));
 			
 			df(i,j,k,4) = rhs;
 			df(i,j,k,5) = max(0.,rhs-crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)));
 			
-			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,(rhs-crack.boundary->DrivingForceThreshold(c_old(i,j,k,0))))*crack.boundary->GetMobility(c_old(i,j,k,0));
+			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,(rhs-crack.boundary->DrivingForceThreshold(c_old(i,j,k,0))))*crack.boundary->Mobility(c_old(i,j,k,0));
 
 			if(c_new(i,j,k,0) > 1.0) {Util::Warning(INFO, "cnew exceeded 1.0, resetting to 1.0"); c_new(i,j,k,0) = 1.;}
 			if(c_new(i,j,k,0) < 0.0) {Util::Warning(INFO, "cnew is below 0.0, resetting to 0.0"); c_new(i,j,k,0) = 0.;}
