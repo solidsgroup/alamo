@@ -18,8 +18,15 @@ namespace Crack
 class Sin : public Crack
 {
 public:
-    Sin()
-    {};
+    Sin(){};
+
+    Set::Scalar Gc(Set::Scalar theta) {return Gc0 + 0.5*Gc1*(1.0 - cos(4.0*(theta-theta0))); }
+    Set::Scalar DGc(Set::Scalar theta) { return 2.0*Gc1*sin(4.0*(theta-theta0)); }
+    Set::Scalar DDGc(Set::Scalar theta) { return 8.0*Gc1*cos(4.0*(theta-theta0)); }
+    Set::Scalar Zeta(Set::Scalar /*theta*/) { return zeta; }
+    Set::Scalar Mobility(Set::Scalar /*theta*/) { return mobility; } 
+    Set::Scalar DrivingForceThreshold(Set::Scalar /*theta*/) { return threshold; }
+
     Set::Scalar Epc(Set::Scalar theta)
     {
         return mult_Gc*(Gc0 + 0.5*Gc1*(1.0 - cos(4.0*(theta-theta0))))/(4.0*zeta);
@@ -28,14 +35,6 @@ public:
     {
         return mult_Lap*2.0*(Gc0 + 0.5*Gc1*(1.0 - cos(4.0*(theta-theta0))))*zeta;
     };
-    Set::Scalar GetMobility( Set::Scalar /*theta*/)
-    {
-        return mobility;
-    }
-	Set::Scalar DrivingForceThreshold(Set::Scalar /*theta*/)
-	{
-		return threshold;
-	}
 
 private:
     Set::Scalar zeta = 1.e-2, mobility = 1.e-2;

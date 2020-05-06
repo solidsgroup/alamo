@@ -78,7 +78,8 @@ protected:
 	void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 private:
-	int number_of_ghost_cells = 2;				///< Number of ghost cells
+	int number_of_ghost_cells = 3;				///< Number of ghost cells
+	int number_of_ghost_nodes = 2;				///< Number of ghost nodes
 
 	Set::Field<Set::Scalar> m_c;
 	Set::Field<Set::Scalar> m_c_old;
@@ -151,6 +152,17 @@ private:
 
 		bool crackStressTest 	=false;
 	} crack;
+
+	struct
+	{
+		bool on = false;
+		Set::Scalar tstart = 0.0;
+		Set::Scalar timestep = 0.0;
+		Set::Scalar beta = 1.0e-2;
+		int plot_int = 1;
+		int elastic_int = 1;
+		Set::Scalar plot_dt = 0.0;
+	} anisotropy;
 
 	
 

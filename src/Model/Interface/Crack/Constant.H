@@ -19,31 +19,32 @@ class Constant : public Crack
 {
 public:
     Constant(){};
+    
+    Set::Scalar Gc (Set::Scalar /*theta*/) { return _Gc; }
+    Set::Scalar DGc (Set::Scalar /*theta*/) { return 0.0; }
+    Set::Scalar DDGc (Set::Scalar /*theta*/) { return 0.0; }
+    Set::Scalar Zeta(Set::Scalar /*theta*/) { return zeta; }
+    Set::Scalar Mobility (Set::Scalar /*theta*/) {return mobility;}
+    Set::Scalar DrivingForceThreshold (Set::Scalar /*theta*/) {return threshold;}
+
     Set::Scalar Epc(Set::Scalar /*theta*/)
     {
-        return mult_Gc*Gc/(4.0*zeta);
+        return mult_Gc*_Gc/(4.0*zeta);
     };
     Set::Scalar kappa(Set::Scalar /*theta*/)
     {
-        return mult_Lap*2.0*Gc*zeta;
+        return mult_Lap*2.0*_Gc*zeta;
     };
-    Set::Scalar GetMobility( Set::Scalar /*theta*/)
-    {
-        return mobility;
-    }
-	Set::Scalar DrivingForceThreshold(Set::Scalar /*theta*/)
-	{
-		return threshold;
-	}
+    
 
 private:
-    Set::Scalar Gc = 1.0, zeta = 1.e-2, mobility = 1.e-2, threshold = 0.0;
+    Set::Scalar _Gc = 1.0, zeta = 1.e-2, mobility = 1.e-2, threshold = 0.0;
     Set::Scalar mult_Gc = 1.0, mult_Lap = 1.0;
 
 public:
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
-        pp.query("G_c",value.Gc);
+        pp.query("G_c",value._Gc);
 		pp.query("zeta",value.zeta);
 		pp.query("mobility",value.mobility);
 		pp.query("mult_Gc",value.mult_Gc);
