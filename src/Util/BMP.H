@@ -16,35 +16,41 @@ public:
 
     void Define (std::string filename)
     {
-        FILE* f = fopen(filename.c_str(), "rb");
-        unsigned char info[54];
-        fread(info, sizeof(unsigned char), 54, f); 
-        nx = *(int*)&info[18];
-        ny = *(int*)&info[22];
-        Util::Message(INFO);
-        
-        data.resize(nx*ny);
-        
-        int row_padded = (nx*3 + 3) & (~3);
-        unsigned char* data = new unsigned char[row_padded];
-        for (int i = 0; i < ny; i++)
+        FILE* f;
+        if ((f = fopen(filename.c_str(), "rb")))
         {
-            fread(data, sizeof(unsigned char), row_padded, f);
-            for(int j = 0; j < nx*3; j += 3)
+            unsigned char info[54];
+            fread(info, sizeof(unsigned char), 54, f); 
+            nx = *(int*)&info[18];
+            ny = *(int*)&info[22];
+            
+            data.resize(nx*ny);
+            
+            int row_padded = (nx*3 + 3) & (~3);
+            unsigned char* data = new unsigned char[row_padded];
+            for (int j = 0; j < ny; j++)
             {
-                (*this)(j/3,i)[0] = (int)data[j+2]; // R
-                (*this)(j/3,i)[1] = (int)data[j+1]; // G
-                (*this)(j/3,i)[2] = (int)data[j];   // B
+                fread(data, sizeof(unsigned char), row_padded, f);
+                for(int i = 0; i < nx*3; i += 3)
+                {
+                    (*this)(i/3,j)[0] = (int)data[i+2]; // R
+                    (*this)(i/3,j)[1] = (int)data[i+1]; // G
+                    (*this)(i/3,j)[2] = (int)data[i];   // B
+                }
             }
+            fclose(f); 
         }
-        fclose(f); 
+        else
+        {
+            Util::Abort(INFO,"File ", filename, " does not exist");
+        }
     }
 
     inline
     std::array<int,3> & operator () (int i,int j)
     {
-        Util::Assert(INFO,TEST(i < nx),"i = ",i," nx = ", nx);
-        Util::Assert(INFO,TEST(j < ny),"j = ",j," ny = ", ny);
+        Util::Assert(INFO,TEST(i < nx)," i = ",i," nx = ", nx);
+        Util::Assert(INFO,TEST(j < ny)," j = ",j," ny = ", ny);
         return data[nx*j + i];
     }
     std::array<int,3> min()

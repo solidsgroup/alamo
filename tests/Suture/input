@@ -21,13 +21,14 @@ geometry.is_periodic	    = 0 0 0
 
 # ellipse configuration
 ic.type         = bmp
-ic.bmp.filename = tests/Suture/Interface_Blur2.bmp
+ic.bmp.filename = tests/Suture/Interface_Blur1.bmp
 ic.bmp.fit      = fitwidth
 ic.bmp.channel  = g
 
 #Aluminum Oxide
 elastic.model1.E = 370 #GPa
 elastic.model1.nu = 0.22
+elastic.model1.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
 #Nickel
 elastic.model2.E = 207 #GPa
 elastic.model2.nu = 0.31
@@ -36,10 +37,24 @@ elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
 
+
+elastic.bc.type.ylo    = trac disp
+
+elastic.bc.type.xloylo = disp disp
+elastic.bc.type.xhiylo = disp disp
+
 elastic.bc.type.xlo    = disp trac
 elastic.bc.type.xhi    = disp trac
 
-elastic.bc.type.yhi    = disp trac
-elastic.bc.type.xloyhi = disp trac
-elastic.bc.type.xhiyhi = disp trac
+elastic.bc.type.xloyhi = disp disp
+elastic.bc.type.xhiyhi = disp disp
 
+elastic.bc.type.yhi    = trac disp
+
+
+fracture.ic.center = -300.0 100.3
+fracture.ic.orientation = 1.0 0.0
+fracture.ic.length = 1.0
+fracture.ic.thickness = 0.25
+fracture.ic.eps = 0.05
+fracture.lower_bound = 0.15

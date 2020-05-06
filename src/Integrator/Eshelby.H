@@ -15,6 +15,7 @@
 
 #include "IC/Ellipse.H"
 #include "IC/BMP.H"
+#include "IC/Notch.H"
 #include "Numeric/Stencil.H"
 
 #include "Model/Solid/Solid.H"
@@ -67,6 +68,7 @@ public:
             }
         }
 
+        RegisterNodalFab(c_mf, 1, 2, "c",true);
         {
             IO::ParmParse pp("ic");
             std::string type;
@@ -84,6 +86,14 @@ public:
             if (pp.contains("Fmatrix"))    {pp.queryarr("Fmatrix",   elastic.model1.F0); Util::Warning(INFO,"This is going to be depricated"); }
             if (pp.contains("Finclusion")) {pp.queryarr("Finclusion",elastic.model2.F0); Util::Warning(INFO,"This is going to be depricated"); }
         }
+
+        {
+            IO::ParmParse pp("fracture");
+            fracture.ic = new IC::Notch(geom);
+            pp.queryclass("ic",static_cast<IC::Notch*>(fracture.ic));
+            pp.query("lower_bound",fracture.lower_bound);
+            pp.query("ref_threshold",fracture.ref_threshold);
+        }
     }
 
 protected:
@@ -95,6 +105,8 @@ protected:
 
         disp_mf[lev]->setVal(0.);
         rhs_mf[lev]->setVal(0.);
+
+        fracture.ic->Initialize(lev,c_mf);
     }
 
     void TimeStepBegin(Set::Scalar, int) override
@@ -124,11 +136,13 @@ protected:
             {
                 amrex::Box bx = mfi.growntilebox(2);
 
-                amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &c   = c_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     model(i, j, k).ddw = eta(i, j, k) * elastic.model1.ddw + (1.0 - eta(i, j, k)) * elastic.model2.ddw;
+                    model(i, j, k).ddw *= c(i,j,k) + fracture.lower_bound;
                     model(i, j, k).F0  = eta(i, j, k) * elastic.model1.F0  + (1.0 - eta(i, j, k)) * elastic.model2.F0;
                 });
             }
@@ -175,8 +189,9 @@ protected:
         {
             amrex::Box bx = mfi.tilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
-            amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-            amrex::Array4<Set::Scalar> const &disp = eta_mf[lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &eta  = eta_mf[lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &disp = disp_mf[lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &c    = c_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 {
                     Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
@@ -186,6 +201,11 @@ protected:
                 {
                     Set::Vector grad = Numeric::Gradient(disp, i, j, k, 0, DX.data());
                     if (grad.lpNorm<2>() * DXnorm > 0.01)
+                        tags(i, j, k) = amrex::TagBox::SET;
+                }
+                {
+                    Set::Vector grad = Numeric::Gradient(c, i, j, k, 0, DX.data());
+                    if (grad.lpNorm<2>() * DXnorm > fracture.ref_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
             });
@@ -200,6 +220,8 @@ private:
     Set::Field<Set::Scalar> stress_mf;
     Set::Field<Set::Scalar> strain_mf;
 
+    Set::Field<Set::Scalar> c_mf;
+
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC *mybc;        ///< Stock generic boundary condition object
     
@@ -212,6 +234,12 @@ private:
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic<model_type> bc;
     } elastic;
+
+    struct {
+        IC::IC *ic;        
+        Set::Scalar lower_bound = 0.01;
+        Set::Scalar ref_threshold = 0.01;
+    } fracture;
 
 };
 } // namespace Integrator
