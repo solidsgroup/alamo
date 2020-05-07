@@ -8,7 +8,7 @@ stop_time		    = 0.1
 
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 4
+amr.max_level		    = 5
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
@@ -20,10 +20,12 @@ geometry.prob_hi	    = 8 8 8
 geometry.is_periodic	    = 0 0 0
 
 # ellipse configuration
-ic.type         = bmp
-ic.bmp.filename = tests/Suture/Interface_Blur1.bmp
-ic.bmp.fit      = fitwidth
-ic.bmp.channel  = g
+#ic.type         = bmp
+#ic.bmp.filename = tests/Suture/Interface_Blur1.bmp
+#ic.bmp.fit      = fitwidth
+#ic.bmp.channel  = g
+ic.type         = ellipse
+ic.ellipse.x0   = 1000 1000
 
 #Aluminum Oxide
 elastic.model1.E = 370 #GPa
@@ -36,25 +38,36 @@ elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
+elastic.solver.fixed_iter=200
+elastic.set_dot_mask = 0
+elastic.set_singular = 0
+## Sliders on all walls
+#elastic.bc.type.ylo    = trac disp
+#elastic.bc.type.xloylo = disp disp
+#elastic.bc.type.xhiylo = disp disp
+#elastic.bc.type.xlo    = disp trac
+#elastic.bc.type.xhi    = disp trac
+#elastic.bc.type.xloyhi = disp disp
+#elastic.bc.type.xhiyhi = disp disp
+#elastic.bc.type.yhi    = trac disp
 
 
-elastic.bc.type.ylo    = trac disp
-
+elastic.bc.type.ylo    = disp disp
 elastic.bc.type.xloylo = disp disp
 elastic.bc.type.xhiylo = disp disp
-
-elastic.bc.type.xlo    = disp trac
-elastic.bc.type.xhi    = disp trac
-
+elastic.bc.type.xlo    = trac trac
+elastic.bc.type.xhi    = trac trac
 elastic.bc.type.xloyhi = disp disp
 elastic.bc.type.xhiyhi = disp disp
+elastic.bc.type.yhi    = disp disp
+elastic.bc.val.yhi    = 0.0 0.1
+elastic.bc.val.xloyhi = 0.0 0.1
+elastic.bc.val.xhiyhi = 0.0 0.1
 
-elastic.bc.type.yhi    = trac disp
-
-
-fracture.ic.center = -300.0 100.3
+fracture.ic.center = -3.0 1.3
 fracture.ic.orientation = 1.0 0.0
 fracture.ic.length = 1.0
 fracture.ic.thickness = 0.25
 fracture.ic.eps = 0.05
-fracture.lower_bound = 0.15
+fracture.lower_bound = 0.5
+#fracture.ref_threshold = 0.0001

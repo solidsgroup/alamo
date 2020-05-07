@@ -39,6 +39,7 @@ public:
         RegisterNodalFab(eta_mf, 1, 2, "eta",true);
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+        RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
         {
@@ -65,6 +66,8 @@ public:
                 // here instead of TimeStepBegin...
 
                 pp.queryclass("bc",elastic.bc);
+                pp.query("set_dot_mask",elastic.set_dot_mask);
+                pp.query("set_singular",elastic.set_singular);
             }
         }
 
@@ -157,6 +160,11 @@ protected:
         elastic.op.SetUniform(false);
         elastic.op.SetModel(model_mf);
         elastic.op.SetBC(&elastic.bc);
+        if (elastic.set_dot_mask) elastic.op.SetDotMask(c_mf);
+        if (elastic.set_singular) {
+            Util::Message(INFO,"Setting Singular");
+            elastic.op.SetSingular(true);
+        }
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
@@ -173,6 +181,7 @@ protected:
             //elastic.op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
             strain_mf[lev]->setVal(0.0);
         }
+        elastic.solver->compResidual(res_mf,disp_mf,rhs_mf,model_mf);
     }
 
     void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/) override
@@ -233,6 +242,8 @@ private:
         Operator::Elastic<Model::Solid::Affine::Isotropic> op;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic<model_type> bc;
+        int set_dot_mask = 0;
+        int set_singular = 0;
     } elastic;
 
     struct {
