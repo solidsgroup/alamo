@@ -108,8 +108,6 @@ public:
 	}
 
 
-private:
-	void buildMasks ();
 public:
 	static void realFillBoundary(MultiFab &phi, const Geometry &geom);
 
