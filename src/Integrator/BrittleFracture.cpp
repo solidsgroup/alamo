@@ -356,8 +356,14 @@ BrittleFracture::Advance (int lev, amrex::Real time, amrex::Real dt)
 			Set::Scalar Theta = atan2(Dc(1),Dc(0));
 
 			Set::Scalar normgrad = Dc.lpNorm<2>();
-			//if (normgrad < 1E-4) continue; // This ought to speed things up.
-
+			if (normgrad < 1E-5) // testing to speed things up a bit.
+			{
+				df(i,j,k,1) = 0.0;
+				df(i,j,k,2) = 0.0;
+				rhs = 0.0;
+			}
+			else
+			{
 			Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
 			Set::Scalar laplacian = DDc.trace();
 
@@ -387,13 +393,11 @@ BrittleFracture::Advance (int lev, amrex::Real time, amrex::Real dt)
 				Set::Scalar ws = crack.boundary->w_phi(c_old(i,j,k,0),0.0)/(4.0*zeta*normgrad*normgrad);
 				
 				if( std::isnan(ws)) Util::Abort(INFO, "nan at m=",i,",",j,",",k);
-				if( std::isinf(ws)) ws = 0.0;
+				if( std::isinf(ws)) ws = 1.0E6;
 
 				Set::Scalar Boundary_term = 0.;
 				Boundary_term += crack.boundary->Gc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.boundary->Zeta(Theta));
 				Boundary_term -= 2.0*crack.boundary->Zeta(Theta)*laplacian;
-
-				if(std::isinf(ws/(4.0*zeta*normgrad*normgrad)))
 
 				Boundary_term += crack.boundary->DGc(Theta)
 								* (zeta - ws)
@@ -423,7 +427,7 @@ BrittleFracture::Advance (int lev, amrex::Real time, amrex::Real dt)
 				Util::Abort(INFO, "3D model hasn't been implemented yet");
 #endif
 			}
-
+			} // disable this line to remove normgrad 1E-4 check
 			df(i,j,k,3) = std::max(0.,rhs - crack.boundary->DrivingForceThreshold(c_old(i,j,k,0)));
 			
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.boundary->Dw_phi(c_old(i,j,k,0),0.),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
