@@ -24,7 +24,7 @@ enum Orientation {
 		     zhi = 2 + AMREX_SPACEDIM)};
 
 class BC
-	: public amrex::PhysBCFunctBase
+	: public amrex::PhysBCFunctBase<amrex::MultiFab>
 {
 
 public:

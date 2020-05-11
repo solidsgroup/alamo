@@ -77,8 +77,83 @@ protected:
         rhs_mf[lev]->setVal(0.);
     }
 
+    class TmpBC
+	: public amrex::PhysBCFunctBase<amrex::FabArray<amrex::BaseFab<Set::Vector>>>
+    {
+        public:
+        virtual void FillBoundary(amrex::FabArray<amrex::BaseFab<Set::Vector>> & mf, 
+                                    int dcomp, int ncomp, IntVect const& nghost, 
+                                    Real time, int bccomp) override
+        {
+            mf;
+            dcomp;
+            nghost;
+            time;
+            bccomp;
+        }
+        virtual ~TmpBC () {}
+    };
+
     void TimeStepBegin(Set::Scalar, int) override
     {
+        // TEST ZONE
+
+        {   /// Test of FillPatchSingleLevel with regular fab
+            int icomp = 0, lev = 0;
+            amrex::MultiFab destination_mf;
+            BC::Nothing physbc;
+            Set::Scalar time = 0.0;
+            amrex::Vector<amrex::MultiFab*> smf;
+		    smf.push_back(disp_mf[lev].get());
+		    amrex::Vector<amrex::Real> stime;
+		    stime.push_back(time);
+            amrex::FillPatchSingleLevel(destination_mf,
+                                        time,
+                                        smf,
+                                        stime,
+                                        0,
+                                        icomp,
+                                        destination_mf.nComp(),
+                                        geom[lev],
+                                        physbc,
+                                        0);
+        }
+
+        {   /// Test of FillPatchSingleLevel with regular fab
+            int icomp = 0, lev = 0;
+            
+            Set::Field<Set::Vector> model_mf;
+
+            using MF = amrex::FabArray<amrex::BaseFab<Set::Vector>>;
+
+            //amrex::MultiFab destination_mf;
+            MF destination_mf;
+            
+            TmpBC physbc;
+            Set::Scalar time = 0.0;
+            amrex::Vector<MF*> smf;
+		    smf.push_back(model_mf[lev].get());
+		    amrex::Vector<amrex::Real> stime;
+		    stime.push_back(time);
+            amrex::FillPatchSingleLevel(destination_mf,
+                                        time,
+                                        smf,
+                                        stime,
+                                        0,
+                                        icomp,
+                                        destination_mf.nComp(),
+                                        geom[lev],
+                                        physbc,
+                                        0);
+        }
+
+
+
+
+
+
+
+
         if (finest_level != rhs_mf.size() - 1)
         {
             Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
