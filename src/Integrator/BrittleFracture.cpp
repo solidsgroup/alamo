@@ -397,7 +397,7 @@ BrittleFracture::Advance (int lev, amrex::Real time, amrex::Real dt)
 
 				Set::Scalar Boundary_term = 0.;
 				Boundary_term += crack.boundary->Gc(Theta)*crack.boundary->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.boundary->Zeta(Theta));
-				Boundary_term -= 2.0*crack.boundary->Zeta(Theta)*laplacian;
+				Boundary_term -= 2.0*crack.boundary->Gc(Theta)*crack.boundary->Zeta(Theta)*laplacian;
 
 				Boundary_term += crack.boundary->DGc(Theta)
 								* (zeta - ws)
