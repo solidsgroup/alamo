@@ -38,9 +38,9 @@ elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
-elastic.solver.fixed_iter=200
+elastic.solver.fixed_iter=2000
 elastic.set_dot_mask = 0
-elastic.set_singular = 0
+elastic.set_singular = 1
 ## Sliders on all walls
 #elastic.bc.type.ylo    = trac disp
 #elastic.bc.type.xloylo = disp disp
@@ -55,8 +55,8 @@ elastic.set_singular = 0
 elastic.bc.type.ylo    = disp disp
 elastic.bc.type.xloylo = disp disp
 elastic.bc.type.xhiylo = disp disp
-elastic.bc.type.xlo    = trac trac
-elastic.bc.type.xhi    = trac trac
+elastic.bc.type.xlo    = disp trac
+elastic.bc.type.xhi    = disp trac
 elastic.bc.type.xloyhi = disp disp
 elastic.bc.type.xhiyhi = disp disp
 elastic.bc.type.yhi    = disp disp

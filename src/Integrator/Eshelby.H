@@ -141,11 +141,12 @@ protected:
 
                 amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &c   = c_mf[lev]->array(mfi);
+                amrex::Array4</*const*/ Set::Scalar> const &c   = c_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     model(i, j, k).ddw = eta(i, j, k) * elastic.model1.ddw + (1.0 - eta(i, j, k)) * elastic.model2.ddw;
-                    model(i, j, k).ddw *= c(i,j,k) + fracture.lower_bound;
+                    c(i,j,k) = (c(i,j,k) + fracture.lower_bound) / (1.0 + fracture.lower_bound);
+                    model(i, j, k).ddw *= c(i,j,k);
                     model(i, j, k).F0  = eta(i, j, k) * elastic.model1.F0  + (1.0 - eta(i, j, k)) * elastic.model2.F0;
                 });
             }
