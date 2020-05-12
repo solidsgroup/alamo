@@ -712,7 +712,7 @@ void
 Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
 		   const amrex::Vector<amrex::BoxArray>& a_grids,
 		   const amrex::Vector<amrex::DistributionMapping>& a_dmap,
-		   BC::BC& a_bc,
+		   BC::BC<Set::Scalar>& a_bc,
 		   const amrex::LPInfo& a_info,
 		   const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory)
 {

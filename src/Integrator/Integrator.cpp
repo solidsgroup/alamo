@@ -206,8 +206,8 @@ Integrator::ClearLevel (int lev)
 //
 
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-			   BC::BC *new_bc,
+Integrator::RegisterNewFab(Set::Field<Set::Scalar> &new_fab,
+			   BC::BC<Set::Scalar> *new_bc,
 			   int ncomp,
 			   int nghost,
 			   std::string name,
@@ -226,7 +226,7 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 }
 
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+Integrator::RegisterNewFab(Set::Field<Set::Scalar> &new_fab,
 			   int ncomp,
 			   std::string name,
 			   bool writeout)
@@ -243,8 +243,8 @@ Integrator::RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new
 	cell.number_of_fabs++;
 }
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-			   	 BC::BC *new_bc,
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar> &new_fab,
+			   	 BC::BC<Set::Scalar> *new_bc,
 			     int ncomp,
 			     int nghost,
 			     std::string name,
@@ -262,7 +262,7 @@ Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &n
 	node.number_of_fabs++;
 }
 void // CUSTOM METHOD - CHANGEABLE
-Integrator::RegisterNodalFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+Integrator::RegisterNodalFab(Set::Field<Set::Scalar> &new_fab,
 			     int ncomp,
 			     int nghost,
 			     std::string name,
@@ -299,9 +299,9 @@ Integrator::CountCells (int lev)
 
 void  // CUSTOM METHOD - CHANGEABLE
 Integrator::FillPatch (int lev, amrex::Real time,
-		       amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
+		       amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
 		       amrex::MultiFab &destination_mf,
-		       BC::BC &physbc, int icomp)
+		       BC::BC<Set::Scalar> &physbc, int icomp)
 {
 	BL_PROFILE("Integrator::FillPatch");
 	if (lev == 0)
@@ -321,7 +321,8 @@ Integrator::FillPatch (int lev, amrex::Real time,
 					    icomp,			// dcomp - Destination component
 					    destination_mf.nComp(),	// ncomp - Number of components
 					    geom[lev],			// Geometry (CONST)
-					    physbc, 0);			// BC
+					    physbc,
+						0);			// BC
 	} 
 	else
 	{
@@ -359,14 +360,14 @@ Integrator::FillPatch (int lev, amrex::Real time,
 void
 Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 			     amrex::Real time, ///<[in] Simulatinon time
-			     amrex::Vector<std::unique_ptr<amrex::MultiFab> > &mf, ///<[in] Fab to fill
-			     BC::BC &physbc, ///<[in] BC object applying to Fab
+			     Set::Field<Set::Scalar> &mf, ///<[in] Fab to fill
+			     BC::BC<Set::Scalar> &physbc, ///<[in] BC object applying to Fab
 			     int icomp, ///<[in] start component
 			     int ncomp) ///<[in] end component (i.e. applies to components `icomp`...`ncomp`)
 {
 	BL_PROFILE("Integrator::FillCoarsePatch");
 	AMREX_ASSERT(lev > 0);
-	amrex::Vector<amrex::MultiFab* > cmf;
+	amrex::Vector<amrex::MultiFab *> cmf;
 	cmf.push_back(mf[lev-1].get());
 	amrex::Vector<amrex::Real> ctime;
 	ctime.push_back(time);

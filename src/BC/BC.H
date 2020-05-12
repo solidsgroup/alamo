@@ -23,8 +23,8 @@ enum Orientation {
 		     yhi = 1 + AMREX_SPACEDIM,
 		     zhi = 2 + AMREX_SPACEDIM)};
 
+template<class T>
 class BC
-	: public amrex::PhysBCFunctBase<amrex::MultiFab>
 {
 
 public:
@@ -55,10 +55,19 @@ public:
 
 	virtual void FillBoundary (amrex::MultiFab& mf,
 				   int dcomp, int ncomp, amrex::IntVect const & /*nghost*/,
-				   amrex::Real time, int bccomp) override
+				   amrex::Real time, int bccomp) //override
 	{
 		FillBoundary(mf,dcomp,ncomp,time,bccomp);
 	}
+
+	void operator () (amrex::MultiFab& mf,
+				   	  int dcomp, int ncomp, amrex::IntVect const & /*nghost*/,
+				   	  amrex::Real time, int bccomp) 
+	{
+		FillBoundary(mf,dcomp,ncomp,time,bccomp);
+	}
+
+	
 
 	virtual amrex::BCRec GetBCRec() = 0;
 

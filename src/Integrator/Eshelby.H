@@ -77,22 +77,7 @@ protected:
         rhs_mf[lev]->setVal(0.);
     }
 
-    class TmpBC
-	: public amrex::PhysBCFunctBase<amrex::FabArray<amrex::BaseFab<Set::Vector>>>
-    {
-        public:
-        virtual void FillBoundary(amrex::FabArray<amrex::BaseFab<Set::Vector>> & mf, 
-                                    int dcomp, int ncomp, IntVect const& nghost, 
-                                    Real time, int bccomp) override
-        {
-            mf;
-            dcomp;
-            nghost;
-            time;
-            bccomp;
-        }
-        virtual ~TmpBC () {}
-    };
+    
 
     void TimeStepBegin(Set::Scalar, int) override
     {
@@ -124,27 +109,30 @@ protected:
             
             Set::Field<Set::Vector> model_mf;
 
-            using MF = amrex::FabArray<amrex::BaseFab<Set::Vector>>;
+            //using MF = amrex::FabArray<amrex::BaseFab<Set::Vector>>;
 
             //amrex::MultiFab destination_mf;
-            MF destination_mf;
+            //MF destination_mf;
             
-            TmpBC physbc;
-            Set::Scalar time = 0.0;
-            amrex::Vector<MF*> smf;
-		    smf.push_back(model_mf[lev].get());
-		    amrex::Vector<amrex::Real> stime;
-		    stime.push_back(time);
-            amrex::FillPatchSingleLevel(destination_mf,
-                                        time,
-                                        smf,
-                                        stime,
-                                        0,
-                                        icomp,
-                                        destination_mf.nComp(),
-                                        geom[lev],
-                                        physbc,
-                                        0);
+            //TmpBC physbc;
+            //Set::Scalar time = 0.0;
+            //amrex::Vector<MF*> smf;
+		    //smf.push_back(model_mf[lev].get());
+		    //amrex::Vector<amrex::Real> stime;
+		    //stime.push_back(time);
+            //amrex::FillPatchSingleLevel(destination_mf,
+            //                            time,
+            //                            smf,
+            //                            stime,
+            //                            0,
+            //                            icomp,
+            //                            destination_mf.nComp(),
+            //                            geom[lev],
+            //                            physbc,
+            //                            0);
+
+
+            Field<Set::Vector> myfield (model_mf, geom, refRatio());
         }
 
 
@@ -255,7 +243,7 @@ private:
     Set::Field<Set::Scalar> strain_mf;
 
     IC::IC *ic;          ///< Pointer to abstract IC object
-    BC::BC *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     Set::Matrix Fmatrix = Set::Matrix::Zero();
     Set::Matrix Finclusion = Set::Matrix::Zero();

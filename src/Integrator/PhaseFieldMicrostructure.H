@@ -87,7 +87,7 @@ private:
 	Set::Field<Set::Scalar> stress_mf;
 	Set::Field<Set::Scalar> energy_mf;
 
-	BC::BC *mybc;
+	BC::BC<Set::Scalar> *mybc;
 
 	//amrex::Real M, mu, gamma, sigma0, l_gb, beta;
 	RegularizationType regularization = RegularizationType::K12;
