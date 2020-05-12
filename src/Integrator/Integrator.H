@@ -25,11 +25,132 @@
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"
+#include "Numeric/Interpolator/NodeBilinear.H"
 
 /// \brief Collection of numerical integrator objects
 namespace Integrator
 {
 
+class BaseField
+{
+public:
+	virtual void RemakeLevel (int lev,       
+					  amrex::Real time, 
+					  const amrex::BoxArray& cgrids, 
+					  const amrex::DistributionMapping& dm) = 0;
+};
+
+template<class T>
+class Field : public BaseField
+{
+public:
+	class EmptyBC
+    {
+        public:
+        virtual void operator () (amrex::FabArray<amrex::BaseFab<T>> & mf, 
+                                    int dcomp, int ncomp, amrex::IntVect const& nghost, 
+                                    amrex::Real time, int bccomp) 
+        {  /* Do nothing - this is not needed.*/   }
+		amrex::BCRec GetBCRec() {return amrex::BCRec();}
+    };
+
+	Field(Set::Field<T> & a_field, const amrex::Vector<amrex::Geometry> &a_geom, const amrex::Vector<amrex::IntVect> &a_refRatio) : 
+	m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio) {} 
+	
+	void 
+	FillPatch (int lev, amrex::Real time,
+				amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> &source_mf,
+				amrex::FabArray<amrex::BaseFab<T>> &destination_mf, 
+				int icomp)
+	{
+		EmptyBC physbc;
+		if (lev == 0)
+		{
+			amrex::Vector<amrex::FabArray<amrex::BaseFab<T>>*> smf;
+			smf.push_back(source_mf[lev].get());
+			amrex::Vector<amrex::Real> stime;
+			stime.push_back(time);
+			//physbc.define(m_geom[lev]);
+			amrex::FillPatchSingleLevel(destination_mf, time, smf, stime,
+						    			0, icomp, destination_mf.nComp(), m_geom[lev],
+						    			physbc, 0);
+		} 
+		else
+		{
+			amrex::Vector<amrex::FabArray<amrex::BaseFab<T>>*> cmf, fmf;
+			cmf.push_back(source_mf[lev-1].get());
+			fmf.push_back(source_mf[lev].get());
+			amrex::Vector<amrex::Real> ctime, ftime;
+			ctime.push_back(time);
+			ftime.push_back(time);
+
+			//physbc.define(m_geom[lev]);
+
+			Numeric::Interpolator::NodeBilinear<T> *mapper = new Numeric::Interpolator::NodeBilinear<T>();
+//
+//			if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
+//				mapper = &amrex::node_bilinear_interp;
+//			else
+//				mapper = &amrex::cell_cons_interp;
+//
+
+			amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); 
+			amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
+						  0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
+						  physbc, 0,
+						  physbc, 0,
+						  m_refRatio[lev-1],
+						  mapper, bcs, 0);
+		}
+
+	}
+
+	virtual void RemakeLevel (int lev,       
+					  amrex::Real time, 
+					  const amrex::BoxArray& cgrids, 
+					  const amrex::DistributionMapping& dm) override
+	{
+
+		
+		const int ncomp  = m_field[lev]->nComp();
+		const int nghost = m_field[lev]->nGrow();
+		amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, ncomp, nghost);
+		this->FillPatch(lev, time, m_field, new_state, 0);
+		std::swap(new_state, *m_field[lev]);
+
+		//for (int n=0; n < cell.number_of_fabs; n++)
+		//{
+
+			//amrex::MultiFab new_state(cgrids, dm, ncomp, nghost); 
+
+			//new_state.setVal(0.0);
+			//FillPatch(lev, time, *cell.fab_array[n], new_state, *cell.physbc_array[n], 0);
+			//std::swap(new_state, *(*cell.fab_array[n])[lev]);
+		//}
+
+//		amrex::BoxArray ngrids = cgrids;
+//		ngrids.convert(amrex::IntVect::TheNodeVector());
+//
+//		for (int n=0; n < node.number_of_fabs; n++)
+//		{
+//			const int ncomp  = (*node.fab_array[n])[lev]->nComp();
+//			const int nghost = (*node.fab_array[n])[lev]->nGrow();
+//
+//			amrex::MultiFab new_state(ngrids, dm, ncomp, nghost); 
+//
+//			new_state.setVal(0.0);
+//			FillPatch(lev, time, *node.fab_array[n], new_state, *node.physbc_array[n], 0);
+//			std::swap(new_state, *(*node.fab_array[n])[lev]);
+//		}
+	}
+
+private:
+
+	Set::Field<T> &m_field;
+	const amrex::Vector<amrex::Geometry>  &m_geom;
+	const amrex::Vector<amrex::IntVect> &m_refRatio;
+};
+	
 ///
 /// \class Integrator
 /// \brief Pure abstract class for managing data structures, time integration (with substepping),
@@ -186,11 +307,11 @@ protected:
 	/// You **must** call this function, typically in the constructor, for every field variable 
 	/// that you use in any inherited class.
 	/// 
-	void RegisterNewFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+	void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
 			     ///<[in] Reference to field variable that you want to use.
 			     ///      **Note** `new_fab` must not fall out of scope! Should be a
 			     ///      private member variable.
-			     BC::BC *new_bc,
+			     BC::BC<Set::Scalar> *new_bc,
 			     ///<[in] Boundary condition object. (Same BC object can be re-used 
 			     ///      if applicable
 			     int ncomp,
@@ -204,19 +325,19 @@ protected:
 				 bool writeout
 			     );
 
-	void RegisterNewFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+	void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
 			     int ncomp,
 			     std::string name,
 				 bool writeout
 			     );
-	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+	void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
 			       int ncomp,
 			       int nghost,
 			       std::string name,
 				   bool writeout
 			       );
-	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-				   BC::BC *new_bc,
+	void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
+				   BC::BC<Set::Scalar> *new_bc,
 			       int ncomp,
 			       int nghost,
 			       std::string name,
@@ -248,12 +369,13 @@ private:
 	void IntegrateVariables(Set::Scalar cur_time, int step);
 
 	void FillPatch (int lev, amrex::Real time,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
-			amrex::MultiFab &destination_multifab, BC::BC &physbc,
+			amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
+			amrex::MultiFab &destination_multifab, 
+			BC::BC<Set::Scalar> &physbc,
 			int icomp);
 	long CountCells (int lev);
 	void TimeStep (int lev, amrex::Real time, int iteration);
-	void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, BC::BC &physbc, int icomp, int ncomp);
+	void FillCoarsePatch (int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar> &physbc, int icomp, int ncomp);
 	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
 	std::vector<std::string> PlotFileName (int lev) const;
@@ -264,7 +386,7 @@ protected:
 	// MEMBER VARIABLES
 	//
 
-	// TIME (STEP) KEEPING
+	// TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
 	amrex::Real timestep;	///< Timestep for the base level of refinement
 private:
@@ -280,21 +402,21 @@ private:
 protected:
 	struct {
 		int number_of_fabs = 0;
-		std::vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		std::vector<Set::Field<Set::Scalar> *> fab_array;
 		std::vector<int> ncomp_array;
 		std::vector<int> nghost_array;
 		std::vector<std::string> name_array;
-		std::vector<BC::BC *> physbc_array;
+		std::vector<BC::BC<Set::Scalar> *> physbc_array;
 		std::vector<bool> writeout_array;
 	} node;
 
 	struct {
 		int number_of_fabs = 0;
-		std::vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		std::vector<Set::Field<Set::Scalar> *> fab_array;
 		std::vector<int> ncomp_array;
 		std::vector<int> nghost_array;
 		std::vector<std::string> name_array;
-		std::vector<BC::BC *> physbc_array;
+		std::vector<BC::BC<Set::Scalar> *> physbc_array;
 		std::vector<bool> writeout_array;
 	} cell;
 
