@@ -138,7 +138,7 @@ Integrator::MakeNewLevelFromCoarse (int lev, amrex::Real time, const amrex::BoxA
 		FillCoarsePatch(lev, time, *node.fab_array[n], *node.physbc_array[n], 0, ncomp);
 	}
 
-	for (int n = 0; n < m_basefields.size(); n++)
+	for (unsigned int n = 0; n < m_basefields.size(); n++)
 	{
 		m_basefields[n]->MakeNewLevelFromCoarse(lev,time,cgrids,dm);
 	}
@@ -185,7 +185,7 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 		std::swap(new_state, *(*node.fab_array[n])[lev]);
 	}
 
-	for (int n = 0; n < m_basefields.size(); n++)
+	for (unsigned int n = 0; n < m_basefields.size(); n++)
 	{
 		m_basefields[n]->RemakeLevel(lev,time,cgrids,dm);
 	}
@@ -558,7 +558,7 @@ Integrator::MakeNewLevelFromScratch (int lev, amrex::Real t, const amrex::BoxArr
 		(*node.fab_array[n])[lev].reset(new amrex::MultiFab(ngrids, dm, node.ncomp_array[n], node.nghost_array[n]));
 		(*node.fab_array[n])[lev]->setVal(0.0);
 	}
-	for (int n = 0; n < m_basefields.size(); n++)
+	for (unsigned int n = 0; n < m_basefields.size(); n++)
 	{
 		m_basefields[n]->MakeNewLevelFromScratch(lev,t,cgrids,dm);
 	}

@@ -33,7 +33,7 @@ public:
                           int               /*actual_state*/,
                           amrex::RunOn             runon)
     {
-    bool run_on_gpu = (runon == amrex::RunOn::Gpu && amrex::Gpu::inLaunchRegion());
+    //bool run_on_gpu = (runon == amrex::RunOn::Gpu && amrex::Gpu::inLaunchRegion());
 
     int num_slope  = ncomp*(AMREX_D_TERM(2,*2,*2)-1);
     const amrex::Box cslope_bx = amrex::enclosedCells(CoarseBox(fine_region, ratio));
