@@ -102,7 +102,8 @@ protected:
 
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.growntilebox(2);
+                amrex::Box bx = mfi.nodaltilebox();
+                bx.grow(2);
 
                 amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
@@ -120,23 +121,23 @@ protected:
         elastic.bc.Init(rhs_mf,geom);
 
         amrex::LPInfo info;
-        elastic.op.define(geom, grids, dmap, info);
-        elastic.op.SetUniform(false);
-        elastic.op.SetModel(model_mf);
-        elastic.op.SetBC(&elastic.bc);
+        Operator::Elastic<Model::Solid::Affine::Isotropic> elastic_op(geom, grids, dmap, info);
+        elastic_op.SetUniform(false);
+        elastic_op.SetModel(model_mf);
+        elastic_op.SetBC(&elastic.bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
         IO::ParmParse pp("elastic");
-        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic.op);
+        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
         pp.queryclass("solver",*elastic.solver);
 
         elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
-            elastic.op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            elastic.op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            elastic_op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+            elastic_op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
         }
     }
 
@@ -189,7 +190,6 @@ private:
 
     struct {
         Model::Solid::Affine::Isotropic model;
-        Operator::Elastic<Model::Solid::Affine::Isotropic> op;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic<model_type> bc;
     } elastic;
