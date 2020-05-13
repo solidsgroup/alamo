@@ -25,131 +25,12 @@
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"
-#include "Numeric/Interpolator/NodeBilinear.H"
+#include "BaseField.H"
 
 /// \brief Collection of numerical integrator objects
 namespace Integrator
 {
 
-class BaseField
-{
-public:
-	virtual void RemakeLevel (int lev,       
-					  amrex::Real time, 
-					  const amrex::BoxArray& cgrids, 
-					  const amrex::DistributionMapping& dm) = 0;
-};
-
-template<class T>
-class Field : public BaseField
-{
-public:
-	class EmptyBC
-    {
-        public:
-        virtual void operator () (amrex::FabArray<amrex::BaseFab<T>> & mf, 
-                                    int dcomp, int ncomp, amrex::IntVect const& nghost, 
-                                    amrex::Real time, int bccomp) 
-        {  /* Do nothing - this is not needed.*/   }
-		amrex::BCRec GetBCRec() {return amrex::BCRec();}
-    };
-
-	Field(Set::Field<T> & a_field, const amrex::Vector<amrex::Geometry> &a_geom, const amrex::Vector<amrex::IntVect> &a_refRatio) : 
-	m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio) {} 
-	
-	void 
-	FillPatch (int lev, amrex::Real time,
-				amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> &source_mf,
-				amrex::FabArray<amrex::BaseFab<T>> &destination_mf, 
-				int icomp)
-	{
-		EmptyBC physbc;
-		if (lev == 0)
-		{
-			amrex::Vector<amrex::FabArray<amrex::BaseFab<T>>*> smf;
-			smf.push_back(source_mf[lev].get());
-			amrex::Vector<amrex::Real> stime;
-			stime.push_back(time);
-			//physbc.define(m_geom[lev]);
-			amrex::FillPatchSingleLevel(destination_mf, time, smf, stime,
-						    			0, icomp, destination_mf.nComp(), m_geom[lev],
-						    			physbc, 0);
-		} 
-		else
-		{
-			amrex::Vector<amrex::FabArray<amrex::BaseFab<T>>*> cmf, fmf;
-			cmf.push_back(source_mf[lev-1].get());
-			fmf.push_back(source_mf[lev].get());
-			amrex::Vector<amrex::Real> ctime, ftime;
-			ctime.push_back(time);
-			ftime.push_back(time);
-
-			//physbc.define(m_geom[lev]);
-
-			Numeric::Interpolator::NodeBilinear<T> *mapper = new Numeric::Interpolator::NodeBilinear<T>();
-//
-//			if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
-//				mapper = &amrex::node_bilinear_interp;
-//			else
-//				mapper = &amrex::cell_cons_interp;
-//
-
-			amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); 
-			amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
-						  0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
-						  physbc, 0,
-						  physbc, 0,
-						  m_refRatio[lev-1],
-						  mapper, bcs, 0);
-		}
-
-	}
-
-	virtual void RemakeLevel (int lev,       
-					  amrex::Real time, 
-					  const amrex::BoxArray& cgrids, 
-					  const amrex::DistributionMapping& dm) override
-	{
-
-		
-		const int ncomp  = m_field[lev]->nComp();
-		const int nghost = m_field[lev]->nGrow();
-		amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, ncomp, nghost);
-		this->FillPatch(lev, time, m_field, new_state, 0);
-		std::swap(new_state, *m_field[lev]);
-
-		//for (int n=0; n < cell.number_of_fabs; n++)
-		//{
-
-			//amrex::MultiFab new_state(cgrids, dm, ncomp, nghost); 
-
-			//new_state.setVal(0.0);
-			//FillPatch(lev, time, *cell.fab_array[n], new_state, *cell.physbc_array[n], 0);
-			//std::swap(new_state, *(*cell.fab_array[n])[lev]);
-		//}
-
-//		amrex::BoxArray ngrids = cgrids;
-//		ngrids.convert(amrex::IntVect::TheNodeVector());
-//
-//		for (int n=0; n < node.number_of_fabs; n++)
-//		{
-//			const int ncomp  = (*node.fab_array[n])[lev]->nComp();
-//			const int nghost = (*node.fab_array[n])[lev]->nGrow();
-//
-//			amrex::MultiFab new_state(ngrids, dm, ncomp, nghost); 
-//
-//			new_state.setVal(0.0);
-//			FillPatch(lev, time, *node.fab_array[n], new_state, *node.physbc_array[n], 0);
-//			std::swap(new_state, *(*node.fab_array[n])[lev]);
-//		}
-	}
-
-private:
-
-	Set::Field<T> &m_field;
-	const amrex::Vector<amrex::Geometry>  &m_geom;
-	const amrex::Vector<amrex::IntVect> &m_refRatio;
-};
 	
 ///
 /// \class Integrator
@@ -343,6 +224,14 @@ protected:
 			       std::string name,
 				   bool writeout
 			       );
+	
+	template<class T>
+	void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost)
+	{
+		int nlevs_max = maxLevel() + 1;
+		new_fab.resize(nlevs_max); 
+		m_basefields.push_back(new Field<T>(new_fab, geom, refRatio()));
+	}
 
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
@@ -419,6 +308,8 @@ protected:
 		std::vector<BC::BC<Set::Scalar> *> physbc_array;
 		std::vector<bool> writeout_array;
 	} cell;
+
+	std::vector<BaseField *> m_basefields;
 
 	BC::Nothing bcnothing;
 

@@ -20,7 +20,7 @@ public:
     {
         Define(a_mu,a_lambda,a_F0);
     };
-	virtual ~Isotropic() {};
+	//virtual ~Isotropic() {};
 
 	void Define(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0)
 	{
@@ -81,9 +81,6 @@ public:
 };
 
 
-
-//template<Set::Sym sym>
-//std::ostream& operator<< (std::ostream& os, const LinearElastic<sym>& b);
 
 }
 }
