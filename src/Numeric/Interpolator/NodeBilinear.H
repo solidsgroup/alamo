@@ -38,8 +38,8 @@ public:
     int num_slope  = ncomp*(AMREX_D_TERM(2,*2,*2)-1);
     const amrex::Box cslope_bx = amrex::enclosedCells(CoarseBox(fine_region, ratio));
     amrex::BaseFab<T> slopefab(cslope_bx, num_slope);
-    amrex::Elixir slopeeli;
-    if (run_on_gpu) slopeeli = slopefab.elixir();
+    //amrex::Elixir slopeeli;
+    //if (run_on_gpu) slopeeli = slopefab.elixir();
 
     amrex::Array4<T const> const& crsearr = crse.const_array();
     amrex::Array4<T> const& finearr = fine.array();

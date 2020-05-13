@@ -48,6 +48,7 @@ public:
         ret.ddw   = ddw; ret.ddw += rhs.ddw;
         return ret;
 	}
+    AMREX_FORCE_INLINE
    	virtual Solid operator * (const Set::Scalar alpha) const
 	{
         Solid ret;
@@ -81,7 +82,8 @@ public:
     {
         out << "No print function written for this model.";
     }
-
+//public:
+//    friend Solid<Sym> operator * (const Set::Scalar alpha, const Solid<Sym> rhs) ;
 
 public: 
     template <class T>
@@ -163,6 +165,13 @@ public:
     }
 
 };
+
+template<int Sym>
+Solid<Sym> operator * (const Set::Scalar alpha, const Solid<Sym> rhs) 
+{
+       return alpha*rhs;
+}
+
 
 }
 }
