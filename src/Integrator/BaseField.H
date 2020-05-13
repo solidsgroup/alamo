@@ -31,9 +31,9 @@ public:
 	class EmptyBC
     {
         public:
-        virtual void operator () (amrex::FabArray<amrex::BaseFab<T>> & mf, 
-                                    int dcomp, int ncomp, amrex::IntVect const& nghost, 
-                                    amrex::Real time, int bccomp) 
+        virtual void operator () (amrex::FabArray<amrex::BaseFab<T>> & /*mf*/, 
+                                    int /*dcomp*/, int /*ncomp*/, amrex::IntVect const& /*nghost*/, 
+                                    amrex::Real /*time*/, int /*bccomp*/) 
         {  /* Do nothing - this is a shell to satisfy the FillPatch functions.*/   }
 		amrex::BCRec GetBCRec() {return amrex::BCRec();}
     };
@@ -163,7 +163,7 @@ public:
     }
 
     virtual void MakeNewLevelFromScratch (int lev, 
-                                 amrex::Real t, 
+                                 amrex::Real /*time*/, 
                                  const amrex::BoxArray& cgrids,
                                  const amrex::DistributionMapping& dm)
     {
