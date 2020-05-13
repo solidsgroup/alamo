@@ -558,6 +558,10 @@ Integrator::MakeNewLevelFromScratch (int lev, amrex::Real t, const amrex::BoxArr
 		(*node.fab_array[n])[lev].reset(new amrex::MultiFab(ngrids, dm, node.ncomp_array[n], node.nghost_array[n]));
 		(*node.fab_array[n])[lev]->setVal(0.0);
 	}
+	for (int n = 0; n < m_basefields.size(); n++)
+	{
+		m_basefields[n]->MakeNewLevelFromScratch(lev,t,cgrids,dm);
+	}
 
 	t_new[lev] = t;
 	t_old[lev] = t - dt[lev];

@@ -83,68 +83,6 @@ protected:
 
     void TimeStepBegin(Set::Scalar, int) override
     {
-//        // TEST ZONE
-//
-//        {   /// Test of FillPatchSingleLevel with regular fab
-//            int icomp = 0, lev = 0;
-//            amrex::MultiFab destination_mf;
-//            BC::Nothing physbc;
-//            Set::Scalar time = 0.0;
-//            amrex::Vector<amrex::MultiFab*> smf;
-//		    smf.push_back(disp_mf[lev].get());
-//		    amrex::Vector<amrex::Real> stime;
-//		    stime.push_back(time);
-//            amrex::FillPatchSingleLevel(destination_mf,
-//                                        time,
-//                                        smf,
-//                                        stime,
-//                                        0,
-//                                        icomp,
-//                                        destination_mf.nComp(),
-//                                        geom[lev],
-//                                        physbc,
-//                                        0);
-//        }
-//
-//        {   /// Test of FillPatchSingleLevel with regular fab
-//            int icomp = 0, lev = 0;
-//            
-//            Set::Field<Set::Vector> model_mf;
-//            RegisterGeneralFab(model_mf,1,2);
-//
-//            //using MF = amrex::FabArray<amrex::BaseFab<Set::Vector>>;
-//
-//            //amrex::MultiFab destination_mf;
-//            //MF destination_mf;
-//            
-//            //TmpBC physbc;
-//            //Set::Scalar time = 0.0;
-//            //amrex::Vector<MF*> smf;
-//		    //smf.push_back(model_mf[lev].get());
-//		    //amrex::Vector<amrex::Real> stime;
-//		    //stime.push_back(time);
-//            //amrex::FillPatchSingleLevel(destination_mf,
-//            //                            time,
-//            //                            smf,
-//            //                            stime,
-//            //                            0,
-//            //                            icomp,
-//            //                            destination_mf.nComp(),
-//            //                            geom[lev],
-//            //                            physbc,
-//            //                            0);
-//
-//
-//            Field<Set::Vector> myfield (model_mf, geom, refRatio());
-//        }
-
-
-
-
-
-
-
-
         if (finest_level != rhs_mf.size() - 1)
         {
             Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
@@ -152,14 +90,10 @@ protected:
         
         // Set linear elastic model
         
-        //model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
             rhs_mf[lev]->setVal(0.0);
 
-            //amrex::Box domain(geom[lev].Domain());
-            //domain.convert(amrex::IntVect::TheNodeVector());
-            //model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
             model_mf[lev]->setVal(elastic.model);
 
             eta_mf[lev]->FillBoundary();

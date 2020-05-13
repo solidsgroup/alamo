@@ -230,7 +230,7 @@ protected:
 	{
 		int nlevs_max = maxLevel() + 1;
 		new_fab.resize(nlevs_max); 
-		m_basefields.push_back(new Field<T>(new_fab, geom, refRatio()));
+		m_basefields.push_back(new Field<T>(new_fab, geom, refRatio(),ncomp,nghost));
 	}
 
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
