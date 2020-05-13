@@ -17,6 +17,10 @@ public:
                                  amrex::Real time, 
                                  const amrex::BoxArray& cgrids, 
                                  const amrex::DistributionMapping& dm) = 0;
+    virtual void MakeNewLevelFromScratch (int lev, 
+                                 amrex::Real t, 
+                                 const amrex::BoxArray& cgrids,
+                                 const amrex::DistributionMapping& dm) = 0;
                       
 };
 
@@ -34,8 +38,13 @@ public:
 		amrex::BCRec GetBCRec() {return amrex::BCRec();}
     };
 
-	Field(Set::Field<T> & a_field, const amrex::Vector<amrex::Geometry> &a_geom, const amrex::Vector<amrex::IntVect> &a_refRatio) : 
-	m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio) {} 
+	Field(Set::Field<T> & a_field, 
+          const amrex::Vector<amrex::Geometry> &a_geom, 
+          const amrex::Vector<amrex::IntVect> &a_refRatio,
+          int a_ncomp, int a_nghost) : 
+	m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio), 
+    m_ncomp(a_ncomp), m_nghost(a_nghost)
+    {} 
 	
 	void 
 	FillPatch (int lev, amrex::Real time,
@@ -118,19 +127,17 @@ public:
 					  const amrex::BoxArray& cgrids, 
 					  const amrex::DistributionMapping& dm) override
 	{
-		const int ncomp  = m_field[lev]->nComp();
-		const int nghost = m_field[lev]->nGrow();
 		if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
 		{
 			amrex::BoxArray ngrids = cgrids;
 			ngrids.convert(amrex::IntVect::TheNodeVector());
-			amrex::FabArray<amrex::BaseFab<T>> new_state(ngrids, dm, ncomp, nghost);
+			amrex::FabArray<amrex::BaseFab<T>> new_state(ngrids, dm, m_ncomp, m_nghost);
 			this->FillPatch(lev, time, m_field, new_state, 0);
 			std::swap(new_state, *m_field[lev]);
 		}
 		else
 		{
-			amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, ncomp, nghost);
+			amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
 			this->FillPatch(lev, time, m_field, new_state, 0);
 			std::swap(new_state, *m_field[lev]);
 		}
@@ -141,27 +148,44 @@ public:
                                  const amrex::BoxArray& cgrids, 
                                  const amrex::DistributionMapping& dm) override
     {
-		const int ncomp  = m_field[lev]->nComp();
-		const int nghost = m_field[lev]->nGrow();
 		if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
 		{
 			amrex::BoxArray ngrids = cgrids;
 			ngrids.convert(amrex::IntVect::TheNodeVector());
-            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,ncomp,nghost));
-            FillCoarsePatch(lev,time,0,ncomp);
+            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
+            FillCoarsePatch(lev,time,0,m_ncomp);
 		}
 		else
 		{
-            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,ncomp,nghost));
-            FillCoarsePatch(lev,time,0,ncomp);
+            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
+            FillCoarsePatch(lev,time,0,m_ncomp);
 		}
     }
+
+    virtual void MakeNewLevelFromScratch (int lev, 
+                                 amrex::Real t, 
+                                 const amrex::BoxArray& cgrids,
+                                 const amrex::DistributionMapping& dm)
+    {
+		//if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
+		{
+			amrex::BoxArray ngrids = cgrids;
+			ngrids.convert(amrex::IntVect::TheNodeVector());
+            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
+		}
+//		else
+//		{
+//            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
+//		}
+    }                                 
+
     
 private:
 
 	Set::Field<T> &m_field;
 	const amrex::Vector<amrex::Geometry>  &m_geom;
 	const amrex::Vector<amrex::IntVect> &m_refRatio;
+    const int m_ncomp, m_nghost;
 };
 
 }
