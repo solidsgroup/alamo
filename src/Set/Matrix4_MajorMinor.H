@@ -83,9 +83,40 @@ public:
         return ret;
     }
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
+    friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
+    friend Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
+    friend Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
+    friend Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
     friend Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
-    friend Set::Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
 };
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] + b.data[i];
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] - b.data[i];
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] * b;
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] / b;
+	return ret;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b)
 {
@@ -105,18 +136,6 @@ Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b)
     Set::Vector ret = Set::Vector::Zero();
     ret(0) = a.data[0]*b(0,0,0) + a.data[1]*(b(0,1,0) + b(1,0,0) + b(0,0,1)) + a.data[2]*b(1,1,0)  + a.data[3]*(b(0,1,1) + b(1,0,1)) + a.data[4]*b(1,1,1);
     ret(1) = a.data[1]*b(0,0,0) + a.data[2]*b(0,0,1) + a.data[3]*(b(0,1,0) + b(1,0,0)) + a.data[4]*(b(1,1,0)  + b(0,1,1) + b(1,0,1)) + a.data[5]*b(1,1,1);
-    return ret;
-}
-AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
-Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
-{
-    Matrix4<2,Sym::MajorMinor> ret;
-    ret.data[0] = a.data[0] * b;
-    ret.data[1] = a.data[1] * b;
-    ret.data[2] = a.data[2] * b;
-    ret.data[3] = a.data[3] * b;
-    ret.data[4] = a.data[4] * b;
-    ret.data[5] = a.data[5] * b;
     return ret;
 }
     
