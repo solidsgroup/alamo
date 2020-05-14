@@ -542,7 +542,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		Util::RealFillBoundary(*model_mf[lev],elasticop.Geom(lev));
 	}
-	Util::Abort(INFO,"Fix this");//	elasticop.SetModel(model_mf);
+	//Util::Abort(INFO,"Fix this");//	elasticop.SetModel(model_mf);
 
 	elastic.bc.SetTime(time);
 	elastic.bc.Init(rhs_mf,geom);
