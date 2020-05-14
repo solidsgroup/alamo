@@ -385,14 +385,38 @@ public:
     }
 
     friend Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
+    friend Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);
     friend Set::Matrix operator*(const Matrix4<3, Sym::Major> &a, const Set::Matrix &b);
+    friend Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
+    friend Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b);
 };
 
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b)
+{
+	Matrix4<3,Sym::Major> ret;
+	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] + b.data[i];
+	return ret;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b)
 {
 	Matrix4<3,Sym::Major> ret;
 	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] - b.data[i];
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b)
+{
+	Matrix4<3,Sym::Major> ret;
+	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] * b;
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b)
+{
+	Matrix4<3,Sym::Major> ret;
+	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] / b;
 	return ret;
 }
 

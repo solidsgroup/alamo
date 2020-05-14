@@ -33,7 +33,7 @@ int Elastic::RefluxTest(int verbose)
 	::Operator::Elastic<Model::Solid::Linear::Isotropic> elastic;
  	elastic.define(geom, cgrids, dmap, info);
 
- 	elastic.SetModel(modelfab);
+	Util::Abort(INFO,"Need to fix this line!");//elastic.SetModel(modelfab);
 
 	BC::Operator::Elastic<model_type> bc;
 	elastic.SetBC(&bc);
@@ -58,7 +58,7 @@ int Elastic::RefluxTest(int verbose)
 	
 		mlabec.define(geom, cgrids, dmap, info);
 		mlabec.setMaxOrder(2);
-		mlabec.SetModel(modelfab);
+		Util::Abort(INFO,"Need to fix this!"); //mlabec.SetModel(modelfab);
 
 		BC::Operator::Elastic<model_type> bc;
 		mlabec.SetBC(&bc);
