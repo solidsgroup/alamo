@@ -31,6 +31,7 @@ private:
                          const Set::Field<Set::Scalar>& a_b_mf,
                          Set::Field<Set::Scalar>& a_rhs_mf,
                          Set::Field<Set::Matrix> &a_dw_mf,
+                         Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> &a_ddw_mf,
                          Set::Field<T> &a_model_mf)
     {
             for (int lev = 0; lev < a_b_mf.size(); ++lev)
@@ -49,6 +50,7 @@ private:
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
                     amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
+                    amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,T::sym>>  const &ddw = a_ddw_mf[lev]->array(mfi);
                     amrex::Array4<T>                 const &model = a_model_mf[lev]->array(mfi);
 
                     // Set model internal dw and ddw.
@@ -60,19 +62,19 @@ private:
                         if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu)
                         {
                             dw(i,j,k) = model(i, j, k).DW(gradu);
-                            model(i, j, k).ddw = model(i, j, k).DDW(gradu);
+                            ddw(i, j, k) = model(i, j, k).DDW(gradu);
                         }
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::epsilon)
                         {
                             Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
                             dw(i,j,k) = model(i, j, k).DW(eps);
-                            model(i, j, k).ddw = model(i, j, k).DDW(eps);
+                            ddw(i, j, k) = model(i, j, k).DDW(eps);
                         }
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
                         {
                             Set::Matrix F = gradu + Set::Matrix::Identity();
                             dw(i,j,k) = model(i, j, k).DW(F);
-                            model(i, j, k).ddw = model(i, j, k).DDW(F);
+                            ddw(i, j, k) = model(i, j, k).DDW(F);
                         }
                     });
                 }
@@ -135,7 +137,8 @@ private:
                         #endif
                     });
                 }
-                Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
+                //Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
+                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic.Geom(lev));
                 Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
             }
     }
@@ -148,6 +151,7 @@ public:
     {
         Set::Field<Set::Scalar> dsol_mf, rhs_mf;
         Set::Field<Set::Matrix> dw_mf;
+        Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
 
         dsol_mf.resize(a_u_mf.size());
         dw_mf.resize(a_u_mf.size());
@@ -159,6 +163,10 @@ public:
                                 a_u_mf[lev]->nComp(), 
                                 a_u_mf[lev]->nGrow());
             dw_mf.Define(lev,   a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                1, 
+                                a_b_mf[lev]->nGrow());
+            ddw_mf.Define(lev,  a_b_mf[lev]->boxArray(),
                                 a_b_mf[lev]->DistributionMap(),
                                 1, 
                                 a_b_mf[lev]->nGrow());
@@ -177,9 +185,9 @@ public:
         {
             if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
-            prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, a_model_mf);
+            prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
-            m_elastic.SetModel(a_model_mf);
+            m_elastic.SetModel(ddw_mf);
 
             if (nriter == m_nriters) break;
             
@@ -228,7 +236,8 @@ public:
         //for (int lev = 0; lev < a_b_mf.size(); ++lev)
         //m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
             
-        prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, a_model_mf);
+        Util::Abort(INFO,"Need to fix this");
+        //prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, a_model_mf);
         
     }
 

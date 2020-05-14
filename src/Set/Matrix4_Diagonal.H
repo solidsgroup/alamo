@@ -35,7 +35,11 @@ public:
     }
     friend Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Matrix  &b);
     friend Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Matrix3 &b);
+    friend Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator + (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator - (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b);
+    friend Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Scalar &b);
+    friend Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator / (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Scalar &b);
+
 
     //AMREX_GPU_HOST_DEVICE void operator =  (Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a) {lambda =  a.lambda; mu =  a.mu;}
     AMREX_GPU_HOST_DEVICE void operator += (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a) {A += a.A;}
@@ -72,13 +76,36 @@ Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Se
 
 	return ret;
 }
-
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator + (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, 
+                                                  const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b)
+{
+    Matrix4<AMREX_SPACEDIM,Sym::Diagonal> ret = a;
+    ret.A += b.A;
+    return ret;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator - (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, 
                                                   const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b)
 {
     Matrix4<AMREX_SPACEDIM,Sym::Diagonal> ret = a;
     ret.A -= b.A;
+    return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, 
+                                                  const Set::Scalar &b)
+{
+    Matrix4<AMREX_SPACEDIM,Sym::Diagonal> ret = a;
+    ret.A *= b;
+    return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator / (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, 
+                                                  const Set::Scalar &b)
+{
+    Matrix4<AMREX_SPACEDIM,Sym::Diagonal> ret = a;
+    ret.A /= b;
     return ret;
 }
 

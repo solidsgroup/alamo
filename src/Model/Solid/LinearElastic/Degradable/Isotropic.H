@@ -21,6 +21,7 @@ namespace Degradable
 class Isotropic : public Model::Solid::LinearElastic::LinearElastic<Set::Sym::Isotropic>
 {
 public:
+	static constexpr Set::Sym sym = Set::Sym::Isotropic;
 	Isotropic() { } ;
 	Isotropic(Set::Scalar _mu, Set::Scalar _lambda) : mu(_mu) , lambda(_lambda), mu0(_mu), lambda0(_lambda) {} ;
 	~Isotropic() {} ;

@@ -123,7 +123,7 @@ protected:
         amrex::LPInfo info;
         Operator::Elastic<Model::Solid::Affine::Isotropic> elastic_op(geom, grids, dmap, info);
         elastic_op.SetUniform(false);
-        elastic_op.SetModel(model_mf);
+        Util::Abort(INFO,"Fix this"); // elastic_op.SetModel(model_mf);
         elastic_op.SetBC(&elastic.bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
