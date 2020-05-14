@@ -155,6 +155,7 @@ public:
 
         dsol_mf.resize(a_u_mf.size());
         dw_mf.resize(a_u_mf.size());
+        ddw_mf.resize(a_u_mf.size());
         rhs_mf.resize(a_u_mf.size());
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
@@ -224,20 +225,24 @@ public:
                       Set::Field<T> &a_model_mf)
     {
         Set::Field<Set::Matrix> dw_mf;
+        Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
         dw_mf.resize(a_u_mf.size());
+        ddw_mf.resize(a_u_mf.size());
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
             dw_mf.Define(lev, a_b_mf[lev]->boxArray(),
                               a_b_mf[lev]->DistributionMap(),
                               1, a_b_mf[lev]->nGrow());
+            ddw_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                               a_b_mf[lev]->DistributionMap(),
+                               1, a_b_mf[lev]->nGrow());
             dw_mf[lev]->setVal(Set::Matrix::Zero());
         }
         
         //for (int lev = 0; lev < a_b_mf.size(); ++lev)
         //m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
             
-        Util::Abort(INFO,"Need to fix this");
-        //prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, a_model_mf);
+        prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, ddw_mf, a_model_mf);
         
     }
 
