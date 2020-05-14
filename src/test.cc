@@ -127,10 +127,10 @@ int main (int argc, char* argv[])
 		test.Define(32,1);
 		subfailed += Util::Test::SubMessage("1 level,  Component 0, period=1",test.TrigTest(0,0,1));
 		test.Define(32,2);
-		subfailed += Util::Test::SubMessage("2 levels, Reflux test",          test.RefluxTest(0));
+		//subfailed += Util::Test::SubMessage("2 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.TrigTest(0,0,1));
 		test.Define(32,3);
-		subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
+		//subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
