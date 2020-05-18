@@ -46,12 +46,12 @@ private:
                 {
                     amrex::Box bx = mfi.tilebox();
                     bx.grow(2);
-                    bx = bx & domain;
+                    //bx = bx & domain;
 
+                    amrex::Array4<const T>           const &model = a_model_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
                     amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
                     amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,T::sym>>  const &ddw = a_ddw_mf[lev]->array(mfi);
-                    amrex::Array4<T>                 const &model = a_model_mf[lev]->array(mfi);
 
                     // Set model internal dw and ddw.
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -178,6 +178,7 @@ public:
             
             dsol_mf[lev]->setVal(0.0);
             dw_mf[lev]->setVal(Set::Matrix::Zero());
+            ddw_mf[lev]->setVal(Set::Matrix4<AMREX_SPACEDIM,T::sym>::Zero());
             
             amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }

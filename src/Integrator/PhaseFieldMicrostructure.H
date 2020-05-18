@@ -87,6 +87,8 @@ private:
 	Set::Field<Set::Scalar> stress_mf;
 	Set::Field<Set::Scalar> energy_mf;
 
+	Set::Field<model_type> model_mf;
+
 	BC::BC<Set::Scalar> *mybc;
 
 	//amrex::Real M, mu, gamma, sigma0, l_gb, beta;

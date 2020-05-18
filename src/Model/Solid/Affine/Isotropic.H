@@ -78,7 +78,48 @@ public:
         }
         value.Define(mu,lambda,F0);
     }
+    AMREX_FORCE_INLINE
+	void operator += (const Isotropic &rhs)
+    {
+        ddw += rhs.ddw;
+        F0  += rhs.F0;
+	}    
+    AMREX_FORCE_INLINE
+   	virtual Isotropic operator * (const Set::Scalar alpha) const
+	{
+        Isotropic ret;
+        ret.ddw = ddw*alpha;
+        ret.F0  = alpha*F0;
+        return ret;
+	}    
+    friend Isotropic operator * (const Set::Scalar alpha, const Isotropic b);
+    friend Isotropic operator + (const Isotropic a, const Isotropic b);
+    friend Isotropic operator - (const Isotropic a, const Isotropic b);
 };
+AMREX_FORCE_INLINE
+Isotropic operator * (const Set::Scalar alpha, const Isotropic b)
+{
+    Isotropic ret;
+    ret.ddw = b.ddw*alpha;
+    ret.F0  = alpha*b.F0;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Isotropic operator + (const Isotropic a, const Isotropic b)
+{
+    Isotropic ret;
+    ret.ddw = a.ddw + b.ddw;
+    ret.F0  = a.F0 + b.F0;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Isotropic operator - (const Isotropic a, const Isotropic b)
+{
+    Isotropic ret;
+    ret.ddw = a.ddw + b.ddw;
+    ret.F0  = a.F0 + b.F0;
+    return ret;
+}    
 
 
 

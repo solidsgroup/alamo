@@ -5,7 +5,7 @@ plot_file		        = tests/VoronoiElastic/output
 timestep		        = 0.05
 stop_time		        = 10
 
-amr.plot_dt			= 1.0
+amr.plot_dt			= 0.05
 amr.max_level		        = 3
 amr.n_cell		        = 64 64 64
 amr.blocking_factor	        = 4
@@ -28,14 +28,14 @@ bc.eta.type.zhi			= neumann
 bc.eta.type.zlo			= neumann
 
 pf.number_of_grains	        = 10
-pf.M			        = 1.0 
+pf.M			        = 0.0 
 pf.mu			        = 10.0
 pf.gamma		        = 1.0
 pf.l_gb			        = 0.05
 pf.sigma0		        = 0.075
 
 elastic.on			= 1
-elastic.interval		= 10
+elastic.interval		= 1
 elastic.type			= cubic
 elastic.load_t			= 0.0 
 elastic.load_disp		= 0.01
