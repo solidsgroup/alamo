@@ -167,6 +167,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterIntegratedVariable(&elastic.force, "force");
 	RegisterIntegratedVariable(&elastic.disp, "disp");
 
+	RegisterGeneralFab(model_mf,1,2);
+
 	// Elasticity
 	{
 		IO::ParmParse pp("elastic");
@@ -330,12 +332,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * pf.l_gb * 0.75;
 
 						// GB energy anisotropy term
-						Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
-						driving_force += gbenergy_df;
-								  
-						// Second order curvature term
-						Set::Scalar reg_df = NAN;
-						switch(regularization)
+						Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDetamodel_mf
 						{
 							case Wilmore:
 								reg_df = anisotropy.beta*(DH2 + DH3 + 2.0*DH23);
@@ -514,7 +511,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elasticop.define(geom, grids, dmap, info);
 
 	// Set linear elastic model
-	Set::Field<model_type> model_mf;
+	//Set::Field<model_type> model_mf;
 	model_mf.resize(disp_mf.size());
 	for (int lev = 0; lev < rhs_mf.size(); ++lev)
 	{
@@ -528,7 +525,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
-			amrex::Box bx = mfi.grownnodaltilebox(2);
+			amrex::Box bx = mfi.tilebox();
+			bx.grow(2);
 
 			amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
 			amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);

@@ -45,36 +45,36 @@ public:
 
     static const KinematicVariable kinvar = KinematicVariable::F;
 
-   	Solid operator + (const Solid &rhs) const
-	{
-        Solid ret;
-        ret.ddw   = ddw; ret.ddw += rhs.ddw;
-        return ret;
-	}
-    AMREX_FORCE_INLINE
-   	virtual Solid operator * (const Set::Scalar alpha) const
-	{
-        Solid ret;
-        ret.ddw   = ddw;   ret.ddw   *= alpha;
-        return ret;
-	}
-	virtual Solid operator / (const Set::Scalar alpha) const
-	{
-        Solid ret;
-        ret.ddw   = ddw;   ret.ddw   /= alpha;
-        return ret;
-	}
-	void operator += (const Solid &rhs)
-	{
-        ddw += rhs.ddw;
-	}
-
-	Solid operator - (const Solid &rhs) const
-	{
-        Solid ret;
-        ret.ddw = ddw; ret.ddw -= rhs.ddw;
-        return ret;
-	}
+//   	Solid operator + (const Solid &rhs) const
+//	{
+//        Solid ret;
+//        ret.ddw   = ddw; ret.ddw += rhs.ddw;
+//        return ret;
+//	}
+//    AMREX_FORCE_INLINE
+//   	virtual Solid operator * (const Set::Scalar alpha) const
+//	{
+//        Solid ret;
+//        ret.ddw   = ddw;   ret.ddw   *= alpha;
+//        return ret;
+//	}
+//	virtual Solid operator / (const Set::Scalar alpha) const
+//	{
+//        Solid ret;
+//        ret.ddw   = ddw;   ret.ddw   /= alpha;
+//        return ret;
+//	}
+//	void operator += (const Solid &rhs)
+//	{
+//        ddw += rhs.ddw;
+//	}
+//
+//	Solid operator - (const Solid &rhs) const
+//	{
+//        Solid ret;
+//        ret.ddw = ddw; ret.ddw -= rhs.ddw;
+//        return ret;
+//	}
 
    	friend std::ostream& operator<<(std::ostream &out, const Solid &a)
     {
@@ -169,11 +169,11 @@ public:
 
 };
 
-template<Set::Sym SYM>
-Solid<SYM> operator * (const Set::Scalar alpha, const Solid<SYM> rhs) 
-{
-       return alpha*rhs;
-}
+//template<Set::Sym SYM>
+//Solid<SYM> operator * (const Set::Scalar alpha, const Solid<SYM> rhs) 
+//{
+//       return alpha*rhs;
+//}
 
 
 }
