@@ -33,7 +33,7 @@ int Elastic::RefluxTest(int verbose)
 	::Operator::Elastic<Model::Solid::Linear::Isotropic> elastic;
  	elastic.define(geom, cgrids, dmap, info);
 
-	Util::Abort(INFO,"Need to fix this line!");//elastic.SetModel(modelfab);
+	Util::Abort(INFO,"SetModel is no longer required - use Newton solver");//elastic.SetModel(modelfab);
 
 	BC::Operator::Elastic<model_type> bc;
 	elastic.SetBC(&bc);

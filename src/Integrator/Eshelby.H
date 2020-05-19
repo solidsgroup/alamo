@@ -79,8 +79,6 @@ protected:
         rhs_mf[lev]->setVal(0.);
     }
 
-    
-
     void TimeStepBegin(Set::Scalar, int) override
     {
         if (finest_level != rhs_mf.size() - 1)
@@ -102,8 +100,7 @@ protected:
 
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.nodaltilebox();
-                bx.grow(2);
+                amrex::Box bx = mfi.growntilebox(2);
 
                 amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);

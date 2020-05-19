@@ -45,31 +45,6 @@ public:
 
     static const KinematicVariable kinvar = KinematicVariable::F;
 
-//   	Solid operator + (const Solid &rhs) const
-//	{
-//        Solid ret;
-//        ret.ddw   = ddw; ret.ddw += rhs.ddw;
-//        return ret;
-//	}
-//    AMREX_FORCE_INLINE
-//   	virtual Solid operator * (const Set::Scalar alpha) const
-//	{
-//        Solid ret;
-//        ret.ddw   = ddw;   ret.ddw   *= alpha;
-//        return ret;
-//	}
-//	virtual Solid operator / (const Set::Scalar alpha) const
-//	{
-//        Solid ret;
-//        ret.ddw   = ddw;   ret.ddw   /= alpha;
-//        return ret;
-//	}kinvar
-//	Solid operator - (const Solid &rhs) const
-//	{
-//        Solid ret;
-//        ret.ddw = ddw; ret.ddw -= rhs.ddw;
-//        return ret;
-//	}
 
    	friend std::ostream& operator<<(std::ostream &out, const Solid &a)
     {
@@ -80,8 +55,6 @@ public:
     {
         out << "No print function written for this model.";
     }
-//public:
-//    friend Solid<SYM> operator * (const Set::Scalar alpha, const Solid<SYM> rhs) ;
 
 public: 
     template <class T>
@@ -129,7 +102,7 @@ public:
         {
             T model = T::Random();
 
-            Set::Scalar dx = 1E-8, tol = 1E-6;
+            Set::Scalar dx = 1E-8, tol = 1E-4;
             Set::Matrix F = Set::Matrix::Random();
             while (fabs(F.determinant()) < 1.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
 
@@ -163,13 +136,6 @@ public:
     }
 
 };
-
-//template<Set::Sym SYM>
-//Solid<SYM> operator * (const Set::Scalar alpha, const Solid<SYM> rhs) 
-//{
-//       return alpha*rhs;
-//}
-
 
 }
 }
