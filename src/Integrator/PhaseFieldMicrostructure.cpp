@@ -333,7 +333,12 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * pf.l_gb * 0.75;
 
 						// GB energy anisotropy term
-						Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDetamodel_mf
+						Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
+						driving_force += gbenergy_df;
+								  
+						// Second order curvature term
+						Set::Scalar reg_df = NAN;
+						switch(regularization)
 						{
 							case Wilmore:
 								reg_df = anisotropy.beta*(DH2 + DH3 + 2.0*DH23);

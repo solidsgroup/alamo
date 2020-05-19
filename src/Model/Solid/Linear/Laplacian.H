@@ -53,8 +53,44 @@ public:
         Laplacian ret;
         return ret;
     }
-
+    AMREX_FORCE_INLINE
+	void operator += (const Laplacian &rhs)
+    {
+        ddw += rhs.ddw;
+	}    
+    AMREX_FORCE_INLINE
+   	virtual Laplacian operator * (const Set::Scalar alpha) const
+	{
+        Laplacian ret;
+        ret.ddw = ddw*alpha;
+        return ret;
+	}    
+    friend Laplacian operator * (const Set::Scalar alpha, const Laplacian b);
+    friend Laplacian operator + (const Laplacian a, const Laplacian b);
+    friend Laplacian operator - (const Laplacian a, const Laplacian b);
 };
+AMREX_FORCE_INLINE
+Laplacian operator * (const Set::Scalar alpha, const Laplacian b)
+{
+    Laplacian ret;
+    ret.ddw = b.ddw*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Laplacian operator + (const Laplacian a, const Laplacian b)
+{
+    Laplacian ret;
+    ret.ddw = a.ddw + b.ddw;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Laplacian operator - (const Laplacian a, const Laplacian b)
+{
+    Laplacian ret;
+    ret.ddw = a.ddw - b.ddw;
+    return ret;
+}    
+
 
 }
 }
