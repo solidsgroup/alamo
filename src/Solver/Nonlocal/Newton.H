@@ -82,8 +82,7 @@ private:
 
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx  = mfi.tilebox();
-                    bx.grow(1);
+                    amrex::Box bx  = mfi.grownnodaltilebox(1);
                     bx = bx & domain;
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
