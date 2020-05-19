@@ -177,6 +177,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		{
 			RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
 			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+			RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
 			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
 			RegisterNodalFab(energy_mf, 1, 2, "energy",true);
 
@@ -538,6 +539,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			});
 		}
 
+		//disp_mf[lev]->setVal(0.0);
 		Util::RealFillBoundary(*model_mf[lev],elasticop.Geom(lev));
 	}
 	//Util::Abort(INFO,"Fix this");//	elasticop.SetModel(model_mf);
@@ -550,6 +552,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	IO::ParmParse pp("elastic");
 	pp.queryclass("solver",linearsolver);
 	linearsolver.solve(disp_mf, rhs_mf, model_mf, 1E-8, 1E-8);
+	//linearsolver.solve(disp_mf, rhs_mf, model_mf, 1E-8, 1E-8);
+	linearsolver.compResidual(res_mf,disp_mf,rhs_mf,model_mf);
 
 	linearsolver.W(energy_mf,disp_mf,model_mf);
 	linearsolver.DW(stress_mf,disp_mf,model_mf);

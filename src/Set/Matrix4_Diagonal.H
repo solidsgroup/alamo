@@ -48,6 +48,12 @@ public:
     //AMREX_GPU_HOST_DEVICE void operator /= (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a) {A /= a.A;}
     AMREX_GPU_HOST_DEVICE void operator *= (const Set::Scalar &alpha) {A *= alpha; }
     AMREX_GPU_HOST_DEVICE void operator /= (const Set::Scalar &alpha) {A /= alpha; }
+
+    Set::Scalar Norm()
+    {
+        return A.lpNorm<2>();
+    }
+
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Matrix &b)

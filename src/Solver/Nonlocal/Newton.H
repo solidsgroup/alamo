@@ -62,19 +62,19 @@ private:
                         if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu)
                         {
                             dw(i,j,k) = model(i, j, k).DW(gradu);
-                            ddw(i, j, k) = model(i, j, k).DDW(gradu);
+                            ddw(i,j,k) = model(i, j, k).DDW(gradu);
                         }
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::epsilon)
                         {
                             Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
                             dw(i,j,k) = model(i, j, k).DW(eps);
-                            ddw(i, j, k) = model(i, j, k).DDW(eps);
+                            ddw(i,j,k) = model(i, j, k).DDW(eps);
                         }
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
                         {
                             Set::Matrix F = gradu + Set::Matrix::Identity();
                             dw(i,j,k) = model(i, j, k).DW(F);
-                            ddw(i, j, k) = model(i, j, k).DDW(F);
+                            ddw(i,j,k) = model(i, j, k).DDW(F);
                         }
                     });
                 }
@@ -112,6 +112,7 @@ private:
                                     ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
                                      (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1));
                         }
+                        //Util::Message(INFO,"rhs=(",rhs(i,j,k,0),",",rhs(i,j,k,1),")");
 
                         #elif AMREX_SPACEDIM == 3
 
