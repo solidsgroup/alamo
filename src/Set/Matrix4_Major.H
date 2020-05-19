@@ -332,6 +332,13 @@ public:
             Util::Abort(INFO, "Index out of range");
         return data[-1];
     }
+
+    Set::Scalar Norm()
+    {
+        Set::Scalar retsq = 0;
+        for (int i = 0; i < 45; i++) retsq += data[i];
+        return std::sqrt(retsq);
+    }
     
     
     void Print(std::ostream &os)

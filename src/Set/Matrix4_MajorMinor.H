@@ -17,6 +17,10 @@ class Matrix4<2,Sym::MajorMinor>
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
+    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+    {
+        for (int i = 0; i < 6; i++) data[i] =  in.data[i];
+    }
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
@@ -63,7 +67,7 @@ public:
         return std::sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2] + data[3]*data[3] + data[4]*data[4] + data[5]*data[5]);
     }
 
-    AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] =  a.data[i];}
+    //AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] =  a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] -= a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] *= a.data[i];}
@@ -246,6 +250,14 @@ public:
             }
         }
     }
+
+    Set::Scalar Norm()
+    {
+        Set::Scalar retsq = 0;
+        for (int i = 0; i < 21; i++) retsq += data[i];
+        return std::sqrt(retsq);
+    }
+
     AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] -= a.data[i];}

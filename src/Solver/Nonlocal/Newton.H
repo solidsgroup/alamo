@@ -112,7 +112,6 @@ private:
                                     ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
                                      (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1));
                         }
-                        //Util::Message(INFO,"rhs=(",rhs(i,j,k,0),",",rhs(i,j,k,1),")");
 
                         #elif AMREX_SPACEDIM == 3
 
