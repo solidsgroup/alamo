@@ -5,8 +5,8 @@ plot_file		        = tests/VoronoiElastic/output
 timestep		        = 0.05
 stop_time		        = 10
 
-amr.plot_dt			= 0.05
-amr.max_level		        = 0
+amr.plot_dt			= 1.0
+amr.max_level		        = 3
 amr.n_cell		        = 64 64 64
 amr.blocking_factor	        = 4
 amr.regrid_int		        = 10
@@ -14,7 +14,7 @@ amr.grid_eff		        = 1.0
 amr.ref_threshold		= 0.1
 
 ic.type			        = voronoi
-ic.voronoi.number_of_grains	= 1
+ic.voronoi.number_of_grains	= 100
 
 geometry.prob_lo	        = 0 0 0
 geometry.prob_hi	        = 5 5 5
@@ -28,14 +28,14 @@ bc.eta.type.zhi			= neumann
 bc.eta.type.zlo			= neumann
 
 pf.number_of_grains	        = 10
-pf.M			        = 0.0 
+pf.M			        = 1.0 
 pf.mu			        = 10.0
 pf.gamma		        = 1.0
 pf.l_gb			        = 0.05
 pf.sigma0		        = 0.075
 
 elastic.on			= 1
-elastic.interval		= 1
+elastic.interval		= 10
 elastic.type			= cubic
 elastic.load_t			= 0.0 
 elastic.load_disp		= 0.01
@@ -66,5 +66,5 @@ elastic.model.random		= yes
 
 elastic.fixed_iter		= 1000
 elastic.solver.verbose		= 2
-elastic.solver.nriters          = 1
+
 
