@@ -133,8 +133,8 @@ AMREX_FORCE_INLINE
 Cubic operator - (const Cubic a, const Cubic b)
 {
     Cubic ret;
-    ret.ddw = a.ddw + b.ddw;
-    ret.F0  = a.F0 + b.F0;
+    ret.ddw = a.ddw - b.ddw;
+    ret.F0  = a.F0 - b.F0;
     return ret;
 }    
 

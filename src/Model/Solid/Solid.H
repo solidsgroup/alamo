@@ -63,12 +63,7 @@ public:
 //        Solid ret;
 //        ret.ddw   = ddw;   ret.ddw   /= alpha;
 //        return ret;
-//	}
-//	void operator += (const Solid &rhs)
-//	{
-//        ddw += rhs.ddw;
-//	}
-//
+//	}kinvar
 //	Solid operator - (const Solid &rhs) const
 //	{
 //        Solid ret;
@@ -150,7 +145,7 @@ public:
                             ddw_numeric(i,j,k,l) = (model.DW(F+dF) - model.DW(F-dF))(i,j) / (2.0 * dx);
                         }
             Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> error = ddw_numeric-ddw_exact;
-            Set::Scalar relnorm = error.norm()/ddw_numeric.norm();
+            Set::Scalar relnorm = error.Norm()/ddw_numeric.Norm();
             if (relnorm > tol || std::isnan(relnorm) || std::isinf(relnorm))
             {
                 if (verbose)

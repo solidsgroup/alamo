@@ -60,6 +60,12 @@ public:
     AMREX_GPU_HOST_DEVICE void operator /= (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a) {lambda /= a.lambda; mu /= a.mu;}
     AMREX_GPU_HOST_DEVICE void operator *= (const Set::Scalar &alpha) {lambda *= alpha; mu *= alpha;}
     AMREX_GPU_HOST_DEVICE void operator /= (const Set::Scalar &alpha) {lambda /= alpha; mu /= alpha;}
+    
+    Set::Scalar Norm()
+    {
+        return std::sqrt(lambda*lambda + mu*mu);
+    }
+
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix &b)

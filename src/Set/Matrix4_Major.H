@@ -135,7 +135,7 @@ public:
         for (int i = 0; i < 10; i++) ret.data[i] = 0.0;
         return ret;
     }
-    Set::Scalar norm()
+    Set::Scalar Norm()
     {
         Set::Scalar normsq = 0.0;
         for (int i = 0; i < 10; i++) normsq += data[i]*data[i];

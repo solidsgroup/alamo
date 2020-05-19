@@ -66,5 +66,5 @@ elastic.model.random		= yes
 
 elastic.fixed_iter		= 1000
 elastic.solver.verbose		= 2
-
+elastic.solver.nriters          = 2
 
