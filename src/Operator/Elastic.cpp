@@ -117,37 +117,6 @@ Elastic<MODEL>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<Set::
 	m_model_set = true;
 }
 
-//template <class T>
-//void
-//Elastic<T>::SetHomogeneous (bool a_homogeneous)
-//{
-//	BL_PROFILE("Operator::Elastic::SetModel()");
-//	if (!m_model_set) Util::Abort(INFO,"SetHomogeneous called before SetModel");
-//
-//	for (int amrlev = 0; amrlev < m_num_amr_levels; amrlev++)
-//	{	
-//		for (int mglev = 0; mglev < m_num_mg_levels[amrlev];mglev++)
-//		{
-//			amrex::Box domain(m_geom[amrlev][mglev].Domain());
-//			domain.convert(amrex::IntVect::TheNodeVector());
-//			int nghost = model[amrlev][mglev]->nGrow();
-//
-//			for (MFIter mfi(*model[amrlev][mglev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//			{
-//				Box bx = mfi.grownnodaltilebox(nghost);
-//				//bx.grow(nghost);   
-//				//bx = bx & domain;  // Take intersection of box and the problem domain
-//
-//				amrex::Array4<T> const& C         = (*(model[amrlev][mglev])).array(mfi);
-//
-//				amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-//						C(i,j,k).SetHomogeneous(a_homogeneous);
-//					});
-//			}
-//		}
-//	}
-//}
-
 template<class MODEL>
 void
 Elastic<MODEL>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) const
@@ -625,16 +594,6 @@ Elastic<T>::averageDownCoeffs ()
 {
 	BL_PROFILE("Elastic::averageDownCoeffs()");
 	
-	// for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
-	// {
-	// 	for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
-	// 	{
-	// 		///\todo replace number of ghost cells with 0
-	// 		///\todo I think we can erase this section.
-	// 		model[amrlev][mglev].reset(new amrex::FabArray<amrex::BaseFab<T> >(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], 1, 1));
-	// 	}
-	// }
-
 	for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
 	{
 		averageDownCoeffsSameAmrLevel(amrlev);

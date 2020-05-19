@@ -9,7 +9,6 @@
 #include <numeric>
 
 
-//using namespace amrex;
 
 namespace Integrator
 {

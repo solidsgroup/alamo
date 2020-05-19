@@ -31,7 +31,6 @@
 namespace Integrator
 {
 
-	
 ///
 /// \class Integrator
 /// \brief Pure abstract class for managing data structures, time integration (with substepping),

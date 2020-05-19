@@ -882,7 +882,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 	elastic_operator.define(geom, grids, dmap, info);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		Util::Abort(INFO,"Fix this!"); //elastic_operator.SetModel(ilev,model[ilev]);
+		Util::Abort(INFO,"SetModel is no longer necessary - use the Newton solver instead."); //elastic_operator.SetModel(ilev,model[ilev]);
 	}
 	elastic_operator.setMaxOrder(elastic.linop_maxorder);
 	BC::Operator::Elastic<pd_model_type> bc;

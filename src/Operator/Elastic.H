@@ -147,7 +147,6 @@ private:
 	/// The models contain elastic constants and contain methods for converting strain to stress
 	amrex::Vector<Set::Field<Set::Matrix4<AMREX_SPACEDIM,SOLID::sym>>> m_ddw_mf;
 
-	//Set::Matrix4<AMREX_SPACEDIM, SOLID::sym> ddw;
 
 	virtual void averageDownCoeffs () override;
 	void averageDownCoeffsToCoarseAmrLevel (int flev);
