@@ -167,6 +167,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterIntegratedVariable(&elastic.force, "force");
 	RegisterIntegratedVariable(&elastic.disp, "disp");
 
+	RegisterGeneralFab(model_mf,1,2);
+
 	// Elasticity
 	{
 		IO::ParmParse pp("elastic");
@@ -454,7 +456,6 @@ void PhaseFieldMicrostructure::Initialize(int lev)
 	{
 		disp_mf[lev].get()->setVal(0.0);
 		rhs_mf[lev].get()->setVal(0.0);
-		//res_mf[lev].get()->setVal(0.0);
 		stress_mf[lev].get()->setVal(0.0);
 	}
 }
@@ -514,13 +515,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elasticop.define(geom, grids, dmap, info);
 
 	// Set linear elastic model
-	Set::Field<model_type> model_mf;
-	model_mf.resize(disp_mf.size());
 	for (int lev = 0; lev < rhs_mf.size(); ++lev)
 	{
 		amrex::Box domain(geom[lev].Domain());
 		domain.convert(amrex::IntVect::TheNodeVector());
-		model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
 
 		eta_new_mf[lev]->FillBoundary();
 
@@ -542,7 +540,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		Util::RealFillBoundary(*model_mf[lev],elasticop.Geom(lev));
 	}
-	elasticop.SetModel(model_mf);
 
 	elastic.bc.SetTime(time);
 	elastic.bc.Init(rhs_mf,geom);

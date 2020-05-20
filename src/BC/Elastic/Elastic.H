@@ -8,11 +8,12 @@
 #include <AMReX_Array.H>
 
 #include "BC/BC.H"
+#include "Set/Set.H"
 
 namespace BC
 {
 class Elastic
-	: public BC
+	: public BC<Set::Scalar>
 {
 
 public:
@@ -32,7 +33,7 @@ public:
 				   Orientation face = Orientation::All,
 				   const amrex::Mask *mask = nullptr) override;
 
-	using BC::FillBoundary;
+	using BC<Set::Scalar>::FillBoundary;
 	
 	amrex::BCRec GetBCRec() override;
 	amrex::Array<int,AMREX_SPACEDIM> IsPeriodic() override;

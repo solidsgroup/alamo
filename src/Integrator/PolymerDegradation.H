@@ -29,8 +29,6 @@
 #include "Model/Solid/Linear/IsotropicDegradableTanh.H"
 #include "Model/Solid/Linear/IsotropicDegradable.H"
 
-#include "Numeric/Stencil.H"
-#include "Numeric/Interpolator/Interpolator.H"
 
 namespace Integrator
 {
@@ -109,7 +107,7 @@ private:
 		Set::Scalar 	refinement_threshold 	=	0.01;
 		std::string 	ic_type;
 		IC::IC			*ic;
-		BC::BC			*bc;
+		BC::BC<Set::Scalar>			*bc;
 	} water;
 
 	// Thermal diffusion parameters
@@ -119,7 +117,7 @@ private:
 		Set::Scalar 	refinement_threshold 	=	0.01;
 		std::string		ic_type;
 		IC::IC			*ic;
-		BC::BC			*bc;
+		BC::BC<Set::Scalar>			*bc;
 	} thermal;
 
 	// Damage parameters
@@ -135,8 +133,8 @@ private:
 		Set::Scalar									refinement_threshold		= 0.01;
 		std::string 								ic_type;
 		IC::IC										*ic;
-		BC::BC										*bc;
-		BC::BC										*bc_time;
+		BC::BC<Set::Scalar>										*bc;
+		BC::BC<Set::Scalar>										*bc_time;
 	} damage;
 
 	// Damage model: water relaxation

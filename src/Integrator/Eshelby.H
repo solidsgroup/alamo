@@ -64,6 +64,8 @@ public:
                 pp.queryclass("bc",elastic.bc);
             }
         }
+        
+        RegisterGeneralFab(model_mf, 1, 2);
     }
 
 protected:
@@ -85,15 +87,11 @@ protected:
         }
         
         // Set linear elastic model
-        Set::Field<model_type> model_mf;
-        model_mf.resize(disp_mf.size());
+        
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
             rhs_mf[lev]->setVal(0.0);
 
-            amrex::Box domain(geom[lev].Domain());
-            domain.convert(amrex::IntVect::TheNodeVector());
-            model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
             model_mf[lev]->setVal(elastic.model);
 
             eta_mf[lev]->FillBoundary();
@@ -120,23 +118,22 @@ protected:
         elastic.bc.Init(rhs_mf,geom);
 
         amrex::LPInfo info;
-        elastic.op.define(geom, grids, dmap, info);
-        elastic.op.SetUniform(false);
-        elastic.op.SetModel(model_mf);
-        elastic.op.SetBC(&elastic.bc);
+        Operator::Elastic<Model::Solid::Affine::Isotropic> elastic_op(geom, grids, dmap, info);
+        elastic_op.SetUniform(false);
+        elastic_op.SetBC(&elastic.bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
         IO::ParmParse pp("elastic");
-        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic.op);
+        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
         pp.queryclass("solver",*elastic.solver);
 
         elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
-            elastic.op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            elastic.op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            elastic_op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
+            elastic_op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
         }
     }
 
@@ -179,15 +176,16 @@ private:
     Set::Field<Set::Scalar> stress_mf;
     Set::Field<Set::Scalar> strain_mf;
 
+    Set::Field<model_type> model_mf;
+
     IC::IC *ic;          ///< Pointer to abstract IC object
-    BC::BC *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     Set::Matrix Fmatrix = Set::Matrix::Zero();
     Set::Matrix Finclusion = Set::Matrix::Zero();
 
     struct {
         Model::Solid::Affine::Isotropic model;
-        Operator::Elastic<Model::Solid::Affine::Isotropic> op;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic<model_type> bc;
     } elastic;

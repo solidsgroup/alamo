@@ -77,6 +77,19 @@ public:
 public:
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
+    AMREX_FORCE_INLINE
+    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta)
+    {
+        Cubic ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        Set::Scalar etasum = 0.;
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++)
+        {
+            ret.ddw += models[n].ddw * (eta[n] / etasum);
+        }
+        return ret;
+    }
 
     static Cubic Random()
     {
