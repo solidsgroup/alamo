@@ -37,6 +37,7 @@ nprocs_build = 1
 benchmark_run = None
 clean_cmd = 'make realclean'
 fcompare_exe = None
+fcompare_tol = "1E-8"
 if 'main' in config:
     if 'alamo_path'            in config['main']: alamo_path = os.path.abspath(config['main']['alamo_path'])
     if 'alamo_configure_flags' in config['main']: alamo_configure_flags = config['main']['alamo_configure_flags']
@@ -47,6 +48,7 @@ if 'main' in config:
     if 'nprocs_build'          in config['main']: nprocs_build = int(config['main']['nprocs_build'])
     if 'clean_cmd'             in config['main']: clean_cmd = config['main']['clean_cmd']
     if 'fcompare_exe'          in config['main']: fcompare_exe = config['main']['fcompare_exe']
+    if 'fcompare_tol'          in config['main']: fcompare_tol = config['main']['fcompare_tol']
 
 if fcompare_exe and not os.path.isfile(fcompare_exe):
     raise Exception("fcompere_exe {} does not exist".format(fcompare_exe))
@@ -79,6 +81,13 @@ for branch in branches:
             print("\033[31m"+ret.stdout.decode())
             print(ret.stderr.decode()+"\033[0m")
             raise(Exception("There was an error cleaning"))
+
+        ret = subprocess.run(['git','fetch','--all'],cwd=alamo_path,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        build_stdout += ret.stdout.decode()
+        if (ret.returncode):
+            print("\033[31m"+ret.stdout.decode())
+            print(ret.stderr.decode()+"\033[0m")
+            raise(Exception("There was an error fetching"))
 
         ret = subprocess.run(['git','checkout',branch],cwd=alamo_path,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         build_stdout += ret.stdout.decode()
@@ -204,7 +213,7 @@ for branch in branches:
                     rt_plt = bm_plt.replace(bm_plot_dir,rt_plot_dir)
                     diff_stdout += "Comparing: [{}] <==> [{}]\n".format(bm_plt,rt_plt)
                     if os.path.isdir(rt_plt):
-                        run = subprocess.run([fcompare_exe,'--allow_diff_grids','--rel_tol','1E-10',bm_plt,rt_plt],
+                        run = subprocess.run([fcompare_exe,'--allow_diff_grids','--rel_tol',fcompare_tol,bm_plt,rt_plt],
                                             stdout=subprocess.PIPE,stderr=subprocess.PIPE)
                         diff_stdout += run.stdout.decode()
                         diff_stdout += run.stderr.decode()
