@@ -127,6 +127,7 @@ public:
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"ddw exact \n",ddw_exact);
                     Util::Message(INFO,"ddw numeric \n",ddw_numeric);::
+                    Util::Message(INFO,"ddw difference \n",ddw_exact - ddw_numeric);::
                     Util::Message(INFO,"error norm \n",relnorm);
                 }
                 return 1;
