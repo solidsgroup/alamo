@@ -101,7 +101,7 @@ public:
         F0  += rhs.F0;
 	}    
     AMREX_FORCE_INLINE
-   	virtual Cubic operator * (const Set::Scalar alpha) const
+   	Cubic operator * (const Set::Scalar alpha) const
 	{
         Cubic ret;
         ret.ddw = ddw*alpha;
