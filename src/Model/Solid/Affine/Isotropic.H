@@ -89,7 +89,7 @@ public:
         F0  += rhs.F0;
 	}    
     AMREX_FORCE_INLINE
-   	virtual Isotropic operator * (const Set::Scalar alpha) const
+   	Isotropic operator * (const Set::Scalar alpha) const
 	{
         Isotropic ret;
         ret.ddw = ddw*alpha;

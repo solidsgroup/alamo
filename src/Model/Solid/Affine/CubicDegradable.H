@@ -33,7 +33,7 @@ public:
 
     void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Eigen::Matrix3d m)
     {
-        R = m; C110 = a_C11; C120 = a_C12; C440 = a_C44;
+        R=m; C110 = a_C11; C120 = a_C12; C440 = a_C44;
         Cubic::Define(a_C11, a_C12, a_C44, m);
     }
 
@@ -44,7 +44,7 @@ public:
 		if(std::isnan(C120)) Util::Abort(INFO, "Nans in C120");
         if(std::isnan(C440)) Util::Abort(INFO, "Nans in C440");
 
-		Cubic::Define( C110*(1.-eta), C120*(1.-eta), C440*(1.-eta), R, F0);
+		Cubic::Define( C110*(1.-eta), C120*(1.-eta), C440*(1.-eta), R, _F0);
 	}
     void DegradeModulus(const amrex::Vector<Set::Scalar> &eta)
 	{
@@ -55,24 +55,24 @@ public:
 			if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Nans in eta");
 			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
 			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
-            Cubic::Define( C110*(1.-eta[0]), C120*(1.-eta[1]), C440*(1.-eta[1]), R, F0 );
+            Cubic::Define( C110*(1.-eta[0]), C120*(1.-eta[1]), C440*(1.-eta[1]), R, _F0 );
         }
         else if (eta.size() == 3)
         {
             if(std::isnan(eta[0]) || std::isnan(eta[1]) || std::isnan(eta[2])) Util::Abort(INFO,"Nans in eta");
 			if(std::isinf(eta[0]) || std::isnan(eta[1]) || std::isnan(eta[2])) Util::Abort(INFO,"Infs in eta");
 			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0 || eta[2] < 0.0 || eta[2] > 1.0) Util::Abort(INFO,"Invalid value of eta");
-            Cubic::Define( C110*(1.-eta[0]), C120*(1.-eta[1]), C440*(1.-eta[2]), R, F0);
+            Cubic::Define( C110*(1.-eta[0]), C120*(1.-eta[1]), C440*(1.-eta[2]), R, _F0);
         }
         else
             return;
     }
     
-    void UpdateF0(Set::Matrix &a_F0){F0 = a_F0; Cubic::UpdateF0(a_F0);}
+    void UpdateF0(Set::Matrix &a_F0){_F0 = a_F0; Cubic::UpdateF0(a_F0);}
 
 public:
     Set::Scalar C110, C120, C440;
-    Set::Matrix F0;
+    Set::Matrix _F0;
     Eigen::Matrix3d R;
 
 public:
@@ -121,7 +121,73 @@ public:
 
         value.Define(C11,C12,C44,m);
     }
+    AMREX_FORCE_INLINE
+	void operator += (const CubicDegradable &rhs)
+    {
+        ddw += rhs.ddw;
+        F0  += rhs.F0;
+        _F0  += rhs._F0;
+        R += rhs.R;
+        C110 += rhs.C110;
+        C120 += rhs.C120;
+        C440 += rhs.C440;
+	}    
+    AMREX_FORCE_INLINE
+   	CubicDegradable operator * (const Set::Scalar alpha) const
+	{
+        CubicDegradable ret;
+        ret.ddw = ddw*alpha;
+        ret.F0  = alpha*F0;
+        ret._F0  = alpha*_F0;
+        ret.R = alpha*R;
+        ret.C110 = alpha*C110;
+        ret.C120 = alpha*C120;
+        ret.C440 = alpha*C440;
+        return ret;
+	}    
+    friend CubicDegradable operator * (const Set::Scalar alpha, const CubicDegradable b);
+    friend CubicDegradable operator + (const CubicDegradable a, const CubicDegradable b);
+    friend CubicDegradable operator - (const CubicDegradable a, const CubicDegradable b);
 };
+AMREX_FORCE_INLINE
+CubicDegradable operator * (const Set::Scalar alpha, const CubicDegradable b)
+{
+    CubicDegradable ret;
+    ret.ddw = alpha*b.ddw;
+    ret.F0  = alpha*b.F0;
+    ret._F0  = alpha*b._F0;
+    ret.R = alpha*b.R;
+    ret.C110 = alpha*b.C110;
+    ret.C120 = alpha*b.C120;
+    ret.C440 = alpha*b.C440;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+CubicDegradable operator + (const CubicDegradable a, const CubicDegradable b)
+{
+    CubicDegradable ret;
+    ret.ddw = a.ddw + b.ddw;
+    ret.F0  = a.F0 + b.F0;
+    ret._F0  = a._F0 + b._F0;
+    ret.R = a.R + b.R;
+    ret.C110 = a.C110 + b.C110;
+    ret.C120 = a.C120 + b.C120;
+    ret.C440 = a.C440 + b.C440;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+CubicDegradable operator - (const CubicDegradable a, const CubicDegradable b)
+{
+    CubicDegradable ret;
+    ret.ddw = a.ddw - b.ddw;
+    ret.F0  = a.F0 - b.F0;
+    ret._F0  = a._F0 - b._F0;
+    ret.R = a.R - b.R;
+    ret.C110 = a.C110 - b.C110;
+    ret.C120 = a.C120 - b.C120;
+    ret.C440 = a.C440 - b.C440;
+    return ret;
+}
 
 }
 }

@@ -86,7 +86,74 @@ public:
         pp.query("temp", tmp);
         value.Define(E1,E2,Tg,Ts,nu,tmp);
     }
+    AMREX_FORCE_INLINE
+	void operator += (const IsotropicDegradableTanh &rhs)
+    {
+        ddw += rhs.ddw;
+		m_E10 += rhs.m_E10;
+		m_E20 += rhs.m_E20;
+        m_Tg0 += rhs.m_Tg0;
+        m_Ts0 += rhs.m_Ts0;
+        m_nu += rhs.m_nu;
+        m_temp += rhs.m_temp;
+	}    
+    AMREX_FORCE_INLINE
+   	IsotropicDegradableTanh operator * (const Set::Scalar alpha) const
+	{
+        IsotropicDegradableTanh ret;
+        ret.ddw = ddw*alpha;
+		ret.m_E10 = m_E10*alpha;
+		ret.m_E20 = m_E20*alpha;
+        ret.m_Tg0 = m_Tg0*alpha;
+        ret.m_Ts0 = m_Ts0*alpha;
+        ret.m_nu = m_nu*alpha;
+        ret.m_temp = m_temp*alpha;
+        return ret;
+	}    
+    friend IsotropicDegradableTanh operator * (const Set::Scalar alpha, const IsotropicDegradableTanh b);
+    friend IsotropicDegradableTanh operator + (const IsotropicDegradableTanh a, const IsotropicDegradableTanh b);
+    friend IsotropicDegradableTanh operator - (const IsotropicDegradableTanh a, const IsotropicDegradableTanh b);
 };
+AMREX_FORCE_INLINE
+IsotropicDegradableTanh operator * (const Set::Scalar alpha, const IsotropicDegradableTanh b)
+{
+    IsotropicDegradableTanh ret;
+    ret.ddw = b.ddw*alpha;
+	ret.m_E10 = b.m_E10*alpha;
+    ret.m_E20 = b.m_E20*alpha;
+    ret.m_Tg0 = b.m_Tg0*alpha;
+    ret.m_Ts0 = b.m_Ts0*alpha;
+    ret.m_nu = b.m_nu*alpha;
+    ret.m_temp = b.m_temp*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+IsotropicDegradableTanh operator + (const IsotropicDegradableTanh a, const IsotropicDegradableTanh b)
+{
+    IsotropicDegradableTanh ret;
+    ret.ddw = a.ddw + b.ddw;
+	ret.m_E10 = a.m_E10 + b.m_E10;
+    ret.m_E20 = a.m_E20 + b.m_E20;
+    ret.m_Tg0 = a.m_Tg0 + b.m_Tg0;
+    ret.m_Ts0 = a.m_Ts0 + b.m_Ts0;
+    ret.m_nu = a.m_nu + b.m_nu;
+    ret.m_temp = a.m_temp + b.m_temp;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+IsotropicDegradableTanh operator - (const IsotropicDegradableTanh a, const IsotropicDegradableTanh b)
+{
+    IsotropicDegradableTanh ret;
+    ret.ddw = a.ddw - b.ddw;
+	ret.m_E10 = a.m_E10 - b.m_E10;
+    ret.m_E20 = a.m_E20 - b.m_E20;
+    ret.m_Tg0 = a.m_Tg0 - b.m_Tg0;
+    ret.m_Ts0 = a.m_Ts0 - b.m_Ts0;
+    ret.m_nu = a.m_nu - b.m_nu;
+    ret.m_temp = a.m_temp - b.m_temp;
+    return ret;
+} 
+
 }
 }
 }

@@ -84,7 +84,53 @@ public:
         }
 		value.Define(mu,mu,lambda,lambda);
 	}
+	AMREX_FORCE_INLINE
+	void operator += (const IsotropicDegradable &rhs)
+    {
+        ddw += rhs.ddw;
+		m_mu0 += rhs.m_mu0;
+		m_lambda0 += rhs.m_lambda0;
+	}    
+    AMREX_FORCE_INLINE
+   	IsotropicDegradable operator * (const Set::Scalar alpha) const
+	{
+        IsotropicDegradable ret;
+        ret.ddw = ddw*alpha;
+		ret.m_mu0 = m_mu0*alpha;
+		ret.m_lambda0 = m_lambda0*alpha;
+        return ret;
+	}    
+    friend IsotropicDegradable operator * (const Set::Scalar alpha, const IsotropicDegradable b);
+    friend IsotropicDegradable operator + (const IsotropicDegradable a, const IsotropicDegradable b);
+    friend IsotropicDegradable operator - (const IsotropicDegradable a, const IsotropicDegradable b);
 };
+AMREX_FORCE_INLINE
+IsotropicDegradable operator * (const Set::Scalar alpha, const IsotropicDegradable b)
+{
+    IsotropicDegradable ret;
+    ret.ddw = b.ddw*alpha;
+	ret.m_mu0 = b.m_mu0*alpha;
+	ret.m_lambda0 = b.m_lambda0*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+IsotropicDegradable operator + (const IsotropicDegradable a, const IsotropicDegradable b)
+{
+    IsotropicDegradable ret;
+    ret.ddw = a.ddw + b.ddw;
+	ret.m_mu0 = a.m_mu0 + b.m_mu0;
+	ret.m_lambda0 = a.m_lambda0 + b.m_lambda0;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+IsotropicDegradable operator - (const IsotropicDegradable a, const IsotropicDegradable b)
+{
+    IsotropicDegradable ret;
+    ret.ddw = a.ddw - b.ddw;
+	ret.m_mu0 = a.m_mu0 - b.m_mu0;
+	ret.m_lambda0 = a.m_lambda0 - b.m_lambda0;
+    return ret;
+} 
 
 }
 }
