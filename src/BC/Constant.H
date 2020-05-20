@@ -14,7 +14,7 @@
 namespace BC
 {
 class Constant
-	: public BC
+	: public BC<Set::Scalar>
 {
 
 	#if AMREX_SPACEDIM==2

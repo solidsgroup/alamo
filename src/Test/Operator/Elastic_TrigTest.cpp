@@ -52,7 +52,6 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 	::Operator::Elastic<model_type> elastic;
 	elastic.SetUniform(false);
  	elastic.define(geom, cgrids, dmap, info);
- 	for (int ilev = 0; ilev < nlevels; ++ilev) elastic.SetModel(ilev,*modelfab[ilev]);
 
 	// Set up boundary conditions, and 
 	// configure the problem so that it is 1D, 2D, or 3D

@@ -383,6 +383,7 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
 			{
 				if(damage.type == "water" || damage.type == "water2")
 				{
+					//Util::Message(INFO);
 					Set::Scalar temp1 = 0.0;
 					if(water_box(i,j,k,0) > 0.0 && eta_old_box(i,j,k,n) < damage.d_final[n])
 					{

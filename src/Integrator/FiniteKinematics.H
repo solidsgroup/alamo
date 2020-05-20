@@ -171,7 +171,7 @@ private:
 
     std::string ic_type; ///< String to determine what kind of initial condition to use
     //IC::IC *ic;          ///< Pointer to abstract IC object
-    BC::BC *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     Set::Scalar lame = 121.154, shear = 80.7692;
     Set::Scalar kappa, mu;

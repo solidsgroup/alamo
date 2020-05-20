@@ -1,6 +1,15 @@
 {% extends "layout.html" %}
 {% block content %}
 
+<style>
+    {% for p in range(0,data|length) %}
+    #row-{{data[p]['RUN']}}:hover ~ #row-{{data[p]['BENCHMARK_RUN']}}{
+        background-color:yellow;
+    }
+    {% endfor %}
+</style>
+
+
 <h2>Regression Test Summary</h2>
 <form action='/regtest/regtest' method="POST" id="deleterecordsform">
 <div class="table">
@@ -14,7 +23,7 @@
 	  </tr>
     </thead>
     {% for i in range(0,runs|length) %}
-    <tr>
+    <tr id="row-{{runs[i][0]}}"> 
         <td>
             <input type="checkbox" name="run_{{runs[i][0]}}" value="{{runs[i]['DIR']}}"/>
             <a target="_blank" href="/regtest/regtest/{{runs[i][0]}}/stdout">{{runs[i][0]}}</a>

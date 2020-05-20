@@ -143,8 +143,8 @@ private:
 		Model::Interface::Crack::Crack *boundary;
 		std::string ic_type;
 		IC::IC *ic;
-		BC::BC *mybc;
-		BC::BC *mybcdf;
+		BC::BC<Set::Scalar> *mybc;
+		BC::BC<Set::Scalar> *mybcdf;
 
 		bool newCrackProblem	=true;
 		bool solveCrack			=false; 

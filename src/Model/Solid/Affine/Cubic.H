@@ -51,6 +51,7 @@ public:
 
 public:
     Set::Matrix F0 = Set::Matrix::Zero();
+    static const KinematicVariable kinvar = KinematicVariable::gradu;
 
     static Cubic Random()
     {
@@ -93,7 +94,50 @@ public:
         //}
         return ret;
     }
+    AMREX_FORCE_INLINE
+	void operator += (const Cubic &rhs)
+    {
+        ddw += rhs.ddw;
+        F0  += rhs.F0;
+	}    
+    AMREX_FORCE_INLINE
+   	virtual Cubic operator * (const Set::Scalar alpha) const
+	{
+        Cubic ret;
+        ret.ddw = ddw*alpha;
+        ret.F0  = alpha*F0;
+        return ret;
+	}    
+    friend Cubic operator * (const Set::Scalar alpha, const Cubic b);
+    friend Cubic operator + (const Cubic a, const Cubic b);
+    friend Cubic operator - (const Cubic a, const Cubic b);
 };
+
+
+AMREX_FORCE_INLINE
+Cubic operator * (const Set::Scalar alpha, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = b.ddw*alpha;
+    ret.F0  = alpha*b.F0;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Cubic operator + (const Cubic a, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = a.ddw + b.ddw;
+    ret.F0  = a.F0 + b.F0;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Cubic operator - (const Cubic a, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = a.ddw - b.ddw;
+    ret.F0  = a.F0 - b.F0;
+    return ret;
+}    
 
 
 }

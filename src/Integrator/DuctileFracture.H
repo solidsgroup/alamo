@@ -151,8 +151,8 @@ private:
 		Model::Interface::Crack::Crack *boundary;
 		std::string ic_type;
 		IC::IC *ic;            						///< Pointer to abstract IC object
-		BC::BC *mybc;                   			///< Stock generic boundary condition object
-		BC::BC *mybcdf;
+		BC::BC<Set::Scalar> *mybc;                   			///< Stock generic boundary condition object
+		BC::BC<Set::Scalar> *mybcdf;
 
 		bool newCrackProblem=true;
 		bool solveCrack=false;
