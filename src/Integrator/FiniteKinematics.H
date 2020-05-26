@@ -39,6 +39,7 @@ public:
         RegisterNodalFab(eta_mf, 1, 2, "eta",true);
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+        RegisterNodalFab(res_mf, AMREX_SPACEDIM, 2, "res",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
         {
@@ -86,14 +87,15 @@ protected:
         mymodel.mu = mu; mymodel.kappa = kappa;
         
         
-        amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
+        //amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> model_mf;
+        Set::Field<model_type> model_mf;
         model_mf.resize(disp_mf.size());
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
             amrex::Box domain(geom[lev].Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
-            model_mf[lev].define(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev].setVal(mymodel);
+            model_mf[lev].reset(new amrex::FabArray<amrex::BaseFab<model_type>>(disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2));
+            model_mf[lev]->setVal(mymodel);
 
             if (iter == 0) disp_mf[lev]->setVal(0.0);
 
@@ -114,7 +116,7 @@ protected:
         
         nr.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
 
-        nr.compResidual(disp_mf,disp_mf,disp_mf,model_mf);
+        nr.compResidual(res_mf,disp_mf,rhs_mf,model_mf);
 
         for (int lev = 0; lev < disp_mf.size(); lev++)
         {
@@ -155,12 +157,12 @@ protected:
     }
 
 private:
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> eta_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> disp_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> rhs_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> res_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> stress_mf;
-    amrex::Vector<std::unique_ptr<amrex::MultiFab>> strain_mf;
+    Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> disp_mf;
+    Set::Field<Set::Scalar> rhs_mf;
+    Set::Field<Set::Scalar> res_mf;
+    Set::Field<Set::Scalar> stress_mf;
+    Set::Field<Set::Scalar> strain_mf;
 
     model_type mymodel;
 
@@ -169,7 +171,7 @@ private:
 
     std::string ic_type; ///< String to determine what kind of initial condition to use
     //IC::IC *ic;          ///< Pointer to abstract IC object
-    BC::BC *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     Set::Scalar lame = 121.154, shear = 80.7692;
     Set::Scalar kappa, mu;

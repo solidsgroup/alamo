@@ -28,13 +28,13 @@ protected:
 	void Regrid(int lev, Set::Scalar time) override;
 private:
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Temp_old;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Eta;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > Eta_old;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > FlameSpeedFab;
-	BC::BC *TempBC;
-	BC::BC *EtaBC;
+	Set::Field<Set::Scalar> Temp;
+	Set::Field<Set::Scalar> Temp_old;
+	Set::Field<Set::Scalar> Eta;
+	Set::Field<Set::Scalar> Eta_old;
+	Set::Field<Set::Scalar> FlameSpeedFab;
+	BC::BC<Set::Scalar> *TempBC;
+	BC::BC<Set::Scalar> *EtaBC;
 	IC::Voronoi *VoronoiIC;
 	IC::PackedSpheres *PackedSpheresIC;
 

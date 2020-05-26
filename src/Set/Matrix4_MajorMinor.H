@@ -2,6 +2,7 @@
 #define SET_MATRIX4_MAJORMINOR_H
 
 #include "Base.H"
+#include <math.h>
 
 namespace Set
 {
@@ -16,6 +17,10 @@ class Matrix4<2,Sym::MajorMinor>
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
+    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+    {
+        for (int i = 0; i < 6; i++) data[i] =  in.data[i];
+    }
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
@@ -56,7 +61,12 @@ public:
             }
         }
     }
-    AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] =  a.data[i];}
+
+    Set::Scalar Norm()
+    {
+        return std::sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2] + data[3]*data[3] + data[4]*data[4] + data[5]*data[5]);
+    }
+
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] -= a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] *= a.data[i];}
@@ -83,8 +93,40 @@ public:
         return ret;
     }
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
+    friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
+    friend Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
+    friend Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
+    friend Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
     friend Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
 };
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] + b.data[i];
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] - b.data[i];
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] * b;
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
+{
+    Matrix4<2,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] / b;
+	return ret;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b)
 {
@@ -207,6 +249,14 @@ public:
             }
         }
     }
+
+    Set::Scalar Norm()
+    {
+        Set::Scalar retsq = 0;
+        for (int i = 0; i < 21; i++) retsq += data[i];
+        return std::sqrt(retsq);
+    }
+
     AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] -= a.data[i];}
@@ -233,9 +283,41 @@ public:
         for (int i = 0 ; i < 21; i++) ret.data[i] = 0.0;
         return ret;
     }
+    friend Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
+    friend Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
+    friend Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
+    friend Matrix4<3,Sym::MajorMinor> operator / (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
     friend Set::Vector operator * (Matrix4<3,Sym::MajorMinor> a, Set::Matrix3 b);
     friend Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
 };
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
+{
+    Matrix4<3,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] + b.data[i];
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
+{
+    Matrix4<3,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] - b.data[i];
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b)
+{
+    Matrix4<3,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] * b;
+	return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+Matrix4<3,Sym::MajorMinor> operator / (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b)
+{
+    Matrix4<3,Sym::MajorMinor> ret;
+    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] / b;
+	return ret;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b)
 {

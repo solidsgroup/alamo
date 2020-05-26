@@ -1,6 +1,4 @@
 #include "Test/Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Isotropic.H"
-#include "Model/Solid/LinearElastic/Cubic.H"
 #include "Model/Solid/Linear/Isotropic.H"
 #include "IC/Affine.H"
 #include "IC/Trig.H"
@@ -26,12 +24,12 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	//Use this instead to run for Cubic elastic case.
 	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model; model.Randomize();
 
-	amrex::Vector<amrex::FabArray<amrex::BaseFab<model_type>>> modelfab(nlevels);
+	Set::Field<model_type> modelfab(nlevels);
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-		modelfab[ilev].define(ngrids[ilev], dmap[ilev], 1, 2);
+		modelfab[ilev].reset(new amrex::FabArray<amrex::BaseFab<model_type>>(ngrids[ilev], dmap[ilev], 1, 2));
 	for (int ilev = 0; ilev < nlevels; ++ilev)
-		modelfab[ilev].setVal(model);
+		modelfab[ilev]->setVal(model);
 
 	Set::Vector vec = Set::Vector::Zero();
 	vec[component] = 0.1;
@@ -58,8 +56,6 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	::Operator::Elastic<model_type> elastic;
 	elastic.SetUniform(false);
 	elastic.define(geom, cgrids, dmap, info);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-		elastic.SetModel(ilev, modelfab[ilev]);
 	BC::Operator::Elastic<model_type> bc;
 
 	if (component == 0)
