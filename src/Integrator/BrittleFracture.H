@@ -23,8 +23,6 @@
 
 #include "Model/Solid/Solid.H"
 #include "Model/Solid/Linear/IsotropicDegradable.H"
-//#include "Model/Solid/LinearElastic/LinearElastic.H"
-//#include "Model/Solid/LinearElastic/Laplacian.H"
 
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
@@ -72,8 +70,6 @@ protected:
 
 	/// \brief Tag cells for mesh refinement based on temperature gradient
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
-
-	void ScaledModulus(int lev,amrex::FabArray<amrex::BaseFab<fracture_model_type> > &model);
 
 	void Integrate(int amrlev, Set::Scalar time, int step,const amrex::MFIter &mfi, const amrex::Box &box) override;
 

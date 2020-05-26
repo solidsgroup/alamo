@@ -153,13 +153,13 @@ AMREX_FORCE_INLINE
 CubicDegradable operator * (const Set::Scalar alpha, const CubicDegradable b)
 {
     CubicDegradable ret;
-    ret.ddw = alpha*b.ddw;
-    ret.F0  = alpha*b.F0;
+    ret.ddw = b.ddw * alpha;
+    ret.F0  = b.F0 * alpha;
     ret._F0  = alpha*b._F0;
-    ret.R = alpha*b.R;
-    ret.C110 = alpha*b.C110;
-    ret.C120 = alpha*b.C120;
-    ret.C440 = alpha*b.C440;
+    ret.R = alpha * b.R;
+    ret.C110 = alpha * b.C110;
+    ret.C120 = alpha * b.C120;
+    ret.C440 = alpha * b.C440;
     return ret;
 }    
 AMREX_FORCE_INLINE

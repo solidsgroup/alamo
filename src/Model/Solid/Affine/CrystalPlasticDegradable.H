@@ -1,12 +1,12 @@
-#ifndef MODEL_SOLID_PLASTIC_CRYSTALPLASTIC_H_
-#define MODEL_SOLID_PLASTIC_CRYSTALPLASTIC_H_
+#ifndef MODEL_SOLID_PLASTIC_CRYSTALPLASTICDEGRADABLE_H_
+#define MODEL_SOLID_PLASTIC_CRYSTALPLASTICDEGRADABLE_H_
 
 #include "AMReX.H"
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
 #include "Affine.H"
 #include "Set/Set.H"
-#include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Affine/CubicDegradable.H"
 
 namespace Model
 {
@@ -14,12 +14,12 @@ namespace Solid
 {
 namespace Affine
 {
-class CrystalPlastic : public Cubic
+class CrystalPlasticDegradable : public CubicDegradable
 {
 public:
-    CrystalPlastic(){};
-    CrystalPlastic(Solid<Set::Sym::MajorMinor> base) : Cubic(base) {};
-    CrystalPlastic(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Scalar a_phi1, Set::Scalar a_Phi, Set::Scalar a_phi2, LatticeType lattice=LatticeType::FCC)
+    CrystalPlasticDegradable(){};
+    CrystalPlasticDegradable(Solid<Set::Sym::MajorMinor> base) : CubicDegradable(base) {};
+    CrystalPlasticDegradable(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Set::Scalar a_phi1, Set::Scalar a_Phi, Set::Scalar a_phi2, LatticeType lattice=LatticeType::FCC)
     {
         Eigen::Matrix3d m;
     	m =     Eigen::AngleAxisd(a_phi2, Eigen::Vector3d::UnitX()) *
@@ -27,7 +27,7 @@ public:
     	 	Eigen::AngleAxisd(a_phi1, Eigen::Vector3d::UnitX());
         Define(a_C11, a_C12, a_C44, m, lattice);
     }
-    CrystalPlastic(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Eigen::Matrix3d m, LatticeType lattice=LatticeType::FCC)
+    CrystalPlasticDegradable(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Eigen::Matrix3d m, LatticeType lattice=LatticeType::FCC)
     {
         Define(a_C11, a_C12, a_C44, m, lattice);
     }
@@ -59,6 +59,8 @@ public:
             
             int size = 12; 
             Set::Scalar INVSQ2 = 1.0/sqrt(2.0), INVSQ3 = 1.0/sqrt(3.0);
+            Set::Scalar s = AMREX_D_PICK(1.0,1.0,INVSQ2);
+            Set::Scalar n = AMREX_D_PICK(1.0, INVSQ2, INVSQ3);
             Set::Matrix m = Set::Matrix::Zero();
             AMREX_D_TERM(
                 m(0,0) = a_m(0,0);
@@ -67,8 +69,6 @@ public:
                 ,
                 m(0,2) = a_m(0,2); m(1,2) = a_m(1,2); m(2,0) = a_m(2,0); m(2,1) = a_m(2,1); m(2,2) = a_m(2,2);
             );
-            Set::Scalar s = AMREX_D_PICK(1.0,1.0,INVSQ2);
-            Set::Scalar n = AMREX_D_PICK(1.0, INVSQ2, INVSQ3);
             
             slip.resize(size);
             slip[0].n = m*Set::Vector(AMREX_D_DECL(n, n, n));
@@ -114,17 +114,32 @@ public:
         prev = PlasticState::Zero();
         curr = PlasticState::Zero();
 
-        Cubic::Define(a_C11, a_C12, a_C44, a_m);
+        CubicDegradable::Define(a_C11, a_C12, a_C44, a_m);
     }
 
-    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44,Eigen::Matrix3d m, amrex::Vector<SlipSystem> &a_slip)
+    void Define(Set::Scalar a_C11, Set::Scalar a_C12, Set::Scalar a_C44, Eigen::Matrix3d m, amrex::Vector<SlipSystem> &a_slip)
     {
         slip = a_slip;
 
         prev = PlasticState::Zero();
         curr = PlasticState::Zero();
         
-        Cubic::Define(a_C11, a_C12, a_C44, m);
+        CubicDegradable::Define(a_C11, a_C12, a_C44, m);
+    }
+
+    void DegradeYieldSurface(Set::Scalar eta)
+    {
+        if (std::isnan(eta) || std::isinf(eta)) Util::Abort(INFO, "Nans or Infs in eta. ", eta);
+        if (eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta. ", eta);
+        for (int i=0; i<slip.size(); i++)
+            slip[i].tcrss = slip[i].tcrss0/eta;
+    }
+
+    void DegradeYieldSurface(amrex::Vector<Set::Scalar> &eta)
+    {
+        if(eta.size() ==0 || eta.size() != slip.size()) Util::Abort(INFO, "Inconsistent size of eta. ", eta.size());
+        for (int i=0; i<slip.size(); i++)
+            slip[i].tcrss = slip[i].tcrss0/eta[i];
     }
 
     Set::Scalar YieldSurface()
@@ -138,6 +153,45 @@ public:
             yield += slip[i].tcrss*R;
         }
         return yield.norm();
+    }
+
+    Set::Scalar OriginalYieldSurface()
+    {
+        Set::Matrix yield = Set::Matrix::Zero(), R = Set::Matrix::Zero();
+        for(int i=0; i<slip.size(); i++)
+        {
+            for (int j = 0; j < AMREX_SPACEDIM; j++)
+                for (int k = 0; k < AMREX_SPACEDIM; k++)
+                    R(j,k) = slip[i].s(j)*slip[i].n(k);
+            yield += slip[i].tcrss0*R;
+        }
+        return yield.norm();
+    }
+
+    Set::Scalar OriginalPlasticEnergy()
+    {
+        Set::Matrix yield = Set::Matrix::Zero(), R = Set::Matrix::Zero();
+        for(int i=0; i<slip.size(); i++)
+        {
+            for (int j = 0; j < AMREX_SPACEDIM; j++)
+                for (int k = 0; k < AMREX_SPACEDIM; k++)
+                    R(j,k) = slip[i].s(j)*slip[i].n(k);
+            yield += slip[i].tcrss0*R;
+        }
+        return yield.norm()*curr.alpha;
+    }
+
+    Set::Scalar OriginalPlasticEnergy(Set::Scalar alpha)
+    {
+        Set::Matrix yield = Set::Matrix::Zero(), R = Set::Matrix::Zero();
+        for(int i=0; i<slip.size(); i++)
+        {
+            for (int j = 0; j < AMREX_SPACEDIM; j++)
+                for (int k = 0; k < AMREX_SPACEDIM; k++)
+                    R(j,k) = slip[i].s(j)*slip[i].n(k);
+            yield += slip[i].tcrss0*R;
+        }
+        return yield.norm()*alpha;
     }
 
     Set::Scalar PlasticEnergy()
@@ -175,7 +229,7 @@ public:
                 curr.epsp += dt*slip[i].gam0dot*std::pow((slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss), slip[i].s_exp)*R;
         }
         curr.alpha = sqrt(2.0/3.0)*curr.epsp.norm();
-        Cubic::UpdateF0(curr.epsp);
+        CubicDegradable::UpdateF0(curr.epsp);
     }
 
     void SetPlasticStrains(PlasticState &a_state)
@@ -194,7 +248,7 @@ public:
     PlasticState curr, prev;
 
 public:
-    static void Parse(CrystalPlastic & value, IO::ParmParse & pp)
+    static void Parse(CrystalPlasticDegradable & value, IO::ParmParse & pp)
     {
         Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
         pp.query("C11",C11);
@@ -325,35 +379,44 @@ public:
         }
     }
     AMREX_FORCE_INLINE
-	void operator += (const CrystalPlastic &rhs)
+	void operator += (const CrystalPlasticDegradable &rhs)
     {
         curr += rhs.curr;
         prev += rhs.prev;
         for (int i = 0; i< std::min(rhs.slip.size(),slip.size()); i++) slip[i] += rhs.slip[i];
         ddw += rhs.ddw;
         F0  += rhs.F0;
+        _F0  += rhs._F0;
+        R += rhs.R;
+        C110 += rhs.C110;
+        C120 += rhs.C120;
+        C440 += rhs.C440;
     }
     AMREX_FORCE_INLINE
-    CrystalPlastic operator * (Set::Scalar alpha)
+    CrystalPlasticDegradable operator * (Set::Scalar alpha)
     {
-        CrystalPlastic ret;
+        CrystalPlasticDegradable ret;
         ret.curr = curr*alpha;
         ret.prev = prev*alpha;
         ret.slip.resize(slip.size());
         for (int i=0; i<slip.size(); i++) ret.slip[i] = slip[i]*alpha;
         ret.ddw = ddw*alpha;
         ret.F0  = alpha*F0;
-    
+        ret._F0  = alpha*_F0;
+        ret.R = alpha*R;
+        ret.C110 = alpha*C110;
+        ret.C120 = alpha*C120;
+        ret.C440 = alpha*C440;
         return ret;
     }
-    friend CrystalPlastic operator * (const Set::Scalar alpha, const CrystalPlastic b);
-    friend CrystalPlastic operator + (const CrystalPlastic a, const CrystalPlastic b);
-    friend CrystalPlastic operator - (const CrystalPlastic a, const CrystalPlastic b);
+    friend CrystalPlasticDegradable operator * (const Set::Scalar alpha, const CrystalPlasticDegradable b);
+    friend CrystalPlasticDegradable operator + (const CrystalPlasticDegradable a, const CrystalPlasticDegradable b);
+    friend CrystalPlasticDegradable operator - (const CrystalPlasticDegradable a, const CrystalPlasticDegradable b);
 };
 AMREX_FORCE_INLINE
-CrystalPlastic operator * (const Set::Scalar alpha, const CrystalPlastic b)
+CrystalPlasticDegradable operator * (const Set::Scalar alpha, const CrystalPlasticDegradable b)
 {
-    CrystalPlastic ret;
+    CrystalPlasticDegradable ret;
     ret.curr = b.curr*alpha;
     ret.prev = b.prev*alpha;
     ret.slip.resize(b.slip.size());
@@ -361,37 +424,49 @@ CrystalPlastic operator * (const Set::Scalar alpha, const CrystalPlastic b)
 
     ret.ddw = b.ddw*alpha;
     ret.F0  = alpha*b.F0;
-    
+    ret._F0  = alpha*b._F0;
+    ret.R = alpha*b.R;
+    ret.C110 = alpha*b.C110;
+    ret.C120 = alpha*b.C120;
+    ret.C440 = alpha*b.C440;
     return ret;
 }
 
 AMREX_FORCE_INLINE
-CrystalPlastic operator + (const CrystalPlastic a, const CrystalPlastic b)
+CrystalPlasticDegradable operator + (const CrystalPlasticDegradable a, const CrystalPlasticDegradable b)
 {
-    CrystalPlastic ret;
+    CrystalPlasticDegradable ret;
     ret.curr = a.curr + b.curr;
     ret.prev = a.prev + b.prev;
-    ret.slip.resize(std::min(a.slip.size(),b.slip.size()));
-    for (int i=0; i< std::min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] + b.slip[i];
+    ret.slip.resize(min(a.slip.size(),b.slip.size()));
+    for (int i=0; i< min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] + b.slip[i];
 
     ret.ddw = a.ddw + b.ddw;
     ret.F0  = a.F0 + b.F0;
-    
+    ret._F0  = a._F0 + b._F0;
+    ret.R = a.R + b.R;
+    ret.C110 = a.C110 + b.C110;
+    ret.C120 = a.C120 + b.C120;
+    ret.C440 = a.C440 + b.C440;
     return ret;
 }
 
 AMREX_FORCE_INLINE
-CrystalPlastic operator - (const CrystalPlastic a, const CrystalPlastic b)
+CrystalPlasticDegradable operator - (const CrystalPlasticDegradable a, const CrystalPlasticDegradable b)
 {
-    CrystalPlastic ret;
+    CrystalPlasticDegradable ret;
     ret.curr = a.curr - b.curr;
     ret.prev = a.prev - b.prev;
-    ret.slip.resize(std::min(a.slip.size(),b.slip.size()));
-    for (int i=0; i< std::min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] - b.slip[i];
+    ret.slip.resize(min(a.slip.size(),b.slip.size()));
+    for (int i=0; i< min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] - b.slip[i];
 
     ret.ddw = a.ddw - b.ddw;
     ret.F0  = a.F0 - b.F0;
-    
+    ret._F0  = a._F0 - b._F0;
+    ret.R = a.R - b.R;
+    ret.C110 = a.C110 - b.C110;
+    ret.C120 = a.C120 - b.C120;
+    ret.C440 = a.C440 - b.C440;
     return ret;
 }
 

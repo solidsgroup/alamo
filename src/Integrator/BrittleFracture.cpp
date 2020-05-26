@@ -145,9 +145,10 @@ BrittleFracture::BrittleFracture() :
 	RegisterNodalFab (m_energy_pristine,		1,					number_of_ghost_nodes,	"energyP",true);
 	RegisterNodalFab (m_energy_pristine_old,	1,					number_of_ghost_nodes,	"energyPOld",true);
 	RegisterNodalFab (m_residual,	AMREX_SPACEDIM,					number_of_ghost_nodes,	"residual",true);
-	nlevels = maxLevel() + 1;
 
-	material.model.resize(nlevels);
+	RegisterGeneralFab(material.model, 1, 2);
+
+	nlevels = maxLevel() + 1;
 }
 
 BrittleFracture::~BrittleFracture()
@@ -157,14 +158,11 @@ BrittleFracture::~BrittleFracture()
 void
 BrittleFracture::Initialize (int lev)
 {
-	//Util::Message(INFO);
-	
 	crack.ic->Initialize(lev,m_c);
 	crack.ic->Initialize(lev,m_c_old);
 	
 	m_driving_force[lev]->setVal(0.0);
 	
-	//Util::Message(INFO);
 	m_disp[lev]->setVal(0.0);
 	m_strain[lev]->setVal(0.0);
 	m_stress[lev]->setVal(0.0);
@@ -174,47 +172,8 @@ BrittleFracture::Initialize (int lev)
 	m_residual[lev]->setVal(0.0);
 	m_energy_pristine[lev] -> setVal(0.);
 	m_energy_pristine_old[lev] -> setVal(0.);
-	//Util::Message(INFO);
-}
-
-void
-BrittleFracture::ScaledModulus(int lev, amrex::FabArray<amrex::BaseFab<fracture_model_type> > &model)
-{
-	/*
-	  This function is supposed to degrade material parameters based on certain
-	  fracture model.
-	  For now we are just using isotropic degradation.
-	*/
-	//Util::Message(INFO, lev);
-	static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-					   dy(AMREX_D_DECL(0,1,0)),
-					   dz(AMREX_D_DECL(0,0,1)));
-	m_c[lev]->FillBoundary();
-
-	for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)
-	{
-		amrex::Box box = mfi.growntilebox(1);//validbox();
-		amrex::Array4<const amrex::Real> const& c_new = (*m_c[lev]).array(mfi);
-		amrex::Array4<fracture_model_type> const& modelfab = model.array(mfi);
-
-		amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-			Set::Scalar _temp = 0;
-			//_temp.push_back(crack.boundary->g_phi(c_new(i,j,k,0),0.));
-			Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
-			_temp =  mul*(AMREX_D_TERM(	
-								crack.boundary->g_phi(c_new(i,j,k,0),0.) + crack.boundary->g_phi(c_new(i-1,j,k,0),0.)
-								, 
-								+ crack.boundary->g_phi(c_new(i,j-1,k,0),0.) + crack.boundary->g_phi(c_new(i-1,j-1,k,0),0.)
-								, 
-								+ crack.boundary->g_phi(c_new(i,j,k-1,0),0.) + crack.boundary->g_phi(c_new(i-1,j,k-1,0),0.)
-								+ crack.boundary->g_phi(c_new(i,j-1,k-1,0),0.) + crack.boundary->g_phi(c_new(i-1,j-1,k-1,0),0.))
-								);
-			if (std::isnan(_temp)) Util::Abort(INFO);
-			if(_temp < 0.0) _temp = 0.;
-			if(_temp > 1.0) _temp = 1.0;
-			modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-scaleModulusMax));
-		});
-	}
+	
+	material.model[lev]->setVal(material.modeltype);
 }
 
 void 
@@ -229,13 +188,38 @@ BrittleFracture::TimeStepBegin(amrex::Real time, int iter)
 	if(iter%elastic.interval) return;
 
 	elastic.bc_top = elastic.test_init + ((double)elastic.test_step)*elastic.test_rate;
-	material.model.resize(nlevels);
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		material.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<fracture_model_type>>(m_disp[ilev]->boxArray(), m_disp[ilev]->DistributionMap(), 1, number_of_ghost_nodes));
-		material.model[ilev]->setVal((material.modeltype));
 		std::swap(*m_energy_pristine_old[ilev], *m_energy_pristine[ilev]);
-		ScaledModulus(ilev,*(material.model)[ilev]);
+		m_c[ilev]->FillBoundary();
+
+		static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
+					   dy(AMREX_D_DECL(0,1,0)),
+					   dz(AMREX_D_DECL(0,0,1)));
+
+		for (amrex::MFIter mfi(*(material.model)[ilev],true); mfi.isValid(); ++mfi)
+		{
+			amrex::Box box = mfi.growntilebox(1);
+			amrex::Array4<const amrex::Real> const& c_new = (*m_c[ilev]).array(mfi);
+			amrex::Array4<fracture_model_type> const& modelfab = (material.model)[ilev]->array(mfi);
+
+			amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+				Set::Scalar _temp = 0;
+				Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
+				_temp =  mul*(AMREX_D_TERM(	
+									crack.boundary->g_phi(c_new(i,j,k,0),0.) + crack.boundary->g_phi(c_new(i-1,j,k,0),0.)
+									, 
+									+ crack.boundary->g_phi(c_new(i,j-1,k,0),0.) + crack.boundary->g_phi(c_new(i-1,j-1,k,0),0.)
+									, 
+									+ crack.boundary->g_phi(c_new(i,j,k-1,0),0.) + crack.boundary->g_phi(c_new(i-1,j,k-1,0),0.)
+									+ crack.boundary->g_phi(c_new(i,j-1,k-1,0),0.) + crack.boundary->g_phi(c_new(i-1,j-1,k-1,0),0.))
+									);
+				if (std::isnan(_temp)) Util::Abort(INFO);
+				if(_temp < 0.0) _temp = 0.;
+				if(_temp > 1.0) _temp = 1.0;
+				modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-scaleModulusMax));
+			});
+		}
 	}
 
 	for (int ilev=0; ilev < nlevels; ++ilev) Util::RealFillBoundary(*material.model[ilev],geom[ilev]);
@@ -462,8 +446,6 @@ BrittleFracture::TimeStepComplete(amrex::Real time,int iter)
 	Util::Message(INFO, "relative error = ", crack_err_norm/c_new_norm);
 	
 	if(crack_err_norm/c_new_norm > tol_crack) return;
-
-	crack_err_norm = 0.; c_new_norm = 0.;
 	
 	amrex::Vector<Set::Scalar> plottime;
 	amrex::Vector<int> plotstep;
