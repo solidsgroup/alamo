@@ -28,7 +28,7 @@
 #include "Operator/Elastic.H"
 #include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Solid/LinearElastic/LinearElastic.H"
-#include "Model/Solid/LinearElastic/Laplacian.H"
+//#include "Model/Solid/LinearElastic/Laplacian.H"
 
 
 namespace Integrator
@@ -71,32 +71,32 @@ private:
 	int number_of_ghost_cells = 2;
 
 	// Degradation variable
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_old;		///< Degradation variable for the __previous__timestep
+	Set::Field<Set::Scalar> eta_new; 		///< Degradation variable for the __current__timestep
+	Set::Field<Set::Scalar> eta_old;		///< Degradation variable for the __previous__timestep
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_w_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_w_old;		///< Degradation variable for the __previous__timestep
+	Set::Field<Set::Scalar> eta_w_new; 		///< Degradation variable for the __current__timestep
+	Set::Field<Set::Scalar> eta_w_old;		///< Degradation variable for the __previous__timestep
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_T_new; 		///< Degradation variable for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >eta_T_old;		///< Degradation variable for the __previous__timestep
+	Set::Field<Set::Scalar> eta_T_new; 		///< Degradation variable for the __current__timestep
+	Set::Field<Set::Scalar> eta_T_old;		///< Degradation variable for the __previous__timestep
 
 	// For water induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc;		///< Water concentration for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >water_conc_old;	///< Water concentration for the __previous__timestep
+	Set::Field<Set::Scalar> water_conc;		///< Water concentration for the __current__timestep
+	Set::Field<Set::Scalar> water_conc_old;	///< Water concentration for the __previous__timestep
 
 	// For temperature induced degradation
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp;			///< Temperature for the __current__timestep
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> >Temp_old;		///< Temperature for the __previous__timestep
+	Set::Field<Set::Scalar> Temp;			///< Temperature for the __current__timestep
+	Set::Field<Set::Scalar> Temp_old;		///< Temperature for the __previous__timestep
 
 	// For mechanical degradation to be studied later
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > displacement; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > strain; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > rhs; ///< Multicomponent field variable storing pointwise displacements
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > residual;
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energy; ///< Single component variable storing strain energy
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > energies; ///< Multicomponent field variable storing individual strain energies
+	Set::Field<Set::Scalar>  displacement; ///< Multicomponent field variable storing pointwise displacements
+	Set::Field<Set::Scalar>  strain; ///< Multicomponent field variable storing pointwise strains (6 components)
+	Set::Field<Set::Scalar>  stress; ///< Multicomponent field variable storing pointwise strains (6 components)
+	Set::Field<Set::Scalar>  stress_vm; ///< Multicomponent field variable storing pointwise strains (6 components)
+	Set::Field<Set::Scalar>  rhs; ///< Multicomponent field variable storing pointwise displacements
+	Set::Field<Set::Scalar>  residual;
+	Set::Field<Set::Scalar>  energy; ///< Single component variable storing strain energy
+	Set::Field<Set::Scalar>  energies; ///< Multicomponent field variable storing individual strain energies
 
 	int nlevels;
 
@@ -113,7 +113,7 @@ private:
 		Set::Scalar 	refinement_threshold 	=	0.01;
 		std::string 	ic_type;
 		IC::IC			*ic;
-		BC::BC			*bc;
+		BC::BC<Set::Scalar>			*bc;
 	} water;
 
 	// Thermal diffusion parameters
@@ -123,7 +123,7 @@ private:
 		Set::Scalar 	refinement_threshold 	=	0.01;
 		std::string		ic_type;
 		IC::IC			*ic;
-		BC::BC			*bc;
+		BC::BC<Set::Scalar>			*bc;
 	} thermal;
 
 	// Damage parameters
@@ -134,7 +134,7 @@ private:
 		Set::Scalar		refinement_threshold		= 0.01;
 		std::string 	ic_type;
 		IC::IC			*ic;
-		BC::BC			*bc;
+		BC::BC<Set::Scalar>			*bc;
 	} damage;
 
 	// Damage model: water relaxation

@@ -1,63 +1,70 @@
 
-alamo.program               = microstructure
-plot_file		    = tests/VoronoiElastic/output
+alamo.program			= microstructure
+plot_file		        = tests/VoronoiElastic/output
 
-timestep		    = 0.05
-stop_time		    = 400
+timestep		        = 0.05
+stop_time		        = 10
 
-#amr.plot_int		    = 100
-amr.plot_dt                 = 5.0
-amr.max_level		    = 3
-amr.n_cell		    = 64 64 64
-amr.blocking_factor	    = 4
-amr.regrid_int		    = 10
-amr.grid_eff		    = 1.0
-amr.ref_threshold = 0.1
-#amr.max_grid_size = 10
+amr.plot_dt			= 1.0
+amr.max_level		        = 3
+amr.n_cell		        = 64 64 64
+amr.blocking_factor	        = 4
+amr.regrid_int		        = 10
+amr.grid_eff		        = 1.0
+amr.ref_threshold		= 0.1
 
-ic.type			    = voronoi
-ic.voronoi.number_of_grains = 100
+ic.type			        = voronoi
+ic.voronoi.number_of_grains	= 100
 
-geometry.prob_lo	    = 0 0 0
-geometry.prob_hi	    = 5 5 5
-geometry.is_periodic	    = 0 0 0
+geometry.prob_lo	        = 0 0 0
+geometry.prob_hi	        = 5 5 5
+geometry.is_periodic		= 0 0 0
 
-bc.hi			    = neumann neumann neumann
-bc.lo			    = neumann neumann neumann
+bc.eta.type.xhi			= neumann
+bc.eta.type.xlo			= neumann
+bc.eta.type.yhi			= neumann
+bc.eta.type.ylo			= neumann
+bc.eta.type.zhi			= neumann
+bc.eta.type.zlo			= neumann
 
-pf.number_of_grains	    = 10
-pf.M			    = 1.0 
-pf.mu			    = 10.0
-pf.gamma		    = 1.0
-pf.l_gb			    = 0.05
-pf.sigma0		    = 0.075
+pf.number_of_grains	        = 10
+pf.M			        = 1.0 
+pf.mu			        = 10.0
+pf.gamma		        = 1.0
+pf.l_gb			        = 0.05
+pf.sigma0		        = 0.075
 
-elastic.on  = 1
-elastic.interval = 100
-elastic.type=cubic
-#elastic.tstart=0.1
-elastic.load_t=0.0 
-elastic.load_disp=0.01
-elastic.bc.type.xlo = disp disp disp
-elastic.bc.type.xhi = disp disp disp
-elastic.bc.val.xhi  = 0.0 0.1 0.0
-elastic.bc.val.xlo  = 0.0 0.0 0.0
-elastic.bc.type.ylo = neumann neumann neumann
-elastic.bc.type.yhi = neumann neumann neumann
-elastic.bc.val.yhi  = 0.0 0.0 0.0
-elastic.bc.val.ylo  = 0.0 0.0 0.0
-elastic.bc.type.zlo = neumann neumann neumann
-elastic.bc.type.zhi = neumann neumann neumann
-elastic.bc.val.zhi  = 0.0 0.0 0.0
-elastic.bc.val.zlo  = 0.0 0.0 0.0
+elastic.on			= 1
+elastic.interval		= 10
+elastic.type			= cubic
+elastic.load_t			= 0.0 
+elastic.load_disp		= 0.01
+elastic.bc.type.xlo		= disp disp disp
+elastic.bc.type.xhi		= disp disp disp
+elastic.bc.type.xloyhi		= disp disp disp
+elastic.bc.type.xhiyhi		= disp disp disp
+elastic.bc.val.xhi		= 0.0 0.1 0.0
+elastic.bc.val.xlo		= 0.0 0.0 0.0
+elastic.bc.val.xhiyhi		= 0.0 0.1 0.0
+elastic.bc.val.xloyhi		= 0.0 0.0 0.0
+elastic.bc.val.xhiylo		= 0.0 0.1 0.0
+elastic.bc.val.xloylo		= 0.0 0.0 0.0
 
-elastic.model.C11 = 1.68
-elastic.model.C12 = 1.21
-elastic.model.C44 = 0.75
-elastic.model.random
+elastic.bc.type.ylo		= neumann neumann neumann
+elastic.bc.type.yhi		= neumann neumann neumann
+elastic.bc.val.yhi		= 0.0 0.0 0.0
+elastic.bc.val.ylo		= 0.0 0.0 0.0
+elastic.bc.type.zlo		= neumann neumann neumann
+elastic.bc.type.zhi		= neumann neumann neumann
+elastic.bc.val.zhi		= 0.0 0.0 0.0
+elastic.bc.val.zlo		= 0.0 0.0 0.0
 
-elastic.fixed_iter = 1000
-#elastic.max_coarsening_level = 0
-elastic.solver.verbose = 2
+elastic.model.C11		= 1.68
+elastic.model.C12		= 1.21
+elastic.model.C44		= 0.75
+elastic.model.random		= yes
+
+elastic.fixed_iter		= 1000
+elastic.solver.verbose		= 2
 
 

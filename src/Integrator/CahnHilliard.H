@@ -35,13 +35,13 @@ protected:
 
 private:
 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etanewmf; 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > etaoldmf; 
-	amrex::Vector<std::unique_ptr<amrex::MultiFab> > intermediate; 
+	Set::Field<Set::Scalar> etanewmf; 
+	Set::Field<Set::Scalar> etaoldmf; 
+	Set::Field<Set::Scalar> intermediate; 
 
 	const int nghost = 1;
 	const int ncomp = 1;
-	BC::BC *bc;
+	BC::BC<Set::Scalar> *bc;
 	IC::IC *ic;
 	
 	const Set::Scalar gamma = 0.0005;

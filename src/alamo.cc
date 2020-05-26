@@ -9,7 +9,6 @@
 
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
-#include "Integrator/Mobility.H"
 #include "Integrator/Eshelby.H"
 #include "Integrator/FiniteKinematics.H"
 #include "Integrator/Flame.H"
@@ -33,12 +32,6 @@ int main (int argc, char* argv[])
 		pfm->InitData();
 		pfm->Evolve();
 		delete pfm;
-	}
-	else if (program == "mobility")
-	{	
-		Integrator::Mobility mobility;
-		mobility.InitData();
-		mobility.Evolve();
 	}
 	else if (program == "eshelby")
 	{
@@ -74,6 +67,12 @@ int main (int argc, char* argv[])
 		Integrator::PolymerDegradation model;
 		model.InitData();
 		model.Evolve();
+	}
+	else if (program == "trigtest")
+	{
+		Test::Operator::Elastic test;
+		test.Define(32,1);
+		test.TrigTest(0,0,1,Util::GetFileName());
 	}
 	else
 	{

@@ -507,6 +507,116 @@ Hessian(const amrex::Array4<const Set::Scalar> &f,
 	return ret;
 }
 
+AMREX_FORCE_INLINE
+Set::Matrix
+FieldToMatrix(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k)
+{
+	Set::Matrix ret;
+#if AMREX_SPACEDIM == 1
+	ret(0,0) = f(i,j,k,0);
+
+#elif AMREX_SPACEDIM == 2
+	ret(0,0) = f(i,j,k,0); ret(0,1) = f(i,j,k,1);
+	ret(1,0) = f(i,j,k,2); ret(1,1) = f(i,j,k,3);
+
+#elif AMREX_SPACEDIM == 3
+	ret(0,0) = f(i,j,k,0); ret(0,1) = f(i,j,k,1); ret(0,2) = f(i,j,k,2);
+	ret(1,0) = f(i,j,k,3); ret(1,1) = f(i,j,k,4); ret(1,2) = f(i,j,k,5);
+	ret(2,0) = f(i,j,k,6); ret(2,1) = f(i,j,k,7); ret(2,2) = f(i,j,k,8);
+#endif
+
+	return ret;
+}
+
+AMREX_FORCE_INLINE
+Set::Matrix
+FieldToMatrix(const amrex::Array4<Set::Scalar> &f,
+		const int &i, const int &j, const int &k)
+{
+	Set::Matrix ret;
+#if AMREX_SPACEDIM == 1
+	ret(0,0) = f(i,j,k,0);
+
+#elif AMREX_SPACEDIM == 2
+	ret(0,0) = f(i,j,k,0); ret(0,1) = f(i,j,k,1);
+	ret(1,0) = f(i,j,k,2); ret(1,1) = f(i,j,k,3);
+
+#elif AMREX_SPACEDIM == 3
+	ret(0,0) = f(i,j,k,0); ret(0,1) = f(i,j,k,1); ret(0,2) = f(i,j,k,2);
+	ret(1,0) = f(i,j,k,3); ret(1,1) = f(i,j,k,4); ret(1,2) = f(i,j,k,5);
+	ret(2,0) = f(i,j,k,6); ret(2,1) = f(i,j,k,7); ret(2,2) = f(i,j,k,8);
+#endif
+
+	return ret;
+}
+
+AMREX_FORCE_INLINE
+Set::Vector
+FieldToVector(const amrex::Array4<const Set::Scalar> &f,
+		const int &i, const int &j, const int &k)
+{
+	Set::Vector ret;
+	ret(0) = f(i,j,k,0);
+#if AMREX_SPACEDIM > 1
+	ret(1) = f(i,j,k,1);
+#if AMREX_SPACEDIM > 2
+	ret(2) = f(i,j,k,2);
+#endif
+#endif
+	return ret;
+}
+
+AMREX_FORCE_INLINE
+Set::Vector
+FieldToVector(const amrex::Array4<Set::Scalar> &f,
+		const int &i, const int &j, const int &k)
+{
+	Set::Vector ret;
+	ret(0) = f(i,j,k,0);
+#if AMREX_SPACEDIM > 1
+	ret(1) = f(i,j,k,1);
+#if AMREX_SPACEDIM > 2
+	ret(2) = f(i,j,k,2);
+#endif
+#endif
+	return ret;
+}
+
+AMREX_FORCE_INLINE
+void
+MatrixToField(const amrex::Array4<Set::Scalar> &f,
+		const int &i, const int &j, const int &k,
+		Set::Matrix matrix)
+{
+#if AMREX_SPACEDIM == 1
+	f(i,j,k,0) = matrix(0,0);
+#elif AMREX_SPACEDIM == 2
+	f(i,j,k,0) = matrix(0,0); f(i,j,k,1) = matrix(0,1);
+	f(i,j,k,2) = matrix(1,0); f(i,j,k,3) = matrix(1,1);
+#elif AMREX_SPACEDIM == 3
+	f(i,j,k,0) = matrix(0,0); f(i,j,k,1) = matrix(0,1); f(i,j,k,2) = matrix(0,2);
+	f(i,j,k,3) = matrix(1,0); f(i,j,k,4) = matrix(1,1); f(i,j,k,5) = matrix(1,2);
+	f(i,j,k,6) = matrix(2,0); f(i,j,k,7) = matrix(2,1); f(i,j,k,8) = matrix(2,2);
+#endif
+}
+
+AMREX_FORCE_INLINE
+void
+VectorToField(const amrex::Array4<Set::Scalar> &f,
+		const int &i, const int &j, const int &k,
+		Set::Vector vector)
+{
+	f(i,j,k,0) = vector(0);
+#if AMREX_SPACEDIM > 1
+	f(i,j,k,1) = vector(1);
+#if AMREX_SPACEDIM > 2
+	f(i,j,k,2) = vector(2);
+#endif
+#endif
+}
+
+
 
 template<int dim>
 AMREX_FORCE_INLINE
@@ -577,6 +687,37 @@ DoubleHessian<3>(const amrex::Array4<const Set::Scalar> &f,
     return ret;
 }
 
+struct Interpolate
+{
+public:
+	template<class T>
+	AMREX_FORCE_INLINE
+	static T CellToNodeAverage(const amrex::Array4<const T> &f,
+		   					   const int &i, const int &j, const int &k, const int &m)
+	{
+		return ( AMREX_D_TERM(	  f(i  ,j  ,k  ,m) + f(i-1,j  ,k  ,m)
+								, 
+								+ f(i  ,j-1,k  ,m) + f(i-1,j-1,k  ,m)
+								, 
+								+ f(i  ,j  ,k-1,m) + f(i-1,j  ,k-1,m)
+								+ f(i  ,j-1,k-1,m) + f(i-1,j-1,k-1,m)
+								)) * fac;
+	}
+	template<class T>
+	AMREX_FORCE_INLINE
+	static T NodeToCellAverage(const amrex::Array4<const T> &f,
+		   					   const int &i, const int &j, const int &k, const int &m)
+	{
+		return ( AMREX_D_TERM(	  f(i  ,j  ,k  ,m) + f(i+1,j  ,k  ,m)
+								, 
+								+ f(i  ,j+1,k  ,m) + f(i+1,j+1,k  ,m)
+								, 
+								+ f(i  ,j  ,k+1,m) + f(i+1,j  ,k+1,m)
+								+ f(i  ,j+1,k+1,m) + f(i+1,j+1,k+1,m)
+								)) * fac;
+	}
+	constexpr static Set::Scalar fac = AMREX_D_PICK(0.5,0.25,0.125);
+};
 
 }
 #endif

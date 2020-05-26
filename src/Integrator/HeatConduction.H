@@ -59,15 +59,15 @@ private:
   int number_of_components = 1;					///< Number of components
   int number_of_ghost_cells = 1;				///< Number of ghost cells
 
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempFab;	///< Temperature field variable (current timestep)
-  amrex::Vector<std::unique_ptr<amrex::MultiFab> > TempOldFab;	///< Temperature field variable (previous timestep)
+  Set::Field<Set::Scalar> TempFab;	///< Temperature field variable (current timestep)
+  Set::Field<Set::Scalar> TempOldFab;	///< Temperature field variable (previous timestep)
 
   amrex::Real alpha = 1.0;					///< Thermal diffusivity
   amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
 
   std::string ic_type;						///< String to determine what kind of initial condition to use
   IC::IC *IC;            					///< Pointer to abstract IC object
-  BC::BC *BC;                   				///< Stock generic boundary condition object
+  BC::BC<Set::Scalar> *BC; 				///< Stock generic boundary condition object
 };
 }
 #endif

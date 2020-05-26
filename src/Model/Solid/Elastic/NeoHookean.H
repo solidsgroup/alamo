@@ -16,7 +16,7 @@ public:
     NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
 	virtual ~NeoHookean() {};
 
-    Set::Scalar W(Set::Matrix F)
+    Set::Scalar W(const Set::Matrix & F) const override
     {
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J),2./3.);
@@ -25,7 +25,7 @@ public:
         w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
         return w;
     }
-    Set::Matrix DW(Set::Matrix F)
+    Set::Matrix DW(const Set::Matrix & F) const override
     {
         Set::Scalar J = F.determinant();
         Set::Scalar J23 = std::pow(fabs(J),2./3.);
@@ -38,7 +38,7 @@ public:
 
         return dw;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(Set::Matrix F)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
     {
         Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw;
         Set::Scalar J = F.determinant();
@@ -79,7 +79,44 @@ public:
         ret.kappa = Util::Random();
         return ret;
     }
+    AMREX_FORCE_INLINE
+	void operator += (const NeoHookean &rhs)
+    {
+        ddw += rhs.ddw;
+	}    
+    AMREX_FORCE_INLINE
+   	virtual NeoHookean operator * (const Set::Scalar alpha) const
+	{
+        NeoHookean ret;
+        ret.ddw = ddw*alpha;
+        return ret;
+	}    
+    friend NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b);
+    friend NeoHookean operator + (const NeoHookean a, const NeoHookean b);
+    friend NeoHookean operator - (const NeoHookean a, const NeoHookean b);
 };
+AMREX_FORCE_INLINE
+NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b)
+{
+    NeoHookean ret;
+    ret.ddw = b.ddw*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+NeoHookean operator + (const NeoHookean a, const NeoHookean b)
+{
+    NeoHookean ret;
+    ret.ddw = a.ddw + b.ddw;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+NeoHookean operator - (const NeoHookean a, const NeoHookean b)
+{
+    NeoHookean ret;
+    ret.ddw = a.ddw - b.ddw;
+    return ret;
+}    
+
 
 
 

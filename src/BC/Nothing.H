@@ -9,7 +9,7 @@
 namespace BC
 {
 class Nothing
-	: public BC
+	: public BC<Set::Scalar>
 {
 
 public:

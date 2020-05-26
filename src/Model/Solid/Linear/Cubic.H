@@ -57,15 +57,15 @@ public:
     									ddw(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
     				}
     }
-    Set::Scalar W(Set::Matrix gradu)
+    Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
     }
-    Set::Matrix DW(Set::Matrix gradu)
+    Set::Matrix DW(const Set::Matrix & gradu) const override
     {
         return ddw*gradu;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(Set::Matrix /*gradu*/)
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & /*gradu*/) const override
     {
         return ddw;
     }
@@ -77,6 +77,19 @@ public:
 public:
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
+    AMREX_FORCE_INLINE
+    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta)
+    {
+        Cubic ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        Set::Scalar etasum = 0.;
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++)
+        {
+            ret.ddw += models[n].ddw * (eta[n] / etasum);
+        }
+        return ret;
+    }
 
     static Cubic Random()
     {
