@@ -21,11 +21,11 @@
 
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Newton.H"
-#include "Model/Solid/Affine/CrystalPlastic.H"
+#include "Model/Solid/Affine/CrystalPlasticDegradable.H"
 #include "Model/Solid/Affine/CubicDegradable.H"
 #include "Model/Solid/Affine/Affine.H"
 
-#include "Model/Solid/Affine/J2Plastic.H"
+#include "Model/Solid/Affine/J2PlasticDegradable.H"
 #include "Model/Solid/Affine/IsotropicDegradable.H"
 
 #include "Model/Interface/Crack/Crack.H"
@@ -52,7 +52,7 @@
 namespace Integrator
 {
 //using ductile_fracture_model_type = Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::CubicDegradable>;
-using ductile_fracture_model_type = Model::Solid::Affine::J2Plastic<Model::Solid::Affine::IsotropicDegradable>;
+using ductile_fracture_model_type = Model::Solid::Affine::J2PlasticDegradable;
 
 class DuctileFracture : public Integrator
 {
