@@ -526,7 +526,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
-			amrex::Box bx = mfi.grownnodaltilebox(2);
+			amrex::Box bx = mfi.grownnodaltilebox(-1,2);
 
 			amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
 			amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
