@@ -193,7 +193,6 @@ private:
 
 		BC::Operator::Elastic<pd_model_type> bc;
 		//Operator::Elastic<pd_model_type> op;
-		Set::Field<pd_model_type> model;
 		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
 
 	} elastic;
@@ -202,6 +201,7 @@ private:
 		pd_model_type 		modeltype;
 		std::string 	input_material = "isotropic";
 		Set::Scalar		yieldstrength = 18.;
+		Set::Field<pd_model_type> model;
 	} material;
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;

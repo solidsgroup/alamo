@@ -18,6 +18,7 @@
 #include "IC/Ellipsoid.H"
 #include "IC/Notch.H"
 
+#include "Operator/Operator.H"
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
@@ -58,6 +59,9 @@ public:
 	/// \brief Read in parameters and register field variables
 	Fracture();
 	~Fracture();
+	enum FractureType {Brittle, Ductile};
+	enum ModeType {ModeI, ModeII, ModeIII};
+	enum LoadType {Force, Displacement};
 
 protected:
 
@@ -83,9 +87,9 @@ private:
 	int number_of_ghost_nodes = 2;				///< Number of ghost nodes
     int nlevels;
 
-    std::string fracture_problem = "brittle";   ///< Specifies the type of problem we are solving
-
-    struct{
+    FractureType fracture_type = FractureType::Brittle;   ///< Specifies the type of problem we are solving
+	
+	struct{
         Set::Field<Set::Scalar> field;                ///< crack field at current time step
         Set::Field<Set::Scalar> field_old;            ///< crack field at previous time step
         Set::Field<Set::Scalar> driving_force;         ///< crack driving forces.
@@ -99,6 +103,11 @@ private:
         Set::Scalar mobility;                       ///< crack mobility
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
         Set::Scalar refinement_threshold = 0.001;
+
+		Set::Scalar norm;							///< L2 norm of current crack field
+		Set::Scalar error_norm;						///< L2 norm of different between current and old field
+		Set::Scalar tol_abs = 1.e-6;
+		Set::Scalar tol_rel = 1.e-6;
     } crack;
 
     struct
@@ -130,8 +139,8 @@ private:
 
     struct{
         Set::Vector body_force 				= Set::Vector::Zero();
-        std::string mode                    = "mode1";
-        std::string type                    = "disp";
+        ModeType 	mode                    = ModeType::ModeI;
+        LoadType 	load                    = LoadType::Displacement;
         Set::Scalar val 					= 0.;
         Set::Scalar rate				= 1.; 
 		Set::Scalar max				    = 1.0;
@@ -143,6 +152,11 @@ private:
 
     struct{
         Set::Field<Set::Scalar> strain;           ///< plastic strains
+		Set::Field<Set::Scalar> strain_old;			///< plastic strain at previous time step.
+		Set::Scalar norm;
+		Set::Scalar error_norm;
+		Set::Scalar tol_rel = 1.e-6;
+		Set::Scalar tol_abs = 1.e-6;
     } plastic;
 
     struct{

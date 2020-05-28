@@ -13,7 +13,9 @@
 #include "Model/Solid/Affine/IsotropicDegradable.H"
 #include "Model/Solid/Affine/CubicDegradable.H"
 #include "Model/Solid/Affine/J2Plastic.H"
+#include "Model/Solid/Affine/J2PlasticDegradable.H"
 #include "Model/Solid/Affine/CrystalPlastic.H"
+#include "Model/Solid/Affine/CrystalPlasticDegradable.H"
 #include "Elastic.H"
 
 #include "Numeric/Stencil.H"
@@ -795,21 +797,21 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 }
 
 // TODO : Remove these template specializations once Mobility and PD are upgraded
-//template class Elastic<Model::Solid::LinearElastic::Multiwell>;
-// template class Elastic<Model::Solid::Linear::IsotropicDegradable>;
-// template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
+//template class Elastic<Model::Solid::LinearElastic::Multiwell>; 
+template class Elastic<Model::Solid::Linear::IsotropicDegradable>;
+template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
 
-// template class Elastic<Model::Solid::Elastic::NeoHookean>;
-// template class Elastic<Model::Solid::Affine::Isotropic>;
-// template class Elastic<Model::Solid::Affine::IsotropicDegradable>;
-// template class Elastic<Model::Solid::Affine::Cubic>;
-// template class Elastic<Model::Solid::Affine::CubicDegradable>;
-// template class Elastic<Model::Solid::Linear::Isotropic>;
-// template class Elastic<Model::Solid::Linear::Laplacian>;
-// template class Elastic<Model::Solid::Linear::Cubic>;
-// template class Elastic<Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::CubicDegradable> >;
-// template class Elastic<Model::Solid::Affine::CrystalPlastic<Model::Solid::Affine::Cubic> >;
-// template class Elastic<Model::Solid::Affine::J2Plastic<Model::Solid::Affine::Isotropic> >;
-// template class Elastic<Model::Solid::Affine::J2Plastic<Model::Solid::Affine::IsotropicDegradable> >;
+template class Elastic<Model::Solid::Elastic::NeoHookean>;
+template class Elastic<Model::Solid::Affine::Isotropic>;
+template class Elastic<Model::Solid::Affine::IsotropicDegradable>;
+template class Elastic<Model::Solid::Affine::Cubic>;
+template class Elastic<Model::Solid::Affine::CubicDegradable>;
+template class Elastic<Model::Solid::Linear::Isotropic>;
+template class Elastic<Model::Solid::Linear::Laplacian>;
+template class Elastic<Model::Solid::Linear::Cubic>;
+template class Elastic<Model::Solid::Affine::CrystalPlastic>;
+template class Elastic<Model::Solid::Affine::CrystalPlasticDegradable>;
+template class Elastic<Model::Solid::Affine::J2Plastic>;
+template class Elastic<Model::Solid::Affine::J2PlasticDegradable>;
 }
 
