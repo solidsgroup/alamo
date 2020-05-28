@@ -438,8 +438,8 @@ CrystalPlasticDegradable operator + (const CrystalPlasticDegradable a, const Cry
     CrystalPlasticDegradable ret;
     ret.curr = a.curr + b.curr;
     ret.prev = a.prev + b.prev;
-    ret.slip.resize(min(a.slip.size(),b.slip.size()));
-    for (int i=0; i< min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] + b.slip[i];
+    ret.slip.resize(std::min(a.slip.size(),b.slip.size()));
+    for (int i=0; i< std::min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] + b.slip[i];
 
     ret.ddw = a.ddw + b.ddw;
     ret.F0  = a.F0 + b.F0;
@@ -457,8 +457,8 @@ CrystalPlasticDegradable operator - (const CrystalPlasticDegradable a, const Cry
     CrystalPlasticDegradable ret;
     ret.curr = a.curr - b.curr;
     ret.prev = a.prev - b.prev;
-    ret.slip.resize(min(a.slip.size(),b.slip.size()));
-    for (int i=0; i< min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] - b.slip[i];
+    ret.slip.resize(std::min(a.slip.size(),b.slip.size()));
+    for (int i=0; i< std::min(a.slip.size(),b.slip.size()); i++) ret.slip[i] = a.slip[i] - b.slip[i];
 
     ret.ddw = a.ddw - b.ddw;
     ret.F0  = a.F0 - b.F0;

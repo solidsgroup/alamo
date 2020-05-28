@@ -300,9 +300,8 @@ PolymerDegradation::PolymerDegradation():
 		RegisterNodalFab (residual,		AMREX_SPACEDIM,					2,	"residual",true);;
 
 	}
-
+	RegisterGeneralFab(material.model, 1, 2);
 	nlevels = maxLevel() + 1;
-	elastic.model.resize(nlevels);
 }
 
 
@@ -439,6 +438,7 @@ PolymerDegradation::Initialize (int lev)
 		energy[lev]->setVal(0.0);
 		residual[lev]->setVal(0.0);
 	}
+	material.model[lev]->setVal(material.modeltype);
 	Util::Message(INFO);
 }
 
@@ -594,9 +594,29 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		elastic.model[ilev].reset(new amrex::FabArray<amrex::BaseFab<pd_model_type>>(displacement[ilev]->boxArray(), displacement[ilev]->DistributionMap(), 1, number_of_ghost_nodes));
-		elastic.model[ilev]->setVal((material.modeltype));
-		DegradeMaterial(ilev,*(elastic.model)[ilev]);
+		
+		eta_new[ilev]->FillBoundary();
+
+		for (amrex::MFIter mfi(*material.model[ilev],true); mfi.isValid(); ++mfi)
+		{
+			amrex::Box box = mfi.growntilebox(2);
+			amrex::Array4<const amrex::Real> const& eta_box = (*eta_new[ilev]).array(mfi);
+			amrex::Array4<pd_model_type> const& modelfab = material.model[ilev]->array(mfi);
+
+			amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+				amrex::Vector<Set::Scalar> _temp;
+				for(int n=0; n<damage.number_of_eta; n++)
+				{
+					Set::Scalar _temp2 = Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,n);
+					_temp.push_back(std::min(damage.d_final[n],std::max(0.,_temp2)));
+				}
+				if(damage.type == "water") modelfab(i,j,k,0).DegradeModulus(_temp[0]);
+				else if (damage.type == "water2") modelfab(i,j,k,0).DegradeModulus(_temp);
+				else Util::Abort(INFO, "Damage model not implemented yet");
+			});
+		}
+		Util::RealFillBoundary(*material.model[ilev],geom[ilev]);
+
 		rhs[ilev]->setVal(0.0);
 	}
 
@@ -639,8 +659,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 		if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 		else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
-		solver.solve(displacement,rhs,elastic.model,elastic.tol_rel,elastic.tol_abs);
-		solver.compResidual(residual,displacement,rhs,elastic.model);
+		solver.solve(displacement,rhs,material.model,elastic.tol_rel,elastic.tol_abs);
+		solver.compResidual(residual,displacement,rhs,material.model);
 		
 		for (int lev = 0; lev < nlevels; lev++)
 		{
@@ -657,18 +677,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 				amrex::Array4<Set::Scalar> const& stress_vm_box = (*stress_vm[lev]).array(mfi);
 				amrex::Array4<const Set::Scalar> const& eta_box = (*eta_new[lev]).array(mfi);
 				amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-					Set::Matrix sigma;
+					Set::Matrix sigma = Numeric::FieldToMatrix(stress_box,i,j,k);
 					Set::Scalar temp = Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,damage.number_of_eta-1);
-					AMREX_D_PICK(	
-						sigma(0,0) = stress_box(i,j,k,0);
-						,
-						sigma(0,0) = stress_box(i,j,k,0); sigma(0,1) = stress_box(i,j,k,1);
-						sigma(1,0) = stress_box(i,j,k,2); sigma(1,1) = stress_box(i,j,k,3);
-						,
-						sigma(0,0) = stress_box(i,j,k,0); sigma(0,1) = stress_box(i,j,k,1); sigma(0,2) = stress_box(i,j,k,2);
-						sigma(1,0) = stress_box(i,j,k,3); sigma(1,1) = stress_box(i,j,k,4); sigma(1,2) = stress_box(i,j,k,5);
-						sigma(2,0) = stress_box(i,j,k,6); sigma(2,1) = stress_box(i,j,k,7); sigma(2,2) = stress_box(i,j,k,8);
-					);
 					Set::Matrix sigmadev = sigma - sigma.trace()/((double) AMREX_SPACEDIM)*Set::Matrix::Identity();
 					Set::Scalar temp2 = std::sqrt(1.5*sigmadev.squaredNorm());
 					stress_vm_box(i,j,k,0) =  temp2 < (1.-temp)*material.yieldstrength ? temp2 : (1.-temp)*material.yieldstrength;
@@ -724,7 +734,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
 			if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
 			else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
-			solver.solve(displacement, rhs, elastic.model, elastic.tol_rel, elastic.tol_abs);
+			solver.solve(displacement, rhs, material.model, elastic.tol_rel, elastic.tol_abs);
 			//solver.solve(GetVecOfPtrs(displacement), GetVecOfConstPtrs(rhs), elastic.tol_rel, elastic.tol_abs);
 			//solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));
 			for (int lev = 0; lev < nlevels; lev++)
@@ -742,18 +752,8 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					amrex::Array4<Set::Scalar> const& stress_vm_box = (*stress_vm[lev]).array(mfi);
 					amrex::Array4<const Set::Scalar> const& eta_box = (*eta_new[lev]).array(mfi);
 					amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-						Set::Matrix sigma;
+						Set::Matrix sigma = Numeric::FieldToMatrix(stress_box,i,j,k);
 						Set::Scalar temp = Numeric::Interpolate::CellToNodeAverage(eta_box,i,j,k,damage.number_of_eta-1);
-						AMREX_D_PICK(	
-							sigma(0,0) = stress_box(i,j,k,0);
-							,
-							sigma(0,0) = stress_box(i,j,k,0); sigma(0,1) = stress_box(i,j,k,1);
-							sigma(1,0) = stress_box(i,j,k,2); sigma(1,1) = stress_box(i,j,k,3);
-							,
-							sigma(0,0) = stress_box(i,j,k,0); sigma(0,1) = stress_box(i,j,k,1); sigma(0,2) = stress_box(i,j,k,2);
-							sigma(1,0) = stress_box(i,j,k,3); sigma(1,1) = stress_box(i,j,k,4); sigma(1,2) = stress_box(i,j,k,5);
-							sigma(2,0) = stress_box(i,j,k,6); sigma(2,1) = stress_box(i,j,k,7); sigma(2,2) = stress_box(i,j,k,8);
-						);
 						Set::Matrix sigmadev = sigma - sigma.trace()/((double) AMREX_SPACEDIM)*Set::Matrix::Identity();
 						Set::Scalar temp2 = std::sqrt(1.5*sigmadev.squaredNorm());
 						stress_vm_box(i,j,k,0) =  temp2 < (1.-temp)*material.yieldstrength ? temp2 : (1.-temp)*material.yieldstrength;
