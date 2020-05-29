@@ -58,10 +58,9 @@ anisotropy.beta = 1e-4;
 anisotropy.plot_int = 1
 
 #ic.type = ellipsoid
-#ic.center = 2 2
-##ic.A = 8.0 0.0 0.0 512.0
-#ic.A = 4.0 0.0 0.0 128.0
-#ic.eps = 0.05
+#ic.ellipsoid.center = 0 0 
+#ic.ellipsoid.radius = 0.1 0.1
+#ic.ellipsoid.eps = 0.02
 
 ic.type = notch
 # Enable for multiple notches
