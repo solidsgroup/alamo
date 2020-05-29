@@ -19,10 +19,10 @@ geometry.prob_lo = -4.0 -4.0
 geometry.prob_hi = 4.0 4.0
 geometry.is_periodic= 0 0
 
-crack.modulus_scaling_max = 0.02
+crack.modulus_scaling_max = 0.1
 crack.refinement_threshold = 0.01
-crack.tol_abs = 1.e-5
-crack.tol_rel = 1.e-5
+crack.tol_abs = 1.e-14
+crack.tol_rel = 1.e-14
 
 crack.type = constant
 crack.constant.G_c = 5.e2
@@ -40,7 +40,7 @@ crack.constant.threshold = 0
 #crack.sin.Gc0 = 1.0e3
 #crack.sin.Gc1 = 2.0e2
 #crack.sin.theta0 = 0.785
-#crack.sin.zeta = 2.e-3
+#crack.sin.zeta = 2.e-2
 #crack.sin.mobility = 1.e-5
 #crack.sin.eta_epsilon = 0.01
 #crack.sin.mult_Gc = 1.0e0
@@ -50,16 +50,16 @@ crack.constant.threshold = 0
 #crack.sin.exponent = 1.e-3
 #crack.sin.threshold = 0
 
-anisotropy.on = true
-anisotropy.tstart = 0.0;
-anisotropy.timestep = 1e-1
-anisotropy.elastic_int = 1e1
-anisotropy.beta = 1e-4;
-anisotropy.plot_int = 1
+anisotropy.on = false
+#anisotropy.tstart = 0.0;
+#anisotropy.timestep = 1e-1
+#anisotropy.elastic_int = 1e0
+#anisotropy.beta = 1e-4;
+#anisotropy.plot_int = 1
 
 #ic.type = ellipsoid
 #ic.ellipsoid.center = 0 0 
-#ic.ellipsoid.radius = 0.1 0.1
+#ic.ellipsoid.radius = 0.05 0.05
 #ic.ellipsoid.eps = 0.02
 
 ic.type = notch
