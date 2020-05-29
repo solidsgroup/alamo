@@ -47,7 +47,8 @@ public:
     {
         out << ddw;
     }
-    void UpdateF0 (Set::Matrix &a_F0) {F0 = a_F0;}
+    AMREX_FORCE_INLINE
+    void SetF0 (Set::Matrix &a_F0) {F0 = a_F0;}
 
 public:
     Set::Matrix F0 = Set::Matrix::Zero();

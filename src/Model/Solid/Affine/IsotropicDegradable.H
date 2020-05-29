@@ -65,7 +65,8 @@ public:
 		else
 			return;
 	}
-    void UpdateF0(Set::Matrix a_F0) {_F0 = a_F0; Isotropic::UpdateF0(a_F0); }
+    AMREX_FORCE_INLINE
+    void SetF0(Set::Matrix a_F0) {_F0 = a_F0; Isotropic::SetF0(a_F0); }
     Set::Scalar GetMu () {return m_mu;}
 
 public:

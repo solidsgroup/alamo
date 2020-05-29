@@ -116,7 +116,7 @@ public:
         curr.alpha = prev.alpha + SQ2O3*dGamma;
         curr.beta = prev.beta + SQ2O3*dH*n_new;
         curr.epsp = prev.epsp + dGamma*n_new;
-        IsotropicDegradable::UpdateF0(curr.epsp);
+        IsotropicDegradable::SetF0(curr.epsp);
     }
 
     void SetPlasticStrains()
@@ -131,7 +131,7 @@ public:
     {
         prev = a_state;
         curr = a_state;
-        IsotropicDegradable::UpdateF0(curr.epsp);
+        IsotropicDegradable::SetF0(curr.epsp);
     }
 
     PlasticState GetPlasticState()
