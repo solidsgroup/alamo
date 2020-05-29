@@ -539,7 +539,8 @@ Elastic<T>::Energy (int amrlev,
 
 					    // energy(i,j,k) = (gradu.transpose() * sig).trace();
 						
-						Util::Abort(INFO,"Fix this"); //energy(i,j,k) = C(i,j,k).W(gradu);
+						//Util::Abort(INFO,"Fix this"); //
+						//energy(i,j,k) = C(i,j,k).W(gradu);
 						for (int m = 0; m < AMREX_SPACEDIM; m++)
 						{
 							for(int n = 0; n < AMREX_SPACEDIM; n++)

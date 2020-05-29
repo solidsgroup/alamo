@@ -436,9 +436,6 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
     // Setting up the solver parameters
     Operator::Elastic<brittle_fracture_model_type> op_b;
     Operator::Elastic<ductile_fracture_model_type> op_d;
-    //if (fracture_type == FractureType::Brittle) op = new Operator::Elastic<brittle_fracture_model_type>();
-    //else if (fracture_type == FractureType::Ductile) op = Operator::Elastic<ductile_fracture_model_type>();
-
     {
         LPInfo info;
         info.setAgglomeration(sol.agglomeration);

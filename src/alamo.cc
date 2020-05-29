@@ -15,8 +15,6 @@
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
-//#include "Integrator/BrittleFracture.H"
-//#include "Integrator/DuctileFracture.H"
 #include "Model/Solid/Elastic/Elastic.H"
 
 int main (int argc, char* argv[])
