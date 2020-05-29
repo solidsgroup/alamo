@@ -58,7 +58,6 @@ public:
                 Util::Abort(INFO, "Incorrect size of slip system input information");
             
             int size = 12; 
-            Set::Scalar INVSQ2 = 1.0/sqrt(2.0), INVSQ3 = 1.0/sqrt(3.0);
             Set::Matrix m = Set::Matrix::Zero();
             AMREX_D_TERM(
                 m(0,0) = a_m(0,0);
@@ -189,6 +188,9 @@ public:
         return curr;
     }
 
+private:
+    constexpr static Set::Scalar INVSQ2 = 1.0/sqrt(2.0);
+    constexpr static Set::Scalar INVSQ3 = 1.0/sqrt(3.0);
 public:
     amrex::Vector<SlipSystem> slip; 
     PlasticState curr, prev;

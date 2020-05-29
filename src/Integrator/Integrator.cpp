@@ -581,84 +581,29 @@ Integrator::MakeNewLevelFromScratch (int lev, amrex::Real t, const amrex::BoxArr
 }
 
 std::vector<std::string>
-Integrator::PlotFileName (int lev) const
+Integrator::PlotFileName (int lev,std::string prefix) const
 {
 	BL_PROFILE("Integrator::PlotFileName");
 	std::vector<std::string> name;
-	name.push_back(plot_file+"/");
-	name.push_back(amrex::Concatenate("", lev, 5));
-	return name;
-}
-
-std::vector<std::string>
-Integrator::PlotFileName(std::string _name, int lev) const
-{
-	BL_PROFILE("Integrator::PlotFileName");
-	std::vector<std::string> name;
-	name.push_back(plot_file+"/"+_name+"/");
+	name.push_back(plot_file+"/"+prefix+"/");
 	name.push_back(amrex::Concatenate("", lev, 5));
 	return name;
 }
 
 void
-Integrator::WritePlotFileNode(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial) const
+Integrator::WritePlotFile (bool initial) const
 {
-	BL_PROFILE("Integrator::WritePlotFile");
-	const int nlevels = finest_level+1;
-
-	int ncomponents = 0;
-	amrex::Vector<std::string> nnames;
-
-	for (int i = 0; i < node.number_of_fabs; i++)
-	{
-		ncomponents += node.ncomp_array[i];
-		if (node.ncomp_array[i] > 1)
-			for (int j = 1; j <= node.ncomp_array[i]; j++)
-				nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
-		else
-			nnames.push_back(node.name_array[i]);
-	}
-	amrex::Vector<amrex::MultiFab> nplotmf(nlevels);
-
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		amrex::BoxArray ngrids = grids[ilev];
-		ngrids.convert(amrex::IntVect::TheNodeVector());
-		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
-
-		int n = 0;
-		for (int i = 0; i < node.number_of_fabs; i++)
-		{
-			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
-			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
-			amrex::MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
-			n += node.ncomp_array[i];
-		}
-	}
-	std::vector<std::string> plotfilename = PlotFileName(name,_step[0]);
-	if (initial) plotfilename[1] = plotfilename[1] + "init";
-
-	if (ncomponents > 0)
-		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
-					Geom(), _time[0],_step, refRatio());
-
-	if (amrex::ParallelDescriptor::IOProcessor())
-	{
-		std::ofstream noutfile;
-		if (_step[0]==0)
-		{
-			if (ncomponents > 0) noutfile.open(plot_file+"/"+name+"/nodeoutput.visit",std::ios_base::out);
-		}
-		else
-		{
-			if (ncomponents > 0) noutfile.open(plot_file+"/"+name+"/nodeoutput.visit",std::ios_base::app);
-		}
-		if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
-	}
+	WritePlotFile(t_new[0], istep, initial, "");
+}
+void
+Integrator::WritePlotFile (std::string prefix, Set::Scalar time, int step) const
+{
+	amrex::Vector<int> istep(max_level + 1, step);
+	WritePlotFile(time, istep, false, prefix);
 }
 
 void
-Integrator::WritePlotFile(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial) const
+Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial, std::string prefix) const
 {
 	BL_PROFILE("Integrator::WritePlotFile");
 	const int nlevels = finest_level+1;
@@ -678,90 +623,6 @@ Integrator::WritePlotFile(std::string &name, amrex::Vector<Set::Scalar> &_time, 
 	for (int i = 0; i < node.number_of_fabs; i++)
 	{
 		if (!node.writeout_array[i]) continue;
-		ncomponents += node.ncomp_array[i];
-		if (node.ncomp_array[i] > 1)
-			for (int j = 1; j <= node.ncomp_array[i]; j++)
-				nnames.push_back(amrex::Concatenate(node.name_array[i], j, 3));
-		else
-			nnames.push_back(node.name_array[i]);
-	}
-
-	amrex::Vector<amrex::MultiFab> cplotmf(nlevels), nplotmf(nlevels);
-  
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-	{
-		cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
-		amrex::BoxArray ngrids = grids[ilev];
-		ngrids.convert(amrex::IntVect::TheNodeVector());
-		if (ncomponents>0) nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
-
-		int n = 0;
-		// Util::Warning(INFO,"Remove this line!");
-		// (*(*cell.fab_array[3])[ilev]).setVal(0.0);
-		for (int i = 0; i < cell.number_of_fabs; i++)
-		{
-			amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
-			n += cell.ncomp_array[i];
-		}
-
-		n = 0;
-		for (int i = 0; i < node.number_of_fabs; i++)
-		{
-			if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nans (i=",i,")");
-			if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Warning(INFO,nnames[i]," contains inf (i=",i,")");
-			amrex::MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
-			n += node.ncomp_array[i];
-		}
-	}
-
-	std::vector<std::string> plotfilename = PlotFileName(name,_step[0]);
-	if (initial) plotfilename[1] = plotfilename[1] + "init";
-  
-	WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
-				Geom(), _time[0], _step, refRatio());
-	
-
-	if (ncomponents > 0)
-		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
-					Geom(), _time[0], _step, refRatio());
-
-	if (amrex::ParallelDescriptor::IOProcessor())
-	{
-		std::ofstream coutfile, noutfile;
-		if (_step[0]==0)
-		{
-			coutfile.open(plot_file+"/"+name+"/celloutput.visit",std::ios_base::out);
-			if (ncomponents > 0) noutfile.open(plot_file+"/"+name+"/nodeoutput.visit",std::ios_base::out);
-		}
-		else
-		{
-			coutfile.open(plot_file+"/"+name+"/celloutput.visit",std::ios_base::app);
-			if (ncomponents > 0) noutfile.open(plot_file+"/"+name+"/nodeoutput.visit",std::ios_base::app);
-		}
-		coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
-		if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
-	}
-}
-
-void
-Integrator::WritePlotFile (bool initial) const
-{
-	BL_PROFILE("Integrator::WritePlotFile");
-	const int nlevels = finest_level+1;
-
-	int ccomponents = 0, ncomponents = 0;
-	amrex::Vector<std::string> cnames, nnames;
-	for (int i = 0; i < cell.number_of_fabs; i++)
-	{
-		ccomponents += cell.ncomp_array[i];
-		if (cell.ncomp_array[i] > 1)
-			for (int j = 1; j <= cell.ncomp_array[i]; j++)
-				cnames.push_back(amrex::Concatenate(cell.name_array[i], j, 3));
-		else
-			cnames.push_back(cell.name_array[i]);
-	}
-	for (int i = 0; i < node.number_of_fabs; i++)
-	{
 		ncomponents += node.ncomp_array[i];
 		if (node.ncomp_array[i] > 1)
 			for (int j = 1; j <= node.ncomp_array[i]; j++)
@@ -811,13 +672,13 @@ Integrator::WritePlotFile (bool initial) const
 		}
 	}
 
-	std::vector<std::string> plotfilename = PlotFileName(istep[0]);
+	std::vector<std::string> plotfilename = PlotFileName(istep[0],prefix);
 	if (initial) plotfilename[1] = plotfilename[1] + "init";
   
 	if (ccomponents > 0)
 	{
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
-					Geom(), t_new[0],istep, refRatio());
+					Geom(), time, iter, refRatio());
 	
 		std::ofstream chkptfile;
 		chkptfile.open(plotfilename[0]+plotfilename[1]+"cell/Checkpoint");
@@ -828,7 +689,7 @@ Integrator::WritePlotFile (bool initial) const
 	if (ncomponents > 0)
 	{
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
-					Geom(), t_new[0],istep, refRatio());
+					Geom(), time, iter, refRatio());
 	}
 
 	if (amrex::ParallelDescriptor::IOProcessor())
@@ -926,7 +787,8 @@ Integrator::IntegrateVariables (amrex::Real time, int step)
 
 				for (int i = 0; i < comp.size(); i++)
 				{
-					Integrate(ilev, time, step, mfi, comp[i]);
+					Integrate(ilev,time, step,
+						  mfi, comp[i]);
 				}
 			}
 		}

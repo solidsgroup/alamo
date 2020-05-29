@@ -692,12 +692,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		int countstep = 0;
 		Util::Message(INFO, "Performing tensile test at t = ",elastic.test_time[elastic.current_test]);
 		
-		amrex::Vector<Set::Scalar> plottime;
-		amrex::Vector<int> plotstep;
 		std::string plotfolder = "elastic_"+ std::to_string(elastic.current_test);
-
-		plottime.resize(nlevels);
-		plotstep.resize(nlevels);
 
 		while (test_t < elastic.test_duration)
 		{
@@ -713,7 +708,6 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 				AMREX_D_TERM(	rhs[lev]->setVal(elastic.body_force[0]*volume,0,1);,
 								rhs[lev]->setVal(elastic.body_force[1]*volume,1,1);,
 								rhs[lev]->setVal(elastic.body_force[2]*volume,2,1););
-				plottime[lev] = test_t; plotstep[lev]=countstep-1;
 			}
 			
 			elastic.bc.SetTime(test_t);
@@ -760,7 +754,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 					});
 				}
 			}
-			WritePlotFileNode(plotfolder,plottime,plotstep);
+			WritePlotFile(plotfolder,test_t,countstep-1);
 		}
 		elastic.current_test++;
 	}
