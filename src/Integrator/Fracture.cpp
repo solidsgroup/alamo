@@ -755,7 +755,7 @@ Fracture::TimeStepComplete(amrex::Real time,int iter)
         Util::Message(INFO, "plastic strain relative error= ", rel_ep_err);
     }
 
-    if (crack.norm > crack.tol_abs || crack.error_norm > crack.tol_rel) return;
+    if (crack.error_norm > crack.tol_abs || rel_c_err > crack.tol_rel) return;
     if (fracture_type == FractureType::Ductile && (plastic.norm > plastic.tol_abs || plastic.error_norm > plastic.tol_rel)) return;
 
     amrex::Vector<Set::Scalar> plottime;
