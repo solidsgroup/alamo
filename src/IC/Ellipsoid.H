@@ -105,13 +105,13 @@ public:
 			amrex::Vector<Set::Scalar> a_radius; 
 			pp.queryarr("radius",a_radius);  
 
-			if (a_radius.size() <= AMREX_SPACEDIM) value.A.push_back(Set::Matrix::Identity());
+			if (a_radius.size() < AMREX_SPACEDIM) value.A.push_back(Set::Matrix::Identity());
 			else
 			{
 				for (int i = 0; i<a_radius.size(); i+=AMREX_SPACEDIM)
 				{
 					Set::Matrix temp = Set::Matrix::Zero();
-					AMREX_D_TERM( temp(0,0) = 1./a_radius[i] ;, temp(1,1) = 1./a_radius[i+1] ;, temp(2,2) = 1./a_radius[i+2] ; );
+					AMREX_D_TERM( temp(0,0) = 1./(a_radius[i]*a_radius[i]) ;, temp(1,1) = 1./(a_radius[i+1]*a_radius[i+1]) ;, temp(2,2) = 1./(a_radius[i+2]*a_radius[i+2]) ; );
 					value.A.push_back(temp);
 				}
 			}
