@@ -534,7 +534,7 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
                         model_box(i,j,k,0).EvolvePlasticStrain(sig,eps,0);
                         sig = model_box(i,j,k,0).DW(eps);
                         Numeric::MatrixToField(strainp_box,i,j,k,model_box(i,j,k,0).curr.epsp);
-                        material.ductilemodeltype.UpdateF0(model_box(i,j,k).curr.epsp);
+                        material.ductilemodeltype.SetF0(model_box(i,j,k).curr.epsp);
                     }
 
                     energy_box(i,j,k,0) = (fracture_type == FractureType::Brittle) ? material.brittlemodeltype.W(eps) : material.ductilemodeltype.W(eps);

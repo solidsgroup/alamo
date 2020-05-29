@@ -68,7 +68,8 @@ public:
             return;
     }
     
-    void UpdateF0(Set::Matrix &a_F0){_F0 = a_F0; Cubic::UpdateF0(a_F0);}
+    AMREX_FORCE_INLINE
+    void SetF0(Set::Matrix &a_F0){_F0 = a_F0; Cubic::SetF0(a_F0);}
 
 public:
     Set::Scalar C110, C120, C440;

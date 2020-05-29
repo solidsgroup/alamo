@@ -228,7 +228,7 @@ public:
                 curr.epsp += dt*slip[i].gam0dot*std::pow((slip[i].s.dot(sigma*slip[i].n)/slip[i].tcrss), slip[i].s_exp)*R;
         }
         curr.alpha = sqrt(2.0/3.0)*curr.epsp.norm();
-        CubicDegradable::UpdateF0(curr.epsp);
+        CubicDegradable::SetF0(curr.epsp);
     }
 
     void SetPlasticStrains(PlasticState &a_state)
