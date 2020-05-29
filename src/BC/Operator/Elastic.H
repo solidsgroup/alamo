@@ -231,9 +231,6 @@ public:
 
 		const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 		
-
-
-
 		amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
 		// Corners
@@ -411,4 +408,3 @@ public:
 }
 }
 #endif
-

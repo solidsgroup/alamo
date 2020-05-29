@@ -245,8 +245,6 @@ protected:
 	// PLOT FILES
 	std::string plot_file {"plt"};   ///< Plotfile name
 
-	void IntegrateVariables(Set::Scalar cur_time, int step);
-
 private:
 	virtual void MakeNewLevelFromScratch (int lev, amrex::Real time, const amrex::BoxArray& ba,
 					      const amrex::DistributionMapping& dm) override;
@@ -257,7 +255,6 @@ private:
 	virtual void ClearLevel              (int lev) override;
 	virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-	//void IntegrateVariables(Set::Scalar cur_time, int step);
 
 	void FillPatch (int lev, amrex::Real time,
 			amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
@@ -269,12 +266,12 @@ private:
 	void FillCoarsePatch (int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar> &physbc, int icomp, int ncomp);
 	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
-	std::vector<std::string> PlotFileName (int lev) const;
-	std::vector<std::string> PlotFileName(std::string _name, int lev) const;
+	std::vector<std::string> PlotFileName (int lev, std::string prefix="") const;
 protected:
+	void IntegrateVariables(Set::Scalar cur_time, int step);
 	void WritePlotFile (bool initial = false) const;
-	void WritePlotFile(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial=false) const;
-	void WritePlotFileNode(std::string &name, amrex::Vector<Set::Scalar> &_time, amrex::Vector<int> &_step, bool initial=false) const;
+	void WritePlotFile (std::string prefix, Set::Scalar time, int step) const;
+	void WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix="") const;
 
 	//
 	// MEMBER VARIABLES
@@ -283,9 +280,8 @@ protected:
 	// TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
 	amrex::Real timestep;	///< Timestep for the base level of refinement
-	amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
 private:
-	
+	amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
 	amrex::Vector<int> nsubsteps;	///< how many substeps on each level?
   
   

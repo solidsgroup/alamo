@@ -758,14 +758,7 @@ Fracture::TimeStepComplete(amrex::Real time,int iter)
     if (crack.error_norm > crack.tol_abs || rel_c_err > crack.tol_rel) return;
     if (fracture_type == FractureType::Ductile && (plastic.norm > plastic.tol_abs || plastic.error_norm > plastic.tol_rel)) return;
 
-    amrex::Vector<Set::Scalar> plottime;
-	amrex::Vector<int> plotstep;
-	std::string plotfolder = "crack";
-
-	plottime.resize(nlevels);
-	plotstep.resize(nlevels);
-	for (int lev = 0; lev < nlevels; lev++) {plottime[lev] = (double)loading.step; plotstep[lev]=loading.step;}
-	WritePlotFile(plotfolder,plottime,plotstep);
+	WritePlotFile("crack",(double)loading.step,loading.step);
 
 	loading.step++;
 	if(loading.val >= loading.max) SetStopTime(time-0.01);
