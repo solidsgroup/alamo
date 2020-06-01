@@ -19,22 +19,22 @@ geometry.prob_lo = -4.0 -4.0
 geometry.prob_hi = 4.0 4.0
 geometry.is_periodic= 0 0
 
-crack.modulus_scaling_max = 0.1
+crack.modulus_scaling_max = 0.02
 crack.refinement_threshold = 0.01
 crack.tol_abs = 1.e-14
 crack.tol_rel = 1.e-14
 
 crack.type = constant
-crack.constant.G_c = 5.e2
+crack.constant.G_c = 3.e2
 crack.constant.zeta = 2.e-3
 crack.constant.mobility = 1.0e-5
 crack.constant.eta_epsilon = 0.01
 crack.constant.mult_Gc = 1.0e0
 crack.constant.mult_Lap = 1.0e0
-crack.constant.gtype = 4c3
+crack.constant.gtype = cubicm
 crack.constant.wtype = square
 crack.constant.exponent = 1.e-3
-crack.constant.threshold = 0
+crack.constant.threshold = 0.0
 
 #crack.type = sin
 #crack.sin.Gc0 = 1.0e3
@@ -75,7 +75,7 @@ ic.notch.center = 0.0 0.0
 ic.notch.orientation = 1.0 0.0
 ic.notch.length = 0.5
 ic.notch.thickness = 4.e-2
-ic.notch.eps = 1.5e-2
+ic.notch.eps = 7.e-3
 
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.xhi = NEUMANN

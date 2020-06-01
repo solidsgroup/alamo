@@ -300,6 +300,8 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
 		std::swap(*elastic.energy_pristine_old[ilev], *elastic.energy_pristine[ilev]);
         if (fracture_type == FractureType::Ductile) std::swap(*plastic.strain[ilev], *plastic.strain_old[ilev]);
 		crack.field[ilev]->FillBoundary();
+        if (fracture_type == FractureType::Brittle) material.brittlemodel[ilev]->setVal(material.brittlemodeltype);
+        //else material.ductilemodel[ilev]->setVal(material.ductilemodeltype);
     }
 
     //==================================================
@@ -309,7 +311,7 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
         {
             for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
             {
-                amrex::Box box = mfi.growntilebox(1);
+                amrex::Box box = mfi.growntilebox(2);
                 amrex::Array4<const amrex::Real> const& c_new = (*crack.field[ilev]).array(mfi);
 
                 amrex::Array4<brittle_fracture_model_type> modelfab_b;
@@ -506,11 +508,12 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
         for (int ilev = 0; ilev < nlevels; ilev++)
         {
             elastic.strain[ilev]->FillBoundary();
+            elastic.energy_pristine[ilev]->setVal(0.0);
             elastic.energy_pristine_old[ilev]->FillBoundary();
             
             for (amrex::MFIter mfi(*elastic.strain[ilev],true); mfi.isValid(); ++mfi)
             {
-                const amrex::Box& box = mfi.growntilebox(number_of_ghost_nodes);//validbox();
+                const amrex::Box& box = mfi.validbox();
                 amrex::Array4<Set::Scalar>	const& sig_box 		    = (*elastic.stress[ilev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& strain_box 	= (*elastic.strain[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box 		= (*elastic.energy_pristine[ilev]).array(mfi);
@@ -528,6 +531,8 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Matrix eps = Numeric::FieldToMatrix(strain_box,i,j,k);
 
+                    if( eps != eps ) Util::Abort(INFO,"Nans in eps, eps = ", eps);
+
                     if(fracture_type == FractureType::Ductile)
                     {
                         Set::Matrix sig = Numeric::FieldToMatrix(sig_box,i,j,k);
@@ -538,7 +543,8 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
                     }
 
                     energy_box(i,j,k,0) = (fracture_type == FractureType::Brittle) ? material.brittlemodeltype.W(eps) : material.ductilemodeltype.W(eps);
-                    energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
+                    if (std::isnan(energy_box(i,j,k,0))) Util::Abort(INFO, "Nans detected in energy_box. material.brittlemodeltype.W(eps) = ", material.brittlemodeltype.W(eps));
+                    //energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
                 });
             }
             elastic.energy_pristine[ilev]->FillBoundary();
@@ -579,6 +585,7 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 
 			// Elastic component of the driving force
 			Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
+            if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
 			df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),p)*en_cell*elastic.df_mult;
 			rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),p)*en_cell*elastic.df_mult;
 
@@ -587,24 +594,24 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 			Set::Scalar Theta = atan2(Dc(1),Dc(0));
 
 			Set::Scalar normgrad = Dc.lpNorm<2>();
-			if (normgrad < 1E-5) // testing to speed things up a bit.
-			{
-				df(i,j,k,1) = 0.0;
-				df(i,j,k,2) = 0.0;
-				rhs = 0.0;
-			}
-			else
-			{
+			//if (normgrad < 1E-5) // testing to speed things up a bit.
+			//{
+			//	df(i,j,k,1) = 0.0;
+			//	df(i,j,k,2) = 0.0;
+			//	rhs = 0.0;
+			//}
+			//else
+			//{
 			Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
 			Set::Scalar laplacian = DDc.trace();
 
 			if (!anisotropy.on || time < anisotropy.tstart)
 			{
 				df(i,j,k,1) = crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
-				df(i,j,k,2) = 2.0*crack.cracktype->Zeta(Theta)*laplacian;
+				df(i,j,k,2) = 2.0*crack.cracktype->Zeta(Theta)*crack.cracktype->Gc(Theta)*laplacian;
 
 				rhs += crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
-				rhs -= 2.0*crack.cracktype->Zeta(Theta)*laplacian;
+				rhs -= 2.0*crack.cracktype->Zeta(Theta)*crack.cracktype->Gc(Theta)*laplacian;
 			}
 			else
 			{
@@ -658,7 +665,7 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 				Util::Abort(INFO, "3D model hasn't been implemented yet");
 #endif
 			}
-			} // disable this line to remove normgrad 1E-4 check
+			//} // disable this line to remove normgrad 1E-4 check
 
             if (fracture_type == FractureType::Brittle)
 			    df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
