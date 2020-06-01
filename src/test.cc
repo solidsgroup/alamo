@@ -16,8 +16,12 @@
 #include "Numeric/Interpolator/Linear.H"
 
 #include "Model/Solid/Elastic/Elastic.H"
-#include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Linear/Cubic.H"
+#include "Model/Solid/Linear/Laplacian.H"
+#include "Model/Solid/Affine/Isotropic.H"
+#include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
 
 int main (int argc, char* argv[])
 {
@@ -25,18 +29,22 @@ int main (int argc, char* argv[])
 
 	int failed = 0;
 
-	Util::Test::Message("Model::Solid::Linear::Isotropic");
-	{
-		int subfailed = 0;
-		subfailed += Util::Test::SubMessage("DerivativeTest1", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest1<Model::Solid::Linear::Isotropic>(true));
-		subfailed += Util::Test::SubMessage("DerivativeTest2", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest2<Model::Solid::Linear::Isotropic>(true));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
-	Util::Test::Message("Model::Solid::Linear::Isotropic");
-	{
-		int subfailed = 0;
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
+	#define MODELTEST(TYPE) \
+		Util::Test::Message(#TYPE); \
+		{ \
+			int subfailed = 0; \
+			subfailed += Util::Test::SubMessage("DerivativeTest1", TYPE::DerivativeTest1<TYPE>(true)); \
+			subfailed += Util::Test::SubMessage("DerivativeTest2", TYPE::DerivativeTest2<TYPE>(true)); \
+			failed += Util::Test::SubFinalMessage(subfailed); \
+		}
+	MODELTEST(Model::Solid::Linear::Isotropic);
+	MODELTEST(Model::Solid::Linear::Cubic);
+	MODELTEST(Model::Solid::Linear::Laplacian);
+	MODELTEST(Model::Solid::Affine::Isotropic);
+	MODELTEST(Model::Solid::Affine::Cubic);
+	#if AMREX_SPACEDIM == 3
+	MODELTEST(Model::Solid::Elastic::NeoHookean);
+	#endif
 
 	Util::Test::Message("Set::Matrix4");
 	{
