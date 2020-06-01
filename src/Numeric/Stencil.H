@@ -442,9 +442,6 @@ Laplacian(const amrex::Array4<const Set::Scalar> &f,
 	return ret;
 }
 
-//		if (stencil[0] == StencilType::Lo)
-//			return (f(i,j,k,m) - f(i-1,j,k,m)) / dx[0]; // 1st order stencil
-
 AMREX_FORCE_INLINE
 Set::Vector
 Divergence(const amrex::Array4<const Set::Matrix> &dw,
@@ -453,7 +450,7 @@ Divergence(const amrex::Array4<const Set::Matrix> &dw,
 		std::array<StencilType,AMREX_SPACEDIM> &stencil = DefaultType)
 {
 	Set::Vector ret = Set::Vector::Zero();
-#if AMREX_SPACEDIM == 2
+	
 	if (stencil[0] == StencilType::Central)
 	{
     	AMREX_D_TERM(ret(0) += (dw(i + 1, j, k)(0, 0) - dw(i - 1, j, k)(0, 0)) / 2. / DX[0];,
@@ -473,6 +470,7 @@ Divergence(const amrex::Array4<const Set::Matrix> &dw,
     				 ret(2) += (dw(i + 1, j, k)(2, 0) - dw(i, j, k)(2, 0)) / DX[0];)
 	}
 
+#if AMREX_SPACEDIM > 1
 	if (stencil[1] == StencilType::Central)
 	{
 		AMREX_D_TERM(ret(0) += (dw(i, j + 1, k)(0, 1) - dw(i, j - 1, k)(0, 1)) / 2. / DX[1];,
@@ -491,8 +489,8 @@ Divergence(const amrex::Array4<const Set::Matrix> &dw,
     				 ret(1) += (dw(i, j + 1, k)(1, 1) - dw(i, j, k)(1, 1)) / DX[1];,
     				 ret(2) += (dw(i, j + 1, k)(2, 1) - dw(i, j, k)(2, 1)) / DX[1];)
 	}
-		 
-#elif AMREX_SPACEDIM > 2
+#endif		 
+#if AMREX_SPACEDIM > 2
 	if (stencil[2] == StencilType::Central)
 	{
 		AMREX_D_TERM(ret(0) += (dw(i, j, k + 1)(0, 2) - dw(i, j, k - 1)(0, 2)) / 2. / DX[2];,
@@ -511,7 +509,6 @@ Divergence(const amrex::Array4<const Set::Matrix> &dw,
     				 ret(1) += (dw(i, j, k + 1)(1, 2) - dw(i, j, k)(1, 2)) / DX[2];,
     				 ret(2) += (dw(i, j, k + 1)(2, 2) - dw(i, j, k)(2, 2)) / DX[2];)
 	}
-
 #endif
 	return ret;
 }
