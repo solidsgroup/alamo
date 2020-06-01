@@ -44,7 +44,7 @@ private:
                 
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.grownnodaltilebox(-1,2);
+                    amrex::Box bx = mfi.grownnodaltilebox();
                     bx = bx & domain;
 
                     amrex::Array4<const T>           const &model = a_model_mf[lev]->array(mfi);
@@ -82,7 +82,7 @@ private:
 
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx  = mfi.grownnodaltilebox(-1,1);
+                    amrex::Box bx  = mfi.grownnodaltilebox();
                     bx = bx & domain;
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
@@ -91,10 +91,12 @@ private:
                     amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+
                         #if AMREX_SPACEDIM == 2
                         if (i == lo.x || i == hi.x || j == lo.y || j == hi.y)
                         {
-                            std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+                            
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
 
                             Set::Vector U(u(i,j,k,0),u(i,j,k,1));
@@ -105,10 +107,9 @@ private:
                         }
                         else
                         {
+                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
                             for (int p = 0; p < 2; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - 
-                                    ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
-                                     (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1));
+                                rhs(i,j,k,p) = b(i,j,k,p) - divdw(p);
                         }
 
                         #elif AMREX_SPACEDIM == 3
@@ -126,11 +127,9 @@ private:
                         }
                         else
                         {
+                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
                             for (int p = 0; p < 3; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - 
-                                    ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
-                                     (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1) +
-                                     (dw(i, j, k + 1)(p, 2) - dw(i, j, k - 1)(p, 2)) / 2. / DX(2));
+                                rhs(i,j,k,p) = b(i,j,k,p) - divdw(p);
                         }
                         #endif
                     });
