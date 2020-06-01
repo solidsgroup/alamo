@@ -34,7 +34,7 @@ public:
 
     Set::Scalar W(const Set::Matrix & F) const override
     {
-        return ((F-F0).transpose() * (ddw*((F-F0)))).trace();
+        return 0.5*((F-F0).transpose() * (ddw*((F-F0)))).trace();
     }
     Set::Matrix DW(const Set::Matrix & F) const override
     {

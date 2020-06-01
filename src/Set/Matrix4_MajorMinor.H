@@ -22,6 +22,19 @@ public:
         for (int i = 0; i < 6; i++) data[i] =  in.data[i];
     }
     AMREX_FORCE_INLINE
+    const Scalar & operator () (const int i, const int j, const int k, const int l) const
+    {
+        int uid = i + 2*j + 4*k + 8*l;
+        if      (uid==0 )                                  return data[0]; // [0000]
+        else if (uid==8  || uid==4 || uid==2 || uid==1 )   return data[1]; // [0001] [0010] [0100] [1000]
+        else if (uid==12 || uid==3 )                       return data[2]; // [0011] [1100]
+        else if (uid==10 || uid==6 || uid==9 || uid==5 )   return data[3]; // [0101] [1001] [0110] [1010]
+        else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[4]; // [0111] [1011] [1101] [1110]
+        else if (uid==15 )                                 return data[5]; // [1111]
+        else Util::Abort(INFO,"Index out of range");
+        return data[-1]; 
+    }
+    AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
         int uid = i + 2*j + 4*k + 8*l;
@@ -170,6 +183,55 @@ class Matrix4<3,Sym::MajorMinor>
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
+    AMREX_FORCE_INLINE
+    const Scalar & operator () (const int i, const int j, const int k, const int l) const
+    {
+        int uid = i + 3*j + 9*k + 27*l;
+        // [0000]
+        if (uid==0 ) return data[0];
+        // [0001] [0010] [0100] [1000]
+        else if (uid==27 || uid==9 || uid==3 || uid==1 ) return data[1];
+        // [0002] [0020] [0200] [2000]
+        else if (uid==54 || uid==18 || uid==6 || uid==2 ) return data[2];
+        // [0011] [1100]
+        else if (uid==36 || uid==4 ) return data[3];
+        // [0012] [0021] [1200] [2100]
+        else if (uid==63 || uid==45 || uid==7 || uid==5 ) return data[4];
+        // [0022] [2200]
+        else if (uid==72 || uid==8 ) return data[5];
+        // [0101] [0110] [1001] [1010]
+        else if (uid==30 || uid==12 || uid==28 || uid==10 ) return data[6];
+        // [0102] [0120] [1002] [1020] [0201] [2001] [0210] [2010]
+        else if (uid==57 || uid==21 || uid==33 || uid==15 || uid==55 || uid==19 || uid==29 || uid==11 ) return data[7];
+        // [0111] [1011] [1101] [1110]
+        else if (uid==39 || uid==37 || uid==31 || uid==13 ) return data[8];
+        // [0112] [1012] [0121] [1021] [1201] [1210] [2101] [2110]
+        else if (uid==66 || uid==48 || uid==64 || uid==46 || uid==34 || uid==16 || uid==32 || uid==14 ) return data[9];
+        // [0122] [1022] [2201] [2210]
+        else if (uid==75 || uid==73 || uid==35 || uid==17 ) return data[10];
+        // [0202] [2002] [0220] [2020]
+        else if (uid==60 || uid==24 || uid==56 || uid==20 ) return data[11];
+        // [0211] [2011] [1102] [1120]
+        else if (uid==42 || uid==58 || uid==22 || uid==38 ) return data[12];
+        // [0212] [2012] [0221] [2021] [1202] [1220] [2102] [2120]
+        else if (uid==69 || uid==51 || uid==61 || uid==25 || uid==65 || uid==47 || uid==59 || uid==23 ) return data[13];
+        // [0222] [2022] [2202] [2220]
+        else if (uid==78 || uid==74 || uid==62 || uid==26 ) return data[14];
+        // [1111]
+        else if (uid==40 ) return data[15];
+        // [1112] [1121] [1211] [2111]
+        else if (uid==67 || uid==49 || uid==43 || uid==41 ) return data[16];
+        // [1122] [2211]
+        else if (uid==76 || uid==44 ) return data[17];
+        // [1212] [2112] [1221] [2121]
+        else if (uid==70 || uid==52 || uid==68 || uid==50 ) return data[18];
+        // [1222] [2122] [2212] [2221]
+        else if (uid==79 || uid==77 || uid==71 || uid==53 ) return data[19];
+        // [2222]
+        else if (uid==80 ) return data[20];
+        else Util::Abort(INFO,"Index out of range");
+        return data[-1]; 
+    }
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
     {
