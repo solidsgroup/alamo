@@ -11,7 +11,7 @@ The following example illustrates one possible usage case:
 .. code-block:: cpp
 
     // Create a linear elastic cubic model
-    Model::Solid::LinearElastic::Cubic model(2.0,3.0,1.0);
+    Model::Solid::Linear::Cubic model(2.0,3.0,1.0);
     // Create a strain tensor
     Set::Matrix eps = Set::Matrix::Zero();
     // Create a stress tensor
