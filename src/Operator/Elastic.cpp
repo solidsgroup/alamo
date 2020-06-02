@@ -1,6 +1,4 @@
 // TODO: Remove these 
-//#include "Model/Solid/LinearElastic/MultiWell.H"
-//#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
@@ -798,7 +796,6 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 }
 
 // TODO : Remove these template specializations once Mobility and PD are upgraded
-//template class Elastic<Model::Solid::LinearElastic::Multiwell>; 
 template class Elastic<Model::Solid::Linear::IsotropicDegradable>;
 template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
 

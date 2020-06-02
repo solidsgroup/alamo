@@ -517,7 +517,7 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
                 amrex::Array4<Set::Scalar>	const& sig_box 		    = (*elastic.stress[ilev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& strain_box 	= (*elastic.strain[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box 		= (*elastic.energy_pristine[ilev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& energy_box_old 	= (*elastic.energy_pristine_old[ilev]).array(mfi);
+                //amrex::Array4<Set::Scalar> const& energy_box_old 	= (*elastic.energy_pristine_old[ilev]).array(mfi);
 
                 amrex::Array4<ductile_fracture_model_type>	model_box;
                 amrex::Array4<Set::Scalar>	strainp_box;

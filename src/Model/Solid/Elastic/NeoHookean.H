@@ -120,9 +120,6 @@ NeoHookean operator - (const NeoHookean a, const NeoHookean b)
 
 
 
-//template<Set::Sym sym>
-//std::ostream& operator<< (std::ostream& os, const LinearElastic<sym>& b);
-
 }
 }
 }
