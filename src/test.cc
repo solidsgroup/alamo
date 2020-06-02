@@ -3,7 +3,6 @@
 #include "Util/Util.H"
 
 #include "Model/Solid/LinearElastic/Test.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 #include "Model/Solid/Linear/Laplacian.H"
 
 #include "Test/Numeric/Stencil.H"
@@ -16,8 +15,12 @@
 #include "Numeric/Interpolator/Linear.H"
 
 #include "Model/Solid/Elastic/Elastic.H"
-#include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Linear/Cubic.H"
+#include "Model/Solid/Linear/Laplacian.H"
+#include "Model/Solid/Affine/Isotropic.H"
+#include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
 
 int main (int argc, char* argv[])
 {
@@ -25,18 +28,22 @@ int main (int argc, char* argv[])
 
 	int failed = 0;
 
-	Util::Test::Message("Model::Solid::Linear::Isotropic");
-	{
-		int subfailed = 0;
-		subfailed += Util::Test::SubMessage("DerivativeTest1", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest1<Model::Solid::Linear::Isotropic>(true));
-		subfailed += Util::Test::SubMessage("DerivativeTest2", Model::Solid::Solid<Set::Sym::Isotropic>::DerivativeTest2<Model::Solid::Linear::Isotropic>(true));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
-	Util::Test::Message("Model::Solid::Linear::Isotropic");
-	{
-		int subfailed = 0;
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
+	#define MODELTEST(TYPE) \
+		Util::Test::Message(#TYPE); \
+		{ \
+			int subfailed = 0; \
+			subfailed += Util::Test::SubMessage("DerivativeTest1", TYPE::DerivativeTest1<TYPE>(true)); \
+			subfailed += Util::Test::SubMessage("DerivativeTest2", TYPE::DerivativeTest2<TYPE>(true)); \
+			failed += Util::Test::SubFinalMessage(subfailed); \
+		}
+	MODELTEST(Model::Solid::Linear::Isotropic);
+	MODELTEST(Model::Solid::Linear::Cubic);
+	MODELTEST(Model::Solid::Linear::Laplacian);
+	MODELTEST(Model::Solid::Affine::Isotropic);
+	MODELTEST(Model::Solid::Affine::Cubic);
+	#if AMREX_SPACEDIM == 3
+	MODELTEST(Model::Solid::Elastic::NeoHookean);
+	#endif
 
 	Util::Test::Message("Set::Matrix4");
 	{
@@ -60,16 +67,16 @@ int main (int argc, char* argv[])
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}
 
-	Util::Test::Message("Model::Solid::LinearElastic<Degradable::Isotropic>");
-	{
-		int subfailed = 0;
-		Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Degradable::Isotropic> test;
-		subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
-		subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
-		subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
-		failed += Util::Test::SubFinalMessage(subfailed);
-	}
+	// Util::Test::Message("Model::Solid::LinearElastic<Degradable::Isotropic>");
+	// {
+	// 	int subfailed = 0;
+	// 	Model::Solid::LinearElastic::Test<Model::Solid::LinearElastic::Degradable::Isotropic> test;
+	// 	subfailed += Util::Test::SubMessage("Consistency",    test.Consistency(2));
+	// 	subfailed += Util::Test::SubMessage("MinorSymmetry1", test.MinorSymmetry1(2));
+	// 	subfailed += Util::Test::SubMessage("MinorSymmetry2", test.MinorSymmetry2(2));
+	// 	subfailed += Util::Test::SubMessage("MajorSymmetry",  test.MajorSymmetry(2));
+	// 	failed += Util::Test::SubFinalMessage(subfailed);
+	// }
 
 	Util::Test::Message("Numeric::Interpolator<Linear>");
 	{
@@ -127,10 +134,8 @@ int main (int argc, char* argv[])
 		test.Define(32,1);
 		subfailed += Util::Test::SubMessage("1 level,  Component 0, period=1",test.TrigTest(0,0,1));
 		test.Define(32,2);
-		subfailed += Util::Test::SubMessage("2 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("2 levels, Component 0, period=1",test.TrigTest(0,0,1));
 		test.Define(32,3);
-		subfailed += Util::Test::SubMessage("3 levels, Reflux test",          test.RefluxTest(0));
 		subfailed += Util::Test::SubMessage("3 levels, Component 0, period=1",test.TrigTest(0,0,1));
 		failed += Util::Test::SubFinalMessage(subfailed);
 	}

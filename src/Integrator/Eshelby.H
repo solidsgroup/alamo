@@ -97,6 +97,8 @@ public:
             pp.query("lower_bound",fracture.lower_bound);
             pp.query("ref_threshold",fracture.ref_threshold);
         }
+        
+        RegisterGeneralFab(model_mf, 1, 2);
     }
 
 protected:
@@ -120,16 +122,12 @@ protected:
         }
         
         // Set linear elastic model
-        Set::Field<model_type> model_mf;
-        model_mf.resize(disp_mf.size());
+        
         for (int lev = 0; lev < rhs_mf.size(); ++lev)
         {
             rhs_mf[lev]->setVal(0.0);
 
-            amrex::Box domain(geom[lev].Domain());
-            domain.convert(amrex::IntVect::TheNodeVector());
-            model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
-            model_mf[lev]->setVal(elastic.model1);
+            //model_mf[lev]->setVal(elastic.model);
 
             eta_mf[lev]->FillBoundary();
 
@@ -139,7 +137,7 @@ protected:
             {
                 amrex::Box bx = mfi.growntilebox(2);
 
-                amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
                 amrex::Array4</*const*/ Set::Scalar> const &c   = c_mf[lev]->array(mfi);
 
@@ -157,20 +155,14 @@ protected:
         elastic.bc.Init(rhs_mf,geom);
 
         amrex::LPInfo info;
-        elastic.op.define(geom, grids, dmap, info);
-        elastic.op.SetUniform(false);
-        elastic.op.SetModel(model_mf);
-        elastic.op.SetBC(&elastic.bc);
-        if (elastic.set_dot_mask) elastic.op.SetDotMask(c_mf);
-        if (elastic.set_singular) {
-            Util::Message(INFO,"Setting Singular");
-            elastic.op.SetSingular(true);
-        }
+        Operator::Elastic<Model::Solid::Affine::Isotropic> elastic_op(geom, grids, dmap, info);
+        elastic_op.SetUniform(false);
+        elastic_op.SetBC(&elastic.bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
         IO::ParmParse pp("elastic");
-        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic.op);
+        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
         pp.queryclass("solver",*elastic.solver);
 
         elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
@@ -182,7 +174,6 @@ protected:
             //elastic.op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
             strain_mf[lev]->setVal(0.0);
         }
-        elastic.solver->compResidual(res_mf,disp_mf,rhs_mf,model_mf);
     }
 
     void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/) override
@@ -199,7 +190,7 @@ protected:
         {
             amrex::Box bx = mfi.tilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
-            amrex::Array4<Set::Scalar> const &eta  = eta_mf[lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &disp = disp_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &c    = c_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -231,16 +222,16 @@ private:
     Set::Field<Set::Scalar> strain_mf;
 
     Set::Field<Set::Scalar> c_mf;
+    Set::Field<model_type> model_mf;
 
     IC::IC *ic;          ///< Pointer to abstract IC object
-    BC::BC *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     Set::Matrix Fmatrix = Set::Matrix::Zero();
     Set::Matrix Finclusion = Set::Matrix::Zero();
 
     struct {
         model_type model1, model2;
-        Operator::Elastic<Model::Solid::Affine::Isotropic> op;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic<model_type> bc;
         int set_dot_mask = 0;

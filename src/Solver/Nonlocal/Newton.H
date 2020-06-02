@@ -31,6 +31,7 @@ private:
                          const Set::Field<Set::Scalar>& a_b_mf,
                          Set::Field<Set::Scalar>& a_rhs_mf,
                          Set::Field<Set::Matrix> &a_dw_mf,
+                         Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> &a_ddw_mf,
                          Set::Field<T> &a_model_mf)
     {
             for (int lev = 0; lev < a_b_mf.size(); ++lev)
@@ -43,13 +44,13 @@ private:
                 
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.tilebox();
-                    bx.grow(2);
+                    amrex::Box bx = mfi.grownnodaltilebox();
                     bx = bx & domain;
 
+                    amrex::Array4<const T>           const &model = a_model_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
                     amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
-                    amrex::Array4<T>                 const &model = a_model_mf[lev]->array(mfi);
+                    amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,T::sym>>  const &ddw = a_ddw_mf[lev]->array(mfi);
 
                     // Set model internal dw and ddw.
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -60,19 +61,19 @@ private:
                         if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu)
                         {
                             dw(i,j,k) = model(i, j, k).DW(gradu);
-                            model(i, j, k).ddw = model(i, j, k).DDW(gradu);
+                            ddw(i,j,k) = model(i, j, k).DDW(gradu);
                         }
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::epsilon)
                         {
                             Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
                             dw(i,j,k) = model(i, j, k).DW(eps);
-                            model(i, j, k).ddw = model(i, j, k).DDW(eps);
+                            ddw(i,j,k) = model(i, j, k).DDW(eps);
                         }
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
                         {
                             Set::Matrix F = gradu + Set::Matrix::Identity();
                             dw(i,j,k) = model(i, j, k).DW(F);
-                            model(i, j, k).ddw = model(i, j, k).DDW(F);
+                            ddw(i,j,k) = model(i, j, k).DDW(F);
                         }
                     });
                 }
@@ -81,8 +82,7 @@ private:
 
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx  = mfi.tilebox();
-                    bx.grow(1);
+                    amrex::Box bx  = mfi.grownnodaltilebox();
                     bx = bx & domain;
 
                     amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
@@ -91,10 +91,12 @@ private:
                     amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
 
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+
                         #if AMREX_SPACEDIM == 2
                         if (i == lo.x || i == hi.x || j == lo.y || j == hi.y)
                         {
-                            std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+                            
                             Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
 
                             Set::Vector U(u(i,j,k,0),u(i,j,k,1));
@@ -105,10 +107,9 @@ private:
                         }
                         else
                         {
+                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
                             for (int p = 0; p < 2; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - 
-                                    ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
-                                     (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1));
+                                rhs(i,j,k,p) = b(i,j,k,p) - divdw(p);
                         }
 
                         #elif AMREX_SPACEDIM == 3
@@ -126,16 +127,15 @@ private:
                         }
                         else
                         {
+                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
                             for (int p = 0; p < 3; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - 
-                                    ((dw(i + 1, j, k)(p, 0) - dw(i - 1, j, k)(p, 0)) / 2. / DX(0) +
-                                     (dw(i, j + 1, k)(p, 1) - dw(i, j - 1, k)(p, 1)) / 2. / DX(1) +
-                                     (dw(i, j, k + 1)(p, 2) - dw(i, j, k - 1)(p, 2)) / 2. / DX(2));
+                                rhs(i,j,k,p) = b(i,j,k,p) - divdw(p);
                         }
                         #endif
                     });
                 }
-                Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
+                //Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
+                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic.Geom(lev));
                 Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
             }
     }
@@ -148,9 +148,11 @@ public:
     {
         Set::Field<Set::Scalar> dsol_mf, rhs_mf;
         Set::Field<Set::Matrix> dw_mf;
+        Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
 
         dsol_mf.resize(a_u_mf.size());
         dw_mf.resize(a_u_mf.size());
+        ddw_mf.resize(a_u_mf.size());
         rhs_mf.resize(a_u_mf.size());
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
@@ -162,6 +164,10 @@ public:
                                 a_b_mf[lev]->DistributionMap(),
                                 1, 
                                 a_b_mf[lev]->nGrow());
+            ddw_mf.Define(lev,  a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                1, 
+                                a_b_mf[lev]->nGrow());
             rhs_mf.Define(lev,  a_b_mf[lev]->boxArray(),
                                 a_b_mf[lev]->DistributionMap(),
                                 a_b_mf[lev]->nComp(), 
@@ -169,6 +175,7 @@ public:
             
             dsol_mf[lev]->setVal(0.0);
             dw_mf[lev]->setVal(Set::Matrix::Zero());
+            ddw_mf[lev]->setVal(Set::Matrix4<AMREX_SPACEDIM,T::sym>::Zero());
             
             amrex::MultiFab::Copy(*rhs_mf[lev], *a_b_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
         }
@@ -177,9 +184,9 @@ public:
         {
             if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
-            prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, a_model_mf);
+            prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
-            m_elastic.SetModel(a_model_mf);
+            m_elastic.SetModel(ddw_mf);
 
             if (nriter == m_nriters) break;
             
@@ -216,19 +223,24 @@ public:
                       Set::Field<T> &a_model_mf)
     {
         Set::Field<Set::Matrix> dw_mf;
+        Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
         dw_mf.resize(a_u_mf.size());
+        ddw_mf.resize(a_u_mf.size());
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
             dw_mf.Define(lev, a_b_mf[lev]->boxArray(),
                               a_b_mf[lev]->DistributionMap(),
                               1, a_b_mf[lev]->nGrow());
+            ddw_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                               a_b_mf[lev]->DistributionMap(),
+                               1, a_b_mf[lev]->nGrow());
             dw_mf[lev]->setVal(Set::Matrix::Zero());
         }
         
         //for (int lev = 0; lev < a_b_mf.size(); ++lev)
         //m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
             
-        prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, a_model_mf);
+        prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, ddw_mf, a_model_mf);
         
     }
 

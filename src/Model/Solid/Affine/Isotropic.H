@@ -20,7 +20,6 @@ public:
     {
         Define(a_mu,a_lambda,a_F0);
     };
-	virtual ~Isotropic() {};
 
 	void Define(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0)
 	{
@@ -28,9 +27,14 @@ public:
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
 	}
 
+    void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
+    {
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
+    }
+
     Set::Scalar W(const Set::Matrix & F) const override
     {
-        return ((F-F0).transpose() * (ddw*((F-F0)))).trace();
+        return 0.5*((F-F0).transpose() * (ddw*((F-F0)))).trace();
     }
     Set::Matrix DW(const Set::Matrix & F) const override
     {
@@ -45,8 +49,7 @@ public:
         out << "ddw = " << ddw << std::endl;
         out << "F0 = \n" << F0 << std::endl; 
     }
-
-	
+	void SetF0(Set::Matrix a_F0) { F0 = a_F0; }
 public:
     Set::Matrix F0;
     KinematicVariable kinvar = KinematicVariable::gradu;
@@ -84,12 +87,50 @@ public:
         }
         value.Define(mu,lambda,F0);
     }
+    AMREX_FORCE_INLINE
+	void operator += (const Isotropic &rhs)
+    {
+        ddw += rhs.ddw;
+        F0  += rhs.F0;
+	}    
+    AMREX_FORCE_INLINE
+   	Isotropic operator * (const Set::Scalar alpha) const
+	{
+        Isotropic ret;
+        ret.ddw = ddw*alpha;
+        ret.F0  = alpha*F0;
+        return ret;
+	}    
+    friend Isotropic operator * (const Set::Scalar alpha, const Isotropic b);
+    friend Isotropic operator + (const Isotropic a, const Isotropic b);
+    friend Isotropic operator - (const Isotropic a, const Isotropic b);
 };
+AMREX_FORCE_INLINE
+Isotropic operator * (const Set::Scalar alpha, const Isotropic b)
+{
+    Isotropic ret;
+    ret.ddw = b.ddw*alpha;
+    ret.F0  = alpha*b.F0;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Isotropic operator + (const Isotropic a, const Isotropic b)
+{
+    Isotropic ret;
+    ret.ddw = a.ddw + b.ddw;
+    ret.F0  = a.F0 + b.F0;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Isotropic operator - (const Isotropic a, const Isotropic b)
+{
+    Isotropic ret;
+    ret.ddw = a.ddw + b.ddw;
+    ret.F0  = a.F0 + b.F0;
+    return ret;
+}    
 
 
-
-//template<Set::Sym sym>
-//std::ostream& operator<< (std::ostream& os, const LinearElastic<sym>& b);
 
 }
 }

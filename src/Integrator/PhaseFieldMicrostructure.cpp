@@ -69,7 +69,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		anisotropy.plot_int = plot_int;
 		pp.query("plot_int", anisotropy.plot_int);
 		anisotropy.plot_dt = plot_dt;
-		pp.query("plot_int", anisotropy.plot_dt);
+		pp.query("plot_dt", anisotropy.plot_dt);
 		pp.query("thermo_int", anisotropy.thermo_int);
 		pp.query("thermo_plot_int", anisotropy.thermo_plot_int);
 		pp.query("elastic_int",anisotropy.elastic_int);
@@ -166,6 +166,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterIntegratedVariable(&elastic.strainenergy, "strainenergy");
 	RegisterIntegratedVariable(&elastic.force, "force");
 	RegisterIntegratedVariable(&elastic.disp, "disp");
+
+	RegisterGeneralFab(model_mf,1,2);
 
 	// Elasticity
 	{
@@ -454,7 +456,6 @@ void PhaseFieldMicrostructure::Initialize(int lev)
 	{
 		disp_mf[lev].get()->setVal(0.0);
 		rhs_mf[lev].get()->setVal(0.0);
-		//res_mf[lev].get()->setVal(0.0);
 		stress_mf[lev].get()->setVal(0.0);
 	}
 }
@@ -514,13 +515,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elasticop.define(geom, grids, dmap, info);
 
 	// Set linear elastic model
-	Set::Field<model_type> model_mf;
-	model_mf.resize(disp_mf.size());
 	for (int lev = 0; lev < rhs_mf.size(); ++lev)
 	{
 		amrex::Box domain(geom[lev].Domain());
 		domain.convert(amrex::IntVect::TheNodeVector());
-		model_mf.Define(lev,disp_mf[lev]->boxArray(), disp_mf[lev]->DistributionMap(), 1, 2);
 
 		eta_new_mf[lev]->FillBoundary();
 
@@ -528,7 +526,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
-			amrex::Box bx = mfi.grownnodaltilebox(2);
+			amrex::Box bx = mfi.grownnodaltilebox(-1,2);
 
 			amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
 			amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
@@ -542,7 +540,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		Util::RealFillBoundary(*model_mf[lev],elasticop.Geom(lev));
 	}
-	elasticop.SetModel(model_mf);
 
 	elastic.bc.SetTime(time);
 	elastic.bc.Init(rhs_mf,geom);

@@ -239,19 +239,14 @@ void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
 	 int nghost = 2;
 	 // Resize the multifab containing the operator diagonal
 	 m_diag.resize(m_num_amr_levels);
-	 m_dot_mask.resize(m_num_amr_levels);
 	 for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
 	 {
 		 m_diag[amrlev].resize(m_num_mg_levels[amrlev]);
-		 m_dot_mask[amrlev].resize(m_num_mg_levels[amrlev]);
 
 		 for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
 		 {
 		 	 m_diag[amrlev][mglev].reset(new MultiFab(amrex::convert(m_grids[amrlev][mglev], amrex::IntVect::TheNodeVector()),
 		 						  m_dmap[amrlev][mglev], getNComp(), nghost));
-		 	 m_dot_mask[amrlev][mglev].reset(new MultiFab(amrex::convert(m_grids[amrlev][mglev], amrex::IntVect::TheNodeVector()),
-		 						  m_dmap[amrlev][mglev], 1, nghost));
-			 m_dot_mask[amrlev][mglev]->setVal(1.0);
 		 }
 	 }
 
@@ -466,9 +461,8 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
 	nodalSync(amrlev, fmglev, fine);
 }
   
-void 
-Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs,
-				                                  const MultiFab& fine_sol, const MultiFab& fine_rhs)
+void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& /*crse_rhs*/,
+				                                  const MultiFab& fine_sol, const MultiFab& /*fine_rhs*/)
 {
 	BL_PROFILE("Operator::averageDownSolutionRHS()");
 	const auto& amrrr = AMRRefRatio(camrlev);
@@ -476,94 +470,13 @@ Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, M
 	
 	if (isSingular(0))
 	{
-		//Util::Abort(INFO,"Singular operators not supported!");
-		MultiFab frhs(fine_rhs.boxArray(), fine_rhs.DistributionMap(), fine_rhs.nComp(), 2);
-		MultiFab::Copy(frhs, fine_rhs, 0, 0, fine_rhs.nComp(), 0);
-		restrictInteriorNodes(camrlev, crse_rhs, frhs);
+		Util::Abort(INFO,"Singular operators not supported!");
+		// MultiFab frhs(fine_rhs.boxArray(), fine_rhs.DistributionMap(), 1, 1);
+		// MultiFab::Copy(frhs, fine_rhs, 0, 0, 1, 0);
+		// restrictInteriorNodes(camrlev, crse_rhs, frhs);
 	}
 
 }
-void
-Operator<Grid::Node>::restrictInteriorNodes (int camrlev, MultiFab& crhs, MultiFab& a_frhs) const
-{
-    const BoxArray& fba = a_frhs.boxArray();
-    const DistributionMapping& fdm = a_frhs.DistributionMap();
-
-    MultiFab* frhs = nullptr;
-    std::unique_ptr<MultiFab> mf;
-    if (a_frhs.nGrow() == 1)
-    {
-        frhs = &a_frhs;
-    }
-    else
-    {
-        mf.reset(new MultiFab(fba, fdm, a_frhs.nComp(), a_frhs.nGrow()));
-        frhs = mf.get();
-        MultiFab::Copy(*frhs, a_frhs, 0, 0, a_frhs.nComp(), a_frhs.nGrow());
-    }
-
-    const Geometry& cgeom = m_geom[camrlev  ][0];
-
-    const iMultiFab& fdmsk = *m_dirichlet_mask[camrlev+1][0];
-    //const auto& stencil    =  m_stencil[camrlev+1][0];
-
-    MultiFab cfine(amrex::coarsen(fba, 2), fdm, a_frhs.nComp(), a_frhs.nGrow());
-
-    frhs->setBndry(0.0);
-
-    applyBC(camrlev+1, 0, *frhs, BCMode::Inhomogeneous, StateMode::Solution);
-
-#ifdef _OPENMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
-    for (MFIter mfi(cfine, TilingIfNotGPU()); mfi.isValid(); ++mfi)
-    {
-        const Box& bx = mfi.tilebox();
-        Array4<Real> const& cfab = cfine.array(mfi);
-        Array4<Real const> const& ffab = frhs->const_array(mfi);
-        Array4<int const> const& mfab = fdmsk.const_array(mfi);
-        //if (m_coarsening_strategy == CoarseningStrategy::Sigma) {
-            AMREX_HOST_DEVICE_PARALLEL_FOR_3D(bx, i, j, k,
-            {
-                mlndlap_restriction(i,j,k,cfab,ffab,mfab);
-            });
-        //} else {
-        //    Array4<Real const> const& stfab = stencil->const_array(mfi);
-        //    AMREX_HOST_DEVICE_PARALLEL_FOR_3D(bx, i, j, k,
-        //    {
-        //        mlndlap_restriction_rap(i,j,k,cfab,ffab,stfab,mfab);
-        //    });
-        //}
-    }
-
-    MultiFab tmp_crhs(crhs.boxArray(), crhs.DistributionMap(), a_frhs.nComp(), a_frhs.nGrow());
-    tmp_crhs.setVal(0.0);
-    tmp_crhs.ParallelCopy(cfine, cgeom.periodicity());
-
-    const iMultiFab& c_nd_mask = *m_nd_fine_mask[camrlev];
-    const auto& has_fine_bndry = *m_has_fine_bndry[camrlev];
-
-    MFItInfo mfi_info;
-    if (Gpu::notInLaunchRegion()) mfi_info.EnableTiling().SetDynamic(true);
-#ifdef _OPENMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
-    for (MFIter mfi(crhs, mfi_info); mfi.isValid(); ++mfi)
-    {
-        if (has_fine_bndry[mfi])
-        {
-            const Box& bx = mfi.tilebox();
-            Array4<Real> const& dfab = crhs.array(mfi);
-            Array4<Real const> const& sfab = tmp_crhs.const_array(mfi);
-            Array4<int const> const& mfab = c_nd_mask.const_array(mfi);
-            AMREX_HOST_DEVICE_PARALLEL_FOR_3D ( bx, i, j, k,
-            {
-                if (mfab(i,j,k) == fine_node) dfab(i,j,k) = sfab(i,j,k);
-            });
-        }
-    }
-}
-
 
 void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) 
 {
@@ -600,23 +513,6 @@ Operator<Grid::Node>::GetFab(const int num, const int amrlev, const int mglev, c
 	Util::Message(INFO);
  	return m_a_coeffs[num][amrlev][mglev][mfi];
 }
-
-
-void 
-Operator<Grid::Node>::SetDotMask(Set::Field<Set::Scalar> &a_dot_mask) 
-{
-	Util::Assert(INFO,TEST(a_dot_mask.size() == m_num_amr_levels));
-	Util::Assert(INFO,TEST(a_dot_mask[0]->nComp() == 1));
-	for (int amrlev = 0; amrlev < m_num_amr_levels; amrlev++)
-	{
-		amrex::MultiFab::Copy(*m_dot_mask[amrlev][0].get(),*a_dot_mask[amrlev].get(),0,0,1,2);
-		for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; mglev++)
-		{
-			restriction(amrlev,mglev,*m_dot_mask[amrlev][mglev].get(), *m_dot_mask[amrlev][mglev-1].get());
-		}
-	}
-}
-
 
 void Operator<Grid::Node>::RegisterNewFab(amrex::Vector<amrex::MultiFab> &input)
 {
@@ -788,7 +684,6 @@ Operator<Grid::Node>::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x
 	const int ncomp = b.nComp();
 	apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
 	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
-	MultiFab::Multiply(resid,*m_dot_mask[amrlev][mglev].get(),0,0,1,2);
 	amrex::Geometry geom = m_geom[amrlev][mglev];
 	realFillBoundary(resid,geom);
 }
@@ -801,7 +696,6 @@ Operator<Grid::Node>::correctionResidual (int amrlev, int mglev, MultiFab& resid
 	apply(amrlev, mglev, resid, x, BCMode::Homogeneous, StateMode::Correction);
 	int ncomp = b.nComp();
 	MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, resid.nGrow());
-	MultiFab::Multiply(resid,*m_dot_mask[amrlev][mglev].get(),0,0,1,2);
 	amrex::Geometry geom = m_geom[amrlev][mglev];
 	realFillBoundary(resid,geom);
 }
@@ -818,7 +712,7 @@ void
 Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
 		   const amrex::Vector<amrex::BoxArray>& a_grids,
 		   const amrex::Vector<amrex::DistributionMapping>& a_dmap,
-		   BC::BC& a_bc,
+		   BC::BC<Set::Scalar>& a_bc,
 		   const amrex::LPInfo& a_info,
 		   const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory)
 {

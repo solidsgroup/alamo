@@ -19,13 +19,15 @@ geometry.prob_lo	    = -8 -8 -8
 geometry.prob_hi	    = 8 8 8
 geometry.is_periodic	    = 0 0 0
 
-# ellipse configuration
-#ic.type         = bmp
-#ic.bmp.filename = tests/Suture/Interface_Blur1.bmp
-#ic.bmp.fit      = fitwidth
-#ic.bmp.channel  = g
-ic.type         = ellipse
-ic.ellipse.x0   = 1000 1000
+
+ic.type         = bmp
+ic.bmp.filename = tests/Suture/Interface_Blur1.bmp
+ic.bmp.fit      = fitwidth
+ic.bmp.channel  = g
+
+## ellipse configuration
+#ic.type         = ellipse
+#ic.ellipse.x0   = 1000 1000
 
 #Aluminum Oxide
 elastic.model1.E = 370 #GPa

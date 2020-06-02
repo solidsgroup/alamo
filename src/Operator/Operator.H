@@ -5,7 +5,6 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_BaseFab.H>
-#include "AMReX_BaseFab_f.H"
 
 #include "BC/BC.H"
 
@@ -61,8 +60,6 @@ public:
 	void RegisterNewFab(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &input);
 	const amrex::FArrayBox & GetFab(const int num, const int amrlev, const int mglev, const amrex::MFIter &mfi) const;
 	virtual void SetHomogeneous (bool) {};
-	void SetDotMask(Set::Field<Set::Scalar> & a_dot_mask) ;
-	void SetSingular(bool a_singular) {m_is_bottom_singular = a_singular;}
 	//
 	// Pure Virtual: you MUST override these functions
 	//
@@ -89,7 +86,6 @@ protected:
 	virtual void restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& fine) const final;
 	virtual void interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const override final;
 	virtual void averageDownSolutionRHS (int camrlev, MultiFab& crse_sol, MultiFab& crse_rhs, const MultiFab& fine_sol, const MultiFab& fine_rhs) final;
-    void restrictInteriorNodes (int camrlev, MultiFab& crhs, MultiFab& frhs) const;
 	virtual void prepareForSolve () override;
 	virtual bool isSingular (int amrlev) const final {return (amrlev == 0) ? m_is_bottom_singular : false; }
 	virtual bool isBottomSingular () const final { return m_is_bottom_singular; }
@@ -111,8 +107,6 @@ public:
 	}
 
 
-private:
-	//void buildMasks ();
 public:
 	static void realFillBoundary(MultiFab &phi, const Geometry &geom);
 
@@ -128,7 +122,6 @@ protected:
 	bool m_diagonal_computed = false;
 	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs;
 	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > > m_diag;
-	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > > m_dot_mask;
 };
 
 
@@ -159,7 +152,7 @@ public:
 	void define (amrex::Vector<amrex::Geometry> a_geom,
 		     const amrex::Vector<amrex::BoxArray>& a_grids,
 		     const amrex::Vector<amrex::DistributionMapping>& a_dmap,
-		     BC::BC& a_bc,
+		     BC::BC<Set::Scalar>& a_bc,
 		     const amrex::LPInfo& a_info = amrex::LPInfo(),
 		     const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory = {});
 
@@ -167,7 +160,7 @@ public:
 
 protected:
 	
-	BC::BC *m_bc;
+	BC::BC<Set::Scalar> *m_bc;
 
 	amrex::Vector<std::unique_ptr<amrex::MLMGBndry> >   m_bndry_sol;
 	amrex::Vector<std::unique_ptr<amrex::BndryRegister> > m_crse_sol_br;

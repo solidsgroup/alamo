@@ -79,7 +79,44 @@ public:
         ret.kappa = Util::Random();
         return ret;
     }
+    AMREX_FORCE_INLINE
+	void operator += (const NeoHookean &rhs)
+    {
+        ddw += rhs.ddw;
+	}    
+    AMREX_FORCE_INLINE
+   	virtual NeoHookean operator * (const Set::Scalar alpha) const
+	{
+        NeoHookean ret;
+        ret.ddw = ddw*alpha;
+        return ret;
+	}    
+    friend NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b);
+    friend NeoHookean operator + (const NeoHookean a, const NeoHookean b);
+    friend NeoHookean operator - (const NeoHookean a, const NeoHookean b);
 };
+AMREX_FORCE_INLINE
+NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b)
+{
+    NeoHookean ret;
+    ret.ddw = b.ddw*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+NeoHookean operator + (const NeoHookean a, const NeoHookean b)
+{
+    NeoHookean ret;
+    ret.ddw = a.ddw + b.ddw;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+NeoHookean operator - (const NeoHookean a, const NeoHookean b)
+{
+    NeoHookean ret;
+    ret.ddw = a.ddw - b.ddw;
+    return ret;
+}    
+
 
 
 
