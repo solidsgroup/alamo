@@ -12,4 +12,5 @@ This is basic documentation for the Alamo.
    PerturbedInterface
    Eshelby
    NeoHookean
+   Fracture
 

@@ -238,6 +238,7 @@ protected:
 	void SetPlotInt(int plot_int);
 	void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
 	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot_int = a_thermo_plot_int;}
+	void SetStopTime(Set::Scalar a_stop_time) {stop_time = a_stop_time;}
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
@@ -254,7 +255,6 @@ private:
 	virtual void ClearLevel              (int lev) override;
 	virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-	void IntegrateVariables(Set::Scalar cur_time, int step);
 
 	void FillPatch (int lev, amrex::Real time,
 			amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
@@ -266,9 +266,12 @@ private:
 	void FillCoarsePatch (int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar> &physbc, int icomp, int ncomp);
 	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
-	std::vector<std::string> PlotFileName (int lev) const;
+	std::vector<std::string> PlotFileName (int lev, std::string prefix="") const;
 protected:
+	void IntegrateVariables(Set::Scalar cur_time, int step);
 	void WritePlotFile (bool initial = false) const;
+	void WritePlotFile (std::string prefix, Set::Scalar time, int step) const;
+	void WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix="") const;
 
 	//
 	// MEMBER VARIABLES

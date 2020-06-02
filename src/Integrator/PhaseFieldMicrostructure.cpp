@@ -69,7 +69,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		anisotropy.plot_int = plot_int;
 		pp.query("plot_int", anisotropy.plot_int);
 		anisotropy.plot_dt = plot_dt;
-		pp.query("plot_int", anisotropy.plot_dt);
+		pp.query("plot_dt", anisotropy.plot_dt);
 		pp.query("thermo_int", anisotropy.thermo_int);
 		pp.query("thermo_plot_int", anisotropy.thermo_plot_int);
 		pp.query("elastic_int",anisotropy.elastic_int);

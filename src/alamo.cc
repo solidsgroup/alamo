@@ -14,6 +14,7 @@
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
+#include "Integrator/Fracture.H"
 #include "Model/Solid/Elastic/Elastic.H"
 
 int main (int argc, char* argv[])
@@ -67,6 +68,15 @@ int main (int argc, char* argv[])
 		Integrator::PolymerDegradation model;
 		model.InitData();
 		model.Evolve();
+		//delete model;
+	}
+	else if (program == "fracture")
+	{
+		srand(1.0*amrex::ParallelDescriptor::MyProc());
+		Integrator::Fracture model;
+		model.InitData();
+		model.Evolve();
+		//delete model;
 	}
 	else if (program == "trigtest")
 	{
