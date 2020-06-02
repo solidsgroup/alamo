@@ -124,8 +124,44 @@ public:
         pp.query("phi2",phi2);
         value.Define(C11,C12,C44,phi1,Phi,phi2);
     }
-};
 
+    AMREX_FORCE_INLINE
+	void operator += (const Cubic &rhs)
+    {
+        ddw += rhs.ddw;
+	}    
+    AMREX_FORCE_INLINE
+   	Cubic operator * (const Set::Scalar alpha) const
+	{
+        Cubic ret;
+        ret.ddw = ddw*alpha;
+        return ret;
+	}    
+    friend Cubic operator * (const Set::Scalar alpha, const Cubic b);
+    friend Cubic operator + (const Cubic a, const Cubic b);
+    friend Cubic operator - (const Cubic a, const Cubic b);
+};
+AMREX_FORCE_INLINE
+Cubic operator * (const Set::Scalar alpha, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = b.ddw*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Cubic operator + (const Cubic a, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = a.ddw + b.ddw;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Cubic operator - (const Cubic a, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = a.ddw - b.ddw;
+    return ret;
+}
 
 }
 }

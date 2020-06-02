@@ -27,6 +27,11 @@ public:
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
 	}
 
+    void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
+    {
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
+    }
+
     Set::Scalar W(const Set::Matrix & F) const override
     {
         return 0.5*((F-F0).transpose() * (ddw*((F-F0)))).trace();
@@ -39,7 +44,7 @@ public:
     {
         return ddw;
     }
-	
+	void SetF0(Set::Matrix a_F0) { F0 = a_F0; }
 public:
     Set::Matrix F0;
     KinematicVariable kinvar = KinematicVariable::gradu;
@@ -84,7 +89,7 @@ public:
         F0  += rhs.F0;
 	}    
     AMREX_FORCE_INLINE
-   	virtual Isotropic operator * (const Set::Scalar alpha) const
+   	Isotropic operator * (const Set::Scalar alpha) const
 	{
         Isotropic ret;
         ret.ddw = ddw*alpha;
