@@ -43,6 +43,10 @@ Fracture::Fracture() :
         }
         else
             Util::Abort(INFO,"This crack model hasn't been implemented yet");
+
+        IO::ParmParse pp_crack_df("crack.df");
+        pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
+        pp_crack_df.query("mult_Lap", crack.mult_df_lap);
     }
     //==================================================
 
@@ -607,11 +611,11 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 
 			if (!anisotropy.on || time < anisotropy.tstart)
 			{
-				df(i,j,k,1) = crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
-				df(i,j,k,2) = 2.0*crack.cracktype->Zeta(Theta)*crack.cracktype->Gc(Theta)*laplacian;
+				df(i,j,k,1) = crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta))*crack.mult_df_Gc;
+				df(i,j,k,2) = 2.0*crack.cracktype->Zeta(Theta)*crack.cracktype->Gc(Theta)*laplacian*crack.mult_df_lap;
 
-				rhs += crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
-				rhs -= 2.0*crack.cracktype->Zeta(Theta)*crack.cracktype->Gc(Theta)*laplacian;
+				rhs += crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta))*crack.mult_df_Gc;
+				rhs -= 2.0*crack.cracktype->Zeta(Theta)*crack.cracktype->Gc(Theta)*laplacian*crack.mult_df_lap;
 			}
 			else
 			{

@@ -108,6 +108,9 @@ private:
 		Set::Scalar error_norm;						///< L2 norm of different between current and old field
 		Set::Scalar tol_abs = 1.e-6;
 		Set::Scalar tol_rel = 1.e-6;
+
+		Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
+		Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
     } crack;
 
     struct

@@ -27,18 +27,8 @@ public:
     Set::Scalar Mobility(Set::Scalar /*theta*/) { return mobility; } 
     Set::Scalar DrivingForceThreshold(Set::Scalar /*theta*/) { return threshold; }
 
-    Set::Scalar Epc(Set::Scalar theta)
-    {
-        return mult_Gc*(Gc0 + 0.5*Gc1*(1.0 - cos(4.0*(theta-theta0))))/(4.0*zeta);
-    };
-    Set::Scalar kappa(Set::Scalar theta)
-    {
-        return mult_Lap*2.0*(Gc0 + 0.5*Gc1*(1.0 - cos(4.0*(theta-theta0))))*zeta;
-    };
-
 private:
     Set::Scalar zeta = 1.e-2, mobility = 1.e-2;
-    Set::Scalar mult_Gc = 1.0, mult_Lap = 1.0;
     Set::Scalar Gc0 = 1.0;
     Set::Scalar Gc1 = 0.49;
     Set::Scalar theta0 = 3.14;
@@ -52,8 +42,6 @@ public:
         pp.query("theta0",value.theta0);
 		pp.query("zeta",value.zeta);
 		pp.query("mobility",value.mobility);
-		pp.query("mult_Gc",value.mult_Gc);
-		pp.query("mult_Lap", value.mult_Lap);
 		pp.query("threshold",value.threshold);
 
         std::string gtype = "";
