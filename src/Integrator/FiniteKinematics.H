@@ -20,7 +20,6 @@
 
 #include "IO/ParmParse.H"
 
-#include "Model/Solid/Elastic/Elastic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
 
@@ -171,7 +170,7 @@ private:
 
     std::string ic_type; ///< String to determine what kind of initial condition to use
     //IC::IC *ic;          ///< Pointer to abstract IC object
-    BC::BC *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     Set::Scalar lame = 121.154, shear = 80.7692;
     Set::Scalar kappa, mu;

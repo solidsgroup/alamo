@@ -14,12 +14,15 @@ namespace Solid
 
 enum KinematicVariable{gradu,epsilon,F};
 
-template<int Sym>
+template<Set::Sym SYM>
 class Solid
 {
 public:
 	Solid() {} ;
+
 	virtual ~Solid() {};
+
+    static constexpr Set::Sym sym = SYM;
 
     AMREX_FORCE_INLINE
 	virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/=true) const
@@ -35,42 +38,13 @@ public:
 
     virtual Set::Scalar W(const Set::Matrix &) const          {Util::Abort(INFO,"W not implemented"); return 0.0;};
     virtual Set::Matrix DW(const Set::Matrix &) const         {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
-    virtual Set::Matrix4<AMREX_SPACEDIM,Sym> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
+    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
 	
 public:
-    mutable Set::Matrix4<AMREX_SPACEDIM,Sym> ddw;
+    mutable Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
 
     static const KinematicVariable kinvar = KinematicVariable::F;
 
-   	Solid operator + (const Solid &rhs) const
-	{
-        Solid ret;
-        ret.ddw   = ddw; ret.ddw += rhs.ddw;
-        return ret;
-	}
-   	virtual Solid operator * (const Set::Scalar alpha) const
-	{
-        Solid ret;
-        ret.ddw   = ddw;   ret.ddw   *= alpha;
-        return ret;
-	}
-	virtual Solid operator / (const Set::Scalar alpha) const
-	{
-        Solid ret;
-        ret.ddw   = ddw;   ret.ddw   /= alpha;
-        return ret;
-	}
-	void operator += (const Solid &rhs)
-	{
-        ddw += rhs.ddw;
-	}
-
-	Solid operator - (const Solid &rhs) const
-	{
-        Solid ret;
-        ret.ddw = ddw; ret.ddw -= rhs.ddw;
-        return ret;
-	}
 
    	friend std::ostream& operator<<(std::ostream &out, const Solid &a)
     {
@@ -81,7 +55,6 @@ public:
     {
         out << "No print function written for this model.";
     }
-
 
 public: 
     template <class T>
@@ -129,12 +102,12 @@ public:
         {
             T model = T::Random();
 
-            Set::Scalar dx = 1E-8, tol = 1E-6;
+            Set::Scalar dx = 1E-8, tol = 1E-4;
             Set::Matrix F = Set::Matrix::Random();
             while (fabs(F.determinant()) < 1.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
 
             Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_exact = model.DDW(F);
-            Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_numeric = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major>::Zero();
+            Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw_numeric = Set::Matrix4<AMREX_SPACEDIM,T::sym>::Zero();
             for (int i = 0; i < AMREX_SPACEDIM; i++)
                 for (int j = 0; j < AMREX_SPACEDIM; j++)
                     for (int k = 0; k < AMREX_SPACEDIM; k++)
@@ -145,7 +118,7 @@ public:
                             ddw_numeric(i,j,k,l) = (model.DW(F+dF) - model.DW(F-dF))(i,j) / (2.0 * dx);
                         }
             Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> error = ddw_numeric-ddw_exact;
-            Set::Scalar relnorm = error.norm()/ddw_numeric.norm();
+            Set::Scalar relnorm = error.Norm()/ddw_numeric.Norm();
             if (relnorm > tol || std::isnan(relnorm) || std::isinf(relnorm))
             {
                 if (verbose)
@@ -153,7 +126,8 @@ public:
                     Util::Message(INFO,"F \n",F);
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"ddw exact \n",ddw_exact);
-                    Util::Message(INFO,"ddw numeric \n",ddw_numeric);
+                    Util::Message(INFO,"ddw numeric \n",ddw_numeric);::
+                    Util::Message(INFO,"ddw difference \n",ddw_exact - ddw_numeric);::
                     Util::Message(INFO,"error norm \n",relnorm);
                 }
                 return 1;

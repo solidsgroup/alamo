@@ -13,7 +13,7 @@
 namespace BC
 {
 class Step
-	: public BC
+	: public BC<Set::Scalar>
 {
 public:
 Step ()

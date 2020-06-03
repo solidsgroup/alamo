@@ -25,6 +25,7 @@
 #include "BC/BC.H"
 #include "BC/Nothing.H"
 #include "IO/WriteMetaData.H"
+#include "BaseField.H"
 
 /// \brief Collection of numerical integrator objects
 namespace Integrator
@@ -186,11 +187,11 @@ protected:
 	/// You **must** call this function, typically in the constructor, for every field variable 
 	/// that you use in any inherited class.
 	/// 
-	void RegisterNewFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+	void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
 			     ///<[in] Reference to field variable that you want to use.
 			     ///      **Note** `new_fab` must not fall out of scope! Should be a
 			     ///      private member variable.
-			     BC::BC *new_bc,
+			     BC::BC<Set::Scalar> *new_bc,
 			     ///<[in] Boundary condition object. (Same BC object can be re-used 
 			     ///      if applicable
 			     int ncomp,
@@ -204,24 +205,32 @@ protected:
 				 bool writeout
 			     );
 
-	void RegisterNewFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+	void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
 			     int ncomp,
 			     std::string name,
 				 bool writeout
 			     );
-	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
+	void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
 			       int ncomp,
 			       int nghost,
 			       std::string name,
 				   bool writeout
 			       );
-	void RegisterNodalFab (amrex::Vector<std::unique_ptr<amrex::MultiFab> > &new_fab,
-				   BC::BC *new_bc,
+	void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
+				   BC::BC<Set::Scalar> *new_bc,
 			       int ncomp,
 			       int nghost,
 			       std::string name,
 				   bool writeout
 			       );
+	
+	template<class T>
+	void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost)
+	{
+		int nlevs_max = maxLevel() + 1;
+		new_fab.resize(nlevs_max); 
+		m_basefields.push_back(new Field<T>(new_fab, geom, refRatio(),ncomp,nghost));
+	}
 
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
@@ -229,6 +238,7 @@ protected:
 	void SetPlotInt(int plot_int);
 	void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
 	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot_int = a_thermo_plot_int;}
+	void SetStopTime(Set::Scalar a_stop_time) {stop_time = a_stop_time;}
 
 	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
 	amrex::Vector<int> istep;           ///< Keep track of where each level is
@@ -245,26 +255,29 @@ private:
 	virtual void ClearLevel              (int lev) override;
 	virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
-	void IntegrateVariables(Set::Scalar cur_time, int step);
 
 	void FillPatch (int lev, amrex::Real time,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &source_mf,
-			amrex::MultiFab &destination_multifab, BC::BC &physbc,
+			amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
+			amrex::MultiFab &destination_multifab, 
+			BC::BC<Set::Scalar> &physbc,
 			int icomp);
 	long CountCells (int lev);
 	void TimeStep (int lev, amrex::Real time, int iteration);
-	void FillCoarsePatch (int lev, amrex::Real time, amrex::Vector<std::unique_ptr<amrex::MultiFab> >& mf, BC::BC &physbc, int icomp, int ncomp);
+	void FillCoarsePatch (int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar> &physbc, int icomp, int ncomp);
 	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
-	std::vector<std::string> PlotFileName (int lev) const;
+	std::vector<std::string> PlotFileName (int lev, std::string prefix="") const;
 protected:
+	void IntegrateVariables(Set::Scalar cur_time, int step);
 	void WritePlotFile (bool initial = false) const;
+	void WritePlotFile (std::string prefix, Set::Scalar time, int step) const;
+	void WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix="") const;
 
 	//
 	// MEMBER VARIABLES
 	//
 
-	// TIME (STEP) KEEPING
+	// TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
 	amrex::Real timestep;	///< Timestep for the base level of refinement
 private:
@@ -280,23 +293,25 @@ private:
 protected:
 	struct {
 		int number_of_fabs = 0;
-		std::vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		std::vector<Set::Field<Set::Scalar> *> fab_array;
 		std::vector<int> ncomp_array;
 		std::vector<int> nghost_array;
 		std::vector<std::string> name_array;
-		std::vector<BC::BC *> physbc_array;
+		std::vector<BC::BC<Set::Scalar> *> physbc_array;
 		std::vector<bool> writeout_array;
 	} node;
 
 	struct {
 		int number_of_fabs = 0;
-		std::vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > *> fab_array;
+		std::vector<Set::Field<Set::Scalar> *> fab_array;
 		std::vector<int> ncomp_array;
 		std::vector<int> nghost_array;
 		std::vector<std::string> name_array;
-		std::vector<BC::BC *> physbc_array;
+		std::vector<BC::BC<Set::Scalar> *> physbc_array;
 		std::vector<bool> writeout_array;
 	} cell;
+
+	std::vector<BaseField *> m_basefields;
 
 	BC::Nothing bcnothing;
 

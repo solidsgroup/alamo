@@ -444,6 +444,78 @@ Laplacian(const amrex::Array4<const Set::Scalar> &f,
 
 AMREX_FORCE_INLINE
 Set::Vector
+Divergence(const amrex::Array4<const Set::Matrix> &dw,
+		const int &i, const int &j, const int &k,
+		const Set::Scalar DX[AMREX_SPACEDIM],
+		std::array<StencilType,AMREX_SPACEDIM> &stencil = DefaultType)
+{
+	Set::Vector ret = Set::Vector::Zero();
+	
+	if (stencil[0] == StencilType::Central)
+	{
+    	AMREX_D_TERM(ret(0) += (dw(i + 1, j, k)(0, 0) - dw(i - 1, j, k)(0, 0)) / 2. / DX[0];,
+    				 ret(1) += (dw(i + 1, j, k)(1, 0) - dw(i - 1, j, k)(1, 0)) / 2. / DX[0];, 
+					 ret(2) += (dw(i + 1, j, k)(2, 0) - dw(i - 1, j, k)(2, 0)) / 2. / DX[0];)
+	}
+	else if (stencil[0] == StencilType::Lo)
+	{
+    	AMREX_D_TERM(ret(0) += (dw(i, j, k)(0, 0) - dw(i - 1, j, k)(0, 0)) / DX[0];,
+    				 ret(1) += (dw(i, j, k)(1, 0) - dw(i - 1, j, k)(1, 0)) / DX[0];,
+    				 ret(2) += (dw(i, j, k)(2, 0) - dw(i - 1, j, k)(2, 0)) / DX[0];)
+	}
+	else if (stencil[0] == StencilType::Hi)
+	{
+    	AMREX_D_TERM(ret(0) += (dw(i + 1, j, k)(0, 0) - dw(i, j, k)(0, 0)) / DX[0];,
+    				 ret(1) += (dw(i + 1, j, k)(1, 0) - dw(i, j, k)(1, 0)) / DX[0];,
+    				 ret(2) += (dw(i + 1, j, k)(2, 0) - dw(i, j, k)(2, 0)) / DX[0];)
+	}
+
+#if AMREX_SPACEDIM > 1
+	if (stencil[1] == StencilType::Central)
+	{
+		AMREX_D_TERM(ret(0) += (dw(i, j + 1, k)(0, 1) - dw(i, j - 1, k)(0, 1)) / 2. / DX[1];,
+    				 ret(1) += (dw(i, j + 1, k)(1, 1) - dw(i, j - 1, k)(1, 1)) / 2. / DX[1];,
+    				 ret(2) += (dw(i, j + 1, k)(2, 1) - dw(i, j - 1, k)(2, 1)) / 2. / DX[1];)
+	}
+	else if (stencil[1] == StencilType::Lo)
+	{
+		AMREX_D_TERM(ret(0) += (dw(i, j, k)(0, 1) - dw(i, j - 1, k)(0, 1)) / DX[1];,
+    				 ret(1) += (dw(i, j, k)(1, 1) - dw(i, j - 1, k)(1, 1)) / DX[1];,
+    				 ret(2) += (dw(i, j, k)(2, 1) - dw(i, j - 1, k)(2, 1)) / DX[1];)
+	}
+	else if (stencil[1] == StencilType::Hi)
+	{
+		AMREX_D_TERM(ret(0) += (dw(i, j + 1, k)(0, 1) - dw(i, j, k)(0, 1)) / DX[1];,
+    				 ret(1) += (dw(i, j + 1, k)(1, 1) - dw(i, j, k)(1, 1)) / DX[1];,
+    				 ret(2) += (dw(i, j + 1, k)(2, 1) - dw(i, j, k)(2, 1)) / DX[1];)
+	}
+#endif		 
+#if AMREX_SPACEDIM > 2
+	if (stencil[2] == StencilType::Central)
+	{
+		AMREX_D_TERM(ret(0) += (dw(i, j, k + 1)(0, 2) - dw(i, j, k - 1)(0, 2)) / 2. / DX[2];,
+    				 ret(1) += (dw(i, j, k + 1)(1, 2) - dw(i, j, k - 1)(1, 2)) / 2. / DX[2];,
+    				 ret(2) += (dw(i, j, k + 1)(2, 2) - dw(i, j, k - 1)(2, 2)) / 2. / DX[2];)
+	}
+	else if (stencil[2] == StencilType::Lo)
+	{
+		AMREX_D_TERM(ret(0) += (dw(i, j, k)(0, 2) - dw(i, j, k - 1)(0, 2)) / DX[2];,
+    				 ret(1) += (dw(i, j, k)(1, 2) - dw(i, j, k - 1)(1, 2)) / DX[2];,
+    				 ret(2) += (dw(i, j, k)(2, 2) - dw(i, j, k - 1)(2, 2)) / DX[2];)
+	}
+	else if (stencil[2] == StencilType::Hi)
+	{
+		AMREX_D_TERM(ret(0) += (dw(i, j, k + 1)(0, 2) - dw(i, j, k)(0, 2)) / DX[2];,
+    				 ret(1) += (dw(i, j, k + 1)(1, 2) - dw(i, j, k)(1, 2)) / DX[2];,
+    				 ret(2) += (dw(i, j, k + 1)(2, 2) - dw(i, j, k)(2, 2)) / DX[2];)
+	}
+#endif
+	return ret;
+}
+
+
+AMREX_FORCE_INLINE
+Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar> &f,
 		const int &i, const int &j, const int &k, const int &m,
 		const Set::Scalar dx[AMREX_SPACEDIM])
