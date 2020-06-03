@@ -29,16 +29,10 @@
 
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Affine/Cubic.H"
-//#include "Model/Solid/LinearElastic/Cubic.H"
-//#include "Model/Solid/LinearElastic/Isotropic.H"
-//#include "Model/Solid/Linear/Laplacian.H"
 #include "Operator/Elastic.H"
 
 namespace Integrator
 {
-//using model_type = Model::Solid::LinearElastic::Isotropic;
-//using model_type = Model::Solid::LinearElastic::Cubic;
-//using model_type = Model::Solid::Linear::Cubic;
 using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
@@ -87,7 +81,9 @@ private:
 	Set::Field<Set::Scalar> stress_mf;
 	Set::Field<Set::Scalar> energy_mf;
 
-	BC::BC *mybc;
+	Set::Field<model_type> model_mf;
+
+	BC::BC<Set::Scalar> *mybc;
 
 	//amrex::Real M, mu, gamma, sigma0, l_gb, beta;
 	RegularizationType regularization = RegularizationType::K12;

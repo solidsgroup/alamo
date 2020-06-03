@@ -21,8 +21,6 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	using model_type = Model::Solid::Linear::Isotropic;
 	Set::Scalar lame = 2.6, shear = 6.0;
 	model_type model(lame, shear);
-	//Use this instead to run for Cubic elastic case.
-	//using model_type = Model::Solid::LinearElastic::Cubic; model_type model; model.Randomize();
 
 	Set::Field<model_type> modelfab(nlevels);
 
@@ -56,8 +54,6 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	::Operator::Elastic<model_type> elastic;
 	elastic.SetUniform(false);
 	elastic.define(geom, cgrids, dmap, info);
-	for (int ilev = 0; ilev < nlevels; ++ilev)
-		elastic.SetModel(ilev, *modelfab[ilev]);
 	BC::Operator::Elastic<model_type> bc;
 
 	if (component == 0)

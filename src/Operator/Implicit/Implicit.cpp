@@ -16,7 +16,7 @@ namespace Implicit
 Implicit::Implicit (const Vector<Geometry>& a_geom,
 		  const Vector<BoxArray>& a_grids,
 		  const Vector<DistributionMapping>& a_dmap,
-		  BC::BC& a_bc,
+		  BC::BC<Set::Scalar>& a_bc,
 		  const LPInfo& a_info)
 {
 	define(a_geom, a_grids, a_dmap, a_bc, a_info);

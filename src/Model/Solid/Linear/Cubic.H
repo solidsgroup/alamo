@@ -77,6 +77,19 @@ public:
 public:
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
+    AMREX_FORCE_INLINE
+    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta)
+    {
+        Cubic ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        Set::Scalar etasum = 0.;
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++)
+        {
+            ret.ddw += models[n].ddw * (eta[n] / etasum);
+        }
+        return ret;
+    }
 
     static Cubic Random()
     {
@@ -111,8 +124,44 @@ public:
         pp.query("phi2",phi2);
         value.Define(C11,C12,C44,phi1,Phi,phi2);
     }
-};
 
+    AMREX_FORCE_INLINE
+	void operator += (const Cubic &rhs)
+    {
+        ddw += rhs.ddw;
+	}    
+    AMREX_FORCE_INLINE
+   	Cubic operator * (const Set::Scalar alpha) const
+	{
+        Cubic ret;
+        ret.ddw = ddw*alpha;
+        return ret;
+	}    
+    friend Cubic operator * (const Set::Scalar alpha, const Cubic b);
+    friend Cubic operator + (const Cubic a, const Cubic b);
+    friend Cubic operator - (const Cubic a, const Cubic b);
+};
+AMREX_FORCE_INLINE
+Cubic operator * (const Set::Scalar alpha, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = b.ddw*alpha;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Cubic operator + (const Cubic a, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = a.ddw + b.ddw;
+    return ret;
+}    
+AMREX_FORCE_INLINE
+Cubic operator - (const Cubic a, const Cubic b)
+{
+    Cubic ret;
+    ret.ddw = a.ddw - b.ddw;
+    return ret;
+}
 
 }
 }
