@@ -1,12 +1,12 @@
 alamo.program = fracture
 
-timestep = 1e-1
+timestep = 1e-2
 stop_time = 1.e2
 plot_file = tests/Fracture2D/output
 
 fracture.problem_type = brittle
 
-amr.plot_int = 1
+amr.plot_int = 100
 amr.max_level = 6
 amr.n_cell = 128 128 
 amr.blocking_factor = 32
@@ -25,16 +25,16 @@ crack.tol_abs = 1.e-14
 crack.tol_rel = 1.e-14
 
 crack.type = constant
-crack.constant.G_c = 3.e2
+crack.constant.G_c = 5.e2
 crack.constant.zeta = 2.e-3
 crack.constant.mobility = 1.0e-5
 crack.constant.eta_epsilon = 0.01
-crack.constant.mult_Gc = 1.0e0
-crack.constant.mult_Lap = 1.0e0
+crack.df.mult_Gc = 1.0e0
+crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = cubicm
 crack.constant.wtype = square
 crack.constant.exponent = 1.e-3
-crack.constant.threshold = 0.0
+crack.constant.threshold = 1.e4
 
 #crack.type = sin
 #crack.sin.Gc0 = 1.0e3
@@ -75,7 +75,7 @@ ic.notch.center = 0.0 0.0
 ic.notch.orientation = 1.0 0.0
 ic.notch.length = 0.5
 ic.notch.thickness = 4.e-2
-ic.notch.eps = 7.e-3
+ic.notch.eps = 1.5e-2
 
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.xhi = NEUMANN
@@ -98,19 +98,19 @@ crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
 crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
 
 material.model = isotropic
-material.isotropic.lambda = 5.80
-material.isotropic.mu = 3.85 
-elastic.df_mult = 1.0e8
+material.isotropic.lambda = 580
+material.isotropic.mu = 385 
+elastic.df_mult = 3.5e6
 
 solver.bottom_solver 	=	bicgstab
-solver.int             = 1
+solver.int             = 100
 solver.composite_solve	=	1
 solver.verbose			=	2
 solver.cg_verbose 		=	0
 solver.max_iter		=	10000
 solver.max_fmg_iter 	=	10000
 solver.bottom_max_iter =	500
-solver.max_fixed_iter 	=	300
+solver.max_fixed_iter 	=	500
 solver.linop_maxorder 	=	2
 solver.max_coarsening_level = 100000
 solver.agglomeration 	=	1

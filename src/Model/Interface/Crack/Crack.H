@@ -81,9 +81,6 @@ class Crack
 	virtual Set::Scalar Mobility(Set::Scalar theta) = 0;
 	virtual Set::Scalar DrivingForceThreshold(Set::Scalar theta) = 0;
 
-	virtual Set::Scalar Epc(Set::Scalar theta) = 0;
-	virtual Set::Scalar kappa(Set::Scalar theta) = 0;
-	
 	void ExportToFile(std::string filename, amrex::Real dTheta)
 	{
 		std::ofstream outFile;
@@ -91,7 +88,7 @@ class Crack
     
 		for(amrex::Real theta=0; theta<2*pi; theta=theta+dTheta)
 			{
-				outFile << theta << " " << Epc(theta) << std::endl;   
+				outFile << theta << " " << Gc(theta) << std::endl;   
 			}
 		outFile.close();
     
