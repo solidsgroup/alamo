@@ -597,15 +597,6 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 			Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
 			Set::Scalar Theta = atan2(Dc(1),Dc(0));
 
-			Set::Scalar normgrad = Dc.lpNorm<2>();
-			//if (normgrad < 1E-5) // testing to speed things up a bit.
-			//{
-			//	df(i,j,k,1) = 0.0;
-			//	df(i,j,k,2) = 0.0;
-			//	rhs = 0.0;
-			//}
-			//else
-			//{
 			Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
 			Set::Scalar laplacian = DDc.trace();
 
@@ -622,6 +613,7 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 #if AMREX_SPACEDIM == 1
 				Util::Abort(INFO, "Anisotropy is not enabled in 1D.");
 #elif AMREX_SPACEDIM == 2
+			    Set::Scalar normgrad = Dc.lpNorm<2>();
 				Set::Vector normal = Dc / normgrad;
 				Set::Vector tangent(normal[1],-normal[0]);
 
