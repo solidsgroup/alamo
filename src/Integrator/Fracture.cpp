@@ -566,6 +566,7 @@ void
 Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 {
     std::swap(*crack.field_old[lev], *crack.field[lev]);
+    crack.field_old[lev]->FillBoundary();
 
 	static amrex::IntVect AMREX_D_DECL(	dx(AMREX_D_DECL(1,0,0)), dy(AMREX_D_DECL(0,1,0)), dz(AMREX_D_DECL(0,0,1)));
 	const Set::Scalar* DX = geom[lev].CellSize();
@@ -626,21 +627,35 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 				Set::Scalar zeta = crack.cracktype->Zeta(Theta);
 				Set::Scalar ws = crack.cracktype->w_phi(c_old(i,j,k,0),p)/(4.0*zeta*normgrad*normgrad);
 				
-				if( std::isnan(ws)) Util::Abort(INFO, "nan at m=",i,",",j,",",k);
-				if( std::isinf(ws)) ws = 1.0E6;
+				//if( std::isnan(ws)) Util::Warning(INFO, "ws is nan at m=",i,",",j,",",k, ". normgrad = ", normgrad);
+				//if( std::isinf(ws)) {Util::Warning(INFO, "ws is infinity"); ws = 1.0E6;}
 
 				Set::Scalar Boundary_term = 0.;
-				Boundary_term += crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
-				Boundary_term -= 2.0*crack.cracktype->Gc(Theta)*crack.cracktype->Zeta(Theta)*laplacian;
+                if(normgrad > 1E-3)
+				{
+                    Boundary_term += crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
+                    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
 
-				Boundary_term += crack.cracktype->DGc(Theta)
-								* (zeta - ws)
+                    Boundary_term -= 2.0*crack.cracktype->Gc(Theta)*crack.cracktype->Zeta(Theta)*laplacian;
+                    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
+
+                    Boundary_term += crack.cracktype->DGc(Theta) * zeta * (sin2Theta*(DDc(0,0)-DDc(1,1)) - 2.0*cos2Theta*DDc(0,1));
+                    Boundary_term += crack.cracktype->DGc(Theta) * (-zeta) * (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
+
+                //if(normgrad > 1E-3 && crack.cracktype->w_phi(c_old(i,j,k,0),p) > 1E-2)
+                //if(normgrad > 1E-3)
+				//{
+                    Boundary_term += crack.cracktype->DGc(Theta)
+								* (- ws)
 								* (sin2Theta*(DDc(0,0)-DDc(1,1)) - 2.0*cos2Theta*DDc(0,1));
-				Boundary_term += crack.cracktype->DDGc(Theta)
-								* (-zeta - ws)
-								* (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
+                    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
 
-				if(std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+				    Boundary_term += crack.cracktype->DDGc(Theta)
+								* (- ws)
+								* (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
+				    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
+                }
+
 				df(i,j,k,1) = Boundary_term;
 				rhs += Boundary_term;
 
@@ -661,7 +676,6 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 				Util::Abort(INFO, "3D model hasn't been implemented yet");
 #endif
 			}
-			//} // disable this line to remove normgrad 1E-4 check
 
             if (fracture_type == FractureType::Brittle)
 			    df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
@@ -678,8 +692,8 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 			if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),p),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 			c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
 
-			if(c_new(i,j,k,0) > 1.0) {Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 1.0"); c_new(i,j,k,0) = 1.;}
-			if(c_new(i,j,k,0) < 0.0) {Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 0.0"); c_new(i,j,k,0) = 0.;}
+			if(c_new(i,j,k,0) > 1.0) {/*Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 1.0");*/ c_new(i,j,k,0) = 1.;}
+			if(c_new(i,j,k,0) < 0.0) {/*Util::Message(INFO, "cnew = ", c_new(i,j,k,0) ,", resetting to 0.0");*/ c_new(i,j,k,0) = 0.;}
 		});
 
     }
