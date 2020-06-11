@@ -627,34 +627,32 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 				Set::Scalar zeta = crack.cracktype->Zeta(Theta);
 				Set::Scalar ws = crack.cracktype->w_phi(c_old(i,j,k,0),p)/(4.0*zeta*normgrad*normgrad);
 				
-				//if( std::isnan(ws)) Util::Warning(INFO, "ws is nan at m=",i,",",j,",",k, ". normgrad = ", normgrad);
-				//if( std::isinf(ws)) {Util::Warning(INFO, "ws is infinity"); ws = 1.0E6;}
-
-				Set::Scalar Boundary_term = 0.;
-                if(normgrad > 1E-3)
-				{
-                    Boundary_term += crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
-                    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
-
-                    Boundary_term -= 2.0*crack.cracktype->Gc(Theta)*crack.cracktype->Zeta(Theta)*laplacian;
-                    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
-
-                    Boundary_term += crack.cracktype->DGc(Theta) * zeta * (sin2Theta*(DDc(0,0)-DDc(1,1)) - 2.0*cos2Theta*DDc(0,1));
-                    Boundary_term += crack.cracktype->DGc(Theta) * (-zeta) * (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
-
-                //if(normgrad > 1E-3 && crack.cracktype->w_phi(c_old(i,j,k,0),p) > 1E-2)
-                //if(normgrad > 1E-3)
-				//{
-                    Boundary_term += crack.cracktype->DGc(Theta)
-								* (- ws)
-								* (sin2Theta*(DDc(0,0)-DDc(1,1)) - 2.0*cos2Theta*DDc(0,1));
-                    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
-
-				    Boundary_term += crack.cracktype->DDGc(Theta)
-								* (- ws)
-								* (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
-				    if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
+				if (normgrad < 1.E-2)
+                {
+                    df(i,j,k,1) = 0.0;
+                    df(i,j,k,2) = 0.0;
+                    rhs = 0.0;
                 }
+                else{
+				Set::Scalar Boundary_term = 0.;
+                Boundary_term += crack.cracktype->Gc(Theta)*crack.cracktype->Dw_phi(c_old(i,j,k,0),p)/(4.0*crack.cracktype->Zeta(Theta));
+                if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
+
+                Boundary_term -= 2.0*crack.cracktype->Gc(Theta)*crack.cracktype->Zeta(Theta)*laplacian;
+                if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
+
+                Boundary_term += crack.cracktype->DGc(Theta) * zeta * (sin2Theta*(DDc(0,0)-DDc(1,1)) - 2.0*cos2Theta*DDc(0,1));
+                Boundary_term += crack.cracktype->DGc(Theta) * (-zeta) * (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
+
+                Boundary_term += crack.cracktype->DGc(Theta)
+                            * (- ws)
+                            * (sin2Theta*(DDc(0,0)-DDc(1,1)) - 2.0*cos2Theta*DDc(0,1));
+                if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
+
+                Boundary_term += crack.cracktype->DDGc(Theta)
+                            * (- ws)
+                            * (sinTheta*sinTheta*DDc(0,0) + cosTheta*cosTheta*DDc(1,1) - sin2Theta*DDc(0,1));
+                if(std::isnan(Boundary_term)) Util::Abort(INFO,"Boundary term is nan at m=",i,",",j,",",k);
 
 				df(i,j,k,1) = Boundary_term;
 				rhs += Boundary_term;
@@ -670,7 +668,7 @@ Fracture::Advance (int lev, Set::Scalar time, Set::Scalar dt)
 				if(std::isnan(Curvature_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 				df(i,j,k,2) = anisotropy.beta*Curvature_term;
 				rhs += anisotropy.beta*Curvature_term;
-				
+                }
 				
 #elif AMREX_SPACEDIM == 3
 				Util::Abort(INFO, "3D model hasn't been implemented yet");

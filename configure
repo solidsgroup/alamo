@@ -221,11 +221,11 @@ else:
 if (args.geteigen):
     if not os.path.isdir("eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
-        p = subprocess.Popen(("git clone https://github.com/eigenteam/eigen-git-mirror").split(),
+        p = subprocess.Popen(("git clone https://github.com/eigenteam/eigen-git-mirror eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        subprocess.run("mv eigen-git-mirror eigen3".split())
+        #subprocess.run("mv eigen-git-mirror eigen3".split())
     message("Eigen-Directory",".")
     f.write("EIGEN = .\n")
 elif (args.eigen != ""):
