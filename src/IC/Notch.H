@@ -10,7 +10,7 @@ namespace IC
 class Notch : public IC
 {
 public:
-    enum Mollifier {Dirac, Gaussian};
+    enum Mollifier {Dirac, Gaussian, Erf};
 
 	Notch (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
     {
@@ -52,24 +52,33 @@ public:
                 
                 for (int i = 0; i < nCenter.size(); i++)
 				{
-					Set::Scalar value = 0;
+					Set::Scalar value = 1.0;
 	                if(std::abs((x-nCenter[i]).transpose()*nOrientation[i]) <= 0.5*nLength[i])
- 	               {
- 	                   Set::Scalar t = std::abs((x-nCenter[i]).transpose()*nNormal[i]) - (nThickness[i]/2.0);
- 	                   value = 0.5 + 0.5*std::erf(t / eps);
- 	               }
- 	               else
- 	               {
- 	                   Set::Vector nLeft =  nCenter[i] - 0.5*nLength[i]*nOrientation[i];
- 	                   Set::Vector nRight = nCenter[i] + 0.5*nLength[i]*nOrientation[i];
- 	                   Set::Scalar distLeft = (x-nLeft).transpose()*nOrientation[i];
- 	                   Set::Scalar distRight = (x-nRight).transpose()*nOrientation[i];
+					{
+						Set::Scalar t = std::abs((x-nCenter[i]).transpose()*nNormal[i]) - (nThickness[i]/2.0);
+						if (moll == Mollifier::Erf) value = 0.5 + 0.5*std::erf(t / eps);
+						else if (moll == Mollifier::Dirac)
+						{
+							if (t < 0.0) value = 0.0;
+							else value = 1.0;
+						}
+					}
+					else
+					{
+						Set::Vector nLeft =  nCenter[i] - 0.5*nLength[i]*nOrientation[i];
+						Set::Vector nRight = nCenter[i] + 0.5*nLength[i]*nOrientation[i];
+						Set::Scalar distLeft = (x-nLeft).transpose()*nOrientation[i];
+						Set::Scalar distRight = (x-nRight).transpose()*nOrientation[i];
 
- 	                   if(distLeft < 0.)
- 	                       value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
- 	                   if(distRight > 0.)
- 	                       value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
- 	               }
+						if(distLeft < 0.)
+						{
+							if (moll == Mollifier::Erf) value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
+						}
+						if(distRight > 0.)
+						{
+							if (moll == Mollifier::Erf) value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
+						}
+					}
  					min_value = value < min_value ? value : min_value;
             	}
             	field(i,j,k) = min_value;
@@ -143,8 +152,12 @@ public:
         pp.query("mollifier",mollifier);
         if(mollifier == "Dirac" || mollifier == "dirac") 
             value.moll = Mollifier::Dirac;
-        else 
+        else if (mollifier == "gauss" || mollifier == "Gauss")
             value.moll = Mollifier::Gaussian;
+		else if (mollifier == "erf" || mollifier == "Erf")
+			value.moll = Mollifier::Erf;
+		else
+			value.moll = Mollifier::Dirac;
 
 		for (int i=0; i<value.nOrientation.size(); i++)
 			value.nOrientation[i] = value.nOrientation[i] / value.nOrientation[i].lpNorm<2>();
