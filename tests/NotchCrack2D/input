@@ -5,9 +5,9 @@ stop_time = 1.e2
 plot_file = tests/NotchCrack2D/output
 
 amr.plot_int = 100
-amr.max_level = 1
-amr.n_cell = 32 32 
-amr.blocking_factor = 8
+amr.max_level = 6
+amr.n_cell = 64 64 
+amr.blocking_factor = 16
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 
@@ -23,22 +23,30 @@ crack.refinement_threshold = 0.01
 crack.type = constant
 crack.constant.G_c = 5.e2
 crack.constant.zeta = 2.e-3
-crack.constant.mobility = 1.0e-5
+crack.constant.mobility = 1.0e-6
 crack.constant.eta_epsilon = 0.01
 crack.df.mult_Gc = 1.0e0
 crack.df.mult_Lap = 1.0e0
-crack.constant.gtype = square
+crack.constant.gtype = 4c3
 crack.constant.wtype = square
 crack.constant.exponent = 1.e-3
-crack.constant.threshold = 1.e4
+crack.constant.threshold = 0.0
 
 ic.type = notch
 ic.notch.center = 0.0 0.0
 ic.notch.orientation = 1.0 0.0
-ic.notch.length = 0.5
-ic.notch.thickness = 1.5e-2
-ic.notch.eps = 1.5e-2
-ic.notch.mollifier = dirac
+ic.notch.length = 0.25
+ic.notch.thickness = 1.e-2
+ic.notch.eps = 7.e-3
+ic.notch.mollifier = erf
+
+ic.type = notch
+ic.notch2.center = 0.0 0.0
+ic.notch2.orientation = 1.0 0.0
+ic.notch2.length = 0.25
+ic.notch2.thickness = 1.e-2
+ic.notch2.eps = 1.5e-3
+ic.notch2.mollifier = erf
 
 crack.bc.type.xlo = NEUMANN
 crack.bc.type.xhi = NEUMANN
@@ -61,9 +69,9 @@ crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
 crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
 
 material.model = isotropic
-material.isotropic.lambda = 580
-material.isotropic.mu = 385 
-elastic.df_mult = 3.5e7
+material.isotropic.lambda = 5.80
+material.isotropic.mu = 3.85 
+elastic.df_mult = 1.e8
 
 solver.bottom_solver 	=	bicgstab
 solver.int             = 100
@@ -73,7 +81,7 @@ solver.cg_verbose 		=	0
 solver.max_iter		=	10000
 solver.max_fmg_iter 	=	10000
 solver.bottom_max_iter =	500
-solver.max_fixed_iter 	=	500
+solver.max_fixed_iter 	=	200
 solver.linop_maxorder 	=	2
 solver.max_coarsening_level = 100000
 solver.agglomeration 	=	1
