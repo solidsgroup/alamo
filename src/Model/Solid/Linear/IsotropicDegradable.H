@@ -61,14 +61,13 @@ public:
 			return;
 	}
 
-private:
+public:
     Set::Scalar m_mu0 = NAN, m_lambda0 = NAN;
 
 public:
 	static void Parse(IsotropicDegradable & value, IO::ParmParse & pp)
     {
-		Util::Message(INFO);
-        Set::Scalar mu, lambda;
+		Set::Scalar mu, lambda;
         if (pp.contains("lambda") && pp.contains("mu"))
         {
             pp.query("lambda",lambda);
@@ -82,6 +81,7 @@ public:
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
+		Util::Message(INFO, "lambda = ", lambda, ", mu = ", mu);
 		value.Define(mu,mu,lambda,lambda);
 	}
 	AMREX_FORCE_INLINE
