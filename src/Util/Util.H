@@ -50,8 +50,9 @@ void Terminate(const char * msg, int signal, bool backtrace);
 
 void Abort (const char * msg);
 
+template<typename... Args>
 AMREX_FORCE_INLINE
-void Assert (std::string file, std::string func, int line, std::string smt, bool pass)
+void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
 	if (pass) return;
 
@@ -63,7 +64,13 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
 	std::string info = infostream.str();
 
 
-	std::cout << info << std::endl;
+	std::ostringstream messagestream;
+	using List= int[];
+	(void)List{0, ( (void)(messagestream << args), 0 ) ... };
+	std::string message = messagestream.str();
+	String::ReplaceAll(message,'\n',"\n"+info);
+
+	std::cout << info << message << std::endl;
 
 	Abort("Fatal Error");
 }
