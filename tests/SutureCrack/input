@@ -1,7 +1,7 @@
 alamo.program = suturecrack
 
 timestep = 1e-2
-stop_time = 1.e-2
+stop_time = 1.e-1
 plot_file = tests/SutureCrack/output
 
 amr.plot_int = 1
@@ -45,7 +45,7 @@ crack.ic.notch.center = 0.0 0.0
 crack.ic.notch.orientation = 1.0 0.0
 crack.ic.notch.length = 0.1
 crack.ic.notch.thickness = 1.e-2
-crack.ic.notch.eps = 7.e-3
+crack.ic.notch.eps = 5.e-3
 crack.ic.notch.mollifier = erf
 
 crack.bc.type.xlo = NEUMANN
@@ -78,7 +78,7 @@ material2.isotropic.nu = 0.31
 #material2.isotropic.lambda = 780
 #material2.isotropic.mu = 270
 
-elastic.df_mult = 1.e6
+elastic.df_mult = 1.e9
 
 material.ic.type         = bmp
 material.ic.bmp.filename = tests/SutureCrack/Interface_Blur1.bmp
@@ -93,7 +93,7 @@ solver.cg_verbose 		=	0
 solver.max_iter		=	10000
 solver.max_fmg_iter 	=	10000
 solver.bottom_max_iter =	500
-solver.max_fixed_iter 	=	200
+solver.max_fixed_iter 	=	500
 solver.linop_maxorder 	=	2
 solver.max_coarsening_level = 100000
 solver.agglomeration 	=	1
@@ -112,12 +112,27 @@ loading.val = 2.e-2
 elastic.bc.type.xlo = trac trac
 elastic.bc.type.xhi = trac trac
 
+#elastic.bc.type.xlo = disp disp
+#elastic.bc.type.xlo = disp disp
+
 # Mode I
-elastic.bc.type.ylo = trac disp
-elastic.bc.type.xloylo = trac disp
-elastic.bc.type.xhiylo = trac disp
+#elastic.bc.type.ylo = trac disp
+#elastic.bc.type.xloylo = trac disp
+#elastic.bc.type.xhiylo = trac disp
+
+elastic.bc.type.ylo = disp disp
+elastic.bc.type.xloylo = disp disp
+elastic.bc.type.xhiylo = disp disp
 
 # Mode I - displacement
-elastic.bc.type.yhi = trac disp
-elastic.bc.type.xloyhi = trac disp
-elastic.bc.type.xhiyhi = trac disp
+#elastic.bc.type.yhi = trac disp
+#elastic.bc.type.xloyhi = trac disp
+#elastic.bc.type.xhiyhi = trac disp
+
+elastic.bc.type.yhi = disp disp
+elastic.bc.type.xloyhi = disp disp
+elastic.bc.type.xhiyhi = disp disp
+
+elastic.bc.val.yhi = 0.0 0.02
+elastic.bc.val.xloyhi = 0.0 0.02
+elastic.bc.val.xhiyhi = 0.0 0.02

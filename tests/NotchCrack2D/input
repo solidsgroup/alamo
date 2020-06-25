@@ -45,7 +45,7 @@ ic.notch2.center = 0.0 0.0
 ic.notch2.orientation = 1.0 0.0
 ic.notch2.length = 0.25
 ic.notch2.thickness = 1.e-2
-ic.notch2.eps = 1.5e-3
+ic.notch2.eps = 7.e-3
 ic.notch2.mollifier = erf
 
 crack.bc.type.xlo = NEUMANN
@@ -100,12 +100,27 @@ loading.val = 2.e-2
 elastic.bc.type.xlo = trac trac
 elastic.bc.type.xhi = trac trac
 
+#elastic.bc.type.xlo = disp disp
+#elastic.bc.type.xlo = disp disp
+
 # Mode I
-elastic.bc.type.ylo = trac disp
-elastic.bc.type.xloylo = trac disp
-elastic.bc.type.xhiylo = trac disp
+#elastic.bc.type.ylo = trac disp
+#elastic.bc.type.xloylo = trac disp
+#elastic.bc.type.xhiylo = trac disp
+
+elastic.bc.type.ylo = disp disp
+elastic.bc.type.xloylo = disp disp
+elastic.bc.type.xhiylo = disp disp
 
 # Mode I - displacement
-elastic.bc.type.yhi = trac disp
-elastic.bc.type.xloyhi = trac disp
-elastic.bc.type.xhiyhi = trac disp
+#elastic.bc.type.yhi = trac disp
+#elastic.bc.type.xloyhi = trac disp
+#elastic.bc.type.xhiyhi = trac disp
+
+elastic.bc.type.yhi = disp disp
+elastic.bc.type.xloyhi = disp disp
+elastic.bc.type.xhiyhi = disp disp
+
+elastic.bc.val.yhi = 0.0 0.02
+elastic.bc.val.xloyhi = 0.0 0.02
+elastic.bc.val.xhiyhi = 0.0 0.02

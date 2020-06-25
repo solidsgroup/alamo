@@ -127,10 +127,10 @@ public:
 protected:
     void Initialize(int ilev) override
     {
-        //crack.field[ilev]->setVal(1.0);
-        crack.ic->Initialize(ilev,crack.field);
-        crack.ic->Initialize(ilev,crack.field_old);
-        //crack.field_old[ilev]->setVal(1.0);
+        crack.field[ilev]->setVal(1.0);
+        // crack.ic->Initialize(ilev,crack.field);
+        // crack.ic->Initialize(ilev,crack.field_old);
+        crack.field_old[ilev]->setVal(1.0);
 
         elastic.disp[ilev]->setVal(0.0);
         elastic.strain[ilev]->setVal(0.0);
@@ -203,9 +203,9 @@ protected:
         }
 
         // Mode I - displacement
-        elastic.brittlebc.Set(elastic.brittlebc.Face::YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
-        elastic.brittlebc.Set(elastic.brittlebc.Face::XLO_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
-        elastic.brittlebc.Set(elastic.brittlebc.Face::XHI_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
+        // elastic.brittlebc.Set(elastic.brittlebc.Face::YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
+        // elastic.brittlebc.Set(elastic.brittlebc.Face::XLO_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
+        // elastic.brittlebc.Set(elastic.brittlebc.Face::XHI_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
         elastic.brittlebc.Init(elastic.rhs,geom);
 
         Operator::Elastic<brittle_fracture_model_type> op_b;

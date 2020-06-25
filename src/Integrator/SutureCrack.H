@@ -72,9 +72,13 @@ public:
         pp_crack.queryclass("bc",*static_cast<BC::Constant *>(crack.bc));
         pp_crack.queryclass("bc_df",*static_cast<BC::Constant *>(crack.bcdf));
 
-        RegisterNewFab(crack.field,     crack.bc, 1, number_of_ghost_cells, "c",		true);
-        RegisterNewFab(crack.field_old, crack.bc, 1, number_of_ghost_cells, "c_old",	true);
-        RegisterNewFab(crack.driving_force, crack.bcdf, 4, number_of_ghost_cells, "driving_force",true);
+        // RegisterNewFab(crack.field,     crack.bc, 1, number_of_ghost_cells, "c",		true);
+        // RegisterNewFab(crack.field_old, crack.bc, 1, number_of_ghost_cells, "c_old",	true);
+        // RegisterNewFab(crack.driving_force, crack.bcdf, 4, number_of_ghost_cells, "driving_force",true);
+
+        RegisterNodalFab(crack.field,       1, number_of_ghost_nodes, "c",		true);
+        RegisterNodalFab(crack.field_old,   1, number_of_ghost_nodes, "c_old",	true);
+        RegisterNodalFab(crack.driving_force, 4, number_of_ghost_nodes, "driving_force",true);
 
         IO::ParmParse pp_material1("material1");
         pp_material1.queryclass("isotropic",material.brittlemodeltype1);
@@ -144,11 +148,11 @@ public:
 protected:
     void Initialize(int ilev) override
     {
-        //crack.field[ilev]->setVal(1.0);
+        Util::Message(INFO, "ilev = ", ilev);
         crack.ic->Initialize(ilev,crack.field);
         crack.ic->Initialize(ilev,crack.field_old);
-        //crack.field_old[ilev]->setVal(1.0);
-
+        
+        Util::Message(INFO, "ilev = ", ilev);
         elastic.disp[ilev]->setVal(0.0);
         elastic.strain[ilev]->setVal(0.0);
         elastic.stress[ilev]->setVal(0.0);
@@ -158,6 +162,7 @@ protected:
         elastic.energy_pristine[ilev] -> setVal(0.);
         elastic.energy_pristine_old[ilev] -> setVal(0.);
 
+        Util::Message(INFO, "ilev = ", ilev);
         material.ic->Initialize(ilev,material.modulus_field);
         //material.brittlemodel[ilev]->setVal(material.brittlemodeltype1);
     }
@@ -187,36 +192,39 @@ protected:
         }
 
         // Degrading the modulus
-        // for (int ilev = 0; ilev < nlevels; ++ilev)
-        // {
-        //     crack.field[ilev]->FillBoundary();
-        //     material.modulus_field[ilev]->FillBoundary();
-        //     for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
-        //     {
-        //         amrex::Box box = mfi.validbox();//growntilebox(2);
-        //         amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
-        //         amrex::Array4<brittle_fracture_model_type> modelfab = (material.brittlemodel)[ilev]->array(mfi);
+        for (int ilev = 0; ilev < nlevels; ++ilev)
+        {
+            crack.field[ilev]->FillBoundary();
+            material.modulus_field[ilev]->FillBoundary();
+            for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
+            {
+                amrex::Box box = mfi.validbox();//growntilebox(2);
+                amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
+                amrex::Array4<brittle_fracture_model_type> modelfab = (material.brittlemodel)[ilev]->array(mfi);
 
-        //         amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-        //             Set::Scalar _temp = 0;
-        //             Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
+                amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+                    // Set::Scalar _temp = 0;
+                    Set::Scalar _temp = crack.cracktype1->g_phi(c_new(i,j,k,0),0.);
+                    // Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
+                    // if(std::isinf(c_new(i,j,k,0))) Util::Abort(INFO, "infs in c at (",i,",",j,",",k,")");
 
-        //             _temp =  mul*(AMREX_D_TERM(	
-        //                         crack.cracktype1->g_phi(c_new(i,j,k,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j,k,0),0.)
-        //                         , 
-        //                         + crack.cracktype1->g_phi(c_new(i,j-1,k,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j-1,k,0),0.)
-        //                         , 
-        //                         + crack.cracktype1->g_phi(c_new(i,j,k-1,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j,k-1,0),0.)
-        //                         + crack.cracktype1->g_phi(c_new(i,j-1,k-1,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j-1,k-1,0),0.))
-        //                         );
-        //             if (std::isnan(_temp)) Util::Abort(INFO);
-        //             if(_temp < 0.0) _temp = 0.;
-        //             if(_temp > 1.0) _temp = 1.0;
-        //             modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-crack.scaleModulusMax));
-        //         });
-        //     }
-        //     Util::RealFillBoundary(*material.brittlemodel[ilev],geom[ilev]);
-        // }
+
+                    // _temp =  mul*(AMREX_D_TERM(	
+                    //             crack.cracktype1->g_phi(c_new(i,j,k,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j,k,0),0.)
+                    //             , 
+                    //             + crack.cracktype1->g_phi(c_new(i,j-1,k,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j-1,k,0),0.)
+                    //             , 
+                    //             + crack.cracktype1->g_phi(c_new(i,j,k-1,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j,k-1,0),0.)
+                    //             + crack.cracktype1->g_phi(c_new(i,j-1,k-1,0),0.) + crack.cracktype1->g_phi(c_new(i-1,j-1,k-1,0),0.))
+                    //             );
+                    if (std::isnan(_temp)) Util::Abort(INFO);
+                    if(_temp < 0.0) _temp = 0.;
+                    if(_temp > 1.0) _temp = 1.0;
+                    modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-crack.scaleModulusMax));
+                });
+            }
+            Util::RealFillBoundary(*material.brittlemodel[ilev],geom[ilev]);
+        }
 
         // Body force
         for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -230,9 +238,9 @@ protected:
         }
 
         // Mode I - displacement
-        elastic.brittlebc.Set(elastic.brittlebc.Face::YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
-        elastic.brittlebc.Set(elastic.brittlebc.Face::XLO_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
-        elastic.brittlebc.Set(elastic.brittlebc.Face::XHI_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
+        // elastic.brittlebc.Set(elastic.brittlebc.Face::YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
+        // elastic.brittlebc.Set(elastic.brittlebc.Face::XLO_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
+        // elastic.brittlebc.Set(elastic.brittlebc.Face::XHI_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
         elastic.brittlebc.Init(elastic.rhs,geom);
 
         Operator::Elastic<brittle_fracture_model_type> op_b;
@@ -308,8 +316,10 @@ protected:
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
     {
         std::swap(crack.field_old[lev], crack.field[lev]);
+
         crack.field_old[lev]->FillBoundary();
         elastic.energy_pristine[lev]->FillBoundary();
+        
         const Set::Scalar* DX = geom[lev].CellSize();
 
         for ( amrex::MFIter mfi(*crack.field[lev],true); mfi.isValid(); ++mfi )
@@ -323,7 +333,11 @@ protected:
             
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
     			Set::Scalar rhs = 0.0;
+                //Set::Scalar _temp = Numeric::Interpolate::NodeToCellAverage(modbox,i,j,k,0);
                 Set::Scalar _temp = modbox(i,j,k,0);
+
+                if(std::isnan(c_old(i,j,k,0))) Util::Abort(INFO, "nans in c at (",i,",",j,",",k,")");
+                if(std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "infs in c at (",i,",",j,",",k,")");
 
                 Set::Scalar Gc = _temp*crack.cracktype1->Gc(0.0) + (1-_temp)*crack.cracktype2->Gc(0.0);
                 Set::Scalar Zeta = _temp*crack.cracktype1->Zeta(0.0) + (1-_temp)*crack.cracktype2->Zeta(0.0);
