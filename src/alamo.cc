@@ -16,6 +16,7 @@
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
 #include "Integrator/SutureCrack.H"
+#include "Integrator/NotchCrack.H"
 
 int main (int argc, char* argv[])
 {
@@ -74,6 +75,14 @@ int main (int argc, char* argv[])
 	{
 		srand(1.0*amrex::ParallelDescriptor::MyProc());
 		Integrator::Fracture model;
+		model.InitData();
+		model.Evolve();
+		//delete model;
+	}
+	else if (program == "notchcrack")
+	{
+		srand(1.0*amrex::ParallelDescriptor::MyProc());
+		Integrator::NotchCrack model;
 		model.InitData();
 		model.Evolve();
 		//delete model;
