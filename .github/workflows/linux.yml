@@ -8,17 +8,19 @@ on:
 
 jobs:
   build:
+    name: linux
     runs-on: ubuntu-latest
+    steps:
     - uses: actions/checkout@v2
     - name: installing preliminaries
       run: sudo apt-get update && sudo apt-get install -qq software-properties-common
     - name: updating compilers
-      run: 'add-apt-repository -y ppa:ubuntu-toolchain-r/test &&                                                              
-            apt-get update -qq &&                                                                                             
-            apt-get install -qq g++-6  &&                                                                                     
-            update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90 &&                                               
-            apt-get install -y mpich libmpich-dev libmpich12 gfortran libeigen3-dev &&                                        
-            export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/' 
+      run: add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+            apt-get update -qq && \
+            apt-get install -qq g++-6  && \
+            update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 90 && \
+            apt-get install -y mpich libmpich-dev libmpich12 gfortran libeigen3-dev && \
+            export LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib/gcc/x86_64-linux-gnu/4.8/
     - name: configure (2d)
       run: ./configure --dim=2 --no-diff
     - name: make (2d)
