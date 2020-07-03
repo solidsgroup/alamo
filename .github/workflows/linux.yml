@@ -10,7 +10,6 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
     - uses: actions/checkout@v2
     - name: installing preliminaries
       run: sudo apt-get update && sudo apt-get install -qq software-properties-common
