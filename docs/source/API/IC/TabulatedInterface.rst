@@ -3,7 +3,7 @@ Tabulated Interface
 
 
 
-.. doxygenclass:: IC::Tabulated
+.. doxygenclass:: IC::TabulatedInterface
    :project: alamo
    :members:
    :protected-members:
