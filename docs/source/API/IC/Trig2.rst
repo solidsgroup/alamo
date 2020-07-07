@@ -1,10 +1,10 @@
-Cubic
+Trig2
 -----
 
-.. doxygenclass:: Model::Solid::Linear::Cubic
+
+
+.. doxygenclass:: IC::Trig2
    :project: alamo
-   :members: 
+   :members:
    :protected-members:
    :private-members:
-
-
