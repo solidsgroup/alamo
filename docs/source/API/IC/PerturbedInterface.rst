@@ -8,7 +8,7 @@ The initial boundary is the x = z = 0 plane, and is perturbed using a user defin
     :align: center
 
 
-.. doxygenclass:: IC::Peturbed
+.. doxygenclass:: IC::PerturbedInterface
    :project: alamo
    :members:
    :protected-members:
