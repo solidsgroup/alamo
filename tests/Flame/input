@@ -14,8 +14,8 @@ amr.blocking_factor	= 1               # * Minimum size of each block
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
 amr.grid_eff        = 0.001          # * Closeness of regrid patch to tagged region (default = 0.7) 
 
-geometry.prob_lo    = -15 -05 -06  # Problem domain: furthest point to the lower left
-geometry.prob_hi    =15 05 06     # Problem domain: furthest point to the upper right
+geometry.prob_lo    = -1.5 -0.5 -0.2  # Problem domain: furthest point to the lower left
+geometry.prob_hi    =1.5 0.5 0.2     # Problem domain: furthest point to the upper right
 #geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
 geometry.is_periodic= 1 1 1           #babu
 
@@ -37,11 +37,11 @@ physics.cp1         = 1.0    # Specific heat before burn
 physics.cp0         = 1.0    # Specific heat after burn
 physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 
-physics.fs_number   = 100
-physics.fs_min      = 0.088
-physics.fs_max      = 0.177
-physics.mean=0.125
-physics.std_deviation=0.0386
+physics.fs_number   = 3
+physics.fs_min      = -0.5
+physics.fs_max      = 0.5
+physics.mean=0.2
+physics.std_deviation=0.0
 
 TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo	= EXT_DIR INT_DIR INT_DIR 
