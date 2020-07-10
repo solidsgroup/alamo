@@ -48,7 +48,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
     'breathe',
-    'm2r'
+#    'm2r'
 ]
 
 breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
