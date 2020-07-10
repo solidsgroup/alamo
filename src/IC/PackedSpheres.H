@@ -60,21 +60,14 @@ public:
 		type = a_type;
 
 		
+		
+		//double vf=0.2;
 		double R_min=0.1;
 		double R_max=0.2;
        
 
-		// set up a list of subomains
-		// set up a vector of vectors of R.
-		//     std::vector<std::vector<Set::Scalar>> R;
-		//
-		//  // R[subdomain_index][index_in_subdomain]
-		//
-		//  R.resize(number_of_subdomains)
-		//  for (int i = 0; i < R.size() ; i++)
-		//     R[i].push_back(radius) 
-
-		// std::pair<Set::Scalar,Set::Vector> sphere; 
+	  
+		
 	     
 		std::vector <amrex::Real> sph_vol(1);   
 		std::vector <amrex::Real> sph_nos(1); 
@@ -99,7 +92,9 @@ public:
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
 		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
-       
+        std::cout<<std::fixed<<std::setprecision(8)<<"R  "<<R[n]<<endl;
+		std::cout<<std::fixed<<std::setprecision(8)<<"sphere nos  "<<sph_nos[n]<<endl;
+		std::cout<<std::fixed<<std::setprecision(8)<<"sphere vol  "<<sph_vol[n]<<endl;
 		}
 
 		else if (n>0)
@@ -110,13 +105,16 @@ public:
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
 		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
-        
+        std::cout<<std::fixed<<std::setprecision(8)<<"R  "<<R[n]<<endl;
+		std::cout<<std::fixed<<std::setprecision(8)<<"sphere nos  "<<sph_nos[n]<<endl;
+		std::cout<<std::fixed<<std::setprecision(8)<<"sphere vol  "<<sph_vol[n]<<endl;
 		}
 		}
         
 		
 		
         pack_size=std::accumulate(sph_nos.begin(),sph_nos.end(),0);
+		std::cout<<"pack_size   "<<pack_size<<endl;
 		
         packedspheres.resize(pack_size);
        std::vector<double>::iterator it;
@@ -173,7 +171,10 @@ for (int i=0; i<number_of_grains;i++)
 
 std::reverse(R_new.begin(),R_new.end());
 
-
+for (int i=0; i<pack_size;i++)
+{
+	std::cout<<std::fixed<<std::setprecision(8)<<"R_new    "<<R_new[i]<<endl;
+}
 
   	if (rank==0)
 		{
@@ -283,7 +284,15 @@ while (i<1000)
 	}
 	while (total<pack_size);
 	}
-	
+	for (int n=0;n<pack_size;n++)
+	{
+	std::cout<<"packedspheres  "<<packedspheres[n]<<endl;
+	}
+
+	for (int n=0;n<pack_size;n++)
+	{
+	std::cout<<"R_new "<<R_new[n]<<endl;
+	}
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -307,50 +316,20 @@ while (i<1000)
 			amrex::Box bx = mfi.tilebox();
 			bx.grow(a_field[lev]->nGrow());
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
-			{
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                  Set::Vector x;
 				 int min_grain_id = -1;
-				 
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-<<<<<<< HEAD
 			    
-=======
-			
-				// suppose we have divisions at X = 0, 1, 2, 3; Y = 0, 1, 2, 3
-				// Let's say in this iteration, we have x = [1.5, 0.1]
-				//   (we know it should end up in the [1,2]x[0,1] box.
-				// How do we calculate it?
-				// for (int i =0 ; i < 4; i++)
-				//      if (X[i] <= x && X[i+1] > x) then x is in this box!
-				//
-				// basically, let's figure out what division we are in NOW, based on x.
-				// then, below, we can filter which spheres we look at.
-				
-				// now we know what box we are in
 
-				// so let's iterate through only those spheres in that box and the adjacent boxes. 
-
-
-				// as a check, in this loop, print out the domain that this point (x) is in
-				
->>>>>>> 7bdd513c1fcdb8a74ad71108e9a89c4d9ad97866
-
-				for (int n = 0; n<pack_size; n++) // iterating over EVERY sphere
+				for (int n = 0; n<pack_size; n++)
 				{ 
 			    Set::Scalar d ;
 				Set::Scalar d1; 
 							
-<<<<<<< HEAD
 				
-=======
-				packedspheres.resize(pack_size); // you don't need this line ... it resizes and fills with EMPTY spheres
-				// if you get at segmentation fault when calling packedspheres[i], it probably means that you have not created all the spheres (yet)
-				//    check (print) packedspheres.size() ... this will tell you whether they have been created
-				//    if packedspheres.size() = 10, then calling packedspheres[10] will segfault
->>>>>>> 7bdd513c1fcdb8a74ad71108e9a89c4d9ad97866
                  
 				
 				for(int v=-2;v<2;v++)	
@@ -359,21 +338,14 @@ while (i<1000)
 				 {
 
 				 
-<<<<<<< HEAD
 					if ((x(0)> (size(0)*(u*0.125))) && (x(0) < (size(0)*((u+1)*0.125))) && (x(1)> (size(1)*(v*0.25))) && (x(1)<  (size(1)*((v+1)*0.25))))
-=======
-					 // Purpose of if statment: to divide the domain.
-					 // When should this if statement be true?
-					 //    ---> only when the POINT (x) lies within the domain
-					 if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25)))) // this if statement does not depend on x!! 
->>>>>>> 7bdd513c1fcdb8a74ad71108e9a89c4d9ad97866
 					{
 
 					 d = (x - packedspheres[n]).lpNorm<2>();
 					 d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
-						    d1 = std::min( (x-packedspheres[n] + size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>(), // doing these calculations for EVERY SPHERE
+						    d1 = std::min( (x-packedspheres[n] + size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>(),
 										  (x-packedspheres[n] - size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>());
 						 
 						}
@@ -398,13 +370,7 @@ while (i<1000)
 
 				      d= std::min(d,d1); 
 
-<<<<<<< HEAD
                    
-=======
-					  R_new.resize(pack_size); // TODO not necessary! Remove and fix the segfault
-					
-					//std::cout<<"R_new 2  "<<R_new[n]<<endl;
->>>>>>> 7bdd513c1fcdb8a74ad71108e9a89c4d9ad97866
 					if (d<R_new[n])
 						{
 							min_grain_id = 0;
