@@ -390,12 +390,12 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
     //==================================================
     // Setting the elastic boundary conditions
     {
-        BC::Operator::Elastic<ductile_fracture_model_type>::Type bctype_d = BC::Operator::Elastic<ductile_fracture_model_type>::Type::Displacement;
-        BC::Operator::Elastic<brittle_fracture_model_type>::Type bctype_b = BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement;
+        BC::Operator::Elastic::Type bctype_d = BC::Operator::Elastic::Type::Displacement;
+        BC::Operator::Elastic::Type bctype_b = BC::Operator::Elastic::Type::Displacement;
         if (loading.load == LoadType::Force)
         {
-            bctype_d = BC::Operator::Elastic<ductile_fracture_model_type>::Type::Traction;
-            bctype_b = BC::Operator::Elastic<brittle_fracture_model_type>::Type::Traction;
+            bctype_d = BC::Operator::Elastic::Type::Traction;
+            bctype_b = BC::Operator::Elastic::Type::Traction;
         }
         
         if (loading.mode == ModeType::ModeI)
@@ -440,8 +440,8 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
 
     //==================================================
     // Setting up the solver parameters
-    Operator::Elastic<brittle_fracture_model_type> op_b;
-    Operator::Elastic<ductile_fracture_model_type> op_d;
+    Operator::Elastic<brittle_fracture_model_type::sym> op_b;
+    Operator::Elastic<ductile_fracture_model_type::sym> op_d;
     {
         LPInfo info;
         info.setAgglomeration(sol.agglomeration);

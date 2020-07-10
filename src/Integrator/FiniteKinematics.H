@@ -75,7 +75,7 @@ protected:
         for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
         for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
-        Operator::Elastic<model_type> op;
+        Operator::Elastic<model_type::sym> op;
         op.SetUniform(false);
         amrex::LPInfo info;
         //info.setMaxCoarseningLevel(0);
@@ -181,7 +181,7 @@ private:
     Set::Vector b = Set::Vector::Zero();
     
     struct {
-        BC::Operator::Elastic<model_type> bc;
+        BC::Operator::Elastic bc;
     } elastic;
     
 
