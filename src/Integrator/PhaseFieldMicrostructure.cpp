@@ -14,9 +14,6 @@
 #include "IC/Random.H"
 #include "IC/Trig.H"
 #include "IC/Sphere.H"
-//#include "Model/Solid/LinearElastic/Isotropic.H"
-//#include "Model/Solid/LinearElastic/MultiWell.H"
-//#include "Model/Solid/LinearElastic/Laplacian.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -69,7 +66,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		anisotropy.plot_int = plot_int;
 		pp.query("plot_int", anisotropy.plot_int);
 		anisotropy.plot_dt = plot_dt;
-		pp.query("plot_int", anisotropy.plot_dt);
+		pp.query("plot_dt", anisotropy.plot_dt);
 		pp.query("thermo_int", anisotropy.thermo_int);
 		pp.query("thermo_plot_int", anisotropy.thermo_plot_int);
 		pp.query("elastic_int",anisotropy.elastic_int);
@@ -538,7 +535,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
 		{
-			amrex::Box bx = mfi.grownnodaltilebox(2);
+			amrex::Box bx = mfi.grownnodaltilebox(-1,2);
 
 			amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
 			amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);

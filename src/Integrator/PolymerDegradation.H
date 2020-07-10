@@ -26,16 +26,14 @@
 
 
 #include "Operator/Elastic.H"
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
-//#include "Model/Solid/LinearElastic/Laplacian.H"
+#include "Model/Solid/Linear/IsotropicDegradableTanh.H"
+#include "Model/Solid/Linear/IsotropicDegradable.H"
 
 
 namespace Integrator
 {
-using pd_model_type = Model::Solid::LinearElastic::Degradable::Isotropic;
-//using pd_model_type = Model::Solid::LinearElastic::Isotropic;
-//using pd_model_type = Model::Solid::LinearElastic::Laplacian;
+//using pd_model_type = Model::Solid::Linear::IsotropicDegradableTanh;
+using pd_model_type = Model::Solid::Linear::IsotropicDegradable;
 
 ///
 /// \class PolymerDegradation
@@ -68,21 +66,17 @@ protected:
 
 private:
 
-	int number_of_ghost_cells = 2;
+	int number_of_ghost_cells = 3;
+	int number_of_ghost_nodes = 2;
 
 	// Degradation variable
 	Set::Field<Set::Scalar> eta_new; 		///< Degradation variable for the __current__timestep
 	Set::Field<Set::Scalar> eta_old;		///< Degradation variable for the __previous__timestep
 
-	Set::Field<Set::Scalar> eta_w_new; 		///< Degradation variable for the __current__timestep
-	Set::Field<Set::Scalar> eta_w_old;		///< Degradation variable for the __previous__timestep
-
-	Set::Field<Set::Scalar> eta_T_new; 		///< Degradation variable for the __current__timestep
-	Set::Field<Set::Scalar> eta_T_old;		///< Degradation variable for the __previous__timestep
-
 	// For water induced degradation
 	Set::Field<Set::Scalar> water_conc;		///< Water concentration for the __current__timestep
 	Set::Field<Set::Scalar> water_conc_old;	///< Water concentration for the __previous__timestep
+	Set::Field<Set::Scalar> damage_start_time;
 
 	// For temperature induced degradation
 	Set::Field<Set::Scalar> Temp;			///< Temperature for the __current__timestep
@@ -128,13 +122,19 @@ private:
 
 	// Damage parameters
 	struct{
-		std::string		type;
-		bool			anisotropy 					= false;
-		int				number_of_eta 				= 1;
-		Set::Scalar		refinement_threshold		= 0.01;
-		std::string 	ic_type;
-		IC::IC			*ic;
-		BC::BC<Set::Scalar>			*bc;
+		std::string									type;
+		bool										anisotropy 					= false;
+		int											number_of_eta 				= 1;
+		amrex::Vector<Set::Scalar>					d_final;
+		amrex::Vector<int>							number_of_terms;
+		amrex::Vector<amrex::Vector<Set::Scalar> > 	d_i;
+		amrex::Vector<amrex::Vector<Set::Scalar> > 	tau_i;
+		amrex::Vector<amrex::Vector<Set::Scalar> > 	t_start_i;
+		Set::Scalar									refinement_threshold		= 0.01;
+		std::string 								ic_type;
+		IC::IC										*ic;
+		BC::BC<Set::Scalar>										*bc;
+		BC::BC<Set::Scalar>										*bc_time;
 	} damage;
 
 	// Damage model: water relaxation
@@ -160,7 +160,12 @@ private:
 		Set::Scalar bottom_tol 				= 1.0E-6;
 		bool        on 						= false;
 		int         interval	 			= 1;
-		std::string type;
+		std::string type					= "single";
+		amrex::Vector<Set::Scalar> test_time;
+		Set::Scalar test_rate				= 1.; 
+		Set::Scalar test_duration			= 2.;
+		Set::Scalar test_dt					= 0.01;
+		int			current_test			= 0;
 		int         max_iter 				= 200;
 		int         max_fmg_iter 			= 0;
 		int 		bottom_max_iter			= 200;
@@ -184,21 +189,25 @@ private:
 		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
 		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
-		Set::Vector AMREX_D_DECL(bc_left,bc_bottom,bc_back);
-		Set::Vector AMREX_D_DECL(bc_right,bc_top,bc_front);
-		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_left_t,bc_bottom_t,bc_back_t);
-		//amrex::Vector<Set::Scalar> AMREX_D_DECL(bc_right_t,bc_top_t,bc_front_t);
-		
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
+
+		BC::Operator::Elastic<pd_model_type> bc;
+		//Operator::Elastic<pd_model_type> op;
+		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
+
 	} elastic;
 
-	pd_model_type 		*modeltype;
-	std::string 	input_material = "isotropic";
+	struct{
+		pd_model_type 		modeltype;
+		std::string 	input_material = "isotropic";
+		Set::Scalar		yieldstrength = 18.;
+		Set::Field<pd_model_type> model;
+	} material;
 
 	std::vector<std::string> PlotFileNameNode (std::string plot_file_name, int lev) const;
 
-	Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_left,interpolate_bottom,interpolate_back);
-	Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_right,interpolate_top,interpolate_front);
+	//Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_left,interpolate_bottom,interpolate_back);
+	//Numeric::Interpolator::Linear<Set::Vector> AMREX_D_DECL(interpolate_right,interpolate_top,interpolate_front);
 
 };
 }

@@ -1,12 +1,19 @@
 // TODO: Remove these 
-#include "Model/Solid/LinearElastic/Degradable/Isotropic.H"
 
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
+#include "Model/Solid/Linear/IsotropicDegradable.H"
+#include "Model/Solid/Linear/IsotropicDegradableTanh.H"
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Affine/IsotropicDegradable.H"
+#include "Model/Solid/Affine/CubicDegradable.H"
+#include "Model/Solid/Affine/J2Plastic.H"
+#include "Model/Solid/Affine/J2PlasticDegradable.H"
+#include "Model/Solid/Affine/CrystalPlastic.H"
+#include "Model/Solid/Affine/CrystalPlasticDegradable.H"
 #include "Elastic.H"
 
 #include "Numeric/Stencil.H"
@@ -530,7 +537,8 @@ Elastic<T>::Energy (int amrlev,
 
 					    // energy(i,j,k) = (gradu.transpose() * sig).trace();
 						
-						Util::Abort(INFO,"Fix this"); //energy(i,j,k) = C(i,j,k).W(gradu);
+						//Util::Abort(INFO,"Fix this"); //
+						//energy(i,j,k) = C(i,j,k).W(gradu);
 						for (int m = 0; m < AMREX_SPACEDIM; m++)
 						{
 							for(int n = 0; n < AMREX_SPACEDIM; n++)
@@ -577,7 +585,7 @@ Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiF
 			     		 gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
 			     		 gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
 		    }
-			 
+		 	 
 			for (unsigned int p = 0; p < a_models.size(); p++)
 			{
 				energies(i,j,k,p) = a_models[p].W(gradu);
@@ -788,14 +796,20 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 }
 
 // TODO : Remove these template specializations once Mobility and PD are upgraded
-template class Elastic<Model::Solid::LinearElastic::Degradable::Isotropic>;
+template class Elastic<Model::Solid::Linear::IsotropicDegradable>;
+template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
 
 template class Elastic<Model::Solid::Elastic::NeoHookean>;
 template class Elastic<Model::Solid::Affine::Isotropic>;
+template class Elastic<Model::Solid::Affine::IsotropicDegradable>;
 template class Elastic<Model::Solid::Affine::Cubic>;
+template class Elastic<Model::Solid::Affine::CubicDegradable>;
 template class Elastic<Model::Solid::Linear::Isotropic>;
 template class Elastic<Model::Solid::Linear::Laplacian>;
 template class Elastic<Model::Solid::Linear::Cubic>;
-
+template class Elastic<Model::Solid::Affine::CrystalPlastic>;
+template class Elastic<Model::Solid::Affine::CrystalPlasticDegradable>;
+template class Elastic<Model::Solid::Affine::J2Plastic>;
+template class Elastic<Model::Solid::Affine::J2PlasticDegradable>;
 }
 
