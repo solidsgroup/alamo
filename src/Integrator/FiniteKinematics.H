@@ -20,7 +20,6 @@
 
 #include "IO/ParmParse.H"
 
-#include "Model/Solid/Elastic/Elastic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
 

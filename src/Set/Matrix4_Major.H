@@ -34,6 +34,15 @@ public:
         for (int l = 0; l < 2; l++)
             (*this)(i,j,k,l) = in(i,j,k,l);
     }
+    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 2; k++)
+        for (int l = 0; l < 2; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
     #endif
     
     AMREX_FORCE_INLINE
@@ -220,6 +229,15 @@ public:
         for (int l = 0; l < 3; l++)
             (*this)(i,j,k,l) = in(i,j,k,l);
     }
+    Matrix4(const Matrix4<3,Sym::MajorMinor> &in)
+    {
+        // TODO: very inefficient, need to optimize
+        for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+        for (int k = 0; k < 3; k++)
+        for (int l = 0; l < 3; l++)
+            (*this)(i,j,k,l) = in(i,j,k,l);
+    }
     #endif
 
     AMREX_FORCE_INLINE
@@ -336,7 +354,7 @@ public:
     Set::Scalar Norm()
     {
         Set::Scalar retsq = 0;
-        for (int i = 0; i < 45; i++) retsq += data[i];
+        for (int i = 0; i < 45; i++) retsq += data[i]*data[i];
         return std::sqrt(retsq);
     }
     

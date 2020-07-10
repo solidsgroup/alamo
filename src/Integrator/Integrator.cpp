@@ -581,17 +581,29 @@ Integrator::MakeNewLevelFromScratch (int lev, amrex::Real t, const amrex::BoxArr
 }
 
 std::vector<std::string>
-Integrator::PlotFileName (int lev) const
+Integrator::PlotFileName (int lev,std::string prefix) const
 {
 	BL_PROFILE("Integrator::PlotFileName");
 	std::vector<std::string> name;
-	name.push_back(plot_file+"/");
+	name.push_back(plot_file+"/"+prefix+"/");
 	name.push_back(amrex::Concatenate("", lev, 5));
 	return name;
 }
 
 void
 Integrator::WritePlotFile (bool initial) const
+{
+	WritePlotFile(t_new[0], istep, initial, "");
+}
+void
+Integrator::WritePlotFile (std::string prefix, Set::Scalar time, int step) const
+{
+	amrex::Vector<int> istep(max_level + 1, step);
+	WritePlotFile(time, istep, false, prefix);
+}
+
+void
+Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial, std::string prefix) const
 {
 	BL_PROFILE("Integrator::WritePlotFile");
 	const int nlevels = finest_level+1;
@@ -660,13 +672,13 @@ Integrator::WritePlotFile (bool initial) const
 		}
 	}
 
-	std::vector<std::string> plotfilename = PlotFileName(istep[0]);
+	std::vector<std::string> plotfilename = PlotFileName(istep[0],prefix);
 	if (initial) plotfilename[1] = plotfilename[1] + "init";
   
 	if (ccomponents > 0)
 	{
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
-					Geom(), t_new[0],istep, refRatio());
+					Geom(), time, iter, refRatio());
 	
 		std::ofstream chkptfile;
 		chkptfile.open(plotfilename[0]+plotfilename[1]+"cell/Checkpoint");
@@ -677,7 +689,7 @@ Integrator::WritePlotFile (bool initial) const
 	if (ncomponents > 0)
 	{
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
-					Geom(), t_new[0],istep, refRatio());
+					Geom(), time, iter, refRatio());
 	}
 
 	if (amrex::ParallelDescriptor::IOProcessor())

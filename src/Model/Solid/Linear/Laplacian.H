@@ -7,7 +7,6 @@
 
 #include "Util/Util.H"
 #include "Set/Set.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
 
 namespace Model
 {
