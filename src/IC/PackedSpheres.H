@@ -37,31 +37,29 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _mean =0.05, amrex::Real _std_deviation=0) : IC(_geom) 
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _std_deviation=0) : IC(_geom) 
 	{
-    	Define(_number_of_grains,a_alpha,_mean,_std_deviation);
+    	Define(_number_of_grains,a_alpha,_volume_fraction,_std_deviation);
   	}
 
-  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_mean=0.05, amrex::Real a_std_deviation =0)
+  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_std_deviation =0)
 	{
-    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_mean, a_std_deviation,Type::Partition);
+    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_std_deviation,Type::Partition);
   	}
 
 	void Define (int a_number_of_grains,
 				 std::vector<Set::Scalar> a_alpha,
-				 amrex::Real a_mean,
+				 amrex::Real a_volume_fraction,
                  amrex::Real a_std_deviation,
 				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
 		alpha = a_alpha;
-		vf= a_mean;
+		vf= a_volume_fraction;
         std_deviation=a_std_deviation;
 		type = a_type;
 
 		
-		
-		//double vf=0.2;
 		double R_min=0.1;
 		double R_max=0.2;
        
@@ -92,9 +90,7 @@ public:
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
 		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
-        std::cout<<std::fixed<<std::setprecision(8)<<"R  "<<R[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere nos  "<<sph_nos[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere vol  "<<sph_vol[n]<<endl;
+       
 		}
 
 		else if (n>0)
@@ -105,16 +101,13 @@ public:
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
 		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
-        std::cout<<std::fixed<<std::setprecision(8)<<"R  "<<R[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere nos  "<<sph_nos[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere vol  "<<sph_vol[n]<<endl;
+        
 		}
 		}
         
 		
 		
         pack_size=std::accumulate(sph_nos.begin(),sph_nos.end(),0);
-		std::cout<<"pack_size   "<<pack_size<<endl;
 		
         packedspheres.resize(pack_size);
        std::vector<double>::iterator it;
@@ -171,10 +164,7 @@ for (int i=0; i<number_of_grains;i++)
 
 std::reverse(R_new.begin(),R_new.end());
 
-for (int i=0; i<pack_size;i++)
-{
-	std::cout<<std::fixed<<std::setprecision(8)<<"R_new    "<<R_new[i]<<endl;
-}
+
 
   	if (rank==0)
 		{
@@ -284,15 +274,7 @@ while (i<1000)
 	}
 	while (total<pack_size);
 	}
-	for (int n=0;n<pack_size;n++)
-	{
-	std::cout<<"packedspheres  "<<packedspheres[n]<<endl;
-	}
-
-	for (int n=0;n<pack_size;n++)
-	{
-	std::cout<<"R_new "<<R_new[n]<<endl;
-	}
+	
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -316,24 +298,23 @@ while (i<1000)
 			amrex::Box bx = mfi.tilebox();
 			bx.grow(a_field[lev]->nGrow());
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+			{
                  Set::Vector x;
 				 int min_grain_id = -1;
+				 
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-			
+			    
 
 				for (int n = 0; n<pack_size; n++)
 				{ 
 			    Set::Scalar d ;
 				Set::Scalar d1; 
 							
-				packedspheres.resize(pack_size);
+				
                  
-				//int factx=0.125;
-				//int facty=0.25;
-				//int factz=0.5; 
 				
 				for(int v=-2;v<2;v++)	
 				{
@@ -341,11 +322,11 @@ while (i<1000)
 				 {
 
 				 
-					if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25))))
+					if ((x(0)> (size(0)*(u*0.125))) && (x(0) < (size(0)*((u+1)*0.125))) && (x(1)> (size(1)*(v*0.25))) && (x(1)<  (size(1)*((v+1)*0.25))))
 					{
 
 					 d = (x - packedspheres[n]).lpNorm<2>();
-					 d1 = 100;                
+					 d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
 						    d1 = std::min( (x-packedspheres[n] + size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>(),
@@ -368,30 +349,26 @@ while (i<1000)
 #endif
                  
 						}        
-				   
-				  
-				
-				   //------------------------------------------------------------
-
-
+				     
+					 
 
 				      d= std::min(d,d1); 
 
-                    R_new.resize(pack_size);
-					
-					//std::cout<<"R_new 2  "<<R_new[n]<<endl;
+                   
 					if (d<R_new[n])
 						{
 							min_grain_id = 0;
 							
-						}	
+						}
+					
+							
 				 }
 				}
 				}
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
-			//}
+			
 			});
 		}
 	}
