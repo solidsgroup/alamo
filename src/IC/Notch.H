@@ -73,10 +73,22 @@ public:
 						if(distLeft < 0.)
 						{
 							if (moll == Mollifier::Erf) value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
+							else if (moll == Mollifier::Dirac)
+							{
+								Set::Scalar t = (x-nLeft).lpNorm<2>() - nThickness[i]/2.0;
+								if (t < 0.0) value = 0.0;
+								else value = 1.0;
+							}
 						}
 						if(distRight > 0.)
 						{
 							if (moll == Mollifier::Erf) value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
+							else if (moll == Mollifier::Dirac)
+							{
+								Set::Scalar t = (x-nRight).lpNorm<2>() - nThickness[i]/2.0;
+								if (t < 0.0) value = 0.0;
+								else value = 1.0;
+							}
 						}
 					}
  					min_value = value < min_value ? value : min_value;
