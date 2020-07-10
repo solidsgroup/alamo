@@ -51,10 +51,10 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 		info.setMaxCoarseningLevel(m_maxCoarseningLevel);
 	nlevels = geom.size();
 
-	::Operator::Elastic<model_type> elastic;
+	::Operator::Elastic<model_type::sym> elastic;
 	elastic.SetUniform(false);
 	elastic.define(geom, cgrids, dmap, info);
-	BC::Operator::Elastic<model_type> bc;
+	BC::Operator::Elastic bc;
 
 	if (component == 0)
 	{

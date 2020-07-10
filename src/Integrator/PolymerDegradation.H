@@ -186,14 +186,14 @@ private:
 		bool 		consolidation 	  		= false;
 
 		// Elastic BC
-		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
-		std::array<BC::Operator::Elastic<pd_model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
+		std::array<BC::Operator::Elastic::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xlo, bc_ylo, bc_zlo);
+		std::array<BC::Operator::Elastic::Type,AMREX_SPACEDIM> AMREX_D_DECL(bc_xhi, bc_yhi, bc_zhi);
 
 		amrex::Vector<Set::Scalar> body_force = {AMREX_D_DECL(0.0,0.0,0.0)};
 
-		BC::Operator::Elastic<pd_model_type> bc;
+		BC::Operator::Elastic bc;
 		//Operator::Elastic<pd_model_type> op;
-		std::map<std::string,BC::Operator::Elastic<pd_model_type>::Type >        bc_map;
+		std::map<std::string,BC::Operator::Elastic::Type >        bc_map;
 
 	} elastic;
 
