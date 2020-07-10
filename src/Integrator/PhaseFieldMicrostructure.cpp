@@ -517,7 +517,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < rhs_mf.size(); lev++)
 		rhs_mf[lev]->setVal(0.0);
 
-	Operator::Elastic<model_type> elasticop;
+	Operator::Elastic<model_type::sym> elasticop;
 	elasticop.SetUniform(false);
 	amrex::LPInfo info;
 	//info.setMaxCoarseningLevel(0);

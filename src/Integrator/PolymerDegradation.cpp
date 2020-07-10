@@ -231,12 +231,12 @@ PolymerDegradation::PolymerDegradation():
 		amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 
 		
-		elastic.bc_map["displacement"] 	= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
-		elastic.bc_map["disp"] 			= BC::Operator::Elastic<pd_model_type>::Type::Displacement;
-		elastic.bc_map["traction"] 		= BC::Operator::Elastic<pd_model_type>::Type::Traction;
-		elastic.bc_map["trac"] 			= BC::Operator::Elastic<pd_model_type>::Type::Traction;
-		elastic.bc_map["neumann"] 		= BC::Operator::Elastic<pd_model_type>::Type::Neumann;
-		elastic.bc_map["periodic"] 		= BC::Operator::Elastic<pd_model_type>::Type::Periodic;
+		elastic.bc_map["displacement"] 	= BC::Operator::Elastic::Type::Displacement;
+		elastic.bc_map["disp"] 			= BC::Operator::Elastic::Type::Displacement;
+		elastic.bc_map["traction"] 		= BC::Operator::Elastic::Type::Traction;
+		elastic.bc_map["trac"] 			= BC::Operator::Elastic::Type::Traction;
+		elastic.bc_map["neumann"] 		= BC::Operator::Elastic::Type::Neumann;
+		elastic.bc_map["periodic"] 		= BC::Operator::Elastic::Type::Periodic;
 
 		
 		amrex::ParmParse pp_temp;
@@ -620,7 +620,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		rhs[ilev]->setVal(0.0);
 	}
 
-	Operator::Elastic<pd_model_type> elastic_op;
+	Operator::Elastic<pd_model_type::sym> elastic_op;
 	elastic_op.define(geom, grids, dmap, info);
 
 	elastic_op.setMaxOrder(elastic.linop_maxorder);
