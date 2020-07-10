@@ -118,7 +118,7 @@ protected:
         elastic.bc.Init(rhs_mf,geom);
 
         amrex::LPInfo info;
-        Operator::Elastic<Model::Solid::Affine::Isotropic> elastic_op(geom, grids, dmap, info);
+        Operator::Elastic<Model::Solid::Affine::Isotropic::sym> elastic_op(geom, grids, dmap, info);
         elastic_op.SetUniform(false);
         elastic_op.SetBC(&elastic.bc);
 
@@ -187,7 +187,7 @@ private:
     struct {
         Model::Solid::Affine::Isotropic model;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
-        BC::Operator::Elastic<model_type> bc;
+        BC::Operator::Elastic bc;
     } elastic;
 
 };
