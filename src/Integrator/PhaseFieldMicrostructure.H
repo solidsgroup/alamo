@@ -75,6 +75,7 @@ private:
 	// Cell fab
 	Set::Field<Set::Scalar> eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	Set::Field<Set::Scalar> eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+	Set::Field<Set::Scalar> fluct_mf;
 	// Node fab
 	Set::Field<Set::Scalar> disp_mf; 
 	Set::Field<Set::Scalar> rhs_mf; 
@@ -108,6 +109,8 @@ private:
 		Set::Scalar theta0,sigma0,sigma1;
 		Set::Scalar phi0 = 0.0;
 		int elastic_int = -1;
+		Set::Scalar fluct_amp = 0.0;
+		Set::Scalar fluct_sd = 0.0;
 	} anisotropy;
 	
 	struct { 
