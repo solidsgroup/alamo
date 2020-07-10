@@ -75,6 +75,10 @@ public:
         RegisterNewFab(crack.field_old, crack.bc, 1, number_of_ghost_cells, "c_old",	true);
         RegisterNewFab(crack.driving_force, crack.bcdf, 4, number_of_ghost_cells, "driving_force",true);
 
+        // RegisterNodalFab(crack.field,     1, number_of_ghost_nodes, "c",		true);
+        // RegisterNodalFab(crack.field_old, 1, number_of_ghost_nodes, "c_old",	true);
+        // RegisterNodalFab(crack.driving_force, 4, number_of_ghost_nodes, "driving_force",true);
+
         IO::ParmParse pp_material("material");
         pp_material.queryclass("isotropic",material.brittlemodeltype);
 
@@ -119,7 +123,7 @@ public:
         RegisterNodalFab(elastic.energy_pristine, 1, number_of_ghost_nodes, "energy_pristine", true);
         RegisterNodalFab(elastic.energy_pristine_old, 1, number_of_ghost_nodes, "energy_pristine_old", true);
         RegisterNewFab(material.modulus_field, crack.bc, 1, number_of_ghost_cells, "modulus_field", true);
-        //RegisterNodalFab(material.modulus_field, 1, number_of_ghost_nodes, "modulus_field", true);
+        // RegisterNodalFab(material.modulus_field, 1, number_of_ghost_nodes, "modulus_field", true);
         RegisterGeneralFab(material.brittlemodel, 1, number_of_ghost_nodes);
 
     }
@@ -127,9 +131,9 @@ public:
 protected:
     void Initialize(int ilev) override
     {
-        crack.field[ilev]->setVal(1.0);
         // crack.ic->Initialize(ilev,crack.field);
         // crack.ic->Initialize(ilev,crack.field_old);
+        crack.field[ilev]->setVal(1.0);
         crack.field_old[ilev]->setVal(1.0);
 
         elastic.disp[ilev]->setVal(0.0);
@@ -164,11 +168,12 @@ protected:
             {
                 amrex::Box box = mfi.growntilebox(2);
                 amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
-                //amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
                 amrex::Array4<brittle_fracture_model_type> modelfab = (material.brittlemodel)[ilev]->array(mfi);
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
+                    // _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0.);
                     Set::Scalar mul = AMREX_D_PICK(0.5,0.25,0.125);
 
                     _temp =  mul*(AMREX_D_TERM(	
@@ -179,8 +184,18 @@ protected:
                                 + crack.cracktype->g_phi(c_new(i,j,k-1,0),0.) + crack.cracktype->g_phi(c_new(i-1,j,k-1,0),0.)
                                 + crack.cracktype->g_phi(c_new(i,j-1,k-1,0),0.) + crack.cracktype->g_phi(c_new(i-1,j-1,k-1,0),0.))
                                 );
+
+                    _temp *=  mul*(AMREX_D_TERM(	
+                                crack.cracktype->g_phi(modbox(i,j,k,0),0.) + crack.cracktype->g_phi(modbox(i-1,j,k,0),0.)
+                                , 
+                                + crack.cracktype->g_phi(modbox(i,j-1,k,0),0.) + crack.cracktype->g_phi(modbox(i-1,j-1,k,0),0.)
+                                , 
+                                + crack.cracktype->g_phi(modbox(i,j,k-1,0),0.) + crack.cracktype->g_phi(modbox(i-1,j,k-1,0),0.)
+                                + crack.cracktype->g_phi(modbox(i,j-1,k-1,0),0.) + crack.cracktype->g_phi(modbox(i-1,j-1,k-1,0),0.))
+                                );
                     //Set::Scalar _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_new,i,j,k,0),0.0);
-                    //_temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
+                    // _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
+                    // _temp = modbox(i,j,k,0);
                     //_temp *= crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(modbox,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) _temp = 0.;
@@ -265,7 +280,7 @@ protected:
                         if(eValues(n) > 0.0) epsp += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                         else epsn += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                     }
-                    //Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
+                    // Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
                     Set::Scalar _temp = (AMREX_D_PICK(0.5,0.25,0.125))*(AMREX_D_TERM(	
                                 crack.cracktype->g_phi(modbox(i,j,k,0),0.) + crack.cracktype->g_phi(modbox(i-1,j,k,0),0.)
                                 , 
@@ -289,6 +304,7 @@ protected:
     {
         std::swap(crack.field_old[lev], crack.field[lev]);
         crack.field_old[lev]->FillBoundary();
+        material.modulus_field[lev]->FillBoundary();
         elastic.energy_pristine[lev]->FillBoundary();
         const Set::Scalar* DX = geom[lev].CellSize();
 
@@ -303,22 +319,28 @@ protected:
             
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
     			Set::Scalar rhs = 0.0;
-                Set::Scalar _temp = modbox(i,j,k,0);
-                //Set::Scalar _temp = Numeric::Interpolate::NodeToCellAverage(modbox,i,j,k,0);
-                Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
-                if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
+                Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
+                Set::Scalar normgrad = Dc.lpNorm<2>();
+                
+                //if (normgrad > 1.e-3)
+                {
+                    Set::Scalar _temp = modbox(i,j,k,0);
+                    // Set::Scalar _temp = Numeric::Interpolate::NodeToCellAverage(modbox,i,j,k,0);
+                    Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
+                    if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
 
-                df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
-                rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                    df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                    rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
 
-                Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
-			    Set::Scalar laplacian = DDc.trace();
+                    Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
+                    Set::Scalar laplacian = DDc.trace();
 
-                df(i,j,k,1) = crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-				df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                    df(i,j,k,1) = crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                    df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
 
-				rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-				rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                    rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                    rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                }
 
                 //rhs *= crack.cracktype->g_phi(_temp,0.0);
 
