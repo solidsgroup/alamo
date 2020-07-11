@@ -37,26 +37,28 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _std_deviation=0) : IC(_geom) 
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _R_min=0.1,amrex::Real _R_max=0.2) : IC(_geom) 
 	{
-    	Define(_number_of_grains,a_alpha,_volume_fraction,_std_deviation);
+    	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max);
   	}
 
-  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_std_deviation =0)
+  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_R_min =0.1,amrex::Real a_R_max =0.2)
 	{
-    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_std_deviation,Type::Partition);
+    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_R_min,a_R_max,Type::Partition);
   	}
 
 	void Define (int a_number_of_grains,
 				 std::vector<Set::Scalar> a_alpha,
 				 amrex::Real a_volume_fraction,
-                 amrex::Real a_std_deviation,
+                 amrex::Real a_R_min,
+				 amrex::Real a_R_max,
 				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
 		alpha = a_alpha;
 		vf= a_volume_fraction;
-        std_deviation=a_std_deviation;
+        R_min=a_R_min;
+		R_max=a_R_max;
 		type = a_type;
 
 		
@@ -64,11 +66,7 @@ public:
 		//double vf=0.2;
 		double R_min=0.1;
 		double R_max=0.2;
-       
-
-	  
-		
-	     
+    
 		std::vector <amrex::Real> sph_vol(1);   
 		std::vector <amrex::Real> sph_nos(1); 
 		
@@ -82,6 +80,8 @@ public:
 					 int total=0;
 					 R.resize(number_of_grains); 
 
+
+        // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
 		if (n==0)
@@ -92,9 +92,7 @@ public:
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
 		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
-        std::cout<<std::fixed<<std::setprecision(8)<<"R  "<<R[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere nos  "<<sph_nos[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere vol  "<<sph_vol[n]<<endl;
+     
 		}
 
 		else if (n>0)
@@ -105,16 +103,14 @@ public:
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
 		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
-        std::cout<<std::fixed<<std::setprecision(8)<<"R  "<<R[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere nos  "<<sph_nos[n]<<endl;
-		std::cout<<std::fixed<<std::setprecision(8)<<"sphere vol  "<<sph_vol[n]<<endl;
+      
 		}
 		}
         
 		
 		
         pack_size=std::accumulate(sph_nos.begin(),sph_nos.end(),0);
-		std::cout<<"pack_size   "<<pack_size<<endl;
+		
 		
         packedspheres.resize(pack_size);
        std::vector<double>::iterator it;
@@ -124,7 +120,7 @@ public:
 	
 	int inc=0;
 	int jj=0;
-
+// matching the total no of elements with the total no spheres
 for (int i=0; i<number_of_grains;i++)
 {
 	
@@ -171,10 +167,7 @@ for (int i=0; i<number_of_grains;i++)
 
 std::reverse(R_new.begin(),R_new.end());
 
-for (int i=0; i<pack_size;i++)
-{
-	std::cout<<std::fixed<<std::setprecision(8)<<"R_new    "<<R_new[i]<<endl;
-}
+
 
   	if (rank==0)
 		{
@@ -284,15 +277,6 @@ while (i<1000)
 	}
 	while (total<pack_size);
 	}
-	for (int n=0;n<pack_size;n++)
-	{
-	std::cout<<"packedspheres  "<<packedspheres[n]<<endl;
-	}
-
-	for (int n=0;n<pack_size;n++)
-	{
-	std::cout<<"R_new "<<R_new[n]<<endl;
-	}
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -309,7 +293,8 @@ while (i<1000)
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 
-
+      
+		
 			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
@@ -323,14 +308,14 @@ while (i<1000)
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 			    
-
+                  
 				for (int n = 0; n<pack_size; n++)
 				{ 
 			    Set::Scalar d ;
 				Set::Scalar d1; 
 							
 				
-                 
+               //dividing the domain in to 8 x direction and 4 in y direction and none in z direction  
 				
 				for(int v=-2;v<2;v++)	
 				{
@@ -397,7 +382,8 @@ private:
 	std::vector <amrex::Real> R_new;
 	std::vector <amrex::Real> R;
     amrex::Real vf;
-    amrex::Real std_deviation;
+    amrex::Real R_min;
+	amrex::Real R_max;
 	int rank;
 	Type type;
 	amrex::Vector<amrex::Real> packedspheres_x;

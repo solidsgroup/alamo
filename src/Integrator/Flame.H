@@ -52,8 +52,11 @@ private:
 	int fs_number = 200;
 	amrex::Real fs_min = -1.0;
 	amrex::Real fs_max = 1.0;
-	amrex::Real mean = 0.1;
-	amrex::Real std_deviation = 0.05;
+	//amrex::Real mean = 0.1;
+	amrex::Real volume_fraction = 0.1;
+	//amrex::Real std_deviation = 0.05;
+	amrex::Real R_min = 0.1;
+	amrex::Real R_max = 0.2;
 	
 	IC::IC *EtaIC;
 
