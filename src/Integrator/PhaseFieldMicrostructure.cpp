@@ -147,13 +147,20 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		else if (ic_type == "packedspheres")
 		{
 			int total_grains = number_of_grains;
-			amrex::Real mean =mean;
-			amrex::Real std_deviation= std_deviation;
+			//amrex::Real mean =mean;
+			amrex::Real volume_fraction = volume_fraction;
+			//amrex::Real std_deviation= std_deviation;
+			amrex::Real R_min= R_min;
+			amrex::Real R_max= R_max;
 
 			pp.query("packedspheres.number_of_grains", total_grains);
-			pp.query("mean", mean);
-			pp.query("std_deviation",std_deviation);
-			ic = new IC::PackedSpheres(geom,total_grains,mean,std_deviation);
+			pp.query("volume_fraction", volume_fraction);
+			//pp.query("mean", mean);
+			//pp.query("std_deviation",std_deviation);
+			pp.query("R_min",R_min);
+			pp.query("R_max",R_max);
+			//ic = new IC::PackedSpheres(geom,total_grains,mean,std_deviation);
+			ic = new IC::PackedSpheres(geom,total_grains,volume_fraction,R_min,R_max);
 		}
 		else if (ic_type == "circle" || ic_type == "sphere")
 		//else if (ic_type == "sphere")

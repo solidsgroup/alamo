@@ -40,8 +40,9 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 physics.fs_number   = 3
 physics.fs_min      = -0.5
 physics.fs_max      = 0.5
-physics.mean=0.2
-physics.std_deviation=0.0
+physics.volume_fraction=0.2
+physics.R_min=0.1
+physics.R_max=0.2
 
 TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo	= EXT_DIR INT_DIR INT_DIR 

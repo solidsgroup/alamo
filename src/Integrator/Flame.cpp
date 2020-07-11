@@ -19,8 +19,11 @@ Flame::Flame () : Integrator()
   pp.query("cp0",cp0);
   pp.query("qdotburn",qdotburn);
   pp.query("fs_number",fs_number);
-  pp.query("std_deviation",std_deviation);
-  pp.query("mean",mean);
+  //pp.query("std_deviation",std_deviation);
+  pp.query("R_min",R_min);
+  pp.query("R_max",R_max);
+  pp.query("volume_fraction",volume_fraction);
+  //pp.query("mean",mean);
   pp.query("fs_min",fs_min);
   pp.query("fs_max",fs_max);
 
@@ -70,7 +73,8 @@ Flame::Flame () : Integrator()
   std::vector<Set::Scalar> fs(fs_number);
   for (int i = 0; i < fs_number; i++) fs[i] = 0.5*(1.0 + Util::Random());
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
-  PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
+  //PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
+   PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);
 
   EtaIC = new IC::Wedge(geom);
   // EtaIC = new IC::Constant(geom,value);
