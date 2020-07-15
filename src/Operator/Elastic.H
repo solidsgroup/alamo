@@ -8,7 +8,7 @@
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
 #include "Test/Operator/Elastic.H"
-#include "BC/Operator/Elastic.H"
+#include "BC/Operator/Elastic/Elastic.H"
 
 using namespace amrex;
 
@@ -56,7 +56,7 @@ public:
 
 	/// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
 	///
-	void SetBC (::BC::Operator::Elastic *a_bc) 
+	void SetBC (::BC::Operator::Elastic::Elastic *a_bc) 
 	{
 		if (this->Geom(0).isAnyPeriodic()) 
 		{
@@ -65,7 +65,7 @@ public:
 		m_bc = a_bc;
 		m_bc_set = true;
 	};
-	::BC::Operator::Elastic & GetBC()
+	::BC::Operator::Elastic::Elastic & GetBC()
 	{
 		return *m_bc;
 	}
@@ -154,7 +154,7 @@ private:
 	bool m_uniform = false;
 	bool m_homogeneous = false;
 
-	::BC::Operator::Elastic *m_bc;
+	::BC::Operator::Elastic::Elastic *m_bc;
 
 	bool m_model_set = false;
 	bool m_bc_set = false;
