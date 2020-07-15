@@ -39,9 +39,6 @@ public:
 
 	enum Direction {AMREX_D_DECL(X=0,Y=1,Z=2)}; 
 
- 	Elastic();
- 	~Elastic() {};
-
 	void 
 	SetTime(const Set::Scalar a_time) {m_time = a_time;}
 
@@ -50,7 +47,7 @@ public:
 	     const amrex::Geometry &a_geom,
 		 bool a_homogeneous = false) const = 0;
 
-	virtual void
+	void
 	Init(amrex::Vector<amrex::MultiFab *> &a_rhs,
 	     const amrex::Vector<amrex::Geometry> &a_geom,
 		 bool a_homogeneous = false) const
@@ -59,7 +56,7 @@ public:
 			Init(a_rhs[ilev],a_geom[ilev],a_homogeneous);
 	}
 
-	virtual void
+	void
 	Init(amrex::Vector<amrex::MultiFab> &a_rhs,
 	    const amrex::Vector<amrex::Geometry> &a_geom,
 		bool a_homogeneous = false) const
@@ -68,7 +65,7 @@ public:
 		Init(pa_rhs,a_geom,a_homogeneous);
 	}
 
-	virtual void
+	void
 	Init(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &a_rhs,
 	    const amrex::Vector<amrex::Geometry> &a_geom,
 		bool a_homogeneous = false) const
@@ -77,7 +74,7 @@ public:
 		Init(pa_rhs,a_geom,a_homogeneous);
 	}
 
-	virtual void
+	void
 	Init(std::unique_ptr<amrex::MultiFab> a_rhs,
 	    const amrex::Geometry &a_geom,
 		bool a_homogeneous = false) const
@@ -89,7 +86,6 @@ public:
 #define SQRT2INV 0.70710678118
 
 
- 	AMREX_FORCE_INLINE
 	virtual
  	Set::Vector operator () (const Set::Vector &u,
  				 const Set::Matrix &gradu,

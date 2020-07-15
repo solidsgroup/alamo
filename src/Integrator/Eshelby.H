@@ -12,6 +12,7 @@
 
 #include "IC/IC.H"
 #include "BC/BC.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
@@ -187,7 +188,7 @@ private:
     struct {
         Model::Solid::Affine::Isotropic model;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
-        BC::Operator::Elastic bc;
+        BC::Operator::Elastic::Constant bc;
     } elastic;
 
 };

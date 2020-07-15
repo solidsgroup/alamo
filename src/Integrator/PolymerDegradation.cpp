@@ -231,12 +231,12 @@ PolymerDegradation::PolymerDegradation():
 		amrex::Vector<std::string> AMREX_D_DECL(bc_x_hi_str,bc_y_hi_str,bc_z_hi_str);
 
 		
-		elastic.bc_map["displacement"] 	= BC::Operator::Elastic::Type::Displacement;
-		elastic.bc_map["disp"] 			= BC::Operator::Elastic::Type::Displacement;
-		elastic.bc_map["traction"] 		= BC::Operator::Elastic::Type::Traction;
-		elastic.bc_map["trac"] 			= BC::Operator::Elastic::Type::Traction;
-		elastic.bc_map["neumann"] 		= BC::Operator::Elastic::Type::Neumann;
-		elastic.bc_map["periodic"] 		= BC::Operator::Elastic::Type::Periodic;
+		elastic.bc_map["displacement"] 	= BC::Operator::Elastic::Constant::Type::Displacement;
+		elastic.bc_map["disp"] 			= BC::Operator::Elastic::Constant::Type::Displacement;
+		elastic.bc_map["traction"] 		= BC::Operator::Elastic::Constant::Type::Traction;
+		elastic.bc_map["trac"] 			= BC::Operator::Elastic::Constant::Type::Traction;
+		elastic.bc_map["neumann"] 		= BC::Operator::Elastic::Constant::Type::Neumann;
+		elastic.bc_map["periodic"] 		= BC::Operator::Elastic::Constant::Type::Periodic;
 
 		
 		amrex::ParmParse pp_temp;
