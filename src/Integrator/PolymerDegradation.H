@@ -17,7 +17,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
-#include "BC/Operator/Elastic.H"
+#include "BC/Operator/Elastic/Constant.H"
 #include "IC/IC.H"
 #include "IC/Constant.H"
 #include "Numeric/Interpolator/Linear.H"
