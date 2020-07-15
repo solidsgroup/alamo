@@ -72,7 +72,8 @@ public:
 		
 		int p=0;
 	    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-	
+	   if (rank==0)
+		{
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
@@ -165,12 +166,9 @@ for (int i=0; i<number_of_grains;i++)
 	       
 }
 
-std::reverse(R_new.begin(),R_new.end());
+         std::reverse(R_new.begin(),R_new.end());
 
 
-
-  	if (rank==0)
-		{
         std::vector <amrex::Real> dd(pack_size-1);
 		std::vector <amrex::Real> R_n(pack_size-1);
 		std::vector <amrex::Real> count(pack_size);
@@ -276,12 +274,31 @@ while (i<1000)
 
 	}
 	while (total<pack_size);
-	}
-	R_new.resize(pack_size);
-	packedspheres.resize(pack_size);
+	
+
+ 
+//dividing the domain in to 8 sub domains in the  x direction 
+
+for(int n=0;n<pack_size;n++)
+       {
+       for (int u=-4;u<4;u++) 
+		    {
+
+				 
+			if ((  packedspheres[n](0) > (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*(u+1)*0.125)))
+				{
+					//int nn=u+4;
+					int nn=1;
+					region.push_back({packedspheres[n],R_new[n],nn});//storing points, radius and the domain number in terms of vector of tuples
+				}	
+
+	        }  
+	   }	         
+
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
-
+	MPI_Bcast(region.data(), region.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+	}
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
@@ -294,84 +311,81 @@ while (i<1000)
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 
       
+	
 		
-			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
 			bx.grow(a_field[lev]->nGrow());
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            
+			
+            //n represents index of vector of tuple region
+            for (int n = 0; n<pack_size; n++)
+				{
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+			{
                  Set::Vector x;
 				 int min_grain_id = -1;
-				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
+				
+			    //get<2> (region[0]) is the domain number-----> It should act act as a conversion factor which restricts the x search only in its domain
+
+                AMREX_D_TERM(x(0) =geom[lev].ProbLo()[0]+(((amrex::Real)(i)+ 0.5)*geom[lev].CellSize()[0])*get<2> (region[0]);,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
-							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-			    
-                  
-				for (int n = 0; n<pack_size; n++)
-				{ 
+							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);	  
+				
 			    Set::Scalar d ;
-				Set::Scalar d1; 
-							
+				Set::Scalar d1; 				
 				
-               //dividing the domain in to 8 x direction and 4 in y direction and none in z direction  
-				
-				for(int v=-2;v<2;v++)	
-				{
-				 for (int u=-4;u<4;u++) 
-				 {
+               
 
-				 
-					if ((x(0)> (size(0)*(u*0.125))) && (x(0) < (size(0)*((u+1)*0.125))) && (x(1)> (size(1)*(v*0.25))) && (x(1)<  (size(1)*((v+1)*0.25))))
-					{
-
-					 d = (x - packedspheres[n]).lpNorm<2>();
+					 d = (x - get<0> (region[0])).lpNorm<2>();
+					 
 					 d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
-						    d1 = std::min( (x-packedspheres[n] + size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>(),
-										  (x-packedspheres[n] - size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>());
+						    d1 = std::min( (x-get<0> (region[n]) + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										  (x-get<0> (region[n])- size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+									  
 						 
 						}
 #if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-							d1 = std::min( (x-packedspheres[n] + size(1)*0.5*Set::Vector::Unit(1)).lpNorm<2>(),
-										  (x-packedspheres[n] - size(1)*0.5*Set::Vector::Unit(1)).lpNorm<2>());
+							d1 = std::min( (x-get<0> (region[n]) + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										  (x-get<0> (region[n]) - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 #endif
 #if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-							d1 = std::min( (x-packedspheres[n] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										  (x-packedspheres[n] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+							d1 = std::min( (x-get<0> (region[n]) + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										  (x-get<0> (region[n]) - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
-                 
-						}        
-				     
-					 
+                 			 
 
 				      d= std::min(d,d1); 
-
+                      
                    
-					if (d<R_new[n])
+					if (d< get<1>(region[n]))
 						{
 							min_grain_id = 0;
 							
-						}
-					
 							
-				 }
-				}
-				}
+						}
+				
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
 			
 			});
+
+		  }	
+
+			
 		}
+	  
 	}
 	
 private:
@@ -379,6 +393,7 @@ private:
 	int pack_size;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
+	std::vector<std::tuple<Set::Vector,amrex::Real,amrex::Real>> region;
 	std::vector <amrex::Real> R_new;
 	std::vector <amrex::Real> R;
     amrex::Real vf;
