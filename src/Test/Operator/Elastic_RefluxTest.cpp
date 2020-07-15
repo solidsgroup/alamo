@@ -30,12 +30,12 @@ int Elastic::RefluxTest(int verbose)
 
 
 
-	::Operator::Elastic<Model::Solid::Linear::Isotropic> elastic;
+	::Operator::Elastic<Model::Solid::Linear::Isotropic::sym> elastic;
  	elastic.define(geom, cgrids, dmap, info);
 
 	Util::Abort(INFO,"SetModel is no longer required - use Newton solver");//elastic.SetModel(modelfab);
 
-	BC::Operator::Elastic<model_type> bc;
+	BC::Operator::Elastic bc;
 	elastic.SetBC(&bc);
 
 
@@ -54,13 +54,13 @@ int Elastic::RefluxTest(int verbose)
 	for (std::vector<Set::Vector>::iterator n = ns.begin(); n != ns.end(); n++)
 	for (std::vector<Set::Vector>::iterator b = bs.begin(); b != bs.end(); b++)
 	{
-		::Operator::Elastic<model_type> mlabec;
+		::Operator::Elastic<model_type::sym> mlabec;
 	
 		mlabec.define(geom, cgrids, dmap, info);
 		mlabec.setMaxOrder(2);
 		Util::Abort(INFO,"Need to fix this!"); //mlabec.SetModel(modelfab);
 
-		BC::Operator::Elastic<model_type> bc;
+		BC::Operator::Elastic bc;
 		mlabec.SetBC(&bc);
 
 

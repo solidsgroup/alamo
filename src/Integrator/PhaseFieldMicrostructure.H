@@ -154,11 +154,11 @@ private:
 
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
-		Operator::Elastic<model_type> op;
+		std::array<BC::Operator::Elastic::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
+		std::array<BC::Operator::Elastic::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
+		Operator::Elastic<model_type::sym> op;
 
-		BC::Operator::Elastic<model_type> bc;
+		BC::Operator::Elastic bc;
 
 		Set::Scalar strainenergy = 0.0;
 		Set::Scalar force = 0.0;

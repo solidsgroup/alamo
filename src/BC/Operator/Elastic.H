@@ -9,7 +9,6 @@ namespace BC
 {
 namespace Operator
 {
-template<class T>
 class Elastic
 {
 public:
@@ -212,7 +211,7 @@ public:
 	    const amrex::Geometry &a_geom,
 		bool a_homogeneous = false) const
 	{
-		Init(a_rhs,a_geom,a_homogeneous);
+		Init(a_rhs.get(),a_geom,a_homogeneous);
 	}
 
 #define SQRT3INV 0.57735026919

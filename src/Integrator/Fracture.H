@@ -135,8 +135,8 @@ private:
         Set::Field<Set::Scalar> energy_pristine;      ///< energy of the prisitne material as if no crack is present
         Set::Field<Set::Scalar> energy_pristine_old;  ///< energy of the pristine material for previous time step.
 
-        BC::Operator::Elastic<brittle_fracture_model_type> 	brittlebc;  ///< elastic BC if using brittle fracture
-        BC::Operator::Elastic<ductile_fracture_model_type> 	ductilebc;  ///< elastic BC if using ductile fracture
+        BC::Operator::Elastic 	brittlebc;  ///< elastic BC if using brittle fracture
+        BC::Operator::Elastic 	ductilebc;  ///< elastic BC if using ductile fracture
 		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
     } elastic;
 
