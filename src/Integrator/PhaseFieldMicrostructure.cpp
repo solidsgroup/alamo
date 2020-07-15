@@ -165,7 +165,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
-	RegisterNewFab(fluct_mf, mybc, 1, number_of_ghost_cells, "fluct",true);
+	
+ 	RegisterNewFab(fluct_mf, new BC::Nothing(), 1, number_of_ghost_cells, "fluct",true);
 	
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
