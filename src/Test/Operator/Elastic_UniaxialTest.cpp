@@ -5,6 +5,7 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 namespace Test
 {
@@ -54,7 +55,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
 	::Operator::Elastic<model_type::sym> elastic;
 	elastic.SetUniform(false);
 	elastic.define(geom, cgrids, dmap, info);
-	BC::Operator::Elastic bc;
+	BC::Operator::Elastic::Constant bc;
 
 	if (component == 0)
 	{

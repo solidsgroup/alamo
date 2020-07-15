@@ -4,6 +4,7 @@
 #include "IC/Affine.H"
 #include "Model/Solid/Linear/Isotropic.H"
 #include "Elastic.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 namespace Test
 {
@@ -35,7 +36,7 @@ int Elastic::RefluxTest(int verbose)
 
 	Util::Abort(INFO,"SetModel is no longer required - use Newton solver");//elastic.SetModel(modelfab);
 
-	BC::Operator::Elastic bc;
+	BC::Operator::Elastic::Constant bc;
 	elastic.SetBC(&bc);
 
 
@@ -60,7 +61,7 @@ int Elastic::RefluxTest(int verbose)
 		mlabec.setMaxOrder(2);
 		Util::Abort(INFO,"Need to fix this!"); //mlabec.SetModel(modelfab);
 
-		BC::Operator::Elastic bc;
+		BC::Operator::Elastic::Constant bc;
 		mlabec.SetBC(&bc);
 
 
