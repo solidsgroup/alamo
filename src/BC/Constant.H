@@ -105,6 +105,7 @@ public:
 		bcmap["Dirichlet"]        = (int)amrex::LinOpBCType::Dirichlet;
 		bcmap["dirichlet"]        = (int)amrex::LinOpBCType::Dirichlet;
 		bcmap["Neumann"]          = (int)amrex::LinOpBCType::Neumann;
+		bcmap["NEUMANN"]          = (int)amrex::LinOpBCType::Neumann;
 		bcmap["neumann"]          = (int)amrex::LinOpBCType::Neumann;
 		bcmap["reflect_odd"]      = (int)amrex::LinOpBCType::reflect_odd;
 		bcmap["Marshak"]          = (int)amrex::LinOpBCType::Marshak;
@@ -128,31 +129,33 @@ public:
 		
 		std::vector<std::string> str;
 		pp.queryarr("type.xlo",str); 
-			if (str.size() == value.m_ncomp) 
-			{
-				for (unsigned int i = 0; i < value.m_ncomp; i++) 
-					value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]); 
-			}
+			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
+			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of xlo BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 		pp.queryarr("type.xhi",str);
+			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of xhi BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 		pp.queryarr("type.ylo",str);
+			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::YLO].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of ylo BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 		pp.queryarr("type.yhi",str);
+			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of yhi BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 		#if AMREX_SPACEDIM==3
 		pp.queryarr("type.zlo",str);
+			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of zlo BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
 		pp.queryarr("type.zhi",str);
+			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::ZHI].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of zhi BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());

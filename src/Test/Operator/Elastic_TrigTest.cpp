@@ -49,13 +49,13 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
  	if (m_maxCoarseningLevel > -1) info.setMaxCoarseningLevel(m_maxCoarseningLevel);
  	nlevels = geom.size();
 
-	::Operator::Elastic<model_type> elastic;
+	::Operator::Elastic<model_type::sym> elastic;
 	elastic.SetUniform(false);
  	elastic.define(geom, cgrids, dmap, info);
 
 	// Set up boundary conditions, and 
 	// configure the problem so that it is 1D, 2D, or 3D
-	BC::Operator::Elastic<model_type> bc;
+	BC::Operator::Elastic bc;
 	if (dim == 1)
 	{
 		AMREX_D_TERM(,// nothing to do in 1D case
