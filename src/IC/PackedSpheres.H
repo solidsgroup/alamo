@@ -321,16 +321,16 @@ for(int n=0;n<pack_size;n++)
             
 			
             //n represents index of vector of tuple region
-            for (int n = 0; n<pack_size; n++)
-				{
+           
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
                  Set::Vector x;
 				 int min_grain_id = -1;
 				
 			    //get<2> (region[0]) is the domain number-----> It should act act as a conversion factor which restricts the x search only in its domain
-
-                AMREX_D_TERM(x(0) =geom[lev].ProbLo()[0]+(((amrex::Real)(i)+ 0.5)*geom[lev].CellSize()[0])*get<2> (region[0]);,
+              for (int n = 0; n<pack_size; n++)
+				{
+                AMREX_D_TERM(x(0) =geom[lev].ProbLo()[0]+(((amrex::Real)(i)+ 0.5)*geom[lev].CellSize()[0])*get<2> (region[n]);,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);	  
 				
@@ -374,14 +374,14 @@ for(int n=0;n<pack_size;n++)
 							
 							
 						}
-				
+				}
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
 			
 			});
 
-		  }	
+		  
 
 			
 		}
