@@ -74,6 +74,7 @@ public:
 		Set(face,direction,type,value,pa_rhs,a_geom);
 	}
 
+	using Elastic::Init;
 	virtual void
 	Init(amrex::MultiFab * a_rhs,
 	     const amrex::Geometry &a_geom,

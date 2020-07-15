@@ -5,6 +5,7 @@
 #include "Operator/Elastic.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 namespace Test
 {
