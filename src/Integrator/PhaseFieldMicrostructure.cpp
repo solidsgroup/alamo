@@ -117,7 +117,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("amp",fluctuation.amp);
 		pp.query("sd",fluctuation.sd);
 		fluctuation.norm_dist = std::normal_distribution<double>(0.0,fluctuation.sd);
-		RegisterNewFab(fluct_mf, mybc, 1, number_of_ghost_cells, "fluct",true);
+		
 	}
 
 	{
@@ -165,7 +165,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
-
+	RegisterNewFab(fluct_mf, mybc, 1, number_of_ghost_cells, "fluct",true);
+	
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
 	RegisterIntegratedVariable(&area, "area");
