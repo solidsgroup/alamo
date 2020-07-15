@@ -7,6 +7,8 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <random>
+#include <chrono>
 
 #include "AMReX.H"
 #include "AMReX_ParmParse.H"
@@ -109,8 +111,6 @@ private:
 		Set::Scalar theta0,sigma0,sigma1;
 		Set::Scalar phi0 = 0.0;
 		int elastic_int = -1;
-		Set::Scalar fluct_amp = 0.0;
-		Set::Scalar fluct_sd = 0.0;
 	} anisotropy;
 	
 	struct { 
@@ -119,6 +119,14 @@ private:
 		Set::Scalar vol0 = 0.0;
 		Set::Scalar lambda = 0.0;
 	} lagrange;
+
+	struct {
+		int on = 0;
+		Set::Scalar amp = 0.0;
+		Set::Scalar sd = 0.0;
+		std::normal_distribution<double> norm_dist;
+		std::default_random_engine rand_num_gen;
+	} fluctuation;
 
 	std::string ic_type, gb_type, filename;
 

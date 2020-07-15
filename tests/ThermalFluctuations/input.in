@@ -42,8 +42,11 @@ anisotropy.elastic_int = 100
 anisotropy.thermo_int = 10
 anisotropy.tstart= 1.0
 anisotropy.damp=1.0
-anisotropy.fluctuation_amp=3.0e-09
-anisotropy.fluctuation_sd=1.0e-10
+
+
+fluctuation.on=1
+fluctuation.amp=0.025 #3.0e-09
+fluctuation.sd=0.5 #1.0e-10
 
 elastic.on = 1
 elastic.tstart = 2.0
