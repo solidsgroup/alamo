@@ -350,7 +350,7 @@ public:
 private:
     int m_nriters = 1;
     Operator::Elastic<T::sym> &m_elastic;
-    BC::Operator::Elastic &m_bc;
+    BC::Operator::Elastic::Elastic &m_bc;
 
 public:
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)
