@@ -73,8 +73,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("thermo_int", anisotropy.thermo_int);
 		pp.query("thermo_plot_int", anisotropy.thermo_plot_int);
 		pp.query("elastic_int",anisotropy.elastic_int);
-		pp.query("fluctuation_amp",anisotropy.fluct_amp);
-		pp.query("fluctuation_sd",anisotropy.fluct_sd);
 
 		std::map<std::string, RegularizationType> regularization_type;
 		regularization_type["wilmore"] = RegularizationType::Wilmore;
@@ -111,6 +109,15 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		{
 			Util::Abort(INFO,"A GB model must be specified");
 		}
+	}
+
+	{
+		IO::ParmParse pp("fluctuation");
+		pp.query("on",fluctuation.on);
+		pp.query("amp",fluctuation.amp);
+		pp.query("sd",fluctuation.sd);
+		fluctuation.norm_dist = std::normal_distribution<double>(0.0,fluctuation.sd);
+		RegisterNewFab(fluct_mf, mybc, 1, number_of_ghost_cells, "fluct",true);
 	}
 
 	{
@@ -158,7 +165,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
-	RegisterNewFab(fluct_mf, mybc, number_of_grains, number_of_ghost_cells, "fluct",true);
 
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
@@ -436,19 +442,26 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 				}
 
-				//
-				// FLUCTUATION TERM
-				//
-
-				std::normal_distribution<double> norm_dist(anisotropy.fluct_amp, anisotropy.fluct_sd);
-				std::default_random_engine rand_num_gen(std::chrono::system_clock::now().time_since_epoch().count());
-				fluct(i,j,k,0) = norm_dist(rand_num_gen);
 
 				//
 				// EVOLVE ETA
 				//
 
-				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force + fluct(i,j,k,0) * dt / *DX;
+				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
+				
+				//
+				// FLUCTUATION TERM
+				//
+
+				//std::normal_distribution<double> norm_dist(fluctuation.amp, fluctuation.sd);
+				//std::default_random_engine rand_num_gen(std::chrono::system_clock::now().time_since_epoch().count());
+				if (fluctuation.on)
+				{
+					fluct(i,j,k,0) = fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0];
+					etanew(i,j,k,m) += fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) * dt / DX[0];
+				}
+
+				
 				if (std::isnan(driving_force))
 					Util::Abort(INFO, i, " ", j, " ", k, " ", m);
 			}
