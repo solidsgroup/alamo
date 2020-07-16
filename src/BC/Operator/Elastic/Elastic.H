@@ -52,7 +52,7 @@ public:
 	     const amrex::Vector<amrex::Geometry> &a_geom,
 		 bool a_homogeneous = false) const
 	{
-		for (int ilev = 0; ilev < a_rhs.finest_level; ilev++)
+		for (int ilev = 0; ilev <= a_rhs.finest_level; ilev++)
 			Init(a_rhs[ilev].get(),a_geom[ilev],a_homogeneous);
 	}
 
