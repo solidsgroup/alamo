@@ -48,38 +48,12 @@ public:
 		 bool a_homogeneous = false) const = 0;
 
 	void
-	Init(amrex::Vector<amrex::MultiFab *> &a_rhs,
+	Init(Set::Field<Set::Scalar> &a_rhs,
 	     const amrex::Vector<amrex::Geometry> &a_geom,
 		 bool a_homogeneous = false) const
 	{
-		for (int ilev = 0; ilev < a_rhs.size(); ilev++)
-			Init(a_rhs[ilev],a_geom[ilev],a_homogeneous);
-	}
-
-	void
-	Init(amrex::Vector<amrex::MultiFab> &a_rhs,
-	    const amrex::Vector<amrex::Geometry> &a_geom,
-		bool a_homogeneous = false) const
-	{
-		amrex::Vector<amrex::MultiFab *> pa_rhs = amrex::GetVecOfPtrs(a_rhs);
-		Init(pa_rhs,a_geom,a_homogeneous);
-	}
-
-	void
-	Init(amrex::Vector<std::unique_ptr<amrex::MultiFab> > &a_rhs,
-	    const amrex::Vector<amrex::Geometry> &a_geom,
-		bool a_homogeneous = false) const
-	{
-		amrex::Vector<amrex::MultiFab *> pa_rhs = amrex::GetVecOfPtrs(a_rhs);
-		Init(pa_rhs,a_geom,a_homogeneous);
-	}
-
-	void
-	Init(std::unique_ptr<amrex::MultiFab> a_rhs,
-	    const amrex::Geometry &a_geom,
-		bool a_homogeneous = false) const
-	{
-		Init(a_rhs.get(),a_geom,a_homogeneous);
+		for (int ilev = 0; ilev < a_rhs.finest_level; ilev++)
+			Init(a_rhs[ilev].get(),a_geom[ilev],a_homogeneous);
 	}
 
 #define SQRT3INV 0.57735026919

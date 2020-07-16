@@ -21,6 +21,7 @@ public:
                                  amrex::Real t, 
                                  const amrex::BoxArray& cgrids,
                                  const amrex::DistributionMapping& dm) = 0;
+	virtual void SetFinestLevel(const int a_finestlevel) = 0;
                       
 };
 
@@ -179,6 +180,10 @@ public:
 //		}
     }                                 
 
+	virtual void SetFinestLevel(const int a_finestlevel)
+	{
+		m_field.finest_level = a_finestlevel;
+	}
     
 private:
 
