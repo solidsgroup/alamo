@@ -381,7 +381,12 @@ Integrator::FillCoarsePatch (int lev, ///<[in] AMR level
 	ctime.push_back(time);
   
 	physbc.define(geom[lev]);
-	amrex::Interpolater* mapper = &amrex::cell_cons_interp;
+
+	amrex::Interpolater* mapper;
+	if (mf[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
+		mapper = &amrex::node_bilinear_interp;
+	else
+		mapper = &amrex::cell_cons_interp;
     
 	amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
 	amrex::InterpFromCoarseLevel(*mf[lev], time, *cmf[0], 0, icomp, ncomp, geom[lev-1], geom[lev],

@@ -149,18 +149,18 @@ public:
                                  const amrex::BoxArray& cgrids, 
                                  const amrex::DistributionMapping& dm) override
     {
-		if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
-		{
+		//if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
+		//{
 			amrex::BoxArray ngrids = cgrids;
 			ngrids.convert(amrex::IntVect::TheNodeVector());
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
             FillCoarsePatch(lev,time,0,m_ncomp);
-		}
-		else
-		{
-            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
-            FillCoarsePatch(lev,time,0,m_ncomp);
-		}
+		//}
+		//else
+		//{
+        //    m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
+        //    FillCoarsePatch(lev,time,0,m_ncomp);
+		//}
     }
 
     virtual void MakeNewLevelFromScratch (int lev, 
