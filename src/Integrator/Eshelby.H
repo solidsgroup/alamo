@@ -82,14 +82,9 @@ protected:
 
     void TimeStepBegin(Set::Scalar, int) override
     {
-        if (finest_level != rhs_mf.size() - 1)
-        {
-            Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
-        }
-        
         // Set linear elastic model
         
-        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+        for (int lev = 0; lev <= finest_level; ++lev)
         {
             rhs_mf[lev]->setVal(0.0);
 
@@ -119,7 +114,7 @@ protected:
         elastic.bc.Init(rhs_mf,geom);
 
         amrex::LPInfo info;
-        Operator::Elastic<Model::Solid::Affine::Isotropic::sym> elastic_op(geom, grids, dmap, info);
+        Operator::Elastic<Model::Solid::Affine::Isotropic::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
         elastic_op.SetBC(&elastic.bc);
 
@@ -131,7 +126,7 @@ protected:
 
         elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
 
-        for (int lev = 0; lev < disp_mf.size(); lev++)
+        for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
             elastic_op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
             elastic_op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);

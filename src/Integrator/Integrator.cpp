@@ -424,6 +424,7 @@ Integrator::InitData ()
 			// for (int n = 0; n < node.number_of_fabs; n++)
 			// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
 		}
+		SetFinestLevel(finest_level);
 	
 	}
 	if (plot_int > 0 || plot_dt > 0.0) {
@@ -853,6 +854,7 @@ Integrator::TimeStep (int lev, amrex::Real time, int /*iteration*/)
 			}
 		}
 	}
+	SetFinestLevel(finest_level);
 
 	if (Verbose() && amrex::ParallelDescriptor::IOProcessor()) {
 		std::cout << "[Level " << lev 
