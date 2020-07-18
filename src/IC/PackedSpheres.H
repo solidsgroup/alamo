@@ -91,7 +91,7 @@ public:
 		sph_vol.resize(number_of_grains);
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
-		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
+		sph_nos[n]=ceil(ceil((size(0)*size(1)*size(2))/(number_of_grains*sph_vol[n]*100))*vf);
      
 		}
 
@@ -102,7 +102,7 @@ public:
 		sph_vol.resize(number_of_grains);
 		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
-		sph_nos[n]=ceil(ceil((0.6)/(number_of_grains*sph_vol[n]*100))*vf);
+		sph_nos[n]=ceil(ceil((size(0)*size(1)*size(2))/(number_of_grains*sph_vol[n]*100))*vf);
       
 		}
 		}
