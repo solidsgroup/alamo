@@ -93,7 +93,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 			else
 				Util::Abort(INFO, "Incorrect boundary conditions");
 		}
-		else if (glevel[0]>0)// && (face == Orientation::xhi || face == Orientation::All)) // Right boundary
+		else if (glevel[0]>0 && (face == Orientation::xhi || face == Orientation::All)) // Right boundary
 		{
 			if (BCUtil::IsDirichlet(m_bc_type[Face::XHI][n]))
 				in(i,j,k,n) = m_bc_val[Face::XHI][n](time);
@@ -108,7 +108,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
 				Util::Abort(INFO, "Incorrect boundary conditions");
 		}
 		
-		else if (glevel[1]<0)// && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
+		else if (glevel[1]<0 && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
 		{
 			if (BCUtil::IsDirichlet(m_bc_type[Face::YLO][n]))
 				in(i,j,k,n) = m_bc_val[Face::YLO][n](time);

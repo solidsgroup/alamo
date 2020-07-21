@@ -1,14 +1,14 @@
 alamo.program = notchcrack
 
 timestep = 1e-2
-stop_time = 2.e-1
+stop_time = 1.e-2
 plot_file = tests/NotchCrack2D/output
 
 amr.plot_int = 1
-amr.max_level = 5
+amr.max_level = 6
 amr.n_cell = 64 64
 amr.blocking_factor = 8
-amr.regrid_int = 5
+amr.regrid_int = 10
 amr.grid_eff = 1.0
 
 amr.thermo.int = 1
@@ -17,13 +17,13 @@ geometry.prob_lo = -0.005 -0.005
 geometry.prob_hi = 0.005 0.005
 geometry.is_periodic= 0 0
 
-crack.modulus_scaling_max = 0.02
+crack.modulus_scaling_max = 0.0125
 crack.refinement_threshold = 0.01
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
 crack.constant.zeta = 4.e-6
-crack.constant.mobility = 1.0e-7
+crack.constant.mobility = 2.0e-7
 crack.constant.eta_epsilon = 0.01
 crack.df.mult_Gc = 1.0e0
 crack.df.mult_Lap = 1.0e0
@@ -38,30 +38,31 @@ ic.notch.orientation = 1.0 0.0
 ic.notch.length = 1.e-3
 ic.notch.thickness = 5.e-5
 ic.notch.eps = 1.e-5
-ic.notch.mollifier = erf
+ic.notch.mollifier = cos
 
 ic.type = notch
-ic.notch2.center = 0.0 0.0
+ic.notch2.center = 0.0 1e-4
 ic.notch2.orientation = 1.0 0.0
 ic.notch2.length = 1.e-3
-ic.notch2.thickness = 1.e-4
+ic.notch2.thickness = 2.e-5
 ic.notch2.eps = 2.e-5
-ic.notch2.mollifier = erf
+ic.notch2.radius = -1.e-4
+ic.notch2.mollifier = cos
 
-crack.bc.type.xlo = NEUMANN
-crack.bc.type.xhi = NEUMANN
-crack.bc.type.ylo = NEUMANN
-crack.bc.type.yhi = NEUMANN
+crack.bc.type.xlo = neumann
+crack.bc.type.xhi = neumann
+crack.bc.type.ylo = neumann
+crack.bc.type.yhi = neumann
 
 crack.bc.val.xlo = 0.0 
 crack.bc.val.xhi = 0.0 
 crack.bc.val.ylo = 0.0 
 crack.bc.val.yhi = 0.0 
 
-crack.bc_df.type.xlo = NEUMANN NEUMANN NEUMANN NEUMANN
-crack.bc_df.type.xhi = NEUMANN NEUMANN NEUMANN NEUMANN
-crack.bc_df.type.ylo = NEUMANN NEUMANN NEUMANN NEUMANN
-crack.bc_df.type.yhi = NEUMANN NEUMANN NEUMANN NEUMANN
+crack.bc_df.type.xlo = neumann neumann neumann neumann
+crack.bc_df.type.xhi = neumann neumann neumann neumann
+crack.bc_df.type.ylo = neumann neumann neumann neumann
+crack.bc_df.type.yhi = neumann neumann neumann neumann
 
 crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
 crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
@@ -74,14 +75,14 @@ material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 
 solver.bottom_solver 	=	bicgstab
-solver.int             = 1000
+solver.int             = 100
 solver.composite_solve	=	1
 solver.verbose			=	2
 solver.cg_verbose 		=	0
 solver.max_iter		=	10000
 solver.max_fmg_iter 	=	10000
 solver.bottom_max_iter =	500
-solver.max_fixed_iter 	=	200
+solver.max_fixed_iter 	=	1000
 solver.linop_maxorder 	=	2
 solver.max_coarsening_level = 100000
 solver.agglomeration 	=	1
@@ -121,6 +122,6 @@ elastic.bc.type.xhiyhi = trac disp
 #elastic.bc.type.xloyhi = disp disp
 #elastic.bc.type.xhiyhi = disp disp
 
-elastic.bc.val.yhi = 0.0 4.e-5
-elastic.bc.val.xloyhi = 0.0 4.e-5
-elastic.bc.val.xhiyhi = 0.0 4.e-5
+elastic.bc.val.yhi = 0.0 8.e-5
+elastic.bc.val.xloyhi = 0.0 8.e-5
+elastic.bc.val.xhiyhi = 0.0 8.e-5
