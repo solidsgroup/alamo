@@ -105,6 +105,7 @@ public:
 		bcmap["Dirichlet"]        = (int)amrex::LinOpBCType::Dirichlet;
 		bcmap["dirichlet"]        = (int)amrex::LinOpBCType::Dirichlet;
 		bcmap["Neumann"]          = (int)amrex::LinOpBCType::Neumann;
+		bcmap["NEUMANN"]          = (int)amrex::LinOpBCType::Neumann;
 		bcmap["neumann"]          = (int)amrex::LinOpBCType::Neumann;
 		bcmap["reflect_odd"]      = (int)amrex::LinOpBCType::reflect_odd;
 		bcmap["Marshak"]          = (int)amrex::LinOpBCType::Marshak;
