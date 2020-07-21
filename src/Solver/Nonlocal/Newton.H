@@ -12,13 +12,13 @@ namespace Solver
 {
 namespace Nonlocal
 {
-template <class T>
+template <typename T>
 class Newton : public Linear
 {
 public:
-    Newton(Operator::Elastic<T> &a_op) : 
+    Newton(Operator::Elastic<T::sym> &a_op) : 
         Linear(a_op), 
-        m_elastic(dynamic_cast<Operator::Elastic<T> &>(linop)),
+        m_elastic(dynamic_cast<Operator::Elastic<T::sym> &>(linop)),
         m_bc(m_elastic.GetBC())
     {};
 
@@ -349,8 +349,8 @@ public:
 
 private:
     int m_nriters = 1;
-    Operator::Elastic<T> &m_elastic;
-    BC::Operator::Elastic<T> &m_bc;
+    Operator::Elastic<T::sym> &m_elastic;
+    BC::Operator::Elastic::Elastic &m_bc;
 
 public:
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)

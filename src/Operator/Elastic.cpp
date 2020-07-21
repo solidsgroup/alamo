@@ -15,12 +15,13 @@
 #include "Model/Solid/Affine/CrystalPlastic.H"
 #include "Model/Solid/Affine/CrystalPlasticDegradable.H"
 #include "Elastic.H"
+#include "Set/Set.H"
 
 #include "Numeric/Stencil.H"
 namespace Operator
 {
-template<class T>
-Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
+template<int SYM>
+Elastic<SYM>::Elastic (const Vector<Geometry>& a_geom,
 		     const Vector<BoxArray>& a_grids,
 		     const Vector<DistributionMapping>& a_dmap,
 		     const LPInfo& a_info)
@@ -30,13 +31,13 @@ Elastic<T>::Elastic (const Vector<Geometry>& a_geom,
 	define(a_geom, a_grids, a_dmap, a_info);
 }
 
-template<class T>
-Elastic<T>::~Elastic ()
+template<int SYM>
+Elastic<SYM>::~Elastic ()
 {}
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::define (const Vector<Geometry>& a_geom,
+Elastic<SYM>::define (const Vector<Geometry>& a_geom,
 		    const Vector<BoxArray>& a_grids,
 		    const Vector<DistributionMapping>& a_dmap,
 		    const LPInfo& a_info,
@@ -61,9 +62,9 @@ Elastic<T>::define (const Vector<Geometry>& a_geom,
 	}
 }
 
-template <class MODEL>
+template <int SYM>
 void 
-Elastic<MODEL>::SetModel (Set::Matrix4<AMREX_SPACEDIM,MODEL::sym> &a_model)
+Elastic<SYM>::SetModel (MATRIX4 &a_model)
 {
 	for (int amrlev = 0; amrlev < m_ddw_mf.size(); amrlev++)
 	{
@@ -78,7 +79,7 @@ Elastic<MODEL>::SetModel (Set::Matrix4<AMREX_SPACEDIM,MODEL::sym> &a_model)
 			bx.grow(nghost);   // Expand to cover first layer of ghost nodes
 			bx = bx & domain;  // Take intersection of box and the problem domain
 				
-			amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> const& ddw         = (*(m_ddw_mf[amrlev][0])).array(mfi);
+			amrex::Array4<MATRIX4> const& ddw         = (*(m_ddw_mf[amrlev][0])).array(mfi);
 	
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 					ddw(i,j,k) = a_model;
@@ -88,9 +89,9 @@ Elastic<MODEL>::SetModel (Set::Matrix4<AMREX_SPACEDIM,MODEL::sym> &a_model)
 	m_model_set = true;
 }
 
-template <class MODEL>
+template <int SYM>
 void
-Elastic<MODEL>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> >& a_model)
+Elastic<SYM>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<MATRIX4> >& a_model)
 {
 	BL_PROFILE("Operator::Elastic::SetModel()");
 
@@ -111,8 +112,8 @@ Elastic<MODEL>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<Set::
 		bx.grow(nghost);   // Expand to cover first layer of ghost nodes
 		bx = bx & domain;  // Take intersection of box and the problem domain
 			
-		amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> const& C         = (*(m_ddw_mf[amrlev][0])).array(mfi);
-		amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> const& a_C = a_model.array(mfi);
+		amrex::Array4<MATRIX4> const& C         = (*(m_ddw_mf[amrlev][0])).array(mfi);
+		amrex::Array4<const MATRIX4> const& a_C = a_model.array(mfi);
 
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 				C(i,j,k) = a_C(i,j,k);
@@ -124,9 +125,9 @@ Elastic<MODEL>::SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<Set::
 	m_model_set = true;
 }
 
-template<class MODEL>
+template<int SYM>
 void
-Elastic<MODEL>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) const
+Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u) const
 {
 	BL_PROFILE("Operator::Elastic::Fapply()");
 
@@ -141,7 +142,7 @@ Elastic<MODEL>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_
 		bx.grow(1);        // Expand to cover first layer of ghost nodes
 		bx = bx & domain;  // Take intersection of box and the problem domain
 			
-		amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> const& DDW                 = (*(m_ddw_mf[amrlev][mglev])).array(mfi);
+		amrex::Array4<MATRIX4> const& DDW                 = (*(m_ddw_mf[amrlev][mglev])).array(mfi);
 		amrex::Array4<const amrex::Real> const& U = a_u.array(mfi);
 		amrex::Array4<amrex::Real> const& F       = a_f.array(mfi);
 
@@ -222,10 +223,10 @@ Elastic<MODEL>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_
 
 					if (!m_uniform)
 					{
-						Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>
-						AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>,1,0,0>::D(DDW,i,j,k,0,DX,sten)),
-							    	 Cgrad2 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>,0,1,0>::D(DDW,i,j,k,0,DX,sten)),
-							         Cgrad3 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>,0,0,1>::D(DDW,i,j,k,0,DX,sten)));
+						MATRIX4
+						AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<MATRIX4,1,0,0>::D(DDW,i,j,k,0,DX,sten)),
+							    	 Cgrad2 = (Numeric::Stencil<MATRIX4,0,1,0>::D(DDW,i,j,k,0,DX,sten)),
+							         Cgrad3 = (Numeric::Stencil<MATRIX4,0,0,1>::D(DDW,i,j,k,0,DX,sten)));
 						f += AMREX_D_TERM((Cgrad1*gradu).col(0),
 										 +(Cgrad2*gradu).col(1),
 										 +(Cgrad3*gradu).col(2));
@@ -238,9 +239,9 @@ Elastic<MODEL>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_
 
 
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
+Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 {
 	BL_PROFILE("Operator::Elastic::Diagonal()");
 
@@ -310,10 +311,10 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 					}
 					else
 					{
-						Set::Matrix4<AMREX_SPACEDIM,T::sym>
-						AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,T::sym>,1,0,0>::D(DDW,i,j,k,0,DX,sten)),
-						           	 Cgrad2 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,T::sym>,0,1,0>::D(DDW,i,j,k,0,DX,sten)),
-							         Cgrad3 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,T::sym>,0,0,1>::D(DDW,i,j,k,0,DX,sten)));
+						Set::Matrix4<AMREX_SPACEDIM,SYM>
+						AMREX_D_DECL(Cgrad1 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,SYM>,1,0,0>::D(DDW,i,j,k,0,DX,sten)),
+						           	 Cgrad2 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,SYM>,0,1,0>::D(DDW,i,j,k,0,DX,sten)),
+							         Cgrad3 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,SYM>,0,0,1>::D(DDW,i,j,k,0,DX,sten)));
 
 						Set::Vector f = DDW(i,j,k)*gradgradu + 
 							AMREX_D_TERM((Cgrad1*gradu).col(0),
@@ -330,9 +331,9 @@ Elastic<T>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 }
 
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const
+Elastic<SYM>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const
 {
 	BL_PROFILE("Operator::Elastic::Error0x()");
 	Util::Message(INFO);
@@ -357,9 +358,9 @@ Elastic<T>::Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) co
 }
 
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
+Elastic<SYM>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 		const std::array<FArrayBox*,AMREX_SPACEDIM>& sigmafab,
 		const FArrayBox& /*ufab*/, const int /*face_only*/) const
 {
@@ -374,9 +375,9 @@ Elastic<T>::FFlux (int /*amrlev*/, const MFIter& /*mfi*/,
 
 }
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::Strain  (int amrlev,
+Elastic<SYM>::Strain  (int amrlev,
 		    amrex::MultiFab& a_eps,
 		    const amrex::MultiFab& a_u,
 		    bool voigt) const
@@ -435,9 +436,9 @@ Elastic<T>::Strain  (int amrlev,
 }
 
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::Stress (int amrlev,
+Elastic<SYM>::Stress (int amrlev,
 		    amrex::MultiFab& a_sigma,
 		    const amrex::MultiFab& a_u,
 		    bool voigt, bool a_homogeneous) 
@@ -452,7 +453,7 @@ Elastic<T>::Stress (int amrlev,
 	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,T::sym>> const& DDW                 = (*(m_ddw_mf[amrlev][0])).array(mfi);
+		amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,SYM>> const& DDW                 = (*(m_ddw_mf[amrlev][0])).array(mfi);
 		amrex::Array4<amrex::Real> const& sigma   = a_sigma.array(mfi);
 		amrex::Array4<const amrex::Real> const& u = a_u.array(mfi);
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -497,9 +498,9 @@ Elastic<T>::Stress (int amrlev,
 }
 
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::Energy (int amrlev,
+Elastic<SYM>::Energy (int amrlev,
 		    amrex::MultiFab& a_energy,
 		    const amrex::MultiFab& a_u, bool a_homogeneous)
 {
@@ -514,7 +515,7 @@ Elastic<T>::Energy (int amrlev,
 	for (MFIter mfi(a_u, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	{
 		const Box& bx = mfi.tilebox();
-		amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,T::sym>> const& DDW                  = (*(m_ddw_mf[amrlev][0])).array(mfi);
+		amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,SYM>> const& DDW                  = (*(m_ddw_mf[amrlev][0])).array(mfi);
 		amrex::Array4<amrex::Real> const& energy   = a_energy.array(mfi);
 		amrex::Array4<const amrex::Real> const& u  = a_u.array(mfi);
 		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -550,9 +551,10 @@ Elastic<T>::Energy (int amrlev,
 	}
 }
 
-template <class T>
+/*
+template <int SYM>
 void 
-Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models, bool a_homogeneous)
+Elastic<SYM>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiFab& a_u, std::vector<T> a_models, bool a_homogeneous)
 {
 	BL_PROFILE("Operator::Elastic::Energy()");
 	SetHomogeneous(a_homogeneous);
@@ -593,19 +595,19 @@ Elastic<T>::Energy (int amrlev, amrex::MultiFab& a_energies, const amrex::MultiF
 	    });
 	}
 }
+*/
 
 
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::averageDownCoeffs ()
+Elastic<SYM>::averageDownCoeffs ()
 {
 	BL_PROFILE("Elastic::averageDownCoeffs()");
 	
 	for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
 	{
 		averageDownCoeffsSameAmrLevel(amrlev);
-	 	averageDownCoeffsToCoarseAmrLevel(amrlev);
 	}
 
 	averageDownCoeffsSameAmrLevel(0);
@@ -620,77 +622,9 @@ Elastic<T>::averageDownCoeffs ()
 	}
 }
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::averageDownCoeffsToCoarseAmrLevel (int /*flev*/) 
-{
-	/*
-	BL_PROFILE("Operator::Elastic::averageDownCoeffsToCoarseAmrLevel()");
-
-	//const int mglev = 0;
-
-	// const int idim = 0;  // other dimensions are just aliases
-
-	// // amrex::average_down(*m_sigma[flev][mglev][idim], *m_sigma[flev-1][mglev][idim], 0, 1,
-	// // 		    m_amr_ref_ratio[flev-1]);
-
-	int ncomp = AMREX_SPACEDIM;
-	MultiTab finemt;
-	MultiTab crsemt;
-	
-	
-
-	amrex::BoxArray fineBACoarsened = finemt.boxArray(); fineBACoarsened.coarsen(m_amr_ref_ratio[flev-1]);
-
-
-	//MultiFab crse_S_fine(crse_S_fine_BA, S_fine.DistributionMap(), ncomp, 0, MFInfo(), FArrayBoxFactory());
-        if ((fineBACoarsened == crsemt.boxArray()) &&
-	    (finemt.DistributionMap() == crsemt.DistributionMap()))
-	{
-		Util::Message(INFO); // this never seems to happen
-	}
-	else
-	{
-		//Util::Abort(INFO, "difference in box arrays");
-
-		MultiTab finemtcoarsened(fineBACoarsened, finemt.DistributionMap(), ncomp, 0);
-
-// #ifdef _OPENMP
-// #pragma omp parallel
-// #endif
-		for (MFIter mfi(finemtcoarsened,true); mfi.isValid(); ++mfi)
-		{
-			//  NOTE: The tilebox is defined at the coarse level.
-			const Box& bx = mfi.tilebox();
-                
-			const TArrayBox &fine = finemtcoarsened[mfi];
-			TArrayBox &crse = crsemt[mfi];
-
-			//  NOTE: We copy from component scomp of the fine fab into component 0 of the crse fab
-			//        because the crse fab is a temporary which was made starting at comp 0, it is
-			//        not part of the actual crse multifab which came in.
-
-
-			AMREX_D_TERM(for (int m1 = bx.loVect()[0]-1; m1<=bx.hiVect()[0]+1; m1++),
-				     for (int m2 = bx.loVect()[1]-1; m2<=bx.hiVect()[1]+1; m2++),
-				     for (int m3 = bx.loVect()[2]-1; m3<=bx.hiVect()[2]+1; m3++))
-			{
-				amrex::IntVect m_crse(AMREX_D_DECL(m1,m2,m3));
-				amrex::IntVect m_fine(AMREX_D_DECL(m1*2,m2*2,m3*2));
-
-				crse(m_crse) = fine(m_fine);
-			}
-		}
-            
-		crsemt.copy(finemtcoarsened,0,0,ncomp);
-
-	}
-	*/
-}
-
-template<class T>
-void
-Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
+Elastic<SYM>::averageDownCoeffsSameAmrLevel (int amrlev)
 {
 	BL_PROFILE("Elastic::averageDownCoeffsSameAmrLevel()");
 
@@ -718,8 +652,8 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 			Box bx = mfi.tilebox();
 			bx = bx & cdomain;
 
-			amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM,T::sym>> const& fdata = fine_on_crseba.array(mfi);
-			amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,T::sym>> const& cdata       = crse.array(mfi);
+			amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM,SYM>> const& fdata = fine_on_crseba.array(mfi);
+			amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,SYM>> const& cdata       = crse.array(mfi);
 
 			const Dim3 lo= amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
 
@@ -771,15 +705,13 @@ Elastic<T>::averageDownCoeffsSameAmrLevel (int amrlev)
 							 fdata(i,j,k) / 8.0;
 				});
 		}
-		//fine_on_crseba.ParallelCopy(fine,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
-		//fine.ParallelCopy(fine_on_crseba,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
 		FillBoundaryCoeff(crse,m_geom[amrlev][mglev]);
 	}
 }
 
-template<class T>
+template<int SYM>
 void
-Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
+Elastic<SYM>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 {
 	BL_PROFILE("Elastic::FillBoundaryCoeff()");
 	for (int i = 0; i < 2; i++)
@@ -795,21 +727,10 @@ Elastic<T>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
 	}
 }
 
-// TODO : Remove these template specializations once Mobility and PD are upgraded
-template class Elastic<Model::Solid::Linear::IsotropicDegradable>;
-template class Elastic<Model::Solid::Linear::IsotropicDegradableTanh>;
+template class Elastic<Set::Sym::Major>;
+template class Elastic<Set::Sym::Isotropic>;
+template class Elastic<Set::Sym::MajorMinor>;
+template class Elastic<Set::Sym::Diagonal>;
 
-template class Elastic<Model::Solid::Elastic::NeoHookean>;
-template class Elastic<Model::Solid::Affine::Isotropic>;
-template class Elastic<Model::Solid::Affine::IsotropicDegradable>;
-template class Elastic<Model::Solid::Affine::Cubic>;
-template class Elastic<Model::Solid::Affine::CubicDegradable>;
-template class Elastic<Model::Solid::Linear::Isotropic>;
-template class Elastic<Model::Solid::Linear::Laplacian>;
-template class Elastic<Model::Solid::Linear::Cubic>;
-template class Elastic<Model::Solid::Affine::CrystalPlastic>;
-template class Elastic<Model::Solid::Affine::CrystalPlasticDegradable>;
-template class Elastic<Model::Solid::Affine::J2Plastic>;
-template class Elastic<Model::Solid::Affine::J2PlasticDegradable>;
 }
 

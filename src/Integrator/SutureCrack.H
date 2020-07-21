@@ -13,6 +13,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
@@ -243,7 +244,7 @@ protected:
         // elastic.brittlebc.Set(elastic.brittlebc.Face::XHI_YHI, elastic.brittlebc.Direction::Y, BC::Operator::Elastic<brittle_fracture_model_type>::Type::Displacement, loading.val);
         elastic.brittlebc.Init(elastic.rhs,geom);
 
-        Operator::Elastic<brittle_fracture_model_type> op_b;
+        Operator::Elastic<brittle_fracture_model_type::sym> op_b;
         LPInfo info;
         info.setAgglomeration(sol.agglomeration);
         info.setConsolidation(sol.consolidation);
@@ -420,7 +421,7 @@ private:
         Set::Field<Set::Scalar> energy_pristine;      ///< energy of the prisitne material as if no crack is present
         Set::Field<Set::Scalar> energy_pristine_old;  ///< energy of the pristine material for previous time step.
 
-        BC::Operator::Elastic<brittle_fracture_model_type> 	brittlebc;  ///< elastic BC if using brittle fracture
+        BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
 		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
     } elastic;
 
