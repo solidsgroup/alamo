@@ -12,24 +12,24 @@ using namespace std;
 
 namespace IC
 {
-/// \brief Create a series of patches using the packedspheres Tesselation
+/// \brief Create a random spheres with different radius 
 ///
 /// 
 /// Let `N` be the number of patches in the tesselation, 
 /// and let \f$\alpha_1,\ldots,\alpha_n\f$ be a set of scalar values.
 /// There are two methods for applying the tesselation IC:
-///
-///   * `Partition`: This requires an `N`-component multifab. 
-///     (There is currently no check for this.)
-///     Each component of the fab corresponds to one of the patches
-///     Then fab component i is equal to \f$\alpha_i\f$ within the patch and
-///     zero elsewhere. (This is mostly useful for multiphase field 
-///     microstructure)
-///   * `Values`: This uses a 1-component fab. It sets the value of the ith fab 
-///     equal to \f$\alpha_i\f$.
+/// Here partition method is used for applying the Packed spheres IC:
+
+/// This requires an `N`-component multifab. 
+/// (There is currently no check for this.)
+///  Each component of the fab corresponds to one of the patches
+///  Then fab component i is equal to \f$\alpha_i\f$ within the non ovelapped sphere  and
+///  zero elsewhere. (This is mostly useful for multiphase field 
+///   microstructure)
+
 ///
 /// Note on periodicity: This IC uses the `amrex::Geometry` object to determine
-/// if it is periodic, and if so, it will generate a periodic tesselation.
+/// if it is periodic, and if so, it will generate a periodic spheres.
 ///
 class PackedSpheres : public IC
 {
@@ -64,62 +64,74 @@ public:
 		
 		
     
-		std::vector <amrex::Real> sph_vol(1);   
-		std::vector <amrex::Real> sph_nos(1); 
-		
-		
-		
+		std::vector <amrex::Real> sph_vol;   
+		std::vector <amrex::Real> sph_nos; 
+        amrex::Real sph_tot_vol=0;
+		R.resize(number_of_grains); 
+		R_n.resize(number_of_grains); 
+        sph_vol.resize(number_of_grains);
+		sph_nos.resize(number_of_grains);
+		count.resize(number_of_grains);
+		R_new.resize(number_of_grains);
+		pack_size=0;
+		sph_tot_vol=0;
+		int inc=0;
+	    int jj=0;
+		std::vector<double> ins (1,1);	
+        packedspheres.resize(number_of_grains);
+
+
 		int p=0;
 	    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-		//if (rank==0)
-		//{
+	   
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
 					 int total=0;
-					 R.resize(number_of_grains); 
-
-
+					
+        amrex::Real dom_vol=size(0)*size(1)*size(2);
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
 		if (n==0)
-		{	
-		R.resize(n+1);	
+		{		
         R[n]=(R_max-R_min)/number_of_grains;
-		sph_vol.resize(number_of_grains);
-		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
-		sph_nos[n]=ceil(ceil((size(0)*size(1)*size(2))/(number_of_grains*sph_vol[n]*100))*vf);
-     
+		sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*vf);
+        sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
+		pack_size=pack_size+sph_nos[n];
 		}
 
 		else if (n>0)
 		{	
-		R.resize(n+1);	
         R[n]=R[n-1]+((R_max-R_min)/number_of_grains);
-		sph_vol.resize(number_of_grains);
-		sph_nos.resize(number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
-		sph_nos[n]=ceil(ceil((size(0)*size(1)*size(2))/(number_of_grains*sph_vol[n]*100))*vf);
-      
+		sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*vf);
+        sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
+		pack_size=pack_size+sph_nos[n];
+		
 		}
 		}
-        
-		
-		
-        pack_size=std::accumulate(sph_nos.begin(),sph_nos.end(),0);
-		
-		
-        packedspheres.resize(pack_size);
-       std::vector<double>::iterator it;
 
-	std::vector<double> ins (1,1);
+        std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
+		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;
+		
+      
+	  	
+		
+  
+   
+    
+		
+    packedspheres.resize(pack_size);
+	R_new.resize(pack_size);
+ 
+     if (rank==0)			 
+		{  
 	R_new.assign(R.begin(),R.end());
 	
-	int inc=0;
-	int jj=0;
+	
 // matching the total no of elements with the total no spheres
 for (int i=0; i<number_of_grains;i++)
 {
@@ -165,15 +177,14 @@ for (int i=0; i<number_of_grains;i++)
 	       
 }
 
-         std::reverse(R_new.begin(),R_new.end());
-        std::vector <amrex::Real> dd(pack_size-1);
-		std::vector <amrex::Real> R_n(pack_size-1);
-		std::vector <amrex::Real> count(pack_size);
+        std::reverse(R_new.begin(),R_new.end());
+        dd.resize(pack_size-1);
+		R_n.resize(pack_size-1);
+		count.resize(pack_size);
 		std::fill(count.begin(), count.end(), 0);
 
 
-  	if (rank==0)
-		{
+
       
 
 	do
@@ -182,7 +193,7 @@ for (int i=0; i<number_of_grains;i++)
 		for (int n = 0; n<pack_size; n++)
 		{
 			std::vector<bool> df(pack_size-1);
-            std::fill(df.begin(), df.end(), true);	
+            std::fill(df.begin(), df.end(), true);
 
 	if(n==0)
 	{
@@ -277,12 +288,12 @@ while (i<1000)
 	}
 	while (total<pack_size);
     }
-	
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+	
 	};
 	
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
@@ -326,7 +337,7 @@ while (i<1000)
 				 {
 
 				 
-					if ((x(0)> (size(0)*(u*0.125))) && (x(0) < (size(0)*((u+1)*0.125))) && (x(1)> (size(1)*(v*0.25))) && (x(1)<  (size(1)*((v+1)*0.25))))
+					if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25))))
 					{
 
 					 d = (x - packedspheres[n]).lpNorm<2>();
@@ -385,6 +396,11 @@ private:
 	std::vector<Set::Vector> packedspheres;
 	std::vector <amrex::Real> R_new;
 	std::vector <amrex::Real> R;
+	std::vector <amrex::Real> dd;
+	std::vector <amrex::Real> R_n;
+	std::vector <amrex::Real> count;
+	std::vector<double>::iterator it;
+	//std::vector<double> ins;
     amrex::Real vf;
     amrex::Real R_min;
 	amrex::Real R_max;
