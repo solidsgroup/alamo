@@ -8,14 +8,14 @@ amr.plot_file       = tests/Flame/output%DD_%Y%m%d_%H%M%S # The name of the outp
 amr.plot_int        = 100                                 # How frequently to dump output
 
 amr.max_level       = 3               # How many levels of grid refinement are allowed
-amr.n_cell          = 60 20 4         # Number of cells in the x,y,z directions
+amr.n_cell          = 30 20 10         # Number of cells in the x,y,z directions
 #amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 1               # * Minimum size of each block
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
 amr.grid_eff        = 0.001          # * Closeness of regrid patch to tagged region (default = 0.7) 
 
-geometry.prob_lo    = -1.5 -0.5 -0.2  # Problem domain: furthest point to the lower left
-geometry.prob_hi    =1.5 0.5 0.2     # Problem domain: furthest point to the upper right
+geometry.prob_lo    = -0.75 -0.5 -0.25  # Problem domain: furthest point to the lower left
+geometry.prob_hi    =0.75 0.5 0.25      # Problem domain: furthest point to the upper right
 #geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
 geometry.is_periodic= 1 1 1           #babu
 
@@ -40,10 +40,9 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 physics.fs_number   = 3     #no of different radii between R_min and R_max
 physics.fs_min      = -0.5
 physics.fs_max      = 0.5
-physics.volume_fraction=0.2
+physics.volume_fraction=0.9
 physics.R_min=0.1
-physics.R_max=0.2
-
+physics.R_max=0.25
 TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo_1	= 0.0 
