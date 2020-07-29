@@ -114,8 +114,8 @@ public:
 		}
 		}
 
-        std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
-		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;
+//        std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
+//		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;
 		
       
 	  	
@@ -329,7 +329,7 @@ while (i<1000)
 				Set::Scalar d1; 
 							
 				
-               //dividing the domain in to 8 x direction and 4 in y direction and none in z direction  
+              // dividing the domain in to 8 x direction and 4 in y direction and none in z direction  
 				
 				for(int v=-2;v<2;v++)	
 				{
