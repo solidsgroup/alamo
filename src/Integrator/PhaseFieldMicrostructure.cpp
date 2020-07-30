@@ -34,8 +34,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		amrex::ParmParse pp("pf"); // Phase-field model parameters
 		pp.query("number_of_grains", number_of_grains);
 		pp.query("M", pf.M);
-		if (pp.contains("mu"))
-			pp.query("mu", pf.mu);
 		pp.query("gamma", pf.gamma);
 		pp.query("sigma0", pf.sigma0);
 		pp.query("l_gb", pf.l_gb);
@@ -387,7 +385,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 					sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
 				}
 				driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
-
 				//
 				// SYNTHETIC DRIVING FORCE
 				//
