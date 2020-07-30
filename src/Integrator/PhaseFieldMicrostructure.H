@@ -88,11 +88,10 @@ private:
 
 	BC::BC<Set::Scalar> *mybc;
 
-	//amrex::Real M, mu, gamma, sigma0, l_gb, beta;
+	//amrex::Real M, gamma, sigma0, l_gb, beta;
 	RegularizationType regularization = RegularizationType::K12;
 	struct {
 		Set::Scalar M;
-		Set::Scalar mu;
 		Set::Scalar gamma;
 		Set::Scalar sigma0;
 		Set::Scalar l_gb;
