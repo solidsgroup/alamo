@@ -232,6 +232,16 @@ protected:
 		m_basefields.push_back(new Field<T>(new_fab, geom, refRatio(),ncomp,nghost));
 	}
 
+	void SetFinestLevel(const int a_finestlevel)
+	{
+		for (unsigned int i = 0; i < cell.fab_array.size(); i++)
+			cell.fab_array[i]->finest_level = a_finestlevel;
+		for (unsigned int i = 0; i < node.fab_array.size(); i++)
+			node.fab_array[i]->finest_level = a_finestlevel;
+		for (unsigned int i = 0; i < m_basefields.size(); i++)
+			m_basefields[i]->SetFinestLevel(finest_level);
+	}
+
 	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
 	void SetTimestep(Set::Scalar _timestep);

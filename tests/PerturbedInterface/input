@@ -37,6 +37,7 @@ pf.l_gb=0.1
 pf.sigma0=0.075
 
 anisotropy.on=1
+anisotropy.gb_type=sin
 anisotropy.timestep=0.001
 anisotropy.tstart= 1.
 anisotropy.theta0= 45
