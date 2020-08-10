@@ -3,7 +3,7 @@ alamo.program = microstructure
 timestep = 0.1
 stop_time = 50
 
-plot_file = tests/PerturbedInterface/output
+plot_file = tests/PerturbedInterface/output/testSin
 
 amr.plot_int = 1000
 amr.max_level = 2
@@ -38,11 +38,11 @@ pf.sigma0=0.075
 
 anisotropy.on=1
 anisotropy.gb_type=sin
+anisotropy.theta0= 45    #
+anisotropy.sigma0=0.075  #
+anisotropy.sigma1=0.07   #
 anisotropy.timestep=0.001
 anisotropy.tstart= 1.
-anisotropy.theta0= 45
-anisotropy.sigma0=0.075
-anisotropy.sigma1=0.07
 anisotropy.beta= 0.00001
 anisotropy.damp=1.0
 
