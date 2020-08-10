@@ -33,20 +33,20 @@ void Elastic::Generate()
 	//int max_grid_size = 100000;
 	int max_grid_size = ncells[0]/4;
 	//std::string orientation = "h";
- 	geom.resize(nlevels);
+ 	geom.resize(nlevels); 
  	cgrids.resize(nlevels);
  	ngrids.resize(nlevels);
  	dmap.resize(nlevels);
 
- 	solution_exact.resize(nlevels);
- 	solution_numeric.resize(nlevels);
- 	solution_error.resize(nlevels);
- 	rhs_prescribed.resize(nlevels);
- 	rhs_numeric.resize(nlevels);
- 	rhs_exact.resize(nlevels);
- 	res_numeric.resize(nlevels);
- 	res_exact.resize(nlevels);
-	ghost_force.resize(nlevels);
+ 	solution_exact.resize(nlevels);   solution_exact.finest_level = nlevels-1;
+ 	solution_numeric.resize(nlevels); solution_numeric.finest_level = nlevels-1;
+ 	solution_error.resize(nlevels);   solution_error.finest_level = nlevels-1;
+ 	rhs_prescribed.resize(nlevels);   rhs_prescribed.finest_level = nlevels-1;
+ 	rhs_numeric.resize(nlevels);      rhs_numeric.finest_level = nlevels-1;
+ 	rhs_exact.resize(nlevels);        rhs_exact.finest_level = nlevels-1;
+ 	res_numeric.resize(nlevels);      res_numeric.finest_level = nlevels-1;
+ 	res_exact.resize(nlevels);        res_exact.finest_level = nlevels-1;
+	ghost_force.resize(nlevels);      ghost_force.finest_level = nlevels-1;
 
 	amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)},
 			  {AMREX_D_DECL(m_bounds[0],m_bounds[1],m_bounds[2])});

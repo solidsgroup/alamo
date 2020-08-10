@@ -3,7 +3,7 @@ namespace Test
 {
 namespace Set
 {
-template <int dim, int sym>
+template <int dim, ::Set::Sym sym>
 class Matrix4
 {
 public:

@@ -12,6 +12,7 @@
 
 #include "IC/IC.H"
 #include "BC/BC.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
@@ -20,7 +21,6 @@
 
 #include "IO/ParmParse.H"
 
-#include "Model/Solid/Elastic/Elastic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Isotropic.H"
 
@@ -76,7 +76,7 @@ protected:
         for (int lev = 0; lev < rhs_mf.size(); lev++) rhs_mf[lev]->setVal(0.0);
         for (int lev = 0; lev < rhs_mf.size(); lev++) disp_mf[lev]->setVal(0.0);
 
-        Operator::Elastic<model_type> op;
+        Operator::Elastic<model_type::sym> op;
         op.SetUniform(false);
         amrex::LPInfo info;
         //info.setMaxCoarseningLevel(0);
@@ -171,7 +171,7 @@ private:
 
     std::string ic_type; ///< String to determine what kind of initial condition to use
     //IC::IC *ic;          ///< Pointer to abstract IC object
-    BC::BC *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     Set::Scalar lame = 121.154, shear = 80.7692;
     Set::Scalar kappa, mu;
@@ -182,7 +182,7 @@ private:
     Set::Vector b = Set::Vector::Zero();
     
     struct {
-        BC::Operator::Elastic<model_type> bc;
+        BC::Operator::Elastic::Constant bc;
     } elastic;
     
 

@@ -8,7 +8,7 @@
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
 #include "Test/Operator/Elastic.H"
-#include "BC/Operator/Elastic.H"
+#include "BC/Operator/Elastic/Elastic.H"
 
 using namespace amrex;
 
@@ -17,12 +17,13 @@ namespace Operator
 /// 
 /// \todo Remove Elastic derived classes. They have been replaced with the Model construction.
 /// 
-template<class T>
+template<int SYM>
 class Elastic : public Operator<Grid::Node>
 {
 	friend Test::Operator::Elastic;
 	
-	using TArrayBox = amrex::BaseFab<T>;
+	using MATRIX4   = Set::Matrix4<AMREX_SPACEDIM,SYM>;
+	using TArrayBox = amrex::BaseFab<MATRIX4>;
 	using MultiTab  = amrex::FabArray<TArrayBox>;
 public:
 	enum class BC {Displacement, Traction, Periodic, Neumann}; 
@@ -46,16 +47,16 @@ public:
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 
 	virtual void SetHomogeneous (bool a_homogeneous) override {m_homogeneous = a_homogeneous;}
-	void SetModel (T &a_model);
-	void SetModel (int amrlev, const amrex::FabArray<amrex::BaseFab<T> >& a_model);
-	void SetModel (const amrex::Vector<amrex::FabArray<amrex::BaseFab<T> > > & a_model)
+	void SetModel (Set::Matrix4<AMREX_SPACEDIM,SYM> &a_model);
+	void SetModel (int amrlev, const MultiTab& a_model);
+	void SetModel (const amrex::Vector<MultiTab> & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
-	void SetModel (const Set::Field<T> & a_model)
+	void SetModel (const Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>> & a_model)
 	{ for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,*a_model[ilev]);}
 
 	/// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
 	///
-	void SetBC (::BC::Operator::Elastic<T> *a_bc) 
+	void SetBC (::BC::Operator::Elastic::Elastic *a_bc) 
 	{
 		if (this->Geom(0).isAnyPeriodic()) 
 		{
@@ -64,7 +65,7 @@ public:
 		m_bc = a_bc;
 		m_bc_set = true;
 	};
-	::BC::Operator::Elastic<T> & GetBC()
+	::BC::Operator::Elastic::Elastic & GetBC()
 	{
 		return *m_bc;
 	}
@@ -89,7 +90,7 @@ public:
 	///
 	void Energy (int amrlev, amrex::MultiFab& energy, const amrex::MultiFab& u, bool a_homogeneous=false);
 
-	void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<T> models, bool a_homogeneous=false);
+	//void Energy (int amrlev, amrex::MultiFab& energies, const amrex::MultiFab& u, std::vector<SOLID> models, bool a_homogeneous=false);
 
 	/// This function is depricated and should not be used. Use the other `SetBC` function.
 	///
@@ -116,7 +117,6 @@ protected:
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
 
 	virtual void Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const override final;
-	//virtual void Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rsh) const final;
 	virtual void FFlux (int amrlev, const MFIter& mfi,
 						const std::array<FArrayBox*,AMREX_SPACEDIM>& flux,
 						const FArrayBox& sol, const int face_only=0) const final;
@@ -126,8 +126,6 @@ protected:
 
 	virtual int getNComp() const override {return AMREX_SPACEDIM;};
 	virtual bool isCrossStencil () const { return false; }
-	//virtual void Diagonal(bool recompute=false);
-	//virtual void normalize (int amrlev, int mglev, MultiFab& mf) const;
 	virtual void prepareForSolve ()
 	{
 		if (!m_model_set) Util::Abort(INFO,"Attempting to use operator before calling SetModel!");
@@ -144,12 +142,10 @@ private:
 	/// Model::Solid::Elastic::Isotropic::Isotropic
 	/// (or some other model type). T is the template argument.
 	/// The models contain elastic constants and contain methods for converting strain to stress
-	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T> > > > > model;
-
+	amrex::Vector<Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>>> m_ddw_mf;
 
 
 	virtual void averageDownCoeffs () override;
-	void averageDownCoeffsToCoarseAmrLevel (int flev);
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 
 	void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
@@ -158,13 +154,13 @@ private:
 	bool m_uniform = false;
 	bool m_homogeneous = false;
 
-	::BC::Operator::Elastic<T> *m_bc;
+	::BC::Operator::Elastic::Elastic *m_bc;
 
 	bool m_model_set = false;
 	bool m_bc_set = false;
 	
 public:
-    static void Parse(Elastic<T> & /*value*/, IO::ParmParse & /*pp*/)
+    static void Parse(Elastic<SYM> & /*value*/, IO::ParmParse & /*pp*/)
     {
     }
 
