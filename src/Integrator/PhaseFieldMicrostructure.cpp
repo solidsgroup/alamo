@@ -115,6 +115,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("on",fluctuation.on);
 		pp.query("amp",fluctuation.amp);
 		pp.query("sd",fluctuation.sd);
+		pp.query("tstart", fluctuation.tstart);
 		fluctuation.norm_dist = std::normal_distribution<double>(0.0,fluctuation.sd);
 		
 	}
@@ -402,9 +403,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				// FLUCTUATION TERM
 				//
 
-				//std::normal_distribution<double> norm_dist(fluctuation.amp, fluctuation.sd);
-				//std::default_random_engine rand_num_gen(std::chrono::system_clock::now().time_since_epoch().count());
-				if (fluctuation.on)
+				if (fluctuation.on && time > fluctuation.tstart)
 				{
 					fluct(i,j,k,0) = fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0];
 					etanew(i,j,k,m) += fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) * dt / DX[0];
