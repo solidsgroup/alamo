@@ -21,7 +21,6 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "IC/Trig.H"
-
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -228,7 +227,6 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 	{
 		const amrex::Box &bx = mfi.tilebox();
 		amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
-		amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &fluct = (*fluct_mf[lev]).array(mfi);
 
@@ -396,11 +394,42 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				}
 
 				//
-				// ELASTIC DRIVING FORCE
+				// EVOLVE ETA
+				//
+				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
+
+				//
+				// FLUCTUATION TERM
 				//
 
-				if (elastic.on && time > elastic.tstart)
+				//std::normal_distribution<double> norm_dist(fluctuation.amp, fluctuation.sd);
+				//std::default_random_engine rand_num_gen(std::chrono::system_clock::now().time_since_epoch().count());
+				if (fluctuation.on)
 				{
+					fluct(i,j,k,0) = fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0];
+					etanew(i,j,k,m) += fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) * dt / DX[0];
+				}
+
+				if (std::isnan(driving_force))
+					Util::Abort(INFO, i, " ", j, " ", k, " ", m);
+			}
+		});
+
+		//
+		// ELASTIC DRIVING FORCE
+		//
+		if (elastic.on && time > elastic.tstart)
+		{
+			const amrex::Box &bx = mfi.tilebox();
+			amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
+			amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
+			amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
+
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+			{
+				for (int m = 0; m < number_of_grains; m++)
+				{
+					Set::Scalar driving_force = 0.0;
 					Set::Scalar etasum = 0.0;
 					Set::Matrix F0avg = Set::Matrix::Zero();
 					
@@ -442,32 +471,11 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
 					}
 
+					etanew(i, j, k, m) -= pf.M * dt * driving_force;
 				}
+			});
 
-
-				//
-				// EVOLVE ETA
-				//
-
-				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
-				
-				//
-				// FLUCTUATION TERM
-				//
-
-				//std::normal_distribution<double> norm_dist(fluctuation.amp, fluctuation.sd);
-				//std::default_random_engine rand_num_gen(std::chrono::system_clock::now().time_since_epoch().count());
-				if (fluctuation.on)
-				{
-					fluct(i,j,k,0) = fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0];
-					etanew(i,j,k,m) += fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) * dt / DX[0];
-				}
-
-				
-				if (std::isnan(driving_force))
-					Util::Abort(INFO, i, " ", j, " ", k, " ", m);
-			}
-		});
+		}
 	}
 }
 
@@ -586,15 +594,12 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 										 const amrex::MFIter &mfi, const amrex::Box &box)
 {
 	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
+	const amrex::Real *DX = geom[amrlev].CellSize();
+	Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
 	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
-	const amrex::Real *DX = geom[amrlev].CellSize();
 	amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
-	amrex::Array4<amrex::Real> const &w   = (*energy_mf[amrlev]).array(mfi);
-	amrex::Array4<amrex::Real> const &stress   = (*stress_mf[amrlev]).array(mfi);
-	amrex::Array4<amrex::Real> const &u        = (*disp_mf[amrlev]).array(mfi);
 	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-		Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
 		volume += eta(i, j, k, 0) * dv;
 
@@ -635,7 +640,13 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 #endif
 			}
 		}
-		if (elastic.on)
+	});
+	if (elastic.on)
+	{
+		amrex::Array4<amrex::Real> const &w        = (*energy_mf[amrlev]).array(mfi);
+		amrex::Array4<amrex::Real> const &stress   = (*stress_mf[amrlev]).array(mfi);
+		amrex::Array4<amrex::Real> const &u        = (*disp_mf[amrlev])  .array(mfi);
+		amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
 		{
 			if (j == geom[amrlev].Domain().hiVect()[1])
 			{
@@ -643,8 +654,8 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
 				elastic.disp  += 0.5*(u(i,j+1,k,0)      + u(i+1,j+1,k,0)     ) * DX[0];
 			}
 			elastic.strainenergy += 0.25 * (w(i,j,k) + w(i+1,j,k) + w(i,j+1,k) + w(i+1,j+1,k)) * volume;
-		}
-	});
+		});
+	}
 }
 
 } // namespace Integrator
