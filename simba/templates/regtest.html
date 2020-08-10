@@ -3,8 +3,11 @@
 
 <style>
     {% for p in range(0,data|length) %}
+    #row-{{data[p]['RUN']}}:hover{
+        background-color:LightGray;
+    }
     #row-{{data[p]['RUN']}}:hover ~ #row-{{data[p]['BENCHMARK_RUN']}}{
-        background-color:yellow;
+        background-color:LightBlue;
     }
     {% endfor %}
 </style>
