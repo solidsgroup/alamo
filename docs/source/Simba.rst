@@ -2,7 +2,7 @@
    :language: c++
 
 Simulation Browser Analysis (SimBA)
-==================================
+===================================
 
 .. toctree::
    :maxdepth: 2

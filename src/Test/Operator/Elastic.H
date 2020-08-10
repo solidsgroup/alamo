@@ -67,7 +67,7 @@ public:
 	///   \f[C_{ijkl} u_{k,jl} + b_i = 0\f]
 	/// Where
 	///   \f[C_{ijkl} = \alpha \delta_{ik} \delta_{jl}\f]
-	/// (see Model::Solid::LinearElastic::Laplacian for implementation of this model)
+	/// (see Model::Solid::Linear::Laplacian for implementation of this model)
 	///
 	/// Consider a simulation domain \f$\Omega = [0, 1]^2\f$
 	///
@@ -106,7 +106,7 @@ public:
         ///
   	/// In this case the two Lamé parameters are:
 	///   \f[ \mu=2.6 \\\\ \lambda=6.0 \f]
-  	/// (see Model::Solid::LinearElastic::Isotropic for implementation of this model)
+  	/// (see Model::Solid::Linear::Isotropic for implementation of this model)
 	///
 	/// Consider a simulation domain \f$\Omega = [0, 1]^3\f$
   	///

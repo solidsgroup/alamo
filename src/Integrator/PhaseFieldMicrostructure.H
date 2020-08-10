@@ -17,6 +17,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
+#include "BC/Operator/Elastic/Constant.H"
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi.H"
@@ -28,16 +29,12 @@
 #include "Model/Interface/GB/Read.H"
 
 #include "Model/Solid/Linear/Cubic.H"
-//#include "Model/Solid/LinearElastic/Cubic.H"
-//#include "Model/Solid/LinearElastic/Isotropic.H"
-//#include "Model/Solid/Linear/Laplacian.H"
+#include "Model/Solid/Affine/Cubic.H"
 #include "Operator/Elastic.H"
 
 namespace Integrator
 {
-//using model_type = Model::Solid::LinearElastic::Isotropic;
-//using model_type = Model::Solid::LinearElastic::Cubic;
-using model_type = Model::Solid::Linear::Cubic;
+using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
 	Wilmore = 1,
@@ -83,9 +80,11 @@ private:
 	Set::Field<Set::Scalar> disp_mf; 
 	Set::Field<Set::Scalar> rhs_mf; 
 	Set::Field<Set::Scalar> stress_mf;
-	Set::Field<Set::Scalar> energies_mf;
+	Set::Field<Set::Scalar> energy_mf;
 
-	BC::BC *mybc;
+	Set::Field<model_type> model_mf;
+
+	BC::BC<Set::Scalar> *mybc;
 
 	//amrex::Real M, mu, gamma, sigma0, l_gb, beta;
 	RegularizationType regularization = RegularizationType::K12;
@@ -96,6 +95,7 @@ private:
 		Set::Scalar sigma0;
 		Set::Scalar l_gb;
 		Set::Scalar elastic_mult = 1.0;
+		Set::Scalar elastic_threshold = 0.0;
 	} pf;
 
 	struct {
@@ -108,6 +108,7 @@ private:
 		int thermo_int = -1, thermo_plot_int = -1;
 		Set::Scalar theta0,sigma0,sigma1;
 		Set::Scalar phi0 = 0.0;
+		int elastic_int = -1;
 	} anisotropy;
 	
 	struct { 
@@ -143,11 +144,15 @@ private:
 
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
-		std::array<BC::Operator::Elastic<model_type>::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
-		Operator::Elastic<model_type> op;
+		std::array<BC::Operator::Elastic::Constant::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
+		std::array<BC::Operator::Elastic::Constant::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
+		Operator::Elastic<model_type::sym> op;
 
-		BC::Operator::Elastic<model_type> bc;
+		BC::Operator::Elastic::Constant bc;
+
+		Set::Scalar strainenergy = 0.0;
+		Set::Scalar force = 0.0;
+		Set::Scalar disp = 0.0;
 	} elastic;
 
 };

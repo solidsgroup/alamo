@@ -5,7 +5,6 @@
 #include <AMReX_MLCellLinOp.H>
 #include <AMReX_MultiFabUtil.H>
 #include <AMReX_BaseFab.H>
-#include "AMReX_BaseFab_f.H"
 
 #include "BC/BC.H"
 
@@ -108,8 +107,6 @@ public:
 	}
 
 
-private:
-	void buildMasks ();
 public:
 	static void realFillBoundary(MultiFab &phi, const Geometry &geom);
 
@@ -155,7 +152,7 @@ public:
 	void define (amrex::Vector<amrex::Geometry> a_geom,
 		     const amrex::Vector<amrex::BoxArray>& a_grids,
 		     const amrex::Vector<amrex::DistributionMapping>& a_dmap,
-		     BC::BC& a_bc,
+		     BC::BC<Set::Scalar>& a_bc,
 		     const amrex::LPInfo& a_info = amrex::LPInfo(),
 		     const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory = {});
 
@@ -163,7 +160,7 @@ public:
 
 protected:
 	
-	BC::BC *m_bc;
+	BC::BC<Set::Scalar> *m_bc;
 
 	amrex::Vector<std::unique_ptr<amrex::MLMGBndry> >   m_bndry_sol;
 	amrex::Vector<std::unique_ptr<amrex::BndryRegister> > m_crse_sol_br;
