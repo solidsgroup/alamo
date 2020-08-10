@@ -89,11 +89,10 @@ private:
 
 	BC::BC<Set::Scalar> *mybc;
 
-	//amrex::Real M, mu, gamma, sigma0, l_gb, beta;
+	//amrex::Real M, gamma, sigma0, l_gb, beta;
 	RegularizationType regularization = RegularizationType::K12;
 	struct {
 		Set::Scalar M;
-		Set::Scalar mu;
 		Set::Scalar gamma;
 		Set::Scalar sigma0;
 		Set::Scalar l_gb;
@@ -125,6 +124,7 @@ private:
 		int on = 0;
 		Set::Scalar amp = 0.0;
 		Set::Scalar sd = 0.0;
+		Set::Scalar tstart = 0.0;
 		std::normal_distribution<double> norm_dist;
 		std::default_random_engine rand_num_gen;
 	} fluctuation;
