@@ -1,0 +1,9 @@
+[include]
+file1
+file2
+
+[config]
+name2=baker
+name3=charlie
+
+
