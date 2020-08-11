@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 
 def parse(directory):
 
