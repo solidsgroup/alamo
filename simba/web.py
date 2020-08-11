@@ -6,8 +6,9 @@ import sqlite3
 import argparse
 import getpass
 from functools import wraps
-from flask import Flask, request, render_template, send_file, redirect, Response
+from flask import Flask, request, render_template, send_file, redirect, Response, url_for
 from flaskext.markdown import Markdown
+from flask_frozen import Freezer
 import datetime
 
 print("====================================")
@@ -87,29 +88,30 @@ app.jinja_env.filters['datetime'] = format_datetime
 @app.route("/", methods=['GET','POST'])
 @requires_auth
 def root():
-    db = sqlite3.connect(args.database)
-    db.text_factory = str
-    cur= db.cursor()
-
-    if request.method == 'POST':
-        if request.form.get('action')=="delete-table" and not args.safe:
-            print("deleting table " + request.form.get('table-name'))
-            cur.execute("DROP TABLE " + request.form.get('table-name'))
-        if request.form.get('action')=="rename-table" and not args.safe:
-            print(request.form.get('table-name-old'))
-            print(request.form.get('table-name-new'))
-            cur.execute("ALTER TABLE " + str(request.form.get('table-name-old')) + " RENAME TO " + str(request.form.get('table-name-new')))
-            
-
-    cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = [r[0] for r in cur.fetchall()]
-    if "__tables__" in tables: tables.remove("__tables__")
-
-
-    if len(tables) > 0:
-        return redirect('/table/'+tables[0])
-    return render_template('root.html',
-                           tables=tables)
+#    db = sqlite3.connect(args.database)
+#    db.text_factory = str
+#    cur= db.cursor()
+#
+#    if request.method == 'POST':
+#        if request.form.get('action')=="delete-table" and not args.safe:
+#            print("deleting table " + request.form.get('table-name'))
+#            cur.execute("DROP TABLE " + request.form.get('table-name'))
+#        if request.form.get('action')=="rename-table" and not args.safe:
+#            print(request.form.get('table-name-old'))
+#            print(request.form.get('table-name-new'))
+#            cur.execute("ALTER TABLE " + str(request.form.get('table-name-old')) + " RENAME TO " + str(request.form.get('table-name-new')))
+#            
+#
+#    cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+#    tables = [r[0] for r in cur.fetchall()]
+#    if "__tables__" in tables: tables.remove("__tables__")
+#
+#
+#    if len(tables) > 0:
+#        return redirect('/table/'+tables[0])
+#    return render_template('root.html',
+#                           tables=tables)
+    return "<h2>SIMBA Main Page</h2>"
 
 @app.route("/table/<table>", methods=['GET','POST'])
 @requires_auth
@@ -215,44 +217,45 @@ def find_thermo(path):
     if os.path.isfile(path+'/thermo.dat'): thermofile = path+"/thermo.dat"
     else: thermofile = None
 
-@app.route('/img/<number>')
-@requires_auth
-def serve_image(number):
-    global imgfiles
-    return send_file(imgfiles[int(number)],cache_timeout=-1)
+#@app.route('/img/<number>')
+#@requires_auth
+#def serve_image(number):
+#    global imgfiles
+#    return send_file(imgfiles[int(number)],cache_timeout=-1)
+#
+#@app.route('/metadata/')
+#@requires_auth
+#def serve_metadata():
+#    global metadatafile
+#    response = send_file(metadatafile,cache_timeout=-1,as_attachment=True)
+#    response.headers["x-filename"] = "metadata"
+#    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+#    return response
+#
+#
+#@app.route('/thermo/')
+#@requires_auth
+#def serve_thermo():
+#    global thermofile
+#    response = send_file(thermofile,cache_timeout=-1,as_attachment=True)
+#    response.headers["x-filename"] = "thermo.dat"
+#    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+#    return response
+#
+#@app.route('/tarball/<filename>/<number>')
+#@requires_auth
+#def serve_tarball(filename,number):
+#    print (filename)
+#    global tarballfiles
+#    response = send_file(tarballfiles[int(number)],cache_timeout=-1,as_attachment=True)
+#    response.headers["x-filename"] = filename
+#    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+#    return response
 
-@app.route('/metadata/')
+@app.route('/table/<table>/entry/<a_entry>', methods=['GET','POST'])
 @requires_auth
-def serve_metadata():
-    global metadatafile
-    response = send_file(metadatafile,cache_timeout=-1,as_attachment=True)
-    response.headers["x-filename"] = "metadata"
-    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
-    return response
-
-
-@app.route('/thermo/')
-@requires_auth
-def serve_thermo():
-    global thermofile
-    response = send_file(thermofile,cache_timeout=-1,as_attachment=True)
-    response.headers["x-filename"] = "thermo.dat"
-    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
-    return response
-
-@app.route('/tarball/<filename>/<number>')
-@requires_auth
-def serve_tarball(filename,number):
-    print (filename)
-    global tarballfiles
-    response = send_file(tarballfiles[int(number)],cache_timeout=-1,as_attachment=True)
-    response.headers["x-filename"] = filename
-    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
-    return response
-
-@app.route('/table/<table>/entry/<entry>', methods=['GET','POST'])
-@requires_auth
-def table_entry(table,entry):
+def table_entry(table,a_entry):
+    entry = a_entry.replace(".html","")
 
     global imgfiles
     global metadatafile
@@ -299,7 +302,7 @@ def table_entry(table,entry):
                            imgfiles=[os.path.split(im)[1] for im in imgfiles],
                            tarballfiles=[os.path.split(tb)[1] for tb in tarballfiles])
                            
-@app.route('/table/<table>/entry/<entry>/stdout', methods=['GET','POST'])
+@app.route('/table/<table>/entry/<entry>/stdout.html', methods=['GET','POST'])
 @requires_auth
 def table_entry_stdout(table,entry):
     db = sqlite3.connect(args.database)
@@ -308,7 +311,7 @@ def table_entry_stdout(table,entry):
     cur.execute("SELECT STDOUT FROM {} WHERE HASH = ?".format(table),(entry,))
     return cur.fetchall()[0][0]
 
-@app.route('/table/<table>/entry/<entry>/diff', methods=['GET','POST'])
+@app.route('/table/<table>/entry/<entry>/diff.html', methods=['GET','POST'])
 @requires_auth
 def table_entry_diff(table,entry):
     db = sqlite3.connect(args.database)
@@ -327,7 +330,7 @@ def table_entry_diff_patch(table,entry):
     return Response(cur.fetchall()[0][0],content_type='File')
     #return cur.fetchall()[0][0]
 
-@app.route('/table/<table>/entry/<entry>/stderr', methods=['GET','POST'])
+@app.route('/table/<table>/entry/<entry>/stderr.html', methods=['GET','POST'])
 @requires_auth
 def table_entry_stderr(table,entry):
     db = sqlite3.connect(args.database)
@@ -336,7 +339,7 @@ def table_entry_stderr(table,entry):
     cur.execute("SELECT STDERR FROM {} WHERE HASH = ?".format(table),(entry,))
     return cur.fetchall()[0][0]
 
-@app.route('/regtest/<regtest>/testentry/<hash>/diff_stdout', methods=['GET','POST'])
+@app.route('/regtest/<regtest>/testentry/<hash>/diff_stdout.html', methods=['GET','POST'])
 @requires_auth
 def table_entry_diff_stdout(regtest,hash):
     db = sqlite3.connect(args.database)
@@ -345,7 +348,7 @@ def table_entry_diff_stdout(regtest,hash):
     cur.execute("SELECT diff_stdout FROM {} WHERE HASH = ?".format(regtest),(hash,))
     return cur.fetchall()[0][0]
                            
-@app.route('/regtest/<regtest>/<run>/stdout', methods=['GET','POST'])
+@app.route('/regtest/<regtest>/<run>/stdout.html', methods=['GET','POST'])
 @requires_auth
 def regtest_run_stdout(regtest,run):
     db = sqlite3.connect(args.database)
@@ -359,9 +362,11 @@ def regtest_run_stdout(regtest,run):
     else: return "<h2>None</h2>"
 
 
-@app.route("/regtest/<regtest>", methods=['GET','POST'])
+@app.route("/regtest/<a_regtest>", methods=['GET','POST'])
 @requires_auth
-def regtest(regtest):
+def regtest(a_regtest):
+    regtest = a_regtest.replace(".html","")
+
     db = sqlite3.connect(args.database)
     db.text_factory = str
     cur= db.cursor()
@@ -410,8 +415,37 @@ def regtest(regtest):
                             columns=columns)
                            
                            
+freezer = Freezer(app)
+
+@freezer.register_generator
+def regtest():
+    yield '/regtest/regtest.html'
+
+@freezer.register_generator
+def regtest_run_stdout():
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT RUN,COMPILECODE FROM regtest_runs ORDER BY RUN DESC")
+    runs = [tn[0] for tn in cur.fetchall()]#sorted([tn[0] for tn in cur.fetchall()],reverse=True)
+    for run in runs:
+        #print('/regtest/regtest/{}/stdout.html'.format(run))
+        yield '/regtest/regtest/{}/stdout.html'.format(run)
+
+@freezer.register_generator
+def table_entry():
+    db = sqlite3.connect(args.database)
+    db.text_factory = str
+    cur= db.cursor()
+    cur.execute("SELECT TEST_NAME,HASH FROM regtest")
+    for test in cur.fetchall():
+        yield '/table/{}/entry/{}.html'.format(test[0],test[1])
+        yield '/table/{}/entry/{}/stdout.html'.format(test[0],test[1])
+        yield '/table/{}/entry/{}/stderr.html'.format(test[0],test[1])
+
 
 if __name__ == '__main__':
+    freezer.freeze()
     app.run(debug=True,
             use_reloader=False,
             host=args.ip,
