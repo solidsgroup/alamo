@@ -29,7 +29,7 @@
     <tr id="row-{{runs[i][0]}}"> 
         <td>
             <input type="checkbox" name="run_{{runs[i][0]}}" value="{{runs[i]['DIR']}}"/>
-            <a target="_blank" href="/regtest/regtest/{{runs[i][0]}}/stdout">{{runs[i][0]}}</a>
+            <a target="_blank" href="regtest/{{runs[i][0]}}/stdout.html">{{runs[i][0]}}</a>
             {% if runs[i][1] == 0 %} <span class="label label-success" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-cog"/> </span></span> {% endif %}
         </td>
         {% for j in range(0,tests|length) %}
@@ -73,17 +73,17 @@
                                           </button>
                                     </div>
                                     <div class="modal-body">
-                                        <p><b> Simulation detail page: </b> <a target='_blank' href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}</a></p>
+                                        <p><b> Simulation detail page: </b> <a target='_blank' href="../table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}.html">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}.html</a></p>
                                         {% if not data[p]['COMPARE'] == "NONE" %}
-                                            <p><b>Benchmark</b>: <span class="label label-default"> {{data[p]['BENCHMARK_RUN']}} </span> &nbsp; <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a></p>
+                                            <p><b>Benchmark</b>: <span class="label label-default"> {{data[p]['BENCHMARK_RUN']}} </span> &nbsp; <a target="_blank" href="../table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}.html">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH'].html}}</a></p>
                                         {% endif %}
 
                                         <p>
-                                            <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stdout"><span class="label label-info"> STDOUT  </b></span></a>
+                                            <a target="_blank" href="../table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stdout.html"><span class="label label-info"> STDOUT  </b></span></a>
                                             &nbsp;
-                                            <a target="_blank" href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stderr"><span class="label label-danger"> STDERR  </b></span></a>&nbsp;
+                                            <a target="_blank" href="../table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['HASH']}}/stderr.html"><span class="label label-danger"> STDERR  </b></span></a>&nbsp;
                                             {% if not data[p]['COMPARE'] == "NONE" %}
-                                                <a target="_blank" href="/regtest/regtest/testentry/{{data[p]['HASH']}}/diff_stdout"><span class="label label-default">DIFF</b></span></a>
+                                                <a target="_blank" href="regtest/testentry/{{data[p]['HASH']}}/diff_stdout.html"><span class="label label-default">DIFF</b></span></a>
                                             {% endif %}
 
                                         </p>
@@ -103,7 +103,7 @@
                                                     <span class="label label-danger" style="display:inline-block;min-width:20px;"> <span class="glyphicon glyphicon-retweet"/> </span></span>
                                                     Comparison failed
                                                 {% endif %}
-                                                (<b>Benchmark</b>: <span class="label label-default"> {{data[p]['BENCHMARK_RUN']}} </span> &nbsp; <a href="/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}</a>)
+                                                (<b>Benchmark</b>: <span class="label label-default"> {{data[p]['BENCHMARK_RUN']}} </span> &nbsp; <a href="../table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}.html">/table/{{data[p]['TEST_NAME']}}/entry/{{data[p]['BENCHMARK_HASH']}}.html</a>)
                                                 </p>
                                             {% endif %}
     
