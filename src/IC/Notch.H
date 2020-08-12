@@ -57,7 +57,9 @@ public:
 	                if(std::abs((x-nCenter[i]).transpose()*nOrientation[i]) <= 0.5*nLength[i])
 					{
 						Set::Scalar t = std::abs((x-nCenter[i]).transpose()*nNormal[i]) - (nThickness[i]/2.0);
-						if (moll == Mollifier::Gaussian) value = 0.5 + 0.5*std::erf(t / eps);
+						if (moll == Mollifier::Gaussian) 
+							value = min_val + (1.0 - min_val)*std::erf(t/eps);
+							//value = 0.5 + 0.5*std::erf(t / eps);
 						else if (moll == Mollifier::Dirac)
 						{
 							if (t < 0.0) value = 0.0;
@@ -74,7 +76,7 @@ public:
 					{
 						Set::Vector nLeft =  nCenter[i] - 0.5*nLength[i]*nOrientation[i];
 						Set::Vector nRight = nCenter[i] + 0.5*nLength[i]*nOrientation[i];
-						Set::Vector nLeft2 = Set::Vector::Zero(), nRight2 = Set::Vector::Zero();
+						Set::Vector nLeft2 = nLeft, nRight2 = nRight;
 						Set::Vector correction = nOrientation[i]*(std::sqrt(nRadius[i]*nRadius[i] - nThickness[i]*nThickness[i]/4.0)); 
 						if (nRadius[i] > 0.5*nThickness[i])
 						{
@@ -95,7 +97,10 @@ public:
 						if(distLeft <= 0.)
 						{
 							Set::Scalar t = (x-nLeft2).lpNorm<2>() - nRadius[i];
-							if (moll == Mollifier::Gaussian) value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
+							if (moll == Mollifier::Gaussian) 
+							{
+								value = min_val + (1.0 - min_val)*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
+							}
 							else if (moll == Mollifier::Dirac)
 							{
 								if (t < 0.0) value = 0.0;
@@ -167,7 +172,10 @@ public:
 						if(distRight >= 0.)
 						{
 							Set::Scalar t = (x-nRight2).lpNorm<2>() - nRadius[i];
-							if (moll == Mollifier::Gaussian) value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
+							if (moll == Mollifier::Gaussian) 
+							{
+								value = min_val + (1.- min_val)*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
+							}
 							else if (moll == Mollifier::Dirac)
 							{
 								if (t < 0.0) value = 0.0;
@@ -249,9 +257,8 @@ public:
 	
 private:
     amrex::Vector<Set::Vector> nCenter, nOrientation, nNormal;
-    Set::Scalar eps = 1.e-5, eps_sq = eps*eps;
+    Set::Scalar eps = 1.e-5, eps_sq = eps*eps, min_val = 0.01;
 	amrex::Vector<Set::Scalar> nThickness, nLength, nRadius;
-    Set::Scalar window = 6.0*eps;
     Mollifier moll = Mollifier::Dirac;
 
 public:
@@ -295,10 +302,21 @@ public:
         pp.queryarr("length", value.nLength);
 		pp.queryarr("radius", value.nRadius);
         pp.query("eps", value.eps);
+		pp.query("modulus_scaling_max", value.min_val);
 
-		if(value.nThickness.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of thickness and centers");
-		for (int i=0; i<value.nThickness.size(); i++)
-			if(value.nThickness[i] <= 0.) value.nThickness[i] = 0.01;
+		Util::Message(INFO, "min_val = ", value.min_val);
+
+		if(value.nThickness.size() == 0)
+		{
+			value.nThickness.resize(value.nCenter.size());
+			for (int i=0; i<value.nThickness.size(); i++) value.nThickness[i] = 0.0;
+		}
+		else if(value.nThickness.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of thickness and centers");
+		else
+		{
+			for (int i=0; i<value.nThickness.size(); i++)
+				if(value.nThickness[i] <= 0.) value.nThickness[i] = 0.01;
+		}
         
         if(value.nLength.size() != value.nCenter.size()) Util::Abort(INFO, "Inconsistent size of length and centers");
         for (int i=0; i<value.nLength.size(); i++)
@@ -349,8 +367,7 @@ public:
 		value.nNormal.resize(value.nOrientation.size());
 
         value.eps_sq = value.eps*value.eps;
-        value.window = 6.0*value.eps;
-
+        
 		for (int i = 0; i<value.nOrientation.size(); i++)
 		{
 			value.nNormal[i] = Set::Vector::Zero();
