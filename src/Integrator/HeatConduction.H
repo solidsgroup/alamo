@@ -15,6 +15,7 @@
 #include "BC/Constant.H"
 
 #include "IC/Cylinder.H"
+#include "IC/Sphere.H"
 #include "IC/Constant.H"
 
 #include "Numeric/Stencil.H"
@@ -52,21 +53,34 @@ public:
 		// // Determine initial condition
 		{
 			IO::ParmParse pp("ic");
+			std::string type = "sphere";
+			pp.query("type",type);
+			if (type == "sphere")
+			{
+				ic = new IC::Sphere(geom);
+				pp.queryclass("sphere",*static_cast<IC::Sphere*>(ic));
+			}
+			else
+			{
+				ic = new IC::Constant(geom);
+				pp.queryclass("constant",*static_cast<IC::Constant*>(ic));
+			}
+			
 		}		
-		if (ic_type == "cylinder")
-		{
-			amrex::Real Tin, Tout;
-			pp.query("Tin", Tin);
-	    	pp.query("Tout", Tout);
-			IC = new IC::Cylinder(geom,Tin,Tout);
-			pp.queryclass("")
-		}
-		else if (ic_type == "constant")
-			Util::Abort(INFO,"Need to fix this");
-			//ic = new IC::Constant(geom,alpha);
-		else
-			Util::Abort(INFO,"Need to fix this");
-			//IC = new IC::Sphere(radius,center,XY)
+//		if (ic_type == "cylinder")
+//		{
+//			amrex::Real Tin, Tout;
+//			pp.query("Tin", Tin);
+//	    	pp.query("Tout", Tout);
+//			ic = new IC::Cylinder(geom,Tin,Tout);
+//			//pp.queryclass("");
+//		}
+//		else if (ic_type == "constant")
+//			Util::Abort(INFO,"Need to fix this");
+//			//ic = new IC::Constant(geom,alpha);
+//		else
+//			Util::Abort(INFO,"Need to fix this");
+//			//IC = new IC::Sphere(radius,center,XY)
 	
 		{
 			IO::ParmParse pp("bc");
@@ -84,7 +98,7 @@ protected:
 	/// \brief Use the #ic object to initialize #Temp
 	void Initialize(int lev)
 	{
-		IC->Initialize(lev,temp_old_mf);
+		ic->Initialize(lev,temp_old_mf);
 	}
 
 	/// \brief Integrate the heat equation
@@ -139,7 +153,7 @@ private:
 	amrex::Real refinement_threshold = 0.01; ///< Criterion for cell refinement
 
 	std::string ic_type;	 ///< String to determine what kind of initial condition to use
-	IC::IC *IC;				 ///< Pointer to abstract IC object
+	IC::IC *ic;				 ///< Pointer to abstract IC object
 	BC::BC<Set::Scalar> *bc; ///< Stock generic boundary condition object
 };
 } // namespace Integrator
