@@ -83,7 +83,7 @@ public:
 		// Compute numeric derivative
 		//
 		const amrex::Real* DX = geom[0].CellSize();
-		for ( amrex::MFIter mfi(phi[0],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi )
+		for ( amrex::MFIter mfi(*phi[0],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi )
 		{
 			const amrex::Box& bx = mfi.tilebox();
 			amrex::Array4<const amrex::Real> const& Phi = phi[0]->array(mfi);
@@ -95,7 +95,7 @@ public:
 		amrex::MultiFab::Copy    (diff,*DphiExact[0]  ,0,0,ncomp,nghost);
 		amrex::MultiFab::Subtract(diff,*DphiNumeric[0],0,0,ncomp,nghost);
 
-		Set::Scalar error = diff.norm0(0,0,false) / DphiExact[0].norm0(0,0,false);
+		Set::Scalar error = diff.norm0(0,0,false) / DphiExact[0]->norm0(0,0,false);
 
 		if (verbose) Util::Message(INFO,"Infinity norm of error = ", 100*error,"%");
 
@@ -114,15 +114,11 @@ public:
 		for (amrex::MFIter mfi(plotmf[0],false); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.validbox();
-			plotmf[0][mfi].copy(phi[0][mfi]        ,bx, 0, bx, 0, 1); 
-			plotmf[0][mfi].copy(DphiExact[0][mfi]  ,bx, 0, bx, 1, 1); 
-			plotmf[0][mfi].copy(DphiNumeric[0][mfi],bx, 0, bx, 2, 1); 
+			plotmf[0][mfi].copy((*phi[0])[mfi]        ,bx, 0, bx, 0, 1); 
+			plotmf[0][mfi].copy((*DphiExact[0])[mfi]  ,bx, 0, bx, 1, 1); 
+			plotmf[0][mfi].copy((*DphiNumeric[0])[mfi],bx, 0, bx, 2, 1); 
 		}
 		amrex::WriteSingleLevelPlotfile(plotfile,plotmf[0],varnames,geom[0],0.0,1);
-
-		// amrex::WriteMultiLevelPlotfile(plotfile, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-		// 			       varnames, geom, 0.0, amrex::Vector<int>(nlevels, 0),
-		// 			       amrex::Vector<amrex::IntVect>(nlevels, amrex::IntVect{ref_ratio}));
 	}		
 
 
