@@ -127,8 +127,6 @@ public:
 protected:
     void Initialize(int ilev) override
     {
-        // crack.ic->Initialize(ilev,crack.field);
-        // crack.ic->Initialize(ilev,crack.field_old);
         crack.field[ilev]->setVal(1.0);
         crack.field_old[ilev]->setVal(1.0);
 
@@ -160,10 +158,10 @@ protected:
         {
             crack.field[ilev]->FillBoundary();
             material.modulus_field[ilev]->FillBoundary();
-
+            
             for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
             {
-                amrex::Box box = mfi.growntilebox(2);
+                amrex::Box box = mfi.validbox();
                 amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
                 amrex::Array4<brittle_fracture_model_type> modelfab = (material.brittlemodel)[ilev]->array(mfi);
@@ -190,10 +188,8 @@ protected:
                                 + crack.cracktype->g_phi(modbox(i,j,k-1,0),0.) + crack.cracktype->g_phi(modbox(i-1,j,k-1,0),0.)
                                 + crack.cracktype->g_phi(modbox(i,j-1,k-1,0),0.) + crack.cracktype->g_phi(modbox(i-1,j-1,k-1,0),0.))
                                 );
-                    //Set::Scalar _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_new,i,j,k,0),0.0);
+                    // Set::Scalar _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_new,i,j,k,0),0.0);
                     // _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
-                    // _temp = modbox(i,j,k,0);
-                    //_temp *= crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(modbox,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) _temp = 0.;
                     if(_temp > 1.0) _temp = 1.0;
@@ -251,13 +247,13 @@ protected:
             op_b.Stress(ilev,*elastic.stress[ilev],*elastic.disp[ilev]);
             op_b.Energy(ilev,*elastic.energy[ilev],*elastic.disp[ilev]);
 
-            elastic.strain[ilev]->FillBoundary();
+            Util::RealFillBoundary(*elastic.strain[ilev],geom[ilev]);
+            Util::RealFillBoundary(*elastic.energy_pristine_old[ilev],geom[ilev]);
             elastic.energy_pristine[ilev]->setVal(0.0);
-            elastic.energy_pristine_old[ilev]->FillBoundary();
-
+            
             for (amrex::MFIter mfi(*elastic.strain[ilev],true); mfi.isValid(); ++mfi)
             {
-                const amrex::Box& box = mfi.growntilebox(2);
+                const amrex::Box& box = mfi.validbox();
                 amrex::Array4<const Set::Scalar> const& strain_box 	= (*elastic.strain[ilev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box 		= (*elastic.energy_pristine[ilev]).array(mfi);
@@ -277,15 +273,7 @@ protected:
                         if(eValues(n) > 0.0) epsp += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                         else epsn += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                     }
-                    // Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
-                    Set::Scalar _temp = (AMREX_D_PICK(0.5,0.25,0.125))*(AMREX_D_TERM(	
-                                crack.cracktype->g_phi(modbox(i,j,k,0),0.) + crack.cracktype->g_phi(modbox(i-1,j,k,0),0.)
-                                , 
-                                + crack.cracktype->g_phi(modbox(i,j-1,k,0),0.) + crack.cracktype->g_phi(modbox(i-1,j-1,k,0),0.)
-                                , 
-                                + crack.cracktype->g_phi(modbox(i,j,k-1,0),0.) + crack.cracktype->g_phi(modbox(i-1,j,k-1,0),0.)
-                                + crack.cracktype->g_phi(modbox(i,j-1,k-1,0),0.) + crack.cracktype->g_phi(modbox(i-1,j-1,k-1,0),0.))
-                                );
+                    Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
                     if(std::isnan(_temp)) Util::Abort(INFO, "Nans in temp. modbox(", i,",",j,",",k,") = ", modbox(i,j,k,0));
                     if (_temp < 0.0) _temp = 0.0;
                     if (_temp > 1.0) _temp = 1.0;
@@ -303,7 +291,7 @@ protected:
 
         crack.field_old[lev]->FillBoundary();
         material.modulus_field[lev]->FillBoundary();
-        elastic.energy_pristine[lev]->FillBoundary();
+        Util::RealFillBoundary(*elastic.energy_pristine[lev],geom[lev]);
 
         const Set::Scalar* DX = geom[lev].CellSize();
 
@@ -319,15 +307,18 @@ protected:
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
     			Set::Scalar rhs = 0.0;
                 Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
-                // Set::Scalar normgrad = Dc.lpNorm<2>();
                 
                 Set::Scalar _temp = modbox(i,j,k,0);
-                // Set::Scalar _temp = Numeric::Interpolate::NodeToCellAverage(modbox,i,j,k,0);
                 Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
+                
                 if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
+                if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
+                if (c_old(i,j,k,0) > 1) Util::Abort(INFO, "Very large values of c_old at (",i,",",j,",",k,") = ", c_old(i,j,k,0));
 
                 df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
                 rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+
+                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
 
                 Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
                 Set::Scalar laplacian = DDc.trace();
@@ -336,9 +327,13 @@ protected:
                 df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
 
                 rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
+
                 rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
                 
                 rhs *= crack.cracktype->g_phi(_temp,0.0);
+                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
 
                 df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
                 if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
@@ -383,7 +378,7 @@ protected:
 
 private:
 
-    int number_of_ghost_cells = 3;				///< Number of ghost cells
+    int number_of_ghost_cells = 1;				///< Number of ghost cells
 	int number_of_ghost_nodes = 2;				///< Number of ghost nodes
     int nlevels;
 
