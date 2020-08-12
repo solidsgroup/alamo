@@ -8,17 +8,19 @@
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_ParmParse.H"
 
+#include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
 
 #include "IC/IC.H"
-#include "BC/BC.H"
+#include "BC/Constant.H"
 
 #include "IC/Cylinder.H"
 #include "IC/Constant.H"
 
-#define TEMP_OLD(i,j,k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
-#define TEMP(i,j,k) Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))
+#include "Numeric/Stencil.H"
 
+#define TEMP_OLD(i, j, k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i, j, k)))
+#define TEMP(i, j, k) Temp_box(amrex::IntVect(AMREX_D_DECL(i, j, k)))
 
 /// \class HeatConduction::Integrator
 /// \brief Solve the heat diffusion equation in 2D or 3D.
@@ -40,34 +42,105 @@ namespace Integrator
 class HeatConduction : public Integrator
 {
 public:
+	/// \brief Read in parameters and register field variables
+	HeatConduction() : Integrator()
+	{
+		IO::ParmParse pp("heat");
+		pp.query("alpha", alpha);
+		pp.query("refinement_threshold", refinement_threshold);
 
-  /// \brief Read in parameters and register field variables
-  HeatConduction();
+		// // Determine initial condition
+		{
+			IO::ParmParse pp("ic");
+		}		
+		if (ic_type == "cylinder")
+		{
+			amrex::Real Tin, Tout;
+			pp.query("Tin", Tin);
+	    	pp.query("Tout", Tout);
+			IC = new IC::Cylinder(geom,Tin,Tout);
+			pp.queryclass("")
+		}
+		else if (ic_type == "constant")
+			Util::Abort(INFO,"Need to fix this");
+			//ic = new IC::Constant(geom,alpha);
+		else
+			Util::Abort(INFO,"Need to fix this");
+			//IC = new IC::Sphere(radius,center,XY)
+	
+		{
+			IO::ParmParse pp("bc");
+			bc = new BC::Constant(1);
+			pp.queryclass("temp",*static_cast<BC::Constant *>(bc));
+		}
+
+
+		RegisterNewFab(temp_mf,     bc, number_of_components, number_of_ghost_cells, "Temp",true);
+		RegisterNewFab(temp_old_mf, bc, number_of_components, number_of_ghost_cells, "Temp_old",false);
+	}
 
 protected:
 
-  /// \brief Use the #ic object to initialize #Temp
-  void Initialize (int lev);
+	/// \brief Use the #ic object to initialize #Temp
+	void Initialize(int lev)
+	{
+		IC->Initialize(lev,temp_old_mf);
+	}
 
-  /// \brief Integrate the heat equation
-  void Advance (int lev, amrex::Real /*time*/, amrex::Real dt);
+	/// \brief Integrate the heat equation
+	void Advance(int lev, amrex::Real /*time*/, amrex::Real dt)
+	{
+		std::swap(*temp_mf[lev], *temp_old_mf[lev]);
+		const amrex::Real *DX = geom[lev].CellSize();
 
-  /// \brief Tag cells for mesh refinement based on temperature gradient
-  void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
+		for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box &bx = mfi.tilebox();
+			amrex::Array4<const Set::Scalar> const &temp_old = (*temp_old_mf[lev]).array(mfi);
+			amrex::Array4<Set::Scalar>       const &temp     = (*temp_mf[lev]).array(mfi);
+		
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+			{
+				temp(i,j,k) = temp_old(i,j,k) + dt * alpha * Numeric::Laplacian(temp_old,i,j,k,0,DX);
+			});
+		}
+	}
+
+	/// \brief Tag cells for mesh refinement based on temperature gradient
+	void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/)
+	{
+		const Set::Scalar *DX = geom[lev].CellSize();
+		Set::Scalar dr  = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+
+		for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box &bx = mfi.tilebox();
+			amrex::Array4<char>         const &tags = a_tags.array(mfi);
+			amrex::Array4<Set::Scalar>  const &temp = (*temp_mf[lev]).array(mfi);
+			
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+			{
+				Set::Vector grad = Numeric::Gradient(temp,i,j,k,0,DX);
+
+				if (grad.lpNorm<2>() * dr > refinement_threshold)
+					tags(i,j,k) = amrex::TagBox::SET;
+			});
+		}
+	}
 
 private:
-  int number_of_components = 1;					///< Number of components
-  int number_of_ghost_cells = 1;				///< Number of ghost cells
+	int number_of_components = 1;  ///< Number of components
+	int number_of_ghost_cells = 1; ///< Number of ghost cells
 
-  Set::Field<Set::Scalar> TempFab;	///< Temperature field variable (current timestep)
-  Set::Field<Set::Scalar> TempOldFab;	///< Temperature field variable (previous timestep)
+	Set::Field<Set::Scalar> temp_mf;	///< Temperature field variable (current timestep)
+	Set::Field<Set::Scalar> temp_old_mf; ///< Temperature field variable (previous timestep)
 
-  amrex::Real alpha = 1.0;					///< Thermal diffusivity
-  amrex::Real refinement_threshold = 0.01;			///< Criterion for cell refinement
+	amrex::Real alpha = 1.0;				 ///< Thermal diffusivity
+	amrex::Real refinement_threshold = 0.01; ///< Criterion for cell refinement
 
-  std::string ic_type;						///< String to determine what kind of initial condition to use
-  IC::IC *IC;            					///< Pointer to abstract IC object
-  BC::BC<Set::Scalar> *BC; 				///< Stock generic boundary condition object
+	std::string ic_type;	 ///< String to determine what kind of initial condition to use
+	IC::IC *IC;				 ///< Pointer to abstract IC object
+	BC::BC<Set::Scalar> *bc; ///< Stock generic boundary condition object
 };
-}
+} // namespace Integrator
 #endif
