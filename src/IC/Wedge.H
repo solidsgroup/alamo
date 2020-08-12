@@ -11,8 +11,7 @@ class Wedge : public IC
 public:
 	Wedge (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {};
   
-	void Add(const int lev,
-			amrex::Vector<amrex::MultiFab * > &field)
+	void Add(const int &lev, Set::Field<Set::Scalar> &field)
 	{
 		amrex::Real sizex = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];
 		// AMREX_D_TERM(,
