@@ -1,7 +1,7 @@
 alamo.program = notchcrack
 
-timestep = 1e-2
-stop_time = 2.e-2
+timestep = 1e-3
+stop_time = 2.e-3
 plot_file = tests/NotchCrack2D/output
 
 amr.plot_int = 1
