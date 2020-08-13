@@ -1,15 +1,12 @@
 import os
 import re
-import hashlib
 
-def parse(directory):
+def parseOutputDir(self,directory):
 
     if not os.path.isfile(directory+'/metadata'):
         return None
 
     things = dict()
-
-    things['DIR'] = os.path.abspath(directory)
 
     f = open(directory+"/metadata")
     for line in f.readlines():
@@ -42,11 +39,5 @@ def parse(directory):
         difffile = open(directory+"/stderr")
         things['STDERR'] = difffile.read()
         difffile.close()
-
-    if not 'HASH' in things:
-        f = open(directory+'/metadata')
-        sim_hash = str(hashlib.sha224(f.read().encode('utf-8')).hexdigest())
-        f.close()
-        things['HASH'] = sim_hash        
 
     return things
