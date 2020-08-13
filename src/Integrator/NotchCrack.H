@@ -327,13 +327,13 @@ protected:
                 df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
 
                 rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
+                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
                 rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
-                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
+                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
                 
                 rhs *= crack.cracktype->g_phi(_temp,0.0);
-                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
+                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
                 df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
                 if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
@@ -378,7 +378,7 @@ protected:
 
 private:
 
-    int number_of_ghost_cells = 1;				///< Number of ghost cells
+    int number_of_ghost_cells = 3;				///< Number of ghost cells
 	int number_of_ghost_nodes = 2;				///< Number of ghost nodes
     int nlevels;
 
