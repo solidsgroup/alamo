@@ -1,6 +1,6 @@
 alamo.program = microstructure
 
-plot_file = tests/ThermalFluctuations/output/Result
+plot_file = tests/ManualDisconnections/output/Test_ManualDisconnections
 
 timestep = 0.05
 stop_time=80
@@ -35,7 +35,7 @@ pf.elastic_threshold=0.004
 
 anisotropy.on=1
 anisotropy.gb_type = read
-anisotropy.filename = tests/ThermalFluctuations/gbenergy_cu_001sigma13_smooth.dat
+anisotropy.filename = tests/ManualDisconnections/gbenergy_cu_001sigma13_smooth.dat
 anisotropy.timestep=0.0005
 anisotropy.elastic_int = 100
 anisotropy.thermo_int = 10
@@ -43,9 +43,15 @@ anisotropy.tstart= 1.0
 anisotropy.damp=1.0
 
 fluctuation.on=1
-fluctuation.amp=0.01
-fluctuation.sd=0.8
+fluctuation.amp=0.001
+fluctuation.sd=1.0
 fluctuation.tstart=1.0
+
+disconnection.on=1
+disconnection.tstart=1.0
+disconnection.range=0.1
+disconnection.nucleation_energy=1.3806503e-23 # probability 1/e
+disconnection.temp=1
 
 elastic.on = 1
 elastic.tstart = 2.0
@@ -74,6 +80,6 @@ anisotropy.beta= 0.00005
 ic.type=tabulated_interface
 ic.xs = 0.0 8.0
 ic.ys = 0.0 0.0
-elastic.bc.val.xhiyhi  = (2,80.0:0.2,0.6) 0
-elastic.bc.val.xloyhi  = (2,80.0:0.2,0.6) 0
-elastic.bc.val.yhi     = (2,80.0:0.2,0.6) 0
+elastic.bc.val.xhiyhi  = (2,120.0:0.2,0.25) 0
+elastic.bc.val.xloyhi  = (2,120.0:0.2,0.25) 0
+elastic.bc.val.yhi     = (2,120.0:0.2,0.25) 0

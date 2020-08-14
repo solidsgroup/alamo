@@ -130,6 +130,18 @@ private:
 		std::default_random_engine rand_num_gen;
 	} fluctuation;
 
+	struct {
+		int on = 0;
+		Set::Scalar tstart = 0.0;
+		Set::Scalar range = 0.0;
+		Set::Scalar nucleation_energy = 0.0;
+		Set::Scalar temp = 0.0;
+		Set::Scalar K_b = 1.3806503e-23;
+		Set::Scalar p = 0.0;
+		std::uniform_real_distribution<double> unif_dist;
+		std::default_random_engine rand_num_gen;
+	} disconnection;
+
 	std::string ic_type, gb_type, filename;
 
 	Model::Interface::GB::GB *boundary;
