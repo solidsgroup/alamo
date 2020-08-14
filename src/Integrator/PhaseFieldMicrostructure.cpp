@@ -121,6 +121,17 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	}
 
 	{
+		IO::ParmParse pp("disconnection");
+		pp.query("on",disconnection.on);
+		pp.query("tstart", disconnection.tstart);
+		pp.query("range",disconnection.range);
+		pp.query("nucleation_energy",disconnection.nucleation_energy);
+		pp.query("temp",disconnection.temp);
+		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
+		disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
+	}
+
+	{
 		IO::ParmParse pp("bc");
 		std::string bc_type = "constant";
 		pp.query("eta.type",bc_type);
@@ -406,7 +417,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				if (fluctuation.on && time > fluctuation.tstart)
 				{
 					fluct(i,j,k,0) = fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0];
-					etanew(i,j,k,m) += fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) * dt / DX[0];
+					etanew(i,j,k,m) += fluct(i,j,k,0) * dt;
 				}
 
 				if (std::isnan(driving_force))
@@ -529,34 +540,47 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	// Manual Disconnection Nucleation
 	//
 
-	// iterate over all AMR levels
-	for (int lev = 0; lev <= max_level; lev ++) 
+	if (disconnection.on && time > disconnection.tstart)
 	{
-		// This is a vector of cell sizes on this level
-		const amrex::Real *DX = geom[lev].CellSize();
-		
-		// iterate over all Patches
-		for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		// iterate over all AMR levels
+		for (int lev = 0; lev <= max_level; lev ++) 
 		{
-			const amrex::Box &bx = mfi.tilebox();
-			amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
+			// This is a vector of cell sizes on this level
+			const amrex::Real *DX = geom[lev].CellSize();
+		
+			// iterate over all Patches
+			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+			{
+				const amrex::Box &bx = mfi.tilebox();
+				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 
-			// iterate over the GRID (index i,j,k)
-			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				// iterate over the GRID (index i,j,k)
+				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-				// here is where we implement the things
-				eta(i,j,k,0); // gives you the value of eta[0] at i,j,k
+					// TODO: calculate the locations at which disconnections would occur
 
-				// TODO: calculate the locations at which disconnections would occur
-			});
+					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
+					{
+						amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
+						
+						if (q < disconnection.p)
+						{
+							// make a square here
+							Util::Message(INFO,"MAKE A SQUARE\n",
+							q," ",
+							disconnection.p," ",
+							eta(i,j,k,0)
+							);
+						}
+					}
+				});
+			}
 		}
+		// TODO: print out the locations (temporary, this is just to help us debug)
+
+		// TODO: iterate over the mesh again, and this time, set value for eta 
+		//       within the box surrounding the nucleation sites
 	}
-	// TODO: print out the locations (temporary, this is just to help us debug)
-
-	// TODO: iterate over the mesh again, and this time, set value for eta 
-	//       within the box surrounding the nucleation sites
-
-
 
 	// 
 	// Elastic solve
