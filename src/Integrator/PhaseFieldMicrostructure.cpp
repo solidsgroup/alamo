@@ -525,6 +525,42 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+	//
+	// Manual Disconnection Nucleation
+	//
+
+	// iterate over all AMR levels
+	for (int lev = 0; lev <= max_level; lev ++) 
+	{
+		// This is a vector of cell sizes on this level
+		const amrex::Real *DX = geom[lev].CellSize();
+		
+		// iterate over all Patches
+		for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		{
+			const amrex::Box &bx = mfi.tilebox();
+			amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
+
+			// iterate over the GRID (index i,j,k)
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+				// here is where we implement the things
+				eta(i,j,k,0); // gives you the value of eta[0] at i,j,k
+
+				// TODO: calculate the locations at which disconnections would occur
+			});
+		}
+	}
+	// TODO: print out the locations (temporary, this is just to help us debug)
+
+	// TODO: iterate over the mesh again, and this time, set value for eta 
+	//       within the box surrounding the nucleation sites
+
+
+
+	// 
+	// Elastic solve
+	//
 	if (anisotropy.on && time >= anisotropy.tstart)
 	{
 		SetTimestep(anisotropy.timestep);
