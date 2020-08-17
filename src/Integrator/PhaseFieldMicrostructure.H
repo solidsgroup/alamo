@@ -140,6 +140,7 @@ private:
 		Set::Scalar p = 0.0;
 		std::uniform_real_distribution<double> unif_dist;
 		std::default_random_engine rand_num_gen;
+		std::vector<Set::Vector> nucleation_sites;
 	} disconnection;
 
 	std::string ic_type, gb_type, filename;
