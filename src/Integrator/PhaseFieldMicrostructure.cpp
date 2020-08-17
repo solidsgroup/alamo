@@ -551,13 +551,15 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			// iterate over all Patches
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
+				std::vector<Set::Vector> nucleation_sites;
+
 				const amrex::Box &bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 
 				// iterate over the GRID (index i,j,k)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-					// TODO: calculate the locations at which disconnections would occur
+					// calculate the locations at which disconnections would occur
 
 					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
 					{
@@ -565,18 +567,20 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						
 						if (q < disconnection.p)
 						{
-							// make a square here
-							Util::Message(INFO,"MAKE A SQUARE\n",
-							q," ",
-							disconnection.p," ",
-							eta(i,j,k,0)
+							Set::Vector x;
+
+							AMREX_D_TERM(
+								x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+								x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
+								x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
 							);
+
+							nucleation_sites.push_back(x);
 						}
 					}
 				});
 			}
 		}
-		// TODO: print out the locations (temporary, this is just to help us debug)
 
 		// TODO: iterate over the mesh again, and this time, set value for eta 
 		//       within the box surrounding the nucleation sites
