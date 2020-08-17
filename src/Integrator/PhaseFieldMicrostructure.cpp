@@ -7,6 +7,7 @@
 #include <random>
 
 #include <AMReX_SPACE.H>
+#include <AMReX_ParallelReduce.H>
 
 #include "PhaseFieldMicrostructure.H"
 #include "BC/Constant.H"
@@ -542,6 +543,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 	if (disconnection.on && time > disconnection.tstart)
 	{
+		disconnection.nucleation_sites.clear();
+
 		// iterate over all AMR levels
 		for (int lev = 0; lev <= max_level; lev ++) 
 		{
@@ -551,7 +554,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			// iterate over all Patches
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
-				std::vector<Set::Vector> nucleation_sites;
 
 				const amrex::Box &bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
@@ -575,12 +577,20 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 								x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
 							);
 
-							nucleation_sites.push_back(x);
+							disconnection.nucleation_sites.push_back(x);
 						}
 					}
 				});
 			}
 		}
+
+		// Note: this code will need to be implemented before
+		// we can run in parallel.
+		//std::vector<Set::Vector> buffer;
+		//amrex::ParallelAllGather::AllGather(disconnection.nucleation_sites.data(),
+		//						 disconnection.nucleation_sites.size(),
+		//						 buffer.data(),
+		//						 amrex::ParallelContext::CommunicatorAll());
 
 		// TODO: iterate over the mesh again, and this time, set value for eta 
 		//       within the box surrounding the nucleation sites
