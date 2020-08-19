@@ -561,7 +561,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				const amrex::Box &bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 				amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-				amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
 
 				// iterate over the GRID (index i,j,k)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -588,8 +587,14 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		}
 		for (int lev = 0; lev <= max_level; lev++)
 		{
+			const amrex::Real *DX = geom[lev].CellSize();
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
+				const amrex::Box &bx = mfi.tilebox();
+				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
+				amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
+				amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
+
 				//iterate again
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 					Set::Vector x;
