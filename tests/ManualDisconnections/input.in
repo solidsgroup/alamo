@@ -1,11 +1,12 @@
 alamo.program = microstructure
 
-plot_file = tests/ManualDisconnections/output/Test_ManualDisconnections
+plot_file = tests/ManualDisconnections/output/try_run
 
 timestep = 0.05
 stop_time=80
 
-amr.plot_dt=0.25
+amr.plot_int=1
+#amr.plot_dt=0.25
 amr.max_level=3
 amr.n_cell=64 64 64
 amr.blocking_factor=8
@@ -33,7 +34,7 @@ pf.sigma0=0.075
 pf.elastic_mult=5000
 pf.elastic_threshold=0.004
 
-anisotropy.on=1
+anisotropy.on=0
 anisotropy.gb_type = read
 anisotropy.filename = tests/ManualDisconnections/gbenergy_cu_001sigma13_smooth.dat
 anisotropy.timestep=0.0005
@@ -42,16 +43,17 @@ anisotropy.thermo_int = 10
 anisotropy.tstart= 1.0
 anisotropy.damp=1.0
 
-fluctuation.on=1
+fluctuation.on=0
 fluctuation.amp=0.001
 fluctuation.sd=1.0
 fluctuation.tstart=1.0
 
 disconnection.on=1
 disconnection.tstart=1.0
-disconnection.range=0.1
-disconnection.nucleation_energy=1.3806503e-23 # probability 1/e
-disconnection.temp=1
+disconnection.range=0.01
+disconnection.nucleation_energy=1.3806503e-23 # probability 1/e^5
+disconnection.temp=0.2
+disconnection.box_size=0.5
 
 elastic.on = 1
 elastic.tstart = 2.0

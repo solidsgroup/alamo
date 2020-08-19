@@ -79,6 +79,7 @@ private:
 	Set::Field<Set::Scalar> eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
 	Set::Field<Set::Scalar> eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 	Set::Field<Set::Scalar> fluct_mf;
+	Set::Field<Set::Scalar> disc_mf; //see box
 	// Node fab
 	Set::Field<Set::Scalar> disp_mf; 
 	Set::Field<Set::Scalar> rhs_mf; 
@@ -138,6 +139,7 @@ private:
 		Set::Scalar temp = 0.0;
 		Set::Scalar K_b = 1.3806503e-23;
 		Set::Scalar p = 0.0;
+		Set::Scalar box_size = 0.0;
 		std::uniform_real_distribution<double> unif_dist;
 		std::default_random_engine rand_num_gen;
 		std::vector<Set::Vector> nucleation_sites;
