@@ -549,8 +549,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		disconnection.nucleation_sites.clear();
 
 		// iterate over all AMR levels
-		for (int lev = 0; lev <= max_level; lev ++) 
+		//for (int lev = 0; lev <= max_level; lev ++) 
 		{
+			int lev = max_level;
 			const amrex::Real *DX = geom[lev].CellSize();
 		
 			// iterate over all Patches
@@ -583,7 +584,12 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						}
 					}
 				});
-
+			}
+		}
+		for (int lev = 0; lev <= max_level; lev++)
+		{
+			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+			{
 				//iterate again
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 					Set::Vector x;
