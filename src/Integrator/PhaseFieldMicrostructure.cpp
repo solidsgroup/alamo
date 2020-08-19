@@ -128,6 +128,8 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("range",disconnection.range);
 		pp.query("nucleation_energy",disconnection.nucleation_energy);
 		pp.query("temp",disconnection.temp);
+		pp.query("box_size",disconnection.box_size);
+
 		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
 		disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
 	}
@@ -179,6 +181,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
 	
  	RegisterNewFab(fluct_mf, new BC::Nothing(), 1, number_of_ghost_cells, "fluct",true);
+	RegisterNewFab(disc_mf, new BC::Nothing(), 1, number_of_ghost_cells, "disc",true);  // see box
 	
 	volume = 1.0;
 	RegisterIntegratedVariable(&volume, "volume");
@@ -548,7 +551,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		// iterate over all AMR levels
 		for (int lev = 0; lev <= max_level; lev ++) 
 		{
-			// This is a vector of cell sizes on this level
 			const amrex::Real *DX = geom[lev].CellSize();
 		
 			// iterate over all Patches
@@ -557,11 +559,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 				const amrex::Box &bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
+				amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
+				amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
 
 				// iterate over the GRID (index i,j,k)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-					// calculate the locations at which disconnections would occur
 
 					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
 					{
@@ -581,6 +583,33 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						}
 					}
 				});
+
+				//iterate again
+				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+					Set::Vector x;
+
+					AMREX_D_TERM(
+						x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+						x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
+						x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
+					);
+
+					for (unsigned int m = 0; m < disconnection.nucleation_sites.size(); m++){	
+						amrex::Real r_squared = 0;
+						for (int n = 0; n < AMREX_SPACEDIM; n++){
+							amrex::Real dist = disconnection.nucleation_sites[m](n) - x(n);
+							r_squared += dist * dist;
+
+							if (sqrt(r_squared) > disconnection.box_size / 2) break; //round not square
+							if (n == AMREX_SPACEDIM - 1){
+								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
+								disc(i,j,k,0) = bump * (1-eta(i,j,k,0)) + eta(i,j,k,0);
+								etanew(i,j,k,0) = bump * (1-eta(i,j,k,0)) + eta(i,j,k,0);
+								etanew(i,j,k,1) = 1 - etanew(i,j,k,0);
+							}
+						}
+					}
+				});
 			}
 		}
 
@@ -591,9 +620,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		//						 disconnection.nucleation_sites.size(),
 		//						 buffer.data(),
 		//						 amrex::ParallelContext::CommunicatorAll());
-
-		// TODO: iterate over the mesh again, and this time, set value for eta 
-		//       within the box surrounding the nucleation sites
 	}
 
 	// 
