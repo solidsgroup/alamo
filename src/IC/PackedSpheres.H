@@ -96,7 +96,7 @@ public:
 		{
 		if (n==0)
 		{		
-        R[n]=(R_max-R_min)/number_of_grains;
+        R[n]=R_min+((R_max-R_min)/number_of_grains);
 		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
 		sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
