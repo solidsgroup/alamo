@@ -15,8 +15,8 @@ def parseOutputDir(self,directory):
             line = re.sub(r'\([^)]*\)', '',line)
             line = line.replace(" :: ", " = ").replace('[','').replace(',','').replace(']','').replace(' ','')
         if len(line.split(' = ')) != 2: continue;
-        col = line.split(' = ')[0].replace('.','_')
-        val = line.split(' = ')[1].replace('  ','').replace('\n','').replace(';','')
+        col = line.split(' = ')[0]#.replace('.','_')
+        val = line.split(' = ')[1].replace('\n','')#.replace('  ','').replace('\n','').replace(';','')
         
         things[col] = val
 

@@ -1,3 +1,7 @@
+[scripts]
+parseOutputDir=./parseOutputDir.py
+getHash=./getHash.py
+
 [include]
 file1
 file2
