@@ -121,8 +121,20 @@ protected:
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
-            elastic_op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            elastic_op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            const amrex::Real* DX = geom[lev].CellSize();
+            for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.nodaltilebox();
+                amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar>       const &stress  = stress_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX);
+                    Set::Matrix sigma = model(i,j,k).DW(gradu);
+                    Numeric::MatrixToField(stress,i,j,k,sigma);
+                });
+            }
         }
     }
 
