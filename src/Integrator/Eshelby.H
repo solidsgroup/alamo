@@ -49,15 +49,12 @@ public:
                 ic = new IC::Ellipse(geom);
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
-            if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
-            if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
         }
         {
             IO::ParmParse pp("elastic");
             {
-                // Initialize elastic model
-                pp.queryclass("model",elastic.model);
-                elastic.model.F0 = Set::Matrix::Zero();
+                pp.queryclass("model1",elastic.model1);
+                pp.queryclass("model2",elastic.model2);
 
                 // TODO: figure out how to initialize solvers in
                 // here instead of TimeStepBegin...
@@ -88,23 +85,19 @@ protected:
         {
             rhs_mf[lev]->setVal(0.0);
 
-            model_mf[lev]->setVal(elastic.model);
-
             eta_mf[lev]->FillBoundary();
 
             Set::Vector DX(geom[lev].CellSize());
 
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.growntilebox(2);
+                amrex::Box bx = mfi.grownnodaltilebox();
 
                 amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = elastic.model;
-                    model(i, j, k).F0 = Fgb;
+                    model(i, j, k) = eta(i, j, k) * elastic.model1 + (1.0 - eta(i, j, k)) * elastic.model2;
                 });
             }
 
@@ -177,11 +170,8 @@ private:
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
-    Set::Matrix Fmatrix = Set::Matrix::Zero();
-    Set::Matrix Finclusion = Set::Matrix::Zero();
-
     struct {
-        Model::Solid::Affine::Isotropic model;
+        model_type model1, model2;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic::Constant bc;
     } elastic;
