@@ -560,7 +560,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 				const amrex::Box &bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
-				amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 
 				// iterate over the GRID (index i,j,k)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -591,7 +590,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
 				const amrex::Box &bx = mfi.tilebox();
-				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 				amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 				amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
 
@@ -611,11 +609,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							amrex::Real dist = disconnection.nucleation_sites[m](n) - x(n);
 							r_squared += dist * dist;
 
-							if (sqrt(r_squared) > disconnection.box_size / 2) break; //round not square
+							if (sqrt(r_squared) > disconnection.box_size / 2) break;
 							if (n == AMREX_SPACEDIM - 1){
 								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
-								disc(i,j,k,0) = bump * (1-eta(i,j,k,0)) + eta(i,j,k,0);
-								etanew(i,j,k,0) = bump * (1-eta(i,j,k,0)) + eta(i,j,k,0);
+								disc(i,j,k,0) = bump * (1-etanew(i,j,k,0)) + etanew(i,j,k,0);
+								etanew(i,j,k,0) = bump * (1-etanew(i,j,k,0)) + etanew(i,j,k,0);
 								etanew(i,j,k,1) = 1 - etanew(i,j,k,0);
 							}
 						}
