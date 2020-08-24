@@ -612,7 +612,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							if (sqrt(r_squared) > disconnection.box_size / 2) break;
 							if (n == AMREX_SPACEDIM - 1){
 								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
-								disc(i,j,k,0) = bump * (1-etanew(i,j,k,0)) + etanew(i,j,k,0);
+								disc(i,j,k,0) = bump;
 								etanew(i,j,k,0) = bump * (1-etanew(i,j,k,0)) + etanew(i,j,k,0);
 								etanew(i,j,k,1) = 1 - etanew(i,j,k,0);
 							}
