@@ -50,9 +50,10 @@ fluctuation.tstart=1.0
 
 disconnection.on=1
 disconnection.tstart=1.0
+disconnection.interval = 10
 disconnection.range=0.06
 disconnection.nucleation_energy=1.3806503e-23
-disconnection.temp=0.5    # probability 1/e^2
+disconnection.temp=0.25    # probability 1/e^4
 disconnection.box_size=0.2
 
 elastic.on = 0

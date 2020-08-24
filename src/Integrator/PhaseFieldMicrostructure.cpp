@@ -129,6 +129,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("nucleation_energy",disconnection.nucleation_energy);
 		pp.query("temp",disconnection.temp);
 		pp.query("box_size",disconnection.box_size);
+		pp.query("interval",disconnection.interval);
 
 		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
 		disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
@@ -544,7 +545,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	// Manual Disconnection Nucleation
 	//
 
-	if (disconnection.on && time > disconnection.tstart)
+	if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
 	{
 		disconnection.nucleation_sites.clear();
 

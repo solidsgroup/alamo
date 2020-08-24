@@ -133,6 +133,7 @@ private:
 
 	struct {
 		int on = 0;
+		int interval = -1;
 		Set::Scalar tstart = 0.0;
 		Set::Scalar range = 0.0;
 		Set::Scalar nucleation_energy = 0.0;
