@@ -132,6 +132,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("interval",disconnection.interval);
 
 		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
+		disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
 		disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
 	}
 
@@ -612,10 +613,12 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 							if (sqrt(r_squared) > disconnection.box_size / 2) break;
 							if (n == AMREX_SPACEDIM - 1){
+								int phase = disconnection.int_dist(disconnection.rand_num_gen);
 								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
+								
 								disc(i,j,k,0) = bump;
-								etanew(i,j,k,0) = bump * (1-etanew(i,j,k,0)) + etanew(i,j,k,0);
-								etanew(i,j,k,1) = 1 - etanew(i,j,k,0);
+								etanew(i,j,k,phase) = bump * (1-etanew(i,j,k,phase)) + etanew(i,j,k,phase);
+								etanew(i,j,k,1-phase) = 1 - etanew(i,j,k,phase);
 							}
 						}
 					}
