@@ -1,6 +1,6 @@
 alamo.program = microstructure
 
-plot_file = tests/ManualDisconnections/output/bidir_base_anis_elas
+plot_file = tests/ManualDisconnections/output/fixed_nucleation_site_down
 
 timestep = 0.05
 stop_time=80
@@ -48,11 +48,11 @@ fluctuation.sd=1.0
 fluctuation.tstart=1.0
 
 disconnection.on=1
-disconnection.tstart=1.0
+disconnection.tstart=1.25 # change back to 1 later
 disconnection.interval = 100
 disconnection.range=0.06
 disconnection.nucleation_energy=1.3806503e-23
-disconnection.temp=0.111    # probability 1/e^9
+disconnection.temp=1.0    # probability 1/e^1
 disconnection.box_size=0.5
 
 elastic.on = 1
