@@ -551,7 +551,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		disconnection.nucleation_sites.clear();
 
 		// iterate over all AMR levels
-		//for (int lev = 0; lev <= max_level; lev ++) 
+		//for (int lev = 0; lev <= max_level; lev ++)  
 		{
 			int lev = max_level;
 			const amrex::Real *DX = geom[lev].CellSize();
@@ -568,7 +568,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
 					{
-						amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
+						amrex::Real q = 0.0; // fixed nucleation site
+						//amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
 						
 						if (q < disconnection.p)
 						{
@@ -580,7 +581,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 								x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
 							);
 
-							disconnection.nucleation_sites.push_back(x);
+							if (x(0) == 4.0 && x(1) == 0.0){ // fixed nucleation site
+								disconnection.nucleation_sites.push_back(x);
+							};
+
+							//disconnection.nucleation_sites.push_back(x);
 						}
 					}
 				});
@@ -613,7 +618,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 							if (sqrt(r_squared) > disconnection.box_size / 2) break;
 							if (n == AMREX_SPACEDIM - 1){
-								int phase = disconnection.int_dist(disconnection.rand_num_gen);
+								//int phase = disconnection.int_dist(disconnection.rand_num_gen);
+								int phase = 1; // for fixed nucleation site, 0 for up, 1 for down
 								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
 								
 								disc(i,j,k,0) = bump;
