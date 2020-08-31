@@ -1,11 +1,11 @@
 alamo.program = microstructure
 
-plot_file = tests/ManualDisconnections/output/fixed_nucleation_site_down
+plot_file = tests/ManualDisconnections/output/bidir_HOT
 
 timestep = 0.05
 stop_time=80
 
-amr.plot_dt=0.25
+amr.plot_dt=0.1
 amr.max_level=3
 amr.n_cell=64 64 64
 amr.blocking_factor=8
@@ -30,7 +30,7 @@ pf.M=1.0
 pf.gamma=1.0
 pf.l_gb=0.04
 pf.sigma0=0.075
-pf.elastic_mult=5000
+pf.elastic_mult=500
 pf.elastic_threshold=0.004
 
 anisotropy.on=1
@@ -48,11 +48,11 @@ fluctuation.sd=1.0
 fluctuation.tstart=1.0
 
 disconnection.on=1
-disconnection.tstart=1.25 # change back to 1 later
+disconnection.tstart=2.1
 disconnection.interval = 100
-disconnection.range=0.06
+disconnection.range=0.05
 disconnection.nucleation_energy=1.3806503e-23
-disconnection.temp=1.0    # probability 1/e^1
+disconnection.temp=9999999999999999999    # probability 1
 disconnection.box_size=0.5
 
 elastic.on = 1
