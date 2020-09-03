@@ -125,7 +125,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		IO::ParmParse pp("disconnection");
 		pp.query("on",disconnection.on);
 		pp.query("tstart", disconnection.tstart);
-		pp.query("range",disconnection.range);
 		pp.query("nucleation_energy",disconnection.nucleation_energy);
 		pp.query("temp",disconnection.temp);
 		pp.query("box_size",disconnection.box_size);
@@ -566,21 +565,41 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				// iterate over the GRID (index i,j,k)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
-					{
+					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range)){
 						amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
-						
-						if (q < disconnection.p)
-						{
-							Set::Vector x;
+						amrex::Real distH = std::abs(eta(i,j+1,k,0) - 0.5);
+						amrex::Real distL = std::abs(eta(i,j-1,k,0) - 0.5);
+						amrex::Real distN = std::abs(eta(i,j,k,0) - 0.5);
+						int l = j;
 
-							AMREX_D_TERM(
-								x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-								x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
-								x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
-							);
+						if (distH > distN && distL > distN){
+							if (distH < distL){l = j+1;}
+							else if (distL < distH){l = j-1;};
 
-							disconnection.nucleation_sites.push_back(x);
+							if (q < disconnection.p)
+							{
+								Set::Vector x;
+
+								AMREX_D_TERM(
+									x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+									x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
+									x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
+								);
+
+								if (l != j){
+									Set::Vector y;
+
+									AMREX_D_TERM(
+										y(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+										y(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(l)) * DX[1];,
+										y(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
+									);
+
+									x(1) = (y(1) - x(1))*(0.5 - eta(i,j,k,0))/(eta(i,l,k,0)-eta(i,j,k,0)) + x(1);
+								};
+
+								disconnection.nucleation_sites.push_back(x);
+							}
 						}
 					}
 				});
