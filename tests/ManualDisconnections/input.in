@@ -1,10 +1,9 @@
 alamo.program = microstructure
 
-plot_file = tests/ManualDisconnections/output/bidir_cold
+plot_file = tests/ManualDisconnections/output/try_smaller_radii_2
 
 timestep = 0.05
-stop_time=80
-
+stop_time=5
 amr.plot_dt=0.1
 amr.max_level=3
 amr.n_cell=64 64 64
@@ -52,7 +51,7 @@ disconnection.tstart=2.1
 disconnection.interval = 100
 disconnection.nucleation_energy=1.3806503e-23
 disconnection.temp= 0.125    # probability 1/e^8
-disconnection.box_size=0.5
+disconnection.box_size=0.2
 
 elastic.on = 1
 elastic.tstart = 2.0
