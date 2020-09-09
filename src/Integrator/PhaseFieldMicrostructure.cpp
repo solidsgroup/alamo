@@ -544,8 +544,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	//
 	// Manual Disconnection Nucleation
 	//
-
-	if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
+	
+	//if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
+	amrex::Real interval = disconnection.interval;       //for fixed nucleation every Ns
+	if (disconnection.on && time > disconnection.tstart && interval - fmod(time, interval) < timestep)
 	{
 		disconnection.nucleation_sites.clear();
 
@@ -566,7 +568,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
 					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range)){
-						amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
+						//amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
+						amrex::Real q = 0.0; //for fixed nucleation every Ns
+						
 						amrex::Real distH = std::abs(eta(i,j+1,k,0) - 0.5);
 						amrex::Real distL = std::abs(eta(i,j-1,k,0) - 0.5);
 						amrex::Real distN = std::abs(eta(i,j,k,0) - 0.5);
@@ -598,7 +602,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 									x(1) = (y(1) - x(1))*(0.5 - eta(i,j,k,0))/(eta(i,l,k,0)-eta(i,j,k,0)) + x(1);
 								};
 
-								disconnection.nucleation_sites.push_back(x);
+								//disconnection.nucleation_sites.push_back(x);
+								if(x(0)==4.0){
+									disconnection.nucleation_sites.push_back(x); //for fixed nucleation every Ns
+								}
 							}
 						}
 					}
@@ -632,7 +639,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 							if (sqrt(r_squared) > disconnection.box_size / 2) break;
 							if (n == AMREX_SPACEDIM - 1){
-								int phase = disconnection.int_dist(disconnection.rand_num_gen);
+								//int phase = disconnection.int_dist(disconnection.rand_num_gen);
+								int phase = 0; //for fixed nucleation every Ns
+
 								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
 								
 								disc(i,j,k,0) = bump;
