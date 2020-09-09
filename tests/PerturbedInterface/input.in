@@ -38,7 +38,7 @@ pf.sigma0=0.075
 
 anisotropy.on=1
 anisotropy.gb_type=read
-anisotropy.filename=tests/PerturbedInterface/GBE_S13_001-510_CuSTGB_mod.dat
+anisotropy.filename=tests/PerturbedInterface/gbenergy_cu_001sigma13_smooth.dat
 anisotropy.timestep=0.001
 anisotropy.tstart= 1.
 anisotropy.beta= 0.00001
