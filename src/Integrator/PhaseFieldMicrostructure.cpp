@@ -567,7 +567,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				// iterate over the GRID (index i,j,k)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range)){
+					//if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range)){
 						//amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
 						amrex::Real q = 0.0; //for fixed nucleation every Ns
 						
@@ -608,7 +608,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 								}
 							}
 						}
-					}
+					//}
 				});
 			}
 		}
