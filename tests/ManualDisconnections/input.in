@@ -1,6 +1,6 @@
 alamo.program = microstructure
 
-plot_file = tests/ManualDisconnections/output/repeatedFixedNucleation
+plot_file = tests/ManualDisconnections/output/random_bidirectional
 
 timestep = 0.05
 stop_time=80.0
@@ -29,7 +29,7 @@ pf.M=1.0
 pf.gamma=1.0
 pf.l_gb=0.04
 pf.sigma0=0.075
-pf.elastic_mult=500
+pf.elastic_mult=200
 pf.elastic_threshold=0.004
 
 anisotropy.on=1
@@ -41,14 +41,14 @@ anisotropy.thermo_int = 10
 anisotropy.tstart= 1.0
 anisotropy.damp=1.0
 
-fluctuation.on=1
+fluctuation.on=0
 fluctuation.amp=0.001
 fluctuation.sd=1.0
 fluctuation.tstart=1.0
 
 disconnection.on=1
 disconnection.tstart=2.1
-disconnection.interval=10
+disconnection.interval=1000
 disconnection.nucleation_energy=1.3806503e-23
 disconnection.temp= 0.125    # probability 1/e^8
 disconnection.box_size=0.5
@@ -79,7 +79,7 @@ elastic.bc.type.xhi = neumann neumann
 anisotropy.beta= 0.00005
 ic.type=tabulated_interface
 ic.xs = 0.0 8.0
-ic.ys = 0.25 -0.25
+ic.ys = 0.0 0.0
 elastic.bc.val.xhiyhi  = (2,60.0:0.2,0.3) 0
 elastic.bc.val.xloyhi  = (2,60.0:0.2,0.3) 0
 elastic.bc.val.yhi     = (2,60.0:0.2,0.3) 0
