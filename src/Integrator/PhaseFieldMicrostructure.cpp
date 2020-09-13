@@ -548,6 +548,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
 	{
 		disconnection.nucleation_sites.clear();
+		disconnection.phases.clear();
 
 		// iterate over all AMR levels
 		//for (int lev = 0; lev <= max_level; lev ++)  
@@ -569,7 +570,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
 					{
 						amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
-						
+
 						amrex::Real distH = std::abs(eta(i,j+1,k,0) - 0.5);
 						amrex::Real distL = std::abs(eta(i,j-1,k,0) - 0.5);
 						amrex::Real distN = std::abs(eta(i,j,k,0) - 0.5);
@@ -603,30 +604,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 									x(1) = (y(1) - x(1))*(0.5 - eta(i,j,k,0))/(eta(i,l,k,0)-eta(i,j,k,0)) + x(1);
 								};
 
-								//disconnection.nucleation_sites.push_back(x);
-
-								//EXCLUDE IF NOT IN RADII
-
-								if (disconnection.nucleation_sites.size() == 0)
-								{
-									disconnection.nucleation_sites.push_back(x);
-								};
-								for (unsigned int m = 0; m < disconnection.nucleation_sites.size(); m++)
-								{	
-									amrex::Real r_squared = 0;
-									for (int n = 0; n < AMREX_SPACEDIM; n++)
-									{
-										amrex::Real dist = disconnection.nucleation_sites[m](n) - x(n);
-										r_squared += dist * dist;
-									}
-
-									if (r_squared <= disconnection.box_size) break;
-
-									if (m == disconnection.nucleation_sites.size() - 1)
-									{
-										disconnection.nucleation_sites.push_back(x);
-									}
-								}
+								disconnection.nucleation_sites.push_back(x);
+								disconnection.phases.push_back(disconnection.int_dist(disconnection.rand_num_gen));
 							}
 						}
 					}
@@ -665,13 +644,11 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							if (sqrt(r_squared) > disconnection.box_size / 2) break;
 							if (n == AMREX_SPACEDIM - 1)
 							{
-								int phase = disconnection.int_dist(disconnection.rand_num_gen);
-
 								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
 								
 								disc(i,j,k,0) = bump;
-								etanew(i,j,k,phase) = bump * (1-etanew(i,j,k,phase)) + etanew(i,j,k,phase);
-								etanew(i,j,k,1-phase) = 1 - etanew(i,j,k,phase);
+								etanew(i,j,k,disconnection.phases[m]) = bump * (1-etanew(i,j,k,disconnection.phases[m])) + etanew(i,j,k,disconnection.phases[m]);
+								etanew(i,j,k,1-disconnection.phases[m]) = 1 - etanew(i,j,k,disconnection.phases[m]);
 							}
 						}
 					}

@@ -145,6 +145,7 @@ private:
 		std::uniform_int_distribution<int> int_dist;
 		std::default_random_engine rand_num_gen;
 		std::vector<Set::Vector> nucleation_sites;
+		std::vector<int> phases;
 	} disconnection;
 
 	std::string ic_type, gb_type, filename;
