@@ -17,8 +17,7 @@ public:
 		IC(_geom), mult(a_mult)
 	{}
   
-	void Add(const int lev,
-		 amrex::Vector<amrex::MultiFab *> &field)
+	void Add(const int &lev, Set::Field<Set::Scalar> &field)
 	{
 		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
 		{
