@@ -48,8 +48,7 @@ public:
 	}
 
 
-	void Add(const int lev,
-		 amrex::Vector<amrex::MultiFab *> &field)
+	virtual void Add(const int &lev, Set::Field<Set::Scalar> &field)
 	{
 		bool cellcentered = (field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
@@ -99,7 +98,6 @@ public:
 			}
 		}
 	}
-	using IC::Add;
 
 private:
 	int dim = AMREX_SPACEDIM;

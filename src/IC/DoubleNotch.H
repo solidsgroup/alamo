@@ -20,7 +20,7 @@ public:
 	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
         Set::Vector DX(geom[lev].CellSize());
-
+        amrex::IndexType type = a_field[lev]->ixType();
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
@@ -30,13 +30,13 @@ public:
 
 				Set::Vector x;
                 // NODE
-                if (a_field[0]->ixType() == amrex::IndexType::TheNodeType())
+                if (type == amrex::IndexType::TheNodeType())
                 {
 				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
 				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
 				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
                 }
-                else if (a_field[0]->ixType() == amrex::IndexType::TheCellType())
+                else if (type == amrex::IndexType::TheCellType())
                 {
 				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
 				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
