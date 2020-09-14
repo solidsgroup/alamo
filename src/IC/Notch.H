@@ -27,10 +27,10 @@ public:
         Set::Vector DX(geom[lev].CellSize());
 		Set::Scalar pi = std::atan(1.0)*4;
 
-		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		for (amrex::MFIter mfi(*a_field[lev],true); mfi.isValid(); ++mfi)
 		{
-			amrex::Box bx = mfi.tilebox();
-		    bx.grow(a_field[lev]->nGrow());
+			amrex::Box bx = mfi.grownnodaltilebox();
+		    //bx.grow(a_field[lev]->nGrow());
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
@@ -252,7 +252,7 @@ public:
                 if (field(i,j,k) > 1.) field(i,j,k) = 1.;
 			});
 		}
-        a_field[lev]->FillBoundary();
+        //a_field[lev]->FillBoundary();
 	}
 	
 private:
