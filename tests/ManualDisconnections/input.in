@@ -1,6 +1,6 @@
 alamo.program = microstructure
 
-plot_file = tests/ManualDisconnections/output/random_bidirectional
+plot_file = tests/ManualDisconnections/output/testNucleationTypes/fixed_down_noncenter
 
 timestep = 0.05
 stop_time=80.0
@@ -32,7 +32,7 @@ pf.sigma0=0.075
 pf.elastic_mult=200
 pf.elastic_threshold=0.004
 
-anisotropy.on=1
+anisotropy.on=0
 anisotropy.gb_type = read
 anisotropy.filename = tests/ManualDisconnections/gbenergy_cu_001sigma13_smooth.dat
 anisotropy.timestep=0.0005
@@ -48,12 +48,17 @@ fluctuation.tstart=1.0
 
 disconnection.on=1
 disconnection.tstart=2.1
-disconnection.interval=100
 disconnection.nucleation_energy=1.3806503e-23
 disconnection.temp= 0.125    # probability 1/e^8
 disconnection.box_size=0.5
 
-elastic.on = 1
+disconnection.fixed=1
+disconnection.fixed_site=2.0
+disconnection.fixed_phase=1
+disconnection.interval=4
+
+
+elastic.on = 0
 elastic.tstart = 2.0
 elastic.interval = 1
 elastic.solver.verbose = 2

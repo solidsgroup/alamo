@@ -129,6 +129,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("temp",disconnection.temp);
 		pp.query("box_size",disconnection.box_size);
 		pp.query("interval",disconnection.interval);
+		pp.query("fixed",disconnection.fixed);
+		pp.query("fixed_site",disconnection.fixed_site);
+		pp.query("fixed_phase",disconnection.phase);
 
 		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
 		disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
@@ -544,18 +547,25 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	//
 	// Manual Disconnection Nucleation
 	//
-	
-	if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
-	{
-		disconnection.nucleation_sites.clear();
-		disconnection.phases.clear();
 
-		// iterate over all AMR levels
-		//for (int lev = 0; lev <= max_level; lev ++)  
+	if (disconnection.on && time > disconnection.tstart)
+	{
+		if (disconnection.fixed)
 		{
+			amrex::Real interval = disconnection.interval;
+			disconnection.nucleate = interval - fmod(time, interval) < timestep;
+		} else {
+			disconnection.nucleate = !(iter % disconnection.interval);
+		};
+
+		if (disconnection.nucleate)
+		{
+			disconnection.nucleation_sites.clear();
+			disconnection.phases.clear();
+
 			int lev = max_level;
 			const amrex::Real *DX = geom[lev].CellSize();
-		
+			
 			// iterate over all Patches
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
@@ -569,8 +579,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
 					{
-						amrex::Real q = disconnection.unif_dist(disconnection.rand_num_gen);
-
 						amrex::Real distH = std::abs(eta(i,j+1,k,0) - 0.5);
 						amrex::Real distL = std::abs(eta(i,j-1,k,0) - 0.5);
 						amrex::Real distN = std::abs(eta(i,j,k,0) - 0.5);
@@ -581,7 +589,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							if (distH < distL){l = j+1;}
 							else if (distL < distH){l = j-1;};
 
-							if (q < disconnection.p)
+							if (!disconnection.fixed){disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen);}
+
+							if (disconnection.q < disconnection.p)
 							{
 								Set::Vector x;
 
@@ -604,57 +614,67 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 									x(1) = (y(1) - x(1))*(0.5 - eta(i,j,k,0))/(eta(i,l,k,0)-eta(i,j,k,0)) + x(1);
 								};
 
-								disconnection.nucleation_sites.push_back(x);
-								disconnection.phases.push_back(disconnection.int_dist(disconnection.rand_num_gen));
+								if (!disconnection.fixed){
+									disconnection.nucleation_sites.push_back(x);
+									disconnection.phase = disconnection.int_dist(disconnection.rand_num_gen);
+								} else {
+									if(x(0)==disconnection.fixed_site){
+										disconnection.nucleation_sites.push_back(x);
+									}
+								};
+
+								disconnection.phases.push_back(disconnection.phase);
 							}
 						}
 					}
 				});
 			}
-		}
 
-		for (int lev = 0; lev <= max_level; lev++)
-		{
-			const amrex::Real *DX = geom[lev].CellSize();
-			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+			for (int lev = 0; lev <= max_level; lev++)
 			{
-				const amrex::Box &bx = mfi.tilebox();
-				amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-				amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
-
-				//iterate again
-				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+				const amrex::Real *DX = geom[lev].CellSize();
+				for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 				{
-					Set::Vector x;
+					const amrex::Box &bx = mfi.tilebox();
+					amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
+					amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
 
-					AMREX_D_TERM(
-						x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-						x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
-						x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
-					);
+					//iterate again
+					amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+					{
+						Set::Vector x;
 
-					for (unsigned int m = 0; m < disconnection.nucleation_sites.size(); m++)
-					{	
-						amrex::Real r_squared = 0;
-						for (int n = 0; n < AMREX_SPACEDIM; n++)
-						{
-							amrex::Real dist = disconnection.nucleation_sites[m](n) - x(n);
-							r_squared += dist * dist;
+						AMREX_D_TERM(
+							x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
+							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
+						);
 
-							if (sqrt(r_squared) > disconnection.box_size / 2) break;
-							if (n == AMREX_SPACEDIM - 1)
+						for (unsigned int m = 0; m < disconnection.nucleation_sites.size(); m++)
+						{	
+							amrex::Real r_squared = 0;
+							for (int n = 0; n < AMREX_SPACEDIM; n++)
 							{
-								amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
-								
-								disc(i,j,k,0) = bump;
-								etanew(i,j,k,disconnection.phases[m]) = bump * (1-etanew(i,j,k,disconnection.phases[m])) + etanew(i,j,k,disconnection.phases[m]);
-								etanew(i,j,k,1-disconnection.phases[m]) = 1 - etanew(i,j,k,disconnection.phases[m]);
+								amrex::Real dist = disconnection.nucleation_sites[m](n) - x(n);
+								r_squared += dist * dist;
+
+								if (sqrt(r_squared) > disconnection.box_size / 2) break;
+								if (n == AMREX_SPACEDIM - 1)
+								{
+									amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
+									
+									disc(i,j,k,0) = bump;
+									etanew(i,j,k,disconnection.phases[m]) = bump * (1-etanew(i,j,k,disconnection.phases[m])) + etanew(i,j,k,disconnection.phases[m]);
+									etanew(i,j,k,1-disconnection.phases[m]) = 1 - etanew(i,j,k,disconnection.phases[m]);
+								}
 							}
 						}
-					}
-				});
-			}
+					});
+				}
+			}	
 		}
+
+		
 
 		// Note: this code will need to be implemented before
 		// we can run in parallel.
