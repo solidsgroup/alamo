@@ -6,6 +6,7 @@
 #include "Util/Util.H"
 #include "Util/BMP.H"
 #include "Set/Set.H"
+#include "IO/ParmParse.H"
 
 namespace IC
 {
