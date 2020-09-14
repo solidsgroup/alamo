@@ -133,13 +133,18 @@ private:
 
 	struct {
 		int on = 0;
+		int fixed = 0;
+		int phase = 0;
 		int interval = -1;
+		bool nucleate = false;
 		Set::Scalar tstart = 0.0;
+		Set::Scalar fixed_site = 4.0;
 		Set::Scalar range = 0.06;
 		Set::Scalar nucleation_energy = 0.0;
 		Set::Scalar temp = 0.0;
 		Set::Scalar K_b = 1.3806503e-23;
 		Set::Scalar p = 0.0;
+		Set::Scalar q = 0.0;
 		Set::Scalar box_size = 0.0;
 		std::uniform_real_distribution<double> unif_dist;
 		std::uniform_int_distribution<int> int_dist;
