@@ -24,8 +24,7 @@ public:
         bmp.Define(bmpfilename);//"Interface_Blur2.bmp");
 	}
   
-	void Add(const int lev,
-			amrex::Vector<amrex::MultiFab * > &a_field)
+	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
 	{        
         
         Set::Vector DX(geom[lev].CellSize());
