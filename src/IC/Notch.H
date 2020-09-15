@@ -305,7 +305,7 @@ public:
         pp.query("eps", value.eps);
 		pp.query("modulus_scaling_max", value.min_val);
 
-		Util::Message(INFO, "min_val = ", value.min_val);
+		//Util::Message(INFO, "min_val = ", value.min_val);
 
 		if(value.nThickness.size() == 0)
 		{
@@ -338,7 +338,7 @@ public:
 				else if(value.nRadius[i] <= value.nThickness[i]) value.nRadius[i] = value.nThickness[i];
 			}
 		}
-		Util::Message(INFO, "value.nRadius.size() = ", value.nRadius.size(), ". value.nRadius[0] = ", value.nRadius[0]);
+		//Util::Message(INFO, "value.nRadius.size() = ", value.nRadius.size(), ". value.nRadius[0] = ", value.nRadius[0]);
         if(value.eps <= 0.) value.eps = 1.e-5;
 
         std::string mollifier;
