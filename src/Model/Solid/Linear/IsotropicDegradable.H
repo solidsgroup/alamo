@@ -81,7 +81,7 @@ public:
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
-		Util::Message(INFO, "lambda = ", lambda, ", mu = ", mu);
+		//Util::Message(INFO, "lambda = ", lambda, ", mu = ", mu);
 		value.Define(mu,mu,lambda,lambda);
 	}
 	AMREX_FORCE_INLINE
