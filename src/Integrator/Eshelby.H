@@ -12,6 +12,7 @@
 
 #include "IC/IC.H"
 #include "BC/BC.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
@@ -48,15 +49,12 @@ public:
                 ic = new IC::Ellipse(geom);
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
-            if (pp.contains("Finclusion")) pp.queryarr("Finclusion",Finclusion);
-            if (pp.contains("Fmatrix"))    pp.queryarr("Fmatrix",Fmatrix);
         }
         {
             IO::ParmParse pp("elastic");
             {
-                // Initialize elastic model
-                pp.queryclass("model",elastic.model);
-                elastic.model.F0 = Set::Matrix::Zero();
+                pp.queryclass("model1",elastic.model1);
+                pp.queryclass("model2",elastic.model2);
 
                 // TODO: figure out how to initialize solvers in
                 // here instead of TimeStepBegin...
@@ -81,18 +79,11 @@ protected:
 
     void TimeStepBegin(Set::Scalar, int) override
     {
-        if (finest_level != rhs_mf.size() - 1)
-        {
-            Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
-        }
-        
         // Set linear elastic model
         
-        for (int lev = 0; lev < rhs_mf.size(); ++lev)
+        for (int lev = 0; lev <= finest_level; ++lev)
         {
             rhs_mf[lev]->setVal(0.0);
-
-            model_mf[lev]->setVal(elastic.model);
 
             eta_mf[lev]->FillBoundary();
 
@@ -100,15 +91,13 @@ protected:
 
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.growntilebox(2);
+                amrex::Box bx = mfi.grownnodaltilebox();
 
                 amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    Set::Matrix Fgb = (1.0 - eta(i, j, k)) * Fmatrix + eta(i, j, k) * Finclusion;
-                    model(i, j, k) = elastic.model;
-                    model(i, j, k).F0 = Fgb;
+                    model(i, j, k) = eta(i, j, k) * elastic.model1 + (1.0 - eta(i, j, k)) * elastic.model2;
                 });
             }
 
@@ -118,7 +107,7 @@ protected:
         elastic.bc.Init(rhs_mf,geom);
 
         amrex::LPInfo info;
-        Operator::Elastic<Model::Solid::Affine::Isotropic::sym> elastic_op(geom, grids, dmap, info);
+        Operator::Elastic<Model::Solid::Affine::Isotropic::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
         elastic_op.SetBC(&elastic.bc);
 
@@ -130,10 +119,22 @@ protected:
 
         elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
 
-        for (int lev = 0; lev < disp_mf.size(); lev++)
+        for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
-            elastic_op.Stress(lev, *stress_mf[lev], *disp_mf[lev]);
-            elastic_op.Strain(lev, *strain_mf[lev], *disp_mf[lev]);
+            const amrex::Real* DX = geom[lev].CellSize();
+            for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.nodaltilebox();
+                amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar>       const &stress  = stress_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX);
+                    Set::Matrix sigma = model(i,j,k).DW(gradu);
+                    Numeric::MatrixToField(stress,i,j,k,sigma);
+                });
+            }
         }
     }
 
@@ -181,13 +182,10 @@ private:
     IC::IC *ic;          ///< Pointer to abstract IC object
     BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
-    Set::Matrix Fmatrix = Set::Matrix::Zero();
-    Set::Matrix Finclusion = Set::Matrix::Zero();
-
     struct {
-        Model::Solid::Affine::Isotropic model;
+        model_type model1, model2;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
-        BC::Operator::Elastic bc;
+        BC::Operator::Elastic::Constant bc;
     } elastic;
 
 };

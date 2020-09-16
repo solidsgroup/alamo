@@ -34,7 +34,7 @@ private:
                          Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> &a_ddw_mf,
                          Set::Field<T> &a_model_mf)
     {
-            for (int lev = 0; lev < a_b_mf.size(); ++lev)
+            for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
                 amrex::Box domain(linop.Geom(lev).Domain());
                 domain.convert(amrex::IntVect::TheNodeVector());
@@ -150,11 +150,11 @@ public:
         Set::Field<Set::Matrix> dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
 
-        dsol_mf.resize(a_u_mf.size());
-        dw_mf.resize(a_u_mf.size());
-        ddw_mf.resize(a_u_mf.size());
-        rhs_mf.resize(a_u_mf.size());
-        for (int lev = 0; lev < a_u_mf.size(); lev++)
+        dsol_mf.resize(a_u_mf.finest_level+1); dsol_mf.finest_level = a_u_mf.finest_level;
+        dw_mf.  resize(a_u_mf.finest_level+1); dw_mf  .finest_level = a_u_mf.finest_level;
+        ddw_mf. resize(a_u_mf.finest_level+1); ddw_mf .finest_level = a_u_mf.finest_level;
+        rhs_mf. resize(a_u_mf.finest_level+1); rhs_mf .finest_level = a_u_mf.finest_level;
+        for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
         {
             dsol_mf.Define(lev, a_u_mf[lev]->boxArray(),
                                 a_u_mf[lev]->DistributionMap(),
@@ -350,7 +350,7 @@ public:
 private:
     int m_nriters = 1;
     Operator::Elastic<T::sym> &m_elastic;
-    BC::Operator::Elastic &m_bc;
+    BC::Operator::Elastic::Elastic &m_bc;
 
 public:
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)

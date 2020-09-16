@@ -48,6 +48,7 @@ public:
         Util::Assert(INFO,TEST(a_lev < this->size()));
         (*this)[a_lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(a_grid,a_dmap,a_ncomp,a_nghost));
     }
+    int finest_level = 0;
 };
 
 
@@ -72,6 +73,7 @@ public:
         Util::Assert(INFO,TEST(a_lev < this->size()));
         (*this)[a_lev].reset(new amrex::MultiFab(a_grid,a_dmap,a_ncomp,a_nghost));
     }
+    int finest_level = 0;
 };
 }
 

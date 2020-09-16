@@ -66,7 +66,7 @@ template <int SYM>
 void 
 Elastic<SYM>::SetModel (MATRIX4 &a_model)
 {
-	for (int amrlev = 0; amrlev < m_ddw_mf.size(); amrlev++)
+	for (int amrlev = 0; amrlev < m_num_amr_levels; amrlev++)
 	{
 		amrex::Box domain(m_geom[amrlev][0].Domain());
 		domain.convert(amrex::IntVect::TheNodeVector());

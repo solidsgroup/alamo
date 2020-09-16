@@ -44,7 +44,7 @@ public:
 		}
 	};
 	
-	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
+	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
 	{
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,

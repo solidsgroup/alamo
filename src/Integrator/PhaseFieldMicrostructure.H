@@ -17,6 +17,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
+#include "BC/Operator/Elastic/Constant.H"
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi.H"
@@ -144,11 +145,11 @@ private:
 
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
 		amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
-		std::array<BC::Operator::Elastic::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
-		std::array<BC::Operator::Elastic::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
+		std::array<BC::Operator::Elastic::Constant::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
+		std::array<BC::Operator::Elastic::Constant::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
 		Operator::Elastic<model_type::sym> op;
 
-		BC::Operator::Elastic bc;
+		BC::Operator::Elastic::Constant bc;
 
 		Set::Scalar strainenergy = 0.0;
 		Set::Scalar force = 0.0;

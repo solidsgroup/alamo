@@ -13,6 +13,7 @@
 
 #include "BC/BC.H"
 #include "BC/Constant.H"
+#include "BC/Operator/Elastic/Constant.H"
 
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
@@ -135,8 +136,8 @@ private:
         Set::Field<Set::Scalar> energy_pristine;      ///< energy of the prisitne material as if no crack is present
         Set::Field<Set::Scalar> energy_pristine_old;  ///< energy of the pristine material for previous time step.
 
-        BC::Operator::Elastic 	brittlebc;  ///< elastic BC if using brittle fracture
-        BC::Operator::Elastic 	ductilebc;  ///< elastic BC if using ductile fracture
+        BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
+        BC::Operator::Elastic::Constant 	ductilebc;  ///< elastic BC if using ductile fracture
 		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
     } elastic;
 
