@@ -24,9 +24,10 @@
 #include "Solver/Nonlocal/Newton.H"
 
 #include "Model/Solid/Solid.H"
+#include "Model/Solid/Linear/Isotropic.H"
 #include "Model/Solid/Linear/IsotropicDegradable.H"
-#include "Model/Solid/Affine/J2PlasticDegradable.H"
-#include "Model/Solid/Affine/CrystalPlasticDegradable.H"
+//#include "Model/Solid/Affine/J2PlasticDegradable.H"
+//#include "Model/Solid/Affine/CrystalPlasticDegradable.H"
 
 #include "Model/Interface/Crack/Crack.H"
 #include "Model/Interface/Crack/Constant.H"
@@ -37,7 +38,8 @@
 
 namespace Integrator
 {
-using brittle_fracture_model_type = Model::Solid::Linear::IsotropicDegradable;
+//using brittle_fracture_model_type_test = Model::Solid::Linear::Isotropic;
+using brittle_fracture_model_type_test = Model::Solid::Linear::IsotropicDegradable;
 
 class NotchCrack : public Integrator
 {
@@ -57,15 +59,18 @@ public:
         pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
         pp_crack_df.query("mult_Lap", crack.mult_df_lap);
 
+        // IC for crack field
         IO::ParmParse pp("ic");
         IC::Notch *tmpic = new IC::Notch(geom);
         pp.queryclass("notch",*tmpic);
         crack.ic = tmpic;
 
+        // IC for modulus_field
         IC::Notch *tmpic2 = new IC::Notch(geom);
         pp.queryclass("notch2",*tmpic2);
         crack.ic2 = tmpic2;
 
+        // Use if cell based fabs are needed
         // crack.bc = new BC::Constant(1);
         // crack.bcdf = new BC::Constant(4);
         // pp_crack.queryclass("bc",*static_cast<BC::Constant *>(crack.bc));
@@ -131,9 +136,6 @@ public:
 protected:
     void Initialize(int ilev) override
     {
-        //crack.field[ilev]->setVal(1.0);
-        //crack.field_old[ilev]->setVal(1.0);
-
         elastic.disp[ilev]->setVal(0.0);
         elastic.strain[ilev]->setVal(0.0);
         elastic.stress[ilev]->setVal(0.0);
@@ -154,6 +156,7 @@ protected:
     {
         if(iter%sol.interval) return;
         material.brittlemodeltype.DegradeModulus(0.0);
+        
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
             std::swap(elastic.energy_pristine_old[ilev], elastic.energy_pristine[ilev]);
@@ -167,21 +170,44 @@ protected:
             Util::RealFillBoundary(*crack.field[ilev],geom[ilev]);
             Util::RealFillBoundary(*crack.field_old[ilev],geom[ilev]);
             Util::RealFillBoundary(*material.modulus_field[ilev],geom[ilev]);
+
+            // Cell to Node and Node to cell averaging as a test.
+            // for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
+            // {
+            //     amrex::Box box = mfi.validbox();
+            //     amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
+            //     amrex::Array4<Set::Scalar> const& c_old = (*crack.field_old[ilev]).array(mfi);
+            //     amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+            //         c_old(i,j,k,0) = Numeric::Interpolate::NodeToCellAverage(c_new,i,j,k,0);
+            //     });
+            // }
+            // crack.field_old[ilev]->FillBoundary();
+            // for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
+            // {
+            //     amrex::Box box = mfi.grownnodaltilebox();
+            //     amrex::Array4<Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
+            //     amrex::Array4<const Set::Scalar> const& c_old = (*crack.field_old[ilev]).array(mfi);
+            //     amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+            //         c_new(i,j,k,0) = Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0);
+            //     });
+            // }
+            // Util::RealFillBoundary(*crack.field[ilev],geom[ilev]);
+
             
             for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
             {
                 amrex::Box box = mfi.grownnodaltilebox();
                 amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
-                amrex::Array4<brittle_fracture_model_type> modelfab = (material.brittlemodel)[ilev]->array(mfi);
+                amrex::Array4<brittle_fracture_model_type_test> modelfab = (material.brittlemodel)[ilev]->array(mfi);
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
-                    _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0.);
+                    _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
+                    // _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) _temp = 0.;
                     if(_temp > 1.0) _temp = 1.0;
-                    //modelfab(i,j,k,0).DegradeModulus(1.-crack.scaleModulusMax);
                     modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-crack.scaleModulusMax));
                 });
             }
@@ -201,7 +227,7 @@ protected:
 
         elastic.brittlebc.Init(elastic.rhs,geom);
 
-        Operator::Elastic<brittle_fracture_model_type::sym> op_b;
+        Operator::Elastic<brittle_fracture_model_type_test::sym> op_b;
         LPInfo info;
         info.setAgglomeration(sol.agglomeration);
         info.setConsolidation(sol.consolidation);
@@ -214,7 +240,7 @@ protected:
         op_b.SetBC(&elastic.brittlebc);
         
         {
-            Solver::Nonlocal::Newton<brittle_fracture_model_type>  solver(op_b);
+            Solver::Nonlocal::Newton<brittle_fracture_model_type_test>  solver(op_b);
             solver.setMaxIter(sol.max_iter);
             solver.setMaxFmgIter(sol.max_fmg_iter);
             solver.setFixedIter(sol.max_fixed_iter);
@@ -228,44 +254,7 @@ protected:
             solver.solve(elastic.disp, elastic.rhs, material.brittlemodel, sol.tol_rel, sol.tol_abs);
             solver.compResidual(elastic.residual,elastic.disp,elastic.rhs,material.brittlemodel);
         }
-        // {
-        //     for (int ilev = 0; ilev < nlevels; ++ilev)
-        //     {
-        //         Util::RealFillBoundary(*crack.field[ilev],geom[ilev]);
-        //         Util::RealFillBoundary(*material.modulus_field[ilev],geom[ilev]);
-        //         for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
-        //         {
-        //             amrex::Box box = mfi.validbox();
-        //             amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
-        //             amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
-        //             amrex::Array4<brittle_fracture_model_type> modelfab = (material.brittlemodel)[ilev]->array(mfi);
-
-        //             amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-        //                 Set::Scalar _temp = 0;
-        //                 _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0.);
-        //                 if (std::isnan(_temp)) Util::Abort(INFO);
-        //                 if(_temp < 0.0) _temp = 0.;
-        //                 if(_temp > 1.0) _temp = 1.0;
-        //                 modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-crack.scaleModulusMax));
-        //             });
-        //         }
-        //         Util::RealFillBoundary(*material.brittlemodel[ilev],geom[ilev]);
-        //     }
-        //     Solver::Nonlocal::Newton<brittle_fracture_model_type>  solver(op_b);
-        //     solver.setMaxIter(sol.max_iter);
-        //     solver.setMaxFmgIter(sol.max_fmg_iter);
-        //     solver.setFixedIter(sol.max_fixed_iter);
-        //     solver.setVerbose(sol.verbose);
-        //     solver.setCGVerbose(sol.cgverbose);
-        //     solver.setBottomMaxIter(sol.bottom_max_iter);
-        //     solver.setBottomTolerance(sol.cg_tol_rel) ;
-        //     solver.setBottomToleranceAbs(sol.cg_tol_abs) ;
-        //     if (sol.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
-        //     else if (sol.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
-        //     solver.solve(elastic.disp, elastic.rhs, material.brittlemodel, sol.tol_rel, sol.tol_abs);
-        //     solver.compResidual(elastic.residual,elastic.disp,elastic.rhs,material.brittlemodel);
-        // }
-
+        
         for (int ilev = 0; ilev < nlevels; ilev++)
         {
             op_b.Strain(ilev,*elastic.strain[ilev],*elastic.disp[ilev]);
@@ -398,6 +387,17 @@ protected:
         const Set::Vector dx(DX);
         const Set::Scalar dxnorm = dx.lpNorm<2>();
 
+        // for (amrex::MFIter mfi(*material.modulus_field[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        // {
+        //     const amrex::Box 							&bx 	= mfi.tilebox();
+        //     amrex::Array4<char> const 					&tags 	= a_tags.array(mfi);
+        //     amrex::Array4<const Set::Scalar> const 		&modbox 	= (*material.modulus_field[lev]).array(mfi);
+            
+        //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        //             tags(i, j, k) = amrex::TagBox::SET;
+        //     });
+        // }
+
         for (amrex::MFIter mfi(*material.modulus_field[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box 							&bx 	= mfi.tilebox();
@@ -466,9 +466,9 @@ private:
     } crack;
 
     struct{
-        brittle_fracture_model_type brittlemodeltype;
+        brittle_fracture_model_type_test brittlemodeltype;
         Set::Field<Set::Scalar> modulus_field;
-        Set::Field<brittle_fracture_model_type> brittlemodel;
+        Set::Field<brittle_fracture_model_type_test> brittlemodel;
         std::string input_material = "isotropic";
     } material;
 
