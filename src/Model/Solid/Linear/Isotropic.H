@@ -62,6 +62,11 @@ public:
             pp.query("lame",lambda);
             pp.query("shear",mu);
         }
+        if (pp.contains("lambda") && pp.contains("mu"))
+        {
+            pp.query("lambda",lambda);
+            pp.query("mu",mu);
+        }
         else if (pp.contains("E") && pp.contains("nu"))
         {
             Set::Scalar E, nu;
