@@ -34,8 +34,7 @@ public:
 
 	void SetHalfspace(bool a_halfspace) {halfspace = a_halfspace;}
 
-	void Add(const int lev,
-		 amrex::Vector<amrex::MultiFab *> &field)
+	void Add(const int &lev, Set::Field<Set::Scalar> &field)
 	{
 		bool cellcentered = (field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 

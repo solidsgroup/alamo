@@ -390,12 +390,12 @@ Fracture::TimeStepBegin(amrex::Real time, int iter)
     //==================================================
     // Setting the elastic boundary conditions
     {
-        BC::Operator::Elastic::Type bctype_d = BC::Operator::Elastic::Type::Displacement;
-        BC::Operator::Elastic::Type bctype_b = BC::Operator::Elastic::Type::Displacement;
+        BC::Operator::Elastic::Constant::Type bctype_d = BC::Operator::Elastic::Constant::Type::Displacement;
+        BC::Operator::Elastic::Constant::Type bctype_b = BC::Operator::Elastic::Constant::Type::Displacement;
         if (loading.load == LoadType::Force)
         {
-            bctype_d = BC::Operator::Elastic::Type::Traction;
-            bctype_b = BC::Operator::Elastic::Type::Traction;
+            bctype_d = BC::Operator::Elastic::Constant::Type::Traction;
+            bctype_b = BC::Operator::Elastic::Constant::Type::Traction;
         }
         
         if (loading.mode == ModeType::ModeI)

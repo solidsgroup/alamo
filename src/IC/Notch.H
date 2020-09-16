@@ -22,7 +22,7 @@ public:
         eps = 1e-5;
     }
 	
-	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
+	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
 	{
         Set::Vector DX(geom[lev].CellSize());
 
@@ -31,17 +31,18 @@ public:
 			amrex::Box bx = mfi.tilebox();
 		    bx.grow(a_field[lev]->nGrow());
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+			amrex::IndexType type = a_field[lev]->ixType();
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
 				Set::Vector x;
                 // NODE
-                if (a_field[0]->ixType() == amrex::IndexType::TheNodeType())
+                if (type == amrex::IndexType::TheNodeType())
                 {
 				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
 				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
 				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
                 }
-                else if (a_field[0]->ixType() == amrex::IndexType::TheCellType())
+                else if (type == amrex::IndexType::TheCellType())
                 {
 				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
 				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,

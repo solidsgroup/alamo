@@ -5,7 +5,7 @@
 #include "IC/Random.H"
 #include "Operator/Elastic.H"
 #include "Model/Solid/Linear/Laplacian.H"
-#include "BC/Operator/Elastic.H"
+#include "BC/Operator/Elastic/Constant.H"
 //#include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 
@@ -55,7 +55,7 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 
 	// Set up boundary conditions, and 
 	// configure the problem so that it is 1D, 2D, or 3D
-	BC::Operator::Elastic bc;
+	BC::Operator::Elastic::Constant bc;
 	if (dim == 1)
 	{
 		AMREX_D_TERM(,// nothing to do in 1D case
