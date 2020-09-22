@@ -66,9 +66,9 @@ public:
         crack.ic = tmpic;
 
         // IC for modulus_field
-        IC::Notch *tmpic2 = new IC::Notch(geom);
-        pp.queryclass("notch2",*tmpic2);
-        crack.ic2 = tmpic2;
+        // IC::Notch *tmpic2 = new IC::Notch(geom);
+        // pp.queryclass("notch2",*tmpic2);
+        // crack.ic2 = tmpic2;
 
         // Use if cell based fabs are needed
         // crack.bc = new BC::Constant(1);
@@ -145,7 +145,7 @@ protected:
         elastic.energy_pristine[ilev] -> setVal(0.);
         elastic.energy_pristine_old[ilev] -> setVal(0.);
 
-        crack.ic2->Initialize(ilev,material.modulus_field);
+        crack.ic->Initialize(ilev,material.modulus_field);
         crack.ic->Initialize(ilev,crack.field);
         crack.ic->Initialize(ilev,crack.field_old);
 
@@ -170,29 +170,6 @@ protected:
             Util::RealFillBoundary(*crack.field[ilev],geom[ilev]);
             Util::RealFillBoundary(*crack.field_old[ilev],geom[ilev]);
             Util::RealFillBoundary(*material.modulus_field[ilev],geom[ilev]);
-
-            // Cell to Node and Node to cell averaging as a test.
-            // for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
-            // {
-            //     amrex::Box box = mfi.validbox();
-            //     amrex::Array4<const Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
-            //     amrex::Array4<Set::Scalar> const& c_old = (*crack.field_old[ilev]).array(mfi);
-            //     amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-            //         c_old(i,j,k,0) = Numeric::Interpolate::NodeToCellAverage(c_new,i,j,k,0);
-            //     });
-            // }
-            // crack.field_old[ilev]->FillBoundary();
-            // for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
-            // {
-            //     amrex::Box box = mfi.grownnodaltilebox();
-            //     amrex::Array4<Set::Scalar> const& c_new = (*crack.field[ilev]).array(mfi);
-            //     amrex::Array4<const Set::Scalar> const& c_old = (*crack.field_old[ilev]).array(mfi);
-            //     amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-            //         c_new(i,j,k,0) = Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0);
-            //     });
-            // }
-            // Util::RealFillBoundary(*crack.field[ilev],geom[ilev]);
-
             
             for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
             {
@@ -268,7 +245,7 @@ protected:
             
             for (amrex::MFIter mfi(*elastic.strain[ilev],true); mfi.isValid(); ++mfi)
             {
-                const amrex::Box& box = mfi.validbox();
+                const amrex::Box& box = mfi.grownnodaltilebox();
                 amrex::Array4<const Set::Scalar> const& strain_box 	= (*elastic.strain[ilev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box 		= (*elastic.energy_pristine[ilev]).array(mfi);
@@ -297,88 +274,89 @@ protected:
                     energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
                 });
             }
+            Util::RealFillBoundary(*elastic.energy_pristine[ilev],geom[ilev]);
         }
     }
 
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
     {
-//         std::swap(crack.field_old[lev], crack.field[lev]);
+        std::swap(crack.field_old[lev], crack.field[lev]);
 
-//         // crack.field_old[lev]->FillBoundary();
-//         // material.modulus_field[lev]->FillBoundary();
+        // crack.field_old[lev]->FillBoundary();
+        // material.modulus_field[lev]->FillBoundary();
+        Util::RealFillBoundary(*crack.field_old[lev],geom[lev]);
+        Util::RealFillBoundary(*crack.field[lev],geom[lev]);
+        Util::RealFillBoundary(*material.modulus_field[lev],geom[lev]);
+        Util::RealFillBoundary(*elastic.energy_pristine[lev],geom[lev]);
 
-//         Util::RealFillBoundary(*crack.field[lev],geom[lev]);
-//         Util::RealFillBoundary(*material.modulus_field[lev],geom[lev]);
-//         Util::RealFillBoundary(*elastic.energy_pristine[lev],geom[lev]);
+        const Set::Scalar* DX = geom[lev].CellSize();
+        amrex::Box domain(geom[lev].Domain());
+        // amrex::Box domain(geom.Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+        const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
 
-//         const Set::Scalar* DX = geom[lev].CellSize();
-//         amrex::Box domain(geom[lev].Domain());
-//         // amrex::Box domain(geom.Domain();
-//         domain.convert(amrex::IntVect::TheNodeVector());
-//         const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-
-//         for ( amrex::MFIter mfi(*crack.field[lev],true); mfi.isValid(); ++mfi )
-//         {
-//             const amrex::Box& bx = mfi.validbox();
-//             amrex::Array4<const Set::Scalar> const& c_old = (*crack.field_old[lev]).array(mfi);
-//             amrex::Array4<Set::Scalar> const& df = (*crack.driving_force[lev]).array(mfi);
-//             amrex::Array4<Set::Scalar> const& c_new = (*crack.field[lev]).array(mfi);
-//             amrex::Array4<const Set::Scalar> const& energy_box = (*elastic.energy_pristine[lev]).array(mfi);
-//             amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[lev]).array(mfi);
+        for ( amrex::MFIter mfi(*crack.field[lev],true); mfi.isValid(); ++mfi )
+        {
+            const amrex::Box& bx = mfi.validbox();
+            amrex::Array4<const Set::Scalar> const& c_old = (*crack.field_old[lev]).array(mfi);
+            amrex::Array4<Set::Scalar> const& df = (*crack.driving_force[lev]).array(mfi);
+            amrex::Array4<Set::Scalar> const& c_new = (*crack.field[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const& energy_box = (*elastic.energy_pristine[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[lev]).array(mfi);
             
-//             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-//                 Set::Scalar rhs = 0.0;
-//                 Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
+            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
+                Set::Scalar rhs = 0.0;
+                Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
                 
-//                 Set::Scalar _temp = modbox(i,j,k,0);
-//                 Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
+                Set::Scalar _temp = modbox(i,j,k,0);
+                Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
                 
-//                 if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
-//                 if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
-//                 if (c_old(i,j,k,0) > 1) Util::Abort(INFO, "Very large values of c_old at (",i,",",j,",",k,") = ", c_old(i,j,k,0));
+                if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
+                if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
+                if (c_old(i,j,k,0) > 1) Util::Abort(INFO, "Very large values of c_old at (",i,",",j,",",k,") = ", c_old(i,j,k,0));
 
-//                 df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
-//                 rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
 
-//                 if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
+                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
 
-//                 Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
-//                 Set::Scalar laplacian = DDc.trace();
+                Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
+                Set::Scalar laplacian = DDc.trace();
 
-//                 df(i,j,k,1) = crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-//                 df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                df(i,j,k,1) = crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
 
-//                 rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-//                 // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+                rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
-//                 rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
-//                 // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
+                rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
                 
-//                 rhs *= crack.cracktype->g_phi(_temp,0.0);
-//                 // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+                rhs *= crack.cracktype->g_phi(_temp,0.0);
+                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
-//                 df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
-//                 if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-// 			    c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
+                df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
+                if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+			    c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
 
-//                 // A cheap way to do boundaries without a BC operator. 
-//                 // We need a proper BC operator for this.
-//                 // We basically want to ensure a neumann BC on all edges. This is just for 2D.
-// #if AMREX_SPACEDIM==2
-//                 // Corners
-//                 if (i == lo.x && j == lo.y) c_new(i,j,k,0) = c_new(i+1,j+1,k,0);
-//                 else if (i == lo.x && j == hi.y) c_new(i,j,k,0) = c_new(i+1,j-1,k,0);
-//                 else if (i == hi.x && j == lo.y) c_new(i,j,k,0) = c_new(i-1,j+1,k,0);
-//                 else if (i == hi.x && j == hi.y) c_new(i,j,k,0) = c_new(i-1,j-1,k,0);
-//                 else if (i == lo.x) c_new(i,j,k,0) = c_new(i+1,j,k,0);
-//                 else if (j == lo.y) c_new(i,j,k,0) = c_new(i,j+1,k,0);
-//                 else if (i == hi.x) c_new(i,j,k,0) = c_new(i-1,j,k,0);
-//                 else if (j == hi.y) c_new(i,j,k,0) = c_new(i,j-1,k,0);
-// #endif
-//             });
-//         }
-//         // crack.field[lev]->FillBoundary();
-//         Util::RealFillBoundary(*crack.field[lev],geom[lev]);
+                // A cheap way to do boundaries without a BC operator. 
+                // We need a proper BC operator for this.
+                // We basically want to ensure a neumann BC on all edges. This is just for 2D.
+#if AMREX_SPACEDIM==2
+                // Corners
+                if (i == lo.x && j == lo.y) c_new(i,j,k,0) = c_new(i+1,j+1,k,0);
+                else if (i == lo.x && j == hi.y) c_new(i,j,k,0) = c_new(i+1,j-1,k,0);
+                else if (i == hi.x && j == lo.y) c_new(i,j,k,0) = c_new(i-1,j+1,k,0);
+                else if (i == hi.x && j == hi.y) c_new(i,j,k,0) = c_new(i-1,j-1,k,0);
+                else if (i == lo.x) c_new(i,j,k,0) = c_new(i+1,j,k,0);
+                else if (j == lo.y) c_new(i,j,k,0) = c_new(i,j+1,k,0);
+                else if (i == hi.x) c_new(i,j,k,0) = c_new(i-1,j,k,0);
+                else if (j == hi.y) c_new(i,j,k,0) = c_new(i,j-1,k,0);
+#endif
+            });
+        }
+        // crack.field[lev]->FillBoundary();
+        Util::RealFillBoundary(*crack.field[lev],geom[lev]);
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
@@ -386,17 +364,6 @@ protected:
         const amrex::Real *DX = geom[lev].CellSize();
         const Set::Vector dx(DX);
         const Set::Scalar dxnorm = dx.lpNorm<2>();
-
-        // for (amrex::MFIter mfi(*material.modulus_field[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        // {
-        //     const amrex::Box 							&bx 	= mfi.tilebox();
-        //     amrex::Array4<char> const 					&tags 	= a_tags.array(mfi);
-        //     amrex::Array4<const Set::Scalar> const 		&modbox 	= (*material.modulus_field[lev]).array(mfi);
-            
-        //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-        //             tags(i, j, k) = amrex::TagBox::SET;
-        //     });
-        // }
 
         for (amrex::MFIter mfi(*material.modulus_field[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
