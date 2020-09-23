@@ -127,12 +127,15 @@ protected:
                 amrex::Box bx = mfi.nodaltilebox();
                 amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>       const &stress  = stress_mf[lev]->array(mfi);
+                amrex::Array4<Set::Scalar>       const &strain  = strain_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX);
                     Set::Matrix sigma = model(i,j,k).DW(gradu);
+                    Set::Matrix eps = 0.5*(gradu + gradu.transpose());
                     Numeric::MatrixToField(stress,i,j,k,sigma);
+                    Numeric::MatrixToField(strain,i,j,k,eps);
                 });
             }
         }
