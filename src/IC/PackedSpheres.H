@@ -295,8 +295,9 @@ while (i<1000)
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
 	
 	};
-	
-	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
+
+	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+	//void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
 
  
