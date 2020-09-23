@@ -146,8 +146,10 @@ protected:
         elastic.energy_pristine_old[ilev] -> setVal(0.);
 
         crack.ic->Initialize(ilev,material.modulus_field);
-        crack.ic->Initialize(ilev,crack.field);
-        crack.ic->Initialize(ilev,crack.field_old);
+        // crack.ic->Initialize(ilev,crack.field);
+        // crack.ic->Initialize(ilev,crack.field_old);
+        crack.field[ilev]->setVal(1.0);
+        crack.field_old[ilev]->setVal(1.0);
 
         material.brittlemodel[ilev]->setVal(material.brittlemodeltype);
     }
@@ -181,6 +183,7 @@ protected:
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
                     _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
+                    _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
                     // _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) _temp = 0.;
@@ -306,10 +309,11 @@ protected:
             
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                 Set::Scalar rhs = 0.0;
-                Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
+                //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
                 
                 Set::Scalar _temp = modbox(i,j,k,0);
-                Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
+                //Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
+                Set::Scalar en_cell = energy_box(i,j,k,0);
                 
                 if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
                 if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
