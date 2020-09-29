@@ -79,7 +79,7 @@ material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 
 solver.bottom_solver 	=	bicgstab
-solver.int             = 3000
+solver.int             = 10000
 solver.composite_solve	=	1
 solver.verbose			=	2
 solver.cg_verbose 		=	0
