@@ -319,7 +319,7 @@ public:
         return std::sqrt(retsq);
     }
 
-    AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
+    //AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] -= a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] *= a.data[i];}
