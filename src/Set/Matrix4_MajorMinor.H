@@ -17,10 +17,10 @@ class Matrix4<2,Sym::MajorMinor>
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
-    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
-    {
-        for (int i = 0; i < 6; i++) data[i] =  in.data[i];
-    }
+    //Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+    //{
+    //    for (int i = 0; i < 6; i++) data[i] =  in.data[i];
+    //}
     AMREX_FORCE_INLINE
     const Scalar & operator () (const int i, const int j, const int k, const int l) const
     {
