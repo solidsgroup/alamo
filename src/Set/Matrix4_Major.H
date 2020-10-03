@@ -111,8 +111,8 @@ public:
             }
         }
     }
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
-    void operator=(const Matrix4<2, Sym::Major> &a)  { for (int i = 0; i < 10; i++) data[i]  = a.data[i]; }
+    //AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    //void operator=(const Matrix4<2, Sym::Major> &a)  { for (int i = 0; i < 10; i++) data[i]  = a.data[i]; }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
     void operator+=(const Matrix4<2, Sym::Major> &a) { for (int i = 0; i < 10; i++) data[i] += a.data[i]; }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
@@ -391,8 +391,8 @@ public:
             }
         }
     }
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
-    void operator=(const Matrix4<3, Sym::Major> &a)  { for (int i = 0; i < 45; i++) data[i]  = a.data[i]; }
+    //AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+    //void operator=(const Matrix4<3, Sym::Major> &a)  { for (int i = 0; i < 45; i++) data[i]  = a.data[i]; }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
     void operator+=(const Matrix4<3, Sym::Major> &a) { for (int i = 0; i < 45; i++) data[i] += a.data[i]; }
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
