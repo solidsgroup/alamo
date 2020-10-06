@@ -589,7 +589,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							if (distH < distL){l = j+1;}
 							else if (distL < distH){l = j-1;};
 
-							if (!disconnection.fixed){disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen);}
+							if (!disconnection.fixed)
+							{
+								disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen) * DX[0]*DX[0] * timestep;
+							}
 
 							if (disconnection.q < disconnection.p)
 							{
