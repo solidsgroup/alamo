@@ -560,7 +560,9 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 		if (disconnection.nucleate)
 		{
-			disconnection.nucleation_sites.clear();
+			//disconnection.nucleation_sites.clear();
+			disconnection.sitex.clear();
+			disconnection.sitey.clear();
 			disconnection.phases.clear();
 
 			int lev = max_level;
@@ -615,11 +617,15 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 								};
 
 								if (!disconnection.fixed){
-									disconnection.nucleation_sites.push_back(x);
+									//disconnection.nucleation_sites.push_back(x);
+									disconnection.sitex.push_back(x(0));
+									disconnection.sitey.push_back(x(1));
 									disconnection.phase = disconnection.int_dist(disconnection.rand_num_gen);
 								} else {
 									if(x(0)==disconnection.fixed_site){
-										disconnection.nucleation_sites.push_back(x);
+										//disconnection.nucleation_sites.push_back(x);
+										disconnection.sitex.push_back(x(0));
+										disconnection.sitey.push_back(x(1));
 									}
 								};
 
@@ -629,6 +635,65 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					}
 				});
 			}
+
+
+			//
+			// UPDATE ALL PROCS WITH NUCLATION SITE DATA
+			//
+			// Each processor will calculate a different collection of nucleation sites.
+			// This is potentially problematic since there can be overlap at the boundaries.
+			// In this section, we use MPI AllGather to sync up all of the lists of proc
+			// data to make sure all processors are up to date.
+			//
+			// TODO: we need a nicer way to do this with Set::Vector types.
+
+			// Gather information about how many sites were found on each processor
+			int nprocs;
+			MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+			int my_num_sites = disconnection.phases.size();
+			int num_sites = my_num_sites;
+			amrex::ParallelAllReduce::Sum(num_sites, MPI_COMM_WORLD);
+			// Temporary buffers to receive data from all procs
+			std::vector<int> disconnection_phases_all(num_sites);
+			std::vector<Set::Scalar> disconnection_sitex_all(num_sites);
+			std::vector<Set::Scalar> disconnection_sitey_all(num_sites);
+			// Send information about how many sites on each proc to all procs
+			std::vector<int> nsites_procs(nprocs);
+			MPI_Allgather(&my_num_sites, 1, ParallelDescriptor::Mpi_typemap<int>::type(),
+						  nsites_procs.data(), 1, ParallelDescriptor::Mpi_typemap<int>::type(),
+						  MPI_COMM_WORLD);
+			// Calculate the offset for each
+			std::vector<int> nsites_disp(nprocs);
+			for (int i = 0; i < nprocs; i++)
+			{
+				nsites_disp[i] = 0;
+				for (int j = 0; j < i; j++) nsites_disp[i] += nsites_procs[j];
+			}
+			// Store the MPI datatype for each
+			MPI_Datatype mpi_int = ParallelDescriptor::Mpi_typemap<int>::type();
+			MPI_Datatype mpi_scalar = ParallelDescriptor::Mpi_typemap<Set::Scalar>::type();
+			// The important part:
+			// Send all the information to all the processors.
+			MPI_Allgatherv(
+				disconnection.phases.data(),     my_num_sites, mpi_int,
+				disconnection_phases_all.data(), nsites_procs.data(), nsites_disp.data(), mpi_int,
+				MPI_COMM_WORLD);
+			MPI_Allgatherv(
+				disconnection.sitex.data(),        my_num_sites, mpi_scalar,
+				disconnection_sitex_all.data(),    nsites_procs.data(), nsites_disp.data(), mpi_scalar,
+				MPI_COMM_WORLD);
+			MPI_Allgatherv(
+				disconnection.sitey.data(),        my_num_sites, mpi_scalar,
+				disconnection_sitey_all.data(),    nsites_procs.data(), nsites_disp.data(), mpi_scalar,
+				MPI_COMM_WORLD);
+			// Swap out the data so the buffers are no longer needed.
+			disconnection.phases.swap(disconnection_phases_all);
+			disconnection.sitex.swap(disconnection_sitex_all);
+			disconnection.sitey.swap(disconnection_sitey_all);
+			// Clear out the old buffers
+			disconnection_phases_all.clear();
+			disconnection_sitex_all.clear();
+			disconnection_sitey_all.clear();
 
 			for (int lev = 0; lev <= max_level; lev++)
 			{
@@ -650,12 +715,13 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
 						);
 
-						for (unsigned int m = 0; m < disconnection.nucleation_sites.size(); m++)
+						for (unsigned int m = 0; m < disconnection.phases.size(); m++)
 						{	
 							amrex::Real r_squared = 0;
+							Set::Vector nucleation_site(disconnection.sitex[m],disconnection.sitey[m]);
 							for (int n = 0; n < AMREX_SPACEDIM; n++)
 							{
-								amrex::Real dist = disconnection.nucleation_sites[m](n) - x(n);
+								amrex::Real dist = nucleation_site(n) - x(n);
 								r_squared += dist * dist;
 
 								if (sqrt(r_squared) > disconnection.box_size / 2) break;
