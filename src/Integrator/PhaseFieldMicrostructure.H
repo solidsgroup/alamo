@@ -149,7 +149,9 @@ private:
 		std::uniform_real_distribution<double> unif_dist;
 		std::uniform_int_distribution<int> int_dist;
 		std::default_random_engine rand_num_gen;
-		std::vector<Set::Vector> nucleation_sites;
+		//std::vector<Set::Vector> nucleation_sites;
+		std::vector<Set::Scalar> sitex;
+		std::vector<Set::Scalar> sitey;
 		std::vector<int> phases;
 	} disconnection;
 
