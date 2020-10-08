@@ -182,13 +182,16 @@ protected:
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
+                    //_temp = crack.cracktype->g_phi(modbox(i,j,k,0),0);
                     _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
                     _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
                     // _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
-                    if(_temp < 0.0) _temp = 0.;
-                    if(_temp > 1.0) _temp = 1.0;
-                    modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-crack.scaleModulusMax));
+                    if(_temp < 0.0) Util::Abort(INFO);//_temp = 0.;
+                    if(_temp > 1.0) Util::Abort(INFO);//_temp = 1.0;
+					_temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
+                    //modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-crack.scaleModulusMax));
+                    modelfab(i,j,k,0).DegradeModulus(1-_temp);
                 });
             }
             Util::RealFillBoundary(*material.brittlemodel[ilev],geom[ilev]);
