@@ -650,7 +650,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 		solver.setMaxFmgIter(elastic.max_fmg_iter);
 		solver.setFixedIter(elastic.max_fixed_iter);
 		solver.setVerbose(elastic.verbose);
-		solver.setCGVerbose(elastic.cgverbose);
+		solver.setBottomVerbose(elastic.cgverbose);
 		solver.setBottomMaxIter(elastic.bottom_max_iter);
 		solver.setBottomTolerance(elastic.cg_tol_rel) ;
 		solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
@@ -720,7 +720,7 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 			solver.setMaxFmgIter(elastic.max_fmg_iter);
 			solver.setFixedIter(elastic.max_fixed_iter);
 			solver.setVerbose(elastic.verbose);
-			solver.setCGVerbose(elastic.cgverbose);
+			solver.setBottomVerbose(elastic.cgverbose);
 			solver.setBottomMaxIter(elastic.bottom_max_iter);
 			solver.setBottomTolerance(elastic.cg_tol_rel) ;
 			solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;

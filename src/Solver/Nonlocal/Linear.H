@@ -31,10 +31,10 @@ public:
     {
         m_verbose = verbosity;
         MLMG::setVerbose(m_verbose);
-		if (m_verbose > 4) MLMG::setCGVerbose(m_verbose);
+		if (m_verbose > 4) MLMG::setBottomVerbose(m_verbose);
      	else
  	    {
- 		    MLMG::setCGVerbose(0);
+ 		    MLMG::setBottomVerbose(0);
 	    }
     }
 

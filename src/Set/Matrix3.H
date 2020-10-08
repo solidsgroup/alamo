@@ -25,7 +25,7 @@ public:
         return data[i];
     }
 
-    AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator  = (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i]  = a.data[i];}
+    //AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator  = (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i]  = a.data[i];}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator += (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] += a.data[i];}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator -= (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] -= a.data[i];}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator *= (Set::Scalar alpha) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] *= alpha;}

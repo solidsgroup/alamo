@@ -27,20 +27,7 @@ public:
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-					Set::Vector x;
-					// NODE
-					if (type == amrex::IndexType::TheNodeType())
-					{
-						AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
-									x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
-									x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
-					}
-					else if (type == amrex::IndexType::TheCellType())
-					{
-						AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-									x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-									x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-					}
+					Set::Vector x = Set::Position(i,j,k,geom[lev],type);
 
 					Set::Scalar min_value = 100.0;
 					for (int i=0 ; i < center.size(); i++)
