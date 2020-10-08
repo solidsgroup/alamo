@@ -168,35 +168,22 @@ int SubMessage(std::string testname, int passed);
 int SubFinalMessage(int failed);
 }
 
+//
+// These two functions are not really necessary anymore.
+// TODO: remove RealFillBoundary and all references to them.
+//
 template<class T>
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &a_geom)
+void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
 {
-    for (int i = 0; i < 2; i++)
-    {
-        a_mf.FillBoundary(a_geom.periodicity());
-        const int ncomp = a_mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        amrex::FabArray<amrex::BaseFab<T>> tmpmf(a_mf.boxArray(), a_mf.DistributionMap(), ncomp, ng1);
-        amrex::Copy(tmpmf, a_mf, 0, 0, ncomp, ng1);
-        a_mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, a_geom.periodicity());
-    }
+	a_mf.setMultiGhost(true);
+	a_mf.FillBoundary();
 }
-
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &a_geom)
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
 {
-    for (int i = 0; i < 2; i++)
-    {
-        a_mf.FillBoundary(a_geom.periodicity());
-        const int ncomp = a_mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        amrex::MultiFab tmpmf(a_mf.boxArray(), a_mf.DistributionMap(), ncomp, ng1);
-        amrex::Copy(tmpmf, a_mf, 0, 0, ncomp, ng1);
-        a_mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, a_geom.periodicity());
-    }
+	a_mf.setMultiGhost(true);
+	a_mf.FillBoundary();
 }
 
 

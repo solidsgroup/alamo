@@ -27,15 +27,15 @@ elastic.newton.fixed_iter = 50
 elastic.newton.nriters = 5
 
 ### UNIAXIAL TENSION ###
-elastic.bc.val.xhi       = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.xhiylo    = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.xhiyhi    = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.zloxhi    = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.zhixhi    = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.xhiylozlo = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.xhiylozhi = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.xhiyhizlo = (0,2:-4,4) 0.0 0.0
-elastic.bc.val.xhiyhizhi = (0,2:-4,4) 0.0 0.0
+elastic.bc.val.xhi       = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.xhiylo    = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.xhiyhi    = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.zloxhi    = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.zhixhi    = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.xhiylozlo = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.xhiylozhi = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.xhiyhizlo = (0,2:-2,4) 0.0 0.0
+elastic.bc.val.xhiyhizhi = (0,2:-2,4) 0.0 0.0
 elastic.bc.type.yhi = trac trac trac
 elastic.bc.type.zhi = trac trac trac
 elastic.bc.type.ylo = trac trac trac
