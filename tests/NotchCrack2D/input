@@ -5,8 +5,9 @@ stop_time = 1.e-1
 plot_file = tests/NotchCrack2D/output
 
 amr.plot_int = 1000
-amr.max_level = 0
-amr.n_cell = 2048 2048
+amr.max_level = 2
+#amr.n_cell = 2048 2048
+amr.n_cell = 512 512
 amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
@@ -18,7 +19,8 @@ geometry.prob_lo = -0.005 -0.005
 geometry.prob_hi = 0.005 0.005
 geometry.is_periodic= 0 0
 
-crack.modulus_scaling_max = 0.001
+#crack.modulus_scaling_max = 0.001
+crack.modulus_scaling_max = 0.05
 crack.refinement_threshold = 0.01
 
 crack.type = constant
@@ -79,14 +81,14 @@ material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 
 solver.bottom_solver 	=	bicgstab
-solver.int             = 10000
+solver.int             = 1000
 solver.composite_solve	=	1
 solver.verbose			=	2
 solver.cg_verbose 		=	0
 solver.max_iter		=	10000
 solver.max_fmg_iter 	=	10000
 solver.bottom_max_iter =	500
-solver.max_fixed_iter 	=	100
+solver.max_fixed_iter 	=	200
 solver.linop_maxorder 	=	2
 solver.max_coarsening_level = 100000
 solver.agglomeration 	=	1
