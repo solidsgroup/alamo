@@ -182,8 +182,12 @@ protected:
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
-                    _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
-                    _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
+                    _temp = std::min (crack.cracktype->g_phi(c_new(i,j,k,0),0), crack.cracktype->g_phi(modbox(i,j,k,0),0));
+                    //     );
+                    // _temp = std::sqrt((crack.cracktype->g_phi(c_new(i,j,k,0),0))*(crack.cracktype->g_phi(c_new(i,j,k,0),0))
+                    //         + crack.cracktype->g_phi(modbox(i,j,k,0),0)*crack.cracktype->g_phi(modbox(i,j,k,0),0));
+                    // _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
+                    // _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
                     // _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) _temp = 0.;
