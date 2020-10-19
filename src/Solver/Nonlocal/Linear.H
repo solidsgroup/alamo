@@ -135,6 +135,12 @@ public:
         if (pp.contains("verbose"))
         { int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
 
+        if (pp.contains("pre_smooth"))
+        { int pre_smooth; pp.query("pre_smooth",pre_smooth);value.setPreSmooth(pre_smooth);}
+
+        if (pp.contains("post_smooth"))
+        { int post_smooth; pp.query("post_smooth",post_smooth);value.setPostSmooth(post_smooth);}
+
         pp.query("tol_rel",value.m_tol_rel);
         pp.query("tol_abs",value.m_tol_abs);
     }
