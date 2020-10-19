@@ -117,6 +117,9 @@ public:
         pp_solver.query("bottom_max_iter",     sol.bottom_max_iter);
         pp_solver.query("max_fixed_iter",      sol.max_fixed_iter);
         pp_solver.query("bottom_tol",          sol.bottom_tol);
+	pp_solver.query("pre_smooth", sol.pre_smooth);
+	pp_solver.query("post_smooth", sol.post_smooth);
+		
 
         nlevels = maxLevel() + 1;
         RegisterNodalFab(elastic.disp,  AMREX_SPACEDIM, number_of_ghost_nodes, "disp", true);
@@ -235,6 +238,8 @@ protected:
             solver.setBottomMaxIter(sol.bottom_max_iter);
             solver.setBottomTolerance(sol.cg_tol_rel) ;
             solver.setBottomToleranceAbs(sol.cg_tol_abs) ;
+            solver.setPreSmooth(sol.pre_smooth);
+            solver.setPostSmooth(sol.post_smooth);
             if (sol.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
             else if (sol.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
             solver.solve(elastic.disp, elastic.rhs, material.brittlemodel, sol.tol_rel, sol.tol_abs);
@@ -383,7 +388,7 @@ protected:
             
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(modbox, i, j, k, 0, DX);
-                if (dxnorm * grad.lpNorm<2>() > crack.refinement_threshold)
+                if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
@@ -396,7 +401,7 @@ protected:
             
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(c_new, i, j, k, 0, DX);
-                if (dxnorm * grad.lpNorm<2>() > crack.refinement_threshold)
+                if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
@@ -471,6 +476,8 @@ private:
 		int 		max_coarsening_level	= 0;
 		bool 		agglomeration 	  		= true;
 		bool 		consolidation 	  		= false;
+		int pre_smooth = 2;
+		int post_smooth = 2;
 	} sol;
 
     struct{
