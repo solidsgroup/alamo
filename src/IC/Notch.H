@@ -60,8 +60,7 @@ public:
 					{
 						Set::Scalar t = std::abs((x-nCenter[i]).transpose()*nNormal[i]) - (nThickness[i]/2.0);
 						if (moll == Mollifier::Gaussian) 
-							value = min_val + (1.0 - min_val)*std::erf(t/eps);
-							//value = 0.5 + 0.5*std::erf(t / eps);
+							value = std::erf(t/eps);
 						else if (moll == Mollifier::Dirac)
 						{
 							if (t < 0.0) value = 0.0;
@@ -101,7 +100,7 @@ public:
 							Set::Scalar t = (x-nLeft2).lpNorm<2>() - nRadius[i];
 							if (moll == Mollifier::Gaussian) 
 							{
-								value = min_val + (1.0 - min_val)*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
+								value = std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
 							}
 							else if (moll == Mollifier::Dirac)
 							{
@@ -176,7 +175,7 @@ public:
 							Set::Scalar t = (x-nRight2).lpNorm<2>() - nRadius[i];
 							if (moll == Mollifier::Gaussian) 
 							{
-								value = min_val + (1.- min_val)*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
+								value = std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
 							}
 							else if (moll == Mollifier::Dirac)
 							{
@@ -259,7 +258,7 @@ public:
 	
 private:
     amrex::Vector<Set::Vector> nCenter, nOrientation, nNormal;
-    Set::Scalar eps = 1.e-5, eps_sq = eps*eps, min_val = 0.01;
+    Set::Scalar eps = 1.e-5, eps_sq = eps*eps;
 	amrex::Vector<Set::Scalar> nThickness, nLength, nRadius;
     Mollifier moll = Mollifier::Dirac;
 
@@ -304,10 +303,7 @@ public:
         pp.queryarr("length", value.nLength);
 		pp.queryarr("radius", value.nRadius);
         pp.query("eps", value.eps);
-		pp.query("modulus_scaling_max", value.min_val);
-
-		//Util::Message(INFO, "min_val = ", value.min_val);
-
+		
 		if(value.nThickness.size() == 0)
 		{
 			value.nThickness.resize(value.nCenter.size());
