@@ -149,10 +149,11 @@ protected:
         elastic.energy_pristine_old[ilev] -> setVal(0.);
 
         crack.ic->Initialize(ilev,material.modulus_field);
-        // crack.ic->Initialize(ilev,crack.field);
-        // crack.ic->Initialize(ilev,crack.field_old);
-        crack.field[ilev]->setVal(1.0);
-        crack.field_old[ilev]->setVal(1.0);
+        // material.modulus_field[ilev]->setVal(1.0);
+        crack.ic->Initialize(ilev,crack.field);
+        crack.ic->Initialize(ilev,crack.field_old);
+        // crack.field[ilev]->setVal(1.0);
+        // crack.field_old[ilev]->setVal(1.0);
 
         material.brittlemodel[ilev]->setVal(material.brittlemodeltype);
     }
@@ -185,11 +186,11 @@ protected:
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
-                    _temp = std::min (crack.cracktype->g_phi(c_new(i,j,k,0),0), crack.cracktype->g_phi(modbox(i,j,k,0),0));
+                    // _temp = std::min (crack.cracktype->g_phi(c_new(i,j,k,0),0), crack.cracktype->g_phi(modbox(i,j,k,0),0));
                     //     );
                     // _temp = std::sqrt((crack.cracktype->g_phi(c_new(i,j,k,0),0))*(crack.cracktype->g_phi(c_new(i,j,k,0),0))
                     //         + crack.cracktype->g_phi(modbox(i,j,k,0),0)*crack.cracktype->g_phi(modbox(i,j,k,0),0));
-                    // _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
+                    _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
                     // _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
                     // _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
@@ -244,6 +245,12 @@ protected:
             else if (sol.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
             solver.solve(elastic.disp, elastic.rhs, material.brittlemodel, sol.tol_rel, sol.tol_abs);
             solver.compResidual(elastic.residual,elastic.disp,elastic.rhs,material.brittlemodel);
+            
+            if (iter == 0)
+            {
+                solver.solve(elastic.disp, elastic.rhs, material.brittlemodel, sol.tol_rel, sol.tol_abs);
+                solver.compResidual(elastic.residual,elastic.disp,elastic.rhs,material.brittlemodel);
+            }
         }
         
         for (int ilev = 0; ilev < nlevels; ilev++)
@@ -261,7 +268,7 @@ protected:
             {
                 const amrex::Box& box = mfi.grownnodaltilebox();
                 amrex::Array4<const Set::Scalar> const& strain_box 	= (*elastic.strain[ilev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
+                // amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box 		= (*elastic.energy_pristine[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box_old 	= (*elastic.energy_pristine_old[ilev]).array(mfi);
 
@@ -279,11 +286,12 @@ protected:
                         if(eValues(n) > 0.0) epsp += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                         else epsn += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                     }
-                    Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
-                    if(std::isnan(_temp)) Util::Abort(INFO, "Nans in temp. modbox(", i,",",j,",",k,") = ", modbox(i,j,k,0));
-                    if (_temp < 0.0) _temp = 0.0;
-                    if (_temp > 1.0) _temp = 1.0;
-                    material.brittlemodeltype.DegradeModulus(std::min(1.- _temp,1.-crack.scaleModulusMax));
+                    // Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
+                    // if(std::isnan(_temp)) Util::Abort(INFO, "Nans in temp. modbox(", i,",",j,",",k,") = ", modbox(i,j,k,0));
+                    // if (_temp < 0.0) _temp = 0.0;
+                    // if (_temp > 1.0) _temp = 1.0;
+                    // _temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
+                    // material.brittlemodeltype.DegradeModulus(1.- _temp);
                     energy_box(i,j,k,0) = material.brittlemodeltype.W(epsp);
                     energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
                 });
@@ -361,6 +369,7 @@ protected:
                     rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
                     // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
                     
+                    // rhs *= _temp;
                     rhs *= crack.cracktype->g_phi(_temp,0.0);
                     // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
