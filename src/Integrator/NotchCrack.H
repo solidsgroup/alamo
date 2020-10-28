@@ -117,8 +117,8 @@ public:
         pp_solver.query("bottom_max_iter",     sol.bottom_max_iter);
         pp_solver.query("max_fixed_iter",      sol.max_fixed_iter);
         pp_solver.query("bottom_tol",          sol.bottom_tol);
-	pp_solver.query("pre_smooth", sol.pre_smooth);
-	pp_solver.query("post_smooth", sol.post_smooth);
+        pp_solver.query("pre_smooth", sol.pre_smooth);
+        pp_solver.query("post_smooth", sol.post_smooth);
 		
 
         nlevels = maxLevel() + 1;
@@ -319,46 +319,10 @@ protected:
             amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[lev]).array(mfi);
             
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-                Set::Scalar rhs = 0.0;
-                //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
                 
-                Set::Scalar _temp = modbox(i,j,k,0);
-                //Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
-                Set::Scalar en_cell = energy_box(i,j,k,0);
-                
-                if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
-                if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
-                if (c_old(i,j,k,0) > 1) Util::Abort(INFO, "Very large values of c_old at (",i,",",j,",",k,") = ", c_old(i,j,k,0));
-
-                df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
-                rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
-
-                if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
-
-                Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
-                Set::Scalar laplacian = DDc.trace();
-
-                df(i,j,k,1) = crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-                df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
-
-                rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-
-                rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
-                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
-                
-                rhs *= crack.cracktype->g_phi(_temp,0.0);
-                // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-
-                df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
-                if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-			    c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
-
-                // A cheap way to do boundaries without a BC operator. 
-                // We need a proper BC operator for this.
-                // We basically want to ensure a neumann BC on all edges. This is just for 2D.
-#if AMREX_SPACEDIM==2
-                // Corners
+#if AMREX_SPACEDIM !=2
+                Util::Abort(INFO, "This doesn't work with 1D or 3D yet");
+#endif
                 if (i == lo.x && j == lo.y) c_new(i,j,k,0) = c_new(i+1,j+1,k,0);
                 else if (i == lo.x && j == hi.y) c_new(i,j,k,0) = c_new(i+1,j-1,k,0);
                 else if (i == hi.x && j == lo.y) c_new(i,j,k,0) = c_new(i-1,j+1,k,0);
@@ -367,7 +331,43 @@ protected:
                 else if (j == lo.y) c_new(i,j,k,0) = c_new(i,j+1,k,0);
                 else if (i == hi.x) c_new(i,j,k,0) = c_new(i-1,j,k,0);
                 else if (j == hi.y) c_new(i,j,k,0) = c_new(i,j-1,k,0);
-#endif
+                else
+                {
+                    Set::Scalar rhs = 0.0;
+                    //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
+                    
+                    Set::Scalar _temp = modbox(i,j,k,0);
+                    //Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
+                    Set::Scalar en_cell = energy_box(i,j,k,0);
+                    
+                    if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
+                    if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
+                    if (c_old(i,j,k,0) > 1) Util::Abort(INFO, "Very large values of c_old at (",i,",",j,",",k,") = ", c_old(i,j,k,0));
+
+                    df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                    rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+
+                    if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
+
+                    Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
+                    Set::Scalar laplacian = DDc.trace();
+
+                    df(i,j,k,1) = crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                    df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+
+                    rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                    // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+
+                    rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                    // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
+                    
+                    rhs *= crack.cracktype->g_phi(_temp,0.0);
+                    // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+
+                    df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
+                    if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+                    c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
+                }
             });
         }
         // crack.field[lev]->FillBoundary();
