@@ -59,8 +59,9 @@ public:
 	                if(std::abs((x-nCenter[i]).transpose()*nOrientation[i]) <= 0.5*nLength[i])
 					{
 						Set::Scalar t = std::abs((x-nCenter[i]).transpose()*nNormal[i]) - (nThickness[i]/2.0);
-						if (moll == Mollifier::Gaussian) 
-							value = std::erf(t/eps);
+						if (moll == Mollifier::Gaussian)
+							value = 0.5 + 0.5*std::erf(t / eps);
+							// value = std::erf(t/eps);
 						else if (moll == Mollifier::Dirac)
 						{
 							if (t < 0.0) value = 0.0;
@@ -100,7 +101,7 @@ public:
 							Set::Scalar t = (x-nLeft2).lpNorm<2>() - nRadius[i];
 							if (moll == Mollifier::Gaussian) 
 							{
-								value = std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
+								value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
 							}
 							else if (moll == Mollifier::Dirac)
 							{
@@ -175,7 +176,7 @@ public:
 							Set::Scalar t = (x-nRight2).lpNorm<2>() - nRadius[i];
 							if (moll == Mollifier::Gaussian) 
 							{
-								value = std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
+								value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
 							}
 							else if (moll == Mollifier::Dirac)
 							{
