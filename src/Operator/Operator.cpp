@@ -480,17 +480,18 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
 
 void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) 
 {
-	for (int i = 0; i < 2; i++)
-	{
-		MultiFab & mf = phi;
-		mf.FillBoundary(geom.periodicity());
-		const int ncomp = mf.nComp();
-		const int ng1 = 1;
-		const int ng2 = 2;
-		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
-		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-	}
+	Util::RealFillBoundary(phi,geom);
+//	for (int i = 0; i < 2; i++)
+//	{
+//		MultiFab & mf = phi;
+//		mf.FillBoundary(geom.periodicity());
+//		const int ncomp = mf.nComp();
+//		const int ng1 = 1;
+//		const int ng2 = 2;
+//		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+//		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+//		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+//	}
 }
 
 void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,

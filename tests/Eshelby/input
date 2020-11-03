@@ -24,16 +24,15 @@ ic.type        = ellipse
 ic.ellipse.a   = 1.0 0.75 0.5  # ellipse radii
 ic.ellipse.x0  = 0 0 0 # location of ellipse center
 ic.ellipse.eps = 0.1 # diffuse boundary
-ic.Finclusion  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
 
 # elastic moduli
-elastic.model.E = 210 
-elastic.model.nu = 0.3
+elastic.model1.E = 210 
+elastic.model1.nu = 0.3
+elastic.model1.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
+elastic.model2.E = 210 
+elastic.model2.nu = 0.3
+elastic.model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
 
 elastic.solver.verbose = 2
 elastic.solver.nriters = 1
 
-#elastic.bc.type.ylo = dirichlet dirichlet dirichlet
-#elastic.bc.val.xhi  = 0.2 0.0 0.0
-#elastic.bc.type.ylo = trac trac trac
-#elastic.bc.type.yhi = trac trac trac

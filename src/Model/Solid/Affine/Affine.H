@@ -31,13 +31,13 @@ struct PlasticState{
         return ret;
     }
 
-    AMREX_FORCE_INLINE
-    void operator = (const PlasticState &rhs)
-    {
-        epsp = rhs.epsp;
-        beta = rhs.beta;
-        alpha = rhs.alpha;
-    }
+//    AMREX_FORCE_INLINE
+//    void operator = (const PlasticState &rhs)
+//    {
+//        epsp = rhs.epsp;
+//        beta = rhs.beta;
+//        alpha = rhs.alpha;
+//    }
 
     AMREX_FORCE_INLINE
     void operator += (const PlasticState &rhs)
@@ -100,16 +100,16 @@ struct SlipSystem{
     Set::Scalar s_exp;        // power law exponent
     Set::Scalar gam0dot;    // gamma0 dot.
 
-    AMREX_FORCE_INLINE
-    void operator = (const SlipSystem &rhs)
-    {
-        n = rhs.n;
-        s = rhs.s;
-        tcrss = rhs.tcrss;
-        tcrss0 = rhs.tcrss0;
-        s_exp = rhs.s_exp;
-        gam0dot = rhs.gam0dot;
-    }
+//    AMREX_FORCE_INLINE
+//    void operator = (const SlipSystem &rhs)
+//    {
+//        n = rhs.n;
+//        s = rhs.s;
+//        tcrss = rhs.tcrss;
+//        tcrss0 = rhs.tcrss0;
+//        s_exp = rhs.s_exp;
+//        gam0dot = rhs.gam0dot;
+//    }
 
     AMREX_FORCE_INLINE
     void operator += (const SlipSystem &rhs)

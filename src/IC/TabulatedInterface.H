@@ -42,8 +42,7 @@ public:
 		ys = a_ys;
 	}
   
-	void Add(const int lev,
-		 amrex::Vector<amrex::MultiFab * > &a_field)
+	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
 	{
 		Numeric::Interpolator::Linear<Set::Scalar> f(ys,xs);
 
