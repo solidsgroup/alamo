@@ -567,6 +567,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 			int lev = max_level;
 			const amrex::Real *DX = geom[lev].CellSize();
+			amrex::Real mult = DX[0]*DX[0] * timestep * disconnection.interval;
 			
 			// iterate over all Patches
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -591,7 +592,10 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							if (distH < distL){l = j+1;}
 							else if (distL < distH){l = j-1;};
 
-							if (!disconnection.fixed){disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen);}
+							if (!disconnection.fixed)
+							{
+								disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen) * mult;
+							}
 
 							if (disconnection.q < disconnection.p)
 							{
