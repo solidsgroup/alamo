@@ -1,28 +1,19 @@
 alamo.program = notchcrack
-
 timestep = 1e-5
-stop_time = 1e-5 ##1e0
-plot_file = output
-
-amr.plot_int = 1 #10000
-amr.max_level = 1 #0
-amr.n_cell = 256 256  ##2048 2048
-#amr.max_level = 0
-#amr.n_cell = 2048 2048
-amr.blocking_factor = 16 #8
+stop_time = 1e0
+plot_file = tests/NotchCrack2D/output
+amr.plot_int = 250
+amr.max_level = 3
+amr.n_cell = 256 256
+amr.blocking_factor = 16
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-#amr.max_grid_size = 1000000
-
 amr.thermo.int = 1
-
 geometry.prob_lo = -0.01 -0.01
 geometry.prob_hi = 0.01 0.01
-geometry.is_periodic= 0 0
-
+geometry.is_periodic = 0 0
 crack.modulus_scaling_max = 5.e-3
-crack.refinement_threshold = 0.0 #0.01
-
+crack.refinement_threshold = 0.01
 crack.type = constant
 crack.constant.G_c = 2.7e3
 crack.constant.zeta = 2.e-5
@@ -34,7 +25,6 @@ crack.constant.gtype = square
 crack.constant.wtype = square
 crack.constant.exponent = 1.e-3
 crack.constant.threshold = 0.0
-
 ic.type = notch
 ic.notch.center = 0.0 0.0
 ic.notch.orientation = 1.0 0.0
@@ -42,85 +32,54 @@ ic.notch.thickness = 2.e-4
 ic.notch.length = 2.e-3
 ic.notch.eps = 4.e-5
 ic.notch.mollifier = erf
-
-crack.bc.type.xlo = neumann
-crack.bc.type.xhi = neumann
-crack.bc.type.ylo = neumann
-crack.bc.type.yhi = neumann
-
-crack.bc.val.xlo = 0.0 
-crack.bc.val.xhi = 0.0 
-crack.bc.val.ylo = 0.0 
-crack.bc.val.yhi = 0.0 
-
-crack.bc_df.type.xlo = neumann neumann neumann neumann
-crack.bc_df.type.xhi = neumann neumann neumann neumann
-crack.bc_df.type.ylo = neumann neumann neumann neumann
-crack.bc_df.type.yhi = neumann neumann neumann neumann
-
-crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
-crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
-crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
-crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
-
-material.model = isotropic
+crack.bc.type.xlo = neumann ##(nvals = 1)  :: [neumann]
+crack.bc.type.xhi = neumann ##(nvals = 1)  :: [neumann]
+crack.bc.type.ylo = neumann ##(nvals = 1)  :: [neumann]
+crack.bc.type.yhi = neumann ##(nvals = 1)  :: [neumann]
+crack.bc.val.xlo = 0.0 ##(nvals = 1)  :: [0.0]
+crack.bc.val.xhi = 0.0 ##(nvals = 1)  :: [0.0]
+crack.bc.val.ylo = 0.0 ##(nvals = 1)  :: [0.0]
+crack.bc.val.yhi = 0.0 ##(nvals = 1)  :: [0.0]
+crack.bc_df.type.xlo = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
+crack.bc_df.type.xhi = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
+crack.bc_df.type.ylo = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
+crack.bc_df.type.yhi = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
+crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
+crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
+crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
+crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
+material.model = isotropic #(nvals = 1)  :: [isotropic]
 material.isotropic.lambda = 121.15
-material.isotropic.mu = 80.77 
+material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
-
-solver.bottom_solver 	=	bicgstab
-solver.int             = 1000
-solver.verbose			=	2
-solver.cg_verbose 		=	0
-solver.max_iter		=	10000
-solver.max_fmg_iter 	=	0 ##10000
-solver.bottom_max_iter =	500
-solver.max_fixed_iter 	=	3 ##50
-solver.linop_maxorder 	=	10
+solver.bottom_solver = bicgstab
+solver.int = 1000
+solver.verbose = 2
+solver.cg_verbose = 0
+solver.max_iter = 10000
+solver.max_fmg_iter = 0
+solver.bottom_max_iter = 500
+solver.max_fixed_iter = 500
+solver.linop_maxorder = 10
 solver.max_coarsening_level = 100000
-solver.agglomeration 	=	1
-solver.consolidation 	=	1
-solver.tol_rel			=	1.0e-7
-solver.tol_abs			= 	1.0e-7
-solver.cg_tol_rel 		=	1.0e-7
-solver.cg_tol_abs 		=	1.0e-7
-
-loading.body_force		=	0.0 0.0 0.0
+solver.agglomeration = 1
+solver.consolidation = 1
+solver.tol_rel = 1.0e-7
+solver.tol_abs = 1.0e-7
+solver.cg_tol_rel = 1.0e-7
+solver.cg_tol_abs = 1.0e-7
+loading.body_force = 0.0 0.0 0.0
 loading.val = 2.e-2
-
-
-elastic.bc.type.xlo = disp trac ##disp trac
-elastic.bc.type.xhi = disp trac ##trac trac
-
-#elastic.bc.type.xlo = trac disp
-#elastic.bc.type.xhi = trac trac
-#elastic.bc.type.ylo = neumann neumann
-#elastic.bc.type yhi = trac trac
-#elastic.bc.type.xloylo = trac neumann
-#elastic.bc.type.xhiylo = disp disp
-#elastic.bc.type.xloyhi = trac disp
-#elastic.bc.type.xhiyhi = trac trac
-
+elastic.bc.type.xlo = disp trac
+elastic.bc.type.xhi = disp trac
 elastic.bc.val.xlo = 0.0 8.e-4
-
-# Mode I
-elastic.bc.type.ylo    = disp disp ##trac disp
-elastic.bc.type.xloylo = disp disp ##trac disp
-elastic.bc.type.xhiylo = disp disp ##trac disp
-
-#elastic.bc.type.ylo = disp disp
-#elastic.bc.type.xloylo = disp disp
-#elastic.bc.type.xhiylo = disp disp
-
-# Mode I - displacement
-elastic.bc.type.yhi    = disp disp ##trac disp
-elastic.bc.type.xloyhi = disp disp ##trac disp
-elastic.bc.type.xhiyhi = disp disp ##trac disp
-
-#elastic.bc.type.yhi = disp disp
-#elastic.bc.type.xloyhi = disp disp
-#elastic.bc.type.xhiyhi = disp disp
-
+elastic.bc.type.ylo = disp disp
+elastic.bc.type.xloylo = disp disp
+elastic.bc.type.xhiylo = disp disp
+elastic.bc.type.yhi = disp disp
+elastic.bc.type.xloyhi = disp disp
+elastic.bc.type.xhiyhi = disp disp
 elastic.bc.val.yhi = 0.0 8.e-5
 elastic.bc.val.xloyhi = 0.0 8.e-5
 elastic.bc.val.xhiyhi = 0.0 8.e-5
+amrex.throw_exception = 1
