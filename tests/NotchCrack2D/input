@@ -1,13 +1,15 @@
 alamo.program = notchcrack
 
 timestep = 1e-5
-stop_time = 1e0
+stop_time = 1e-5 ##1e0
 plot_file = output
 
-amr.plot_int = 10000
-amr.max_level = 0
-amr.n_cell = 2048 2048
-amr.blocking_factor = 8
+amr.plot_int = 1 #10000
+amr.max_level = 1 #0
+amr.n_cell = 256 256  ##2048 2048
+#amr.max_level = 0
+#amr.n_cell = 2048 2048
+amr.blocking_factor = 16 #8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 #amr.max_grid_size = 1000000
@@ -19,7 +21,7 @@ geometry.prob_hi = 0.01 0.01
 geometry.is_periodic= 0 0
 
 crack.modulus_scaling_max = 5.e-3
-crack.refinement_threshold = 0.01
+crack.refinement_threshold = 0.0 #0.01
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
@@ -40,7 +42,6 @@ ic.notch.thickness = 2.e-4
 ic.notch.length = 2.e-3
 ic.notch.eps = 4.e-5
 ic.notch.mollifier = erf
-ic.notch.modulus_scaling_max = 2.5e-4
 
 crack.bc.type.xlo = neumann
 crack.bc.type.xhi = neumann
@@ -69,14 +70,13 @@ elastic.df_mult = 1.e9
 
 solver.bottom_solver 	=	bicgstab
 solver.int             = 1000
-solver.composite_solve	=	1
 solver.verbose			=	2
 solver.cg_verbose 		=	0
 solver.max_iter		=	10000
-solver.max_fmg_iter 	=	10000
+solver.max_fmg_iter 	=	0 ##10000
 solver.bottom_max_iter =	500
-solver.max_fixed_iter 	=	50
-solver.linop_maxorder 	=	2
+solver.max_fixed_iter 	=	3 ##50
+solver.linop_maxorder 	=	10
 solver.max_coarsening_level = 100000
 solver.agglomeration 	=	1
 solver.consolidation 	=	1
@@ -84,15 +84,13 @@ solver.tol_rel			=	1.0e-7
 solver.tol_abs			= 	1.0e-7
 solver.cg_tol_rel 		=	1.0e-7
 solver.cg_tol_abs 		=	1.0e-7
-solver.use_fsmooth 	=	1
-
 
 loading.body_force		=	0.0 0.0 0.0
 loading.val = 2.e-2
 
 
-elastic.bc.type.xlo = disp trac
-elastic.bc.type.xhi = trac trac
+elastic.bc.type.xlo = disp trac ##disp trac
+elastic.bc.type.xhi = disp trac ##trac trac
 
 #elastic.bc.type.xlo = trac disp
 #elastic.bc.type.xhi = trac trac
@@ -106,18 +104,18 @@ elastic.bc.type.xhi = trac trac
 elastic.bc.val.xlo = 0.0 8.e-4
 
 # Mode I
-elastic.bc.type.ylo = trac disp
-elastic.bc.type.xloylo = trac disp
-elastic.bc.type.xhiylo = trac disp
+elastic.bc.type.ylo    = disp disp ##trac disp
+elastic.bc.type.xloylo = disp disp ##trac disp
+elastic.bc.type.xhiylo = disp disp ##trac disp
 
 #elastic.bc.type.ylo = disp disp
 #elastic.bc.type.xloylo = disp disp
 #elastic.bc.type.xhiylo = disp disp
 
 # Mode I - displacement
-elastic.bc.type.yhi = trac disp
-elastic.bc.type.xloyhi = trac disp
-elastic.bc.type.xhiyhi = trac disp
+elastic.bc.type.yhi    = disp disp ##trac disp
+elastic.bc.type.xloyhi = disp disp ##trac disp
+elastic.bc.type.xhiyhi = disp disp ##trac disp
 
 #elastic.bc.type.yhi = disp disp
 #elastic.bc.type.xloyhi = disp disp

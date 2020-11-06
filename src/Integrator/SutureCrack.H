@@ -262,7 +262,7 @@ protected:
         solver.setMaxFmgIter(sol.max_fmg_iter);
         solver.setFixedIter(sol.max_fixed_iter);
         solver.setVerbose(sol.verbose);
-        solver.setCGVerbose(sol.cgverbose);
+        //solver.setCGVerbose(sol.cgverbose);
         solver.setBottomMaxIter(sol.bottom_max_iter);
         //solver.setBottomTolerance(sol.cg_tol_rel) ;
         //solver.setBottomToleranceAbs(sol.cg_tol_abs) ;

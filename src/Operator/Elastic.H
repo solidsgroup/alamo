@@ -146,6 +146,7 @@ private:
 
 
 	virtual void averageDownCoeffs () override;
+	void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 
 	void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
