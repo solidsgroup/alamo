@@ -1,6 +1,6 @@
 alamo.program = notchcrack
 timestep = 1e-5
-stop_time = 1e0
+stop_time = 2.0
 plot_file = tests/NotchCrack2D/output
 amr.plot_int = 250
 amr.max_level = 3
@@ -26,29 +26,29 @@ crack.constant.wtype = square
 crack.constant.exponent = 1.e-3
 crack.constant.threshold = 0.0
 ic.type = notch
-ic.notch.center = 0.0 0.0
+ic.notch.center = -0.01 0.0
 ic.notch.orientation = 1.0 0.0
 ic.notch.thickness = 2.e-4
 ic.notch.length = 2.e-3
 ic.notch.eps = 4.e-5
 ic.notch.mollifier = erf
-crack.bc.type.xlo = neumann ##(nvals = 1)  :: [neumann]
-crack.bc.type.xhi = neumann ##(nvals = 1)  :: [neumann]
-crack.bc.type.ylo = neumann ##(nvals = 1)  :: [neumann]
-crack.bc.type.yhi = neumann ##(nvals = 1)  :: [neumann]
-crack.bc.val.xlo = 0.0 ##(nvals = 1)  :: [0.0]
-crack.bc.val.xhi = 0.0 ##(nvals = 1)  :: [0.0]
-crack.bc.val.ylo = 0.0 ##(nvals = 1)  :: [0.0]
-crack.bc.val.yhi = 0.0 ##(nvals = 1)  :: [0.0]
-crack.bc_df.type.xlo = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
-crack.bc_df.type.xhi = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
-crack.bc_df.type.ylo = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
-crack.bc_df.type.yhi = neumann neumann neumann neumann ##(nvals = 4)  :: [neumann, neumann, neumann, neumann]
-crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
-crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
-crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
-crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0 ##(nvals = 4)  :: [0.0, 0.0, 0.0, 0.0]
-material.model = isotropic #(nvals = 1)  :: [isotropic]
+crack.bc.type.xlo = neumann
+crack.bc.type.xhi = neumann
+crack.bc.type.ylo = neumann
+crack.bc.type.yhi = neumann
+crack.bc.val.xlo = 0.0
+crack.bc.val.xhi = 0.0
+crack.bc.val.ylo = 0.0
+crack.bc.val.yhi = 0.0
+crack.bc_df.type.xlo = neumann neumann neumann neumann
+crack.bc_df.type.xhi = neumann neumann neumann neumann
+crack.bc_df.type.ylo = neumann neumann neumann neumann
+crack.bc_df.type.yhi = neumann neumann neumann neumann
+crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
+crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
+crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
+crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
+material.model = isotropic
 material.isotropic.lambda = 121.15
 material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
