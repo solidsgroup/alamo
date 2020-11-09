@@ -1,7 +1,7 @@
 alamo.program = fracture
 timestep = 1e-5
 stop_time = 2.0
-plot_file = tests/Fracture2DModeI/output
+plot_file = tests/Fracture2DBarbell/output
 
 amr.plot_int = 250
 amr.max_level = 3
@@ -60,6 +60,11 @@ material.model = isotropic
 material.isotropic.lambda = 121.15
 material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
+
+material.ic.type = ellipsoid
+material.ic.ellipsoid.center = 0.0 0.0
+material.ic.ellipsoid.radius = 2.e-4 2.e-4
+material.ic.ellipsoid.eps = 1.e-4
 
 solver.bottom_solver = bicgstab
 solver.int = 1000

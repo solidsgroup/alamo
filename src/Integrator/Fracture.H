@@ -60,25 +60,17 @@ public:
         pp_crack_df.query("mult_Lap", crack.mult_df_lap);
 
         // IC for crack field
-        IO::ParmParse pp("ic");
-        IC::Notch *tmpic = new IC::Notch(geom);
-        pp.queryclass("notch",*tmpic);
-        crack.ic = tmpic;
-
-        // IC for modulus_field
-        // IC::Notch *tmpic2 = new IC::Notch(geom);
-        // pp.queryclass("notch2",*tmpic2);
-        // crack.ic2 = tmpic2;
-
-        // Use if cell based fabs are needed
-        // crack.bc = new BC::Constant(1);
-        // crack.bcdf = new BC::Constant(4);
-        // pp_crack.queryclass("bc",*static_cast<BC::Constant *>(crack.bc));
-        // pp_crack.queryclass("bc_df",*static_cast<BC::Constant *>(crack.bcdf));
-
-        // RegisterNewFab(crack.field,     crack.bc, 1, number_of_ghost_cells, "c",		true);
-        // RegisterNewFab(crack.field_old, crack.bc, 1, number_of_ghost_cells, "c_old",	true);
-        // RegisterNewFab(crack.driving_force, crack.bcdf, 4, number_of_ghost_cells, "driving_force",true);
+        IO::ParmParse pp("crack.ic");
+        pp.query("type", crack.ic_type);
+        if (crack.ic_type == "notch")
+        {
+            IC::Notch *tmpic = new IC::Notch(geom);
+            pp.queryclass("notch",*tmpic);
+            crack.ic = tmpic;
+            crack.is_ic = true;
+        }
+        else
+            crack.is_ic = false;
 
         RegisterNodalFab(crack.field, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.field_old, 1, number_of_ghost_nodes, "crack_old", true);
@@ -86,6 +78,25 @@ public:
 
         IO::ParmParse pp_material("material");
         pp_material.queryclass("isotropic",material.brittlemodeltype);
+
+        IO::ParmParse pp_material_ic("material.ic");
+        pp_material_ic.query("type",material.ic_type);
+        if (material.ic_type == "ellipsoid")
+        {
+            IC::Ellipsoid *tmpic = new IC::Ellipsoid(geom);
+            pp_material_ic.queryclass("ellipsoid",*tmpic);
+            material.ic = tmpic;
+            material.is_ic = true;
+        }
+        else if (material.ic_type == "notch")
+        {
+            IC::Notch *tmpic = new IC::Notch(geom);
+            pp_material_ic.queryclass("notch",*tmpic);
+            material.ic = tmpic;
+            material.is_ic = true;
+        }
+        else
+            material.is_ic = false;
 
         IO::ParmParse pp_load("loading");
         if (pp_load.countval("body_force")) pp_load.queryarr("body_force",loading.body_force);
@@ -149,11 +160,19 @@ protected:
         elastic.energy_pristine_old[ilev] -> setVal(0.);
 
         //crack.ic->Initialize(ilev,material.modulus_field);
-        material.modulus_field[ilev]->setVal(1.0);
-        crack.ic->Initialize(ilev,crack.field);
-        crack.ic->Initialize(ilev,crack.field_old);
-        // crack.field[ilev]->setVal(1.0);
-        // crack.field_old[ilev]->setVal(1.0);
+        if(material.is_ic) material.ic -> Initialize(ilev,material.modulus_field);
+        else material.modulus_field[ilev]->setVal(1.0);
+
+        if(crack.is_ic)
+        {
+            crack.ic->Initialize(ilev,crack.field);
+            crack.ic->Initialize(ilev,crack.field_old);
+        }
+        else
+        {
+            crack.field[ilev]->setVal(1.0);
+            crack.field_old[ilev]->setVal(1.0);
+        }
 
         material.brittlemodel[ilev]->setVal(material.brittlemodeltype);
     }
@@ -186,11 +205,11 @@ protected:
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
-                    // _temp = std::min (crack.cracktype->g_phi(c_new(i,j,k,0),0), crack.cracktype->g_phi(modbox(i,j,k,0),0));
+                    _temp = std::min (crack.cracktype->g_phi(c_new(i,j,k,0),0), crack.cracktype->g_phi(modbox(i,j,k,0),0));
                     //     );
                     // _temp = std::sqrt((crack.cracktype->g_phi(c_new(i,j,k,0),0))*(crack.cracktype->g_phi(c_new(i,j,k,0),0))
                     //         + crack.cracktype->g_phi(modbox(i,j,k,0),0)*crack.cracktype->g_phi(modbox(i,j,k,0),0));
-                    _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
+                    // _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
                     // _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
                     // _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0),0.);
                     if (std::isnan(_temp)) Util::Abort(INFO);
@@ -268,7 +287,7 @@ protected:
             {
                 const amrex::Box& box = mfi.grownnodaltilebox();
                 amrex::Array4<const Set::Scalar> const& strain_box 	= (*elastic.strain[ilev]).array(mfi);
-                // amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box 		= (*elastic.energy_pristine[ilev]).array(mfi);
                 amrex::Array4<Set::Scalar> const& energy_box_old 	= (*elastic.energy_pristine_old[ilev]).array(mfi);
 
@@ -286,12 +305,12 @@ protected:
                         if(eValues(n) > 0.0) epsp += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                         else epsn += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                     }
-                    // Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
+                    Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
                     // if(std::isnan(_temp)) Util::Abort(INFO, "Nans in temp. modbox(", i,",",j,",",k,") = ", modbox(i,j,k,0));
                     // if (_temp < 0.0) _temp = 0.0;
                     // if (_temp > 1.0) _temp = 1.0;
-                    // _temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
-                    // material.brittlemodeltype.DegradeModulus(1.- _temp);
+                    _temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
+                    material.brittlemodeltype.DegradeModulus(1.- _temp);
                     energy_box(i,j,k,0) = material.brittlemodeltype.W(epsp);
                     energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
                 });
@@ -409,10 +428,12 @@ protected:
             const amrex::Box 							bx 	= mfi.tilebox() & domain.grow(-1);
             amrex::Array4<char> const 					&tags 	= a_tags.array(mfi);
             amrex::Array4<const Set::Scalar> const 		&c_new 	= (*crack.field[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const 		&modbox 	= (*material.modulus_field[lev]).array(mfi);
             
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(c_new, i, j, k, 0, DX);
-                if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold)
+                Set::Vector grad2 = Numeric::Gradient(modbox, i, j, k, 0, DX);
+                if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold || dxnorm * grad2.lpNorm<2>() >= crack.refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
@@ -446,9 +467,7 @@ private:
         Model::Interface::Crack::Crack *cracktype;       ///< type of crack. See Crack/Constant or Crack/Sin
 		std::string ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
 		IC::IC *ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
-        IC::IC *ic2;                                     ///< crack sharp IC. See IC/Notch and IC/Ellipsoid
-		BC::BC<Set::Scalar> *bc;                      ///< BC objects for crack fields
-		BC::BC<Set::Scalar> *bcdf;                     ///< BC object for crack driving force
+        bool is_ic = false;
 
         Set::Scalar mobility;                       ///< crack mobility
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
@@ -463,6 +482,10 @@ private:
         Set::Field<Set::Scalar> modulus_field;
         Set::Field<brittle_fracture_model_type_test> brittlemodel;
         std::string input_material = "isotropic";
+        
+        IC::IC *ic;
+        std::string ic_type;
+        bool is_ic = false;
     } material;
 
     struct{
