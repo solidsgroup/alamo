@@ -1,6 +1,6 @@
 alamo.program = fracture
-timestep = 5.e-4
-stop_time = 2e0
+timestep = 1.e-3
+stop_time = 2e1
 plot_file = tests/Fracture2DModeII/output
 
 amr.plot_int = 100
@@ -33,11 +33,11 @@ crack.constant.exponent = 1.e-3
 crack.constant.threshold = 0.0
 
 crack.ic.type = notch
-crack.ic.notch.center = -0.01 0.0
+crack.ic.notch.center = 0.0 0.0 #-0.01 0.0
 crack.ic.notch.orientation = 1.0 0.0
 crack.ic.notch.thickness = 2.e-4
 crack.ic.notch.length = 2.e-3
-crack.ic.notch.eps = 6.e-5
+crack.ic.notch.eps = 1.e-4
 crack.ic.notch.mollifier = erf
 
 #crack.bc.type.xlo = neumann

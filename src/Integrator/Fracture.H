@@ -404,6 +404,9 @@ protected:
                     df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
                     if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
                     c_new(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
+
+                    if (c_new (i,j,k,0) < 0.0) c_new(i,j,k,0) = 0.0;
+                    if (c_new (i,j,k,0) > 1.0) c_new(i,j,k,0) = 1.0;
                 }
             });
         }
