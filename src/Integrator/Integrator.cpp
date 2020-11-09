@@ -731,8 +731,9 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
-		IntegrateVariables(cur_time,step);
+		if (integrate_variables_before_advance) IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
+		if (integrate_variables_after_advance) IntegrateVariables(cur_time,step);
 		TimeStepComplete(cur_time,step);
 		cur_time += dt[0];
 

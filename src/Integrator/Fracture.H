@@ -50,14 +50,12 @@ public:
         IO::ParmParse pp_crack("crack");
         pp_crack.query("modulus_scaling_max",crack.scaleModulusMax);
         pp_crack.query("refinement_threshold",crack.refinement_threshold);
+        pp_crack.query("df_tol_rel",crack.driving_force_tolerance_rel);
+        pp_crack.query("df_tol_abs",crack.driving_force_tolerance_abs);
 
         Model::Interface::Crack::Constant *tmpbdy = new Model::Interface::Crack::Constant();
         pp_crack.queryclass("constant",*tmpbdy);
         crack.cracktype = tmpbdy;
-
-        IO::ParmParse pp_crack_df("crack.df");
-        pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
-        pp_crack_df.query("mult_Lap", crack.mult_df_lap);
 
         // IC for crack field
         IO::ParmParse pp("crack.ic");
@@ -75,6 +73,7 @@ public:
         RegisterNodalFab(crack.field, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.field_old, 1, number_of_ghost_nodes, "crack_old", true);
         RegisterNodalFab(crack.driving_force, 4, number_of_ghost_nodes, "driving_force", true);
+        RegisterIntegratedVariable(&(crack.driving_force_norm),"driving_force_norm");
 
         IO::ParmParse pp_material("material");
         pp_material.queryclass("isotropic",material.brittlemodeltype);
@@ -179,7 +178,14 @@ protected:
 
     void TimeStepBegin(Set::Scalar /*time*/, int iter) override
     {
-        if(iter%sol.interval) return;
+        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.driving_force_tolerance_rel);
+        if (crack.driving_force_norm / crack.driving_force_reference < crack.driving_force_tolerance_rel)
+            elastic.do_solve_now = true;
+        if (crack.driving_force_norm < crack.driving_force_tolerance_abs)
+            elastic.do_solve_now = true;
+
+        if (!elastic.do_solve_now) return;
+        // if(iter%sol.interval) return;
         material.brittlemodeltype.DegradeModulus(0.0);
         
         for (int ilev = 0; ilev < nlevels; ++ilev)
@@ -317,6 +323,9 @@ protected:
             }
             Util::RealFillBoundary(*elastic.energy_pristine[ilev],geom[ilev]);
         }
+
+        integrate_variables_before_advance = false;
+        integrate_variables_after_advance = true;
     }
 
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
@@ -410,19 +419,6 @@ protected:
         amrex::Box domain(geom[lev].Domain());
         domain.convert(amrex::IntVect::TheNodeVector());
 
-        //for (amrex::MFIter mfi(*material.modulus_field[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        //{
-        //    const amrex::Box 							&bx 	= mfi.tilebox();
-        //    amrex::Array4<char> const 					&tags 	= a_tags.array(mfi);
-        //    amrex::Array4<const Set::Scalar> const 		&modbox 	= (*material.modulus_field[lev]).array(mfi);
-        //    
-        //    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-        //        Set::Vector grad = Numeric::Gradient(modbox, i, j, k, 0, DX);
-        //        if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold)
-        //            tags(i, j, k) = amrex::TagBox::SET;
-        //    });
-        //}
-
         for (amrex::MFIter mfi(*crack.field[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             const amrex::Box 							bx 	= mfi.tilebox() & domain.grow(-1);
@@ -437,6 +433,27 @@ protected:
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
+    }
+
+    void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter &mfi, const amrex::Box &box)
+    {
+        const amrex::Real* DX = geom[amrlev].CellSize();
+        const Set::Scalar DV = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+
+        amrex::Array4<const Set::Scalar> const &df = (*crack.driving_force[amrlev]).array(mfi);
+        
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+            crack.driving_force_norm += df(i,j,k,3) * DV;
+        });
+    }
+
+    void TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
+    {
+        if (elastic.do_solve_now)
+            crack.driving_force_reference = crack.driving_force_norm;
+
+        elastic.do_solve_now = false;
     }
 
 private:
@@ -457,19 +474,23 @@ private:
 
         BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
 		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
+        bool do_solve_now = false;
     } elastic;
 
     struct{
         Set::Field<Set::Scalar> field;                ///< crack field at current time step
         Set::Field<Set::Scalar> field_old;            ///< crack field at previous time step
         Set::Field<Set::Scalar> driving_force;         ///< crack driving forces.
+        Set::Scalar driving_force_reference = 1.0;
+        Set::Scalar driving_force_norm = 0.0;
+		Set::Scalar driving_force_tolerance_rel = 1E-4;
+		Set::Scalar driving_force_tolerance_abs = 0.0;
 
         Model::Interface::Crack::Crack *cracktype;       ///< type of crack. See Crack/Constant or Crack/Sin
 		std::string ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
 		IC::IC *ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
         bool is_ic = false;
 
-        Set::Scalar mobility;                       ///< crack mobility
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
         Set::Scalar refinement_threshold = 0.001;
 

@@ -301,6 +301,10 @@ private:
 	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
 protected:
+	bool integrate_variables_before_advance = true;
+	bool integrate_variables_after_advance = false;
+
+protected:
 	struct {
 		int number_of_fabs = 0;
 		std::vector<Set::Field<Set::Scalar> *> fab_array;
