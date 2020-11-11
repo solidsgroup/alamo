@@ -53,12 +53,12 @@ public:
                 
                 Set::Scalar min_value = 100.0;
                 
-                for (int i = 0; i < nCenter.size(); i++)
+                for (int m = 0; m < nCenter.size(); m++)
 				{
 					Set::Scalar value = 1.0;
-	                if(std::abs((x-nCenter[i]).transpose()*nOrientation[i]) <= 0.5*nLength[i])
+	                if(std::abs((x-nCenter[m]).transpose()*nOrientation[m]) <= 0.5*nLength[m])
 					{
-						Set::Scalar t = std::abs((x-nCenter[i]).transpose()*nNormal[i]) - (nThickness[i]/2.0);
+						Set::Scalar t = std::abs((x-nCenter[m]).transpose()*nNormal[m]) - (nThickness[m]/2.0);
 						if (moll == Mollifier::Gaussian)
 							value = 0.5 + 0.5*std::erf(t / eps);
 							// value = std::erf(t/eps);
@@ -76,32 +76,32 @@ public:
 					}
 					else
 					{
-						Set::Vector nLeft =  nCenter[i] - 0.5*nLength[i]*nOrientation[i];
-						Set::Vector nRight = nCenter[i] + 0.5*nLength[i]*nOrientation[i];
+						Set::Vector nLeft =  nCenter[m] - 0.5*nLength[m]*nOrientation[m];
+						Set::Vector nRight = nCenter[m] + 0.5*nLength[m]*nOrientation[m];
 						Set::Vector nLeft2 = nLeft, nRight2 = nRight;
-						Set::Vector correction = nOrientation[i]*(std::sqrt(nRadius[i]*nRadius[i] - nThickness[i]*nThickness[i]/4.0)); 
-						if (nRadius[i] > 0.5*nThickness[i])
+						Set::Vector correction = nOrientation[m]*(std::sqrt(nRadius[m]*nRadius[m] - nThickness[m]*nThickness[m]/4.0)); 
+						if (nRadius[m] > 0.5*nThickness[m])
 						{
 							nLeft2 = nLeft + correction;
 							nRight2 = nRight - correction;
 						}
 						
-						Set::Scalar cosR = (nRadius[i] <= 0.0) ? 1.0 : std::sqrt(nRadius[i]*nRadius[i] - nThickness[i]*nThickness[i]/4.0)/nRadius[i];
-						Set::Scalar cosLeft = (x-nLeft2).dot(nOrientation[i]) / ((x-nLeft2).lpNorm<2>());
-						Set::Scalar sinLeft = (x-nLeft2).dot(nNormal[i]) / ((x-nLeft2).lpNorm<2>());
-						Set::Scalar cosRight = (x-nRight2).dot(nOrientation[i]) / ((x-nRight2).lpNorm<2>());
-						Set::Scalar sinRight = (x-nRight2).dot(nNormal[i]) / ((x-nRight2).lpNorm<2>());
+						Set::Scalar cosR = (nRadius[m] <= 0.0) ? 1.0 : std::sqrt(nRadius[m]*nRadius[m] - nThickness[m]*nThickness[m]/4.0)/nRadius[m];
+						Set::Scalar cosLeft = (x-nLeft2).dot(nOrientation[m]) / ((x-nLeft2).lpNorm<2>());
+						Set::Scalar sinLeft = (x-nLeft2).dot(nNormal[m]) / ((x-nLeft2).lpNorm<2>());
+						Set::Scalar cosRight = (x-nRight2).dot(nOrientation[m]) / ((x-nRight2).lpNorm<2>());
+						Set::Scalar sinRight = (x-nRight2).dot(nNormal[m]) / ((x-nRight2).lpNorm<2>());
 						
-						Set::Scalar distLeft = (x-nLeft).dot(nOrientation[i]);
-						Set::Scalar distRight = (x-nRight).dot(nOrientation[i]);
+						Set::Scalar distLeft = (x-nLeft).dot(nOrientation[m]);
+						Set::Scalar distRight = (x-nRight).dot(nOrientation[m]);
 						
 
 						if(distLeft <= 0.)
 						{
-							Set::Scalar t = (x-nLeft2).lpNorm<2>() - nRadius[i];
+							Set::Scalar t = (x-nLeft2).lpNorm<2>() - nRadius[m];
 							if (moll == Mollifier::Gaussian) 
 							{
-								value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[i]/2.0) / eps );
+								value = 0.5 + 0.5*std::erf( ((x-nLeft).lpNorm<2>() - nThickness[m]/2.0) / eps );
 							}
 							else if (moll == Mollifier::Dirac)
 							{
@@ -110,15 +110,15 @@ public:
 							}
 							else if (moll == Mollifier::Cosine)
 							{
-								Set::Vector nTopLeft = nLeft + 0.5*nThickness[i]*nNormal[i];
-								Set::Vector nBotLeft = nLeft - 0.5*nThickness[i]*nNormal[i];
+								Set::Vector nTopLeft = nLeft + 0.5*nThickness[m]*nNormal[m];
+								Set::Vector nBotLeft = nLeft - 0.5*nThickness[m]*nNormal[m];
 
-								if (nRadius[i] <= 0.0)
+								if (nRadius[m] <= 0.0)
 								{
-									Set::Scalar t2 = -(x-nTopLeft).dot(nOrientation[i]);
+									Set::Scalar t2 = -(x-nTopLeft).dot(nOrientation[m]);
 									
-									Set::Scalar angTop = (x-nTopLeft).dot(nNormal[i]);
-									Set::Scalar angBot = (x-nBotLeft).dot(nNormal[i]);
+									Set::Scalar angTop = (x-nTopLeft).dot(nNormal[m]);
+									Set::Scalar angBot = (x-nBotLeft).dot(nNormal[m]);
 
 									if(angTop <= 0.0 && angBot >= 0.0)
 									{
@@ -173,10 +173,10 @@ public:
 						}
 						if(distRight >= 0.)
 						{
-							Set::Scalar t = (x-nRight2).lpNorm<2>() - nRadius[i];
+							Set::Scalar t = (x-nRight2).lpNorm<2>() - nRadius[m];
 							if (moll == Mollifier::Gaussian) 
 							{
-								value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[i]/2.0) / eps );
+								value = 0.5 + 0.5*std::erf( ((x-nRight).lpNorm<2>() - nThickness[m]/2.0) / eps );
 							}
 							else if (moll == Mollifier::Dirac)
 							{
@@ -185,14 +185,14 @@ public:
 							}
 							else if (moll == Mollifier::Cosine)
 							{
-								Set::Vector nTopRight = nRight + 0.5*nThickness[i]*nNormal[i];
-								Set::Vector nBotRight = nRight - 0.5*nThickness[i]*nNormal[i];
+								Set::Vector nTopRight = nRight + 0.5*nThickness[m]*nNormal[m];
+								Set::Vector nBotRight = nRight - 0.5*nThickness[m]*nNormal[m];
 								
-								if (nRadius[i] <= 0.0)
+								if (nRadius[m] <= 0.0)
 								{
-									Set::Scalar t2 = (x-nTopRight).dot(nOrientation[i]);
-									Set::Scalar angTop = (x-nTopRight).dot(nNormal[i]);
-									Set::Scalar angBot = (x-nBotRight).dot(nNormal[i]);
+									Set::Scalar t2 = (x-nTopRight).dot(nOrientation[m]);
+									Set::Scalar angTop = (x-nTopRight).dot(nNormal[m]);
+									Set::Scalar angBot = (x-nBotRight).dot(nNormal[m]);
 
 									if(angTop <= 0.0 && angBot >= 0.0)
 									{

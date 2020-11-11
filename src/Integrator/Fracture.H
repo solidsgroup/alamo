@@ -461,8 +461,8 @@ protected:
 
 private:
 
-    int number_of_ghost_cells = 3;				///< Number of ghost cells
-	int number_of_ghost_nodes = 2;				///< Number of ghost nodes
+    int number_of_ghost_nodes = 2;				///< Number of ghost nodes
+    int number_of_materials = 1;
     int nlevels;
 
     struct{
