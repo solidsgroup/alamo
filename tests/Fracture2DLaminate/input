@@ -1,4 +1,4 @@
-alamo.program = suturecrack
+alamo.program = fracture
 timestep = 5e-4
 stop_time = 2.e1
 plot_file = tests/Fracture2DLaminate/output
@@ -66,7 +66,7 @@ material.ic.type = laminate
 material.ic.laminate.number_of_inclusions = 1
 material.ic.laminate.center = 0.0 0.0
 material.ic.laminate.thickness = 0.005
-material.ic.laminate.orientation = 1.0 1.0
+material.ic.laminate.orientation = 2.0 1.0
 material.ic.laminate.eps = 3.e-4
 
 solver.bottom_solver = bicgstab

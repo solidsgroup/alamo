@@ -17,6 +17,7 @@
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
 #include "IC/Notch.H"
+#include "IC/Laminate.H"
 
 #include "Operator/Operator.H"
 #include "Operator/Elastic.H"
@@ -77,10 +78,25 @@ public:
 
         IO::ParmParse pp_material("material");
         pp_material.queryclass("isotropic",material.brittlemodeltype);
+        pp_material.query("refinement_threshold",material.refinement_threshold);
 
         IO::ParmParse pp_material_ic("material.ic");
         pp_material_ic.query("type",material.ic_type);
-        if (material.ic_type == "ellipsoid")
+        if (material.ic_type == "laminate")
+        {
+            IC::Laminate *tmpic = new IC::Laminate(geom);
+            pp_material_ic.queryclass("laminate",*tmpic);
+
+            IO::ParmParse _temp("material.ic.laminate");
+            _temp.query("number_of_inclusions",number_of_materials);
+            number_of_materials++;
+
+            material.ic = tmpic;
+            material.is_ic = true;
+            material.homogeneous = true;
+            material.interface = true;
+        }
+        else if (material.ic_type == "ellipsoid")
         {
             IC::Ellipsoid *tmpic = new IC::Ellipsoid(geom);
             pp_material_ic.queryclass("ellipsoid",*tmpic);
@@ -141,7 +157,7 @@ public:
         RegisterNodalFab(elastic.energy_pristine, 1, number_of_ghost_nodes, "energy_pristine", true);
         RegisterNodalFab(elastic.energy_pristine_old, 1, number_of_ghost_nodes, "energy_pristine_old", true);
         // RegisterNewFab(material.modulus_field, crack.bc, 1, number_of_ghost_cells, "modulus_field", true);
-        RegisterNodalFab(material.modulus_field, 1, number_of_ghost_nodes, "modulus_field", true);
+        RegisterNodalFab(material.modulus_field, number_of_materials, number_of_ghost_nodes, "modulus_field", true);
         RegisterGeneralFab(material.brittlemodel, 1, number_of_ghost_nodes);
 
     }
@@ -211,13 +227,10 @@ protected:
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0;
-                    _temp = std::min (crack.cracktype->g_phi(c_new(i,j,k,0),0), crack.cracktype->g_phi(modbox(i,j,k,0),0));
-                    //     );
-                    // _temp = std::sqrt((crack.cracktype->g_phi(c_new(i,j,k,0),0))*(crack.cracktype->g_phi(c_new(i,j,k,0),0))
-                    //         + crack.cracktype->g_phi(modbox(i,j,k,0),0)*crack.cracktype->g_phi(modbox(i,j,k,0),0));
-                    // _temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
-                    // _temp *= crack.cracktype->g_phi(modbox(i,j,k,0),0);
-                    // _temp = crack.cracktype->g_phi(Numeric::Interpolate::CellToNodeAverage(c_old,i,j,k,0),0.);
+                    if (!material.homogeneous)
+                    	_temp = std::min (crack.cracktype->g_phi(c_new(i,j,k,0),0), crack.cracktype->g_phi(modbox(i,j,k,0),0));
+                    else
+                    	_temp = crack.cracktype->g_phi(c_new(i,j,k,0),0);
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) Util::Abort(INFO);//_temp = 0.;
                     if(_temp > 1.0) Util::Abort(INFO);//_temp = 1.0;
@@ -311,12 +324,12 @@ protected:
                         if(eValues(n) > 0.0) epsp += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                         else epsn += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                     }
-                    Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
-                    // if(std::isnan(_temp)) Util::Abort(INFO, "Nans in temp. modbox(", i,",",j,",",k,") = ", modbox(i,j,k,0));
-                    // if (_temp < 0.0) _temp = 0.0;
-                    // if (_temp > 1.0) _temp = 1.0;
-                    _temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
-                    material.brittlemodeltype.DegradeModulus(1.- _temp);
+                    if (!material.homogeneous)
+                    {
+                    	Set::Scalar _temp = crack.cracktype->g_phi(modbox(i,j,k,0),0.);
+                    	_temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
+                    	material.brittlemodeltype.DegradeModulus(1.- _temp);
+                    }
                     energy_box(i,j,k,0) = material.brittlemodeltype.W(epsp);
                     energy_box(i,j,k,0) = energy_box(i,j,k,0) > energy_box_old(i,j,k,0) ? energy_box(i,j,k,0) : energy_box_old(i,j,k,0);
                 });
@@ -373,7 +386,6 @@ protected:
                     //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
                     
                     Set::Scalar _temp = modbox(i,j,k,0);
-                    //Set::Scalar en_cell = Numeric::Interpolate::NodeToCellAverage(energy_box,i,j,k,0);
                     Set::Scalar en_cell = energy_box(i,j,k,0);
                     
                     if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy_box(i,j,k,0));
@@ -388,17 +400,25 @@ protected:
                     Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
                     Set::Scalar laplacian = DDc.trace();
 
-                    df(i,j,k,1) = crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-                    df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                    Set::Scalar Gc = crack.cracktype->Gc(0.0);
+                    if (material.interface)
+                    {
+                    	Set::Scalar _temp_product = 1.0;
+                    	for (int m = 0; m < number_of_materials; m++)
+                        	_temp_product *= modbox(i,j,k,m);
+                    	Gc *= (1.0 - _temp_product);
+                    }
 
-                    rhs += crack.cracktype->Gc(0.0)*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                    df(i,j,k,1) = Gc*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                    df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
+
+                    rhs += Gc*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
                     // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
-                    rhs -= 2.0*crack.cracktype->Zeta(0.0)*crack.cracktype->Gc(0.0)*laplacian*crack.mult_df_lap;
+                    rhs -= 2.0*crack.cracktype->Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
                     // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
                     
-                    // rhs *= _temp;
-                    rhs *= crack.cracktype->g_phi(_temp,0.0);
+                    if (!material.homogeneous) rhs *= crack.cracktype->g_phi(_temp,0.0);
                     // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
                     df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
@@ -432,7 +452,7 @@ protected:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(c_new, i, j, k, 0, DX);
                 Set::Vector grad2 = Numeric::Gradient(modbox, i, j, k, 0, DX);
-                if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold || dxnorm * grad2.lpNorm<2>() >= crack.refinement_threshold)
+                if (dxnorm * grad.lpNorm<2>() >= crack.refinement_threshold || dxnorm * grad2.lpNorm<2>() >= material.refinement_threshold)
                     tags(i, j, k) = amrex::TagBox::SET;
             });
         }
@@ -506,10 +526,13 @@ private:
         Set::Field<Set::Scalar> modulus_field;
         Set::Field<brittle_fracture_model_type_test> brittlemodel;
         std::string input_material = "isotropic";
+        Set::Scalar refinement_threshold = 0.1;
         
         IC::IC *ic;
         std::string ic_type;
         bool is_ic = false;
+        bool homogeneous = false;
+	bool interface = false;
     } material;
 
     struct{
