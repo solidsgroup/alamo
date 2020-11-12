@@ -121,31 +121,6 @@ public:
         pp_elastic.query("df_mult", elastic.df_mult);
         pp_elastic.queryclass("bc",elastic.brittlebc);
 
-        IO::ParmParse pp_solver("solver");
-        pp_solver.query("int",				sol.interval);
-        pp_solver.query("type",			sol.type);
-        pp_solver.query("max_iter",		sol.max_iter);
-        pp_solver.query("max_fmg_iter",	sol.max_fmg_iter);
-        pp_solver.query("verbose",			sol.verbose);
-        pp_solver.query("cgverbose",		sol.cgverbose);
-        pp_solver.query("tol_rel",			sol.tol_rel);
-        pp_solver.query("tol_abs",			sol.tol_abs);
-        pp_solver.query("cg_tol_rel",		sol.cg_tol_rel);
-        pp_solver.query("cg_tol_abs",		sol.cg_tol_abs);
-        pp_solver.query("use_fsmooth",		sol.use_fsmooth);
-        pp_solver.query("agglomeration", 	sol.agglomeration);
-        pp_solver.query("consolidation", 	sol.consolidation);
-        pp_solver.query("bottom_solver",       sol.bottom_solver);
-        pp_solver.query("linop_maxorder",      sol.linop_maxorder);
-        pp_solver.query("max_coarsening_level",sol.max_coarsening_level);
-        pp_solver.query("verbose",             sol.verbose);
-        pp_solver.query("cg_verbose",          sol.cgverbose);
-        pp_solver.query("bottom_max_iter",     sol.bottom_max_iter);
-        pp_solver.query("max_fixed_iter",      sol.max_fixed_iter);
-        pp_solver.query("bottom_tol",          sol.bottom_tol);
-        pp_solver.query("pre_smooth", sol.pre_smooth);
-        pp_solver.query("post_smooth", sol.post_smooth);
-		
 
         nlevels = maxLevel() + 1;
         RegisterNodalFab(elastic.disp,  AMREX_SPACEDIM, number_of_ghost_nodes, "disp", true);
@@ -215,7 +190,6 @@ protected:
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
             Util::RealFillBoundary(*crack.field[ilev],geom[ilev]);
-            Util::RealFillBoundary(*crack.field_old[ilev],geom[ilev]);
             Util::RealFillBoundary(*material.modulus_field[ilev],geom[ilev]);
             
             for (amrex::MFIter mfi(*elastic.disp[ilev],true); mfi.isValid(); ++mfi)
@@ -242,7 +216,9 @@ protected:
             Util::RealFillBoundary(*material.brittlemodel[ilev],geom[ilev]);
         }
 
-        // Body force
+        //
+        // Update the body force to be consistent with grid size
+        //
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
             const Real* DX = geom[ilev].CellSize();
@@ -255,40 +231,29 @@ protected:
 
         elastic.brittlebc.Init(elastic.rhs,geom);
 
+        //
+        // Prepare the operator for solve
+        //
         Operator::Elastic<brittle_fracture_model_type_test::sym> op_b;
         LPInfo info;
-        info.setAgglomeration(sol.agglomeration);
-        info.setConsolidation(sol.consolidation);
-        info.setMaxCoarseningLevel(sol.max_coarsening_level);
-
         for (int ilev = 0; ilev < nlevels; ilev++) if (elastic.disp[ilev]->contains_nan()) Util::Warning(INFO);
-
         op_b.define(geom, grids, dmap, info);
-        op_b.setMaxOrder(sol.linop_maxorder);
         op_b.SetBC(&elastic.brittlebc);
         
+        if (iter == 4588) 
         {
+            Util::Message(INFO,"Here we go. Writing plot file before everything blows up.");
+            WritePlotFile();
+        }
+        //
+        // Actually do the elastic solve
+        // 
+        {
+            IO::ParmParse pp("elastic");
             Solver::Nonlocal::Newton<brittle_fracture_model_type_test>  solver(op_b);
-            solver.setMaxIter(sol.max_iter);
-            solver.setMaxFmgIter(sol.max_fmg_iter);
-            solver.setFixedIter(sol.max_fixed_iter);
-            solver.setVerbose(sol.verbose);
-            //solver.setCGVerbose(sol.cgverbose);
-            solver.setBottomMaxIter(sol.bottom_max_iter);
-            solver.setBottomTolerance(sol.cg_tol_rel) ;
-            solver.setBottomToleranceAbs(sol.cg_tol_abs) ;
-            solver.setPreSmooth(sol.pre_smooth);
-            solver.setPostSmooth(sol.post_smooth);
-            if (sol.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
-            else if (sol.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
-            solver.solve(elastic.disp, elastic.rhs, material.brittlemodel, sol.tol_rel, sol.tol_abs);
+            pp.queryclass("solver",solver);
+            solver.solve(elastic.disp, elastic.rhs, material.brittlemodel);
             solver.compResidual(elastic.residual,elastic.disp,elastic.rhs,material.brittlemodel);
-            
-            //if (iter == 0)
-            //{
-            //    solver.solve(elastic.disp, elastic.rhs, material.brittlemodel, sol.tol_rel, sol.tol_abs);
-            //    solver.compResidual(elastic.residual,elastic.disp,elastic.rhs,material.brittlemodel);
-            //}
         }
         
         for (int ilev = 0; ilev < nlevels; ilev++)
@@ -360,7 +325,7 @@ protected:
 
         for ( amrex::MFIter mfi(*crack.field[lev],true); mfi.isValid(); ++mfi )
         {
-            const amrex::Box& bx = mfi.validbox();
+            const amrex::Box& bx = mfi.nodaltilebox();
             amrex::Array4<const Set::Scalar> const& c_old = (*crack.field_old[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& df = (*crack.driving_force[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& c_new = (*crack.field[lev]).array(mfi);
@@ -413,13 +378,10 @@ protected:
                     df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
 
                     rhs += Gc*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-                    // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
                     rhs -= 2.0*crack.cracktype->Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
-                    // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0), ". laplacian = ", laplacian);
                     
                     if (!material.homogeneous) rhs *= crack.cracktype->g_phi(_temp,0.0);
-                    // if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs, ". c_old(i,j,k,0) = ",c_old(i,j,k,0));
 
                     df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
                     if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
@@ -430,7 +392,6 @@ protected:
                 }
             });
         }
-        // crack.field[lev]->FillBoundary();
         Util::RealFillBoundary(*crack.field[lev],geom[lev]);
     }
 
@@ -534,32 +495,6 @@ private:
         bool homogeneous = false;
 	bool interface = false;
     } material;
-
-    struct{
-		Set::Scalar bottom_tol 				= 1.0E-6;
-		int         interval	 			= 100;
-		std::string type					= "single";
-		int         max_iter 				= 1000;
-		int         max_fmg_iter 			= 0;
-		int 		bottom_max_iter			= 200;
-		int 		max_fixed_iter 			= 500;
-		int         verbose 				= 3;
-		int         cgverbose 				= 3;
-		Set::Scalar tol_rel 				= 1.0E-6;
-		Set::Scalar tol_abs 				= 1.0E-6;
-		Set::Scalar cg_tol_rel 				= 1.0E-6;
-		Set::Scalar cg_tol_abs 				= 1.0E-6;
-		Set::Scalar tstart 					= 0.0;
-		Set::Scalar tend 					= 0.0;
-		std::string bottom_solver			= "bicgstab";
-		int 		linop_maxorder 	     	= 2;
-		bool	    use_fsmooth 			= false;
-		int 		max_coarsening_level	= 0;
-		bool 		agglomeration 	  		= true;
-		bool 		consolidation 	  		= false;
-		int pre_smooth = 2;
-		int post_smooth = 2;
-	} sol;
 
     struct{
         Set::Vector body_force 				= Set::Vector::Zero();

@@ -216,6 +216,12 @@ public:
 
         return 0.0;
     }
+    Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
+                       const Set::Field<Set::Scalar> & a_b_mf,
+                       Set::Field<T> &a_model_mf)
+    {
+        return solve(a_u_mf,a_b_mf,a_model_mf,m_tol_rel,m_tol_abs);
+    }
 
     void compResidual(Set::Field<Set::Scalar> & a_res_mf,
                       Set::Field<Set::Scalar> & a_u_mf,

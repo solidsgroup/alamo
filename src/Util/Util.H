@@ -78,6 +78,28 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
 template<typename... Args>
 void Abort (std::string file, std::string func, int line, Args const &... args)
 {
+	if (amrex::ParallelDescriptor::IOProcessor())
+	{
+		std::ostringstream infostream;
+		infostream << Color::Bold << Color::FG::Red << "ABORT" << Color::Reset << ":   ";
+		infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
+		infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+		std::string info = infostream.str();
+
+		std::ostringstream messagestream;
+		using List= int[];
+		(void)List{0, ( (void)(messagestream << args), 0 ) ... };
+		std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+		//std::string messageorg = message;
+		String::ReplaceAll(message,'\n',"\n"+info);
+		std::cout << info << message << std::endl;
+	}
+	Abort("Fatal Error");
+}
+
+template<typename... Args>
+void ParallelAbort (std::string file, std::string func, int line, Args const &... args)
+{
 
 	std::ostringstream infostream;
 	infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
