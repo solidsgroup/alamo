@@ -96,7 +96,7 @@ public:
 	/// \brief Front-end method to initialize simulation
 	void InitData ();
 
-	void Restart (std::string restartfile);
+	void Restart (std::string restartfile, bool a_node = false);
 
 	/// \fn    Evolve
 	/// \brief Front-end method to start simulation
@@ -343,7 +343,8 @@ protected:
 	// REGRIDDING
 	int regrid_int = 2; ///< Determine how often to regrid (default: 2)
 
-	std::string restart_file = "";
+	std::string restart_file_cell = "";
+	std::string restart_file_node = "";
 
 protected:
 	int plot_int = -1;               ///< How frequently to dump plot file (default: never)

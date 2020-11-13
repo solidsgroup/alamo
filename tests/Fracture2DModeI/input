@@ -1,10 +1,9 @@
 alamo.program = fracture
-timestep = 1e-4
-stop_time = 2e0
+timestep = 1e-5
+stop_time = 2.0
 plot_file = tests/Fracture2DModeI/output
-
-amr.plot_int = 100
-amr.max_level = 2 ##3
+amr.plot_int = 250
+amr.max_level = 3
 amr.n_cell = 256 256
 amr.blocking_factor = 16
 amr.regrid_int = 10
@@ -14,22 +13,19 @@ amr.thermo.plot_int = 1
 geometry.prob_lo = -0.01 -0.01
 geometry.prob_hi = 0.01 0.01
 geometry.is_periodic = 0 0
-
 crack.modulus_scaling_max = 5.e-3
 crack.refinement_threshold = 0.01
-crack.df_tol_rel = 1.E-4
-crack.df_tol_abs = 0.0
+#crack.df_tol_rel = 0.0 ##1.E-4
+#crack.df_tol_abs = 1E-5 ##0.0
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
 crack.constant.zeta = 2.e-5
 crack.constant.mobility = 1.0e-5
-#####crack.constant.eta_epsilon = 0.01
 crack.df.mult_Gc = 1.0e0
 crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
-#####crack.constant.exponent = 1.e-3
 crack.constant.threshold = 0.0
 
 crack.ic.type = notch
@@ -63,8 +59,8 @@ material.isotropic.lambda = 121.15
 material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 
+elastic.int = 1000
 elastic.solver.bottom_solver = bicgstab
-#####elastic.solver.int = 1000
 elastic.solver.verbose = 2
 #####elastic.solver.cg_verbose = 0
 elastic.solver.max_iter = 10000
@@ -77,12 +73,13 @@ elastic.solver.tol_abs = 1.0e-7
 elastic.solver.bottom_tol_rel = 1.0e-7
 elastic.solver.bottom_tol_abs = 1.0e-7
 
+
 loading.body_force = 0.0 0.0 0.0
 loading.val = 2.e-2
 
 elastic.bc.type.xlo = disp trac
 elastic.bc.type.xhi = disp trac
-elastic.bc.val.xlo = 0.0 0.0
+elastic.bc.val.xlo = 0.0 8.0e-4
 elastic.bc.type.ylo = disp disp
 elastic.bc.type.xloylo = disp disp
 elastic.bc.type.xhiylo = disp disp
