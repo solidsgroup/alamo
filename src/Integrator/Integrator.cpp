@@ -435,22 +435,6 @@ Integrator::InitData ()
 	{
 		Restart(restart_file_node,false);
 	}
-	else
-	{
-		const amrex::Real time = 0.0;
-		InitFromScratch(time);
-
-		for (int lev = finest_level-1; lev >= 0; --lev)
-		{
-			if (lev < max_level) regrid(lev,0.0);
-			for (int n = 0; n < node.number_of_fabs; n++)
-				amrex::average_down(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev],
-						    geom[lev+1], geom[lev],
-						    0, (*node.fab_array[n])[lev]->nComp(), refRatio(lev));
-		}
-		SetFinestLevel(finest_level);
-	}
-
 	
 	if (plot_int > 0 || plot_dt > 0.0) {
 		WritePlotFile();
