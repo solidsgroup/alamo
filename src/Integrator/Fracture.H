@@ -130,6 +130,7 @@ public:
         for (int p = 0; p < number_of_materials; p++)
         {
             std::string pp_string = "material.model"+std::to_string(p+1);
+            Util::Message(INFO, pp_string);
             IO::ParmParse pp_model(pp_string);
 
             if(pp_model.contains("type"))
@@ -240,7 +241,7 @@ protected:
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
                     for (int p = 0; p < number_of_materials; p++)
-                        _tmpmodel += mat(i,j,k)*material.brittlemodeltype[p];
+                        _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
                     
                     model(i,j,k) = _tmpmodel;
                 });
@@ -349,7 +350,7 @@ protected:
                     }
                     brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
                     for (int p = 0; p < number_of_materials; p++)
-                        _tmpmodel += mat(i,j,k)*material.brittlemodeltype[p];
+                        _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
 
                     energy(i,j,k,0) = _tmpmodel.W(epsp);
                     energy(i,j,k,0) = energy(i,j,k,0) > energy_old(i,j,k,0) ?  energy(i,j,k,0) : energy_old(i,j,k,0);
