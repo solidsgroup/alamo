@@ -59,6 +59,10 @@ public:
         pp_crack.queryclass("constant",*tmpbdy);
         crack.cracktype = tmpbdy;
 
+        IO::ParmParse pp_crack_df("crack.df");
+        pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
+        pp_crack_df.query("mult_Lap", crack.mult_df_lap);
+
         // IC for crack field
         IO::ParmParse pp("crack.ic");
         pp.queryarr("type", crack.ic_type);
@@ -153,6 +157,7 @@ public:
         IO::ParmParse pp_elastic("elastic");
         pp_elastic.query("df_mult", elastic.df_mult);
         pp_elastic.queryclass("bc",elastic.brittlebc);
+        pp_elastic.query("int",elastic.interval);
 
 
         nlevels = maxLevel() + 1;
@@ -483,7 +488,8 @@ protected:
     void TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
     {
         if (elastic.do_solve_now)
-            crack.driving_force_reference = crack.driving_force_norm;
+            //crack.driving_force_reference = crack.driving_force_norm;
+            crack.driving_force_reference = crack.driving_force_norminf;
 
         elastic.do_solve_now = false;
     }
@@ -507,6 +513,7 @@ private:
         BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
 		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
         bool do_solve_now = false;
+        int interval = 0;
     } elastic;
 
     struct{
@@ -515,6 +522,7 @@ private:
         Set::Field<Set::Scalar> driving_force_mf;         ///< crack driving forces.
         Set::Scalar driving_force_reference = 1.0;
         Set::Scalar driving_force_norm = 0.0;
+        Set::Scalar driving_force_norminf = 0.0;
 		Set::Scalar driving_force_tolerance_rel = 1E-4;
 		Set::Scalar driving_force_tolerance_abs = 0.0;
 

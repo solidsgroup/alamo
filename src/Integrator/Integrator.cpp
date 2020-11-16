@@ -21,7 +21,9 @@ Integrator::Integrator ()
 		pp.query("max_step", max_step);
 		pp.query("stop_time", stop_time);
 		pp.query("timestep",timestep);
-		pp.query("restart", restart_file); 
+		pp.query("restart", restart_file_cell); 
+		pp.query("restart_cell", restart_file_cell); 
+		pp.query("restart_node", restart_file_node); 
 	}
 	{
 		amrex::ParmParse pp("amr"); // AMR specific parameters
@@ -409,9 +411,9 @@ Integrator::InitData ()
 {
 	BL_PROFILE("Integrator::InitData");
 	
-	if (restart_file != "")
+	if (restart_file_cell != "")
 	{
-		Restart(restart_file);
+		Restart(restart_file_cell,false);
 	}
 	else
 	{
@@ -425,20 +427,22 @@ Integrator::InitData ()
 				amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
 						    geom[lev+1], geom[lev],
 						    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
-			//Util::Warning(INFO,"Not averaging down nodal fabs");
-			// for (int n = 0; n < node.number_of_fabs; n++)
-			// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
 		}
 		SetFinestLevel(finest_level);
-	
 	}
+
+	if (restart_file_node != "")
+	{
+		Restart(restart_file_node,false);
+	}
+	
 	if (plot_int > 0 || plot_dt > 0.0) {
 		WritePlotFile();
 	}
 }
 
 void
-Integrator::Restart(const std::string dirname)
+Integrator::Restart(const std::string dirname, bool a_nodal)
 {
 	BL_PROFILE("Integrator::Restart");
 	std::string filename = dirname + "/Header";
@@ -506,8 +510,11 @@ Integrator::Restart(const std::string dirname)
 
 	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
 	int total_ncomp = 0; 
-	for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
-	int total_nghost = cell.nghost_array[0];
+	
+	if (a_nodal) for (unsigned int i = 0; i < node.fab_array.size(); i++) total_ncomp += node.ncomp_array[i];
+	else         for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+
+	int total_nghost = a_nodal ? node.nghost_array[0] : cell.nghost_array[0];
 
 	for (int lev = 0; lev <= max_level; lev++)
 	{
@@ -519,27 +526,44 @@ Integrator::Restart(const std::string dirname)
 
 		tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
 		amrex::VisMF::Read( tmpdata[lev],
-							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_","Cell"));
+							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_",(a_nodal ? "Node" : "Cell")));
 							
 
-		for (int i = 0; i < cell.number_of_fabs; i++)
-		{
-			(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
-		}
+		if (a_nodal)
+			for (int i = 0; i < node.number_of_fabs; i++)
+				(*node.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],node.ncomp_array[i],node.nghost_array[i]));
+		else
+			for (int i = 0; i < cell.number_of_fabs; i++)
+				(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
 		for (int i = 0; i < tmp_numfabs; i++)
 		{
 			bool match = false;
-			for (int j = 0; j < cell.number_of_fabs; j++)
-				for (int k = 0; k < cell.ncomp_array[j]; k++)
-				{
-					//Util::Message(INFO,tmp_name_array[i]," ",cell.name_array[j]," k=",);
-					if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j],k+1,3))
+			if (a_nodal)
+			{
+				for (int j = 0; j < node.number_of_fabs; j++)
+					for (int k = 0; k < node.ncomp_array[j]; k++)
 					{
-						match = true;
-						Util::Message(INFO,"Initializing ", cell.name_array[j], "[",k,"]; ncomp=", cell.ncomp_array[j], "; nghost=",cell.nghost_array[j], " with ", tmp_name_array[i] );
-						amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,cell.nghost_array[j]);
+						if (tmp_name_array[i] == amrex::Concatenate(node.name_array[j],k+1,3))
+						{
+							match = true;
+							Util::Message(INFO,"Initializing ", node.name_array[j], "[",k,"]; ncomp=", node.ncomp_array[j], "; nghost=",node.nghost_array[j], " with ", tmp_name_array[i] );
+							amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,node.nghost_array[j]);
+						}
 					}
-				}
+			}
+			else
+			{
+				for (int j = 0; j < cell.number_of_fabs; j++)
+					for (int k = 0; k < cell.ncomp_array[j]; k++)
+					{
+						if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j],k+1,3))
+						{
+							match = true;
+							Util::Message(INFO,"Initializing ", cell.name_array[j], "[",k,"]; ncomp=", cell.ncomp_array[j], "; nghost=",cell.nghost_array[j], " with ", tmp_name_array[i] );
+							amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,cell.nghost_array[j]);
+						}
+					}
+			}
 			if (!match) Util::Warning(INFO,"Fab ",tmp_name_array[i]," is in the restart file, but there is no fab with that name here.");
 		}							
 	}
