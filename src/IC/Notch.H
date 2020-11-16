@@ -51,7 +51,7 @@ public:
 				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                 }
                 
-                Set::Scalar min_value = 100.0;
+                Set::Scalar min_value = field(i,j,k);
                 
                 for (int m = 0; m < nCenter.size(); m++)
 				{

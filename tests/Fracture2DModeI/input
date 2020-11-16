@@ -1,6 +1,6 @@
 alamo.program = fracture
 timestep = 1e-4
-stop_time = 2e0
+stop_time = 1e0
 plot_file = tests/Fracture2DModeI/output
 
 amr.plot_int = 100
@@ -58,9 +58,9 @@ crack.ic.notch.mollifier = erf
 #crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
 #crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
 
-material.model = isotropic
-material.isotropic.lambda = 121.15
-material.isotropic.mu = 80.77
+material.model1.type = isotropic
+material.model1.isotropic.lambda = 121.15
+material.model1.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 
 elastic.solver.bottom_solver = bicgstab

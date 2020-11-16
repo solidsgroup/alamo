@@ -1,9 +1,9 @@
 alamo.program = fracture
 timestep = 5e-4
-stop_time = 2.e1
+stop_time = 1.e-3
 plot_file = tests/Fracture2DLaminate/output
 
-amr.plot_int = 100
+amr.plot_int = 1
 amr.max_level = 4
 amr.n_cell = 128 128
 amr.blocking_factor = 16
@@ -22,12 +22,10 @@ crack.type = constant
 crack.constant.G_c = 2.7e3
 crack.constant.zeta = 2.e-5
 crack.constant.mobility = 1.0e-5
-crack.constant.eta_epsilon = 0.01
 crack.df.mult_Gc = 1.0e0
 crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
-crack.constant.exponent = 1.e-3
 crack.constant.threshold = 0.0
 
 crack.ic.type = notch
@@ -38,27 +36,14 @@ crack.ic.notch.length = 2.e-3
 crack.ic.notch.eps = 4.e-5
 crack.ic.notch.mollifier = erf
 
-#crack.bc.type.xlo = neumann
-#crack.bc.type.xhi = neumann
-#crack.bc.type.ylo = neumann
-#crack.bc.type.yhi = neumann
-#crack.bc.val.xlo = 0.0
-#crack.bc.val.xhi = 0.0
-#crack.bc.val.ylo = 0.0
-#crack.bc.val.yhi = 0.0
+material.model1.type = isotropic
+material.model1.isotropic.lambda = 121.15
+material.model1.isotropic.mu = 80.77
 
-#crack.bc_df.type.xlo = neumann neumann neumann neumann
-#crack.bc_df.type.xhi = neumann neumann neumann neumann
-#crack.bc_df.type.ylo = neumann neumann neumann neumann
-#crack.bc_df.type.yhi = neumann neumann neumann neumann
-#crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
-#crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
-#crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
-#crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
+material.model2.type = isotropic
+material.model2.isotropic.lambda = 121.15
+material.model2.isotropic.mu = 80.77
 
-material.model = isotropic
-material.isotropic.lambda = 121.15
-material.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 material.refinement_threshold = 1.e-1
 
