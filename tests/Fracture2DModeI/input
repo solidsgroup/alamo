@@ -36,38 +36,19 @@ crack.ic.notch.length = 2.e-3
 crack.ic.notch.eps = 4.e-5
 crack.ic.notch.mollifier = erf
 
-#crack.bc.type.xlo = neumann
-#crack.bc.type.xhi = neumann
-#crack.bc.type.ylo = neumann
-#crack.bc.type.yhi = neumann
-#crack.bc.val.xlo = 0.0
-#crack.bc.val.xhi = 0.0
-#crack.bc.val.ylo = 0.0
-#crack.bc.val.yhi = 0.0
-
-#crack.bc_df.type.xlo = neumann neumann neumann neumann
-#crack.bc_df.type.xhi = neumann neumann neumann neumann
-#crack.bc_df.type.ylo = neumann neumann neumann neumann
-#crack.bc_df.type.yhi = neumann neumann neumann neumann
-#crack.bc_df.val.xlo = 0.0 0.0 0.0 0.0
-#crack.bc_df.val.xhi = 0.0 0.0 0.0 0.0
-#crack.bc_df.val.ylo = 0.0 0.0 0.0 0.0
-#crack.bc_df.val.yhi = 0.0 0.0 0.0 0.0
-
 material.model1.type = isotropic
 material.model1.isotropic.lambda = 121.15
 material.model1.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 
 elastic.int = 1000
+
 elastic.solver.bottom_solver = bicgstab
 elastic.solver.verbose = 2
-#####elastic.solver.cg_verbose = 0
 elastic.solver.max_iter = 10000
 elastic.solver.max_fmg_iter = 0
 elastic.solver.bottom_max_iter = 500
 elastic.solver.fixed_iter = 500
-#####elastic.solver.linop_maxorder = 10
 elastic.solver.tol_rel = 1.0e-7
 elastic.solver.tol_abs = 1.0e-7
 elastic.solver.bottom_tol_rel = 1.0e-7

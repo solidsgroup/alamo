@@ -1,9 +1,9 @@
 alamo.program = fracture
-timestep = 5e-4
-stop_time = 1.e-3
+timestep = 1e-4
+stop_time = 2.e0
 plot_file = tests/Fracture2DLaminate/output
 
-amr.plot_int = 1
+amr.plot_int = 100
 amr.max_level = 4
 amr.n_cell = 128 128
 amr.blocking_factor = 16
@@ -17,6 +17,8 @@ geometry.is_periodic = 0 0
 
 crack.modulus_scaling_max = 5.e-3
 crack.refinement_threshold = 0.01
+#crack.df_tol_rel = 0.1
+#crack.df_tol_abs = 0.0
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
@@ -54,8 +56,9 @@ material.ic.laminate.thickness = 0.005
 material.ic.laminate.orientation = 2.0 1.0
 material.ic.laminate.eps = 3.e-4
 
+elastic.int = 100
+
 elastic.solver.bottom_solver = bicgstab
-#elastic.solver.int = 1000
 elastic.solver.verbose = 2
 #elastic.solver.cg_verbose = 0
 elastic.solver.max_iter = 10000
@@ -76,7 +79,6 @@ loading.val = 2.e-2
 
 elastic.bc.type.xlo = disp trac
 elastic.bc.type.xhi = disp trac
-#elastic.bc.val.xlo = 0.0 8.e-4
 elastic.bc.type.ylo = disp disp
 elastic.bc.type.xloylo = disp disp
 elastic.bc.type.xhiylo = disp disp
