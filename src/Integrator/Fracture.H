@@ -16,7 +16,6 @@
 
 #include "IC/IC.H"
 #include "IC/Ellipsoid.H"
-#include "IC/Ellipse.H"
 #include "IC/Notch.H"
 #include "IC/Laminate.H"
 
@@ -252,7 +251,6 @@ protected:
         }
 
         // Degrading the modulus
-        Util::Message(INFO);
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
             Util::RealFillBoundary(*crack.c_mf[ilev],geom[ilev]);
@@ -282,7 +280,6 @@ protected:
         //
         // Update the body force to be consistent with grid size
         //
-        Util::Message(INFO);
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
             const Real* DX = geom[ilev].CellSize();

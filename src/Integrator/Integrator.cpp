@@ -411,11 +411,7 @@ Integrator::InitData ()
 {
 	BL_PROFILE("Integrator::InitData");
 	
-	if (restart_file_cell != "")
-	{
-		Restart(restart_file_cell,false);
-	}
-	else
+	if (restart_file_cell == "" && restart_file_node == "")
 	{
 		const amrex::Real time = 0.0;
 		InitFromScratch(time);
@@ -430,10 +426,13 @@ Integrator::InitData ()
 		}
 		SetFinestLevel(finest_level);
 	}
-
+	if (restart_file_cell != "")
+	{
+		Restart(restart_file_cell,false);
+	}
 	if (restart_file_node != "")
 	{
-		Restart(restart_file_node,false);
+		Restart(restart_file_node,true);
 	}
 	
 	if (plot_int > 0 || plot_dt > 0.0) {
@@ -445,6 +444,18 @@ void
 Integrator::Restart(const std::string dirname, bool a_nodal)
 {
 	BL_PROFILE("Integrator::Restart");
+	
+	if ( a_nodal && node.fab_array.size() == 0) 
+	{
+		Util::Message(INFO,"Nothing here for nodal fabs");
+		return;
+	}
+	if (!a_nodal && cell.fab_array.size() == 0) 
+	{
+		Util::Message(INFO,"Nothing here for cell-based fabs");
+		return;
+	}
+	
 	std::string filename = dirname + "/Header";
 	std::string chkptfilename = dirname + "/Checkpoint";
 	amrex::VisMF::IO_Buffer io_buffer(amrex::VisMF::GetIOBufferSize());
@@ -514,7 +525,7 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 	if (a_nodal) for (unsigned int i = 0; i < node.fab_array.size(); i++) total_ncomp += node.ncomp_array[i];
 	else         for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
 
-	int total_nghost = a_nodal ? node.nghost_array[0] : cell.nghost_array[0];
+	int total_nghost = a_nodal ? 0 : cell.nghost_array[0];
 
 	for (int lev = 0; lev <= max_level; lev++)
 	{
@@ -524,14 +535,28 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 		amrex::DistributionMapping tmp_dm(tmp_ba,amrex::ParallelDescriptor::NProcs());
 		SetDistributionMap(lev,tmp_dm);
 
-		tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
+		if (a_nodal)
+		{
+			amrex::BoxArray ngrids = grids[lev];
+			ngrids.convert(amrex::IntVect::TheNodeVector());
+			tmpdata[lev].define(ngrids,dmap[lev],total_ncomp,total_nghost);
+		}
+		else
+		{
+			tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
+		}
 		amrex::VisMF::Read( tmpdata[lev],
-							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_",(a_nodal ? "Node" : "Cell")));
+							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_","Cell"));
 							
 
 		if (a_nodal)
 			for (int i = 0; i < node.number_of_fabs; i++)
-				(*node.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],node.ncomp_array[i],node.nghost_array[i]));
+			{
+				amrex::BoxArray ngrids = grids[lev];
+				ngrids.convert(amrex::IntVect::TheNodeVector());
+				(*node.fab_array[i])[lev].reset(new amrex::MultiFab(ngrids,dmap[lev],node.ncomp_array[i],node.nghost_array[i]));
+				(*node.fab_array[i])[lev]->setVal(0.);
+			}
 		else
 			for (int i = 0; i < cell.number_of_fabs; i++)
 				(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
@@ -541,15 +566,24 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 			if (a_nodal)
 			{
 				for (int j = 0; j < node.number_of_fabs; j++)
+				{
+					if (tmp_name_array[i] == node.name_array[j])
+					{
+						match = true;
+						Util::Message(INFO,"Initializing ", node.name_array[j], "; nghost=",node.nghost_array[j], " with ", tmp_name_array[i] );
+						amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(),tmpdata[lev],i,0,1,total_nghost);
+					}
 					for (int k = 0; k < node.ncomp_array[j]; k++)
 					{
 						if (tmp_name_array[i] == amrex::Concatenate(node.name_array[j],k+1,3))
 						{
 							match = true;
 							Util::Message(INFO,"Initializing ", node.name_array[j], "[",k,"]; ncomp=", node.ncomp_array[j], "; nghost=",node.nghost_array[j], " with ", tmp_name_array[i] );
-							amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,node.nghost_array[j]);
+							amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,total_nghost);
 						}
 					}
+					Util::RealFillBoundary(*((*node.fab_array[j])[lev]).get(),geom[lev]);
+				}
 			}
 			else
 			{
@@ -565,8 +599,16 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 					}
 			}
 			if (!match) Util::Warning(INFO,"Fab ",tmp_name_array[i]," is in the restart file, but there is no fab with that name here.");
-		}							
+		}		
+
+		for (int n = 0; n < m_basefields.size(); n++)
+		{
+			Util::Message(INFO,"n = ", n , " size = ", m_basefields.size());
+			m_basefields[n]->MakeNewLevelFromScratch(lev,t_new[lev],grids[lev],dmap[lev]);
+		}
 	}
+
+	SetFinestLevel(max_level);
 }
 
 void
@@ -720,6 +762,11 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 	{
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
 					Geom(), time, iter, refRatio());
+
+		std::ofstream chkptfile;
+		chkptfile.open(plotfilename[0]+plotfilename[1]+"node/Checkpoint");
+		for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
+		chkptfile.close();
 	}
 
 	if (amrex::ParallelDescriptor::IOProcessor())
