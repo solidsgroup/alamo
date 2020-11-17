@@ -220,6 +220,10 @@ public:
                        const Set::Field<Set::Scalar> & a_b_mf,
                        Set::Field<T> &a_model_mf)
     {
+        Util::Message(INFO,a_u_mf.size());
+        Util::Message(INFO,a_b_mf.size());
+        Util::Message(INFO,a_u_mf.finest_level);
+        Util::Message(INFO,a_b_mf.finest_level);
         return solve(a_u_mf,a_b_mf,a_model_mf,m_tol_rel,m_tol_abs);
     }
 
