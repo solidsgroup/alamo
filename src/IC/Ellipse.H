@@ -136,13 +136,18 @@ public:
         {
             pp.query("number_of_inclusions",value.number_of_inclusions);
             if(value.number_of_inclusions < 1) Util::Abort(INFO, "number of inclusions have to be at least 1");
+            
+            value.center.resize(0);
+            value.A.resize(0);
+            value.eps.resize(0);
 
             pp.queryarr("center", x0);
+            
             if(x0.size() != value.number_of_inclusions*AMREX_SPACEDIM)
                 Util::Abort(INFO, "Need centers for all the inclusions");
-            for (int i = 0; i < x0.size(); i++)
+            for (int i = 0; i < x0.size(); i+= AMREX_SPACEDIM)
                 value.center.push_back(Set::Vector(AMREX_D_DECL(x0[i],x0[i+1],x0[i+2])));
-            
+
             if (pp.contains("A"))
             {
                 amrex::Vector<Set::Scalar> _A;
@@ -159,7 +164,7 @@ public:
                 else
                 {
                     Set::Matrix _A1 = Set::Matrix::Zero();
-                    for (int i = 0; i < value.number_of_inclusions; i++)
+                    for (int i = 0; i < value.number_of_inclusions; i+= AMREX_SPACEDIM*AMREX_SPACEDIM)
                     {
                         AMREX_D_PICK(   _A1(0,0) = _A[i];
                                         ,

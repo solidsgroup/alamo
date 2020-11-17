@@ -1,7 +1,7 @@
 alamo.program = fracture
 timestep = 1e-4
 stop_time = 2.e0
-plot_file = tests/Fracture2DLaminate/output
+plot_file = tests/Fracture2DEllipse/output
 
 amr.plot_int = 100
 amr.max_level = 4
@@ -34,7 +34,7 @@ crack.ic.type = notch
 crack.ic.notch.center = -0.01 0.0
 crack.ic.notch.orientation = 1.0 0.0
 crack.ic.notch.thickness = 3.e-4
-crack.ic.notch.length = 2.e-3
+crack.ic.notch.length = 1.e-2
 crack.ic.notch.eps = 4.e-5
 crack.ic.notch.mollifier = erf
 
@@ -49,12 +49,11 @@ material.model2.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 material.refinement_threshold = 1.e-1
 
-material.ic.type = laminate
-material.ic.laminate.number_of_inclusions = 1
-material.ic.laminate.center = 0.0 0.0
-material.ic.laminate.thickness = 0.005
-material.ic.laminate.orientation = 2.0 1.0
-material.ic.laminate.eps = 3.e-4
+material.ic.type = ellipse
+material.ic.ellipse.number_of_inclusions = 1
+material.ic.ellipse.center = 0.0 0.0
+material.ic.ellipse.radius = 1.e-3 1.e-3
+material.ic.ellipse.eps = 3.e-4
 
 elastic.int = 100
 
