@@ -62,6 +62,12 @@ public:
         pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
         pp_crack_df.query("mult_Lap", crack.mult_df_lap);
 
+        {
+            IO::ParmParse pp("pfcrack");
+            pp.query("beta",crack.beta);
+        }
+
+
         // IC for crack field
         IO::ParmParse pp("crack.ic");
         pp.query("type", crack.ic_type);
@@ -381,6 +387,11 @@ protected:
                 {
                     Set::Scalar rhs = 0.0;
                     //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
+
+                    Set::Scalar bilap = 
+                              Numeric::Stencil<Set::Scalar,4,0,0>::D(c_old,i,j,k,0,DX) +
+                        2.0 * Numeric::Stencil<Set::Scalar,2,2,0>::D(c_old,i,j,k,0,DX) + 
+                              Numeric::Stencil<Set::Scalar,0,4,0>::D(c_old,i,j,k,0,DX);
                     
                     Set::Scalar _temp = modbox(i,j,k,0);
                     Set::Scalar en_cell = energy_box(i,j,k,0);
@@ -415,6 +426,8 @@ protected:
                     
                     if (!material.homogeneous) 
                     	rhs *= crack.cracktype->g_phi(_temp,0.0);
+
+                    rhs += crack.beta*bilap;
 
                     df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
                     if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
@@ -516,6 +529,7 @@ private:
 
 		Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
 		Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
+        Set::Scalar beta = 1.0;
     } crack;
 
     struct{

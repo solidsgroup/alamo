@@ -1,10 +1,10 @@
 alamo.program = fracture
-timestep = 0.001 ##0.0005
+timestep = 0.000001 ##0.0005
 stop_time = 2.e1
 plot_file = tests/Fracture2DLaminate/output_%Y%m%d_%H%M%S
 
-amr.plot_int = 50
-amr.max_level = 3
+amr.plot_int = 200
+amr.max_level = 2
 amr.n_cell = 128 128
 amr.blocking_factor = 16
 amr.regrid_int = 10
@@ -14,6 +14,8 @@ amr.thermo.int = 1
 geometry.prob_lo = -0.01 -0.01
 geometry.prob_hi = 0.01 0.01
 geometry.is_periodic = 0 0
+
+pfcrack.beta = 1.0e-11
 
 crack.modulus_scaling_max = 5.e-3
 crack.refinement_threshold = 0.01
@@ -26,7 +28,7 @@ crack.df.mult_Gc = 1.0e0
 crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
-crack.constant.threshold = 100.0
+crack.constant.threshold = 0.0
 
 crack.ic.type = notch
 crack.ic.notch.center = -0.01 0.0
@@ -49,15 +51,15 @@ material.ic.laminate.thickness = 0.005
 material.ic.laminate.orientation = 1.0 1.0
 material.ic.laminate.eps = 3.e-4
 
-elastic.int = 10 ##1000
+elastic.int = 999 ##1000
 elastic.solver.bottom_solver = bicgstab
 elastic.solver.verbose = 2
 elastic.solver.max_iter = 10000
 elastic.solver.max_fmg_iter = 0
 elastic.solver.bottom_max_iter = 500
-elastic.solver.fixed_iter = 500
-elastic.solver.tol_rel = 1.0e-7
-elastic.solver.tol_abs = 1.0e-7
+elastic.solver.fixed_iter = 1000
+elastic.solver.tol_rel = 1.0e-8
+elastic.solver.tol_abs = 1.0e-8
 elastic.solver.bottom_tol_rel = 1.0e-7
 elastic.solver.bottom_tol_abs = 1.0e-7
 
