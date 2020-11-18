@@ -91,7 +91,6 @@ public:
 
         RegisterNodalFab(crack.c_mf, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.c_old_mf, 1, number_of_ghost_nodes, "crack_old", true);
-        RegisterNodalFab(crack.c_orig_mf, 1, number_of_ghost_nodes, "crack_orig", true);
         RegisterNodalFab(crack.driving_force_mf, 4, number_of_ghost_nodes, "driving_force", true);
         //RegisterIntegratedVariable(&(crack.driving_force_norm),"driving_force_norm");
 
@@ -192,20 +191,17 @@ protected:
         {
             crack.c_mf[ilev]->setVal(1.0);
             crack.c_old_mf[ilev]->setVal(1.0);
-            crack.c_orig_mf[ilev]->setVal(1.0);
 
             for (int i = 0; i < crack.ic.size(); i++)
             {
                 crack.ic[i]->Add(ilev,crack.c_mf);
                 crack.ic[i]->Add(ilev,crack.c_old_mf);
-                crack.ic[i]->Add(ilev,crack.c_orig_mf);
             }
         }
         else
         {
             crack.c_mf[ilev]->setVal(1.0);
             crack.c_old_mf[ilev]->setVal(1.0);
-            crack.c_orig_mf[ilev]->setVal(1.0);
         }
 
         if(material.is_ic) material.ic->Initialize(ilev,material.material_mf);
@@ -366,11 +362,10 @@ protected:
     {
         std::swap(crack.c_old_mf[lev], crack.c_mf[lev]);
 
-        Util::RealFillBoundary(*crack.c_old_mf[lev],geom[lev]);
-        Util::RealFillBoundary(*crack.c_orig_mf[lev],geom[lev]);
-        Util::RealFillBoundary(*crack.c_mf[lev],geom[lev]);
-        Util::RealFillBoundary(*material.material_mf[lev],geom[lev]);
-        Util::RealFillBoundary(*elastic.energy_pristine_mf[lev],geom[lev]);
+        //Util::RealFillBoundary(*crack.c_old_mf[lev],geom[lev]);
+        //Util::RealFillBoundary(*crack.c_mf[lev],geom[lev]);
+        //Util::RealFillBoundary(*material.material_mf[lev],geom[lev]);
+        //Util::RealFillBoundary(*elastic.energy_pristine_mf[lev],geom[lev]);
 
         const Set::Scalar* DX = geom[lev].CellSize();
         amrex::Box domain(geom[lev].Domain());
@@ -381,18 +376,17 @@ protected:
         {
             const amrex::Box& bx = mfi.nodaltilebox();
             amrex::Array4<const Set::Scalar> const& c_old = (*crack.c_old_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const& c_orig = (*crack.c_orig_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& df = (*crack.driving_force_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const& c = (*crack.c_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& energy = (*elastic.energy_pristine_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const& mat = (*material.material_mf[lev]).array(mfi);
             
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k){
-                
+
 #if AMREX_SPACEDIM !=2
                 Util::Abort(INFO, "This doesn't work with 1D or 3D yet");
 #endif
-                if (i == lo.x && j == lo.y) c(i,j,k,0) = c(i+1,j+1,k,0);
+                if      (i == lo.x && j == lo.y) c(i,j,k,0) = c(i+1,j+1,k,0);
                 else if (i == lo.x && j == hi.y) c(i,j,k,0) = c(i+1,j-1,k,0);
                 else if (i == hi.x && j == lo.y) c(i,j,k,0) = c(i-1,j+1,k,0);
                 else if (i == hi.x && j == hi.y) c(i,j,k,0) = c(i-1,j-1,k,0);
@@ -405,7 +399,6 @@ protected:
                     Set::Scalar rhs = 0.0;
                     //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
                     
-                    Set::Scalar _temp = c_orig(i,j,k,0);
                     Set::Scalar en_cell = energy(i,j,k,0);
                     
                     if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy(i,j,k,0));
@@ -417,8 +410,8 @@ protected:
 
                     //if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
 
-                    Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
-                    Set::Scalar laplacian = DDc.trace();
+                    //Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
+                    Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);//DDc.trace();
 
                     Set::Scalar Gc = crack.cracktype->Gc(0.0);
                     Set::Scalar _temp_product = 1.0;
@@ -437,18 +430,18 @@ protected:
                     rhs -= 2.0*crack.cracktype->Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
                     
                     //if (!material.homogeneous) 
-                    rhs *= crack.cracktype->g_phi(_temp,0.0);
+                    //rhs *= crack.cracktype->g_phi(_temp,0.0);
 
-                    df(i,j,k,3) = std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
-                    if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-                    c(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0., rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
+                    //if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
+                    df(i,j,k,3) =                    std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
+                    c(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
 
                     if (c (i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
                     if (c (i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
                 }
             });
         }
-        Util::RealFillBoundary(*crack.c_mf[lev],geom[lev]);
+        //Util::RealFillBoundary(*crack.c_mf[lev],geom[lev]);
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
@@ -522,7 +515,6 @@ private:
     struct{
         Set::Field<Set::Scalar> c_mf;                ///< crack field at current time step
         Set::Field<Set::Scalar> c_old_mf;            ///< crack field at previous time step
-        Set::Field<Set::Scalar> c_orig_mf;          ///< original crack field.
         Set::Field<Set::Scalar> driving_force_mf;         ///< crack driving forces.
         Set::Scalar driving_force_reference = 1.0;
         Set::Scalar driving_force_norm = 0.0;
