@@ -1,8 +1,10 @@
 alamo.program = fracture
 timestep = 1e-5
-stop_time = 2.0
+stop_time = 2.e-5
+
 plot_file = tests/Fracture2DModeI/output
-amr.plot_int = 1000
+
+amr.plot_int = 1
 amr.max_level = 3
 amr.n_cell = 256 256
 amr.blocking_factor = 16
@@ -26,7 +28,7 @@ crack.df.mult_Gc = 1.0e0
 crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
-crack.constant.threshold = 0.0
+crack.constant.threshold = 5.e7
 
 crack.ic.type = notch
 crack.ic.notch.center = -0.01 0.0
