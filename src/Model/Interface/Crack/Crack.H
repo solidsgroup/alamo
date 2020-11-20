@@ -21,6 +21,7 @@ class Crack
 	
 	Crack() {};
 	
+	AMREX_FORCE_INLINE
 	virtual Set::Scalar w_phi(Set::Scalar c, Set::Scalar /*p=0.*/)
 	{
 		switch(w_type)
@@ -33,6 +34,7 @@ class Crack
 			default:			return (1.-c)*(1.-c);
 		}
 	}
+	AMREX_FORCE_INLINE
 	virtual Set::Scalar g_phi(Set::Scalar c, Set::Scalar p=0.)
 	{
 		switch(g_type)
@@ -47,6 +49,7 @@ class Crack
 			default: 			return c*c;
 		}
 	}
+	AMREX_FORCE_INLINE
 	virtual Set::Scalar Dw_phi(Set::Scalar c, Set::Scalar /*p=0.*/)
 	{
 		switch(w_type)
@@ -59,6 +62,7 @@ class Crack
 			default:			return -2.*(1.-c);
 		}
 	}
+	AMREX_FORCE_INLINE
 	virtual Set::Scalar Dg_phi(Set::Scalar c, Set::Scalar p=0.)
 	{
 		switch(g_type)

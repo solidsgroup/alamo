@@ -601,7 +601,7 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 			if (!match) Util::Warning(INFO,"Fab ",tmp_name_array[i]," is in the restart file, but there is no fab with that name here.");
 		}		
 
-		for (int n = 0; n < m_basefields.size(); n++)
+		for (unsigned int n = 0; n < m_basefields.size(); n++)
 		{
 			Util::Message(INFO,"n = ", n , " size = ", m_basefields.size());
 			m_basefields[n]->MakeNewLevelFromScratch(lev,t_new[lev],grids[lev],dmap[lev]);
