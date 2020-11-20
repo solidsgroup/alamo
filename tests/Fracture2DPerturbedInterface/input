@@ -1,7 +1,7 @@
 alamo.program = fracture
 timestep = 1e-4
 stop_time = 2.e0
-plot_file = tests/Fracture2DEllipse/output
+plot_file = tests/Fracture2DPerturbedInterface/output
 
 amr.plot_int = 100
 amr.max_level = 4
@@ -24,17 +24,17 @@ crack.type = constant
 crack.constant.G_c = 2.7e3
 crack.constant.zeta = 2.e-5
 crack.constant.mobility = 1.0e-5
-crack.df.mult_Gc = 1.0e0
+crack.df.mult_Gc = 0.01
 crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
-crack.constant.threshold = 0.0
+crack.constant.threshold = 1.e7
 
 crack.ic.type = notch
-crack.ic.notch.center = -0.01 0.0
+crack.ic.notch.center = 0.0 0.0
 crack.ic.notch.orientation = 1.0 0.0
-crack.ic.notch.thickness = 3.e-4
-crack.ic.notch.length = 2.e-3
+crack.ic.notch.thickness = 2.e-4
+crack.ic.notch.length = 4.e-3
 crack.ic.notch.eps = 4.e-5
 crack.ic.notch.mollifier = erf
 
@@ -49,11 +49,11 @@ material.model2.isotropic.mu = 80.77
 elastic.df_mult = 1.e9
 material.refinement_threshold = 1.e-1
 
-material.ic.type = ellipse
-material.ic.ellipse.number_of_inclusions = 4
-material.ic.ellipse.center = -6.0e-3 1.0e-3 -2.0e-3 -1.0e-3 2.0e-3 1.0e-3 6.e-3 -1.e-3
-material.ic.ellipse.radius = 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3
-material.ic.ellipse.eps = 3.e-4 3.e-4 3.e-4 3.e-4
+material.ic.type=perturbed_interface
+material.ic.perturbed_interface.wave_numbers=4
+material.ic.perturbed_interface.wave_amplitudes=1.0e-3
+material.ic.perturbed_interface.mollifier = gauss
+material.ic.perturbed_interface.eps = 5.e-4
 
 elastic.int = 100
 

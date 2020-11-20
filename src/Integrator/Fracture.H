@@ -18,6 +18,7 @@
 #include "IC/Ellipsoid.H"
 #include "IC/Notch.H"
 #include "IC/Laminate.H"
+#include "IC/PerturbedInterface.H"
 
 #include "Operator/Operator.H"
 #include "Operator/Elastic.H"
@@ -54,9 +55,10 @@ public:
         pp_crack.query("df_tol_rel",crack.driving_force_tolerance_rel);
         pp_crack.query("df_tol_abs",crack.driving_force_tolerance_abs);
 
-        Model::Interface::Crack::Constant *tmpbdy = new Model::Interface::Crack::Constant();
-        pp_crack.queryclass("constant",*tmpbdy);
-        crack.cracktype = tmpbdy;
+        //Model::Interface::Crack::Constant *tmpbdy = new Model::Interface::Crack::Constant();
+        // pp_crack.queryclass("constant",*tmpbdy);
+        pp_crack.queryclass("constant",crack.cracktype);
+        //crack.cracktype = tmpbdy;
 
         IO::ParmParse pp_crack_df("crack.df");
         pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
@@ -115,11 +117,17 @@ public:
         {
             IC::Ellipse *tmpic = new IC::Ellipse(geom);
             pp_material_ic.queryclass("ellipse",*tmpic);
-
-            IO::ParmParse _temp("material.ic.ellipse");
-            _temp.query("number_of_inclusions",number_of_materials);
-            number_of_materials++;
+            number_of_materials = 2;
             
+            material.ic = tmpic;
+            material.is_ic = true;
+        }
+        else if (material.ic_type == "perturbed_interface")
+        {
+            IC::PerturbedInterface *tmpic = new IC::PerturbedInterface(geom);
+            pp_material_ic.queryclass("perturbed_interface", *tmpic);
+            number_of_materials = 2;
+
             material.ic = tmpic;
             material.is_ic = true;
         }
@@ -260,11 +268,12 @@ protected:
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0.0;
-                    _temp = crack.cracktype->g_phi(c(i,j,k,0),0);
+                    // _temp = crack.cracktype->g_phi(c(i,j,k,0),0);
+                    _temp = crack.cracktype.g_phi(c(i,j,k,0),0);
                     
                     if (std::isnan(_temp)) Util::Abort(INFO);
-                    if(_temp < 0.0) Util::Abort(INFO);//_temp = 0.;
-                    if(_temp > 1.0) Util::Abort(INFO);//_temp = 1.0;
+                    if(_temp < 0.0) _temp = 0.;
+                    if(_temp > 1.0) _temp = 1.0;
 					
                     _temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
                     model(i,j,k,0).DegradeModulus(1-_temp);
@@ -406,36 +415,36 @@ protected:
                     if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
                     //if (c_old(i,j,k,0) > 1) Util::Abort(INFO, "Very large values of c_old at (",i,",",j,",",k,") = ", c_old(i,j,k,0));
 
-                    df(i,j,k,0) = crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
-                    rhs += crack.cracktype->Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                    df(i,j,k,0) = crack.cracktype.Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                    rhs += crack.cracktype.Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
 
                     //if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
 
                     //Set::Matrix DDc = Numeric::Hessian(c_old, i, j, k, 0, DX);
                     Set::Scalar laplacian = Numeric::Laplacian(c_old,i,j,k,0,DX);//DDc.trace();
 
-                    Set::Scalar Gc = crack.cracktype->Gc(0.0);
+                    Set::Scalar Gc = crack.cracktype.Gc(0.0);
                     Set::Scalar _temp_product = 1.0;
                     for (int m = 0; m < number_of_materials; m++)
                         _temp_product *= mat(i,j,k,m);
                     
-                    if (number_of_materials > 1) Gc *= (1.0 - _temp_product);
+                    if (number_of_materials > 1) Gc *= (1.0 - _temp_product*(1.-crack.mult_df_Gc)/0.25);
 
                     // Util::Message(INFO, "Gc = ", Gc);
                     
-                    df(i,j,k,1) = Gc*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
-                    df(i,j,k,2) = 2.0*crack.cracktype->Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
+                    df(i,j,k,1) = Gc*crack.cracktype.Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype.Zeta(0.0));
+                    df(i,j,k,2) = 2.0*crack.cracktype.Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
 
-                    rhs += Gc*crack.cracktype->Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype->Zeta(0.0))*crack.mult_df_Gc;
+                    rhs += Gc*crack.cracktype.Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype.Zeta(0.0));
 
-                    rhs -= 2.0*crack.cracktype->Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
+                    rhs -= 2.0*crack.cracktype.Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
                     
                     //if (!material.homogeneous) 
                     //rhs *= crack.cracktype->g_phi(_temp,0.0);
 
                     //if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-                    df(i,j,k,3) =                    std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)));
-                    c(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs - crack.cracktype->DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype->Mobility(c_old(i,j,k,0));
+                    df(i,j,k,3) =                    std::max(0.,rhs - crack.cracktype.DrivingForceThreshold(c_old(i,j,k,0)));
+                    c(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs - crack.cracktype.DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype.Mobility(c_old(i,j,k,0));
 
                     if (c (i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
                     if (c (i,j,k,0) > 1.0) c(i,j,k,0) = 1.0;
@@ -523,7 +532,7 @@ private:
 		Set::Scalar driving_force_tolerance_rel = 1E-4;
 		Set::Scalar driving_force_tolerance_abs = 0.0;
 
-        Model::Interface::Crack::Crack *cracktype;                      ///< type of crack. See Crack/Constant or Crack/Sin
+        Model::Interface::Crack::Constant cracktype;                      ///< type of crack. See Crack/Constant or Crack/Sin
 		amrex::Vector<std::string> ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
 		amrex::Vector<IC::IC*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
         bool is_ic = false;
