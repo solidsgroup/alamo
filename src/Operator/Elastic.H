@@ -110,6 +110,7 @@ public:
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 	void SetUniform(bool a_uniform) {m_uniform = a_uniform;}
+	void SetAverageDownCoeffs(bool a_average_down_coeffs) {m_average_down_coeffs = a_average_down_coeffs;}
 	
 	
 protected:
@@ -147,6 +148,21 @@ private:
 
 	virtual void averageDownCoeffs () override;
 	void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
+	
+	/// \fn averageDownCoeffsSameAmrLevel
+	/// \brief Update coarse-level AMR coefficients with data from fine level
+	///
+	/// This function is called before the solve, and it updates the Matrix4 coefficients
+	/// on coarse levels with averaged versions on the fine levels.
+	/// Typically, this is not necessary, since the coefficients are computed on each level
+	/// already. 
+	/// However, there are some cases where this messes up the multigrid solver.
+	/// (Phase field fracture is the primary example.)
+	/// 
+	/// This is disabled by default. In order to enable, call
+	///	
+	///     elasticoperator.SetAverageDownCoeffs(true);
+	///
 	void averageDownCoeffsSameAmrLevel (int amrlev);
 
 	void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
@@ -154,6 +170,8 @@ private:
 	bool m_testing = false;
 	bool m_uniform = false;
 	bool m_homogeneous = false;
+
+	bool m_average_down_coeffs = false;
 
 	::BC::Operator::Elastic::Elastic *m_bc;
 

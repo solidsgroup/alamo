@@ -297,6 +297,7 @@ protected:
         
         op_b.define(geom, grids, dmap, info);
         op_b.SetBC(&elastic.brittlebc);
+        op_b.SetAverageDownCoeffs(true); // <<< Important! Do not change.
         
         //
         // Actually do the elastic solve

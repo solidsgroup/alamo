@@ -605,11 +605,9 @@ Elastic<SYM>::averageDownCoeffs ()
 {
 	BL_PROFILE("Elastic::averageDownCoeffs()");
 	
-	for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
-	{
-		//averageDownCoeffsSameAmrLevel(amrlev);
-		averageDownCoeffsDifferentAmrLevels(amrlev);
-	}
+	if (m_average_down_coeffs)
+		for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+			averageDownCoeffsDifferentAmrLevels(amrlev);
 
 	averageDownCoeffsSameAmrLevel(0);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -626,8 +624,6 @@ Elastic<SYM>::averageDownCoeffs ()
 template<int SYM>
 void
 Elastic<SYM>::averageDownCoeffsDifferentAmrLevels (int fine_amrlev)
-//		  MultiFab& res, const MultiFab& /*crse_sol*/, const MultiFab& /*crse_rhs*/,
-//		  MultiFab& fine_res, MultiFab& /*fine_sol*/, const MultiFab& /*fine_rhs*/) const
 {
 	BL_PROFILE("Operator::Elastic::averageDownCoeffsDifferentAmrLevels()");
 	Util::Assert(INFO,TEST(fine_amrlev > 0));
@@ -649,11 +645,6 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels (int fine_amrlev)
  	MultiTab fine_ddw_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
 	fine_ddw_for_coarse.ParallelCopy(crse_ddw,0,0,ncomp,0,0,cgeom.periodicity());
 
-	// //This should not be necessary...?
- 	//applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
-
-	/// \todo Replace with Enum
-	// const int coarse_coarse_node = 0;
 	const int coarse_fine_node = 1;
 	const int fine_fine_node = 2;
 
@@ -731,20 +722,12 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels (int fine_amrlev)
 		}
 	}
 
-
 	// Copy the fine residual restricted onto the coarse grid
 	// into the final residual.
 	crse_ddw.ParallelCopy(fine_ddw_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
-
 	const int mglev = 0;
-
-	// Sync up ghost nodes
-	amrex::Geometry geom = m_geom[crse_amrlev][mglev];
-	Util::RealFillBoundary(crse_ddw,geom);
-	Util::Warning(INFO,"Nodalsync was commented out. Revisit.");
-	//nodalSync(crse_amrlev,mglev, crse_ddw);
+	Util::RealFillBoundary(crse_ddw,m_geom[crse_amrlev][mglev]);
 	return;
-
 }
 
 
