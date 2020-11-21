@@ -39,6 +39,8 @@ std::complex<int> Parse(std::string);
 
 std::string GetFileName();
 
+std::pair<std::string,std::string> GetOverwrittenFile();
+
 void SignalHandler(int s);
 
 void Initialize (int argc, char* argv[]);
@@ -178,7 +180,8 @@ void Warning (std::string file, std::string func, int line, Args const &... args
 	}
 }
 
-void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
+std::pair<std::string,std::string>
+CreateCleanDirectory (const std::string &path, bool callbarrier = true);
 
 
 /// \brief A collection of I/O routines for Unit Tests

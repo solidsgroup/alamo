@@ -63,6 +63,7 @@ public:
         IO::ParmParse pp_crack_df("crack.df");
         pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
         pp_crack_df.query("mult_Lap", crack.mult_df_lap);
+        pp_crack_df.query("beta", crack.beta);
 
         // IC for crack field
         IO::ParmParse pp("crack.ic");
@@ -408,14 +409,19 @@ protected:
                 {
                     Set::Scalar rhs = 0.0;
                     //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
+
+                    Set::Scalar bilap = 
+                              Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) + 
+                        2.0 * Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) +
+                              Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX); 
                     
                     Set::Scalar en_cell = energy(i,j,k,0);
                     
-                    if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy(i,j,k,0));
-                    if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
+                    //if (std::isnan(en_cell)) Util::Abort(INFO, "Nans detected in en_cell. energy_box(i,j,k,0) = ", energy(i,j,k,0));
+                    //if (std::isinf(c_old(i,j,k,0))) Util::Abort(INFO, "Infs detected in c_old");
                     //if (c_old(i,j,k,0) > 1) Util::Abort(INFO, "Very large values of c_old at (",i,",",j,",",k,") = ", c_old(i,j,k,0));
 
-                    df(i,j,k,0) = crack.cracktype.Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
+                    //df(i,j,k,0) = crack.cracktype.Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
                     rhs += crack.cracktype.Dg_phi(c_old(i,j,k,0),0.0)*en_cell*elastic.df_mult;
 
                     //if(rhs > 1.e10) Util::Abort(INFO, "Very large values of rhs at (",i,",",j,",",k,") = ", rhs);
@@ -432,18 +438,20 @@ protected:
 
                     // Util::Message(INFO, "Gc = ", Gc);
                     
-                    df(i,j,k,1) = Gc*crack.cracktype.Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype.Zeta(0.0));
-                    df(i,j,k,2) = 2.0*crack.cracktype.Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
+                    //df(i,j,k,1) = Gc*crack.cracktype.Dw_phi(c_old(i,j,k,0),0.0)/(4.0*crack.cracktype.Zeta(0.0));
+                    //df(i,j,k,2) = 2.0*crack.cracktype.Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
 
                     rhs += Gc*crack.cracktype.Dw_phi(c_old(i,j,k,0),0.)/(4.0*crack.cracktype.Zeta(0.0));
 
                     rhs -= 2.0*crack.cracktype.Zeta(0.0)*Gc*laplacian*crack.mult_df_lap;
                     
+                    rhs += crack.beta * bilap;
+                    
                     //if (!material.homogeneous) 
                     //rhs *= crack.cracktype->g_phi(_temp,0.0);
 
                     //if(std::isnan(rhs)) Util::Abort(INFO, "Dwphi = ", crack.cracktype->Dw_phi(c_old(i,j,k,0),0.0),". c_old(i,j,k,0) = ",c_old(i,j,k,0));
-                    df(i,j,k,3) =                    std::max(0.,rhs - crack.cracktype.DrivingForceThreshold(c_old(i,j,k,0)));
+                    //df(i,j,k,3) =                    std::max(0.,rhs - crack.cracktype.DrivingForceThreshold(c_old(i,j,k,0)));
                     c(i,j,k,0) = c_old(i,j,k,0) - dt*std::max(0.,rhs - crack.cracktype.DrivingForceThreshold(c_old(i,j,k,0)))*crack.cracktype.Mobility(c_old(i,j,k,0));
 
                     if (c (i,j,k,0) < 0.0) c(i,j,k,0) = 0.0;
@@ -542,6 +550,7 @@ private:
 
 		Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
 		Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
+        Set::Scalar beta = 0.0;
     } crack;
 
     struct{

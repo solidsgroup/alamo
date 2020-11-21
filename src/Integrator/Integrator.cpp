@@ -410,6 +410,8 @@ void
 Integrator::InitData ()
 {
 	BL_PROFILE("Integrator::InitData");
+	Util::Message(INFO,Util::GetOverwrittenFile().first);
+	Util::Message(INFO,Util::GetOverwrittenFile().second);
 	
 	if (restart_file_cell == "" && restart_file_node == "")
 	{

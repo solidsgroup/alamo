@@ -24,7 +24,7 @@ crack.type = constant
 crack.constant.G_c = 2.7e3
 crack.constant.zeta = 2.e-5
 crack.constant.mobility = 1.0e-5
-crack.df.mult_Gc = 0.5
+crack.df.mult_Gc = 0.1
 crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
@@ -51,9 +51,9 @@ material.refinement_threshold = 1.e-1
 
 material.ic.type=perturbed_interface
 material.ic.perturbed_interface.wave_numbers=4
-material.ic.perturbed_interface.wave_amplitudes=2.0e-3
+material.ic.perturbed_interface.wave_amplitudes=1.0e-3
 material.ic.perturbed_interface.mollifier = gauss
-material.ic.perturbed_interface.eps = 2.e-4
+material.ic.perturbed_interface.eps = 1.e-4
 
 elastic.int = 100
 
