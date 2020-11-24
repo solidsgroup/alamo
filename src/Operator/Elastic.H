@@ -101,18 +101,14 @@ public:
 		m_bc_lo = a_bc_lo;m_bc_hi = a_bc_hi;
 	};
 
-	void Reflux(int crse_amrlev,
-		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
-		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs)
-	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
-
 	void Error0x (int amrlev, int mglev, MultiFab& R0x, const MultiFab& x) const;
 
 	void SetTesting(bool a_testing) {m_testing = a_testing;}
 	void SetUniform(bool a_uniform) {m_uniform = a_uniform;}
 	void SetAverageDownCoeffs(bool a_average_down_coeffs) {m_average_down_coeffs = a_average_down_coeffs;}
 	
-	
+	using Operator::Reflux;
+
 protected:
 
 	virtual void Diagonal (int amrlev, int mglev, amrex::MultiFab& diag) override;
