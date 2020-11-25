@@ -205,9 +205,6 @@ public:
 
             if (nriter == m_nriters) break;
             
-            if (m_damp < 1.0)
-                for (int lev = 0; lev < rhs_mf.size(); lev++) 
-                    rhs_mf[lev]->mult(m_damp,2);
 
             Solver::Nonlocal::Linear::solve(GetVecOfPtrs(dsol_mf), GetVecOfConstPtrs(rhs_mf), a_tol_rel, a_tol_abs,checkpoint_file);
 
@@ -380,14 +377,12 @@ private:
     int m_nriters = 1;
     Operator::Elastic<T::sym> &m_elastic;
     BC::Operator::Elastic::Elastic &m_bc;
-    Set::Scalar m_damp = 1.0;
 public:
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)
     {
         Linear::Parse(value,pp);
         
         pp.query("nriters",value.m_nriters);
-        pp.query("damp",value.m_damp);
     }
 
 };

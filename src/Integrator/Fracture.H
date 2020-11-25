@@ -316,6 +316,11 @@ protected:
         //
         // Actually do the elastic solve
         // 
+        //for (int ilev = 0; ilev < nlevels; ilev++)
+        //{
+        //    elastic.disp_mf[ilev]->setVal(0.0);
+        //}
+
         {
             IO::ParmParse pp("elastic");
             Solver::Nonlocal::Newton<brittle_fracture_model_type_test>  solver(op_b);
@@ -323,20 +328,29 @@ protected:
             pp.queryclass("solver",solver);
             solver.solve(elastic.disp_mf, elastic.rhs_mf, material.model_mf);
             solver.compResidual(elastic.residual_mf,elastic.disp_mf,elastic.rhs_mf,material.model_mf);
+            
+            Set::Vector disp_resid = Set::Vector::Zero();
+            for (int ilev = 0; ilev < nlevels; ilev++)
+            {
+                disp_resid(0) = std::max(disp_resid(0), elastic.residual_mf[ilev]->norminf(0));
+                disp_resid(1) = std::max(disp_resid(1), elastic.residual_mf[ilev]->norminf(1));
+            }
+            if (disp_resid.lpNorm<2>() > 1e-8) Util::Warning(INFO,"Residual: ", disp_resid.transpose());
+            else                               Util::Message(INFO,"Residual: ", disp_resid.transpose());
 
-            for (int ilev = 0; ilev < nlevels; ilev++)
-            {
-                op_b.Apply(ilev,0,*elastic.residual2_mf[ilev],*elastic.disp_mf[ilev]);
-            }
-            for (int ilev = nlevels-1; ilev > 0; ilev--)
-            {
-                op_b.Reflux(ilev-1, *elastic.residual2_mf[ilev-1], *elastic.disp_mf[ilev-1], *elastic.rhs_mf[ilev-1],
-                *elastic.residual2_mf[ilev],*elastic.disp_mf[ilev],*elastic.rhs_mf[ilev]);
-            }
-            for (int ilev = 0; ilev < nlevels; ilev++)
-            {
-                amrex::MultiFab::Subtract(*elastic.residual2_mf[ilev],*elastic.rhs_mf[ilev],0,0,2,2); // R0x = x - AD0x
-            }
+            //for (int ilev = 0; ilev < nlevels; ilev++)
+            //{
+            //    op_b.Apply(ilev,0,*elastic.residual2_mf[ilev],*elastic.disp_mf[ilev]);
+            //}
+            //for (int ilev = nlevels-1; ilev > 0; ilev--)
+            //{
+            //    op_b.Reflux(ilev-1, *elastic.residual2_mf[ilev-1], *elastic.disp_mf[ilev-1], *elastic.rhs_mf[ilev-1],
+            //    *elastic.residual2_mf[ilev],*elastic.disp_mf[ilev],*elastic.rhs_mf[ilev]);
+            //}
+            //for (int ilev = 0; ilev < nlevels; ilev++)
+            //{
+            //    amrex::MultiFab::Subtract(*elastic.residual2_mf[ilev],*elastic.rhs_mf[ilev],0,0,2,2); // R0x = x - AD0x
+            //}
         }
         
         for (int ilev = 0; ilev < nlevels; ilev++)
