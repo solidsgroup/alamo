@@ -324,7 +324,7 @@ if args.diff:
     f2.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
     f2.write("\t-@mkdir -p .diff\n".format(postfix))
     f2.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
-    f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n".format(postfix))
+    f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt .simba/diff-template.html --output stdout --style side >/dev/null 2>/dev/null\n".format(postfix))
 
 f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
 f.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
