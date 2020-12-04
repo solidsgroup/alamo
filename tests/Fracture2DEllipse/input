@@ -15,7 +15,7 @@ geometry.prob_lo = -0.01 -0.01
 geometry.prob_hi = 0.01 0.01
 geometry.is_periodic = 0 0
 
-crack.modulus_scaling_max = 5.e-3
+crack.modulus_scaling_max = 5e-4
 crack.refinement_threshold = 0.01
 #crack.df_tol_rel = 0.1
 #crack.df_tol_abs = 0.0
@@ -24,7 +24,7 @@ crack.type = constant
 crack.constant.G_c = 2.7e3
 crack.constant.zeta = 2.e-5
 crack.constant.mobility = 1.0e-5
-crack.df.mult_Gc = 1.0e0
+crack.df.mult_Gc = 7.0e-1
 crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
@@ -56,14 +56,15 @@ material.ic.ellipse.radius = 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3
 material.ic.ellipse.eps = 3.e-4 3.e-4 3.e-4 3.e-4
 
 elastic.int = 100
+elastic.omega = 0.08 #0.6667
 
-elastic.solver.bottom_solver = bicgstab
+elastic.solver.bottom_solver = smoother
 elastic.solver.verbose = 2
 #elastic.solver.cg_verbose = 0
 elastic.solver.max_iter = 10000
 elastic.solver.max_fmg_iter = 0
 elastic.solver.bottom_max_iter = 500
-elastic.solver.fixed_iter = 500
+elastic.solver.fixed_iter = 5000
 #elastic.solver.linop_maxorder = 10
 #elastic.solver.max_coarsening_level = 100000
 #elastic.solver.agglomeration = 1
@@ -72,6 +73,8 @@ elastic.solver.tol_rel = 1.0e-7
 elastic.solver.tol_abs = 1.0e-7
 elastic.solver.bottom_tol_rel = 1.0e-7
 elastic.solver.bottom_tol_abs = 1.0e-7
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
 
 loading.body_force = 0.0 0.0 0.0
 loading.val = 2.e-2
