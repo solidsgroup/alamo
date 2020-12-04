@@ -152,6 +152,8 @@ public:
                 value.setBottomSolver(MLMG::BottomSolver::cg);
             if (bottom_solver == "bicgstab")
                 value.setBottomSolver(MLMG::BottomSolver::bicgstab);
+            if (bottom_solver == "smoother")
+                value.setBottomSolver(MLMG::BottomSolver::smoother);
             else
                 Util::Abort(INFO,"Unsupported bottom_solver " + bottom_solver);
         }
