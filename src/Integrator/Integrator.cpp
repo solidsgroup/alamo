@@ -31,6 +31,8 @@ Integrator::Integrator ()
 		pp.query("plot_int", plot_int);         // ALL processors
 		pp.query("plot_dt", plot_dt);         // ALL processors
 		pp.query("plot_file", plot_file);       // IO Processor only
+		
+		pp.query("max_plot_level",max_plot_level);		
 
 		IO::FileNameParse(plot_file);
 
@@ -682,7 +684,8 @@ void
 Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial, std::string prefix) const
 {
 	BL_PROFILE("Integrator::WritePlotFile");
-	const int nlevels = finest_level+1;
+	int nlevels = finest_level+1;
+	if (max_plot_level >= 0) nlevels = std::min(nlevels,max_plot_level);
 
 	int ccomponents = 0, ncomponents = 0;
 	amrex::Vector<std::string> cnames, nnames;

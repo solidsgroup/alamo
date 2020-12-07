@@ -293,7 +293,7 @@ protected:
 private:
 	amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
 	amrex::Vector<int> nsubsteps;	///< how many substeps on each level?
-  
+	int max_plot_level = -1;
   
 	amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
 	int max_step = std::numeric_limits<int>::max();	///< Maximum allowable timestep

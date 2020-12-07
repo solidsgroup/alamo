@@ -5,6 +5,7 @@ plot_file = tests/Fracture2DEllipse/output
 
 amr.plot_int = 100
 amr.max_level = 4
+amr.max_plot_level = 4
 amr.n_cell = 128 128
 amr.blocking_factor = 16
 amr.regrid_int = 10

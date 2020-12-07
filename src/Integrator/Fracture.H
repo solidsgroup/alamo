@@ -93,8 +93,8 @@ public:
         }
 
         RegisterNodalFab(crack.c_mf, 1, number_of_ghost_nodes, "crack", true);
-        RegisterNodalFab(crack.c_old_mf, 1, number_of_ghost_nodes, "crack_old", true);
-        RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes, "driving_force", true);
+        RegisterNodalFab(crack.c_old_mf, 1, number_of_ghost_nodes, "crack_old", false);
+        RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes, "driving_force", false);
         //RegisterIntegratedVariable(&(crack.driving_force_norm),"driving_force_norm");
 
         IO::ParmParse pp_material("material");
@@ -172,16 +172,14 @@ public:
 
         nlevels = maxLevel() + 1;
         RegisterNodalFab(elastic.disp_mf,  AMREX_SPACEDIM, number_of_ghost_nodes, "disp", true);
-        RegisterNodalFab(elastic.rhs_mf,  AMREX_SPACEDIM, number_of_ghost_nodes, "rhs", true);
-        RegisterNodalFab(elastic.residual_mf,  AMREX_SPACEDIM, number_of_ghost_nodes, "res", true);
-        RegisterNodalFab(elastic.residual2_mf,  AMREX_SPACEDIM, number_of_ghost_nodes, "res2", true);
-        RegisterNodalFab(elastic.strain_mf,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_nodes, "strain", true);
+        RegisterNodalFab(elastic.rhs_mf,  AMREX_SPACEDIM, number_of_ghost_nodes, "rhs", false);
+        RegisterNodalFab(elastic.residual_mf,  AMREX_SPACEDIM, number_of_ghost_nodes, "res", false);
+        RegisterNodalFab(elastic.strain_mf,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_nodes, "strain", false);
         RegisterNodalFab(elastic.stress_mf,  AMREX_SPACEDIM*AMREX_SPACEDIM, number_of_ghost_nodes, "stress", true);
-        RegisterNodalFab(elastic.energy_mf, 1, number_of_ghost_nodes, "energy", true);
-        RegisterNodalFab(elastic.energy_pristine_mf, 1, number_of_ghost_nodes, "energy_pristine", true);
-        RegisterNodalFab(elastic.energy_pristine_old_mf, 1, number_of_ghost_nodes, "energy_pristine_old", true);
-        
-        RegisterNodalFab(material.material_mf, number_of_materials, number_of_ghost_nodes, "modulus_field", true);
+        RegisterNodalFab(elastic.energy_mf, 1, number_of_ghost_nodes, "energy", false);
+        RegisterNodalFab(elastic.energy_pristine_mf, 1, number_of_ghost_nodes, "energy_pristine", false);
+        RegisterNodalFab(elastic.energy_pristine_old_mf, 1, number_of_ghost_nodes, "energy_pristine_old", false);
+        RegisterNodalFab(material.material_mf, number_of_materials, number_of_ghost_nodes, "modulus_field", false);
         RegisterGeneralFab(material.model_mf, 1, number_of_ghost_nodes);
 
     }
@@ -195,7 +193,6 @@ protected:
         elastic.rhs_mf[ilev]->setVal(0.0);
         elastic.energy_mf[ilev]->setVal(0.0);
         elastic.residual_mf[ilev]->setVal(0.0);
-        elastic.residual2_mf[ilev]->setVal(0.0);
         elastic.energy_pristine_mf[ilev] -> setVal(0.);
         elastic.energy_pristine_old_mf[ilev] -> setVal(0.);
 
@@ -328,29 +325,6 @@ protected:
             pp.queryclass("solver",solver);
             solver.solve(elastic.disp_mf, elastic.rhs_mf, material.model_mf);
             solver.compResidual(elastic.residual_mf,elastic.disp_mf,elastic.rhs_mf,material.model_mf);
-            
-            Set::Vector disp_resid = Set::Vector::Zero();
-            for (int ilev = 0; ilev < nlevels; ilev++)
-            {
-                disp_resid(0) = std::max(disp_resid(0), elastic.residual_mf[ilev]->norminf(0));
-                disp_resid(1) = std::max(disp_resid(1), elastic.residual_mf[ilev]->norminf(1));
-            }
-            if (disp_resid.lpNorm<2>() > 1e-8) Util::Warning(INFO,"Residual: ", disp_resid.transpose());
-            else                               Util::Message(INFO,"Residual: ", disp_resid.transpose());
-
-            //for (int ilev = 0; ilev < nlevels; ilev++)
-            //{
-            //    op_b.Apply(ilev,0,*elastic.residual2_mf[ilev],*elastic.disp_mf[ilev]);
-            //}
-            //for (int ilev = nlevels-1; ilev > 0; ilev--)
-            //{
-            //    op_b.Reflux(ilev-1, *elastic.residual2_mf[ilev-1], *elastic.disp_mf[ilev-1], *elastic.rhs_mf[ilev-1],
-            //    *elastic.residual2_mf[ilev],*elastic.disp_mf[ilev],*elastic.rhs_mf[ilev]);
-            //}
-            //for (int ilev = 0; ilev < nlevels; ilev++)
-            //{
-            //    amrex::MultiFab::Subtract(*elastic.residual2_mf[ilev],*elastic.rhs_mf[ilev],0,0,2,2); // R0x = x - AD0x
-            //}
         }
         
         for (int ilev = 0; ilev < nlevels; ilev++)
@@ -554,7 +528,6 @@ private:
         Set::Field<Set::Scalar> stress_mf;           ///< stress field
         Set::Field<Set::Scalar> rhs_mf;              ///< rhs fab for elastic solution
         Set::Field<Set::Scalar> residual_mf;         ///< residual field for solver
-        Set::Field<Set::Scalar> residual2_mf;         ///< residual field for solver
         Set::Field<Set::Scalar> energy_mf;           ///< total elastic energy
         Set::Field<Set::Scalar> energy_pristine_mf;      ///< energy of the prisitne material as if no crack is present
         Set::Field<Set::Scalar> energy_pristine_old_mf;  ///< energy of the pristine material for previous time step.

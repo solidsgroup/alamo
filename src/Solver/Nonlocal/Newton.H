@@ -40,8 +40,6 @@ private:
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 Set::Vector DX(linop.Geom(lev).CellSize());
-    			const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-                
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.grownnodaltilebox();
