@@ -142,7 +142,7 @@ if (args.buildamrex == True):
         if args.offline:
             raise Exception(error() + "Cannot download AMReX and no version currently exists!")
         message("AMReX-Clone","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
-        p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
+        p = subprocess.Popen(("git clone git@github.com:AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
@@ -231,7 +231,7 @@ else:
 if (args.geteigen):
     if not os.path.isdir("eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
-        p = subprocess.Popen(("git clone https://github.com/eigenteam/eigen-git-mirror eigen3").split(),
+        p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
