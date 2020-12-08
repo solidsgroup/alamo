@@ -19,6 +19,7 @@ void IO::FileNameParse(std::string &filename)
 	int hour = now->tm_hour;
 	int minute = now->tm_min;
 	int second = now->tm_sec;
+	int microsecond = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 1000000;
 	
 	std::stringstream ss;
 
@@ -57,6 +58,13 @@ void IO::FileNameParse(std::string &filename)
 	ss << std::setfill('0') << std::setw(2) << second;
 	std::string _S = ss.str();
 	Util::String::ReplaceAll(filename,"%S",_S);
+
+	// _f: microsecond (00..59)
+	ss.str("");
+	//ss << std::setfill('0') << std::setw(2) << second;
+	ss << microsecond;
+	std::string _f = ss.str();
+	Util::String::ReplaceAll(filename,"%f",_f);
 
 	// _D: spatial dimension (1,2,3)
 	ss.str("");
