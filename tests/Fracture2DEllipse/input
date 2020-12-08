@@ -3,11 +3,11 @@ timestep = 1e-4
 stop_time = 2.e0
 plot_file = tests/Fracture2DEllipse/output
 
-amr.plot_int = 100
+amr.plot_int = 10
 amr.max_level = 4
-amr.max_plot_level = 4
 amr.n_cell = 128 128
 amr.blocking_factor = 16
+#amr.nsubsteps = 4
 amr.regrid_int = 10
 amr.grid_eff = 1.0
 amr.thermo.int = 1
@@ -18,15 +18,17 @@ geometry.is_periodic = 0 0
 
 crack.modulus_scaling_max = 5e-4
 crack.refinement_threshold = 0.01
-#crack.df_tol_rel = 0.1
-#crack.df_tol_abs = 0.0
+
+crack.df.tol_rel = 0.01
+crack.df.tol_abs = 1.0
+crack.df.mult_Gc = 0.7
+crack.df.mult_Lap = 1.0
+crack.df.beta = 1.35e-12
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
-crack.constant.zeta = 2.e-5
+crack.constant.zeta = 1.e-5
 crack.constant.mobility = 1.0e-5
-crack.df.mult_Gc = 7.0e-1
-crack.df.mult_Lap = 1.0e0
 crack.constant.gtype = square
 crack.constant.wtype = square
 crack.constant.threshold = 0.0
@@ -56,15 +58,15 @@ material.ic.ellipse.center = -6.0e-3 1.0e-3 -2.0e-3 -1.0e-3 2.0e-3 1.0e-3 6.e-3 
 material.ic.ellipse.radius = 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3
 material.ic.ellipse.eps = 3.e-4 3.e-4 3.e-4 3.e-4
 
-elastic.int = 100
-elastic.omega = 0.08 #0.6667
+elastic.int = 1000
+elastic.omega = 0.12 #0.6667
 
 elastic.solver.bottom_solver = smoother
 elastic.solver.verbose = 2
 #elastic.solver.cg_verbose = 0
 elastic.solver.max_iter = 10000
 elastic.solver.max_fmg_iter = 0
-elastic.solver.bottom_max_iter = 500
+elastic.solver.bottom_max_iter = 1
 elastic.solver.fixed_iter = 5000
 #elastic.solver.linop_maxorder = 10
 #elastic.solver.max_coarsening_level = 100000
@@ -74,8 +76,8 @@ elastic.solver.tol_rel = 1.0e-7
 elastic.solver.tol_abs = 1.0e-7
 elastic.solver.bottom_tol_rel = 1.0e-7
 elastic.solver.bottom_tol_abs = 1.0e-7
-elastic.solver.pre_smooth = 4
-elastic.solver.post_smooth = 4
+elastic.solver.pre_smooth = 8
+elastic.solver.post_smooth = 8
 
 loading.body_force = 0.0 0.0 0.0
 loading.val = 2.e-2

@@ -52,8 +52,7 @@ public:
         IO::ParmParse pp_crack("crack");
         pp_crack.query("modulus_scaling_max",crack.scaleModulusMax);
         pp_crack.query("refinement_threshold",crack.refinement_threshold);
-        pp_crack.query("df_tol_rel",crack.driving_force_tolerance_rel);
-        pp_crack.query("df_tol_abs",crack.driving_force_tolerance_abs);
+        
 
         //Model::Interface::Crack::Constant *tmpbdy = new Model::Interface::Crack::Constant();
         // pp_crack.queryclass("constant",*tmpbdy);
@@ -64,6 +63,8 @@ public:
         pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
         pp_crack_df.query("mult_Lap", crack.mult_df_lap);
         pp_crack_df.query("beta", crack.beta);
+        pp_crack_df.query("tol_rel",crack.driving_force_tolerance_rel);
+        pp_crack_df.query("tol_abs",crack.driving_force_tolerance_abs);
 
         // IC for crack field
         IO::ParmParse pp("crack.ic");
@@ -94,8 +95,8 @@ public:
 
         RegisterNodalFab(crack.c_mf, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.c_old_mf, 1, number_of_ghost_nodes, "crack_old", false);
-        RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes, "driving_force", false);
-        //RegisterIntegratedVariable(&(crack.driving_force_norm),"driving_force_norm");
+        RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes, "driving_force", true);
+        RegisterIntegratedVariable(&(crack.driving_force_norm),"driving_force_norm");
 
         IO::ParmParse pp_material("material");
         pp_material.query("refinement_threshold",material.refinement_threshold);
@@ -219,14 +220,14 @@ protected:
 
     void TimeStepBegin(Set::Scalar /*time*/, int iter) override
     {
-        // Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.driving_force_tolerance_rel);
-        // if (crack.driving_force_norm / crack.driving_force_reference < crack.driving_force_tolerance_rel)
-        //     elastic.do_solve_now = true;
-        // if (crack.driving_force_norm < crack.driving_force_tolerance_abs)
-        //     elastic.do_solve_now = true;
+        Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.driving_force_tolerance_rel);
+        if (crack.driving_force_norm / crack.driving_force_reference < crack.driving_force_tolerance_rel)
+            elastic.do_solve_now = true;
+        if (crack.driving_force_norm < crack.driving_force_tolerance_abs)
+            elastic.do_solve_now = true;
 
-        // if (!elastic.do_solve_now) return;
-        if(iter%elastic.interval != 0) return;
+        if (!elastic.do_solve_now) return;
+        // if(iter%elastic.interval != 0) return;
         
         Util::Message(INFO);
         for (int p = 0; p < number_of_materials; p++)
@@ -467,7 +468,7 @@ protected:
                 }
             });
         }
-        //Util::RealFillBoundary(*crack.c_mf[lev],geom[lev]);
+        Util::RealFillBoundary(*crack.c_mf[lev],geom[lev]);
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
@@ -494,26 +495,26 @@ protected:
         }
     }
 
-    void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter /*&mfi*/, const amrex::Box /*&box*/)
+    void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,const amrex::MFIter &mfi, const amrex::Box &box)
     {
-    //     const amrex::Real* DX = geom[amrlev].CellSize();
-    //     const Set::Scalar DV = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
+        const amrex::Real* DX = geom[amrlev].CellSize();
+        const Set::Scalar DV = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
-    //     amrex::Array4<const Set::Scalar> const &df = (*crack.driving_force_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const &df = (*crack.driving_force_mf[amrlev]).array(mfi);
         
-    //     amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-    //     {
-    //         crack.driving_force_norm += df(i,j,k,3) * DV;
-    //     });
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+            crack.driving_force_norm += df(i,j,k,4) * DV;
+        });
     }
 
     void TimeStepComplete(amrex::Real /*time*/,int /*iter*/)
     {
-    //     if (elastic.do_solve_now)
-    //         crack.driving_force_reference = crack.driving_force_norm;
-    //         //crack.driving_force_reference = crack.driving_force_norminf;
+        if (elastic.do_solve_now)
+            crack.driving_force_reference = crack.driving_force_norm;
+            //crack.driving_force_reference = crack.driving_force_norminf;
 
-    //     elastic.do_solve_now = false;
+        elastic.do_solve_now = false;
     }
 
 private:
