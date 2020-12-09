@@ -1,11 +1,11 @@
 alamo.program = fracture
 timestep = 1e-4
-stop_time = 2.e0
+stop_time = 1.e0
 plot_file = tests/Fracture2DEllipse/output
 
 amr.plot_int = 10
-amr.max_level = 4
-amr.n_cell = 128 128
+amr.max_level = 6
+amr.n_cell = 64 64
 amr.blocking_factor = 16
 #amr.nsubsteps = 4
 amr.regrid_int = 10
@@ -23,7 +23,7 @@ crack.df.tol_rel = 0.01
 crack.df.tol_abs = 1.0
 crack.df.mult_Gc = 0.7
 crack.df.mult_Lap = 1.0
-crack.df.beta = 1.35e-12
+crack.df.beta = 0.0
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
@@ -58,7 +58,7 @@ material.ic.ellipse.center = -6.0e-3 1.0e-3 -2.0e-3 -1.0e-3 2.0e-3 1.0e-3 6.e-3 
 material.ic.ellipse.radius = 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3
 material.ic.ellipse.eps = 3.e-4 3.e-4 3.e-4 3.e-4
 
-elastic.int = 1000
+elastic.int = 1
 elastic.omega = 0.12 #0.6667
 
 elastic.solver.bottom_solver = smoother
@@ -67,7 +67,7 @@ elastic.solver.verbose = 2
 elastic.solver.max_iter = 10000
 elastic.solver.max_fmg_iter = 0
 elastic.solver.bottom_max_iter = 1
-elastic.solver.fixed_iter = 5000
+elastic.solver.fixed_iter = 500
 #elastic.solver.linop_maxorder = 10
 #elastic.solver.max_coarsening_level = 100000
 #elastic.solver.agglomeration = 1

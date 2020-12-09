@@ -235,25 +235,26 @@ protected:
         
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
-            Util::RealFillBoundary(*material.material_mf[ilev],geom[ilev]);
+            material.model_mf[ilev]->setVal(material.brittlemodeltype[0]);
+            // Util::RealFillBoundary(*material.material_mf[ilev],geom[ilev]);
             std::swap(elastic.energy_pristine_old_mf[ilev], elastic.energy_pristine_mf[ilev]);
             
-            for (MFIter mfi(*material.material_mf[ilev], false); mfi.isValid(); ++mfi)
-            {
-                amrex::Box bx = mfi.grownnodaltilebox();
+            // for (MFIter mfi(*material.material_mf[ilev], false); mfi.isValid(); ++mfi)
+            // {
+            //     amrex::Box bx = mfi.grownnodaltilebox();
 
-                amrex::Array4<brittle_fracture_model_type_test> const &model = material.model_mf[ilev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &mat = material.material_mf[ilev]->array(mfi);
+            //     amrex::Array4<brittle_fracture_model_type_test> const &model = material.model_mf[ilev]->array(mfi);
+            //     amrex::Array4<const Set::Scalar> const &mat = material.material_mf[ilev]->array(mfi);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
-                    for (int p = 0; p < number_of_materials; p++)
-                        _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
+            //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            //         brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
+            //         for (int p = 0; p < number_of_materials; p++)
+            //             _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
                     
-                    model(i,j,k) = _tmpmodel;
-                });
-            }
-            Util::RealFillBoundary(*material.model_mf[ilev],geom[ilev]);
+            //         model(i,j,k) = _tmpmodel;
+            //     });
+            // }
+            // Util::RealFillBoundary(*material.model_mf[ilev],geom[ilev]);
         }
 
         // Degrading the modulus
@@ -271,13 +272,13 @@ protected:
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Scalar _temp = 0.0;
                     // _temp = crack.cracktype->g_phi(c(i,j,k,0),0);
-                    _temp = crack.cracktype.g_phi(c(i,j,k,0),0);
+                    _temp = crack.cracktype.g_phi(c(i,j,k,0),0) + crack.scaleModulusMax;
                     
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) _temp = 0.;
                     if(_temp > 1.0) _temp = 1.0;
 					
-                    _temp = std::max(crack.scaleModulusMax, _temp);
+                    // _temp = std::max(crack.scaleModulusMax, _temp);
                     // _temp = std::max(crack.scaleModulusMax, crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax));
                     model(i,j,k,0).DegradeModulus(1-_temp);
                 });
@@ -362,11 +363,13 @@ protected:
                         if(eValues(n) > 0.0) epsp += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                         else epsn += eValues(n)*(eVectors.col(n)*eVectors.col(n).transpose());
                     }
-                    brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
-                    for (int p = 0; p < number_of_materials; p++)
-                        _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
+                    // brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
+                    // for (int p = 0; p < number_of_materials; p++)
+                    //     _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
 
-                    energy(i,j,k,0) = _tmpmodel.W(epsp);
+                    // energy(i,j,k,0) = _tmpmodel.W(epsp);
+                    energy(i,j,k,0) = material.brittlemodeltype[0].W(epsp);
+                    // energy(i,j,k,0) = material.brittlemodeltype[0].W(eps);
                     energy(i,j,k,0) = energy(i,j,k,0) > energy_old(i,j,k,0) ?  energy(i,j,k,0) : energy_old(i,j,k,0);
                 });
             }
