@@ -112,6 +112,10 @@ public:
         amrex::Vector<Set::Scalar> x0;
         if(!(pp.contains("number_of_inclusions")))
         {
+            value.center.resize(0);
+            value.A.resize(0);
+            value.eps.resize(0);
+            
             value.number_of_inclusions = 0;
             pp.queryarr("x0",x0);
             value.center.push_back(Set::Vector(AMREX_D_DECL(x0[0],x0[1],x0[2])));
