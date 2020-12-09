@@ -71,5 +71,13 @@ void IO::FileNameParse(std::string &filename)
 	ss << AMREX_SPACEDIM;
 	std::string _D = ss.str();
 	Util::String::ReplaceAll(filename,"%D",_D);
-	
+
+	// Ensure consistency in filename across processor name.
+	// (if %f - microseconds is used, then processors will typically have different filenames.)
+	// !! Health warning: nothing is done to ensure that filename is consistent across
+	//    MPI tasks. This could cause errors some day !!
+	std::vector<char> cstr(filename.begin(),filename.end());
+	amrex::ParallelDescriptor::Bcast(cstr.data(), cstr.size(), amrex::ParallelDescriptor::IOProcessorNumber(), MPI_COMM_WORLD);
+	filename = std::string(cstr.begin(),cstr.end());
+	Util::ParallelMessage(INFO,filename);
 }
