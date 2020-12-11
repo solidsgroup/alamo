@@ -1,7 +1,7 @@
 alamo.program = fracture
 timestep = 1e-4
 stop_time = 1.e0
-plot_file = tests/Fracture2DEllipse/output
+plot_file = output
 
 amr.plot_int = 50
 amr.max_level = 6
@@ -21,13 +21,13 @@ crack.refinement_threshold = 0.01
 
 crack.df.tol_rel = 0.01
 crack.df.tol_abs = 0.0
-crack.df.mult_Gc = 0.75
+crack.df.mult_Gc = 0.7
 crack.df.mult_Lap = 1.0
 crack.df.beta = 0.0
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
-crack.constant.zeta = 2.e-5
+crack.constant.zeta = 1.e-5
 crack.constant.mobility = 1.0e-5
 crack.constant.gtype = square
 crack.constant.wtype = square
@@ -56,10 +56,10 @@ material.ic.type = ellipse
 material.ic.ellipse.number_of_inclusions = 4
 material.ic.ellipse.center = -6.0e-3 1.0e-3 -2.0e-3 -1.0e-3 2.0e-3 1.0e-3 6.e-3 -1.e-3
 material.ic.ellipse.radius = 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3
-material.ic.ellipse.eps = 5.e-4 5.e-4 5.e-4 5.e-4
+material.ic.ellipse.eps = 3.e-4 3.e-4 3.e-4 3.e-4
 
 elastic.int = 1
-elastic.omega = 0.12 #0.6667
+elastic.omega = 0.08 #0.6667
 
 elastic.solver.bottom_solver = smoother
 elastic.solver.verbose = 2
@@ -67,7 +67,7 @@ elastic.solver.verbose = 2
 elastic.solver.max_iter = 10000
 elastic.solver.max_fmg_iter = 0
 elastic.solver.bottom_max_iter = 1
-elastic.solver.fixed_iter = 500
+elastic.solver.fixed_iter = 2000
 #elastic.solver.linop_maxorder = 10
 #elastic.solver.max_coarsening_level = 100000
 #elastic.solver.agglomeration = 1
@@ -76,8 +76,8 @@ elastic.solver.tol_rel = 1.0e-7
 elastic.solver.tol_abs = 1.0e-7
 elastic.solver.bottom_tol_rel = 1.0e-7
 elastic.solver.bottom_tol_abs = 1.0e-7
-elastic.solver.pre_smooth = 8
-elastic.solver.post_smooth = 8
+elastic.solver.pre_smooth = 4
+elastic.solver.post_smooth = 4
 
 loading.body_force = 0.0 0.0 0.0
 loading.val = 2.e-2
