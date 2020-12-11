@@ -3,7 +3,7 @@ timestep = 1e-4
 stop_time = 1.e0
 plot_file = tests/Fracture2DEllipse/output
 
-amr.plot_int = 10
+amr.plot_int = 50
 amr.max_level = 6
 amr.n_cell = 64 64
 amr.blocking_factor = 16
@@ -20,14 +20,14 @@ crack.modulus_scaling_max = 5e-4
 crack.refinement_threshold = 0.01
 
 crack.df.tol_rel = 0.01
-crack.df.tol_abs = 1.0
-crack.df.mult_Gc = 0.7
+crack.df.tol_abs = 0.0
+crack.df.mult_Gc = 0.75
 crack.df.mult_Lap = 1.0
 crack.df.beta = 0.0
 
 crack.type = constant
 crack.constant.G_c = 2.7e3
-crack.constant.zeta = 1.e-5
+crack.constant.zeta = 2.e-5
 crack.constant.mobility = 1.0e-5
 crack.constant.gtype = square
 crack.constant.wtype = square
@@ -56,7 +56,7 @@ material.ic.type = ellipse
 material.ic.ellipse.number_of_inclusions = 4
 material.ic.ellipse.center = -6.0e-3 1.0e-3 -2.0e-3 -1.0e-3 2.0e-3 1.0e-3 6.e-3 -1.e-3
 material.ic.ellipse.radius = 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3 2.e-3
-material.ic.ellipse.eps = 3.e-4 3.e-4 3.e-4 3.e-4
+material.ic.ellipse.eps = 5.e-4 5.e-4 5.e-4 5.e-4
 
 elastic.int = 1
 elastic.omega = 0.12 #0.6667
