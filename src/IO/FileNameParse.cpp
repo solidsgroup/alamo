@@ -79,5 +79,4 @@ void IO::FileNameParse(std::string &filename)
 	std::vector<char> cstr(filename.begin(),filename.end());
 	amrex::ParallelDescriptor::Bcast(cstr.data(), cstr.size(), amrex::ParallelDescriptor::IOProcessorNumber(), MPI_COMM_WORLD);
 	filename = std::string(cstr.begin(),cstr.end());
-	Util::ParallelMessage(INFO,filename);
 }
