@@ -1,5 +1,5 @@
 
-dirs = $(shell find . -name "output*" -type d)
+dirs = $(shell find . -maxdepth 1 -name "output*" -type d )
 thumbnails = $(addsuffix /thumbnail.png, ${dirs})
 zips = $(addsuffix .tar.gz, ${dirs})
 
@@ -7,6 +7,7 @@ thumbnails: ${thumbnails}
 	@echo Done
 
 zips: ${zips}
+	@echo ${zips}
 	@echo Done
 
 %/thumbnail.png: %
