@@ -1,9 +1,17 @@
 
-thumbnails = $(addsuffix /thumbnail.png, $(shell find . -name "output*" -type d))
+dirs = $(shell find . -name "output*" -type d)
+thumbnails = $(addsuffix /thumbnail.png, ${dirs})
+zips = $(addsuffix .tar.gz, ${dirs})
 
 thumbnails: ${thumbnails}
 	@echo Done
 
+zips: ${zips}
+	@echo Done
+
 %/thumbnail.png: %
-	@echo $@ $<
-	@visit -nowin -cli -s thumbnail.py $< thumbnail
+	visit -nowin -cli -s thumbnail.py $< thumbnail
+
+%.tar.gz: %
+	tar cvzf $@ $< 
+
