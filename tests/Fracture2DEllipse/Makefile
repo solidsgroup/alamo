@@ -14,5 +14,6 @@ zips: ${zips}
 	visit -nowin -cli -s thumbnail.py $< thumbnail
 
 %.tar.gz: %
-	tar cvzf $@ $< 
+	tar cvzf $@.tmp $<
+	mv $@.tmp $@
 
