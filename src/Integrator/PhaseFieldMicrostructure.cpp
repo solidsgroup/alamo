@@ -651,6 +651,16 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			//
 			// TODO: we need a nicer way to do this with Set::Vector types.
 
+			// TO DELETE - this is code to check that the MPI processes are communicating correctly
+			//std::stringstream ss;
+			//ss << "mpi_" << iter << "_" << amrex::ParallelDescriptor::MyProc();
+			//std::ofstream myfile;
+			//myfile.open(ss.str());
+			//myfile << "Before: " << std::endl;
+			//for (unsigned int i = 0; i < disconnection.phases.size(); i++) myfile << disconnection.phases[i] << " "; myfile << std::endl;
+			//for (unsigned int i = 0; i < disconnection.sitex.size(); i++) myfile << disconnection.sitex[i] << " ";	myfile << std::endl;		
+			//for (unsigned int i = 0; i < disconnection.sitey.size(); i++) myfile << disconnection.sitey[i] << " ";   myfile << std::endl;
+
 			// Gather information about how many sites were found on each processor
 			int nprocs;
 			MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
@@ -698,6 +708,13 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			disconnection_phases_all.clear();
 			disconnection_sitex_all.clear();
 			disconnection_sitey_all.clear();
+
+			// TO DELETE - this is code to check that the MPI processes are communicating correctly
+			//myfile << "After: " << std::endl;
+			//for (unsigned int i = 0; i < disconnection.phases.size(); i++) myfile << disconnection.phases[i] << " ";	myfile << std::endl;	
+			//for (unsigned int i = 0; i < disconnection.sitex.size(); i++) myfile << disconnection.sitex[i] << " ";   myfile << std::endl;
+			//for (unsigned int i = 0; i < disconnection.sitey.size(); i++) myfile << disconnection.sitey[i] << " ";   myfile << std::endl;
+			//myfile.close();
 
 			for (int lev = 0; lev <= max_level; lev++)
 			{
