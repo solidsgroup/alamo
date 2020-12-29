@@ -80,7 +80,7 @@ void Initialize ()
 }
 void Initialize (int argc, char* argv[])
 {
-	srand (time(NULL));
+	srand (amrex::ParallelDescriptor::MyProc());
 
 	// if (argc < 2)
 	// {
