@@ -54,10 +54,7 @@ public:
         pp_crack.query("refinement_threshold",crack.refinement_threshold);
         
 
-        //Model::Interface::Crack::Constant *tmpbdy = new Model::Interface::Crack::Constant();
-        // pp_crack.queryclass("constant",*tmpbdy);
         pp_crack.queryclass("constant",crack.cracktype);
-        //crack.cracktype = tmpbdy;
 
         IO::ParmParse pp_crack_df("crack.df");
         pp_crack_df.query("mult_Gc", crack.mult_df_Gc);
@@ -95,7 +92,7 @@ public:
 
         RegisterNodalFab(crack.c_mf, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.c_old_mf, 1, number_of_ghost_nodes, "crack_old", false);
-        RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes, "driving_force", true);
+        RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes, "driving_force", false);
         RegisterIntegratedVariable(&(crack.driving_force_norm),"driving_force_norm");
 
         IO::ParmParse pp_material("material");
@@ -180,7 +177,7 @@ public:
         RegisterNodalFab(elastic.energy_mf, 1, number_of_ghost_nodes, "energy", false);
         RegisterNodalFab(elastic.energy_pristine_mf, 1, number_of_ghost_nodes, "energy_pristine", false);
         RegisterNodalFab(elastic.energy_pristine_old_mf, 1, number_of_ghost_nodes, "energy_pristine_old", false);
-        RegisterNodalFab(material.material_mf, number_of_materials, number_of_ghost_nodes, "modulus_field", false);
+        RegisterNodalFab(material.material_mf, number_of_materials, number_of_ghost_nodes, "materials", true);
         RegisterGeneralFab(material.model_mf, 1, number_of_ghost_nodes);
 
     }
@@ -235,26 +232,29 @@ protected:
         
         for (int ilev = 0; ilev < nlevels; ++ilev)
         {
-            material.model_mf[ilev]->setVal(material.brittlemodeltype[0]);
-            // Util::RealFillBoundary(*material.material_mf[ilev],geom[ilev]);
+            //material.model_mf[ilev]->setVal(material.brittlemodeltype[0]);
+            Util::RealFillBoundary(*material.material_mf[ilev],geom[ilev]);
             std::swap(elastic.energy_pristine_old_mf[ilev], elastic.energy_pristine_mf[ilev]);
             
-            // for (MFIter mfi(*material.material_mf[ilev], false); mfi.isValid(); ++mfi)
-            // {
-            //     amrex::Box bx = mfi.grownnodaltilebox();
+            for (MFIter mfi(*material.material_mf[ilev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.grownnodaltilebox();
+                amrex::Array4<brittle_fracture_model_type_test> const &model = material.model_mf[ilev]->array(mfi);
+                amrex::Array4<const Set::Scalar>                const &mat = material.material_mf[ilev]->array(mfi);
 
-            //     amrex::Array4<brittle_fracture_model_type_test> const &model = material.model_mf[ilev]->array(mfi);
-            //     amrex::Array4<const Set::Scalar> const &mat = material.material_mf[ilev]->array(mfi);
+                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                     Set::Scalar matsum = 0.0;
+                     brittle_fracture_model_type_test modelsum(0.0,0.0);
+                     for (int p = 0; p < number_of_materials; p++)
+                     {
+                         modelsum += mat(i,j,k,p)*material.brittlemodeltype[p];
+                         matsum += mat(i,j,k,p);
 
-            //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-            //         brittle_fracture_model_type_test _tmpmodel(0.0,0.0);
-            //         for (int p = 0; p < number_of_materials; p++)
-            //             _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
-                    
-            //         model(i,j,k) = _tmpmodel;
-            //     });
-            // }
-            // Util::RealFillBoundary(*material.model_mf[ilev],geom[ilev]);
+                     }
+                    model(i,j,k) = /*(1./matsum) * */modelsum ;
+                 });
+            }
+            Util::RealFillBoundary(*material.model_mf[ilev],geom[ilev]);
         }
 
         // Degrading the modulus
@@ -280,7 +280,7 @@ protected:
 					
                     // _temp = std::max(crack.scaleModulusMax, _temp);
                     // _temp = std::max(crack.scaleModulusMax, crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax));
-                    model(i,j,k,0).DegradeModulus(1-_temp);
+                    model(i,j,k).DegradeModulus(1-_temp);
                 });
             }
             Util::RealFillBoundary(*material.model_mf[ilev],geom[ilev]);

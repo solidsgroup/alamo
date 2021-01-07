@@ -15,8 +15,6 @@ class IsotropicDegradable : public Isotropic
 {
 public:
     IsotropicDegradable() {};
-	IsotropicDegradable(Solid<Set::Sym::Isotropic> base) : Isotropic(base) {};
-    IsotropicDegradable(Isotropic base) : Isotropic(base) {};
     IsotropicDegradable(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
         Define(a_mu, a_mu, a_lambda, a_lambda);
@@ -34,8 +32,8 @@ public:
 	{
 		if(std::isnan(eta)) Util::Abort(INFO, "Nans in eta");
 		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta ", eta);
-		if(std::isnan(m_lambda0)) Util::Abort(INFO, "Nans in lambda0");
-		if(std::isnan(m_mu0)) Util::Abort(INFO, "Nans in mu0");
+		if(std::isnan(m_lambda0) || std::isnan(m_mu0)) 
+			Util::Abort(INFO, "Nans detected","ddw=", ddw, " mu0=", m_mu0, " lambda0=",m_lambda0); 
 
 		Isotropic::Define( m_mu0*(1.-eta), m_lambda0*(1.-eta) );
 	}
@@ -84,6 +82,13 @@ public:
 		//Util::Message(INFO, "lambda = ", lambda, ", mu = ", mu);
 		value.Define(mu,mu,lambda,lambda);
 	}
+	virtual void Print(std::ostream &out) const override 
+    {
+        out << "ddw     = " << ddw << std::endl;
+		out << "mu0     = " << m_mu0 << std::endl;
+		out << "lambda0 = " << m_lambda0 << std::endl;
+    }
+
 	AMREX_FORCE_INLINE
 	void operator += (const IsotropicDegradable &rhs)
     {
