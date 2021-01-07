@@ -215,7 +215,7 @@ protected:
         else material.material_mf[ilev]->setVal(1.0);
     }
 
-    void TimeStepBegin(Set::Scalar /*time*/, int iter) override
+    void TimeStepBegin(Set::Scalar /*time*/, int /*iter*/) override
     {
         Util::Message(INFO,crack.driving_force_norm," ",crack.driving_force_reference," ",crack.driving_force_tolerance_rel);
         if (crack.driving_force_norm / crack.driving_force_reference < crack.driving_force_tolerance_rel)
@@ -367,10 +367,11 @@ protected:
                     // for (int p = 0; p < number_of_materials; p++)
                     //     _tmpmodel += mat(i,j,k,p)*material.brittlemodeltype[p];
 
-                    // energy(i,j,k,0) = _tmpmodel.W(epsp);
-                    energy(i,j,k,0) = material.brittlemodeltype[0].W(epsp);
-                    // energy(i,j,k,0) = material.brittlemodeltype[0].W(eps);
-                    energy(i,j,k,0) = energy(i,j,k,0) > energy_old(i,j,k,0) ?  energy(i,j,k,0) : energy_old(i,j,k,0);
+
+                    for (int p = 0; p < number_of_materials; p++)
+                        energy(i,j,k) += mat(i,j,k,p)*material.brittlemodeltype[p].W(epsp);
+
+                    if (energy(i,j,k) < energy_old(i,j,k)) energy(i,j,k) = energy_old(i,j,k);
                 });
             }
             Util::RealFillBoundary(*elastic.energy_pristine_mf[ilev],geom[ilev]);
