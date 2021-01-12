@@ -129,11 +129,57 @@ public:
         if (pp.contains("max_fmg_iter"))
         { int max_fmg_iter; pp.query("max_fmg_iter",max_fmg_iter);value.setMaxFmgIter(max_fmg_iter);}
 
+        if (pp.contains("max_fixed_iter"))
+            Util::Abort(INFO, "max_fixed_iter is depricated. Use fixed_iter instead." );
+
         if (pp.contains("fixed_iter"))
         { int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
 
         if (pp.contains("verbose"))
         { int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
+
+        if (pp.contains("pre_smooth"))
+        { int pre_smooth; pp.query("pre_smooth",pre_smooth);value.setPreSmooth(pre_smooth);}
+
+        if (pp.contains("post_smooth"))
+        { int post_smooth; pp.query("post_smooth",post_smooth);value.setPostSmooth(post_smooth);}
+
+        if (pp.contains("bottom_solver"))
+        {
+            std::string bottom_solver;
+            pp.query("bottom_solver",bottom_solver);
+            if (bottom_solver == "cg")
+                value.setBottomSolver(MLMG::BottomSolver::cg);
+            if (bottom_solver == "bicgstab")
+                value.setBottomSolver(MLMG::BottomSolver::bicgstab);
+            if (bottom_solver == "smoother")
+                value.setBottomSolver(MLMG::BottomSolver::smoother);
+            else
+                Util::Abort(INFO,"Unsupported bottom_solver " + bottom_solver);
+        }
+        
+        //if (pp.contains("agglomeration"))
+        //{int agglomeration; pp.query("agglomeration",agglomeration); value.setAgglomeration(agglomeration);}
+        //if (pp.contains("consolidation"))
+        //{int consolidation; pp.query("consolidation",consolidation); value(consolidation);}
+        
+        if (pp.contains("cg_tol_rel"))
+            Util::Abort(INFO,"cg_tol_rel is depricated. Use bottom_tol_rel instead.");
+        if (pp.contains("cg_tol_abs"))
+            Util::Abort(INFO,"cg_tol_abs is depricated. Use bottom_tol_abs instead.");
+        
+        if (pp.contains("bottom_tol_rel"))
+        {
+            Set::Scalar bottom_tol_rel;
+            pp.query("bottom_tol_rel",bottom_tol_rel);
+            value.setBottomTolerance(bottom_tol_rel);
+        }
+        if (pp.contains("bottom_tol_abs"))
+        {
+            Set::Scalar bottom_tol_abs;
+            pp.query("bottom_tol_abs",bottom_tol_abs);
+            value.setBottomToleranceAbs(bottom_tol_abs);
+        }
 
         pp.query("tol_rel",value.m_tol_rel);
         pp.query("tol_abs",value.m_tol_abs);

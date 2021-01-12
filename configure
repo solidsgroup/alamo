@@ -142,7 +142,7 @@ if (args.buildamrex == True):
         if args.offline:
             raise Exception(error() + "Cannot download AMReX and no version currently exists!")
         message("AMReX-Clone","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
-        p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
+        p = subprocess.Popen(("git clone git@github.com:AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
@@ -231,11 +231,11 @@ else:
 if (args.geteigen):
     if not os.path.isdir("eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
-        p = subprocess.Popen(("git clone https://github.com/eigenteam/eigen-git-mirror").split(),
+        p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
                              stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
-        subprocess.run("mv eigen-git-mirror eigen3".split())
+        #subprocess.run("mv eigen-git-mirror eigen3".split())
     message("Eigen-Directory",".")
     f.write("EIGEN = .\n")
 elif (args.eigen != ""):
@@ -324,7 +324,7 @@ if args.diff:
     f2.write(".diff/{}.diff.html: .FORCE\n".format(postfix))
     f2.write("\t-@mkdir -p .diff\n".format(postfix))
     f2.write("\t-@rm -rf .diff/{}.diff.html\n".format(postfix))
-    f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt simba/diff-template.html --style side >/dev/null 2>/dev/null\n".format(postfix))
+    f2.write("\t-@diff2html -F .diff/{}.diff.html --hwt .simba/diff-template.html --output stdout --style side >/dev/null 2>/dev/null\n".format(postfix))
 
 f.write(r'CXX_COMPILE_FLAGS += -DGIT_DIFF_PATCH_OUTPUT=\"$(abspath .diff/{}.diff.patch)\"'.format(postfix)+'\n')
 f.write("DEP_EXTRA += .diff/{}.diff.patch\n".format(postfix))
