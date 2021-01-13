@@ -80,15 +80,9 @@ void Initialize ()
 }
 void Initialize (int argc, char* argv[])
 {
-	srand (amrex::ParallelDescriptor::MyProc());
-
-	// if (argc < 2)
-	// {
-	// 	std::cout << "No plot file specified!" << std::endl;
-	// 	exit(-1);
-	// }
-
 	amrex::Initialize(argc, argv);
+
+	srand (amrex::ParallelDescriptor::MyProc());
 
 	amrex::ParmParse pp_amrex("amrex");
 	pp_amrex.add("throw_exception",1);
