@@ -10,7 +10,7 @@ zips: ${zips}
 	@echo ${zips}
 	@echo Done
 
-%/thumbnail.png: %
+%/thumbnail.png: % %/metadata
 	visit -nowin -cli -s thumbnail.py $< thumbnail.png
 
 %.tar.gz: %
