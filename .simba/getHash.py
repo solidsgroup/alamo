@@ -10,7 +10,7 @@ def getHash(self,directory):
     f = open(directory+"/metadata")
     for line in f.readlines():
         if line.startswith('#'): continue;
-        if not 'HASH' in line: continue
+        if not 'HASH = ' in line: continue
         val = line.split(' = ')[1].replace('  ','').replace('\n','').replace(';','')
         return val
 

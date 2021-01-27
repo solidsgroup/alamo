@@ -21,7 +21,9 @@ Integrator::Integrator ()
 		pp.query("max_step", max_step);
 		pp.query("stop_time", stop_time);
 		pp.query("timestep",timestep);
-		pp.query("restart", restart_file); 
+		pp.query("restart", restart_file_cell); 
+		pp.query("restart_cell", restart_file_cell); 
+		pp.query("restart_node", restart_file_node); 
 	}
 	{
 		amrex::ParmParse pp("amr"); // AMR specific parameters
@@ -29,6 +31,8 @@ Integrator::Integrator ()
 		pp.query("plot_int", plot_int);         // ALL processors
 		pp.query("plot_dt", plot_dt);         // ALL processors
 		pp.query("plot_file", plot_file);       // IO Processor only
+		
+		pp.query("max_plot_level",max_plot_level);		
 
 		IO::FileNameParse(plot_file);
 
@@ -409,11 +413,7 @@ Integrator::InitData ()
 {
 	BL_PROFILE("Integrator::InitData");
 	
-	if (restart_file != "")
-	{
-		Restart(restart_file);
-	}
-	else
+	if (restart_file_cell == "" && restart_file_node == "")
 	{
 		const amrex::Real time = 0.0;
 		InitFromScratch(time);
@@ -425,22 +425,39 @@ Integrator::InitData ()
 				amrex::average_down(*(*cell.fab_array[n])[lev+1], *(*cell.fab_array[n])[lev],
 						    geom[lev+1], geom[lev],
 						    0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
-			//Util::Warning(INFO,"Not averaging down nodal fabs");
-			// for (int n = 0; n < node.number_of_fabs; n++)
-			// 	amrex::average_down_nodal(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev], refRatio(lev));
 		}
 		SetFinestLevel(finest_level);
-	
 	}
+	if (restart_file_cell != "")
+	{
+		Restart(restart_file_cell,false);
+	}
+	if (restart_file_node != "")
+	{
+		Restart(restart_file_node,true);
+	}
+	
 	if (plot_int > 0 || plot_dt > 0.0) {
 		WritePlotFile();
 	}
 }
 
 void
-Integrator::Restart(const std::string dirname)
+Integrator::Restart(const std::string dirname, bool a_nodal)
 {
 	BL_PROFILE("Integrator::Restart");
+	
+	if ( a_nodal && node.fab_array.size() == 0) 
+	{
+		Util::Message(INFO,"Nothing here for nodal fabs");
+		return;
+	}
+	if (!a_nodal && cell.fab_array.size() == 0) 
+	{
+		Util::Message(INFO,"Nothing here for cell-based fabs");
+		return;
+	}
+	
 	std::string filename = dirname + "/Header";
 	std::string chkptfilename = dirname + "/Checkpoint";
 	amrex::VisMF::IO_Buffer io_buffer(amrex::VisMF::GetIOBufferSize());
@@ -506,8 +523,11 @@ Integrator::Restart(const std::string dirname)
 
 	amrex::Vector<amrex::MultiFab> tmpdata(tmp_max_level+1);
 	int total_ncomp = 0; 
-	for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
-	int total_nghost = cell.nghost_array[0];
+	
+	if (a_nodal) for (unsigned int i = 0; i < node.fab_array.size(); i++) total_ncomp += node.ncomp_array[i];
+	else         for (unsigned int i = 0; i < cell.fab_array.size(); i++) total_ncomp += cell.ncomp_array[i];
+
+	int total_nghost = a_nodal ? 0 : cell.nghost_array[0];
 
 	for (int lev = 0; lev <= max_level; lev++)
 	{
@@ -517,32 +537,80 @@ Integrator::Restart(const std::string dirname)
 		amrex::DistributionMapping tmp_dm(tmp_ba,amrex::ParallelDescriptor::NProcs());
 		SetDistributionMap(lev,tmp_dm);
 
-		tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
+		if (a_nodal)
+		{
+			amrex::BoxArray ngrids = grids[lev];
+			ngrids.convert(amrex::IntVect::TheNodeVector());
+			tmpdata[lev].define(ngrids,dmap[lev],total_ncomp,total_nghost);
+		}
+		else
+		{
+			tmpdata[lev].define(grids[lev],dmap[lev],total_ncomp,total_nghost);
+		}
 		amrex::VisMF::Read( tmpdata[lev],
 							amrex::MultiFabFileFullPrefix(lev,dirname,"Level_","Cell"));
 							
 
-		for (int i = 0; i < cell.number_of_fabs; i++)
-		{
-			(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
-		}
+		if (a_nodal)
+			for (int i = 0; i < node.number_of_fabs; i++)
+			{
+				amrex::BoxArray ngrids = grids[lev];
+				ngrids.convert(amrex::IntVect::TheNodeVector());
+				(*node.fab_array[i])[lev].reset(new amrex::MultiFab(ngrids,dmap[lev],node.ncomp_array[i],node.nghost_array[i]));
+				(*node.fab_array[i])[lev]->setVal(0.);
+			}
+		else
+			for (int i = 0; i < cell.number_of_fabs; i++)
+				(*cell.fab_array[i])[lev].reset(new amrex::MultiFab(grids[lev],dmap[lev],cell.ncomp_array[i],cell.nghost_array[i]));
 		for (int i = 0; i < tmp_numfabs; i++)
 		{
 			bool match = false;
-			for (int j = 0; j < cell.number_of_fabs; j++)
-				for (int k = 0; k < cell.ncomp_array[j]; k++)
+			if (a_nodal)
+			{
+				for (int j = 0; j < node.number_of_fabs; j++)
 				{
-					//Util::Message(INFO,tmp_name_array[i]," ",cell.name_array[j]," k=",);
-					if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j],k+1,3))
+					if (tmp_name_array[i] == node.name_array[j])
 					{
 						match = true;
-						Util::Message(INFO,"Initializing ", cell.name_array[j], "[",k,"]; ncomp=", cell.ncomp_array[j], "; nghost=",cell.nghost_array[j], " with ", tmp_name_array[i] );
-						amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,cell.nghost_array[j]);
+						Util::Message(INFO,"Initializing ", node.name_array[j], "; nghost=",node.nghost_array[j], " with ", tmp_name_array[i] );
+						amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(),tmpdata[lev],i,0,1,total_nghost);
 					}
+					for (int k = 0; k < node.ncomp_array[j]; k++)
+					{
+						if (tmp_name_array[i] == amrex::Concatenate(node.name_array[j],k+1,3))
+						{
+							match = true;
+							Util::Message(INFO,"Initializing ", node.name_array[j], "[",k,"]; ncomp=", node.ncomp_array[j], "; nghost=",node.nghost_array[j], " with ", tmp_name_array[i] );
+							amrex::MultiFab::Copy(*((*node.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,total_nghost);
+						}
+					}
+					Util::RealFillBoundary(*((*node.fab_array[j])[lev]).get(),geom[lev]);
 				}
+			}
+			else
+			{
+				for (int j = 0; j < cell.number_of_fabs; j++)
+					for (int k = 0; k < cell.ncomp_array[j]; k++)
+					{
+						if (tmp_name_array[i] == amrex::Concatenate(cell.name_array[j],k+1,3))
+						{
+							match = true;
+							Util::Message(INFO,"Initializing ", cell.name_array[j], "[",k,"]; ncomp=", cell.ncomp_array[j], "; nghost=",cell.nghost_array[j], " with ", tmp_name_array[i] );
+							amrex::MultiFab::Copy(*((*cell.fab_array[j])[lev]).get(),tmpdata[lev],i,k,1,cell.nghost_array[j]);
+						}
+					}
+			}
 			if (!match) Util::Warning(INFO,"Fab ",tmp_name_array[i]," is in the restart file, but there is no fab with that name here.");
-		}							
+		}		
+
+		for (unsigned int n = 0; n < m_basefields.size(); n++)
+		{
+			Util::Message(INFO,"n = ", n , " size = ", m_basefields.size());
+			m_basefields[n]->MakeNewLevelFromScratch(lev,t_new[lev],grids[lev],dmap[lev]);
+		}
 	}
+
+	SetFinestLevel(max_level);
 }
 
 void
@@ -577,12 +645,14 @@ Integrator::MakeNewLevelFromScratch (int lev, amrex::Real t, const amrex::BoxArr
 	{
 		cell.physbc_array[n]->define(geom[lev]);
 		cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev],0,0,t,0);
+//		Util::RealFillBoundary(*(*cell.fab_array[n])[lev],geom[lev]);
 	}
 
 	for (int n = 0 ; n < node.number_of_fabs; n++)
 	{
 		node.physbc_array[n]->define(geom[lev]);
 		node.physbc_array[n]->FillBoundary(*(*node.fab_array[n])[lev],0,0,t,0);
+//		Util::RealFillBoundary(*(*node.fab_array[n])[lev],geom[lev]);
 	}
 }
 
@@ -612,7 +682,8 @@ void
 Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial, std::string prefix) const
 {
 	BL_PROFILE("Integrator::WritePlotFile");
-	const int nlevels = finest_level+1;
+	int nlevels = finest_level+1;
+	if (max_plot_level >= 0) nlevels = std::min(nlevels,max_plot_level);
 
 	int ccomponents = 0, ncomponents = 0;
 	amrex::Vector<std::string> cnames, nnames;
@@ -696,6 +767,11 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 	{
 		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
 					Geom(), time, iter, refRatio());
+
+		std::ofstream chkptfile;
+		chkptfile.open(plotfilename[0]+plotfilename[1]+"node/Checkpoint");
+		for (int i = 0; i <= max_level; i++) boxArray(i).writeOn(chkptfile);
+		chkptfile.close();
 	}
 
 	if (amrex::ParallelDescriptor::IOProcessor())
@@ -731,8 +807,9 @@ Integrator::Evolve ()
 		int lev = 0;
 		int iteration = 1;
 		TimeStepBegin(cur_time,step);
-		IntegrateVariables(cur_time,step);
+		if (integrate_variables_before_advance) IntegrateVariables(cur_time,step);
 		TimeStep(lev, cur_time, iteration);
+		if (integrate_variables_after_advance) IntegrateVariables(cur_time,step);
 		TimeStepComplete(cur_time,step);
 		cur_time += dt[0];
 

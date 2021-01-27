@@ -13,6 +13,7 @@ namespace Util
 {
 
 std::string filename = "";
+std::pair<std::string,std::string> file_overwrite;
 
 std::string GetFileName()
 {
@@ -41,6 +42,11 @@ std::string GetFileName()
 		// 		Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
 	}
 	return filename;
+}
+
+std::pair<std::string,std::string> GetOverwrittenFile()
+{
+	return file_overwrite;
 }
 
 void SignalHandler(int s)
@@ -102,7 +108,7 @@ void Initialize (int argc, char* argv[])
 
 	if (amrex::ParallelDescriptor::IOProcessor() && filename != "")
 	{
-		Util::CreateCleanDirectory(filename, false);
+		file_overwrite = Util::CreateCleanDirectory(filename, false);
 		IO::WriteMetaData(filename);
 	}
 }
@@ -126,9 +132,11 @@ Terminate(const char * /* msg */, int signal, bool /*backtrace*/)
 	SignalHandler(signal);
 }
 
-void
+std::pair<std::string,std::string>
 CreateCleanDirectory (const std::string &path, bool callbarrier)
 {
+	std::pair<std::string,std::string> ret("","");
+
 	if(amrex::ParallelDescriptor::IOProcessor()) {
 		if(amrex::FileExists(path)) {
 			std::time_t t = std::time(0);
@@ -154,6 +162,8 @@ CreateCleanDirectory (const std::string &path, bool callbarrier)
 					       << " exists.  Renaming to:  " << newoldname << std::endl;
 			}
 			std::rename(path.c_str(), newoldname.c_str());
+			ret.first = path;
+			ret.second = newoldname;
 		}
 		if( ! amrex::UtilCreateDirectory(path, 0755)) {
 			amrex::CreateDirectoryFailed(path);
@@ -163,6 +173,7 @@ CreateCleanDirectory (const std::string &path, bool callbarrier)
 		// Force other processors to wait until directory is built.
 		amrex::ParallelDescriptor::Barrier("amrex::UtilCreateCleanDirectory");
 	}
+	return ret;
 }
 
 

@@ -96,7 +96,7 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	int ncomp = b.nComp();
 	int nghost = 2; //b.nGrow();
 	
-	Set::Scalar omega = 2./3.; // Damping factor (very important!)
+	//Set::Scalar omega = 2./3.; // Damping factor (very important!)
 
 	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
@@ -151,7 +151,7 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 					}
 
 					//xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
-					xfab(m,n) = (1.-omega)*xfab(m,n) + omega*(bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
+					xfab(m,n) = (1.-m_omega)*xfab(m,n) + m_omega*(bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
 				}
 			}
 		}
@@ -480,17 +480,18 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
 
 void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) 
 {
-	for (int i = 0; i < 2; i++)
-	{
-		MultiFab & mf = phi;
-		mf.FillBoundary(geom.periodicity());
-		const int ncomp = mf.nComp();
-		const int ng1 = 1;
-		const int ng2 = 2;
-		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
-		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-	}
+	Util::RealFillBoundary(phi,geom);
+//	for (int i = 0; i < 2; i++)
+//	{
+//		MultiFab & mf = phi;
+//		mf.FillBoundary(geom.periodicity());
+//		const int ncomp = mf.nComp();
+//		const int ng1 = 1;
+//		const int ng2 = 2;
+//		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
+//		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
+//		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
+//	}
 }
 
 void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,

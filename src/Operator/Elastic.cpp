@@ -605,10 +605,9 @@ Elastic<SYM>::averageDownCoeffs ()
 {
 	BL_PROFILE("Elastic::averageDownCoeffs()");
 	
-	for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
-	{
-		averageDownCoeffsSameAmrLevel(amrlev);
-	}
+	if (m_average_down_coeffs)
+		for (int amrlev = m_num_amr_levels-1; amrlev > 0; --amrlev)
+			averageDownCoeffsDifferentAmrLevels(amrlev);
 
 	averageDownCoeffsSameAmrLevel(0);
 	for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -621,6 +620,117 @@ Elastic<SYM>::averageDownCoeffs ()
 	 	}
 	}
 }
+
+template<int SYM>
+void
+Elastic<SYM>::averageDownCoeffsDifferentAmrLevels (int fine_amrlev)
+{
+	BL_PROFILE("Operator::Elastic::averageDownCoeffsDifferentAmrLevels()");
+	Util::Assert(INFO,TEST(fine_amrlev > 0));
+	
+	const int crse_amrlev = fine_amrlev - 1;
+	const int ncomp = 1;
+
+	MultiTab & crse_ddw = *m_ddw_mf[crse_amrlev][0];
+	MultiTab & fine_ddw = *m_ddw_mf[fine_amrlev][0];
+
+	amrex::Box cdomain(m_geom[crse_amrlev][0].Domain());
+	cdomain.convert(amrex::IntVect::TheNodeVector());
+
+	const Geometry& cgeom = m_geom[crse_amrlev  ][0];
+
+ 	const BoxArray&            fba = fine_ddw.boxArray();
+ 	const DistributionMapping& fdm = fine_ddw.DistributionMap();
+
+ 	MultiTab fine_ddw_for_coarse(amrex::coarsen(fba, 2), fdm, ncomp, 2);
+	fine_ddw_for_coarse.ParallelCopy(crse_ddw,0,0,ncomp,0,0,cgeom.periodicity());
+
+	const int coarse_fine_node = 1;
+	const int fine_fine_node = 2;
+
+	amrex::iMultiFab nodemask(amrex::coarsen(fba,2), fdm, 1, 2);
+	nodemask.ParallelCopy(*m_nd_fine_mask[crse_amrlev],0,0,1,0,0,cgeom.periodicity());
+
+	amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 2);
+	cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev],0,0,1,1,1,cgeom.periodicity());
+	
+	for (MFIter mfi(fine_ddw_for_coarse, false); mfi.isValid(); ++mfi)
+	{
+		const Box& bx = mfi.validbox();
+
+		amrex::Array4<const int> const& nmask = nodemask.array(mfi);
+		//amrex::Array4<const int> const& cmask = cellmask.array(mfi);
+
+		amrex::Array4<MATRIX4> const& cdata = fine_ddw_for_coarse.array(mfi);
+		amrex::Array4<const MATRIX4> const& fdata       = fine_ddw.array(mfi);
+
+		const Dim3 lo= amrex::lbound(cdomain), hi = amrex::ubound(cdomain);
+
+		for (int n = 0; n < fine_ddw.nComp(); n++)
+		{
+			// I,J,K == coarse coordinates
+			// i,j,k == fine coordinates
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int I, int J, int K) {
+					int i=I*2, j=J*2, k=K*2;
+					
+					if (nmask(I,J,K) == fine_fine_node || nmask(I,J,K) == coarse_fine_node)
+						{
+							if ((I == lo.x || I == hi.x) &&
+							    (J == lo.y || J == hi.y) &&
+							    (K == lo.z || K == hi.z)) // Corner
+								cdata(I,J,K,n) = fdata(i,j,k,n);
+							else if ((J == lo.y || J == hi.y) &&
+								 (K == lo.z || K == hi.z)) // X edge
+								cdata(I,J,K,n) = fdata(i-1,j,k,n)*0.25 + fdata(i,j,k,n)*0.5 + fdata(i+1,j,k,n)*0.25;
+							else if ((K == lo.z || K == hi.z) &&
+								 (I == lo.x || I == hi.x)) // Y edge
+								cdata(I,J,K,n) = fdata(i,j-1,k,n)*0.25 + fdata(i,j,k,n)*0.5 + fdata(i,j+1,k,n)*0.25;
+							else if ((I == lo.x || I == hi.x) &&
+								 (J == lo.y || J == hi.y)) // Z edge
+								cdata(I,J,K,n) = fdata(i,j,k-1,n)*0.25 + fdata(i,j,k,n)*0.5 + fdata(i,j,k+1,n)*0.25;
+							else if (I == lo.x || I == hi.x) // X face
+								cdata(I,J,K,n) =
+									(  fdata(i,j-1,k-1,n)     + fdata(i,j,k-1,n)*2.0 + fdata(i,j+1,k-1,n)
+									 + fdata(i,j-1,k  ,n)*2.0 + fdata(i,j,k  ,n)*4.0 + fdata(i,j+1,k  ,n)*2.0 
+									 + fdata(i,j-1,k+1,n)     + fdata(i,j,k+1,n)*2.0 + fdata(i,j+1,k+1,n)     )/16.0;
+							else if (J == lo.y || J == hi.y) // Y face
+								cdata(I,J,K,n) =
+									(  fdata(i-1,j,k-1,n)     + fdata(i-1,j,k,n)*2.0 + fdata(i-1,j,k+1,n)
+									 + fdata(i  ,j,k-1,n)*2.0 + fdata(i  ,j,k,n)*4.0 + fdata(i  ,j,k+1,n)*2.0 
+									 + fdata(i+1,j,k-1,n)     + fdata(i+1,j,k,n)*2.0 + fdata(i+1,j,k+1,n)     )/16.0;
+							else if (K == lo.z || K == hi.z) // Z face
+								cdata(I,J,K,n) =
+									(  fdata(i-1,j-1,k,n)     + fdata(i,j-1,k,n)*2.0 + fdata(i+1,j-1,k,n)
+									 + fdata(i-1,j  ,k,n)*2.0 + fdata(i,j  ,k,n)*4.0 + fdata(i+1,j  ,k,n)*2.0 
+									 + fdata(i-1,j+1,k,n)     + fdata(i,j+1,k,n)*2.0 + fdata(i+1,j+1,k,n)     )/16.0;
+							else // Interior
+								cdata(I,J,K,n) =
+									(fdata(i-1,j-1,k-1,n) + fdata(i-1,j-1,k+1,n) + fdata(i-1,j+1,k-1,n) + fdata(i-1,j+1,k+1,n) +
+									 fdata(i+1,j-1,k-1,n) + fdata(i+1,j-1,k+1,n) + fdata(i+1,j+1,k-1,n) + fdata(i+1,j+1,k+1,n)) / 64.0
+									+
+									(fdata(i,j-1,k-1,n) + fdata(i,j-1,k+1,n) + fdata(i,j+1,k-1,n) + fdata(i,j+1,k+1,n) +
+									 fdata(i-1,j,k-1,n) + fdata(i+1,j,k-1,n) + fdata(i-1,j,k+1,n) + fdata(i+1,j,k+1,n) +
+									 fdata(i-1,j-1,k,n) + fdata(i-1,j+1,k,n) + fdata(i+1,j-1,k,n) + fdata(i+1,j+1,k,n)) / 32.0
+									+
+									(fdata(i-1,j,k,n) + fdata(i,j-1,k,n) + fdata(i,j,k-1,n) +
+									 fdata(i+1,j,k,n) + fdata(i,j+1,k,n) + fdata(i,j,k+1,n)) / 16.0
+									+
+									fdata(i,j,k,n) / 8.0;
+						}
+
+				});
+		}
+	}
+
+	// Copy the fine residual restricted onto the coarse grid
+	// into the final residual.
+	crse_ddw.ParallelCopy(fine_ddw_for_coarse,0,0,ncomp,0,0,cgeom.periodicity());
+	const int mglev = 0;
+	Util::RealFillBoundary(crse_ddw,m_geom[crse_amrlev][mglev]);
+	return;
+}
+
+
 
 template<int SYM>
 void

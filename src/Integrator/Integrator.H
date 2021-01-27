@@ -96,7 +96,7 @@ public:
 	/// \brief Front-end method to initialize simulation
 	void InitData ();
 
-	void Restart (std::string restartfile);
+	void Restart (std::string restartfile, bool a_node = false);
 
 	/// \fn    Evolve
 	/// \brief Front-end method to start simulation
@@ -293,12 +293,16 @@ protected:
 private:
 	amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
 	amrex::Vector<int> nsubsteps;	///< how many substeps on each level?
-  
+	int max_plot_level = -1;
   
 	amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
 	int max_step = std::numeric_limits<int>::max();	///< Maximum allowable timestep
 	amrex::Real tstart = 0;	///< Default start time (default: 0)
 	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
+
+protected:
+	bool integrate_variables_before_advance = true;
+	bool integrate_variables_after_advance = false;
 
 protected:
 	struct {
@@ -339,7 +343,8 @@ protected:
 	// REGRIDDING
 	int regrid_int = 2; ///< Determine how often to regrid (default: 2)
 
-	std::string restart_file = "";
+	std::string restart_file_cell = "";
+	std::string restart_file_node = "";
 
 protected:
 	int plot_int = -1;               ///< How frequently to dump plot file (default: never)

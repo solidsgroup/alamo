@@ -28,11 +28,11 @@ protected:
 	void Regrid(int lev, Set::Scalar time) override;
 private:
 
-	Set::Field<Set::Scalar> Temp;
-	Set::Field<Set::Scalar> Temp_old;
-	Set::Field<Set::Scalar> Eta;
-	Set::Field<Set::Scalar> Eta_old;
-	Set::Field<Set::Scalar> FlameSpeedFab;
+	Set::Field<Set::Scalar> Temp_mf;
+	Set::Field<Set::Scalar> Temp_old_mf;
+	Set::Field<Set::Scalar> Eta_mf;
+	Set::Field<Set::Scalar> Eta_old_mf;
+	Set::Field<Set::Scalar> FlameSpeed_mf;
 	BC::BC<Set::Scalar> *TempBC;
 	BC::BC<Set::Scalar> *EtaBC;
 	IC::Voronoi *VoronoiIC;
@@ -41,22 +41,22 @@ private:
 	// int number_of_fabs = 1;
 	// int number_of_components = 2;
 
-	amrex::Real M;                  // Burn speed parameter
-	amrex::Real kappa;              // Burn width parameter
-	amrex::Real w1, w12, w0;        // Energy (before, during, after)
-	amrex::Real rho1, rho0;         // Density (before and after)
-	amrex::Real k1, k0;             // Thermal conductivity (before and after)
-	amrex::Real cp1, cp0;           // Specific heat (before and after)
-	amrex::Real qdotburn;           // Heat lost in flame
+	Set::Scalar M;                  // Burn speed parameter
+	Set::Scalar kappa;              // Burn width parameter
+	Set::Scalar w1, w12, w0;        // Energy (before, during, after)
+	Set::Scalar rho1, rho0;         // Density (before and after)
+	Set::Scalar k1, k0;             // Thermal conductivity (before and after)
+	Set::Scalar cp1, cp0;           // Specific heat (before and after)
+	Set::Scalar qdotburn;           // Heat lost in flame
 
 	int fs_number = 200;
-	amrex::Real fs_min = -1.0;
-	amrex::Real fs_max = 1.0;
-	//amrex::Real mean = 0.1;
-	amrex::Real volume_fraction = 0.1;
-	//amrex::Real std_deviation = 0.05;
-	amrex::Real R_min = 0.1;
-	amrex::Real R_max = 0.2;
+	Set::Scalar fs_min = -1.0;
+	Set::Scalar fs_max = 1.0;
+	//Set::Scalar mean = 0.1;
+	Set::Scalar volume_fraction = 0.1;
+	//Set::Scalar std_deviation = 0.05;
+	Set::Scalar R_min = 0.1;
+	Set::Scalar R_max = 0.2;
 	
 	IC::IC *EtaIC;
 
