@@ -8,6 +8,7 @@ using namespace std;
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include "mpi.h"
 
 
 namespace IC
@@ -292,7 +293,8 @@ while (i<1000)
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+	//MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	
 	};
 
@@ -300,7 +302,6 @@ while (i<1000)
 	//void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
 
- 
         Set::Vector size;  
         AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
@@ -407,10 +408,11 @@ private:
 	amrex::Real R_max;
 	int rank;
 	Type type;
-	amrex::Vector<amrex::Real> packedspheres_x;
-	amrex::Vector<amrex::Real> packedspheres_y;
+	//amrex::Vector<amrex::Real> packedspheres_x;
+	amrex::Vector<long double >packedspheres_x;
+	amrex::Vector<long double> packedspheres_y;
 #if BL_SPACEDIM==3
-	amrex::Vector<amrex::Real> packedspheres_z;
+	amrex::Vector<long double> packedspheres_z;
 #endif
 };
 }
