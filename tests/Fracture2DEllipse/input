@@ -1,7 +1,7 @@
 alamo.program = fracture
 timestep = 1e-4
 stop_time = 1.e0
-plot_file = output
+plot_file = tests/Fracture2DEllipse/output
 
 amr.plot_int = 50
 amr.max_level = 6

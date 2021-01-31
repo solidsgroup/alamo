@@ -93,7 +93,10 @@ public:
         RegisterNodalFab(crack.c_mf, 1, number_of_ghost_nodes, "crack", true);
         RegisterNodalFab(crack.c_old_mf, 1, number_of_ghost_nodes, "crack_old", false);
         RegisterNodalFab(crack.driving_force_mf, 5, number_of_ghost_nodes, "driving_force", false);
+
         RegisterIntegratedVariable(&(crack.driving_force_norm),"driving_force_norm");
+        RegisterIntegratedVariable(&(crack.int_crack),"int_c");
+        RegisterIntegratedVariable(&(elastic.int_energy),"int_W");
 
         IO::ParmParse pp_material("material");
         pp_material.query("refinement_threshold",material.refinement_threshold);
@@ -505,10 +508,14 @@ protected:
         const Set::Scalar DV = AMREX_D_TERM(DX[0],*DX[1],*DX[2]);
 
         amrex::Array4<const Set::Scalar> const &df = (*crack.driving_force_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const &c_new = (*crack.c_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const &energy = (*elastic.energy_mf[amrlev]).array(mfi);
         
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
         {
             crack.driving_force_norm += df(i,j,k,4) * DV;
+            crack.int_crack += c_new(i,j,k) * DV;
+            elastic.int_energy += energy(i,j,k) * DV;
         });
     }
 
@@ -536,6 +543,7 @@ private:
         Set::Field<Set::Scalar> energy_mf;           ///< total elastic energy
         Set::Field<Set::Scalar> energy_pristine_mf;      ///< energy of the prisitne material as if no crack is present
         Set::Field<Set::Scalar> energy_pristine_old_mf;  ///< energy of the pristine material for previous time step.
+        Set::Scalar int_energy = 0.0;               ///< integrated energy over the entire domain.
 
         BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
 		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
@@ -544,10 +552,13 @@ private:
         Set::Scalar omega = 2./3.;
     } elastic;
 
+    
+
     struct{
         Set::Field<Set::Scalar> c_mf;                ///< crack field at current time step
         Set::Field<Set::Scalar> c_old_mf;            ///< crack field at previous time step
         Set::Field<Set::Scalar> driving_force_mf;         ///< crack driving forces.
+        Set::Scalar int_crack = 0.0;                    ///< integrated crack field over the entire domain.
         Set::Scalar driving_force_reference = 1.0;
         Set::Scalar driving_force_norm = 0.0;
         Set::Scalar driving_force_norminf = 0.0;

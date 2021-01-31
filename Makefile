@@ -35,7 +35,7 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS += -Winline -Wextra -Wall  -std=c++17 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline -Wextra -Wall  -std=c++11 $(METADATA_FLAGS)
 
 LINKER_FLAGS += -Bsymbolic-functions
 
@@ -144,14 +144,14 @@ obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+	$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
 	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
-	@$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
+	$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
