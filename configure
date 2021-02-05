@@ -71,6 +71,7 @@ parser.add_argument('--no-diff',dest='diff',default=True,action='store_false',he
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
+parser.add_argument('--jit',dest='jit',action='store_true',default=False)
 parser.set_defaults(debug=False)
 args=parser.parse_args()
 
@@ -333,6 +334,17 @@ f2.write("\t-@mkdir -p .diff\n".format(postfix))
 f2.write("\t-@rm -rf .diff/{}.diff.patch\n".format(postfix))
 f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 
+
+#
+# JIT expression evaluation with Libmesh's FParser
+#
+# TODO: This part here is not done yet. Still need to generalize for
+#       arbitrary user libmesh install path.
+# https://mooseframework.inl.gov/modules/phase_field/FunctionMaterials/JITCompilation.html
+#
+if args.jit:
+    f.write('INCLUDE += -I/opt/libmesh/build/include/\n')
+    f.write('LIB     += /opt/libmesh/build/lib/libmesh_opt.so -Wl,-rpath,/opt/libmesh/build/lib/')
 
 #
 # Documentation check
