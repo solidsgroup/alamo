@@ -135,7 +135,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
 		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
 		disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
-		disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
+		//disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
 	}
 
 	{
@@ -580,17 +580,22 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 				{
 
-					if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
-					{
-						amrex::Real distH = std::abs(eta(i,j+1,k,0) - 0.5);
-						amrex::Real distL = std::abs(eta(i,j-1,k,0) - 0.5);
-						amrex::Real distN = std::abs(eta(i,j,k,0) - 0.5);
-						int l = j;
+					//if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
+					//{
+					//	amrex::Real distH = std::abs(eta(i,j+1,k,0) - 0.5);
+					//	amrex::Real distL = std::abs(eta(i,j-1,k,0) - 0.5);
+					//	amrex::Real distN = std::abs(eta(i,j,k,0) - 0.5);
+					//	int l = j;
 
-						if (distH > distN && distL > distN)
-						{
-							if (distH < distL){l = j+1;}
-							else if (distL < distH){l = j-1;};
+					//	if (distH > distN && distL > distN)
+					//	{
+					//		if (distH < distL){l = j+1;}
+					//		else if (distL < distH){l = j-1;};
+
+							//added this Feb 4
+							amrex::Real nuc = disconnection.nucleation_energy/(4*eta(i,j,k,0)*eta(i,j,k,1)+disconnection.epsilon);
+							disconnection.p = exp(-nuc/(disconnection.K_b*disconnection.temp));
+							// added this Feb 4
 
 							if (!disconnection.fixed)
 							{
@@ -607,18 +612,18 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 									x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
 								);
 
-								if (l != j)
-								{
-									Set::Vector y;
+					//			if (l != j)
+					//			{
+					//				Set::Vector y;
 
-									AMREX_D_TERM(
-										y(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-										y(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(l)) * DX[1];,
-										y(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
-									);
+					//				AMREX_D_TERM(
+					//					y(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+					//					y(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(l)) * DX[1];,
+					//					y(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
+					//				);
 
-									x(1) = (y(1) - x(1))*(0.5 - eta(i,j,k,0))/(eta(i,l,k,0)-eta(i,j,k,0)) + x(1);
-								};
+					//				x(1) = (y(1) - x(1))*(0.5 - eta(i,j,k,0))/(eta(i,l,k,0)-eta(i,j,k,0)) + x(1);
+					//			};
 
 								if (!disconnection.fixed){
 									//disconnection.nucleation_sites.push_back(x);
@@ -635,8 +640,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
 								disconnection.phases.push_back(disconnection.phase);
 							}
-						}
-					}
+						//}
+					//}
 				});
 			}
 

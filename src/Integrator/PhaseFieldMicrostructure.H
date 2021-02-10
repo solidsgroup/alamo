@@ -146,6 +146,7 @@ private:
 		Set::Scalar p = 0.0;
 		Set::Scalar q = 0.0;
 		Set::Scalar box_size = 0.0;
+		Set::Scalar epsilon = 0.005;
 		std::uniform_real_distribution<double> unif_dist;
 		std::uniform_int_distribution<int> int_dist;
 		std::default_random_engine rand_num_gen;
