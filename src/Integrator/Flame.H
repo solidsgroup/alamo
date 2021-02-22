@@ -49,7 +49,7 @@ private:
 	Set::Scalar cp1, cp0;           // Specific heat (before and after)
 	Set::Scalar qdotburn;           // Heat lost in flame
 
-	int fs_number = 200;
+	int fs_number = 1;
 	Set::Scalar fs_min = -1.0;
 	Set::Scalar fs_max = 1.0;
 	//Set::Scalar mean = 0.1;

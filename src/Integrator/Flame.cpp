@@ -8,7 +8,7 @@ namespace Integrator
 
 Flame::Flame () : Integrator()
 {
-  IO::ParmParse pp("physics"); 
+  IO::ParmParse pp("physics");
   pp.query("M",M);
   pp.query("kappa",kappa);
   pp.query("w1",w1);
@@ -31,28 +31,30 @@ Flame::Flame () : Integrator()
   pp.query("fs_max",fs_max);
 
   {
-    
+
     IO::ParmParse pp("bc");
      TempBC = new BC::Constant(1);
      pp.queryclass("temp", *static_cast<BC::Constant *>(TempBC));
      EtaBC = new BC::Constant(1);
      pp.queryclass("eta", *static_cast<BC::Constant *>(EtaBC));
-		
+
   }
 
   VoronoiIC = new IC::Voronoi(geom);
   PackedSpheresIC = new IC::PackedSpheres(geom);
   std::vector<Set::Scalar> fs(fs_number);
-  for (int i = 0; i < fs_number; i++) 
+  for (int i = 0; i < fs_number; i++)
   fs[i] = 0.5*(1.0 + Util::Random());
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
   //PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
-   PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);
+  PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);
+ 
+    
 
   EtaIC = new IC::Wedge(geom);
   // EtaIC = new IC::Constant(geom,value);
 
-                RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
+    RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
 		RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
 		RegisterNewFab(Eta_mf, EtaBC, 1, 1, "Eta", true);
 		RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
@@ -137,7 +139,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 			amrex::Array4<char>              const &tags = a_tags.array(mfi);
 			amrex::Array4<const Set::Scalar> const &Eta  = (*Eta_mf[lev]).array(mfi);
 
-			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 			{
 				Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
 				if (gradeta.lpNorm<2>() * dr > 0.001)
@@ -153,5 +155,3 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 		Util::Message(INFO, "Regridding on level ", lev);
 	}
 } // namespace Integrator
-
-

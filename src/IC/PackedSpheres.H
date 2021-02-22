@@ -56,9 +56,9 @@ public:
 				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
-		alpha = a_alpha;
+		//alpha = a_alpha;
 		vf= a_volume_fraction;
-        R_min=a_R_min;
+                R_min=a_R_min;
 		R_max=a_R_max;
 		type = a_type;
 
@@ -67,10 +67,10 @@ public:
     
 		std::vector <amrex::Real> sph_vol;   
 		std::vector <amrex::Real> sph_nos; 
-        amrex::Real sph_tot_vol=0;
+               amrex::Real sph_tot_vol=0;
 		R.resize(number_of_grains); 
 		R_n.resize(number_of_grains); 
-        sph_vol.resize(number_of_grains);
+                sph_vol.resize(number_of_grains);
 		sph_nos.resize(number_of_grains);
 		count.resize(number_of_grains);
 		R_new.resize(number_of_grains);
@@ -289,9 +289,15 @@ while (i<1000)
 	}
 	while (total<pack_size);
     }
+       alpha.resize(pack_size);
+       for (int i = 0; i < pack_size; i++)
+       {
+       alpha[i] = 0.5*(1.0 + Util::Random());
+       }
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	//MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
