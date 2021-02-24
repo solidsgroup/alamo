@@ -645,14 +645,12 @@ Integrator::MakeNewLevelFromScratch (int lev, amrex::Real t, const amrex::BoxArr
 	{
 		cell.physbc_array[n]->define(geom[lev]);
 		cell.physbc_array[n]->FillBoundary(*(*cell.fab_array[n])[lev],0,0,t,0);
-//		Util::RealFillBoundary(*(*cell.fab_array[n])[lev],geom[lev]);
 	}
 
 	for (int n = 0 ; n < node.number_of_fabs; n++)
 	{
 		node.physbc_array[n]->define(geom[lev]);
 		node.physbc_array[n]->FillBoundary(*(*node.fab_array[n])[lev],0,0,t,0);
-//		Util::RealFillBoundary(*(*node.fab_array[n])[lev],geom[lev]);
 	}
 }
 
