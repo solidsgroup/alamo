@@ -1,6 +1,7 @@
 alamo.program = microstructure
 
-plot_file = /scratch/07498/mgokuli/001_510_modifiedP1pt45
+#plot_file = /scratch/07498/mgokuli/001_510_modifiedP1pt45
+plot_file = tests/ManualDisconnections/output
 
 timestep = 0.05
 stop_time=4.0
@@ -47,7 +48,7 @@ fluctuation.sd=1.0
 fluctuation.tstart=1.0
 
 disconnection.on=1
-disconnection.tstart=2.1
+disconnection.tstart=1.2
 disconnection.nucleation_energy=1.45e-23
 disconnection.temp= 0.125    # probability 1/e^8
 disconnection.box_size=0.3
@@ -58,7 +59,7 @@ disconnection.fixed_site=4.0
 disconnection.fixed_phase=0
 
 elastic.on = 1
-elastic.tstart = 2.0
+elastic.tstart = 1.1
 elastic.interval = 1
 elastic.solver.verbose = 2
 
