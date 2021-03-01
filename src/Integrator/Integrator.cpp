@@ -605,7 +605,6 @@ Integrator::Restart(const std::string dirname, bool a_nodal)
 
 		for (unsigned int n = 0; n < m_basefields.size(); n++)
 		{
-			Util::Message(INFO,"n = ", n , " size = ", m_basefields.size());
 			m_basefields[n]->MakeNewLevelFromScratch(lev,t_new[lev],grids[lev],dmap[lev]);
 		}
 	}

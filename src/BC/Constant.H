@@ -115,6 +115,7 @@ public:
 		bcmap["periodic"]         = (int)amrex::LinOpBCType::Periodic;
 
 
+		
 		value.m_bc_type[Face::XLO].clear(); value.m_bc_val[Face::XLO].clear();
 		value.m_bc_type[Face::XHI].clear(); value.m_bc_val[Face::XHI].clear();
 		value.m_bc_type[Face::YLO].clear(); value.m_bc_val[Face::YLO].clear();

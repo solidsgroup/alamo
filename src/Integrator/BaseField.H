@@ -151,15 +151,10 @@ public:
     {
 		//if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
 		//{
-			Util::Message(INFO);
 			amrex::BoxArray ngrids = cgrids;
-			Util::Message(INFO);
 			ngrids.convert(amrex::IntVect::TheNodeVector());
-			Util::Message(INFO);
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
-			Util::Message(INFO);
             FillCoarsePatch(lev,time,0,m_ncomp);
-			Util::Message(INFO);
 		//}
 		//else
 		//{

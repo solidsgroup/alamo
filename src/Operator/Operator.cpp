@@ -96,7 +96,6 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 	int ncomp = b.nComp();
 	int nghost = 2; //b.nGrow();
 	
-	//Set::Scalar omega = 2./3.; // Damping factor (very important!)
 
 	amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
 	amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
