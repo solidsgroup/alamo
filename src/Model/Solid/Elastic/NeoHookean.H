@@ -67,6 +67,10 @@ public:
                     }
         return ddw;
     }
+    virtual void Print(std::ostream &out) const override 
+    {
+        out << "mu = " << mu << " kappa = " << kappa;
+    }
 	
 public:
     Set::Scalar mu = NAN, kappa = NAN;
@@ -89,23 +93,22 @@ public:
     }
     static void Parse(NeoHookean & value, IO::ParmParse & pp)
     {
-        //Set::Scalar mu, lambda;
         pp.query("mu",value.mu);
         pp.query("kappa",value.kappa);
-        //value.mu = mu;
-        //value.lambda = lambda;
     }
 
     AMREX_FORCE_INLINE
 	void operator += (const NeoHookean &rhs)
     {
-        ddw += rhs.ddw;
+        kappa += rhs.kappa;
+        mu += rhs.mu;
 	}    
     AMREX_FORCE_INLINE
    	virtual NeoHookean operator * (const Set::Scalar alpha) const
 	{
         NeoHookean ret;
-        ret.ddw = ddw*alpha;
+        ret.kappa = kappa*alpha;
+        ret.mu = kappa*mu;
         return ret;
 	}    
     friend NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b);
@@ -116,21 +119,24 @@ AMREX_FORCE_INLINE
 NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b)
 {
     NeoHookean ret;
-    ret.ddw = b.ddw*alpha;
+    ret.mu = alpha * b.mu;
+    ret.kappa = alpha * b.kappa;
     return ret;
 }    
 AMREX_FORCE_INLINE
 NeoHookean operator + (const NeoHookean a, const NeoHookean b)
 {
     NeoHookean ret;
-    ret.ddw = a.ddw + b.ddw;
+    ret.mu = a.mu + b.mu;
+    ret.kappa = a.kappa + b.kappa;
     return ret;
 }    
 AMREX_FORCE_INLINE
 NeoHookean operator - (const NeoHookean a, const NeoHookean b)
 {
     NeoHookean ret;
-    ret.ddw = a.ddw - b.ddw;
+    ret.mu = a.mu - b.mu;
+    ret.kappa = a.kappa - b.kappa;
     return ret;
 }    
 
