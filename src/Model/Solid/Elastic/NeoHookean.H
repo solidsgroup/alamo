@@ -1,6 +1,7 @@
 #ifndef MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
 #define MODEL_SOLID_ELASTIC_NEOHOOKEAN_H_
 
+#include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
 
 namespace Model
@@ -72,6 +73,13 @@ public:
     KinematicVariable kinvar = KinematicVariable::F;
 
 public:
+    static NeoHookean Zero()
+    {
+        NeoHookean ret;
+        ret.mu = 0.0;
+        ret.kappa = 0.0;
+        return ret;
+    }
     static NeoHookean Random()
     {
         NeoHookean ret;
@@ -79,6 +87,15 @@ public:
         ret.kappa = Util::Random();
         return ret;
     }
+    static void Parse(NeoHookean & value, IO::ParmParse & pp)
+    {
+        //Set::Scalar mu, lambda;
+        pp.query("mu",value.mu);
+        pp.query("kappa",value.kappa);
+        //value.mu = mu;
+        //value.lambda = lambda;
+    }
+
     AMREX_FORCE_INLINE
 	void operator += (const NeoHookean &rhs)
     {

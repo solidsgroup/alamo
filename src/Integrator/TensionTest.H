@@ -21,7 +21,6 @@
 #include "Model/Solid/Solid.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
-#include "Model/Solid/Affine/Isotropic.H"
 
 #include "Operator/Operator.H"
 
@@ -32,7 +31,7 @@ namespace Integrator
 template<class MODEL>
 class TensionTest : public Integrator
 {
-    using model_type = Model::Solid::Affine::Isotropic;
+    //using model_type = Model::Solid::Affine::Isotropic;
 public:
     /// \brief Read in parameters and register field variables
     TensionTest()
@@ -108,7 +107,7 @@ protected:
             {
                 amrex::Box bx = mfi.grownnodaltilebox();
 
-                amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<MODEL> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -124,14 +123,14 @@ protected:
         elastic.bc.Init(rhs_mf,geom);
 
         amrex::LPInfo info;
-        Operator::Elastic<Model::Solid::Affine::Isotropic::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
+        Operator::Elastic<MODEL::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
         elastic_op.SetBC(&elastic.bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
         IO::ParmParse pp("elastic");
-        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
+        elastic.solver = new Solver::Nonlocal::Newton<MODEL>(elastic_op);
         pp.queryclass("solver",*elastic.solver);
 
         elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
@@ -142,7 +141,7 @@ protected:
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
-                amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<MODEL>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>       const &stress  = stress_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>       const &strain  = strain_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
@@ -197,7 +196,7 @@ private:
     Set::Field<Set::Scalar> stress_mf;
     Set::Field<Set::Scalar> strain_mf;
 
-    Set::Field<model_type> model_mf;
+    Set::Field<MODEL> model_mf;
 
     IC::IC *ic = nullptr;          ///< Pointer to abstract IC object
     BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
@@ -205,7 +204,7 @@ private:
     struct {
         std::vector<MODEL> models;
         model_type model1, model2;
-        Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
+        Solver::Nonlocal::Newton<MODEL> *solver;//(elastic.op);
         BC::Operator::Elastic::Constant bc;
     } elastic;
 

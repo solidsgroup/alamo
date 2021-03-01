@@ -45,8 +45,8 @@ int main (int argc, char* argv[])
 	}
 	else if (program == "finitekinematics")
 	{
-		Integrator::Integrator *fk = new Integrator::FiniteKinematics();
-		//Integrator::Integrator *fk = new Integrator::FiniteKinematics<Model::Solid::Elastic::NeoHookean>();
+		//Integrator::Integrator *fk = new Integrator::FiniteKinematics();
+		Integrator::Integrator *fk = new Integrator::TensionTest<Model::Solid::Elastic::NeoHookean>();
 		fk->InitData();
 		fk->Evolve();		
 		delete fk;

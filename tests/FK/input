@@ -21,10 +21,12 @@ elastic.b = 0 0 0
 elastic.mu = 3.0    # WORKS
 elastic.kappa = 6.5 # WORKS
 
+elastic.model1.mu = 3.0
+elastic.model1.kappa = 6.5
 
-elastic.newton.verbose = 3
-elastic.newton.fixed_iter = 50
-elastic.newton.nriters = 5
+elastic.solver.verbose = 3
+elastic.solver.fixed_iter = 50
+elastic.solver.nriters = 5
 
 ### UNIAXIAL TENSION ###
 elastic.bc.val.xhi       = (0,2:-2,4) 0.0 0.0
