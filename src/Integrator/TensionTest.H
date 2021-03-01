@@ -1,8 +1,9 @@
-#ifndef INTEGRATOR_ESHELBY_H
-#define INTEGRATOR_ESHELBY_H
+#ifndef INTEGRATOR_TENSIONTEST_H
+#define INTEGRATOR_TENSIONTEST_H
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <numeric>
 
 #include "AMReX.H"
 #include "AMReX_ParallelDescriptor.H"
@@ -28,18 +29,39 @@
 
 namespace Integrator
 {
-class Eshelby : public Integrator
+template<class MODEL>
+class TensionTest : public Integrator
 {
     using model_type = Model::Solid::Affine::Isotropic;
 public:
     /// \brief Read in parameters and register field variables
-    Eshelby()
+    TensionTest()
     {
-        RegisterNodalFab(eta_mf, 1, 2, "eta",true);
+        
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
+        
+
+        {
+            IO::ParmParse pp("elastic");
+            int nmodels = 1;
+            pp.query("nmodels",nmodels);
+            for (int i = 0; i<nmodels; i++)
+            {
+                std::string name = "model" + std::to_string(i+1);
+                MODEL tmp_model;
+                pp.queryclass(name.data(), tmp_model);
+                elastic.models.push_back(tmp_model);
+            }
+            Util::Assert(INFO,TEST(elastic.models.size() > 0));
+
+            pp.queryclass("bc",elastic.bc);
+            RegisterNodalFab(eta_mf, elastic.models.size(), 2, "eta",true);    
+        }
+        RegisterGeneralFab(model_mf, 1, 2);
+
         {
             IO::ParmParse pp("ic");
             std::string type;
@@ -50,20 +72,6 @@ public:
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
         }
-        {
-            IO::ParmParse pp("elastic");
-            {
-                pp.queryclass("model1",elastic.model1);
-                pp.queryclass("model2",elastic.model2);
-
-                // TODO: figure out how to initialize solvers in
-                // here instead of TimeStepBegin...
-
-                pp.queryclass("bc",elastic.bc);
-            }
-        }
-        
-        RegisterGeneralFab(model_mf, 1, 2);
     }
 
 protected:
@@ -71,7 +79,14 @@ protected:
     void Initialize(int lev) override
     {
         eta_mf[lev]->setVal(0.0);
-        ic->Initialize(lev, eta_mf);
+        if (elastic.models.size() > 1 && ic)
+        {
+            ic->Initialize(lev, eta_mf);
+        }
+        else 
+        {
+            eta_mf[lev]->setVal(1.0);
+        }
 
         disp_mf[lev]->setVal(0.);
         rhs_mf[lev]->setVal(0.);
@@ -97,7 +112,9 @@ protected:
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    model(i, j, k) = eta(i, j, k) * elastic.model1 + (1.0 - eta(i, j, k)) * elastic.model2;
+                    model(i,j,k) = MODEL::Zero();
+                    for (int n = 0; n < elastic.models.size(); n++) 
+                        model(i,j,k) += eta(i,j,k,n) * elastic.models[n];
                 });
             }
 
@@ -182,10 +199,11 @@ private:
 
     Set::Field<model_type> model_mf;
 
-    IC::IC *ic;          ///< Pointer to abstract IC object
+    IC::IC *ic = nullptr;          ///< Pointer to abstract IC object
     BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     struct {
+        std::vector<MODEL> models;
         model_type model1, model2;
         Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic> *solver;//(elastic.op);
         BC::Operator::Elastic::Constant bc;

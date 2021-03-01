@@ -2,6 +2,7 @@
 #define MODEL_SOLID_AFFINE_ISOTROPIC_H_
 
 #include "AMReX.H"
+#include "IO/ParmParse.H"
 #include "Model/Solid/Solid.H"
 
 namespace Model
@@ -50,6 +51,15 @@ public:
     KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:
+    static Isotropic Zero()
+    {
+        Isotropic ret;
+        Set::Scalar mu = 0.0;
+        Set::Scalar lambda = 0.0;
+        Set::Matrix F0 = Set::Matrix::Zero();
+        ret.Define(mu,lambda,F0);
+        return ret;
+    }
     static Isotropic Random()
     {
         Isotropic ret;
