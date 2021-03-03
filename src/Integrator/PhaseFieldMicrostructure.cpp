@@ -593,7 +593,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					//		else if (distL < distH){l = j-1;};
 
 							//added this Feb 4
-							amrex::Real nuc = disconnection.nucleation_energy/(4*eta(i,j,k,0)*eta(i,j,k,1)+disconnection.epsilon);
+							amrex::Real nuc = disconnection.nucleation_energy/(4.0*eta(i,j,k,0)*eta(i,j,k,1)+disconnection.epsilon);
 							disconnection.p = exp(-nuc/(disconnection.K_b*disconnection.temp));
 							// added this Feb 4
 
