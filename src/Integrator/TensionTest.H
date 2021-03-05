@@ -71,6 +71,9 @@ public:
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
         }
+        RegisterIntegratedVariable(&(trac_lo[0].data()[0]),"trac_lo_xx");
+        SetThermoInt(1);
+        SetThermoPlotInt(1);
     }
 
 protected:
@@ -147,12 +150,26 @@ protected:
                 amrex::Array4<Set::Scalar>       const &strain  = strain_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
 
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX);
-                    Set::Matrix sigma = model(i,j,k).DW(gradu);
-                    Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-                    Numeric::MatrixToField(stress,i,j,k,sigma);
-                    Numeric::MatrixToField(strain,i,j,k,eps);
+                    std::array<Numeric::StencilType,AMREX_SPACEDIM>
+					    sten = Numeric::GetStencil(i,j,k,bx);
+
+                    if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
+                    {
+                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp,i,j,k,DX,sten);
+                        Set::Matrix P = model(i,j,k).DW(F);
+                        Numeric::MatrixToField(stress,i,j,k,P);
+                        Numeric::MatrixToField(strain,i,j,k,F);
+                    }
+                    else
+                    {                    
+                        Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX);
+                        Set::Matrix sigma = model(i,j,k).DW(gradu);
+                        Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+                        Numeric::MatrixToField(stress,i,j,k,sigma);
+                        Numeric::MatrixToField(strain,i,j,k,eps);
+                    }
                 });
             }
         }
@@ -161,6 +178,39 @@ protected:
     void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/) override
     {
         // Nothing to do here.
+    }
+
+    void Integrate(int amrlev, Set::Scalar time, int /*step*/,
+    										 const amrex::MFIter &mfi, const amrex::Box &box) override
+    {
+
+//    	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
+    	const amrex::Real *DX = geom[amrlev].CellSize();
+        amrex::Box domain = geom[amrlev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+
+
+    	Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        Set::Vector da(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]);
+
+        
+
+                
+//    
+//    	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
+		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+		const Dim3 boxlo= amrex::lbound(box), boxhi = amrex::ubound(box);
+
+    	amrex::Array4<const amrex::Real> const &stress = (*stress_mf[amrlev]).array(mfi);
+    	amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
+    	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+            if (i == lo.x && (j < boxhi.y && k < boxhi.z))
+            {
+                trac_lo[0](0) += 0.25 * (stress(i,j,k,0) + stress(i,j+1,k,0) + stress(i,j,k+1,0) + stress(i,j+1,k+1,0)) * da(0);
+            } 
+        });
+            
     }
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
@@ -196,6 +246,10 @@ private:
     Set::Field<Set::Scalar> res_mf;
     Set::Field<Set::Scalar> stress_mf;
     Set::Field<Set::Scalar> strain_mf;
+
+    Set::Vector trac_lo[AMREX_SPACEDIM];
+    Set::Vector trac_hi[AMREX_SPACEDIM];
+
 
     Set::Field<MODEL> model_mf;
 

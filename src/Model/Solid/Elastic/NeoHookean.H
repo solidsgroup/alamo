@@ -74,7 +74,7 @@ public:
 	
 public:
     Set::Scalar mu = NAN, kappa = NAN;
-    KinematicVariable kinvar = KinematicVariable::F;
+    static constexpr KinematicVariable kinvar = KinematicVariable::F;
 
 public:
     static NeoHookean Zero()
