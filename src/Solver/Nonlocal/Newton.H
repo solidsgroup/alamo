@@ -183,10 +183,14 @@ public:
             Set::Scalar relnorm;
             if (solnorm == 0) relnorm = cornorm;
             else relnorm = cornorm / solnorm;
-            if (m_verbose > 1) Util::Message(INFO,"NR relative norm(ddisp) = ",relnorm);
+            if (m_verbose > 0) Util::Message(INFO,"NR iteration ",nriter+1,", relative norm(ddisp) = ",relnorm);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 amrex::MultiFab::Add(*a_u_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+
+            if (relnorm < m_nrtolerance)
+                return relnorm;
+
         }
 
         return 0.0;
@@ -330,6 +334,7 @@ public:
 
 public:
     int m_nriters = 1;
+    Set::Scalar m_nrtolerance = 0.0;
     Operator::Elastic<T::sym> &m_elastic;
     BC::Operator::Elastic::Elastic &m_bc;
 
@@ -339,6 +344,7 @@ public:
         Linear::Parse(value,pp);
         
         pp.query("nriters",value.m_nriters);
+        pp.query("nrtolerance",value.m_nrtolerance);
     }
 
 };

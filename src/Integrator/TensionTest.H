@@ -14,6 +14,7 @@
 #include "IC/IC.H"
 #include "BC/BC.H"
 #include "BC/Operator/Elastic/Constant.H"
+#include "BC/Operator/Elastic/TensionTest.H"
 
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
@@ -55,9 +56,21 @@ public:
                 elastic.models.push_back(tmp_model);
             }
             Util::Assert(INFO,TEST(elastic.models.size() > 0));
-
-            pp.queryclass("bc",elastic.bc);
             RegisterNodalFab(eta_mf, elastic.models.size(), 2, "eta",true);    
+
+            std::string bc_type = "constant";
+            pp.query("bc.type",bc_type);
+            if (bc_type == "constant")
+            {
+                elastic.bc = new BC::Operator::Elastic::Constant();
+                pp.queryclass("bc",static_cast<BC::Operator::Elastic::Constant*>(elastic.bc));
+            }
+            else if (bc_type == "tension_test")
+            {
+                elastic.bc = new BC::Operator::Elastic::TensionTest();
+                pp.queryclass("bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(elastic.bc));
+            }
+
         }
         RegisterGeneralFab(model_mf, 1, 2);
 
@@ -71,9 +84,9 @@ public:
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
         }
+        #if AMREX_SPACEDIM==3
         RegisterIntegratedVariable(&(trac_lo[0].data()[0]),"trac_lo_xx");
-        SetThermoInt(1);
-        SetThermoPlotInt(1);
+        #endif
     }
 
 protected:
@@ -104,6 +117,8 @@ protected:
 
             eta_mf[lev]->FillBoundary();
 
+            disp_mf[lev]->setVal(0.0);
+
             Set::Vector DX(geom[lev].CellSize());
 
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
@@ -115,7 +130,7 @@ protected:
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     model(i,j,k) = MODEL::Zero();
-                    for (int n = 0; n < elastic.models.size(); n++) 
+                    for (unsigned int n = 0; n < elastic.models.size(); n++) 
                         model(i,j,k) += eta(i,j,k,n) * elastic.models[n];
                 });
             }
@@ -123,13 +138,13 @@ protected:
             Util::RealFillBoundary(*model_mf[lev],geom[lev]);
         }
 
-        elastic.bc.SetTime(a_time);
-        elastic.bc.Init(rhs_mf,geom);
+        elastic.bc->SetTime(a_time);
+        elastic.bc->Init(rhs_mf,geom);
 
         amrex::LPInfo info;
         Operator::Elastic<MODEL::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
-        elastic_op.SetBC(&elastic.bc);
+        elastic_op.SetBC(elastic.bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
@@ -180,35 +195,33 @@ protected:
         // Nothing to do here.
     }
 
-    void Integrate(int amrlev, Set::Scalar time, int /*step*/,
-    										 const amrex::MFIter &mfi, const amrex::Box &box) override
+    void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
+    				 const amrex::MFIter &mfi, const amrex::Box &box) override
     {
-
-//    	Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
     	const amrex::Real *DX = geom[amrlev].CellSize();
         amrex::Box domain = geom[amrlev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
 
-    	Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-        Set::Vector da(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]);
+    	//Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        #if AMREX_SPACEDIM == 3
+        Set::Vector da(AMREX_D_DECL(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]));
+        #endif
 
-        
-
-                
-//    
-//    	BL_PROFILE("PhaseFieldMicrostructure::Integrate");
-		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-		const Dim3 boxlo= amrex::lbound(box), boxhi = amrex::ubound(box);
+		const Dim3 lo= amrex::lbound(domain)/*, hi = amrex::ubound(domain)*/;
+		const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
 
     	amrex::Array4<const amrex::Real> const &stress = (*stress_mf[amrlev]).array(mfi);
-    	amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
+    	//amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
     	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
+            #if AMREX_SPACEDIM == 3
             if (i == lo.x && (j < boxhi.y && k < boxhi.z))
             {
                 trac_lo[0](0) += 0.25 * (stress(i,j,k,0) + stress(i,j+1,k,0) + stress(i,j,k+1,0) + stress(i,j+1,k+1,0)) * da(0);
             } 
+            #endif
+
         });
             
     }
@@ -260,7 +273,7 @@ private:
         std::vector<MODEL> models;
         model_type model1, model2;
         Solver::Nonlocal::Newton<MODEL> *solver;//(elastic.op);
-        BC::Operator::Elastic::Constant bc;
+        BC::Operator::Elastic::Elastic *bc;
     } elastic;
 
 };
