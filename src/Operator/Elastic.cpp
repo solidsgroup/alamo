@@ -1,19 +1,5 @@
 // TODO: Remove these 
 
-#include "Model/Solid/Elastic/NeoHookean.H"
-#include "Model/Solid/Linear/Isotropic.H"
-#include "Model/Solid/Linear/IsotropicDegradable.H"
-#include "Model/Solid/Linear/IsotropicDegradableTanh.H"
-#include "Model/Solid/Linear/Cubic.H"
-#include "Model/Solid/Linear/Laplacian.H"
-#include "Model/Solid/Affine/Isotropic.H"
-#include "Model/Solid/Affine/Cubic.H"
-#include "Model/Solid/Affine/IsotropicDegradable.H"
-#include "Model/Solid/Affine/CubicDegradable.H"
-#include "Model/Solid/Affine/J2Plastic.H"
-#include "Model/Solid/Affine/J2PlasticDegradable.H"
-#include "Model/Solid/Affine/CrystalPlastic.H"
-#include "Model/Solid/Affine/CrystalPlasticDegradable.H"
 #include "Elastic.H"
 #include "Set/Set.H"
 

@@ -271,7 +271,6 @@ private:
     
     struct {
         std::vector<MODEL> models;
-        model_type model1, model2;
         Solver::Nonlocal::Newton<MODEL> *solver;//(elastic.op);
         BC::Operator::Elastic::Elastic *bc;
     } elastic;

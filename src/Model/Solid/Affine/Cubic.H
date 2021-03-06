@@ -83,63 +83,14 @@ public:
             ret.ddw += models[n].ddw * (eta[n] / etasum);
             ret.F0  += models[n].F0  * (eta[n] / etasum);
         }
-        //if (eta[0] > eta[1])
-        //{
-        //    ret.ddw = models[0].ddw;
-        //    ret.F0  = models[0].F0;
-        //}
-        //else
-        //{
-        //    ret.ddw = models[1].ddw;
-        //    ret.F0  = models[1].F0;
-        //}
         return ret;
     }
-    AMREX_FORCE_INLINE
-	void operator += (const Cubic &rhs)
-    {
-        ddw += rhs.ddw;
-        F0  += rhs.F0;
-	}    
-    AMREX_FORCE_INLINE
-   	Cubic operator * (const Set::Scalar alpha) const
-	{
-        Cubic ret;
-        ret.ddw = ddw*alpha;
-        ret.F0  = alpha*F0;
-        return ret;
-	}    
-    friend Cubic operator * (const Set::Scalar alpha, const Cubic b);
-    friend Cubic operator + (const Cubic a, const Cubic b);
-    friend Cubic operator - (const Cubic a, const Cubic b);
+
+    #define OP_CLASS Cubic
+    #define OP_VARS  X(ddw) X(F0)
+    #include "Model/Solid/InClassOperators.H"
 };
-
-
-AMREX_FORCE_INLINE
-Cubic operator * (const Set::Scalar alpha, const Cubic b)
-{
-    Cubic ret;
-    ret.ddw = b.ddw*alpha;
-    ret.F0  = alpha*b.F0;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Cubic operator + (const Cubic a, const Cubic b)
-{
-    Cubic ret;
-    ret.ddw = a.ddw + b.ddw;
-    ret.F0  = a.F0 + b.F0;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Cubic operator - (const Cubic a, const Cubic b)
-{
-    Cubic ret;
-    ret.ddw = a.ddw - b.ddw;
-    ret.F0  = a.F0 - b.F0;
-    return ret;
-}    
-
+#include "Model/Solid/ExtClassOperators.H"
 
 }
 }

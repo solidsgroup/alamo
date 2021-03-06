@@ -3,7 +3,7 @@
 
 #include "AMReX.H"
 #include "IO/ParmParse.H"
-#include "Model/Solid/Solid.H"
+#include "Model/Solid/Affine/Affine.H"
 
 namespace Model
 {
@@ -11,12 +11,12 @@ namespace Solid
 {
 namespace Affine
 {
-class Isotropic : public Solid<Set::Sym::Isotropic>
+class Isotropic : public Affine<Set::Sym::Isotropic>
 {
 public:
 
 	Isotropic() {};
-    Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
+    Isotropic(Affine<Set::Sym::Isotropic> base) : Affine<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda, Set::Matrix a_F0=Set::Matrix::Zero()) 
     {
         Define(a_mu,a_lambda,a_F0);
@@ -45,10 +45,6 @@ public:
     {
         return ddw;
     }
-	void SetF0(Set::Matrix a_F0) { F0 = a_F0; }
-public:
-    Set::Matrix F0;
-    KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:
     static Isotropic Zero()
@@ -92,51 +88,11 @@ public:
         }
         value.Define(mu,lambda,F0);
     }
-    AMREX_FORCE_INLINE
-	void operator += (const Isotropic &rhs)
-    {
-        ddw += rhs.ddw;
-        F0  += rhs.F0;
-	}    
-    AMREX_FORCE_INLINE
-   	Isotropic operator * (const Set::Scalar alpha) const
-	{
-        Isotropic ret;
-        ret.ddw = ddw*alpha;
-        ret.F0  = alpha*F0;
-        return ret;
-	}    
-    friend Isotropic operator * (const Set::Scalar alpha, const Isotropic b);
-    friend Isotropic operator + (const Isotropic a, const Isotropic b);
-    friend Isotropic operator - (const Isotropic a, const Isotropic b);
+    #define OP_CLASS Isotropic
+    #define OP_VARS  X(ddw) X(F0)
+    #include "Model/Solid/InClassOperators.H"
 };
-AMREX_FORCE_INLINE
-Isotropic operator * (const Set::Scalar alpha, const Isotropic b)
-{
-    Isotropic ret;
-    ret.ddw = b.ddw*alpha;
-    ret.F0  = alpha*b.F0;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Isotropic operator + (const Isotropic a, const Isotropic b)
-{
-    Isotropic ret;
-    ret.ddw = a.ddw + b.ddw;
-    ret.F0  = a.F0 + b.F0;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Isotropic operator - (const Isotropic a, const Isotropic b)
-{
-    Isotropic ret;
-    ret.ddw = a.ddw + b.ddw;
-    ret.F0  = a.F0 + b.F0;
-    return ret;
-}    
-
-
-
+#include "Model/Solid/ExtClassOperators.H"
 }
 }
 }
