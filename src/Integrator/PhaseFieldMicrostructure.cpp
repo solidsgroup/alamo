@@ -132,6 +132,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("fixed",disconnection.fixed);
 		pp.query("fixed_site",disconnection.fixed_site);
 		pp.query("fixed_phase",disconnection.phase);
+		pp.query("epsilon",disconnection.epsilon);
 
 		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
 		disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
@@ -593,7 +594,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					//		else if (distL < distH){l = j-1;};
 
 							//added this Feb 4
-							amrex::Real nuc = disconnection.nucleation_energy/(4*eta(i,j,k,0)*eta(i,j,k,1)+disconnection.epsilon);
+							amrex::Real nuc = disconnection.nucleation_energy/(16.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)+disconnection.epsilon);
 							disconnection.p = exp(-nuc/(disconnection.K_b*disconnection.temp));
 							// added this Feb 4
 
@@ -644,6 +645,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 						//}
 					//}
 				});
+				Util::Message(INFO,"Nucleating", disconnection.sitex.size(), " sites");
 			}
 
 

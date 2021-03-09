@@ -1,6 +1,7 @@
 alamo.program = microstructure
 
-plot_file = /scratch/07498/mgokuli/001_510_guess1
+#plot_file = /scratch/07498/mgokuli/001_510_modifiedP1pt45
+plot_file = tests/ManualDisconnections/output
 
 timestep = 0.05
 stop_time=4.0
@@ -36,7 +37,7 @@ anisotropy.on=1
 anisotropy.gb_type = read
 anisotropy.filename = tests/ManualDisconnections/smooth_gbe_001-510_CuSTGB.dat
 anisotropy.timestep=0.0005
-anisotropy.elastic_int = 100
+anisotropy.elastic_int = 20
 anisotropy.thermo_int = 10
 anisotropy.tstart= 1.0
 anisotropy.damp=1.0
@@ -47,18 +48,19 @@ fluctuation.sd=1.0
 fluctuation.tstart=1.0
 
 disconnection.on=1
-disconnection.tstart=2.1
-disconnection.nucleation_energy=1.3806503e-23
-disconnection.temp=0.0415108577
+disconnection.tstart=1.1
+disconnection.nucleation_energy=1.125E-20
+disconnection.temp= 30. 
 disconnection.box_size=0.3
-disconnection.interval=100
+disconnection.interval=200
+disconnection.epsilon=1E-20
 
 disconnection.fixed=0
 disconnection.fixed_site=4.0
 disconnection.fixed_phase=0
 
 elastic.on = 1
-elastic.tstart = 2.0
+elastic.tstart = 1.1
 elastic.interval = 1
 elastic.solver.verbose = 2
 
