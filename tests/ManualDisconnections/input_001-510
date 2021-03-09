@@ -1,6 +1,6 @@
 alamo.program = microstructure
 
-plot_file = /scratch/07498/mgokuli/001_510_modifiedP1pt45
+plot_file = /scratch/07498/mgokuli/001_510_guess1
 
 timestep = 0.05
 stop_time=4.0
@@ -48,8 +48,8 @@ fluctuation.tstart=1.0
 
 disconnection.on=1
 disconnection.tstart=2.1
-disconnection.nucleation_energy=1.45e-23
-disconnection.temp= 0.125    # probability 1/e^8
+disconnection.nucleation_energy=1.3806503e-23
+disconnection.temp=0.0415108577
 disconnection.box_size=0.3
 disconnection.interval=100
 

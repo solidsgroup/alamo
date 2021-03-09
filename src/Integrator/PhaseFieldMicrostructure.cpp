@@ -600,6 +600,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 							if (!disconnection.fixed)
 							{
 								disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen) * mult;
+								Util::Message(INFO," ",disconnection.q," ", disconnection.p,"\n",nuc," ",eta(i,j,k,0)," ",eta(i,j,k,1),"\n"); //feb 10 test
 							}
 
 							if (disconnection.q < disconnection.p)
