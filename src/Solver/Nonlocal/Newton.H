@@ -40,8 +40,6 @@ private:
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 Set::Vector DX(linop.Geom(lev).CellSize());
-    			const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-                
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.grownnodaltilebox();
@@ -79,65 +77,43 @@ private:
                 }
 
                 Util::RealFillBoundary(*a_dw_mf[lev],m_elastic.Geom(lev));
+                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic.Geom(lev));
+            }
 
+            m_elastic.SetModel(a_ddw_mf);
+
+            for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
+            {
+                amrex::Box domain(linop.Geom(lev).Domain());
+                domain.convert(amrex::IntVect::TheNodeVector());
+                domain.grow(-1);
+                const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx  = mfi.grownnodaltilebox();
+                    amrex::Box bx = mfi.nodaltilebox();
                     bx = bx & domain;
-
-                    amrex::Array4<const Set::Scalar> const &u     = a_u_mf[lev]->array(mfi);
-                    amrex::Array4<const Set::Scalar> const &b     = a_b_mf[lev]->array(mfi);
-                    amrex::Array4<Set::Scalar>       const &rhs   = a_rhs_mf[lev]->array(mfi);
-                    amrex::Array4<Set::Matrix>       const &dw    = a_dw_mf[lev]->array(mfi);
-
+                    amrex::Array4<Set::Scalar>        const &b     = a_b_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Matrix>  const &dw    = a_dw_mf[lev]->array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
-
-                        #if AMREX_SPACEDIM == 2
-                        if (i == lo.x || i == hi.x || j == lo.y || j == hi.y)
-                        {
-                            
-                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-
-                            Set::Vector U(u(i,j,k,0),u(i,j,k,1));
-                            Set::Vector ret = m_bc(U, gradu, dw(i,j,k), i, j, k, bx);
-
-                            for (int p = 0; p < 2; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p);
-                        }
-                        else
-                        {
-                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
-                            for (int p = 0; p < 2; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - divdw(p);
-                        }
-
-                        #elif AMREX_SPACEDIM == 3
-
-                        if (i == lo.x || i == hi.x || j == lo.y || j == hi.y || k == lo.z || k == hi.z)
-                        {
-                            std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
-                            Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-
-                            Set::Vector U(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2));
-                            Set::Vector ret = m_bc(U, gradu, dw(i,j,k), i, j, k, bx);
-
-                            for (int p = 0; p < 3; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - ret(p);
-                        }
-                        else
-                        {
-                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
-                            for (int p = 0; p < 3; p++)
-                                rhs(i,j,k,p) = b(i,j,k,p) - divdw(p);
-                        }
-                        #endif
-                    });
+                        Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx);
+                        for (int p = 0; p < AMREX_SPACEDIM; p++) 
+                            b(i,j,k,p) -= divdw(p);
+                    });                    
                 }
-                //Util::RealFillBoundary(*a_model_mf[lev],m_elastic.Geom(lev));
-                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic.Geom(lev));
+            }
+
+            for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
+            {
+                m_elastic.Apply(lev,0,*a_rhs_mf[lev],*a_u_mf[lev]);
+                a_rhs_mf[lev]->mult(-1.0,2);
+                amrex::MultiFab::Add(*a_rhs_mf[lev],*a_b_mf[lev],0,0,a_rhs_mf[lev]->nComp(),2);
                 Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
             }
+            for (int lev = a_b_mf.finest_level; lev > 0; lev--)
+            {
+                linop.Reflux(lev-1, *a_rhs_mf[lev-1], *a_u_mf[lev-1], *a_b_mf[lev-1], *a_rhs_mf[lev], *a_u_mf[lev], *a_b_mf[lev]);
+            }
+
     }
 
 public:
@@ -186,7 +162,6 @@ public:
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
-            m_elastic.SetModel(ddw_mf);
 
             if (nriter == m_nriters) break;
             
@@ -208,13 +183,23 @@ public:
             Set::Scalar relnorm;
             if (solnorm == 0) relnorm = cornorm;
             else relnorm = cornorm / solnorm;
-            if (m_verbose > 1) Util::Message(INFO,"NR relative norm(ddisp) = ",relnorm);
+            if (m_verbose > 0) Util::Message(INFO,"NR iteration ",nriter+1,", relative norm(ddisp) = ",relnorm);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 amrex::MultiFab::Add(*a_u_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+
+            if (relnorm < m_nrtolerance)
+                return relnorm;
+
         }
 
         return 0.0;
+    }
+    Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
+                       const Set::Field<Set::Scalar> & a_b_mf,
+                       Set::Field<T> &a_model_mf)
+    {
+        return solve(a_u_mf,a_b_mf,a_model_mf,m_tol_rel,m_tol_abs);
     }
 
     void compResidual(Set::Field<Set::Scalar> & a_res_mf,
@@ -347,8 +332,9 @@ public:
     }
 
 
-private:
+public:
     int m_nriters = 1;
+    Set::Scalar m_nrtolerance = 0.0;
     Operator::Elastic<T::sym> &m_elastic;
     BC::Operator::Elastic::Elastic &m_bc;
 
@@ -358,6 +344,7 @@ public:
         Linear::Parse(value,pp);
         
         pp.query("nriters",value.m_nriters);
+        pp.query("nrtolerance",value.m_nrtolerance);
     }
 
 };

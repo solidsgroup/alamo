@@ -52,6 +52,14 @@ public :
 		     const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
 	const Geometry& Geom (int amr_lev, int mglev=0) const noexcept { return m_geom[amr_lev][mglev]; }
 
+	void Reflux(int crse_amrlev,
+		    MultiFab& res, const MultiFab& crse_sol, const MultiFab& crse_rhs,
+		    MultiFab& fine_res, MultiFab& fine_sol, const MultiFab& fine_rhs)
+	{reflux(crse_amrlev, res, crse_sol, crse_rhs,fine_res, fine_sol, fine_rhs);}
+	void Apply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const { Fapply(amrlev,mglev,out,in);}
+
+	void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
+	
 	//
 	// Public Utilty functions
 	//
@@ -122,6 +130,7 @@ protected:
 	bool m_diagonal_computed = false;
 	amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs;
 	amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > > m_diag;
+	Set::Scalar m_omega = 2./3.;
 };
 
 

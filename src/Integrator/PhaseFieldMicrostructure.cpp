@@ -17,6 +17,7 @@
 #include "IC/Random.H"
 #include "IC/Trig.H"
 #include "IC/Sphere.H"
+#include "IC/Expression.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -98,7 +99,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			boundary = new Model::Interface::GB::Read();
 			pp.queryclass(*static_cast<Model::Interface::GB::Read *>(boundary));
 		}
-
 		else if (gb_type == "sh")
 		{
 			Util::Assert(INFO, TEST(AMREX_SPACEDIM == 3));
@@ -174,6 +174,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			int total_grains = number_of_grains;
 			pp.query("voronoi.number_of_grains", total_grains);
 			ic = new IC::Voronoi(geom, total_grains);
+		}
+		else if (ic_type == "expression")
+		{
+			ic = new IC::Expression(geom);
+			pp.queryclass("expression",static_cast<IC::Expression*>(ic));
 		}
 		else if (ic_type == "sphere")
 			ic = new IC::Sphere(geom);

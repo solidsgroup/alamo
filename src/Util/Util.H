@@ -39,6 +39,8 @@ std::complex<int> Parse(std::string);
 
 std::string GetFileName();
 
+std::pair<std::string,std::string> GetOverwrittenFile();
+
 void SignalHandler(int s);
 
 void Initialize (int argc, char* argv[]);
@@ -50,8 +52,9 @@ void Terminate(const char * msg, int signal, bool backtrace);
 
 void Abort (const char * msg);
 
+template<typename... Args>
 AMREX_FORCE_INLINE
-void Assert (std::string file, std::string func, int line, std::string smt, bool pass)
+void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
 	if (pass) return;
 
@@ -63,13 +66,41 @@ void Assert (std::string file, std::string func, int line, std::string smt, bool
 	std::string info = infostream.str();
 
 
-	std::cout << info << std::endl;
+	std::ostringstream messagestream;
+	using List= int[];
+	(void)List{0, ( (void)(messagestream << args), 0 ) ... };
+	std::string message = messagestream.str();
+	String::ReplaceAll(message,'\n',"\n"+info);
+
+	std::cout << info << message << std::endl;
 
 	Abort("Fatal Error");
 }
 
 template<typename... Args>
 void Abort (std::string file, std::string func, int line, Args const &... args)
+{
+	if (amrex::ParallelDescriptor::IOProcessor())
+	{
+		std::ostringstream infostream;
+		infostream << Color::Bold << Color::FG::Red << "ABORT" << Color::Reset << ":   ";
+		infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
+		infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+		std::string info = infostream.str();
+
+		std::ostringstream messagestream;
+		using List= int[];
+		(void)List{0, ( (void)(messagestream << args), 0 ) ... };
+		std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+		//std::string messageorg = message;
+		String::ReplaceAll(message,'\n',"\n"+info);
+		std::cout << info << message << std::endl;
+	}
+	Abort("Fatal Error");
+}
+
+template<typename... Args>
+void ParallelAbort (std::string file, std::string func, int line, Args const &... args)
 {
 
 	std::ostringstream infostream;
@@ -149,7 +180,8 @@ void Warning (std::string file, std::string func, int line, Args const &... args
 	}
 }
 
-void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
+std::pair<std::string,std::string>
+CreateCleanDirectory (const std::string &path, bool callbarrier = true);
 
 
 /// \brief A collection of I/O routines for Unit Tests
