@@ -204,8 +204,10 @@ protected:
 
 
     	//Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-        #if AMREX_SPACEDIM == 3
-        Set::Vector da(AMREX_D_DECL(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]));
+        #if AMREX_SPACEDIM == 2
+        Set::Vector da(DX[1],DX[0]);
+        #elif AMREX_SPACEDIM == 3
+        Set::Vector da(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]);
         #endif
 
 		const Dim3 lo= amrex::lbound(domain)/*, hi = amrex::ubound(domain)*/;
@@ -215,7 +217,12 @@ protected:
     	//amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
     	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-            #if AMREX_SPACEDIM == 3
+            #if AMREX_SPACEDIM == 2
+            if (i == lo.x && j < boxhi.y)
+            {
+                trac_lo[0](0) += 0.5 * (stress(i,j,k,0) + stress(i,j+1,k,0)) * da(0);
+            } 
+            #elif AMREX_SPACEDIM == 3
             if (i == lo.x && (j < boxhi.y && k < boxhi.z))
             {
                 trac_lo[0](0) += 0.25 * (stress(i,j,k,0) + stress(i,j+1,k,0) + stress(i,j,k+1,0) + stress(i,j+1,k+1,0)) * da(0);

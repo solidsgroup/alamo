@@ -72,7 +72,7 @@ public:
             End = m_table.end(); 
             li != End; ++li)
         {
-            if (!li->m_queried && li->m_name.find(getPrefix()) != std::string::npos)
+            if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
             {
                 Util::Warning(INFO,li->m_name);
                 cnt++;

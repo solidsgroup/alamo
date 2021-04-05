@@ -58,7 +58,7 @@ parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], cla
 parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
 parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="development", help='AMReX Branch (You probably don\'t need to change this!' )
-parser.add_argument('--build-amrex-tag',dest="buildamrextag",default="21.01", help='AMReX Branch (You probably don\'t need to change this!' )
+parser.add_argument('--build-amrex-tag',dest="buildamrextag",default="21.04", help='AMReX Branch (You probably don\'t need to change this!' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
