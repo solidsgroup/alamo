@@ -17,11 +17,15 @@
 #include "IC/Random.H"
 #include "IC/Trig.H"
 #include "IC/Sphere.H"
+#include "IC/Expression.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "IC/Trig.H"
+
+#include "Util/MPI.H"
+
 namespace Integrator
 {
 PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
@@ -98,7 +102,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			boundary = new Model::Interface::GB::Read();
 			pp.queryclass(*static_cast<Model::Interface::GB::Read *>(boundary));
 		}
-
 		else if (gb_type == "sh")
 		{
 			Util::Assert(INFO, TEST(AMREX_SPACEDIM == 3));
@@ -174,6 +177,11 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			int total_grains = number_of_grains;
 			pp.query("voronoi.number_of_grains", total_grains);
 			ic = new IC::Voronoi(geom, total_grains);
+		}
+		else if (ic_type == "expression")
+		{
+			ic = new IC::Expression(geom);
+			pp.queryclass("expression",static_cast<IC::Expression*>(ic));
 		}
 		else if (ic_type == "sphere")
 			ic = new IC::Sphere(geom);
@@ -570,160 +578,52 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 			const amrex::Real *DX = geom[lev].CellSize();
 			amrex::Real mult = DX[0]*DX[0] * timestep * disconnection.interval;
 			
-			// iterate over all Patches
+			// Determine the nucleation sites in my portion of the mesh
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
-
 				const amrex::Box &bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
-
-				// iterate over the GRID (index i,j,k)
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 				{
+					amrex::Real nuc = disconnection.nucleation_energy/(16.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)+disconnection.epsilon);
+					disconnection.p = exp(-nuc/(disconnection.K_b*disconnection.temp));
 
-					//if (eta(i,j,k,0) >= (0.5 - disconnection.range) && eta(i,j,k,0) <= (0.5 + disconnection.range))
-					//{
-					//	amrex::Real distH = std::abs(eta(i,j+1,k,0) - 0.5);
-					//	amrex::Real distL = std::abs(eta(i,j-1,k,0) - 0.5);
-					//	amrex::Real distN = std::abs(eta(i,j,k,0) - 0.5);
-					//	int l = j;
+					if (!disconnection.fixed)
+					{
+						disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen) * mult;
+					}
 
-					//	if (distH > distN && distL > distN)
-					//	{
-					//		if (distH < distL){l = j+1;}
-					//		else if (distL < distH){l = j-1;};
-
-							//added this Feb 4
-							amrex::Real nuc = disconnection.nucleation_energy/(16.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)+disconnection.epsilon);
-							disconnection.p = exp(-nuc/(disconnection.K_b*disconnection.temp));
-							// added this Feb 4
-
-							if (!disconnection.fixed)
-							{
-								disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen) * mult;
-								Util::Message(INFO," ",disconnection.q," ", disconnection.p,"\n",nuc," ",eta(i,j,k,0)," ",eta(i,j,k,1),"\n"); //feb 10 test
+					if (disconnection.q < disconnection.p)
+					{
+						Set::Vector x;
+						AMREX_D_TERM(
+							x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
+							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
+						);
+						if (!disconnection.fixed){
+							//disconnection.nucleation_sites.push_back(x);
+							disconnection.sitex.push_back(x(0));
+							disconnection.sitey.push_back(x(1));
+							disconnection.phase = disconnection.int_dist(disconnection.rand_num_gen);
+						} else {
+							if(x(0)==disconnection.fixed_site){
+								//disconnection.nucleation_sites.push_back(x);
+								disconnection.sitex.push_back(x(0));
+								disconnection.sitey.push_back(x(1));
 							}
-
-							if (disconnection.q < disconnection.p)
-							{
-								Set::Vector x;
-
-								AMREX_D_TERM(
-									x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-									x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
-									x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
-								);
-
-					//			if (l != j)
-					//			{
-					//				Set::Vector y;
-
-					//				AMREX_D_TERM(
-					//					y(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-					//					y(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(l)) * DX[1];,
-					//					y(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
-					//				);
-
-					//				x(1) = (y(1) - x(1))*(0.5 - eta(i,j,k,0))/(eta(i,l,k,0)-eta(i,j,k,0)) + x(1);
-					//			};
-
-								if (!disconnection.fixed){
-									//disconnection.nucleation_sites.push_back(x);
-									disconnection.sitex.push_back(x(0));
-									disconnection.sitey.push_back(x(1));
-									disconnection.phase = disconnection.int_dist(disconnection.rand_num_gen);
-								} else {
-									if(x(0)==disconnection.fixed_site){
-										//disconnection.nucleation_sites.push_back(x);
-										disconnection.sitex.push_back(x(0));
-										disconnection.sitey.push_back(x(1));
-									}
-								};
-
-								disconnection.phases.push_back(disconnection.phase);
-							}
-						//}
-					//}
+						};
+						disconnection.phases.push_back(disconnection.phase);
+					}
 				});
-				Util::Message(INFO,"Nucleating", disconnection.sitex.size(), " sites");
 			}
 
-
-			//
-			// UPDATE ALL PROCS WITH NUCLATION SITE DATA
-			//
-			// Each processor will calculate a different collection of nucleation sites.
-			// This is potentially problematic since there can be overlap at the boundaries.
-			// In this section, we use MPI AllGather to sync up all of the lists of proc
-			// data to make sure all processors are up to date.
-			//
-			// TODO: we need a nicer way to do this with Set::Vector types.
-
-			// TO DELETE - this is code to check that the MPI processes are communicating correctly
-			//std::stringstream ss;
-			//ss << "mpi_" << iter << "_" << amrex::ParallelDescriptor::MyProc();
-			//std::ofstream myfile;
-			//myfile.open(ss.str());
-			//myfile << "Before: " << std::endl;
-			//for (unsigned int i = 0; i < disconnection.phases.size(); i++) myfile << disconnection.phases[i] << " "; myfile << std::endl;
-			//for (unsigned int i = 0; i < disconnection.sitex.size(); i++) myfile << disconnection.sitex[i] << " ";	myfile << std::endl;		
-			//for (unsigned int i = 0; i < disconnection.sitey.size(); i++) myfile << disconnection.sitey[i] << " ";   myfile << std::endl;
-
-			// Gather information about how many sites were found on each processor
-			int nprocs;
-			MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-			int my_num_sites = disconnection.phases.size();
-			int num_sites = my_num_sites;
-			amrex::ParallelAllReduce::Sum(num_sites, MPI_COMM_WORLD);
-			// Temporary buffers to receive data from all procs
-			std::vector<int> disconnection_phases_all(num_sites);
-			std::vector<Set::Scalar> disconnection_sitex_all(num_sites);
-			std::vector<Set::Scalar> disconnection_sitey_all(num_sites);
-			// Send information about how many sites on each proc to all procs
-			std::vector<int> nsites_procs(nprocs);
-			MPI_Allgather(&my_num_sites, 1, ParallelDescriptor::Mpi_typemap<int>::type(),
-						  nsites_procs.data(), 1, ParallelDescriptor::Mpi_typemap<int>::type(),
-						  MPI_COMM_WORLD);
-			// Calculate the offset for each
-			std::vector<int> nsites_disp(nprocs);
-			for (int i = 0; i < nprocs; i++)
-			{
-				nsites_disp[i] = 0;
-				for (int j = 0; j < i; j++) nsites_disp[i] += nsites_procs[j];
-			}
-			// Store the MPI datatype for each
-			MPI_Datatype mpi_int = ParallelDescriptor::Mpi_typemap<int>::type();
-			MPI_Datatype mpi_scalar = ParallelDescriptor::Mpi_typemap<Set::Scalar>::type();
-			// The important part:
-			// Send all the information to all the processors.
-			MPI_Allgatherv(
-				disconnection.phases.data(),     my_num_sites, mpi_int,
-				disconnection_phases_all.data(), nsites_procs.data(), nsites_disp.data(), mpi_int,
-				MPI_COMM_WORLD);
-			MPI_Allgatherv(
-				disconnection.sitex.data(),        my_num_sites, mpi_scalar,
-				disconnection_sitex_all.data(),    nsites_procs.data(), nsites_disp.data(), mpi_scalar,
-				MPI_COMM_WORLD);
-			MPI_Allgatherv(
-				disconnection.sitey.data(),        my_num_sites, mpi_scalar,
-				disconnection_sitey_all.data(),    nsites_procs.data(), nsites_disp.data(), mpi_scalar,
-				MPI_COMM_WORLD);
-			// Swap out the data so the buffers are no longer needed.
-			disconnection.phases.swap(disconnection_phases_all);
-			disconnection.sitex.swap(disconnection_sitex_all);
-			disconnection.sitey.swap(disconnection_sitey_all);
-			// Clear out the old buffers
-			disconnection_phases_all.clear();
-			disconnection_sitex_all.clear();
-			disconnection_sitey_all.clear();
-
-			// TO DELETE - this is code to check that the MPI processes are communicating correctly
-			//myfile << "After: " << std::endl;
-			//for (unsigned int i = 0; i < disconnection.phases.size(); i++) myfile << disconnection.phases[i] << " ";	myfile << std::endl;	
-			//for (unsigned int i = 0; i < disconnection.sitex.size(); i++) myfile << disconnection.sitex[i] << " ";   myfile << std::endl;
-			//for (unsigned int i = 0; i < disconnection.sitey.size(); i++) myfile << disconnection.sitey[i] << " ";   myfile << std::endl;
-			//myfile.close();
-
+			// Sync up all the nucleation sites among processors
+			Util::MPI::Allgather(disconnection.phases);
+			Util::MPI::Allgather(disconnection.sitex);
+			Util::MPI::Allgather(disconnection.sitey);
+			
+			// Now that we all know the nucleation locations, perform the nucleation
 			for (int lev = 0; lev <= max_level; lev++)
 			{
 				const amrex::Real *DX = geom[lev].CellSize();
@@ -768,16 +668,6 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				}
 			}	
 		}
-
-		
-
-		// Note: this code will need to be implemented before
-		// we can run in parallel.
-		//std::vector<Set::Vector> buffer;
-		//amrex::ParallelAllGather::AllGather(disconnection.nucleation_sites.data(),
-		//						 disconnection.nucleation_sites.size(),
-		//						 buffer.data(),
-		//						 amrex::ParallelContext::CommunicatorAll());
 	}
 
 	// 

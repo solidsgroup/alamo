@@ -1,28 +1,26 @@
 alamo.program = flame
 
-# * = you probably don't need to change this
+# * = you almost definitely don't need to change this
 
-#amr.max_grid_size	= 10000       # * Maximum grid size 
-#max_step		= 100000      # Maximum number of timesteps
-amr.plot_file       = tests/Flame/output%DD_%Y%m%d_%H%M%S # The name of the output file 
-amr.plot_int        = 100                                 # How frequently to dump output
+plot_file       = tests/Flame/output  # The name of the output file 
+amr.plot_int        = 100             # How frequently to dump output
 
 amr.max_level       = 3               # How many levels of grid refinement are allowed
 amr.n_cell          = 30 10 2         # Number of cells in the x,y,z directions
-#amr.max_grid_size	= 50              # * Maximum allowable grid size
-amr.blocking_factor	= 1               # * Minimum size of each block
+#amr.max_grid_size	= 50          # * Maximum allowable grid size
+amr.blocking_factor	= 1           # * Minimum size of each block
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
 amr.grid_eff        = 1.0             # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 geometry.prob_lo    = -1.5 -0.5 -0.1  # Problem domain: furthest point to the lower left
 geometry.prob_hi    = 1.5 0.5 0.1     # Problem domain: furthest point to the upper right
-geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
+geometry.is_periodic= 0 0 0           # * Boundary conditions - currently under construction 
 
 timestep            = 0.001     # Timestep
 stop_time           = 12.5
 
 physics.M           = 1.0    # Mobility - controls flame speed
-physics.kappa		= 0.01   # Width of burn region
+physics.kappa       = 0.01   # Width of burn region
 physics.w1          = 1.0    # Chemical energy before burn
 physics.w12         = 2.0    # Chemical energy during burn
 #physics.w2         = 0.0    # Chemical energy after burn
@@ -40,18 +38,29 @@ physics.fs_number   = 100
 physics.fs_min      = -0.5
 physics.fs_max      = 0.5
 
-TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
-TempBC.lo	= EXT_DIR INT_DIR INT_DIR 
-TempBC.lo_1	= 0.0 
-TempBC.hi_1	= 0.0 
-# TempBC.lo_2	= 0.0 
-# TempBC.hi_2	= 0.0 
-# TempBC.lo_3	= 0.0 
-# TempBC.hi_3	= 0.0 
+bc.temp.type.xlo = dirichlet
+bc.temp.type.xhi = dirichlet
+bc.temp.type.ylo = neumann
+bc.temp.type.yhi = neumann
+bc.temp.type.zlo = neumann
+bc.temp.type.zhi = neumann
+bc.temp.val.xlo  = 0.0
+bc.temp.val.xhi  = 0.0
+bc.temp.val.ylo  = 0.0
+bc.temp.val.yhi  = 0.0
+bc.temp.val.zlo  = 0.0
+bc.temp.val.zhi  = 0.0
 
-EtaBC.hi	= EXT_DIR INT_DIR INT_DIR
-EtaBC.lo	= EXT_DIR INT_DIR INT_DIR
-EtaBC.lo_1	= 0.0 
-EtaBC.hi_1	= 1.0 
-#EtaBC.lo_2	= 0.0 
-#EtaBC.hi_2	= 0.0 
+bc.eta.type.xlo = dirichlet
+bc.eta.type.xhi = dirichlet
+bc.eta.type.ylo = neumann
+bc.eta.type.yhi = neumann
+bc.eta.type.zlo = neumann
+bc.eta.type.zhi = neumann
+bc.eta.val.xlo  = 0.0
+bc.eta.val.xhi  = 1.0
+bc.eta.val.ylo  = 0.0
+bc.eta.val.yhi  = 0.0
+bc.eta.val.zlo  = 0.0
+bc.eta.val.zhi  = 0.0
+
