@@ -1,6 +1,6 @@
 alamo.program = microstructure
 
-plot_file = /scratch/07498/mgokuli/output_001-510-Cu
+plot_file = /scratch/07498/mgokuli/output_110-111-Ni
 
 timestep = 0.05
 stop_time=45.0
@@ -34,7 +34,7 @@ pf.elastic_threshold=0.004
 
 anisotropy.on=1
 anisotropy.gb_type = read
-anisotropy.filename = tests/ManualDisconnections/smooth_gbe_001-510_CuSTGB.dat
+anisotropy.filename = tests/ManualDisconnections/smooth_gbe_110-111_NiSTGB.dat
 anisotropy.timestep=0.0005
 anisotropy.elastic_int = 20
 anisotropy.thermo_int = 10
@@ -58,24 +58,25 @@ disconnection.fixed=0
 disconnection.fixed_site=4.0
 disconnection.fixed_phase=0
 
+
 elastic.on = 1
 elastic.tstart = 1.1
 elastic.interval = 1
 elastic.solver.verbose = 2
 
-# Copper (Bercegeau & Bernard, PRB) - Sigma13
-elastic.model1.C11 = 1.71
-elastic.model1.C12 = 1.22
-elastic.model1.C44 = 0.75
-elastic.model1.Phi = 0.19739674
-elastic.model1.F0 = 0 0.2 0 0
+# Nickel - Sigma3
+elastic.model1.C11 = 2.47
+elastic.model1.C12 = 1.47
+elastic.model1.C44 = 1.27
+elastic.model1.Phi = 0.523599
+elastic.model1.F0 = 0 0.1 0 0
 
-# Sigma13
-elastic.model2.C11 = 1.71
-elastic.model2.C12 = 1.22
-elastic.model2.C44 = 0.85
-elastic.model2.Phi = -0.19739674
-elastic.model2.F0 = 0 -0.2 0 0
+# Sigma3
+elastic.model2.C11 = 2.47
+elastic.model2.C12 = 1.47
+elastic.model2.C44 = 1.27
+elastic.model2.Phi = -0.523599
+elastic.model2.F0 = 0 -0.1 0 0
 
 # Elastic BCs
 elastic.bc.type.xlo = neumann neumann
