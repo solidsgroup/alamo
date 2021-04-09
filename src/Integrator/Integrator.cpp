@@ -146,6 +146,8 @@ Integrator::MakeNewLevelFromCoarse (int lev, amrex::Real time, const amrex::BoxA
 		m_basefields[n]->MakeNewLevelFromCoarse(lev,time,cgrids,dm);
 	}
 
+	Regrid(lev,time);
+
 }
 
 
@@ -192,6 +194,8 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
 	{
 		m_basefields[n]->RemakeLevel(lev,time,cgrids,dm);
 	}
+
+	Regrid(lev,time);
 }
 
 //

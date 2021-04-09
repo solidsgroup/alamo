@@ -148,6 +148,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 	}
 	void Flame::Regrid(int lev, Set::Scalar /* time */)
 	{
+		if (lev < finest_level) return;
 		FlameSpeed_mf[lev]->setVal(0.0);
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
 		Util::Message(INFO, "Regridding on level ", lev);
