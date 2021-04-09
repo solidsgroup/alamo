@@ -29,7 +29,7 @@ Flame::Flame () : Integrator()
   //pp.query("mean",mean);
   pp.query("fs_min",fs_min);
   pp.query("fs_max",fs_max);
-
+  pp.query("refinement_criterion",m_refinement_criterion);
   {
 
     IO::ParmParse pp("bc");
@@ -69,7 +69,6 @@ void Flame::Initialize(int lev)
 		EtaIC->Initialize(lev, Eta_mf);
 		EtaIC->Initialize(lev, Eta_old_mf);
 
-		VoronoiIC->Initialize(lev, FlameSpeed_mf);
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
 	}
 
@@ -97,7 +96,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				// Phase field evolution
 				//
 
-				Set::Scalar M_dev = fs_min + FlameSpeed(i, j, k) * (fs_max - fs_min) / (Set::Scalar)fs_number;
+				Set::Scalar M_dev = fs_min + FlameSpeed(i, j, k) * (fs_max - fs_min);
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
@@ -142,7 +141,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 			{
 				Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
-				if (gradeta.lpNorm<2>() * dr > 0.001)
+				if (gradeta.lpNorm<2>() * dr > m_refinement_criterion)
 					tags(i,j,k) = amrex::TagBox::SET;
 			});
 		}
@@ -150,7 +149,6 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 	void Flame::Regrid(int lev, Set::Scalar /* time */)
 	{
 		FlameSpeed_mf[lev]->setVal(0.0);
-		VoronoiIC->Initialize(lev, FlameSpeed_mf);
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
 		Util::Message(INFO, "Regridding on level ", lev);
 	}
