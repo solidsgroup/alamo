@@ -387,7 +387,7 @@ while (i<1000)
 					
 							
 				 //}
-				//}
+				  //}
 				}
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
