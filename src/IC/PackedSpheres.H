@@ -339,14 +339,14 @@ while (i<1000)
 				
               // dividing the domain in to 8 x direction and 4 in y direction and none in z direction  
 				
-				for(int v=-2;v<2;v++)	
-				{
-				 for (int u=-4;u<4;u++) 
-				 {
+				//for(int v=-2;v<2;v++)	
+				//{
+				// for (int u=-4;u<4;u++) 
+				// {
 
 				 
-					if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25))))
-					{
+					//if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25))))
+					//{
 
 					 d = (x - packedspheres[n]).lpNorm<2>();
 					 d1 = 10;                
@@ -371,7 +371,7 @@ while (i<1000)
 						}
 #endif
                  
-						}        
+						//}        
 				     
 					 
 
@@ -386,8 +386,8 @@ while (i<1000)
 						}
 					
 							
-				 }
-				}
+				 //}
+				//}
 				}
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
