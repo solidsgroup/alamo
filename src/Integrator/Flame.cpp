@@ -42,9 +42,11 @@ Flame::Flame () : Integrator()
 
   VoronoiIC = new IC::Voronoi(geom);
   PackedSpheresIC = new IC::PackedSpheres(geom);
-  std::vector<Set::Scalar> fs(fs_number);
-  for (int i = 0; i < fs_number; i++)
-  fs[i] = 0.5*(1.0 + Util::Random());
+  std::vector<Set::Scalar> fs(fs_number,0.5);
+ // for (int i = 0; i < fs_number; i++)
+// fs[i] = 0.5*(1.0 + Util::Random());
+ //for (int i = 0; i < fs_number; i++)
+ //std::cout<<"f[s]  "<<fs[i];
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
   //PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
   PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);

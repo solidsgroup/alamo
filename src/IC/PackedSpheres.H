@@ -289,11 +289,11 @@ while (i<1000)
 	}
 	while (total<pack_size);
     }
-       alpha.resize(pack_size);
-       for (int i = 0; i < pack_size; i++)
-       {
-       alpha[i] = 0.5*(1.0 + Util::Random());
-       }
+       alpha.resize(pack_size,0.5);
+      // for (int i = 0; i < pack_size; i++)
+      // {
+      // alpha[i] = 0.5*(1.0 + Util::Random());
+      // }
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -324,6 +324,7 @@ while (i<1000)
 			{
                  Set::Vector x;
 				 int min_grain_id = -1;
+				// int max_grain_id=1;
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
@@ -352,22 +353,22 @@ while (i<1000)
 					 d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
-						    d1 = std::min( (x-packedspheres[n] + size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>(),
-										  (x-packedspheres[n] - size(0)*0.25*Set::Vector::Unit(0)).lpNorm<2>());
+						    d1 = std::min( (x-packedspheres[n] +size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										  (x-packedspheres[n] -size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						 
 						}
 #if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-							d1 = std::min( (x-packedspheres[n] + size(1)*0.5*Set::Vector::Unit(1)).lpNorm<2>(),
-										  (x-packedspheres[n] - size(1)*0.5*Set::Vector::Unit(1)).lpNorm<2>());
+							d1 = std::min( (x-packedspheres[n] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										  (x-packedspheres[n] -size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 #endif
 #if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-							d1 = std::min( (x-packedspheres[n] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										  (x-packedspheres[n] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+							d1 = std::min( (x-packedspheres[n] +size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										  (x-packedspheres[n] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
                  
@@ -384,6 +385,12 @@ while (i<1000)
 							min_grain_id = 0;
 							
 						}
+						
+					//else 
+					//	{
+						//	min_grain_id = 1;
+							
+					//	}	
 					
 							
 				 //}
