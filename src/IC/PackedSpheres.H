@@ -301,7 +301,7 @@ while (i<1000)
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	//MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-	
+				
 	};
 
 	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
@@ -332,6 +332,9 @@ while (i<1000)
                 packedspheres.resize(pack_size);
 				R_new.resize(pack_size);
 				
+				 if(x(0)>-0.75 && x(0)<0.75 && x(1)>-0.75 && x(1)<0.75 && x(2)>-0.75 && x(2)<0.75)
+                {
+				
 				for (int n = 0; n<pack_size; n++)
 				{ 
 			    Set::Scalar d ;
@@ -348,6 +351,8 @@ while (i<1000)
 				 
 					//if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25))))
 					//{
+					if (packedspheres[n](0)>-0.75 && packedspheres[n](0) <0.75 && packedspheres[n](1)>-0.75 && packedspheres[n](1) <0.75 && packedspheres[n](2)>-0.75 && packedspheres[n](2) <0.75)
+					{
 
 					 d = (x - packedspheres[n]).lpNorm<2>();
 					 d1 = 10;                
@@ -371,11 +376,7 @@ while (i<1000)
 										  (x-packedspheres[n] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
-                 
-						//}        
-				     
-					 
-
+                 	 
 				      d= std::min(d,d1); 
 
                      
@@ -386,16 +387,19 @@ while (i<1000)
 							
 						}
 						
-					//else 
-					//	{
-						//	min_grain_id = 1;
-							
-					//	}	
-					
-							
-				 //}
-				  //}
+									
+				 
+				 }
+	
+				  
+			  }
+			      
 				}
+				else
+				{
+					return;
+			    }
+				
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
