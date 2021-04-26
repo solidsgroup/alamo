@@ -297,7 +297,7 @@ while (i<1000)
       // }
     pack_size=2;
     pack_size1=1;
-    pack_size2=1;
+    pack_size2=2;
      
     alpha1.resize(pack_size1,0.5);
      alpha2.resize(pack_size2,0.5);
@@ -318,51 +318,49 @@ while (i<1000)
 						 
 	AMREX_D_TERM(packedspheres[1](0) = 0.25;,
 						 packedspheres[1](1) = 0.25;,
-						 packedspheres[1](2) = 0.25;);					 
-	
-	/*AMREX_D_TERM(packedspheres[1](0) = 0.25;,
-						 packedspheres[1](1) = 0.25;,
-						 packedspheres[1](2) = 0.25;);	*/
+						 packedspheres[1](2) = 0.25;);	
 						 
-	/*AMREX_D_TERM(packedspheres[0](0) = 0.5,
-						 packedspheres[0](1) = 0.5;,
-						 packedspheres[0](2) = 0.5;);	*/				 				 
+							 
+	AMREX_D_TERM(packedspheres[2](0) = 0.25;,
+						 packedspheres[2](1) = -0.25;,
+						 packedspheres[2](2) = 0.25;);					 				 
+					 				 
 						 
 	R_new[0]=0.05;
 	R_new[1]=0.05;
-	//R_new[1]=0.01;
+	R_new[2]=0.05;
 for (int n = 0; n<pack_size; n++)
 	{ 
-     //if (packedspheres[n](0)>-0.5 && packedspheres[n](0) <0 && packedspheres[n](1)>-0.5 && packedspheres[n](1) <0 && packedspheres[n](2)>-0.5 && packedspheres[n](2) <0)
 	  if (packedspheres[n](0)>-0.75 && packedspheres[n](0) <0)
 	
 		{
 	
-		  // pack_size1=1;
+		  
 		  packedspheres1.resize(pack_size1);
 		  R_new1.resize(pack_size1);
 		  packedspheres1[pack_size1-1]=packedspheres[n];
 		   R_new1[pack_size1-1]=R_new[n];
-		  //pack_size1++;
+		  
 		}
 		
-		//if (packedspheres[n](0)>0.0 && packedspheres[n](0) <0.5 && packedspheres[n](1)>0 && packedspheres[n](1) <0.5 && packedspheres[n](2)>0 && packedspheres[n](2) <0.5)
-		//{
-	
-		//}
 		
-		  //if (packedspheres[n](0)>0.0 && packedspheres[n](0) <0.5)
-		 else 
+		if (packedspheres[n](0)>0.0 && packedspheres[n](0) <0.75)
 	
 		{
 	
-		  // pack_size1=1;
+		   
 		  packedspheres2.resize(pack_size2);
 		  R_new2.resize(pack_size2);
-		  packedspheres2[pack_size2-1]=packedspheres[n];
-		   R_new2[pack_size2-1]=R_new[n];
-		  //pack_size1++;
-		   std::cout<<"packedspheres2 in"<<packedspheres2[0](0)<<endl;
+		  packedspheres2[0]=packedspheres[1];
+		   R_new2[0]=R_new[1];
+		  
+		  packedspheres2.resize(pack_size2);
+		  R_new2.resize(pack_size2);
+		  packedspheres2[1]=packedspheres[2];
+		   R_new2[1]=R_new[2];
+		 
+		   std::cout<<"packedspheres2 inside1"<<packedspheres2[0](0)<<endl;
+		   std::cout<<"packedspheres2 inside2"<<packedspheres2[1](0)<<endl;
 		   std::cout<<"R_new2 in"<<R_new2[0]<<endl;
 		 
 		}
@@ -378,7 +376,7 @@ for (int n = 0; n<pack_size; n++)
 	MPI_Bcast(R_new1.data(), R_new1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(R_new2.data(), R_new2.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	//MPI_Bcast(alpha1.data(), alpha1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size1, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size2, 1, MPI_INT, 0, MPI_COMM_WORLD);
