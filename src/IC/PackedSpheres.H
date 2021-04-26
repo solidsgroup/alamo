@@ -328,8 +328,8 @@ while (i<1000)
 						 packedspheres[0](1) = 0.5;,
 						 packedspheres[0](2) = 0.5;);	*/				 				 
 						 
-	R_new[0]=0.1;
-	R_new[1]=0.1;
+	R_new[0]=0.05;
+	R_new[1]=0.05;
 	//R_new[1]=0.01;
 for (int n = 0; n<pack_size; n++)
 	{ 
@@ -411,9 +411,7 @@ for (int n = 0; n<pack_size; n++)
 			{
                  Set::Vector x;
 				 int min_grain_id = -1;
-				 int min_grain_id1 = -1;
-				 int min_grain_id2 = -1;
-				// int max_grain_id=1;
+
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
@@ -467,8 +465,8 @@ for (int n = 0; n<pack_size; n++)
 
 					if (d<R_new1[n])
 						{
-							min_grain_id1 = 0;
-							std::cout<<"inside min_grain1"<<endl;
+							min_grain_id = 0;
+							std::cout<<"inside min_grain"<<endl;
 							
 						}
 						
@@ -479,8 +477,7 @@ for (int n = 0; n<pack_size; n++)
 				}
 				
 				
-				 //if(x(0)>0.0 && x(0)<0.5 )
-				 else
+				 if(x(0)>0.0 && x(0)<0.75 )
                 {
 				 packedspheres2.resize(pack_size2);
 				R_new2.resize(pack_size2);
@@ -519,7 +516,7 @@ for (int n = 0; n<pack_size; n++)
 
 					if (dd<R_new2[nn])
 						{
-							min_grain_id2 = 0;
+							min_grain_id = 0;
 							std::cout<<"inside min_grain2"<<endl;
 							
 						}
@@ -527,25 +524,16 @@ for (int n = 0; n<pack_size; n++)
 	
 				  
 			  }
+			  
+			  
 			      
 				}
 				
 				
-				
-				
-				
-				
-				
-				
-				
-				
-				
-				
 
-				if (type == Type::Values) field(i,j,k) = alpha1[min_grain_id1];
-				else if (type == Type::Partition) field(i,j,k,min_grain_id1) = alpha1[min_grain_id1];
-				if (type == Type::Values) field(i,j,k) = alpha2[min_grain_id2];
-				else if (type == Type::Partition) field(i,j,k,min_grain_id2) = alpha2[min_grain_id2];
+				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
+				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
+
 			
 			});
 		}
