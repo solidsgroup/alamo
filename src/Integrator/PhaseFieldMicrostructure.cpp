@@ -585,7 +585,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 				{
-					amrex::Real nuc = disconnection.nucleation_energy/(16.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)+disconnection.epsilon);
+					amrex::Real nuc = 2.0*disconnection.nucleation_energy*disconnection.box_size;
+					nuc /= 16.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)+disconnection.epsilon;
 					disconnection.p = exp(-nuc/(disconnection.K_b*disconnection.temp));
 
 					if (!disconnection.fixed)

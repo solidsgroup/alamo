@@ -142,7 +142,7 @@ private:
 		Set::Scalar range = 0.06;
 		Set::Scalar nucleation_energy = 0.0;
 		Set::Scalar temp = 0.0;
-		Set::Scalar K_b = 1.3806503e-23;
+		Set::Scalar K_b = 8.617333262145e-5; // eV/K
 		Set::Scalar p = 0.0;
 		Set::Scalar q = 0.0;
 		Set::Scalar box_size = 0.0;
