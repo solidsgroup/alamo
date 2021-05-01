@@ -286,8 +286,8 @@ while (i<1000)
       
 
     pack_size=3;
-    pack_size1=1;
-    pack_size2=2;
+    //pack_size1=1;
+    //pack_size2=2;
      
 
 	R_new.resize(pack_size);
@@ -316,13 +316,17 @@ while (i<1000)
 	R_new[0]=0.05;
 	R_new[1]=0.05;
 	R_new[2]=0.05;
+	
+	pack_size1=0;
+	pack_size2=0;
+	
 for (int n = 0; n<pack_size; n++)
 	{ 
 	  if (packedspheres[n](0)>-1.5 && packedspheres[n](0) <0)
 	
 		{
 	
-		  
+		  pack_size1++;
 		  packedspheres1.resize(pack_size1);
 		  R_new1.resize(pack_size1);
 		  packedspheres1[pack_size1-1]=packedspheres[n];
@@ -334,9 +338,15 @@ for (int n = 0; n<pack_size; n++)
 		if (packedspheres[n](0)>0.0 && packedspheres[n](0) <1.5)
 	
 		{
-	
-		   
-		  packedspheres2.resize(pack_size2);
+	       pack_size2++;  
+		   packedspheres2.resize(pack_size2);
+		  R_new2.resize(pack_size2);
+		  packedspheres2[pack_size2-1]=packedspheres[n];
+		   R_new2[pack_size2-1]=R_new[n]; 
+		  
+		  
+		  
+		  /*packedspheres2.resize(pack_size2);
 		  R_new2.resize(pack_size2);
 		  packedspheres2[0]=packedspheres[1];
 		   R_new2[0]=R_new[1];
@@ -344,7 +354,7 @@ for (int n = 0; n<pack_size; n++)
 		  packedspheres2.resize(pack_size2);
 		  R_new2.resize(pack_size2);
 		  packedspheres2[1]=packedspheres[2];
-		   R_new2[1]=R_new[2];
+		   R_new2[1]=R_new[2];*/
 
 		 
 		}
