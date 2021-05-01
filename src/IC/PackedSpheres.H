@@ -338,9 +338,12 @@ for (int n = 0; n<pack_size; n++)
 
 	}	
 	
-      Util::Message(INFO, "packedspheres out   ", packedspheres[0](0));
-      Util::Message(INFO, "packedspheres1 out   ", packedspheres1[0](0));
-      Util::Message(INFO, "packedspheres2 out   ", packedspheres2[0](0));
+      Util::Message(INFO, "packedspheres    ", packedspheres[0](0));
+      Util::Message(INFO, "packedspheres    ", packedspheres[1](0));
+       Util::Message(INFO, "packedspheres    ", packedspheres[2](0));
+       
+      Util::Message(INFO, "packedspheres1    ", packedspheres1[0](0));
+      Util::Message(INFO, "packedspheres2    ", packedspheres2[0](0));
       Util::Message(INFO, "pack size   ", pack_size);
       Util::Message(INFO, "pack size1   ", pack_size1);
       Util::Message(INFO, "pack size2   ", pack_size2);
