@@ -286,18 +286,7 @@ while (i<1000)
       
 
     pack_size=3;
-    //pack_size1=1;
-    //pack_size2=2;
-     
 
-	R_new.resize(pack_size);
-	packedspheres.resize(pack_size);
-	
-	R_new1.resize(pack_size1);
-	packedspheres1.resize(pack_size1);
-	
-	R_new2.resize(pack_size2);
-	packedspheres2.resize(pack_size2);
 	
 	AMREX_D_TERM(packedspheres[0](0) = -0.25;,
 						 packedspheres[0](1) = -0.25;,
@@ -344,24 +333,11 @@ for (int n = 0; n<pack_size; n++)
 		  packedspheres2[pack_size2-1]=packedspheres[n];
 		   R_new2[pack_size2-1]=R_new[n]; 
 		  
-		  
-		  
-		  /*packedspheres2.resize(pack_size2);
-		  R_new2.resize(pack_size2);
-		  packedspheres2[0]=packedspheres[1];
-		   R_new2[0]=R_new[1];
-		  
-		  packedspheres2.resize(pack_size2);
-		  R_new2.resize(pack_size2);
-		  packedspheres2[1]=packedspheres[2];
-		   R_new2[1]=R_new[2];*/
-
 		 
 		}
 
 	}	
 	
-      //std::cout<<"packedspheres2 out"<<packedspheres2[0](0)<<endl;
       Util::Message(INFO, "packedspheres2 out   ", packedspheres2[0](0));
       std::chrono::seconds dura(5);
       std::this_thread::sleep_for(dura);
@@ -383,8 +359,7 @@ for (int n = 0; n<pack_size; n++)
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres1.data(), packedspheres1.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres2.data(), packedspheres2.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-    // std::cout<<"hello"<<endl;
-     
+   
    Util::Message(INFO, "hello");  
    
 	};
