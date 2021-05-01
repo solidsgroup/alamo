@@ -56,7 +56,7 @@ public:
 				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
-		//alpha = a_alpha;
+		alpha = a_alpha;
 		vf= a_volume_fraction;
                 R_min=a_R_min;
 		R_max=a_R_max;
@@ -114,22 +114,14 @@ public:
 		
 		}
 		}
-
-//        std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
-//		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;
-		
-      
-	  	
-		
-  
-   
-    
 		
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
  
      if (rank==0)			 
 		{  
+			
+	alpha.resize(pack_size,0.5);		
 	R_new.assign(R.begin(),R.end());
 	
 	
@@ -289,20 +281,15 @@ while (i<1000)
 	}
 	while (total<pack_size);
     }
-       alpha.resize(pack_size,0.5);
+ 
+    alpha.resize(pack_size,0.5);
       
-      // for (int i = 0; i < pack_size; i++)
-      // {
-      // alpha[i] = 0.5*(1.0 + Util::Random());
-      // }
-    pack_size=2;
+
+    pack_size=3;
     pack_size1=1;
     pack_size2=2;
      
-    alpha1.resize(pack_size1,0.5);
-     alpha2.resize(pack_size2,0.5);
-    
-    
+
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	
@@ -331,7 +318,7 @@ while (i<1000)
 	R_new[2]=0.05;
 for (int n = 0; n<pack_size; n++)
 	{ 
-	  if (packedspheres[n](0)>-0.75 && packedspheres[n](0) <0)
+	  if (packedspheres[n](0)>-1.5 && packedspheres[n](0) <0)
 	
 		{
 	
@@ -344,7 +331,7 @@ for (int n = 0; n<pack_size; n++)
 		}
 		
 		
-		if (packedspheres[n](0)>0.0 && packedspheres[n](0) <0.75)
+		if (packedspheres[n](0)>0.0 && packedspheres[n](0) <1.5)
 	
 		{
 	
@@ -358,19 +345,21 @@ for (int n = 0; n<pack_size; n++)
 		  R_new2.resize(pack_size2);
 		  packedspheres2[1]=packedspheres[2];
 		   R_new2[1]=R_new[2];
-		 
-		   std::cout<<"packedspheres2 inside1"<<packedspheres2[0](0)<<endl;
-		   std::cout<<"packedspheres2 inside2"<<packedspheres2[1](0)<<endl;
-		   std::cout<<"R_new2 in"<<R_new2[0]<<endl;
+
 		 
 		}
 
 	}	
 	
-      std::cout<<"packedspheres2 out"<<packedspheres2[0](0)<<endl;
+      //std::cout<<"packedspheres2 out"<<packedspheres2[0](0)<<endl;
+      Util::Message(INFO, "packedspheres2 out   ", packedspheres2[0](0));
       std::chrono::seconds dura(5);
       std::this_thread::sleep_for(dura);
-		   
+      
+	  packedspheres1.resize(pack_size1);
+	  R_new1.resize(pack_size1);	
+	  packedspheres2.resize(pack_size2);
+	  R_new2.resize(pack_size2);   
 	
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(R_new1.data(), R_new1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -380,13 +369,14 @@ for (int n = 0; n<pack_size; n++)
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size1, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size2, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	//MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres1.data(), packedspheres1.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres2.data(), packedspheres2.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-     std::cout<<"hello"<<endl;
-     std::cout<<"packedspheres1 out"<<packedspheres1[0](0)<<endl;
-     std::cout<<"R_new1 out"<<R_new[0]<<endl;
+    // std::cout<<"hello"<<endl;
+     
+   Util::Message(INFO, "hello");  
+   
 	};
 
 	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
@@ -424,7 +414,7 @@ for (int n = 0; n<pack_size; n++)
 				R_new2.resize(pack_size2);
 				
 				// if(x(0)>-0.5 && x(0)<0 && x(1)>-0.5 && x(1)<0 && x(2)>-0.5 && x(2)<0)
-				 if(x(0)>-0.75 && x(0)<0 )
+				 if(x(0)>-0.5 && x(0)<0 )
                 {
 				 packedspheres1.resize(pack_size1);
 				R_new1.resize(pack_size1);
@@ -475,7 +465,7 @@ for (int n = 0; n<pack_size; n++)
 				}
 				
 				
-				 if(x(0)>0.0 && x(0)<0.75 )
+				 if(x(0)>0.0 && x(0)<0.5 )
                 {
 				 packedspheres2.resize(pack_size2);
 				R_new2.resize(pack_size2);
@@ -557,14 +547,14 @@ private:
 	std::vector <amrex::Real> R_n;
 	std::vector <amrex::Real> count;
 	std::vector<double>::iterator it;
-	//std::vector<double> ins;
+	std::vector<double> ins;
     amrex::Real vf;
     amrex::Real R_min;
 	amrex::Real R_max;
 	int rank;
 	int region;
 
-	//std::vector<std::pair<std::vector<Set::Vector>,int>> divide;
+	
 
 	Type type;
 	//amrex::Vector<amrex::Real> packedspheres_x;

@@ -15,7 +15,7 @@ amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
-amr.grid_eff        = 0.7       # * Closeness of regrid patch to tagged region (default = 0.7) 
+amr.grid_eff        = 0.001       # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
 geometry.prob_lo    = -1.5 -0.5 -0.1  # Problem domain: furthest point to the lower left
@@ -24,9 +24,9 @@ geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.005     # Timestep
-stop_time           = 15
+stop_time           = 30
 
-physics.M           = 0.0  # Mobility - controls flame speed
+physics.M           = 1.0  # Mobility - controls flame speed
 physics.kappa	     = 0.001   # Width of burn region
 physics.w1          = 1.0    # Chemical energy before burn
 physics.w12         = 2.0    # Chemical energy during burn
@@ -43,8 +43,8 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 
 
 physics.fs_number   = 1    #no of different radii between R_min and R_max
-physics.fs_min      = 10.0 #0.1
-physics.fs_max      = 1.0 #0.5
+physics.fs_min      = 10 #0.1
+physics.fs_max      = 1 #0.5
 physics.volume_fraction=0.1
 physics.R_min=0.040
 physics.R_max=0.1
