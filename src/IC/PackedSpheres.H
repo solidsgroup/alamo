@@ -285,7 +285,7 @@ while (i<1000)
     alpha.resize(pack_size,0.5);
       
 
-    pack_size=3;
+    /*pack_size=3;
 
 	
 	AMREX_D_TERM(packedspheres[0](0) = -0.25;,
@@ -304,7 +304,7 @@ while (i<1000)
 						 
 	R_new[0]=0.05;
 	R_new[1]=0.05;
-	R_new[2]=0.05;
+	R_new[2]=0.05;*/
 	
 	pack_size1=0;
 	pack_size2=0;
@@ -338,7 +338,13 @@ for (int n = 0; n<pack_size; n++)
 
 	}	
 	
+      Util::Message(INFO, "packedspheres out   ", packedspheres[0](0));
+      Util::Message(INFO, "packedspheres1 out   ", packedspheres1[0](0));
       Util::Message(INFO, "packedspheres2 out   ", packedspheres2[0](0));
+      Util::Message(INFO, "pack size   ", pack_size);
+      Util::Message(INFO, "pack size1   ", pack_size1);
+      Util::Message(INFO, "pack size2   ", pack_size2);
+      
       std::chrono::seconds dura(5);
       std::this_thread::sleep_for(dura);
       
@@ -347,16 +353,16 @@ for (int n = 0; n<pack_size; n++)
 	  packedspheres2.resize(pack_size2);
 	  R_new2.resize(pack_size2);   
 	
-	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	//MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(R_new1.data(), R_new1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(R_new2.data(), R_new2.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	//MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size1, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size2, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
+	//MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres1.data(), packedspheres1.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres2.data(), packedspheres2.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
    
@@ -373,7 +379,7 @@ for (int n = 0; n<pack_size; n++)
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 		
-		
+		//Util::Message(INFO, "hello1");  
 			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
@@ -399,7 +405,7 @@ for (int n = 0; n<pack_size; n++)
 				R_new2.resize(pack_size2);
 				
 				// if(x(0)>-0.5 && x(0)<0 && x(1)>-0.5 && x(1)<0 && x(2)>-0.5 && x(2)<0)
-				 if(x(0)>-0.5 && x(0)<0 )
+				 if(x(0)>-1.5 && x(0)<0 )
                 {
 				 packedspheres1.resize(pack_size1);
 				R_new1.resize(pack_size1);
@@ -450,7 +456,7 @@ for (int n = 0; n<pack_size; n++)
 				}
 				
 				
-				 if(x(0)>0.0 && x(0)<0.5 )
+				 if(x(0)>0.0 && x(0)<1.5 )
                 {
 				 packedspheres2.resize(pack_size2);
 				R_new2.resize(pack_size2);
@@ -519,8 +525,6 @@ private:
 	int pack_size1;
 	int pack_size2;
 	std::vector<Set::Scalar> alpha;
-	std::vector<Set::Scalar> alpha1;
-	std::vector<Set::Scalar> alpha2;
 	std::vector<Set::Vector> packedspheres;
 	std::vector<Set::Vector> packedspheres1;
 	std::vector<Set::Vector> packedspheres2;
