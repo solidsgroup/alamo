@@ -292,7 +292,7 @@ while (i<1000)
 	pack_size2=0;
 	for (int n = 0; n<pack_size; n++)
 	{ 
-	  if (((packedspheres[n](0))>=-1.5) && ((packedspheres[n](0))<=0))
+	  if (((packedspheres[n](0))>=(-size(0)*0.5)) && ((packedspheres[n](0))<=(size(0)*0)))
 	
 		{
 	
@@ -306,7 +306,7 @@ while (i<1000)
 		}
 		
 		
-		if (((packedspheres[n](0))>=0.0) && ((packedspheres[n](0)) <=1.5))
+		if (((packedspheres[n](0))>=(0.0*size(0))) && ((packedspheres[n](0)) <=(size(0)*0.5)))
 	
 		{
 	       pack_size2++;  
@@ -382,7 +382,7 @@ while (i<1000)
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 		
-		Util::Message(INFO, "hello1");  
+		//Util::Message(INFO, "hello1");  
 			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
@@ -407,14 +407,14 @@ while (i<1000)
 				packedspheres2.resize(pack_size2);
 				R_new2.resize(pack_size2);
 				
-				// if(x(0)>-0.5 && x(0)<0 && x(1)>-0.5 && x(1)<0 && x(2)>-0.5 && x(2)<0)
+				
 				for (int n = 0; n<pack_size; n++)
 				{
 								    
                 packedspheres.resize(pack_size);
 				R_new.resize(pack_size);
 				
-				 if(packedspheres[n](0)>=-1.5 && packedspheres[n](0)<=0 )
+				 if(packedspheres[n](0)>=(-size(0)*0.5) && packedspheres[n](0)<=(0*size(0)) )
                 {
 				 packedspheres1.resize(pack_size1);
 				R_new1.resize(pack_size1);
@@ -455,7 +455,7 @@ while (i<1000)
 					if (d<R_new1[n])
 						{
 							min_grain_id = 0;
-							std::cout<<"inside min_grain"<<endl;
+							//std::cout<<"inside min_grain"<<endl;
 							
 						}
 						
@@ -466,7 +466,7 @@ while (i<1000)
 				}
 				
 				
-				 if(packedspheres[n](0)>=0.0 && packedspheres[n](0)<=1.5 )
+				 if(packedspheres[n](0)>=(0.0*size(0)) && packedspheres[n](0)<=(size(0)*0.5) )
                 {
 				 packedspheres2.resize(pack_size2);
 				R_new2.resize(pack_size2);
@@ -506,7 +506,7 @@ while (i<1000)
 					if (dd<R_new2[nn])
 						{
 							min_grain_id = 0;
-							std::cout<<"inside min_grain2"<<endl;
+							//std::cout<<"inside min_grain2"<<endl;
 							
 						}
 						
