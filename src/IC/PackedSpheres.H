@@ -75,6 +75,8 @@ public:
 		count.resize(number_of_grains);
 		R_new.resize(number_of_grains);
 		pack_size=0;
+		pack_size1=1;
+        pack_size2=1;
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
@@ -117,11 +119,17 @@ public:
 		
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
- 
+	
+    packedspheres1.resize(pack_size1);
+	R_new1.resize(pack_size1);	
+    packedspheres2.resize(pack_size2);
+	R_new2.resize(pack_size2);
+    alpha.resize(pack_size,0.5);
      if (rank==0)			 
 		{  
 			
-	alpha.resize(pack_size,0.5);		
+
+	
 	R_new.assign(R.begin(),R.end());
 	
 	
@@ -280,36 +288,9 @@ while (i<1000)
 
 	}
 	while (total<pack_size);
-    }
- 
-    alpha.resize(pack_size,0.5);
-      
-
-    /*pack_size=3;
-
-	
-	AMREX_D_TERM(packedspheres[0](0) = -0.25;,
-						 packedspheres[0](1) = -0.25;,
-						 packedspheres[0](2) = -0.25;);
-						 
-	AMREX_D_TERM(packedspheres[1](0) = 0.25;,
-						 packedspheres[1](1) = 0.25;,
-						 packedspheres[1](2) = 0.25;);	
-						 
-							 
-	AMREX_D_TERM(packedspheres[2](0) = 0.25;,
-						 packedspheres[2](1) = -0.25;,
-						 packedspheres[2](2) = 0.25;);					 				 
-					 				 
-						 
-	R_new[0]=0.05;
-	R_new[1]=0.05;
-	R_new[2]=0.05;*/
-	
 	pack_size1=0;
 	pack_size2=0;
-	
-for (int n = 0; n<pack_size; n++)
+	for (int n = 0; n<pack_size; n++)
 	{ 
 	  if (((packedspheres[n](0))>=-1.5) && ((packedspheres[n](0))<=0))
 	
@@ -339,18 +320,34 @@ for (int n = 0; n<pack_size; n++)
 
 	}	
 	
+	
+	
+	
+    }
+    
+  // alpha.resize(pack_size,0.5);
+	//pack_size1=0;
+//pack_size2=0;
+	
+
+	
+ 
+	
+	
       Util::Message(INFO, "packedspheres    ", packedspheres[0](0));
       Util::Message(INFO, "packedspheres    ", packedspheres[1](0));
        Util::Message(INFO, "packedspheres    ", packedspheres[2](0));
        
-     // Util::Message(INFO, "packedspheres1    ", packedspheres1[0](0));
-      //Util::Message(INFO, "packedspheres2    ", packedspheres2[0](0));
+      Util::Message(INFO, "packedspheres1    ", packedspheres1[0](0));
+      Util::Message(INFO, "packedspheres2    ", packedspheres2[0](0));
       Util::Message(INFO, "pack size   ", pack_size);
       Util::Message(INFO, "pack size1   ", pack_size1);
       Util::Message(INFO, "pack size2   ", pack_size2);
       
  
-      
+      packedspheres.resize(pack_size);
+	  R_new.resize(pack_size);
+	  
 	  packedspheres1.resize(pack_size1);
 	  R_new1.resize(pack_size1);	
 	  packedspheres2.resize(pack_size2);
@@ -360,8 +357,8 @@ for (int n = 0; n<pack_size; n++)
       std::this_thread::sleep_for(dura);
 	
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Bcast(R_new1.data(), R_new1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Bcast(R_new2.data(), R_new2.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	//MPI_Bcast(R_new1.data(), R_new1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	//MPI_Bcast(R_new2.data(), R_new2.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -370,7 +367,7 @@ for (int n = 0; n<pack_size; n++)
 
 	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(packedspheres1.data(), packedspheres1.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Bcast(packedspheres2.data(), packedspheres2.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
+   // MPI_Bcast(packedspheres2.data(), packedspheres2.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
    
    Util::Message(INFO, "hello");  
    
@@ -385,7 +382,7 @@ for (int n = 0; n<pack_size; n++)
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 		
-		//Util::Message(INFO, "hello1");  
+		Util::Message(INFO, "hello1");  
 			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
@@ -523,8 +520,8 @@ for (int n = 0; n<pack_size; n++)
 				
 			}
 				
-				 Util::Message(INFO, "pack size1 final   ", pack_size2);
-				  Util::Message(INFO, "pack size2 final   ", pack_size2);
+				 //Util::Message(INFO, "pack size1 final   ", pack_size2);
+				 // Util::Message(INFO, "pack size2 final   ", pack_size2);
 				
 				
 
