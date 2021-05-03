@@ -75,8 +75,7 @@ public:
 		count.resize(number_of_grains);
 		R_new.resize(number_of_grains);
 		pack_size=0;
-		pack_size1=1;
-        pack_size2=1;
+		pack_size1.resize(2,1);
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
@@ -120,10 +119,10 @@ public:
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
 	
-    packedspheres1.resize(pack_size1);
-	R_new1.resize(pack_size1);	
-    packedspheres2.resize(pack_size2);
-	R_new2.resize(pack_size2);
+    packedspheres1.resize(pack_size1[0]);
+	R_new1.resize(pack_size1[0]);	
+    packedspheres2.resize(pack_size1[1]);
+	R_new2.resize(pack_size1[1]);
     alpha.resize(pack_size,0.5);
      if (rank==0)			 
 		{  
@@ -288,32 +287,32 @@ while (i<1000)
 
 	}
 	while (total<pack_size);
-	pack_size1=0;
-	pack_size2=0;
+	pack_size1[0]=0;
+	pack_size1[1]=0;
 	for (int n = 0; n<pack_size; n++)
 	{ 
-	  if (((packedspheres[n](0))>=(-size(0)*0.5)) && ((packedspheres[n](0))<=(size(0)*0)))
+	  if (((packedspheres[n](0))>=-1.5) && ((packedspheres[n](0))<=0))
 	
 		{
 	
-		  pack_size1++;
-		  packedspheres1.resize(pack_size1);
-		  R_new1.resize(pack_size1);
-		  packedspheres1[pack_size1-1]=packedspheres[n];
-		   R_new1[pack_size1-1]=R_new[n];
+		  pack_size1[0]++;
+		  packedspheres1.resize(pack_size1[0]);
+		  R_new1.resize(pack_size1[0]);
+		  packedspheres1[(pack_size1[0])-1]=packedspheres[n];
+		   R_new1[(pack_size1[0])-1]=R_new[n];
 		   Util::Message(INFO, "loop 1");
 		  
 		}
 		
 		
-		if (((packedspheres[n](0))>=(0.0*size(0))) && ((packedspheres[n](0)) <=(size(0)*0.5)))
+		if (((packedspheres[n](0))>=0.0) && ((packedspheres[n](0)) <=1.5))
 	
 		{
-	       pack_size2++;  
-		   packedspheres2.resize(pack_size2);
-		  R_new2.resize(pack_size2);
-		  packedspheres2[pack_size2-1]=packedspheres[n];
-		   R_new2[pack_size2-1]=R_new[n]; 
+	       pack_size1[1]++;  
+		   packedspheres2.resize(pack_size1[1]);
+		  R_new2.resize(pack_size1[1]);
+		  packedspheres2[(pack_size1[1])-1]=packedspheres[n];
+		   R_new2[(pack_size1[1])-1]=R_new[n]; 
 		  Util::Message(INFO, "loop 2");
 		 
 		}
@@ -341,22 +340,22 @@ while (i<1000)
       Util::Message(INFO, "packedspheres1    ", packedspheres1[0](0));
       Util::Message(INFO, "packedspheres2    ", packedspheres2[0](0));
       Util::Message(INFO, "pack size   ", pack_size);
-      Util::Message(INFO, "pack size1   ", pack_size1);
-      Util::Message(INFO, "pack size2   ", pack_size2);
+      Util::Message(INFO, "pack size1   ", pack_size1[0]);
+      Util::Message(INFO, "pack size2   ", pack_size1[1]);
       
  
       packedspheres.resize(pack_size);
 	  R_new.resize(pack_size);
 	  
-	  packedspheres1.resize(pack_size1);
-	  R_new1.resize(pack_size1);	
-	  packedspheres2.resize(pack_size2);
-	  R_new2.resize(pack_size2);   
+	  packedspheres1.resize(pack_size1[0]);
+	  R_new1.resize(pack_size1[0]);	
+	  packedspheres2.resize(pack_size1[1]);
+	  R_new2.resize(pack_size1[1]);   
 	  
 	  std::chrono::seconds dura(5);
       std::this_thread::sleep_for(dura);
 	
-	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	/*MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	//MPI_Bcast(R_new1.data(), R_new1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	//MPI_Bcast(R_new2.data(), R_new2.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -369,7 +368,7 @@ while (i<1000)
 	MPI_Bcast(packedspheres1.data(), packedspheres1.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
    // MPI_Bcast(packedspheres2.data(), packedspheres2.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
    
-   Util::Message(INFO, "hello");  
+   Util::Message(INFO, "hello");  */
    
 	};
 
@@ -382,7 +381,7 @@ while (i<1000)
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 		
-		//Util::Message(INFO, "hello1");  
+		Util::Message(INFO, "hello1");  
 			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
@@ -401,24 +400,24 @@ while (i<1000)
                 packedspheres.resize(pack_size);
 				R_new.resize(pack_size);
 				
-				packedspheres1.resize(pack_size1);
-				R_new1.resize(pack_size1);
+				packedspheres1.resize(pack_size1[0]);
+				R_new1.resize(pack_size1[0]);
 				
-				packedspheres2.resize(pack_size2);
-				R_new2.resize(pack_size2);
+				packedspheres2.resize(pack_size1[1]);
+				R_new2.resize(pack_size1[1]);
 				
-				
+				// if(x(0)>-0.5 && x(0)<0 && x(1)>-0.5 && x(1)<0 && x(2)>-0.5 && x(2)<0)
 				for (int n = 0; n<pack_size; n++)
 				{
 								    
                 packedspheres.resize(pack_size);
 				R_new.resize(pack_size);
 				
-				 if(packedspheres[n](0)>=(-size(0)*0.5) && packedspheres[n](0)<=(0*size(0)) )
+				 if(packedspheres[n](0)>=-1.5 && packedspheres[n](0)<=0 )
                 {
-				 packedspheres1.resize(pack_size1);
-				R_new1.resize(pack_size1);
-				for (int n = 0; n<pack_size1; n++)
+				 packedspheres1.resize(pack_size1[0]);
+				R_new1.resize(pack_size1[0]);
+				for (int n = 0; n<pack_size1[0]; n++)
 				{ 
 			    Set::Scalar d ;
 				Set::Scalar d1; 
@@ -466,11 +465,11 @@ while (i<1000)
 				}
 				
 				
-				 if(packedspheres[n](0)>=(0.0*size(0)) && packedspheres[n](0)<=(size(0)*0.5) )
+				 if(packedspheres[n](0)>=0.0 && packedspheres[n](0)<=1.5 )
                 {
-				 packedspheres2.resize(pack_size2);
-				R_new2.resize(pack_size2);
-				for (int nn = 0; nn<pack_size2; nn++)
+				 packedspheres2.resize(pack_size1[1]);
+				R_new2.resize(pack_size1[1]);
+				for (int nn = 0; nn<pack_size1[1]; nn++)
 				{ 
 			    Set::Scalar dd ;
 				Set::Scalar dd1; 
@@ -537,8 +536,7 @@ while (i<1000)
 private:
 	int number_of_grains;
 	int pack_size;
-	int pack_size1;
-	int pack_size2;
+	std::vector <amrex::Real> pack_size1;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
 	std::vector<Set::Vector> packedspheres1;
