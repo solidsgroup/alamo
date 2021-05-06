@@ -76,6 +76,9 @@ public:
 		R_new.resize(number_of_grains);
 		pack_size=0;
 		pack_size1.resize(2,1);
+		pack_size1[0]=1;
+		pack_size1[1]=1;
+	
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
@@ -115,15 +118,26 @@ public:
 		
 		}
 		}
-		
+		 Util::Message(INFO, "hello a");
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
+	R_news1.push_back(0.01);
+	//R_news2.push_back(0);
+	R_new1.push_back(R_news1);
+    R_news1.clear();
+    R_news1.push_back(0.01);
+    R_new1.push_back(R_news1);
 	
+	//R_new1[1].resize(1,pack_size1[1]);
+	// Util::Message(INFO, "R_new11",R_new11[0][0]);
     packedspheres1.resize(pack_size1[0]);
-	R_new1.resize(pack_size1[0]);	
+	//R_new1.resize(pack_size1[0]);	
     packedspheres2.resize(pack_size1[1]);
-	R_new2.resize(pack_size1[1]);
+	//R_new1.resize(pack_size1[1]);
     alpha.resize(pack_size,0.5);
+    
+     Util::Message(INFO, "hello b");
+    
      if (rank==0)			 
 		{  
 			
@@ -287,38 +301,6 @@ while (i<1000)
 
 	}
 	while (total<pack_size);
-	pack_size1[0]=0;
-	pack_size1[1]=0;
-	for (int n = 0; n<pack_size; n++)
-	{ 
-	  if (((packedspheres[n](0))>=-1.5) && ((packedspheres[n](0))<=0))
-	
-		{
-	
-		  pack_size1[0]++;
-		  packedspheres1.resize(pack_size1[0]);
-		  R_new1.resize(pack_size1[0]);
-		  packedspheres1[(pack_size1[0])-1]=packedspheres[n];
-		   R_new1[(pack_size1[0])-1]=R_new[n];
-		   Util::Message(INFO, "loop 1");
-		  
-		}
-		
-		
-		if (((packedspheres[n](0))>=0.0) && ((packedspheres[n](0)) <=1.5))
-	
-		{
-	       pack_size1[1]++;  
-		   packedspheres2.resize(pack_size1[1]);
-		  R_new2.resize(pack_size1[1]);
-		  packedspheres2[(pack_size1[1])-1]=packedspheres[n];
-		   R_new2[(pack_size1[1])-1]=R_new[n]; 
-		  Util::Message(INFO, "loop 2");
-		 
-		}
-
-	}	
-	
 	
 	
 	
@@ -328,7 +310,63 @@ while (i<1000)
 	//pack_size1=0;
 //pack_size2=0;
 	
+    pack_size1[0]=0;
+	pack_size1[1]=0;
+	for (int n = 0; n<pack_size; n++)
+	{ 
+	  if (((packedspheres[n](0))>=-1.5) && ((packedspheres[n](0))<=0))
+	
+		{
+	
+		  pack_size1[0]++;
+		  packedspheres1.resize(pack_size1[0]);
+		   R_news1.clear();
+		  R_news1.resize(pack_size1[0]);
+		 
+		   Util::Message(INFO, "loop 11");
+		  packedspheres1[(pack_size1[0])-1]=packedspheres[n];
+		  //R_news1.pop_back();
+		  //R_news1.push_back(R_new[n]);
+		  // R_new1[(pack_size1[0])-1].push_back(R_news1);
+		  R_news1[0]=R_new[n];
+		  //R_new1.push_back(R_news1);
+		   R_new1[0][0]=R_new[n];
+		  Util::Message(INFO, "R_new[0] ",R_new[0]); 
+		  //Util::Message(INFO, "R_new[1] ",R_new[1]);
+		   Util::Message(INFO, "R_news1[0] ",R_news1[0]);
+		   Util::Message(INFO, "R_news1[1] ",R_news1[1]);
+		  
+		}
+		
+		
+		if (((packedspheres[n](0))>=0.0) && ((packedspheres[n](0)) <=1.5))
+	
+		{
+	       pack_size1[1]++;  
+		   packedspheres2.resize(pack_size1[1]);
+		  //R_new1.resize(1,pack_size1);
+		  R_news1.clear();
+		  R_news1.resize(pack_size1[1]);
+		  
+		  packedspheres2[(pack_size1[1])-1]=packedspheres[n];
+		  // R_new1[1][(pack_size1[1])-1]=R_new[n]; 
+		   //R_new1[(pack_size1[1])-1].push_back(R_new[n]);
+		  // R_news1.pop_back();
+		  // R_news1.push_back(R_new[n]);
+		  //R_new1[(pack_size1[1])-1].push_back(R_news1);
+		  R_news1[0]=R_new[n];
+		   //R_new1.push_back(R_news1);
+		   R_new1[1][0]=R_new[n];
+		  //Util::Message(INFO, "R_new[0] ",R_new[0]); 
+		  Util::Message(INFO, "R_new[1] ",R_new[1]);
+		  Util::Message(INFO, "R_news1[0] ",R_news1[0]);
+		  Util::Message(INFO, "R_news1[1] ",R_news1[1]);
+		 
+		}
 
+	}	
+	
+	
 	
  
 	
@@ -342,15 +380,17 @@ while (i<1000)
       Util::Message(INFO, "pack size   ", pack_size);
       Util::Message(INFO, "pack size1   ", pack_size1[0]);
       Util::Message(INFO, "pack size2   ", pack_size1[1]);
+      Util::Message(INFO, "R_new1[0][0]   ", R_new1[0][0]);
+      Util::Message(INFO, "R_new1[1][0]   ", R_new1[1][0]);
       
  
       packedspheres.resize(pack_size);
 	  R_new.resize(pack_size);
 	  
 	  packedspheres1.resize(pack_size1[0]);
-	  R_new1.resize(pack_size1[0]);	
+	  //R_new1[0].resize(1,pack_size1[0]);	
 	  packedspheres2.resize(pack_size1[1]);
-	  R_new2.resize(pack_size1[1]);   
+	 // R_new1[1].resize(1,pack_size1[1]);   
 	  
 	  std::chrono::seconds dura(5);
       std::this_thread::sleep_for(dura);
@@ -401,10 +441,10 @@ while (i<1000)
 				R_new.resize(pack_size);
 				
 				packedspheres1.resize(pack_size1[0]);
-				R_new1.resize(pack_size1[0]);
+			    R_new1[0].resize(pack_size1[0]);
 				
 				packedspheres2.resize(pack_size1[1]);
-				R_new2.resize(pack_size1[1]);
+				R_new1[1].resize(pack_size1[1]);
 				
 				// if(x(0)>-0.5 && x(0)<0 && x(1)>-0.5 && x(1)<0 && x(2)>-0.5 && x(2)<0)
 				for (int n = 0; n<pack_size; n++)
@@ -416,7 +456,7 @@ while (i<1000)
 				 if(packedspheres[n](0)>=-1.5 && packedspheres[n](0)<=0 )
                 {
 				 packedspheres1.resize(pack_size1[0]);
-				R_new1.resize(pack_size1[0]);
+				R_new1[0].resize(pack_size1[0]);
 				for (int n = 0; n<pack_size1[0]; n++)
 				{ 
 			    Set::Scalar d ;
@@ -451,7 +491,7 @@ while (i<1000)
 
                      
 
-					if (d<R_new1[n])
+					if (d<R_new1[0][n])
 						{
 							min_grain_id = 0;
 							//std::cout<<"inside min_grain"<<endl;
@@ -468,7 +508,7 @@ while (i<1000)
 				 if(packedspheres[n](0)>=0.0 && packedspheres[n](0)<=1.5 )
                 {
 				 packedspheres2.resize(pack_size1[1]);
-				R_new2.resize(pack_size1[1]);
+				R_new1[1].resize(pack_size1[1]);
 				for (int nn = 0; nn<pack_size1[1]; nn++)
 				{ 
 			    Set::Scalar dd ;
@@ -502,7 +542,7 @@ while (i<1000)
 
                      
 
-					if (dd<R_new2[nn])
+					if (dd<R_new1[1][nn])
 						{
 							min_grain_id = 0;
 							//std::cout<<"inside min_grain2"<<endl;
@@ -542,8 +582,11 @@ private:
 	std::vector<Set::Vector> packedspheres1;
 	std::vector<Set::Vector> packedspheres2;
 	std::vector <amrex::Real> R_new;
-	std::vector <amrex::Real> R_new1;
-	std::vector <amrex::Real> R_new2;
+	std::vector<std::vector <amrex::Real>>  R_new1;
+	std::vector <amrex::Real> R_news1;
+	//std::vector <amrex::Real> R_news2;
+	//std::vector <amrex::Real> R_new2;
+	//std::vector<std::vector <amrex::Real>> R_new11;
 	std::vector <amrex::Real> R;
 	std::vector <amrex::Real> dd;
 	std::vector <amrex::Real> R_n;
