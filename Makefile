@@ -39,7 +39,7 @@ CXX_COMPILE_FLAGS += -Winline -Wextra -Wall  -std=c++17 $(METADATA_FLAGS)
 
 LINKER_FLAGS += -Bsymbolic-functions
 
-INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
+ALAMO_INCLUDE += $(if ${EIGEN}, -isystem ${EIGEN})  $(if ${AMREX}, -isystem ${AMREX}/include/) -I./src/ $(for pth in ${CPLUS_INCLUDE_PATH}; do echo -I"$pth"; done)
 LIB     += -L${AMREX}/lib/ -lamrex -lpthread
 
 HDR_ALL = $(shell find src/ -name *.H)
@@ -70,7 +70,7 @@ default: $(DEP) $(EXE) $(DEP_EXTRA)
 
 python: $(OBJ)
 	@printf "$(B_ON)$(FG_MAGENTA)PYTHON  $(RESET)    Compiling library\n" 
-	@$(CC) -x c++ -c py/alamo.cpy -fPIC -o py/alamo.cpy.o ${INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -x c++ -c py/alamo.cpy -fPIC -o py/alamo.cpy.o ${ALAMO_INCLUDE} ${PYTHON_INCLUDE} ${CXX_COMPILE_FLAGS} 
 	@$(CC) -shared -Wl,-soname,alamo.so -o alamo.so py/alamo.cpy.o ${OBJ} ${LIB} ${MPI_LIB} $(PYTHON_LIB) 
 
 tidy:
@@ -120,7 +120,7 @@ obj/obj-$(POSTFIX)/test.cc.o: src/test.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET} 
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -128,7 +128,7 @@ obj/obj-$(POSTFIX)/%.cc.o: src/%.cc ${AMREX_TARGET}
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cpp.o: 
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -136,7 +136,7 @@ obj/obj-$(POSTFIX)/%.cpp.o:
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c $< -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c $< -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
@@ -144,14 +144,14 @@ obj/obj-$(POSTFIX)/%.cpp.d: src/%.cpp  ${AMREX_TARGET}
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
 	@mkdir -p $(dir $@)
-	@$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
+	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cpp.d=.cpp.o) -MF $@
 
 obj/obj-$(POSTFIX)/%.cc.d: src/%.cc ${AMREX_TARGET}
 	$(eval CTR_DEP=$(shell echo $$(($(CTR_DEP)+1))))
 	@printf "$(B_ON)$(FG_GRAY)DEPENDENCY$(RESET)$(FG_LIGHTGRAY)  " 
 	@printf '%9s' "($(CTR_DEP)/$(NUM)) " 
 	@printf "$(RESET)$<\n"
-	@$(CC) -I./src/ $< ${INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
+	@$(CC) -I./src/ $< ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} -MM -MT $(@:.cc.d=.cc.o) -MF $@
 
 obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
 	$(eval CTR=$(shell echo $$(($(CTR)+1))))
@@ -159,7 +159,7 @@ obj/obj-$(POSTFIX)/IO/WriteMetaData.cpp.o: .FORCE ${AMREX_TARGET}
 	@printf '%9s' "($(CTR)/$(NUM)) " 
 	@printf "$(RESET)${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} \n"
 	@mkdir -p $(dir $@)
-	@$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${INCLUDE} ${CXX_COMPILE_FLAGS} 
+	@$(CC) -c ${subst obj/obj-$(POSTFIX)/,src/,${@:.cpp.o=.cpp}} -o $@ ${ALAMO_INCLUDE} ${CXX_COMPILE_FLAGS} 
 
 .PHONY: .FORCE
 
