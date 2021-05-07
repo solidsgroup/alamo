@@ -375,13 +375,6 @@ while (i<1000)
                 packedspheres.resize(pack_size);
 				R_new.resize(pack_size);
 				
-				packedspheres1.resize(pack_size1[0]);
-			    R_new1[0].resize(pack_size1[0]);
-				
-				packedspheres2.resize(pack_size1[1]);
-				R_new1[1].resize(pack_size1[1]);
-				
-				// if(x(0)>-0.5 && x(0)<0 && x(1)>-0.5 && x(1)<0 && x(2)>-0.5 && x(2)<0)
 				for (int n = 0; n<pack_size; n++)
 				{
 								    
@@ -390,8 +383,7 @@ while (i<1000)
 				
 				 if(packedspheres[n](0)>=-1.5 && packedspheres[n](0)<=0 )
                 {
-				 packedspheres1.resize(pack_size1[0]);
-				R_new1[0].resize(pack_size1[0]);
+
 				for (int n = 0; n<pack_size1[0]; n++)
 				{ 
 			    Set::Scalar d ;
@@ -442,8 +434,6 @@ while (i<1000)
 				
 				 if(packedspheres[n](0)>=0.0 && packedspheres[n](0)<=1.5 )
                 {
-				 packedspheres2.resize(pack_size1[1]);
-				R_new1[1].resize(pack_size1[1]);
 				for (int nn = 0; nn<pack_size1[1]; nn++)
 				{ 
 			    Set::Scalar dd ;
