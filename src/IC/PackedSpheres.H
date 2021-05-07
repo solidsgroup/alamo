@@ -306,9 +306,6 @@ while (i<1000)
 	
     }
     
-  // alpha.resize(pack_size,0.5);
-	//pack_size1=0;
-//pack_size2=0;
 	
     pack_size1[0]=0;
 	pack_size1[1]=0;
@@ -320,21 +317,9 @@ while (i<1000)
 	
 		  pack_size1[0]++;
 		  packedspheres1.resize(pack_size1[0]);
-		   R_news1.clear();
-		  R_news1.resize(pack_size1[0]);
-		 
-		   Util::Message(INFO, "loop 11");
 		  packedspheres1[(pack_size1[0])-1]=packedspheres[n];
-		  //R_news1.pop_back();
-		  //R_news1.push_back(R_new[n]);
-		  // R_new1[(pack_size1[0])-1].push_back(R_news1);
-		  R_news1[(pack_size1[0])-1]=R_new[n];
-		  //R_new1.push_back(R_news1);
-		   R_new1[0][(pack_size1[0])-1]=R_news1[(pack_size1[0])-1];
-		  Util::Message(INFO, "R_new[0] ",R_new[0]); 
-		  //Util::Message(INFO, "R_new[1] ",R_new[1]);
-		   Util::Message(INFO, "R_news1[0] ",R_news1[0]);
-		   Util::Message(INFO, "R_news1[1] ",R_news1[1]);
+		   R_new1[0][(pack_size1[0])-1]=R_new[n];
+		   Util::Message(INFO, "R_new1[0] ",R_new1[0][(pack_size1[0])-1]);
 		   Util::Message(INFO, "pack_size1[0] ",pack_size1[0]);
 		  
 		}
@@ -345,72 +330,20 @@ while (i<1000)
 		{
 	       pack_size1[1]++;  
 		   packedspheres2.resize(pack_size1[1]);
-		  //R_new1.resize(1,pack_size1);
-		  R_news1.clear();
-		  R_news1.resize(pack_size1[1]);
-		  
 		  packedspheres2[(pack_size1[1])-1]=packedspheres[n];
-		  // R_new1[1][(pack_size1[1])-1]=R_new[n]; 
-		   //R_new1[(pack_size1[1])-1].push_back(R_new[n]);
-		  // R_news1.pop_back();
-		  // R_news1.push_back(R_new[n]);
-		  //R_new1[(pack_size1[1])-1].push_back(R_news1);
-		  R_news1[(pack_size1[1])-1]=R_new[n];
-		   //R_new1.push_back(R_news1);
-		   R_new1[1][(pack_size1[1])-1]=R_news1[(pack_size1[1])-1];
-		  //Util::Message(INFO, "R_new[0] ",R_new[0]); 
-		  Util::Message(INFO, "R_new[1] ",R_new[1]);
-		  Util::Message(INFO, "R_news1[0] ",R_news1[0]);
-		  Util::Message(INFO, "R_news1[1] ",R_news1[1]);
+		   R_new1[1][(pack_size1[1])-1]=R_new[n];
+		  Util::Message(INFO, "R_new1[1] ",R_new1[1][(pack_size1[1])-1]);
 		   Util::Message(INFO, "pack_size1[1] ",pack_size1[1]);
 		 
 		}
 
 	}	
-	
-	
-	
- 
-	
-	
-      Util::Message(INFO, "packedspheres    ", packedspheres[0](0));
-      Util::Message(INFO, "packedspheres    ", packedspheres[1](0));
-       Util::Message(INFO, "packedspheres    ", packedspheres[2](0));
-       
-      Util::Message(INFO, "packedspheres1    ", packedspheres1[0](0));
-      Util::Message(INFO, "packedspheres2    ", packedspheres2[0](0));
-      Util::Message(INFO, "pack size   ", pack_size);
-      Util::Message(INFO, "pack size1   ", pack_size1[0]);
-      Util::Message(INFO, "pack size2   ", pack_size1[1]);
-      Util::Message(INFO, "R_new1[0][0]   ", R_new1[0][0]);
-      Util::Message(INFO, "R_new1[1][0]   ", R_new1[1][0]);
-      
- 
-      packedspheres.resize(pack_size);
-	  R_new.resize(pack_size);
-	  
-	  packedspheres1.resize(pack_size1[0]);
-	  //R_new1[0].resize(1,pack_size1[0]);	
-	  packedspheres2.resize(pack_size1[1]);
-	 // R_new1[1].resize(1,pack_size1[1]);   
+
 	  
 	  std::chrono::seconds dura(5);
       std::this_thread::sleep_for(dura);
 	
-	/*MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	//MPI_Bcast(R_new1.data(), R_new1.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	//MPI_Bcast(R_new2.data(), R_new2.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&pack_size1, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&pack_size2, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
-	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-	MPI_Bcast(packedspheres1.data(), packedspheres1.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-   // MPI_Bcast(packedspheres2.data(), packedspheres2.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-   
-   Util::Message(INFO, "hello");  */
    
 	};
 
@@ -560,9 +493,6 @@ while (i<1000)
 				}
 				
 			}
-				
-				 //Util::Message(INFO, "pack size1 final   ", pack_size2);
-				 // Util::Message(INFO, "pack size2 final   ", pack_size2);
 				
 				
 
