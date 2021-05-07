@@ -310,8 +310,10 @@ while (i<1000)
     pack_size1[0]=0;
 	pack_size1[1]=0;
 	for (int n = 0; n<pack_size; n++)
-	{ 
-	  if (((packedspheres[n](0))>=-1.5) && ((packedspheres[n](0))<=0))
+	{
+	//for (int m=0;m<2;m++)
+	//{ 
+	  if (packedspheres[n](0)>=size(0)*-0.5 && packedspheres[n](0)<=size(0)*0.0)
 	
 		{
 	
@@ -325,7 +327,7 @@ while (i<1000)
 		}
 		
 		
-		if (((packedspheres[n](0))>=0.0) && ((packedspheres[n](0)) <=1.5))
+		if (packedspheres[n](0)>=size(0)*0.0 && packedspheres[n](0)<=size(0)*0.5)
 	
 		{
 	       pack_size1[1]++;  
@@ -337,7 +339,9 @@ while (i<1000)
 		 
 		}
 
-	}	
+	}
+//}
+	
 
 	  
 	  std::chrono::seconds dura(5);
@@ -381,7 +385,7 @@ while (i<1000)
                 packedspheres.resize(pack_size);
 				R_new.resize(pack_size);
 				
-				 if(packedspheres[n](0)>=-1.5 && packedspheres[n](0)<=0 )
+				if (packedspheres[n](0)>=size(0)*-0.5 && packedspheres[n](0)<=size(0)*0.0)
                 {
 
 				for (int n = 0; n<pack_size1[0]; n++)
@@ -432,7 +436,7 @@ while (i<1000)
 				}
 				
 				
-				 if(packedspheres[n](0)>=0.0 && packedspheres[n](0)<=1.5 )
+				 if (packedspheres[n](0)>=size(0)*0.0 && packedspheres[n](0)<=size(0)*0.5)
                 {
 				for (int nn = 0; nn<pack_size1[1]; nn++)
 				{ 
