@@ -328,13 +328,14 @@ while (i<1000)
 		  //R_news1.pop_back();
 		  //R_news1.push_back(R_new[n]);
 		  // R_new1[(pack_size1[0])-1].push_back(R_news1);
-		  R_news1[0]=R_new[n];
+		  R_news1[(pack_size1[0])-1]=R_new[n];
 		  //R_new1.push_back(R_news1);
-		   R_new1[0][0]=R_new[n];
+		   R_new1[0][(pack_size1[0])-1]=R_news1[(pack_size1[0])-1];
 		  Util::Message(INFO, "R_new[0] ",R_new[0]); 
 		  //Util::Message(INFO, "R_new[1] ",R_new[1]);
 		   Util::Message(INFO, "R_news1[0] ",R_news1[0]);
 		   Util::Message(INFO, "R_news1[1] ",R_news1[1]);
+		   Util::Message(INFO, "pack_size1[0] ",pack_size1[0]);
 		  
 		}
 		
@@ -354,13 +355,14 @@ while (i<1000)
 		  // R_news1.pop_back();
 		  // R_news1.push_back(R_new[n]);
 		  //R_new1[(pack_size1[1])-1].push_back(R_news1);
-		  R_news1[0]=R_new[n];
+		  R_news1[(pack_size1[1])-1]=R_new[n];
 		   //R_new1.push_back(R_news1);
-		   R_new1[1][0]=R_new[n];
+		   R_new1[1][(pack_size1[1])-1]=R_news1[(pack_size1[1])-1];
 		  //Util::Message(INFO, "R_new[0] ",R_new[0]); 
 		  Util::Message(INFO, "R_new[1] ",R_new[1]);
 		  Util::Message(INFO, "R_news1[0] ",R_news1[0]);
 		  Util::Message(INFO, "R_news1[1] ",R_news1[1]);
+		   Util::Message(INFO, "pack_size1[1] ",pack_size1[1]);
 		 
 		}
 
