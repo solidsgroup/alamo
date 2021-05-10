@@ -122,18 +122,12 @@ public:
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
 	R_news1.push_back(0.01);
-	//R_news2.push_back(0);
 	R_new1.push_back(R_news1);
     R_news1.clear();
     R_news1.push_back(0.01);
     R_new1.push_back(R_news1);
+    //packedspheres1_sub.push_back(1,1,1});
 	
-	//R_new1[1].resize(1,pack_size1[1]);
-	// Util::Message(INFO, "R_new11",R_new11[0][0]);
-    packedspheres1.resize(pack_size1[0]);
-	//R_new1.resize(pack_size1[0]);	
-    packedspheres2.resize(pack_size1[1]);
-	//R_new1.resize(pack_size1[1]);
     alpha.resize(pack_size,0.5);
     
      Util::Message(INFO, "hello b");
@@ -309,12 +303,23 @@ while (i<1000)
 	
     pack_size1[0]=0;
 	pack_size1[1]=0;
+	//packedspheres1_sub.push_back(1);
+	
+	AMREX_D_TERM(packedspheres1_sub[0](0) = 0.01;,
+				  packedspheres1_sub[0](1) = 0.01;,
+				  packedspheres1_sub[0](2) = 0.01;);
+				  
+		
+	AMREX_D_TERM(packedspheres1_sub[1](0) = 0.01;,
+				  packedspheres1_sub[1](1) = 0.01;,
+				  packedspheres1_sub[1](2) = 0.01;);	
+				  
+	packedspheres1.push_back(packedspheres1_sub);			  		  
 	
 	for (int n = 0; n<pack_size; n++)
 	{
 	for (double mm=-0.5;mm<0.5;mm += 0.5)
-	//double mm=-0.5;
-	//while(mm<0.5)
+
 	{ 
 		
 
@@ -322,14 +327,15 @@ while (i<1000)
 	
 		{
 			
-		//int m;
 		if (mm==-0.5)
 		{
 		   int m=0;
 		    
 		   pack_size1[m]++;
-		  packedspheres1.resize(pack_size1[m]);
-		  packedspheres1[(pack_size1[m])-1]=packedspheres[n];
+		 // packedspheres1.resize(pack_size1[m]);
+		   //packedspheres1_sub.clear();
+		   //packedspheres1_sub.push_back(packedspheres[n]);
+		   packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
 		   R_new1[m][(pack_size1[m])-1]=R_new[n];
 		   Util::Message(INFO, "R_new1[0] ",R_new1[m][(pack_size1[m])-1]);
 		   Util::Message(INFO, "pack_size1[0] ",pack_size1[m]);
@@ -340,9 +346,12 @@ while (i<1000)
      	{
 			int m=1;
 			
-		 pack_size1[m]++;
-		  packedspheres2.resize(pack_size1[m]);
-		  packedspheres2[(pack_size1[m])-1]=packedspheres[n];
+		   pack_size1[m]++;
+		  //packedspheres2.resize(pack_size1[m]);
+		   //packedspheres1_sub.clear();
+		   //packedspheres1_sub.push_back(packedspheres[n]);
+		   //packedspheres1[m].push_back(packedspheres1_sub);
+		   packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
 		   R_new1[m][(pack_size1[m])-1]=R_new[n];
 		   Util::Message(INFO, "R_new1[1] ",R_new1[m][(pack_size1[m])-1]);
 		   Util::Message(INFO, "pack_size1[1] ",pack_size1[m]);
@@ -350,21 +359,6 @@ while (i<1000)
 	
 		  
 		}
-		//mm=mm+0.5;
-		
-		
-		
-		/*if (packedspheres[n](0)>=size(0)*0.0 && packedspheres[n](0)<=size(0)*0.5)
-	
-		{
-	       pack_size1[1]++;  
-		   packedspheres2.resize(pack_size1[1]);
-		  packedspheres2[(pack_size1[1])-1]=packedspheres[n];
-		   R_new1[1][(pack_size1[1])-1]=R_new[n];
-		  Util::Message(INFO, "R_new1[1] ",R_new1[1][(pack_size1[1])-1]);
-		   Util::Message(INFO, "pack_size1[1] ",pack_size1[1]);
-		 
-		}*/
     
 	}
 }
@@ -423,26 +417,26 @@ while (i<1000)
 							
 
 				     
-					 d = (x - packedspheres1[n]).lpNorm<2>();
+					 d = (x - packedspheres1[0][n]).lpNorm<2>();
 					 d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
-						    d1 = std::min(( x-packedspheres1[n]+size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-										  (x- packedspheres1[n]-size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+						    d1 = std::min(( x-packedspheres1[0][n]+size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										  (x- packedspheres1[0][n]-size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						 
 						}
 #if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-							d1 = std::min( (x-packedspheres1[n] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
-										  (x-packedspheres1[n] -size(1)*Set::Vector::Unit(1)).lpNorm<2>());
+							d1 = std::min( (x-packedspheres1[0][n] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										  (x-packedspheres1[0][n] -size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 #endif
 #if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-							d1 = std::min(( x-packedspheres1[n] +size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										  (x-packedspheres1[n] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+							d1 = std::min(( x-packedspheres1[0][n] +size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										  (x-packedspheres1[0][n] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
                  	 
@@ -472,26 +466,26 @@ while (i<1000)
 				Set::Scalar dd1; 
 		
 
-					 dd = (x - packedspheres2[nn]).lpNorm<2>();
+					 dd = (x - packedspheres1[1][nn]).lpNorm<2>();
 					 dd1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
-						    dd1 = std::min(( x-packedspheres2[nn]+size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-										  (x- packedspheres2[nn]-size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+						    dd1 = std::min(( x-packedspheres1[1][nn]+size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										  (x- packedspheres1[1][nn]-size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						 
 						}
 #if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-							dd1 = std::min( (x-packedspheres2[nn] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
-										  (x-packedspheres2[nn] -size(1)*Set::Vector::Unit(1)).lpNorm<2>());
+							dd1 = std::min( (x-packedspheres1[1][nn] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										  (x-packedspheres1[1][nn] -size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 #endif
 #if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-							dd1 = std::min(( x-packedspheres2[nn] +size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										  (x-packedspheres2[nn] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+							dd1 = std::min(( x-packedspheres1[1][nn] +size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										  (x-packedspheres1[1][nn] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
                  	 
@@ -533,8 +527,8 @@ private:
 	std::vector <amrex::Real> pack_size1;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
-	std::vector<Set::Vector> packedspheres1;
-	std::vector<Set::Vector> packedspheres2;
+	std::vector<std::vector<Set::Vector>> packedspheres1;
+	std::vector<Set::Vector> packedspheres1_sub;
 	std::vector <amrex::Real> R_new;
 	std::vector<std::vector <amrex::Real>>  R_new1;
 	std::vector <amrex::Real> R_news1;
