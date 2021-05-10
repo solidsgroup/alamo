@@ -309,25 +309,52 @@ while (i<1000)
 	
     pack_size1[0]=0;
 	pack_size1[1]=0;
+	
 	for (int n = 0; n<pack_size; n++)
 	{
-	//for (int m=0;m<2;m++)
-	//{ 
-	  if (packedspheres[n](0)>=size(0)*-0.5 && packedspheres[n](0)<=size(0)*0.0)
+	//for (int mm=-0.5;mm<0.5;mm =+0.5)
+	double mm=-0.5;
+	while(mm<0.5)
+	{ 
+		
+
+	  if (packedspheres[n](0)>=size(0)*mm && packedspheres[n](0)<=size(0)*(mm+0.5))
 	
 		{
+			
+		//int m;
+		if (mm==-0.5)
+		{
+		   int m=0;
+		    
+		   pack_size1[m]++;
+		  packedspheres1.resize(pack_size1[m]);
+		  packedspheres1[(pack_size1[m])-1]=packedspheres[n];
+		   R_new1[m][(pack_size1[m])-1]=R_new[n];
+		   Util::Message(INFO, "R_new1[0] ",R_new1[m][(pack_size1[m])-1]);
+		   Util::Message(INFO, "pack_size1[0] ",pack_size1[m]);
+		    
+     	}	
+     	
+     	else if (mm==0)
+     	{
+			int m=1;
+			
+		 pack_size1[m]++;
+		  packedspheres1.resize(pack_size1[m]);
+		  packedspheres1[(pack_size1[m])-1]=packedspheres[n];
+		   R_new1[m][(pack_size1[m])-1]=R_new[n];
+		   Util::Message(INFO, "R_new1[1] ",R_new1[m][(pack_size1[m])-1]);
+		   Util::Message(INFO, "pack_size1[1] ",pack_size1[m]);
+		}	
 	
-		  pack_size1[0]++;
-		  packedspheres1.resize(pack_size1[0]);
-		  packedspheres1[(pack_size1[0])-1]=packedspheres[n];
-		   R_new1[0][(pack_size1[0])-1]=R_new[n];
-		   Util::Message(INFO, "R_new1[0] ",R_new1[0][(pack_size1[0])-1]);
-		   Util::Message(INFO, "pack_size1[0] ",pack_size1[0]);
 		  
 		}
+		mm=mm+0.5;
 		
 		
-		if (packedspheres[n](0)>=size(0)*0.0 && packedspheres[n](0)<=size(0)*0.5)
+		
+		/*if (packedspheres[n](0)>=size(0)*0.0 && packedspheres[n](0)<=size(0)*0.5)
 	
 		{
 	       pack_size1[1]++;  
@@ -337,10 +364,10 @@ while (i<1000)
 		  Util::Message(INFO, "R_new1[1] ",R_new1[1][(pack_size1[1])-1]);
 		   Util::Message(INFO, "pack_size1[1] ",pack_size1[1]);
 		 
-		}
-
+		}*/
+    
 	}
-//}
+}
 	
 
 	  
