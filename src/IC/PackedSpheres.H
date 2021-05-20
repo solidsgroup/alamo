@@ -303,7 +303,7 @@ while (i<1000)
 	
     pack_size1[0]=0;
 	pack_size1[1]=0;
-	packedspheres1_sub.clear();
+	/*packedspheres1_sub.clear();
 	packedspheres1_sub.resize(1);
 	
 	AMREX_D_TERM(packedspheres1_sub[0](0) = 0.1;,
@@ -311,7 +311,7 @@ while (i<1000)
 				  packedspheres1_sub[0](2) = 0.1;);
    			  
 	packedspheres1.resize(2,packedspheres1_sub);
-	//packedspheres1.push_back(packedspheres1_sub);
+	//packedspheres1.push_back(packedspheres1_sub);*/
 
 	
 	  
@@ -333,10 +333,16 @@ while (i<1000)
 		   int m=0;
 		    
 		   pack_size1[m]++;
-	       packedspheres1[m].resize(pack_size1[m]);
-		   packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
-		   R_new1[m][(pack_size1[m])-1]=R_new[n];
-		   //Util::Message(INFO, "R_new1[0] ",R_new1[m][(pack_size1[m])-1]);
+		   packedspheres1_sub.clear();
+	        packedspheres1_sub.resize(pack_size1[m]);
+	        R_new1[m].resize(pack_size1[m]);
+	      // packedspheres1[m].resize(pack_size1[m]);
+		   //packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
+		   packedspheres1.push_back(packedspheres1_sub);
+		  // R_new1[m][(pack_size1[m])-1]=R_new[n];
+		  R_new1[m].push_back(R_new[n]);
+		   Util::Message(INFO, "R_new1[0] ",R_new1[m][(pack_size1[m])-1]);
+		   Util::Message(INFO, "pack_spheres1[0] ",packedspheres1[m][(pack_size1[m])-1]);
 		   Util::Message(INFO, "Region1 count ",pack_size1[m]);
 		    
      	}	
@@ -345,11 +351,17 @@ while (i<1000)
      	{
 			int m=1;
 			
-		   pack_size1[m]++;
-	       packedspheres1[m].resize(pack_size1[m]);
-		   packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
-		   R_new1[m][(pack_size1[m])-1]=R_new[n];
-		   //Util::Message(INFO, "R_new1[1] ",R_new1[m][(pack_size1[m])-1]);
+		    pack_size1[m]++;
+		   packedspheres1_sub.clear();
+	        packedspheres1_sub.resize(pack_size1[m]);
+	        R_new1[m].resize(pack_size1[m]);
+	      // packedspheres1[m].resize(pack_size1[m]);
+		   //packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
+		   packedspheres1.push_back(packedspheres1_sub);
+		  // R_new1[m][(pack_size1[m])-1]=R_new[n];
+		  R_new1[m].push_back(R_new[n]);
+		   Util::Message(INFO, "R_new1[1] ",R_new1[m][(pack_size1[m])-1]);
+		   Util::Message(INFO, "pack_spheres1[1] ",packedspheres1[m][(pack_size1[m])-1]);
 		   Util::Message(INFO, "Region2 count ",pack_size1[m]);
 		}	
 	
