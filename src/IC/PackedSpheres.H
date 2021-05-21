@@ -302,9 +302,8 @@ while (i<1000)
 
 	Util::Message(INFO);  
 	
-	pack_size1.resize(2,1);
-	pack_size1[0]=0;
-	pack_size1[1]=0;
+	pack_size1.resize(2,0);
+
 
 	 //R_new1.resize(2,0.1);
 	// R_news1.resize(1,0.1);
@@ -345,10 +344,12 @@ while (i<1000)
 		 
 		  //R_news1.clear();
 		  R_new1[0][(pack_size1[0])-1]=R_new[n];
-		   Util::Message(INFO, "R_new1   ",R_new1.size());
-		   Util::Message(INFO, "packedspheres1[n].size()  ",packedspheres1.size());
+		   Util::Message(INFO, "R_new1   ",R_new1[0].size());
+		  // Util::Message(INFO, "packedspheres1.size()  ",packedspheres1.size());
 		   Util::Message(INFO, "n   ",n);
 		  packedspheres1[(pack_size1[0])-1]=packedspheres[n]; 
+		  Util::Message(INFO, "packedspheres1.size()  ",packedspheres1.size());
+		   Util::Message(INFO, "n   ",n);
 		  //packedspheres1.push_back(packedspheres[n]);
 		  
 		}
@@ -364,12 +365,13 @@ while (i<1000)
 		   //R_news1.push_back(R_new[n]);
 		   //R_new1[1].push_back(R_news1);
 		    R_new1[1][(pack_size1[1])-1]=R_new[n];
-		   Util::Message(INFO, "packedspheres2[n].size()   ",packedspheres2.size());
+		   Util::Message(INFO, "R_new1   ",R_new1[1].size());
 		   Util::Message(INFO, "n   ",n);
 		  // packedspheres2[0]=packedspheres[n]; 
 		   //packedspheres2.push_back(packedspheres[n]);
-		   packedspheres1[(pack_size1[1])-1]=packedspheres[n]; 
-		   
+		   packedspheres2[(pack_size1[1])-1]=packedspheres[n]; 
+		   Util::Message(INFO, "packedspheres2.size()  ",packedspheres2.size());
+		   Util::Message(INFO, "n   ",n);
 		   
 		 
 		}
