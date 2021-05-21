@@ -75,7 +75,7 @@ public:
 		count.resize(number_of_grains);
 		R_new.resize(number_of_grains);
 		pack_size=0;
-		//pack_size1.resize(2,1);
+		
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
@@ -219,9 +219,11 @@ while (i<1000)
 
 	p=0;
 
+	Util::Message(INFO);  
 
  while (p<n)
 	 {		
+	Util::Message(INFO);  
 
                          dd[p] = (packedspheres[n] - packedspheres[p]).lpNorm<2>();
 
@@ -229,6 +231,7 @@ while (i<1000)
 						{
 						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+	Util::Message(INFO);  
 						}
 		#if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
@@ -244,11 +247,13 @@ while (i<1000)
 										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 		#endif
+	Util::Message(INFO);  
 		               
 
        R_n[p]=R_new[n]+R_new[p];
            if (dd[p]>((R_n[p])+0.001))
 			{
+	Util::Message(INFO);  
 				df[p]=true;
 			}
 			else
@@ -256,13 +261,16 @@ while (i<1000)
 				df[p]=false;						
 			}           
 	   
+	Util::Message(INFO);  
 	   		p++;
 		   
 	 }
 
+	Util::Message(INFO);  
 	 		if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
 										
 			{
+	Util::Message(INFO);  
 												
 				count[n]=1;
 				i=1000;
@@ -272,6 +280,7 @@ while (i<1000)
 			{
 				count[n]=0;
 				i++;
+	Util::Message(INFO);  
 			    
 			}
        }
@@ -282,6 +291,7 @@ while (i<1000)
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
 		std::cout<<"count  "<<total<<endl;
+	Util::Message(INFO);  
 	    
     }
 
@@ -290,31 +300,56 @@ while (i<1000)
 	
    }
 
+	Util::Message(INFO);  
 	
+	pack_size1.resize(2,1);
 	pack_size1[0]=0;
 	pack_size1[1]=0;
-	
-   /* AMREX_D_TERM(packedspheres1[0](0) = 0.1;,
+
+	 //R_new1.resize(2,0.1);
+	// R_news1.resize(1,0.1);
+	// R_news1.clear();
+	R_news1.push_back(0.1);
+	R_new1.push_back(R_news1);
+	R_new1.push_back(R_news1);
+	 
+	packedspheres1.resize(1);
+	packedspheres2.resize(1);
+	  
+	Util::Message(INFO);  
+	AMREX_D_TERM(packedspheres1[0](0) = 0.1;,
 				 packedspheres1[0](1) = 0.1;,
 				 packedspheres1[0](2) = 0.1;);
 				 
+	Util::Message(INFO);  
 	AMREX_D_TERM(packedspheres2[0](0) = 0.1;,
 				 packedspheres2[0](1) = 0.1;,
-				 packedspheres2[0](2) = 0.1;);	*/		 
-	
+				 packedspheres2[0](2) = 0.1;);	
+	  
+	Util::Message(INFO);  
 	for (int n = 0; n<pack_size; n++)
 	{ 
+	Util::Message(INFO);  
 	  if (((packedspheres[n](0))>=-1.5) && ((packedspheres[n](0))<=0))
 	
 		{
+	Util::Message(INFO);  
 	
 		 (pack_size1[0])++;
-		 //packedspheres1.resize(pack_size1[0]);
+	Util::Message(INFO);  
+		 packedspheres1.resize(pack_size1[0]);
+		 R_new1[0].resize(pack_size1[0]);
+	Util::Message(INFO);  
 		  //R_news1.clear();
-		 // R_news1.push_back(R_new[n]);
-		  R_new1[0].push_back(R_new[n]);
-		  //packedspheres1[(pack_size1[0])]=packedspheres[n]; 
-		  packedspheres1.push_back(packedspheres[n]);
+		  //R_news1.push_back(R_new[n]);
+		 
+		  //R_news1.clear();
+		  R_new1[0][(pack_size1[0])-1]=R_new[n];
+		   Util::Message(INFO, "R_new1   ",R_new1.size());
+		   Util::Message(INFO, "packedspheres1[n].size()  ",packedspheres1.size());
+		   Util::Message(INFO, "n   ",n);
+		  packedspheres1[(pack_size1[0])-1]=packedspheres[n]; 
+		  //packedspheres1.push_back(packedspheres[n]);
 		  
 		}
 		
@@ -323,23 +358,29 @@ while (i<1000)
 	
 		{
 	       (pack_size1[1])++;  
-		   //packedspheres2.resize(pack_size1[1]);
-		  // R_news1.clear();
+		   packedspheres2.resize(pack_size1[1]);
+		   R_new1[1].resize(pack_size1[1]);
+		    //R_news1.clear();
 		   //R_news1.push_back(R_new[n]);
-		   R_new1[1].push_back(R_new[n]);
-		   //packedspheres2[(pack_size1[1])]=packedspheres[n]; 
-		    packedspheres2.push_back(packedspheres[n]);
+		   //R_new1[1].push_back(R_news1);
+		    R_new1[1][(pack_size1[1])-1]=R_new[n];
+		   Util::Message(INFO, "packedspheres2[n].size()   ",packedspheres2.size());
+		   Util::Message(INFO, "n   ",n);
+		  // packedspheres2[0]=packedspheres[n]; 
+		   //packedspheres2.push_back(packedspheres[n]);
+		   packedspheres1[(pack_size1[1])-1]=packedspheres[n]; 
+		   
+		   
 		 
 		}
 
 	}	
 	 
-      Util::Message(INFO, "packedspheres1    ", packedspheres1[0](0));
-      Util::Message(INFO, "packedspheres2    ", packedspheres2[0](0));
+
       Util::Message(INFO, "pack size   ", pack_size);
       Util::Message(INFO, "pack size1   ", pack_size1[0]);
       Util::Message(INFO, "pack size2   ", pack_size1[1]);
-       
+       Util::Message(INFO);
 	  
 	  std::chrono::seconds dura(5);
       std::this_thread::sleep_for(dura);
