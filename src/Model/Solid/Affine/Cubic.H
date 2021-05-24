@@ -54,6 +54,13 @@ public:
     Set::Matrix F0 = Set::Matrix::Zero();
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
+    static Cubic Zero()
+    {
+        Cubic ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,sym>::Zero();
+        ret.F0 = Set::Matrix::Zero();
+        return ret;
+    }
     static Cubic Random()
     {
         return Random(Util::Random(), Util::Random(), Util::Random());
@@ -77,11 +84,11 @@ public:
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
         Set::Scalar etasum = 0.;
-        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n]*eta[n];
         for (unsigned int n = 0 ; n < models.size(); n++)
         {
-            ret.ddw += models[n].ddw * (eta[n] / etasum);
-            ret.F0  += models[n].F0  * (eta[n] / etasum);
+            ret.ddw += models[n].ddw * (eta[n]*eta[n] / etasum);
+            ret.F0  += models[n].F0  * (eta[n]*eta[n] / etasum);
         }
         return ret;
     }

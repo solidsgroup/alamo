@@ -23,6 +23,7 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "IC/Trig.H"
+#include "Model/Solid/Composite.H"
 
 #include "Util/MPI.H"
 
@@ -60,6 +61,25 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("vol0", lagrange.vol0);
 			pp.query("tstart", lagrange.tstart);
 			SetThermoInt(1);
+		}
+	}
+	{
+		amrex::ParmParse pp("sdf");
+		pp.query("on",sdf.on);
+		if(sdf.on)
+		{
+			std::vector<std::string> vals;
+			pp.queryarr("val",vals);
+			if (vals.size() == 1)
+				for (int i = 0; i < number_of_grains; i++)
+					sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[0]));
+			else if (vals.size() == number_of_grains)
+				for (int i = 0; i < number_of_grains; i++)
+					sdf.val.push_back(Numeric::Interpolator::Linear<Set::Scalar>(vals[i]));
+			else
+				Util::Abort(INFO,"sdf.val received ", vals.size(), " but requires 1 or ", number_of_grains);
+
+			pp.query("tstart",sdf.tstart);
 		}
 	}
 	{
@@ -129,17 +149,32 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("on",disconnection.on);
 		pp.query("tstart", disconnection.tstart);
 		pp.query("nucleation_energy",disconnection.nucleation_energy);
+		pp.query("tau_vol",disconnection.tau_vol);
 		pp.query("temp",disconnection.temp);
 		pp.query("box_size",disconnection.box_size);
 		pp.query("interval",disconnection.interval);
-		pp.query("fixed",disconnection.fixed);
-		pp.query("fixed_site",disconnection.fixed_site);
-		pp.query("fixed_phase",disconnection.phase);
+		//pp.query("fixed_phase",disconnection.phase); // TODO fix this 
 		pp.query("epsilon",disconnection.epsilon);
 
-		disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
-		disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
-		//disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
+		pp.query("fixed.on",disconnection.fixed.on);
+		if (disconnection.fixed.on)
+		{
+			pp.queryarr("fixed.sitex",disconnection.fixed.sitex);
+			pp.queryarr("fixed.sitey",disconnection.fixed.sitey);
+			pp.queryarr("fixed.phases",disconnection.fixed.phases);
+			pp.queryarr("fixed.time",disconnection.fixed.time);
+			Util::Assert(INFO,TEST(disconnection.fixed.sitex.size() == disconnection.fixed.sitey.size()));
+			Util::Assert(INFO,TEST(disconnection.fixed.sitex.size() == disconnection.fixed.phases.size()));
+			Util::Assert(INFO,TEST(disconnection.fixed.sitex.size() == disconnection.fixed.time.size()));
+			disconnection.fixed.done.resize(disconnection.fixed.sitex.size(),false);
+		}
+		else
+		{
+			disconnection.unif_dist = std::uniform_real_distribution<double>(0.0,1.0);
+			disconnection.int_dist = std::uniform_int_distribution<int>(0,1);
+			disconnection.rand_num_gen.seed(amrex::ParallelDescriptor::MyProc());
+			//disconnection.p = exp(-disconnection.nucleation_energy/(disconnection.K_b*disconnection.temp));
+		}
 	}
 
 	{
@@ -192,8 +227,9 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 	eta_new_mf.resize(maxLevel() + 1);
 	RegisterNewFab(eta_new_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta",true);
 	RegisterNewFab(eta_old_mf, mybc, number_of_grains, number_of_ghost_cells, "Eta old",false);
+	RegisterNewFab(elasticdf_mf, new BC::Nothing(), number_of_grains, number_of_ghost_cells, "elasticdf",true);
 	
- 	RegisterNewFab(fluct_mf, new BC::Nothing(), 1, number_of_ghost_cells, "fluct",true);
+ 	//RegisterNewFab(fluct_mf, new BC::Nothing(), 1, number_of_ghost_cells, "fluct",true);
 	RegisterNewFab(disc_mf, new BC::Nothing(), 1, number_of_ghost_cells, "disc",true);  // see box
 	
 	volume = 1.0;
@@ -218,6 +254,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
 			RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
 			RegisterNodalFab(energy_mf, 1, 2, "energy",true);
+			RegisterNodalFab(totaldf_mf, number_of_grains, 2, "totaldf",true);
 
 			pp.query("interval", elastic.interval);
 			pp.query("max_coarsening_level", elastic.max_coarsening_level);
@@ -257,8 +294,10 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		const amrex::Box &bx = mfi.tilebox();
 		amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
 		amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-		amrex::Array4<amrex::Real> const &fluct = (*fluct_mf[lev]).array(mfi);
-
+		//amrex::Array4<amrex::Real> const &fluct = (*fluct_mf[lev]).array(mfi);
+		amrex::Array4<amrex::Real> const &elasticdf = (*elasticdf_mf[lev]).array(mfi);
+		amrex::Array4<amrex::Real> const &totaldf = (*totaldf_mf[lev]).array(mfi);
+		amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 			for (int m = 0; m < number_of_grains; m++)
 			{
@@ -415,7 +454,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
 				//
-				// SYNTHETIC DRIVING FORCE
+				// LAGRANGE MULTIPLIER TERM FOR CONSERVING VOLUME
 				//
 				if (lagrange.on && m == 0 && time > lagrange.tstart)
 				{
@@ -423,9 +462,77 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				}
 
 				//
+				// SYNTHETIC DRIVING FORCE
+				//
+				if (sdf.on && time > sdf.tstart)
+				{
+					driving_force += sdf.val[m](time);
+				}
+
+				//
+				// ELASTIC
+				//
+				if (elastic.on && time > elastic.tstart)
+				{
+//					//Set::Scalar driving_force = 0.0;
+//					Set::Scalar etasum = 0.0;
+//					Set::Matrix F0avg = Set::Matrix::Zero();
+//					
+//					for (int n = 0; n < number_of_grains; n++)
+//					{
+//						etasum += eta(i,j,k,n)*eta(i,j,k,n);
+//						F0avg  += eta(i,j,k,n)*eta(i,j,k,n) * elastic.model[n].F0;
+//					} 
+//					
+//					Set::Matrix dF0deta = elastic.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
+//
+//
+//					Set::Matrix sig;
+//					#if AMREX_SPACEDIM == 2
+//					sig(0,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,0);
+//					sig(0,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,1);
+//					sig(1,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,2);
+//					sig(1,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,3);
+//					#elif AMREX_SPACEDIM == 3
+//					sig(0,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,0);
+//					sig(0,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,1);
+//					sig(0,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,2);
+//					sig(1,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,3);
+//					sig(1,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,4);
+//					sig(1,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,5);
+//					sig(2,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,6);
+//					sig(2,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,7);
+//					sig(2,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,8);
+//					#endif
+//
+					//elasticdf(i,j,k,m) = pf.elastic_mult * (dF0deta.transpose() * sig).trace();
+					driving_force += pf.elastic_mult * elasticdf(i,j,k,m);
+				}
+
+				//
 				// EVOLVE ETA
 				//
-				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
+				if (time < elastic.tstart)
+					etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
+				else
+				{
+
+					if (driving_force > pf.elastic_threshold)
+					{
+						totaldf(i,j,k,m) = (driving_force-pf.elastic_threshold);
+						etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force-pf.elastic_threshold);
+					}
+					else if (driving_force < -pf.elastic_threshold)
+					{
+						totaldf(i,j,k,m) = (driving_force + pf.elastic_threshold);
+						etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force + pf.elastic_threshold);
+					}
+					else
+					{
+						totaldf(i,j,k,m) = 0.0;
+					}
+				}
+
 
 				//
 				// FLUCTUATION TERM
@@ -433,8 +540,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 
 				if (fluctuation.on && time > fluctuation.tstart)
 				{
-					fluct(i,j,k,0) = fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0];
-					etanew(i,j,k,m) += fluct(i,j,k,0) * dt;
+					etanew(i,j,k,m) += (fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0]) * dt;
 				}
 
 				if (std::isnan(driving_force))
@@ -445,7 +551,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 		//
 		// ELASTIC DRIVING FORCE
 		//
-		if (elastic.on && time > elastic.tstart)
+		if (false) // elastic.on && time > elastic.tstart)
 		{
 			const amrex::Box &bx = mfi.tilebox();
 			amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
@@ -503,6 +609,8 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 			});
 
 		}
+
+		
 	}
 }
 
@@ -557,73 +665,66 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	// Manual Disconnection Nucleation
 	//
 
-	if (disconnection.on && time > disconnection.tstart)
+	if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
 	{
-		if (disconnection.fixed)
-		{
-			amrex::Real interval = disconnection.interval;
-			disconnection.nucleate = interval - fmod(time, interval) < timestep;
-		} else {
-			disconnection.nucleate = !(iter % disconnection.interval);
-		};
-
-		if (disconnection.nucleate)
-		{
-			//disconnection.nucleation_sites.clear();
-			disconnection.sitex.clear();
-			disconnection.sitey.clear();
-			disconnection.phases.clear();
-
-			int lev = max_level;
-			const amrex::Real *DX = geom[lev].CellSize();
-			amrex::Real mult = DX[0]*DX[0] * timestep * disconnection.interval;
+		disconnection.sitex.clear();
+		disconnection.sitey.clear();
+		disconnection.phases.clear();			
 			
+		int lev = max_level;
+		const Set::Scalar *DX = geom[lev].CellSize();
+		Set::Scalar exponent = DX[0]*DX[0] * (timestep * disconnection.interval) / disconnection.tau_vol;
+			
+		if (!disconnection.fixed.on)
+		{
 			// Determine the nucleation sites in my portion of the mesh
 			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
 			{
 				const amrex::Box &bx = mfi.tilebox();
 				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
-				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
 				{
-					amrex::Real nuc = 2.0*disconnection.nucleation_energy*disconnection.box_size;
-					nuc /= 16.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)+disconnection.epsilon;
-					disconnection.p = exp(-nuc/(disconnection.K_b*disconnection.temp));
+					Set::Scalar E0 = 2.0*disconnection.nucleation_energy;
+					E0 /= disconnection.epsilon + 256.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1);
+					Set::Scalar p = std::exp(-E0/(disconnection.K_b*disconnection.temp));
+					Set::Scalar P = 1.0 - std::pow(1.0 - p,exponent);
 
-					if (!disconnection.fixed)
-					{
-						disconnection.q = disconnection.unif_dist(disconnection.rand_num_gen) * mult;
-					}
+					if (eta(i,j,k,0) < 0 || eta(i,j,k,0) > 1.0 || eta(i,j,k,1) < 0 || eta(i,j,k,1) > 1.0) P = 0.0;
 
-					if (disconnection.q < disconnection.p)
+					Set::Scalar q = 0.0;
+					q = disconnection.unif_dist(disconnection.rand_num_gen);
+
+					if (q < P)
 					{
-						Set::Vector x;
-						AMREX_D_TERM(
-							x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
-							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
-						);
-						if (!disconnection.fixed){
-							//disconnection.nucleation_sites.push_back(x);
-							disconnection.sitex.push_back(x(0));
-							disconnection.sitey.push_back(x(1));
-							disconnection.phase = disconnection.int_dist(disconnection.rand_num_gen);
-						} else {
-							if(x(0)==disconnection.fixed_site){
-								//disconnection.nucleation_sites.push_back(x);
-								disconnection.sitex.push_back(x(0));
-								disconnection.sitey.push_back(x(1));
-							}
-						};
-						disconnection.phases.push_back(disconnection.phase);
+						disconnection.sitex.push_back(geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0]);
+						disconnection.sitey.push_back(geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1]);
+						int phase = disconnection.int_dist(disconnection.rand_num_gen);
+						disconnection.phases.push_back(phase);
 					}
-				});
+				});		
 			}
-
 			// Sync up all the nucleation sites among processors
-			Util::MPI::Allgather(disconnection.phases);
 			Util::MPI::Allgather(disconnection.sitex);
 			Util::MPI::Allgather(disconnection.sitey);
-			
+			Util::MPI::Allgather(disconnection.phases);
+			Util::Message(INFO,"Nucleating ", disconnection.phases.size(), " disconnections");
+		}
+		else
+		{
+			for (int n = 0; n < disconnection.fixed.sitex.size(); n++)
+			{
+				if (time > disconnection.fixed.time[n] && !disconnection.fixed.done[n])
+				{
+					disconnection.sitex.push_back(disconnection.fixed.sitex[n]);
+					disconnection.sitey.push_back(disconnection.fixed.sitey[n]);
+					disconnection.phases.push_back(disconnection.fixed.phases[n]);
+					disconnection.fixed.done[n] = true;
+				}
+			}
+		}
+		
+		if (disconnection.sitex.size() > 0)
+		{
 			// Now that we all know the nucleation locations, perform the nucleation
 			for (int lev = 0; lev <= max_level; lev++)
 			{
@@ -633,43 +734,37 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 					const amrex::Box &bx = mfi.tilebox();
 					amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 					amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
-
-					//iterate again
 					amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 					{
 						Set::Vector x;
-
 						AMREX_D_TERM(
 							x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
 						);
-
+						disc(i,j,k,0) = 0.0;
 						for (unsigned int m = 0; m < disconnection.phases.size(); m++)
 						{	
+							//Util::ParallelMessage(INFO,disconnection.phases[m]);
 							amrex::Real r_squared = 0;
 							Set::Vector nucleation_site(disconnection.sitex[m],disconnection.sitey[m]);
 							for (int n = 0; n < AMREX_SPACEDIM; n++)
 							{
 								amrex::Real dist = nucleation_site(n) - x(n);
 								r_squared += dist * dist;
-
-								if (sqrt(r_squared) > disconnection.box_size / 2) break;
-								if (n == AMREX_SPACEDIM - 1)
-								{
-									amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
-									
-									disc(i,j,k,0) = bump;
-									etanew(i,j,k,disconnection.phases[m]) = bump * (1-etanew(i,j,k,disconnection.phases[m])) + etanew(i,j,k,disconnection.phases[m]);
-									etanew(i,j,k,1-disconnection.phases[m]) = 1 - etanew(i,j,k,disconnection.phases[m]);
-								}
 							}
+							//amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
+							amrex::Real bump = exp(-r_squared / disconnection.box_size);
+							disc(i,j,k,0) += bump;
+							etanew(i,j,k,  disconnection.phases[m]) = bump * (1-etanew(i,j,k,disconnection.phases[m])) + etanew(i,j,k,disconnection.phases[m]);
+							etanew(i,j,k,1-disconnection.phases[m]) = (1.-bump)*etanew(i,j,k,1-disconnection.phases[m]);
 						}
 					});
 				}
 			}	
 		}
 	}
+	
 
 	// 
 	// Elastic solve
@@ -692,11 +787,15 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	for (int lev = 0; lev < rhs_mf.size(); lev++)
 		rhs_mf[lev]->setVal(0.0);
 
+	//Model::Solid::Composite<model_type,2> compmodel;
+	
+
 	Operator::Elastic<model_type::sym> elasticop;
 	elasticop.SetUniform(false);
 	amrex::LPInfo info;
 	//info.setMaxCoarseningLevel(0);
 	elasticop.define(geom, grids, dmap, info);
+	elasticop.SetAverageDownCoeffs(true);
 
 	// Set linear elastic model
 	for (int lev = 0; lev < rhs_mf.size(); ++lev)
@@ -712,13 +811,18 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 		{
 		        amrex::Box bx = mfi.grownnodaltilebox();//-1,2);
 
-			amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+			amrex::Array4<Model::Solid::Composite<model_type,2>> const &model = model_mf[lev]->array(mfi);
 			amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-				std::vector<Set::Scalar> etas(number_of_grains);
-				for (int n = 0; n < number_of_grains; n++) etas[n] = 0.25*(eta(i,j,k,n) + eta(i,j-1,k,n) + eta(i-1,j,k,n) + eta(i-1,j-1,k,n));
-				model(i, j, k) = model_type::Combine(elastic.model,etas);
+				for (int n = 0; n < number_of_grains; n++)
+				{
+					model(i,j,k).m_models[n] = elastic.model[n];
+					model(i,j,k).m_eta[n] = eta(i,j,k,n);
+				}
+				//std::vector<Set::Scalar> etas(number_of_grains);
+				//for (int n = 0; n < number_of_grains; n++) etas[n] = 0.25*(eta(i,j,k,n) + eta(i,j-1,k,n) + eta(i-1,j,k,n) + eta(i-1,j-1,k,n));
+				//model(i, j, k) = model_type::Combine(elastic.model,etas);
 			});
 		}
 
@@ -729,13 +833,47 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 	elastic.bc.Init(rhs_mf,geom);
 	elasticop.SetBC(&elastic.bc);
 
-	Solver::Nonlocal::Newton<model_type> linearsolver(elasticop);
+	Solver::Nonlocal::Newton<Model::Solid::Composite<model_type,2>> linearsolver(elasticop);
 	IO::ParmParse pp("elastic");
 	pp.queryclass("solver",linearsolver);
 	linearsolver.solve(disp_mf, rhs_mf, model_mf, 1E-8, 1E-8);
 
 	linearsolver.W(energy_mf,disp_mf,model_mf);
 	linearsolver.DW(stress_mf,disp_mf,model_mf);
+
+	// Set linear elastic model
+	for (int lev = 0; lev < rhs_mf.size(); ++lev)
+	{
+		amrex::Box domain(geom[lev].Domain());
+		domain.convert(amrex::IntVect::TheNodeVector());
+		domain.grow(-1);
+		elasticdf_mf[lev]->setVal(0.0);
+		const Set::Scalar * DX = geom[lev].CellSize();
+		for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+		{
+		    amrex::Box bx = mfi.grownnodaltilebox() & domain;
+			amrex::Array4<const Model::Solid::Composite<model_type,2>> const &model = model_mf[lev]->array(mfi);
+			amrex::Array4<const Set::Scalar> const &disp = disp_mf[lev]->array(mfi);
+			amrex::Array4<Set::Scalar> const &elasticdf = elasticdf_mf[lev]->array(mfi);
+			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+
+				Set::Matrix gradu;
+				for (int p = 0; p < AMREX_SPACEDIM; p++)
+				{
+ 					AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(disp,i,j,k,p,DX));,
+					 	     gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(disp,i,j,k,p,DX));,
+					 	     gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(disp,i,j,k,p,DX)););
+				}
+
+				for (int n = 0; n < number_of_grains; n++)
+				{
+					elasticdf(i,j,k,n) = model(i,j,k).DWDeta(gradu,n);
+				}
+			});
+		}
+
+		Util::RealFillBoundary(*elasticdf_mf[lev],elasticop.Geom(lev));
+	}	
 }
 
 void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,

@@ -711,7 +711,7 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 	{
 		if (ccomponents > 0)
 		{
-			cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
+			cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents+ncomponents, 0);
 
 			int n = 0;
 			for (int i = 0; i < cell.number_of_fabs; i++)
@@ -722,26 +722,41 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 				amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 				n += cell.ncomp_array[i];
 			}
+			
+			for (int i = 0; i < node.number_of_fabs; i++)
+			{
+				if (!node.writeout_array[i]) continue;
+				if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,nnames[i]," contains nan (i=",i,")");
+				if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
+				amrex::average_node_to_cellcenter(cplotmf[ilev],n,*(*node.fab_array[i])[ilev],0,node.ncomp_array[i],0);
+				//amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
+				n += node.ncomp_array[i];
+			} 
 		}
 
 		if (ncomponents > 0)
 		{
 			amrex::BoxArray ngrids = grids[ilev];
 			ngrids.convert(amrex::IntVect::TheNodeVector());
-			nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
+			nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents + ccomponents, 0);
 			
 			int n = 0;
 			for (int i = 0; i < node.number_of_fabs; i++)
 			{
 				if (!node.writeout_array[i]) continue;
-				if ((*node.fab_array[i])[ilev]->contains_nan()) 
-				{
-					Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
-					(*node.fab_array[i])[ilev]->setVal(0.0);
-				}
+				if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
 				if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
 				amrex::MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
 				n += node.ncomp_array[i];
+			}
+			for (int i = 0; i < cell.number_of_fabs; i++)
+			{
+				if (!cell.writeout_array[i]) continue;
+				if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
+				if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
+				Util::AverageCellcenterToNode(nplotmf[ilev],n,*(*cell.fab_array[i])[ilev],0,cell.ncomp_array[i]);
+				//amrex::MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
+				n += cell.ncomp_array[i];
 			}
 		}
 	}
@@ -751,7 +766,9 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
   
 	if (ccomponents > 0)
 	{
-		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
+		amrex::Vector<std::string> allnames = cnames;
+		allnames.insert(allnames.end(),nnames.begin(),nnames.end());
+		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
 					Geom(), time, iter, refRatio());
 	
 		std::ofstream chkptfile;
@@ -762,7 +779,9 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 
 	if (ncomponents > 0)
 	{
-		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
+		amrex::Vector<std::string> allnames = nnames;
+		allnames.insert(allnames.end(),cnames.begin(),cnames.end());
+		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
 					Geom(), time, iter, refRatio());
 
 		std::ofstream chkptfile;

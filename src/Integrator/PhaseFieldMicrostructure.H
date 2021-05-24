@@ -33,6 +33,7 @@
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Operator/Elastic.H"
+#include "Model/Solid/Composite.H"
 
 namespace Integrator
 {
@@ -85,8 +86,10 @@ private:
 	Set::Field<Set::Scalar> rhs_mf; 
 	Set::Field<Set::Scalar> stress_mf;
 	Set::Field<Set::Scalar> energy_mf;
+	Set::Field<Set::Scalar> elasticdf_mf;
+	Set::Field<Set::Scalar> totaldf_mf;
 
-	Set::Field<model_type> model_mf;
+	Set::Field<Model::Solid::Composite<model_type,2>> model_mf;
 
 	BC::BC<Set::Scalar> *mybc;
 
@@ -124,6 +127,12 @@ private:
 
 	struct {
 		int on = 0;
+		std::vector<Numeric::Interpolator::Linear<Set::Scalar>> val;
+		Set::Scalar tstart = 0.0;
+	} sdf;
+
+	struct {
+		int on = 0;
 		Set::Scalar amp = 0.0;
 		Set::Scalar sd = 0.0;
 		Set::Scalar tstart = 0.0;
@@ -133,27 +142,35 @@ private:
 
 	struct {
 		int on = 0;
-		int fixed = 0;
-		int phase = 0;
+		//int phase = 0;
 		int interval = -1;
 		bool nucleate = false;
 		Set::Scalar tstart = 0.0;
 		Set::Scalar fixed_site = 4.0;
 		Set::Scalar range = 0.06;
 		Set::Scalar nucleation_energy = 0.0;
+		Set::Scalar tau_vol = 1.0;
 		Set::Scalar temp = 0.0;
 		Set::Scalar K_b = 8.617333262145e-5; // eV/K
-		Set::Scalar p = 0.0;
-		Set::Scalar q = 0.0;
 		Set::Scalar box_size = 0.0;
 		Set::Scalar epsilon = 1E-20;
 		std::uniform_real_distribution<double> unif_dist;
 		std::uniform_int_distribution<int> int_dist;
 		std::default_random_engine rand_num_gen;
-		//std::vector<Set::Vector> nucleation_sites;
+
 		std::vector<Set::Scalar> sitex;
 		std::vector<Set::Scalar> sitey;
 		std::vector<int> phases;
+		
+		struct {
+			int on = 0;
+			std::vector<Set::Scalar> sitex;
+			std::vector<Set::Scalar> sitey;
+			std::vector<int> phases;
+			std::vector<Set::Scalar> time;
+			std::vector<bool> done;
+		} fixed;
+
 	} disconnection;
 
 	std::string ic_type, gb_type, filename;

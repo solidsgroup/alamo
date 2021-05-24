@@ -9,6 +9,8 @@
 #include "Color.H"
 #include <chrono>
 
+#include "Numeric/Stencil.H"
+
 namespace Util
 {
 
@@ -346,6 +348,23 @@ int SubFinalMessage(int failed)
 
 }
 
+void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/)
+{
+	Util::Assert(INFO,TEST(dcomp + ncomp <= node_mf.nComp()));
+	Util::Assert(INFO,TEST(scomp + ncomp <= cell_mf.nComp()));
+	//Util::Assert(INFO,TEST(cell_mf.boxArray() == node_mf.boxArray()));
+	Util::Assert(INFO,TEST(cell_mf.DistributionMap() == cell_mf.DistributionMap()));
+	for (amrex::MFIter mfi(node_mf,amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+	{
+			amrex::Box bx = mfi.nodaltilebox();
+			amrex::Array4<Set::Scalar>       const& node = node_mf.array(mfi);
+			amrex::Array4<const Set::Scalar> const& cell = cell_mf.array(mfi);
+			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+				for (int n = 0; n < ncomp; n++)
+					node(i,j,k,dcomp+n) = Numeric::Interpolate::CellToNodeAverage(cell,i,j,k,scomp+n);
+			});
+	}
+}
 
 
 }
