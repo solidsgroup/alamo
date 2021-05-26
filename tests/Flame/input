@@ -45,7 +45,7 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 physics.fs_number   = 1    #no of different radii between R_min and R_max
 physics.fs_min      = -0.5 #0.1
 physics.fs_max      = 15 #0.5
-physics.volume_fraction=0.03
+physics.volume_fraction=0.05
 physics.R_min=0.040
 physics.R_max=0.1
 
