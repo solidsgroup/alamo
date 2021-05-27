@@ -302,13 +302,17 @@ while (i<1000)
 
 	Util::Message(INFO);  
 	
-	pack_size1.resize(2,0);
+	double div_no=2;
+	
+	pack_size1.resize(div_no,0);
 
 
 
 	R_news1.push_back(0.1);
+	for(int i=0;i<div_no;i++)
+	{
 	R_new1.push_back(R_news1);
-	R_new1.push_back(R_news1);
+    }
 	Util::Message(INFO);  
 	packedspheres1_sub.resize(1);
 
@@ -318,31 +322,39 @@ while (i<1000)
 				 packedspheres1_sub[0](1) = 0.1;,
 				 packedspheres1_sub[0](2) = 0.1;);
 	
+	for(int i=0;i<div_no;i++)
+	{
 	packedspheres1.push_back(packedspheres1_sub);
-	packedspheres1.push_back(packedspheres1_sub);
+    }
 		 
 	Util::Message(INFO);  
-
-	  
+    mm.resize(div_no,0);
+    mm[0]=-0.5;
+    int int_div_no=int(div_no);
+    Util::Message(INFO,"div_no",div_no); 
+    Util::Message(INFO,"int_div_no",int_div_no); 
+	  for (int m=1;m< int(div_no);m++)
+	  {
+		  mm[m]=mm[m-1]+(1/div_no);
+		  Util::Message(INFO,"mm[m]",mm[m]); 
+	  }
 	Util::Message(INFO);  
 	for (int n = 0; n<pack_size; n++)
 	{ 
 	Util::Message(INFO); 
-	for(double mm=-0.5;mm<0.5;mm+=0.5)
+
+      
+   
+	//for(double mm=-1/div_no;mm<(size(0)*0.5);mm+=1/div_no)
+	for(int m=0;m < int(div_no);m++)
+	//double m= 
 	{ 
-	  if (((packedspheres[n](0))>=size(0)*mm) && ((packedspheres[n](0))<=size(0)*(mm+0.5)))
+		
+	  if (((packedspheres[n](0))>=size(0)*mm[m]) && ((packedspheres[n](0))<=size(0)*(mm[m]+(1/div_no))))
 	
 		{
 	Util::Message(INFO);  
-	       int m;
-	     if (mm==-0.5)
-	     {
-			 m=0;
-		}
-		 else if (mm==0)
-	     {
-			 m=1;
-		 }	 
+	
 		   (pack_size1[m])++;
 	Util::Message(INFO);  
 		 packedspheres1[m].resize(pack_size1[m]);
@@ -500,6 +512,7 @@ private:
 	std::vector <amrex::Real> count;
 	std::vector<double>::iterator it;
 	std::vector<double> ins;
+	std::vector<double> mm;
     amrex::Real vf;
     amrex::Real R_min;
 	amrex::Real R_max;
