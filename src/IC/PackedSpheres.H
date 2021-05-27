@@ -302,7 +302,7 @@ while (i<1000)
 
 	Util::Message(INFO);  
 	
-	double div_no=2;
+
 	
 	pack_size1.resize(div_no,0);
 
@@ -345,9 +345,8 @@ while (i<1000)
 
       
    
-	//for(double mm=-1/div_no;mm<(size(0)*0.5);mm+=1/div_no)
+
 	for(int m=0;m < int(div_no);m++)
-	//double m= 
 	{ 
 		
 	  if (((packedspheres[n](0))>=size(0)*mm[m]) && ((packedspheres[n](0))<=size(0)*(mm[m]+(1/div_no))))
@@ -381,6 +380,7 @@ while (i<1000)
       Util::Message(INFO, "pack size   ", pack_size);
       Util::Message(INFO, "pack size1   ", pack_size1[0]);
       Util::Message(INFO, "pack size2   ", pack_size1[1]);
+       Util::Message(INFO, "pack size3   ", pack_size1[2]);
        Util::Message(INFO);
 	  
 	  std::chrono::seconds dura(5);
@@ -421,20 +421,13 @@ while (i<1000)
 
 								    
 
-				for (double mm = -0.5; mm<0.5; mm+=0.5)
+				
+				for(int m=0;m<int(div_no);m++)
 				{
-				 if(x(0)>=size(0)*mm && x(0)<=size(0)*(mm+0.5) )
+				 if(x(0)>=size(0)*mm[m] && x(0)<=size(0)*(mm[m]+(1/div_no)) )
                 {
 
-				  int m;
-	             if (mm==-0.5)
-					{
-						m=0;
-					}
-				else if (mm==0)
-					{
-						m=1;
-					}	
+
 				for (int nn = 0; nn<pack_size1[m]; nn++)
 				{ 
 			    Set::Scalar d ;
@@ -513,6 +506,7 @@ private:
 	std::vector<double>::iterator it;
 	std::vector<double> ins;
 	std::vector<double> mm;
+	double div_no=3;
     amrex::Real vf;
     amrex::Real R_min;
 	amrex::Real R_max;
