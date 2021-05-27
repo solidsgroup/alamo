@@ -85,6 +85,7 @@ private:
 	Set::Field<Set::Scalar> disp_mf; 
 	Set::Field<Set::Scalar> rhs_mf; 
 	Set::Field<Set::Scalar> stress_mf;
+	Set::Field<Set::Scalar> strain_mf;
 	Set::Field<Set::Scalar> energy_mf;
 	Set::Field<Set::Scalar> elasticdf_mf;
 	Set::Field<Set::Scalar> totaldf_mf;
@@ -208,6 +209,8 @@ private:
 		Set::Scalar strainenergy = 0.0;
 		Set::Scalar force = 0.0;
 		Set::Scalar disp = 0.0;
+
+		int combine_order  = 1;
 	} elastic;
 
 };

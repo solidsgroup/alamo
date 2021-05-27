@@ -14,6 +14,7 @@ class Composite : Solid<SOLID::sym>
 public:
     static constexpr Set::Sym sym = SOLID::sym;
     static const KinematicVariable kinvar = SOLID::kinvar;
+    int order = 1;
 
     virtual Set::Scalar W(const Set::Matrix & F) const override
     {
@@ -21,8 +22,21 @@ public:
         Set::Scalar wsum = 0;
         for (int i = 0; i < NUM; i++)
         {
-            etasum += m_eta[i]*m_eta[i];
-            wsum += m_eta[i] * m_eta[i] * m_models[i].W(F);
+            if (order == 1)
+            {
+                etasum += m_eta[i];
+                wsum += m_eta[i] * m_models[i].W(F);
+            }
+            else if (order == 2)
+            {
+                etasum += m_eta[i]*m_eta[i];
+                wsum += m_eta[i]*m_eta[i]* m_models[i].W(F);
+            }
+            else if (order == 4)
+            {
+                etasum += m_eta[i]*m_eta[i]*m_eta[i]*m_eta[i];
+                wsum += m_eta[i]*m_eta[i]*m_eta[i]*m_eta[i]* m_models[i].W(F);
+            }
         }
         return wsum / etasum;
     };
@@ -32,8 +46,16 @@ public:
         Set::Matrix dwsum = Set::Matrix::Zero();
         for (int i = 0; i < NUM; i++)
         {
-            etasum += m_eta[i]*m_eta[i];
-            dwsum += m_eta[i] * m_eta[i] * m_models[i].DW(F);
+            if (order == 1)
+            {
+                etasum += m_eta[i];
+                dwsum += m_eta[i] * m_models[i].DW(F);
+            }
+            else if (order == 4)
+            {
+                etasum += m_eta[i]*m_eta[i]*m_eta[i]*m_eta[i];
+                dwsum += m_eta[i]*m_eta[i]*m_eta[i]*m_eta[i] * m_models[i].DW(F);
+            }
         }
         return dwsum / etasum;
     };
@@ -43,19 +65,36 @@ public:
         Set::Matrix4<AMREX_SPACEDIM,sym> ddwsum = Set::Matrix4<AMREX_SPACEDIM,sym>::Zero();
         for (int i = 0; i < NUM; i++)
         {
-            etasum += m_eta[i]*m_eta[i];
-            ddwsum += m_models[i].DDW(F) *m_eta[i]*m_eta[i];
+            if (order == 1)
+            {
+                etasum += m_eta[i];
+                ddwsum += m_models[i].DDW(F) *m_eta[i];
+            }
+            else if (order == 4)
+            {
+                etasum += m_eta[i]*m_eta[i]*m_eta[i]*m_eta[i];
+                ddwsum += m_models[i].DDW(F) *m_eta[i]*m_eta[i]*m_eta[i]*m_eta[i];
+            }
         }
         return ddwsum / etasum;
     };
 
+    ///
+    /// \f[]
     Set::Scalar DWDeta(const Set::Matrix & F, int n) const
     {
         Set::Scalar etasum = 0;
-        for (int i = 0; i < NUM; i++) etasum += m_eta[i]*m_eta[i];
-        return (2.*m_eta[n]/etasum) * (m_models[n].W(F) - W(F));
+        if (order == 1)
+        {
+            for (int i = 0; i < NUM; i++) etasum += m_eta[i];
+            return (1./etasum) * (m_models[n].W(F) - W(F));
+        }
+        else if (order == 4)
+        {
+            for (int i = 0; i < NUM; i++) etasum += m_eta[i]*m_eta[i]*m_eta[i]*m_eta[i];
+            return (4.*m_eta[n]*m_eta[n]*m_eta[n]/etasum) * (m_models[n].W(F) - W(F));
+        }
     }
-
 
 
     std::array<SOLID,NUM> m_models;
