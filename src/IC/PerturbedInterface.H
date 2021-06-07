@@ -92,13 +92,13 @@ public:
 						(normal == Direction::Y && x(1) < bdry + offset)||
 						(normal == Direction::Z && x(2) < bdry + offset))
 					{
-						field(i,j,k,0) = 1.;     
-						field(i,j,k,1) = 0.;     
+						field(i,j,k,reverse) = 1.;     
+						field(i,j,k,1-reverse) = 0.;     
 					}
 					else
 					{
-						field(i,j,k,0) = 0.;     
-						field(i,j,k,1) = 1.;     
+						field(i,j,k,reverse) = 0.;     
+						field(i,j,k,1-reverse) = 1.;     
 					}
 				}
 				else
@@ -110,13 +110,13 @@ public:
 
 					Set::Scalar value = 0.5 + 0.5*std::erf(t/eps);
 					// Util::Message(INFO, "value = ", value);
-					field(i,j,k,0) = value;
-					field(i,j,k,1) = 1. - value;
+					field(i,j,k,reverse) = value;
+					field(i,j,k,1-reverse) = 1. - value;
 
-					if (field(i,j,k,0) < 0.0) field(i,j,k,0) = 0.0;
-					if (field(i,j,k,0) > 1.0) field(i,j,k,0) = 1.0;
-					if (field(i,j,k,1) < 0.0) field(i,j,k,1) = 0.0;
-					if (field(i,j,k,1) > 1.0) field(i,j,k,1) = 1.0;
+					if (field(i,j,k,0) < 0.0) field(i,j,k,reverse) = 0.0;
+					if (field(i,j,k,0) > 1.0) field(i,j,k,reverse) = 1.0;
+					if (field(i,j,k,1) < 0.0) field(i,j,k,1-reverse) = 0.0;
+					if (field(i,j,k,1) > 1.0) field(i,j,k,1-reverse) = 1.0;
 				}
 			});
 		}
@@ -132,6 +132,7 @@ private:
 	std::vector<Set::Scalar> phis;
 	Mollifier mol = Mollifier::Gaussian;
 	Set::Scalar eps;
+	int reverse = 0;
 
 public:
 	static void Parse(PerturbedInterface & value, IO::ParmParse & pp)
@@ -153,6 +154,9 @@ public:
 		std::string offset_str;
 		pp.query("offset",value.offset);
 		
+		pp.query("reverse",value.reverse);
+		Util::Assert(INFO,TEST(value.reverse==0 || value.reverse==1));
+
 		if (value.wave_numbers.size() != value.wave_amplitudes.size())
 			Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 

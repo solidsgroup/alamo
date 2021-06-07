@@ -219,7 +219,10 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.queryclass("expression",static_cast<IC::Expression*>(ic));
 		}
 		else if (ic_type == "sphere")
+		{
 			ic = new IC::Sphere(geom);
+			pp.queryclass("sphere",static_cast<IC::Sphere*>(ic));
+		}
 		else
 			Util::Abort(INFO, "No valid initial condition specified");
 	}
