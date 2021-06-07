@@ -407,10 +407,10 @@ while (i<1000)
 				/*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
 				else if (type == Type::Partition) FlameSpeed(i, j, k,min_grain_id) = alpha[min_grain_id];*/
 
-				if (type == Type::Values) field(i,j,k) = min_grain_id;
-				else if (type == Type::Partition) field(i,j,k,min_grain_id) = min_grain_id;
-				Set::Scalar R=field(i,j,k);
-				Util::Message(INFO, "R ", R);
+				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
+				else if (type == Type::Partition) field(i,j,k,min_grain_id) =alpha[min_grain_id];
+				//Set::Scalar R=field(i,j,k);
+				//Util::Message(INFO, "R ", R);
 			     
 			});
                    

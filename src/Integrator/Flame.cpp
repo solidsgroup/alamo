@@ -109,16 +109,18 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				// Phase field evolution
 				//
 	   
+				Set::Scalar fs_ap=0.7;
+				Set::Scalar fs_htpb=0.1;
 				
-                Set::Scalar M_dev=field(i,j,k);
+                //Set::Scalar M_dev=field(i,j,k);
 				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
-				//Set:: Scalar fs_actual = fs_ap*Flamespeed(i,j,k) + fs_htpb*(Flamespeed(i,j,k)-1)
-				Util::Message(INFO, "M_dev ", M_dev);
+				Set:: Scalar fs_actual = fs_ap*field(i,j,k) + fs_htpb*(1-field(i,j,k));
+				//Util::Message(INFO, "M_dev ", M_dev);
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
 				Eta(i, j, k) = Eta_old(i, j, k) -
-							   (M + M_dev) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
+							   (fs_actual) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
 
 				//
 				// Temperature evolution
