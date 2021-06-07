@@ -24,7 +24,7 @@ geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.005     # Timestep
-stop_time           = 100
+stop_time           = 500
 
 physics.M           = 0.5 # Mobility - controls flame speed
 physics.kappa	     = 0.001   # Width of burn region
