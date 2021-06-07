@@ -161,6 +161,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("R_max",R_max);
 			//ic = new IC::PackedSpheres(geom,total_grains,mean,std_deviation);
 			ic = new IC::PackedSpheres(geom,total_grains,volume_fraction,R_min,R_max);
+			//ic = new IC::PackedSpheres(geom,R_max);
 		}
 		else if (ic_type == "circle" || ic_type == "sphere")
 		//else if (ic_type == "sphere")

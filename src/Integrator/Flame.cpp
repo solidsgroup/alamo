@@ -6,6 +6,7 @@
 namespace Integrator
 {
 
+ 
 Flame::Flame () : Integrator()
 {
   IO::ParmParse pp("physics");
@@ -42,22 +43,24 @@ Flame::Flame () : Integrator()
 
   VoronoiIC = new IC::Voronoi(geom);
   PackedSpheresIC = new IC::PackedSpheres(geom);
-  std::vector<Set::Scalar> fs(fs_number,1);
+    std::vector<Set::Scalar> fs(fs_number,1);
+  //std::vector<Set::Scalar> alpha(fs_number,1);
  // for (int i = 0; i < fs_number; i++)
 // fs[i] = 0.5*(1.0 + Util::Random());
  //for (int i = 0; i < fs_number; i++)
  //std::cout<<"f[s]  "<<fs[i];
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
   //PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
+  
   PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);
+   extern std::vector<Set::Scalar> alpha;
  
-    
+   
+   Util::Message(INFO, "alpha size ", alpha.size());
+  
 
 
   //EtaIC = new IC::Wedge(geom);
- 
-
-  
 
   // EtaIC = new IC::Constant(geom,value);
 
@@ -104,8 +107,11 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				//
 				// Phase field evolution
 				//
-
-				Set::Scalar M_dev = fs_min + FlameSpeed(i, j, k) * (fs_max - fs_min);
+	
+				
+ 
+				Set::Scalar M_dev = fs_min + FlameSpeed(i, j, k) *0.1* (fs_max - fs_min);
+				
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 

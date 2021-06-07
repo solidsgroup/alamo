@@ -65,7 +65,7 @@ public:
 		
 		
     
-		std::vector <amrex::Real> sph_vol;   
+		std::vector <double> sph_vol;   
 		std::vector <amrex::Real> sph_nos; 
                amrex::Real sph_tot_vol=0;
 		R.resize(number_of_grains); 
@@ -75,7 +75,6 @@ public:
 		count.resize(number_of_grains);
 		R_new.resize(number_of_grains);
 		pack_size=0;
-		
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
@@ -92,45 +91,52 @@ public:
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
 					 int total=0;
 					
-        amrex::Real dom_vol=size(0)*size(1)*size(2);
+        double dom_vol=size(0)*size(1)*size(2);
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
 		if (n==0)
 		{		
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
-        R[n]=0.075;
-		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
-		sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*vf);
+        R[n]=((0.075)/number_of_grains);
+		sph_vol[n]=(1.33)*3.14*(R[n]*R[n]*R[n]);
+		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
+		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
 		pack_size=pack_size+sph_nos[n];
 		}
 
 		else if (n>0)
 		{	
-        //R[n]=R[n-1]+((R_max-R_min)/number_of_grains);
-        R[n]=0.075;
-		sph_vol[n]=(4/3)*3.14*(R[n]*R[n]*R[n]);
-		sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*vf);
+        R[n]=((0.075)/number_of_grains);
+		sph_vol[n]=(1.33)*3.14*(R[n]*R[n]*R[n]);
+		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
+		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
 		pack_size=pack_size+sph_nos[n];
 		
 		}
 		}
+		/*std::cout<<"sph vol    "<<sph_vol[0]<<endl;
+		std::cout<<"sph nos    "<<sph_nos[0]<<endl;
+		std::cout<<"sph nos size   "<<sph_nos.size()<<endl;
+		std::cout<<"number of grains   "<<number_of_grains<<endl;
+         std::cout<<"pack_size   "<<pack_size<<endl;
+        std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
+		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;*/
+		
+      
+	  	
+		
+  
+   
+    
 		
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
-	
-   // packedspheres1.resize(pack_size1[0]);
-	
-    //packedspheres2.resize(pack_size1[1]);
-	
-    alpha.resize(pack_size,0.5);
+ 
      if (rank==0)			 
 		{  
-			
-
-	
 	R_new.assign(R.begin(),R.end());
 	
 	
@@ -221,11 +227,9 @@ while (i<1000)
 
 	p=0;
 
-	Util::Message(INFO);  
 
  while (p<n)
 	 {		
-	Util::Message(INFO);  
 
                          dd[p] = (packedspheres[n] - packedspheres[p]).lpNorm<2>();
 
@@ -233,7 +237,6 @@ while (i<1000)
 						{
 						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
-	Util::Message(INFO);  
 						}
 		#if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
@@ -249,13 +252,11 @@ while (i<1000)
 										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 		#endif
-	Util::Message(INFO);  
 		               
 
        R_n[p]=R_new[n]+R_new[p];
            if (dd[p]>((R_n[p])+0.001))
 			{
-	Util::Message(INFO);  
 				df[p]=true;
 			}
 			else
@@ -263,16 +264,13 @@ while (i<1000)
 				df[p]=false;						
 			}           
 	   
-	Util::Message(INFO);  
 	   		p++;
 		   
 	 }
 
-	Util::Message(INFO);  
 	 		if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
 										
 			{
-	Util::Message(INFO);  
 												
 				count[n]=1;
 				i=1000;
@@ -282,7 +280,6 @@ while (i<1000)
 			{
 				count[n]=0;
 				i++;
-	Util::Message(INFO);  
 			    
 			}
        }
@@ -293,174 +290,29 @@ while (i<1000)
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
 		std::cout<<"count  "<<total<<endl;
-	Util::Message(INFO);  
 	    
     }
 
 	}
 	while (total<pack_size);
-	
-   }
-
-	Util::Message(INFO);  
-	
-
-	
-	pack_size1.resize(div_no,0);
-
-
-
-	R_news1.push_back(0.1);
-	for(int i=0;i<div_no;i++)
-	{
-	R_new1.push_back(R_news1);
     }
-	Util::Message(INFO);  
-	packedspheres1_sub.resize(1);
-
-	  
-	Util::Message(INFO);  
-	AMREX_D_TERM(packedspheres1_sub[0](0) = 0.1;,
-				 packedspheres1_sub[0](1) = 0.1;,
-				 packedspheres1_sub[0](2) = 0.1;);
-	
-	for(int i=0;i<div_no;i++)
-	{
-	packedspheres1.push_back(packedspheres1_sub);
-    }
-		 
-	Util::Message(INFO);  
-    mm.resize(div_no,0);
-    mm[0]=-0.5;
-    int int_div_no=int(div_no);
-    Util::Message(INFO,"div_no",div_no); 
-    Util::Message(INFO,"int_div_no",int_div_no); 
-	  for (int m=1;m< int(div_no);m++)
-	  {
-		  mm[m]=mm[m-1]+(1/div_no);
-		  Util::Message(INFO,"mm[m]",mm[m]); 
-	  }
-	Util::Message(INFO);  
-	for (int n = 0; n<pack_size; n++)
-	{ 
-	Util::Message(INFO); 
-
-      
-   
-
-	for(int m=0;m < int(div_no);m++)
-	{ 
-		
-	      if ((m>0) && (m<div_no-1))
-	      {  
-			if ((size(0)*mm[m])+(R_new[n]) < packedspheres[n](0) && (size(0)*mm[m]+(1/div_no))-(R_new[n]) < packedspheres[n](0))
-			{
-				
-			   (pack_size1[m])++;
-	           Util::Message(INFO);  
-		      packedspheres1[m].resize(pack_size1[m]);
-		      R_new1[m].resize(pack_size1[m]);
-	          Util::Message(INFO);  
-		      R_new1[m][(pack_size1[m])-1]=R_new[n];
-		      Util::Message(INFO, "R_new1   ",R_new1[m].size());
-		      Util::Message(INFO, "n   ",n);
-		      packedspheres1[m][(pack_size1[m])-1]=packedspheres[n]; 
-		      Util::Message(INFO, "packedspheres1.size()  ",packedspheres1[m].size());
-		      Util::Message(INFO, "1  ");
-			  goto hello;	
-			}  
-		  
-			  
-	
-		   
-
-			  else if ((size(0)*mm[m-1]) < packedspheres[n](0) && (size(0)*mm[m+1]+(1/div_no)) > packedspheres[n](0))
-				 {
-				      (pack_size1[m])++;
-
-	                   Util::Message(INFO);  
-		               packedspheres1[m].resize(pack_size1[m]);
-		               R_new1[m].resize(pack_size1[m]);
-
-	                   Util::Message(INFO);  
-		               R_new1[m][(pack_size1[m])-1]=R_new[n];
-		               packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];	 
-		               Util::Message(INFO, "2  ");
-
- 	  
-			      }
-			      
-			    hello:Util::Message(INFO); 	  	
-			
-		 }   	
-		             
-			     else if (m==0)
-			    
-			   {  
-				  if ((size(0)*mm[0]) < packedspheres[n](0) && (size(0)*mm[0]+(1/div_no)) > packedspheres[n](0))
-				  
-			      {
-					
-					(pack_size1[m])++;
-					Util::Message(INFO);  
-					packedspheres1[m].resize(pack_size1[m]);
-					R_new1[m].resize(pack_size1[m]);
-					R_new1[m][(pack_size1[m])-1]=R_new[n];
-					packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
-					Util::Message(INFO, "3  ");
- 
-			 }
-		  
-
-		      }
-		      else if (m==div_no-1)
-			   
-				{  
-				  if ((size(0)*mm[div_no-1]) < packedspheres[n](0) && (size(0)*mm[div_no-1]+(1/div_no)) > packedspheres[n](0))
-				  
-					{
-				  
-						(pack_size1[m])++;
-						packedspheres1[m].resize(pack_size1[m]);
-						R_new1[m].resize(pack_size1[m]);
-						R_new1[m][(pack_size1[m])-1]=R_new[n];
-						packedspheres1[m][(pack_size1[m])-1]=packedspheres[n];
-						Util::Message(INFO, "4  ");
-		
-		
-			}
-		}
-			    
-			    
-		   	  /*Util::Message(INFO, "R_new1   ",R_new1[m].size());
-		      Util::Message(INFO, "n   ",n);
-		      packedspheres1[m][(pack_size1[m])-1]=packedspheres[n]; 
-		      Util::Message(INFO, "packedspheres1.size()  ",packedspheres1[m].size());
-		      Util::Message(INFO, "n   ",n);*/
-		      
-		   
-	   
-		  
-		
-		
-	}
-
-
-	}	
-	 
-
-      Util::Message(INFO, "pack size   ", pack_size);
-      Util::Message(INFO, "pack size1   ", pack_size1[0]);
-      Util::Message(INFO, "pack size2   ", pack_size1[1]);
-       Util::Message(INFO, "pack size3   ", pack_size1[2]);
-        Util::Message(INFO, "pack size4   ", pack_size1[3]);
-       Util::Message(INFO);
-	  
-	  std::chrono::seconds dura(5);
-      std::this_thread::sleep_for(dura);
+      // alpha.resize(pack_size,1);
+      // for (int i = 0; i < pack_size; i++)
+      // {
+      // alpha[i] = 0.5*(1.0 + Util::Random());
+      // }
+	R_new.resize(pack_size);
+	packedspheres.resize(pack_size);
+	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	//MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
+	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 	
 	
-   
+	
+	
+	
 	};
 
 	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
@@ -472,7 +324,7 @@ while (i<1000)
 					 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
 					 size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 		
-		Util::Message(INFO, "hello1");  
+		
 			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
@@ -482,121 +334,122 @@ while (i<1000)
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
                  Set::Vector x;
-				 int min_grain_id = -1;
-
+				 int min_grain_id = 0;
+				// int max_grain_id=1;
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 			    
- 
+                packedspheres.resize(pack_size);
+				R_new.resize(pack_size);
 				
-				
-
-								    
-
-				
-				for(int m=0;m<int(div_no);m++)
-				{
-				 if(x(0)>size(0)*mm[m] && x(0)<size(0)*(mm[m]+(1/div_no)) )
-                {
-
-
-				for (int nn = 0; nn<pack_size1[m]; nn++)
+				for (int n = 0; n<pack_size; n++)
 				{ 
 			    Set::Scalar d ;
 				Set::Scalar d1; 
 							
-                        
-				     
-					 d = (x - packedspheres1[m][nn]).lpNorm<2>();
+				
+              // dividing the domain in to 8 x direction and 4 in y direction and none in z direction  
+				
+				//for(int v=-2;v<2;v++)	
+				//{
+				// for (int u=-4;u<4;u++) 
+				// {
+
+				 
+					//if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25))))
+					//{
+
+					 d = (x - packedspheres[n]).lpNorm<2>();
 					 d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
-						    d1 = std::min(( x-packedspheres1[m][nn]+size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-										  (x- packedspheres1[m][nn]-size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+						    d1 = std::min( (x-packedspheres[n] +size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										  (x-packedspheres[n] -size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						 
 						}
 #if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-							d1 = std::min( (x-packedspheres1[m][nn] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
-										  (x-packedspheres1[m][nn] -size(1)*Set::Vector::Unit(1)).lpNorm<2>());
+							d1 = std::min( (x-packedspheres[n] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										  (x-packedspheres[n] -size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 #endif
 #if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-							d1 = std::min(( x-packedspheres1[m][nn] +size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										  (x-packedspheres1[m][nn] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+							d1 = std::min( (x-packedspheres[n] +size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										  (x-packedspheres[n] -size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 #endif
-                 	 
+                 
+						//}        
+				     
+					 
+
 				      d= std::min(d,d1); 
 
                      
 
-					if (d<R_new1[m][nn])
+					if (d<R_new[n])
 						{
-							min_grain_id = 0;
-							
+							min_grain_id = 1;
+						   	
+						    if (lev==0)
+							{
+							alpha.push_back(min_grain_id);	
+						    }
+
 							
 						}
 						
-	
-				  
-			  }
-			      
-				}
-			}
-				
-				
+					else 
+						{
+							min_grain_id = 1;
+							if (lev==0)
+							{
+							alpha.push_back(min_grain_id);	
+						    }
+
+							
+						}	
 					
+					
+				 //}
+				  //}
+				}
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
-
-			
+			     
 			});
+                   
+                    Util::Message(INFO, "alpha size ", alpha.size());                                  
 		}
 	}
-	
 
 private:
 	int number_of_grains;
 	int pack_size;
-	std::vector <amrex::Real> pack_size1;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
-	std::vector<std::vector<Set::Vector>> packedspheres1;
-	std::vector<Set::Vector> packedspheres1_sub;
 	std::vector <amrex::Real> R_new;
-	std::vector<std::vector <amrex::Real>> R_new1;
-	std::vector <amrex::Real> R_news1;
 	std::vector <amrex::Real> R;
 	std::vector <amrex::Real> dd;
 	std::vector <amrex::Real> R_n;
 	std::vector <amrex::Real> count;
 	std::vector<double>::iterator it;
-	std::vector<double> ins;
-	std::vector<double> mm;
-	double div_no=3;
+	//std::vector<double> ins;
     amrex::Real vf;
     amrex::Real R_min;
 	amrex::Real R_max;
 	int rank;
-	int region;
-
-	
-
 	Type type;
 	//amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<long double >packedspheres_x;
 	amrex::Vector<long double> packedspheres_y;
 #if BL_SPACEDIM==3
 	amrex::Vector<long double> packedspheres_z;
-	
-
-	
 #endif
 };
 }
