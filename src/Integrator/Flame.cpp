@@ -76,7 +76,7 @@ void Flame::Initialize(int lev)
 
 		//EtaIC->Initialize(lev, Eta_mf);
 		//EtaIC->Initialize(lev, Eta_old_mf);
-		Eta_mf[lev]->setVal(1.0);  //initilizinf afte removing wedge BC
+		Eta_mf[lev]->setVal(1.0);  //initializing afte removing wedge BC
 		Eta_old_mf[lev]->setVal(1.0); // initializing after removing wedge BC
 
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
@@ -109,8 +109,8 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				// Phase field evolution
 				//
 	   
-				Set::Scalar fs_ap=0.7;
-				Set::Scalar fs_htpb=0.1;
+				Set::Scalar fs_ap=1;
+				Set::Scalar fs_htpb=0.5;
 				
                 //Set::Scalar M_dev=field(i,j,k);
 				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
