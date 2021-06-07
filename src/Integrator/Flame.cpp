@@ -53,10 +53,7 @@ Flame::Flame () : Integrator()
   //PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
   
   PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);
-   extern std::vector<Set::Scalar> alpha;
- 
-   
-   Util::Message(INFO, "alpha size ", alpha.size());
+
   
 
 
@@ -68,7 +65,8 @@ Flame::Flame () : Integrator()
 		RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
 		RegisterNewFab(Eta_mf, EtaBC, 1, 1, "Eta", true);
 		RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
-		RegisterNewFab(FlameSpeed_mf, EtaBC, 1, 1, "FlameSpeed", true);
+		//RegisterNewFab(FlameSpeed_mf, EtaBC, 1, 1, "FlameSpeed", true);
+		RegisterNewFab(FlameSpeed_mf, EtaBC, 1, 1, "field", true);
 }
 
 void Flame::Initialize(int lev)
@@ -78,8 +76,8 @@ void Flame::Initialize(int lev)
 
 		//EtaIC->Initialize(lev, Eta_mf);
 		//EtaIC->Initialize(lev, Eta_old_mf);
-		Eta_mf[lev]->setVal(1.0);
-		Eta_old_mf[lev]->setVal(1.0);
+		Eta_mf[lev]->setVal(1.0);  //initilizinf afte removing wedge BC
+		Eta_old_mf[lev]->setVal(1.0); // initializing after removing wedge BC
 
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
 	}
@@ -96,22 +94,26 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 		for (amrex::MFIter mfi(*Temp_mf[lev], true); mfi.isValid(); ++mfi)
 		{
 			const amrex::Box &bx = mfi.tilebox();
-
+            
 			amrex::Array4<Set::Scalar> const &Eta              = (*Eta_mf[lev]).array(mfi);
 			amrex::Array4<const Set::Scalar> const &Eta_old    = (*Eta_old_mf[lev]).array(mfi);
 			amrex::Array4<Set::Scalar> const &Temp             = (*Temp_mf[lev]).array(mfi);
 			amrex::Array4<const Set::Scalar> const &Temp_old   = (*Temp_old_mf[lev]).array(mfi);
-			amrex::Array4<const Set::Scalar> const &FlameSpeed = (*FlameSpeed_mf[lev]).array(mfi);
+			//amrex::Array4<const Set::Scalar> const &FlameSpeed = (*FlameSpeed_mf[lev]).array(mfi);
+			amrex::Array4<const Set::Scalar> const &field = (*FlameSpeed_mf[lev]).array(mfi);
+			
+
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 				//
 				// Phase field evolution
 				//
-	
+	   
 				
- 
-				Set::Scalar M_dev = fs_min + FlameSpeed(i, j, k) *0.1* (fs_max - fs_min);
-				
+                Set::Scalar M_dev=field(i,j,k);
+				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
+				//Set:: Scalar fs_actual = fs_ap*Flamespeed(i,j,k) + fs_htpb*(Flamespeed(i,j,k)-1)
+				Util::Message(INFO, "M_dev ", M_dev);
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 

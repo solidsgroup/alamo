@@ -11,12 +11,13 @@
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
 #include "IC/PackedSpheres.H"
+#include "IC/IC.H"
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
 #include "Set/Set.H"
 
  //extern std::vector<Set::Scalar> alpha;
-   extern int pack_size;
+ //  extern int pack_size;
 
 
 namespace Integrator
@@ -40,6 +41,7 @@ private:
 	Set::Field<Set::Scalar> Eta_mf;
 	Set::Field<Set::Scalar> Eta_old_mf;
 	Set::Field<Set::Scalar> FlameSpeed_mf;
+	Set::Field<Set::Scalar> field;
 	BC::BC<Set::Scalar> *TempBC;
 	BC::BC<Set::Scalar> *EtaBC;
 	IC::Voronoi *VoronoiIC;

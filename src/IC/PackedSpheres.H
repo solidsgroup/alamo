@@ -315,6 +315,7 @@ while (i<1000)
 	
 	};
 
+    //void Add(const int &lev, Set::FlameSpeed_mf<Set::Scalar>  &a_FlameSpeed)
 	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
 	//void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
 	{
@@ -327,10 +328,13 @@ while (i<1000)
 		
 			
 		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+		//for (amrex::MFIter mfi(*a_FlameSpeed[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 		{
 			amrex::Box bx = mfi.tilebox();
 			bx.grow(a_field[lev]->nGrow());
+			//bx.grow(a_FlameSpeed[lev]->nGrow());
 			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+			//amrex::Array4<Set::Scalar> const& FlameSpeed_mf= a_FlameSpeed[lev]->array(mfi);
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
                  Set::Vector x;
@@ -394,37 +398,23 @@ while (i<1000)
 					if (d<R_new[n])
 						{
 							min_grain_id = 1;
-						   	
-						    if (lev==0)
-							{
-							alpha.push_back(min_grain_id);	
-						    }
 
-							
 						}
 						
-					else 
-						{
-							min_grain_id = 1;
-							if (lev==0)
-							{
-							alpha.push_back(min_grain_id);	
-						    }
 
-							
-						}	
-					
-					
-				 //}
-				  //}
 				}
+				
+				/*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
+				else if (type == Type::Partition) FlameSpeed(i, j, k,min_grain_id) = alpha[min_grain_id];*/
 
-				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
-				else if (type == Type::Partition) field(i,j,k,min_grain_id) = alpha[min_grain_id];
+				if (type == Type::Values) field(i,j,k) = min_grain_id;
+				else if (type == Type::Partition) field(i,j,k,min_grain_id) = min_grain_id;
+				Set::Scalar R=field(i,j,k);
+				Util::Message(INFO, "R ", R);
 			     
 			});
                    
-                    Util::Message(INFO, "alpha size ", alpha.size());                                  
+                                                  
 		}
 	}
 
