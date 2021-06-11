@@ -343,25 +343,18 @@ while (i<1000)
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 			    
-                packedspheres.resize(pack_size);
-				R_new.resize(pack_size);
-				                
 
-					if (x(1) > 0 && x(1) < size(1)*0.5)
-						{
-							min_grain_id = 1;
+				             if (x(0)>-size(0) && x(0)<size(0))
+				             {
 
-						}
-						
-
-				
+							    min_grain_id = 0;
+							    
+							  }  
 				
 
 				if (type == Type::Values) field(i,j,k) = alpha[min_grain_id];
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) =alpha[min_grain_id];
-				//Set::Scalar R=field(i,j,k);
-				//Util::Message(INFO, "R ", R);
-			     
+
 			});
                    
                                                   

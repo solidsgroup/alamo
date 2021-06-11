@@ -6,7 +6,7 @@ alamo.program = flame
 #amr.max_grid_size	= 10000       # * Maximum grid size 
 #max_step		= 100000      # Maximum number of timesteps
 amr.plot_file       = tests/Flame/output%DD_%Y%m%d_%H%M%S # The name of the output file 
-amr.plot_dt        =  1                              # How frequently to dump output
+amr.plot_dt        =  1                             # How frequently to dump output
 #amr.plot_int = 1
 
 amr.max_level       = 4               # How many levels of grid refinement are allowed
@@ -23,10 +23,17 @@ geometry.prob_hi    =1.5 0.5 0.1      # Problem domain: furthest point to the up
 geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
 #geometry.is_periodic= 1 1 1           #babu
 
-timestep            = 0.005     # Timestep
-stop_time           = 500
+timestep            = 0.01     # Timestep
+stop_time           = 6
 
-physics.M           = 0.5 # Mobility - controls flame speed
+#physics.M           = 0.5 # Mobility - controls flame speed
+physics.fs_ap        = 1   # AP flamespeed
+physics.fs_htpb      = 0.0   #HTPB flamespeed
+physics.n            = 0.01 # Pressure exponent
+physics.r            = 1.0     # Pressure Coefficient
+physics.P            = 2242520.69   # Pressure in Pa
+
+
 physics.kappa	     = 0.001   # Width of burn region
 physics.w1          = 1.0    # Chemical energy before burn
 physics.w12         = 2.0    # Chemical energy during burn

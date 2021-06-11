@@ -30,6 +30,13 @@ Flame::Flame () : Integrator()
   //pp.query("mean",mean);
   pp.query("fs_min",fs_min);
   pp.query("fs_max",fs_max);
+  
+  pp.query("fs_ap",fs_ap);
+  pp.query("fs_htpb",fs_htpb);
+  pp.query("P",P);
+  pp.query("r",r);
+  pp.query("n",n);
+  
   pp.query("refinement_criterion",m_refinement_criterion);
   {
 
@@ -109,18 +116,17 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				// Phase field evolution
 				//
 	   
-				Set::Scalar fs_ap=1;
-				Set::Scalar fs_htpb=0.5;
+
 				
                 //Set::Scalar M_dev=field(i,j,k);
 				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
 				Set:: Scalar fs_actual = fs_ap*field(i,j,k) + fs_htpb*(1-field(i,j,k));
-				//Util::Message(INFO, "M_dev ", M_dev);
+				//Util::Message(INFO, "f_actual ",  fs_actual);
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
 				Eta(i, j, k) = Eta_old(i, j, k) -
-							   (fs_actual) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
+							   (fs_actual*((r*pow(P,n))+1.0)) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
 
 				//
 				// Temperature evolution
