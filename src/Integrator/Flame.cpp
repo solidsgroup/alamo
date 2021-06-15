@@ -64,7 +64,7 @@ Flame::Flame () : Integrator()
   
 
 
-  //EtaIC = new IC::Wedge(geom);
+  EtaIC = new IC::Wedge(geom);
 
   // EtaIC = new IC::Constant(geom,value);
 
@@ -81,10 +81,10 @@ void Flame::Initialize(int lev)
 		Temp_mf[lev]->setVal(1.0);
 		Temp_old_mf[lev]->setVal(1.0);
 
-		//EtaIC->Initialize(lev, Eta_mf);
-		//EtaIC->Initialize(lev, Eta_old_mf);
-		Eta_mf[lev]->setVal(1.0);  //initializing afte removing wedge BC
-		Eta_old_mf[lev]->setVal(1.0); // initializing after removing wedge BC
+		EtaIC->Initialize(lev, Eta_mf);
+		EtaIC->Initialize(lev, Eta_old_mf);
+		//Eta_mf[lev]->setVal(1.0);  //initializing afte removing wedge BC
+		//Eta_old_mf[lev]->setVal(1.0); // initializing after removing wedge BC
 
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
 	}
@@ -126,7 +126,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
 				Eta(i, j, k) = Eta_old(i, j, k) -
-							   (fs_actual*((r*pow(P,n))+1.0)) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
+							   (fs_actual*((r*pow(P,n)))) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
 
 				//
 				// Temperature evolution
