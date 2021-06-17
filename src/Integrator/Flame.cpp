@@ -64,7 +64,7 @@ Flame::Flame () : Integrator()
   
 
 
-  EtaIC = new IC::Wedge(geom);
+  // EtaIC = new IC::Wedge(geom);
 
   // EtaIC = new IC::Constant(geom,value);
 
@@ -81,10 +81,10 @@ void Flame::Initialize(int lev)
 		Temp_mf[lev]->setVal(1.0);
 		Temp_old_mf[lev]->setVal(1.0);
 
-		EtaIC->Initialize(lev, Eta_mf);
-		EtaIC->Initialize(lev, Eta_old_mf);
-		//Eta_mf[lev]->setVal(1.0);  //initializing afte removing wedge BC
-		//Eta_old_mf[lev]->setVal(1.0); // initializing after removing wedge BC
+		//EtaIC->Initialize(lev, Eta_mf);
+		//EtaIC->Initialize(lev, Eta_old_mf);
+		Eta_mf[lev]->setVal(1.0);  //initializing afte removing wedge BC
+		Eta_old_mf[lev]->setVal(1.0); // initializing after removing wedge BC
 
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
 	}

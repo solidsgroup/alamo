@@ -28,7 +28,7 @@ stop_time           = 30
 
 #physics.M           = 0.5 # Mobility - controls flame speed
 physics.fs_ap        = 3.6  # AP flamespeed
-physics.fs_htpb      = 0.0   #HTPB flamespeed
+physics.fs_htpb      = 1.0   #HTPB flamespeed
 physics.n            = 0.6683 # Pressure exponent
 physics.r            = 0.0055     # Pressure Coefficient
 physics.P            = 1575.89  # Pressure in psi
@@ -53,8 +53,8 @@ physics.fs_number   = 1    #no of different radii between R_min and R_max
 physics.fs_min      = -0.5 #0.1
 physics.fs_max      = 15 #0.5
 physics.volume_fraction=0.5
-physics.R_min=0.040
-physics.R_max=0.1
+physics.R_min=0.040 #hard coded not taking values from here
+physics.R_max=0.1  #hard coded not taking values from here
 
 physics.refinement_criterion = 0.2 #1.0
 
