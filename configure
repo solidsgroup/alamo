@@ -344,6 +344,8 @@ f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 # https://mooseframework.inl.gov/modules/phase_field/FunctionMaterials/JITCompilation.html
 #
 if args.libmesh:
+    if not os.path.isfile(args.libmesh+'/lib/libmesh_opt.so'):
+        raise Exception(error("{}/lib/libmesh_opt.so not found. libmesh path must contain lib/libmesh_opt.so".format(args.libmesh)))
     f.write('ALAMO_INCLUDE += -I{}/include/\n'.format(args.libmesh))
     f.write('LIB     +=   {}/lib/libmesh_opt.so -Wl,-rpath,{}/lib/ \n'.format(args.libmesh,args.libmesh))
 if args.jit:

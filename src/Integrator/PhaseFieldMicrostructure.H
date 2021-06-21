@@ -90,6 +90,7 @@ private:
 	RegularizationType regularization = RegularizationType::K12;
 	struct {
 		Set::Scalar M;
+		Set::Scalar L;
 		Set::Scalar mu;
 		Set::Scalar gamma;
 		Set::Scalar sigma0;

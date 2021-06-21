@@ -39,6 +39,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("l_gb", pf.l_gb);
 		pp.query("elastic_mult",pf.elastic_mult);
 		pp.query("elastic_threshold",pf.elastic_threshold);
+		pf.L = (4./3.)*pf.M / pf.l_gb;
 	}
 	{
 		amrex::ParmParse pp("amr");
@@ -387,7 +388,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				//
 				// EVOLVE ETA
 				//
-				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
+				etanew(i, j, k, m) = eta(i, j, k, m) - pf.L * dt * driving_force;
 				if (std::isnan(driving_force))
 					Util::Abort(INFO, i, " ", j, " ", k, " ", m);
 			}
@@ -449,7 +450,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
 					}
 
-					etanew(i, j, k, m) -= pf.M * dt * driving_force;
+					etanew(i, j, k, m) -= pf.L * dt * driving_force;
 				}
 			});
 
