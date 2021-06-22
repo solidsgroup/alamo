@@ -76,20 +76,20 @@ public:
 		R_new.resize(number_of_grains);
 		pack_size=0;
 		sph_tot_vol=0;
-		int inc=0;
-	    int jj=0;
+		//int inc=0;
+	    //int jj=0;
 		std::vector<double> ins (1,1);	
         packedspheres.resize(number_of_grains);
 
 
-		int p=0;
+		//int p=0;
 	    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 	   
 		Set::Vector size;
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
-					 int total=0;
+					// int total=0;
 					
         double dom_vol=size(0)*size(1)*size(2);
         // converting volume fraction in to no of spheres
@@ -132,7 +132,7 @@ public:
    
     
 		
-    packedspheres.resize(pack_size);
+   /* packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
  
      if (rank==0)			 
@@ -289,7 +289,7 @@ while (i<1000)
 	
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
-		std::cout<<"count  "<<total<<endl;
+		//std::cout<<"count  "<<total<<endl;
 	    
     }
 
@@ -307,7 +307,7 @@ while (i<1000)
 	MPI_Bcast(alpha.data(), alpha.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	//MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
-	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);*/
 	
 	
 	
@@ -338,7 +338,7 @@ while (i<1000)
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
                  Set::Vector x;
-				 int min_grain_id = 0;
+				 int min_grain_id = 1;
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
@@ -359,9 +359,9 @@ while (i<1000)
 								min_grain_id = 1; 
 							 }	*/ 
 							 
-							 if (x(0)>-1.5 && x(0)< 1.5)
+							 if (x(1)>-tan(0.017)*x(0) && x(1)< tan(0.017)*x(0))
 							 {
-								 min_grain_id = 1; 
+								 min_grain_id = 0; 
 							 }
 				
 				

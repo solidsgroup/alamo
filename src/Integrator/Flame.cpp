@@ -34,8 +34,10 @@ Flame::Flame () : Integrator()
   pp.query("fs_ap",fs_ap);
   pp.query("fs_htpb",fs_htpb);
   pp.query("P",P);
-  pp.query("r",r);
-  pp.query("n",n);
+  pp.query("r_ap",r_ap);
+  pp.query("n_ap",n_ap);
+  pp.query("r_htpb",r_htpb);
+  pp.query("n_htpb",n_htpb);
   
   pp.query("refinement_criterion",m_refinement_criterion);
   {
@@ -109,7 +111,8 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 			//amrex::Array4<const Set::Scalar> const &FlameSpeed = (*FlameSpeed_mf[lev]).array(mfi);
 			amrex::Array4<const Set::Scalar> const &field = (*FlameSpeed_mf[lev]).array(mfi);
 			
-
+                   fmod_ap=fs_ap*(r_ap*pow(P,n_ap));
+                   fmod_htpb=fs_htpb*(r_htpb*pow(P,n_htpb));
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 				//
@@ -120,13 +123,14 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				
                 //Set::Scalar M_dev=field(i,j,k);
 				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
-				Set:: Scalar fs_actual = fs_ap*field(i,j,k) + fs_htpb*(1-field(i,j,k));
+				//Set:: Scalar fs_actual = fs_ap*field(i,j,k) + fs_htpb*(1-field(i,j,k));
+				Set:: Scalar fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1-field(i,j,k));
 				//Util::Message(INFO, "f_actual ",  fs_actual);
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
 				Eta(i, j, k) = Eta_old(i, j, k) -
-							   (fs_actual*((r*pow(P,n)))) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
+							   (fs_actual) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
 
 				//
 				// Temperature evolution

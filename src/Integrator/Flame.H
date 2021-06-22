@@ -62,9 +62,13 @@ private:
 
     Set::Scalar fs_ap;               
 	Set::Scalar fs_htpb; 
+	 Set::Scalar fmod_ap;               
+	Set::Scalar fmod_htpb; 
 	Set::Scalar P;
-	Set::Scalar r;
-	Set::Scalar n;
+	Set::Scalar r_ap;
+	Set::Scalar n_ap;
+	Set::Scalar r_htpb;
+	Set::Scalar n_htpb;
 	
 	int fs_number = 1;
 	Set::Scalar fs_min = -1.0;
