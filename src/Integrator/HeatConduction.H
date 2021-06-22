@@ -152,12 +152,18 @@ private:
 
 	Set::Field<Set::Scalar> temp_mf;	     ///< Temperature field variable (current timestep)
 	Set::Field<Set::Scalar> temp_old_mf;     ///< Temperature field variable (previous timestep)
+	Set::Field<Set::Scalar> Eta_mf;		/////temp - adding eta into file
+	Set::Field<Set::Scalar> Eta_old_mf;
+	
 
 	amrex::Real alpha = 1.0;				 ///< Thermal diffusivity
 	amrex::Real refinement_threshold = 0.01; ///< Criterion for cell refinement
 
 	IC::IC *ic;				                 ///< Object used to initialize temperature field
 	BC::BC<Set::Scalar> *bc;                 ///< Object used to update temp field boundary ghost cells
+	BC::BC<Set::Scalar> *EtaBC;
+	
+	IC::IC *EtaIC;
 };
 } // namespace Integrator
 #endif
