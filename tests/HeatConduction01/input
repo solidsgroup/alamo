@@ -47,7 +47,7 @@ heat.refinement_threshold = 0.01
 # Specify initial conditions
 ic.type = sphere
 ic.sphere.center = 0.5 0.5 0.5
-ic.sphere.raidus = 0.25
+ic.sphere.radius = 0.25
 ic.sphere.inside = 0.0
 
 
