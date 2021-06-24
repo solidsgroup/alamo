@@ -124,7 +124,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
                 //Set::Scalar M_dev=field(i,j,k);
 				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
 				//Set:: Scalar fs_actual = fs_ap*field(i,j,k) + fs_htpb*(1-field(i,j,k));
-				Set:: Scalar fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1-field(i,j,k));
+				Set:: Scalar fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(field(i,j,k)-1);
 				//Util::Message(INFO, "f_actual ",  fs_actual);
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
