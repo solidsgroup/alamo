@@ -62,7 +62,7 @@ private:
 
     Set::Scalar fs_ap;               
 	Set::Scalar fs_htpb; 
-	 Set::Scalar fmod_ap;               
+	Set::Scalar fmod_ap;               
 	Set::Scalar fmod_htpb; 
 	Set::Scalar P;
 	Set::Scalar r_ap;

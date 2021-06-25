@@ -113,19 +113,33 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 			
                    fmod_ap=fs_ap*(r_ap*pow(P,n_ap));
                    fmod_htpb=fs_htpb*(r_htpb*pow(P,n_htpb));
-
+                  // Util::Message(INFO, "fmod_ap  ", fmod_ap);
+                   //Util::Message(INFO, "fmod_htpb  ", fmod_htpb);
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 				//
 				// Phase field evolution
 				//
 	   
 
+				Set:: Scalar fs_actual;
 				
-                //Set::Scalar M_dev=field(i,j,k);
-				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
-				//Set:: Scalar fs_actual = fs_ap*field(i,j,k) + fs_htpb*(1-field(i,j,k));
-				Set:: Scalar fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(field(i,j,k)-1);
-				//Util::Message(INFO, "f_actual ",  fs_actual);
+				if (field(i,j,k)==1)
+				{
+					 fs_actual = fmod_ap;
+				
+				}
+				
+				else if (field(i,j,k)==0)
+				{
+				     fs_actual = fmod_htpb;
+				}
+				
+				else
+				{
+					 fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(-field(i,j,k)+1.0);
+				}
+				//Util::Message(INFO, "fs_actual  ", fs_actual);
+				
 
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
