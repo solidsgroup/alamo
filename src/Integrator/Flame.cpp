@@ -134,10 +134,12 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				     fs_actual = fmod_htpb;
 				}
 				
-				else
+				
+				/*else 
 				{
-					 fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(-field(i,j,k)+1.0);
-				}
+			    fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(-field(i,j,k)+1.0);
+			    }*/
+				
 				//Util::Message(INFO, "fs_actual  ", fs_actual);
 				
 

@@ -338,7 +338,7 @@ while (i<1000)
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
                  Set::Vector x;
-				 int min_grain_id = 1;
+				 int min_grain_id = 0;
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
 							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
@@ -360,15 +360,10 @@ while (i<1000)
 							 }	*/ 
 							 
 							// if (x(1)>-tan(0.017)*x(0) && x(1)< tan(0.017)*x(0))
-							 // if (x(0)>-1.5 && x(0)< 1.5)
-							  if (x(1)>-0.05 && x(1)<0.05)
+							  if (x(0)>-1.5 && x(0)< 1.5)
+							  //if (x(1)>-0.005 && x(1)<0.005)
 							 {
-								 min_grain_id = 0; 
-							 }
-							 
-							 else
-							 {
-								 min_grain_id = 1;
+								 min_grain_id = 1; 
 							 }
 				
 				

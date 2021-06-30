@@ -9,7 +9,7 @@ amr.plot_file       = tests/Flame/output%DD_%Y%m%d_%H%M%S # The name of the outp
 amr.plot_dt        =  1                             # How frequently to dump output
 #amr.plot_int = 1
 
-amr.max_level       = 4               # How many levels of grid refinement are allowed
+amr.max_level       = 5               # How many levels of grid refinement are allowed
 amr.n_cell          = 30 10  2     # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
@@ -23,17 +23,17 @@ geometry.prob_hi    =1.5 0.5 0.1      # Problem domain: furthest point to the up
 geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
 #geometry.is_periodic= 1 1 1           #babu
 
-timestep            = 0.01    # Timestep
+timestep            = 0.0001    # Timestep
 stop_time           = 30
 
 #physics.M           = 0.5 # Mobility - controls flame speed
-physics.fs_ap        = 15 # AP flamespeed
-physics.fs_htpb      = 15 #HTPB flamespeed
-physics.n_ap         = 0.88  #Pressure exponent for AP
-physics.r_ap         = 0.0055     # Pressure Coefficient for AP
-physics.n_htpb       = 0.50 # Pressure exponent for HTPB
+physics.fs_ap        = 0.37 # AP flamespeed
+physics.fs_htpb      = 0.0 #HTPB flamespeed
+physics.n_ap         = 1.0093  #Pressure exponent for AP
+physics.r_ap         = 0.128    # Pressure Coefficient for AP
+physics.n_htpb       = 0.1 # Pressure exponent for HTPB
 physics.r_htpb       = 0.0055   # Pressure Coefficient for HTPB
-physics.P            = 21.76 # Pressure in bar
+physics.P            = 22.6 # Pressure in bar
 
 
 physics.kappa	     = 0.001   # Width of burn region
@@ -54,7 +54,7 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 physics.fs_number   = 1    #no of different radii between R_min and R_max
 physics.fs_min      = -0.5 #0.1
 physics.fs_max      = 15 #0.5
-physics.volume_fraction=0.5
+physics.volume_fraction=0.65
 physics.R_min=0.040
 physics.R_max=0.1
 
