@@ -145,8 +145,26 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 					amrex::Real K = (k1 - k0) * Eta_old(i,j,k) + k0;
 					amrex::Real cp = (cp1 - cp0) * Eta_old(i,j,k) + cp0;
 
+					/*Temp(i, j, k) =
+						Temp_old(i, j, k) + (dt / rho / cp) * ((k1 - k0) * (eta_grad.dot(temp_grad)) + K * temp_lap + (w1 - w0 - qdotburn) * eta_grad_mag);
+				*/
+				
+				
+				Set::Vector normvec = eta_grad/Eta_old(i,j,k);
+				
+				double test = normvec.dot(temp_grad);
+				///for(i = 0; i < 3; i++) Eta_old[i] *= abso/Eta_old(i,j,k);
+				//Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
+
+		if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
+					{
+					Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k)*temp_grad.lpNorm<2>());
+					}	
+					else
+					{
 					Temp(i, j, k) =
 						Temp_old(i, j, k) + (dt / rho / cp) * ((k1 - k0) * (eta_grad.dot(temp_grad)) + K * temp_lap + (w1 - w0 - qdotburn) * eta_grad_mag);
+					}	
 				}
 			});
 		}
