@@ -123,7 +123,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 
 				Set:: Scalar fs_actual;
 				
-				if (field(i,j,k)==1)
+				/*if (field(i,j,k)==1)
 				{
 					 fs_actual = fmod_ap;
 				
@@ -132,13 +132,13 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				else if (field(i,j,k)==0)
 				{
 				     fs_actual = fmod_htpb;
-				}
+				}*/
 				
 				
-				/*else if ((field(i,j,k)>0) && (field(i,j,k)<1))
-				{
-			    fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(-field(i,j,k)+1.0);
-			    }*/
+				//else if ((field(i,j,k)>0) && (field(i,j,k)<1))
+				//{
+			    fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1.0-field(i,j,k));
+			    //}
 				
 				//Util::Message(INFO, "fs_actual  ", fs_actual);
 				
@@ -176,6 +176,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 	{
 		const amrex::Real *DX = geom[lev].CellSize();
 		Set::Scalar dr  = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+		 //Util::Message(INFO, "dr  ", dr);
 
 		for (amrex::MFIter mfi(*Temp_mf[lev], true); mfi.isValid(); ++mfi)
 		{
@@ -186,7 +187,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 			{
 				Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
-				if (gradeta.lpNorm<2>() * dr > m_refinement_criterion)
+				if (gradeta.lpNorm<2>() * dr *2 > m_refinement_criterion)
 					tags(i,j,k) = amrex::TagBox::SET;
 			});
 		}

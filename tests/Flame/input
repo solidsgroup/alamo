@@ -27,13 +27,13 @@ timestep            = 0.001    # Timestep
 stop_time           = 30
 
 #physics.M           = 0.5 # Mobility - controls flame speed
-physics.fs_ap        = 0.0000060 # AP flamespeed
-physics.fs_htpb      = 0.0000060 #HTPB flamespeed
+physics.fs_ap        = 1.0 # AP flamespeed
+physics.fs_htpb      = 1.0 #HTPB flamespeed
 physics.n_ap         = 1.0093  #Pressure exponent for AP
-physics.r_ap         = 0.128    # Pressure Coefficient for AP
-physics.n_htpb       = 1.02 # Pressure exponent for HTPB
-physics.r_htpb       = 0.237   # Pressure Coefficient for HTPB
-physics.P            = 1000000 # Pressure in bar
+physics.r_ap         = 0.00000042500   # Pressure Coefficient for AP
+physics.n_htpb       = 0.90 # Pressure exponent for HTPB
+physics.r_htpb       = 0.0  # Pressure Coefficient for HTPB
+physics.P            = 6120000 # Pressure in bar
 
 
 physics.kappa	     = 0.001   # Width of burn region
