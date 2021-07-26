@@ -361,9 +361,9 @@ while (i<1000)
 							 
 							// if (x(1)>-tan(0.017)*x(0) && x(1)< tan(0.017)*x(0))
 							  //if (x(0)>-1.5 && x(0)< 1.5)
-							  double fact=((x(0)/size(0))+0.5)*0.5;
+							  //double fact=((x(0)/size(0))+0.5)*0.05;
 							  
-							  if (x(1)>-fact && x(1)<fact )
+							  if (x(1)>-0.05 && x(1)<0.05 )
 							 {
 								 min_grain_id = 0; 
 							 }
