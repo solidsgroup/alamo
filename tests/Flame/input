@@ -33,7 +33,9 @@ physics.n_ap         = 1.0093  #Pressure exponent for AP
 physics.r_ap         = 0.0000043  # Pressure Coefficient for AP
 physics.n_htpb       = 0.1 # Pressure exponent for HTPB
 physics.r_htpb       = 4.7 # Pressure Coefficient for HTPB
-physics.P            = 4070000 # Pressure in bar
+physics.n_comb       = 0.5 # Pressure exponent for comb
+physics.r_comb       = 1.0 # Pressure Coefficient for comb
+physics.P            = 650000 # Pressure in bar
 
 
 physics.kappa	     = 0.001   # Width of burn region
