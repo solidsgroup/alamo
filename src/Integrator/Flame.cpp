@@ -116,7 +116,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 			
                    fmod_ap=fs_ap*(r_ap*pow(P,n_ap));
                    fmod_htpb=fs_htpb*(r_htpb*pow(P,n_htpb));
-                   fmod_comb=fs_comb*(r_comb*pow(P,n_comb));
+                   //fmod_comb=fs_comb*(r_comb*pow(P,n_comb));
                   //Util::Message(INFO, "fmod_ap  ", fmod_ap);
                   //Util::Message(INFO, "fmod_htpb  ", fmod_htpb);
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -141,7 +141,8 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				
 				//else if ((field(i,j,k)>0) && (field(i,j,k)<1))
 				//{
-			    fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1.0-field(i,j,k))+2*fmod_comb*field(i,j,k)*(1.0-field(i,j,k));
+			    //fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1.0-field(i,j,k))+2*fmod_comb*field(i,j,k)*(1.0-field(i,j,k));
+			    fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1.0-field(i,j,k));
 			    //}
 				
 				//Util::Message(INFO, "fs_actual  ", fs_actual);
