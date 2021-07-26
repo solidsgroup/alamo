@@ -289,7 +289,7 @@ while (i<1000)
 	
 		total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=total+1;
-		std::cout<<"count  "<<total<<endl;
+		//std::cout<<"count  "<<total<<endl;
 	    
     }
 
@@ -339,6 +339,7 @@ while (i<1000)
 			{
                  Set::Vector x;
 				 int min_grain_id = 0;
+				 /*
 				// int max_grain_id=1;
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
@@ -401,8 +402,13 @@ while (i<1000)
 
 						}
 						
+						*/
+					if (x(0)>-1.5 && x(0)<1.5)	
+					{
+					  min_grain_id = 1;
+					}
 
-				}
+				
 				
 				/*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
 				else if (type == Type::Partition) FlameSpeed(i, j, k,min_grain_id) = alpha[min_grain_id];*/

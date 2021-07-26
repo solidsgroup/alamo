@@ -98,6 +98,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 
 		Set::Scalar a0 = w0, a1 = 0.0, a2 = -5 * w1 + 16 * w12 - 11 * a0, a3 = 14 * w1 - 32 * w12 + 18 * a0, a4 = -8 * w1 + 16 * w12 - 8 * a0;
 
+
 		for (amrex::MFIter mfi(*Temp_mf[lev], true); mfi.isValid(); ++mfi)
 		{
 			const amrex::Box &bx = mfi.tilebox();
@@ -115,10 +116,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				//
 				// Phase field evolution
 				//
-	   
-
-				
-                //Set::Scalar M_dev=field(i,j,k);
+                		//Set::Scalar M_dev=field(i,j,k);
 				//Set::Scalar M_dev = fs_min + field(i, j, k) *0.1* (fs_max - fs_min);
 				Set:: Scalar fs_actual = fs_ap*field(i,j,k) + fs_htpb*(1-field(i,j,k));
 				//Util::Message(INFO, "f_actual ",  fs_actual);
@@ -132,39 +130,30 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				// Temperature evolution
 				//
 
-				Set::Scalar temperature_delay = 0.05; // hard coded for now, need to make input
+				Set::Scalar temperature_delay = 0.01; // hard coded for now, need to make input
 				if (time >= temperature_delay)
 				{
 					Set::Vector eta_grad = Numeric::Gradient(Eta_old, i, j, k, 0, DX);
 					Set::Vector temp_grad = Numeric::Gradient(Temp_old, i, j, k, 0, DX);
 					Set::Scalar temp_lap = Numeric::Laplacian(Temp_old, i, j, k, 0, DX);
-
 					Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
-
 					amrex::Real rho = (rho1 - rho0) * Eta_old(i,j,k) + rho0;
 					amrex::Real K = (k1 - k0) * Eta_old(i,j,k) + k0;
 					amrex::Real cp = (cp1 - cp0) * Eta_old(i,j,k) + cp0;
-
-					/*Temp(i, j, k) =
-						Temp_old(i, j, k) + (dt / rho / cp) * ((k1 - k0) * (eta_grad.dot(temp_grad)) + K * temp_lap + (w1 - w0 - qdotburn) * eta_grad_mag);
-				*/
+					Set::Vector normvec = eta_grad/Eta_old(i,j,k);
+					Set::Scalar test = normvec.dot(temp_grad);				
+					Set::Scalar neumbound = 10.0;
 				
-				
-				Set::Vector normvec = eta_grad/Eta_old(i,j,k);
-				
-				double test = normvec.dot(temp_grad);
-				///for(i = 0; i < 3; i++) Eta_old[i] *= abso/Eta_old(i,j,k);
-				//Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
-
-		if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
-					{
-					Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k)*temp_grad.lpNorm<2>());
-					}	
+					if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
+						{
+						Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
+						}	
 					else
 					{
-					Temp(i, j, k) =
-						Temp_old(i, j, k) + (dt / rho / cp) * ((k1 - k0) * (eta_grad.dot(temp_grad)) + K * temp_lap + (w1 - w0 - qdotburn) * eta_grad_mag);
-					}	
+					
+						Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
+					
+					}
 				}
 			});
 		}
@@ -186,6 +175,9 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
 				if (gradeta.lpNorm<2>() * dr > m_refinement_criterion)
 					tags(i,j,k) = amrex::TagBox::SET;
+				/*Set::Vector temp_grad = Numeric::Gradient(Temp
+				if(temp_grad.lpNorm<2>() * dr > m_refinement_criterion)
+					tags(i,j,k) = amrex::TagBox::SET;*/
 			});
 		}
 	}

@@ -119,7 +119,7 @@ protected:
 
 
 	/// \brief Integrate the heat equation
-	void Advance(int lev, amrex::Real /*time*/, amrex::Real dt)
+	void Advance(int lev, amrex::Real time, amrex::Real dt)
 	{
 		// Swap the old temp fab and the new temp fab so we use
 		// the new one.
@@ -151,18 +151,21 @@ protected:
 				// Do the physics!
 				// Note that Numeric::Laplacian is an inlined function so there is no overhead.
 				// You can calculate the derivatives yourself if you want.
-				Set::Vector eta_grad = Numeric::Gradient(Eta_old,i,j,k,0,DX);
-				Set::Vector temp_grad = Numeric::Gradient(temp_old,i,j,k, 0, DX);				
-				Set::Vector normvec = eta_grad/Eta_old(i,j,k);
-				double in = inner_product(begin(eta_grad),end(eta_grad),begin(eta_grad),0.0);
-				double abso = sqrt(in);
-				double test = inner_product(begin(normvec),end(normvec),begin(temp_grad),0.0);
+				//Set::Vector eta_grad = Numeric::Gradient(Eta_old,i,j,k,0,DX);
+				//Set::Vector temp_grad = Numeric::Gradient(temp_old,i,j,k, 0, DX);				
+				//Set::Vector normvec = eta_grad/Eta_old(i,j,k);
+				//double in = inner_product(begin(eta_grad),end(eta_grad),begin(eta_grad),0.0);
+				//double abso = sqrt(in);
+				//double test = inner_product(begin(normvec),end(normvec),begin(temp_grad),0.0);
 				///for(i = 0; i < 3; i++) Eta_old[i] *= abso/Eta_old(i,j,k);
 				Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
 				Eta(i, j, k) = Eta_old(i, j, k) -
 							   (2.4*((r*pow(P,n)))) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
-				temp(i,j,k) = temp_old(i,j,k) + dt*alpha*(test+Numeric::Laplacian(temp_old,i,j,k,0,DX)+abso/Eta_old(i,j,k)*0);
+				if(time>0)
+				{
+				temp(i,j,k) = temp_old(i,j,k); //+ dt*alpha*(test+Numeric::Laplacian(temp_old,i,j,k,0,DX)+abso/Eta_old(i,j,k)*0);
+				}
 			});
 		}
 	}
@@ -195,14 +198,14 @@ protected:
 				if (grad.lpNorm<2>() * dr > refinement_threshold)
 					tags(i,j,k) = amrex::TagBox::SET;
 					
-				/*Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
-				if (gradeta.lpNorm<2>() * dr > refinement_threshold)
-					tags(i,j,k) = amrex::TagBox::SET;*/
+				//Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
+				//if (gradeta.lpNorm<2>() * dr > refinement_threshold)
+				//	tags(i,j,k) = amrex::TagBox::SET;
 					
 			});
 		}
 	}
-	void Regrid(int lev, Set::Scalar /* time */)
+	void Regrid(int lev, Set::Scalar )
 	{
 		if (lev < finest_level) return;
 		temp_mf[lev]->setVal(0.0);
