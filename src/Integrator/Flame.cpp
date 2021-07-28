@@ -137,23 +137,28 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 					Set::Vector temp_grad = Numeric::Gradient(Temp_old, i, j, k, 0, DX);
 					Set::Scalar temp_lap = Numeric::Laplacian(Temp_old, i, j, k, 0, DX);
 					Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
+					Set::Vector normvec = eta_grad/Eta_old(i,j,k);
+					
 					amrex::Real rho = (rho1 - rho0) * Eta_old(i,j,k) + rho0;
 					amrex::Real K = (k1 - k0) * Eta_old(i,j,k) + k0;
 					amrex::Real cp = (cp1 - cp0) * Eta_old(i,j,k) + cp0;
-					Set::Vector normvec = eta_grad/Eta_old(i,j,k);
+					
 					Set::Scalar test = normvec.dot(temp_grad);				
-					Set::Scalar neumbound = 10.0;
+					Set::Scalar neumbound = 900.0;
 				
 					if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
 						{
 						Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
 						}	
 					else
-					{
-					
+						{
+						if(Eta_old(i,j,k)<=0.001)
+						{
+						//Temp(i,j,k)= Temp_old(i,j,k)/2+Temp_old(i,j,k)/2*erf(Eta_old(i,j,k)*8000);
+						}
+						else{
 						Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
-					
-					}
+						}}
 				}
 			});
 		}
@@ -175,9 +180,6 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 				Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
 				if (gradeta.lpNorm<2>() * dr > m_refinement_criterion)
 					tags(i,j,k) = amrex::TagBox::SET;
-				/*Set::Vector temp_grad = Numeric::Gradient(Temp
-				if(temp_grad.lpNorm<2>() * dr > m_refinement_criterion)
-					tags(i,j,k) = amrex::TagBox::SET;*/
 			});
 		}
 	}

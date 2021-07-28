@@ -34,7 +34,7 @@ physics.r            = 0.0055     # Pressure Coefficient
 physics.P            = 1575.89  # Pressure in psi
 
 
-physics.kappa	     = 0.005   # Width of burn region
+physics.kappa	     = 0.008   # Width of burn region
 physics.w1          = 1.0    # Chemical energy before burn
 physics.w12         = 2.0    # Chemical energy during burn
 #physics.w2         = 0.0    # Chemical energy after burn
@@ -42,7 +42,7 @@ physics.w0          = 0.0    # Chemical energy after burn
 physics.rho1        = 1.0    # Density before burn
 physics.rho0        = 1.0    # Density after burn
 #physics.k1         = 0.0001 # Conductivity before burn
-physics.k1          = 0.005    # Conductivity before burn
+physics.k1          = 0.0001    # Conductivity before burn
 physics.k0          = 0.0    # Conductivity after burn
 physics.cp1         = 1.0    # Specific heat before burn
 physics.cp0         = 1.0    # Specific heat after burn
