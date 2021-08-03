@@ -17,11 +17,14 @@ Flame::Flame () : Integrator()
   pp.query("w0",w0);
   pp.query("rho1",rho1);
   pp.query("rho0",rho0);
-  pp.query("k1",k1);
+  pp.query("ka",ka);
+  pp.query("kh",kh);
   pp.query("k0",k0);
   pp.query("cp1",cp1);
   pp.query("cp0",cp0);
   pp.query("qdotburn",qdotburn);
+  pp.query("delA", delA);
+  pp.query("delH", delH);
   pp.query("fs_number",fs_number);
   //pp.query("std_deviation",std_deviation);
   pp.query("R_min",R_min);
@@ -60,20 +63,21 @@ Flame::Flame () : Integrator()
   //PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
   
   PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);
-
-  
+		
 
 
   // EtaIC = new IC::Wedge(geom);
 
   // EtaIC = new IC::Constant(geom,value);
 
-    RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
+    		RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
 		RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
 		RegisterNewFab(Eta_mf, EtaBC, 1, 1, "Eta", true);
 		RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
 		//RegisterNewFab(FlameSpeed_mf, EtaBC, 1, 1, "FlameSpeed", true);
 		RegisterNewFab(FlameSpeed_mf, EtaBC, 1, 1, "field", true);
+
+		
 }
 
 void Flame::Initialize(int lev)
@@ -87,6 +91,10 @@ void Flame::Initialize(int lev)
 		Eta_old_mf[lev]->setVal(1.0); // initializing after removing wedge BC
 
                 PackedSpheresIC->Initialize(lev, FlameSpeed_mf);
+                
+                
+                
+                
 	}
 
 void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
@@ -140,25 +148,31 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 					Set::Vector normvec = eta_grad/Eta_old(i,j,k);
 					
 					amrex::Real rho = (rho1 - rho0) * Eta_old(i,j,k) + rho0;
-					amrex::Real K = (k1 - k0) * Eta_old(i,j,k) + k0;
+					amrex::Real Ka = (ka - k0) * Eta_old(i,j,k) + k0;
+					amrex::Real Kh = (kh -k0) * Eta_old(i,j,k) + k0;
+					Set:: Scalar K = Ka*field(i,j,k) + Kh*(1-field(i,j,k));
+					
 					amrex::Real cp = (cp1 - cp0) * Eta_old(i,j,k) + cp0;
 					
-					Set::Scalar test = normvec.dot(temp_grad);				
-					Set::Scalar neumbound = 900.0;
+					Set::Scalar test = normvec.dot(temp_grad);
+					Set:: Scalar neumbound = delA*field(i,j,k) + delH*(1-field(i,j,k));				
+				
 				
 					if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
 						{
-						Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
+							Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
 						}	
 					else
 						{
-						if(Eta_old(i,j,k)<=0.001)
-						{
-						Temp(i,j,k)= 0;
+							if(Eta_old(i,j,k)<=0.001)
+								{
+									Temp(i,j,k)= 0;
+								}
+							else
+								{
+									Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
+								}
 						}
-						else{
-						Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
-						}}
 				}
 			});
 		}

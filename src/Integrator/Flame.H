@@ -54,10 +54,10 @@ private:
 	Set::Scalar kappa;              // Burn width parameter
 	Set::Scalar w1, w12, w0;        // Energy (before, during, after)
 	Set::Scalar rho1, rho0;         // Density (before and after)
-	Set::Scalar k1, k0;             // Thermal conductivity (before and after)
+	Set::Scalar ka, kh, k0;             // Thermal conductivity (before and after)
 	Set::Scalar cp1, cp0;           // Specific heat (before and after)
 	Set::Scalar qdotburn;           // Heat lost in flame
-
+	Set::Scalar delA, delH;       // Thermal flux of each material
 
 
     Set::Scalar fs_ap;               
