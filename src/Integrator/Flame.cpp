@@ -154,7 +154,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 						{
 						if(Eta_old(i,j,k)<=0.001)
 						{
-						//Temp(i,j,k)= Temp_old(i,j,k)/2+Temp_old(i,j,k)/2*erf(Eta_old(i,j,k)*8000);
+						Temp(i,j,k)= 0;
 						}
 						else{
 						Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
