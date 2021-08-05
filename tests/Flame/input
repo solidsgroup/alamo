@@ -9,10 +9,10 @@ amr.plot_file       = tests/Flame/output%DD_%Y%m%d_%H%M%S # The name of the outp
 amr.plot_dt        =  0.1                             # How frequently to dump output
 #amr.plot_int = 1
 
-amr.max_level       = 4               # How many levels of grid refinement are allowed
+amr.max_level       = 5               # How many levels of grid refinement are allowed
 amr.n_cell          = 30 10  2     # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
-amr.blocking_factor	= 2               # * Minimum size of each block
+amr.blocking_factor	= 1               # * Minimum size of each block
 
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
 amr.grid_eff        = 0.7       # * Closeness of regrid patch to tagged region (default = 0.7) 
@@ -43,7 +43,7 @@ physics.rho1        = 1.0    # Density before burn
 physics.rho0        = 1.0    # Density after burn
 #physics.k1         = 0.0001 # Conductivity before burn
 physics.ka          = 0.002  # Conductivity of AP before burn
-physics.kh          = 0.0009 # Conductivity of HTPB before burn
+physics.kh          = 0.000009 # Conductivity of HTPB before burn
 physics.k0          = 0.0    # Conductivity after burn
 physics.cp1         = 1.0    # Specific heat before burn
 physics.cp0         = 1.0    # Specific heat after burn
@@ -60,6 +60,7 @@ physics.R_min=0.040 #hard coded not taking values from here
 physics.R_max=0.1  #hard coded not taking values from here
 
 physics.refinement_criterion = 0.2 #1.0
+physics.temp_refinement = 0.01
 
 TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo	= EXT_DIR INT_DIR INT_DIR 

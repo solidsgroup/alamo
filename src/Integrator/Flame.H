@@ -77,6 +77,7 @@ private:
  
    
 	Set::Scalar m_refinement_criterion = 0.001;
+	Set::Scalar t_refinement_criterion = 0.001;
 	
 	IC::IC *EtaIC;
 

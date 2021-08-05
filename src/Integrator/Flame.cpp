@@ -41,6 +41,7 @@ Flame::Flame () : Integrator()
   pp.query("n",n);
   
   pp.query("refinement_criterion",m_refinement_criterion);
+  pp.query("temp_refinement", t_refinement_criterion);
   {
 
     IO::ParmParse pp("bc");
@@ -188,11 +189,16 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
 			const amrex::Box &bx = mfi.tilebox();
 			amrex::Array4<char>              const &tags = a_tags.array(mfi);
 			amrex::Array4<const Set::Scalar> const &Eta  = (*Eta_mf[lev]).array(mfi);
+			amrex::Array4<const Set::Scalar> const &Temp = (*Temp_mf[lev]).array(mfi);
 
 			amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 			{
 				Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
 				if (gradeta.lpNorm<2>() * dr > m_refinement_criterion)
+					tags(i,j,k) = amrex::TagBox::SET;
+					
+				Set::Vector tempgrad = Numeric::Gradient(Temp, i,j,k,0,DX);
+				if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion)
 					tags(i,j,k) = amrex::TagBox::SET;
 			});
 		}
