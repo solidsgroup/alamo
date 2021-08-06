@@ -41,8 +41,7 @@ public:
     virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
 	
 public:
-    mutable Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
-
+    Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
     static const KinematicVariable kinvar = KinematicVariable::F;
 
 
