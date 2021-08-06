@@ -148,13 +148,15 @@ public:
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of yhi BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-		#if AMREX_SPACEDIM==3
 		pp.queryarr("type.zlo",str);
+		#if AMREX_SPACEDIM==3
 			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp,bcmap[str[0]]);
 			else Util::Abort(INFO,"Incorrect number of zlo BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
+		#endif
 		pp.queryarr("type.zhi",str);
+		#if AMREX_SPACEDIM==3
 			for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
 			if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI].push_back(bcmap[str[i]]); 
 			else if (str.size() == 1) value.m_bc_type[Face::ZHI].resize(value.m_ncomp,bcmap[str[0]]);
@@ -187,15 +189,17 @@ public:
 			else if (val.size() == 1) value.m_bc_val[Face::YHI].resize(value.m_ncomp,Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
 			else if (val.size() == 0) value.m_bc_val[Face::YHI].resize(value.m_ncomp,0.0);
 			else Util::Abort(INFO,"Incorrect number of yhi BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());		
-		#if AMREX_SPACEDIM==3
-		value.m_bc_val[Face::ZLO].clear();
 		pp.queryarr("val.zlo",val); 
+		#if AMREX_SPACEDIM==3
+			value.m_bc_val[Face::ZLO].clear();
 			if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
 			else if (val.size() == 1) value.m_bc_val[Face::ZLO].resize(value.m_ncomp,Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
 			else if (val.size() == 0) value.m_bc_val[Face::ZLO].resize(value.m_ncomp,0.0);
 			else Util::Abort(INFO,"Incorrect number of zlo BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());		
-		value.m_bc_val[Face::ZHI].clear();
+		#endif
 		pp.queryarr("val.zhi",val); 
+		#if AMREX_SPACEDIM==3
+			value.m_bc_val[Face::ZHI].clear();
 			if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
 			else if (val.size() == 1) value.m_bc_val[Face::ZHI].resize(value.m_ncomp,Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
 			else if (val.size() == 0) value.m_bc_val[Face::ZHI].resize(value.m_ncomp,0.0);
