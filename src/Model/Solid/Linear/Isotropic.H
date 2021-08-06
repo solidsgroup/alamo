@@ -77,43 +77,12 @@ public:
         }
         value.Define(mu,lambda);
     }
-    AMREX_FORCE_INLINE
-	void operator += (const Isotropic &rhs)
-    {
-        ddw += rhs.ddw;
-	}    
-    AMREX_FORCE_INLINE
-   	Isotropic operator * (const Set::Scalar alpha) const
-	{
-        Isotropic ret;
-        ret.ddw = ddw*alpha;
-        return ret;
-	}    
-    friend Isotropic operator * (const Set::Scalar alpha, const Isotropic b);
-    friend Isotropic operator + (const Isotropic a, const Isotropic b);
-    friend Isotropic operator - (const Isotropic a, const Isotropic b);
+
+    #define OP_CLASS Isotropic
+    #define OP_VARS X(ddw)
+    #include "Model/Solid/InClassOperators.H"
 };
-AMREX_FORCE_INLINE
-Isotropic operator * (const Set::Scalar alpha, const Isotropic b)
-{
-    Isotropic ret;
-    ret.ddw = b.ddw*alpha;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Isotropic operator + (const Isotropic a, const Isotropic b)
-{
-    Isotropic ret;
-    ret.ddw = a.ddw + b.ddw;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Isotropic operator - (const Isotropic a, const Isotropic b)
-{
-    Isotropic ret;
-    ret.ddw = a.ddw - b.ddw;
-    return ret;
-}    
+#include "Model/Solid/ExtClassOperators.H"
 
 
 

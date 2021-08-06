@@ -7,9 +7,12 @@
 #include "IO/WriteMetaData.H"
 #include "AMReX_ParmParse.H"
 
+#include "Model/Solid/Affine/Isotropic.H"
+#include "Model/Solid/Elastic/NeoHookean.H"
+
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
-#include "Integrator/Eshelby.H"
+#include "Integrator/TensionTest.H"
 #include "Integrator/FiniteKinematics.H"
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
@@ -35,14 +38,15 @@ int main (int argc, char* argv[])
 	}
 	else if (program == "eshelby")
 	{
-		Integrator::Integrator *eshelby = new Integrator::Eshelby();
+		Integrator::Integrator *eshelby = new Integrator::TensionTest<Model::Solid::Affine::Isotropic>();
 		eshelby->InitData();
 		eshelby->Evolve();		
 		delete eshelby;
 	}
 	else if (program == "finitekinematics")
 	{
-		Integrator::Integrator *fk = new Integrator::FiniteKinematics();
+		//Integrator::Integrator *fk = new Integrator::FiniteKinematics();
+		Integrator::Integrator *fk = new Integrator::TensionTest<Model::Solid::Elastic::NeoHookean>();
 		fk->InitData();
 		fk->Evolve();		
 		delete fk;

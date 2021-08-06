@@ -14,6 +14,7 @@
 #include "IC/Random.H"
 #include "IC/Trig.H"
 #include "IC/Sphere.H"
+#include "IC/Expression.H"
 #include "Model/Interface/GB/SH.H"
 #include "Numeric/Stencil.H"
 #include "Solver/Nonlocal/Linear.H"
@@ -38,6 +39,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 		pp.query("l_gb", pf.l_gb);
 		pp.query("elastic_mult",pf.elastic_mult);
 		pp.query("elastic_threshold",pf.elastic_threshold);
+		pf.L = (4./3.)*pf.M / pf.l_gb;
 	}
 	{
 		amrex::ParmParse pp("amr");
@@ -95,7 +97,6 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			boundary = new Model::Interface::GB::Read();
 			pp.queryclass(*static_cast<Model::Interface::GB::Read *>(boundary));
 		}
-
 		else if (gb_type == "sh")
 		{
 			Util::Assert(INFO, TEST(AMREX_SPACEDIM == 3));
@@ -144,27 +145,12 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 			pp.query("voronoi.number_of_grains", total_grains);
 			ic = new IC::Voronoi(geom, total_grains);
 		}
-		else if (ic_type == "packedspheres")
+		else if (ic_type == "expression")
 		{
-			int total_grains = number_of_grains;
-			//amrex::Real mean =mean;
-			amrex::Real volume_fraction = volume_fraction;
-			//amrex::Real std_deviation= std_deviation;
-			amrex::Real R_min= R_min;
-			amrex::Real R_max= R_max;
-
-			pp.query("packedspheres.number_of_grains", total_grains);
-			pp.query("volume_fraction", volume_fraction);
-			//pp.query("mean", mean);
-			//pp.query("std_deviation",std_deviation);
-			pp.query("R_min",R_min);
-			pp.query("R_max",R_max);
-			//ic = new IC::PackedSpheres(geom,total_grains,mean,std_deviation);
-			ic = new IC::PackedSpheres(geom,total_grains,volume_fraction,R_min,R_max);
-			//ic = new IC::PackedSpheres(geom,R_max);
+			ic = new IC::Expression(geom);
+			pp.queryclass("expression",static_cast<IC::Expression*>(ic));
 		}
-		else if (ic_type == "circle" || ic_type == "sphere")
-		//else if (ic_type == "sphere")
+		else if (ic_type == "sphere")
 			ic = new IC::Sphere(geom);
 		else
 			Util::Abort(INFO, "No valid initial condition specified");
@@ -402,7 +388,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 				//
 				// EVOLVE ETA
 				//
-				etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
+				etanew(i, j, k, m) = eta(i, j, k, m) - pf.L * dt * driving_force;
 				if (std::isnan(driving_force))
 					Util::Abort(INFO, i, " ", j, " ", k, " ", m);
 			}
@@ -464,7 +450,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 						driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
 					}
 
-					etanew(i, j, k, m) -= pf.M * dt * driving_force;
+					etanew(i, j, k, m) -= pf.L * dt * driving_force;
 				}
 			});
 

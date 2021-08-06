@@ -30,7 +30,7 @@ public:
     void setVerbose(int verbosity)
     {
         m_verbose = verbosity;
-        MLMG::setVerbose(m_verbose);
+        MLMG::setVerbose(m_verbose-1);
 		if (m_verbose > 4) MLMG::setBottomVerbose(m_verbose);
      	else
  	    {

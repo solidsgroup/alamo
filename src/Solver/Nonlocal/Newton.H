@@ -40,7 +40,6 @@ private:
                 domain.convert(amrex::IntVect::TheNodeVector());
                 const Set::Scalar *dx = linop.Geom(lev).CellSize();
                 Set::Vector DX(linop.Geom(lev).CellSize());
-                
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.grownnodaltilebox();
@@ -85,12 +84,29 @@ private:
 
             for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
-                //amrex::MultiFab::Copy(a_rhs_mf[lev],a_b_mf[lev],0,0,a_rhs_mf[lev]->nComp(),a_rhs_mf[lev]->nGrow());
+                amrex::Box domain(linop.Geom(lev).Domain());
+                domain.convert(amrex::IntVect::TheNodeVector());
+                domain.grow(-1);
+                const Set::Scalar *dx = linop.Geom(lev).CellSize();
+                for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
+                {
+                    amrex::Box bx = mfi.nodaltilebox();
+                    bx = bx & domain;
+                    amrex::Array4<Set::Scalar>        const &b     = a_b_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Matrix>  const &dw    = a_dw_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                        Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx);
+                        for (int p = 0; p < AMREX_SPACEDIM; p++) 
+                            b(i,j,k,p) -= divdw(p);
+                    });                    
+                }
+            }
+
+            for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
+            {
                 m_elastic.Apply(lev,0,*a_rhs_mf[lev],*a_u_mf[lev]);
                 a_rhs_mf[lev]->mult(-1.0,2);
                 amrex::MultiFab::Add(*a_rhs_mf[lev],*a_b_mf[lev],0,0,a_rhs_mf[lev]->nComp(),2);
-
-                
                 Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
             }
             for (int lev = a_b_mf.finest_level; lev > 0; lev--)
@@ -167,10 +183,14 @@ public:
             Set::Scalar relnorm;
             if (solnorm == 0) relnorm = cornorm;
             else relnorm = cornorm / solnorm;
-            if (m_verbose > 1) Util::Message(INFO,"NR relative norm(ddisp) = ",relnorm);
+            if (m_verbose > 0) Util::Message(INFO,"NR iteration ",nriter+1,", relative norm(ddisp) = ",relnorm);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 amrex::MultiFab::Add(*a_u_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
+
+            if (relnorm < m_nrtolerance)
+                return relnorm;
+
         }
 
         return 0.0;
@@ -312,16 +332,19 @@ public:
     }
 
 
-private:
+public:
     int m_nriters = 1;
+    Set::Scalar m_nrtolerance = 0.0;
     Operator::Elastic<T::sym> &m_elastic;
     BC::Operator::Elastic::Elastic &m_bc;
+
 public:
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)
     {
         Linear::Parse(value,pp);
         
         pp.query("nriters",value.m_nriters);
+        pp.query("nrtolerance",value.m_nrtolerance);
     }
 
 };
