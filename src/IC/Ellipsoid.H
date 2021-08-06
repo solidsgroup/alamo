@@ -29,17 +29,18 @@ public:
 
 					Set::Vector x = Set::Position(i,j,k,geom[lev],type);
 
-					Set::Scalar min_value = 100.0;
+					Set::Scalar min_value = field(i,j,k);
 					for (int i=0 ; i < center.size(); i++)
 					{
 						Set::Scalar value = 0.;
 						Set::Scalar norm = (A[i]*(x-center[i])).lpNorm<2>();
 						value = 0.5 + 0.5*std::erf(((x-center[i]).transpose() * A[i] * (x-center[i]) - 1.0) / eps[i] / norm);
+						value = in_value + value*(out_value - in_value);
 						min_value = value < min_value ? value : min_value;
 					}
 					field(i,j,k) = min_value;
-					if (field(i,j,k) < 0.) field(i,j,k) = 0.;
-                	if (field(i,j,k) > 1.) field(i,j,k) = 1.;
+					if (field(i,j,k) < std::min(in_value,out_value)) field(i,j,k) = std::min(in_value,out_value);
+                	if (field(i,j,k) > std::max(in_value,out_value)) field(i,j,k) = std::max(in_value,out_value);
 				});
 		}
 		a_field[lev]->FillBoundary();
@@ -47,6 +48,7 @@ public:
   
 private:
 	int dim = AMREX_SPACEDIM;
+	Set::Scalar in_value = 0.0, out_value = 1.0;
 	amrex::Vector<Set::Vector> center; 
 	amrex::Vector<Set::Scalar> eps;
 	amrex::Vector<Set::Matrix> A;
@@ -114,6 +116,9 @@ public:
 			value.eps.push_back(eps[i]);
 		}
 		//if(value.eps <= 0.) value.eps = 1.e-5;
+
+		pp.query("in_value", value.in_value);
+		pp.query("out_value", value.out_value);
 
 		std::string mollifier;
         pp.query("mollifier",mollifier);
