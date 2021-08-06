@@ -313,6 +313,8 @@ protected:
 		std::vector<std::string> name_array;
 		std::vector<BC::BC<Set::Scalar> *> physbc_array;
 		std::vector<bool> writeout_array;
+		bool any = true;
+		bool all = false;
 	} node;
 
 	struct {
@@ -323,6 +325,8 @@ protected:
 		std::vector<std::string> name_array;
 		std::vector<BC::BC<Set::Scalar> *> physbc_array;
 		std::vector<bool> writeout_array;
+		bool any = true;
+		bool all = false;
 	} cell;
 
 	std::vector<BaseField *> m_basefields;

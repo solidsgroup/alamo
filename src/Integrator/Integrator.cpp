@@ -32,6 +32,13 @@ Integrator::Integrator ()
 		pp.query("plot_dt", plot_dt);         // ALL processors
 		pp.query("plot_file", plot_file);       // IO Processor only
 		
+		pp.query("cell.all",cell.all); 
+		pp.query("cell.any",cell.any); 
+		pp.query("node.all",node.all); 
+		pp.query("node.any",node.any); 
+		Util::Assert(INFO,TEST(!(!cell.any && cell.all)));
+		Util::Assert(INFO,TEST(!(!node.any && node.all)));
+		
 		pp.query("max_plot_level",max_plot_level);		
 
 		IO::FileNameParse(plot_file);
@@ -709,9 +716,11 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
   
 	for (int ilev = 0; ilev < nlevels; ++ilev)
 	{
-		if (ccomponents > 0)
+		if ((ccomponents > 0 || cell.all) && cell.any)
 		{
-			cplotmf[ilev].define(grids[ilev], dmap[ilev], ccomponents, 0);
+			int ncomp = ccomponents;
+			if (cell.all) ncomp += ncomponents;
+			cplotmf[ilev].define(grids[ilev], dmap[ilev], ncomp, 0);
 
 			int n = 0;
 			for (int i = 0; i < cell.number_of_fabs; i++)
@@ -722,26 +731,53 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 				amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
 				n += cell.ncomp_array[i];
 			}
+			
+			if (cell.all)
+			{
+				for (int i = 0; i < node.number_of_fabs; i++)
+				{
+					if (!node.writeout_array[i]) continue;
+					if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Abort(INFO,nnames[i]," contains nan (i=",i,")");
+					if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
+					amrex::average_node_to_cellcenter(cplotmf[ilev],n,*(*node.fab_array[i])[ilev],0,node.ncomp_array[i],0);
+					//amrex::MultiFab::Copy(cplotmf[ilev], *(*cell.fab_array[i])[ilev], 0, n, cell.ncomp_array[i], 0);
+					n += node.ncomp_array[i];
+				} 
+			}
 		}
 
-		if (ncomponents > 0)
+		if ((ncomponents > 0 || node.all) && node.any)
 		{
 			amrex::BoxArray ngrids = grids[ilev];
 			ngrids.convert(amrex::IntVect::TheNodeVector());
-			nplotmf[ilev].define(ngrids, dmap[ilev], ncomponents, 0);
+			int ncomp = ncomponents;
+			if (node.all) ncomp += ccomponents;
+			nplotmf[ilev].define(ngrids, dmap[ilev], ncomp, 0);
 			
 			int n = 0;
 			for (int i = 0; i < node.number_of_fabs; i++)
 			{
 				if (!node.writeout_array[i]) continue;
-				if ((*node.fab_array[i])[ilev]->contains_nan()) 
-				{
-					Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
-					(*node.fab_array[i])[ilev]->setVal(0.0);
-				}
+				if ((*node.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,nnames[i]," contains nan (i=",i,"). Resetting to zero.");
 				if ((*node.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,nnames[i]," contains inf (i=",i,")");
 				amrex::MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
 				n += node.ncomp_array[i];
+			}
+			if (node.all)
+			{
+				for (int i = 0; i < cell.number_of_fabs; i++)
+				{
+					if (!cell.writeout_array[i]) continue;
+					if ((*cell.fab_array[i])[ilev]->contains_nan()) Util::Warning(INFO,cnames[i]," contains nan (i=",i,"). Resetting to zero.");
+					if ((*cell.fab_array[i])[ilev]->contains_inf()) Util::Abort(INFO,cnames[i]," contains inf (i=",i,")");
+					if ((*cell.fab_array[i])[ilev]->nGrow()==0)
+					{
+						if (initial) Util::Warning(INFO,cnames[i]," has no ghost cells and will not be included in nodal output");
+						continue;
+					}
+					Util::AverageCellcenterToNode(nplotmf[ilev],n,*(*cell.fab_array[i])[ilev],0,cell.ncomp_array[i]);
+					n += cell.ncomp_array[i];
+				}
 			}
 		}
 	}
@@ -749,9 +785,11 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 	std::vector<std::string> plotfilename = PlotFileName(istep[0],prefix);
 	if (initial) plotfilename[1] = plotfilename[1] + "init";
   
-	if (ccomponents > 0)
+	if ((ccomponents > 0 || cell.all) && cell.any)
 	{
-		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), cnames,
+		amrex::Vector<std::string> allnames = cnames;
+		if (cell.all) allnames.insert(allnames.end(),nnames.begin(),nnames.end());
+		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"cell", nlevels, amrex::GetVecOfConstPtrs(cplotmf), allnames,
 					Geom(), time, iter, refRatio());
 	
 		std::ofstream chkptfile;
@@ -760,9 +798,11 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 		chkptfile.close();
 	}
 
-	if (ncomponents > 0)
+	if ((ncomponents > 0 || node.all) && node.any)
 	{
-		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), nnames,
+		amrex::Vector<std::string> allnames = nnames;
+		if (node.all) allnames.insert(allnames.end(),cnames.begin(),cnames.end());
+		WriteMultiLevelPlotfile(plotfilename[0]+plotfilename[1]+"node", nlevels, amrex::GetVecOfConstPtrs(nplotmf), allnames,
 					Geom(), time, iter, refRatio());
 
 		std::ofstream chkptfile;
@@ -776,13 +816,13 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
 		std::ofstream coutfile, noutfile;
 		if (istep[0]==0)
 		{
-			if (ccomponents > 0) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
-			if (ncomponents > 0) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
+			if ((ccomponents > 0 || cell.all) && cell.any) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
+			if ((ncomponents > 0 || node.all) && node.any) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
 		}
 		else
 		{
-			if (ccomponents > 0) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
-			if (ncomponents > 0) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
+			if ((ccomponents > 0 || cell.all) && cell.any) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
+			if ((ncomponents > 0 || node.all) && node.any) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
 		}
 		coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
 		if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
