@@ -6,17 +6,18 @@ plot_file       = tests/Flame/output  # The name of the output file
 amr.plot_int        = 100             # How frequently to dump output
 
 amr.max_level       = 5               # How many levels of grid refinement are allowed
-amr.n_cell          = 30 10 2         # Number of cells in the x,y,z directions
+amr.n_cell          = 30 10 10         # Number of cells in the x,y,z directions
+
 #amr.max_grid_size	= 50          # * Maximum allowable grid size
 amr.blocking_factor	= 1           # * Minimum size of each block
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
 amr.grid_eff        = 1.0             # * Closeness of regrid patch to tagged region (default = 0.7) 
 
-geometry.prob_lo    = -1.5 -0.5 -0.1  # Problem domain: furthest point to the lower left
-geometry.prob_hi    = 1.5 0.5 0.1     # Problem domain: furthest point to the upper right
+geometry.prob_lo    = -1.5 -0.5 -0.5  # Problem domain: furthest point to the lower left
+geometry.prob_hi    = 1.5 0.5 0.5     # Problem domain: furthest point to the upper right
 geometry.is_periodic= 0 0 0           # * Boundary conditions - currently under construction 
 
-timestep            = 0.01    # Timestep
+timestep            = 0.001   # Timestep
 stop_time           = 70
 
 #physics.M           = 0.5 # Mobility - controls flame speed
@@ -35,8 +36,8 @@ physics.w0          = 0.0    # Chemical energy after burn
 physics.rho1        = 1.0    # Density before burn
 physics.rho0        = 1.0    # Density after burn
 #physics.k1         = 0.0001 # Conductivity before burn
-physics.ka          = 0.002  # Conductivity of AP before burn
-physics.kh          = 0.000009 # Conductivity of HTPB before burn
+physics.ka          = 0.02  # Conductivity of AP before burn
+physics.kh          = 0.009 # Conductivity of HTPB before burn
 physics.k0          = 0.0    # Conductivity after burn
 physics.cp1         = 1.0    # Specific heat before burn
 physics.cp0         = 1.0    # Specific heat after burn
@@ -53,7 +54,7 @@ physics.R_min=0.040 #hard coded not taking values from here
 physics.R_max=0.1  #hard coded not taking values from here
 
 physics.refinement_criterion = 0.2 #1.0
-physics.temp_refinement = 0.01
+physics.temp_refinement = 10
 
 TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo	= EXT_DIR INT_DIR INT_DIR 
@@ -97,4 +98,27 @@ bc.eta.val.ylo  = 0.0
 bc.eta.val.yhi  = 0.0
 bc.eta.val.zlo  = 0.0
 bc.eta.val.zhi  = 0.0
+
+elastic.interval = 100
+elastic.ap.E = 210 
+elastic.ap.nu = 0.3
+elastic.ap.F0  = 0.00001 0 0 0 0.00001 0 0 0 0.00001 
+elastic.htpb.E = 210 
+elastic.htpb.nu = 0.3
+elastic.void.E = 1.0
+elastic.htpb.nu = 0.3
+#elastic.model_htpb.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 
+
+elastic.solver.verbose = 3
+elastic.solver.fixed_iter = 20
+#elastic.solver.max_fmg_iter = 1000
+#elastic.bottom_solver=smoother
+#elastic.bc.val.xhi       = 0.1 0.0 0.0
+elastic.solver.nriters = 1
+#elastic.bc.type.yhi = trac trac
+#elastic.bc.type.ylo = trac trac
+#elastic.bc.type.xlo = trac trac
+#elastic.bc.type.xloylo = trac trac
+#elastic.bc.type.xloyhi = trac trac
+
 

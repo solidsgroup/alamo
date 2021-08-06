@@ -15,7 +15,10 @@
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
 #include "Set/Set.H"
-
+#include "Model/Solid/Affine/Isotropic.H"
+#include "IO/ParmParse.H"
+#include "BC/Operator/Elastic/Constant.H"
+#include "Solver/Nonlocal/Newton.H"
  //extern std::vector<Set::Scalar> alpha;
  //  extern int pack_size;
 
@@ -25,12 +28,15 @@ namespace Integrator
 class Flame : public Integrator::Integrator
 {
 	
+	using model_type = Model::Solid::Affine::Isotropic;
+	
 public:
 	Flame ();
 	 
 
 protected:
 	void Initialize (int lev) ;
+	void TimeStepBegin(Set::Scalar a_time,int a_iter) override;
 	void Advance (int lev, amrex::Real time, amrex::Real dt);
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
 	void Regrid(int lev, Set::Scalar time) override;
@@ -81,6 +87,17 @@ private:
 	
 	IC::IC *EtaIC;
 
+	struct {
+		Set::Field<Set::Scalar> disp_mf;
+		Set::Field<Set::Scalar> rhs_mf;
+		Set::Field<Set::Scalar> res_mf;
+		Set::Field<Set::Scalar> stress_mf;
+		Set::Field<model_type>  model_mf;
+		model_type model_ap, model_htpb, model_void;
+		int interval = 0;
+		BC::Operator::Elastic::Constant bc;
+		Solver::Nonlocal::Newton<model_type> *solver;//(elastic.op);
+	} elastic;
 };
 }
 
