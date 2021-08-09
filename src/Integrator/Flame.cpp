@@ -122,7 +122,6 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 		elastic.disp_mf[lev]->setVal(0.0);
 		elastic.model_mf[lev]->setVal(elastic.model_ap);
 		
-		Util::Message(INFO,"amrlev=  ",lev);
         Set::Vector DX(geom[lev].CellSize());
 
         for (MFIter mfi(*elastic.model_mf[lev], true); mfi.isValid(); ++mfi)
@@ -135,7 +134,6 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
             amrex::Array4<const Set::Scalar> const &temp = Temp_mf[lev]->array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-				if (lev == 0) Util::Message(INFO,i,j,k);
 				Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
 				Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,0);
 				Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
