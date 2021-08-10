@@ -118,6 +118,13 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 
 	for (int lev = 0; lev <= finest_level; ++lev)
 	{
+		//Eta_mf[lev]->FillBoundary();
+		//FlameSpeed_mf[lev]->FillBoundary();
+		//Temp_mf[lev]->FillBoundary();
+		Util::RealFillBoundary(*Eta_mf[lev],geom[lev]);
+		Util::RealFillBoundary(*FlameSpeed_mf[lev],geom[lev]);
+		Util::RealFillBoundary(*Temp_mf[lev],geom[lev]);
+
 		elastic.rhs_mf[lev]->setVal(0.0);
 		elastic.disp_mf[lev]->setVal(0.0);
 		elastic.model_mf[lev]->setVal(elastic.model_ap);
@@ -126,6 +133,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 
         for (MFIter mfi(*elastic.model_mf[lev], true); mfi.isValid(); ++mfi)
         {
+			
             amrex::Box bx = mfi.nodaltilebox();
 			bx.grow(1);
             amrex::Array4<model_type> const &model = elastic.model_mf[lev]->array(mfi);
