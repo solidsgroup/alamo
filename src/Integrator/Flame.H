@@ -75,13 +75,14 @@ private:
 	Set::Scalar n_comb;
 	
 	int fs_number = 1;
-	Set::Scalar fs_min = -1.0;
-	Set::Scalar fs_max = 1.0;
+	//Set::Scalar fs_min = -1.0;
+	//Set::Scalar fs_max = 1.0;
 	//Set::Scalar mean = 0.1;
 	Set::Scalar volume_fraction = 0.1;
 	//Set::Scalar std_deviation = 0.05;
 	Set::Scalar R_min = 0.1;
 	Set::Scalar R_max = 0.2;
+	Set::Scalar R_mean = 0.075;
  
    
 	Set::Scalar m_refinement_criterion = 0.001;

@@ -28,8 +28,9 @@ Flame::Flame () : Integrator()
   pp.query("R_max",R_max);
   pp.query("volume_fraction",volume_fraction);
   //pp.query("mean",mean);
-  pp.query("fs_min",fs_min);
-  pp.query("fs_max",fs_max);
+  //pp.query("fs_min",fs_min);
+  //pp.query("fs_max",fs_max);
+  pp.query("R_mean",R_mean);
   
   pp.query("fs_ap",fs_ap);
   pp.query("fs_htpb",fs_htpb);
@@ -64,7 +65,7 @@ Flame::Flame () : Integrator()
   VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
   //PackedSpheresIC->Define(fs_number,fs,mean,std_deviation,IC::PackedSpheres::Type::Values);
   
-  PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,IC::PackedSpheres::Type::Values);
+  PackedSpheresIC->Define(fs_number,fs,volume_fraction,R_min,R_max,R_mean,IC::PackedSpheres::Type::Values);
 
   
 

@@ -38,14 +38,14 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _R_min=0.1,amrex::Real _R_max=0.2) : IC(_geom) 
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _R_min=0.1,amrex::Real _R_max=0.2,amrex::Real _R_mean=0.15) : IC(_geom) 
 	{
-    	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max);
+    	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max,_R_mean);
   	}
 
-  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_R_min =0.1,amrex::Real a_R_max =0.2)
+  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_R_min =0.1,amrex::Real a_R_max =0.2,amrex::Real a_R_mean =0.15)
 	{
-    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_R_min,a_R_max,Type::Partition);
+    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_R_min,a_R_max,a_R_mean,Type::Partition);
   	}
 
 	void Define (int a_number_of_grains,
@@ -53,13 +53,15 @@ public:
 				 amrex::Real a_volume_fraction,
                  amrex::Real a_R_min,
 				 amrex::Real a_R_max,
+				 amrex::Real a_R_mean,
 				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
 		alpha = a_alpha;
 		vf= a_volume_fraction;
-                R_min=a_R_min;
+        R_min=a_R_min;
 		R_max=a_R_max;
+		R_mean= a_R_mean;
 		type = a_type;
 
 		
@@ -67,10 +69,10 @@ public:
     
 		std::vector <double> sph_vol;   
 		std::vector <amrex::Real> sph_nos; 
-               amrex::Real sph_tot_vol=0;
+        amrex::Real sph_tot_vol=0;
 		R.resize(number_of_grains); 
 		R_n.resize(number_of_grains); 
-                sph_vol.resize(number_of_grains);
+        sph_vol.resize(number_of_grains);
 		sph_nos.resize(number_of_grains);
 		count.resize(number_of_grains);
 		R_new.resize(number_of_grains);
@@ -89,19 +91,21 @@ public:
 		AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
-					 
-				/*AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
-					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];)*/				 
+					 				 
 					 int total=0;
-					
-       /* double dom_vol=size(0)*size(1)*size(2);
+					 
+	#if AMREX_SPACEDIM>2	
+		if (geom[0].isPeriodic(2))
+		{		
+        double dom_vol=size(0)*size(1)*size(2);
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
+			Util::Message(INFO, "3 ");
 		if (n==0)
-		{		
+		{			
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
-        R[n]=((0.075)/number_of_grains);
+        R[n]=((R_mean)/number_of_grains);
 		sph_vol[n]=(1.33)*3.14*(R[n]*R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
@@ -111,7 +115,7 @@ public:
 
 		else if (n>0)
 		{	
-        R[n]=((0.075)/number_of_grains);
+        R[n]=((R_mean)/number_of_grains);
 		sph_vol[n]=(1.33)*3.14*(R[n]*R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
@@ -119,7 +123,7 @@ public:
 		pack_size=pack_size+sph_nos[n];
 		
 		}
-		}*/
+		}
 		/*std::cout<<"sph vol    "<<sph_vol[0]<<endl;
 		std::cout<<"sph nos    "<<sph_nos[0]<<endl;
 		std::cout<<"sph nos size   "<<sph_nos.size()<<endl;
@@ -127,15 +131,23 @@ public:
          std::cout<<"pack_size   "<<pack_size<<endl;
         std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
 		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;*/
-		
-      double dom_vol=size(0)*size(1);
+	   }	
+	#endif	
+	
+	//Util::Message(INFO, "R_mean ",R_mean);
+
+	#if AMREX_SPACEDIM>1
+		if (geom[0].isPeriodic(1))
+		{
+         double dom_vol=size(0)*size(1);
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
+		Util::Message(INFO, "2 ");
 		if (n==0)
 		{		
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
-        R[n]=((0.075)/number_of_grains);
+        R[n]=((R_mean)/number_of_grains);
 		sph_vol[n]=3.14*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
@@ -145,7 +157,7 @@ public:
 
 		else if (n>0)
 		{	
-        R[n]=((0.075)/number_of_grains);
+        R[n]=((R_mean)/number_of_grains);
 		sph_vol[n]=3.14*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
@@ -154,7 +166,8 @@ public:
 		
 		}
 		}
-	  	
+		}	
+	#endif	  	
 		
   
    
@@ -462,6 +475,7 @@ private:
     amrex::Real vf;
     amrex::Real R_min;
 	amrex::Real R_max;
+	amrex::Real R_mean;
 	int rank;
 	Type type;
 	//amrex::Vector<amrex::Real> packedspheres_x;
