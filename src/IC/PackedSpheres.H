@@ -132,11 +132,11 @@ public:
         std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
 		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;*/
 	   }	
-	#endif	
+	//#endif	
 	
 	//Util::Message(INFO, "R_mean ",R_mean);
 
-	#if AMREX_SPACEDIM>1
+	#elif AMREX_SPACEDIM>1
 		if (geom[0].isPeriodic(1))
 		{
          double dom_vol=size(0)*size(1);
