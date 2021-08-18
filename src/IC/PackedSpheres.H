@@ -136,7 +136,7 @@ public:
 	
 	//Util::Message(INFO, "R_mean ",R_mean);
 
-	#elif AMREX_SPACEDIM>1
+	#else AMREX_SPACEDIM>1
 		if (geom[0].isPeriodic(1))
 		{
          double dom_vol=size(0)*size(1);
