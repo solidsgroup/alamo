@@ -15,6 +15,7 @@
 #include "BC/BC.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "BC/Operator/Elastic/TensionTest.H"
+#include "BC/Operator/Elastic/Expression.H"
 
 #include "IC/Ellipse.H"
 #include "Numeric/Stencil.H"
@@ -70,6 +71,13 @@ public:
                 elastic.bc = new BC::Operator::Elastic::TensionTest();
                 pp.queryclass("bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(elastic.bc));
             }
+            else if (bc_type == "expression")
+            {
+                elastic.bc = new BC::Operator::Elastic::Expression();
+                pp.queryclass("bc.expression",static_cast<BC::Operator::Elastic::Expression*>(elastic.bc));
+            }
+
+			pp.query("ref_threshold",m_elastic_ref_threshold);
 
         }
         RegisterGeneralFab(model_mf, 1, 2);
@@ -179,7 +187,7 @@ protected:
                     }
                     else
                     {                    
-                        Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX);
+                        Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX,sten);
                         Set::Matrix sigma = model(i,j,k).DW(gradu);
                         Set::Matrix eps = 0.5*(gradu + gradu.transpose());
                         Numeric::MatrixToField(stress,i,j,k,sigma);
@@ -244,6 +252,7 @@ protected:
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &disp = eta_mf[lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &strain = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 {
                     Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
@@ -251,8 +260,8 @@ protected:
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
                 {
-                    Set::Vector grad = Numeric::Gradient(disp, i, j, k, 0, DX.data());
-                    if (grad.lpNorm<2>() * DXnorm > 0.01)
+                    Set::Matrix grad = Numeric::Gradient(strain, i, j, k, DX.data());
+                    if (grad.lpNorm<2>() * DXnorm > m_elastic_ref_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
             });
@@ -281,6 +290,8 @@ private:
         Solver::Nonlocal::Newton<MODEL> *solver;//(elastic.op);
         BC::Operator::Elastic::Elastic *bc;
     } elastic;
+
+	Set::Scalar m_elastic_ref_threshold = 0.01;
 
 };
 } // namespace Integrator
