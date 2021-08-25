@@ -18,8 +18,15 @@ namespace Elastic
 {
 class Expression : public Elastic
 {
-public:
 
+#ifndef ALAMO_JIT
+public:
+	Expression(){ Util::Abort(INFO,"You need to compile with JIT to use this BC"); }
+	virtual void Init(amrex::MultiFab * ,const amrex::Geometry &,bool) const {};
+	static void Parse(Expression &, IO::ParmParse & ) {} ;
+ 	Set::Vector operator () (const Set::Vector &, const Set::Matrix &, const Set::Matrix &, const int &, const int &, const int &, const amrex::Box &) {return Set::Vector::Zero();};
+#else
+public:
 	//static constexpr const char* const Elastic::strings[];
 	#if AMREX_SPACEDIM==2
 	static const constexpr char * const facestr[] = {
@@ -298,6 +305,7 @@ public:
 			}
 		}		
     }
+#endif
 };
 }
 }

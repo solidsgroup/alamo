@@ -251,7 +251,6 @@ protected:
             amrex::Box bx = mfi.tilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-            amrex::Array4<Set::Scalar> const &disp = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &strain = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 {
