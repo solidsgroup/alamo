@@ -10,7 +10,7 @@ amr.plot_dt        =  0.1                             # How frequently to dump o
 #amr.plot_int = 1
 
 amr.max_level       = 4               # How many levels of grid refinement are allowed
-amr.n_cell          = 30 10  2     # Number of cells in the x,y,z directions1
+amr.n_cell          = 30 10  10     # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -18,24 +18,24 @@ amr.regrid_int      = 100             # * How frequently (in number of timesteps
 amr.grid_eff        = 0.7       # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
-geometry.prob_lo    = -1.5 -0.5 -0.1 # Problem domain: furthest point to the lower left
-geometry.prob_hi    = 1.5 0.5 0.1      # Problem domain: furthest point to the upper right
+geometry.prob_lo    = -1.5 -0.5 -0.5 # Problem domain: furthest point to the lower left
+geometry.prob_hi    = 1.5 0.5 0.5      # Problem domain: furthest point to the upper right
 geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.001    # Timestep
-stop_time           = 7
+stop_time           = 4
 
 #physics.M           = 0.5 # Mobility - controls flame speed
 physics.fs_ap        = 1.0 # AP flamespeed
 physics.fs_htpb      = 1.0 #HTPB flamespeed
-physics.n_ap         = 1.0093  #Pressure exponent for AP
-physics.r_ap         = 5.0  # Pressure Coefficient for AP
-physics.n_htpb       = 0.2 # Pressure exponent for HTPB
-physics.r_htpb       = 15 # Pressure Coefficient for HTPB
+physics.n_ap         = 1.5208  #Pressure exponent for AP
+physics.r_ap         = 0.11 # Pressure Coefficient for AP
+physics.n_htpb       = 1.0 # Pressure exponent for HTPB
+physics.r_htpb       = 0.11 # Pressure Coefficient for HTPB
 physics.n_comb       = 1.0 # Pressure exponent for comb
 physics.r_comb       = 1.0 # Pressure Coefficient for comb
-physics.P            = 0.4036 # Pressure in MPa
+physics.P            = 2.019 # Pressure in MPa
 
 
 physics.kappa	    = 0.001   # Width of burn region
@@ -56,10 +56,10 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 physics.fs_number   = 1    #no of different radii between R_min and R_max
 #physics.fs_min      = -0.5 #0.1
 #physics.fs_max      = 15 #0.5
-physics.volume_fraction=0.38
+physics.volume_fraction= 0.65
 physics.R_min=0.040
 physics.R_max=0.1
-physics.R_mean= 0.0055
+physics.R_mean= 0.0075
 
 physics.refinement_criterion = 0.2 #1.0
 

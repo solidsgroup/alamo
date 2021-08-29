@@ -38,9 +38,9 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _R_min=0.1,amrex::Real _R_max=0.2, amrex::Real _R_mean=0.15) : IC(_geom) 
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _R_min=0.1,amrex::Real _R_max=0.2,amrex::Real _R_mean=0.15) : IC(_geom) 
 	{
-    	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max, _R_mean);
+    	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max,_R_mean);
   	}
 
   	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_R_min =0.1,amrex::Real a_R_max =0.2,amrex::Real a_R_mean=0.15)
@@ -59,9 +59,9 @@ public:
 		number_of_grains = a_number_of_grains;
 		alpha = a_alpha;
 		vf= a_volume_fraction;
-                R_min=a_R_min;
+        R_min=a_R_min;
 		R_max=a_R_max;
-		R_mean=a_R_mean;
+		R_mean=a_R_mean,
 		type = a_type;
 
 		
