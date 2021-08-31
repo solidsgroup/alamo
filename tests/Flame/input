@@ -24,18 +24,18 @@ geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.001    # Timestep
-stop_time           = 4
+stop_time           = 6
 
 #physics.M           = 0.5 # Mobility - controls flame speed
 physics.fs_ap        = 1.0 # AP flamespeed
 physics.fs_htpb      = 1.0 #HTPB flamespeed
-physics.n_ap         = 1.5208  #Pressure exponent for AP
-physics.r_ap         = 0.11 # Pressure Coefficient for AP
-physics.n_htpb       = 1.0 # Pressure exponent for HTPB
-physics.r_htpb       = 0.11 # Pressure Coefficient for HTPB
+physics.n_ap         = 1.2967  #Pressure exponent for AP
+physics.r_ap         = 6 #Pssure Coefficient for AP
+physics.n_htpb       = 1.1 #Pressure exponent for HTPB
+physics.r_htpb       = 4.5 #Pressure Coefficient for HTPB
 physics.n_comb       = 1.0 # Pressure exponent for comb
 physics.r_comb       = 1.0 # Pressure Coefficient for comb
-physics.P            = 2.019 # Pressure in MPa
+physics.P            = 2 # Pressure in MPa
 
 
 physics.kappa	    = 0.001   # Width of burn region
@@ -56,10 +56,10 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 physics.fs_number   = 1    #no of different radii between R_min and R_max
 #physics.fs_min      = -0.5 #0.1
 #physics.fs_max      = 15 #0.5
-physics.volume_fraction= 0.65
+physics.volume_fraction= 0.5240
 physics.R_min=0.040
 physics.R_max=0.1
-physics.R_mean= 0.0075
+physics.R_mean= 0.055
 
 physics.refinement_criterion = 0.2 #1.0
 
