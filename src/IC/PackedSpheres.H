@@ -74,7 +74,6 @@ public:
 		R_n.resize(number_of_grains); 
         sph_vol.resize(number_of_grains);
 		sph_nos.resize(number_of_grains);
-		//count.resize(number_of_grains);
 		int count=0;
 		R_new.resize(number_of_grains);
 		pack_size=0;
@@ -83,8 +82,7 @@ public:
 	    int jj=0;
 		std::vector<double> ins (1,1);	
         packedspheres.resize(number_of_grains);
-        //int iLoop=0;
-        //int tLoop=10000;
+
 
 
 		int p=0;
@@ -104,7 +102,7 @@ public:
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
-			Util::Message(INFO, "3 ");
+			Util::Message(INFO,"3 dimensions");
 		if (n==0)
 		{			
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
@@ -146,7 +144,7 @@ public:
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
-		Util::Message(INFO, "2 ");
+		Util::Message(INFO, "2 dimensions");
 		if (n==0)
 		{		
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
@@ -179,8 +177,8 @@ public:
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
  
-     //if (rank==0)			 
-		//{  
+     if (rank==0)			 
+		{  
 	R_new.assign(R.begin(),R.end());
 	
 	
@@ -220,11 +218,6 @@ for (int i=0; i<number_of_grains;i++)
 	   
 	}
 	
-	//else
-	//{
-		
-          
-	//}
 
 	       
 }
@@ -233,17 +226,13 @@ for (int i=0; i<number_of_grains;i++)
         dd.resize(pack_size-1);
         dd1.resize(pack_size-1);
 		R_n.resize(pack_size-1);
-		//count.resize(pack_size);
-		//std::fill(count.begin(), count.end(), 0);
+
 
 
 
       
 
-	//do
-		//{			 
-//while (iLoop<tLoop)
-//{
+
 		for (int n = 0; n<pack_size; n++)
 		{
 			std::vector<bool> df(pack_size-1);
@@ -261,9 +250,7 @@ for (int i=0; i<number_of_grains;i++)
 	else if (n>0)								
     {
 		    
-	//int i=0;
-//while (i<1000)
-//{
+
 
 
 label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
@@ -302,7 +289,7 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
           dd[p]= std::min(dd[p],dd1[p]); 
           
        R_n[p]=R_new[n]+R_new[p];
-           if (dd[p]> ((R_n[p]*1.0)))
+           if (dd[p]> R_n[p])
 			{
 				df[p]=true;
 			}
@@ -315,50 +302,25 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
 		   
 	 }
 
-	 		/*if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
-										
-			{
-												
-				count[n]=1;
-				//i=1000;
-				//Util::Message(INFO,"greater   ");
-				//iLoop=tLoop;
-				//goto label;
-						
-			}*/
 			
 			  if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
 			{
-				//count[n]=0;
-                //i++;
-               // std::abort();
-              // iLoop=iLoop+1;
+
               goto label;
 			    
 			}
 			count=count+1;
 			
-
-       //}
-        //iLoop=iLoop+1;
 	}
 
-
-	
-		//total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		total=count;
 		total=total+1;
 		Util::Message(INFO,"count  ",total);
 	    
-    //}
             
 }
+}
 
-   // Util::Message(INFO,"trial no   ",iLoop); 
-
-	//}
-	//while (total<pack_size);
-   // }
 
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
@@ -412,19 +374,8 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
 				Set::Scalar d1; 
 							
 				
-              // dividing the domain in to 8 x direction and 4 in y direction and none in z direction  
-				
-				//for(int v=-2;v<2;v++)	
-				//{
-				// for (int u=-4;u<4;u++) 
-				// {
-
-				 
-					//if ((packedspheres[n](0)> (size(0)*(u*0.125))) && (packedspheres[n](0) < (size(0)*((u+1)*0.125))) && (packedspheres[n](1)> (size(1)*(v*0.25))) && (packedspheres[n](1)<  (size(1)*((v+1)*0.25))))
-					//{
-
 					 d = (x - packedspheres[n]).lpNorm<2>();
-					// d1 = 10;                
+					               
 					if (geom[0].isPeriodic(0))
 						{
 						    d1 = std::min( (x-packedspheres[n] +size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
@@ -446,7 +397,7 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
 						}
 #endif
                  
-						//}        
+						        
 				     
 					 
 
@@ -469,8 +420,7 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
 
 				if (type == Type::Values) field(i,j,k) = min_grain_id;
 				else if (type == Type::Partition) field(i,j,k,min_grain_id) = min_grain_id;
-				//Set::Scalar R=field(i,j,k);
-				//Util::Message(INFO, "R ", R);
+
 			     
 			});
                    
