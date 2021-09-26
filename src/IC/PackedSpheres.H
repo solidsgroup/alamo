@@ -84,7 +84,7 @@ public:
         packedspheres.resize(number_of_grains);
 
 
-		int p;
+		int p=0;
 	    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 	   
 		Set::Vector size;
@@ -92,7 +92,7 @@ public:
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
 					 				 
-					 //int total=0;
+					// int total=0;
 					 
 	#if AMREX_SPACEDIM>2	
 		if (geom[0].isPeriodic(2))
@@ -176,7 +176,7 @@ public:
     packedspheres.resize(pack_size);
 	R_new.resize(pack_size);
  
-     if (rank==0)			 
+     //if (rank==0)			 
 		//{  
 	R_new.assign(R.begin(),R.end());
 	
@@ -261,21 +261,20 @@ for (int i=0; i<number_of_grains;i++)
 //{
 
 
-		    AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 						 
 
-	p=n-1;
+	p=0;
 
 
  while (p<n)
 	 {		
 
                          dd[p] = (packedspheres[n] - packedspheres[p]).lpNorm<2>();
-                         Util::Message(INFO, "distance between points",dd[p]);
 
-	   if (geom[0].isPeriodic(0))
+	 /*  if (geom[0].isPeriodic(0))
 						{
 						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
@@ -293,61 +292,39 @@ for (int i=0; i<number_of_grains;i++)
 						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
-		#endif
+		#endif*/
 		               
 
        R_n[p]=R_new[n]+R_new[p];
-       
-       Util::Message(INFO, "combined radius ",R_n[p]);
-           if (dd[p]>((R_n[p])*2.0))
+           if (dd[p]>=((R_n[p])))
 			{
 				df[p]=true;
 			}
 			else
 			{
 				df[p]=false;						
-			}         
+			}           
 	   
 	   		p++;
 		   
 	 }
-	 
-	 
-	// bool result = std::greater(dd.begin(), dd.end(), R_n.begin());
-	 /*if (dd > (R_n))
-	 {
-	      std::cout << "matched" << std::endl;
-     }	 */
-     
-    // if(result)
-     //{
-		//  std::cout << "greater" << std::endl;
-	// }
-	if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
-	{
-		
-	    Util::Message(INFO, "greater ");
-	}
-     
-     else
-     {
-		 std::abort();
- }
 
-	 		/*if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
+	 		if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
 										
 			{
 												
-				count[n]=1;
-				i=1000;
+				//count[n]=1;
+				//i=1000;
+				Util::Message(INFO,"greater   ");
 						
 			}
 			else if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
 			{
-				count[n]=0;
-				i++;
+				//count[n]=0;
+                //i++;
+                std::abort();
 			    
-			}*/
+			}
        //}
 	}
 
@@ -355,18 +332,14 @@ for (int i=0; i<number_of_grains;i++)
 	
 		//total = accumulate(count.begin(), count.end(), 0, plus<int>());
 		//total=total+1;
-	//	std::cout<<"count  "<<total<<endl;
+		//std::cout<<"count  "<<total<<endl;
 	    
-   // }
+    }
 
-	}
+	//}
 	//while (total<pack_size);
    // }
-      // alpha.resize(pack_size,1);
-      // for (int i = 0; i < pack_size; i++)
-      // {
-      // alpha[i] = 0.5*(1.0 + Util::Random());
-      // }
+
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
