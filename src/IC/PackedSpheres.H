@@ -82,6 +82,8 @@ public:
 	    int jj=0;
 		std::vector<double> ins (1,1);	
         packedspheres.resize(number_of_grains);
+        int iLoop=0;
+        int tLoop=10000;
 
 
 		int p=0;
@@ -228,6 +230,7 @@ for (int i=0; i<number_of_grains;i++)
 
         std::reverse(R_new.begin(),R_new.end());
         dd.resize(pack_size-1);
+        dd1.resize(pack_size-1);
 		R_n.resize(pack_size-1);
 		count.resize(pack_size);
 		std::fill(count.begin(), count.end(), 0);
@@ -238,7 +241,8 @@ for (int i=0; i<number_of_grains;i++)
 
 	//do
 		//{			 
-
+//while (iLoop<tLoop)
+//{
 		for (int n = 0; n<pack_size; n++)
 		{
 			std::vector<bool> df(pack_size-1);
@@ -261,7 +265,7 @@ for (int i=0; i<number_of_grains;i++)
 //{
 
 
-		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 						 
@@ -274,29 +278,30 @@ for (int i=0; i<number_of_grains;i++)
 
                          dd[p] = (packedspheres[n] - packedspheres[p]).lpNorm<2>();
 
-	 /*  if (geom[0].isPeriodic(0))
+	   if (geom[0].isPeriodic(0))
 						{
-						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						}
 		#if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 		#endif
 		#if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-						 dd[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
-		#endif*/
+		#endif
 		               
-
+          dd[p]= std::min(dd[p],dd1[p]); 
+          
        R_n[p]=R_new[n]+R_new[p];
-           if (dd[p]>=((R_n[p])))
+           if (dd[p]> ((R_n[p]*1.0)))
 			{
 				df[p]=true;
 			}
@@ -309,23 +314,28 @@ for (int i=0; i<number_of_grains;i++)
 		   
 	 }
 
-	 		if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
+	 		/*if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
 										
 			{
 												
 				//count[n]=1;
 				//i=1000;
 				Util::Message(INFO,"greater   ");
+				//iLoop=tLoop;
+				goto label;
 						
-			}
-			else if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
+			}*/
+			 if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
 			{
 				//count[n]=0;
                 //i++;
-                std::abort();
+               // std::abort();
+              // iLoop=iLoop+1;
+              goto label;
 			    
 			}
        //}
+        //iLoop=iLoop+1;
 	}
 
 
@@ -334,7 +344,11 @@ for (int i=0; i<number_of_grains;i++)
 		//total=total+1;
 		//std::cout<<"count  "<<total<<endl;
 	    
-    }
+    //}
+            
+}
+
+   // Util::Message(INFO,"trial no   ",iLoop); 
 
 	//}
 	//while (total<pack_size);
@@ -404,7 +418,7 @@ for (int i=0; i<number_of_grains;i++)
 					//{
 
 					 d = (x - packedspheres[n]).lpNorm<2>();
-					 d1 = 10;                
+					// d1 = 10;                
 					if (geom[0].isPeriodic(0))
 						{
 						    d1 = std::min( (x-packedspheres[n] +size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
@@ -466,6 +480,7 @@ private:
 	std::vector <amrex::Real> R_new;
 	std::vector <amrex::Real> R;
 	std::vector <amrex::Real> dd;
+	std::vector <amrex::Real> dd1;
 	std::vector <amrex::Real> R_n;
 	std::vector <amrex::Real> count;
 	std::vector<double>::iterator it;
