@@ -74,7 +74,8 @@ public:
 		R_n.resize(number_of_grains); 
         sph_vol.resize(number_of_grains);
 		sph_nos.resize(number_of_grains);
-		count.resize(number_of_grains);
+		//count.resize(number_of_grains);
+		int count=0;
 		R_new.resize(number_of_grains);
 		pack_size=0;
 		sph_tot_vol=0;
@@ -82,8 +83,8 @@ public:
 	    int jj=0;
 		std::vector<double> ins (1,1);	
         packedspheres.resize(number_of_grains);
-        int iLoop=0;
-        int tLoop=10000;
+        //int iLoop=0;
+        //int tLoop=10000;
 
 
 		int p=0;
@@ -94,7 +95,7 @@ public:
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
 					 				 
-					// int total=0;
+					 int total=0;
 					 
 	#if AMREX_SPACEDIM>2	
 		if (geom[0].isPeriodic(2))
@@ -232,8 +233,8 @@ for (int i=0; i<number_of_grains;i++)
         dd.resize(pack_size-1);
         dd1.resize(pack_size-1);
 		R_n.resize(pack_size-1);
-		count.resize(pack_size);
-		std::fill(count.begin(), count.end(), 0);
+		//count.resize(pack_size);
+		//std::fill(count.begin(), count.end(), 0);
 
 
 
@@ -318,14 +319,15 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
 										
 			{
 												
-				//count[n]=1;
+				count[n]=1;
 				//i=1000;
-				Util::Message(INFO,"greater   ");
+				//Util::Message(INFO,"greater   ");
 				//iLoop=tLoop;
-				goto label;
+				//goto label;
 						
 			}*/
-			 if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
+			
+			  if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
 			{
 				//count[n]=0;
                 //i++;
@@ -334,6 +336,9 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
               goto label;
 			    
 			}
+			count=count+1;
+			
+
        //}
         //iLoop=iLoop+1;
 	}
@@ -341,8 +346,9 @@ label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0
 
 	
 		//total = accumulate(count.begin(), count.end(), 0, plus<int>());
-		//total=total+1;
-		//std::cout<<"count  "<<total<<endl;
+		total=count;
+		total=total+1;
+		Util::Message(INFO,"count  ",total);
 	    
     //}
             
