@@ -95,7 +95,7 @@ public:
 					 				 
 					 int total=0;
 					 
-	#if AMREX_SPACEDIM==3	
+	#if AMREX_SPACEDIM>2	
 		if (geom[0].isPeriodic(2))
 		{		
         double dom_vol=size(0)*size(1)*size(2);
@@ -137,7 +137,7 @@ public:
 	
 	//Util::Message(INFO, "R_mean ",R_mean);
 
-	#elif (AMREX_SPACEDIM==2)
+	#elif AMREX_SPACEDIM>1
 		if (geom[0].isPeriodic(1))
 		{
          double dom_vol=size(0)*size(1);
@@ -151,7 +151,7 @@ public:
         R[n]=((R_mean)/number_of_grains);
 		sph_vol[n]=3.14*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
-		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
+		sph_nos[n]=floor((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
 		pack_size=pack_size+sph_nos[n];
 		}
@@ -161,14 +161,14 @@ public:
         R[n]=((R_mean)/number_of_grains);
 		sph_vol[n]=3.14*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
-		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
+		sph_nos[n]=floor((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
 		pack_size=pack_size+sph_nos[n];
 		
 		}
 		}
 		}	
-	#endif		
+	#endif	  	
 		
   
    
@@ -250,10 +250,10 @@ for (int i=0; i<number_of_grains;i++)
 	else if (n>0)								
     {
 		    
+label: //n=1;
+       //count=0;
 
-
-
-label:		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 						 
