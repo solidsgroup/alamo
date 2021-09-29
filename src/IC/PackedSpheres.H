@@ -74,14 +74,14 @@ public:
 		R_n.resize(number_of_grains); 
         sph_vol.resize(number_of_grains);
 		sph_nos.resize(number_of_grains);
-		int count=0;
+		//int count=0;
 		R_new.resize(number_of_grains);
 		pack_size=0;
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
 		std::vector<double> ins (1,1);	
-        packedspheres.resize(number_of_grains);
+
 
 
 
@@ -93,7 +93,7 @@ public:
 					 size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
 					 size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)	
 					 				 
-					 int total=0;
+					// int total=0;
 					 
 	#if AMREX_SPACEDIM>2	
 		if (geom[0].isPeriodic(2))
@@ -174,7 +174,8 @@ public:
    
     
 		
-    packedspheres.resize(pack_size);
+      packedspheres.resize(pack_size);
+     packedspheres1.resize(pack_size);
 	R_new.resize(pack_size);
  
      if (rank==0)			 
@@ -228,100 +229,105 @@ for (int i=0; i<number_of_grains;i++)
 		R_n.resize(pack_size-1);
 
 
-
+            AMREX_D_TERM(packedspheres1[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 packedspheres1[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 packedspheres1[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+						 
+						 packedspheres[0]=packedspheres1[0];
 
       
-
-
-		for (int n = 0; n<pack_size; n++)
+   int iLoop=0;
+   int n=1;
+            std::vector<bool> df(pack_size-1);
+		//for (int n = 0; n<pack_size; n++)
+		while ((n<pack_size)&&(iLoop<1000))
 		{
-			std::vector<bool> df(pack_size-1);
+			Util::Message(INFO,"  ");
             std::fill(df.begin(), df.end(), true);
 
-	if(n==0)
-	{
-            AMREX_D_TERM(packedspheres[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
-						 packedspheres[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-						 packedspheres[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
-
-	}
-
-	 	
-	else if (n>0)								
-    {
-		    
-label: //n=1;
-       //count=0;
-
-		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
-						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+		AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 packedspheres1[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 						 
-
+           
 	p=0;
 
 
  while (p<n)
 	 {		
+		 
+		 Util::Message(INFO,"  ");
 
-                         dd[p] = (packedspheres[n] - packedspheres[p]).lpNorm<2>();
+                         dd[p] = (packedspheres1[n] - packedspheres1[p]).lpNorm<2>();
+                         
+                          Util::Message(INFO,"dd[p]   ",dd[p]);
 
 	   if (geom[0].isPeriodic(0))
 						{
-						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-										   (packedspheres[n]-packedspheres[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+						 dd1[p] = std::min( (packedspheres1[n]-packedspheres1[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										   (packedspheres1[n]-packedspheres1[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						}
 		#if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
-										   (packedspheres[n]-packedspheres[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
+						 dd1[p] = std::min( (packedspheres1[n]-packedspheres1[p] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										   (packedspheres1[n]-packedspheres1[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 		#endif
 		#if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+						 dd1[p] = std::min( (packedspheres1[n]-packedspheres1[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										   (packedspheres1[n]-packedspheres1[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 		#endif
+		
+		Util::Message(INFO,"dd1[p]   ",dd1[p]);
 		               
           dd[p]= std::min(dd[p],dd1[p]); 
-          
+        Util::Message(INFO,"dd[p] min  ",dd[p]);  
        R_n[p]=R_new[n]+R_new[p];
            if (dd[p]> R_n[p])
 			{
 				df[p]=true;
+				Util::Message(INFO,"  ");
 			}
 			else
 			{
-				df[p]=false;						
-			}           
+				df[p]=false;
+				Util::Message(INFO,"  ");						
+			}          
 	   
 	   		p++;
+	   		
+	   		Util::Message(INFO,"p  ",p);
 		   
 	 }
-
-			
-			  if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
+	 
+	       Util::Message(INFO,"  ");
+           if (std::all_of(df.begin(),df.end(),[](bool i) {return i==true;}))
+			// if (dd>R_n)
 			{
-
-              goto label;
-			    
+               
+               packedspheres[n]=packedspheres1[n];
+               n=n+1;
+			   Util::Message(INFO,"nnnnn  ",n); 
 			}
-			count=count+1;
+			      
+			else
+			{	
+				n=n;
+				iLoop=iLoop+1;
 			
-	}
+		      Util::Message(INFO,"iLoop  ",iLoop);
+		  }
 
-		total=count;
-		total=total+1;
-		Util::Message(INFO,"count  ",total);
 	    
             
 }
 }
-
-
+	
+		
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -433,6 +439,7 @@ private:
 	int pack_size;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
+	std::vector<Set::Vector> packedspheres1;
 	std::vector <amrex::Real> R_new;
 	std::vector <amrex::Real> R;
 	std::vector <amrex::Real> dd;
