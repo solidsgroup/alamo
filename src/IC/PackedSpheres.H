@@ -85,7 +85,7 @@ public:
 
 
 
-		int p=0;
+		//int p=0;
 	    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 	   
 		Set::Vector size;
@@ -229,45 +229,34 @@ for (int i=0; i<number_of_grains;i++)
 		//R_n.resize(pack_size-1);
 
 
+	
+            AMREX_D_TERM(packedspheres1[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 packedspheres1[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 packedspheres1[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+            packedspheres[0]=packedspheres1[0];
+	
 
 
       
         std::vector<bool> df(pack_size-1);
-        //int n=0;
+       
         int iLoop=0;
-		for (int n = 0; n<pack_size; n++)
-		//while(n<pack_size)
+		for (int n = 1; n<pack_size; n++)
 		{
 			
             std::fill(df.begin(), df.end(), true);
-
-	if(n==0)
-	{
-            AMREX_D_TERM(packedspheres1[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
-						 packedspheres1[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-						 packedspheres1[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
-            packedspheres[n]=packedspheres1[n];
-	}
-
-	 	
-	else if (n>0)								
-    {
 		    
-//n=1;
-       //count=0;
+
 
 		    AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres1[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 						 
-p=0;
+int p=0;
 
- 
-	//p=0;
-
-
- while ((p<n)&& (iLoop<1000000))
-	 {		
+ while ((p<n)&& (iLoop<100000))
+ {
+		
 
                          dd = (packedspheres1[n] - packedspheres1[p]).lpNorm<2>();
 
@@ -283,13 +272,13 @@ p=0;
 										   (packedspheres1[n]-packedspheres1[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 		#endif
-		/*#if AMREX_SPACEDIM>2
+		#if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
 						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
-		#endif*/
+		#endif
 		               
           dd= std::min(dd,dd1); 
           
@@ -301,7 +290,6 @@ p=0;
 				packedspheres[n]=packedspheres1[n];
 				p=p+1;
 				iLoop=iLoop+1;
-				
 			}      
 			
 			
@@ -312,7 +300,7 @@ p=0;
 						 packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
 						 packedspheres1[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 				p=0;	
-				//iLoop=iLoop+1;	 
+					 
 				//Util::Message(INFO,"iLoop  ",iLoop);				
 			}   
 			
@@ -322,9 +310,10 @@ p=0;
 			}  
 			
 	   	   
-	 }			
+	 }	
+ 		
 			count=count+1;
-	}
+	
 
 		total=count;
 		total=total+1;
