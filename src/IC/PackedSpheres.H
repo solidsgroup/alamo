@@ -38,22 +38,22 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _R_min=0.1,amrex::Real _R_max=0.2,amrex::Real _R_mean=0.15) : IC(_geom) 
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,Set::Scalar _volume_fraction =0.05, Set::Scalar _R_min=0.1,Set::Scalar _R_max=0.2,Set::Scalar _R_mean=0.15) : IC(_geom) 
 	{
     	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max,_R_mean);
   	}
 
-  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_R_min =0.1,amrex::Real a_R_max =0.2,amrex::Real a_R_mean =0.15)
+  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,Set::Scalar a_volume_fraction=0.05, Set::Scalar a_R_min =0.1,Set::Scalar a_R_max =0.2,Set::Scalar a_R_mean =0.15)
 	{
     	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_R_min,a_R_max,a_R_mean,Type::Partition);
   	}
 
 	void Define (int a_number_of_grains,
 				 std::vector<Set::Scalar> a_alpha,
-				 amrex::Real a_volume_fraction,
-                 amrex::Real a_R_min,
-				 amrex::Real a_R_max,
-				 amrex::Real a_R_mean,
+				 Set::Scalar a_volume_fraction,
+                 Set::Scalar a_R_min,
+				 Set::Scalar a_R_max,
+				 Set::Scalar a_R_mean,
 				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
@@ -68,8 +68,8 @@ public:
 		
     
 		std::vector <double> sph_vol;   
-		std::vector <amrex::Real> sph_nos; 
-        amrex::Real sph_tot_vol=0;
+		std::vector <Set::Scalar> sph_nos; 
+        Set::Scalar sph_tot_vol=0;
 		R.resize(number_of_grains); 
 		//R_n.resize(number_of_grains); 
         sph_vol.resize(number_of_grains);
@@ -80,7 +80,7 @@ public:
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
-		std::vector<double> ins (1,1);	
+		std::vector<Set::Scalar> ins (1,1);	
         packedspheres.resize(number_of_grains);
 
 
@@ -98,7 +98,7 @@ public:
 	#if AMREX_SPACEDIM>2	
 		if (geom[0].isPeriodic(2))
 		{		
-        double dom_vol=size(0)*size(1)*size(2);
+        Set::Scalar dom_vol=size(0)*size(1)*size(2);
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
@@ -140,7 +140,7 @@ public:
 	#elif AMREX_SPACEDIM>1
 		if (geom[0].isPeriodic(1))
 		{
-         double dom_vol=size(0)*size(1);
+         Set::Scalar dom_vol=size(0)*size(1);
         // converting volume fraction in to no of spheres
         for (int n = 0; n<number_of_grains; n++)
 		{
@@ -197,7 +197,7 @@ for (int i=0; i<number_of_grains;i++)
 			 {
                it = R_new.begin();	
 			   ins.clear();
-		       std::vector<double> ins (inc,R[i]);
+		       std::vector<Set::Scalar> ins (inc,R[i]);
 		       R_new.insert(it+1,ins.begin(),ins.end());
 			    jj=jj+inc+1;	
 			   
@@ -208,7 +208,7 @@ for (int i=0; i<number_of_grains;i++)
 
 				it = R_new.begin();
 				ins.clear();
-		        std::vector<double> ins (inc,R[i]);
+		        std::vector<Set::Scalar> ins (inc,R[i]);
 		        R_new.insert(it+jj,ins.begin(),ins.end());
 				jj=jj+inc+1;	
 				
@@ -265,9 +265,11 @@ p=0;
  
 	//p=0;
 
-
- while ((p<n)&& (iLoop<1000))
-	 {		
+//while (iLoop<1000)
+//{
+ while (p<n && iLoop<1000 )
+	 {	
+		 	
 
                          dd = (packedspheres1[n] - packedspheres1[p]).lpNorm<2>();
 
@@ -283,13 +285,13 @@ p=0;
 										   (packedspheres1[n]-packedspheres1[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 		#endif
-		/*#if AMREX_SPACEDIM>2
+		#if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
 						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
 										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
-		#endif*/
+		#endif
 		               
           dd= std::min(dd,dd1); 
           
@@ -298,13 +300,27 @@ p=0;
 
 			 if (dd> R_n)
 			{
-				packedspheres[n]=packedspheres1[n];
-				p=p+1;
+				//packedspheres[n]=packedspheres1[n];
 				
+				//iLoop=1000;
+				//df[p]=true;
+				if (p==(n-1))
+				{
+					packedspheres[n]=packedspheres1[n];
+					//p=n;
+					iLoop=1000;
+					//goto label;
+				}
+				else
+				{
+					//packedspheres1[n]=packedspheres1[n];
+					p=p+1;
+					iLoop=iLoop+1;
+				}
 			}      
 			
 			
-			else if (dd < R_n)
+			else if (dd <= R_n)
 			{
 					
 			AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
@@ -315,25 +331,27 @@ p=0;
 				//Util::Message(INFO,"iLoop  ",iLoop);				
 			}   
 			
-			else
+			/*else
 			{
 				std::abort();
-			}  
+			}  */
+			
 			
 	   	   
-	 }			
+	 }
+
 			count=count+1;
 	}
+
 
 		total=count;
 		total=total+1;
 		Util::Message(INFO,"count  ",total);
-	    //n=n+1;
-            
+	   
 }
 }
 
-    //std::abort();
+    
 	R_new.resize(pack_size);
 	packedspheres.resize(pack_size);
 	MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -446,20 +464,21 @@ private:
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
 	std::vector<Set::Vector> packedspheres1;
-	std::vector <amrex::Real> R_new;
-	std::vector <amrex::Real> R;
+	std::vector <Set::Scalar> R_new;
+	std::vector <Set::Scalar> R;
+	std::vector <bool> df;
 	//std::vector <amrex::Real> dd;
 	//std::vector <amrex::Real> dd1;
 	Set::Scalar dd;
 	Set::Scalar dd1;
 	Set::Scalar R_n;
-	std::vector <amrex::Real> count;
-	std::vector<double>::iterator it;
+	std::vector <Set::Scalar> count;
+	std::vector<Set::Scalar>::iterator it;
 	//std::vector<double> ins;
-    amrex::Real vf;
-    amrex::Real R_min;
-	amrex::Real R_max;
-	amrex::Real R_mean;
+    Set::Scalar vf;
+    Set::Scalar R_min;
+	Set::Scalar R_max;
+	Set::Scalar R_mean;
 	int rank;
 	Type type;
 	//amrex::Vector<amrex::Real> packedspheres_x;
