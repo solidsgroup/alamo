@@ -10,7 +10,7 @@ amr.plot_dt        =  0.1                             # How frequently to dump o
 #amr.plot_int = 1
 
 amr.max_level       = 3             # How many levels of grid refinement are allowed
-amr.n_cell          = 40 40  4     # Number of cells in the x,y,z directions1
+amr.n_cell          = 120 40  4     # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -18,8 +18,8 @@ amr.regrid_int      = 100             # * How frequently (in number of timesteps
 amr.grid_eff        = 0.1      # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
-geometry.prob_lo    = -0.5 -0.5 -0.1 # Problem domain: furthest point to the lower left
-geometry.prob_hi    = 0.5 0.5 0.1      # Problem domain: furthest point to the upper right
+geometry.prob_lo    = -1.5 -0.5 -0.1 # Problem domain: furthest point to the lower left
+geometry.prob_hi    = 1.5 0.5 0.1      # Problem domain: furthest point to the upper right
 geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
 #geometry.is_periodic= 1 1 1           #babu
 
