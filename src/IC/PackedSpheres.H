@@ -175,6 +175,7 @@ public:
     
 		
     packedspheres.resize(pack_size);
+    packedspheres1.resize(pack_size);
 	R_new.resize(pack_size);
  
      if (rank==0)			 
@@ -242,10 +243,10 @@ label1:
 
 	if(n==0)
 	{
-            AMREX_D_TERM(packedspheres[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
-						 packedspheres[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-						 packedspheres[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
-
+            AMREX_D_TERM(packedspheres1[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 packedspheres1[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 packedspheres1[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+                      packedspheres[n]=packedspheres1[n];
 	}
 
 	 	
@@ -255,9 +256,9 @@ label1:
 label: //n=1;
        //count=0;
 
-		AMREX_D_TERM(packedspheres[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
-						 packedspheres[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
-						 packedspheres[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
+		AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
+						 packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
+						 packedspheres1[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
 						 
 
 	p=0;
@@ -266,25 +267,25 @@ label: //n=1;
  while (p<n)
 	 {		
 
-                         dd[p] = (packedspheres[n] - packedspheres[p]).lpNorm<2>();
+                         dd[p] = (packedspheres1[n] - packedspheres1[p]).lpNorm<2>();
 
 	   if (geom[0].isPeriodic(0))
 						{
-						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
-										   (packedspheres[n]-packedspheres[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
+						 dd1[p] = std::min( (packedspheres1[n]-packedspheres1[p] + size(0)*Set::Vector::Unit(0)).lpNorm<2>(),
+										   (packedspheres1[n]-packedspheres1[p] - size(0)*Set::Vector::Unit(0)).lpNorm<2>());
 						}
 		#if AMREX_SPACEDIM>1
 					if (geom[0].isPeriodic(1))
 						{
-						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
-										   (packedspheres[n]-packedspheres[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
+						 dd1[p] = std::min( (packedspheres1[n]-packedspheres1[p] + size(1)*Set::Vector::Unit(1)).lpNorm<2>(),
+										   (packedspheres1[n]-packedspheres1[p] - size(1)*Set::Vector::Unit(1)).lpNorm<2>());
 						}
 		#endif
 		#if AMREX_SPACEDIM>2
 					if (geom[0].isPeriodic(2))
 						{
-						 dd1[p] = std::min( (packedspheres[n]-packedspheres[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
-										   (packedspheres[n]-packedspheres[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
+						 dd1[p] = std::min( (packedspheres1[n]-packedspheres1[p] + size(2)*Set::Vector::Unit(2)).lpNorm<2>(),
+										   (packedspheres1[n]-packedspheres1[p] - size(2)*Set::Vector::Unit(2)).lpNorm<2>());
 						}
 		#endif
 		               
@@ -294,23 +295,27 @@ label: //n=1;
            if (dd[p]> R_n[p])
 			{
 				count[p]=0;
+				
+				
 			}
 			else
 			{
-				count[p]=1;						
+				count[p]=1;	
+		 		
 			}           
-	   
-	   		p++;
+	   p++;
+	   		
 		   
 	 }
-              int count1= std::accumulate(count.begin(), count.end(), 0);
+	          int count1=0;
+              count1= std::accumulate(count.begin(), count.end(), 0);
 			
 			  //if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
 			  if(count1>0)
 			{
               
               
-              if (iLoop<1000)
+              if (iLoop<10000)
               {
 				 //Util::Message(INFO,"label  ");
 				iLoop=iLoop+1;
@@ -324,10 +329,16 @@ label: //n=1;
 			  }
 			    
 			}
-			else
+			else if (count1==0)
 			{
 				iLoop=0;
+				packedspheres[n]=packedspheres1[n];
 			}
+			else
+			{
+				std::abort();
+			}
+
 			//total=total+1;
 			
 	}
@@ -453,6 +464,7 @@ private:
 	int pack_size;
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
+	std::vector<Set::Vector> packedspheres1;
 	std::vector <amrex::Real> R_new;
 	std::vector <amrex::Real> R;
 	std::vector <amrex::Real> dd;
