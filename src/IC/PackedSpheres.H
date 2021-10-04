@@ -95,7 +95,7 @@ public:
 					 				 
 					 int total=0;
 					 
-	#if AMREX_SPACEDIM>2	
+	//#if AMREX_SPACEDIM>2	
 		if (geom[0].isPeriodic(2))
 		{		
         double dom_vol=size(0)*size(1)*size(2);
@@ -107,7 +107,7 @@ public:
 		{			
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=(1.33)*3.14*(R[n]*R[n]*R[n]);
+		sph_vol[n]=(1.33)*3.14*2.0*(R[n]*R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
@@ -117,7 +117,7 @@ public:
 		else if (n>0)
 		{	
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=(1.33)*3.14*(R[n]*R[n]*R[n]);
+		sph_vol[n]=(1.33)*3.14*2.0*(R[n]*R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
@@ -137,7 +137,7 @@ public:
 	
 	//Util::Message(INFO, "R_mean ",R_mean);
 
-	#elif AMREX_SPACEDIM>1
+	/*#elif AMREX_SPACEDIM>1
 		if (geom[0].isPeriodic(1))
 		{
          double dom_vol=size(0)*size(1);
@@ -149,9 +149,9 @@ public:
 		{		
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=3.14*(R[n]*R[n]);
+		sph_vol[n]=3.14*1.5*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
-		sph_nos[n]=floor((dom_vol/(sph_vol[n]*1))*vf);
+		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
 		pack_size=pack_size+sph_nos[n];
 		}
@@ -159,16 +159,16 @@ public:
 		else if (n>0)
 		{	
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=3.14*(R[n]*R[n]);
+		sph_vol[n]=3.14*1.5*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
-		sph_nos[n]=floor((dom_vol/(sph_vol[n]*1))*vf);
+		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
 		pack_size=pack_size+sph_nos[n];
 		
 		}
 		}
 		}	
-	#endif	  	
+	#endif	*/  	
 		
   
    
