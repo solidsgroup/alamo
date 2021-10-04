@@ -83,6 +83,7 @@ private:
 	Set::Scalar R_min = 0.1;
 	Set::Scalar R_max = 0.2;
 	Set::Scalar R_mean = 0.075;
+	Set::Scalar verbosity = 0.1;
  
    
 	Set::Scalar m_refinement_criterion = 0.001;

@@ -38,22 +38,23 @@ public:
 	enum Type {Partition, Values};
 
 	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,amrex::Real _volume_fraction =0.05, amrex::Real _R_min=0.1,amrex::Real _R_max=0.2,amrex::Real _R_mean=0.15) : IC(_geom) 
+	PackedSpheres (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains,Set::Scalar a_alpha = 1.0,Set::Scalar _volume_fraction =0.05, Set::Scalar _R_min=0.1,Set::Scalar _R_max=0.2,Set::Scalar _R_mean=0.15,Set::Scalar _verbosity =0.1) : IC(_geom) 
 	{
-    	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max,_R_mean);
+    	Define(_number_of_grains,a_alpha,_volume_fraction,_R_min,_R_max,_R_mean,_verbosity);
   	}
 
-  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,amrex::Real a_volume_fraction=0.05, amrex::Real a_R_min =0.1,amrex::Real a_R_max =0.2,amrex::Real a_R_mean =0.15)
+  	void Define (int a_number_of_grains, Set::Scalar a_alpha = 1.0,Set::Scalar a_volume_fraction=0.05, Set::Scalar a_R_min =0.1,Set::Scalar a_R_max =0.2,Set::Scalar a_R_mean =0.15,Set::Scalar a_verbosity =0.1)
 	{
-    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_R_min,a_R_max,a_R_mean,Type::Partition);
+    	Define(a_number_of_grains, std::vector<Set::Scalar>(a_number_of_grains,a_alpha),a_volume_fraction, a_R_min,a_R_max,a_R_mean,a_verbosity,Type::Partition);
   	}
 
 	void Define (int a_number_of_grains,
 				 std::vector<Set::Scalar> a_alpha,
-				 amrex::Real a_volume_fraction,
-                 amrex::Real a_R_min,
-				 amrex::Real a_R_max,
-				 amrex::Real a_R_mean,
+				 Set::Scalar a_volume_fraction,
+                 Set::Scalar a_R_min,
+				 Set::Scalar a_R_max,
+				 Set::Scalar a_R_mean,
+				 Set::Scalar a_verbosity,
 				 Type a_type = Type::Values)
 	{
 		number_of_grains = a_number_of_grains;
@@ -62,6 +63,7 @@ public:
         R_min=a_R_min;
 		R_max=a_R_max;
 		R_mean= a_R_mean;
+		verbosity=a_verbosity;
 		type = a_type;
 
 		
@@ -69,7 +71,7 @@ public:
     
 		std::vector <double> sph_vol;   
 		std::vector <amrex::Real> sph_nos; 
-        amrex::Real sph_tot_vol=0;
+        Set::Scalar sph_tot_vol=0;
 		R.resize(number_of_grains); 
 		R_n.resize(number_of_grains); 
         sph_vol.resize(number_of_grains);
@@ -95,7 +97,7 @@ public:
 					 				 
 					 int total=0;
 					 
-	//#if AMREX_SPACEDIM>2	
+	#if AMREX_SPACEDIM>2	
 		if (geom[0].isPeriodic(2))
 		{		
         double dom_vol=size(0)*size(1)*size(2);
@@ -107,7 +109,7 @@ public:
 		{			
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=(1.33)*3.14*2.0*(R[n]*R[n]*R[n]);
+		sph_vol[n]=(1.33)*3.14*verbosity*(R[n]*R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
@@ -117,7 +119,7 @@ public:
 		else if (n>0)
 		{	
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=(1.33)*3.14*2.0*(R[n]*R[n]*R[n]);
+		sph_vol[n]=(1.33)*3.14*verbosity*(R[n]*R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
@@ -135,9 +137,9 @@ public:
 	   }	
 	//#endif	
 	
-	//Util::Message(INFO, "R_mean ",R_mean);
+	Util::Message(INFO, "R_mean ",R_mean);
 
-	/*#elif AMREX_SPACEDIM>1
+	#elif AMREX_SPACEDIM>1
 		if (geom[0].isPeriodic(1))
 		{
          double dom_vol=size(0)*size(1);
@@ -149,7 +151,7 @@ public:
 		{		
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=3.14*1.5*(R[n]*R[n]);
+		sph_vol[n]=3.14*verbosity*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
@@ -159,7 +161,7 @@ public:
 		else if (n>0)
 		{	
         R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=3.14*1.5*(R[n]*R[n]);
+		sph_vol[n]=3.14*verbosity*(R[n]*R[n]);
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
@@ -168,7 +170,7 @@ public:
 		}
 		}
 		}	
-	#endif	*/  	
+	#endif		
 		
   
    
@@ -229,7 +231,7 @@ for (int i=0; i<number_of_grains;i++)
 		R_n.resize(pack_size-1);
 
          count.resize(pack_size);
-
+         int oLoop=0;
 
 label1:      
          int  iLoop=0;
@@ -237,8 +239,7 @@ label1:
 
 		for (int n = 0; n<pack_size; n++)
 		{
-			//std::vector<bool> df(pack_size-1);
-            //std::fill(df.begin(), df.end(), true);
+
             std::fill(count.begin(), count.end(), 0);
 
 	if(n==0)
@@ -253,8 +254,8 @@ label1:
 	else if (n>0)								
     {
 		    
-label: //n=1;
-       //count=0;
+label: 
+       
 
 		AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
 						 packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1)-geom[0].ProbLo(1))*Util::Random();,
@@ -310,21 +311,22 @@ label: //n=1;
 	          int count1=0;
               count1= std::accumulate(count.begin(), count.end(), 0);
 			
-			  //if (std::any_of(df.begin(),df.end(),[](bool i) {return i==false;}))
+			 
 			  if(count1>0)
 			{
               
               
-              if (iLoop<10000)
+              if (iLoop<100000)
               {
-				 //Util::Message(INFO,"label  ");
-				iLoop=iLoop+1;
-				 std::fill(count.begin(), count.end(), 0);
+				 
+			  iLoop=iLoop+1;
+			  std::fill(count.begin(), count.end(), 0);
               goto label;
 		      }
 		      else 
 		      {
-				  //Util::Message(INFO,"label1  ");
+				  oLoop=oLoop+1;
+				  total=0;
 				  goto label1;
 			  }
 			    
@@ -333,23 +335,21 @@ label: //n=1;
 			{
 				iLoop=0;
 				packedspheres[n]=packedspheres1[n];
-			}
-			else
-			{
-				std::abort();
+				total=total+1;
 			}
 
-			//total=total+1;
+			
 			
 	}
-
-		//total=count;
-		//total=total+1;
-		total=total+1;
-		Util::Message(INFO,"count  ",total);
 	    
-            
+         if (oLoop>1) 
+         {
+			 Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity to produce spheres ");
+		 }  
+		 
+		 Util::Message(INFO,"count  ",total);
 }
+        
 }
 
 
@@ -465,21 +465,21 @@ private:
 	std::vector<Set::Scalar> alpha;
 	std::vector<Set::Vector> packedspheres;
 	std::vector<Set::Vector> packedspheres1;
-	std::vector <amrex::Real> R_new;
-	std::vector <amrex::Real> R;
-	std::vector <amrex::Real> dd;
-	std::vector <amrex::Real> dd1;
-	std::vector <amrex::Real> R_n;
-	std::vector <amrex::Real> count;
+	std::vector <Set::Scalar> R_new;
+	std::vector <Set::Scalar> R;
+	std::vector <Set::Scalar> dd;
+	std::vector <Set::Scalar> dd1;
+	std::vector <Set::Scalar> R_n;
+	std::vector <Set::Scalar> count;
 	std::vector<double>::iterator it;
 	//std::vector<double> ins;
-    amrex::Real vf;
-    amrex::Real R_min;
-	amrex::Real R_max;
-	amrex::Real R_mean;
+    Set::Scalar vf;
+    Set::Scalar R_min;
+	Set::Scalar R_max;
+	Set::Scalar R_mean;
+	Set::Scalar verbosity;
 	int rank;
 	Type type;
-	//amrex::Vector<amrex::Real> packedspheres_x;
 	amrex::Vector<long double >packedspheres_x;
 	amrex::Vector<long double> packedspheres_y;
 #if BL_SPACEDIM==3

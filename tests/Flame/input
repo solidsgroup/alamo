@@ -10,7 +10,7 @@ amr.plot_dt        =  0.1                             # How frequently to dump o
 #amr.plot_int = 1
 
 amr.max_level       = 3             # How many levels of grid refinement are allowed
-amr.n_cell          = 120 40  8    # Number of cells in the x,y,z directions1
+amr.n_cell          = 120 40  40    # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -60,7 +60,7 @@ physics.volume_fraction= 0.65
 #physics.R_min=0.000
 #physics.R_max=0.15
 physics.R_mean= 0.05
-#physics.verbosity=1.5
+physics.verbosity= 1.6    #To control no of spheres when spheres are not generated
 
 
 physics.refinement_criterion = 0.2 #1.0
