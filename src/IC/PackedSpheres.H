@@ -436,11 +436,16 @@ label:
 
                      
                     R_new.resize(pack_size);
-					if (d<R_new[n])
+					/*if (d<R_new[n])
 						{
 							min_grain_id = 1;
 
-						}
+						}*/
+						
+					 if (x(0)>-1.5 && x(0)<1.5 )
+						{
+							min_grain_id = 1; 
+						}		
 							
 						
 
