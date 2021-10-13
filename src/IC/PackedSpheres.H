@@ -342,7 +342,7 @@ label:
 			
 	}
 	    
-         if (oLoop>1) 
+         if (oLoop>10) 
          {
 			 Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity to produce spheres ");
 		 }  
@@ -390,7 +390,7 @@ label:
 			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
 			{
                  Set::Vector x;
-				 int min_grain_id = 1;
+				 int min_grain_id = 0;
 				// int max_grain_id=1;
 				AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) *geom[lev].CellSize()[0];,
 							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) *geom[lev].CellSize()[1];,
@@ -436,21 +436,21 @@ label:
 
                      
                     R_new.resize(pack_size);
-					/*if (d<R_new[n])
+					if (d<R_new[n])
 						{
 							min_grain_id = 1;
 
-						}*/
+						}
 						
-					 /*if (x(0)>-1.5 && x(0)<1.5 )
+					/* if (x(0)>-1.5 && x(0)<1.5 )
 						{
 							min_grain_id = 1; 
 						}	*/
 						
-					if (x(1)>-0.05 && x(1)<0.05 )
+					/*if (x(1)>-0.05 && x(1)<0.05 )
 						{
 							min_grain_id = 0; 
-						}		
+						}*/
 						
 
 				}
