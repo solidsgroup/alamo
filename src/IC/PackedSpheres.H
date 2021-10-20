@@ -71,7 +71,7 @@ public:
     
 		std::vector <double> sph_vol;   
 		std::vector <amrex::Real> sph_nos; 
-        Set::Scalar sph_tot_vol=0;
+        double sph_tot_vol=0;
 		R.resize(number_of_grains); 
 		R_n.resize(number_of_grains); 
         sph_vol.resize(number_of_grains);
@@ -79,12 +79,14 @@ public:
 		//int count=0;
 		R_new.resize(number_of_grains);
 		pack_size=0;
+		int pack_size1=0;
+		int pack_size2=0;
 		sph_tot_vol=0;
 		int inc=0;
 	    int jj=0;
 		std::vector<double> ins (1,1);	
         packedspheres.resize(number_of_grains);
-
+      
 
 
 		int p=0;
@@ -133,12 +135,13 @@ public:
 		std::cout<<"number of grains   "<<number_of_grains<<endl;
          std::cout<<"pack_size   "<<pack_size<<endl;
         std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
-		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;*/
+		std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;
+		std::abort();*/
 	   }	
 	//#endif	
 	
 	Util::Message(INFO, "R_mean ",R_mean);
-
+    
 	#elif AMREX_SPACEDIM>1
 		if (geom[0].isPeriodic(1))
 		{
@@ -147,33 +150,57 @@ public:
         for (int n = 0; n<number_of_grains; n++)
 		{
 		Util::Message(INFO, "2 dimensions");
-		if (n==0)
-		{		
+		/*if (n==0)
+		//{		
         //R[n]=R_min+((R_max-R_min)/number_of_grains);
         R[n]=((R_mean)/number_of_grains);
 		sph_vol[n]=3.14*verbosity*(R[n]*R[n]);
-		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
 		pack_size=pack_size+sph_nos[n];
-		}
+		//}*/
 
-		else if (n>0)
-		{	
-        R[n]=((R_mean)/number_of_grains);
-		sph_vol[n]=3.14*verbosity*(R[n]*R[n]);
-		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
-		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
-        sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
-		pack_size=pack_size+sph_nos[n];	
+		//else if (n>0)
+		//{	
+        R[0]=((R_mean)/1);
+		sph_vol[0]=3.14*verbosity*(R[0]*R[0]);
+		sph_nos[0]=(ceil((dom_vol/(sph_vol[0]*1))*vf));
+        sph_tot_vol=sph_tot_vol+sph_vol[0]*sph_nos[0];
+		pack_size1=0.5*sph_nos[0];	
+		std::cout<<"sph_nos[0] "<<endl;
+		std::cout<<"pack_size1 "<<pack_size1<<endl;
+		R_new.resize(pack_size1);
+		R_new.assign(R.begin(),R.end());
+		
+		
+		R[1]=((R_mean*0.5)/1);
+		sph_vol[1]=3.14*verbosity*(R[1]*R[1]);
+		sph_nos[1]=0.5*(ceil((dom_vol/(sph_vol[n]*1))*vf));
+        sph_tot_vol=sph_tot_vol+sph_vol[1]*sph_nos[1];
+	    pack_size2=0.5*sph_nos[1];	
+		
+		pack_size=pack_size1+pack_size2;
+		
+		R_new.resize(pack_size);
+		
+		for (int n=pack_size1;n<pack_size;n++)
+		{
+			R_new[n]=R[1];
 		}
+		
+		
+		//}
 		}
 		}	
 	#endif		
 		
-  
+         //std::cout<<"sph_tot_vol "<<sph_tot_vol<<endl;
+		//std::cout<<"vol frac "<<sph_tot_vol/(size(0)*size(1)*size(2))<<endl;
+		//std::abort();
    
-    
+ 
+				  
+	    	std::cout<<"pack_size "<<pack_size<<endl;		  
 		
     packedspheres.resize(pack_size);
     packedspheres1.resize(pack_size);
@@ -181,7 +208,9 @@ public:
  
      if (rank==0)			 
 		{  
-	R_new.assign(R.begin(),R.end());
+	//R_new.assign(R.begin(),R.end());
+	
+
 	
 	
 // matching the total no of elements with the total no spheres
@@ -327,10 +356,10 @@ label:
 		      {
 				  oLoop=oLoop+1;
 				  total=0;
-				  for (int n =(pack_size*0.5);  n<(pack_size); n++)
+				  /*for (int n =(pack_size*0.5);  n<(pack_size); n++)
 				  {
 					  R_new[n]=R_new[n]*0.9;
-				  }
+				  }*/
 				  goto label1;
 			  }
 			    
