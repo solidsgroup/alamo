@@ -165,8 +165,7 @@ public:
 		//sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
 		sph_nos[n]=ceil((dom_vol/(sph_vol[n]*1))*vf);
         sph_tot_vol=sph_tot_vol+sph_vol[n]*sph_nos[n];
-		pack_size=pack_size+sph_nos[n];
-		
+		pack_size=pack_size+sph_nos[n];	
 		}
 		}
 		}	

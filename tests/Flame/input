@@ -9,36 +9,36 @@ amr.plot_file       = /home/bkanagar/PaperAPHTPBSolidPhase/results/output%DD_%Y%
 amr.plot_dt        =  0.1                             # How frequently to dump output
 #amr.plot_int = 1
 
-amr.max_level       = 3             # How many levels of grid refinement are allowed
-amr.n_cell          = 120 40  40    # Number of cells in the x,y,z directions1
+amr.max_level       = 4              # How many levels of grid refinement are allowed
+amr.n_cell          = 60 60  40     # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
-amr.grid_eff        = 0.1      # * Closeness of regrid patch to tagged region (default = 0.7) 
+amr.grid_eff        = 0.1       # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
-geometry.prob_lo    = -1.5 -0.5 -0.5 #Problem domain: furthest point to the lower left
-geometry.prob_hi    = 1.5 0.5 0.5    # Problem domain: furthest point to the upper right
-geometry.is_periodic= 0 1 1           # * Boundary conditions - currently under construction 
+geometry.prob_lo    = -0.5 -0.5 -0.5 # Problem domain: furthest point to the lower left
+geometry.prob_hi    =0.5 0.5 0.5      # Problem domain: furthest point to the upper right
+geometry.is_periodic= 0 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.001    # Timestep
-stop_time           = 30
+stop_time           = 20
 
 #physics.M           = 0.5 # Mobility - controls flame speed
 physics.fs_ap        = 1.0 # AP flamespeed
 physics.fs_htpb      = 1.0 #HTPB flamespeed
-physics.n_ap         = 1.0093 #Pressure exponent for AP
-physics.r_ap         = 0.23 #Pressure Coefficient for AP
-physics.n_htpb       = 0.3 #Pressure exponent for HTPB
-physics.r_htpb       = 2.0 #Pressure Coefficient for HTPB
-physics.n_comb       = 1 # Pressure exponent for comb
+physics.n_ap         = 1.0093  #Pressure exponent for AP
+physics.r_ap         = 2.6  # Pressure Coefficient for AP
+physics.n_htpb       = 0.2 # Pressure exponent for HTPB
+physics.r_htpb       = 4.0 # Pressure Coefficient for HTPB
+physics.n_comb       = 1.0 # Pressure exponent for comb
 physics.r_comb       = 1.0 # Pressure Coefficient for comb
-physics.P            = 7.858 # Pressure in bar
+physics.P            = 1.040 # Pressure in Pa
 
 
-physics.kappa	    = 0.0001   # Width of burn region
+physics.kappa	     = 0.001   # Width of burn region
 physics.w1          = 1.0    # Chemical energy before burn
 physics.w12         = 2.0    # Chemical energy during burn
 #physics.w2         = 0.0    # Chemical energy after burn
@@ -54,14 +54,13 @@ physics.qdotburn    = 0.0    # Rate of heat loss due to flame
 
 
 physics.fs_number   = 1    #no of different radii between R_min and R_max
-#physics.fs_min      = -0.5 #0.1
-#physics.fs_max      = 15 #0.5
-physics.volume_fraction= 0.56
-#physics.R_min=0.000
-#physics.R_max=0.15
+physics.fs_min      = -0.5 #0.1
+physics.fs_max      = 15 #0.5
+physics.volume_fraction=0.7
+physics.R_min=0.040
+physics.R_max=0.1
 physics.R_mean= 0.075
-physics.verbosity= 1.7    #To control no of spheres when spheres are not generated 
-
+physics.verbosity=1.2
 
 physics.refinement_criterion = 0.2 #1.0
 
