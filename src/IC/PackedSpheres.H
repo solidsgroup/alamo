@@ -232,7 +232,8 @@ for (int i=0; i<number_of_grains;i++)
          count.resize(pack_size);
          int oLoop=0;
 
-label1:      
+label1:    
+           
          int  iLoop=0;
 
 
@@ -326,6 +327,10 @@ label:
 		      {
 				  oLoop=oLoop+1;
 				  total=0;
+				  for (int n =(pack_size*0.5);  n<(pack_size); n++)
+				  {
+					  R_new[n]=R_new[n]*0.9;
+				  }
 				  goto label1;
 			  }
 			    
@@ -341,7 +346,7 @@ label:
 			
 	}
 	    
-         if (oLoop>10) 
+         if (oLoop>25) 
          {
 			 Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity to produce spheres ");
 		 }  
