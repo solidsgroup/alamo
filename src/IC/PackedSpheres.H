@@ -333,27 +333,60 @@ label:
 				  double dom_vol=size(0)*size(1);
 				  
 		         double  sph_vol1=3.14*verbosity*(R_mean*R_mean);
-	             double sph_nos1=ceil((dom_vol*0.5/(sph_vol1*1))*vf);
+	             double sph_nos1=ceil(((dom_vol*0.6)/(sph_vol1*1))*vf);
                  double sph_tot_vol1=sph_vol1*sph_nos1;
 		         double pack_size1=sph_nos1;
 		         Util::Message(INFO,"sph_tot_vol1 ",sph_tot_vol1);
-		        // std::vector <Set::Scalar> R_new1( pack_size1,R_mean); 
-		         R_new.resize(pack_size1,R_mean);
+		    
+		         //R_new.resize(pack_size1,R_mean);
 		         
 		         double  sph_vol2=3.14*verbosity*(R_mean*R_mean*0.5*0.5);
-		         double sph_nos2=ceil((dom_vol*0.5/(sph_vol2*1))*vf);
+		         double sph_nos2=ceil(((dom_vol*0.2)/(sph_vol2*1))*vf);
                  double sph_tot_vol2=sph_vol2*sph_nos2;
-		         double pack_size2=sph_nos2;
+		         double pack_size2=pack_size1+sph_nos2;
 		         Util::Message(INFO,"sph_tot_vol2 ",sph_tot_vol2);
+		         
+		         //R_new.resize(pack_size2,R_mean);
+		         
+		         double  sph_vol3=3.14*verbosity*(R_mean*R_mean*0.3*0.3);
+		         double sph_nos3=ceil(((dom_vol*0.1)/(sph_vol3*1))*vf);
+                 double sph_tot_vol3=sph_vol3*sph_nos3;
+		         double pack_size3=pack_size2+sph_nos3;
+		         Util::Message(INFO,"sph_tot_vol3 ",sph_tot_vol3);
+		         
+		         
+		         
+		         double  sph_vol4=3.14*verbosity*(R_mean*R_mean*0.2*0.2);
+		         double sph_nos4=ceil(((dom_vol*0.1)/(sph_vol4*1))*vf);
+                 double sph_tot_vol4=sph_vol4*sph_nos4;
+		         double pack_size4=pack_size3+sph_nos4;
+		         Util::Message(INFO,"sph_tot_vol4 ",sph_tot_vol4);
 		        
 		         
-		         pack_size=pack_size1+pack_size2;
-		          R_new.resize(pack_size);
+		         //pack_size=pack_size1+pack_size2+pack_size3+pack_size4;
+		         pack_size=pack_size4;
+		         R_new.resize(pack_size);
 		         
-				  for (int i =pack_size1;  i<(pack_size); i++)
+				  for (int i =0;  i<(pack_size1); i++)
+				  {
+					  R_new[i]=R_mean;
+				  }
+				  
+				  for (int i =pack_size1;  i<(pack_size2); i++)
 				  {
 					  R_new[i]=R_mean*0.5;
 				  }
+				  
+				  for (int i =pack_size2;  i<(pack_size3); i++)
+				  {
+					  R_new[i]=R_mean*0.3;
+				  }
+				  
+				  for (int i =pack_size3;  i<(pack_size); i++)
+				  {
+					  R_new[i]=R_mean*0.2;
+				  }
+				  
 				  goto label1;
 			  }
 			    
