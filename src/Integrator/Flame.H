@@ -15,7 +15,10 @@
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
 #include "Set/Set.H"
-
+#include "Model/Solid/Affine/Isotropic.H"
+#include "IO/ParmParse.H"
+#include "BC/Operator/Elastic/Constant.H"
+#include "Solver/Nonlocal/Newton.H"
  //extern std::vector<Set::Scalar> alpha;
  //  extern int pack_size;
 
@@ -25,12 +28,15 @@ namespace Integrator
 class Flame : public Integrator::Integrator
 {
 	
+	using model_type = Model::Solid::Affine::Isotropic;
+	
 public:
 	Flame ();
 	 
 
 protected:
 	void Initialize (int lev) ;
+	void TimeStepBegin(Set::Scalar a_time,int a_iter) override;
 	void Advance (int lev, amrex::Real time, amrex::Real dt);
 	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
 	void Regrid(int lev, Set::Scalar time) override;
@@ -54,10 +60,10 @@ private:
 	Set::Scalar kappa;              // Burn width parameter
 	Set::Scalar w1, w12, w0;        // Energy (before, during, after)
 	Set::Scalar rho1, rho0;         // Density (before and after)
-	Set::Scalar k1, k0;             // Thermal conductivity (before and after)
+	Set::Scalar ka, kh, k0;             // Thermal conductivity (before and after)
 	Set::Scalar cp1, cp0;           // Specific heat (before and after)
 	Set::Scalar qdotburn;           // Heat lost in flame
-
+	Set::Scalar delA, delH;       // Thermal flux of each material
 
 
     Set::Scalar fs_ap;               
@@ -87,9 +93,21 @@ private:
  
    
 	Set::Scalar m_refinement_criterion = 0.001;
+	Set::Scalar t_refinement_criterion = 0.001;
 	
 	IC::IC *EtaIC;
 
+	struct {
+		Set::Field<Set::Scalar> disp_mf;
+		Set::Field<Set::Scalar> rhs_mf;
+		Set::Field<Set::Scalar> res_mf;
+		Set::Field<Set::Scalar> stress_mf;
+		Set::Field<model_type>  model_mf;
+		model_type model_ap, model_htpb, model_void;
+		int interval = 0;
+		BC::Operator::Elastic::Constant bc;
+		Solver::Nonlocal::Newton<model_type> *solver;//(elastic.op);
+	} elastic;
 };
 }
 

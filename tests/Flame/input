@@ -46,11 +46,14 @@ physics.w0          = 0.0    # Chemical energy after burn
 physics.rho1        = 1.0    # Density before burn
 physics.rho0        = 1.0    # Density after burn
 #physics.k1         = 0.0001 # Conductivity before burn
-physics.k1          = 0.0    # Conductivity before burn
+physics.ka          = 0.02  # Conductivity of AP before burn
+physics.kh          = 0.009 # Conductivity of HTPB before burn
 physics.k0          = 0.0    # Conductivity after burn
 physics.cp1         = 1.0    # Specific heat before burn
 physics.cp0         = 1.0    # Specific heat after burn
 physics.qdotburn    = 0.0    # Rate of heat loss due to flame
+physics.delA        = 900    # Flux from AP burn
+physics.delH        = 400    # Flux from HTPB burn
 
 
 physics.fs_number   = 1    #no of different radii between R_min and R_max
@@ -63,6 +66,7 @@ physics.R_mean= 0.075
 physics.verbosity= 1.0
 
 physics.refinement_criterion = 0.2 #1.0
+physics.temp_refinement = 10
 
 TempBC.hi	= EXT_DIR INT_DIR INT_DIR 
 TempBC.lo	= EXT_DIR INT_DIR INT_DIR 
@@ -81,8 +85,8 @@ EtaBC.hi_1	= 1.0
 #EtaBC.hi_2	= 0.0 
 
 
-bc.temp.type.xlo = dirichlet
-bc.temp.type.xhi = dirichlet
+bc.temp.type.xlo = neumann
+bc.temp.type.xhi = neumann
 bc.temp.type.ylo = neumann
 bc.temp.type.yhi = neumann
 bc.temp.type.zlo = neumann
