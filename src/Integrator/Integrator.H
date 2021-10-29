@@ -308,7 +308,6 @@ protected:
 	struct {
 		int number_of_fabs = 0;
 		std::vector<Set::Field<Set::Scalar> *> fab_array;
-		//std::vector<Set::FlameSpeed<Set::Scalar> *> fab_array;
 		std::vector<int> ncomp_array;
 		std::vector<int> nghost_array;
 		std::vector<std::string> name_array;
@@ -321,7 +320,6 @@ protected:
 	struct {
 		int number_of_fabs = 0;
 		std::vector<Set::Field<Set::Scalar> *> fab_array;
-			//std::vector<Set::FieldSpeed<Set::Scalar> *> fab_array;
 		std::vector<int> ncomp_array;
 		std::vector<int> nghost_array;
 		std::vector<std::string> name_array;

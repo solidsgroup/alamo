@@ -19,13 +19,10 @@ public:
 	virtual void Add(const int &lev, Set::Field<Set::Scalar> &field) = 0;
 	void Initialize(const int &a_lev,
 					Set::Field<Set::Scalar> &a_field)
-					
 	{
 		a_field[a_lev]->setVal(0.0);
 		Add(a_lev,a_field);
 	};			
-					
-																
 
 	virtual void SetComp(int a_comp) final {comp = a_comp;}
 protected:
