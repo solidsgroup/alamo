@@ -1,10 +1,6 @@
 name: Linux Build and Test
 
-on:
-  push:
-    branches: [ master, development ]
-  pull_request:
-    branches: [ master, development ]
+on: [push, pull_request]
 
 jobs:
   test-2d:
