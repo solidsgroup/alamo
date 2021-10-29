@@ -196,7 +196,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 								   }
 								   else
 								   {
-									   Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX);
+									   Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
 									   Set::Matrix sigma = model(i, j, k).DW(gradu);
 									   Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
 									   Numeric::MatrixToField(stress, i, j, k, sigma);

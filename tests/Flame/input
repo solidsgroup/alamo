@@ -5,7 +5,7 @@ alamo.program = flame
 plot_file       = tests/Flame/output  # The name of the output file 
 amr.plot_int        = 100             # How frequently to dump output
 
-amr.max_level       = 5               # How many levels of grid refinement are allowed
+amr.max_level       = 4               # How many levels of grid refinement are allowed
 amr.n_cell          = 30 10 10         # Number of cells in the x,y,z directions
 
 #amr.max_grid_size	= 50          # * Maximum allowable grid size
