@@ -21,7 +21,7 @@ The following example illustrates one possible usage case:
     // and set the value of mask to 1 to indicate to the solver 
     // not to change it.
     Set::iMatrix mask = Set::iMatrix::Zero();
-    eps(0,0) = 0.1;	mask(0,0) = 1;
+    eps(0,0) = 0.1;    mask(0,0) = 1;
     // Run the CG solver and get the output
     eps = Solver::Local::CG(model.DDW(eps),sig,eps,mask,true);
 

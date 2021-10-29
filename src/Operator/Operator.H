@@ -59,7 +59,7 @@ public :
     void Apply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const { Fapply(amrlev,mglev,out,in);}
 
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
-
+    
     //
     // Public Utilty functions
     //
@@ -123,8 +123,8 @@ private:
     bool m_masks_built = false;
     /// \todo we need to get rid of this
     // static constexpr amrex::IntVect AMREX_D_DECL(dx = {AMREX_D_DECL(1,0,0)},
-    //         dy = {AMREX_D_DECL(0,1,0)},
-    //         dz = {AMREX_D_DECL(0,0,1)});
+    //                             dy = {AMREX_D_DECL(0,1,0)},
+    //                             dz = {AMREX_D_DECL(0,0,1)});
 protected:
     int m_num_a_fabs = 0;
     bool m_diagonal_computed = false;
@@ -168,7 +168,7 @@ public:
     // virtual void setLevelBC (int amrlev, const amrex::MultiFab* levelbcdata) override final;
 
 protected:
-
+    
     BC::BC<Set::Scalar> *m_bc;
 
     amrex::Vector<std::unique_ptr<amrex::MLMGBndry> >   m_bndry_sol;

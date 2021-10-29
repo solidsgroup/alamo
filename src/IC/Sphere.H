@@ -41,13 +41,11 @@ public:
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
-        int ncomp = a_field[0]->nComp();
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx;
-            if (cellcentered) bx = mfi.growntilebox();
-            else bx = mfi.grownnodaltilebox();
+            amrex::Box bx = mfi.tilebox();
+            bx.grow(a_field[lev]->nGrow());
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -104,12 +102,12 @@ public:
                     if ( rsq < radius*radius)
                         {
                             field(i,j,k,0) = alpha_in;     
-                            if (ncomp>1) field(i,j,k,1) = 0.;     
+                            field(i,j,k,1) = 0.;     
                         }
                         else
                         {
                             field(i,j,k,0) = alpha_out;     
-                            if (ncomp>1) field(i,j,k,1) = 1;     
+                            field(i,j,k,1) = 1;     
                         }
                 });
         }

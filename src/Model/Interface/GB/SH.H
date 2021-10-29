@@ -27,9 +27,9 @@ namespace GB
 ///               \sin(2 \arccos x) &= 2 x \sqrt{1-x^2} &
 ///               \cos(2 \arccos x) &= 2 x^2 - 1 \\ %
 ///               \sin(2 \arctan x) &= \frac{2 x}{1 + x^2}  &
-///               \cos(2 \arctan x) &= \frac{1-x^2}{1+x^2}\f}
+///               \cos(2 \arctan x) &= \frac{1-x^2}{1+x^2}    \f}
 /// Specializing for tangent:
-///     \f{align}{\sin(2 \arctan y/x) &= \frac{2 x y}{x^2 + y^2} &
+///     \f{align}{\sin(2 \arctan y/x) &= \frac{2 x y}{x^2 + y^2}     &
 ///               \cos(2 \arctan y/x) &= \frac{x^2-y^2}{x^2+y^2}  \f}
 ///
 class SH : public GB
@@ -90,7 +90,7 @@ public:
   
 private:
     amrex::Real theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;
-
+    
 public:
     static void Parse(SH & value, amrex::ParmParse & pp)
     {

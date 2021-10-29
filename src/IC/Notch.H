@@ -21,7 +21,7 @@ public:
         moll = Mollifier::Dirac;
         eps = 1e-5;
     }
-
+    
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
         Set::Vector DX(geom[lev].CellSize());
@@ -85,16 +85,16 @@ public:
                             nLeft2 = nLeft + correction;
                             nRight2 = nRight - correction;
                         }
-
+                        
                         Set::Scalar cosR = (nRadius[m] <= 0.0) ? 1.0 : std::sqrt(nRadius[m]*nRadius[m] - nThickness[m]*nThickness[m]/4.0)/nRadius[m];
                         Set::Scalar cosLeft = (x-nLeft2).dot(nOrientation[m]) / ((x-nLeft2).lpNorm<2>());
                         Set::Scalar sinLeft = (x-nLeft2).dot(nNormal[m]) / ((x-nLeft2).lpNorm<2>());
                         Set::Scalar cosRight = (x-nRight2).dot(nOrientation[m]) / ((x-nRight2).lpNorm<2>());
                         Set::Scalar sinRight = (x-nRight2).dot(nNormal[m]) / ((x-nRight2).lpNorm<2>());
-
+                        
                         Set::Scalar distLeft = (x-nLeft).dot(nOrientation[m]);
                         Set::Scalar distRight = (x-nRight).dot(nOrientation[m]);
-
+                        
 
                         if(distLeft <= 0.)
                         {
@@ -116,7 +116,7 @@ public:
                                 if (nRadius[m] <= 0.0)
                                 {
                                     Set::Scalar t2 = -(x-nTopLeft).dot(nOrientation[m]);
-
+                                    
                                     Set::Scalar angTop = (x-nTopLeft).dot(nNormal[m]);
                                     Set::Scalar angBot = (x-nBotLeft).dot(nNormal[m]);
 
@@ -187,7 +187,7 @@ public:
                             {
                                 Set::Vector nTopRight = nRight + 0.5*nThickness[m]*nNormal[m];
                                 Set::Vector nBotRight = nRight - 0.5*nThickness[m]*nNormal[m];
-
+                                
                                 if (nRadius[m] <= 0.0)
                                 {
                                     Set::Scalar t2 = (x-nTopRight).dot(nOrientation[m]);
@@ -256,7 +256,7 @@ public:
         }
         a_field[lev]->FillBoundary();
     }
-
+    
 private:
     amrex::Vector<Set::Vector> nCenter, nOrientation, nNormal;
     Set::Scalar eps = 1.e-5, eps_sq = eps*eps;
@@ -275,7 +275,7 @@ public:
     
         amrex::Vector<Set::Scalar> center;
         pp.queryarr("center",center);
-
+        
         if(center.size() >= AMREX_SPACEDIM)
         {
             for (int i = 0; i<center.size(); i+=AMREX_SPACEDIM)
@@ -304,7 +304,7 @@ public:
         pp.queryarr("length", value.nLength);
         pp.queryarr("radius", value.nRadius);
         pp.query("eps", value.eps);
-
+        
         if(value.nThickness.size() == 0)
         {
             value.nThickness.resize(value.nCenter.size());
@@ -362,7 +362,7 @@ public:
 
         for (int i=0; i<value.nOrientation.size(); i++)
             value.nOrientation[i] = value.nOrientation[i] / value.nOrientation[i].lpNorm<2>();
-
+        
         value.nNormal.resize(value.nOrientation.size());
 
         value.eps_sq = value.eps*value.eps;

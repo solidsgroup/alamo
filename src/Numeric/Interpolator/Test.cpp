@@ -15,7 +15,7 @@ int Test<Linear<Set::Scalar> >::Match(int verbose)
     // Test function:
     //
     // y(x) = { -1           x  < -1
-    //        { 2*x + 1      -1 < x  < 0
+        //        { 2*x + 1      -1 < x  < 0
     //        { 1-x          0  < x  < 1
     //        { 0            1  < x
 

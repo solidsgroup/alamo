@@ -12,13 +12,13 @@ public:
     enum Type {Partition, Values};
 
     PS (amrex::Vector<amrex::Geometry> &a_geom) : IC(a_geom) {}
-
+    
     PS (amrex::Vector<amrex::Geometry> &a_geom, int a_nspheres, Set::Scalar a_matrix, Set::Scalar a_inclusion) 
     : IC(a_geom)
     {
         Define(a_nspheres,a_matrix,a_inclusion);
     }
-
+    
     void Define(int a_nspheres, Set::Scalar a_matrix, Set::Scalar a_inclusion)
     {
         nspheres = a_nspheres;
@@ -52,7 +52,7 @@ public:
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
                 Set::Vector x = Set::Position(i,j,k,geom[lev],type);
-
+                            
                 bool inside = false;
                 for (int n = 0; n<nspheres; n++)
                 {
@@ -85,7 +85,7 @@ public:
             });
         }
     }
-
+    
 private:
     int nspheres;
     Set::Scalar matrix=0.0, inclusion=1.0;

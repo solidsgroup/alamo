@@ -81,7 +81,7 @@ public:
                             x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
                 }
 
-
+                
                 Set::Scalar trigfn = 1.0;
 #if AMREX_SPACEDIM > 0
                 if (dim > 0) trigfn *= std::exp(I*(theta1 + ((amrex::Real)n1)*x1*Set::Constant::Pi / L1)).real();

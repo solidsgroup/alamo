@@ -32,7 +32,7 @@ class Flame : public Integrator::Integrator
 	
 public:
     Flame ();
- 
+
 
 protected:
     void Initialize (int lev) override;
@@ -94,7 +94,7 @@ private:
    
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
-
+    
     IC::IC *EtaIC;
 
     struct {

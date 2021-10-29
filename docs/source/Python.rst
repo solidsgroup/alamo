@@ -34,10 +34,10 @@ An example (that currently works) is
 
       for lev in [1,2,3]:
           print("Levels of refinement: " + str(lev))
-	  mytest.Define([32,32,32],lev,1,mytest.Grid.XYZ)
-	  failed = mytest.TrigTest(0,0,1,"")
-	  if failed: print("Test failed")
-	  else: print ("Test passed")
+      mytest.Define([32,32,32],lev,1,mytest.Grid.XYZ)
+      failed = mytest.TrigTest(0,0,1,"")
+      if failed: print("Test failed")
+      else: print ("Test passed")
 
       alamo.Util.Finalize()
 
@@ -51,10 +51,10 @@ Note that the C++ namespace structure is mirrored in the Python bindings.
 
    .. code-block:: bash
 
-		   Traceback (most recent call last):
-		   File "alamo.py", line 7, in <module>
-		   mytest.setBounds([1.0,1.0,1.0])
-		   TypeError: unbound method Boost.Python.function object must be called with Elastic instance as first argument (got list instance instead)
+           Traceback (most recent call last):
+           File "alamo.py", line 7, in <module>
+           mytest.setBounds([1.0,1.0,1.0])
+           TypeError: unbound method Boost.Python.function object must be called with Elastic instance as first argument (got list instance instead)
 
 Compiling Alamo Python interface
 --------------------------------
@@ -64,23 +64,23 @@ To compile AMReX,
 
 .. code-block:: bash
 
-		./compile [whatever flags you would normally use
-		make USE_COMPILE_PIC=TRUE
-		make install
+        ./compile [whatever flags you would normally use
+        make USE_COMPILE_PIC=TRUE
+        make install
 
 To compile Alamo, you need the Boost python library.
 On ubuntu, install with
 
 .. code-block:: bash
 
-		sudo apt install libboost-python-dev
+        sudo apt install libboost-python-dev
 
 Then to compile Alamo, 
 
 .. code-block:: bash
 
-		./configure [whatever flags you would normally use] --python
-		make python
+        ./configure [whatever flags you would normally use] --python
+        make python
 
 This will create a file called :code:`alamo.so` in the Alamo root directory.
 (Note that this file must be in your python path (or your current directory) to use.)

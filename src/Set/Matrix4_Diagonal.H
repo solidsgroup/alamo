@@ -59,7 +59,7 @@ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
 Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Matrix &b)
 {
     Set::Matrix ret;
-
+        
     for (int i = 0; i < AMREX_SPACEDIM; i++)
     {
         for (int j = 0; j < AMREX_SPACEDIM; j++)

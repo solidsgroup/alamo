@@ -49,7 +49,7 @@ public:
                     for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++))
             {
                 amrex::Real AMREX_D_DECL(x1,x2,x3);
-
+                
                 if (cellcentered)
                 {
                     AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,

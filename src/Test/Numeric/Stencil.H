@@ -25,7 +25,7 @@ public:
         ncells = _ncells;
         amrex::RealBox rb({AMREX_D_DECL(0.,0.,0.)}, {AMREX_D_DECL(L,L,L)});
         amrex::Geometry::Setup(&rb, 0);
-
+        
         amrex::Box domain(amrex::IntVect{AMREX_D_DECL(0,0,0)}, ncells,
                 amrex::IntVect::TheCellVector());
         geom.resize(1);
@@ -59,7 +59,7 @@ public:
     bool Derivative(int verbose,std::string plotfile = "")
     {
         const Set::Scalar tolerance = 1E-2;
-
+        
         DphiExact[0]->setVal(0.0);
         DphiNumeric[0]->setVal(0.0);
 
@@ -71,7 +71,7 @@ public:
         AMREX_D_TERM( for (int p = 0; p < i; p++) theta1 += 0.5*Set::Constant::Pi;,
                 for (int q = 0; q < j; q++) theta2 += 0.5*Set::Constant::Pi;,
                 for (int r = 0; r < k; r++) theta3 += 0.5*Set::Constant::Pi; );
-      
+                  
         AMREX_D_TERM( for (int p = 0; p < i; p++) fac *= 1.0*Set::Constant::Pi / L;,
                 for (int q = 0; q < j; q++) fac *= 1.0*Set::Constant::Pi / L;,
                 for (int r = 0; r < k; r++) fac *= 1.0*Set::Constant::Pi / L;);
@@ -119,7 +119,7 @@ public:
             plotmf[0][mfi].copy((*DphiNumeric[0])[mfi],bx, 0, bx, 2, 1); 
         }
         amrex::WriteSingleLevelPlotfile(plotfile,plotmf[0],varnames,geom[0],0.0,1);
-    }
+    }        
 
 
 private:
@@ -129,7 +129,7 @@ private:
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;
     amrex::Vector<amrex::DistributionMapping> dmap;
-
+    
     Set::Field<Set::Scalar> phi;
     Set::Field<Set::Scalar> DphiExact;
     Set::Field<Set::Scalar> DphiNumeric;

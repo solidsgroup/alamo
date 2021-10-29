@@ -10,10 +10,15 @@ namespace Integrator
     Flame::Flame() : Integrator()
     {
         IO::ParmParse pp("physics");
+        // Mobility parameter
         pp.query("M", M);
+        // Interface energy param
         pp.query("kappa", kappa);
+        // Unburned rest energy
         pp.query("w1", w1);
+        // Barrier energy
         pp.query("w12", w12);
+        // Burned rest energy
         pp.query("w0", w0);
         pp.query("rho1", rho1);
         pp.query("rho0", rho0);
@@ -22,10 +27,10 @@ namespace Integrator
         pp.query("k0", k0);
         pp.query("cp1", cp1);
         pp.query("cp0", cp0);
-        pp.query("qdotburn", qdotburn);
         pp.query("delA", delA);
         pp.query("delH", delH);
 
+        // Flame speed in AP :math:`a_b c^d`
         pp.query("fs_ap", fs_ap);
         pp.query("fs_htpb", fs_htpb);
         pp.query("fs_comb", fs_comb);
@@ -39,7 +44,6 @@ namespace Integrator
 
         pp.query("refinement_criterion", m_refinement_criterion);
         {
-
             IO::ParmParse pp("bc");
             TempBC = new BC::Constant(1);
             pp.queryclass("temp", *static_cast<BC::Constant *>(TempBC));
@@ -115,7 +119,7 @@ namespace Integrator
                 amrex::Array4<const Set::Scalar> const &temp = Temp_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                                    {
+                                   {
                 Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
                 Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,0);
                 Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
@@ -158,7 +162,7 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const &stress = elastic.stress_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &disp = elastic.disp_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                                    {
+                                   {
                                     std::array<Numeric::StencilType, AMREX_SPACEDIM>
                                         sten = Numeric::GetStencil(i, j, k, bx);
                                     if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
@@ -200,22 +204,21 @@ namespace Integrator
             Set::Scalar fmod_htpb = fs_htpb * (r_htpb * pow(P, n_htpb));
             Set::Scalar fmod_comb = fs_comb * (r_comb * pow(P, n_comb));
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                                {
+            {
                 //
                 // Phase field evolution
                 //
-   
+
                 Set:: Scalar fs_actual;
 
-                                    fs_actual = 
-                                                fmod_ap * phi(i, j, k) 
-                                            + fmod_htpb * (1.0 - phi(i, j, k))
-                                            + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));
+                fs_actual = 
+                            fmod_ap * phi(i, j, k) 
+                        + fmod_htpb * (1.0 - phi(i, j, k))
+                        + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));
 
                 Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
-                Eta(i, j, k) = Eta_old(i, j, k) -
-                                (fs_actual) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
+                Eta(i, j, k) = Eta_old(i, j, k) - (fs_actual) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
 
                 //
                 // Temperature evolution
@@ -242,21 +245,21 @@ namespace Integrator
 
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
+                    {
+                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
+                    }
+                    else
+                    {
+                        if(Eta_old(i,j,k)<=0.001)
                         {
-                            Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
+                            Temp(i,j,k)= 0;
                         }
                     else
-                        {
-                            if(Eta_old(i,j,k)<=0.001)
-                                {
-                                    Temp(i,j,k)= 0;
-                                }
-                            else
-                                {
-                                    Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
-                                }
-                        }
-                } });
+                    {
+                        Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
+                    }
+                }
+            } });
         }
     }
 
@@ -273,20 +276,20 @@ namespace Integrator
             amrex::Array4<const Set::Scalar> const &Temp = (*Temp_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-            {
-                Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
+                               {
+                                    Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
                 if (gradeta.lpNorm<2>() * dr *2  > m_refinement_criterion)
                     tags(i,j,k) = amrex::TagBox::SET;
 
                 Set::Vector tempgrad = Numeric::Gradient(Temp, i,j,k,0,DX);
                 if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion)
-                    tags(i,j,k) = amrex::TagBox::SET; 
-            });
+                                        tags(i,j,k) = amrex::TagBox::SET; });
         }
     }
     void Flame::Regrid(int lev, Set::Scalar /* time */)
     {
-        if (lev < finest_level) return;
+        if (lev < finest_level)
+            return;
         phi_mf[lev]->setVal(0.0);
         PhiIC->Initialize(lev, phi_mf);
         Util::Message(INFO, "Regridding on level ", lev);

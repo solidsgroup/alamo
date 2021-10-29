@@ -36,7 +36,6 @@ std::string GetFileName()
         else if (pp.contains("plot_file"))
         {
             pp.query("plot_file", filename);
-
         }
         IO::FileNameParse(filename);
         // else
@@ -89,12 +88,6 @@ void Initialize ()
 void Initialize (int argc, char* argv[])
 {
     srand (time(NULL));
-
-    // if (argc < 2)
-    // {
-    // std::cout << "No plot file specified!" << std::endl;
-    // exit(-1);
-    // }
 
     amrex::Initialize(argc, argv);
 
@@ -161,7 +154,7 @@ CreateCleanDirectory (const std::string &path, bool callbarrier)
             std::string newoldname(path + ".old." + ss.str());
             if (amrex::system::verbose) {
                 amrex::Print() << "Util::CreateCleanDirectory():  " << path
-                                << " exists.  Renaming to:  " << newoldname << std::endl;
+                            << " exists.  Renaming to:  " << newoldname << std::endl;
             }
             std::rename(path.c_str(), newoldname.c_str());
             ret.first = path;
@@ -251,8 +244,8 @@ std::vector<std::string> Split(std::string &str, const char delim)
 }
 bool Contains(std::string &str, const std::string find)
 {
-    if (str.find(find) != std::string::npos) return true;
-    else return false;
+  if (str.find(find) != std::string::npos) return true;
+  else return false;
 }
 
 template<>
@@ -289,7 +282,7 @@ int Message(std::string testname)
 {
     if (amrex::ParallelDescriptor::IOProcessor())
         std::cout << std::left
-                << Color::FG::White << Color::Bold << testname << Color::Reset << std::endl;
+            << Color::FG::White << Color::Bold << testname << Color::Reset << std::endl;
     return 0;
 }
 int Message(std::string testname, int failed)
@@ -307,8 +300,8 @@ int Message(std::string testname, int failed)
         int terminalwidth = 80; //std::min(w.ws_col,(short unsigned int) 100);
 
         std::cout << std::left
-                << testname 
-                << std::setw(terminalwidth - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
+            << testname 
+            << std::setw(terminalwidth - testname.size() + ss.str().size() - 6)  << std::right << std::setfill('.') << ss.str() << std::endl;
     }
     return failed;
 }
@@ -327,9 +320,9 @@ int SubMessage(std::string testname, int failed)
         int terminalwidth = 80; 
 
         std::cout << std::left
-                << "  ├ "
-                << testname 
-                << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
+            << "  ├ "
+            << testname 
+            << std::setw(terminalwidth - testname.size() + ss.str().size() - 12)  << std::right << std::setfill('.') << ss.str() << std::endl;
     }
     return failed;
 }
@@ -346,8 +339,6 @@ int SubFinalMessage(int failed)
             std::cout << Color::FG::Green << Color::Bold << failed << " tests failed" << Color::Reset << std::endl;
         else
             std::cout << Color::FG::Red << Color::Bold << failed << " tests failed" << Color::Reset << std::endl;
-
-
     }
     return failed;
 }

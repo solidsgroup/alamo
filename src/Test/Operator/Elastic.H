@@ -48,14 +48,14 @@ public:
     /// the resolution.
     /// \todo Add option to specify one of multiple refinement geometries
     void Define(const amrex::IntVect _ncells,
-        const int _nlevels,
-        const int _dim = AMREX_SPACEDIM,
-        const Grid config = Grid::XYZ);
+            const int _nlevels,
+            const int _dim = AMREX_SPACEDIM,
+            const Grid config = Grid::XYZ);
 
     void Define(const int _ncells,
-        const int _nlevels,
-        const int _dim = AMREX_SPACEDIM,
-        const Grid config = Grid::XYZ);
+            const int _nlevels,
+            const int _dim = AMREX_SPACEDIM,
+            const Grid config = Grid::XYZ);
 
     /// Impose a set of prescribed values for \f$\mathbf{u}\f$.
     /// Compute right hand side, then use Operator::Reflux to modify the residual \f$\mathbf{r}=\mathbf{b}-D\mathbf{u}\f$.
@@ -97,13 +97,13 @@ public:
             int n = 1,
             std::string plotfile = "");
 
-    /// Compute the exact solution of the governing equation
-    ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
-    /// Where
-    ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
-    /// Where the stress-strain relationship is given by
-    ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
-    ///
+        /// Compute the exact solution of the governing equation
+        ///   \f[ \sigma_{ij} = C_{ijkl} \varepsilon_{kl}  \f]
+        /// Where
+        ///   \f[C_{ijkl} = \mu (\delta_{ik}\delta_{jl + \delta_{il} \delta_{jk}}) \lambda \delta_{ij}\delta_{kl} \f]
+        /// Where the stress-strain relationship is given by
+        ///   \f[ \sigma_{ij} = 2\mu\varepsilon_{ij} + \lambda\varepsilon_{kk}\delta_{ij}  \f]
+        ///
     /// In this case the two Lamé parameters are:
     ///   \f[ \mu=2.6 \\\\ \lambda=6.0 \f]
     /// (see Model::Solid::Linear::Isotropic for implementation of this model)
@@ -111,26 +111,26 @@ public:
     /// Consider a simulation domain \f$\Omega = [0, 1]^3\f$
     ///
     /// Let the material be subjected to stress in one direction but constrained in the other directions
-    /// so that the material can only contract or expand on one side,
-    /// i.e it will deform only on the testing component side (Uniaxial strain).
-    /// 
-    /// The component variable determines in which of the directions the material is stressed
-    ///   \f[i=0 \ \ \text{- X direction}  \ \ \ \  i=1 \ \ \text{- Y direction}  \\\\  i=2 \ \ \text{- Z direction} \f]
-    /// 
+        /// so that the material can only contract or expand on one side,
+        /// i.e it will deform only on the testing component side (Uniaxial strain).
+        /// 
+        /// The component variable determines in which of the directions the material is stressed
+        ///   \f[i=0 \ \ \text{- X direction}  \ \ \ \  i=1 \ \ \text{- Y direction}  \\\\  i=2 \ \ \text{- Z direction} \f]
+        /// 
     /// Let the solution \f$\mathbf{u}\f$ and right hand side \f$\mathbf{b}\f$ have the form
     ///       \f[ u_{i} = \delta_{ij} \alpha ((x_i - b) n )^m \f]
     ///       \f[ b_{i} = 0 \f]
-    /// For the test, the fixed value of displacement are \f$ u_{i} = 0.1 \f$ according to the component.
-    ///
-    /// The (infinitesimal) strain tensor
-    ///   \f[\varepsilon_{ij} = \operatorname{sym} ( \operatorname{grad} ( u ) ) \f]
-    ///   \f[\varepsilon_{ij} = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
-    /// to simplify consider \f[ \alpha=1.0 \ \ m=1.0 \ \ b=(0, 0, 0) \f]
-    ///
-    /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
-    ///   \f[div(\sigma) = 0\f]
-    ///
-    int UniaxialTest(int verbose,
+        /// For the test, the fixed value of displacement are \f$ u_{i} = 0.1 \f$ according to the component.
+        ///
+        /// The (infinitesimal) strain tensor
+        ///   \f[\varepsilon_{ij} = \operatorname{sym} ( \operatorname{grad} ( u ) ) \f]
+        ///   \f[\varepsilon_{ij} = \delta_{ij} \alpha m n^m (x_{i} - b )^m-1 \f]
+        /// to simplify consider \f[ \alpha=1.0 \ \ m=1.0 \ \ b=(0, 0, 0) \f]
+        ///
+        /// Finally, for a linear elastic solid with no body forces it has to fulfill the governing equation
+        ///   \f[div(\sigma) = 0\f]
+        ///
+        int UniaxialTest(int verbose,
             int component,
             std::string plotfile = "");
 
@@ -168,7 +168,7 @@ private: // Private member functions
             {
                 amrex::Box bx = mfi.validbox();
                 bx &= ndomain; // Intersect the box with the domain (that's what &= does)
-
+                
                 plotmf[ilev][mfi].copy((*(solution_exact[ilev]))[mfi]  ,bx, 0, bx, 0*AMREX_SPACEDIM, AMREX_SPACEDIM); 
                 plotmf[ilev][mfi].copy((*(solution_numeric[ilev]))[mfi],bx, 0, bx, 1*AMREX_SPACEDIM, AMREX_SPACEDIM); 
                 plotmf[ilev][mfi].copy((*(solution_error[ilev]))[mfi]  ,bx, 0, bx, 2*AMREX_SPACEDIM, AMREX_SPACEDIM); 
@@ -181,9 +181,9 @@ private: // Private member functions
             }
         }
         amrex::WriteMultiLevelPlotfile(plotfile, nlevels, amrex::GetVecOfConstPtrs(plotmf),
-                        varname, geom, 0.0, amrex::Vector<int>(nlevels, 0),
-                        amrex::Vector<amrex::IntVect>(nlevels, amrex::IntVect{ref_ratio}));
-    }
+                            varname, geom, 0.0, amrex::Vector<int>(nlevels, 0),
+                            amrex::Vector<amrex::IntVect>(nlevels, amrex::IntVect{ref_ratio}));
+    }        
     void WritePlotFile(std::string plotfile, int nghost = 0)
     {
         std::vector<int> ngs(nlevels,nghost);
@@ -199,10 +199,10 @@ private: // Private member variables
 
     Grid m_config = Grid::XYZ;
 
-    amrex::Vector<amrex::Geometry>    geom;
-    amrex::Vector<amrex::BoxArray>    cgrids, ngrids;
+    amrex::Vector<amrex::Geometry>            geom;
+    amrex::Vector<amrex::BoxArray>            cgrids, ngrids;
     amrex::Vector<amrex::DistributionMapping>  dmap;
-
+    
     Set::Field<Set::Scalar>             solution_exact;
     Set::Field<Set::Scalar>             solution_numeric;
     Set::Field<Set::Scalar>             solution_error;

@@ -29,12 +29,12 @@ This should produce the following output:
 
 .. code-block:: bash
    
-	ADDED TABLE: simulation_data
-	├╴Inserting: output
-	├╴Inserting: output.old.1111111
-	├╴Inserting: output.old.2222222
-	├╴Inserting: output.old.3333333
-	└╴Done
+    ADDED TABLE: simulation_data
+    ├╴Inserting: output
+    ├╴Inserting: output.old.1111111
+    ├╴Inserting: output.old.2222222
+    ├╴Inserting: output.old.3333333
+    └╴Done
 
 and should create a database called :code:`results.db` in your directory.
 Note that the database name and table name are all customizable.
@@ -57,13 +57,13 @@ Running SimBA again produces the following output
 
 .. code-block:: bash
    
-	ADDED TABLE: simulation_data
-	├╴Inserting: output
-	├╴Updating:  output.old.1111111 ( record already exists )
-	├╴Updating:  output.old.2222222 ( record already exists )
-	├╴Updating:  output.old.3333333 ( record already exists )
-	├╴Moving:    output --> output.old.4444444
-	└╴Done
+    ADDED TABLE: simulation_data
+    ├╴Inserting: output
+    ├╴Updating:  output.old.1111111 ( record already exists )
+    ├╴Updating:  output.old.2222222 ( record already exists )
+    ├╴Updating:  output.old.3333333 ( record already exists )
+    ├╴Moving:    output --> output.old.4444444
+    └╴Done
 
 Alamo records a unique identifier for each simulation that is stored in the :code:`metadata` file - this way simulations can be moved around and renamed without losing their designation in the SimBA database.
 
@@ -82,7 +82,7 @@ To do this, start the web interface this way:
 
 .. code-block:: bash
 
-		./simba/web -i 123.456.789.10
+        ./simba/web -i 123.456.789.10
 
 where :code:`123.456.789.10` is your computer's IP address, which you can find (on Linux) using :code:`ifconfig`.
 

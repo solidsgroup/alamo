@@ -37,7 +37,7 @@ public:
         eps.push_back(a_eps);
     }
 
-
+    
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
         Set::Vector DX(geom[lev].CellSize());
@@ -94,7 +94,7 @@ public:
         }
         a_field[lev]->FillBoundary();
     }
-
+    
 private:
     int number_of_inclusions = 1;
     amrex::Vector<Set::Vector> center;

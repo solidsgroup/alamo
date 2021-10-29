@@ -21,7 +21,7 @@ template<int SYM>
 class Elastic : public Operator<Grid::Node>
 {
     friend Test::Operator::Elastic;
-
+    
     using MATRIX4   = Set::Matrix4<AMREX_SPACEDIM,SYM>;
     using TArrayBox = amrex::BaseFab<MATRIX4>;
     using MultiTab  = amrex::FabArray<TArrayBox>;
@@ -106,7 +106,7 @@ public:
     void SetTesting(bool a_testing) {m_testing = a_testing;}
     void SetUniform(bool a_uniform) {m_uniform = a_uniform;}
     void SetAverageDownCoeffs(bool a_average_down_coeffs) {m_average_down_coeffs = a_average_down_coeffs;}
-
+    
     using Operator::Reflux;
 
 protected:
@@ -144,7 +144,7 @@ private:
 
     virtual void averageDownCoeffs () override;
     void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
-
+    
     /// \fn averageDownCoeffsSameAmrLevel
     /// \brief Update coarse-level AMR coefficients with data from fine level
     ///
@@ -156,7 +156,7 @@ private:
     /// (Phase field fracture is the primary example.)
     /// 
     /// This is disabled by default. In order to enable, call
-    ///
+    ///    
     ///     elasticoperator.SetAverageDownCoeffs(true);
     ///
     void averageDownCoeffsSameAmrLevel (int amrlev);
@@ -173,7 +173,7 @@ private:
 
     bool m_model_set = false;
     bool m_bc_set = false;
-
+    
 public:
     static void Parse(Elastic<SYM> & /*value*/, IO::ParmParse & /*pp*/)
     {

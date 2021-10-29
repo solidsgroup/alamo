@@ -15,9 +15,9 @@ public:
     {
         amrex::Real sizex = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];
         // AMREX_D_TERM(,
-        //      amrex::Real sizey = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
-        //      amrex::Real sizez = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
-
+        //          amrex::Real sizey = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,
+        //          amrex::Real sizez = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];);
+        
 /// The angle of the wedge is currently hardcoded as 45 degrees
         amrex::Real angle = 45.0 * 0.01745329251;
 
@@ -48,7 +48,7 @@ public:
             }
         }
     }
-
+    
   
 private:
 };

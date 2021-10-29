@@ -85,7 +85,7 @@ void Elastic::Generate()
             cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells[0]/4,0,-ncells[2]/4)));
         else if (m_config == Grid::XY)
             cdomain.grow(amrex::IntVect(AMREX_D_DECL(-ncells[0]/4,-ncells[1]/4,0)));
-
+    
         cdomain.refine(ref_ratio); 
         ngrids[ilev] = cgrids[ilev];
         ngrids[ilev].convert(amrex::IntVect::TheNodeVector());
@@ -119,4 +119,4 @@ void Elastic::Generate()
 }
 }
 }
-     
+         

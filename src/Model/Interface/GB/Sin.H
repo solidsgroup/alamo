@@ -53,7 +53,7 @@ public:
 private:
     amrex::Real theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
 
-public:
+public:    
     static void Parse(Sin & value, amrex::ParmParse & pp)
     {
         pp.query("theta0",value.theta0);
@@ -61,7 +61,7 @@ public:
         pp.query("sigma0",value.sigma0);
         pp.query("sigma1",value.sigma1);
     }
-
+    
 };
 }
 }

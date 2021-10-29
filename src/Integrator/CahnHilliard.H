@@ -43,7 +43,7 @@ private:
     const int ncomp = 1;
     BC::BC<Set::Scalar> *bc;
     IC::IC *ic;
-
+    
     const Set::Scalar gamma = 0.0005;
 
     Operator::Implicit::Implicit op;

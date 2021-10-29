@@ -114,7 +114,7 @@ protected:
     /// This function is called before the simulation begins, and is where
     /// initial conditions should be applied.
     virtual void Initialize (int lev ///<[in] AMR Level
-                ) = 0;
+        ) = 0;
 
     /// \fn    Advance
     /// \brief Perform computation
@@ -124,9 +124,9 @@ protected:
     /// the system in time.
     /// 
     virtual void Advance               (int lev,          ///<[in] AMR Level
-                        amrex::Real time, ///< [in] System time
-                        amrex::Real dt    ///< [in] Timestep for this level
-                        )=0;
+                                        amrex::Real time, ///< [in] System time
+                                        amrex::Real dt    ///< [in] Timestep for this level
+        )=0;
 
     /// \fn    TagCellsForRefinement
     /// \brief Tag cells where mesh refinement is needed
@@ -136,7 +136,7 @@ protected:
     /// the system in time.
     /// 
     virtual void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time,
-                        int ngrow) = 0;
+                                        int ngrow) = 0;
 
     /// \fn    TimeStepComplete
     /// \brief Run another system calculation (e.g. implicit solve) before integration step
@@ -171,12 +171,12 @@ protected:
     ///   -  box:  Use this box (not mfi.tilebox). This box covers only cells on this level that are
     ///            not also on a finer level.
     virtual void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*iter*/,
-                    const amrex::MFIter &/*mfi*/, const amrex::Box &/*box*/)
+                            const amrex::MFIter &/*mfi*/, const amrex::Box &/*box*/)
     {
         if (thermo.number > 0)
             Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
     }
-
+        
     virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
     {}
 
@@ -188,42 +188,42 @@ protected:
     /// that you use in any inherited class.
     /// 
     void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
-                ///<[in] Reference to field variable that you want to use.
-                ///      **Note** `new_fab` must not fall out of scope! Should be a
-                ///      private member variable.
-                BC::BC<Set::Scalar> *new_bc,
-                ///<[in] Boundary condition object. (Same BC object can be re-used 
-                ///      if applicable
-                int ncomp,
-                ///<[in] Number of components that the fab should have.
-                ///      (e.g. velocity in 2D would have two components.)
-                int nghost,
-                ///<[in] Number of ghost cells. Depends on the order of the
-                ///      maximum numerical derivative. (e.g. a Laplacian would require one.)
-                std::string name,
-                ///<[in] The name of the field to be used when dumping output
-                bool writeout
-                );
+                        ///<[in] Reference to field variable that you want to use.
+                        ///      **Note** `new_fab` must not fall out of scope! Should be a
+                        ///      private member variable.
+                        BC::BC<Set::Scalar> *new_bc,
+                        ///<[in] Boundary condition object. (Same BC object can be re-used 
+                        ///      if applicable
+                        int ncomp,
+                        ///<[in] Number of components that the fab should have.
+                        ///      (e.g. velocity in 2D would have two components.)
+                        int nghost,
+                        ///<[in] Number of ghost cells. Depends on the order of the
+                        ///      maximum numerical derivative. (e.g. a Laplacian would require one.)
+                        std::string name,
+                        ///<[in] The name of the field to be used when dumping output
+                        bool writeout
+        );
 
     void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
-                int ncomp,
-                std::string name,
-                bool writeout
-                );
+                        int ncomp,
+                        std::string name,
+                        bool writeout
+        );
     void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
-                    int ncomp,
-                    int nghost,
-                    std::string name,
-                    bool writeout
-                    );
+                            int ncomp,
+                            int nghost,
+                            std::string name,
+                            bool writeout
+        );
     void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
-                    BC::BC<Set::Scalar> *new_bc,
-                    int ncomp,
-                    int nghost,
-                    std::string name,
-                    bool writeout
-                    );
-
+                            BC::BC<Set::Scalar> *new_bc,
+                            int ncomp,
+                            int nghost,
+                            std::string name,
+                            bool writeout
+        );
+    
     template<class T>
     void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost)
     {
@@ -257,20 +257,20 @@ protected:
 
 private:
     virtual void MakeNewLevelFromScratch (int lev, amrex::Real time, const amrex::BoxArray& ba,
-                        const amrex::DistributionMapping& dm) override;
+                                        const amrex::DistributionMapping& dm) override;
     virtual void MakeNewLevelFromCoarse  (int lev, amrex::Real time, const amrex::BoxArray& ba,
-                        const amrex::DistributionMapping& dm) override;
+                                        const amrex::DistributionMapping& dm) override;
     virtual void RemakeLevel             (int lev, amrex::Real time, const amrex::BoxArray& ba,
-                        const amrex::DistributionMapping& dm) override;
+                                        const amrex::DistributionMapping& dm) override;
     virtual void ClearLevel              (int lev) override;
     virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
 
     void FillPatch (int lev, amrex::Real time,
-            amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
-            amrex::MultiFab &destination_multifab, 
-            BC::BC<Set::Scalar> &physbc,
-            int icomp);
+                    amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
+                    amrex::MultiFab &destination_multifab, 
+                    BC::BC<Set::Scalar> &physbc,
+                    int icomp);
     long CountCells (int lev);
     void TimeStep (int lev, amrex::Real time, int iteration);
     void FillCoarsePatch (int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar> &physbc, int icomp, int ncomp);
@@ -289,15 +289,15 @@ protected:
 
     // TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
-    amrex::Real timestep;///< Timestep for the base level of refinement
+    amrex::Real timestep;   ///< Timestep for the base level of refinement
 private:
-    amrex::Vector<amrex::Real> dt;///< Timesteps for each level of refinement
-    amrex::Vector<int> nsubsteps;///< how many substeps on each level?
+    amrex::Vector<amrex::Real> dt;  ///< Timesteps for each level of refinement
+    amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
     int max_plot_level = -1;
   
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
-    int max_step = std::numeric_limits<int>::max();///< Maximum allowable timestep
-    amrex::Real tstart = 0;///< Default start time (default: 0)
+    int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
+    amrex::Real tstart = 0; ///< Default start time (default: 0)
     amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
 protected:

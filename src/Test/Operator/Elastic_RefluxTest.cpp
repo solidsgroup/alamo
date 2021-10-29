@@ -56,7 +56,7 @@ int Elastic::RefluxTest(int verbose)
     for (std::vector<Set::Vector>::iterator b = bs.begin(); b != bs.end(); b++)
     {
         ::Operator::Elastic<model_type::sym> mlabec;
-
+    
         mlabec.define(geom, cgrids, dmap, info);
         mlabec.setMaxOrder(2);
         Util::Abort(INFO,"Need to fix this!"); //mlabec.SetModel(modelfab);
@@ -87,7 +87,7 @@ int Elastic::RefluxTest(int verbose)
                     *res_numeric[0], *solution_exact[0], *rhs_prescribed[0],
                     *res_numeric[1], *solution_exact[1], *rhs_prescribed[1]);
 
-
+        
         Set::Scalar residual = res_numeric[0]->norm0();
 
         if (rhs_prescribed[0]->norm0() > 1E-15) residual /= rhs_prescribed[0]->norm0();
@@ -104,7 +104,7 @@ int Elastic::RefluxTest(int verbose)
 
         if (!pass) failed++;
     }
-
+    
     return failed;
 
 }

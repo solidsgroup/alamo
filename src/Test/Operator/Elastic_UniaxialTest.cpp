@@ -78,7 +78,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
                     bc.Set(bc.Face::XHI_YLO_ZHI,bc.Direction::X,bc.Type::Displacement,0.1);
                     bc.Set(bc.Face::XHI_YHI_ZLO,bc.Direction::X,bc.Type::Displacement,0.1);
                     bc.Set(bc.Face::XHI_YHI_ZHI,bc.Direction::X,bc.Type::Displacement,0.1);
-                    // free corners
+                    // free corners        
                     bc.Set(bc.Face::YLO_ZLO,bc.Direction::X,bc.Type::Neumann,0.0);
                     bc.Set(bc.Face::YLO_ZLO,bc.Direction::Y,bc.Type::Neumann,0.0);
                     bc.Set(bc.Face::YLO_ZHI,bc.Direction::X,bc.Type::Neumann,0.0);
@@ -162,8 +162,8 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
     {
         //mlmg.solve(GetVecOfPtrs(res_numeric),
         //   GetVecOfPtrs(rhs_prescribed),
-        //   modelfab,
-        //   m_tol_rel, m_tol_abs,nullptr);
+        //       modelfab,
+        //       m_tol_rel, m_tol_abs,nullptr);
         GetVecOfPtrs(res_numeric);
         //mlmg.compResidual(GetVecOfPtrs(res_numeric), GetVecOfPtrs(solution_numeric), GetVecOfPtrs(rhs_prescribed), modelfab);
     }

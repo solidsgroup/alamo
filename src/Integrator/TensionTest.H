@@ -92,9 +92,9 @@ public:
                 pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
             }
         }
-        #if AMREX_SPACEDIM==3
+#if AMREX_SPACEDIM==3
         RegisterIntegratedVariable(&(trac_lo[0].data()[0]),"trac_lo_xx");
-        #endif
+#endif
     }
 
 protected:
@@ -137,10 +137,10 @@ protected:
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    model(i,j,k) = MODEL::Zero();
-                    for (unsigned int n = 0; n < elastic.models.size(); n++) 
-                        model(i,j,k) += eta(i,j,k,n) * elastic.models[n];
-                });
+                                            model(i,j,k) = MODEL::Zero();
+                                            for (unsigned int n = 0; n < elastic.models.size(); n++) 
+                                                model(i,j,k) += eta(i,j,k,n) * elastic.models[n];
+                                        });
             }
 
             Util::RealFillBoundary(*model_mf[lev],geom[lev]);
@@ -175,25 +175,25 @@ protected:
 
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    std::array<Numeric::StencilType,AMREX_SPACEDIM>
-                        sten = Numeric::GetStencil(i,j,k,bx);
+                                            std::array<Numeric::StencilType,AMREX_SPACEDIM>
+                                                sten = Numeric::GetStencil(i,j,k,bx);
 
-                    if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
-                    {
-                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp,i,j,k,DX,sten);
-                        Set::Matrix P = model(i,j,k).DW(F);
-                        Numeric::MatrixToField(stress,i,j,k,P);
-                        Numeric::MatrixToField(strain,i,j,k,F);
-                    }
-                    else
-                    {                    
-                        Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX,sten);
-                        Set::Matrix sigma = model(i,j,k).DW(gradu);
-                        Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-                        Numeric::MatrixToField(stress,i,j,k,sigma);
-                        Numeric::MatrixToField(strain,i,j,k,eps);
-                    }
-                });
+                                            if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
+                                            {
+                                                Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp,i,j,k,DX,sten);
+                                                Set::Matrix P = model(i,j,k).DW(F);
+                                                Numeric::MatrixToField(stress,i,j,k,P);
+                                                Numeric::MatrixToField(strain,i,j,k,F);
+                                            }
+                                            else
+                                            {                    
+                                                Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX,sten);
+                                                Set::Matrix sigma = model(i,j,k).DW(gradu);
+                                                Set::Matrix eps = 0.5*(gradu + gradu.transpose());
+                                                Numeric::MatrixToField(stress,i,j,k,sigma);
+                                                Numeric::MatrixToField(strain,i,j,k,eps);
+                                            }
+                                        });
             }
         }
     }
@@ -212,11 +212,11 @@ protected:
 
 
         //Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-        #if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 2
         Set::Vector da(DX[1],DX[0]);
-        #elif AMREX_SPACEDIM == 3
+#elif AMREX_SPACEDIM == 3
         Set::Vector da(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]);
-        #endif
+#endif
 
         const Dim3 lo= amrex::lbound(domain)/*, hi = amrex::ubound(domain)*/;
         const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
@@ -225,19 +225,19 @@ protected:
         //amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-            #if AMREX_SPACEDIM == 2
-            if (i == lo.x && j < boxhi.y)
-            {
-                trac_lo[0](0) += 0.5 * (stress(i,j,k,0) + stress(i,j+1,k,0)) * da(0);
-            } 
-            #elif AMREX_SPACEDIM == 3
-            if (i == lo.x && (j < boxhi.y && k < boxhi.z))
-            {
-                trac_lo[0](0) += 0.25 * (stress(i,j,k,0) + stress(i,j+1,k,0) + stress(i,j,k+1,0) + stress(i,j+1,k+1,0)) * da(0);
-            } 
-            #endif
+#if AMREX_SPACEDIM == 2
+                                    if (i == lo.x && j < boxhi.y)
+                                    {
+                                        trac_lo[0](0) += 0.5 * (stress(i,j,k,0) + stress(i,j+1,k,0)) * da(0);
+                                    } 
+#elif AMREX_SPACEDIM == 3
+                                    if (i == lo.x && (j < boxhi.y && k < boxhi.z))
+                                    {
+                                        trac_lo[0](0) += 0.25 * (stress(i,j,k,0) + stress(i,j+1,k,0) + stress(i,j,k+1,0) + stress(i,j+1,k+1,0)) * da(0);
+                                    } 
+#endif
 
-        });
+                                });
             
     }
 
@@ -253,17 +253,17 @@ protected:
             amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &strain = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                {
-                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
-                    if (grad.lpNorm<2>() * DXnorm > 0.01)
-                        tags(i, j, k) = amrex::TagBox::SET;
-                }
-                {
-                    Set::Matrix grad = Numeric::Gradient(strain, i, j, k, DX.data());
-                    if (grad.lpNorm<2>() * DXnorm > m_elastic_ref_threshold)
-                        tags(i, j, k) = amrex::TagBox::SET;
-                }
-            });
+                                        {
+                                            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
+                                            if (grad.lpNorm<2>() * DXnorm > 0.01)
+                                                tags(i, j, k) = amrex::TagBox::SET;
+                                        }
+                                        {
+                                            Set::Matrix grad = Numeric::Gradient(strain, i, j, k, DX.data());
+                                            if (grad.lpNorm<2>() * DXnorm > m_elastic_ref_threshold)
+                                                tags(i, j, k) = amrex::TagBox::SET;
+                                        }
+                                    });
         }
     }
 

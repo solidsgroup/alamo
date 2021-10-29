@@ -226,7 +226,7 @@ struct Stencil<T,3,1,0>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return((   -f(i+2,j+2,k,m) + 8.0*f(i+2,j+1,k,m) - 8.0*f(i+2,j-1,k,m) + f(i+2,j-2,k,m))
+        return    ((   -f(i+2,j+2,k,m) + 8.0*f(i+2,j+1,k,m) - 8.0*f(i+2,j-1,k,m) + f(i+2,j-2,k,m))
                 -2*(-f(i+1,j+2,k,m) + 8.0*f(i+1,j+1,k,m) - 8.0*f(i+1,j-1,k,m) + f(i+1,j-2,k,m))
                 +2*(-f(i-1,j+2,k,m) + 8.0*f(i-1,j+1,k,m) - 8.0*f(i-1,j-1,k,m) + f(i-1,j-2,k,m))
                     -(-f(i-2,j+2,k,m) + 8.0*f(i-2,j+1,k,m) - 8.0*f(i-2,j-1,k,m) + f(i-2,j-2,k,m))) /
@@ -262,7 +262,7 @@ struct Stencil<T,0,3,1>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return((   -f(i,j+2,k+2,m) + 8.0*f(i,j+2,k+1,m) - 8.0*f(i,j+2,k-1,m) + f(i,j+2,k-2,m))
+        return    ((   -f(i,j+2,k+2,m) + 8.0*f(i,j+2,k+1,m) - 8.0*f(i,j+2,k-1,m) + f(i,j+2,k-2,m))
                 -2*(-f(i,j+1,k+2,m) + 8.0*f(i,j+1,k+1,m) - 8.0*f(i,j+1,k-1,m) + f(i,j+1,k-2,m))
                 +2*(-f(i,j-1,k+2,m) + 8.0*f(i,j-1,k+1,m) - 8.0*f(i,j-1,k-1,m) + f(i,j-1,k-2,m))
                     -(-f(i,j-2,k+2,m) + 8.0*f(i,j-2,k+1,m) - 8.0*f(i,j-2,k-1,m) + f(i,j-2,k-2,m))) /
@@ -278,7 +278,7 @@ struct Stencil<T,0,1,3>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return((   -f(i,j+2,k+2,m) + 8.0*f(i,j+1,k+2,m) - 8.0*f(i,j-1,k+2,m) + f(i,j-2,k+2,m))
+        return    ((   -f(i,j+2,k+2,m) + 8.0*f(i,j+1,k+2,m) - 8.0*f(i,j-1,k+2,m) + f(i,j-2,k+2,m))
                 -2*(-f(i,j+2,k+1,m) + 8.0*f(i,j+1,k+1,m) - 8.0*f(i,j-1,k+1,m) + f(i,j-2,k+1,m))
                 +2*(-f(i,j+2,k-1,m) + 8.0*f(i,j+1,k-1,m) - 8.0*f(i,j-1,k-1,m) + f(i,j-2,k-1,m))
                     -(-f(i,j+2,k-2,m) + 8.0*f(i,j+1,k-2,m) - 8.0*f(i,j-1,k-2,m) + f(i,j-2,k-2,m))) /
@@ -294,7 +294,7 @@ struct Stencil<T,1,0,3>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return((   -f(i+2,j,k+2,m) + 8.0*f(i+1,j,k+2,m) - 8.0*f(i-1,j,k+2,m) + f(i-2,j,k+2,m))
+        return    ((   -f(i+2,j,k+2,m) + 8.0*f(i+1,j,k+2,m) - 8.0*f(i-1,j,k+2,m) + f(i-2,j,k+2,m))
                 -2*(-f(i+2,j,k+1,m) + 8.0*f(i+1,j,k+1,m) - 8.0*f(i-1,j,k+1,m) + f(i-2,j,k+1,m))
                 +2*(-f(i+2,j,k-1,m) + 8.0*f(i+1,j,k-1,m) - 8.0*f(i-1,j,k-1,m) + f(i-2,j,k-1,m))
                     -(-f(i+2,j,k-2,m) + 8.0*f(i+1,j,k-2,m) - 8.0*f(i-1,j,k-2,m) + f(i-2,j,k-2,m))) /
@@ -311,7 +311,7 @@ struct Stencil<T,3,0,1>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return((   -f(i+2,j,k+2,m) + 8.0*f(i+2,j,k+1,m) - 8.0*f(i+2,j,k-1,m) + f(i+2,j,k-2,m))
+        return    ((   -f(i+2,j,k+2,m) + 8.0*f(i+2,j,k+1,m) - 8.0*f(i+2,j,k-1,m) + f(i+2,j,k-2,m))
                 -2*(-f(i+1,j,k+2,m) + 8.0*f(i+1,j,k+1,m) - 8.0*f(i+1,j,k-1,m) + f(i+1,j,k-2,m))
                 +2*(-f(i-1,j,k+2,m) + 8.0*f(i-1,j,k+1,m) - 8.0*f(i-1,j,k-1,m) + f(i-1,j,k-2,m))
                     -(-f(i-2,j,k+2,m) + 8.0*f(i-2,j,k+1,m) - 8.0*f(i-2,j,k-1,m) + f(i-2,j,k-2,m))) /
@@ -328,7 +328,7 @@ struct Stencil<T,2,2,0>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return (-(   -f(i+2,j+2,k,m)+16.0*f(i+1,j+2,k,m)-30.0*f(i  ,j+2,k,m) +16.0*f(i-1,j+2,k,m)-f(i-2,j+2,k,m))
+        return     (-(   -f(i+2,j+2,k,m)+16.0*f(i+1,j+2,k,m)-30.0*f(i  ,j+2,k,m) +16.0*f(i-1,j+2,k,m)-f(i-2,j+2,k,m))
                 +16*(-f(i+2,j+1,k,m)+16.0*f(i+1,j+1,k,m)-30.0*f(i  ,j+1,k,m) +16.0*f(i-1,j+1,k,m)-f(i-2,j+1,k,m))
                 -30*(-f(i+2,j  ,k,m)+16.0*f(i+1,j  ,k,m)-30.0*f(i  ,j  ,k,m) +16.0*f(i-1,j  ,k,m)-f(i-2,j  ,k,m))
                 +16*(-f(i+2,j-1,k,m)+16.0*f(i+1,j-1,k,m)-30.0*f(i  ,j-1,k,m) +16.0*f(i-1,j-1,k,m)-f(i-2,j-1,k,m))
@@ -346,7 +346,7 @@ struct Stencil<T,0,2,2>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return (-(   -f(i,j+2,k+2,m)+16.0*f(i,j+2,k+1,m)-30.0*f(i,j+2,k,m) +16.0*f(i,j+2,k-1,m)-f(i,j+2,k-2,m))
+        return     (-(   -f(i,j+2,k+2,m)+16.0*f(i,j+2,k+1,m)-30.0*f(i,j+2,k,m) +16.0*f(i,j+2,k-1,m)-f(i,j+2,k-2,m))
                 +16*(-f(i,j+1,k+2,m)+16.0*f(i,j+1,k+1,m)-30.0*f(i,j+1,k,m) +16.0*f(i,j+1,k-1,m)-f(i,j+1,k-2,m))
                 -30*(-f(i,j  ,k+2,m)+16.0*f(i,j  ,k+1,m)-30.0*f(i,j  ,k,m) +16.0*f(i,j  ,k-1,m)-f(i,j  ,k-2,m))
                 +16*(-f(i,j-1,k+2,m)+16.0*f(i,j-1,k+1,m)-30.0*f(i,j-1,k,m) +16.0*f(i,j-1,k-1,m)-f(i,j-1,k-2,m))
@@ -363,7 +363,7 @@ struct Stencil<T,2,0,2>
                 const int &i, const int &j, const int &k, const int &m,
                 const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return (-(   -f(i+2,j,k+2,m)+16.0*f(i+2,j,k+1,m)-30.0*f(i+2,j,k,m) +16.0*f(i+2,j,k-1,m)-f(i+2,j,k-2,m))
+        return     (-(   -f(i+2,j,k+2,m)+16.0*f(i+2,j,k+1,m)-30.0*f(i+2,j,k,m) +16.0*f(i+2,j,k-1,m)-f(i+2,j,k-2,m))
                 +16*(-f(i+1,j,k+2,m)+16.0*f(i+1,j,k+1,m)-30.0*f(i+1,j,k,m) +16.0*f(i+1,j,k-1,m)-f(i+1,j,k-2,m))
                 -30*(-f(i  ,j,k+2,m)+16.0*f(i  ,j,k+1,m)-30.0*f(i  ,j,k,m) +16.0*f(i  ,j,k-1,m)-f(i  ,j,k-2,m))
                 +16*(-f(i-1,j,k+2,m)+16.0*f(i-1,j,k+1,m)-30.0*f(i-1,j,k,m) +16.0*f(i-1,j,k-1,m)-f(i-1,j,k-2,m))
@@ -382,7 +382,7 @@ struct Stencil<T,2,1,1>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return( + (f(i+1,j+1,k+1,m) - 2.0*f(i,j+1,k+1,m) + f(i-1,j+1,k+1,m))
+        return    ( + (f(i+1,j+1,k+1,m) - 2.0*f(i,j+1,k+1,m) + f(i-1,j+1,k+1,m))
                 - (f(i+1,j-1,k+1,m) - 2.0*f(i,j-1,k+1,m) + f(i-1,j-1,k+1,m))
                 - (f(i+1,j+1,k-1,m) - 2.0*f(i,j+1,k-1,m) + f(i-1,j+1,k-1,m))
                 + (f(i+1,j-1,k-1,m) - 2.0*f(i,j-1,k-1,m) + f(i-1,j-1,k-1,m)))
@@ -399,7 +399,7 @@ struct Stencil<T,1,2,1>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return( + (f(i+1,j+1,k+1,m) - 2.0*f(i+1,j,k+1,m) + f(i+1,j-1,k+1,m))
+        return    ( + (f(i+1,j+1,k+1,m) - 2.0*f(i+1,j,k+1,m) + f(i+1,j-1,k+1,m))
                 - (f(i-1,j+1,k+1,m) - 2.0*f(i-1,j,k+1,m) + f(i-1,j-1,k+1,m))
                 - (f(i+1,j+1,k-1,m) - 2.0*f(i+1,j,k-1,m) + f(i+1,j-1,k-1,m))
                 + (f(i-1,j+1,k-1,m) - 2.0*f(i-1,j,k-1,m) + f(i-1,j-1,k-1,m)))
@@ -416,7 +416,7 @@ struct Stencil<T,1,1,2>
             const int &i, const int &j, const int &k, const int &m,
             const Set::Scalar dx[AMREX_SPACEDIM])
     {
-        return( + (f(i+1,j+1,k+1,m) - 2.0*f(i+1,j+1,k,m) + f(i+1,j+1,k-1,m))
+        return    ( + (f(i+1,j+1,k+1,m) - 2.0*f(i+1,j+1,k,m) + f(i+1,j+1,k-1,m))
                 - (f(i-1,j+1,k+1,m) - 2.0*f(i-1,j+1,k,m) + f(i-1,j+1,k-1,m))
                 - (f(i+1,j-1,k+1,m) - 2.0*f(i+1,j-1,k,m) + f(i+1,j-1,k-1,m))
                 + (f(i-1,j-1,k+1,m) - 2.0*f(i-1,j-1,k,m) + f(i-1,j-1,k-1,m)))
@@ -450,7 +450,7 @@ Divergence(const amrex::Array4<const Set::Matrix> &dw,
         std::array<StencilType,AMREX_SPACEDIM> &stencil = DefaultType)
 {
     Set::Vector ret = Set::Vector::Zero();
-
+    
     if (stencil[0] == StencilType::Central)
     {
         AMREX_D_TERM(ret(0) += (dw(i + 1, j, k)(0, 0) - dw(i - 1, j, k)(0, 0)) / 2. / DX[0];,
@@ -489,7 +489,7 @@ Divergence(const amrex::Array4<const Set::Matrix> &dw,
                     ret(1) += (dw(i, j + 1, k)(1, 1) - dw(i, j, k)(1, 1)) / DX[1];,
                     ret(2) += (dw(i, j + 1, k)(2, 1) - dw(i, j, k)(2, 1)) / DX[1];)
     }
-#endif 
+#endif         
 #if AMREX_SPACEDIM > 2
     if (stencil[2] == StencilType::Central)
     {
@@ -767,7 +767,7 @@ public:
     static T CellToNodeAverage(const amrex::Array4<const T> &f,
                                 const int &i, const int &j, const int &k, const int &m)
     {
-        return ( AMREX_D_TERM(  f(i  ,j  ,k  ,m) + f(i-1,j  ,k  ,m)
+        return ( AMREX_D_TERM(      f(i  ,j  ,k  ,m) + f(i-1,j  ,k  ,m)
                                 , 
                                 + f(i  ,j-1,k  ,m) + f(i-1,j-1,k  ,m)
                                 , 
@@ -780,7 +780,7 @@ public:
     static T NodeToCellAverage(const amrex::Array4<const T> &f,
                                 const int &i, const int &j, const int &k, const int &m)
     {
-        return ( AMREX_D_TERM(  f(i  ,j  ,k  ,m) + f(i+1,j  ,k  ,m)
+        return ( AMREX_D_TERM(      f(i  ,j  ,k  ,m) + f(i+1,j  ,k  ,m)
                                 , 
                                 + f(i  ,j+1,k  ,m) + f(i+1,j+1,k  ,m)
                                 , 

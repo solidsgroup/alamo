@@ -10,17 +10,17 @@ class BaseField
 {
 public:
     virtual void RemakeLevel (int lev,       
-                    amrex::Real time, 
-                    const amrex::BoxArray& cgrids, 
-                    const amrex::DistributionMapping& dm) = 0;
+                            amrex::Real time, 
+                            const amrex::BoxArray& cgrids, 
+                            const amrex::DistributionMapping& dm) = 0;
     virtual void MakeNewLevelFromCoarse (int lev, 
-    amrex::Real time, 
-    const amrex::BoxArray& cgrids, 
-    const amrex::DistributionMapping& dm) = 0;
+                                        amrex::Real time, 
+                                        const amrex::BoxArray& cgrids, 
+                                        const amrex::DistributionMapping& dm) = 0;
     virtual void MakeNewLevelFromScratch (int lev, 
-    amrex::Real t, 
-    const amrex::BoxArray& cgrids,
-    const amrex::DistributionMapping& dm) = 0;
+                                        amrex::Real t, 
+                                        const amrex::BoxArray& cgrids,
+                                        const amrex::DistributionMapping& dm) = 0;
     virtual void SetFinestLevel(const int a_finestlevel) = 0;
                       
 };
@@ -31,10 +31,10 @@ class Field : public BaseField
 public:
     class EmptyBC
     {
-        public:
+    public:
         virtual void operator () (amrex::FabArray<amrex::BaseFab<T>> & /*mf*/, 
-    int /*dcomp*/, int /*ncomp*/, amrex::IntVect const& /*nghost*/, 
-    amrex::Real /*time*/, int /*bccomp*/) 
+                                int /*dcomp*/, int /*ncomp*/, amrex::IntVect const& /*nghost*/, 
+                                amrex::Real /*time*/, int /*bccomp*/) 
         {  /* Do nothing - this is a shell to satisfy the FillPatch functions.*/   }
         amrex::BCRec GetBCRec() {return amrex::BCRec();}
     };
@@ -43,10 +43,10 @@ public:
         const amrex::Vector<amrex::Geometry> &a_geom, 
         const amrex::Vector<amrex::IntVect> &a_refRatio,
         int a_ncomp, int a_nghost) : 
-    m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio), 
-    m_ncomp(a_ncomp), m_nghost(a_nghost)
+        m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio), 
+        m_ncomp(a_ncomp), m_nghost(a_nghost)
     {} 
-
+    
     void 
     FillPatch (int lev, amrex::Real time,
                 amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> &source_mf,
@@ -62,8 +62,8 @@ public:
             stime.push_back(time);
             //physbc.define(m_geom[lev]);
             amrex::FillPatchSingleLevel(destination_mf, time, smf, stime,
-                                    0, icomp, destination_mf.nComp(), m_geom[lev],
-                                    physbc, 0);
+                                        0, icomp, destination_mf.nComp(), m_geom[lev],
+                                        physbc, 0);
         } 
         else
         {
@@ -82,51 +82,51 @@ public:
                 mapper = new Numeric::Interpolator::NodeBilinear<T>();
             else
                 Util::Abort(INFO,"Currently works for node-based templated fabs only!");
-                //mapper = &amrex::cell_cons_interp;
+            //mapper = &amrex::cell_cons_interp;
 
             amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); 
             amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
-                        0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
-                        physbc, 0,
-                        physbc, 0,
-                        m_refRatio[lev-1],
-                        mapper, bcs, 0);
+                                    0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
+                                    physbc, 0,
+                                    physbc, 0,
+                                    m_refRatio[lev-1],
+                                    mapper, bcs, 0);
         }
 
     }
     void
     FillCoarsePatch (int lev,
-            amrex::Real time,
-            int icomp,
-            int ncomp)
+                    amrex::Real time,
+                    int icomp,
+                    int ncomp)
     {
         EmptyBC physbc;
 
-    BL_PROFILE("Integrator::FillCoarsePatch");
-    AMREX_ASSERT(lev > 0);
-    amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
-    cmf.push_back(m_field[lev-1].get());
-    amrex::Vector<amrex::Real> ctime;
-    ctime.push_back(time);
+        BL_PROFILE("Integrator::FillCoarsePatch");
+        AMREX_ASSERT(lev > 0);
+        amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
+        cmf.push_back(m_field[lev-1].get());
+        amrex::Vector<amrex::Real> ctime;
+        ctime.push_back(time);
     
-    //physbc.define(geom[lev]);
-    //amrex::Interpolater* mapper = &amrex::cell_cons_interp;
+        //physbc.define(geom[lev]);
+        //amrex::Interpolater* mapper = &amrex::cell_cons_interp;
         Numeric::Interpolator::NodeBilinear<T> *mapper = new Numeric::Interpolator::NodeBilinear<T>();
 
-    amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
-    amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
-    m_geom[lev-1], m_geom[lev],
-                physbc, 0,
-                physbc, 0,
-                m_refRatio[lev-1],
-                mapper, bcs, 0);
+        amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
+        amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
+                                    m_geom[lev-1], m_geom[lev],
+                                    physbc, 0,
+                                    physbc, 0,
+                                    m_refRatio[lev-1],
+                                    mapper, bcs, 0);
     }
 
 
     virtual void RemakeLevel (int lev,       
-                    amrex::Real time, 
-                    const amrex::BoxArray& cgrids, 
-                    const amrex::DistributionMapping& dm) override
+                            amrex::Real time, 
+                            const amrex::BoxArray& cgrids, 
+                            const amrex::DistributionMapping& dm) override
     {
         if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
         {
@@ -145,16 +145,16 @@ public:
     }
 
     virtual void MakeNewLevelFromCoarse (int lev, 
-    amrex::Real time, 
-    const amrex::BoxArray& cgrids, 
-    const amrex::DistributionMapping& dm) override
+                                        amrex::Real time, 
+                                        const amrex::BoxArray& cgrids, 
+                                        const amrex::DistributionMapping& dm) override
     {
         //if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
         //{
-            amrex::BoxArray ngrids = cgrids;
-            ngrids.convert(amrex::IntVect::TheNodeVector());
-            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
-            FillCoarsePatch(lev,time,0,m_ncomp);
+        amrex::BoxArray ngrids = cgrids;
+        ngrids.convert(amrex::IntVect::TheNodeVector());
+        m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
+        FillCoarsePatch(lev,time,0,m_ncomp);
         //}
         //else
         //{
@@ -164,9 +164,9 @@ public:
     }
 
     virtual void MakeNewLevelFromScratch (int lev, 
-    amrex::Real /*time*/, 
-    const amrex::BoxArray& cgrids,
-    const amrex::DistributionMapping& dm)
+                                        amrex::Real /*time*/, 
+                                        const amrex::BoxArray& cgrids,
+                                        const amrex::DistributionMapping& dm)
     {
         //if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
         {
@@ -174,10 +174,10 @@ public:
             ngrids.convert(amrex::IntVect::TheNodeVector());
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
         }
-//else
-//{
+//      else
+//      {
 //            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
-//}
+//      }
     }                                 
 
     virtual void SetFinestLevel(const int a_finestlevel)

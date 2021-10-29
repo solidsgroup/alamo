@@ -38,25 +38,20 @@ docfile.write(r"""
 Inputs
 ------
 
-.. list-table::
-    :header-rows: 1
-
-    * - Parameter name
-      - Type
-      - Description
 """)
 
 for dirname, subdirlist, filelist in os.walk("../src/"):
     #print(filelist)
     for f in filelist:
-        if f.endswith(".H"): 
+        if f.endswith(".H") or f.endswith(".cpp"): 
             inputs = extract(open(dirname + "/" + f))
-            if not inputs: continue
-            classname = dirname.replace("../src/","").replace("/","::") + "::" + f.replace(".H","")
+            if len(inputs) == 0: continue
+            classname = dirname.replace("../src/","").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
             docfile.write(classname + "\n")
             docfile.write("".ljust(len(classname),"*")+"\n\n")
 
             docfile.write(".. list-table:: \n")
+            docfile.write("    :widths: 20 30 50\n")
             docfile.write("    :header-rows: 1\n\n")
             docfile.write("    * - Parameter name\n")
             docfile.write("      - Type\n")
@@ -66,7 +61,7 @@ for dirname, subdirlist, filelist in os.walk("../src/"):
                 docfile.write("    * - :code:`{}`\n".format(input['string']))
                 docfile.write("      - {}\n".format("Single value" if input['query'] == "query" else "Array"))
                 docfile.write("      - {}\n".format(input['docs']))
-
+            docfile.write("\n")
                 #print(input)
 
 

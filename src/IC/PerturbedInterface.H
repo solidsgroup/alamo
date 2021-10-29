@@ -47,7 +47,7 @@ public:
 
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 amrex::IntVect m(AMREX_D_DECL(i,j,k));
-
+                
                 Set::Vector x;
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
@@ -64,7 +64,7 @@ public:
                 }
 
                 Set::Scalar bdry = 0.;
-#if AMREX_SPACEDIM == 2
+#if AMREX_SPACEDIM == 2                
                 Set::Scalar s1=NAN, l1=NAN;
                 if (normal==Direction::X) {s1 = x(1); l1 = L2;}
                 if (normal==Direction::Y) {s1 = x(0); l1 = L1;}
@@ -72,7 +72,7 @@ public:
                     bdry += wave_amplitudes[n]
                         * ( fabs(std::cos(phis[n]))*std::cos(wave_numbers[n].real()*Set::Constant::Pi*s1 / l1) +
                             fabs(std::sin(phis[n]))*std::sin(wave_numbers[n].imag()*Set::Constant::Pi*s1 / l1));
-#elif AMREX_SPACEDIM == 3
+#elif AMREX_SPACEDIM == 3                
                 Set::Scalar s1=NAN, s2=NAN, l1=NAN, l2=NAN;
                 if (normal==Direction::X) {s1 = x(1); s2 = x(2); l1 = L2; l2 = L3;}
                 if (normal==Direction::Y) {s1 = x(2); s2 = x(0); l1 = L3; l2 = L1;}
@@ -152,7 +152,7 @@ public:
         if (normal_str == "z") value.normal = Direction::Z;
         std::string offset_str;
         pp.query("offset",value.offset);
-
+        
         if (value.wave_numbers.size() != value.wave_amplitudes.size())
             Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 

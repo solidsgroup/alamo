@@ -142,17 +142,17 @@ protected:
             amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &disp = eta_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                {
-                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
-                    if (grad.lpNorm<2>() * DXnorm > 0.01)
-                        tags(i, j, k) = amrex::TagBox::SET;
-                }
-                {
-                    Set::Vector grad = Numeric::Gradient(disp, i, j, k, 0, DX.data());
-                    if (grad.lpNorm<2>() * DXnorm > 0.01)
-                        tags(i, j, k) = amrex::TagBox::SET;
-                }
-            });
+                                        {
+                                            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
+                                            if (grad.lpNorm<2>() * DXnorm > 0.01)
+                                                tags(i, j, k) = amrex::TagBox::SET;
+                                        }
+                                        {
+                                            Set::Vector grad = Numeric::Gradient(disp, i, j, k, 0, DX.data());
+                                            if (grad.lpNorm<2>() * DXnorm > 0.01)
+                                                tags(i, j, k) = amrex::TagBox::SET;
+                                        }
+                                    });
         }
     }
 
