@@ -121,32 +121,41 @@ public:
     static void Parse(Linear & value, amrex::ParmParse & pp)
     {
         if (pp.contains("max_iter"))
+		// Max number of iterations to perform before erroring out
         { int max_iter; pp.query("max_iter",max_iter);value.setMaxIter(max_iter);}
 
         if (pp.contains("bottom_max_iter"))
+		// Max number of iterations on the bottom solver
         { int bottom_max_iter; pp.query("bottom_max_iter",bottom_max_iter);value.setBottomMaxIter(bottom_max_iter);}
 
         if (pp.contains("max_fmg_iter"))
+		// Max number of F-cycle iterations to perform
         { int max_fmg_iter; pp.query("max_fmg_iter",max_fmg_iter);value.setMaxFmgIter(max_fmg_iter);}
 
+		// DEPRICATED - do not use
         if (pp.contains("max_fixed_iter"))
             Util::Abort(INFO, "max_fixed_iter is depricated. Use fixed_iter instead." );
 
         if (pp.contains("fixed_iter"))
+		// Number of fixed iterations to perform before exiting gracefully
         { int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
 
         if (pp.contains("verbose"))
+		// Verbosity of the solver (1-5)
         { int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
 
         if (pp.contains("pre_smooth"))
+		// Number of smoothing operations before bottom solve (2)
         { int pre_smooth; pp.query("pre_smooth",pre_smooth);value.setPreSmooth(pre_smooth);}
 
         if (pp.contains("post_smooth"))
+		// Number of smoothing operations after bottom solve (2)
         { int post_smooth; pp.query("post_smooth",post_smooth);value.setPostSmooth(post_smooth);}
-
+	
         if (pp.contains("bottom_solver"))
         {
             std::string bottom_solver;
+			// Type of bottom solver to use [cg, bicgstab, smoother]
             pp.query("bottom_solver",bottom_solver);
             if (bottom_solver == "cg")
                 value.setBottomSolver(MLMG::BottomSolver::cg);
@@ -158,11 +167,6 @@ public:
                 Util::Abort(INFO,"Unsupported bottom_solver " + bottom_solver);
         }
         
-        //if (pp.contains("agglomeration"))
-        //{int agglomeration; pp.query("agglomeration",agglomeration); value.setAgglomeration(agglomeration);}
-        //if (pp.contains("consolidation"))
-        //{int consolidation; pp.query("consolidation",consolidation); value(consolidation);}
-        
         if (pp.contains("cg_tol_rel"))
             Util::Abort(INFO,"cg_tol_rel is depricated. Use bottom_tol_rel instead.");
         if (pp.contains("cg_tol_abs"))
@@ -171,17 +175,21 @@ public:
         if (pp.contains("bottom_tol_rel"))
         {
             Set::Scalar bottom_tol_rel;
+			// Relative tolerance on bottom solver
             pp.query("bottom_tol_rel",bottom_tol_rel);
             value.setBottomTolerance(bottom_tol_rel);
         }
         if (pp.contains("bottom_tol_abs"))
         {
             Set::Scalar bottom_tol_abs;
+			// Absolute tolerance on bottom solver
             pp.query("bottom_tol_abs",bottom_tol_abs);
             value.setBottomToleranceAbs(bottom_tol_abs);
         }
 
+		// Relative tolerance
         pp.query("tol_rel",value.m_tol_rel);
+		// Absolute tolerance
         pp.query("tol_abs",value.m_tol_abs);
     }
 

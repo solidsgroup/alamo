@@ -61,12 +61,14 @@ private:
 public:
     static void Parse(Laminate & value, IO::ParmParse & pp)
     {
+		// How many laminates (MUST be greater than or equal to 1). Default = 1
         pp.query("number_of_inclusions", value.number_of_inclusions);
         
         if (value.number_of_inclusions < 1)
             Util::Abort(INFO, "Number of inclusions must be at least 1. Aborting.");
         
 		amrex::Vector<Set::Scalar> a_center;
+		// (x,y,[z]) values for the center point of the laminate
         if(pp.contains("center")) pp.queryarr("center",a_center);
 
 		if(a_center.size() != value.number_of_inclusions*AMREX_SPACEDIM) value.center.push_back(Set::Vector::Zero());
@@ -77,6 +79,7 @@ public:
 		}
 		
         amrex::Vector<Set::Scalar> a_thickness; 
+		// thickness of the laminate
 		if (pp.contains("thickness")) pp.queryarr("thickness", a_thickness);
 
         if(a_thickness.size() != value.number_of_inclusions && a_thickness.size() != 1)
@@ -98,6 +101,7 @@ public:
         }
         
         amrex::Vector<Set::Scalar> a_orientation;
+		// Vector normal to the interface of the laminate
 		pp.queryarr("orientation",a_orientation);
 
         if(a_orientation.size() != value.number_of_inclusions*AMREX_SPACEDIM && a_orientation.size() != AMREX_SPACEDIM) 
@@ -136,6 +140,7 @@ public:
  		}
 
 		amrex::Vector<Set::Scalar> a_eps;
+		// Diffuse thickness
 		pp.queryarr("eps", a_eps);
 
 		if(a_eps.size() < 1) 
