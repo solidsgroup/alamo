@@ -206,8 +206,8 @@ Operator<Grid::Node>::Operator (const Vector<Geometry>& a_geom,
     define(a_geom, a_grids, a_dmap, a_info, a_factory);
 }
 
- Operator<Grid::Node>::~Operator ()
- {}
+Operator<Grid::Node>::~Operator ()
+{}
 
 void Operator<Grid::Node>::define (const Vector<Geometry>& a_geom,
                 const Vector<BoxArray>& a_grids,

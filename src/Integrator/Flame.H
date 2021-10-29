@@ -19,8 +19,8 @@
 #include "IO/ParmParse.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "Solver/Nonlocal/Newton.H"
- //extern std::vector<Set::Scalar> alpha;
- //  extern int pack_size;
+//extern std::vector<Set::Scalar> alpha;
+//  extern int pack_size;
 
 
 namespace Integrator
@@ -28,17 +28,17 @@ namespace Integrator
 class Flame : public Integrator::Integrator
 {
 
-    using model_type = Model::Solid::Affine::Isotropic;
-
+	using model_type = Model::Solid::Affine::Isotropic;
+	
 public:
     Flame ();
  
 
 protected:
-    void Initialize (int lev) ;
-    void TimeStepBegin(Set::Scalar a_time,int a_iter) override;
-    void Advance (int lev, amrex::Real time, amrex::Real dt);
-    void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
+    void Initialize (int lev) override;
+    void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
+    void Advance (int lev, amrex::Real time, amrex::Real dt) override;
+    void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
 private:
 
@@ -46,12 +46,12 @@ private:
     Set::Field<Set::Scalar> Temp_old_mf;
     Set::Field<Set::Scalar> Eta_mf;
     Set::Field<Set::Scalar> Eta_old_mf;
-    Set::Field<Set::Scalar> FlameSpeed_mf;
+    Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
     BC::BC<Set::Scalar> *TempBC;
     BC::BC<Set::Scalar> *EtaBC;
-    IC::Voronoi *VoronoiIC;
-    IC::PackedSpheres *PackedSpheresIC;
+    //IC::Voronoi *VoronoiIC;
+    IC::IC *PhiIC;
 
     // int number_of_fabs = 1;
     // int number_of_components = 2;

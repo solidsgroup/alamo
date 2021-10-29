@@ -445,7 +445,7 @@ IC::Laminate
       - Description
     * - :code:`[prefix].number_of_inclusions`
       - Single value
-      -  How many laminates (MUST be greater than or equal to 1). Default = 1
+      -  How many inclusions
     * - :code:`[prefix].center`
       - Array
       -  (x,y,[z]) values for the center point of the laminate
@@ -461,6 +461,9 @@ IC::Laminate
     * - :code:`[prefix].mollifier`
       - Single value
       - None
+    * - :code:`[prefix].singlefab`
+      - Single value
+      -  Switch to mode where only one component is used.
 IC::Cuboid
 **********
 
@@ -605,6 +608,36 @@ IC::DoubleNotch
     * - :code:`[prefix].a`
       - Array
       -     Set::Vector a = Set::Vector::Ones();
+IC::PackedSpheres
+*****************
+
+.. list-table:: 
+    :header-rows: 1
+
+    * - Parameter name
+      - Type
+      - Description
+    * - :code:`[prefix].fs_number`
+      - Single value
+      - None
+    * - :code:`[prefix].R_min`
+      - Single value
+      - None
+    * - :code:`[prefix].R_max`
+      - Single value
+      - None
+    * - :code:`[prefix].R_mean`
+      - Single value
+      - None
+    * - :code:`[prefix].volume_fraction`
+      - Single value
+      - None
+    * - :code:`[prefix].verbosity`
+      - Single value
+      - None
+    * - :code:`[prefix].type`
+      - Single value
+      - None
 IC::Ellipse
 ***********
 
