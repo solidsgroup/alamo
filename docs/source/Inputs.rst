@@ -2,16 +2,11 @@
 Inputs
 ------
 
-.. list-table::
-    :header-rows: 1
-
-    * - Parameter name
-      - Type
-      - Description
 BC::Step
 ********
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -23,10 +18,12 @@ BC::Step
     * - :code:`[prefix].h2`
       - Single value
       - None
+
 BC::Constant
 ************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -68,10 +65,12 @@ BC::Constant
     * - :code:`[prefix].val.zhi`
       - Array
       - None
+
 BC::Operator::Elastic::Constant
 *******************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -233,10 +232,12 @@ BC::Operator::Elastic::Constant
     * - :code:`[prefix].val.zhi`
       - Array
       - None
+
 BC::Operator::Elastic::TensionTest
 **********************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -248,10 +249,12 @@ BC::Operator::Elastic::TensionTest
     * - :code:`[prefix].disp`
       - Single value
       - None
+
 BC::Operator::Elastic::Expression
 *********************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -335,10 +338,12 @@ BC::Operator::Elastic::Expression
     * - :code:`[prefix].type.zhi`
       - Array
       - None
+
 IC::Sphere
 **********
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -359,10 +364,12 @@ IC::Sphere
     * - :code:`[prefix].type`
       - Single value
       - None
+
 IC::Affine
 **********
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -374,10 +381,12 @@ IC::Affine
     * - :code:`ic.alpha`
       - Single value
       - None
+
 IC::Ellipsoid
 *************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -404,10 +413,12 @@ IC::Ellipsoid
     * - :code:`[prefix].mollifier`
       - Single value
       - None
+
 IC::Notch
 *********
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -434,10 +445,12 @@ IC::Notch
     * - :code:`[prefix].mollifier`
       - Single value
       - None
+
 IC::Laminate
 ************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -461,10 +474,12 @@ IC::Laminate
     * - :code:`[prefix].mollifier`
       - Single value
       - None
+
 IC::Cuboid
 **********
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -476,10 +491,12 @@ IC::Cuboid
     * - :code:`ic.length`
       - Array
       - None
+
 IC::Constant
 ************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -488,10 +505,12 @@ IC::Constant
     * - :code:`[prefix].value`
       - Array
       - None
+
 IC::BMP
 *******
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -512,10 +531,12 @@ IC::BMP
     * - :code:`[prefix].max`
       - Single value
       - None
+
 IC::TabulatedInterface
 **********************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -527,10 +548,12 @@ IC::TabulatedInterface
     * - :code:`[prefix].ys`
       - Array
       - None
+
 IC::PerturbedInterface
 **********************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -554,10 +577,12 @@ IC::PerturbedInterface
     * - :code:`[prefix].eps`
       - Single value
       - None
+
 IC::PS
 ******
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -572,10 +597,12 @@ IC::PS
     * - :code:`[prefix].inclusion`
       - Single value
       - None
+
 IC::DoubleNotch
 ***************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -605,10 +632,12 @@ IC::DoubleNotch
     * - :code:`[prefix].a`
       - Array
       -     Set::Vector a = Set::Vector::Ones();
+
 IC::Ellipse
 ***********
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -644,10 +673,196 @@ IC::Ellipse
     * - :code:`[prefix].eps`
       - Array
       - None
+
+Integrator::PhaseFieldMicrostructure
+************************************
+
+.. list-table:: 
+    :widths: 20 30 50
+    :header-rows: 1
+
+    * - Parameter name
+      - Type
+      - Description
+    * - :code:`pf.number_of_grains`
+      - Single value
+      -  Phase-field model parameters
+    * - :code:`pf.M`
+      - Single value
+      - None
+    * - :code:`pf.mu`
+      - Single value
+      - None
+    * - :code:`pf.gamma`
+      - Single value
+      - None
+    * - :code:`pf.sigma0`
+      - Single value
+      - None
+    * - :code:`pf.l_gb`
+      - Single value
+      - None
+    * - :code:`pf.elastic_mult`
+      - Single value
+      - None
+    * - :code:`pf.elastic_threshold`
+      - Single value
+      - None
+    * - :code:`amr.max_level`
+      - Single value
+      - None
+    * - :code:`amr.ref_threshold`
+      - Single value
+      - None
+    * - :code:`lagrange.on`
+      - Single value
+      - None
+    * - :code:`lagrange.lambda`
+      - Single value
+      - None
+    * - :code:`lagrange.vol0`
+      - Single value
+      - None
+    * - :code:`lagrange.tstart`
+      - Single value
+      - None
+    * - :code:`anisotropy.on`
+      - Single value
+      -  Phase-field model parameters
+    * - :code:`anisotropy.beta`
+      - Single value
+      - None
+    * - :code:`anisotropy.tstart`
+      - Single value
+      - None
+    * - :code:`anisotropy.timestep`
+      - Single value
+      - None
+    * - :code:`anisotropy.plot_int`
+      - Single value
+      - None
+    * - :code:`anisotropy.plot_dt`
+      - Single value
+      - None
+    * - :code:`anisotropy.thermo_int`
+      - Single value
+      - None
+    * - :code:`anisotropy.thermo_plot_int`
+      - Single value
+      - None
+    * - :code:`anisotropy.elastic_int`
+      - Single value
+      - None
+    * - :code:`anisotropy.regularization`
+      - Single value
+      - None
+    * - :code:`anisotropy.gb_type`
+      - Single value
+      - None
+    * - :code:`bc.eta.type`
+      - Single value
+      - None
+    * - :code:`ic.type`
+      - Single value
+      -  Phase-field model parameters
+    * - :code:`ic.voronoi.number_of_grains`
+      - Single value
+      - None
+    * - :code:`elastic.on`
+      - Single value
+      - None
+    * - :code:`elastic.interval`
+      - Single value
+      - None
+    * - :code:`elastic.max_coarsening_level`
+      - Single value
+      - None
+    * - :code:`elastic.tol_rel`
+      - Single value
+      - None
+    * - :code:`elastic.tol_abs`
+      - Single value
+      - None
+    * - :code:`elastic.tstart`
+      - Single value
+      - None
+
+Integrator::Integrator
+**********************
+
+.. list-table:: 
+    :widths: 20 30 50
+    :header-rows: 1
+
+    * - Parameter name
+      - Type
+      - Description
+    * - :code:`max_step`
+      - Single value
+      -  Basic run parameters
+    * - :code:`stop_time`
+      - Single value
+      - None
+    * - :code:`timestep`
+      - Single value
+      - None
+    * - :code:`restart`
+      - Single value
+      - None
+    * - :code:`restart_cell`
+      - Single value
+      - None
+    * - :code:`restart_node`
+      - Single value
+      - None
+    * - :code:`amr.regrid_int`
+      - Single value
+      -  AMR specific parameters
+    * - :code:`amr.plot_int`
+      - Single value
+      -  ALL processors
+    * - :code:`amr.plot_dt`
+      - Single value
+      -  ALL processors
+    * - :code:`amr.plot_file`
+      - Single value
+      -  ALL processors
+    * - :code:`amr.cell.all`
+      - Single value
+      - None
+    * - :code:`amr.cell.any`
+      - Single value
+      - None
+    * - :code:`amr.node.all`
+      - Single value
+      - None
+    * - :code:`amr.node.any`
+      - Single value
+      - None
+    * - :code:`amr.max_plot_level`
+      - Single value
+      - None
+    * - :code:`amr.nsubsteps`
+      - Array
+      - None
+    * - :code:`amr.nsubsteps`
+      - Single value
+      - None
+    * - :code:`amr.thermo.int`
+      - Single value
+      -  Default: integrate every time.
+    * - :code:`amr.thermo.plot_int`
+      - Single value
+      -  ALL processors
+    * - :code:`amr.thermo.plot_dt`
+      - Single value
+      -  ALL processors
+
 Integrator::TensionTest
 ***********************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -665,10 +880,68 @@ Integrator::TensionTest
     * - :code:`ic.type`
       - Single value
       - None
+
+Integrator::Flame
+*****************
+
+.. list-table:: 
+    :widths: 20 30 50
+    :header-rows: 1
+
+    * - Parameter name
+      - Type
+      - Description
+    * - :code:`physics.M`
+      - Single value
+      - None
+    * - :code:`physics.kappa`
+      - Single value
+      - None
+    * - :code:`physics.w1`
+      - Single value
+      - None
+    * - :code:`physics.w12`
+      - Single value
+      - None
+    * - :code:`physics.w0`
+      - Single value
+      - None
+    * - :code:`physics.rho1`
+      - Single value
+      - None
+    * - :code:`physics.rho0`
+      - Single value
+      - None
+    * - :code:`physics.k1`
+      - Single value
+      - None
+    * - :code:`physics.k0`
+      - Single value
+      - None
+    * - :code:`physics.cp1`
+      - Single value
+      - None
+    * - :code:`physics.cp0`
+      - Single value
+      - None
+    * - :code:`physics.qdotburn`
+      - Single value
+      - None
+    * - :code:`physics.fs_number`
+      - Single value
+      - None
+    * - :code:`physics.fs_min`
+      - Single value
+      - None
+    * - :code:`physics.fs_max`
+      - Single value
+      - None
+
 Integrator::SutureCrack
 ***********************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -677,10 +950,12 @@ Integrator::SutureCrack
     * - :code:`crack.ic.type`
       - Single value
       - None
+
 Integrator::Fracture
 ********************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -689,10 +964,12 @@ Integrator::Fracture
     * - :code:`crack.ic.type`
       - Array
       - None
+
 Integrator::HeatConduction
 **************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -707,10 +984,12 @@ Integrator::HeatConduction
     * - :code:`ic.type`
       - Single value
       - None
+
 Integrator::FiniteKinematics
 ****************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -725,10 +1004,12 @@ Integrator::FiniteKinematics
     * - :code:`elastic.kappa`
       - Single value
       - None
+
 Model::Solid::Linear::Cubic
 ***************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -752,10 +1033,12 @@ Model::Solid::Linear::Cubic
     * - :code:`[prefix].phi2`
       - Single value
       - None
+
 Model::Solid::Linear::Isotropic
 *******************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -779,10 +1062,12 @@ Model::Solid::Linear::Isotropic
     * - :code:`[prefix].nu`
       - Single value
       - None
+
 Model::Solid::Linear::IsotropicDegradableTanh
 *********************************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -806,10 +1091,12 @@ Model::Solid::Linear::IsotropicDegradableTanh
     * - :code:`[prefix].temp`
       - Single value
       - None
+
 Model::Solid::Linear::IsotropicDegradable
 *****************************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -827,10 +1114,12 @@ Model::Solid::Linear::IsotropicDegradable
     * - :code:`[prefix].nu`
       - Single value
       - None
+
 Model::Solid::Affine::Cubic
 ***************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -839,10 +1128,12 @@ Model::Solid::Affine::Cubic
     * - :code:`[prefix].F0`
       - Array
       - None
+
 Model::Solid::Affine::Isotropic
 *******************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -863,10 +1154,12 @@ Model::Solid::Affine::Isotropic
     * - :code:`[prefix].F0`
       - Array
       - None
+
 Model::Solid::Affine::CubicDegradable
 *************************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -890,10 +1183,12 @@ Model::Solid::Affine::CubicDegradable
     * - :code:`[prefix].phi2`
       - Single value
       - None
+
 Model::Solid::Affine::J2PlasticDegradable
 *****************************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -920,10 +1215,12 @@ Model::Solid::Affine::J2PlasticDegradable
     * - :code:`[prefix].theta`
       - Single value
       - None
+
 Model::Solid::Affine::IsotropicDegradable
 *****************************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -941,10 +1238,12 @@ Model::Solid::Affine::IsotropicDegradable
     * - :code:`[prefix].nu`
       - Single value
       - None
+
 Model::Solid::Affine::J2Plastic
 *******************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -971,10 +1270,12 @@ Model::Solid::Affine::J2Plastic
     * - :code:`[prefix].theta`
       - Single value
       - None
+
 Model::Solid::Elastic::NeoHookean
 *********************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -986,10 +1287,12 @@ Model::Solid::Elastic::NeoHookean
     * - :code:`[prefix].kappa`
       - Single value
       - None
+
 Model::Interface::GB::Read
 **************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -998,10 +1301,12 @@ Model::Interface::GB::Read
     * - :code:`[prefix].filename`
       - Single value
       - None
+
 Model::Interface::GB::SH
 ************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1019,10 +1324,12 @@ Model::Interface::GB::SH
     * - :code:`[prefix].sigma1`
       - Single value
       - None
+
 Model::Interface::GB::Sin
 *************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1037,10 +1344,12 @@ Model::Interface::GB::Sin
     * - :code:`[prefix].sigma1`
       - Single value
       - None
+
 Model::Interface::GB::AbsSin
 ****************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1055,10 +1364,12 @@ Model::Interface::GB::AbsSin
     * - :code:`[prefix].sigma1`
       - Single value
       - None
+
 Model::Interface::Crack::Constant
 *********************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1085,10 +1396,12 @@ Model::Interface::Crack::Constant
     * - :code:`[prefix].exponent`
       - Single value
       - None
+
 Model::Interface::Crack::Sin
 ****************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1121,10 +1434,12 @@ Model::Interface::Crack::Sin
     * - :code:`[prefix].exponent`
       - Single value
       - None
+
 Numeric::Interpolator::Linear
 *****************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1133,10 +1448,26 @@ Numeric::Interpolator::Linear
     * - :code:`[prefix].str`
       - Single value
       - None
+
+Util::Util
+**********
+
+.. list-table:: 
+    :widths: 20 30 50
+    :header-rows: 1
+
+    * - Parameter name
+      - Type
+      - Description
+    * - :code:`plot_file`
+      - Single value
+      - None
+
 Solver::Nonlocal::Linear
 ************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1178,10 +1509,12 @@ Solver::Nonlocal::Linear
     * - :code:`[prefix].tol_abs`
       - Single value
       -  Absolute tolerance
+
 Solver::Nonlocal::Newton
 ************************
 
 .. list-table:: 
+    :widths: 20 30 50
     :header-rows: 1
 
     * - Parameter name
@@ -1193,3 +1526,4 @@ Solver::Nonlocal::Newton
     * - :code:`[prefix].nrtolerance`
       - Single value
       - None
+
