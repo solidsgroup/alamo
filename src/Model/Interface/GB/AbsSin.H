@@ -59,7 +59,7 @@ amrex::Real DDW(amrex::Real theta)
 private:
     amrex::Real theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
 
-public:	
+public:
     static void Parse(AbsSin & value, amrex::ParmParse & pp)
     {
         pp.query("theta0",value.theta0);

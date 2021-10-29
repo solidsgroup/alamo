@@ -176,7 +176,7 @@ protected:
         if (thermo.number > 0)
             Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
     }
-		
+
     virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
     {}
 
@@ -223,7 +223,7 @@ protected:
                     std::string name,
                     bool writeout
                     );
-	
+
     template<class T>
     void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost)
     {
@@ -289,15 +289,15 @@ protected:
 
     // TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
-    amrex::Real timestep;	///< Timestep for the base level of refinement
+    amrex::Real timestep;///< Timestep for the base level of refinement
 private:
-    amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
-    amrex::Vector<int> nsubsteps;	///< how many substeps on each level?
+    amrex::Vector<amrex::Real> dt;///< Timesteps for each level of refinement
+    amrex::Vector<int> nsubsteps;///< how many substeps on each level?
     int max_plot_level = -1;
   
     amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
-    int max_step = std::numeric_limits<int>::max();	///< Maximum allowable timestep
-    amrex::Real tstart = 0;	///< Default start time (default: 0)
+    int max_step = std::numeric_limits<int>::max();///< Maximum allowable timestep
+    amrex::Real tstart = 0;///< Default start time (default: 0)
     amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
 protected:

@@ -112,7 +112,7 @@ private:
         Set::Scalar phi0 = 0.0;
         int elastic_int = -1;
     } anisotropy;
-	
+
     struct { 
         int on = 0;
         Set::Scalar tstart = 0.0;

@@ -63,13 +63,13 @@ public:
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhs       = a_rhs->array(mfi);
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-					
+
                 for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
                 {
                     Face face = Face::INT;
-						
+
                     #if AMREX_SPACEDIM == 2
-						
+
                     if      (i==lo.x && j==lo.y) face = Face::XLO_YLO;
                     else if (i==lo.x && j==hi.y) face = Face::XLO_YHI;
                     else if (i==hi.x && j==lo.y) face = Face::XHI_YLO;
@@ -130,7 +130,7 @@ public:
                     }
                 }
             });
-        }					
+        }
     }
 
     AMREX_FORCE_INLINE
@@ -144,24 +144,24 @@ public:
         //Set::Vector f;
 
         const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
-		
+
         amrex::IntVect m(AMREX_D_DECL(i,j,k));
 
         // Corners
         #if AMREX_SPACEDIM == 2
-		
+
         if (m[0] == lo.x && m[1] == lo.y)                  return set(m_bc_type[Face::XLO_YLO],     u, gradu, sigma, Set::Vector(-SQRT2INV, -SQRT2INV));
         if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV));
         if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV));
         if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV));
-		
+
         if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0));
         if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0));
         if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1));
         if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1));
-		
+
         #elif AMREX_SPACEDIM == 3
-		
+
         if (m[0] == lo.x &&  m[1] == lo.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YLO_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,-SQRT3INV));
         if (m[0] == lo.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XLO_YLO_ZHI], u, gradu, sigma, Set::Vector(-SQRT3INV,-SQRT3INV,+SQRT3INV));
         if (m[0] == lo.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XLO_YHI_ZLO], u, gradu, sigma, Set::Vector(-SQRT3INV,+SQRT3INV,-SQRT3INV));
@@ -170,7 +170,7 @@ public:
         if (m[0] == hi.x &&  m[1] == lo.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YLO_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,-SQRT3INV,+SQRT3INV));
         if (m[0] == hi.x &&  m[1] == hi.y && m[2] == lo.z) return set(m_bc_type[Face::XHI_YHI_ZLO], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,-SQRT3INV));
         if (m[0] == hi.x &&  m[1] == hi.y && m[2] == hi.z) return set(m_bc_type[Face::XHI_YHI_ZHI], u, gradu, sigma, Set::Vector(+SQRT3INV,+SQRT3INV,+SQRT3INV));
-		
+
         if (m[1] == lo.y && m[2] == lo.z)                  return set(m_bc_type[Face::YLO_ZLO],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,-SQRT2INV));
         if (m[1] == lo.y && m[2] == hi.z)                  return set(m_bc_type[Face::YLO_ZHI],     u, gradu, sigma, Set::Vector(0,        -SQRT2INV,+SQRT2INV));
         if (m[1] == hi.y && m[2] == lo.z)                  return set(m_bc_type[Face::YHI_ZLO],     u, gradu, sigma, Set::Vector(0,        +SQRT2INV,-SQRT2INV));
@@ -183,16 +183,16 @@ public:
         if (m[0] == lo.x && m[1] == hi.y)                  return set(m_bc_type[Face::XLO_YHI],     u, gradu, sigma, Set::Vector(-SQRT2INV, +SQRT2INV,0       ));
         if (m[0] == hi.x && m[1] == lo.y)                  return set(m_bc_type[Face::XHI_YLO],     u, gradu, sigma, Set::Vector(+SQRT2INV, -SQRT2INV,0       ));
         if (m[0] == hi.x && m[1] == hi.y)                  return set(m_bc_type[Face::XHI_YHI],     u, gradu, sigma, Set::Vector(+SQRT2INV, +SQRT2INV,0       ));
-		
+
         if (m[0] == lo.x)                                  return set(m_bc_type[Face::XLO],         u, gradu, sigma, Set::Vector(-1, 0, 0));
         if (m[0] == hi.x)                                  return set(m_bc_type[Face::XHI],         u, gradu, sigma, Set::Vector(+1, 0, 0));
         if (m[1] == lo.y)                                  return set(m_bc_type[Face::YLO],         u, gradu, sigma, Set::Vector( 0,-1, 0));
         if (m[1] == hi.y)                                  return set(m_bc_type[Face::YHI],         u, gradu, sigma, Set::Vector( 0,+1, 0));
         if (m[2] == lo.z)                                  return set(m_bc_type[Face::ZLO],         u, gradu, sigma, Set::Vector( 0, 0,-1));
         if (m[2] == hi.z)                                  return set(m_bc_type[Face::ZHI],         u, gradu, sigma, Set::Vector( 0, 0,+1));
-		
+
         #endif
-		
+
         Util::Abort(INFO,"Boundary condition error");
         return Set::Vector::Zero();
     }
@@ -217,7 +217,7 @@ public:
     }
 
 protected:
-	
+
     #if AMREX_SPACEDIM==2
     static const int m_nfaces = 8;
     #elif AMREX_SPACEDIM==3
@@ -237,11 +237,11 @@ public:
         bcmap["traction"]     = Type::Traction;
         bcmap["trac"]         = Type::Traction;
         bcmap["periodic"]     = Type::Periodic;
-		
+
         std::vector<std::string> str;
-		
+
         // TYPES
-		
+
         #if AMREX_SPACEDIM==3
         if (pp.contains("type.xloylozlo")) { pp.queryarr("type.xloylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZLO][i] = bcmap[str[i]]; }
         if (pp.contains("type.xloylozhi")) { pp.queryarr("type.xloylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZHI][i] = bcmap[str[i]]; }
@@ -286,7 +286,7 @@ public:
             std::string querystr = std::string("val.") + std::string(facestr[face]);
             if (pp.contains(querystr.c_str())) pp.queryarr(querystr.c_str(),val);
             else val.resize(AMREX_SPACEDIM,"0.0");
-			
+
             for (int i = 0 ; i < AMREX_SPACEDIM; i++)
             {
                 value.m_bc_func[face][i].AddVariable("x");
@@ -301,9 +301,9 @@ public:
                 if (!value.m_bc_func[face][i].JITCompile())
                 {
                     Util::Abort(INFO,"JIT compile failed");
-                }				
+                }
             }
-        }		
+        }
     }
 #endif
 };

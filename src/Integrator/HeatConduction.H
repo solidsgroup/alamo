@@ -68,10 +68,10 @@ public:
             pph.query("n",n);
         // Read in initial condition
         {
-		
-		
-			
- 			
+
+
+
+ 
             IO::ParmParse pp("ic");
             std::string type = "sphere";
             pp.query("type",type);
@@ -85,24 +85,24 @@ public:
                 ic = new IC::Constant(geom);
                 pp.queryclass("constant",*static_cast<IC::Constant*>(ic));
             }
-			
-        }		
+
+        }
         {
             IO::ParmParse pp("bc");
             bc = new BC::Constant(1);
             pp.queryclass("temp",*static_cast<BC::Constant *>(bc));
-			
-			
+
+
             EtaBC = new BC::Constant(1);////////
                 pp.queryclass("eta", *static_cast<BC::Constant *>(EtaBC));///////
         }
-		
-		
+
+
 
         RegisterNewFab(temp_mf,     bc, number_of_components, number_of_ghost_cells, "Temp",true);
         RegisterNewFab(temp_old_mf, bc, number_of_components, number_of_ghost_cells, "Temp_old",false);
-		
-		
+
+
         RegisterNewFab(Eta_mf, EtaBC, number_of_components, number_of_ghost_cells, "Eta", true);/////
         RegisterNewFab(Eta_old_mf, EtaBC, number_of_components, number_of_ghost_cells, "Eta_old", false);///////
     }
@@ -127,7 +127,7 @@ protected:
         std::swap(Eta_old_mf[lev], Eta_mf[lev]);////
         ///std::swap(Temp_old_mf[lev], Temp_mf[lev]);////
         Set::Scalar a0 = w0, a1 = 0.0, a2 = -5 * w1 + 16 * w12 - 11 * a0, a3 = 14 * w1 - 32 * w12 + 18 * a0, a4 = -8 * w1 + 16 * w12 - 8 * a0;
-		
+
         // Get the cell size corresponding to this level
         const amrex::Real *DX = geom[lev].CellSize();
 
@@ -142,17 +142,17 @@ protected:
             amrex::Array4<Set::Scalar>       const &temp     = (*temp_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const &Eta              = (*Eta_mf[lev]).array(mfi);////
             amrex::Array4<const Set::Scalar> const &Eta_old    = (*Eta_old_mf[lev]).array(mfi);////
-		
+
             // Iterate over the grid on this patch
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
-			
-			
+
+
                 // Do the physics!
                 // Note that Numeric::Laplacian is an inlined function so there is no overhead.
                 // You can calculate the derivatives yourself if you want.
                 //Set::Vector eta_grad = Numeric::Gradient(Eta_old,i,j,k,0,DX);
-                //Set::Vector temp_grad = Numeric::Gradient(temp_old,i,j,k, 0, DX);				
+                //Set::Vector temp_grad = Numeric::Gradient(temp_old,i,j,k, 0, DX);
                 //Set::Vector normvec = eta_grad/Eta_old(i,j,k);
                 //double in = inner_product(begin(eta_grad),end(eta_grad),begin(eta_grad),0.0);
                 //double abso = sqrt(in);
@@ -186,7 +186,7 @@ protected:
             amrex::Array4<char>         const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar>  const &temp = (*temp_mf[lev]).array(mfi);
             //amrex::Array4<const Set::Scalar> const &Eta  = (*Eta_mf[lev]).array(mfi);
-			
+
             // Iterate over the grid as done above.
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
@@ -197,11 +197,11 @@ protected:
                 // mark this cell as needing refinement.
                 if (grad.lpNorm<2>() * dr > refinement_threshold)
                     tags(i,j,k) = amrex::TagBox::SET;
-					
+
                 //Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
                 //if (gradeta.lpNorm<2>() * dr > refinement_threshold)
-                //	tags(i,j,k) = amrex::TagBox::SET;
-					
+                //tags(i,j,k) = amrex::TagBox::SET;
+
             });
         }
     }
@@ -223,27 +223,27 @@ private:
     Set::Scalar k1, k0;             // Thermal conductivity (before and after)
     Set::Scalar cp1, cp0;           // Specific heat (before and after)
     Set::Scalar qdotburn;
-	
+
     Set::Scalar P;
     Set::Scalar r;
     Set::Scalar n;
-	
-    Set::Field<Set::Scalar> temp_mf;	     ///< Temperature field variable (current timestep)
-    Set::Field<Set::Scalar> temp_old_mf;     ///< Temperature field variable (previous timestep)
-    Set::Field<Set::Scalar> Eta_mf;		/////temp - adding eta into file
-    Set::Field<Set::Scalar> Eta_old_mf;
-	
 
-    amrex::Real alpha = 1.0;				 ///< Thermal diffusivity
+    Set::Field<Set::Scalar> temp_mf;     ///< Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> temp_old_mf;     ///< Temperature field variable (previous timestep)
+    Set::Field<Set::Scalar> Eta_mf;/////temp - adding eta into file
+    Set::Field<Set::Scalar> Eta_old_mf;
+
+
+    amrex::Real alpha = 1.0; ///< Thermal diffusivity
     amrex::Real refinement_threshold = 0.01; ///< Criterion for cell refinement
 
-    IC::IC *ic;				                 ///< Object used to initialize temperature field
+    IC::IC *ic;                 ///< Object used to initialize temperature field
     IC::IC *EtaIC; ///
-	
+
     BC::BC<Set::Scalar> *bc;                 ///< Object used to update temp field boundary ghost cells
     BC::BC<Set::Scalar> *EtaBC;///
-	
-	
+
+
 };
 } // namespace Integrator
 #endif

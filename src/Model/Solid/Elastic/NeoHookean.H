@@ -71,7 +71,7 @@ public:
     {
         out << "mu = " << mu << " kappa = " << kappa;
     }
-	
+
 public:
     Set::Scalar mu = NAN, kappa = NAN;
     static constexpr KinematicVariable kinvar = KinematicVariable::F;

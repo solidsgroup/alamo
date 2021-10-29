@@ -280,7 +280,7 @@ protected:
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) _temp = 0.;
                     if(_temp > 1.0) _temp = 1.0;
-					
+
                     // _temp = std::max(crack.scaleModulusMax, _temp);
                     // _temp = std::max(crack.scaleModulusMax, crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax));
                     model(i,j,k).DegradeModulus(1-_temp);
@@ -346,10 +346,10 @@ protected:
             for (amrex::MFIter mfi(*elastic.strain_mf[ilev],true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& box = mfi.grownnodaltilebox();
-                amrex::Array4<const Set::Scalar> const& strain 	= (*elastic.strain_mf[ilev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const& strain = (*elastic.strain_mf[ilev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const& mat = (*material.material_mf[ilev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& energy 		= (*elastic.energy_pristine_mf[ilev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& energy_old 	= (*elastic.energy_pristine_old_mf[ilev]).array(mfi);
+                amrex::Array4<Set::Scalar> const& energy = (*elastic.energy_pristine_mf[ilev]).array(mfi);
+                amrex::Array4<Set::Scalar> const& energy_old = (*elastic.energy_pristine_old_mf[ilev]).array(mfi);
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     
@@ -488,10 +488,10 @@ protected:
 
         for (amrex::MFIter mfi(*crack.c_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box 							bx 	= mfi.tilebox() & domain.grow(-1);
-            amrex::Array4<char> const 					&tags 	= a_tags.array(mfi);
-            amrex::Array4<const Set::Scalar> const 		&c 	= (*crack.c_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const 		&mat 	= (*material.material_mf[lev]).array(mfi);
+            const amrex::Box bx = mfi.tilebox() & domain.grow(-1);
+            amrex::Array4<char> const &tags = a_tags.array(mfi);
+            amrex::Array4<const Set::Scalar> const &c = (*crack.c_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const &mat = (*material.material_mf[lev]).array(mfi);
             
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(c, i, j, k, 0, DX);
@@ -530,7 +530,7 @@ protected:
 
 private:
 
-    int number_of_ghost_nodes = 2;				///< Number of ghost nodes
+    int number_of_ghost_nodes = 2;///< Number of ghost nodes
     int number_of_materials = 1;
     int nlevels;
 
@@ -545,7 +545,7 @@ private:
         Set::Field<Set::Scalar> energy_pristine_old_mf;  ///< energy of the pristine material for previous time step.
         Set::Scalar int_energy = 0.0;               ///< integrated energy over the entire domain.
 
-        BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
+        BC::Operator::Elastic::Constant brittlebc;  ///< elastic BC if using brittle fracture
         Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
         bool do_solve_now = false;
         int interval = 0;
@@ -573,8 +573,8 @@ private:
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
         Set::Scalar refinement_threshold = 0.001;
 
-        Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
-        Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
+        Set::Scalar mult_df_Gc = 1.0;///< Multiplier for Gc/zeta term
+        Set::Scalar mult_df_lap = 1.0;///< Multiplier for the laplacian term
         Set::Scalar beta = 0.0;
     } crack;
 
@@ -591,8 +591,8 @@ private:
     } material;
 
     struct{
-        Set::Vector body_force 				= Set::Vector::Zero();
-        Set::Scalar val 					= 0.;
+        Set::Vector body_force = Set::Vector::Zero();
+        Set::Scalar val = 0.;
     } loading;
 
 };

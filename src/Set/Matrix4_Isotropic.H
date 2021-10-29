@@ -71,7 +71,7 @@ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
 Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix &b)
 {
     Set::Matrix ret;
-		
+
     #if   AMREX_SPACEDIM == 2
     ret(0,0) = (a.lambda + 2.*a.mu) * b(0,0) +       a.lambda      *b(1,1);
     ret(1,1) =        a.lambda      * b(0,0) + (a.lambda + 2.*a.mu)*b(1,1);
@@ -85,7 +85,7 @@ Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const S
     ret(2,0) = a.mu*(b(2,0) + b(0,2)); ret(0,2) = ret(2,0);
     ret(0,1) = a.mu*(b(0,1) + b(1,0)); ret(1,0) = ret(0,1);
     
-    #endif 		
+    #endif 
     return ret;
 }
 

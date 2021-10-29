@@ -128,7 +128,7 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("2 non-centered levels, Component 0",test.UniaxialTest(0,0));
         failed += Util::Test::SubFinalMessage(subfailed);
     }
-	
+
 
     Util::Message(INFO,failed," tests failed");
 

@@ -27,12 +27,12 @@ namespace Integrator
 {
 class Flame : public Integrator::Integrator
 {
-	
+
     using model_type = Model::Solid::Affine::Isotropic;
-	
+
 public:
     Flame ();
-	 
+ 
 
 protected:
     void Initialize (int lev) ;
@@ -79,7 +79,7 @@ private:
     Set::Scalar n_htpb;
     Set::Scalar r_comb;
     Set::Scalar n_comb;
-	
+
     int fs_number = 1;
     //Set::Scalar fs_min = -1.0;
     //Set::Scalar fs_max = 1.0;
@@ -94,7 +94,7 @@ private:
    
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
-	
+
     IC::IC *EtaIC;
 
     struct {

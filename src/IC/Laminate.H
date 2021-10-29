@@ -77,7 +77,7 @@ public:
             for (int i = 0; i<a_center.size(); i+=AMREX_SPACEDIM)
                 value.center.push_back(Set::Vector(AMREX_D_DECL(a_center[i],a_center[i+1],a_center[i+2])));
         }
-		
+
         amrex::Vector<Set::Scalar> a_thickness; 
         // thickness of the laminate
         if (pp.contains("thickness")) pp.queryarr("thickness", a_thickness);

@@ -31,11 +31,11 @@ public:
     {
         define(_data_points,_interval_points);
     };
-	
+
     void define(const std::string a_str)
     {
         std::string str = a_str;
-		
+
         if (Util::String::Contains(str,"(") || Util::String::Contains(str,":") || Util::String::Contains(str,")") || Util::String::Contains(str,","))
         {
             if (!Util::String::Contains(str,"(")) Util::Abort(INFO,"Mismatched parentheses while trying to parse ",str);
@@ -47,7 +47,7 @@ public:
             std::vector<std::string> splitstr = Util::String::Split(str,':');
             std::string str_time = splitstr[0];
             std::string str_val  = splitstr[1];
-			
+
             std::vector<std::string> str_time_arr = Util::String::Split(str_time,',');
             std::vector<std::string> str_val_arr  = Util::String::Split(str_val,',');
 

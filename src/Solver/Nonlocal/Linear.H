@@ -151,7 +151,7 @@ public:
         if (pp.contains("post_smooth"))
         // Number of smoothing operations after bottom solve (2)
         { int post_smooth; pp.query("post_smooth",post_smooth);value.setPostSmooth(post_smooth);}
-	
+
         if (pp.contains("bottom_solver"))
         {
             std::string bottom_solver;

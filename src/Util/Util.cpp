@@ -36,12 +36,12 @@ std::string GetFileName()
         else if (pp.contains("plot_file"))
         {
             pp.query("plot_file", filename);
-			
+
         }
         IO::FileNameParse(filename);
         // else
-        // 	if (amrex::ParallelDescriptor::IOProcessor())
-        // 		Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
+        // if (amrex::ParallelDescriptor::IOProcessor())
+        // Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
     }
     return filename;
 }
@@ -67,7 +67,7 @@ void SignalHandler(int s)
 #ifdef MEME
     amrex::ParmParse pp;
     if (!pp.contains("nomeme"))
-    {			
+    {
         time_t timer; time(&timer);
         std::stringstream cmd;
         cmd << "xdg-open " << BUILD_DIR << "/src/Util/Meme/cat0" << (1+((int)timer)%6) << ".gif &";
@@ -92,8 +92,8 @@ void Initialize (int argc, char* argv[])
 
     // if (argc < 2)
     // {
-    // 	std::cout << "No plot file specified!" << std::endl;
-    // 	exit(-1);
+    // std::cout << "No plot file specified!" << std::endl;
+    // exit(-1);
     // }
 
     amrex::Initialize(argc, argv);
@@ -347,7 +347,7 @@ int SubFinalMessage(int failed)
         else
             std::cout << Color::FG::Red << Color::Bold << failed << " tests failed" << Color::Reset << std::endl;
 
-		
+
     }
     return failed;
 }

@@ -48,7 +48,7 @@ public:
         const amrex::Real AMREX_D_DECL(L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0],
                             L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1],
                             L3 = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2]);
-				   
+   
         for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
         {
             const amrex::Box& box = mfi.validbox();
@@ -89,7 +89,7 @@ public:
                     trigfn *= (fabs(std::cos(phi3))*std::cos(n3.real()*Set::Constant::Pi*x3 / L3) +
                             fabs(std::sin(phi3))*std::sin(n3.imag()*Set::Constant::Pi*x3 / L3));
 #endif
-						
+
                 field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) += alpha * trigfn;
 
             }

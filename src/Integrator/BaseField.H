@@ -46,7 +46,7 @@ public:
     m_field(a_field), m_geom(a_geom), m_refRatio(a_refRatio), 
     m_ncomp(a_ncomp), m_nghost(a_nghost)
     {} 
-	
+
     void 
     FillPatch (int lev, amrex::Real time,
                 amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> &source_mf,
@@ -174,10 +174,10 @@ public:
             ngrids.convert(amrex::IntVect::TheNodeVector());
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
         }
-//		else
-//		{
+//else
+//{
 //            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
-//		}
+//}
     }                                 
 
     virtual void SetFinestLevel(const int a_finestlevel)

@@ -17,7 +17,7 @@ int
 Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
 {
     Generate();
-	
+
     Set::Scalar tolerance = 0.02;
 
     int failed = 0;

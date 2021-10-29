@@ -78,7 +78,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
         AMREX_D_TERM(glevel[0] = std::max(std::min(0,i-lo.x),i-hi.x); ,
                     glevel[1] = std::max(std::min(0,j-lo.y),j-hi.y); ,
                     glevel[2] = std::max(std::min(0,k-lo.z),k-hi.z); );
-		
+
         if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) // Left boundary
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::XLO][n]))
@@ -107,7 +107,7 @@ Constant::FillBoundary (amrex::FArrayBox &a_in,
             else
                 Util::Abort(INFO, "Incorrect boundary conditions");
         }
-		
+
         else if (glevel[1]<0 && (face == Orientation::ylo || face == Orientation::All)) // Bottom boundary
         {
             if (BCUtil::IsDirichlet(m_bc_type[Face::YLO][n]))

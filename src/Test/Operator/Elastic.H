@@ -168,7 +168,7 @@ private: // Private member functions
             {
                 amrex::Box bx = mfi.validbox();
                 bx &= ndomain; // Intersect the box with the domain (that's what &= does)
-				
+
                 plotmf[ilev][mfi].copy((*(solution_exact[ilev]))[mfi]  ,bx, 0, bx, 0*AMREX_SPACEDIM, AMREX_SPACEDIM); 
                 plotmf[ilev][mfi].copy((*(solution_numeric[ilev]))[mfi],bx, 0, bx, 1*AMREX_SPACEDIM, AMREX_SPACEDIM); 
                 plotmf[ilev][mfi].copy((*(solution_error[ilev]))[mfi]  ,bx, 0, bx, 2*AMREX_SPACEDIM, AMREX_SPACEDIM); 
@@ -183,7 +183,7 @@ private: // Private member functions
         amrex::WriteMultiLevelPlotfile(plotfile, nlevels, amrex::GetVecOfConstPtrs(plotmf),
                         varname, geom, 0.0, amrex::Vector<int>(nlevels, 0),
                         amrex::Vector<amrex::IntVect>(nlevels, amrex::IntVect{ref_ratio}));
-    }		
+    }
     void WritePlotFile(std::string plotfile, int nghost = 0)
     {
         std::vector<int> ngs(nlevels,nghost);
@@ -199,10 +199,10 @@ private: // Private member variables
 
     Grid m_config = Grid::XYZ;
 
-    amrex::Vector<amrex::Geometry> 		   geom;
-    amrex::Vector<amrex::BoxArray> 		   cgrids, ngrids;
+    amrex::Vector<amrex::Geometry>    geom;
+    amrex::Vector<amrex::BoxArray>    cgrids, ngrids;
     amrex::Vector<amrex::DistributionMapping>  dmap;
-	
+
     Set::Field<Set::Scalar>             solution_exact;
     Set::Field<Set::Scalar>             solution_numeric;
     Set::Field<Set::Scalar>             solution_error;

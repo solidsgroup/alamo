@@ -81,7 +81,7 @@ public:
 
 private:
     Numeric::Interpolator::Linear<Set::Scalar> m_w, m_dw, m_ddw;
-	  
+  
 public:
     static void Parse(Read & value, amrex::ParmParse & pp)
     {
@@ -89,7 +89,7 @@ public:
         pp.query("filename",filename);
         value.Define(filename);
     }
-	  
+  
 };
 }
 }

@@ -29,7 +29,7 @@ class BC
 
 public:
     virtual ~BC() {};
-	
+
     void define (const amrex::Geometry& a_geom) {m_geom = a_geom;};
 
     virtual void FillBoundary (amrex::FArrayBox &in,
@@ -67,7 +67,7 @@ public:
         FillBoundary(mf,dcomp,ncomp,time,bccomp);
     }
 
-	
+
 
     virtual amrex::BCRec GetBCRec() = 0;
 
@@ -77,7 +77,7 @@ public:
     virtual amrex::Periodicity Periodicity () const {
         return m_geom.periodicity();
     }
-	
+
     virtual amrex::Periodicity Periodicity (const amrex::Box& b) {
         return m_geom.periodicity(b);
     }

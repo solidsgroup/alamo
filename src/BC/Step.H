@@ -25,7 +25,7 @@ void FillBoundary (amrex::FArrayBox &a_in,
             int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
             Orientation face, const amrex::Mask * /*mask*/) override
 {
-	
+
     const amrex::Real* DX = m_geom.CellSize();
 
     amrex::Box box = a_box;
@@ -46,7 +46,7 @@ void FillBoundary (amrex::FArrayBox &a_in,
                     x(1) = m_geom.ProbLo()[1] + ((Set::Scalar)(j) + 0.5) * DX[1];,
                     x(2) = m_geom.ProbLo()[2] + ((Set::Scalar)(k) + 0.5) * DX[2];);
 
-		
+
         if (glevel[0]<0 && (face == Orientation::xlo || face == Orientation::All)) 
         {
             if (x(1) > m_h1) 
@@ -85,7 +85,7 @@ void FillBoundary (amrex::FArrayBox &a_in,
         }
     });
 
-	
+
 }
     amrex::BCRec GetBCRec() override
     {

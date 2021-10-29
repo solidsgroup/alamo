@@ -43,7 +43,7 @@ public:
                         voronoi[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2)-geom[0].ProbLo(2))*Util::Random(););
         }
     };
-	
+
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
         Set::Vector size;
@@ -63,7 +63,7 @@ public:
                 AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
                             x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
                             x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-							
+
                 amrex::Real min_distance = std::numeric_limits<amrex::Real>::infinity();
                 int min_grain_id = -1;
 
@@ -105,7 +105,7 @@ public:
             });
         }
     }
-	
+
 private:
     int number_of_grains;
     std::vector<Set::Scalar> alpha;

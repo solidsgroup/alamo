@@ -16,7 +16,7 @@ public:
     enum Type {Partition, Values};
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom) :
         IC(_geom) {}
-	
+
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom,
                         std::vector<Set::Scalar> a_xs, std::vector<Set::Scalar> a_ys) :
     IC(_geom)
@@ -62,7 +62,7 @@ public:
                         field(i,j,k,1) += alpha2;     
                     }
                     else
-                        field(i,j,k,0) += alpha2;					
+                        field(i,j,k,0) += alpha2;
                 }
                 else
                 {

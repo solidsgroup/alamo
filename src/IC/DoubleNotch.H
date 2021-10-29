@@ -16,7 +16,7 @@ public:
     {
     }
 
-	
+
     void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
     {
         Set::Vector DX(geom[lev].CellSize());
@@ -51,7 +51,7 @@ public:
         }
         a_field[lev]->FillBoundary();
     }
-	
+
 private:
     Set::Scalar thickness = 0.05;
     Set::Scalar width = 0.1;

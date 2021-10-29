@@ -132,12 +132,12 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
         elastic.rhs_mf[lev]->setVal(0.0);
         elastic.disp_mf[lev]->setVal(0.0);
         elastic.model_mf[lev]->setVal(elastic.model_ap);
-		
+
                 Set::Vector DX(geom[lev].CellSize());
 
                 for (MFIter mfi(*elastic.model_mf[lev], true); mfi.isValid(); ++mfi)
                 {
-			
+
                         amrex::Box bx = mfi.nodaltilebox();
             bx.grow(1);
                         amrex::Array4<model_type> const &model = elastic.model_mf[lev]->array(mfi);
@@ -229,7 +229,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
             amrex::Array4<const Set::Scalar> const &Temp_old   = (*Temp_old_mf[lev]).array(mfi);
             //amrex::Array4<const Set::Scalar> const &FlameSpeed = (*FlameSpeed_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const &field = (*FlameSpeed_mf[lev]).array(mfi);
-			
+
                                     fmod_ap=fs_ap*(r_ap*pow(P,n_ap));
                                     fmod_htpb=fs_htpb*(r_htpb*pow(P,n_htpb));
                                     //fmod_comb=fs_comb*(r_comb*pow(P,n_comb));
@@ -239,30 +239,30 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
                 //
                 // Phase field evolution
                 //
-	   
+   
 
                 Set:: Scalar fs_actual;
-				
+
                 /*if (field(i,j,k)==1)
                 {
                     fs_actual = fmod_ap;
-				
+
                 }
-				
+
                 else if (field(i,j,k)==0)
                 {
                         fs_actual = fmod_htpb;
                 }*/
-				
-				
+
+
                 //else if ((field(i,j,k)>0) && (field(i,j,k)<1))
                 //{
                     //fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1.0-field(i,j,k))+2*fmod_comb*field(i,j,k)*(1.0-field(i,j,k));
                     fs_actual = fmod_ap*field(i,j,k) + fmod_htpb*(1.0-field(i,j,k));
                     //}
-				
+
                 //Util::Message(INFO, "fs_actual  ", fs_actual);
-				
+
 
                 Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
@@ -286,17 +286,17 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
                     amrex::Real Ka = (ka - k0) * Eta_old(i,j,k) + k0;
                     amrex::Real Kh = (kh -k0) * Eta_old(i,j,k) + k0;
                     Set:: Scalar K = Ka*field(i,j,k) + Kh*(1-field(i,j,k));
-					
+
                     amrex::Real cp = (cp1 - cp0) * Eta_old(i,j,k) + cp0;
 
                     Set::Scalar test = normvec.dot(temp_grad);
-                    Set:: Scalar neumbound = delA*field(i,j,k) + delH*(1-field(i,j,k));				
-				
-				
+                    Set:: Scalar neumbound = delA*field(i,j,k) + delH*(1-field(i,j,k));
+
+
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
                         {
                             Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
-                        }	
+                        }
                     else
                         {
                             if(Eta_old(i,j,k)<=0.001)
@@ -331,7 +331,7 @@ void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
                 Set::Vector gradeta = Numeric::Gradient(Eta,i,j,k,0,DX);
                 if (gradeta.lpNorm<2>() * dr *2 > m_refinement_criterion)
                     tags(i,j,k) = amrex::TagBox::SET;
-					
+
                 Set::Vector tempgrad = Numeric::Gradient(Temp, i,j,k,0,DX);
                 if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion)
                     tags(i,j,k) = amrex::TagBox::SET;

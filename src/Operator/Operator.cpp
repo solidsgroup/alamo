@@ -16,8 +16,6 @@ constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Cell>::dx,Operator<Grid::Ce
 void Operator<Grid::Node>::Diagonal (bool recompute)
 {
     BL_PROFILE(Color::FG::Yellow + "Operator::Diagonal()" + Color::Reset);
-    //Util::Message(INFO);
-	
     if ( !recompute && m_diagonal_computed ) return;
     m_diagonal_computed = true;
 
@@ -53,21 +51,21 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
         amrex::FArrayBox       &Axfab   = Ax[mfi];
 
         diagfab.setVal(0.0);
-				
+
         for (int i = 0; i < num; i++)
         {
             for (int n = 0; n < ncomp; n++)
             {
                 xfab.setVal(0.0);
                 Axfab.setVal(0.0);
-				
+
                 //BL_PROFILE_VAR("Operator::Part1", part1); 
                 AMREX_D_TERM(for (int m1 = bx.loVect()[0]; m1<=bx.hiVect()[0]; m1++),
                         for (int m2 = bx.loVect()[1]; m2<=bx.hiVect()[1]; m2++),
                         for (int m3 = bx.loVect()[2]; m3<=bx.hiVect()[2]; m3++))
                 {
                     amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
-				
+
                     if ( m1%sep == i/sep   &&   m2%sep == i%sep ) xfab(m,n) = 1.0;
                     else xfab(m,n) = 0.0;
                 }
@@ -77,7 +75,7 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
                 Util::Message(INFO,"Calling fapply...",cntr++);
                 Fapply(amrlev,mglev,Ax,x);
                 BL_PROFILE_VAR_STOP(part2);
-						
+
                 //BL_PROFILE_VAR("Operator::Part3", part3); 
                 Axfab.mult(xfab,n,n,1);
                 diagfab.plus(Axfab,n,n,1);
@@ -95,12 +93,12 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, c
 
     int ncomp = b.nComp();
     int nghost = 2; //b.nGrow();
-	
+
 
     amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
     amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
     amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
-	
+
     if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
 
     // This is a JACOBI iteration, not Gauss-Seidel.
@@ -185,7 +183,7 @@ void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& a_x) cons
         for (int n = 0; n < ncomp; n++)
         {
             amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-					
+
                     x(i,j,k) /= diag(i,j,k);
 
                 } );
@@ -395,7 +393,7 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
     BL_PROFILE("Operator::interpolation()");
     //int nghost = getNGrow();
     amrex::Box fdomain = m_geom[amrlev][fmglev].Domain(); fdomain.convert(amrex::IntVect::TheNodeVector());
-	
+
     bool need_parallel_copy = !amrex::isMFIterSafe(crse, fine);
     MultiFab cfine;
     const MultiFab* cmf = &crse;
@@ -424,7 +422,6 @@ void Operator<Grid::Node>::interpolation (int amrlev, int fmglev, MultiFab& fine
             // I,J,K == coarse coordinates
             // i,j,k == fine coordinates
             amrex::ParallelFor (fine_bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
-					
                     int I=i/2, J=j/2, K=k/2;
 
                     if (i%2 == 0 && j%2 == 0 && k%2 ==0) // Coincident
@@ -466,13 +463,10 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
     BL_PROFILE("Operator::averageDownSolutionRHS()");
     const auto& amrrr = AMRRefRatio(camrlev);
     amrex::average_down(fine_sol, crse_sol, 0, crse_sol.nComp(), amrrr);
-	
+
     if (isSingular(0))
     {
         Util::Abort(INFO,"Singular operators not supported!");
-        // MultiFab frhs(fine_rhs.boxArray(), fine_rhs.DistributionMap(), 1, 1);
-        // MultiFab::Copy(frhs, fine_rhs, 0, 0, 1, 0);
-        // restrictInteriorNodes(camrlev, crse_rhs, frhs);
     }
 
 }
@@ -480,17 +474,6 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
 void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) 
 {
     Util::RealFillBoundary(phi,geom);
-//	for (int i = 0; i < 2; i++)
-//	{
-//		MultiFab & mf = phi;
-//		mf.FillBoundary(geom.periodicity());
-//		const int ncomp = mf.nComp();
-//		const int ng1 = 1;
-//		const int ng2 = 2;
-//		MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-//		MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
-//		mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-//	}
 }
 
 void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
@@ -594,7 +577,7 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
 
     amrex::iMultiFab cellmask(amrex::convert(amrex::coarsen(fba,2),amrex::IntVect::TheCellVector()), fdm, 1, 2);
     cellmask.ParallelCopy(*m_cc_fine_mask[crse_amrlev],0,0,1,1,1,cgeom.periodicity());
-	
+
     for (MFIter mfi(fine_res_for_coarse, false); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.validbox();
@@ -613,7 +596,7 @@ void Operator<Grid::Node>::reflux (int crse_amrlev,
             // i,j,k == fine coordinates
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int I, int J, int K) {
                     int i=I*2, j=J*2, k=K*2;
-					
+
                     if (nmask(I,J,K) == fine_fine_node || nmask(I,J,K) == coarse_fine_node)
                         {
                             if ((I == lo.x || I == hi.x) &&
@@ -719,7 +702,7 @@ Operator<Grid::Cell>::define (amrex::Vector<amrex::Geometry> a_geom,
     m_bc = &a_bc;
 
     std::array<int,AMREX_SPACEDIM> is_periodic = m_bc->IsPeriodic();
-	
+
     MLCellLinOp::define(a_geom, a_grids, a_dmap, a_info, a_factory);
 
     Util::Warning(INFO,"This section of code has not been tested.");
@@ -757,18 +740,7 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& /*ge
                     const amrex::Array<BCType,AMREX_SPACEDIM>& /*hibc*/,
                     int /*ratio*/, const amrex::RealVect& /*a_loc*/)
 {
-//	const amrex::Box&  domain = geom.Domain();
     Util::Warning(INFO,"This code has not been properlyt tested");
-//#ifdef _OPENMP
-//#pragma omp parallel
-//#endif
-//	for (amrex::MFIter mfi(bcloc); mfi.isValid(); ++mfi)
-//	{
-//		const amrex::Box& bx = mfi.validbox();
-//		RealTuple & bloc  = bcloc[mfi];
-//		BCTuple   & bctag = bcond[mfi];
-//		//amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
-//	}
 }
 
 

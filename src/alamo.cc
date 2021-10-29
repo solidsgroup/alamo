@@ -40,7 +40,7 @@ int main (int argc, char* argv[])
     {
         Integrator::Integrator *eshelby = new Integrator::TensionTest<Model::Solid::Affine::Isotropic>();
         eshelby->InitData();
-        eshelby->Evolve();		
+        eshelby->Evolve();
         delete eshelby;
     }
     else if (program == "finitekinematics")
@@ -48,7 +48,7 @@ int main (int argc, char* argv[])
         //Integrator::Integrator *fk = new Integrator::FiniteKinematics();
         Integrator::Integrator *fk = new Integrator::TensionTest<Model::Solid::Elastic::NeoHookean>();
         fk->InitData();
-        fk->Evolve();		
+        fk->Evolve();
         delete fk;
     }
     else if (program == "flame")

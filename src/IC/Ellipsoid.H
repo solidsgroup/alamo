@@ -66,7 +66,7 @@ public:
             for (int i = 0; i<center.size(); i+=AMREX_SPACEDIM)
                 value.center.push_back(Set::Vector(AMREX_D_DECL(center[i],center[i+1],center[i+2])));
         }
-		
+
         amrex::Vector<Set::Scalar> A;
         if (pp.contains("A"))
         {
@@ -80,7 +80,7 @@ public:
                 {
                     for (j=0; j<AMREX_SPACEDIM; j++)
                         temp(i,j) = A[i+j];
-					
+
                     if((i+j) % (AMREX_SPACEDIM*AMREX_SPACEDIM) == 0) 
                     {
                         value.A.push_back(temp);

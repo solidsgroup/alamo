@@ -105,19 +105,19 @@ public:
         pp_elastic.queryclass("bc",elastic.brittlebc);
 
         IO::ParmParse pp_solver("solver");
-        pp_solver.query("int",				sol.interval);
-        pp_solver.query("type",			sol.type);
-        pp_solver.query("max_iter",		sol.max_iter);
-        pp_solver.query("max_fmg_iter",	sol.max_fmg_iter);
-        pp_solver.query("verbose",			sol.verbose);
-        pp_solver.query("cgverbose",		sol.cgverbose);
-        pp_solver.query("tol_rel",			sol.tol_rel);
-        pp_solver.query("tol_abs",			sol.tol_abs);
-        pp_solver.query("cg_tol_rel",		sol.cg_tol_rel);
-        pp_solver.query("cg_tol_abs",		sol.cg_tol_abs);
-        pp_solver.query("use_fsmooth",		sol.use_fsmooth);
-        pp_solver.query("agglomeration", 	sol.agglomeration);
-        pp_solver.query("consolidation", 	sol.consolidation);
+        pp_solver.query("int",sol.interval);
+        pp_solver.query("type",sol.type);
+        pp_solver.query("max_iter",sol.max_iter);
+        pp_solver.query("max_fmg_iter",sol.max_fmg_iter);
+        pp_solver.query("verbose",sol.verbose);
+        pp_solver.query("cgverbose",sol.cgverbose);
+        pp_solver.query("tol_rel",sol.tol_rel);
+        pp_solver.query("tol_abs",sol.tol_abs);
+        pp_solver.query("cg_tol_rel",sol.cg_tol_rel);
+        pp_solver.query("cg_tol_abs",sol.cg_tol_abs);
+        pp_solver.query("use_fsmooth",sol.use_fsmooth);
+        pp_solver.query("agglomeration", sol.agglomeration);
+        pp_solver.query("consolidation", sol.consolidation);
         pp_solver.query("bottom_solver",       sol.bottom_solver);
         pp_solver.query("linop_maxorder",      sol.linop_maxorder);
         pp_solver.query("max_coarsening_level",sol.max_coarsening_level);
@@ -128,7 +128,7 @@ public:
         pp_solver.query("bottom_tol",          sol.bottom_tol);
         pp_solver.query("pre_smooth", sol.pre_smooth);
         pp_solver.query("post_smooth", sol.post_smooth);
-		
+
 
         nlevels = maxLevel() + 1;
         RegisterNodalFab(elastic.disp,  AMREX_SPACEDIM, number_of_ghost_nodes, "disp", true);
@@ -291,10 +291,10 @@ protected:
             for (amrex::MFIter mfi(*elastic.strain[ilev],true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box& box = mfi.grownnodaltilebox();
-                amrex::Array4<const Set::Scalar> const& strain_box 	= (*elastic.strain[ilev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const& strain_box = (*elastic.strain[ilev]).array(mfi);
                 // amrex::Array4<const Set::Scalar> const& modbox = (*material.modulus_field[ilev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& energy_box 		= (*elastic.energy_pristine[ilev]).array(mfi);
-                amrex::Array4<Set::Scalar> const& energy_box_old 	= (*elastic.energy_pristine_old[ilev]).array(mfi);
+                amrex::Array4<Set::Scalar> const& energy_box = (*elastic.energy_pristine[ilev]).array(mfi);
+                amrex::Array4<Set::Scalar> const& energy_box_old = (*elastic.energy_pristine_old[ilev]).array(mfi);
 
                 amrex::ParallelFor (box,[=] AMREX_GPU_DEVICE(int i, int j, int k){
                     Set::Matrix eps = Numeric::FieldToMatrix(strain_box,i,j,k);
@@ -427,10 +427,10 @@ protected:
 
         for (amrex::MFIter mfi(*crack.field[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box 							bx 	= mfi.tilebox() & domain.grow(-1);
-            amrex::Array4<char> const 					&tags 	= a_tags.array(mfi);
-            amrex::Array4<const Set::Scalar> const 		&c_new 	= (*crack.field[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const 		&modbox 	= (*material.modulus_field[lev]).array(mfi);
+            const amrex::Box bx = mfi.tilebox() & domain.grow(-1);
+            amrex::Array4<char> const &tags = a_tags.array(mfi);
+            amrex::Array4<const Set::Scalar> const &c_new = (*crack.field[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const &modbox = (*material.modulus_field[lev]).array(mfi);
             
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                 Set::Vector grad = Numeric::Gradient(c_new, i, j, k, 0, DX);
@@ -464,7 +464,7 @@ protected:
 
 private:
 
-    int number_of_ghost_nodes = 2;				///< Number of ghost nodes
+    int number_of_ghost_nodes = 2;///< Number of ghost nodes
     int number_of_materials = 1;
     int nlevels;
 
@@ -478,7 +478,7 @@ private:
         Set::Field<Set::Scalar> energy_pristine;      ///< energy of the prisitne material as if no crack is present
         Set::Field<Set::Scalar> energy_pristine_old;  ///< energy of the pristine material for previous time step.
 
-        BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
+        BC::Operator::Elastic::Constant brittlebc;  ///< elastic BC if using brittle fracture
         Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
         bool do_solve_now = false;
     } elastic;
@@ -500,8 +500,8 @@ private:
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
         Set::Scalar refinement_threshold = 0.001;
 
-        Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
-        Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
+        Set::Scalar mult_df_Gc = 1.0;///< Multiplier for Gc/zeta term
+        Set::Scalar mult_df_lap = 1.0;///< Multiplier for the laplacian term
     } crack;
 
     struct{
@@ -517,34 +517,34 @@ private:
     } material;
 
     struct{
-        Set::Scalar bottom_tol 				= 1.0E-6;
-        int         interval	 			= 100;
-        std::string type					= "single";
-        int         max_iter 				= 1000;
-        int         max_fmg_iter 			= 0;
-        int 		bottom_max_iter			= 200;
-        int 		max_fixed_iter 			= 500;
-        int         verbose 				= 3;
-        int         cgverbose 				= 3;
-        Set::Scalar tol_rel 				= 1.0E-6;
-        Set::Scalar tol_abs 				= 1.0E-6;
-        Set::Scalar cg_tol_rel 				= 1.0E-6;
-        Set::Scalar cg_tol_abs 				= 1.0E-6;
-        Set::Scalar tstart 					= 0.0;
-        Set::Scalar tend 					= 0.0;
-        std::string bottom_solver			= "bicgstab";
-        int 		linop_maxorder 	     	= 2;
-        bool	    use_fsmooth 			= false;
-        int 		max_coarsening_level	= 0;
-        bool 		agglomeration 	  		= true;
-        bool 		consolidation 	  		= false;
+        Set::Scalar bottom_tol = 1.0E-6;
+        int         interval = 100;
+        std::string type= "single";
+        int         max_iter = 1000;
+        int         max_fmg_iter = 0;
+        int bottom_max_iter= 200;
+        int max_fixed_iter = 500;
+        int         verbose = 3;
+        int         cgverbose = 3;
+        Set::Scalar tol_rel = 1.0E-6;
+        Set::Scalar tol_abs = 1.0E-6;
+        Set::Scalar cg_tol_rel = 1.0E-6;
+        Set::Scalar cg_tol_abs = 1.0E-6;
+        Set::Scalar tstart = 0.0;
+        Set::Scalar tend = 0.0;
+        std::string bottom_solver= "bicgstab";
+        int linop_maxorder      = 2;
+        bool    use_fsmooth = false;
+        int max_coarsening_level= 0;
+        bool agglomeration   = true;
+        bool consolidation   = false;
         int pre_smooth = 2;
         int post_smooth = 2;
     } sol;
 
     struct{
-        Set::Vector body_force 				= Set::Vector::Zero();
-        Set::Scalar val 					= 0.;
+        Set::Vector body_force = Set::Vector::Zero();
+        Set::Scalar val = 0.;
     } loading;
 
 };

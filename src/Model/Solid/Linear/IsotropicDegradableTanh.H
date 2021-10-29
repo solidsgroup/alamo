@@ -56,7 +56,7 @@ public:
         if(eta1 < 0.0 || eta1 > 1.0) Util::Abort(INFO,"Invalid value of eta1");
         if(eta2 < 0.0 || eta2 > 1.0) Util::Abort(INFO,"Invalid value of eta2");
         if(eta3 < 0.0 || eta3 > 1.0) Util::Abort(INFO,"Invalid value of eta3");
-		
+
         Set::Scalar E1 = m_E10*(1.-eta1), Tg = m_Tg0*(1.-eta2), Ts = m_Ts0*(1.+eta3);
         Set::Scalar E = 0.5*(E1 + m_E20) - 0.5*(E1-m_E20)*tanh((m_temp - Tg)/Ts);
         Set::Scalar lambda = E*m_nu/((1.+m_nu)*(1.-2.*m_nu));

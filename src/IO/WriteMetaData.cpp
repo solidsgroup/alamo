@@ -110,7 +110,7 @@ void WriteMetaData(std::string plot_file, Status status, int per)
                 {
                     Util::Warning(INFO,"Could not open ",GIT_DIFF_PATCH_OUTPUT);
                 }
-				
+
             }
 
             metadatafile.close();

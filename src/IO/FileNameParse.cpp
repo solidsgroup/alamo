@@ -20,7 +20,7 @@ void IO::FileNameParse(std::string &filename)
     int minute = now->tm_min;
     int second = now->tm_sec;
     int microsecond = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() % 1000000;
-	
+
     std::stringstream ss;
 
     // _Y: year
@@ -28,25 +28,25 @@ void IO::FileNameParse(std::string &filename)
     ss << year;
     std::string _Y = ss.str();
     Util::String::ReplaceAll(filename,"%Y",_Y);
-	
+
     // _m: month (01..12)
     ss.str("");
     ss << std::setfill('0') << std::setw(2) << month;
     std::string _m = ss.str();
     Util::String::ReplaceAll(filename,"%m",_m);
-	
+
     // _d: day of month (01..31)
     ss.str("");
     ss << std::setfill('0') << std::setw(2) << day;
     std::string _d = ss.str();
     Util::String::ReplaceAll(filename,"%d",_d);
-	
+
     // _H: hour (00..23)
     ss.str("");
     ss << std::setfill('0') << std::setw(2) << hour;
     std::string _H = ss.str();
     Util::String::ReplaceAll(filename,"%H",_H);
-	
+
     // _M: minute (00..59)
     ss.str("");
     ss << std::setfill('0') << std::setw(2) << minute;
