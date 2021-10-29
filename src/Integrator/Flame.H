@@ -28,8 +28,8 @@ namespace Integrator
 class Flame : public Integrator::Integrator
 {
 
-	using model_type = Model::Solid::Affine::Isotropic;
-	
+    using model_type = Model::Solid::Affine::Isotropic;
+
 public:
     Flame ();
 
@@ -62,7 +62,6 @@ private:
     Set::Scalar rho1, rho0;         // Density (before and after)
     Set::Scalar ka, kh, k0;             // Thermal conductivity (before and after)
     Set::Scalar cp1, cp0;           // Specific heat (before and after)
-    Set::Scalar qdotburn;           // Heat lost in flame
     Set::Scalar delA, delH;       // Thermal flux of each material
 
 

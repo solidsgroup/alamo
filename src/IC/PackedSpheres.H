@@ -439,24 +439,24 @@ namespace IC
             }
         }
 
-		static void Parse(PackedSpheres &value, IO::ParmParse &pp)
-		{
-
-			pp.query("fs_number", value.number_of_grains);
-			pp.query("R_min", value.R_min);
-			pp.query("R_max", value.R_max);
-			pp.query("R_mean", value.R_mean);
-			pp.query("volume_fraction", value.vf);
-			pp.query("verbosity", value.verbosity);
-			std::string type = "values";
-			pp.query("type",type);
-			if (type == "values") value.type = Type::Values;
-			else if (type == "partition") value.type = Type::Partition;
-			else Util::Abort(INFO);
-
-			value.Define();
-		}
-
+        static void Parse(PackedSpheres &value, IO::ParmParse &pp)
+        {
+            pp.query("fs_number", value.number_of_grains);
+            pp.query("R_min", value.R_min);
+            pp.query("R_max", value.R_max);
+            pp.query("R_mean", value.R_mean);
+            pp.query("volume_fraction", value.vf);
+            pp.query("verbosity", value.verbosity);
+            std::string type = "values";
+            pp.query("type", type);
+            if (type == "values")
+                value.type = Type::Values;
+            else if (type == "partition")
+                value.type = Type::Partition;
+            else
+                Util::Abort(INFO);
+            value.Define();
+        }
 
     private:
         int number_of_grains;
