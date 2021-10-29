@@ -245,17 +245,17 @@ protected:
                 amrex::Array4<brittle_fracture_model_type_test> const &model = material.model_mf[ilev]->array(mfi);
                 amrex::Array4<const Set::Scalar>                const &mat = material.material_mf[ilev]->array(mfi);
 
-                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                     Set::Scalar matsum = 0.0;
-                     brittle_fracture_model_type_test modelsum(0.0,0.0);
-                     for (int p = 0; p < number_of_materials; p++)
-                     {
-                         modelsum += mat(i,j,k,p)*material.brittlemodeltype[p];
-                         matsum += mat(i,j,k,p);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    Set::Scalar matsum = 0.0;
+                    brittle_fracture_model_type_test modelsum(0.0,0.0);
+                    for (int p = 0; p < number_of_materials; p++)
+                    {
+                        modelsum += mat(i,j,k,p)*material.brittlemodeltype[p];
+                        matsum += mat(i,j,k,p);
 
-                     }
+                    }
                     model(i,j,k) = /*(1./matsum) * */modelsum ;
-                 });
+                });
             }
             Util::RealFillBoundary(*material.model_mf[ilev],geom[ilev]);
         }
@@ -426,9 +426,9 @@ protected:
                     //Set::Vector Dc = Numeric::Gradient(c_old, i, j, k, 0, DX);
 
                     Set::Scalar bilap = 
-                              Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) + 
+                            Numeric::Stencil<Set::Scalar, 4, 0, 0>::D(c_old,i,j,k,0,DX) + 
                         2.0 * Numeric::Stencil<Set::Scalar, 2, 2, 0>::D(c_old,i,j,k,0,DX) +
-                              Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX); 
+                            Numeric::Stencil<Set::Scalar, 0, 4, 0>::D(c_old,i,j,k,0,DX); 
                     
                     Set::Scalar en_cell = energy(i,j,k,0);
                     
@@ -546,7 +546,7 @@ private:
         Set::Scalar int_energy = 0.0;               ///< integrated energy over the entire domain.
 
         BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
-		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
+        Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
         bool do_solve_now = false;
         int interval = 0;
         Set::Scalar omega = 2./3.;
@@ -562,19 +562,19 @@ private:
         Set::Scalar driving_force_reference = 1.0;
         Set::Scalar driving_force_norm = 0.0;
         Set::Scalar driving_force_norminf = 0.0;
-		Set::Scalar driving_force_tolerance_rel = 1E-4;
-		Set::Scalar driving_force_tolerance_abs = 0.0;
+        Set::Scalar driving_force_tolerance_rel = 1E-4;
+        Set::Scalar driving_force_tolerance_abs = 0.0;
 
         Model::Interface::Crack::Constant cracktype;                      ///< type of crack. See Crack/Constant or Crack/Sin
-		amrex::Vector<std::string> ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
-		amrex::Vector<IC::IC*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
+        amrex::Vector<std::string> ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
+        amrex::Vector<IC::IC*> ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
         bool is_ic = false;
 
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
         Set::Scalar refinement_threshold = 0.001;
 
-		Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
-		Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
+        Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
+        Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
         Set::Scalar beta = 0.0;
     } crack;
 

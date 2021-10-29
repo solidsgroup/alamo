@@ -9,19 +9,19 @@
 namespace BC
 {
 class Nothing
-	: public BC<Set::Scalar>
+    : public BC<Set::Scalar>
 {
 
 public:
-	Nothing () {};
-	virtual void FillBoundary (amrex::FArrayBox&,
-				   const amrex::Box &,
-				   int, int, int,
-				   amrex::Real,
-				   Orientation /*face*/ = Orientation::All,
-				   const amrex::Mask * /*mask*/ = nullptr) override {};
+    Nothing () {};
+    virtual void FillBoundary (amrex::FArrayBox&,
+                    const amrex::Box &,
+                    int, int, int,
+                    amrex::Real,
+                    Orientation /*face*/ = Orientation::All,
+                    const amrex::Mask * /*mask*/ = nullptr) override {};
 
-	virtual amrex::BCRec GetBCRec() override {return amrex::BCRec();}
+    virtual amrex::BCRec GetBCRec() override {return amrex::BCRec();}
 };
 }
 #endif

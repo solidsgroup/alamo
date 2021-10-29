@@ -28,11 +28,11 @@ public:
 private:
 
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf, 
-                         const Set::Field<Set::Scalar>& a_b_mf,
-                         Set::Field<Set::Scalar>& a_rhs_mf,
-                         Set::Field<Set::Matrix> &a_dw_mf,
-                         Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> &a_ddw_mf,
-                         Set::Field<T> &a_model_mf)
+                        const Set::Field<Set::Scalar>& a_b_mf,
+                        Set::Field<Set::Scalar>& a_rhs_mf,
+                        Set::Field<Set::Matrix> &a_dw_mf,
+                        Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> &a_ddw_mf,
+                        Set::Field<T> &a_model_mf)
     {
             for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
@@ -118,9 +118,9 @@ private:
 
 public:
     Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
-                       const Set::Field<Set::Scalar> & a_b_mf,
-                       Set::Field<T> &a_model_mf,
-                       Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
+                        const Set::Field<Set::Scalar> & a_b_mf,
+                        Set::Field<T> &a_model_mf,
+                        Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
         Set::Field<Set::Scalar> dsol_mf, rhs_mf;
         Set::Field<Set::Matrix> dw_mf;
@@ -196,16 +196,16 @@ public:
         return 0.0;
     }
     Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
-                       const Set::Field<Set::Scalar> & a_b_mf,
-                       Set::Field<T> &a_model_mf)
+                        const Set::Field<Set::Scalar> & a_b_mf,
+                        Set::Field<T> &a_model_mf)
     {
         return solve(a_u_mf,a_b_mf,a_model_mf,m_tol_rel,m_tol_abs);
     }
 
     void compResidual(Set::Field<Set::Scalar> & a_res_mf,
-                      Set::Field<Set::Scalar> & a_u_mf,
-                      Set::Field<Set::Scalar> & a_b_mf,
-                      Set::Field<T> &a_model_mf)
+                    Set::Field<Set::Scalar> & a_u_mf,
+                    Set::Field<Set::Scalar> & a_b_mf,
+                    Set::Field<T> &a_model_mf)
     {
         Set::Field<Set::Matrix> dw_mf;
         Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
@@ -214,11 +214,11 @@ public:
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
             dw_mf.Define(lev, a_b_mf[lev]->boxArray(),
-                              a_b_mf[lev]->DistributionMap(),
-                              1, a_b_mf[lev]->nGrow());
+                            a_b_mf[lev]->DistributionMap(),
+                            1, a_b_mf[lev]->nGrow());
             ddw_mf.Define(lev, a_b_mf[lev]->boxArray(),
-                               a_b_mf[lev]->DistributionMap(),
-                               1, a_b_mf[lev]->nGrow());
+                                a_b_mf[lev]->DistributionMap(),
+                                1, a_b_mf[lev]->nGrow());
             dw_mf[lev]->setVal(Set::Matrix::Zero());
         }
         
@@ -230,37 +230,37 @@ public:
     }
 
     void W(Set::Field<Set::Scalar> & a_w_mf,
-           Set::Field<Set::Scalar> & a_u_mf,
-           Set::Field<T> &a_model_mf)
+            Set::Field<Set::Scalar> & a_u_mf,
+            Set::Field<T> &a_model_mf)
     {
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
-        	BL_PROFILE("Solver::Nonlocal::Newton::DW()");
+            BL_PROFILE("Solver::Nonlocal::Newton::DW()");
 
-        	const amrex::Real* DX = linop.Geom(lev).CellSize();
-        	amrex::Box domain(linop.Geom(lev).Domain());
-        	domain.convert(amrex::IntVect::TheNodeVector());
+            const amrex::Real* DX = linop.Geom(lev).CellSize();
+            amrex::Box domain(linop.Geom(lev).Domain());
+            domain.convert(amrex::IntVect::TheNodeVector());
 
-        	for (MFIter mfi(*a_u_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        	{
-        		const Box& bx = mfi.tilebox();
-        		amrex::Array4<T> const& C                 = a_model_mf[lev]->array(mfi);
-        		amrex::Array4<amrex::Real> const& w       = a_w_mf[lev]->array(mfi);
-        		amrex::Array4<const amrex::Real> const& u = a_u_mf[lev]->array(mfi);
-        		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
-        				    {
-        					    Set::Matrix gradu;
+            for (MFIter mfi(*a_u_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const Box& bx = mfi.tilebox();
+                amrex::Array4<T> const& C                 = a_model_mf[lev]->array(mfi);
+                amrex::Array4<amrex::Real> const& w       = a_w_mf[lev]->array(mfi);
+                amrex::Array4<const amrex::Real> const& u = a_u_mf[lev]->array(mfi);
+                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+                            {
+                                Set::Matrix gradu;
 
-        					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
-        						    = Numeric::GetStencil(i,j,k,domain);
+                                std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+                                    = Numeric::GetStencil(i,j,k,domain);
 
-        					    // Fill gradu
-        					    for (int p = 0; p < AMREX_SPACEDIM; p++)
-        					    {
-        						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
-        						     		     gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
-        						      		     gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
-        					    }
+                                // Fill gradu
+                                for (int p = 0; p < AMREX_SPACEDIM; p++)
+                                {
+                                    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
+                                                gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
+                                                    gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
+                                }
 
                                 if      (C(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu) 
                                     w(i,j,k) = C(i,j,k).W(gradu);
@@ -268,8 +268,8 @@ public:
                                     w(i,j,k) = C(i,j,k).W(0.5*(gradu + gradu.transpose()));
                                 else if (C(i,j,k).kinvar == Model::Solid::KinematicVariable::F) 
                                     w(i,j,k) = C(i,j,k).W(gradu + Set::Matrix::Identity());
-        				    });
-        	}
+                            });
+            }
         }
     }
 
@@ -279,32 +279,32 @@ public:
     {
         for (int lev = 0; lev < a_u_mf.size(); lev++)
         {
-        	BL_PROFILE("Solver::Nonlocal::Newton::DW()");
+            BL_PROFILE("Solver::Nonlocal::Newton::DW()");
 
-        	const amrex::Real* DX = linop.Geom(lev).CellSize();
-        	amrex::Box domain(linop.Geom(lev).Domain());
-        	domain.convert(amrex::IntVect::TheNodeVector());
+            const amrex::Real* DX = linop.Geom(lev).CellSize();
+            amrex::Box domain(linop.Geom(lev).Domain());
+            domain.convert(amrex::IntVect::TheNodeVector());
 
-        	for (MFIter mfi(*a_u_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        	{
-        		const Box& bx = mfi.tilebox();
-        		amrex::Array4<T> const& C                 = a_model_mf[lev]->array(mfi);
-        		amrex::Array4<amrex::Real> const& dw      = a_dw_mf[lev]->array(mfi);
-        		amrex::Array4<const amrex::Real> const& u = a_u_mf[lev]->array(mfi);
-        		amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
-        				    {
-        					    Set::Matrix gradu;
+            for (MFIter mfi(*a_u_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const Box& bx = mfi.tilebox();
+                amrex::Array4<T> const& C                 = a_model_mf[lev]->array(mfi);
+                amrex::Array4<amrex::Real> const& dw      = a_dw_mf[lev]->array(mfi);
+                amrex::Array4<const amrex::Real> const& u = a_u_mf[lev]->array(mfi);
+                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k)
+                            {
+                                Set::Matrix gradu;
 
-        					    std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
-        						    = Numeric::GetStencil(i,j,k,domain);
+                                std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
+                                    = Numeric::GetStencil(i,j,k,domain);
 
-        					    // Fill gradu
-        					    for (int p = 0; p < AMREX_SPACEDIM; p++)
-        					    {
-        						    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
-        						     		     gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
-        						      		     gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
-        					    }
+                                // Fill gradu
+                                for (int p = 0; p < AMREX_SPACEDIM; p++)
+                                {
+                                    AMREX_D_TERM(gradu(p,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(u, i,j,k,p, DX, sten));,
+                                                gradu(p,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(u, i,j,k,p, DX, sten));,
+                                                    gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(u, i,j,k,p, DX, sten)););
+                                }
 
                                 Set::Matrix sig = Set::Matrix::Zero();
 
@@ -315,19 +315,19 @@ public:
                                 else if (C(i,j,k).kinvar == Model::Solid::KinematicVariable::F) 
                                     sig = C(i,j,k).DW(gradu + Set::Matrix::Identity());
 
-        					    // = C(i,j,k)(gradu,m_homogeneous);
+                                // = C(i,j,k)(gradu,m_homogeneous);
 
-        						AMREX_D_PICK(dw(i,j,k,0) = sig(0,0);
-        						             ,
-        						             dw(i,j,k,0) = sig(0,0); dw(i,j,k,1) = sig(0,1); 
-        						             dw(i,j,k,2) = sig(1,0); dw(i,j,k,3) = sig(1,1);
-        						             ,
-        						             dw(i,j,k,0) = sig(0,0); dw(i,j,k,1) = sig(0,1); dw(i,j,k,2) = sig(0,2); 
-        						             dw(i,j,k,3) = sig(1,0); dw(i,j,k,4) = sig(1,1); dw(i,j,k,5) = sig(1,2); 
-        						             dw(i,j,k,6) = sig(2,0); dw(i,j,k,7) = sig(2,1); dw(i,j,k,8) = sig(2,2););
+                                AMREX_D_PICK(dw(i,j,k,0) = sig(0,0);
+                                            ,
+                                            dw(i,j,k,0) = sig(0,0); dw(i,j,k,1) = sig(0,1); 
+                                            dw(i,j,k,2) = sig(1,0); dw(i,j,k,3) = sig(1,1);
+                                            ,
+                                            dw(i,j,k,0) = sig(0,0); dw(i,j,k,1) = sig(0,1); dw(i,j,k,2) = sig(0,2); 
+                                            dw(i,j,k,3) = sig(1,0); dw(i,j,k,4) = sig(1,1); dw(i,j,k,5) = sig(1,2); 
+                                            dw(i,j,k,6) = sig(2,0); dw(i,j,k,7) = sig(2,1); dw(i,j,k,8) = sig(2,2););
 
-        				    });
-        	}
+                            });
+            }
         }
     }
 

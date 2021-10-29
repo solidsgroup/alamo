@@ -77,7 +77,7 @@ public:
                 pp.queryclass("bc.expression",static_cast<BC::Operator::Elastic::Expression*>(elastic.bc));
             }
 
-			pp.query("ref_threshold",m_elastic_ref_threshold);
+            pp.query("ref_threshold",m_elastic_ref_threshold);
 
         }
         RegisterGeneralFab(model_mf, 1, 2);
@@ -176,7 +176,7 @@ protected:
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     std::array<Numeric::StencilType,AMREX_SPACEDIM>
-					    sten = Numeric::GetStencil(i,j,k,bx);
+                        sten = Numeric::GetStencil(i,j,k,bx);
 
                     if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
                     {
@@ -204,26 +204,26 @@ protected:
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
-    				 const amrex::MFIter &mfi, const amrex::Box &box) override
+                    const amrex::MFIter &mfi, const amrex::Box &box) override
     {
-    	const amrex::Real *DX = geom[amrlev].CellSize();
+        const amrex::Real *DX = geom[amrlev].CellSize();
         amrex::Box domain = geom[amrlev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
 
-    	//Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        //Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
         #if AMREX_SPACEDIM == 2
         Set::Vector da(DX[1],DX[0]);
         #elif AMREX_SPACEDIM == 3
         Set::Vector da(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]);
         #endif
 
-		const Dim3 lo= amrex::lbound(domain)/*, hi = amrex::ubound(domain)*/;
-		const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
+        const Dim3 lo= amrex::lbound(domain)/*, hi = amrex::ubound(domain)*/;
+        const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
 
-    	amrex::Array4<const amrex::Real> const &stress = (*stress_mf[amrlev]).array(mfi);
-    	//amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
-    	amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        amrex::Array4<const amrex::Real> const &stress = (*stress_mf[amrlev]).array(mfi);
+        //amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
             #if AMREX_SPACEDIM == 2
             if (i == lo.x && j < boxhi.y)
@@ -290,7 +290,7 @@ private:
         BC::Operator::Elastic::Elastic *bc;
     } elastic;
 
-	Set::Scalar m_elastic_ref_threshold = 0.01;
+    Set::Scalar m_elastic_ref_threshold = 0.01;
 
 };
 } // namespace Integrator

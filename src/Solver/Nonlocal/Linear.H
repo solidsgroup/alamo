@@ -23,7 +23,7 @@ public:
     Linear (Operator::Operator<Grid::Node>& a_lp) : MLMG(a_lp), linop(a_lp)
     {
         MLMG::setBottomSolver(MLMG::BottomSolver::bicgstab);
-	    MLMG::setCFStrategy(MLMG::CFStrategy::ghostnodes);
+        MLMG::setCFStrategy(MLMG::CFStrategy::ghostnodes);
         MLMG::setFinalFillBC(false);
         MLMG::setMaxFmgIter(100000000);
     }
@@ -31,17 +31,17 @@ public:
     {
         m_verbose = verbosity;
         MLMG::setVerbose(m_verbose-1);
-		if (m_verbose > 4) MLMG::setBottomVerbose(m_verbose);
-     	else
- 	    {
- 		    MLMG::setBottomVerbose(0);
-	    }
+        if (m_verbose > 4) MLMG::setBottomVerbose(m_verbose);
+        else
+        {
+            MLMG::setBottomVerbose(0);
+        }
     }
 
     Set::Scalar solveaffine (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
-                       amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
-                       Real a_tol_rel, Real a_tol_abs, bool copyrhs = false, 
-                       const char* checkpoint_file = nullptr)
+                        amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
+                        Real a_tol_rel, Real a_tol_abs, bool copyrhs = false, 
+                        const char* checkpoint_file = nullptr)
     {
         amrex::Vector<amrex::MultiFab *> rhs_tmp(a_rhs.size());
         amrex::Vector<amrex::MultiFab *> zero_tmp(a_rhs.size());
@@ -61,18 +61,18 @@ public:
         {
             amrex::Box domain = linop.Geom(lev).Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
-      		const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
+            const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*rhs_tmp[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
-		    {
-		    	amrex::Box bx = mfi.growntilebox(rhs_tmp[lev]->nGrow());
+            {
+                amrex::Box bx = mfi.growntilebox(rhs_tmp[lev]->nGrow());
                 bx = bx & domain;
                 amrex::Array4<amrex::Real> const& rhstmp = rhs_tmp[lev]->array(mfi);
                 for (int n = 0; n < rhs_tmp[lev]->nComp(); n++)
                 {
                     amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
                     {
-  			            bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
-			        	    	AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
+                        bool    AMREX_D_DECL(xmin = (i == lo.x), ymin = (j==lo.y), zmin = (k==lo.z)),
+                                AMREX_D_DECL(xmax = (i == hi.x), ymax = (j==hi.y), zmax = (k==hi.z));
                         if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin))
                             rhstmp(i,j,k,n) = 0.0;
                         else
@@ -100,13 +100,13 @@ public:
     };
 
     Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
-                       amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
-                       Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
+                        amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
+                        Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
         return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
     };
     Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
-                       amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs)
+                        amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs)
     {
         return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),m_tol_rel,m_tol_abs);
     };
@@ -121,41 +121,41 @@ public:
     static void Parse(Linear & value, amrex::ParmParse & pp)
     {
         if (pp.contains("max_iter"))
-		// Max number of iterations to perform before erroring out
+        // Max number of iterations to perform before erroring out
         { int max_iter; pp.query("max_iter",max_iter);value.setMaxIter(max_iter);}
 
         if (pp.contains("bottom_max_iter"))
-		// Max number of iterations on the bottom solver
+        // Max number of iterations on the bottom solver
         { int bottom_max_iter; pp.query("bottom_max_iter",bottom_max_iter);value.setBottomMaxIter(bottom_max_iter);}
 
         if (pp.contains("max_fmg_iter"))
-		// Max number of F-cycle iterations to perform
+        // Max number of F-cycle iterations to perform
         { int max_fmg_iter; pp.query("max_fmg_iter",max_fmg_iter);value.setMaxFmgIter(max_fmg_iter);}
 
-		// DEPRICATED - do not use
+        // DEPRICATED - do not use
         if (pp.contains("max_fixed_iter"))
             Util::Abort(INFO, "max_fixed_iter is depricated. Use fixed_iter instead." );
 
         if (pp.contains("fixed_iter"))
-		// Number of fixed iterations to perform before exiting gracefully
+        // Number of fixed iterations to perform before exiting gracefully
         { int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
 
         if (pp.contains("verbose"))
-		// Verbosity of the solver (1-5)
+        // Verbosity of the solver (1-5)
         { int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
 
         if (pp.contains("pre_smooth"))
-		// Number of smoothing operations before bottom solve (2)
+        // Number of smoothing operations before bottom solve (2)
         { int pre_smooth; pp.query("pre_smooth",pre_smooth);value.setPreSmooth(pre_smooth);}
 
         if (pp.contains("post_smooth"))
-		// Number of smoothing operations after bottom solve (2)
+        // Number of smoothing operations after bottom solve (2)
         { int post_smooth; pp.query("post_smooth",post_smooth);value.setPostSmooth(post_smooth);}
 	
         if (pp.contains("bottom_solver"))
         {
             std::string bottom_solver;
-			// Type of bottom solver to use [cg, bicgstab, smoother]
+            // Type of bottom solver to use [cg, bicgstab, smoother]
             pp.query("bottom_solver",bottom_solver);
             if (bottom_solver == "cg")
                 value.setBottomSolver(MLMG::BottomSolver::cg);
@@ -175,21 +175,21 @@ public:
         if (pp.contains("bottom_tol_rel"))
         {
             Set::Scalar bottom_tol_rel;
-			// Relative tolerance on bottom solver
+            // Relative tolerance on bottom solver
             pp.query("bottom_tol_rel",bottom_tol_rel);
             value.setBottomTolerance(bottom_tol_rel);
         }
         if (pp.contains("bottom_tol_abs"))
         {
             Set::Scalar bottom_tol_abs;
-			// Absolute tolerance on bottom solver
+            // Absolute tolerance on bottom solver
             pp.query("bottom_tol_abs",bottom_tol_abs);
             value.setBottomToleranceAbs(bottom_tol_abs);
         }
 
-		// Relative tolerance
+        // Relative tolerance
         pp.query("tol_rel",value.m_tol_rel);
-		// Absolute tolerance
+        // Absolute tolerance
         pp.query("tol_abs",value.m_tol_abs);
     }
 

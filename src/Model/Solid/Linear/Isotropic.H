@@ -14,18 +14,18 @@ class Isotropic : public Solid<Set::Sym::Isotropic>
 {
 public:
 
-	Isotropic() {};
+    Isotropic() {};
     Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
         Define(a_mu,a_lambda);
     };
-	virtual ~Isotropic() {};
+    virtual ~Isotropic() {};
 
-	void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
-	{
-		ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
-	}
+    void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
+    {
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
+    }
 
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
@@ -91,4 +91,3 @@ public:
 }
 
 #endif
-

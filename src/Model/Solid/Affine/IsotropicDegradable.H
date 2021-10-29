@@ -35,36 +35,36 @@ public:
     }
 
     void DegradeModulus(const Set::Scalar eta)
-	{
-		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
-		if(std::isnan(lambda0)) Util::Abort(INFO, "Nans in lambda0");
-		if(std::isnan(mu0)) Util::Abort(INFO, "Nans in mu0");
+    {
+        if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
+        if(std::isnan(lambda0)) Util::Abort(INFO, "Nans in lambda0");
+        if(std::isnan(mu0)) Util::Abort(INFO, "Nans in mu0");
         Isotropic::Define( mu0*(1.-eta), lambda0*(1.-eta), _F0 );
         m_mu = mu0*(1-eta);
-	}
+    }
 
     void DegradeModulus(const amrex::Vector<Set::Scalar> &eta)
-	{
-		if(eta.size() == 0) return;
-		else if(eta.size() == 1)
-		{
-			if(std::isnan(eta[0])) Util::Abort(INFO,"Nans in eta");
-			if(std::isinf(eta[0])) Util::Abort(INFO,"Infs in eta");
-			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta",eta[0]);
+    {
+        if(eta.size() == 0) return;
+        else if(eta.size() == 1)
+        {
+            if(std::isnan(eta[0])) Util::Abort(INFO,"Nans in eta");
+            if(std::isinf(eta[0])) Util::Abort(INFO,"Infs in eta");
+            if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta",eta[0]);
             Isotropic::Define( mu0*(1.-eta[0]), lambda0*(1.-eta[0]), _F0 );
             m_mu = mu0*(1-eta[0]);
-		}
-		else if(eta.size() == 2)
-		{
-			if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Nans in eta");
-			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
-			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
+        }
+        else if(eta.size() == 2)
+        {
+            if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Nans in eta");
+            if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
+            if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
             Isotropic::Define( mu0*(1.-eta[0]), lambda0*(1.-eta[1]), _F0 );
             m_mu = mu0*(1-eta[0]);
-		}
-		else
-			return;
-	}
+        }
+        else
+            return;
+    }
     AMREX_FORCE_INLINE
     void SetF0(Set::Matrix a_F0) {_F0 = a_F0; Isotropic::SetF0(a_F0); }
     Set::Scalar GetMu () {return m_mu;}
@@ -101,27 +101,27 @@ public:
         value.Define(mu,mu,lambda,lambda,Set::Matrix::Zero());
     }
     AMREX_FORCE_INLINE
-	void operator += (const IsotropicDegradable &rhs)
+    void operator += (const IsotropicDegradable &rhs)
     {
         ddw += rhs.ddw;
         F0 += rhs.F0;
         _F0 += rhs._F0;
         mu0 += rhs.mu0;
         m_mu += rhs.m_mu;
-		lambda0 += rhs.lambda0;
-	}    
+        lambda0 += rhs.lambda0;
+    }    
     AMREX_FORCE_INLINE
-   	IsotropicDegradable operator * (const Set::Scalar alpha) const
-	{
+        IsotropicDegradable operator * (const Set::Scalar alpha) const
+    {
         IsotropicDegradable ret;
         ret.ddw = ddw*alpha;
         ret.F0 = F0*alpha;
         ret._F0 = _F0*alpha;
         ret.mu0 = mu0*alpha;
         ret.m_mu = m_mu * alpha;
-		ret.lambda0 = lambda0*alpha;
+        ret.lambda0 = lambda0*alpha;
         return ret;
-	}    
+    }    
     friend IsotropicDegradable operator * (const Set::Scalar alpha, const IsotropicDegradable b);
     friend IsotropicDegradable operator + (const IsotropicDegradable a, const IsotropicDegradable b);
     friend IsotropicDegradable operator - (const IsotropicDegradable a, const IsotropicDegradable b);
@@ -135,7 +135,7 @@ IsotropicDegradable operator * (const Set::Scalar alpha, const IsotropicDegradab
     ret._F0 = b._F0*alpha;
     ret.mu0 = b.mu0*alpha;
     ret.m_mu = b.m_mu * alpha;
-	ret.lambda0 = b.lambda0*alpha;
+    ret.lambda0 = b.lambda0*alpha;
     return ret;
 }    
 AMREX_FORCE_INLINE
@@ -145,9 +145,9 @@ IsotropicDegradable operator + (const IsotropicDegradable a, const IsotropicDegr
     ret.ddw = a.ddw + b.ddw;
     ret.F0 = a.F0 + b.F0;
     ret._F0 = a._F0 + b._F0;
-	ret.mu0 = a.mu0 + b.mu0;
+    ret.mu0 = a.mu0 + b.mu0;
     ret.m_mu = a.m_mu + b.m_mu;
-	ret.lambda0 = a.lambda0 + b.lambda0;
+    ret.lambda0 = a.lambda0 + b.lambda0;
     return ret;
 }    
 AMREX_FORCE_INLINE
@@ -157,9 +157,9 @@ IsotropicDegradable operator - (const IsotropicDegradable a, const IsotropicDegr
     ret.ddw = a.ddw - b.ddw;
     ret.F0 = a.F0 - b.F0;
     ret._F0 = a._F0 - b._F0;
-	ret.mu0 = a.mu0 - b.mu0;
+    ret.mu0 = a.mu0 - b.mu0;
     ret.m_mu = a.m_mu - b.m_mu;
-	ret.lambda0 = a.lambda0 - b.lambda0;
+    ret.lambda0 = a.lambda0 - b.lambda0;
     return ret;
 } 
 

@@ -157,7 +157,7 @@ public:
         Matrix4<3,Sym::Full> ret;
         for (int i = 0 ; i < 15; i++) ret.data[i] = 0.0;
         return ret;
-     }
+    }
 };
 std::ostream&
 operator<< (std::ostream& os, const Matrix4<3,Sym::Full>& b);

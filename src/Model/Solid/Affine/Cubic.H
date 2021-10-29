@@ -15,9 +15,9 @@ class Cubic : public Linear::Cubic
 {
 public:
 
-	Cubic() {};
+    Cubic() {};
     Cubic(Solid<Set::Sym::MajorMinor> base) : Linear::Cubic(base) {};
-	virtual ~Cubic() {};
+    virtual ~Cubic() {};
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2,Set::Matrix a_F0=Set::Matrix::Zero())
@@ -97,4 +97,3 @@ public:
 }
 
 #endif
-

@@ -220,7 +220,7 @@ protected:
                     if (std::isnan(_temp)) Util::Abort(INFO);
                     if(_temp < 0.0) Util::Abort(INFO);//_temp = 0.;
                     if(_temp > 1.0) Util::Abort(INFO);//_temp = 1.0;
-					_temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
+                    _temp = crack.scaleModulusMax + _temp * (1. - crack.scaleModulusMax);
                     //modelfab(i,j,k,0).DegradeModulus(std::min(1.-_temp,1.-crack.scaleModulusMax));
                     modelfab(i,j,k,0).DegradeModulus(1-_temp);
                 });
@@ -479,7 +479,7 @@ private:
         Set::Field<Set::Scalar> energy_pristine_old;  ///< energy of the pristine material for previous time step.
 
         BC::Operator::Elastic::Constant 	brittlebc;  ///< elastic BC if using brittle fracture
-		Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
+        Set::Scalar df_mult = 1.0;              ///< mulitplier for elastic driving force.
         bool do_solve_now = false;
     } elastic;
 
@@ -489,19 +489,19 @@ private:
         Set::Field<Set::Scalar> driving_force;         ///< crack driving forces.
         Set::Scalar driving_force_reference = 1.0;
         Set::Scalar driving_force_norm = 0.0;
-		Set::Scalar driving_force_tolerance_rel = 1E-4;
-		Set::Scalar driving_force_tolerance_abs = 0.0;
+        Set::Scalar driving_force_tolerance_rel = 1E-4;
+        Set::Scalar driving_force_tolerance_abs = 0.0;
 
         Model::Interface::Crack::Crack *cracktype;       ///< type of crack. See Crack/Constant or Crack/Sin
-		std::string ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
-		IC::IC *ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
+        std::string ic_type;                            ///< crack IC type. See IC/Notch and IC/Ellipsoid
+        IC::IC *ic;                                     ///< crack IC. See IC/Notch and IC/Ellipsoid
         bool is_ic = false;
 
         Set::Scalar scaleModulusMax = 0.02;         ///< material modulus ratio inside crack (default = 0.02).
         Set::Scalar refinement_threshold = 0.001;
 
-		Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
-		Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
+        Set::Scalar mult_df_Gc = 1.0;				///< Multiplier for Gc/zeta term
+        Set::Scalar mult_df_lap = 1.0;				///< Multiplier for the laplacian term
     } crack;
 
     struct{
@@ -517,30 +517,30 @@ private:
     } material;
 
     struct{
-		Set::Scalar bottom_tol 				= 1.0E-6;
-		int         interval	 			= 100;
-		std::string type					= "single";
-		int         max_iter 				= 1000;
-		int         max_fmg_iter 			= 0;
-		int 		bottom_max_iter			= 200;
-		int 		max_fixed_iter 			= 500;
-		int         verbose 				= 3;
-		int         cgverbose 				= 3;
-		Set::Scalar tol_rel 				= 1.0E-6;
-		Set::Scalar tol_abs 				= 1.0E-6;
-		Set::Scalar cg_tol_rel 				= 1.0E-6;
-		Set::Scalar cg_tol_abs 				= 1.0E-6;
-		Set::Scalar tstart 					= 0.0;
-		Set::Scalar tend 					= 0.0;
-		std::string bottom_solver			= "bicgstab";
-		int 		linop_maxorder 	     	= 2;
-		bool	    use_fsmooth 			= false;
-		int 		max_coarsening_level	= 0;
-		bool 		agglomeration 	  		= true;
-		bool 		consolidation 	  		= false;
-		int pre_smooth = 2;
-		int post_smooth = 2;
-	} sol;
+        Set::Scalar bottom_tol 				= 1.0E-6;
+        int         interval	 			= 100;
+        std::string type					= "single";
+        int         max_iter 				= 1000;
+        int         max_fmg_iter 			= 0;
+        int 		bottom_max_iter			= 200;
+        int 		max_fixed_iter 			= 500;
+        int         verbose 				= 3;
+        int         cgverbose 				= 3;
+        Set::Scalar tol_rel 				= 1.0E-6;
+        Set::Scalar tol_abs 				= 1.0E-6;
+        Set::Scalar cg_tol_rel 				= 1.0E-6;
+        Set::Scalar cg_tol_abs 				= 1.0E-6;
+        Set::Scalar tstart 					= 0.0;
+        Set::Scalar tend 					= 0.0;
+        std::string bottom_solver			= "bicgstab";
+        int 		linop_maxorder 	     	= 2;
+        bool	    use_fsmooth 			= false;
+        int 		max_coarsening_level	= 0;
+        bool 		agglomeration 	  		= true;
+        bool 		consolidation 	  		= false;
+        int pre_smooth = 2;
+        int post_smooth = 2;
+    } sol;
 
     struct{
         Set::Vector body_force 				= Set::Vector::Zero();

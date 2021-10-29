@@ -13,16 +13,17 @@ indent_size = 4
 
 # 8 space tab indentation for CPP files
 [*.cc]
-indent_style = tab
+indent_style = space
 indent_size = 4
 [*.cpp]
-indent_style = tab
+indent_style = space
 indent_size = 4
 [*.H]
-indent_style = tab
+indent_style = space
 indent_size = 4
 
 # Tab indentation for Makefiles
 [Makefile]
-indent_style = tab
+indent_style = space
+indent_size = 4
 

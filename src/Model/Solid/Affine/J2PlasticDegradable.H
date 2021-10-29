@@ -40,13 +40,13 @@ public:
     }
 
     void DegradeYieldSurface(const Set::Scalar eta)
-	{
-		if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
-		if(std::isnan(eta)) Util::Abort(INFO, "Nans in eta");
+    {
+        if(eta < 0.0 || eta > 1.0) Util::Abort(INFO, "Invalid value of eta", eta);
+        if(std::isnan(eta)) Util::Abort(INFO, "Nans in eta");
         if(std::isinf(eta)) Util::Abort(INFO, "Infs in eta");
-		yield_strength = yield_strength0*(1. - eta);
+        yield_strength = yield_strength0*(1. - eta);
         hardening_modulus = hardening_modulus0*(1.-eta);
-	}
+    }
 
     void DegradeYieldSurface(const amrex::Vector<Set::Scalar> &eta)
     {
@@ -54,16 +54,16 @@ public:
         else if (eta.size() == 1)
         {
             if(std::isnan(eta[0])) Util::Abort(INFO,"Nans in eta");
-			if(std::isinf(eta[0])) Util::Abort(INFO,"Infs in eta");
-			if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta",eta[0]);
-			yield_strength = yield_strength0*(1. - eta[0]);
+            if(std::isinf(eta[0])) Util::Abort(INFO,"Infs in eta");
+            if(eta[0] < 0.0 || eta[0] > 1.0) Util::Abort(INFO,"Invalid value of eta",eta[0]);
+            yield_strength = yield_strength0*(1. - eta[0]);
             hardening_modulus = hardening_modulus0*(1.-eta[0]);
         }
         else if (eta.size() == 2)
         {
             if(std::isnan(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Nans in eta");
-			if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
-			if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
+            if(std::isinf(eta[0]) || std::isnan(eta[1])) Util::Abort(INFO,"Infs in eta");
+            if(eta[0] < 0.0 || eta[0] > 1.0 || eta[1] < 0.0 || eta[1] > 1.0) Util::Abort(INFO,"Invalid value of eta");
             yield_strength = yield_strength0*(1. - eta[0]);
             hardening_modulus = hardening_modulus0*(1.-eta[1]);
         }
@@ -171,7 +171,7 @@ public:
         value.Define(mu, lambda, yield, hardening, theta_tmp);
     }
     AMREX_FORCE_INLINE
-	void operator += (const J2PlasticDegradable &rhs)
+    void operator += (const J2PlasticDegradable &rhs)
     {
         curr += rhs.curr;
         prev += rhs.prev;
@@ -185,11 +185,11 @@ public:
         F0 += rhs.F0;
         _F0 += rhs._F0;
         mu0 += rhs.mu0;
-		lambda0 += rhs.lambda0;
-	}    
+        lambda0 += rhs.lambda0;
+    }    
     AMREX_FORCE_INLINE
-   	J2PlasticDegradable operator * (const Set::Scalar alpha) const
-	{
+        J2PlasticDegradable operator * (const Set::Scalar alpha) const
+    {
         J2PlasticDegradable ret;
         ret.curr = alpha*curr;
         ret.prev = alpha*prev;
@@ -203,10 +203,10 @@ public:
         ret.F0 = F0*alpha;
         ret._F0 = _F0*alpha;
         ret.mu0 = mu0*alpha;
-		ret.lambda0 = lambda0*alpha;
+        ret.lambda0 = lambda0*alpha;
 
         return ret;
-	}    
+    }    
     friend J2PlasticDegradable operator * (const Set::Scalar alpha, const J2PlasticDegradable b);
     friend J2PlasticDegradable operator + (const J2PlasticDegradable a, const J2PlasticDegradable b);
     friend J2PlasticDegradable operator - (const J2PlasticDegradable a, const J2PlasticDegradable b);
@@ -228,7 +228,7 @@ J2PlasticDegradable operator * (const Set::Scalar alpha, const J2PlasticDegradab
     ret.F0 = b.F0*alpha;
     ret._F0 = b._F0*alpha;
     ret.mu0 = b.mu0*alpha;
-	ret.lambda0 = b.lambda0*alpha;
+    ret.lambda0 = b.lambda0*alpha;
     return ret;
 }    
 AMREX_FORCE_INLINE
@@ -246,8 +246,8 @@ J2PlasticDegradable operator + (const J2PlasticDegradable a, const J2PlasticDegr
     ret.ddw = a.ddw + b.ddw;
     ret.F0 = a.F0 + b.F0;
     ret._F0 = a._F0 + b._F0;
-	ret.mu0 = a.mu0 + b.mu0;
-	ret.lambda0 = a.lambda0 + b.lambda0;
+    ret.mu0 = a.mu0 + b.mu0;
+    ret.lambda0 = a.lambda0 + b.lambda0;
     return ret;
 }    
 AMREX_FORCE_INLINE
@@ -265,8 +265,8 @@ J2PlasticDegradable operator - (const J2PlasticDegradable a, const J2PlasticDegr
     ret.ddw = a.ddw - b.ddw;
     ret.F0 = a.F0 - b.F0;
     ret._F0 = a._F0 - b._F0;
-	ret.mu0 = a.mu0 - b.mu0;
-	ret.lambda0 = a.lambda0 - b.lambda0;
+    ret.mu0 = a.mu0 - b.mu0;
+    ret.lambda0 = a.lambda0 - b.lambda0;
     return ret;
 } 
 

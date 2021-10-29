@@ -13,19 +13,19 @@ namespace IC
 class BMP : public IC
 {
 public:
-	//enum Type {XYZ, XY, YZ, XZ};
+    //enum Type {XYZ, XY, YZ, XZ};
     enum Fit {Stretch,FitWidth,FitHeight};
     enum Channel {R=0, G=1, B=2};
 
-	BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
+    BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
 
-	void Define(std::string bmpfilename)
-	{
+    void Define(std::string bmpfilename)
+    {
         bmp.Define(bmpfilename);//"Interface_Blur2.bmp");
-	}
+    }
   
-	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
-	{        
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    {        
         
         Set::Vector DX(geom[lev].CellSize());
         amrex::Box domain = geom[lev].Domain();
@@ -39,14 +39,14 @@ public:
         Set::Scalar img_dy = 1.0;
 
 
-		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-		{
-			amrex::Box bx = mfi.tilebox();
-		    bx.grow(a_field[lev]->nGrow());
-			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.tilebox();
+            bx.grow(a_field[lev]->nGrow());
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-				Set::Scalar x, y;
+                Set::Scalar x, y;
 
                 if (fit == Fit::Stretch)
                 {
@@ -114,10 +114,10 @@ public:
                     field(i,j,k) = 0.0;
                 }
 
-			});
-		}
+            });
+        }
         a_field[lev]->FillBoundary();
-	};
+    };
   
 private:
     Util::BMP bmp;

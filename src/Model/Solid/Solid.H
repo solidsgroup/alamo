@@ -18,20 +18,20 @@ template<Set::Sym SYM>
 class Solid
 {
 public:
-	Solid() {} ;
+    Solid() {} ;
 
-	virtual ~Solid() {};
+    virtual ~Solid() {};
 
     static constexpr Set::Sym sym = SYM;
 
     AMREX_FORCE_INLINE
-	virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/=true) const
+    virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/=true) const
     {
         return ddw*F;
     };
 
     AMREX_FORCE_INLINE
-	virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/=true)
+    virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/=true)
     {
         return ddw*gradF;
     };
@@ -45,7 +45,7 @@ public:
     static const KinematicVariable kinvar = KinematicVariable::F;
 
 
-   	friend std::ostream& operator<<(std::ostream &out, const Solid &a)
+        friend std::ostream& operator<<(std::ostream &out, const Solid &a)
     {
         a.Print(out);
         return out;
@@ -142,5 +142,3 @@ public:
 
 
 #endif
-
-
