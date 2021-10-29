@@ -14,13 +14,13 @@ class TensionTest : public Constant
 {
 public:
 
- 	TensionTest() 
-	{
+    TensionTest() 
+    {
         Constant();
-	};
- 	~TensionTest() {};
+    };
+    ~TensionTest() {};
 
-	using Constant::Init;
+    using Constant::Init;
     using Constant::operator();
     using Constant::set;
 

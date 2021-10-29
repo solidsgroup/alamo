@@ -9,7 +9,7 @@ template<class In>
 class Test
 {
 public:
-	int Match(int);	
+    int Match(int);    
 private:
 
 };
@@ -20,5 +20,3 @@ private:
 
 
 #endif
-
-

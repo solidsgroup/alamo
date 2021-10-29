@@ -68,291 +68,291 @@ namespace Integrator
 ///     amr.check_input        = 
 ///
 class Integrator
-	: public amrex::AmrCore
+    : public amrex::AmrCore
 {
 public:
 
-	/// \function Integrator
-	/// \brief Constructor
-	///
-	/// Does the following things:
-	///    - Read in simulation TIME(STEP) information
-	///    - Read in simulation output and AMR information
-	///    - Initalize timestep substep information
-	///    - Create a clean directory
-	/// For derived classes this **must** be called for the derived constructor. For instance: `code`
-	/// ```cpp
-	/// class MyDerivedClass : Integrator
-	/// {
-	///    MyDerivedClass() : Integrator() { ... }
-	///    ...
-	/// }
-	/// ```
-	Integrator ();
+    /// \function Integrator
+    /// \brief Constructor
+    ///
+    /// Does the following things:
+    ///    - Read in simulation TIME(STEP) information
+    ///    - Read in simulation output and AMR information
+    ///    - Initalize timestep substep information
+    ///    - Create a clean directory
+    /// For derived classes this **must** be called for the derived constructor. For instance: `code`
+    /// ```cpp
+    /// class MyDerivedClass : Integrator
+    /// {
+    ///    MyDerivedClass() : Integrator() { ... }
+    ///    ...
+    /// }
+    /// ```
+    Integrator ();
 
-	~Integrator();
+    ~Integrator();
 
-	/// \fn    FrontData
-	/// \brief Front-end method to initialize simulation
-	void InitData ();
+    /// \fn    FrontData
+    /// \brief Front-end method to initialize simulation
+    void InitData ();
 
-	void Restart (std::string restartfile, bool a_node = false);
+    void Restart (std::string restartfile, bool a_node = false);
 
-	/// \fn    Evolve
-	/// \brief Front-end method to start simulation
-	void Evolve ();
+    /// \fn    Evolve
+    /// \brief Front-end method to start simulation
+    void Evolve ();
 
-	void SetFilename(std::string _plot_file) {plot_file = _plot_file;};
-	std::string GetFilename() {return plot_file;};
+    void SetFilename(std::string _plot_file) {plot_file = _plot_file;};
+    std::string GetFilename() {return plot_file;};
 
 protected:
 
-	/// \fn    Initialize
-	/// \brief Apply initial conditions
-	///
-	/// You **must** override this function to inherit this class.
-	/// This function is called before the simulation begins, and is where
-	/// initial conditions should be applied.
-	virtual void Initialize (int lev ///<[in] AMR Level
-				 ) = 0;
+    /// \fn    Initialize
+    /// \brief Apply initial conditions
+    ///
+    /// You **must** override this function to inherit this class.
+    /// This function is called before the simulation begins, and is where
+    /// initial conditions should be applied.
+    virtual void Initialize (int lev ///<[in] AMR Level
+        ) = 0;
 
-	/// \fn    Advance
-	/// \brief Perform computation
-	///
-	/// You **must** override this function to inherit this class.
-	/// Advance is called every time(sub)step, and implements the evolution of 
-	/// the system in time.
-	/// 
-	virtual void Advance               (int lev,          ///<[in] AMR Level
-					    amrex::Real time, ///< [in] System time
-					    amrex::Real dt    ///< [in] Timestep for this level
-					    )=0;
+    /// \fn    Advance
+    /// \brief Perform computation
+    ///
+    /// You **must** override this function to inherit this class.
+    /// Advance is called every time(sub)step, and implements the evolution of 
+    /// the system in time.
+    /// 
+    virtual void Advance               (int lev,          ///<[in] AMR Level
+                                        amrex::Real time, ///< [in] System time
+                                        amrex::Real dt    ///< [in] Timestep for this level
+        )=0;
 
-	/// \fn    TagCellsForRefinement
-	/// \brief Tag cells where mesh refinement is needed
-	///
-	/// You **must** override this function to inherit this class.
-	/// Advance is called every time(sub)step, and implements the evolution of 
-	/// the system in time.
-	/// 
-	virtual void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time,
-					    int ngrow) = 0;
+    /// \fn    TagCellsForRefinement
+    /// \brief Tag cells where mesh refinement is needed
+    ///
+    /// You **must** override this function to inherit this class.
+    /// Advance is called every time(sub)step, and implements the evolution of 
+    /// the system in time.
+    /// 
+    virtual void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time,
+                                        int ngrow) = 0;
 
-	/// \fn    TimeStepComplete
-	/// \brief Run another system calculation (e.g. implicit solve) before integration step
-	///
-	/// This function is called at the beginning of every timestep. This function can be used
-	/// to complete additional global solves, e.g. a MLMG implicit solve.
-	///
-	/// Overriding is optional; the default is to do nothing.
-	///
-	virtual void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) {};
+    /// \fn    TimeStepComplete
+    /// \brief Run another system calculation (e.g. implicit solve) before integration step
+    ///
+    /// This function is called at the beginning of every timestep. This function can be used
+    /// to complete additional global solves, e.g. a MLMG implicit solve.
+    ///
+    /// Overriding is optional; the default is to do nothing.
+    ///
+    virtual void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) {};
 
-	/// \fn    TimeStepComplete
-	/// \brief Run another system calculation (e.g. implicit solve) after integration step
-	///
-	/// This function is called at the end of every timestep. This function can be used
-	/// to complete additional global solves, e.g. a MLMG implicit solve.
-	///
-	/// Overriding is optional; the default is to do nothing.
-	///
-	virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
+    /// \fn    TimeStepComplete
+    /// \brief Run another system calculation (e.g. implicit solve) after integration step
+    ///
+    /// This function is called at the end of every timestep. This function can be used
+    /// to complete additional global solves, e.g. a MLMG implicit solve.
+    ///
+    /// Overriding is optional; the default is to do nothing.
+    ///
+    virtual void TimeStepComplete(amrex::Real /*time*/, int /*iter*/) {};
 
-	/// \fn    Integrate
-	/// \brief Perform an integration to compute integrated quantities
-	///
-	/// This is a function that is called by `Integrator` to update the variables registered in
-	/// RegisterIntegratedVariable.
-	/// The following variables are used:
-	///   -  amrlev: current amr level
-	///   -  time: current simulation time
-	///   -  iter: current simulation iteration
-	///   -  mfi:  current MFIter object (used to get FArrayBox from MultiFab)
-	///   -  box:  Use this box (not mfi.tilebox). This box covers only cells on this level that are
-	///            not also on a finer level.
-	virtual void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*iter*/,
-			       const amrex::MFIter &/*mfi*/, const amrex::Box &/*box*/)
-	{
-		if (thermo.number > 0)
-			Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
-	}
-		
-	virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
-	{}
+    /// \fn    Integrate
+    /// \brief Perform an integration to compute integrated quantities
+    ///
+    /// This is a function that is called by `Integrator` to update the variables registered in
+    /// RegisterIntegratedVariable.
+    /// The following variables are used:
+    ///   -  amrlev: current amr level
+    ///   -  time: current simulation time
+    ///   -  iter: current simulation iteration
+    ///   -  mfi:  current MFIter object (used to get FArrayBox from MultiFab)
+    ///   -  box:  Use this box (not mfi.tilebox). This box covers only cells on this level that are
+    ///            not also on a finer level.
+    virtual void Integrate(int /*amrlev*/, Set::Scalar /*time*/, int /*iter*/,
+                            const amrex::MFIter &/*mfi*/, const amrex::Box &/*box*/)
+    {
+        if (thermo.number > 0)
+            Util::Warning(INFO,"integrated variables registered, but no integration implemented!"); 
+    }
+        
+    virtual void Regrid(int /* amrlev */, Set::Scalar /* time */)
+    {}
 
 
-	/// \fn    RegisterNewFab
-	/// \brief Register a field variable for AMR with this class 
-	///
-	/// You **must** call this function, typically in the constructor, for every field variable 
-	/// that you use in any inherited class.
-	/// 
-	void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
-			     ///<[in] Reference to field variable that you want to use.
-			     ///      **Note** `new_fab` must not fall out of scope! Should be a
-			     ///      private member variable.
-			     BC::BC<Set::Scalar> *new_bc,
-			     ///<[in] Boundary condition object. (Same BC object can be re-used 
-			     ///      if applicable
-			     int ncomp,
-			     ///<[in] Number of components that the fab should have.
-			     ///      (e.g. velocity in 2D would have two components.)
-			     int nghost,
-			     ///<[in] Number of ghost cells. Depends on the order of the
-			     ///      maximum numerical derivative. (e.g. a Laplacian would require one.)
-			     std::string name,
-			     ///<[in] The name of the field to be used when dumping output
-				 bool writeout
-			     );
+    /// \fn    RegisterNewFab
+    /// \brief Register a field variable for AMR with this class 
+    ///
+    /// You **must** call this function, typically in the constructor, for every field variable 
+    /// that you use in any inherited class.
+    /// 
+    void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
+                        ///<[in] Reference to field variable that you want to use.
+                        ///      **Note** `new_fab` must not fall out of scope! Should be a
+                        ///      private member variable.
+                        BC::BC<Set::Scalar> *new_bc,
+                        ///<[in] Boundary condition object. (Same BC object can be re-used 
+                        ///      if applicable
+                        int ncomp,
+                        ///<[in] Number of components that the fab should have.
+                        ///      (e.g. velocity in 2D would have two components.)
+                        int nghost,
+                        ///<[in] Number of ghost cells. Depends on the order of the
+                        ///      maximum numerical derivative. (e.g. a Laplacian would require one.)
+                        std::string name,
+                        ///<[in] The name of the field to be used when dumping output
+                        bool writeout
+        );
 
-	void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
-			     int ncomp,
-			     std::string name,
-				 bool writeout
-			     );
-	void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
-			       int ncomp,
-			       int nghost,
-			       std::string name,
-				   bool writeout
-			       );
-	void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
-				   BC::BC<Set::Scalar> *new_bc,
-			       int ncomp,
-			       int nghost,
-			       std::string name,
-				   bool writeout
-			       );
-	
-	template<class T>
-	void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost)
-	{
-		int nlevs_max = maxLevel() + 1;
-		new_fab.resize(nlevs_max); 
-		m_basefields.push_back(new Field<T>(new_fab, geom, refRatio(),ncomp,nghost));
-	}
+    void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
+                        int ncomp,
+                        std::string name,
+                        bool writeout
+        );
+    void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
+                            int ncomp,
+                            int nghost,
+                            std::string name,
+                            bool writeout
+        );
+    void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
+                            BC::BC<Set::Scalar> *new_bc,
+                            int ncomp,
+                            int nghost,
+                            std::string name,
+                            bool writeout
+        );
+    
+    template<class T>
+    void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost)
+    {
+        int nlevs_max = maxLevel() + 1;
+        new_fab.resize(nlevs_max); 
+        m_basefields.push_back(new Field<T>(new_fab, geom, refRatio(),ncomp,nghost));
+    }
 
-	void SetFinestLevel(const int a_finestlevel)
-	{
-		for (unsigned int i = 0; i < cell.fab_array.size(); i++)
-			cell.fab_array[i]->finest_level = a_finestlevel;
-		for (unsigned int i = 0; i < node.fab_array.size(); i++)
-			node.fab_array[i]->finest_level = a_finestlevel;
-		for (unsigned int i = 0; i < m_basefields.size(); i++)
-			m_basefields[i]->SetFinestLevel(finest_level);
-	}
+    void SetFinestLevel(const int a_finestlevel)
+    {
+        for (unsigned int i = 0; i < cell.fab_array.size(); i++)
+            cell.fab_array[i]->finest_level = a_finestlevel;
+        for (unsigned int i = 0; i < node.fab_array.size(); i++)
+            node.fab_array[i]->finest_level = a_finestlevel;
+        for (unsigned int i = 0; i < m_basefields.size(); i++)
+            m_basefields[i]->SetFinestLevel(finest_level);
+    }
 
-	void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
+    void RegisterIntegratedVariable(Set::Scalar *integrated_variable, std::string name);
 
-	void SetTimestep(Set::Scalar _timestep);
-	void SetPlotInt(int plot_int);
-	void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
-	void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot_int = a_thermo_plot_int;}
-	void SetStopTime(Set::Scalar a_stop_time) {stop_time = a_stop_time;}
+    void SetTimestep(Set::Scalar _timestep);
+    void SetPlotInt(int plot_int);
+    void SetThermoInt(int a_thermo_int) {thermo.interval = a_thermo_int;}
+    void SetThermoPlotInt(int a_thermo_plot_int) {thermo.plot_int = a_thermo_plot_int;}
+    void SetStopTime(Set::Scalar a_stop_time) {stop_time = a_stop_time;}
 
-	amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
-	amrex::Vector<int> istep;           ///< Keep track of where each level is
-	// PLOT FILES
-	std::string plot_file {"plt"};   ///< Plotfile name
+    amrex::Vector<amrex::Real> t_new;         ///< Keep track of current old simulation time on each level
+    amrex::Vector<int> istep;           ///< Keep track of where each level is
+    // PLOT FILES
+    std::string plot_file {"plt"};   ///< Plotfile name
 
 private:
-	virtual void MakeNewLevelFromScratch (int lev, amrex::Real time, const amrex::BoxArray& ba,
-					      const amrex::DistributionMapping& dm) override;
-	virtual void MakeNewLevelFromCoarse  (int lev, amrex::Real time, const amrex::BoxArray& ba,
-					      const amrex::DistributionMapping& dm) override;
-	virtual void RemakeLevel             (int lev, amrex::Real time, const amrex::BoxArray& ba,
-					      const amrex::DistributionMapping& dm) override;
-	virtual void ClearLevel              (int lev) override;
-	virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
+    virtual void MakeNewLevelFromScratch (int lev, amrex::Real time, const amrex::BoxArray& ba,
+                                        const amrex::DistributionMapping& dm) override;
+    virtual void MakeNewLevelFromCoarse  (int lev, amrex::Real time, const amrex::BoxArray& ba,
+                                        const amrex::DistributionMapping& dm) override;
+    virtual void RemakeLevel             (int lev, amrex::Real time, const amrex::BoxArray& ba,
+                                        const amrex::DistributionMapping& dm) override;
+    virtual void ClearLevel              (int lev) override;
+    virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
 
-	void FillPatch (int lev, amrex::Real time,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
-			amrex::MultiFab &destination_multifab, 
-			BC::BC<Set::Scalar> &physbc,
-			int icomp);
-	long CountCells (int lev);
-	void TimeStep (int lev, amrex::Real time, int iteration);
-	void FillCoarsePatch (int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar> &physbc, int icomp, int ncomp);
-	void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
+    void FillPatch (int lev, amrex::Real time,
+                    amrex::Vector<std::unique_ptr<amrex::MultiFab>> &source_mf,
+                    amrex::MultiFab &destination_multifab, 
+                    BC::BC<Set::Scalar> &physbc,
+                    int icomp);
+    long CountCells (int lev);
+    void TimeStep (int lev, amrex::Real time, int iteration);
+    void FillCoarsePatch (int lev, amrex::Real time, Set::Field<Set::Scalar>& mf, BC::BC<Set::Scalar> &physbc, int icomp, int ncomp);
+    void GetData (const int lev, const amrex::Real time, amrex::Vector<amrex::MultiFab*>& data, amrex::Vector<amrex::Real>& datatime);
 
-	std::vector<std::string> PlotFileName (int lev, std::string prefix="") const;
+    std::vector<std::string> PlotFileName (int lev, std::string prefix="") const;
 protected:
-	void IntegrateVariables(Set::Scalar cur_time, int step);
-	void WritePlotFile (bool initial = false) const;
-	void WritePlotFile (std::string prefix, Set::Scalar time, int step) const;
-	void WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix="") const;
+    void IntegrateVariables(Set::Scalar cur_time, int step);
+    void WritePlotFile (bool initial = false) const;
+    void WritePlotFile (std::string prefix, Set::Scalar time, int step) const;
+    void WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initial = false, std::string prefix="") const;
 
-	//
-	// MEMBER VARIABLES
-	//
+    //
+    // MEMBER VARIABLES
+    //
 
-	// TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
+    // TIME (STEP) KEEPINGamrex::Vector<std::unique_ptr<amrex::MultiFab> >
 protected:
-	amrex::Real timestep;	///< Timestep for the base level of refinement
+    amrex::Real timestep;   ///< Timestep for the base level of refinement
 private:
-	amrex::Vector<amrex::Real> dt;	///< Timesteps for each level of refinement
-	amrex::Vector<int> nsubsteps;	///< how many substeps on each level?
-	int max_plot_level = -1;
+    amrex::Vector<amrex::Real> dt;  ///< Timesteps for each level of refinement
+    amrex::Vector<int> nsubsteps;   ///< how many substeps on each level?
+    int max_plot_level = -1;
   
-	amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
-	int max_step = std::numeric_limits<int>::max();	///< Maximum allowable timestep
-	amrex::Real tstart = 0;	///< Default start time (default: 0)
-	amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
+    amrex::Vector<amrex::Real> t_old;///< Keep track of current old simulation time on each level
+    int max_step = std::numeric_limits<int>::max(); ///< Maximum allowable timestep
+    amrex::Real tstart = 0; ///< Default start time (default: 0)
+    amrex::Real stop_time = std::numeric_limits<amrex::Real>::max(); ///< Default stop time 
 
 protected:
-	bool integrate_variables_before_advance = true;
-	bool integrate_variables_after_advance = false;
+    bool integrate_variables_before_advance = true;
+    bool integrate_variables_after_advance = false;
 
 protected:
-	struct {
-		int number_of_fabs = 0;
-		std::vector<Set::Field<Set::Scalar> *> fab_array;
-		std::vector<int> ncomp_array;
-		std::vector<int> nghost_array;
-		std::vector<std::string> name_array;
-		std::vector<BC::BC<Set::Scalar> *> physbc_array;
-		std::vector<bool> writeout_array;
-		bool any = true;
-		bool all = false;
-	} node;
+    struct {
+        int number_of_fabs = 0;
+        std::vector<Set::Field<Set::Scalar> *> fab_array;
+        std::vector<int> ncomp_array;
+        std::vector<int> nghost_array;
+        std::vector<std::string> name_array;
+        std::vector<BC::BC<Set::Scalar> *> physbc_array;
+        std::vector<bool> writeout_array;
+        bool any = true;
+        bool all = false;
+    } node;
 
-	struct {
-		int number_of_fabs = 0;
-		std::vector<Set::Field<Set::Scalar> *> fab_array;
-		std::vector<int> ncomp_array;
-		std::vector<int> nghost_array;
-		std::vector<std::string> name_array;
-		std::vector<BC::BC<Set::Scalar> *> physbc_array;
-		std::vector<bool> writeout_array;
-		bool any = true;
-		bool all = false;
-	} cell;
+    struct {
+        int number_of_fabs = 0;
+        std::vector<Set::Field<Set::Scalar> *> fab_array;
+        std::vector<int> ncomp_array;
+        std::vector<int> nghost_array;
+        std::vector<std::string> name_array;
+        std::vector<BC::BC<Set::Scalar> *> physbc_array;
+        std::vector<bool> writeout_array;
+        bool any = true;
+        bool all = false;
+    } cell;
 
-	std::vector<BaseField *> m_basefields;
+    std::vector<BaseField *> m_basefields;
 
-	BC::Nothing bcnothing;
+    BC::Nothing bcnothing;
 
-	// KEEP TRACK OF ALL INTEGRATED VARIABLES
-	struct{
-		int interval = -1;
-		Set::Scalar dt = -1.0;
-		int plot_int = -1;
-		Set::Scalar plot_dt = -1.0;
-		int number = 0;
-		std::vector<Set::Scalar *> vars;
-		std::vector<std::string> names;
-	} thermo;
+    // KEEP TRACK OF ALL INTEGRATED VARIABLES
+    struct{
+        int interval = -1;
+        Set::Scalar dt = -1.0;
+        int plot_int = -1;
+        Set::Scalar plot_dt = -1.0;
+        int number = 0;
+        std::vector<Set::Scalar *> vars;
+        std::vector<std::string> names;
+    } thermo;
 
-	// REGRIDDING
-	int regrid_int = 2; ///< Determine how often to regrid (default: 2)
+    // REGRIDDING
+    int regrid_int = 2; ///< Determine how often to regrid (default: 2)
 
-	std::string restart_file_cell = "";
-	std::string restart_file_node = "";
+    std::string restart_file_cell = "";
+    std::string restart_file_node = "";
 
 protected:
-	int plot_int = -1;               ///< How frequently to dump plot file (default: never)
-	Set::Scalar plot_dt = -1.0;
+    int plot_int = -1;               ///< How frequently to dump plot file (default: never)
+    Set::Scalar plot_dt = -1.0;
 };
 }
 #endif

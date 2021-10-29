@@ -12,56 +12,56 @@ class Ellipse : public IC
 public:
     enum Mollifier {Dirac, Gaussian};
 
-	Ellipse (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
+    Ellipse (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
     {
         Define(Set::Matrix::Identity(), Set::Vector::Zero(), Mollifier::Dirac, 0.0);
     }
 
-	Ellipse (amrex::Vector<amrex::Geometry> &_geom, Set::Matrix a_A, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps) : IC(_geom) 
+    Ellipse (amrex::Vector<amrex::Geometry> &_geom, Set::Matrix a_A, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps) : IC(_geom) 
     {
         Define(a_A,a_x0,a_moll,a_eps);
     }
 
-	Ellipse (amrex::Vector<amrex::Geometry> &_geom, Set::Vector a_a, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps) : IC(_geom) 
+    Ellipse (amrex::Vector<amrex::Geometry> &_geom, Set::Vector a_a, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps) : IC(_geom) 
     {
         Set::Matrix A = Set::Matrix::Zero();
         for (int d = 0; d < AMREX_SPACEDIM; d++) A(d,d) = 1./a_a(d)/a_a(d);
         Define(A,a_x0,a_moll,a_eps);
     }
 
-  	void Define (Set::Matrix a_A, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps)
-	{
+    void Define (Set::Matrix a_A, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps)
+    {
         moll = a_moll;
         A.push_back(a_A);
         center.push_back(a_x0);
         eps.push_back(a_eps);
-  	}
+    }
 
-	
-	void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
-	{
+    
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    {
         Set::Vector DX(geom[lev].CellSize());
 
-		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-		{
-			amrex::Box bx = mfi.growntilebox();
-			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+        for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.growntilebox();
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::IndexType type = a_field[lev]->ixType();
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-				Set::Vector x;
+                Set::Vector x;
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
-				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
-				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
+                                x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
+                                x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
+                                x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
+                                x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                 }
 
                 if(number_of_inclusions == 0)
@@ -79,22 +79,22 @@ public:
                         Set::Scalar norm = (A[m]*(x-center[m])).lpNorm<2>();
                         value += 0.5 - 0.5*std::erf(((x-center[m]).transpose() * A[m] * (x-center[m]) - 1.0) / eps[m] / norm);
                         // if (field(i,j,k,m+1) < 0.) field(i,j,k,m+1) = 0.;
-                	    // if (field(i,j,k,m+1) > 1.) field(i,j,k,m+1) = 1.;
+                        // if (field(i,j,k,m+1) > 1.) field(i,j,k,m+1) = 1.;
                         // value += field(i,j,k,m+1);
                     }
                     field (i,j,k,0) = 1.0 - value;
                     field (i,j,k,1) = value;
                     if (field(i,j,k,0) < 0.) field(i,j,k,0) = 0.;
-                	if (field(i,j,k,0) > 1.) field(i,j,k,0) = 1.;
+                    if (field(i,j,k,0) > 1.) field(i,j,k,0) = 1.;
                     if (field(i,j,k,1) < 0.) field(i,j,k,1) = 0.;
-                	if (field(i,j,k,1) > 1.) field(i,j,k,1) = 1.;
+                    if (field(i,j,k,1) > 1.) field(i,j,k,1) = 1.;
                 }
                 
-			});
-		}
+            });
+        }
         a_field[lev]->FillBoundary();
-	}
-	
+    }
+    
 private:
     int number_of_inclusions = 1;
     amrex::Vector<Set::Vector> center;
