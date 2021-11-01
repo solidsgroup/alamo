@@ -12,7 +12,7 @@ namespace Integrator
         {
             // These are the phase field method parameters
             // that you use to inform the phase field method.
-            IO::ParmParse pp("physics"); // More parmparse info
+            IO::ParmParse pp("pf"); // More parmparse info
             pp.query("M", M); // Mobility parameter
             pp.query("kappa", kappa); // Interface energy param
             pp.query("w1", w1); // Unburned rest energy
@@ -82,6 +82,22 @@ namespace Integrator
                 PhiIC = new IC::Laminate(geom);
                 pp.queryclass("laminate", *static_cast<IC::Laminate *>(PhiIC)); // See :ref:`IC::Laminate`
             }
+        }
+
+        Util::Message(INFO,"Checking for unused inputs...");
+        int unused_inputs = IO::ParmParse::AllUnusedInputs();
+        if (unused_inputs > 0)
+        {
+            Util::Warning(INFO,"There are a lot of input parameters in the ");
+            Util::Warning(INFO,"input file that are no longer valid. Many of them have been");
+            Util::Warning(INFO,"renamed, removed, or replaced; the input file must be changed");
+            Util::Warning(INFO,"to match.");
+            Util::Warning(INFO,"");
+            Util::Warning(INFO,"Note: you can run");
+            Util::Warning(INFO,"   >   make docs");
+            Util::Warning(INFO,"   >   xdg-open docs/build/html/Inputs.html");
+            Util::Warning(INFO,"to look at the parameter list.\n");
+            Util::Abort(INFO, "Terminating for now until the input decks are brought up to speed.");
         }
     }
 
