@@ -13,36 +13,37 @@ namespace Integrator
             // These are the phase field method parameters
             // that you use to inform the phase field method.
             IO::ParmParse pp("pf"); // More parmparse info
-            pp.query("M", M); // Mobility parameter
-            pp.query("kappa", kappa); // Interface energy param
-            pp.query("w1", w1); // Unburned rest energy
-            pp.query("w12", w12);  // Barrier energy
-            pp.query("w0", w0);    // Burned rest energy
-            pp.query("fs_ap", fs_ap);     // Flame speed in AP :math:`a_b c^d`
-            pp.query("fs_htpb", fs_htpb); // Flame speed in HTPB
-            pp.query("fs_comb", fs_comb); // Flame speed in overlap region
-            pp.query("P", P); // Pressure [UNITS?]
-            pp.query("r_ap", r_ap); // AP Powe Law Exponent
-            pp.query("n_ap", n_ap);
-            pp.query("r_htpb", r_htpb);
-            pp.query("n_htpb", n_htpb);
-            pp.query("r_comb", r_comb);
-            pp.query("n_comb", n_comb);
+            pp.query("M", pf.M); // Mobility parameter
+            pp.query("kappa", pf.kappa); // Interface energy param
+            pp.query("w1", pf.w1); // Unburned rest energy
+            pp.query("w12", pf.w12);  // Barrier energy
+            pp.query("w0", pf.w0);    // Burned rest energy
+            pp.query("fs_ap", pf.fs_ap);     // Flame speed in AP :math:`a_b c^d`
+            pp.query("fs_htpb", pf.fs_htpb); // Flame speed in HTPB
+            pp.query("fs_comb", pf.fs_comb); // Flame speed in overlap region
+            pp.query("P", pf.P);             // Pressure [UNITS?]
+            pp.query("r_ap", pf.r_ap);       // AP Power law multiplier
+            pp.query("n_ap", pf.n_ap);       // AP Power law exponent
+            pp.query("r_htpb", pf.r_htpb);   // HTPB Power law multiplier
+            pp.query("n_htpb", pf.n_htpb);   // HTPB Power law exponent
+            pp.query("r_comb", pf.r_comb);   // Combination power law multiplier
+            pp.query("n_comb", pf.n_comb);   // Combination power law exponent
 
         }
         
         {
             // These parameters are for the **Thermal transport model**
             IO::ParmParse pp("thermal");
-            pp.query("rho1", rho1);
-            pp.query("rho0", rho0);
-            pp.query("ka", ka);
-            pp.query("kh", kh);
-            pp.query("k0", k0);
-            pp.query("cp1", cp1);
-            pp.query("cp0", cp0);
-            pp.query("delA", delA);
-            pp.query("delH", delH);
+            pp.query("on",thermal.on);
+            pp.query("rho1", thermal.rho1); // Density (before)
+            pp.query("rho0", thermal.rho0); // Density (after)
+            pp.query("ka", thermal.ka); // Thermal conductivity (before and after)
+            pp.query("kh", thermal.kh); // Thermal conductivity (before and after)
+            pp.query("k0", thermal.k0); // Thermal conductivity (before and after)
+            pp.query("cp1", thermal.cp1); // Specific heat (before and after)
+            pp.query("cp0", thermal.cp0); // Specific heat (before and after)
+            pp.query("delA", thermal.delA); // Thermal flux of each material
+            pp.query("delH", thermal.delH); // Thermal flux of each material
         }
 
         {
@@ -121,9 +122,6 @@ namespace Integrator
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            // Eta_mf[lev]->FillBoundary();
-            // FlameSpeed_mf[lev]->FillBoundary();
-            // Temp_mf[lev]->FillBoundary();
             Util::RealFillBoundary(*Eta_mf[lev], geom[lev]);
             Util::RealFillBoundary(*phi_mf[lev], geom[lev]);
             Util::RealFillBoundary(*Temp_mf[lev], geom[lev]);
@@ -214,7 +212,12 @@ namespace Integrator
 
         const amrex::Real *DX = geom[lev].CellSize();
 
-        Set::Scalar a0 = w0, a1 = 0.0, a2 = -5 * w1 + 16 * w12 - 11 * a0, a3 = 14 * w1 - 32 * w12 + 18 * a0, a4 = -8 * w1 + 16 * w12 - 8 * a0;
+        Set::Scalar 
+            a0 = pf.w0, 
+            a1 = 0.0, 
+            a2 = -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * a0, 
+            a3 = 14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * a0, 
+            a4 = -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * a0;
 
         for (amrex::MFIter mfi(*Temp_mf[lev], true); mfi.isValid(); ++mfi)
         {
@@ -226,9 +229,9 @@ namespace Integrator
             amrex::Array4<const Set::Scalar> const &Temp_old = (*Temp_old_mf[lev]).array(mfi);
             amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
 
-            Set::Scalar fmod_ap = fs_ap * (r_ap * pow(P, n_ap));
-            Set::Scalar fmod_htpb = fs_htpb * (r_htpb * pow(P, n_htpb));
-            Set::Scalar fmod_comb = fs_comb * (r_comb * pow(P, n_comb));
+            Set::Scalar fmod_ap = pf.fs_ap * (pf.r_ap * pow(pf.P, pf.n_ap));
+            Set::Scalar fmod_htpb = pf.fs_htpb * (pf.r_htpb * pow(pf.P, pf.n_htpb));
+            Set::Scalar fmod_comb = pf.fs_comb * (pf.r_comb * pow(pf.P, pf.n_comb));
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 //
@@ -244,7 +247,7 @@ namespace Integrator
 
                 Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
-                Eta(i, j, k) = Eta_old(i, j, k) - (fs_actual) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - kappa * eta_lap);
+                Eta(i, j, k) = Eta_old(i, j, k) - (fs_actual) * dt * (a1 + 2 * a2 * Eta_old(i, j, k) + 3 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k) - pf.kappa * eta_lap);
 
                 //
                 // Temperature evolution
@@ -259,15 +262,15 @@ namespace Integrator
                     Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
                     Set::Vector normvec = eta_grad/Eta_old(i,j,k);
 
-                    amrex::Real rho = (rho1 - rho0) * Eta_old(i,j,k) + rho0;
-                    amrex::Real Ka = (ka - k0) * Eta_old(i,j,k) + k0;
-                    amrex::Real Kh = (kh -k0) * Eta_old(i,j,k) + k0;
+                    amrex::Real rho = (thermal.rho1 - thermal.rho0) * Eta_old(i,j,k) + thermal.rho0;
+                    amrex::Real Ka = (thermal.ka - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+                    amrex::Real Kh = (thermal.kh -thermal.k0) * Eta_old(i,j,k) + thermal.k0;
                     Set:: Scalar K = Ka*phi(i,j,k) + Kh*(1-phi(i,j,k));
 
-                    amrex::Real cp = (cp1 - cp0) * Eta_old(i,j,k) + cp0;
+                    amrex::Real cp = (thermal.cp1 - thermal.cp0) * Eta_old(i,j,k) + thermal.cp0;
 
                     Set::Scalar test = normvec.dot(temp_grad);
-                    Set:: Scalar neumbound = delA*phi(i,j,k) + delH*(1-phi(i,j,k));
+                    Set:: Scalar neumbound = thermal.delA*phi(i,j,k) + thermal.delH*(1-phi(i,j,k));
 
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)

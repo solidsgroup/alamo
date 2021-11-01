@@ -53,48 +53,41 @@ private:
     //IC::Voronoi *VoronoiIC;
     IC::IC *PhiIC;
 
-    // int number_of_fabs = 1;
-    // int number_of_components = 2;
-
-    Set::Scalar M;                  // Burn speed parameter
-    Set::Scalar kappa;              // Burn width parameter
-    Set::Scalar w1, w12, w0;        // Energy (before, during, after)
-    Set::Scalar rho1, rho0;         // Density (before and after)
-    Set::Scalar ka, kh, k0;             // Thermal conductivity (before and after)
-    Set::Scalar cp1, cp0;           // Specific heat (before and after)
-    Set::Scalar delA, delH;       // Thermal flux of each material
-
-
-    Set::Scalar fs_ap;               
-    Set::Scalar fs_htpb; 
-    Set::Scalar fmod_ap;               
-    Set::Scalar fmod_htpb; 
-    Set::Scalar fs_comb;               
-    Set::Scalar fmod_comb; 
-    Set::Scalar P;
-    Set::Scalar r_ap;
-    Set::Scalar n_ap;
-    Set::Scalar r_htpb;
-    Set::Scalar n_htpb;
-    Set::Scalar r_comb;
-    Set::Scalar n_comb;
 
     int fs_number = 1;
-    //Set::Scalar fs_min = -1.0;
-    //Set::Scalar fs_max = 1.0;
-    //Set::Scalar mean = 0.1;
-    Set::Scalar volume_fraction = 0.1;
-    //Set::Scalar std_deviation = 0.05;
-    Set::Scalar R_min = 0.1;
-    Set::Scalar R_max = 0.2;
-    Set::Scalar R_mean = 0.075;
-    Set::Scalar verbosity = 0.1;
  
    
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     
     IC::IC *EtaIC;
+
+    struct {
+        Set::Scalar M = NAN;
+        Set::Scalar kappa = NAN;
+        Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
+        Set::Scalar fs_ap = NAN;
+        Set::Scalar fs_htpb = NAN; 
+        Set::Scalar fmod_ap = NAN;
+        Set::Scalar fmod_htpb = NAN;
+        Set::Scalar fs_comb = NAN;
+        Set::Scalar fmod_comb = NAN;
+        Set::Scalar P = NAN;
+        Set::Scalar r_ap = NAN;
+        Set::Scalar n_ap = NAN;
+        Set::Scalar r_htpb = NAN;
+        Set::Scalar n_htpb = NAN;
+        Set::Scalar r_comb = NAN;
+        Set::Scalar n_comb = NAN;
+    } pf;
+
+    struct {
+        int on = 0;
+        Set::Scalar rho1, rho0;         
+        Set::Scalar ka, kh, k0;             
+        Set::Scalar cp1, cp0;           
+        Set::Scalar delA, delH;       
+    } thermal;
 
     struct {
         Set::Field<Set::Scalar> disp_mf;
