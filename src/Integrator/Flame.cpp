@@ -55,6 +55,7 @@ namespace Integrator
 
 
         {
+            // Boundary condition specifiers
             IO::ParmParse pp("bc");
             TempBC = new BC::Constant(1);
             pp.queryclass("temp", *static_cast<BC::Constant *>(TempBC)); // See :ref:`BC::Constant`
@@ -69,10 +70,13 @@ namespace Integrator
         RegisterNewFab(Eta_mf, EtaBC, 1, 1, "Eta", true);
         RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
         RegisterNewFab(phi_mf, EtaBC, 1, 1, "phi", true);
+        
         {
+            // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
+            // specified using these parameters. 
             IO::ParmParse pp("phi.ic");
             std::string type = "packedspheres";
-            pp.query("type", type);
+            pp.query("type", type); // IC type - [packedspheres,laminate] - see classes for more information
             if (type == "packedspheres")
             {
                 PhiIC = new IC::PackedSpheres(geom);
@@ -169,6 +173,7 @@ namespace Integrator
         elastic_op.SetAverageDownCoeffs(true);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
+        // Parameters for the elastic solver (when used with elasticity)
         IO::ParmParse pp("elastic");
         elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
         pp.queryclass("solver", *elastic.solver); // See :ref:`Solver::Nonlocal::Newton`
