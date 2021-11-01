@@ -45,7 +45,14 @@ namespace Integrator
             pp.query("delH", delH);
         }
 
-        pp.query("refinement_criterion", m_refinement_criterion);
+        {
+            // Additional AMR parameters
+            IO::ParmParse pp ("amr");
+            pp.query("refinement_criterion", m_refinement_criterion); // Refinement criterion for eta field
+            pp.query("refinement_criterion_temp", t_refinement_criterion); // Refinement criterion for temperature field
+        }
+
+
         {
             IO::ParmParse pp("bc");
             TempBC = new BC::Constant(1);

@@ -5,6 +5,9 @@ from os import listdir
 from os.path import isfile, join
 
 
+def getParseDef(line):
+    return "static void Parse" in line
+
 
 def getParmParseDef(line):
     info = re.findall("ParmParse pp\(\"(.*)\"\)", line)
@@ -28,6 +31,7 @@ def getParmParseInfo(line):
 def getDocs(lines,i):
     ret = None
     for j in range(0,len(lines)-i):
+        if j>0 and getParseDef(lines[i-j]): break
         if j>0 and getParmParseDef(lines[i-j]): break
         if j>0 and getParmParseInfo(lines[i-j]): break
         docs = re.findall(r'.?\/\/(.*)', lines[i-j])
@@ -58,10 +62,13 @@ def extract(filename):
             docs = getDocs(lines,i)
             if docs: rets[prefix]["docs"] = docs
             
-        if ("static void Parse" in lines[i]):
+        if (getParseDef(lines[i])):
             prefix = "[prefix]"
             rets[prefix] = dict()
             rets[prefix]["items"] = []
+
+            docs = getDocs(lines,i)
+            if docs: rets[prefix]["docs"] = docs
         if ('pp.query' in lines[i]):
             ret = dict()
             docs = re.findall(r'.?\/\/(.*)', lines[i-1])
