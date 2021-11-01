@@ -16,8 +16,6 @@ constexpr amrex::IntVect AMREX_D_DECL(Operator<Grid::Cell>::dx,Operator<Grid::Ce
 void Operator<Grid::Node>::Diagonal (bool recompute)
 {
     BL_PROFILE(Color::FG::Yellow + "Operator::Diagonal()" + Color::Reset);
-    //Util::Message(INFO);
-    
     if ( !recompute && m_diagonal_computed ) return;
     m_diagonal_computed = true;
 
@@ -470,9 +468,6 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
     if (isSingular(0))
     {
         Util::Abort(INFO,"Singular operators not supported!");
-        // MultiFab frhs(fine_rhs.boxArray(), fine_rhs.DistributionMap(), 1, 1);
-        // MultiFab::Copy(frhs, fine_rhs, 0, 0, 1, 0);
-        // restrictInteriorNodes(camrlev, crse_rhs, frhs);
     }
 
 }
@@ -480,17 +475,6 @@ void Operator<Grid::Node>::averageDownSolutionRHS (int camrlev, MultiFab& crse_s
 void Operator<Grid::Node>::realFillBoundary(MultiFab &phi, const Geometry &geom) 
 {
     Util::RealFillBoundary(phi,geom);
-//    for (int i = 0; i < 2; i++)
-//    {
-//        MultiFab & mf = phi;
-//        mf.FillBoundary(geom.periodicity());
-//        const int ncomp = mf.nComp();
-//        const int ng1 = 1;
-//        const int ng2 = 2;
-//        MultiFab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-//        MultiFab::Copy(tmpmf, mf, 0, 0, ncomp, ng1); 
-//        mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
-//    }
 }
 
 void Operator<Grid::Node>::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode*/,
@@ -757,18 +741,7 @@ Operator<Grid::Cell>::BndryCondLoc::setLOBndryConds (const amrex::Geometry& /*ge
                     const amrex::Array<BCType,AMREX_SPACEDIM>& /*hibc*/,
                     int /*ratio*/, const amrex::RealVect& /*a_loc*/)
 {
-//    const amrex::Box&  domain = geom.Domain();
     Util::Warning(INFO,"This code has not been properlyt tested");
-//#ifdef _OPENMP
-//#pragma omp parallel
-//#endif
-//    for (amrex::MFIter mfi(bcloc); mfi.isValid(); ++mfi)
-//    {
-//        const amrex::Box& bx = mfi.validbox();
-//        RealTuple & bloc  = bcloc[mfi];
-//        BCTuple   & bctag = bcond[mfi];
-//        //amrex::MLMGBndry::setBoxBC(bloc, bctag, bx, domain, lobc, hibc, dx, ratio, a_loc,geom.isPeriodicArray());
-//    }
 }
 
 

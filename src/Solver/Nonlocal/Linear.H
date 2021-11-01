@@ -118,6 +118,8 @@ protected:
     Set::Scalar m_tol_rel = 1E-8, m_tol_abs = 1E-8;
 
 public:
+    // These are the parameters that are read in for a standard 
+    // multigrid linear solve.
     static void Parse(Linear & value, amrex::ParmParse & pp)
     {
         if (pp.contains("max_iter"))

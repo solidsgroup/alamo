@@ -339,6 +339,10 @@ public:
     BC::Operator::Elastic::Elastic &m_bc;
 
 public:
+    // These paramters control a standard Newton-Raphson solve.
+    // 
+    // **Note**: this class inherits all of the linear solve paramters
+    //           from its parent class, :ref:`Solve:Nonlocal:Linear`
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)
     {
         Linear::Parse(value,pp);

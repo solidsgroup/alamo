@@ -17,29 +17,34 @@ Integrator::Integrator ()
 {
     BL_PROFILE("Integrator::Integrator()");
     {
-        amrex::ParmParse pp;   // Basic run parameters
-        pp.query("max_step", max_step);
-        pp.query("stop_time", stop_time);
-        pp.query("timestep",timestep);
-        pp.query("restart", restart_file_cell); 
-        pp.query("restart_cell", restart_file_cell); 
-        pp.query("restart_node", restart_file_node); 
+        // These are basic parameters that are, in 
+        // general, common to all Alamo simulations.
+        amrex::ParmParse pp;   
+        pp.query("max_step", max_step);               // Number of iterations before ending
+        pp.query("stop_time", stop_time);             // Simulation time before ending
+        pp.query("timestep",timestep);                // Nominal timestep on amrlev = 0
+        pp.query("restart", restart_file_cell);       // Name of restart file to READ from
+        pp.query("restart_cell", restart_file_cell);  // Name of cell-fab restart file to read from
+        pp.query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
     }
     {
-        amrex::ParmParse pp("amr"); // AMR specific parameters
-        pp.query("regrid_int", regrid_int);     // ALL processors
-        pp.query("plot_int", plot_int);         // ALL processors
-        pp.query("plot_dt", plot_dt);         // ALL processors
-        pp.query("plot_file", plot_file);       // IO Processor only
+        // These are parameters that are specific to
+        // the AMR/regridding part of the code.
+        amrex::ParmParse pp("amr"); 
+        pp.query("regrid_int", regrid_int);           // Regridding interval in timesteps
+        pp.query("plot_int", plot_int);               // Interval (in timesteps) between plotfiles
+        pp.query("plot_dt", plot_dt);                 // Interval (in simulation time) between plotfiles
+        pp.query("plot_file", plot_file);             // Output file
         
-        pp.query("cell.all",cell.all); 
-        pp.query("cell.any",cell.any); 
-        pp.query("node.all",node.all); 
-        pp.query("node.any",node.any); 
+        pp.query("cell.all",cell.all);                // Turn on to write all output in cell fabs (default: off)
+        pp.query("cell.any",cell.any);                // Turn off to prevent any cell based output (default: on)
+        pp.query("node.all",node.all);                // Turn on to write all output in node fabs (default: off)
+        pp.query("node.any",node.any);                // Turn off to prevent any node based output (default: on)
+
         Util::Assert(INFO,TEST(!(!cell.any && cell.all)));
         Util::Assert(INFO,TEST(!(!node.any && node.all)));
         
-        pp.query("max_plot_level",max_plot_level);      
+        pp.query("max_plot_level",max_plot_level);    // Specify a maximum level of refinement for output files
 
         IO::FileNameParse(plot_file);
 
@@ -47,14 +52,14 @@ Integrator::Integrator ()
         int cnt = pp.countval("nsubsteps");
         if (cnt != 0)
             if (cnt == maxLevel()){
-                pp.queryarr("nsubsteps",nsubsteps);
+                pp.queryarr("nsubsteps",nsubsteps); // Number of substeps to take on each level (default: 2)
                 nsubsteps.insert(nsubsteps.begin(),1);
                 nsubsteps.pop_back();
             }
             else if (cnt == 1)
             {
                 int nsubsteps_all;
-                pp.query("nsubsteps",nsubsteps_all);
+                pp.query("nsubsteps",nsubsteps_all);// Number of substeps to take on each level (set all levels to this value)
                 for (int lev = 1; lev <= maxLevel(); ++lev) nsubsteps[lev] = nsubsteps_all;
             }
             else
@@ -64,11 +69,13 @@ Integrator::Integrator ()
                 nsubsteps[lev] = MaxRefRatio(lev-1);
     }
     {
-        amrex::ParmParse pp("amr.thermo"); // AMR specific parameters
-        thermo.interval = 1; // Default: integrate every time.
-        pp.query("int", thermo.interval);     // ALL processors
-        pp.query("plot_int", thermo.plot_int);         // ALL processors
-        pp.query("plot_dt", thermo.plot_dt);         // ALL processors
+        // Information on how to generate thermodynamic
+        // data (to show up in thermo.dat)
+        amrex::ParmParse pp("amr.thermo");
+        thermo.interval = 1;                           // Default: integrate every time.
+        pp.query("int", thermo.interval);              // Integration interval (1)
+        pp.query("plot_int", thermo.plot_int);         // Interval (in timesteps) between writing
+        pp.query("plot_dt", thermo.plot_dt);           // Interval (in simulation time) between writing
     }
 
 

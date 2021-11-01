@@ -174,7 +174,7 @@ obj/obj-$(POSTFIX)/%.F90.o: src/%.F90
 docs: docs/doxygen/index.html docs/source/Inputs.rst docs/build/html/index.html .FORCE 
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
-docs/source/Inputs.rst: $(HDR_ALL) docs/parseinputs.py
+docs/source/Inputs.rst: $(HDR_ALL) $(SRC) docs/parseinputs.py
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Parsing inputs\n" 	
 	@cd docs && python3 parseinputs.py
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)

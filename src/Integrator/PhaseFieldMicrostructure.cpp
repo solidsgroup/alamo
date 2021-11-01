@@ -174,6 +174,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
 
     // Elasticity
     {
+        // Parameters for the elastic solver
         IO::ParmParse pp("elastic");
         pp.query("on", elastic.on);
         if (elastic.on)
@@ -562,7 +563,7 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 
     Solver::Nonlocal::Newton<model_type> linearsolver(elasticop);
     IO::ParmParse pp("elastic");
-    pp.queryclass("solver",linearsolver);
+    pp.queryclass("solver",linearsolver); // See :ref:`Solver::Nonlocal::Newton`
     linearsolver.solve(disp_mf, rhs_mf, model_mf, 1E-8, 1E-8);
 
     linearsolver.W(energy_mf,disp_mf,model_mf);

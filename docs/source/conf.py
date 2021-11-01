@@ -47,7 +47,9 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
+    'sphinx.ext.autosectionlabel',
     'breathe',
+    'linuxdoc.rstFlatTable',
 #    'm2r'
 ]
 
@@ -114,7 +116,7 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['.static']
+html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -192,3 +194,7 @@ texinfo_documents = [
 todo_include_todos = True
 
 html_logo = "alamo.svg"
+
+html_css_files = [
+    'custom.css'
+]
