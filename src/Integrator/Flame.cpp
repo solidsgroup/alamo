@@ -9,46 +9,49 @@ namespace Integrator
 
     Flame::Flame() : Integrator()
     {
-        IO::ParmParse pp("physics");
-        // Mobility parameter
-        pp.query("M", M);
-        // Interface energy param
-        pp.query("kappa", kappa);
-        // Unburned rest energy
-        pp.query("w1", w1);
-        // Barrier energy
-        pp.query("w12", w12);
-        // Burned rest energy
-        pp.query("w0", w0);
-        pp.query("rho1", rho1);
-        pp.query("rho0", rho0);
-        pp.query("ka", ka);
-        pp.query("kh", kh);
-        pp.query("k0", k0);
-        pp.query("cp1", cp1);
-        pp.query("cp0", cp0);
-        pp.query("delA", delA);
-        pp.query("delH", delH);
+        {
+            // These are the phase field method parameters
+            // that you use to inform the phase field method.
+            IO::ParmParse pp("physics"); // More parmparse info
+            pp.query("M", M); // Mobility parameter
+            pp.query("kappa", kappa); // Interface energy param
+            pp.query("w1", w1); // Unburned rest energy
+            pp.query("w12", w12);  // Barrier energy
+            pp.query("w0", w0);    // Burned rest energy
+            pp.query("fs_ap", fs_ap);     // Flame speed in AP :math:`a_b c^d`
+            pp.query("fs_htpb", fs_htpb); // Flame speed in HTPB
+            pp.query("fs_comb", fs_comb); // Flame speed in overlap region
+            pp.query("P", P); // Pressure [UNITS?]
+            pp.query("r_ap", r_ap); // AP Powe Law Exponent
+            pp.query("n_ap", n_ap);
+            pp.query("r_htpb", r_htpb);
+            pp.query("n_htpb", n_htpb);
+            pp.query("r_comb", r_comb);
+            pp.query("n_comb", n_comb);
 
-        // Flame speed in AP :math:`a_b c^d`
-        pp.query("fs_ap", fs_ap);
-        pp.query("fs_htpb", fs_htpb);
-        pp.query("fs_comb", fs_comb);
-        pp.query("P", P);
-        pp.query("r_ap", r_ap);
-        pp.query("n_ap", n_ap);
-        pp.query("r_htpb", r_htpb);
-        pp.query("n_htpb", n_htpb);
-        pp.query("r_comb", r_comb);
-        pp.query("n_comb", n_comb);
+        }
+        
+        {
+            // These parameters are for the **Thermal transport model**
+            IO::ParmParse pp("thermal");
+            pp.query("rho1", rho1);
+            pp.query("rho0", rho0);
+            pp.query("ka", ka);
+            pp.query("kh", kh);
+            pp.query("k0", k0);
+            pp.query("cp1", cp1);
+            pp.query("cp0", cp0);
+            pp.query("delA", delA);
+            pp.query("delH", delH);
+        }
 
         pp.query("refinement_criterion", m_refinement_criterion);
         {
             IO::ParmParse pp("bc");
             TempBC = new BC::Constant(1);
-            pp.queryclass("temp", *static_cast<BC::Constant *>(TempBC));
+            pp.queryclass("temp", *static_cast<BC::Constant *>(TempBC)); // See :ref:`BC::Constant`
             EtaBC = new BC::Constant(1);
-            pp.queryclass("eta", *static_cast<BC::Constant *>(EtaBC));
+            pp.queryclass("eta", *static_cast<BC::Constant *>(EtaBC)); // See :ref:`BC::Constant`
         }
 
         std::vector<Set::Scalar> fs(fs_number, 1);
@@ -65,12 +68,12 @@ namespace Integrator
             if (type == "packedspheres")
             {
                 PhiIC = new IC::PackedSpheres(geom);
-                pp.queryclass("packedspheres", *static_cast<IC::PackedSpheres *>(PhiIC));
+                pp.queryclass("packedspheres", *static_cast<IC::PackedSpheres *>(PhiIC)); // See :ref:`IC::PackedSpheres`
             }
             else if (type == "laminate")
             {
                 PhiIC = new IC::Laminate(geom);
-                pp.queryclass("laminate", *static_cast<IC::Laminate *>(PhiIC));
+                pp.queryclass("laminate", *static_cast<IC::Laminate *>(PhiIC)); // See :ref:`IC::Laminate`
             }
         }
     }
@@ -147,7 +150,7 @@ namespace Integrator
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
         IO::ParmParse pp("elastic");
         elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
-        pp.queryclass("solver", *elastic.solver);
+        pp.queryclass("solver", *elastic.solver); // See :ref:`Solver::Nonlocal::Newton`
 
         elastic.solver->solve(elastic.disp_mf, elastic.rhs_mf, elastic.model_mf, tol_rel, tol_abs);
         elastic.solver->compResidual(elastic.res_mf, elastic.disp_mf, elastic.rhs_mf, elastic.model_mf);
