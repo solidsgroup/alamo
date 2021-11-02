@@ -335,7 +335,7 @@ protected:
 
     // KEEP TRACK OF ALL INTEGRATED VARIABLES
     struct{
-        int interval = -1;
+        int interval = 1;
         Set::Scalar dt = -1.0;
         int plot_int = -1;
         Set::Scalar plot_dt = -1.0;

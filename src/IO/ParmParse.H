@@ -97,7 +97,11 @@ public:
         }
         return cnt;
     }
-
+    std::string prefix ()
+    {
+        return getPrefix();
+    }
+        
     using amrex::ParmParse::queryarr;
     template<class T>
     void queryclass(std::string name, T * value)

@@ -63,22 +63,20 @@ private:
     IC::IC *EtaIC;
 
     struct {
-        Set::Scalar M = NAN;
-        Set::Scalar kappa = NAN;
-        Set::Scalar w1 = NAN, w12 = NAN, w0 = NAN;
-        Set::Scalar fs_ap = NAN;
-        Set::Scalar fs_htpb = NAN; 
-        Set::Scalar fmod_ap = NAN;
-        Set::Scalar fmod_htpb = NAN;
-        Set::Scalar fs_comb = NAN;
-        Set::Scalar fmod_comb = NAN;
-        Set::Scalar P = NAN;
-        Set::Scalar r_ap = NAN;
-        Set::Scalar n_ap = NAN;
-        Set::Scalar r_htpb = NAN;
-        Set::Scalar n_htpb = NAN;
-        Set::Scalar r_comb = NAN;
-        Set::Scalar n_comb = NAN;
+        Set::Scalar M = 0.0;
+        Set::Scalar eps = 0.0;
+        Set::Scalar kappa = 0.0;
+        Set::Scalar w1 = 1.0, w12 = 2.0, w0 = 0.0;
+        Set::Scalar fs_ap = 0;
+        Set::Scalar fs_htpb = 0; 
+        Set::Scalar fs_comb = 0.0;
+        Set::Scalar P = 0.0;
+        Set::Scalar r_ap = 0.0;
+        Set::Scalar n_ap = 0.0;
+        Set::Scalar r_htpb = 0.0;
+        Set::Scalar n_htpb = 0.0;
+        Set::Scalar r_comb = 0.0;
+        Set::Scalar n_comb = 0.0;
     } pf;
 
     struct {
