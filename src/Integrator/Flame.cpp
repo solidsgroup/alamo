@@ -17,6 +17,7 @@ namespace Integrator
             pp.query("M", pf.M); // Mobility parameter
             pp.query("eps", pf.eps); // Burn width thickness
             pp.query("kappa", pf.kappa); // Interface energy param
+            pp.query("lambda",pf.lambda); // Chemical potential multiplier
             pp.query("w1", pf.w1); // Unburned rest energy
             pp.query("w12", pf.w12);  // Barrier energy
             pp.query("w0", pf.w0);    // Burned rest energy
@@ -222,51 +223,54 @@ namespace Integrator
 
     void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
     {
-        std::swap(Eta_old_mf[lev], Eta_mf[lev]);
-        if (thermal.on) std::swap(Temp_old_mf[lev], Temp_mf[lev]);
-
         const amrex::Real *DX = geom[lev].CellSize();
 
-        Set::Scalar 
-            a0 = pf.w0, 
-            a1 = 0.0, 
-            a2 = -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * a0, 
-            a3 = 14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * a0, 
-            a4 = -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * a0;
 
         //
         // Phase field evolution
         //
 
-        for (amrex::MFIter mfi(*Eta_mf[lev], true); mfi.isValid(); ++mfi)
+        if (lev == finest_level)
         {
-            const amrex::Box &bx = mfi.tilebox();
+            std::swap(Eta_old_mf[lev], Eta_mf[lev]);
+            
+            Set::Scalar 
+                a0 = pf.w0, 
+                a1 = 0.0, 
+                a2 = -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * a0, 
+                a3 = 14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * a0, 
+                a4 = -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * a0;
 
-            amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
-
-            Set::Scalar fmod_ap = pf.fs_ap * (pf.r_ap * pow(pf.P, pf.n_ap));
-            Set::Scalar fmod_htpb = pf.fs_htpb * (pf.r_htpb * pow(pf.P, pf.n_htpb));
-            Set::Scalar fmod_comb = pf.fs_comb * (pf.r_comb * pow(pf.P, pf.n_comb));
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            for (amrex::MFIter mfi(*Eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
+                const amrex::Box &bx = mfi.tilebox();
 
-                Set:: Scalar fs_actual;
+                amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
 
-                fs_actual = 
-                        fmod_ap * phi(i, j, k) 
-                        + fmod_htpb * (1.0 - phi(i, j, k))
-                        + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));
+                Set::Scalar fmod_ap = pf.fs_ap * (pf.r_ap * pow(pf.P, pf.n_ap));
+                Set::Scalar fmod_htpb = pf.fs_htpb * (pf.r_htpb * pow(pf.P, pf.n_htpb));
+                Set::Scalar fmod_comb = pf.fs_comb * (pf.r_comb * pow(pf.P, pf.n_comb));
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
 
-                Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
+                    Set:: Scalar fs_actual;
 
-                Eta(i, j, k) = 
-                    Eta_old(i, j, k) 
-                    - (fs_actual) * dt * (
-                        (1.0/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
-                        - pf.eps * pf.kappa * eta_lap);
-            });
+                    fs_actual = 
+                            fmod_ap * phi(i, j, k) 
+                            + fmod_htpb * (1.0 - phi(i, j, k))
+                            + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));
+
+                    Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
+
+                    Eta(i, j, k) = 
+                        Eta_old(i, j, k) 
+                        - (fs_actual) * dt * (
+                            (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
+                            - pf.eps * pf.kappa * eta_lap);
+                });
+            }
         }
 
         //
@@ -276,6 +280,7 @@ namespace Integrator
         Set::Scalar temperature_delay = 0.01; // hard coded for now, need to make input
         if (thermal.on && time >= temperature_delay)
         {
+            std::swap(Temp_old_mf[lev], Temp_mf[lev]);
             for (amrex::MFIter mfi(*Temp_mf[lev], true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box &bx = mfi.tilebox();

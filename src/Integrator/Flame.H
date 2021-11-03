@@ -65,6 +65,7 @@ private:
     struct {
         Set::Scalar M = 0.0;
         Set::Scalar eps = 0.0;
+        Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 1.0, w12 = 2.0, w0 = 0.0;
         Set::Scalar fs_ap = 0;
