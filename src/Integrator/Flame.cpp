@@ -17,13 +17,11 @@ namespace Integrator
             pp.query("M", pf.M); // Mobility parameter
             pp.query("eps", pf.eps); // Burn width thickness
             pp.query("kappa", pf.kappa); // Interface energy param
+            pp.query("gamma",pf.gamma); // Scaling factor for mobility
             pp.query("lambda",pf.lambda); // Chemical potential multiplier
             pp.query("w1", pf.w1); // Unburned rest energy
             pp.query("w12", pf.w12);  // Barrier energy
             pp.query("w0", pf.w0);    // Burned rest energy
-            pp.query("fs_ap", pf.fs_ap);     // Flame speed in AP :math:`a_b c^d`
-            pp.query("fs_htpb", pf.fs_htpb); // Flame speed in HTPB
-            pp.query("fs_comb", pf.fs_comb); // Flame speed in overlap region
             pp.query("P", pf.P);             // Pressure [UNITS?]
             pp.query("r_ap", pf.r_ap);       // AP Power law multiplier
             pp.query("n_ap", pf.n_ap);       // AP Power law exponent
@@ -249,9 +247,9 @@ namespace Integrator
                 amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
 
-                Set::Scalar fmod_ap = pf.fs_ap * (pf.r_ap * pow(pf.P, pf.n_ap));
-                Set::Scalar fmod_htpb = pf.fs_htpb * (pf.r_htpb * pow(pf.P, pf.n_htpb));
-                Set::Scalar fmod_comb = pf.fs_comb * (pf.r_comb * pow(pf.P, pf.n_comb));
+                Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
+                Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
+                Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
@@ -262,11 +260,13 @@ namespace Integrator
                             + fmod_htpb * (1.0 - phi(i, j, k))
                             + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));
 
+                    Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
+
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
                     Eta(i, j, k) = 
                         Eta_old(i, j, k) 
-                        - (fs_actual) * dt * (
+                        - L * dt * (
                             (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
                             - pf.eps * pf.kappa * eta_lap);
                 });
