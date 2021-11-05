@@ -66,12 +66,11 @@ namespace IC
 
             Set::Vector size;
             AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
-                                                                             size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];
-                         ,
+                         size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,       
                          size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
-
+            Util::Message(INFO, "number of grains ",number_of_grains);
             int total = 0;
-
+    Util::Message(INFO, " vf   ",vf);
 #if AMREX_SPACEDIM > 2
             if (geom[0].isPeriodic(2))
             {
@@ -102,14 +101,15 @@ namespace IC
                     }
                 }
             }
-            //#endif
+#endif
 
-            Util::Message(INFO, "R_mean ", R_mean);
+Util::Message(INFO, "R_mean ", R_mean);
 
-#elif AMREX_SPACEDIM > 1
+#if AMREX_SPACEDIM > 1
             if (geom[0].isPeriodic(1))
             {
                 double dom_vol = size(0) * size(1);
+                Util::Message(INFO, "dom_vol ",dom_vol);
                 // converting volume fraction in to no of spheres
                 for (int n = 0; n < number_of_grains; n++)
                 {
@@ -119,8 +119,10 @@ namespace IC
                         // R[n]=R_min+((R_max-R_min)/number_of_grains);
                         R[n] = ((R_mean) / number_of_grains);
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
+                         Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
+                        Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size = pack_size + sph_nos[n];
                     }
@@ -129,19 +131,21 @@ namespace IC
                     {
                         R[n] = ((R_mean) / number_of_grains);
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
+                        Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
+                         Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size = pack_size + sph_nos[n];
                     }
                 }
             }
 #endif
-
+            Util::Message(INFO, "pack_size  ",pack_size);
             if (rank == 0)
             {
                 R_new.assign(R.begin(), R.end());
-
+                Util::Message(INFO, " R size ", R_new.size());
                 // matching the total no of elements with the total no spheres
                 for (int i = 0; i < number_of_grains; i++)
                 {
@@ -195,8 +199,7 @@ namespace IC
                     if (n == 0)
                     {
                         AMREX_D_TERM(packedspheres1[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0) - geom[0].ProbLo(0)) * Util::Random();,
-                                                                                                                                         packedspheres1[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1) - geom[0].ProbLo(1)) * Util::Random();
-                                     ,
+                                     packedspheres1[0](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1) - geom[0].ProbLo(1)) * Util::Random();,
                                      packedspheres1[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2) - geom[0].ProbLo(2)) * Util::Random(););
                         packedspheres[n] = packedspheres1[n];
                     }
@@ -207,8 +210,7 @@ namespace IC
                     label:
 
                         AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0) - geom[0].ProbLo(0)) * Util::Random();,
-                                                                                                                                         packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1) - geom[0].ProbLo(1)) * Util::Random();
-                                     ,
+                                     packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1) - geom[0].ProbLo(1)) * Util::Random();,
                                      packedspheres1[n](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2) - geom[0].ProbLo(2)) * Util::Random(););
 
                         p = 0;
@@ -262,6 +264,7 @@ namespace IC
 
                                 iLoop = iLoop + 1;
                                 std::fill(count.begin(), count.end(), 0);
+                                 //Util::Message(INFO, " goto label; ");
                                 goto label;
                             }
                             else
@@ -282,7 +285,7 @@ namespace IC
                                 double sph_nos2 = ceil(((dom_vol * 0.2) / (sph_vol2 * 1)) * vf);
                                 double sph_tot_vol2 = sph_vol2 * sph_nos2;
                                 double pack_size2 = pack_size1 + sph_nos2;
-                                Util::Message(INFO, "sph_tot_vol2 ", sph_tot_vol2);
+                               Util::Message(INFO, "sph_tot_vol2 ", sph_tot_vol2);
 
                                 // R_new.resize(pack_size2,R_mean);
 
@@ -321,7 +324,7 @@ namespace IC
                                 {
                                     R_new[i] = R_mean * 0.2;
                                 }
-
+                                 //Util::Message(INFO, " goto label1; ");
                                 goto label1;
                             }
                         }
@@ -357,8 +360,7 @@ namespace IC
 
             Set::Vector size;
             AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
-                                                                                 size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];
-                         ,
+                         size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
                          size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 
             for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -375,8 +377,7 @@ namespace IC
                                        int min_grain_id = 0;
                                        // int max_grain_id=1;
                                        AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-                                                                                                                                      x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
-                                                    ,
+                                                    x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
                                                     x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 
                                        packedspheres.resize(pack_size);
@@ -445,7 +446,7 @@ namespace IC
             pp.query("R_min", value.R_min);
             pp.query("R_max", value.R_max);
             pp.query("R_mean", value.R_mean);
-            pp.query("volume_fraction", value.vf);
+            pp.query("vf", value.vf);
             pp.query("verbosity", value.verbosity);
             std::string type = "values";
             pp.query("type", type);
@@ -459,8 +460,8 @@ namespace IC
         }
 
     private:
-        int number_of_grains;
-        int pack_size;
+        int number_of_grains=1.0;
+        int pack_size=0;
         // std::vector<Set::Scalar> alpha = 1.0;
         std::vector<Set::Vector> packedspheres;
         std::vector<Set::Vector> packedspheres1;
@@ -471,11 +472,11 @@ namespace IC
         std::vector<Set::Scalar> R_n;
         std::vector<Set::Scalar> count;
         std::vector<double>::iterator it;
-        Set::Scalar vf = 0.05; // Volume fraction
+        Set::Scalar vf = 0.65; // Volume fraction
         Set::Scalar R_min = 0.1;
         Set::Scalar R_max = 0.2;
-        Set::Scalar R_mean = 0.15;
-        Set::Scalar verbosity = 0.1;
+        Set::Scalar R_mean = 0.075;
+        Set::Scalar verbosity = 1.0;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;

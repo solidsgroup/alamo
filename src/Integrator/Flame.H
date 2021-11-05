@@ -76,6 +76,8 @@ private:
         Set::Scalar n_htpb = 0.0;
         Set::Scalar r_comb = 0.0;
         Set::Scalar n_comb = 0.0;
+        Set::Scalar R_mean = 0.0;
+        Set::Scalar volume_fraction = 0.0;
     } pf;
 
     struct {
