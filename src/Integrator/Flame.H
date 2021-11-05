@@ -63,23 +63,23 @@ private:
     IC::IC *EtaIC;
 
     struct {
-        Set::Scalar M = 0.0;
-        Set::Scalar eps = 0.0;
-        Set::Scalar lambda = 0.0;
-        Set::Scalar kappa = 0.0;
+        Set::Scalar M = 0.1;
+        Set::Scalar eps = 0.1;
+        Set::Scalar lambda = 0.1;
+        Set::Scalar kappa = 0.001;
         Set::Scalar w1 = 1.0, w12 = 2.0, w0 = 0.0;
-        Set::Scalar fs_ap = 0;
-        Set::Scalar fs_htpb = 0; 
+        Set::Scalar fs_ap = 0.1;
+        Set::Scalar fs_htpb = 0.1; 
         Set::Scalar fs_comb = 0.0;
         Set::Scalar P = 0.0;
-        Set::Scalar r_ap = 0.0;
-        Set::Scalar n_ap = 0.0;
-        Set::Scalar r_htpb = 0.0;
-        Set::Scalar n_htpb = 0.0;
-        Set::Scalar r_comb = 0.0;
-        Set::Scalar n_comb = 0.0;
-        Set::Scalar R_mean = 0.0;
-        Set::Scalar volume_fraction = 0.0;
+        Set::Scalar r_ap = 1.0093;
+        Set::Scalar n_ap = 1.2;
+        Set::Scalar r_htpb = 0.5;
+        Set::Scalar n_htpb = 0.125;
+        Set::Scalar r_comb = 1.0;
+        Set::Scalar n_comb = 1.0;
+        Set::Scalar R_mean = 0.075;
+        Set::Scalar volume_fraction = 0.1;
     } pf;
 
     struct {

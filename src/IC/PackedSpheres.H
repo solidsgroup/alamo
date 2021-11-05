@@ -101,11 +101,11 @@ namespace IC
                     }
                 }
             }
-#endif
+//#endif
 
 Util::Message(INFO, "R_mean ", R_mean);
 
-#if AMREX_SPACEDIM > 1
+#elif AMREX_SPACEDIM > 1
             if (geom[0].isPeriodic(1))
             {
                 double dom_vol = size(0) * size(1);
@@ -180,7 +180,7 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                 int oLoop = 0;
 
-            label1:
+         label1:
 
                 dd.resize(pack_size - 1);
                 dd1.resize(pack_size - 1);
