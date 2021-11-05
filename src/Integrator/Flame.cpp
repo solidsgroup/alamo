@@ -31,8 +31,7 @@ namespace Integrator
             pp.query("n_htpb", pf.n_htpb);   // HTPB Power law exponent
             pp.query("r_comb", pf.r_comb);   // Combination power law multiplier
             pp.query("n_comb", pf.n_comb);   // Combination power law exponent
-           // pp.query("R_mean", pf.R_mean);   // mean radius of spheres
-           // pp.query("volume_fraction",pf.volume_fraction);  // volume fraction of spheres
+
 
             EtaBC = new BC::Constant(1);
             pp.queryclass("eta.bc", *static_cast<BC::Constant *>(EtaBC)); // See :ref:`BC::Constant`
@@ -259,14 +258,10 @@ namespace Integrator
 
                     Set:: Scalar fs_actual;
 
-                    /*fs_actual = 
-                            fmod_ap * phi(i, j, k) 
-                            + fmod_htpb * (1.0 - phi(i, j, k))
-                            + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));*/
-                            
                     fs_actual = 
                             fmod_ap * phi(i, j, k) 
-                            + fmod_htpb * (1.0 - phi(i, j, k));
+                            + fmod_htpb * (1.0 - phi(i, j, k))
+                            + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));
                                    
 
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
