@@ -259,7 +259,7 @@ namespace Integrator
                             fmod_ap * phi(i, j, k) 
                             + fmod_htpb * (1.0 - phi(i, j, k))
                             + (2.0*fmod_comb - 0.5*(fmod_ap + fmod_htpb))*phi(i,j,k)*(1.0-phi(i,j,k));
-
+                            
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
 
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);

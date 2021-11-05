@@ -10,7 +10,7 @@ amr.plot_dt        =  0.1                             # How frequently to dump o
 #amr.plot_int = 1
 
 amr.max_level       = 3              # How many levels of grid refinement are allowed
-amr.n_cell          =  60  20  20   # Number of cells in the x,y,z directions1
+amr.n_cell          =  20  20  20   # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -18,8 +18,8 @@ amr.regrid_int      = 100             # * How frequently (in number of timesteps
 amr.grid_eff        = 0.1       # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
-geometry.prob_lo    = -1.5 -0.5 -0.5 # Problem domain: furthest point to the lower left
-geometry.prob_hi    = 1.5 0.5 0.5      # Problem domain: furthest point to the upper right
+geometry.prob_lo    = -0.5 -0.5 -0.5 # Problem domain: furthest point to the lower left
+geometry.prob_hi    = 0.5 0.5 0.5      # Problem domain: furthest point to the upper right
 geometry.is_periodic= 1 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
@@ -30,9 +30,9 @@ stop_time           = 7
 pf.fs_ap        = 1.0 # AP flamespeed
 pf.fs_htpb      = 1.0 #HTPB flamespeed
 pf.n_ap         = 0.5  #Pressure exponent for AP
-pf.r_ap         = 1.2  # Pressure Coefficient for AP
+pf.r_ap         = 0.012  # Pressure Coefficient for AP
 pf.n_htpb       = 0.5 # Pressure exponent for HTPB
-pf.r_htpb       = 0.2 # Pressure Coefficient for HTPB
+pf.r_htpb       = 0.02 # Pressure Coefficient for HTPB
 pf.n_comb       = 1.0 # Pressure exponent for comb
 pf.r_comb       = 1.0 # Pressure Coefficient for comb
 pf.P            = 2 # Pressure in Pa
