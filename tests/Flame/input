@@ -10,7 +10,7 @@ amr.plot_dt        =  0.1                             # How frequently to dump o
 #amr.plot_int = 1
 
 amr.max_level       = 4              # How many levels of grid refinement are allowed
-amr.n_cell          =  20 20  20   # Number of cells in the x,y,z directions1
+amr.n_cell          =240 240 20   # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -18,18 +18,18 @@ amr.regrid_int      = 100             # * How frequently (in number of timesteps
 amr.grid_eff        = 0.1       # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
-geometry.prob_lo    = -0.5 -0.5 -0.5 # Problem domain: furthest point to the lower left
-geometry.prob_hi    = 0.5 0.5 0.5      # Problem domain: furthest point to the upper right
+geometry.prob_lo    = -3 -3 -0.5 # Problem domain: furthest point to the lower left
+geometry.prob_hi    = 3 3 0.5      # Problem domain: furthest point to the upper right
 geometry.is_periodic= 0 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.001    # Timestep
-stop_time           = 10
+stop_time           = 0.3
 
 pf.M           = 0.5 # Mobility - controls flame speed
 pf.eps         = 0.01 # Burn width thickness
 pf.lambda      = 0.1 # Chemical potential multiplier
-pf.kappa	   = 1.0   # Interface energy parameter
+pf.kappa	   = 0.1   # Interface energy parameter
 pf.w1          = 1.0    # Chemical energy before burn
 pf.w12         = 2.0    # Chemical energy during burn
 pf.w0          = 0.0    # Chemical energy after burn
@@ -58,7 +58,7 @@ thermal.delH        = 400    # Flux from HTPB burn
 
 
 phi.ic.packedspheres.number_of_grains  = 1.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.65
+phi.ic.packedspheres.vf= 0.1
 phi.ic.packedspheres.R_mean= 0.075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075
