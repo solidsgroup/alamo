@@ -440,6 +440,7 @@ Util::Message(INFO, "R_mean ", R_mean);
 												//min_grain_id=(erf((-d)/0.05));
 												//min_grain_id=(erf((x(0))/0.05));
 												min_grain_id=0.5*(1+erf((x(0))/0.05)); //works for the 0 to 1 with 0 as center in domain
+												min_grain_id=0.5*(1+erf((x(0)-1)/0.05)); //works for the 0 to 1 with 1 as center in domain
 												
 												//min_grain_id=(erf((x(0)-1)/0.05))-(erf((x(0))/0.05));
 												//min_grain_id=(erf((-d)/0.05));
