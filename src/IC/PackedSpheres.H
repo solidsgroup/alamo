@@ -370,7 +370,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
                                        Set::Vector x;
-                                       double min_grain_id=0;
+                                       double min_grain_id=-1;
                                        
                                        AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
                                                     x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
@@ -430,7 +430,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            //if (x(1)>=-0.05 && x(1)<=0.05 )
                                           // {    
 
-                                           if (d <= R_new[n])
+                                           if (d < R_new[n])
                                             {
 												//min_grain_id = (1/2)*(1+erf(x(0)/sqrt(2)));
 												//min_grain_id=(erf((x(0)*40)));
