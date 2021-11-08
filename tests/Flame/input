@@ -24,7 +24,7 @@ geometry.is_periodic= 0 1 1           # * Boundary conditions
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.001    # Timestep
-stop_time           = 0.3
+stop_time           = 0.2
 
 pf.M           = 0.5 # Mobility - controls flame speed
 pf.eps         = 0.01 # Burn width thickness
@@ -58,7 +58,7 @@ thermal.delH        = 400    # Flux from HTPB burn
 
 
 phi.ic.packedspheres.number_of_grains  = 1.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.1
+phi.ic.packedspheres.vf= 0.001
 phi.ic.packedspheres.R_mean= 0.075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075
