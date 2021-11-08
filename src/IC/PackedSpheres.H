@@ -433,10 +433,12 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            //while (a<=0.05)
                                             {
 												//min_grain_id = (1/2)*(1+erf(x(0)/sqrt(2)));
-												min_grain_id=(erf((x(0)*40)));
+												//min_grain_id=(erf((x(0)*40)));
+												//min_grain_id=(1/2)*(1+erf(x(0)/sqrt(2)));
 												//min_grain_id=(1/2)*(1+erf((x(0))/sqrt(2)));
 												
-												//min_grain_id=(erf(x(0)/0.05));
+												min_grain_id=(erf((x(0)-1)/0.05));
+												//min_grain_id=(1/2)*(0.5+erf((x(0))/0.05));
 												//a=a+0.001;
 												 //Util::Message(INFO, "min_grain_id   ", min_grain_id );
 												
