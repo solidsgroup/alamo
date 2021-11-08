@@ -430,7 +430,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            //if (x(1)>=-0.05 && x(1)<=0.05 )
                                           // {    
 
-                                           //if (d < R_new[n])
+                                           if (d <= R_new[n])
                                             {
 												//min_grain_id = (1/2)*(1+erf(x(0)/sqrt(2)));
 												//min_grain_id=(erf((x(0)*40)));
