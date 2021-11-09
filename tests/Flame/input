@@ -59,12 +59,13 @@ thermal.delH        = 400    # Flux from HTPB burn
 
 
 phi.ic.packedspheres.number_of_grains  = 1.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.75
+phi.ic.packedspheres.vf= 0.1
 phi.ic.packedspheres.R_mean= 0.075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075
 phi.ic.packedspheres.verbosity= 1.0
-phi.ic.packedspheres.erf_fact= 0.1
+phi.ic.packedspheres.erf_fact= 1
+phi.ic.packedspheres.tau =1.0 
 
 #m_refinement_criterion = 0.2 #1.0
 #pf.temp_refinement = 10

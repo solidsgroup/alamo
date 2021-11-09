@@ -414,9 +414,10 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            
   
 
-                                            if (d <= (1.0*R_new[n]))
+                                            if (d < (tau*R_new[n]))
+                                           
                                             { 				
-												min_grain_id= (1+erf((-d)/erf_fact)); 
+												min_grain_id= (1+erf((-d)/(erf_fact*R_new[n]))); 
 												
 											} 
 										    
@@ -424,11 +425,12 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                        /*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
                                        else if (type == Type::Partition) FlameSpeed(i, j, k,min_grain_id) = alpha[min_grain_id];*/
-
+                                         //min_grain_id= (1+erf((-d)/(erf_fact*R_new[n]))); 
                                        if (type == Type::Values)
                                            phi(i, j, k) = min_grain_id;
                                        else if (type == Type::Partition)
                                            phi(i, j, k, min_grain_id) = min_grain_id;
+									   
                                    });
             }
         }
@@ -443,6 +445,7 @@ Util::Message(INFO, "R_mean ", R_mean);
             pp.query("vf", value.vf);
             pp.query("verbosity", value.verbosity);
             pp.query("erf_fact", value.erf_fact);
+            pp.query("tau", value.tau);
             std::string type = "values";
             pp.query("type", type);
             if (type == "values")
@@ -474,6 +477,7 @@ Util::Message(INFO, "R_mean ", R_mean);
         Set::Scalar R_mean;
         Set::Scalar verbosity;
         Set::Scalar erf_fact;
+        Set::Scalar tau;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;
