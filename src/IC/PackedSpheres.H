@@ -412,57 +412,14 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            
                                            
                                            
-                                          /* if (d < R_new[n])
-                                           {
-                                               min_grain_id = 1;
-                                           }*/
+  
 
-                                           /* if (x(0)>-1.5 && x(0)<1.5 )
-                                               {
-                                                   min_grain_id = 1;
-                                               }*/
-
-                                         /*  if (x(1)>-0.05 && x(1)<0.05 )
-                                               {
-                                                   min_grain_id = 0;
-                                               }*/
-                                               
-                                           //if (x(1)>=-0.05 && x(1)<=0.05 )
-                                          // {    
-
-                                            if (d <= (2.0*R_new[n]))
-                                            {
-												//min_grain_id = (1/2)*(1+erf(x(0)/sqrt(2)));
-												//min_grain_id=(erf((x(0)*40)));
-												//min_grain_id=(1/2)*(1+erf(x(0)/sqrt(2)));
-												//min_grain_id=(1/2)*(1+erf((x(0))/sqrt(2)));
-												
-												//min_grain_id=(erf((-d)/0.05));
-												//min_grain_id=(erf((x(0))/0.05));
-												//min_grain_id=0.5*(1+erf((x(0))/0.05)); //works for the 0 to 1 with 0 as center in domain
-												//min_grain_id=0.5*(1+erf((x(0)-1)/0.05)); //works for the 0 to 1 with 1 as center in domain
-												// min_grain_id=-0.5*(1+erf((x(0)-1)/0.05))+0.5*(1+erf((x(0))/0.05)); //making AP region as domain from x=0 to x=1 and rest 0 for HTPB
-												 //min_grain_id=0.5*(1+erf((x(0)+1)/0.05))-0.5*(1+erf((x(0))/0.05)); //making AP  phi from x=-1 to x=0 and rest 0 for HTPB
-												 
-												
-												 
-												
-												
-	
-												
-												min_grain_id= (1+erf((-d)/0.05)); 
-												
-												
-												//min_grain_id=(erf((x(0)-1)/0.05))-(erf((x(0))/0.05));
-												//min_grain_id=(erf((-d)/0.05));
-												
-												//min_grain_id=(1/2)*(0.5+erf((x(0))/0.05));
-												//a=a+0.001;
-												 //Util::Message(INFO, "min_grain_id   ", min_grain_id );
+                                            if (d <= (1.0*R_new[n]))
+                                            { 				
+												min_grain_id= (1+erf((-d)/erf_fact)); 
 												
 											} 
-										//}
-                                               
+										    
                                        }
 
                                        /*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
@@ -485,6 +442,7 @@ Util::Message(INFO, "R_mean ", R_mean);
             pp.query("R_mean", value.R_mean);
             pp.query("vf", value.vf);
             pp.query("verbosity", value.verbosity);
+            pp.query("erf_fact", value.erf_fact);
             std::string type = "values";
             pp.query("type", type);
             if (type == "values")
@@ -515,6 +473,7 @@ Util::Message(INFO, "R_mean ", R_mean);
         Set::Scalar R_max;
         Set::Scalar R_mean;
         Set::Scalar verbosity;
+        Set::Scalar erf_fact;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;

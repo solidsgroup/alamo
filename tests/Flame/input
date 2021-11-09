@@ -9,8 +9,8 @@ amr.plot_file       = /home/bkanagar/PaperAPHTPBSolidPhase/results/output%DD_%Y%
 amr.plot_dt        =  0.1                             # How frequently to dump output
 #amr.plot_int = 1
 
-amr.max_level       = 4              # How many levels of grid refinement are allowed
-amr.n_cell          = 40 40 20   # Number of cells in the x,y,z directions1
+amr.max_level       = 1              # How many levels of grid refinement are allowed
+amr.n_cell          = 400 400 20   # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -23,8 +23,8 @@ geometry.prob_hi    = 0.5 0.5 0.5      # Problem domain: furthest point to the u
 geometry.is_periodic= 0 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
-timestep            = 0.001    # Timestep
-stop_time           = 5
+timestep            = 0.0001    # Timestep
+stop_time           = 0.2
 
 pf.M           = 0.5 # Mobility - controls flame speed
 pf.eps         = 0.01 # Burn width thickness
@@ -45,6 +45,7 @@ pf.P            = 2 # Pressure in Pa
 
 
 
+
 thermal.rho1   = 1.0    # Density before burn
 thermal.rho0   = 1.0    # Density after burn
 thermal.ka     = 0.02  # Conductivity of AP before burn
@@ -58,11 +59,12 @@ thermal.delH        = 400    # Flux from HTPB burn
 
 
 phi.ic.packedspheres.number_of_grains  = 1.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.2
+phi.ic.packedspheres.vf= 0.75
 phi.ic.packedspheres.R_mean= 0.075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075
 phi.ic.packedspheres.verbosity= 1.0
+phi.ic.packedspheres.erf_fact= 0.1
 
 #m_refinement_criterion = 0.2 #1.0
 #pf.temp_refinement = 10
