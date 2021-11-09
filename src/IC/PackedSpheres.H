@@ -417,12 +417,12 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                             if (d <= (tau*R_new[n] + erf_fact))
                                            
-                                            { 				
-												Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(erf_fact))); 
-												//min_grain_id = phi(i,j,k) + min_grain_id * (1. - phi(i,j,k));
-												min_grain_id = min_grain_id + m * (1. - min_grain_id);
-											} 
-										    
+                                            {                 
+                                                Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(erf_fact))); 
+                                                //min_grain_id = phi(i,j,k) + min_grain_id * (1. - phi(i,j,k));
+                                                min_grain_id = min_grain_id + m * (1. - min_grain_id);
+                                            } 
+                                            
                                        }
 
                                        /*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
@@ -432,7 +432,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            phi(i, j, k) = min_grain_id;
                                        else if (type == Type::Partition) Util::Abort(INFO,"Not implemented");
                                            //phi(i, j, k, min_grain_id) = min_grain_id;
-									   
+                                       
                                    });
             }
         }
