@@ -414,10 +414,10 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            
   
 
-                                            if (d < (tau*R_new[n]))
+                                            if (d <= (tau*R_new[n]))
                                            
                                             { 				
-												min_grain_id= (1+erf((-d)/(erf_fact*R_new[n]))); 
+												min_grain_id= 0.5*(1+erf((-d+R_new[n])/(erf_fact))); 
 												
 											} 
 										    
