@@ -367,6 +367,8 @@ Util::Message(INFO, "R_mean ", R_mean);
                 // bx.grow(a_FlameSpeed[lev]->nGrow());
                 amrex::Array4<Set::Scalar> const &phi = a_phi[lev]->array(mfi);
                 // amrex::Array4<Set::Scalar> const& FlameSpeed_mf= a_FlameSpeed[lev]->array(mfi);
+                packedspheres.resize(pack_size);
+                R_new.resize(pack_size);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
                                        Set::Vector x;
@@ -376,8 +378,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                                                     x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
                                                     x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 
-                                       packedspheres.resize(pack_size);
-                                       R_new.resize(pack_size);
+                                       
 
                                        for (int n = 0; n < pack_size; n++)
                                        {
@@ -408,17 +409,18 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                            d = std::min(d, d1);
 
-                                           R_new.resize(pack_size);
+                                           //R_new.resize(pack_size);
                                            
                                            
                                            
   
 
-                                            if (d <= (tau*R_new[n]))
+                                            if (d <= (tau*R_new[n] + erf_fact))
                                            
                                             { 				
-												min_grain_id= 0.5*(1+erf((-d+R_new[n])/(erf_fact))); 
-												
+												Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(erf_fact))); 
+												//min_grain_id = phi(i,j,k) + min_grain_id * (1. - phi(i,j,k));
+												min_grain_id = min_grain_id + m * (1. - min_grain_id);
 											} 
 										    
                                        }
@@ -428,8 +430,8 @@ Util::Message(INFO, "R_mean ", R_mean);
                                          //min_grain_id= (1+erf((-d)/(erf_fact*R_new[n]))); 
                                        if (type == Type::Values)
                                            phi(i, j, k) = min_grain_id;
-                                       else if (type == Type::Partition)
-                                           phi(i, j, k, min_grain_id) = min_grain_id;
+                                       else if (type == Type::Partition) Util::Abort(INFO,"Not implemented");
+                                           //phi(i, j, k, min_grain_id) = min_grain_id;
 									   
                                    });
             }
