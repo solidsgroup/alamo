@@ -9,8 +9,8 @@ amr.plot_file       = /home/bkanagar/PaperAPHTPBSolidPhase/results/output%DD_%Y%
 amr.plot_dt        =  0.1                             # How frequently to dump output
 #amr.plot_int = 1
 
-amr.max_level       = 3              # How many levels of grid refinement are allowed
-amr.n_cell          =  20  20  20   # Number of cells in the x,y,z directions1
+amr.max_level       = 1              # How many levels of grid refinement are allowed
+amr.n_cell          = 400 400 20   # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -20,32 +20,34 @@ amr.grid_eff        = 0.1       # * Closeness of regrid patch to tagged region (
 
 geometry.prob_lo    = -0.5 -0.5 -0.5 # Problem domain: furthest point to the lower left
 geometry.prob_hi    = 0.5 0.5 0.5      # Problem domain: furthest point to the upper right
-geometry.is_periodic= 1 1 1           # * Boundary conditions 
+geometry.is_periodic= 0 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
-timestep            = 0.001    # Timestep
-stop_time           = 7
+timestep            = 0.0001    # Timestep
+stop_time           = 0.2
 
-#physics.M           = 0.5 # Mobility - controls flame speed
+pf.M           = 0.5 # Mobility - controls flame speed
+pf.eps         = 0.01 # Burn width thickness
+pf.lambda      = 0.1 # Chemical potential multiplier
+pf.kappa	   = 0.1   # Interface energy parameter
+pf.w1          = 1.0    # Chemical energy before burn
+pf.w12         = 2.0    # Chemical energy during burn
+pf.w0          = 0.0    # Chemical energy after burn
 pf.fs_ap        = 1.0 # AP flamespeed
 pf.fs_htpb      = 1.0 #HTPB flamespeed
-pf.n_ap         = 0.5  #Pressure exponent for AP
-pf.r_ap         = 0.012  # Pressure Coefficient for AP
+pf.n_ap         = 1.0093  #Pressure exponent for AP
+pf.r_ap         = 1.2  # Pressure Coefficient for AP
 pf.n_htpb       = 0.5 # Pressure exponent for HTPB
-pf.r_htpb       = 0.02 # Pressure Coefficient for HTPB
+pf.r_htpb       = 0.2 # Pressure Coefficient for HTPB
 pf.n_comb       = 1.0 # Pressure exponent for comb
 pf.r_comb       = 1.0 # Pressure Coefficient for comb
 pf.P            = 2 # Pressure in Pa
 
 
-pf.kappa	     = 0.001   # Width of burn region
-pf.w1          = 1.0    # Chemical energy before burn
-pf.w12         = 2.0    # Chemical energy during burn
-#pf.w2         = 0.0    # Chemical energy after burn
-pf.w0          = 0.0    # Chemical energy after burn
+
+
 thermal.rho1   = 1.0    # Density before burn
 thermal.rho0   = 1.0    # Density after burn
-#pf.k1         = 0.0001 # Conductivity before burn
 thermal.ka     = 0.02  # Conductivity of AP before burn
 thermal.kh          = 0.009 # Conductivity of HTPB before burn
 thermal.k0          = 0.0    # Conductivity after burn
@@ -56,16 +58,16 @@ thermal.delA        = 900    # Flux from AP burn
 thermal.delH        = 400    # Flux from HTPB burn
 
 
-#value.number_of_grains   = 1    #no of different radii between R_min and R_max
-#value.fs_min      = -0.5 #0.1
-#value.fs_max      = 15 #0.5
-#value.vf= 0.05
-#value.R_min=0.065
-#value.R_max=0.075
-#value.R_mean= 0.075
-#value.verbosity= 1.0
+phi.ic.packedspheres.number_of_grains  = 1.0    #no of different radii between R_min and R_max
+phi.ic.packedspheres.vf= 0.75
+phi.ic.packedspheres.R_mean= 0.075
+#phi.ic.packedspheres.R_min=0.065
+#phi.ic.packedspheres.R_max=0.075
+phi.ic.packedspheres.verbosity= 1.0
+phi.ic.packedspheres.erf_fact= 0.01
+phi.ic.packedspheres.tau =1.0 
 
-#pf.refinement_criterion = 0.2 #1.0
+#m_refinement_criterion = 0.2 #1.0
 #pf.temp_refinement = 10
 
 #TempBC.hi	= EXT_DIR INT_DIR INT_DIR 

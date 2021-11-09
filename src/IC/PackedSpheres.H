@@ -52,7 +52,6 @@ namespace IC
             R_n.resize(number_of_grains);
             sph_vol.resize(number_of_grains);
             sph_nos.resize(number_of_grains);
-            // int count=0;
             R_new.resize(number_of_grains);
             pack_size = 0;
             sph_tot_vol = 0;
@@ -68,9 +67,8 @@ namespace IC
             AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
                          size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,       
                          size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
-            Util::Message(INFO, "number of grains ",number_of_grains);
             int total = 0;
-    Util::Message(INFO, " vf   ",vf);
+  
 #if AMREX_SPACEDIM > 2
             if (geom[0].isPeriodic(2))
             {
@@ -119,10 +117,10 @@ Util::Message(INFO, "R_mean ", R_mean);
                         // R[n]=R_min+((R_max-R_min)/number_of_grains);
                         R[n] = ((R_mean) / number_of_grains);
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
-                         Util::Message(INFO, "sph_vol ",sph_vol[n]);
+                        // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
-                        Util::Message(INFO, "sph_nos ",sph_nos[n]);
+                        //Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size = pack_size + sph_nos[n];
                     }
@@ -131,21 +129,21 @@ Util::Message(INFO, "R_mean ", R_mean);
                     {
                         R[n] = ((R_mean) / number_of_grains);
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
-                        Util::Message(INFO, "sph_vol ",sph_vol[n]);
+                       // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
-                         Util::Message(INFO, "sph_nos ",sph_nos[n]);
+                        // Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size = pack_size + sph_nos[n];
                     }
                 }
             }
 #endif
-            Util::Message(INFO, "pack_size  ",pack_size);
+            
             if (rank == 0)
             {
                 R_new.assign(R.begin(), R.end());
-                Util::Message(INFO, " R size ", R_new.size());
+                
                 // matching the total no of elements with the total no spheres
                 for (int i = 0; i < number_of_grains; i++)
                 {
@@ -264,7 +262,6 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                 iLoop = iLoop + 1;
                                 std::fill(count.begin(), count.end(), 0);
-                                 //Util::Message(INFO, " goto label; ");
                                 goto label;
                             }
                             else
@@ -275,33 +272,33 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                 double sph_vol1 = 3.14 * verbosity * (R_mean * R_mean);
                                 double sph_nos1 = ceil(((dom_vol * 0.6) / (sph_vol1 * 1)) * vf);
-                                double sph_tot_vol1 = sph_vol1 * sph_nos1;
+                                //double sph_tot_vol1 = sph_vol1 * sph_nos1;
                                 double pack_size1 = sph_nos1;
-                                Util::Message(INFO, "sph_tot_vol1 ", sph_tot_vol1);
+                               // Util::Message(INFO, "sph_tot_vol1 ", sph_tot_vol1);
 
-                                // R_new.resize(pack_size1,R_mean);
+                                
 
                                 double sph_vol2 = 3.14 * verbosity * (R_mean * R_mean * 0.5 * 0.5);
                                 double sph_nos2 = ceil(((dom_vol * 0.2) / (sph_vol2 * 1)) * vf);
-                                double sph_tot_vol2 = sph_vol2 * sph_nos2;
+                               // double sph_tot_vol2 = sph_vol2 * sph_nos2;
                                 double pack_size2 = pack_size1 + sph_nos2;
-                               Util::Message(INFO, "sph_tot_vol2 ", sph_tot_vol2);
+                               //Util::Message(INFO, "sph_tot_vol2 ", sph_tot_vol2);
 
-                                // R_new.resize(pack_size2,R_mean);
+                                
 
                                 double sph_vol3 = 3.14 * verbosity * (R_mean * R_mean * 0.3 * 0.3);
                                 double sph_nos3 = ceil(((dom_vol * 0.1) / (sph_vol3 * 1)) * vf);
-                                double sph_tot_vol3 = sph_vol3 * sph_nos3;
+                               // double sph_tot_vol3 = sph_vol3 * sph_nos3;
                                 double pack_size3 = pack_size2 + sph_nos3;
-                                Util::Message(INFO, "sph_tot_vol3 ", sph_tot_vol3);
+                                //Util::Message(INFO, "sph_tot_vol3 ", sph_tot_vol3);
 
                                 double sph_vol4 = 3.14 * verbosity * (R_mean * R_mean * 0.2 * 0.2);
                                 double sph_nos4 = ceil(((dom_vol * 0.1) / (sph_vol4 * 1)) * vf);
-                                double sph_tot_vol4 = sph_vol4 * sph_nos4;
+                                //double sph_tot_vol4 = sph_vol4 * sph_nos4;
                                 double pack_size4 = pack_size3 + sph_nos4;
-                                Util::Message(INFO, "sph_tot_vol4 ", sph_tot_vol4);
+                                //Util::Message(INFO, "sph_tot_vol4 ", sph_tot_vol4);
 
-                                // pack_size=pack_size1+pack_size2+pack_size3+pack_size4;
+                                
                                 pack_size = pack_size4;
                                 R_new.resize(pack_size);
 
@@ -324,7 +321,6 @@ Util::Message(INFO, "R_mean ", R_mean);
                                 {
                                     R_new[i] = R_mean * 0.2;
                                 }
-                                 //Util::Message(INFO, " goto label1; ");
                                 goto label1;
                             }
                         }
@@ -354,7 +350,7 @@ Util::Message(INFO, "R_mean ", R_mean);
         };
 
         // void Add(const int &lev, Set::FlameSpeed_mf<Set::Scalar>  &a_FlameSpeed)
-        void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+        void Add(const int &lev, Set::Field<Set::Scalar> &a_phi)
         // void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
         {
 
@@ -363,25 +359,26 @@ Util::Message(INFO, "R_mean ", R_mean);
                          size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
                          size(2) = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2];)
 
-            for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             // for (amrex::MFIter mfi(*a_FlameSpeed[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.tilebox();
-                bx.grow(a_field[lev]->nGrow());
+                bx.grow(a_phi[lev]->nGrow());
                 // bx.grow(a_FlameSpeed[lev]->nGrow());
-                amrex::Array4<Set::Scalar> const &field = a_field[lev]->array(mfi);
+                amrex::Array4<Set::Scalar> const &phi = a_phi[lev]->array(mfi);
                 // amrex::Array4<Set::Scalar> const& FlameSpeed_mf= a_FlameSpeed[lev]->array(mfi);
+                packedspheres.resize(pack_size);
+                R_new.resize(pack_size);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
                                        Set::Vector x;
-                                       int min_grain_id = 0;
-                                       // int max_grain_id=1;
+                                       Set::Scalar min_grain_id=0;
+                                       
                                        AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
                                                     x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
                                                     x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
 
-                                       packedspheres.resize(pack_size);
-                                       R_new.resize(pack_size);
+                                       
 
                                        for (int n = 0; n < pack_size; n++)
                                        {
@@ -412,42 +409,45 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                            d = std::min(d, d1);
 
-                                           R_new.resize(pack_size);
-                                           if (d < R_new[n])
-                                           {
-                                               min_grain_id = 1;
-                                           }
+                                           //R_new.resize(pack_size);
+                                           
+                                           
+                                           
+  
 
-                                           /* if (x(0)>-1.5 && x(0)<1.5 )
-                                               {
-                                                   min_grain_id = 1;
-                                               }*/
-
-                                           /*if (x(1)>-0.05 && x(1)<0.05 )
-                                               {
-                                                   min_grain_id = 0;
-                                               }*/
+                                            if (d <= (tau*R_new[n] + erf_fact))
+                                           
+                                            { 				
+												Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(erf_fact))); 
+												//min_grain_id = phi(i,j,k) + min_grain_id * (1. - phi(i,j,k));
+												min_grain_id = min_grain_id + m * (1. - min_grain_id);
+											} 
+										    
                                        }
 
                                        /*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
                                        else if (type == Type::Partition) FlameSpeed(i, j, k,min_grain_id) = alpha[min_grain_id];*/
-
+                                         //min_grain_id= (1+erf((-d)/(erf_fact*R_new[n]))); 
                                        if (type == Type::Values)
-                                           field(i, j, k) = min_grain_id;
-                                       else if (type == Type::Partition)
-                                           field(i, j, k, min_grain_id) = min_grain_id;
+                                           phi(i, j, k) = min_grain_id;
+                                       else if (type == Type::Partition) Util::Abort(INFO,"Not implemented");
+                                           //phi(i, j, k, min_grain_id) = min_grain_id;
+									   
                                    });
             }
         }
 
+
         static void Parse(PackedSpheres &value, IO::ParmParse &pp)
         {
-            pp.query("fs_number", value.number_of_grains);
+            pp.query("number_of_grains", value.number_of_grains);
             pp.query("R_min", value.R_min);
             pp.query("R_max", value.R_max);
             pp.query("R_mean", value.R_mean);
             pp.query("vf", value.vf);
             pp.query("verbosity", value.verbosity);
+            pp.query("erf_fact", value.erf_fact);
+            pp.query("tau", value.tau);
             std::string type = "values";
             pp.query("type", type);
             if (type == "values")
@@ -460,9 +460,8 @@ Util::Message(INFO, "R_mean ", R_mean);
         }
 
     private:
-        int number_of_grains=1.0;
-        int pack_size=0;
-        // std::vector<Set::Scalar> alpha = 1.0;
+        
+        int pack_size;
         std::vector<Set::Vector> packedspheres;
         std::vector<Set::Vector> packedspheres1;
         std::vector<Set::Scalar> R_new;
@@ -472,11 +471,15 @@ Util::Message(INFO, "R_mean ", R_mean);
         std::vector<Set::Scalar> R_n;
         std::vector<Set::Scalar> count;
         std::vector<double>::iterator it;
-        Set::Scalar vf = 0.65; // Volume fraction
-        Set::Scalar R_min = 0.1;
-        Set::Scalar R_max = 0.2;
-        Set::Scalar R_mean = 0.075;
-        Set::Scalar verbosity = 1.0;
+        Set::Scalar number_of_grains;
+        //Set::Scalar min_grain_id;
+        Set::Scalar vf ; // Volume fraction
+        Set::Scalar R_min;
+        Set::Scalar R_max;
+        Set::Scalar R_mean;
+        Set::Scalar verbosity;
+        Set::Scalar erf_fact;
+        Set::Scalar tau;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;
