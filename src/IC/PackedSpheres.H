@@ -370,8 +370,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
                                        Set::Vector x;
-                                      // double min_grain_id;
-                                        std::vector<Set::Scalar> min_grain_id;
+                                       Set::Scalar min_grain_id=0;
                                        
                                        AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
                                                     x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
@@ -410,7 +409,6 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            d = std::min(d, d1);
 
                                            R_new.resize(pack_size);
-                                           min_grain_id.resize(pack_size);
                                            
                                            
                                            
@@ -432,7 +430,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            //if (x(1)>=-0.05 && x(1)<=0.05 )
                                           // {    
 
-                                          // if (d <= R_new[n])
+                                            if (d <= (2.0*R_new[n]))
                                             {
 												//min_grain_id = (1/2)*(1+erf(x(0)/sqrt(2)));
 												//min_grain_id=(erf((x(0)*40)));
@@ -452,7 +450,7 @@ Util::Message(INFO, "R_mean ", R_mean);
 												
 	
 												
-												min_grain_id[n]= 1.32*(1+erf((-d)/0.05)); 
+												min_grain_id= (1+erf((-d)/0.05)); 
 												
 												
 												//min_grain_id=(erf((x(0)-1)/0.05))-(erf((x(0))/0.05));
@@ -469,13 +467,11 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                        /*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
                                        else if (type == Type::Partition) FlameSpeed(i, j, k,min_grain_id) = alpha[min_grain_id];*/
-                                       for (int n = 0; n < pack_size; n++)
-                                       {
+
                                        if (type == Type::Values)
-                                           phi(i, j, k) = min_grain_id[n];
+                                           phi(i, j, k) = min_grain_id;
                                        else if (type == Type::Partition)
-                                           phi(i, j, k, min_grain_id[n]) = min_grain_id[n];
-                                       }    
+                                           phi(i, j, k, min_grain_id) = min_grain_id;
                                    });
             }
         }
@@ -513,6 +509,7 @@ Util::Message(INFO, "R_mean ", R_mean);
         std::vector<Set::Scalar> count;
         std::vector<double>::iterator it;
         Set::Scalar number_of_grains;
+        //Set::Scalar min_grain_id;
         Set::Scalar vf ; // Volume fraction
         Set::Scalar R_min;
         Set::Scalar R_max;
