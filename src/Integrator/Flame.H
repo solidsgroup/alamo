@@ -63,13 +63,11 @@ private:
 
     struct {
         Set::Scalar M = 0.0;
+        Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;
         Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
-        Set::Scalar w1 = 1.0, w12 = 2.0, w0 = 0.0;
-        Set::Scalar fs_ap = 0.0;
-        Set::Scalar fs_htpb = 0.0; 
-        Set::Scalar fs_comb = 0.0;
+        Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
         Set::Scalar P = 0.0;
         Set::Scalar r_ap = 0.0;
         Set::Scalar n_ap = 0.0;
@@ -77,8 +75,6 @@ private:
         Set::Scalar n_htpb = 0.0;
         Set::Scalar r_comb = 0.0;
         Set::Scalar n_comb = 0.0;
-        Set::Scalar R_mean = 0.0;
-        Set::Scalar vf = 0.0;
     } pf;
 
     struct {
