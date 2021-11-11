@@ -14,7 +14,7 @@ namespace Integrator
             // These are the phase field method parameters
             // that you use to inform the phase field method.
             IO::ParmParse pp("pf"); 
-            pp.query("M", pf.M); // Mobility parameter
+           // pp.query("M", pf.M); // Mobility parameter
             pp.query("eps", pf.eps); // Burn width thickness
             pp.query("kappa", pf.kappa); // Interface energy param
             pp.query("gamma",pf.gamma); // Scaling factor for mobility

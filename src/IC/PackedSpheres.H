@@ -415,10 +415,10 @@ Util::Message(INFO, "R_mean ", R_mean);
                                            
   
 
-                                            if (d <= (tau*R_new[n] + erf_fact))
+                                            if (d <= (tau*R_new[n]+ fact))
                                            
                                             {                 
-                                                Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(erf_fact))); 
+                                                Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(eps))); 
                                                 //min_grain_id = phi(i,j,k) + min_grain_id * (1. - phi(i,j,k));
                                                 min_grain_id = min_grain_id + m * (1. - min_grain_id);
                                             } 
@@ -446,7 +446,8 @@ Util::Message(INFO, "R_mean ", R_mean);
             pp.query("R_mean", value.R_mean);
             pp.query("vf", value.vf);
             pp.query("verbosity", value.verbosity);
-            pp.query("erf_fact", value.erf_fact);
+            pp.query("eps", value.eps);
+	    pp.query("fact", value.fact);
             pp.query("tau", value.tau);
             std::string type = "values";
             pp.query("type", type);
@@ -478,8 +479,9 @@ Util::Message(INFO, "R_mean ", R_mean);
         Set::Scalar R_max;
         Set::Scalar R_mean;
         Set::Scalar verbosity;
-        Set::Scalar erf_fact;
+        Set::Scalar eps;
         Set::Scalar tau;
+	Set::Scalar fact;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;

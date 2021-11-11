@@ -62,7 +62,7 @@ private:
     IC::IC *EtaIC;
 
     struct {
-        Set::Scalar M = 0.0;
+       // Set::Scalar M = 0.0;
         Set::Scalar gamma = 1.0;
         Set::Scalar eps = 0.0;
         Set::Scalar lambda = 0.0;
