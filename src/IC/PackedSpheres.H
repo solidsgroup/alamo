@@ -346,7 +346,9 @@ Util::Message(INFO, "R_mean ", R_mean);
             MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
             MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
             // MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
-            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
+            //MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);i
+            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		    
+	   
         };
 
         // void Add(const int &lev, Set::FlameSpeed_mf<Set::Scalar>  &a_FlameSpeed)
@@ -362,6 +364,7 @@ Util::Message(INFO, "R_mean ", R_mean);
             for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             // for (amrex::MFIter mfi(*a_FlameSpeed[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
+		
                 amrex::Box bx = mfi.tilebox();
                 bx.grow(a_phi[lev]->nGrow());
                 // bx.grow(a_FlameSpeed[lev]->nGrow());
@@ -371,6 +374,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                 R_new.resize(pack_size);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
+				   
                                        Set::Vector x;
                                        Set::Scalar min_grain_id=0;
                                        
