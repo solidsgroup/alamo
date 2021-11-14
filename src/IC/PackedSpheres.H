@@ -176,10 +176,13 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                 std::reverse(R_new.begin(), R_new.end());
 
-                int oLoop = 0;
+                //int oLoop ;
 
-         label1:
-
+         //for(int oLoop=0; oLoop<25; oLoop++)
+         
+         // while (oLoop<25)
+           //{
+          
                 dd.resize(pack_size - 1);
                 dd1.resize(pack_size - 1);
                 R_n.resize(pack_size - 1);
@@ -187,7 +190,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                 packedspheres1.resize(pack_size);
                 R_new.resize(pack_size);
                 count.resize(pack_size);
-                int iLoop = 0;
+               // int iLoop = 0;
 
                 for (int n = 0; n < pack_size; n++)
                 {
@@ -205,7 +208,9 @@ Util::Message(INFO, "R_mean ", R_mean);
                     else if (n > 0)
                     {
 
-                    label:
+                   // label:
+                   //  while (iLoop<100000)
+                    // {
 
                         AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0) - geom[0].ProbLo(0)) * Util::Random();,
                                      packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1) - geom[0].ProbLo(1)) * Util::Random();,
@@ -257,88 +262,41 @@ Util::Message(INFO, "R_mean ", R_mean);
                         if (count1 > 0)
                         {
 
-                            if (iLoop < 100000)
-                            {
+                            //if (iLoop < 100000)
+                            //{
 
-                                iLoop = iLoop + 1;
+                                //iLoop = iLoop + 1;
                                 std::fill(count.begin(), count.end(), 0);
-                                goto label;
-                            }
-                            else
-                            {
-                                oLoop = oLoop + 1;
-                                total = 0;
-                                double dom_vol = size(0) * size(1);
-
-                                double sph_vol1 = 3.14 * verbosity * (R_mean * R_mean);
-                                double sph_nos1 = ceil(((dom_vol * 0.6) / (sph_vol1 * 1)) * vf);
-                                //double sph_tot_vol1 = sph_vol1 * sph_nos1;
-                                double pack_size1 = sph_nos1;
-                               // Util::Message(INFO, "sph_tot_vol1 ", sph_tot_vol1);
-
                                 
-
-                                double sph_vol2 = 3.14 * verbosity * (R_mean * R_mean * 0.5 * 0.5);
-                                double sph_nos2 = ceil(((dom_vol * 0.2) / (sph_vol2 * 1)) * vf);
-                               // double sph_tot_vol2 = sph_vol2 * sph_nos2;
-                                double pack_size2 = pack_size1 + sph_nos2;
-                               //Util::Message(INFO, "sph_tot_vol2 ", sph_tot_vol2);
-
-                                
-
-                                double sph_vol3 = 3.14 * verbosity * (R_mean * R_mean * 0.3 * 0.3);
-                                double sph_nos3 = ceil(((dom_vol * 0.1) / (sph_vol3 * 1)) * vf);
-                               // double sph_tot_vol3 = sph_vol3 * sph_nos3;
-                                double pack_size3 = pack_size2 + sph_nos3;
-                                //Util::Message(INFO, "sph_tot_vol3 ", sph_tot_vol3);
-
-                                double sph_vol4 = 3.14 * verbosity * (R_mean * R_mean * 0.2 * 0.2);
-                                double sph_nos4 = ceil(((dom_vol * 0.1) / (sph_vol4 * 1)) * vf);
-                                //double sph_tot_vol4 = sph_vol4 * sph_nos4;
-                                double pack_size4 = pack_size3 + sph_nos4;
-                                //Util::Message(INFO, "sph_tot_vol4 ", sph_tot_vol4);
-
-                                
-                                pack_size = pack_size4;
-                                R_new.resize(pack_size);
-
-                                for (int i = 0; i < (pack_size1); i++)
-                                {
-                                    R_new[i] = R_mean;
-                                }
-
-                                for (int i = pack_size1; i < (pack_size2); i++)
-                                {
-                                    R_new[i] = R_mean * 0.5;
-                                }
-
-                                for (int i = pack_size2; i < (pack_size3); i++)
-                                {
-                                    R_new[i] = R_mean * 0.3;
-                                }
-
-                                for (int i = pack_size3; i < (pack_size); i++)
-                                {
-                                    R_new[i] = R_mean * 0.2;
-                                }
-                                goto label1;
-                            }
+                               // goto label;
+                            //}
+                           // else
+                           // {
+                                //oLoop = oLoop + 1;
+                                total = 0;     
+                                //n=pack_size;             
+                               // goto label1;
+                            //}
                         }
                         else if (count1 == 0)
                         {
-                            iLoop = 0;
+                           // iLoop = 0;
                             packedspheres[n] = packedspheres1[n];
                             total = total + 1;
                         }
+					//}
                     }
-
-                    if (oLoop > 25)
+                    
+                             
+                //}
+                    Util::Message(INFO, "count  ", total);
+                     /*if (oLoop >= 25)
                     {
                         Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity to produce spheres ");
-                    }
-
-                    Util::Message(INFO, "count  ", total);
-                }
+                    }*/
+                    
+               }
+                   
             }
 
             R_new.resize(pack_size);
@@ -347,7 +305,7 @@ Util::Message(INFO, "R_mean ", R_mean);
             MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
             // MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
             //MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);i
-            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		    
+            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_2DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		    
 	   
         };
 

@@ -9,22 +9,22 @@ amr.plot_file       = /home/bkanagar/PaperAPHTPBSolidPhase/results/output%DD_%Y%
 amr.plot_dt        =  0.001                             # How frequently to dump output
 #amr.plot_int = 1
 
-amr.max_level       = 3              # How many levels of grid refinement are allowed
-amr.n_cell          = 16 4  4   # Number of cells in the x,y,z directions1
+amr.max_level       = 1              # How many levels of grid refinement are allowed
+amr.n_cell          = 40 40 4  # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
-amr.grid_eff        = 0.7       # * Closeness of regrid patch to tagged region (default = 0.7) 
+amr.grid_eff        = 0.01       # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
-geometry.prob_lo    = -0.0 -0.05 -0.1 # Problem domain: furthest point to the lower left
-geometry.prob_hi    = 0.4 0.05 0.1      # Problem domain: furthest point to the upper right
+geometry.prob_lo    = 0.0 -0.05 -0.1 # Problem domain: furthest point to the lower left
+geometry.prob_hi    = 0.1 0.05 0.1      # Problem domain: furthest point to the upper right
 geometry.is_periodic= 0 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.00001    # Timestep
-stop_time           = 1.0
+stop_time           = 0.02
 
 #pf.M           = 0.0  # Mobility - controls flame speed
 pf.eps         = 0.00005 # Burn width thickness
@@ -42,7 +42,7 @@ pf.n_htpb       = 0.0 # Pressure exponent for HTPB
 pf.r_htpb       = 0.1 # Pressure Coefficient for HTPB
 pf.n_comb       = 0.0 # Pressure exponent for comb
 pf.r_comb       = 10.0 # Pressure Coefficient for comb
-pf.P            = 0.57  # Pressure in Pa
+pf.P            = 9.7 # Pressure in Pa
 
 
 
@@ -60,7 +60,7 @@ thermal.delH        = 400    # Flux from HTPB burn
 
 
 phi.ic.packedspheres.number_of_grains  = 1.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.56
+phi.ic.packedspheres.vf= 0.3
 phi.ic.packedspheres.R_mean= 0.0075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075
