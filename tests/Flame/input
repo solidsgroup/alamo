@@ -59,8 +59,8 @@ thermal.delA        = 900    # Flux from AP burn
 thermal.delH        = 400    # Flux from HTPB burn
 
 
-phi.ic.packedspheres.number_of_grains  = 1.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.3
+phi.ic.packedspheres.interval  = 1.0    #no of different radii between R_min and R_max
+phi.ic.packedspheres.vf= 0.5
 phi.ic.packedspheres.R_mean= 0.0075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075

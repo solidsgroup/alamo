@@ -48,41 +48,42 @@ namespace IC
             std::vector<double> sph_vol;
             std::vector<amrex::Real> sph_nos;
             Set::Scalar sph_tot_vol = 0;
-            R.resize(number_of_grains);
-            R_n.resize(number_of_grains);
-            sph_vol.resize(number_of_grains);
-            sph_nos.resize(number_of_grains);
-            R_new.resize(number_of_grains);
+            R.resize(interval);
+            R_n.resize(interval);
+            sph_vol.resize(interval);
+            sph_nos.resize(interval);
+            R_new.resize(interval);
             pack_size = 0;
             sph_tot_vol = 0;
             int inc = 0;
             int jj = 0;
             std::vector<double> ins(1, 1);
-            packedspheres.resize(number_of_grains);
 
             int p = 0;
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
             Set::Vector size;
+            //size of the domain in 3-D
+            
             AMREX_D_TERM(size(0) = geom[0].ProbHi()[0] - geom[0].ProbLo()[0];,
                          size(1) = geom[0].ProbHi()[1] - geom[0].ProbLo()[1];,       
                          size(2) = geom[0].ProbHi()[2] - geom[0].ProbLo()[2];)
             int total = 0;
   
+ // converting volume fraction in to no of spheres in 3-D 
 #if AMREX_SPACEDIM > 2
             if (geom[0].isPeriodic(2))
             {
                 double dom_vol = size(0) * size(1) * size(2);
-                // converting volume fraction in to no of spheres
-                for (int n = 0; n < number_of_grains; n++)
+                for (int n = 0; n < interval; n++)
                 {
                     Util::Message(INFO, "3 dimensions");
                     if (n == 0)
                     {
-                        // R[n]=R_min+((R_max-R_min)/number_of_grains);
-                        R[n] = ((R_mean) / number_of_grains);
+                        // R[n]=R_min+((R_max-R_min)/interval);
+                        R[n] = ((R_mean) /interval);
                         sph_vol[n] = (1.33) * 3.14 * verbosity * (R[n] * R[n] * R[n]);
-                        // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
+                        // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size = pack_size + sph_nos[n];
@@ -90,9 +91,9 @@ namespace IC
 
                     else if (n > 0)
                     {
-                        R[n] = ((R_mean) / number_of_grains);
+                        R[n] = ((R_mean) / interval);
                         sph_vol[n] = (1.33) * 3.14 * verbosity * (R[n] * R[n] * R[n]);
-                        // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
+                        // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size = pack_size + sph_nos[n];
@@ -100,25 +101,23 @@ namespace IC
                 }
             }
 //#endif
-
-Util::Message(INFO, "R_mean ", R_mean);
-
+// converting volume fraction in to no of spheres in 2-D 
 #elif AMREX_SPACEDIM > 1
             if (geom[0].isPeriodic(1))
             {
                 double dom_vol = size(0) * size(1);
                 Util::Message(INFO, "dom_vol ",dom_vol);
                 // converting volume fraction in to no of spheres
-                for (int n = 0; n < number_of_grains; n++)
+                for (int n = 0; n < interval; n++)  
                 {
                     Util::Message(INFO, "2 dimensions");
                     if (n == 0)
                     {
-                        // R[n]=R_min+((R_max-R_min)/number_of_grains);
-                        R[n] = ((R_mean) / number_of_grains);
+                        // R[n]=R_min+((R_max-R_min)/interval);
+                        R[n] = ((R_mean) /interval);
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                         // Util::Message(INFO, "sph_vol ",sph_vol[n]);
-                        // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
+                        // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
                         //Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
@@ -127,10 +126,10 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                     else if (n > 0)
                     {
-                        R[n] = ((R_mean) / number_of_grains);
+                        R[n] = ((R_mean) /interval);
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                        // Util::Message(INFO, "sph_vol ",sph_vol[n]);
-                        // sph_nos[n]=ceil(ceil(dom_vol/number_of_grains/(sph_vol[n]*1))*1);
+                        // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
                         sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
                         // Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
@@ -144,8 +143,8 @@ Util::Message(INFO, "R_mean ", R_mean);
             {
                 R_new.assign(R.begin(), R.end());
                 
-                // matching the total no of elements with the total no spheres
-                for (int i = 0; i < number_of_grains; i++)
+                // matching the total no of elements in the Radius R vector with the total no spheres
+                for (int i = 0; i < interval; i++)
                 {
 
                     if (sph_nos[i] > 1)
@@ -174,12 +173,11 @@ Util::Message(INFO, "R_mean ", R_mean);
                     }
                 }
 
-                std::reverse(R_new.begin(), R_new.end());
+                std::reverse(R_new.begin(), R_new.end()); //reversing the radius elements. Significant if the radii are varying between R_max and R_min
 
-                int oLoop = 0;
+                int oLoop=0 ; // max no of times this counter checks for the new sphere centers which satisfies non overlap condition 
 
-         label1:
-
+          
                 dd.resize(pack_size - 1);
                 dd1.resize(pack_size - 1);
                 R_n.resize(pack_size - 1);
@@ -187,13 +185,12 @@ Util::Message(INFO, "R_mean ", R_mean);
                 packedspheres1.resize(pack_size);
                 R_new.resize(pack_size);
                 count.resize(pack_size);
-                int iLoop = 0;
 
                 for (int n = 0; n < pack_size; n++)
                 {
 
                     std::fill(count.begin(), count.end(), 0);
-
+                    //first spheres center point 
                     if (n == 0)
                     {
                         AMREX_D_TERM(packedspheres1[0](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0) - geom[0].ProbLo(0)) * Util::Random();,
@@ -201,11 +198,9 @@ Util::Message(INFO, "R_mean ", R_mean);
                                      packedspheres1[0](2) = geom[0].ProbLo(2) + (geom[0].ProbHi(2) - geom[0].ProbLo(2)) * Util::Random(););
                         packedspheres[n] = packedspheres1[n];
                     }
-
+                     // center points for the second and more spheres
                     else if (n > 0)
                     {
-
-                    label:
 
                         AMREX_D_TERM(packedspheres1[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0) - geom[0].ProbLo(0)) * Util::Random();,
                                      packedspheres1[n](1) = geom[0].ProbLo(1) + (geom[0].ProbHi(1) - geom[0].ProbLo(1)) * Util::Random();,
@@ -216,8 +211,9 @@ Util::Message(INFO, "R_mean ", R_mean);
                         while (p < n)
                         {
 
-                            dd[p] = (packedspheres1[n] - packedspheres1[p]).lpNorm<2>();
+                            dd[p] = (packedspheres1[n] - packedspheres1[p]).lpNorm<2>(); //distance between spheres centers
 
+                             //caculating the distance between sphere centers for the periodic boundary condtion
                             if (geom[0].isPeriodic(0))
                             {
                                 dd1[p] = std::min((packedspheres1[n] - packedspheres1[p] + size(0) * Set::Vector::Unit(0)).lpNorm<2>(),
@@ -238,123 +234,63 @@ Util::Message(INFO, "R_mean ", R_mean);
                             }
 #endif
 
-                            dd[p] = std::min(dd[p], dd1[p]);
+                            dd[p] = std::min(dd[p], dd1[p]);   
 
-                            R_n[p] = R_new[n] + R_new[p];
-                            if (dd[p] > R_n[p])
+                            R_n[p] = R_new[n] + R_new[p];  //adding two radius
+                            if (dd[p] > R_n[p]) // non overlap checking. distance between spheres > the sum of radius 
                             {
-                                count[p] = 0;
+                                count[p] = 0; //if condition is satisfied it stores the value as 0
                             }
                             else
                             {
-                                count[p] = 1;
+                                count[p] = 1;   //if condition is not satisfied it stores the value as 1
                             }
                             p++;
                         }
                         int count1 = 0;
                         count1 = std::accumulate(count.begin(), count.end(), 0);
 
-                        if (count1 > 0)
+                        if (count1 > 0) // if the non overlapping condtion is not satisfied 
                         {
 
-                            if (iLoop < 100000)
-                            {
 
-                                iLoop = iLoop + 1;
                                 std::fill(count.begin(), count.end(), 0);
-                                goto label;
-                            }
-                            else
-                            {
+
                                 oLoop = oLoop + 1;
-                                total = 0;
-                                double dom_vol = size(0) * size(1);
-
-                                double sph_vol1 = 3.14 * verbosity * (R_mean * R_mean);
-                                double sph_nos1 = ceil(((dom_vol * 0.6) / (sph_vol1 * 1)) * vf);
-                                //double sph_tot_vol1 = sph_vol1 * sph_nos1;
-                                double pack_size1 = sph_nos1;
-                               // Util::Message(INFO, "sph_tot_vol1 ", sph_tot_vol1);
-
-                                
-
-                                double sph_vol2 = 3.14 * verbosity * (R_mean * R_mean * 0.5 * 0.5);
-                                double sph_nos2 = ceil(((dom_vol * 0.2) / (sph_vol2 * 1)) * vf);
-                               // double sph_tot_vol2 = sph_vol2 * sph_nos2;
-                                double pack_size2 = pack_size1 + sph_nos2;
-                               //Util::Message(INFO, "sph_tot_vol2 ", sph_tot_vol2);
-
-                                
-
-                                double sph_vol3 = 3.14 * verbosity * (R_mean * R_mean * 0.3 * 0.3);
-                                double sph_nos3 = ceil(((dom_vol * 0.1) / (sph_vol3 * 1)) * vf);
-                               // double sph_tot_vol3 = sph_vol3 * sph_nos3;
-                                double pack_size3 = pack_size2 + sph_nos3;
-                                //Util::Message(INFO, "sph_tot_vol3 ", sph_tot_vol3);
-
-                                double sph_vol4 = 3.14 * verbosity * (R_mean * R_mean * 0.2 * 0.2);
-                                double sph_nos4 = ceil(((dom_vol * 0.1) / (sph_vol4 * 1)) * vf);
-                                //double sph_tot_vol4 = sph_vol4 * sph_nos4;
-                                double pack_size4 = pack_size3 + sph_nos4;
-                                //Util::Message(INFO, "sph_tot_vol4 ", sph_tot_vol4);
-
-                                
-                                pack_size = pack_size4;
-                                R_new.resize(pack_size);
-
-                                for (int i = 0; i < (pack_size1); i++)
-                                {
-                                    R_new[i] = R_mean;
-                                }
-
-                                for (int i = pack_size1; i < (pack_size2); i++)
-                                {
-                                    R_new[i] = R_mean * 0.5;
-                                }
-
-                                for (int i = pack_size2; i < (pack_size3); i++)
-                                {
-                                    R_new[i] = R_mean * 0.3;
-                                }
-
-                                for (int i = pack_size3; i < (pack_size); i++)
-                                {
-                                    R_new[i] = R_mean * 0.2;
-                                }
-                                goto label1;
-                            }
+                                total = 0;     
+                                n=n-1;
                         }
-                        else if (count1 == 0)
+                        else if (count1 == 0) //if non overalpping condition is satisfied then accept the point
                         {
-                            iLoop = 0;
+                            oLoop = 0; 
                             packedspheres[n] = packedspheres1[n];
                             total = total + 1;
                         }
-					//}
                     }
-
-                    if (oLoop > 25)
+                                       
+                     if (oLoop >= 100000)
                     {
-                        Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity to produce spheres ");
+                        Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity ");
                     }
-
+                    
                     Util::Message(INFO, "count  ", total);
-                }
+                    
+               }
+                   
             }
-
-            Util::ParallelMessage(INFO);
+             Util::ParallelMessage(INFO);
             R_new.resize(pack_size);
-            Util::ParallelMessage(INFO);
+              Util::ParallelMessage(INFO);
             packedspheres.resize(pack_size);
-            Util::ParallelMessage(INFO);
+              Util::ParallelMessage(INFO);
             MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-            Util::ParallelMessage(INFO);
             MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
             // MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
             //MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);i
-            Util::ParallelMessage(INFO);
-            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD);
-            Util::ParallelMessage(INFO);
+              Util::ParallelMessage(INFO);
+            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_2DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		
+              Util::ParallelMessage(INFO);    
+	   
         };
 
         // void Add(const int &lev, Set::FlameSpeed_mf<Set::Scalar>  &a_FlameSpeed)
@@ -378,12 +314,12 @@ Util::Message(INFO, "R_mean ", R_mean);
                 // amrex::Array4<Set::Scalar> const& FlameSpeed_mf= a_FlameSpeed[lev]->array(mfi);
                 packedspheres.resize(pack_size);
                 R_new.resize(pack_size);
-            Util::ParallelMessage(INFO);
+                Util::ParallelMessage(INFO);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
 				   
                                        Set::Vector x;
-                                       Set::Scalar min_grain_id=0;
+                                       Set::Scalar min_sph=0;
                                        
                                        AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
                                                     x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
@@ -420,29 +356,20 @@ Util::Message(INFO, "R_mean ", R_mean);
 
                                            d = std::min(d, d1);
 
-                                           //R_new.resize(pack_size);
-                                           
-                                           
-                                           
-  
-
-                                            if (d <= (tau*R_new[n]+ fact))
+                                            if (d <= (tau*R_new[n]+ fact)) //the points d within the radius are assigned the 0 (HTPB) or 1 (AP)
                                            
                                             {                 
-                                                Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(eps))); 
-                                                //min_grain_id = phi(i,j,k) + min_grain_id * (1. - phi(i,j,k));
-                                                min_grain_id = min_grain_id + m * (1. - min_grain_id);
+                                                Set::Scalar m = 0.5*(1+erf((-d+R_new[n])/(eps))); //error function is used to avoid the sharp interface
+                                                min_sph = min_sph + m * (1. - min_sph);
                                             } 
                                             
                                        }
 
-                                       /*if (type == Type::Values) FlameSpeed(i, j, k) = alpha[min_grain_id];
-                                       else if (type == Type::Partition) FlameSpeed(i, j, k,min_grain_id) = alpha[min_grain_id];*/
-                                         //min_grain_id= (1+erf((-d)/(erf_fact*R_new[n]))); 
+                                   
                                        if (type == Type::Values)
-                                           phi(i, j, k) = min_grain_id;
-                                       else if (type == Type::Partition) Util::Abort(INFO,"Not implemented");
-                                           //phi(i, j, k, min_grain_id) = min_grain_id;
+                                           phi(i, j, k) = min_sph;
+                                       else if (type == Type::Partition) 
+                                           phi(i, j, k, min_sph) = min_sph;
                                        
                                    });
             }
@@ -452,15 +379,15 @@ Util::Message(INFO, "R_mean ", R_mean);
 
         static void Parse(PackedSpheres &value, IO::ParmParse &pp)
         {
-            pp.query("number_of_grains", value.number_of_grains);
-            pp.query("R_min", value.R_min);
-            pp.query("R_max", value.R_max);
-            pp.query("R_mean", value.R_mean);
-            pp.query("vf", value.vf);
-            pp.query("verbosity", value.verbosity);
-            pp.query("eps", value.eps);
-            pp.query("fact", value.fact);
-            pp.query("tau", value.tau);
+            pp.query("interval", value.interval);  // How many the radius between R_min and R_max. This is not used when R_mean used
+            pp.query("R_min", value.R_min);  // Max radius-Introduced for varying the radius between R_min and R_max along with variable interval. This is not used when R_mean used
+            pp.query("R_max", value.R_max); // Min radius- Introduced for varying the radius between R_min and R_max along with variable interval. This is not used when R_mean used
+            pp.query("R_mean", value.R_mean); //Mean radius of sphere
+            pp.query("vf", value.vf);  //volume fraction
+            pp.query("verbosity", value.verbosity); // This factor is used when one radius is uded spheres for all spheres. If the no of spheres are not able to fit in the domain due to non overlapping condition checking, this will reduce the no of sphere and fit the spheres.
+            pp.query("eps", value.eps);   //Interface thickness between AP and HTPB
+	        pp.query("fact", value.fact);     //This is used to control the interface thickness direction (towards HTPB or towards AP)
+	        pp.query("tau", value.tau);   // This controls the variation of the interface thickness in terms of the spheres radius in percentage
             std::string type = "values";
             pp.query("type", type);
             if (type == "values")
@@ -475,25 +402,24 @@ Util::Message(INFO, "R_mean ", R_mean);
     private:
         
         int pack_size;
-        std::vector<Set::Vector> packedspheres;
-        std::vector<Set::Vector> packedspheres1;
-        std::vector<Set::Scalar> R_new;
-        std::vector<Set::Scalar> R;
-        std::vector<Set::Scalar> dd;
-        std::vector<Set::Scalar> dd1;
-        std::vector<Set::Scalar> R_n;
-        std::vector<Set::Scalar> count;
+        std::vector<Set::Vector> packedspheres; //centre points of spheres that is accepted after checking non overlapping condition 
+        std::vector<Set::Vector> packedspheres1; //temporary centre points of spheres produced randomly before checking non overlapping condition 
+        std::vector<Set::Scalar> R_new; //
+        std::vector<Set::Scalar> R;        //If R_min and R_max are used R is calculated using the formula. If R_mean is used then R=R_mean
+        std::vector<Set::Scalar> dd; //distance between the spheres centres 
+        std::vector<Set::Scalar> dd1; // distance between the sphere centers that includes periodic conditions
+        std::vector<Set::Scalar> R_n; //adding radius of two spheres 
+        std::vector<Set::Scalar> count; //if the spheres center is accepted after checking non overlapping condition , this variable is assigned 0. otherwise 1
         std::vector<double>::iterator it;
-        Set::Scalar number_of_grains;
-        //Set::Scalar min_grain_id;
+        Set::Scalar interval;
         Set::Scalar vf ; // Volume fraction
-        Set::Scalar R_min;
-        Set::Scalar R_max;
-        Set::Scalar R_mean;
-        Set::Scalar verbosity;
+        Set::Scalar R_min; // Min radius of the spheres
+        Set::Scalar R_max;  // Max radius of the spheres
+        Set::Scalar R_mean;  // R_mean radius of the spheres
+        Set::Scalar verbosity;   
         Set::Scalar eps;
         Set::Scalar tau;
-        Set::Scalar fact;
+	    Set::Scalar fact;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;
