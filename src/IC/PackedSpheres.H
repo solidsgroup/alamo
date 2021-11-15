@@ -352,9 +352,8 @@ Util::Message(INFO, "R_mean ", R_mean);
             // MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
             //MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);i
             Util::ParallelMessage(INFO);
-            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		    
+            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD);
             Util::ParallelMessage(INFO);
-	   
         };
 
         // void Add(const int &lev, Set::FlameSpeed_mf<Set::Scalar>  &a_FlameSpeed)
@@ -370,7 +369,6 @@ Util::Message(INFO, "R_mean ", R_mean);
             for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             // for (amrex::MFIter mfi(*a_FlameSpeed[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-		
                 amrex::Box bx = mfi.tilebox();
                 bx.grow(a_phi[lev]->nGrow());
                 // bx.grow(a_FlameSpeed[lev]->nGrow());
@@ -381,7 +379,6 @@ Util::Message(INFO, "R_mean ", R_mean);
             Util::ParallelMessage(INFO);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
-				   
                                        Set::Vector x;
                                        Set::Scalar min_grain_id=0;
                                        
@@ -459,7 +456,7 @@ Util::Message(INFO, "R_mean ", R_mean);
             pp.query("vf", value.vf);
             pp.query("verbosity", value.verbosity);
             pp.query("eps", value.eps);
-	    pp.query("fact", value.fact);
+            pp.query("fact", value.fact);
             pp.query("tau", value.tau);
             std::string type = "values";
             pp.query("type", type);
@@ -493,7 +490,7 @@ Util::Message(INFO, "R_mean ", R_mean);
         Set::Scalar verbosity;
         Set::Scalar eps;
         Set::Scalar tau;
-	Set::Scalar fact;
+        Set::Scalar fact;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;
