@@ -4,6 +4,7 @@
 #include "Numeric/Stencil.H"
 #include "IC/Laminate.H"
 #include "IC/Constant.H"
+#include "IC/PSRead.H"
 
 namespace Integrator
 {
@@ -80,6 +81,11 @@ namespace Integrator
             {
                 PhiIC = new IC::PackedSpheres(geom);
                 pp.queryclass("packedspheres", *static_cast<IC::PackedSpheres *>(PhiIC)); // See :ref:`IC::PackedSpheres`
+            }
+            else if (type == "psread")
+            {
+                PhiIC = new IC::PSRead(geom);
+                pp.queryclass("psread", *static_cast<IC::PSRead *>(PhiIC)); // See :ref:`IC::PackedSpheres`
             }
             else if (type == "laminate")
             {
