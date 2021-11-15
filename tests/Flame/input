@@ -9,13 +9,13 @@ amr.plot_file       = /home/bkanagar/PaperAPHTPBSolidPhase/results/output%DD_%Y%
 amr.plot_dt        =  0.001                             # How frequently to dump output
 #amr.plot_int = 1
 
-amr.max_level       = 1              # How many levels of grid refinement are allowed
-amr.n_cell          = 40 40 4  # Number of cells in the x,y,z directions1
+amr.max_level       = 7              # How many levels of grid refinement are allowed
+amr.n_cell          = 2 2 4  # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
 amr.regrid_int      = 100             # * How frequently (in number of timesteps) to regrid
-amr.grid_eff        = 0.01       # * Closeness of regrid patch to tagged region (default = 0.7) 
+amr.grid_eff        = 0.1       # * Closeness of regrid patch to tagged region (default = 0.7) 
 
 
 geometry.prob_lo    = 0.0 -0.05 -0.1 # Problem domain: furthest point to the lower left
@@ -24,7 +24,7 @@ geometry.is_periodic= 0 1 1           # * Boundary conditions
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.00001    # Timestep
-stop_time           = 0.02
+stop_time           = 0.001
 
 #pf.M           = 0.0  # Mobility - controls flame speed
 pf.eps         = 0.00005 # Burn width thickness
@@ -59,8 +59,8 @@ thermal.delA        = 900    # Flux from AP burn
 thermal.delH        = 400    # Flux from HTPB burn
 
 
-phi.ic.packedspheres.interval  = 1.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.5
+phi.ic.packedspheres.interval  = 4.0    #no of different radii between R_min and R_max
+phi.ic.packedspheres.vf= 0.65
 phi.ic.packedspheres.R_mean= 0.0075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075

@@ -55,9 +55,13 @@ namespace IC
             R_new.resize(interval);
             pack_size = 0;
             sph_tot_vol = 0;
-            int inc = 0;
-            int jj = 0;
+            //int inc = 0;
+            //int jj = 0;
             std::vector<double> ins(1, 1);
+            int pack_size1=0;
+            int pack_size2=0;
+            int pack_size3=0;
+            //int pack_size4=0;
 
             int p = 0;
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -101,6 +105,7 @@ namespace IC
                 }
             }
 //#endif
+
 // converting volume fraction in to no of spheres in 2-D 
 #elif AMREX_SPACEDIM > 1
             if (geom[0].isPeriodic(1))
@@ -114,37 +119,112 @@ namespace IC
                     if (n == 0)
                     {
                         // R[n]=R_min+((R_max-R_min)/interval);
-                        R[n] = ((R_mean) /interval);
+                        R[n] = ((R_mean));
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                         // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
-                        sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
+                        sph_nos[n] = ceil(((0.6*dom_vol) / (sph_vol[n] * 1)) * vf);
                         //Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
-                        pack_size = pack_size + sph_nos[n];
+                        pack_size1= sph_nos[n];
                     }
 
-                    else if (n > 0)
+                    else if (n == 1)
                     {
-                        R[n] = ((R_mean) /interval);
+                        R[n] = ((0.5*R_mean));
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                        // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
-                        sph_nos[n] = ceil((dom_vol / (sph_vol[n] * 1)) * vf);
+                        sph_nos[n] = ceil(((0.2*dom_vol) / (sph_vol[n] * 1)) * vf);
                         // Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
-                        pack_size = pack_size + sph_nos[n];
+                        pack_size2 =  pack_size1+sph_nos[n];
                     }
+                    
+                     else if (n == 2)
+                    {
+                        R[n] = ((0.3*R_mean));
+                        sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
+                       // Util::Message(INFO, "sph_vol ",sph_vol[n]);
+                        // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
+                        sph_nos[n] = ceil(((0.1*dom_vol) / (sph_vol[n] * 1)) * vf);
+                        // Util::Message(INFO, "sph_nos ",sph_nos[n]);
+                        sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
+                        pack_size3 =  pack_size2+ sph_nos[n];
+                    }
+                    
+                    else if (n == 3)
+                    {
+                        R[n] = ((0.2*R_mean));
+                        sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
+                       // Util::Message(INFO, "sph_vol ",sph_vol[n]);
+                        // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
+                        sph_nos[n] = ceil(((0.1*dom_vol) / (sph_vol[n] * 1)) * vf);
+                        // Util::Message(INFO, "sph_nos ",sph_nos[n]);
+                        sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
+                        pack_size =  pack_size3+sph_nos[n];
+                    }
+                    
+                   
                 }
             }
 #endif
-            
+
+             Util::Message(INFO, "pack_size1  ",pack_size1);
+             Util::Message(INFO, "pack_size2  ",pack_size2);
+             Util::Message(INFO, "pack_size1  ",pack_size3);
+             //Util::Message(INFO, "pack_size2  ",pack_size4);
+            //pack_size = pack_size1+pack_size2+pack_size3+pack_size4;
+            R_new.resize(pack_size);
+             Util::Message(INFO, "pack_size  ",pack_size);
             if (rank == 0)
             {
-                R_new.assign(R.begin(), R.end());
-                
+                //R_new.assign(R.begin(), R.end());
+                int n=0;
+                while(n<pack_size)
+                {
+                if(n<pack_size1)
+                {
+					R_new[n]=R_mean;
+					Util::Message(INFO, "n ",n);
+					Util::Message(INFO, "R_new ",R_new[n]);
+					
+					
+					
+				}
+				
+				if((n>=pack_size1)&&(n<pack_size2))
+				{
+					R_new[n]=0.5*R_mean;
+					Util::Message(INFO, "n ",n);
+					Util::Message(INFO, "R_new ",R_new[n]);
+					
+				}
+				
+				if((n>=pack_size2)&&(n<pack_size3))
+				{
+					R_new[n]=0.3*R_mean;
+					Util::Message(INFO, "n ",n);
+					Util::Message(INFO, "R_new ",R_new[n]);
+					
+				}
+				 if((n>=pack_size3)&&(n<pack_size))
+				{
+					R_new[n]=0.2*R_mean;
+					Util::Message(INFO, "n ",n);
+					Util::Message(INFO, "R_new ",R_new[n]);
+					
+				}
+				n++;
+			   }
+
+
+               for(int n;n<pack_size;n++)
+               {
+				   Util::Message(INFO, "R_new ",R_new[n]);
+			   }
                 // matching the total no of elements in the Radius R vector with the total no spheres
-                for (int i = 0; i < interval; i++)
+                /*for (int i = 0; i < interval; i++)
                 {
 
                     if (sph_nos[i] > 1)
@@ -173,7 +253,7 @@ namespace IC
                     }
                 }
 
-                std::reverse(R_new.begin(), R_new.end()); //reversing the radius elements. Significant if the radii are varying between R_max and R_min
+                std::reverse(R_new.begin(), R_new.end()); //reversing the radius elements. Significant if the radii are varying between R_max and R_min*/
 
                 int oLoop=0 ; // max no of times this counter checks for the new sphere centers which satisfies non overlap condition 
 
@@ -273,9 +353,10 @@ namespace IC
                         Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity ");
                     }
                     
-                    Util::Message(INFO, "count  ", total);
+                    //Util::Message(INFO, "count  ", total);
                     
                }
+               Util::Message(INFO, "count  ", pack_size);
                    
             }
              Util::ParallelMessage(INFO);
