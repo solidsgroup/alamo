@@ -341,13 +341,19 @@ Util::Message(INFO, "R_mean ", R_mean);
                 }
             }
 
+            Util::ParallelMessage(INFO);
             R_new.resize(pack_size);
+            Util::ParallelMessage(INFO);
             packedspheres.resize(pack_size);
+            Util::ParallelMessage(INFO);
             MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            Util::ParallelMessage(INFO);
             MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
             // MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
             //MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);i
+            Util::ParallelMessage(INFO);
             MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		    
+            Util::ParallelMessage(INFO);
 	   
         };
 
@@ -355,7 +361,7 @@ Util::Message(INFO, "R_mean ", R_mean);
         void Add(const int &lev, Set::Field<Set::Scalar> &a_phi)
         // void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
         {
-
+            Util::ParallelMessage(INFO);
             Set::Vector size;
             AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
                          size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
@@ -372,6 +378,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                 // amrex::Array4<Set::Scalar> const& FlameSpeed_mf= a_FlameSpeed[lev]->array(mfi);
                 packedspheres.resize(pack_size);
                 R_new.resize(pack_size);
+            Util::ParallelMessage(INFO);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
 				   
@@ -439,6 +446,7 @@ Util::Message(INFO, "R_mean ", R_mean);
                                        
                                    });
             }
+            Util::ParallelMessage(INFO);
         }
 
 
