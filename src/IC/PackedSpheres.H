@@ -46,7 +46,7 @@ namespace IC
         void Define()
         {
             std::vector<double> sph_vol;
-            std::vector<amrex::Real> sph_nos;
+            std::vector<Set::Scalar> sph_nos;
             Set::Scalar sph_tot_vol = 0;
             R.resize(interval);
             R_n.resize(interval);
@@ -55,13 +55,13 @@ namespace IC
             R_new.resize(interval);
             pack_size = 0;
             sph_tot_vol = 0;
-            //int inc = 0;
-            //int jj = 0;
             std::vector<double> ins(1, 1);
             int pack_size1=0;
             int pack_size2=0;
             int pack_size3=0;
-            //int pack_size4=0;
+            std::vector<Set::Scalar> V_per{V_per1,V_per2,V_per3,V_per4};
+            std::vector<Set::Scalar> R_per{R_per1,R_per2,R_per3,R_per4};
+            
 
             int p = 0;
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -119,11 +119,11 @@ namespace IC
                     if (n == 0)
                     {
                         // R[n]=R_min+((R_max-R_min)/interval);
-                        R[n] = ((R_mean));
+                        R[n] = ((R_per[n]*R_mean));
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                         // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
-                        sph_nos[n] = ceil(((0.6*dom_vol) / (sph_vol[n] * 1)) * vf);
+                        sph_nos[n] = ceil(((V_per[n]*dom_vol) / (sph_vol[n] * 1)) * vf);
                         //Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size1= sph_nos[n];
@@ -131,11 +131,11 @@ namespace IC
 
                     else if (n == 1)
                     {
-                        R[n] = ((0.5*R_mean));
+                        R[n] = ((R_per[n]*R_mean));
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                        // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
-                        sph_nos[n] = ceil(((0.2*dom_vol) / (sph_vol[n] * 1)) * vf);
+                        sph_nos[n] = ceil(((V_per[n]*dom_vol) / (sph_vol[n] * 1)) * vf);
                         // Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size2 =  pack_size1+sph_nos[n];
@@ -143,11 +143,11 @@ namespace IC
                     
                      else if (n == 2)
                     {
-                        R[n] = ((0.3*R_mean));
+                        R[n] = ((R_per[n]*R_mean));
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                        // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
-                        sph_nos[n] = ceil(((0.1*dom_vol) / (sph_vol[n] * 1)) * vf);
+                        sph_nos[n] = ceil(((V_per[n]*dom_vol) / (sph_vol[n] * 1)) * vf);
                         // Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size3 =  pack_size2+ sph_nos[n];
@@ -155,11 +155,11 @@ namespace IC
                     
                     else if (n == 3)
                     {
-                        R[n] = ((0.2*R_mean));
+                        R[n] = ((R_per[n]*R_mean));
                         sph_vol[n] = 3.14 * verbosity * (R[n] * R[n]);
                        // Util::Message(INFO, "sph_vol ",sph_vol[n]);
                         // sph_nos[n]=ceil(ceil(dom_vol/interval/(sph_vol[n]*1))*1);
-                        sph_nos[n] = ceil(((0.1*dom_vol) / (sph_vol[n] * 1)) * vf);
+                        sph_nos[n] = ceil(((V_per[n]*dom_vol) / (sph_vol[n] * 1)) * vf);
                         // Util::Message(INFO, "sph_nos ",sph_nos[n]);
                         sph_tot_vol = sph_tot_vol + sph_vol[n] * sph_nos[n];
                         pack_size =  pack_size3+sph_nos[n];
@@ -170,90 +170,39 @@ namespace IC
             }
 #endif
 
-             Util::Message(INFO, "pack_size1  ",pack_size1);
-             Util::Message(INFO, "pack_size2  ",pack_size2);
-             Util::Message(INFO, "pack_size1  ",pack_size3);
-             //Util::Message(INFO, "pack_size2  ",pack_size4);
-            //pack_size = pack_size1+pack_size2+pack_size3+pack_size4;
+             
             R_new.resize(pack_size);
-             Util::Message(INFO, "pack_size  ",pack_size);
+            
             if (rank == 0)
             {
-                //R_new.assign(R.begin(), R.end());
+                
                 int n=0;
                 while(n<pack_size)
                 {
                 if(n<pack_size1)
                 {
-					R_new[n]=R_mean;
-					Util::Message(INFO, "n ",n);
-					Util::Message(INFO, "R_new ",R_new[n]);
-					
-					
+					R_new[n]=R_per1*R_mean;		
 					
 				}
 				
 				if((n>=pack_size1)&&(n<pack_size2))
 				{
-					R_new[n]=0.5*R_mean;
-					Util::Message(INFO, "n ",n);
-					Util::Message(INFO, "R_new ",R_new[n]);
+					R_new[n]=R_per2*R_mean;
 					
 				}
 				
 				if((n>=pack_size2)&&(n<pack_size3))
 				{
-					R_new[n]=0.3*R_mean;
-					Util::Message(INFO, "n ",n);
-					Util::Message(INFO, "R_new ",R_new[n]);
+					R_new[n]=R_per3*R_mean;
 					
 				}
 				 if((n>=pack_size3)&&(n<pack_size))
 				{
-					R_new[n]=0.2*R_mean;
-					Util::Message(INFO, "n ",n);
-					Util::Message(INFO, "R_new ",R_new[n]);
+					R_new[n]=R_per4 *R_mean;
 					
 				}
 				n++;
 			   }
-
-
-               for(int n;n<pack_size;n++)
-               {
-				   Util::Message(INFO, "R_new ",R_new[n]);
-			   }
-                // matching the total no of elements in the Radius R vector with the total no spheres
-                /*for (int i = 0; i < interval; i++)
-                {
-
-                    if (sph_nos[i] > 1)
-                    {
-
-                        inc = sph_nos[i] - 1;
-
-                        if (i == 0)
-                        {
-                            it = R_new.begin();
-                            ins.clear();
-                            std::vector<double> ins(inc, R[i]);
-                            R_new.insert(it + 1, ins.begin(), ins.end());
-                            jj = jj + inc + 1;
-                        }
-
-                        else
-                        {
-
-                            it = R_new.begin();
-                            ins.clear();
-                            std::vector<double> ins(inc, R[i]);
-                            R_new.insert(it + jj, ins.begin(), ins.end());
-                            jj = jj + inc + 1;
-                        }
-                    }
-                }
-
-                std::reverse(R_new.begin(), R_new.end()); //reversing the radius elements. Significant if the radii are varying between R_max and R_min*/
 
                 int oLoop=0 ; // max no of times this counter checks for the new sphere centers which satisfies non overlap condition 
 
@@ -350,27 +299,27 @@ namespace IC
                                        
                      if (oLoop >= 100000)
                     {
-                        Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the verbosity ");
+                        Util::Abort(INFO, " spheres will not be generated with the given parameters. Try adjusting the V_per and R_per values ");
                     }
                     
-                    //Util::Message(INFO, "count  ", total);
+                    Util::Message(INFO, "count  ", n);
                     
                }
-               Util::Message(INFO, "count  ", pack_size);
+              // Util::Message(INFO, "count  ", pack_size);
                    
             }
-             Util::ParallelMessage(INFO);
+             //Util::ParallelMessage(INFO);
             R_new.resize(pack_size);
-              Util::ParallelMessage(INFO);
+             // Util::ParallelMessage(INFO);
             packedspheres.resize(pack_size);
-              Util::ParallelMessage(INFO);
+             // Util::ParallelMessage(INFO);
             MPI_Bcast(R_new.data(), R_new.size(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
             MPI_Bcast(&pack_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
             // MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
             //MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);i
-              Util::ParallelMessage(INFO);
+              //Util::ParallelMessage(INFO);
             MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_2DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		
-              Util::ParallelMessage(INFO);    
+              //Util::ParallelMessage(INFO);    
 	   
         };
 
@@ -378,7 +327,7 @@ namespace IC
         void Add(const int &lev, Set::Field<Set::Scalar> &a_phi)
         // void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
         {
-            Util::ParallelMessage(INFO);
+            //Util::ParallelMessage(INFO);
             Set::Vector size;
             AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
                          size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
@@ -395,7 +344,7 @@ namespace IC
                 // amrex::Array4<Set::Scalar> const& FlameSpeed_mf= a_FlameSpeed[lev]->array(mfi);
                 packedspheres.resize(pack_size);
                 R_new.resize(pack_size);
-                Util::ParallelMessage(INFO);
+                //Util::ParallelMessage(INFO);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
 				   
@@ -454,7 +403,7 @@ namespace IC
                                        
                                    });
             }
-            Util::ParallelMessage(INFO);
+            //Util::ParallelMessage(INFO);
         }
 
 
@@ -469,6 +418,14 @@ namespace IC
             pp.query("eps", value.eps);   //Interface thickness between AP and HTPB
 	        pp.query("fact", value.fact);     //This is used to control the interface thickness direction (towards HTPB or towards AP)
 	        pp.query("tau", value.tau);   // This controls the variation of the interface thickness in terms of the spheres radius in percentage
+	        pp.query("V_per1",value.V_per1);
+		    pp.query("V_per2",value.V_per2);
+			pp.query("V_per3",value.V_per3);
+			pp.query("V_per4",value.V_per4);
+		    pp.query("R_per1",value.R_per1);
+		    pp.query("R_per2",value.R_per2);
+			pp.query("R_per3",value.R_per3);
+			pp.query("R_per4",value.R_per4);	
             std::string type = "values";
             pp.query("type", type);
             if (type == "values")
@@ -501,6 +458,8 @@ namespace IC
         Set::Scalar eps;
         Set::Scalar tau;
 	    Set::Scalar fact;
+	    Set::Scalar V_per1,V_per2,V_per3,V_per4;
+	    Set::Scalar R_per1,R_per2,R_per3,R_per4;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;

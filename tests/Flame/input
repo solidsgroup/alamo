@@ -10,7 +10,7 @@ amr.plot_dt        =  0.001                             # How frequently to dump
 #amr.plot_int = 1
 
 amr.max_level       = 7              # How many levels of grid refinement are allowed
-amr.n_cell          = 2 2 4  # Number of cells in the x,y,z directions1
+amr.n_cell          = 4 2 4  # Number of cells in the x,y,z directions1
 amr.max_grid_size	= 50              # * Maximum allowable grid size
 amr.blocking_factor	= 2               # * Minimum size of each block
 
@@ -19,12 +19,12 @@ amr.grid_eff        = 0.1       # * Closeness of regrid patch to tagged region (
 
 
 geometry.prob_lo    = 0.0 -0.05 -0.1 # Problem domain: furthest point to the lower left
-geometry.prob_hi    = 0.1 0.05 0.1      # Problem domain: furthest point to the upper right
+geometry.prob_hi    = 0.2 0.05 0.1      # Problem domain: furthest point to the upper right
 geometry.is_periodic= 0 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
 timestep            = 0.00001    # Timestep
-stop_time           = 0.001
+stop_time           = 0.1
 
 #pf.M           = 0.0  # Mobility - controls flame speed
 pf.eps         = 0.00005 # Burn width thickness
@@ -65,9 +65,18 @@ phi.ic.packedspheres.R_mean= 0.0075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075
 phi.ic.packedspheres.verbosity= 1.0
-phi.ic.packedspheres.eps= 0.0017
+phi.ic.packedspheres.eps= 0.0015
 phi.ic.packedspheres.tau =1.0
-phi.ic.packedspheres.fact=0.0017
+phi.ic.packedspheres.fact=0.0015
+phi.ic.packedspheres.V_per1=0.6 
+phi.ic.packedspheres.V_per2=0.2 
+phi.ic.packedspheres.V_per3=0.1 
+phi.ic.packedspheres.V_per4=0.1
+phi.ic.packedspheres.R_per1=1
+phi.ic.packedspheres.R_per2=0.5 
+phi.ic.packedspheres.R_per3=0.3 
+phi.ic.packedspheres.R_per4=0.2
+
 
 #m_refinement_criterion = 0.2 #1.0
 #pf.temp_refinement = 10
