@@ -393,6 +393,11 @@ namespace IC
                                                 min_sph = min_sph + m * (1. - min_sph);
                                             } 
                                             
+                                            /*if (d< R_new[n])
+                                            {
+												min_sph=1;
+											}*/
+                                            
                                        }
 
                                    

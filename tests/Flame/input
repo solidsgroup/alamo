@@ -1,12 +1,13 @@
 alamo.program = flame
+<<<<<<< HEAD
 
 # * = you almost definitely don't need to change this
 
 
 #amr.max_grid_size	= 10000       # * Maximum grid size 
 #max_step		= 100000      # Maximum number of timesteps
-amr.plot_file       = /home/bkanagar/PaperAPHTPBSolidPhase/results/output%DD_%Y%m%d_%H%M%S # The name of the output file 
-amr.plot_dt        =  0.001                             # How frequently to dump output
+amr.plot_file       = /home/bkanagar/PaperAPHTPBSolidPhase/results/AP_HTPB_PackedSpheres/eps_0015/output%DD_%Y%m%d_%H%M%S # The name of the output file 
+amr.plot_dt        =  0.0001                             # How frequently to dump output
 #amr.plot_int = 1
 
 amr.max_level       = 7              # How many levels of grid refinement are allowed
@@ -23,7 +24,7 @@ geometry.prob_hi    = 0.2 0.05 0.1      # Problem domain: furthest point to the 
 geometry.is_periodic= 0 1 1           # * Boundary conditions 
 #geometry.is_periodic= 1 1 1           #babu
 
-timestep            = 0.00001    # Timestep
+timestep            = 0.000001    # Timestep
 stop_time           = 0.1
 
 #pf.M           = 0.0  # Mobility - controls flame speed
@@ -42,7 +43,7 @@ pf.n_htpb       = 0.0 # Pressure exponent for HTPB
 pf.r_htpb       = 0.1 # Pressure Coefficient for HTPB
 pf.n_comb       = 0.0 # Pressure exponent for comb
 pf.r_comb       = 10.0 # Pressure Coefficient for comb
-pf.P            = 9.7 # Pressure in Pa
+pf.P            = 2.06 Pressure in Pa
 
 
 
@@ -60,7 +61,7 @@ thermal.delH        = 400    # Flux from HTPB burn
 
 
 phi.ic.packedspheres.interval  = 4.0    #no of different radii between R_min and R_max
-phi.ic.packedspheres.vf= 0.65
+phi.ic.packedspheres.vf= 0.56
 phi.ic.packedspheres.R_mean= 0.0075
 #phi.ic.packedspheres.R_min=0.065
 #phi.ic.packedspheres.R_max=0.075
@@ -124,6 +125,48 @@ phi.ic.packedspheres.R_per4=0.2
 #bc.eta.val.yhi  = 0.0
 #bc.eta.val.zlo  = 0.0
 #bc.eta.val.zhi  = 0.0
+=======
+amr.plot_file = output
+amr.plot_dt = 0.01
+amr.max_level = 8 #7 #5 #6
+amr.n_cell = 8 2 2
+amr.max_grid_size = 50
+amr.blocking_factor = 2
+amr.regrid_int = 100
+amr.grid_eff = 0.8
+amr.refinement_criterion = 0.01
+geometry.prob_lo = 0.0 -0.05 -0.1 # [mm]
+geometry.prob_hi = 0.4 0.05 0.1 # [mm]
+geometry.is_periodic = 0 1 1
+timestep = 0.00005 # [s]
+stop_time = 0.4
+
+pf.eps = 0.0001 #0.0005 # [mm]
+pf.lambda = 0.001
+
+# FINALIZED values for pure AP
+pf.r_ap = 1.222 # [ mm / s ]
+pf.n_ap = 1.042 # [ Unitless ]
+
+# still working on this
+pf.r_htpb = 0.1 # FIXED
+pf.r_comb = 10.0 # FIXED
+pf.n_htpb = 0.0 # FIXED
+pf.n_comb = 0.0 # FIXED
+
+pf.P = 1.0
+
+
+pf.kappa = 1.0
+pf.gamma = 0.02726
+pf.w1 = 1.0
+pf.w12 = 2.0
+pf.w0 = 0.0
+
+
+phi.ic.type = psread
+#phi.ic.psread.eps = 0.0005
+>>>>>>> ddcb607c17e8b733d8e4e2f7a9fd2bc1e01563e7
 
 pf.eta.bc.type.xlo = dirichlet
 pf.eta.bc.type.xhi = dirichlet
@@ -133,3 +176,7 @@ pf.eta.bc.val.xlo = 0.0
 pf.eta.bc.val.xhi = 1.0
 pf.eta.bc.val.ylo = 0.0
 pf.eta.bc.val.yhi = 0.0
+<<<<<<< HEAD
+=======
+
+>>>>>>> ddcb607c17e8b733d8e4e2f7a9fd2bc1e01563e7
