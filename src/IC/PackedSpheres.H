@@ -5,6 +5,7 @@
 #include "IC/IC.H"
 using namespace std;
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <algorithm>
 #include <iterator>
@@ -306,6 +307,18 @@ namespace IC
                     
                }
               // Util::Message(INFO, "count  ", pack_size);
+              
+              std::ofstream file("sphere_info.txt");
+              
+              file << "location"<< "  "<<"radius"<<std::endl;
+              for(int i=0; i<pack_size;i++)
+              {
+				  file << packedspheres[i]<< "  "<<R_new[i]<<std::endl;
+				  file << " " <<std::endl;
+			  }
+              
+              file.close();
+             
                    
             }
              //Util::ParallelMessage(INFO);
