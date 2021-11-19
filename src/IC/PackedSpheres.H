@@ -308,9 +308,11 @@ namespace IC
                }
               // Util::Message(INFO, "count  ", pack_size);
               
+
               std::ofstream file("/home/bkanagar/Desktop/alamo/tests/Flame/sphere_info.txt");
               
               
+
               
               file << "location"<< "  "<<"radius"<<std::endl;
               for(int i=0; i<pack_size;i++)
