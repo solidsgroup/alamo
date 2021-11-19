@@ -30,7 +30,6 @@ namespace IC
 
         void Add(const int &lev, Set::Field<Set::Scalar> &a_phi)
         {
-            Util::ParallelMessage(INFO);
             Set::Vector size;
             AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
                          size(1) = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];,
