@@ -81,23 +81,20 @@ def extract(filename):
             rets[prefix]['items'].append(ret)
     return rets
 
-#extract("../src/Integrator/Flame.cpp")
-#exit()
-
-docfile    = open("./source/Inputs.rst","w")
+docfile    = open("Inputs.rst","w")
 docfile.write(r"""
 Inputs
 ------
 
 """)
 
-for dirname, subdirlist, filelist in os.walk("../src/"):
+for dirname, subdirlist, filelist in os.walk("../../src/"):
     for f in filelist:
         if f.endswith(".H") or f.endswith(".cpp"): 
             inputs = extract(dirname + "/" + f)
             if not len(inputs): continue
 
-            classname = dirname.replace("../src/","").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
+            classname = dirname.replace("../../src/","").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
             docfile.write(classname + "\n")
             docfile.write("".ljust(len(classname),"*")+"\n\n")
             docfile.write(".. flat-table:: \n")
