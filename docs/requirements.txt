@@ -1,3 +1,5 @@
 breathe
 m2r
 sphinx_rtd_theme
+linuxdoc
+linuxdoc.rstFlatTable
