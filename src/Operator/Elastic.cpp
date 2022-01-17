@@ -818,7 +818,7 @@ Elastic<SYM>::FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom)
         const int ng1 = 1;
         const int ng2 = 2;
         MultiTab tmpmf(mf.boxArray(), mf.DistributionMap(), ncomp, ng1);
-        tmpmf.copy(mf,0,0,ncomp,ng2,ng1,geom.periodicity());
+        tmpmf.ParallelCopy(mf,0,0,ncomp,ng2,ng1,geom.periodicity());
         mf.ParallelCopy   (tmpmf, 0, 0, ncomp, ng1, ng2, geom.periodicity());
     }
 }
