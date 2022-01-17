@@ -10,7 +10,7 @@ template <>
 class Matrix4<2, Sym::Major>
 {
     Scalar data[10] = {NAN, NAN, NAN, NAN, NAN,
-                       NAN, NAN, NAN, NAN, NAN};
+                        NAN, NAN, NAN, NAN, NAN};
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4(){};
@@ -160,30 +160,30 @@ public:
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b)
 {
-	Matrix4<2,Sym::Major> ret;
-	for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] + b.data[i];
-	return ret;
+    Matrix4<2,Sym::Major> ret;
+    for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] + b.data[i];
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2, Sym::Major> operator-(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b)
 {
-	Matrix4<2,Sym::Major> ret;
-	for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] - b.data[i];
-	return ret;
+    Matrix4<2,Sym::Major> ret;
+    for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] - b.data[i];
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2, Sym::Major> operator*(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b)
 {
-	Matrix4<2,Sym::Major> ret;
-	for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] * b;
-	return ret;
+    Matrix4<2,Sym::Major> ret;
+    for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] * b;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2, Sym::Major> operator/(const Matrix4<2, Sym::Major> &a, const Set::Scalar &b)
 {
-	Matrix4<2,Sym::Major> ret;
-	for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] / b;
-	return ret;
+    Matrix4<2,Sym::Major> ret;
+    for (int i = 0; i < 10; i++) ret.data[i] = a.data[i] / b;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Set::Matrix operator*(const Matrix4<2, Sym::Major> &a, const Set::Matrix &b)
@@ -202,10 +202,10 @@ template <>
 class Matrix4<3, Sym::Major>
 {
     Scalar data[45] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                       NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                       NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                       NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
-                       NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
+                        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
+                        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
+                        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN,
+                        NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4(){};
@@ -441,30 +441,30 @@ public:
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3, Sym::Major> operator+(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b)
 {
-	Matrix4<3,Sym::Major> ret;
-	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] + b.data[i];
-	return ret;
+    Matrix4<3,Sym::Major> ret;
+    for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] + b.data[i];
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b)
 {
-	Matrix4<3,Sym::Major> ret;
-	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] - b.data[i];
-	return ret;
+    Matrix4<3,Sym::Major> ret;
+    for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] - b.data[i];
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3, Sym::Major> operator*(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b)
 {
-	Matrix4<3,Sym::Major> ret;
-	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] * b;
-	return ret;
+    Matrix4<3,Sym::Major> ret;
+    for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] * b;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3, Sym::Major> operator/(const Matrix4<3, Sym::Major> &a, const Set::Scalar &b)
 {
-	Matrix4<3,Sym::Major> ret;
-	for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] / b;
-	return ret;
+    Matrix4<3,Sym::Major> ret;
+    for (int i = 0; i < 45; i++) ret.data[i] = a.data[i] / b;
+    return ret;
 }
 
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 

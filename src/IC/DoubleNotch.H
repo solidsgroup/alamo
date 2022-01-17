@@ -12,46 +12,46 @@ class DoubleNotch : public IC
 public:
     enum Mollifier {Dirac, Gaussian};
 
-	DoubleNotch (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
+    DoubleNotch (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
     {
     }
 
-	
-	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
-	{
+    
+    void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
+    {
         Set::Vector DX(geom[lev].CellSize());
         amrex::IndexType type = a_field[lev]->ixType();
-		for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-		{
-			amrex::Box bx = mfi.tilebox();
-		    bx.grow(a_field[lev]->nGrow());
-			amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-			amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.tilebox();
+            bx.grow(a_field[lev]->nGrow());
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-				Set::Vector x;
+                Set::Vector x;
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
-				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
-				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
-				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
+                                x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
+                                x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
                 }
                 else if (type == amrex::IndexType::TheCellType())
                 {
-				    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-				    			 x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-				    			 x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
+                                x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
+                                x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                 }
 
                 field(i,j,k) = L;
                 if ( (x - x0)(0) > 0.5*width || (x - x0)(0) < -0.5*width)
                     if ( (x - x0)(1) < 0.5*thickness && (x-x0)(1) > -0.5*thickness)
                         field(i,j,k) = 0.0;
-			});
-		}
+            });
+        }
         a_field[lev]->FillBoundary();
-	}
-	
+    }
+    
 private:
     Set::Scalar thickness = 0.05;
     Set::Scalar width = 0.1;

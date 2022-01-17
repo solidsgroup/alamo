@@ -24,29 +24,29 @@ namespace Integrator
 class CahnHilliard : public Integrator
 {
 public:
-	CahnHilliard();
+    CahnHilliard();
 
 protected:
 
-	void Initialize (int lev) override;
-	void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
-	void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
-	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
+    void Initialize (int lev) override;
+    void TimeStepBegin(amrex::Real /*time*/, int /*iter*/) override;
+    void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
+    void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
 private:
 
-	Set::Field<Set::Scalar> etanewmf; 
-	Set::Field<Set::Scalar> etaoldmf; 
-	Set::Field<Set::Scalar> intermediate; 
+    Set::Field<Set::Scalar> etanewmf; 
+    Set::Field<Set::Scalar> etaoldmf; 
+    Set::Field<Set::Scalar> intermediate; 
 
-	const int nghost = 1;
-	const int ncomp = 1;
-	BC::BC<Set::Scalar> *bc;
-	IC::IC *ic;
-	
-	const Set::Scalar gamma = 0.0005;
+    const int nghost = 1;
+    const int ncomp = 1;
+    BC::BC<Set::Scalar> *bc;
+    IC::IC *ic;
+    
+    const Set::Scalar gamma = 0.0005;
 
-	Operator::Implicit::Implicit op;
+    Operator::Implicit::Implicit op;
 };
 }
 #endif

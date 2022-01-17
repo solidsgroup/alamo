@@ -12,5 +12,3 @@ void FileNameParse(std::string &filename);
 }
 
 #endif
-
-

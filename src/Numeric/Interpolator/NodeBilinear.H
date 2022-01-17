@@ -20,18 +20,18 @@ class NodeBilinear : public amrex::NodeBilinear
 public:
 
     void interp (const amrex::BaseFab<T>&  crse,
-                          int               crse_comp,
-                          amrex::BaseFab<T>&        fine,
-                          int               fine_comp,
-                          int               ncomp,
-                          const amrex::Box&        fine_region,
-                          const amrex::IntVect&    ratio,
-                          const amrex::Geometry& /*crse_geom */,
-                          const amrex::Geometry& /*fine_geom */,
-                          amrex::Vector<amrex::BCRec> const& /*bcr*/,
-                          int               /*actual_comp*/,
-                          int               /*actual_state*/,
-                          amrex::RunOn             runon)
+                        int               crse_comp,
+                        amrex::BaseFab<T>&        fine,
+                        int               fine_comp,
+                        int               ncomp,
+                        const amrex::Box&        fine_region,
+                        const amrex::IntVect&    ratio,
+                        const amrex::Geometry& /*crse_geom */,
+                        const amrex::Geometry& /*fine_geom */,
+                        amrex::Vector<amrex::BCRec> const& /*bcr*/,
+                        int               /*actual_comp*/,
+                        int               /*actual_state*/,
+                        amrex::RunOn             runon)
     {
     //bool run_on_gpu = (runon == amrex::RunOn::Gpu && amrex::Gpu::inLaunchRegion());
 

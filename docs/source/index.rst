@@ -11,6 +11,7 @@ Documentation for alamo
    Simba
    Convention
    Examples/Examples
+   Inputs
    API/API
 
 

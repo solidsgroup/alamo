@@ -15,78 +15,78 @@
 namespace BC
 {
 enum Orientation {
-	All = -1,
-	AMREX_D_DECL(xlo = 0,
-		     ylo = 1,
-		     zlo = 2),
-	AMREX_D_DECL(xhi = 0 + AMREX_SPACEDIM,
-		     yhi = 1 + AMREX_SPACEDIM,
-		     zhi = 2 + AMREX_SPACEDIM)};
+    All = -1,
+    AMREX_D_DECL(xlo = 0,
+            ylo = 1,
+            zlo = 2),
+    AMREX_D_DECL(xhi = 0 + AMREX_SPACEDIM,
+            yhi = 1 + AMREX_SPACEDIM,
+            zhi = 2 + AMREX_SPACEDIM)};
 
 template<class T>
 class BC
 {
 
 public:
-	virtual ~BC() {};
-	
-	void define (const amrex::Geometry& a_geom) {m_geom = a_geom;};
+    virtual ~BC() {};
+    
+    void define (const amrex::Geometry& a_geom) {m_geom = a_geom;};
 
-	virtual void FillBoundary (amrex::FArrayBox &in,
-				   const amrex::Box &box,
-				   int ngrow, int dcomp, int ncomp,
-				   amrex::Real time,
-				   Orientation face = Orientation::All,
-				   const amrex::Mask *mask = nullptr) = 0;
+    virtual void FillBoundary (amrex::FArrayBox &in,
+                    const amrex::Box &box,
+                    int ngrow, int dcomp, int ncomp,
+                    amrex::Real time,
+                    Orientation face = Orientation::All,
+                    const amrex::Mask *mask = nullptr) = 0;
 
-	virtual void FillBoundary (amrex::MultiFab& mf,
-				   int dcomp, int ncomp,
-				   amrex::Real time, int /*bccomp*/)
-	{
-		mf.FillBoundary(m_geom.periodicity());
-		for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
-		{
-			const amrex::Box& box = mfi.tilebox();
-			amrex::FArrayBox &in = mf[mfi];
-			FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
-		}
+    virtual void FillBoundary (amrex::MultiFab& mf,
+                    int dcomp, int ncomp,
+                    amrex::Real time, int /*bccomp*/)
+    {
+        mf.FillBoundary(m_geom.periodicity());
+        for (amrex::MFIter mfi(mf,true); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& box = mfi.tilebox();
+            amrex::FArrayBox &in = mf[mfi];
+            FillBoundary(in, box, mf.nGrow(), dcomp, ncomp, time);
+        }
 
-	}
+    }
 
-	virtual void FillBoundary (amrex::MultiFab& mf,
-				   int dcomp, int ncomp, amrex::IntVect const & /*nghost*/,
-				   amrex::Real time, int bccomp) //override
-	{
-		FillBoundary(mf,dcomp,ncomp,time,bccomp);
-	}
+    virtual void FillBoundary (amrex::MultiFab& mf,
+                    int dcomp, int ncomp, amrex::IntVect const & /*nghost*/,
+                    amrex::Real time, int bccomp) //override
+    {
+        FillBoundary(mf,dcomp,ncomp,time,bccomp);
+    }
 
-	void operator () (amrex::MultiFab& mf,
-				   	  int dcomp, int ncomp, amrex::IntVect const & /*nghost*/,
-				   	  amrex::Real time, int bccomp) 
-	{
-		FillBoundary(mf,dcomp,ncomp,time,bccomp);
-	}
+    void operator () (amrex::MultiFab& mf,
+                        int dcomp, int ncomp, amrex::IntVect const & /*nghost*/,
+                        amrex::Real time, int bccomp) 
+    {
+        FillBoundary(mf,dcomp,ncomp,time,bccomp);
+    }
 
-	
+    
 
-	virtual amrex::BCRec GetBCRec() = 0;
+    virtual amrex::BCRec GetBCRec() = 0;
 
-	virtual amrex::Array<int,AMREX_SPACEDIM> IsPeriodic()
-	{return {{AMREX_D_DECL(m_geom.isPeriodic(0),m_geom.isPeriodic(1),m_geom.isPeriodic(2))}}; }
+    virtual amrex::Array<int,AMREX_SPACEDIM> IsPeriodic()
+    {return {{AMREX_D_DECL(m_geom.isPeriodic(0),m_geom.isPeriodic(1),m_geom.isPeriodic(2))}}; }
 
-	virtual amrex::Periodicity Periodicity () const {
-		return m_geom.periodicity();
-	}
-	
-	virtual amrex::Periodicity Periodicity (const amrex::Box& b) {
-		return m_geom.periodicity(b);
-	}
+    virtual amrex::Periodicity Periodicity () const {
+        return m_geom.periodicity();
+    }
+    
+    virtual amrex::Periodicity Periodicity (const amrex::Box& b) {
+        return m_geom.periodicity(b);
+    }
 
 
 protected:
-	amrex::Geometry m_geom;
-	//std::vector<amrex::Geometry> &geom;
-	//int lev=0;
+    amrex::Geometry m_geom;
+    //std::vector<amrex::Geometry> &geom;
+    //int lev=0;
 };
 
 namespace BCUtil

@@ -17,7 +17,7 @@ namespace Integrator
 /// the #Temp, #Temp_old Multifab arrays.
 
 //HeatConduction::HeatConduction() :
-//	Integrator()
+//    Integrator()
 
 /// \fn HeatConduction::Integrator::Initialize
 ///
