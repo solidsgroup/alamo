@@ -40,6 +40,16 @@ namespace Integrator
         }
         
         {
+            // TODO: rename variables and assign density/conductivity/spec.heat/thermal flux/ for AP, and HTPB, and comb.
+            //       - stick to same naming convention as above
+            //       - these params are defined in Flame.H - can change the variable names as well
+            //       - you'll need to work on the Advance method as well, which is where these are used.
+
+            // TODO: find real-world actual values for these properties and put them in an input file.
+
+            // TODO: we are going to have to guess what the heat flux values are. That will be done by
+            //       running sims and comparing results.
+
             // These parameters are for the **Thermal transport model**
             IO::ParmParse pp("thermal");
             pp.query("on",thermal.on);       // Whether to use the thermal model
@@ -85,6 +95,14 @@ namespace Integrator
             }
             else if (type == "psread")
             {
+                // TODO: run the code in full 3D. Right now everything is in 2D, let's run in 3D.
+                //       This method reads in sphere locations and radii from an input file.
+                //       We need to update so that we are working with 3D packings.
+                //       In the paper repository, look at the packings called 3d.xyzr.
+                //       (Note: in the packedspheres input file you can find which packing file is used by
+                //       looking in the input file. Swap out the 2D for 3D case.)
+                //       Note: you might want to do this before updating the heat flux model.
+                
                 PhiIC = new IC::PSRead(geom);
                 pp.queryclass("psread", *static_cast<IC::PSRead *>(PhiIC)); // See :ref:`IC::PackedSpheres`
             }
@@ -139,6 +157,18 @@ namespace Integrator
             return;
         if (a_iter % elastic.interval)
             return;
+
+
+        // TODO: This is where the elastic solve happens. Right now we are just using hard coded values (bad!!)
+        //       We want to use actual values that are read in from an input file. Actual values for elastic moduli,
+        //       etc. So here, update this code so that the elastic models are read in appropriately.
+        //
+        //       For reference, consult TensionTest.H. This integrator does full elastic solves with multiple
+        //       materials. You can duplicate the process here. Look in there to see how model params are read in
+        //       then do the same here.
+        //
+
+        // TODO: we need to use actual parameters for AP and HTPB (look them up and put them in the input file)
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
@@ -254,6 +284,7 @@ namespace Integrator
                 amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
 
+                // This is the pressure power law stuff.
                 Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
                 Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
                 Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
@@ -262,11 +293,22 @@ namespace Integrator
 
                     Set:: Scalar fs_actual;
 
+                    // TODO: note: "fs_acual" and "fmod" variables are actual flame speeds that get converted to
+                    //       mobility L below. The relationship between flame speed and mobility is derived in the
+                    //       Kanagarajan manuscript. 
                     fs_actual = 
                             fmod_ap * phi(i, j, k) 
                             + fmod_htpb * (1.0 - phi(i, j, k))
                             + 4.0*fmod_comb*phi(i,j,k)*(1.0-phi(i,j,k));
                             
+                    // TODO: This parameter, fs_act, is the effective mobility. Notice that it depends on fs_actual (above)
+                    //       which is constructed based on "fmod" variables that are defined above, and are where the
+                    //       pressure power law is defined
+                    //       We want to REPLACE this so that instead of depending on pressure, L depends on the temperature
+                    //       and the material properties.
+                    //
+                    //       BTW: check the references in the Kanagarajan manuscript on level set modeling (Stewart etc)
+                    //       They can point you to existing work that similiarly regresses the interface based on temp.
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
 
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
@@ -283,6 +325,9 @@ namespace Integrator
         //
         // Temperature evolution
         //
+
+        // TODO: replace all the variables here that you redefined in the .H file and the constructor.
+        //       This is where they all get used. 
 
         Set::Scalar temperature_delay = 0.01; // hard coded for now, need to make input
         if (thermal.on && time >= temperature_delay)
@@ -313,6 +358,10 @@ namespace Integrator
                     amrex::Real cp = (thermal.cp1 - thermal.cp0) * Eta_old(i,j,k) + thermal.cp0;
 
                     Set::Scalar test = normvec.dot(temp_grad);
+
+                    // TODO: This is where the heat flux gets calculated. But we want to upgrade this
+                    //       to reflect heat fluxes at AP, HTPB, AND IN THE INTERFACE. (Right now it is AP or HTPB only.)
+                    //       Update this so that we include the interface term as well as the individual species. 
                     Set:: Scalar neumbound = thermal.delA*phi(i,j,k) + thermal.delH*(1-phi(i,j,k));
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
