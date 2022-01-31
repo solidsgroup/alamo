@@ -1,0 +1,10 @@
+[diff]
+      tool=brandon
+[difftool "brandon"]
+      cmd = "echo \"$LOCAL\" \"$REMOTE\""
+      
+[mergetool "my_diff"]
+      command = echo
+      binary = true
+      
+

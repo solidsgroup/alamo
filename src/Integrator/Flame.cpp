@@ -39,7 +39,7 @@ namespace Integrator
             RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
         }
         
-        {
+        /*{
             // TODO: rename variables and assign density/conductivity/spec.heat/thermal flux/ for AP, and HTPB, and comb.
             //       - stick to same naming convention as above
             //       - these params are defined in Flame.H - can change the variable names as well
@@ -71,7 +71,31 @@ namespace Integrator
                 RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
                 RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
             }
+        }*/
+
+        {
+            IO::ParmParse pp("thermal");
+            pp.query("on",thermal.on); // Whether to use the Thermal Transport Model
+            pp.query("rho_ap",thermal.rho_ap); //AP Density
+            pp.query("rho_htpb", thermal.rho_htpb); // HTPB Density
+            pp.query("k_ap", thermal.k_ap); // AP Thermal Conductivity
+            pp.query("k_htpb",thermal.k_htpb); // HTPB Thermal Conductivity
+            pp.query("k0", thermal.k0); // Thermal conductivity 
+            pp.query("cp_ap", thermal.cp_ap); // AP Specific Heat
+            pp.query("cp_htpb", thermal.cp_htpb); //HTPB Specific Heat
+            pp.query("delta_ap", thermal.delta_ap); // AP  Thermal Flux
+            pp.query("delta_htpb", thermal.delta_htpb) // HTPB Thermal Flux
+
+            if (thermal.on){
+            TempBC = new BC::Constant(1);
+            pp.queryclass("bc", *static_cast<BC::Constant *>(TempBC));
+            RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
+            RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
+            
+            }
         }
+
+
 
         {
             // Additional AMR parameters
@@ -350,19 +374,19 @@ namespace Integrator
                     Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
                     Set::Vector normvec = eta_grad/Eta_old(i,j,k);
 
-                    amrex::Real rho = (thermal.rho1 - thermal.rho0) * Eta_old(i,j,k) + thermal.rho0;
-                    amrex::Real Ka = (thermal.ka - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
-                    amrex::Real Kh = (thermal.kh -thermal.k0) * Eta_old(i,j,k) + thermal.k0;
-                    Set:: Scalar K = Ka*phi(i,j,k) + Kh*(1-phi(i,j,k));
+                    amrex::Real rho = (thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb;
+                    amrex::Real K_ap = (thermal.k_ap - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+                    amrex::Real K_htpb = (thermal.k_htpb -thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+                    Set:: Scalar K = K_ap*phi(i,j,k) + K_htpb*(1-phi(i,j,k));
 
-                    amrex::Real cp = (thermal.cp1 - thermal.cp0) * Eta_old(i,j,k) + thermal.cp0;
+                    amrex::Real cp = (thermal.cp_ap - thermal.cp_htpb) * Eta_old(i,j,k) + thermal.cp_htpb;
 
                     Set::Scalar test = normvec.dot(temp_grad);
 
                     // TODO: This is where the heat flux gets calculated. But we want to upgrade this
                     //       to reflect heat fluxes at AP, HTPB, AND IN THE INTERFACE. (Right now it is AP or HTPB only.)
                     //       Update this so that we include the interface term as well as the individual species. 
-                    Set:: Scalar neumbound = thermal.delA*phi(i,j,k) + thermal.delH*(1-phi(i,j,k));
+                    Set:: Scalar neumbound = thermal.delta_ap*phi(i,j,k) + thermal.delta_htpb*(1-phi(i,j,k));
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
                     {

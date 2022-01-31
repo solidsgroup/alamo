@@ -79,10 +79,10 @@ private:
 
     struct {
         int on = 0;
-        Set::Scalar rho1, rho0;         
-        Set::Scalar ka, kh, k0;             
-        Set::Scalar cp1, cp0;           
-        Set::Scalar delA, delH;       
+        Set::Scalar rho_ap, rho_htpb;         
+        Set::Scalar ka_ap, k_htpb, k0;             
+        Set::Scalar cp_ap, cp_htpb;           
+        Set::Scalar delta_ap, delta_htpb;       
     } thermal;
 
     struct {
