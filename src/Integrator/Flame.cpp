@@ -40,7 +40,7 @@ namespace Integrator
         }
         
         /*{
-            // TODO: rename variables and assign density/conductivity/spec.heat/thermal flux/ for AP, and HTPB, and comb.
+            // done TODO: rename variables and assign density/conductivity/spec.heat/thermal flux/ for AP, and HTPB, and comb.
             //       - stick to same naming convention as above
             //       - these params are defined in Flame.H - can change the variable names as well
             //       - you'll need to work on the Advance method as well, which is where these are used.
@@ -76,6 +76,7 @@ namespace Integrator
         {
             IO::ParmParse pp("thermal");
             pp.query("on",thermal.on); // Whether to use the Thermal Transport Model
+            Util::Message(INFO,"thermal.on =" , thermal.on);
             pp.query("rho_ap",thermal.rho_ap); //AP Density
             pp.query("rho_htpb", thermal.rho_htpb); // HTPB Density
             pp.query("k_ap", thermal.k_ap); // AP Thermal Conductivity
@@ -83,8 +84,8 @@ namespace Integrator
             pp.query("k0", thermal.k0); // Thermal conductivity 
             pp.query("cp_ap", thermal.cp_ap); // AP Specific Heat
             pp.query("cp_htpb", thermal.cp_htpb); //HTPB Specific Heat
-            pp.query("delta_ap", thermal.delta_ap); // AP  Thermal Flux
-            pp.query("delta_htpb", thermal.delta_htpb) // HTPB Thermal Flux
+            pp.query("q_ap", thermal.q_ap); // AP  Thermal Flux
+            pp.query("q_htpb", thermal.q_htpb) // HTPB Thermal Flux
 
             if (thermal.on){
             TempBC = new BC::Constant(1);
@@ -350,7 +351,7 @@ namespace Integrator
         // Temperature evolution
         //
 
-        // TODO: replace all the variables here that you redefined in the .H file and the constructor.
+        //done TODO: replace all the variables here that you redefined in the .H file and the constructor.
         //       This is where they all get used. 
 
         Set::Scalar temperature_delay = 0.01; // hard coded for now, need to make input
@@ -386,10 +387,10 @@ namespace Integrator
                     // TODO: This is where the heat flux gets calculated. But we want to upgrade this
                     //       to reflect heat fluxes at AP, HTPB, AND IN THE INTERFACE. (Right now it is AP or HTPB only.)
                     //       Update this so that we include the interface term as well as the individual species. 
-                    Set:: Scalar neumbound = thermal.delta_ap*phi(i,j,k) + thermal.delta_htpb*(1-phi(i,j,k));
+                    Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
-                    {
+                    { 
                         Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
                     }
                     else

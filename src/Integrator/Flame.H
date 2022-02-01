@@ -82,7 +82,7 @@ private:
         Set::Scalar rho_ap, rho_htpb;         
         Set::Scalar ka_ap, k_htpb, k0;             
         Set::Scalar cp_ap, cp_htpb;           
-        Set::Scalar delta_ap, delta_htpb;       
+        Set::Scalar q_ap, q_htpb;       
     } thermal;
 
     struct {
