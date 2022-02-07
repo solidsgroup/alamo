@@ -82,10 +82,12 @@ private:
         Set::Scalar rho_ap, rho_htpb;         
         Set::Scalar ka_ap, k_htpb, k0;             
         Set::Scalar cp_ap, cp_htpb;           
-        Set::Scalar q_ap, q_htpb;       
+        Set::Scalar q_ap, q_htpb, q_interface;       
     } thermal;
 
     struct {
+        Set::Scalar tol_rel = 1E-8;
+        Set::Scalar tol_abs = 1E-8;
         Set::Field<Set::Scalar> disp_mf;
         Set::Field<Set::Scalar> rhs_mf;
         Set::Field<Set::Scalar> res_mf;

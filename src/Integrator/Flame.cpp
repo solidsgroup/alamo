@@ -77,7 +77,7 @@ namespace Integrator
             IO::ParmParse pp("thermal");
             pp.query("on",thermal.on); // Whether to use the Thermal Transport Model
             Util::Message(INFO,"thermal.on =" , thermal.on);
-            pp.query("rho_ap",thermal.rho_ap); //AP Density
+            pp.query("rho_ap",thermal.rho_ap); // AP Density
             pp.query("rho_htpb", thermal.rho_htpb); // HTPB Density
             pp.query("k_ap", thermal.k_ap); // AP Thermal Conductivity
             pp.query("k_htpb",thermal.k_htpb); // HTPB Thermal Conductivity
@@ -86,13 +86,14 @@ namespace Integrator
             pp.query("cp_htpb", thermal.cp_htpb); //HTPB Specific Heat
             pp.query("q_ap", thermal.q_ap); // AP  Thermal Flux
             pp.query("q_htpb", thermal.q_htpb) // HTPB Thermal Flux
+            pp.query("thermal.q_interface" , thermal.q_interface) // Interface heat flux
 
-            if (thermal.on){
+            if (thermal.on)
+            {
             TempBC = new BC::Constant(1);
             pp.queryclass("bc", *static_cast<BC::Constant *>(TempBC));
             RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
-            RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
-            
+            RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);            
             }
         }
 
@@ -183,7 +184,23 @@ namespace Integrator
         if (a_iter % elastic.interval)
             return;
 
-
+        {
+          IO::ParmParse pp("elastic");
+          pp.query("elastic.tol_rel", elastic.tol_rel);
+          pp.query("elastic.tol_abs", elastic.tol_abs);
+          int nmodels = 1;
+          pp.query("nmodels", nmodels);
+          for (int i = 0; i<nmodels; i++)
+          {
+            std::string name = "model" + std::to_string(i+1);
+            MODEL tmp_model;
+            pp.queryclass(name.data(),tmp_model);
+            elastic.models.push_back(tmp_model);
+          }
+          Util::Assert(INFO,TEST(elastic.models.size() > 0));
+          
+    
+        }
         // TODO: This is where the elastic solve happens. Right now we are just using hard coded values (bad!!)
         //       We want to use actual values that are read in from an input file. Actual values for elastic moduli,
         //       etc. So here, update this code so that the elastic models are read in appropriately.
@@ -243,7 +260,7 @@ namespace Integrator
         elastic_op.SetBC(&elastic.bc);
         elastic_op.SetAverageDownCoeffs(true);
 
-        Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
+        // Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
         // Parameters for the elastic solver (when used with elasticity)
         IO::ParmParse pp("elastic");
         elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
@@ -388,6 +405,9 @@ namespace Integrator
                     //       to reflect heat fluxes at AP, HTPB, AND IN THE INTERFACE. (Right now it is AP or HTPB only.)
                     //       Update this so that we include the interface term as well as the individual species. 
                     Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
+                    
+                    // Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_interface 
+
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
                     { 
