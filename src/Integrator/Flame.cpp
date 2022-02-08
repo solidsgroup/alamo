@@ -85,8 +85,8 @@ namespace Integrator
             pp.query("cp_ap", thermal.cp_ap); // AP Specific Heat
             pp.query("cp_htpb", thermal.cp_htpb); //HTPB Specific Heat
             pp.query("q_ap", thermal.q_ap); // AP  Thermal Flux
-            pp.query("q_htpb", thermal.q_htpb) // HTPB Thermal Flux
-            pp.query("thermal.q_interface" , thermal.q_interface) // Interface heat flux
+            pp.query("q_htpb", thermal.q_htpb); // HTPB Thermal Flux
+            pp.query("thermal.q_interface" , thermal.q_interface); // Interface heat flux
 
             if (thermal.on)
             {
@@ -177,6 +177,7 @@ namespace Integrator
         PhiIC->Initialize(lev, phi_mf);
     }
 
+    
     void Flame::TimeStepBegin(Set::Scalar /*a_time*/, int a_iter)
     {
         if (!elastic.interval)
@@ -184,7 +185,7 @@ namespace Integrator
         if (a_iter % elastic.interval)
             return;
 
-        {
+        /*{
           IO::ParmParse pp("elastic");
           pp.query("elastic.tol_rel", elastic.tol_rel);
           pp.query("elastic.tol_abs", elastic.tol_abs);
@@ -197,10 +198,10 @@ namespace Integrator
             pp.queryclass(name.data(),tmp_model);
             elastic.models.push_back(tmp_model);
           }
-          Util::Assert(INFO,TEST(elastic.models.size() > 0));
+          //Util::Assert(INFO,TEST(elastic.models.size() > 0));
           
     
-        }
+        }*/
         // TODO: This is where the elastic solve happens. Right now we are just using hard coded values (bad!!)
         //       We want to use actual values that are read in from an input file. Actual values for elastic moduli,
         //       etc. So here, update this code so that the elastic models are read in appropriately.
@@ -260,7 +261,7 @@ namespace Integrator
         elastic_op.SetBC(&elastic.bc);
         elastic_op.SetAverageDownCoeffs(true);
 
-        // Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
+        Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
         // Parameters for the elastic solver (when used with elasticity)
         IO::ParmParse pp("elastic");
         elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
@@ -330,6 +331,7 @@ namespace Integrator
                 Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
                 Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
                 Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
+                   
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
@@ -406,7 +408,7 @@ namespace Integrator
                     //       Update this so that we include the interface term as well as the individual species. 
                     Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
                     
-                    // Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_interface 
+                    // Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_interface;
 
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)

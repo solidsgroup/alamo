@@ -182,28 +182,28 @@ namespace IC
                 {
                 if(n<pack_size1)
                 {
-					R_new[n]=R_per1*R_mean;		
-					
-				}
-				
-				if((n>=pack_size1)&&(n<pack_size2))
-				{
-					R_new[n]=R_per2*R_mean;
-					
-				}
-				
-				if((n>=pack_size2)&&(n<pack_size3))
-				{
-					R_new[n]=R_per3*R_mean;
-					
-				}
-				 if((n>=pack_size3)&&(n<pack_size))
-				{
-					R_new[n]=R_per4 *R_mean;
-					
-				}
-				n++;
-			   }
+                    R_new[n]=R_per1*R_mean;        
+                    
+                }
+                
+                if((n>=pack_size1)&&(n<pack_size2))
+                {
+                    R_new[n]=R_per2*R_mean;
+                    
+                }
+                
+                if((n>=pack_size2)&&(n<pack_size3))
+                {
+                    R_new[n]=R_per3*R_mean;
+                    
+                }
+                 if((n>=pack_size3)&&(n<pack_size))
+                {
+                    R_new[n]=R_per4 *R_mean;
+                    
+                }
+                n++;
+               }
 
                 int oLoop=0 ; // max no of times this counter checks for the new sphere centers which satisfies non overlap condition 
 
@@ -317,9 +317,9 @@ namespace IC
               file << "location"<< "  "<<"radius"<<std::endl;
               for(int i=0; i<pack_size;i++)
               {
-				  file << packedspheres[i]<< "  "<<R_new[i]<<std::endl;
-				  file << " " <<std::endl;
-			  }
+                  file << packedspheres[i]<< "  "<<R_new[i]<<std::endl;
+                  file << " " <<std::endl;
+              }
               
               file.close();
              
@@ -335,9 +335,9 @@ namespace IC
             // MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_C_LONG_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD);
             //MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);i
               //Util::ParallelMessage(INFO);
-            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_2DOUBLE_PRECISION, 0, MPI_COMM_WORLD);		
+            MPI_Bcast(packedspheres.data(), packedspheres.size(), MPI_2DOUBLE_PRECISION, 0, MPI_COMM_WORLD);        
               //Util::ParallelMessage(INFO);    
-	   
+       
         };
 
         // void Add(const int &lev, Set::FlameSpeed_mf<Set::Scalar>  &a_FlameSpeed)
@@ -353,7 +353,7 @@ namespace IC
             for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             // for (amrex::MFIter mfi(*a_FlameSpeed[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-		
+        
                 amrex::Box bx = mfi.tilebox();
                 bx.grow(a_phi[lev]->nGrow());
                 // bx.grow(a_FlameSpeed[lev]->nGrow());
@@ -364,7 +364,7 @@ namespace IC
                 //Util::ParallelMessage(INFO);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
-				   
+                   
                                        Set::Vector x;
                                        Set::Scalar min_sph=0;
                                        
@@ -412,8 +412,8 @@ namespace IC
                                             
                                             /*if (d< R_new[n])
                                             {
-												min_sph=1;
-											}*/
+                                                min_sph=1;
+                                            }*/
                                             
                                        }
 
@@ -438,16 +438,16 @@ namespace IC
             pp.query("vf", value.vf);  //volume fraction
             pp.query("verbosity", value.verbosity); // This factor is used when one radius is uded spheres for all spheres. If the no of spheres are not able to fit in the domain due to non overlapping condition checking, this will reduce the no of sphere and fit the spheres.
             pp.query("eps", value.eps);   //Interface thickness between AP and HTPB
-	        pp.query("fact", value.fact);     //This is used to control the interface thickness direction (towards HTPB or towards AP)
-	        pp.query("tau", value.tau);   // This controls the variation of the interface thickness in terms of the spheres radius in percentage
-	        pp.query("V_per1",value.V_per1);
-		    pp.query("V_per2",value.V_per2);
-			pp.query("V_per3",value.V_per3);
-			pp.query("V_per4",value.V_per4);
-		    pp.query("R_per1",value.R_per1);
-		    pp.query("R_per2",value.R_per2);
-			pp.query("R_per3",value.R_per3);
-			pp.query("R_per4",value.R_per4);	
+            pp.query("fact", value.fact);     //This is used to control the interface thickness direction (towards HTPB or towards AP)
+            pp.query("tau", value.tau);   // This controls the variation of the interface thickness in terms of the spheres radius in percentage
+            pp.query("V_per1",value.V_per1);
+            pp.query("V_per2",value.V_per2);
+            pp.query("V_per3",value.V_per3);
+            pp.query("V_per4",value.V_per4);
+            pp.query("R_per1",value.R_per1);
+            pp.query("R_per2",value.R_per2);
+            pp.query("R_per3",value.R_per3);
+            pp.query("R_per4",value.R_per4);    
             std::string type = "values";
             pp.query("type", type);
             if (type == "values")
@@ -479,9 +479,9 @@ namespace IC
         Set::Scalar verbosity;   
         Set::Scalar eps;
         Set::Scalar tau;
-	    Set::Scalar fact;
-	    Set::Scalar V_per1,V_per2,V_per3,V_per4;
-	    Set::Scalar R_per1,R_per2,R_per3,R_per4;
+        Set::Scalar fact;
+        Set::Scalar V_per1,V_per2,V_per3,V_per4;
+        Set::Scalar R_per1,R_per2,R_per3,R_per4;
         int rank;
         Type type = Type::Values;
         amrex::Vector<long double> packedspheres_x;
