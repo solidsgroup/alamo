@@ -11,6 +11,7 @@ namespace Integrator
 
     Flame::Flame() : Integrator()
     {
+        BL_PROFILE("Integrator::Flame::Flame()");
         {
             // These are the phase field method parameters
             // that you use to inform the phase field method.
@@ -167,6 +168,7 @@ namespace Integrator
 
     void Flame::Initialize(int lev)
     {
+        BL_PROFILE("Integrator::Flame::Initialize");
         if (thermal.on) Temp_mf[lev]->setVal(0.0);
         if (thermal.on) Temp_old_mf[lev]->setVal(0.0);
 
@@ -179,6 +181,7 @@ namespace Integrator
     
     void Flame::TimeStepBegin(Set::Scalar /*a_time*/, int a_iter)
     {
+        BL_PROFILE("Integrator::Flame::TimeStepBegin");
         if (!elastic.interval)
             return;
         if (a_iter % elastic.interval)
@@ -300,6 +303,7 @@ namespace Integrator
 
     void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
     {
+        BL_PROFILE("Integrator::Flame::Advance");
         const amrex::Real *DX = geom[lev].CellSize();
 
 
@@ -431,6 +435,8 @@ namespace Integrator
 
     void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/)
     {
+        BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
+        
         const amrex::Real *DX = geom[lev].CellSize();
         Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
@@ -466,6 +472,7 @@ namespace Integrator
     }
     void Flame::Regrid(int lev, Set::Scalar /* time */)
     {
+        BL_PROFILE("Integrator::Flame::Regrid");
         if (lev < finest_level) return;
         phi_mf[lev]->setVal(0.0);
         PhiIC->Initialize(lev, phi_mf);
