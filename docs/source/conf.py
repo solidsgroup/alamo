@@ -17,7 +17,16 @@
 # sys.path.insert(0, os.path.abspath('.'))
 import os, subprocess
 
-# -- Project information -----------------------------------------------------
+
+# -- Custom input file parameter parser -------------------------------------
+import sys
+sys.path.append(os.path.abspath('.'))
+import parseinputs
+
+
+# -- Project information ----------------------------------------------------
+
+
 
 project = u'alamo'
 copyright = u'2018, Brandon Runnels'
@@ -198,3 +207,7 @@ html_logo = "alamo.svg"
 html_css_files = [
     'custom.css'
 ]
+
+import os
+os.system("ls")
+

@@ -171,12 +171,9 @@ obj/obj-$(POSTFIX)/%.F90.o: src/%.F90
 	mpif90 -c $< -o $@  -I${subst :, -I,$(CPLUS_INCLUDE_PATH)}
 	rm *.mod -rf
 
-docs: docs/doxygen/index.html docs/source/Inputs.rst docs/build/html/index.html .FORCE 
+docs: docs/build/html/index.html .FORCE 
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
-docs/source/Inputs.rst: $(HDR_ALL) $(SRC) docs/parseinputs.py
-	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Parsing inputs\n" 	
-	@cd docs && python3 parseinputs.py
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
 	@cd docs && doxygen 

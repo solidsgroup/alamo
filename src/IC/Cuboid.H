@@ -7,8 +7,8 @@
 #include "IC/IC.H"
 #include "Util/Util.H"
 
-/// \class Sphere
-/// \brief Initialize a spherical inclusion
+/// \class Cuboid
+/// \brief Initialize a square or cube
 namespace IC
 {
 class Cuboid : public IC
@@ -18,8 +18,8 @@ public:
         IC(_geom)
     {
         amrex::ParmParse pp("ic");
-        pp.queryarr("center",center);
-        pp.queryarr("length",length);
+        pp.queryarr("center",center); // Coordinates (X Y Z) of the center of the square/cube. 
+        pp.queryarr("length",length); // Lenth of the square/cube edges
     }
   
     void Add(const int lev,
