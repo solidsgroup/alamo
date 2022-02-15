@@ -82,11 +82,14 @@ namespace Integrator
             pp.query("k_ap", thermal.k_ap); // AP Thermal Conductivity
             pp.query("k_htpb",thermal.k_htpb); // HTPB Thermal Conductivity
             pp.query("k0", thermal.k0); // Thermal conductivity 
+            pp.query("k_comb", thermal.k_comb); // Combined Thermal Conductivity
             pp.query("cp_ap", thermal.cp_ap); // AP Specific Heat
             pp.query("cp_htpb", thermal.cp_htpb); //HTPB Specific Heat
             pp.query("q_ap", thermal.q_ap); // AP  Thermal Flux
             pp.query("q_htpb", thermal.q_htpb); // HTPB Thermal Flux
             pp.query("thermal.q_interface" , thermal.q_interface); // Interface heat flux
+            pp.query("thermal.ae_ap", thermal.ae_ap); // AP Activation Energy
+            pp.query("thermal.ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
 
             if (thermal.on)
             {
@@ -334,7 +337,12 @@ namespace Integrator
                 Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
                 Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
                 Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
-                   
+                
+                //Set::Scalar arrh_ap   = thermal.r_ap   * pow(2.71828, thermal.ae_ap / (8.0 * thermal.T) );
+                //Set::Scalar arrh_ap   = thermal.r_htpb * pow(2.71828, thermal.ae_htpb / (8.0 * thermal.T) );
+                //Set::Scalar arrh_comb = thermal.r_comb * pow(2.71828, thermal.ae_comb / (8.0 * thermal.T));
+
+   
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 
@@ -347,6 +355,9 @@ namespace Integrator
                             fmod_ap * phi(i, j, k) 
                             + fmod_htpb * (1.0 - phi(i, j, k))
                             + 4.0*fmod_comb*phi(i,j,k)*(1.0-phi(i,j,k));
+                    
+                    //fs_actual = arrh_ap * phi(i, j, k) + arrh_htpb * (1.0 - phi(i, j, k)) + 4.0*arrh_comb*phi(i,j,k)*(1.0-phi(i,j,k));
+                    
                             
                     // TODO: This parameter, fs_act, is the effective mobility. Notice that it depends on fs_actual (above)
                     //       which is constructed based on "fmod" variables that are defined above, and are where the
@@ -357,6 +368,9 @@ namespace Integrator
                     //       BTW: check the references in the Kanagarajan manuscript on level set modeling (Stewart etc)
                     //       They can point you to existing work that similiarly regresses the interface based on temp.
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
+
+                    //Set::Scalar L = fs_actual
+
 
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
@@ -399,8 +413,11 @@ namespace Integrator
 
                     amrex::Real rho = (thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb;
                     amrex::Real K_ap = (thermal.k_ap - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
-                    amrex::Real K_htpb = (thermal.k_htpb -thermal.k0) * Eta_old(i,j,k) + thermal.k0;
-                    Set:: Scalar K = K_ap*phi(i,j,k) + K_htpb*(1-phi(i,j,k));
+                    amrex::Real K_htpb = (thermal.k_htpb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+                    amrex::Real K_comb = (thermal.k_comb - thermal.k0) * Eta_old(i,j,k) + thermal.k_comb;
+
+                    //Set:: Scalar K = K_ap*phi(i,j,k) + K_htpb*(1-phi(i,j,k));
+                    Set::Scalar K = K_ap * phi(i,j,k) + K_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * K_comb;  
 
                     amrex::Real cp = (thermal.cp_ap - thermal.cp_htpb) * Eta_old(i,j,k) + thermal.cp_htpb;
 
@@ -409,9 +426,10 @@ namespace Integrator
                     // TODO: This is where the heat flux gets calculated. But we want to upgrade this
                     //       to reflect heat fluxes at AP, HTPB, AND IN THE INTERFACE. (Right now it is AP or HTPB only.)
                     //       Update this so that we include the interface term as well as the individual species. 
-                    Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
                     
-                    // Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_interface;
+                    //Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
+                    
+                    Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_interface;
 
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
