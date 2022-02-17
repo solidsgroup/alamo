@@ -94,7 +94,7 @@ namespace Integrator
             if (thermal.on)
             {
             TempBC = new BC::Constant(1);
-            pp.queryclass("bc", *static_cast<BC::Constant *>(TempBC));
+            pp.queryclass("temp.bc", *static_cast<BC::Constant *>(TempBC));
             RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
             RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);            
             }
@@ -429,7 +429,7 @@ namespace Integrator
                     
                     //Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
                     
-                    Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_interface;
+                    Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb;
 
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
