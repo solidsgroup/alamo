@@ -83,7 +83,7 @@ private:
         Set::Scalar rho_ap, rho_htpb;         
         Set::Scalar k_ap, k_htpb, k0, k_comb;             
         Set::Scalar cp_ap, cp_htpb;           
-        Set::Scalar q_ap, q_htpb, q_interface;
+        Set::Scalar q_ap, q_htpb, q_comb;
         Set::Scalar ae_ap, ae_htpb;      
     } thermal;
 

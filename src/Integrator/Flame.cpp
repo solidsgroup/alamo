@@ -87,9 +87,9 @@ namespace Integrator
             pp.query("cp_htpb", thermal.cp_htpb); //HTPB Specific Heat
             pp.query("q_ap", thermal.q_ap); // AP  Thermal Flux
             pp.query("q_htpb", thermal.q_htpb); // HTPB Thermal Flux
-            pp.query("thermal.q_interface" , thermal.q_interface); // Interface heat flux
-            pp.query("thermal.ae_ap", thermal.ae_ap); // AP Activation Energy
-            pp.query("thermal.ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
+            pp.query("q_comb" , thermal.q_comb); // Interface heat flux
+            pp.query("ae_ap", thermal.ae_ap); // AP Activation Energy
+            pp.query("ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
 
             if (thermal.on)
             {
