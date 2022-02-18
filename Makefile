@@ -93,6 +93,8 @@ realclean: clean
 	@printf "$(B_ON)$(FG_RED)CLEANING AMREX $(RESET)\n" 
 	-make -C amrex realclean
 	git -C amrex reset --hard
+	git clean -fd
+	git clean -fx
 	rm -rf amrex/1d* amrex/2d* amrex/3d*
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -rf Makefile.conf Makefile.amrex.conf .make
