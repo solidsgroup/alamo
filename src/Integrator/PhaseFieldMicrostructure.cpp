@@ -506,6 +506,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+    BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     if (anisotropy.on && time >= anisotropy.tstart)
     {
         SetTimestep(anisotropy.timestep);
@@ -573,6 +574,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
                                         const amrex::MFIter &mfi, const amrex::Box &box)
 {
+    BL_PROFILE("PhaseFieldMicrostructure::Integrate");
+
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
     const amrex::Real *DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
