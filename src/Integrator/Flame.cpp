@@ -39,39 +39,6 @@ namespace Integrator
             RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
         }
         
-        /*{
-            // done TODO: rename variables and assign density/conductivity/spec.heat/thermal flux/ for AP, and HTPB, and comb.
-            //       - stick to same naming convention as above
-            //       - these params are defined in Flame.H - can change the variable names as well
-            //       - you'll need to work on the Advance method as well, which is where these are used.
-
-            // TODO: find real-world actual values for these properties and put them in an input file.
-
-            // TODO: we are going to have to guess what the heat flux values are. That will be done by
-            //       running sims and comparing results.
-
-            // These parameters are for the **Thermal transport model**
-            IO::ParmParse pp("thermal");
-            pp.query("on",thermal.on);       // Whether to use the thermal model
-            pp.query("rho1", thermal.rho1); // Density (before)
-            pp.query("rho0", thermal.rho0); // Density (after)
-            pp.query("ka", thermal.ka); // Thermal conductivity (before and after)
-            pp.query("kh", thermal.kh); // Thermal conductivity (before and after)
-            pp.query("k0", thermal.k0); // Thermal conductivity (before and after)
-            pp.query("cp1", thermal.cp1); // Specific heat (before and after)
-            pp.query("cp0", thermal.cp0); // Specific heat (before and after)
-            pp.query("delA", thermal.delA); // Thermal flux of each material
-            pp.query("delH", thermal.delH); // Thermal flux of each material
-            
-            
-            if (thermal.on)
-            {
-                TempBC = new BC::Constant(1);
-                pp.queryclass("bc", *static_cast<BC::Constant *>(TempBC)); // See :ref:`BC::Constant`
-                RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
-                RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
-            }
-        }*/
 
         {
             IO::ParmParse pp("thermal");
@@ -88,15 +55,21 @@ namespace Integrator
             pp.query("q_ap", thermal.q_ap); // AP  Thermal Flux
             pp.query("q_htpb", thermal.q_htpb); // HTPB Thermal Flux
             pp.query("q_comb" , thermal.q_comb); // Interface heat flux
-            //pp.query("ae_ap", thermal.ae_ap); // AP Activation Energy
-            //pp.query("ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
+            pp.query("ae_ap", thermal.ae_ap); // AP Activation Energy
+            pp.query("ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
+            pp.query("ae_comb", thermal.ae_comb);
+
+            pp.query("temperature_delay", thermal.temperature_delay); 
 
             if (thermal.on)
             {
             TempBC = new BC::Constant(1);
             pp.queryclass("temp.bc", *static_cast<BC::Constant *>(TempBC));
             RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
-            RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);            
+            RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
+
+            RegisterNewFab(Mob_mf, TempBC,1,1, "Mob", true);
+            RegisterNewFab(Mob_old_mf, TempBC, 1, 1, "Mob_old", false);            
             }
         }
 
@@ -124,14 +97,7 @@ namespace Integrator
             }
             else if (type == "psread")
             {
-                // TODO: run the code in full 3D. Right now everything is in 2D, let's run in 3D.
-                //       This method reads in sphere locations and radii from an input file.
-                //       We need to update so that we are working with 3D packings.
-                //       In the paper repository, look at the packings called 3d.xyzr.
-                //       (Note: in the packedspheres input file you can find which packing file is used by
-                //       looking in the input file. Swap out the 2D for 3D case.)
-                //       Note: you might want to do this before updating the heat flux model.
-                
+                                
                 PhiIC = new IC::PSRead(geom);
                 pp.queryclass("psread", *static_cast<IC::PSRead *>(PhiIC)); // See :ref:`IC::PackedSpheres`
             }
@@ -305,18 +271,128 @@ namespace Integrator
         }
     }
 
+    void Flame::Advance2(int lev, amrex::Real time, amrex::Real dt)
+    {
+        BL_PROFILE("Integrador::Flame:Advance2");
+        const amrex::Real *DX = geom[lev].CellSize();
+        
+        if (lev == finest_level && thermal.on >= thermal.temperature_delay && time >= thermal.temperature_delay)
+        {
+            std::swap(Temp_old_mf[lev], Temp_mf[lev]);            
+            std::swap(Eta_old_mf[lev], Eta_mf[lev]);
+            std::swap(Mob_old_mf[lev], Mob_mf[lev]);
+
+            Set::Scalar
+                a0 = pf.w0,
+                a1 = 0.0,
+                a2 = -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * a0, 
+                a3 = 14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * a0,
+                a4 = -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * a0; 
+
+            for (amrex::MFIter mfi(*Eta_mf[lev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box &bx = mfi.tilebox();
+                
+                amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi); 
+                amrex::Array4<Set::Scalar> const &Temp = (*Temp_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &Temp_old = (*Temp_old_mf[lev]).array(mfi);
+                
+                amrex::Array4<Set::Scalar> const &Mob = (*Mob_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const &Mob_old = (*Mob_old_mf[lev]).array(mfi);
+
+                
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Vector  eta_grad = Numeric::Gradient(Eta_old , i, j, k, 0, DX);
+                    Set::Vector temp_grad = Numeric::Gradient(Temp_old, i, j, k, 0, DX);
+                    Set::Vector normvc = eta_grad / Eta_old(i,j,k);
+
+                    Set::Scalar temp_lap = Numeric::Laplacian(Temp_old, i, j, k, 0, DX);
+                    Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
+                    
+                    amrex::Real rho = (thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb;
+                    amrex::Real K_ap = (thermal.k_ap - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+                    amrex::Real K_htpb = (thermal.k_htpb - thermal.k0) * Eta_old(i,j,k)  + thermal.k0;
+                    amrex::Real K_comb = (thermal.k_comb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+
+                    Set::Scalar K = K_ap * phi(i,j,k) + K_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * K_comb;  
+                    amrex::Real cp = (thermal.cp_ap - thermal.cp_htpb) * Eta_old(i,j,k) + thermal.cp_htpb;
+                    Set::Scalar test = normvc.dot(temp_grad);                  
+                    Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb; 
+
+                    
+                    ///
+                    // Mobility Compute
+                    /// 
+                    Mob(i,j,k) = 
+                            (
+                            pf.r_ap * exp(thermal.ae_ap / (Set::Scalar::Rg * Temp_old(i,j,k))) * phi(i,j,k) + 
+                            pf.r_htpb * exp(thermal.ae_htpb / (Set::Scalar::Rg * Temp_old(i,j,k))) * (1.0 - phi(i,j,k)) + 
+                            pf.r_comb * exp(thermal.ae_comb / (Set::Scalar::Rg * Temp_old(i,j,k))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+                            ) / pf.gamma / (pf.w1 - pf.w0);
+                            ;
+
+
+                    Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
+
+                    ///
+                    // Eta Compute
+                    /// 
+
+                    Eta(i,j,k) = 
+                            Eta_old(i,j,k) - Mob(i,j,k) * dt * 
+                            (
+                            (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 
+                            3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 
+                            4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k)) -                            
+                            pf.eps * pf.kappa * eta_lap)
+                            ); 
+
+                    ///
+                    // Thermal Compute
+                    /// 
+
+            
+                    if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
+                    { 
+                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
+                    }
+                    else if (Eta_old(i,j,k) <= 0.001)
+                    {
+                        Temp(i,j,k)= 0;
+                    }
+                    else
+                    {
+                        Temp(i,j,k) = Temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
+                    }
+
+                });
+
+            }
+
+
+    
+            
+        }
+    
+
+    }
+
     void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
     {
         BL_PROFILE("Integrator::Flame::Advance");
         const amrex::Real *DX = geom[lev].CellSize();
-
-
+    
+        
         //
         // Phase field evolution
         //
 
         if (lev == finest_level)
         {
+            
             std::swap(Eta_old_mf[lev], Eta_mf[lev]);
             
             Set::Scalar 
@@ -333,45 +409,27 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
+                
 
                 // This is the pressure power law stuff.
                 Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
                 Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
                 Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
-                
-                //Set::Scalar arrh_ap   = thermal.r_ap   * pow(2.71828, thermal.ae_ap / (8.0 * thermal.T) );
-                //Set::Scalar arrh_ap   = thermal.r_htpb * pow(2.71828, thermal.ae_htpb / (8.0 * thermal.T) );
-                //Set::Scalar arrh_comb = thermal.r_comb * pow(2.71828, thermal.ae_comb / (8.0 * thermal.T));
 
-   
+                Set::Scalar fs_actual;
+                  
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-
-                    Set:: Scalar fs_actual;
-
-                    // TODO: note: "fs_acual" and "fmod" variables are actual flame speeds that get converted to
-                    //       mobility L below. The relationship between flame speed and mobility is derived in the
-                    //       Kanagarajan manuscript. 
+                    
+ 
                     fs_actual = 
                             fmod_ap * phi(i, j, k) 
                             + fmod_htpb * (1.0 - phi(i, j, k))
-                            + 4.0*fmod_comb*phi(i,j,k)*(1.0-phi(i,j,k));
+                            + 4.0 * fmod_comb*phi(i,j,k) * (1.0-phi(i,j,k)) ;
                     
                     //fs_actual = arrh_ap * phi(i, j, k) + arrh_htpb * (1.0 - phi(i, j, k)) + 4.0*arrh_comb*phi(i,j,k)*(1.0-phi(i,j,k));
-                    
-                            
-                    // TODO: This parameter, fs_act, is the effective mobility. Notice that it depends on fs_actual (above)
-                    //       which is constructed based on "fmod" variables that are defined above, and are where the
-                    //       pressure power law is defined
-                    //       We want to REPLACE this so that instead of depending on pressure, L depends on the temperature
-                    //       and the material properties.
-                    //
-                    //       BTW: check the references in the Kanagarajan manuscript on level set modeling (Stewart etc)
-                    //       They can point you to existing work that similiarly regresses the interface based on temp.
+
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
-
-                    //Set::Scalar L = fs_actual
-
 
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
@@ -388,11 +446,8 @@ namespace Integrator
         // Temperature evolution
         //
 
-        //done TODO: replace all the variables here that you redefined in the .H file and the constructor.
-        //       This is where they all get used. 
-
-        Set::Scalar temperature_delay = 0.01; // hard coded for now, need to make input
-        if (thermal.on && time >= temperature_delay)
+        //Set::Scalar temperature_delay = 0.01; // hard coded for now, need to make input
+        if (thermal.on && time >= thermal.temperature_delay)
         {
             std::swap(Temp_old_mf[lev], Temp_mf[lev]);
             for (amrex::MFIter mfi(*Temp_mf[lev], true); mfi.isValid(); ++mfi)
@@ -415,7 +470,7 @@ namespace Integrator
                     amrex::Real rho = (thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb;
                     amrex::Real K_ap = (thermal.k_ap - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
                     amrex::Real K_htpb = (thermal.k_htpb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
-                    amrex::Real K_comb = (thermal.k_comb - thermal.k0) * Eta_old(i,j,k) + thermal.k_comb;
+                    amrex::Real K_comb = (thermal.k_comb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
 
                     //Set:: Scalar K = K_ap*phi(i,j,k) + K_htpb*(1-phi(i,j,k));
                     Set::Scalar K = K_ap * phi(i,j,k) + K_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * K_comb;  
@@ -423,10 +478,6 @@ namespace Integrator
                     amrex::Real cp = (thermal.cp_ap - thermal.cp_htpb) * Eta_old(i,j,k) + thermal.cp_htpb;
 
                     Set::Scalar test = normvec.dot(temp_grad);
-
-                    // TODO: This is where the heat flux gets calculated. But we want to upgrade this
-                    //       to reflect heat fluxes at AP, HTPB, AND IN THE INTERFACE. (Right now it is AP or HTPB only.)
-                    //       Update this so that we include the interface term as well as the individual species. 
                     
                     //Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
                     

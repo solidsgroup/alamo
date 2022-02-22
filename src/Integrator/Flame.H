@@ -38,6 +38,7 @@ protected:
     void Initialize (int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void Advance (int lev, amrex::Real time, amrex::Real dt) override;
+    void Advance2 (int lev, amrex::Real time, amrex::Real dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
 private:
@@ -46,6 +47,8 @@ private:
     Set::Field<Set::Scalar> Temp_old_mf;
     Set::Field<Set::Scalar> Eta_mf;
     Set::Field<Set::Scalar> Eta_old_mf;
+    Set::Field<Set::Scalar> Mob_mf; 
+    Set::Field<Set::Scalar> Mob_old_mf;
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
     BC::BC<Set::Scalar> *TempBC;
@@ -84,7 +87,8 @@ private:
         Set::Scalar k_ap, k_htpb, k0, k_comb;             
         Set::Scalar cp_ap, cp_htpb;           
         Set::Scalar q_ap, q_htpb, q_comb;
-        //Set::Scalar ae_ap, ae_htpb;      
+        Set::Scalar temperature_delay = 0.01;
+        Set::Scalar ae_ap, ae_htpb, ae_comb;      
     } thermal;
 
     struct {
