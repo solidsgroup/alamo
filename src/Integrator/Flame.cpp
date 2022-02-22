@@ -88,8 +88,8 @@ namespace Integrator
             pp.query("q_ap", thermal.q_ap); // AP  Thermal Flux
             pp.query("q_htpb", thermal.q_htpb); // HTPB Thermal Flux
             pp.query("q_comb" , thermal.q_comb); // Interface heat flux
-            pp.query("ae_ap", thermal.ae_ap); // AP Activation Energy
-            pp.query("ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
+            //pp.query("ae_ap", thermal.ae_ap); // AP Activation Energy
+            //pp.query("ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
 
             if (thermal.on)
             {
@@ -154,6 +154,7 @@ namespace Integrator
         //
         Util::Message(INFO,"Checking for unused inputs...");
         int unused_inputs = IO::ParmParse::AllUnusedInputs();
+        cout << IO::ParmParse::AllUnusedInputs();
         if (unused_inputs > 0)
         {
             Util::Warning(INFO,"There are a lot of input parameters in the ");
