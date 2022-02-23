@@ -1,10 +1,11 @@
 alamo.program               = microstructure
 
-timestep		    = 0.1
+timestep		    = 0.005
 stop_time		    = 400
 
-amr.plot_int		    = 10
-amr.max_level		    = 2
+amr.plot_dt		    = 0.1
+
+amr.max_level		    = 3
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 10
@@ -12,14 +13,18 @@ amr.grid_eff		    = 1.0
 amr.plot_file		    = tests/Voronoi/output
 
 ic.type			    = voronoi
-ic.voronoi.number_of_grains = 10
+ic.voronoi.number_of_grains = 100
 
 geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 5 5 5
 geometry.is_periodic	    = 1 1 1
 
-bc.hi			    = periodic periodic periodic
-bc.lo			    = periodic periodic periodic
+bc.eta.type.xhi			= periodic
+bc.eta.type.xlo			= periodic
+bc.eta.type.yhi			= periodic
+bc.eta.type.ylo			= periodic
+bc.eta.type.zhi			= periodic
+bc.eta.type.zlo			= periodic
 
 pf.number_of_grains	    = 10
 pf.M			    = 1.0 
