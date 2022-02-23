@@ -69,7 +69,7 @@ namespace Integrator
             RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
 
             RegisterNewFab(Mob_mf, TempBC,1,1, "Mob", true);
-            RegisterNewFab(Mob_old_mf, TempBC, 1, 1, "Mob_old", false);            
+            //RegisterNewFab(Mob_old_mf, TempBC, 1, 1, "Mob_old", false);            
             }
         }
 
@@ -271,7 +271,7 @@ namespace Integrator
         }
     }
 
-    void Flame::Advance2(int lev, amrex::Real time, amrex::Real dt)
+    void Flame::Advance (int lev, amrex::Real time, amrex::Real dt)
     {
         BL_PROFILE("Integrador::Flame:Advance2");
         const amrex::Real *DX = geom[lev].CellSize();
@@ -300,7 +300,7 @@ namespace Integrator
                 amrex::Array4<const Set::Scalar> const &Temp_old = (*Temp_old_mf[lev]).array(mfi);
                 
                 amrex::Array4<Set::Scalar> const &Mob = (*Mob_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar> const &Mob_old = (*Mob_old_mf[lev]).array(mfi);
+                //amrex::Array4<Set::Scalar> const &Mob_old = (*Mob_old_mf[lev]).array(mfi);
 
                 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -328,9 +328,9 @@ namespace Integrator
                     /// 
                     Mob(i,j,k) = 
                             (
-                            pf.r_ap * exp(thermal.ae_ap / (Set::Scalar::Rg * Temp_old(i,j,k))) * phi(i,j,k) + 
-                            pf.r_htpb * exp(thermal.ae_htpb / (Set::Scalar::Rg * Temp_old(i,j,k))) * (1.0 - phi(i,j,k)) + 
-                            pf.r_comb * exp(thermal.ae_comb / (Set::Scalar::Rg * Temp_old(i,j,k))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+                            pf.r_ap * exp(thermal.ae_ap / (Set::Constant::Rg * Temp_old(i,j,k))) * phi(i,j,k) + 
+                            pf.r_htpb * exp(thermal.ae_htpb / (Set::Constant::Rg * Temp_old(i,j,k))) * (1.0 - phi(i,j,k)) + 
+                            pf.r_comb * exp(thermal.ae_comb / (Set::Constant::Rg * Temp_old(i,j,k))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
                             ) / pf.gamma / (pf.w1 - pf.w0);
                             ;
 
@@ -347,7 +347,7 @@ namespace Integrator
                             (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 
                             3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 
                             4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k)) -                            
-                            pf.eps * pf.kappa * eta_lap)
+                            pf.eps * pf.kappa * eta_lap
                             ); 
 
                     ///
@@ -379,7 +379,7 @@ namespace Integrator
     
 
     }
-
+/*
     void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
     {
         BL_PROFILE("Integrator::Flame::Advance");
@@ -416,19 +416,18 @@ namespace Integrator
                 Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
                 Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
 
-                Set::Scalar fs_actual;
+                
                   
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     
- 
+                    Set::Scalar fs_actual;
+
                     fs_actual = 
                             fmod_ap * phi(i, j, k) 
                             + fmod_htpb * (1.0 - phi(i, j, k))
-                            + 4.0 * fmod_comb*phi(i,j,k) * (1.0-phi(i,j,k)) ;
+                            + 4.0 * fmod_comb*phi(i,j,k) * (1.0-phi(i,j,k));
                     
-                    //fs_actual = arrh_ap * phi(i, j, k) + arrh_htpb * (1.0 - phi(i, j, k)) + 4.0*arrh_comb*phi(i,j,k)*(1.0-phi(i,j,k));
-
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
 
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
@@ -502,7 +501,7 @@ namespace Integrator
             }
         }
     }
-
+*/ 
     void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/)
     {
         BL_PROFILE("Integrator::Flame::TagCellsForRefinement");

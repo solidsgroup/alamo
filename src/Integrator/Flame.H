@@ -38,7 +38,7 @@ protected:
     void Initialize (int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void Advance (int lev, amrex::Real time, amrex::Real dt) override;
-    void Advance2 (int lev, amrex::Real time, amrex::Real dt) override;
+    //void Advance2 (int lev, amrex::Real time, amrex::Real dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
 private:
