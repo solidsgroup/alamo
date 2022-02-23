@@ -107,6 +107,9 @@ private:
     // Set::Matrix A = Set::Matrix::Identity();    
     Mollifier moll = Mollifier::Gaussian;
 public:
+    // If :code:`number_of_inclusions` is specified, then multiple ellipses are specified.
+    // In this case, each parameter must have number_of_inclusion*M values, where M is the
+    // number of values specified for the single ellipse case.
     static void Parse(Ellipse & value, IO::ParmParse & pp)
     {
         amrex::Vector<Set::Scalar> x0;
@@ -117,31 +120,31 @@ public:
             value.eps.resize(0);
             
             value.number_of_inclusions = 0;
-            pp.queryarr("x0",x0);
+            pp.queryarr("x0",x0); // Coorinates of ellipse center
             value.center.push_back(Set::Vector(AMREX_D_DECL(x0[0],x0[1],x0[2])));
 
             Set::Scalar _eps;
-            pp.query("eps",_eps);
+            pp.query("eps",_eps); // Diffuse boundary thickness
             value.eps.push_back(_eps);
 
             Set::Matrix _A = Set::Matrix::Zero();
             if (pp.contains("A"))
             {
-                pp.queryarr("A",_A);
+                pp.queryarr("A",_A); // DxD square matrix defining an ellipse. 
                 value.A.push_back(_A);
             }
             else if (pp.contains("a"))
             {
                 Set::Matrix _A = Set::Matrix::Zero();
                 Set::Vector a = Set::Vector::Ones();
-                pp.queryarr("a",a);
+                pp.queryarr("a",a); // If :code:`A` is not defined, then assume a sphere with radius :code:`a`
                 for (int d = 0; d < AMREX_SPACEDIM; d++) _A(d,d) = 1./a(d)/a(d);
                 value.A.push_back(_A);
             }
         }
         else
         {
-            pp.query("number_of_inclusions",value.number_of_inclusions);
+            pp.query("number_of_inclusions",value.number_of_inclusions); // Number of ellipses
             if(value.number_of_inclusions < 1) Util::Abort(INFO, "number of inclusions have to be at least 1");
             
             value.center.resize(0);

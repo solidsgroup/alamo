@@ -11,7 +11,7 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure (2d)
-      run: ./configure --dim=2 --no-diff
+      run: ./configure --dim=2 
     - name: make
       run: make
     - name: test
@@ -24,7 +24,7 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure
-      run: ./configure --dim=3 --no-diff
+      run: ./configure --dim=3 
     - name: make
       run: make
     - name: test

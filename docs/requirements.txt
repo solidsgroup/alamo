@@ -1,3 +1,4 @@
 breathe
 m2r
 sphinx_rtd_theme
+linuxdoc==20210324
