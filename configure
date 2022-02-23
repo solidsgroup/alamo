@@ -131,7 +131,7 @@ if (args.buildamrex == True):
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
-    elif args.comp == "clang++": amrex_configure += ' --comp=llvm'
+    elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
     if fpic: amrex_configure += ' --enable-pic=yes'
@@ -247,13 +247,6 @@ elif (args.eigen != ""):
     f.write("EIGEN = " + args.eigen + "\n")
 
 #
-# MPICH
-#
-
-shellmessage("MPICH:","mpichversion")
-shellmessage("MPICH mpicxx:","mpicxx -v")
-
-#
 # Compiler
 #
 if not args.comp in ['g++','icc','clang++']:
@@ -279,6 +272,15 @@ if args.comp == 'icc':
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
+
+#
+# MPICH
+#
+if args.comp in ['g++']:
+    shellmessage("MPICH:","mpichversion")
+    shellmessage("MPICH mpicxx:","mpicxx -v")
+elif args.comp in ['icc']:
+    shellmessage("Intel MPI","mpiicpc --version")
 
 #
 # LibGFortran?
