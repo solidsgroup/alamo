@@ -105,8 +105,6 @@ namespace IC
 
                 while (getline(datafile, line))
                 {
-                    cout << line << '\n';
-
                     std::istringstream in(line);
 
                     std::string strx, stry, strz, strR;
