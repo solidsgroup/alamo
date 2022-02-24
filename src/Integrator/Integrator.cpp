@@ -207,8 +207,6 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
     {
         m_basefields[n]->RemakeLevel(lev,time,cgrids,dm);
     }
-
-    Regrid(lev,time);
 }
 
 //
