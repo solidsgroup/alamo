@@ -345,7 +345,8 @@ protected:
     } thermo;
 
     // REGRIDDING
-    int regrid_int = 2; ///< Determine how often to regrid (default: 2)
+    int regrid_int = 2;       ///< Determine how often to regrid (default: 2)
+    int base_regrid_int = 0; ///< Determine how often to regrid based on coarse level only (default: 0)
 
     std::string restart_file_cell = "";
     std::string restart_file_node = "";
