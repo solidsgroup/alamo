@@ -65,12 +65,12 @@ namespace Integrator
             {
             TempBC = new BC::Constant(1);
             pp.queryclass("temp.bc", *static_cast<BC::Constant *>(TempBC));
+
             RegisterNewFab(Temp_mf, TempBC, 1, 1, "Temp", true);
             RegisterNewFab(Temp_old_mf, TempBC, 1, 1, "Temp_old", false);
-            
-            
-            //RegisterNewFab(Mob_mf, 0,1,1, "Mob", true);
-            //RegisterNewFab(Mob_old_mf, 0, 1, 1, "Mob_old", false);            
+                        
+            RegisterNewFab(Mob_mf, TempBC, 1, 1, "Mob", true);
+            //RegisterNewFab(Mob_old_mf, TempBC, 1, 1, "Mob_old", false);            
             }
         }
 
@@ -147,6 +147,9 @@ namespace Integrator
         Eta_old_mf[lev]->setVal(1.0);
 
         PhiIC->Initialize(lev, phi_mf);
+
+        if (thermal.on) Mob_mf[lev]->setVal(0.0);
+        //if (thermal.on) Mob_old_mf[lev]->setVal(0.0);
     }
 
     
@@ -345,6 +348,8 @@ namespace Integrator
                     ///
                     // Mobility Compute
                     /// 
+                    if (Temp(i,j,k) > 0.0001)
+                    {
                     Mob(i,j,k) = 
                             (Mob_old(i,j,k) + 
                             pf.r_ap * exp(thermal.ae_ap / (Set::Constant::Rg * Temp(i,j,k))) * phi(i,j,k) + 
@@ -352,6 +357,11 @@ namespace Integrator
                             pf.r_comb * exp(thermal.ae_comb / (Set::Constant::Rg * Temp(i,j,k))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
                             ) / pf.gamma / (pf.w1 - pf.w0);
                             ;
+                    }
+                    else
+                    {
+                    Mob(i,j,k) = 0.0;
+                    }
 
                     Util::Message(INFO,"Mob =" , Mob(i,j,k));
                     
@@ -385,8 +395,6 @@ namespace Integrator
     }
 */
 
-
-
     void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)
     {
         BL_PROFILE("Integrator::Flame::Advance");
@@ -401,7 +409,10 @@ namespace Integrator
         {
             
             std::swap(Eta_old_mf[lev], Eta_mf[lev]);
+            //std::swap(Mob_old_mf[lev], Mob_mf[lev]);
             
+            Mob_mf[lev]->setVal(0.0);
+
             Set::Scalar 
                 a0 = pf.w0, 
                 a1 = 0.0, 
@@ -416,7 +427,11 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
-                
+
+                amrex::Array4<Set::Scalar> const &Mob = (*Mob_mf[lev]).array(mfi);
+                //amrex::Array4<Set::Scalar> const &Mob_old = (*Mob_old_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &Temp = (*Temp_old_mf[lev]).array(mfi);
+
 
                 // This is the pressure power law stuff.
                 Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
@@ -427,8 +442,12 @@ namespace Integrator
                   
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    
                     Set::Scalar fs_actual;
+
+                    //Util::Message(INFO, "Mob = ", Mob(i,j,k));
+                    //Util::Message(INFO, "Temp = ", Temp(i,j,k));
+                    //Util::Message(INFO, "ETA = ", Eta_old(i,j,k));
+                    //Util::Message(INFO, "Phi = ", phi(i,j,k));
 
                     fs_actual = 
                             fmod_ap * phi(i, j, k) 
@@ -437,11 +456,28 @@ namespace Integrator
                     
                     Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
 
+                    if (Temp(i,j,k) > 0.001 && Eta_old(i,j,k) > 0.01)
+                    {
+                    Mob(i,j,k) = ( 
+                            pf.r_ap * exp(thermal.ae_ap / (8.31 * (273.0 + Temp(i,j,k)))) * phi(i,j,k) + 
+                            pf.r_htpb * exp(thermal.ae_htpb / (8.31 * (273.0 + Temp(i,j,k)))) * (1.0 - phi(i,j,k)) + 
+                            pf.r_comb * exp(thermal.ae_comb / (8.31 * (273.0 + Temp(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+                            ) / pf.gamma / (pf.w1 - pf.w0);
+                            
+                    }
+                    else 
+                    {
+                    Mob(i,j,k) = 
+                            fmod_ap * phi(i, j, k) 
+                            + fmod_htpb * (1.0 - phi(i, j, k))
+                            + 4.0 * fmod_comb*phi(i,j,k) * (1.0-phi(i,j,k));
+                    }
+
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
                     Eta(i, j, k) = 
                         Eta_old(i, j, k) 
-                        - L * dt * (
+                        - Mob(i,j,k) * dt * (
                             (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
                             - pf.eps * pf.kappa * eta_lap);
                 });
@@ -508,7 +544,7 @@ namespace Integrator
             }
         }
     }
- 
+
     void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/)
     {
         BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
