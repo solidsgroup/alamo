@@ -289,11 +289,8 @@ namespace Integrator
         {
             
             std::swap(Eta_old_mf[lev], Eta_mf[lev]);
-            //std::swap(Mob_old_mf[lev], Mob_mf[lev]);
             
-            Mob_mf[lev]->setVal(0.0);
-
-            Set::Scalar 
+           Set::Scalar 
                 a0 = pf.w0, 
                 a1 = 0.0, 
                 a2 = -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * a0, 
@@ -302,40 +299,41 @@ namespace Integrator
             
             if (thermal.on)
             {
-            for (amrex::MFIter mfi(*Eta_mf[lev], true); mfi.isValid(); ++mfi)
-            {
-                const amrex::Box &bx = mfi.tilebox();
+            Mob_mf[lev] -> setVal(0.0);
+                for (amrex::MFIter mfi(*Eta_mf[lev], true); mfi.isValid(); ++mfi)
+                {
+                    const amrex::Box &bx = mfi.tilebox();
 
-                amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Scalar> const &Eta_old = (*Eta_old_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
 
-                amrex::Array4<Set::Scalar> const &Mob = (*Mob_mf[lev]).array(mfi);
-                amrex::Array4<const Set::Scalar> const &Temp = (*Temp_old_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const &Mob = (*Mob_mf[lev]).array(mfi);
+                    amrex::Array4<const Set::Scalar> const &Temp = (*Temp_old_mf[lev]).array(mfi);
 
                 // This is the pressure power law stuff.
-                Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
-                Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
-                Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
+                    Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
+                    Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
+                    Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                {
-                    if (Temp(i,j,k) > 0.001 && Eta_old(i,j,k) > 0.01)
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                     {
-                    Mob(i,j,k) = ( 
+                        if (time >= thermal.temperature_delay)
+                        {
+                        Mob(i,j,k) = ( 
                             pf.r_ap * exp(thermal.ae_ap / (8.31 * (273.0 + Temp(i,j,k)))) * phi(i,j,k) + 
                             pf.r_htpb * exp(thermal.ae_htpb / (8.31 * (273.0 + Temp(i,j,k)))) * (1.0 - phi(i,j,k)) + 
                             pf.r_comb * exp(thermal.ae_comb / (8.31 * (273.0 + Temp(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
                             ) / pf.gamma / (pf.w1 - pf.w0);
                             
-                    }
-                    else 
-                    {
-                    Mob(i,j,k) = 
+                        }
+                        else 
+                        {
+                        Mob(i,j,k) = 
                             fmod_ap * phi(i, j, k) 
                             + fmod_htpb * (1.0 - phi(i, j, k))
                             + 4.0 * fmod_comb*phi(i,j,k) * (1.0-phi(i,j,k));
-                    }
+                        }
 
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
@@ -346,11 +344,12 @@ namespace Integrator
                             - pf.eps * pf.kappa * eta_lap);
                 }); 
             }
-            }
-            else
-            {
+         }
+         else
+         {
 
-            for (amrex::MFIter mfi(*Eta_mf[lev], true); mfi.isValid(); ++mfi){
+            for (amrex::MFIter mfi(*Eta_mf[lev], true); mfi.isValid(); ++mfi)
+            {
             const amrex::Box &bx = mfi.tilebox();
 
             amrex::Array4<Set::Scalar> const &Eta = (*Eta_mf[lev]).array(mfi);
@@ -381,7 +380,7 @@ namespace Integrator
         
                 });    
             }
-            }
+        }
 
         //
         // Temperature evolution
