@@ -37,7 +37,7 @@ def getDocs(lines,i):
         docs = re.findall(r'.?\/\/(.*)', lines[i-j])
         if len(docs): 
             if not ret: ret = ""
-            ret = docs[0] + ret
+            ret = docs[0] + "\n" + ret
         elif j==0: continue
         else: break
     return ret
@@ -109,7 +109,7 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
                 if len(inputs[prefix]['items']) == 0: continue
 
                 if ('docs' in inputs[prefix].keys()):
-                    docfile.write("    * - {}  \n".format(inputs[prefix]['docs']))
+                    docfile.write("    * - {}  \n".format(inputs[prefix]['docs'].replace("\n", "\n        ")))
 
                 for item in inputs[prefix]['items']: 
                     docfile.write("    * - :code:`{}`\n".format(item['string']))
