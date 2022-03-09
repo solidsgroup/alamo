@@ -43,7 +43,7 @@ namespace Integrator
         {
             IO::ParmParse pp("thermal");
             pp.query("on",thermal.on); // Whether to use the Thermal Transport Model
-            Util::Message(INFO,"thermal.on =" , thermal.on);
+            //Util::Message(INFO,"thermal.on =" , thermal.on);
             pp.query("rho_ap",thermal.rho_ap); // AP Density
             pp.query("rho_htpb", thermal.rho_htpb); // HTPB Density
             pp.query("k_ap", thermal.k_ap); // AP Thermal Conductivity
@@ -58,6 +58,8 @@ namespace Integrator
             pp.query("ae_ap", thermal.ae_ap); // AP Activation Energy
             pp.query("ae_htpb", thermal.ae_htpb); // HTPB Activation Energy
             pp.query("ae_comb", thermal.ae_comb);
+            pp.query("bound", thermal.bound);
+            pp.query("addtemp", thermal.addtemp);
 
             pp.query("temperature_delay", thermal.temperature_delay); 
 
@@ -140,8 +142,9 @@ namespace Integrator
     void Flame::Initialize(int lev)
     {
         BL_PROFILE("Integrator::Flame::Initialize");
-        if (thermal.on) Temp_mf[lev]->setVal(0.0);
-        if (thermal.on) Temp_old_mf[lev]->setVal(0.0);
+
+        if (thermal.on) Temp_mf[lev]->setVal(thermal.bound);
+        if (thermal.on) Temp_old_mf[lev]->setVal(thermal.bound);
 
         Eta_mf[lev]->setVal(1.0);
         Eta_old_mf[lev]->setVal(1.0);
@@ -160,34 +163,6 @@ namespace Integrator
             return;
         if (a_iter % elastic.interval)
             return;
-
-        /*{
-          IO::ParmParse pp("elastic");
-          pp.query("elastic.tol_rel", elastic.tol_rel);
-          pp.query("elastic.tol_abs", elastic.tol_abs);
-          int nmodels = 1;
-          pp.query("nmodels", nmodels);
-          for (int i = 0; i<nmodels; i++)
-          {
-            std::string name = "model" + std::to_string(i+1);
-            MODEL tmp_model;
-            pp.queryclass(name.data(),tmp_model);
-            elastic.models.push_back(tmp_model);
-          }
-          //Util::Assert(INFO,TEST(elastic.models.size() > 0));
-          
-    
-        }*/
-        // TODO: This is where the elastic solve happens. Right now we are just using hard coded values (bad!!)
-        //       We want to use actual values that are read in from an input file. Actual values for elastic moduli,
-        //       etc. So here, update this code so that the elastic models are read in appropriately.
-        //
-        //       For reference, consult TensionTest.H. This integrator does full elastic solves with multiple
-        //       materials. You can duplicate the process here. Look in there to see how model params are read in
-        //       then do the same here.
-        //
-
-        // TODO: we need to use actual parameters for AP and HTPB (look them up and put them in the input file)
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
@@ -321,9 +296,9 @@ namespace Integrator
                         if (time >= thermal.temperature_delay)
                         {
                         Mob(i,j,k) = ( 
-                            pf.r_ap * exp(thermal.ae_ap / (8.31 * (273.0 + Temp(i,j,k)))) * phi(i,j,k) + 
-                            pf.r_htpb * exp(thermal.ae_htpb / (8.31 * (273.0 + Temp(i,j,k)))) * (1.0 - phi(i,j,k)) + 
-                            pf.r_comb * exp(thermal.ae_comb / (8.31 * (273.0 + Temp(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+                              pf.r_ap * exp(thermal.ae_ap / (8.31 * (thermal.addtemp + Temp(i,j,k)))) * phi(i,j,k) + 
+                            pf.r_htpb * exp(thermal.ae_htpb / (8.31 * (thermal.addtemp + Temp(i,j,k)))) * (1.0 - phi(i,j,k)) + 
+                            pf.r_comb * exp(thermal.ae_comb / (8.31 * (thermal.addtemp + Temp(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
                             ) / pf.gamma / (pf.w1 - pf.w0);
                             
                         }
@@ -413,26 +388,26 @@ namespace Integrator
                     amrex::Real K_comb = (thermal.k_comb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
 
                     //Set:: Scalar K = K_ap*phi(i,j,k) + K_htpb*(1-phi(i,j,k));
-                    Set::Scalar K = K_ap * phi(i,j,k) + K_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * K_comb;  
+                    amrex::Real K = K_ap * phi(i,j,k) + K_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * K_comb;  
 
                     amrex::Real cp = (thermal.cp_ap - thermal.cp_htpb) * Eta_old(i,j,k) + thermal.cp_htpb;
 
-                    Set::Scalar test = normvec.dot(temp_grad);
+                    Set::Scalar test = normvec.dot(temp_grad) / K;
                     
                     //Set:: Scalar neumbound = thermal.q_ap*phi(i,j,k) + thermal.q_htpb*(1-phi(i,j,k));
                     
-                    Set::Scalar neumbound = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb;
+                    Set::Scalar Bn = (thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb) / K;
 
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
                     { 
-                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/Eta_old(i,j,k) * neumbound);
+                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + eta_grad_mag/Eta_old(i,j,k) * Bn);
                     }
                     else
                     {
                         if(Eta_old(i,j,k)<=0.001)
                         {
-                            Temp(i,j,k)= 0;
+                            Temp(i,j,k)= thermal.bound - 5.0;
                         }
                     else
                     {
@@ -465,6 +440,7 @@ namespace Integrator
         }
 
         // Thermal criterion for refinement
+        
         if (thermal.on)
         {
             for (amrex::MFIter mfi(*Temp_mf[lev], true); mfi.isValid(); ++mfi)
@@ -475,10 +451,13 @@ namespace Integrator
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                                    {
                     Set::Vector tempgrad = Numeric::Gradient(Temp, i, j, k, 0, DX);
-                    if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion)
-                        tags(i, j, k) = amrex::TagBox::SET; });
+                    if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion){
+                        tags(i, j, k) = amrex::TagBox::SET;
+                        Util::Message(INFO, "Refinament = ", tempgrad.lpNorm<2>() * dr);}
+                        });
             }
-        }
+        } 
+         
     }
     void Flame::Regrid(int lev, Set::Scalar /* time */)
     {
