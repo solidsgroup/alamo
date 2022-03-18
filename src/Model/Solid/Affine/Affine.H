@@ -18,7 +18,7 @@ namespace Affine
 template<Set::Sym SYM>
 class Affine : public Solid<SYM>
 {
-protected:
+public:
     Set::Matrix F0;
     void SetF0(Set::Matrix a_F0) { F0 = a_F0; }
 public:

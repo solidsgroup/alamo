@@ -70,6 +70,7 @@ public:
 namespace Util
 {
 Set::Scalar Random();
+Set::Scalar Gaussian(amrex::Real mean,amrex::Real std_deviation);
 }
 
 namespace Set
