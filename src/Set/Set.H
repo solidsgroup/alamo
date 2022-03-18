@@ -8,21 +8,12 @@
 #include "Set/Base.H"
 /// \brief A collection of data types and symmetry-reduced data structures
 
-//namespace Set
-//{
-//class Field : public amrex::MultiFab
-//{
-//};
-
-namespace Util
-{
-Set::Scalar Random();
-Set::Scalar Gaussian(amrex::Real mean,amrex::Real std_deviation);
-}
-
-//};
 namespace Set
 {
+//class Field : public amrex::MultiFab
+//{
+
+//};
 template <class T>
 class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>
 {
@@ -50,7 +41,6 @@ public:
     }
     int finest_level = 0;
 };
-
 
 template <>
 class Field<Set::Scalar> : public amrex::Vector<std::unique_ptr<amrex::MultiFab>>
@@ -80,6 +70,7 @@ public:
 namespace Util
 {
 Set::Scalar Random();
+Set::Scalar Gaussian(amrex::Real mean,amrex::Real std_deviation);
 }
 
 namespace Set

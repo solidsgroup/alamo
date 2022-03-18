@@ -77,12 +77,7 @@ namespace Integrator
             IO::ParmParse pp("phi.ic");
             std::string type = "packedspheres";
             pp.query("type", type); // IC type - [packedspheres,laminate] - see classes for more information
-            if (type == "packedspheres")
-            {
-                PhiIC = new IC::PackedSpheres(geom);
-                pp.queryclass("packedspheres", *static_cast<IC::PackedSpheres *>(PhiIC)); // See :ref:`IC::PackedSpheres`
-            }
-            else if (type == "psread")
+            if (type == "psread")
             {
                 PhiIC = new IC::PSRead(geom);
                 pp.queryclass("psread", *static_cast<IC::PSRead *>(PhiIC)); // See :ref:`IC::PackedSpheres`

@@ -223,8 +223,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
         amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
         
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                                {
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                                     for (int m = 0; m < number_of_grains; m++)
                                     {
                                         Set::Scalar driving_force = 0.0;
@@ -393,7 +392,8 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
                                         etanew(i, j, k, m) = eta(i, j, k, m) - pf.L * dt * driving_force;
                                         if (std::isnan(driving_force))
                                             Util::Abort(INFO, i, " ", j, " ", k, " ", m);
-            } });
+                                    }
+                                });
 
         //
         // ELASTIC DRIVING FORCE

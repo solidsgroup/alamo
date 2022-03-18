@@ -10,7 +10,6 @@
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
-#include "IC/PackedSpheres.H"
 #include "IC/IC.H"
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
@@ -49,7 +48,6 @@ private:
     Set::Field<Set::Scalar> field;
     BC::BC<Set::Scalar> *TempBC;
     BC::BC<Set::Scalar> *EtaBC;
-    //IC::Voronoi *VoronoiIC;
     IC::IC *PhiIC;
 
 
