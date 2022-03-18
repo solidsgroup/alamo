@@ -10,7 +10,7 @@ void operator += (const OP_CLASS &rhs)
 AMREX_FORCE_INLINE
 OP_CLASS operator * (const Set::Scalar alpha) const
 {
-    OP_CLASS ret;
+        OP_CLASS ret;
 #define X(name) \
     ret.name = name*alpha;
     OP_VARS

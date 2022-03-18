@@ -21,7 +21,6 @@
 #include "IC/TabulatedInterface.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/Voronoi.H"
-#include "IC/PackedSpheres.H"
 #include "IC/Sphere.H"
 
 #include "Model/Interface/GB/GB.H"

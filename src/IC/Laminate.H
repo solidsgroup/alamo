@@ -12,11 +12,7 @@ namespace IC
 class Laminate : public IC
 {
 public:
-        enum Mollifier
-        {
-            Dirac,
-            Gaussian
-        };
+    enum Mollifier {Dirac, Gaussian};
 
     Laminate (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
     
@@ -70,8 +66,8 @@ private:
     amrex::Vector<Set::Scalar> eps;
     amrex::Vector<Set::Scalar> thickness;
     Mollifier moll = Mollifier::Gaussian;
-        bool singlefab = false;
-        bool invert = false;
+    bool singlefab = false;
+    bool invert = false;
 
 public:
     static void Parse(Laminate & value, IO::ParmParse & pp)
@@ -84,11 +80,9 @@ public:
         
         amrex::Vector<Set::Scalar> a_center;
         // (x,y,[z]) values for the center point of the laminate
-            if (pp.contains("center"))
-                pp.queryarr("center", a_center);
+        if(pp.contains("center")) pp.queryarr("center", a_center);
 
-            if (a_center.size() != value.number_of_inclusions * AMREX_SPACEDIM)
-                value.center.push_back(Set::Vector::Zero());
+        if(a_center.size() != value.number_of_inclusions*AMREX_SPACEDIM) value.center.push_back(Set::Vector::Zero());
         else
         {
             for (int i = 0; i<a_center.size(); i+=AMREX_SPACEDIM)
@@ -97,26 +91,22 @@ public:
         
         amrex::Vector<Set::Scalar> a_thickness; 
         // thickness of the laminate
-            if (pp.contains("thickness"))
-                pp.queryarr("thickness", a_thickness);
+        if (pp.contains("thickness")) pp.queryarr("thickness", a_thickness);
 
         if(a_thickness.size() != value.number_of_inclusions && a_thickness.size() != 1)
             Util::Abort(INFO, "Thickness of each inclusion must be specified");
         
         if (a_thickness.size() == 1) 
         {
-                if (a_thickness[0] <= 0.0)
-                    Util::Abort(INFO, "Invalid value of inclusion thickness");
-                for (int i = 0; i < value.number_of_inclusions; i++)
-                    value.thickness.push_back(a_thickness[0]);
+            if(a_thickness[0] <= 0.0) Util::Abort(INFO, "Invalid value of inclusion thickness");
+            for (int i = 0; i<value.number_of_inclusions; i++) value.thickness.push_back(a_thickness[0]);
         }
         
         else
         {
             for (int i = 0; i<value.number_of_inclusions; i++)
             {
-                    if (a_thickness[i] <= 0.0)
-                        Util::Abort(INFO, "Invalid value of inclusion ", i + 1, " thickness");
+                if(a_thickness[i] <= 0.0) Util::Abort(INFO, "Invalid value of inclusion ", i + 1, " thickness");
                 value.thickness.push_back(a_thickness[i]);
             }
         }
@@ -137,8 +127,7 @@ public:
                 value.orientation.push_back(Set::Vector(AMREX_D_DECL(a_orientation[i], a_orientation[i+1], a_orientation[i+2])));
         
         for (int i =0; i < value.orientation.size(); i++)
-                if (value.orientation[i].lpNorm<2>() <= 0.)
-                    value.orientation[i] = Set::Vector::Random();
+            if(value.orientation[i].lpNorm<2>() <= 0.) value.orientation[i] = Set::Vector::Random();
 
         for (int i=0; i<value.orientation.size(); i++)
             value.orientation[i] = value.orientation[i] / value.orientation[i].lpNorm<2>();
@@ -186,8 +175,10 @@ public:
         
         std::string mollifier;
         pp.query("mollifier",mollifier);
-        if(mollifier == "Dirac" || mollifier == "dirac") value.moll = Mollifier::Dirac;
-        else                                             value.moll = Mollifier::Gaussian;
+        if(mollifier == "Dirac" || mollifier == "dirac") 
+             value.moll = Mollifier::Dirac;
+        else
+             value.moll = Mollifier::Gaussian;
 
         // Switch to mode where only one component is used.
         pp.query("singlefab", value.singlefab);

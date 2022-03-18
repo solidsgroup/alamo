@@ -335,7 +335,7 @@ protected:
 
     // KEEP TRACK OF ALL INTEGRATED VARIABLES
     struct{
-        int interval = 1;
+        int interval = -1;
         Set::Scalar dt = -1.0;
         int plot_int = -1;
         Set::Scalar plot_dt = -1.0;
@@ -345,7 +345,8 @@ protected:
     } thermo;
 
     // REGRIDDING
-    int regrid_int = 2; ///< Determine how often to regrid (default: 2)
+    int regrid_int = 2;       ///< Determine how often to regrid (default: 2)
+    int base_regrid_int = 0; ///< Determine how often to regrid based on coarse level only (default: 0)
 
     std::string restart_file_cell = "";
     std::string restart_file_node = "";
