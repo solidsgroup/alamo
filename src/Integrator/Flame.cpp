@@ -306,9 +306,9 @@ namespace Integrator
                     Set::Scalar Bn = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb;
 
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
-			        { 
+                    { 
                         Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn / K);
-			        }
+                    }
                     else if (Eta_old(i,j,k) <= 0.001)
                     {
                         Temp(i,j,k) = thermal.bound - 5.0; 
@@ -330,9 +330,9 @@ namespace Integrator
                     else
                     {
                         Mob(i,j,k) =
-			                (pf.r_ap * pow(pf.P, pf.n_ap)) * phi(i, j, k) +
-			                (pf.r_htpb * pow(pf.P, pf.n_htpb)) * (1.0 - phi(i, j, k)) +
-			                4.0 * (pf.r_comb * pow(pf.P, pf.n_comb)) * phi(i,j,k) * (1.0 - phi(i,j,k));
+                            (pf.r_ap * pow(pf.P, pf.n_ap)) * phi(i, j, k) +
+                            (pf.r_htpb * pow(pf.P, pf.n_htpb)) * (1.0 - phi(i, j, k)) +
+                            4.0 * (pf.r_comb * pow(pf.P, pf.n_comb)) * phi(i,j,k) * (1.0 - phi(i,j,k));
 
                     }
 
