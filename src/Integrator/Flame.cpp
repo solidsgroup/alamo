@@ -60,6 +60,8 @@ namespace Integrator
             pp.query("ae_comb", thermal.ae_comb);
             pp.query("bound", thermal.bound);
             pp.query("addtemp", thermal.addtemp);
+            pp.query("reaction_temperature", thermal.reaction_temperature);
+            pp.query("k_set", thermal.k_set);
 
             pp.query("temperature_delay", thermal.temperature_delay); 
 
@@ -152,7 +154,7 @@ namespace Integrator
         PhiIC->Initialize(lev, phi_mf);
 
         if (thermal.on) Mob_mf[lev]->setVal(0.001);
-        //if (thermal.on) Mob_old_mf[lev]->setVal(0.0);
+        if (thermal.on) Mob_old_mf[lev]->setVal(0.001);
     }
 
     
@@ -285,6 +287,10 @@ namespace Integrator
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
 
+                    // --------------------
+                    // Eta computation
+                    // --------------------
+
                     Eta(i, j, k) = 
                         Eta_old(i, j, k) 
                         - Mob_old(i,j,k) * dt * (
@@ -307,12 +313,15 @@ namespace Integrator
                     amrex::Real cp = (thermal.cp_ap - thermal.cp_htpb) * Eta_old(i,j,k) + thermal.cp_htpb;
 
                     Set::Scalar test = normvec.dot(temp_grad);
-                    
-                    Set::Scalar Bn = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb;
 
+                    Set::Scalar Bn = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb;
+                    
+                    // --------------------
+                    // Temperature computation
+                    // --------------------
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
 			        { 
-                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn / K);
+                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn * ((thermal.k_set / K) + (1.0 - thermal.k_set)) );
 			        }
                     else if (Eta_old(i,j,k) <= 0.001)
                     {
@@ -323,22 +332,22 @@ namespace Integrator
                         Temp(i,j,k) =  Temp_old(i,j,k) + dt*(K/cp/rho) * temp_lap;
                     }
 
-
-                    if (time >= thermal.temperature_delay)
+                    // --------------------
+                    // Mobility computation
+                    // --------------------
+                    /*if (Temp_old(i,j,k) <= thermal.reaction_temperature)
+                    {
+                        Mob(i,j,k) = 1.0;
+                        
+                    }
+                    else*/
                     {
                         Mob(i,j,k) = ( 
-                            pf.r_ap    * exp(thermal.ae_ap   / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * phi(i,j,k) + 
-                            pf.r_htpb  * exp(thermal.ae_htpb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * (1.0 - phi(i,j,k)) + 
-                            pf.r_comb  * exp(thermal.ae_comb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+                            pf.r_ap    * exp( (-1.0) * thermal.ae_ap   / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * phi(i,j,k) + 
+                            pf.r_htpb  * exp( (-1.0) * thermal.ae_htpb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * (1.0 - phi(i,j,k)) + 
+                            pf.r_comb  * exp( (-1.0) * thermal.ae_comb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
                             ) / pf.gamma / (pf.w1 - pf.w0);
-                    }
-                    else
-                    {
-                        Mob(i,j,k) =
-			                (pf.r_ap * pow(pf.P, pf.n_ap)) * phi(i, j, k) +
-			                (pf.r_htpb * pow(pf.P, pf.n_htpb)) * (1.0 - phi(i, j, k)) +
-			                4.0 * (pf.r_comb * pow(pf.P, pf.n_comb)) * phi(i,j,k) * (1.0 - phi(i,j,k));
-
+                        if (Mob(i,j,k) <= 0.000001) { Mob(i,j,k) = 0.0001;}
                     }
 
                 });

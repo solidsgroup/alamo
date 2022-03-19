@@ -88,7 +88,8 @@ private:
         Set::Scalar q_ap, q_htpb, q_comb;
         Set::Scalar temperature_delay = 0.01;
         Set::Scalar ae_ap, ae_htpb, ae_comb;
-        Set::Scalar bound, addtemp;       
+        Set::Scalar bound, addtemp, k_set; 
+        Set::Scalar reaction_temperature;      
     } thermal;
 
     struct {
