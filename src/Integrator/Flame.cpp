@@ -95,12 +95,7 @@ namespace Integrator
             IO::ParmParse pp("phi.ic");
             std::string type = "packedspheres";
             pp.query("type", type); // IC type - [packedspheres,laminate] - see classes for more information
-            if (type == "packedspheres")
-            {
-                PhiIC = new IC::PackedSpheres(geom);
-                pp.queryclass("packedspheres", *static_cast<IC::PackedSpheres *>(PhiIC)); // See :ref:`IC::PackedSpheres`
-            }
-            else if (type == "psread")
+            if (type == "psread")
             {
                                 
                 PhiIC = new IC::PSRead(geom);
@@ -342,12 +337,14 @@ namespace Integrator
                     }
                     else*/
                     {
+
                         Mob(i,j,k) = ( 
                             pf.r_ap    * exp( (-1.0) * thermal.ae_ap   / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * phi(i,j,k) + 
                             pf.r_htpb  * exp( (-1.0) * thermal.ae_htpb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * (1.0 - phi(i,j,k)) + 
                             pf.r_comb  * exp( (-1.0) * thermal.ae_comb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
                             ) / pf.gamma / (pf.w1 - pf.w0);
                         if (Mob(i,j,k) <= 0.000001) { Mob(i,j,k) = 0.0001;}
+
                     }
 
                 });

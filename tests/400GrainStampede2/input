@@ -1,6 +1,6 @@
 
 alamo.program			= microstructure
-plot_file		        = /scratch/03820/tg831197/output
+plot_file		        = tests/400GrainStampede2/output
 
 timestep		        = 0.25
 stop_time		        = 10.0

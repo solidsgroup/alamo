@@ -29,13 +29,6 @@ def wrap(input_string):
         if line != "\n":
             print(pre + line)
             pre = "".ljust(width)
-def message(title,message="",wrap_message=True):
-    print(color.boldgreen + title.ljust(width) + color.reset,end="")
-    if wrap_message: wrap(message)
-    else: print(message)
-def shellmessage(title,cmd):
-    print(color.boldgreen + title.ljust(width) + color.reset,end="")
-    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
@@ -47,6 +40,13 @@ def code(code):
 def note(message):
     print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
     wrap(message)
+def message(title,message="",wrap_message=True):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    if wrap_message: wrap(message)
+    else: print(message)
+def shellmessage(title,cmd):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
 
 message("Python",python_version)
 if sys.version_info.minor < 5:
@@ -131,7 +131,7 @@ if (args.buildamrex == True):
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
-    elif args.comp == "clang++": amrex_configure += ' --comp=llvm'
+    elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
     if fpic: amrex_configure += ' --enable-pic=yes'
@@ -249,7 +249,6 @@ elif (args.eigen != ""):
 #
 # Compiler
 #
-
 if not args.comp in ['g++','icc','clang++']:
     raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 if (args.comp == "gcc"): f.write("COMP = GCC\n")
@@ -273,6 +272,15 @@ if args.comp == 'icc':
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
+
+#
+# MPICH
+#
+if args.comp in ['g++']:
+    shellmessage("MPICH:","mpichversion")
+    shellmessage("MPICH mpicxx:","mpicxx -v")
+elif args.comp in ['icc']:
+    shellmessage("Intel MPI","mpiicpc --version")
 
 #
 # LibGFortran?

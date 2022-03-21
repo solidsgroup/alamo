@@ -31,7 +31,8 @@ Integrator::Integrator ()
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
         amrex::ParmParse pp("amr"); 
-        pp.query("regrid_int", regrid_int);           // Regridding interval in timesteps
+        pp.query("regrid_int", regrid_int);           // Regridding interval in step numbers
+        pp.query("base_regrid_int", base_regrid_int); // Regridding interval based on coarse level only
         pp.query("plot_int", plot_int);               // Interval (in timesteps) between plotfiles
         pp.query("plot_dt", plot_dt);                 // Interval (in simulation time) between plotfiles
         pp.query("plot_file", plot_file);             // Output file
@@ -72,6 +73,7 @@ Integrator::Integrator ()
         // Information on how to generate thermodynamic
         // data (to show up in thermo.dat)
         amrex::ParmParse pp("amr.thermo");
+        thermo.interval = 1;                           // Default: integrate every time.
         pp.query("int", thermo.interval);              // Integration interval (1)
         pp.query("plot_int", thermo.plot_int);         // Interval (in timesteps) between writing
         pp.query("plot_dt", thermo.plot_dt);           // Interval (in simulation time) between writing
@@ -160,7 +162,6 @@ Integrator::MakeNewLevelFromCoarse (int lev, amrex::Real time, const amrex::BoxA
     }
 
     Regrid(lev,time);
-
 }
 
 
@@ -207,7 +208,6 @@ Integrator::RemakeLevel (int lev,       ///<[in] AMR Level
     {
         m_basefields[n]->RemakeLevel(lev,time,cgrids,dm);
     }
-
     Regrid(lev,time);
 }
 
@@ -970,20 +970,23 @@ void
 Integrator::TimeStep (int lev, amrex::Real time, int /*iteration*/)
 {
     BL_PROFILE("Integrator::TimeStep");
-    if (regrid_int > 0)  // We may need to regrid
+    if (base_regrid_int <= 0 || istep[0]%base_regrid_int == 0)
     {
-        static amrex::Vector<int> last_regrid_step(max_level+1, 0);
-
-        // regrid doesn't change the base level, so we don't regrid on max_level
-        if (lev < max_level && istep[lev] > last_regrid_step[lev])
+        if (regrid_int > 0 || base_regrid_int > 0)  // We may need to regrid
         {
-            if (istep[lev] % regrid_int == 0)
+            static amrex::Vector<int> last_regrid_step(max_level+1, 0);
+
+            // regrid doesn't change the base level, so we don't regrid on max_level
+            if (lev < max_level && istep[lev] > last_regrid_step[lev])
             {
-                regrid(lev, time, false); 
+                if (istep[lev] % regrid_int == 0)
+                {
+                    regrid(lev, time, false); 
+                }
             }
         }
     }
-    SetFinestLevel(finest_level);
+SetFinestLevel(finest_level);
 
     if (Verbose() && amrex::ParallelDescriptor::IOProcessor()) {
         std::cout << "[Level " << lev 
