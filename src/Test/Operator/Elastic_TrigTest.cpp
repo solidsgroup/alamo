@@ -110,10 +110,10 @@ Elastic::TrigTest(int verbose, int component, int n, std::string plotfile)
     }
 
     //Compute numerical right hand side
-    mlmg.apply(GetVecOfPtrs(rhs_numeric),GetVecOfPtrs(solution_numeric));
+    mlmg.apply(rhs_numeric,solution_numeric);
 
     // Compute exact right hand side
-    mlmg.apply(GetVecOfPtrs(rhs_exact),GetVecOfPtrs(solution_exact));
+    mlmg.apply(rhs_exact,solution_exact);
 
     // Compute numerical residual
     mlmg.compResidual(res_numeric,solution_numeric,rhs_prescribed, modelfab);

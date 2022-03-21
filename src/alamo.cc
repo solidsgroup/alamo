@@ -3,6 +3,7 @@
 #include <iomanip>
 
 #include "Util/Util.H"
+#include "IO/ParmParse.H"
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
 #include "AMReX_ParmParse.H"
@@ -18,13 +19,14 @@
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
+#include "Integrator/ThermoElastic.H"
 
 int main (int argc, char* argv[])
 {
     Util::Initialize(argc,argv);
 
     std::string program = "microstructure";
-    amrex::ParmParse pp("alamo");
+    IO::ParmParse pp("alamo");
     pp.query("program",program);
 
     if (program == "microstructure")
@@ -38,10 +40,11 @@ int main (int argc, char* argv[])
     }
     else if (program == "eshelby")
     {
-        Integrator::Integrator *eshelby = new Integrator::TensionTest<Model::Solid::Affine::Isotropic>();
-        eshelby->InitData();
-        eshelby->Evolve();        
-        delete eshelby;
+        IO::ParmParse pp;
+        Integrator::TensionTest<Model::Solid::Affine::Isotropic> eshelby;
+        pp.queryclass(eshelby);
+        eshelby.InitData();
+        eshelby.Evolve();        
     }
     else if (program == "finitekinematics")
     {
@@ -57,13 +60,15 @@ int main (int argc, char* argv[])
         flame->InitData();
         flame->Evolve();
         delete flame;
+
     }
     else if (program == "heat")
     {
-        Integrator::Integrator *heatconduction = new Integrator::HeatConduction();
-        heatconduction->InitData();
-        heatconduction->Evolve();
-        delete heatconduction;
+        IO::ParmParse pp;
+        Integrator::HeatConduction heatconduction;
+        pp.queryclass(heatconduction);
+        heatconduction.InitData();
+        heatconduction.Evolve();
     }
     else if (program == "degradation")
     {
@@ -71,7 +76,6 @@ int main (int argc, char* argv[])
         Integrator::PolymerDegradation model;
         model.InitData();
         model.Evolve();
-        //delete model;
     }
     else if (program == "fracture")
     {
@@ -86,6 +90,14 @@ int main (int argc, char* argv[])
         Test::Operator::Elastic test;
         test.Define(32,1);
         test.TrigTest(0,0,1,Util::GetFileName());
+    }
+    else if (program == "thermoelastic")
+    {
+        IO::ParmParse pp;
+        Integrator::ThermoElastic te;
+        pp.queryclass(te);
+        te.InitData();
+        te.Evolve();
     }
     else
     {

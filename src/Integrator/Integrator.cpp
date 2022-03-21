@@ -90,7 +90,6 @@ Integrator::Integrator ()
 
     plot_file = Util::GetFileName();
     IO::WriteMetaData(plot_file,IO::Status::Running,0);
-
 }
 
 ///

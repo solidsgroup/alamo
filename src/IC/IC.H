@@ -20,6 +20,7 @@ public:
     void Initialize(const int &a_lev,
                     Set::Field<Set::Scalar> &a_field)
     {
+        Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
         a_field[a_lev]->setVal(0.0);
         Add(a_lev,a_field);
     };

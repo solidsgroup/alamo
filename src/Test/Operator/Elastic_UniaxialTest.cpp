@@ -152,10 +152,10 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
     }
 
     // Compute numerical right hand side
-    mlmg.apply(GetVecOfPtrs(rhs_numeric), GetVecOfPtrs(solution_numeric));
+    mlmg.apply(rhs_numeric, solution_numeric);
 
     // Compute exact right hand side
-    mlmg.apply(GetVecOfPtrs(rhs_exact), GetVecOfPtrs(solution_exact));
+    mlmg.apply(rhs_exact, solution_exact);
 
     // Compute the numeric residual
     for (int i = 0; i < nlevels; i++)
@@ -175,7 +175,7 @@ int Elastic::UniaxialTest(int verbose, int component, std::string plotfile)
     }
 
     // Compute the "ghost force" that introduces the error
-    mlmg.apply(GetVecOfPtrs(ghost_force), GetVecOfPtrs(solution_error));
+    mlmg.apply(ghost_force, solution_error);
 
     if (plotfile != "")
     {
