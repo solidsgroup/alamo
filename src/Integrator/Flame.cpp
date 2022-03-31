@@ -60,8 +60,12 @@ namespace Integrator
             pp.query("ae_comb", thermal.ae_comb);
             pp.query("bound", thermal.bound);
             pp.query("addtemp", thermal.addtemp);
-            pp.query("reaction_temperature", thermal.reaction_temperature);
-            pp.query("k_set", thermal.k_set);
+            pp.query("A_ap", thermal.A_ap);
+            pp.query("A_htpb", thermal.A_htpb);
+            pp.query("A_comb", thermal.A_comb);
+            pp.query("beta1", thermal.beta1);
+            pp.query("beta2", thermal.beta2);
+            pp.query("MinTemp", thermal.MinTemp );
 
             pp.query("temperature_delay", thermal.temperature_delay); 
 
@@ -143,8 +147,8 @@ namespace Integrator
         if (thermal.on) Temp_mf[lev]->setVal(thermal.bound);
         if (thermal.on) Temp_old_mf[lev]->setVal(thermal.bound);
 
-        Eta_mf[lev]->setVal(1.0);
-        Eta_old_mf[lev]->setVal(1.0);
+        Eta_mf[lev]->setVal(0.999999999999);
+        Eta_old_mf[lev]->setVal(0.99999999999);
 
         PhiIC->Initialize(lev, phi_mf);
 
@@ -280,25 +284,44 @@ namespace Integrator
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    Util::Assert(INFO,TEST(Eta_old(i,j,k)==Eta_old(i,j,k)));
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
+                    amrex::Real rho = (thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb;
 
                     // --------------------
                     // Eta computation
                     // --------------------
 
-                    Eta(i, j, k) = 
+		    if (Temp_old(i,j,k) < thermal.MinTemp) {Eta(i,j,k) = Eta_old(i,j,k);}
+		    else
+            {
+                Util::Assert(INFO,TEST(Eta(i,j,k)==Eta(i,j,k)));
+                Util::Assert(INFO,TEST(Mob_old(i,j,k)==Mob_old(i,j,k)));
+                Util::Assert(INFO,TEST(eta_lap==eta_lap));
+
+                Util::Assert(INFO,TEST(Eta_old(i,j,k)==Eta_old(i,j,k)));
+
+                Eta(i, j, k) = 
                         Eta_old(i, j, k) 
                         - Mob_old(i,j,k) * dt * (
                         (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
                         - pf.eps * pf.kappa * eta_lap);
+		    }
+                Set::Vector eta_grad = Numeric::Gradient(Eta_old, i, j, k, 0, DX);
+                        // --------------------
+                        // Mass flux
+                        // --------------------
+                        {
+			            // amrex::Real mdot;
+			            //  mdot = rho * eta_grad;
+                        }
 
-                    Set::Vector eta_grad = Numeric::Gradient(Eta_old, i, j, k, 0, DX);
+                    
                     Set::Vector temp_grad = Numeric::Gradient(Temp_old, i, j, k, 0, DX);
                     Set::Scalar temp_lap = Numeric::Laplacian(Temp_old, i, j, k, 0, DX);
                     Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
                     Set::Vector normvec = eta_grad/Eta_old(i,j,k);
-
-                    amrex::Real rho = (thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb;
+                    
                     amrex::Real K_ap = (thermal.k_ap - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
                     amrex::Real K_htpb = (thermal.k_htpb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
                     amrex::Real K_comb = (thermal.k_comb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
@@ -316,7 +339,7 @@ namespace Integrator
                     // --------------------
                     if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
 			        { 
-                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn * ((thermal.k_set / K) + (1.0 - thermal.k_set)) );
+                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn / K );
 			        }
                     else if (Eta_old(i,j,k) <= 0.001)
                     {
@@ -327,26 +350,38 @@ namespace Integrator
                         Temp(i,j,k) =  Temp_old(i,j,k) + dt*(K/cp/rho) * temp_lap;
                     }
 
+		            Set::Scalar b1 = -thermal.ae_ap   / 8.314 / (thermal.addtemp + Temp_old(i,j,k) );
+		            Set::Scalar b2 = -thermal.ae_htpb / 8.314 / (thermal.addtemp + Temp_old(i,j,k) );
+		            Set::Scalar b3 = -thermal.ae_comb / 8.314 / (thermal.addtemp + Temp_old(i,j,k) );
+
+		            Set::Scalar e1, e2, e3;
+                    e1 = exp(pow(b1, thermal.beta1));
+                    e2 = exp(pow(b2, thermal.beta1));
+                    e3 = exp(pow(b3, thermal.beta1));
+
                     // --------------------
                     // Mobility computation
                     // --------------------
-                    /*if (Temp_old(i,j,k) <= thermal.reaction_temperature)
+                    if (time <= thermal.temperature_delay)
                     {
-                        Mob(i,j,k) = 1.0;
-                        
+                        Mob(i,j,k) = (pf.r_ap * pow(pf.P, pf.n_ap)) * phi(i,j,k) + 
+                                     (pf.r_htpb * pow(pf.P, pf.n_htpb)) * (1.0 - phi(i,j,k)) + 
+                                     (pf.r_comb * pow(pf.P, pf.n_comb)) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k));     
+                Util::Assert(INFO,TEST(Mob(i,j,k)==Mob(i,j,k)));
                     }
-                    else*/
+                    else
                     {
 
                         Mob(i,j,k) = ( 
-                            pf.r_ap    * exp( (-1.0) * thermal.ae_ap   / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * phi(i,j,k) + 
-                            pf.r_htpb  * exp( (-1.0) * thermal.ae_htpb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * (1.0 - phi(i,j,k)) + 
-                            pf.r_comb  * exp( (-1.0) * thermal.ae_comb / (8.31 * (thermal.addtemp + Temp_old(i,j,k)))) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+			                pow(thermal.A_ap, thermal.beta2)   * pow(Temp_old(i,j,k), 0) * e1 * phi(i,j,k) + 
+                            pow(thermal.A_htpb, thermal.beta2) * pow(Temp_old(i,j,k), 0) * e2 * (1.0 - phi(i,j,k)) + 
+                            pow(thermal.A_comb, thermal.beta2) * pow(Temp_old(i,j,k), 0) * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
                             ) / pf.gamma / (pf.w1 - pf.w0);
-                        if (Mob(i,j,k) <= 0.000001) { Mob(i,j,k) = 0.0001;}
+                Util::Assert(INFO,TEST(Mob(i,j,k)==Mob(i,j,k)));
+
 
                     }
-
+                    
                 });
                 
             }
@@ -389,7 +424,8 @@ namespace Integrator
                     Set::Vector tempgrad = Numeric::Gradient(Temp, i, j, k, 0, DX);
                     if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion){
                         tags(i, j, k) = amrex::TagBox::SET;
-                        Util::Message(INFO, "Refinament = ", tempgrad.lpNorm<2>() * dr);}
+                        //Util::Message(INFO, "Refinament = ", tempgrad.lpNorm<2>() * dr)
+                        ;}
                         });
             }
         } 
