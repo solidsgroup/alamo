@@ -42,8 +42,6 @@ public:
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
-        
-        Util::Message(INFO,"max level ", max_level);
     }
 
     static void Parse(TensionTest &value, IO::ParmParse &pp)

@@ -105,6 +105,43 @@ public:
     void SetFilename(std::string _plot_file) {plot_file = _plot_file;};
     std::string GetFilename() {return plot_file;};
 
+    void regrid (int lbase, Set::Scalar time, bool initial=false) override
+    {
+        if (!explicitmesh.on) 
+            AmrCore::regrid(lbase, time, initial);
+    }
+
+    void InitFromScratch(Set::Scalar time)
+    {
+        if (!explicitmesh.on) AmrCore::InitFromScratch(time);
+        else
+        {
+            // Generate the coarse level mesh.
+            {
+                finest_level = 0;
+                const amrex::BoxArray &ba = MakeBaseGrids();
+                amrex::DistributionMapping dm(ba);
+                const auto old_num_setdm = num_setdm;
+                const auto old_num_setba = num_setba;
+                MakeNewLevelFromScratch(0,time,ba,dm);
+                if (old_num_setba == num_setba) SetBoxArray(0,ba);
+                if (old_num_setdm == num_setdm) SetDistributionMap(0,dm);
+            }
+            // Generate subsequent level meshes based on user input
+            for (int ilev = 0; ilev < maxLevel(); ++ilev)
+            {
+                finest_level = ilev+1;
+                amrex::BoxArray grids(explicitmesh.box[ilev]);
+                ChopGrids(ilev+1,grids,amrex::ParallelDescriptor::NProcs());
+                amrex::DistributionMapping dmap(grids);
+                SetBoxArray(ilev+1,grids);
+                SetDistributionMap(ilev+1,dmap);
+                MakeNewLevelFromScratch(ilev+1,time,grids,dmap);
+            }
+            
+        }
+    }
+
 protected:
 
     /// \fn    Initialize
@@ -350,6 +387,11 @@ protected:
 
     std::string restart_file_cell = "";
     std::string restart_file_node = "";
+
+    struct{
+        int on = 0;
+        std::vector<amrex::Box> box;
+    } explicitmesh;
 
 protected:
     int plot_int = -1;               ///< How frequently to dump plot file (default: never)
