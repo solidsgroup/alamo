@@ -54,6 +54,12 @@ public:
         ret.Define(Util::Random(),Util::Random());
         return ret;
     }
+    static Isotropic Zero()
+    {
+        Isotropic ret;
+        ret.Define(0.,0.);
+        return ret;
+    }
     static void Parse(Isotropic & value, IO::ParmParse & pp)
     {
         Set::Scalar mu, lambda;

@@ -1,5 +1,5 @@
-#ifndef INTEGRATOR_TENSIONTEST_H
-#define INTEGRATOR_TENSIONTEST_H
+#ifndef INTEGRATOR_MECHANICS_H
+#define INTEGRATOR_MECHANICS_H
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -31,12 +31,12 @@
 namespace Integrator
 {
 template<class MODEL>
-class TensionTest : virtual public Integrator
+class Mechanics : virtual public Integrator
 {
     //using model_type = Model::Solid::Affine::Isotropic;
 public:
     /// \brief Read in parameters and register field variables
-    TensionTest()
+    Mechanics()
     {
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
@@ -44,7 +44,7 @@ public:
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
     }
 
-    static void Parse(TensionTest &value, IO::ParmParse &pp)
+    static void Parse(Mechanics &value, IO::ParmParse &pp)
     {
 
         //IO::ParmParse pp("elastic");

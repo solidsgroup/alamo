@@ -2,28 +2,28 @@
 #define INTEGRATOR_THERMOELASTIC_H
 
 #include "Model/Solid/Affine/Isotropic.H"
-#include "Integrator/TensionTest.H"
+#include "Integrator/Mechanics.H"
 #include "Integrator/HeatConduction.H"
 
 namespace Integrator
 {
 class ThermoElastic : 
     virtual public HeatConduction,
-    virtual public TensionTest<Model::Solid::Affine::Isotropic>
+    virtual public Mechanics<Model::Solid::Affine::Isotropic>
 {
     //using model_type = Model::Solid::Affine::Isotropic;
 public:
     ThermoElastic():
         //Integrator(),
         HeatConduction(),
-        TensionTest<Model::Solid::Affine::Isotropic>()
+        Mechanics<Model::Solid::Affine::Isotropic>()
     {
         Util::Message(INFO,"max level ", max_level);
     }
     static void Parse(ThermoElastic &value, IO::ParmParse &pp)
     {
         pp.queryclass("hc",static_cast<HeatConduction*>(&value));
-        pp.queryclass("el",static_cast<TensionTest<Model::Solid::Affine::Isotropic>*>(&value));
+        pp.queryclass("el",static_cast<Mechanics<Model::Solid::Affine::Isotropic>*>(&value));
 
         pp.queryarr("alpha",value.alpha);
     }
@@ -33,12 +33,12 @@ protected:
     void Initialize(int lev) override
     {
         HeatConduction::Initialize(lev);
-        TensionTest<Model::Solid::Affine::Isotropic>::Initialize(lev);
+        Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev);
     }
 
     void UpdateModel()
     {
-        TensionTest<Model::Solid::Affine::Isotropic>::UpdateModel();
+        Mechanics<Model::Solid::Affine::Isotropic>::UpdateModel();
 
         //Set::Scalar alpha[2];
         //alpha[0] = 0.001; alpha[1] = 0.002;
@@ -70,19 +70,19 @@ protected:
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
         HeatConduction::TimeStepBegin(a_time,a_step);
-        TensionTest<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_step);
+        Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_step);
     }
 
     void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt)
     {
         HeatConduction::Advance(a_lev,a_time,a_dt);
-        TensionTest<Model::Solid::Affine::Isotropic>::Advance(a_lev,a_time,a_dt);
+        Mechanics<Model::Solid::Affine::Isotropic>::Advance(a_lev,a_time,a_dt);
     }
 
     void TagCellsForRefinement(int a_lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override
     {
         HeatConduction::TagCellsForRefinement(a_lev,a_tags,a_time,a_ngrow);
-        TensionTest<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(a_lev,a_tags,a_time,a_ngrow);
+        Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(a_lev,a_tags,a_time,a_ngrow);
     }
 
     std::vector<Set::Scalar> alpha;

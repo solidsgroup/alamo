@@ -13,7 +13,7 @@
 
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
-#include "Integrator/TensionTest.H"
+#include "Integrator/Mechanics.H"
 #include "Integrator/FiniteKinematics.H"
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
@@ -38,10 +38,21 @@ int main (int argc, char* argv[])
         pfm->Evolve();
         delete pfm;
     }
+    else if (program == "mechanics")
+    {
+        Integrator::Integrator *integrator;
+        std::string model = "linear.elastic";
+        pp.query("program.mechanics.model",model);
+        if (model == "linear.elastic") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Linear::Isotropic>*>(integrator));
+        }
+    }
     else if (program == "eshelby")
     {
         IO::ParmParse pp;
-        Integrator::TensionTest<Model::Solid::Affine::Isotropic> eshelby;
+        Integrator::Mechanics<Model::Solid::Affine::Isotropic> eshelby;
         pp.queryclass(eshelby);
         eshelby.InitData();
         eshelby.Evolve();        
@@ -49,7 +60,7 @@ int main (int argc, char* argv[])
     else if (program == "finitekinematics")
     {
         //Integrator::Integrator *fk = new Integrator::FiniteKinematics();
-        Integrator::Integrator *fk = new Integrator::TensionTest<Model::Solid::Elastic::NeoHookean>();
+        Integrator::Integrator *fk = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>();
         fk->InitData();
         fk->Evolve();        
         delete fk;
