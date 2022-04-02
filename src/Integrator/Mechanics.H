@@ -63,6 +63,7 @@ public:
 
         std::string bc_type = "constant";
         pp.query("elastic.bc.type",bc_type);
+        Util::Message(INFO,bc_type);
         if (bc_type == "constant")
         {
             value.elastic.bc = new BC::Operator::Elastic::Constant();
@@ -86,6 +87,7 @@ public:
         //IO::ParmParse pp("ic");
         std::string type;
         pp.query("ic.type",type);
+        Util::Message(INFO,type);
         if (type=="ellipse")
         {
             value.ic = new IC::Ellipse(value.geom);
@@ -179,7 +181,7 @@ protected:
             const amrex::Real* DX = geom[lev].CellSize();
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
-                amrex::Box bx = mfi.grownnodaltilebox();
+                amrex::Box bx = mfi.nodaltilebox();
                 amrex::Array4<MODEL>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>       const &stress  = stress_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>       const &strain  = strain_mf[lev]->array(mfi);

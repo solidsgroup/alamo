@@ -26,8 +26,8 @@ int main (int argc, char* argv[])
     Util::Initialize(argc,argv);
 
     std::string program = "microstructure";
-    IO::ParmParse pp("alamo");
-    pp.query("program",program);
+    IO::ParmParse pp;
+    pp.query("alamo.program",program);
 
     if (program == "microstructure")
     {
@@ -41,13 +41,26 @@ int main (int argc, char* argv[])
     else if (program == "mechanics")
     {
         Integrator::Integrator *integrator;
-        std::string model = "linear.elastic";
-        pp.query("program.mechanics.model",model);
-        if (model == "linear.elastic") 
+        std::string model = "linear.isotropic";
+        pp.query("alamo.program.mechanics.model",model);
+        if (model == "linear.isotropic") 
         {
             integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>();
             pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Linear::Isotropic>*>(integrator));
         }
+        else if (model == "affine.isotropic") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Affine::Isotropic>*>(integrator));
+        }
+        else
+        {
+            Util::Abort(INFO,model," is not a valid model");
+        }
+
+        integrator->InitData();
+        integrator->Evolve();
+        delete integrator;
     }
     else if (program == "eshelby")
     {

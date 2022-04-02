@@ -1,4 +1,7 @@
-alamo.program               = eshelby
+#alamo.program               = eshelby
+alamo.program = mechanics
+alamo.program.mechanics.model = affine.isotropic
+
 plot_file		    = tests/Eshelby/output
 
 # this is not a time integration, so do
