@@ -1,3 +1,8 @@
+#@  [2D, 1 AMR Levels] mpirun -np 2 ./bin/alamo-2d-g++ tests/UniaxialTension/input amr.max_level=0 
+#@  [2D, 2 AMR Levels] mpirun -np 4 ./bin/alamo-2d-g++ tests/UniaxialTension/input amr.max_level=1 #elastic.solver.max_iter=2
+#@  [2D, 3 AMR Levels] mpirun -np 8 ./bin/alamo-2d-g++ tests/UniaxialTension/input amr.max_level=2 #elastic.model1.E = 200
+#@  [3D, 3 AMR Levels] mpirun -np 8 ./bin/alamo-2d-g++ tests/UniaxialTension/input amr.max_level=2 #elastic.model1.E = 200
+
 alamo.program                 = mechanics
 alamo.program.mechanics.model = linear.isotropic
 plot_file		      = tests/UniaxialTension/output
@@ -14,6 +19,7 @@ amr.n_cell		      = 32 32 32
 amr.blocking_factor	      = 4
 amr.regrid_int		      = 1
 amr.grid_eff		      = 1.0
+amr.cell.all                  = 1
 
 # use an explicit mesh (i.e. no adaptive meshing)
 explicitmesh.on               = 1
@@ -28,34 +34,62 @@ geometry.prob_hi	      = 8 8 8
 geometry.is_periodic	      = 0 0 0
 
 # elastic moduli
+elastic.model1.planestress = true
 elastic.model1.E = 210 
 elastic.model1.nu = 0.3
 
 elastic.solver.verbose = 3
 elastic.solver.nriters = 1
-elastic.solver.fixed_iter = 200
+elastic.solver.max_iter = 50
 
 ### UNIAXIAL TENSION ###
 elastic.bc.type = constant
+
+### --- Faces
+elastic.bc.type.xlo = disp trac trac
+elastic.bc.type.xhi = disp trac trac
 elastic.bc.val.xhi = 0.1 0.0 0.0
+elastic.bc.type.ylo = trac disp trac
+elastic.bc.type.yhi = trac trac trac
+elastic.bc.type.zlo = trac trac disp
+elastic.bc.type.zhi = trac trac trac
+
+### --- Edges
+###     XY edges
+elastic.bc.type.xloylo = disp trac trac
+elastic.bc.type.xloyhi = disp trac trac
+elastic.bc.type.xhiylo = disp trac trac
+elastic.bc.type.xhiyhi = disp trac trac
 elastic.bc.val.xhiylo = 0.1 0.0 0.0
 elastic.bc.val.xhiyhi = 0.1 0.0 0.0
+###     ZX edges
+elastic.bc.type.zloxlo = disp trac trac
+elastic.bc.type.zhixlo = disp trac trac
+elastic.bc.type.zloxhi = disp trac trac
+elastic.bc.type.zhixhi = disp trac trac
 elastic.bc.val.zloxhi = 0.1 0.0 0.0
 elastic.bc.val.zhixhi = 0.1 0.0 0.0
-elastic.bc.val.xhiylozlo = 0.1 0.0 0.0
-elastic.bc.val.xhiylozhi = 0.1 0.0 0.0
-elastic.bc.val.xhiyhizlo = 0.1 0.0 0.0
-elastic.bc.val.xhiyhizhi = 0.1 0.0 0.0
-elastic.bc.type.xhi = disp trac trac
-elastic.bc.type.xhiyhi = disp trac trac
-elastic.bc.type.xlo = disp trac trac
-elastic.bc.type.xloyhi = disp trac trac
-elastic.bc.type.yhi = trac trac trac
-elastic.bc.type.zhi = trac trac trac
-elastic.bc.type.ylo = trac disp trac
-elastic.bc.type.zlo = trac trac trac
+###     YZ edges
+elastic.bc.type.ylozlo = trac disp disp
+elastic.bc.type.ylozhi = trac disp trac
+elastic.bc.type.yhizlo = trac trac disp
 elastic.bc.type.yhizhi = trac trac trac
-elastic.bc.type.ylozhi = trac trac trac
-elastic.bc.type.yhizlo = trac trac trac
-elastic.bc.type.ylozlo = trac trac trac
+
+
+### --- Corners
+###     on xmin face
+elastic.bc.type.xloylozlo = disp disp disp
+elastic.bc.type.xloylozhi = disp disp trac
+elastic.bc.type.xloyhizlo = disp trac disp
+elastic.bc.type.xloyhizhi = disp trac trac
+###     on xmax face
+elastic.bc.type.xhiylozlo = disp disp disp
+elastic.bc.val.xhiylozlo = 0.1 0.0 0.0
+elastic.bc.type.xhiylozhi = disp disp trac
+elastic.bc.val.xhiylozhi = 0.1 0.0 0.0
+elastic.bc.type.xhiyhizlo = disp trac disp
+elastic.bc.val.xhiyhizlo = 0.1 0.0 0.0
+elastic.bc.type.xhiyhizhi = disp trac trac
+elastic.bc.val.xhiyhizhi = 0.1 0.0 0.0
+
 

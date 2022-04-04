@@ -64,6 +64,9 @@ CTR_EXE = 0
 .SECONDARY: 
 
 
+
+
+
 default: $(DEP) $(EXE) $(DEP_EXTRA)
 	@printf "$(B_ON)$(FG_GREEN)DONE $(RESET)\n" 
 
@@ -183,6 +186,9 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
 	@make -C docs html > /dev/null
 
+
+test: .FORCE
+	@./scripts/runtests.py
 
 ifneq ($(MAKECMDGOALS),tidy)
 ifneq ($(MAKECMDGOALS),clean)
