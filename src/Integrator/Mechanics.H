@@ -84,7 +84,7 @@ public:
 
         value.RegisterGeneralFab(value.model_mf, 1, 2);
 
-        //IO::ParmParse pp("ic");
+        // Read in IC for eta
         std::string type;
         pp.query("ic.type",type);
         Util::Message(INFO,type);
@@ -92,6 +92,15 @@ public:
         {
             value.ic = new IC::Ellipse(value.geom);
             pp.queryclass("ic.ellipse",static_cast<IC::Ellipse*>(value.ic));
+        }
+
+        // Read in IC for RHS
+        std::string rhstype;
+        pp.query("rhs.type",rhstype);
+        if (rhstype == "trig")
+        {
+            value.ic_rhs = new IC::Trig(value.geom);
+            pp.queryclass("rhs.trig",static_cast<IC::Trig*>(value.ic_rhs));
         }
 
         pp.query("interval",value.m_interval);
@@ -120,7 +129,9 @@ protected:
         }
 
         disp_mf[lev]->setVal(0.);
-        rhs_mf[lev]->setVal(0.);
+
+        if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
+        else rhs_mf[lev]->setVal(0.);
     }
 
     virtual void UpdateModel()
@@ -129,7 +140,7 @@ protected:
         
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            rhs_mf[lev]->setVal(0.0);
+            //rhs_mf[lev]->setVal(0.0);
 
             eta_mf[lev]->FillBoundary();
 
@@ -300,6 +311,7 @@ private:
 
 
     IC::IC *ic = nullptr;          ///< Pointer to abstract IC object
+    IC::IC *ic_rhs = nullptr;
     BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     struct {

@@ -3,6 +3,7 @@
 
 #include <complex>
 
+#include "IO/ParmParse.H"
 #include "AMReX_Vector.H"
 #include "IC/IC.H"
 #include "Util/Util.H"
@@ -97,9 +98,32 @@ public:
     }
     using IC::Add;
 
+public:
+    static void Parse(Trig & value, IO::ParmParse & pp)
+    {
+        std::vector<int> n_real(AMREX_SPACEDIM,0.0);
+        pp.queryarr("nr",n_real);
+        std::vector<int> n_imag(AMREX_SPACEDIM,0.0);
+        pp.queryarr("ni",n_imag);
+
+        AMREX_D_TERM(
+            value.n1 = std::complex<int>(n_real[0],n_imag[0]);,
+            value.n2 = std::complex<int>(n_real[1],n_imag[1]);,
+            value.n3 = std::complex<int>(n_real[2],n_imag[2]););
+
+        AMREX_D_DECL(
+            value.phi1 = std::atan2(value.n1.imag(),value.n1.real()),
+            value.phi2 = std::atan2(value.n2.imag(),value.n2.real()),
+            value.phi3 = std::atan2(value.n3.imag(),value.n3.real()));
+
+        pp.query("dim",value.dim);
+        pp.query("alpha",value.alpha);
+
+    }
+
 private:
     int dim = AMREX_SPACEDIM;
-    Set::Scalar alpha;
+    Set::Scalar alpha = 1.0;
     std::complex<int> AMREX_D_DECL(n1, n2, n3);
     Set::Scalar AMREX_D_DECL(phi1=0.0,phi2=0.0,phi3=0.0);
 };

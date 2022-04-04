@@ -5,6 +5,7 @@
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
 
+#include "IO/ParmParse.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
 
@@ -46,6 +47,14 @@ public:
     using Model::Solid::Solid<Set::Sym::Diagonal>::operator();
 public:
     void Randomize() {}
+    static Laplacian Zero()
+    {
+        Laplacian ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Zero();
+        return ret;
+    }
+    static void Parse(Laplacian,IO::ParmParse) {}
+    
     static const KinematicVariable kinvar = KinematicVariable::gradu;
     static Laplacian Random()
     {
