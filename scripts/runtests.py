@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import os, glob, subprocess
 
 class color:
@@ -6,8 +7,9 @@ class color:
     red   = "\033[31m"
     green   = "\033[32m"
     boldgreen   = "\033[1m\033[32m"
+    boldyellow   = "\033[1m\033[33m"
     bold = "\033[1m"
-
+    lightgray = "\033[37m"
 
 def test(testdir):
     fails = 0
@@ -25,7 +27,7 @@ def test(testdir):
         desc.append(des)            
         exes.append(cmd)
 
-    print("{}{}{}".format(color.bold,testdir,color.reset))
+    print("RUN  {}{}{}".format(color.bold,testdir,color.reset))
     for description, command in zip(desc,exes):
         print("  ├ " + description)
         print("  │      Running test..................................................[    ]",end="",flush=True)
@@ -55,14 +57,27 @@ def test(testdir):
 
 
 
+parser = argparse.ArgumentParser(description='Configure ALAMO');
+parser.add_argument('tests', default=None, nargs='*', help='Spatial dimension [3]')
+args=parser.parse_args()
+
+
+if args.tests: tests = sorted(args.tests)
+else: tests = sorted(glob.glob("./tests/*"))
 
 fails = 0
-for testdir in glob.glob("./tests/*"):
-    if not os.path.isdir(testdir): continue
-    if not os.path.isfile(testdir + "/input"): continue
-    if not os.path.isfile(testdir + "/test"): continue
+skips = 0
+for testdir in tests:
+    if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")) or (not os.path.isfile(testdir + "/test")):
+        print("{}SKIP {}{}".format(color.boldyellow,testdir,color.reset))
+        skips += 1
+        continue
     fails += test(testdir)
 
-
+print("\nTest Summary")
+if not fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
+else:         print("{}{} tests failed{}".format(color.red,fails,color.reset))
+if skips: print("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
+print("")
 
 
