@@ -1,4 +1,5 @@
-#@  [3D, parallel] mpirun -np 4 ./bin/alamo-3d-g++ tests/Eshelby/input
+#@  [3D, parallel]
+#@  cmd = mpirun -np 4 ./bin/alamo-3d-g++ tests/Eshelby/input
 
 alamo.program = mechanics
 alamo.program.mechanics.model = affine.isotropic
@@ -17,6 +18,7 @@ amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 8
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0
+amr.cell.all                = 1
 
 # geometry
 geometry.prob_lo	    = -8 -8 -8 

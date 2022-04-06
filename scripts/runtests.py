@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os, glob, subprocess
+import configparser, io
 
 class color:
     reset = "\033[0m"
@@ -14,42 +15,37 @@ class color:
 def test(testdir):
     fails = 0
 
+    cfgfile = io.StringIO()
     input = open(testdir + "/input")
-    desc = []
-    exes = []
     for line in input.readlines():
-        if not line.startswith("#@"): continue
-        line = line.replace("#@","")
-        cmd = line.split("]")[-1]#.replace("\n","")
-        while cmd.startswith(" "): cmd = cmd[1:]
-        des = line.split("]")[0].split("[")[-1]
-
-        desc.append(des)            
-        exes.append(cmd)
+        if line.startswith("#@"):
+            cfgfile.write(line.replace("#@",""))
+    cfgfile.seek(0)
+    config = configparser.ConfigParser()
+    config.read_file(cfgfile)
 
     print("RUN  {}{}{}".format(color.bold,testdir,color.reset))
-    for description, command in zip(desc,exes):
+    for desc in config.sections():
+
+        command = config[desc]['cmd']
 
         success=True
-        print("  ├ " + description)
+        print("  ├ " + desc)
         print("  │      Running test..................................................[    ]",end="",flush=True)
         try:
             p = subprocess.run(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        except:          success=False
-        if p.returncode: success=False
-        if not success:
+            if p.returncode: raise(Exception("Run failed"))
+        except:
             print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
             fails += 1
             continue
 
-        success = True
         print("\b\b\b\b\b\b[{}PASS{}]".format(color.boldgreen,color.reset))
         print("  │      Checking result...............................................[    ]",end="",flush=True)
         try:
             p = subprocess.run(["./test"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        except:          success = False
-        if p.returncode: success = False
-        if not success:
+            if p.returncode: raise(Exception("Run failed"))
+        except:
             print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
             fails += 1
             continue
