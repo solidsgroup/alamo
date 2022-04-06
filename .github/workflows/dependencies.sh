@@ -8,4 +8,4 @@ sudo apt-get install -y --no-install-recommends \
   libmpich-dev libmpich12 libeigen3-dev \
   python3-pip
 
-pip3 install yt pylab numpy
+pip3 install yt matplotlib numpy
