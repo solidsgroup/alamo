@@ -80,4 +80,4 @@ else:         print("{}{} tests failed{}".format(color.red,fails,color.reset))
 if skips: print("{}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
 print("")
 
-
+exit(fails)
