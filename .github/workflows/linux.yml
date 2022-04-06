@@ -32,6 +32,6 @@ jobs:
   regression-tests:
     name: Regression Tests
     runs-on: ubuntu-latest
-    needs: test-2d test3d
+    needs: [test-2d, test3d]
     steps:
     - run: make test
