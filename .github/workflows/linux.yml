@@ -34,4 +34,4 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-2d, test-3d]
     steps:
-    - run: make test
+    - run: scripts/runtests.py

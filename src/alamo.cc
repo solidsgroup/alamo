@@ -115,12 +115,6 @@ int main (int argc, char* argv[])
         model.Evolve();
         //delete model;
     }
-    else if (program == "trigtest")
-    {
-        Test::Operator::Elastic test;
-        test.Define(32,1);
-        test.TrigTest(0,0,1,Util::GetFileName());
-    }
     else if (program == "thermoelastic")
     {
         IO::ParmParse pp;
