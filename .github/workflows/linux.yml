@@ -35,4 +35,5 @@ jobs:
     needs: [test-2d, test-3d]
     steps:
     - uses: actions/checkout@v2
+    - uses: mpi4py/setup-mpi@v1
     - run: scripts/runtests.py

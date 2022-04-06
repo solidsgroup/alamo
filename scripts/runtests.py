@@ -29,22 +29,31 @@ def test(testdir):
 
     print("RUN  {}{}{}".format(color.bold,testdir,color.reset))
     for description, command in zip(desc,exes):
+
+        success=True
         print("  ├ " + description)
         print("  │      Running test..................................................[    ]",end="",flush=True)
-        p = subprocess.run(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        #for line in p.stdout.readlines(): print(line.decode('ascii'),end="")
-        if p.returncode:
+        try:
+            p = subprocess.run(command.split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        except:          success=False
+        if p.returncode: success=False
+        if not success:
             print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
             fails += 1
             continue
+
+        success = True
         print("\b\b\b\b\b\b[{}PASS{}]".format(color.boldgreen,color.reset))
         print("  │      Checking result...............................................[    ]",end="",flush=True)
-        p = subprocess.run(["./test"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        #p.wait()
-        if p.returncode:
+        try:
+            p = subprocess.run(["./test"],cwd=testdir,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        except:          success = False
+        if p.returncode: success = False
+        if not success:
             print("\b\b\b\b\b\b[{}FAIL{}]".format(color.red,color.reset))
             fails += 1
             continue
+
         print("\b\b\b\b\b\b[{}PASS{}]".format(color.boldgreen,color.reset))
         #for line in p.stdout.readlines(): print(line.decode('ascii'),end="")
         #for line in p.stderr.readlines(): print(line.decode('ascii'),end="")
