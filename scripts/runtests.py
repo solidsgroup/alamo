@@ -16,6 +16,7 @@ class color:
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('tests', default=None, nargs='*', help='Spatial dimension [3]')
 parser.add_argument('--serial',action='store_true',default=False,help='Run in serial only (no mpi)')
+parser.add_argument('--dim',default=None,type=int,help='Specify dimensions to run in')
 args=parser.parse_args()
 
 def test(testdir):
@@ -70,6 +71,10 @@ def test(testdir):
                 print("  ├ {}{} (skipped - no executable){}".format(color.boldyellow,desc,color.reset))
                 skips += 1
                 continue
+            if args.dim and not args.dim == dim:
+                print("  ├ {}{} (skipped - running {}d only){}".format(color.boldyellow,desc,args.dim,color.reset))
+                skips += 1
+                continue
             command += exe + " "
             command += "{}/input ".format(testdir)
             command += cmdargs
@@ -77,7 +82,7 @@ def test(testdir):
         
         if test:
             print("  ├ " + desc)
-            print("  ├ " + command)
+            #print("  │      " + command)
             print("  │      Running test............................................",end="",flush=True)
             try:
                 p = subprocess.check_output(command.split(),stderr=subprocess.PIPE)
@@ -93,6 +98,7 @@ def test(testdir):
             except Exception as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
+                fails += 1
                 continue
         else:
             print("  ├ {}{} (skipped - serial only){}".format(color.boldyellow,desc,color.reset))
