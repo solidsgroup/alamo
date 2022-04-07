@@ -42,58 +42,58 @@ public:
     }
 
 
-    void Add(const int &lev, Set::Field<Set::Scalar> &field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
-        bool cellcentered = (field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
+        bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 
-        const amrex::Real AMREX_D_DECL(L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0],
+        const Set::Scalar AMREX_D_DECL(L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0],
                             L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1],
                             L3 = geom[lev].ProbHi()[2] - geom[lev].ProbLo()[2]);
-                   
-        for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
+
+
+        for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& box = mfi.validbox();
+            amrex::Box bx;
+            if (cellcentered) bx = mfi.growntilebox();
+            else bx = mfi.grownnodaltilebox();
 
-            amrex::BaseFab<amrex::Real> &field_box = (*field[lev])[mfi];
-
-            AMREX_D_TERM(for (int i = box.loVect()[0] - field[lev]->nGrow(); i<=box.hiVect()[0] + field[lev]->nGrow(); i++),
-                    for (int j = box.loVect()[1] - field[lev]->nGrow(); j<=box.hiVect()[1] + field[lev]->nGrow(); j++),
-                    for (int k = box.loVect()[2] - field[lev]->nGrow(); k<=box.hiVect()[2] + field[lev]->nGrow(); k++))
+            amrex::Array4<Set::Scalar> const &field = a_field[lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
                 Set::Scalar AMREX_D_DECL(x1,x2,x3);
                 if (cellcentered)
                 {
                     AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-                            x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-                            x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
+                                x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
+                                x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
                 }
                 else
                 {
-                    AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * geom[lev].CellSize()[0];,
-                            x2 = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * geom[lev].CellSize()[1];,
-                            x3 = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * geom[lev].CellSize()[2];);
+                    AMREX_D_TERM(x1 = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
+                                x2 = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
+                                x3 = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
                 }
-
+                                   
                 Set::Scalar trigfn = 1.0;
-#if AMREX_SPACEDIM > 0
+                #if AMREX_SPACEDIM > 0
                 if (dim > 0)
                     trigfn *= (fabs(std::cos(phi1))*std::cos(n1.real()*Set::Constant::Pi*x1 / L1) +
                             fabs(std::sin(phi1))*std::sin(n1.imag()*Set::Constant::Pi*x1 / L1));
-#endif
-#if AMREX_SPACEDIM > 1
+                #endif
+                #if AMREX_SPACEDIM > 1
                 if (dim > 1)
                     trigfn *= (fabs(std::cos(phi2))*std::cos(n2.real()*Set::Constant::Pi*x2 / L2) +
                             fabs(std::sin(phi2))*std::sin(n2.imag()*Set::Constant::Pi*x2 / L2));
-#endif
-#if AMREX_SPACEDIM > 2
+                #endif
+                #if AMREX_SPACEDIM > 2
                 if (dim > 2)
                     trigfn *= (fabs(std::cos(phi3))*std::cos(n3.real()*Set::Constant::Pi*x3 / L3) +
                             fabs(std::sin(phi3))*std::sin(n3.imag()*Set::Constant::Pi*x3 / L3));
-#endif
+                #endif
                         
-                field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),comp) += alpha * trigfn;
+                field(i,j,k,comp) += alpha * trigfn;
 
-            }
+            });
         }
     }
     using IC::Add;

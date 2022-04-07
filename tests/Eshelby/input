@@ -1,5 +1,17 @@
-#@  [3D, parallel]
-#@  cmd = mpirun -np 4 ./bin/alamo-3d-g++ tests/Eshelby/input
+#@  [2D, serial, 5 levels]
+#@  dim    = 2
+#@  nprocs = 1
+#@  check  = false
+#@   
+#@  [3D, serial, 4 levels]
+#@  dim    = 3
+#@  nprocs = 1
+#@  args   = amr.max_level=4
+#@  
+#@  [3D, parallel, 5 levels]
+#@  dim    = 3
+#@  nprocs = 4
+
 
 alamo.program = mechanics
 alamo.program.mechanics.model = affine.isotropic

@@ -1,14 +1,28 @@
-#@  [2D, 1 AMR Levels]
-#@  cmd = mpirun -np 2 ./bin/alamo-2d-g++ tests/TrigTest/input amr.max_level=0
+#@  [2D, 1 AMR Levels, serial]
+#@  dim = 2
+#@  nprocs = 1
+#@  args = amr.max_level=0
 #@
-#@  [2D, 2 AMR Levels] 
-#@  cmd = mpirun -np 4 ./bin/alamo-2d-g++ tests/TrigTest/input amr.max_level=1
+#@  [2D, 2 AMR Levels, serial]
+#@  dim = 2
+#@  nprocs = 1
+#@  args = amr.max_level=1
 #@
-#@  [2D, 3 AMR Levels] 
-#@  cmd = mpirun -np 8 ./bin/alamo-2d-g++ tests/TrigTest/input amr.max_level=2
+#@  [2D, 3 AMR Levels, serial]
+#@  dim = 2
+#@  nprocs = 1
 #@
-#@  [3D, 3 AMR Levels] 
-#@  cmd = mpirun -np 8 ./bin/alamo-3d-g++ tests/TrigTest/input amr.max_level=2
+#@  [2D, 3 AMR Levels, parallel]
+#@  dim = 2
+#@  nprocs = 4
+#@ 
+#@  [3D, 1 AMR Levels, serial]
+#@  dim = 3
+#@  nprocs = 1
+#@
+#@  [3D, 3 AMR Levels, parallel]
+#@  dim = 3
+#@  nprocs = 4
 
 alamo.program                 = mechanics
 alamo.program.mechanics.model = linear.laplacian
