@@ -40,7 +40,6 @@ def test(testdir):
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
     for desc in config.sections():
 
-        test  = True
         check = True
 
         if 'check' in config[desc].keys(): 
@@ -64,15 +63,14 @@ def test(testdir):
             cmdargs = ""
             if 'args' in config[desc].keys(): cmdargs = config[desc]['args']
 
-            if nprocs > 1 and args.serial: test = False
+            if nprocs > 1 and args.serial: 
+                continue
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             exe = "./bin/alamo-{}d-g++".format(dim)
+            if args.dim and not args.dim == dim:
+                continue
             if not os.path.isfile(exe):
                 print("  ├ {}{} (skipped - no executable){}".format(color.boldyellow,desc,color.reset))
-                skips += 1
-                continue
-            if args.dim and not args.dim == dim:
-                print("  ├ {}{} (skipped - running {}d only){}".format(color.boldyellow,desc,args.dim,color.reset))
                 skips += 1
                 continue
             command += exe + " "
@@ -80,34 +78,27 @@ def test(testdir):
             command += cmdargs
 
         
-        if test:
-            print("  ├ " + desc)
-            #print("  │      " + command)
-            print("  │      Running test............................................",end="",flush=True)
-            try:
-                p = subprocess.check_output(command.split(),stderr=subprocess.PIPE)
-                print("[{}PASS{}]".format(color.boldgreen,color.reset))
-                tests += 1
-            except subprocess.CalledProcessError as e:
-                print("[{}FAIL{}]".format(color.red,color.reset))
-                print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
-                for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
-                for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
-                fails += 1
-                continue
-            except Exception as e:
-                print("[{}FAIL{}]".format(color.red,color.reset))
-                for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
-                fails += 1
-                continue
-        else:
-            print("  ├ {}{} (skipped - serial only){}".format(color.boldyellow,desc,color.reset))
-            skips += 1
+        print("  ├ " + desc)
+        #print("  │      " + command)
+        print("  │      Running test............................................",end="",flush=True)
+        try:
+            p = subprocess.check_output(command.split(),stderr=subprocess.PIPE)
+            print("[{}PASS{}]".format(color.boldgreen,color.reset))
+            tests += 1
+        except subprocess.CalledProcessError as e:
+            print("[{}FAIL{}]".format(color.red,color.reset))
+            print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
+            for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+            for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+            fails += 1
             continue
-            
+        except Exception as e:
+            print("[{}FAIL{}]".format(color.red,color.reset))
+            for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
+            fails += 1
+            continue
 
-
-        if test and check:
+        if check:
             print("  │      Checking result.........................................",end="",flush=True)
             try:
                 p = subprocess.check_output(["./test"],cwd=testdir,stderr=subprocess.PIPE)
@@ -169,4 +160,4 @@ else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.res
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 print("")
 
-exit(stats.fails)
+exit(stats.fails + stats.skips)
