@@ -1,5 +1,5 @@
-#ifndef INTEGRATOR_TENSIONTEST_H
-#define INTEGRATOR_TENSIONTEST_H
+#ifndef INTEGRATOR_MECHANICS_H
+#define INTEGRATOR_MECHANICS_H
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -31,70 +31,87 @@
 namespace Integrator
 {
 template<class MODEL>
-class TensionTest : public Integrator
+class Mechanics : virtual public Integrator
 {
     //using model_type = Model::Solid::Affine::Isotropic;
 public:
     /// \brief Read in parameters and register field variables
-    TensionTest()
+    Mechanics()
     {
-        
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
         RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
-        
+    }
 
+    static void Parse(Mechanics &value, IO::ParmParse &pp)
+    {
+
+        //IO::ParmParse pp("elastic");
+        int nmodels = 1;
+        pp.query("elastic.nmodels",nmodels);
+        for (int i = 0; i<nmodels; i++)
         {
-            IO::ParmParse pp("elastic");
-            int nmodels = 1;
-            pp.query("nmodels",nmodels);
-            for (int i = 0; i<nmodels; i++)
-            {
-                std::string name = "model" + std::to_string(i+1);
-                MODEL tmp_model;
-                pp.queryclass(name.data(), tmp_model);
-                elastic.models.push_back(tmp_model);
-            }
-            Util::Assert(INFO,TEST(elastic.models.size() > 0));
-            RegisterNodalFab(eta_mf, elastic.models.size(), 2, "eta",true);    
-
-            std::string bc_type = "constant";
-            pp.query("bc.type",bc_type);
-            if (bc_type == "constant")
-            {
-                elastic.bc = new BC::Operator::Elastic::Constant();
-                pp.queryclass("bc",static_cast<BC::Operator::Elastic::Constant*>(elastic.bc));
-            }
-            else if (bc_type == "tension_test")
-            {
-                elastic.bc = new BC::Operator::Elastic::TensionTest();
-                pp.queryclass("bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(elastic.bc));
-            }
-            else if (bc_type == "expression")
-            {
-                elastic.bc = new BC::Operator::Elastic::Expression();
-                pp.queryclass("bc.expression",static_cast<BC::Operator::Elastic::Expression*>(elastic.bc));
-            }
-
-            pp.query("ref_threshold",m_elastic_ref_threshold);
-
+            std::string name = "model" + std::to_string(i+1);
+            MODEL tmp_model;
+            pp.queryclass("elastic." + std::string(name.data()), tmp_model);
+            value.elastic.models.push_back(tmp_model);
         }
-        RegisterGeneralFab(model_mf, 1, 2);
 
+        Util::Assert(INFO,TEST(value.elastic.models.size() > 0));
+        value.RegisterNodalFab(value.eta_mf, value.elastic.models.size(), 2, "eta", true);    
+
+        std::string bc_type = "constant";
+        pp.query("elastic.bc.type",bc_type);
+        Util::Message(INFO,bc_type);
+        if (bc_type == "constant")
         {
-            IO::ParmParse pp("ic");
-            std::string type;
-            pp.query("type",type);
-            if (type=="ellipse")
-            {
-                ic = new IC::Ellipse(geom);
-                pp.queryclass("ellipse",static_cast<IC::Ellipse*>(ic));
-            }
+            value.elastic.bc = new BC::Operator::Elastic::Constant();
+            pp.queryclass("elastic.bc",static_cast<BC::Operator::Elastic::Constant*>(value.elastic.bc));
         }
+        else if (bc_type == "tension_test")
+        {
+            value.elastic.bc = new BC::Operator::Elastic::TensionTest();
+            pp.queryclass("elastic.bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(value.elastic.bc));
+        }
+        else if (bc_type == "expression")
+        {
+            value.elastic.bc = new BC::Operator::Elastic::Expression();
+            pp.queryclass("elastic.bc.expression",static_cast<BC::Operator::Elastic::Expression*>(value.elastic.bc));
+        }
+        pp.query("elastic.eta_ref_threshold",value.m_eta_ref_threshold);
+        pp.query("elastic.ref_threshold",value.m_elastic_ref_threshold);
+
+        value.RegisterGeneralFab(value.model_mf, 1, 2);
+
+        // Read in IC for eta
+        std::string type;
+        pp.query("ic.type",type);
+        Util::Message(INFO,type);
+        if (type=="ellipse")
+        {
+            value.ic = new IC::Ellipse(value.geom);
+            pp.queryclass("ic.ellipse",static_cast<IC::Ellipse*>(value.ic));
+        }
+
+        // Read in IC for RHS
+        std::string rhstype;
+        pp.query("rhs.type",rhstype);
+        if (rhstype == "trig")
+        {
+            value.ic_rhs = new IC::Trig(value.geom);
+            pp.queryclass("rhs.trig",static_cast<IC::Trig*>(value.ic_rhs));
+        }
+
+        pp.query("interval",value.m_interval);
+
 #if AMREX_SPACEDIM==3
-        RegisterIntegratedVariable(&(trac_lo[0].data()[0]),"trac_lo_xx");
+        value.RegisterIntegratedVariable(&(value.trac_lo[0].data()[0]),"trac_lo_xx");
 #endif
+
+
+        pp.queryclass("elastic.solver",value.elastic.solver);
+
     }
 
 protected:
@@ -112,16 +129,18 @@ protected:
         }
 
         disp_mf[lev]->setVal(0.);
-        rhs_mf[lev]->setVal(0.);
+
+        if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
+        else rhs_mf[lev]->setVal(0.);
     }
 
-    void TimeStepBegin(Set::Scalar a_time, int) override
+    virtual void UpdateModel()
     {
         // Set linear elastic model
         
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            rhs_mf[lev]->setVal(0.0);
+            //rhs_mf[lev]->setVal(0.0);
 
             eta_mf[lev]->FillBoundary();
 
@@ -145,6 +164,14 @@ protected:
 
             Util::RealFillBoundary(*model_mf[lev],geom[lev]);
         }
+    }
+
+    void TimeStepBegin(Set::Scalar a_time, int a_step) override
+    {
+
+        if (m_interval && a_step%m_interval) return;
+
+        UpdateModel();        
 
         elastic.bc->SetTime(a_time);
         elastic.bc->Init(rhs_mf,geom);
@@ -156,11 +183,9 @@ protected:
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
-        IO::ParmParse pp("elastic");
-        elastic.solver = new Solver::Nonlocal::Newton<MODEL>(elastic_op);
-        pp.queryclass("solver",*elastic.solver);
-
-        elastic.solver->solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        elastic.solver.Define(elastic_op);
+        elastic.solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        elastic.solver.Clear();
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
@@ -195,12 +220,14 @@ protected:
                                             }
                                         });
             }
+            Util::RealFillBoundary(*stress_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*disp_mf[lev],geom[lev]);
         }
     }
 
     void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/) override
     {
-        // Nothing to do here.
+
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
@@ -245,7 +272,7 @@ protected:
     {
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
-        a_tags.setVal(amrex::TagBox::CLEAR);
+        //a_tags.setVal(amrex::TagBox::CLEAR);
         for (amrex::MFIter mfi(*eta_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
@@ -255,20 +282,25 @@ protected:
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                                         {
                                             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
-                                            if (grad.lpNorm<2>() * DXnorm > 0.01)
+                                            if (grad.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
                                                 tags(i, j, k) = amrex::TagBox::SET;
                                         }
                                         {
-                                            Set::Matrix grad = Numeric::Gradient(strain, i, j, k, DX.data());
-                                            if (grad.lpNorm<2>() * DXnorm > m_elastic_ref_threshold)
+                                            Set::Matrix3 grad = Numeric::MatrixGradient(strain, i, j, k, DX.data());
+                                            if (grad.norm() * DXnorm > m_elastic_ref_threshold)
                                                 tags(i, j, k) = amrex::TagBox::SET;
                                         }
                                     });
         }
     }
 
-private:
+protected:
+    Set::Field<MODEL> model_mf;
     Set::Field<Set::Scalar> eta_mf;
+
+private:
+    int m_interval = 0;
+
     Set::Field<Set::Scalar> disp_mf;
     Set::Field<Set::Scalar> rhs_mf;
     Set::Field<Set::Scalar> res_mf;
@@ -279,17 +311,18 @@ private:
     Set::Vector trac_hi[AMREX_SPACEDIM];
 
 
-    Set::Field<MODEL> model_mf;
 
     IC::IC *ic = nullptr;          ///< Pointer to abstract IC object
+    IC::IC *ic_rhs = nullptr;
     BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
     struct {
         std::vector<MODEL> models;
-        Solver::Nonlocal::Newton<MODEL> *solver;//(elastic.op);
+        Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
         BC::Operator::Elastic::Elastic *bc;
     } elastic;
 
+    Set::Scalar m_eta_ref_threshold = 0.01;
     Set::Scalar m_elastic_ref_threshold = 0.01;
 
 };

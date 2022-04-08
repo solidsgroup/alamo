@@ -5,6 +5,7 @@
 
 #include "Integrator.H"
 #include "IO/FileNameParse.H"
+#include "IO/ParmParse.H"
 #include "Util/Util.H"
 #include <numeric>
 
@@ -79,6 +80,32 @@ Integrator::Integrator ()
         pp.query("plot_dt", thermo.plot_dt);           // Interval (in simulation time) between writing
     }
 
+    {
+        // Instead of using AMR, prescribe an explicit, user-defined
+        // set of grids to work on. This is pretty much always used
+        // for testing purposes only.
+        IO::ParmParse pp("explicitmesh");
+        pp.query("on",explicitmesh.on);
+        if (explicitmesh.on)
+        {
+            for (int ilev = 0; ilev < maxLevel(); ++ilev)
+            {
+                std::string strlo = "lo" + std::to_string(ilev+1);
+                std::string strhi = "hi" + std::to_string(ilev+1);
+
+                Util::Assert(INFO,TEST(pp.contains(strlo.c_str())));
+                Util::Assert(INFO,TEST(pp.contains(strhi.c_str())));
+
+                amrex::Vector<int> lodata, hidata;
+                pp.queryarr(strlo.c_str(),lodata);
+                pp.queryarr(strhi.c_str(),hidata);
+                amrex::IntVect lo(AMREX_D_DECL(lodata[0],lodata[1],lodata[2]));
+                amrex::IntVect hi(AMREX_D_DECL(hidata[0],hidata[1],hidata[2]));
+
+                explicitmesh.box.push_back(amrex::Box(lo,hi));
+            }
+        }
+    }
 
     int nlevs_max = maxLevel() + 1;
 
@@ -90,7 +117,6 @@ Integrator::Integrator ()
 
     plot_file = Util::GetFileName();
     IO::WriteMetaData(plot_file,IO::Status::Running,0);
-
 }
 
 ///

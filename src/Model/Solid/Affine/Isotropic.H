@@ -67,7 +67,7 @@ public:
     }
     static void Parse(Isotropic & value, IO::ParmParse & pp)
     {
-        Set::Scalar mu, lambda;
+        Set::Scalar mu = NAN, lambda = NAN;
         Set::Matrix F0 = Set::Matrix::Zero();
         if (pp.contains("lame") && pp.contains("shear"))
         {
@@ -81,6 +81,10 @@ public:
             pp.query("nu",nu);
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
+        }
+        else
+        {
+            Util::Abort(INFO,"Model parameters not specified with either (lame, shear), or (E, nu)");
         }
         if (pp.contains("F0"))
         {

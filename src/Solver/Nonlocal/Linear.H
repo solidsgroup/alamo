@@ -16,27 +16,47 @@ namespace Nonlocal
 ///
 /// It also exists as a compatibility layer so that future fixes for compatibility
 /// with AMReX can be implemented here.
-class Linear : public amrex::MLMG
+class Linear  // : public amrex::MLMG
 {
 public:
-    /// This constructor sets several defaults for NODAL solves
-    Linear (Operator::Operator<Grid::Node>& a_lp) : MLMG(a_lp), linop(a_lp)
+
+    Linear () //Operator::Operator<Grid::Node>& a_lp) : MLMG(a_lp), linop(a_lp)
     {
-        MLMG::setBottomSolver(MLMG::BottomSolver::bicgstab);
-        MLMG::setCFStrategy(MLMG::CFStrategy::ghostnodes);
-        MLMG::setFinalFillBC(false);
-        MLMG::setMaxFmgIter(100000000);
     }
-    void setVerbose(int verbosity)
+
+    Linear (Operator::Operator<Grid::Node>& a_lp)
     {
-        m_verbose = verbosity;
-        MLMG::setVerbose(m_verbose-1);
-        if (m_verbose > 4) MLMG::setBottomVerbose(m_verbose);
-        else
-        {
-            MLMG::setBottomVerbose(0);
-        }
+        this->Define(a_lp);
     }
+
+    ~Linear()
+    {
+        Clear();
+    }
+
+    void Define(Operator::Operator<Grid::Node> & a_lp)
+    {
+        this->linop = &a_lp;
+        this->mlmg = new amrex::MLMG(a_lp);
+        PrepareMLMG(*mlmg);
+    }
+    void Clear()
+    {
+        this->linop = nullptr;
+        delete this->mlmg;
+        this->mlmg = nullptr;
+    }
+
+    //void setVerbose(int verbosity)
+    //{
+        //m_verbose = verbosity;
+        //MLMG::setVerbose(m_verbose-1);
+        //if (m_verbose > 4) MLMG::setBottomVerbose(m_verbose);
+        //else
+        //{
+        //    MLMG::setBottomVerbose(0);
+        //}
+    //}
 
     Set::Scalar solveaffine (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
                         amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
@@ -54,12 +74,12 @@ public:
             Util::Message(INFO,rhs_tmp[i]->norm0());
         }
 
-        linop.SetHomogeneous(false);
-        MLMG::apply(rhs_tmp,zero_tmp);
+        linop->SetHomogeneous(false);
+        mlmg->apply(rhs_tmp,zero_tmp);
 
         for (int lev = 0; lev < rhs_tmp.size(); lev++)
         {
-            amrex::Box domain = linop.Geom(lev).Domain();
+            amrex::Box domain = linop->Geom(lev).Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
             const Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
             for (MFIter mfi(*rhs_tmp[lev],amrex::TilingIfNotGPU());mfi.isValid();++mfi)
@@ -81,7 +101,7 @@ public:
                 }
             }
             Util::Message(INFO,rhs_tmp[lev]->norm0());
-            linop.realFillBoundary(*rhs_tmp[lev],linop.Geom(lev));
+            linop->realFillBoundary(*rhs_tmp[lev],linop->Geom(lev));
             Util::Message(INFO,rhs_tmp[lev]->norm0());
             //rhs_tmp[lev]->FillBoundary();
         }
@@ -95,104 +115,158 @@ public:
             Util::Message(INFO,rhs_tmp[lev]->norm0());
         }
 
-        linop.SetHomogeneous(true);
-        return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(rhs_tmp),a_tol_rel,a_tol_abs,checkpoint_file);
+        linop->SetHomogeneous(true);
+        PrepareMLMG(*mlmg);
+        return mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(rhs_tmp),a_tol_rel,a_tol_abs,checkpoint_file);
     };
 
     Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
                         amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs,
                         Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
-        return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
+        PrepareMLMG(*mlmg);
+        return mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
     };
     Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
                         amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs)
     {
-        return MLMG::solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),m_tol_rel,m_tol_abs);
+        PrepareMLMG(*mlmg);
+        return mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),tol_rel,tol_abs);
+    };
+    void apply (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs, 
+                        amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol)
+    {
+        PrepareMLMG(*mlmg);
+        mlmg->apply(GetVecOfPtrs(a_rhs),GetVecOfPtrs(a_sol));
     };
 
-    using MLMG::solve;
+
+
+    void setMaxIter(const int a_max_iter) {max_iter = a_max_iter;}
+    void setBottomMaxIter(const int a_bottom_max_iter) {bottom_max_iter = a_bottom_max_iter;}
+    void setMaxFmgIter(const int a_max_fmg_iter) {max_fmg_iter = a_max_fmg_iter;}
+    void setFixedIter(const int a_fixed_iter){fixed_iter = a_fixed_iter;}
+    void setVerbose(const int a_verbose) {verbose = a_verbose;}
+    void setPreSmooth(const int a_pre_smooth) {pre_smooth = a_pre_smooth;}
+    void setPostSmooth(const int a_post_smooth) {post_smooth = a_post_smooth;}
+
+    //using MLMG::solve;
 protected:
-    Operator::Operator<Grid::Node> &linop;
-    int m_verbose = 0;
-    Set::Scalar m_tol_rel = 1E-8, m_tol_abs = 1E-8;
+    //Operator::Operator<Grid::Node> &linop;
+    //int m_verbose = 0;
+    //Set::Scalar m_tol_rel = 1E-8, m_tol_abs = 1E-8;
+
+
+    int max_iter = -1;
+    int bottom_max_iter = -1;
+    int max_fmg_iter = -1;
+    int fixed_iter = -1;
+    int verbose = -1;
+    int pre_smooth = -1;
+    int post_smooth = -1;
+    std::string bottom_solver;
+    Set::Scalar cg_tol_rel = -1.0;
+    Set::Scalar cg_tol_abs = -1.0;
+    Set::Scalar bottom_tol_rel = -1.0;
+    Set::Scalar bottom_tol_abs = -1.0;
+    Set::Scalar tol_rel = -1.0;
+    Set::Scalar tol_abs = -1.0;
+
+    Operator::Operator<Grid::Node> * linop;
+    amrex::MLMG * mlmg;
+
+    void PrepareMLMG(amrex::MLMG &mlmg)
+    {
+        mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+        mlmg.setCFStrategy(MLMG::CFStrategy::ghostnodes);
+        mlmg.setFinalFillBC(false);
+        mlmg.setMaxFmgIter(100000000);
+
+        
+        if (max_iter >= 0)        mlmg.setMaxIter(max_iter);
+        if (bottom_max_iter >= 0) mlmg.setBottomMaxIter(bottom_max_iter);
+        if (max_fmg_iter >= 0)    mlmg.setMaxFmgIter(max_fmg_iter);
+        if (fixed_iter >= 0)      mlmg.setFixedIter(fixed_iter);
+        if (verbose >= 0)
+        {
+            mlmg.setVerbose(verbose-1);
+            if (verbose > 4)      mlmg.setBottomVerbose(verbose);
+            else                  mlmg.setBottomVerbose(0);
+        }
+
+        if (pre_smooth >= 0)      mlmg.setPreSmooth(pre_smooth);
+        if (post_smooth >= 0)     mlmg.setPostSmooth(post_smooth);
+
+        if      (bottom_solver == "cg")       mlmg.setBottomSolver(MLMG::BottomSolver::cg);
+        else if (bottom_solver == "bicgstab") mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
+        else if (bottom_solver == "smoother") mlmg.setBottomSolver(MLMG::BottomSolver::smoother);
+
+        if (bottom_tol_rel >= 0) mlmg.setBottomTolerance(bottom_tol_rel);
+        if (bottom_tol_abs >= 0) mlmg.setBottomToleranceAbs(bottom_tol_abs);
+    }
+    
 
 public:
     // These are the parameters that are read in for a standard 
     // multigrid linear solve.
     static void Parse(Linear & value, amrex::ParmParse & pp)
     {
-        if (pp.contains("max_iter"))
         // Max number of iterations to perform before erroring out
-        { int max_iter; pp.query("max_iter",max_iter);value.setMaxIter(max_iter);}
+        pp.query("max_iter",value.max_iter);
 
-        if (pp.contains("bottom_max_iter"))
         // Max number of iterations on the bottom solver
-        { int bottom_max_iter; pp.query("bottom_max_iter",bottom_max_iter);value.setBottomMaxIter(bottom_max_iter);}
+        pp.query("bottom_max_iter",value.bottom_max_iter);
 
-        if (pp.contains("max_fmg_iter"))
         // Max number of F-cycle iterations to perform
-        { int max_fmg_iter; pp.query("max_fmg_iter",max_fmg_iter);value.setMaxFmgIter(max_fmg_iter);}
+        pp.query("max_fmg_iter",value.max_fmg_iter);
 
         // DEPRICATED - do not use
         if (pp.contains("max_fixed_iter"))
             Util::Abort(INFO, "max_fixed_iter is depricated. Use fixed_iter instead." );
 
-        if (pp.contains("fixed_iter"))
         // Number of fixed iterations to perform before exiting gracefully
-        { int fixed_iter; pp.query("fixed_iter",fixed_iter);value.setFixedIter(fixed_iter);}
+        pp.query("fixed_iter",value.fixed_iter);
 
-        if (pp.contains("verbose"))
         // Verbosity of the solver (1-5)
-        { int verbose; pp.query("verbose",verbose);value.setVerbose(verbose);}
+        pp.query("verbose",value.verbose);
 
-        if (pp.contains("pre_smooth"))
         // Number of smoothing operations before bottom solve (2)
-        { int pre_smooth; pp.query("pre_smooth",pre_smooth);value.setPreSmooth(pre_smooth);}
+        pp.query("pre_smooth",value.pre_smooth);
 
-        if (pp.contains("post_smooth"))
         // Number of smoothing operations after bottom solve (2)
-        { int post_smooth; pp.query("post_smooth",post_smooth);value.setPostSmooth(post_smooth);}
+        pp.query("post_smooth",value.post_smooth);
     
-        if (pp.contains("bottom_solver"))
-        {
-            std::string bottom_solver;
-            // Type of bottom solver to use [cg, bicgstab, smoother]
-            pp.query("bottom_solver",bottom_solver);
-            if (bottom_solver == "cg")
-                value.setBottomSolver(MLMG::BottomSolver::cg);
-            if (bottom_solver == "bicgstab")
-                value.setBottomSolver(MLMG::BottomSolver::bicgstab);
-            if (bottom_solver == "smoother")
-                value.setBottomSolver(MLMG::BottomSolver::smoother);
-            else
-                Util::Abort(INFO,"Unsupported bottom_solver " + bottom_solver);
-        }
+        //if (pp.contains("bottom_solver"))
+        //{
+        //    std::string bottom_solver;
+        //    // Type of bottom solver to use [cg, bicgstab, smoother]
+        pp.query("bottom_solver",value.bottom_solver);
+        //    if (bottom_solver == "cg")
+        //        value.setBottomSolver(MLMG::BottomSolver::cg);
+        //    if (bottom_solver == "bicgstab")
+        //        value.setBottomSolver(MLMG::BottomSolver::bicgstab);
+        //    if (bottom_solver == "smoother")
+        //        value.setBottomSolver(MLMG::BottomSolver::smoother);
+        //    else
+        //        Util::Abort(INFO,"Unsupported bottom_solver " + bottom_solver);
+        //}
         
         if (pp.contains("cg_tol_rel"))
             Util::Abort(INFO,"cg_tol_rel is depricated. Use bottom_tol_rel instead.");
         if (pp.contains("cg_tol_abs"))
             Util::Abort(INFO,"cg_tol_abs is depricated. Use bottom_tol_abs instead.");
         
-        if (pp.contains("bottom_tol_rel"))
-        {
-            Set::Scalar bottom_tol_rel;
-            // Relative tolerance on bottom solver
-            pp.query("bottom_tol_rel",bottom_tol_rel);
-            value.setBottomTolerance(bottom_tol_rel);
-        }
-        if (pp.contains("bottom_tol_abs"))
-        {
-            Set::Scalar bottom_tol_abs;
-            // Absolute tolerance on bottom solver
-            pp.query("bottom_tol_abs",bottom_tol_abs);
-            value.setBottomToleranceAbs(bottom_tol_abs);
-        }
+        // Relative tolerance on bottom solver
+        pp.query("bottom_tol_rel",value.bottom_tol_rel);
+
+        // Absolute tolerance on bottom solver
+        pp.query("bottom_tol_abs",value.bottom_tol_abs);
 
         // Relative tolerance
-        pp.query("tol_rel",value.m_tol_rel);
+        pp.query("tol_rel",value.tol_rel);
+
         // Absolute tolerance
-        pp.query("tol_abs",value.m_tol_abs);
+        pp.query("tol_abs",value.tol_abs);
     }
 
     

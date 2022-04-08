@@ -16,11 +16,31 @@ template <typename T>
 class Newton : public Linear
 {
 public:
-    Newton(Operator::Elastic<T::sym> &a_op) : 
-        Linear(a_op), 
-        m_elastic(dynamic_cast<Operator::Elastic<T::sym> &>(linop)),
-        m_bc(m_elastic.GetBC())
-    {};
+    Newton() {};
+
+    Newton(Operator::Elastic<T::sym> &a_op)
+    {
+        this->Define(a_op);
+    };
+
+    ~Newton()
+    {
+        Clear();
+    }
+
+    void Define(Operator::Elastic<T::sym> &a_op)
+    {
+        Linear::Define(a_op);
+        m_elastic = dynamic_cast<Operator::Elastic<T::sym> *>(linop);
+        //m_bc = &m_elastic->GetBC();
+    }
+    void Clear()
+    {
+        Linear::Clear();
+        m_elastic = nullptr;
+        //m_bc = nullptr;
+    }
+
 
     void setNRIters(int a_nriters) { m_nriters = a_nriters; }
 
@@ -36,10 +56,10 @@ private:
     {
             for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
-                amrex::Box domain(linop.Geom(lev).Domain());
+                amrex::Box domain(linop->Geom(lev).Domain());
                 domain.convert(amrex::IntVect::TheNodeVector());
-                const Set::Scalar *dx = linop.Geom(lev).CellSize();
-                Set::Vector DX(linop.Geom(lev).CellSize());
+                const Set::Scalar *dx = linop->Geom(lev).CellSize();
+                Set::Vector DX(linop->Geom(lev).CellSize());
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.grownnodaltilebox();
@@ -76,18 +96,18 @@ private:
                     });
                 }
 
-                Util::RealFillBoundary(*a_dw_mf[lev],m_elastic.Geom(lev));
-                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic.Geom(lev));
+                Util::RealFillBoundary(*a_dw_mf[lev],m_elastic->Geom(lev));
+                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic->Geom(lev));
             }
 
-            m_elastic.SetModel(a_ddw_mf);
+            m_elastic->SetModel(a_ddw_mf);
 
             for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
-                amrex::Box domain(linop.Geom(lev).Domain());
+                amrex::Box domain(linop->Geom(lev).Domain());
                 domain.convert(amrex::IntVect::TheNodeVector());
                 domain.grow(-1);
-                const Set::Scalar *dx = linop.Geom(lev).CellSize();
+                const Set::Scalar *dx = linop->Geom(lev).CellSize();
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.nodaltilebox();
@@ -104,14 +124,14 @@ private:
 
             for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
-                m_elastic.Apply(lev,0,*a_rhs_mf[lev],*a_u_mf[lev]);
+                m_elastic->Apply(lev,0,*a_rhs_mf[lev],*a_u_mf[lev]);
                 a_rhs_mf[lev]->mult(-1.0,2);
                 amrex::MultiFab::Add(*a_rhs_mf[lev],*a_b_mf[lev],0,0,a_rhs_mf[lev]->nComp(),2);
-                Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic.Geom(lev));
+                Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic->Geom(lev));
             }
             for (int lev = a_b_mf.finest_level; lev > 0; lev--)
             {
-                linop.Reflux(lev-1, *a_rhs_mf[lev-1], *a_u_mf[lev-1], *a_b_mf[lev-1], *a_rhs_mf[lev], *a_u_mf[lev], *a_b_mf[lev]);
+                linop->Reflux(lev-1, *a_rhs_mf[lev-1], *a_u_mf[lev-1], *a_b_mf[lev-1], *a_rhs_mf[lev], *a_u_mf[lev], *a_b_mf[lev]);
             }
 
     }
@@ -158,14 +178,15 @@ public:
 
         for (int nriter = 0; nriter < m_nriters; nriter++)
         {
-            if (m_verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
+            if (verbose > 0 && nriter < m_nriters) Util::Message(INFO, "Newton Iteration ", nriter+1, " of ", m_nriters);
 
             prepareForSolve(a_u_mf, a_b_mf, rhs_mf, dw_mf, ddw_mf, a_model_mf);
 
 
             if (nriter == m_nriters) break;
             
-            Solver::Nonlocal::Linear::solve(GetVecOfPtrs(dsol_mf), GetVecOfConstPtrs(rhs_mf), a_tol_rel, a_tol_abs,checkpoint_file);
+            Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs,checkpoint_file);
+            //Solver::Nonlocal::Linear::solve(GetVecOfPtrs(dsol_mf), GetVecOfConstPtrs(rhs_mf), a_tol_rel, a_tol_abs,checkpoint_file);
 
             Set::Scalar cornorm = 0, solnorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
@@ -183,7 +204,7 @@ public:
             Set::Scalar relnorm;
             if (solnorm == 0) relnorm = cornorm;
             else relnorm = cornorm / solnorm;
-            if (m_verbose > 0) Util::Message(INFO,"NR iteration ",nriter+1,", relative norm(ddisp) = ",relnorm);
+            if (verbose > 0) Util::Message(INFO,"NR iteration ",nriter+1,", relative norm(ddisp) = ",relnorm);
 
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
                 amrex::MultiFab::Add(*a_u_mf[lev], *dsol_mf[lev], 0, 0, AMREX_SPACEDIM, 2);
@@ -199,7 +220,7 @@ public:
                         const Set::Field<Set::Scalar> & a_b_mf,
                         Set::Field<T> &a_model_mf)
     {
-        return solve(a_u_mf,a_b_mf,a_model_mf,m_tol_rel,m_tol_abs);
+        return solve(a_u_mf,a_b_mf,a_model_mf,tol_rel,tol_abs);
     }
 
     void compResidual(Set::Field<Set::Scalar> & a_res_mf,
@@ -237,8 +258,8 @@ public:
         {
             BL_PROFILE("Solver::Nonlocal::Newton::DW()");
 
-            const amrex::Real* DX = linop.Geom(lev).CellSize();
-            amrex::Box domain(linop.Geom(lev).Domain());
+            const amrex::Real* DX = linop->Geom(lev).CellSize();
+            amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
             for (MFIter mfi(*a_u_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -281,8 +302,8 @@ public:
         {
             BL_PROFILE("Solver::Nonlocal::Newton::DW()");
 
-            const amrex::Real* DX = linop.Geom(lev).CellSize();
-            amrex::Box domain(linop.Geom(lev).Domain());
+            const amrex::Real* DX = linop->Geom(lev).CellSize();
+            amrex::Box domain(linop->Geom(lev).Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
 
             for (MFIter mfi(*a_u_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -335,8 +356,8 @@ public:
 public:
     int m_nriters = 1;
     Set::Scalar m_nrtolerance = 0.0;
-    Operator::Elastic<T::sym> &m_elastic;
-    BC::Operator::Elastic::Elastic &m_bc;
+    Operator::Elastic<T::sym> *m_elastic;
+    //BC::Operator::Elastic::Elastic *m_bc;
 
 public:
     // These paramters control a standard Newton-Raphson solve.

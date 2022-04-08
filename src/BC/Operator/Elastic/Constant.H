@@ -270,6 +270,9 @@ public:
         if (pp.contains("type.xhiylozhi")) { pp.queryarr("type.xhiylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZHI][i] = bcmap[str[i]]; }
         if (pp.contains("type.xhiyhizlo")) { pp.queryarr("type.xhiyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZLO][i] = bcmap[str[i]]; }
         if (pp.contains("type.xhiyhizhi")) { pp.queryarr("type.xhiyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZHI][i] = bcmap[str[i]]; }
+        #else // ignore unused inputs
+        pp.contains("type.xloylozlo"); pp.contains("type.xloylozhi"); pp.contains("type.xloyhizlo"); pp.contains("type.xloyhizhi"); 
+        pp.contains("type.xhiylozlo"); pp.contains("type.xhiylozhi"); pp.contains("type.xhiyhizlo"); pp.contains("type.xhiyhizhi");  
         #endif
 
         #if AMREX_SPACEDIM==3
@@ -281,7 +284,11 @@ public:
         if (pp.contains("type.zloxhi")) { pp.queryarr("type.zloxhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XHI][i] = bcmap[str[i]]; }
         if (pp.contains("type.zhixlo")) { pp.queryarr("type.zhixlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XLO][i] = bcmap[str[i]]; }
         if (pp.contains("type.zhixhi")) { pp.queryarr("type.zhixhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XHI][i] = bcmap[str[i]]; }
+        #else 
+        pp.contains("type.ylozlo"); pp.contains("type.ylozhi"); pp.contains("type.yhizlo"); pp.contains("type.yhizhi"); 
+        pp.contains("type.zloxlo"); pp.contains("type.zloxhi"); pp.contains("type.zhixlo"); pp.contains("type.zhixhi"); 
         #endif
+        
         if (pp.contains("type.xloylo")) { pp.queryarr("type.xloylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO][i] = bcmap[str[i]]; }
         if (pp.contains("type.xloyhi")) { pp.queryarr("type.xloyhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI][i] = bcmap[str[i]]; }
         if (pp.contains("type.xhiylo")) { pp.queryarr("type.xhiylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO][i] = bcmap[str[i]]; }
@@ -294,6 +301,8 @@ public:
         #if AMREX_SPACEDIM==3
         if (pp.contains("type.zlo")) { pp.queryarr("type.zlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO][i] = bcmap[str[i]]; }
         if (pp.contains("type.zhi")) { pp.queryarr("type.zhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI][i] = bcmap[str[i]]; }
+        #else
+        pp.contains("type.zlo"); pp.contains("type.zhi");
         #endif
 
         // VALS
@@ -309,6 +318,9 @@ public:
         if (pp.contains("val.xhiylozhi")) { pp.queryarr("val.xhiylozhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YLO_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
         if (pp.contains("val.xhiyhizlo")) { pp.queryarr("val.xhiyhizlo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YHI_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
         if (pp.contains("val.xhiyhizhi")) { pp.queryarr("val.xhiyhizhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YHI_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
+        #else
+        pp.contains("val.xloylozlo"); pp.contains("val.xloylozhi"); pp.contains("val.xloyhizlo"); pp.contains("val.xloyhizhi"); 
+        pp.contains("val.xhiylozlo"); pp.contains("val.xhiylozhi"); pp.contains("val.xhiyhizlo"); pp.contains("val.xhiyhizhi");  
         #endif
 
         #if AMREX_SPACEDIM==3
@@ -320,6 +332,9 @@ public:
         if (pp.contains("val.zloxhi")) { pp.queryarr("val.zloxhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZLO_XHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
         if (pp.contains("val.zhixlo")) { pp.queryarr("val.zhixlo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI_XLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
         if (pp.contains("val.zhixhi")) { pp.queryarr("val.zhixhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI_XHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
+        #else
+        pp.contains("val.ylozlo"); pp.contains("val.ylozhi"); pp.contains("val.yhizlo"); pp.contains("val.yhizhi"); 
+        pp.contains("val.zloxlo"); pp.contains("val.zloxhi"); pp.contains("val.zhixlo"); pp.contains("val.zhixhi"); 
         #endif
         if (pp.contains("val.xloylo")) { pp.queryarr("val.xloylo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
         if (pp.contains("val.xloyhi")) { pp.queryarr("val.xloyhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
@@ -333,7 +348,10 @@ public:
         #if AMREX_SPACEDIM==3
         if (pp.contains("val.zlo")) { pp.queryarr("val.zlo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
         if (pp.contains("val.zhi")) { pp.queryarr("val.zhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); }
+        #else
+        pp.contains("val.zlo"); pp.contains("val.zhi");
         #endif
+
     }
 };
 }

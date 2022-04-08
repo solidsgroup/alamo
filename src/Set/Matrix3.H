@@ -25,6 +25,14 @@ public:
         return data[i];
     }
 
+    AMREX_FORCE_INLINE
+    Set::Scalar norm()
+    {
+        Set::Scalar ret = 0.0;
+        for (int i = 0 ; i < AMREX_SPACEDIM; i++) ret += data[i].squaredNorm();
+        return sqrt(ret);
+    }
+
     //AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator  = (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i]  = a.data[i];}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator += (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] += a.data[i];}
     AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE void operator -= (Matrix3 a) {for (int i = 0; i < AMREX_SPACEDIM; i++) data[i] -= a.data[i];}

@@ -8,8 +8,6 @@
 
 #include "BC/BC.H"
 
-#include "Test/Operator/Elastic.H"
-
 using namespace amrex;
 
 enum Grid { Cell, Node};
@@ -29,8 +27,6 @@ template <Grid G> class Operator;
 template <>
 class Operator<Grid::Node> : public amrex::MLNodeLinOp
 {
-    friend Test::Operator::Elastic;
-
     //
     // Public: Constructor/Destructor/Operators/defines
     //

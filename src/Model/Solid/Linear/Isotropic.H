@@ -54,9 +54,17 @@ public:
         ret.Define(Util::Random(),Util::Random());
         return ret;
     }
+    static Isotropic Zero()
+    {
+        Isotropic ret;
+        ret.Define(0.,0.);
+        return ret;
+    }
     static void Parse(Isotropic & value, IO::ParmParse & pp)
     {
         Set::Scalar mu, lambda;
+        bool planestress = false;
+        pp.query("planestress",planestress);
         if (pp.contains("lame") && pp.contains("shear"))
         {
             pp.query("lame",lambda);
@@ -75,7 +83,13 @@ public:
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
-        value.Define(mu,lambda);
+        else Util::Abort(INFO,"Invalid elastic constants specified");
+
+        if (AMREX_SPACEDIM==2 && planestress)
+            value.Define(mu,lambda*(1.0 - lambda/(2.*mu + lambda)));
+        else
+            value.Define(mu,lambda);
+        Util::Message(INFO,value);
     }
 
     #define OP_CLASS Isotropic
