@@ -362,13 +362,18 @@ public:
 public:
     // These paramters control a standard Newton-Raphson solve.
     // 
-    // **Note**: this class inherits all of the linear solve paramters
-    //           from its parent class, :ref:`Solve:Nonlocal:Linear`
+    // **Note**: 
+    // This class inherits all of the linear solve paramters
+    // from its parent class, :ref:`Solve:Nonlocal:Linear`
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)
     {
         Linear::Parse(value,pp);
         
-        pp.query("nriters",value.m_nriters);
+        // Number of newton-raphson iterations.
+        pp.query("nriters",value.m_nriters); 
+
+        // Tolerance to use for newton-raphson convergence
+        
         pp.query("nrtolerance",value.m_nrtolerance);
     }
 

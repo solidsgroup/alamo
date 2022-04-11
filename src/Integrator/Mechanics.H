@@ -44,10 +44,10 @@ public:
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
     }
 
+    // This reads in stuff.
     static void Parse(Mechanics &value, IO::ParmParse &pp)
     {
 
-        //IO::ParmParse pp("elastic");
         int nmodels = 1;
         pp.query("elastic.nmodels",nmodels);
         for (int i = 0; i<nmodels; i++)

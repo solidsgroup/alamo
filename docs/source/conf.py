@@ -21,7 +21,7 @@ import os, subprocess
 # -- Custom input file parameter parser -------------------------------------
 import sys
 sys.path.append(os.path.abspath('.'))
-import parseinputs
+import Inputs
 
 
 # -- Project information ----------------------------------------------------
@@ -117,7 +117,7 @@ html_theme_options = {
 #    # Toc options
 #    'collapse_navigation': True,
 #    'sticky_navigation': True,
-#    'navigation_depth': 4,
+    'navigation_depth': -1,
 #    'includehidden': True,
 #    'titles_only': False
 }
