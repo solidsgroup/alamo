@@ -98,7 +98,7 @@ realclean: clean
 	git -C ext/amrex reset --hard
 	git -C ext/amrex clean -fd
 	git -C ext/amrex clean -fx
-	rm -rf ext/amrex/1d* amrex/2d* amrex/3d*
+	rm -rf ext/amrex/1d* ext/amrex/2d* ext/amrex/3d*
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -rf Makefile.conf Makefile.amrex.conf .make
 
