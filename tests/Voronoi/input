@@ -1,7 +1,17 @@
+#@ 
+#@ [ 2D 100 grain simulation in parallel ]
+#@ nprocs = 4
+#@ dim = 2
+#@ 
+#@ [ 2D 100 grain simulation in serial ]
+#@ nprocs = 1
+#@ dim = 2
+#@
+
 alamo.program               = microstructure
 
 timestep		    = 0.005
-stop_time		    = 400
+stop_time		    = 1
 
 amr.plot_dt		    = 0.1
 
