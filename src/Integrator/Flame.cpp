@@ -80,7 +80,7 @@ namespace Integrator
             if (type == "psread")
             {
                 PhiIC = new IC::PSRead(geom);
-                pp.queryclass("psread", *static_cast<IC::PSRead *>(PhiIC)); // See :ref:`IC::PackedSpheres`
+                pp.queryclass("psread", *static_cast<IC::PSRead *>(PhiIC)); // See :ref:`IC::PSRead`
             }
             else if (type == "laminate")
             {

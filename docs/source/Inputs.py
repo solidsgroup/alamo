@@ -39,7 +39,8 @@ def getDocs(lines,i):
         docs = re.findall(r'.?\/\/(.*)', lines[i-j])
         if len(docs):
             if not ret: ret = ""
-            ret = docs[0] + "\n" + ret
+            if docs[0].endswith('/'): ret = docs[0] + ret
+            else:                     ret = docs[0] + "\n" + ret
         elif j==0: continue
         else: break
     return ret
@@ -48,19 +49,15 @@ def getDocs(lines,i):
 def extract(filename):
     sourcefile = open(filename)
     rets = dict()
-    #rets[None] = dict()
     lines = sourcefile.readlines()
     prefix = None
     for i in range(len(lines)):
         if ("ParmParse pp" in lines[i].split(r'//')[0]):
             prefix = getParmParseDef(lines[i])
-            
             if prefix in rets.keys(): continue
-                
             # Initialize the record for this ParmParser
             rets[prefix] = dict()
             rets[prefix]["items"] = []
-
             docs = getDocs(lines,i)
             if docs: rets[prefix]["docs"] = docs
             
@@ -68,12 +65,10 @@ def extract(filename):
             prefix = "[prefix]"
             rets[prefix] = dict()
             rets[prefix]["items"] = []
-
             docs = getDocs(lines,i)
             if docs: rets[prefix]["docs"] = docs
         if ('pp.query' in lines[i]):
             ret = dict()
-            #docs = re.findall(r'.?\/\/(.*)', lines[i-1])
             docs = getDocs(lines,i);
             if docs: ret["docs"] = docs
             info = getParmParseInfo(lines[i])
@@ -94,26 +89,23 @@ Inputs
 headerchar = ["=","*","-","~","."]
 written_headers = []
 
+num_tot = 0
+num_doc = 0
+
 for dirname, subdirlist, filelist in os.walk("../../src/"):
     hdrname = dirname.replace("../../src/","").replace("/","::")
     depth = len(hdrname.split("::")) 
 
     write_header = True
     
-
-    print(dirname,subdirlist,filelist)
-    print(hdrname)
-
-    for f in filelist:
+    for f in sorted(filelist):
         if f.endswith(".H") or f.endswith(".cpp"): 
             inputs = extract(dirname + "/" + f)
             if not len(inputs):
-                #print("No documentation in",dirname,f)
                 continue
 
             classname = dirname.replace("../../src/","").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
 
-            #if write_header:
             for i in range(len(classname.split('::'))):
                 subhdr = '::'.join(classname.split('::')[:i])
                 if subhdr not in written_headers:
@@ -122,14 +114,6 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
                     docfile.write("\n\n\n")
                     written_headers.append(subhdr)
 
-                #docfile.write(hdrname+"\n")
-                #docfile.write("".ljust(len(hdrname),headerchar[depth-1]))
-                #docfile.write("\n\n\n")
-                #written_headers.append(hdrname)
-
-
-                #write_header = False
-
 
             docfile.write(classname + "\n")
             lev = len(classname.split('::'))-1
@@ -137,24 +121,30 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
             docfile.write(".. flat-table:: \n")
             docfile.write("    :widths: 20 10 70\n")
             docfile.write("    :header-rows: 1\n\n")
-            #docfile.write("    :widths: 1 1 1\n\n")
             docfile.write("    * - Parameter name\n")
             docfile.write("      - Type\n")
             docfile.write("      - Description\n")
 
             for prefix in inputs:
-                if len(inputs[prefix]['items']) == 0: continue
+                #if len(inputs[prefix]['items']) == 0: continue
 
                 if ('docs' in inputs[prefix].keys()):
                     docfile.write("    * - {}  \n".format(inputs[prefix]['docs'].replace("\n", "\n        ")))
 
-                for item in inputs[prefix]['items']: 
+                for item in inputs[prefix]['items']:
+                    num_tot += 1
                     docfile.write("    * - :code:`{}`\n".format(item['string']))
                     docfile.write("      - {}\n".format(item['query']))
-                    docfile.write("      - {}\n".format(item['docs'].replace('\n','\n        ')
-                                                                             if 'docs' in item.keys() else ''))
+                    if 'docs' in item.keys():
+                        num_doc += 1
+                        docfile.write("      - {}\n".format(item['docs'].replace('\n','\n        ')))
+                    else:
+                        docfile.write("      - \n")
                 docfile.write("\n")
             docfile.write("\n")
+
+
+print("\n{} of {} inputs documented\n".format(num_doc,num_tot))
 
 
 docfile.close()

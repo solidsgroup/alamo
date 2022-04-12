@@ -182,9 +182,9 @@ docs: docs/build/html/index.html .FORCE
 docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
 	@cd docs && doxygen 
-docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
+docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
-	@make -C docs html > /dev/null
+	@make -C docs html # > /dev/null
 
 
 test: .FORCE

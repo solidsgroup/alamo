@@ -364,7 +364,7 @@ public:
     // 
     // **Note**: 
     // This class inherits all of the linear solve paramters
-    // from its parent class, :ref:`Solve:Nonlocal:Linear`
+    // from its parent class, :ref:`Solver::Nonlocal::Linear`
     static void Parse(Newton<T> & value, amrex::ParmParse & pp)
     {
         Linear::Parse(value,pp);
@@ -373,7 +373,7 @@ public:
         pp.query("nriters",value.m_nriters); 
 
         // Tolerance to use for newton-raphson convergence
-        
+
         pp.query("nrtolerance",value.m_nrtolerance);
     }
 

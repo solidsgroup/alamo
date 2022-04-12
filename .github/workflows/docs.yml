@@ -1,0 +1,14 @@
+name: Build Documentation
+
+on: [push, pull_request]
+
+jobs:
+  docs:
+    name: Build Docs
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: make
+      run: make docs
