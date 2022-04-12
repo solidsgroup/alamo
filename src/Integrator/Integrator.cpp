@@ -85,7 +85,7 @@ Integrator::Integrator ()
         // set of grids to work on. This is pretty much always used
         // for testing purposes only.
         IO::ParmParse pp("explicitmesh");
-        pp.query("on",explicitmesh.on);
+        pp.query("on",explicitmesh.on); // Use explicit mesh instead of AMR
         if (explicitmesh.on)
         {
             for (int ilev = 0; ilev < maxLevel(); ++ilev)

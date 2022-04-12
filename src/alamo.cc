@@ -15,7 +15,6 @@
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
-#include "Integrator/FiniteKinematics.H"
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
@@ -78,7 +77,6 @@ int main (int argc, char* argv[])
     }
     else if (program == "finitekinematics")
     {
-        //Integrator::Integrator *fk = new Integrator::FiniteKinematics();
         Integrator::Integrator *fk = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>();
         fk->InitData();
         fk->Evolve();        

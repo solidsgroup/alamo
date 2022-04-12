@@ -44,12 +44,13 @@ public:
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
     }
 
-    // This reads in stuff.
+    // The mechanics integrator manages the solution of an elastic 
+    // solve using the MLMG solver. 
     static void Parse(Mechanics &value, IO::ParmParse &pp)
     {
 
         int nmodels = 1;
-        pp.query("elastic.nmodels",nmodels);
+        pp.query("elastic.nmodels",nmodels); // Number of elastic model varieties
         for (int i = 0; i<nmodels; i++)
         {
             std::string name = "model" + std::to_string(i+1);
@@ -62,54 +63,63 @@ public:
         value.RegisterNodalFab(value.eta_mf, value.elastic.models.size(), 2, "eta", true);    
 
         std::string bc_type = "constant";
+        // Determine the boundary condition type (contant, tension_test, expression)
         pp.query("elastic.bc.type",bc_type);
         Util::Message(INFO,bc_type);
         if (bc_type == "constant")
         {
             value.elastic.bc = new BC::Operator::Elastic::Constant();
-            pp.queryclass("elastic.bc",static_cast<BC::Operator::Elastic::Constant*>(value.elastic.bc));
+            // Query :ref:`BC::Operator::Elastic::Constant`
+            pp.queryclass("elastic.bc",static_cast<BC::Operator::Elastic::Constant*>(value.elastic.bc)); 
         }
         else if (bc_type == "tension_test")
         {
             value.elastic.bc = new BC::Operator::Elastic::TensionTest();
-            pp.queryclass("elastic.bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(value.elastic.bc));
+            // Query :ref:`BC::Operator::Elastic::TensionTest`
+            pp.queryclass("elastic.bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(value.elastic.bc)); 
         }
         else if (bc_type == "expression")
         {
             value.elastic.bc = new BC::Operator::Elastic::Expression();
+            // Query :ref:`BC::Operator::Elastic::Expression`
             pp.queryclass("elastic.bc.expression",static_cast<BC::Operator::Elastic::Expression*>(value.elastic.bc));
         }
+        // Refinement threshold for eta field
         pp.query("elastic.eta_ref_threshold",value.m_eta_ref_threshold);
+        // Refinement threshold for strain gradient
         pp.query("elastic.ref_threshold",value.m_elastic_ref_threshold);
 
         value.RegisterGeneralFab(value.model_mf, 1, 2);
 
         // Read in IC for eta
         std::string type;
-        pp.query("ic.type",type);
+        pp.query("ic.type",type); // Read IC type for the eta field
         Util::Message(INFO,type);
         if (type=="ellipse")
         {
             value.ic = new IC::Ellipse(value.geom);
+            // Initialize with :ref:`IC::Ellipse`
             pp.queryclass("ic.ellipse",static_cast<IC::Ellipse*>(value.ic));
         }
 
         // Read in IC for RHS
         std::string rhstype;
-        pp.query("rhs.type",rhstype);
+        pp.query("rhs.type",rhstype); // Initializer for RHS
         if (rhstype == "trig")
         {
             value.ic_rhs = new IC::Trig(value.geom);
+            // See :ref:`IC::Trig`
             pp.queryclass("rhs.trig",static_cast<IC::Trig*>(value.ic_rhs));
         }
 
+        // Timestep interval for elastic solves (default - solve every time)
         pp.query("interval",value.m_interval);
 
 #if AMREX_SPACEDIM==3
         value.RegisterIntegratedVariable(&(value.trac_lo[0].data()[0]),"trac_lo_xx");
 #endif
 
-
+        // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
         pp.queryclass("elastic.solver",value.elastic.solver);
 
     }
