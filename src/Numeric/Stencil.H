@@ -556,6 +556,28 @@ Gradient(const amrex::Array4<const Set::Scalar> &f,
 }
 
 AMREX_FORCE_INLINE
+Set::Matrix
+Gradient(const amrex::Array4<const Set::Vector> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar dx[AMREX_SPACEDIM],
+        std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Matrix ret;
+
+#if AMREX_SPACEDIM > 0
+    ret.col(0) = Numeric::Stencil<Set::Vector,1,0,0>::D(f,i,j,k,0,dx,stencil);
+#endif
+#if AMREX_SPACEDIM > 1
+    ret.col(1) = Numeric::Stencil<Set::Vector,0,1,0>::D(f,i,j,k,0,dx,stencil);
+#endif
+#if AMREX_SPACEDIM > 2
+    ret.col(2) = Numeric::Stencil<Set::Vector,0,0,1>::D(f,i,j,k,0,dx,stencil);
+#endif
+
+    return ret;
+}
+
+AMREX_FORCE_INLINE
 Set::Matrix3
 MatrixGradient(const amrex::Array4<const Set::Scalar> &f,
         const int &i, const int &j, const int &k,

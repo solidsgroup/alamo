@@ -1051,12 +1051,11 @@ SetFinestLevel(finest_level);
                                 geom[lev+1], geom[lev],
                                 0, (*cell.fab_array[n])[lev]->nComp(), refRatio(lev));
         }
-        // for (int n = 0; n < node.number_of_fabs; n++)
-        // {
-        //  amrex::average_down(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev],
-        //              geom[lev+1], geom[lev],
-        //              0, (*node.fab_array[n])[lev]->nComp(), refRatio(lev));
-        // }
+        for (int n = 0; n < node.number_of_fabs; n++)
+        {
+            amrex::average_down(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev],
+                                0, (*node.fab_array[n])[lev]->nComp(), refRatio(lev));
+        }
     }
 }
 }
