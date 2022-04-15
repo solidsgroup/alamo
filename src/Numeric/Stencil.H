@@ -652,6 +652,38 @@ Hessian(const amrex::Array4<const Set::Scalar> &f,
     return ret;
 }
 
+// Returns Hessian of a vector field.
+// Return value: ret[i](j,k) = ret_{i,jk}
+AMREX_FORCE_INLINE
+Set::Matrix3
+Hessian(const amrex::Array4<const Set::Vector> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix3 ret;
+
+    Set::Vector d11 = Numeric::Stencil<Set::Scalar,2,0,0>::D(f,i,j,k,m,dx);
+    Set::Vector d12 = Numeric::Stencil<Set::Scalar,1,1,0>::D(f,i,j,k,m,dx);
+    Set::Vector d22 = Numeric::Stencil<Set::Scalar,0,2,0>::D(f,i,j,k,m,dx);
+    
+//    ret[0] = Numeric::Gradient<Set::Vector,2,0,0>::D(f,i,j,k,dx);
+//#if AMREX_SPACEDIM > 1
+//    ret[1] = 
+//    ret(1,1) = (Numeric::Stencil<Set::Scalar,0,2,0>::D(f,i,j,k,m,dx));
+//    ret(0,1) = (Numeric::Stencil<Set::Scalar,1,1,0>::D(f,i,j,k,m,dx));
+//    ret(1,0) = ret(0,1);
+//#if AMREX_SPACEDIM > 2
+//    ret(2,2) = (Numeric::Stencil<Set::Scalar,0,0,2>::D(f,i,j,k,m,dx));
+//    ret(1,2) = (Numeric::Stencil<Set::Scalar,0,1,1>::D(f,i,j,k,m,dx));
+//    ret(2,0) = (Numeric::Stencil<Set::Scalar,1,0,1>::D(f,i,j,k,m,dx));
+//    ret(2,1) = ret(1,2);
+//    ret(0,2) = ret(2,0);
+//#endif
+//#endif
+    return ret;
+}
+
+
 AMREX_FORCE_INLINE
 Set::Matrix
 FieldToMatrix(const amrex::Array4<const Set::Scalar> &f,

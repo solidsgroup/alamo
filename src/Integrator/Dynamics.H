@@ -34,6 +34,7 @@ public:
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 0, "disp",true);
         
         RegisterGeneralFab(unew_mf,1,2);
+        RegisterGeneralFab(vnew_mf,1,2);
         RegisterGeneralFab(u_mf,1,2);
         RegisterGeneralFab(v_mf,1,2);
         RegisterGeneralFab(eps_mf,1,2);
@@ -55,6 +56,7 @@ protected:
         Set::Vector b0(AMREX_D_DECL(1.0,0.0,0.0));
 
         unew_mf[lev]->setVal(Set::Vector::Zero());
+        vnew_mf[lev]->setVal(Set::Vector::Zero());
 
         u_mf[lev]->setVal(Set::Vector::Zero());
         v_mf[lev]->setVal(Set::Vector::Zero());
@@ -70,6 +72,7 @@ protected:
     void Advance(int lev, amrex::Real /*time*/, amrex::Real dt)
     {
         std::swap(*unew_mf[lev], *u_mf[lev]);
+        std::swap(*vnew_mf[lev], *v_mf[lev]);
 
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
@@ -82,6 +85,7 @@ protected:
             const amrex::Box bx = mfi.tilebox() & domain;
 
             amrex::Array4<Set::Vector>         const &unew = (*unew_mf[lev]).array(mfi);
+            amrex::Array4<Set::Vector>         const &vnew = (*vnew_mf[lev]).array(mfi);
 
             amrex::Array4<const Set::Vector>   const &u    = (*u_mf[lev]).array(mfi);
             amrex::Array4<Set::Vector>         const &v    = (*v_mf[lev]).array(mfi);
@@ -102,7 +106,7 @@ protected:
                 //std::array<Numeric::StencilType,AMREX_SPACEDIM> sten = Numeric::GetStencil(i,j,k,bx);
 
                 Set::Vector udotdot = (Numeric::Divergence(sig,i,j,k,DX) + b(i,j,k)) / rho;
-                v(i,j,k) = v(i,j,k) + dt * udotdot;
+                vnew(i,j,k) = v(i,j,k) + dt * udotdot;
                 unew(i,j,k) = u(i,j,k) + dt*v(i,j,k);
             });
 
@@ -124,6 +128,7 @@ protected:
     Set::Field<Set::Scalar> disp_mf;
 
     Set::Field<Set::Vector> unew_mf;
+    Set::Field<Set::Vector> vnew_mf;
 
     Set::Field<Set::Vector> u_mf;
     Set::Field<Set::Vector> v_mf;
