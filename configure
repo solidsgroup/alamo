@@ -242,7 +242,7 @@ if (args.geteigen):
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         #subprocess.run("mv eigen-git-mirror eigen3".split())
     message("Eigen-Directory","ext/")
-    f.write("EIGEN = .\n")
+    f.write("EIGEN = ./ext/\n")
 elif (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
