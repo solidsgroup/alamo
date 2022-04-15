@@ -749,10 +749,13 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
     }
 
     amrex::Vector<amrex::MultiFab> cplotmf(nlevels), nplotmf(nlevels);
+
+    bool do_cell_plotfile = (ccomponents > 0 || (ncomponents > 0 && cell.all)) && cell.any;
+    bool do_node_plotfile = (ncomponents > 0 || (ccomponents > 0 && node.all)) && node.any;
   
     for (int ilev = 0; ilev < nlevels; ++ilev)
     {
-        if ((ccomponents > 0 || cell.all) && cell.any)
+        if (do_cell_plotfile)
         {
             int ncomp = ccomponents;
             if (cell.all) ncomp += ncomponents;
@@ -782,7 +785,7 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
             }
         }
 
-        if ((ncomponents > 0 || node.all) && node.any)
+        if (do_node_plotfile)
         {
             amrex::BoxArray ngrids = grids[ilev];
             ngrids.convert(amrex::IntVect::TheNodeVector());
@@ -821,7 +824,7 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
     std::vector<std::string> plotfilename = PlotFileName(istep[0],prefix);
     if (initial) plotfilename[1] = plotfilename[1] + "init";
   
-    if ((ccomponents > 0 || cell.all) && cell.any)
+    if (do_cell_plotfile)
     {
         amrex::Vector<std::string> allnames = cnames;
         if (cell.all) allnames.insert(allnames.end(),nnames.begin(),nnames.end());
@@ -834,7 +837,7 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
         chkptfile.close();
     }
 
-    if ((ncomponents > 0 || node.all) && node.any)
+    if (do_node_plotfile)
     {
         amrex::Vector<std::string> allnames = nnames;
         if (node.all) allnames.insert(allnames.end(),cnames.begin(),cnames.end());
