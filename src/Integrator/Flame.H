@@ -47,9 +47,9 @@ private:
     Set::Field<Set::Scalar> Eta_old_mf;
     Set::Field<Set::Scalar> Mob_mf; 
     Set::Field<Set::Scalar> Mob_old_mf;
+    Set::Field<Set::Scalar> mdot_mf;
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
-    Set::Field<Set::Scalar> Lap_mf;
     BC::BC<Set::Scalar> *TempBC;
     BC::BC<Set::Scalar> *EtaBC;
     IC::IC *PhiIC;

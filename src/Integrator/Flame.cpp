@@ -37,6 +37,8 @@ namespace Integrator
 
             RegisterNewFab(Eta_mf, EtaBC, 1, 1, "Eta", true);
             RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
+
+            RegisterNewFab(mdot_mf, EtaBC, 1, 1, "mdot", true);
         }
         
 
@@ -80,7 +82,6 @@ namespace Integrator
             RegisterNewFab(Mob_mf, TempBC, 1, 1, "Mob", true);
             RegisterNewFab(Mob_old_mf, TempBC, 1, 1, "Mob_old", false);            
 
-	    RegisterNewFab(Lap_mf, TempBC, 1, 1, "Lap", true);
             }
         }
 
@@ -149,15 +150,15 @@ namespace Integrator
         if (thermal.on) Temp_mf[lev]->setVal(thermal.bound);
         if (thermal.on) Temp_old_mf[lev]->setVal(thermal.bound);
 
-        Eta_mf[lev]->setVal(0.999999999999);
-        Eta_old_mf[lev]->setVal(0.99999999999);
+        Eta_mf[lev]->setVal(1.0);
+        Eta_old_mf[lev]->setVal(1.0);
+        
+        mdot_mf[lev] -> setVal(0.0);
 
         PhiIC->Initialize(lev, phi_mf);
-
-	Lap_mf[lev]->setVal(0.0);
 	  
-        if (thermal.on) Mob_mf[lev]->setVal(0.001);
-        if (thermal.on) Mob_old_mf[lev]->setVal(0.001);
+        if (thermal.on) Mob_mf[lev]->setVal(0.0);
+        if (thermal.on) Mob_old_mf[lev]->setVal(0.0);
     }
 
     
@@ -286,41 +287,39 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const &Temp = (*Temp_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &Temp_old = (*Temp_old_mf[lev]).array(mfi);
 
-		amrex::Array4<Set::Scalar> const &EtaLap = (*Lap_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    Util::Assert(INFO,TEST(Eta_old(i,j,k)==Eta_old(i,j,k)));
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
-		    EtaLap(i,j,k) = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
                     amrex::Real rho = (thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb;
 
                     // --------------------
                     // Eta computation
                     // --------------------
 
-		    if (Eta_old(i,j,k) < 0.01) {Eta(i,j,k) = 0.0;}
-		    else
-            {
-                Util::Assert(INFO,TEST(Eta(i,j,k)==Eta(i,j,k)));
-                Util::Assert(INFO,TEST(Mob_old(i,j,k)==Mob_old(i,j,k)));
-                Util::Assert(INFO,TEST(eta_lap==eta_lap));
+		            if (Eta_old(i,j,k) < 0.01) 
+                    {
+                        Eta(i,j,k) = 0.0;
+                    }
+		            else
+                    {   
+                        Eta(i, j, k) = 
+                            Eta_old(i, j, k) 
+                            - Mob_old(i,j,k) * dt * (
+                            (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
+                            - pf.eps * pf.kappa * eta_lap);
+		            }
 
-                Util::Assert(INFO,TEST(Eta_old(i,j,k)==Eta_old(i,j,k)));
+                    Set::Vector eta_grad = Numeric::Gradient(Eta_old, i, j, k, 0, DX);
 
-                Eta(i, j, k) = 
-                        Eta_old(i, j, k) 
-                        - Mob_old(i,j,k) * dt * (
-                        (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
-                        - pf.eps * pf.kappa * eta_lap);
-		    }
-                Set::Vector eta_grad = Numeric::Gradient(Eta_old, i, j, k, 0, DX);
-                        // --------------------
-                        // Mass flux
-                        // --------------------
-                        {
-			            // amrex::Real mdot;
-			            //  mdot = rho * eta_grad;
-                        }
+                    // --------------------
+                    // Mass flux
+                    // --------------------
+
+                    {
+			            mdot(i,j,k) = ((thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb) * Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
+                    }
 
                     
                     Set::Vector temp_grad = Numeric::Gradient(Temp_old, i, j, k, 0, DX);
@@ -343,55 +342,50 @@ namespace Integrator
                     // --------------------
                     // Temperature computation
                     // --------------------
-                    if (Eta_old(i,j,k) > 0.001 && Eta_old(i,j,k)<1)
+                    if (Eta_old(i,j,k) > 0.001)
 			        { 
                         Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn / K );
 			        }
-                    else if (Eta_old(i,j,k) <= 0.001)
+                    else
                     {
                         Temp(i,j,k) = 0.0; 
                     }
-                    else
-                    {
-                        Temp(i,j,k) =  Temp_old(i,j,k) + dt*(K/cp/rho) * temp_lap;
-                    }
 
-		            Set::Scalar b1 = -thermal.ae_ap   / Temp_old(i,j,k);
-		            Set::Scalar b2 = -thermal.ae_htpb / Temp_old(i,j,k);
-		            Set::Scalar b3 = -thermal.ae_comb / Temp_old(i,j,k);
 
-		            Set::Scalar e1, e2, e3;
-                    e1 = exp(b1);
-                    e2 = exp(b2);
-                    e3 = exp(b3);
-		    Util::Assert(INFO, TEST(e1 == e1) );
-		    Util::Assert(INFO, TEST(e2 == e2) );
-		    Util::Assert(INFO, TEST(e3 == e3) );
                     // --------------------
                     // Mobility computation
                     // --------------------
-                    if (thermal.on == 2)
-		    
-		      {
-		          Mob(i,j,k) = (
-		          (pf.r_ap * pow(pf.P, pf.n_ap)) * phi(i,j,k) + 
-			            (pf.r_htpb * pow(pf.P, pf.n_htpb)) * (1.0 - phi(i,j,k)) + 
-			              (pf.r_comb * pow(pf.P, pf.n_comb)) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
-			              )/pf.gamma;     
-			Util::Assert(INFO,TEST(Mob(i,j,k)==Mob(i,j,k)));
-		       }
-		 
-		    else
-		      {
+		            if(Temp_old(i,j,k) < 400.0)
+                    {
+		                Mob(i,j,k) = 0.0;
+		            }
+		            else if (Temp_old(i,j,k) < 500.0 && Temp_old(i,j,k) >= 400.0)
+                    {
+		                Mob(i,j,k) = 0.01;
+		            }
+		            else
+		            {  
+		                Set::Scalar R = 8.314;
+		                Set::Scalar T0 = 399.0;
 
-		     Mob(i,j,k) = ( 
-				     thermal.A_ap   * e1 * phi(i,j,k) + 
-				     thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
-				     thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
-				  ) / pf.gamma / (pf.w1 - pf.w0);
-			Util::Assert(INFO,TEST(Mob(i,j,k)==Mob(i,j,k)));
+		                Set::Scalar e1 = exp(-thermal.ae_ap   / pf.P / R / (Temp_old(i,j,k) - T0) );
+		                Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (Temp_old(i,j,k) - T0) );
+		                Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (Temp_old(i,j,k) - T0) );
 
-			}
+		                Mob(i,j,k) = ( 
+				            thermal.A_ap   * e1 * phi(i,j,k) + 
+				            thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
+				            thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+				            ) / pf.gamma / (pf.w1 - pf.w0);
+
+			        }
+            
+
+                    // -------------------
+                    // Heat Model
+                    // -------------------
+
+
                     
                 });
                 
