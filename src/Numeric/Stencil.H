@@ -662,9 +662,36 @@ Hessian(const amrex::Array4<const Set::Vector> &f,
 {
     Set::Matrix3 ret;
 
-    Set::Vector d11 = Numeric::Stencil<Set::Scalar,2,0,0>::D(f,i,j,k,m,dx);
-    Set::Vector d12 = Numeric::Stencil<Set::Scalar,1,1,0>::D(f,i,j,k,m,dx);
-    Set::Vector d22 = Numeric::Stencil<Set::Scalar,0,2,0>::D(f,i,j,k,m,dx);
+    #if AMREX_SPACEDIM>0    
+    Set::Vector f_11 = Numeric::Stencil<Set::Vector,2,0,0>::D(f,i,j,k,0,dx);
+    ret[0](0,0) = f_11(0);
+    #endif
+    #if AMREX_SPACEDIM>1
+    ret[1](0,0) = f_11(1);
+    Set::Vector f_12 = Numeric::Stencil<Set::Vector,1,1,0>::D(f,i,j,k,0,dx);
+    ret[0](1,0) = ret[0](0,1) = f_12(0);
+    ret[1](1,0) = ret[1](0,1) = f_12(0);
+    Set::Vector f_22 = Numeric::Stencil<Set::Vector,0,2,0>::D(f,i,j,k,0,dx);
+    ret[0](1,1) = f_22(0);
+    ret[1](1,1) = f_22(1);
+    #endif
+    #if AMREX_SPACEDIM>2
+    ret[2](0,0) = f_11(2);
+    ret[2](1,0) = ret[2](0,1) = f_12(0);
+    Set::Vector f_13 = Numeric::Stencil<Set::Vector,1,0,1>::D(f,i,j,k,0,dx);
+    ret[0](2,0) = ret[0](0,2) = f_13(0);
+    ret[1](2,0) = ret[1](0,2) = f_13(0);
+    ret[2](2,0) = ret[2](0,2) = f_13(0);
+    ret[2](1,1) = f_22(2);
+    Set::Vector f_23 = Numeric::Stencil<Set::Vector,0,1,1>::D(f,i,j,k,0,dx);
+    ret[0](1,2) = ret[0](2,1) = f_23(0);
+    ret[1](1,2) = ret[1](2,1) = f_23(0);
+    ret[2](1,2) = ret[2](2,1) = f_23(0);
+    Set::Vector f_33 = Numeric::Stencil<Set::Vector,0,0,2>::D(f,i,j,k,0,dx);
+    ret[0](2,2) = f_33(0);
+    ret[1](2,2) = f_33(1);
+    ret[2](2,2) = f_33(2);
+    #endif
     
 //    ret[0] = Numeric::Gradient<Set::Vector,2,0,0>::D(f,i,j,k,dx);
 //#if AMREX_SPACEDIM > 1

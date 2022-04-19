@@ -1,6 +1,10 @@
 #ifndef INTEGRATOR_BASEFIELD_H
 #define INTEGRATOR_BASEFIELD_H
 
+#include "AMReX_FillPatchUtil.H"
+
+#include "Util/Util.H"
+#include "Set/Set.H"
 #include "Numeric/Interpolator/NodeBilinear.H"
 
 namespace Integrator
@@ -22,7 +26,12 @@ public:
                                         const amrex::BoxArray& cgrids,
                                         const amrex::DistributionMapping& dm) = 0;
     virtual void SetFinestLevel(const int a_finestlevel) = 0;
-                      
+
+    virtual int NComp() = 0;
+    virtual void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) = 0;
+
+    bool writeout = false;
+    std::string name;
 };
 
 template<class T>
@@ -191,6 +200,15 @@ private:
     const amrex::Vector<amrex::Geometry>  &m_geom;
     const amrex::Vector<amrex::IntVect> &m_refRatio;
     const int m_ncomp, m_nghost;
+    
+public:
+    virtual int NComp() override {
+        return m_field.NComp();
+    }    
+    virtual void Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) override
+    {
+        m_field.Copy(a_lev,a_dst,a_dstcomp,a_nghost);
+    }
 };
 
 }

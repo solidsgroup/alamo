@@ -40,7 +40,55 @@ public:
         (*this)[a_lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(a_grid,a_dmap,a_ncomp,a_nghost));
     }
     int finest_level = 0;
+    void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) {}
+    int NComp() {return 1;}
 };
+
+template<>
+inline void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost)
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Set::Vector> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
+            for (int n = 0; n < AMREX_SPACEDIM; n++)
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    dst(i,j,k,a_dstcomp + n) = src(i,j,k)(n);
+                });
+            }
+        }
+    }    
+}
+template<>
+inline int Field<Set::Vector>::NComp() {return AMREX_SPACEDIM;} 
+
+template<>
+inline void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost)
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Set::Matrix> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
+            for (int n = 0; n < AMREX_SPACEDIM*AMREX_SPACEDIM; n++)
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    dst(i,j,k,a_dstcomp + n) = src(i,j,k)(n/AMREX_SPACEDIM,n%AMREX_SPACEDIM);
+                });
+            }
+        }
+    }    
+}
+template<>
+inline int Field<Set::Matrix>::NComp() {return AMREX_SPACEDIM*AMREX_SPACEDIM;} 
+
+
 
 template <>
 class Field<Set::Scalar> : public amrex::Vector<std::unique_ptr<amrex::MultiFab>>
@@ -64,6 +112,11 @@ public:
         (*this)[a_lev].reset(new amrex::MultiFab(a_grid,a_dmap,a_ncomp,a_nghost));
     }
     int finest_level = 0;
+
+    void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) 
+    {Util::Abort(INFO,"This should never get called");}
+    int NComp() 
+    {Util::Abort(INFO,"This should never be called");return -1;}
 };
 }
 

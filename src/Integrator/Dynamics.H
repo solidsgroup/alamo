@@ -35,11 +35,11 @@ public:
         
         RegisterGeneralFab(unew_mf,1,2);
         RegisterGeneralFab(vnew_mf,1,2);
-        RegisterGeneralFab(u_mf,1,2);
-        RegisterGeneralFab(v_mf,1,2);
+        RegisterGeneralFab(u_mf,1,2,"u");
+        RegisterGeneralFab(v_mf,1,2,"v");
         RegisterGeneralFab(eps_mf,1,2);
         RegisterGeneralFab(sig_mf,1,2);
-        RegisterGeneralFab(b_mf,1,2);
+        RegisterGeneralFab(b_mf,1,2,"b");
     }
 
     static void Parse(Dynamics &value, IO::ParmParse &pp)
@@ -82,7 +82,7 @@ protected:
 
         for (amrex::MFIter mfi(*unew_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box bx = mfi.tilebox() & domain;
+            amrex::Box bx = mfi.tilebox() & domain;
 
             amrex::Array4<Set::Vector>         const &unew = (*unew_mf[lev]).array(mfi);
             amrex::Array4<Set::Vector>         const &vnew = (*vnew_mf[lev]).array(mfi);
@@ -105,7 +105,12 @@ protected:
             {
                 //std::array<Numeric::StencilType,AMREX_SPACEDIM> sten = Numeric::GetStencil(i,j,k,bx);
 
-                Set::Vector udotdot = (Numeric::Divergence(sig,i,j,k,DX) + b(i,j,k)) / rho;
+                //Set::Vector udotdot = (Numeric::Divergence(sig,i,j,k,DX) + b(i,j,k)) / rho;
+                Set::Matrix3 gradgradu = Numeric::Hessian(u,i,j,k,DX);
+                Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> C = model.DDW(eps(i,j,k));
+
+                Set::Vector udotdot = (C * gradgradu + b(i,j,k)) / rho;
+
                 vnew(i,j,k) = v(i,j,k) + dt * udotdot;
                 unew(i,j,k) = u(i,j,k) + dt*v(i,j,k);
             });

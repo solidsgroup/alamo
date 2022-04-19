@@ -747,6 +747,18 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
         else
             nnames.push_back(node.name_array[i]);
     }
+    for (unsigned int i = 0; i< m_basefields.size(); i++)
+    {
+        if (m_basefields[i]->writeout)
+        {
+            ncomponents += m_basefields[i]->NComp();
+            if (m_basefields[i]->NComp() > 1)
+                for (int j = 0; j < m_basefields[i]->NComp(); j++)
+                    nnames.push_back(amrex::Concatenate(m_basefields[i]->name,j,3));
+            else
+                Util::Abort(INFO,"Not supported yet");
+        }
+    }
 
     amrex::Vector<amrex::MultiFab> cplotmf(nlevels), nplotmf(nlevels);
 
@@ -802,6 +814,15 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
                 amrex::MultiFab::Copy(nplotmf[ilev], *(*node.fab_array[i])[ilev], 0, n, node.ncomp_array[i], 0);
                 n += node.ncomp_array[i];
             }
+            for (int i = 0; i<m_basefields.size(); i++)
+            {
+                if (m_basefields[i]->writeout)
+                {
+                    m_basefields[i]->Copy(ilev, nplotmf[ilev], n, 0);
+                    n += m_basefields[i]->NComp();
+                }
+            }
+
             if (node.all)
             {
                 for (int i = 0; i < cell.number_of_fabs; i++)
