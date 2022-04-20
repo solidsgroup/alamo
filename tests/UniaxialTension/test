@@ -12,10 +12,10 @@ ds = yt.load(path)
 dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
 
 prof = ds.ray([-8,0,0],[8,0,0],)
-df = prof.to_dataframe([("gas","x"),"disp001","stress_xx"])
+df = prof.to_dataframe([("gas","x"),"disp_x","stress_xx"])
 
 x    = numpy.array(df["x"])
-u1   = numpy.array(df["disp001"])
+u1   = numpy.array(df["disp_x"])
 #u2   = numpy.array(df["disp002"])
 #u3   = numpy.array(df["disp003"])
 sig1 = numpy.array(df["stress_xx"])
