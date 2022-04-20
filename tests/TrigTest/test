@@ -12,9 +12,9 @@ ds = yt.load(path)
 dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
 
 prof = ds.ray([0,0,0],[1,1,1],)
-df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),"disp001"])
+df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),"disp_x"])
 
-x,y,z,u1 = [numpy.array(_x) for _x in zip(*sorted(zip(df["x"],df["y"],df["z"],df["disp001"])))]
+x,y,z,u1 = [numpy.array(_x) for _x in zip(*sorted(zip(df["x"],df["y"],df["z"],df["disp_x"])))]
 
 if dim==2: u1_exact  =  - numpy.sin(numpy.pi*x) * numpy.sin(numpy.pi*y) / numpy.pi / numpy.pi / 2.0
 if dim==3: u1_exact  =  - numpy.sin(numpy.pi*x) * numpy.sin(numpy.pi*y) * numpy.sin(numpy.pi*z) / numpy.pi / numpy.pi / 3.0

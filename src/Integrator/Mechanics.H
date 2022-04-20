@@ -33,21 +33,30 @@ namespace Integrator
 template<class MODEL>
 class Mechanics : virtual public Integrator
 {
-    //using model_type = Model::Solid::Affine::Isotropic;
+    enum Type{Static, Dynamic};
+    
 public:
     /// \brief Read in parameters and register field variables
     Mechanics()
     {
-        RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
-        RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
+        RegisterGeneralFab(disp_mf, 1, 2, "disp");
+        RegisterGeneralFab(rhs_mf, 1, 2, "rhs");
         RegisterGeneralFab(stress_mf, 1, 2, "stress");
-        RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
+        RegisterGeneralFab(strain_mf, 1, 2, "strain");
     }
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(Mechanics &value, IO::ParmParse &pp)
     {
+        if (pp.contains("type"))
+        {
+            std::string type_str;
+            pp.query("type",type_str);
+            if (type_str == "static")       value.m_type = Type::Static;
+            else if (type_str == "dynamic") value.m_type = Type::Static;
+            else Util::Abort(INFO,"Invalid type ", type_str, " specified");
+        }
 
         int nmodels = 1;
         pp.query("elastic.nmodels",nmodels); // Number of elastic model varieties
@@ -80,7 +89,7 @@ public:
         }
         else if (bc_type == "expression")
         {
-            value.elastic.bc = new BC::Operator::Elastic::Expression();
+            //value.elastic.bc = new BC::Operator::Elastic::Expression();
             // Query :ref:`BC::Operator::Elastic::Expression`
             pp.queryclass("elastic.bc.expression",static_cast<BC::Operator::Elastic::Expression*>(value.elastic.bc));
         }
@@ -138,10 +147,10 @@ protected:
             eta_mf[lev]->setVal(1.0);
         }
 
-        disp_mf[lev]->setVal(0.);
+        disp_mf[lev]->setVal(Set::Vector::Zero());
 
         if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
-        else rhs_mf[lev]->setVal(0.);
+        else rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
 
     virtual void UpdateModel()
@@ -154,7 +163,7 @@ protected:
 
             eta_mf[lev]->FillBoundary();
 
-            disp_mf[lev]->setVal(0.0);
+            disp_mf[lev]->setVal(Set::Vector::Zero());
 
             Set::Vector DX(geom[lev].CellSize());
 
@@ -210,8 +219,8 @@ protected:
                 bx = bx & domain;
                 amrex::Array4<MODEL>             const &model   = model_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix>       const &stress  = stress_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar>       const &strain  = strain_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
+                amrex::Array4<Set::Matrix>       const &strain  = strain_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Vector> const &disp  = disp_mf[lev]->array(mfi);
 
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
@@ -222,16 +231,13 @@ protected:
                                             {
                                                 Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp,i,j,k,DX,sten);
                                                 stress(i,j,k) = model(i,j,k).DW(F);
-                                                //Numeric::MatrixToField(stress,i,j,k,P);
-                                                Numeric::MatrixToField(strain,i,j,k,F);
+                                                strain(i,j,k) = F;
                                             }
                                             else
                                             {                    
                                                 Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX,sten);
                                                 stress(i,j,k) = model(i,j,k).DW(gradu);
-                                                Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-                                                //Numeric::MatrixToField(stress,i,j,k,sigma);
-                                                Numeric::MatrixToField(strain,i,j,k,eps);
+                                                strain(i,j,k) = 0.5*(gradu + gradu.transpose());
                                             }
                                         });
             }
@@ -293,7 +299,7 @@ protected:
             amrex::Box bx = mfi.tilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-            amrex::Array4<Set::Scalar> const &strain = strain_mf[lev]->array(mfi);
+            amrex::Array4<Set::Vector> const &u = disp_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                                         {
                                             Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
@@ -301,7 +307,7 @@ protected:
                                                 tags(i, j, k) = amrex::TagBox::SET;
                                         }
                                         {
-                                            Set::Matrix3 grad = Numeric::MatrixGradient(strain, i, j, k, DX.data());
+                                            Set::Matrix3 grad = Numeric::Hessian(u, i, j, k, DX.data());
                                             if (grad.norm() * DXnorm > m_elastic_ref_threshold)
                                                 tags(i, j, k) = amrex::TagBox::SET;
                                         }
@@ -315,12 +321,13 @@ protected:
 
 private:
     int m_interval = 0;
+    Type m_type = Type::Static;
 
-    Set::Field<Set::Scalar> disp_mf;
-    Set::Field<Set::Scalar> rhs_mf;
+    Set::Field<Set::Vector> disp_mf;
+    Set::Field<Set::Vector> rhs_mf;
     Set::Field<Set::Scalar> res_mf;
     Set::Field<Set::Matrix> stress_mf;
-    Set::Field<Set::Scalar> strain_mf;
+    Set::Field<Set::Matrix> strain_mf;
 
     Set::Vector trac_lo[AMREX_SPACEDIM];
     Set::Vector trac_hi[AMREX_SPACEDIM];
