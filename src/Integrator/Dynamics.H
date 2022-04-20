@@ -125,7 +125,7 @@ protected:
         }
     }
 
-    void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/)
+    void TagCellsForRefinement(int /*lev*/, amrex::TagBoxArray &/*a_tags*/, amrex::Real /*time*/, int /*ngrow*/)
     {}
 
 protected:

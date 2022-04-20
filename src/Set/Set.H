@@ -135,14 +135,14 @@ public:
 };
 template<> inline std::string Field<Set::Matrix>::Name(int i)
 {
-    #if AMREX_SPACEDIM==0
+    #if AMREX_SPACEDIM==1
     if (i==0) return name + "_xx";
-    #elif AMREX_SPACEDIM==1
+    #elif AMREX_SPACEDIM==2
     if (i==0)      return name + "_xx";
     else if (i==1) return name + "_xy";
     else if (i==2) return name + "_yx";
     else if (i==3) return name + "_yy";
-    #elif AMREX_SPACEDIM==2
+    #elif AMREX_SPACEDIM==3
     if (i==0)      return name + "_xx";
     else if (i==1) return name + "_xy";
     else if (i==2) return name + "_xz";

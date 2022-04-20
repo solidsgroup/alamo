@@ -26,6 +26,7 @@ public:
                                         const amrex::BoxArray& cgrids,
                                         const amrex::DistributionMapping& dm) = 0;
     virtual void SetFinestLevel(const int a_finestlevel) = 0;
+    virtual void FillPatch(const int lev, const Set::Scalar time)=0;
 
     virtual int NComp() = 0;
     virtual void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) = 0;
@@ -102,6 +103,14 @@ public:
                                     mapper, bcs, 0);
         }
 
+    }
+    void 
+    FillPatch (int lev, amrex::Real time//,
+                //amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> &source_mf,
+                //amrex::FabArray<amrex::BaseFab<T>> &destination_mf, 
+                /*int icomp*/)
+    {
+        this->FillPatch(lev,time,m_field,*(m_field[lev]),0);
     }
     void
     FillCoarsePatch (int lev,
