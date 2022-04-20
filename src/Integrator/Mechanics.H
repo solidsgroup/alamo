@@ -40,7 +40,7 @@ public:
     {
         RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
         RegisterNodalFab(rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
-        RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
+        RegisterGeneralFab(stress_mf, 1, 2, "stress");
         RegisterNodalFab(strain_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "strain",true);
     }
 
@@ -199,12 +199,17 @@ protected:
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
+            amrex::Box domain = geom[lev].Domain();
+            domain.convert(amrex::IntVect::TheNodeVector());
+
             const amrex::Real* DX = geom[lev].CellSize();
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
-                amrex::Array4<MODEL>        const &model = model_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar>       const &stress  = stress_mf[lev]->array(mfi);
+                bx.grow(1);
+                bx = bx & domain;
+                amrex::Array4<MODEL>             const &model   = model_mf[lev]->array(mfi);
+                amrex::Array4<Set::Matrix>       const &stress  = stress_mf[lev]->array(mfi);
                 amrex::Array4<Set::Scalar>       const &strain  = strain_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &disp  = disp_mf[lev]->array(mfi);
 
@@ -216,16 +221,16 @@ protected:
                                             if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
                                             {
                                                 Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp,i,j,k,DX,sten);
-                                                Set::Matrix P = model(i,j,k).DW(F);
-                                                Numeric::MatrixToField(stress,i,j,k,P);
+                                                stress(i,j,k) = model(i,j,k).DW(F);
+                                                //Numeric::MatrixToField(stress,i,j,k,P);
                                                 Numeric::MatrixToField(strain,i,j,k,F);
                                             }
                                             else
                                             {                    
                                                 Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX,sten);
-                                                Set::Matrix sigma = model(i,j,k).DW(gradu);
+                                                stress(i,j,k) = model(i,j,k).DW(gradu);
                                                 Set::Matrix eps = 0.5*(gradu + gradu.transpose());
-                                                Numeric::MatrixToField(stress,i,j,k,sigma);
+                                                //Numeric::MatrixToField(stress,i,j,k,sigma);
                                                 Numeric::MatrixToField(strain,i,j,k,eps);
                                             }
                                         });
@@ -258,19 +263,19 @@ protected:
         const Dim3 lo= amrex::lbound(domain)/*, hi = amrex::ubound(domain)*/;
         const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
 
-        amrex::Array4<const amrex::Real> const &stress = (*stress_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Matrix> const &stress = (*stress_mf[amrlev]).array(mfi);
         //amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
 #if AMREX_SPACEDIM == 2
                                     if (i == lo.x && j < boxhi.y)
                                     {
-                                        trac_lo[0](0) += 0.5 * (stress(i,j,k,0) + stress(i,j+1,k,0)) * da(0);
+                                        trac_lo[0](0) += 0.5 * (stress(i,j,k)(0,0) + stress(i,j+1,k)(0,0)) * da(0);
                                     } 
 #elif AMREX_SPACEDIM == 3
                                     if (i == lo.x && (j < boxhi.y && k < boxhi.z))
                                     {
-                                        trac_lo[0](0) += 0.25 * (stress(i,j,k,0) + stress(i,j+1,k,0) + stress(i,j,k+1,0) + stress(i,j+1,k+1,0)) * da(0);
+                                        trac_lo[0](0) += 0.25 * (stress(i,j,k)(0,0) + stress(i,j+1,k)(0,0) + stress(i,j,k+1)(0,0) + stress(i,j+1,k+1)(0,0)) * da(0);
                                     } 
 #endif
 
@@ -314,7 +319,7 @@ private:
     Set::Field<Set::Scalar> disp_mf;
     Set::Field<Set::Scalar> rhs_mf;
     Set::Field<Set::Scalar> res_mf;
-    Set::Field<Set::Scalar> stress_mf;
+    Set::Field<Set::Matrix> stress_mf;
     Set::Field<Set::Scalar> strain_mf;
 
     Set::Vector trac_lo[AMREX_SPACEDIM];

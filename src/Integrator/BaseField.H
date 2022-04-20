@@ -1,6 +1,10 @@
 #ifndef INTEGRATOR_BASEFIELD_H
 #define INTEGRATOR_BASEFIELD_H
 
+#include "AMReX_FillPatchUtil.H"
+
+#include "Util/Util.H"
+#include "Set/Set.H"
 #include "Numeric/Interpolator/NodeBilinear.H"
 
 namespace Integrator
@@ -22,7 +26,13 @@ public:
                                         const amrex::BoxArray& cgrids,
                                         const amrex::DistributionMapping& dm) = 0;
     virtual void SetFinestLevel(const int a_finestlevel) = 0;
-                      
+    virtual void FillPatch(const int lev, const Set::Scalar time)=0;
+
+    virtual int NComp() = 0;
+    virtual void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) = 0;
+    bool writeout = false;
+    virtual std::string Name(int) = 0;
+    virtual void setName(std::string a_name) = 0;
 };
 
 template<class T>
@@ -93,6 +103,14 @@ public:
                                     mapper, bcs, 0);
         }
 
+    }
+    void 
+    FillPatch (int lev, amrex::Real time//,
+                //amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> &source_mf,
+                //amrex::FabArray<amrex::BaseFab<T>> &destination_mf, 
+                /*int icomp*/)
+    {
+        this->FillPatch(lev,time,m_field,*(m_field[lev]),0);
     }
     void
     FillCoarsePatch (int lev,
@@ -191,6 +209,21 @@ private:
     const amrex::Vector<amrex::Geometry>  &m_geom;
     const amrex::Vector<amrex::IntVect> &m_refRatio;
     const int m_ncomp, m_nghost;
+    
+public:
+    virtual int NComp() override {
+        return m_field.NComp();
+    }    
+    virtual void Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) override
+    {
+        m_field.Copy(a_lev,a_dst,a_dstcomp,a_nghost);
+    }
+    virtual void setName(std::string a_name) override {
+        m_field.name = a_name;
+    }
+    virtual std::string Name(int i) override {
+        return m_field.Name(i);
+    }
 };
 
 }

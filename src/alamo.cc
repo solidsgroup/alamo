@@ -20,6 +20,7 @@
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
+#include "Integrator/Dynamics.H"
 
 int main (int argc, char* argv[])
 {
@@ -120,6 +121,14 @@ int main (int argc, char* argv[])
         pp.queryclass(te);
         te.InitData();
         te.Evolve();
+    }
+    else if (program == "dynamics")
+    {
+        IO::ParmParse pp;
+        Integrator::Dynamics integrator;
+        pp.queryclass(integrator);
+        integrator.InitData();
+        integrator.Evolve();
     }
     else
     {
