@@ -19,10 +19,10 @@ def integrate(x,y):
 if dim == 3:
     offset = -0.0000
     prof = ds.ray([0.25+offset,0.25+offset,-2],[0.25+offset,0.25+offset,2],)
-    df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),"disp001","disp002","disp003","stress001","stress005","stress009"])
+    df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),"disp001","disp002","disp003","stress_xx","stress_yy","stress_zz"])
 
     z,x,y,u1,u2,u3,sig11,sig22,sig33 = [numpy.array(_x) for _x in zip(*sorted(zip(
-        df["z"],df["x"],df["y"],df["disp001"],df["disp002"],df["disp003"],df["stress001"],df["stress005"],df["stress009"])))]
+        df["z"],df["x"],df["y"],df["disp001"],df["disp002"],df["disp003"],df["stress_xx"],df["stress_yy"],df["stress_zz"])))]
 
 
 

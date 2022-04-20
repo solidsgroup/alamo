@@ -273,7 +273,7 @@ protected:
     {
         RegisterGeneralFab(new_fab, ncomp, nghost);
         m_basefields.back()->writeout = true;
-        m_basefields.back()->name = a_name;
+        m_basefields.back()->setName(a_name);
     }
 
     void SetFinestLevel(const int a_finestlevel)

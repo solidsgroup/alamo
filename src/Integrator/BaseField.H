@@ -29,9 +29,9 @@ public:
 
     virtual int NComp() = 0;
     virtual void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) = 0;
-
     bool writeout = false;
-    std::string name;
+    virtual std::string Name(int) = 0;
+    virtual void setName(std::string a_name) = 0;
 };
 
 template<class T>
@@ -208,6 +208,12 @@ public:
     virtual void Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) override
     {
         m_field.Copy(a_lev,a_dst,a_dstcomp,a_nghost);
+    }
+    virtual void setName(std::string a_name) override {
+        m_field.name = a_name;
+    }
+    virtual std::string Name(int i) override {
+        return m_field.Name(i);
     }
 };
 

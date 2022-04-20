@@ -42,6 +42,8 @@ public:
     int finest_level = 0;
     void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) {}
     int NComp() {return 1;}
+    virtual std::string Name(int) {return name;}
+    std::string name;    
 };
 
 template<>
@@ -63,8 +65,21 @@ inline void Field<Set::Vector>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_ds
         }
     }    
 }
-template<>
-inline int Field<Set::Vector>::NComp() {return AMREX_SPACEDIM;} 
+template<> inline int         Field<Set::Vector>::NComp() {return AMREX_SPACEDIM;} 
+template<> inline std::string Field<Set::Vector>::Name(int i)
+{
+    #if AMREX_SPACEDIM>0
+    if (i==0) return name + "_x";
+    #endif
+    #if AMREX_SPACEDIM>1
+    else if (i==1) return name + "_y";
+    #endif
+    #if AMREX_SPACEDIM>2
+    else if (i==2) return name + "_z";
+    #endif
+    else Util::Abort(INFO,"Invalid component");
+    return "";
+}
 
 template<>
 inline void Field<Set::Matrix>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost)
@@ -118,6 +133,30 @@ public:
     int NComp() 
     {Util::Abort(INFO,"This should never be called");return -1;}
 };
+template<> inline std::string Field<Set::Matrix>::Name(int i)
+{
+    #if AMREX_SPACEDIM==0
+    if (i==0) return name + "_xx";
+    #elif AMREX_SPACEDIM==1
+    if (i==0)      return name + "_xx";
+    else if (i==1) return name + "_xy";
+    else if (i==2) return name + "_yx";
+    else if (i==3) return name + "_yy";
+    #elif AMREX_SPACEDIM==2
+    if (i==0)      return name + "_xx";
+    else if (i==1) return name + "_xy";
+    else if (i==2) return name + "_xz";
+    else if (i==3) return name + "_yx";
+    else if (i==4) return name + "_yy";
+    else if (i==5) return name + "_yz";
+    else if (i==6) return name + "_zx";
+    else if (i==7) return name + "_zy";
+    else if (i==8) return name + "_zz";
+    #endif
+    else Util::Abort(INFO, "Invalid component");
+    return "";
+}
+
 }
 
 namespace Util
