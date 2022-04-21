@@ -694,6 +694,11 @@ Integrator::MakeNewLevelFromScratch (int lev, amrex::Real t, const amrex::BoxArr
         node.physbc_array[n]->define(geom[lev]);
         node.physbc_array[n]->FillBoundary(*(*node.fab_array[n])[lev],0,0,t,0);
     }
+
+    for (unsigned int n = 0; n < m_basefields.size(); n++)
+    {
+        m_basefields[n]->FillBoundary(lev,t);
+    }
 }
 
 std::vector<std::string>
@@ -1057,7 +1062,7 @@ Integrator::TimeStep (int lev, amrex::Real time, int /*iteration*/)
             }
         }
     }
-SetFinestLevel(finest_level);
+    SetFinestLevel(finest_level);
 
     if (Verbose() && amrex::ParallelDescriptor::IOProcessor()) {
         std::cout << "[Level " << lev 
@@ -1103,6 +1108,11 @@ SetFinestLevel(finest_level);
             amrex::average_down(*(*node.fab_array[n])[lev+1], *(*node.fab_array[n])[lev],
                                 0, (*node.fab_array[n])[lev]->nComp(), refRatio(lev));
         }
+        for (unsigned int n = 0; n < m_basefields.size(); n++)
+        {
+            m_basefields[n]->AverageDownNodal(lev,refRatio(lev));
+        }
+    
     }
 }
 }
