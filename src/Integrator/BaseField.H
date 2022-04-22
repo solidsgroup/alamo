@@ -158,9 +158,10 @@ public:
         }
         else
         {
-            amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
-            this->FillPatch(lev, time, m_field, new_state, 0);
-            std::swap(new_state, *m_field[lev]);
+            Util::Abort(INFO,"Not implemented yet");
+            //amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
+            //this->FillPatch(lev, time, m_field, new_state, 0);
+            //std::swap(new_state, *m_field[lev]);
         }
     }
 
@@ -193,6 +194,7 @@ public:
             amrex::BoxArray ngrids = cgrids;
             ngrids.convert(amrex::IntVect::TheNodeVector());
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
+            m_field[lev]->setVal(T::Zero());
         }
 //      else
 //      {

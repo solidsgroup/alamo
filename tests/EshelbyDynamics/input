@@ -12,7 +12,7 @@ stop_time		    = 10.0
 
 # amr parameters
 amr.plot_int		    = 100
-amr.max_level		    = 3
+amr.max_level		    = 5
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 8
 amr.regrid_int		    = 100
