@@ -138,10 +138,8 @@ public:
         // Timestep interval for elastic solves (default - solve every time)
         pp.query("interval",value.m_interval);
 
-#if AMREX_SPACEDIM==3
-        value.RegisterIntegratedVariable(&(value.trac_lo[0].data()[0]),"trac_lo_xx");
-#endif
-
+        value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]),"disp_xhi_x");
+        value.RegisterIntegratedVariable(&(value.trac_hi[0].data()[0]),"trac_xhi_x");
     }
 
 protected:
@@ -309,40 +307,45 @@ protected:
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
-                    const amrex::MFIter &mfi, const amrex::Box &box) override
+                    const amrex::MFIter &mfi, const amrex::Box &a_box) override
     {
         const amrex::Real *DX = geom[amrlev].CellSize();
         amrex::Box domain = geom[amrlev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
+        amrex::Box box = a_box;
+        box.convert(amrex::IntVect::TheNodeVector());
+
 
         //Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-#if AMREX_SPACEDIM == 2
-        Set::Vector da(DX[1],DX[0]);
-#elif AMREX_SPACEDIM == 3
-        Set::Vector da(DX[1]*DX[2], DX[2]*DX[0], DX[0]*DX[1]);
-#endif
+        #if AMREX_SPACEDIM == 2
+        Set::Vector da(DX[1],0);
+        #elif AMREX_SPACEDIM == 3
+        Set::Vector da(DX[1]*DX[2], 0, 0);
+        #endif
 
-        const Dim3 lo= amrex::lbound(domain)/*, hi = amrex::ubound(domain)*/;
+        const Dim3 /*lo= amrex::lbound(domain),*/ hi = amrex::ubound(domain);
         const Dim3 /*boxlo= amrex::lbound(box),*/ boxhi = amrex::ubound(box);
 
         amrex::Array4<const Set::Matrix> const &stress = (*stress_mf[amrlev]).array(mfi);
-        //amrex::Array4<const amrex::Real> const &disp   = (*disp_mf[amrlev]).array(mfi);
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-#if AMREX_SPACEDIM == 2
-                                    if (i == lo.x && j < boxhi.y)
-                                    {
-                                        trac_lo[0](0) += 0.5 * (stress(i,j,k)(0,0) + stress(i,j+1,k)(0,0)) * da(0);
-                                    } 
-#elif AMREX_SPACEDIM == 3
-                                    if (i == lo.x && (j < boxhi.y && k < boxhi.z))
-                                    {
-                                        trac_lo[0](0) += 0.25 * (stress(i,j,k)(0,0) + stress(i,j+1,k)(0,0) + stress(i,j,k+1)(0,0) + stress(i,j+1,k+1)(0,0)) * da(0);
-                                    } 
-#endif
-
-                                });
+        amrex::Array4<const Set::Vector> const &disp   = (*disp_mf[amrlev]).array(mfi);
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+            #if AMREX_SPACEDIM == 2
+            if (i == boxhi.x && j < boxhi.y)
+            {
+                trac_hi[0]+= (0.5 * (stress(i,j,k) + stress(i,j+1,k)) * da);
+                disp_hi[0] = disp(i,j,k); 
+            } 
+            #elif AMREX_SPACEDIM == 3
+            if (i == hi.x && (j < boxhi.y && k < boxhi.z))
+            {
+                trac_hi[0] += (0.25 * (stress(i,j,k) + stress(i,j+1,k)
+                                       + stress(i,j,k+1) + stress(i,j+1,k+1)) * da);
+                disp_hi[0] = disp(i,j,k);
+            } 
+            #endif
+        });
             
     }
 
@@ -394,9 +397,9 @@ private:
     Set::Scalar rho = 1.0;
     Set::Scalar mu = 0.0;
 
-    Set::Vector trac_lo[AMREX_SPACEDIM];
+    //Set::Vector trac_lo[AMREX_SPACEDIM];
     Set::Vector trac_hi[AMREX_SPACEDIM];
-
+    Set::Vector disp_hi[AMREX_SPACEDIM];
 
 
     IC::IC *ic = nullptr;          ///< Pointer to abstract IC object

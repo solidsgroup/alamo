@@ -2,6 +2,7 @@
 import argparse
 import os, glob, subprocess
 import configparser, io
+from collections import OrderedDict
 
 class color:
     reset = "\033[0m"
@@ -14,6 +15,17 @@ class color:
     darkgray = "\033[90m"
 
 #
+# Special order from SO - dictionary allows for keys to be specified multiple times and 
+# config parser will read it all.
+class MultiOrderedDict(OrderedDict):
+    def __setitem__(self, key, value):
+        if isinstance(value, list) and key in self:
+            self[key].extend(value)
+        else:
+            super().__setitem__(key, value)
+
+
+#
 # Provide some simple command line arguments for filtering the types of 
 # regression tests to run. For instance, if you need to run without
 # mpirun, you can use the --serial flag.
@@ -22,6 +34,8 @@ parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('tests', default=None, nargs='*', help='Spatial dimension [3]')
 parser.add_argument('--serial',action='store_true',default=False,help='Run in serial only (no mpi)')
 parser.add_argument('--dim',default=None,type=int,help='Specify dimensions to run in')
+parser.add_argument('--cmd',default=False,action='store_true',help="Print out the exact command used to run each test")
+parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
 args=parser.parse_args()
 
 def test(testdir):
@@ -52,13 +66,18 @@ def test(testdir):
         if line.startswith("#@"):
             cfgfile.write(line.replace("#@",""))
     cfgfile.seek(0)
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(dict_type=MultiOrderedDict,strict=False)
     config.read_file(cfgfile)
+
+    sections = config.sections()
+    if args.sections:
+        if len(args.sections)>0:
+            sections = list(set(config.sections()).intersection(set(args.sections)))
 
     # If there are no runs specified, then we will not test anything
     # in this directory, and will print an "ignore" message.
     # (Eventually, everything in ./tests should be tested!)
-    if not len(config.sections()):
+    if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
         return 0,0,0,0
         
@@ -66,7 +85,7 @@ def test(testdir):
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
 
     # Iterate through all test configurations
-    for desc in config.sections():
+    for desc in sections:
 
         # In some cases we want to run the exe but can't check it.
         # Skipping the check can be done by specifying the "check" input.
@@ -97,7 +116,7 @@ def test(testdir):
             nprocs = 1 # Number of MPI processes, if 1 then will run without mpirun
             if 'nprocs' in config[desc].keys(): nprocs = int(config[desc]['nprocs'])
             cmdargs = "" # Extra arguments to pass to alamo in addition to input file
-            if 'args' in config[desc].keys(): cmdargs = config[desc]['args']
+            if 'args' in config[desc].keys(): cmdargs = config[desc]['args'].replace('\n',' ')
 
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
@@ -106,7 +125,7 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             exe = "./bin/alamo-{}d-g++".format(dim)
-            # If we specified a CLI dimensino that is different, quietly ignore.
+            # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
             # If the exe doesn't exist, exit noisily. The script will continue but will return a nonzero
@@ -122,6 +141,7 @@ def test(testdir):
         
         # Run the actual test.
         print("  ├ " + desc)
+        if args.cmd: print("  ├      " + command)
         print("  │      Running test............................................",end="",flush=True)
         # Spawn the process and wait for it to finish before continuing.
         try:

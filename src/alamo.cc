@@ -59,6 +59,11 @@ int main (int argc, char* argv[])
             integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>();
             pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Linear::Laplacian>*>(integrator));
         }
+        else if (model == "elastic.neohookean") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>*>(integrator));
+        }
         else
         {
             Util::Abort(INFO,model," is not a valid model");

@@ -1,26 +1,26 @@
-#@  [2D, serial, 1 AMR Levels]
+#@  [2D-serial-1level]
 #@  dim=2  
 #@  nprocs=1
 #@  args=amr.max_level=0
 #@    
-#@  [2D, serial, 2 AMR Levels]
+#@  [2D-serial-2levels]
 #@  dim=2  
 #@  nprocs=1
 #@  args=amr.max_level=1
 #@    
-#@  [2D, serial, 3 AMR Levels]
+#@  [2D-serial-3levels]
 #@  dim=2  
 #@  nprocs=1
 #@    
-#@  [2D, parallel, 3 AMR Levels]
+#@  [2D-parallel-3levels]
 #@  dim=2  
 #@  nprocs=4
 #@    
-#@  [3D, serial, 3 AMR Levels]
+#@  [3D-serial-3levels]
 #@  dim=3
 #@  nprocs=1
 #@
-#@  [3D, parallel, 3 AMR Levels]
+#@  [3D-parallel-3levels]
 #@  dim=3
 #@  nprocs=4
 #@  
