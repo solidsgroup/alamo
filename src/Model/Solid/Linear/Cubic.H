@@ -91,6 +91,13 @@ public:
         return ret;
     }
 
+    static Cubic Zero()
+    {
+        Cubic ret;
+        ret.Define(0.0,0.0,0.0,0.0,0.0,0.0);
+        return ret;
+        
+    }
     static Cubic Random()
     {
         return Random(Util::Random(), Util::Random(), Util::Random());

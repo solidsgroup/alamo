@@ -82,6 +82,12 @@ public:
         //Util::Message(INFO, "lambda = ", lambda, ", mu = ", mu);
         value.Define(mu,mu,lambda,lambda);
     }
+    static IsotropicDegradable Zero()
+    {
+        Util::Abort(INFO,"Not properly implmeneted yet");
+        IsotropicDegradable ret;
+        return ret;
+    }
     virtual void Print(std::ostream &out) const override 
     {
         out << "ddw     = " << ddw << std::endl;

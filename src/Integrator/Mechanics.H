@@ -53,9 +53,23 @@ public:
         {
             std::string type_str;
             pp.query("type",type_str);
-            if (type_str == "static")       value.m_type = Type::Static;
-            else if (type_str == "dynamic") value.m_type = Type::Static;
+            if (type_str == "static")
+            {
+                value.m_type = Type::Static;
+                // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
+                pp.queryclass("elastic.solver",value.elastic.solver);
+            }
+            else if (type_str == "dynamic") 
+            {
+                value.m_type = Type::Dynamic;
+                value.RegisterGeneralFab(value.vel_mf,1,2,"vel");
+                value.RegisterGeneralFab(value.disp_old_mf,1,2,"dispold");
+                value.RegisterGeneralFab(value.vel_old_mf,1,2,"velold");
+                pp.query("viscous.mu",value.mu);
+                //value.RegisterGeneralFab(value.ddw_mf,1,2);
+            }
             else Util::Abort(INFO,"Invalid type ", type_str, " specified");
+
         }
 
         int nmodels = 1;
@@ -128,9 +142,6 @@ public:
         value.RegisterIntegratedVariable(&(value.trac_lo[0].data()[0]),"trac_lo_xx");
 #endif
 
-        // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
-        pp.queryclass("elastic.solver",value.elastic.solver);
-
     }
 
 protected:
@@ -163,7 +174,7 @@ protected:
 
             eta_mf[lev]->FillBoundary();
 
-            disp_mf[lev]->setVal(Set::Vector::Zero());
+            //disp_mf[lev]->setVal(Set::Vector::Zero());
 
             Set::Vector DX(geom[lev].CellSize());
 
@@ -191,6 +202,8 @@ protected:
         if (m_interval && a_step%m_interval) return;
 
         UpdateModel();        
+
+        if (!m_type == Type::Static) return;
 
         elastic.bc->SetTime(a_time);
         elastic.bc->Init(rhs_mf,geom);
@@ -246,9 +259,53 @@ protected:
         }
     }
 
-    void Advance(int /*lev*/, Set::Scalar /*time*/, Set::Scalar /*dt*/) override
+    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
     {
+        if (!m_type == Type::Dynamic) return;
 
+        std::swap(*disp_mf[lev], *disp_old_mf[lev]);
+        std::swap(*vel_mf[lev], *vel_old_mf[lev]);
+
+        amrex::Box domain = geom[lev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+        domain.grow(-1);
+        
+        const amrex::Real *DX = geom[lev].CellSize();
+
+        for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Array4<Set::Vector>         const &unew = (*disp_mf[lev]).array(mfi);
+            amrex::Array4<Set::Vector>         const &vnew = (*vel_mf [lev]).array(mfi);
+
+            amrex::Array4<const Set::Vector>   const &u    = (*disp_old_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Vector>   const &v    = (*vel_old_mf[lev]).array(mfi);
+            amrex::Array4<Set::Matrix>         const &eps  = (*strain_mf[lev]).array(mfi);
+            amrex::Array4<Set::Matrix>         const &sig  = (*stress_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Vector>   const &b    = (*rhs_mf[lev]).array(mfi);
+        
+            amrex::Array4<MODEL>               const &model= (*model_mf[lev]).array(mfi);
+        
+            // Right now, we are forcing Dirichlet conditions on all boundaries
+            amrex::Box bx = mfi.nodaltilebox().grow(1) & domain;
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                //auto sten = Numeric::GetStencil(i,j,k,bx);
+                eps(i,j,k) = Numeric::Gradient(u,i,j,k,DX);
+                sig(i,j,k) = model(i,j,k).DW(eps(i,j,k));
+            });
+
+            bx = mfi.nodaltilebox().grow(0) & domain;
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                //auto sten = Numeric::GetStencil(i,j,k,bx);
+                Set::Vector udotdot = Numeric::Divergence(sig,i,j,k,DX) + b(i,j,k) - mu * v(i,j,k);
+                udotdot /= rho;
+                vnew(i,j,k) = v(i,j,k) + dt*udotdot;
+                unew(i,j,k) = u(i,j,k) + dt*vnew(i,j,k);
+            });
+
+        }
+        
     }
 
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
@@ -328,6 +385,14 @@ private:
     Set::Field<Set::Scalar> res_mf;
     Set::Field<Set::Matrix> stress_mf;
     Set::Field<Set::Matrix> strain_mf;
+    
+    // Only use these if using the "dynamics" option
+    Set::Field<Set::Vector> disp_old_mf;
+    Set::Field<Set::Vector> vel_mf;
+    Set::Field<Set::Vector> vel_old_mf;
+    //Set::Field<Set::Matrix4<AMREX_SPACEDIM,MODEL::sym>> ddw_mf;
+    Set::Scalar rho = 1.0;
+    Set::Scalar mu = 0.0;
 
     Set::Vector trac_lo[AMREX_SPACEDIM];
     Set::Vector trac_hi[AMREX_SPACEDIM];

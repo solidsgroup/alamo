@@ -27,6 +27,8 @@ public:
                                         const amrex::DistributionMapping& dm) = 0;
     virtual void SetFinestLevel(const int a_finestlevel) = 0;
     virtual void FillPatch(const int lev, const Set::Scalar time)=0;
+    virtual void FillBoundary(const int lev, Set::Scalar time)=0;
+    virtual void AverageDownNodal(const int lev, amrex::IntVect refRatio) = 0;
 
     virtual int NComp() = 0;
     virtual void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) = 0;
@@ -156,9 +158,10 @@ public:
         }
         else
         {
-            amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
-            this->FillPatch(lev, time, m_field, new_state, 0);
-            std::swap(new_state, *m_field[lev]);
+            Util::Abort(INFO,"Not implemented yet");
+            //amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
+            //this->FillPatch(lev, time, m_field, new_state, 0);
+            //std::swap(new_state, *m_field[lev]);
         }
     }
 
@@ -191,6 +194,7 @@ public:
             amrex::BoxArray ngrids = cgrids;
             ngrids.convert(amrex::IntVect::TheNodeVector());
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
+            m_field[lev]->setVal(T::Zero());
         }
 //      else
 //      {
@@ -201,6 +205,16 @@ public:
     virtual void SetFinestLevel(const int a_finestlevel)
     {
         m_field.finest_level = a_finestlevel;
+    }
+
+    virtual void FillBoundary(const int lev, Set::Scalar /*time*/) override
+    {
+        Util::RealFillBoundary(*m_field[lev],m_geom[lev]);
+    }
+    
+    virtual void AverageDownNodal(const int lev, amrex::IntVect refRatio) override
+    {
+        amrex::average_down_nodal(*m_field[lev+1],*m_field[lev],refRatio);
     }
     
 private:
