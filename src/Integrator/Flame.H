@@ -48,6 +48,7 @@ private:
     Set::Field<Set::Scalar> Mob_mf; 
     Set::Field<Set::Scalar> Mob_old_mf;
     Set::Field<Set::Scalar> mdot_mf;
+    Set::Field<Set::Scalar> heat_mf;
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
     BC::BC<Set::Scalar> *TempBC;

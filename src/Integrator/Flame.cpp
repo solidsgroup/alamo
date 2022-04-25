@@ -39,6 +39,8 @@ namespace Integrator
             RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
 
             RegisterNewFab(mdot_mf, EtaBC, 1, 1, "mdot", true);
+
+            RegisterNewFab(heat_mf, EtaBC, 1, 1, "heat", true);
         }
         
 
@@ -157,6 +159,8 @@ namespace Integrator
 
         PhiIC->Initialize(lev, phi_mf);
 	  
+        heat_mf[lev] -> setVal(0.0);
+
         if (thermal.on) Mob_mf[lev]->setVal(0.0);
         if (thermal.on) Mob_old_mf[lev]->setVal(0.0);
     }
@@ -289,6 +293,8 @@ namespace Integrator
 
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
+                amrex::Array4<Set::Scalar> const &heat = (*heat_mf[lev]).array(mfi);
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
@@ -385,7 +391,14 @@ namespace Integrator
                     // Heat Model
                     // -------------------
 
-
+                    if (Eta_old(i,j,k) > 0.001)
+                    {
+                        heat(i,j,k) = mdot(i,j,k) * thermal.ap_cp * Temp(i,j,k);
+                    }
+                    else
+                    {
+                        heat(i,j,k) = mdot(i,j,k) * thermal.ap_cp * Temp(i,j,k);
+                    }
                     
                 });
                 
