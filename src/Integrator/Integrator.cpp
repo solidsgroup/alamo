@@ -757,11 +757,8 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
         if (m_basefields[i]->writeout)
         {
             bfcomponents += m_basefields[i]->NComp();
-            if (m_basefields[i]->NComp() > 1)
-                for (int j = 0; j < m_basefields[i]->NComp(); j++)
-                    bfnames.push_back(m_basefields[i]->Name(j));
-            else
-                Util::Abort(INFO,"Not supported yet");
+            for (int j = 0; j < m_basefields[i]->NComp(); j++)
+                bfnames.push_back(m_basefields[i]->Name(j));
         }
     }
 

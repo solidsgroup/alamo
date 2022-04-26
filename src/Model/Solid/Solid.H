@@ -40,6 +40,9 @@ public:
     virtual Set::Matrix DW(const Set::Matrix &) const         {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
     virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
     
+    virtual void Advance(Set::Scalar, Set::Matrix, Set::Matrix) {}
+
+
 public:
     Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
     static const KinematicVariable kinvar = KinematicVariable::F;

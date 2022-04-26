@@ -46,7 +46,6 @@ public:
 
 
 private:
-
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf, 
                         const Set::Field<Set::Scalar>& a_b_mf,
                         Set::Field<Set::Scalar>& a_rhs_mf,
@@ -106,32 +105,36 @@ private:
             {
                 amrex::Box domain(linop->Geom(lev).Domain());
                 domain.convert(amrex::IntVect::TheNodeVector());
-                domain.grow(-1);
                 const Set::Scalar *dx = linop->Geom(lev).CellSize();
+                const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
                     amrex::Box bx = mfi.nodaltilebox();
                     bx = bx & domain;
-                    amrex::Array4<Set::Scalar>        const &b     = a_b_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Scalar>  const &u     = a_u_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Scalar>  const &b     = a_b_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Matrix>  const &dw    = a_dw_mf[lev]->array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx);
-                        for (int p = 0; p < AMREX_SPACEDIM; p++) 
-                            b(i,j,k,p) -= divdw(p);
+                    amrex::Array4<Set::Scalar>        const &rhs   = a_rhs_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                    {
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
+                        // Do this if on the domain boundary
+                        if (AMREX_D_TERM(i==lo.x || i==hi.x, || j==lo.y || j==hi.y, || k==lo.z || k==hi.z))
+                        {
+                            Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
+                            Set::Vector U(AMREX_D_DECL(u(i,j,k,0),u(i,j,k,1),u(i,j,k,2)));
+                            Set::Vector ret = m_elastic->GetBC()(U,gradu,dw(i,j,k),i,j,k,bx);
+                            for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k,d) - ret(d);
+                        }
+                        else
+                        {
+                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx);
+                            for (int p = 0; p < AMREX_SPACEDIM; p++) rhs(i,j,k,p) = b(i,j,k,p) - divdw(p);
+                        }
                     });                    
                 }
-            }
-
-            for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
-            {
-                m_elastic->Apply(lev,0,*a_rhs_mf[lev],*a_u_mf[lev]);
-                a_rhs_mf[lev]->mult(-1.0,2);
-                amrex::MultiFab::Add(*a_rhs_mf[lev],*a_b_mf[lev],0,0,a_rhs_mf[lev]->nComp(),2);
+                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic->Geom(lev));
                 Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic->Geom(lev));
-            }
-            for (int lev = a_b_mf.finest_level; lev > 0; lev--)
-            {
-                linop->Reflux(lev-1, *a_rhs_mf[lev-1], *a_u_mf[lev-1], *a_b_mf[lev-1], *a_rhs_mf[lev], *a_u_mf[lev], *a_b_mf[lev]);
             }
     }
 
@@ -159,28 +162,22 @@ private:
                     amrex::Array4<Set::Matrix4<AMREX_SPACEDIM,T::sym>>  const &ddw = a_ddw_mf[lev]->array(mfi);
 
                     // Set model internal dw and ddw.
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                    {
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
 
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
-
-                        if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu)
-                        {
-                            dw(i,j,k) = model(i, j, k).DW(gradu);
-                            ddw(i,j,k) = model(i, j, k).DDW(gradu);
-                        }
+                        Set::Matrix kinvar;
+                        if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::gradu) 
+                            kinvar = gradu; // gradu
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::epsilon)
-                        {
-                            Set::Matrix eps = 0.5 * (gradu + gradu.transpose());
-                            dw(i,j,k) = model(i, j, k).DW(eps);
-                            ddw(i,j,k) = model(i, j, k).DDW(eps);
-                        }
+                            kinvar = 0.5*(gradu + gradu.transpose()); // epsilon
                         else if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
-                        {
-                            Set::Matrix F = gradu + Set::Matrix::Identity();
-                            dw(i,j,k) = model(i, j, k).DW(F);
-                            ddw(i,j,k) = model(i, j, k).DDW(F);
-                        }
+                            kinvar = gradu + Set::Matrix::Identity(); // F
+
+                        dw(i,j,k) = model(i, j, k).DW(kinvar);
+                        ddw(i,j,k) = model(i, j, k).DDW(kinvar);
+
                     });
                 }
 
@@ -194,37 +191,37 @@ private:
             {
                 amrex::Box domain(linop->Geom(lev).Domain());
                 domain.convert(amrex::IntVect::TheNodeVector());
-                domain.grow(-1);
                 const Set::Scalar *dx = linop->Geom(lev).CellSize();
+                const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
-                {
-                    amrex::Box bx = mfi.nodaltilebox();
+                {                    
+                    amrex::Box bx = mfi.grownnodaltilebox();
                     bx = bx & domain;
-                    amrex::Array4<Set::Vector>        const &b     = a_b_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Vector>  const &u     = a_u_mf[lev]->array(mfi);
+                    amrex::Array4<const Set::Vector>  const &b     = a_b_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Matrix>  const &dw    = a_dw_mf[lev]->array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        b(i,j,k) -= Numeric::Divergence(dw,i,j,k,dx);
+                    amrex::Array4<Set::Scalar>        const &rhs   = a_rhs_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                    {
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
+                        // Do this if on the domain boundary
+                        if (AMREX_D_TERM(i==lo.x || i==hi.x, || j==lo.y || j==hi.y, || k==lo.z || k==hi.z))
+                        {
+                            Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
+                            Set::Vector ret = m_elastic->GetBC()(u(i,j,k),gradu,dw(i,j,k),i,j,k,bx);
+
+                            for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - ret(d);
+                        }
+                        else
+                        {
+                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
+                            for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - divdw(d);
+                        }
                     });                    
                 }
-            }
 
-            for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
-            {
-                amrex::MultiFab u_tmp (a_rhs_mf[lev]->boxArray(), a_rhs_mf[lev]->DistributionMap(),
-                                       a_u_mf.NComp(), a_rhs_mf[lev]->nGrow());
-                a_u_mf.Copy(lev,u_tmp,0,2);
-                m_elastic->Apply(lev,0,*a_rhs_mf[lev],u_tmp);
-                a_rhs_mf[lev]->mult(-1.0,2);
-                a_b_mf.Add(lev,*a_rhs_mf[lev],0,2);
-                //amrex::MultiFab::Add(*a_rhs_mf[lev],*a_b_mf[lev],0,0,a_rhs_mf[lev]->nComp(),2);
+                Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic->Geom(lev));
                 Util::RealFillBoundary(*a_rhs_mf[lev],m_elastic->Geom(lev));
-            }
-            for (int lev = a_b_mf.finest_level; lev > 0; lev--)
-            {
-                amrex::MultiFab empty;
-                linop->Reflux(lev-1, 
-                              *a_rhs_mf[lev-1], empty, empty, 
-                              *a_rhs_mf[lev],   empty, empty);
             }
     }
 
@@ -280,7 +277,6 @@ public:
             if (nriter == m_nriters) break;
             
             Solver::Nonlocal::Linear::solve(dsol_mf, rhs_mf, a_tol_rel, a_tol_abs,checkpoint_file);
-            //Solver::Nonlocal::Linear::solve(GetVecOfPtrs(dsol_mf), GetVecOfConstPtrs(rhs_mf), a_tol_rel, a_tol_abs,checkpoint_file);
 
             Set::Scalar cornorm = 0, solnorm = 0;
             for (int lev = 0; lev < dsol_mf.size(); ++lev)
@@ -312,6 +308,7 @@ public:
         return 0.0;
     }
 
+    [[depricated ("Use the new solve which uses Field<Vectors> instead")]]
     Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
                         const Set::Field<Set::Scalar> & a_b_mf,
                         Set::Field<T> &a_model_mf,

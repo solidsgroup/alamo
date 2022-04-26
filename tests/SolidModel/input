@@ -1,24 +1,26 @@
-#@  [affine-isotropic]
-#@  dim = 3
-#@  check = false
-#@  args = alamo.program.mechanics.model=affine.isotropic
-#@  args = elastic.model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
-#@  args = elastic.model1.E=210 
-#@  args = elastic.model1.nu=0.3
+#  [affine-isotropic]
+#  dim = 3
+#  check = false
+#  args = alamo.program.mechanics.model=affine.isotropic
+#  args = elastic.model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#  args = elastic.model1.E=210 
+#  args = elastic.model1.nu=0.3
 
 
-#@
-#@  [neo-hookean]
-#@  dim=3
-#@  check=false
-#@  args = timestep=0.1
-#@  args = alamo.program.mechanics.model=elastic.neohookean
-#@  args = elastic.model1.mu=3.0
-#@  args = elastic.model1.kappa=6.5
-#@  args = elastic.bc.tension_test.disp=(0,1:0,1)
-#@ 
+#
+#  [neo-hookean]
+#  dim=3
+#  check=false
+#  args = timestep=0.1
+#  args = alamo.program.mechanics.model=elastic.neohookean
+#  args = elastic.model1.mu=3.0
+#  args = elastic.model1.kappa=6.5
+#  args = elastic.bc.tension_test.disp=(0,1:0,1)
+#  args = elastic.solver.nriters=10
+# 
 
 alamo.program = mechanics
+
 
 plot_file		    = tests/SolidModel/output
 
@@ -43,9 +45,15 @@ geometry.prob_hi	    = 1 1 1
 elastic.nmodels = 1
 
 elastic.solver.verbose = 3
-elastic.solver.nriters = 10
-elastic.solver.max_iter = 30
+elastic.solver.nriters = 1
+elastic.solver.max_iter = 50 #30
 
 elastic.bc.type = tension_test
 elastic.bc.tension_test.type = uniaxial_stress
-elastic.bc.tension_test.disp = (0,1:0,0.01)
+elastic.bc.tension_test.disp = (0,0.2,0.6,0.8:0,0.002,-0.002,0)
+#elastic.bc.tension_test.disp = (0,0.2,0.6,0.8:0,0.0014,0.0014,0.0014)
+
+alamo.program.mechanics.model = affine.j2
+elastic.model1.E=210 
+elastic.model1.nu=0.3
+elastic.model1.sigma0 = 0.2

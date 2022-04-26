@@ -43,7 +43,7 @@ public:
     void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) const {}
     void Add(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) const {}
     void AddFrom(int /*a_lev*/, amrex::MultiFab &/*a_src*/, int /*a_srccomp*/, int /*a_nghost*/) const {}
-    int NComp() const {return 1;}
+    int NComp() const {return 0;}
     virtual std::string Name(int) const {return name;}
     std::string name;    
 };

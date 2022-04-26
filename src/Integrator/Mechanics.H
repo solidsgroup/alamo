@@ -112,7 +112,7 @@ public:
         // Refinement threshold for strain gradient
         pp.query("elastic.ref_threshold",value.m_elastic_ref_threshold);
 
-        value.RegisterGeneralFab(value.model_mf, 1, 2);
+        value.RegisterGeneralFab(value.model_mf, 1, 2,"model");
 
         // Read in IC for eta
         std::string type;
@@ -162,9 +162,11 @@ protected:
         else rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
 
-    virtual void UpdateModel()
+    virtual void UpdateModel(int a_step)
     {
         // Set linear elastic model
+
+        if (a_step > 0) return;
         
         for (int lev = 0; lev <= finest_level; ++lev)
         {
@@ -199,7 +201,7 @@ protected:
 
         if (m_interval && a_step%m_interval) return;
 
-        UpdateModel();        
+        UpdateModel(a_step);        
 
         if (!m_type == Type::Static) return;
 
@@ -234,23 +236,22 @@ protected:
                 amrex::Array4<const Set::Vector> const &disp  = disp_mf[lev]->array(mfi);
 
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                            std::array<Numeric::StencilType,AMREX_SPACEDIM>
-                                                sten = Numeric::GetStencil(i,j,k,bx);
-
-                                            if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
-                                            {
-                                                Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp,i,j,k,DX,sten);
-                                                stress(i,j,k) = model(i,j,k).DW(F);
-                                                strain(i,j,k) = F;
-                                            }
-                                            else
-                                            {                    
-                                                Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX,sten);
-                                                stress(i,j,k) = model(i,j,k).DW(gradu);
-                                                strain(i,j,k) = 0.5*(gradu + gradu.transpose());
-                                            }
-                                        });
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                {
+                    auto sten = Numeric::GetStencil(i,j,k,bx);
+                    if (model(i,j,k).kinvar == Model::Solid::KinematicVariable::F)
+                    {
+                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp,i,j,k,DX,sten);
+                        stress(i,j,k) = model(i,j,k).DW(F);
+                        strain(i,j,k) = F;
+                    }
+                    else
+                    {                    
+                        Set::Matrix gradu = Numeric::Gradient(disp,i,j,k,DX,sten);
+                        stress(i,j,k) = model(i,j,k).DW(gradu);
+                        strain(i,j,k) = 0.5*(gradu + gradu.transpose());
+                    }
+                });
             }
             Util::RealFillBoundary(*stress_mf[lev],geom[lev]);
             Util::RealFillBoundary(*disp_mf[lev],geom[lev]);
@@ -259,49 +260,61 @@ protected:
 
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
     {
-        if (!m_type == Type::Dynamic) return;
-
-        std::swap(*disp_mf[lev], *disp_old_mf[lev]);
-        std::swap(*vel_mf[lev], *vel_old_mf[lev]);
-
-        amrex::Box domain = geom[lev].Domain();
-        domain.convert(amrex::IntVect::TheNodeVector());
-        domain.grow(-1);
-        
         const amrex::Real *DX = geom[lev].CellSize();
+
+        if (m_type == Type::Dynamic)
+        {
+            std::swap(*disp_mf[lev], *disp_old_mf[lev]);
+            std::swap(*vel_mf[lev], *vel_old_mf[lev]);
+
+            amrex::Box domain = geom[lev].Domain();
+            domain.convert(amrex::IntVect::TheNodeVector());
+            domain.grow(-1);
+
+            for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Array4<Set::Vector> const &unew = (*disp_mf[lev]).array(mfi);
+                amrex::Array4<Set::Vector> const &vnew = (*vel_mf[lev]).array(mfi);
+
+                amrex::Array4<const Set::Vector> const &u = (*disp_old_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Vector> const &v = (*vel_old_mf[lev]).array(mfi);
+                amrex::Array4<Set::Matrix> const &eps = (*strain_mf[lev]).array(mfi);
+                amrex::Array4<Set::Matrix> const &sig = (*stress_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Vector> const &b = (*rhs_mf[lev]).array(mfi);
+
+                amrex::Array4<MODEL> const &model = (*model_mf[lev]).array(mfi);
+
+                // Right now, we are forcing Dirichlet conditions on all boundaries
+                amrex::Box bx = mfi.nodaltilebox().grow(1) & domain;
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    //auto sten = Numeric::GetStencil(i,j,k,bx);
+                    eps(i,j,k) = Numeric::Gradient(u,i,j,k,DX);
+                    sig(i,j,k) = model(i,j,k).DW(eps(i,j,k)); 
+                });
+
+                bx = mfi.nodaltilebox().grow(0) & domain;
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    //auto sten = Numeric::GetStencil(i,j,k,bx);
+                    Set::Vector udotdot = Numeric::Divergence(sig,i,j,k,DX) + b(i,j,k) - mu * v(i,j,k);
+                    udotdot /= rho;
+                    vnew(i,j,k) = v(i,j,k) + dt*udotdot;
+                    unew(i,j,k) = u(i,j,k) + dt*vnew(i,j,k); 
+                });
+            }
+        }
 
         for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Array4<Set::Vector>         const &unew = (*disp_mf[lev]).array(mfi);
-            amrex::Array4<Set::Vector>         const &vnew = (*vel_mf [lev]).array(mfi);
-
-            amrex::Array4<const Set::Vector>   const &u    = (*disp_old_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Vector>   const &v    = (*vel_old_mf[lev]).array(mfi);
+            amrex::Box bx = mfi.nodaltilebox();
             amrex::Array4<Set::Matrix>         const &eps  = (*strain_mf[lev]).array(mfi);
             amrex::Array4<Set::Matrix>         const &sig  = (*stress_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Vector>   const &b    = (*rhs_mf[lev]).array(mfi);
-        
             amrex::Array4<MODEL>               const &model= (*model_mf[lev]).array(mfi);
-        
-            // Right now, we are forcing Dirichlet conditions on all boundaries
-            amrex::Box bx = mfi.nodaltilebox().grow(1) & domain;
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
-                //auto sten = Numeric::GetStencil(i,j,k,bx);
-                eps(i,j,k) = Numeric::Gradient(u,i,j,k,DX);
-                sig(i,j,k) = model(i,j,k).DW(eps(i,j,k));
+                model(i,j,k).Advance(dt,eps(i,j,k),sig(i,j,k));
             });
-
-            bx = mfi.nodaltilebox().grow(0) & domain;
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-            {
-                //auto sten = Numeric::GetStencil(i,j,k,bx);
-                Set::Vector udotdot = Numeric::Divergence(sig,i,j,k,DX) + b(i,j,k) - mu * v(i,j,k);
-                udotdot /= rho;
-                vnew(i,j,k) = v(i,j,k) + dt*udotdot;
-                unew(i,j,k) = u(i,j,k) + dt*vnew(i,j,k);
-            });
-
         }
         
     }
@@ -332,7 +345,7 @@ protected:
         amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
         {
             #if AMREX_SPACEDIM == 2
-            if (i == boxhi.x && j < boxhi.y)
+            if (i == hi.x && j < boxhi.y)
             {
                 trac_hi[0]+= (0.5 * (stress(i,j,k) + stress(i,j+1,k)) * da);
                 disp_hi[0] = disp(i,j,k); 
