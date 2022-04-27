@@ -17,12 +17,6 @@
 //
 // The plastic strain is evolved according to the following:
 //
-// .. math::
-//
-//    
-//
-// Attempting inline :math:`a^2+b^2=c^2`
-//
 // #. Calculate the deviatoric stress :math:`\sigma_v=\sigma - \frac{1}{3}tr(\sigma)\mathbf{I}`
 // #. Calculate :math:`J_2=\sqrt{\frac{3}{2}\sigma_v:\sigma_v}`
 // #. If :math:`J_2<\sigma_0` then quit - no plasticity occurs

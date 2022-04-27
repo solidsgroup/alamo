@@ -182,7 +182,12 @@ def test(testdir):
         if check:
             print("  │      Checking result.........................................",end="",flush=True)
             try:
-                p = subprocess.check_output(["./test","{}_{}".format(testid,desc)],cwd=testdir,stderr=subprocess.PIPE)
+                cmd = ["./test","{}_{}".format(testid,desc)]
+                if "check-file" in config[desc].keys():
+                    cmd.append(config[desc]['check-file'])
+                if args.cmd: 
+                    print("  ├      " + ' '.join(cmd))
+                p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
@@ -221,7 +226,7 @@ class stats:
 # for each.
 for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
-        print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
+        print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
     f, c, t, s = test(testdir)
     stats.fails += f
