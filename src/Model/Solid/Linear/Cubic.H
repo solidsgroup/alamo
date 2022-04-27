@@ -1,3 +1,8 @@
+//
+// This class implements basic cubic elasticity.
+// For a discussion on cubic elasticity, `please see this link <http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16>`_.
+//
+
 #ifndef MODEL_SOLID_LINEAR_CUBIC_H_
 #define MODEL_SOLID_LINEAR_CUBIC_H_
 

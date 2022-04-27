@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-import numpy, yt, pylab, os, pandas
+import numpy, yt, pylab, os, pandas, sys
+
+outdir = sys.argv[1]
 
 generate_ref_data = False  # Change to True if you need to generate new reference data
 tolerance = 1E-8
 
-path = "output/00200cell/"
+path = "{}/00200cell/".format(outdir)
 ds = yt.load(path)
 dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
 
@@ -45,7 +47,7 @@ if dim == 2:
     for eta in ref.eta: pylab.plot(ref.r,eta,color='C0',label='reference')
     for eta in new.eta: pylab.plot(new.r,eta,color='C1',label='new',linestyle='--')
     #pylab.show()
-    pylab.savefig("output/etas.png")
+    pylab.savefig("{}/etas.png".format(outdir))
 
     ctr = 0
     for ref_eta, new_eta in zip(ref.eta, new.eta):

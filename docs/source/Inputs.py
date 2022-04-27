@@ -5,6 +5,21 @@ from os import listdir
 from os.path import isfile, join
 
 
+def getdocumentation(filename):
+    sourcefile = open(filename+".H")
+    ret = ""
+    for line in sourcefile.readlines():
+        if line.startswith(r"///"): # special provision for legacy doxygen comments
+            ret += line.split(r"///")[1]
+        elif line.startswith(r"// "):
+            ret += line.split(r"// ")[1]
+        elif line.startswith(r"//"):
+            ret += line.split(r"//")[1]
+        else:
+            return ret
+    return ret
+
+
 def getParseDef(line):
     return "static void Parse" in line
 
@@ -46,36 +61,38 @@ def getDocs(lines,i):
     return ret
 
 
-def extract(filename):
-    sourcefile = open(filename)
+def extract(basefilename):
     rets = dict()
-    lines = sourcefile.readlines()
-    prefix = None
-    for i in range(len(lines)):
-        if ("ParmParse pp" in lines[i].split(r'//')[0]):
-            prefix = getParmParseDef(lines[i])
-            if prefix in rets.keys(): continue
-            # Initialize the record for this ParmParser
-            rets[prefix] = dict()
-            rets[prefix]["items"] = []
-            docs = getDocs(lines,i)
-            if docs: rets[prefix]["docs"] = docs
-            
-        if (getParseDef(lines[i])):
-            prefix = "[prefix]"
-            rets[prefix] = dict()
-            rets[prefix]["items"] = []
-            docs = getDocs(lines,i)
-            if docs: rets[prefix]["docs"] = docs
-        if ('pp.query' in lines[i]):
-            ret = dict()
-            docs = getDocs(lines,i);
-            if docs: ret["docs"] = docs
-            info = getParmParseInfo(lines[i])
-            if not info: continue
-            ret["query"], ret["string"], ret["variable"] = info
-            if prefix: ret["string"] = prefix + "." + ret["string"]
-            rets[prefix]['items'].append(ret)
+    for filename in [basefilename+".H",basefilename+".cpp"]:
+        if not os.path.isfile(filename): continue
+        sourcefile = open(filename)
+        lines = sourcefile.readlines()
+        prefix = None
+        for i in range(len(lines)):
+            if ("ParmParse pp" in lines[i].split(r'//')[0]):
+                prefix = getParmParseDef(lines[i])
+                if prefix in rets.keys(): continue
+                # Initialize the record for this ParmParser
+                rets[prefix] = dict()
+                rets[prefix]["items"] = []
+                docs = getDocs(lines,i)
+                if docs: rets[prefix]["docs"] = docs
+
+            if (getParseDef(lines[i])):
+                prefix = "[prefix]"
+                rets[prefix] = dict()
+                rets[prefix]["items"] = []
+                docs = getDocs(lines,i)
+                if docs: rets[prefix]["docs"] = docs
+            if ('pp.query' in lines[i]):
+                ret = dict()
+                docs = getDocs(lines,i);
+                if docs: ret["docs"] = docs
+                info = getParmParseInfo(lines[i])
+                if not info: continue
+                ret["query"], ret["string"], ret["variable"] = info
+                if prefix: ret["string"] = prefix + "." + ret["string"]
+                rets[prefix]['items'].append(ret)
     return rets
 
 docfile    = open("Inputs.rst","w")
@@ -98,10 +115,17 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
 
     write_header = True
     
-    for f in sorted(filelist):
-        if f.endswith(".H") or f.endswith(".cpp"): 
-            inputs = extract(dirname + "/" + f)
-            if not len(inputs):
+    srcfilelist = set()
+    for f in filelist:
+        if f.endswith(".cpp"): srcfilelist.add(f.replace(".cpp",""))
+        if f.endswith(".H"): srcfilelist.add(f.replace(".H",""))
+    
+    for f in sorted(srcfilelist):
+        
+        if True: 
+            inputs = extract(dirname+"/"+f)
+            documentation = getdocumentation(dirname+"/"+f)
+            if not len(inputs) and not documentation:
                 continue
 
             classname = dirname.replace("../../src/","").replace("/","::") + "::" + f.replace(".H","").replace(".cpp","")
@@ -118,6 +142,12 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
             docfile.write(classname + "\n")
             lev = len(classname.split('::'))-1
             docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
+            
+            if documentation:
+                docfile.write(documentation)
+            
+            if not len(inputs): continue
+
             docfile.write(".. flat-table:: \n")
             docfile.write("    :widths: 20 10 70\n")
             docfile.write("    :header-rows: 1\n\n")

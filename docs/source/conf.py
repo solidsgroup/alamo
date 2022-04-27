@@ -23,7 +23,6 @@ import sys
 sys.path.append(os.path.abspath('.'))
 import Inputs
 
-
 # -- Project information ----------------------------------------------------
 
 
@@ -38,8 +37,8 @@ version = u''
 release = u''
 
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-if read_the_docs_build:
-    subprocess.call('cd ..; doxygen', shell=True)
+#if read_the_docs_build:
+#    subprocess.call('cd ..; doxygen', shell=True)
 
 
 # -- General configuration ---------------------------------------------------
@@ -57,13 +56,13 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
     'sphinx.ext.autosectionlabel',
-    'breathe',
+#    'breathe',
     'linuxdoc.rstFlatTable',
 #    'm2r'
 ]
 
-breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
-breathe_default_project = "alamo"
+#breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
+#breathe_default_project = "alamo"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['.templates']

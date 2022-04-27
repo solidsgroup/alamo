@@ -11,6 +11,7 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Laplacian.H"
+#include "Model/Solid/Affine/J2.H"
 
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
@@ -58,6 +59,16 @@ int main (int argc, char* argv[])
         {
             integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>();
             pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Linear::Laplacian>*>(integrator));
+        }
+        else if (model == "elastic.neohookean") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>*>(integrator));
+        }
+        else if (model == "affine.j2") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Affine::J2>*>(integrator));
         }
         else
         {
