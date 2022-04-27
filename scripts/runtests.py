@@ -3,6 +3,8 @@ import argparse
 import os, glob, subprocess
 import configparser, io
 from collections import OrderedDict
+from datetime import datetime
+import socket
 
 class color:
     reset = "\033[0m"
@@ -13,6 +15,13 @@ class color:
     bold = "\033[1m"
     lightgray = "\033[37m"
     darkgray = "\033[90m"
+
+#
+# Get a unique string ID to label all output files
+#
+now = datetime.now()
+testid = now.strftime("output_%Y-%m-%d_%H:%M:%S_"+socket.gethostname())
+print("Test ID = ",testid)
 
 #
 # Special order from SO - dictionary allows for keys to be specified multiple times and 
@@ -118,6 +127,8 @@ def test(testdir):
             cmdargs = "" # Extra arguments to pass to alamo in addition to input file
             if 'args' in config[desc].keys(): cmdargs = config[desc]['args'].replace('\n',' ')
 
+            cmdargs += " plot_file={}/{}_{}".format(testdir,testid,desc)
+
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
                 continue
@@ -171,7 +182,7 @@ def test(testdir):
         if check:
             print("  │      Checking result.........................................",end="",flush=True)
             try:
-                p = subprocess.check_output(["./test"],cwd=testdir,stderr=subprocess.PIPE)
+                p = subprocess.check_output(["./test","{}_{}".format(testid,desc)],cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
