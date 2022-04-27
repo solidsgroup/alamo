@@ -1,3 +1,41 @@
+//
+// This models an isotropic elastic-perfectly-plastic, non-time-dependent solid model.
+// 
+// The energy and derivatives are:
+//
+// .. math::
+//    :nowrap:
+//
+//    \begin{gather}
+//    W = \frac{1}{2}(\varepsilon - \varepsilon_p):\mathbb{C}(\varepsilon-\varepsilon_p) \\
+//    DW = \mathbb{C}(\varepsilon-\varepsilon_p) \\
+//    DDW = \mathbb{C}
+//    \end{gather}
+//
+// where :math:`\mathbb{C}` is an isotropic :code:`Set::Matrix4` and :math:`\varepsilon_p` is 
+// is stored in the :code:`F0` eigenstrain.
+//
+// The plastic strain is evolved according to the following:
+//
+// .. math::
+//
+//    
+//
+// Attempting inline :math:`a^2+b^2=c^2`
+//
+// #. Calculate the deviatoric stress :math:`\sigma_v=\sigma - \frac{1}{3}tr(\sigma)\mathbf{I}`
+// #. Calculate :math:`J_2=\sqrt{\frac{3}{2}\sigma_v:\sigma_v}`
+// #. If :math:`J_2<\sigma_0` then quit - no plasticity occurs
+// #. Calculate :math:`\Delta\sigma = (1-\frac{\sigma_0}{J_2})`, which projects the stress 
+//    back on the yield surface.
+// #. Convert to change in plastic strain, :math:`\Delta\varepsilon=\mathbb{C}^{-1}\Delta\sigma`
+// #. Update plastic strain: :math:`\varepsilon_p += \Delta\varepsilon`
+//
+// Notes:
+//
+// * This does not implement any kind of hardening model. Rate hardening, isotropic hardening,
+//   and kinematic hardening have yet to be implemneted.
+//
 #ifndef MODEL_SOLID_AFFINE_J2_H_
 #define MODEL_SOLID_AFFINE_J2_H_
 

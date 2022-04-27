@@ -26,7 +26,7 @@ plot_file		    = tests/SolidModel/output
 
 type=static
 
-timestep		    = 0.01
+timestep		    = 0.001
 stop_time		    = 1.0
 
 # amr parameters
@@ -50,7 +50,7 @@ elastic.solver.max_iter = 50 #30
 
 elastic.bc.type = tension_test
 elastic.bc.tension_test.type = uniaxial_stress
-elastic.bc.tension_test.disp = (0,0.2,0.6,0.8:0,0.002,-0.002,0)
+elastic.bc.tension_test.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
 #elastic.bc.tension_test.disp = (0,0.2,0.6,0.8:0,0.0014,0.0014,0.0014)
 
 alamo.program.mechanics.model = affine.j2

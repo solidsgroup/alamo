@@ -46,6 +46,7 @@ public:
     {
         //value.bc = new BC::Constant(1);
         //pp.queryclass(*static_cast<BC::Constant *>(value.bc)); // See :ref:`BC::Constant`
+        
         pp.queryclass("model",value.model);
     }
 
