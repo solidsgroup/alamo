@@ -171,6 +171,7 @@ protected:
     Set::Scalar bottom_tol_abs = -1.0;
     Set::Scalar tol_rel = -1.0;
     Set::Scalar tol_abs = -1.0;
+    Set::Scalar omega = -1.0;
 
     Operator::Operator<Grid::Node> * linop;
     amrex::MLMG * mlmg;
@@ -203,6 +204,8 @@ protected:
 
         if (bottom_tol_rel >= 0) mlmg.setBottomTolerance(bottom_tol_rel);
         if (bottom_tol_abs >= 0) mlmg.setBottomToleranceAbs(bottom_tol_abs);
+
+        if (omega>=0) this->linop->SetOmega(omega);
     }
     
 
@@ -255,6 +258,10 @@ public:
 
         // Absolute tolerance
         pp.query("tol_abs",value.tol_abs);
+
+        // Omega (used in gauss-seidel solver)
+        pp.query("omega",value.omega);
+        
     }
 
     

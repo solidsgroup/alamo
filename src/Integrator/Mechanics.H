@@ -51,7 +51,7 @@ public:
     {
         if (pp.contains("type"))
         {
-            std::string type_str;
+            std::string type_str = "static";
             pp.query("type",type_str);
             if (type_str == "static")
             {
@@ -369,22 +369,25 @@ protected:
         //a_tags.setVal(amrex::TagBox::CLEAR);
         for (amrex::MFIter mfi(*eta_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.tilebox();
+            amrex::Box bx = mfi.nodaltilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-            amrex::Array4<Set::Vector> const &u = disp_mf[lev]->array(mfi);
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                        {
-                                            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data());
-                                            if (grad.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
-                                                tags(i, j, k) = amrex::TagBox::SET;
-                                        }
-                                        {
-                                            Set::Matrix3 grad = Numeric::Hessian(u, i, j, k, DX.data());
-                                            if (grad.norm() * DXnorm > m_elastic_ref_threshold)
-                                                tags(i, j, k) = amrex::TagBox::SET;
-                                        }
-                                    });
+            amrex::Array4<Set::Matrix> const &eps = strain_mf[lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                auto sten = Numeric::GetStencil(i,j,k,bx);
+                {
+                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data(),sten);
+                    if (grad.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
+                        tags(i, j, k) = amrex::TagBox::SET;
+                }
+                {
+                    Set::Matrix3 grad = Numeric::Gradient(eps, i, j, k, DX.data(),sten);
+                    Util::Message(INFO,grad.norm()," ",DXnorm," ",m_elastic_ref_threshold);
+                    if (grad.norm() * DXnorm > m_elastic_ref_threshold)
+                        tags(i, j, k) = amrex::TagBox::SET;
+                }
+            });
         }
     }
 

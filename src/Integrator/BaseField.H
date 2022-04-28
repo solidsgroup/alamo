@@ -170,7 +170,7 @@ public:
                                         const amrex::BoxArray& cgrids, 
                                         const amrex::DistributionMapping& dm) override
     {
-        if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
+        if (m_field[0]->boxArray().ixType() == amrex::IndexType::TheNodeType())
         {
             amrex::BoxArray ngrids = cgrids;
             ngrids.convert(amrex::IntVect::TheNodeVector());
