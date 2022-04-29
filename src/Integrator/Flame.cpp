@@ -158,7 +158,7 @@ namespace Integrator
         mdot_mf[lev] -> setVal(0.0);
 
         PhiIC->Initialize(lev, phi_mf);
-	  
+
         heat_mf[lev] -> setVal(0.0);
 
         if (thermal.on) Mob_mf[lev]->setVal(0.0);
@@ -304,18 +304,18 @@ namespace Integrator
                     // Eta computation
                     // --------------------
 
-		            if (Eta_old(i,j,k) < 0.01) 
+                    if (Eta_old(i,j,k) < 0.01) 
                     {
                         Eta(i,j,k) = 0.0;
                     }
-		            else
+                    else
                     {   
                         Eta(i, j, k) = 
                             Eta_old(i, j, k) 
                             - Mob_old(i,j,k) * dt * (
                             (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
                             - pf.eps * pf.kappa * eta_lap);
-		            }
+                    }
 
                     Set::Vector eta_grad = Numeric::Gradient(Eta_old, i, j, k, 0, DX);
 
@@ -324,7 +324,7 @@ namespace Integrator
                     // --------------------
 
                     {
-			            mdot(i,j,k) = ((thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb) * Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
+                        mdot(i,j,k) = ((thermal.rho_ap - thermal.rho_htpb) * Eta_old(i,j,k) + thermal.rho_htpb) * Numeric::Laplacian(Eta_old, i, j, k, 0, DX);
                     }
 
                     
@@ -349,9 +349,9 @@ namespace Integrator
                     // Temperature computation
                     // --------------------
                     if (Eta_old(i,j,k) > 0.001)
-			        { 
+                    { 
                         Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn / K );
-			        }
+                    }
                     else
                     {
                         Temp(i,j,k) = 0.0; 
@@ -361,30 +361,30 @@ namespace Integrator
                     // --------------------
                     // Mobility computation
                     // --------------------
-		            if(Temp_old(i,j,k) < 400.0)
+                    if(Temp_old(i,j,k) < 400.0)
                     {
-		                Mob(i,j,k) = 0.0;
-		            }
-		            else if (Temp_old(i,j,k) < 500.0 && Temp_old(i,j,k) >= 400.0)
+                        Mob(i,j,k) = 0.0;
+                    }
+                    else if (Temp_old(i,j,k) < 500.0 && Temp_old(i,j,k) >= 400.0)
                     {
-		                Mob(i,j,k) = 0.01;
-		            }
-		            else
-		            {  
-		                Set::Scalar R = 8.314;
-		                Set::Scalar T0 = 399.0;
+                        Mob(i,j,k) = 0.01;
+                    }
+                    else
+                    {
+                        Set::Scalar R = 8.314;
+                        Set::Scalar T0 = 399.0;
+                        
+                        Set::Scalar e1 = exp(-thermal.ae_ap   / pf.P / R / (Temp_old(i,j,k) - T0) );
+                        Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (Temp_old(i,j,k) - T0) );
+                        Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (Temp_old(i,j,k) - T0) );
 
-		                Set::Scalar e1 = exp(-thermal.ae_ap   / pf.P / R / (Temp_old(i,j,k) - T0) );
-		                Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (Temp_old(i,j,k) - T0) );
-		                Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (Temp_old(i,j,k) - T0) );
+                        Mob(i,j,k) = ( 
+                            thermal.A_ap   * e1 * phi(i,j,k) + 
+                            thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
+                            thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+                            ) / pf.gamma / (pf.w1 - pf.w0);
 
-		                Mob(i,j,k) = ( 
-				            thermal.A_ap   * e1 * phi(i,j,k) + 
-				            thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
-				            thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
-				            ) / pf.gamma / (pf.w1 - pf.w0);
-
-			        }
+                    }
             
 
                     // -------------------
