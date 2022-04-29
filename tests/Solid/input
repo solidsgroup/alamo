@@ -6,7 +6,7 @@
 #@  [j2]
 #@  dim = 3
 #@  check-file = reference/j2.dat
-#@  timestep = 0.01
+#@  args = timestep = 0.001
 #@  args = alamo.program.mechanics.model=affine.j2
 #@  args = elastic.model1.E=210
 #@  args = elastic.model1.nu=0.3
@@ -31,12 +31,13 @@
 #@  args = elastic.model1.kappa=6.5
 #@  args = elastic.bc.tension_test.disp=(0,1:0,1)
 #@  args = elastic.solver.nriters=10
+#@  ignore = elastic.model1.E elastic.model1.nu 
 #@ 
 
 alamo.program = mechanics
 
 
-plot_file		    = tests/SolidModel/output
+plot_file		    = tests/Solid/output
 
 type=static
 

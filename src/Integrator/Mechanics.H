@@ -383,7 +383,6 @@ protected:
                 }
                 {
                     Set::Matrix3 grad = Numeric::Gradient(eps, i, j, k, DX.data(),sten);
-                    Util::Message(INFO,grad.norm()," ",DXnorm," ",m_elastic_ref_threshold);
                     if (grad.norm() * DXnorm > m_elastic_ref_threshold)
                         tags(i, j, k) = amrex::TagBox::SET;
                 }

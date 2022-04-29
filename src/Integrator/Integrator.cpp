@@ -29,6 +29,23 @@ Integrator::Integrator ()
         pp.query("restart_node", restart_file_node);  // Name of node-fab restart file to read from
     }
     {
+        // This allows the user to ignore certain arguments that
+        // would otherwise cause problems.
+        // Most generally this is used in the event of a "above inputs
+        // specified but not used" error.
+        // The primary purpose of this was to fix those errors that arise
+        // in regression tests.
+        IO::ParmParse pp;
+        std::vector<std::string> ignore;
+        if (pp.contains("ignore")) Util::Message(INFO,"Ignore directive detected");
+        pp.queryarr("ignore",ignore); // Space-separated list of entries to ignore
+        for (unsigned int i = 0; i < ignore.size(); i++)
+        {
+            Util::Message(INFO,"ignoring ", ignore[i]);
+            pp.remove(ignore[i].c_str());
+        }
+    }
+    {
         // These are parameters that are specific to
         // the AMR/regridding part of the code.
         amrex::ParmParse pp("amr"); 
