@@ -45,6 +45,7 @@ parser.add_argument('--serial',action='store_true',default=False,help='Run in se
 parser.add_argument('--dim',default=None,type=int,help='Specify dimensions to run in')
 parser.add_argument('--cmd',default=False,action='store_true',help="Print out the exact command used to run each test")
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
+parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 args=parser.parse_args()
 
 def test(testdir):
@@ -129,6 +130,9 @@ def test(testdir):
 
             cmdargs += " plot_file={}/{}_{}".format(testdir,testid,desc)
 
+            if 'ignore' in config[desc].keys():
+                cmdargs += " ignore={}".format(config[desc]['ignore'])
+
             # Quietly ignore this one if running in serial mode.
             if nprocs > 1 and args.serial: 
                 continue
@@ -136,6 +140,7 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             exe = "./bin/alamo-{}d-g++".format(dim)
+            if args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
