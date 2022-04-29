@@ -393,11 +393,11 @@ namespace Integrator
 
                     if (Eta_old(i,j,k) > 0.001)
                     {
-                        heat(i,j,k) = mdot(i,j,k) * thermal.ap_cp * Temp(i,j,k);
+                        heat(i,j,k) = mdot(i,j,k) * thermal.cp_ap * Temp(i,j,k);
                     }
                     else
                     {
-                        heat(i,j,k) = mdot(i,j,k) * thermal.ap_cp * Temp(i,j,k);
+                        heat(i,j,k) = mdot(i,j,k) * thermal.cp_ap * Temp(i,j,k);
                     }
                     
                 });
