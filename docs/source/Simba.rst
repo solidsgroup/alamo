@@ -1,6 +1,7 @@
 .. role:: cpp(code)
    :language: c++
 
+===================================
 Simulation Browser Analysis (SimBA)
 ===================================
 
@@ -13,7 +14,7 @@ SimBA is a set of python scripts designed to manage, organize, and view Alamo si
 It integrates with Alamo's metadata recording functionality and uses a database to manage simulation information.
 
 Running SimBA
--------------
+=============
 
 Suppose you have a directory containing a collection of simulation results.
 
@@ -48,7 +49,7 @@ You can also delete simulations (and the corresponding directory).
 The SimBA web interface will automatically recognize images stored within the simulation directory, and will display them under the simulation entry.
 
 Updating SimBA Records
-----------------------
+======================
 
 Simulation directories are never overwritten - following the AMReX implementation, old directories are renamed if there is a naming conflict.
 SimBA recognizes this and accounts for it.
@@ -74,7 +75,7 @@ Alamo records a unique identifier for each simulation that is stored in the :cod
 
 
 Sharing results on the network
-------------------------------
+==============================
 
 An advantage of SimBA is that it allows the posting of results to be viewed over the internet.
 For instance, suppose you want someone else on your network to be able to view your SimBA page and the outputs that you have generated.

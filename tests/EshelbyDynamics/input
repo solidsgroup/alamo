@@ -1,36 +1,32 @@
-#@  [2D-serial-5levels]
-#@  dim    = 2
-#@  nprocs = 1
-#@  check  = false
-#@   
-#@  [3D-serial-4levels]
-#@  dim    = 3
-#@  nprocs = 1
-#@  args   = amr.max_level=4
-#@  
-#@  [3D-parallel-5levels]
-#@  dim    = 3
-#@  nprocs = 4
-
-
 alamo.program = mechanics
 alamo.program.mechanics.model = affine.isotropic
 
-plot_file		    = tests/Eshelby/output
+plot_file		    = tests/EshelbyDynamics/output
+
+type=dynamic
 
 # this is not a time integration, so do
 # exactly one timestep and then quit
-timestep		    = 0.1
-stop_time		    = 0.1
+timestep		    = 0.0001
+stop_time		    = 10.0
 
 # amr parameters
-amr.plot_int		    = 1
+amr.plot_int		    = 100
 amr.max_level		    = 5
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 8
-amr.regrid_int		    = 1
+amr.regrid_int		    = 100
 amr.grid_eff		    = 1.0
 amr.cell.all                = 1
+
+# use an explicit mesh (i.e. no adaptive meshing)
+explicitmesh.on               = 0
+explicitmesh.lo1              = 16 16 16
+explicitmesh.hi1              = 47 47 47
+explicitmesh.lo2              = 48 48 48
+explicitmesh.hi2              = 79 79 79
+explicitmesh.lo3              = 112 112 112
+explicitmesh.hi3              = 145 145 145
 
 # geometry
 geometry.prob_lo	    = -8 -8 -8 
@@ -55,3 +51,7 @@ elastic.model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
 elastic.solver.verbose = 3
 elastic.solver.nriters = 1
 elastic.solver.max_iter = 20
+
+elastic.ref_threshold = 1000000000
+
+viscous.mu = 25

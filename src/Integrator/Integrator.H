@@ -268,6 +268,13 @@ protected:
         new_fab.resize(nlevs_max); 
         m_basefields.push_back(new Field<T>(new_fab, geom, refRatio(),ncomp,nghost));
     }
+    template<class T>
+    void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost, std::string a_name)
+    {
+        RegisterGeneralFab(new_fab, ncomp, nghost);
+        m_basefields.back()->writeout = true;
+        m_basefields.back()->setName(a_name);
+    }
 
     void SetFinestLevel(const int a_finestlevel)
     {

@@ -1,3 +1,4 @@
+=============
 Running Alamo
 =============
 
@@ -9,7 +10,7 @@ This section describes how to run :code:`Integrator`-based applications.
     This section is a work in progress and is not yet comprehensive.
 
 Restart files
--------------
+=============
 
 You can restart a simulation from any point at which you have dumped an output file.
 For instance, suppose you have run alamo with this command 

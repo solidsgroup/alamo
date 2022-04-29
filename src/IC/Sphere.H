@@ -119,14 +119,16 @@ namespace IC
                         } });
             }
         };
+        // This is a somewhat antiquated IC that will eventually be replaced
+        // with the Expression IC.
         static void Parse(Sphere &value, IO::ParmParse &pp)
         {
-            pp.query("radius", value.radius);
-            pp.queryarr("center", value.center);
-            pp.query("inside", value.alpha_in);
-            pp.query("outside", value.alpha_out);
+            pp.query("radius", value.radius); // Radius of the sphere
+            pp.queryarr("center", value.center); // Vector location of the sphere center
+            pp.query("inside", value.alpha_in); // Value of the field inside the sphere
+            pp.query("outside", value.alpha_out); // Value of the field outside teh sphere
             std::string type;
-            pp.query("type", type);
+            pp.query("type", type); // Type - can be cylinder oriented along the x, y, z directions or full sphere.
             if (type == "yz")
                 value.type = Type::YZ;
             if (type == "zx")

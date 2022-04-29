@@ -1,3 +1,14 @@
+//
+// Solid models are used with the :ref:`Integrator::Mechanics` integrator, which
+// implements the :ref:`Solver::Nonlocal::Newton` elasticity solver.
+// All solid models inherit from the :code:`Model::Solid` base class, which requires
+// all of the necessary components to be used in a mechanics solve.
+// Model classes have basically two functions:
+// 
+// #. Provide energy (W), stress (DW), and modulus (DDW) based on a kinematic variable
+// #. Evolve internal variables in time.
+//
+
 #ifndef MODEL_SOLID_H_
 #define MODEL_SOLID_H_
 
@@ -40,6 +51,9 @@ public:
     virtual Set::Matrix DW(const Set::Matrix &) const         {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
     virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
     
+    virtual void Advance(Set::Scalar, Set::Matrix, Set::Matrix) {}
+
+
 public:
     Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
     static const KinematicVariable kinvar = KinematicVariable::F;

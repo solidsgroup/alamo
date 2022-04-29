@@ -54,6 +54,12 @@ public:
     Set::Matrix F0 = Set::Matrix::Zero();
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
+    static Cubic Zero()
+    {
+        Cubic ret = Linear::Cubic::Zero();
+        ret.F0 = Set::Matrix::Zero();
+        return ret;
+    }
     static Cubic Random()
     {
         return Random(Util::Random(), Util::Random(), Util::Random());
@@ -64,10 +70,12 @@ public:
         ret.F0 = Set::Matrix::Random();
         return ret;
     }
+    // This class extends :ref:`Model::Solid::Linear::Cubic` by adding
+    // an eigenstrain. (See the Linear::Cubic class for more inputs for this model)
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         Linear::Cubic::Parse(value,pp);
-        if (pp.contains("F0")) pp.queryarr("F0",value.F0);
+        if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE

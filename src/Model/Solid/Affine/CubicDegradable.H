@@ -97,23 +97,20 @@ public:
         return ret;
     }
 
+    // This class inherits from :ref:`Model::Solid::Affine::Cubic`.
+    // It provides the ability to "degrade" while retaining information
+    // about its original, pristine state
     static void Parse(CubicDegradable & value, IO::ParmParse & pp)
     {
         Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
-        pp.query("C11",C11);
-        pp.query("C12",C12);
-        pp.query("C44",C44);
-
-        //if (pp.contains("random"))
-        //{
-        //    value = CubicCrystalPlastic::Random(C11,C12,C44);
-        //    return;
-        //}
+        pp.query("C11",C11); // Original, undegraded :math:`\mathbb{C}_{11}`
+        pp.query("C12",C12); // Original, undegraded :math:`\mathbb{C}_{12}`
+        pp.query("C44",C44); // Original, undegraded :math:`\mathbb{C}_{44}`
 
         Set::Scalar phi1 = 0.0, Phi = 0.0, phi2 = 0.0;
-        pp.query("phi1",phi1);
-        pp.query("Phi",Phi);
-        pp.query("phi2",phi2);
+        pp.query("phi1",phi1); // Bunge Euler angles :math:`\phi_1`
+        pp.query("Phi",Phi);   // Bunge Euler angles :math:`\Phi`
+        pp.query("phi2",phi2); // Bunge Euler angles :math:`\phi_2`
 
         Eigen::Matrix3d m;
         m = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *

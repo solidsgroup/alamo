@@ -35,7 +35,7 @@ BUILD_DIR         = ${shell pwd}
 METADATA_FLAGS = -DMETADATA_GITHASH=\"$(METADATA_GITHASH)\" -DMETADATA_USER=\"$(METADATA_USER)\" -DMETADATA_PLATFORM=\"$(METADATA_PLATFORM)\" -DMETADATA_COMPILER=\"$(METADATA_COMPILER)\" -DMETADATA_DATE=\"$(METADATA_DATE)\" -DMETADATA_TIME=\"$(METADATA_TIME)\" -DBUILD_DIR=\"${BUILD_DIR}\" $(if ${MEME}, -DMEME)
 
 
-CXX_COMPILE_FLAGS += -Winline -Wextra -Wall  -std=c++17 $(METADATA_FLAGS)
+CXX_COMPILE_FLAGS += -Winline -Wextra -Wall -Wno-comment -std=c++17 $(METADATA_FLAGS)
 
 LINKER_FLAGS += -Bsymbolic-functions
 
@@ -98,7 +98,7 @@ realclean: clean
 	git -C ext/amrex reset --hard
 	git -C ext/amrex clean -fd
 	git -C ext/amrex clean -fx
-	rm -rf ext/amrex/1d* amrex/2d* amrex/3d*
+	rm -rf ext/amrex/1d* ext/amrex/2d* ext/amrex/3d*
 	@printf "$(B_ON)$(FG_RED)CLEANING OLD CONFIGURATIONS $(RESET)\n" 
 	rm -rf Makefile.conf Makefile.amrex.conf .make
 
@@ -179,12 +179,9 @@ obj/obj-$(POSTFIX)/%.F90.o: src/%.F90
 docs: docs/build/html/index.html .FORCE 
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Done\n" 
 
-docs/doxygen/index.html: $(SRC) $(SRC_F) $(SRC_MAIN) $(HDR_ALL)
-	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating doxygen files\n" 	
-	@cd docs && doxygen 
-docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst
+docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst .FORCE
 	@printf "$(B_ON)$(FG_MAGENTA)DOCS$(RESET) Generating sphinx\n" 	
-	@make -C docs html > /dev/null
+	@make -C docs html # > /dev/null
 
 
 test: .FORCE

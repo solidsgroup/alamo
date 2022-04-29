@@ -30,8 +30,8 @@ public:
         std::string type = "uniaxial_stress_clamp";
         std::string disp = "0.0";
 
-        pp.query("type",type);
-        pp.query("disp",disp);
+        pp.query("type",type); // Tension test type. (Only option right now is :code:`uniaxial_stress_clamp`)
+        pp.query("disp",disp); // Displacement of the test
 
         
         if (type == "uniaxial_stress_clamp")

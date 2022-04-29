@@ -12,39 +12,37 @@ PolymerDegradation::PolymerDegradation():
     // READ INPUT PARAMETERS
     //
 
-    // ---------------------------------------------------------------------
-    // --------------------- Water diffusion -------------------------------
-    // ---------------------------------------------------------------------
-    IO::ParmParse pp_water("water");
-    pp_water.query("on",water.on);
+    // Water diffusion
+    IO::ParmParse pp("water");
+    pp.query("on",water.on);
     if(water.on)
     {
-        pp_water.query("diffusivity", water.diffusivity);
-        pp_water.query("refinement_threshold", water.refinement_threshold);
-        pp_water.query("ic_type", water.ic_type);
+        pp.query("diffusivity", water.diffusivity); // Diffusivity 
+        pp.query("refinement_threshold", water.refinement_threshold); // AMR refinement criterion
+        pp.query("ic_type", water.ic_type); // 
 
         // // Determine initial condition
         if (water.ic_type == "constant")
         {
-            IO::ParmParse pp_water_ic("water.ic");
+            IO::ParmParse pp("water.ic");
             std::vector<amrex::Real> value;
-            pp_water_ic.queryarr("value",value);
+            pp.queryarr("value",value);
             water.ic = new IC::Constant(geom,value);
         }
         else
             Util::Abort(INFO, "This kind of IC has not been implemented yet");
 
         water.bc = new BC::Constant(1);
-        pp_water.queryclass("bc",*static_cast<BC::Constant *>(water.bc));
+        pp.queryclass("bc",*static_cast<BC::Constant *>(water.bc));
 
         RegisterNewFab(water_conc,     water.bc, 1, number_of_ghost_cells, "Water Concentration",true);
         RegisterNewFab(water_conc_old, water.bc, 1, number_of_ghost_cells, "Water Concentration Old",false);
     }
 
-    Util::Message(INFO);
     // ---------------------------------------------------------------------
     // --------------------- Heat diffusion -------------------------------
     // ---------------------------------------------------------------------
+    Util::Message(INFO);
     IO::ParmParse pp_heat("thermal");
     pp_heat.query("on",thermal.on);
     if(thermal.on)
