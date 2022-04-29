@@ -33,17 +33,10 @@ namespace Integrator
 template<class MODEL>
 class Mechanics : virtual public Integrator
 {
-    enum Type{Static, Dynamic};
+    enum Type{Static, Dynamic, Disable};
     
 public:
-    /// \brief Read in parameters and register field variables
-    Mechanics()
-    {
-        RegisterGeneralFab(disp_mf, 1, 2, "disp");
-        RegisterGeneralFab(rhs_mf, 1, 2, "rhs");
-        RegisterGeneralFab(stress_mf, 1, 2, "stress");
-        RegisterGeneralFab(strain_mf, 1, 2, "strain");
-    }
+    Mechanics() {}
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
@@ -53,23 +46,31 @@ public:
         {
             std::string type_str = "static";
             pp.query("type",type_str);
-            if (type_str == "static")
-            {
-                value.m_type = Type::Static;
-                // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
-                pp.queryclass("elastic.solver",value.elastic.solver);
-            }
-            else if (type_str == "dynamic") 
-            {
-                value.m_type = Type::Dynamic;
+            if (type_str == "static")        value.m_type = Type::Static;
+            else if (type_str == "dynamic")  value.m_type = Type::Dynamic;
+            else if (type_str == "disable")  value.m_type = Type::Disable;
+            else Util::Abort(INFO,"Invalid type ", type_str, " specified");
+        }
+
+        if (value.m_type != Type::Disable)
+        {
+            value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp");
+            value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs");
+            value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress");
+            value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain");
+        }
+
+        if (value.m_type == Type::Static)
+        {
+            // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
+            pp.queryclass("elastic.solver",value.elastic.solver);
+        }
+        if (value.m_type == Type::Dynamic)
+        {
                 value.RegisterGeneralFab(value.vel_mf,1,2,"vel");
                 value.RegisterGeneralFab(value.disp_old_mf,1,2,"dispold");
                 value.RegisterGeneralFab(value.vel_old_mf,1,2,"velold");
-                pp.query("viscous.mu",value.mu);
-                //value.RegisterGeneralFab(value.ddw_mf,1,2);
-            }
-            else Util::Abort(INFO,"Invalid type ", type_str, " specified");
-
+                pp.query("viscous.mu",value.mu);            
         }
 
         int nmodels = 1;
@@ -146,6 +147,8 @@ protected:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
+        if (m_type == Type::Disable) return;
+
         eta_mf[lev]->setVal(0.0);
         if (elastic.models.size() > 1 && ic)
         {
@@ -164,7 +167,7 @@ protected:
 
     virtual void UpdateModel(int a_step)
     {
-        // Set linear elastic model
+        if (m_type == Type::Disable) return;
 
         if (a_step > 0) return;
         
@@ -198,7 +201,7 @@ protected:
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
-
+        if (m_type == Type::Disable) return;
         if (m_interval && a_step%m_interval) return;
 
         UpdateModel(a_step);        
@@ -260,6 +263,7 @@ protected:
 
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
     {
+        if (m_type == Type::Disable) return;
         const amrex::Real *DX = geom[lev].CellSize();
 
         if (m_type == Type::Dynamic)
@@ -322,6 +326,8 @@ protected:
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
                     const amrex::MFIter &mfi, const amrex::Box &a_box) override
     {
+        if (m_type==Type::Disable) return;
+
         const amrex::Real *DX = geom[amrlev].CellSize();
         amrex::Box domain = geom[amrlev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
@@ -364,6 +370,8 @@ protected:
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
     {
+        if (m_type == Type::Disable) return;
+
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
         //a_tags.setVal(amrex::TagBox::CLEAR);
@@ -394,7 +402,6 @@ protected:
     Set::Field<MODEL> model_mf;
     Set::Field<Set::Scalar> eta_mf;
 
-private:
     int m_interval = 0;
     Type m_type = Type::Static;
 

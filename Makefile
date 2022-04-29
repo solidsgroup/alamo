@@ -185,6 +185,8 @@ docs/build/html/index.html: $(shell find docs/source/ -type f) Readme.rst .FORCE
 
 
 test: .FORCE
+	@./.github/workflows/style/check_tabs.py
+	@make docs
 	@./scripts/runtests.py
 
 ifneq ($(MAKECMDGOALS),tidy)
