@@ -8,6 +8,7 @@
 
 #include "Util/Util.H"
 #include "Integrator/Integrator.H"
+#include "Integrator/Mechanics.H"
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
 #include "IC/IC.H"
@@ -24,13 +25,17 @@
 namespace Integrator
 {
 
-class Flame : public Integrator::Integrator
+class Flame : virtual public Integrator::Integrator, 
+              virtual public MechanicsBase<Model::Solid::Affine::Isotropic>
 {
 
     using model_type = Model::Solid::Affine::Isotropic;
 
 public:
     Flame ();
+    Flame (IO::ParmParse &pp);
+
+    static void Parse(Flame &value, IO::ParmParse &pp);
 
 
 protected:
@@ -39,21 +44,24 @@ protected:
     void Advance (int lev, amrex::Real time, amrex::Real dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
-private:
+    virtual void UpdateModel(int a_step) override;
+protected:
 
-    Set::Field<Set::Scalar> Temp_mf;
-    Set::Field<Set::Scalar> Temp_old_mf;
-    Set::Field<Set::Scalar> Eta_mf;
-    Set::Field<Set::Scalar> Eta_old_mf;
+    Set::Field<Set::Scalar> temp_mf;
+    Set::Field<Set::Scalar> temp_old_mf;
+    Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> Mob_mf; 
     Set::Field<Set::Scalar> Mob_old_mf;
     Set::Field<Set::Scalar> mdot_mf;
     Set::Field<Set::Scalar> heat_mf;
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
-    BC::BC<Set::Scalar> *TempBC;
-    BC::BC<Set::Scalar> *EtaBC;
-    IC::IC *PhiIC;
+    Set::Field<Set::Scalar> alpha_mf;
+    
+    BC::BC<Set::Scalar> *bc_temp;
+    BC::BC<Set::Scalar> *bc_eta;
+    IC::IC *ic_phi;
 
 
     int fs_number = 1;
@@ -78,6 +86,10 @@ private:
         Set::Scalar n_htpb = 0.0;
         Set::Scalar r_comb = 0.0;
         Set::Scalar n_comb = 0.0;
+
+        Set::Scalar m0 = 1.0;
+        Set::Scalar Ea = 0.1;
+        Set::Scalar T0 = 0.1;
     } pf;
 
     struct {
@@ -86,26 +98,19 @@ private:
         Set::Scalar k_ap, k_htpb, k0, k_comb;             
         Set::Scalar cp_ap, cp_htpb;           
         Set::Scalar q_ap, q_htpb, q_comb;
+        Set::Scalar q0=1.0;
         Set::Scalar temperature_delay = 0.01;
         Set::Scalar ae_ap, ae_htpb, ae_comb;
-        Set::Scalar bound, addtemp;
+        Set::Scalar bound=0.0, addtemp;
         Set::Scalar beta1, beta2, MinTemp; 
         Set::Scalar A_ap, A_htpb, A_comb;    
     } thermal;
 
     struct {
-        //Set::Scalar tol_rel = 1E-8;
-        //Set::Scalar tol_abs = 1E-8;
-        Set::Field<Set::Scalar> disp_mf;
-        Set::Field<Set::Scalar> rhs_mf;
-        Set::Field<Set::Scalar> res_mf;
-        Set::Field<Set::Scalar> stress_mf;
-        Set::Field<model_type>  model_mf;
-        model_type model_ap, model_htpb, model_void;
-        int interval = 0;
-        BC::Operator::Elastic::Constant bc;
-        Solver::Nonlocal::Newton<model_type> *solver;//(elastic.op);
+        Model::Solid::Affine::Isotropic model_ap, model_htpb, model_void;
     } elastic;
+
+    using MechanicsBase<Model::Solid::Affine::Isotropic>::m_type;
 };
 }
 

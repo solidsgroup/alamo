@@ -39,11 +39,13 @@ public:
         this->linop = &a_lp;
         this->mlmg = new amrex::MLMG(a_lp);
         PrepareMLMG(*mlmg);
+        m_defined = true;
     }
     void Clear()
     {
+        if (!m_defined) return;
         this->linop = nullptr;
-        delete this->mlmg;
+        if (this->mlmg) delete this->mlmg;
         this->mlmg = nullptr;
     }
 
@@ -263,7 +265,8 @@ public:
         pp.query("omega",value.omega);
         
     }
-
+protected:
+    bool m_defined = false;
     
 };
 }

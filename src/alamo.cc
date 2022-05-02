@@ -96,7 +96,7 @@ int main (int argc, char* argv[])
     }
     else if (program == "flame")
     {
-        Integrator::Integrator *flame = new Integrator::Flame();
+        Integrator::Integrator *flame = new Integrator::Flame(pp);
         flame->InitData();
         flame->Evolve();
         delete flame;
