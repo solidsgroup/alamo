@@ -8,30 +8,30 @@
 #@  check-file = reference/j2.dat
 #@  args = timestep = 0.001
 #@  args = alamo.program.mechanics.model=affine.j2
-#@  args = elastic.model1.E=210
-#@  args = elastic.model1.nu=0.3
-#@  args = elastic.model1.sigma0=0.2
-#@  args = elastic.bc.tension_test.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
+#@  args = model1.E=210
+#@  args = model1.nu=0.3
+#@  args = model1.sigma0=0.2
+#@  args = bc.tension_test.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
 #@ 
 #@
 #@  [affine-isotropic]
 #@  dim = 3
 #@  check = false
 #@  args = alamo.program.mechanics.model=affine.isotropic
-#@  args = elastic.model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
-#@  args = elastic.model1.E=210 
-#@  args = elastic.model1.nu=0.3
+#@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#@  args = model1.E=210 
+#@  args = model1.nu=0.3
 #@
 #@  [neo-hookean]
 #@  dim=3
 #@  check-file = reference/neo-hookean.dat
 #@  args = timestep=0.01
 #@  args = alamo.program.mechanics.model=elastic.neohookean
-#@  args = elastic.model1.mu=3.0
-#@  args = elastic.model1.kappa=6.5
-#@  args = elastic.bc.tension_test.disp=(0,1:0,1)
-#@  args = elastic.solver.nriters=10
-#@  ignore = elastic.model1.E elastic.model1.nu 
+#@  args = model1.mu=3.0
+#@  args = model1.kappa=6.5
+#@  args = bc.tension_test.disp=(0,1:0,1)
+#@  args = solver.nriters=10
+#@  ignore = model1.E model1.nu 
 #@ 
 
 alamo.program = mechanics
@@ -57,14 +57,14 @@ amr.thermo.plot_int = 1
 geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 1 1 1
 
-elastic.nmodels = 1
-elastic.model1.E=210 
-elastic.model1.nu=0.3
+nmodels = 1
+model1.E=210 
+model1.nu=0.3
 
-elastic.solver.verbose = 3
-elastic.solver.nriters = 1
-elastic.solver.max_iter = 30 #30
+solver.verbose = 3
+solver.nriters = 1
+solver.max_iter = 30 #30
 
-elastic.bc.type = tension_test
-elastic.bc.tension_test.type = uniaxial_stress
-elastic.bc.tension_test.disp=(0,1:0,0.01)
+bc.type = tension_test
+bc.tension_test.type = uniaxial_stress
+bc.tension_test.disp=(0,1:0,0.01)

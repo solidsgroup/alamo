@@ -18,7 +18,6 @@ namespace Elastic
 {
 class Expression : public Elastic
 {
-
 #ifndef ALAMO_JIT
 public:
     Expression(){ Util::Abort(INFO,"You need to compile with JIT to use this BC"); }
@@ -404,6 +403,8 @@ public:
         }        
     }
 #endif
+    Expression(IO::ParmParse &pp, std::string name): Expression()
+    {pp.queryclass(name,*this);}
 };
 }
 }

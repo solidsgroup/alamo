@@ -25,6 +25,8 @@ public:
     {
         Define(_alpha,AMREX_D_DECL(_n1,_n2,_n3),_dim);
     }
+    Trig(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom)
+    {pp.queryclass(name,*this);}
 
 
     void Define(Set::Scalar _alpha = 1.0,

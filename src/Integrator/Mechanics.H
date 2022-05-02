@@ -31,16 +31,17 @@
 namespace Integrator
 {
 template<class MODEL>
-class Mechanics : virtual public Integrator
+class MechanicsBase : virtual public Integrator
 {
+public:
+
     enum Type{Static, Dynamic, Disable};
     
-public:
-    Mechanics() {}
+    MechanicsBase() {}
 
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
-    static void Parse(Mechanics &value, IO::ParmParse &pp)
+    static void Parse(MechanicsBase &value, IO::ParmParse &pp)
     {
         if (pp.contains("type"))
         {
@@ -51,19 +52,17 @@ public:
             else if (type_str == "disable")  value.m_type = Type::Disable;
             else Util::Abort(INFO,"Invalid type ", type_str, " specified");
         }
-
-        if (value.m_type != Type::Disable)
-        {
-            value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp");
-            value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs");
-            value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress");
-            value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain");
-        }
+        if (value.m_type == Type::Disable) return;
+        
+        value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp");
+        value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs");
+        value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress");
+        value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain");
 
         if (value.m_type == Type::Static)
         {
             // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
-            pp.queryclass("elastic.solver",value.elastic.solver);
+            pp.queryclass("solver",value.solver);
         }
         if (value.m_type == Type::Dynamic)
         {
@@ -73,68 +72,21 @@ public:
                 pp.query("viscous.mu",value.mu);            
         }
 
-        int nmodels = 1;
-        pp.query("elastic.nmodels",nmodels); // Number of elastic model varieties
-        for (int i = 0; i<nmodels; i++)
-        {
-            std::string name = "model" + std::to_string(i+1);
-            MODEL tmp_model;
-            pp.queryclass("elastic." + std::string(name.data()), tmp_model);
-            value.elastic.models.push_back(tmp_model);
-        }
-
-        Util::Assert(INFO,TEST(value.elastic.models.size() > 0));
-        value.RegisterNodalFab(value.eta_mf, value.elastic.models.size(), 2, "eta", true);    
-
         std::string bc_type = "constant";
         // Determine the boundary condition type (contant, tension_test, expression)
-        pp.query("elastic.bc.type",bc_type);
+        pp.query("bc.type",bc_type);
         Util::Message(INFO,bc_type);
-        if (bc_type == "constant")
-        {
-            value.elastic.bc = new BC::Operator::Elastic::Constant();
-            // Query :ref:`BC::Operator::Elastic::Constant`
-            pp.queryclass("elastic.bc",static_cast<BC::Operator::Elastic::Constant*>(value.elastic.bc)); 
-        }
-        else if (bc_type == "tension_test")
-        {
-            value.elastic.bc = new BC::Operator::Elastic::TensionTest();
-            // Query :ref:`BC::Operator::Elastic::TensionTest`
-            pp.queryclass("elastic.bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(value.elastic.bc)); 
-        }
-        else if (bc_type == "expression")
-        {
-            //value.elastic.bc = new BC::Operator::Elastic::Expression();
-            // Query :ref:`BC::Operator::Elastic::Expression`
-            pp.queryclass("elastic.bc.expression",static_cast<BC::Operator::Elastic::Expression*>(value.elastic.bc));
-        }
-        // Refinement threshold for eta field
-        pp.query("elastic.eta_ref_threshold",value.m_eta_ref_threshold);
-        // Refinement threshold for strain gradient
-        pp.query("elastic.ref_threshold",value.m_elastic_ref_threshold);
-
+        if (bc_type == "constant")          value.bc = new BC::Operator::Elastic::Constant(pp,"bc.constant");
+        else if (bc_type == "tension_test") value.bc = new BC::Operator::Elastic::TensionTest(pp,"bc.tension_test");
+        else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp,"bc.expression");
+        else Util::Abort(INFO,"Invalid bc.type ",bc_type);
+        
         value.RegisterGeneralFab(value.model_mf, 1, 2,"model");
-
-        // Read in IC for eta
-        std::string type;
-        pp.query("ic.type",type); // Read IC type for the eta field
-        Util::Message(INFO,type);
-        if (type=="ellipse")
-        {
-            value.ic = new IC::Ellipse(value.geom);
-            // Initialize with :ref:`IC::Ellipse`
-            pp.queryclass("ic.ellipse",static_cast<IC::Ellipse*>(value.ic));
-        }
 
         // Read in IC for RHS
         std::string rhstype;
         pp.query("rhs.type",rhstype); // Initializer for RHS
-        if (rhstype == "trig")
-        {
-            value.ic_rhs = new IC::Trig(value.geom);
-            // See :ref:`IC::Trig`
-            pp.queryclass("rhs.trig",static_cast<IC::Trig*>(value.ic_rhs));
-        }
+        if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom,pp,"rhs.trig");
 
         // Timestep interval for elastic solves (default - solve every time)
         pp.query("interval",value.m_interval);
@@ -147,17 +99,7 @@ protected:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
-        if (m_type == Type::Disable) return;
-
-        eta_mf[lev]->setVal(0.0);
-        if (elastic.models.size() > 1 && ic)
-        {
-            ic->Initialize(lev, eta_mf);
-        }
-        else 
-        {
-            eta_mf[lev]->setVal(1.0);
-        }
+        if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
 
         disp_mf[lev]->setVal(Set::Vector::Zero());
 
@@ -165,62 +107,30 @@ protected:
         else rhs_mf[lev]->setVal(Set::Vector::Zero());
     }
 
-    virtual void UpdateModel(int a_step)
-    {
-        if (m_type == Type::Disable) return;
-
-        if (a_step > 0) return;
-        
-        for (int lev = 0; lev <= finest_level; ++lev)
-        {
-            //rhs_mf[lev]->setVal(0.0);
-
-            eta_mf[lev]->FillBoundary();
-
-            //disp_mf[lev]->setVal(Set::Vector::Zero());
-
-            Set::Vector DX(geom[lev].CellSize());
-
-            for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
-            {
-                amrex::Box bx = mfi.grownnodaltilebox();
-
-                amrex::Array4<MODEL> const &model = model_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                            model(i,j,k) = MODEL::Zero();
-                                            for (unsigned int n = 0; n < elastic.models.size(); n++) 
-                                                model(i,j,k) += eta(i,j,k,n) * elastic.models[n];
-                                        });
-            }
-
-            Util::RealFillBoundary(*model_mf[lev],geom[lev]);
-        }
-    }
+    virtual void UpdateModel(int a_step) = 0;
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
-        if (m_type == Type::Disable) return;
+        if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
         if (m_interval && a_step%m_interval) return;
 
         UpdateModel(a_step);        
 
-        if (!m_type == Type::Static) return;
+        if (!m_type == MechanicsBase<MODEL>::Type::Static) return;
 
-        elastic.bc->SetTime(a_time);
-        elastic.bc->Init(rhs_mf,geom);
+        bc->SetTime(a_time);
+        bc->Init(rhs_mf,geom);
 
         amrex::LPInfo info;
         Operator::Elastic<MODEL::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
-        elastic_op.SetBC(elastic.bc);
+        elastic_op.SetBC(bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
-        elastic.solver.Define(elastic_op);
-        elastic.solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
-        elastic.solver.Clear();
+        solver.Define(elastic_op);
+        solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        solver.Clear();
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
@@ -263,7 +173,7 @@ protected:
 
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
     {
-        if (m_type == Type::Disable) return;
+        if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
         const amrex::Real *DX = geom[lev].CellSize();
 
         if (m_type == Type::Dynamic)
@@ -368,39 +278,29 @@ protected:
             
     }
 
-    void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/) override
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar /*time*/, int /*ngrow*/) override
     {
         if (m_type == Type::Disable) return;
 
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar DXnorm = DX.lpNorm<2>();
-        //a_tags.setVal(amrex::TagBox::CLEAR);
-        for (amrex::MFIter mfi(*eta_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(*strain_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.nodaltilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
-            amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
             amrex::Array4<Set::Matrix> const &eps = strain_mf[lev]->array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
                 auto sten = Numeric::GetStencil(i,j,k,bx);
-                {
-                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data(),sten);
-                    if (grad.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
-                        tags(i, j, k) = amrex::TagBox::SET;
-                }
-                {
-                    Set::Matrix3 grad = Numeric::Gradient(eps, i, j, k, DX.data(),sten);
-                    if (grad.norm() * DXnorm > m_elastic_ref_threshold)
-                        tags(i, j, k) = amrex::TagBox::SET;
-                }
+                Set::Matrix3 grad = Numeric::Gradient(eps, i, j, k, DX.data(),sten);
+                if (grad.norm() * DXnorm > m_elastic_ref_threshold)
+                    tags(i, j, k) = amrex::TagBox::SET;
             });
         }
     }
 
 protected:
     Set::Field<MODEL> model_mf;
-    Set::Field<Set::Scalar> eta_mf;
 
     int m_interval = 0;
     Type m_type = Type::Static;
@@ -424,19 +324,136 @@ protected:
     Set::Vector disp_hi[AMREX_SPACEDIM];
 
 
-    IC::IC *ic = nullptr;          ///< Pointer to abstract IC object
     IC::IC *ic_rhs = nullptr;
-    BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
+    BC::BC<Set::Scalar> *mybc;
     
-    struct {
-        std::vector<MODEL> models;
-        Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
-        BC::Operator::Elastic::Elastic *bc;
-    } elastic;
+    Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
+    BC::Operator::Elastic::Elastic *bc;
 
-    Set::Scalar m_eta_ref_threshold = 0.01;
     Set::Scalar m_elastic_ref_threshold = 0.01;
 
 };
+
+
+template<class MODEL>
+class Mechanics : virtual public MechanicsBase<MODEL>
+{
+    public:
+    // The mechanics integrator manages the solution of an elastic 
+    // solve using the MLMG solver. 
+    static void Parse(Mechanics &value, IO::ParmParse &pp)
+    {
+        MechanicsBase<MODEL>::Parse(value,pp);
+        int nmodels = 1;
+        pp.query("nmodels",nmodels); // Number of elastic model varieties
+        for (int i = 0; i<nmodels; i++)
+        {
+            std::string name = "model" + std::to_string(i+1);
+            MODEL tmp_model;
+            pp.queryclass(std::string(name.data()), tmp_model);
+            value.models.push_back(tmp_model);
+        }
+        Util::Assert(INFO,TEST(value.models.size() > 0));
+        value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);    
+        // Refinement threshold for eta field
+        pp.query("eta_ref_threshold",value.m_eta_ref_threshold);
+        // Refinement threshold for strain gradient
+        pp.query("ref_threshold",value.m_elastic_ref_threshold);
+
+        // Read in IC for eta
+        std::string type;
+        pp.query("ic.type",type); // Read IC type for the eta field
+        Util::Message(INFO,type);
+        if (type=="ellipse") value.ic_eta = new IC::Ellipse(value.geom,pp,"ic.ellipse");
+    }
+
+    void Initialize(int lev) override
+    {
+        MechanicsBase<MODEL>::Initialize(lev);
+        eta_mf[lev]->setVal(0.0);
+        if (models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
+        else eta_mf[lev]->setVal(1.0);
+    }
+
+    virtual void UpdateModel(int a_step) override
+    {
+        if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
+
+        if (a_step > 0) return;
+        
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            //rhs_mf[lev]->setVal(0.0);
+
+            eta_mf[lev]->FillBoundary();
+
+            //disp_mf[lev]->setVal(Set::Vector::Zero());
+
+            Set::Vector DX(geom[lev].CellSize());
+
+            for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.grownnodaltilebox();
+
+                amrex::Array4<MODEL> const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                                            model(i,j,k) = MODEL::Zero();
+                                            for (unsigned int n = 0; n < models.size(); n++) 
+                                                model(i,j,k) += eta(i,j,k,n) * models[n];
+                                        });
+            }
+
+            Util::RealFillBoundary(*model_mf[lev],geom[lev]);
+        }
+    }
+
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override
+    {
+        if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
+        MechanicsBase<MODEL>::TagCellsForRefinement(lev,a_tags,a_time,a_ngrow);
+
+        Set::Vector DX(geom[lev].CellSize());
+        Set::Scalar DXnorm = DX.lpNorm<2>();
+        for (amrex::MFIter mfi(*eta_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Array4<char> const &tags = a_tags.array(mfi);
+            amrex::Array4<Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                auto sten = Numeric::GetStencil(i,j,k,bx);
+                {
+                    Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX.data(),sten);
+                    if (grad.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
+                        tags(i, j, k) = amrex::TagBox::SET;
+                }
+            });
+        }
+    }
+
+
+    protected:
+    Set::Field<Set::Scalar> eta_mf;
+    Set::Scalar m_eta_ref_threshold = 0.01;
+    std::vector<MODEL> models;
+    IC::IC *ic_eta = nullptr;
+
+    using MechanicsBase<MODEL>::m_type;
+    using MechanicsBase<MODEL>::finest_level;
+    using MechanicsBase<MODEL>::geom;
+    using MechanicsBase<MODEL>::model_mf;
+};
+
+
+
+
+
+
+
+
+
+
 } // namespace Integrator
 #endif

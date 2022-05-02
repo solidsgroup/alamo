@@ -5,6 +5,7 @@ import configparser, io
 from collections import OrderedDict
 from datetime import datetime
 import socket
+import time
 
 class color:
     reset = "\033[0m"
@@ -161,8 +162,10 @@ def test(testdir):
         print("  │      Running test............................................",end="",flush=True)
         # Spawn the process and wait for it to finish before continuing.
         try:
+            timeStarted = time.time()
             p = subprocess.check_output(command.split(),stderr=subprocess.PIPE)
-            print("[{}PASS{}]".format(color.boldgreen,color.reset))
+            executionTime = time.time() - timeStarted
+            print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s)".format(executionTime))
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
