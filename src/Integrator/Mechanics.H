@@ -63,7 +63,7 @@ public:
         if (value.m_type == Type::Static)
         {
             // Read parameters for :ref:`Solver::Nonlocal::Newton` solver
-            pp.queryclass("elastic.solver",value.elastic.solver);
+            pp.queryclass("solver",value.solver);
         }
         if (value.m_type == Type::Dynamic)
         {
@@ -74,44 +74,31 @@ public:
         }
 
         int nmodels = 1;
-        pp.query("elastic.nmodels",nmodels); // Number of elastic model varieties
+        pp.query("nmodels",nmodels); // Number of elastic model varieties
         for (int i = 0; i<nmodels; i++)
         {
             std::string name = "model" + std::to_string(i+1);
             MODEL tmp_model;
-            pp.queryclass("elastic." + std::string(name.data()), tmp_model);
-            value.elastic.models.push_back(tmp_model);
+            pp.queryclass(std::string(name.data()), tmp_model);
+            value.models.push_back(tmp_model);
         }
 
-        Util::Assert(INFO,TEST(value.elastic.models.size() > 0));
-        value.RegisterNodalFab(value.eta_mf, value.elastic.models.size(), 2, "eta", true);    
+        Util::Assert(INFO,TEST(value.models.size() > 0));
+        value.RegisterNodalFab(value.eta_mf, value.models.size(), 2, "eta", true);    
 
         std::string bc_type = "constant";
         // Determine the boundary condition type (contant, tension_test, expression)
-        pp.query("elastic.bc.type",bc_type);
+        pp.query("bc.type",bc_type);
         Util::Message(INFO,bc_type);
-        if (bc_type == "constant")
-        {
-            value.elastic.bc = new BC::Operator::Elastic::Constant();
-            // Query :ref:`BC::Operator::Elastic::Constant`
-            pp.queryclass("elastic.bc",static_cast<BC::Operator::Elastic::Constant*>(value.elastic.bc)); 
-        }
-        else if (bc_type == "tension_test")
-        {
-            value.elastic.bc = new BC::Operator::Elastic::TensionTest();
-            // Query :ref:`BC::Operator::Elastic::TensionTest`
-            pp.queryclass("elastic.bc.tension_test",static_cast<BC::Operator::Elastic::TensionTest*>(value.elastic.bc)); 
-        }
-        else if (bc_type == "expression")
-        {
-            //value.elastic.bc = new BC::Operator::Elastic::Expression();
-            // Query :ref:`BC::Operator::Elastic::Expression`
-            pp.queryclass("elastic.bc.expression",static_cast<BC::Operator::Elastic::Expression*>(value.elastic.bc));
-        }
+        if (bc_type == "constant")          value.bc = new BC::Operator::Elastic::Constant(pp,"bc.constant");
+        else if (bc_type == "tension_test") value.bc = new BC::Operator::Elastic::TensionTest(pp,"bc.tension_test");
+        else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp,"bc.expression");
+        else Util::Abort(INFO,"Invalid bc.type ",bc_type);
+        
         // Refinement threshold for eta field
-        pp.query("elastic.eta_ref_threshold",value.m_eta_ref_threshold);
+        pp.query("eta_ref_threshold",value.m_eta_ref_threshold);
         // Refinement threshold for strain gradient
-        pp.query("elastic.ref_threshold",value.m_elastic_ref_threshold);
+        pp.query("ref_threshold",value.m_elastic_ref_threshold);
 
         value.RegisterGeneralFab(value.model_mf, 1, 2,"model");
 
@@ -119,22 +106,12 @@ public:
         std::string type;
         pp.query("ic.type",type); // Read IC type for the eta field
         Util::Message(INFO,type);
-        if (type=="ellipse")
-        {
-            value.ic = new IC::Ellipse(value.geom);
-            // Initialize with :ref:`IC::Ellipse`
-            pp.queryclass("ic.ellipse",static_cast<IC::Ellipse*>(value.ic));
-        }
+        if (type=="ellipse") value.ic = new IC::Ellipse(value.geom,pp,"ic.ellipse");
 
         // Read in IC for RHS
         std::string rhstype;
         pp.query("rhs.type",rhstype); // Initializer for RHS
-        if (rhstype == "trig")
-        {
-            value.ic_rhs = new IC::Trig(value.geom);
-            // See :ref:`IC::Trig`
-            pp.queryclass("rhs.trig",static_cast<IC::Trig*>(value.ic_rhs));
-        }
+        if (rhstype == "trig") value.ic_rhs = new IC::Trig(value.geom,pp,"rhs.trig");
 
         // Timestep interval for elastic solves (default - solve every time)
         pp.query("interval",value.m_interval);
@@ -150,7 +127,7 @@ protected:
         if (m_type == Type::Disable) return;
 
         eta_mf[lev]->setVal(0.0);
-        if (elastic.models.size() > 1 && ic)
+        if (models.size() > 1 && ic)
         {
             ic->Initialize(lev, eta_mf);
         }
@@ -190,8 +167,8 @@ protected:
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                                             model(i,j,k) = MODEL::Zero();
-                                            for (unsigned int n = 0; n < elastic.models.size(); n++) 
-                                                model(i,j,k) += eta(i,j,k,n) * elastic.models[n];
+                                            for (unsigned int n = 0; n < models.size(); n++) 
+                                                model(i,j,k) += eta(i,j,k,n) * models[n];
                                         });
             }
 
@@ -208,19 +185,19 @@ protected:
 
         if (!m_type == Type::Static) return;
 
-        elastic.bc->SetTime(a_time);
-        elastic.bc->Init(rhs_mf,geom);
+        bc->SetTime(a_time);
+        bc->Init(rhs_mf,geom);
 
         amrex::LPInfo info;
         Operator::Elastic<MODEL::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
-        elastic_op.SetBC(elastic.bc);
+        elastic_op.SetBC(bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
-        elastic.solver.Define(elastic_op);
-        elastic.solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
-        elastic.solver.Clear();
+        solver.Define(elastic_op);
+        solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        solver.Clear();
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
@@ -428,11 +405,10 @@ protected:
     IC::IC *ic_rhs = nullptr;
     BC::BC<Set::Scalar> *mybc;        ///< Stock generic boundary condition object
     
-    struct {
-        std::vector<MODEL> models;
-        Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
-        BC::Operator::Elastic::Elastic *bc;
-    } elastic;
+    std::vector<MODEL> models;
+    Solver::Nonlocal::Newton<MODEL> solver;//(elastic.op);
+    BC::Operator::Elastic::Elastic *bc;
+
 
     Set::Scalar m_eta_ref_threshold = 0.01;
     Set::Scalar m_elastic_ref_threshold = 0.01;

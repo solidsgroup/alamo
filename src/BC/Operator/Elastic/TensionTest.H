@@ -14,10 +14,13 @@ class TensionTest : public Constant
 {
 public:
 
-    TensionTest() 
-    {
-        Constant();
-    };
+    TensionTest(): Constant()
+    {};
+
+    TensionTest(IO::ParmParse &pp, std::string name) : TensionTest()
+    { pp.queryclass(name,*this); }
+
+
     ~TensionTest() {};
 
     using Constant::Init;

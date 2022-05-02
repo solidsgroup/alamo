@@ -26,6 +26,10 @@ public:
                 m_bc_val [face][direction] = 0.0;
             }
     };
+
+    Constant(IO::ParmParse &pp, std::string name): Constant()
+    { pp.queryclass(name,*this); }
+
     ~Constant() {};
 
 

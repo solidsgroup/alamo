@@ -12,31 +12,9 @@ class Ellipse : public IC
 public:
     enum Mollifier {Dirac, Gaussian};
 
-    Ellipse (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) 
-    {
-        Define(Set::Matrix::Identity(), Set::Vector::Zero(), Mollifier::Dirac, 0.0);
-    }
-
-    Ellipse (amrex::Vector<amrex::Geometry> &_geom, Set::Matrix a_A, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps) : IC(_geom) 
-    {
-        Define(a_A,a_x0,a_moll,a_eps);
-    }
-
-    Ellipse (amrex::Vector<amrex::Geometry> &_geom, Set::Vector a_a, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps) : IC(_geom) 
-    {
-        Set::Matrix A = Set::Matrix::Zero();
-        for (int d = 0; d < AMREX_SPACEDIM; d++) A(d,d) = 1./a_a(d)/a_a(d);
-        Define(A,a_x0,a_moll,a_eps);
-    }
-
-    void Define (Set::Matrix a_A, Set::Vector a_x0, Mollifier a_moll, Set::Scalar a_eps)
-    {
-        moll = a_moll;
-        A.push_back(a_A);
-        center.push_back(a_x0);
-        eps.push_back(a_eps);
-    }
-
+    Ellipse (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+    Ellipse (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : Ellipse(_geom)
+    {pp.queryclass(name,*this);}
     
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
