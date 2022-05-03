@@ -1,8 +1,24 @@
-name: Linux Build and Test
+name: Linux
 
 on: [push, pull_request]
 
 jobs:
+  tabs:
+    name: Style Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Tabs
+        run: .github/workflows/style/check_tabs.py
+  docs:
+    name: Build Docs
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: make
+      run: make docs
   test-2d:
     name: Build & Test (2D)
     runs-on: ubuntu-latest

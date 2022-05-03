@@ -36,9 +36,9 @@ protected:
         Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev);
     }
 
-    void UpdateModel()
+    void UpdateModel(int a_step)
     {
-        Mechanics<Model::Solid::Affine::Isotropic>::UpdateModel();
+        Mechanics<Model::Solid::Affine::Isotropic>::UpdateModel(a_step);
 
         //Set::Scalar alpha[2];
         //alpha[0] = 0.001; alpha[1] = 0.002;

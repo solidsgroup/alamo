@@ -2,6 +2,7 @@
 .. role:: cpp(code)
    :language: c++
 
+================
 Python Interface
 ================
 
@@ -10,7 +11,7 @@ Python Interface
    :caption: Contents:
 
 Running Alamo with Python
--------------------------
+=========================
 
 Alamo supports a (currently limited) Python interface.
 It can be run as simply as
@@ -57,7 +58,7 @@ Note that the C++ namespace structure is mirrored in the Python bindings.
            TypeError: unbound method Boost.Python.function object must be called with Elastic instance as first argument (got list instance instead)
 
 Compiling Alamo Python interface
---------------------------------
+================================
 
 The python interface requires all code to be compiled using the :code:`-fPIC` flag.
 To compile AMReX,
@@ -86,7 +87,7 @@ This will create a file called :code:`alamo.so` in the Alamo root directory.
 (Note that this file must be in your python path (or your current directory) to use.)
 
 Extending the Alamo Python interface
-------------------------------------
+====================================
 
 Python bindings are currently limited and you will likely need to add them if you want them for a specific component.
 Alamo uses the Boost Python library to create the Python bindings.

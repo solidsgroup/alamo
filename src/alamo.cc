@@ -11,16 +11,17 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Laplacian.H"
+#include "Model/Solid/Affine/J2.H"
 
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
 #include "Integrator/Mechanics.H"
-#include "Integrator/FiniteKinematics.H"
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
 #include "Integrator/ThermoElastic.H"
+#include "Integrator/Dynamics.H"
 
 int main (int argc, char* argv[])
 {
@@ -59,6 +60,16 @@ int main (int argc, char* argv[])
             integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>();
             pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Linear::Laplacian>*>(integrator));
         }
+        else if (model == "elastic.neohookean") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>*>(integrator));
+        }
+        else if (model == "affine.j2") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Affine::J2>*>(integrator));
+        }
         else
         {
             Util::Abort(INFO,model," is not a valid model");
@@ -78,7 +89,6 @@ int main (int argc, char* argv[])
     }
     else if (program == "finitekinematics")
     {
-        //Integrator::Integrator *fk = new Integrator::FiniteKinematics();
         Integrator::Integrator *fk = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>();
         fk->InitData();
         fk->Evolve();        
@@ -86,7 +96,7 @@ int main (int argc, char* argv[])
     }
     else if (program == "flame")
     {
-        Integrator::Integrator *flame = new Integrator::Flame();
+        Integrator::Integrator *flame = new Integrator::Flame(pp);
         flame->InitData();
         flame->Evolve();
         delete flame;
@@ -122,6 +132,14 @@ int main (int argc, char* argv[])
         pp.queryclass(te);
         te.InitData();
         te.Evolve();
+    }
+    else if (program == "dynamics")
+    {
+        IO::ParmParse pp;
+        Integrator::Dynamics integrator;
+        pp.queryclass(integrator);
+        integrator.InitData();
+        integrator.Evolve();
     }
     else
     {

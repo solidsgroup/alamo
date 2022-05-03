@@ -1,26 +1,26 @@
-#@  [2D, serial, 1 AMR Levels]
+#@  [2D-serial-1level]
 #@  dim=2  
 #@  nprocs=1
 #@  args=amr.max_level=0
 #@    
-#@  [2D, serial, 2 AMR Levels]
+#@  [2D-serial-2levels]
 #@  dim=2  
 #@  nprocs=1
 #@  args=amr.max_level=1
 #@    
-#@  [2D, serial, 3 AMR Levels]
+#@  [2D-serial-3levels]
 #@  dim=2  
 #@  nprocs=1
 #@    
-#@  [2D, parallel, 3 AMR Levels]
+#@  [2D-parallel-3levels]
 #@  dim=2  
 #@  nprocs=4
 #@    
-#@  [3D, serial, 3 AMR Levels]
+#@  [3D-serial-3levels]
 #@  dim=3
 #@  nprocs=1
 #@
-#@  [3D, parallel, 3 AMR Levels]
+#@  [3D-parallel-3levels]
 #@  dim=3
 #@  nprocs=4
 #@  
@@ -56,62 +56,62 @@ geometry.prob_hi	      = 8 8 8
 geometry.is_periodic	      = 0 0 0
 
 # elastic moduli
-elastic.model1.planestress = true
-elastic.model1.E = 210 
-elastic.model1.nu = 0.3
+model1.planestress = true
+model1.E = 210 
+model1.nu = 0.3
 
-elastic.solver.verbose = 3
-elastic.solver.nriters = 1
-elastic.solver.max_iter = 50
+solver.verbose = 3
+solver.nriters = 1
+solver.max_iter = 50
 
 ### UNIAXIAL TENSION ###
-elastic.bc.type = constant
+bc.type = constant
 
 ### --- Faces
-elastic.bc.type.xlo = disp trac trac
-elastic.bc.type.xhi = disp trac trac
-elastic.bc.val.xhi = 0.1 0.0 0.0
-elastic.bc.type.ylo = trac disp trac
-elastic.bc.type.yhi = trac trac trac
-elastic.bc.type.zlo = trac trac disp
-elastic.bc.type.zhi = trac trac trac
+bc.constant.type.xlo = disp trac trac
+bc.constant.type.xhi = disp trac trac
+bc.constant.val.xhi = 0.1 0.0 0.0
+bc.constant.type.ylo = trac disp trac
+bc.constant.type.yhi = trac trac trac
+bc.constant.type.zlo = trac trac disp
+bc.constant.type.zhi = trac trac trac
 
 ### --- Edges
 ###     XY edges
-elastic.bc.type.xloylo = disp trac trac
-elastic.bc.type.xloyhi = disp trac trac
-elastic.bc.type.xhiylo = disp trac trac
-elastic.bc.type.xhiyhi = disp trac trac
-elastic.bc.val.xhiylo = 0.1 0.0 0.0
-elastic.bc.val.xhiyhi = 0.1 0.0 0.0
+bc.constant.type.xloylo = disp trac trac
+bc.constant.type.xloyhi = disp trac trac
+bc.constant.type.xhiylo = disp trac trac
+bc.constant.type.xhiyhi = disp trac trac
+bc.constant.val.xhiylo = 0.1 0.0 0.0
+bc.constant.val.xhiyhi = 0.1 0.0 0.0
 ###     ZX edges
-elastic.bc.type.zloxlo = disp trac trac
-elastic.bc.type.zhixlo = disp trac trac
-elastic.bc.type.zloxhi = disp trac trac
-elastic.bc.type.zhixhi = disp trac trac
-elastic.bc.val.zloxhi = 0.1 0.0 0.0
-elastic.bc.val.zhixhi = 0.1 0.0 0.0
+bc.constant.type.zloxlo = disp trac trac
+bc.constant.type.zhixlo = disp trac trac
+bc.constant.type.zloxhi = disp trac trac
+bc.constant.type.zhixhi = disp trac trac
+bc.constant.val.zloxhi = 0.1 0.0 0.0
+bc.constant.val.zhixhi = 0.1 0.0 0.0
 ###     YZ edges
-elastic.bc.type.ylozlo = trac disp disp
-elastic.bc.type.ylozhi = trac disp trac
-elastic.bc.type.yhizlo = trac trac disp
-elastic.bc.type.yhizhi = trac trac trac
+bc.constant.type.ylozlo = trac disp disp
+bc.constant.type.ylozhi = trac disp trac
+bc.constant.type.yhizlo = trac trac disp
+bc.constant.type.yhizhi = trac trac trac
 
 
 ### --- Corners
 ###     on xmin face
-elastic.bc.type.xloylozlo = disp disp disp
-elastic.bc.type.xloylozhi = disp disp trac
-elastic.bc.type.xloyhizlo = disp trac disp
-elastic.bc.type.xloyhizhi = disp trac trac
+bc.constant.type.xloylozlo = disp disp disp
+bc.constant.type.xloylozhi = disp disp trac
+bc.constant.type.xloyhizlo = disp trac disp
+bc.constant.type.xloyhizhi = disp trac trac
 ###     on xmax face
-elastic.bc.type.xhiylozlo = disp disp disp
-elastic.bc.val.xhiylozlo = 0.1 0.0 0.0
-elastic.bc.type.xhiylozhi = disp disp trac
-elastic.bc.val.xhiylozhi = 0.1 0.0 0.0
-elastic.bc.type.xhiyhizlo = disp trac disp
-elastic.bc.val.xhiyhizlo = 0.1 0.0 0.0
-elastic.bc.type.xhiyhizhi = disp trac trac
-elastic.bc.val.xhiyhizhi = 0.1 0.0 0.0
+bc.constant.type.xhiylozlo = disp disp disp
+bc.constant.val.xhiylozlo = 0.1 0.0 0.0
+bc.constant.type.xhiylozhi = disp disp trac
+bc.constant.val.xhiylozhi = 0.1 0.0 0.0
+bc.constant.type.xhiyhizlo = disp trac disp
+bc.constant.val.xhiyhizlo = 0.1 0.0 0.0
+bc.constant.type.xhiyhizhi = disp trac trac
+bc.constant.val.xhiyhizhi = 0.1 0.0 0.0
 
 

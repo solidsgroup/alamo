@@ -39,11 +39,13 @@ public:
         this->linop = &a_lp;
         this->mlmg = new amrex::MLMG(a_lp);
         PrepareMLMG(*mlmg);
+        m_defined = true;
     }
     void Clear()
     {
+        if (!m_defined) return;
         this->linop = nullptr;
-        delete this->mlmg;
+        if (this->mlmg) delete this->mlmg;
         this->mlmg = nullptr;
     }
 
@@ -171,6 +173,7 @@ protected:
     Set::Scalar bottom_tol_abs = -1.0;
     Set::Scalar tol_rel = -1.0;
     Set::Scalar tol_abs = -1.0;
+    Set::Scalar omega = -1.0;
 
     Operator::Operator<Grid::Node> * linop;
     amrex::MLMG * mlmg;
@@ -203,6 +206,8 @@ protected:
 
         if (bottom_tol_rel >= 0) mlmg.setBottomTolerance(bottom_tol_rel);
         if (bottom_tol_abs >= 0) mlmg.setBottomToleranceAbs(bottom_tol_abs);
+
+        if (omega>=0) this->linop->SetOmega(omega);
     }
     
 
@@ -236,20 +241,8 @@ public:
         // Number of smoothing operations after bottom solve (2)
         pp.query("post_smooth",value.post_smooth);
     
-        //if (pp.contains("bottom_solver"))
-        //{
-        //    std::string bottom_solver;
-        //    // Type of bottom solver to use [cg, bicgstab, smoother]
+        // The method that is used for the multigrid bottom solve (cg, bicgstab, smoother)
         pp.query("bottom_solver",value.bottom_solver);
-        //    if (bottom_solver == "cg")
-        //        value.setBottomSolver(MLMG::BottomSolver::cg);
-        //    if (bottom_solver == "bicgstab")
-        //        value.setBottomSolver(MLMG::BottomSolver::bicgstab);
-        //    if (bottom_solver == "smoother")
-        //        value.setBottomSolver(MLMG::BottomSolver::smoother);
-        //    else
-        //        Util::Abort(INFO,"Unsupported bottom_solver " + bottom_solver);
-        //}
         
         if (pp.contains("cg_tol_rel"))
             Util::Abort(INFO,"cg_tol_rel is depricated. Use bottom_tol_rel instead.");
@@ -267,8 +260,13 @@ public:
 
         // Absolute tolerance
         pp.query("tol_abs",value.tol_abs);
-    }
 
+        // Omega (used in gauss-seidel solver)
+        pp.query("omega",value.omega);
+        
+    }
+protected:
+    bool m_defined = false;
     
 };
 }
