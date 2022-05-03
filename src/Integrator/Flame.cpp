@@ -273,13 +273,14 @@ namespace Integrator
                         thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1-phi(i,j,k)) + 4.0 * thermal.q_comb * phi(i,j,k) * (1.-phi(i,j,k))
                         +
                         thermal.q0;
-		    Set::Scalar qdot_ap = (pf.P * 0.11 + 0.34) * phi(i,j,k) / thermal.k_ap;
-		    Set::Scalar qdot_htpb = (pf.P * 0.05 + 0.09) * (1.0 - phi(i,j,k)) / thermal.k_htpb;
-		    Set::Scalar qdot_comb = (pf.P * 0.17719 + 2.0) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb;
+		    
+                    Set::Scalar qdot_ap = (pf.P * 1.123e7 + 3.448e6) * phi(i,j,k) / thermal.k_ap;
+		            Set::Scalar qdot_htpb = (pf.P * 4.772e6 + 1.409e6) * (1.0 - phi(i,j,k)) / thermal.k_htpb;
+		            Set::Scalar qdot_comb = (pf.P * 1.749e7 + 2.008e7) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb;
 
-		    qdot = qdot_ap + qdot_htpb + qdot_comb + thermal.q0;
+		            qdot = qdot_ap + qdot_htpb + qdot_comb + thermal.q0;
 
-		    // Note: This qdot equations work for Pressure in atm units and return qdot in kW/cmˆ2 units. I am probably going to change this equation.
+		            // Note: This qdot equations work for Pressure in atm units and return qdot in kW/cmˆ2 units. I am probably going to change this equation.
 
 
                     //
