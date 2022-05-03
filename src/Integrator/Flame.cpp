@@ -304,11 +304,11 @@ namespace Integrator
                     // Eta computation
                     // --------------------
 
-		            if (Eta_old(i,j,k) < 0.01) 
+		    if (Eta_old(i,j,k) < 0.01) 
                     {
                         Eta(i,j,k) = 0.0;
                     }
-		            else
+		    else
                     {   
                         Eta(i, j, k) = 
                             Eta_old(i, j, k) 
@@ -344,7 +344,8 @@ namespace Integrator
                     Set::Scalar test = normvec.dot(temp_grad);
 
                     Set::Scalar Bn = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb;
-                    
+
+
                     // --------------------
                     // Temperature computation
                     // --------------------
@@ -357,48 +358,34 @@ namespace Integrator
                         Temp(i,j,k) = 0.0; 
                     }
 
+	
+		    if(Temp(i,60,k) >= 850.0){
+		      Util::Message(INFO, "Temp = ", Temp(i,60,k));
+		      Util::Message(INFO, "Eta = ", Eta(i,60,k));
+		      Util::Message(INFO, "Mob = ", Mob(i,60,k));
+		    }
 
                     // --------------------
                     // Mobility computation
-                    // --------------------
-		            if(Temp_old(i,j,k) < 400.0)
-                    {
-		                Mob(i,j,k) = 0.0;
-		            }
-		            else if (Temp_old(i,j,k) < 500.0 && Temp_old(i,j,k) >= 400.0)
-                    {
-		                Mob(i,j,k) = 0.01;
-		            }
-		            else
-		            {  
-		                Set::Scalar R = 8.314;
-		                Set::Scalar T0 = 399.0;
+                    // --------------------  
+		    Set::Scalar R = 8.314;
+		    Set::Scalar T0 = 273.15;
 
-		                Set::Scalar e1 = exp(-thermal.ae_ap   / pf.P / R / (Temp_old(i,j,k) - T0) );
-		                Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (Temp_old(i,j,k) - T0) );
-		                Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (Temp_old(i,j,k) - T0) );
+		    Set::Scalar e1 = exp(-thermal.ae_ap   / pf.P / R / (Temp_old(i,j,k) - T0) );
+		    Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (Temp_old(i,j,k) - T0) );
+		    Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (Temp_old(i,j,k) - T0) );
 
-		                Mob(i,j,k) = ( 
-				            thermal.A_ap   * e1 * phi(i,j,k) + 
-				            thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
-				            thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
-				            ) / pf.gamma / (pf.w1 - pf.w0);
-
-			        }
+		    Mob(i,j,k) = ( 
+				  thermal.A_ap   * e1 * phi(i,j,k) + 
+				  thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
+				  thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+				 ) / pf.gamma / (pf.w1 - pf.w0);
             
-
                     // -------------------
-                    // Heat Model
+                    // Fluid Heat
                     // -------------------
 
-                    if (Eta_old(i,j,k) > 0.001)
-                    {
-                        heat(i,j,k) = mdot(i,j,k) * thermal.ap_cp * Temp(i,j,k);
-                    }
-                    else
-                    {
-                        heat(i,j,k) = mdot(i,j,k) * thermal.ap_cp * Temp(i,j,k);
-                    }
+		    
                     
                 });
                 
