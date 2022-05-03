@@ -273,6 +273,14 @@ namespace Integrator
                         thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1-phi(i,j,k)) + 4.0 * thermal.q_comb * phi(i,j,k) * (1.-phi(i,j,k))
                         +
                         thermal.q0;
+		    Set::Scalar qdot_ap = (pf.P * 0.11 + 0.34) * phi(i,j,k) / thermal.k_ap;
+		    Set::Scalar qdot_htpb = (pf.P * 0.05 + 0.09) * (1.0 - phi(i,j,k)) / thermal.k_htpb;
+		    Set::Scalar qdot_comb = (pf.P * 0.17719 + 2.0) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb;
+
+		    qdot = qdot_ap + qdot_htpb + qdot_comb + thermal.q0;
+
+		    // Note: This qdot equations work for Pressure in atm units and return qdot in kW/cmˆ2 units. I am probably going to change this equation.
+
 
                     //
                     // Evolve temperature with the qdot flux term in place
@@ -315,14 +323,67 @@ namespace Integrator
                     // --------------------
                     // Mobility computation
                     // --------------------
+<<<<<<< HEAD
+
+		    if (Eta_old(i,j,k) < 0.01) 
+=======
                     if(temp(i,j,k) < 400.0)
+>>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
                     {
                         Mob(i,j,k) = 0.0;
                     }
+<<<<<<< HEAD
+		    else
+                    {   
+                        Eta(i, j, k) = 
+                            Eta_old(i, j, k) 
+                            - Mob_old(i,j,k) * dt * (
+                            (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
+                            - pf.eps * pf.kappa * eta_lap);
+		            }
+
+                    Set::Vector eta_grad = Numeric::Gradient(Eta_old, i, j, k, 0, DX);
+
+                    // --------------------
+                    // Mass flux
+                    // --------------------
+
+=======
                     else if (temp(i,j,k) < 500.0 && temp(i,j,k) >= 400.0)
+>>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
                     {
                         Mob(i,j,k) = 0.01;
                     }
+<<<<<<< HEAD
+
+                    
+                    Set::Vector temp_grad = Numeric::Gradient(Temp_old, i, j, k, 0, DX);
+                    Set::Scalar temp_lap = Numeric::Laplacian(Temp_old, i, j, k, 0, DX);
+                    Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
+                    Set::Vector normvec = eta_grad/Eta_old(i,j,k);
+                    
+                    amrex::Real K_ap = (thermal.k_ap - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+                    amrex::Real K_htpb = (thermal.k_htpb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+                    amrex::Real K_comb = (thermal.k_comb - thermal.k0) * Eta_old(i,j,k) + thermal.k0;
+
+                    amrex::Real K = K_ap * phi(i,j,k) + K_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * K_comb;  
+
+                    amrex::Real cp = (thermal.cp_ap - thermal.cp_htpb) * Eta_old(i,j,k) + thermal.cp_htpb;
+
+                    Set::Scalar test = normvec.dot(temp_grad);
+
+                    Set::Scalar Bn = thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1 - phi(i,j,k)) + 4.0 * phi(i,j,k) * (1 - phi(i,j,k)) * thermal.q_comb;
+
+
+                    // --------------------
+                    // Temperature computation
+                    // --------------------
+                    if (Eta_old(i,j,k) > 0.001)
+			        { 
+                        Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn / K );
+			        }
+=======
+>>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
                     else
                     {
                         Set::Scalar R = 8.314;
@@ -332,6 +393,30 @@ namespace Integrator
                         Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (temp(i,j,k) - T0) );
                         Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (temp(i,j,k) - T0) );
 
+<<<<<<< HEAD
+	
+		    if(Temp(i,60,k) >= 850.0){
+		      Util::Message(INFO, "Temp = ", Temp(i,60,k));
+		      Util::Message(INFO, "Eta = ", Eta(i,60,k));
+		      Util::Message(INFO, "Mob = ", Mob(i,60,k));
+		    }
+
+                    // --------------------
+                    // Mobility computation
+                    // --------------------  
+		    Set::Scalar R = 8.314;
+		    Set::Scalar T0 = 273.15;
+
+		    Set::Scalar e1 = exp(-thermal.ae_ap   / pf.P / R / (Temp_old(i,j,k) - T0) );
+		    Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (Temp_old(i,j,k) - T0) );
+		    Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (Temp_old(i,j,k) - T0) );
+
+		    Mob(i,j,k) = ( 
+				  thermal.A_ap   * e1 * phi(i,j,k) + 
+				  thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
+				  thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
+				 ) / pf.gamma / (pf.w1 - pf.w0);
+=======
                         Mob(i,j,k) = ( 
                             thermal.A_ap   * e1 * phi(i,j,k) + 
                             thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
@@ -339,12 +424,16 @@ namespace Integrator
                             ) / pf.gamma / (pf.w1 - pf.w0);
 
                     }
+>>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
             
-
                     // -------------------
-                    // Heat Model
+                    // Fluid Heat
                     // -------------------
 
+<<<<<<< HEAD
+		    
+                    
+=======
                     if (eta(i,j,k) > 0.001)
                     {
                         heat(i,j,k) = mdot(i,j,k) * thermal.cp_ap * temp(i,j,k);
@@ -354,6 +443,7 @@ namespace Integrator
                         heat(i,j,k) = mdot(i,j,k) * thermal.cp_ap * temp(i,j,k);
                     }
                     */
+
                 });
                 
             }
