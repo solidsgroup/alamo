@@ -46,7 +46,6 @@ namespace Integrator
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
-            //value.RegisterNewFab(value.heat_mf,    value.bc_eta, 1, 1, "heat", true);
         }
         
 
@@ -84,10 +83,10 @@ namespace Integrator
             {
                 value.bc_temp = new BC::Constant(1);
                 pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
-                value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 1, "temp", true);
-                value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
-                value.RegisterNewFab(value.Mob_mf, value.bc_temp, 1, 1, "Mob", true);
-                value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
+                value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 2, "temp", true);
+                value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 2, "temp_old", false);
+                value.RegisterNewFab(value.Mob_mf, value.bc_temp, 1, 2, "Mob", true);
+                value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,2,"alpha",true);
             }
         }
 
@@ -116,8 +115,11 @@ namespace Integrator
         if (value.m_type  != Type::Disable)
         {
             pp.queryclass("model_ap",value.elastic.model_ap);
+            Util::Message(INFO,value.elastic.model_ap);
             pp.queryclass("model_htpb",value.elastic.model_htpb);
+            Util::Message(INFO,value.elastic.model_htpb);
             pp.queryclass("model_void",value.elastic.model_void);
+            Util::Message(INFO,value.elastic.model_void);
         }
     }
 
@@ -151,45 +153,33 @@ namespace Integrator
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            amrex::Box domain = geom[lev].Domain();
-            domain.convert(amrex::IntVect::TheNodeVector());
-
-            eta_mf[lev]->FillBoundary();
-            phi_mf[lev]->FillBoundary();
-            temp_mf[lev]->FillBoundary();
-
-            model_mf[lev]->setVal(Model::Solid::Affine::Isotropic::Zero());
-
-            Set::Vector DX(geom[lev].CellSize());
-
-            for (MFIter mfi(*model_mf[lev], true); mfi.isValid(); ++mfi)
+            Util::RealFillBoundary(*phi_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*eta_mf[lev],geom[lev]);   
+            Util::RealFillBoundary(*temp_mf[lev],geom[lev]);   
+            
+            for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
-                bx.grow(1);
-                bx = bx & domain;
                 amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = phi_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &temp = temp_mf[lev]->array(mfi);
 
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
                     Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
-
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 *= temp_avg;
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 *= temp_avg;
-
                     model_type solid = model_ap*phi_avg + model_htpb*(1.-phi_avg);
-
                     model(i,j,k) = solid*eta_avg + elastic.model_void*(1.0-eta_avg); 
                 });
-            }   
+            }
 
-            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            Util::RealFillBoundary(*model_mf[lev],geom[lev]);
         }
     }
     

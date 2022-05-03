@@ -81,7 +81,9 @@ public:
         else if (bc_type == "expression")   value.bc = new BC::Operator::Elastic::Expression(pp,"bc.expression");
         else Util::Abort(INFO,"Invalid bc.type ",bc_type);
         
-        value.RegisterGeneralFab(value.model_mf, 1, 2,"model");
+        pp.query("print_model",value.m_print_model);
+        if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2,"model");
+        else value.RegisterGeneralFab(value.model_mf, 1, 2);
 
         // Read in IC for RHS
         std::string rhstype;
@@ -331,7 +333,7 @@ protected:
     BC::Operator::Elastic::Elastic *bc;
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
-
+    bool m_print_model = false;
 };
 
 

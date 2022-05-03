@@ -38,6 +38,14 @@ public:
     {
         os << "lambda = " << lambda << " mu = " << mu;
     }
+    Set::Scalar Lambda () const
+    {
+        return lambda;
+    }
+    Set::Scalar Mu () const
+    {
+        return mu;
+    }
     static Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Zero()
     {
         Matrix4<AMREX_SPACEDIM,Sym::Isotropic> zero;

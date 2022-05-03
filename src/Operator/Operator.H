@@ -55,6 +55,7 @@ public :
     void Apply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) const { Fapply(amrlev,mglev,out,in);}
 
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
+    virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
     
     //
     // Public Utilty functions
@@ -162,7 +163,6 @@ public:
             const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory = {});
 
     // virtual void setLevelBC (int amrlev, const amrex::MultiFab* levelbcdata) override final;
-
 protected:
     
     BC::BC<Set::Scalar> *m_bc;

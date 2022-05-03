@@ -65,8 +65,8 @@ phi.ic.laminate.invert = 1
 
 pf.eta.bc.type.xlo = dirichlet
 pf.eta.bc.type.xhi = dirichlet
-pf.eta.bc.type.ylo = neumann
-pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.ylo = periodic
+pf.eta.bc.type.yhi = periodic
 pf.eta.bc.val.xlo = 0.0
 pf.eta.bc.val.xhi = 1.0
 pf.eta.bc.val.ylo = 0.0
@@ -85,22 +85,21 @@ thermal.temp.bc.type.zlo = neumann
 #elastic.elastic.nmodels = 0
 elastic.type = disable
 #elastic.interval = 1
-
 amr.refinement_criterion_temp = 1.0
 
 
-elastic.type = disable
+#elastic.type = static
 #model_ap.E = 210 
 #model_ap.nu = 0.3
 #model_ap.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
-#model_htpb.E = 210 
+#model_htpb.E = 110
 #model_htpb.nu = 0.3
-#model_htpb.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
+#model_htpb.F0  = 0.002 0 0 0 0.002 0 0 0 0.002 # eigenstrain
 #model_void.E = 210
 #model_void.nu = 0.3
-#model_void.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
+#model_void.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
 #elastic.solver.verbose = 3
 #elastic.solver.fixed_iter=100
-#elastic.bc.type=tension_test
-#elastic.bc.tension_test.disp = 0.001
-#elastic.bc.tension_test.type = uniaxial_stress
+
+#elastic.print_model = 1
+#elastic.solver.average_down_coeffs = 1
