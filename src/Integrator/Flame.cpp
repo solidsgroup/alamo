@@ -83,10 +83,10 @@ namespace Integrator
             {
                 value.bc_temp = new BC::Constant(1);
                 pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
-                value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 2, "temp", true);
-                value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 2, "temp_old", false);
-                value.RegisterNewFab(value.Mob_mf, value.bc_temp, 1, 2, "Mob", true);
-                value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,2,"alpha",true);
+                value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 1, "temp", true);
+                value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
+                value.RegisterNewFab(value.Mob_mf, value.bc_temp, 1, 1, "Mob", true);
+                value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
             }
         }
 
@@ -153,13 +153,17 @@ namespace Integrator
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
-            Util::RealFillBoundary(*phi_mf[lev],geom[lev]);
-            Util::RealFillBoundary(*eta_mf[lev],geom[lev]);   
-            Util::RealFillBoundary(*temp_mf[lev],geom[lev]);   
+            phi_mf[lev]->FillBoundary();
+            eta_mf[lev]->FillBoundary();
+            temp_mf[lev]->FillBoundary();
+            //Util::RealFillBoundary(*phi_mf[lev],geom[lev]);
+            //Util::RealFillBoundary(*eta_mf[lev],geom[lev]);   
+            //Util::RealFillBoundary(*temp_mf[lev],geom[lev]);   
             
             for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
+                //bx.grow(1);
                 amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = phi_mf[lev]->array(mfi);
@@ -273,11 +277,11 @@ namespace Integrator
                         thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1-phi(i,j,k)) + 4.0 * thermal.q_comb * phi(i,j,k) * (1.-phi(i,j,k))
                         +
                         thermal.q0;
-		    Set::Scalar qdot_ap = (pf.P * 0.11 + 0.34) * phi(i,j,k) / thermal.k_ap;
-		    Set::Scalar qdot_htpb = (pf.P * 0.05 + 0.09) * (1.0 - phi(i,j,k)) / thermal.k_htpb;
-		    Set::Scalar qdot_comb = (pf.P * 0.17719 + 2.0) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb;
+		    //Set::Scalar qdot_ap = (pf.P * 0.11 + 0.34) * phi(i,j,k) / thermal.k_ap;
+		    //Set::Scalar qdot_htpb = (pf.P * 0.05 + 0.09) * (1.0 - phi(i,j,k)) / thermal.k_htpb;
+		    //Set::Scalar qdot_comb = (pf.P * 0.17719 + 2.0) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb;
 
-		    qdot = qdot_ap + qdot_htpb + qdot_comb + thermal.q0;
+		    //qdot = qdot_ap + qdot_htpb + qdot_comb + thermal.q0;
 
 		    // Note: This qdot equations work for Pressure in atm units and return qdot in kW/cmˆ2 units. I am probably going to change this equation.
 

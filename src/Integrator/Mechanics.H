@@ -95,6 +95,10 @@ public:
 
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]),"disp_xhi_x");
         value.RegisterIntegratedVariable(&(value.trac_hi[0].data()[0]),"trac_xhi_x");
+
+        pp.query("print_residual",value.m_print_residual);
+        if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf,1,2,"res");
+        
     }
 
 protected:
@@ -132,6 +136,8 @@ protected:
 
         solver.Define(elastic_op);
         solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        if (m_print_residual)
+            solver.compResidual(res_mf,disp_mf,rhs_mf,model_mf);
         solver.Clear();
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
@@ -309,7 +315,7 @@ protected:
 
     Set::Field<Set::Vector> disp_mf;
     Set::Field<Set::Vector> rhs_mf;
-    Set::Field<Set::Scalar> res_mf;
+    Set::Field<Set::Vector> res_mf;
     Set::Field<Set::Matrix> stress_mf;
     Set::Field<Set::Matrix> strain_mf;
     
@@ -334,6 +340,7 @@ protected:
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;
+    bool m_print_residual = false;
 };
 
 
