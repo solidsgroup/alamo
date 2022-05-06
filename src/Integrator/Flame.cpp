@@ -327,16 +327,11 @@ namespace Integrator
                     // --------------------
                     // Mobility computation
                     // --------------------
-<<<<<<< HEAD
 
 		    if (Eta_old(i,j,k) < 0.01) 
-=======
-                    if(temp(i,j,k) < 400.0)
->>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
                     {
                         Mob(i,j,k) = 0.0;
                     }
-<<<<<<< HEAD
 		    else
                     {   
                         Eta(i, j, k) = 
@@ -352,13 +347,9 @@ namespace Integrator
                     // Mass flux
                     // --------------------
 
-=======
-                    else if (temp(i,j,k) < 500.0 && temp(i,j,k) >= 400.0)
->>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
                     {
                         Mob(i,j,k) = 0.01;
                     }
-<<<<<<< HEAD
 
                     
                     Set::Vector temp_grad = Numeric::Gradient(Temp_old, i, j, k, 0, DX);
@@ -386,8 +377,6 @@ namespace Integrator
 			        { 
                         Temp(i,j,k) = Temp_old(i,j,k) + dt*(K/cp/rho) * (temp_lap + test + eta_grad_mag/Eta_old(i,j,k) * Bn / K );
 			        }
-=======
->>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
                     else
                     {
                         Set::Scalar R = 8.314;
@@ -397,7 +386,6 @@ namespace Integrator
                         Set::Scalar e2 = exp(-thermal.ae_htpb / pf.P / R / (temp(i,j,k) - T0) );
                         Set::Scalar e3 = exp(-thermal.ae_comb / pf.P / R / (temp(i,j,k) - T0) );
 
-<<<<<<< HEAD
 	
 		    if(Temp(i,60,k) >= 850.0){
 		      Util::Message(INFO, "Temp = ", Temp(i,60,k));
@@ -420,24 +408,11 @@ namespace Integrator
 				  thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
 				  thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
 				 ) / pf.gamma / (pf.w1 - pf.w0);
-=======
-                        Mob(i,j,k) = ( 
-                            thermal.A_ap   * e1 * phi(i,j,k) + 
-                            thermal.A_htpb * e2 * (1.0 - phi(i,j,k)) + 
-                            thermal.A_comb * e3 * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k))
-                            ) / pf.gamma / (pf.w1 - pf.w0);
-
-                    }
->>>>>>> 8e369e73a1f8ad440342c06e1a6f703265baaa3d
             
                     // -------------------
                     // Fluid Heat
                     // -------------------
 
-<<<<<<< HEAD
-		    
-                    
-=======
                     if (eta(i,j,k) > 0.001)
                     {
                         heat(i,j,k) = mdot(i,j,k) * thermal.cp_ap * temp(i,j,k);
@@ -499,7 +474,7 @@ namespace Integrator
     void Flame::Regrid(int lev, Set::Scalar /* time */)
     {
         BL_PROFILE("Integrator::Flame::Regrid");
-        if (lev < finest_level) return;
+        //if (lev < finest_level) return;
         phi_mf[lev]->setVal(0.0);
         ic_phi->Initialize(lev, phi_mf);
         Util::Message(INFO, "Regridding on level ", lev);
