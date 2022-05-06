@@ -92,7 +92,9 @@ def extract(basefilename):
                 if not info: continue
                 ret["query"], ret["string"], ret["variable"] = info
                 if prefix: ret["string"] = prefix + "." + ret["string"]
-                rets[prefix]['items'].append(ret)
+                if prefix in rets.keys():
+                    if 'items' in rets[prefix].keys():
+                        rets[prefix]['items'].append(ret)
     return rets
 
 docfile    = open("Inputs.rst","w")
