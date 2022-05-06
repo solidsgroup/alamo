@@ -163,6 +163,7 @@ public:
             const amrex::Vector<amrex::FabFactory<amrex::FArrayBox> const*>& a_factory = {});
 
     // virtual void setLevelBC (int amrlev, const amrex::MultiFab* levelbcdata) override final;
+
 protected:
     
     BC::BC<Set::Scalar> *m_bc;
