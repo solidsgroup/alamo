@@ -290,7 +290,7 @@ namespace Integrator
                     // it does not take material heterogeneity into account. This model
                     // should account for the differing mobilities for AP and HTPB
                     // (but not necessarily for the combination region).
-                    Mob(i,j,k) = pf.m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
+                    Mob(i,j,k) = pow(pf.P, pf.n_ap) *  pf.m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
 
 
                 });
