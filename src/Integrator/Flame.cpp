@@ -265,18 +265,12 @@ namespace Integrator
                     // This is a primitive preliminary implementation.
                     // Note: "thermal.q0" is an initiation heat flux - think of it
                     // like a laser that is heating up the interface. 
-                    Set::Scalar qdot = 
-                        thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1-phi(i,j,k)) + 4.0 * thermal.q_comb * phi(i,j,k) * (1.-phi(i,j,k))
-                        +
-                        thermal.q0;
-                    //Set::Scalar qdot_ap = (pf.P * 0.11 + 0.34) * phi(i,j,k) / thermal.k_ap;
-                    //Set::Scalar qdot_htpb = (pf.P * 0.05 + 0.09) * (1.0 - phi(i,j,k)) / thermal.k_htpb;
-                    //Set::Scalar qdot_comb = (pf.P * 0.17719 + 2.0) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb;
 
-                    //qdot = qdot_ap + qdot_htpb + qdot_comb + thermal.q0;
-
-                    // Note: This qdot equations work for Pressure in atm units and return qdot in kW/cmˆ2 units. I am probably going to change this equation.
-
+                    Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
+                    qdot += (pf.P * 1.123e7 + 3.448e6) * phi(i,j,k) / thermal.k_ap; // AP Portion 
+                    qdot += (pf.P * 4.772e6 + 1.409e6) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
+                    qdot += (pf.P * 1.749e7 + 2.008e7) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
+                    qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
                     //
                     // Evolve temperature with the qdot flux term in place
@@ -290,15 +284,18 @@ namespace Integrator
                     dTdt += grad_eta_mag * alpha(i,j,k) * qdot / (eta(i,j,k) + small);
                     // Now, evolve temperature with explicit forward Euler
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-                    
-                    
+
+                    //if(etanew(i,j,k) < 0.001){
+                    //  tempnew(i,j,k) = 0.0;
+                    //}
+
                     // =============== TODO ==================
                     // We need to more accurately calculate our effective mobility here.
                     // Right now it uses a simple three-parameter exponential model, however,
                     // it does not take material heterogeneity into account. This model
                     // should account for the differing mobilities for AP and HTPB
                     // (but not necessarily for the combination region).
-                    Mob(i,j,k) = pf.m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
+                    Mob(i,j,k) = pow(pf.P, pf.n_ap) *  pf.m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
 
 
                 });
