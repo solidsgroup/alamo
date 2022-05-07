@@ -98,6 +98,8 @@ public:
 
         pp.query("print_residual",value.m_print_residual);
         if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf,1,2,"res");
+
+        pp.query("elastic_ref_threshold",value.m_elastic_ref_threshold); // Whether to refine based on elastic solution
         
     }
 
