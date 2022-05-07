@@ -1,0 +1,70 @@
+#@
+#@  [linear-isotropic]
+#@  dim = 3
+#@  check = false
+#@
+#@  [j2]
+#@  dim = 3
+#@  check-file = reference/j2.dat
+#@  args = timestep = 0.001
+#@  args = alamo.program.mechanics.model=affine.j2
+#@  args = model1.E=210
+#@  args = model1.nu=0.3
+#@  args = model1.sigma0=0.2
+#@  args = bc.tension_test.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
+#@ 
+#@
+#@  [affine-isotropic]
+#@  dim = 3
+#@  check = false
+#@  args = alamo.program.mechanics.model=affine.isotropic
+#@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#@  args = model1.E=210 
+#@  args = model1.nu=0.3
+#@
+#@  [neo-hookean]
+#@  dim=3
+#@  check-file = reference/neo-hookean.dat
+#@  args = timestep=0.01
+#@  args = alamo.program.mechanics.model=elastic.neohookean
+#@  args = model1.mu=3.0
+#@  args = model1.kappa=6.5
+#@  args = bc.tension_test.disp=(0,1:0,1)
+#@  args = solver.nriters=10
+#@  ignore = model1.E model1.nu 
+#@ 
+
+alamo.program = mechanics
+
+
+plot_file		    = tests/Solid/output
+
+type=static
+
+timestep		    = 0.01
+stop_time		    = 1.0
+
+# amr parameters
+amr.plot_dt		    = 0.1
+amr.max_level		    = 0
+amr.n_cell		    = 4 4 4
+amr.blocking_factor         = 2
+
+amr.thermo.int = 1
+amr.thermo.plot_int = 1
+
+# geometry
+geometry.prob_lo	    = 0 0 0
+geometry.prob_hi	    = 1 1 1
+
+nmodels = 1
+model1.E=210 
+model1.nu=0.3
+
+solver.verbose = 3
+solver.nriters = 1
+solver.max_iter = 30 #30
+
+bc.type = tension_test
+bc.tension_test.type = uniaxial_stress
+bc.tension_test.disp=(0,1:0,0.01)

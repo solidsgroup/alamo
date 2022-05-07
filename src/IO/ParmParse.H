@@ -81,6 +81,27 @@ public:
         return cnt;
     }
 
+    static int AllUnusedInputs()
+    {
+        ParmParse pp;
+        int cnt = 0;
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table.begin(), 
+            End = pp.m_table.end(); 
+            li != End; ++li)
+        {
+            if (!li->m_queried)
+            {
+                Util::Warning(INFO,li->m_name);
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+    std::string prefix ()
+    {
+        return getPrefix();
+    }
+        
     using amrex::ParmParse::queryarr;
     template<class T>
     void queryclass(std::string name, T * value)

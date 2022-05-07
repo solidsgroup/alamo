@@ -55,10 +55,16 @@ private:
     Mollifier moll = Mollifier::Dirac;
 
 public:
+    // This IC initializes a single-component fab using the formula
+    // 
+    // :math:`\phi = \begin{cases} \alpha_{in}  & (\mathbf{x}-\mathbf{x}_0)^T\mathbf{A}(\mathbf{x}-\mathbf{x}_0) \le r /
+    //                          \\ \alpha_{out} & \text{else} \end{cases}`
+    //
+    // The boundary can be mollified using an error function with parameter :math:`\varepsilon`
     static void Parse(Ellipsoid & value, IO::ParmParse & pp)
     {
         amrex::Vector<Set::Scalar> center;
-        if(pp.contains("center")) pp.queryarr("center",center);
+        if(pp.contains("center")) pp.queryarr("center",center); // Center of the ellipse :math:`\mathbf{x}_0`
 
         if(center.size() < AMREX_SPACEDIM) value.center.push_back(Set::Vector::Zero());
         else
@@ -70,7 +76,7 @@ public:
         amrex::Vector<Set::Scalar> A;
         if (pp.contains("A"))
         {
-            pp.queryarr("A", A);
+            pp.queryarr("A", A);  
             if(A.size() < AMREX_SPACEDIM*AMREX_SPACEDIM) value.A.push_back(Set::Matrix::Identity());
             else
             {

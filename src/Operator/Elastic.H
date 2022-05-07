@@ -7,7 +7,6 @@
 #include "Set/Set.H"
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
-#include "Test/Operator/Elastic.H"
 #include "BC/Operator/Elastic/Elastic.H"
 
 using namespace amrex;
@@ -20,8 +19,6 @@ namespace Operator
 template<int SYM>
 class Elastic : public Operator<Grid::Node>
 {
-    friend Test::Operator::Elastic;
-    
     using MATRIX4   = Set::Matrix4<AMREX_SPACEDIM,SYM>;
     using TArrayBox = amrex::BaseFab<MATRIX4>;
     using MultiTab  = amrex::FabArray<TArrayBox>;

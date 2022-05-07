@@ -38,12 +38,44 @@ public:
     {
         os << "lambda = " << lambda << " mu = " << mu;
     }
+    Set::Scalar Lambda () const
+    {
+        return lambda;
+    }
+    Set::Scalar Mu () const
+    {
+        return mu;
+    }
     static Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Zero()
     {
         Matrix4<AMREX_SPACEDIM,Sym::Isotropic> zero;
         zero.lambda = 0.0;
         zero.mu = 0.0;
         return zero;
+    }
+
+    //
+    // The isotropic tensor is defined to be
+    //
+    // C_{ijkl} = mu(d_{il}d_{jk} + d_{ik}d_{jl}) + lambda d_{ij} d_{kl}
+    // 
+    // The inverse ("compliance") tensor is 
+    // 
+    // S_{ijkl} = ((1+nu)/2E)(d_{il}d_{jl} + d_{ik}d_{jl}) - (nu/E)d_{ij}d_{kl}
+    //
+    // Replacing E, nu with Lame constants gives:
+    // 
+    // S_{ijkl} = (1/(4 mu))(d_{il}d_{jl} + d_{ik}d_{jl}) + (lambda/(2*mu*(3lambda+2mu))) * d_{ij} * d_{kl}
+    //
+    // For reference: http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm
+    //                https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
+    //
+    Matrix4<AMREX_SPACEDIM,Sym::Isotropic> Inverse()
+    {
+        Matrix4<AMREX_SPACEDIM,Sym::Isotropic> inv;
+        inv.mu = 1./4./mu;
+        inv.lambda = lambda / (2*mu*(3*lambda + 2*mu));
+        return inv;
     }
     friend Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix  &b);
     friend Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix3 &b);

@@ -12,39 +12,37 @@ PolymerDegradation::PolymerDegradation():
     // READ INPUT PARAMETERS
     //
 
-    // ---------------------------------------------------------------------
-    // --------------------- Water diffusion -------------------------------
-    // ---------------------------------------------------------------------
-    IO::ParmParse pp_water("water");
-    pp_water.query("on",water.on);
+    // Water diffusion
+    IO::ParmParse pp("water");
+    pp.query("on",water.on);
     if(water.on)
     {
-        pp_water.query("diffusivity", water.diffusivity);
-        pp_water.query("refinement_threshold", water.refinement_threshold);
-        pp_water.query("ic_type", water.ic_type);
+        pp.query("diffusivity", water.diffusivity); // Diffusivity 
+        pp.query("refinement_threshold", water.refinement_threshold); // AMR refinement criterion
+        pp.query("ic_type", water.ic_type); // 
 
         // // Determine initial condition
         if (water.ic_type == "constant")
         {
-            IO::ParmParse pp_water_ic("water.ic");
+            IO::ParmParse pp("water.ic");
             std::vector<amrex::Real> value;
-            pp_water_ic.queryarr("value",value);
+            pp.queryarr("value",value);
             water.ic = new IC::Constant(geom,value);
         }
         else
             Util::Abort(INFO, "This kind of IC has not been implemented yet");
 
         water.bc = new BC::Constant(1);
-        pp_water.queryclass("bc",*static_cast<BC::Constant *>(water.bc));
+        pp.queryclass("bc",*static_cast<BC::Constant *>(water.bc));
 
         RegisterNewFab(water_conc,     water.bc, 1, number_of_ghost_cells, "Water Concentration",true);
         RegisterNewFab(water_conc_old, water.bc, 1, number_of_ghost_cells, "Water Concentration Old",false);
     }
 
-    Util::Message(INFO);
     // ---------------------------------------------------------------------
     // --------------------- Heat diffusion -------------------------------
     // ---------------------------------------------------------------------
+    Util::Message(INFO);
     IO::ParmParse pp_heat("thermal");
     pp_heat.query("on",thermal.on);
     if(thermal.on)
@@ -646,19 +644,20 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
         //Util::Message(INFO);
         Solver::Nonlocal::Newton<pd_model_type> solver(elastic_op);
-        solver.setMaxIter(elastic.max_iter);
-        solver.setMaxFmgIter(elastic.max_fmg_iter);
-        solver.setFixedIter(elastic.max_fixed_iter);
-        solver.setVerbose(elastic.verbose);
-        solver.setBottomVerbose(elastic.cgverbose);
-        solver.setBottomMaxIter(elastic.bottom_max_iter);
-        solver.setBottomTolerance(elastic.cg_tol_rel) ;
-        solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
+        Util::Message(INFO,"These need to be removed and replaced with Parse");
+        //solver.setMaxIter(elastic.max_iter);
+        //solver.setMaxFmgIter(elastic.max_fmg_iter);
+        //solver.setFixedIter(elastic.max_fixed_iter);
+        //solver.setVerbose(elastic.verbose);
+        //solver.setBottomVerbose(elastic.cgverbose);
+        //solver.setBottomMaxIter(elastic.bottom_max_iter);
+        //solver.setBottomTolerance(elastic.cg_tol_rel) ;
+        //solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
         
         for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Warning(INFO);
 
-        if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
-        else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
+        //if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
+        //else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
         solver.solve(displacement,rhs,material.model,elastic.tol_rel,elastic.tol_abs);
         solver.compResidual(residual,displacement,rhs,material.model);
         
@@ -716,18 +715,20 @@ PolymerDegradation::TimeStepBegin(amrex::Real time, int iter)
 
             //Util::Message(INFO);
             Solver::Nonlocal::Newton<pd_model_type> solver(elastic_op);
-            solver.setMaxIter(elastic.max_iter);
-            solver.setMaxFmgIter(elastic.max_fmg_iter);
-            solver.setFixedIter(elastic.max_fixed_iter);
-            solver.setVerbose(elastic.verbose);
-            solver.setBottomVerbose(elastic.cgverbose);
-            solver.setBottomMaxIter(elastic.bottom_max_iter);
-            solver.setBottomTolerance(elastic.cg_tol_rel) ;
-            solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
+            Util::Abort(INFO,"These need to be replaced with Parse()");
+            //solver.setMaxIter(elastic.max_iter);
+            //solver.setMaxFmgIter(elastic.max_fmg_iter);
+            //solver.setFixedIter(elastic.max_fixed_iter);
+            //solver.setVerbose(elastic.verbose);
+            //solver.setBottomVerbose(elastic.cgverbose);
+            //solver.setBottomMaxIter(elastic.bottom_max_iter);
+            //solver.setBottomTolerance(elastic.cg_tol_rel) ;
+            //solver.setBottomToleranceAbs(elastic.cg_tol_abs) ;
             for (int ilev = 0; ilev < nlevels; ilev++) if (displacement[ilev]->contains_nan()) Util::Warning(INFO);
 
-            if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
-            else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
+            Util::Abort(INFO,"Subsequent lines need to be replaced");
+            //if (elastic.bottom_solver == "cg") solver.setBottomSolver(MLMG::BottomSolver::cg);
+            //else if (elastic.bottom_solver == "bicgstab") solver.setBottomSolver(MLMG::BottomSolver::bicgstab);
             solver.solve(displacement, rhs, material.model, elastic.tol_rel, elastic.tol_abs);
             //solver.solve(GetVecOfPtrs(displacement), GetVecOfConstPtrs(rhs), elastic.tol_rel, elastic.tol_abs);
             //solver.compResidual(GetVecOfPtrs(residual),GetVecOfPtrs(displacement),GetVecOfConstPtrs(rhs));

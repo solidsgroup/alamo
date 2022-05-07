@@ -30,78 +30,78 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
     //
     {
         amrex::ParmParse pp("pf"); // Phase-field model parameters
-        pp.query("number_of_grains", number_of_grains);
-        pp.query("M", pf.M);
-        if (pp.contains("mu"))
-            pp.query("mu", pf.mu);
-        pp.query("gamma", pf.gamma);
-        pp.query("sigma0", pf.sigma0);
-        pp.query("l_gb", pf.l_gb);
-        pp.query("elastic_mult",pf.elastic_mult);
-        pp.query("elastic_threshold",pf.elastic_threshold);
+        pp.query("number_of_grains", number_of_grains);     // Number of grain fields (may be more if using different IC)
+        pp.query("M", pf.M);                                // Mobility
+        if (pp.contains("mu")) pp.query("mu", pf.mu);       // Phase field :math:`\mu`
+        pp.query("gamma", pf.gamma);                        // Phase field :math:`\gamma`
+        pp.query("sigma0", pf.sigma0);                      // Initial GB energy if not using GB anisotropy
+        pp.query("l_gb", pf.l_gb);                          // Mobility
+        pp.query("elastic_mult",pf.elastic_mult);           // Multiplier of elastic energy
+        pp.query("elastic_threshold",pf.elastic_threshold); // Elastic threshold (:math:`\phi_0`)
         pf.L = (4./3.)*pf.M / pf.l_gb;
     }
     {
         amrex::ParmParse pp("amr");
-        pp.query("max_level", max_level);
-        pp.query("ref_threshold", ref_threshold);
+        pp.query("max_level", max_level);            // Maximum AMR level
+        pp.query("ref_threshold", ref_threshold);    // Phase field refinement threshold
     }
     {
-        amrex::ParmParse pp("lagrange");
-        pp.query("on", lagrange.on);
+        // Lagrange multiplier method for enforcing volumes
+        IO::ParmParse pp("lagrange");
+        pp.query("on", lagrange.on);               // Turn on
         if (lagrange.on)
         {
-            pp.query("lambda", lagrange.lambda);
-            pp.query("vol0", lagrange.vol0);
-            pp.query("tstart", lagrange.tstart);
+            pp.query("lambda", lagrange.lambda);   // Lagrange multiplier value
+            pp.query("vol0", lagrange.vol0);       // Prescribed volume
+            pp.query("tstart", lagrange.tstart);   // Time to start enforcing Lagrange multipler
             SetThermoInt(1);
         }
     }
     {
-        IO::ParmParse pp("anisotropy"); // Phase-field model parameters
-        pp.query("on", anisotropy.on);
-
-        pp.query("beta", anisotropy.beta);
-        pp.query("tstart", anisotropy.tstart);
+        // Anisotropic grain boundary energy parameters
+        IO::ParmParse pp("anisotropy"); 
+        pp.query("on", anisotropy.on);                            // Turn on
+        pp.query("beta", anisotropy.beta);                        // Regularization param 
+        pp.query("tstart", anisotropy.tstart);                    // Time to turn on anisotropy
         anisotropy.timestep = timestep;
-        pp.query("timestep", anisotropy.timestep);
+        pp.query("timestep", anisotropy.timestep);                // Modify timestep when turned on
         anisotropy.plot_int = plot_int;
-        pp.query("plot_int", anisotropy.plot_int);
+        pp.query("plot_int", anisotropy.plot_int);                // Modify plot_int when turned on
         anisotropy.plot_dt = plot_dt;
-        pp.query("plot_dt", anisotropy.plot_dt);
-        pp.query("thermo_int", anisotropy.thermo_int);
-        pp.query("thermo_plot_int", anisotropy.thermo_plot_int);
-        pp.query("elastic_int",anisotropy.elastic_int);
+        pp.query("plot_dt", anisotropy.plot_dt);                  // Modify plot_dt when turned on
+        pp.query("thermo_int", anisotropy.thermo_int);            // Modify thermo int when turned on
+        pp.query("thermo_plot_int", anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
+        pp.query("elastic_int",anisotropy.elastic_int);           // Frequency of elastic calculation
 
         std::map<std::string, RegularizationType> regularization_type;
         regularization_type["wilmore"] = RegularizationType::Wilmore;
         regularization_type["k12"] = RegularizationType::K12;
         std::string regularization_type_input = "k12";
-        pp.query("regularization", regularization_type_input);
+        pp.query("regularization", regularization_type_input);    // Type of regularization to use  
         regularization = regularization_type[regularization_type_input];
 
-        pp.query("gb_type", gb_type);
+        pp.query("gb_type", gb_type); // Type of GB energy to use
         if (gb_type == "abssin")
         {
             boundary = new Model::Interface::GB::AbsSin();
-            pp.queryclass(*static_cast<Model::Interface::GB::AbsSin *>(boundary));
+            pp.queryclass(*static_cast<Model::Interface::GB::AbsSin *>(boundary)); // See :ref:`Model::Interface::GB::AbsSin`
         }
         else if (gb_type == "sin")
         {
             boundary = new Model::Interface::GB::Sin();
-            pp.queryclass(*static_cast<Model::Interface::GB::Sin *>(boundary));
+            pp.queryclass(*static_cast<Model::Interface::GB::Sin *>(boundary)); // See :ref:`Model::Interface::GB::Sin`
             
         }
         else if (gb_type == "read")
         {
             boundary = new Model::Interface::GB::Read();
-            pp.queryclass(*static_cast<Model::Interface::GB::Read *>(boundary));
+            pp.queryclass(*static_cast<Model::Interface::GB::Read *>(boundary)); // See :ref:`Model::Interface::GB::Read`
         }
         else if (gb_type == "sh")
         {
             Util::Assert(INFO, TEST(AMREX_SPACEDIM == 3));
             boundary = new Model::Interface::GB::SH();
-            pp.queryclass(*static_cast<Model::Interface::GB::SH *>(boundary));
+            pp.queryclass(*static_cast<Model::Interface::GB::SH *>(boundary)); // See :ref:`Model::Interface::GB::SH`
         }
         else if (anisotropy.on)
         {
@@ -110,24 +110,26 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
     }
 
     {
+        // Boundary conditions for Etas
         IO::ParmParse pp("bc");
         std::string bc_type = "constant";
-        pp.query("eta.type",bc_type);
+        pp.query("eta.type",bc_type);  // Type (constnat)
         if (bc_type == "constant")
         {
             mybc = new BC::Constant(number_of_grains);
-            pp.queryclass("eta",*static_cast<BC::Constant *>(mybc));
+            pp.queryclass("eta",*static_cast<BC::Constant *>(mybc)); // See :ref:`BC::Constant`
         }
         else if (bc_type == "step")
         {
             mybc = new BC::Step();
-            pp.queryclass("eta",*static_cast<BC::Step *>(mybc));
+            pp.queryclass("eta",*static_cast<BC::Step *>(mybc)); // See :ref:`BC::Step`
         }
     }
 
     {
-        IO::ParmParse pp("ic"); // Phase-field model parameters
-        pp.query("type", ic_type);
+        // IC to initialize multicomponent Eta
+        IO::ParmParse pp("ic"); 
+        pp.query("type", ic_type); // IC Type
         if (ic_type == "perturbed_interface") 
         {
             ic = new IC::PerturbedInterface(geom);
@@ -142,13 +144,13 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
         else if (ic_type == "voronoi")
         {
             int total_grains = number_of_grains;
-            pp.query("voronoi.number_of_grains", total_grains);
+            pp.query("voronoi.number_of_grains", total_grains); // Number of grains for Voronoi IC
             ic = new IC::Voronoi(geom, total_grains);
         }
         else if (ic_type == "expression")
         {
             ic = new IC::Expression(geom);
-            pp.queryclass("expression",static_cast<IC::Expression*>(ic));
+            pp.queryclass("expression",static_cast<IC::Expression*>(ic)); // See :ref:`IC::Expression`
         }
         else if (ic_type == "sphere")
             ic = new IC::Sphere(geom);
@@ -176,7 +178,7 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
     {
         // Parameters for the elastic solver
         IO::ParmParse pp("elastic");
-        pp.query("on", elastic.on);
+        pp.query("on", elastic.on); // Turn on
         if (elastic.on)
         {
             RegisterNodalFab(disp_mf, AMREX_SPACEDIM, 2, "disp",true);
@@ -184,23 +186,23 @@ PhaseFieldMicrostructure::PhaseFieldMicrostructure() : Integrator()
             RegisterNodalFab(stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
             RegisterNodalFab(energy_mf, 1, 2, "energy",true);
 
-            pp.query("interval", elastic.interval);
-            pp.query("max_coarsening_level", elastic.max_coarsening_level);
-            pp.query("tol_rel", elastic.tol_rel);
-            pp.query("tol_abs", elastic.tol_abs);
-            pp.query("tstart", elastic.tstart);
+            pp.query("interval", elastic.interval); // How frequently to do elastic solve
+            pp.query("max_coarsening_level", elastic.max_coarsening_level); // MLMG max coarsening level
+            pp.query("tol_rel", elastic.tol_rel); // Solver relative tolerance
+            pp.query("tol_abs", elastic.tol_abs); // Solver absolute tolerance
+            pp.query("tstart", elastic.tstart); // Time to start implementing elasticity
 
-            pp.queryclass("bc",elastic.bc);
+            pp.queryclass("bc",elastic.bc); // Elastic boundary condition
 
 
             elastic.model.resize(number_of_grains);
             for (int i = 0; i < number_of_grains; i++)
             {
                 model_type mymodel;
-                pp.queryclass("model",elastic.model[i]);
+                pp.queryclass("model",elastic.model[i]); // Type of model to use
             }
-            pp.queryclass("model1",elastic.model[0]);
-            pp.queryclass("model2",elastic.model[1]);
+            pp.queryclass("model1",elastic.model[0]); // Read in for first model
+            pp.queryclass("model2",elastic.model[1]); // Read in to second model
         }
     }
 }
@@ -506,6 +508,7 @@ void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter
 
 void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 {
+    BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     if (anisotropy.on && time >= anisotropy.tstart)
     {
         SetTimestep(anisotropy.timestep);
@@ -573,6 +576,8 @@ void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
 void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
                                         const amrex::MFIter &mfi, const amrex::Box &box)
 {
+    BL_PROFILE("PhaseFieldMicrostructure::Integrate");
+
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
     const amrex::Real *DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);

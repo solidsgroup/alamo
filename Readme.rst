@@ -1,3 +1,4 @@
+===============
 Getting Started
 ===============
 
@@ -7,7 +8,7 @@ You can view it by running :code:`make docs` in the root directory, then opening
 :code:`docs/doxygen/html/index.html` or :code:`docs/build/html/index.html` in a web browser. 
 
 Quick Start:
-------------
+============
 
 .. code-block::
 
@@ -18,7 +19,7 @@ Quick Start:
 
 
 Compiling Alamo
----------------
+===============
 
 This section describes how to compile and install Alamo and its dependencies.
 
@@ -83,7 +84,7 @@ To build in parallel, add the :code:`-jN` argument where :code:`N` is the number
 **Python Interface** See :ref:`building-python`
 
 Testing
--------
+=======
 
 Upon successful compilation, run tests by typing
 
@@ -95,7 +96,7 @@ The output will indicate whether the tests pass or fail.
 If you are committing changes, you should always make sure the tests pass in 2 and 3 dimensions before committing.
 
 Common Error Messages
----------------------
+=====================
 
 The following are some common error messages and problems encountered:
 
@@ -124,7 +125,7 @@ The following are some common error messages and problems encountered:
   
 
 Generating this documentation
------------------------------
+=============================
 
 Generating documentation requires the following packages:
 
@@ -145,7 +146,7 @@ To generate the documentation, type
 Documentation will be generated in `docs/build/html` and can be viewed using a browser.
 
 Compiling on STAMPEDE2
-----------------------
+======================
 
 To compile on STAMPEDE2 you must first load the following modules:
 

@@ -1,0 +1,82 @@
+alamo.program = thermoelastic
+
+plot_file     = tests/ThermoElastic/output
+
+# Simulation length
+timestep = 0.005
+stop_time = 40.0
+
+# amr parameters
+amr.plot_int		    = 100
+amr.max_level		    = 3
+amr.n_cell		    = 32 32 32
+amr.blocking_factor	    = 4
+amr.regrid_int		    = 50
+amr.grid_eff		    = 1.0
+
+amr.node.all = 1
+amr.cell.any = 0
+
+# geometry
+geometry.prob_lo	    = -8 -8 -8 
+geometry.prob_hi	    = 8 8 8
+geometry.is_periodic	    = 0 0 0
+
+
+alpha = 0.001 0.0
+
+
+#
+# HEAT TRANSFER MODEL
+#
+
+hc.heat.alpha = 1.0
+hc.heat.refinement_threshold = 0.1
+
+# Specify initial conditions
+hc.ic.type = sphere
+hc.ic.sphere.center = 0.5 0.5 0.5
+hc.ic.sphere.radius = 0.25
+hc.ic.sphere.inside = 0.0
+
+# Boundary conditions
+hc.bc.temp.type.xhi = dirichlet
+hc.bc.temp.type.xlo = dirichlet
+hc.bc.temp.type.yhi = dirichlet
+hc.bc.temp.type.ylo = dirichlet
+hc.bc.temp.type.zhi = dirichlet
+hc.bc.temp.type.zlo = dirichlet
+hc.bc.temp.val.xhi  = 0.0
+hc.bc.temp.val.xlo  = 1.0
+hc.bc.temp.val.yhi  = 0.0
+hc.bc.temp.val.ylo  = 1.0
+hc.bc.temp.val.zhi  = 0.0
+hc.bc.temp.val.zlo  = 1.0
+
+
+
+#
+# ELASTICITY MODEL
+#
+
+el.interval = 100
+
+# ellipse configuration
+el.ic.type        = ellipse
+el.ic.ellipse.a   = 3.0 3.0 3.0  # ellipse radii
+el.ic.ellipse.x0  = 0 0 0 # location of ellipse center
+el.ic.ellipse.eps = 0.8 # diffuse boundary
+
+# elastic moduli
+el.elastic.nmodels = 2
+el.elastic.model1.E = 210 
+el.elastic.model1.nu = 0.3
+el.elastic.model1.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
+el.elastic.model2.E = 210 
+el.elastic.model2.nu = 0.3
+el.elastic.model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
+el.elastic.solver.verbose = 4
+el.elastic.solver.nriters = 1
+
+el.elastic.ref_threshold = 5E-5
+el.elastic.eta_ref_threshold = 10

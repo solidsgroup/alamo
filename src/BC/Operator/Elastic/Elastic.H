@@ -47,8 +47,22 @@ public:
         const amrex::Geometry &a_geom,
         bool a_homogeneous = false) const = 0;
 
+    virtual void
+    Init(amrex::FabArray<amrex::BaseFab<Set::Vector>> * a_rhs,
+        const amrex::Geometry &a_geom,
+        bool a_homogeneous = false) const = 0;
+
     void
     Init(Set::Field<Set::Scalar> &a_rhs,
+        const amrex::Vector<amrex::Geometry> &a_geom,
+        bool a_homogeneous = false) const
+    {
+        for (int ilev = 0; ilev <= a_rhs.finest_level; ilev++)
+            Init(a_rhs[ilev].get(),a_geom[ilev],a_homogeneous);
+    }
+
+    void
+    Init(Set::Field<Set::Vector> &a_rhs,
         const amrex::Vector<amrex::Geometry> &a_geom,
         bool a_homogeneous = false) const
     {

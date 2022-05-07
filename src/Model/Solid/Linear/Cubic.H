@@ -1,3 +1,8 @@
+//
+// This class implements basic cubic elasticity.
+// For a discussion on cubic elasticity, `please see this link <http://solidmechanics.org/text/Chapter3_2/Chapter3_2.htm#Sect3_2_16>`_.
+//
+
 #ifndef MODEL_SOLID_LINEAR_CUBIC_H_
 #define MODEL_SOLID_LINEAR_CUBIC_H_
 
@@ -91,6 +96,13 @@ public:
         return ret;
     }
 
+    static Cubic Zero()
+    {
+        Cubic ret;
+        ret.Define(0.0,0.0,0.0,0.0,0.0,0.0);
+        return ret;
+        
+    }
     static Cubic Random()
     {
         return Random(Util::Random(), Util::Random(), Util::Random());
@@ -108,9 +120,9 @@ public:
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         Set::Scalar C11 = 1.68, C12 = 1.21, C44 = 0.75;
-        pp.query("C11",C11);
-        pp.query("C12",C12);
-        pp.query("C44",C44);
+        pp.query("C11",C11); // Elastic constant (default: 1.68)
+        pp.query("C12",C12); // Elastic constant (default: 1.21)
+        pp.query("C44",C44); // Elastic constant (default: 0.75)
 
         if (pp.contains("random"))
         {
@@ -119,9 +131,9 @@ public:
         }
 
         Set::Scalar phi1 = 0.0, Phi = 0.0, phi2 = 0.0;
-        pp.query("phi1",phi1);
-        pp.query("Phi",Phi);
-        pp.query("phi2",phi2);
+        pp.query("phi1",phi1);  // Bunge Euler angle :math:`\phi_1`
+        pp.query("Phi",Phi);    // Bunge Euler angle :math:`\Phi`
+        pp.query("phi2",phi2);  // Bunge Euler angle :math:`\phi_2`
         value.Define(C11,C12,C44,phi1,Phi,phi2);
     }
 

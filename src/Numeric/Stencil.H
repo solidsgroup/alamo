@@ -518,14 +518,15 @@ AMREX_FORCE_INLINE
 Set::Vector
 Gradient(const amrex::Array4<const Set::Scalar> &f,
         const int &i, const int &j, const int &k, const int &m,
-        const Set::Scalar dx[AMREX_SPACEDIM])
+        const Set::Scalar dx[AMREX_SPACEDIM],
+        std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
 {
     Set::Vector ret;
-    ret(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,m,dx));
+    ret(0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,m,dx,stencil));
 #if AMREX_SPACEDIM > 1
-    ret(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx));
+    ret(1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,m,dx,stencil));
 #if AMREX_SPACEDIM > 2
-    ret(2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx));
+    ret(2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,m,dx,stencil));
 #endif
 #endif
     return ret;
@@ -555,6 +556,102 @@ Gradient(const amrex::Array4<const Set::Scalar> &f,
     return ret;
 }
 
+AMREX_FORCE_INLINE
+Set::Matrix
+Gradient(const amrex::Array4<const Set::Vector> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar dx[AMREX_SPACEDIM],
+        std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Matrix ret;
+
+#if AMREX_SPACEDIM > 0
+    ret.col(0) = Numeric::Stencil<Set::Vector,1,0,0>::D(f,i,j,k,0,dx,stencil);
+#endif
+#if AMREX_SPACEDIM > 1
+    ret.col(1) = Numeric::Stencil<Set::Vector,0,1,0>::D(f,i,j,k,0,dx,stencil);
+#endif
+#if AMREX_SPACEDIM > 2
+    ret.col(2) = Numeric::Stencil<Set::Vector,0,0,1>::D(f,i,j,k,0,dx,stencil);
+#endif
+
+    return ret;
+}
+
+AMREX_FORCE_INLINE
+Set::Matrix3
+Gradient(const amrex::Array4<const Set::Matrix> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar dx[AMREX_SPACEDIM],
+        std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Matrix3 ret;
+
+#if AMREX_SPACEDIM > 0
+    ret[0] = Numeric::Stencil<Set::Matrix,1,0,0>::D(f,i,j,k,0,dx,stencil);
+#endif
+#if AMREX_SPACEDIM > 1
+    ret[1] = Numeric::Stencil<Set::Matrix,0,1,0>::D(f,i,j,k,0,dx,stencil);
+#endif
+#if AMREX_SPACEDIM > 2
+    ret[2] = Numeric::Stencil<Set::Matrix,0,0,1>::D(f,i,j,k,0,dx,stencil);
+#endif
+
+    return ret;
+}
+
+
+AMREX_FORCE_INLINE
+Set::Matrix3
+MatrixGradient(const amrex::Array4<const Set::Scalar> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar dx[AMREX_SPACEDIM],
+        std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Matrix3 ret;
+#if AMREX_SPACEDIM == 1
+    ret[0](0,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,0,dx,stencil));
+#elif AMREX_SPACEDIM == 2
+    ret[0](0,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,0,dx,stencil));
+    ret[0](0,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,0,dx,stencil));
+    ret[0](1,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,1,dx,stencil));
+    ret[0](1,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,1,dx,stencil));
+    ret[1](0,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,2,dx,stencil));
+    ret[1](0,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,2,dx,stencil));
+    ret[1](1,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,3,dx,stencil));
+    ret[1](1,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,3,dx,stencil));
+#elif AMREX_SPACEDIM == 3
+    ret[0](0,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,0,dx,stencil));
+    ret[0](1,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,1,dx,stencil));
+    ret[0](2,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,2,dx,stencil));
+    ret[1](0,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,3,dx,stencil));
+    ret[1](1,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,4,dx,stencil));
+    ret[1](2,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,5,dx,stencil));
+    ret[2](0,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,6,dx,stencil));
+    ret[2](1,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,7,dx,stencil));
+    ret[2](2,0) = (Numeric::Stencil<Set::Scalar,1,0,0>::D(f,i,j,k,8,dx,stencil));
+    ret[0](0,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,0,dx,stencil));
+    ret[0](1,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,1,dx,stencil));
+    ret[0](2,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,2,dx,stencil));
+    ret[1](0,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,3,dx,stencil));
+    ret[1](1,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,4,dx,stencil));
+    ret[1](2,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,5,dx,stencil));
+    ret[2](0,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,6,dx,stencil));
+    ret[2](1,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,7,dx,stencil));
+    ret[2](2,1) = (Numeric::Stencil<Set::Scalar,0,1,0>::D(f,i,j,k,8,dx,stencil));
+    ret[0](0,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,0,dx,stencil));
+    ret[0](1,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,1,dx,stencil));
+    ret[0](2,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,2,dx,stencil));
+    ret[1](0,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,3,dx,stencil));
+    ret[1](1,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,4,dx,stencil));
+    ret[1](2,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,5,dx,stencil));
+    ret[2](0,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,6,dx,stencil));
+    ret[2](1,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,7,dx,stencil));
+    ret[2](2,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(f,i,j,k,8,dx,stencil));
+#endif
+    return ret;
+}
+
 
 AMREX_FORCE_INLINE
 Set::Matrix
@@ -578,6 +675,50 @@ Hessian(const amrex::Array4<const Set::Scalar> &f,
 #endif
     return ret;
 }
+
+// Returns Hessian of a vector field.
+// Return value: ret[i](j,k) = ret_{i,jk}
+AMREX_FORCE_INLINE
+Set::Matrix3
+Hessian(const amrex::Array4<const Set::Vector> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Matrix3 ret;
+
+    #if AMREX_SPACEDIM>0    
+    Set::Vector f_11 = Numeric::Stencil<Set::Vector,2,0,0>::D(f,i,j,k,0,dx);
+    ret[0](0,0) = f_11(0);
+    #endif
+    #if AMREX_SPACEDIM>1
+    ret[1](0,0) = f_11(1);
+    Set::Vector f_12 = Numeric::Stencil<Set::Vector,1,1,0>::D(f,i,j,k,0,dx);
+    ret[0](1,0) = ret[0](0,1) = f_12(0);
+    ret[1](1,0) = ret[1](0,1) = f_12(1);
+    Set::Vector f_22 = Numeric::Stencil<Set::Vector,0,2,0>::D(f,i,j,k,0,dx);
+    ret[0](1,1) = f_22(0);
+    ret[1](1,1) = f_22(1);
+    #endif
+    #if AMREX_SPACEDIM>2
+    ret[2](0,0) = f_11(2);
+    ret[2](1,0) = ret[2](0,1) = f_12(2);
+    Set::Vector f_13 = Numeric::Stencil<Set::Vector,1,0,1>::D(f,i,j,k,0,dx);
+    ret[0](2,0) = ret[0](0,2) = f_13(0);
+    ret[1](2,0) = ret[1](0,2) = f_13(1);
+    ret[2](2,0) = ret[2](0,2) = f_13(2);
+    ret[2](1,1) = f_22(2);
+    Set::Vector f_23 = Numeric::Stencil<Set::Vector,0,1,1>::D(f,i,j,k,0,dx);
+    ret[0](1,2) = ret[0](2,1) = f_23(0);
+    ret[1](1,2) = ret[1](2,1) = f_23(1);
+    ret[2](1,2) = ret[2](2,1) = f_23(2);
+    Set::Vector f_33 = Numeric::Stencil<Set::Vector,0,0,2>::D(f,i,j,k,0,dx);
+    ret[0](2,2) = f_33(0);
+    ret[1](2,2) = f_33(1);
+    ret[2](2,2) = f_33(2);
+    #endif
+    return ret;
+}
+
 
 AMREX_FORCE_INLINE
 Set::Matrix
@@ -687,6 +828,49 @@ VectorToField(const amrex::Array4<Set::Scalar> &f,
 #endif
 #endif
 }
+
+template<int index,int SYM>
+Set::Matrix3
+Divergence(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM,SYM>> &,
+            const int , const int , const int , const Set::Scalar[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
+            {Util::Abort(INFO,"Not implemented yet"); return Set::Matrix3::Zero();}
+
+template<>
+AMREX_FORCE_INLINE
+Set::Matrix3 Divergence<2,Set::Sym::Isotropic>(const amrex::Array4<const Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>> &C,
+            const int i, const int j, const int k, const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil)
+{
+    Set::Matrix3 ret;
+    
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> gradCx =
+        Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>,1,0,0>::D(C,i,j,k,0,dx,stencil);
+    #if AMREX_SPACEDIM>1
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> gradCy =
+        Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>,0,1,0>::D(C,i,j,k,0,dx,stencil);
+    #endif
+    #if AMREX_SPACEDIM>2
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> gradCz =
+        Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>,0,0,1>::D(C,i,j,k,0,dx,stencil);
+    #endif
+
+    for (int i = 0; i < AMREX_SPACEDIM; i++)
+        for (int k = 0; k < AMREX_SPACEDIM; k++)
+            for (int l = 0; l < AMREX_SPACEDIM; l++)
+                {
+                    ret(i,k,l) = 0.0;
+                    ret(i,k,l) = gradCx(i,0,k,l);
+                    #if AMREX_SPACEDIM>1
+                    ret(i,k,l) = gradCy(i,1,k,l);
+                    #endif
+                    #if AMREX_SPACEDIM>2
+                    ret(i,k,l) = gradCz(i,2,k,l);
+                    #endif
+                }
+    return ret;
+}
+
 
 
 
