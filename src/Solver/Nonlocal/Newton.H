@@ -419,7 +419,33 @@ public:
         //m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
             
         prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, ddw_mf, a_model_mf);
-        
+    }
+
+    void compResidual(Set::Field<Set::Vector> &a_res_mf,
+                      Set::Field<Set::Vector> &a_u_mf,
+                      Set::Field<Set::Vector> &a_b_mf,
+                      Set::Field<T> &a_model_mf)
+    {
+        Set::Field<Set::Scalar> res_mf(a_res_mf.size());
+        Set::Field<Set::Scalar> u_mf(a_u_mf.size());
+        Set::Field<Set::Scalar> b_mf(a_b_mf.size());
+        for (int lev = 0; lev < a_res_mf.size(); ++lev)
+        {
+            res_mf.Define(lev,a_res_mf[lev]->boxArray(), a_res_mf[lev]->DistributionMap(),AMREX_SPACEDIM,2);
+            u_mf  .Define(lev,a_u_mf[lev]->boxArray(),   a_u_mf[lev]->DistributionMap(),  AMREX_SPACEDIM,2);
+            b_mf  .Define(lev,a_b_mf[lev]->boxArray(),   a_b_mf[lev]->DistributionMap(),  AMREX_SPACEDIM,2);
+
+            //a_res_mf.Copy(lev,*res_mf[lev],0,2);
+            res_mf[lev]->setVal(0.0);
+            a_u_mf.Copy(lev,*u_mf[lev],0,2);
+            a_b_mf.Copy(lev,*b_mf[lev],0,2);
+        }
+        compResidual(res_mf,u_mf,b_mf,a_model_mf);
+
+        for (int lev = 0; lev < a_res_mf.size(); ++lev)
+        {
+            a_res_mf.CopyFrom(lev,*res_mf[lev],0,2);
+        }
     }
 
     void W(Set::Field<Set::Scalar> & a_w_mf,

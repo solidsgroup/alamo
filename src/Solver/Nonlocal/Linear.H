@@ -39,11 +39,13 @@ public:
         this->linop = &a_lp;
         this->mlmg = new amrex::MLMG(a_lp);
         PrepareMLMG(*mlmg);
+        m_defined = true;
     }
     void Clear()
     {
+        if (!m_defined) return;
         this->linop = nullptr;
-        delete this->mlmg;
+        if (this->mlmg) delete this->mlmg;
         this->mlmg = nullptr;
     }
 
@@ -172,6 +174,7 @@ protected:
     Set::Scalar tol_rel = -1.0;
     Set::Scalar tol_abs = -1.0;
     Set::Scalar omega = -1.0;
+    bool average_down_coeffs = false;
 
     Operator::Operator<Grid::Node> * linop;
     amrex::MLMG * mlmg;
@@ -206,6 +209,7 @@ protected:
         if (bottom_tol_abs >= 0) mlmg.setBottomToleranceAbs(bottom_tol_abs);
 
         if (omega>=0) this->linop->SetOmega(omega);
+        if (average_down_coeffs) this->linop->SetAverageDownCoeffs(true);
     }
     
 
@@ -262,8 +266,12 @@ public:
         // Omega (used in gauss-seidel solver)
         pp.query("omega",value.omega);
         
+        // Whether to average down coefficients or use the ones given.
+        // (Setting this to true is important for fracture.)
+        pp.query("average_down_coeffs",value.average_down_coeffs);
     }
-
+protected:
+    bool m_defined = false;
     
 };
 }

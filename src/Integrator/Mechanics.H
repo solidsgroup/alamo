@@ -95,6 +95,12 @@ public:
 
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]),"disp_xhi_x");
         value.RegisterIntegratedVariable(&(value.trac_hi[0].data()[0]),"trac_xhi_x");
+
+        pp.query("print_residual",value.m_print_residual);
+        if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf,1,2,"res");
+
+        pp.query("elastic_ref_threshold",value.m_elastic_ref_threshold); // Whether to refine based on elastic solution
+        
     }
 
 protected:
@@ -309,7 +315,7 @@ protected:
 
     Set::Field<Set::Vector> disp_mf;
     Set::Field<Set::Vector> rhs_mf;
-    Set::Field<Set::Scalar> res_mf;
+    Set::Field<Set::Vector> res_mf;
     Set::Field<Set::Matrix> stress_mf;
     Set::Field<Set::Matrix> strain_mf;
     
@@ -334,6 +340,7 @@ protected:
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;
+    bool m_print_residual = false;
 };
 
 

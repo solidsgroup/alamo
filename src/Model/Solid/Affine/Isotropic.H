@@ -45,6 +45,10 @@ public:
     {
         return ddw;
     }
+    virtual void Print(std::ostream &out) const override 
+    {
+        out << "lambda="<<ddw.Lambda()<<", mu="<<ddw.Mu()<< ", F0=\n" << F0;
+    }
 
 public:
     static Isotropic Zero()

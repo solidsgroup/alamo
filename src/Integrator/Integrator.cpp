@@ -916,16 +916,16 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
         std::ofstream coutfile, noutfile;
         if (istep[0]==0)
         {
-            if ((ccomponents > 0 || cell.all) && cell.any) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
-            if ((ncomponents > 0 || node.all) && node.any) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
+            if (do_cell_plotfile) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
+            if (do_node_plotfile) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
         }
         else
         {
-            if ((ccomponents > 0 || cell.all) && cell.any) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
-            if ((ncomponents > 0 || node.all) && node.any) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
+            if (do_cell_plotfile) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
+            if (do_node_plotfile) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
         }
-        coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
-        if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
+        if (do_cell_plotfile) coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
+        if (do_node_plotfile) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
     }
 }
 
