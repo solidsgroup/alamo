@@ -103,7 +103,7 @@ protected:
         Set::Scalar ae_ap, ae_htpb, ae_comb;
         Set::Scalar bound=0.0, addtemp;
         Set::Scalar beta1, beta2, MinTemp; 
-        Set::Scalar A_ap, A_htpb, A_comb;    
+        Set::Scalar m_ap, m_htpb, m_comb;    
     } thermal;
 
     struct {

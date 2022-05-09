@@ -30,11 +30,11 @@ namespace Integrator
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
             pp.query("pf.P", value.pf.P);             // Pressure [UNITS?]
-            pp.query("pf.r_ap", value.pf.r_ap);       // AP Power law multiplier
+            //pp.query("pf.r_ap", value.pf.r_ap);       // AP Power law multiplier
             pp.query("pf.n_ap", value.pf.n_ap);       // AP Power law exponent
-            pp.query("pf.r_htpb", value.pf.r_htpb);   // HTPB Power law multiplier
+            //pp.query("pf.r_htpb", value.pf.r_htpb);   // HTPB Power law multiplier
             pp.query("pf.n_htpb", value.pf.n_htpb);   // HTPB Power law exponent
-            pp.query("pf.r_comb", value.pf.r_comb);   // Combination power law multiplier
+            //pp.query("pf.r_comb", value.pf.r_comb);   // Combination power law multiplier
             pp.query("pf.n_comb", value.pf.n_comb);   // Combination power law exponent
             pp.query("pf.m0",value.pf.m0);
             pp.query("pf.T0",value.pf.T0);
@@ -70,12 +70,12 @@ namespace Integrator
             pp.query("thermal.ae_comb", value.thermal.ae_comb);
             pp.query("thermal.bound", value.thermal.bound);
             pp.query("thermal.addtemp", value.thermal.addtemp);
-            pp.query("thermal.A_ap", value.thermal.A_ap);
-            pp.query("thermal.A_htpb", value.thermal.A_htpb);
-            pp.query("thermal.A_comb", value.thermal.A_comb);
-            pp.query("thermal.beta1", value.thermal.beta1);
-            pp.query("thermal.beta2", value.thermal.beta2);
-            pp.query("thermal.MinTemp", value.thermal.MinTemp );
+            pp.query("thermal.m_ap", value.thermal.m_ap);
+            pp.query("thermal.m_htpb", value.thermal.m_htpb);
+            pp.query("thermal.m_comb", value.thermal.m_comb);
+            
+            
+            
 
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); 
 
@@ -295,7 +295,12 @@ namespace Integrator
                     // it does not take material heterogeneity into account. This model
                     // should account for the differing mobilities for AP and HTPB
                     // (but not necessarily for the combination region).
-                    Mob(i,j,k) = pow(pf.P, pf.n_ap) *  pf.m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
+
+                    Set::Scalar m0 = thermal.m_ap * phi(i,j,k) + thermal.m_htpb * (1 - phi(i,j,k));
+                    Set::Scalar P0 = pow(pf.P, pf.n_ap) * phi(i,j,k) + pow(pf.P, pf.n_htpb) * (1 - phi(i,j,k) + pow(pf.P, pf.n_comb) * 4.0 * phi(i,j,k) * (1 - phi(i,j,k)));    
+
+
+                    Mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
 
 
                 });
