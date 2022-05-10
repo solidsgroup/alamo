@@ -74,7 +74,12 @@ namespace Integrator
             pp.query("thermal.m_htpb", value.thermal.m_htpb);
             pp.query("thermal.m_comb", value.thermal.m_comb);
             
-            
+            pp.query("thermal.a_ap", value.thermal.a_ap);
+            pp.query("thermal.a_htpb", value.thermal.a_htpb);
+            pp.query("thermal.a_comb", value.thermal.a_comb);
+            pp.query("thermal.b_ap", value.thermal.b_ap);
+            pp.query("thermal.b_htpb", value.thermal.b_htpb);
+            pp.query("thermal.b_comb", value.thermal.b_comb);
             
 
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); 
@@ -267,9 +272,9 @@ namespace Integrator
                     // like a laser that is heating up the interface. 
 
                     Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
-                    qdot += (pf.P * 1.123e7 + 3.448e6) * phi(i,j,k) / thermal.k_ap; // AP Portion 
-                    qdot += (pf.P * 4.772e6 + 1.409e6) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
-                    qdot += (pf.P * 1.749e7 + 2.008e7) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
+                    qdot += (pf.P * thermal.a_ap + thermal.b_ap) * phi(i,j,k) / thermal.k_ap; // AP Portion 
+                    qdot += (pf.P * thermal.a_htpb + thermal.b_htpb) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
+                    qdot += (pf.P * thermal.a_comb + thermal.b_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
                     //
