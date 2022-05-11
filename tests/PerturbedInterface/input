@@ -7,7 +7,7 @@
 alamo.program = microstructure
 
 timestep = 0.01
-stop_time = 2.0
+stop_time = 10.0
 
 plot_file = tests/PerturbedInterface/output
 
@@ -28,8 +28,8 @@ geometry.prob_lo = 0 -4 0
 geometry.prob_hi = 8 4 8
 geometry.is_periodic= 0 0 0
 
-bc.eta.type.xlo = periodic
-bc.eta.type.xhi = periodic
+bc.eta.type.xlo = neumann
+bc.eta.type.xhi = neumann
 bc.eta.type.ylo = dirichlet
 bc.eta.type.yhi = dirichlet
 bc.eta.val.ylo  = 0.0 1.0
@@ -52,6 +52,4 @@ anisotropy.sigma1=0.07
 anisotropy.beta= 0.00001
 #anisotropy.damp=1.0
 
-
-
-
+elastic.on = 0
