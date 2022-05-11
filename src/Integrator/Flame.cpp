@@ -305,8 +305,8 @@ namespace Integrator
                     Set::Scalar P0 = pow(pf.P, pf.n_ap) * phi(i,j,k) + pow(pf.P, pf.n_htpb) * (1 - phi(i,j,k) + pow(pf.P, pf.n_comb) * 4.0 * phi(i,j,k) * (1 - phi(i,j,k)));    
 
 
-                    Mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
-
+                    //Mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
+		    Mob(i,j,k) = P0 * m0 * exp(- pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
 
                 });
                 
