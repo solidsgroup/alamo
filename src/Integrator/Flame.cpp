@@ -306,7 +306,7 @@ namespace Integrator
 
 
                     //Mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
-		    Mob(i,j,k) = P0 * m0 * exp(- pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
+		    Mob(i,j,k) = P0 * m0 * exp(pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
 
                 });
                 
