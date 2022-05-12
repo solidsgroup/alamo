@@ -414,7 +414,7 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
                                             Set::Scalar driving_force = 0.0;
                                             Set::Scalar etasum = 0.0;
                                             Set::Matrix F0avg = Set::Matrix::Zero();
-                    
+                                        
                                             for (int n = 0; n < number_of_grains; n++)
                                             {
                                                 etasum += eta(i,j,k,n);

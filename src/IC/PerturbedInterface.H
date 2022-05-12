@@ -131,7 +131,7 @@ private:
     amrex::Vector<Set::Scalar> wave_amplitudes;
     std::vector<Set::Scalar> phis;
     Mollifier mol = Mollifier::Gaussian;
-    Set::Scalar eps;
+    Set::Scalar eps = 0.0;
 
 public:
     static void Parse(PerturbedInterface & value, IO::ParmParse & pp)
@@ -156,11 +156,14 @@ public:
         if (value.wave_numbers.size() != value.wave_amplitudes.size())
             Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 
-        std::string mollifier;
+        std::string mollifier = "dirac";
         pp.query("mollifier", mollifier);
 
         if(mollifier == "dirac")
+        {
             value.mol = Mollifier::Dirac;
+            if (pp.contains("eps")) Util::Warning(INFO,"eps defined but not needed for dirac mollifier");
+        }
         else
         {
             value.mol = Mollifier::Gaussian;
