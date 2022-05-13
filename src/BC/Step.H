@@ -16,9 +16,9 @@ class Step
     : public BC<Set::Scalar>
 {
 public:
-Step ()
-{
-}
+Step () {}
+Step (IO::ParmParse &pp,std::string name)
+{pp.queryclass(name,*this);}
 
 void FillBoundary (amrex::FArrayBox &a_in,
             const amrex::Box &a_box,

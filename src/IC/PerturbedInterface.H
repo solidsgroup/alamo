@@ -29,8 +29,11 @@ public:
     enum Mollifier {Dirac, Gaussian};
     PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
         IC(_geom)
-    {
-    }
+    { }
+    PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom)
+    {pp.queryclass(name,*this);}
+    PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp) : IC(_geom)
+    {pp.queryclass(*this);}
   
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {

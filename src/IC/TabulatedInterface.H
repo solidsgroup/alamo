@@ -16,6 +16,10 @@ public:
     enum Type {Partition, Values};
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom) :
         IC(_geom) {}
+    TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) :
+        IC(_geom) {pp.queryclass(*this);}
+    TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) :
+        IC(_geom) {pp.queryclass(name,*this);}
     
     TabulatedInterface (amrex::Vector<amrex::Geometry> &_geom,
                         std::vector<Set::Scalar> a_xs, std::vector<Set::Scalar> a_ys) :

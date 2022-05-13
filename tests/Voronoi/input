@@ -24,7 +24,9 @@ amr.grid_eff		    = 1.0
 
 ic.type			    = voronoi
 ic.voronoi.number_of_grains = 100
-
+#ic.voronoi.number_of_grains = 100
+#ic.type			    = constant
+#ic.value = 1 0 0 0 0 0 0 0 0 0
 geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 5 5 5
 geometry.is_periodic	    = 1 1 1
