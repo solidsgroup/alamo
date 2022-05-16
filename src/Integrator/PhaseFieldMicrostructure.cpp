@@ -22,9 +22,10 @@
 #include "IC/Trig.H"
 namespace Integrator
 {
-void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt)
+void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Advance");
+    MechanicsBase<model_type>::Advance(lev,time,dt);
     /// TODO Make this optional
     //if (lev != max_level) return;
     std::swap(eta_old_mf[lev], eta_new_mf[lev]);
@@ -37,238 +38,221 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
         const amrex::Box &bx = mfi.tilebox();
         amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-        
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                    for (int m = 0; m < number_of_grains; m++)
-                                    {
-                                        Set::Scalar driving_force = 0.0;
 
-                                        Set::Scalar kappa = NAN, mu = NAN;
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            for (int m = 0; m < number_of_grains; m++)
+            {
+                Set::Scalar driving_force = 0.0;
+                Set::Scalar kappa = NAN, mu = NAN;
 
-                                        //
-                                        // BOUNDARY TERM and SECOND ORDER REGULARIZATION
-                                        //
+                //
+                // BOUNDARY TERM and SECOND ORDER REGULARIZATION
+                //
 
-                                        Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
-                                        Set::Scalar normgrad = Deta.lpNorm<2>();
-                                        if (normgrad < 1E-4)
-                                            continue; // This ought to speed things up.
+                Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
+                Set::Scalar normgrad = Deta.lpNorm<2>();
+                if (normgrad < 1E-4)
+                    continue; // This ought to speed things up.
 
-                                        Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, m, DX);
-                                        Set::Scalar laplacian = DDeta.trace();
+                Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, m, DX);
+                Set::Scalar laplacian = DDeta.trace();
 
-                                        if (!anisotropy.on || time < anisotropy.tstart)
-                                        {
-                                            kappa = pf.l_gb * 0.75 * pf.sigma0;
-                                            mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
-                                            driving_force += -kappa * laplacian;
-                                        }
-                                        else
-                                        {
-                                            Set::Vector normal = Deta / normgrad;
-                                            Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDEta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
+                if (!anisotropy.on || time < anisotropy.tstart)
+                {
+                    kappa = pf.l_gb * 0.75 * pf.sigma0;
+                    mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
+                    driving_force += -kappa * laplacian;
+                }
+                else
+                {
+                    Set::Vector normal = Deta / normgrad;
+                    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDEta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
 
 #if AMREX_SPACEDIM == 1
-                                            Util::Abort(INFO, "Anisotropy is enabled but works in 2D/3D ONLY");
+                    Util::Abort(INFO, "Anisotropy is enabled but works in 2D/3D ONLY");
 #elif AMREX_SPACEDIM == 2
-                                            Set::Vector tangent(normal[1],-normal[0]);
-                                            Set::Scalar Theta = atan2(Deta(1),Deta(0));
-                                            Set::Scalar kappa = pf.l_gb*0.75*boundary->W(Theta);
-                                            Set::Scalar Dkappa = pf.l_gb*0.75*boundary->DW(Theta);
-                                            Set::Scalar DDkappa = pf.l_gb*0.75*boundary->DDW(Theta);
-                                            mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / pf.l_gb;
-                                            Set::Scalar sinTheta = sin(Theta);
-                                            Set::Scalar cosTheta = cos(Theta);
+                    Set::Vector tangent(normal[1],-normal[0]);
+                    Set::Scalar Theta = atan2(Deta(1),Deta(0));
+                    Set::Scalar kappa = pf.l_gb*0.75*boundary->W(Theta);
+                    Set::Scalar Dkappa = pf.l_gb*0.75*boundary->DW(Theta);
+                    Set::Scalar DDkappa = pf.l_gb*0.75*boundary->DDW(Theta);
+                    mu = 0.75 * (1.0/0.23) * boundary->W(Theta) / pf.l_gb;
+                    Set::Scalar sinTheta = sin(Theta);
+                    Set::Scalar cosTheta = cos(Theta);
             
-                                            Set::Scalar Curvature_term =
-                                                DDDDEta(0,0,0,0)*(    sinTheta*sinTheta*sinTheta*sinTheta) +
-                                                DDDDEta(0,0,0,1)*(4.0*sinTheta*sinTheta*sinTheta*cosTheta) +
-                                                DDDDEta(0,0,1,1)*(6.0*sinTheta*sinTheta*cosTheta*cosTheta) +
-                                                DDDDEta(0,1,1,1)*(4.0*sinTheta*cosTheta*cosTheta*cosTheta) +
-                                                DDDDEta(1,1,1,1)*(    cosTheta*cosTheta*cosTheta*cosTheta);
+                    Set::Scalar Curvature_term =
+                        DDDDEta(0,0,0,0)*(    sinTheta*sinTheta*sinTheta*sinTheta) +
+                        DDDDEta(0,0,0,1)*(4.0*sinTheta*sinTheta*sinTheta*cosTheta) +
+                        DDDDEta(0,0,1,1)*(6.0*sinTheta*sinTheta*cosTheta*cosTheta) +
+                        DDDDEta(0,1,1,1)*(4.0*sinTheta*cosTheta*cosTheta*cosTheta) +
+                        DDDDEta(1,1,1,1)*(    cosTheta*cosTheta*cosTheta*cosTheta);
 
-                                            Set::Scalar Boundary_term =
-                                                kappa*laplacian +
-                                                Dkappa*(cos(2.0*Theta)*DDeta(0,1) + 0.5*sin(2.0*Theta)*(DDeta(1,1) - DDeta(0,0)))
-                                                + 0.5*DDkappa*(sinTheta*sinTheta*DDeta(0,0) - 2.*sinTheta*cosTheta*DDeta(0,1) + cosTheta*cosTheta*DDeta(1,1));
-                                            if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+                    Set::Scalar Boundary_term =
+                        kappa*laplacian +
+                        Dkappa*(cos(2.0*Theta)*DDeta(0,1) + 0.5*sin(2.0*Theta)*(DDeta(1,1) - DDeta(0,0)))
+                        + 0.5*DDkappa*(sinTheta*sinTheta*DDeta(0,0) - 2.*sinTheta*cosTheta*DDeta(0,1) + cosTheta*cosTheta*DDeta(1,1));
+                    if (std::isnan(Boundary_term)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
             
-                                            driving_force += - (Boundary_term) + anisotropy.beta*(Curvature_term);
-                                            if (std::isnan(driving_force)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
+                    driving_force += - (Boundary_term) + anisotropy.beta*(Curvature_term);
+                    if (std::isnan(driving_force)) Util::Abort(INFO,"nan at m=",i,",",j,",",k);
 
-#elif AMREX_SPACEDIM == 3
-                                            // GRAHM-SCHMIDT PROCESS 
-                                            const Set::Vector e1(1,0,0), e2(0,1,0), e3(0,0,1);
-                                            Set::Vector _t2, _t3;
-                                            if      (fabs(normal(0)) > fabs(normal(1)) && fabs(normal(0)) > fabs(normal(2)))
-                                            {
-                                                _t2 = e2 - normal.dot(e2)*normal; _t2 /= _t2.lpNorm<2>();
-                                                _t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
-                                            }
-                                            else if (fabs(normal(1)) > fabs(normal(0)) && fabs(normal(1)) > fabs(normal(2)))
-                                            {
-                                                _t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
-                                                _t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
-                                            }
-                                            else
-                                            {
-                                                _t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
-                                                _t3 = e2 - normal.dot(e2)*normal - _t2.dot(e2)*_t2; _t3 /= _t3.lpNorm<2>();
-                                            }
-                                                
-                                            // Compute Hessian projected into tangent space (spanned by _t1,_t2)
-                                            Eigen::Matrix2d DDeta2D;
-                                            DDeta2D <<
-                                                _t2.dot(DDeta*_t2) , _t2.dot(DDeta*_t3),
-                                                _t3.dot(DDeta*_t2) , _t3.dot(DDeta*_t3);
-                                            Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> eigensolver(2);
-                                            eigensolver.computeDirect(DDeta2D);
-                                            Eigen::Matrix2d eigenvecs = eigensolver.eigenvectors();
+                    #elif AMREX_SPACEDIM == 3
+                    // GRAHM-SCHMIDT PROCESS 
+                    const Set::Vector e1(1,0,0), e2(0,1,0), e3(0,0,1);
+                    Set::Vector _t2, _t3;
+                    if      (fabs(normal(0)) > fabs(normal(1)) && fabs(normal(0)) > fabs(normal(2)))
+                    {
+                        _t2 = e2 - normal.dot(e2)*normal; _t2 /= _t2.lpNorm<2>();
+                        _t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
+                    }
+                    else if (fabs(normal(1)) > fabs(normal(0)) && fabs(normal(1)) > fabs(normal(2)))
+                    {
+                        _t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
+                        _t3 = e3 - normal.dot(e3)*normal - _t2.dot(e3)*_t2; _t3 /= _t3.lpNorm<2>();
+                    }
+                    else
+                    {
+                        _t2 = e1 - normal.dot(e1)*normal; _t2 /= _t2.lpNorm<2>();
+                        _t3 = e2 - normal.dot(e2)*normal - _t2.dot(e2)*_t2; _t3 /= _t3.lpNorm<2>();
+                    }                            
+                    // Compute Hessian projected into tangent space (spanned by _t1,_t2)
+                    Eigen::Matrix2d DDeta2D;
+                    DDeta2D <<
+                        _t2.dot(DDeta*_t2) , _t2.dot(DDeta*_t3),
+                        _t3.dot(DDeta*_t2) , _t3.dot(DDeta*_t3);
+                    Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> eigensolver(2);
+                    eigensolver.computeDirect(DDeta2D);
+                    Eigen::Matrix2d eigenvecs = eigensolver.eigenvectors();
 
-                                            // Compute tangent vectors embedded in R^3
-                                            Set::Vector t2 = _t2*eigenvecs(0,0) + _t3*eigenvecs(0,1),
-                                                t3 = _t2*eigenvecs(1,0) + _t3*eigenvecs(1,1);
+                    // Compute tangent vectors embedded in R^3
+                    Set::Vector t2 = _t2*eigenvecs(0,0) + _t3*eigenvecs(0,1),
+                        t3 = _t2*eigenvecs(1,0) + _t3*eigenvecs(1,1);
 
-                                            // Compute components of second Hessian in t2,t3 directions
-                                            Set::Scalar DH2 = 0.0, DH3 = 0.0;
-                                            Set::Scalar DH23 = 0.0;
-                                            for (int p = 0; p < 3; p++)
-                                                for (int q = 0; q < 3; q++)
-                                                    for (int r = 0; r < 3; r++)
-                                                        for (int s = 0; s < 3; s++)
-                                                        {
-                                                            DH2 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t2(r)*t2(s);
-                                                            DH3 += DDDDEta(p,q,r,s)*t3(p)*t3(q)*t3(r)*t3(s);
-                                                            DH23 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t3(r)*t3(s);
-                                                        }
+                    // Compute components of second Hessian in t2,t3 directions
+                    Set::Scalar DH2 = 0.0, DH3 = 0.0;
+                    Set::Scalar DH23 = 0.0;
+                    for (int p = 0; p < 3; p++)
+                        for (int q = 0; q < 3; q++)
+                            for (int r = 0; r < 3; r++)
+                                for (int s = 0; s < 3; s++)
+                                {
+                                    DH2 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t2(r)*t2(s);
+                                    DH3 += DDDDEta(p,q,r,s)*t3(p)*t3(q)*t3(r)*t3(s);
+                                    DH23 += DDDDEta(p,q,r,s)*t2(p)*t2(q)*t3(r)*t3(s);
+                                }
 
-                                            Set::Scalar gbe = gbmodel.W(normal);
-                                            //Set::Scalar kappa = l_gb*0.75*gbe;
-                                            kappa = pf.l_gb*0.75*gbe;
-                                            mu = 0.75 * (1.0/0.23) * gbe / pf.l_gb;
-                                            Set::Scalar DDK2 = gbmodel.DDW(normal,_t2) * pf.l_gb * 0.75;
-                                            Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * pf.l_gb * 0.75;
+                    Set::Scalar gbe = gbmodel.W(normal);
+                    //Set::Scalar kappa = l_gb*0.75*gbe;
+                    kappa = pf.l_gb*0.75*gbe;
+                    mu = 0.75 * (1.0/0.23) * gbe / pf.l_gb;
+                    Set::Scalar DDK2 = gbmodel.DDW(normal,_t2) * pf.l_gb * 0.75;
+                    Set::Scalar DDK3 = gbmodel.DDW(normal,_t3) * pf.l_gb * 0.75;
 
-                                            // GB energy anisotropy term
-                                            Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
-                                            driving_force += gbenergy_df;
+                    // GB energy anisotropy term
+                    Set::Scalar gbenergy_df = - kappa*laplacian - DDK2*DDeta2D(0,0) - DDK3*DDeta2D(1,1);
+                    driving_force += gbenergy_df;
                                   
-                                            // Second order curvature term
-                                            Set::Scalar reg_df = NAN;
-                                            switch(regularization)
-                                            {
-                                            case Wilmore:
-                                                reg_df = anisotropy.beta*(DH2 + DH3 + 2.0*DH23);
-                                                break;
-                                            case K12:
-                                                reg_df = anisotropy.beta*(DH2+DH3);
-                                                break;
-                                            }
-                                            driving_force += reg_df;
+                    // Second order curvature term
+                    Set::Scalar reg_df = NAN;
+                    switch(regularization)
+                    {
+                    case Wilmore:
+                        reg_df = anisotropy.beta*(DH2 + DH3 + 2.0*DH23);
+                        break;
+                    case K12:
+                        reg_df = anisotropy.beta*(DH2+DH3);
+                        break;
+                    }
+                    driving_force += reg_df;
 
-                                            if (std::isnan(driving_force) || std::isinf(driving_force))
-                                            {
-                                                for (int p = 0; p < 3; p++)
-                                                    for (int q = 0; q < 3; q++)
-                                                        for (int r = 0; r < 3; r++)
-                                                            for (int s = 0; s < 3; s++)
-                                                            {
-                                                                Util::Message(INFO,p,q,r,s," ",DDDDEta(p,q,r,s));
-                                                            }
-                                                Util::Abort(INFO,"nan/inf detected at amrlev = ", lev," i=",i," j=",j," k=",k);
-                                            }
-#endif
-                                        }
-
-                                        //
-                                        // CHEMICAL POTENTIAL
-                                        //
-
-                                        Set::Scalar sum_of_squares = 0.;
-                                        for (int n = 0; n < number_of_grains; n++)
-                                        {
-                                            if (m == n)
-                                                continue;
-                                            sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
-                                        }
-                                        driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
-
-                                        //
-                                        // SYNTHETIC DRIVING FORCE
-                                        //
-                                        if (lagrange.on && m == 0 && time > lagrange.tstart)
-                                        {
-                                            driving_force += lagrange.lambda * (volume - lagrange.vol0);
-                                        }
-
-                                        //
-                                        // EVOLVE ETA
-                                        //
-                                        etanew(i, j, k, m) = eta(i, j, k, m) - pf.L * dt * driving_force;
-                                        if (std::isnan(driving_force))
-                                            Util::Abort(INFO, i, " ", j, " ", k, " ", m);
+                    if (std::isnan(driving_force) || std::isinf(driving_force))
+                    {
+                        for (int p = 0; p < 3; p++)
+                            for (int q = 0; q < 3; q++)
+                                for (int r = 0; r < 3; r++)
+                                    for (int s = 0; s < 3; s++)
+                                    {
+                                        Util::Message(INFO,p,q,r,s," ",DDDDEta(p,q,r,s));
                                     }
-                                });
+                        Util::Abort(INFO,"nan/inf detected at amrlev = ", lev," i=",i," j=",j," k=",k);
+                    }
+                    #endif
+                }
+
+                //
+                // CHEMICAL POTENTIAL
+                //
+
+                Set::Scalar sum_of_squares = 0.;
+                for (int n = 0; n < number_of_grains; n++)
+                {
+                    if (m == n)
+                        continue;
+                    sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
+                }
+                driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+
+                //
+                // SYNTHETIC DRIVING FORCE
+                //
+                if (lagrange.on && m == 0 && time > lagrange.tstart)
+                {
+                    driving_force += lagrange.lambda * (volume - lagrange.vol0);
+                }
+
+                //
+                // EVOLVE ETA
+                //
+                etanew(i, j, k, m) = eta(i, j, k, m) - pf.L * dt * driving_force;
+                if (std::isnan(driving_force))
+                    Util::Abort(INFO, i, " ", j, " ", k, " ", m);
+            } 
+        });
 
         //
         // ELASTIC DRIVING FORCE
         //
-        if (elastic.on && time > elastic.tstart)
+        if (false) // TODO need to replace
         {
             const amrex::Box &bx = mfi.tilebox();
-            amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
-            amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-            amrex::Array4<const amrex::Real> const &sigma = (*stress_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
+            amrex::Array4<Set::Scalar> const &etanew = (*eta_new_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Matrix> const &sigma = (*stress_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                                    {
-                                        for (int m = 0; m < number_of_grains; m++)
-                                        {
-                                            Set::Scalar driving_force = 0.0;
-                                            Set::Scalar etasum = 0.0;
-                                            Set::Matrix F0avg = Set::Matrix::Zero();
+            {
+                for (int m = 0; m < number_of_grains; m++)
+                {
+                    Set::Scalar driving_force = 0.0;
+                    Set::Scalar etasum = 0.0;
+                    Set::Matrix F0avg = Set::Matrix::Zero();
                     
-                                            for (int n = 0; n < number_of_grains; n++)
-                                            {
-                                                etasum += eta(i,j,k,n);
-                                                F0avg  += eta(i,j,k,n) * elastic.model[n].F0;
-                                            } 
+                    for (int n = 0; n < number_of_grains; n++)
+                    {
+                        etasum += eta(i,j,k,n);
+                        F0avg  += eta(i,j,k,n) * mechanics.model[n].F0;
+                    } 
                     
-                                            Set::Matrix dF0deta = elastic.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
+                    Set::Matrix dF0deta = mechanics.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
 
 
-                                            Set::Matrix sig;
-#if AMREX_SPACEDIM == 2
-                                            sig(0,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,0);
-                                            sig(0,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,1);
-                                            sig(1,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,2);
-                                            sig(1,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,3);
-#elif AMREX_SPACEDIM == 3
-                                            sig(0,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,0);
-                                            sig(0,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,1);
-                                            sig(0,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,2);
-                                            sig(1,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,3);
-                                            sig(1,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,4);
-                                            sig(1,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,5);
-                                            sig(2,0) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,6);
-                                            sig(2,1) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,7);
-                                            sig(2,2) = Numeric::Interpolate::CellToNodeAverage(sigma,i,j,k,8);
-#endif
+                    Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma,i,j,k,0);
 
-                                            Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
+                    Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
 
-                                            if (tmpdf > pf.elastic_threshold)
-                                            {
-                                                driving_force -= pf.elastic_mult * (tmpdf-pf.elastic_threshold);
-                                            }
-                                            else if (tmpdf < -pf.elastic_threshold)
-                                            {
-                                                driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
-                                            }
+                    if (tmpdf > pf.elastic_threshold)
+                    {
+                        driving_force -= pf.elastic_mult * (tmpdf-pf.elastic_threshold);
+                    }
+                    else if (tmpdf < -pf.elastic_threshold)
+                    {
+                        driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
+                    }
 
-                                            etanew(i, j, k, m) -= pf.L * dt * driving_force;
-                                        }
-                                    });
+                    etanew(i, j, k, m) -= pf.L * dt * driving_force;
+                }
+            });
 
         }
     }
@@ -277,23 +261,15 @@ void PhaseFieldMicrostructure::Advance(int lev, amrex::Real time, amrex::Real dt
 void PhaseFieldMicrostructure::Initialize(int lev)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
-    eta_new_mf[lev]->setVal(0.0);
-    eta_old_mf[lev]->setVal(0.0);
-
+    MechanicsBase<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_new_mf);
     ic->Initialize(lev, eta_old_mf);
-
-    if (elastic.on)
-    {
-        disp_mf[lev].get()->setVal(0.0);
-        rhs_mf[lev].get()->setVal(0.0);
-        stress_mf[lev].get()->setVal(0.0);
-    }
 }
 
-void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, amrex::Real /*time*/, int /*ngrow*/)
+void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
 {
     BL_PROFILE("PhaseFieldMicrostructure::TagCellsForRefinement");
+    MechanicsBase<model_type>::TagCellsForRefinement(lev,a_tags,time,ngrow);
     const amrex::Real *DX = geom[lev].CellSize();
     const Set::Vector dx(DX);
     const Set::Scalar dxnorm = dx.lpNorm<2>();
@@ -314,82 +290,59 @@ void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray
     }
 }
 
-void PhaseFieldMicrostructure::TimeStepComplete(amrex::Real /*time*/, int /*iter*/)
+void PhaseFieldMicrostructure::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/)
 {
     // TODO: remove this function, it is no longer needed.
 }
 
-void PhaseFieldMicrostructure::TimeStepBegin(amrex::Real time, int iter)
+void PhaseFieldMicrostructure::UpdateModel(int a_step)
 {
+    if (a_step % m_interval) return;
+
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        model_mf[lev]->setVal(mechanics.model[0]);
+        eta_new_mf[lev]->FillBoundary();
+
+        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.nodaltilebox();//-1,2);
+
+            amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                std::vector<Set::Scalar> etas(number_of_grains);
+                for (int n = 0; n < number_of_grains; n++) 
+                    etas[n] = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,n);
+                model(i, j, k) = model_type::Combine(mechanics.model,etas);
+            });
+        }
+
+        Util::RealFillBoundary(*model_mf[lev],geom[lev]);
+    }
+
+}
+
+void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
+{
+    MechanicsBase<model_type>::TimeStepBegin(time,iter);
+
     BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     if (anisotropy.on && time >= anisotropy.tstart)
     {
         SetTimestep(anisotropy.timestep);
         if (anisotropy.elastic_int > 0) 
             if (iter % anisotropy.elastic_int) return;
-    }
-    
-    if (!elastic.on) return;
-    if (time < elastic.tstart)   return;
-    if (iter % elastic.interval) return;
-
-    if (finest_level != rhs_mf.size() - 1)
-    {
-        Util::Abort(INFO, "amr.max_level is larger than necessary. Set to ", finest_level, " or less");
-    }
-    for (int lev = 0; lev < rhs_mf.size(); lev++)
-        rhs_mf[lev]->setVal(0.0);
-
-    Operator::Elastic<model_type::sym> elasticop;
-    elasticop.SetUniform(false);
-    amrex::LPInfo info;
-    //info.setMaxCoarseningLevel(0);
-    elasticop.define(geom, grids, dmap, info);
-
-    // Set linear elastic model
-    for (int lev = 0; lev < rhs_mf.size(); ++lev)
-    {
-        amrex::Box domain(geom[lev].Domain());
-        domain.convert(amrex::IntVect::TheNodeVector());
-
-        eta_new_mf[lev]->FillBoundary();
-
-        Set::Vector DX(geom[lev].CellSize());
-
-        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
-        {
-            amrex::Box bx = mfi.grownnodaltilebox();//-1,2);
-
-            amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                                        std::vector<Set::Scalar> etas(number_of_grains);
-                                        for (int n = 0; n < number_of_grains; n++) etas[n] = 0.25*(eta(i,j,k,n) + eta(i,j-1,k,n) + eta(i-1,j,k,n) + eta(i-1,j-1,k,n));
-                                        model(i, j, k) = model_type::Combine(elastic.model,etas);
-                                    });
-        }
-
-        Util::RealFillBoundary(*model_mf[lev],elasticop.Geom(lev));
-    }
-
-    elastic.bc.SetTime(time);
-    elastic.bc.Init(rhs_mf,geom);
-    elasticop.SetBC(&elastic.bc);
-
-    Solver::Nonlocal::Newton<model_type> linearsolver(elasticop);
-    IO::ParmParse pp("elastic");
-    pp.queryclass("solver",linearsolver); // See :ref:`Solver::Nonlocal::Newton`
-    linearsolver.solve(disp_mf, rhs_mf, model_mf, 1E-8, 1E-8);
-
-    linearsolver.W(energy_mf,disp_mf,model_mf);
-    linearsolver.DW(stress_mf,disp_mf,model_mf);
+    }    
 }
 
-void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*step*/,
+void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
                                         const amrex::MFIter &mfi, const amrex::Box &box)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Integrate");
+    MechanicsBase<model_type>::Integrate(amrlev,time,step,mfi,box);
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
     const amrex::Real *DX = geom[amrlev].CellSize();
@@ -439,21 +392,6 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int /*ste
                                     }
                                 }
                             });
-    if (elastic.on)
-    {
-        amrex::Array4<amrex::Real> const &w        = (*energy_mf[amrlev]).array(mfi);
-        amrex::Array4<amrex::Real> const &stress   = (*stress_mf[amrlev]).array(mfi);
-        amrex::Array4<amrex::Real> const &u        = (*disp_mf[amrlev])  .array(mfi);
-        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                                {
-                                    if (j == geom[amrlev].Domain().hiVect()[1])
-                                    {
-                                        elastic.force += 0.5*(stress(i,j+1,k,1) + stress(i+1,j+1,k,1)) * DX[0];
-                                        elastic.disp  += 0.5*(u(i,j+1,k,0)      + u(i+1,j+1,k,0)     ) * DX[0];
-                                    }
-                                    elastic.strainenergy += 0.25 * (w(i,j,k) + w(i+1,j,k) + w(i,j+1,k) + w(i+1,j+1,k)) * volume;
-                                });
-    }
 }
 
 } // namespace Integrator
