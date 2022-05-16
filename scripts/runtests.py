@@ -6,6 +6,9 @@ from collections import OrderedDict
 from datetime import datetime
 import socket
 import time
+import re
+
+from sympy import capture
 
 class color:
     reset = "\033[0m"
@@ -18,10 +21,15 @@ class color:
     darkgray = "\033[90m"
 
 #
+# RE tool to strip out color escapes
+# 
+ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+#
 # Get a unique string ID to label all output files
 #
 now = datetime.now()
-testid = now.strftime("output_%Y-%m-%d_%H:%M:%S_"+socket.gethostname())
+testid = now.strftime("output_%Y-%m-%d_%H.%M.%S_"+socket.gethostname())
 print("Test ID = ",testid)
 
 #
@@ -47,6 +55,7 @@ parser.add_argument('--dim',default=None,type=int,help='Specify dimensions to ru
 parser.add_argument('--cmd',default=False,action='store_true',help="Print out the exact command used to run each test")
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
+parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
 args=parser.parse_args()
 
 def test(testdir):
@@ -140,8 +149,11 @@ def test(testdir):
             # If not running in serial, specify mpirun command
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
-            exe = "./bin/alamo-{}d-g++".format(dim)
-            if args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
+            
+            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-g++".format(dim)
+            elif args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
+            elif args.profile: exe = "./bin/alamo-{}d-profile-g++".format(dim)
+            else: exe = "./bin/alamo-{}d-g++".format(dim)
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
@@ -163,8 +175,14 @@ def test(testdir):
         # Spawn the process and wait for it to finish before continuing.
         try:
             timeStarted = time.time()
-            p = subprocess.check_output(command.split(),stderr=subprocess.PIPE)
+            p = subprocess.run(command.split(),capture_output=True)
             executionTime = time.time() - timeStarted
+            fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
+            fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))
+            fstdout.close()
+            fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
+            fstderr.write(ansi_escape.sub('',p.stderr.decode('ascii')))
+            fstderr.close()
             print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s)".format(executionTime))
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
