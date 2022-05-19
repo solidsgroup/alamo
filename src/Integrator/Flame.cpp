@@ -217,10 +217,7 @@ namespace Integrator
 
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
-	        amrex::Array4<const Set::Scalar> const &a_field = (*a_field[lev]).array(mfi);
                 const amrex::Box &bx = mfi.tilebox();
-                bx.grow(a_field[lev]->nGrow());
-                amrex::IndexType type_p = a_field[lev]->ixType();
                 // Phase fields
                 amrex::Array4<Set::Scalar> const &etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
@@ -234,6 +231,8 @@ namespace Integrator
                 // Diagnostic fields
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
+
+                amrex::IndexType type_p = eta_mf[lev]->ixType();
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -256,7 +255,7 @@ namespace Integrator
 
                     Set::Vector xp = Set::Position(i, j, k, geom[lev], type_p);
 
-                    etanew(i,j,k) = 0.5 * tanh( xp / ( 4 * pf.eps) ) + 0.5; 
+                    etanew(i,j,k) = 0.5 * tanh( xp(0) / ( 4 * pf.eps) ) + 0.5; 
 
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO,"eta: ", eta(i,j,k));
