@@ -51,14 +51,15 @@ protected:
     Set::Field<Set::Scalar> temp_old_mf;
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
-    Set::Field<Set::Scalar> Mob_mf; 
-    Set::Field<Set::Scalar> Mob_old_mf;
+    Set::Field<Set::Scalar> mob_mf; 
+    Set::Field<Set::Scalar> mob_old_mf;
     Set::Field<Set::Scalar> mdot_mf;
     Set::Field<Set::Scalar> heat_mf;
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
-    
+    Set::Field<Set::Scalar> a_field;
+  
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
     IC::IC *ic_phi;
@@ -90,6 +91,8 @@ protected:
         Set::Scalar m0 = 1.0;
         Set::Scalar Ea = 0.1;
         Set::Scalar T0 = 0.1;
+
+        Set::Scalar time_print1 = 1.0, time_print2 = 1.0;
     } pf;
 
     struct {

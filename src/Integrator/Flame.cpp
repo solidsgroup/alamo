@@ -40,6 +40,9 @@ namespace Integrator
             pp.query("pf.T0",value.pf.T0);
             pp.query("pf.Ea",value.pf.Ea);
 
+            pp.query("pf.time_print1", value.pf.time_print1);
+            pp.query("pf.time_print2", value.pf.time_print2);
+
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
 
@@ -80,7 +83,6 @@ namespace Integrator
             pp.query("thermal.b_ap", value.thermal.b_ap);
             pp.query("thermal.b_htpb", value.thermal.b_htpb);
             pp.query("thermal.b_comb", value.thermal.b_comb);
-            
 
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); 
 
@@ -90,8 +92,9 @@ namespace Integrator
                 pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
                 value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 1, "temp", true);
                 value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
-                value.RegisterNewFab(value.Mob_mf, value.bc_temp, 1, 1, "Mob", true);
+                value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
                 value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
+                value.RegisterNewFab(value.a_field, value.bc_temp,1,1,"a_field", true);
             }
         }
 
@@ -137,9 +140,9 @@ namespace Integrator
             temp_old_mf[lev]->setVal(thermal.bound);
             alpha_mf[lev]->setVal(0.0);
             //heat_mf[lev] -> setVal(0.0);
-            Mob_mf[lev]->setVal(0.0);
+            mob_mf[lev]->setVal(0.0);
         } 
-        
+        a_field[lev] -> setVal(0.0);
         eta_mf[lev]->setVal(1.0);
         eta_old_mf[lev]->setVal(1.0);
         
@@ -214,7 +217,10 @@ namespace Integrator
 
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
+	        amrex::Array4<const Set::Scalar> const &a_field = (*a_field[lev]).array(mfi);
                 const amrex::Box &bx = mfi.tilebox();
+                bx.grow(a_field[lev]->nGrow());
+                amrex::IndexType type_p = a_field[lev]->ixType();
                 // Phase fields
                 amrex::Array4<Set::Scalar> const &etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
@@ -226,7 +232,7 @@ namespace Integrator
                 amrex::Array4<Set::Scalar>       const &alpha   = (*alpha_mf[lev]).array(mfi);
 
                 // Diagnostic fields
-                amrex::Array4<Set::Scalar> const  &Mob = (*Mob_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -237,11 +243,29 @@ namespace Integrator
                     // This part is probably ok for now. Howver I want to look into
                     // splitting the mobility into two sections so that curvature
                     // is not temperature-dependent. 
-                    etanew(i, j, k) = 
-                            eta(i, j, k) 
-                            - Mob(i,j,k) * dt * ( 
-                            (pf.lambda/pf.eps)*dw(eta(i,j,k)) - pf.eps * pf.kappa * eta_lap);
+
+                    if (time > pf.time_print1 && etanew(i,j,k) < -1.0){
+                    Util::Message(INFO, "ETA: " , etanew(i,j,k));    
+                    }
+
+                    //etanew(i, j, k) = 
+                    //       eta(i, j, k) 
+                    //       - mob(i,j,k) * dt * ( 
+                    //        (pf.lambda/pf.eps)*dw(eta(i,j,k)) - pf.eps * pf.kappa * eta_lap);
                     
+
+                    Set::Vector xp = Set::Position(i, j, k, geom[lev], type_p);
+
+                    etanew(i,j,k) = 0.5 * tanh( xp / ( 4 * pf.eps) ) + 0.5; 
+
+                    if (etanew(i,j,k) != etanew(i,j,k)){
+                    Util::ParallelMessage(INFO,"eta: ", eta(i,j,k));
+                    Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
+                    Util::ParallelMessage(INFO, "dw: ", dw(eta(i,j,k) ) );
+                    Util::ParallelMessage(INFO, "eta lap: ", eta_lap);
+                    Util::Assert(INFO, "etanew", etanew(i,j,k) == etanew(i,j,k));
+                    }
+
                     // Calculate effective thermal conductivity
                     // No special interface mixure rule is needed here.
                     Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k));
@@ -265,7 +289,13 @@ namespace Integrator
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX);
 
-                    // =============== TODO ==================
+                    Util::Assert(INFO, "grad_eta", grad_eta == grad_eta);
+                    Util::Assert(INFO, "grad temp", grad_temp == grad_temp);
+                    Util::Assert(INFO, "lap temp", lap_temp == lap_temp);
+                    Util::Assert(INFO, "grad eta mag", grad_eta_mag == grad_eta_mag);
+                    Util::Assert(INFO, "grad alpha", grad_alpha == grad_alpha);
+
+                    // =============== TODO ==================  DONE
                     // We need to get heat flux from mass flux HERE
                     // This is a primitive preliminary implementation.
                     // Note: "thermal.q0" is an initiation heat flux - think of it
@@ -289,12 +319,13 @@ namespace Integrator
                     dTdt += grad_eta_mag * alpha(i,j,k) * qdot / (eta(i,j,k) + small);
                     // Now, evolve temperature with explicit forward Euler
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+           
 
                     //if(etanew(i,j,k) < 0.001){
                     //  tempnew(i,j,k) = 0.0;
                     //}
 
-                    // =============== TODO ==================
+                    // =============== TODO ================== DONE 
                     // We need to more accurately calculate our effective mobility here.
                     // Right now it uses a simple three-parameter exponential model, however,
                     // it does not take material heterogeneity into account. This model
@@ -304,9 +335,21 @@ namespace Integrator
                     Set::Scalar m0 = thermal.m_ap * phi(i,j,k) + thermal.m_htpb * (1 - phi(i,j,k));
                     Set::Scalar P0 = pow(pf.P, pf.n_ap) * phi(i,j,k) + pow(pf.P, pf.n_htpb) * (1 - phi(i,j,k) + pow(pf.P, pf.n_comb) * 4.0 * phi(i,j,k) * (1 - phi(i,j,k)));    
 
+                    //mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (tempnew(i,j,k)));//grad_eta_mag;
+		            mob(i,j,k) = P0 * m0 * exp(pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
 
-                    //Mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (pf.T0 + tempnew(i,j,k)));//grad_eta_mag;
-		    Mob(i,j,k) = P0 * m0 * exp(pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
+                    if (mob(i,j,k) != mob(i,j,k) ){
+                    Util::ParallelMessage(INFO,"etanew: ", etanew(i,j,k));
+                    Util::ParallelMessage(INFO,"grad eta mag: ", grad_eta_mag);
+                    Util::ParallelMessage(INFO,"alpha: ", alpha(i,j,k));
+                    Util::ParallelMessage(INFO,"temp: ", temp(i,j,k));
+                    Util::ParallelMessage(INFO,"P0: ", P0);
+                    Util::ParallelMessage(INFO,"m0: ", m0);
+                    Util::ParallelMessage(INFO,"Ea: ", pf.Ea);
+                    Util::ParallelMessage(INFO,"tempnew: ", tempnew(i,j,k));
+                    Util::ParallelMessage(INFO, "Mob: ", mob(i,j,k));
+                    Util::Assert(INFO, "mob", mob(i,j,k) == mob(i,j,k));
+                    }
 
                 });
                 
