@@ -58,7 +58,7 @@ protected:
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
-    Set::Field<Set::Scalar> a_field;
+
   
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;

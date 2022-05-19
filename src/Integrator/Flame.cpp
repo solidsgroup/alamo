@@ -94,7 +94,7 @@ namespace Integrator
                 value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
                 value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
                 value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
-                value.RegisterNewFab(value.a_field, value.bc_temp,1,1,"a_field", true);
+        
             }
         }
 
@@ -142,7 +142,7 @@ namespace Integrator
             //heat_mf[lev] -> setVal(0.0);
             mob_mf[lev]->setVal(0.0);
         } 
-        a_field[lev] -> setVal(0.0);
+        
         eta_mf[lev]->setVal(1.0);
         eta_old_mf[lev]->setVal(1.0);
         
@@ -217,10 +217,10 @@ namespace Integrator
 
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
-	        amrex::Array4<const Set::Scalar> const &a_field = (*a_field[lev]).array(mfi);
+	        
                 const amrex::Box &bx = mfi.tilebox();
-                bx.grow(a_field[lev]->nGrow());
-                amrex::IndexType type_p = a_field[lev]->ixType();
+                //bx.grow(temp[lev]->nGrow());
+                
                 // Phase fields
                 amrex::Array4<Set::Scalar> const &etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
@@ -235,6 +235,8 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
+		amrex::IndexType type_p = temp_mf[lev]->ixType();
+		
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
@@ -256,7 +258,7 @@ namespace Integrator
 
                     Set::Vector xp = Set::Position(i, j, k, geom[lev], type_p);
 
-                    etanew(i,j,k) = 0.5 * tanh( xp / ( 4 * pf.eps) ) + 0.5; 
+                    etanew(i,j,k) = 0.5 * tanh( xp(i,j) / (4 * pf.eps) ) + 0.5; 
 
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO,"eta: ", eta(i,j,k));
