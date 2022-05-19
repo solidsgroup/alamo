@@ -175,7 +175,7 @@ protected:
                 });
             }
             Util::RealFillBoundary(*stress_mf[lev],geom[lev]);
-            Util::RealFillBoundary(*disp_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*strain_mf[lev],geom[lev]);
         }
     }
 
