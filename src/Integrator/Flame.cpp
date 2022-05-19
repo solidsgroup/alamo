@@ -217,10 +217,9 @@ namespace Integrator
 
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
-	        amrex::Array4<const Set::Scalar> const &a_field = (*a_field[lev]).array(mfi);
                 const amrex::Box &bx = mfi.tilebox();
                 bx.grow(a_field[lev]->nGrow());
-                amrex::IndexType type_p = a_field[lev]->ixType();
+                amrex::IndexType type_p = eta_mf[lev]->ixType();
                 // Phase fields
                 amrex::Array4<Set::Scalar> const &etanew = (*eta_mf[lev]).array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
