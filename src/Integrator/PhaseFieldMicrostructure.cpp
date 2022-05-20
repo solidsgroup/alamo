@@ -301,13 +301,17 @@ void PhaseFieldMicrostructure::UpdateModel(int a_step)
 
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        model_mf[lev]->setVal(mechanics.model[0]);
+        amrex::Box domain = geom[lev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+
         eta_new_mf[lev]->FillBoundary();
 
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();//-1,2);
-
+            amrex::Box bx = mfi.nodaltilebox();
+            bx.grow(2);
+            bx = bx & domain;
+            
             amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
 

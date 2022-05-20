@@ -25,7 +25,7 @@ public:
 
     ~Newton()
     {
-        Clear();
+        if (m_defined) Clear();
     }
 
     void Define(Operator::Elastic<T::sym> &a_op)

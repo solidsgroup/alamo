@@ -31,11 +31,12 @@ public:
 
     ~Linear()
     {
-        Clear();
+        if (m_defined) Clear();
     }
 
     void Define(Operator::Operator<Grid::Node> & a_lp)
     {
+        if (m_defined) Util::Abort(INFO,"Solver cannot be re-defined");
         this->linop = &a_lp;
         this->mlmg = new amrex::MLMG(a_lp);
         PrepareMLMG(*mlmg);
@@ -43,10 +44,11 @@ public:
     }
     void Clear()
     {
-        if (!m_defined) return;
+        if (!m_defined) Util::Abort(INFO,"Solver cannot be cleared if not defined");
         this->linop = nullptr;
         if (this->mlmg) delete this->mlmg;
         this->mlmg = nullptr;
+        m_defined = false;
     }
 
     //void setVerbose(int verbosity)
@@ -65,6 +67,7 @@ public:
                         Real a_tol_rel, Real a_tol_abs, bool copyrhs = false, 
                         const char* checkpoint_file = nullptr)
     {
+        if (!m_defined) Util::Abort(INFO,"Solver not defined");
         amrex::Vector<amrex::MultiFab *> rhs_tmp(a_rhs.size());
         amrex::Vector<amrex::MultiFab *> zero_tmp(a_rhs.size());
         for (int i = 0; i < rhs_tmp.size(); i++)
@@ -181,6 +184,7 @@ protected:
 
     void PrepareMLMG(amrex::MLMG &mlmg)
     {
+        if (!m_defined) Util::Message(INFO,"Solver not defined");
         mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
         mlmg.setCFStrategy(MLMG::CFStrategy::ghostnodes);
         mlmg.setFinalFillBC(false);

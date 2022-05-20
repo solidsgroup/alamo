@@ -138,6 +138,7 @@ protected:
 
         solver.Define(elastic_op);
         solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        if (m_print_residual) solver.compResidual(res_mf,disp_mf,rhs_mf,model_mf);
         solver.Clear();
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)

@@ -171,7 +171,7 @@ protected:
 private:
 
     int number_of_grains = 2;
-    int number_of_ghost_cells = 1;
+    int number_of_ghost_cells = 3;
     Set::Scalar ref_threshold = 0.1;
 
     // Cell fab
