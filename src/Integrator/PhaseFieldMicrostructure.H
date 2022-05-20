@@ -146,6 +146,7 @@ public:
         pp.query("mechanics.tstart",value.mechanics.tstart);
         value.mechanics.model.resize(value.number_of_grains);
         for (int i = 0; i < value.number_of_grains; i++) pp.queryclass("mechanics.model",value.mechanics.model[i]); // Type of model to use
+        value.m_type = MechanicsBase<model_type>::Disable; // Turn mechanics off by default
         pp.queryclass<MechanicsBase<model_type>>("mechanics",&value);
 
     }
