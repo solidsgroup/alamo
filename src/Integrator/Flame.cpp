@@ -254,9 +254,9 @@ namespace Integrator
                     // splitting the mobility into two sections so that curvature
                     // is not temperature-dependent. 
 
-                    if (time > pf.time_print1 && etanew(i,j,k) < -1.0){
-                    Util::Message(INFO, "ETA: " , etanew(i,j,k));    
-                    }
+                    //if (time > pf.time_print1 && etanew(i,j,k) < -1.0){
+                    //Util::Message(INFO, "ETA: " , etanew(i,j,k));    
+                    //}
 
                     //etanew(i, j, k) = 
                     //       eta(i, j, k) 
@@ -265,17 +265,17 @@ namespace Integrator
                     
 
                     Set::Vector xp = Set::Position(i, j, k, geom[lev], type_p);
-
+                    if (time < 0.001){
                     etanew(i,j,k) = pf.etamult * tanh( (xp(0) + pf.disloc) / ( pf.epsmult * pf.eps) ) + pf.etasum; 
+                    }
 
-
-                    if (etanew(i,j,k) != etanew(i,j,k)){
+                    /* if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO,"eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
                     Util::ParallelMessage(INFO, "dw: ", dw(eta(i,j,k) ) );
                     Util::ParallelMessage(INFO, "eta lap: ", eta_lap);
                     Util::Assert(INFO, "etanew", etanew(i,j,k) == etanew(i,j,k));
-                    }
+                    }*/
 
                     // Calculate effective thermal conductivity
                     // No special interface mixure rule is needed here.
@@ -349,7 +349,7 @@ namespace Integrator
                     //mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (tempnew(i,j,k)));//grad_eta_mag;
 		            mob(i,j,k) = P0 * m0 * exp(pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
 
-                    if (mob(i,j,k) != mob(i,j,k) ){
+                    /* if (mob(i,j,k) != mob(i,j,k) ){
                     Util::ParallelMessage(INFO,"etanew: ", etanew(i,j,k));
                     Util::ParallelMessage(INFO,"grad eta mag: ", grad_eta_mag);
                     Util::ParallelMessage(INFO,"alpha: ", alpha(i,j,k));
@@ -360,7 +360,7 @@ namespace Integrator
                     Util::ParallelMessage(INFO,"tempnew: ", tempnew(i,j,k));
                     Util::ParallelMessage(INFO, "Mob: ", mob(i,j,k));
                     Util::Assert(INFO, "mob", mob(i,j,k) == mob(i,j,k));
-                    }
+                    } */
 
                 });
                 
