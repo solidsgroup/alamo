@@ -43,6 +43,11 @@ namespace Integrator
             pp.query("pf.time_print1", value.pf.time_print1);
             pp.query("pf.time_print2", value.pf.time_print2);
 
+            pp.query("pf.disloc", value.pf.disloc);
+            pp.query("pf.etamult", value.pf.etamult);
+            pp.query("pf.etasum", value.pf.etasum);
+            pp.query("pf.epsmult", value.pf.epsmult); 
+
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
 
@@ -236,7 +241,7 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
 
-		amrex::IndexType type_p = temp_mf[lev]->ixType();
+		        amrex::IndexType type_p = eta_mf[lev]->ixType();
 		
                 //amrex::IndexType type_p = eta_mf[lev]->ixType();
 
@@ -261,7 +266,7 @@ namespace Integrator
 
                     Set::Vector xp = Set::Position(i, j, k, geom[lev], type_p);
 
-                    etanew(i,j,k) = 0.5 * tanh( xp(0) / ( 4 * pf.eps) ) + 0.5; 
+                    etanew(i,j,k) = pf.etamult * tanh( (xp(0) + pf.disloc) / ( pf.epsmult * pf.eps) ) + pf.etasum; 
 
 
                     if (etanew(i,j,k) != etanew(i,j,k)){

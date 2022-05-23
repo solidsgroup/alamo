@@ -88,6 +88,9 @@ protected:
         Set::Scalar r_comb = 0.0;
         Set::Scalar n_comb = 0.0;
 
+        Set::Scalar disloc = 0.0;
+        Set::Scalar etamult = 0.5, etasum = 0.5, epsmult = 4.0;
+
         Set::Scalar m0 = 1.0;
         Set::Scalar Ea = 0.1;
         Set::Scalar T0 = 0.1;
