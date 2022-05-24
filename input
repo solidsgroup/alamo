@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = /home/mmeierdo/SolidPhase/output
+plot_file = output
 amr.plot_dt = 0.01
 amr.plot_int = 1
 amr.max_level = 6 #8 #7 #5 #6
