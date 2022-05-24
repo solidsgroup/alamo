@@ -54,6 +54,19 @@ namespace Integrator
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
+
+
+
+            // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
+            // specified using these parameters. 
+            //IO::ParmParse pp("phi.ic");
+            std::string eta_ic_type = "constant";
+            pp.query("eta.ic.type", eta_ic_type); // IC type (psread, laminate, constant)
+            if      (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom,pp,"eta.ic.laminate");
+            else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"eta.ic.constant");
+            else Util::Abort(INFO,"Invalid IC type ",eta_ic_type);
+            
+            
         }
         
 
@@ -148,8 +161,10 @@ namespace Integrator
             mob_mf[lev]->setVal(0.0);
         } 
         
-        eta_mf[lev]->setVal(1.0);
-        eta_old_mf[lev]->setVal(1.0);
+        ic_eta->Initialize(lev,eta_mf);
+        ic_eta->Initialize(lev,eta_old_mf);
+        //eta_mf[lev]->setVal(1.0);
+        //eta_old_mf[lev]->setVal(1.0);
         
         mdot_mf[lev] -> setVal(0.0);
 
@@ -258,24 +273,19 @@ namespace Integrator
                     //Util::Message(INFO, "ETA: " , etanew(i,j,k));    
                     //}
 
-                    //etanew(i, j, k) = 
-                    //       eta(i, j, k) 
-                    //       - mob(i,j,k) * dt * ( 
-                    //        (pf.lambda/pf.eps)*dw(eta(i,j,k)) - pf.eps * pf.kappa * eta_lap);
+                    etanew(i, j, k) = 
+                           eta(i, j, k) 
+                           - mob(i,j,k) * dt * ( 
+                            (pf.lambda/pf.eps)*dw(eta(i,j,k)) - pf.eps * pf.kappa * eta_lap);
                     
 
-                    Set::Vector xp = Set::Position(i, j, k, geom[lev], type_p);
-                    if (time < 0.001){
-                    etanew(i,j,k) = pf.etamult * tanh( (xp(0) + pf.disloc) / ( pf.epsmult * pf.eps) ) + pf.etasum; 
-                    }
-
-                    /* if (etanew(i,j,k) != etanew(i,j,k)){
+                    if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO,"eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
                     Util::ParallelMessage(INFO, "dw: ", dw(eta(i,j,k) ) );
                     Util::ParallelMessage(INFO, "eta lap: ", eta_lap);
                     Util::Assert(INFO, "etanew", etanew(i,j,k) == etanew(i,j,k));
-                    }*/
+                    }
 
                     // Calculate effective thermal conductivity
                     // No special interface mixure rule is needed here.

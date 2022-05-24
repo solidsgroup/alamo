@@ -71,7 +71,7 @@ protected:
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     
-    IC::IC *EtaIC;
+    IC::IC *ic_eta;
 
     struct {
        // Set::Scalar M = 0.0;
