@@ -61,7 +61,8 @@ public:
 
     static void Parse(PhaseFieldMicrostructure &value, IO::ParmParse &pp)
     {
-
+        BL_PROFILE("PhaseFieldMicrostructure::Parse");
+        
         pp.query("pf.number_of_grains", value.number_of_grains);     // Number of grain fields (may be more if using different IC)
         pp.query("pf.M", value.pf.M);                                // Mobility
         if (pp.contains("pf.mu")) pp.query("pf.mu", value.pf.mu);       // Phase field :math:`\mu`

@@ -29,13 +29,17 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
     /// TODO Make this optional
     //if (lev != max_level) return;
     std::swap(eta_old_mf[lev], eta_new_mf[lev]);
-    const amrex::Real *DX = geom[lev].CellSize();
+    const Set::Scalar *DX = geom[lev].CellSize();
+    amrex::Box domain = geom[lev].Domain();
+
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
-    for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_new_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        const amrex::Box &bx = mfi.tilebox();
+        amrex::Box bx = mfi.tilebox();
+        bx.grow(number_of_ghost_cells-1);
+        bx = bx & domain;
         amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 
@@ -290,13 +294,14 @@ void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray
     }
 }
 
-void PhaseFieldMicrostructure::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/)
+void PhaseFieldMicrostructure::TimeStepComplete(Set::Scalar time, int iter)
 {
     // TODO: remove this function, it is no longer needed.
 }
 
 void PhaseFieldMicrostructure::UpdateModel(int a_step)
 {
+    BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
     if (a_step % m_interval) return;
 
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -308,9 +313,7 @@ void PhaseFieldMicrostructure::UpdateModel(int a_step)
 
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
-            bx.grow(2);
-            bx = bx & domain;
+            amrex::Box bx = mfi.grownnodaltilebox() & domain;
             
             amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
@@ -331,9 +334,9 @@ void PhaseFieldMicrostructure::UpdateModel(int a_step)
 
 void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
 {
+    BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     MechanicsBase<model_type>::TimeStepBegin(time,iter);
 
-    BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     if (anisotropy.on && time >= anisotropy.tstart)
     {
         SetTimestep(anisotropy.timestep);
@@ -352,7 +355,6 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
     const amrex::Real *DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
-    BL_PROFILE("PhaseFieldMicrostructure::Integrate");
     amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
     amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
 

@@ -39,8 +39,8 @@ public:
         if (m_defined) Util::Abort(INFO,"Solver cannot be re-defined");
         this->linop = &a_lp;
         this->mlmg = new amrex::MLMG(a_lp);
-        PrepareMLMG(*mlmg);
         m_defined = true;
+        PrepareMLMG(*mlmg);
     }
     void Clear()
     {

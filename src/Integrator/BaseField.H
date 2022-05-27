@@ -35,6 +35,7 @@ public:
     bool writeout = false;
     virtual std::string Name(int) = 0;
     virtual void setName(std::string a_name) = 0;
+    bool evolving = true;
 };
 
 template<class T>
