@@ -94,8 +94,7 @@ protected:
         Set::Scalar m0 = 1.0;
         Set::Scalar Ea = 0.1;
         Set::Scalar T0 = 0.1;
-
-        Set::Scalar time_print1 = 1.0, time_print2 = 1.0;
+        Set::Scalar addfactor = 1.0;
     } pf;
 
     struct {

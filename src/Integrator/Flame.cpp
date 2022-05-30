@@ -40,8 +40,7 @@ namespace Integrator
             pp.query("pf.T0",value.pf.T0);
             pp.query("pf.Ea",value.pf.Ea);
 
-            pp.query("pf.time_print1", value.pf.time_print1);
-            pp.query("pf.time_print2", value.pf.time_print2);
+	    pp.query("pf.addfactor", value.pf.addfactor);
 
             pp.query("pf.disloc", value.pf.disloc);
             pp.query("pf.etamult", value.pf.etamult);
@@ -54,8 +53,6 @@ namespace Integrator
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
-
-
 
             // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
             // specified using these parameters. 
@@ -269,10 +266,6 @@ namespace Integrator
                     // splitting the mobility into two sections so that curvature
                     // is not temperature-dependent. 
 
-                    //if (time > pf.time_print1 && etanew(i,j,k) < -1.0){
-                    //Util::Message(INFO, "ETA: " , etanew(i,j,k));    
-                    //}
-
                     etanew(i, j, k) = 
                            eta(i, j, k) 
                            - mob(i,j,k) * dt * ( 
@@ -316,6 +309,7 @@ namespace Integrator
                     Util::Assert(INFO, "grad eta mag", grad_eta_mag == grad_eta_mag);
                     Util::Assert(INFO, "grad alpha", grad_alpha == grad_alpha);
 
+
                     // =============== TODO ==================  DONE
                     // We need to get heat flux from mass flux HERE
                     // This is a primitive preliminary implementation.
@@ -323,7 +317,7 @@ namespace Integrator
                     // like a laser that is heating up the interface. 
 
                     Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
-                    qdot += (pf.P * thermal.a_ap + thermal.b_ap) * phi(i,j,k) / thermal.k_ap; // AP Portion 
+                    qdot += pf.addfactor * (pf.P * thermal.a_ap + thermal.b_ap) * phi(i,j,k) / thermal.k_ap; // AP Portion 
                     qdot += (pf.P * thermal.a_htpb + thermal.b_htpb) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
                     qdot += (pf.P * thermal.a_comb + thermal.b_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
