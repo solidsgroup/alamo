@@ -94,7 +94,6 @@ protected:
         Set::Scalar m0 = 1.0;
         Set::Scalar Ea = 0.1;
         Set::Scalar T0 = 0.1;
-        Set::Scalar addfactor = 1.0;
     } pf;
 
     struct {
@@ -111,6 +110,7 @@ protected:
         Set::Scalar m_ap, m_htpb, m_comb;  
         Set::Scalar a_ap = 0.0, a_htpb = 0.0, a_comb = 0.0;
         Set::Scalar b_ap = 0.0, b_htpb = 0.0, b_comb = 0.0;  
+        Set::Scalar correction_factor = 1.0;
     } thermal;
 
     struct {

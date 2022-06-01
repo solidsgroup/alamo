@@ -40,8 +40,6 @@ namespace Integrator
             pp.query("pf.T0",value.pf.T0);
             pp.query("pf.Ea",value.pf.Ea);
 
-	    pp.query("pf.addfactor", value.pf.addfactor);
-
             pp.query("pf.disloc", value.pf.disloc);
             pp.query("pf.etamult", value.pf.etamult);
             pp.query("pf.etasum", value.pf.etasum);
@@ -99,6 +97,8 @@ namespace Integrator
             pp.query("thermal.b_htpb", value.thermal.b_htpb);
             pp.query("thermal.b_comb", value.thermal.b_comb);
 
+            pp.query("thermal.correction_factor", value.thermal.correction_factor);
+
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); 
 
             if (value.thermal.on)
@@ -109,6 +109,8 @@ namespace Integrator
                 value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
                 value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
                 value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
+
+                value.RegisterNewFab(value.mob_old_mf, value.bc_temp, 1, 1, "oldmob", true );
         
             }
         }
@@ -156,6 +158,7 @@ namespace Integrator
             alpha_mf[lev]->setVal(0.0);
             //heat_mf[lev] -> setVal(0.0);
             mob_mf[lev]->setVal(0.0);
+            mob_old_mf[lev] -> setVal(0.0);
         } 
         
         ic_eta->Initialize(lev,eta_mf);
@@ -252,6 +255,7 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
+                amrex::Array4<Set::Scalar> const &oldmob = (*mob_old_mf[lev]).array(mfi);
 
 		        amrex::IndexType type_p = eta_mf[lev]->ixType();
 		
@@ -268,16 +272,17 @@ namespace Integrator
 
                     etanew(i, j, k) = 
                            eta(i, j, k) 
-                           - mob(i,j,k) * dt * ( 
+                           - 0.0 * mob(i,j,k) * dt * ( 
                             (pf.lambda/pf.eps)*dw(eta(i,j,k)) - pf.eps * pf.kappa * eta_lap);
                     
 
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO,"eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
+                    Util::ParallelMessage(INFO, "oldmob", oldmob(i,j,k) );
                     Util::ParallelMessage(INFO, "dw: ", dw(eta(i,j,k) ) );
                     Util::ParallelMessage(INFO, "eta lap: ", eta_lap);
-                    Util::Assert(INFO, "etanew", etanew(i,j,k) == etanew(i,j,k));
+                    Util::ParallelAbort(INFO, "etanew", etanew(i,j,k) == etanew(i,j,k));
                     }
 
                     // Calculate effective thermal conductivity
@@ -317,7 +322,7 @@ namespace Integrator
                     // like a laser that is heating up the interface. 
 
                     Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
-                    qdot += pf.addfactor * (pf.P * thermal.a_ap + thermal.b_ap) * phi(i,j,k) / thermal.k_ap; // AP Portion 
+                    qdot += (pf.P * thermal.a_ap + thermal.b_ap) * phi(i,j,k) / thermal.k_ap; // AP Portion 
                     qdot += (pf.P * thermal.a_htpb + thermal.b_htpb) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
                     qdot += (pf.P * thermal.a_comb + thermal.b_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
@@ -331,7 +336,7 @@ namespace Integrator
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;        
                     // Calculate the source term
-                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot / (eta(i,j,k) + small);
+                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot / thermal.correction_factor / (eta(i,j,k) + small);
                     // Now, evolve temperature with explicit forward Euler
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
            
@@ -352,6 +357,8 @@ namespace Integrator
 
                     //mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (tempnew(i,j,k)));//grad_eta_mag;
 		            mob(i,j,k) = P0 * m0 * exp(pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
+
+                    oldmob(i,j,k) = 151000.0 * exp(-11000.0 / tempnew(i,j,k) );
 
                     /* if (mob(i,j,k) != mob(i,j,k) ){
                     Util::ParallelMessage(INFO,"etanew: ", etanew(i,j,k));
