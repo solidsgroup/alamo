@@ -175,7 +175,7 @@ def test(testdir):
         # Spawn the process and wait for it to finish before continuing.
         try:
             timeStarted = time.time()
-            p = subprocess.run(command.split(),capture_output=True)
+            p = subprocess.run(command.split(),capture_output=True,check=True)
             executionTime = time.time() - timeStarted
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
             fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))

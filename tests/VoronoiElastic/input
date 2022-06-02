@@ -1,3 +1,12 @@
+#@ 
+#@ [2d-serial]
+#@ dim=2
+#@
+#@
+#@ [2d-parallel]
+#@ dim=2
+#@ nprocs=4
+#@
 
 alamo.program			= microstructure
 plot_file		        = tests/VoronoiElastic/output
@@ -5,18 +14,16 @@ plot_file		        = tests/VoronoiElastic/output
 timestep		        = 0.0005
 stop_time		        = 0.1
 
-#amr.plot_dt			= 0.01
-amr.plot_int			= 5
+amr.plot_dt			= 0.01
 amr.max_level		        = 2
 amr.n_cell		        = 64 64 64
-#amr.plot_int = 100
 amr.max_grid_size = 8
 
 amr.blocking_factor	        = 8
-amr.base_regrid_int		= 1000 #100
+amr.base_regrid_int		= 100
 amr.grid_eff		        = 1.0
 amr.ref_threshold		= 0.1
-amr.node.all = 1
+amr.cell.all = 1
 amr.max_grid_size = 8
 
 ic.type			        = voronoi
@@ -61,7 +68,7 @@ mechanics.model.C11             = 1.68
 mechanics.model.C12             = 1.21
 mechanics.model.C44             = 0.75
 mechanics.model.random          = 1
-mechanics.solver.fixed_iter     = 100
+#mechanics.solver.fixed_iter     = 100
 mechanics.solver.verbose        = 3
 mechanics.print_model = 1
 mechanics.print_residual = 1

@@ -38,8 +38,9 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
     for (amrex::MFIter mfi(*eta_new_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.tilebox();
-        bx.grow(number_of_ghost_cells-1);
-        bx = bx & domain;
+        //if (m_type == MechanicsBase<model_type>::Type::Static)
+        //bx.grow(number_of_ghost_cells-1);
+        //bx = bx & domain;
         amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
 

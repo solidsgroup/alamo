@@ -153,7 +153,9 @@ private:
                 Set::Vector DX(linop->Geom(lev).CellSize());
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {
-                    amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                    amrex::Box bx = mfi.grownnodaltilebox();
+                    //bx.grow(2);
+                    bx = bx & domain;
 
                     amrex::Array4<const T>           const &model = a_model_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Vector> const &u     = a_u_mf[lev]->array(mfi);
@@ -194,16 +196,14 @@ private:
                 const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {                    
-                    amrex::Box bx = mfi.grownnodaltilebox();
-                    //bx.grow(1);
-                    bx = bx & domain;
+                    amrex::Box bx = mfi.grownnodaltilebox() & domain;
                     amrex::Array4<const Set::Vector>  const &u     = a_u_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Vector>  const &b     = a_b_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Matrix>  const &dw    = a_dw_mf[lev]->array(mfi);
                     amrex::Array4<Set::Scalar>        const &rhs   = a_rhs_mf[lev]->array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
                     {
-                        auto sten = Numeric::GetStencil(i, j, k, domain);
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
                         // Do this if on the domain boundary
                         if (AMREX_D_TERM(i==lo.x || i==hi.x, || j==lo.y || j==hi.y, || k==lo.z || k==hi.z))
                         {

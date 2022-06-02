@@ -76,6 +76,16 @@ public:
         pp.query("amr.max_level", value.max_level);            // Maximum AMR level
         pp.query("amr.ref_threshold", value.ref_threshold);    // Phase field refinement threshold
 
+        // Elasticity
+        pp.query("mechanics.tstart",value.mechanics.tstart);
+        value.mechanics.model.resize(value.number_of_grains);
+        for (int i = 0; i < value.number_of_grains; i++) pp.queryclass("mechanics.model",value.mechanics.model[i]); // Type of model to use
+        value.m_type = MechanicsBase<model_type>::Disable; // Turn mechanics off by default
+        pp.queryclass<MechanicsBase<model_type>>("mechanics",&value);
+        if (value.m_type == MechanicsBase<model_type>::Type::Static) 
+            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
+
+
         // Lagrange multiplier method for enforcing volumes
         pp.query("lagrange.on", value.lagrange.on);               // Turn on
         if (value.lagrange.on)
@@ -99,6 +109,8 @@ public:
         pp.query("anisotropy.thermo_int", value.anisotropy.thermo_int);            // Modify thermo int when turned on
         pp.query("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
         pp.query("anisotropy.elastic_int",value.anisotropy.elastic_int);           // Frequency of elastic calculation
+        if (value.anisotropy.on) 
+            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
         // Determine the kind of regularization to use
         std::map<std::string, RegularizationType> regularization_type;
@@ -115,7 +127,6 @@ public:
         else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy");
         else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy");
         else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
-
 
         // Boundary conditions for Etas
         std::string bc_type = "constant";
@@ -144,11 +155,6 @@ public:
         value.RegisterIntegratedVariable(&value.realgbenergy, "realgbenergy");
         value.RegisterIntegratedVariable(&value.regenergy, "regenergy");
 
-        pp.query("mechanics.tstart",value.mechanics.tstart);
-        value.mechanics.model.resize(value.number_of_grains);
-        for (int i = 0; i < value.number_of_grains; i++) pp.queryclass("mechanics.model",value.mechanics.model[i]); // Type of model to use
-        value.m_type = MechanicsBase<model_type>::Disable; // Turn mechanics off by default
-        pp.queryclass<MechanicsBase<model_type>>("mechanics",&value);
 
     }
 
@@ -173,7 +179,7 @@ protected:
 private:
 
     int number_of_grains = 2;
-    int number_of_ghost_cells = 3;
+    int number_of_ghost_cells = 1;
     Set::Scalar ref_threshold = 0.1;
 
     // Cell fab
