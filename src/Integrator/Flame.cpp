@@ -29,22 +29,15 @@ namespace Integrator
             pp.query("pf.w1", value.pf.w1); // Unburned rest energy
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-            pp.query("pf.P", value.pf.P);             // Pressure [UNITS?]
-            //pp.query("pf.r_ap", value.pf.r_ap);       // AP Power law multiplier
             pp.query("pf.n_ap", value.pf.n_ap);       // AP Power law exponent
-            //pp.query("pf.r_htpb", value.pf.r_htpb);   // HTPB Power law multiplier
             pp.query("pf.n_htpb", value.pf.n_htpb);   // HTPB Power law exponent
-            //pp.query("pf.r_comb", value.pf.r_comb);   // Combination power law multiplier
             pp.query("pf.n_comb", value.pf.n_comb);   // Combination power law exponent
             pp.query("pf.m0",value.pf.m0);
             pp.query("pf.T0",value.pf.T0);
-            pp.query("pf.Ea",value.pf.Ea);
-
             pp.query("pf.disloc", value.pf.disloc);
             pp.query("pf.etamult", value.pf.etamult);
             pp.query("pf.etasum", value.pf.etasum);
             pp.query("pf.epsmult", value.pf.epsmult); 
-
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
 
@@ -63,12 +56,21 @@ namespace Integrator
             
             
         }
-        
+
+	{
+	    //IO::ParmParse pp("pressure");
+          pp.query("pressure.P", value.pressure.P);
+	  pp.query("pressure.a_ap", value.pressure.a_ap);
+	  pp.query("pressure.a_htpb", value.pressure.a_htpb);
+	  pp.query("pressure.a_comb", value.pressure.a_comb);
+	  pp.query("pressure.b_ap", value.pressure.b_ap);
+	  pp.query("pressure.b_htpb", value.pressure.b_htpb);
+	  pp.query("pressure.b_comb", value.pressure.b_comb);
+	}
 
         {
             //IO::ParmParse pp("thermal");
             pp.query("thermal.on",value.thermal.on); // Whether to use the Thermal Transport Model
-            //Util::Message(INFO,"thermal.on =" , thermal.on);
             pp.query("thermal.rho_ap",value.thermal.rho_ap); // AP Density
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
             pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
@@ -85,20 +87,13 @@ namespace Integrator
             pp.query("thermal.ae_htpb", value.thermal.ae_htpb); // HTPB Activation Energy
             pp.query("thermal.ae_comb", value.thermal.ae_comb);
             pp.query("thermal.bound", value.thermal.bound);
-            pp.query("thermal.addtemp", value.thermal.addtemp);
             pp.query("thermal.m_ap", value.thermal.m_ap);
             pp.query("thermal.m_htpb", value.thermal.m_htpb);
             pp.query("thermal.m_comb", value.thermal.m_comb);
-            
-            pp.query("thermal.a_ap", value.thermal.a_ap);
-            pp.query("thermal.a_htpb", value.thermal.a_htpb);
-            pp.query("thermal.a_comb", value.thermal.a_comb);
-            pp.query("thermal.b_ap", value.thermal.b_ap);
-            pp.query("thermal.b_htpb", value.thermal.b_htpb);
-            pp.query("thermal.b_comb", value.thermal.b_comb);
-
+            pp.query("thermal.E_ap", value.thermal.E_ap);
+            pp.query("thermal.E_htpb", value.thermal.E_htpb);
+            pp.query("thermal.E_comb", value.thermal.E_comb);
             pp.query("thermal.correction_factor", value.thermal.correction_factor);
-
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); 
 
             if (value.thermal.on)
@@ -161,10 +156,10 @@ namespace Integrator
             mob_old_mf[lev] -> setVal(0.0);
         } 
         
-        ic_eta->Initialize(lev,eta_mf);
-        ic_eta->Initialize(lev,eta_old_mf);
-        //eta_mf[lev]->setVal(1.0);
-        //eta_old_mf[lev]->setVal(1.0);
+        //ic_eta->Initialize(lev,eta_mf);
+        //ic_eta->Initialize(lev,eta_old_mf);
+        eta_mf[lev]->setVal(1.0);
+        eta_old_mf[lev]->setVal(1.0);
         
         mdot_mf[lev] -> setVal(0.0);
 
@@ -257,7 +252,7 @@ namespace Integrator
 
                 amrex::Array4<Set::Scalar> const &oldmob = (*mob_old_mf[lev]).array(mfi);
 
-		        amrex::IndexType type_p = eta_mf[lev]->ixType();
+		        //amrex::IndexType type_p = eta_mf[lev]->ixType();
 		
                 //amrex::IndexType type_p = eta_mf[lev]->ixType();
 
@@ -272,7 +267,7 @@ namespace Integrator
 
                     etanew(i, j, k) = 
                            eta(i, j, k) 
-                           - 0.0 * mob(i,j,k) * dt * ( 
+                           - mob(i,j,k) * dt * ( 
                             (pf.lambda/pf.eps)*dw(eta(i,j,k)) - pf.eps * pf.kappa * eta_lap);
                     
 
@@ -322,9 +317,9 @@ namespace Integrator
                     // like a laser that is heating up the interface. 
 
                     Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
-                    qdot += (pf.P * thermal.a_ap + thermal.b_ap) * phi(i,j,k) / thermal.k_ap; // AP Portion 
-                    qdot += (pf.P * thermal.a_htpb + thermal.b_htpb) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
-                    qdot += (pf.P * thermal.a_comb + thermal.b_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
+                    qdot += (pressure.P * pressure.a_ap   + pressure.b_ap)   * phi(i,j,k) / thermal.k_ap; // AP Portion 
+                    qdot += (pressure.P * pressure.a_htpb + pressure.b_htpb) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
+                    qdot += (pressure.P * pressure.a_comb + pressure.b_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
                     //
@@ -352,26 +347,26 @@ namespace Integrator
                     // should account for the differing mobilities for AP and HTPB
                     // (but not necessarily for the combination region).
 
-                    Set::Scalar m0 = thermal.m_ap * phi(i,j,k) + thermal.m_htpb * (1 - phi(i,j,k));
-                    Set::Scalar P0 = pow(pf.P, pf.n_ap) * phi(i,j,k) + pow(pf.P, pf.n_htpb) * (1 - phi(i,j,k) + pow(pf.P, pf.n_comb) * 4.0 * phi(i,j,k) * (1 - phi(i,j,k)));    
+                    // Set::Scalar m0 = thermal.m_ap * phi(i,j,k) + thermal.m_htpb * (1 - phi(i,j,k));
+                    // Set::Scalar P0 = pow(pf.P, pf.n_ap) * phi(i,j,k) + pow(pf.P, pf.n_htpb) * (1 - phi(i,j,k)) + pow(pf.P, pf.n_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k) ) ;    
 
                     //mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (tempnew(i,j,k)));//grad_eta_mag;
-		            mob(i,j,k) = P0 * m0 * exp(pf.Ea * (1 - pf.T0 / tempnew(i,j,k)));
-
-                    oldmob(i,j,k) = 151000.0 * exp(-11000.0 / tempnew(i,j,k) );
-
-                    /* if (mob(i,j,k) != mob(i,j,k) ){
+		    if (time < 0.001){
+		    mob(i,j,k)  = thermal.m_ap   * exp( -thermal.E_ap   / tempnew(i,j,k) ) * phi(i,j,k);
+                    mob(i,j,k) += thermal.m_htpb * exp( -thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
+                    mob(i,j,k) += thermal.m_comb * exp( -thermal.E_comb / tempnew(i,j,k) ) * phi(i,j,k) * (1.0 - phi(i,j,k)) * 4.0 ;
+		    }
+		    
+                    if (mob(i,j,k) != mob(i,j,k) ){
                     Util::ParallelMessage(INFO,"etanew: ", etanew(i,j,k));
                     Util::ParallelMessage(INFO,"grad eta mag: ", grad_eta_mag);
                     Util::ParallelMessage(INFO,"alpha: ", alpha(i,j,k));
                     Util::ParallelMessage(INFO,"temp: ", temp(i,j,k));
-                    Util::ParallelMessage(INFO,"P0: ", P0);
-                    Util::ParallelMessage(INFO,"m0: ", m0);
-                    Util::ParallelMessage(INFO,"Ea: ", pf.Ea);
+                    Util::ParallelMessage(INFO,"E_ap: ", thermal.E_ap);
                     Util::ParallelMessage(INFO,"tempnew: ", tempnew(i,j,k));
                     Util::ParallelMessage(INFO, "Mob: ", mob(i,j,k));
-                    Util::Assert(INFO, "mob", mob(i,j,k) == mob(i,j,k));
-                    } */
+                    Util::ParallelAbort(INFO, "mob", mob(i,j,k) == mob(i,j,k));
+                    }
 
                 });
                 

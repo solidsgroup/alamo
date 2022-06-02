@@ -80,7 +80,7 @@ protected:
         Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
-        Set::Scalar P = 0.0;
+      //Set::Scalar P = 0.0;
         Set::Scalar r_ap = 0.0;
         Set::Scalar n_ap = 0.0;
         Set::Scalar r_htpb = 0.0;
@@ -92,10 +92,16 @@ protected:
         Set::Scalar etamult = 0.5, etasum = 0.5, epsmult = 4.0;
 
         Set::Scalar m0 = 1.0;
-        Set::Scalar Ea = 0.1;
         Set::Scalar T0 = 0.1;
     } pf;
 
+    struct{
+
+      Set::Scalar P=1.0;
+      Set::Scalar a_ap=0.0, a_htpb=0.0, a_comb=0.0;
+      Set::Scalar b_ap=0.0, b_htpb=0.0, b_comb=0.0;
+      
+    } pressure;
     struct {
         int on = 0;
         Set::Scalar rho_ap, rho_htpb;         
@@ -108,8 +114,9 @@ protected:
         Set::Scalar bound=0.0, addtemp;
         Set::Scalar beta1, beta2, MinTemp; 
         Set::Scalar m_ap, m_htpb, m_comb;  
-        Set::Scalar a_ap = 0.0, a_htpb = 0.0, a_comb = 0.0;
-        Set::Scalar b_ap = 0.0, b_htpb = 0.0, b_comb = 0.0;  
+        Set::Scalar E_ap, E_htpb, E_comb;
+      //Set::Scalar a_ap = 0.0, a_htpb = 0.0, a_comb = 0.0;
+      //Set::Scalar b_ap = 0.0, b_htpb = 0.0, b_comb = 0.0;  
         Set::Scalar correction_factor = 1.0;
     } thermal;
 
