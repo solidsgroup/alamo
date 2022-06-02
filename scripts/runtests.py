@@ -14,6 +14,9 @@ class color:
     reset = "\033[0m"
     red   = "\033[31m"
     green   = "\033[32m"
+    blue   = "\033[34m"
+    magenta   = "\033[35m"
+    boldblue   = "\033[1m\033[34m"
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
     bold = "\033[1m"
@@ -56,6 +59,7 @@ parser.add_argument('--cmd',default=False,action='store_true',help="Print out th
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 args=parser.parse_args()
 
 def test(testdir):
@@ -75,6 +79,8 @@ def test(testdir):
     skips = 0
     tests = 0
     checks = 0
+    fasters = 0
+    slowers = 0
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
@@ -117,6 +123,12 @@ def test(testdir):
                 check = True
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
+
+        dobenchmark = False
+        benchmark = None
+        if "benchmark-{}".format(args.benchmark) in config[desc].keys():
+            dobenchmark = True
+            benchmark = float(config[desc]["benchmark-{}".format(args.benchmark)])
 
         # Build the command to run the script. This can be done in two ways:
         #
@@ -183,7 +195,16 @@ def test(testdir):
             fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
             fstderr.write(ansi_escape.sub('',p.stderr.decode('ascii')))
             fstderr.close()
-            print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s)".format(executionTime))
+            print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            if dobenchmark:
+                if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print("")
+                elif abs(executionTime < benchmark):
+                    print(",{} {:.2f}% faster{})".format(color.blue,100*(benchmark-executionTime)/executionTime,color.reset))
+                    fasters += 1
+                else:
+                    print(",{} {:.2f}% slower{})".format(color.magenta,100*(executionTime-benchmark)/executionTime,color.reset))
+                    slowers += 1
+            else: print(")")
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
@@ -235,7 +256,7 @@ def test(testdir):
     else: print("  └ {}{} tests failed{}".format(color.boldgreen,0,color.reset),end="")
     if skips: print(", {}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     else: print("")
-    return fails, checks, tests, skips
+    return fails, checks, tests, skips, fasters, slowers
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
@@ -247,6 +268,8 @@ class stats:
     skips = 0   # Number of tests that were unexpectedly skipped - script errors if this is nonzero
     checks = 0  # Number of successfully passed checks
     tests = 0   # Number of successful checks
+    fasters = 0
+    slowers = 0
 
 # Iterate through all test directories, running the above "test" function
 # for each.
@@ -254,11 +277,13 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s = test(testdir)
+    f, c, t, s, fa, sl = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
     stats.skips += s
+    stats.fasters += fa
+    stats.slowers += sl
     
 
 # Print a quick summary of all tests
@@ -268,6 +293,8 @@ print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
+if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
+if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
 print("")
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
