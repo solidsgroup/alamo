@@ -7,6 +7,7 @@
 #@  dim    = 3
 #@  nprocs = 1
 #@  args   = amr.max_level=4
+#@  benchmark-github = 22.75
 #@  
 #@  [3D-parallel-5levels]
 #@  dim    = 3

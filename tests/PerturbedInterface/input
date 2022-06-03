@@ -2,6 +2,7 @@
 #@  [perturbed-interface]
 #@  dim = 2
 #@  check = true
+#@  benchmark-github=18.75
 #@  
 
 alamo.program = microstructure

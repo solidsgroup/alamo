@@ -1,6 +1,7 @@
 #@ 
 #@ [2d-serial]
 #@ dim=2
+#@ benchmark-github = 70.39
 #@
 #@
 #@ [2d-parallel]

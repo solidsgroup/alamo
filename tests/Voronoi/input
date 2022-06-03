@@ -6,6 +6,7 @@
 #@ [2D-100grain-serial]
 #@ nprocs = 1
 #@ dim = 2
+#@ benchmark-github = 60.03
 #@
 
 alamo.program               = microstructure
