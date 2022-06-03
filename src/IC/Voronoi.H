@@ -38,7 +38,7 @@ public:
         type = a_type;
 
         voronoi.resize(number_of_grains);
-
+        srand(seed);
         for (int n = 0; n<number_of_grains; n++)
         {
             AMREX_D_TERM(voronoi[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
@@ -121,12 +121,12 @@ public:
         {
             value.Define(value.number_of_grains,1.0);
         }
-        Util::Message(INFO,value.number_of_grains);
-        Util::Message(INFO,value.alpha.size());
+        pp.query("seed",value.seed);
     }
     
 private:
     int number_of_grains;
+    int seed = 1;
     std::vector<Set::Scalar> alpha;
     std::vector<Set::Vector> voronoi;
     Type type;
