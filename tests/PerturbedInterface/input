@@ -2,6 +2,7 @@
 #@  [perturbed-interface]
 #@  dim = 2
 #@  check = true
+#@  benchmark-beaker = 19.87
 #@  
 
 alamo.program = microstructure

@@ -12,7 +12,7 @@
 #@  args = model1.nu=0.3
 #@  args = model1.sigma0=0.2
 #@  args = bc.tension_test.disp = (0,0.25,0.75,1.0:0,0.002,-0.002,0)
-#@ 
+#@  benchmark-beaker = 10.42
 #@
 #@  [affine-isotropic]
 #@  dim = 3
@@ -32,6 +32,7 @@
 #@  args = bc.tension_test.disp=(0,1:0,1)
 #@  args = solver.nriters=10
 #@  ignore = model1.E model1.nu 
+#@  benchmark-beaker = 10.73
 #@ 
 
 alamo.program = mechanics

@@ -2,10 +2,12 @@
 #@ [2D-100grain-parallel]
 #@ nprocs = 4
 #@ dim = 2
+#@ benchmark-beaker = 31.56
 #@ 
 #@ [2D-100grain-serial]
 #@ nprocs = 1
 #@ dim = 2
+#@ benchmark-beaker = 85.29
 #@
 
 alamo.program               = microstructure
