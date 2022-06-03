@@ -197,7 +197,7 @@ def test(testdir):
             fstderr.close()
             print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
             if dobenchmark:
-                if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print("")
+                if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
                 elif abs(executionTime < benchmark):
                     print(",{} {:.2f}% faster{})".format(color.blue,100*(benchmark-executionTime)/executionTime,color.reset))
                     fasters += 1
