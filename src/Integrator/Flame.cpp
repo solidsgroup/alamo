@@ -48,11 +48,11 @@ namespace Integrator
             // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
             // specified using these parameters. 
             //IO::ParmParse pp("phi.ic");
-            std::string eta_ic_type = "constant";
-            pp.query("eta.ic.type", eta_ic_type); // IC type (psread, laminate, constant)
-            if      (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom,pp,"eta.ic.laminate");
-            else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"eta.ic.constant");
-            else Util::Abort(INFO,"Invalid IC type ",eta_ic_type);
+            //std::string eta_ic_type = "constant";
+            //pp.query("eta.ic.type", eta_ic_type); // IC type (psread, laminate, constant)
+            //if      (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom,pp,"eta.ic.laminate");
+            //else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"eta.ic.constant");
+            //else Util::Abort(INFO,"Invalid IC type ",eta_ic_type);
             
             
         }
