@@ -52,22 +52,18 @@ protected:
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> mob_mf; 
-    Set::Field<Set::Scalar> mob_old_mf;
     Set::Field<Set::Scalar> mdot_mf;
-    Set::Field<Set::Scalar> heat_mf;
+
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
 
-  
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
     IC::IC *ic_phi;
 
-
     int fs_number = 1;
  
-   
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     
@@ -80,19 +76,10 @@ protected:
         Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
-      //Set::Scalar P = 0.0;
-        Set::Scalar r_ap = 0.0;
-        Set::Scalar n_ap = 0.0;
-        Set::Scalar r_htpb = 0.0;
-        Set::Scalar n_htpb = 0.0;
-        Set::Scalar r_comb = 0.0;
-        Set::Scalar n_comb = 0.0;
 
-        Set::Scalar disloc = 0.0;
-        Set::Scalar etamult = 0.5, etasum = 0.5, epsmult = 4.0;
-
-        Set::Scalar m0 = 1.0;
-        Set::Scalar T0 = 0.1;
+        int i_check = -1;
+        int j_check = 1;
+        int k_check = 0;
     } pf;
 
     struct{
@@ -102,6 +89,7 @@ protected:
       Set::Scalar b_ap=0.0, b_htpb=0.0, b_comb=0.0;
       
     } pressure;
+
     struct {
         int on = 0;
         Set::Scalar rho_ap, rho_htpb;         
@@ -109,15 +97,12 @@ protected:
         Set::Scalar cp_ap, cp_htpb;           
         Set::Scalar q_ap, q_htpb, q_comb;
         Set::Scalar q0=1.0;
-        Set::Scalar temperature_delay = 0.01;
-        Set::Scalar ae_ap, ae_htpb, ae_comb;
-        Set::Scalar bound=0.0, addtemp;
-        Set::Scalar beta1, beta2, MinTemp; 
+        Set::Scalar temperature_delay = 0.01, bound = 0.0;
         Set::Scalar m_ap, m_htpb, m_comb;  
         Set::Scalar E_ap, E_htpb, E_comb;
-      //Set::Scalar a_ap = 0.0, a_htpb = 0.0, a_comb = 0.0;
-      //Set::Scalar b_ap = 0.0, b_htpb = 0.0, b_comb = 0.0;  
         Set::Scalar correction_factor = 1.0;
+        Set::Scalar exp_val = 1.0;
+        Set::Scalar alp = 0.0;
     } thermal;
 
     struct {

@@ -7,6 +7,8 @@
 #include "IC/PSRead.H"
 #include "Numeric/Function.H"
 
+#include <cmath>
+
 namespace Integrator
 {
 
@@ -29,15 +31,7 @@ namespace Integrator
             pp.query("pf.w1", value.pf.w1); // Unburned rest energy
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-            pp.query("pf.n_ap", value.pf.n_ap);       // AP Power law exponent
-            pp.query("pf.n_htpb", value.pf.n_htpb);   // HTPB Power law exponent
-            pp.query("pf.n_comb", value.pf.n_comb);   // Combination power law exponent
-            pp.query("pf.m0",value.pf.m0);
-            pp.query("pf.T0",value.pf.T0);
-            pp.query("pf.disloc", value.pf.disloc);
-            pp.query("pf.etamult", value.pf.etamult);
-            pp.query("pf.etasum", value.pf.etasum);
-            pp.query("pf.epsmult", value.pf.epsmult); 
+
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
 
@@ -45,28 +39,21 @@ namespace Integrator
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
 
-            // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
-            // specified using these parameters. 
-            //IO::ParmParse pp("phi.ic");
-            //std::string eta_ic_type = "constant";
-            //pp.query("eta.ic.type", eta_ic_type); // IC type (psread, laminate, constant)
-            //if      (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom,pp,"eta.ic.laminate");
-            //else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"eta.ic.constant");
-            //else Util::Abort(INFO,"Invalid IC type ",eta_ic_type);
-            
-            
+            pp.query("pf.i_check", value.pf.i_check);
+            pp.query("pf.j_check", value.pf.j_check);
+            pp.query("pf.k_check", value.pf.k_check);
+          
         }
 
-	{
-	    //IO::ParmParse pp("pressure");
-          pp.query("pressure.P", value.pressure.P);
-	  pp.query("pressure.a_ap", value.pressure.a_ap);
-	  pp.query("pressure.a_htpb", value.pressure.a_htpb);
-	  pp.query("pressure.a_comb", value.pressure.a_comb);
-	  pp.query("pressure.b_ap", value.pressure.b_ap);
-	  pp.query("pressure.b_htpb", value.pressure.b_htpb);
-	  pp.query("pressure.b_comb", value.pressure.b_comb);
-	}
+	    {
+            pp.query("pressure.P", value.pressure.P);
+	        pp.query("pressure.a_ap", value.pressure.a_ap);
+	        pp.query("pressure.a_htpb", value.pressure.a_htpb);
+	        pp.query("pressure.a_comb", value.pressure.a_comb);
+	        pp.query("pressure.b_ap", value.pressure.b_ap);
+	        pp.query("pressure.b_htpb", value.pressure.b_htpb);
+	        pp.query("pressure.b_comb", value.pressure.b_comb);
+	    }
 
         {
             //IO::ParmParse pp("thermal");
@@ -83,9 +70,7 @@ namespace Integrator
             pp.query("thermal.q_htpb", value.thermal.q_htpb); // HTPB Thermal Flux
             pp.query("thermal.q_comb" , value.thermal.q_comb); // Interface heat flux
             pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux
-            pp.query("thermal.ae_ap", value.thermal.ae_ap); // AP Activation Energy
-            pp.query("thermal.ae_htpb", value.thermal.ae_htpb); // HTPB Activation Energy
-            pp.query("thermal.ae_comb", value.thermal.ae_comb);
+            
             pp.query("thermal.bound", value.thermal.bound);
             pp.query("thermal.m_ap", value.thermal.m_ap);
             pp.query("thermal.m_htpb", value.thermal.m_htpb);
@@ -104,8 +89,6 @@ namespace Integrator
                 value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
                 value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
                 value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
-
-                value.RegisterNewFab(value.mob_old_mf, value.bc_temp, 1, 1, "oldmob", true );
         
             }
         }
@@ -151,16 +134,12 @@ namespace Integrator
             temp_mf[lev]->setVal(thermal.bound);
             temp_old_mf[lev]->setVal(thermal.bound);
             alpha_mf[lev]->setVal(0.0);
-            //heat_mf[lev] -> setVal(0.0);
             mob_mf[lev]->setVal(0.0);
-            mob_old_mf[lev] -> setVal(0.0);
         } 
-        
-        //ic_eta->Initialize(lev,eta_mf);
-        //ic_eta->Initialize(lev,eta_old_mf);
+
         eta_mf[lev]->setVal(1.0);
         eta_old_mf[lev]->setVal(1.0);
-        
+
         mdot_mf[lev] -> setVal(0.0);
 
         ic_phi->Initialize(lev, phi_mf);
@@ -232,7 +211,6 @@ namespace Integrator
 
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
-
 	        
                 const amrex::Box &bx = mfi.tilebox();
 
@@ -250,11 +228,6 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
-                amrex::Array4<Set::Scalar> const &oldmob = (*mob_old_mf[lev]).array(mfi);
-
-		        //amrex::IndexType type_p = eta_mf[lev]->ixType();
-		
-                //amrex::IndexType type_p = eta_mf[lev]->ixType();
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -265,21 +238,18 @@ namespace Integrator
                     // splitting the mobility into two sections so that curvature
                     // is not temperature-dependent. 
 
-                    etanew(i, j, k) = 
-                           eta(i, j, k) 
-                           - mob(i,j,k) * dt * ( 
-                            (pf.lambda/pf.eps)*dw(eta(i,j,k)) - pf.eps * pf.kappa * eta_lap);
-                    
-
+                    etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
+                    if (etanew(i,j,k) < 0.001) etanew(i,j,k) = 0.0;
+                  
                     if (etanew(i,j,k) != etanew(i,j,k)){
-                    Util::ParallelMessage(INFO,"eta: ", eta(i,j,k));
+                    Util::ParallelMessage(INFO, "eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
-                    Util::ParallelMessage(INFO, "oldmob", oldmob(i,j,k) );
-                    Util::ParallelMessage(INFO, "dw: ", dw(eta(i,j,k) ) );
-                    Util::ParallelMessage(INFO, "eta lap: ", eta_lap);
-                    Util::ParallelAbort(INFO, "etanew", etanew(i,j,k) == etanew(i,j,k));
-                    }
+                    Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
+                    //Util::ParallelMessage(INFO, "dw: ", dw);
+                    Util::ParallelMessage(INFO, "lamda/eps: ", (pf.lambda/pf.eps));
+                    Util::ParallelAbort(INFO, "eta", etanew(i,j,k) == etanew(i,j,k) );
 
+                    }
                     // Calculate effective thermal conductivity
                     // No special interface mixure rule is needed here.
                     Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k));
@@ -289,6 +259,7 @@ namespace Integrator
 
                     // Calculate thermal diffusivity and store in field
                     alpha(i,j,k) = eta(i,j,k) * K / rho / cp;
+                    thermal.alp = K / rho / cp; 
 
                     // Calculate mass flux
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt;
@@ -302,13 +273,6 @@ namespace Integrator
                     Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX);
-
-                    Util::Assert(INFO, "grad_eta", grad_eta == grad_eta);
-                    Util::Assert(INFO, "grad temp", grad_temp == grad_temp);
-                    Util::Assert(INFO, "lap temp", lap_temp == lap_temp);
-                    Util::Assert(INFO, "grad eta mag", grad_eta_mag == grad_eta_mag);
-                    Util::Assert(INFO, "grad alpha", grad_alpha == grad_alpha);
-
 
                     // =============== TODO ==================  DONE
                     // We need to get heat flux from mass flux HERE
@@ -327,46 +291,29 @@ namespace Integrator
                     //
                     // Calculate modified spatial derivative of temperature
                     Set::Scalar dTdt = 0.0;
-                    dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);
+                    
+                    dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);                    
                     dTdt += grad_alpha.dot(grad_temp);
-                    dTdt += alpha(i,j,k) * lap_temp;        
+                    dTdt += alpha(i,j,k) * lap_temp;                            
                     // Calculate the source term
                     dTdt += grad_eta_mag * alpha(i,j,k) * qdot / thermal.correction_factor / (eta(i,j,k) + small);
                     // Now, evolve temperature with explicit forward Euler
+                    //dTdt = thermal.alp * (lap_temp + grad_eta.dot(grad_temp) + grad_eta_mag * qdot / (eta(i,j,k)+small) / thermal.correction_factor);
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-           
-
-                    //if(etanew(i,j,k) < 0.001){
-                    //  tempnew(i,j,k) = 0.0;
-                    //}
-
+  
                     // =============== TODO ================== DONE 
                     // We need to more accurately calculate our effective mobility here.
                     // Right now it uses a simple three-parameter exponential model, however,
                     // it does not take material heterogeneity into account. This model
                     // should account for the differing mobilities for AP and HTPB
                     // (but not necessarily for the combination region).
-
-                    // Set::Scalar m0 = thermal.m_ap * phi(i,j,k) + thermal.m_htpb * (1 - phi(i,j,k));
-                    // Set::Scalar P0 = pow(pf.P, pf.n_ap) * phi(i,j,k) + pow(pf.P, pf.n_htpb) * (1 - phi(i,j,k)) + pow(pf.P, pf.n_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k) ) ;    
-
-                    //mob(i,j,k) = P0 * m0 * exp(- pf.Ea / (tempnew(i,j,k)));//grad_eta_mag;
-		    if (time < 0.001){
-		    mob(i,j,k)  = thermal.m_ap   * exp( -thermal.E_ap   / tempnew(i,j,k) ) * phi(i,j,k);
-                    mob(i,j,k) += thermal.m_htpb * exp( -thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
-                    mob(i,j,k) += thermal.m_comb * exp( -thermal.E_comb / tempnew(i,j,k) ) * phi(i,j,k) * (1.0 - phi(i,j,k)) * 4.0 ;
-		    }
-		    
-                    if (mob(i,j,k) != mob(i,j,k) ){
-                    Util::ParallelMessage(INFO,"etanew: ", etanew(i,j,k));
-                    Util::ParallelMessage(INFO,"grad eta mag: ", grad_eta_mag);
-                    Util::ParallelMessage(INFO,"alpha: ", alpha(i,j,k));
-                    Util::ParallelMessage(INFO,"temp: ", temp(i,j,k));
-                    Util::ParallelMessage(INFO,"E_ap: ", thermal.E_ap);
-                    Util::ParallelMessage(INFO,"tempnew: ", tempnew(i,j,k));
-                    Util::ParallelMessage(INFO, "Mob: ", mob(i,j,k));
-                    Util::ParallelAbort(INFO, "mob", mob(i,j,k) == mob(i,j,k));
+                    if (tempnew(i,j,k) < 1800.0){
+                    thermal.exp_val = -1.0 * thermal.E_ap / tempnew(i,j,k);
                     }
+                    else{
+                    thermal.exp_val = -1.0 * thermal.E_ap / 1800.0;
+                    }
+		            mob(i,j,k)  = (thermal.m_ap * exp(thermal.exp_val) ) * phi(i,j,k);
 
                 });
                 
