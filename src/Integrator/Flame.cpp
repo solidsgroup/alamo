@@ -239,7 +239,7 @@ namespace Integrator
                     // is not temperature-dependent. 
 
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
-                    if (etanew(i,j,k) < 0.001) etanew(i,j,k) = 0.0;
+                    //if (etanew(i,j,k) < 0.001) etanew(i,j,k) = 0.0;
                   
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO, "eta: ", eta(i,j,k));
@@ -307,13 +307,13 @@ namespace Integrator
                     // it does not take material heterogeneity into account. This model
                     // should account for the differing mobilities for AP and HTPB
                     // (but not necessarily for the combination region).
-                    if (tempnew(i,j,k) < 1800.0){
+                    //if (tempnew(i,j,k) < 1800.0){
                     thermal.exp_val = -1.0 * thermal.E_ap / tempnew(i,j,k);
-                    }
-                    else{
-                    thermal.exp_val = -1.0 * thermal.E_ap / 1800.0;
-                    }
-		            mob(i,j,k)  = (thermal.m_ap * exp(thermal.exp_val) ) * phi(i,j,k);
+                    //}
+                    //else{
+                    //thermal.exp_val = -1.0 * thermal.E_ap / 1800.0;
+                    //}
+		            mob(i,j,k)  = (small + thermal.m_ap * exp(thermal.exp_val) ) * phi(i,j,k);
 
                 });
                 
