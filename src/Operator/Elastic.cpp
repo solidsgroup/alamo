@@ -175,6 +175,7 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                     
 
                     // The gradient of the displacement gradient tensor
+                    // TODO - replace with this call. But not for this PR
                     //Set::Matrix3 gradgradu = Numeric::Hessian(U,i,j,k,DX,sten); // gradgradu[k](l,j) = u_{k,lj}
                     Set::Matrix3 gradgradu; // gradgradu[k](l,j) = u_{k,lj}
 
