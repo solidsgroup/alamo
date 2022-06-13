@@ -293,7 +293,7 @@ namespace Integrator
                     // Evolve temperature with the qdot flux term in place
                     //
                     // Calculate modified spatial derivative of temperature
-		    if(eta(i,j,k) >= 0.001){ 
+
 		    Set::Scalar dTdt = 0.0;
                     dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);                    
                     dTdt += grad_alpha.dot(grad_temp);
@@ -304,14 +304,12 @@ namespace Integrator
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
                     thermal.exp_val = -1.0 * thermal.E_ap / tempnew(i,j,k);
 		    mob(i,j,k)  = (small + thermal.m_ap * exp(thermal.exp_val) ) * phi(i,j,k);
+
+		    if (mob(i,j,k) >= 1.5){
+
+		      Util::ParallelMessage(INFO, "mob", mob(i,j,k));
+		      Util::ParallelAbort(INFO, "mob", mob(i,j,k)>=1.5);
 		    }
-		    //else if(){}
-		    else{
-		      tempnew(i,j,k) = 0.0;
-		      mob(i,j,k) = 0.0;
-		    }
-		   
-		   
 		   
 		   
                 });
