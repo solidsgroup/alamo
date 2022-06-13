@@ -197,7 +197,7 @@ namespace Integrator
         const Set::Scalar *DX = geom[lev].CellSize();
         const Set::Scalar small = 1E-8;
 
-        if (true) // (lev == finest_level)
+        if (lev == finest_level)
         {
             std::swap(eta_old_mf[lev], eta_mf[lev]);
             std::swap(temp_old_mf[lev], temp_mf[lev]);
@@ -208,7 +208,8 @@ namespace Integrator
                                             14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * pf.w0,
                                             -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * pf.w0 );
             Numeric::Function::Polynomial<3> dw = w.D();
-
+	    //Set::Scalar a0 = pf.w0, a1 = 0.0, a2 = -5.0*pf.w1+16.0*pf.w12-11.0*pf.w0, a3 = 14.0*pf.w1-32.0*pf.w12+18.0*pf.w0, a4 = -8.0*pf.w1+16.0*pf.w12-8.0*pf.w0;
+	    
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
 	        
@@ -239,14 +240,16 @@ namespace Integrator
                     // is not temperature-dependent. 
 
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
-                    //if (etanew(i,j,k) < 0.001) etanew(i,j,k) = 0.0;
+		    //etanew(i,j,k)  = eta(i,j,k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps)*( a1 + 2.0*a2*eta(i,j,k) + 3.0*a3*eta(i,j,k)*eta(i,j,k) + 4.0*eta(i,j,k)*a4*eta(i,j,k)*eta(i,j,k)) - pf.eps*pf.kappa*eta_lap );
+		    //if (etanew(i,j,k) < 0.001) etanew(i,j,k) = 0.0;
                   
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO, "eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
+
                     Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
-                    //Util::ParallelMessage(INFO, "dw: ", dw);
-                    Util::ParallelMessage(INFO, "lamda/eps: ", (pf.lambda/pf.eps));
+                    Util::ParallelMessage(INFO,"temp: " ,temp(i,j,k));
+		    Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
                     Util::ParallelAbort(INFO, "eta", etanew(i,j,k) == etanew(i,j,k) );
 
                     }
@@ -290,31 +293,27 @@ namespace Integrator
                     // Evolve temperature with the qdot flux term in place
                     //
                     // Calculate modified spatial derivative of temperature
-                    Set::Scalar dTdt = 0.0;
-                    
+		    if(eta(i,j,k) >= 0.001){ 
+		    Set::Scalar dTdt = 0.0;
                     dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);                    
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;                            
                     // Calculate the source term
                     dTdt += grad_eta_mag * alpha(i,j,k) * qdot / thermal.correction_factor / (eta(i,j,k) + small);
                     // Now, evolve temperature with explicit forward Euler
-                    //dTdt = thermal.alp * (lap_temp + grad_eta.dot(grad_temp) + grad_eta_mag * qdot / (eta(i,j,k)+small) / thermal.correction_factor);
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-  
-                    // =============== TODO ================== DONE 
-                    // We need to more accurately calculate our effective mobility here.
-                    // Right now it uses a simple three-parameter exponential model, however,
-                    // it does not take material heterogeneity into account. This model
-                    // should account for the differing mobilities for AP and HTPB
-                    // (but not necessarily for the combination region).
-                    //if (tempnew(i,j,k) < 1800.0){
                     thermal.exp_val = -1.0 * thermal.E_ap / tempnew(i,j,k);
-                    //}
-                    //else{
-                    //thermal.exp_val = -1.0 * thermal.E_ap / 1800.0;
-                    //}
-		            mob(i,j,k)  = (small + thermal.m_ap * exp(thermal.exp_val) ) * phi(i,j,k);
-
+		    mob(i,j,k)  = (small + thermal.m_ap * exp(thermal.exp_val) ) * phi(i,j,k);
+		    }
+		    //else if(){}
+		    else{
+		      tempnew(i,j,k) = 0.0;
+		      mob(i,j,k) = 0.0;
+		    }
+		   
+		   
+		   
+		   
                 });
                 
             }
