@@ -31,19 +31,11 @@ namespace Integrator
             pp.query("pf.w1", value.pf.w1); // Unburned rest energy
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-
-            pp.query("pf.lock", value.pf.lock);
-
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
-
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
-
-            pp.query("pf.i_check", value.pf.i_check);
-            pp.query("pf.j_check", value.pf.j_check);
-            pp.query("pf.k_check", value.pf.k_check);
           
         }
 
@@ -197,7 +189,7 @@ namespace Integrator
         MechanicsBase<Model::Solid::Affine::Isotropic>::Advance(lev,time,dt);
 
         const Set::Scalar *DX = geom[lev].CellSize();
-        const Set::Scalar small = 1E-8;
+        const Set::Scalar small = 1E-12;
 
         if (lev == finest_level)
         {
@@ -241,7 +233,7 @@ namespace Integrator
                     // is not temperature-dependent. 
 
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
-		                      
+
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO, "eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
@@ -259,7 +251,6 @@ namespace Integrator
 
                     // Calculate thermal diffusivity and store in field
                     alpha(i,j,k) = eta(i,j,k) * K / rho / cp;
-                    thermal.alp = K / rho / cp; 
 
                     // Calculate mass flux
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt;
@@ -290,7 +281,12 @@ namespace Integrator
                     // Evolve temperature with the qdot flux term in place
                     //
                     // Calculate modified spatial derivative of temperature
-
+                    /*
+                    if (eta(i,j,k) < 0.0015){
+                    tempnew(i,j,k) = 0.0;
+                    mob(i,j,k) = 10.0;
+                    }
+                    else {*/
 		            Set::Scalar dTdt = 0.0;
                     dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);                    
                     dTdt += grad_alpha.dot(grad_temp);
@@ -299,22 +295,16 @@ namespace Integrator
                     dTdt += grad_eta_mag * alpha(i,j,k) * qdot / thermal.correction_factor / (eta(i,j,k) + small);
                     // Now, evolve temperature with explicit forward Euler
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+                    
 
+                    thermal.exp_ap   = -1.0 * thermal.E_ap   / tempnew(i,j,k);
+                    thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
+                    thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
-                    Set::Scalar exp_ap   = -1.0 * thermal.E_ap   / tempnew(i,j,k);
-                    Set::Scalar exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
-                    Set::Scalar exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
-
-                    if(pf.lock){
-                    exp_ap = 0.0;
-                    exp_htpb = 0.0;
-                    exp_comb = 0.0;
-                    }
-
-		            mob(i,j,k)  = (small + thermal.m_ap   * exp(exp_ap  )) * phi(i,j,k)
-                                + (small + thermal.m_htpb * exp(exp_htpb)) * (1.0 - phi(i,j,k))    
-                                + (small + thermal.m_comb * exp(exp_comb)) * (4.0 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-                
+		            mob(i,j,k)  = (small + thermal.m_ap   * exp(thermal.exp_ap  )) * phi(i,j,k)
+                                + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
+                                + (small + thermal.m_comb * exp(thermal.exp_comb)) * (4.0 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                    //}
 
 		            //if (mob(i,j,k) >= 1.5){
 		            //Util::ParallelMessage(INFO, "mob", mob(i,j,k));

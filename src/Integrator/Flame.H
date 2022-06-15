@@ -76,12 +76,6 @@ protected:
         Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
-
-        Set::Scalar lock = 0.0;
-
-        int i_check = -1;
-        int j_check = 1;
-        int k_check = 0;
     } pf;
 
     struct{
@@ -103,7 +97,8 @@ protected:
         Set::Scalar m_ap, m_htpb, m_comb;  
         Set::Scalar E_ap, E_htpb, E_comb;
         Set::Scalar correction_factor = 1.0;
-        Set::Scalar alp = 0.0;
+        Set::Scalar exp_ap = 0.0, exp_htpb = 0.0, exp_comb = 0.0;
+
     } thermal;
 
     struct {
