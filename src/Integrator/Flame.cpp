@@ -108,7 +108,7 @@ namespace Integrator
             //IO::ParmParse pp("phi.ic");
             std::string type = "packedspheres";
             pp.query("phi.ic.type", type); // IC type (psread, laminate, constant)
-            if      (type == "psread")   value.ic_phi = new IC::PSRead(value.geom, pp, "phi.is.psread");
+            if      (type == "psread")   value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
             else if (type == "laminate") value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
             else if (type == "constant") value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid IC type ",type);
