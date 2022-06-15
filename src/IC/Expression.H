@@ -28,7 +28,8 @@ namespace IC
     {
     public:
         Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-        Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) {}
+        Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) 
+        {pp.queryclass(name,*this);}
 
         void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
         {

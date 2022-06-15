@@ -14,7 +14,7 @@
 namespace Integrator
 {
 
-Integrator::Integrator ()
+Integrator::Integrator () : amrex::AmrCore()
 {
     BL_PROFILE("Integrator::Integrator()");
     {

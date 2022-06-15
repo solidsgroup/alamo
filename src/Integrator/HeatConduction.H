@@ -55,9 +55,9 @@ public:
 
         std::string type = "sphere";
         pp.query("ic.type",type);
-        if (type == "sphere")          value.ic = new IC::Sphere(value.geom,pp,"sphere");
-        else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "constant");
-        else if (type == "expression") value.ic = new IC::Expression(value.geom,pp,"expression");
+        if (type == "sphere")          value.ic = new IC::Sphere(value.geom,pp,"ic.sphere");
+        else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "ic.constant");
+        else if (type == "expression") value.ic = new IC::Expression(value.geom,pp,"ic.expression");
         else  Util::Abort(INFO,"Invalid ic.type ", type);
 
             
