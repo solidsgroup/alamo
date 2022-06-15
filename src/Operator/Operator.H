@@ -102,14 +102,6 @@ public:
                         const MultiFab* crse_bcdata=nullptr) override final;
     virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
                     BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override final;
-    //
-    // Private: internal machinery that you should never need to mess with
-    //
-    virtual void applyInhomogNeumannTerm (int /*armlev*/, MultiFab& /*rhs*/) const override
-    {
-        // Do nothing
-        // (We don't handle BCs this way)
-    }
 
 
 public:
