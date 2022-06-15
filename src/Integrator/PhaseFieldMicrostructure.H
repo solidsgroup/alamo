@@ -52,7 +52,7 @@ enum RegularizationType{
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
-class PhaseFieldMicrostructure : public Integrator // MechanicsBase<Model::Solid::Affine::Cubic>
+class PhaseFieldMicrostructure : public MechanicsBase<Model::Solid::Affine::Cubic>
 {
 public:
     PhaseFieldMicrostructure() : Integrator() {};
@@ -61,7 +61,8 @@ public:
 
     static void Parse(PhaseFieldMicrostructure &value, IO::ParmParse &pp)
     {
-
+        BL_PROFILE("PhaseFieldMicrostructure::Parse");
+        
         pp.query("pf.number_of_grains", value.number_of_grains);     // Number of grain fields (may be more if using different IC)
         pp.query("pf.M", value.pf.M);                                // Mobility
         if (pp.contains("pf.mu")) pp.query("pf.mu", value.pf.mu);       // Phase field :math:`\mu`
@@ -74,6 +75,16 @@ public:
     
         pp.query("amr.max_level", value.max_level);            // Maximum AMR level
         pp.query("amr.ref_threshold", value.ref_threshold);    // Phase field refinement threshold
+
+        // Elasticity
+        pp.query("mechanics.tstart",value.mechanics.tstart);
+        value.mechanics.model.resize(value.number_of_grains);
+        for (int i = 0; i < value.number_of_grains; i++) pp.queryclass("mechanics.model",value.mechanics.model[i]); // Type of model to use
+        value.m_type = MechanicsBase<model_type>::Disable; // Turn mechanics off by default
+        pp.queryclass<MechanicsBase<model_type>>("mechanics",&value);
+        if (value.m_type == MechanicsBase<model_type>::Type::Static) 
+            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
+
 
         // Lagrange multiplier method for enforcing volumes
         pp.query("lagrange.on", value.lagrange.on);               // Turn on
@@ -98,6 +109,8 @@ public:
         pp.query("anisotropy.thermo_int", value.anisotropy.thermo_int);            // Modify thermo int when turned on
         pp.query("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
         pp.query("anisotropy.elastic_int",value.anisotropy.elastic_int);           // Frequency of elastic calculation
+        if (value.anisotropy.on) 
+            value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
 
         // Determine the kind of regularization to use
         std::map<std::string, RegularizationType> regularization_type;
@@ -114,7 +127,6 @@ public:
         else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy");
         else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy");
         else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
-
 
         // Boundary conditions for Etas
         std::string bc_type = "constant";
@@ -142,42 +154,7 @@ public:
         value.RegisterIntegratedVariable(&value.gbenergy, "gbenergy");
         value.RegisterIntegratedVariable(&value.realgbenergy, "realgbenergy");
         value.RegisterIntegratedVariable(&value.regenergy, "regenergy");
-        value.RegisterIntegratedVariable(&value.elastic.strainenergy, "strainenergy");
-        value.RegisterIntegratedVariable(&value.elastic.force, "force");
-        value.RegisterIntegratedVariable(&value.elastic.disp, "disp");
 
-        value.RegisterGeneralFab(value.model_mf,1,2);
-
-        // Elasticity
-        {
-            // Parameters for the elastic solver
-            pp.query("elastic.on", value.elastic.on); // Turn on
-            if (value.elastic.on)
-            {
-                value.RegisterNodalFab(value.disp_mf, AMREX_SPACEDIM, 2, "disp",true);
-                value.RegisterNodalFab(value.rhs_mf, AMREX_SPACEDIM, 2, "rhs",true);
-                value.RegisterNodalFab(value.stress_mf, AMREX_SPACEDIM * AMREX_SPACEDIM, 2, "stress",true);
-                value.RegisterNodalFab(value.energy_mf, 1, 2, "energy",true);
-    
-                pp.query("elastic.interval", value.elastic.interval); // How frequently to do elastic solve
-                pp.query("elastic.max_coarsening_level", value.elastic.max_coarsening_level); // MLMG max coarsening level
-                pp.query("elastic.tol_rel", value.elastic.tol_rel); // Solver relative tolerance
-                pp.query("elastic.tol_abs", value.elastic.tol_abs); // Solver absolute tolerance
-                pp.query("elastic.tstart", value.elastic.tstart); // Time to start implementing elasticity
-    
-                pp.queryclass("elastic.bc",value.elastic.bc); // Elastic boundary condition
-    
-    
-                value.elastic.model.resize(value.number_of_grains);
-                for (int i = 0; i < value.number_of_grains; i++)
-                {
-                    model_type mymodel;
-                    pp.queryclass("elastic.model",value.elastic.model[i]); // Type of model to use
-                }
-                pp.queryclass("elastic.model1",value.elastic.model[0]); // Read in for first model
-                pp.queryclass("elastic.model2",value.elastic.model[1]); // Read in to second model
-            }
-        }
 
     }
 
@@ -197,28 +174,17 @@ protected:
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
 
-    virtual void UpdateModel(int /*a_step*/)
-    {
-        Util::Abort(INFO,"Not implemented but needs to be.");
-    }
-
+    virtual void UpdateModel(int /*a_step*/);
 
 private:
 
     int number_of_grains = 2;
-    int number_of_ghost_cells = 3;
+    int number_of_ghost_cells = 1;
     Set::Scalar ref_threshold = 0.1;
 
     // Cell fab
-    Set::Field<Set::Scalar> eta_new_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-    Set::Field<Set::Scalar> eta_old_mf; ///< Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
-    // Node fab
-    Set::Field<Set::Scalar> disp_mf; 
-    Set::Field<Set::Scalar> rhs_mf; 
-    Set::Field<Set::Scalar> stress_mf;
-    Set::Field<Set::Scalar> energy_mf;
-
-    Set::Field<model_type> model_mf;
+    Set::Field<Set::Scalar> eta_new_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+    Set::Field<Set::Scalar> eta_old_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
 
     BC::BC<Set::Scalar> *mybc;
 
@@ -269,28 +235,10 @@ private:
 
     struct
     {
-        bool        on       = false;
-        int         interval = -1;
-        int         max_coarsening_level = -1;
-        amrex::Real tol_rel = 0.0;
-        amrex::Real tol_abs = 1.0E-10;
-        amrex::Real tstart = 0.0;
-        amrex::Vector<amrex::Real> load_t;
-        amrex::Vector<amrex::Real> load_disp;
+        Set::Scalar tstart = 0.0;
         std::vector<model_type> model;
-
-        amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xlo,bc_ylo,bc_zlo);
-        amrex::Vector<amrex::Real> AMREX_D_DECL(bc_xhi,bc_yhi,bc_zhi);
-        std::array<BC::Operator::Elastic::Constant::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xlo, bctype_ylo, bctype_zlo);
-        std::array<BC::Operator::Elastic::Constant::Type,AMREX_SPACEDIM> AMREX_D_DECL(bctype_xhi, bctype_yhi, bctype_zhi);
-        Operator::Elastic<model_type::sym> op;
-
-        BC::Operator::Elastic::Constant bc;
-
-        Set::Scalar strainenergy = 0.0;
-        Set::Scalar force = 0.0;
-        Set::Scalar disp = 0.0;
-    } elastic;
+    } mechanics;
+    
 
 };
 }

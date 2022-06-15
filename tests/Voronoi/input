@@ -8,6 +8,7 @@
 #@ nprocs = 1
 #@ dim = 2
 #@ benchmark-beaker = 85.29
+#@ benchmark-github = 60.03
 #@
 
 alamo.program               = microstructure

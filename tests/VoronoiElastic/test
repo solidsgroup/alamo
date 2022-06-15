@@ -4,7 +4,7 @@ import numpy, yt, pylab, os, pandas, sys
 outdir = sys.argv[1]
 
 generate_ref_data = False  # Change to True if you need to generate new reference data
-tolerance = 1E-3
+tolerance = 1E-8
 
 path = "{}/00200cell/".format(outdir)
 ds = yt.load(path)
@@ -18,8 +18,7 @@ def integrate(x,y):
 if dim == 2:
     prof = ds.ray([0,2.5,0],[5.0,2.5,0],)
 
-    #df = prof.to_dataframe([("gas","x"),("gas","y"),"Eta001","disp_x","stress_xx"])
-    df = prof.to_dataframe([("gas","x"),("gas","y"),"Eta001","disp001","stress001"])
+    df = prof.to_dataframe([("gas","x"),("gas","y"),"Eta001","disp_x","stress_xx"])
 
     if generate_ref_data:
         df.to_csv('reference/reference.csv')
@@ -28,8 +27,7 @@ if dim == 2:
 
     class new:
         ret = [numpy.array(_x) for _x in zip(*sorted(zip(
-            #df["x"],df["y"],df["Eta001"],df["disp_x"],df["stress_xx"])))]
-            df["x"],df["y"],df["Eta001"],df["disp001"],df["stress001"])))]
+            df["x"],df["y"],df["Eta001"],df["disp_x"],df["stress_xx"])))]
         x = ret[0]
         y = ret[1]
         eta = ret[2]
@@ -38,7 +36,6 @@ if dim == 2:
     class ref:
         ret = [numpy.array(_x) for _x in zip(*sorted(zip(
             df_ref["x"],df_ref["y"],df_ref["Eta001"],df_ref["disp_x"],df_ref["stress_xx"])))]
-            #df_ref["x"],df_ref["y"],df_ref["Eta001"],df_ref["disp001"],df_ref["stress001"])))]
         x = ret[0]
         y = ret[1]
         eta = ret[2]

@@ -1091,7 +1091,7 @@ Integrator::TimeStep (int lev, amrex::Real time, int /*iteration*/)
     for (int n = 0 ; n < node.number_of_fabs ; n++)
         FillPatch(lev,time,*node.fab_array[n],*(*node.fab_array[n])[lev],*node.physbc_array[n],0);
     for (unsigned int n = 0 ; n < m_basefields.size(); n++)
-        m_basefields[n]->FillPatch(lev,time);
+        if (m_basefields[n]->evolving) m_basefields[n]->FillPatch(lev,time);
 
     Advance(lev, time, dt[lev]);
     ++istep[lev];
@@ -1124,6 +1124,7 @@ Integrator::TimeStep (int lev, amrex::Real time, int /*iteration*/)
         }
         for (unsigned int n = 0; n < m_basefields.size(); n++)
         {
+            if (m_basefields[n]->evolving)
             m_basefields[n]->AverageDownNodal(lev,refRatio(lev));
         }
     
