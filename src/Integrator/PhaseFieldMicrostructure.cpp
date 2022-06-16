@@ -30,7 +30,6 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
     //if (lev != max_level) return;
     std::swap(eta_old_mf[lev], eta_new_mf[lev]);
     const Set::Scalar *DX = geom[lev].CellSize();
-    amrex::Box domain = geom[lev].Domain();
 
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
@@ -295,7 +294,7 @@ void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray
     }
 }
 
-void PhaseFieldMicrostructure::TimeStepComplete(Set::Scalar time, int iter)
+void PhaseFieldMicrostructure::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/)
 {
     // TODO: remove this function, it is no longer needed.
 }

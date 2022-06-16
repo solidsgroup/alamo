@@ -1,0 +1,72 @@
+#@
+#@  [serial]
+#@  dim = 2
+#@  check = false
+#@  args = stop_time=0.01
+#@  
+#@  [parallel]
+#@  dim = 2
+#@  nprocs = 4
+#@  check = true
+#@  
+
+alamo.program = flame
+
+# AMR parameters
+plot_file = output
+amr.plot_dt = 0.01
+amr.max_level = 7 
+amr.n_cell = 16 2 2
+amr.blocking_factor = 2
+amr.regrid_int = 100
+amr.base_regrid_int = 20
+amr.grid_eff = 0.7
+
+# Geometry
+geometry.prob_lo = 0.0 -0.25 -0.1 # [mm]
+geometry.prob_hi = 4.0 0.25 0.1 # [mm]
+geometry.is_periodic = 0 1 1
+
+# Timestep and duration
+timestep = 0.00005 # [s]
+stop_time = 0.2 # [s]
+
+# Phase field params
+pf.eps = 0.0005 # [mm]
+pf.lambda = 0.001
+pf.kappa = 1.0
+pf.gamma = 0.02726
+pf.w1 = 1.0
+pf.w12 = 2.0
+pf.w0 = 0.0
+
+# AP / HTPB regression rate params 
+pf.r_ap = 1.222 # [ mm / s ]
+pf.n_ap = 1.042 # [ 1 ]
+pf.r_htpb = 0.1 # [ mm / s]
+pf.r_comb = 10.0 # [ mm / s]
+pf.n_htpb = 0.0 # [ 1 ]
+pf.n_comb = 0.0 # [ 1 ]
+# Pressure used in regression rate calc
+pf.P = 0.2
+
+# Species field params
+phi.ic.type = laminate
+phi.ic.laminate.number_of_inclusions = 1
+phi.ic.laminate.center  = 0.0 0.0 0.0
+phi.ic.laminate.thickness = 0.1
+phi.ic.laminate.orientation = 0 1 
+phi.ic.laminate.eps = 0.015
+phi.ic.laminate.singlefab = 1
+phi.ic.laminate.invert = 1
+
+# Boundary conditions on eta
+pf.eta.bc.type.xlo = dirichlet
+pf.eta.bc.type.xhi = dirichlet
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.val.xlo = 0.0
+pf.eta.bc.val.xhi = 1.0
+pf.eta.bc.val.ylo = 0.0
+pf.eta.bc.val.yhi = 0.0
+

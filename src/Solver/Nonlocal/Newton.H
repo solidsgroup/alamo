@@ -307,7 +307,6 @@ public:
         return 0.0;
     }
 
-    [[depricated ("Use the new solve which uses Field<Vectors> instead")]]
     Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
                         const Set::Field<Set::Scalar> & a_b_mf,
                         Set::Field<T> &a_model_mf,
