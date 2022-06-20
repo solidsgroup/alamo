@@ -1,0 +1,55 @@
+alamo.program = mechanics
+alamo.program.mechanics.model = linear.isotropic
+
+plot_file		    = tests/PlateHole/output
+
+# this is not a time integration, so do
+# exactly one timestep and then quit
+timestep		    = 0.1
+stop_time		    = 0.1
+
+# amr parameters
+amr.plot_int		    = 1
+
+amr.max_level		    = 7
+amr.n_cell		    = 32 32 32
+
+amr.blocking_factor	    = 8
+amr.regrid_int		    = 1
+amr.grid_eff		    = 1.0
+amr.cell.all                = 1
+amr.max_grid_size = 1024
+
+# geometry
+geometry.prob_lo	    = -8 -8 -8 
+geometry.prob_hi	    = 8 8 8
+geometry.is_periodic	    = 0 0 0
+
+# ellipse configuration
+ic.type        = ellipse
+ic.ellipse.a   = 0.5 0.5 0.5  # ellipse radius
+ic.ellipse.x0  = 0 0 0 # location of ellipse center
+ic.ellipse.eps = 0.025 # diffuse boundary
+
+# elastic moduli
+nmodels = 2
+model1.E = 1E-4 #0.00001
+model1.nu = 0.3
+model1.planestress = 1
+model2.E = 1.0
+model2.nu = 0.3
+model1.planestress = 1
+
+solver.verbose = 3
+solver.nriters = 1
+solver.fixed_iter = 100
+solver.bottom_solver = smoother
+solver.omega = 1.25 # Overrelaxation
+solver.normalize_ddw = 1
+
+print_residual = 1
+
+bc.type = tension_test
+bc.tension_test.type = uniaxial_strain
+bc.tension_test.disp=0.01
+

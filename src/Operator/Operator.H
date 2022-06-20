@@ -56,6 +56,7 @@ public :
 
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
     virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
+    void SetNormalizeDDW(bool a_normalize_ddw) {m_normalize_ddw = a_normalize_ddw;}
     
     //
     // Public Utilty functions
@@ -120,6 +121,7 @@ protected:
     amrex::Vector<amrex::Vector<amrex::Vector<amrex::MultiFab> > > m_a_coeffs;
     amrex::Vector<amrex::Vector<std::unique_ptr<amrex::MultiFab> > > m_diag;
     Set::Scalar m_omega = 2./3.;
+    bool m_normalize_ddw = false;
 };
 
 

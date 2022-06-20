@@ -178,6 +178,7 @@ protected:
     Set::Scalar tol_abs = -1.0;
     Set::Scalar omega = -1.0;
     bool average_down_coeffs = false;
+    bool normalize_ddw = false;
 
     Operator::Operator<Grid::Node> * linop;
     amrex::MLMG * mlmg;
@@ -214,6 +215,7 @@ protected:
 
         if (omega>=0) this->linop->SetOmega(omega);
         if (average_down_coeffs) this->linop->SetAverageDownCoeffs(true);
+        if (normalize_ddw) this->linop->SetNormalizeDDW(true);
     }
     
 
@@ -273,6 +275,11 @@ public:
         // Whether to average down coefficients or use the ones given.
         // (Setting this to true is important for fracture.)
         pp.query("average_down_coeffs",value.average_down_coeffs);
+
+        // Whether to normalize DDW when calculating the diagonal.
+        // This is primarily used when DDW is near-singular - like when there
+        // is a "void" region or when doing phase field fracture.
+        pp.query("normalize_ddw",value.normalize_ddw);
     }
 protected:
     bool m_defined = false;

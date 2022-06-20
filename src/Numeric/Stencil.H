@@ -181,7 +181,14 @@ struct Stencil<T,1,0,1>
             const Set::Scalar dx[AMREX_SPACEDIM],
             std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return 0.25*(f(i+1,j,k+1,m) + f(i-1,j,k-1,m) - f(i+1,j,k-1,m) - f(i-1,j,k+1,m))/(dx[0]*dx[2]);
+        int khi = 1, klo = 1, ihi = 1, ilo = 1;
+        Set::Scalar kfac = 0.5, ifac = 0.5;
+        if (stencil[0] == StencilType::Hi) {ilo = 0; ifac = 1.0;}
+        if (stencil[0] == StencilType::Lo) {ihi = 0; ifac = 1.0;}
+        if (stencil[2] == StencilType::Hi) {klo = 0; kfac = 1.0;}
+        if (stencil[2] == StencilType::Lo) {khi = 0; kfac = 1.0;}
+
+        return kfac*ifac*(f(i+ihi,j,k+khi,m) + f(i-ilo,j,k-klo,m) - f(i+ihi,j,k-klo,m) - f(i-ilo,j,k+khi,m))/(dx[0]*dx[2]);
     };
 };
 template<class T>
@@ -193,7 +200,14 @@ struct Stencil<T,0,1,1>
             const Set::Scalar dx[AMREX_SPACEDIM],
             std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return 0.25*(f(i,j+1,k+1,m) + f(i,j-1,k-1,m) - f(i,j+1,k-1,m) - f(i,j-1,k+1,m))/(dx[1]*dx[2]);
+        int jhi = 1, jlo = 1, khi = 1, klo = 1;
+        Set::Scalar jfac = 0.5, kfac = 0.5;
+        if (stencil[1] == StencilType::Hi) {jlo = 0; jfac = 1.0;}
+        if (stencil[1] == StencilType::Lo) {jhi = 0; jfac = 1.0;}
+        if (stencil[2] == StencilType::Hi) {klo = 0; kfac = 1.0;}
+        if (stencil[2] == StencilType::Lo) {khi = 0; kfac = 1.0;}
+
+        return jfac*kfac*(f(i,j+jhi,k+khi,m) + f(i,j-jlo,k-klo,m) - f(i,j+jhi,k-klo,m) - f(i,j-jlo,k+khi,m))/(dx[1]*dx[2]);
     };
 };
 
