@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import numpy, yt, pylab, os, pandas, sys
+import numpy, yt, pylab, os, pandas, sys, math
 
 outdir = sys.argv[1]
 
@@ -46,7 +46,7 @@ if dim == 2:
     err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.eta) - ref.eta)**2))
     print("eta error",err)
     if err > tolerance: raise(Exception("Error in eta"))
-
+    if math.isnan(err): raise(Exception("Errir is nan"))
 
 if dim == 3:
     raise(Exception("Not implemented for 3D yet"))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import numpy, yt, pylab, os, sys
+import numpy, yt, pylab, os, sys, math
 
 outdir = sys.argv[1]
 
@@ -41,6 +41,9 @@ print("displacement error",u1_err)
 
 sig1_err = sum((sig1_exact - sig1)**2) / sum(sig1_exact**2)
 print("stress error",sig1_err)
+
+if math.isnan(u1_err): raise(Exception("Error in u1 - nan"))
+if math.isnan(sig1_err): raise(Exception("Error in sig1 - nan"))
 
 if u1_err > tolerance: raise(Exception("Error in u1"))
 if sig1_err > tolerance: raise(Exception("Error in sig1"))
