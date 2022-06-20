@@ -42,7 +42,7 @@ model1.planestress = 1
 
 solver.verbose = 3
 solver.nriters = 1
-solver.fixed_iter = 100
+solver.fixed_iter = 500
 solver.bottom_solver = smoother
 solver.omega = 1.25 # Overrelaxation
 solver.normalize_ddw = 1
@@ -50,6 +50,6 @@ solver.normalize_ddw = 1
 print_residual = 1
 
 bc.type = tension_test
-bc.tension_test.type = uniaxial_strain
+bc.tension_test.type = uniaxial_stress
 bc.tension_test.disp=0.01
 
