@@ -95,15 +95,23 @@ namespace Integrator
 	// Eta value to restrict the refinament for the temperature field
 	pp.query("amr.refinament_restriction", value.t_refinement_restriction);
 
+	
+	
         {
             // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
             // specified using these parameters. 
             //IO::ParmParse pp("phi.ic");
             std::string type = "packedspheres";
             pp.query("phi.ic.type", type); // IC type (psread, laminate, constant)
-            if      (type == "psread")   value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-            else if (type == "laminate") value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
-            else if (type == "constant") value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
+            if      (type == "psread"){
+	      value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
+              pp.query("phi.ic.psread.eps", value.zeta);
+	    }
+            else if (type == "laminate"){
+	      value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
+	      pp.query("phi.ic.laminate.eps", value.zeta);
+	    }
+            else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid IC type ",type);
             
             value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 1, "phi", true);
@@ -203,7 +211,8 @@ namespace Integrator
                                             14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * pf.w0,
                                             -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * pf.w0 );
             Numeric::Function::Polynomial<3> dw = w.D();
-	    	    
+
+	    Set::Scalar fr = 4.0 / zeta;
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
 	        
@@ -240,7 +249,7 @@ namespace Integrator
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
                     Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
                     Util::ParallelMessage(INFO,"temp: " ,temp(i,j,k));
-		            Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
+		    Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
                     Util::ParallelAbort(INFO, "eta", etanew(i,j,k) == etanew(i,j,k) );
                     }
 
@@ -275,20 +284,14 @@ namespace Integrator
                     Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
                     qdot += (pressure.P * pressure.a_ap   + pressure.b_ap)   * phi(i,j,k) / thermal.k_ap; // AP Portion 
                     qdot += (pressure.P * pressure.a_htpb + pressure.b_htpb) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
-                    qdot += (pressure.P * pressure.a_comb + pressure.b_comb) * 4.0 * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
+                    qdot += (pressure.P * pressure.a_comb + pressure.b_comb) * fr * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
                     //
                     // Evolve temperature with the qdot flux term in place
                     //
                     // Calculate modified spatial derivative of temperature
-                    /*
-                    if (eta(i,j,k) < 0.0015){
-                    tempnew(i,j,k) = 0.0;
-                    mob(i,j,k) = 10.0;
-                    }
-                    else {*/
-		            Set::Scalar dTdt = 0.0;
+		    Set::Scalar dTdt = 0.0;
                     dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);                    
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;                            
@@ -303,16 +306,9 @@ namespace Integrator
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
 		     mob(i,j,k)  = (small + thermal.m_ap   * exp(thermal.exp_ap  )) * phi(i,j,k)
-                                + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
-                                + (small + thermal.m_comb * exp(thermal.exp_comb)) * (4.0 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-                    //}
+                                 + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
+                                 + (small + thermal.m_comb * exp(thermal.exp_comb)) * (fr * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
-		            //if (mob(i,j,k) >= 1.5){
-		            //Util::ParallelMessage(INFO, "mob", mob(i,j,k));
-		            //Util::ParallelAbort(INFO, "mob", mob(i,j,k)>=1.5);
-		            //}
-		   
-		   
                 });
                 
             }

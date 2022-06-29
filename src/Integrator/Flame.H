@@ -67,7 +67,8 @@ protected:
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     Set::Scalar t_refinement_restriction = 0.1;
-
+    Set::Scalar zeta = 1.0; 
+  
     IC::IC *ic_eta;
 
     struct {
