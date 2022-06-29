@@ -39,15 +39,15 @@ namespace Integrator
           
         }
 
-	    {
+	{
             pp.query("pressure.P", value.pressure.P);
-	        pp.query("pressure.a_ap", value.pressure.a_ap);
-	        pp.query("pressure.a_htpb", value.pressure.a_htpb);
-	        pp.query("pressure.a_comb", value.pressure.a_comb);
-	        pp.query("pressure.b_ap", value.pressure.b_ap);
-	        pp.query("pressure.b_htpb", value.pressure.b_htpb);
-	        pp.query("pressure.b_comb", value.pressure.b_comb);
-	    }
+	    pp.query("pressure.a_ap", value.pressure.a_ap);
+	    pp.query("pressure.a_htpb", value.pressure.a_htpb);
+	    pp.query("pressure.a_comb", value.pressure.a_comb);
+	    pp.query("pressure.b_ap", value.pressure.b_ap);
+	    pp.query("pressure.b_htpb", value.pressure.b_htpb);
+	    pp.query("pressure.b_comb", value.pressure.b_comb);
+	}
 
         {
             //IO::ParmParse pp("thermal");
@@ -92,7 +92,8 @@ namespace Integrator
         pp.query("amr.refinement_criterion", value.m_refinement_criterion); 
         // Refinement criterion for temperature field
         pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion); 
-
+	// Eta value to restrict the refinament for the temperature field
+	pp.query("amr.refinament_restriction", value.t_refinement_restriction);
 
         {
             // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
@@ -301,7 +302,7 @@ namespace Integrator
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
-		            mob(i,j,k)  = (small + thermal.m_ap   * exp(thermal.exp_ap  )) * phi(i,j,k)
+		     mob(i,j,k)  = (small + thermal.m_ap   * exp(thermal.exp_ap  )) * phi(i,j,k)
                                 + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
                                 + (small + thermal.m_comb * exp(thermal.exp_comb)) * (4.0 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
                     //}
@@ -345,15 +346,18 @@ namespace Integrator
         
         if (thermal.on)
         {
+	    
             for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
             {
                 const amrex::Box &bx = mfi.tilebox();
                 amrex::Array4<char> const &tags = a_tags.array(mfi);
                 amrex::Array4<const Set::Scalar> const &temp = (*temp_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &eta  = (*eta_mf[lev]).array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-                    if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion)
+                    if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) > t_refinement_restriction)
+
                         tags(i, j, k) = amrex::TagBox::SET;
                 });
             }

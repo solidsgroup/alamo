@@ -66,7 +66,8 @@ protected:
  
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
-    
+    Set::Scalar t_refinement_restriction = 0.1;
+
     IC::IC *ic_eta;
 
     struct {
@@ -98,7 +99,7 @@ protected:
         Set::Scalar E_ap, E_htpb, E_comb;
         Set::Scalar correction_factor = 1.0;
         Set::Scalar exp_ap = 0.0, exp_htpb = 0.0, exp_comb = 0.0;
-
+     
     } thermal;
 
     struct {
