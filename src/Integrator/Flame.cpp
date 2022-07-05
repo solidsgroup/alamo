@@ -41,12 +41,13 @@ namespace Integrator
 
 	{
             pp.query("pressure.P", value.pressure.P);
-	    pp.query("pressure.a_ap", value.pressure.a_ap);
-	    pp.query("pressure.a_htpb", value.pressure.a_htpb);
-	    pp.query("pressure.a_comb", value.pressure.a_comb);
-	    pp.query("pressure.b_ap", value.pressure.b_ap);
-	    pp.query("pressure.b_htpb", value.pressure.b_htpb);
-	    pp.query("pressure.b_comb", value.pressure.b_comb);
+	    pp.query("pressure.a1", value.pressure.a1);
+	    pp.query("pressure.a2", value.pressure.a2);
+	    pp.query("pressure.a3", value.pressure.a3);
+	    pp.query("pressure.b1", value.pressure.b1);
+	    pp.query("pressure.b2", value.pressure.b2);
+	    pp.query("pressure.b3", value.pressure.b3);
+        pp.query("pressure.c1", value.pressure.c1);
 	}
 
         {
@@ -212,7 +213,7 @@ namespace Integrator
                                             -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * pf.w0 );
             Numeric::Function::Polynomial<3> dw = w.D();
 
-	    Set::Scalar fr = 4.0 / zeta;
+	    
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
 	        
@@ -249,7 +250,7 @@ namespace Integrator
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
                     Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
                     Util::ParallelMessage(INFO,"temp: " ,temp(i,j,k));
-		    Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
+		            Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
                     Util::ParallelAbort(INFO, "eta", etanew(i,j,k) == etanew(i,j,k) );
                     }
 
@@ -281,17 +282,21 @@ namespace Integrator
                     // Note: "thermal.q0" is an initiation heat flux - think of it
                     // like a laser that is heating up the interface. 
 
-                    Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
-                    qdot += (pressure.P * pressure.a_ap   + pressure.b_ap)   * phi(i,j,k) / thermal.k_ap; // AP Portion 
-                    qdot += (pressure.P * pressure.a_htpb + pressure.b_htpb) * (1.0 - phi(i,j,k)) / thermal.k_htpb; // HTPB Portion 
-                    qdot += (pressure.P * pressure.a_comb + pressure.b_comb) * fr * phi(i,j,k) * (1.0 - phi(i,j,k)) / thermal.k_comb; // AP/HTPB Portion
+                    //Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
+                    Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 ; 
+                    Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2; 
+                    Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
+
+                    Set::Scalar qflux = k1 * phi(i,j,k) + k2 * (1.0 - phi(i,j,k) ) + exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+
+                    Set::Scalar qdot = mdot(i,j,k) * ( qflux / 10.0 / alpha(i,j,k) ); 
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
                     //
                     // Evolve temperature with the qdot flux term in place
                     //
                     // Calculate modified spatial derivative of temperature
-		    Set::Scalar dTdt = 0.0;
+		            Set::Scalar dTdt = 0.0;
                     dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);                    
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;                            
@@ -305,9 +310,9 @@ namespace Integrator
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
-		     mob(i,j,k)  = (small + thermal.m_ap   * exp(thermal.exp_ap  )) * phi(i,j,k)
+		            mob(i,j,k)  = (small + thermal.m_ap   * exp(thermal.exp_ap  )) * phi(i,j,k)
                                  + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
-                                 + (small + thermal.m_comb * exp(thermal.exp_comb)) * (fr * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                                 + (small + thermal.m_comb * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
                 });
                 

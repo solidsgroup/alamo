@@ -83,9 +83,10 @@ protected:
     struct{
 
       Set::Scalar P=1.0;
-      Set::Scalar a_ap=0.0, a_htpb=0.0, a_comb=0.0;
-      Set::Scalar b_ap=0.0, b_htpb=0.0, b_comb=0.0;
-      
+      Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
+      Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
+      Set::Scalar c1 = 0.0;
+
     } pressure;
 
     struct {
