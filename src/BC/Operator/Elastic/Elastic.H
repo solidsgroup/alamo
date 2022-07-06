@@ -81,8 +81,12 @@ public:
                 const int &i, const int &j, const int &k,
                 const amrex::Box &domain) = 0;
 
+    void setHomogeneous(bool a_homogeneous)
+    {m_homogeneous = a_homogeneous;}
+    
 protected:
     Set::Scalar m_time = 0.0;
+    bool m_homogeneous = false;
 };
 }
 }

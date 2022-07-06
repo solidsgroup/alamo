@@ -44,6 +44,10 @@ public:
 
     void setNRIters(int a_nriters) { m_nriters = a_nriters; }
 
+    void setPsi(Set::Field<Set::Scalar> &a_psi)
+    {
+        m_psi = &a_psi;
+    }
 
 private:
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf, 
@@ -186,6 +190,10 @@ private:
             }
 
             m_elastic->SetModel(a_ddw_mf);
+            if (m_psi)
+                for (int i = 0; i < m_psi->size(); i++)
+                    m_elastic->SetPsi(i,*(*m_psi)[i]);
+
 
             for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
@@ -450,6 +458,30 @@ public:
         }
     }
 
+    void compLinearSolverResidual(Set::Field<Set::Vector> &a_res_mf,
+                                  Set::Field<Set::Vector> &a_u_mf,
+                                  Set::Field<Set::Vector> &a_b_mf)
+    {
+        Set::Field<Set::Scalar> res_mf(a_res_mf.size()), sol_mf(a_u_mf.size()), rhs_mf(a_b_mf.size());
+        for (int lev = 0; lev < a_u_mf.size(); lev++)
+        {
+            res_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            sol_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            rhs_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            
+            a_u_mf.Copy(lev,*sol_mf[lev],0,2);
+            a_b_mf.Copy(lev,*rhs_mf[lev],0,2);
+        }
+        
+        mlmg->compResidual(amrex::GetVecOfPtrs(res_mf), amrex::GetVecOfPtrs(sol_mf), amrex::GetVecOfConstPtrs(rhs_mf));
+
+        for (int lev = 0; lev < a_res_mf.size(); ++lev)
+        {
+            a_res_mf.CopyFrom(lev,*res_mf[lev],0,2);
+        }
+    }
+
+
     void W(Set::Field<Set::Scalar> & a_w_mf,
             Set::Field<Set::Scalar> & a_u_mf,
             Set::Field<T> &a_model_mf)
@@ -556,6 +588,8 @@ public:
     Set::Scalar m_nrtolerance = 0.0;
     Operator::Elastic<T::sym> *m_elastic;
     //BC::Operator::Elastic::Elastic *m_bc;
+
+    Set::Field<Set::Scalar> *m_psi = nullptr;
 
 public:
     // These paramters control a standard Newton-Raphson solve.

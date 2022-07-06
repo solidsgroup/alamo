@@ -50,6 +50,9 @@ public:
     { for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
     void SetModel (const Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>> & a_model)
     { for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,*a_model[ilev]);}
+    void SetPsi (int amrlev, const amrex::MultiFab& a_psi);
+    void SetPsi (int amrlev, const amrex::MultiFab& a_psi, const Set::Scalar &a_psi_small)
+    {m_psi_small = a_psi_small; SetPsi(amrlev,a_psi);}
 
     /// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
     ///
@@ -139,6 +142,10 @@ private:
     /// The models contain elastic constants and contain methods for converting strain to stress
     amrex::Vector<Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>>> m_ddw_mf;
 
+    // This is a mask variable.
+    amrex::Vector<Set::Field<Set::Scalar>> m_psi_mf;
+    Set::Scalar m_psi_small = 1E-8;
+    bool m_psi_set = false;
 
     virtual void averageDownCoeffs () override;
     void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
@@ -172,10 +179,39 @@ private:
     bool m_model_set = false;
     bool m_bc_set = false;
     
+    Set::Scalar m_alpha = 1.0;
+
 public:
-    static void Parse(Elastic<SYM> & /*value*/, IO::ParmParse & /*pp*/)
+    static void Parse(Elastic<SYM> & value, IO::ParmParse & pp)
     {
+        pp.query("alpha",value.m_alpha);
+        pp.query("small",value.m_psi_small);
     }
+
+//    virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+//                        const MultiFab* /*crse_bcdata*/=nullptr) override
+//    {
+//        const int mglev = 0;
+//        const int ncomp = b.nComp();
+//        apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
+//        MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+//        //if (m_final_residual)
+//        //{
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+//        //}
+//        amrex::Geometry geom = m_geom[amrlev][mglev];
+//        realFillBoundary(resid,geom);
+//    }
+protected:
+    virtual void Fsmooth (int amrlev, int mglev, MultiFab& x,const MultiFab& b) const override;
+
 
 };
 }

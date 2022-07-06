@@ -139,7 +139,8 @@ if args.buildamrex and not args.amrex:
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
     args.amrex = "ext/amrex/"+postfix
     f.write("AMREX = ext/amrex/" + postfix + "/\n")
-    f.write("AMREX_TARGET = ext/amrex/" + postfix + "\n")
+    f.write("AMREX_TARGET = ext/amrex/" + postfix + "/lib/libamrex.a\n")
+    f.write("AMREX_DEP = $(shell find ext/amrex/Src/)\n")
     
     if not os.path.isdir("ext/amrex"):
         if args.offline:
@@ -171,7 +172,7 @@ if args.buildamrex and not args.amrex:
     message("AMReX-Configure",amrex_configure,False)
     subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    f2.write("ext/amrex/"+postfix+":\n")
+    f2.write("ext/amrex/"+postfix+"/lib/libamrex.a: $(AMREX_DEP)\n")
     f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
     f2.write("\tmake -C ext/amrex install\n")
         

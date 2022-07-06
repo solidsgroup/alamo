@@ -147,7 +147,7 @@ public:
 
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if ((a_homogeneous || m_homogeneous) && m_bc_type[face][dir] == Type::Displacement) 
                             rhs(i,j,k)(dir) = 0.0;
                         else 
                             rhs(i,j,k)(dir) = m_bc_val[face][dir](m_time);
@@ -225,7 +225,7 @@ public:
 
                     if (!(face == Face::INT))
                     {
-                        if (a_homogeneous && m_bc_type[face][dir] == Type::Displacement) 
+                        if ((a_homogeneous || m_homogeneous) && m_bc_type[face][dir] == Type::Displacement) 
                             rhs(i,j,k,dir) = 0.0;
                         else 
                             rhs(i,j,k,dir) = m_bc_val[face][dir](m_time);

@@ -43,6 +43,7 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
     amrex::MultiFab x(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
     amrex::MultiFab Ax(m_diag[amrlev][mglev]->boxArray(), m_diag[amrlev][mglev]->DistributionMap(), ncomp, nghost);
 
+    MFIter::allowMultipleMFIters(true);
     for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
     {
         const Box& bx = mfi.validbox();

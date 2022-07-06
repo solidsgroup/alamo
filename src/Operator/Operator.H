@@ -57,6 +57,8 @@ public :
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
     virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
     void SetNormalizeDDW(bool a_normalize_ddw) {m_normalize_ddw = a_normalize_ddw;}
+
+    
     
     //
     // Public Utilty functions
@@ -100,9 +102,9 @@ protected:
 public:
     virtual int getNGrow(int /*alev*/=0,int /*mglev*/=0) const override final {return 2;}
     virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
-                        const MultiFab* crse_bcdata=nullptr) override final;
+                        const MultiFab* crse_bcdata=nullptr) override;
     virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
-                    BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override final;
+                    BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override;
 
 
 public:

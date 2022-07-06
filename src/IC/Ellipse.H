@@ -55,7 +55,7 @@ public:
                     for (int m = 0; m < number_of_inclusions; m++)
                     {
                         Set::Scalar norm = (A[m]*(x-center[m])).lpNorm<2>();
-                        value += 0.5 - 0.5*std::erf(((x-center[m]).transpose() * A[m] * (x-center[m]) - 1.0) / eps[m] / norm);
+                        value += 0.5 - 0.5*std::tanh(((x-center[m]).transpose() * A[m] * (x-center[m]) - 1.0) / eps[m] / norm);
                         // if (field(i,j,k,m+1) < 0.) field(i,j,k,m+1) = 0.;
                         // if (field(i,j,k,m+1) > 1.) field(i,j,k,m+1) = 1.;
                         // value += field(i,j,k,m+1);
