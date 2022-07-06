@@ -107,10 +107,12 @@ namespace Integrator
             if      (type == "psread"){
 	      value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
               pp.query("phi.ic.psread.eps", value.zeta);
+	      pp.query("phi.zeta_0", value.zeta_0);
 	    }
             else if (type == "laminate"){
 	      value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
 	      pp.query("phi.ic.laminate.eps", value.zeta);
+	      pp.query("phi.zeta_0", value.zeta_0);
 	    }
             else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid IC type ",type);
@@ -233,7 +235,7 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
-
+		
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
@@ -283,11 +285,11 @@ namespace Integrator
                     // like a laser that is heating up the interface. 
 
                     //Set::Scalar qdot = 0.0; // Set to work with SI Units. Pressure should be in MPa. qdot is in units of W/m^2 
-                    Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 ; 
-                    Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2; 
+                    Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
+                    Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
                     Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
 
-                    Set::Scalar qflux = k1 * phi(i,j,k) + k2 * (1.0 - phi(i,j,k) ) + exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                    Set::Scalar qflux = k1 * phi(i,j,k) + k2 * (1.0 - phi(i,j,k) ) + (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
                     Set::Scalar qdot = mdot(i,j,k) * ( qflux / 10.0 / alpha(i,j,k) ); 
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
