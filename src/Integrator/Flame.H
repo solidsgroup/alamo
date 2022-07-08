@@ -58,6 +58,8 @@ protected:
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
 
+    Set::Field<Set::Scalar> qgrid_mf;
+  
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
     IC::IC *ic_phi;
@@ -93,8 +95,8 @@ protected:
     struct {
         int on = 0;
         Set::Scalar rho_ap, rho_htpb;         
-        Set::Scalar k_ap, k_htpb, k0, k_comb;             
-        Set::Scalar cp_ap, cp_htpb;           
+        Set::Scalar k_ap , k_htpb , k_comb  = 0.0, k0 = 0.0;             
+        Set::Scalar cp_ap, cp_htpb, cp_comb = 0.0;           
         Set::Scalar q_ap, q_htpb, q_comb;
         Set::Scalar q0=1.0;
         Set::Scalar temperature_delay = 0.01, bound = 0.0;

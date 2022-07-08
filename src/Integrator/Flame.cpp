@@ -61,6 +61,7 @@ namespace Integrator
             pp.query("thermal.k_comb", value.thermal.k_comb); // Combined Thermal Conductivity
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
+            pp.query("thermal.cp_comb", value.thermal.cp_comb);
             pp.query("thermal.q_ap", value.thermal.q_ap); // AP  Thermal Flux
             pp.query("thermal.q_htpb", value.thermal.q_htpb); // HTPB Thermal Flux
             pp.query("thermal.q_comb" , value.thermal.q_comb); // Interface heat flux
@@ -84,7 +85,7 @@ namespace Integrator
                 value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
                 value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
                 value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
-        
+                value.RegisterNewFab(value.qgrid_mf, value.bc_temp, 1, 1, "qgrid", true);        
             }
         }
 
@@ -141,6 +142,7 @@ namespace Integrator
             temp_old_mf[lev]->setVal(thermal.bound);
             alpha_mf[lev]->setVal(0.0);
             mob_mf[lev]->setVal(0.0);
+	    qgrid_mf[lev]->setVal(0.0);
         } 
 
         eta_mf[lev]->setVal(1.0);
@@ -235,6 +237,7 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
+		amrex::Array4<Set::Scalar> const &qgrid = (*qgrid_mf[lev]).array(mfi);
 		
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -258,9 +261,9 @@ namespace Integrator
 
                     // Calculate effective thermal conductivity
                     // No special interface mixure rule is needed here.
-                    Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k));
+                    Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k)) + thermal.k_comb * 4.0 * phi(i,j,k) * (1 - phi(i,j,k));
                     Set::Scalar rho = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k));
-                    Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
+                    Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k)) + thermal.cp_comb * 4.0 * phi(i,j,k) * (1 - phi(i,j,k));
 
                     // Calculate thermal diffusivity and store in field
                     alpha(i,j,k) = eta(i,j,k) * K / rho / cp;
@@ -291,9 +294,11 @@ namespace Integrator
 
                     Set::Scalar qflux = k1 * phi(i,j,k) + k2 * (1.0 - phi(i,j,k) ) + (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
-                    Set::Scalar qdot = mdot(i,j,k) * ( qflux / 10.0 / alpha(i,j,k) ); 
+                    Set::Scalar qdot = ( qflux / 10.0 / ( (zeta / zeta_0) *  alpha(i,j,k)) ); 
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
+		    qgrid(i,j,k) = qdot;
+		    
                     //
                     // Evolve temperature with the qdot flux term in place
                     //
