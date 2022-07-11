@@ -5,6 +5,7 @@
 #include "IC/Laminate.H"
 #include "IC/Constant.H"
 #include "IC/PSRead.H"
+#include "IC/Expression.H"
 
 namespace Integrator
 {
@@ -37,7 +38,17 @@ namespace Integrator
             RegisterNewFab(Eta_mf, EtaBC, 1, 1, "Eta", true);
             RegisterNewFab(Eta_old_mf, EtaBC, 1, 1, "Eta_old", false);
         }
-        
+
+        {
+            // Read in parameters to determine the IC for eta
+            IO::ParmParse pp("eta.ic");
+            std::string type = "constant";
+            pp.query("type", type); // IC type - [packedspheres,laminate] - see classes for more information
+            if (type == "constant") EtaIC = new IC::Constant(geom,pp,"constant");
+            else if (type == "expression") EtaIC  = new IC::Expression(geom,pp,"expression");
+            else Util::Abort(INFO,"Invalid eta.ic ", type);
+        }
+
         {
             // These parameters are for the **Thermal transport model**
             IO::ParmParse pp("thermal");
@@ -114,6 +125,12 @@ namespace Integrator
             Util::Warning(INFO,"to look at the parameter list.\n");
             Util::Abort(INFO, "Terminating for now until the input decks are brought up to speed.");
         }
+
+        //
+        // Register integrated variables
+        //
+        RegisterIntegratedVariable(&volume,"volume");
+        RegisterIntegratedVariable(&area,"area");
     }
 
     void Flame::Initialize(int lev)
@@ -121,8 +138,10 @@ namespace Integrator
         if (thermal.on) Temp_mf[lev]->setVal(0.0);
         if (thermal.on) Temp_old_mf[lev]->setVal(0.0);
 
-        Eta_mf[lev]->setVal(1.0);
-        Eta_old_mf[lev]->setVal(1.0);
+        //Eta_mf[lev]->setVal(1.0);
+        //Eta_old_mf[lev]->setVal(1.0);
+        EtaIC->Initialize(lev,Eta_mf);
+        EtaIC->Initialize(lev,Eta_old_mf);
 
         PhiIC->Initialize(lev, phi_mf);
     }
@@ -370,4 +389,22 @@ namespace Integrator
         PhiIC->Initialize(lev, phi_mf);
         Util::Message(INFO, "Regridding on level ", lev);
     } 
+
+    void Flame::Integrate(int amrlev, Set::Scalar time, int step,
+                                            const amrex::MFIter &mfi, const amrex::Box &box)
+    {
+        BL_PROFILE("Flame::Integrate");
+        const Set::Scalar *DX = geom[amrlev].CellSize();
+        Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        amrex::Array4<amrex::Real> const &eta = (*Eta_mf[amrlev]).array(mfi);
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+            volume += eta(i, j, k, 0) * dv;
+            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar normgrad = grad.lpNorm<2>();
+            Set::Scalar da = normgrad * dv;
+            area += da;
+        });
+    }
+
 } // namespace Integrator

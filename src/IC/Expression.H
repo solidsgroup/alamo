@@ -27,6 +27,7 @@ namespace IC
     class Expression : public IC
     {
     public:
+        enum CoordSys {Cartesian, PolarYZ, PolarXY, Spherical};
         Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
         Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) 
         {pp.queryclass(name,*this);}
@@ -56,6 +57,7 @@ namespace IC
 
     private:
         std::vector<FunctionParserAD> fparser;
+        Expression::CoordSys coord = Expression::CoordSys::Cartesian;
 
     public:
         // This is an extremely general IC that uses JIT fparser to compile an
@@ -72,6 +74,12 @@ namespace IC
         {
             for (int i = 0; true; i++)
             {
+                std::string coordstr = "cartesian";
+                pp.query("coord",coordstr);
+                if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
+                else if (coordstr == "polaryz") value.coord= Expression::CoordSys::PolarYZ;
+                else Util::Abort(INFO,"unsupported coordinates ",coordstr);
+
                 std::string func = "0.0";
                 std::string name = "region" + std::to_string(i);
                 
@@ -80,14 +88,29 @@ namespace IC
 
                 FunctionParserAD fparser;
 
-                fparser.AddVariable("x");
-                fparser.AddVariable("y");
-                fparser.AddVariable("z");
-                if (fparser.Parse(func.c_str(), "x,y,z") != -1)
+                if (value.coord == Expression::CoordSys::Cartesian)
                 {
-                    std::cout << "Parsing failed for " << func << '\n';
-                    exit(1);
+                    fparser.AddVariable("x");
+                    fparser.AddVariable("y");
+                    fparser.AddVariable("z");
+                    if (fparser.Parse(func.c_str(), "x,y,z") != -1)
+                    {
+                        std::cout << "Parsing failed for " << func << '\n';
+                        exit(1);
+                    }
                 }
+                else if (value.coord == Expression::CoordSys::Cartesian)
+                {
+                    fparser.AddVariable("theta");
+                    fparser.AddVariable("r");
+                    fparser.AddVariable("x");
+                    if (fparser.Parse(func.c_str(), "theta,r,x") != -1)
+                    {
+                        std::cout << "Parsing failed for " << func << '\n';
+                        exit(1);
+                    }
+                }
+
                 fparser.Optimize();
                 if (!fparser.JITCompile())
                 {
