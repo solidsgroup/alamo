@@ -289,6 +289,9 @@ namespace Integrator
                         - L * dt * (
                             (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * Eta_old(i, j, k) + 3.0 * a3 * Eta_old(i, j, k) * Eta_old(i, j, k) + 4 * a4 * Eta_old(i, j, k) * Eta_old(i, j, k) * Eta_old(i, j, k))
                             - pf.eps * pf.kappa * eta_lap);
+                    
+                    if (Eta(i,j,k) > Eta_old(i,j,k)) Eta(i,j,k) = Eta_old(i,j,k);
+                    //if (std::isnan(Eta(i,j,k))) Util::Abort(INFO,Eta_old(i,j,k)," ",i," ",j," ",k, " lev=",lev);
                 });
             }
         }

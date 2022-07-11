@@ -27,7 +27,7 @@ namespace IC
     class Expression : public IC
     {
     public:
-        enum CoordSys {Cartesian, PolarYZ, PolarXY, Spherical};
+        enum CoordSys {Cartesian, Polar, Spherical};
         Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
         Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) 
         {pp.queryclass(name,*this);}
@@ -47,8 +47,18 @@ namespace IC
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         Set::Vector x = Set::Position(i, j, k, geom[lev], type);
                         double loc[AMREX_SPACEDIM];
-                        AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
-                        field(i,j,k,n) = fparser[n].Eval(loc);
+                        if (coord == Expression::CoordSys::Cartesian)
+                        {
+                            AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
+                            field(i,j,k,n) = fparser[n].Eval(loc);
+                        }
+                        #if AMREX_SPACEDIM>1
+                        else if (coord == Expression::CoordSys::Polar)
+                        {
+                            AMREX_D_TERM(loc[0] = sqrt(x(0)*x(0) + x(1)*x(1));, loc[1] = std::atan2(x(1),x(0)), loc[2] = x(2));
+                            field(i,j,k,n) = fparser[n].Eval(loc);
+                        }
+                        #endif
                     });
                 }
             }
@@ -77,7 +87,7 @@ namespace IC
                 std::string coordstr = "cartesian";
                 pp.query("coord",coordstr);
                 if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
-                else if (coordstr == "polaryz") value.coord= Expression::CoordSys::PolarYZ;
+                else if (coordstr == "polar") value.coord= Expression::CoordSys::Polar;
                 else Util::Abort(INFO,"unsupported coordinates ",coordstr);
 
                 std::string func = "0.0";
@@ -99,12 +109,12 @@ namespace IC
                         exit(1);
                     }
                 }
-                else if (value.coord == Expression::CoordSys::Cartesian)
+                else if (value.coord == Expression::CoordSys::Polar)
                 {
-                    fparser.AddVariable("theta");
                     fparser.AddVariable("r");
-                    fparser.AddVariable("x");
-                    if (fparser.Parse(func.c_str(), "theta,r,x") != -1)
+                    fparser.AddVariable("theta");
+                    fparser.AddVariable("z");
+                    if (fparser.Parse(func.c_str(), "r,theta,z") != -1)
                     {
                         std::cout << "Parsing failed for " << func << '\n';
                         exit(1);
