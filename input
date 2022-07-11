@@ -4,7 +4,7 @@ alamo.program = flame
 plot_file = output
 amr.plot_dt = 0.001
 #amr.plot_int = 1
-amr.max_level = 7
+amr.max_level = 5 #7
 amr.n_cell = 4 4 16
 amr.blocking_factor = 2
 amr.regrid_int = 100
@@ -19,10 +19,10 @@ geometry.is_periodic = 1 1 0
 
 # Timestep and duration
 timestep = 0.00005 # [s]
-stop_time = 0.2 # [s]
+stop_time = 200 # [s]
 
 # Phase field params
-pf.eps = 0.0005 # 0.0005 #  # [mm]
+pf.eps = 0.005 # 0.0005 #  # [mm]
 pf.lambda = 0.001
 pf.kappa = 1.0
 pf.gamma = 0.02726
@@ -42,7 +42,7 @@ pf.P = 0.2
 
 eta.ic.type = expression
 eta.ic.expression.coord = polar
-eta.ic.expression.region0 = "r > (theta+3.14159/20)%(3.14159/5) - (theta+3.14159/20)%(3.14159/10) + 0.25"
+eta.ic.expression.region0 = "((r > (theta+3.14159/20)%(3.14159/5) - (theta+3.14159/20)%(3.14159/10) + 0.25)) | (r > 0.25 & z > 1)"
 
 # Species field params
 phi.ic.type = constant

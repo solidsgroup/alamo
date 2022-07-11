@@ -55,7 +55,7 @@ namespace IC
                         #if AMREX_SPACEDIM>1
                         else if (coord == Expression::CoordSys::Polar)
                         {
-                            AMREX_D_TERM(loc[0] = sqrt(x(0)*x(0) + x(1)*x(1));, loc[1] = std::atan2(x(1),x(0)), loc[2] = x(2));
+                            AMREX_D_TERM(loc[0] = sqrt(x(0)*x(0) + x(1)*x(1));, loc[1] = std::atan2(x(1),x(0));, loc[2] = x(2));
                             field(i,j,k,n) = fparser[n].Eval(loc);
                         }
                         #endif
