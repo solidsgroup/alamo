@@ -138,8 +138,6 @@ namespace Integrator
         if (thermal.on) Temp_mf[lev]->setVal(0.0);
         if (thermal.on) Temp_old_mf[lev]->setVal(0.0);
 
-        //Eta_mf[lev]->setVal(1.0);
-        //Eta_old_mf[lev]->setVal(1.0);
         EtaIC->Initialize(lev,Eta_mf);
         EtaIC->Initialize(lev,Eta_old_mf);
 
@@ -291,7 +289,6 @@ namespace Integrator
                             - pf.eps * pf.kappa * eta_lap);
                     
                     if (Eta(i,j,k) > Eta_old(i,j,k)) Eta(i,j,k) = Eta_old(i,j,k);
-                    //if (std::isnan(Eta(i,j,k))) Util::Abort(INFO,Eta_old(i,j,k)," ",i," ",j," ",k, " lev=",lev);
                 });
             }
         }

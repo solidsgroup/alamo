@@ -39,7 +39,6 @@ public:
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
         pp.queryarr("value",value.m_value); // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
-        Util::Message(INFO,value.m_value.size());
     }
 private:
     std::vector<amrex::Real> m_value;
