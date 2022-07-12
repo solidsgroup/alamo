@@ -25,7 +25,7 @@ public:
 
     ~Newton()
     {
-        Clear();
+        if (m_defined) Clear();
     }
 
     void Define(Operator::Elastic<T::sym> &a_op)
@@ -71,7 +71,7 @@ private:
 
                     // Set model internal dw and ddw.
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
 
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
 
@@ -195,8 +195,7 @@ private:
                 const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {                    
-                    amrex::Box bx = mfi.grownnodaltilebox();
-                    bx = bx & domain;
+                    amrex::Box bx = mfi.grownnodaltilebox() & domain;
                     amrex::Array4<const Set::Vector>  const &u     = a_u_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Vector>  const &b     = a_b_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Matrix>  const &dw    = a_dw_mf[lev]->array(mfi);
@@ -308,7 +307,6 @@ public:
         return 0.0;
     }
 
-    [[depricated ("Use the new solve which uses Field<Vectors> instead")]]
     Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
                         const Set::Field<Set::Scalar> & a_b_mf,
                         Set::Field<T> &a_model_mf,
@@ -415,11 +413,41 @@ public:
             dw_mf[lev]->setVal(Set::Matrix::Zero());
         }
         
-        //for (int lev = 0; lev < a_b_mf.size(); ++lev)
-        //m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
-            
         prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, ddw_mf, a_model_mf);
+    }
+
+    void compResidual(Set::Field<Set::Vector> &a_res_mf,
+                      Set::Field<Set::Vector> &a_u_mf,
+                      Set::Field<Set::Vector> &a_b_mf,
+                      Set::Field<T> &a_model_mf)
+    {
+        Set::Field<Set::Matrix> dw_mf;
+        Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
+        Set::Field<Set::Scalar> res_mf(a_res_mf.size());
+        dw_mf.resize(a_u_mf.size());
+        ddw_mf.resize(a_u_mf.size());
+        res_mf.resize(a_u_mf.size());
+        for (int lev = 0; lev < a_u_mf.size(); lev++)
+        {
+            dw_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                            a_b_mf[lev]->DistributionMap(),
+                            1, a_b_mf[lev]->nGrow());
+            ddw_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                1, a_b_mf[lev]->nGrow());
+            res_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            dw_mf[lev]->setVal(Set::Matrix::Zero());
+        }
         
+        prepareForSolve(a_u_mf, a_b_mf, res_mf, dw_mf, ddw_mf, a_model_mf);
+
+        for (int lev = 0; lev < a_res_mf.size(); ++lev)
+        {
+            Util::RealFillBoundary(*res_mf[lev],m_elastic->Geom(lev));
+            a_res_mf.CopyFrom(lev,*res_mf[lev],0,2);
+        }
     }
 
     void W(Set::Field<Set::Scalar> & a_w_mf,
@@ -444,8 +472,7 @@ public:
                             {
                                 Set::Matrix gradu;
 
-                                std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
-                                    = Numeric::GetStencil(i,j,k,domain);
+                                auto sten = Numeric::GetStencil(i,j,k,bx);
 
                                 // Fill gradu
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -488,8 +515,7 @@ public:
                             {
                                 Set::Matrix gradu;
 
-                                std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
-                                    = Numeric::GetStencil(i,j,k,domain);
+                                auto sten = Numeric::GetStencil(i,j,k,bx);
 
                                 // Fill gradu
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)

@@ -34,7 +34,7 @@ int main (int argc, char* argv[])
     if (program == "microstructure")
     {
         srand(2);
-        Integrator::Integrator *pfm = new Integrator::PhaseFieldMicrostructure();
+        Integrator::Integrator *pfm = new Integrator::PhaseFieldMicrostructure(pp);
         //Integrator::PhaseFieldMicrostructure pfm;
         pfm->InitData();
         pfm->Evolve();

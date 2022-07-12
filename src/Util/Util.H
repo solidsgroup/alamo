@@ -201,12 +201,14 @@ template<class T>
 AMREX_FORCE_INLINE
 void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
 {
+    BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }
 AMREX_FORCE_INLINE
 void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
 {
+    BL_PROFILE("Util::RealFillBoundary");
     a_mf.setMultiGhost(true);
     a_mf.FillBoundary();
 }

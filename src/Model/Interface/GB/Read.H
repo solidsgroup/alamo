@@ -30,6 +30,8 @@ public:
     /// \f[ \int_0^1x^2dx = \frac{1}{3} \f]
     ///
     Read() {}
+    Read(IO::ParmParse &pp) {pp.queryclass(*this);}
+    Read(IO::ParmParse &pp, std::string name) {pp.queryclass(name,*this);}
     Read(std::string filename)
     {
         Define(filename);

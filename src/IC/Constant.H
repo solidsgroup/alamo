@@ -13,9 +13,12 @@ namespace IC
 class Constant : public IC
 {
 public:
-    Constant (amrex::Vector<amrex::Geometry> &_geom) :
-    IC::IC(_geom)
-    {}
+    Constant (amrex::Vector<amrex::Geometry> &_geom) :IC::IC(_geom) {}
+    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC::IC(_geom) 
+    {pp.queryclass(*this);}
+    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC::IC(_geom) 
+    {pp.queryclass(name,*this);}
+
     Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> a_value)
     : IC(_geom), m_value(a_value)
     {}

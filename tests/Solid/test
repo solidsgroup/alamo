@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import numpy, pylab, os, sys
+import numpy, pylab, os, sys, math
 
 outdir = sys.argv[1]
 ref = sys.argv[2]
@@ -41,6 +41,7 @@ pylab.ylabel("stress")
 pylab.savefig("{}/stress_strain.png".format(outdir))
 
 
+if math.isnan(error): raise Exception("Stress is nan")
 if (error > tolerance): raise Exception("Error in stress calculation")
 
 

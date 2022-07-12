@@ -17,6 +17,7 @@
 #include "IC/Cylinder.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
+#include "IC/Expression.H"
 
 #include "Numeric/Stencil.H"
 
@@ -54,16 +55,11 @@ public:
 
         std::string type = "sphere";
         pp.query("ic.type",type);
-        if (type == "sphere")
-        {
-            value.ic = new IC::Sphere(value.geom);
-            pp.queryclass("ic.sphere",*static_cast<IC::Sphere*>(value.ic));
-        }
-        else
-        {
-            value.ic = new IC::Constant(value.geom);
-            pp.queryclass("ic.constant",*static_cast<IC::Constant*>(value.ic));
-        }
+        if (type == "sphere")          value.ic = new IC::Sphere(value.geom,pp,"ic.sphere");
+        else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "ic.constant");
+        else if (type == "expression") value.ic = new IC::Expression(value.geom,pp,"ic.expression");
+        else  Util::Abort(INFO,"Invalid ic.type ", type);
+
             
         value.bc = new BC::Constant(1);
         pp.queryclass("bc.temp",*static_cast<BC::Constant *>(value.bc));
@@ -150,8 +146,8 @@ private:
     int number_of_ghost_cells = 2;           ///< Number of ghost cells
 
 
-    amrex::Real alpha = 1.0;                 ///< Thermal diffusivity
-    amrex::Real refinement_threshold = 0.01; ///< Criterion for cell refinement
+    Set::Scalar alpha = 1.0;                 ///< Thermal diffusivity
+    Set::Scalar refinement_threshold = 0.01; ///< Criterion for cell refinement
 
     IC::IC *ic;                              ///< Object used to initialize temperature field
     BC::BC<Set::Scalar> *bc;                 ///< Object used to update temp field boundary ghost cells

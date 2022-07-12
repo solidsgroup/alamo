@@ -104,4 +104,36 @@ public:
 }
 }
 
+template<>
+inline int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
+{
+    return 1;
+}
+
+template<>
+inline std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
+{
+    if (i==0) return name + ".Cxxxx";
+    return name;
+}
+
+template<>
+inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Model::Solid::Affine::Cubic> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
+            });
+        }
+    }    
+}
+
+
 #endif

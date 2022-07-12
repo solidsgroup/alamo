@@ -31,20 +31,24 @@ public:
 
     ~Linear()
     {
-        Clear();
+        if (m_defined) Clear();
     }
 
     void Define(Operator::Operator<Grid::Node> & a_lp)
     {
+        if (m_defined) Util::Abort(INFO,"Solver cannot be re-defined");
         this->linop = &a_lp;
         this->mlmg = new amrex::MLMG(a_lp);
+        m_defined = true;
         PrepareMLMG(*mlmg);
     }
     void Clear()
     {
+        if (!m_defined) Util::Abort(INFO,"Solver cannot be cleared if not defined");
         this->linop = nullptr;
-        delete this->mlmg;
+        if (this->mlmg) delete this->mlmg;
         this->mlmg = nullptr;
+        m_defined = false;
     }
 
     //void setVerbose(int verbosity)
@@ -63,6 +67,7 @@ public:
                         Real a_tol_rel, Real a_tol_abs, bool copyrhs = false, 
                         const char* checkpoint_file = nullptr)
     {
+        if (!m_defined) Util::Abort(INFO,"Solver not defined");
         amrex::Vector<amrex::MultiFab *> rhs_tmp(a_rhs.size());
         amrex::Vector<amrex::MultiFab *> zero_tmp(a_rhs.size());
         for (int i = 0; i < rhs_tmp.size(); i++)
@@ -172,12 +177,15 @@ protected:
     Set::Scalar tol_rel = -1.0;
     Set::Scalar tol_abs = -1.0;
     Set::Scalar omega = -1.0;
+    bool average_down_coeffs = false;
+    bool normalize_ddw = false;
 
     Operator::Operator<Grid::Node> * linop;
     amrex::MLMG * mlmg;
 
     void PrepareMLMG(amrex::MLMG &mlmg)
     {
+        if (!m_defined) Util::Message(INFO,"Solver not defined");
         mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
         mlmg.setCFStrategy(MLMG::CFStrategy::ghostnodes);
         mlmg.setFinalFillBC(false);
@@ -206,6 +214,8 @@ protected:
         if (bottom_tol_abs >= 0) mlmg.setBottomToleranceAbs(bottom_tol_abs);
 
         if (omega>=0) this->linop->SetOmega(omega);
+        if (average_down_coeffs) this->linop->SetAverageDownCoeffs(true);
+        if (normalize_ddw) this->linop->SetNormalizeDDW(true);
     }
     
 
@@ -262,8 +272,17 @@ public:
         // Omega (used in gauss-seidel solver)
         pp.query("omega",value.omega);
         
-    }
+        // Whether to average down coefficients or use the ones given.
+        // (Setting this to true is important for fracture.)
+        pp.query("average_down_coeffs",value.average_down_coeffs);
 
+        // Whether to normalize DDW when calculating the diagonal.
+        // This is primarily used when DDW is near-singular - like when there
+        // is a "void" region or when doing phase field fracture.
+        pp.query("normalize_ddw",value.normalize_ddw);
+    }
+protected:
+    bool m_defined = false;
     
 };
 }

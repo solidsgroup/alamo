@@ -48,6 +48,7 @@ public:
     };
     #endif
 
+    Expression() {};
     ~Expression() {};
 
 

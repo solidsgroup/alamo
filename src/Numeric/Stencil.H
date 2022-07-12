@@ -111,9 +111,13 @@ struct Stencil<T,2,0,0>
     AMREX_FORCE_INLINE
     static T D(const amrex::Array4<const T> &f,
             const int &i, const int &j, const int &k, const int &m,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return (f(i+1,j,k,m) - 2.0*f(i,j,k,m) + f(i-1,j,k,m))/dx[0]/dx[0];
+        if (stencil[0] == StencilType::Central)
+            return (f(i+1,j,k,m) - 2.0*f(i,j,k,m) + f(i-1,j,k,m))/dx[0]/dx[0];
+        else
+            return 0.0 * f(i,j,k,m); // TODO this is not a great way to do this
     };
 };
 
@@ -123,9 +127,13 @@ struct Stencil<T,0,2,0>
     AMREX_FORCE_INLINE
     static T D(const amrex::Array4<const T> &f,
             const int &i, const int &j, const int &k, const int &m,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return (f(i,j+1,k,m) - 2.0*f(i,j,k,m) + f(i,j-1,k,m))/dx[1]/dx[1];
+        if (stencil[1] == StencilType::Central)
+            return (f(i,j+1,k,m) - 2.0*f(i,j,k,m) + f(i,j-1,k,m))/dx[1]/dx[1];
+        else
+            return 0.0 * f(i,j,k,m); // TODO this is not a great way to do this
     };
 };
 
@@ -135,9 +143,13 @@ struct Stencil<T,0,0,2>
     AMREX_FORCE_INLINE
     static T D(const amrex::Array4<const T> &f,
             const int &i, const int &j, const int &k, const int &m,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return (f(i,j,k+1,m) - 2.0*f(i,j,k,m) + f(i,j,k-1,m))/dx[2]/dx[2];
+        if (stencil[2] == StencilType::Central)
+            return (f(i,j,k+1,m) - 2.0*f(i,j,k,m) + f(i,j,k-1,m))/dx[2]/dx[2];
+        else
+            return 0.0 * f(i,j,k,m); // TODO this is not a great way to do this
     };
 };
 
@@ -147,9 +159,17 @@ struct Stencil<T,1,1,0>
     AMREX_FORCE_INLINE
     static T D(const amrex::Array4<const T> &f,
             const int &i, const int &j, const int &k, const int &m,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return 0.25*(f(i+1,j+1,k,m) + f(i-1,j-1,k,m) - f(i+1,j-1,k,m) - f(i-1,j+1,k,m))/(dx[0]*dx[1]);
+        int ihi = 1, ilo = 1, jhi = 1, jlo = 1;
+        Set::Scalar ifac = 0.5, jfac = 0.5;
+        if (stencil[0] == StencilType::Hi) {ilo = 0; ifac = 1.0;}
+        if (stencil[0] == StencilType::Lo) {ihi = 0; ifac = 1.0;}
+        if (stencil[1] == StencilType::Hi) {jlo = 0; jfac = 1.0;}
+        if (stencil[1] == StencilType::Lo) {jhi = 0; jfac = 1.0;}
+
+        return ifac*jfac*(f(i+ihi,j+jhi,k,m) + f(i-ilo,j-jlo,k,m) - f(i+ihi,j-jlo,k,m) - f(i-ilo,j+jhi,k,m))/(dx[0]*dx[1]);
     };
 };
 template<class T>
@@ -158,9 +178,17 @@ struct Stencil<T,1,0,1>
     AMREX_FORCE_INLINE
     static T D(const amrex::Array4<const T> &f,
             const int &i, const int &j, const int &k, const int &m,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return 0.25*(f(i+1,j,k+1,m) + f(i-1,j,k-1,m) - f(i+1,j,k-1,m) - f(i-1,j,k+1,m))/(dx[0]*dx[2]);
+        int khi = 1, klo = 1, ihi = 1, ilo = 1;
+        Set::Scalar kfac = 0.5, ifac = 0.5;
+        if (stencil[0] == StencilType::Hi) {ilo = 0; ifac = 1.0;}
+        if (stencil[0] == StencilType::Lo) {ihi = 0; ifac = 1.0;}
+        if (stencil[2] == StencilType::Hi) {klo = 0; kfac = 1.0;}
+        if (stencil[2] == StencilType::Lo) {khi = 0; kfac = 1.0;}
+
+        return kfac*ifac*(f(i+ihi,j,k+khi,m) + f(i-ilo,j,k-klo,m) - f(i+ihi,j,k-klo,m) - f(i-ilo,j,k+khi,m))/(dx[0]*dx[2]);
     };
 };
 template<class T>
@@ -169,9 +197,17 @@ struct Stencil<T,0,1,1>
     AMREX_FORCE_INLINE
     static T D(const amrex::Array4<const T> &f,
             const int &i, const int &j, const int &k, const int &m,
-            const Set::Scalar dx[AMREX_SPACEDIM])
+            const Set::Scalar dx[AMREX_SPACEDIM],
+            std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return 0.25*(f(i,j+1,k+1,m) + f(i,j-1,k-1,m) - f(i,j+1,k-1,m) - f(i,j-1,k+1,m))/(dx[1]*dx[2]);
+        int jhi = 1, jlo = 1, khi = 1, klo = 1;
+        Set::Scalar jfac = 0.5, kfac = 0.5;
+        if (stencil[1] == StencilType::Hi) {jlo = 0; jfac = 1.0;}
+        if (stencil[1] == StencilType::Lo) {jhi = 0; jfac = 1.0;}
+        if (stencil[2] == StencilType::Hi) {klo = 0; kfac = 1.0;}
+        if (stencil[2] == StencilType::Lo) {khi = 0; kfac = 1.0;}
+
+        return jfac*kfac*(f(i,j+jhi,k+khi,m) + f(i,j-jlo,k-klo,m) - f(i,j+jhi,k-klo,m) - f(i,j-jlo,k+khi,m))/(dx[1]*dx[2]);
     };
 };
 
@@ -675,6 +711,54 @@ Hessian(const amrex::Array4<const Set::Scalar> &f,
 #endif
     return ret;
 }
+
+AMREX_FORCE_INLINE
+Set::Matrix3
+Hessian(const amrex::Array4<const Set::Scalar> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar DX[AMREX_SPACEDIM],
+        std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
+{
+    Set::Matrix3 ret;
+    // 1D 
+    #if AMREX_SPACEDIM>0
+    ret(0, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, 0, DX,stencil));
+    #endif
+    // 2D
+    #if AMREX_SPACEDIM>1
+    ret(0, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(f, i, j, k, 0, DX,stencil));
+    ret(0, 1, 0) = ret(0, 0, 1);
+    ret(0, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, 0, DX,stencil));
+    ret(1, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, 1, DX,stencil));
+    ret(1, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(f, i, j, k, 1, DX,stencil));
+    ret(1, 1, 0) = ret(1, 0, 1);
+    ret(1, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, 1, DX,stencil));
+    #endif 
+    // 3D
+    #if AMREX_SPACEDIM>2
+    ret(0, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, 0, DX,stencil));
+    ret(0, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(f, i, j, k, 0, DX,stencil));
+    ret(0, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(f, i, j, k, 0, DX,stencil));
+    ret(0, 2, 0) = ret(0, 0, 2);
+    ret(0, 2, 1) = ret(0, 1, 2);;
+    ret(1, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, 1, DX,stencil));
+    ret(1, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(f, i, j, k, 1, DX,stencil));
+    ret(1, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(f, i, j, k, 1, DX,stencil));
+    ret(1, 2, 0) = ret(1, 0, 2);
+    ret(1, 2, 1) = ret(1, 1, 2);;
+    ret(2, 0, 0) = (Numeric::Stencil<Set::Scalar, 2, 0, 0>::D(f, i, j, k, 2, DX,stencil));
+    ret(2, 1, 1) = (Numeric::Stencil<Set::Scalar, 0, 2, 0>::D(f, i, j, k, 2, DX,stencil));
+    ret(2, 2, 2) = (Numeric::Stencil<Set::Scalar, 0, 0, 2>::D(f, i, j, k, 2, DX,stencil));
+    ret(2, 0, 1) = (Numeric::Stencil<Set::Scalar, 1, 1, 0>::D(f, i, j, k, 2, DX,stencil));
+    ret(2, 1, 0) = ret(2, 0, 1);
+    ret(2, 0, 2) = (Numeric::Stencil<Set::Scalar, 1, 0, 1>::D(f, i, j, k, 2, DX,stencil));
+    ret(2, 1, 2) = (Numeric::Stencil<Set::Scalar, 0, 1, 1>::D(f, i, j, k, 2, DX,stencil));
+    ret(2, 2, 0) = ret(2, 0, 2);
+    ret(2, 2, 1) = ret(2, 1, 2);;
+    #endif
+    return ret;
+}
+
 
 // Returns Hessian of a vector field.
 // Return value: ret[i](j,k) = ret_{i,jk}

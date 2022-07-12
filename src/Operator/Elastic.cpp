@@ -175,6 +175,8 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                     
 
                     // The gradient of the displacement gradient tensor
+                    // TODO - replace with this call. But not for this PR
+                    //Set::Matrix3 gradgradu = Numeric::Hessian(U,i,j,k,DX,sten); // gradgradu[k](l,j) = u_{k,lj}
                     Set::Matrix3 gradgradu; // gradgradu[k](l,j) = u_{k,lj}
 
                     // Fill gradu and gradgradu
@@ -286,6 +288,7 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
                     }
 
                     Set::Matrix sig = DDW(i,j,k)*gradu;
+                    if (m_normalize_ddw) sig /= DDW(i,j,k).Norm();
 
                     amrex::IntVect m(AMREX_D_DECL(i,j,k));
                     if (AMREX_D_TERM(xmax || xmin, || ymax || ymin, || zmax || zmin)) 
@@ -302,10 +305,11 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
                                         Cgrad2 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,SYM>,0,1,0>::D(DDW,i,j,k,0,DX,sten)),
                                     Cgrad3 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,SYM>,0,0,1>::D(DDW,i,j,k,0,DX,sten)));
 
-                        Set::Vector f = DDW(i,j,k)*gradgradu + 
-                            AMREX_D_TERM((Cgrad1*gradu).col(0),
-                                        +(Cgrad2*gradu).col(1),
-                                        +(Cgrad3*gradu).col(2));
+                        Set::Vector f = DDW(i,j,k)*gradgradu;
+                        if (m_normalize_ddw) f /= DDW(i,j,k).Norm();
+                        f += AMREX_D_TERM((Cgrad1*gradu).col(0),
+                                         +(Cgrad2*gradu).col(1),
+                                         +(Cgrad3*gradu).col(2));
 
                         diag(i,j,k,p) += f(p);
                     }

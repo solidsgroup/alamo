@@ -43,6 +43,7 @@ public:
     // solve using the MLMG solver. 
     static void Parse(MechanicsBase &value, IO::ParmParse &pp)
     {
+        BL_PROFILE("MechanicsBase::Parse");
         if (pp.contains("type"))
         {
             std::string type_str = "static";
@@ -53,11 +54,13 @@ public:
             else Util::Abort(INFO,"Invalid type ", type_str, " specified");
         }
         if (value.m_type == Type::Disable) return;
+
+        pp.query("time_evolving",value.m_time_evolving);
         
-        value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp");
-        value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs");
-        value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress");
-        value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain");
+        value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp",value.m_time_evolving);
+        value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs",value.m_time_evolving);
+        value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress",value.m_time_evolving);
+        value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain",value.m_time_evolving);
 
         if (value.m_type == Type::Static)
         {
@@ -82,8 +85,8 @@ public:
         else Util::Abort(INFO,"Invalid bc.type ",bc_type);
         
         pp.query("print_model",value.m_print_model);
-        if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2,"model");
-        else value.RegisterGeneralFab(value.model_mf, 1, 2);
+        if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2,"model",value.m_time_evolving);
+        else value.RegisterGeneralFab(value.model_mf, 1, 2,value.m_time_evolving);
 
         // Read in IC for RHS
         std::string rhstype;
@@ -95,12 +98,19 @@ public:
 
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]),"disp_xhi_x");
         value.RegisterIntegratedVariable(&(value.trac_hi[0].data()[0]),"trac_xhi_x");
+
+        pp.query("print_residual",value.m_print_residual);
+        if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf,1,2,"res",false);
+
+        pp.query("elastic_ref_threshold",value.m_elastic_ref_threshold); // Whether to refine based on elastic solution
+        
     }
 
 protected:
     /// \brief Use the #ic object to initialize#Temp
     void Initialize(int lev) override
     {
+        BL_PROFILE("MechanicsBase::Initialize");
         if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
 
         disp_mf[lev]->setVal(Set::Vector::Zero());
@@ -113,6 +123,7 @@ protected:
 
     void TimeStepBegin(Set::Scalar a_time, int a_step) override
     {
+        BL_PROFILE("MechanicsBase::TimeStepBegin");
         if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
         if (m_interval && a_step%m_interval) return;
 
@@ -120,18 +131,26 @@ protected:
 
         if (!m_type == MechanicsBase<MODEL>::Type::Static) return;
 
+        for (int lev=0; lev <= finest_level; ++lev) 
+        {
+            rhs_mf[lev]->setVal(Set::Vector::Zero());
+            if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
+        }
+
         bc->SetTime(a_time);
         bc->Init(rhs_mf,geom);
 
         amrex::LPInfo info;
         Operator::Elastic<MODEL::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
+        elastic_op.SetHomogeneous(false);
         elastic_op.SetBC(bc);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
         solver.Define(elastic_op);
         solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
+        if (m_print_residual) solver.compResidual(res_mf,disp_mf,rhs_mf,model_mf);
         solver.Clear();
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
@@ -169,12 +188,13 @@ protected:
                 });
             }
             Util::RealFillBoundary(*stress_mf[lev],geom[lev]);
-            Util::RealFillBoundary(*disp_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*strain_mf[lev],geom[lev]);
         }
     }
 
     void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt) override
     {
+        BL_PROFILE("MechanicsBase::Advance");
         if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
         const amrex::Real *DX = geom[lev].CellSize();
 
@@ -238,6 +258,7 @@ protected:
     void Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
                     const amrex::MFIter &mfi, const amrex::Box &a_box) override
     {
+        BL_PROFILE("MechanicsBase::Integrate");
         if (m_type==Type::Disable) return;
 
         const amrex::Real *DX = geom[amrlev].CellSize();
@@ -282,6 +303,7 @@ protected:
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar /*time*/, int /*ngrow*/) override
     {
+        BL_PROFILE("MechanicsBase::TagCellsForRefinement");
         if (m_type == Type::Disable) return;
 
         Set::Vector DX(geom[lev].CellSize());
@@ -309,7 +331,7 @@ protected:
 
     Set::Field<Set::Vector> disp_mf;
     Set::Field<Set::Vector> rhs_mf;
-    Set::Field<Set::Scalar> res_mf;
+    Set::Field<Set::Vector> res_mf;
     Set::Field<Set::Matrix> stress_mf;
     Set::Field<Set::Matrix> strain_mf;
     
@@ -334,6 +356,8 @@ protected:
 
     Set::Scalar m_elastic_ref_threshold = 0.01;
     bool m_print_model = false;
+    bool m_print_residual = false;
+    bool m_time_evolving = false;
 };
 
 

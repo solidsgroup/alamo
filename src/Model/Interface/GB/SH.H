@@ -35,9 +35,9 @@ namespace GB
 class SH : public GB
 {
 public:
-    SH()
-    {
-    };
+    SH(){};
+    SH(IO::ParmParse &pp){pp.queryclass(*this);};
+    SH(IO::ParmParse &pp,std::string name){pp.queryclass(name,*this);};
     SH(const amrex::Real a_theta0, const amrex::Real a_phi0, const amrex::Real a_sigma0, const amrex::Real a_sigma1)
     {
         Define(a_theta0,a_phi0,a_sigma0,a_sigma1);

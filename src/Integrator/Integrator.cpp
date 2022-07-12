@@ -14,7 +14,7 @@
 namespace Integrator
 {
 
-Integrator::Integrator ()
+Integrator::Integrator () : amrex::AmrCore()
 {
     BL_PROFILE("Integrator::Integrator()");
     {
@@ -916,16 +916,16 @@ Integrator::WritePlotFile (Set::Scalar time, amrex::Vector<int> iter, bool initi
         std::ofstream coutfile, noutfile;
         if (istep[0]==0)
         {
-            if ((ccomponents > 0 || cell.all) && cell.any) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
-            if ((ncomponents > 0 || node.all) && node.any) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
+            if (do_cell_plotfile) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::out);
+            if (do_node_plotfile) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::out);
         }
         else
         {
-            if ((ccomponents > 0 || cell.all) && cell.any) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
-            if ((ncomponents > 0 || node.all) && node.any) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
+            if (do_cell_plotfile) coutfile.open(plot_file+"/celloutput.visit",std::ios_base::app);
+            if (do_node_plotfile) noutfile.open(plot_file+"/nodeoutput.visit",std::ios_base::app);
         }
-        coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
-        if (ncomponents > 0) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
+        if (do_cell_plotfile) coutfile << plotfilename[1] + "cell" + "/Header" << std::endl;
+        if (do_node_plotfile) noutfile << plotfilename[1] + "node" + "/Header" << std::endl;
     }
 }
 
@@ -1091,7 +1091,7 @@ Integrator::TimeStep (int lev, amrex::Real time, int /*iteration*/)
     for (int n = 0 ; n < node.number_of_fabs ; n++)
         FillPatch(lev,time,*node.fab_array[n],*(*node.fab_array[n])[lev],*node.physbc_array[n],0);
     for (unsigned int n = 0 ; n < m_basefields.size(); n++)
-        m_basefields[n]->FillPatch(lev,time);
+        if (m_basefields[n]->evolving) m_basefields[n]->FillPatch(lev,time);
 
     Advance(lev, time, dt[lev]);
     ++istep[lev];
@@ -1124,6 +1124,7 @@ Integrator::TimeStep (int lev, amrex::Real time, int /*iteration*/)
         }
         for (unsigned int n = 0; n < m_basefields.size(); n++)
         {
+            if (m_basefields[n]->evolving)
             m_basefields[n]->AverageDownNodal(lev,refRatio(lev));
         }
     
