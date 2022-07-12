@@ -294,10 +294,10 @@ namespace Integrator
 
                     Set::Scalar qflux = k1 * phi(i,j,k) + k2 * (1.0 - phi(i,j,k) ) + (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
-                    Set::Scalar qdot = ( qflux / 10.0 / ( (zeta / zeta_0) *  alpha(i,j,k)) ); 
+                    Set::Scalar qdot = ( qflux / 10.0 / alpha(i,j,k)); 
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
-		    qgrid(i,j,k) = qdot;
+		            qgrid(i,j,k) = qdot;
 		    
                     //
                     // Evolve temperature with the qdot flux term in place
@@ -312,8 +312,8 @@ namespace Integrator
                     // Now, evolve temperature with explicit forward Euler
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
                     
-
-                    thermal.exp_ap   = -1.0 * thermal.E_ap   / tempnew(i,j,k);
+		    Set::Scalar Eap = 9.375 * pressure.P * pressure.P - 161.25 * pressure.P + 11121.0;
+                    thermal.exp_ap   = -1.0 * Eap   / tempnew(i,j,k);
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
