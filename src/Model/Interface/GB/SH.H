@@ -65,28 +65,28 @@ public:
                 + sigma1 * 4.0 * sin(2*a_phi) * cos(2*a_phi) * sin(2*a_theta) * sin(2*a_theta)} ;
     };
 
-    Set::Scalar W(const Set::Vector a_n) const
+    virtual Set::Scalar W(const Set::Vector &a_n) const override
     {
         Set::Vector n = a_n / a_n.lpNorm<2>();
         Set::Scalar theta = std::acos(n(0));
         Set::Scalar phi   = std::atan2(n(2),n(1));
         return W(theta,phi);
     };
-    Set::Scalar DW(const Set::Vector a_n, const Set::Vector t_n) const
+    virtual Set::Scalar DW(const Set::Vector &a_n, const Set::Vector &t_n) const override
     {
         const Set::Scalar alpha = 1E-4;
         return (W(a_n + alpha*t_n) - W(a_n - alpha*t_n)) / 2.0 / alpha;
     };
-    Set::Scalar DDW(const Set::Vector a_n, const Set::Vector t_n) const
+    virtual Set::Scalar DDW(const Set::Vector &a_n, const Set::Vector &t_n) const override
     {
         const Set::Scalar alpha = 1E-4;
         return (W(a_n + alpha*t_n) - 2.0*W(a_n) + W(a_n - alpha*t_n)) / alpha / alpha;
     };
 
 
-    amrex::Real W(amrex::Real )   {return NAN;};
-    amrex::Real DW(amrex::Real )  {return NAN;};
-    amrex::Real DDW(amrex::Real ) {return NAN;};
+    amrex::Real W(const amrex::Real ) const   {return NAN;};
+    amrex::Real DW(const amrex::Real ) const  {return NAN;};
+    amrex::Real DDW(const amrex::Real ) const {return NAN;};
   
 private:
     amrex::Real theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;
@@ -100,6 +100,12 @@ public:
         value.phi0 *= 0.01745329251;   // convert degrees into radians
         pp.query("sigma0",value.sigma0);
         pp.query("sigma1",value.sigma1);
+
+        std::string reg_str = "wilhelm";
+        pp.query("regularization",reg_str);
+        if (reg_str == "wilhelm") value.regularization = Regularization::Wilhelm;
+        else if (reg_str == "k23") value.regularization = Regularization::K23;
+        else Util::Abort(INFO,"Invalid regularization string ",reg_str);
     }
 
 };

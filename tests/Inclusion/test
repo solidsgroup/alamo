@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, pandas, sys, math
+
+outdir = sys.argv[1]
+
+generate_ref_data = False  # Change to True if you need to generate new reference data
+tolerance = 1E-8
+
+path = "{}/02100cell/".format(outdir)
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+def integrate(x,y):
+    ret = 0
+    for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
+    return ret
+
+if dim == 3:
+    raise(Exception("Not implemented for 3D yet"))
+
+pylab.clf()
+
+#
+# Check eta field across domain
+#
+for prof, label in zip([ds.ray([0,0,0],[8.0,8.0,0],), ds.ray([0,4,0],[8.0,4.0,0],)],
+    	  	   	       ["diag","across"]):
+    df = prof.to_dataframe([("gas","x"),("gas","y"),"Eta001"])
+    if generate_ref_data:
+        df.to_csv('reference/reference-{}.csv'.format(label))
+    df_ref = pandas.read_csv('reference/reference-{}.csv'.format(label))
+    class new:
+        ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+            df["x"],df["y"],df["Eta001"])))]
+        x = ret[0]
+        y = ret[1]
+        eta = ret[2:]
+        r = numpy.sqrt(x**2 + y**2)
+    class ref:
+        ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+            df_ref["x"],df_ref["y"],df_ref["Eta001"])))]
+        x = ret[0]
+        y = ret[1]
+        eta = ret[2:]
+        r = numpy.sqrt(x**2 + y**2)
+    for eta in ref.eta: pylab.plot(ref.x,eta,label='reference-{}'.format(label))
+    for eta in new.eta: pylab.plot(new.x,eta,label='new-{}'.format(label),linestyle='--')
+    
+    ctr = 0
+    for ref_eta, new_eta in zip(ref.eta, new.eta):
+        err = numpy.sqrt(integrate(ref.r, (numpy.interp(ref.r, new.r, new_eta) - ref_eta)**2))
+        print("eta{} error".format(ctr),err)
+        ctr = ctr+1
+        if err > tolerance or math.isnan(err):
+            pylab.savefig("{}/etas.png".format(outdir))
+            raise(Exception("Error in eta"))
+        if math.isnan(err): raise(Exception("eta is nan"))
+pylab.legend()
+pylab.savefig("{}/etas.png".format(outdir))
+
+
+thermodata = "{}/thermo.dat".format(outdir)
+if generate_ref_data:
+    os.system("cp {} reference/thermo.dat".format(thermodata))
+thermo_hdr = open(thermodata).readline().split()
+thermo_new = numpy.loadtxt(thermodata,skiprows=1)
+thermo_ref = numpy.loadtxt("reference/thermo.dat",skiprows=1)
+
+pylab.clf()
+for i in range(1,len(thermo_new[0,:])-1):
+    pylab.plot(thermo_new[:,0],thermo_new[:,i],label=thermo_hdr[i]+"-ref");
+    pylab.plot(thermo_ref[:,0],thermo_ref[:,i],label=thermo_hdr[i]+"-new",linestyle='--');
+    error = numpy.sqrt(integrate(thermo_ref[:,0],(thermo_ref[:,i]-thermo_new[:,i])**2))
+    error /= numpy.sqrt(integrate(thermo_ref[:,0],thermo_ref[:,i]**2))
+    print("{} error = {}".format(thermo_hdr[i],error))
+    if err > tolerance or math.isnan(error):
+        raise(Exception("Error in thermo.dat - {}".format(thermo_hdr[i])))
+pylab.legend(ncol=2)
+pylab.savefig("{}/thermo.png".format(outdir))
+
+exit(0)
+
+
+    
+
+

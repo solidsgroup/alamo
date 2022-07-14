@@ -38,20 +38,20 @@ void Randomize()
     sigma0 = Util::Random();
     sigma1 = Util::Random();
 };
-amrex::Real W(amrex::Real theta)
+Set::Scalar W(const Set::Scalar theta) const
 {
     //sigma(theta)=sigma0+sigma1*fabs(sin(n*(theta-theta0)))
     //n=2:  
     return sigma0+sigma1*fabs(sin(2*(theta-theta0)));  
   
 };
-amrex::Real DW(amrex::Real theta)
+Set::Scalar DW(const Set::Scalar theta) const
 {
     //sigma'(theta)=(n*sigma1*sin(n*(theta-theta0))*cos(n*(theta-theta0)))/fabs(sin(n*(theta-theta0)))
     //n=2:
     return (2*sigma1*sin(2*(theta-theta0))*cos(2*(theta-theta0)))/fabs(sin(2*(theta-theta0)));
 };
-amrex::Real DDW(amrex::Real theta)
+Set::Scalar DDW(const Set::Scalar theta) const 
 {
     //sigma''(theta)=-n^2*sigma1*fabs(sin(n*(theta-theta0)))
     //n=2:
@@ -59,7 +59,7 @@ amrex::Real DDW(amrex::Real theta)
 };
  
 private:
-    amrex::Real theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
+    Set::Scalar theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
 
 public:    
     static void Parse(AbsSin & value, amrex::ParmParse & pp)

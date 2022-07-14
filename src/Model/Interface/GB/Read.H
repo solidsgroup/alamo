@@ -68,15 +68,15 @@ public:
                 Util::Abort(INFO,"Error in GB Read: t=",t," w=",w," dw=",dw," ddw=",ddw);
         }
     };
-    Set::Scalar W(amrex::Real theta)
+    Set::Scalar W(const Set::Scalar theta) const
     {
         return m_w(theta);
     };
-    Set::Scalar DW(amrex::Real theta)
+    Set::Scalar DW(const Set::Scalar theta) const
     {
         return m_dw(theta);
     };
-    Set::Scalar DDW(amrex::Real theta)
+    Set::Scalar DDW(const Set::Scalar theta) const
     {
         return m_ddw(theta);
     };
