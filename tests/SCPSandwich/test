@@ -4,7 +4,7 @@ import numpy, yt, pylab, os, pandas, sys, math
 outdir = sys.argv[1]
 
 generate_ref_data = False  # Change to True if you need to generate new reference data
-tolerance = 1E-8
+tolerance = 1E-7
 
 path = "{}/04000cell/".format(outdir)
 ds = yt.load(path)

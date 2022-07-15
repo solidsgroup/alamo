@@ -38,6 +38,8 @@ protected:
     void Advance (int lev, amrex::Real time, amrex::Real dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
+    void Integrate(int amrlev, Set::Scalar time, int step,
+                    const amrex::MFIter &mfi, const amrex::Box &box) override;
 private:
 
     Set::Field<Set::Scalar> Temp_mf;
@@ -48,6 +50,7 @@ private:
     Set::Field<Set::Scalar> field;
     BC::BC<Set::Scalar> *TempBC;
     BC::BC<Set::Scalar> *EtaBC;
+    IC::IC *EtaIC;
     IC::IC *PhiIC;
 
 
@@ -57,8 +60,6 @@ private:
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     
-    IC::IC *EtaIC;
-
     struct {
        // Set::Scalar M = 0.0;
         Set::Scalar gamma = 1.0;
@@ -94,6 +95,11 @@ private:
         BC::Operator::Elastic::Constant bc;
         Solver::Nonlocal::Newton<model_type> *solver;//(elastic.op);
     } elastic;
+
+
+    // Integrated variables
+    Set::Scalar volume = 0.0;
+    Set::Scalar area = 0.0;
 };
 }
 

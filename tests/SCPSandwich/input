@@ -13,7 +13,7 @@
 alamo.program = flame
 
 # AMR parameters
-plot_file = output
+plot_file = tests/SCPSandwich/output
 amr.plot_dt = 0.01
 amr.max_level = 7 
 amr.n_cell = 16 2 2
@@ -49,6 +49,10 @@ pf.n_htpb = 0.0 # [ 1 ]
 pf.n_comb = 0.0 # [ 1 ]
 # Pressure used in regression rate calc
 pf.P = 0.2
+
+# Phase field IC
+eta.ic.type = constant
+eta.ic.constant.value = 1
 
 # Species field params
 phi.ic.type = laminate
