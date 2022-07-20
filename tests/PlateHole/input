@@ -11,8 +11,8 @@ stop_time		    = 0.1
 # amr parameters
 amr.plot_int		    = 1
 
-amr.max_level		    = 8
-amr.n_cell		    = 32 32 32
+amr.max_level		    = 0
+amr.n_cell		    = 64 64
 
 #amr.max_level		    = 0
 #amr.n_cell		    = 128 128 128
@@ -33,9 +33,9 @@ geometry.is_periodic	    = 0 0 0
 
 # ellipse configuration
 ic.type        = ellipse
-ic.ellipse.a   = 0.5 0.5 0.5  # ellipse radius
+ic.ellipse.a   = 8 8 4 #0.5 0.5 0.5  # ellipse radius
 ic.ellipse.x0  = 0 0 0 # location of ellipse center
-ic.ellipse.eps = 0.05
+ic.ellipse.eps = 2.0 #0.05
 
 # elastic moduli
 nmodels = 2
@@ -52,11 +52,16 @@ model2.planestress = 1
 
 solver.verbose = 3
 solver.nriters = 1
-solver.fixed_iter = 20
-#solver.bottom_solver = smoother
+solver.fixed_iter = 3
+solver.bottom_solver = smoother
 #solver.omega = 1.25 # Overrelaxation
-#solver.omega = 0.5
+solver.omega = 0.33
 solver.normalize_ddw = 0
+#solver.pre_smooth = 0
+#solver.post_smooth = 0
+#solver.final_smooth = 1
+#solver.bottom_smooth = 0
+
 
 print_residual = 1
 
@@ -66,8 +71,8 @@ bc.type = tension_test
 bc.tension_test.type = uniaxial_stress
 bc.tension_test.disp=0.01
 
-#max_coarsening_level=3
+#max_coarsening_level=1
 
-elasticop.alpha=-0.0
-elasticop.small=0.0
+elasticop.alpha=0.0
+elasticop.small=1E-6
 #print_model = 1

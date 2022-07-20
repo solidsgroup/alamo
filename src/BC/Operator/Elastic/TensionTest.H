@@ -27,16 +27,32 @@ public:
     using Constant::operator();
     using Constant::set;
 
+    enum LoadingMode {TRAC,DISP};
+
 public:
     static void Parse(TensionTest & value, IO::ParmParse & pp)
     {
         std::string type = "uniaxial_stress_clamp";
-        std::string disp = "0.0";
+        std::string disp = "0.0", trac = "0.0";
+        LoadingMode mode;
 
         pp.query("type",type); // Tension test type. (Only option right now is :code:`uniaxial_stress_clamp`)
-        pp.query("disp",disp); // Displacement of the test
-
         
+        if (pp.contains("trac") && pp.contains("disp")) 
+            Util::Abort(INFO,"Cannot specify both trac and disp");
+        else if (pp.contains("disp"))
+        {
+            pp.query("disp",disp); // Displacement of the test
+            mode = LoadingMode::DISP;
+        }
+        else if (pp.contains("trac"))
+        {
+            pp.query("trac",trac);
+            mode = LoadingMode::TRAC;
+        }
+        else
+            Util::Abort(INFO,"You must specify either trac or disp");
+
         if (type == "uniaxial_stress_clamp")
         {
             // Add a X displacement in the X direction
@@ -89,25 +105,55 @@ public:
             #endif
 
             // Add a X displacement in the X direction (same as above)
-            value.m_bc_type[Face::XHI][0]         = Type::Traction;
-            value.m_bc_val [Face::XHI][0]         = Numeric::Interpolator::Linear<Set::Scalar>(disp);
-            value.m_bc_type[Face::XHI_YLO][0]     = Type::Traction;
-            value.m_bc_val [Face::XHI_YLO][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
-            value.m_bc_type[Face::XHI_YHI][0]     = Type::Traction;
-            value.m_bc_val [Face::XHI_YHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            if (mode == TensionTest::LoadingMode::DISP)
+            {
+                value.m_bc_type[Face::XHI][0]         = Type::Displacement;
+                value.m_bc_val [Face::XHI][0]         = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+                value.m_bc_type[Face::XHI_YLO][0]     = Type::Displacement;
+                value.m_bc_val [Face::XHI_YLO][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+                value.m_bc_type[Face::XHI_YHI][0]     = Type::Displacement;
+                value.m_bc_val [Face::XHI_YHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            }
+            else if (mode == TensionTest::LoadingMode::TRAC)
+            {
+                value.m_bc_type[Face::XHI][0]         = Type::Traction;
+                value.m_bc_val [Face::XHI][0]         = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+                value.m_bc_type[Face::XHI_YLO][0]     = Type::Traction;
+                value.m_bc_val [Face::XHI_YLO][0]     = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+                value.m_bc_type[Face::XHI_YHI][0]     = Type::Traction;
+                value.m_bc_val [Face::XHI_YHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+            }
             #if AMREX_SPACEDIM == 3
-            value.m_bc_type[Face::ZLO_XHI][0]     = Type::Traction;
-            value.m_bc_val [Face::ZLO_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
-            value.m_bc_type[Face::ZHI_XHI][0]     = Type::Traction;
-            value.m_bc_val [Face::ZHI_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
-            value.m_bc_type[Face::XHI_YLO_ZLO][0] = Type::Traction;
-            value.m_bc_val [Face::XHI_YLO_ZLO][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
-            value.m_bc_type[Face::XHI_YLO_ZHI][0] = Type::Traction;
-            value.m_bc_val [Face::XHI_YLO_ZHI][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
-            value.m_bc_type[Face::XHI_YHI_ZLO][0] = Type::Traction;
-            value.m_bc_val [Face::XHI_YHI_ZLO][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
-            value.m_bc_type[Face::XHI_YHI_ZHI][0] = Type::Traction;
-            value.m_bc_val [Face::XHI_YHI_ZHI][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            if (mode == LoadingMode::DISP)
+            {
+                value.m_bc_type[Face::ZLO_XHI][0]     = Type::Displacement;
+                value.m_bc_val [Face::ZLO_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+                value.m_bc_type[Face::ZHI_XHI][0]     = Type::Displacement;
+                value.m_bc_val [Face::ZHI_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+                value.m_bc_type[Face::XHI_YLO_ZLO][0] = Type::Displacement;
+                value.m_bc_val [Face::XHI_YLO_ZLO][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+                value.m_bc_type[Face::XHI_YLO_ZHI][0] = Type::Displacement;
+                value.m_bc_val [Face::XHI_YLO_ZHI][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+                value.m_bc_type[Face::XHI_YHI_ZLO][0] = Type::Displacement;
+                value.m_bc_val [Face::XHI_YHI_ZLO][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+                value.m_bc_type[Face::XHI_YHI_ZHI][0] = Type::Displacement;
+                value.m_bc_val [Face::XHI_YHI_ZHI][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
+            }
+            if (mode == LoadingMode::Trac)
+            {
+                value.m_bc_type[Face::ZLO_XHI][0]     = Type::Traction;
+                value.m_bc_val [Face::ZLO_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+                value.m_bc_type[Face::ZHI_XHI][0]     = Type::Traction;
+                value.m_bc_val [Face::ZHI_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+                value.m_bc_type[Face::XHI_YLO_ZLO][0] = Type::Traction;
+                value.m_bc_val [Face::XHI_YLO_ZLO][0] = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+                value.m_bc_type[Face::XHI_YLO_ZHI][0] = Type::Traction;
+                value.m_bc_val [Face::XHI_YLO_ZHI][0] = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+                value.m_bc_type[Face::XHI_YHI_ZLO][0] = Type::Traction;
+                value.m_bc_val [Face::XHI_YHI_ZLO][0] = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+                value.m_bc_type[Face::XHI_YHI_ZHI][0] = Type::Traction;
+                value.m_bc_val [Face::XHI_YHI_ZHI][0] = Numeric::Interpolator::Linear<Set::Scalar>(trac);
+            }
             #endif
 
             // Fix Ymin displacement

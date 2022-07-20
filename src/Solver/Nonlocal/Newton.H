@@ -191,7 +191,7 @@ private:
 
             m_elastic->SetModel(a_ddw_mf);
             if (m_psi)
-                for (int i = 0; i < m_psi->size(); i++)
+                for (int i = 0; i <= a_b_mf.finest_level; i++)
                     m_elastic->SetPsi(i,*(*m_psi)[i]);
 
 
@@ -462,8 +462,10 @@ public:
                                   Set::Field<Set::Vector> &a_u_mf,
                                   Set::Field<Set::Vector> &a_b_mf)
     {
-        Set::Field<Set::Scalar> res_mf(a_res_mf.size()), sol_mf(a_u_mf.size()), rhs_mf(a_b_mf.size());
-        for (int lev = 0; lev < a_u_mf.size(); lev++)
+        Util::Assert(INFO,TEST(a_res_mf.finest_level == a_u_mf.finest_level));
+        Util::Assert(INFO,TEST(a_u_mf.finest_level == a_b_mf.finest_level));
+        Set::Field<Set::Scalar> res_mf(a_res_mf.finest_level+1), sol_mf(a_u_mf.finest_level+1), rhs_mf(a_b_mf.finest_level+1);
+        for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
         {
             res_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
             sol_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
@@ -475,7 +477,7 @@ public:
         
         mlmg->compResidual(amrex::GetVecOfPtrs(res_mf), amrex::GetVecOfPtrs(sol_mf), amrex::GetVecOfConstPtrs(rhs_mf));
 
-        for (int lev = 0; lev < a_res_mf.size(); ++lev)
+        for (int lev = 0; lev <= a_res_mf.finest_level; ++lev)
         {
             a_res_mf.CopyFrom(lev,*res_mf[lev],0,2);
         }

@@ -89,7 +89,8 @@ public:
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2,"model",value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2,value.m_time_evolving);
         
-        value.RegisterNodalFab(value.psi_mf,1,2,"psi",true);
+        BC::Nothing bcnothing;
+        value.RegisterNewFab(value.psi_mf,&bcnothing,1,2,"psi",true);
 
         // Read in IC for RHS
         std::string rhstype;
@@ -457,15 +458,21 @@ class Mechanics : virtual public MechanicsBase<MODEL>
                 amrex::Box bx = mfi.grownnodaltilebox();
 
                 amrex::Array4<MODEL> const &model = model_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
-
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                                             model(i,j,k) = MODEL::Zero();
                                             for (unsigned int n = 0; n < models.size(); n++) 
                                                 model(i,j,k) += eta(i,j,k,n) * models[n];
-                                            //psi(i,j,k) = 1.0;//eta(i,j,k,1);
-                                            psi(i,j,k) = eta(i,j,k,1);
+                                        });
+            }
+
+            for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.growntilebox();
+                amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                                            psi(i,j,k) = Numeric::Interpolate::NodeToCellAverage(eta,i,j,k,1);
                                         });
             }
             Util::RealFillBoundary(*model_mf[lev],geom[lev]);

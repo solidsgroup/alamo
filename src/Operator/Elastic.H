@@ -188,27 +188,27 @@ public:
         pp.query("small",value.m_psi_small);
     }
 
-//    virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
-//                        const MultiFab* /*crse_bcdata*/=nullptr) override
-//    {
-//        const int mglev = 0;
-//        const int ncomp = b.nComp();
-//        apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
-//        MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
-//        //if (m_final_residual)
-//        //{
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-//        //    MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
-//        //}
-//        amrex::Geometry geom = m_geom[amrlev][mglev];
-//        realFillBoundary(resid,geom);
-//    }
+    virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+                        const MultiFab* /*crse_bcdata*/=nullptr) override
+    {
+        const int mglev = 0;
+        const int ncomp = b.nComp();
+        apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
+        MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+        //if (m_final_residual)
+        {
+            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+            //MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
+            //MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+        }
+        amrex::Geometry geom = m_geom[amrlev][mglev];
+        realFillBoundary(resid,geom);
+    }
 protected:
     virtual void Fsmooth (int amrlev, int mglev, MultiFab& x,const MultiFab& b) const override;
 

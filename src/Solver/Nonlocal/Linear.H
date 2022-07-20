@@ -169,6 +169,8 @@ protected:
     int verbose = -1;
     int pre_smooth = -1;
     int post_smooth = -1;
+    int final_smooth = -1;
+    int bottom_smooth = -1;
     std::string bottom_solver;
     Set::Scalar cg_tol_rel = -1.0;
     Set::Scalar cg_tol_abs = -1.0;
@@ -205,6 +207,8 @@ protected:
 
         if (pre_smooth >= 0)      mlmg.setPreSmooth(pre_smooth);
         if (post_smooth >= 0)     mlmg.setPostSmooth(post_smooth);
+        if (final_smooth >= 0)    mlmg.setFinalSmooth(final_smooth);
+        if (bottom_smooth >= 0)   mlmg.setBottomSmooth(bottom_smooth);
 
         if      (bottom_solver == "cg")       mlmg.setBottomSolver(MLMG::BottomSolver::cg);
         else if (bottom_solver == "bicgstab") mlmg.setBottomSolver(MLMG::BottomSolver::bicgstab);
@@ -249,6 +253,12 @@ public:
         // Number of smoothing operations after bottom solve (2)
         pp.query("post_smooth",value.post_smooth);
     
+        // Number of final smoothing operations when smoother is used as bottom solver (8)
+        pp.query("final_smooth",value.final_smooth);
+
+        // Additional smoothing after bottom CG solver (0)
+        pp.query("bottom_smooth",value.bottom_smooth);
+
         // The method that is used for the multigrid bottom solve (cg, bicgstab, smoother)
         pp.query("bottom_solver",value.bottom_solver);
         
