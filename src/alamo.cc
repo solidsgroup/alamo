@@ -50,6 +50,11 @@ int main (int argc, char* argv[])
             integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>();
             pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Linear::Isotropic>*>(integrator));
         }
+        else if (model == "linear.cubic") 
+        {
+            integrator = new Integrator::Mechanics<Model::Solid::Linear::Cubic>();
+            pp.queryclass(dynamic_cast<Integrator::Mechanics<Model::Solid::Linear::Cubic>*>(integrator));
+        }
         else if (model == "affine.isotropic") 
         {
             integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>();

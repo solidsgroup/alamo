@@ -124,7 +124,22 @@ protected:
     std::vector<T> data_points;
     std::vector<Set::Scalar> interval_points;
     bool uniform = true;
+
+public:
+    template<class U> friend Linear<U> operator * (const Set::Scalar alpha, const Linear<U> &b);
 };
+
+template<class T>
+inline Linear<T> operator * (const Set::Scalar alpha, const Linear<T> &b)
+{
+    Linear<T> ret;
+    for (unsigned int i = 0; i < b.data_points.size(); i++) 
+        ret.data_points.push_back(alpha * b.data_points[i]);
+    ret.interval_points = b.interval_points;
+    ret.uniform = b.uniform;
+    return ret;
+}
+
 }
 }
 
