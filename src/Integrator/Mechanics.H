@@ -18,6 +18,7 @@
 #include "BC/Operator/Elastic/Expression.H"
 
 #include "IC/Ellipse.H"
+#include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
 #include "Model/Solid/Solid.H"
@@ -89,9 +90,6 @@ public:
         if (value.m_print_model) value.RegisterGeneralFab(value.model_mf, 1, 2,"model",value.m_time_evolving);
         else value.RegisterGeneralFab(value.model_mf, 1, 2,value.m_time_evolving);
         
-        BC::Nothing bcnothing;
-        value.RegisterNewFab(value.psi_mf,&bcnothing,1,2,"psi",true);
-
         // Read in IC for RHS
         std::string rhstype;
         pp.query("rhs.type",rhstype); // Initializer for RHS
@@ -422,6 +420,9 @@ class Mechanics : virtual public MechanicsBase<MODEL>
         // Refinement threshold for strain gradient
         pp.query("ref_threshold",value.m_elastic_ref_threshold);
 
+        value.bc_psi = new BC::Nothing();
+        value.RegisterNewFab(value.psi_mf,value.bc_psi,1,1,"psi",true);
+
         // Read in IC for eta
         std::string type;
         pp.query("ic.type",type); // Read IC type for the eta field
@@ -466,7 +467,8 @@ class Mechanics : virtual public MechanicsBase<MODEL>
                                         });
             }
 
-            for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+            psi_mf[lev]->setVal(1.0);
+            for (MFIter mfi(*psi_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.growntilebox();
                 amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
@@ -545,6 +547,7 @@ class Mechanics : virtual public MechanicsBase<MODEL>
     Set::Scalar m_eta_ref_threshold = 0.01;
     std::vector<MODEL> models;
     IC::IC *ic_eta = nullptr;
+    BC::BC<Set::Scalar> *bc_psi = nullptr;
 
     using MechanicsBase<MODEL>::m_type;
     using MechanicsBase<MODEL>::finest_level;

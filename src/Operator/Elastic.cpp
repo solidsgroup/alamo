@@ -48,6 +48,7 @@ Elastic<SYM>::define (const Vector<Geometry>& a_geom,
                                 m_dmap[amrlev][mglev], 1, model_nghost));
             m_psi_mf[amrlev][mglev].reset(new MultiFab(m_grids[amrlev][mglev],
                                 m_dmap[amrlev][mglev], 1, model_nghost-1));
+            m_psi_mf[amrlev][mglev]->setVal(1.0);
         }
     }
 }
@@ -185,12 +186,11 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                             gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i,j,k,p,DX,sten)););
                 }
 
-                //Set::Scalar psi_avg = 
-                Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0);
+                Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
                     
                 // Stress tensor computed using the model fab
                 //Set::Matrix sig = DDW(i,j,k)*gradu;
-                Set::Matrix sig = (DDW(i,j,k)*gradu) * (psi(i,j,k) + m_psi_small);
+                Set::Matrix sig = (DDW(i,j,k)*gradu) * psi_avg;
 
                 // Boundary conditions
                 /// \todo Important: we need a way to handle corners and edges.
@@ -236,7 +236,7 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                     //    f_i = C_{ijkl,j} u_{k,l}  +  C_{ijkl}u_{k,lj}
                     //
 
-                    f = (DDW(i,j,k)*gradgradu)*(psi(i,j,k)/* + m_psi_small*/);
+                    f = (DDW(i,j,k)*gradgradu) * psi_avg;
 
                     if (!m_uniform)
                     {
@@ -246,9 +246,12 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                                      Cgrad3 = (Numeric::Stencil<MATRIX4,0,0,1>::D(DDW,i,j,k,0,DX,sten)));
                         f += (AMREX_D_TERM((Cgrad1*gradu).col(0),
                                          +(Cgrad2*gradu).col(1),
-                                         +(Cgrad3*gradu).col(2)))*(psi(i,j,k)/* + m_psi_small*/);
+                                         +(Cgrad3*gradu).col(2)))*(psi_avg);
 
-                        Set::Vector gradpsi = Numeric::Gradient(psi,i,j,k,0,DX,sten);
+                        Set::Vector gradpsi;
+                        gradpsi(0) = (psi(i,j,k) - psi(i-1,j,k))/DX[0];
+                        gradpsi(1) = (psi(i,j,k) - psi(i,j-1,k))/DX[1];
+                        //Set::Vector gradpsi = Numeric::Gradient(psi,i,j,k,0,DX,sten);
                         f += (DDW(i,j,k) * gradu) * gradpsi;
 
                     }
@@ -295,7 +298,7 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
                     = Numeric::GetStencil(i,j,k,domain);
 
 
-                
+                Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
 
                 Set::Matrix gradu; // gradu(i,j) = u_{i,j)
                 Set::Matrix3 gradgradu; // gradgradu[k](l,j) = u_{k,lj}
@@ -343,7 +346,7 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
                         //             Cgrad2 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,SYM>,0,1,0>::D(DDW,i,j,k,0,DX,sten)),
                         //             Cgrad3 = (Numeric::Stencil<Set::Matrix4<AMREX_SPACEDIM,SYM>,0,0,1>::D(DDW,i,j,k,0,DX,sten)));
 
-                        Set::Vector f = (DDW(i,j,k) * gradgradu) * (psi(i,j,k) + m_psi_small);
+                        Set::Vector f = (DDW(i,j,k) * gradgradu) * psi_avg;
                         //if (m_normalize_ddw) f /= DDW(i,j,k).Norm();
                         //if (!m_uniform)
                         //{
@@ -509,17 +512,25 @@ Elastic<SYM>::Fsmooth (int amrlev, int mglev, MultiFab& x_mf,const MultiFab& b_m
                     }
                     else
                     {
-                        Set::Scalar rhs = 0;
-                        if (psi(i,j,k)>0.5) rhs = b(i,j,k,n);
+                        //Set::Scalar rhs = 0;
+                        //if (psi(i,j,k)>0.5) rhs = b(i,j,k,n);
+                        
+                        Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
 
-                        x(i,j,k,n) = (1.-m_omega)*x(i,j,k,n) + m_omega* psi(i,j,k) * (
+                        //Set::Scalar b_avg = (1.0-psi_avg) * 0.25 * (b(i-1,j,k,n) + b(i+1,j,k,n) + b(i,j-1,k,n) + b(i,j+1,k,n)) + psi_avg * b(i,j,k,n);
+
+                        x(i,j,k,n) = (1.-m_omega)*x(i,j,k,n) + m_omega * (
                                     b(i,j,k,n)
+                                    //b_avg
                                     - Ax(i,j,k,n) + diag(i,j,k,n)*x(i,j,k,n))/diag(i,j,k,n);
-                        //x(i,j,k,n) *= psi(i,j,k) * psi(i,j,k) * psi(i,j,k);
+                        //x(i,j,k,n) *= psi_avg * psi_avg * psi_avg;//(i,j,k) * psi(i,j,k) * psi(i,j,k);
+                        
+                        
                     }
                 });
             }
         }
+        
     }
 
     //amrex::MultiFab::Copy(all_mf,*m_diag[amrlev][mglev],0,2,2,2);
@@ -950,8 +961,10 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel (int amrlev)
 
     for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
     {
+        amrex::Box cdomain_cell(m_geom[amrlev][mglev].Domain());
         amrex::Box cdomain(m_geom[amrlev][mglev].Domain());
         cdomain.convert(amrex::IntVect::TheNodeVector());
+        amrex::Box fdomain_cell(m_geom[amrlev][mglev-1].Domain());
         amrex::Box fdomain(m_geom[amrlev][mglev-1].Domain());
         fdomain.convert(amrex::IntVect::TheNodeVector());
 
@@ -971,8 +984,8 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel (int amrlev)
         fine_on_crseba.ParallelCopy(fine,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
 
         MultiFab fine_psi_on_crseba;
-        fine_psi_on_crseba.define(newba,crse_psi.DistributionMap(),1,4);
-        fine_psi_on_crseba.ParallelCopy(fine_psi,0,0,1,2,4,m_geom[amrlev][mglev].periodicity());
+        fine_psi_on_crseba.define(newba.convert(amrex::IntVect::TheCellVector()),crse_psi.DistributionMap(),1,1);
+        fine_psi_on_crseba.ParallelCopy(fine_psi,0,0,1,1,1,m_geom[amrlev][mglev].periodicity());
 
         for (MFIter mfi(crse, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -1037,7 +1050,7 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel (int amrlev)
         for (MFIter mfi(crse_psi, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             Box bx = mfi.tilebox();
-            bx = bx & cdomain;
+            bx = bx & cdomain_cell;
 
             amrex::Array4<const Set::Scalar> const& fdata = fine_psi_on_crseba.array(mfi);
             amrex::Array4<Set::Scalar> const& cdata       = crse_psi.array(mfi);

@@ -8,6 +8,7 @@
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
 #include "BC/Operator/Elastic/Elastic.H"
+#include "Numeric/Stencil.H"
 
 using namespace amrex;
 
@@ -188,27 +189,63 @@ public:
         pp.query("small",value.m_psi_small);
     }
 
-    virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
+    virtual void solutionResidual (int amrlev, MultiFab& resid_mf, MultiFab& x_mf, const MultiFab& b_mf,
                         const MultiFab* /*crse_bcdata*/=nullptr) override
     {
         const int mglev = 0;
-        const int ncomp = b.nComp();
-        apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
-        MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
-        //if (m_final_residual)
+        const int ncomp = b_mf.nComp();
+        apply(amrlev, mglev, resid_mf, x_mf, BCMode::Inhomogeneous, StateMode::Solution);
+        // dst = src + a*dst
+        // resid = b - resid
+        //MultiFab::Xpay(resid, -1.0, b, 0, 0, ncomp, 2);
+        for (MFIter mfi(resid_mf,false); mfi.isValid(); ++mfi)
         {
-            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
-            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
-            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-            MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
-            //MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,0,1,2);
-            //MultiFab::Multiply(resid,*m_psi_mf[amrlev][0],0,1,1,2);
+            amrex::Box bx = mfi.grownnodaltilebox();
+            amrex::Box bxint = mfi.validbox();
+            amrex::Array4<Set::Scalar> const &resid = resid_mf.array(mfi);
+            amrex::Array4<const Set::Scalar> const &x = x_mf.array(mfi);
+            amrex::Array4<const Set::Scalar> const &b = b_mf.array(mfi);
+            amrex::Array4<const Set::Scalar> const &psi = m_psi_mf[amrlev][0]->array(mfi);
+            
+            for (unsigned int n = 0; n < resid.nComp(); n++)
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                Set::Scalar psiavg = 1.0;
+                if (bxint.contains(i,j,k)) psiavg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0);
+                resid(i,j,k,n) = psiavg * (b(i,j,k,n) - resid(i,j,k,n));
+            });
+
         }
         amrex::Geometry geom = m_geom[amrlev][mglev];
-        realFillBoundary(resid,geom);
+        realFillBoundary(resid_mf,geom);
     }
+    virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid_mf, MultiFab& x_mf, const MultiFab& b_mf,
+                BCMode /*bc_mode*/, const MultiFab* /*crse_bcdata*/) override
+    {
+        resid_mf.setVal(0.0);
+        apply(amrlev, mglev, resid_mf, x_mf, BCMode::Homogeneous, StateMode::Correction);
+        for (MFIter mfi(resid_mf,false); mfi.isValid(); ++mfi)
+        {
+            amrex::Box bx = mfi.grownnodaltilebox();
+            amrex::Box bxint = mfi.validbox();
+            amrex::Array4<Set::Scalar> const &resid = resid_mf.array(mfi);
+            amrex::Array4<const Set::Scalar> const &x = x_mf.array(mfi);
+            amrex::Array4<const Set::Scalar> const &b = b_mf.array(mfi);
+            amrex::Array4<const Set::Scalar> const &psi = m_psi_mf[amrlev][mglev]->array(mfi);
+            
+            for (unsigned int n = 0; n < resid.nComp(); n++)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    Set::Scalar psiavg = 1.0;
+                    if (bxint.contains(i,j,k)) psiavg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0);
+                    resid(i,j,k,n) = psiavg * (b(i,j,k,n) - resid(i,j,k,n));
+                });
+
+        }
+        amrex::Geometry geom = m_geom[amrlev][mglev];
+        realFillBoundary(resid_mf,geom);
+
+    }
+
+    
 protected:
     virtual void Fsmooth (int amrlev, int mglev, MultiFab& x,const MultiFab& b) const override;
 

@@ -185,7 +185,7 @@ void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& a_x) cons
         {
             amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     
-                    x(i,j,k) /= diag(i,j,k);
+                    //x(i,j,k) /= diag(i,j,k);
 
                 } );
         }
