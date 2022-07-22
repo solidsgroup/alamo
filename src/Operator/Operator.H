@@ -57,8 +57,6 @@ public :
     void SetOmega(Set::Scalar a_omega) {m_omega = a_omega;}
     virtual void SetAverageDownCoeffs(bool) {Util::Abort(INFO,"Not implemented!");}
     void SetNormalizeDDW(bool a_normalize_ddw) {m_normalize_ddw = a_normalize_ddw;}
-
-    
     
     //
     // Public Utilty functions

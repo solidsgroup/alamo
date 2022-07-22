@@ -19,12 +19,15 @@ public:
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
         Set::Vector DX(geom[lev].CellSize());
-
+        amrex::IndexType type = a_field[lev]->ixType();
+            
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.growntilebox();
+            amrex::Box bx;
+            if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+            if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
+            
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::IndexType type = a_field[lev]->ixType();
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
                 Set::Vector x;
@@ -46,7 +49,7 @@ public:
                 {   
                     Set::Scalar norm = (A[0]*(x-center[0])).lpNorm<2>();
                     field(i,j,k,0) = 0.5 - 0.5*std::erf(((x-center[0]).transpose() * A[0] * (x-center[0]) - 1.0) / eps[0] / norm);
-                    field(i,j,k,1) = 1.0 - field(i,j,k,0);
+                    if (invert) field(i,j,k,0) = 1.0 - field(i,j,k,0);
                 }
                 else
                 {
@@ -60,12 +63,12 @@ public:
                         // if (field(i,j,k,m+1) > 1.) field(i,j,k,m+1) = 1.;
                         // value += field(i,j,k,m+1);
                     }
-                    field (i,j,k,0) = 1.0 - value;
-                    field (i,j,k,1) = value;
-                    if (field(i,j,k,0) < 0.) field(i,j,k,0) = 0.;
-                    if (field(i,j,k,0) > 1.) field(i,j,k,0) = 1.;
-                    if (field(i,j,k,1) < 0.) field(i,j,k,1) = 0.;
-                    if (field(i,j,k,1) > 1.) field(i,j,k,1) = 1.;
+                    field (i,j,k,invert) = 1.0 - value;
+                    field (i,j,k,1-invert) = value;
+                    if (field(i,j,k,invert) < 0.) field(i,j,k,invert) = 0.;
+                    if (field(i,j,k,invert) > 1.) field(i,j,k,invert) = 1.;
+                    if (field(i,j,k,1-invert) < 0.) field(i,j,k,1-invert) = 0.;
+                    if (field(i,j,k,1-invert) > 1.) field(i,j,k,1-invert) = 1.;
                 }
                 
             });
@@ -78,6 +81,7 @@ private:
     amrex::Vector<Set::Vector> center;
     amrex::Vector<Set::Matrix> A;
     amrex::Vector<Set::Scalar> eps;
+    int invert = 0;
 
     // Set::Vector x0 = Set::Vector::Zero();
     // Set::Scalar eps = 0.01, eps_sq = eps*eps;
@@ -202,7 +206,10 @@ public:
             
             else
                 for (int i = 0; i < value.number_of_inclusions; i++) value.eps.push_back(_eps[i]);
+                            pp.queryarr("eps",_eps);
         }
+        // Flip the inside and the outside
+        pp.query("invert",value.invert);
     }
 };
 }

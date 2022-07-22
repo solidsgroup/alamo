@@ -47,7 +47,7 @@ Elastic<SYM>::define (const Vector<Geometry>& a_geom,
                                             amrex::IntVect::TheNodeVector()),
                                 m_dmap[amrlev][mglev], 1, model_nghost));
             m_psi_mf[amrlev][mglev].reset(new MultiFab(m_grids[amrlev][mglev],
-                                m_dmap[amrlev][mglev], 1, model_nghost-1));
+                                m_dmap[amrlev][mglev], 1, model_nghost));
             m_psi_mf[amrlev][mglev]->setVal(1.0);
         }
     }
@@ -186,7 +186,8 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                             gradu(p,2) = (Numeric::Stencil<Set::Scalar,0,0,1>::D(U,i,j,k,p,DX,sten)););
                 }
 
-                Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
+                Set::Scalar psi_avg = (1.0-m_psi_small)*Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
+                //Util::Message(INFO,psi_avg);
                     
                 // Stress tensor computed using the model fab
                 //Set::Matrix sig = DDW(i,j,k)*gradu;
@@ -251,12 +252,13 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                         Set::Vector gradpsi;
                         gradpsi(0) = (psi(i,j,k) - psi(i-1,j,k))/DX[0];
                         gradpsi(1) = (psi(i,j,k) - psi(i,j-1,k))/DX[1];
+                        gradpsi *= (1.0-m_psi_small);
                         //Set::Vector gradpsi = Numeric::Gradient(psi,i,j,k,0,DX,sten);
                         f += (DDW(i,j,k) * gradu) * gradpsi;
 
                     }
                     
-                    f -= m_alpha * (1 - psi(i,j,k))  * u;
+                    //f -= m_alpha * (1 - psi(i,j,k))  * u;
                 }
                 AMREX_D_TERM(F(i,j,k,0) = f[0];, F(i,j,k,1) = f[1];, F(i,j,k,2) = f[2];);
             });
@@ -298,7 +300,8 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
                     = Numeric::GetStencil(i,j,k,domain);
 
 
-                Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
+                Set::Scalar psi_avg = (1.0-m_psi_small)*Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
+                //Util::Message(INFO,psi_avg);
 
                 Set::Matrix gradu; // gradu(i,j) = u_{i,j)
                 Set::Matrix3 gradgradu; // gradgradu[k](l,j) = u_{k,lj}
@@ -356,7 +359,7 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
                         //}
 
                         diag(i,j,k,p) += f(p);
-                        diag(i,j,k,p) -= m_alpha * (1 - psi(i,j,k));
+                        //diag(i,j,k,p) -= m_alpha * (1 - psi(i,j,k));
                     }
                     if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"diagonal is nan at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
 
@@ -369,95 +372,13 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 template<int SYM> void
 Elastic<SYM>::Fsmooth (int amrlev, int mglev, MultiFab& x_mf,const MultiFab& b_mf) const
 {
+    Operator::Fsmooth(amrlev,mglev,x_mf,b_mf);
+    return;
 
-    amrex::MultiFab all_mf(x_mf.boxArray(), x_mf.DistributionMap(), 13, x_mf.nGrowVect());
-    amrex::MultiFab::Copy(all_mf,x_mf,0,0,2,2);
-
-    const Real* DX = m_geom[amrlev][mglev].CellSize();
-
-    //Operator::Fsmooth(amrlev,mglev,x_mf,b_mf);
-    //Util::Warning(INFO,"Not using new Fsmooth...");
-    //return;
-    //Util::Abort(INFO);
-
-    //amrex::MultiFab all_mf(x_mf.boxArray(), x_mf.DistributionMap(), 12, x_mf.nGrowVect());
+    //amrex::MultiFab all_mf(x_mf.boxArray(), x_mf.DistributionMap(), 13, x_mf.nGrowVect());
     //amrex::MultiFab::Copy(all_mf,x_mf,0,0,2,2);
 
-    /*
-    BL_PROFILE("Operator::Fsmooth()");
-
-    amrex::Box domain(m_geom[amrlev][mglev].Domain());
-    domain.convert(amrex::IntVect::TheNodeVector());
-
-    int ncomp = b_mf.nComp();
-    int nghost = 2; //b.nGrow();
-    
-
-    amrex::MultiFab Ax_mf(x_mf.boxArray(), x_mf.DistributionMap(), ncomp, nghost);
-    amrex::MultiFab Dx_mf(x_mf.boxArray(), x_mf.DistributionMap(), ncomp, nghost);
-    amrex::MultiFab Rx_mf(x_mf.boxArray(), x_mf.DistributionMap(), ncomp, nghost);
-    
-    if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
-
-    // This is a JACOBI iteration, not Gauss-Seidel.
-    // So we need to do twice the number of iterations to get the same behavior as GS.
-    for (int ctr = 0; ctr < 2; ctr++)
-    {
-        Fapply(amrlev,mglev,Ax_mf,x_mf); // find Ax
-
-        amrex::MultiFab::Copy(Dx_mf,x_mf,0,0,ncomp,nghost); // Dx = x
-        amrex::MultiFab::Multiply(Dx_mf,*m_diag[amrlev][mglev],0,0,ncomp,nghost); // Dx *= diag  (Dx = x*diag)
-
-        amrex::MultiFab::Copy(Rx_mf,Ax_mf,0,0,ncomp,nghost); // Rx = Ax
-        amrex::MultiFab::Subtract(Rx_mf,Dx_mf,0,0,ncomp,nghost); // Rx -= Dx  (Rx = Ax - Dx)
-
-        for (MFIter mfi(x_mf, false); mfi.isValid(); ++mfi)
-        {
-            //Box bx = mfi.grownnodaltilebox() & domain;
-            Box bx = mfi.validbox();
-            bx.grow(2);
-            bx = bx & domain;
-    
-            amrex::Array4<Set::Scalar> const & x  = x_mf.array(mfi);
-            amrex::Array4<const Set::Scalar> const & b  = b_mf.array(mfi);
-            amrex::Array4<const Set::Scalar> const & Rx = Rx_mf.array(mfi);
-            amrex::Array4<const Set::Scalar> const & diag = m_diag[amrlev][mglev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const & psi = m_psi_mf[amrlev][mglev]->array(mfi);
-            
-            const Dim3 lo= amrex::lbound(bx), hi = amrex::ubound(bx);
-                
-            for (int n = 0; n < ncomp; n++)
-            {
-                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                {
-
-                    if (AMREX_D_TERM(i==lo.x || i==hi.x, || j==lo.y || j==hi.y, || k==lo.z || k==hi.z))
-                    {
-                        x(i,j,k,n) = 0.0;
-                    }
-                    else
-                    {
-
-                        //Set::Scalar psi_avg = 1;
-                        //    psi(IntVect(m1,m2)) + 
-                        //    0.125 * (psi(IntVect(m1+1,m2)) + psi(IntVect(m1-1,m2)) + psi(IntVect(m1,m2+1)) + psi(IntVect(m1,m2-1))) +
-                        //    0.0625 * (psi(IntVect(m1+1,m2+1)) + psi(IntVect(m1+1,m2-1)) + psi(IntVect(m1-1,m2+1)) + psi(IntVect(m1-1,m2-1)))
-                        //    + 1E-8;
-                        //Util::Message(INFO,amrlev," ",mglev," (", m1 , ",", m2, ") ", psi(IntVect(m1,m2)), " ", psi_avg );
-
-                        x(i,j,k,n) = (1.-m_omega)*x(i,j,k,n) + m_omega*(b(i,j,k,n) - Rx(i,j,k,n))/diag(i,j,k,n);
-                    }
-                });
-            }
-        }
-    }
-    amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(x_mf,geom);
-    nodalSync(amrlev, mglev, x_mf);
-    */
-
-   
-   
+    const Real* DX = m_geom[amrlev][mglev].CellSize();
    
     BL_PROFILE("Operator::Fsmooth()");
 
@@ -512,20 +433,9 @@ Elastic<SYM>::Fsmooth (int amrlev, int mglev, MultiFab& x_mf,const MultiFab& b_m
                     }
                     else
                     {
-                        //Set::Scalar rhs = 0;
-                        //if (psi(i,j,k)>0.5) rhs = b(i,j,k,n);
-                        
-                        Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
+                        //Set::Scalar psi_avg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
+                        x(i,j,k,n) = (1.- m_omega)*x(i,j,k,n) + m_omega * (b(i,j,k,n) - Ax(i,j,k,n) + diag(i,j,k,n)*x(i,j,k,n))/diag(i,j,k,n);
 
-                        //Set::Scalar b_avg = (1.0-psi_avg) * 0.25 * (b(i-1,j,k,n) + b(i+1,j,k,n) + b(i,j-1,k,n) + b(i,j+1,k,n)) + psi_avg * b(i,j,k,n);
-
-                        x(i,j,k,n) = (1.-m_omega)*x(i,j,k,n) + m_omega * (
-                                    b(i,j,k,n)
-                                    //b_avg
-                                    - Ax(i,j,k,n) + diag(i,j,k,n)*x(i,j,k,n))/diag(i,j,k,n);
-                        //x(i,j,k,n) *= psi_avg * psi_avg * psi_avg;//(i,j,k) * psi(i,j,k) * psi(i,j,k);
-                        
-                        
                     }
                 });
             }
@@ -533,15 +443,6 @@ Elastic<SYM>::Fsmooth (int amrlev, int mglev, MultiFab& x_mf,const MultiFab& b_m
         
     }
 
-    //amrex::MultiFab::Copy(all_mf,*m_diag[amrlev][mglev],0,2,2,2);
-    //amrex::MultiFab::Copy(all_mf,Rx_mf,0,4,2,2);
-    //amrex::MultiFab::Copy(all_mf,Ax_mf,0,6,2,2);
-    //amrex::MultiFab::Copy(all_mf,b_mf,0,8,2,2);
-    //amrex::MultiFab::Copy(all_mf,x_mf,0,10,2,2);
-    //amrex::MultiFab::Copy(all_mf,*m_psi_mf[amrlev][mglev],0,12,1,2);
-    //if (mglev == 0)
-    //    amrex::WriteSingleLevelPlotfile("all",all_mf,{"xold_x","xold_y","diag_x","diag_y", "Rx_x","Rx_y","Ax_x","Ax_y","b_x","b_y","x_x","x_y","psi"},m_geom[amrlev][mglev],0.0,0);
-    
     amrex::Geometry geom = m_geom[amrlev][mglev];
     realFillBoundary(x_mf,geom);
     nodalSync(amrlev, mglev, x_mf);
@@ -705,7 +606,6 @@ Elastic<SYM>::Stress (int amrlev,
                         else
                         {
                             AMREX_D_PICK(sigma(i,j,k,0) = sig(0,0);
-
                                 ,
                                 sigma(i,j,k,0) = sig(0,0); sigma(i,j,k,1) = sig(0,1); 
                                 sigma(i,j,k,2) = sig(1,0); sigma(i,j,k,3) = sig(1,1);
