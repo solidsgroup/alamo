@@ -390,7 +390,7 @@ namespace Integrator
         Util::Message(INFO, "Regridding on level ", lev);
     } 
 
-    void Flame::Integrate(int amrlev, Set::Scalar time, int step,
+    void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
                                             const amrex::MFIter &mfi, const amrex::Box &box)
     {
         BL_PROFILE("Flame::Integrate");

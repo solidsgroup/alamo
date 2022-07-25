@@ -60,7 +60,6 @@ public:
         pp.query("time_evolving",value.m_time_evolving);
         
         value.RegisterGeneralFab(value.disp_mf, 1, 2, "disp",value.m_time_evolving);
-        value.RegisterGeneralFab(value.ddisp_mf, 1, 2, "ddisp",value.m_time_evolving);
         value.RegisterGeneralFab(value.rhs_mf, 1, 2, "rhs",value.m_time_evolving);
         value.RegisterGeneralFab(value.stress_mf, 1, 2, "stress",value.m_time_evolving);
         value.RegisterGeneralFab(value.strain_mf, 1, 2, "strain",value.m_time_evolving);
@@ -342,7 +341,7 @@ protected:
     int m_interval = 0;
     Type m_type = Type::Static;
 
-    Set::Field<Set::Vector> disp_mf, ddisp_mf;
+    Set::Field<Set::Vector> disp_mf;
     Set::Field<Set::Vector> rhs_mf;
     Set::Field<Set::Vector> res_mf;
     Set::Field<Set::Matrix> stress_mf;
@@ -506,10 +505,6 @@ class Mechanics : virtual public MechanicsBase<MODEL>
     using MechanicsBase<MODEL>::geom;
     using MechanicsBase<MODEL>::model_mf;
     using MechanicsBase<MODEL>::psi_mf;
-
-    using MechanicsBase<MODEL>::disp_mf;
-    using MechanicsBase<MODEL>::stress_mf;
-    using MechanicsBase<MODEL>::rhs_mf;
 };
 
 
