@@ -124,7 +124,7 @@ public:
                 value.m_bc_val [Face::XHI_YHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(trac);
             }
             #if AMREX_SPACEDIM == 3
-            if (mode == LoadingMode::DISP)
+            if (mode == TensionTest::LoadingMode::DISP)
             {
                 value.m_bc_type[Face::ZLO_XHI][0]     = Type::Displacement;
                 value.m_bc_val [Face::ZLO_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(disp);
@@ -139,7 +139,7 @@ public:
                 value.m_bc_type[Face::XHI_YHI_ZHI][0] = Type::Displacement;
                 value.m_bc_val [Face::XHI_YHI_ZHI][0] = Numeric::Interpolator::Linear<Set::Scalar>(disp);
             }
-            if (mode == LoadingMode::Trac)
+            if (mode == TensionTest::LoadingMode::TRAC)
             {
                 value.m_bc_type[Face::ZLO_XHI][0]     = Type::Traction;
                 value.m_bc_val [Face::ZLO_XHI][0]     = Numeric::Interpolator::Linear<Set::Scalar>(trac);

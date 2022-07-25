@@ -18,6 +18,7 @@
 #include "BC/Operator/Elastic/Expression.H"
 
 #include "IC/Ellipse.H"
+#include "IC/Constant.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
@@ -432,9 +433,11 @@ class Mechanics : virtual public MechanicsBase<MODEL>
 
         // Read in IC for eta
         {
-            std::string type;
+            std::string type = "constant";
             pp.query("psi.ic.type",type); // Read IC type for the eta field
             if (type=="ellipse") value.ic_psi = new IC::Ellipse(value.geom,pp,"psi.ic.ellipse");
+            else if (type=="constant") value.ic_psi = new IC::Constant(value.geom,pp,"psi.ic.constant");
+            else Util::Abort(INFO,"Invalid vaslue for psi.ic.type: ",type);
         }
     }
 
@@ -448,7 +451,7 @@ class Mechanics : virtual public MechanicsBase<MODEL>
         if (ic_psi) ic_psi->Initialize(lev,psi_mf);
     }
 
-    virtual void UpdateModel(int a_step) override
+    virtual void UpdateModel(int /*a_step*/) override
     {
         if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
 

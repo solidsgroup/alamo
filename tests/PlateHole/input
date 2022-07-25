@@ -16,7 +16,7 @@ amr.node.all                = 1
 amr.cell.all                = 1
 
 # grid
-amr.max_level		    = 8 #8
+amr.max_level		    = 5 #8
 amr.n_cell		    = 32 32 32
 
 # geometry
@@ -28,7 +28,7 @@ geometry.is_periodic	    = 0 0 0
 psi.ic.type        = ellipse
 psi.ic.ellipse.a   = 1.0 1.0 1.0  # ellipse radius
 psi.ic.ellipse.x0  = 0 0 0 # location of ellipse center
-psi.ic.ellipse.eps = 0.05
+psi.ic.ellipse.eps = 0.2
 psi.ic.ellipse.invert = 1
 
 # elastic moduli
@@ -40,6 +40,7 @@ model1.planestress = 1
 solver.verbose = 3
 solver.nriters = 1
 solver.fixed_iter = 500
+solver.bottom_solver = smoother
 solver.tol_abs = 1E-16 # This is very important for near-singular problems.
 
 print_residual = 1

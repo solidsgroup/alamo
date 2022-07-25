@@ -169,6 +169,7 @@ private:
     void averageDownCoeffsSameAmrLevel (int amrlev);
 
     void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
+    void FillBoundaryCoeff (MultiFab& psi, const Geometry& geom);
 
     bool m_testing = false;
     bool m_uniform = false;
@@ -189,12 +190,6 @@ public:
         pp.query("alpha",value.m_alpha);
         pp.query("small",value.m_psi_small);
     }
-
-
-    
-protected:
-    virtual void Fsmooth (int amrlev, int mglev, MultiFab& x,const MultiFab& b) const override;
-
 };
 }
 
