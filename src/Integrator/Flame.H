@@ -89,7 +89,7 @@ protected:
       Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
       Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
       Set::Scalar c1 = 0.0;
-
+      Set::Scalar E1, E2;
     } pressure;
 
     struct {

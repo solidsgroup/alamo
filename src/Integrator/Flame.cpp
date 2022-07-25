@@ -48,6 +48,8 @@ namespace Integrator
 	    pp.query("pressure.b2", value.pressure.b2);
 	    pp.query("pressure.b3", value.pressure.b3);
         pp.query("pressure.c1", value.pressure.c1);
+	pp.query("pressure.E1", value.pressure.E1);
+	pp.query("pressure.E2", value.pressure.E2);
 	}
 
         {
@@ -313,11 +315,12 @@ namespace Integrator
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
                     
 		    Set::Scalar Eap = 9.375 * pressure.P * pressure.P - 161.25 * pressure.P + 1121.0;
-                    thermal.exp_ap   = -1.0 * Eap / tempnew(i,j,k);
+		    Set::Scalar Ecom = pressure.E1 * pressure.P + pressure.E2;
+                    thermal.exp_ap   = -1.0 * thermal.E_ap / tempnew(i,j,k);
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
-		            mob(i,j,k)  = (small + thermal.m_ap   * exp(thermal.exp_ap  )) * phi(i,j,k)
+		            mob(i,j,k)  = (small + thermal.m_ap * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
                                  + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
                                  + (small + thermal.m_comb * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
