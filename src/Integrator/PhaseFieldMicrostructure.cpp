@@ -251,7 +251,9 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
 
     amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
     amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+        #if AMREX_SPACEDIM == 2
         auto sten = Numeric::GetStencil(i,j,k,box);
+        #endif
 
         volume += eta(i, j, k, 0) * dv;
 
