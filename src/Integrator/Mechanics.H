@@ -18,6 +18,8 @@
 #include "BC/Operator/Elastic/Expression.H"
 
 #include "IC/Ellipse.H"
+#include "IC/Constant.H"
+#include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
 #include "Model/Solid/Solid.H"
@@ -99,6 +101,9 @@ public:
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]),"disp_xhi_x");
         value.RegisterIntegratedVariable(&(value.trac_hi[0].data()[0]),"trac_xhi_x");
 
+        // Maximum multigrid coarsening level (default - none, maximum coarsening)
+        pp.query("max_coarsening_level",value.m_max_coarsening_level);
+
         pp.query("print_residual",value.m_print_residual);
         if (value.m_print_residual) value.RegisterGeneralFab(value.res_mf,1,2,"res",false);
 
@@ -127,7 +132,6 @@ protected:
         if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
         if (m_interval && a_step%m_interval) return;
 
-        UpdateModel(a_step);        
 
         if (!m_type == MechanicsBase<MODEL>::Type::Static) return;
 
@@ -137,14 +141,20 @@ protected:
             if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
         }
 
+        UpdateModel(a_step);        
+
         bc->SetTime(a_time);
         bc->Init(rhs_mf,geom);
 
         amrex::LPInfo info;
+        if (m_max_coarsening_level >= 0)
+            info.setMaxCoarseningLevel(m_max_coarsening_level);
         Operator::Elastic<MODEL::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
         elastic_op.SetHomogeneous(false);
         elastic_op.SetBC(bc);
+        IO::ParmParse pp("elasticop");
+        pp.queryclass(elastic_op);
 
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
@@ -358,6 +368,7 @@ protected:
     bool m_print_model = false;
     bool m_print_residual = false;
     bool m_time_evolving = false;
+    int m_max_coarsening_level = -1;
 };
 
 
