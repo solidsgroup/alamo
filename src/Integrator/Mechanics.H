@@ -138,13 +138,11 @@ protected:
 
         for (int lev=0; lev <= finest_level; ++lev) 
         {
-            //rhs_mf[lev]->setVal(Set::Vector::Zero());
+            rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
         }
 
         UpdateModel(a_step);        
-
-        //if (a_step > 0) bc->setHomogeneous(true);
 
         bc->SetTime(a_time);
         bc->Init(rhs_mf,geom);
@@ -154,7 +152,6 @@ protected:
             info.setMaxCoarseningLevel(m_max_coarsening_level);
         Operator::Elastic<MODEL::sym> elastic_op(Geom(0,finest_level), grids, DistributionMap(0,finest_level), info);
         elastic_op.SetUniform(false);
-        //elastic_op.SetUniform(true);
         elastic_op.SetHomogeneous(false);
         elastic_op.SetBC(bc);
         IO::ParmParse pp("elasticop");
@@ -164,27 +161,9 @@ protected:
 
         solver.Define(elastic_op);
         solver.setPsi(psi_mf);
-        //if (a_step == 0) 
         solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
-        //else solver.solve(ddisp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
-        //if (m_print_residual) solver.compResidual(res_mf,disp_mf,rhs_mf,model_mf);
         if (m_print_residual) solver.compLinearSolverResidual(res_mf,disp_mf,rhs_mf);
         solver.Clear();
-
-        //for (int lev = 0; lev <= disp_mf.finest_level; lev++)
-        //{
-        //    for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
-        //    {
-        //        amrex::Box bx = mfi.grownnodaltilebox();
-        //        amrex::Array4<Set::Vector> const &disp  = disp_mf[lev]->array(mfi);
-        //        amrex::Array4<Set::Vector> const &ddisp  = ddisp_mf[lev]->array(mfi);
-        //        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-        //            disp(i,j,k) += ddisp(i,j,k);
-        //        });
-        //    }
-        //    Util::RealFillBoundary(*disp_mf[lev],geom[lev]);
-        //    //disp_mf[lev]->ParallelAdd(*ddisp_mf[lev]);
-        //}
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
         {
@@ -431,7 +410,7 @@ class Mechanics : virtual public MechanicsBase<MODEL>
             if (type=="ellipse") value.ic_eta = new IC::Ellipse(value.geom,pp,"ic.ellipse");
         }
 
-        // Read in IC for eta
+        // Read in IC for psi
         {
             std::string type = "constant";
             pp.query("psi.ic.type",type); // Read IC type for the eta field
@@ -451,11 +430,11 @@ class Mechanics : virtual public MechanicsBase<MODEL>
         if (ic_psi) ic_psi->Initialize(lev,psi_mf);
     }
 
-    virtual void UpdateModel(int /*a_step*/) override
+    virtual void UpdateModel(int a_step) override
     {
         if (m_type == MechanicsBase<MODEL>::Type::Disable) return;
 
-        //if (a_step > 0) return;
+        if (a_step > 0) return;
         
         for (int lev = 0; lev <= finest_level; ++lev)
         {
@@ -473,12 +452,14 @@ class Mechanics : virtual public MechanicsBase<MODEL>
 
                 amrex::Array4<MODEL> const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                                             model(i,j,k) = MODEL::Zero();
                                             for (unsigned int n = 0; n < models.size(); n++) 
                                                 model(i,j,k) += eta(i,j,k,n) * models[n];
                                         });
             }
+
             Util::RealFillBoundary(*model_mf[lev],geom[lev]);
         }
     }

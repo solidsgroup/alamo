@@ -88,6 +88,7 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
 void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x_mf, const amrex::MultiFab& b_mf) const
 {
     BL_PROFILE("Operator::Fsmooth()");
+
     amrex::Box domain(m_geom[amrlev][mglev].Domain());
     domain.convert(amrex::IntVect::TheNodeVector());
 
@@ -135,9 +136,7 @@ void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x_mf
                 });
             }
         }
-        
     }
-
     amrex::Geometry geom = m_geom[amrlev][mglev];
     realFillBoundary(x_mf,geom);
     nodalSync(amrlev, mglev, x_mf);

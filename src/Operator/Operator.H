@@ -100,9 +100,9 @@ protected:
 public:
     virtual int getNGrow(int /*alev*/=0,int /*mglev*/=0) const override final {return 2;}
     virtual void solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const MultiFab& b,
-                        const MultiFab* crse_bcdata=nullptr) override;
+                        const MultiFab* crse_bcdata=nullptr) override final;
     virtual void correctionResidual (int amrlev, int mglev, MultiFab& resid, MultiFab& x, const MultiFab& b,
-                    BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override;
+                    BCMode bc_mode, const MultiFab* crse_bcdata=nullptr) override final;
 
 
 public:

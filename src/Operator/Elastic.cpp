@@ -124,7 +124,7 @@ Elastic<SYM>::SetPsi (int amrlev, const amrex::MultiFab& a_psi_mf)
     BL_PROFILE("Operator::Elastic::SetPsi()");
     amrex::Box domain(m_geom[amrlev][0].Domain());
 
-    for (MFIter mfi(a_psi_mf, false); mfi.isValid(); ++mfi)
+    for (MFIter mfi(a_psi_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         Box bx = mfi.growntilebox() & domain;
 
@@ -191,7 +191,6 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                 if (m_psi_set) psi_avg = (1.0-m_psi_small)*Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0) + m_psi_small;
                     
                 // Stress tensor computed using the model fab
-                //Set::Matrix sig = DDW(i,j,k)*gradu;
                 Set::Matrix sig = (DDW(i,j,k)*gradu) * psi_avg;
 
                 // Boundary conditions
@@ -203,6 +202,8 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                 }
                 else
                 {
+                    
+
                     // The gradient of the displacement gradient tensor
                     // TODO - replace with this call. But not for this PR
                     //Set::Matrix3 gradgradu = Numeric::Hessian(U,i,j,k,DX,sten); // gradgradu[k](l,j) = u_{k,lj}
@@ -301,6 +302,7 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
 
                 for (int p = 0; p < AMREX_SPACEDIM; p++)
                 {
+
                     diag(i,j,k,p) = 0.0;
                     for (int q = 0; q < AMREX_SPACEDIM; q++)
                     {
@@ -351,6 +353,7 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
             });
     }
 }
+
 
 template<int SYM>
 void
@@ -717,15 +720,14 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel (int amrlev)
 
     for (int mglev = 1; mglev < m_num_mg_levels[amrlev]; ++mglev)
     {
-        amrex::Box cdomain_cell(m_geom[amrlev][mglev].Domain());
         amrex::Box cdomain(m_geom[amrlev][mglev].Domain());
         cdomain.convert(amrex::IntVect::TheNodeVector());
-        amrex::Box fdomain_cell(m_geom[amrlev][mglev-1].Domain());
         amrex::Box fdomain(m_geom[amrlev][mglev-1].Domain());
         fdomain.convert(amrex::IntVect::TheNodeVector());
 
         MultiTab& crse = *m_ddw_mf[amrlev][mglev];
         MultiTab& fine = *m_ddw_mf[amrlev][mglev-1];
+        
         amrex::BoxArray crseba = crse.boxArray();
         amrex::BoxArray fineba = fine.boxArray();
         
@@ -798,6 +800,8 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel (int amrlev)
 
         if (!m_psi_set) continue;
 
+        amrex::Box cdomain_cell(m_geom[amrlev][mglev].Domain());
+        amrex::Box fdomain_cell(m_geom[amrlev][mglev-1].Domain());
         MultiFab& crse_psi = *m_psi_mf[amrlev][mglev];
         MultiFab& fine_psi = *m_psi_mf[amrlev][mglev-1];
         MultiFab fine_psi_on_crseba;

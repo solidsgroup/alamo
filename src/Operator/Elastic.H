@@ -182,14 +182,12 @@ private:
     bool m_model_set = false;
     bool m_bc_set = false;
     
-    Set::Scalar m_alpha = 1.0;
-
 public:
     static void Parse(Elastic<SYM> & value, IO::ParmParse & pp)
     {
-        pp.query("alpha",value.m_alpha);
         pp.query("small",value.m_psi_small);
     }
+
 };
 }
 
