@@ -251,10 +251,7 @@ Elastic<SYM>::Fapply (int amrlev, int mglev, MultiFab& a_f, const MultiFab& a_u)
                     }
                     if (m_psi_set)
                     {
-                        Set::Vector gradpsi(AMREX_D_DECL(
-                            0.5*(psi(i,j,k) - psi(i-1,j,k) + psi(i,j-1,k) - psi(i-1,j-1,k))/DX[0], 
-                            0.5*(psi(i,j,k) - psi(i,j-1,k) + psi(i-1,j,k) - psi(i-1,j-1,k))/DX[1],
-                            (psi(i,j,k) - psi(i,j,k-1))/DX[2]));
+                        Set::Vector gradpsi = Numeric::CellGradientOnNode(psi,i,j,k,0,DX);
                         gradpsi *= (1.0-m_psi_small);
                         f += (DDW(i,j,k) * gradu) * gradpsi;
                     }
@@ -340,14 +337,12 @@ Elastic<SYM>::Diagonal (int amrlev, int mglev, MultiFab& a_diag)
                         Set::Vector f = (DDW(i,j,k) * gradgradu) * psi_avg;
                         diag(i,j,k,p) += f(p);
                     }
+
+                    #ifdef AMREX_DEBUG
                     if (std::isnan(diag(i,j,k,p))) Util::Abort(INFO,"diagonal is nan at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
                     if (std::isinf(diag(i,j,k,p))) Util::Abort(INFO,"diagonal is inf at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
-                    if (diag(i,j,k,p)==0) 
-                    {
-                        Util::Message(INFO,"psi_avg = ", psi_avg);
-                        Util::Message(INFO,"model = ", DDW(i,j,k));
-                        Util::Abort(INFO,"diagonal is zero at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
-                    }
+                    if (diag(i,j,k,p)==0) Util::Abort(INFO,"diagonal is zero at (", i, ",", j , ",",k,"), amrlev=",amrlev,", mglev=",mglev);
+                    #endif
 
                 }
             });
