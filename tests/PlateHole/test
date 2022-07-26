@@ -45,7 +45,7 @@ ymax = 2
 outdir = sys.argv[1]
 
 generate_ref_data = False  # Change to True if you need to generate new reference data
-tolerance = 1E-8
+tolerance = 0.01
 
 path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
 ds = yt.load(path)
@@ -64,6 +64,9 @@ df = prof.to_dataframe([("gas","x"),("gas","y"),"stress_xx","stress_xy","stress_
 class ref:
     x = numpy.linspace(xmin,xmax,1000)
     y = numpy.linspace(ymin,ymax,1000)
+    sigxx = sigma_XX(x,y)
+    sigyy = sigma_YY(x,y)
+    sigxy = -sigma_XY(x,y)
 class new:
     ret = [numpy.array(_x) for _x in zip(*sorted(zip(
         df["x"],df["y"],df["stress_xx"],df["stress_xy"],df["stress_yy"])))]
@@ -74,47 +77,34 @@ class new:
     sigyy = ret[4]
 
 pylab.clf()
-pylab.plot(new.x,new.sigxx,marker='o',color='C0',label="xx",linestyle="",markerfacecolor='None')
-pylab.plot(ref.x,sigma_XX(ref.x,ref.y),color='C0')
-#pylab.plot(new.x,new.sigxy,marker='o',color='C1',label="xy",linestyle="")
-#pylab.plot(new.x,sigma_XY(new.y,new.x),color='C1')
-pylab.plot(new.x,new.sigyy,marker='o',color='C2',label="yy",linestyle="",markerfacecolor='None')
-pylab.plot(ref.x,sigma_YY(ref.x,ref.y),color='C2')
-#pylab.plot(new.x,new.sigxy)
-#pylab.plot(new.x,new.sigyy)
+pylab.plot(new.x,new.sigxx,marker='o',color='C0',label="$\sigma_{xx}$",linestyle="",markerfacecolor='None')
+pylab.plot(ref.x,ref.sigxx,color='C0')
+pylab.plot(new.x,new.sigyy,marker='o',color='C1',label="$\sigma_{yy}$",linestyle="",markerfacecolor='None')
+pylab.plot(ref.x,ref.sigyy,color='C1')
+pylab.plot(new.x,new.sigxy,marker='o',color='C2',label="$\sigma_{xy}$",linestyle="",markerfacecolor='None')
+pylab.plot(ref.x,ref.sigxy,color='C2')
 pylab.legend()
 pylab.tight_layout()
-pylab.show()
+pylab.savefig("{}/sig.png".format(outdir))
 
-#pylab.clf()
-#pylab.plot(ref.x,ref.eta,color='C0',label='reference')
-#pylab.plot(new.x,new.eta,color='C1',label='new',linestyle='--')
-#pylab.savefig("{}/etas.png".format(outdir))
-#
-#pylab.clf()
-#pylab.plot(ref.x,ref.u,color='C0',label='reference')
-#pylab.plot(new.x,new.u,color='C1',label='new',linestyle='--')
-#pylab.savefig("{}/u.png".format(outdir))
-#
-#pylab.clf()
-#pylab.plot(ref.x,ref.sig,color='C0',label='reference')
-#pylab.plot(new.x,new.sig,color='C1',label='new',linestyle='--')
-#pylab.savefig("{}/sig.png".format(outdir))
-#
-#err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.eta) - ref.eta)**2))
-#print("eta error",err)
-#if err > tolerance: raise(Exception("Error in eta"))
-#if math.isnan(err): raise(Exception("eta is nan"))
-#
-#err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.u) - ref.u)**2))
-#print("u error",err)
-#if err > tolerance: raise(Exception("Error in displacement"))
-#if math.isnan(err): raise(Exception("displacement is nan"))
-#
-#err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sig) - ref.sig)**2))
-#print("sig error",err)
-#if err > tolerance: raise(Exception("Error in sigma"))
-#if math.isnan(err): raise(Exception("sigma is nan"))
+norm = numpy.sqrt(integrate(new.x, new.sigxx)**2)
+
+err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sigxx) - ref.sigxx)**2)) / norm
+print("sigxx error",err)
+if err > tolerance: raise(Exception("Error in sigxx"))
+if math.isnan(err): raise(Exception("sigxx is nan"))
+
+err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sigyy) - ref.sigyy)**2)) / norm
+print("sigyy error",err)
+if err > tolerance: raise(Exception("Error in sigyy"))
+if math.isnan(err): raise(Exception("sigyy is nan"))
+
+
+err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sigxy) - ref.sigxy)**2)) / norm
+print("sigxy error",err)
+if err > tolerance: raise(Exception("Error in sigxy"))
+if math.isnan(err): raise(Exception("sigxy is nan"))
+
 
 exit(0)
 

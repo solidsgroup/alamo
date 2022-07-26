@@ -1,3 +1,19 @@
+#@  [2D-serial]
+#@  dim    = 2 
+#@  nprocs = 1
+#@  check  = true
+#@ 
+#@  [3D-parallel]
+#@  dim    = 3
+#@  nprocs = 4
+#@  check  = false
+#@
+#@  [3D-serial]
+#@  dim    = 3
+#@  nprocs = 1
+#@  check  = false
+
+
 alamo.program = mechanics
 alamo.program.mechanics.model = linear.isotropic
 
@@ -41,7 +57,7 @@ solver.verbose = 3
 solver.nriters = 1
 solver.fixed_iter = 500
 solver.bottom_solver = smoother
-solver.tol_abs = 1E-16 # This is very important for near-singular problems.
+solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
 
 print_residual = 1
 
@@ -49,5 +65,5 @@ bc.type = tension_test
 bc.tension_test.type = uniaxial_stress
 bc.tension_test.disp=0.01
 
-elasticop.small=1E-8
+elasticop.small=1E-16
 

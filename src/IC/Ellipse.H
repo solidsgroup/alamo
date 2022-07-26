@@ -51,7 +51,7 @@ public:
                     Set::Scalar norm = (A[0]*(x-center[0])).lpNorm<2>();
                     field(i,j,k,0) = 0.5 - 0.5*std::erf(((x-center[0]).transpose() * A[0] * (x-center[0]) - 1.0) / eps[0] / norm);
                     if (invert) field(i,j,k,0) = 1.0 - field(i,j,k,0);
-                    if (ncomp > 0) field(i,j,k,1) = 1.0 - field(i,j,k,0);
+                    if (ncomp > 1) field(i,j,k,1) = 1.0 - field(i,j,k,0);
                 }
                 else
                 {

@@ -159,8 +159,9 @@ protected:
         Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
 
         solver.Define(elastic_op);
+        if (psi_on) solver.setPsi(psi_mf);
         solver.solve(disp_mf,rhs_mf,model_mf,tol_rel,tol_abs);
-        if (m_print_residual) solver.compResidual(res_mf,disp_mf,rhs_mf,model_mf);
+        if (m_print_residual) solver.compLinearSolverResidual(res_mf,disp_mf,rhs_mf);
         solver.Clear();
 
         for (int lev = 0; lev <= disp_mf.finest_level; lev++)
@@ -335,6 +336,8 @@ protected:
 
 protected:
     Set::Field<MODEL> model_mf;
+    Set::Field<Set::Scalar> psi_mf;
+    bool psi_on = false;
 
     int m_interval = 0;
     Type m_type = Type::Static;
@@ -397,11 +400,27 @@ class Mechanics : virtual public MechanicsBase<MODEL>
         // Refinement threshold for strain gradient
         pp.query("ref_threshold",value.m_elastic_ref_threshold);
 
+
         // Read in IC for eta
-        std::string type;
-        pp.query("ic.type",type); // Read IC type for the eta field
-        Util::Message(INFO,type);
-        if (type=="ellipse") value.ic_eta = new IC::Ellipse(value.geom,pp,"ic.ellipse");
+        {
+            std::string type;
+            pp.query("ic.type",type); // Read IC type for the eta field
+            if (type=="ellipse") value.ic_eta = new IC::Ellipse(value.geom,pp,"ic.ellipse");
+        }
+
+        // Read in IC for psi
+        if (pp.contains("psi.ic.type"))
+        {
+            std::string type;
+            pp.query("psi.ic.type",type); // Read IC type for the eta field
+            if (type=="ellipse") value.ic_psi = new IC::Ellipse(value.geom,pp,"psi.ic.ellipse");
+            else if (type=="constant") value.ic_psi = new IC::Constant(value.geom,pp,"psi.ic.constant");
+            else Util::Abort(INFO,"Invalid value for psi.ic.type: ",type);
+            
+            value.bc_psi = new BC::Nothing();
+            value.RegisterNewFab(value.psi_mf,value.bc_psi,1,2,"psi",true);
+            value.psi_on = true;
+        }
     }
 
     void Initialize(int lev) override
@@ -410,6 +429,8 @@ class Mechanics : virtual public MechanicsBase<MODEL>
         eta_mf[lev]->setVal(0.0);
         if (models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf);
         else eta_mf[lev]->setVal(1.0);
+
+        if (psi_on) ic_psi->Initialize(lev,psi_mf);
     }
 
     virtual void UpdateModel(int a_step) override
@@ -467,6 +488,19 @@ class Mechanics : virtual public MechanicsBase<MODEL>
                         tags(i, j, k) = amrex::TagBox::SET;
                 }
             });
+            if (psi_on)
+            {
+                amrex::Array4<Set::Scalar> const &psi = psi_mf[lev]->array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                {
+                    auto sten = Numeric::GetStencil(i,j,k,bx);
+                    {
+                        Set::Vector gradpsi = Numeric::Gradient(psi, i, j, k, 0, DX.data(),sten);
+                        if (gradpsi.lpNorm<2>() * DXnorm > m_eta_ref_threshold)
+                            tags(i, j, k) = amrex::TagBox::SET;
+                    }
+                });
+            }            
         }
     }
 
@@ -476,11 +510,15 @@ class Mechanics : virtual public MechanicsBase<MODEL>
     Set::Scalar m_eta_ref_threshold = 0.01;
     std::vector<MODEL> models;
     IC::IC *ic_eta = nullptr;
+    IC::IC *ic_psi = nullptr;
+    BC::BC<Set::Scalar> *bc_psi = nullptr;
 
     using MechanicsBase<MODEL>::m_type;
     using MechanicsBase<MODEL>::finest_level;
     using MechanicsBase<MODEL>::geom;
     using MechanicsBase<MODEL>::model_mf;
+    using MechanicsBase<MODEL>::psi_mf;
+    using MechanicsBase<MODEL>::psi_on;
 };
 
 
