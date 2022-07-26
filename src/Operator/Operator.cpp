@@ -85,61 +85,77 @@ void Operator<Grid::Node>::Diagonal (int amrlev, int mglev, amrex::MultiFab &dia
     }
 }
 
-void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x_mf, const amrex::MultiFab& b_mf) const
+void Operator<Grid::Node>::Fsmooth (int amrlev, int mglev, amrex::MultiFab& x, const amrex::MultiFab& b) const
 {
     BL_PROFILE("Operator::Fsmooth()");
 
     amrex::Box domain(m_geom[amrlev][mglev].Domain());
-    domain.convert(amrex::IntVect::TheNodeVector());
 
-    int ncomp = b_mf.nComp();
+    int ncomp = b.nComp();
     int nghost = 2; //b.nGrow();
     
-    amrex::MultiFab Ax_mf(x_mf.boxArray(), x_mf.DistributionMap(), ncomp, nghost);
+
+    amrex::MultiFab Ax(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+    amrex::MultiFab Dx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
+    amrex::MultiFab Rx(x.boxArray(), x.DistributionMap(), ncomp, nghost);
     
     if (!m_diagonal_computed) Util::Abort(INFO,"Operator::Diagonal() must be called before using Fsmooth");
 
+    // This is a JACOBI iteration, not Gauss-Seidel.
+    // So we need to do twice the number of iterations to get the same behavior as GS.
     for (int ctr = 0; ctr < 2; ctr++)
     {
-        // find Ax
-        Fapply(amrlev,mglev,Ax_mf,x_mf); 
+        Fapply(amrlev,mglev,Ax,x); // find Ax
 
-        for (MFIter mfi(x_mf, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        amrex::MultiFab::Copy(Dx,x,0,0,ncomp,nghost); // Dx = x
+        amrex::MultiFab::Multiply(Dx,*m_diag[amrlev][mglev],0,0,ncomp,nghost); // Dx *= diag  (Dx = x*diag)
+
+        amrex::MultiFab::Copy(Rx,Ax,0,0,ncomp,nghost); // Rx = Ax
+        amrex::MultiFab::Subtract(Rx,Dx,0,0,ncomp,nghost); // Rx -= Dx  (Rx = Ax - Dx)
+
+        for (MFIter mfi(x, false); mfi.isValid(); ++mfi)
         {
-            amrex::Box tilebox = mfi.grownnodaltilebox();
-            amrex::Box bx = mfi.validbox().grow(2) & domain;
-
-            amrex::Array4<Set::Scalar> const & x  = x_mf.array(mfi);
-            amrex::Array4<const Set::Scalar> const & b  = b_mf.array(mfi);
-            amrex::Array4<const Set::Scalar> const & Ax = Ax_mf.array(mfi);
-            amrex::Array4<const Set::Scalar> const & diag = m_diag[amrlev][mglev]->array(mfi);
-
-            const Dim3 lo= amrex::lbound(bx), hi = amrex::ubound(bx);
-            const Dim3 domlo= amrex::lbound(domain), domhi = amrex::ubound(domain);
+            const Box& bx = mfi.validbox();
+            amrex::FArrayBox       &xfab    = x[mfi];
+            const amrex::FArrayBox &bfab    = b[mfi];
+            //const amrex::FArrayBox &Axfab   = Ax[mfi];
+            const amrex::FArrayBox &Rxfab   = Rx[mfi];
+            const amrex::FArrayBox &diagfab = (*m_diag[amrlev][mglev])[mfi];
 
             for (int n = 0; n < ncomp; n++)
             {
-                amrex::ParallelFor (tilebox,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                AMREX_D_TERM(for (int m1 = bx.loVect()[0] - 2; m1<=bx.hiVect()[0] + 2; m1++),
+                        for (int m2 = bx.loVect()[1] - 2; m2<=bx.hiVect()[1] + 2; m2++),
+                        for (int m3 = bx.loVect()[2] - 2; m3<=bx.hiVect()[2] + 2; m3++))
                 {
-                    if ((AMREX_D_TERM(i == lo.x || i == hi.x, || j == lo.y || j==hi.y, || k == lo.z || k == hi.z)) &&
-                        (AMREX_D_TERM(i > domlo.x && i < domhi.x, && j > domlo.y && j<domhi.y, && k > domlo.z && k < domhi.z)))
+
+                    amrex::IntVect m(AMREX_D_DECL(m1,m2,m3));
+
+                    // Skip ghost cells outside problem domain
+                    if (AMREX_D_TERM(m[0] < domain.loVect()[0], ||
+                            m[1] < domain.loVect()[1], ||
+                            m[2] < domain.loVect()[2])) continue;
+                    if (AMREX_D_TERM(m[0] > domain.hiVect()[0] + 1, ||
+                            m[1] > domain.hiVect()[1] + 1, ||
+                            m[2] > domain.hiVect()[2] + 1)) continue;
+
+                    if (AMREX_D_TERM(m[0] == bx.loVect()[0] - nghost || m[0] == bx.hiVect()[0] + nghost, ||
+                            m[1] == bx.loVect()[1] - nghost || m[1] == bx.hiVect()[1] + nghost, ||
+                            m[2] == bx.loVect()[2] - nghost || m[2] == bx.hiVect()[2] + nghost))
                     {
-                        // Impose Dirichlet conditions on internal patch ghost boundaries that are not
-                        // also domain boundaries.
-                        x(i,j,k,n) = 0.0;
+                        xfab(m,n) = 0.0;
+                        continue;
                     }
-                    else
-                    {
-                        // Do smoothing
-                        x(i,j,k,n) = (1.- m_omega)*x(i,j,k,n) + m_omega * (b(i,j,k,n) - Ax(i,j,k,n) + diag(i,j,k,n)*x(i,j,k,n))/diag(i,j,k,n);
-                    }
-                });
+
+                    //xfab(m,n) = xfab(m,n) + omega*(bfab(m,n) - Axfab(m,n))/diagfab(m,n);
+                    xfab(m,n) = (1.-m_omega)*xfab(m,n) + m_omega*(bfab(m,n) - Rxfab(m,n))/diagfab(m,n);
+                }
             }
         }
     }
     amrex::Geometry geom = m_geom[amrlev][mglev];
-    realFillBoundary(x_mf,geom);
-    nodalSync(amrlev, mglev, x_mf);
+    realFillBoundary(x,geom);
+    nodalSync(amrlev, mglev, x);
 }
 
 void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& a_x) const
@@ -168,7 +184,7 @@ void Operator<Grid::Node>::normalize (int amrlev, int mglev, MultiFab& a_x) cons
         {
             amrex::ParallelFor (bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     
-                    x(i,j,k,n) /= diag(i,j,k,n);
+                    x(i,j,k) /= diag(i,j,k);
 
                 } );
         }

@@ -49,5 +49,5 @@ bc.type = tension_test
 bc.tension_test.type = uniaxial_stress
 bc.tension_test.disp=0.01
 
-elasticop.small=1E-8
+elasticop.small=1E-16
 
