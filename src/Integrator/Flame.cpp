@@ -63,21 +63,26 @@ namespace Integrator
             pp.query("thermal.k_comb", value.thermal.k_comb); // Combined Thermal Conductivity
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
-            pp.query("thermal.cp_comb", value.thermal.cp_comb);
+            pp.query("thermal.cp_comb", value.thermal.cp_comb); // AP/HTPB  Specific Heat
             pp.query("thermal.q_ap", value.thermal.q_ap); // AP  Thermal Flux
             pp.query("thermal.q_htpb", value.thermal.q_htpb); // HTPB Thermal Flux
             pp.query("thermal.q_comb" , value.thermal.q_comb); // Interface heat flux
             pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux
             
-            pp.query("thermal.bound", value.thermal.bound);
-            pp.query("thermal.m_ap", value.thermal.m_ap);
-            pp.query("thermal.m_htpb", value.thermal.m_htpb);
-            pp.query("thermal.m_comb", value.thermal.m_comb);
-            pp.query("thermal.E_ap", value.thermal.E_ap);
-            pp.query("thermal.E_htpb", value.thermal.E_htpb);
-            pp.query("thermal.E_comb", value.thermal.E_comb);
-            pp.query("thermal.correction_factor", value.thermal.correction_factor);
-            pp.query("thermal.temperature_delay", value.thermal.temperature_delay); 
+            pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
+            pp.query("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
+            pp.query("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
+            pp.query("thermal.m_comb", value.thermal.m_comb); // AP/HTPB Pre-exponential factor for Arrhenius Law
+            pp.query("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
+            pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
+            pp.query("thermal.E_comb", value.thermal.E_comb); // AP/HTPB Activation Energy for Arrhenius Law
+            pp.query("thermal.correction_factor", value.thermal.correction_factor); // Corrects the 1D thermal conduction evolution
+            pp.query("thermal.temperature_delay", value.thermal.temperature_delay); // Not in use. Controls deley to start thermal evolution. 
+
+            pp.query("mass.on", value.masson); // Activates Mass Condition
+            pp.query("mass.mdot_ap", value.mdot_ap); // Reference mass flow rate for AP 
+            pp.query("mass.mdot_htpb", value.mdot_htpb); // Reference mass flow rate for HTPB0
+            pp.query("mass.mdot_comb", value.mdot_comb); // Reference mass flow rate for AP/HTPB
 
             if (value.thermal.on)
             {
@@ -294,12 +299,26 @@ namespace Integrator
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
                     Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
 
-                    Set::Scalar qflux = k1 * phi(i,j,k) + k2 * (1.0 - phi(i,j,k) ) + (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                    if(masson){
+                        m1 = (small + mdot(i,j,k) / mdot_ap);
+                        m2 = (small + mdot(i,j,k) / mdot_htpb);
+                        m3 = (small + mdot(i,j,k) / mdot_comb);
+                    }
+                    else{
+                        m1 = 1.0;
+                        m2 = 1.0; 
+                        m3 = 1.0;
+                    }
+
+                    Set::Scalar qflux = m1 * k1 * phi(i,j,k) + 
+                                        m2 * k2 * (1.0 - phi(i,j,k) ) + 
+                                        m3 * (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                    
 
                     Set::Scalar qdot = ( qflux / 10.0 / alpha(i,j,k)); 
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
-		    qgrid(i,j,k) = qdot;
+		            qgrid(i,j,k) = qdot;
 		    
                     //
                     // Evolve temperature with the qdot flux term in place
@@ -314,13 +333,11 @@ namespace Integrator
                     // Now, evolve temperature with explicit forward Euler
                     tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
                     
-		    Set::Scalar Eap = 9.375 * pressure.P * pressure.P - 161.25 * pressure.P + 1121.0;
-		    Set::Scalar Ecom = pressure.E1 * pressure.P + pressure.E2;
                     thermal.exp_ap   = -1.0 * thermal.E_ap / tempnew(i,j,k);
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
-		            mob(i,j,k)  = (small + thermal.m_ap * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
+		            mob(i,j,k)  =  (small + (thermal.m_ap + pressure.P/100) * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
                                  + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
                                  + (small + thermal.m_comb * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 

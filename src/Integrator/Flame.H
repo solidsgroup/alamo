@@ -71,6 +71,9 @@ protected:
     Set::Scalar t_refinement_restriction = 0.1;
     Set::Scalar zeta = 0.05;
     Set::Scalar zeta_0 = 0.05;
+    Set::Scalar mdot_ap, mdot_htpb, mdot_comb;
+    int masson = 0;
+    Set::Scalar m1, m2, m3;
       
     IC::IC *ic_eta;
 
