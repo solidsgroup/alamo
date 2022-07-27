@@ -7,6 +7,7 @@
 #include <AMReX_SPACE.H>
 
 #include "PhaseFieldMicrostructure.H"
+#include "Integrator/Base/Mechanics.H"
 #include "BC/Constant.H"
 #include "BC/Step.H"
 #include "Set/Set.H"
@@ -25,7 +26,7 @@ namespace Integrator
 void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Advance");
-    MechanicsBase<model_type>::Advance(lev,time,dt);
+    Base::Mechanics<model_type>::Advance(lev,time,dt);
     /// TODO Make this optional
     //if (lev != max_level) return;
     std::swap(eta_old_mf[lev], eta_new_mf[lev]);
@@ -159,7 +160,7 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
 void PhaseFieldMicrostructure::Initialize(int lev)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
-    MechanicsBase<model_type>::Initialize(lev);
+    Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_new_mf);
     ic->Initialize(lev, eta_old_mf);
 }
@@ -167,7 +168,7 @@ void PhaseFieldMicrostructure::Initialize(int lev)
 void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
 {
     BL_PROFILE("PhaseFieldMicrostructure::TagCellsForRefinement");
-    MechanicsBase<model_type>::TagCellsForRefinement(lev,a_tags,time,ngrow);
+    Base::Mechanics<model_type>::TagCellsForRefinement(lev,a_tags,time,ngrow);
     const amrex::Real *DX = geom[lev].CellSize();
     const Set::Vector dx(DX);
     const Set::Scalar dxnorm = dx.lpNorm<2>();
@@ -229,7 +230,7 @@ void PhaseFieldMicrostructure::UpdateModel(int a_step)
 void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
 {
     BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
-    MechanicsBase<model_type>::TimeStepBegin(time,iter);
+    Base::Mechanics<model_type>::TimeStepBegin(time,iter);
 
     if (anisotropy.on && time >= anisotropy.tstart)
     {
@@ -243,7 +244,7 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
                                         const amrex::MFIter &mfi, const amrex::Box &box)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Integrate");
-    MechanicsBase<model_type>::Integrate(amrlev,time,step,mfi,box);
+    Base::Mechanics<model_type>::Integrate(amrlev,time,step,mfi,box);
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
     const amrex::Real *DX = geom[amrlev].CellSize();

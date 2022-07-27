@@ -52,7 +52,7 @@ enum RegularizationType{
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
-class PhaseFieldMicrostructure : public MechanicsBase<Model::Solid::Affine::Cubic>
+class PhaseFieldMicrostructure : public Base::Mechanics<Model::Solid::Affine::Cubic>
 {
 public:
     PhaseFieldMicrostructure() : Integrator() {};
@@ -80,9 +80,9 @@ public:
         pp.query("mechanics.tstart",value.mechanics.tstart);
         value.mechanics.model.resize(value.number_of_grains);
         for (int i = 0; i < value.number_of_grains; i++) pp.queryclass("mechanics.model",value.mechanics.model[i]); // Type of model to use
-        value.m_type = MechanicsBase<model_type>::Disable; // Turn mechanics off by default
-        pp.queryclass<MechanicsBase<model_type>>("mechanics",&value);
-        if (value.m_type == MechanicsBase<model_type>::Type::Static) 
+        value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
+        pp.queryclass<Base::Mechanics<model_type>>("mechanics",&value);
+        if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
 
 
