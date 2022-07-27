@@ -18,6 +18,7 @@
 #include "BC/Operator/Elastic/Expression.H"
 
 #include "IC/Ellipse.H"
+#include "IC/Voronoi.H"
 #include "IC/Constant.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
@@ -406,6 +407,7 @@ class Mechanics : virtual public MechanicsBase<MODEL>
             std::string type;
             pp.query("ic.type",type); // Read IC type for the eta field
             if (type=="ellipse") value.ic_eta = new IC::Ellipse(value.geom,pp,"ic.ellipse");
+            if (type=="voronoi") value.ic_eta = new IC::Voronoi(value.geom,pp,"ic.voronoi");
         }
 
         // Read in IC for psi
