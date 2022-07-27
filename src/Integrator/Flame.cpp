@@ -300,9 +300,9 @@ namespace Integrator
                     Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
 
                     if(masson){
-                        m1 = (small + mdot(i,j,k) / mdot_ap);
-                        m2 = (small + mdot(i,j,k) / mdot_htpb);
-                        m3 = (small + mdot(i,j,k) / mdot_comb);
+		      m1 = (dt/1e-4)*(mdot(i,j,k) / mdot_ap);
+		      m2 = (dt/1e-4)*(mdot(i,j,k) / mdot_htpb);
+		      m3 = (dt/1e-4)*(mdot(i,j,k) / mdot_comb);
                     }
                     else{
                         m1 = 1.0;
