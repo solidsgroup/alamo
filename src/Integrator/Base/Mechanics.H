@@ -158,7 +158,7 @@ protected:
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
-                bx.grow(1);
+                bx.grow(2);
                 bx = bx & domain;
                 amrex::Array4<MODEL>             const &model   = model_mf[lev]->array(mfi);
                 amrex::Array4<Set::Matrix>       const &stress  = stress_mf[lev]->array(mfi);
@@ -194,14 +194,15 @@ protected:
         if (m_type == Mechanics<MODEL>::Type::Disable) return;
         const amrex::Real *DX = geom[lev].CellSize();
 
+        amrex::Box domain = geom[lev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+        domain.grow(-1);
+
         if (m_type == Type::Dynamic)
         {
             std::swap(*disp_mf[lev], *disp_old_mf[lev]);
             std::swap(*vel_mf[lev], *vel_old_mf[lev]);
 
-            amrex::Box domain = geom[lev].Domain();
-            domain.convert(amrex::IntVect::TheNodeVector());
-            domain.grow(-1);
 
             for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
@@ -237,9 +238,9 @@ protected:
             }
         }
 
-        for (amrex::MFIter mfi(*disp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (amrex::MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Box bx = mfi.validbox().grow(2) & domain;
             amrex::Array4<Set::Matrix>         const &eps  = (*strain_mf[lev]).array(mfi);
             amrex::Array4<Set::Matrix>         const &sig  = (*stress_mf[lev]).array(mfi);
             amrex::Array4<MODEL>               const &model= (*model_mf[lev]).array(mfi);
