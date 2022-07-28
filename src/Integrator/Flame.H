@@ -58,6 +58,7 @@ protected:
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
 
+    Set::Field<Set::Scalar> deta_mf;
     Set::Field<Set::Scalar> qgrid_mf;
   
     BC::BC<Set::Scalar> *bc_temp;

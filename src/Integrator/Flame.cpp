@@ -36,6 +36,7 @@ namespace Integrator
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
+            value.RegisterNewFab(value.deta_mf,    value.bc_eta, 1, 1, "deta", true); 
           
         }
 
@@ -92,7 +93,8 @@ namespace Integrator
                 value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
                 value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
                 value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
-                value.RegisterNewFab(value.qgrid_mf, value.bc_temp, 1, 1, "qgrid", true);        
+                value.RegisterNewFab(value.qgrid_mf, value.bc_temp, 1, 1, "qgrid", true);      
+                 
             }
         }
 
@@ -149,15 +151,18 @@ namespace Integrator
             temp_old_mf[lev]->setVal(thermal.bound);
             alpha_mf[lev]->setVal(0.0);
             mob_mf[lev]->setVal(0.0);
-	    qgrid_mf[lev]->setVal(0.0);
+	        qgrid_mf[lev]->setVal(0.0);
         } 
 
         eta_mf[lev]->setVal(1.0);
         eta_old_mf[lev]->setVal(1.0);
 
-        mdot_mf[lev] -> setVal(0.0);
+        mdot_mf[lev]->setVal(0.0);
+
+        deta_mf[lev]->setVal(0.0);
 
         ic_phi->Initialize(lev, phi_mf);
+        
     }
 
     
@@ -244,8 +249,9 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
-		amrex::Array4<Set::Scalar> const &qgrid = (*qgrid_mf[lev]).array(mfi);
-		
+		        amrex::Array4<Set::Scalar> const &qgrid = (*qgrid_mf[lev]).array(mfi);
+		        amrex::Array4<Set::Scalar> const &deta  = (*deta_mf[lev]).array(mfi);
+
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
@@ -276,7 +282,8 @@ namespace Integrator
                     alpha(i,j,k) = eta(i,j,k) * K / rho / cp;
 
                     // Calculate mass flux
-                    mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt;
+                    deta(i,j,k) = etanew(i,j,k) - eta(i,j,k);
+                    mdot(i,j,k) = - rho * deta(i,j,k) / dt;
                 });
 
                     
@@ -299,21 +306,29 @@ namespace Integrator
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
                     Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
 
-                    if(masson){
-		      m1 = (dt/1e-4)*(mdot(i,j,k) / mdot_ap);
-		      m2 = (dt/1e-4)*(mdot(i,j,k) / mdot_htpb);
-		      m3 = (dt/1e-4)*(mdot(i,j,k) / mdot_comb);
+                    if(masson && pressure.P != 0.0){
+		                m1 = (dt/1e-4)*( mdot(i,j,k) / mdot_ap  );
+		                m2 = (dt/1e-4)*( mdot(i,j,k) / mdot_htpb);
+		                m3 = (dt/1e-4)*( mdot(i,j,k) / mdot_comb);
+
+                    }
+                    else if (masson && pressure.P == 0.0){
+                        m1 = 0.0; 
+                        m2 = 0.0;
+                        m3 = 0.0; 
                     }
                     else{
                         m1 = 1.0;
                         m2 = 1.0; 
                         m3 = 1.0;
                     }
+                    
 
                     Set::Scalar qflux = m1 * k1 * phi(i,j,k) + 
                                         m2 * k2 * (1.0 - phi(i,j,k) ) + 
                                         m3 * (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
                     
+
 
                     Set::Scalar qdot = ( qflux / 10.0 / alpha(i,j,k)); 
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
@@ -337,10 +352,12 @@ namespace Integrator
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
-		            mob(i,j,k)  =  (small + (thermal.m_ap + pressure.P/100) * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
-                                 + (small + thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
-                                 + (small + thermal.m_comb * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-
+		            mob(i,j,k)  =  ((thermal.m_ap + pressure.P/100) * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
+                                 + (thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
+                                 + (thermal.m_comb * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                    if(tempnew(i,j,k) <= 400.0){
+                        mob(i,j,k) = 0.0 ;
+                    }
                 });
                 
             }
