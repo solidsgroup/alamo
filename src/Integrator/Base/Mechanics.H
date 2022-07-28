@@ -196,10 +196,11 @@ protected:
 
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
-        domain.grow(-1);
 
         if (m_type == Type::Dynamic)
         {
+            domain.grow(-1);
+            
             std::swap(*disp_mf[lev], *disp_old_mf[lev]);
             std::swap(*vel_mf[lev], *vel_old_mf[lev]);
 
