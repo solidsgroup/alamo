@@ -38,6 +38,13 @@ template<class MODEL>
 class Mechanics : virtual public Base::Mechanics<MODEL>
 {
     public:
+
+    Mechanics() : Base::Mechanics<MODEL>() {}
+    Mechanics(IO::ParmParse &pp) : Base::Mechanics<MODEL>()
+    {
+        Parse(*this,pp);
+    }
+    
     // The mechanics integrator manages the solution of an elastic 
     // solve using the MLMG solver. 
     static void Parse(Mechanics &value, IO::ParmParse &pp)

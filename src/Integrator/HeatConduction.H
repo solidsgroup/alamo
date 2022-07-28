@@ -47,6 +47,8 @@ public:
     /// \brief Read in parameters and register field variables
     HeatConduction() : Integrator()
     {}
+    HeatConduction(IO::ParmParse &pp) : HeatConduction()
+    {Parse(*this,pp);}
 
     static void Parse(HeatConduction &value, IO::ParmParse &pp)
     {

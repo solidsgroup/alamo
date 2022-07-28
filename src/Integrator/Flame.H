@@ -9,10 +9,14 @@
 #include "Util/Util.H"
 #include "Integrator/Integrator.H"
 #include "BC/BC.H"
+#include "BC/Constant.H"
 #include "IC/Voronoi.H"
 #include "IC/IC.H"
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
+#include "IC/Expression.H"
+#include "IC/PSRead.H"
+#include "IC/Laminate.H"
 #include "Set/Set.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "IO/ParmParse.H"
@@ -30,6 +34,92 @@ class Flame : public Integrator::Integrator
 
 public:
     Flame ();
+    Flame (IO::ParmParse &pp) : Flame()
+    {Parse(*this,pp);}
+    static void Parse(Flame &value, IO::ParmParse &pp)
+    {
+        {
+            // These are the phase field method parameters
+            // that you use to inform the phase field method.
+            pp.query("pf.eps",    value.pf.eps); // Burn width thickness
+            pp.query("pf.kappa",  value.pf.kappa); // Interface energy param
+            pp.query("pf.gamma",  value.pf.gamma); // Scaling factor for mobility
+            pp.query("pf.lambda", value.pf.lambda); // Chemical potential multiplier
+            pp.query("pf.w1",     value.pf.w1); // Unburned rest energy
+            pp.query("pf.w12",    value.pf.w12);  // Barrier energy
+            pp.query("pf.w0",     value.pf.w0);    // Burned rest energy
+            pp.query("pf.P",      value.pf.P);             // Pressure [UNITS?]
+            pp.query("pf.r_ap",   value.pf.r_ap);       // AP Power law multiplier
+            pp.query("pf.n_ap",   value.pf.n_ap);       // AP Power law exponent
+            pp.query("pf.r_htpb", value.pf.r_htpb);   // HTPB Power law multiplier
+            pp.query("pf.n_htpb", value.pf.n_htpb);   // HTPB Power law exponent
+            pp.query("pf.r_comb", value.pf.r_comb);   // Combination power law multiplier
+            pp.query("pf.n_comb", value.pf.n_comb);   // Combination power law exponent
+
+            value.EtaBC = new BC::Constant(1);
+            pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.EtaBC)); // See :ref:`BC::Constant`
+
+            value.RegisterNewFab(value.Eta_mf, value.EtaBC, 1, 1, "Eta", true);
+            value.RegisterNewFab(value.Eta_old_mf, value.EtaBC, 1, 1, "Eta_old", false);
+        }
+
+        {
+            // Read in parameters to determine the IC for eta
+            std::string type = "constant";
+            pp.query("eta.ic.type", type); // IC type - [packedspheres,laminate] - see classes for more information
+            if (type == "constant") value.EtaIC = new IC::Constant(value.geom,pp,"eta.ic.constant");
+            else if (type == "expression") value.EtaIC  = new IC::Expression(value.geom,pp,"eta.ic.expression");
+            else Util::Abort(INFO,"Invalid eta.ic ", type);
+        }
+
+        {
+            // These parameters are for the **Thermal transport model**
+            pp.query("thermal.on",   value.thermal.on);       // Whether to use the thermal model
+            pp.query("thermal.rho1", value.thermal.rho1); // Density (before)
+            pp.query("thermal.rho0", value.thermal.rho0); // Density (after)
+            pp.query("thermal.ka",   value.thermal.ka); // Thermal conductivity (before and after)
+            pp.query("thermal.kh",   value.thermal.kh); // Thermal conductivity (before and after)
+            pp.query("thermal.k0",   value.thermal.k0); // Thermal conductivity (before and after)
+            pp.query("thermal.cp1",  value.thermal.cp1); // Specific heat (before and after)
+            pp.query("thermal.cp0",  value.thermal.cp0); // Specific heat (before and after)
+            pp.query("thermal.delA", value.thermal.delA); // Thermal flux of each material
+            pp.query("thermal.delH", value.thermal.delH); // Thermal flux of each material
+            if (value.thermal.on)
+            {
+                value.TempBC = new BC::Constant(1);
+                pp.queryclass("thermal.bc", *static_cast<BC::Constant *>(value.TempBC)); // See :ref:`BC::Constant`
+                value.RegisterNewFab(value.Temp_mf, value.TempBC, 1, 1, "Temp", true);
+                value.RegisterNewFab(value.Temp_old_mf, value.TempBC, 1, 1, "Temp_old", false);
+            }
+        }
+
+        {
+            pp.query("amr.refinement_criterion", value.m_refinement_criterion); // Refinement criterion for eta field
+            pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion); // Refinement criterion for temperature field
+        }
+
+        std::vector<Set::Scalar> fs(value.fs_number, 1);
+        
+        {
+            // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
+            // specified using these parameters. 
+            //IO::ParmParse pp("phi.ic");
+            std::string type = "packedspheres";
+            pp.query("phi.ic.type", type); // IC type - [packedspheres,laminate] - see classes for more information
+            if (type == "psread") value.PhiIC = new IC::PSRead(value.geom,pp,"phi.ic.psread"); 
+            else if (type == "laminate") value.PhiIC = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
+            else if (type == "constant") value.PhiIC = new IC::Constant(value.geom,pp,"phi.ic.constant");
+            else Util::Abort(INFO,"Invalid phi.ic.type = ", type);
+            
+            value.RegisterNewFab(value.phi_mf, value.EtaBC, 1, 1, "phi", true);
+        }
+
+        //
+        // Register integrated variables
+        //
+        value.RegisterIntegratedVariable(&value.volume,"volume");
+        value.RegisterIntegratedVariable(&value.area,"area");
+    }
 
 
 protected:

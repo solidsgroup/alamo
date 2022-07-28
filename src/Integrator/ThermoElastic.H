@@ -20,6 +20,8 @@ public:
     {
         Util::Message(INFO,"max level ", max_level);
     }
+    ThermoElastic(IO::ParmParse &pp) : ThermoElastic()
+    {Parse(*this,pp);}
     static void Parse(ThermoElastic &value, IO::ParmParse &pp)
     {
         pp.queryclass("hc",static_cast<HeatConduction*>(&value));
