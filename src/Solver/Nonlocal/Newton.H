@@ -244,7 +244,7 @@ private:
                             {
                                 Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
                                 Set::Scalar psiavg = 1.0;
-                                if (AMREX_D_TERM(i>boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k>boxhi.z)) 
+                                if (AMREX_D_TERM(i>boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k<boxhi.z)) 
                                 {
                                     psiavg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0);
                                 }
@@ -254,7 +254,7 @@ private:
                             else
                             {
                                 Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
-                                if (AMREX_D_TERM(i>boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k>boxhi.z)) 
+                                if (AMREX_D_TERM(i>boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k<boxhi.z)) 
                                 {
                                     divdw *= Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0);
                                     Set::Vector gradpsi = Numeric::CellGradientOnNode(psi,i,j,k,0,dx);
