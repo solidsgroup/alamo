@@ -25,7 +25,7 @@ public:
 
     ~Newton()
     {
-        Clear();
+        if (m_defined) Clear();
     }
 
     void Define(Operator::Elastic<T::sym> &a_op)
@@ -44,6 +44,10 @@ public:
 
     void setNRIters(int a_nriters) { m_nriters = a_nriters; }
 
+    void setPsi(Set::Field<Set::Scalar> &a_psi)
+    {
+        m_psi = &a_psi;
+    }
 
 private:
     void prepareForSolve(const Set::Field<Set::Scalar>& a_u_mf, 
@@ -71,7 +75,7 @@ private:
 
                     // Set model internal dw and ddw.
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        std::array<Numeric::StencilType, AMREX_SPACEDIM> sten = Numeric::GetStencil(i, j, k, bx);
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
 
                         Set::Matrix gradu = Numeric::Gradient(u, i, j, k, dx, sten);
 
@@ -186,6 +190,10 @@ private:
             }
 
             m_elastic->SetModel(a_ddw_mf);
+            if (m_psi)
+                for (int i = 0; i <= a_b_mf.finest_level; i++)
+                    m_elastic->SetPsi(i,*(*m_psi)[i]);
+
 
             for (int lev = 0; lev <= a_b_mf.finest_level; ++lev)
             {
@@ -195,29 +203,67 @@ private:
                 const amrex::Dim3 lo= amrex::lbound(domain), hi = amrex::ubound(domain);
                 for (MFIter mfi(*a_model_mf[lev], false); mfi.isValid(); ++mfi)
                 {                    
-                    amrex::Box bx = mfi.grownnodaltilebox();
-                    bx = bx & domain;
+                    amrex::Box bx = mfi.grownnodaltilebox() & domain;
                     amrex::Array4<const Set::Vector>  const &u     = a_u_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Vector>  const &b     = a_b_mf[lev]->array(mfi);
                     amrex::Array4<const Set::Matrix>  const &dw    = a_dw_mf[lev]->array(mfi);
                     amrex::Array4<Set::Scalar>        const &rhs   = a_rhs_mf[lev]->array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-                    {
-                        auto sten = Numeric::GetStencil(i, j, k, bx);
-                        // Do this if on the domain boundary
-                        if (AMREX_D_TERM(i==lo.x || i==hi.x, || j==lo.y || j==hi.y, || k==lo.z || k==hi.z))
-                        {
-                            Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
-                            Set::Vector ret = m_elastic->GetBC()(u(i,j,k),gradu,dw(i,j,k),i,j,k,bx);
 
-                            for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - ret(d);
-                        }
-                        else
+                    // This is for if psi is not being used and has not been set
+                    if (m_psi == nullptr)
+                    {
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
                         {
-                            Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
-                            for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - divdw(d);
-                        }
-                    });                    
+                            auto sten = Numeric::GetStencil(i, j, k, bx);
+                            // Do this if on the domain boundary
+                            if (AMREX_D_TERM(i==lo.x || i==hi.x, || j==lo.y || j==hi.y, || k==lo.z || k==hi.z))
+                            {
+                                Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
+                                Set::Vector ret = m_elastic->GetBC()(u(i,j,k),gradu,dw(i,j,k),i,j,k,bx);
+                                for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - ret(d);
+                            }
+                            else
+                            {
+                                Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
+                                for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - divdw(d);
+                            }
+                        });                    
+                    }
+                    // This is EXACTLY THE SAME AS THE ABOVE, excpet that we are now accounting
+                    // for psi terms. The reason we do this is because there's no good way (yet) to 
+                    // initialize patches if psi = nullptr
+                    else
+                    {
+                        const amrex::Dim3 boxlo= amrex::lbound(bx), boxhi = amrex::ubound(bx);
+                        amrex::Array4<const Set::Scalar>  const &psi    = (*m_psi)[lev]->array(mfi);
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                        {
+                            auto sten = Numeric::GetStencil(i, j, k, bx);
+                            // Do this if on the domain boundary
+                            if (AMREX_D_TERM(i==lo.x || i==hi.x, || j==lo.y || j==hi.y, || k==lo.z || k==hi.z))
+                            {
+                                Set::Matrix gradu = Numeric::Gradient(u,i,j,k,dx,sten);
+                                Set::Scalar psiavg = 1.0;
+                                if (AMREX_D_TERM(i>boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k<boxhi.z)) 
+                                {
+                                    psiavg = Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0);
+                                }
+                                Set::Vector ret = m_elastic->GetBC()(u(i,j,k),gradu,dw(i,j,k)*psiavg,i,j,k,bx);
+                                for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - ret(d);
+                            }
+                            else
+                            {
+                                Set::Vector divdw = Numeric::Divergence(dw,i,j,k,dx,sten);
+                                if (AMREX_D_TERM(i>boxlo.x && i<boxhi.x, && j>boxlo.y && j<boxhi.y, && k>boxlo.z && k<boxhi.z)) 
+                                {
+                                    divdw *= Numeric::Interpolate::CellToNodeAverage(psi,i,j,k,0);
+                                    Set::Vector gradpsi = Numeric::CellGradientOnNode(psi,i,j,k,0,dx);
+                                    divdw += dw(i,j,k) * gradpsi;
+                                }
+                                for (int d = 0; d<AMREX_SPACEDIM; d++) rhs(i,j,k,d) = b(i,j,k)(d) - divdw(d);
+                            }
+                        });                    
+                    }
                 }
 
                 Util::RealFillBoundary(*a_ddw_mf[lev],m_elastic->Geom(lev));
@@ -308,7 +354,6 @@ public:
         return 0.0;
     }
 
-    [[depricated ("Use the new solve which uses Field<Vectors> instead")]]
     Set::Scalar solve (const Set::Field<Set::Scalar> & a_u_mf, 
                         const Set::Field<Set::Scalar> & a_b_mf,
                         Set::Field<T> &a_model_mf,
@@ -415,9 +460,6 @@ public:
             dw_mf[lev]->setVal(Set::Matrix::Zero());
         }
         
-        //for (int lev = 0; lev < a_b_mf.size(); ++lev)
-        //m_elastic.GetBC().Init(a_b_mf[lev].get(),m_elastic.Geom(lev),true);
-            
         prepareForSolve(a_u_mf, a_b_mf, a_res_mf, dw_mf, ddw_mf, a_model_mf);
     }
 
@@ -426,27 +468,60 @@ public:
                       Set::Field<Set::Vector> &a_b_mf,
                       Set::Field<T> &a_model_mf)
     {
+        Set::Field<Set::Matrix> dw_mf;
+        Set::Field<Set::Matrix4<AMREX_SPACEDIM,T::sym>> ddw_mf;
         Set::Field<Set::Scalar> res_mf(a_res_mf.size());
-        Set::Field<Set::Scalar> u_mf(a_u_mf.size());
-        Set::Field<Set::Scalar> b_mf(a_b_mf.size());
+        dw_mf.resize(a_u_mf.size());
+        ddw_mf.resize(a_u_mf.size());
+        res_mf.resize(a_u_mf.size());
+        for (int lev = 0; lev < a_u_mf.size(); lev++)
+        {
+            dw_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                            a_b_mf[lev]->DistributionMap(),
+                            1, a_b_mf[lev]->nGrow());
+            ddw_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                1, a_b_mf[lev]->nGrow());
+            res_mf.Define(lev, a_b_mf[lev]->boxArray(),
+                                a_b_mf[lev]->DistributionMap(),
+                                AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            dw_mf[lev]->setVal(Set::Matrix::Zero());
+        }
+        
+        prepareForSolve(a_u_mf, a_b_mf, res_mf, dw_mf, ddw_mf, a_model_mf);
+
         for (int lev = 0; lev < a_res_mf.size(); ++lev)
         {
-            res_mf.Define(lev,a_res_mf[lev]->boxArray(), a_res_mf[lev]->DistributionMap(),AMREX_SPACEDIM,2);
-            u_mf  .Define(lev,a_u_mf[lev]->boxArray(),   a_u_mf[lev]->DistributionMap(),  AMREX_SPACEDIM,2);
-            b_mf  .Define(lev,a_b_mf[lev]->boxArray(),   a_b_mf[lev]->DistributionMap(),  AMREX_SPACEDIM,2);
-
-            //a_res_mf.Copy(lev,*res_mf[lev],0,2);
-            res_mf[lev]->setVal(0.0);
-            a_u_mf.Copy(lev,*u_mf[lev],0,2);
-            a_b_mf.Copy(lev,*b_mf[lev],0,2);
+            Util::RealFillBoundary(*res_mf[lev],m_elastic->Geom(lev));
+            a_res_mf.CopyFrom(lev,*res_mf[lev],0,2);
         }
-        compResidual(res_mf,u_mf,b_mf,a_model_mf);
+    }
 
-        for (int lev = 0; lev < a_res_mf.size(); ++lev)
+    void compLinearSolverResidual(Set::Field<Set::Vector> &a_res_mf,
+                                  Set::Field<Set::Vector> &a_u_mf,
+                                  Set::Field<Set::Vector> &a_b_mf)
+    {
+        Util::Assert(INFO,TEST(a_res_mf.finest_level == a_u_mf.finest_level));
+        Util::Assert(INFO,TEST(a_u_mf.finest_level == a_b_mf.finest_level));
+        Set::Field<Set::Scalar> res_mf(a_res_mf.finest_level+1), sol_mf(a_u_mf.finest_level+1), rhs_mf(a_b_mf.finest_level+1);
+        for (int lev = 0; lev <= a_u_mf.finest_level; lev++)
+        {
+            res_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            sol_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            rhs_mf.Define(lev, a_b_mf[lev]->boxArray(), a_b_mf[lev]->DistributionMap(), AMREX_SPACEDIM, a_b_mf[lev]->nGrow());
+            
+            a_u_mf.Copy(lev,*sol_mf[lev],0,2);
+            a_b_mf.Copy(lev,*rhs_mf[lev],0,2);
+        }
+        
+        mlmg->compResidual(amrex::GetVecOfPtrs(res_mf), amrex::GetVecOfPtrs(sol_mf), amrex::GetVecOfConstPtrs(rhs_mf));
+
+        for (int lev = 0; lev <= a_res_mf.finest_level; ++lev)
         {
             a_res_mf.CopyFrom(lev,*res_mf[lev],0,2);
         }
     }
+
 
     void W(Set::Field<Set::Scalar> & a_w_mf,
             Set::Field<Set::Scalar> & a_u_mf,
@@ -470,8 +545,7 @@ public:
                             {
                                 Set::Matrix gradu;
 
-                                std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
-                                    = Numeric::GetStencil(i,j,k,domain);
+                                auto sten = Numeric::GetStencil(i,j,k,bx);
 
                                 // Fill gradu
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -514,8 +588,7 @@ public:
                             {
                                 Set::Matrix gradu;
 
-                                std::array<Numeric::StencilType,AMREX_SPACEDIM> sten
-                                    = Numeric::GetStencil(i,j,k,domain);
+                                auto sten = Numeric::GetStencil(i,j,k,bx);
 
                                 // Fill gradu
                                 for (int p = 0; p < AMREX_SPACEDIM; p++)
@@ -556,6 +629,8 @@ public:
     Set::Scalar m_nrtolerance = 0.0;
     Operator::Elastic<T::sym> *m_elastic;
     //BC::Operator::Elastic::Elastic *m_bc;
+
+    Set::Field<Set::Scalar> *m_psi = nullptr;
 
 public:
     // These paramters control a standard Newton-Raphson solve.

@@ -29,8 +29,11 @@ public:
     enum Mollifier {Dirac, Gaussian};
     PerturbedInterface (amrex::Vector<amrex::Geometry> &_geom) :
         IC(_geom)
-    {
-    }
+    { }
+    PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom)
+    {pp.queryclass(name,*this);}
+    PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp) : IC(_geom)
+    {pp.queryclass(*this);}
   
     void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
@@ -131,7 +134,7 @@ private:
     amrex::Vector<Set::Scalar> wave_amplitudes;
     std::vector<Set::Scalar> phis;
     Mollifier mol = Mollifier::Gaussian;
-    Set::Scalar eps;
+    Set::Scalar eps = 0.0;
 
 public:
     static void Parse(PerturbedInterface & value, IO::ParmParse & pp)
@@ -156,11 +159,14 @@ public:
         if (value.wave_numbers.size() != value.wave_amplitudes.size())
             Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 
-        std::string mollifier;
+        std::string mollifier = "dirac";
         pp.query("mollifier", mollifier);
 
         if(mollifier == "dirac")
+        {
             value.mol = Mollifier::Dirac;
+            if (pp.contains("eps")) Util::Warning(INFO,"eps defined but not needed for dirac mollifier");
+        }
         else
         {
             value.mol = Mollifier::Gaussian;

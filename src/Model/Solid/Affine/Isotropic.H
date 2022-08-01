@@ -131,6 +131,7 @@ inline std::string Set::Field<Model::Solid::Affine::Isotropic>::Name(int i) cons
     if (i==9) return name + "_F0_zx";
     if (i==10) return name + "_F0_zz";
     #endif
+    return name;
 }
 template<>
 inline void Set::Field<Model::Solid::Affine::Isotropic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const

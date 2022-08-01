@@ -18,9 +18,9 @@ namespace GB
 class Sin : public GB
 {
 public:
-    Sin()
-    {
-    };
+    Sin() {};
+    Sin(IO::ParmParse &pp) {pp.queryclass(*this);};
+    Sin(IO::ParmParse &pp,std::string name) {pp.queryclass(name,*this);};
     Sin(amrex::Real _theta0, amrex::Real _sigma0, amrex::Real _sigma1)
     {
         Define(_theta0,_sigma0,_sigma1);
@@ -37,15 +37,15 @@ public:
         sigma0 = Util::Random();
         sigma1 = Util::Random();
     };
-    amrex::Real W(amrex::Real theta)
+    Set::Scalar W(const Set::Scalar theta) const
     {
         return sigma0 + 0.5*sigma1*(1.0 - cos(4.0*(theta-theta0)));
     };
-    amrex::Real DW(amrex::Real theta)
+    Set::Scalar DW(const Set::Scalar theta) const
     {
         return 2.0*sigma1*sin(4.0*(theta-theta0));
     };
-    amrex::Real DDW(amrex::Real theta)
+    Set::Scalar DDW(const Set::Scalar theta) const
     {
         return 8.0*sigma1*cos(4.0*(theta-theta0));
     };

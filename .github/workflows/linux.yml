@@ -33,7 +33,7 @@ jobs:
     - name: unit tests
       run: ./bin/test-2d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=2
+      run: scripts/runtests.py --serial --dim=2 --benchmark=github
   test-3d:
     name: Build & Test (3D)
     runs-on: ubuntu-latest
@@ -48,4 +48,4 @@ jobs:
     - name: unit tests
       run: ./bin/test-3d-g++
     - name: regression tests
-      run: scripts/runtests.py --serial --dim=3
+      run: scripts/runtests.py --serial --dim=3 --benchmark=github

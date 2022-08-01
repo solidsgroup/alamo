@@ -8,6 +8,8 @@
 #include "Operator/Operator.H"
 #include "Model/Solid/Solid.H"
 #include "BC/Operator/Elastic/Elastic.H"
+#include "Numeric/Stencil.H"
+#include "IC/IC.H"
 
 using namespace amrex;
 
@@ -50,6 +52,9 @@ public:
     { for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,a_model[ilev]);}
     void SetModel (const Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>> & a_model)
     { for (int ilev = 0; ilev < a_model.size(); ilev++) SetModel(ilev,*a_model[ilev]);}
+    void SetPsi (int amrlev, const amrex::MultiFab& a_psi);
+    void SetPsi (int amrlev, const amrex::MultiFab& a_psi, const Set::Scalar &a_psi_small)
+    {m_psi_small = a_psi_small; SetPsi(amrlev,a_psi);}
 
     /// The different types of Boundary Condtiions are listed in the `BC::Operator::Elastic` documentation
     ///
@@ -139,6 +144,10 @@ private:
     /// The models contain elastic constants and contain methods for converting strain to stress
     amrex::Vector<Set::Field<Set::Matrix4<AMREX_SPACEDIM,SYM>>> m_ddw_mf;
 
+    // This is a mask variable.
+    amrex::Vector<Set::Field<Set::Scalar>> m_psi_mf;
+    Set::Scalar m_psi_small = 1E-8;
+    bool m_psi_set = false;
 
     virtual void averageDownCoeffs () override;
     void averageDownCoeffsDifferentAmrLevels (int fine_amrlev);
@@ -160,6 +169,7 @@ private:
     void averageDownCoeffsSameAmrLevel (int amrlev);
 
     void FillBoundaryCoeff (MultiTab& sigma, const Geometry& geom);
+    void FillBoundaryCoeff (MultiFab& psi, const Geometry& geom);
 
     bool m_testing = false;
     bool m_uniform = false;
@@ -173,8 +183,9 @@ private:
     bool m_bc_set = false;
     
 public:
-    static void Parse(Elastic<SYM> & /*value*/, IO::ParmParse & /*pp*/)
+    static void Parse(Elastic<SYM> & value, IO::ParmParse & pp)
     {
+        pp.query("small",value.m_psi_small);
     }
 
 };

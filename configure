@@ -5,7 +5,7 @@ import re
 import subprocess
 import textwrap
 import sys
-import ctypes.util
+#import ctypes.util
 import glob
 
 python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
@@ -311,12 +311,12 @@ if args.python:
         raise Exception(error("Python include directory does not exist. Version may be incorrect, or you may need to install using either" 
                         + code("sudo apt install python3-dev") + " or " + code("sudo apt install python-dev")))
 
-    if ctypes.util.find_library("boost_python-py"+args.python.replace(".","")):
-        python_boost_lib = "-lboost_python-py"+str(args.python).replace(".","")
-    elif ctypes.util.find_library("boost_python3-py"+args.python.replace(".","")):
-        python_boost_lib = "-lboost_python3-py"+str(args.python).replace(".","")
-    else:
-        raise Exception(error("Cannot find python boost lib. Install using " + code("sudo apt install libboost-python-dev")))
+    #if ctypes.util.find_library("boost_python-py"+args.python.replace(".","")):
+    #    python_boost_lib = "-lboost_python-py"+str(args.python).replace(".","")
+    #elif ctypes.util.find_library("boost_python3-py"+args.python.replace(".","")):
+    #    python_boost_lib = "-lboost_python3-py"+str(args.python).replace(".","")
+    #else:
+    #    raise Exception(error("Cannot find python boost lib. Install using " + code("sudo apt install libboost-python-dev")))
     
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')

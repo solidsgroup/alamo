@@ -24,6 +24,10 @@ namespace IC
         };
 
         Sphere(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+        Sphere(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC(_geom)
+        {pp.queryclass(*this);}
+        Sphere(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom)
+        {pp.queryclass(name,*this);}
         /// Constructor defining radius, center, dimension/orientation, and field values within and outside of the area.
         Sphere(amrex::Vector<amrex::Geometry> &_geom, Set::Scalar _radius, Set::Vector _center, Type _type = Type::XYZ, Set::Scalar _alpha_in = 1, Set::Scalar _alpha_out = 0)
             : IC(_geom)

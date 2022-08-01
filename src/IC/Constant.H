@@ -14,6 +14,8 @@ class Constant : public IC
 {
 public:
     Constant (amrex::Vector<amrex::Geometry> &_geom) :IC::IC(_geom) {}
+    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC::IC(_geom) 
+    {pp.queryclass(*this);}
     Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC::IC(_geom) 
     {pp.queryclass(name,*this);}
 
@@ -36,10 +38,13 @@ public:
     }
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
+        // Default: set equal to one everywhere
+        value.m_value.clear();
+        value.m_value.push_back(1.0);
         pp.queryarr("value",value.m_value); // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
     }
 private:
-    std::vector<amrex::Real> m_value;
+    std::vector<Set::Scalar> m_value;
 };
 }
 #endif
