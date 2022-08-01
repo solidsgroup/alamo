@@ -18,7 +18,7 @@ def integrate(x,y):
 if dim == 2:
     prof = ds.ray([0.0,0,0],[0.25,0,0],)
 
-    df = prof.to_dataframe([("gas","x"),("gas","y"),"Eta"])
+    df = prof.to_dataframe([("gas","x"),("gas","y"),"eta"])
 
     if generate_ref_data:
         df.to_csv('reference/reference.csv')
@@ -27,13 +27,13 @@ if dim == 2:
 
     class new:
         ret = [numpy.array(_x) for _x in zip(*sorted(zip(
-            df["x"],df["y"],df["Eta"])))]
+            df["x"],df["y"],df["eta"])))]
         x = ret[0]
         y = ret[1]
         eta = ret[2]
     class ref:
         ret = [numpy.array(_x) for _x in zip(*sorted(zip(
-            df_ref["x"],df_ref["y"],df_ref["Eta"])))]
+            df_ref["x"],df_ref["y"],df_ref["eta"])))]
         x = ret[0]
         y = ret[1]
         eta = ret[2]
