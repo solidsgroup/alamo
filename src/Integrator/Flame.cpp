@@ -25,97 +25,64 @@ namespace Integrator
         PhiIC->Initialize(lev, phi_mf);
     }
 
-    void Flame::TimeStepBegin(Set::Scalar /*a_time*/, int a_iter)
+    void Flame::UpdateModel(int /*a_step*/) 
     {
-        if (!elastic.interval)
-            return;
-        if (a_iter % elastic.interval)
-            return;
+        if (m_type == Base::Mechanics<Model::Solid::Affine::Isotropic>::Type::Disable) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
             Util::RealFillBoundary(*Eta_mf[lev], geom[lev]);
             Util::RealFillBoundary(*phi_mf[lev], geom[lev]);
-            Util::RealFillBoundary(*Temp_mf[lev], geom[lev]);
-
-            elastic.rhs_mf[lev]->setVal(0.0);
-            elastic.disp_mf[lev]->setVal(0.0);
-            elastic.model_mf[lev]->setVal(elastic.model_ap);
-
+            if (thermal.on) Util::RealFillBoundary(*Temp_mf[lev], geom[lev]);
+            rhs_mf[lev]->setVal(Set::Vector::Zero());
+            rhs_mf[lev]->setVal(Set::Vector::Zero());
+            disp_mf[lev]->setVal(Set::Vector::Zero());
+            model_mf[lev]->setVal(mechanics.model_ap);
             Set::Vector DX(geom[lev].CellSize());
-
-            for (MFIter mfi(*elastic.model_mf[lev], true); mfi.isValid(); ++mfi)
+            for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
-
                 amrex::Box bx = mfi.nodaltilebox();
                 bx.grow(1);
-                amrex::Array4<model_type> const &model = elastic.model_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &eta = Eta_mf[lev]->array(mfi);
+                amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+                //amrex::Array4<const Set::Scalar> const &eta = Eta_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = phi_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &temp = Temp_mf[lev]->array(mfi);
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                                   {
-                Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
-                Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,0);
-                Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
-
-                model_type model_ap = elastic.model_ap;
-                model_ap.F0 *= temp_avg;
-                model_type model_htpb = elastic.model_htpb;
-                model_htpb.F0 *= temp_avg;
-
-                model_type solid = model_ap*phi_avg + model_htpb*(1.-phi_avg);
-
-                model(i,j,k) = solid*eta_avg + elastic.model_void*(1.0-eta_avg); });
+                if (thermal.on)
+                {
+                    amrex::Array4<const Set::Scalar> const &temp = Temp_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
+                        Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
+                        model_type model_ap = mechanics.model_ap;
+                        model_ap.F0 *= temp_avg;
+                        model_type model_htpb = mechanics.model_htpb;
+                        model_htpb.F0 *= temp_avg;
+                        model(i,j,k) = model_ap*phi_avg + model_htpb*(1.-phi_avg);
+                    });
+                }
+                else
+                {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
+                        model_type model_ap = mechanics.model_ap;
+                        model_ap.F0 *= Set::Matrix::Zero();
+                        model_type model_htpb = mechanics.model_htpb;
+                        model_htpb.F0 *= Set::Matrix::Zero();
+                        model(i,j,k) = model_ap*phi_avg + model_htpb*(1.-phi_avg);
+                    });
+                }
             }
 
-            Util::RealFillBoundary(*elastic.model_mf[lev], geom[lev]);
+            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            
+            amrex::MultiFab::Copy(*psi_mf[lev],*Eta_mf[lev],0,0,1,psi_mf[lev]->nGrow());
         }
-        elastic.bc.Init(elastic.rhs_mf, geom);
+    }
 
-        amrex::LPInfo info;
-        Operator::Elastic<Model::Solid::Affine::Isotropic::sym> elastic_op(Geom(0, finest_level), grids, DistributionMap(0, finest_level), info);
-        elastic_op.SetUniform(false);
-        elastic_op.SetBC(&elastic.bc);
-        elastic_op.SetAverageDownCoeffs(true);
-
-        Set::Scalar tol_rel = 1E-8, tol_abs = 1E-8;
-        // Parameters for the elastic solver (when used with elasticity)
-        IO::ParmParse pp("elastic");
-        elastic.solver = new Solver::Nonlocal::Newton<Model::Solid::Affine::Isotropic>(elastic_op);
-        pp.queryclass("solver", *elastic.solver); // See :ref:`Solver::Nonlocal::Newton`
-
-        elastic.solver->solve(elastic.disp_mf, elastic.rhs_mf, elastic.model_mf, tol_rel, tol_abs);
-        elastic.solver->compResidual(elastic.res_mf, elastic.disp_mf, elastic.rhs_mf, elastic.model_mf);
-
-        for (int lev = 0; lev <= elastic.disp_mf.finest_level; lev++)
-        {
-            const amrex::Real *DX = geom[lev].CellSize();
-            for (MFIter mfi(*elastic.disp_mf[lev], false); mfi.isValid(); ++mfi)
-            {
-                amrex::Box bx = mfi.nodaltilebox();
-                amrex::Array4<model_type> const &model = elastic.model_mf[lev]->array(mfi);
-                amrex::Array4<Set::Scalar> const &stress = elastic.stress_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &disp = elastic.disp_mf[lev]->array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                                   {
-                                    std::array<Numeric::StencilType, AMREX_SPACEDIM>
-                                        sten = Numeric::GetStencil(i, j, k, bx);
-                                    if (model(i, j, k).kinvar == Model::Solid::KinematicVariable::F)
-                                    {
-                                        Set::Matrix F = Set::Matrix::Identity() + Numeric::Gradient(disp, i, j, k, DX, sten);
-                                        Set::Matrix P = model(i, j, k).DW(F);
-                                        Numeric::MatrixToField(stress, i, j, k, P);
-                                    }
-                                    else
-                                    {
-                                        Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX, sten);
-                                        Set::Matrix sigma = model(i, j, k).DW(gradu);
-                                        Numeric::MatrixToField(stress, i, j, k, sigma);
-                                    } });
-            }
-        }
+    void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
+    {
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
     }
 
     void Flame::Advance(int lev, amrex::Real time, amrex::Real dt)

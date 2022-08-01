@@ -8,6 +8,7 @@
 
 #include "Util/Util.H"
 #include "Integrator/Integrator.H"
+#include "Integrator/Base/Mechanics.H"
 #include "BC/BC.H"
 #include "BC/Constant.H"
 #include "IC/Voronoi.H"
@@ -27,7 +28,8 @@
 
 namespace Integrator
 {
-class Flame : public Integrator::Integrator
+class Flame : virtual public Integrator, 
+              virtual public Base::Mechanics<Model::Solid::Affine::Isotropic>
 {
 
     using model_type = Model::Solid::Affine::Isotropic;
@@ -59,8 +61,8 @@ public:
             value.EtaBC = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.EtaBC)); // See :ref:`BC::Constant`
 
-            value.RegisterNewFab(value.Eta_mf, value.EtaBC, 1, 1, "Eta", true);
-            value.RegisterNewFab(value.Eta_old_mf, value.EtaBC, 1, 1, "Eta_old", false);
+            value.RegisterNewFab(value.Eta_mf, value.EtaBC, 1, 2, "Eta", true);
+            value.RegisterNewFab(value.Eta_old_mf, value.EtaBC, 1, 2, "Eta_old", false);
         }
 
         {
@@ -86,10 +88,9 @@ public:
             pp.query("thermal.delH", value.thermal.delH); // Thermal flux of each material
             if (value.thermal.on)
             {
-                value.TempBC = new BC::Constant(1);
-                pp.queryclass("thermal.bc", *static_cast<BC::Constant *>(value.TempBC)); // See :ref:`BC::Constant`
-                value.RegisterNewFab(value.Temp_mf, value.TempBC, 1, 1, "Temp", true);
-                value.RegisterNewFab(value.Temp_old_mf, value.TempBC, 1, 1, "Temp_old", false);
+                value.TempBC = new BC::Constant(1,pp,"thermal.bc");
+                value.RegisterNewFab(value.Temp_mf, value.TempBC, 1, 2, "Temp", true);
+                value.RegisterNewFab(value.Temp_old_mf, value.TempBC, 1, 2, "Temp_old", false);
             }
         }
 
@@ -111,7 +112,20 @@ public:
             else if (type == "constant") value.PhiIC = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid phi.ic.type = ", type);
             
-            value.RegisterNewFab(value.phi_mf, value.EtaBC, 1, 1, "phi", true);
+            value.RegisterNewFab(value.phi_mf, value.EtaBC, 1, 2, "phi", true);
+        }
+
+        //
+        // Mechanics Parameters
+        //
+        // No mechanics by default
+        value.m_type = Base::Mechanics<model_type>::Type::Disable;
+        // Mechanics is managed by the :ref:`Base::Mechanics` class.
+        pp.queryclass("mechanics",static_cast<Base::Mechanics<model_type>*>(&value));
+        if (value.m_type != Base::Mechanics<model_type>::Type::Disable)
+        {
+            pp.queryclass("elastic.model.ap",value.mechanics.model_ap);                   
+            pp.queryclass("elastic.model.htbp",value.mechanics.model_htpb);                   
         }
 
         //
@@ -125,11 +139,12 @@ public:
 protected:
     void Initialize (int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
-    void Advance (int lev, amrex::Real time, amrex::Real dt) override;
+    void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
+    void UpdateModel(int a_step) override;
 private:
 
     Set::Field<Set::Scalar> Temp_mf;
@@ -175,16 +190,8 @@ private:
     } thermal;
 
     struct {
-        Set::Field<Set::Scalar> disp_mf;
-        Set::Field<Set::Scalar> rhs_mf;
-        Set::Field<Set::Scalar> res_mf;
-        Set::Field<Set::Scalar> stress_mf;
-        Set::Field<model_type>  model_mf;
-        model_type model_ap, model_htpb, model_void;
-        int interval = 0;
-        BC::Operator::Elastic::Constant bc;
-        Solver::Nonlocal::Newton<model_type> *solver;//(elastic.op);
-    } elastic;
+        Model::Solid::Affine::Isotropic model_ap, model_htpb/*, model_void*/;
+    } mechanics;
 
 
     // Integrated variables

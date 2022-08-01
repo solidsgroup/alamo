@@ -33,7 +33,7 @@ public:
         BL_PROFILE("Integrator::Base::Mechanics::Parse");
         if (pp.contains("type"))
         {
-            std::string type_str = "static";
+            std::string type_str = "disable";
             pp.query("type",type_str);
             if (type_str == "static")        value.m_type = Type::Static;
             else if (type_str == "dynamic")  value.m_type = Type::Dynamic;
