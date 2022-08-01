@@ -41,11 +41,13 @@ public:
 protected:
     void Initialize (int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
-    void Advance (int lev, amrex::Real time, amrex::Real dt) override;
+    void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
-    virtual void UpdateModel(int a_step) override;
-protected:
+    void Integrate(int amrlev, Set::Scalar time, int step,
+                    const amrex::MFIter &mfi, const amrex::Box &box) override;
+    void UpdateModel(int a_step) override;
+private:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
@@ -63,6 +65,7 @@ protected:
   
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
+    IC::IC *ic_eta;
     IC::IC *ic_phi;
 
     int fs_number = 1;
@@ -76,7 +79,6 @@ protected:
     int masson = 0;
     Set::Scalar m1, m2, m3;
       
-    IC::IC *ic_eta;
 
     struct {
        // Set::Scalar M = 0.0;
@@ -108,14 +110,17 @@ protected:
         Set::Scalar E_ap, E_htpb, E_comb;
         Set::Scalar correction_factor = 1.0;
         Set::Scalar exp_ap = 0.0, exp_htpb = 0.0, exp_comb = 0.0;
-     
     } thermal;
 
     struct {
-        Model::Solid::Affine::Isotropic model_ap, model_htpb, model_void;
+        Model::Solid::Affine::Isotropic model_ap, model_htpb;
     } elastic;
 
     using Base::Mechanics<Model::Solid::Affine::Isotropic>::m_type;
+
+    // Integrated variables
+    Set::Scalar volume = 0.0;
+    Set::Scalar area = 0.0;
 };
 }
 
