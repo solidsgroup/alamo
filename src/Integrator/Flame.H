@@ -8,7 +8,7 @@
 
 #include "Util/Util.H"
 #include "Integrator/Integrator.H"
-#include "Integrator/Mechanics.H"
+#include "Integrator/Base/Mechanics.H"
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
 #include "IC/IC.H"
@@ -26,7 +26,7 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator, 
-              virtual public MechanicsBase<Model::Solid::Affine::Isotropic>
+              virtual public Base::Mechanics<Model::Solid::Affine::Isotropic>
 {
 
     using model_type = Model::Solid::Affine::Isotropic;
@@ -115,7 +115,7 @@ protected:
         Model::Solid::Affine::Isotropic model_ap, model_htpb, model_void;
     } elastic;
 
-    using MechanicsBase<Model::Solid::Affine::Isotropic>::m_type;
+    using Base::Mechanics<Model::Solid::Affine::Isotropic>::m_type;
 };
 }
 

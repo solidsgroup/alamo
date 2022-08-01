@@ -6,15 +6,16 @@
 #include "IC/Constant.H"
 #include "IC/PSRead.H"
 #include "Numeric/Function.H"
+#include "Base/Mechanics.H"
 
 #include <cmath>
 
 namespace Integrator
 {
 
-    Flame::Flame() : MechanicsBase<Model::Solid::Affine::Isotropic>() {}
+    Flame::Flame() : Base::Mechanics<Model::Solid::Affine::Isotropic>() {}
 
-    Flame::Flame(IO::ParmParse &pp) : MechanicsBase<Model::Solid::Affine::Isotropic>() 
+    Flame::Flame(IO::ParmParse &pp) : Base::Mechanics<Model::Solid::Affine::Isotropic>() 
     {pp.queryclass(*this);}
 
     void 
@@ -130,7 +131,7 @@ namespace Integrator
             value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 1, "phi", true);
         }
 
-        pp.queryclass<MechanicsBase<Model::Solid::Affine::Isotropic>>("elastic",value);
+        pp.queryclass<Base::Mechanics<Model::Solid::Affine::Isotropic>>("elastic",value);
         if (value.m_type  != Type::Disable)
         {
             pp.queryclass("model_ap",value.elastic.model_ap);
@@ -143,7 +144,7 @@ namespace Integrator
     {
         BL_PROFILE("Integrator::Flame::Initialize");
         Util::Message(INFO,m_type);
-        MechanicsBase<Model::Solid::Affine::Isotropic>::Initialize(lev);
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev);
 
         if (thermal.on)
         {
@@ -205,14 +206,14 @@ namespace Integrator
     void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     {
         BL_PROFILE("Integrator::Flame::TimeStepBegin");
-        MechanicsBase<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
     }
 
 
     void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
         BL_PROFILE("Integrador::Flame::Advance");
-        MechanicsBase<Model::Solid::Affine::Isotropic>::Advance(lev,time,dt);
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::Advance(lev,time,dt);
 
         const Set::Scalar *DX = geom[lev].CellSize();
         const Set::Scalar small = 1E-12;
@@ -368,7 +369,7 @@ namespace Integrator
     void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
     {
         BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
-        MechanicsBase<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev,a_tags,time,ngrow);
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev,a_tags,time,ngrow);
         
         const Set::Scalar *DX = geom[lev].CellSize();
         Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
