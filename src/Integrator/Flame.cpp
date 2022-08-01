@@ -354,7 +354,7 @@ namespace Integrator
 
 		            mob(i,j,k)  =  ((thermal.m_ap + pressure.P/100) * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
                                  + (thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
-                                 + (thermal.m_comb * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                                 + (thermal.m_comb * pressure.P * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
                     if(tempnew(i,j,k) <= 400.0){
                         mob(i,j,k) = 0.0 ;
                     }
