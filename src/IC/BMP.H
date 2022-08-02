@@ -46,8 +46,8 @@ public:
         amrex::IndexType type = a_field[lev]->ixType();
         domain.convert(type);
 
-        Set::Vector domlo(geom[lev].ProbLo()[0],geom[lev].ProbLo()[1]);
-        Set::Vector domhi(geom[lev].ProbHi()[0],geom[lev].ProbHi()[1]);
+        Set::Vector domlo(AMREX_D_DECL(geom[lev].ProbLo()[0],geom[lev].ProbLo()[1],0.0));
+        Set::Vector domhi(AMREX_D_DECL(geom[lev].ProbHi()[0],geom[lev].ProbHi()[1],0.0));
 
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -61,7 +61,7 @@ public:
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
-                Set::Vector x;
+                Set::Vector x = Set::Vector::Zero();
                 // NODE
                 if (type == amrex::IndexType::TheNodeType())
                 {
