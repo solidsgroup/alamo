@@ -1,4 +1,9 @@
-alamo.program               = eshelby
+#@  [2D-serial-4levels]
+#@  dim    = 2
+#@  nprocs = 1
+
+alamo.program               = mechanics
+alamo.program.mechanics.model = affine.isotropic
 plot_file		    = tests/Suture/output
 
 # this is not a time integration, so do
@@ -8,11 +13,12 @@ stop_time		    = 0.1
 
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 5
+amr.max_level		    = 4
 amr.n_cell		    = 32 32 32
 amr.blocking_factor	    = 4
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0
+amr.cell.all = 1
 
 # geometry
 geometry.prob_lo	    = -8 -8 -8 
@@ -21,55 +27,32 @@ geometry.is_periodic	    = 0 0 0
 
 
 ic.type         = bmp
-ic.bmp.filename = tests/Suture/Interface_Blur1.bmp
+ic.bmp.filename = tests/Suture/interface-blur.bmp
 ic.bmp.fit      = fitwidth
 ic.bmp.channel  = g
 
-## ellipse configuration
-#ic.type         = ellipse
-#ic.ellipse.x0   = 1000 1000
-
 #Aluminum Oxide
-elastic.model1.E = 370 #GPa
-elastic.model1.nu = 0.22
-elastic.model1.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
+nmodels = 2
+model1.E = 370 #GPa
+model1.nu = 0.22
+model1.F0 = -0.001 0 0 0 -0.001 0 0 0 -0.001
 #Nickel
-elastic.model2.E = 207 #GPa
-elastic.model2.nu = 0.31
-elastic.model1.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
+model2.E = 207 #GPa
+model2.nu = 0.31
+model2.F0 = 0.001 0 0 0 0.001 0 0 0 0.001
 
-elastic.solver.verbose = 2
-elastic.solver.nriters = 1
-elastic.solver.fixed_iter=2000
-elastic.set_dot_mask = 0
-elastic.set_singular = 1
+solver.verbose = 3
+solver.nriters = 1
+solver.fixed_iter=2000
 ## Sliders on all walls
-#elastic.bc.type.ylo    = trac disp
-#elastic.bc.type.xloylo = disp disp
-#elastic.bc.type.xhiylo = disp disp
-#elastic.bc.type.xlo    = disp trac
-#elastic.bc.type.xhi    = disp trac
-#elastic.bc.type.xloyhi = disp disp
-#elastic.bc.type.xhiyhi = disp disp
-#elastic.bc.type.yhi    = trac disp
+bc.type = constant
+bc.constant.type.ylo    = trac disp
+bc.constant.type.xloylo = disp disp
+bc.constant.type.xhiylo = disp disp
+bc.constant.type.xlo    = disp trac
+bc.constant.type.xhi    = disp trac
+bc.constant.type.xloyhi = disp disp
+bc.constant.type.xhiyhi = disp disp
+bc.constant.type.yhi    = trac disp
 
 
-elastic.bc.type.ylo    = disp disp
-elastic.bc.type.xloylo = disp disp
-elastic.bc.type.xhiylo = disp disp
-elastic.bc.type.xlo    = disp trac
-elastic.bc.type.xhi    = disp trac
-elastic.bc.type.xloyhi = disp disp
-elastic.bc.type.xhiyhi = disp disp
-elastic.bc.type.yhi    = disp disp
-elastic.bc.val.yhi    = 0.0 0.1
-elastic.bc.val.xloyhi = 0.0 0.1
-elastic.bc.val.xhiyhi = 0.0 0.1
-
-fracture.ic.center = -3.0 1.3
-fracture.ic.orientation = 1.0 0.0
-fracture.ic.length = 1.0
-fracture.ic.thickness = 0.25
-fracture.ic.eps = 0.05
-fracture.lower_bound = 0.5
-#fracture.ref_threshold = 0.0001

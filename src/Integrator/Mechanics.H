@@ -22,6 +22,7 @@
 #include "IC/Ellipse.H"
 #include "IC/Voronoi.H"
 #include "IC/Constant.H"
+#include "IC/BMP.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
@@ -73,6 +74,7 @@ class Mechanics : virtual public Base::Mechanics<MODEL>
             pp.query("ic.type",type); // Read IC type for the eta field
             if (type=="ellipse") value.ic_eta = new IC::Ellipse(value.geom,pp,"ic.ellipse");
             if (type=="voronoi") value.ic_eta = new IC::Voronoi(value.geom,pp,"ic.voronoi");
+            if (type=="bmp") value.ic_eta = new IC::BMP(value.geom,pp,"ic.bmp");
         }
 
         // Read in IC for psi
