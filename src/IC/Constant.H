@@ -2,6 +2,8 @@
 #define IC_CONSTANT_H_
 
 #include "IC/IC.H"
+#include "IO/ParmParse.H"
+#include "Util/Util.H"
 
 /// \class Constant
 /// \brief 
@@ -11,35 +13,38 @@ namespace IC
 class Constant : public IC
 {
 public:
-  	Constant (amrex::Vector<amrex::Geometry> &_geom) :
-    IC::IC(_geom)
-	{}
-	Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> _value)
-	: IC(_geom), value(_value)
-	{}
-	~Constant() { };
-	void Add(const int lev, amrex::Vector<amrex::MultiFab * > &field)
-	{
-		for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
-		{
-			const amrex::Box& box = mfi.tilebox();
-	
-			amrex::FArrayBox &field_box = (*field[lev])[mfi];
-	
-			for (int i = box.loVect()[0]-field[lev]->nGrow(); i<=box.hiVect()[0]+field[lev]->nGrow(); i++) 
-				for (int j = box.loVect()[1]-field[lev]->nGrow(); j<=box.hiVect()[1]+field[lev]->nGrow(); j++)
-	#if BL_SPACEDIM==3
-					for (int k = box.loVect()[2]-field[lev]->nGrow(); k<=box.hiVect()[2]+field[lev]->nGrow(); k++)
-	#endif
-				{
-					for (unsigned int m = 0; m < value.size(); m++)
-						field_box(amrex::IntVect(AMREX_D_DECL(i,j,k)),m) = value[m];     
-				}
-		}
-	
-	}
+    Constant (amrex::Vector<amrex::Geometry> &_geom) :IC::IC(_geom) {}
+    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp) : IC::IC(_geom) 
+    {pp.queryclass(*this);}
+    Constant (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC::IC(_geom) 
+    {pp.queryclass(name,*this);}
+
+    Constant(amrex::Vector<amrex::Geometry> &_geom, std::vector<amrex::Real> a_value)
+    : IC(_geom), m_value(a_value)
+    {}
+    ~Constant() { };
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    {
+        Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == (int)a_field[lev]->nComp())));
+        for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box& bx = mfi.tilebox();
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            for (int m = 0; m < a_field[lev]->nComp(); m++)
+                amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                field(i,j,k,m) += m_value.size() == 1 ? m_value[0] : m_value[m];
+            });  
+        }
+    }
+    static void Parse(Constant & value, IO::ParmParse & pp)
+    {
+        // Default: set equal to one everywhere
+        value.m_value.clear();
+        value.m_value.push_back(1.0);
+        pp.queryarr("value",value.m_value); // Array of constant values. The number of values should equal either 1 or N where N is the number of fab components
+    }
 private:
-	std::vector<amrex::Real> value;
+    std::vector<Set::Scalar> m_value;
 };
 }
 #endif

@@ -1,20 +1,35 @@
+#@ 
+#@ [2d-serial]
+#@ dim=2
+#@ benchmark-beaker=96.39
+#@ benchmark-github = 70.39
+#@
+#@ [2d-parallel]
+#@ dim=2
+#@ nprocs=4
+#@ benchmark-beaker=19.99
+#@
 
 alamo.program			= microstructure
 plot_file		        = tests/VoronoiElastic/output
 
-timestep		        = 0.05
-stop_time		        = 10
+timestep		        = 0.0005
+stop_time		        = 0.1
 
-amr.plot_dt			= 1.0
-amr.max_level		        = 3
+amr.plot_dt			= 0.01
+amr.max_level		        = 2
 amr.n_cell		        = 64 64 64
-amr.blocking_factor	        = 4
-amr.regrid_int		        = 10
+amr.max_grid_size = 8
+
+amr.blocking_factor	        = 8
+amr.base_regrid_int		= 100
 amr.grid_eff		        = 1.0
 amr.ref_threshold		= 0.1
+amr.cell.all = 1
+amr.max_grid_size = 8
 
 ic.type			        = voronoi
-ic.voronoi.number_of_grains	= 100
+ic.voronoi.number_of_grains	= 40
 
 geometry.prob_lo	        = 0 0 0
 geometry.prob_hi	        = 5 5 5
@@ -34,37 +49,32 @@ pf.gamma		        = 1.0
 pf.l_gb			        = 0.05
 pf.sigma0		        = 0.075
 
-elastic.on			= 1
-elastic.interval		= 10
-elastic.type			= cubic
-elastic.load_t			= 0.0 
-elastic.load_disp		= 0.01
-elastic.bc.type.xlo		= disp disp disp
-elastic.bc.type.xhi		= disp disp disp
-elastic.bc.type.xloyhi		= disp disp disp
-elastic.bc.type.xhiyhi		= disp disp disp
-elastic.bc.val.xhi		= 0.0 0.1 0.0
-elastic.bc.val.xlo		= 0.0 0.0 0.0
-elastic.bc.val.xhiyhi		= 0.0 0.1 0.0
-elastic.bc.val.xloyhi		= 0.0 0.0 0.0
-elastic.bc.val.xhiylo		= 0.0 0.1 0.0
-elastic.bc.val.xloylo		= 0.0 0.0 0.0
-
-elastic.bc.type.ylo		= neumann neumann neumann
-elastic.bc.type.yhi		= neumann neumann neumann
-elastic.bc.val.yhi		= 0.0 0.0 0.0
-elastic.bc.val.ylo		= 0.0 0.0 0.0
-elastic.bc.type.zlo		= neumann neumann neumann
-elastic.bc.type.zhi		= neumann neumann neumann
-elastic.bc.val.zhi		= 0.0 0.0 0.0
-elastic.bc.val.zlo		= 0.0 0.0 0.0
-
-elastic.model.C11		= 1.68
-elastic.model.C12		= 1.21
-elastic.model.C44		= 0.75
-elastic.model.random		= yes
-
-elastic.fixed_iter		= 1000
-elastic.solver.verbose		= 2
-
-
+mechanics.interval		= 10
+mechanics.type			= static
+mechanics.bc.type               = constant
+mechanics.bc.constant.type.xlo     = disp disp disp
+mechanics.bc.constant.type.xhi	   = disp disp disp
+mechanics.bc.constant.type.xloyhi  = disp disp disp
+mechanics.bc.constant.type.xhiyhi  = disp disp disp
+mechanics.bc.constant.type.ylo		= neumann neumann neumann
+mechanics.bc.constant.type.yhi		= neumann neumann neumann
+mechanics.bc.constant.val.xhi           = 0.0 0.01 0.0
+mechanics.bc.constant.val.xlo           = 0.0 0.0 0.0
+mechanics.bc.constant.val.xhiyhi        = 0.0 0.01 0.0
+mechanics.bc.constant.val.xloyhi        = 0.0 0.0 0.0
+mechanics.bc.constant.val.xhiylo        = 0.0 0.01 0.0
+mechanics.bc.constant.val.xloylo        = 0.0 0.0 0.0
+mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
+mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
+mechanics.model.C11             = 1.68
+mechanics.model.C12             = 1.21
+mechanics.model.C44             = 0.75
+mechanics.model.random          = 1
+#mechanics.solver.fixed_iter     = 100
+mechanics.solver.verbose        = 3
+mechanics.print_model = 1
+mechanics.print_residual = 1
+mechanics.solver.tol_rel = 1E-8
+mechanics.solver.tol_abs = 1E-8
+mechanics.solver.average_down_coeffs = 0
+mechanics.time_evolving = 0

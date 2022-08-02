@@ -4,6 +4,7 @@
 #include <AMReX.H>
 #include <AMReX_MultiFab.H>
 #include "Util/Util.H"
+#include "Set/Set.H"
 
 namespace IC
 {
@@ -11,48 +12,32 @@ namespace IC
 class IC
 {
 public:
-	IC (amrex::Vector<amrex::Geometry> &_geom)
-		: geom(_geom) {} ;
-	virtual ~IC() {}
+    IC (amrex::Vector<amrex::Geometry> &_geom)
+        : geom(_geom) {} ;
+    virtual ~IC() {}
 
-	virtual void Add(const int lev, amrex::Vector<amrex::MultiFab *> &field) = 0;
-/// Function that IC's inherit to initialize the geometry's mesh
-	void Initialize(const int lev,
-			amrex::Vector<amrex::MultiFab *> &field)
-	{
-		field[lev]->setVal(0.0);
-		Add(lev,field);
-	};
-	void Initialize(const int lev,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Initialize(lev,pfield);
-	};
-	void Initialize(const int lev,
-			amrex::Vector<amrex::MultiFab> &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Initialize(lev,pfield);
-	};
-	void Add(const int lev,
-			amrex::Vector<amrex::MultiFab> &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Add(lev,pfield);
-	};
+    virtual void Add(const int &lev, Set::Field<Set::Scalar> &field) = 0;
+    virtual void Add(const int &, Set::Field<Set::Vector> &) 
+    {Util::Abort(INFO,"Not yet implemented");};
+    void Initialize(const int &a_lev,
+                    Set::Field<Set::Scalar> &a_field)
+    {
+        Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
+        a_field[a_lev]->setVal(0.0);
+        Add(a_lev,a_field);
+    };
+    void Initialize(const int &a_lev,
+                    Set::Field<Set::Vector> &a_field)
+    {
+        Util::Assert(INFO,TEST(a_lev < a_field.size())," a_lev=",a_lev," size=",a_field.size());
+        a_field[a_lev]->setVal(Set::Vector::Zero());
+        Add(a_lev,a_field);
+    };
 
-	void Add(const int lev,
-			amrex::Vector<std::unique_ptr<amrex::MultiFab> > &field)
-	{
-		amrex::Vector<amrex::MultiFab *> pfield = amrex::GetVecOfPtrs(field);
-		Add(lev,pfield);
-	};
-
-	virtual void SetComp(int a_comp) final {comp = a_comp;}
+    virtual void SetComp(int a_comp) final {comp = a_comp;}
 protected:
-	amrex::Vector<amrex::Geometry> &geom;
-	int comp = 0;
+    amrex::Vector<amrex::Geometry> &geom;
+    int comp = 0;
 };
 }
 #endif

@@ -123,7 +123,7 @@ public:
         value.Define(mu, lambda, yield, hardening, theta_tmp);
     }
     AMREX_FORCE_INLINE
-	void operator += (const J2Plastic &rhs)
+    void operator += (const J2Plastic &rhs)
     {
         m_mu += rhs.m_mu;
         curr += rhs.curr;
@@ -134,10 +134,10 @@ public:
         
         ddw += rhs.ddw;
         F0 += rhs.F0;
-	}    
+    }    
     AMREX_FORCE_INLINE
-   	J2Plastic operator * (const Set::Scalar alpha) const
-	{
+        J2Plastic operator * (const Set::Scalar alpha) const
+    {
         J2Plastic ret;
         ret.m_mu = alpha * m_mu;
         ret.curr = alpha*curr;
@@ -150,7 +150,7 @@ public:
         ret.F0 = F0*alpha;
     
         return ret;
-	}    
+    }    
     friend J2Plastic operator * (const Set::Scalar alpha, const J2Plastic b);
     friend J2Plastic operator + (const J2Plastic a, const J2Plastic b);
     friend J2Plastic operator - (const J2Plastic a, const J2Plastic b);

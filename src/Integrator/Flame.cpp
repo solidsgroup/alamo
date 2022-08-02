@@ -1,236 +1,367 @@
 #include "Flame.H"
+#include "IO/ParmParse.H"
 #include "BC/Constant.H"
+#include "Numeric/Stencil.H"
+#include "IC/Laminate.H"
+#include "IC/Constant.H"
+#include "IC/PSRead.H"
+#include "IC/Expression.H"
+#include "Base/Mechanics.H"
+
+#include <cmath>
 
 namespace Integrator
 {
-Flame::Flame () : Integrator()
-{
-  amrex::ParmParse pp("physics"); 
-  pp.query("M",M);
-  pp.query("kappa",kappa);
-  pp.query("w1",w1);
-  pp.query("w12",w12);
-  pp.query("w0",w0);
-  pp.query("rho1",rho1);
-  pp.query("rho0",rho0);
-  pp.query("k1",k1);
-  pp.query("k0",k0);
-  pp.query("cp1",cp1);
-  pp.query("cp0",cp0);
-  pp.query("qdotburn",qdotburn);
-  pp.query("fs_number",fs_number);
-  pp.query("fs_min",fs_min);
-  pp.query("fs_max",fs_max);
 
-  {
-    amrex::ParmParse pp("TempBC");
-    amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
-    amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
-    pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
-    pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
-    amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-    if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
-    if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
-    amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-    if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
-    if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
-    amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-    if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
-    if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+    Flame::Flame() : Base::Mechanics<Model::Solid::Affine::Isotropic>() {}
 
-    TempBC = new BC::Constant(1, bc_hi_str, bc_lo_str,
-			      AMREX_D_DECL(bc_lo_1, bc_lo_2, bc_lo_3),
-			      AMREX_D_DECL(bc_hi_1, bc_hi_2, bc_hi_3));
-  }
-  {
-    amrex::ParmParse pp("EtaBC");
-    amrex::Vector<std::string> bc_hi_str(AMREX_SPACEDIM);
-    amrex::Vector<std::string> bc_lo_str(AMREX_SPACEDIM);
-    pp.queryarr("lo",bc_lo_str,0,BL_SPACEDIM);
-    pp.queryarr("hi",bc_hi_str,0,BL_SPACEDIM);
-    amrex::Vector<amrex::Real> bc_lo_1, bc_hi_1;
-    if (pp.countval("lo_1")) pp.getarr("lo_1",bc_lo_1);
-    if (pp.countval("hi_1")) pp.getarr("hi_1",bc_hi_1);
-    amrex::Vector<amrex::Real> bc_lo_2, bc_hi_2;
-    if (pp.countval("lo_2")) pp.getarr("lo_2",bc_lo_2);
-    if (pp.countval("hi_2")) pp.getarr("hi_2",bc_hi_2);
-    amrex::Vector<amrex::Real> bc_lo_3, bc_hi_3;
-    if (pp.countval("lo_3")) pp.getarr("lo_3",bc_lo_3);
-    if (pp.countval("hi_3")) pp.getarr("hi_3",bc_hi_3);
+    Flame::Flame(IO::ParmParse &pp) : Flame()
+    {pp.queryclass(*this);}
 
-    EtaBC = new BC::Constant(1,bc_hi_str, bc_lo_str,
-			     AMREX_D_DECL(bc_lo_1,bc_lo_2,bc_lo_3),
-			     AMREX_D_DECL(bc_hi_1,bc_hi_2,bc_hi_3));
-  }
-
-  VoronoiIC = new IC::Voronoi(geom);
-  std::vector<Set::Scalar> fs(fs_number);
-  for (int i = 0; i < fs_number; i++) fs[i] = 0.5*(1.0 + Util::Random());
-  VoronoiIC->Define(fs_number,fs,IC::Voronoi::Type::Values);
-
-  EtaIC = new IC::Wedge(geom);
-  // EtaIC = new IC::Constant(geom,value);
-
-  RegisterNewFab(Temp,     TempBC, 1, 1, "Temp", true);
-  RegisterNewFab(Temp_old, TempBC, 1, 1, "Temp_old", false);
-  RegisterNewFab(Eta,      EtaBC,  1, 1, "Eta", true);
-  RegisterNewFab(Eta_old,  EtaBC,  1, 1, "Eta_old", false);
-  RegisterNewFab(FlameSpeedFab, EtaBC,  1, 1, "FlameSpeed",true);
-}
-
-void Flame::Initialize (int lev)
-{
-	for (amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi)
-		{
-			const amrex::Box& box = mfi.tilebox();
-
-			amrex::BaseFab<amrex::Real> &Eta_box		= (*Eta[lev])[mfi];
-			amrex::BaseFab<amrex::Real> &Eta_old_box	= (*Eta_old[lev])[mfi];
-			amrex::BaseFab<amrex::Real> &Temp_box		= (*Temp[lev])[mfi];
-			amrex::BaseFab<amrex::Real> &Temp_old_box	= (*Temp_old[lev])[mfi];
-
-			AMREX_D_TERM(for (int i = box.loVect()[0]; i<=box.hiVect()[0]; i++),
-							 for (int j = box.loVect()[1]; j<=box.hiVect()[1]; j++),
-							 for (int k = box.loVect()[2]; k<=box.hiVect()[2]; k++))
-				{
-					Eta_box     (amrex::IntVect(AMREX_D_DECL(i,j,k))) =  1.0;
-					Eta_old_box (amrex::IntVect(AMREX_D_DECL(i,j,k))) =  1.0;
-					Temp_box    (amrex::IntVect(AMREX_D_DECL(i,j,k))) =  0.0;
-					Temp_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) =  0.0;
-				}
-		}
-	EtaIC->Initialize(lev,Eta);
-	EtaIC->Initialize(lev,Eta_old);
-	
-	VoronoiIC->Initialize(lev,FlameSpeedFab);
-}
-
-
-
-void Flame::Advance (int lev, amrex::Real time, amrex::Real dt)
-{
-  std::swap(Eta_old [lev], Eta [lev]);
-  std::swap(Temp_old[lev], Temp[lev]);
-
-  static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-												 dy(AMREX_D_DECL(0,1,0)),
-												 dz(AMREX_D_DECL(0,0,1)));
-
-  const amrex::Real* DX = geom[lev].CellSize();
-
-  amrex::Real a0=w0, a1=0.0, a2= -5*w1 + 16*w12 - 11*a0, a3=14*w1 - 32*w12 + 18*a0, a4=-8*w1 + 16*w12 - 8*a0;
-
-  for ( amrex::MFIter mfi(*Temp[lev],true); mfi.isValid(); ++mfi )
+    void 
+    Flame::Parse(Flame &value, IO::ParmParse &pp)
     {
-      const amrex::Box& bx = mfi.tilebox();
+        BL_PROFILE("Integrator::Flame::Flame()");
+        {
+            pp.query("pf.eps", value.pf.eps); // Burn width thickness
+            pp.query("pf.kappa", value.pf.kappa); // Interface energy param
+            pp.query("pf.gamma",value.pf.gamma); // Scaling factor for mobility
+            pp.query("pf.lambda",value.pf.lambda); // Chemical potential multiplier
+            pp.query("pf.w1", value.pf.w1); // Unburned rest energy
+            pp.query("pf.w12", value.pf.w12);  // Barrier energy
+            pp.query("pf.w0", value.pf.w0);    // Burned rest energy
+            pp.query("pf.P",      value.pf.P);             // Pressure [UNITS?]
+            pp.query("pf.r_ap",   value.pf.r_ap);       // AP Power law multiplier
+            pp.query("pf.n_ap",   value.pf.n_ap);       // AP Power law exponent
+            pp.query("pf.r_htpb", value.pf.r_htpb);   // HTPB Power law multiplier
+            pp.query("pf.n_htpb", value.pf.n_htpb);   // HTPB Power law exponent
+            pp.query("pf.r_comb", value.pf.r_comb);   // Combination power law multiplier
+            pp.query("pf.n_comb", value.pf.n_comb);   // Combination power law exponent
 
-      amrex::FArrayBox &Eta_box		= (*Eta[lev])[mfi];
-      amrex::FArrayBox &Eta_old_box		= (*Eta_old[lev])[mfi];
-      amrex::FArrayBox &Temp_box		= (*Temp[lev])[mfi];
-      amrex::FArrayBox &Temp_old_box	= (*Temp_old[lev])[mfi];
-      amrex::FArrayBox &FlameSpeed	= (*FlameSpeedFab[lev])[mfi];
+            value.bc_eta = new BC::Constant(1);
+            pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
+
+            value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
+            value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+        }
+
+        {
+            // Read in parameters to determine the IC for eta
+            std::string type = "constant";
+            pp.query("eta.ic.type", type); // IC type - [packedspheres,laminate] - see classes for more information
+            if (type == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"eta.ic.constant");
+            else if (type == "expression") value.ic_eta  = new IC::Expression(value.geom,pp,"eta.ic.expression");
+            else Util::Abort(INFO,"Invalid eta.ic ", type);
+        }
+
+        {
+            // These parameters are for the **Thermal transport model**
+            pp.query("thermal.on",   value.thermal.on);       // Whether to use the thermal model
+            pp.query("thermal.rho1", value.thermal.rho1); // Density (before)
+            pp.query("thermal.rho0", value.thermal.rho0); // Density (after)
+            pp.query("thermal.ka",   value.thermal.ka); // Thermal conductivity (before and after)
+            pp.query("thermal.kh",   value.thermal.kh); // Thermal conductivity (before and after)
+            pp.query("thermal.k0",   value.thermal.k0); // Thermal conductivity (before and after)
+            pp.query("thermal.cp1",  value.thermal.cp1); // Specific heat (before and after)
+            pp.query("thermal.cp0",  value.thermal.cp0); // Specific heat (before and after)
+            pp.query("thermal.delA", value.thermal.delA); // Thermal flux of each material
+            pp.query("thermal.delH", value.thermal.delH); // Thermal flux of each material
+            if (value.thermal.on)
+            {
+                value.bc_temp = new BC::Constant(1,pp,"thermal.bc");
+                value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 2, "temp", true);
+                value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 2, "temp_old", false);
+            }
+        }
 
 
-		AMREX_D_TERM(for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++),
-						 for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++),
-						 for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++))
-			{
-				amrex::IntVect m(AMREX_D_DECL(i,j,k));
-				//
-				// Phase field evolution
-				//
+        // Refinement criterion for eta field
+        pp.query("amr.refinement_criterion", value.m_refinement_criterion); 
+        // Refinement criterion for temperature field
+        pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion); 
+        // Eta value to restrict the refinament for the temperature field
+        pp.query("amr.refinament_restriction", value.t_refinement_restriction);
 
-				amrex::Real M_dev = fs_min + FlameSpeed(m)*(fs_max-fs_min)/(amrex::Real)fs_number;
 
-				amrex::Real eta_lap = AMREX_D_TERM((Eta_old_box(m+dx) - 2.*Eta_old_box(m) + Eta_old_box(m-dx))/DX[0]/DX[0],
-															  + (Eta_old_box(m+dy) - 2.*Eta_old_box(m) + Eta_old_box(m-dy))/DX[1]/DX[1],
-															  + (Eta_old_box(m+dz) - 2.*Eta_old_box(m) + Eta_old_box(m-dz))/DX[2]/DX[2]);
-	     
-	     
-				amrex::Real oldeta = Eta_old_box(amrex::IntVect(AMREX_D_DECL(i,j,k)));
-				Eta_box(amrex::IntVect(AMREX_D_DECL(i,j,k))) = oldeta -
-					(M + M_dev) * dt * (a1 + 2*a2*oldeta + 3*a3*oldeta*oldeta + 4*a4*oldeta*oldeta*oldeta
-								 - kappa*eta_lap);
 
-				//
-				// Temperature evolution
-				//
-	    
-				//if (0) // todo ignore temperature for the time being
-				//if (Eta_box(amrex::IntVect(i,j))>0.01)
-				//{
-				amrex::Real temperature_delay = 0.05;
-				if (time<temperature_delay) continue;
+        {
+            // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
+            // specified using these parameters. 
+            //IO::ParmParse pp("phi.ic");
+            std::string type = "packedspheres";
+            pp.query("phi.ic.type", type); // IC type (psread, laminate, constant)
+            if      (type == "psread") value.ic_phi = new IC::PSRead(value.geom,pp,"phi.ic.psread");
+            else if (type == "laminate") value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
+            else if (type == "constant") value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
+            else Util::Abort(INFO,"Invalid IC type ",type);
+            
+            value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 2, "phi", true);
+        }
 
-				AMREX_D_TERM(amrex::Real eta_gradx = (Eta_old_box(m+dx) - Eta_old_box(m-dx))/(2*DX[0]);,
-								 amrex::Real eta_grady = (Eta_old_box(m+dy) - Eta_old_box(m-dy))/(2*DX[1]);,
-								 amrex::Real eta_gradz = (Eta_old_box(m+dz) - Eta_old_box(m-dz))/(2*DX[2]););
-				
-				AMREX_D_TERM(amrex::Real T_gradx = (Temp_old_box(m+dx) - Temp_old_box(m-dx))/(2*DX[0]);,
-								 amrex::Real T_grady = (Temp_old_box(m+dy) - Temp_old_box(m-dy))/(2*DX[1]);,
-								 amrex::Real T_gradz = (Temp_old_box(m+dz) - Temp_old_box(m-dz))/(2*DX[2]););
+        value.m_type = Base::Mechanics<model_type>::Type::Disable;
+        pp.queryclass<Base::Mechanics<Model::Solid::Affine::Isotropic>>("elastic",value);
+        if (value.m_type  != Type::Disable)
+        {
+            pp.queryclass("model_ap",value.elastic.model_ap);
+            pp.queryclass("model_htpb",value.elastic.model_htpb);
+        }
 
-				amrex::Real eta_grad_mag = sqrt(AMREX_D_TERM(eta_gradx*eta_gradx, + eta_grady*eta_grady, + eta_gradz*eta_gradz));
-
-				amrex::Real T_lap = 
-					AMREX_D_TERM((Temp_old_box(m+dx) - 2.*Temp_old_box(m) + Temp_old_box(m-dx))/DX[0]/DX[0],
-						     + (Temp_old_box(m+dy) - 2.*Temp_old_box(m) + Temp_old_box(m-dy))/DX[1]/DX[1],
-						     + (Temp_old_box(m+dz) - 2.*Temp_old_box(m) + Temp_old_box(m-dz))/DX[2]/DX[2]);
-	    
-				amrex::Real rho = (rho1-rho0)*Eta_old_box(m) + rho0;
-				amrex::Real K   = (k1-k0)*Eta_old_box(m) + k0;
-				amrex::Real cp  = (cp1-cp0)*Eta_old_box(m) + cp0;
-
-				Temp_box(m) =
-					Temp_old_box(m)
-					+ (dt/rho/cp) * ((k1-k0)*(AMREX_D_TERM(eta_gradx*T_gradx,
-									       + eta_grady*T_grady,
-									       + eta_gradz*T_gradz))
-							 + K *T_lap  + (w1 - w0 - qdotburn)*eta_grad_mag);
-
-				if (std::isnan(Temp_box(amrex::IntVect(AMREX_D_DECL(i,j,k)))))
-					Util::Abort(INFO, "NaN encountered");
-			}
+        value.RegisterIntegratedVariable(&value.volume,"volume");
+        value.RegisterIntegratedVariable(&value.area,"area");
     }
-}
+
+    void Flame::Initialize(int lev)
+    {
+        BL_PROFILE("Integrator::Flame::Initialize");
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev);
+
+        if (thermal.on)
+        {
+            temp_mf[lev]->setVal(0.0);
+            temp_old_mf[lev]->setVal(0.0);
+        } 
+
+        ic_eta->Initialize(lev,eta_mf);
+        ic_eta->Initialize(lev,eta_old_mf);
+
+        ic_phi->Initialize(lev, phi_mf);
+        
+    }
+    
+    void Flame::UpdateModel(int /*a_step*/)
+    {
+        if (m_type == Base::Mechanics<Model::Solid::Affine::Isotropic>::Type::Disable) return;
+
+        for (int lev = 0; lev <= finest_level; ++lev)
+        {
+            phi_mf[lev]->FillBoundary();
+            eta_mf[lev]->FillBoundary();
+            temp_mf[lev]->FillBoundary();
+            
+            for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx = mfi.nodaltilebox();
+                amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
+                amrex::Array4<const Set::Scalar> const &phi = phi_mf[lev]->array(mfi);
+                if (thermal.on)
+                {
+                    amrex::Array4<const Set::Scalar> const &temp = temp_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
+                        Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
+                        model_type model_ap = elastic.model_ap;
+                        model_ap.F0 *= temp_avg;
+                        model_type model_htpb = elastic.model_htpb;
+                        model_htpb.F0 *= temp_avg;
+                        model(i,j,k) = model_ap*phi_avg + model_htpb*(1.-phi_avg);
+                    });
+                }
+                else
+                {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
+                        model_type model_ap = elastic.model_ap;
+                        model_ap.F0 *= Set::Matrix::Zero();
+                        model_type model_htpb = elastic.model_htpb;
+                        model_htpb.F0 *= Set::Matrix::Zero();
+                        model(i,j,k) = model_ap*phi_avg + model_htpb*(1.-phi_avg);
+                    });
+                }
+            }
+
+            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            
+            amrex::MultiFab::Copy(*psi_mf[lev],*eta_mf[lev],0,0,1,psi_mf[lev]->nGrow());
+        }
+    }
+    
+    void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
+    {
+        BL_PROFILE("Integrator::Flame::TimeStepBegin");
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
+    }
 
 
+    void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
+    {
+        const amrex::Real *DX = geom[lev].CellSize();
 
-void Flame::TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/)
-{
 
-	const amrex::Real* dx      = geom[lev].CellSize();
+        //
+        // Phase field evolution
+        //
 
-	const amrex::MultiFab& state = *Temp[lev];
-	//amrex::Array<int>  itags;
-	
-	for (amrex::MFIter mfi(state,true); mfi.isValid(); ++mfi)
-		{
-			const amrex::Box&  bx  = mfi.tilebox();
+        if (lev == finest_level)
+        {
+            std::swap(eta_old_mf[lev], eta_mf[lev]);
+            
+            Set::Scalar 
+                a0 = pf.w0, 
+                a1 = 0.0, 
+                a2 = -5.0 * pf.w1 + 16.0 * pf.w12 - 11.0 * a0, 
+                a3 = 14.0 * pf.w1 - 32.0 * pf.w12 + 18.0 * a0, 
+                a4 = -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * a0;
 
-			amrex::TagBox&     tag  = tags[mfi];
-	    
-			//amrex::BaseFab<Real> &Eta_box = (*Temp[lev])[mfi];
-			amrex::BaseFab<amrex::Real> &Eta_box = (*Eta[lev])[mfi];
+            for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box &bx = mfi.tilebox();
 
-			for (int i = bx.loVect()[0]; i<=bx.hiVect()[0]; i++)
-				for (int j = bx.loVect()[1]; j<=bx.hiVect()[1]; j++)
-#if BL_SPACEDIM>2
-					for (int k = bx.loVect()[2]; k<=bx.hiVect()[2]; k++)
-#endif
-						{
-							amrex::Real gradx = (Eta_box(amrex::IntVect(AMREX_D_DECL(i+1,j,k))) - Eta_box(amrex::IntVect(AMREX_D_DECL(i-1,j,k))))/(2.*dx[0]);
-							amrex::Real grady = (Eta_box(amrex::IntVect(AMREX_D_DECL(i,j+1,k))) - Eta_box(amrex::IntVect(AMREX_D_DECL(i,j-1,k))))/(2.*dx[1]);
-							amrex::Real gradz = (Eta_box(amrex::IntVect(AMREX_D_DECL(i,j,k+1))) - Eta_box(amrex::IntVect(AMREX_D_DECL(i,j,k-1))))/(2.*dx[2]);
-							if (dx[0]*dx[1]*dx[2]*(gradx*gradx + grady*grady + gradz*gradz)>0.001) tag(amrex::IntVect(AMREX_D_DECL(i,j,k))) = amrex::TagBox::SET;
-						}
-		}
+                amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &eta_old = (*eta_old_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
 
-}
-void Flame::Regrid(int lev, Set::Scalar /* time */)
-{
-	FlameSpeedFab[lev]->setVal(0.0);
-	VoronoiIC->Initialize(lev,FlameSpeedFab);
-	Util::Message(INFO,"Regridding on level ", lev);
-}
-}
+                Set::Scalar fmod_ap   = pf.r_ap * pow(pf.P, pf.n_ap);
+                Set::Scalar fmod_htpb = pf.r_htpb * pow(pf.P, pf.n_htpb);
+                Set::Scalar fmod_comb = pf.r_comb * pow(pf.P, pf.n_comb);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+
+                    Set:: Scalar fs_actual;
+
+                    fs_actual = 
+                            fmod_ap * phi(i, j, k) 
+                            + fmod_htpb * (1.0 - phi(i, j, k))
+                            + 4.0*fmod_comb*phi(i,j,k)*(1.0-phi(i,j,k));
+                            
+                    Set::Scalar L = fs_actual / pf.gamma / (pf.w1 - pf.w0);
+
+                    Set::Scalar eta_lap = Numeric::Laplacian(eta_old, i, j, k, 0, DX);
+
+                    eta(i, j, k) = 
+                        eta_old(i, j, k) 
+                        - L * dt * (
+                            (pf.lambda/pf.eps)*(a1 + 2.0 * a2 * eta_old(i, j, k) + 3.0 * a3 * eta_old(i, j, k) * eta_old(i, j, k) + 4 * a4 * eta_old(i, j, k) * eta_old(i, j, k) * eta_old(i, j, k))
+                            - pf.eps * pf.kappa * eta_lap);
+                    
+                    if (eta(i,j,k) > eta_old(i,j,k)) eta(i,j,k) = eta_old(i,j,k);
+                });
+            }
+        }
+
+        //
+        // Temperature evolution
+        //
+
+        Set::Scalar temperature_delay = 0.01; // hard coded for now, need to make input
+        if (thermal.on && time >= temperature_delay)
+        {
+            std::swap(temp_old_mf[lev], temp_mf[lev]);
+            for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box &bx = mfi.tilebox();
+
+                amrex::Array4<const Set::Scalar> const &eta_old = (*eta_old_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const &temp = (*temp_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &temp_old = (*temp_old_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &phi = (*phi_mf[lev]).array(mfi);
+
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Vector eta_grad = Numeric::Gradient(eta_old, i, j, k, 0, DX);
+                    Set::Vector temp_grad = Numeric::Gradient(temp_old, i, j, k, 0, DX);
+                    Set::Scalar temp_lap = Numeric::Laplacian(temp_old, i, j, k, 0, DX);
+                    Set::Scalar eta_grad_mag = eta_grad.lpNorm<2>();
+                    Set::Vector normvec = eta_grad/eta_old(i,j,k);
+
+                    amrex::Real rho = (thermal.rho1 - thermal.rho0) * eta_old(i,j,k) + thermal.rho0;
+                    amrex::Real Ka = (thermal.ka - thermal.k0) * eta_old(i,j,k) + thermal.k0;
+                    amrex::Real Kh = (thermal.kh -thermal.k0) * eta_old(i,j,k) + thermal.k0;
+                    Set:: Scalar K = Ka*phi(i,j,k) + Kh*(1-phi(i,j,k));
+
+                    amrex::Real cp = (thermal.cp1 - thermal.cp0) * eta_old(i,j,k) + thermal.cp0;
+
+                    Set::Scalar test = normvec.dot(temp_grad);
+                    Set:: Scalar neumbound = thermal.delA*phi(i,j,k) + thermal.delH*(1-phi(i,j,k));
+
+                    if (eta_old(i,j,k) > 0.001 && eta_old(i,j,k)<1)
+                    {
+                        temp(i,j,k) = temp_old(i,j,k) + dt*(K/cp/rho) * (test + temp_lap + eta_grad_mag/eta_old(i,j,k) * neumbound);
+                    }
+                    else
+                    {
+                        if(eta_old(i,j,k)<=0.001)
+                        {
+                            temp(i,j,k)= 0;
+                        }
+                    else
+                    {
+                        temp(i,j,k) = temp_old(i,j,k)+ dt*(K/cp/rho) * temp_lap;
+                    }
+                } });
+            }
+        }
+    }
+
+
+    void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
+    {
+        BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev,a_tags,time,ngrow);
+        
+        const Set::Scalar *DX = geom[lev].CellSize();
+        Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+
+        // Eta criterion for refinement
+        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+        {
+            const amrex::Box &bx = mfi.tilebox();
+            amrex::Array4<char> const &tags = a_tags.array(mfi);
+            amrex::Array4<const Set::Scalar> const &Eta = (*eta_mf[lev]).array(mfi);
+
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                               {
+                Set::Vector gradeta = Numeric::Gradient(Eta, i, j, k, 0, DX);
+                if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion)
+                    tags(i, j, k) = amrex::TagBox::SET; });
+        }
+
+        // Thermal criterion for refinement
+        
+        if (thermal.on)
+        {    
+            for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box &bx = mfi.tilebox();
+                amrex::Array4<char> const &tags = a_tags.array(mfi);
+                amrex::Array4<const Set::Scalar> const &temp = (*temp_mf[lev]).array(mfi);
+                amrex::Array4<const Set::Scalar> const &eta  = (*eta_mf[lev]).array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                {
+                    Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
+                    if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) > t_refinement_restriction)
+
+                        tags(i, j, k) = amrex::TagBox::SET;
+                });
+            }
+        } 
+         
+    }
+    void Flame::Regrid(int lev, Set::Scalar /* time */)
+    {
+        BL_PROFILE("Integrator::Flame::Regrid");
+        if (lev < finest_level) return;
+        phi_mf[lev]->setVal(0.0);
+        ic_phi->Initialize(lev, phi_mf);
+        Util::Message(INFO, "Regridding on level ", lev);
+    } 
+
+    void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
+                                            const amrex::MFIter &mfi, const amrex::Box &box)
+    {
+        BL_PROFILE("Flame::Integrate");
+        const Set::Scalar *DX = geom[amrlev].CellSize();
+        Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+            volume += eta(i, j, k, 0) * dv;
+            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar normgrad = grad.lpNorm<2>();
+            Set::Scalar da = normgrad * dv;
+            area += da;
+        });
+    }
+
+} // namespace Integrator

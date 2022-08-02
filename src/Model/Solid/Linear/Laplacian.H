@@ -5,9 +5,9 @@
 #include <AMReX_REAL.H>
 #include <eigen3/Eigen/Core>
 
+#include "IO/ParmParse.H"
 #include "Util/Util.H"
 #include "Set/Set.H"
-#include "Model/Solid/LinearElastic/LinearElastic.H"
 
 namespace Model
 {
@@ -25,13 +25,13 @@ namespace Linear
 class Laplacian : public Model::Solid::Solid<Set::Sym::Diagonal>
 {
 public:
-	Laplacian() { Define(); } ;
+    Laplacian() { Define(); } ;
     Laplacian(Solid<Set::Sym::Diagonal> base) : Solid<Set::Sym::Diagonal>(base) {};
-	~Laplacian() {} ;
-	void Define()
-	{
+    ~Laplacian() {} ;
+    void Define()
+    {
         ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>(Set::Matrix::Ones());
-	}
+    }
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
         return ( 0.5 * gradu.transpose() * (ddw*gradu) ).trace();
@@ -44,27 +44,35 @@ public:
     {
         return ddw;
     }
-	using Model::Solid::Solid<Set::Sym::Diagonal>::operator();
+    using Model::Solid::Solid<Set::Sym::Diagonal>::operator();
 public:
-	void Randomize() {}
+    void Randomize() {}
+    static Laplacian Zero()
+    {
+        Laplacian ret;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Diagonal>::Zero();
+        return ret;
+    }
+    static void Parse(Laplacian,IO::ParmParse) {}
+    
     static const KinematicVariable kinvar = KinematicVariable::gradu;
-	static Laplacian Random()
+    static Laplacian Random()
     {
         Laplacian ret;
         return ret;
     }
     AMREX_FORCE_INLINE
-	void operator += (const Laplacian &rhs)
+    void operator += (const Laplacian &rhs)
     {
         ddw += rhs.ddw;
-	}    
+    }    
     AMREX_FORCE_INLINE
-   	virtual Laplacian operator * (const Set::Scalar alpha) const
-	{
+        virtual Laplacian operator * (const Set::Scalar alpha) const
+    {
         Laplacian ret;
         ret.ddw = ddw*alpha;
         return ret;
-	}    
+    }    
     friend Laplacian operator * (const Set::Scalar alpha, const Laplacian b);
     friend Laplacian operator + (const Laplacian a, const Laplacian b);
     friend Laplacian operator - (const Laplacian a, const Laplacian b);
@@ -96,5 +104,3 @@ Laplacian operator - (const Laplacian a, const Laplacian b)
 }
 }
 #endif
-
-

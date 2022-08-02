@@ -7,7 +7,7 @@ Fracture Mechanics
 ======================
 
 
-.. figure:: Eshelby.png
+.. figure:: BrittleFracture.gif
    :scale: 50%
    :align: center
 

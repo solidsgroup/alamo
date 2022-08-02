@@ -39,9 +39,9 @@ public:
 private:  
   Set::Scalar dx, dy;
   const std::array<Set::Vector,4> qpts ={Set::Vector(0.5 - 0.5/sqrt(3.0),0.5 - 0.5/sqrt(3.0)),
-                                         Set::Vector(0.5 - 0.5/sqrt(3.0),0.5 + 0.5/sqrt(3.0)),
-                                         Set::Vector(0.5 + 0.5/sqrt(3.0),0.5 - 0.5/sqrt(3.0)),
-                                         Set::Vector(0.5 + 0.5/sqrt(3.0),0.5 + 0.5/sqrt(3.0))};
+                                        Set::Vector(0.5 - 0.5/sqrt(3.0),0.5 + 0.5/sqrt(3.0)),
+                                        Set::Vector(0.5 + 0.5/sqrt(3.0),0.5 - 0.5/sqrt(3.0)),
+                                        Set::Vector(0.5 + 0.5/sqrt(3.0),0.5 + 0.5/sqrt(3.0))};
   const std::array<Set::Scalar,4> qwts ={1.0, 1.0, 1.0, 1.0};
 
 };

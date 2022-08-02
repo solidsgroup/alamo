@@ -15,9 +15,9 @@ class Cubic : public Linear::Cubic
 {
 public:
 
-	Cubic() {};
+    Cubic() {};
     Cubic(Solid<Set::Sym::MajorMinor> base) : Linear::Cubic(base) {};
-	virtual ~Cubic() {};
+    virtual ~Cubic() {};
 
     void
     Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2,Set::Matrix a_F0=Set::Matrix::Zero())
@@ -54,6 +54,12 @@ public:
     Set::Matrix F0 = Set::Matrix::Zero();
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
+    static Cubic Zero()
+    {
+        Cubic ret = Linear::Cubic::Zero();
+        ret.F0 = Set::Matrix::Zero();
+        return ret;
+    }
     static Cubic Random()
     {
         return Random(Util::Random(), Util::Random(), Util::Random());
@@ -64,10 +70,12 @@ public:
         ret.F0 = Set::Matrix::Random();
         return ret;
     }
+    // This class extends :ref:`Model::Solid::Linear::Cubic` by adding
+    // an eigenstrain. (See the Linear::Cubic class for more inputs for this model)
     static void Parse(Cubic & value, IO::ParmParse & pp)
     {
         Linear::Cubic::Parse(value,pp);
-        if (pp.contains("F0")) pp.queryarr("F0",value.F0);
+        if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE
@@ -83,67 +91,49 @@ public:
             ret.ddw += models[n].ddw * (eta[n] / etasum);
             ret.F0  += models[n].F0  * (eta[n] / etasum);
         }
-        //if (eta[0] > eta[1])
-        //{
-        //    ret.ddw = models[0].ddw;
-        //    ret.F0  = models[0].F0;
-        //}
-        //else
-        //{
-        //    ret.ddw = models[1].ddw;
-        //    ret.F0  = models[1].F0;
-        //}
         return ret;
     }
-    AMREX_FORCE_INLINE
-	void operator += (const Cubic &rhs)
-    {
-        ddw += rhs.ddw;
-        F0  += rhs.F0;
-	}    
-    AMREX_FORCE_INLINE
-   	Cubic operator * (const Set::Scalar alpha) const
-	{
-        Cubic ret;
-        ret.ddw = ddw*alpha;
-        ret.F0  = alpha*F0;
-        return ret;
-	}    
-    friend Cubic operator * (const Set::Scalar alpha, const Cubic b);
-    friend Cubic operator + (const Cubic a, const Cubic b);
-    friend Cubic operator - (const Cubic a, const Cubic b);
+
+    #define OP_CLASS Cubic
+    #define OP_VARS  X(ddw) X(F0)
+    #include "Model/Solid/InClassOperators.H"
 };
-
-
-AMREX_FORCE_INLINE
-Cubic operator * (const Set::Scalar alpha, const Cubic b)
-{
-    Cubic ret;
-    ret.ddw = b.ddw*alpha;
-    ret.F0  = alpha*b.F0;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Cubic operator + (const Cubic a, const Cubic b)
-{
-    Cubic ret;
-    ret.ddw = a.ddw + b.ddw;
-    ret.F0  = a.F0 + b.F0;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-Cubic operator - (const Cubic a, const Cubic b)
-{
-    Cubic ret;
-    ret.ddw = a.ddw - b.ddw;
-    ret.F0  = a.F0 - b.F0;
-    return ret;
-}    
-
+#include "Model/Solid/ExtClassOperators.H"
 
 }
 }
 }
+
+template<>
+inline int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
+{
+    return 1;
+}
+
+template<>
+inline std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
+{
+    if (i==0) return name + ".Cxxxx";
+    return name;
+}
+
+template<>
+inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Model::Solid::Affine::Cubic> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
+            });
+        }
+    }    
+}
+
 
 #endif
-

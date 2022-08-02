@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, sys, math
+
+tolerance = 0.1 # This is a pretty large error, but we're comparing against somewhat sloppy data
+E    = 210
+nu   = 0.3
+disp = 0.1
+L    = 16.
+
+outdir = sys.argv[1]
+
+path = "{}/00001cell/".format(outdir)
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+def integrate(x,y):
+    ret = 0
+    for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
+    return ret
+
+if dim == 3:
+    offset = -0.0000
+    prof = ds.ray([0.25+offset,0.25+offset,-2],[0.25+offset,0.25+offset,2],)
+    df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),"disp_x","disp_y","disp_z","stress_xx","stress_yy","stress_zz"])
+
+    z,x,y,u1,u2,u3,sig11,sig22,sig33 = [numpy.array(_x) for _x in zip(*sorted(zip(
+        df["z"],df["x"],df["y"],df["disp_x"],df["disp_y"],df["disp_z"],df["stress_xx"],df["stress_yy"],df["stress_zz"])))]
+
+
+
+    pylab.clf()
+    ref = numpy.loadtxt("reference/Eshelby_displacement.csv",skiprows=1,delimiter=",")
+    pylab.plot(ref[:,0],ref[:,1]/10000,color='C0')
+    pylab.plot(z,u1,marker='o',color='C0',markerfacecolor="None",linestyle="None")
+    pylab.plot(ref[:,0],ref[:,2]/10000,color='C1')
+    pylab.plot(z,u2,marker='o',color='C1',markerfacecolor="None",linestyle="None")
+    pylab.plot(ref[:,0],ref[:,3]/10000,color='C2')
+    pylab.plot(z,u3,marker='o',color='C2',markerfacecolor="None",linestyle="None")
+    pylab.savefig("{}/displacement.png".format(outdir))
+
+    u1_err = numpy.sqrt(integrate(z,(numpy.interp(z, ref[:,0], ref[:,1]/10000) - u1)**2) / integrate(ref[:,0],(ref[:,1]/10000)**2))
+    u2_err = numpy.sqrt(integrate(z,(numpy.interp(z, ref[:,0], ref[:,2]/10000) - u2)**2) / integrate(ref[:,0],(ref[:,2]/10000)**2))
+    u3_err = numpy.sqrt(integrate(z,(numpy.interp(z, ref[:,0], ref[:,3]/10000) - u3)**2) / integrate(ref[:,0],(ref[:,3]/10000)**2))
+    print("u1 error",u1_err)
+    print("u2 error",u2_err)
+    print("u3 error",u3_err)
+
+    pylab.clf()
+    ref = numpy.loadtxt("reference/Eshelby_sigma_normal.csv",skiprows=1,delimiter=",")
+    pylab.plot(z,sig11,color='C0',marker='o',markerfacecolor="None",linestyle="None")
+    pylab.plot(ref[:,0],ref[:,1]*210/1000,color='C0')
+    pylab.plot(z,sig22,color='C1',marker='o',markerfacecolor="None",linestyle="None")
+    pylab.plot(ref[:,0],ref[:,2]*210/1000,color='C1')
+    pylab.plot(z,sig33,color='C2',marker='o',markerfacecolor="None",linestyle="None")
+    pylab.plot(ref[:,0],ref[:,3]*210/1000,color='C2')
+    pylab.savefig("{}/stress.png".format(outdir))
+
+    # Use 1-norm for sigma
+
+    sig11_diff = numpy.interp(z, ref[:,0], ref[:,1]*210/1000) - sig11
+    sig22_diff = numpy.interp(z, ref[:,0], ref[:,2]*210/1000) - sig22
+    sig33_diff = numpy.interp(z, ref[:,0], ref[:,3]*210/1000) - sig33
+    sig11_norm = integrate(ref[:,0],abs(ref[:,1]*210/1000))
+    sig22_norm = integrate(ref[:,0],abs(ref[:,2]*210/1000))
+    sig33_norm = integrate(ref[:,0],abs(ref[:,3]*210/1000))
+
+    sig11_err = integrate(z,abs(sig11_diff)) / sig11_norm
+    sig22_err = integrate(z,abs(sig22_diff)) / sig22_norm
+    sig33_err = integrate(z,abs(sig33_diff)) / sig33_norm
+    print("sig11 error",sig11_err);
+    print("sig22 error",sig22_err);
+    print("sig33 error",sig33_err);
+
+
+
+    if math.isnan(u1_err): raise(Exception("Error in u1 - nan"))
+    if math.isnan(u2_err): raise(Exception("Error in u2 - nan"))
+    if math.isnan(u3_err): raise(Exception("Error in u3 - nan"))
+
+    if u1_err > tolerance: raise(Exception("Error in u1"))
+    if u2_err > tolerance: raise(Exception("Error in u2"))
+    if u3_err > tolerance: raise(Exception("Error in u3"))
+
+    if math.isnan(sig11_err): raise(Exception("Error in sig11 - nan"))
+    if math.isnan(sig22_err): raise(Exception("Error in sig22 - nan"))
+    if math.isnan(sig33_err): raise(Exception("Error in sig33 - nan"))
+
+    if sig11_err > tolerance: raise(Exception("Error in sig11"))
+    if sig22_err > tolerance: raise(Exception("Error in sig22"))
+    if sig33_err > tolerance: raise(Exception("Error in sig33"))
+
+exit(0)
+
+
+    
+
+

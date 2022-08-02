@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, sys, math
+
+outdir = sys.argv[1]
+
+tolerance = 1E-8
+E    = 210
+nu   = 0.3
+disp = 0.1
+L    = 16.
+
+path = "{}/00001cell/".format(outdir)
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+prof = ds.ray([-8,0,0],[8,0,0],)
+df = prof.to_dataframe([("gas","x"),"disp_x","stress_xx"])
+
+x    = numpy.array(df["x"])
+u1   = numpy.array(df["disp_x"])
+#u2   = numpy.array(df["disp002"])
+#u3   = numpy.array(df["disp003"])
+sig1 = numpy.array(df["stress_xx"])
+
+u1_exact                = (x + 8) * 0.100 / 16
+sig1_exact   = 0*x + E * (disp / L)
+
+
+pylab.clf()
+pylab.plot(x,sig1,marker='o')
+pylab.plot(x,sig1_exact)
+pylab.savefig("{}/sig1.png".format(outdir))
+pylab.clf()
+pylab.plot(x,u1,marker='o')
+pylab.plot(x,u1_exact)
+pylab.savefig("{}/u1.png".format(outdir))
+
+
+u1_err = sum((u1_exact - u1)**2) / sum(u1_exact**2)
+print("displacement error",u1_err)
+
+sig1_err = sum((sig1_exact - sig1)**2) / sum(sig1_exact**2)
+print("stress error",sig1_err)
+
+if math.isnan(u1_err): raise(Exception("Error in u1 - nan"))
+if math.isnan(sig1_err): raise(Exception("Error in sig1 - nan"))
+
+if u1_err > tolerance: raise(Exception("Error in u1"))
+if sig1_err > tolerance: raise(Exception("Error in sig1"))
+                               
+exit(0)
+

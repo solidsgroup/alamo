@@ -39,6 +39,8 @@ std::complex<int> Parse(std::string);
 
 std::string GetFileName();
 
+std::pair<std::string,std::string> GetOverwrittenFile();
+
 void SignalHandler(int s);
 
 void Initialize (int argc, char* argv[]);
@@ -54,109 +56,132 @@ template<typename... Args>
 AMREX_FORCE_INLINE
 void Assert (std::string file, std::string func, int line, std::string smt, bool pass, Args const &... args)
 {
-	if (pass) return;
+    if (pass) return;
 
-	std::ostringstream infostream;
-	infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
-	infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
-	infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
-	infostream << "Assertion failed: " << Color::BG::DarkGray << Color::Underlined << Color::Bold <<  Color::FG::LightGreen << smt << Color::Reset;
-	std::string info = infostream.str();
+    std::ostringstream infostream;
+    infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
+    infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
+    infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+    infostream << "Assertion failed: " << Color::BG::DarkGray << Color::Underlined << Color::Bold <<  Color::FG::LightGreen << smt << Color::Reset;
+    std::string info = infostream.str();
 
 
-	std::ostringstream messagestream;
-	using List= int[];
-	(void)List{0, ( (void)(messagestream << args), 0 ) ... };
-	std::string message = messagestream.str();
-	String::ReplaceAll(message,'\n',"\n"+info);
+    std::ostringstream messagestream;
+    using List= int[];
+    (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+    std::string message = messagestream.str();
+    String::ReplaceAll(message,'\n',"\n"+info);
 
-	std::cout << info << message << std::endl;
+    std::cout << info << message << std::endl;
 
-	Abort("Fatal Error");
+    Abort("Fatal Error");
 }
 
 template<typename... Args>
 void Abort (std::string file, std::string func, int line, Args const &... args)
 {
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        std::ostringstream infostream;
+        infostream << Color::Bold << Color::FG::Red << "ABORT" << Color::Reset << ":   ";
+        infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
+        infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+        std::string info = infostream.str();
 
-	std::ostringstream infostream;
-	infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
-	infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
-	infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
-	std::string info = infostream.str();
+        std::ostringstream messagestream;
+        using List= int[];
+        (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+        std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+        //std::string messageorg = message;
+        String::ReplaceAll(message,'\n',"\n"+info);
+        std::cout << info << message << std::endl;
+    }
+    Abort("Fatal Error");
+}
 
-	std::ostringstream messagestream;
-	using List= int[];
-	(void)List{0, ( (void)(messagestream << args), 0 ) ... };
-	std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
-	//std::string messageorg = message;
-	String::ReplaceAll(message,'\n',"\n"+info);
-	std::cout << info << message << std::endl;
+template<typename... Args>
+void ParallelAbort (std::string file, std::string func, int line, Args const &... args)
+{
 
-	Abort("Fatal Error");
+    std::ostringstream infostream;
+    infostream << Color::Bold << Color::FG::Red << "ABORT("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ":   ";
+    infostream << Color::FG::Red << file << Color::Reset << ":" << line << " ";
+    infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+    std::string info = infostream.str();
+
+    std::ostringstream messagestream;
+    using List= int[];
+    (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+    std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+    //std::string messageorg = message;
+    String::ReplaceAll(message,'\n',"\n"+info);
+    std::cout << info << message << std::endl;
+
+    Abort("Fatal Error");
 }
 
 template<typename... Args>
 void Message (std::string file, std::string func, int line, Args const &... args)
 {
-	if (amrex::ParallelDescriptor::IOProcessor())
-	{
-		std::ostringstream infostream;
-		infostream << Color::Bold << Color::FG::Blue << "MESSAGE" << Color::Reset << ": ";
-		infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
-		infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
-		std::string info = infostream.str();
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        std::ostringstream infostream;
+        infostream << Color::Bold << Color::FG::Blue << "MESSAGE" << Color::Reset << ": ";
+        infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
+        infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+        std::string info = infostream.str();
 
-		std::ostringstream messagestream;
-		using List= int[];
-		(void)List{0, ( (void)(messagestream << args), 0 ) ... };
-		std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+        std::ostringstream messagestream;
+        using List= int[];
+        (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+        std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
 
-		String::ReplaceAll(message,'\n',"\n"+info);
+        String::ReplaceAll(message,'\n',"\n"+info);
 
-		std::cout << info << message << std::endl;
-	}
+        std::cout << info << message << std::endl;
+    }
 }
 
 template<typename... Args>
 void ParallelMessage (std::string file, std::string func, int line, Args const &... args)
 {
-	std::ostringstream infostream;
-	infostream << Color::Bold << Color::FG::Blue << "MESSAGE("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ": ";
-	infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
-	infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
-	std::string info = infostream.str();
-	std::ostringstream messagestream;
-	using List= int[];
-	(void)List{0, ( (void)(messagestream << args), 0 ) ... };
-	std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
-	String::ReplaceAll(message,'\n',"\n"+info);
-	std::cout << info << message << std::endl;
+    std::ostringstream infostream;
+    infostream << Color::Bold << Color::FG::Blue << "MESSAGE("<< amrex::ParallelDescriptor::MyProc()<<")" << Color::Reset << ": ";
+    infostream << Color::FG::LightBlue << file << Color::Reset << ":" << line << " ";
+    infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+    std::string info = infostream.str();
+    std::ostringstream messagestream;
+    using List= int[];
+    (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+    std::string message = messagestream.str();//String::Wrap(messagestream.str(),150);
+    String::ReplaceAll(message,'\n',"\n"+info);
+    std::cout << info << message << std::endl;
 }
 
 template<typename... Args>
 void Warning (std::string file, std::string func, int line, Args const &... args)
 {
-	if (amrex::ParallelDescriptor::IOProcessor())
-	{
-		std::ostringstream infostream;
-		infostream << Color::Bold << Color::FG::Yellow << "WARNING" << Color::Reset << ": ";
-		infostream << Color::FG::Yellow << file << Color::Reset << ":" << line << " ";
-		infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
-		std::string info = infostream.str();
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        std::ostringstream infostream;
+        infostream << Color::Bold << Color::FG::Yellow << "WARNING" << Color::Reset << ": ";
+        infostream << Color::FG::Yellow << file << Color::Reset << ":" << line << " ";
+        infostream << "(" << Color::FG::LightGreen << func << Color::Reset << ") ";
+        std::string info = infostream.str();
 
-		std::ostringstream messagestream;
-		using List= int[];
-		(void)List{0, ( (void)(messagestream << args), 0 ) ... };
-		std::string message = messagestream.str();///String::Wrap(messagestream.str(),150);
+        std::ostringstream messagestream;
+        using List= int[];
+        (void)List{0, ( (void)(messagestream << args), 0 ) ... };
+        std::string message = messagestream.str();///String::Wrap(messagestream.str(),150);
 
-		String::ReplaceAll(message,'\n',"\n"+info);
+        String::ReplaceAll(message,'\n',"\n"+info);
 
-		std::cout << info << message << std::endl;
-	}
+        std::cout << info << message << std::endl;
+    }
 }
 
-void CreateCleanDirectory (const std::string &path, bool callbarrier = true);
+std::pair<std::string,std::string>
+CreateCleanDirectory (const std::string &path, bool callbarrier = true);
 
 
 /// \brief A collection of I/O routines for Unit Tests
@@ -168,36 +193,29 @@ int SubMessage(std::string testname, int passed);
 int SubFinalMessage(int failed);
 }
 
+//
+// These two functions are not really necessary anymore.
+// TODO: remove RealFillBoundary and all references to them.
+//
 template<class T>
 AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &a_geom)
+void RealFillBoundary(amrex::FabArray<amrex::BaseFab<T>> &a_mf,const amrex::Geometry &/*a_geom*/)
 {
-    for (int i = 0; i < 2; i++)
-    {
-        a_mf.FillBoundary(a_geom.periodicity());
-        const int ncomp = a_mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        amrex::FabArray<amrex::BaseFab<T>> tmpmf(a_mf.boxArray(), a_mf.DistributionMap(), ncomp, ng1);
-        amrex::Copy(tmpmf, a_mf, 0, 0, ncomp, ng1);
-        a_mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, a_geom.periodicity());
-    }
+    BL_PROFILE("Util::RealFillBoundary");
+    a_mf.setMultiGhost(true);
+    a_mf.FillBoundary();
+}
+AMREX_FORCE_INLINE
+void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &/*a_geom*/)
+{
+    BL_PROFILE("Util::RealFillBoundary");
+    a_mf.setMultiGhost(true);
+    a_mf.FillBoundary();
 }
 
-AMREX_FORCE_INLINE
-void RealFillBoundary(amrex::MultiFab &a_mf, const amrex::Geometry &a_geom)
-{
-    for (int i = 0; i < 2; i++)
-    {
-        a_mf.FillBoundary(a_geom.periodicity());
-        const int ncomp = a_mf.nComp();
-        const int ng1 = 1;
-        const int ng2 = 2;
-        amrex::MultiFab tmpmf(a_mf.boxArray(), a_mf.DistributionMap(), ncomp, ng1);
-        amrex::Copy(tmpmf, a_mf, 0, 0, ncomp, ng1);
-        a_mf.ParallelCopy(tmpmf, 0, 0, ncomp, ng1, ng2, a_geom.periodicity());
-    }
-}
+
+void AverageCellcenterToNode(amrex::MultiFab& node_mf, const int &dcomp, const amrex::MultiFab &cell_mf, const int &scomp, const int &ncomp/*, const int ngrow=0*/);
+
 
 
 

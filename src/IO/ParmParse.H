@@ -64,12 +64,52 @@ public:
         }    
         return 0;
     }
+
+    int AnyUnusedInputs()
+    {
+        int cnt = 0;
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = m_table.begin(), 
+            End = m_table.end(); 
+            li != End; ++li)
+        {
+            if (!li->m_queried && li->m_name.rfind(getPrefix()+".",0) != std::string::npos)
+            {
+                Util::Warning(INFO,li->m_name);
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+
+    static int AllUnusedInputs()
+    {
+        ParmParse pp;
+        int cnt = 0;
+        for (std::list<amrex::ParmParse::PP_entry>::const_iterator li = pp.m_table.begin(), 
+            End = pp.m_table.end(); 
+            li != End; ++li)
+        {
+            if (!li->m_queried)
+            {
+                Util::Warning(INFO,li->m_name);
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+    std::string prefix ()
+    {
+        return getPrefix();
+    }
+        
     using amrex::ParmParse::queryarr;
     template<class T>
     void queryclass(std::string name, T * value)
     {
         this->pushPrefix(name);
         T::Parse(*value, *this);
+        if (AnyUnusedInputs()) 
+            Util::Abort(INFO,"DANGER - the above inputs were specified but not used!");
         this->popPrefix();
     }
     template<class T>
@@ -77,17 +117,23 @@ public:
     {
         this->pushPrefix(name);
         T::Parse(value, *this);
+        if (AnyUnusedInputs()) 
+            Util::Abort(INFO,"DANGER - the above inputs were specified but not used!");
         this->popPrefix();
     }
     template<class T>
     void queryclass(T * value)
     {
         T::Parse(*value, *this);
+        if (AnyUnusedInputs()) 
+            Util::Abort(INFO,"DANGER - the above inputs were specified but not used!");
     }
     template<class T>
     void queryclass(T & value)
     {
         T::Parse(value, *this);
+        if (AnyUnusedInputs()) 
+            Util::Abort(INFO,"DANGER - the above inputs were specified but not used!");
     }
 };
 }

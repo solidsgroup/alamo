@@ -8,51 +8,101 @@
 
 #include "Util/Util.H"
 #include "Integrator/Integrator.H"
+#include "Integrator/Base/Mechanics.H"
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
+#include "IC/IC.H"
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
+#include "Set/Set.H"
+#include "Model/Solid/Affine/Isotropic.H"
+#include "IO/ParmParse.H"
+#include "BC/Operator/Elastic/Constant.H"
+#include "Solver/Nonlocal/Newton.H"
+
+
 
 namespace Integrator
 {
-class Flame : public Integrator::Integrator
+
+class Flame : virtual public Integrator::Integrator, 
+              virtual public Base::Mechanics<Model::Solid::Affine::Isotropic>
 {
+
+    using model_type = Model::Solid::Affine::Isotropic;
+
 public:
-	Flame ();
+    Flame ();
+    Flame (IO::ParmParse &pp);
+
+    static void Parse(Flame &value, IO::ParmParse &pp);
+
 
 protected:
-	void Initialize (int lev) ;
-	void Advance (int lev, amrex::Real time, amrex::Real dt);
-	void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/);
-	void Regrid(int lev, Set::Scalar time) override;
+    void Initialize (int lev) override;
+    void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
+    void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
+    void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
+    void Regrid(int lev, Set::Scalar time) override;
+    void Integrate(int amrlev, Set::Scalar time, int step,
+                    const amrex::MFIter &mfi, const amrex::Box &box) override;
+    void UpdateModel(int a_step) override;
 private:
 
-	Set::Field<Set::Scalar> Temp;
-	Set::Field<Set::Scalar> Temp_old;
-	Set::Field<Set::Scalar> Eta;
-	Set::Field<Set::Scalar> Eta_old;
-	Set::Field<Set::Scalar> FlameSpeedFab;
-	BC::BC<Set::Scalar> *TempBC;
-	BC::BC<Set::Scalar> *EtaBC;
-	IC::Voronoi *VoronoiIC;
+    Set::Field<Set::Scalar> temp_mf;
+    Set::Field<Set::Scalar> temp_old_mf;
+    Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar> phi_mf;
+    Set::Field<Set::Scalar> field;
+    Set::Field<Set::Scalar> alpha_mf;
 
-	// int number_of_fabs = 1;
-	// int number_of_components = 2;
+    Set::Field<Set::Scalar> deta_mf;
+    Set::Field<Set::Scalar> qgrid_mf;
+  
+    BC::BC<Set::Scalar> *bc_temp;
+    BC::BC<Set::Scalar> *bc_eta;
+    IC::IC *ic_eta;
+    IC::IC *ic_phi;
 
-	amrex::Real M;                  // Burn speed parameter
-	amrex::Real kappa;              // Burn width parameter
-	amrex::Real w1, w12, w0;        // Energy (before, during, after)
-	amrex::Real rho1, rho0;         // Density (before and after)
-	amrex::Real k1, k0;             // Thermal conductivity (before and after)
-	amrex::Real cp1, cp0;           // Specific heat (before and after)
-	amrex::Real qdotburn;           // Heat lost in flame
+    int fs_number = 1;
+ 
+    Set::Scalar m_refinement_criterion = 0.001;
+    Set::Scalar t_refinement_criterion = 0.001;
+    Set::Scalar t_refinement_restriction = 0.1;
+    
+    struct {
+       // Set::Scalar M = 0.0;
+        Set::Scalar gamma = 1.0;
+        Set::Scalar eps = 0.0;
+        Set::Scalar lambda = 0.0;
+        Set::Scalar kappa = 0.0;
+        Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
+        Set::Scalar P = 0.0;
+        Set::Scalar r_ap = 0.0;
+        Set::Scalar n_ap = 0.0;
+        Set::Scalar r_htpb = 0.0;
+        Set::Scalar n_htpb = 0.0;
+        Set::Scalar r_comb = 0.0;
+        Set::Scalar n_comb = 0.0;
+    } pf;
 
-	int fs_number = 200;
-	amrex::Real fs_min = -1.0;
-	amrex::Real fs_max = 1.0;
-	
-	IC::IC *EtaIC;
+    struct {
+        int on = 0;
+        Set::Scalar rho1, rho0;         
+        Set::Scalar ka, kh, k0;             
+        Set::Scalar cp1, cp0;           
+        Set::Scalar delA, delH;       
+    } thermal;
 
+    struct {
+        Model::Solid::Affine::Isotropic model_ap, model_htpb;
+    } elastic;
+
+
+    // Integrated variables
+    Set::Scalar volume = 0.0;
+    Set::Scalar area = 0.0;
 };
 }
 

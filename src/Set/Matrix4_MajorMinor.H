@@ -17,10 +17,10 @@ class Matrix4<2,Sym::MajorMinor>
 
 public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
-    Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
-    {
-        for (int i = 0; i < 6; i++) data[i] =  in.data[i];
-    }
+    //Matrix4(const Matrix4<2,Sym::MajorMinor> &in)
+    //{
+    //    for (int i = 0; i < 6; i++) data[i] =  in.data[i];
+    //}
     AMREX_FORCE_INLINE
     const Scalar & operator () (const int i, const int j, const int k, const int l) const
     {
@@ -92,13 +92,13 @@ public:
         Matrix4<2,Sym::MajorMinor> ret;
         for (int i = 0 ; i < 6; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
-     }
+    }
     static Matrix4<2,Sym::MajorMinor> Randomize()
     {
         Matrix4<2,Sym::MajorMinor> ret;
         for (int i = 0 ; i < 6; i++) ret.data[i] = (Util::Random());
         return ret;
-     }
+    }
     static Matrix4<2,Sym::MajorMinor> Zero()
     {
         Matrix4<2,Sym::MajorMinor> ret;
@@ -117,38 +117,38 @@ Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,S
 {
     Matrix4<2,Sym::MajorMinor> ret;
     for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] + b.data[i];
-	return ret;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
 {
     Matrix4<2,Sym::MajorMinor> ret;
     for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] - b.data[i];
-	return ret;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
 {
     Matrix4<2,Sym::MajorMinor> ret;
     for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] * b;
-	return ret;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b)
 {
     Matrix4<2,Sym::MajorMinor> ret;
     for (int i = 0 ; i < 6 ; i++) ret.data[i] = a.data[i] / b;
-	return ret;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b)
 {
-   	Eigen::Matrix<Set::Scalar,2,2> ret = Eigen::Matrix<Set::Scalar,2,2>::Zero();
+        Eigen::Matrix<Set::Scalar,2,2> ret = Eigen::Matrix<Set::Scalar,2,2>::Zero();
     ret(0,0) = a.data[0]*b(0,0) + a.data[1]*(b(0,1) + b(1,0)) + a.data[2]*b(1,1);
     ret(0,1) = a.data[1]*b(0,0) + a.data[3]*(b(0,1) + b(1,0)) + a.data[4]*b(1,1);
     ret(1,1) = a.data[2]*b(0,0) + a.data[4]*(b(0,1) + b(1,0)) + a.data[5]*b(1,1);
     ret(1,0) = ret(0,1);
-	return ret;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<amrex::Real,2,1> operator * (Matrix4<2,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,2,2>,2> b);
@@ -283,7 +283,7 @@ public:
     }
     void Print (std::ostream& os)
     {
-        for (int i = 0; i < 14; i++)
+        for (int i = 0; i < 21; i++)
             os << "i = " << i << " " << data[i] << std::endl;
         
         os.precision(4);
@@ -319,7 +319,7 @@ public:
         return std::sqrt(retsq);
     }
 
-    AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
+    //AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] -= a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator *= (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] *= a.data[i];}
@@ -332,13 +332,13 @@ public:
         Matrix4<3,Sym::MajorMinor> ret;
         for (int i = 0 ; i < 21; i++) ret.data[i] = (Set::Scalar)i;
         return ret;
-     }
+    }
     static Matrix4<3,Sym::MajorMinor> Randomize()
     {
         Matrix4<3,Sym::MajorMinor> ret;
         for (int i = 0 ; i < 21; i++) ret.data[i] = (Util::Random());
         return ret;
-     }
+    }
     static Matrix4<3,Sym::MajorMinor> Zero()
     {
         Matrix4<3,Sym::MajorMinor> ret;
@@ -356,57 +356,57 @@ AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE
 Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
 {
     Matrix4<3,Sym::MajorMinor> ret;
-    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] + b.data[i];
-	return ret;
+    for (int i = 0 ; i < 21 ; i++) ret.data[i] = a.data[i] + b.data[i];
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
 {
     Matrix4<3,Sym::MajorMinor> ret;
-    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] - b.data[i];
-	return ret;
+    for (int i = 0 ; i < 21 ; i++) ret.data[i] = a.data[i] - b.data[i];
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b)
 {
     Matrix4<3,Sym::MajorMinor> ret;
-    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] * b;
-	return ret;
+    for (int i = 0 ; i < 21 ; i++) ret.data[i] = a.data[i] * b;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3,Sym::MajorMinor> operator / (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b)
 {
     Matrix4<3,Sym::MajorMinor> ret;
-    for (int i = 0 ; i < 20 ; i++) ret.data[i] = a.data[i] / b;
-	return ret;
+    for (int i = 0 ; i < 21 ; i++) ret.data[i] = a.data[i] / b;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b)
 {
     Eigen::Matrix<amrex::Real,3,3> ret = Eigen::Matrix<amrex::Real,3,3>::Zero();
-	ret(0,0) += a.data[   0]*b(0,0) + a.data[   1]*(b(0,1) + b(1,0)) + a.data[   2]*(b(0,2) + b(2,0)) + a.data[   3]*b(1,1) + a.data[   4]*(b(1,2) + b(2,1)) + a.data[   5]*b(2,2);
-   	ret(1,1) += a.data[   3]*b(0,0) + a.data[   8]*(b(0,1) + b(1,0)) + a.data[  12]*(b(0,2) + b(2,0)) + a.data[  15]*b(1,1) + a.data[  16]*(b(1,2) + b(2,1)) + a.data[  17]*b(2,2);
-  	ret(2,2) += a.data[   5]*b(0,0) + a.data[  10]*(b(0,1) + b(1,0)) + a.data[  14]*(b(0,2) + b(2,0)) + a.data[  17]*b(1,1) + a.data[  19]*(b(1,2) + b(2,1)) + a.data[  20]*b(2,2);
-  	ret(1,2) += a.data[   4]*b(0,0) + a.data[   9]*(b(0,1) + b(1,0)) + a.data[  13]*(b(0,2) + b(2,0)) + a.data[  16]*b(1,1) + a.data[  18]*(b(1,2) + b(2,1)) + a.data[  19]*b(2,2);
+    ret(0,0) += a.data[   0]*b(0,0) + a.data[   1]*(b(0,1) + b(1,0)) + a.data[   2]*(b(0,2) + b(2,0)) + a.data[   3]*b(1,1) + a.data[   4]*(b(1,2) + b(2,1)) + a.data[   5]*b(2,2);
+        ret(1,1) += a.data[   3]*b(0,0) + a.data[   8]*(b(0,1) + b(1,0)) + a.data[  12]*(b(0,2) + b(2,0)) + a.data[  15]*b(1,1) + a.data[  16]*(b(1,2) + b(2,1)) + a.data[  17]*b(2,2);
+    ret(2,2) += a.data[   5]*b(0,0) + a.data[  10]*(b(0,1) + b(1,0)) + a.data[  14]*(b(0,2) + b(2,0)) + a.data[  17]*b(1,1) + a.data[  19]*(b(1,2) + b(2,1)) + a.data[  20]*b(2,2);
+    ret(1,2) += a.data[   4]*b(0,0) + a.data[   9]*(b(0,1) + b(1,0)) + a.data[  13]*(b(0,2) + b(2,0)) + a.data[  16]*b(1,1) + a.data[  18]*(b(1,2) + b(2,1)) + a.data[  19]*b(2,2);
     ret(2,0) += a.data[   2]*b(0,0) + a.data[   7]*(b(0,1) + b(1,0)) + a.data[  11]*(b(0,2) + b(2,0)) + a.data[  12]*b(1,1) + a.data[  13]*(b(1,2) + b(2,1)) + a.data[  14]*b(2,2);
-  	ret(0,1) += a.data[   1]*b(0,0) + a.data[   6]*(b(0,1) + b(1,0)) + a.data[   7]*(b(0,2) + b(2,0)) + a.data[   8]*b(1,1) + a.data[   9]*(b(1,2) + b(2,1)) + a.data[  10]*b(2,2);
+    ret(0,1) += a.data[   1]*b(0,0) + a.data[   6]*(b(0,1) + b(1,0)) + a.data[   7]*(b(0,2) + b(2,0)) + a.data[   8]*b(1,1) + a.data[   9]*(b(1,2) + b(2,1)) + a.data[  10]*b(2,2);
 
-  	ret(2,1) += ret(1,2);
-  	ret(0,2) += ret(2,0);
-	ret(1,0) += ret(0,1);
+    ret(2,1) = ret(1,2);
+    ret(0,2) = ret(2,0);
+    ret(1,0) = ret(0,1);
 
-	return ret;
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<amrex::Real,2,2> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,2,2> b)
 {
-   	Eigen::Matrix<amrex::Real,2,2> ret = Eigen::Matrix<amrex::Real,2,2>::Zero();
-	for (int i = 0; i < 2; i++)
-		for (int j = 0; j < 2; j++)
-			for (int k = 0; k < 2; k++)
-				for (int l = 0; l < 2; l++)
-					ret(i,j) += a(i,j,k,l)*b(k,l);
-	return ret;
+        Eigen::Matrix<amrex::Real,2,2> ret = Eigen::Matrix<amrex::Real,2,2>::Zero();
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < 2; j++)
+            for (int k = 0; k < 2; k++)
+                for (int l = 0; l < 2; l++)
+                    ret(i,j) += a(i,j,k,l)*b(k,l);
+    return ret;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Eigen::Matrix<amrex::Real,3,1> operator * (Matrix4<3,Sym::MajorMinor> a, std::array<Eigen::Matrix<amrex::Real,3,3>,3> b);
