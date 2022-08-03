@@ -122,6 +122,7 @@ protected:
 
         for (int lev=0; lev <= finest_level; ++lev) 
         {
+            disp_mf[lev]->setVal(Set::Vector::Zero());
             rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
         }
