@@ -2,7 +2,7 @@ alamo.program               = topop
 plot_file		    = tests/TopOp/output
 
 timestep		    = 0.1
-stop_time		    = 18.0
+stop_time		    = 1000
 
 # amr parameters
 amr.plot_int		    = 1 #10000
@@ -26,16 +26,13 @@ psi.bc.type.xhi = NEUMANN
 psi.bc.type.xlo = NEUMANN
 psi.bc.type.yhi = NEUMANN
 psi.bc.type.ylo = NEUMANN
+psi.bc.type.zhi = NEUMANN
+psi.bc.type.zlo = NEUMANN
 
 
 model.E = 3.70 
 model.nu = 0.22
 
-solver.verbose = 3
-solver.nriters = 1
-solver.fixed_iter=2000
-print_residual=1
-elastic_ref_threshold = 100000
 
 ### Sliding walls
 #bc.type = constant
@@ -83,32 +80,73 @@ elastic_ref_threshold = 100000
 #bc.expression.val.ylo = "0.0" "-0.01 * (x > 1.5)" 
 
 ### Canonical test case: cantilever with load at tip
-bc.expression.type.xloylo = disp disp
-bc.expression.type.xlo    = disp disp
-bc.expression.type.xloyhi = disp disp
-bc.expression.type.ylo    = trac trac
-bc.expression.type.yhi    = trac trac
-bc.expression.type.xhi    = trac trac
-bc.expression.type.xhiylo = trac trac
-bc.expression.type.xhiyhi = trac trac
-bc.expression.val.yhi = "0.0" "0.0" 
-bc.expression.val.xhiylo = "0.0" "0.0"
-bc.expression.val.xhiyhi = "0.0" "0.0"
-bc.expression.val.ylo = "0.0" "0" 
-bc.expression.val.xhi = "0.0" "-0.1 * (y > 0.45) * (y < 0.55)" 
+#bc.type = expression
+#bc.expression.type.xloylo = disp disp
+#bc.expression.type.xlo    = disp disp
+#bc.expression.type.xloyhi = disp disp
+#bc.expression.type.ylo    = trac trac
+#bc.expression.type.yhi    = trac trac
+#bc.expression.type.xhi    = trac trac
+#bc.expression.type.xhiylo = trac trac
+#bc.expression.type.xhiyhi = trac trac
+#bc.expression.val.yhi = "0.0" "0.0" 
+#bc.expression.val.xhiylo = "0.0" "0.0"
+#bc.expression.val.xhiyhi = "0.0" "0.0"
+#bc.expression.val.ylo = "0.0" "0" 
+#bc.expression.val.xhi = "0.0" "-0.1 * (y > 0.45) * (y < 0.55)" 
+
+bc.type = constant
+bc.constant.type.xlo    = disp disp disp
+bc.constant.type.xloylo = disp disp disp
+bc.constant.type.xloyhi = disp disp disp
+bc.constant.type.zloxlo = disp disp disp
+bc.constant.type.zhixlo = disp disp disp
+bc.constant.type.xloylozlo    = disp disp disp
+bc.constant.type.xloylozhi    = disp disp disp
+bc.constant.type.xloyhizlo    = disp disp disp
+bc.constant.type.xloyhizhi    = disp disp disp
+bc.constant.type.ylo    = trac trac trac
+bc.constant.type.yhi    = trac trac trac
+bc.constant.type.zlo    = trac trac trac
+bc.constant.type.zhi    = trac trac trac
+bc.constant.type.xhi    = trac trac trac
+bc.constant.type.xhiylo = trac trac trac
+bc.constant.type.xhiyhi = trac trac trac
+bc.constant.type.zloxhi = trac trac trac
+bc.constant.type.zhixhi = trac trac trac
+bc.constant.type.ylozlo = trac trac trac
+bc.constant.type.ylozhi = trac trac trac
+bc.constant.type.yhizlo = trac trac trac
+bc.constant.type.yhizhi = trac trac trac
+bc.constant.type.xhiylozlo = trac trac trac
+bc.constant.type.xhiylozhi = trac trac trac
+bc.constant.type.xhiyhizlo = trac trac trac
+bc.constant.type.xhiyhizhi = trac trac trac
+#bc.expression.val.xhi = "0.0" "-0.1 * (y > 0.45) * (y < 0.55)"  "0.0"
+bc.constant.val.xhi = 0.0 -0.1 0.0
+
+#bc.type = tension_test
+#bc.tension_test.type = uniaxial_stress
+#bc.tension_test.trac=(0,1:0,0.01)
 
 
 interval = 1
 alpha = 200.
 beta = 0.05 
 gamma = -50000.0
-L.str = 0.01 
-volume0 = 0.5
+L.str = 0.005 #0.01 
+#volume0 = 0.5
+volume0 = 0.25
 lambda = 400.0
 
 eta_ref_threshold = 0.05
 
-elasticop.small=0.01
+elasticop.small= 0.01
+solver.verbose = 3
+solver.nriters = 1
+solver.fixed_iter=1000
+print_residual=1
+elastic_ref_threshold = 100000
 solver.bottom_solver = smoother
 solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
 
