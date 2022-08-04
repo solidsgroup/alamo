@@ -169,7 +169,7 @@ void Integrate(int amrlev, Set::Scalar time, int step,
         Set::Scalar DXnorm = DX.lpNorm<2>();
         for (amrex::MFIter mfi(*model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
+            amrex::Box bx = mfi.tilebox();
             amrex::Array4<char> const &tags = a_tags.array(mfi);
             if (psi_on)
             {
