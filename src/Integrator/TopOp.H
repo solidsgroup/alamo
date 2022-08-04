@@ -71,7 +71,7 @@ class TopOp : virtual public Base::Mechanics<MODEL>
         pp.query("alpha",value.alpha);
         pp.query("beta",value.beta);
         pp.query("gamma",value.gamma);
-        pp.query("L",value.L);
+        pp.queryclass("L",value.L);
         pp.query("volume0",value.volume0);
         pp.query("lambda",value.lambda);
 
@@ -111,6 +111,8 @@ class TopOp : virtual public Base::Mechanics<MODEL>
         const Set::Scalar *DX = geom[lev].CellSize();
         amrex::Box domain = geom[lev].Domain();
 
+        Set::Scalar Lnow = L(time);
+
         for (amrex::MFIter mfi(*psi_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
@@ -135,7 +137,7 @@ class TopOp : virtual public Base::Mechanics<MODEL>
                 
                 driving_force += lambda * (volume - volume0);
 
-                psinew(i,j,k) = psi(i,j,k) - L * dt * driving_force;
+                psinew(i,j,k) = psi(i,j,k) - Lnow * dt * driving_force;
                 if (psinew(i,j,k) < 0.0) psinew(i,j,k) = 0.0;
                 if (psinew(i,j,k) > 1.0) psinew(i,j,k) = 1.0;
             });
@@ -207,7 +209,8 @@ void Integrate(int amrlev, Set::Scalar time, int step,
     Set::Scalar alpha = 1.0;
     Set::Scalar beta = 1.0;
     Set::Scalar gamma = 1.0;
-    Set::Scalar L = 1.0;
+    //Set::Scalar L = 1.0;
+    Numeric::Interpolator::Linear<Set::Scalar> L;
     Set::Scalar volume0 = 0.5;
     Set::Scalar lambda = 1.0;
 
