@@ -94,6 +94,10 @@ public:
 
         pp.query("elastic_ref_threshold",value.m_elastic_ref_threshold); // Whether to refine based on elastic solution
         
+        
+        // Set this to true to zero out the displacement before each solve.
+        // (This is a temporary fix - we need to figure out why this is needed.)
+        pp.query("zero_out_displacement",value.m_zero_out_displacement);
     }
 
 protected:
@@ -122,6 +126,7 @@ protected:
 
         for (int lev=0; lev <= finest_level; ++lev) 
         {
+            if (m_zero_out_displacement) disp_mf[lev]->setVal(Set::Vector::Zero());
             rhs_mf[lev]->setVal(Set::Vector::Zero());
             if (ic_rhs) ic_rhs->Initialize(lev,rhs_mf);
         }
@@ -359,6 +364,8 @@ protected:
     bool m_print_residual = false;
     bool m_time_evolving = false;
     int m_max_coarsening_level = -1;
+
+    bool m_zero_out_displacement = false;
 };
 }
 }

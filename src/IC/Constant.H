@@ -28,7 +28,7 @@ public:
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == (int)a_field[lev]->nComp())));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            const amrex::Box& bx = mfi.tilebox();
+            const amrex::Box& bx = mfi.growntilebox();
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             for (int m = 0; m < a_field[lev]->nComp(); m++)
                 amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
