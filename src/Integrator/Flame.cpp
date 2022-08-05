@@ -22,6 +22,7 @@ namespace Integrator
     {
         BL_PROFILE("Integrator::Flame::Flame()");
         {
+            pp.query("timestep", value.base_time);
             // These are the phase field method parameters
             // that you use to inform the phase field method.
             pp.query("pf.eps", value.pf.eps); // Burn width thickness
@@ -48,9 +49,10 @@ namespace Integrator
 	    pp.query("pressure.b1", value.pressure.b1);
 	    pp.query("pressure.b2", value.pressure.b2);
 	    pp.query("pressure.b3", value.pressure.b3);
-        pp.query("pressure.c1", value.pressure.c1);
-	pp.query("pressure.E1", value.pressure.E1);
-	pp.query("pressure.E2", value.pressure.E2);
+            pp.query("pressure.c1", value.pressure.c1);
+	    pp.query("pressure.E1", value.pressure.E1);
+	    pp.query("pressure.E2", value.pressure.E2);
+        
 	}
 
         {
@@ -80,6 +82,8 @@ namespace Integrator
             pp.query("thermal.correction_factor", value.thermal.correction_factor); // Corrects the 1D thermal conduction evolution
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); // Not in use. Controls deley to start thermal evolution. 
 
+	    pp.query("thermal.ignition_temperature", value.thermal.ignition_temperature);
+	      
             pp.query("mass.on", value.masson); // Activates Mass Condition
             pp.query("mass.mdot_ap", value.mdot_ap); // Reference mass flow rate for AP 
             pp.query("mass.mdot_htpb", value.mdot_htpb); // Reference mass flow rate for HTPB0
@@ -103,7 +107,7 @@ namespace Integrator
         pp.query("amr.refinement_criterion", value.m_refinement_criterion); 
         // Refinement criterion for temperature field
         pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion); 
-	// Eta value to restrict the refinament for the temperature field
+        // Eta value to restrict the refinament for the temperature field
 	pp.query("amr.refinament_restriction", value.t_refinement_restriction);
 
 	
@@ -114,16 +118,16 @@ namespace Integrator
             //IO::ParmParse pp("phi.ic");
             std::string type = "packedspheres";
             pp.query("phi.ic.type", type); // IC type (psread, laminate, constant)
-            if      (type == "psread"){
-	      value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
-              pp.query("phi.ic.psread.eps", value.zeta);
-	      pp.query("phi.zeta_0", value.zeta_0);
-	    }
+            if (type == "psread"){
+	        value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
+                pp.query("phi.ic.psread.eps", value.zeta);
+	        pp.query("phi.zeta_0", value.zeta_0);
+	        }
             else if (type == "laminate"){
-	      value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
-	      pp.query("phi.ic.laminate.eps", value.zeta);
-	      pp.query("phi.zeta_0", value.zeta_0);
-	    }
+	        value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
+	        pp.query("phi.ic.laminate.eps", value.zeta);
+	        pp.query("phi.zeta_0", value.zeta_0);
+	        }
             else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid IC type ",type);
             
@@ -151,7 +155,7 @@ namespace Integrator
             temp_old_mf[lev]->setVal(thermal.bound);
             alpha_mf[lev]->setVal(0.0);
             mob_mf[lev]->setVal(0.0);
-	        qgrid_mf[lev]->setVal(0.0);
+	    qgrid_mf[lev]->setVal(0.0);
         } 
 
         eta_mf[lev]->setVal(1.0);
@@ -249,8 +253,8 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
 
-		        amrex::Array4<Set::Scalar> const &qgrid = (*qgrid_mf[lev]).array(mfi);
-		        amrex::Array4<Set::Scalar> const &deta  = (*deta_mf[lev]).array(mfi);
+		amrex::Array4<Set::Scalar> const &qgrid = (*qgrid_mf[lev]).array(mfi);
+		amrex::Array4<Set::Scalar> const &deta  = (*deta_mf[lev]).array(mfi);
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
@@ -268,7 +272,7 @@ namespace Integrator
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
                     Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
                     Util::ParallelMessage(INFO,"temp: " ,temp(i,j,k));
-		            Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
+		    Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
                     Util::ParallelAbort(INFO, "eta", etanew(i,j,k) == etanew(i,j,k) );
                     }
 
@@ -307,9 +311,9 @@ namespace Integrator
                     Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
 
                     if(masson && pressure.P != 0.0){
-		                m1 = (dt/1e-4)*( mdot(i,j,k) / mdot_ap  );
-		                m2 = (dt/1e-4)*( mdot(i,j,k) / mdot_htpb);
-		                m3 = (dt/1e-4)*( mdot(i,j,k) / mdot_comb);
+		                m1 = pf.eps * ( mdot(i,j,k) / mdot_ap  );
+		                m2 = pf.eps * ( mdot(i,j,k) / mdot_htpb);
+		                m3 = pf.eps * ( mdot(i,j,k) / mdot_comb);
 
                     }
                     else if (masson && pressure.P == 0.0){
@@ -333,7 +337,7 @@ namespace Integrator
                     Set::Scalar qdot = ( qflux / 10.0 / alpha(i,j,k)); 
                     qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
-		            qgrid(i,j,k) = qdot;
+		    qgrid(i,j,k) = qdot;
 		    
                     //
                     // Evolve temperature with the qdot flux term in place
@@ -352,10 +356,11 @@ namespace Integrator
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
-		            mob(i,j,k)  =  ((thermal.m_ap + pressure.P/100) * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
+		    mob(i,j,k)  =  ((thermal.m_ap + pressure.P/100) * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
                                  + (thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
-                                 + (thermal.m_comb * pressure.P * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-                    if(tempnew(i,j,k) <= 400.0){
+                                 + (thermal.m_comb * pressure.P *exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+
+                    if(masson && tempnew(i,j,k) <= thermal.ignition_temperature){
                         mob(i,j,k) = 0.0 ;
                     }
                 });

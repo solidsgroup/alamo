@@ -74,6 +74,7 @@ protected:
     Set::Scalar zeta_0 = 0.05;
     Set::Scalar mdot_ap, mdot_htpb, mdot_comb;
     int masson = 0;
+    Set::Scalar base_time = 1e-4;
     Set::Scalar m1, m2, m3;
       
     IC::IC *ic_eta;
@@ -108,7 +109,7 @@ protected:
         Set::Scalar E_ap, E_htpb, E_comb;
         Set::Scalar correction_factor = 1.0;
         Set::Scalar exp_ap = 0.0, exp_htpb = 0.0, exp_comb = 0.0;
-     
+        Set::Scalar ignition_temperature = 400.0;
     } thermal;
 
     struct {
