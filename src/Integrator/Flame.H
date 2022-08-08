@@ -74,6 +74,7 @@ protected:
     Set::Scalar zeta_0 = 0.05;
     Set::Scalar mdot_ap, mdot_htpb, mdot_comb;
     int masson = 0;
+    int laser_shutter = 0;
     Set::Scalar base_time = 1e-4;
     Set::Scalar m1, m2, m3;
       

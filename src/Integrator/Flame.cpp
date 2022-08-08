@@ -83,7 +83,8 @@ namespace Integrator
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); // Not in use. Controls deley to start thermal evolution. 
 
 	    pp.query("thermal.ignition_temperature", value.thermal.ignition_temperature);
-	      
+
+	    pp.query("thermal.laser", value.laser_shutter);
             pp.query("mass.on", value.masson); // Activates Mass Condition
             pp.query("mass.mdot_ap", value.mdot_ap); // Reference mass flow rate for AP 
             pp.query("mass.mdot_htpb", value.mdot_htpb); // Reference mass flow rate for HTPB0
@@ -335,8 +336,14 @@ namespace Integrator
 
 
                     Set::Scalar qdot = ( qflux / 10.0 / alpha(i,j,k)); 
-                    qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
-
+                    if (laser_shutter) {
+		      if (tempnew(i,j,k) < 2 * thermal.ignition_temperature){
+                          qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
+		      }
+		    }
+		    else {
+		      qdot += thermal.q0;
+		    }
 		    qgrid(i,j,k) = qdot;
 		    
                     //
@@ -363,6 +370,9 @@ namespace Integrator
                     if(masson && tempnew(i,j,k) <= thermal.ignition_temperature){
                         mob(i,j,k) = 0.0 ;
                     }
+		    else if (thermal.q0 > 0.0 && tempnew(i,j,k) <= thermal.ignition_temperature ){
+		        mob(i,j,k) = 0.0 ;
+		    }
                 });
                 
             }
