@@ -268,6 +268,8 @@ namespace Integrator
 
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
 
+                    // if (etanew(i,j,k) < 0.0) etanew(i,j,k) = 0.0 ;
+ 
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO, "eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
@@ -284,8 +286,9 @@ namespace Integrator
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k)) + thermal.cp_comb * 4.0 * phi(i,j,k) * (1 - phi(i,j,k));
 
                     // Calculate thermal diffusivity and store in field
-                    alpha(i,j,k) = eta(i,j,k) * K / rho / cp;
-
+		    if (eta(i,j,k) < 1.0) alpha(i,j,k) = eta(i,j,k) * K / rho / cp;
+		    else alpha(i,j,k) = K / rho / cp ;
+		    
                     // Calculate mass flux
                     deta(i,j,k) = etanew(i,j,k) - eta(i,j,k);
                     mdot(i,j,k) = - rho * deta(i,j,k) / dt;
@@ -350,7 +353,7 @@ namespace Integrator
                     // Evolve temperature with the qdot flux term in place
                     //
                     // Calculate modified spatial derivative of temperature
-		            Set::Scalar dTdt = 0.0;
+		    Set::Scalar dTdt = 0.0;
                     dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (eta(i,j,k) + small);                    
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;                            
@@ -362,17 +365,18 @@ namespace Integrator
                     thermal.exp_ap   = -1.0 * thermal.E_ap / tempnew(i,j,k);
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
-
-		    mob(i,j,k)  =  ((thermal.m_ap + pressure.P/100) * pressure.P * exp(thermal.exp_ap)) * phi(i,j,k)
+		    if (tempnew(i,j,k) < thermal.ignition_temperature) mob(i,j,k) = 0.0;
+		    else if (tempnew(i,j,k) > 1400.0 ) mob(i,j,k)  = 56.11;
+		    else{
+		    mob(i,j,k)  =  (thermal.m_ap  * exp(thermal.exp_ap)) * phi(i,j,k)
                                  + (thermal.m_htpb * exp(thermal.exp_htpb)) * (1.0 - phi(i,j,k))    
-                                 + (thermal.m_comb * pressure.P *exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-
+                                 + (thermal.m_comb * exp(thermal.exp_comb)) * (phi(i,j,k) * ( 1.0 - phi(i,j,k) ) ) ;
+		    }
+		    
                     if(masson && tempnew(i,j,k) <= thermal.ignition_temperature){
                         mob(i,j,k) = 0.0 ;
                     }
-		    else if (thermal.q0 > 0.0 && tempnew(i,j,k) <= thermal.ignition_temperature ){
-		        mob(i,j,k) = 0.0 ;
-		    }
+
                 });
                 
             }
@@ -416,9 +420,11 @@ namespace Integrator
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-                    if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) > t_refinement_restriction)
 
-                        tags(i, j, k) = amrex::TagBox::SET;
+		      if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) > t_refinement_restriction)
+			tags(i, j, k) = amrex::TagBox::SET;
+
+		    
                 });
             }
         } 
