@@ -59,7 +59,12 @@ protected:
     Set::Field<Set::Scalar> alpha_mf;
 
     Set::Field<Set::Scalar> deta_mf;
+    Set::Field<Set::Scalar> eta_lp_mf; 
     Set::Field<Set::Scalar> qgrid_mf;
+
+    Set::Field<Set::Scalar> eta_ov_mf;
+    Set::Field<Set::Scalar> temp_lp_mf;
+    Set::Field<Set::Scalar> mob_ratio_mf;
   
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
@@ -77,7 +82,8 @@ protected:
     int laser_shutter = 0;
     Set::Scalar base_time = 1e-4;
     Set::Scalar m1, m2, m3;
-      
+
+    Set::Scalar dTdt1=0.0, dTdt2=0.0, dTdt3=0.0, dTdt4 = 0.0; 
     IC::IC *ic_eta;
 
     struct {
@@ -111,6 +117,7 @@ protected:
         Set::Scalar correction_factor = 1.0;
         Set::Scalar exp_ap = 0.0, exp_htpb = 0.0, exp_comb = 0.0;
         Set::Scalar ignition_temperature = 400.0;
+        Set::Scalar temperature_limit = 20000.0;
     } thermal;
 
     struct {
