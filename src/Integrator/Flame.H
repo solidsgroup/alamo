@@ -93,6 +93,7 @@ protected:
         Set::Scalar lambda = 0.0;
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
+        Set::Scalar min_eta = 0.001; 
     } pf;
 
     struct{

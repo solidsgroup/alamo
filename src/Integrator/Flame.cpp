@@ -32,6 +32,7 @@ namespace Integrator
             pp.query("pf.w1", value.pf.w1); // Unburned rest energy
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
+	    pp.query("pf.min_eta", value.pf.min_eta);
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
@@ -228,7 +229,7 @@ namespace Integrator
         const Set::Scalar *DX = geom[lev].CellSize();
         const Set::Scalar small = 1E-8;
 
-        if (lev == finest_level)
+        if (true) //(lev == finest_level)
         {
             std::swap(eta_old_mf[lev], eta_mf[lev]);
             std::swap(temp_old_mf[lev], temp_mf[lev]);
@@ -293,9 +294,9 @@ namespace Integrator
 
                     // Calculate effective thermal conductivity
                     // No special interface mixure rule is needed here.
-                    Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k)) + thermal.k_comb * 4.0 * phi(i,j,k) * (1 - phi(i,j,k));
+                    Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k));
                     Set::Scalar rho = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k));
-                    Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k)) + thermal.cp_comb * 4.0 * phi(i,j,k) * (1 - phi(i,j,k));
+                    Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
 
                     // Calculate thermal diffusivity and store in field
 		    alpha(i,j,k) = etanew(i,j,k) * K / rho / cp;
@@ -334,9 +335,16 @@ namespace Integrator
                                         k2 * (1.0 - phi(i,j,k) ) + 
                                         (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
-                    Set::Scalar qdot = ( qflux / 10.0 / (alpha(i,j,k) + small )); 
-                    qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
+                    Set::Scalar qdot = 0.0;
+		    if (alpha(i,j,k) > 0.0){
+		      qdot +=  qflux / 10.0 / (alpha(i,j,k));
+		    }
+                    //qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
+
+		    if (qdot != qdot){
+		      Util::ParallelAbort(INFO, "qdot: ", qdot == qdot);
+		    } 
    		    qgrid(i,j,k) = qdot;
 		    
                     //
@@ -344,24 +352,32 @@ namespace Integrator
                     //
                     // Calculate modified spatial derivative of temperature
 		    Set::Scalar dTdt = 0.0;
-                    dTdt += grad_eta.dot(alpha(i,j,k) * grad_temp) / (etanew(i,j,k) + small);
+		    if (etanew(i,j,k) > pf.min_eta){
+                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (etanew(i,j,k));
 		    if (dTdt != dTdt) Util::ParallelAbort(INFO, "part1 ", dTdt); 
                     dTdt += grad_alpha.dot(grad_temp);
 		    if (dTdt != dTdt) Util::ParallelAbort(INFO, "part2 ", dTdt);
                     dTdt += alpha(i,j,k) * lap_temp;  
 		    if (dTdt != dTdt) Util::ParallelAbort(INFO, "part3 ", dTdt);                          
                     // Calculate the source term
-                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot / thermal.correction_factor / (etanew(i,j,k) + small);
+                    dTdt += grad_eta_mag * qdot  / etanew(i,j,k);
 		    if (dTdt != dTdt){
 		      Util::ParallelMessage(INFO, "mag: ", grad_eta_mag);
 		      Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
 		      Util::ParallelMessage(INFO, "qdot", qdot);
 		      Util::ParallelAbort(INFO, "part4 ", dTdt == dTdt);
 		    }
+		    dTdt += alpha(i,j,k) * thermal.q0 / (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * ( 1.0 - phi(i,j,k) ) );
+		    }
                     // Now, evolve temperature with explicit forward Euler
-                    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-
-		    if (tempnew(i,j,k) != tempnew(i,j,k) || qgrid(i,j,k) != qgrid(i,j,k) ){
+		    if (etanew(i,j,k) <= pf.min_eta){
+		      tempnew(i,j,k) = 275.0;
+		    }
+		    else{
+			tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+		    }
+		    
+		    if (tempnew(i,j,k) != tempnew(i,j,k) ){
 		      Util::ParallelMessage(INFO, "Temp: ", tempnew(i,j,k));
 		      Util::ParallelMessage(INFO, "qdot: ", qgrid(i,j,k));
 		      Util::ParallelAbort(INFO, "Temp ", tempnew(i,j,k) == tempnew(i,j,k) );
@@ -372,26 +388,28 @@ namespace Integrator
 		      tempnew(i,j,k) = thermal.temperature_limit; 
 		    }
 		    else if (tempnew(i,j,k) <= 0.0){
-		      //tempnew(i,j,k) = 0.01;
 		      Util::ParallelMessage(INFO, "Temp: ", tempnew(i,j,k));
+		      Util::ParallelMessage(INFO, "i: ", i );
+		      Util::ParallelMessage(INFO, "j: ", j);
 		      Util::ParallelMessage(INFO, "eta: ", eta(i,j,k) );
 		      Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
 		      Util::ParallelAbort(INFO, "Negative Temperature: ", tempnew(i,j,k) <= 0.01 );
 
 		    }
 		    
-		    dTdt1 = grad_eta.dot(alpha(i,j,k) * grad_temp) / (etanew(i,j,k) + small);
-		    dTdt2 = grad_alpha.dot(grad_temp);
-		    dTdt3 = alpha(i,j,k) * lap_temp;
-		    dTdt4 = grad_eta_mag * alpha(i,j,k) * qdot / (etanew(i,j,k) + small) ; 
-									   
                     thermal.exp_ap   = -1.0 * thermal.E_ap / tempnew(i,j,k);
                     thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
                     thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 
 		    mob_ratio(i,j,k) = thermal.exp_ap;
 		    
-		    mob(i,j,k)  =  (pressure.P * thermal.m_ap * exp(thermal.exp_ap) ) ; //  * phi(i,j,k)
+		    // mob(i,j,k)  =  (pressure.P * thermal.m_ap * exp(thermal.exp_ap) ) ; //  * phi(i,j,k)
+		    mob(i,j,k) = 10.0;
+		    
+		    if (mob(i,j,k) != mob(i,j,k) ) {
+		      Util::ParallelAbort(INFO, "mob: ", mob(i,j,k) == mob(i,j,k));
+		    }
+		  
 
                 });
                 
