@@ -20,7 +20,7 @@ namespace Integrator
     void 
     Flame::Parse(Flame &value, IO::ParmParse &pp)
     {
-        BL_PROFILE("Integrator::Flame::Flame()");
+        BL_PROFILE("Integrator::Flame::Flame()");   
         {
             pp.query("timestep", value.base_time);
             // These are the phase field method parameters
@@ -32,28 +32,26 @@ namespace Integrator
             pp.query("pf.w1", value.pf.w1); // Unburned rest energy
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-	    pp.query("pf.min_eta", value.pf.min_eta);
+	        pp.query("pf.min_eta", value.pf.min_eta);
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
-            value.RegisterNewFab(value.deta_mf,    value.bc_eta, 1, 1, "deta", true); 
-            value.RegisterNewFab(value.eta_lp_mf,  value.bc_eta, 1, 1, "eta_lp", true);
-	    value.RegisterNewFab(value.eta_ov_mf,  value.bc_eta, 1, 1, "eta_ov", true);
+            
         }
 
 	{
             pp.query("pressure.P", value.pressure.P);
-	    pp.query("pressure.a1", value.pressure.a1);
-	    pp.query("pressure.a2", value.pressure.a2);
-	    pp.query("pressure.a3", value.pressure.a3);
-	    pp.query("pressure.b1", value.pressure.b1);
-	    pp.query("pressure.b2", value.pressure.b2);
-	    pp.query("pressure.b3", value.pressure.b3);
+	        pp.query("pressure.a1", value.pressure.a1);
+	        pp.query("pressure.a2", value.pressure.a2);
+	        pp.query("pressure.a3", value.pressure.a3);
+	        pp.query("pressure.b1", value.pressure.b1);
+	        pp.query("pressure.b2", value.pressure.b2);
+	        pp.query("pressure.b3", value.pressure.b3);
             pp.query("pressure.c1", value.pressure.c1);
-	    pp.query("pressure.E1", value.pressure.E1);
-	    pp.query("pressure.E2", value.pressure.E2);
+	        pp.query("pressure.E1", value.pressure.E1);
+	        pp.query("pressure.E2", value.pressure.E2);
         
 	}
 
@@ -84,27 +82,25 @@ namespace Integrator
             pp.query("thermal.correction_factor", value.thermal.correction_factor); // Corrects the 1D thermal conduction evolution
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); // Not in use. Controls deley to start thermal evolution. 
 
-	    pp.query("thermal.temperature_limit", value.thermal.temperature_limit);
-	    pp.query("thermal.ignition_temperature", value.thermal.ignition_temperature);
+	        pp.query("thermal.temperature_limit", value.thermal.temperature_limit);
+	        pp.query("thermal.ignition_temperature", value.thermal.ignition_temperature);
 
-	    pp.query("thermal.laser", value.laser_shutter);
+	        pp.query("thermal.laser", value.laser_shutter);
             pp.query("mass.on", value.masson); // Activates Mass Condition
             pp.query("mass.mdot_ap", value.mdot_ap); // Reference mass flow rate for AP 
             pp.query("mass.mdot_htpb", value.mdot_htpb); // Reference mass flow rate for HTPB0
             pp.query("mass.mdot_comb", value.mdot_comb); // Reference mass flow rate for AP/HTPB
 
-            if (value.thermal.on)
-            {
-                value.bc_temp = new BC::Constant(1);
-                pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
-                value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 1, "temp", true);
-                value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
-                value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
-                value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);
-                value.RegisterNewFab(value.qgrid_mf, value.bc_temp, 1, 1, "qgrid", true);      
-                value.RegisterNewFab(value.temp_lp_mf, value.bc_temp, 1, 1, "temp_lp", true);
-		value.RegisterNewFab(value.mob_ratio_mf, value.bc_temp, 1, 1, "mob_ratio", true);
-            }
+            pp.query("thermal.n", value.thermal.n);
+
+            value.bc_temp = new BC::Constant(1);
+            pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
+            value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 1, "temp", true);
+            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
+            value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
+            value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);  
+            value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 1, "heatflux", true);
+           
         }
 
 
@@ -113,7 +109,9 @@ namespace Integrator
         // Refinement criterion for temperature field
         pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion); 
         // Eta value to restrict the refinament for the temperature field
-	pp.query("amr.refinament_restriction", value.t_refinement_restriction);
+	    pp.query("amr.refinament_restriction", value.t_refinement_restriction);
+        // small value
+        pp.query("small", value.small);
 
 	
 	
@@ -154,25 +152,19 @@ namespace Integrator
         Util::Message(INFO,m_type);
         MechanicsBase<Model::Solid::Affine::Isotropic>::Initialize(lev);
 
-        if (thermal.on)
-        {
-            temp_mf[lev]->setVal(thermal.bound);
-            temp_old_mf[lev]->setVal(thermal.bound);
-            alpha_mf[lev]->setVal(0.0);
-            mob_mf[lev]->setVal(0.0);
-	    qgrid_mf[lev]->setVal(0.0);
-        } 
+        
+        temp_mf[lev]->setVal(thermal.bound);
+        temp_old_mf[lev]->setVal(thermal.bound);
+        alpha_mf[lev]->setVal(0.0);
+        mob_mf[lev]->setVal(0.0);
 
         eta_mf[lev]->setVal(1.0);
         eta_old_mf[lev]->setVal(1.0);
 
         mdot_mf[lev]->setVal(0.0);
 
-        deta_mf[lev]->setVal(0.0);
-        eta_lp_mf[lev] ->setVal(0.0);
-	eta_ov_mf[lev] -> setVal(0.0);
-	temp_lp_mf[lev] -> setVal(0.0);
-	mob_ratio_mf[lev] -> setVal(0.0);
+        heatflux_mf[lev] -> setVal(0.0);
+
         ic_phi->Initialize(lev, phi_mf);
         
     }
@@ -227,7 +219,7 @@ namespace Integrator
         MechanicsBase<Model::Solid::Affine::Isotropic>::Advance(lev,time,dt);
 
         const Set::Scalar *DX = geom[lev].CellSize();
-        const Set::Scalar small = 1E-8;
+        //const Set::Scalar small = 1E-8;
 
         if (true) //(lev == finest_level)
         {
@@ -260,36 +252,23 @@ namespace Integrator
                 // Diagnostic fields
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
-                amrex::Array4<Set::Scalar> const &eta_lp = (*eta_lp_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const &eta_ov = (*eta_ov_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const &temp_lp = (*temp_lp_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const &mob_ratio = (*mob_ratio_mf[lev]).array(mfi); 
-		
-		amrex::Array4<Set::Scalar> const &qgrid = (*qgrid_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const &deta  = (*deta_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const &heatflux = (*heatflux_mf[lev]).array(mfi);
+ 
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);
-                    
-                    eta_lp(i,j,k) = eta_lap;
-		    eta_ov(i,j,k) = eta_lap / eta(i,j,k);
-                    
+                  
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
 
-                    if (etanew(i,j,k) < 0.001) etanew(i,j,k) = 0.0 ;
+                    if (etanew(i,j,k) < small) etanew(i,j,k) = 0.0 ;
  
                     if (etanew(i,j,k) != etanew(i,j,k)){
                     Util::ParallelMessage(INFO, "eta: ", eta(i,j,k));
                     Util::ParallelMessage(INFO, "mob: ", mob(i,j,k));
                     Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
                     Util::ParallelMessage(INFO,"temp: " ,temp(i,j,k));
-		    Util::ParallelMessage(INFO, "eta_lap: ", eta_lap );
-		    Util::ParallelMessage(INFO, "dtdt1: ", dTdt1);
-		    Util::ParallelMessage(INFO, "dtdt2: ", dTdt2);
-		    Util::ParallelMessage(INFO, "dtdt3: ", dTdt3);
-		    Util::ParallelMessage(INFO, "dtdt4: ", dTdt4);
-		    Util::ParallelAbort(INFO, "eta", etanew(i,j,k) == etanew(i,j,k) );
+		            Util::ParallelAbort(INFO, "eta", etanew(i,j,k) == etanew(i,j,k) );
                     }
 
                     // Calculate effective thermal conductivity
@@ -299,22 +278,23 @@ namespace Integrator
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
 
                     // Calculate thermal diffusivity and store in field
-		    alpha(i,j,k) = etanew(i,j,k) * K / rho / cp;
-		    if (alpha(i,j,k) < 0.0 ){
-		      Util::ParallelMessage(INFO, "Alpha: ", alpha(i,j,k));
-		      Util::ParallelMessage(INFO, "phi", phi(i,j,k));
-		      Util::ParallelMessage(INFO, "eta: ", etanew(i,j,k));
-		      Util::ParallelMessage(INFO, "k: ",  K);
-		      Util::ParallelMessage(INFO, "cp: ", cp);
-		      Util::ParallelMessage(INFO,"rho: ", rho);
-		      Util::ParallelAbort(INFO, "abort alpha", alpha(i,j,k) < 0.0); 
-		    } 
-		    //else alpha(i,j,k) = K / rho / cp ;
+		            alpha(i,j,k) = etanew(i,j,k) * K / rho / cp;
+                    
+
+		            //if (alpha(i,j,k) < 0.0 ){
+		             //   Util::ParallelMessage(INFO, "Alpha: ", alpha(i,j,k));
+		             //   Util::ParallelMessage(INFO, "phi", phi(i,j,k));
+		             //   Util::ParallelMessage(INFO, "eta: ", etanew(i,j,k));
+		              //  Util::ParallelMessage(INFO, "k: ",  K);
+		               // Util::ParallelMessage(INFO, "cp: ", cp);
+		               // Util::ParallelMessage(INFO,"rho: ", rho);
+		                //Util::ParallelAbort(INFO, "abort alpha", alpha(i,j,k) < 0.0); 
+		            //} 
 		    
                     // Calculate mass flux
-                    deta(i,j,k) = etanew(i,j,k) - eta(i,j,k);
-                    mdot(i,j,k) = - rho * deta(i,j,k) / dt;
-                });
+
+                    mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt;
+                    });
 
                     
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -325,7 +305,6 @@ namespace Integrator
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX);
 
-		    temp_lp(i,j,k) = lap_temp;
 
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
@@ -336,52 +315,54 @@ namespace Integrator
                                         (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
                     Set::Scalar qdot = 0.0;
-		    if (alpha(i,j,k) > 0.0){
-		      qdot +=  qflux / 10.0 / (alpha(i,j,k));
-		    }
+		            if (alpha(i,j,k) > 0.0){
+		                qdot +=  qflux / 10.0 / (alpha(i,j,k));
+		            }
+                    heatflux(i,j,k) = qdot;
                     //qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
 
-		    if (qdot != qdot){
-		      Util::ParallelAbort(INFO, "qdot: ", qdot == qdot);
-		    } 
-   		    qgrid(i,j,k) = qdot;
+		            if (qdot != qdot){
+		                Util::ParallelAbort(INFO, "qdot: ", qdot == qdot);
+		            } 
+
 		    
                     //
                     // Evolve temperature with the qdot flux term in place
                     //
                     // Calculate modified spatial derivative of temperature
-		    Set::Scalar dTdt = 0.0;
-		    if (etanew(i,j,k) > pf.min_eta){
+                    if (thermal.on){
+                    
+		            Set::Scalar dTdt = 0.0;
+		            if (etanew(i,j,k) > pf.min_eta){
                     dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (etanew(i,j,k));
-		    if (dTdt != dTdt) Util::ParallelAbort(INFO, "part1 ", dTdt); 
+		                if (dTdt != dTdt) Util::ParallelAbort(INFO, "part1 ", dTdt); 
                     dTdt += grad_alpha.dot(grad_temp);
-		    if (dTdt != dTdt) Util::ParallelAbort(INFO, "part2 ", dTdt);
+		                if (dTdt != dTdt) Util::ParallelAbort(INFO, "part2 ", dTdt);
                     dTdt += alpha(i,j,k) * lap_temp;  
-		    if (dTdt != dTdt) Util::ParallelAbort(INFO, "part3 ", dTdt);                          
+		                if (dTdt != dTdt) Util::ParallelAbort(INFO, "part3 ", dTdt);                          
                     // Calculate the source term
                     dTdt += grad_eta_mag * qdot  / etanew(i,j,k);
-		    if (dTdt != dTdt){
-		      Util::ParallelMessage(INFO, "mag: ", grad_eta_mag);
-		      Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
-		      Util::ParallelMessage(INFO, "qdot", qdot);
-		      Util::ParallelAbort(INFO, "part4 ", dTdt == dTdt);
+		                if (dTdt != dTdt){
+		                    Util::ParallelMessage(INFO, "mag: ", grad_eta_mag);
+		                    Util::ParallelMessage(INFO, "alpha: ", alpha(i,j,k));
+		                    Util::ParallelMessage(INFO, "qdot", qdot);
+		                    Util::ParallelAbort(INFO, "part4 ", dTdt == dTdt);
+		                  }
+		            dTdt += alpha(i,j,k) * thermal.q0 / (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * ( 1.0 - phi(i,j,k) ) );
 		    }
-		    dTdt += alpha(i,j,k) * thermal.q0 / (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * ( 1.0 - phi(i,j,k) ) );
-		    }
-                    // Now, evolve temperature with explicit forward Euler
+            // Now, evolve temperature with explicit forward Euler
 		    if (etanew(i,j,k) <= pf.min_eta){
-		      tempnew(i,j,k) = 275.0;
+		          tempnew(i,j,k) = thermal.bound;
 		    }
 		    else{
-			tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+			    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
 		    }
 		    
 		    if (tempnew(i,j,k) != tempnew(i,j,k) ){
 		      Util::ParallelMessage(INFO, "Temp: ", tempnew(i,j,k));
-		      Util::ParallelMessage(INFO, "qdot: ", qgrid(i,j,k));
 		      Util::ParallelAbort(INFO, "Temp ", tempnew(i,j,k) == tempnew(i,j,k) );
-		      Util::ParallelAbort(INFO, "Qdot ", qgrid(i,j,k) == qgrid(i,j,k) );
+
 		    }
 		    
 		    if (tempnew(i,j,k) >= thermal.temperature_limit){
@@ -397,14 +378,16 @@ namespace Integrator
 
 		    }
 		    
-                    thermal.exp_ap   = -1.0 * thermal.E_ap / tempnew(i,j,k);
-                    thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
-                    thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
-
-		    mob_ratio(i,j,k) = thermal.exp_ap;
+            thermal.exp_ap   = -1.0 * thermal.E_ap / tempnew(i,j,k);
+            thermal.exp_htpb = -1.0 * thermal.E_htpb / tempnew(i,j,k); 
+            thermal.exp_comb = -1.0 * thermal.E_comb / tempnew(i,j,k);
 		    
-		    // mob(i,j,k)  =  (pressure.P * thermal.m_ap * exp(thermal.exp_ap) ) ; //  * phi(i,j,k)
-		    mob(i,j,k) = 10.0;
+		    mob(i,j,k)  =  (pressure.P * thermal.m_ap * exp(thermal.exp_ap) ) ; //  * phi(i,j,k)
+            }
+            else{
+            tempnew(i,j,k) = temp(i,j,k);		    
+            mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / 1550.0) * phi(i,j,k) + thermal.m_htpb * exp(-thermal.E_htpb / 1550.0) * (1.0 - phi(i,j,k)) + thermal.m_comb * exp(-thermal.E_comb / 1550.0) * phi(i,j,k) * (1.0 - phi(i,j,k));
+            }
 		    
 		    if (mob(i,j,k) != mob(i,j,k) ) {
 		      Util::ParallelAbort(INFO, "mob: ", mob(i,j,k) == mob(i,j,k));
