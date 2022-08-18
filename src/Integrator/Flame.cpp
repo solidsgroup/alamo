@@ -385,8 +385,13 @@ namespace Integrator
 		    mob(i,j,k)  =  (pressure.P * thermal.m_ap * exp(thermal.exp_ap) ) ; //  * phi(i,j,k)
             }
             else{
-            tempnew(i,j,k) = temp(i,j,k);		    
-            mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / 1550.0) * phi(i,j,k) + thermal.m_htpb * exp(-thermal.E_htpb / 1550.0) * (1.0 - phi(i,j,k)) + thermal.m_comb * exp(-thermal.E_comb / 1550.0) * phi(i,j,k) * (1.0 - phi(i,j,k));
+            if(temp(i,j,k) < thermal.temperature_limit){
+                tempnew(i,j,k) = temp(i,j,k) + 1000.0 * dt;
+            }
+            else{
+                tempnew(i,j,k) = temp(i,j,k);
+            }		    
+            mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k)) * phi(i,j,k) + thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k)) * (1.0 - phi(i,j,k)) + thermal.m_comb * exp(-thermal.E_comb / tempnew(i,j,k)) * phi(i,j,k) * (1.0 - phi(i,j,k));
             }
 		    
 		    if (mob(i,j,k) != mob(i,j,k) ) {
