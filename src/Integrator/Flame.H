@@ -59,27 +59,21 @@ protected:
     Set::Field<Set::Scalar> field;
     Set::Field<Set::Scalar> alpha_mf;
     Set::Field<Set::Scalar> heatflux_mf;  
-    Set::Field<Set::Scalar> temph_mf;
+    //Set::Field<Set::Scalar> temph_mf;
 
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
     IC::IC *ic_phi;
 
-    int fs_number = 1;
+    int masson = 0;
  
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     Set::Scalar t_refinement_restriction = 0.1;
     Set::Scalar zeta = 0.05;
     Set::Scalar zeta_0 = 0.05;
-    Set::Scalar mdot_ap, mdot_htpb, mdot_comb;
-    Set::Scalar small = 1.0e-12;
-    int masson = 0;
-    int laser_shutter = 0;
-    Set::Scalar base_time = 1e-4;
-    Set::Scalar m1, m2, m3;
-
-    Set::Scalar dTdt1=0.0, dTdt2=0.0, dTdt3=0.0, dTdt4 = 0.0; 
+    Set::Scalar small = 1.0e-8;
+    Set::Scalar base_time =1.0e-4;
     IC::IC *ic_eta;
 
     struct {
@@ -106,16 +100,12 @@ protected:
         Set::Scalar rho_ap, rho_htpb;         
         Set::Scalar k_ap , k_htpb , k_comb  = 0.0, k0 = 0.0;             
         Set::Scalar cp_ap, cp_htpb, cp_comb = 0.0;           
-        Set::Scalar q_ap, q_htpb, q_comb;
         Set::Scalar q0=1.0;
         Set::Scalar temperature_delay = 0.01, bound = 0.0;
         Set::Scalar m_ap, m_htpb, m_comb;  
         Set::Scalar E_ap, E_htpb, E_comb;
         Set::Scalar correction_factor = 1.0;
-        Set::Scalar exp_ap = 0.0, exp_htpb = 0.0, exp_comb = 0.0;
-        Set::Scalar ignition_temperature = 400.0;
         Set::Scalar temperature_limit = 20000.0;
-        Set::Scalar n = 1.0;
     } thermal;
 
     struct {
