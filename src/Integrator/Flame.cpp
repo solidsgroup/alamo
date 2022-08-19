@@ -275,8 +275,6 @@ namespace Integrator
                     Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
-
-
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
                     Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
@@ -288,7 +286,6 @@ namespace Integrator
                     Set::Scalar qdot = thermal.q0;
 		            qdot +=  qflux / 10.0 / (alpha(i,j,k) + small);
                     heatflux(i,j,k) = qdot;
-                    //qdot += thermal.q0; // initiation heat flux - think of it like a laser that is heating up the interface.
 
                     Set::Scalar dTdt = 0.0;
                     dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);	
@@ -306,7 +303,6 @@ namespace Integrator
 		                Util::ParallelAbort(INFO, "mob: ", mob(i,j,k) == mob(i,j,k));
 		            }   
                 });
-                
             }
         }
     }
