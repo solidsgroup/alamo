@@ -14,6 +14,7 @@
 #include "IC/IC.H"
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
+#include "IC/Expression.H"
 #include "Set/Set.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "IO/ParmParse.H"

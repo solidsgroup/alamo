@@ -38,7 +38,11 @@ namespace Integrator
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
-            
+
+            std::string eta_bc_str = "constant";
+            pp.query("pf.eta.ic.type",eta_bc_str);
+            if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"pf.eta.ic.constant");
+            else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom,pp,"pf.eta.ic.expression");
         }
 
 	{
@@ -159,8 +163,10 @@ namespace Integrator
         alpha_mf[lev]->setVal(0.0);
         mob_mf[lev]->setVal(0.0);
 
-        eta_mf[lev]->setVal(1.0);
-        eta_old_mf[lev]->setVal(1.0);
+        //eta_mf[lev]->setVal(1.0);
+        //eta_old_mf[lev]->setVal(1.0);
+        ic_eta->Initialize(lev,eta_mf);
+        ic_eta->Initialize(lev,eta_old_mf);
 
         mdot_mf[lev]->setVal(0.0);
 
