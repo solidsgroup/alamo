@@ -106,6 +106,7 @@ protected:
         Set::Scalar E_ap, E_htpb, E_comb;
         Set::Scalar correction_factor = 1.0;
         Set::Scalar temperature_limit = 20000.0;
+        Set::Scalar cut_off = 0.5;
     } thermal;
 
     struct {

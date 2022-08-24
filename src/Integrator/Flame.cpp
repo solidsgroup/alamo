@@ -84,7 +84,7 @@ namespace Integrator
             pp.query("thermal.temperature_delay", value.thermal.temperature_delay); // Not in use. Controls deley to start thermal evolution. 
 
 	        pp.query("thermal.temperature_limit", value.thermal.temperature_limit);
-
+            pp.query("thermal.cut_off", value.thermal.cut_off);
 
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
@@ -260,8 +260,8 @@ namespace Integrator
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
-                    if (eta(i,j,k) <= small ) etanew(i,j,k) = 0.0;
- 		            alpha(i,j,k) = (small + eta(i,j,k)) * K / rho / cp; // Calculate thermal diffusivity and store in field
+                    //if (etanew(i,j,k) <= pf.min_eta ) etanew(i,j,k) = 0.0;
+ 		            alpha(i,j,k) = K / rho / cp; // Calculate thermal diffusivity and store in field
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt; // Calculate mass flux
 
                     });
@@ -282,21 +282,36 @@ namespace Integrator
                                         k2 * (1.0 - phi(i,j,k) ) + 
                                         (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
-                    Set::Scalar qdot = thermal.q0;
-		            qdot +=  qflux / 10.0 / (alpha(i,j,k) + small);
+                    Set::Scalar qdot = thermal.q0; Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
+		            qdot += 1.0e7 * qflux / K;
+                    //qdot += qflux / 10 / (alpha(i,j,k) + small);
                     heatflux(i,j,k) = qdot;
 
+                    
                     Set::Scalar dTdt = 0.0;
-                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);	
+                    if (eta(i,j,k) >= thermal.cut_off){ // && temp(i,j,k) <= thermal.temperature_limit){
+                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k));	
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;  		                                                    
-                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot  / (eta(i,j,k) + small); // Calculate the source term      
+                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot  / (eta(i,j,k)); // Calculate the source term      
                     
 			        tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
+                    }
+                    else{
+                    tempnew(i,j,k) = temp(i,j,k);
+                    }
 
                     mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i,j,k)) * phi(i,j,k) 
                                + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) 
                                + thermal.m_comb * exp(-thermal.E_comb / temp(i,j,k)) * phi(i,j,k) * (1.0 - phi(i,j,k));
+                    
+                    Set::Scalar L_max = 1.22 * pow(pressure.P, 1.042) * phi(i,j,k) +
+                                        0.5 * (1.0 - phi(i,j,k)) + 10.0 * phi(i,j,k) * (1.0 - phi(i,j,k));
+
+                    if (mob(i,j,k) > L_max){ 
+                        mob(i,j,k) = L_max; 
+                    }
+
 
 		            if (mob(i,j,k) != mob(i,j,k) ) {
 		                Util::ParallelAbort(INFO, "mob: ", mob(i,j,k) == mob(i,j,k));
@@ -341,7 +356,7 @@ namespace Integrator
              amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
              {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-		        if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) >= 0.001)
+		        if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) >= 0.1)
 			        tags(i, j, k) = amrex::TagBox::SET;
                 });
             }
