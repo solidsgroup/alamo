@@ -37,7 +37,7 @@ namespace Integrator
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
-            value.RegisterNewFab(value.mdot_mf,    value.bc_eta, 1, 1, "mdot", true);
+            value.RegisterNewFab(value.mdot_mf,    1, "mdot", true);
 
             std::string eta_bc_str = "constant";
             pp.query("pf.eta.ic.type",eta_bc_str);
@@ -90,9 +90,9 @@ namespace Integrator
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
             value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 1, "temp", true);
             value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
-            value.RegisterNewFab(value.mob_mf, value.bc_temp, 1, 1, "mob", true);
-            value.RegisterNewFab(value.alpha_mf,value.bc_temp,1,1,"alpha",true);  
-            value.RegisterNewFab(value.heatflux_mf, value.bc_temp, 1, 1, "heatflux", true);
+            value.RegisterNewFab(value.mob_mf, 1, "mob", true);
+            value.RegisterNewFab(value.alpha_mf,1,"alpha",true);  
+            value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
             //value.RegisterNewFab(value.temph_mf, value.bc_temp, 1, 1, "temph", true); 
            
         }
@@ -269,11 +269,12 @@ namespace Integrator
                     
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
+                    auto sten = Numeric::GetStencil(i,j,k,bx);
                     Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
                     Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
                     Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                    Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX);
+                    Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
                     Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
