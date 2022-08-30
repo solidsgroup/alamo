@@ -64,8 +64,6 @@ protected:
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
     IC::IC *ic_phi;
-
-    int masson = 0;
  
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
@@ -95,17 +93,21 @@ protected:
       Set::Scalar E1, E2;
     } pressure;
 
+    struct{
+    Set::Scalar ref_ap = 1.0, ref_htpb = 1.0, ref_comb = 1.0;
+    int on = 1;
+    } mass; 
+
     struct {
         int on = 0;
         Set::Scalar rho_ap, rho_htpb;         
-        Set::Scalar k_ap , k_htpb , k_comb  = 0.0, k0 = 0.0;             
+        Set::Scalar k_ap , k_htpb , k_comb  = 0.0, k0 = 0.0;     
+        Set::Scalar r_ap = 1.22, r_htpb = 0.5, r_comb = 10.01, n_ap = 1.042;        
         Set::Scalar cp_ap, cp_htpb, cp_comb = 0.0;           
         Set::Scalar q0=1.0;
-        Set::Scalar temperature_delay = 0.01, bound = 0.0;
+        Set::Scalar bound = 0.0;
         Set::Scalar m_ap, m_htpb, m_comb;  
         Set::Scalar E_ap, E_htpb, E_comb;
-        Set::Scalar correction_factor = 1.0;
-        Set::Scalar temperature_limit = 20000.0;
         Set::Scalar cut_off = 0.5;
     } thermal;
 

@@ -45,7 +45,7 @@ namespace Integrator
             else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom,pp,"pf.eta.ic.expression");
         }
 
-	{
+	    {
             pp.query("pressure.P", value.pressure.P);
 	        pp.query("pressure.a1", value.pressure.a1);
 	        pp.query("pressure.a2", value.pressure.a2);
@@ -57,33 +57,45 @@ namespace Integrator
 	        pp.query("pressure.E1", value.pressure.E1);
 	        pp.query("pressure.E2", value.pressure.E2);
         
-	}
+	    }
+
+        {
+            pp.query("mass.on", value.mass.on);
+            pp.query("mass.ref_ap", value.mass.ref_ap);
+            pp.query("mass.ref_htpb", value.mass.ref_htpb);
+            pp.query("mass.ref_comb", value.mass.ref_comb);
+
+        }
+
 
         {
             //IO::ParmParse pp("thermal");
             pp.query("thermal.on",value.thermal.on); // Whether to use the Thermal Transport Model
+
             pp.query("thermal.rho_ap",value.thermal.rho_ap); // AP Density
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
             pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
-            pp.query("thermal.k_htpb",value.thermal.k_htpb); // HTPB Thermal Conductivity
-            pp.query("thermal.k0", value.thermal.k0); // Thermal conductivity 
+            pp.query("thermal.k_htpb",value.thermal.k_htpb); // HTPB Thermal Conductivity 
             pp.query("thermal.k_comb", value.thermal.k_comb); // Combined Thermal Conductivity
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
             pp.query("thermal.cp_comb", value.thermal.cp_comb); // AP/HTPB  Specific Heat
-            pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux
             
+            pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux            
             pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
+
             pp.query("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
             pp.query("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
             pp.query("thermal.m_comb", value.thermal.m_comb); // AP/HTPB Pre-exponential factor for Arrhenius Law
             pp.query("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
             pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
             pp.query("thermal.E_comb", value.thermal.E_comb); // AP/HTPB Activation Energy for Arrhenius Law
-            pp.query("thermal.correction_factor", value.thermal.correction_factor); // Corrects the 1D thermal conduction evolution
-            pp.query("thermal.temperature_delay", value.thermal.temperature_delay); // Not in use. Controls deley to start thermal evolution. 
 
-	        pp.query("thermal.temperature_limit", value.thermal.temperature_limit);
+            pp.query("thermal.r_ap",value.thermal.r_ap);
+            pp.query("thermal.r_htpb", value.thermal.r_htpb);
+            pp.query("thermal.r_comb", value.thermal.r_comb);
+            pp.query("thermal.n_ap", value.thermal.n_ap);
+
             pp.query("thermal.cut_off", value.thermal.cut_off);
 
             value.bc_temp = new BC::Constant(1);
@@ -283,8 +295,12 @@ namespace Integrator
                                         k2 * (1.0 - phi(i,j,k) ) + 
                                         (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
+
+                    Set::Scalar mlocal = mass.ref_ap * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
+
                     Set::Scalar qdot = thermal.q0; Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
-		            qdot += 1.0e7 * qflux / K;
+                    if (mass.on) qdot += (mdot(i,j,k) / mlocal ) * 1.0e7 * qflux / K;                        		            
+                    else qdot += (1.0 - eta(i,j,k)) * 1.0e7 * qflux / K;
                     //qdot += qflux / 10 / (alpha(i,j,k) + small);
                     heatflux(i,j,k) = qdot;
 
@@ -302,14 +318,15 @@ namespace Integrator
                     tempnew(i,j,k) = temp(i,j,k);
                     }
 
+                
                     mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i,j,k)) * phi(i,j,k) 
-                               + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) 
+                              + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) 
                                + thermal.m_comb * exp(-thermal.E_comb / temp(i,j,k)) * phi(i,j,k) * (1.0 - phi(i,j,k));
                     
-                    Set::Scalar L_max = 1.22 * pow(pressure.P, 1.042) * phi(i,j,k) +
-                                        0.5 * (1.0 - phi(i,j,k)) + 10.0 * phi(i,j,k) * (1.0 - phi(i,j,k));
+                    Set::Scalar L_max = thermal.r_ap * pow(pressure.P, thermal.n_ap) * phi(i,j,k) +
+                                        thermal.r_htpb * (1.0 - phi(i,j,k)) + thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
 
-                    if (mob(i,j,k) > L_max){ 
+                   if (mob(i,j,k) > L_max){ 
                         mob(i,j,k) = L_max; 
                     }
 
