@@ -320,8 +320,8 @@ namespace Integrator
 
                 
                     mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i,j,k)) * phi(i,j,k) 
-                              + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) 
-                               + thermal.m_comb * exp(-thermal.E_comb / temp(i,j,k)) * phi(i,j,k) * (1.0 - phi(i,j,k));
+                              + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) ;
+                               //+ thermal.m_comb * exp(-thermal.E_comb / temp(i,j,k)) * phi(i,j,k) * (1.0 - phi(i,j,k));
                     
                     Set::Scalar L_max = thermal.r_ap * pow(pressure.P, thermal.n_ap) * phi(i,j,k) +
                                         thermal.r_htpb * (1.0 - phi(i,j,k)) + thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
