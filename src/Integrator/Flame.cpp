@@ -64,6 +64,8 @@ namespace Integrator
             pp.query("mass.ref_ap", value.mass.ref_ap);
             pp.query("mass.ref_htpb", value.mass.ref_htpb);
             pp.query("mass.ref_comb", value.mass.ref_comb);
+            pp.query("mass.a_ap", value.mass.a_ap);
+            pp.query("mass.b_ap", value.mass.b_ap);
 
         }
 
@@ -296,7 +298,7 @@ namespace Integrator
                                         (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
 
 
-                    Set::Scalar mlocal = mass.ref_ap * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
+                    Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
 
                     Set::Scalar qdot = thermal.q0; Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
                     if (mass.on) qdot += (mdot(i,j,k) / mlocal ) * 1.0e7 * qflux / K;                        		            

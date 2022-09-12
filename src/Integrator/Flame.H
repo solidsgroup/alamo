@@ -95,6 +95,7 @@ protected:
 
     struct{
     Set::Scalar ref_ap = 1.0, ref_htpb = 1.0, ref_comb = 1.0;
+    Set::Scalar a_ap = 0.0, b_ap = 0.0;
     int on = 1;
     } mass; 
 
