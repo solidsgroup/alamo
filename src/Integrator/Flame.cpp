@@ -60,10 +60,8 @@ namespace Integrator
 	    }
 
         {
-            pp.query("mass.on", value.mass.on);
-            pp.query("mass.ref_ap", value.mass.ref_ap);
+            pp.query("mass.on", value.mass.on);          
             pp.query("mass.ref_htpb", value.mass.ref_htpb);
-            pp.query("mass.ref_comb", value.mass.ref_comb);
             pp.query("mass.a_ap", value.mass.a_ap);
             pp.query("mass.b_ap", value.mass.b_ap);
 
