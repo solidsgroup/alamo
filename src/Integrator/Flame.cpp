@@ -299,8 +299,10 @@ namespace Integrator
                     Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
 
                     Set::Scalar qdot = thermal.q0; Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
-                    if (mass.on) qdot += (mdot(i,j,k) / mlocal ) * 1.0e7 * qflux / K;                        		            
-                    else qdot += (1.0 - eta(i,j,k)) * 1.0e7 * qflux / K;
+                    
+                    qdot += (mdot(i,j,k) / mlocal ) * 1.0e7 * qflux / K;  
+                      		            
+                    //else qdot += (1.0 - eta(i,j,k)) * 1.0e7 * qflux / K;
                     //qdot += qflux / 10 / (alpha(i,j,k) + small);
                     heatflux(i,j,k) = qdot;
 
