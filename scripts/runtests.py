@@ -60,7 +60,11 @@ parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tes
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
+parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 args=parser.parse_args()
+
+class DryRunException(Exception):
+    pass
 
 def test(testdir):
     """
@@ -186,6 +190,7 @@ def test(testdir):
         print("  │      Running test............................................",end="",flush=True)
         # Spawn the process and wait for it to finish before continuing.
         try:
+            if args.dryrun: raise DryRunException()
             timeStarted = time.time()
             p = subprocess.run(command.split(),capture_output=True,check=True)
             executionTime = time.time() - timeStarted
@@ -215,6 +220,9 @@ def test(testdir):
             for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             fails += 1
             continue
+        except DryRunException as e:
+            print("[----]")
+            
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
@@ -229,6 +237,7 @@ def test(testdir):
         if check:
             print("  │      Checking result.........................................",end="",flush=True)
             try:
+                raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
                 if "check-file" in config[desc].keys():
                     cmd.append(config[desc]['check-file'])
@@ -243,6 +252,8 @@ def test(testdir):
                 for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
+            except DryRunException as e:
+                  print("[----]")
             except Exception as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
