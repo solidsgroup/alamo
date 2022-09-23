@@ -245,6 +245,7 @@ def test(testdir):
                     print("  ├      " + ' '.join(cmd))
                 p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
+                print("[{}PASS{}]".format(color.boldgreen,color.reset))
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
@@ -259,8 +260,6 @@ def test(testdir):
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
-
-            print("[{}PASS{}]".format(color.boldgreen,color.reset))
     
     # Print a quick summary for this test family.
     if fails: print("  └ {}{} tests failed{}".format(color.red,fails,color.reset),end="")
