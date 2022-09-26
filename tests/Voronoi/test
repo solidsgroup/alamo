@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, pandas, sys, math
+
+outdir = sys.argv[1]
+
+generate_ref_data = False  # Change to True if you need to generate new reference data
+tolerance = 1E-8
+
+path = "{}/00200cell/".format(outdir)
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+def integrate(x,y):
+    ret = 0
+    for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
+    return ret
+
+if dim == 2:
+    prof = ds.ray([0,0,0],[5.0,5.0,0],)
+
+    df = prof.to_dataframe([("gas","x"),("gas","y"),"Eta001","Eta002","Eta003","Eta004","Eta005","Eta006","Eta007","Eta008","Eta009","Eta010"])
+
+    if generate_ref_data:
+        df.to_csv('reference/reference.csv')
+
+    df_ref = pandas.read_csv('reference/reference.csv')
+
+    class new:
+        ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+            df["x"],df["y"],df["Eta001"],df["Eta002"],df["Eta003"],df["Eta004"],df["Eta005"],df["Eta006"],df["Eta007"],df["Eta008"],df["Eta009"],df["Eta010"])))]
+        x = ret[0]
+        y = ret[1]
+        eta = ret[2:]
+        r = numpy.sqrt(x**2 + y**2)
+    class ref:
+        ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+            df_ref["x"],df_ref["y"],df_ref["Eta001"],df_ref["Eta002"],df_ref["Eta003"],df_ref["Eta004"],df_ref["Eta005"],df_ref["Eta006"],df_ref["Eta007"],df_ref["Eta008"],df_ref["Eta009"],df_ref["Eta010"])))]
+        x = ret[0]
+        y = ret[1]
+        eta = ret[2:]
+        r = numpy.sqrt(x**2 + y**2)
+
+
+    pylab.clf()
+    #ref = numpy.loadtxt("reference/Eshelby_displacement.csv",skiprows=1,delimiter=",")
+    #pylab.plot(ref[:,0],ref[:,1]/10000,color='C0')
+    for eta in ref.eta: pylab.plot(ref.r,eta,color='C0',label='reference')
+    for eta in new.eta: pylab.plot(new.r,eta,color='C1',label='new',linestyle='--')
+    #pylab.show()
+    pylab.savefig("{}/etas.png".format(outdir))
+
+    ctr = 0
+    for ref_eta, new_eta in zip(ref.eta, new.eta):
+        err = numpy.sqrt(integrate(ref.r, (numpy.interp(ref.r, new.r, new_eta) - ref_eta)**2))
+        print("eta{} error".format(ctr),err)
+        ctr = ctr+1
+        if err > tolerance:
+            raise(Exception("Error in eta"))
+        if math.isnan(err):
+            raise(Exception("Error is nan"))
+
+if dim == 3:
+    raise(Exception("Not implemented for 3D yet"))
+
+exit(0)
+
+
+    
+
+

@@ -3,94 +3,60 @@
 #include <iomanip>
 
 #include "Util/Util.H"
+#include "IO/ParmParse.H"
 #include "IO/FileNameParse.H"
 #include "IO/WriteMetaData.H"
 #include "AMReX_ParmParse.H"
 
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Linear/Laplacian.H"
+#include "Model/Solid/Affine/J2.H"
 
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
-#include "Integrator/TensionTest.H"
-#include "Integrator/FiniteKinematics.H"
+#include "Integrator/Mechanics.H"
 #include "Integrator/Flame.H"
 #include "Integrator/PolymerDegradation.H"
 #include "Integrator/HeatConduction.H"
 #include "Integrator/Fracture.H"
+#include "Integrator/ThermoElastic.H"
+#include "Integrator/TopOp.H"
 
 int main (int argc, char* argv[])
 {
-	Util::Initialize(argc,argv);
+    Util::Initialize(argc,argv);
 
-	std::string program = "microstructure";
-	amrex::ParmParse pp("alamo");
-	pp.query("program",program);
+    std::string program = "microstructure";
+    IO::ParmParse pp;
+    pp.query("alamo.program",program);
+    srand(2);
 
-	if (program == "microstructure")
-	{
-		srand(2);
-		Integrator::Integrator *pfm = new Integrator::PhaseFieldMicrostructure();
-		//Integrator::PhaseFieldMicrostructure pfm;
-		pfm->InitData();
-		pfm->Evolve();
-		delete pfm;
-	}
-	else if (program == "eshelby")
-	{
-		Integrator::Integrator *eshelby = new Integrator::TensionTest<Model::Solid::Affine::Isotropic>();
-		eshelby->InitData();
-		eshelby->Evolve();		
-		delete eshelby;
-	}
-	else if (program == "finitekinematics")
-	{
-		//Integrator::Integrator *fk = new Integrator::FiniteKinematics();
-		Integrator::Integrator *fk = new Integrator::TensionTest<Model::Solid::Elastic::NeoHookean>();
-		fk->InitData();
-		fk->Evolve();		
-		delete fk;
-	}
-	else if (program == "flame")
-	{
-		Integrator::Integrator *flame = new Integrator::Flame();
-		flame->InitData();
-		flame->Evolve();
-		delete flame;
-	}
-	else if (program == "heat")
-	{
-		Integrator::Integrator *heatconduction = new Integrator::HeatConduction();
-		heatconduction->InitData();
-		heatconduction->Evolve();
-		delete heatconduction;
-	}
-	else if (program == "degradation")
-	{
-		srand(1.0*amrex::ParallelDescriptor::MyProc());
-		Integrator::PolymerDegradation model;
-		model.InitData();
-		model.Evolve();
-		//delete model;
-	}
-	else if (program == "fracture")
-	{
-		srand(1.0*amrex::ParallelDescriptor::MyProc());
-		Integrator::Fracture model;
-		model.InitData();
-		model.Evolve();
-		//delete model;
-	}
-	else if (program == "trigtest")
-	{
-		Test::Operator::Elastic test;
-		test.Define(32,1);
-		test.TrigTest(0,0,1,Util::GetFileName());
-	}
-	else
-	{
-		Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
-	}
+    Integrator::Integrator *integrator;
+    if (program == "microstructure")            integrator = new Integrator::PhaseFieldMicrostructure(pp);
+    else if (program == "mechanics")
+    {
+        std::string model = "linear.isotropic";
+        pp.query("alamo.program.mechanics.model",model);
+        if (model == "linear.isotropic")        integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>(pp);
+        else if (model == "linear.cubic")       integrator = new Integrator::Mechanics<Model::Solid::Linear::Cubic>(pp);
+        else if (model == "affine.isotropic")   integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>(pp);
+        else if (model == "linear.laplacian")   integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>(pp);
+        else if (model == "elastic.neohookean") integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>(pp);
+        else if (model == "affine.j2")          integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>(pp);
+        else Util::Abort(INFO,model," is not a valid model");
+    }
+    else if (program == "flame")                integrator = new Integrator::Flame(pp);
+    else if (program == "topop")                integrator = new Integrator::TopOp<Model::Solid::Linear::Isotropic>(pp);
+    else if (program == "heat")                 integrator = new Integrator::HeatConduction(pp);
+    else if (program == "thermoelastic")        integrator = new Integrator::ThermoElastic(pp);
+    else if (program == "degradation")          integrator = new Integrator::PolymerDegradation();
+    else if (program == "fracture")             integrator = new Integrator::Fracture();
+    else Util::Abort(INFO,"Error: \"",program,"\" is not a valid program.");
 
-	Util::Finalize();
+    integrator->InitData();
+    integrator->Evolve();
+    delete integrator;
+
+    Util::Finalize();
 } 

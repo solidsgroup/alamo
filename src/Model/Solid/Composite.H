@@ -3,13 +3,14 @@
 
 
 #include "Solid.H"
+#include "IO/ParmParse.H"
 
 namespace Model
 {
 namespace Solid
 {
 template<class SOLID, int NUM>
-class Composite : Solid<SOLID::sym>
+class Composite : public Solid<SOLID::sym>
 {
 public:
     static constexpr Set::Sym sym = SOLID::sym;
@@ -143,6 +144,13 @@ public:
     //Composite operator * (const Set::Scalar alpha, const Composite b) {};
     //Composite operator + (const Composite a, const Composite b) {};
     //Composite operator - (const Composite a, const Composite b) {};
+public:
+    static void Parse(Composite<SOLID,NUM> & value, IO::ParmParse &pp)
+    {
+        for (int i = 0; i < NUM; i++)
+            pp.queryclass("model"+std::to_string(i+1),value.m_models[i]);
+        pp.query("order",value.order);
+    }
 };
 
 template<class SOLID, int NUM>

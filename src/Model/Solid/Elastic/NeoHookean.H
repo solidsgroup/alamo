@@ -13,9 +13,9 @@ namespace Elastic
 class NeoHookean : public Solid<Set::Sym::Major>
 {
 public:
-	NeoHookean() {};
+    NeoHookean() {};
     NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
-	virtual ~NeoHookean() {};
+    virtual ~NeoHookean() {};
 
     Set::Scalar W(const Set::Matrix & F) const override
     {
@@ -71,7 +71,7 @@ public:
     {
         out << "mu = " << mu << " kappa = " << kappa;
     }
-	
+    
 public:
     Set::Scalar mu = NAN, kappa = NAN;
     static constexpr KinematicVariable kinvar = KinematicVariable::F;
@@ -98,19 +98,19 @@ public:
     }
 
     AMREX_FORCE_INLINE
-	void operator += (const NeoHookean &rhs)
+    void operator += (const NeoHookean &rhs)
     {
         kappa += rhs.kappa;
         mu += rhs.mu;
-	}    
+    }    
     AMREX_FORCE_INLINE
-   	virtual NeoHookean operator * (const Set::Scalar alpha) const
-	{
+        virtual NeoHookean operator * (const Set::Scalar alpha) const
+    {
         NeoHookean ret;
         ret.kappa = kappa*alpha;
         ret.mu = kappa*mu;
         return ret;
-	}    
+    }    
     friend NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b);
     friend NeoHookean operator + (const NeoHookean a, const NeoHookean b);
     friend NeoHookean operator - (const NeoHookean a, const NeoHookean b);
@@ -148,4 +148,3 @@ NeoHookean operator - (const NeoHookean a, const NeoHookean b)
 }
 
 #endif
-

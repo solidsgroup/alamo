@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, pandas, sys, math
+
+outdir = sys.argv[1]
+
+generate_ref_data = False  # Change to True if you need to generate new reference data
+tolerance = 1E-8
+
+path = "{}/00200cell/".format(outdir)
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+def integrate(x,y):
+    ret = 0
+    for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
+    return ret
+
+if dim == 2:
+    prof = ds.ray([0,2.5,0],[5.0,2.5,0],)
+
+    df = prof.to_dataframe([("gas","x"),("gas","y"),"Eta001","disp_x","stress_xx"])
+
+    if generate_ref_data:
+        df.to_csv('reference/reference.csv')
+
+    df_ref = pandas.read_csv('reference/reference.csv')
+
+    class new:
+        ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+            df["x"],df["y"],df["Eta001"],df["disp_x"],df["stress_xx"])))]
+        x = ret[0]
+        y = ret[1]
+        eta = ret[2]
+        u = ret[3]
+        sig = ret[4]
+    class ref:
+        ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+            df_ref["x"],df_ref["y"],df_ref["Eta001"],df_ref["disp_x"],df_ref["stress_xx"])))]
+        x = ret[0]
+        y = ret[1]
+        eta = ret[2]
+        u = ret[3]
+        sig = ret[4]
+
+    pylab.clf()
+    pylab.plot(ref.x,ref.eta,color='C0',label='reference')
+    pylab.plot(new.x,new.eta,color='C1',label='new',linestyle='--')
+    pylab.savefig("{}/etas.png".format(outdir))
+
+    pylab.clf()
+    pylab.plot(ref.x,ref.u,color='C0',label='reference')
+    pylab.plot(new.x,new.u,color='C1',label='new',linestyle='--')
+    pylab.savefig("{}/u.png".format(outdir))
+
+    pylab.clf()
+    pylab.plot(ref.x,ref.sig,color='C0',label='reference')
+    pylab.plot(new.x,new.sig,color='C1',label='new',linestyle='--')
+    pylab.savefig("{}/sig.png".format(outdir))
+
+    err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.eta) - ref.eta)**2))
+    print("eta error",err)
+    if err > tolerance: raise(Exception("Error in eta"))
+    if math.isnan(err): raise(Exception("eta is nan"))
+
+    err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.u) - ref.u)**2))
+    print("u error",err)
+    if err > tolerance: raise(Exception("Error in displacement"))
+    if math.isnan(err): raise(Exception("displacement is nan"))
+
+    err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sig) - ref.sig)**2))
+    print("sig error",err)
+    if err > tolerance: raise(Exception("Error in sigma"))
+    if math.isnan(err): raise(Exception("sigma is nan"))
+
+if dim == 3:
+    raise(Exception("Not implemented for 3D yet"))
+
+exit(0)
+
+
+    
+
+

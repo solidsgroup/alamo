@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, sys, math
+
+outdir = sys.argv[1]
+
+tolerance = 1E-4
+E    = 210
+nu   = 0.3
+disp = 0.1
+L    = 16.
+
+path = "{}/00001cell/".format(outdir)
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+prof = ds.ray([0,0,0],[1,1,1],)
+df = prof.to_dataframe([("gas","x"),("gas","y"),("gas","z"),"disp_x"])
+
+x,y,z,u1 = [numpy.array(_x) for _x in zip(*sorted(zip(df["x"],df["y"],df["z"],df["disp_x"])))]
+
+if dim==2: u1_exact  =  - numpy.sin(numpy.pi*x) * numpy.sin(numpy.pi*y) / numpy.pi / numpy.pi / 2.0
+if dim==3: u1_exact  =  - numpy.sin(numpy.pi*x) * numpy.sin(numpy.pi*y) * numpy.sin(numpy.pi*z) / numpy.pi / numpy.pi / 3.0
+
+pylab.plot(x,u1,marker='o')
+pylab.plot(x,u1_exact)
+pylab.savefig("{}/u1.png".format(outdir))
+
+u1_err = sum((u1_exact - u1)**2) / sum(u1_exact**2)
+print("displacement error",u1_err)
+
+if u1_err > tolerance: raise(Exception("Error in u1"))
+if math.isnan(u1_err): raise(Exception("u1 is nan"))
+                               
+
+

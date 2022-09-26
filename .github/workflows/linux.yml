@@ -1,12 +1,24 @@
-name: Linux Build and Test
+name: Linux
 
-on:
-  push:
-    branches: [ master, development ]
-  pull_request:
-    branches: [ master, development ]
+on: [push, pull_request]
 
 jobs:
+  tabs:
+    name: Style Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Tabs
+        run: .github/workflows/style/check_tabs.py
+  docs:
+    name: Build Docs
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: make
+      run: make docs
   test-2d:
     name: Build & Test (2D)
     runs-on: ubuntu-latest
@@ -15,11 +27,13 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure (2d)
-      run: ./configure --dim=2 --no-diff
+      run: ./configure --dim=2 
     - name: make
       run: make
-    - name: test
+    - name: unit tests
       run: ./bin/test-2d-g++
+    - name: regression tests
+      run: scripts/runtests.py --serial --dim=2 --benchmark=github
   test-3d:
     name: Build & Test (3D)
     runs-on: ubuntu-latest
@@ -28,8 +42,10 @@ jobs:
     - name: installing preliminaries
       run: bash .github/workflows/dependencies.sh
     - name: configure
-      run: ./configure --dim=3 --no-diff
+      run: ./configure --dim=3 
     - name: make
       run: make
-    - name: test
+    - name: unit tests
       run: ./bin/test-3d-g++
+    - name: regression tests
+      run: scripts/runtests.py --serial --dim=3 --benchmark=github

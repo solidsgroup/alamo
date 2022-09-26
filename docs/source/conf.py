@@ -17,7 +17,15 @@
 # sys.path.insert(0, os.path.abspath('.'))
 import os, subprocess
 
-# -- Project information -----------------------------------------------------
+
+# -- Custom input file parameter parser -------------------------------------
+import sys
+sys.path.append(os.path.abspath('.'))
+import Inputs
+
+# -- Project information ----------------------------------------------------
+
+
 
 project = u'alamo'
 copyright = u'2018, Brandon Runnels'
@@ -29,8 +37,8 @@ version = u''
 release = u''
 
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-if read_the_docs_build:
-    subprocess.call('cd ..; doxygen', shell=True)
+#if read_the_docs_build:
+#    subprocess.call('cd ..; doxygen', shell=True)
 
 
 # -- General configuration ---------------------------------------------------
@@ -47,12 +55,14 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
-    'breathe',
+    'sphinx.ext.autosectionlabel',
+#    'breathe',
+    'linuxdoc.rstFlatTable',
 #    'm2r'
 ]
 
-breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
-breathe_default_project = "alamo"
+#breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
+#breathe_default_project = "alamo"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['.templates']
@@ -106,7 +116,7 @@ html_theme_options = {
 #    # Toc options
 #    'collapse_navigation': True,
 #    'sticky_navigation': True,
-#    'navigation_depth': 4,
+    'navigation_depth': -1,
 #    'includehidden': True,
 #    'titles_only': False
 }
@@ -114,7 +124,7 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['.static']
+html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -192,3 +202,11 @@ texinfo_documents = [
 todo_include_todos = True
 
 html_logo = "alamo.svg"
+
+html_css_files = [
+    'custom.css'
+]
+
+import os
+os.system("ls")
+

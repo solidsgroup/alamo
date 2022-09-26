@@ -5,7 +5,7 @@ import re
 import subprocess
 import textwrap
 import sys
-import ctypes.util
+#import ctypes.util
 import glob
 
 python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
@@ -29,13 +29,6 @@ def wrap(input_string):
         if line != "\n":
             print(pre + line)
             pre = "".ljust(width)
-def message(title,message="",wrap_message=True):
-    print(color.boldgreen + title.ljust(width) + color.reset,end="")
-    if wrap_message: wrap(message)
-    else: print(message)
-def shellmessage(title,cmd):
-    print(color.boldgreen + title.ljust(width) + color.reset,end="")
-    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
 def warning(message):
     print(color.boldyellow + "WARNING".ljust(width) + color.reset,end="")
     wrap(message)
@@ -47,6 +40,13 @@ def code(code):
 def note(message):
     print(color.boldgray + "NOTE".ljust(width) + color.reset,end="")
     wrap(message)
+def message(title,message="",wrap_message=True):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    if wrap_message: wrap(message)
+    else: print(message)
+def shellmessage(title,cmd):
+    print(color.boldgreen + title.ljust(width) + color.reset,end="")
+    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
 
 message("Python",python_version)
 if sys.version_info.minor < 5:
@@ -55,10 +55,10 @@ if sys.version_info.minor < 5:
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
-parser.add_argument('--amrex', default="", help='Path to AMReX installation []')
+parser.add_argument('--amrex', default=None, help='Path to AMReX installation []')
 parser.add_argument('--build-amrex', dest="buildamrex",action='store_true',default=True, help='Download and build AMReX automatically')
 parser.add_argument('--build-amrex-branch',dest="buildamrexbranch",default="development", help='AMReX Branch (You probably don\'t need to change this!' )
-parser.add_argument('--build-amrex-tag',dest="buildamrextag",default="21.01", help='AMReX Branch (You probably don\'t need to change this!' )
+parser.add_argument('--build-amrex-tag',dest="buildamrextag",default="22.05", help='AMReX Branch (You probably don\'t need to change this!' )
 parser.add_argument('--eigen', default="", help='Path to Eigen installation []')
 parser.add_argument('--get-eigen', dest="geteigen",action='store_true',default=False, help='Download Eigen automatically')
 parser.add_argument('--debug', dest='debug', action='store_true', help='Compile in debug mode')
@@ -67,7 +67,7 @@ parser.add_argument('--offline', dest='offline', action='store_true',default=Fal
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
-parser.add_argument('--no-diff',dest='diff',default=True,action='store_false',help='Suppress using diff2html to generate git diff reports')
+parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
 parser.add_argument('--profile',dest='profile',action='store_true',default=False,help="Enable tiny profiling in AMReX")
 parser.add_argument('--create-gfortran-link',dest='gfortranln',action='store_true',default=False,
                     help="Create a link to the gfortran library. (Unless you are CircleCI, you should probably not do this!)")
@@ -126,40 +126,41 @@ if args.omp:
 #
 # AMREX
 #
-if (args.buildamrex == True):
+if args.buildamrex and not args.amrex:
+    if not os.path.isdir("ext"): subprocess.run(['mkdir','-p','ext'])
     amrex_configure = './configure '
     amrex_configure += ' --dim=' + str(args.dim)
     amrex_configure += ' --prefix=' + postfix
     if   args.comp == "g++":     amrex_configure += ' --comp=gnu'
-    elif args.comp == "clang++": amrex_configure += ' --comp=llvm'
+    elif args.comp == "clang++": amrex_configure += ' --comp=llvm --allow-different-compiler=yes '
     elif args.comp == "icc":     amrex_configure += ' --comp=intel'
     if args.debug: amrex_configure += ' --debug=yes'
     if fpic: amrex_configure += ' --enable-pic=yes'
     if args.profile: amrex_configure += ' --enable-tiny-profile=yes'
-    args.amrex = "amrex/"+postfix
-    f.write("AMREX = amrex/" + postfix + "/\n")
-    f.write("AMREX_TARGET = amrex/" + postfix + "\n")
+    args.amrex = "ext/amrex/"+postfix
+    f.write("AMREX = ext/amrex/" + postfix + "/\n")
+    f.write("AMREX_TARGET = ext/amrex/" + postfix + "\n")
     
-    if not os.path.isdir("amrex"):
+    if not os.path.isdir("ext/amrex"):
         if args.offline:
             raise Exception(error() + "Cannot download AMReX and no version currently exists!")
         message("AMReX-Clone","Cloning AMReX branch " + args.buildamrexbranch + " -- This may take a while",True)
         p = subprocess.Popen(("git clone https://github.com/AMReX-Codes/amrex.git --branch " + args.buildamrexbranch).split(),
-                             stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+                             stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
     
     if not args.offline:
         message("AMReX-Checkout","Checking out branch " + args.buildamrexbranch,False)
-        p = subprocess.Popen(("git -C amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        p = subprocess.Popen(("git -C ext/amrex checkout "+args.buildamrexbranch).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         message("AMReX-Update","Updating branch " + args.buildamrexbranch,False)
-        p = subprocess.Popen("git -C amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        p = subprocess.Popen("git -C ext/amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         if args.buildamrextag:
-            p = subprocess.Popen(("git -C amrex checkout "+args.buildamrextag).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            p = subprocess.Popen(("git -C ext/amrex checkout "+args.buildamrextag).split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
             for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
     else:
@@ -168,21 +169,21 @@ if (args.buildamrex == True):
     
     
     message("AMReX-Configure",amrex_configure,False)
-    subprocess.Popen(amrex_configure.split(),cwd="amrex")
+    subprocess.Popen(amrex_configure.split(),cwd="ext/amrex")
     
-    f2.write("amrex/"+postfix+":\n")
-    f2.write("\t$(MAKE) -C amrex $(MAKECMD)\n") # --output-sync=target
-    f2.write("\tmake -C amrex install\n")
+    f2.write("ext/amrex/"+postfix+":\n")
+    f2.write("\t$(MAKE) -C ext/amrex $(MAKECMD)\n") # --output-sync=target
+    f2.write("\tmake -C ext/amrex install\n")
         
     if not args.offline:
         message("AMReX-Status", "Downloading/building automatically")
     else:        
         message("AMReX-Status", "Using pre-downloaded version")
-    message("AMReX-Directory", "amrex/"+postfix)
+    message("AMReX-Directory", "ext/amrex/"+postfix)
 
 
     for cmd, desc in zip(["git describe --always --dirty", "git log -1 --pretty=format:%H"], ["AMReX-Describe","AMReX-Hash"]):
-        ret = subprocess.run(cmd.split(' '),cwd="./amrex/",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+        ret = subprocess.run(cmd.split(' '),cwd="ext/amrex/",stderr=subprocess.PIPE,stdout=subprocess.PIPE)
         if not ret.returncode:
             message(desc, ret.stdout.decode())
         else:
@@ -191,7 +192,7 @@ if (args.buildamrex == True):
 elif (args.amrex != ""):
     # Check to make sure directory is valid 
     if not (os.path.isdir(args.amrex + "/include") and os.path.isdir(args.amrex + "/lib")):
-        raise Exception(error()+" AMReX directory must contain include/ and lib/ subdirectories ")
+        raise Exception(error(" AMReX directory must contain include/ and lib/ subdirectories "))
 
     # Scan AMReX Config File
     amrex_spacedim = 0
@@ -205,7 +206,8 @@ elif (args.amrex != ""):
         if "AMREX_DEBUG 1" in line: amrex_debug = True
         if "USE_OMP 1" in line: amrex_omp = True
         if "PROFILING 1" in line: amrex_profiling = True
-        if "AMREX_GIT_VERSION" in line: githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','')
+        githash = line.replace("#define AMREX_GIT_VERSION ","").replace('"','').replace('\n','') if "AMREX_GIT_VERSION" in line else None
+        
         
     if args.dim != amrex_spacedim:
         raise Exception(error()+"AMReX was compiled using a different spatial dimension (AMREX_SPACEDIM="+str(amrex_spacedim)+")")
@@ -222,7 +224,7 @@ elif (args.amrex != ""):
         raise Exception(error() + "Alamo is compiled without OMP but AMReX is. Try compiling AMReX with "+code("./configure --with-omp=no") + " or compile Alamo with " + code("--omp"))
 
     message("AMReX Directory", args.amrex)
-    message("AMReX Git commit", githash)
+    if githash: message("AMReX Git commit", githash)
     f.write("AMREX = " + args.amrex + "\n")
 else:
     warning("AMReX path not specified. This may cause compile errors.")
@@ -231,15 +233,16 @@ else:
 # EIGEN
 #
 if (args.geteigen):
-    if not os.path.isdir("eigen3"):
+    if not os.path.isdir("ext"): subprocess.run(['mkdir','-p','ext'])
+    if not os.path.isdir("ext/eigen3"):
         message("Eigen-Clone","Cloning Eigen -- This may take a few moments",True)
         p = subprocess.Popen(("git clone git@github.com:eigenteam/eigen-git-mirror.git eigen3").split(),
-                             stderr=subprocess.PIPE,stdout=subprocess.PIPE)
+                             stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         #subprocess.run("mv eigen-git-mirror eigen3".split())
-    message("Eigen-Directory",".")
-    f.write("EIGEN = .\n")
+    message("Eigen-Directory","ext/")
+    f.write("EIGEN = ./ext/\n")
 elif (args.eigen != ""):
     if not os.path.isdir(args.eigen + "/eigen3"):
         raise Exception(color.red+"ERROR"+color.reset+": Eigen directory must contain eigen3 subdirectory")
@@ -249,7 +252,6 @@ elif (args.eigen != ""):
 #
 # Compiler
 #
-
 if not args.comp in ['g++','icc','clang++']:
     raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 if (args.comp == "gcc"): f.write("COMP = GCC\n")
@@ -273,6 +275,15 @@ if args.comp == 'icc':
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
+
+#
+# MPICH
+#
+if args.comp in ['g++']:
+    shellmessage("MPICH:","mpichversion")
+    shellmessage("MPICH mpicxx:","mpicxx -v")
+elif args.comp in ['icc']:
+    shellmessage("Intel MPI","mpiicpc --version")
 
 #
 # LibGFortran?
@@ -300,12 +311,12 @@ if args.python:
         raise Exception(error("Python include directory does not exist. Version may be incorrect, or you may need to install using either" 
                         + code("sudo apt install python3-dev") + " or " + code("sudo apt install python-dev")))
 
-    if ctypes.util.find_library("boost_python-py"+args.python.replace(".","")):
-        python_boost_lib = "-lboost_python-py"+str(args.python).replace(".","")
-    elif ctypes.util.find_library("boost_python3-py"+args.python.replace(".","")):
-        python_boost_lib = "-lboost_python3-py"+str(args.python).replace(".","")
-    else:
-        raise Exception(error("Cannot find python boost lib. Install using " + code("sudo apt install libboost-python-dev")))
+    #if ctypes.util.find_library("boost_python-py"+args.python.replace(".","")):
+    #    python_boost_lib = "-lboost_python-py"+str(args.python).replace(".","")
+    #elif ctypes.util.find_library("boost_python3-py"+args.python.replace(".","")):
+    #    python_boost_lib = "-lboost_python3-py"+str(args.python).replace(".","")
+    #else:
+    #    raise Exception(error("Cannot find python boost lib. Install using " + code("sudo apt install libboost-python-dev")))
     
     f.write("PYTHON_INCLUDE = -I" + python_include_dir + '\n')
     f.write("PYTHON_LIB = " + python_boost_lib + '\n')
@@ -344,7 +355,9 @@ f2.write("\t-@git diff > .diff/{}.diff.patch\n".format(postfix))
 # https://mooseframework.inl.gov/modules/phase_field/FunctionMaterials/JITCompilation.html
 #
 if args.libmesh:
-    f.write('INCLUDE += -I{}/include/\n'.format(args.libmesh))
+    if not os.path.isfile(args.libmesh+'/lib/libmesh_opt.so'):
+        raise Exception(error("{}/lib/libmesh_opt.so not found. libmesh path must contain lib/libmesh_opt.so".format(args.libmesh)))
+    f.write('ALAMO_INCLUDE += -I{}/include/\n'.format(args.libmesh))
     f.write('LIB     +=   {}/lib/libmesh_opt.so -Wl,-rpath,{}/lib/ \n'.format(args.libmesh,args.libmesh))
 if args.jit:
     f.write('CXX_COMPILE_FLAGS += -DALAMO_JIT\n')

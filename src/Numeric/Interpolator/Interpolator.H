@@ -13,7 +13,7 @@ template<class T>
 class Interpolator
 {
 public:
-	Interpolator() {};
+    Interpolator() {};
 };
 }
 }

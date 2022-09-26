@@ -1,6 +1,7 @@
 .. role:: cpp(code)
    :language: c++
 
+===================================
 Simulation Browser Analysis (SimBA)
 ===================================
 
@@ -13,7 +14,7 @@ SimBA is a set of python scripts designed to manage, organize, and view Alamo si
 It integrates with Alamo's metadata recording functionality and uses a database to manage simulation information.
 
 Running SimBA
--------------
+=============
 
 Suppose you have a directory containing a collection of simulation results.
 
@@ -29,12 +30,12 @@ This should produce the following output:
 
 .. code-block:: bash
    
-	ADDED TABLE: simulation_data
-	├╴Inserting: output
-	├╴Inserting: output.old.1111111
-	├╴Inserting: output.old.2222222
-	├╴Inserting: output.old.3333333
-	└╴Done
+    ADDED TABLE: simulation_data
+    ├╴Inserting: output
+    ├╴Inserting: output.old.1111111
+    ├╴Inserting: output.old.2222222
+    ├╴Inserting: output.old.3333333
+    └╴Done
 
 and should create a database called :code:`results.db` in your directory.
 Note that the database name and table name are all customizable.
@@ -48,7 +49,7 @@ You can also delete simulations (and the corresponding directory).
 The SimBA web interface will automatically recognize images stored within the simulation directory, and will display them under the simulation entry.
 
 Updating SimBA Records
-----------------------
+======================
 
 Simulation directories are never overwritten - following the AMReX implementation, old directories are renamed if there is a naming conflict.
 SimBA recognizes this and accounts for it.
@@ -57,13 +58,13 @@ Running SimBA again produces the following output
 
 .. code-block:: bash
    
-	ADDED TABLE: simulation_data
-	├╴Inserting: output
-	├╴Updating:  output.old.1111111 ( record already exists )
-	├╴Updating:  output.old.2222222 ( record already exists )
-	├╴Updating:  output.old.3333333 ( record already exists )
-	├╴Moving:    output --> output.old.4444444
-	└╴Done
+    ADDED TABLE: simulation_data
+    ├╴Inserting: output
+    ├╴Updating:  output.old.1111111 ( record already exists )
+    ├╴Updating:  output.old.2222222 ( record already exists )
+    ├╴Updating:  output.old.3333333 ( record already exists )
+    ├╴Moving:    output --> output.old.4444444
+    └╴Done
 
 Alamo records a unique identifier for each simulation that is stored in the :code:`metadata` file - this way simulations can be moved around and renamed without losing their designation in the SimBA database.
 
@@ -74,7 +75,7 @@ Alamo records a unique identifier for each simulation that is stored in the :cod
 
 
 Sharing results on the network
-------------------------------
+==============================
 
 An advantage of SimBA is that it allows the posting of results to be viewed over the internet.
 For instance, suppose you want someone else on your network to be able to view your SimBA page and the outputs that you have generated.
@@ -82,7 +83,7 @@ To do this, start the web interface this way:
 
 .. code-block:: bash
 
-		./simba/web -i 123.456.789.10
+        ./simba/web -i 123.456.789.10
 
 where :code:`123.456.789.10` is your computer's IP address, which you can find (on Linux) using :code:`ifconfig`.
 

@@ -17,10 +17,12 @@ public:
     void Define (std::string filename)
     {
         FILE* f;
+        int retcode = -1;
         if ((f = fopen(filename.c_str(), "rb")))
         {
             unsigned char info[54];
-            fread(info, sizeof(unsigned char), 54, f); 
+            retcode = fread(info, sizeof(unsigned char), 54, f); 
+            if (retcode != 54) Util::Abort(INFO,"Error reading BMP file: 54 bytes expected but only ", retcode, " read.");
             nx = *(int*)&info[18];
             ny = *(int*)&info[22];
             
@@ -30,7 +32,8 @@ public:
             unsigned char* data = new unsigned char[row_padded];
             for (int j = 0; j < ny; j++)
             {
-                fread(data, sizeof(unsigned char), row_padded, f);
+                retcode = fread(data, sizeof(unsigned char), row_padded, f);
+                if (retcode != row_padded) Util::Abort(INFO,"Error reading BMP file: ",row_padded," bytes expected but only ", retcode, " read.");
                 for(int i = 0; i < nx*3; i += 3)
                 {
                     (*this)(i/3,j)[0] = (int)data[i+2]; // R

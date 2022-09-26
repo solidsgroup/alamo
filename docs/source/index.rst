@@ -2,7 +2,7 @@ Documentation for alamo
 =======================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Contents:
 
    GettingStarted
@@ -11,7 +11,8 @@ Documentation for alamo
    Simba
    Convention
    Examples/Examples
-   API/API
+   Inputs
+
 
 
 

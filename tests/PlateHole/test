@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, pandas, sys, math, glob
+from numpy import arctan2, sqrt, sin, cos, linspace, meshgrid, inf, pi
+
+
+##
+## EXACT SOLUTION
+##
+a = 1.0
+sig0 = 0.0003075
+#0.000685
+#def sigma_rr(r,t): return sig0*(1 - 4*(a/r)**2 + 3*(a/r)**4)*cos(2*t)
+#def sigma_tt(r,t): return - sig0*(1 + 3*(a/r)**4)*cos(2*t)
+#def sigma_rt(r,t): return sig0*(-1 - 2*(a/r)**2 + 3*(a/r)**4)*sin(2*t)
+def sigma_rr(r,t):
+    return 0.5*sig0*(1 - (a/r)**2) + 0.5*sig0*(1 - 4*(a/r)**2 + 3*(a/r)**4)*cos(2*t)
+def sigma_tt(r,t):
+    return 0.5*sig0*(1 + (a/r)**2) - 0.5*sig0*(1 + 3*(a/r)**4)*cos(2*t)
+def sigma_rt(r,t):
+    return -0.5*sig0*(1 + 2*(a/r)**2 - 3*(a/r)**4)*sin(2*t)
+def sigma_YY(x,y):
+    r = sqrt(x**2 + y**2)
+    t = arctan2(y,x)
+    return sigma_rr(r,t)*sin(t)**2 + 2*sigma_rt(r,t)*cos(t)*sin(t) + sigma_tt(r,t)*cos(t)**2
+def sigma_XX(x,y):
+    r = sqrt(x**2 + y**2)
+    t = arctan2(y,x)
+    return (sigma_rr(r,t)*cos(t)**2 - 2*sigma_rt(r,t)*cos(t)*sin(t) + sigma_tt(r,t)*sin(t)**2)
+def sigma_XY(x,y):
+    r = sqrt(x**2 + y**2)
+    t = arctan2(y,x)
+    return - ((sigma_rr(r,t)-sigma_tt(r,t))*sin(t)*cos(t) + (cos(t)**2-sin(t)**2)*sigma_rt(r,t) )
+
+
+xmin = -16
+xmax = 16
+ymin = 2
+ymax = 2
+
+##
+## READ IN NUMERICAL SOLUTION
+##
+
+
+outdir = sys.argv[1]
+
+generate_ref_data = False  # Change to True if you need to generate new reference data
+tolerance = 0.01
+
+path = sorted(glob.glob("{}/*cell/".format(outdir)))[-1]
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+def integrate(x,y):
+    ret = 0
+    for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
+    return ret
+
+if dim != 2: raise(Exception("Not implemented for 3D yet"))
+
+prof = ds.ray([xmin,ymin,0],[xmax,ymax,0],)
+df = prof.to_dataframe([("gas","x"),("gas","y"),"stress_xx","stress_xy","stress_yy"])
+
+class ref:
+    x = numpy.linspace(xmin,xmax,1000)
+    y = numpy.linspace(ymin,ymax,1000)
+    sigxx = sigma_XX(x,y)
+    sigyy = sigma_YY(x,y)
+    sigxy = -sigma_XY(x,y)
+class new:
+    ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+        df["x"],df["y"],df["stress_xx"],df["stress_xy"],df["stress_yy"])))]
+    x = ret[0]
+    y = ret[1]
+    sigxx = ret[2]
+    sigxy = ret[3]
+    sigyy = ret[4]
+
+pylab.clf()
+pylab.plot(new.x,new.sigxx,marker='o',color='C0',label="$\sigma_{xx}$",linestyle="",markerfacecolor='None')
+pylab.plot(ref.x,ref.sigxx,color='C0')
+pylab.plot(new.x,new.sigyy,marker='o',color='C1',label="$\sigma_{yy}$",linestyle="",markerfacecolor='None')
+pylab.plot(ref.x,ref.sigyy,color='C1')
+pylab.plot(new.x,new.sigxy,marker='o',color='C2',label="$\sigma_{xy}$",linestyle="",markerfacecolor='None')
+pylab.plot(ref.x,ref.sigxy,color='C2')
+pylab.legend()
+pylab.tight_layout()
+pylab.savefig("{}/sig.png".format(outdir))
+
+norm = numpy.sqrt(integrate(new.x, new.sigxx)**2)
+
+err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sigxx) - ref.sigxx)**2)) / norm
+print("sigxx error",err)
+if err > tolerance: raise(Exception("Error in sigxx"))
+if math.isnan(err): raise(Exception("sigxx is nan"))
+
+err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sigyy) - ref.sigyy)**2)) / norm
+print("sigyy error",err)
+if err > tolerance: raise(Exception("Error in sigyy"))
+if math.isnan(err): raise(Exception("sigyy is nan"))
+
+
+err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sigxy) - ref.sigxy)**2)) / norm
+print("sigxy error",err)
+if err > tolerance: raise(Exception("Error in sigxy"))
+if math.isnan(err): raise(Exception("sigxy is nan"))
+
+
+exit(0)
+
+
+
+
+
+
+
+
+

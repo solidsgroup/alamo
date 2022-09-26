@@ -14,18 +14,18 @@ class Isotropic : public Solid<Set::Sym::Isotropic>
 {
 public:
 
-	Isotropic() {};
+    Isotropic() {};
     Isotropic(Solid<Set::Sym::Isotropic> base) : Solid<Set::Sym::Isotropic>(base) {};
     Isotropic(Set::Scalar a_mu, Set::Scalar a_lambda) 
     {
         Define(a_mu,a_lambda);
     };
-	virtual ~Isotropic() {};
+    virtual ~Isotropic() {};
 
-	void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
-	{
-		ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
-	}
+    void Define(Set::Scalar a_mu, Set::Scalar a_lambda)
+    {
+        ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>(a_lambda,a_mu);
+    }
 
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
@@ -54,9 +54,17 @@ public:
         ret.Define(Util::Random(),Util::Random());
         return ret;
     }
+    static Isotropic Zero()
+    {
+        Isotropic ret;
+        ret.Define(0.,0.);
+        return ret;
+    }
     static void Parse(Isotropic & value, IO::ParmParse & pp)
     {
         Set::Scalar mu, lambda;
+        bool planestress = false;
+        pp.query("planestress",planestress);
         if (pp.contains("lame") && pp.contains("shear"))
         {
             pp.query("lame",lambda);
@@ -75,7 +83,13 @@ public:
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
-        value.Define(mu,lambda);
+        else Util::Abort(INFO,"Invalid elastic constants specified");
+
+        if (AMREX_SPACEDIM==2 && planestress)
+            value.Define(mu,lambda*(1.0 - lambda/(2.*mu + lambda)));
+        else
+            value.Define(mu,lambda);
+        Util::Message(INFO,value);
     }
 
     #define OP_CLASS Isotropic
@@ -91,4 +105,3 @@ public:
 }
 
 #endif
-
