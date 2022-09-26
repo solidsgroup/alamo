@@ -289,7 +289,7 @@ namespace Integrator
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
-                    Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0) / (0.25); 
+                    Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
 
                     Set::Scalar qflux = k1 * phi(i,j,k) + 
                                         k2 * (1.0 - phi(i,j,k) ) + 
