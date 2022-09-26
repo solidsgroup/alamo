@@ -33,6 +33,8 @@ namespace Integrator
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
 	        pp.query("pf.min_eta", value.pf.min_eta);
+	        pp.query("pf.time_control", value.pf.time_control);
+	        
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
@@ -76,10 +78,10 @@ namespace Integrator
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
             pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
             pp.query("thermal.k_htpb",value.thermal.k_htpb); // HTPB Thermal Conductivity 
-            pp.query("thermal.k_comb", value.thermal.k_comb); // Combined Thermal Conductivity
+            //pp.query("thermal.k_comb", value.thermal.k_comb); // Combined Thermal Conductivity
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
-            pp.query("thermal.cp_comb", value.thermal.cp_comb); // AP/HTPB  Specific Heat
+            //pp.query("thermal.cp_comb", value.thermal.cp_comb); // AP/HTPB  Specific Heat
             
             pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux            
             pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
@@ -97,6 +99,7 @@ namespace Integrator
             pp.query("thermal.n_ap", value.thermal.n_ap);
 
             pp.query("thermal.cut_off", value.thermal.cut_off);
+            pp.query("thermal.hc", value.thermal.hc);
 
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
@@ -105,6 +108,11 @@ namespace Integrator
             value.RegisterNewFab(value.mob_mf, 1, "mob", true);
             value.RegisterNewFab(value.alpha_mf,1,"alpha",true);  
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
+            
+            value.RegisterNewFab(value.tvar1_mf, 1, "tvar1", true);
+            value.RegisterNewFab(value.tvar2_mf, 1, "tvar2", true);
+            value.RegisterNewFab(value.tvar3_mf, 1, "tvar3", true);
+            value.RegisterNewFab(value.tvar4_mf, 1, "tvar4", true);
             //value.RegisterNewFab(value.temph_mf, value.bc_temp, 1, 1, "temph", true); 
            
         }
@@ -174,6 +182,11 @@ namespace Integrator
         heatflux_mf[lev] -> setVal(0.0);
 
         ic_phi->Initialize(lev, phi_mf);
+        
+        tvar1_mf[lev]->setVal(0.0);
+        tvar2_mf[lev]->setVal(0.0);
+        tvar3_mf[lev]->setVal(0.0);
+        tvar4_mf[lev]->setVal(0.0);
         
     }
 
@@ -262,6 +275,11 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &heatflux = (*heatflux_mf[lev]).array(mfi);
+                
+                amrex::Array4<Set::Scalar> const &tvar1=(*tvar1_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const &tvar2=(*tvar2_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const &tvar3=(*tvar3_mf[lev]).array(mfi);
+                amrex::Array4<Set::Scalar> const &tvar4=(*tvar4_mf[lev]).array(mfi);
  
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -298,9 +316,11 @@ namespace Integrator
 
                     Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
 
-                    Set::Scalar qdot = thermal.q0; Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
-                    
-                    qdot += (mdot(i,j,k) / mlocal ) * 1.0e7 * qflux / K;  
+                    Set::Scalar qdot = 0.0; Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
+                    if(time < pf.time_control){
+                    qdot += thermal.q0;
+                    }
+                    qdot += (mdot(i,j,k) / mlocal ) * thermal.hc * qflux / K ;  
                       		            
                     //else qdot += (1.0 - eta(i,j,k)) * 1.0e7 * qflux / K;
                     //qdot += qflux / 10 / (alpha(i,j,k) + small);
@@ -314,10 +334,19 @@ namespace Integrator
                     dTdt += alpha(i,j,k) * lap_temp;  		                                                    
                     dTdt += grad_eta_mag * alpha(i,j,k) * qdot  / (eta(i,j,k)); // Calculate the source term      
                     
+                    tvar1(i,j,k) = grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k));
+                    tvar2(i,j,k) = grad_alpha.dot(grad_temp);
+                    tvar3(i,j,k) = alpha(i,j,k) * lap_temp ;
+                    tvar4(i,j,k) = grad_eta_mag * alpha(i,j,k) * qdot / (eta(i,j,k));
+                    
 			        tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
                     }
                     else{
                     tempnew(i,j,k) = temp(i,j,k);
+                    tvar1(i,j,k) = grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k));
+                    tvar2(i,j,k) = grad_alpha.dot(grad_temp);
+                    tvar3(i,j,k) = alpha(i,j,k) * lap_temp;
+                    tvar4(i,j,k) = grad_eta_mag * alpha(i,j,k) * qdot / (eta(i,j,k));
                     }
 
                 
@@ -333,8 +362,8 @@ namespace Integrator
                     }
 
 
-		            if (mob(i,j,k) != mob(i,j,k) ) {
-		                Util::ParallelAbort(INFO, "mob: ", mob(i,j,k) == mob(i,j,k));
+		            if (tempnew(i,j,k) > 20000.0) {
+		                Util::ParallelAbort(INFO, "temp: ", tempnew(i,j,k) > 20000.0);
 		            }   
                 });
             }
