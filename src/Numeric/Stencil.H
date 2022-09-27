@@ -1100,27 +1100,39 @@ public:
     template<class T>
     AMREX_FORCE_INLINE
     static T CellToNodeAverage(const amrex::Array4<const T> &f,
-                                const int &i, const int &j, const int &k, const int &m)
+                                const int &i, const int &j, const int &k, const int &m,
+                                std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return ( AMREX_D_TERM(      f(i  ,j  ,k  ,m) + f(i-1,j  ,k  ,m)
+        int AMREX_D_DECL(
+            ilo = (stencil[0] == Numeric::StencilType::Lo ? 0 : 1),
+            jlo = (stencil[1] == Numeric::StencilType::Lo ? 0 : 1),
+            klo = (stencil[2] == Numeric::StencilType::Lo ? 0 : 1));
+    
+        return ( AMREX_D_TERM(  f(i  ,j  ,k  ,m) + f(i-ilo,j  ,k  ,m)
                                 , 
-                                + f(i  ,j-1,k  ,m) + f(i-1,j-1,k  ,m)
+                                + f(i  ,j-jlo,k  ,m) + f(i-ilo,j-jlo,k  ,m)
                                 , 
-                                + f(i  ,j  ,k-1,m) + f(i-1,j  ,k-1,m)
-                                + f(i  ,j-1,k-1,m) + f(i-1,j-1,k-1,m)
+                                + f(i  ,j  ,k-klo,m) + f(i-ilo,j  ,k-klo,m)
+                                + f(i  ,j-jlo,k-klo,m) + f(i-ilo,j-jlo,k-klo,m)
                                 )) * fac;
     }
     template<class T>
     AMREX_FORCE_INLINE
     static T CellToNodeAverage(const amrex::Array4<T> &f,
-                                const int &i, const int &j, const int &k, const int &m)
+                                const int &i, const int &j, const int &k, const int &m,
+                                std::array<StencilType,AMREX_SPACEDIM> stencil = DefaultType)
     {
-        return ( AMREX_D_TERM(      f(i  ,j  ,k  ,m) + f(i-1,j  ,k  ,m)
+        int AMREX_D_DECL(
+            ilo = (stencil[0] == Numeric::StencilType::Lo ? 0 : 1),
+            jlo = (stencil[1] == Numeric::StencilType::Lo ? 0 : 1),
+            klo = (stencil[2] == Numeric::StencilType::Lo ? 0 : 1));
+    
+        return ( AMREX_D_TERM(  f(i  ,j  ,k  ,m) + f(i-ilo,j  ,k  ,m)
                                 , 
-                                + f(i  ,j-1,k  ,m) + f(i-1,j-1,k  ,m)
+                                + f(i  ,j-jlo,k  ,m) + f(i-ilo,j-jlo,k  ,m)
                                 , 
-                                + f(i  ,j  ,k-1,m) + f(i-1,j  ,k-1,m)
-                                + f(i  ,j-1,k-1,m) + f(i-1,j-1,k-1,m)
+                                + f(i  ,j  ,k-klo,m) + f(i-ilo,j  ,k-klo,m)
+                                + f(i  ,j-jlo,k-klo,m) + f(i-ilo,j-jlo,k-klo,m)
                                 )) * fac;
     }
     template<class T>

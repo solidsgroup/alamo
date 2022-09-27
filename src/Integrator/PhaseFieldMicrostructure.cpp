@@ -24,7 +24,6 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "IC/Trig.H"
-#include "Model/Solid/Composite.H"
 
 #include "Util/MPI.H"
 
@@ -55,119 +54,156 @@ namespace Integrator
             amrex::Array4<const Set::Matrix> const &sigma = (*stress_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                               {
-            for (int m = 0; m < number_of_grains; m++)
             {
-                Set::Scalar driving_force = 0.0;
-                Set::Scalar kappa = NAN, mu = NAN;
-
-                //
-                // BOUNDARY TERM and SECOND ORDER REGULARIZATION
-                //
-
-                Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
-                Set::Scalar normgrad = Deta.lpNorm<2>();
-                if (normgrad < 1E-4)
-                    continue; // This ought to speed things up.
-
-                Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, m, DX);
-                Set::Scalar laplacian = DDeta.trace();
-
-                if (!anisotropy.on || time < anisotropy.tstart)
+                for (int m = 0; m < number_of_grains; m++)
                 {
-                    kappa = pf.l_gb * 0.75 * pf.sigma0;
-                    mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
-                    driving_force += -kappa * laplacian;
-                }
-                else
-                {
-                    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDEta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
-                    auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDEta);
-                    driving_force += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
-                    if (std::isnan(std::get<0>(anisotropic_df))) Util::Abort(INFO);
-                    driving_force += anisotropy.beta * std::get<1>(anisotropic_df);
-                    if (std::isnan(std::get<1>(anisotropic_df))) Util::Abort(INFO);
-                    mu = 0.75 * (1.0/0.23) * boundary->W(Deta) / pf.l_gb;
-                }
+                    Set::Scalar driving_force = 0.0;
+                    Set::Scalar kappa = NAN, mu = NAN;
 
-                //
-                // CHEMICAL POTENTIAL
-                //
+                    //
+                    // BOUNDARY TERM and SECOND ORDER REGULARIZATION
+                    //
 
-                Set::Scalar sum_of_squares = 0.;
-                for (int n = 0; n < number_of_grains; n++)
-                {
-                    if (m == n)
-                        continue;
-                    sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
-                }
-                driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+                    Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
+                    Set::Scalar normgrad = Deta.lpNorm<2>();
+                    if (normgrad < 1E-4)
+                        continue; // This ought to speed things up.
 
-                //
-                // LAGRANGE MULTIPLIER TERM FOR CONSERVING VOLUME
-                //
-                if (lagrange.on && m == 0 && time > lagrange.tstart)
-                {
-                    driving_force += lagrange.lambda * (volume - lagrange.vol0);
-                }
+                    Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, m, DX);
+                    Set::Scalar laplacian = DDeta.trace();
 
-                //
-                // SYNTHETIC DRIVING FORCE
-                //
-                if (sdf.on && time > sdf.tstart)
-                {
-                    driving_force += sdf.val[m](time);
-                }
-
-                //
-                // ELASTIC
-                //
-                if (m_type != Base::Mechanics<model_type>::Disable && time > mechanics.tstart)
-                {
-                    //Util::Abort(INFO,"Need to implement");
-                    driving_force += pf.elastic_mult * Numeric::Interpolate::NodeToCellAverage(elasticdf,i,j,k,m);
-                    //Numeric::Interpolate::NodeToCellAverage(elasticdf,i,j,k,m);
-                }
-
-                //
-                // EVOLVE ETA
-                //
-                if (time < mechanics.tstart)
-                    etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
-                else
-                {
-
-                    if (driving_force > pf.elastic_threshold)
+                    if (!anisotropy.on || time < anisotropy.tstart)
                     {
-                        totaldf(i,j,k,m) = (driving_force-pf.elastic_threshold);
-                        etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force-pf.elastic_threshold);
-                    }
-                    else if (driving_force < -pf.elastic_threshold)
-                    {
-                        totaldf(i,j,k,m) = (driving_force + pf.elastic_threshold);
-                        etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force + pf.elastic_threshold);
+                        kappa = pf.l_gb * 0.75 * pf.sigma0;
+                        mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
+                        driving_force += -kappa * laplacian;
                     }
                     else
                     {
-                        totaldf(i,j,k,m) = 0.0;
+                        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDEta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
+                        auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDEta);
+                        driving_force += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
+                        if (std::isnan(std::get<0>(anisotropic_df))) Util::Abort(INFO);
+                        driving_force += anisotropy.beta * std::get<1>(anisotropic_df);
+                        if (std::isnan(std::get<1>(anisotropic_df))) Util::Abort(INFO);
+                        mu = 0.75 * (1.0/0.23) * boundary->W(Deta) / pf.l_gb;
                     }
-                }
+
+                    //
+                    // CHEMICAL POTENTIAL
+                    //
+
+                    Set::Scalar sum_of_squares = 0.;
+                    for (int n = 0; n < number_of_grains; n++)
+                    {
+                        if (m == n)
+                            continue;
+                        sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
+                    }
+                    driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+
+                    //
+                    // LAGRANGE MULTIPLIER TERM FOR CONSERVING VOLUME
+                    //
+                    if (lagrange.on && m == 0 && time > lagrange.tstart)
+                    {
+                        driving_force += lagrange.lambda * (volume - lagrange.vol0);
+                    }
+
+                    //
+                    // SYNTHETIC DRIVING FORCE
+                    //
+                    if (sdf.on && time > sdf.tstart)
+                    {
+                        driving_force += sdf.val[m](time);
+                    }
+
+                    //
+                    // ELASTIC
+                    //
+                    if (m_type != Base::Mechanics<model_type>::Disable && time > mechanics.tstart)
+                    {
+                        //Util::Abort(INFO,"Need to implement");
+                        driving_force += pf.elastic_mult * Numeric::Interpolate::NodeToCellAverage(elasticdf,i,j,k,m);
+                        //Numeric::Interpolate::NodeToCellAverage(elasticdf,i,j,k,m);
+                    }
+
+                    //
+                    // EVOLVE ETA
+                    //
+                    if (time < mechanics.tstart)
+                        etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
+                    else
+                    {
+
+                        if (driving_force > pf.elastic_threshold)
+                        {
+                            totaldf(i,j,k,m) = (driving_force-pf.elastic_threshold);
+                            etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force-pf.elastic_threshold);
+                        }
+                        else if (driving_force < -pf.elastic_threshold)
+                        {
+                            totaldf(i,j,k,m) = (driving_force + pf.elastic_threshold);
+                            etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force + pf.elastic_threshold);
+                        }
+                        else
+                        {
+                            totaldf(i,j,k,m) = 0.0;
+                        }
+                    }
+                    totaldf(i,j,k,m) = driving_force;
 
 
-                //
-                // FLUCTUATION TERM
-                //
+                    //
+                    // Evolve F0
+                    //
 
-                if (fluctuation.on && time > fluctuation.tstart)
+
+                    //
+                    // FLUCTUATION TERM
+                    //
+
+                    if (fluctuation.on && time > fluctuation.tstart)
+                    {
+                        etanew(i,j,k,m) += (fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0]) * dt;
+                    }
+
+                    if (std::isnan(driving_force)) 
+                        Util::Abort(INFO, i, " ", j, " ", k, " ", m);
+                } 
+            });
+        }
+
+        if (time < disconnection.tstart) return;
+
+        eta_new_mf[lev]->FillBoundary();
+
+        Set::Matrix F0 = Set::Matrix::Zero();
+        F0(0, 1) = 0.2;
+        amrex::Box domain = geom[lev].Domain();
+        domain.convert(amrex::IntVect::TheNodeVector());
+        for (amrex::MFIter mfi(*model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
                 {
-                    etanew(i,j,k,m) += (fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0]) * dt;
-                }
+                    const amrex::Box bx = mfi.grownnodaltilebox();// & domain;
+                    amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const &etanew = (*eta_new_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const &disc = (*disc_mf[lev]).array(mfi);
+                    amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        auto sten = Numeric::GetStencil(i, j, k, bx);
+                        Set::Scalar e0new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 0, sten);
+                        Set::Scalar e0old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 0, sten);
+                        Set::Scalar e1new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 1, sten);
+                        Set::Scalar e1old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 1, sten);
 
-                if (std::isnan(driving_force)) 
-                    Util::Abort(INFO, i, " ", j, " ", k, " ", m);
-            } 
-        });
-    }
+                        Set::Scalar g0new = (e0new * e0new) / (e0new * e0new + e1new * e1new);
+                        Set::Scalar g0old = (e0old * e0old) / (e0old * e0old + e1old * e1old);
+
+                        model(i, j, k).F0 += (g0new - g0old) * F0; 
+                    });
+                }
+        Util::RealFillBoundary(*model_mf[lev],geom[lev]);
 }
 
 void PhaseFieldMicrostructure::Initialize(int lev)
@@ -176,6 +212,7 @@ void PhaseFieldMicrostructure::Initialize(int lev)
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_new_mf);
     ic->Initialize(lev, eta_old_mf);
+    model_mf[lev]->setVal(mechanics.model);
 }
 
 void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
@@ -210,8 +247,9 @@ void PhaseFieldMicrostructure::TimeStepComplete(Set::Scalar /*time*/, int /*iter
 void PhaseFieldMicrostructure::UpdateModel(int a_step)
 {
     BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
+    return;
     if (a_step % m_interval) return;
-    
+
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         amrex::Box domain = geom[lev].Domain();
@@ -231,9 +269,9 @@ void PhaseFieldMicrostructure::UpdateModel(int a_step)
                 for (int n = 0; n < number_of_grains; n++) 
                 {
                     //Util::Abort(INFO,"need to get this implemented");
-                    model(i,j,k).order = mechanics.model.order;
-                    model(i,j,k).m_models[n] = mechanics.model.m_models[n];
-                    model(i,j,k).m_eta[n] = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,n);
+                    //model(i,j,k).order = mechanics.model.order;
+                    //model(i,j,k).m_models[n] = mechanics.model.m_models[n];
+                    //model(i,j,k).m_eta[n] = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,n);
                 }
                 //model(i, j, k) = model_type::Combine(mechanics.model,etas);
             });
@@ -253,103 +291,128 @@ void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
     // Manual Disconnection Nucleation
     //
 
+    Set::Matrix F0 = Set::Matrix::Zero();
+    F0(0, 1) = 0.2;
+
     if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
     {
         disconnection.sitex.clear();
         disconnection.sitey.clear();
-        disconnection.phases.clear();			
+        disconnection.phases.clear();
 
         int lev = max_level;
         const Set::Scalar *DX = geom[lev].CellSize();
-        Set::Scalar exponent = DX[0]*DX[0] * (timestep * disconnection.interval) / disconnection.tau_vol;
+        Set::Scalar exponent = DX[0] * DX[0] * (timestep * disconnection.interval) / disconnection.tau_vol;
 
-    if (!disconnection.fixed.on)
-    {
-			// Determine the nucleation sites in my portion of the mesh
-			for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-			{
-				const amrex::Box &bx = mfi.tilebox();
-				amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
-				amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
-				{
-					Set::Scalar E0 = 2.0*disconnection.nucleation_energy;
-					E0 /= disconnection.epsilon + 256.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1);
-					Set::Scalar p = std::exp(-E0/(disconnection.K_b*disconnection.temp));
-					Set::Scalar P = 1.0 - std::pow(1.0 - p,exponent);
+        if (!disconnection.fixed.on)
+        {
+            // Determine the nucleation sites in my portion of the mesh
+            for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box &bx = mfi.tilebox();
+                amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                                   {
+    					Set::Scalar E0 = 2.0*disconnection.nucleation_energy;
+    					E0 /= disconnection.epsilon + 256.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1);
+    					Set::Scalar p = std::exp(-E0/(disconnection.K_b*disconnection.temp));
+    					Set::Scalar P = 1.0 - std::pow(1.0 - p,exponent);
 
-					if (eta(i,j,k,0) < 0 || eta(i,j,k,0) > 1.0 || eta(i,j,k,1) < 0 || eta(i,j,k,1) > 1.0) P = 0.0;
+    					if (eta(i,j,k,0) < 0 || eta(i,j,k,0) > 1.0 || eta(i,j,k,1) < 0 || eta(i,j,k,1) > 1.0) P = 0.0;
 
-					Set::Scalar q = 0.0;
-					q = disconnection.unif_dist(disconnection.rand_num_gen);
+    					Set::Scalar q = 0.0;
+    					q = disconnection.unif_dist(disconnection.rand_num_gen);
 
-					if (q < P)
-					{
-						disconnection.sitex.push_back(geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0]);
-						disconnection.sitey.push_back(geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1]);
-						int phase = disconnection.int_dist(disconnection.rand_num_gen);
-						disconnection.phases.push_back(phase);
-					}
-				});		
-			}
-			// Sync up all the nucleation sites among processors
-			Util::MPI::Allgather(disconnection.sitex);
-			Util::MPI::Allgather(disconnection.sitey);
-			Util::MPI::Allgather(disconnection.phases);
-			Util::Message(INFO,"Nucleating ", disconnection.phases.size(), " disconnections");
-    }
-    else
-    {
-			for (int n = 0; n < disconnection.fixed.sitex.size(); n++)
-			{
-				if (time > disconnection.fixed.time[n] && !disconnection.fixed.done[n])
-				{
-					disconnection.sitex.push_back(disconnection.fixed.sitex[n]);
-					disconnection.sitey.push_back(disconnection.fixed.sitey[n]);
-					disconnection.phases.push_back(disconnection.fixed.phases[n]);
-					disconnection.fixed.done[n] = true;
-				}
-			}
-    }
-        
-    if (disconnection.sitex.size() > 0)
-    {
-			// Now that we all know the nucleation locations, perform the nucleation
-			for (int lev = 0; lev <= max_level; lev++)
-			{
-				const amrex::Real *DX = geom[lev].CellSize();
-				for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
-				{
-					const amrex::Box &bx = mfi.tilebox();
-					amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
-					amrex::Array4<amrex::Real> const &disc = (*disc_mf[lev]).array(mfi);
-					amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-					{
-						Set::Vector x;
-						AMREX_D_TERM(
-							x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
-							x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];,
-							x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];
-						);
-						disc(i,j,k,0) = 0.0;
-						for (unsigned int m = 0; m < disconnection.phases.size(); m++)
-						{	
-							//Util::ParallelMessage(INFO,disconnection.phases[m]);
-							amrex::Real r_squared = 0;
-							Set::Vector nucleation_site(disconnection.sitex[m],disconnection.sitey[m]);
-							for (int n = 0; n < AMREX_SPACEDIM; n++)
-							{
-								amrex::Real dist = nucleation_site(n) - x(n);
-								r_squared += dist * dist;
-							}
-							//amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
-							amrex::Real bump = exp(-r_squared / disconnection.box_size);
-							disc(i,j,k,0) += bump;
-							etanew(i,j,k,  disconnection.phases[m]) = bump * (1-etanew(i,j,k,disconnection.phases[m])) + etanew(i,j,k,disconnection.phases[m]);
-							etanew(i,j,k,1-disconnection.phases[m]) = (1.-bump)*etanew(i,j,k,1-disconnection.phases[m]);
-						}
-					});
-				}
-            }	
+    					if (q < P)
+    					{
+    						disconnection.sitex.push_back(geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0]);
+    						disconnection.sitey.push_back(geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1]);
+    						int phase = disconnection.int_dist(disconnection.rand_num_gen);
+    						disconnection.phases.push_back(phase);
+    					} });
+            }
+            // Sync up all the nucleation sites among processors
+            Util::MPI::Allgather(disconnection.sitex);
+            Util::MPI::Allgather(disconnection.sitey);
+            Util::MPI::Allgather(disconnection.phases);
+            Util::Message(INFO, "Nucleating ", disconnection.phases.size(), " disconnections");
+        }
+        else
+        {
+            for (int n = 0; n < disconnection.fixed.sitex.size(); n++)
+            {
+                if (time > disconnection.fixed.time[n] && !disconnection.fixed.done[n])
+                {
+                    disconnection.sitex.push_back(disconnection.fixed.sitex[n]);
+                    disconnection.sitey.push_back(disconnection.fixed.sitey[n]);
+                    disconnection.phases.push_back(disconnection.fixed.phases[n]);
+                    disconnection.fixed.done[n] = true;
+                }
+            }
+        }
+
+
+        if (disconnection.sitex.size() > 0)
+        {
+            // Now that we all know the nucleation locations, perform the nucleation
+            for (int lev = 0; lev <= max_level; lev++)
+            {
+                amrex::Box domain = geom[lev].Domain();
+                domain.convert(amrex::IntVect::TheNodeVector());
+
+                const amrex::Real *DX = geom[lev].CellSize();
+                // for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                for (amrex::MFIter mfi(*model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+                {
+                    const amrex::Box bx = mfi.grownnodaltilebox() & domain;
+                    amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const &etanew = (*eta_new_mf[lev]).array(mfi);
+                    amrex::Array4<Set::Scalar> const &disc = (*disc_mf[lev]).array(mfi);
+                    amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                                       {
+                                           auto sten = Numeric::GetStencil(i, j, k, bx);
+                                           Set::Vector x;
+                                           AMREX_D_TERM(
+                                               x(0) = geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0];,
+                                                                                                         x(1) = geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1];
+                                               ,
+                                               x(2) = geom[lev].ProbLo()[2] + ((amrex::Real)(k)) * DX[2];);
+                                           disc(i, j, k, 0) = 0.0;
+                                           for (unsigned int m = 0; m < disconnection.phases.size(); m++)
+                                           {
+                                               // Util::ParallelMessage(INFO,disconnection.phases[m]);
+                                               amrex::Real r_squared = 0;
+                                               Set::Vector nucleation_site(disconnection.sitex[m], disconnection.sitey[m]);
+                                               for (int n = 0; n < AMREX_SPACEDIM; n++)
+                                               {
+                                                   amrex::Real dist = nucleation_site(n) - x(n);
+                                                   r_squared += dist * dist;
+                                               }
+                                               // amrex::Real bump = exp(1 - 1 / (1 - 2/disconnection.box_size * r_squared));
+                                               amrex::Real bump = exp(-r_squared / disconnection.box_size);
+                                               disc(i, j, k, 0) += bump;
+                                               etanew(i, j, k, disconnection.phases[m]) = bump * (1 - etanew(i, j, k, disconnection.phases[m])) + etanew(i, j, k, disconnection.phases[m]);
+                                               etanew(i, j, k, 1 - disconnection.phases[m]) = (1. - bump) * etanew(i, j, k, 1 - disconnection.phases[m]);
+                                           }
+                                           // Adjust eigenstrain
+
+                                           Set::Scalar e0new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 0, sten);
+                                           Set::Scalar e0old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 0, sten);
+                                           Set::Scalar e1new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 1, sten);
+                                           Set::Scalar e1old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 1, sten);
+
+                                           Set::Scalar g0new = (e0new * e0new) / (e0new * e0new + e1new * e1new);
+                                           // Set::Scalar g1new = (e1new*e1new) / (e0new*e0new + e1new*e1new);
+                                           Set::Scalar g0old = (e0old * e0old) / (e0old * e0old + e1old * e1old);
+                                           // Set::Scalar g1old = (e1old*e1old) / (e0old*e0old + e1old*e1old);
+
+                                           // model(i,j,k).F0 += (etanew(i,j,k,0) - etaold(i,j,k,0))*F0;
+                                           model(i, j, k).F0 += (g0new - g0old) * F0; });
+                }
+
+                Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            }
         }
     }
 
@@ -380,12 +443,25 @@ void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
             amrex::Array4<const Set::Vector> const &disp = disp_mf[lev]->array(mfi);
             amrex::Array4<Set::Scalar> const &elasticdf = elasticdf_mf[lev]->array(mfi);
             amrex::Array4<Set::Matrix> const &strain = strain_mf[lev]->array(mfi);
+            amrex::Array4<Set::Scalar> const &eta = (*eta_new_mf[lev]).array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
                 auto sten = Numeric::GetStencil(i,j,k,bx);
-                Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX);
-                for (int n = 0; n < number_of_grains; n++)
-                    elasticdf(i, j, k, n) = model(i, j, k).DWDeta(gradu, n);
+                Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX,sten);
+                //for (int n = 0; n < number_of_grains; n++)
+                //    elasticdf(i, j, k, n) = model(i, j, k).DWDeta(gradu, n);
+                
+                Set::Scalar eta0 = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,0);
+                Set::Scalar eta1 = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,1);
+
+                Set::Scalar sumsq = (eta0*eta0 + eta1*eta1);
+                sumsq = sumsq * sumsq;
+                Set::Scalar dg0 = 2.0*eta1*eta1*eta0 / sumsq;
+                Set::Scalar dg1 = 2.0*eta1*eta0*eta0 / sumsq;
+                
+                Set::Matrix P = model(i,j,k).DW(gradu);
+                elasticdf(i,j,k,0) = -(P.transpose() * F0).trace() * dg0;
+                elasticdf(i,j,k,1) = (P.transpose() * F0).trace() * dg1;
             });
         }
         Util::RealFillBoundary(*elasticdf_mf[lev], geom[lev]);

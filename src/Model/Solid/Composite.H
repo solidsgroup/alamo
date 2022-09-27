@@ -87,6 +87,7 @@ public:
         Set::Scalar etasum = 0;
         if (order == 1)
         {
+            Util::Abort(INFO,"This implementation does not work");
             for (int i = 0; i < NUM; i++) etasum += m_eta[i];
             return (1./etasum) * (m_models[n].W(F) - W(F));
         }

@@ -38,11 +38,10 @@
 #include "Model/Solid/Linear/Cubic.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Operator/Elastic.H"
-#include "Model/Solid/Composite.H"
 
 namespace Integrator
 {
-using model_type = Model::Solid::Composite<Model::Solid::Affine::Cubic,2>;
+using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
     Wilmore = 1,
@@ -83,11 +82,12 @@ public:
         pp.query("mechanics.tstart",value.mechanics.tstart);
         //value.mechanics.model.resize(value.number_of_grains);
 
-        pp.queryclass("mechanics.composite",value.mechanics.model);
+        pp.queryclass("mechanics.model",value.mechanics.model);
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
         pp.queryclass<Base::Mechanics<model_type>>("mechanics",&value);
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
+        
 
 
         // Lagrange multiplier method for enforcing volumes
