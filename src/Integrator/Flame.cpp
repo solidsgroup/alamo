@@ -312,7 +312,7 @@ namespace Integrator
 
                     Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
 
-                    Set::Scalar qdot = (thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1.0 - phi(i,j,k) ) / K);
+                    Set::Scalar qdot = (thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1.0 - phi(i,j,k) + thermal.q0 * phi(i,j,k) * (1.0 - phi(i,j,k))) / K);
                     // qdot += (mdot(i,j,k) / mlocal ) * thermal.hc * qflux / K ;  
 
                     heatflux(i,j,k) = qdot;
@@ -342,11 +342,7 @@ namespace Integrator
                    if (mob(i,j,k) > L_max){ 
                         mob(i,j,k) = L_max; 
                     }
-
-
-		            if (tempnew(i,j,k) > 20000.0) {
-		                Util::ParallelAbort(INFO, "temp: ", tempnew(i,j,k) > 20000.0);
-		            }   
+ 
                 });
             }
         }
