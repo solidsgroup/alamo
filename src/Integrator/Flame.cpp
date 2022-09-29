@@ -102,6 +102,8 @@ namespace Integrator
 
             pp.query("thermal.cut_off", value.thermal.cut_off);
             pp.query("thermal.hc", value.thermal.hc);
+            
+            pp.query("thermal.qlimit", value.thermal.qlimit);
 
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
@@ -301,7 +303,7 @@ namespace Integrator
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
-                    Set::Scalar k3 = log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
+                    Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
 
                     Set::Scalar qflux = k1 * phi(i,j,k) + 
                                         k2 * (1.0 - phi(i,j,k) ) + 
@@ -312,11 +314,14 @@ namespace Integrator
 
                     Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
 
-                    Set::Scalar qdot = (thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1.0 - phi(i,j,k) + thermal.q0 * phi(i,j,k) * (1.0 - phi(i,j,k))) / K);
+                    Set::Scalar qdot = 0.0; 
+                    qdot += (thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1.0 - phi(i,j,k) + thermal.q0 * phi(i,j,k) * (1.0 - phi(i,j,k))));
                     // qdot += (mdot(i,j,k) / mlocal ) * thermal.hc * qflux / K ;  
-
                     heatflux(i,j,k) = qdot;
-                    heatflux2(i,j,k) = thermal.hc * qflux / K;
+                    if (qdot >= thermal.qlimit){ qdot = thermal.qlimit;}
+
+                    //heatflux(i,j,k) = qdot;
+                    heatflux2(i,j,k) = (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
 
                     Set::Scalar dTdt = 0.0;
                     if (eta(i,j,k) >= thermal.cut_off){ // && temp(i,j,k) <= thermal.temperature_limit){

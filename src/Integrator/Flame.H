@@ -107,12 +107,13 @@ protected:
         Set::Scalar k_ap , k_htpb, k0 = 0.0;     
         Set::Scalar r_ap = 1.22, r_htpb = 0.5, r_comb = 10.01, n_ap = 1.042;        
         Set::Scalar cp_ap, cp_htpb;           
-        Set::Scalar q0=1.0, q_ap, q_htpb;
+        Set::Scalar q0=0.0, q_ap = 0.0, q_htpb = 0.0;
         Set::Scalar bound = 0.0;
         Set::Scalar m_ap, m_htpb, m_comb;  
         Set::Scalar E_ap, E_htpb, E_comb;
         Set::Scalar cut_off = 0.5;
         Set::Scalar hc = 1.0;
+        Set::Scalar qlimit = 1.0e13;
     } thermal;
 
     struct {
