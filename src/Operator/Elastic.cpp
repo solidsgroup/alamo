@@ -75,6 +75,10 @@ Elastic<SYM>::SetModel (MATRIX4 &a_model)
     
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     ddw(i,j,k) = a_model;
+
+                    #ifdef AMREX_DEBUG
+                    if (ddw(i,j,k).contains_nan()) Util::Abort(INFO,"model is nan at (", i, ",", j , ",",k,"), amrlev=",amrlev);
+                    #endif
                 });
         }
     }
@@ -691,6 +695,10 @@ Elastic<SYM>::averageDownCoeffsDifferentAmrLevels (int fine_amrlev)
                                     fdata(i+1,j,k,n) + fdata(i,j+1,k,n) + fdata(i,j,k+1,n)) / 16.0
                                     +
                                     fdata(i,j,k,n) / 8.0;
+
+                            #ifdef AMREX_DEBUG
+                            if (cdata(i,j,k).contains_nan()) Util::Abort(INFO,"restricted model is nan at (", i, ",", j , ",",k,"), fine_amrlev=",fine_amrlev);
+                            #endif
                         }
 
                 });
@@ -788,6 +796,10 @@ Elastic<SYM>::averageDownCoeffsSameAmrLevel (int amrlev)
                             fdata(i+1,j,k) + fdata(i,j+1,k) + fdata(i,j,k+1)) / 16.0
                             +
                             fdata(i,j,k) / 8.0;
+
+                    #ifdef AMREX_DEBUG
+                    if (cdata(I,J,K).contains_nan()) Util::Abort(INFO,"restricted model is nan at crse coordinates (I=", I, ",J=",J,",K=",k,"), amrlev=",amrlev," interpolating from mglev",mglev-1," to ",mglev);
+                    #endif
                 });
         }
         FillBoundaryCoeff(crse,m_geom[amrlev][mglev]);
