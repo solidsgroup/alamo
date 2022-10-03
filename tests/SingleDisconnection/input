@@ -58,7 +58,7 @@ disconnection.epsilon = 1E-20
 
 ic.type=perturbed_interface
 ic.wave_numbers=16
-ic.wave_amplitudes=0.1
+ic.wave_amplitudes=0.0
 ic.normal = y
 ic.mollifier = dirac
 
