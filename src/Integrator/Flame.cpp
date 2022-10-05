@@ -34,6 +34,9 @@ namespace Integrator
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
 	        pp.query("pf.min_eta", value.pf.min_eta);
 	        
+	        pp.query("pf.evolve", value.pf.evolve);
+	        pp.query("pf.time_control", value.pf.time_control);
+	        
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
@@ -253,7 +256,7 @@ namespace Integrator
                                             -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * pf.w0 );
             Numeric::Function::Polynomial<3> dw = w.D();
 
-	    
+	        heatflux_mf[lev] -> setVal(0.0);
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
 	        
@@ -314,14 +317,16 @@ namespace Integrator
 
                     Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
 
-                    Set::Scalar qdot = 0.0; 
-                    qdot += (thermal.q_ap * phi(i,j,k) + thermal.q_htpb * (1.0 - phi(i,j,k) + thermal.q0 * phi(i,j,k) * (1.0 - phi(i,j,k))));
-                    // qdot += (mdot(i,j,k) / mlocal ) * thermal.hc * qflux / K ;  
+
+                    Set::Scalar qdot = 0.0;
+                    if (time < pf.time_control) { 
+                        qdot += thermal.q0;
+                    } 
+                    qdot += (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
+
                     heatflux(i,j,k) = qdot;
                     if (qdot >= thermal.qlimit){ qdot = thermal.qlimit;}
-
-                    //heatflux(i,j,k) = qdot;
-                    heatflux2(i,j,k) = (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
+                    heatflux2(i,j,k) = qdot;
 
                     Set::Scalar dTdt = 0.0;
                     if (eta(i,j,k) >= thermal.cut_off){ // && temp(i,j,k) <= thermal.temperature_limit){
@@ -333,7 +338,7 @@ namespace Integrator
 			        tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
                     }
                     else{
-                    tempnew(i,j,k) = temp(i,j,k);
+                    tempnew(i,j,k) = 1400.0;
                     }
 
                 
@@ -343,10 +348,15 @@ namespace Integrator
                     
                     Set::Scalar L_max = thermal.r_ap * pow(pressure.P, thermal.n_ap) * phi(i,j,k) +
                                         thermal.r_htpb * (1.0 - phi(i,j,k)) + thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
-
-                   if (mob(i,j,k) > L_max){ 
+            
+            
+                   if (mob(i,j,k) > L_max && eta(i,j,k) < thermal.cut_off){ 
                         mob(i,j,k) = L_max; 
                     }
+                    
+                   if (pf.evolve == 0){
+                        mob(i,j,k) = 0.0; 
+                   }
  
                 });
             }

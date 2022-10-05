@@ -84,6 +84,8 @@ protected:
         Set::Scalar kappa = 0.0;
         Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
         Set::Scalar min_eta = 0.001; 
+        int evolve = 1;
+        Set::Scalar time_control = 0.0;
     } pf;
 
     struct{
