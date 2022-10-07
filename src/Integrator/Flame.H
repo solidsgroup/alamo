@@ -75,7 +75,24 @@ protected:
     Set::Scalar small = 1.0e-8;
     Set::Scalar base_time =1.0e-4;
     IC::IC *ic_eta;
+  
+   
+    Set::Vector grad_eta;
+    Set::Vector grad_temp;
+    Set::Vector grad_alpha;
+    Set::Scalar lap_temp;
+    Set::Scalar grad_eta_mag;
+    Set::Scalar Bd;
+    Set::Scalar Bn; 
+      
+   
+  
+    struct {
+        int boundary = 1; // Neumann = 0, Dirichlet = 1
+        int evolve = 1; 
+    } conditional; 
 
+  
     struct {
        // Set::Scalar M = 0.0;
         Set::Scalar gamma = 1.0;

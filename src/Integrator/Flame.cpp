@@ -1,4 +1,3 @@
-namespace Integrator
 #include "Flame.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
@@ -9,7 +8,7 @@ namespace Integrator
 #include "Numeric/Function.H"
 
 #include <cmath>
-//this line is for git test
+
 namespace Integrator
 {
 
@@ -50,7 +49,7 @@ namespace Integrator
             else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom,pp,"pf.eta.ic.expression");
         }
 
-	    {
+	{
             pp.query("pressure.P", value.pressure.P);
 	    pp.query("pressure.a1", value.pressure.a1);
 	    pp.query("pressure.a2", value.pressure.a2);
@@ -62,7 +61,7 @@ namespace Integrator
 	    pp.query("pressure.E1", value.pressure.E1);
 	    pp.query("pressure.E2", value.pressure.E2);
         
-	    }
+	}
 
         {
             pp.query("mass.on", value.mass.on);          
@@ -72,7 +71,13 @@ namespace Integrator
 
         }
 
+	{// IO::ParmParse pp(conditional);
 
+	  pp.query("conditional.boundary", value.conditional.boundary);
+
+	}
+
+	
         {
             //IO::ParmParse pp("thermal");
             pp.query("thermal.on",value.thermal.on); // Whether to use the Thermal Transport Model
@@ -257,7 +262,7 @@ namespace Integrator
                                             -8.0 * pf.w1 + 16.0 * pf.w12 -  8.0 * pf.w0 );
             Numeric::Function::Polynomial<3> dw = w.D();
 
-	        heatflux_mf[lev] -> setVal(0.0);
+
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
 	        
@@ -291,20 +296,22 @@ namespace Integrator
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
                     //if (etanew(i,j,k) <= pf.min_eta ) etanew(i,j,k) = 0.0;
- 		            alpha(i,j,k) = K / rho / cp; // Calculate thermal diffusivity and store in field
+ 		    alpha(i,j,k) = K / rho / cp; // Calculate thermal diffusivity and store in field
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt; // Calculate mass flux
 
                     });
 
-                    
+                if (conditional.boundary == 0 && conditional.evolve == 1){
+		  
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
-                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-                    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-                    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-                    Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
+                    grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                    grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+                    lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                    grad_eta_mag = grad_eta.lpNorm<2>();
+                    grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
+		    
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
                     Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
@@ -312,54 +319,125 @@ namespace Integrator
                     Set::Scalar qflux = k1 * phi(i,j,k) + 
                                         k2 * (1.0 - phi(i,j,k) ) + 
                                         (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-
-
                     Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
-
                     Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
-
-
-                    Set::Scalar qdot = 0.0;
+                    Bn  = 0.0;
                     if (time < pf.time_control) { 
-                        qdot += thermal.q0;
+                        Bn += thermal.q0;
                     } 
-                    qdot += (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
-
-                    heatflux(i,j,k) = qdot;
-                    if (qdot >= thermal.qlimit){ qdot = thermal.qlimit;}
-                    heatflux2(i,j,k) = qdot;
-
+                    Bn += (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
+                    heatflux(i,j,k) = Bn;
                     Set::Scalar dTdt = 0.0;
-                    if (eta(i,j,k) >= thermal.cut_off){ // && temp(i,j,k) <= thermal.temperature_limit){
-                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k));	
+                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);	
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;  		                                                    
-                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot  / (eta(i,j,k)); // Calculate the source term
-		         
+                    dTdt += grad_eta_mag * alpha(i,j,k) * Bn / (eta(i,j,k) + small); // Calculate the source term
 		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
-                    }
-                    else{
-                    tempnew(i,j,k) = 1400.0;
-                    }
-
-                
                     mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i,j,k)) * phi(i,j,k) 
                               + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) ;
-                               //+ thermal.m_comb * exp(-thermal.E_comb / temp(i,j,k)) * phi(i,j,k) * (1.0 - phi(i,j,k));
-                    
+
                     Set::Scalar L_max = thermal.r_ap * pow(pressure.P, thermal.n_ap) * phi(i,j,k) +
                                         thermal.r_htpb * (1.0 - phi(i,j,k)) + thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
-            
-            
-                   if (mob(i,j,k) > L_max){ 
+
+		    if (mob(i,j,k) > L_max){ 
                         mob(i,j,k) = L_max; 
                     }
-                    
-                   if (pf.evolve == 0){
-                        mob(i,j,k) = 0.0; 
-                   }
+                });}
+
+		else if (conditional.boundary == 1 && conditional.evolve == 1) {
+		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+		    {
+		      auto sten = Numeric::GetStencil(i,j,k,bx);
+		      grad_eta = Numeric::Gradient(eta, i,j,k,0,DX);
+		      grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+		      grad_alpha = Numeric::Gradient(alpha, i ,j ,k ,0 ,DX);
+                      lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+		      grad_eta_mag = grad_eta.lpNorm<2>();
+
+		      Bd = 3000.0;
+
+		      Set::Scalar dTdt = 0;
+
+		      dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / eta(i,j,k);
+		      dTdt += grad_alpha.dot(grad_temp);
+		      dTdt += alpha(i,j,k) * lap_temp;
+		      dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / eta(i,j,k) / eta(i,j,k);
+                      dTdt += alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / eta(i,j,k) / eta(i,j,k);
+
+		      tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+
+		      mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k) +
+			           thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k)) * (1.0 - phi(i,j,k));
+		    });
+		  
+
+		}
+		else if (conditional.boundary == 1 && conditional.evolve == 0){
+		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+		    auto sten = Numeric::GetStencil(i,j,k,bx);
+		    grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+		    grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+		    grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX);
+		    lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+		    grad_eta_mag = grad_eta.lpNorm<2>();
+
+		    Bd = 3000.0;
+		    Set::Scalar dTdt =0;
+		    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / eta(i,j,k);
+		    dTdt += grad_alpha.dot(grad_temp);
+		    dTdt += alpha(i,j,k) * lap_temp;
+		    dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / eta(i,j,k) / eta(i,j,k);
+                    dTdt += alpha(i,j,k) * Bd * grad_eta_mag / eta(i,j,k) / eta(i,j,k);
+
+		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+
+		    mob(i,j,k) = 0.0;
+
+		  });
+
+		}
+
+		else if (conditional.boundary == 0 && conditional.evolve == 0){
+		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+                    auto sten = Numeric::GetStencil(i,j,k,bx);
+                    grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                    grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+                    lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                    grad_eta_mag = grad_eta.lpNorm<2>();
+                    grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
+		    
+                    Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
+                    Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
+                    Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
+
+                    Set::Scalar qflux = k1 * phi(i,j,k) + 
+                                        k2 * (1.0 - phi(i,j,k) ) + 
+                                        (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                    Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
+                    Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
+                    Bn  = 0.0;
+                    if (time < pf.time_control) { 
+                        Bn += thermal.q0;
+                    } 
+                    Bn += (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
+                    heatflux(i,j,k) = Bn;
+                    Set::Scalar dTdt = 0.0;
+                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);	
+                    dTdt += grad_alpha.dot(grad_temp);
+                    dTdt += alpha(i,j,k) * lap_temp;  		                                                    
+                    dTdt += grad_eta_mag * alpha(i,j,k) * Bn  / (eta(i,j,k) + small); // Calculate the source term
+		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
+
+		    mob(i,j,k) = 0.0;
  
-                });
+		  });
+		}
+
+		else {
+		  Util::Abort(INFO, "Bad Inputs");  
+		}
+
+		
             }
         }
     }
