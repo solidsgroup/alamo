@@ -34,7 +34,6 @@ namespace Integrator
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
 	    pp.query("pf.min_eta", value.pf.min_eta);
 	        
-	    pp.query("pf.evolve", value.pf.evolve);
 	    pp.query("pf.time_control", value.pf.time_control);
 	    
             value.bc_eta = new BC::Constant(1);
@@ -74,7 +73,7 @@ namespace Integrator
 	{// IO::ParmParse pp(conditional);
 
 	  pp.query("conditional.boundary", value.conditional.boundary);
-
+          pp.query("conditional.evolve", value.conditional.evolve);
 	}
 
 	
@@ -103,6 +102,8 @@ namespace Integrator
             pp.query("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
             pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
             pp.query("thermal.E_comb", value.thermal.E_comb); // AP/HTPB Activation Energy for Arrhenius Law
+
+	    pp.query("thermal.bd", value.thermal.bd);
 
             pp.query("thermal.r_ap",value.thermal.r_ap);
             pp.query("thermal.r_htpb", value.thermal.r_htpb);
@@ -345,8 +346,10 @@ namespace Integrator
                 });}
 
 		else if (conditional.boundary == 1 && conditional.evolve == 1) {
+		  
 		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		    {
+		      mob(i,j,k) = 0.0;
 		      auto sten = Numeric::GetStencil(i,j,k,bx);
 		      grad_eta = Numeric::Gradient(eta, i,j,k,0,DX);
 		      grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
@@ -354,20 +357,26 @@ namespace Integrator
                       lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
 		      grad_eta_mag = grad_eta.lpNorm<2>();
 
-		      Bd = 3000.0;
-
+		      Bd = thermal.bd;
+		      Set::Scalar et;
+		      if (eta(i,j,k) > 0.1){
+			et = eta(i,j,k);
+		      }
+		      else{
+			et = eta(i,j,k) + small;
+		      }
 		      Set::Scalar dTdt = 0;
 
-		      dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / eta(i,j,k);
+		      dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / et;
 		      dTdt += grad_alpha.dot(grad_temp);
 		      dTdt += alpha(i,j,k) * lap_temp;
-		      dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / eta(i,j,k) / eta(i,j,k);
-                      dTdt += alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / eta(i,j,k) / eta(i,j,k);
+		      dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
+                      dTdt += alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / et / et;
 
 		      tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
 
-		      mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k) +
-			           thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k)) * (1.0 - phi(i,j,k));
+		      mob(i,j,k) = thermal.m_ap * pressure.P * exp(- thermal.E_ap / temp(i,j,k) ) * phi(i,j,k) +
+			           thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k));
 		    });
 		  
 
@@ -381,17 +390,18 @@ namespace Integrator
 		    lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
 		    grad_eta_mag = grad_eta.lpNorm<2>();
 
-		    Bd = 3000.0;
-		    Set::Scalar dTdt =0;
-		    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / eta(i,j,k);
+		    Bd = thermal.bd;
+		    Set::Scalar et = eta(i,j,k) + small; 
+		    Set::Scalar dTdt = 0.0;
+		    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / et;
 		    dTdt += grad_alpha.dot(grad_temp);
 		    dTdt += alpha(i,j,k) * lap_temp;
-		    dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / eta(i,j,k) / eta(i,j,k);
-                    dTdt += alpha(i,j,k) * Bd * grad_eta_mag / eta(i,j,k) / eta(i,j,k);
+		    dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
+                    dTdt += alpha(i,j,k) * Bd * grad_eta_mag / et / et;
 
 		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
 
-		    mob(i,j,k) = 0.0;
+		    mob(i,j,k) = 1.0e-14;
 
 		  });
 

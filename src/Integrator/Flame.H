@@ -133,6 +133,7 @@ protected:
         Set::Scalar cut_off = 0.5;
         Set::Scalar hc = 1.0;
         Set::Scalar qlimit = 1.0e13;
+        Set::Scalar bd = 275.0;
     } thermal;
 
     struct {
