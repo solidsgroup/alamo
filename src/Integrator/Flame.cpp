@@ -1,3 +1,4 @@
+namespace Integrator
 #include "Flame.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
@@ -32,11 +33,11 @@ namespace Integrator
             pp.query("pf.w1", value.pf.w1); // Unburned rest energy
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-	        pp.query("pf.min_eta", value.pf.min_eta);
+	    pp.query("pf.min_eta", value.pf.min_eta);
 	        
-	        pp.query("pf.evolve", value.pf.evolve);
-	        pp.query("pf.time_control", value.pf.time_control);
-	        
+	    pp.query("pf.evolve", value.pf.evolve);
+	    pp.query("pf.time_control", value.pf.time_control);
+	    
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
@@ -51,15 +52,15 @@ namespace Integrator
 
 	    {
             pp.query("pressure.P", value.pressure.P);
-	        pp.query("pressure.a1", value.pressure.a1);
-	        pp.query("pressure.a2", value.pressure.a2);
-	        pp.query("pressure.a3", value.pressure.a3);
-	        pp.query("pressure.b1", value.pressure.b1);
-	        pp.query("pressure.b2", value.pressure.b2);
-	        pp.query("pressure.b3", value.pressure.b3);
+	    pp.query("pressure.a1", value.pressure.a1);
+	    pp.query("pressure.a2", value.pressure.a2);
+	    pp.query("pressure.a3", value.pressure.a3);
+	    pp.query("pressure.b1", value.pressure.b1);
+	    pp.query("pressure.b2", value.pressure.b2);
+	    pp.query("pressure.b3", value.pressure.b3);
             pp.query("pressure.c1", value.pressure.c1);
-	        pp.query("pressure.E1", value.pressure.E1);
-	        pp.query("pressure.E2", value.pressure.E2);
+	    pp.query("pressure.E1", value.pressure.E1);
+	    pp.query("pressure.E2", value.pressure.E2);
         
 	    }
 
@@ -128,7 +129,7 @@ namespace Integrator
         // Refinement criterion for temperature field
         pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion); 
         // Eta value to restrict the refinament for the temperature field
-	    pp.query("amr.refinament_restriction", value.t_refinement_restriction);
+	pp.query("amr.refinament_restriction", value.t_refinement_restriction);
         // small value
         pp.query("small", value.small);
 
@@ -333,9 +334,9 @@ namespace Integrator
                     dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k));	
                     dTdt += grad_alpha.dot(grad_temp);
                     dTdt += alpha(i,j,k) * lap_temp;  		                                                    
-                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot  / (eta(i,j,k)); // Calculate the source term      
-                    
-			        tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
+                    dTdt += grad_eta_mag * alpha(i,j,k) * qdot  / (eta(i,j,k)); // Calculate the source term
+		         
+		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
                     }
                     else{
                     tempnew(i,j,k) = 1400.0;
@@ -350,7 +351,7 @@ namespace Integrator
                                         thermal.r_htpb * (1.0 - phi(i,j,k)) + thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
             
             
-                   if (mob(i,j,k) > L_max && eta(i,j,k) < thermal.cut_off){ 
+                   if (mob(i,j,k) > L_max){ 
                         mob(i,j,k) = L_max; 
                     }
                     
