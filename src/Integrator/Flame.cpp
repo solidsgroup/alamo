@@ -89,7 +89,7 @@ namespace Integrator
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
             //pp.query("thermal.cp_comb", value.thermal.cp_comb); // AP/HTPB  Specific Heat
-            
+
             pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux       
             pp.query("thermal.q_htpb", value.thermal.q_htpb);
             pp.query("thermal.q_ap", value.thermal.q_ap);     
@@ -182,7 +182,7 @@ namespace Integrator
         temp_mf[lev]->setVal(thermal.bound);
         temp_old_mf[lev]->setVal(thermal.bound);
         alpha_mf[lev]->setVal(0.0);
-        mob_mf[lev]->setVal(0.0);
+        mob_mf[lev] -> setVal(0.0);
 
         //eta_mf[lev]->setVal(1.0);
         //eta_old_mf[lev]->setVal(1.0);
@@ -307,11 +307,11 @@ namespace Integrator
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     auto sten = Numeric::GetStencil(i,j,k,bx);
-                    grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                    grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-                    lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-                    grad_eta_mag = grad_eta.lpNorm<2>();
-                    grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
+		    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+		    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+		    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+		    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+		    Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
 		    
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
@@ -351,12 +351,18 @@ namespace Integrator
 		    {
 		      mob(i,j,k) = 0.0;
 		      auto sten = Numeric::GetStencil(i,j,k,bx);
-		      grad_eta = Numeric::Gradient(eta, i,j,k,0,DX);
-		      grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-		      grad_alpha = Numeric::Gradient(alpha, i ,j ,k ,0 ,DX);
-                      lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-		      grad_eta_mag = grad_eta.lpNorm<2>();
+		      Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+		      Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+		      Set::Vector grad_alpha = Numeric::Gradient(alpha, i ,j ,k ,0 ,DX);
+		      Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+		      Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
+		      if(grad_eta != grad_eta){
+			Util::ParallelMessage(INFO, "gradeta: ", grad_eta);
+			Util::ParallelAbort(INFO, "grad: ", grad_eta);
+
+		      }
+		      
 		      Bd = thermal.bd;
 		      Set::Scalar et;
 		      if (eta(i,j,k) > 0.1){
@@ -375,20 +381,33 @@ namespace Integrator
 
 		      tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
 
-		      mob(i,j,k) = thermal.m_ap * pressure.P * exp(- thermal.E_ap / temp(i,j,k) ) * phi(i,j,k) +
-			           thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k));
-		    });
-		  
 
+		      if (tempnew(i,j,k) != tempnew(i,j,k)){
+			Util::ParallelMessage(INFO, "grad: ", grad_eta);
+			Util::ParallelAbort(INFO, "temp: ", tempnew(i,j,k));
+			
+
+		      }
+		      mob(i,j,k) = thermal.m_ap * pressure.P * exp(- thermal.E_ap / temp(i,j,k) ) * phi(i,j,k) +
+		                 thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k));
+		      
+
+		      if (mob(i,j,k) != mob(i,j,k)){
+			Util::ParallelMessage(INFO, "grad: ", grad_eta);
+			Util::ParallelMessage(INFO, "gradmag: ", grad_eta_mag);
+			Util::ParallelMessage(INFO, "gradtemp:", grad_temp);
+			Util::ParallelAbort(INFO, "mob: ", mob(i,j,k));
+		      }
+		    });
 		}
 		else if (conditional.boundary == 1 && conditional.evolve == 0){
 		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
 		    auto sten = Numeric::GetStencil(i,j,k,bx);
-		    grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-		    grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-		    grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX);
-		    lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-		    grad_eta_mag = grad_eta.lpNorm<2>();
+		    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+		    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+		    Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX);
+		    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+		    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
 		    Bd = thermal.bd;
 		    Set::Scalar et = eta(i,j,k) + small; 
@@ -397,7 +416,7 @@ namespace Integrator
 		    dTdt += grad_alpha.dot(grad_temp);
 		    dTdt += alpha(i,j,k) * lap_temp;
 		    dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
-                    dTdt += alpha(i,j,k) * Bd * grad_eta_mag / et / et;
+                    dTdt += -alpha(i,j,k) * Bd * grad_eta_mag / et / et;
 
 		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
 
@@ -410,11 +429,11 @@ namespace Integrator
 		else if (conditional.boundary == 0 && conditional.evolve == 0){
 		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
                     auto sten = Numeric::GetStencil(i,j,k,bx);
-                    grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-                    grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-                    lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-                    grad_eta_mag = grad_eta.lpNorm<2>();
-                    grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
+                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+                    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+                    Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
 		    
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
@@ -449,7 +468,9 @@ namespace Integrator
 
 		
             }
-        }
+
+
+	}
     }
 
 

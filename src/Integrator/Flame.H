@@ -77,11 +77,11 @@ protected:
     IC::IC *ic_eta;
   
    
-    Set::Vector grad_eta;
-    Set::Vector grad_temp;
-    Set::Vector grad_alpha;
-    Set::Scalar lap_temp;
-    Set::Scalar grad_eta_mag;
+  // Set::Vector grad_eta;
+  //  Set::Vector grad_temp;
+  //  Set::Vector grad_alpha;
+  //  Set::Scalar lap_temp;
+  //  Set::Scalar grad_eta_mag;
     Set::Scalar Bd;
     Set::Scalar Bn; 
       
