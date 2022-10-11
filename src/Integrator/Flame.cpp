@@ -85,10 +85,8 @@ namespace Integrator
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
             pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
             pp.query("thermal.k_htpb",value.thermal.k_htpb); // HTPB Thermal Conductivity 
-            //pp.query("thermal.k_comb", value.thermal.k_comb); // Combined Thermal Conductivity
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
-            //pp.query("thermal.cp_comb", value.thermal.cp_comb); // AP/HTPB  Specific Heat
 
             pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux       
             pp.query("thermal.q_htpb", value.thermal.q_htpb);
@@ -122,11 +120,6 @@ namespace Integrator
             value.RegisterNewFab(value.mob_mf, 1, "mob", true);
             value.RegisterNewFab(value.alpha_mf,1,"alpha",true);  
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
-            
-            value.RegisterNewFab(value.heatflux2_mf, 1, "heatflux2", true);
-
-            //value.RegisterNewFab(value.temph_mf, value.bc_temp, 1, 1, "temph", true); 
-           
         }
 
 
@@ -178,7 +171,6 @@ namespace Integrator
         Util::Message(INFO,m_type);
         MechanicsBase<Model::Solid::Affine::Isotropic>::Initialize(lev);
 
-        //temph_mf[lev] -> setVal(thermal.bound);
         temp_mf[lev]->setVal(thermal.bound);
         temp_old_mf[lev]->setVal(thermal.bound);
         alpha_mf[lev]->setVal(0.0);
@@ -194,8 +186,6 @@ namespace Integrator
         heatflux_mf[lev] -> setVal(0.0);
 
         ic_phi->Initialize(lev, phi_mf);
-        
-        heatflux2_mf[lev]->setVal(0.0);
         
     }
 
@@ -284,10 +274,7 @@ namespace Integrator
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &heatflux = (*heatflux_mf[lev]).array(mfi);
-                
-                amrex::Array4<Set::Scalar> const &heatflux2=(*heatflux2_mf[lev]).array(mfi);
-
-
+                              
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);  
@@ -296,7 +283,7 @@ namespace Integrator
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
-                    //if (etanew(i,j,k) <= pf.min_eta ) etanew(i,j,k) = 0.0;
+                   
  		    alpha(i,j,k) = K / rho / cp; // Calculate thermal diffusivity and store in field
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt; // Calculate mass flux
 
