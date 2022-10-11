@@ -46,7 +46,14 @@ namespace Integrator
             pp.query("pf.eta.ic.type",eta_bc_str);
             if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"pf.eta.ic.constant");
             else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom,pp,"pf.eta.ic.expression");
-        }
+
+	    std::string eta_ic_type = "constant";
+	    pp.query("eta.ic.type", eta_ic_type);
+	    if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
+	    else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.consntant");
+	    else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
+
+	}
 
 	{
             pp.query("pressure.P", value.pressure.P);
@@ -74,6 +81,8 @@ namespace Integrator
 
 	  pp.query("conditional.boundary", value.conditional.boundary);
           pp.query("conditional.evolve", value.conditional.evolve);
+          pp.query("conditional.sign1", value.conditional.sign1);
+	  pp.query("conditional.sign2", value.conditional.sign2);
 	}
 
 	
@@ -336,11 +345,11 @@ namespace Integrator
 		  
 		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		    {
-		      mob(i,j,k) = 0.0;
 		      auto sten = Numeric::GetStencil(i,j,k,bx);
+		      mob(i,j,k) = 0.0;
 		      Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 		      Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-		      Set::Vector grad_alpha = Numeric::Gradient(alpha, i ,j ,k ,0 ,DX);
+		      Set::Vector grad_alpha = Numeric::Gradient(alpha, i ,j ,k ,0 ,DX,sten);
 		      Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
 		      Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
@@ -351,23 +360,16 @@ namespace Integrator
 		      }
 		      
 		      Bd = thermal.bd;
-		      Set::Scalar et;
-		      if (eta(i,j,k) > 0.1){
-			et = eta(i,j,k);
-		      }
-		      else{
-			et = eta(i,j,k) + small;
-		      }
+		      Set::Scalar et = eta(i,j,k) + small;
 		      Set::Scalar dTdt = 0;
 
 		      dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / et;
 		      dTdt += grad_alpha.dot(grad_temp);
 		      dTdt += alpha(i,j,k) * lap_temp;
-		      dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
-                      dTdt += alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / et / et;
+		      dTdt += - conditional.sign1 * alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
+                      dTdt += conditional.sign2 * alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / et / et;
 
 		      tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-
 
 		      if (tempnew(i,j,k) != tempnew(i,j,k)){
 			Util::ParallelMessage(INFO, "grad: ", grad_eta);
@@ -385,11 +387,12 @@ namespace Integrator
 			Util::ParallelMessage(INFO, "gradtemp:", grad_temp);
 			Util::ParallelAbort(INFO, "mob: ", mob(i,j,k));
 		      }
+
 		    });
 		}
 		else if (conditional.boundary == 1 && conditional.evolve == 0){
 		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-		    auto sten = Numeric::GetStencil(i,j,k,bx);
+		      // auto sten = Numeric::GetStencil(i,j,k,bx);
 		    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 		    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
 		    Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX);

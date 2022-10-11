@@ -86,7 +86,9 @@ protected:
   
     struct {
         int boundary = 1; // Neumann = 0, Dirichlet = 1
-        int evolve = 1; 
+        int evolve = 1;
+        int sign1 = -1;
+        int sign2 = 1; 
     } conditional; 
 
   
