@@ -22,9 +22,9 @@ public:
     {
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-	  // amrex::Box bx =mfi.tilebox();
-	  // bx.grow(a_field[lev]->nGrow());
-	    amrex::IndexType type = a_field[lev]->ixType();
+          // amrex::Box bx =mfi.tilebox();
+          // bx.grow(a_field[lev]->nGrow());
+            amrex::IndexType type = a_field[lev]->ixType();
             amrex::Box bx;
             if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
             else bx = mfi.growntilebox();

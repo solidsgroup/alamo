@@ -32,10 +32,10 @@ namespace Integrator
             pp.query("pf.w1", value.pf.w1); // Unburned rest energy
             pp.query("pf.w12", value.pf.w12);  // Barrier energy
             pp.query("pf.w0", value.pf.w0);    // Burned rest energy
-	    pp.query("pf.min_eta", value.pf.min_eta);
-	        
-	    pp.query("pf.time_control", value.pf.time_control);
-	    
+            pp.query("pf.min_eta", value.pf.min_eta);
+                
+            pp.query("pf.time_control", value.pf.time_control);
+            
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
@@ -47,27 +47,27 @@ namespace Integrator
             if (eta_bc_str == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"pf.eta.ic.constant");
             else if (eta_bc_str == "expression") value.ic_eta = new IC::Expression(value.geom,pp,"pf.eta.ic.expression");
 
-	    std::string eta_ic_type = "constant";
-	    pp.query("eta.ic.type", eta_ic_type);
-	    if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
-	    else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.consntant");
-	    else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
+            std::string eta_ic_type = "constant";
+            pp.query("eta.ic.type", eta_ic_type);
+            if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
+            else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.consntant");
+            else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
 
-	}
+        }
 
-	{
+        {
             pp.query("pressure.P", value.pressure.P);
-	    pp.query("pressure.a1", value.pressure.a1);
-	    pp.query("pressure.a2", value.pressure.a2);
-	    pp.query("pressure.a3", value.pressure.a3);
-	    pp.query("pressure.b1", value.pressure.b1);
-	    pp.query("pressure.b2", value.pressure.b2);
-	    pp.query("pressure.b3", value.pressure.b3);
+            pp.query("pressure.a1", value.pressure.a1);
+            pp.query("pressure.a2", value.pressure.a2);
+            pp.query("pressure.a3", value.pressure.a3);
+            pp.query("pressure.b1", value.pressure.b1);
+            pp.query("pressure.b2", value.pressure.b2);
+            pp.query("pressure.b3", value.pressure.b3);
             pp.query("pressure.c1", value.pressure.c1);
-	    pp.query("pressure.E1", value.pressure.E1);
-	    pp.query("pressure.E2", value.pressure.E2);
+            pp.query("pressure.E1", value.pressure.E1);
+            pp.query("pressure.E2", value.pressure.E2);
         
-	}
+        }
 
         {
             pp.query("mass.on", value.mass.on);          
@@ -77,15 +77,15 @@ namespace Integrator
 
         }
 
-	{// IO::ParmParse pp(conditional);
+        {// IO::ParmParse pp(conditional);
 
-	  pp.query("conditional.boundary", value.conditional.boundary);
+          pp.query("conditional.boundary", value.conditional.boundary);
           pp.query("conditional.evolve", value.conditional.evolve);
           pp.query("conditional.sign1", value.conditional.sign1);
-	  pp.query("conditional.sign2", value.conditional.sign2);
-	}
+          pp.query("conditional.sign2", value.conditional.sign2);
+        }
 
-	
+        
         {
             //IO::ParmParse pp("thermal");
             pp.query("thermal.on",value.thermal.on); // Whether to use the Thermal Transport Model
@@ -110,7 +110,7 @@ namespace Integrator
             pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
             pp.query("thermal.E_comb", value.thermal.E_comb); // AP/HTPB Activation Energy for Arrhenius Law
 
-	    pp.query("thermal.bd", value.thermal.bd);
+            pp.query("thermal.bd", value.thermal.bd);
 
             pp.query("thermal.r_ap",value.thermal.r_ap);
             pp.query("thermal.r_htpb", value.thermal.r_htpb);
@@ -137,12 +137,12 @@ namespace Integrator
         // Refinement criterion for temperature field
         pp.query("amr.refinement_criterion_temp", value.t_refinement_criterion); 
         // Eta value to restrict the refinament for the temperature field
-	pp.query("amr.refinament_restriction", value.t_refinement_restriction);
+        pp.query("amr.refinament_restriction", value.t_refinement_restriction);
         // small value
         pp.query("small", value.small);
 
-	
-	
+        
+        
         {
             // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
             // specified using these parameters. 
@@ -150,15 +150,15 @@ namespace Integrator
             std::string type = "packedspheres";
             pp.query("phi.ic.type", type); // IC type (psread, laminate, constant)
             if (type == "psread"){
-	        value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
+                value.ic_phi = new IC::PSRead(value.geom, pp, "phi.ic.psread");
                 pp.query("phi.ic.psread.eps", value.zeta);
-	        pp.query("phi.zeta_0", value.zeta_0);
-	        }
+                pp.query("phi.zeta_0", value.zeta_0);
+                }
             else if (type == "laminate"){
-	        value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
-	        pp.query("phi.ic.laminate.eps", value.zeta);
-	        pp.query("phi.zeta_0", value.zeta_0);
-	        }
+                value.ic_phi = new IC::Laminate(value.geom,pp,"phi.ic.laminate");
+                pp.query("phi.ic.laminate.eps", value.zeta);
+                pp.query("phi.zeta_0", value.zeta_0);
+                }
             else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid IC type ",type);
             
@@ -265,7 +265,7 @@ namespace Integrator
 
             for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
             {
-	        
+                
                 const amrex::Box &bx = mfi.tilebox();
 
                 // Phase fields
@@ -293,138 +293,22 @@ namespace Integrator
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
                    
- 		    alpha(i,j,k) = K / rho / cp; // Calculate thermal diffusivity and store in field
+                    alpha(i,j,k) = K / rho / cp; // Calculate thermal diffusivity and store in field
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt; // Calculate mass flux
 
                     });
 
                 if (conditional.boundary == 0 && conditional.evolve == 1){
-		  
+                  
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    auto sten = Numeric::GetStencil(i,j,k,bx);
-		    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-		    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-		    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-		    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-		    Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
-		    
-                    Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
-                    Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
-                    Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
-
-                    Set::Scalar qflux = k1 * phi(i,j,k) + 
-                                        k2 * (1.0 - phi(i,j,k) ) + 
-                                        (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-                    Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
-                    Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
-                    Bn  = 0.0;
-                    if (time < pf.time_control) { 
-                        Bn += thermal.q0;
-                    } 
-                    Bn += (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
-                    heatflux(i,j,k) = Bn;
-                    Set::Scalar dTdt = 0.0;
-                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);	
-                    dTdt += grad_alpha.dot(grad_temp);
-                    dTdt += alpha(i,j,k) * lap_temp;  		                                                    
-                    dTdt += grad_eta_mag * alpha(i,j,k) * Bn / (eta(i,j,k) + small); // Calculate the source term
-		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
-                    mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i,j,k)) * phi(i,j,k) 
-                              + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) ;
-
-                    Set::Scalar L_max = thermal.r_ap * pow(pressure.P, thermal.n_ap) * phi(i,j,k) +
-                                        thermal.r_htpb * (1.0 - phi(i,j,k)) + thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
-
-		    if (mob(i,j,k) > L_max){ 
-                        mob(i,j,k) = L_max; 
-                    }
-                });}
-
-		else if (conditional.boundary == 1 && conditional.evolve == 1) {
-		  
-		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-		    {
-		      auto sten = Numeric::GetStencil(i,j,k,bx);
-		      mob(i,j,k) = 0.0;
-		      Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-		      Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-		      Set::Vector grad_alpha = Numeric::Gradient(alpha, i ,j ,k ,0 ,DX,sten);
-		      Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-		      Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-
-		      if(grad_eta != grad_eta){
-			Util::ParallelMessage(INFO, "gradeta: ", grad_eta);
-			Util::ParallelAbort(INFO, "grad: ", grad_eta);
-
-		      }
-		      
-		      Bd = thermal.bd;
-		      Set::Scalar et = eta(i,j,k) + small;
-		      Set::Scalar dTdt = 0;
-
-		      dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / et;
-		      dTdt += grad_alpha.dot(grad_temp);
-		      dTdt += alpha(i,j,k) * lap_temp;
-		      dTdt += - conditional.sign1 * alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
-                      dTdt += conditional.sign2 * alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / et / et;
-
-		      tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-
-		      if (tempnew(i,j,k) != tempnew(i,j,k)){
-			Util::ParallelMessage(INFO, "grad: ", grad_eta);
-			Util::ParallelAbort(INFO, "temp: ", tempnew(i,j,k));
-			
-
-		      }
-		      mob(i,j,k) = thermal.m_ap * pressure.P * exp(- thermal.E_ap / temp(i,j,k) ) * phi(i,j,k) +
-		                 thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k));
-		      
-
-		      if (mob(i,j,k) != mob(i,j,k)){
-			Util::ParallelMessage(INFO, "grad: ", grad_eta);
-			Util::ParallelMessage(INFO, "gradmag: ", grad_eta_mag);
-			Util::ParallelMessage(INFO, "gradtemp:", grad_temp);
-			Util::ParallelAbort(INFO, "mob: ", mob(i,j,k));
-		      }
-
-		    });
-		}
-		else if (conditional.boundary == 1 && conditional.evolve == 0){
-		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-		      // auto sten = Numeric::GetStencil(i,j,k,bx);
-		    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-		    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
-		    Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX);
-		    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
-		    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-
-		    Bd = thermal.bd;
-		    Set::Scalar et = eta(i,j,k) + small; 
-		    Set::Scalar dTdt = 0.0;
-		    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / et;
-		    dTdt += grad_alpha.dot(grad_temp);
-		    dTdt += alpha(i,j,k) * lap_temp;
-		    dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
-                    dTdt += -alpha(i,j,k) * Bd * grad_eta_mag / et / et;
-
-		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-
-		    mob(i,j,k) = 1.0e-14;
-
-		  });
-
-		}
-
-		else if (conditional.boundary == 0 && conditional.evolve == 0){
-		  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
                     auto sten = Numeric::GetStencil(i,j,k,bx);
                     Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
                     Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
                     Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
-		    
+                    
                     Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
                     Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
                     Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
@@ -441,26 +325,142 @@ namespace Integrator
                     Bn += (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
                     heatflux(i,j,k) = Bn;
                     Set::Scalar dTdt = 0.0;
-                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);	
+                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);     
                     dTdt += grad_alpha.dot(grad_temp);
-                    dTdt += alpha(i,j,k) * lap_temp;  		                                                    
+                    dTdt += alpha(i,j,k) * lap_temp;                                                                
+                    dTdt += grad_eta_mag * alpha(i,j,k) * Bn / (eta(i,j,k) + small); // Calculate the source term
+                    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
+                    mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / temp(i,j,k)) * phi(i,j,k) 
+                              + thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k)) ;
+
+                    Set::Scalar L_max = thermal.r_ap * pow(pressure.P, thermal.n_ap) * phi(i,j,k) +
+                                        thermal.r_htpb * (1.0 - phi(i,j,k)) + thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
+
+                    if (mob(i,j,k) > L_max){ 
+                        mob(i,j,k) = L_max; 
+                    }
+                });}
+
+                else if (conditional.boundary == 1 && conditional.evolve == 1) {
+                  
+                  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                      auto sten = Numeric::GetStencil(i,j,k,bx);
+                      mob(i,j,k) = 0.0;
+                      Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                      Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+                      Set::Vector grad_alpha = Numeric::Gradient(alpha, i ,j ,k ,0 ,DX,sten);
+                      Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                      Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+
+                      if(grad_eta != grad_eta){
+                        Util::ParallelMessage(INFO, "gradeta: ", grad_eta);
+                        Util::ParallelAbort(INFO, "grad: ", grad_eta);
+
+                      }
+                      
+                      Bd = thermal.bd;
+                      Set::Scalar et = eta(i,j,k) + small;
+                      Set::Scalar dTdt = 0;
+
+                      dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / et;
+                      dTdt += grad_alpha.dot(grad_temp);
+                      dTdt += alpha(i,j,k) * lap_temp;
+                      dTdt += - conditional.sign1 * alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
+                      dTdt += conditional.sign2 * alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / et / et;
+
+                      tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+
+                      if (tempnew(i,j,k) != tempnew(i,j,k)){
+                        Util::ParallelMessage(INFO, "grad: ", grad_eta);
+                        Util::ParallelAbort(INFO, "temp: ", tempnew(i,j,k));
+                        
+
+                      }
+                      mob(i,j,k) = thermal.m_ap * pressure.P * exp(- thermal.E_ap / temp(i,j,k) ) * phi(i,j,k) +
+                                 thermal.m_htpb * exp(-thermal.E_htpb / temp(i,j,k)) * (1.0 - phi(i,j,k));
+                      
+
+                      if (mob(i,j,k) != mob(i,j,k)){
+                        Util::ParallelMessage(INFO, "grad: ", grad_eta);
+                        Util::ParallelMessage(INFO, "gradmag: ", grad_eta_mag);
+                        Util::ParallelMessage(INFO, "gradtemp:", grad_temp);
+                        Util::ParallelAbort(INFO, "mob: ", mob(i,j,k));
+                      }
+
+                    });
+                }
+                else if (conditional.boundary == 1 && conditional.evolve == 0){
+                  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+                      // auto sten = Numeric::GetStencil(i,j,k,bx);
+                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+                    Set::Vector grad_alpha = Numeric::Gradient(alpha, i, j, k, 0, DX);
+                    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+
+                    Bd = thermal.bd;
+                    Set::Scalar et = eta(i,j,k) + small; 
+                    Set::Scalar dTdt = 0.0;
+                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k)) / et;
+                    dTdt += grad_alpha.dot(grad_temp);
+                    dTdt += alpha(i,j,k) * lap_temp;
+                    dTdt += -alpha(i,j,k) * (grad_eta.dot( eta(i,j,k) * grad_temp + temp(i,j,k) * grad_eta ) ) / et / et;
+                    dTdt += -alpha(i,j,k) * Bd * grad_eta_mag / et / et;
+
+                    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+
+                    mob(i,j,k) = 1.0e-14;
+
+                  });
+
+                }
+
+                else if (conditional.boundary == 0 && conditional.evolve == 0){
+                  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+                    auto sten = Numeric::GetStencil(i,j,k,bx);
+                    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                    Set::Vector grad_temp = Numeric::Gradient(temp, i, j, k, 0, DX);
+                    Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
+                    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+                    Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX,sten);
+                    
+                    Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta; 
+                    Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta; 
+                    Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0); 
+
+                    Set::Scalar qflux = k1 * phi(i,j,k) + 
+                                        k2 * (1.0 - phi(i,j,k) ) + 
+                                        (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
+                    Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
+                    Set::Scalar K = thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k));
+                    Bn  = 0.0;
+                    if (time < pf.time_control) { 
+                        Bn += thermal.q0;
+                    } 
+                    Bn += (mdot(i,j,k) / mlocal) * thermal.hc * qflux / K;
+                    heatflux(i,j,k) = Bn;
+                    Set::Scalar dTdt = 0.0;
+                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);     
+                    dTdt += grad_alpha.dot(grad_temp);
+                    dTdt += alpha(i,j,k) * lap_temp;                                                                
                     dTdt += grad_eta_mag * alpha(i,j,k) * Bn  / (eta(i,j,k) + small); // Calculate the source term
-		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
+                    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;  // Now, evolve temperature with explicit forward Euler
 
-		    mob(i,j,k) = 0.0;
+                    mob(i,j,k) = 0.0;
  
-		  });
-		}
+                  });
+                }
 
-		else {
-		  Util::Abort(INFO, "Bad Inputs");  
-		}
+                else {
+                  Util::Abort(INFO, "Bad Inputs");  
+                }
 
-		
+                
             }
 
 
-	}
+        }
     }
 
 
@@ -488,7 +488,7 @@ namespace Integrator
 
         // Thermal criterion for refinement
                
-	    
+            
          for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
          {
              const amrex::Box &bx = mfi.tilebox();
@@ -498,8 +498,8 @@ namespace Integrator
              amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
              {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-		        if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) >= 0.1)
-			        tags(i, j, k) = amrex::TagBox::SET;
+                        if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) >= 0.1)
+                                tags(i, j, k) = amrex::TagBox::SET;
                 });
             }
         
