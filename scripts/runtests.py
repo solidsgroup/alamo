@@ -237,7 +237,7 @@ def test(testdir):
         if check:
             print("  │      Checking result.........................................",end="",flush=True)
             try:
-                raise DryRunException()
+                if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
                 if "check-file" in config[desc].keys():
                     cmd.append(config[desc]['check-file'])
