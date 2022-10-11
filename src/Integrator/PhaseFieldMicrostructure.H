@@ -52,7 +52,7 @@ enum RegularizationType{
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
-class PhaseFieldMicrostructure : public MechanicsBase<Model::Solid::Affine::Cubic>
+class PhaseFieldMicrostructure : public Base::Mechanics<Model::Solid::Affine::Cubic>
 {
 public:
     PhaseFieldMicrostructure() : Integrator() {};
@@ -80,9 +80,9 @@ public:
         pp.query("mechanics.tstart",value.mechanics.tstart);
         value.mechanics.model.resize(value.number_of_grains);
         for (int i = 0; i < value.number_of_grains; i++) pp.queryclass("mechanics.model",value.mechanics.model[i]); // Type of model to use
-        value.m_type = MechanicsBase<model_type>::Disable; // Turn mechanics off by default
-        pp.queryclass<MechanicsBase<model_type>>("mechanics",&value);
-        if (value.m_type == MechanicsBase<model_type>::Type::Static) 
+        value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
+        pp.queryclass<Base::Mechanics<model_type>>("mechanics",&value);
+        if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
 
 
@@ -122,10 +122,10 @@ public:
 
         // Set the anisotropic GB model
         pp.query("anisotropy.gb_type", value.gb_type); // Type of GB energy to use
-        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy");
-        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy");
-        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy");
-        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy");
+        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
+        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
+        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
+        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
         else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
 
         // Boundary conditions for Etas
@@ -142,7 +142,7 @@ public:
         else if (ic_type == "tabulated_interface") value.ic = new IC::TabulatedInterface(value.geom,pp,"ic");
         else if (ic_type == "voronoi")             value.ic = new IC::Voronoi(value.geom, pp, "ic.voronoi");
         else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
-        else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp); 
+        else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
         else Util::Abort(INFO, "No valid initial condition specified");
 
 

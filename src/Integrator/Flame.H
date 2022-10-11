@@ -8,6 +8,7 @@
 
 #include "Util/Util.H"
 #include "Integrator/Integrator.H"
+#include "Integrator/Base/Mechanics.H"
 #include "BC/BC.H"
 #include "IC/Voronoi.H"
 #include "IC/IC.H"
@@ -23,42 +24,52 @@
 
 namespace Integrator
 {
-class Flame : public Integrator::Integrator
+
+class Flame : virtual public Integrator::Integrator, 
+              virtual public Base::Mechanics<Model::Solid::Affine::Isotropic>
 {
 
     using model_type = Model::Solid::Affine::Isotropic;
 
 public:
     Flame ();
+    Flame (IO::ParmParse &pp);
+
+    static void Parse(Flame &value, IO::ParmParse &pp);
 
 
 protected:
     void Initialize (int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
-    void Advance (int lev, amrex::Real time, amrex::Real dt) override;
+    void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
+    void UpdateModel(int a_step) override;
 private:
 
-    Set::Field<Set::Scalar> Temp_mf;
-    Set::Field<Set::Scalar> Temp_old_mf;
-    Set::Field<Set::Scalar> Eta_mf;
-    Set::Field<Set::Scalar> Eta_old_mf;
+    Set::Field<Set::Scalar> temp_mf;
+    Set::Field<Set::Scalar> temp_old_mf;
+    Set::Field<Set::Scalar> eta_mf;
+    Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
-    BC::BC<Set::Scalar> *TempBC;
-    BC::BC<Set::Scalar> *EtaBC;
-    IC::IC *EtaIC;
-    IC::IC *PhiIC;
+    Set::Field<Set::Scalar> alpha_mf;
 
+    Set::Field<Set::Scalar> deta_mf;
+    Set::Field<Set::Scalar> qgrid_mf;
+  
+    BC::BC<Set::Scalar> *bc_temp;
+    BC::BC<Set::Scalar> *bc_eta;
+    IC::IC *ic_eta;
+    IC::IC *ic_phi;
 
     int fs_number = 1;
  
-   
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
+    Set::Scalar t_refinement_restriction = 0.1;
     
     struct {
        // Set::Scalar M = 0.0;
@@ -85,15 +96,7 @@ private:
     } thermal;
 
     struct {
-        Set::Field<Set::Scalar> disp_mf;
-        Set::Field<Set::Scalar> rhs_mf;
-        Set::Field<Set::Scalar> res_mf;
-        Set::Field<Set::Scalar> stress_mf;
-        Set::Field<model_type>  model_mf;
-        model_type model_ap, model_htpb, model_void;
-        int interval = 0;
-        BC::Operator::Elastic::Constant bc;
-        Solver::Nonlocal::Newton<model_type> *solver;//(elastic.op);
+        Model::Solid::Affine::Isotropic model_ap, model_htpb;
     } elastic;
 
 

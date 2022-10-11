@@ -69,30 +69,40 @@ def extract(basefilename):
         lines = sourcefile.readlines()
         prefix = None
         for i in range(len(lines)):
-            if ("ParmParse pp" in lines[i].split(r'//')[0]):
-                prefix = getParmParseDef(lines[i])
-                if prefix in rets.keys(): continue
-                # Initialize the record for this ParmParser
-                rets[prefix] = dict()
-                rets[prefix]["items"] = []
-                docs = getDocs(lines,i)
-                if docs: rets[prefix]["docs"] = docs
-
-            if (getParseDef(lines[i])):
-                prefix = "[prefix]"
-                rets[prefix] = dict()
-                rets[prefix]["items"] = []
-                docs = getDocs(lines,i)
-                if docs: rets[prefix]["docs"] = docs
-            if ('pp.query' in lines[i]):
-                ret = dict()
-                docs = getDocs(lines,i);
-                if docs: ret["docs"] = docs
-                info = getParmParseInfo(lines[i])
-                if not info: continue
-                ret["query"], ret["string"], ret["variable"] = info
-                if prefix: ret["string"] = prefix + "." + ret["string"]
-                rets[prefix]['items'].append(ret)
+            try:
+                if ("ParmParse pp" in lines[i].split(r'//')[0]):
+                    prefix = getParmParseDef(lines[i])
+                    if prefix in rets.keys(): continue
+                    # Initialize the record for this ParmParser
+                    rets[prefix] = dict()
+                    rets[prefix]["items"] = []
+                    docs = getDocs(lines,i)
+                    if docs: rets[prefix]["docs"] = docs
+                if (getParseDef(lines[i])):
+                    prefix = "[prefix]"
+                    rets[prefix] = dict()
+                    rets[prefix]["items"] = []
+                    docs = getDocs(lines,i)
+                    if docs: rets[prefix]["docs"] = docs
+                if ('pp.query' in lines[i]):
+                    ret = dict()
+                    docs = getDocs(lines,i)
+                    if docs: ret["docs"] = docs
+                    info = getParmParseInfo(lines[i])
+                    if not info: continue
+                    ret["query"], ret["string"], ret["variable"] = info
+                    if prefix: 
+                        ret["string"] = prefix + "." + ret["string"]
+                    if prefix not in rets.keys(): 
+                        rets[prefix] = dict()
+                        rets[prefix]["items"] = []
+                    rets[prefix]['items'].append(ret)
+            except Exception as e:
+                print("ERROR: reading file ", filename, " at line ", i)
+                print("ERROR: ")
+                print("ERROR:      ",lines[i])
+                print("ERROR: Tried to read prefix, got prefix=",prefix)
+                raise
     return rets
 
 docfile    = open("Inputs.rst","w")
@@ -123,7 +133,11 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
     for f in sorted(srcfilelist):
         
         if True: 
-            inputs = extract(dirname+"/"+f)
+            try:
+                inputs = extract(dirname+"/"+f)
+            except Exception as e:
+                print("ERROR: problem reading",dirname)
+                raise
             documentation = getdocumentation(dirname+"/"+f)
             if not len(inputs) and not documentation:
                 continue

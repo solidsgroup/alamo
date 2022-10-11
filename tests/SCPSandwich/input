@@ -13,7 +13,7 @@
 alamo.program = flame
 
 # AMR parameters
-plot_file = output
+plot_file = tests/SCPSandwich/output
 amr.plot_dt = 0.01
 amr.max_level = 7 
 amr.n_cell = 16 2 2
