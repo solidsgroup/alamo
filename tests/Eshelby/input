@@ -7,13 +7,13 @@
 #@  dim    = 3
 #@  nprocs = 1
 #@  args   = amr.max_level=4
-#@  benchmark-beaker = 17.34
+#@  benchmark-beaker = 16.10
 #@  benchmark-github = 22.75
 #@  
 #@  [3D-parallel-5levels]
 #@  dim    = 3
 #@  nprocs = 4
-#@  benchmark-beaker = 30.82
+#@  benchmark-beaker = 24.66
 
 
 alamo.program = mechanics
