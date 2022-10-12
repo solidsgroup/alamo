@@ -114,37 +114,37 @@ public:
     }
 
     AMREX_FORCE_INLINE
-    void operator += (const Composite &rhs)
+    void operator+=(const Composite &rhs)
     {
-    	for (int i = 0; i < NUM; i++)
-    	{
-    		m_models[i] += rhs.m_models[i];
-    		m_eta[i] += rhs.m_eta[i];
-    	}
-    }    
+        for (int i = 0; i < NUM; i++)
+        {
+            m_models[i] += rhs.m_models[i];
+            m_eta[i] += rhs.m_eta[i];
+        }
+    }
     AMREX_FORCE_INLINE
-    void operator -= (const Composite &rhs)
+    void operator-=(const Composite &rhs)
     {
-    	for (int i = 0; i < NUM; i++)
-    	{
-    		m_models[i] = m_models[i] - rhs.m_models[i];
-    		m_eta[i] -= rhs.m_eta[i];
-    	}
-    }    
+        for (int i = 0; i < NUM; i++)
+        {
+            m_models[i] = m_models[i] - rhs.m_models[i];
+            m_eta[i] -= rhs.m_eta[i];
+        }
+    }
     AMREX_FORCE_INLINE
-    Composite operator * (const Set::Scalar alpha) const
+    Composite operator*(const Set::Scalar alpha) const
     {
         Composite ret = Zero();
-    	for (int i = 0; i < NUM; i++)
-    	{
-    		ret.m_models[i] = m_models[i]*alpha;
-    		ret.m_eta[i] = m_eta[i]*alpha;
-    	}
-    	return ret;
-    }    
-    //Composite operator * (const Set::Scalar alpha, const Composite b) {};
-    //Composite operator + (const Composite a, const Composite b) {};
-    //Composite operator - (const Composite a, const Composite b) {};
+        for (int i = 0; i < NUM; i++)
+        {
+            ret.m_models[i] = m_models[i] * alpha;
+            ret.m_eta[i] = m_eta[i] * alpha;
+        }
+        return ret;
+    }
+    // Composite operator * (const Set::Scalar alpha, const Composite b) {};
+    // Composite operator + (const Composite a, const Composite b) {};
+    // Composite operator - (const Composite a, const Composite b) {};
 public:
     static void Parse(Composite<SOLID,NUM> & value, IO::ParmParse &pp)
     {
