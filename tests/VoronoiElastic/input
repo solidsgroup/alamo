@@ -1,7 +1,7 @@
 #@ 
 #@ [2d-serial]
 #@ dim=2
-#@ benchmark-beaker=96.39
+#@ benchmark-beaker = 65.12
 #@ benchmark-github = 70.39
 #@
 #@ [2d-parallel]
