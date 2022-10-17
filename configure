@@ -285,10 +285,10 @@ else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g+
 
 message("Comp-Type", str(args.comp))
 shellmessage("Comp-Version",args.comp+" --version")
-shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
-f.write("CC = mpicxx -cxx="+args.comp+"\n")
+shellmessage("Comp-MPI","mpicxx -show")
+f.write("CC = mpicxx\n")
 if args.comp == 'g++':
-    f.write("MPI_LIB = -lgfortran -lmpich\n")
+    f.write("MPI_LIB = -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
@@ -303,11 +303,11 @@ if args.comp == 'icc':
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
 
 #
-# MPICH
+# MPI
 #
 if args.comp in ['g++']:
-    shellmessage("MPICH:","mpichversion")
-    shellmessage("MPICH mpicxx:","mpicxx -v")
+    shellmessage("MPI:","mpirun --version")
+    shellmessage("MPI mpicxx:","mpicxx -v")
 elif args.comp in ['icc']:
     shellmessage("Intel MPI","mpiicpc --version")
 
