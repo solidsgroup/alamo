@@ -81,14 +81,11 @@ protected:
   //  Set::Scalar grad_eta_mag;
     Set::Scalar Bd;
     Set::Scalar Bn; 
-      
+    Set::Scalar Wn, Wd = 1.0;        
    
   
     struct {
-        int boundary = 1; // Neumann = 0, Dirichlet = 1
-        int evolve = 1;
-        int sign1 = -1;
-        int sign2 = 1; 
+      Set::Scalar evolve = 1;
     } conditional; 
 
   
