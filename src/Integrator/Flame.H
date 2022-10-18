@@ -89,16 +89,16 @@ protected:
     } conditional; 
 
   
-    struct {
-       // Set::Scalar M = 0.0;
-        Set::Scalar gamma = 1.0;
-        Set::Scalar eps = 0.0;
-        Set::Scalar lambda = 0.0;
-        Set::Scalar kappa = 0.0;
-        Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
-        Set::Scalar min_eta = 0.001; 
-        int evolve = 1;
-        Set::Scalar time_control = 0.0;
+   struct {
+    // Set::Scalar M = 0.0;
+      Set::Scalar gamma = 1.0;
+      Set::Scalar eps = 0.0;
+      Set::Scalar lambda = 0.0;
+      Set::Scalar kappa = 0.0;
+      Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
+      Set::Scalar min_eta = 0.001; 
+      int evolve = 1;
+      Set::Scalar time_control = 0.0;
     } pf;
 
     struct{
@@ -111,29 +111,30 @@ protected:
     } pressure;
 
     struct{
-    Set::Scalar ref_htpb = 1.0;
-    Set::Scalar a_ap = 0.0, b_ap = 0.0;
-    int on = 1;
+      Set::Scalar ref_htpb = 1.0;
+      Set::Scalar a_ap = 0.0, b_ap = 0.0;
+      int on = 1;
     } mass; 
 
     struct {
-        int on = 0;
-        Set::Scalar rho_ap, rho_htpb;         
-        Set::Scalar k_ap , k_htpb, k0 = 0.0;     
-        Set::Scalar r_ap = 1.22, r_htpb = 0.5, r_comb = 10.01, n_ap = 1.042;        
-        Set::Scalar cp_ap, cp_htpb;           
-        Set::Scalar q0=0.0, q_ap = 0.0, q_htpb = 0.0;
-        Set::Scalar bound = 0.0;
-        Set::Scalar m_ap, m_htpb, m_comb;  
-        Set::Scalar E_ap, E_htpb, E_comb;
-        Set::Scalar cut_off = 0.5;
-        Set::Scalar hc = 1.0;
-        Set::Scalar qlimit = 1.0e13;
-        Set::Scalar bd = 275.0;
+      int on = 0;
+      Set::Scalar rho_ap, rho_htpb;         
+      Set::Scalar k_ap , k_htpb, k0 = 0.0;     
+      Set::Scalar r_ap = 1.22, r_htpb = 0.5, r_comb = 10.01, n_ap = 1.042;        
+      Set::Scalar cp_ap, cp_htpb;           
+      Set::Scalar q0=0.0, q_ap = 0.0, q_htpb = 0.0;
+      Set::Scalar bound = 0.0;
+      Set::Scalar m_ap, m_htpb, m_comb;  
+      Set::Scalar E_ap, E_htpb, E_comb;
+      Set::Scalar cut_off = 0.5;
+      Set::Scalar hc = 1.0;
+      Set::Scalar qlimit = 1.0e13;
+      Set::Scalar bd = 275.0;
+      Set::Scalar mobcap = 20.0;
     } thermal;
 
     struct {
-        Model::Solid::Affine::Isotropic model_ap, model_htpb, model_void;
+      Model::Solid::Affine::Isotropic model_ap, model_htpb, model_void;
     } elastic;
 
     using MechanicsBase<Model::Solid::Affine::Isotropic>::m_type;

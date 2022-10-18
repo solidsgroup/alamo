@@ -119,7 +119,7 @@ namespace Integrator
             pp.query("thermal.qlimit", value.thermal.qlimit);
 
 	    pp.query("thermal.Wd", value.Wd);
-	    
+	    pp.query("thermal.mobcap", value.thermal.mobcap);
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
             value.RegisterNewFab(value.temp_mf,     value.bc_temp, 1, 1, "temp", true);
@@ -360,14 +360,14 @@ namespace Integrator
 		    //L_max += thermal.r_htpb * (1.0 - phi(i,j,k));
 		    //L_max += thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
 
-		    //if (mob(i,j,k) > L_max) mob(i,j,k) = L_max;
+		    if (mob(i,j,k) > thermal.mobcap) mob(i,j,k) = thermal.mobcap;
                 });
             } // MFi For loop
         }// For loop
     } //Function
 
 
-    void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
+ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
     {
         BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
         MechanicsBase<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev,a_tags,time,ngrow);
