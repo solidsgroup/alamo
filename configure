@@ -44,9 +44,9 @@ def message(title,message="",wrap_message=True):
     print(color.boldgreen + title.ljust(width) + color.reset,end="")
     if wrap_message: wrap(message)
     else: print(message)
-def shellmessage(title,cmd):
+def shellmessage(title,cmd,env=None):
     print(color.boldgreen + title.ljust(width) + color.reset,end="")
-    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT).decode('ascii').replace('\n',' '))
+    wrap(subprocess.check_output(cmd.split(' '),stderr=subprocess.STDOUT,env=env).decode('ascii').replace('\n',' '))
 
 message("Python",python_version)
 if sys.version_info.minor < 5:
@@ -276,24 +276,30 @@ elif (args.eigen != ""):
     f.write("EIGEN = " + args.eigen + "\n")
 
 #
-# Compiler
+# Compiler and MPI library
 #
 if   (args.comp == "g++"):     f.write("COMP = GCC\n")
 elif (args.comp == "clang++"): f.write("COMP = CLANG\n")
 elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
-message("Comp-Type", str(args.comp))
-shellmessage("Comp-Version",args.comp+" --version")
-shellmessage("Comp-MPI","mpicxx -show")
-f.write("CC = mpicxx\n")
+shellmessage("Compiler (" + args.comp + ")", args.comp + " --version")
+shellmessage("MPI Library","mpirun --version")
+
+env = os.environ.copy()
+env.update({'MPICH_CXX': args.comp, 'OMPI_CXX': args.comp, 'I_MPI_CXX': args.comp})
+shellmessage("MPI Options", "mpicxx -show", env)
+
+backend_comp = " MPICH_CXX=" + args.comp + " OMPI_CXX=" + args.comp + " I_MPI_CXX=" + args.comp + " "
+f.write("CC =" + backend_comp + "mpicxx\n")
+
 if args.comp == 'g++':
     f.write("MPI_LIB = -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -O3 -flto\n")
 if args.comp == 'clang++':
-    f.write("MPI_LIB = -lgfortran -lmpich\n")
+    f.write("MPI_LIB = -lgfortran\n")
     f.write("CXX_COMPILE_FLAGS += -Wpedantic\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -O3\n")
@@ -301,15 +307,6 @@ if args.comp == 'icc':
     f.write("MPI_LIB = -lifcore\n")
     if args.debug: f.write("CXX_COMPILE_FLAGS += -ggdb -g3\n")
     else:          f.write("CXX_COMPILE_FLAGS += -Ofast -ipo\n") # -inline-forceinline
-
-#
-# MPI
-#
-if args.comp in ['g++']:
-    shellmessage("MPI:","mpirun --version")
-    shellmessage("MPI mpicxx:","mpicxx -v")
-elif args.comp in ['icc']:
-    shellmessage("Intel MPI","mpiicpc --version")
 
 #
 # LibGFortran?
