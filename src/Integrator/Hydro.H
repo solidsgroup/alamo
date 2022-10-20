@@ -39,58 +39,34 @@ private:
 
     Set::Field<Set::Scalar> rho_mf;
     Set::Field<Set::Scalar> rho_old_mf;
+    Set::Field<Set::Scalar> E_mf;
+    Set::Field<Set::Scalar> E_old_mf;
+  
+    Set::Field<Set::Scalar> P_mf;
+    Set::Field<Set::Scalar> P_old_mf;
+  
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
-    Set::Field<Set::Scalar> phi_mf;
-    Set::Field<Set::Scalar> field;
-    Set::Field<Set::Scalar> alpha_mf;
 
     Set::Field<Set::Scalar> deta_mf;
-    Set::Field<Set::Scalar> qgrid_mf;
   
-    BC::BC<Set::Scalar> *bc_temp;
+    BC::BC<Set::Scalar> *bc_rho;
+    BC::BC<Set::Scalar> *bc_E;
+  
+    BC::BC<Set::Scalar> *bc_P;
+  
     BC::BC<Set::Scalar> *bc_eta;
+
+    IC::IC *ic_rho;
+    IC::IC *ic_E;
+  
+    IC::IC *ic_P;
+  
     IC::IC *ic_eta;
-    IC::IC *ic_phi;
-
-    int fs_number = 1;
- 
-    Set::Scalar m_refinement_criterion = 0.001;
-    Set::Scalar t_refinement_criterion = 0.001;
-    Set::Scalar t_refinement_restriction = 0.1;
     
-    struct {
-       // Set::Scalar M = 0.0;
-        Set::Scalar gamma = 1.0;
-        Set::Scalar eps = 0.0;
-        Set::Scalar lambda = 0.0;
-        Set::Scalar kappa = 0.0;
-        Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
-        Set::Scalar P = 0.0;
-        Set::Scalar r_ap = 0.0;
-        Set::Scalar n_ap = 0.0;
-        Set::Scalar r_htpb = 0.0;
-        Set::Scalar n_htpb = 0.0;
-        Set::Scalar r_comb = 0.0;
-        Set::Scalar n_comb = 0.0;
-    } pf;
-
-    struct {
-        int on = 0;
-        Set::Scalar rho1, rho0;         
-        Set::Scalar ka, kh, k0;             
-        Set::Scalar cp1, cp0;           
-        Set::Scalar delA, delH;       
-    } thermal;
-
-    struct {
-        Model::Solid::Affine::Isotropic model_ap, model_htpb;
-    } elastic;
-
-
-    // Integrated variables
-    Set::Scalar volume = 0.0;
-    Set::Scalar area = 0.0;
+ 
+    Set::Scalar gamma = 1.4;
+    Set::Scalar cfl = 0.8;
 };
 }
 
