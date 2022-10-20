@@ -355,11 +355,6 @@ namespace Integrator
 		    mob(i,j,k) += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) ;
 		    mob(i,j,k) *= conditional.evolve;
 
-		    //Set::Scalar L_max = 0.0;
-		    //L_max += thermal.r_ap * pow(pressure.P, thermal.n_ap) * phi(i,j,k);
-		    //L_max += thermal.r_htpb * (1.0 - phi(i,j,k));
-		    //L_max += thermal.r_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
-
 		    if (mob(i,j,k) > thermal.mobcap) mob(i,j,k) = thermal.mobcap;
                 });
             } // MFi For loop
