@@ -1,4 +1,52 @@
 #include "Hydro.H"
+#include "IO/ParmParse.H"
+#include "BC/Constant.H"
+#include "Numeric/Stencil.H"
+#include "IC/Laminate.H"
+#include "IC/PSRead.H"
+#include "IC/Expression.H"
+#include "Base/Mechanics.H"
+
+namespace Integrator
+{
+
+
+    void
+    Hydro::Parse(Hydro &Value, IO::ParmParse &pp)
+    {
+      BL_PROFILE("Integrator::Hydro::Hydro()");
+      //General Variables Input Read:
+      {
+	pp.query("gamma", value.gamma);
+	pp.query("cfl", value.cfl);
+
+      }
+      // Register FabFields:
+      {
+	value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
+	value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
+
+	value.RegisterNewFab(value.rho_mf, value.bc_rho, 1, 2, "rho", true);
+	value.RegisterNewFab(value.rho_old_mf, 1, 2, "rho_old", false);
+
+	value.RegisterNewFab(value.E_mf, value.bc_E, 1, 2, "E", true);
+	value.RegisterNewFab(value.E_old_mf, value.bc_E, 1, 2, "E_old", false);
+
+	value.RegisterNewFab(value.Px_mf, value.bc_Px, 1, 2, "Px", true);
+	value.RegisterNewFab(value.Py_mf, value.bc_Py, 1, 2, "Py", true);
+        value.RegisterNewFab(value.Pz_mf, value.bc_Pz, 1, 2, "Pz", true);
+
+
+	value.RegisterNewFab(value.Px_old_mf, value.bc_Px, 1, 2, "Px_old", false);
+	value.RegisterNewFab(value.Py_old_mf, value.bc_Py, 1, 2, "Py_old", false);
+	value.RegisterNewFab(value.Pz_old_mf, value.bc_Pz, 1, 2, "Pz_old", false);
+
+      }
+
+
+    }
+
+}
 
 class hydroUtils(object):
     def __init__(self, param):

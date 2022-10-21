@@ -44,6 +44,15 @@ private:
   
     Set::Field<Set::Scalar> P_mf;
     Set::Field<Set::Scalar> P_old_mf;
+    Set::Field<Set::Scalar> Px_mf;
+    Set::Field<Set::Scalar> Py_mf;
+    Set::Field<Set::Scalar> Pz_mf;
+
+    Set::Field<Set::Scalar> Px_old_mf;
+    Set::Field<Set::Scalar> Py_old_mf;
+    Set::Field<Set::Scalar> Pz_old_mf;
+
+
   
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
