@@ -60,19 +60,21 @@ public:
     AMREX_FORCE_INLINE
     virtual void SetMix(amrex::Array4<const Set::Scalar> const &eta,int i, int j, int k) override
     {
-        Set::Scalar etasqsum = 0.0;
-        int N = m_ngrains;
-        for (int I = 0 ; I < m_ngrains ; I++)
-            for (int J = I+1 ; J < m_ngrains ; J++)
-            {
-                int idx = N*(N-1)/2 - (N-i)*(N-i-1)/2 + j - i - 1;
-                m_mix[idx] = eta(i,j,k,I)*eta(i,j,k,I)*eta(i,j,k,J)*eta(i,j,k,J);
-                etasqsum += m_mix[idx];
-            }
-        for (int I = 0 ; I < m_mix.size(); I++)
-        {
-            m_mix[I] /= (etasqsum + m_small);
-        }
+
+        // Something going very wrong here. So we will abandon this for right now.
+        //Set::Scalar etasqsum = 0.0;
+        //int N = m_ngrains;
+        //for (int I = 0 ; I < m_ngrains ; I++)
+        //    for (int J = I+1 ; J < m_ngrains ; J++)
+        //    {
+        //        int idx = N*(N-1)/2 - (N-i)*(N-i-1)/2 + j - i - 1;
+        //        m_mix[idx] = 1.0;//eta(i,j,k,I)*eta(i,j,k,I)*eta(i,j,k,J)*eta(i,j,k,J);
+        //        etasqsum += m_mix[idx];
+        //    }
+        //for (int I = 0 ; I < m_mix.size(); I++)
+        //{
+        //    m_mix[I] /= (etasqsum + m_small);
+        //}
         
     };
 

@@ -51,13 +51,12 @@ namespace Integrator
             amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
             // amrex::Array4<amrex::Real> const &fluct = (*fluct_mf[lev]).array(mfi);
             amrex::Array4<const amrex::Real> const &elasticdf = (*elasticdf_mf[lev]).array(mfi);
+            amrex::Array4<Set::Scalar> const &gbe = (*gbe_mf[lev]).array(mfi);
             //amrex::Array4<Set::Scalar> const &totaldf = (*totaldf_mf[lev]).array(mfi);
             //amrex::Array4<const Set::Matrix> const &sigma = (*stress_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                if (anisotropy.on && time >= anisotropy.tstart) 
-                    boundary->SetMix(eta,i,j,k);
                 for (int m = 0; m < number_of_grains; m++)
                 {
                     Set::Scalar driving_force = 0.0;
@@ -84,14 +83,9 @@ namespace Integrator
                     else
                     {
                         Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDeta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
-                        Util::Message(INFO,Deta);
-                        Util::Message(INFO,DDeta);
-                        //Util::Message(INFO,DDDDeta);
                         auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDeta);
                         driving_force += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
-                        if (std::isnan(std::get<0>(anisotropic_df))) Util::Abort(INFO); // this is returning nan
                         driving_force += anisotropy.beta * std::get<1>(anisotropic_df);
-                        if (std::isnan(std::get<1>(anisotropic_df))) Util::Abort(INFO);
                         mu = 0.75 * (1.0/0.23) * boundary->W(Deta) / pf.l_gb;
                     }
 
@@ -216,6 +210,7 @@ void PhaseFieldMicrostructure::Initialize(int lev)
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_new_mf);
     ic->Initialize(lev, eta_old_mf);
+    gbe_mf[lev]->setVal(0.0);
 }
 
 void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)

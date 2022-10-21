@@ -144,7 +144,9 @@ public:
         pp.query("anisotropy.thermo_plot_int", value.anisotropy.thermo_plot_int);  // Modify thermo plot int when turned on
         pp.query("anisotropy.elastic_int",value.anisotropy.elastic_int);           // Frequency of elastic calculation
         if (value.anisotropy.on) 
+        {
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,2);
+        }
 
         // Determine the kind of regularization to use
         std::map<std::string, RegularizationType> regularization_type;
@@ -244,6 +246,7 @@ public:
         value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta old",false);
         //value.RegisterNewFab(value.totaldf_mf, new BC::Nothing(), value.number_of_grains,0, "totaldf",true);
         value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
+        value.RegisterNewFab(value.gbe_mf,new BC::Nothing(),2,value.number_of_ghost_cells,"gbe",true);
         value.RegisterNodalFab(value.elasticdf_mf,value.number_of_grains,value.number_of_ghost_cells,"elasticdf",true);
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
@@ -283,6 +286,7 @@ private:
     Set::Field<Set::Scalar> eta_old_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
     Set::Field<Set::Scalar> fluct_mf;
     Set::Field<Set::Scalar> disc_mf; //see box
+    Set::Field<Set::Scalar> gbe_mf;
     // Node fab
     Set::Field<Set::Scalar> elasticdf_mf;
     Set::Field<Set::Scalar> totaldf_mf;

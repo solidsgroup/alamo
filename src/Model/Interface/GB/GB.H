@@ -47,30 +47,20 @@ class GB
     DrivingForce(const Set::Vector &Deta, const Set::Matrix &DDeta, const Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> &DDDDeta)
     {
         #if AMREX_SPACEDIM == 2
-            Util::Message(INFO,Deta(1));
-            Util::Message(INFO,Deta(0));
             Set::Scalar Theta = atan2(Deta(1),Deta(0));
-            Util::Message(INFO,Theta);
             Set::Scalar sigma = /*pf.l_gb*0.75**/W(Theta);
-            Util::Message(INFO,sigma);
             Set::Scalar Dsigma = /*pf.l_gb*0.75**/DW(Theta);
-            Util::Message(INFO,Dsigma);
             Set::Scalar DDsigma = /*pf.l_gb*0.75**/DDW(Theta);
-            Util::Message(INFO,DDsigma);
             Set::Scalar sinTheta = sin(Theta);
-            Util::Message(INFO,sinTheta);
             Set::Scalar cosTheta = cos(Theta);
-            Util::Message(INFO,sinTheta);
             Set::Scalar sin2Theta = sinTheta*sinTheta;
             Set::Scalar cos2Theta = cosTheta*cosTheta;
             Set::Scalar cosThetasinTheta = cosTheta*sinTheta;
-            Util::Message(INFO);
 
             Set::Scalar boundary_term = 
                 - (sigma*DDeta.trace() +
                    Dsigma*(cos(2.0*Theta)*DDeta(0,1) + 0.5*sin(2.0*Theta)*(DDeta(1,1) - DDeta(0,0))) + 
                    0.5*DDsigma*(sin2Theta*DDeta(0,0) - 2.*cosThetasinTheta*DDeta(0,1) + cos2Theta*DDeta(1,1)));
-            Util::Message(INFO);
 
             Set::Scalar curvature_term =
                 DDDDeta(0,0,0,0)*(    sin2Theta*sin2Theta) +
@@ -79,7 +69,6 @@ class GB
                 DDDDeta(0,1,1,1)*(4.0*cosThetasinTheta*cos2Theta) +
                 DDDDeta(1,1,1,1)*(    cos2Theta*cos2Theta);
             return std::make_tuple(boundary_term, curvature_term);
-            Util::Message(INFO);
 
         #elif AMREX_SPACEDIM == 3
 
