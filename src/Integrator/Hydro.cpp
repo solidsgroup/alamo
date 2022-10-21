@@ -46,7 +46,84 @@ namespace Integrator
 
     }
 
+
+    void Hydro::Initialize(int lev)
+    {
+      BL_PROFILE("Integrator::Hydro::Initialize");
+      Base::Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev); //this will prob be changed after we create gas in Model
+
+      ic_eta -> Initialize(lev, eta_mf);
+      ic_eta -> Initialize(lev, eta_old_mf);
+
+      E_mf[lev] -> setVal(0.0);
+      E_old_mf[lev] -> setVal(0.0);
+      
+      rho_mf -> setVal(0.0);
+      rho_old_mf -> setVal(0.0);
+
+      Px_mf -> setVal(0.0);
+      Py_mf -> setVal(0.0);
+      Pz_mf -> setVal(0.0);
+      Px_old_mf -> setVal(0.0);
+      Py_old_mf -> setVal(0.0);
+      Pz_old_mf -> setVal(0.0);            
+    }
+
+    void Hydro::TimeStepBegin(Set::Scalar a_time, int a_iter)
+    {
+      BL_PROFILE("Integrator::Hydro::TimeStepBegin");
+      Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time, a_iter);
+    }
+
+    void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
+    {
+
+      std::swap(eta_old_mf[lev], eta_mf[lev]);
+      std::swap(Px_old_mf[lev], Px_mf[lev]);
+      std::swap(Py_old_mf[lev], Py_mf[lev]);
+      std::swap(Pz_old_mf[lev], Pz_mf[lev]);
+      std::swap(E_old_mf[lev], E_mf[lev]);
+      std::swap(rho_old_mf[lev], rho_mf[lev]);
+
+      for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+      {
+	const amrex::Box &bx = mfi.tilebox();
+
+	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &E = (*E_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &Eold = (*E_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rho = (*rho_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &rhoold = (*rho_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Px = (*Px_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Py = (*Py_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Pz = (*Pz_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &Pxold = (*Px_old_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &Pyold = (*Py_old_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &Pzold = (*Pz_old_mf[lev]).array(mfi);
+
+	//this loop will be running the godnov solver over the space
+	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+	{
+
+
+
+	});
+	
+
+	
+      }
+      
+
+      
+    }
+  
 }
+
+
+
+
+
 
 class hydroUtils(object):
     def __init__(self, param):
