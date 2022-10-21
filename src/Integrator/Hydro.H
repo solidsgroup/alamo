@@ -76,6 +76,11 @@ private:
  
     Set::Scalar gamma = 1.4;
     Set::Scalar cfl = 0.8;
+
+    //refinement criterion variables
+    Set::Scalar r_refinement_criterion = 0.1;
+    Set::Scalar e_refinement_criterion = 0.1;
+    Set::Scalar m_refinemetn_criterion = 0.1;
 };
 }
 

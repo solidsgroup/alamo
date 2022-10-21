@@ -17,6 +17,9 @@ namespace Integrator
       BL_PROFILE("Integrator::Hydro::Hydro()");
       //General Variables Input Read:
       {
+	pp.query("r_refinement_criterion", value.r_refinement_criterion);
+	pp.query("e_refinement_criterion", value.e_refinement_criterion);
+	pp.query("m_refinement_criterion", value.m_refinement_criterion);
 	pp.query("gamma", value.gamma);
 	pp.query("cfl", value.cfl);
 
@@ -105,20 +108,95 @@ namespace Integrator
 	//this loop will be running the godnov solver over the space
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
+	  Set::Scalar qleft = ;
+	  Set::Scalar qright = ;
+	  
+	  //Find Fluxes using Riemann Roe
 
+	  Set::Scalar flux_y = ;
+
+	  //Update values
+
+	  rho(i,j,k) = ;
+	  E(i,j,k)   = ;
+	  Px(i,j,k)  = ;
+	  Py(i,j,k)  = ;
+	  Pz(i,j,k)  = ;
+
+
+
+	});	
+      }      
+    }//end Advance
+
+  void Hydro::Regrid(int lev, Set::Scalar /* time */)
+  {
+
+  }//end regrid
+
+  void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
+  {
+    BL_PROFILE("Integrator::Hydro::TagCellsForRefinement");
+    Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+
+    const Set::Scalar *DX = geom[lev].CellSize();
+    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+
+    //Eta Criterion
+    for (amrex::MFIter mfi(*eta_mf[lev], true), mfi.isValid(), ++mfi)
+    {
+      const amrex::Box &bx = mfi.tilebox();
+      amrex::Array4<char> const &tags = a_tags.array(mfi);
+      amrex::Array4<const Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+
+      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+	Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+	if(grad_eta.lpnorm<2>() * dr * 2 > m_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
+     });
+    }
+    // E criterion
+    for (amrex::MFIter mfi(*E_mf[lev], true), mfi.isValid(), ++mfi)
+    {
+      const amrex::Box &bx = mfi.tilebox();
+      amrex::Array4<char> const &tags = a_tags.array(mfi);
+      amrex::Array4<const Set::Scalar> const &E = (*E_mf[lev]).array(mfi);
+      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+	Set::Vector grad_E = Numeric::Gradient(E, i, j, k, 0, DX);
+	if(grad_E.lpNorm<2>() * dr > e_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
 
 
 	});
-	
-
-	
-      }
-      
-
-      
     }
+    // rho criterion
+    for (amrex::MFIter mfi(*rho_mf[lev] , true), mfi.isValid(), ++mfi)
+    {
+      const amrex::Box &bx = mfi.tilebox();
+      amrex::Array4<char> const &tags = a_tags.array(mfi);
+      amrex::Array4<const Set::Scalar> const &rho = (*rho_mf[lev]).array(mfi);
+      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+	Set::Vector grad_rho = Numeric::Gradient(rho, i, j, k, 0, DX);
+	if (grad_rho.lpNorm<2>() * dr > r_refinment_criterion) tags(i,j,k) = amrex::TagBox::SET;
+      });
+    }
+
+    // P criterion
+
+
+  }//end TagCells
+
+  void Hydro::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/, const amrex::MFIter &mfi, const amrex::Box &box)
+  {
+
+  }//end Integrate
+
+  void Hydro::UpdateModel(int /*a_step*/)
+  {
+
+
+  }//end update
+
   
-}
+}//end code
 
 
 
