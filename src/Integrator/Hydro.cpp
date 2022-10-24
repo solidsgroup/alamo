@@ -10,9 +10,7 @@
 namespace Integrator
 {
 
-
-    void
-    Hydro::Parse(Hydro &Value, IO::ParmParse &pp)
+    void Hydro::Parse(Hydro &Value, IO::ParmParse &pp)
     {
       BL_PROFILE("Integrator::Hydro::Hydro()");
       //General Variables Input Read:
@@ -108,8 +106,47 @@ namespace Integrator
 	//this loop will be running the godnov solver over the space
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
+
+	  // Combining Compute Primitives and CPG Functions:
+	  Set::Scalar rho_right = rho_old(i+1, j, k);
+	  Set::Scalar rho_left = rho_old(i-1, j, k);
+	  Set::Scalar rho_center = rho_old(i, j, k);
+	  Set::Scalar rho_up = rho_old(i, j+1, k);
+	  Set::Scalar rho_down = rho_old(i, j-1, k);
+
+	  Set::Scalar Vx_right = Px_old(i+1, j, k) / rho_right;
+	  Set::Scalar Vx_left  = Px_old(i-1, j, k) / rho_left;
+	  Set::Scalar Vx_center = Px_old(i, j, k) / rho_center;
+	  Set::Scalar Vx_up    = Px_old(i, j+1, k) / rho_up;
+	  Set::Scalar Vx_down  = Px_old(i, j-1, k) / rho_down;
+
+	  Set::Scalar Vy_right = Py_old(i+1, j, k) / rho_right;
+	  Set::Scalar Vy_left  = Py_old(i-1, j, k) / rho_left;
+	  Set::Scalar Vy_center = Py_old(i, j, k) / rho_center; 
+	  Set::Scalar Vy_up    = Py_old(i, j+1, k) / rho_up;
+	  Set::Scalar Vy_down  = Py_old(i, j-1, k) / rho_down;
+
+	  Set::Scalar p_right = (gamma - 1.0) * rho_right * (E_old(i+1, j, k) / (rho_right - 0.5 * (Vx_right * Vx_right + Vy_right * Vy_right) ));
+	  Set::Scalar p_left  = (gamma - 1.0) * rho_left * (E_old(i-1, j, k) / (rho_left - 0.5 * (Vx_left * Vx_left + Vy_left * Vy_left) ));
+	  Set::Scalar p_center = (gamma - 1.0) * rho_center * (E_old(i, j, k) / (rho_center - 0.5 *(Vx_center * Vx_center + Vy_center * Vy_center)));
+	  Set::Scalar p_up    = (gamma - 1.0) * rho_up * (E_old(i, j+1, k) / (rho_up - 0.5 * (Vx_up * Vx_up + Vy_up * Vy_up) ));
+	  Set::Scalar p_left  = (gamma - 1.0) * rho_down * (E_old(i, j-1, k) / (rho_down - 0.5 * (Vx_down * Vx_down + Vy_down * Vy_down) ));
+	  // End ####################################
+
+	  // Slopes Unsplit							      
+	  Set::Scalar rho_dcen_x = 0.5 * (rho_right - rho_left);
+	  Set::Scalar rho_dcen_y = 0.5 * (rho_up - rho_down);
+	  Set::Scalar Vx_dcen_x = 0.5 * (Vx_right - Vx_left);
+	  Set::Scalar Vx_dcen_y = 0.5 * (Vx_up - Vx_down);
+	  Set::Scalar Vy_dcen_y = 0.5 * ();
+ 
+
+	  Set::Scalar dlim_x = ;
+	  Set::Scalar dlim_y = ;
+							      
 	  Set::Scalar qleft = ;
 	  Set::Scalar qright = ;
+							      
 	  
 	  //Find Fluxes using Riemann Roe
 
@@ -131,6 +168,7 @@ namespace Integrator
 
   void Hydro::Regrid(int lev, Set::Scalar /* time */)
   {
+    
 
   }//end regrid
 
