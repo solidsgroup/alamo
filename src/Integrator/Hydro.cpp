@@ -5,7 +5,6 @@
 #include "IC/Laminate.H"
 #include "IC/PSRead.H"
 #include "IC/Expression.H"
-#include "Base/Mechanics.H"
 
 namespace Integrator
 {
@@ -51,7 +50,6 @@ namespace Integrator
     void Hydro::Initialize(int lev)
     {
       BL_PROFILE("Integrator::Hydro::Initialize");
-      Base::Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev); //this will prob be changed after we create gas in Model
 
       ic_eta -> Initialize(lev, eta_mf);
       ic_eta -> Initialize(lev, eta_old_mf);
@@ -71,8 +69,20 @@ namespace Integrator
     void Hydro::TimeStepBegin(Set::Scalar a_time, int a_iter)
     {
       BL_PROFILE("Integrator::Hydro::TimeStepBegin");
-      Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time, a_iter);
     }
+
+  
+    void Hydro::TimeStepEnd(Set::Scalar a_time, int a_iter)
+    {
+      // Syncronize c_max between processors so that they all have the same minimum value
+      amrex::ParallelDescriptor::ReduceRealMax(c_max);
+
+      // TODO calculate timestep?
+
+      // This will set the timestep on the coarsest level
+      //SetTimestep(new_timestep);
+    }
+
 
     void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
@@ -97,13 +107,13 @@ namespace Integrator
 	amrex::Array4<Set::Vector> const &V = (*Velocity_mf[lev]).array(mfi);
 	amrex::Array4<Set::Vector> const &p = (*Pressure_mf[lev]).array(mfi);
         //Computes Velocity and Pressure over the domain
-
+ 
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-	    V(i,j,k)[0] = M(i,j,k)[0] / rho(i,j,k);
-	    V(i,j,k)[1] = M(i,j,k)[1] / rho(i,j,k);
-	    V(i,j,k)[2] = M(i,j,k)[2] / rho(i,j,k);
+	    V(i, j, k, 0) = M(i, j, k, 0) / rho(i,j,k);
+	    V(i, j, k, 1) = M(i, j, k, 1) / rho(i,j,k);
+	    V(i, j, k, 2) = M(i, j, k, 2) / rho(i,j,k);
 
-	    Set::Scalar ke = V(i,j,k).lpNorm<2>();
+	    Set::Scalar ke = V(i,j,k, 0);
 
 	    p(i,j,k) = (gamma - 1.0) * rho(i,j,k) * (E(i,j,k) / rho(i,j,k) - 0.5 * ke * ke);
 
@@ -120,8 +130,17 @@ namespace Integrator
 	{
 	  Set::Vector dq;
 
-	  dq[0] = Numeric::Slopes();
-	  dq[1] = Numeric::Slopes();
+	  //dq[0] = Numeric::Slopes();
+	  //dq[1] = Numeric::Slopes();
+
+	  // first derivative in x direction
+	  Numeric::Stencil<Set::Scalar,1,0,0>::D(rho,i,j,k,0,dx);
+	  // second derivative in x direction
+	  Numeric::Stencil<Set::Scalar,2,0,0>::D(rho,i,j,k,0,dx);
+	  // first derivative in y direction
+	  Numeric::Stencil<Set::Scalar,0,1,0>::D(rho,i,j,k,0,dx);
+ 
+	  
 
 	});	
       }      
