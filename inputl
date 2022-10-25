@@ -1,8 +1,8 @@
 alamo.program = flame
-#plot_file = /home/mmeierdo/solidphase/outs/output
+plot_file = /home/mmeierdo/solidphase/outs/output
 amr.plot_dt = 0.1
 #amr.plot_int = 1
-amr.max_level = 8 #5 #6
+amr.max_level = 7 #5 #6
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.regrid_int = 100
@@ -20,10 +20,11 @@ geometry.is_periodic = 0 1 1
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1e-3 # 0.00005 # [s]
-stop_time = 5.0
+stop_time = 20.0
 small = 1.0e-5
 pf.min_eta = 0.1
 pf.evolve = 1
+
 
 pf.eps = 0.00016 #0.0005 # [m]
 pf.lambda = 0.001
@@ -87,7 +88,6 @@ pf.eta.bc.val.yhi = 0.0
 
 conditional.evolve = 1
 
-
 # THERMAL VARIABLES ######################################################### THERMAL
 pf.time_control = 0.2
 
@@ -123,26 +123,26 @@ thermal.cp_ap = 1297.9 #[J/kgK]
 thermal.cp_htpb = 2418.29 #[J/kgK]
 thermal.cp_comb = 2400.28
 
-thermal.temp.bc.type.xlo = dirichlet
-thermal.temp.bc.type.xhi = dirichlet
-thermal.temp.bc.type.ylo = periodic
-thermal.temp.bc.type.yhi = periodic
-thermal.temp.bc.type.zlo = periodic
-thermal.temp.bc.type.zhi = periodic
-thermal.temp.bc.val.xlo = 1200.0
+thermal.temp.bc.type.xlo = neumann
+thermal.temp.bc.type.xhi = neumann
+thermal.temp.bc.type.ylo = neumann
+thermal.temp.bc.type.yhi = neumann
+thermal.temp.bc.type.zlo = neumann
+thermal.temp.bc.type.zhi = neumann
+thermal.temp.bc.val.xlo = 0.0
 thermal.temp.bc.val.xhi = 0.0
 thermal.temp.bc.val.ylo = 0.0 
 thermal.temp.bc.val.yhi = 0.0
 thermal.temp.bc.val.zlo = 0.0 
 thermal.temp.bc.val.zhi = 0.0
 
-#thermal.bd =500
-thermal.mobcap = 25.0
-thermal.Wd = 1.0
+thermal.bd = 2000
+thermal.mobcap = 30.0
+thermal.Wd = 0.0
 
 thermal.hc = 0.1e7
 thermal.qlimit = 1.0e10
-thermal.q0 = 6.0e6
+thermal.q0 = 6.0e4
 
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
