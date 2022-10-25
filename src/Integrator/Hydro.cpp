@@ -56,18 +56,16 @@ namespace Integrator
       ic_eta -> Initialize(lev, eta_mf);
       ic_eta -> Initialize(lev, eta_old_mf);
 
-      E_mf[lev] -> setVal(0.0);
-      E_old_mf[lev] -> setVal(0.0);
+      Energy_mf[lev] -> setVal(0.0);
+      Energy_old_mf[lev] -> setVal(0.0);
       
-      rho_mf -> setVal(0.0);
-      rho_old_mf -> setVal(0.0);
+      Density_mf -> setVal(0.0);
+      Density_old_mf -> setVal(0.0);
 
-      Px_mf -> setVal(0.0);
-      Py_mf -> setVal(0.0);
-      Pz_mf -> setVal(0.0);
-      Px_old_mf -> setVal(0.0);
-      Py_old_mf -> setVal(0.0);
-      Pz_old_mf -> setVal(0.0);            
+      Momentum_mf -> setVal(0.0);
+      Momentum_old_mf -> setVal(0.0);
+
+      c_max = 0.0;
     }
 
     void Hydro::TimeStepBegin(Set::Scalar a_time, int a_iter)
@@ -80,11 +78,9 @@ namespace Integrator
     {
 
       std::swap(eta_old_mf[lev], eta_mf[lev]);
-      std::swap(Px_old_mf[lev], Px_mf[lev]);
-      std::swap(Py_old_mf[lev], Py_mf[lev]);
-      std::swap(Pz_old_mf[lev], Pz_mf[lev]);
-      std::swap(E_old_mf[lev], E_mf[lev]);
-      std::swap(rho_old_mf[lev], rho_mf[lev]);
+      std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
+      std::swap(Energy_old_mf[lev], Energy_mf[lev]);
+      std::swap(Density_old_mf[lev], Density_mf[lev]);
 
       for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
       {
@@ -92,75 +88,40 @@ namespace Integrator
 
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
 	amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &E = (*E_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &Eold = (*E_old_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &rho = (*rho_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &rhoold = (*rho_old_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &Px = (*Px_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &Py = (*Py_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &Pz = (*Pz_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &Pxold = (*Px_old_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &Pyold = (*Py_old_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &Pzold = (*Pz_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &Eold = (*Energy_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rho = (*Densitiy_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Scalar> const &rhoold = (*Density_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Vector> const &M = (*Momentum_mf[lev]).array(mfi);
+	amrex::Array4<const Set::Vector> const &Mold = (*Momentum_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Vector> const &V = (*Velocity_mf[lev]).array(mfi);
+	amrex::Array4<Set::Vector> const &p = (*Pressure_mf[lev]).array(mfi);
+        //Computes Velocity and Pressure over the domain
 
+	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+	    V(i,j,k)[0] = M(i,j,k)[0] / rho(i,j,k);
+	    V(i,j,k)[1] = M(i,j,k)[1] / rho(i,j,k);
+	    V(i,j,k)[2] = M(i,j,k)[2] / rho(i,j,k);
+
+	    Set::Scalar ke = V(i,j,k).lpNorm<2>();
+
+	    p(i,j,k) = (gamma - 1.0) * rho(i,j,k) * (E(i,j,k) / rho(i,j,k) - 0.5 * ke * ke);
+
+	    Set::Scalar c = gamma * p(i,j,k) / rho(i,j,k);
+
+	    if (c > c_max){ c_max = c;}
+ 	});
+
+	// Here you can add compute_dt
+
+	
 	//this loop will be running the godnov solver over the space
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
+	  Set::Vector dq;
 
-	  // Combining Compute Primitives and CPG Functions:
-	  Set::Scalar rho_right = rho_old(i+1, j, k);
-	  Set::Scalar rho_left = rho_old(i-1, j, k);
-	  Set::Scalar rho_center = rho_old(i, j, k);
-	  Set::Scalar rho_up = rho_old(i, j+1, k);
-	  Set::Scalar rho_down = rho_old(i, j-1, k);
-
-	  Set::Scalar Vx_right = Px_old(i+1, j, k) / rho_right;
-	  Set::Scalar Vx_left  = Px_old(i-1, j, k) / rho_left;
-	  Set::Scalar Vx_center = Px_old(i, j, k) / rho_center;
-	  Set::Scalar Vx_up    = Px_old(i, j+1, k) / rho_up;
-	  Set::Scalar Vx_down  = Px_old(i, j-1, k) / rho_down;
-
-	  Set::Scalar Vy_right = Py_old(i+1, j, k) / rho_right;
-	  Set::Scalar Vy_left  = Py_old(i-1, j, k) / rho_left;
-	  Set::Scalar Vy_center = Py_old(i, j, k) / rho_center; 
-	  Set::Scalar Vy_up    = Py_old(i, j+1, k) / rho_up;
-	  Set::Scalar Vy_down  = Py_old(i, j-1, k) / rho_down;
-
-	  Set::Scalar p_right = (gamma - 1.0) * rho_right * (E_old(i+1, j, k) / (rho_right - 0.5 * (Vx_right * Vx_right + Vy_right * Vy_right) ));
-	  Set::Scalar p_left  = (gamma - 1.0) * rho_left * (E_old(i-1, j, k) / (rho_left - 0.5 * (Vx_left * Vx_left + Vy_left * Vy_left) ));
-	  Set::Scalar p_center = (gamma - 1.0) * rho_center * (E_old(i, j, k) / (rho_center - 0.5 *(Vx_center * Vx_center + Vy_center * Vy_center)));
-	  Set::Scalar p_up    = (gamma - 1.0) * rho_up * (E_old(i, j+1, k) / (rho_up - 0.5 * (Vx_up * Vx_up + Vy_up * Vy_up) ));
-	  Set::Scalar p_left  = (gamma - 1.0) * rho_down * (E_old(i, j-1, k) / (rho_down - 0.5 * (Vx_down * Vx_down + Vy_down * Vy_down) ));
-	  // End ####################################
-
-	  // Slopes Unsplit							      
-	  Set::Scalar rho_dcen_x = 0.5 * (rho_right - rho_left);
-	  Set::Scalar rho_dcen_y = 0.5 * (rho_up - rho_down);
-	  Set::Scalar Vx_dcen_x = 0.5 * (Vx_right - Vx_left);
-	  Set::Scalar Vx_dcen_y = 0.5 * (Vx_up - Vx_down);
-	  Set::Scalar Vy_dcen_y = 0.5 * ();
- 
-
-	  Set::Scalar dlim_x = ;
-	  Set::Scalar dlim_y = ;
-							      
-	  Set::Scalar qleft = ;
-	  Set::Scalar qright = ;
-							      
-	  
-	  //Find Fluxes using Riemann Roe
-
-	  Set::Scalar flux_y = ;
-
-	  //Update values
-
-	  rho(i,j,k) = ;
-	  E(i,j,k)   = ;
-	  Px(i,j,k)  = ;
-	  Py(i,j,k)  = ;
-	  Pz(i,j,k)  = ;
-
-
+	  dq[0] = Numeric::Slopes();
+	  dq[1] = Numeric::Slopes();
 
 	});	
       }      

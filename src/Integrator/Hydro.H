@@ -37,28 +37,20 @@ protected:
     void UpdateModel(int a_step) override;
 private:
 
-    Set::Field<Set::Scalar> rho_mf;
-    Set::Field<Set::Scalar> rho_old_mf;
-    Set::Field<Set::Scalar> E_mf;
-    Set::Field<Set::Scalar> E_old_mf;
+    Set::Field<Set::Scalar> Density_mf;
+    Set::Field<Set::Scalar> Density_old_mf;
+    Set::Field<Set::Scalar> Energy_mf;
+    Set::Field<Set::Scalar> Energy_old_mf;
   
-    Set::Field<Set::Scalar> P_mf;
-    Set::Field<Set::Scalar> P_old_mf;
-    Set::Field<Set::Scalar> Px_mf;
-    Set::Field<Set::Scalar> Py_mf;
-    Set::Field<Set::Scalar> Pz_mf;
+    Set::Field<Set::Vector> Momentum_mf;
+    Set::Field<Set::Vector> Momentum_old_mf;
 
-    Set::Field<Set::Scalar> Px_old_mf;
-    Set::Field<Set::Scalar> Py_old_mf;
-    Set::Field<Set::Scalar> Pz_old_mf;
-
-
+    Set::Field<Set::Vector> Velocity_mf;
+    Set::Field<Set::Scalar> Pressure_mf;
   
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
 
-    Set::Field<Set::Scalar> deta_mf;
-  
     BC::BC<Set::Scalar> *bc_rho;
     BC::BC<Set::Scalar> *bc_E;
   
@@ -69,13 +61,14 @@ private:
     IC::IC *ic_rho;
     IC::IC *ic_E;
   
-    IC::IC *ic_P;
+    IC::IC *ic_M;
   
     IC::IC *ic_eta;
     
  
     Set::Scalar gamma = 1.4;
     Set::Scalar cfl = 0.8;
+    Set::Scalar c_max = 0.0;
 
     //refinement criterion variables
     Set::Scalar r_refinement_criterion = 0.1;
