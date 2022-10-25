@@ -43,7 +43,7 @@ class GB
     enum Regularization{Wilhelm,K23};
 
     // Return anisotropic driving force, regularization
-    std::tuple<Set::Scalar, Set::Scalar>
+    std::pair<Set::Scalar, Set::Scalar>
     DrivingForce(const Set::Vector &Deta, const Set::Matrix &DDeta, const Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> &DDDDeta)
     {
         #if AMREX_SPACEDIM == 2
@@ -68,7 +68,7 @@ class GB
                 DDDDeta(0,0,1,1)*(6.0*sin2Theta*cos2Theta) +
                 DDDDeta(0,1,1,1)*(4.0*cosThetasinTheta*cos2Theta) +
                 DDDDeta(1,1,1,1)*(    cos2Theta*cos2Theta);
-            return std::make_tuple(boundary_term, curvature_term);
+            return std::make_pair(boundary_term, curvature_term);
 
         #elif AMREX_SPACEDIM == 3
 
@@ -131,7 +131,7 @@ class GB
             if (regularization == Regularization::Wilhelm) reg_df = DH2 + DH3 + 2.0*DH23;
             else if (regularization == Regularization::K23) reg_df = DH2 + DH3;
 
-            return std::make_tuple(gbenergy_df, reg_df);
+            return std::make_pair(gbenergy_df, reg_df);
         
         #endif
     }

@@ -41,6 +41,8 @@ namespace Integrator
 
         Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
+        int N = number_of_grains * (number_of_grains - 1) / 2;
+
         for (amrex::MFIter mfi(*eta_new_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.tilebox();
@@ -57,8 +59,28 @@ namespace Integrator
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
+                std::vector<Set::Vector> Deta(number_of_grains);
+                std::vector<Set::Matrix> DDeta(number_of_grains);
+                std::vector<Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Full>> DDDDeta(number_of_grains);
+
                 for (int m = 0; m < number_of_grains; m++)
                 {
+                    Deta[m] = Numeric::Gradient(eta, i, j, k, m, DX);
+                    DDeta[m] = Numeric::Hessian(eta, i, j, k, m, DX);
+                    DDDDeta[m] = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
+                }
+
+                Set::Scalar sum_sq_denom = 1.0E-8;
+                for (int m = 0; m < number_of_grains; m++)
+                    for (int n = 0; n < number_of_grains; n++)
+                    {
+                        if (n==m) continue;
+                        sum_sq_denom += eta(i,j,k,m)*eta(i,j,k,m)*eta(i,j,k,n)*eta(i,j,k,n);
+                    }
+
+                for (int m = 0; m < number_of_grains; m++)
+                {
+                    Set::Scalar chem_pot_driving_force = 0.0;
                     Set::Scalar driving_force = 0.0;
                     Set::Scalar kappa = NAN, mu = NAN;
 
@@ -66,13 +88,13 @@ namespace Integrator
                     // BOUNDARY TERM and SECOND ORDER REGULARIZATION
                     //
 
-                    Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
-                    Set::Scalar normgrad = Deta.lpNorm<2>();
+                    //Set::Vector Deta = Numeric::Gradient(eta, i, j, k, m, DX);
+                    Set::Scalar normgrad = Deta[m].lpNorm<2>();
                     if (normgrad < 1E-4)  continue; // This ought to speed things up.
                     if (std::isnan(normgrad)) Util::Abort(INFO,"normgrad nan");
 
-                    Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, m, DX);
-                    Set::Scalar laplacian = DDeta.trace();
+                    //Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, m, DX);
+                    Set::Scalar laplacian = DDeta[m].trace();
 
                     if (!anisotropy.on || time < anisotropy.tstart)
                     {
@@ -82,11 +104,42 @@ namespace Integrator
                     }
                     else
                     {
-                        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDeta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
-                        auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDeta);
-                        driving_force += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
-                        driving_force += anisotropy.beta * std::get<1>(anisotropic_df);
-                        mu = 0.75 * (1.0/0.23) * boundary->W(Deta) / pf.l_gb;
+                        std::pair<Set::Scalar,Set::Scalar> anisotropic_df(0.0,0.0);
+                        Set::Scalar anisotropic_w = 0.0;
+                        for (int n = 0; n < number_of_grains; n++)
+                        {
+                            if (n==m) continue;
+                            Set::Scalar eta_eta_sq = eta(i,j,k,m)*eta(i,j,k,m)*eta(i,j,k,n)*eta(i,j,k,n);
+                            //Util::Message(INFO,boundary.size());
+                            //Util::Message(INFO,m);
+                            //Util::Message(INFO,n);
+                            //Util::Message(INFO,N);
+                            //Util::Message(INFO,IDX(std::min(m,n),std::max(m,n),N));
+                            std::pair<Set::Scalar,Set::Scalar> df 
+                                = boundary[IDX(std::min(m,n),std::max(m,n),N)].DrivingForce(Deta[m], DDeta[m], DDDDeta[m]);
+                            anisotropic_df.first += 2.0*eta_eta_sq*df.first/sum_sq_denom;
+                            anisotropic_df.second += 2.0*eta_eta_sq*df.second/sum_sq_denom;
+
+                            anisotropic_w += 2.0 * eta_eta_sq * boundary[IDX(std::min(m,n),std::max(m,n),N)].W(Deta[m]);
+                        }
+                        std::pair<Set::Scalar,Set::Scalar> df_old =
+                            boundary_old.DrivingForce(Deta[m],DDeta[m],DDDDeta[m]);
+
+                        if (m == 0)
+                        {
+                            gbe(i,j,k,0) = anisotropic_df.first;
+                            gbe(i,j,k,1) = df_old.first;
+                        }
+                        //Util::Message(INFO,anisotropic_df.first," ",df_old.first);
+                        //Util::Message(INFO,anisotropic_df.second," ",df_old.second);
+                        //Util::Message(INFO,sum_sq_denom);
+
+                        //Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDeta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
+                        //auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDeta);
+                        driving_force += pf.l_gb * 0.75 * anisotropic_df.first; //::get<0>(anisotropic_df);
+                        driving_force += anisotropy.beta * anisotropic_df.second; //::get<1>(anisotropic_df);
+                        //mu = 0.75 * (1.0/0.23) * boundary->W(Deta) / pf.l_gb;
+                        mu = 0.75 * (1.0/0.23) * anisotropic_w / pf.l_gb;
                     }
 
                     //
@@ -100,7 +153,8 @@ namespace Integrator
                             continue;
                         sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
                     }
-                    driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+                    //driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+                    chem_pot_driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
                     //
                     // LAGRANGE MULTIPLIER TERM FOR CONSERVING VOLUME
@@ -139,16 +193,16 @@ namespace Integrator
                         if (driving_force > pf.elastic_threshold)
                         {
                             //totaldf(i,j,k,m) = (driving_force-pf.elastic_threshold);
-                            etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force-pf.elastic_threshold);
+                            etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force-pf.elastic_threshold + chem_pot_driving_force);
                         }
                         else if (driving_force < -pf.elastic_threshold)
                         {
                             //totaldf(i,j,k,m) = (driving_force + pf.elastic_threshold);
-                            etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force + pf.elastic_threshold);
+                            etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * (driving_force + pf.elastic_threshold  + chem_pot_driving_force);
                         }
                         else
                         {
-                            //totaldf(i,j,k,m) = 0.0;
+                            etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * chem_pot_driving_force;
                         }
                     }
                     //totaldf(i,j,k,m) = driving_force;
@@ -176,10 +230,16 @@ namespace Integrator
 
 void PhaseFieldMicrostructure::UpdateEigenstrain(int lev)
 {
+    if (Mechanics<model_type>::m_type == Mechanics<model_type>::Disable) return;
     eta_new_mf[lev]->FillBoundary();
+
+    amrex::Box domain = geom[lev].Domain();
+    domain.convert(amrex::IntVect::TheNodeVector());
+
     for (amrex::MFIter mfi(*model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        const amrex::Box bx = mfi.grownnodaltilebox();// & domain;
+        amrex::Box bx = mfi.grownnodaltilebox() & domain;
+        //bx = bx & domain;
         amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const &etanew = (*eta_new_mf[lev]).array(mfi);
         //amrex::Array4<Set::Scalar> const &disc = (*disc_mf[lev]).array(mfi);
@@ -499,8 +559,9 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
             {
             #if AMREX_SPACEDIM == 2
                 Set::Scalar theta = atan2(grad(1), grad(0));
-                Set::Scalar sigma = boundary->W(theta);
-                gbenergy += sigma * da;
+                // TODO fix this
+                //Set::Scalar sigma = boundary->W(theta);
+                //gbenergy += sigma * da;
 
                 Set::Matrix DDeta = Numeric::Hessian(eta, i, j, k, 0, DX, sten);
                 Set::Vector tangent(normal[1], -normal[0]);

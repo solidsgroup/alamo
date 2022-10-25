@@ -343,7 +343,7 @@ protected:
     Set::Field<Set::Scalar> psi_mf;
     bool psi_on = false;
 
-    int m_interval = 0;
+    int m_interval = 1;
     Type m_type = Type::Static;
 
     Set::Field<Set::Vector> disp_mf;

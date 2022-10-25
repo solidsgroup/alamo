@@ -72,6 +72,7 @@ public:
     {
         return m_w(theta);
     };
+    using GB::W;
     Set::Scalar DW(const Set::Scalar theta) const
     {
         return m_dw(theta);

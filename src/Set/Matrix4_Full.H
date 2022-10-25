@@ -86,7 +86,20 @@ public:
         if (std::isnan(data[4])) return true;
         return false;
     }
+    friend Matrix4<2,Sym::Full> operator - (const Matrix4<2,Sym::Full> &a, const Matrix4<2,Sym::Full> &b);
 };
+AMREX_FORCE_INLINE
+Matrix4<2,Sym::Full> operator - (const Matrix4<2,Sym::Full> &a, const Matrix4<2,Sym::Full> &b)
+{
+    Matrix4<2,Sym::Full> ret;
+    ret.data[0] = a.data[0] - b.data[0];
+    ret.data[1] = a.data[1] - b.data[1];
+    ret.data[2] = a.data[2] - b.data[2];
+    ret.data[3] = a.data[3] - b.data[3];
+    ret.data[4] = a.data[4] - b.data[4];
+    return ret;
+}    
+
     
 template<>
 class Matrix4<3,Sym::Full>

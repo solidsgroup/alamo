@@ -43,6 +43,8 @@
 namespace Integrator
 {
 using model_type = Model::Solid::Affine::Cubic;
+using boundary_type = Model::Interface::GB::Read;    
+#define IDX(i,j,N) N*(N-1)/2 - (N-i)*(N-i-1)/2 + j - i - 1
 
 enum RegularizationType{
     Wilmore = 1,
@@ -160,16 +162,26 @@ public:
         std::string gb_type = "";
         pp.query("anisotropy.gb_type", gb_type); // Type of GB energy to use
         Util::Message(INFO,gb_type);
-        if      (gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-        else if (gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-        else if (gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-        else if (gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
-        else if (gb_type == "comb")   
+        //if      (gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
+        //else if (gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
+        //else if (gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
+        //else if (gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
+        //else if (gb_type == "comb")   
+        if (gb_type == "comb")
         {
-            Util::Message(INFO,gb_type);
-            value.boundary = new Model::Interface::GB::Combine<Model::Interface::GB::Read>(pp,"anisotropy.comb",value.number_of_grains);
+            int N = value.number_of_grains * (value.number_of_grains-1) / 2;
+            value.boundary.resize(N);
+            for (int i = 0 ; i < value.number_of_grains; i++)
+            for (int j = i+1 ; j < value.number_of_grains; j++)
+            {
+                std::string name = "anisotropy.comb." + std::to_string(i)+"."+std::to_string(j);
+                pp.queryclass(name.data(),value.boundary[IDX(i,j,N)]);
+            }
+            //Util::Message(INFO,gb_type);
+            ///value.boundary = new Model::Interface::GB::Combine<Model::Interface::GB::Read>(pp,"anisotropy.comb",value.number_of_grains);
         }
         else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
+        pp.queryclass("anisotropy.read",value.boundary_old);
 
         // Thermal disconnection fluctuations
         pp.query("fluctuation.on",value.fluctuation.on);
@@ -376,7 +388,9 @@ private:
         int on = 0;
         std::vector<Set::Matrix> Fgb;
     } shearcouple;
-    Model::Interface::GB::GB *boundary;
+    boundary_type boundary_old;
+    std::vector<boundary_type> boundary;
+    //Model::Interface::GB::GB *boundary;
 
     IC::IC *ic;
 
