@@ -52,6 +52,9 @@ private:
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
 
+    Set::Field<Set::Scalar> flux_x_mf;
+    Set::Field<Set::Scalar> flux_y_mf;
+
     BC::BC<Set::Scalar> *bc_rho;
     BC::BC<Set::Scalar> *bc_E;
   
@@ -65,12 +68,13 @@ private:
     IC::IC *ic_M;
   
     IC::IC *ic_eta;
-    
  
     Set::Scalar gamma = 1.4;
     Set::Scalar cfl = 0.8;
     Set::Scalar c_max = 0.0;
-
+    Set::Scalar vx_max = 0.0;
+    Set::Scalar vy_max = 0.0;
+ 
     //refinement criterion variables
     Set::Scalar r_refinement_criterion = 0.1;
     Set::Scalar e_refinement_criterion = 0.1;
