@@ -479,6 +479,31 @@ Laplacian(const amrex::Array4<const Set::Scalar> &f,
 }
 
 AMREX_FORCE_INLINE
+Set::Scalar
+CSolver(const amrex::Array4<const Set::Scalar> &f,
+	const int &i, const int &j, const int &k, const int &m,
+	const int &n, const Set::Scalar dx[AMREX_SPACEDIM])
+{
+  Set::Scalar ret;
+  if(n == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f,i, j, k, m, dx);
+  else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j, k, m, dx);
+  return ret;
+}
+
+AMREX_FORCE_INLINE
+Set::Scalar
+LSolver(const amrex::Array4<const Set::Scalar> &f
+	const int &i, const int &j, const int &k, const int &m,
+	const int &n, const Set::Scalar dx[AMREX_SPACEDIM])
+{
+  Set::Scalar ret;
+  if(n == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i-1, j, k, m, dx);
+  else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j-1, k, m, dx);
+  return ret;
+}
+
+
+AMREX_FORCE_INLINE
 Set::Vector
 Divergence(const amrex::Array4<const Set::Matrix> &dw,
         const int &i, const int &j, const int &k,
@@ -658,6 +683,8 @@ Gradient(const amrex::Array4<const Set::Vector> &f,
 
     return ret;
 }
+
+  
 
 AMREX_FORCE_INLINE
 Set::Matrix

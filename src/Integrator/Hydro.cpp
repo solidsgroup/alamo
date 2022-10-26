@@ -26,20 +26,15 @@ namespace Integrator
 	value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, 2, "eta", true);
 	value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
 
-	value.RegisterNewFab(value.rho_mf, value.bc_rho, 1, 2, "rho", true);
-	value.RegisterNewFab(value.rho_old_mf, 1, 2, "rho_old", false);
+	value.RegisterNewFab(value.Density_mf, value.bc_rho, 1, 2, "rho", true);
+	value.RegisterNewFab(value.Density_old_mf, 1, 2, "rho_old", false);
 
-	value.RegisterNewFab(value.E_mf, value.bc_E, 1, 2, "E", true);
-	value.RegisterNewFab(value.E_old_mf, value.bc_E, 1, 2, "E_old", false);
+	value.RegisterNewFab(value.Energy_mf, value.bc_E, 1, 2, "E", true);
+	value.RegisterNewFab(value.Energy_old_mf, value.bc_E, 1, 2, "E_old", false);
 
-	value.RegisterNewFab(value.Px_mf, value.bc_Px, 1, 2, "Px", true);
-	value.RegisterNewFab(value.Py_mf, value.bc_Py, 1, 2, "Py", true);
-        value.RegisterNewFab(value.Pz_mf, value.bc_Pz, 1, 2, "Pz", true);
+	value.RegisterNewFab(value.Momentum_mf, value.bc_M, 1, 2, "M", true);
+	value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 1, 2, "M_old", false);
 
-
-	value.RegisterNewFab(value.Px_old_mf, value.bc_Px, 1, 2, "Px_old", false);
-	value.RegisterNewFab(value.Py_old_mf, value.bc_Py, 1, 2, "Py_old", false);
-	value.RegisterNewFab(value.Pz_old_mf, value.bc_Pz, 1, 2, "Pz_old", false);
 
       }
 
@@ -113,7 +108,7 @@ namespace Integrator
 	    V(i, j, k, 1) = M(i, j, k, 1) / rho(i,j,k);
 	    V(i, j, k, 2) = M(i, j, k, 2) / rho(i,j,k);
 
-	    Set::Scalar ke = V(i,j,k, 0);
+	    Set::Scalar ke = V(i, j, k, 0) * V(i, j, k, 0) + V(i, j, k, 1) * V(i, j, k, 1);
 
 	    p(i,j,k) = (gamma - 1.0) * rho(i,j,k) * (E(i,j,k) / rho(i,j,k) - 0.5 * ke * ke);
 
