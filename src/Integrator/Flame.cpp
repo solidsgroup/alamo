@@ -117,7 +117,8 @@ namespace Integrator
             pp.query("thermal.hc", value.thermal.hc);
             
             pp.query("thermal.qlimit", value.thermal.qlimit);
-
+	    pp.query("thermal.mlocal_ap", value.thermal.mlocal_ap);
+	    
 	    pp.query("thermal.Wd", value.Wd);
 	    pp.query("thermal.mobcap", value.thermal.mobcap);
             value.bc_temp = new BC::Constant(1);
@@ -312,6 +313,21 @@ namespace Integrator
 
                     });
 
+		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+		{
+		    Set::Scalar qflux = k1 * phi(i,j,k) +
+		                        k2 * (1.0 - phi(i,j,k)) +
+		                        (zeta_0 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
+		    Set::Scalar mlocal = thermal.mlocal_ap;
+		    Set::Scalar mbase;
+
+		    if (mob(i,j,k) > mlocal) mbase = 1.0;
+		    else mbase = mob(i,j,k) / mlocal; 
+		     
+		    heatflux(i,j,k) = (mbase * thermal.hc * qflux + thermal.q0) / (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
+
+		});
+                     
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
 		    auto sten = Numeric::GetStencil(i,j,k,bx);
@@ -327,7 +343,6 @@ namespace Integrator
                     //Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
 
                     Bn = thermal.hc * qflux / (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
-                    heatflux(i,j,k) = Bn;
 
                     Bd = thermal.bd;
 		    
@@ -339,7 +354,7 @@ namespace Integrator
                     dTdt += alpha(i,j,k) * lap_temp;
 
 		    // Neumann Condition
-                    dTdt += (grad_eta_mag * alpha(i,j,k) * Bn / (eta(i,j,k) + small) ) * Wn; // Calculate the source term
+                    dTdt += (grad_eta_mag * alpha(i,j,k) * heatflux(i,j,k) / (eta(i,j,k) + small) ) * Wn; // Calculate the source term
 
                     // Dirichlet Condition
 		    dTdt += (-1.0 * alpha(i,j,k) * grad_eta.dot(eta(i,j,k)*grad_temp + temp(i,j,k)*grad_eta) / (eta(i,j,k) + small) / (eta(i,j,k) + small) ) * Wd;

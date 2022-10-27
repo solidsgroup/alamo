@@ -2,7 +2,7 @@ alamo.program = flame
 plot_file = /home/mmeierdo/solidphase/outs/output
 amr.plot_dt = 0.1
 #amr.plot_int = 1
-amr.max_level = 7 #5 #6
+amr.max_level = 8 #5 #6
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.regrid_int = 100
@@ -19,8 +19,8 @@ geometry.is_periodic = 0 1 1
 
 ## TIME EPS ############################################################ TIME EPS
 
-timestep = 1e-3 # 0.00005 # [s]
-stop_time = 20.0
+timestep = 0.5e-3 # 0.00005 # [s]
+stop_time = 60.0
 small = 1.0e-5
 pf.min_eta = 0.1
 pf.evolve = 1
@@ -140,10 +140,11 @@ thermal.bd = 2000
 thermal.mobcap = 30.0
 thermal.Wd = 0.0
 
-thermal.hc = 0.1e7
+thermal.hc = 1.0e7
 thermal.qlimit = 1.0e10
-thermal.q0 = 6.0e4
+thermal.q0 = 5.0e5
 
+thermal.mlocal_ap = 70.0
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
 pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
