@@ -71,7 +71,7 @@ parser.add_argument('--debug', dest='debug', action='store_true', help='Compile 
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--offline', dest='offline', action='store_true',default=False, help='[Compile in production mode]')
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
-parser.add_argument('--alternate-mpi', dest='alternate_mpi', action='store_true',default=False, help='Compile with other MPI libraries besides MPICH')
+parser.add_argument('--alternate-mpi', dest='alternate_mpi', action='store_true',default=False, help='Compile with any MPI library (only MPICH and MVAPICH are supported)')
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
@@ -286,10 +286,10 @@ elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
 if not args.alternate_mpi and not shutil.which("mpichversion"):
-    raise Exception(color.red + "ERROR" + color.reset + ": An MPICH installation was not found, to compile with another MPI library please use " + code("--alternate-mpi"))
+    raise Exception(color.red + "ERROR" + color.reset + ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " + code("--alternate-mpi"))
 
 shellmessage("Compiler (" + args.comp + ")", args.comp + " --version")
-shellmessage("MPI Library","mpirun --version")
+shellmessage("MPI Library","mpiexec --version")
 
 env = os.environ.copy()
 env.update({'MPICH_CXX': args.comp, 'OMPI_CXX': args.comp, 'I_MPI_CXX': args.comp})
