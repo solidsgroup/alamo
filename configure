@@ -288,12 +288,12 @@ else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g+
 if not args.alternate_mpi and not shutil.which("mpichversion"):
     raise Exception(color.red + "ERROR" + color.reset + ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " + code("--alternate-mpi"))
 
-shellmessage("Compiler (" + args.comp + ")", args.comp + " --version")
+shellmessage("Compiler (" + args.comp + ")", args.comp + " -v")
 shellmessage("MPI Library","mpiexec --version")
 
 env = os.environ.copy()
 env.update({'MPICH_CXX': args.comp, 'OMPI_CXX': args.comp, 'I_MPI_CXX': args.comp})
-shellmessage("MPI Options", "mpicxx -show", env)
+shellmessage("MPI Compiling Line", "mpicxx -show", env)
 
 backend_comp = " MPICH_CXX=" + args.comp + " OMPI_CXX=" + args.comp + " I_MPI_CXX=" + args.comp + " "
 f.write("CC =" + backend_comp + "mpicxx\n")
