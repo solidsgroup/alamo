@@ -94,6 +94,10 @@ namespace Integrator
       std::swap(Energy_old_mf[lev], Energy_mf[lev]);
       std::swap(Density_old_mf[lev], Density_mf[lev]);
 
+      const Set::Scalar *DX = geom[lev].CellSize();
+
+      Set::Scalar rho0, V = 0.5, 1.0 //Diffuse Interface Parameters
+
       for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
       {
 	const amrex::Box &bx = mfi.tilebox();
@@ -106,7 +110,7 @@ namespace Integrator
 	amrex::Array4<const Set::Scalar> const &rhoold = (*Density_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
 	amrex::Array4<const Set::Scalar> const &Mold = (*Momentum_old_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &V = (*Velocity_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &v = (*Velocity_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &flux_x = (*flux_x_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &flux_y = (*flux_y_mf[lev]).array(mfi);
@@ -115,58 +119,170 @@ namespace Integrator
         //Computes Velocity and Pressure over the domain
  
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-	    V(i, j, k, 0) = M(i, j, k, 0) / rho(i,j,k);
-	    V(i, j, k, 1) = M(i, j, k, 1) / rho(i,j,k);
-	    V(i, j, k, 2) = M(i, j, k, 2) / rho(i,j,k);
+	    v(i, j, k, 0) = M(i, j, k, 0) / rho(i,j,k);
+	    v(i, j, k, 1) = M(i, j, k, 1) / rho(i,j,k);
+	    v(i, j, k, 2) = M(i, j, k, 2) / rho(i,j,k);
 
-	    Set::Scalar ke = V(i, j, k, 0) * V(i, j, k, 0) + V(i, j, k, 1) * V(i, j, k, 1);
+	    Set::Scalar ke = V(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1);
 
 	    p(i,j,k) = (gamma - 1.0) * rho(i,j,k) * (E(i,j,k) / rho(i,j,k) - 0.5 * ke * ke);
 
 	    Set::Scalar c = sqrt(gamma * p(i,j,k) / rho(i,j,k) );
 
 	    if (c > c_max){ c_max = c;}
-	    if (V(i, j, k, 0) > vx_max) {vx_max = V(i, j, k, 0);}
-	    if (V(i, j, k, 1) > vy_max) {vy_max = V(i, j, k, 1);}
+	    if (v(i, j, k, 0) > vx_max) {vx_max = V(i, j, k, 0);}
+	    if (v(i, j, k, 1) > vy_max) {vy_max = V(i, j, k, 1);}
  	});
 
 	
 	//this loop will be running the godnov solver over the space
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
-	  Set::Scalar dqX, dqY, dqXn, dqYn;
-	  Set::Scalar slope_right, slope_left, qright, qleft;
+	  Set::Scalar drhoX, drhoY, dvxX, dvyY, dpX, dpY;
+	  Set::Scalar drhoX_n, drhoY_n, dvxX_n, dvyY_n, dpX_n, dpY_n;
+	  Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
+	  Set::Scalar rho_right, vx_right, vy_right, p_right;
+	  Set::Scalar rho_slope_left, vx_slope_left, vy_slope_left, p_slope_left;
+	  Set::Scalar rho_left, vx_left, vy_left, p_left;
 
-	  dqX  = Numeric::CSolver(rho, i, j, k, 0, 0, DX[0]);
-	  dqY  = Numeric::CSolver(rho, i, j, k, 0, 1, DX[1]);
+	  double flux_x[4];
+          double flux_y[4];
 
-	  dqXn = Numeric::RSolver(rho, i, j, k, 0, 0, DX[0]);
-	  dqYn = Numeric::RSolver(rho, i, j, k, 0, 1, DX[1]);
+	  // compute slopes in current cell
+          drhoX = Numeric::CSolver(rho, i, j, k, 0, DX[0]);
+          drhoY = Numeric::CSolver(rho, i, j, k, 1, DX[1]);
 
-	  slope_right = (-qLoc * dqX - dqX * qLoc) * dtdx + (-qLoc * dqY - qLoc * dqY) * dtdy;
-	  qright = qLoc + 0.5 * slope_right - dqX;
+	  dvxX	= Numeric::CSolver(v, i, j, k, 0, 0, DX[0]);
+	  dvxY	= Numeric::CSolver(v, i, j, k, 0, 1, DX[1]);
 
-	  flux_x(i, j, k, 0) = Model::GAS::Rieman_ROE();
-          flux_y(i, j, k, 1) = Model::GAS::Rieman_ROE();
-	  
-	});
+	  dvyX	= Numeric::CSolver(v, i, j, k, 1, 0, DX[0]);
+	  dvyY	= Numeric::CSolver(v, i, j, k, 1, 1, DX[1]);
 
-	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-	{
-	  E(i-1,j,k) += -flux_x(i, j, k, 0) * dtdx;
-	  E(i,j,k)   +=  flux_x(i, j, k, 0) * dtdx;
-	  E(i,j-1,k) += -flux_y(i, j, k, 0) * dtdy;
-	  E(i,j,k)   +=  flux_y(i, j, k, 0) * dtdy;
+          dpX	= Numeric::CSolver(p, i, j, k, 0, DX[0]);
+	  dpY	= Numeric::CSolver(p, i, j, k, 1, DX[1]);
+    
+	  //
+          // left interface along x direction
+          //
+
+          // compute slopes in left neighbor
+	  drhoX_n = Numeric::LSolver(rho, i, j, k, 0, DX[0]);
+          drhoY_n = Numeric::LSolver(rho, i, j, k, 0, DX[1]);
+
+	  dvxX_n  = Numeric::LSolver(v, i, j, k, 0, 0, DX[0]);
+	  dvxY_n  = Numeric::LSolver(v, i, j, k, 0, 0, DX[1]);
+
+	  dvyX_n  = Numeric::LSolver(v, i, j, k, 1, 0, DX[0]);
+	  dvyY_n  = Numeric::LSolver(v, i, j, k, 1, 0, DX[1]);
+
+          dpX_n	  = Numeric::LSolver(p, i, j, k, 0, DX[0]);
+	  dpY_n	  = Numeric::LSolver(p, i, j, k, 0, DX[1]);
+
+	  // slopes in current cell
+	  rho_slope_right = (-v(i,j,k,0) * drhoX - dvxX * rho(i,j,k)) * dt / DX[0]          + (-v(i,j,k,1) * drhoY - dvyY * rho(i,j,k)) * dt / DX[1];
+	  vx_slope_right  = (-v(i,j,k,0) * dvxX - dpX / rho(i,j,k)) * dt / DX[0]            + (-v(i,j,k,1) * dvyY) * dt / DX[1];
+	  vy_slope_right  = (-v(i,j,k,0) * dvyX) * dt / DX[0]                               + (-v(i,j,k,1) * dvyY - dpY / rho(i,j,k)) * dt / DX[1];
+	  p_slope_right	  = (-v(i,j,k,0) * dpX - dvxX * gamma * p(i,j,k)) * dt / DX[0] + (-v(i,j,k,1) * dpY - dvyY * gamma * p(i,j,k)) * dt / DX[1];
+                    
+	  // compute reconstructed states at left interface along x in current cell
+	  // left interface: right state
+	  rho_right = rho(i,j,k) + 0.5 * rho_slope_right - drhoX;
+	  vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvxX;
+	  vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvyX;
+	  p_right   = p(i,j,k) + 0.5 * p_slope_right - dpX;
+
+	  // left interface: left state
+	  rho_slope_left = (-v(i-1,j,k,0) * drhoX - dvxX * rho(i-1,j,k)) * dt / DX[0]          + (-v(i-1,j,k,1) * drhoY - dvyY * rho(i-1,j,k)) * dt / DX[1];
+	  vx_slope_left  = (-v(i-1,j,k,0) * dvxX - dpX / rho(i-1,j,k)) * dt / DX[0]            + (-v(i-1,j,k,1) * dvyY) * dt / DX[1];
+	  vy_slope_left  = (-v(i-1,j,k,0) * dvyX) * dt / DX[0]                                 + (-v(i-1,j,k,1) * dvyY - dpY / rho(i-1,j,k)) * dt / DX[1];
+	  p_slope_left	 = (-v(i-1,j,k,0) * dpX - dvxX * gamma * p(i-1,j,k)) * dt / DX[0] + (-v(i-1,j,k,1) * dpY - dvyY * gamma * p(i-1,j,k)) * dt / DX[1];
+
+	  rho_left = rho(i-1,j,k) + 0.5 * rho_slope_left + drhoX_n;
+	  vx_left  = v(i-1,j,k,0) + 0.5 * vx_slope_left + dvxX_n;
+	  vy_left  = v(i-1,j,k,1) + 0.5 * vy_slope_left + dvyX_n;
+	  p_left   = p(i-1,j,k) + 0.5 * p_slope_left + dpX_n;
+
+	  double left_state[4]  = {rho_left, vx_left, vy_left, p_left, eta(i-1, j, k)};
+	  double right_state[4] = {rho_right, vx_right, vy_right, p_right, eta(i, j, k)};
+
+	  flux_x = Solver::Local::Rieman_ROE(left_state, right_state, eta(i, j, k));
+
+	  //
+	  // left interface along y direction
+	  //
+
+	  // compute slopes in left neighbor
+          drhoX_n = Numeric::LSolver(rho, i, j, k, 1, DX[0]);
+          drhoY_n = Numeric::LSolver(rho, i, j, k, 1, DX[1]);
+
+	  dvxX_n  = Numeric::LSolver(v, i, j, k, 0, 1, DX[0]);
+	  dvxY_n  = Numeric::LSolver(v, i, j, k, 0, 1, DX[1]);
+
+	  dvyX_n  = Numeric::LSolver(v, i, j, k, 1, 1, DX[0]);
+	  dvyY_n  = Numeric::LSolver(v, i, j, k, 1, 1, DX[1]);
+
+          dpX_n	  = Numeric::LSolver(p, i, j, k, 1, DX[0]);
+	  dpY_n	  = Numeric::LSolver(p, i, j, k, 1, DX[1]);
+
+	  // compute reconstructed states at left interface along y in current cell
+          // left interface: right state
+	  rho_right = rho(i,j,k) + 0.5 * rho_slope_right - drhoY;
+	  vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvxY;
+	  vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvyY;
+	  p_right   = p(i,j,k) + 0.5 * p_slope_right - dpY;
+	    
+	  // left interface: left state
+	  rho_slope_left = (-v(i,j-1,k,0) * drhoX - dvxX * rho(i,j-1,k)) * dt / DX[0]          + (-v(i,j-1,k,1) * drhoY - dvyY * rho(i,j-1,k)) * dt / DX[1];
+	  vx_slope_left  = (-v(i,j-1,k,0) * dvxX - dpX / rho(i,j-1,k)) * dt / DX[0]            + (-v(i,j-1,k,1) * dvyY) * dt / DX[1];
+	  vy_slope_left  = (-v(i,j-1,k,0) * dvyX) * dt / DX[0]                                 + (-v(i,j-1,k,1) * dvyY - dpY / rho(i,j-1,k)) * dt / DX[1];
+	  p_slope_left	 = (-v(i,j-1,k,0) * dpX - dvxX * gamma * p(i,j-1,k)) * dt / DX[0] + (-v(i,j-1,k,1) * dpY - dvyY * gamma * p(i,j-1,k)) * dt / DX[1];
+
+	  rho_left = rho(i,j-1,k) + 0.5 * rho_slope_left + drhoY_n;
+	  vx_left  = v(i,j-1,k,0) + 0.5 * vx_slope_left + dvxY_n;
+	  vy_left  = v(i,j-1,k,1) + 0.5 * vy_slope_left + dvyY_n;
+	  p_left   = p(i,j-1,k) + 0.5 * p_slope_left + dpY_n;
+                
+	  // x, y permutations
+	  std::swap(vx_left, vy_left);
+	  std::swap(vx_right, vy_right);
+
+	  double left_state[4]  = {rho_left, vx_left, vy_left, p_left, eta(i, j-1, k)};
+	  double right_state[4] = {rho_right, vx_right, vy_right, p_right, eta(i, j, k)};
+                
+	  flux_y = Solver::Local::Rieman_ROE(left_state, right_state, eta(i, j, k));
+                
+	  // swap flux_y components
+	  std::swap(flux_y[2], flux_y[3]);
+                
+	  // update hydro array
+	  E(i-1,j,k)   += -flux_x(i, j, k, 0) *	dtdx;
+	  E(i,j,k)     += flux_x(i, j, k, 0) * dtdx;
+	  E(i,j-1,k)   += -flux_y(i, j, k, 0) * dtdy;
+	  E(i,j,k)     += flux_y(i, j, k, 0) * dtdy;
 	  
 	  rho(i-1,j,k) += -flux_x(i, j, k, 1) * dtdx;
-	  rho(i,j,k)   +=  flux_x(i, j, k, 1) * dtdx;
-	  rho(i,j-1,k) += -flux_y(i, j, k, 1) * dtdy;
-	  rho(i,j,k)   +=  flux_y(i, j, k, 1) * dtdy;
+	  rho(i,j,k)   += flux_x(i, j, k, 1) * dtdx;
+	  rho(i,j-1,k) += -flux_y(i, j, k, 1) *	dtdy;
+	  rho(i,j,k)   += flux_y(i, j, k, 1) * dtdy;
 	  
-          M(i-1,j,k) += -flux_x(i, j, k, 2) * dtdx;
-	  M(i,j,k)   +=  flux_x(i, j, k, 2) * dtdx;
-	  M(i,j-1,k) += -flux_y(i, j, k, 2) * dtdy;
-	  M(i,j,k)   +=  flux_y(i, j, k, 2) * dtdy;
+          M(i-1,j,k,0) += -flux_x(i, j, k, 2) *	dtdx;
+	  M(i,j,k,0)   += flux_x(i, j, k, 2) *	dtdx;
+	  M(i,j-1,k,0) += -flux_y(i, j, k, 2) *	dtdy;
+	  M(i,j,k,0)   += flux_y(i, j, k, 2) *	dtdy;
+
+	  M(i-1,j,k,1) += -flux_x(i, j, k, 3) *	dtdx;
+	  M(i,j,k,1)   += flux_x(i, j, k, 3) *	dtdx;
+	  M(i,j-1,k,1) += -flux_y(i, j, k, 3) *	dtdy;
+	  M(i,j,k,1)   += flux_y(i, j, k, 3) *	dtdy;
+
+	  /// Diffuse Interface Source Terms
+	  Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+	  
+	  Set::Matrix source = Set::Matrix::Zero();
+	  source[0] = grad_eta * (rho0 * V);
+	  source[1] = grad_eta * (rho0 * V**2) 
+	  source[2] = grad_eta * (0.5 * rho0 * V**3)
+	  
 	});
       }      
     }//end Advance
