@@ -492,7 +492,7 @@ CSolver(const amrex::Array4<const Set::Scalar> &f,
 
 AMREX_FORCE_INLINE
 Set::Scalar
-LSolver(const amrex::Array4<const Set::Scalar> &f
+LSolver(const amrex::Array4<const Set::Scalar> &f,
 	const int &i, const int &j, const int &k, const int &m,
 	const int &n, const Set::Scalar dx[AMREX_SPACEDIM])
 {
