@@ -258,7 +258,7 @@ namespace Integrator
         const Set::Scalar *DX = geom[lev].CellSize();
         //const Set::Scalar small = 1E-8;
 
-        if (true) //(lev == finest_level)
+        if (lev == finest_level) //(true)
         {
             std::swap(eta_old_mf[lev], eta_mf[lev]);
             std::swap(temp_old_mf[lev], temp_mf[lev]);
@@ -366,8 +366,8 @@ namespace Integrator
 
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-                    mob(i,j,k)  = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) );
-		    mob(i,j,k) += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) ;
+                    mob(i,j,k)  = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
+		    mob(i,j,k) += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
 		    mob(i,j,k) *= conditional.evolve;
 
 		    if (mob(i,j,k) > thermal.mobcap) mob(i,j,k) = thermal.mobcap;

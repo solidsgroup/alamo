@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = /home/mmeierdo/solidphase/outs/output
+plot_file = /home/mmeierdo/solidphase/outs2/output
 amr.plot_dt = 0.1
 #amr.plot_int = 1
 amr.max_level = 8 #5 #6
@@ -20,13 +20,13 @@ geometry.is_periodic = 0 1 1
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 0.5e-3 # 0.00005 # [s]
-stop_time = 60.0
+stop_time = 10.0
 small = 1.0e-5
 pf.min_eta = 0.1
 pf.evolve = 1
 
 
-pf.eps = 0.00016 #0.0005 # [m]
+pf.eps = 0.0001 #0.0005 # [m]
 pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
@@ -91,7 +91,7 @@ conditional.evolve = 1
 # THERMAL VARIABLES ######################################################### THERMAL
 pf.time_control = 0.2
 
-thermal.m_ap = 1.45e3  #1.22 #  151000.0 # 40.22  # [m/s]
+thermal.m_ap = 0.05e7  #1.45e7 #  151000.0 # 40.22  # [m/s]
 thermal.m_htpb = 0.1 # 0.2 # [m/s]
 thermal.m_comb = 1.0e5  # 20.0 # [m/s]
 thermal.E_ap = 11000.0   # 1050.0 # 4.0
@@ -114,7 +114,7 @@ thermal.n_ap = 1.042
 thermal.rho_ap = 1950.0 # [kg/m3] 
 thermal.rho_htpb = 920.0 # [kg/m3]
 
-thermal.k_ap = 0.4186 # 5.5 [W/mK]
+thermal.k_ap = 0.4186e1 # 5.5 [W/mK]
 thermal.k_htpb = 0.13 # 0.283[W/mK]
 thermal.k0 = 0.0 #0.43 
 thermal.k_comb = 0.41 # 0.43[W/mK] for 0.8ap 0.16htpb 0.04al
@@ -142,12 +142,12 @@ thermal.Wd = 0.0
 
 thermal.hc = 1.0e7
 thermal.qlimit = 1.0e10
-thermal.q0 = 5.0e5
+thermal.q0 = 5.0e6
 
-thermal.mlocal_ap = 70.0
+thermal.mlocal_ap = 100.0
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
-pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
+pressure.P = 2.0  ## Pressure is to be inputed in MPa units.
 
 pressure.a1 = 0.46
 pressure.a2 = 1.114 
