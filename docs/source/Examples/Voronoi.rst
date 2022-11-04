@@ -28,7 +28,7 @@ Run the test problem (2D or 3D) via
       ./bin/alamo... tests/Voronoi/input
 
 This will generate an output directory :code:`tests/Voronoi/output/`, and will re-name the old directory if it exists already.
-Use VisIt to open :code:`tests/Flame/output/output.visit`.
+Use VisIt to open :code:`tests/Voronoi/output/output.visit`.
 
 See also:
 

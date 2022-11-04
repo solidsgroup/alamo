@@ -55,10 +55,10 @@ For a full list of options run :code:`./configure --help`.
 
 .. NOTE:: 
     If amrex is installed and built elsewhere, you can just add 
-    :code:`--eigen /path/to/amrex` to your configure command.
+    :code:`--amrex /path/to/amrex` to your configure command.
 
 .. NOTE:: 
-    If you used option (2) to obtain Eigen, you need to add 
+    If you used option (3) to obtain Eigen, you need to add
     :code:`--eigen /path/to/eigen` to your configure command:
 
 **Making**: To build the code:
