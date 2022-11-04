@@ -278,11 +278,11 @@ elif (args.eigen != ""):
 #
 # Compiler
 #
-if not args.comp in ['g++','icc','clang++']:
-    raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
-if (args.comp == "gcc"): f.write("COMP = GCC\n")
-elif (args.comp == "clang"): f.write("COMP = CLANG\n")
-elif (args.comp == "intel"): f.write("COMP = INTEL\n")
+if   (args.comp == "g++"):     f.write("COMP = GCC\n")
+elif (args.comp == "clang++"): f.write("COMP = CLANG\n")
+elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
+else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
+
 message("Comp-Type", str(args.comp))
 shellmessage("Comp-Version",args.comp+" --version")
 shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
