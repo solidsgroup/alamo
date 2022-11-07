@@ -286,17 +286,27 @@ elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
 if not args.alternate_mpi and not shutil.which("mpichversion"):
-    raise Exception(color.red + "ERROR" + color.reset + ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " + code("--alternate-mpi"))
+    raise Exception(color.red + "ERROR" + color.reset +
+        ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " +
+        code("--alternate-mpi"))
 
-shellmessage("Compiler (" + args.comp + ")", args.comp + " -v")
-shellmessage("MPI Library","mpiexec --version")
+if not args.alternate_mpi:
+    message("Comp-Type", str(args.comp))
+    shellmessage("Comp-Version",args.comp+" --version")
+    shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
+    shellmessage("MPICH:","mpichversion")
+    shellmessage("MPICH mpicxx:","mpicxx -v")
+    f.write("CC = mpicxx -cxx="+args.comp+"\n")
+else:
+    shellmessage("Compiler (" + args.comp + ")", args.comp + " -v")
+    shellmessage("MPI Library","mpiexec --version")
 
-env = os.environ.copy()
-env.update({'MPICH_CXX': args.comp, 'OMPI_CXX': args.comp, 'I_MPI_CXX': args.comp})
-shellmessage("MPI Compiling Line", "mpicxx -show", env)
+    env = os.environ.copy()
+    env.update({'MPICH_CXX': args.comp, 'OMPI_CXX': args.comp, 'I_MPI_CXX': args.comp})
+    shellmessage("MPI Compiling Line", "mpicxx -show", env)
 
-backend_comp = " MPICH_CXX=" + args.comp + " OMPI_CXX=" + args.comp + " I_MPI_CXX=" + args.comp + " "
-f.write("CC =" + backend_comp + "mpicxx\n")
+    backend_comp = " MPICH_CXX=" + args.comp + " OMPI_CXX=" + args.comp + " I_MPI_CXX=" + args.comp + " "
+    f.write("CC =" + backend_comp + "mpicxx\n")
 
 if args.comp == 'g++':
     f.write("MPI_LIB = -lgfortran\n")
