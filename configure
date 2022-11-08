@@ -71,7 +71,7 @@ parser.add_argument('--debug', dest='debug', action='store_true', help='Compile 
 parser.add_argument('--no-debug', dest='debug', action='store_false', help='[Compile in production mode]')
 parser.add_argument('--offline', dest='offline', action='store_true',default=False, help='[Compile in production mode]')
 parser.add_argument('--omp', dest='omp', action='store_true',default=False, help='Compile with OpenMP')
-parser.add_argument('--alternate-mpi', dest='alternate_mpi', action='store_true',default=False, help='Compile with any MPI library (only MPICH and MVAPICH are supported)')
+parser.add_argument('--alternate-mpi', dest='alternate_mpi', action='store_true',default=False, help='Compile with an unsupported MPI library (only MPICH and MVAPICH are supported)')
 parser.add_argument('--python',dest='python',nargs='?',const=python_version,help='Compile python interface library')
 parser.add_argument('--docs',dest='docs',action='store_true',help='Check installation of packages for building documentation')
 parser.add_argument('--diff',dest='diff',default=False,action='store_true',help='Use diff2html to generate git diff reports')
@@ -286,11 +286,10 @@ elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
 if not args.alternate_mpi and not shutil.which("mpichversion"):
-    raise Exception(color.red + "ERROR" + color.reset +
-        ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " +
-        code("--alternate-mpi"))
-
-if not args.alternate_mpi:
+    if not shutil.which("mpichversion"):
+        raise Exception(color.red + "ERROR" + color.reset +
+            ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " +
+            code("--alternate-mpi"))
     message("Comp-Type", str(args.comp))
     shellmessage("Comp-Version",args.comp+" --version")
     shellmessage("Comp-MPI","mpicxx -cxx="+args.comp+" -show")
@@ -299,6 +298,7 @@ if not args.alternate_mpi:
     f.write("CC = mpicxx -cxx="+args.comp+"\n")
     f.write("MPI_LIB = -lmpich\n")
 else:
+    warning("Only mpich/mvapich mpi are supported. Use alternatives at your own risk.")
     shellmessage("Compiler (" + args.comp + ")", args.comp + " -v")
     shellmessage("MPI Library","mpiexec --version")
 
