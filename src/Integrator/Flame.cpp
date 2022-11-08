@@ -89,7 +89,8 @@ namespace Integrator
             pp.query("thermal.rho_ap",value.thermal.rho_ap); // AP Density
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
             pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
-            pp.query("thermal.k_htpb",value.thermal.k_htpb); // HTPB Thermal Conductivity 
+            pp.query("thermal.k_htpb",value.thermal.k_htpb); // HTPB Thermal Conductivity
+	    pp.query("thermal.k0", value.thermal.k0); //Numerical Correction variable
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
 
@@ -308,7 +309,7 @@ namespace Integrator
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
                    
-                    alpha(i,j,k) = K / rho / cp; // Calculate thermal diffusivity and store in field
+                    alpha(i,j,k) = thermal.k0 * K / rho / cp; // Calculate thermal diffusivity and store in field
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt; // Calculate mass flux
 
                     });
@@ -354,11 +355,11 @@ namespace Integrator
                     dTdt += alpha(i,j,k) * lap_temp;
 
 		    // Neumann Condition
-                    dTdt += (grad_eta_mag * alpha(i,j,k) * heatflux(i,j,k) / (eta(i,j,k) + small) ) * Wn; // Calculate the source term
+                    dTdt += Wn * (grad_eta_mag * alpha(i,j,k) * heatflux(i,j,k) / (eta(i,j,k) + small) ); // Calculate the source term
 
                     // Dirichlet Condition
-		    dTdt += (-1.0 * alpha(i,j,k) * grad_eta.dot(eta(i,j,k)*grad_temp + temp(i,j,k)*grad_eta) / (eta(i,j,k) + small) / (eta(i,j,k) + small) ) * Wd;
-                    dTdt += (alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / (eta(i,j,k) + small) / (eta(i,j,k) + small) ) * Wd;
+		    dTdt += Wd * (-1.0 * alpha(i,j,k) * grad_eta.dot(eta(i,j,k)*grad_temp + temp(i,j,k)*grad_eta) / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
+                    dTdt += Wd * (alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
 
                     // Explicit Forward Euler Temperature Evolution
 		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt; 

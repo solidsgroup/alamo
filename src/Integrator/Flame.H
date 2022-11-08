@@ -119,7 +119,7 @@ protected:
     struct {
       int on = 0;
       Set::Scalar rho_ap, rho_htpb;         
-      Set::Scalar k_ap , k_htpb, k0 = 0.0;     
+      Set::Scalar k_ap , k_htpb, k0 = 10.0;     
       Set::Scalar r_ap = 1.22, r_htpb = 0.5, r_comb = 10.01, n_ap = 1.042;        
       Set::Scalar cp_ap, cp_htpb;           
       Set::Scalar q0=0.0, q_ap = 0.0, q_htpb = 0.0;
