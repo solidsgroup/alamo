@@ -29,13 +29,17 @@ public:
       BL_PROFILE("Integrator::Hydro::Hydro()");
       //General Variables Input Read:
       {
-	pp.query("r_refinement_criterion", value.r_refinement_criterion);
-	pp.query("e_refinement_criterion", value.e_refinement_criterion);
-	pp.query("m_refinement_criterion", value.m_refinement_criterion);
+	//pp.query("r_refinement_criterion", value.r_refinement_criterion);
+	//pp.query("e_refinement_criterion", value.e_refinement_criterion);
+	//pp.query("m_refinement_criterion", value.m_refinement_criterion);
 	pp.query("gamma", value.gamma);
 	pp.query("cfl", value.cfl);
-	pp.query("rho0", value.rho0);
-	pp.query("V", value.V);
+	pp.query("rho_solid", value.rho_solid);
+	pp.query("rho_fluid", value.rho_fluid);
+	pp.query("E_solid", value.E_solid);
+	pp.query("E_fluid", value.E_fluid);
+	//pp.query("rho0", value.rho0);
+	//pp.query("V", value.V);
 
       }
       // Register FabFields:
@@ -99,6 +103,11 @@ private:
     IC::IC *ic_M;
   
     IC::IC *ic_eta;
+
+    Set::Scalar rho_solid = 1.2;
+    Set::Scalar rho_fluid = 1.0;
+    Set::Scalar E_solid = 5.0;
+    Set::Scalar E_fluid = 0.25;
  
     Set::Scalar gamma = 1.4;
     Set::Scalar rho0 = 0.5;

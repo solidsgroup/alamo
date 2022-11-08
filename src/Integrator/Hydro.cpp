@@ -16,14 +16,33 @@ namespace Integrator
       ic_eta -> Initialize(lev, eta_mf);
       ic_eta -> Initialize(lev, eta_old_mf);
 
-      Energy_mf[lev] -> setVal(0.0);
-      Energy_old_mf[lev] -> setVal(0.0);
-      
-      Density_mf[lev] -> setVal(0.0);
-      Density_old_mf[lev] -> setVal(0.0);
+      // Set::Scalar rho_solid = 1.2;
+      // Set::Scalar rho_fluid = 1.0;
+      // Set::Scalar E_solid = 5.0;
+      // Set::Scalar E_fluid = 0.25;
 
-      Momentum_mf[lev] -> setVal(0.0);
-      Momentum_old_mf[lev] -> setVal(0.0);
+      for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
+	const amrex::Box &bx = mfi.tilebox();
+	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
+	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+	{
+	  rho(i,j,k) = rho_solid * (1 - eta(i,j,k)) + rho_fluid * eta(i,j,k);
+	  M(i,j,k,0) = 0.0;
+	  M(i,j,k,1) = 0.0;
+	  E(i,j,k) = E_solid * (1 - eta(i,j,k)) + E_fluid * eta(i,j,k);
+	});}
+
+      //Energy_mf[lev] -> setVal(0.0);
+      //Energy_old_mf[lev] -> setVal(0.0);
+      
+      //Density_mf[lev] -> setVal(0.0);
+      //Density_old_mf[lev] -> setVal(0.0);
+
+      //Momentum_mf[lev] -> setVal(0.0);
+      //Momentum_old_mf[lev] -> setVal(0.0);
 
       flux_x_mf[lev] -> setVal(0.0);
       flux_y_mf[lev] -> setVal(0.0);
@@ -77,9 +96,6 @@ namespace Integrator
 	//amrex::Array4<const Set::Scalar> const &Mold = (*Momentum_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &v = (*Velocity_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
-	//amrex::Array4<Set::Scalar> const &flux_x = (*flux_x_mf[lev]).array(mfi);
-	//amrex::Array4<Set::Scalar> const &flux_y = (*flux_y_mf[lev]).array(mfi);
-
 	
         //Computes Velocity and Pressure over the domain
  
@@ -169,7 +185,7 @@ namespace Integrator
 	  double left_state[5] = {rho_left, vx_left, vy_left, p_left, eta(i-1, j, k)};
 	  double right_state[5] = {rho_right, vx_right, vy_right, p_right, eta(i, j, k)};
 
-	  flux_x = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k));
+	  flux_x = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
 
 	  //
 	  // left interface along y direction
@@ -222,7 +238,7 @@ namespace Integrator
 	  right_state[3] = p_right;
 	  right_state[4] = eta(i, j-1, k);
                 
-	  flux_y = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k));
+	  flux_y = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
                 
 	  // swap flux_y components
 	  std::swap(flux_y[2], flux_y[3]);

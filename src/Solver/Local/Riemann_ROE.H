@@ -8,14 +8,16 @@ namespace Solver
 namespace Local
 {
 /// Roe Riemann Solver based on Gas Dynamics - Culbert B. Laney
-  std::array<double,4> Riemann_ROE(double left_state[5], double right_state[5], double eta) {
+  std::array<double,4> Riemann_ROE(double left_state[5], double right_state[5], Set::Scalar eta, Set::Scalar gamma) {
     Set::Scalar rho_l, vel_l, p_l, ke_l, ue_l, h_l;
     Set::Scalar rho_r, vel_r, p_r, ke_r, ue_r, h_r;
-    Set::Scalar gamma = 1.4;
+    Set::Scalar eta_r, eta_l;
     
     rho_l = left_state[0];
     vel_l = left_state[1];
     p_l = left_state[3];
+    eta_l = left_state[4];
+    
     ke_l = 0.5 * rho_l * vel_l * vel_l;
     ue_l = p_l / (gamma - 1.0);
     h_l = (ke_l + ue_l + p_l) / rho_l;
@@ -23,6 +25,8 @@ namespace Local
     rho_r = right_state[0];
     vel_r = right_state[1];
     p_r = right_state[3];
+    eta_r = right_state[4];
+    
     ke_r = 0.5 * rho_r * vel_r * vel_r;
     ue_r = p_r / (gamma - 1.0);
     h_r = (ke_r + ue_r + p_r) / rho_r;
@@ -107,7 +111,7 @@ namespace Local
     std::array<Set::Scalar,4> upwind;
     for (int i = 0; i < 4; i++) {
       for (int j = 0; j < 4; j++) {
-	fl[j] = 0.5 * (dynamic_flux_left[j] * left_state[4] + dynamic_flux_right[j] * right_state[4] + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta);
+	fl[j] = 0.5 * (dynamic_flux_left[j] * eta_l * left_state[4] + dynamic_flux_right[j] * eta_r * right_state[4] + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta);
 	upwind[j] = -0.5 * rev(i, j) * std::abs(ev[i]) * dv[i];
 	fl[j] += upwind[j];
       };
