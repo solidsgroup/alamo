@@ -285,7 +285,7 @@ elif (args.comp == "clang++"): f.write("COMP = CLANG\n")
 elif (args.comp == "icc"):     f.write("COMP = INTEL\n")
 else: raise Exception(color.red + "ERROR" + color.reset + ": Compiler must be g++, clang++, or icc")
 
-if not args.alternate_mpi and not shutil.which("mpichversion"):
+if not args.alternate_mpi:
     if not shutil.which("mpichversion"):
         raise Exception(color.red + "ERROR" + color.reset +
             ": An MPICH or MVAPICH installation was not found, to compile with another MPI library please use " +
