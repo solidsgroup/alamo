@@ -39,7 +39,7 @@ namespace Integrator
     }
 
   
-    void Hydro::TimeStepEnd(int lev, Set::Scalar a_time, int a_iter)
+    void Hydro::TimeStepEnd(int lev)
     {
       const Set::Scalar *DX = geom[lev].CellSize();
       // Syncronize c_max between processors so that they all have the same minimum value
@@ -68,13 +68,13 @@ namespace Integrator
 	const amrex::Box &bx = mfi.tilebox();
 
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
+	//amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &Eold = (*Energy_old_mf[lev]).array(mfi);
+	//amrex::Array4<const Set::Scalar> const &Eold = (*Energy_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &rhoold = (*Density_old_mf[lev]).array(mfi);
+	//amrex::Array4<const Set::Scalar> const &rhoold = (*Density_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
-	amrex::Array4<const Set::Scalar> const &Mold = (*Momentum_old_mf[lev]).array(mfi);
+	//amrex::Array4<const Set::Scalar> const &Mold = (*Momentum_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &v = (*Velocity_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
 	//amrex::Array4<Set::Scalar> const &flux_x = (*flux_x_mf[lev]).array(mfi);
@@ -330,25 +330,25 @@ namespace Integrator
 
   // }//end TagCells
 
-  void Hydro::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/, const amrex::MFIter &mfi, const amrex::Box &box)
-  {
-    BL_PROFILE("Hydro::Integrate");
-    const Set::Scalar *DX = geom[amrlev].CellSize();
-    Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
-    amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
-    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//	volume += eta(i, j, k, 0) * dv;
-//	Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-//	Set::Scalar normgrad = grad.lpNorm<2>();
-//	Set::Scalar da = normgrad * dv;
-//	area += da;
-    });
+  // void Hydro::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/, const amrex::MFIter &mfi, const amrex::Box &box)
+  // {
+  //   BL_PROFILE("Hydro::Integrate");
+  //   const Set::Scalar *DX = geom[amrlev].CellSize();
+  //   Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+  //   amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
+  //   amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+  //   	volume += eta(i, j, k, 0) * dv;
+  //   	Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+  //   	Set::Scalar normgrad = grad.lpNorm<2>();
+  //   	Set::Scalar da = normgrad * dv;
+  //   	area += da;
+  //   });
       
   
   }//end Integrate
 
-  void Hydro::UpdateModel(int /*a_step*/)
-  {
+//  void Hydro::UpdateModel(int /*a_step*/)
+//  {
 //    for (int lev = 0; lev <= finest_level; ++lev)
 //    {
 //      eta_mf[lev] -> FillBoundary();
@@ -373,7 +373,7 @@ namespace Integrator
 //      amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]-> nGrow());
 //      
 //    } //end For1
-  }//end update
+//  }//end update
 
   
 }//end code
