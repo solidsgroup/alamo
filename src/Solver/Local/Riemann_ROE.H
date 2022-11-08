@@ -8,21 +8,21 @@ namespace Solver
 namespace Local
 {
 /// Roe Riemann Solver based on Gas Dynamics - Culbert B. Laney
-  std::array<double,4> Riemann_ROE(double left[5], double right[5], double eta) {
+  std::array<double,4> Riemann_ROE(double left_state[5], double right_state[5], double eta) {
     Set::Scalar rho_l, vel_l, p_l, ke_l, ue_l, h_l;
     Set::Scalar rho_r, vel_r, p_r, ke_r, ue_r, h_r;
     Set::Scalar gamma = 1.4;
     
-    rho_l = left[0];
-    vel_l = left[1];
-    p_l = left[3];
+    rho_l = left_state[0];
+    vel_l = left_state[1];
+    p_l = left_state[3];
     ke_l = 0.5 * rho_l * vel_l * vel_l;
     ue_l = p_l / (gamma - 1.0);
     h_l = (ke_l + ue_l + p_l) / rho_l;
         
-    rho_r = right[0];
-    vel_r = right[1];
-    p_r = right[3];
+    rho_r = right_state[0];
+    vel_r = right_state[1];
+    p_r = right_state[3];
     ke_r = 0.5 * rho_r * vel_r * vel_r;
     ue_r = p_r / (gamma - 1.0);
     h_r = (ke_r + ue_r + p_r) / rho_r;
@@ -38,68 +38,78 @@ namespace Local
     std::array<Set::Scalar,4> ev;
     ev[0] = vel_RL;
     ev[1] = vel_RL + a_RL;
-    ev[2] = vel_RL - a_RL;
+    ev[2] = 0;
+    ev[3] = vel_RL - a_RL;
 
     std::array<Set::Scalar,4> dv;
     dv[0] = (rho_r - rho_l) - (p_r - p_l) / (a_RL   * a_RL);
     dv[1] = (vel_r - vel_l) + (p_r - p_l) / (rho_RL * a_RL);
+    dv[2] = 0;
     dv[2] = (vel_r - vel_l) - (p_r - p_l) / (rho_RL * a_RL);
         
-    // right characteristic eigenvectors
+    // right_state characteristic eigenvectors
     //std::array<Set::Scalar,4> rev;
-    Eigen::Matrix3d rev;
+    Eigen::Matrix<Set::Scalar, 4, 4> rev;
     rev(0, 0) = 1;
     rev(0, 1) = vel_RL;
-    rev(0, 2) = 0.5 * vel_RL * vel_RL;
+    rev(0, 2) = 0;
+    rev(0, 3) = 0.5 * vel_RL * vel_RL;
 
     rev(1, 0) = (rho_RL / 2 / a_RL);
     rev(1, 1) = (rho_RL / 2 / a_RL) * (vel_RL + a_RL);
-    rev(1, 2) = (rho_RL / 2 / a_RL) * (h_RL + a_RL * vel_RL);
+    rev(1, 2) = 0;
+    rev(1, 3) = (rho_RL / 2 / a_RL) * (h_RL + a_RL * vel_RL);
+
+    rev(1, 0) = 0;
+    rev(1, 1) = 0;
+    rev(1, 2) = 0;
+    rev(1, 3) = 0;
 
     rev(2, 0) = (-rho_RL / 2 / a_RL);
     rev(2, 1) = (-rho_RL / 2 / a_RL) * (vel_RL - a_RL);
-    rev(2, 2) = (-rho_RL / 2 / a_RL) * (h_RL - a_RL * vel_RL);
+    rev(2, 2) = 0;
+    rev(2, 3) = (-rho_RL / 2 / a_RL) * (h_RL - a_RL * vel_RL);
 
     // compute fluxes
-    Set::Scalar ue_left, ke_left, ue_right, ke_right;
-    ue_left = ue_l;
-    ke_left = 0.5 * left[0] * (left[1] * left[1] + left[2] * left[2]);
+    Set::Scalar ue_left_state, ke_left_state, ue_right_state, ke_right_state;
+    ue_left_state = ue_l;
+    ke_left_state = 0.5 * left_state[0] * (left_state[1] * left_state[1] + left_state[2] * left_state[2]);
 
-    ue_right = ue_r;
-    ke_right = 0.5 * left[0] * (left[1] * left[1] + left[2] * left[2]);
+    ue_right_state = ue_r;
+    ke_right_state = 0.5 * left_state[0] * (left_state[1] * left_state[1] + left_state[2] * left_state[2]);
 
     std::array<Set::Scalar,4> dynamic_flux_left; 
-    dynamic_flux_left[0] = left[0] * left[1];
-    dynamic_flux_left[2] = dynamic_flux_left[0] * left[1];
-    dynamic_flux_left[3] = dynamic_flux_left[0] * left[1];
-    dynamic_flux_left[1] = left[1] * ke_left;
+    dynamic_flux_left[0] = left_state[0] * left_state[1];
+    dynamic_flux_left[2] = dynamic_flux_left[0] * left_state[1];
+    dynamic_flux_left[3] = dynamic_flux_left[0] * left_state[1];
+    dynamic_flux_left[1] = left_state[1] * ke_left_state;
 
     std::array<Set::Scalar,4> static_flux_left; 
     static_flux_left[0] = 0.;
-    static_flux_left[2] = left[3];
+    static_flux_left[2] = left_state[3];
     static_flux_left[3] = 0.;
-    static_flux_left[1] = left[1] * (ue_left + left[3]);
+    static_flux_left[1] = left_state[1] * (ue_left_state + left_state[3]);
 
     std::array<Set::Scalar,4> dynamic_flux_right; 
-    dynamic_flux_right[0] = right[0] * right[1];
-    dynamic_flux_right[2] = dynamic_flux_right[0] * right[1];
-    dynamic_flux_right[3] = dynamic_flux_right[0] * right[1];
-    dynamic_flux_right[1] = right[1] * ke_right;
+    dynamic_flux_right[0] = right_state[0] * right_state[1];
+    dynamic_flux_right[2] = dynamic_flux_right[0] * right_state[1];
+    dynamic_flux_right[3] = dynamic_flux_right[0] * right_state[1];
+    dynamic_flux_right[1] = right_state[1] * ke_right_state;
 
     std::array<Set::Scalar,4> static_flux_right; 
     static_flux_right[0] = 0.;
-    static_flux_right[2] = right[3];
+    static_flux_right[2] = right_state[3];
     static_flux_right[3] = 0.;
-    static_flux_right[1] = right[1] * (ue_right + right[3]);
+    static_flux_right[1] = right_state[1] * (ue_right_state + right_state[3]);
         
     // flux
     std::array<Set::Scalar,4> fl;
     std::array<Set::Scalar,4> upwind;
     for (int i = 0; i < 4; i++) {
-      fl[i] = 0.5 * (dynamic_flux_left[i] * left[4] + dynamic_flux_right[i] * right[4] + 0.5 * (static_flux_left[i] + static_flux_right[i]) * eta);
       for (int j = 0; j < 4; j++) {
-	upwind[i,j] = -0.5 * rev(i, j) * std::abs(ev[i]) * dv[i];
-	fl[i] += upwind[i,j];
+	fl[j] = 0.5 * (dynamic_flux_left[j] * left_state[4] + dynamic_flux_right[j] * right_state[4] + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta);
+	upwind[j] = -0.5 * rev(i, j) * std::abs(ev[i]) * dv[i];
+	fl[j] += upwind[j];
       };
     
     };

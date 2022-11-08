@@ -113,34 +113,34 @@ namespace Integrator
 	  std::array<Set::Scalar,4> flux_x, flux_y;
 
 	  // compute slopes in current cell
-          drhoX = Numeric::CSolver(rho, i, j, k, 0, 0, DX);
-          drhoY = Numeric::CSolver(rho, i, j, k, 0, 1, DX);
+          drhoX = Numeric::CenterSlope(rho, i, j, k, 0, 0, DX);
+          drhoY = Numeric::CenterSlope(rho, i, j, k, 0, 1, DX);
 
-	  dvxX	= Numeric::CSolver(v, i, j, k, 0, 0, DX);
-	  dvxY	= Numeric::CSolver(v, i, j, k, 0, 1, DX);
+	  dvxX	= Numeric::CenterSlope(v, i, j, k, 0, 0, DX);
+	  dvxY	= Numeric::CenterSlope(v, i, j, k, 0, 1, DX);
 
-	  dvyX	= Numeric::CSolver(v, i, j, k, 1, 0, DX);
-	  dvyY	= Numeric::CSolver(v, i, j, k, 1, 1, DX);
+	  dvyX	= Numeric::CenterSlope(v, i, j, k, 1, 0, DX);
+	  dvyY	= Numeric::CenterSlope(v, i, j, k, 1, 1, DX);
 
-          dpX	= Numeric::CSolver(p, i, j, k, 0, 0, DX);
-	  dpY	= Numeric::CSolver(p, i, j, k, 0, 1, DX);
+          dpX	= Numeric::CenterSlope(p, i, j, k, 0, 0, DX);
+	  dpY	= Numeric::CenterSlope(p, i, j, k, 0, 1, DX);
     
 	  //
           // left interface along x direction
           //
 
           // compute slopes in left neighbor
-	  drhoX_n = Numeric::LSolver(rho, i, j, k, 0, 0, DX);
-          drhoY_n = Numeric::LSolver(rho, i, j, k, 0, 0, DX);
+	  drhoX_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 0, 0, DX);
+          drhoY_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 1, 0, DX);
 
-	  dvxX_n  = Numeric::LSolver(v, i, j, k, 0, 0, DX);
-	  dvxY_n  = Numeric::LSolver(v, i, j, k, 0, 0, DX);
+	  dvxX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 0, 0, DX);
+	  dvxY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 1, 0, DX);
 
-	  dvyX_n  = Numeric::LSolver(v, i, j, k, 1, 0, DX);
-	  dvyY_n  = Numeric::LSolver(v, i, j, k, 1, 0, DX);
+	  dvyX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 0, 0, DX);
+	  dvyY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 1, 0, DX);
 
-          dpX_n	  = Numeric::LSolver(p, i, j, k, 0, 0, DX);
-	  dpY_n	  = Numeric::LSolver(p, i, j, k, 0, 0, DX);
+          dpX_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 0, 0, DX);
+	  dpY_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 1, 0, DX);
 
 	  // slopes in current cell
 	  rho_slope_right = (-v(i,j,k,0) * drhoX - dvxX * rho(i,j,k)) * dt / DX[0]          + (-v(i,j,k,1) * drhoY - dvyY * rho(i,j,k)) * dt / DX[1];
@@ -176,17 +176,17 @@ namespace Integrator
 	  //
 
 	  // compute slopes in left neighbor
-          drhoX_n = Numeric::LSolver(rho, i, j, k, 0, 1, DX);
-          drhoY_n = Numeric::LSolver(rho, i, j, k, 0, 1, DX);
+          drhoX_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 0, 1, DX);
+          drhoY_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 1, 1, DX);
 
-	  dvxX_n  = Numeric::LSolver(v, i, j, k, 0, 1, DX);
-	  dvxY_n  = Numeric::LSolver(v, i, j, k, 0, 1, DX);
+	  dvxX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 0, 1, DX);
+	  dvxY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 1, 1, DX);
 
-	  dvyX_n  = Numeric::LSolver(v, i, j, k, 1, 1, DX);
-	  dvyY_n  = Numeric::LSolver(v, i, j, k, 1, 1, DX);
+	  dvyX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 0, 1, DX);
+	  dvyY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 1, 1, DX);
 
-          dpX_n	  = Numeric::LSolver(p, i, j, k, 0, 1, DX);
-	  dpY_n	  = Numeric::LSolver(p, i, j, k, 0, 1, DX);
+          dpX_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 0, 1, DX);
+	  dpY_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 1, 1, DX);
 
 	  // compute reconstructed states at left interface along y in current cell
           // left interface: right state
@@ -252,10 +252,10 @@ namespace Integrator
 	  Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 	  Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 	  
-	  std::array<Set::Scalar,3> source;
-	  source[0] = grad_eta_mag * (rho0 * V);
-	  source[1] = grad_eta_mag * (rho0 * V*V) ;
-	  source[2] = grad_eta_mag * (0.5 * rho0 * V*V*V);
+	  // std::array<Set::Scalar,3> source;
+	  // source[0] = grad_eta_mag * (rho0 * V);
+	  // source[1] = grad_eta_mag * (rho0 * V*V) ;
+	  // source[2] = grad_eta_mag * (0.5 * rho0 * V*V*V);
 	  
 	});
       }      
@@ -345,7 +345,7 @@ namespace Integrator
   //   });
       
   
-  }//end Integrate
+  //  }//end Integrate
 
 //  void Hydro::UpdateModel(int /*a_step*/)
 //  {
@@ -367,13 +367,13 @@ namespace Integrator
 //	});
 //
 //
-//      } // end For2
-//      
-//      Util::RealFillBoundary(*model_mf[lev], geom[lev]);
-//      amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]-> nGrow());
-//      
-//    } //end For1
-//  }//end update
+//     } // end For2
+     
+//     Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+//     amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]-> nGrow());
+     
+  //    } //end For1
+  //}//end update
 
   
 }//end code

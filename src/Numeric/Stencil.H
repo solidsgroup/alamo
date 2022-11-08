@@ -480,26 +480,34 @@ Laplacian(const amrex::Array4<const Set::Scalar> &f,
 
 AMREX_FORCE_INLINE
 Set::Scalar
-CSolver(const amrex::Array4<const Set::Scalar> &f,
+CenterSlope(const amrex::Array4<const Set::Scalar> &f,
 	const int &i, const int &j, const int &k, const int &m,
-	const int &n, const Set::Scalar dx[AMREX_SPACEDIM])
+	const int &dir, const Set::Scalar dx[AMREX_SPACEDIM])
 {
   Set::Scalar ret;
-  if(n == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f,i, j, k, m, dx);
+  if(dir == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f,i, j, k, m, dx);
   else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j, k, m, dx);
   return ret;
+  //TODO: generalize to 3D
 }
 
 AMREX_FORCE_INLINE
 Set::Scalar
-LSolver(const amrex::Array4<const Set::Scalar> &f,
+LeftNeighborSlope(const amrex::Array4<const Set::Scalar> &f,
 	const int &i, const int &j, const int &k, const int &m,
-	const int &n, const Set::Scalar dx[AMREX_SPACEDIM])
+	const int &dir, const int &neighbor, const Set::Scalar dx[AMREX_SPACEDIM])
 {
   Set::Scalar ret;
-  if(n == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i-1, j, k, m, dx);
-  else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j-1, k, m, dx);
+  if(neighbor == 0) {
+    if(dir == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i-1, j, k, m, dx);
+    else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i-1, j, k, m, dx);
+  };
+  if(neighbor == 1) {
+    if(dir == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i, j-1, k, m, dx);
+    else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j-1, k, m, dx);
+  };
   return ret;
+  //TODO: generalize to 3D
 }
 
 
