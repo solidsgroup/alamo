@@ -52,7 +52,7 @@ namespace Integrator
       vy_max = 0.0;
     }
 
-    void Hydro::TimeStepBegin(Set::Scalar a_time, int a_iter)
+    void Hydro::TimeStepBegin(Set::Scalar , int )
     {
       BL_PROFILE("Integrator::Hydro::TimeStepBegin");
     }
@@ -72,7 +72,7 @@ namespace Integrator
     }
 
 
-    void Hydro::Advance(int lev, Set::Scalar time, Set::Scalar dt)
+    void Hydro::Advance(int lev, Set::Scalar , Set::Scalar dt)
     {
 
       std::swap(eta_old_mf[lev], eta_mf[lev]);
@@ -264,9 +264,9 @@ namespace Integrator
 	  M(i,j-1,k,1) += -flux_y[3] * dt / DX[1];
 	  M(i,j,k,1)   += flux_y[3] * dt / DX[1];
 
-	  /// Diffuse Interface Source Terms
-	  Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-	  Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+	  // /// Diffuse Interface Source Terms
+	  // Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+	  // Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 	  
 	  // std::array<Set::Scalar,3> source;
 	  // source[0] = grad_eta_mag * (rho0 * V);
@@ -285,66 +285,68 @@ namespace Integrator
     Util::Message(INFO, "Regridding on level", lev);
   }//end regrid
 
-  // void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
-  // {
-  //   BL_PROFILE("Integrator::Hydro::TagCellsForRefinement");
-  //   Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+  //void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
+  void Hydro::TagCellsForRefinement(int, amrex::TagBoxArray &, Set::Scalar, int)
+  {
+    /*
+    BL_PROFILE("Integrator::Hydro::TagCellsForRefinement");
+    Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
-  //   const Set::Scalar *DX = geom[lev].CellSize();
-  //   Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+    const Set::Scalar *DX = geom[lev].CellSize();
+    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
-  //   //Eta Criterion
-  //   for (amrex::MFIter mfi(*eta_mf[lev], true), mfi.isValid(), ++mfi)
-  //   {
-  //     const amrex::Box &bx = mfi.tilebox();
-  //     amrex::Array4<char> const &tags = a_tags.array(mfi);
-  //     amrex::Array4<const Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+    //Eta Criterion
+    for (amrex::MFIter mfi(*eta_mf[lev], true), mfi.isValid(), ++mfi)
+    {
+      const amrex::Box &bx = mfi.tilebox();
+      amrex::Array4<char> const &tags = a_tags.array(mfi);
+      amrex::Array4<const Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
 
-  //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-  // 	Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-  // 	if(grad_eta.lpnorm<2>() * dr * 2 > n_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
-  //    });
-  //   }
+      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+  	Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+  	if(grad_eta.lpnorm<2>() * dr * 2 > n_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
+     });
+    }
     
-  //   // Energy criterion
-  //   for (amrex::MFIter mfi(*Energy_mf[lev], true), mfi.isValid(), ++mfi)
-  //   {
-  //     const amrex::Box &bx = mfi.tilebox();
-  //     amrex::Array4<char> const &tags = a_tags.array(mfi);
-  //     amrex::Array4<const Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
-  //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-  // 	Set::Vector grad_E = Numeric::Gradient(E, i, j, k, 0, DX);
-  // 	if(grad_E.lpNorm<2>() * dr > e_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
-  // 	});
-  //   }
+    // Energy criterion
+    for (amrex::MFIter mfi(*Energy_mf[lev], true), mfi.isValid(), ++mfi)
+    {
+      const amrex::Box &bx = mfi.tilebox();
+      amrex::Array4<char> const &tags = a_tags.array(mfi);
+      amrex::Array4<const Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
+      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+  	Set::Vector grad_E = Numeric::Gradient(E, i, j, k, 0, DX);
+  	if(grad_E.lpNorm<2>() * dr > e_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
+  	});
+    }
     
-  //   // Density criterion
-  //   for (amrex::MFIter mfi(*Density_mf[lev] , true), mfi.isValid(), ++mfi)
-  //   {
-  //     const amrex::Box &bx = mfi.tilebox();
-  //     amrex::Array4<char> const &tags = a_tags.array(mfi);
-  //     amrex::Array4<const Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
-  //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-  // 	Set::Vector grad_rho = Numeric::Gradient(rho, i, j, k, 0, DX);
-  // 	if (grad_rho.lpNorm<2>() * dr > r_refinment_criterion) tags(i,j,k) = amrex::TagBox::SET;
-  //     });
-  //   }
+    // Density criterion
+    for (amrex::MFIter mfi(*Density_mf[lev] , true), mfi.isValid(), ++mfi)
+    {
+      const amrex::Box &bx = mfi.tilebox();
+      amrex::Array4<char> const &tags = a_tags.array(mfi);
+      amrex::Array4<const Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
+      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+  	Set::Vector grad_rho = Numeric::Gradient(rho, i, j, k, 0, DX);
+  	if (grad_rho.lpNorm<2>() * dr > r_refinment_criterion) tags(i,j,k) = amrex::TagBox::SET;
+      });
+    }
 
-  //   // Momentum criterion
-  //   for (amrex:::MFIter mfi(*Momentum_mf[lev], true), mfi.isValid(), ++mfi)
-  //   {
-  //     const amrex::Box &bx = mfi.tilebox();
-  //     amrex::Array4<char> const &tags = a_tags.array(mfi);
-  //     amrex::Array<const Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
-  //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k, int m){
-  // 	Set::Vector grad_M = Numeric::Gradient(M, i, j, k, m);
-  // 	if (grad_M.lpNorm<2>() * dr > m_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;     
-  //     });
+    // Momentum criterion
+    for (amrex:::MFIter mfi(*Momentum_mf[lev], true), mfi.isValid(), ++mfi)
+    {
+      const amrex::Box &bx = mfi.tilebox();
+      amrex::Array4<char> const &tags = a_tags.array(mfi);
+      amrex::Array<const Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
+      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k, int m){
+  	Set::Vector grad_M = Numeric::Gradient(M, i, j, k, m);
+  	if (grad_M.lpNorm<2>() * dr > m_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;     
+      });
+    }
+    */
 
-  //   }
 
-
-  // }//end TagCells
+  }//end TagCells
 
   // void Hydro::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/, const amrex::MFIter &mfi, const amrex::Box &box)
   // {

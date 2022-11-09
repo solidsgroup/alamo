@@ -21,7 +21,7 @@ namespace Integrator
 class Hydro : virtual public Integrator::Integrator
 {
 public:
-    Hydro();
+  Hydro() {};
     Hydro(IO::ParmParse &pp) : Hydro() {pp.queryclass(*this);}
 
     static void Parse(Hydro &value, IO::ParmParse &pp)
@@ -67,10 +67,9 @@ protected:
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
     void TimeStepEnd(int lev);
     void Advance(int lev, Set::Scalar time, Set::Scalar dt) override;
-  //void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
+    void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
-    void Integrate(int amrlev, Set::Scalar time, int step,
-                    const amrex::MFIter &mfi, const amrex::Box &box) override;
+  //void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &box) override;
   //virtual void UpdateModel(int a_step);
 private:
 
