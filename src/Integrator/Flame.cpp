@@ -94,7 +94,8 @@ namespace Integrator
             pp.query("thermal.cp_ap", value.thermal.cp_ap); // AP Specific Heat
             pp.query("thermal.cp_htpb", value.thermal.cp_htpb); //HTPB Specific Heat
 
-            pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux       
+            pp.query("thermal.q0",value.thermal.q0); // Baseline heat flux
+	    pp.query("thermal.q1", value.thermal.q1);
             pp.query("thermal.q_htpb", value.thermal.q_htpb);
             pp.query("thermal.q_ap", value.thermal.q_ap);     
 
@@ -196,14 +197,14 @@ namespace Integrator
 
         ic_phi->Initialize(lev, phi_mf);
 
-	for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
-	const amrex::Box &bx = mfi.tilebox();
-	amrex::Array4<Set::Scalar> const &temp = (*temp_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &phi = (*eta_mf[lev]).array(mfi);
-	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-	{
-	  temp(i,j,k) = thermal.bound * (phi(i,j,k));    
-	});}
+	//for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
+	//const amrex::Box &bx = mfi.tilebox();
+	//amrex::Array4<Set::Scalar> const &temp = (*temp_mf[lev]).array(mfi);
+	//amrex::Array4<Set::Scalar> const &phi = (*eta_mf[lev]).array(mfi);
+	//amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+	//{
+	//  temp(i,j,k) = thermal.bound * (phi(i,j,k));    
+	//});}
 	
     }
 
@@ -303,30 +304,32 @@ namespace Integrator
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);  
-                    Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k)); // Calculate effective thermal conductivity
+                    Set::Scalar K   = thermal.k0 * ( thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k)) ); // Calculate effective thermal conductivity
                     Set::Scalar rho = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k)); // No special interface mixure rule is needed here.
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
                    
-                    alpha(i,j,k) = thermal.k0 * K / rho / cp; // Calculate thermal diffusivity and store in field
+                    alpha(i,j,k) =  K / rho / cp; // Calculate thermal diffusivity and store in field
                     mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt; // Calculate mass flux
 
                     });
 
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
+		    Set::Scalar K = thermal.k0 * (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
 		    Set::Scalar qflux = k1 * phi(i,j,k) +
 		                        k2 * (1.0 - phi(i,j,k)) +
 		                        (zeta_0 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
 		    Set::Scalar mlocal = thermal.mlocal_ap;
 		    Set::Scalar mbase;
 
+		    Set::Scalar fd = 0.25 * pressure.P * pressure.P * pressure.P - 3.25 * pressure.P * pressure.P + 14.5 * pressure.P - 17.0;
+
 		    if (mob(i,j,k) > mlocal) mbase = 1.0;
 		    else mbase = mob(i,j,k) / mlocal; 
 		     
-		    heatflux(i,j,k) = (mbase * thermal.hc * qflux + thermal.q0) / (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
-
+		    heatflux(i,j,k) = (mbase * fd * thermal.hc * qflux + thermal.q0) / K ;
 		});
                      
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -337,16 +340,7 @@ namespace Integrator
                     Set::Scalar lap_temp = Numeric::Laplacian(temp, i, j, k, 0, DX);
                     Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
                     Set::Vector grad_alpha = Numeric::Gradient(alpha,i,j,k,0,DX, sten);
-                    
-                    Set::Scalar qflux = k1 * phi(i,j,k) + 
-                                        k2 * (1.0 - phi(i,j,k) ) + 
-                                        (zeta_0 / zeta) * exp( k3 * phi(i,j,k) * ( 1.0 - phi(i,j,k) ) );
-                    //Set::Scalar mlocal = (mass.a_ap * pressure.P + mass.b_ap) * phi(i,j,k) + mass.ref_htpb * (1.0 - phi(i,j,k) );
-
-                    Bn = thermal.hc * qflux / (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
-
-                    Bd = thermal.bd;
-		    
+                   		    
                     Set::Scalar dTdt = 0.0;
 
 		    // No-flux
