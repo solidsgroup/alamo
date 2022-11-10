@@ -9,6 +9,10 @@
 
 namespace Integrator
 {
+
+    //Hydro(IO::ParmParse &pp) : Hydro() {pp.queryclass(*this);}
+
+   
     void Hydro::Initialize(int lev)
     {
       BL_PROFILE("Integrator::Hydro::Initialize");
@@ -30,8 +34,8 @@ namespace Integrator
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
 	  rho(i,j,k) = rho_solid * (1 - eta(i,j,k)) + rho_fluid * eta(i,j,k);
-	  M(i,j,k,0) = 0.0;
-	  M(i,j,k,1) = 0.0;
+	  //M(i,j,k,0) = 0.0;
+	  //M(i,j,k,1) = 0.0;
 	  E(i,j,k) = E_solid * (1 - eta(i,j,k)) + E_fluid * eta(i,j,k);
 	});}
 
@@ -41,18 +45,18 @@ namespace Integrator
       //Density_mf[lev] -> setVal(0.0);
       //Density_old_mf[lev] -> setVal(0.0);
 
-      //Momentum_mf[lev] -> setVal(0.0);
-      //Momentum_old_mf[lev] -> setVal(0.0);
+      Momentum_mf[lev] -> setVal(0.0);
+      Momentum_old_mf[lev] -> setVal(0.0);
 
-      flux_x_mf[lev] -> setVal(0.0);
-      flux_y_mf[lev] -> setVal(0.0);
+      //flux_x_mf[lev] -> setVal(0.0);
+      //flux_y_mf[lev] -> setVal(0.0);
       
       c_max = 0.0;
       vx_max = 0.0;
       vy_max = 0.0;
     }
 
-    void Hydro::TimeStepBegin(Set::Scalar , int )
+    void Hydro::TimeStepBegin(Set::Scalar a_time, int dt)
     {
       BL_PROFILE("Integrator::Hydro::TimeStepBegin");
     }
@@ -210,6 +214,7 @@ namespace Integrator
 	  vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvxY;
 	  vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvyY;
 	  p_right   = p(i,j,k) + 0.5 * p_slope_right - dpY;
+
 	    
 	  // left interface: left state
 	  rho_slope_left = (-v(i,j-1,k,0) * drhoX - dvxX * rho(i,j-1,k)) * dt / DX[0]          + (-v(i,j-1,k,1) * drhoY - dvyY * rho(i,j-1,k)) * dt / DX[1];

@@ -14,6 +14,7 @@
 #include "IC/Cylinder.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
+#include "IC/Laminate.H"
 #include "IC/Expression.H"
 
 namespace Integrator
@@ -21,9 +22,10 @@ namespace Integrator
 class Hydro : virtual public Integrator::Integrator
 {
 public:
-  Hydro() {};
-    Hydro(IO::ParmParse &pp) : Hydro() {pp.queryclass(*this);}
-
+  
+    //Hydro();
+    //Hydro (IO::ParmParse &pp);  
+    Hydro(IO::ParmParse &pp){pp.queryclass(*this);}
     static void Parse(Hydro &value, IO::ParmParse &pp)
     {
       BL_PROFILE("Integrator::Hydro::Hydro()");
@@ -60,6 +62,15 @@ public:
 	value.RegisterNewFab(value.Pressure_mf, value.bc_M, 1, 2, "Pressure", true);
 
       }
+      {
+      BL_PROFILE("Integrator::Hydro::Hydro()");
+      std::string type = "constant";
+      pp.query("eta.ic.type", type);
+      if(type == "constant") value.ic_eta = new IC::Constant(value.geom,pp,"eta.ic.constant");
+      else if (type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
+      else Util::Abort(INFO, "Invalid eta.ic: ", type); 
+      }
+						       
     }
 
 protected:
