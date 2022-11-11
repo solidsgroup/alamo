@@ -45,11 +45,10 @@ public:
 	//pp.query("V", value.V);
 
 	//value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
-	value.bc_eta = new BC::Constant(1);
-        pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
+	value.bc_eta = new BC::Constant(1, pp , "pf.eta.bc");
 	value.bc_rho = new BC::Constant(1, pp, "rho.bc");
-	value.bc_E = new BC::Constant(1, pp, "E.bc");
-	value.bc_M = new BC::Constant(2, pp, "M.bc");
+	value.bc_E   = new BC::Constant(1, pp, "E.bc");
+	value.bc_M   = new BC::Constant(2, pp, "M.bc");
 
       }
       // Register FabFields:
@@ -63,11 +62,11 @@ public:
 	value.RegisterNewFab(value.Energy_mf, value.bc_E, 1, 2, "Energy", true);
 	value.RegisterNewFab(value.Energy_old_mf, value.bc_E, 1, 2, "E_old", false);
 
-	value.RegisterNewFab(value.Momentum_mf, value.bc_M, 1, 2, "Momentum", true);
-	value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 1, 2, "M_old", false);
+	value.RegisterNewFab(value.Momentum_mf, value.bc_M, 2, 2, "Momentum", true);
+	value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 2, 2, "M_old", false);
 
-	value.RegisterNewFab(value.Velocity_mf, value.bc_M, 1, 2, "Velocity", true);
-	value.RegisterNewFab(value.Pressure_mf, value.bc_M, 1, 2, "Pressure", true);
+	value.RegisterNewFab(value.Velocity_mf, value.bc_eta, 1, 2, "Velocity", true);
+	value.RegisterNewFab(value.Pressure_mf, value.bc_eta, 1, 2, "Pressure", true);
 
       }
       {

@@ -106,7 +106,7 @@ namespace Integrator
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
 	    v(i, j, k, 0) = M(i, j, k, 0) / rho(i,j,k);
 	    v(i, j, k, 1) = M(i, j, k, 1) / rho(i,j,k);
-	    v(i, j, k, 2) = M(i, j, k, 2) / rho(i,j,k);
+	    //v(i, j, k, 2) = M(i, j, k, 2) / rho(i,j,k);
 
 	    Set::Scalar ke = v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1);
 
