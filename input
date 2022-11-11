@@ -49,15 +49,15 @@ pf.eta.bc.type.xlo = dirichlet
 pf.eta.bc.type.xhi = dirichlet
 pf.eta.bc.type.ylo = periodic
 pf.eta.bc.type.yhi = periodic
-#pf.eta.bc.type.zlo = periodic
-#pf.eta.bc.type.zhi = periodic
+pf.eta.bc.type.zlo = periodic
+pf.eta.bc.type.zhi = periodic
 
 pf.eta.bc.val.xlo = 0.0
 pf.eta.bc.val.xhi = 1.0
 pf.eta.bc.val.ylo = 0.0
 pf.eta.bc.val.yhi = 0.0
-#pf.eta.bc.val.zlo = 0.0
-#pf.eta.bc.val.zhi = 0.0
+pf.eta.bc.val.zlo = 0.0
+pf.eta.bc.val.zhi = 0.0
 
 ### HYDRO PARAM ###
 
