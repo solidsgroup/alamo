@@ -30,7 +30,7 @@ namespace Integrator
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
+	//amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
 	  rho(i,j,k) = rho_solid * (1 - eta(i,j,k)) + rho_fluid * eta(i,j,k);
@@ -56,7 +56,7 @@ namespace Integrator
       vy_max = 0.0;
     }
 
-    void Hydro::TimeStepBegin(Set::Scalar a_time, int dt)
+    void Hydro::TimeStepBegin(Set::Scalar , int )
     {
       BL_PROFILE("Integrator::Hydro::TimeStepBegin");
     }

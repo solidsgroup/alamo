@@ -9,6 +9,7 @@
 #include "IO/ParmParse.H"
 
 #include "BC/BC.H"
+#include "BC/Constant.H"
 #include "IC/IC.H"
 
 #include "IC/Cylinder.H"
@@ -42,6 +43,10 @@ public:
 	pp.query("E_fluid", value.E_fluid);
 	//pp.query("rho0", value.rho0);
 	//pp.query("V", value.V);
+
+	value.bc_rho = new BC::Constant(1, pp, "rho.bc");
+	value.bc_E = new BC::Constant(1, pp, "E.bc");
+	value.bc_M = new BC::Constant(2, pp, "M.bc");
 
       }
       // Register FabFields:
