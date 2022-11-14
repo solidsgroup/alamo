@@ -65,8 +65,8 @@ public:
 	value.RegisterNewFab(value.Momentum_mf, value.bc_M, 2, 2, "Momentum", true);
 	value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 2, 2, "M_old", false);
 
-	value.RegisterNewFab(value.Velocity_mf, value.bc_eta, 1, 2, "Velocity", true);
-	value.RegisterNewFab(value.Pressure_mf, value.bc_eta, 1, 2, "Pressure", true);
+	value.RegisterNewFab(value.Velocity_mf, value.bc_M, 2, 2, "Velocity", true);
+	value.RegisterNewFab(value.Pressure_mf, value.bc_E, 1, 2, "Pressure", true);
 
       }
       {

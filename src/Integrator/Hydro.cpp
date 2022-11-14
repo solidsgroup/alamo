@@ -30,26 +30,18 @@ namespace Integrator
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
-	//amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
 	  rho(i,j,k) = rho_solid * (1 - eta(i,j,k)) + rho_fluid * eta(i,j,k);
-	  //M(i,j,k,0) = 0.0;
-	  //M(i,j,k,1) = 0.0;
 	  E(i,j,k) = E_solid * (1 - eta(i,j,k)) + E_fluid * eta(i,j,k);
+	  p(i,j,k) = (gamma - 1)*rho(i,j,k)*E(i,j,k);
 	});}
-
-      //Energy_mf[lev] -> setVal(0.0);
-      //Energy_old_mf[lev] -> setVal(0.0);
-      
-      //Density_mf[lev] -> setVal(0.0);
-      //Density_old_mf[lev] -> setVal(0.0);
 
       Momentum_mf[lev] -> setVal(0.0);
       Momentum_old_mf[lev] -> setVal(0.0);
 
-      //flux_x_mf[lev] -> setVal(0.0);
-      //flux_y_mf[lev] -> setVal(0.0);
+      Velocity_mf[lev] -> setVal(0.0);
       
       c_max = 0.0;
       vx_max = 0.0;
@@ -106,7 +98,6 @@ namespace Integrator
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
 	    v(i, j, k, 0) = M(i, j, k, 0) / rho(i,j,k);
 	    v(i, j, k, 1) = M(i, j, k, 1) / rho(i,j,k);
-	    //v(i, j, k, 2) = M(i, j, k, 2) / rho(i,j,k);
 
 	    Set::Scalar ke = v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1);
 
@@ -144,6 +135,8 @@ namespace Integrator
 
           dpX	= Numeric::CenterSlope(p, i, j, k, 0, 0, DX);
 	  dpY	= Numeric::CenterSlope(p, i, j, k, 0, 1, DX);
+
+	  //cout << dvxX;
     
 	  //
           // left interface along x direction
@@ -163,9 +156,9 @@ namespace Integrator
 	  dpY_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 1, 0, DX);
 
 	  // slopes in current cell
-	  rho_slope_right = (-v(i,j,k,0) * drhoX - dvxX * rho(i,j,k)) * dt / DX[0]          + (-v(i,j,k,1) * drhoY - dvyY * rho(i,j,k)) * dt / DX[1];
-	  vx_slope_right  = (-v(i,j,k,0) * dvxX - dpX / rho(i,j,k)) * dt / DX[0]            + (-v(i,j,k,1) * dvyY) * dt / DX[1];
-	  vy_slope_right  = (-v(i,j,k,0) * dvyX) * dt / DX[0]                               + (-v(i,j,k,1) * dvyY - dpY / rho(i,j,k)) * dt / DX[1];
+	  rho_slope_right = (-v(i,j,k,0) * drhoX - dvxX * rho(i,j,k)) * dt / DX[0]     + (-v(i,j,k,1) * drhoY - dvyY * rho(i,j,k)) * dt / DX[1];
+	  vx_slope_right  = (-v(i,j,k,0) * dvxX - dpX / rho(i,j,k)) * dt / DX[0]       + (-v(i,j,k,1) * dvyY) * dt / DX[1];
+	  vy_slope_right  = (-v(i,j,k,0) * dvyX) * dt / DX[0]                          + (-v(i,j,k,1) * dvyY - dpY / rho(i,j,k)) * dt / DX[1];
 	  p_slope_right	  = (-v(i,j,k,0) * dpX - dvxX * gamma * p(i,j,k)) * dt / DX[0] + (-v(i,j,k,1) * dpY - dvyY * gamma * p(i,j,k)) * dt / DX[1];
                     
 	  // compute reconstructed states at left interface along x in current cell
@@ -173,23 +166,31 @@ namespace Integrator
 	  rho_right = rho(i,j,k) + 0.5 * rho_slope_right - drhoX;
 	  vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvxX;
 	  vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvyX;
-	  p_right   = p(i,j,k) + 0.5 * p_slope_right - dpX;
+	  p_right   = p(i,j,k)   + 0.5 * p_slope_right - dpX;
+
+	  //cout << p_right;
 
 	  // left interface: left state
-	  rho_slope_left = (-v(i-1,j,k,0) * drhoX - dvxX * rho(i-1,j,k)) * dt / DX[0]          + (-v(i-1,j,k,1) * drhoY - dvyY * rho(i-1,j,k)) * dt / DX[1];
-	  vx_slope_left  = (-v(i-1,j,k,0) * dvxX - dpX / rho(i-1,j,k)) * dt / DX[0]            + (-v(i-1,j,k,1) * dvyY) * dt / DX[1];
-	  vy_slope_left  = (-v(i-1,j,k,0) * dvyX) * dt / DX[0]                                 + (-v(i-1,j,k,1) * dvyY - dpY / rho(i-1,j,k)) * dt / DX[1];
+	  rho_slope_left = (-v(i-1,j,k,0) * drhoX - dvxX * rho(i-1,j,k)) * dt / DX[0]     + (-v(i-1,j,k,1) * drhoY - dvyY * rho(i-1,j,k)) * dt / DX[1];
+	  vx_slope_left  = (-v(i-1,j,k,0) * dvxX - dpX / rho(i-1,j,k)) * dt / DX[0]       + (-v(i-1,j,k,1) * dvyY) * dt / DX[1];
+	  vy_slope_left  = (-v(i-1,j,k,0) * dvyX) * dt / DX[0]                            + (-v(i-1,j,k,1) * dvyY - dpY / rho(i-1,j,k)) * dt / DX[1];
 	  p_slope_left	 = (-v(i-1,j,k,0) * dpX - dvxX * gamma * p(i-1,j,k)) * dt / DX[0] + (-v(i-1,j,k,1) * dpY - dvyY * gamma * p(i-1,j,k)) * dt / DX[1];
+
+	  //cout << dvyY;
 
 	  rho_left = rho(i-1,j,k) + 0.5 * rho_slope_left + drhoX_n;
 	  vx_left  = v(i-1,j,k,0) + 0.5 * vx_slope_left + dvxX_n;
 	  vy_left  = v(i-1,j,k,1) + 0.5 * vy_slope_left + dvyX_n;
 	  p_left   = p(i-1,j,k) + 0.5 * p_slope_left + dpX_n;
 
+	  //cout << vx_left;
+
 	  double left_state[5] = {rho_left, vx_left, vy_left, p_left, eta(i-1, j, k)};
 	  double right_state[5] = {rho_right, vx_right, vy_right, p_right, eta(i, j, k)};
 
 	  flux_x = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
+
+	  //cout << flux_x[3];
 
 	  //
 	  // left interface along y direction
