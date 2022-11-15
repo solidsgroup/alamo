@@ -485,9 +485,13 @@ CenterSlope(const amrex::Array4<const Set::Scalar> &f,
 	const int &dir, const Set::Scalar dx[AMREX_SPACEDIM])
 {
   Set::Scalar ret;
+  if(i>2 && j>2 && k>2){
   if(dir == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f,i, j, k, m, dx);
   else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j, k, m, dx);
-  return ret;
+  return ret;}
+  else{
+  return 0;
+  };
   //TODO: generalize to 3D
 }
 

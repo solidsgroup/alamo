@@ -29,19 +29,27 @@ namespace Integrator
 	const amrex::Box &bx = mfi.tilebox();
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &E_old = (*Energy_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rho_old = (*Density_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &p_old = (*Pressure_old_mf[lev]).array(mfi);
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
 	  rho(i,j,k) = rho_solid * (1 - eta(i,j,k)) + rho_fluid * eta(i,j,k);
+	  rho_old(i,j,k) = rho(i,j,k);
 	  E(i,j,k) = E_solid * (1 - eta(i,j,k)) + E_fluid * eta(i,j,k);
-	  p(i,j,k) = (gamma - 1)*rho(i,j,k)*E(i,j,k);
+	  E_old(i,j,k) = E(i,j,k);
+	  p(i,j,k) = (gamma - 1) * rho(i,j,k) * E(i,j,k);
+	  //if (p(i,j,k) < 0) {cout << p(i,j,k);};
+	  p_old(i,j,k) = p(i,j,k);
 	});}
-
+      
       Momentum_mf[lev] -> setVal(0.0);
       Momentum_old_mf[lev] -> setVal(0.0);
 
       Velocity_mf[lev] -> setVal(0.0);
+      Velocity_old_mf[lev] -> setVal(0.0);
       
       c_max = 0.0;
       vx_max = 0.0;
@@ -67,14 +75,14 @@ namespace Integrator
       SetTimestep(new_timestep);
     }
 
-
     void Hydro::Advance(int lev, Set::Scalar , Set::Scalar dt)
     {
-
       std::swap(eta_old_mf[lev], eta_mf[lev]);
       std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
+      std::swap(Velocity_old_mf[lev], Velocity_mf[lev]);
       std::swap(Energy_old_mf[lev], Energy_mf[lev]);
       std::swap(Density_old_mf[lev], Density_mf[lev]);
+      std::swap(Pressure_old_mf[lev], Pressure_mf[lev]);
 
       const Set::Scalar *DX = geom[lev].CellSize();
 
@@ -83,203 +91,162 @@ namespace Integrator
 	const amrex::Box &bx = mfi.tilebox();
 
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
-	//amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
-	//amrex::Array4<const Set::Scalar> const &Eold = (*Energy_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
-	//amrex::Array4<const Set::Scalar> const &rhoold = (*Density_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
-	//amrex::Array4<const Set::Scalar> const &Mold = (*Momentum_old_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &v = (*Velocity_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
 	
         //Computes Velocity and Pressure over the domain
  
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-	    v(i, j, k, 0) = M(i, j, k, 0) / rho(i,j,k);
-	    v(i, j, k, 1) = M(i, j, k, 1) / rho(i,j,k);
+	    v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
+	    v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
 
 	    Set::Scalar ke = v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1);
 
-	    p(i,j,k) = (gamma - 1.0) * rho(i,j,k) * (E(i,j,k) / rho(i,j,k) - 0.5 * ke * ke);
+	    p(i,j,k) = (gamma - 1.0) * rho(i,j,k) * (E(i,j,k) / rho(i,j,k) - ke);
+
+	    if (p(i,j,k) < 0) {cout << "Negative Pressure";};
 
 	    Set::Scalar c = sqrt(gamma * p(i,j,k) / rho(i,j,k) );
 
 	    if (c > c_max){ c_max = c;}
 	    if (v(i, j, k, 0) > vx_max) {vx_max = v(i, j, k, 0);}
 	    if (v(i, j, k, 1) > vy_max) {vy_max = v(i, j, k, 1);}
- 	});
 
-	
-	//this loop will be running the godnov solver over the space
-	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-	{
-	  Set::Scalar drhoX, drhoY, dvxX, dvxY, dvyX, dvyY, dpX, dpY;
-	  Set::Scalar drhoX_n, drhoY_n, dvxX_n, dvxY_n, dvyY_n, dvyX_n, dpX_n, dpY_n;
-	  Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
-	  Set::Scalar rho_right, vx_right, vy_right, p_right;
-	  Set::Scalar rho_slope_left, vx_slope_left, vy_slope_left, p_slope_left;
-	  Set::Scalar rho_left, vx_left, vy_left, p_left;
+	    Set::Vector drho = Numeric::Gradient(rho, i, j, k, 0, DX);
+	    Set::Vector dp   = Numeric::Gradient(p, i, j, k, 0, DX);
+	    Set::Vector dvx  = Numeric::Gradient(v, i, j, k, 0, DX);
+	    Set::Vector dvy  = Numeric::Gradient(v, i, j, k, 0, DX);
 
-	  std::array<Set::Scalar,4> flux_x, flux_y;
+	    Set::Vector drho_n = Numeric::Gradient(rho, i-1, j, k, 0, DX);
+	    Set::Vector dvx_n  = Numeric::Gradient(v, i-1, j, k, 0, DX);
+	    Set::Vector dvy_n  = Numeric::Gradient(v, i-1, j, k, 1, DX);
+	    Set::Vector dp_n   = Numeric::Gradient(p, i-1, j, k, 0, DX);
 
-	  // compute slopes in current cell
-          drhoX = Numeric::CenterSlope(rho, i, j, k, 0, 0, DX);
-          drhoY = Numeric::CenterSlope(rho, i, j, k, 0, 1, DX);
+	    Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
+	    Set::Scalar rho_right, vx_right, vy_right, p_right;
+	    Set::Scalar rho_slope_left, vx_slope_left, vy_slope_left, p_slope_left;
+	    Set::Scalar rho_left, vx_left, vy_left, p_left;
+	    std::array<Set::Scalar,4> flux_x, flux_y;
 
-	  dvxX	= Numeric::CenterSlope(v, i, j, k, 0, 0, DX);
-	  dvxY	= Numeric::CenterSlope(v, i, j, k, 0, 1, DX);
+	    // slopes in current cell
+	    rho_slope_right = (-v(i,j,k,0) * drho[0] - dvx[0] * rho(i,j,k)) * dt      + (-v(i,j,k,1) * drho[1] - dvy[1] * rho(i,j,k)) * dt;
+	    vx_slope_right  = (-v(i,j,k,0) * dvx[0] - dp[0] / rho(i,j,k)) * dt        + (-v(i,j,k,1) * dvy[1]) * dt / DX[1];
+	    vy_slope_right  = (-v(i,j,k,0) * dvy[0]) * dt                             + (-v(i,j,k,1) * dvy[1] - dp[1] / rho(i,j,k)) * dt;
+	    p_slope_right   = (-v(i,j,k,0) * dp[0] - dvx[0] * gamma * p(i,j,k)) * dt  + (-v(i,j,k,1) * dp[1] - dvy[1] * gamma * p(i,j,k)) * dt;
 
-	  dvyX	= Numeric::CenterSlope(v, i, j, k, 1, 0, DX);
-	  dvyY	= Numeric::CenterSlope(v, i, j, k, 1, 1, DX);
+	    // compute reconstructed states at left interface along x in current cell
+	    // left interface: right state
+	    rho_right = rho(i,j,k) + 0.5 * rho_slope_right - drho[0] * DX[0];
+	    vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvx[0] * DX[0];
+	    vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvy[0] * DX[0];
+	    p_right   = p(i,j,k)   + 0.5 * p_slope_right - dp[0] * DX[0];
 
-          dpX	= Numeric::CenterSlope(p, i, j, k, 0, 0, DX);
-	  dpY	= Numeric::CenterSlope(p, i, j, k, 0, 1, DX);
+	    if (p_right < 0) {cout << "Negative Pressure";};
 
-	  //cout << dvxX;
-    
-	  //
-          // left interface along x direction
-          //
+	    // left interface: left state
+	    rho_slope_left = (-v(i-1,j,k,0) * drho[0] - dvx[0] * rho(i-1,j,k)) * dt      + (-v(i-1,j,k,1) * drho[1] - dvy[1] * rho(i-1,j,k)) * dt;
+	    vx_slope_left  = (-v(i-1,j,k,0) * dvx[0] - dp[0] / rho(i-1,j,k)) * dt        + (-v(i-1,j,k,1) * dvy[1]) * dt;
+	    vy_slope_left  = (-v(i-1,j,k,0) * dvy[0]) * dt                               + (-v(i-1,j,k,1) * dvy[1] - dp[1] / rho(i-1,j,k)) * dt;
+	    p_slope_left   = (-v(i-1,j,k,0) * dp[0] - dvx[0] * gamma * p(i-1,j,k)) * dt  + (-v(i-1,j,k,1) * dp[1] - dvy[1] * gamma * p(i-1,j,k)) * dt;
 
-          // compute slopes in left neighbor
-	  drhoX_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 0, 0, DX);
-          drhoY_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 1, 0, DX);
+	    rho_left = rho(i-1,j,k) + 0.5 * rho_slope_left + drho_n[0] * DX[0];
+	    vx_left  = v(i-1,j,k,0) + 0.5 * vx_slope_left + dvx_n[0] * DX[0];
+	    vy_left  = v(i-1,j,k,1) + 0.5 * vy_slope_left + dvy_n[0] * DX[0];
+	    p_left   = p(i-1,j,k) + 0.5 * p_slope_left + dp_n[0] * DX[0];
 
-	  dvxX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 0, 0, DX);
-	  dvxY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 1, 0, DX);
-
-	  dvyX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 0, 0, DX);
-	  dvyY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 1, 0, DX);
-
-          dpX_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 0, 0, DX);
-	  dpY_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 1, 0, DX);
-
-	  // slopes in current cell
-	  rho_slope_right = (-v(i,j,k,0) * drhoX - dvxX * rho(i,j,k)) * dt / DX[0]     + (-v(i,j,k,1) * drhoY - dvyY * rho(i,j,k)) * dt / DX[1];
-	  vx_slope_right  = (-v(i,j,k,0) * dvxX - dpX / rho(i,j,k)) * dt / DX[0]       + (-v(i,j,k,1) * dvyY) * dt / DX[1];
-	  vy_slope_right  = (-v(i,j,k,0) * dvyX) * dt / DX[0]                          + (-v(i,j,k,1) * dvyY - dpY / rho(i,j,k)) * dt / DX[1];
-	  p_slope_right	  = (-v(i,j,k,0) * dpX - dvxX * gamma * p(i,j,k)) * dt / DX[0] + (-v(i,j,k,1) * dpY - dvyY * gamma * p(i,j,k)) * dt / DX[1];
-                    
-	  // compute reconstructed states at left interface along x in current cell
-	  // left interface: right state
-	  rho_right = rho(i,j,k) + 0.5 * rho_slope_right - drhoX;
-	  vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvxX;
-	  vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvyX;
-	  p_right   = p(i,j,k)   + 0.5 * p_slope_right - dpX;
-
-	  //cout << p_right;
-
-	  // left interface: left state
-	  rho_slope_left = (-v(i-1,j,k,0) * drhoX - dvxX * rho(i-1,j,k)) * dt / DX[0]     + (-v(i-1,j,k,1) * drhoY - dvyY * rho(i-1,j,k)) * dt / DX[1];
-	  vx_slope_left  = (-v(i-1,j,k,0) * dvxX - dpX / rho(i-1,j,k)) * dt / DX[0]       + (-v(i-1,j,k,1) * dvyY) * dt / DX[1];
-	  vy_slope_left  = (-v(i-1,j,k,0) * dvyX) * dt / DX[0]                            + (-v(i-1,j,k,1) * dvyY - dpY / rho(i-1,j,k)) * dt / DX[1];
-	  p_slope_left	 = (-v(i-1,j,k,0) * dpX - dvxX * gamma * p(i-1,j,k)) * dt / DX[0] + (-v(i-1,j,k,1) * dpY - dvyY * gamma * p(i-1,j,k)) * dt / DX[1];
-
-	  //cout << dvyY;
-
-	  rho_left = rho(i-1,j,k) + 0.5 * rho_slope_left + drhoX_n;
-	  vx_left  = v(i-1,j,k,0) + 0.5 * vx_slope_left + dvxX_n;
-	  vy_left  = v(i-1,j,k,1) + 0.5 * vy_slope_left + dvyX_n;
-	  p_left   = p(i-1,j,k) + 0.5 * p_slope_left + dpX_n;
-
-	  //cout << vx_left;
-
-	  double left_state[5] = {rho_left, vx_left, vy_left, p_left, eta(i-1, j, k)};
-	  double right_state[5] = {rho_right, vx_right, vy_right, p_right, eta(i, j, k)};
-
-	  flux_x = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
-
-	  //cout << flux_x[3];
-
-	  //
-	  // left interface along y direction
-	  //
-
-	  // compute slopes in left neighbor
-          drhoX_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 0, 1, DX);
-          drhoY_n = Numeric::LeftNeighborSlope(rho, i, j, k, 0, 1, 1, DX);
-
-	  dvxX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 0, 1, DX);
-	  dvxY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 0, 1, 1, DX);
-
-	  dvyX_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 0, 1, DX);
-	  dvyY_n  = Numeric::LeftNeighborSlope(v, i, j, k, 1, 1, 1, DX);
-
-          dpX_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 0, 1, DX);
-	  dpY_n	  = Numeric::LeftNeighborSlope(p, i, j, k, 0, 1, 1, DX);
-
-	  // compute reconstructed states at left interface along y in current cell
-          // left interface: right state
-	  rho_right = rho(i,j,k) + 0.5 * rho_slope_right - drhoY;
-	  vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvxY;
-	  vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvyY;
-	  p_right   = p(i,j,k) + 0.5 * p_slope_right - dpY;
-
+	    if (p_left < 0) {cout << "Negative Pressure";};
 	    
-	  // left interface: left state
-	  rho_slope_left = (-v(i,j-1,k,0) * drhoX - dvxX * rho(i,j-1,k)) * dt / DX[0]          + (-v(i,j-1,k,1) * drhoY - dvyY * rho(i,j-1,k)) * dt / DX[1];
-	  vx_slope_left  = (-v(i,j-1,k,0) * dvxX - dpX / rho(i,j-1,k)) * dt / DX[0]            + (-v(i,j-1,k,1) * dvyY) * dt / DX[1];
-	  vy_slope_left  = (-v(i,j-1,k,0) * dvyX) * dt / DX[0]                                 + (-v(i,j-1,k,1) * dvyY - dpY / rho(i,j-1,k)) * dt / DX[1];
-	  p_slope_left	 = (-v(i,j-1,k,0) * dpX - dvxX * gamma * p(i,j-1,k)) * dt / DX[0] + (-v(i,j-1,k,1) * dpY - dvyY * gamma * p(i,j-1,k)) * dt / DX[1];
+	    double left_state[5] = {rho_left, vx_left, vy_left, p_left, eta(i-1, j, k)};
+	    double right_state[5] = {rho_right, vx_right, vy_right, p_right, eta(i, j, k)};
 
-	  rho_left = rho(i,j-1,k) + 0.5 * rho_slope_left + drhoY_n;
-	  vx_left  = v(i,j-1,k,0) + 0.5 * vx_slope_left + dvxY_n;
-	  vy_left  = v(i,j-1,k,1) + 0.5 * vy_slope_left + dvyY_n;
-	  p_left   = p(i,j-1,k) + 0.5 * p_slope_left + dpY_n;
-                
-	  // x, y permutations
-	  std::swap(vx_left, vy_left);
-	  std::swap(vx_right, vy_right);
+	    flux_x = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
 
-	  left_state[0] = rho_left;
-	  left_state[1] = vx_left;
-	  left_state[2] = vy_left;
-	  left_state[3] = p_left;
-	  left_state[4] = eta(i, j-1, k);
+	    //
+	    // left interface along y direction
+	    //
 
-	  right_state[0] = rho_right;
-	  right_state[1] = vx_right;
-	  right_state[2] = vy_right;
-	  right_state[3] = p_right;
-	  right_state[4] = eta(i, j-1, k);
-                
-	  flux_y = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
-                
-	  // swap flux_y components
-	  std::swap(flux_y[2], flux_y[3]);
-                
-	  // update hydro array
-	  E(i-1,j,k)   += -flux_x[1] *	dt / DX[0];
-	  E(i,j,k)     += flux_x[1] * dt / DX[0];
-	  E(i,j-1,k)   += -flux_y[1] * dt / DX[1];
-	  E(i,j,k)     += flux_y[1] * dt / DX[1];
+	    // compute slopes in left neighbor
+	    drho_n = Numeric::Gradient(rho, i, j-1, k, 0, DX);
+	    dvx_n  = Numeric::Gradient(v, i, j-1, k, 0, DX);
+	    dvy_n  = Numeric::Gradient(v, i, j-1, k, 1, DX);
+	    dp_n   = Numeric::Gradient(p, i, j-1, k, 0, DX);
+
+	    // compute reconstructed states at left interface along y in current cell
+	    // left interface: right state
+	    rho_right = rho(i,j,k) + 0.5 * rho_slope_right - drho[1] * DX[1];
+	    vx_right  = v(i,j,k,0) + 0.5 * vx_slope_right - dvx[1] * DX[1];
+	    vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvy[1] * DX[1];
+	    p_right   = p(i,j,k) + 0.5 * p_slope_right - dp[1] * DX[1];
+	    
+	    if (p_right < 0) {cout << "Negative Pressure";};
+	    
+	    // left interface: left state
+	    rho_slope_left = (-v(i,j-1,k,0) * drho[0] - dvx[0] * rho(i,j-1,k)) * dt    + (-v(i,j-1,k,1) * drho[1] - dvy[1] * rho(i,j-1,k)) * dt;
+	    vx_slope_left  = (-v(i,j-1,k,0) * dvx[0] - dp[0] / rho(i,j-1,k)) * dt      + (-v(i,j-1,k,1) * dvy[1]) * dt;
+	    vy_slope_left  = (-v(i,j-1,k,0) * dvy[0]) * dt                             + (-v(i,j-1,k,1) * dvy[1] - dp[1] / rho(i,j-1,k)) * dt;
+	    p_slope_left   = (-v(i,j-1,k,0) * dp[0]- dvx[0] * gamma * p(i,j-1,k)) * dt + (-v(i,j-1,k,1) * dp[1] - dvy[1] * gamma * p(i,j-1,k)) * dt;
+
+	    rho_left = rho(i,j-1,k) + 0.5 * rho_slope_left + drho_n[1] * DX[1];
+	    vx_left  = v(i,j-1,k,0) + 0.5 * vx_slope_left + dvx_n[1] * DX[1];
+	    vy_left  = v(i,j-1,k,1) + 0.5 * vy_slope_left + dvy_n[1] * DX[1];
+	    p_left   = p(i,j-1,k) + 0.5 * p_slope_left + dp_n[1] * DX[1];
+
+	    if (p_left < 0) {cout << "Negative Pressure";};
+
+	    // x, y permutations
+	    std::swap(vx_left, vy_left);
+	    std::swap(vx_right, vy_right);
+
+	    left_state[0] = rho_left;
+	    left_state[1] = vx_left;
+	    left_state[2] = vy_left;
+	    left_state[3] = p_left;
+	    left_state[4] = eta(i, j-1, k);
+
+	    right_state[0] = rho_right;
+	    right_state[1] = vx_right;
+	    right_state[2] = vy_right;
+	    right_state[3] = p_right;
+	    right_state[4] = eta(i, j-1, k);
+
+	    flux_y = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
+
+	    // swap flux_y components
+	    std::swap(flux_y[2], flux_y[3]);
+
+	    // update hydro array
+	    E(i-1,j,k)   += -flux_x[1] * dt / DX[0];
+	    E(i,j,k)     += flux_x[1] * dt / DX[0];
+	    E(i,j-1,k)   += -flux_y[1] * dt / DX[1];
+	    E(i,j,k)     += flux_y[1] * dt / DX[1];
 	  
-	  rho(i-1,j,k) += -flux_x[0] * dt / DX[0];
-	  rho(i,j,k)   += flux_x[0] * dt / DX[0];
-	  rho(i,j-1,k) += -flux_y[0] * dt / DX[1];
-	  rho(i,j,k)   += flux_y[0] * dt / DX[1];
+	    rho(i-1,j,k) += -flux_x[0] * dt / DX[0];
+	    rho(i,j,k)   += flux_x[0] * dt / DX[0];
+	    rho(i,j-1,k) += -flux_y[0] * dt / DX[1];
+	    rho(i,j,k)   += flux_y[0] * dt / DX[1];
 	  
-          M(i-1,j,k,0) += -flux_x[2] * dt / DX[0];
-	  M(i,j,k,0)   += flux_x[2] * dt / DX[0];
-	  M(i,j-1,k,0) += -flux_y[2] * dt / DX[1];
-	  M(i,j,k,0)   += flux_y[2] * dt / DX[1];
+	    M(i-1,j,k,0) += -flux_x[2] * dt / DX[0];
+	    M(i,j,k,0)   += flux_x[2] * dt / DX[0];
+	    M(i,j-1,k,0) += -flux_y[2] * dt / DX[1];
+	    M(i,j,k,0)   += flux_y[2] * dt / DX[1];
 
-	  M(i-1,j,k,1) += -flux_x[3] * dt / DX[0];
-	  M(i,j,k,1)   += flux_x[3] * dt / DX[0];
-	  M(i,j-1,k,1) += -flux_y[3] * dt / DX[1];
-	  M(i,j,k,1)   += flux_y[3] * dt / DX[1];
+	    M(i-1,j,k,1) += -flux_x[3] * dt / DX[0];
+	    M(i,j,k,1)   += flux_x[3] * dt / DX[0];
+	    M(i,j-1,k,1) += -flux_y[3] * dt / DX[1];
+	    M(i,j,k,1)   += flux_y[3] * dt / DX[1];
 
-	  // /// Diffuse Interface Source Terms
-	  // Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-	  // Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+	    /// Diffuse Interface Source Terms
+	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+	    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 	  
-	  // std::array<Set::Scalar,3> source;
-	  // source[0] = grad_eta_mag * (rho0 * V);
-	  // source[1] = grad_eta_mag * (rho0 * V*V) ;
-	  // source[2] = grad_eta_mag * (0.5 * rho0 * V*V*V);
-	  
-	});
+	    std::array<Set::Scalar,3> source;
+	    source[0] = grad_eta_mag * (rho0 * V);
+	    source[1] = grad_eta_mag * (rho0 * V*V) ;
+	    source[2] = grad_eta_mag * (0.5 * rho0 * V*V*V);
+ 	});
       }      
     }//end Advance
 
@@ -292,28 +259,24 @@ namespace Integrator
   }//end regrid
 
   //void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
-  void Hydro::TagCellsForRefinement(int, amrex::TagBoxArray &, Set::Scalar, int)
+  void Hydro::TagCellsForRefinement(int , amrex::TagBoxArray &, Set::Scalar , int )
   {
+  //   BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
+        
+  //   const Set::Scalar *DX = geom[lev].CellSize();
+  //   Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+
+  //   // Eta criterion for refinement
+  //   for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
+  //     const amrex::Box &bx = mfi.tilebox();
+  //     amrex::Array4<char> const &tags = a_tags.array(mfi);
+  //     amrex::Array4<const Set::Scalar> const &Eta = (*eta_mf[lev]).array(mfi);
+
+  //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+  // 		Set::Vector gradeta = Numeric::Gradient(Eta, i, j, k, 0, DX);
+  //               if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET; });
+  //   }
     /*
-    BL_PROFILE("Integrator::Hydro::TagCellsForRefinement");
-    Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev, a_tags, time, ngrow);
-
-    const Set::Scalar *DX = geom[lev].CellSize();
-    Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
-
-    //Eta Criterion
-    for (amrex::MFIter mfi(*eta_mf[lev], true), mfi.isValid(), ++mfi)
-    {
-      const amrex::Box &bx = mfi.tilebox();
-      amrex::Array4<char> const &tags = a_tags.array(mfi);
-      amrex::Array4<const Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
-
-      amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-  	Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-  	if(grad_eta.lpnorm<2>() * dr * 2 > n_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
-     });
-    }
-    
     // Energy criterion
     for (amrex::MFIter mfi(*Energy_mf[lev], true), mfi.isValid(), ++mfi)
     {

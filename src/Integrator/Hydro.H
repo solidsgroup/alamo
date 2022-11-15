@@ -49,6 +49,8 @@ public:
 	value.bc_rho = new BC::Constant(1, pp, "rho.bc");
 	value.bc_E   = new BC::Constant(1, pp, "E.bc");
 	value.bc_M   = new BC::Constant(2, pp, "M.bc");
+	value.bc_v   = new BC::Constant(2, pp, "v.bc");
+	value.bc_p   = new BC::Constant(1, pp, "p.bc");
 
       }
       // Register FabFields:
@@ -65,9 +67,11 @@ public:
 	value.RegisterNewFab(value.Momentum_mf, value.bc_M, 2, 2, "Momentum", true);
 	value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 2, 2, "M_old", false);
 
-	value.RegisterNewFab(value.Velocity_mf, value.bc_M, 2, 2, "Velocity", true);
-	value.RegisterNewFab(value.Pressure_mf, value.bc_E, 1, 2, "Pressure", true);
-
+	value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, 2, "Velocity", true);
+	value.RegisterNewFab(value.Velocity_old_mf, value.bc_v, 2, 2, "Velocity_old", true);
+	
+	value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, 2, "Pressure", true);
+	value.RegisterNewFab(value.Pressure_old_mf, value.bc_p, 1, 2, "Pressure_old", true);
       }
       {
       BL_PROFILE("Integrator::Hydro::Hydro()");
@@ -93,6 +97,7 @@ private:
 
     Set::Field<Set::Scalar> Density_mf;
     Set::Field<Set::Scalar> Density_old_mf;
+  
     Set::Field<Set::Scalar> Energy_mf;
     Set::Field<Set::Scalar> Energy_old_mf;
   
@@ -100,18 +105,19 @@ private:
     Set::Field<Set::Scalar> Momentum_old_mf;
 
     Set::Field<Set::Scalar> Velocity_mf;
+    Set::Field<Set::Scalar> Velocity_old_mf;
+  
     Set::Field<Set::Scalar> Pressure_mf;
+    Set::Field<Set::Scalar> Pressure_old_mf;
   
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
 
-    Set::Field<Set::Scalar> flux_x_mf;
-    Set::Field<Set::Scalar> flux_y_mf;
-
     BC::BC<Set::Scalar> *bc_rho;
     BC::BC<Set::Scalar> *bc_E;
     BC::BC<Set::Scalar> *bc_M;
-  
+    BC::BC<Set::Scalar> *bc_v;
+    BC::BC<Set::Scalar> *bc_p;
     BC::BC<Set::Scalar> *bc_eta;
 
     IC::IC *ic_rho;
@@ -124,7 +130,7 @@ private:
     Set::Scalar rho_solid = 1.2;
     Set::Scalar rho_fluid = 1.0;
     Set::Scalar E_solid = 5.0;
-    Set::Scalar E_fluid = 0.25;
+    Set::Scalar E_fluid = 1.0;
  
     Set::Scalar gamma = 1.4;
     Set::Scalar rho0 = 0.5;
@@ -138,6 +144,7 @@ private:
     Set::Scalar r_refinement_criterion = 0.1;
     Set::Scalar e_refinement_criterion = 0.1;
     Set::Scalar m_refinement_criterion = 0.1;
+    Set::Scalar n_refinement_criterion = 0.1;
 };
 }
 
