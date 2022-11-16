@@ -10,6 +10,7 @@
 
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Elastic/MyModel.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/J2.H"
 
@@ -43,6 +44,7 @@ int main (int argc, char* argv[])
         else if (model == "affine.isotropic")   integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>(pp);
         else if (model == "linear.laplacian")   integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>(pp);
         else if (model == "elastic.neohookean") integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>(pp);
+        else if (model == "elastic.mymodel")    integrator = new Integrator::Mechanics<Model::Solid::Elastic::MyModel>(pp);
         else if (model == "affine.j2")          integrator = new Integrator::Mechanics<Model::Solid::Affine::J2>(pp);
         else Util::Abort(INFO,model," is not a valid model");
     }

@@ -421,3 +421,7 @@ if (args.docs):
     try: import m2r; message("M2R", str(m2r.__version__) + " (python 3)")
     except: message("M2R",color.red + "M2R not installed - install using " + code("pip install m2r"))
 
+#
+# Let the user know that configure completed successfully
+#
+message("Done","Configure script completed successfully")

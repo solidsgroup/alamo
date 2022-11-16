@@ -16,6 +16,7 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Elastic/MyModel.H"
 
 int main (int argc, char* argv[])
 {
@@ -39,6 +40,7 @@ int main (int argc, char* argv[])
     #if AMREX_SPACEDIM == 3
     MODELTEST(Model::Solid::Elastic::NeoHookean);
     #endif
+    MODELTEST(Model::Solid::Elastic::MyModel);
 
     Util::Test::Message("Set::Matrix4");
     {
