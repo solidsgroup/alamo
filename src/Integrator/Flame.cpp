@@ -120,6 +120,9 @@ namespace Integrator
             
             pp.query("thermal.qlimit", value.thermal.qlimit);
 	    pp.query("thermal.mlocal_ap", value.thermal.mlocal_ap);
+	    pp.query("thermal.mlocal_htpb", value.thermal.mlocal_htpb);
+
+	    pp.query("thermal.T_fluid", value.thermal.T_fluid);
 	    
 	    pp.query("thermal.Wd", value.Wd);
 	    pp.query("thermal.mobcap", value.thermal.mobcap);
@@ -127,6 +130,9 @@ namespace Integrator
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
             value.RegisterNewFab(value.temp_mf,     value.bc_temp, 1, 1, "temp", true);
             value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
+            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 1, "temps", true);
+	    value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 2, "temps_old", false);
+	    
             value.RegisterNewFab(value.mob_mf, 1, "mob", true);
             value.RegisterNewFab(value.alpha_mf, 1,"alpha",true);  
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
@@ -183,6 +189,10 @@ namespace Integrator
 
         temp_mf[lev]->setVal(thermal.bound);
         temp_old_mf[lev]->setVal(thermal.bound);
+	temps_mf[lev] ->setVal(thermal.bound);
+	temps_old_mf[lev] -> setVal(thermal.bound);
+
+	
         alpha_mf[lev]->setVal(0.0);
         mob_mf[lev] -> setVal(0.0);
 
@@ -264,6 +274,7 @@ namespace Integrator
         {
             std::swap(eta_old_mf[lev], eta_mf[lev]);
             std::swap(temp_old_mf[lev], temp_mf[lev]);
+	    std::swap(temps_old_mf[lev], temps_mf[lev]);
 
             Numeric::Function::Polynomial<4> w(pf.w0, 
                                             0.0, 
@@ -288,6 +299,8 @@ namespace Integrator
                 amrex::Array4<const Set::Scalar> const &temp    = (*temp_old_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar>       const &alpha   = (*alpha_mf[lev]).array(mfi);
                 //amrex::Array4<Set::Scalar>       const &temph   = (*temph_mf[lev]).array(mfi);
+		amrex::Array4<Set::Scalar>       const &tempsnew= (*temps_mf[lev]).array(mfi);
+		amrex::Array4<Set::Scalar>       const &temps   = (*temps_old_mf[lev]).array(mfi);
 
                 // Diagnostic fields
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
@@ -321,11 +334,13 @@ namespace Integrator
 		    Set::Scalar qflux = k1 * phi(i,j,k) +
 		                        k2 * (1.0 - phi(i,j,k)) +
 		                        (zeta_0 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
-		    Set::Scalar mlocal = thermal.mlocal_ap;
+		    Set::Scalar mlocal = thermal.mlocal_ap * phi(i,j,k) + thermal.mlocal_htpb * (1.0 - phi(i,j,k));
 		    Set::Scalar mbase;
 
 		    Set::Scalar fd = 0.25 * pressure.P * pressure.P * pressure.P - 3.25 * pressure.P * pressure.P + 14.5 * pressure.P - 17.0;
-
+		    fd *= phi(i,j,k);
+		    fd += 17.0 * (1.0 - phi(i,j,k));
+		    
 		    if (mob(i,j,k) > mlocal) mbase = 1.0;
 		    else mbase = mob(i,j,k) / mlocal; 
 		     
@@ -343,20 +358,37 @@ namespace Integrator
                    		    
                     Set::Scalar dTdt = 0.0;
 
+		    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k));
+		    dTdt += grad_alpha(eta(i,j,k) * grad_temp);
+		    dTdt += eta(i,j,k) * alpha(i,j,k) * lap_temp;
+
+		    dTdt += alpha(i,j,k) * heatflux(i,j,k) * grad_eta_mag;
+
+		    Set::Scalar Tsolid;
+
+		    Tsolid = dTdt + temps(i,j,k) * (etanew(i,j,k) - eta(i,j,k)) / dt; 
+
+		    tempsnew(i,j,k) = temps(i,j,k) + dt * Tsolid;
+
+		    tempnew(i,j,k) = etanew(i,j,k) * tempsnew + (1.0 - etanew(i,j,k)) * thermal.T_fluid;
+
 		    // No-flux
-                    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);     
-                    dTdt += grad_alpha.dot(grad_temp);
-                    dTdt += alpha(i,j,k) * lap_temp;
+                    //dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);     
+                    //dTdt += grad_alpha.dot(grad_temp);
+                    //dTdt += alpha(i,j,k) * lap_temp;
 
 		    // Neumann Condition
-                    dTdt += Wn * (grad_eta_mag * alpha(i,j,k) * heatflux(i,j,k) / (eta(i,j,k) + small) ); // Calculate the source term
+                    //dTdt += Wn * (grad_eta_mag * alpha(i,j,k) * heatflux(i,j,k) / (eta(i,j,k) + small) ); // Calculate the source term
 
                     // Dirichlet Condition
-		    dTdt += Wd * (-1.0 * alpha(i,j,k) * grad_eta.dot(eta(i,j,k)*grad_temp + temp(i,j,k)*grad_eta) / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
-                    dTdt += Wd * (alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
+		    //dTdt += Wd * (-1.0 * alpha(i,j,k) * grad_eta.dot(eta(i,j,k)*grad_temp + temp(i,j,k)*grad_eta) / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
+                    //dTdt += Wd * (alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
 
                     // Explicit Forward Euler Temperature Evolution
-		    tempnew(i,j,k) = temp(i,j,k) + dt * dTdt; 
+                    //if (eta(i,j,k) >= 0.5){
+		    //tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
+		    //}
+		    //else tempnew(i,j,k) = temp(i,j,k);
                 });
 
 

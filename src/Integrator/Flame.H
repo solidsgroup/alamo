@@ -50,6 +50,9 @@ protected:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
+    Set::Field<Set::Scalar> temps_mf;
+    Set::Field<Set::Scalar> temps_old_mf;
+  
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> mob_mf; 
@@ -132,7 +135,8 @@ protected:
       Set::Scalar qlimit = 1.0e13;
       Set::Scalar bd = 275.0;
       Set::Scalar mobcap = 20.0;
-      Set::Scalar mlocal_ap = 0.0;
+      Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0;
+      Set::Scalar T_fluid = 300.0; 
     } thermal;
 
     struct {
