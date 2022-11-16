@@ -359,7 +359,7 @@ namespace Integrator
                     Set::Scalar dTdt = 0.0;
 
 		    dTdt += grad_eta.dot(grad_temp * alpha(i,j,k));
-		    dTdt += grad_alpha(eta(i,j,k) * grad_temp);
+		    dTdt += grad_alpha.dot(eta(i,j,k) * grad_temp);
 		    dTdt += eta(i,j,k) * alpha(i,j,k) * lap_temp;
 
 		    dTdt += alpha(i,j,k) * heatflux(i,j,k) * grad_eta_mag;
@@ -370,7 +370,7 @@ namespace Integrator
 
 		    tempsnew(i,j,k) = temps(i,j,k) + dt * Tsolid;
 
-		    tempnew(i,j,k) = etanew(i,j,k) * tempsnew + (1.0 - etanew(i,j,k)) * thermal.T_fluid;
+		    tempnew(i,j,k) = etanew(i,j,k) * tempsnew(i,j,k) + (1.0 - etanew(i,j,k)) * thermal.T_fluid;
 
 		    // No-flux
                     //dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);     
