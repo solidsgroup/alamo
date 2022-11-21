@@ -76,7 +76,9 @@ class TopOp : virtual public Base::Mechanics<MODEL>
         pp.query("lambda",value.lambda);
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
-
+        value.RegisterIntegratedVariable(&value.w_chem_potential, "chem_potential");
+        value.RegisterIntegratedVariable(&value.w_bndry, "bndry");
+        value.RegisterIntegratedVariable(&value.w_elastic, "elastic");
     }
 
     void Initialize(int lev) override
@@ -144,20 +146,29 @@ class TopOp : virtual public Base::Mechanics<MODEL>
         }
     }
 
-void Integrate(int amrlev, Set::Scalar time, int step,
-                                        const amrex::MFIter &mfi, const amrex::Box &box)
-{
-    BL_PROFILE("TopOp::Integrate");
-    Base::Mechanics<MODEL>::Integrate(amrlev,time,step,mfi,box);
+    void Integrate(int amrlev, Set::Scalar time, int step,
+                   const amrex::MFIter &mfi, const amrex::Box &box)
+    {
+        BL_PROFILE("TopOp::Integrate");
+        Base::Mechanics<MODEL>::Integrate(amrlev,time,step,mfi,box);
 
-    const amrex::Real *DX = geom[amrlev].CellSize();
-    Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        const amrex::Real *DX = geom[amrlev].CellSize();
+        Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
-    amrex::Array4<amrex::Real> const &psi = (*psi_mf[amrlev]).array(mfi);
-    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-        volume += psi(i, j, k, 0) * dv;
-    });
-}
+        amrex::Array4<amrex::Real> const &psi = (*psi_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Matrix> const &sig = (*stress_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Matrix> const &eps = (*strain_mf[amrlev]).array(mfi);
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            volume += psi(i, j, k, 0) * dv;
+            w_chem_potential += alpha*psi(i,j,k,0)*psi(i,j,k,0)*(1.-psi(i,j,k,0)*psi(i,j,k,0)) * dv;
+            w_bndry += beta*0.5*Numeric::Gradient(psi,i,j,k,0,DX).squaredNorm() * dv;
+
+            Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig,i,j,k,0);
+            Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps,i,j,k,0);
+            w_elastic = gamma * 0.5 * (sig_avg.transpose() * eps_avg).trace() * psi(i,j,k) * dv;
+        });
+    }
     
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override
@@ -215,6 +226,9 @@ void Integrate(int amrlev, Set::Scalar time, int step,
     Set::Scalar lambda = 1.0;
 
     Set::Scalar volume = 0.0;
+    Set::Scalar w_chem_potential = 0.0;
+    Set::Scalar w_bndry = 0.0;
+    Set::Scalar w_elastic = 0.0;
 };
 
 
