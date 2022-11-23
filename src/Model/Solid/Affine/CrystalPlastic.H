@@ -366,21 +366,41 @@ Set::Scalar CrystalPlastic::m_g0=NAN, CrystalPlastic::m_gs=NAN, CrystalPlastic::
 template<>
 inline int Set::Field<Model::Solid::Affine::CrystalPlastic>::NComp() const 
 {
-    return AMREX_SPACEDIM*AMREX_SPACEDIM;
+    // enable this to output eps_p
+    // return AMREX_SPACEDIM*AMREX_SPACEDIM;
+    
+    // enable this to output slip in individual systems 
+    return 12;
 }
 
 template<>
 inline std::string Set::Field<Model::Solid::Affine::CrystalPlastic>::Name(int i) const 
 {
-    if (i==0) return name + ".epsp_xx";
-    if (i==1) return name + ".epsp_xy";
-    if (i==2) return name + AMREX_D_PICK("",".epsp_yx",".epsp_xz");
-    if (i==3) return name + AMREX_D_PICK("",".epsp_yy",".epsp_yx");
-    if (i==4) return name + ".epsp_yy";
-    if (i==5) return name + ".epsp_yz";
-    if (i==6) return name + ".epsp_zx";
-    if (i==7) return name + ".epsp_zy";
-    if (i==8) return name + ".epsp_zz";
+    // Enable this to output eps_p
+    // if (i==0) return name + ".epsp_xx";
+    // if (i==1) return name + ".epsp_xy";
+    // if (i==2) return name + AMREX_D_PICK("",".epsp_yx",".epsp_xz");
+    // if (i==3) return name + AMREX_D_PICK("",".epsp_yy",".epsp_yx");
+    // if (i==4) return name + ".epsp_yy";
+    // if (i==5) return name + ".epsp_yz";
+    // if (i==6) return name + ".epsp_zx";
+    // if (i==7) return name + ".epsp_zy";
+    // if (i==8) return name + ".epsp_zz";
+
+    // Enable this to output slips in individual systems
+    if (i==1) return name + ".slip_1";
+    if (i==2) return name + ".slip_2";
+    if (i==3) return name + ".slip_3";
+    if (i==4) return name + ".slip_4";
+    if (i==5) return name + ".slip_5";
+    if (i==6) return name + ".slip_6";
+    if (i==7) return name + ".slip_7";
+    if (i==8) return name + ".slip_8";
+    if (i==9) return name + ".slip_9";
+    if (i==10) return name + ".slip_10";
+    if (i==11) return name + ".slip_11";
+    if (i==12) return name + ".slip_12";
+
     return name;
 }
 
@@ -394,10 +414,20 @@ inline void Set::Field<Model::Solid::Affine::CrystalPlastic>::Copy(int a_lev, am
         {
             amrex::Array4<const Model::Solid::Affine::CrystalPlastic> const & src = ((*this)[a_lev])->array(mfi);
             amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
-            for (int n = 0; n < AMREX_SPACEDIM*AMREX_SPACEDIM; n++)
+
+            // Enable this for outputting eps_p
+            // for (int n = 0; n < AMREX_SPACEDIM*AMREX_SPACEDIM; n++)
+            // {
+            //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            //         dst(i,j,k,a_dstcomp + n) = src(i,j,k).F0(n/AMREX_SPACEDIM,n%AMREX_SPACEDIM);
+            //     });
+            // }
+
+            // Enable this for outputting slip in individual slip systems
+            for (int n = 0; n < 12; n++)
             {
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                    dst(i,j,k,a_dstcomp + n) = src(i,j,k).F0(n/AMREX_SPACEDIM,n%AMREX_SPACEDIM);
+                    dst(i,j,k,a_dstcomp + n) = src(i,j,k).m_g_alpha[n];
                 });
             }
         }

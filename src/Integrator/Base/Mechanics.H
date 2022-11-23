@@ -250,7 +250,7 @@ protected:
 
         for (amrex::MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.validbox().grow(2) & domain;
+            amrex::Box bx = mfi.grownnodaltilebox() & domain;
             amrex::Array4<Set::Matrix>         const &eps  = (*strain_mf[lev]).array(mfi);
             amrex::Array4<Set::Matrix>         const &sig  = (*stress_mf[lev]).array(mfi);
             amrex::Array4<MODEL>               const &model= (*model_mf[lev]).array(mfi);

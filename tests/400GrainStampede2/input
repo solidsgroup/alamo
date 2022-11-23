@@ -36,7 +36,7 @@ pf.l_gb			        = 0.05
 pf.sigma0		        = 0.075
 pf.elastic_mult                 = 0.0
 
-elastic.on			= 1
+elastic.on			= 0
 elastic.interval		= 10
 elastic.type			= cubic
 elastic.load_t			= 0.0 
