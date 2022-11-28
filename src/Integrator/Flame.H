@@ -131,7 +131,7 @@ protected:
       Set::Scalar m_ap, m_htpb, m_comb;  
       Set::Scalar E_ap, E_htpb, E_comb;
       Set::Scalar cut_off = 0.5;
-      Set::Scalar hc = 1.0;
+      Set::Scalar hc = 1.0, w1 = 1.0, w2 = 1.0;
       Set::Scalar qlimit = 1.0e13;
       Set::Scalar bd = 275.0;
       Set::Scalar mobcap = 20.0;

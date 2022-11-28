@@ -117,6 +117,8 @@ namespace Integrator
 
             pp.query("thermal.cut_off", value.thermal.cut_off);
             pp.query("thermal.hc", value.thermal.hc);
+	    pp.query("thermal.w1", value.thermal.w1);
+	    pp.query("thermal.w2", value.thermal.w2);
             
             pp.query("thermal.qlimit", value.thermal.qlimit);
 	    pp.query("thermal.mlocal_ap", value.thermal.mlocal_ap);
@@ -128,9 +130,9 @@ namespace Integrator
 	    pp.query("thermal.mobcap", value.thermal.mobcap);
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
-            value.RegisterNewFab(value.temp_mf,     value.bc_temp, 1, 1, "temp", true);
-            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 1, "temp_old", false);
-            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 1, "temps", true);
+            value.RegisterNewFab(value.temp_mf,     value.bc_temp, 1, 2, "temp", true);
+            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 2, "temp_old", false);
+            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 2, "temps", true);
 	    value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 2, "temps_old", false);
 	    
             value.RegisterNewFab(value.mob_mf, 1, "mob", true);
@@ -206,6 +208,9 @@ namespace Integrator
         heatflux_mf[lev] -> setVal(0.0);
 
         ic_phi->Initialize(lev, phi_mf);
+	thermal.T_fluid = thermal.bound;
+
+	thermal.w1 = 0.2 * pressure.P + 0.9;
 
 	//for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
 	//const amrex::Box &bx = mfi.tilebox();
@@ -322,11 +327,16 @@ namespace Integrator
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
+		    if (eta(i,j,k) < 0.1) etanew(i,j,k) = 0.0;
                    
-                    alpha(i,j,k) =  K / rho / cp; // Calculate thermal diffusivity and store in field
-                    mdot(i,j,k) = - rho * (etanew(i,j,k) - eta(i,j,k)) / dt; // Calculate mass flux
-
-                    });
+                    alpha(i,j,k) = thermal.w1 *  K / rho / cp; // Calculate thermal diffusivity and store in fiel
+		});
+		
+		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+	       {
+		 Set::Scalar density = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k));
+		 mdot(i,j,k) = - density * (etanew(i,j,k) - eta(i,j,k)) / dt ;
+		});
 
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
@@ -334,17 +344,14 @@ namespace Integrator
 		    Set::Scalar qflux = k1 * phi(i,j,k) +
 		                        k2 * (1.0 - phi(i,j,k)) +
 		                        (zeta_0 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
+		    
 		    Set::Scalar mlocal = thermal.mlocal_ap * phi(i,j,k) + thermal.mlocal_htpb * (1.0 - phi(i,j,k));
 		    Set::Scalar mbase;
 
-		    Set::Scalar fd = 0.25 * pressure.P * pressure.P * pressure.P - 3.25 * pressure.P * pressure.P + 14.5 * pressure.P - 17.0;
-		    fd *= phi(i,j,k);
-		    fd += 17.0 * (1.0 - phi(i,j,k));
-		    
-		    if (mob(i,j,k) > mlocal) mbase = 1.0;
-		    else mbase = mob(i,j,k) / mlocal; 
+		    if (mdot(i,j,k) > mlocal) mbase = 1.0;
+		    else mbase = mdot(i,j,k) / mlocal; 
 		     
-		    heatflux(i,j,k) = (mbase * fd * thermal.hc * qflux + thermal.q0) / K ;
+		    heatflux(i,j,k) = (thermal.hc * mbase * qflux + thermal.q0 ) / K;
 		});
                      
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -372,28 +379,11 @@ namespace Integrator
 
 		    tempnew(i,j,k) = etanew(i,j,k) * tempsnew(i,j,k) + (1.0 - etanew(i,j,k)) * thermal.T_fluid;
 
-		    // No-flux
-                    //dTdt += grad_eta.dot(grad_temp * alpha(i,j,k) ) / (eta(i,j,k) + small);     
-                    //dTdt += grad_alpha.dot(grad_temp);
-                    //dTdt += alpha(i,j,k) * lap_temp;
-
-		    // Neumann Condition
-                    //dTdt += Wn * (grad_eta_mag * alpha(i,j,k) * heatflux(i,j,k) / (eta(i,j,k) + small) ); // Calculate the source term
-
-                    // Dirichlet Condition
-		    //dTdt += Wd * (-1.0 * alpha(i,j,k) * grad_eta.dot(eta(i,j,k)*grad_temp + temp(i,j,k)*grad_eta) / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
-                    //dTdt += Wd * (alpha(i,j,k) * Bd * grad_eta_mag * grad_eta_mag / (eta(i,j,k) + small) / (eta(i,j,k) + small) );
-
-                    // Explicit Forward Euler Temperature Evolution
-                    //if (eta(i,j,k) >= 0.5){
-		    //tempnew(i,j,k) = temp(i,j,k) + dt * dTdt;
-		    //}
-		    //else tempnew(i,j,k) = temp(i,j,k);
                 });
 
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-                    mob(i,j,k)  = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
+                    mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
 		    mob(i,j,k) += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
 		    mob(i,j,k) *= conditional.evolve;
 
