@@ -63,6 +63,8 @@ protected:
     Set::Field<Set::Scalar> alpha_mf;
     Set::Field<Set::Scalar> heatflux_mf;  
 
+    Set::Field<Set::Scalar> laser_mf;
+  
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
     IC::IC *ic_phi;
@@ -136,7 +138,9 @@ protected:
       Set::Scalar bd = 275.0;
       Set::Scalar mobcap = 20.0;
       Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0;
-      Set::Scalar T_fluid = 300.0; 
+      Set::Scalar T_fluid = 300.0;
+
+      int controlj1 = 0, controlj2 = 0, laseron = 0; 
     } thermal;
 
     struct {

@@ -20,7 +20,7 @@ geometry.is_periodic = 0 1 1
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 10.0e-4 # 0.00005 # [s]
-stop_time = 11.0
+stop_time = 1.0
 small = 1.0e-5
 pf.min_eta = 0.1
 pf.evolve = 1
@@ -146,8 +146,12 @@ thermal.hc = 1.0e7
 thermal.qlimit = 1.0e10
 thermal.q0 = 5.0e6
 
-thermal.mlocal_ap = 100.0
+thermal.mlocal_ap = 500.0
 thermal.mlocal_htpb = 100.0
+
+thermal.controlj1 = 200
+thermal.controlj2 = 300
+thermal.laseron = 1
 
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 

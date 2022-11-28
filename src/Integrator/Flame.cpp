@@ -138,6 +138,11 @@ namespace Integrator
             value.RegisterNewFab(value.mob_mf, 1, "mob", true);
             value.RegisterNewFab(value.alpha_mf, 1,"alpha",true);  
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
+
+	    value.RegisterNewFab(value.laser_mf, 1, "laser", false);
+	    pp.query("thermal.controlj1", value.thermal.controlj1);
+	    pp.query("thermal.controlj2", value.thermal.controlj2);
+	    pp.query("thermal.laseron", value.thermal.laseron);
         }
 
 
@@ -220,6 +225,24 @@ namespace Integrator
 	//{
 	//  temp(i,j,k) = thermal.bound * (phi(i,j,k));    
 	//});}
+
+	if(thermal.laseron == 0){
+	  laser_mf[lev] -> setVal(thermal.q0);
+	}
+	else{
+	  for (amrex::MFIter mfi(*laser_mf[lev], true); mfi.isValid(); ++mfi){
+	  const amrex::Box &bx = mfi.tilebox();
+	  amrex::Array4<Set::Scalar> const &laser = (*laser_mf[lev]).array(mfi);
+	  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+	  {
+	    if (j > thermal.controlj1 && j < thermal.controlj2){
+	      laser(i,j,k) = thermal.q0;
+	    }
+	    else {
+	      laser(i,j,k) = 0.0;
+	    }
+	  }); 
+	}}
 	
     }
 
@@ -307,6 +330,8 @@ namespace Integrator
 		amrex::Array4<Set::Scalar>       const &tempsnew= (*temps_mf[lev]).array(mfi);
 		amrex::Array4<Set::Scalar>       const &temps   = (*temps_old_mf[lev]).array(mfi);
 
+		amrex::Array4<Set::Scalar> const &laser = (*laser_mf[lev]).array(mfi);
+
                 // Diagnostic fields
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
@@ -351,7 +376,7 @@ namespace Integrator
 		    if (mdot(i,j,k) > mlocal) mbase = 1.0;
 		    else mbase = mdot(i,j,k) / mlocal; 
 		     
-		    heatflux(i,j,k) = (thermal.hc * mbase * qflux + thermal.q0 ) / K;
+		    heatflux(i,j,k) = (thermal.hc * mbase * qflux + laser(i,j,k) ) / K;
 		});
                      
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
