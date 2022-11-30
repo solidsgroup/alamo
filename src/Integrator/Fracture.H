@@ -12,6 +12,7 @@
 #include "IC/Laminate.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/BMP.H"
+#include "IC/LShape.H"
 
 #include <eigen3/Eigen/Dense>
 
@@ -133,6 +134,12 @@ public:
                 {
                     IC::Ellipsoid *tmpic = new IC::Ellipsoid(value.geom);
                     pp.queryclass("crack.ic.ellipsoid",*tmpic);
+                    value.crack.ic.push_back(tmpic);
+                }
+                else if(value.crack.ic_type[i] == "lshape")
+                {
+                    IC::LShape *tmpic = new IC::LShape(value.geom);
+                    pp.queryclass("crack.ic.lshape",*tmpic);
                     value.crack.ic.push_back(tmpic);
                 }
                 else

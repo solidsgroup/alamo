@@ -67,7 +67,7 @@ material.model2.isotropic.mu        = 80.77e-2
 material.refinement_threshold       = 1.e-1
 material.ic.type                    = ellipse
 material.ic.ellipse.number_of_inclusions = 1
-material.ic.ellipse.x0              = 0.0 1.e-4
+material.ic.ellipse.x0              = 0.0 0.0 #1.e-4
 material.ic.ellipse.a               = 2.5e-3 2.5e-3
 material.ic.ellipse.eps             = 3.e-4
 

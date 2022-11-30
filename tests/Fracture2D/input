@@ -4,7 +4,7 @@ type = static
 plot_file     = tests/Fracture2D/output
 
 timestep = 1.e-4
-stop_time = 1.e2
+stop_time = 1.e1
 
 amr.plot_int = 1000
 amr.max_level = 6
@@ -31,17 +31,25 @@ crack.model1.type               = constant
 crack.model1.constant.G_c       = 2.7e3
 crack.model1.constant.zeta      = 1.e-5
 crack.model1.constant.mobility  = 1.0e-5
-crack.model1.constant.gtype     = 4c3
-crack.model1.constant.wtype     = 4c3
+crack.model1.constant.gtype     = square
+crack.model1.constant.wtype     = square
 crack.model1.constant.threshold = 0.0
 
-crack.ic.type               = notch
-crack.ic.notch.center       = -0.01 0.0
-crack.ic.notch.orientation  = 1.0 0.0
-crack.ic.notch.thickness    = 3.e-4
-crack.ic.notch.length       = 2.e-3
-crack.ic.notch.eps          = 4.e-5
-crack.ic.notch.mollifier    = erf
+crack.ic.type                   = lshape
+crack.ic.lshape.eps             = 4.e-5 4.e-5
+
+#crack.ic.ellipsoid.center       = 0.0 0.0
+#crack.ic.ellipsoid.radius       = 2.5e-3 2.5e-3
+#crack.ic.ellipsoid.eps          = 3.e-4
+#crack.ic.ellipsoid.mollifier    = erf
+
+#crack.ic.notch.center       = -0.01 0.0
+#crack.ic.notch.orientation  = 1.0 0.0
+#crack.ic.notch.thickness    = 3.e-4
+#crack.ic.notch.length       = 2.e-3
+#crack.ic.notch.eps          = 4.e-5
+#crack.ic.notch.mollifier    = erf
+
 
 crack.bc.type.xhi = NEUMANN
 crack.bc.type.xlo = NEUMANN
@@ -75,6 +83,6 @@ bc.constant.type.xhiylo = disp disp
 bc.constant.type.yhi    = disp disp
 bc.constant.type.xloyhi = disp disp
 bc.constant.type.xhiyhi = disp disp
-bc.constant.val.yhi     = 0.0 2.e-5
-bc.constant.val.xloyhi  = 0.0 2.e-5
-bc.constant.val.xhiyhi  = 0.0 2.e-5
+bc.constant.val.yhi     = 0.0 1.5e-5
+bc.constant.val.xloyhi  = 0.0 1.5e-5
+bc.constant.val.xhiyhi  = 0.0 1.5e-5

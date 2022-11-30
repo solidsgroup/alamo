@@ -31,25 +31,13 @@ public:
         {
             amrex::Box bx = mfi.tilebox();
             bx.grow(a_field[lev]->nGrow());
+            amrex::IndexType type = a_field[lev]->ixType();
 
             amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
             amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
 
-                    Set::Scalar AMREX_D_DECL(x,y,z);
-                    if (cellcentered)
-                    {
-                        AMREX_D_TERM(x = geom[lev].ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];,
-                                    y = geom[lev].ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];,
-                                    z = geom[lev].ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom[lev].CellSize()[2];);
-                    }
-                    else
-                    {
-                        AMREX_D_TERM(x = geom[lev].ProbLo()[0] + (amrex::Real)(i) * geom[lev].CellSize()[0];,
-                                    y = geom[lev].ProbLo()[1] + (amrex::Real)(j) * geom[lev].CellSize()[1];,
-                                    z = geom[lev].ProbLo()[2] + (amrex::Real)(k) * geom[lev].CellSize()[2];);
-                    }
-                    //Set::Scalar rsq = 0.0;
-
+                    Set::Vector x = Set::Position(i,j,k,geom[lev],type);
+                    
                     if (AMREX_D_TERM(std::abs(x-center[0]) <= 0.5*length[0], && std::abs(y-center[1]) <= 0.5*length[1], && std::abs(z-center[2]) <= 0.5*length[2]))
                         field(i,j,k,0) = 0.;
                     else
