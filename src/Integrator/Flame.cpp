@@ -123,6 +123,7 @@ namespace Integrator
             pp.query("thermal.qlimit", value.thermal.qlimit);
 	    pp.query("thermal.mlocal_ap", value.thermal.mlocal_ap);
 	    pp.query("thermal.mlocal_htpb", value.thermal.mlocal_htpb);
+	    pp.query("thermal.mlocal_comb", value.thermal.mlocal_comb);
 
 	    pp.query("thermal.T_fluid", value.thermal.T_fluid);
 	    
@@ -143,6 +144,8 @@ namespace Integrator
 	    pp.query("thermal.controlj1", value.thermal.controlj1);
 	    pp.query("thermal.controlj2", value.thermal.controlj2);
 	    pp.query("thermal.laseron", value.thermal.laseron);
+	    pp.query("thermal.laseroff", value.thermal.laseroff);
+	    pp.query("thermal.lasershut", value.thermal.lasershut);
         }
 
 
@@ -353,8 +356,14 @@ namespace Integrator
             
                     etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
 		    if (eta(i,j,k) < 0.1) etanew(i,j,k) = 0.0;
+
+		    Set::Scalar w2;
+
+		    if (phi(i,j,k) == 0.999) w2 = thermal.w1;
+		    else w2 = 1.0;
+		    
                    
-                    alpha(i,j,k) = thermal.w1 *  K / rho / cp; // Calculate thermal diffusivity and store in fiel
+                    alpha(i,j,k) = w2 *  K / rho / cp; // Calculate thermal diffusivity and store in fiel
 		});
 		
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -365,18 +374,26 @@ namespace Integrator
 
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
+
+		  if (time > thermal.laseroff && thermal.lasershut == 1){
+		    laser(i,j,k) = 0.0;
+		  }
 		    Set::Scalar K = thermal.k0 * (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
 		    Set::Scalar qflux = k1 * phi(i,j,k) +
 		                        k2 * (1.0 - phi(i,j,k)) +
 		                        (zeta_0 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
 		    
-		    Set::Scalar mlocal = thermal.mlocal_ap * phi(i,j,k) + thermal.mlocal_htpb * (1.0 - phi(i,j,k));
+		    Set::Scalar mlocal; //  = thermal.mlocal_ap * phi(i,j,k) + thermal.mlocal_htpb * (1.0 - phi(i,j,k));
 		    Set::Scalar mbase;
+
+		    if (phi(i,j,k) > 0.9) mlocal = thermal.mlocal_ap;
+		    else if (phi(i,j,k) < 0.1) mlocal = thermal.mlocal_htpb;
+		    else mlocal = thermal.mlocal_comb;
 
 		    if (mdot(i,j,k) > mlocal) mbase = 1.0;
 		    else mbase = mdot(i,j,k) / mlocal; 
 		     
-		    heatflux(i,j,k) = (thermal.hc * mbase * qflux + laser(i,j,k) ) / K;
+		    heatflux(i,j,k) = (thermal.hc * mbase * qflux + laser(i,j,k) ) ; // K;
 		});
                      
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)

@@ -137,10 +137,12 @@ protected:
       Set::Scalar qlimit = 1.0e13;
       Set::Scalar bd = 275.0;
       Set::Scalar mobcap = 20.0;
-      Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0;
+      Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0, mlocal_comb = 0.0;
       Set::Scalar T_fluid = 300.0;
 
-      int controlj1 = 0, controlj2 = 0, laseron = 0; 
+      int controlj1 = 0, controlj2 = 0, laseron = 0;
+      int lasershut = 1;
+      Set::Scalar laseroff = 1.0;
     } thermal;
 
     struct {
