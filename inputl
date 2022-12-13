@@ -99,7 +99,7 @@ thermal.bound = 350.0
 thermal.rho_ap = 1950.0 # [kg/m3] 
 thermal.rho_htpb = 920.0 # [kg/m3]
 
-thermal.k_ap = 0.4186e1 # 5.5 [W/mK]
+thermal.k_ap = 0.4186e0 # 5.5 [W/mK]
 thermal.k_htpb = 0.13 # 0.283[W/mK]
 
 thermal.cp_ap = 1297.9 #[J/kgK]
@@ -121,17 +121,18 @@ thermal.temp.bc.val.zhi = 0.0
 thermal.hc = 1.0e7
 thermal.q0 = 5.0e6
 
-thermal.mlocal_ap = 100.0
-thermal.mlocal_htpb = 3000.0
+thermal.mlocal_ap = 1000.0
+thermal.mlocal_htpb = 2500.0
+thermal.mlocal_comb = -3000.0
 
 thermal.controlj1 = 245
 thermal.controlj2 = 255
 thermal.laseron = 0
-thermal.laseroff = 0.3
+thermal.laseroff = 0.1
 thermal.lasershut = 1
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
-pressure.P = 0.8  ## Pressure is to be inputed in MPa units.
+pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
 
 pressure.a1 = 0.46
 pressure.a2 = 1.114 

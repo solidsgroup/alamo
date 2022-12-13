@@ -382,7 +382,7 @@ namespace Integrator
 
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-                    mob(i,j,k) = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
+                    mob(i,j,k) = thermal.m_ap * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
 		    mob(i,j,k) += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
 		    mob(i,j,k) *= conditional.evolve;
 
