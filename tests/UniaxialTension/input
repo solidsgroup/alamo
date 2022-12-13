@@ -19,6 +19,7 @@
 #@  [3D-serial-3levels]
 #@  dim=3
 #@  nprocs=1
+#@  benchmark-github = 8.29
 #@
 #@  [3D-parallel-3levels]
 #@  dim=3

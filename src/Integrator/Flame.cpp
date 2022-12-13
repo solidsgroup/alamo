@@ -6,21 +6,23 @@
 #include "IC/Constant.H"
 #include "IC/PSRead.H"
 #include "Numeric/Function.H"
+#include "IC/Expression.H"
+#include "Base/Mechanics.H"
 
 #include <cmath>
 
 namespace Integrator
 {
 
-    Flame::Flame() : MechanicsBase<Model::Solid::Affine::Isotropic>() {}
+    Flame::Flame() : Base::Mechanics<Model::Solid::Affine::Isotropic>() {}
 
-    Flame::Flame(IO::ParmParse &pp) : MechanicsBase<Model::Solid::Affine::Isotropic>() 
+    Flame::Flame(IO::ParmParse &pp) : Flame()
     {pp.queryclass(*this);}
 
     void 
     Flame::Parse(Flame &value, IO::ParmParse &pp)
     {
-        BL_PROFILE("Integrator::Flame::Flame()");   
+        BL_PROFILE("Integrator::Flame::Flame()");
         {
             pp.query("timestep", value.base_time);
             // These are the phase field method parameters
@@ -161,7 +163,7 @@ namespace Integrator
             value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 1, "phi", true);
         }
 
-        pp.queryclass<MechanicsBase<Model::Solid::Affine::Isotropic>>("elastic",value);
+        pp.queryclass<Base::Mechanics<Model::Solid::Affine::Isotropic>>("elastic",value);
         if (value.m_type  != Type::Disable)
         {
             pp.queryclass("model_ap",value.elastic.model_ap);
@@ -174,7 +176,7 @@ namespace Integrator
     {
         BL_PROFILE("Integrator::Flame::Initialize");
         Util::Message(INFO,m_type);
-        MechanicsBase<Model::Solid::Affine::Isotropic>::Initialize(lev);
+	Base::Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev);
 
         temp_mf[lev]->setVal(thermal.bound);
         temp_old_mf[lev]->setVal(thermal.bound);
@@ -215,11 +217,10 @@ namespace Integrator
 	}}
 	
     }
-
     
-    void Flame::UpdateModel(int a_step)
+    void Flame::UpdateModel(int /*a_step*/)
     {
-        if (a_step % m_interval) return;
+        if (m_type == Base::Mechanics<Model::Solid::Affine::Isotropic>::Type::Disable) return;
 
         for (int lev = 0; lev <= finest_level; ++lev)
         {
@@ -227,36 +228,49 @@ namespace Integrator
             eta_mf[lev]->FillBoundary();
             temp_mf[lev]->FillBoundary();
             
-            for (MFIter mfi(*model_mf[lev], true); mfi.isValid(); ++mfi)
+            for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
                 amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = phi_mf[lev]->array(mfi);
-                amrex::Array4<const Set::Scalar> const &temp = temp_mf[lev]->array(mfi);
-
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                if (thermal.on)
                 {
-                    Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
-                    Set::Scalar eta_avg = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,0);
-                    Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
-                    model_type model_ap = elastic.model_ap;
-                    model_ap.F0 *= temp_avg;
-                    model_type model_htpb = elastic.model_htpb;
-                    model_htpb.F0 *= temp_avg;
-                    model_type solid = model_ap*phi_avg + model_htpb*(1.-phi_avg);
-                    model(i,j,k) = solid*eta_avg + elastic.model_void*(1.0-eta_avg); 
-                });
+                    amrex::Array4<const Set::Scalar> const &temp = temp_mf[lev]->array(mfi);
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
+                        Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
+                        model_type model_ap = elastic.model_ap;
+                        model_ap.F0 *= temp_avg;
+                        model_type model_htpb = elastic.model_htpb;
+                        model_htpb.F0 *= temp_avg;
+                        model(i,j,k) = model_ap*phi_avg + model_htpb*(1.-phi_avg);
+                    });
+                }
+                else
+                {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+                    {
+                        Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
+                        model_type model_ap = elastic.model_ap;
+                        model_ap.F0 *= Set::Matrix::Zero();
+                        model_type model_htpb = elastic.model_htpb;
+                        model_htpb.F0 *= Set::Matrix::Zero();
+                        model(i,j,k) = model_ap*phi_avg + model_htpb*(1.-phi_avg);
+                    });
+                }
             }
 
-            Util::RealFillBoundary(*model_mf[lev],geom[lev]);
+            Util::RealFillBoundary(*model_mf[lev], geom[lev]);
+            
+            amrex::MultiFab::Copy(*psi_mf[lev],*eta_mf[lev],0,0,1,psi_mf[lev]->nGrow());
         }
     }
     
     void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
     {
         BL_PROFILE("Integrator::Flame::TimeStepBegin");
-        MechanicsBase<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
+        Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
     }
 
 
@@ -395,7 +409,7 @@ namespace Integrator
  void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
     {
         BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
-        MechanicsBase<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev,a_tags,time,ngrow);
+	Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev,a_tags,time,ngrow);
         
         const Set::Scalar *DX = geom[lev].CellSize();
         Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
@@ -441,6 +455,23 @@ namespace Integrator
         ic_phi->Initialize(lev, phi_mf);
         Util::Message(INFO, "Regridding on level ", lev);
     } 
+
+    void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
+                                            const amrex::MFIter &mfi, const amrex::Box &box)
+    {
+        BL_PROFILE("Flame::Integrate");
+        const Set::Scalar *DX = geom[amrlev].CellSize();
+        Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+        {
+            volume += eta(i, j, k, 0) * dv;
+            Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+            Set::Scalar normgrad = grad.lpNorm<2>();
+            Set::Scalar da = normgrad * dv;
+            area += da;
+        });
+    }
 } // namespace Integrator
 
 

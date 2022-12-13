@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import numpy, yt, pylab, os, sys
+import numpy, yt, pylab, os, sys, math
 
 tolerance = 0.1 # This is a pretty large error, but we're comparing against somewhat sloppy data
 E    = 210
@@ -72,9 +72,18 @@ if dim == 3:
     print("sig33 error",sig33_err);
 
 
+
+    if math.isnan(u1_err): raise(Exception("Error in u1 - nan"))
+    if math.isnan(u2_err): raise(Exception("Error in u2 - nan"))
+    if math.isnan(u3_err): raise(Exception("Error in u3 - nan"))
+
     if u1_err > tolerance: raise(Exception("Error in u1"))
     if u2_err > tolerance: raise(Exception("Error in u2"))
     if u3_err > tolerance: raise(Exception("Error in u3"))
+
+    if math.isnan(sig11_err): raise(Exception("Error in sig11 - nan"))
+    if math.isnan(sig22_err): raise(Exception("Error in sig22 - nan"))
+    if math.isnan(sig33_err): raise(Exception("Error in sig33 - nan"))
 
     if sig11_err > tolerance: raise(Exception("Error in sig11"))
     if sig22_err > tolerance: raise(Exception("Error in sig22"))

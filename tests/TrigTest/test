@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import numpy, yt, pylab, os, sys
+import numpy, yt, pylab, os, sys, math
 
 outdir = sys.argv[1]
 
@@ -29,6 +29,7 @@ u1_err = sum((u1_exact - u1)**2) / sum(u1_exact**2)
 print("displacement error",u1_err)
 
 if u1_err > tolerance: raise(Exception("Error in u1"))
+if math.isnan(u1_err): raise(Exception("u1 is nan"))
                                
 
 

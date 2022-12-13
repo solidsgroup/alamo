@@ -1,45 +1,62 @@
-alamo.program=microstructure
+#@
+#@  [inclusion]
+#@  dim = 2
+#@  check = true
+#@  benchmark-beaker = 29.49
+#@  
 
-timestep = 0.005
-stop_time = 20.0
+alamo.program = microstructure
 
-amr.plot_int = 10
-amr.max_level = 1
-amr.n_cell = 64 64
-amr.blocking_factor = 4
+timestep = 0.01
+stop_time = 2.0
+
+plot_file = tests/Inclusion/output
+
+amr.plot_dt = 0.1
+amr.max_level = 2
+amr.n_cell = 64 64 64
+amr.blocking_factor = 8
 amr.regrid_int = 10
 amr.grid_eff = 1.0
-amr.plot_file = tests/Inclusion/output
+amr.max_grid_size = 8
 
-ic.type=circle
-ic.center = 0.5 0.5
-ic.radius = 0.25
+amr.thermo.plot_dt = 0.1
 
-geometry.prob_lo = 0 0
-geometry.prob_hi = 1 1
+ic.type=sphere
+ic.sphere.center = 4 4 4
+ic.sphere.radius = 1
+
+geometry.prob_lo = 0 0 0
+geometry.prob_hi = 8 8 8 
 geometry.is_periodic= 0 0 0
 
-bc.hi = INT_DIR EXT_DIR INT_DIR
-bc.lo = INT_DIR EXT_DIR INT_DIR
-bc.lo_2 = 0.0 1.0 0.0 0.0
-bc.hi_2 = 0.0 1.0 0.0 0.0
+bc.eta.type.xlo = neumann
+bc.eta.type.xhi = neumann
+bc.eta.type.ylo = neumann
+bc.eta.type.yhi = neumann
 
 pf.number_of_grains = 2
 pf.M = 1.0 
 pf.mu = 10.0
 pf.gamma = 1.0
-pf.l_gb=0.025
+pf.l_gb=0.1
 pf.sigma0=0.075
-pf.sdf_on = 1
-pf.sdf = 0.0 0.25
 
 anisotropy.on=1
-anisotropy.timestep=0.00001
-anisotropy.tstart= 0.5
-anisotropy.theta0= 45
-anisotropy.sigma0=0.075
-anisotropy.sigma1=0.025
+anisotropy.timestep=0.0005
+anisotropy.tstart= 1.
+anisotropy.gb_type=sin
+anisotropy.sin.sigma0=0.075
+anisotropy.sin.sigma1=0.07
+anisotropy.sin.theta0=45
 anisotropy.beta= 0.00001
-anisotropy.damp=1.0
+
+elastic.on = 0
+
+lagrange.on = 1
+lagrange.lambda = 2.0
+lagrange.tstart = 1.0
+lagrange.vol0 = 4.0
+
 
 

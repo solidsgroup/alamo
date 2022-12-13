@@ -3,6 +3,7 @@
 
 #include "Set/Set.H"
 #include "IC/IC.H"
+#include "IO/ParmParse.H"
 
 namespace IC
 {
@@ -12,6 +13,8 @@ public:
     enum Type {Partition, Values};
 
     Voronoi (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
+    Voronoi (amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp, std::string name) : IC(_geom) 
+    {pp.queryclass(name,*this);}
     Voronoi (amrex::Vector<amrex::Geometry> &_geom, int _number_of_grains, Set::Scalar a_alpha) : IC(_geom) 
     {
         Define(_number_of_grains,a_alpha);
@@ -35,7 +38,7 @@ public:
         type = a_type;
 
         voronoi.resize(number_of_grains);
-
+        srand(seed);
         for (int n = 0; n<number_of_grains; n++)
         {
             AMREX_D_TERM(voronoi[n](0) = geom[0].ProbLo(0) + (geom[0].ProbHi(0)-geom[0].ProbLo(0))*Util::Random();,
@@ -105,17 +108,28 @@ public:
             });
         }
     }
+
+    static void Parse(Voronoi &value, IO::ParmParse &pp)
+    {
+        pp.query("number_of_grains",value.number_of_grains);
+        if (pp.contains("alpha"))
+        {
+            pp.queryarr("alpha",value.alpha);
+            value.Define(value.number_of_grains,value.alpha);    
+        }
+        else
+        {
+            value.Define(value.number_of_grains,1.0);
+        }
+        pp.query("seed",value.seed);
+    }
     
 private:
     int number_of_grains;
+    int seed = 1;
     std::vector<Set::Scalar> alpha;
     std::vector<Set::Vector> voronoi;
     Type type;
-    amrex::Vector<amrex::Real> voronoi_x;
-    amrex::Vector<amrex::Real> voronoi_y;
-#if BL_SPACEDIM==3
-    amrex::Vector<amrex::Real> voronoi_z;
-#endif
 };
 }
 #endif

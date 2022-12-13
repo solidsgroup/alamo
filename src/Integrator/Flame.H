@@ -27,7 +27,7 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator, 
-              virtual public MechanicsBase<Model::Solid::Affine::Isotropic>
+              virtual public Base::Mechanics<Model::Solid::Affine::Isotropic>
 {
 
     using model_type = Model::Solid::Affine::Isotropic;
@@ -42,11 +42,13 @@ public:
 protected:
     void Initialize (int lev) override;
     void TimeStepBegin(Set::Scalar a_time, int a_iter) override;
-    void Advance (int lev, amrex::Real time, amrex::Real dt) override;
+    void Advance (int lev, Set::Scalar time, Set::Scalar dt) override;
     void TagCellsForRefinement (int lev, amrex::TagBoxArray& tags, amrex::Real /*time*/, int /*ngrow*/) override;
     void Regrid(int lev, Set::Scalar time) override;
-    virtual void UpdateModel(int a_step) override;
-protected:
+    void Integrate(int amrlev, Set::Scalar time, int step,
+                    const amrex::MFIter &mfi, const amrex::Box &box) override;
+    void UpdateModel(int a_step) override;
+private:
 
     Set::Field<Set::Scalar> temp_mf;
     Set::Field<Set::Scalar> temp_old_mf;
@@ -124,7 +126,9 @@ protected:
       Model::Solid::Affine::Isotropic model_ap, model_htpb, model_void;
     } elastic;
 
-    using MechanicsBase<Model::Solid::Affine::Isotropic>::m_type;
+    // Integrated variables
+    Set::Scalar volume = 0.0;
+    Set::Scalar area = 0.0;
 };
 }
 

@@ -16,11 +16,11 @@ class Step
     : public BC<Set::Scalar>
 {
 public:
-Step ()
-{
-}
+Step () {}
+Step (IO::ParmParse &pp,std::string name)
+{pp.queryclass(name,*this);}
 
-void FillBoundary (amrex::FArrayBox &a_in,
+void FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             const amrex::Box &a_box,
             int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
             Orientation face, const amrex::Mask * /*mask*/) override

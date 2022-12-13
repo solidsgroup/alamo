@@ -32,6 +32,8 @@ class Constant
 public:
     //Constant (amrex::Vector<amrex::Geometry> &_geom) : geom(_geom) {};
     Constant(int a_ncomp) : m_ncomp(a_ncomp) {} ;
+    Constant(int a_ncomp, IO::ParmParse &pp, std::string name) : m_ncomp(a_ncomp) 
+    {pp.queryclass(name,*this);} ;
     Constant (int ncomp, amrex::Vector<std::string> bc_hi_str,
         amrex::Vector<std::string> bc_lo_str,
         AMREX_D_DECL(amrex::Vector<amrex::Real> _bc_lo_1,
@@ -43,7 +45,7 @@ public:
 
     virtual ~Constant() {};
 
-    virtual void FillBoundary (amrex::FArrayBox &in, const amrex::Box &box,
+    virtual void FillBoundary (amrex::BaseFab<Set::Scalar> &in, const amrex::Box &box,
                     int ngrow, int dcomp, int ncomp, amrex::Real time,
                     Orientation face = Orientation::All,
                     const amrex::Mask *mask = nullptr) override;

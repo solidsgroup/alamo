@@ -19,6 +19,11 @@ public:
 
     BMP (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom)  {}
 
+    BMP (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : BMP(_geom)
+    {
+        pp.queryclass(name,*this);
+    }
+
     void Define(std::string bmpfilename)
     {
         bmp.Define(bmpfilename);//"Interface_Blur2.bmp");
@@ -38,46 +43,70 @@ public:
         Set::Scalar img_dx = 1.0;
         Set::Scalar img_dy = 1.0;
 
+        amrex::IndexType type = a_field[lev]->ixType();
+        domain.convert(type);
+
+        Set::Vector domlo(AMREX_D_DECL(geom[lev].ProbLo()[0],geom[lev].ProbLo()[1],0.0));
+        Set::Vector domhi(AMREX_D_DECL(geom[lev].ProbHi()[0],geom[lev].ProbHi()[1],0.0));
+
 
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.tilebox();
-            bx.grow(a_field[lev]->nGrow());
-            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
-            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) {
+            amrex::Box bx;
+            if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+            if (type == amrex::IndexType::TheCellType()) bx = mfi.growntilebox();
+            bx = bx & domain;
 
-                Set::Scalar x, y;
+
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            amrex::ParallelFor (bx,[=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                Set::Vector x = Set::Vector::Zero();
+                // NODE
+                if (type == amrex::IndexType::TheNodeType())
+                {
+                    x(0) = domlo(0) + ((amrex::Real)(i)) * geom[lev].CellSize()[0];
+                    x(1) = domlo(1) + ((amrex::Real)(j)) * geom[lev].CellSize()[1];
+                }
+                else if (type == amrex::IndexType::TheCellType())
+                {
+                    x(0) = domlo(0) + ((amrex::Real)(i) + 0.5) * geom[lev].CellSize()[0];
+                    x(1) = domlo(1) + ((amrex::Real)(j) + 0.5) * geom[lev].CellSize()[1];
+                }
+
+                //Set::Scalar x, y;
+                Set::Vector ximg;
 
                 if (fit == Fit::Stretch)
                 {
-                    x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
-                    y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
+                    ximg(0) = (x(0) - domlo(0)) / (domhi(0) - domlo(0)); 
+                    ximg(1) = (x(1) - domlo(1)) / (domhi(1) - domlo(1)); 
                 }
                 else if (fit == Fit::FitWidth)
                 {
                     Set::Scalar aspect_ratio = img_width / img_height;
-                    x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
-                    y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
-                    y -= 0.5 - 0.5 / aspect_ratio;
-                    y *= aspect_ratio;
+                    ximg(0) = (x(0) - domlo(0)) / (domhi(0) - domlo(0)); 
+                    ximg(1) = (x(1) - domlo(1)) / (domhi(1) - domlo(1)); 
+                    ximg(1) -= 0.5 - 0.5 / aspect_ratio;
+                    ximg(1) *= aspect_ratio;
                 }
                 else if (fit == Fit::FitHeight)
                 {
                     Set::Scalar aspect_ratio = img_height / img_width;
-                    x = (Set::Scalar)i / (Set::Scalar)(domain.hiVect()[0]);
-                    y = (Set::Scalar)j / (Set::Scalar)(domain.hiVect()[1]);
-                    x -= 0.5 - 0.5 / aspect_ratio;
-                    x *= aspect_ratio;
+                    ximg(0) = (x(0) - domlo(0)) / (domhi(0) - domlo(0)); 
+                    ximg(1) = (x(1) - domlo(1)) / (domhi(1) - domlo(1)); 
+                    ximg(0) -= 0.5 - 0.5 / aspect_ratio;
+                    ximg(0) *= aspect_ratio;
                 }
 
-                x = std::min(x,1.0); y = std::min(y,1.0);
-                x = std::max(x,0.0); y = std::max(y,0.0);
+                ximg(0) = std::min(ximg(0),1.0); ximg(1) = std::min(ximg(1),1.0);
+                ximg(0) = std::max(ximg(0),0.0); ximg(1) = std::max(ximg(1),0.0);
                 
-                Set::Scalar img_x = (img_width)  * x;
-                Set::Scalar img_y = (img_height) * y;
+                ximg(0) *= img_width;
+                ximg(1) *= img_height;
 
-                int I = (int)(img_x);
-                int J = (int)(img_y);
+                int I = (int)(ximg(0));
+                int J = (int)(ximg(1));
 
                 Set::Scalar x1 = I*img_dx, x2 = (I+1)*img_dx;
                 Set::Scalar y1 = J*img_dy, y2 = (J+1)*img_dy;
@@ -90,19 +119,19 @@ public:
                     Set::Scalar fQ22 = ((Set::Scalar)(bmp(I+1,J+1)[channel]) - min) / (max - min);
 
                     field(i,j,k) =
-                        (fQ11*(x2-img_x)*(y2-img_y) + fQ21*(img_x-x1)*(y2-img_y) + fQ12*(x2-img_x)*(img_y-y1) + fQ22*(img_x-x1)*(img_y-y1)) / (img_dx * img_dy);
+                        (fQ11*(x2-ximg(0))*(y2-ximg(1)) + fQ21*(ximg(0)-x1)*(y2-ximg(1)) + fQ12*(x2-ximg(0))*(ximg(1)-y1) + fQ22*(ximg(0)-x1)*(ximg(1)-y1)) / (img_dx * img_dy);
                 }
                 else if (I == bmp.nx-1 && J <  bmp.ny - 1)
                 {
                     Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
                     Set::Scalar fQ12 = ((Set::Scalar)(bmp(I  ,J+1)[channel]) - min) / (max - min);
-                    field(i,j,k) = fQ11 + (fQ12-fQ11) * (img_y - y1);
+                    field(i,j,k) = fQ11 + (fQ12-fQ11) * (ximg(1) - y1);
                 }
                 else if (I <  bmp.nx-1 && J == bmp.ny - 1)
                 {
                     Set::Scalar fQ11 = ((Set::Scalar)(bmp(I  ,J  )[channel]) - min) / (max - min);
                     Set::Scalar fQ21 = ((Set::Scalar)(bmp(I+1,J  )[channel]) - min) / (max - min);
-                    field(i,j,k) = fQ11 + (fQ21-fQ11) * (img_x - x1);
+                    field(i,j,k) = fQ11 + (fQ21-fQ11) * (ximg(0) - x1);
                 }
                 else if (I ==  bmp.nx-1 && J == bmp.ny - 1)
                 {
@@ -113,6 +142,8 @@ public:
                 {
                     field(i,j,k) = 0.0;
                 }
+
+                if (field.nComp() > 1) field(i,j,k,1) = 1.0 - field(i,j,k,0);
 
             });
         }
@@ -129,6 +160,9 @@ public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
         std::string filename;
+        // BMP filename.
+        // Note that in GIMP, you must select "do not write color space information"
+        // and "24 bit R8 G8 B8" when exporting the BMP file.
         pp.query("filename",filename);
         value.bmp.Define(filename);
 

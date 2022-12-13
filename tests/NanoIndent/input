@@ -1,4 +1,5 @@
-alamo.program               = eshelby
+alamo.program               = mechanics
+alamo.program.mechanics.model = affine.isotropic
 plot_file		    = tests/NanoIndent/output
 
 # this is not a time integration, so do

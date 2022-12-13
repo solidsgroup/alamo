@@ -25,7 +25,23 @@ public:
     AMREX_GPU_HOST_DEVICE Matrix4() {};
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
-    Scalar & operator () (const int i, const int j, const int k, const int l)
+    Scalar & operator () (const int i, const int j, const int k, const int l) 
+    {
+        int uid = i + 2*j + 4*k + 8*l;
+        // [0, 0, 0, 0]
+        if (uid==0 ) return data[0];
+        // [0, 0, 0, 1]
+        else if (uid==8 || uid==4 || uid==2 || uid==1 ) return data[1];
+        // [0, 0, 1, 1]
+        else if (uid==12 || uid==10 || uid==6 || uid==9 || uid==5 || uid==3 ) return data[2];
+        // [0, 1, 1, 1]
+        else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[3];
+        // [1, 1, 1, 1]
+        else if (uid==15 ) return data[4];
+        else Util::Abort(INFO,"Index out of range");
+        return data[0]; // this code is unreachable
+    }
+    Scalar operator () (const int i, const int j, const int k, const int l) const
     {
         int uid = i + 2*j + 4*k + 8*l;
         // [0, 0, 0, 0]
@@ -75,6 +91,42 @@ public:
     AMREX_FORCE_INLINE
     AMREX_GPU_HOST_DEVICE
     Scalar & operator () (const int i, const int j, const int k, const int l)
+    {
+        int uid = i + 3*j + 9*k + 27*l;
+        // [0, 0, 0, 0]
+        if (uid==0 ) return data[0];
+        // [0, 0, 0, 1]
+        else if (uid==27 || uid==9 || uid==3 || uid==1 ) return data[1];
+        // [0, 0, 0, 2]
+        else if (uid==54 || uid==18 || uid==6 || uid==2 ) return data[2];
+        // [0, 0, 1, 1]
+        else if (uid==36 || uid==30 || uid==12 || uid==28 || uid==10 || uid==4 ) return data[3];
+        // [0, 0, 1, 2]
+        else if (uid==63 || uid==45 || uid==57 || uid==21 || uid==33 || uid==15 || uid==55 || uid==19 || uid==7 || uid==29 || uid==11 || uid==5 ) return data[4];
+        // [0, 0, 2, 2]
+        else if (uid==72 || uid==60 || uid==24 || uid==56 || uid==20 || uid==8 ) return data[5];
+        // [0, 1, 1, 1]
+        else if (uid==39 || uid==37 || uid==31 || uid==13 ) return data[6];
+        // [0, 1, 1, 2]
+        else if (uid==66 || uid==48 || uid==42 || uid==64 || uid==46 || uid==58 || uid==22 || uid==34 || uid==16 || uid==38 || uid==32 || uid==14 ) return data[7];
+        // [0, 1, 2, 2]
+        else if (uid==75 || uid==69 || uid==51 || uid==73 || uid==61 || uid==25 || uid==65 || uid==47 || uid==59 || uid==23 || uid==35 || uid==17 ) return data[8];
+        // [0, 2, 2, 2]
+        else if (uid==78 || uid==74 || uid==62 || uid==26 ) return data[9];
+        // [1, 1, 1, 1]
+        else if (uid==40 ) return data[10];
+        // [1, 1, 1, 2]
+        else if (uid==67 || uid==49 || uid==43 || uid==41 ) return data[11];
+        // [1, 1, 2, 2]
+        else if (uid==76 || uid==70 || uid==52 || uid==68 || uid==50 || uid==44 ) return data[12];
+        // [1, 2, 2, 2]
+        else if (uid==79 || uid==77 || uid==71 || uid==53 ) return data[13];
+        // [2, 2, 2, 2]
+        else if (uid==80 ) return data[14];
+        else Util::Abort(INFO,"uid not in range (uid=",uid,")");        
+        return data[0]; // this return statement is unreachable.
+    }
+    Scalar operator () (const int i, const int j, const int k, const int l) const
     {
         int uid = i + 3*j + 9*k + 27*l;
         // [0, 0, 0, 0]

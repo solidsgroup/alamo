@@ -6,11 +6,17 @@ from collections import OrderedDict
 from datetime import datetime
 import socket
 import time
+import re
+
+from sympy import capture
 
 class color:
     reset = "\033[0m"
     red   = "\033[31m"
     green   = "\033[32m"
+    blue   = "\033[34m"
+    magenta   = "\033[35m"
+    boldblue   = "\033[1m\033[34m"
     boldgreen   = "\033[1m\033[32m"
     boldyellow   = "\033[1m\033[33m"
     bold = "\033[1m"
@@ -18,10 +24,15 @@ class color:
     darkgray = "\033[90m"
 
 #
+# RE tool to strip out color escapes
+# 
+ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+#
 # Get a unique string ID to label all output files
 #
 now = datetime.now()
-testid = now.strftime("output_%Y-%m-%d_%H:%M:%S_"+socket.gethostname())
+testid = now.strftime("output_%Y-%m-%d_%H.%M.%S_"+socket.gethostname())
 print("Test ID = ",testid)
 
 #
@@ -47,7 +58,13 @@ parser.add_argument('--dim',default=None,type=int,help='Specify dimensions to ru
 parser.add_argument('--cmd',default=False,action='store_true',help="Print out the exact command used to run each test")
 parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tests to run')
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
+parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
+parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
+parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 args=parser.parse_args()
+
+class DryRunException(Exception):
+    pass
 
 def test(testdir):
     """
@@ -66,6 +83,8 @@ def test(testdir):
     skips = 0
     tests = 0
     checks = 0
+    fasters = 0
+    slowers = 0
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
@@ -90,7 +109,7 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0
+        return 0,0,0,0,0,0
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
@@ -108,6 +127,12 @@ def test(testdir):
                 check = True
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
+
+        dobenchmark = False
+        benchmark = None
+        if "benchmark-{}".format(args.benchmark) in config[desc].keys():
+            dobenchmark = True
+            benchmark = float(config[desc]["benchmark-{}".format(args.benchmark)])
 
         # Build the command to run the script. This can be done in two ways:
         #
@@ -140,8 +165,11 @@ def test(testdir):
             # If not running in serial, specify mpirun command
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
-            exe = "./bin/alamo-{}d-g++".format(dim)
-            if args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
+            
+            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-g++".format(dim)
+            elif args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
+            elif args.profile: exe = "./bin/alamo-{}d-profile-g++".format(dim)
+            else: exe = "./bin/alamo-{}d-g++".format(dim)
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
@@ -162,10 +190,26 @@ def test(testdir):
         print("  │      Running test............................................",end="",flush=True)
         # Spawn the process and wait for it to finish before continuing.
         try:
+            if args.dryrun: raise DryRunException()
             timeStarted = time.time()
-            p = subprocess.check_output(command.split(),stderr=subprocess.PIPE)
+            p = subprocess.run(command.split(),capture_output=True,check=True)
             executionTime = time.time() - timeStarted
-            print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s)".format(executionTime))
+            fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
+            fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))
+            fstdout.close()
+            fstderr = open("{}/{}_{}/stderr".format(testdir,testid,desc),"w")
+            fstderr.write(ansi_escape.sub('',p.stderr.decode('ascii')))
+            fstderr.close()
+            print("[{}PASS{}]".format(color.boldgreen,color.reset), "({:.2f}s".format(executionTime),end="")
+            if dobenchmark:
+                if abs(executionTime - benchmark) / (executionTime + benchmark) < 0.01: print(", no change)")
+                elif abs(executionTime < benchmark):
+                    print(",{} {:.2f}% faster{})".format(color.blue,100*(benchmark-executionTime)/executionTime,color.reset))
+                    fasters += 1
+                else:
+                    print(",{} {:.2f}% slower{})".format(color.magenta,100*(executionTime-benchmark)/executionTime,color.reset))
+                    slowers += 1
+            else: print(")")
             tests += 1
         # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
         # we will continue with running other tests. (Script will return an error)
@@ -176,6 +220,9 @@ def test(testdir):
             for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             fails += 1
             continue
+        except DryRunException as e:
+            print("[----]")
+            
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
@@ -190,6 +237,7 @@ def test(testdir):
         if check:
             print("  │      Checking result.........................................",end="",flush=True)
             try:
+                if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
                 if "check-file" in config[desc].keys():
                     cmd.append(config[desc]['check-file'])
@@ -197,6 +245,7 @@ def test(testdir):
                     print("  ├      " + ' '.join(cmd))
                 p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
+                print("[{}PASS{}]".format(color.boldgreen,color.reset))
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
@@ -204,20 +253,20 @@ def test(testdir):
                 for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
+            except DryRunException as e:
+                  print("[----]")
             except Exception as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
-
-            print("[{}PASS{}]".format(color.boldgreen,color.reset))
     
     # Print a quick summary for this test family.
     if fails: print("  └ {}{} tests failed{}".format(color.red,fails,color.reset),end="")
     else: print("  └ {}{} tests failed{}".format(color.boldgreen,0,color.reset),end="")
     if skips: print(", {}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
     else: print("")
-    return fails, checks, tests, skips
+    return fails, checks, tests, skips, fasters, slowers
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
@@ -229,6 +278,8 @@ class stats:
     skips = 0   # Number of tests that were unexpectedly skipped - script errors if this is nonzero
     checks = 0  # Number of successfully passed checks
     tests = 0   # Number of successful checks
+    fasters = 0
+    slowers = 0
 
 # Iterate through all test directories, running the above "test" function
 # for each.
@@ -236,11 +287,13 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s = test(testdir)
+    f, c, t, s, fa, sl = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
     stats.skips += s
+    stats.fasters += fa
+    stats.slowers += sl
     
 
 # Print a quick summary of all tests
@@ -250,6 +303,8 @@ print("{}{} tests run and verified{}".format(color.boldgreen,stats.checks,color.
 if not stats.fails: print("{}0 tests failed{}".format(color.boldgreen,color.reset))
 else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.reset))
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
+if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
+if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
 print("")
 
 # Return nonzero only if no tests failed or were unexpectedly skipped
