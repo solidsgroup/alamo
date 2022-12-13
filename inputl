@@ -2,7 +2,7 @@ alamo.program = flame
 plot_file = /home/mmeierdo/solidphase/outs/output
 amr.plot_dt = 0.1
 #amr.plot_int = 1
-amr.max_level = 8 #5 #6
+amr.max_level = 7
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
@@ -23,26 +23,24 @@ timestep = 10.0e-4 # 0.00005 # [s]
 stop_time = 3.0
 small = 1.0e-5
 pf.min_eta = 0.1
-pf.evolve = 1
-
 
 pf.eps = 0.0001 #0.0005 # [m]
-pf.lambda = 0.001
+pf.lambda = 0.004
 
 ## ETA IC ################################################################ ETA IC
 
 eta.ic.type = constant #laminate
-eta.ic.laminate.number_of_inclusions = 1
-eta.ic.laminate.center = 0.005 0 0
-eta.ic.laminate.thickness = 0.4
-eta.ic.laminate.orientation = 1 0
-eta.ic.laminate.mollifier = gaussian
-eta.ic.laminate.eps = 0.0005
-eta.ic.laminate.singlefab = 1
-eta.ic.laminate.invert = 1 
+#eta.ic.laminate.number_of_inclusions = 1
+#eta.ic.laminate.center = 0.005 0 0
+#eta.ic.laminate.thickness = 0.4
+#eta.ic.laminate.orientation = 1 0
+#eta.ic.laminate.mollifier = gaussian
+#eta.ic.laminate.eps = 0.0005
+#eta.ic.laminate.singlefab = 1
+#eta.ic.laminate.invert = 1 
 
 ### Constant IC ############################################################ IC
-phi.zeta_0 = 0.002
+phi.zeta_0 = 0.001
 phi.ic.type = laminate
 phi.ic.number_of_inclusions = 1
 phi.ic.laminate.center = 0.0 0.0 0.0 
@@ -66,7 +64,7 @@ phi.ic.laminate.eps = 0.001
 pf.kappa = 1.0
 pf.gamma = 0.02726
 pf.w1 = 1.0
-pf.w12 = 2.0
+pf.w12 = 1.0
 pf.w0 = 0.0
 
 pf.eta.bc.type.xlo = dirichlet
@@ -87,43 +85,25 @@ pf.eta.bc.val.yhi = 0.0
 conditional.evolve = 1
 
 # THERMAL VARIABLES ######################################################### THERMAL
-pf.time_control = 0.2
+thermal.T_fluid = 700.0
 
-# thermal.T_fluid = 300.0
-
-thermal.m_ap = 1.45e5 # 1.45e6 #0.05e7  #1.45e7 #  151000.0 # 40.22  # [m/s]
+thermal.m_ap = 1.45e7 # 1.45e6 #0.05e7  #1.45e7 #  151000.0 # 40.22  # [m/s]
 thermal.m_htpb = 1.4e3 # 0.2 # [m/s]
-thermal.m_comb = 1.0e5  # 20.0 # [m/s]
 thermal.E_ap = 11000.0   # 1050.0 # 4.0
 thermal.E_htpb = 7500.0   # 1200.0
-thermal.E_comb = 9000.0   # 1000.0
 
 thermal.cut_off = 0.1
 thermal.on = 1  #activates the thermal functions
-thermal.n = 1.042
 thermal.bound = 350.0
-thermal.temperature_delay = 0.0
-thermal.ignition_temperature = 400.0
-thermal.temperature_limit = 1550.0 
-
-#thermal.w1 = 2.2 
-
-thermal.r_ap = 1.22
-thermal.r_htpb = 0.1
-thermal.r_comb = 10.01
-thermal.n_ap = 1.042
 
 thermal.rho_ap = 1950.0 # [kg/m3] 
 thermal.rho_htpb = 920.0 # [kg/m3]
 
 thermal.k_ap = 0.4186e1 # 5.5 [W/mK]
 thermal.k_htpb = 0.13 # 0.283[W/mK]
-thermal.k0 = 1.0 #0.43 
-thermal.k_comb = 0.41 # 0.43[W/mK] for 0.8ap 0.16htpb 0.04al
 
 thermal.cp_ap = 1297.9 #[J/kgK]
 thermal.cp_htpb = 2418.29 #[J/kgK]
-thermal.cp_comb = 2400.28
 
 thermal.temp.bc.type.xlo = neumann
 thermal.temp.bc.type.xhi = neumann
@@ -138,26 +118,20 @@ thermal.temp.bc.val.yhi = 0.0
 thermal.temp.bc.val.zlo = 0.0 
 thermal.temp.bc.val.zhi = 0.0
 
-thermal.bd = 2000
-thermal.mobcap = 100.0
-thermal.Wd = 0.0
-
 thermal.hc = 1.0e7
-thermal.qlimit = 1.0e10
 thermal.q0 = 5.0e6
 
-thermal.mlocal_ap = 5000.0
-thermal.mlocal_htpb = 1000.0
-thermal.mlocal_comb = 400.0
+thermal.mlocal_ap = 100.0
+thermal.mlocal_htpb = 3000.0
 
 thermal.controlj1 = 245
 thermal.controlj2 = 255
 thermal.laseron = 0
-thermal.laseroff = 0.2
+thermal.laseroff = 0.3
 thermal.lasershut = 1
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
-pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
+pressure.P = 0.8  ## Pressure is to be inputed in MPa units.
 
 pressure.a1 = 0.46
 pressure.a2 = 1.114 
@@ -172,13 +146,6 @@ pressure.b2 = 0.323
 pressure.b3 = 0.3225
 
 pressure.c1 = -0.09906
-
-## MASS ###################################################################### MASS
-
-mass.on = 1
-# mass.ref_htpb = 600.0
-# mass.a_ap = -50
-# mass.b_ap = 500
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 

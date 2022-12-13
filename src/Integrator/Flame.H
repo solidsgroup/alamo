@@ -77,25 +77,13 @@ protected:
     Set::Scalar small = 1.0e-8;
     Set::Scalar base_time =1.0e-4;
     IC::IC *ic_eta;
-  
    
-  // Set::Vector grad_eta;
-  //  Set::Vector grad_temp;
-  //  Set::Vector grad_alpha;
-  //  Set::Scalar lap_temp;
-  //  Set::Scalar grad_eta_mag;
-    Set::Scalar Bd;
-    Set::Scalar Bn; 
-    Set::Scalar Wn, Wd = 1.0;        
-   
-  
     struct {
       Set::Scalar evolve = 1;
     } conditional; 
 
   
    struct {
-    // Set::Scalar M = 0.0;
       Set::Scalar gamma = 1.0;
       Set::Scalar eps = 0.0;
       Set::Scalar lambda = 0.0;
@@ -103,7 +91,6 @@ protected:
       Set::Scalar w1 = 0.0, w12 = 0.0, w0 = 0.0;
       Set::Scalar min_eta = 0.001; 
       int evolve = 1;
-      Set::Scalar time_control = 0.0;
     } pf;
 
     struct{
@@ -115,31 +102,19 @@ protected:
       Set::Scalar E1, E2;
     } pressure;
 
-    struct{
-      Set::Scalar ref_htpb = 1.0;
-      Set::Scalar a_ap = 0.0, b_ap = 0.0;
-      int on = 1;
-    } mass; 
 
     struct {
       int on = 0;
       Set::Scalar rho_ap, rho_htpb;         
-      Set::Scalar k_ap , k_htpb, k0 = 10.0;
-      Set::Scalar q1 = 1.0;
-      Set::Scalar r_ap = 1.22, r_htpb = 0.5, r_comb = 10.01, n_ap = 1.042;        
+      Set::Scalar k_ap , k_htpb;
       Set::Scalar cp_ap, cp_htpb;           
-      Set::Scalar q0=0.0, q_ap = 0.0, q_htpb = 0.0;
+      Set::Scalar q0=0.0;
       Set::Scalar bound = 0.0;
       Set::Scalar m_ap, m_htpb, m_comb;  
-      Set::Scalar E_ap, E_htpb, E_comb;
-      Set::Scalar cut_off = 0.5;
-      Set::Scalar hc = 1.0, w1 = 1.0, w2 = 1.0;
-      Set::Scalar qlimit = 1.0e13;
-      Set::Scalar bd = 275.0;
-      Set::Scalar mobcap = 20.0;
+      Set::Scalar E_ap, E_htpb;
+      Set::Scalar hc = 1.0, w1 = 1.0;
       Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0, mlocal_comb = 0.0;
       Set::Scalar T_fluid = 300.0;
-
       int controlj1 = 0, controlj2 = 0, laseron = 0;
       int lasershut = 1;
       Set::Scalar laseroff = 1.0;
