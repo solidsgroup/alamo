@@ -18,7 +18,7 @@ public:
     Laminate (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) 
     {pp.queryclass(name,*this);}
         
-    void Add(const int &lev,Set::Field<Set::Scalar> &a_field)
+  void Add(const int &lev,Set::Field<Set::Scalar> &a_field, Set::Scalar=0)
     {
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {

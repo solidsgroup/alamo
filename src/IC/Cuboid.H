@@ -23,7 +23,7 @@ public:
     }
   
     void Add(const int lev,
-            amrex::Vector<amrex::MultiFab * > &a_field)
+	     amrex::Vector<amrex::MultiFab * > &a_field, Set::Scalar)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 

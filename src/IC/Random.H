@@ -17,7 +17,7 @@ public:
         IC(_geom), mult(a_mult)
     {}
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &field)
+  void Add(const int &lev, Set::Field<Set::Scalar> &field,Set::Scalar=0)
     {
         for (amrex::MFIter mfi(*field[lev],true); mfi.isValid(); ++mfi)
         {

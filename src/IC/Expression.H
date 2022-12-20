@@ -32,7 +32,7 @@ namespace IC
         Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) 
         {pp.queryclass(name,*this);}
 
-        void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+      void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar time)
         {
             Util::Assert(INFO,TEST(a_field[lev]->nComp() == (int)fparser.size()));
             for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -46,16 +46,18 @@ namespace IC
                 {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         Set::Vector x = Set::Position(i, j, k, geom[lev], type);
-                        double loc[AMREX_SPACEDIM];
+                        double loc[4];
                         if (coord == Expression::CoordSys::Cartesian)
                         {
                             AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
+			    loc[3] = time;
                             field(i,j,k,n) = fparser[n].Eval(loc);
                         }
                         #if AMREX_SPACEDIM>1
                         else if (coord == Expression::CoordSys::Polar)
                         {
                             AMREX_D_TERM(loc[0] = sqrt(x(0)*x(0) + x(1)*x(1));, loc[1] = std::atan2(x(1),x(0));, loc[2] = x(2));
+			    loc[3] = time;
                             field(i,j,k,n) = fparser[n].Eval(loc);
                         }
                         #endif
@@ -79,7 +81,7 @@ namespace IC
         // Each region should be a string that represents a function in terms of 
         // x, y, z, and t. 
         // It can be a boolean expression (returning 1 or 0) or it can return a 
-        // value. 
+        // value.  
         static void Parse(Expression &value, IO::ParmParse &pp)
         {
             for (int i = 0; true; i++)
@@ -103,7 +105,8 @@ namespace IC
                     fparser.AddVariable("x");
                     fparser.AddVariable("y");
                     fparser.AddVariable("z");
-                    if (fparser.Parse(func.c_str(), "x,y,z") != -1)
+                    fparser.AddVariable("t");
+                    if (fparser.Parse(func.c_str(), "x,y,z,t") != -1)
                     {
                         std::cout << "Parsing failed for " << func << '\n';
                         exit(1);
@@ -114,6 +117,7 @@ namespace IC
                     fparser.AddVariable("r");
                     fparser.AddVariable("theta");
                     fparser.AddVariable("z");
+                    fparser.AddVariable("t");
                     if (fparser.Parse(func.c_str(), "r,theta,z") != -1)
                     {
                         std::cout << "Parsing failed for " << func << '\n';

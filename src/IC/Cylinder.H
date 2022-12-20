@@ -25,7 +25,7 @@ void Define (Set::Scalar _Tin, Set::Scalar _Tout)
   }
 
 virtual void Add(const int lev,
-        amrex::Vector<amrex::MultiFab * > &field)
+		 amrex::Vector<amrex::MultiFab * > &field, Set::Scalar)
   {
     const amrex::Real L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];
     const amrex::Real L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1];

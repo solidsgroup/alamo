@@ -16,7 +16,7 @@ public:
 
     Ellipsoid (amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
   
-    void Add(const int &lev,Set::Field<Set::Scalar> &a_field)
+  void Add(const int &lev,Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {

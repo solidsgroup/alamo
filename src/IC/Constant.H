@@ -23,7 +23,7 @@ public:
     : IC(_geom), m_value(a_value)
     {}
     ~Constant() { };
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+  void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Util::Assert(INFO,TEST((m_value.size() == 1 || (int)m_value.size() == (int)a_field[lev]->nComp())));
         for (amrex::MFIter mfi(*a_field[lev],amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)

@@ -59,6 +59,8 @@ private:
     Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> mob_mf; 
     Set::Field<Set::Scalar> mdot_mf;
+    Set::Field<Set::Scalar> deta_mf;
+    Set::Field<Set::Scalar> deta2_mf; 
 
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
@@ -70,6 +72,7 @@ private:
     BC::BC<Set::Scalar> *bc_temp;
     BC::BC<Set::Scalar> *bc_eta;
     IC::IC *ic_phi;
+    IC::IC *ic_laser;
  
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
@@ -82,6 +85,7 @@ private:
    
     struct {
       Set::Scalar evolve = 1;
+      Set::Scalar round = 1.0;
     } conditional; 
 
   

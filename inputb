@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = /home/mmeierdo/solidphase/AP_HTPB_Sandwich/output
+#plot_file = /home/mmeierdo/solidphase/outs/output
 amr.plot_dt = 0.1
 #amr.plot_int = 1
 amr.max_level = 7
@@ -17,17 +17,15 @@ geometry.prob_hi = 0.4 0.05 0.05 # [ m ]
 
 geometry.is_periodic = 0 1 1
 
-conditional.round = 1000.0
-
 ## TIME EPS ############################################################ TIME EPS
 
-timestep = 1.0e-3 # 0.00005 # [s]
+timestep = 10.0e-4 # 0.00005 # [s]
 stop_time = 3.0
 small = 1.0e-5
 pf.min_eta = 0.1
 
 pf.eps = 0.0001 #0.0005 # [m]
-pf.lambda = 0.001
+pf.lambda = 0.004
 
 ## ETA IC ################################################################ ETA IC
 
@@ -42,18 +40,18 @@ eta.ic.type = constant #laminate
 #eta.ic.laminate.invert = 1 
 
 ### Constant IC ############################################################ IC
-phi.zeta_0 = 0.001
-phi.ic.type = laminate
-phi.ic.number_of_inclusions = 1
-phi.ic.laminate.center = 0.0 0.0 0.0 
-phi.ic.laminate.thickness = 0.02
-phi.ic.laminate.orientation = 0 1 
-phi.ic.laminate.singlefab = 1 
-phi.ic.laminate.invert = 1
-phi.ic.laminate.eps = 0.001
+#phi.zeta_0 = 0.001
+#phi.ic.type = laminate
+#phi.ic.number_of_inclusions = 1
+#phi.ic.laminate.center = 0.0 0.0 0.0 
+#phi.ic.laminate.thickness = 0.02
+#phi.ic.laminate.orientation = 0 1 
+#phi.ic.laminate.singlefab = 1 
+#phi.ic.laminate.invert = 1
+#phi.ic.laminate.eps = 0.001
 
-#phi.ic.type = constant
-#phi.ic.constant.value = 1.0
+phi.ic.type = constant
+phi.ic.constant.value = 1.0
 
 #phi.ic.type = psread
 #phi.zeta_0 = 0.002
@@ -66,7 +64,7 @@ phi.ic.laminate.eps = 0.001
 pf.kappa = 1.0
 pf.gamma = 0.02726
 pf.w1 = 1.0
-pf.w12 = 2.0
+pf.w12 = 1.0
 pf.w0 = 0.0
 
 pf.eta.bc.type.xlo = dirichlet
@@ -90,7 +88,7 @@ conditional.evolve = 1
 thermal.T_fluid = 700.0
 
 thermal.m_ap = 1.45e7 # 1.45e6 #0.05e7  #1.45e7 #  151000.0 # 40.22  # [m/s]
-thermal.m_htpb = 1.4e3 # 0.2 # [m/s]
+#thermal.m_htpb = 1.4e3 # 0.2 # [m/s]
 thermal.E_ap = 11000.0   # 1050.0 # 4.0
 thermal.E_htpb = 7500.0   # 1200.0
 
@@ -121,20 +119,21 @@ thermal.temp.bc.val.zlo = 0.0
 thermal.temp.bc.val.zhi = 0.0
 
 thermal.hc = 1.0e7
-#thermal.q0 = 5.0e6
+thermal.q0 = 5.0e6
 
-thermal.mlocal_ap = 1000.0
-thermal.mlocal_htpb = 2700.0
-thermal.mlocal_comb = 0.0
+thermal.mlocal_ap = 10.0
+#thermal.mlocal_htpb = 2500.0
+#thermal.mlocal_comb = 10.0
 
 thermal.controlj1 = 245
 thermal.controlj2 = 255
 thermal.laseron = 0
 thermal.laseroff = 0.1
 thermal.lasershut = 1
+
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
-pressure.P = 2.0  ## Pressure is to be inputed in MPa units.
+#pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
 
 pressure.a1 = 0.46
 pressure.a2 = 1.114 
@@ -154,5 +153,3 @@ pressure.c1 = -0.09906
 
 elastic.type = disable
 
-
-laser.ic.expression.region0 = "(y<0.01)*(y>-0.01)*(t/3)*5.0e6"

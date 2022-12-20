@@ -35,7 +35,7 @@ public:
     PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp) : IC(_geom)
     {pp.queryclass(*this);}
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+  void Add(const int &lev, Set::Field<Set::Scalar> &a_field,Set::Scalar=0)
     {
         Set::Scalar AMREX_D_DECL(L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0],
                                 L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1],

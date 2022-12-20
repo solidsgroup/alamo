@@ -41,6 +41,9 @@ namespace Integrator
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf, 1, "mdot", true);
+	    value.RegisterNewFab(value.deta_mf, 1, "deta", true);
+	    value.RegisterNewFab(value.deta2_mf, 1, "deta2", true);
+	    
 
             std::string eta_bc_str = "constant";
             pp.query("pf.eta.ic.type",eta_bc_str);
@@ -79,6 +82,7 @@ namespace Integrator
 
         {// IO::ParmParse pp(conditional);
           pp.query("conditional.evolve", value.conditional.evolve);
+	  pp.query("conditional.round", value.conditional.round);
         }
 
         
@@ -121,7 +125,8 @@ namespace Integrator
             value.RegisterNewFab(value.alpha_mf, 1,"alpha",true);  
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
 
-	    value.RegisterNewFab(value.laser_mf, 1, "laser", false);
+	    value.RegisterNewFab(value.laser_mf, 1, "laser", true);
+	    value.ic_laser = new IC::Expression(value.geom,pp,"laser.ic.expression");
 	    pp.query("thermal.controlj1", value.thermal.controlj1);
 	    pp.query("thermal.controlj2", value.thermal.controlj2);
 	    pp.query("thermal.laseron", value.thermal.laseron);
@@ -192,12 +197,16 @@ namespace Integrator
         mdot_mf[lev]->setVal(0.0);
 
         heatflux_mf[lev] -> setVal(0.0);
+        deta_mf[lev] -> setVal(0.0);
+	deta2_mf[lev] -> setVal(0.0);
 
         ic_phi->Initialize(lev, phi_mf);
 	thermal.T_fluid = thermal.bound;
 
 	thermal.w1 = 0.2 * pressure.P + 0.9;
 
+	ic_laser->Initialize(lev,laser_mf,0.0);
+	/*
 	if(thermal.laseron == 0){
 	  laser_mf[lev] -> setVal(thermal.q0);
 	}
@@ -215,7 +224,7 @@ namespace Integrator
 	    }
 	  }); 
 	}}
-	
+	*/	
     }
     
     void Flame::UpdateModel(int /*a_step*/)
@@ -271,13 +280,15 @@ namespace Integrator
     {
         BL_PROFILE("Integrator::Flame::TimeStepBegin");
         Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
+        for (int lev = 0; lev <= finest_level; ++lev)
+	  ic_laser->Initialize(lev,laser_mf,a_time);
     }
 
 
     void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
     {
         BL_PROFILE("Integrador::Flame::Advance");
-        MechanicsBase<Model::Solid::Affine::Isotropic>::Advance(lev,time,dt);
+	Base::Mechanics<Model::Solid::Affine::Isotropic>::Advance(lev,time,dt);
 
         const Set::Scalar *DX = geom[lev].CellSize();
 
@@ -317,6 +328,8 @@ namespace Integrator
                 // Diagnostic fields
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
+		amrex::Array4<Set::Scalar> const &deta = (*deta_mf[lev]).array(mfi);
+		amrex::Array4<Set::Scalar> const &deta2 = (*deta2_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &heatflux = (*heatflux_mf[lev]).array(mfi);
 
 
@@ -333,22 +346,29 @@ namespace Integrator
                     Set::Scalar rho = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k)); // No special interface mixure rule is needed here.
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
             
-                    etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
-		    if (eta(i,j,k) < 0.05) etanew(i,j,k) = 0.0;
+		    Set::Scalar df_deta = ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
+		    if (df_deta > 0){
+		    etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * df_deta;
+		    }
+		    else etanew(i,j,k) = eta(i,j,k);
+		    //if (eta(i,j,k) < 0.05) etanew(i,j,k) = 0.0;
                    
                     alpha(i,j,k) =  K / rho / cp; // Calculate thermal diffusivity and store in fiel
+		    
+		    mdot(i,j,k) = rho * (eta(i,j,k) - etanew(i,j,k)) / dt; // deta/dt
+		    
 		});
 		
-		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+		/*		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	       {
 		    Set::Scalar density = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k));
 		    mdot(i,j,k) = density * (eta(i,j,k) - etanew(i,j,k)) / dt ;
-		});
+		    });*/
 
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
 
-		    if (time > thermal.laseroff && thermal.lasershut == 1) laser(i,j,k) = 0.0; 
+		  //if (time > thermal.laseroff && thermal.lasershut == 1) laser(i,j,k) = 0.0; 
 		    
 		    Set::Scalar K = (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
 		    Set::Scalar qflux = k1 * phi(i,j,k) +
@@ -396,9 +416,11 @@ namespace Integrator
 
 
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-                    mob(i,j,k) = thermal.m_ap * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
-		    mob(i,j,k) += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
-		    mob(i,j,k) *= conditional.evolve;
+
+		    Set::Scalar L;
+                    L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
+		    L  += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
+		    mob(i,j,k) = L;
 
                 });
             } // MFi For loop
@@ -447,13 +469,12 @@ namespace Integrator
         
          
     }
-    void Flame::Regrid(int lev, Set::Scalar /* time */)
+    void Flame::Regrid(int lev, Set::Scalar time)
     {
         BL_PROFILE("Integrator::Flame::Regrid");
         if (lev < finest_level) return;
         phi_mf[lev]->setVal(0.0);
         ic_phi->Initialize(lev, phi_mf);
-        Util::Message(INFO, "Regridding on level ", lev);
     } 
 
     void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
