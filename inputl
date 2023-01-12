@@ -32,6 +32,7 @@ pf.lambda = 0.001
 ## ETA IC ################################################################ ETA IC
 
 eta.ic.type = constant #laminate
+
 #eta.ic.laminate.number_of_inclusions = 1
 #eta.ic.laminate.center = 0.005 0 0
 #eta.ic.laminate.thickness = 0.4

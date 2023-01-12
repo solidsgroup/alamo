@@ -54,7 +54,8 @@ namespace Integrator
             pp.query("eta.ic.type", eta_ic_type);
             if (eta_ic_type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
             else if (eta_ic_type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.consntant");
-            else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
+	    else if (eta_ic_type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
+	    else Util::Abort(INFO, "Invalid eta IC type", eta_ic_type);
 
         }
 
