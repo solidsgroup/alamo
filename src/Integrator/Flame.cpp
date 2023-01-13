@@ -127,7 +127,12 @@ namespace Integrator
             value.RegisterNewFab(value.heatflux_mf, 1, "heatflux", true);
 
 	    value.RegisterNewFab(value.laser_mf, 1, "laser", true);
-	    value.ic_laser = new IC::Expression(value.geom,pp,"laser.ic.expression");
+  	    std::string laser_ic_type = "constant";
+	    pp.query("laser.ic.type", laser_ic_type);
+	    if (laser_ic_type == "expression") value.ic_laser = new IC::Expression(value.geom,pp,"laser.ic.expression");
+	    else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
+	    else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
+
 	    pp.query("thermal.controlj1", value.thermal.controlj1);
 	    pp.query("thermal.controlj2", value.thermal.controlj2);
 	    pp.query("thermal.laseron", value.thermal.laseron);
@@ -144,7 +149,6 @@ namespace Integrator
         pp.query("amr.refinament_restriction", value.t_refinement_restriction);
         // small value
         pp.query("small", value.small);
-
         
         
         {
@@ -329,8 +333,6 @@ namespace Integrator
                 // Diagnostic fields
                 amrex::Array4<Set::Scalar> const  &mob = (*mob_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &mdot = (*mdot_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const &deta = (*deta_mf[lev]).array(mfi);
-		amrex::Array4<Set::Scalar> const &deta2 = (*deta2_mf[lev]).array(mfi);
                 amrex::Array4<Set::Scalar> const &heatflux = (*heatflux_mf[lev]).array(mfi);
 
 
@@ -348,24 +350,12 @@ namespace Integrator
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
             
 		    Set::Scalar df_deta = ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
-		    if (df_deta > 0){
 		    etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * df_deta;
-		    }
-		    else etanew(i,j,k) = eta(i,j,k);
-		    //if (eta(i,j,k) < 0.05) etanew(i,j,k) = 0.0;
-                   
                     alpha(i,j,k) =  K / rho / cp; // Calculate thermal diffusivity and store in fiel
-		    
 		    mdot(i,j,k) = rho * (eta(i,j,k) - etanew(i,j,k)) / dt; // deta/dt
-		    
+
 		});
 		
-		/*		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-	       {
-		    Set::Scalar density = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k));
-		    mdot(i,j,k) = density * (eta(i,j,k) - etanew(i,j,k)) / dt ;
-		    });*/
-
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
 
@@ -421,7 +411,9 @@ namespace Integrator
 		    Set::Scalar L;
                     L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
 		    L  += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
-		    mob(i,j,k) = L;
+		    
+		    if(tempnew(i,j,k) <= thermal.bound) mob(i,j,k) = 0;
+		    else mob(i,j,k) = L;
 
                 });
             } // MFi For loop
