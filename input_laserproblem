@@ -144,4 +144,4 @@ pressure.c1 = -0.09906
 
 elastic.type = disable
 
-laser.ic.expression.region0 = "(t>0.1)*(t/5.0 - 0.1 / 5.0)*1.0e8"
+laser.ic.expression.region0 = "(y>-0.01)*(y<0.01)*(t<0.5)*5.0e6"
