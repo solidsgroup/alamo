@@ -19,9 +19,9 @@ jobs:
       run: bash .github/workflows/dependencies.sh
     - name: make
       run: make docs
-  test-2d:
-    name: Build & Test (2D)
-    runs-on: ubuntu-latest
+  test-2d-20.04:
+    name: 2D Build & Test (20.04)
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
     - name: installing preliminaries
@@ -34,9 +34,39 @@ jobs:
       run: ./bin/test-2d-g++
     - name: regression tests
       run: scripts/runtests.py --serial --dim=2 --benchmark=github
-  test-3d:
-    name: Build & Test (3D)
-    runs-on: ubuntu-latest
+  test-3d-20.04:
+    name: 3D Build & Test (20.04)
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure
+      run: ./configure --dim=3 
+    - name: make
+      run: make
+    - name: unit tests
+      run: ./bin/test-3d-g++
+    - name: regression tests
+      run: scripts/runtests.py --serial --dim=3 --benchmark=github
+  test-2d-22.04:
+    name: 2D Build & Test (22.04)
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: installing preliminaries
+      run: bash .github/workflows/dependencies.sh
+    - name: configure (2d)
+      run: ./configure --dim=2 
+    - name: make
+      run: make
+    - name: unit tests
+      run: ./bin/test-2d-g++
+    - name: regression tests
+      run: scripts/runtests.py --serial --dim=2 --benchmark=github
+  test-3d-22.04:
+    name: 3D Build & Test (22.04)
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v2
     - name: installing preliminaries
