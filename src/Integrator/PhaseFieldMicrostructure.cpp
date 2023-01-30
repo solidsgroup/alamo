@@ -112,7 +112,7 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
         //
         // ELASTIC DRIVING FORCE
         //
-        if (false) // TODO need to replace
+        if (pf.elastic_df)
         {
             const amrex::Box &bx = mfi.tilebox();
             amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
