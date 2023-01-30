@@ -80,18 +80,16 @@ public:
         // Elasticity
         pp.query("mechanics.tstart",value.mechanics.tstart);
         value.mechanics.model.clear();
-        if (pp.contains("mechanics.model"))
-        {
-            model_type tmp_model;
-            pp.queryclass("mechanics.model",tmp_model);            
-            value.mechanics.model.resize(value.number_of_grains,tmp_model);
-        }
+        value.mechanics.model.resize(value.number_of_grains,model_type::Zero());
         for (int i=0; i < value.number_of_grains; i++)
         {
+            // By default, read in the model specified by "mechanics.model"
+            pp.queryclass("mechanics.model", value.mechanics.model[i]);
+
+            // If individual models are specified, read those in and overwrite
             std::string name = "mechanics.model" + std::to_string(i+1);
-            model_type tmp_model;
-            pp.queryclass(std::string(name.data()), tmp_model);
-            value.mechanics.model.push_back(tmp_model);
+            if (pp.getEntries(name).size())
+                pp.queryclass(std::string(name.data()), value.mechanics.model[i]);
         }
 
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
