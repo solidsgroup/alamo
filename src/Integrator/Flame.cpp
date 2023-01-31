@@ -70,6 +70,7 @@ namespace Integrator
             pp.query("pressure.c1", value.pressure.c1);
             pp.query("pressure.E1", value.pressure.E1);
             pp.query("pressure.E2", value.pressure.E2);
+	    pp.query("pressure.mob_ap", value.pressure.mob_ap);
         
         }
 
@@ -104,6 +105,7 @@ namespace Integrator
 
             pp.query("thermal.m_ap", value.thermal.m_ap); // AP Pre-exponential factor for Arrhenius Law
             pp.query("thermal.m_htpb", value.thermal.m_htpb); // HTPB Pre-exponential factor for Arrhenius Law
+	    pp.query("thermal.m_comb", value.thermal.m_comb);
             pp.query("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
             pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
 
@@ -114,6 +116,9 @@ namespace Integrator
 	    pp.query("thermal.mlocal_comb", value.thermal.mlocal_comb);
 
 	    pp.query("thermal.T_fluid", value.thermal.T_fluid);
+
+	    pp.query("thermal.modeling_ap", value.thermal.modeling_ap);
+	    pp.query("thermal.modeling_htpb", value.thermal.modeling_htpb);
 	    
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant *>(value.bc_temp));
@@ -345,35 +350,30 @@ namespace Integrator
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
                     Set::Scalar eta_lap = Numeric::Laplacian(eta, i, j, k, 0, DX);  
-                    Set::Scalar K   = thermal.k_ap   * phi(i,j,k) + thermal.k_htpb   * (1.0 - phi(i,j,k)); // Calculate effective thermal conductivity
+                    Set::Scalar K   = thermal.modeling_ap * thermal.k_ap * phi(i,j,k) + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi(i,j,k)); // Calculate effective thermal conductivity
                     Set::Scalar rho = thermal.rho_ap * phi(i,j,k) + thermal.rho_htpb * (1.0 - phi(i,j,k)); // No special interface mixure rule is needed here.
                     Set::Scalar cp  = thermal.cp_ap  * phi(i,j,k) + thermal.cp_htpb  * (1.0 - phi(i,j,k));
             
 		    Set::Scalar df_deta = ( (pf.lambda/pf.eps) * dw( eta(i,j,k) ) - pf.eps * pf.kappa * eta_lap );
+
 		    etanew(i, j, k) = eta(i, j, k) - mob(i,j,k) * dt * df_deta;
                     alpha(i,j,k) =  K / rho / cp; // Calculate thermal diffusivity and store in fiel
-		    mdot(i,j,k) = rho * (eta(i,j,k) - etanew(i,j,k)) / dt; // deta/dt
+		    mdot(i,j,k) = rho * fabs(eta(i,j,k) - etanew(i,j,k)) / dt; // deta/dt
 
 		});
 		
 		amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 		{
-
-		  //if (time > thermal.laseroff && thermal.lasershut == 1) laser(i,j,k) = 0.0; 
-		    
-		    Set::Scalar K = (thermal.k_ap * phi(i,j,k) + thermal.k_htpb * (1.0 - phi(i,j,k)));
+		    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi(i,j,k) + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi(i,j,k));
 		    Set::Scalar qflux = k1 * phi(i,j,k) +
 		                        k2 * (1.0 - phi(i,j,k)) +
 		                        (zeta_0 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
 		    
-		    Set::Scalar mlocal = thermal.mlocal_ap * phi(i,j,k) + thermal.mlocal_htpb * (1.0 - phi(i,j,k));
-		    mlocal += thermal.mlocal_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
-		    Set::Scalar mbase;
+		    Set::Scalar mlocal = (thermal.mlocal_ap / pressure.P) * phi(i,j,k) + (thermal.mlocal_htpb) * (1.0 - phi(i,j,k)) + thermal.mlocal_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
 
 		    Set::Scalar mdota = fabs(mdot(i,j,k));
 
-		    if (mdota > mlocal) mbase = 1.0;
-		    else mbase = mdota / mlocal; 
+		    Set::Scalar mbase = tanh(mdota / mlocal);
 		     
 		    heatflux(i,j,k) = (thermal.hc * mbase * qflux + laser(i,j,k) ) / K;
 		});
@@ -409,8 +409,11 @@ namespace Integrator
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
 
 		    Set::Scalar L;
-                    L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
-		    L  += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
+		    
+                    if (pressure.mob_ap == 1) L = thermal.m_ap * pressure.P * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
+		    else L = thermal.m_ap * exp(-thermal.E_ap / tempnew(i,j,k) ) * phi(i,j,k);
+		    L += thermal.m_htpb * exp(-thermal.E_htpb / tempnew(i,j,k) ) * (1.0 - phi(i,j,k));
+		    L += thermal.m_comb * (0.5 * tempnew(i,j,k) / thermal.bound) * phi(i,j,k) * (1.0 - phi(i,j,k) ); 
 		    
 		    if(tempnew(i,j,k) <= thermal.bound) mob(i,j,k) = 0;
 		    else mob(i,j,k) = L;

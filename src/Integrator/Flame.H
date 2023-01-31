@@ -107,6 +107,7 @@ private:
       Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
       Set::Scalar c1 = 0.0;
       Set::Scalar E1, E2;
+      int mob_ap = 1;
     } pressure;
 
 
@@ -120,6 +121,7 @@ private:
       Set::Scalar m_ap, m_htpb, m_comb;  
       Set::Scalar E_ap, E_htpb;
       Set::Scalar hc = 1.0, w1 = 1.0;
+      Set::Scalar modeling_ap = 1.0, modeling_htpb = 1.0;
       Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0, mlocal_comb = 0.0;
       Set::Scalar T_fluid = 300.0;
       int controlj1 = 0, controlj2 = 0, laseron = 0;
