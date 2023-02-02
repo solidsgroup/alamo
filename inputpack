@@ -1,14 +1,14 @@
 alamo.program = flame
-plot_file = /home/mmeierdo/solidphase/muller 
+plot_file = /home/mmeierdo/solidphase/Packed/output 
 amr.plot_dt = 0.1
 #amr.plot_int = 1
-amr.max_level = 6
+amr.max_level = 8
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
-amr.refinement_criterion = 0.01
-amr.refinement_criterion_temp = 350.1
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 5.0
 amr.refinement_restriction = 0.1
 
 amr.n_cell = 8 2 2
@@ -39,9 +39,9 @@ phi.zeta_0 = 0.001
 phi.ic.psread.eps = 0.001
 #phi.ic.psread.filename = /home/meierms/solidphase/inputs/pack/1663618987.378683/2d_z0.000.xyzr #30 
 #phi.ic.psread.filename = /home/mmeierdo/solidphase/inputs/pack/1663619028.39117/2d_z0.000.xyzr #50
-#phi.ic.psread.filename = /home/mmeierdo/solidphase/inputs/pack/1663699659.233024/2d_z0.000.xyzr #50 half
+phi.ic.psread.filename = /home/mmeierdo/solidphase/inputs/pack/1663699659.233024/2d_z0.000.xyzr #50 half
 #phi.ic.psread.filename = /home/meierms/solidphase/inputs/pack/1663619161.560797/2d_z0.000.xyzr #60
-phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/pack3d.xyzr
+#phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/pack3d.xyzr
 
 pf.kappa = 1.0
 pf.gamma = 0.02726

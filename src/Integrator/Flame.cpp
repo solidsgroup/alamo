@@ -458,7 +458,7 @@ namespace Integrator
              amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
              {
                 Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-                        if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) >= 0.1)
+                        if (tempgrad.lpNorm<2>() * dr  > t_refinement_criterion && eta(i,j,k) >= t_refinement_restriction)
                                 tags(i, j, k) = amrex::TagBox::SET;
                 });
             }

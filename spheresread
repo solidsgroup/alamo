@@ -1,19 +1,19 @@
 alamo.program = flame
-plot_file = /home/mmeierdo/solidphase/Sandwich4/output
-amr.plot_dt = 0.1
-#amr.plot_int = 1
-amr.max_level = 8
+plot_file = /home/mmeierdo/solidphase/SpheresView/output
+#amr.plot_dt = 0.1
+amr.plot_int = 1
+amr.max_level = 0
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
 amr.grid_eff = 0.8
-amr.refinement_criterion = 0.01
-amr.refinement_criterion_temp = 351.0
+amr.refinement_criterion = 0.1
+amr.refinement_criterion_temp = 5.0
 amr.refinement_restriction = 0.1
 
-amr.n_cell = 8 2 2
-geometry.prob_lo = 0.0 -0.05 -0.05 # [ m ] 
-geometry.prob_hi = 0.4 0.05 0.05 # [ m ]
+amr.n_cell = 300 150 150  #500 250 250
+geometry.prob_lo = 0.0 0.0 0.0 # [ m ] 
+geometry.prob_hi = 0.4 0.1 0.1 # [ m ]
 
 geometry.is_periodic = 0 1 1
 
@@ -22,7 +22,7 @@ conditional.round = 1000.0
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1.0e-3 # 0.00005 # [s]
-stop_time = 3.0
+stop_time = 0.001
 small = 1.0e-8
 pf.min_eta = 0.1
 
@@ -31,32 +31,17 @@ pf.lambda = 0.001
 
 ## ETA IC ################################################################ ETA IC
 eta.ic.type = constant #laminate 
-#eta.ic.expression.region0 = "( (x-0.04)^2+ y^2 > 0.001)*1.0" 
-#eta.ic.expression.region1 = "(x>=0.1)*(x<=0.3)*(y<-0.01)*1.0"
-#eta.ic.expression.region2 = "(x>0.3)*1.0"
-#eta.ic.expression.region3 = "(x<0.1)*1.0"
 
 ### Constant IC ############################################################ IC
+
+phi.ic.type = psread
 phi.zeta_0 = 0.001
-phi.ic.type = laminate
-phi.ic.number_of_inclusions = 1
-phi.ic.laminate.center = 0.0 0.0 0.0 
-phi.ic.laminate.thickness = 0.04
-phi.ic.laminate.orientation = 0 1 
-phi.ic.laminate.singlefab = 1 
-phi.ic.laminate.invert = 1
-phi.ic.laminate.eps = 0.001
-
-#phi.ic.type = constant
-#phi.ic.constant.value = 1.0
-
-#phi.ic.type = psread
-#phi.zeta_0 = 0.002
-#phi.ic.psread.eps = 0.0001
+phi.ic.psread.eps = 0.001
 #phi.ic.psread.filename = /home/meierms/solidphase/inputs/pack/1663618987.378683/2d_z0.000.xyzr #30 
 #phi.ic.psread.filename = /home/mmeierdo/solidphase/inputs/pack/1663619028.39117/2d_z0.000.xyzr #50
 #phi.ic.psread.filename = /home/mmeierdo/solidphase/inputs/pack/1663699659.233024/2d_z0.000.xyzr #50 half
 #phi.ic.psread.filename = /home/meierms/solidphase/inputs/pack/1663619161.560797/2d_z0.000.xyzr #60
+phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/pack3d.xyzr
 
 pf.kappa = 1.0
 pf.gamma = 0.02726
@@ -124,7 +109,7 @@ thermal.mlocal_comb = 0.0
 
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
-#pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
+pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
 pressure.mob_ap = 1
 
 pressure.a1 = 0.46
