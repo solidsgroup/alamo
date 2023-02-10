@@ -55,11 +55,13 @@ void CopyFileToOutputDir(std::string a_path, bool fullpath)
     std::string abspathfilename = absolutepath;
     std::replace(abspathfilename.begin()+1,abspathfilename.end(),'/','_');
 
-    // Copy the file where the file name is the absolute path, with / replaced with _
-    if (fullpath) std::filesystem::copy_file(a_path,filename+abspathfilename);
-    // Copy the file with the consistent base name
-    else          std::filesystem::copy_file(a_path,filename+basefilename);
-    
+    if (amrex::ParallelDescriptor::IOProcessor())
+    {
+        // Copy the file where the file name is the absolute path, with / replaced with _
+        if (fullpath) std::filesystem::copy_file(a_path,filename+abspathfilename);
+        // Copy the file with the consistent base name
+        else          std::filesystem::copy_file(a_path,filename+basefilename);
+    }
 }
 
 std::pair<std::string,std::string> GetOverwrittenFile()

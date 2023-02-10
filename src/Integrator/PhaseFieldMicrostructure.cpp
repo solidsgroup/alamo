@@ -29,26 +29,29 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
     Base::Mechanics<model_type>::Advance(lev,time,dt);
     /// TODO Make this optional
     //if (lev != max_level) return;
-    std::swap(eta_old_mf[lev], eta_new_mf[lev]);
+    //std::swap(eta_old_mf[lev], eta_new_mf[lev]);
     const Set::Scalar *DX = geom[lev].CellSize();
 
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
 
-    for (amrex::MFIter mfi(*eta_new_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         amrex::Box bx = mfi.tilebox();
         //if (m_type == MechanicsBase<model_type>::Type::Static)
         //bx.grow(number_of_ghost_cells-1);
         //bx = bx & domain;
-        amrex::Array4<const amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
-        amrex::Array4<amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const &driving_force = (*driving_force_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const &driving_force_threshold = (*driving_force_threshold_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             for (int m = 0; m < number_of_grains; m++)
             {
-                Set::Scalar driving_force = 0.0;
+                //Set::Scalar driving_force = 0.0;
+                driving_force(i,j,k,m) = 0.0;
+                driving_force_threshold(i,j,k,m) = 0.0;
                 Set::Scalar kappa = NAN, mu = NAN;
 
                 //
@@ -67,15 +70,18 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
                 {
                     kappa = pf.l_gb * 0.75 * pf.sigma0;
                     mu = 0.75 * (1.0 / 0.23) * pf.sigma0 / pf.l_gb;
-                    driving_force += -kappa * laplacian;
+                    if (pf.threshold.boundary)  driving_force_threshold(i,j,k,m) += -kappa * laplacian;
+                    else                        driving_force(i,j,k,m) += -kappa * laplacian;
                 }
                 else
                 {
                     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Full> DDDDEta = Numeric::DoubleHessian<AMREX_SPACEDIM>(eta, i, j, k, m, DX);
                     auto anisotropic_df = boundary->DrivingForce(Deta, DDeta, DDDDEta);
-                    driving_force += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
+                    if (pf.threshold.boundary) driving_force_threshold(i,j,k,m) += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
+                    else                       driving_force(i,j,k,m) += pf.l_gb * 0.75 * std::get<0>(anisotropic_df);
                     if (std::isnan(std::get<0>(anisotropic_df))) Util::Abort(INFO);
-                    driving_force += anisotropy.beta * std::get<1>(anisotropic_df);
+                    if (pf.threshold.boundary) driving_force_threshold(i,j,k,m) += anisotropy.beta * std::get<1>(anisotropic_df);
+                    else                       driving_force(i,j,k,m) += anisotropy.beta * std::get<1>(anisotropic_df);
                     if (std::isnan(std::get<1>(anisotropic_df))) Util::Abort(INFO);
                     mu = 0.75 * (1.0/0.23) * boundary->W(Deta) / pf.l_gb;
                 }
@@ -91,21 +97,26 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
                         continue;
                     sum_of_squares += eta(i, j, k, n) * eta(i, j, k, n);
                 }
-                driving_force += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+                if (pf.threshold.chempot) 
+                    driving_force_threshold(i,j,k,m) += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
+                else                      
+                    driving_force(i,j,k,m)           += mu * (eta(i, j, k, m) * eta(i, j, k, m) - 1.0 + 2.0 * pf.gamma * sum_of_squares) * eta(i, j, k, m);
 
                 //
                 // SYNTHETIC DRIVING FORCE
                 //
                 if (lagrange.on && m == 0 && time > lagrange.tstart)
                 {
-                    driving_force += lagrange.lambda * (volume - lagrange.vol0);
+                    if (pf.threshold.lagrange) driving_force_threshold(i,j,k,m) += lagrange.lambda * (volume - lagrange.vol0);
+                    else                       driving_force(i,j,k,m) += lagrange.lambda * (volume - lagrange.vol0);
                 }
 
                 //
                 // EVOLVE ETA
                 //
-                etanew(i, j, k, m) = eta(i, j, k, m) - pf.L * dt * driving_force;
-                if (std::isnan(driving_force)) Util::Abort(INFO, "Eta is nan at lev=",lev,", (", i, " ", j, " ", k, ")[",m,"]");
+                //eta(i, j, k, m) = eta(i, j, k, m) - pf.L * dt * driving_force;
+                if (std::isnan(driving_force(i,j,k,m))) Util::Abort(INFO, "Eta is nan at lev=",lev,", (", i, " ", j, " ", k, ")[",m,"]");
+                if (std::isnan(driving_force_threshold(i,j,k,m))) Util::Abort(INFO, "Eta is nan at lev=",lev,", (", i, " ", j, " ", k, ")[",m,"]");
             } 
         });
 
@@ -114,16 +125,12 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
         //
         if (pf.elastic_df)
         {
-            const amrex::Box &bx = mfi.tilebox();
-            amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar> const &etanew = (*eta_new_mf[lev]).array(mfi);
             amrex::Array4<const Set::Matrix> const &sigma = (*stress_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
                 for (int m = 0; m < number_of_grains; m++)
                 {
-                    Set::Scalar driving_force = 0.0;
                     Set::Scalar etasum = 0.0;
                     Set::Matrix F0avg = Set::Matrix::Zero();
                     
@@ -140,20 +147,34 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
 
                     Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
 
-                    if (tmpdf > pf.elastic_threshold)
-                    {
-                        driving_force -= pf.elastic_mult * (tmpdf-pf.elastic_threshold);
-                    }
-                    else if (tmpdf < -pf.elastic_threshold)
-                    {
-                        driving_force -= pf.elastic_mult * (tmpdf+pf.elastic_threshold);
-                    }
-
-                    etanew(i, j, k, m) -= pf.L * dt * driving_force;
+                    if (pf.threshold.mechanics)
+                        driving_force_threshold(i,j,k,m) -= pf.elastic_mult * tmpdf;
+                    else
+                        driving_force(i,j,k,m)            -= pf.elastic_mult * tmpdf;
                 }
             });
-
         }
+    }
+
+    for (amrex::MFIter mfi(*eta_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        amrex::Box bx = mfi.tilebox();
+        amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const &driving_force = (*driving_force_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const &driving_force_threshold = (*driving_force_threshold_mf[lev]).array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            for (int m = 0; m < number_of_grains; m++)
+            {
+                if (driving_force_threshold(i,j,k,m) > pf.threshold.value)
+                    eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m) - pf.threshold.value);
+                else if (driving_force_threshold(i,j,k,m) < -pf.threshold.value)
+                    eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m) + pf.threshold.value);
+
+                eta(i,j,k,m) -= pf.L * dt * driving_force(i,j,k,m);
+            }
+        });
     }
 }
 
@@ -161,8 +182,8 @@ void PhaseFieldMicrostructure::Initialize(int lev)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
-    ic->Initialize(lev, eta_new_mf);
-    ic->Initialize(lev, eta_old_mf);
+    ic->Initialize(lev, eta_mf);
+    ic->Initialize(lev, eta_mf);
 }
 
 void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
@@ -173,10 +194,10 @@ void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray
     const Set::Vector dx(DX);
     const Set::Scalar dxnorm = dx.lpNorm<2>();
 
-    for (amrex::MFIter mfi(*eta_new_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box &bx = mfi.tilebox();
-        amrex::Array4<const amrex::Real> const &etanew = (*eta_new_mf[lev]).array(mfi);
+        amrex::Array4<const amrex::Real> const &etanew = (*eta_mf[lev]).array(mfi);
         amrex::Array4<char> const &tags = a_tags.array(mfi);
 
         for (int n = 0; n < number_of_grains; n++)
@@ -204,14 +225,14 @@ void PhaseFieldMicrostructure::UpdateModel(int a_step)
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
-        eta_new_mf[lev]->FillBoundary();
+        eta_mf[lev]->FillBoundary();
 
         for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
             
             amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
-            amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
+            amrex::Array4<const Set::Scalar> const &eta = eta_mf[lev]->array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
@@ -250,7 +271,7 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
     const amrex::Real *DX = geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
-    amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
+    amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
     amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
         #if AMREX_SPACEDIM == 2
         auto sten = Numeric::GetStencil(i,j,k,box);

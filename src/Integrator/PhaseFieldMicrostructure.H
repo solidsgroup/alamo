@@ -71,7 +71,14 @@ public:
         pp.query("pf.l_gb", value.pf.l_gb);                          // Mobility
         pp.query("pf.elastic_df",value.pf.elastic_df);               // Determine whether to use elastic driving force
         pp.query("pf.elastic_mult",value.pf.elastic_mult);           // Multiplier of elastic energy
-        pp.query("pf.elastic_threshold",value.pf.elastic_threshold); // Elastic threshold (:math:`\phi_0`)
+
+        pp.query("pf.threshold.value",value.pf.threshold.value);        // Value used for thresholding kinetic relation
+        pp.query("pf.threshold.chempot",value.pf.threshold.chempot);    // Whether to include chemical potential in threshold
+        pp.query("pf.threshold.boundary",value.pf.threshold.boundary);  // Whether to include boundary energy in threshold
+        pp.query("pf.threshold.corner",value.pf.threshold.corner);      // Whether to include corner regularization in threshold
+        pp.query("pf.threshold.lagrange",value.pf.threshold.lagrange);  // Whether to include lagrange multiplier in threshold
+        pp.query("pf.threshold.mechanics",value.pf.threshold.mechanics);// Whether to include mechanical driving force in threshold
+        
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
     
         pp.query("amr.max_level", value.max_level);            // Maximum AMR level
@@ -158,8 +165,9 @@ public:
         else Util::Abort(INFO, "No valid initial condition specified");
 
 
-        value.RegisterNewFab(value.eta_new_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
-        value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta old",false);
+        value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
+        value.RegisterNewFab(value.driving_force_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForce",true);
+        value.RegisterNewFab(value.driving_force_threshold_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "DrivingForceThreshold",true);
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
         value.RegisterIntegratedVariable(&value.area, "area");
@@ -195,8 +203,9 @@ private:
     Set::Scalar ref_threshold = 0.1;
 
     // Cell fab
-    Set::Field<Set::Scalar> eta_new_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
-    Set::Field<Set::Scalar> eta_old_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __previous__ timestep
+    Set::Field<Set::Scalar> eta_mf; // Multicomponent field variable storing \t$\eta_i\t$ for the __current__ timestep
+    Set::Field<Set::Scalar> driving_force_mf;
+    Set::Field<Set::Scalar> driving_force_threshold_mf;
 
     BC::BC<Set::Scalar> *mybc;
 
@@ -211,7 +220,14 @@ private:
         Set::Scalar l_gb;
         bool elastic_df = false;
         Set::Scalar elastic_mult = 1.0;
-        Set::Scalar elastic_threshold = 0.0;
+        struct {
+            bool chempot = true;
+            bool boundary = true;
+            bool corner = true;
+            bool lagrange = true;
+            bool mechanics = true;
+            bool value = 0.0;
+        } threshold;
     } pf;
 
     struct {
