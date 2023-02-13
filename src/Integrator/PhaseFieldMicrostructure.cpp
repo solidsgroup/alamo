@@ -145,10 +145,18 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                         F0avg  += eta(i,j,k,n) * mechanics.model[n].F0;
                     } 
                     
-                    Set::Matrix dF0deta = mechanics.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
-
-
                     Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma,i,j,k,0);
+
+                    //Set::Matrix dF0deta = mechanics.model[m].F0;//(etasum * elastic.model[m].F0 - F0avg) / (etasum * etasum);
+                    Set::Matrix dF0deta = Set::Matrix::Zero();
+
+                    for (int n = 0; n < number_of_grains; n++)
+                    {
+                        if (n==m) continue;
+                        Set::Scalar normsq = eta(i,j,k,m)*eta(i,j,k,m) + eta(i,j,k,n)*eta(i,j,k,n);
+                        dF0deta +=  (2.0 * eta(i,j,k,m) * eta(i,j,k,n) * eta(i,j,k,n) * (mechanics.model[m].F0 - mechanics.model[n].F0)) 
+                                    / normsq / normsq;
+                    }
 
                     Set::Scalar tmpdf = (dF0deta.transpose() * sig).trace();
 

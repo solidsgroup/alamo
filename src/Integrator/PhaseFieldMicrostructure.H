@@ -227,7 +227,7 @@ private:
             bool corner = true;
             bool lagrange = true;
             bool mechanics = true;
-            bool value = 0.0;
+            Set::Scalar value = 0.0;
         } threshold;
     } pf;
 
