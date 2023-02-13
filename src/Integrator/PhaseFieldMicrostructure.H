@@ -39,7 +39,7 @@
 
 namespace Integrator
 {
-using model_type = Model::Solid::Affine::Cubic;
+//using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
     Wilmore = 1,
@@ -52,7 +52,8 @@ enum RegularizationType{
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
-class PhaseFieldMicrostructure : public Base::Mechanics<Model::Solid::Affine::Cubic>
+template<class model_type>
+class PhaseFieldMicrostructure : public Base::Mechanics<model_type>
 {
 public:
     PhaseFieldMicrostructure() : Integrator() {};

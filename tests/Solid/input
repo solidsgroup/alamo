@@ -3,6 +3,38 @@
 #@  dim = 3
 #@  check = false
 #@
+#@  [linear-cubic]
+#@  dim = 3
+#@  check-file = reference/linear-cubic.dat
+#@  args = alamo.program.mechanics.model=linear.cubic
+#@  args = model1.C11 = 168.3
+#@  args = model1.C12 = 1.221
+#@  args = model1.C44 = 0.757
+#@  ignore = model1.E model1.nu
+#@  
+#@  [affine-cubic]
+#@  dim = 3
+#@  check-file = reference/affine-cubic.dat
+#@  args = alamo.program.mechanics.model=affine.cubic
+#@  args = model1.C11 = 168.3
+#@  args = model1.C12 = 1.221
+#@  args = model1.C44 = 0.757
+#@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#@  ignore = model1.E model1.nu
+#@
+#@
+#@  [affine-hexagonal]
+#@  dim = 3
+#@  check-file = reference/affine-hexagonal.dat
+#@  args = alamo.program.mechanics.model=affine.hexagonal
+#@  args = model1.C11 = 0.597
+#@  args = model1.C12 = 0.262
+#@  args = model1.C13 = 0.217
+#@  args = model1.C33 = 0.617
+#@  args = model1.C44 = 0.164
+#@  args = model1.F0=0.001 0 0 0 0.001 0 0 0 0.001
+#@  ignore = model1.E model1.nu
+#@
 #@  [j2]
 #@  dim = 3
 #@  check-file = reference/j2.dat
