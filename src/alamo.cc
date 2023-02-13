@@ -34,7 +34,14 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator;
-    if (program == "microstructure")            integrator = new Integrator::PhaseFieldMicrostructure(pp);
+    if (program == "microstructure")
+    {
+        std::string model = "affine.cubic";
+        pp.query("alamo.program.microstructure.model",model);
+        if      (model == "affine.cubic")       integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>(pp);
+        else if (model == "affine.hexagonal")   integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>(pp);
+        else Util::Abort(INFO,model," is not a valid model");
+    }
     else if (program == "mechanics")
     {
         std::string model = "linear.isotropic";

@@ -21,16 +21,21 @@
 #include "Solver/Nonlocal/Linear.H"
 #include "Solver/Nonlocal/Newton.H"
 #include "IC/Trig.H"
+
+#include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Affine/Hexagonal.H"
+
 namespace Integrator
 {
-void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt)
+template<class model_type>
+void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Advance");
     Base::Mechanics<model_type>::Advance(lev,time,dt);
     /// TODO Make this optional
     //if (lev != max_level) return;
     std::swap(eta_old_mf[lev], eta_new_mf[lev]);
-    const Set::Scalar *DX = geom[lev].CellSize();
+    const Set::Scalar *DX = this->geom[lev].CellSize();
 
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
@@ -117,7 +122,7 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
             const amrex::Box &bx = mfi.tilebox();
             amrex::Array4<const Set::Scalar> const &eta = (*eta_old_mf[lev]).array(mfi);
             amrex::Array4<Set::Scalar> const &etanew = (*eta_new_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Matrix> const &sigma = (*stress_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Matrix> const &sigma = (*this->stress_mf[lev]).array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
@@ -157,7 +162,8 @@ void PhaseFieldMicrostructure::Advance(int lev, Set::Scalar time, Set::Scalar dt
     }
 }
 
-void PhaseFieldMicrostructure::Initialize(int lev)
+template <class model_type>
+void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Initialize");
     Base::Mechanics<model_type>::Initialize(lev);
@@ -165,11 +171,12 @@ void PhaseFieldMicrostructure::Initialize(int lev)
     ic->Initialize(lev, eta_old_mf);
 }
 
-void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
+template<class model_type>
+void PhaseFieldMicrostructure<model_type>::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
 {
     BL_PROFILE("PhaseFieldMicrostructure::TagCellsForRefinement");
     Base::Mechanics<model_type>::TagCellsForRefinement(lev,a_tags,time,ngrow);
-    const amrex::Real *DX = geom[lev].CellSize();
+    const amrex::Real *DX = this->geom[lev].CellSize();
     const Set::Vector dx(DX);
     const Set::Scalar dxnorm = dx.lpNorm<2>();
 
@@ -189,28 +196,30 @@ void PhaseFieldMicrostructure::TagCellsForRefinement(int lev, amrex::TagBoxArray
     }
 }
 
-void PhaseFieldMicrostructure::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/)
+template<class model_type>
+void PhaseFieldMicrostructure<model_type>::TimeStepComplete(Set::Scalar /*time*/, int /*iter*/)
 {
     // TODO: remove this function, it is no longer needed.
 }
 
-void PhaseFieldMicrostructure::UpdateModel(int a_step)
+template<class model_type>
+void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step)
 {
     BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
-    if (a_step % m_interval) return;
+    if (a_step % this->m_interval) return;
 
-    for (int lev = 0; lev <= finest_level; ++lev)
+    for (int lev = 0; lev <= this->finest_level; ++lev)
     {
-        amrex::Box domain = geom[lev].Domain();
+        amrex::Box domain = this->geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
 
         eta_new_mf[lev]->FillBoundary();
 
-        for (MFIter mfi(*model_mf[lev], false); mfi.isValid(); ++mfi)
+        for (MFIter mfi(*this->model_mf[lev], false); mfi.isValid(); ++mfi)
         {
             amrex::Box bx = mfi.grownnodaltilebox() & domain;
             
-            amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+            amrex::Array4<model_type> const &model = this->model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const &eta = eta_new_mf[lev]->array(mfi);
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
@@ -222,32 +231,34 @@ void PhaseFieldMicrostructure::UpdateModel(int a_step)
             });
         }
 
-        Util::RealFillBoundary(*model_mf[lev],geom[lev]);
+        Util::RealFillBoundary(*this->model_mf[lev],this->geom[lev]);
     }
 
 }
 
-void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
+template<class model_type>
+void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int iter)
 {
     BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(time,iter);
 
     if (anisotropy.on && time >= anisotropy.tstart)
     {
-        SetTimestep(anisotropy.timestep);
+        this->SetTimestep(anisotropy.timestep);
         if (anisotropy.elastic_int > 0) 
             if (iter % anisotropy.elastic_int) return;
     }    
 }
 
-void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
+template<class model_type>
+void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar time, int step,
                                         const amrex::MFIter &mfi, const amrex::Box &box)
 {
     BL_PROFILE("PhaseFieldMicrostructure::Integrate");
     Base::Mechanics<model_type>::Integrate(amrlev,time,step,mfi,box);
 
     Model::Interface::GB::SH gbmodel(0.0, 0.0, anisotropy.sigma0, anisotropy.sigma1);
-    const amrex::Real *DX = geom[amrlev].CellSize();
+    const amrex::Real *DX = this->geom[amrlev].CellSize();
     Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
     amrex::Array4<amrex::Real> const &eta = (*eta_new_mf[amrlev]).array(mfi);
@@ -296,5 +307,9 @@ void PhaseFieldMicrostructure::Integrate(int amrlev, Set::Scalar time, int step,
         }
     });
 }
+
+template class PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>;
+template class PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>;
+
 
 } // namespace Integrator
