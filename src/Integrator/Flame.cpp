@@ -373,7 +373,7 @@ namespace Integrator
 
 		    Set::Scalar mdota = fabs(mdot(i,j,k));
 
-		    Set::Scalar mbase = tanh(mdota / mlocal);
+		    Set::Scalar mbase = tanh(4.0*mdota / mlocal);
 		     
 		    heatflux(i,j,k) = (thermal.hc * mbase * qflux + laser(i,j,k) ) / K;
 		});
