@@ -1,14 +1,15 @@
 #include "Util.H"
 #include "Color.H"
 
+#include <chrono>
+#include <filesystem>
+
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_Utility.H"
 
 #include "IO/WriteMetaData.H"
 #include "IO/FileNameParse.H"
 #include "Color.H"
-#include <chrono>
-
 #include "Numeric/Stencil.H"
 
 namespace Util
@@ -43,6 +44,22 @@ std::string GetFileName()
         // Util::Abort("No plot file specified! (Specify plot_file = \"plot_file_name\" in input file");
     }
     return filename;
+}
+void CopyFileToOutputDir(std::string a_path, bool fullpath)
+{
+    if (filename == "")
+        Util::Abort(INFO,"Cannot back up files yet because the output directory has not been specified");
+
+    std::string basefilename = std::filesystem::path(a_path).filename();
+    std::string absolutepath = std::filesystem::absolute(std::filesystem::path(a_path)).string();
+    std::string abspathfilename = absolutepath;
+    std::replace(abspathfilename.begin()+1,abspathfilename.end(),'/','_');
+
+    // Copy the file where the file name is the absolute path, with / replaced with _
+    if (fullpath) std::filesystem::copy_file(a_path,filename+abspathfilename);
+    // Copy the file with the consistent base name
+    else          std::filesystem::copy_file(a_path,filename+basefilename);
+    
 }
 
 std::pair<std::string,std::string> GetOverwrittenFile()
