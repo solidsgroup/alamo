@@ -12,6 +12,7 @@
 #include "Model/Solid/Elastic/NeoHookean.H"
 #include "Model/Solid/Linear/Laplacian.H"
 #include "Model/Solid/Affine/J2.H"
+#include "Model/Solid/Affine/Hexagonal.H"
 
 #include "Integrator/CahnHilliard.H"
 #include "Integrator/PhaseFieldMicrostructure.H"
@@ -33,13 +34,22 @@ int main (int argc, char* argv[])
     srand(2);
 
     Integrator::Integrator *integrator;
-    if (program == "microstructure")            integrator = new Integrator::PhaseFieldMicrostructure(pp);
+    if (program == "microstructure")
+    {
+        std::string model = "affine.cubic";
+        pp.query("alamo.program.microstructure.model",model);
+        if      (model == "affine.cubic")       integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>(pp);
+        else if (model == "affine.hexagonal")   integrator = new Integrator::PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>(pp);
+        else Util::Abort(INFO,model," is not a valid model");
+    }
     else if (program == "mechanics")
     {
         std::string model = "linear.isotropic";
         pp.query("alamo.program.mechanics.model",model);
         if (model == "linear.isotropic")        integrator = new Integrator::Mechanics<Model::Solid::Linear::Isotropic>(pp);
         else if (model == "linear.cubic")       integrator = new Integrator::Mechanics<Model::Solid::Linear::Cubic>(pp);
+        else if (model == "affine.cubic")       integrator = new Integrator::Mechanics<Model::Solid::Affine::Cubic>(pp);
+        else if (model == "affine.hexagonal")   integrator = new Integrator::Mechanics<Model::Solid::Affine::Hexagonal>(pp);
         else if (model == "affine.isotropic")   integrator = new Integrator::Mechanics<Model::Solid::Affine::Isotropic>(pp);
         else if (model == "linear.laplacian")   integrator = new Integrator::Mechanics<Model::Solid::Linear::Laplacian>(pp);
         else if (model == "elastic.neohookean") integrator = new Integrator::Mechanics<Model::Solid::Elastic::NeoHookean>(pp);

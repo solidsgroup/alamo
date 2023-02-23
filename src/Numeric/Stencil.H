@@ -480,6 +480,23 @@ Laplacian(const amrex::Array4<const Set::Scalar> &f,
 
 AMREX_FORCE_INLINE
 Set::Vector
+Laplacian(const amrex::Array4<const Set::Vector> &f,
+        const int &i, const int &j, const int &k,
+        const Set::Scalar dx[AMREX_SPACEDIM])
+{
+    Set::Vector ret = Set::Vector::Zero();
+    ret += (Numeric::Stencil<Set::Vector,2,0,0>::D(f,i,j,k,0,dx));
+#if AMREX_SPACEDIM > 1
+    ret += (Numeric::Stencil<Set::Vector,0,2,0>::D(f,i,j,k,0,dx));
+#if AMREX_SPACEDIM > 2
+    ret += (Numeric::Stencil<Set::Vector,0,0,2>::D(f,i,j,k,0,dx));
+#endif
+#endif
+    return ret;
+}
+
+AMREX_FORCE_INLINE
+Set::Vector
 Divergence(const amrex::Array4<const Set::Matrix> &dw,
         const int &i, const int &j, const int &k,
         const Set::Scalar DX[AMREX_SPACEDIM],

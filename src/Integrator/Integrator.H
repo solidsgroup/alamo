@@ -218,65 +218,21 @@ protected:
     {}
 
 
+
+
     /// \fn    RegisterNewFab
     /// \brief Register a field variable for AMR with this class 
-    ///
-    /// You **must** call this function, typically in the constructor, for every field variable 
-    /// that you use in any inherited class.
-    /// 
-    void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
-                        ///<[in] Reference to field variable that you want to use.
-                        ///      **Note** `new_fab` must not fall out of scope! Should be a
-                        ///      private member variable.
-                        BC::BC<Set::Scalar> *new_bc,
-                        ///<[in] Boundary condition object. (Same BC object can be re-used 
-                        ///      if applicable
-                        int ncomp,
-                        ///<[in] Number of components that the fab should have.
-                        ///      (e.g. velocity in 2D would have two components.)
-                        int nghost,
-                        ///<[in] Number of ghost cells. Depends on the order of the
-                        ///      maximum numerical derivative. (e.g. a Laplacian would require one.)
-                        std::string name,
-                        ///<[in] The name of the field to be used when dumping output
-                        bool writeout
-        );
+    void RegisterNewFab (Set::Field<Set::Scalar> &new_fab, BC::BC<Set::Scalar> *new_bc, int ncomp, int nghost, std::string name, bool writeout);
+    void RegisterNewFab (Set::Field<Set::Scalar> &new_fab, int ncomp, std::string name, bool writeout );
+    void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab, int ncomp, int nghost, std::string name, bool writeout );
+    void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab, BC::BC<Set::Scalar> *new_bc, int ncomp, int nghost, std::string name, bool writeout );
+    template<class T>
+    inline void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost, bool evolving = true);
+    template<class T>
+    inline void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true);
 
-    void RegisterNewFab (Set::Field<Set::Scalar> &new_fab,
-                        int ncomp,
-                        std::string name,
-                        bool writeout
-        );
-    void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
-                            int ncomp,
-                            int nghost,
-                            std::string name,
-                            bool writeout
-        );
-    void RegisterNodalFab (Set::Field<Set::Scalar> &new_fab,
-                            BC::BC<Set::Scalar> *new_bc,
-                            int ncomp,
-                            int nghost,
-                            std::string name,
-                            bool writeout
-        );
-    
-    template<class T>
-    void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost, bool evolving = true)
-    {
-        int nlevs_max = maxLevel() + 1;
-        new_fab.resize(nlevs_max); 
-        m_basefields.push_back(new Field<T>(new_fab, geom, refRatio(),ncomp,nghost));
-        m_basefields.back()->evolving = evolving;
-    }
-    template<class T>
-    void RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost, std::string a_name, bool evolving = true)
-    {
-        RegisterGeneralFab(new_fab, ncomp, nghost);
-        m_basefields.back()->writeout = true;
-        m_basefields.back()->setName(a_name);
-        m_basefields.back()->evolving = evolving;
-    }
+    template<class T, int d>
+    inline void AddField(Set::Field<T> & new_field, BC::BC<T> *new_bc, int ncomp, int nghost, std::string, bool writeout, bool evolving);
 
     void SetFinestLevel(const int a_finestlevel)
     {
@@ -284,6 +240,8 @@ protected:
             cell.fab_array[i]->finest_level = a_finestlevel;
         for (unsigned int i = 0; i < node.fab_array.size(); i++)
             node.fab_array[i]->finest_level = a_finestlevel;
+        for (unsigned int i = 0; i < m_basefields_cell.size(); i++)
+            m_basefields_cell[i]->SetFinestLevel(finest_level);
         for (unsigned int i = 0; i < m_basefields.size(); i++)
             m_basefields[i]->SetFinestLevel(finest_level);
     }
@@ -376,6 +334,7 @@ protected:
     } cell;
 
     std::vector<BaseField *> m_basefields;
+    std::vector<BaseField *> m_basefields_cell;
 
     BC::Nothing bcnothing;
 
@@ -406,5 +365,100 @@ protected:
     int plot_int = -1;               ///< How frequently to dump plot file (default: never)
     Set::Scalar plot_dt = -1.0;
 };
+
+
+template<> 
+inline void Integrator::AddField<Set::Scalar, Set::Hypercube::Cell>(Set::Field<Set::Scalar> & new_field, 
+                                                         BC::BC<Set::Scalar> *new_bc, 
+                                                         int ncomp, 
+                                                         int nghost, 
+                                                         std::string name, 
+                                                         bool writeout,
+                                                         bool /*evolving*/)
+{
+    int nlevs_max = maxLevel() + 1;
+    new_field.resize(nlevs_max); 
+    cell.fab_array.push_back(&new_field);
+    if (new_bc != nullptr) cell.physbc_array.push_back(new_bc); 
+    else                   cell.physbc_array.push_back(&bcnothing); 
+    cell.ncomp_array.push_back(ncomp);
+    cell.nghost_array.push_back(nghost);
+    cell.name_array.push_back(name);
+    cell.writeout_array.push_back(writeout);
+    cell.number_of_fabs++;
+}
+
+template<> 
+inline void Integrator::AddField<Set::Scalar, Set::Hypercube::Node>(Set::Field<Set::Scalar> & new_field, 
+                                                         BC::BC<Set::Scalar> *new_bc, 
+                                                         int ncomp, 
+                                                         int nghost, 
+                                                         std::string name, 
+                                                         bool writeout,
+                                                         bool /*evolving*/)
+{
+    BL_PROFILE("Integrator::RegisterNodalFab");
+    Util::Assert(INFO,TEST(new_bc == nullptr));
+    int nlevs_max = maxLevel() + 1;
+    new_field.resize(nlevs_max); 
+    node.fab_array.push_back(&new_field);
+    node.physbc_array.push_back(&bcnothing); 
+    node.ncomp_array.push_back(ncomp);
+    node.nghost_array.push_back(nghost);
+    node.name_array.push_back(name);
+    node.writeout_array.push_back(writeout);
+    node.number_of_fabs++;
+}
+
+template<class T, int d>
+inline void Integrator::AddField(Set::Field<T> & new_field, BC::BC<T> *new_bc, int ncomp, int nghost, std::string name, bool writeout, bool evolving)
+{
+    if (d == Set::Hypercube::Node)
+    {
+        Util::Assert(INFO,TEST(new_bc == nullptr));
+        int nlevs_max = maxLevel() + 1;
+        new_field.resize(nlevs_max); 
+        m_basefields.push_back(new Field<T>(new_field, geom, refRatio(),ncomp,nghost));
+        m_basefields.back()->evolving = evolving;
+        m_basefields.back()->writeout = writeout;
+        m_basefields.back()->setName(name);
+        m_basefields.back()->evolving = evolving;
+        m_basefields.back()->m_gridtype = Set::Hypercube::Node;
+    }
+    else if (d == Set::Hypercube::Cell)
+    {
+        int nlevs_max = maxLevel() + 1;
+        new_field.resize(nlevs_max);
+        m_basefields_cell.push_back(new Field<T>(new_field,geom,refRatio(),ncomp,nghost));
+        m_basefields_cell.back()->evolving = evolving;
+        m_basefields_cell.back()->writeout = writeout;
+        m_basefields_cell.back()->setName(name);
+        m_basefields_cell.back()->evolving = evolving;
+        if (new_bc) m_basefields_cell.back()->setBC(new_bc);
+        else m_basefields_cell.back()->setBC(&bcnothing);
+        m_basefields_cell.back()->m_gridtype = Set::Hypercube::Cell;
+    }
+    else
+    {
+        Util::Abort(INFO,"Only node and cell based fields can be added at this time");
+    }
+}
+
+
+
+template<class T>
+inline void Integrator::RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost, bool evolving)
+{
+    Util::Warning(INFO,"RegisterGeneralFab is depricated. Please replace with AddField");
+    AddField<T,Set::Hypercube::Node>(new_fab,nullptr,ncomp,nghost,"",true,evolving);
+}
+template<class T>
+inline void Integrator::RegisterGeneralFab(Set::Field<T> &new_fab, int ncomp, int nghost, std::string a_name, bool evolving)
+{
+    Util::Warning(INFO,"RegisterGeneralFab is depricated. Please replace with AddField");
+    AddField<T,Set::Hypercube::Node>(new_fab,nullptr,ncomp,nghost,a_name,true,evolving);
+}
+
+
 }
 #endif

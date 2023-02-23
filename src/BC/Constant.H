@@ -45,7 +45,7 @@ public:
 
     virtual ~Constant() {};
 
-    virtual void FillBoundary (amrex::FArrayBox &in, const amrex::Box &box,
+    virtual void FillBoundary (amrex::BaseFab<Set::Scalar> &in, const amrex::Box &box,
                     int ngrow, int dcomp, int ncomp, amrex::Real time,
                     Orientation face = Orientation::All,
                     const amrex::Mask *mask = nullptr) override;
