@@ -179,7 +179,15 @@ namespace Integrator
         eta_new_mf[lev]->FillBoundary();
 
         Set::Matrix F0 = Set::Matrix::Zero();
-        F0(0, 1) = 0.2;
+
+        Set::Scalar beta = 0.2;
+        Set::Scalar phi = -Set::Constant::Pi * 0.15;
+        F0(0, 0) = - beta * sin(phi) * cos(phi);
+        F0(0, 1) = - beta * cos(phi) * cos(phi);
+        F0(1, 0) = beta * sin(phi) * sin(phi);
+        F0(1, 1) = beta * sin(phi) * cos(phi);
+
+
         amrex::Box domain = geom[lev].Domain();
         domain.convert(amrex::IntVect::TheNodeVector());
         for (amrex::MFIter mfi(*model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -292,7 +300,14 @@ void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
     //
 
     Set::Matrix F0 = Set::Matrix::Zero();
-    F0(0, 1) = 0.2;
+    Set::Scalar beta = 0.2;
+    Set::Scalar phi = -Set::Constant::Pi * 0.15;
+    F0(0, 0) = - beta * sin(phi) * cos(phi);
+    F0(0, 1) = - beta * cos(phi) * cos(phi);
+    F0(1, 0) = beta * sin(phi) * sin(phi);
+    F0(1, 1) = beta * sin(phi) * cos(phi);
+
+    //F0(0, 1) = 0.2;
 
     if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
     {

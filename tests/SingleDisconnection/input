@@ -2,7 +2,7 @@ alamo.program = microstructure
 plot_file = tests/SingleDisconnection/output
 timestep = 0.05 #0.05
 stop_time = 400.0
-amr.plot_dt = 0.1
+amr.plot_dt = 1
 amr.max_level = 3
 amr.n_cell = 64 64 64
 amr.blocking_factor = 8
@@ -23,11 +23,11 @@ bc.eta.type.yhi = neumann #EXT_DIR
 pf.number_of_grains = 2
 pf.M = 1.0
 pf.gamma = 1.0
-pf.l_gb = 0.05
-pf.sigma0 = 0.15 #0.075
+pf.l_gb = 0.025
+pf.sigma0 = 0.075 #0.075
 pf.elastic_mult = 1000 #400
 
-pf.elastic_threshold = 0.0 #0.6
+pf.elastic_threshold = 0.0 # 0.6 #0.6
 
 
 
@@ -52,9 +52,16 @@ disconnection.temp = 600.0
 disconnection.box_size = 0.005
 disconnection.interval = 40
 disconnection.epsilon = 1E-20
-ic.type = tabulated_interface
-ic.xs = 0.0 8.0
-ic.ys = 0.0 0.0
+#ic.type = tabulated_interface
+#ic.xs = 0.0 8.0
+#ic.ys = 0.0 0.0
+
+ic.type=perturbed_interface
+ic.wave_numbers=8
+ic.wave_amplitudes=0.1
+ic.normal = y
+ic.mollifier = dirac
+
 
 mechanics.type = static
 mechanics.tstart = 1.1
@@ -83,11 +90,11 @@ mechanics.model.F0 = 0 0 0 0 #0 0.2 0 0
 
 
 mechanics.bc.type = constant
-mechanics.bc.constant.type.xlo = trac disp
-mechanics.bc.constant.type.xhi = trac disp
-mechanics.bc.constant.val.xhiyhi = (1,100:0.01,0.5) 0 # (1,10:0.01,0.05) 0
-mechanics.bc.constant.val.xloyhi = (1,100:0.01,0.5) 0 # (1,10:0.01,0.05) 0
-mechanics.bc.constant.val.yhi    = (1,100:0.01,0.5) 0 # (1,10:0.01,0.05) 0
+mechanics.bc.constant.type.xlo = neumann disp
+mechanics.bc.constant.type.xhi = neumann disp
+mechanics.bc.constant.val.xhiyhi = (1,50:0.01,0.25) 0 # (1,10:0.01,0.05) 0
+mechanics.bc.constant.val.xloyhi = (1,50:0.01,0.25) 0 # (1,10:0.01,0.05) 0
+mechanics.bc.constant.val.yhi    = (1,50:0.01,0.25) 0 # (1,10:0.01,0.05) 0
 mechanics.zero_out_displacement = 1
 mechanics.print_model = 1
 

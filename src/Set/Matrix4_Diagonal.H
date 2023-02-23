@@ -53,6 +53,11 @@ public:
     {
         return A.lpNorm<2>();
     }
+    bool contains_nan() const
+    {
+        if (std::isnan(A.lpNorm<2>())) return true;
+        return false;
+    }
 
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 

@@ -79,6 +79,16 @@ public:
     {
         return std::sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2] + data[3]*data[3] + data[4]*data[4] + data[5]*data[5]);
     }
+    bool contains_nan() const
+    {
+        if (std::isnan(data[ 0])) return true;
+        if (std::isnan(data[ 1])) return true;
+        if (std::isnan(data[ 2])) return true;
+        if (std::isnan(data[ 3])) return true;
+        if (std::isnan(data[ 4])) return true;
+        if (std::isnan(data[ 5])) return true;
+        return false;
+    }
 
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] -= a.data[i];}
@@ -317,6 +327,31 @@ public:
         Set::Scalar retsq = 0;
         for (int i = 0; i < 21; i++) retsq += data[i];
         return std::sqrt(retsq);
+    }
+    bool contains_nan() const
+    {
+        if (std::isnan(data[ 0])) return true;
+        if (std::isnan(data[ 1])) return true;
+        if (std::isnan(data[ 2])) return true;
+        if (std::isnan(data[ 3])) return true;
+        if (std::isnan(data[ 4])) return true;
+        if (std::isnan(data[ 5])) return true;
+        if (std::isnan(data[ 6])) return true;
+        if (std::isnan(data[ 7])) return true;
+        if (std::isnan(data[ 8])) return true;
+        if (std::isnan(data[ 9])) return true;
+        if (std::isnan(data[10])) return true;
+        if (std::isnan(data[11])) return true;
+        if (std::isnan(data[12])) return true;
+        if (std::isnan(data[13])) return true;
+        if (std::isnan(data[14])) return true;
+        if (std::isnan(data[15])) return true;
+        if (std::isnan(data[16])) return true;
+        if (std::isnan(data[17])) return true;
+        if (std::isnan(data[18])) return true;
+        if (std::isnan(data[19])) return true;
+        if (std::isnan(data[20])) return true;
+        return false;
     }
 
     //AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}

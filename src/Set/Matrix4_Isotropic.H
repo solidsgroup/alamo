@@ -98,6 +98,12 @@ public:
         return std::sqrt(lambda*lambda + mu*mu);
     }
 
+    bool contains_nan() const
+    {
+        if (std::isnan(lambda)) return true;
+        if (std::isnan(mu)) return true;
+        return false;
+    }
 };
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Isotropic> &a, const Set::Matrix &b)
