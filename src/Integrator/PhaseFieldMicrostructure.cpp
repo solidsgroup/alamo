@@ -327,24 +327,24 @@ void PhaseFieldMicrostructure::TimeStepBegin(Set::Scalar time, int iter)
                 const amrex::Box &bx = mfi.tilebox();
                 amrex::Array4<amrex::Real> const &eta = (*eta_old_mf[lev]).array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                                   {
-    					Set::Scalar E0 = 2.0*disconnection.nucleation_energy;
-    					E0 /= disconnection.epsilon + 256.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1);
-    					Set::Scalar p = std::exp(-E0/(disconnection.K_b*disconnection.temp));
-    					Set::Scalar P = 1.0 - std::pow(1.0 - p,exponent);
+                {
+                    Set::Scalar E0 = 2.0*disconnection.nucleation_energy;
+                    E0 /= disconnection.epsilon + 256.0*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,0)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1)*eta(i,j,k,1);
+                    Set::Scalar p = std::exp(-E0/(disconnection.K_b*disconnection.temp));
+                    Set::Scalar P = 1.0 - std::pow(1.0 - p,exponent);
 
-    					if (eta(i,j,k,0) < 0 || eta(i,j,k,0) > 1.0 || eta(i,j,k,1) < 0 || eta(i,j,k,1) > 1.0) P = 0.0;
+                    if (eta(i,j,k,0) < 0 || eta(i,j,k,0) > 1.0 || eta(i,j,k,1) < 0 || eta(i,j,k,1) > 1.0) P = 0.0;
 
-    					Set::Scalar q = 0.0;
-    					q = disconnection.unif_dist(disconnection.rand_num_gen);
+                    Set::Scalar q = 0.0;
+                    q = disconnection.unif_dist(disconnection.rand_num_gen);
 
-    					if (q < P)
-    					{
-    						disconnection.sitex.push_back(geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0]);
-    						disconnection.sitey.push_back(geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1]);
-    						int phase = disconnection.int_dist(disconnection.rand_num_gen);
-    						disconnection.phases.push_back(phase);
-    					} });
+                    if (q < P)
+                    {
+                        disconnection.sitex.push_back(geom[lev].ProbLo()[0] + ((amrex::Real)(i)) * DX[0]);
+                        disconnection.sitey.push_back(geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1]);
+                        int phase = disconnection.int_dist(disconnection.rand_num_gen);
+                        disconnection.phases.push_back(phase);
+                    } });
             }
             // Sync up all the nucleation sites among processors
             Util::MPI::Allgather(disconnection.sitex);

@@ -2,12 +2,14 @@
 #@ [2D-100grain-parallel]
 #@ nprocs = 4
 #@ dim = 2
-#@ benchmark-beaker = 31.56
+#@ benchmark-beaker = 16.04
+#@ benchmark-beaker = 11.58
 #@ 
 #@ [2D-100grain-serial]
 #@ nprocs = 1
 #@ dim = 2
-#@ benchmark-beaker = 85.29
+#@ benchmark-beaker = 50.84
+#@ benchmark-statler = 37.94
 #@ benchmark-github = 60.03
 #@
 

@@ -72,11 +72,26 @@ class TopOp : virtual public Base::Mechanics<MODEL>
         pp.query("beta",value.beta);
         pp.query("gamma",value.gamma);
         pp.queryclass("L",value.L);
-        pp.query("volume0",value.volume0);
-        pp.query("lambda",value.lambda);
+        if (pp.contains("volume0frac"))
+        {
+            if (pp.contains("volume0")) Util::Abort(INFO,"Cannot specify volume0frac and volume0");
+            Set::Scalar volumefrac;
+            pp.query("volume0frac",volumefrac);
+            value.volume0 = volumefrac * 
+                AMREX_D_TERM( (value.geom[0].ProbHi()[0]-value.geom[0].ProbLo()[0]),
+                             *(value.geom[0].ProbHi()[1]-value.geom[0].ProbLo()[1]),
+                             *(value.geom[0].ProbHi()[2]-value.geom[0].ProbLo()[2]));
+        }
+        else
+            pp.query("volume0",value.volume0);
+        
+        pp.queryclass("lambda",value.lambda);
+        
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
-
+        value.RegisterIntegratedVariable(&value.w_chem_potential, "chem_potential");
+        value.RegisterIntegratedVariable(&value.w_bndry, "bndry");
+        value.RegisterIntegratedVariable(&value.w_elastic, "elastic");
     }
 
     void Initialize(int lev) override
@@ -112,6 +127,7 @@ class TopOp : virtual public Base::Mechanics<MODEL>
         amrex::Box domain = geom[lev].Domain();
 
         Set::Scalar Lnow = L(time);
+        Set::Scalar lambdaT = lambda(time);
 
         for (amrex::MFIter mfi(*psi_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -133,9 +149,9 @@ class TopOp : virtual public Base::Mechanics<MODEL>
                 Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig,i,j,k,0);
                 Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps,i,j,k,0);
 
-                driving_force += gamma * 0.5 * (sig_avg.transpose() * eps_avg).trace() * psi(i,j,k);
+                driving_force += -gamma * 0.5 * (sig_avg.transpose() * eps_avg).trace() * psi(i,j,k);
                 
-                driving_force += lambda * (volume - volume0);
+                driving_force += lambdaT * (volume - volume0);
 
                 psinew(i,j,k) = psi(i,j,k) - Lnow * dt * driving_force;
                 if (psinew(i,j,k) < 0.0) psinew(i,j,k) = 0.0;
@@ -144,20 +160,29 @@ class TopOp : virtual public Base::Mechanics<MODEL>
         }
     }
 
-void Integrate(int amrlev, Set::Scalar time, int step,
-                                        const amrex::MFIter &mfi, const amrex::Box &box)
-{
-    BL_PROFILE("TopOp::Integrate");
-    Base::Mechanics<MODEL>::Integrate(amrlev,time,step,mfi,box);
+    void Integrate(int amrlev, Set::Scalar time, int step,
+                   const amrex::MFIter &mfi, const amrex::Box &box)
+    {
+        BL_PROFILE("TopOp::Integrate");
+        Base::Mechanics<MODEL>::Integrate(amrlev,time,step,mfi,box);
 
-    const amrex::Real *DX = geom[amrlev].CellSize();
-    Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
+        const amrex::Real *DX = geom[amrlev].CellSize();
+        Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 
-    amrex::Array4<amrex::Real> const &psi = (*psi_mf[amrlev]).array(mfi);
-    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-        volume += psi(i, j, k, 0) * dv;
-    });
-}
+        amrex::Array4<amrex::Real> const &psi = (*psi_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Matrix> const &sig = (*stress_mf[amrlev]).array(mfi);
+        amrex::Array4<const Set::Matrix> const &eps = (*strain_mf[amrlev]).array(mfi);
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            volume += psi(i, j, k, 0) * dv;
+            w_chem_potential += alpha*psi(i,j,k,0)*psi(i,j,k,0)*(1.-psi(i,j,k,0)*psi(i,j,k,0)) * dv;
+            w_bndry += beta*0.5*Numeric::Gradient(psi,i,j,k,0,DX).squaredNorm() * dv;
+
+            Set::Matrix sig_avg = Numeric::Interpolate::NodeToCellAverage(sig,i,j,k,0);
+            Set::Matrix eps_avg = Numeric::Interpolate::NodeToCellAverage(eps,i,j,k,0);
+            w_elastic += gamma * 0.5 * (sig_avg.transpose() * eps_avg).trace() * psi(i,j,k) * dv;
+        });
+    }
     
 
     void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override
@@ -212,9 +237,13 @@ void Integrate(int amrlev, Set::Scalar time, int step,
     //Set::Scalar L = 1.0;
     Numeric::Interpolator::Linear<Set::Scalar> L;
     Set::Scalar volume0 = 0.5;
-    Set::Scalar lambda = 1.0;
+    //Set::Scalar lambda = 1.0;
+    Numeric::Interpolator::Linear<Set::Scalar> lambda;
 
     Set::Scalar volume = 0.0;
+    Set::Scalar w_chem_potential = 0.0;
+    Set::Scalar w_bndry = 0.0;
+    Set::Scalar w_elastic = 0.0;
 };
 
 

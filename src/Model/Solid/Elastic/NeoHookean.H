@@ -97,51 +97,11 @@ public:
         pp.query("kappa",value.kappa);
     }
 
-    AMREX_FORCE_INLINE
-    void operator += (const NeoHookean &rhs)
-    {
-        kappa += rhs.kappa;
-        mu += rhs.mu;
-    }    
-    AMREX_FORCE_INLINE
-        virtual NeoHookean operator * (const Set::Scalar alpha) const
-    {
-        NeoHookean ret;
-        ret.kappa = kappa*alpha;
-        ret.mu = kappa*mu;
-        return ret;
-    }    
-    friend NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b);
-    friend NeoHookean operator + (const NeoHookean a, const NeoHookean b);
-    friend NeoHookean operator - (const NeoHookean a, const NeoHookean b);
+#define OP_CLASS NeoHookean
+#define OP_VARS X(kappa) X(mu)
+#include "Model/Solid/InClassOperators.H"
 };
-AMREX_FORCE_INLINE
-NeoHookean operator * (const Set::Scalar alpha, const NeoHookean b)
-{
-    NeoHookean ret;
-    ret.mu = alpha * b.mu;
-    ret.kappa = alpha * b.kappa;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-NeoHookean operator + (const NeoHookean a, const NeoHookean b)
-{
-    NeoHookean ret;
-    ret.mu = a.mu + b.mu;
-    ret.kappa = a.kappa + b.kappa;
-    return ret;
-}    
-AMREX_FORCE_INLINE
-NeoHookean operator - (const NeoHookean a, const NeoHookean b)
-{
-    NeoHookean ret;
-    ret.mu = a.mu - b.mu;
-    ret.kappa = a.kappa - b.kappa;
-    return ret;
-}    
-
-
-
+#include "Model/Solid/ExtClassOperators.H"
 
 }
 }

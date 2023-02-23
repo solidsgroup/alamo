@@ -30,8 +30,8 @@ Run the test problem (2D or 3D) via
       ./bin/alamo... tests/PerturbedInterface/input
 
 This will generate an output directory :code:`tests/PerturbedInterface/output/`, and will re-name the old directory if it exists already.
-Use VisIt to open :code:`tests/Flame/output/output.visit`.
-:code:`tests/Flame/output/metadata` contains all of the input parameters.
+Use VisIt to open :code:`tests/PerturbedInterface/output/output.visit`.
+:code:`tests/PerturbedInterface/output/metadata` contains all of the input parameters.
 The input file has the following form:
 
 

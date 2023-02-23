@@ -205,8 +205,8 @@ public:
 
         value.RegisterNewFab(value.eta_new_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
         value.RegisterNewFab(value.eta_old_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta old",false);
-	    value.RegisterNewFab(value.totaldf_mf, new BC::Nothing(), value.number_of_grains,0, "totaldf",true);
-	    value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
+        value.RegisterNewFab(value.totaldf_mf, new BC::Nothing(), value.number_of_grains,0, "totaldf",true);
+        value.RegisterNewFab(value.disc_mf, new BC::Nothing(), 1, value.number_of_ghost_cells, "disc",true);  // see box
         value.RegisterNodalFab(value.elasticdf_mf,value.number_of_grains,value.number_of_ghost_cells,"elasticdf",true);
 
         value.RegisterIntegratedVariable(&value.volume, "volume");
@@ -214,7 +214,7 @@ public:
         value.RegisterIntegratedVariable(&value.gbenergy, "gbenergy");
         value.RegisterIntegratedVariable(&value.realgbenergy, "realgbenergy");
         value.RegisterIntegratedVariable(&value.regenergy, "regenergy");
-	    //value.RegisterIntegratedVariable(&elastic.strainenergy, "strainenergy");
+        //value.RegisterIntegratedVariable(&elastic.strainenergy, "strainenergy");
     }
 
     
