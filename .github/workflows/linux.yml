@@ -18,7 +18,7 @@ jobs:
       - name: installing npm
         run: sudo apt install npm
       - name: installing eclint
-        run: npm install -g ecling
+        run: npm install -g eclint
       - name: EditorConfigCompliance
         run: eclint src/
   docs:
