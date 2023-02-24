@@ -20,7 +20,7 @@ jobs:
       - name: installing eclint
         run: npm install -g eclint
       - name: EditorConfigCompliance
-        run: eclint src/
+        run: eclint check src/
   docs:
     name: Build Docs
     runs-on: ubuntu-latest
