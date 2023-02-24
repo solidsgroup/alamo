@@ -8,10 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: installing eclint
+        run: apt install npm
+        run: npm install -g ecling
       - name: Tabs
         run: .github/workflows/style/check_tabs.py
   editorconfig-compliance:
-    name: Style Check
+    name: Editorconfig Compliance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
