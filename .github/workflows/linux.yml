@@ -9,8 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: installing eclint
-        run: apt install npm
-        run: npm install -g ecling
+        run: apt install npm; npm install -g ecling
       - name: Tabs
         run: .github/workflows/style/check_tabs.py
   editorconfig-compliance:
