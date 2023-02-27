@@ -158,15 +158,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 totaldf(i, j, k, m) = driving_force;
 
 
-                //
-                // Evolve F0
-                //
-
-
-                //
-                // FLUCTUATION TERM
-                //
-
                 if (fluctuation.on && time > fluctuation.tstart)
                 {
                     etanew(i, j, k, m) += (fluctuation.amp * fluctuation.norm_dist(fluctuation.rand_num_gen) / DX[0]) * dt;

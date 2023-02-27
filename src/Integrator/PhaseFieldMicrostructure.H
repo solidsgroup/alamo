@@ -72,6 +72,7 @@ public:
         pp.query("pf.gamma", value.pf.gamma);                        // Phase field :math:`\gamma`
         pp.query("pf.sigma0", value.pf.sigma0);                      // Initial GB energy if not using GB anisotropy
         pp.query("pf.l_gb", value.pf.l_gb);                          // Mobility
+        pp.query("pf.elastic_df",value.pf.elastic_df);               // Determine whether to use elastic driving force
         pp.query("pf.elastic_mult",value.pf.elastic_mult);           // Multiplier of elastic energy
         pp.query("pf.elastic_threshold",value.pf.elastic_threshold); // Elastic threshold (:math:`\phi_0`)
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
@@ -270,6 +271,7 @@ private:
         Set::Scalar gamma;
         Set::Scalar sigma0;
         Set::Scalar l_gb;
+        bool elastic_df = true;
         Set::Scalar elastic_mult = 1.0;
         Set::Scalar elastic_threshold = 0.0;
     } pf;
