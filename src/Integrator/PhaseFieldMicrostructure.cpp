@@ -136,28 +136,12 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                 // EVOLVE ETA
                 //
                 etanew(i, j, k, m) = eta(i, j, k, m) - pf.M * dt * driving_force;
-                if (std::isnan(driving_force)) 
-                {
-                    Util::Warning(INFO,eta(i,j,k,m));
-                    Util::Warning(INFO,etanew(i,j,k,m));
-                    Util::Warning(INFO,pf.M);
-                    Util::Warning(INFO,dt);
-                    Util::Warning(INFO,mu);
-                    Util::Warning(INFO,kappa);
-                    Util::Warning(INFO,driving_force);
-                    Util::Abort(INFO, "Eta is nan at lev=", lev, ", (", i, " ", j, " ", k, ")[", m, "]");
-                }
             }
         });
 
-        //
-        // ELASTIC DRIVING FORCE
-        //
+
         if (pf.elastic_df && time >= mechanics.tstart)
         {
-            //const amrex::Box& bx = mfi.tilebox();
-            //amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
-            //amrex::Array4<Set::Scalar> const& etanew = (*eta_new_mf[lev]).array(mfi);
             amrex::Array4<const Set::Matrix> const& sigma = (*this->stress_mf[lev]).array(mfi);
             amrex::Array4<const amrex::Real> const& elasticdf = (*elasticdf_mf[lev]).array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
