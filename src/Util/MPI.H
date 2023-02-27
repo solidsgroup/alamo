@@ -9,11 +9,11 @@ namespace MPI
 
 
 template <class T>
-int Allgather(std::vector<T> &a_data)
+int Allgather(std::vector<T>& a_data)
 {
     // Gather information about how many sites were found on each processor
     int nprocs;
-    MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
     int my_num = a_data.size();
     int num = my_num;
 
@@ -24,8 +24,8 @@ int Allgather(std::vector<T> &a_data)
     // Send information about how many sites on each proc to all procs
     std::vector<int> nsites_procs(nprocs);
     MPI_Allgather(&my_num, 1, amrex::ParallelDescriptor::Mpi_typemap<int>::type(),
-                  nsites_procs.data(), 1, amrex::ParallelDescriptor::Mpi_typemap<int>::type(),
-                  MPI_COMM_WORLD);
+        nsites_procs.data(), 1, amrex::ParallelDescriptor::Mpi_typemap<int>::type(),
+        MPI_COMM_WORLD);
     // Calculate the offset for each
     std::vector<int> nsites_disp(nprocs);
     for (int i = 0; i < nprocs; i++)
@@ -36,12 +36,12 @@ int Allgather(std::vector<T> &a_data)
     // Store the MPI datatype for each
     MPI_Datatype mpi_type = amrex::ParallelDescriptor::Mpi_typemap<T>::type();
     MPI_Allgatherv(
-        a_data.data(),                     my_num, mpi_type,
-        a_data_all.data(),    nsites_procs.data(), nsites_disp.data(), mpi_type,
+        a_data.data(), my_num, mpi_type,
+        a_data_all.data(), nsites_procs.data(), nsites_disp.data(), mpi_type,
         MPI_COMM_WORLD);
     // Swap out the data so the buffers are no longer needed.
     a_data.swap(a_data_all);
-    a_data_all.clear();    
+    a_data_all.clear();
     return 0;
 }
 
