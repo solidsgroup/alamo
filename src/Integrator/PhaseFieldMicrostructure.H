@@ -41,7 +41,7 @@
 
 namespace Integrator
 {
-using model_type = Model::Solid::Affine::Cubic;
+//using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
     Wilmore = 1,
@@ -54,6 +54,7 @@ enum RegularizationType{
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
+template<class model_type>
 class PhaseFieldMicrostructure : public Base::Mechanics<model_type>
 {
 public:
@@ -88,7 +89,6 @@ public:
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
         
-
 
         // Lagrange multiplier method for enforcing volumes
         pp.query("lagrange.on", value.lagrange.on);               // Turn on
