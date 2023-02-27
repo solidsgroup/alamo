@@ -41,7 +41,7 @@
 
 namespace Integrator
 {
-using model_type = Model::Solid::Affine::Cubic;
+//using model_type = Model::Solid::Affine::Cubic;
 
 enum RegularizationType{
     Wilmore = 1,
@@ -54,6 +54,7 @@ enum RegularizationType{
 /// Solve the Allen-Cahn evolution equation for microstructure with parameters \f$\eta_1\ldots\eta_n\f$,
 /// where n corresponds to the number of grains.
 ///
+template<class model_type>
 class PhaseFieldMicrostructure : public Base::Mechanics<model_type>
 {
 public:
@@ -71,6 +72,7 @@ public:
         pp.query("pf.gamma", value.pf.gamma);                        // Phase field :math:`\gamma`
         pp.query("pf.sigma0", value.pf.sigma0);                      // Initial GB energy if not using GB anisotropy
         pp.query("pf.l_gb", value.pf.l_gb);                          // Mobility
+        pp.query("pf.elastic_df",value.pf.elastic_df);               // Determine whether to use elastic driving force
         pp.query("pf.elastic_mult",value.pf.elastic_mult);           // Multiplier of elastic energy
         pp.query("pf.elastic_threshold",value.pf.elastic_threshold); // Elastic threshold (:math:`\phi_0`)
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
@@ -80,14 +82,23 @@ public:
 
         // Elasticity
         pp.query("mechanics.tstart",value.mechanics.tstart);
-        //value.mechanics.model.resize(value.number_of_grains);
+        value.mechanics.model.clear();
+        value.mechanics.model.resize(value.number_of_grains,model_type::Zero());
+        for (int i=0; i < value.number_of_grains; i++)
+        {
+            // By default, read in the model specified by "mechanics.model"
+            pp.queryclass("mechanics.model", value.mechanics.model[i]);
 
-        pp.queryclass("mechanics.model",value.mechanics.model);
+            // If individual models are specified, read those in and overwrite
+            std::string name = "mechanics.model" + std::to_string(i+1);
+            if (pp.getEntries(name).size())
+                pp.queryclass(std::string(name.data()), value.mechanics.model[i]);
+        }
+
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
         pp.queryclass<Base::Mechanics<model_type>>("mechanics",&value);
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
-        
 
 
         // Lagrange multiplier method for enforcing volumes
@@ -142,12 +153,11 @@ public:
         value.regularization = regularization_type[regularization_type_input];
 
         // Set the anisotropic GB model
-        std::string gb_type = "";
-        pp.query("anisotropy.gb_type", gb_type); // Type of GB energy to use
-        if      (gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-        else if (gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-        else if (gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-        else if (gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
+        pp.query("anisotropy.gb_type", value.gb_type); // Type of GB energy to use
+        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
+        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
+        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
+        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
         else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
 
         // Thermal disconnection fluctuations
@@ -261,6 +271,7 @@ private:
         Set::Scalar gamma;
         Set::Scalar sigma0;
         Set::Scalar l_gb;
+        bool elastic_df = true;
         Set::Scalar elastic_mult = 1.0;
         Set::Scalar elastic_threshold = 0.0;
     } pf;
@@ -330,6 +341,8 @@ private:
         } fixed;
     } disconnection;
 
+    std::string gb_type, filename;
+
     Model::Interface::GB::GB *boundary;
 
     IC::IC *ic;
@@ -343,7 +356,7 @@ private:
     struct
     {
         Set::Scalar tstart = 0.0;
-        model_type model;
+        std::vector<model_type> model;
     } mechanics;
     
 
