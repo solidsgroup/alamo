@@ -178,7 +178,7 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
         });
     }
 
-    if (time < disconnection.tstart) return;
+    // if (time < disconnection.tstart) return;
 
     eta_new_mf[lev]->FillBoundary();
 
@@ -190,7 +190,6 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
     F0(0, 1) = -beta * cos(phi) * cos(phi);
     F0(1, 0) = beta * sin(phi) * sin(phi);
     F0(1, 1) = beta * sin(phi) * cos(phi);
-
 
     amrex::Box domain = this->geom[lev].Domain();
     domain.convert(amrex::IntVect::TheNodeVector());
@@ -225,7 +224,7 @@ void PhaseFieldMicrostructure<model_type>::Initialize(int lev)
     Base::Mechanics<model_type>::Initialize(lev);
     ic->Initialize(lev, eta_new_mf);
     ic->Initialize(lev, eta_old_mf);
-    this->model_mf[lev]->setVal(mechanics.model);
+    this->model_mf[lev]->setVal(mechanics.model[0]);
 }
 
 template <class model_type>
@@ -286,13 +285,9 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step)
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                for (int n = 0; n < number_of_grains; n++)
-                {
-                    //Util::Abort(INFO,"need to get this implemented");
-                    //model(i,j,k).order = mechanics.model.order;
-                    //model(i,j,k).m_models[n] = mechanics.model.m_models[n];
-                    //model(i,j,k).m_eta[n] = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,n);
-                }
+                //std::vector<Set::Scalar> etas(number_of_grains);
+                //for (int n = 0; n < number_of_grains; n++)
+                //    etas[n] = Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n);
                 //model(i, j, k) = model_type::Combine(mechanics.model,etas);
             });
         }

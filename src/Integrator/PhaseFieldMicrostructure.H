@@ -81,9 +81,19 @@ public:
 
         // Elasticity
         pp.query("mechanics.tstart",value.mechanics.tstart);
-        //value.mechanics.model.resize(value.number_of_grains);
+        value.mechanics.model.clear();
+        value.mechanics.model.resize(value.number_of_grains,model_type::Zero());
+        for (int i=0; i < value.number_of_grains; i++)
+        {
+            // By default, read in the model specified by "mechanics.model"
+            pp.queryclass("mechanics.model", value.mechanics.model[i]);
 
-        pp.queryclass("mechanics.model",value.mechanics.model);
+            // If individual models are specified, read those in and overwrite
+            std::string name = "mechanics.model" + std::to_string(i+1);
+            if (pp.getEntries(name).size())
+                pp.queryclass(std::string(name.data()), value.mechanics.model[i]);
+        }
+
         value.m_type = Base::Mechanics<model_type>::Disable; // Turn mechanics off by default
         pp.queryclass<Base::Mechanics<model_type>>("mechanics",&value);
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
@@ -344,7 +354,7 @@ private:
     struct
     {
         Set::Scalar tstart = 0.0;
-        model_type model;
+        std::vector<model_type> model;
     } mechanics;
     
 
