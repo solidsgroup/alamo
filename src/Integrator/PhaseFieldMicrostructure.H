@@ -142,12 +142,11 @@ public:
         value.regularization = regularization_type[regularization_type_input];
 
         // Set the anisotropic GB model
-        std::string gb_type = "";
-        pp.query("anisotropy.gb_type", gb_type); // Type of GB energy to use
-        if      (gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
-        else if (gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
-        else if (gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
-        else if (gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
+        pp.query("anisotropy.gb_type", value.gb_type); // Type of GB energy to use
+        if      (value.gb_type == "abssin") value.boundary = new Model::Interface::GB::AbsSin(pp,"anisotropy.abssin");
+        else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
+        else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
+        else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
         else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
 
         // Thermal disconnection fluctuations
@@ -329,6 +328,8 @@ private:
             std::vector<bool> done;
         } fixed;
     } disconnection;
+
+    std::string gb_type, filename;
 
     Model::Interface::GB::GB *boundary;
 

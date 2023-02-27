@@ -100,50 +100,39 @@ public:
 };
 #include "Model/Solid/ExtClassOperators.H"
 
-//template<>
-//inline int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
-//{
-//    return AMREX_SPACEDIM*AMREX_SPACEDIM;
-//}
-//template<>
-//inline std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
-//{
-//    if (i==0) return name + ".epsp_xx";
-//    if (i==1) return name + ".epsp_xy";
-//    if (i==2) return name + ".epsp_xz";
-//    if (i==3) return name + ".epsp_yx";
-//    if (i==4) return name + ".epsp_yy";
-//    if (i==5) return name + ".epsp_yz";
-//    if (i==6) return name + ".epsp_zx";
-//    if (i==7) return name + ".epsp_zy";
-//    if (i==8) return name + ".epsp_zz";
-//    return name;
-//}
-//
-//template<>
-//inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
-//{
-//    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//    {
-//        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
-//        if (bx.ok())
-//        {
-//            amrex::Array4<const Model::Solid::Affine::J2> const & src = ((*this)[a_lev])->array(mfi);
-//            amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
-//            for (int n = 0; n < AMREX_SPACEDIM*AMREX_SPACEDIM; n++)
-//            {
-//                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-//                    dst(i,j,k,a_dstcomp + n) = src(i,j,k).F0(n/AMREX_SPACEDIM,n%AMREX_SPACEDIM);
-//                });
-//            }
-//        }
-//    }    
-//}
-
-
-
 }
 }
+}
+
+template<>
+inline int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
+{
+    return 1;
+}
+
+template<>
+inline std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
+{
+    if (i==0) return name + ".Cxxxx";
+    return name;
+}
+
+template<>
+inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+{
+    for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
+        if (bx.ok())
+        {
+            amrex::Array4<const Model::Solid::Affine::Cubic> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+            {
+                dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
+            });
+}
+    }    
 }
 
 #endif

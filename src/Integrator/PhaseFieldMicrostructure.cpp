@@ -26,6 +26,7 @@
 #include "IC/Trig.H"
 
 #include "Model/Solid/Affine/Cubic.H"
+#include "Model/Solid/Affine/Hexagonal.H"
 
 #include "Util/MPI.H"
 
@@ -358,8 +359,7 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
                         disconnection.sitey.push_back(this->geom[lev].ProbLo()[1] + ((amrex::Real)(j)) * DX[1]);
                         int phase = disconnection.int_dist(disconnection.rand_num_gen);
                         disconnection.phases.push_back(phase);
-                    }
-                });
+                    } });
             }
             // Sync up all the nucleation sites among processors
             Util::MPI::Allgather(disconnection.sitex);
@@ -437,8 +437,7 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
                         // Set::Scalar g1old = (e1old*e1old) / (e0old*e0old + e1old*e1old);
 
                         // model(i,j,k).F0 += (etanew(i,j,k,0) - etaold(i,j,k,0))*F0;
-                        model(i, j, k).F0 += (g0new - g0old) * F0;
-                    });
+                        model(i, j, k).F0 += (g0new - g0old) * F0; });
                 }
 
                 Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
@@ -554,4 +553,6 @@ void PhaseFieldMicrostructure<model_type>::Integrate(int amrlev, Set::Scalar tim
 }
 
 template class PhaseFieldMicrostructure<Model::Solid::Affine::Cubic>;
+template class PhaseFieldMicrostructure<Model::Solid::Affine::Hexagonal>;
+
 } // namespace Integrator
