@@ -99,7 +99,7 @@ public:
         pp.queryclass<Base::Mechanics<model_type>>("mechanics",&value);
         if (value.m_type == Base::Mechanics<model_type>::Type::Static) 
             value.number_of_ghost_cells = std::max(value.number_of_ghost_cells,3);
-
+        
 
         // Lagrange multiplier method for enforcing volumes
         pp.query("lagrange.on", value.lagrange.on);               // Turn on

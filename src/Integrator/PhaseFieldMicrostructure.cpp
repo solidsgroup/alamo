@@ -178,16 +178,8 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
                     }
 
                     etanew(i, j, k, m) -= pf.M * dt * driving_force;
-                if (std::isnan(driving_force) || std::isnan(etanew(i,j,k,m)) || std::isinf(driving_force) || std::isinf(etanew(i,j,k,m))){
-                    Util::Warning(INFO,tmpdf);
-                    Util::Warning(INFO,pf.elastic_df);
-                    Util::Warning(INFO,pf.elastic_mult);
-                    Util::Warning(INFO,pf.elastic_threshold);
-                    Util::Warning(INFO,driving_force);
-                    Util::Warning(INFO,eta(i,j,k,m));
-                    Util::Abort(INFO, "Eta is nan at lev=", lev, ", (", i, " ", j, " ", k, ")[", m, "]");
-                }
-
+                if (std::isnan(driving_force))
+                    Util::Abort(INFO, i, " ", j, " ", k, " ", m);
                 }
             });
         }
