@@ -85,11 +85,11 @@ public:
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
         Set::Scalar etasum = 0.;
-        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n];
+        for (unsigned int n = 0 ; n < models.size(); n++) etasum += eta[n]*eta[n];
         for (unsigned int n = 0 ; n < models.size(); n++)
         {
-            ret.ddw += models[n].ddw * (eta[n] / etasum);
-            ret.F0  += models[n].F0  * (eta[n] / etasum);
+            ret.ddw += models[n].ddw * (eta[n]*eta[n] / etasum);
+            ret.F0  += models[n].F0  * (eta[n]*eta[n] / etasum);
         }
         return ret;
     }
@@ -131,9 +131,9 @@ inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::Mult
             {
                 dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
             });
-        }
+}
     }    
 }
 
-
 #endif
+

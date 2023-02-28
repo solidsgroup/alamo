@@ -79,6 +79,16 @@ public:
     {
         return std::sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2] + data[3]*data[3] + data[4]*data[4] + data[5]*data[5]);
     }
+    bool contains_nan() const
+    {
+        if (std::isnan(data[ 0])) return true;
+        if (std::isnan(data[ 1])) return true;
+        if (std::isnan(data[ 2])) return true;
+        if (std::isnan(data[ 3])) return true;
+        if (std::isnan(data[ 4])) return true;
+        if (std::isnan(data[ 5])) return true;
+        return false;
+    }
 
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] -= a.data[i];}

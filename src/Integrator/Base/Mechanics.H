@@ -84,7 +84,13 @@ public:
         pp.query("interval", value.m_interval);
 
         value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[0]), "disp_xhi_x");
+        value.RegisterIntegratedVariable(&(value.disp_hi[0].data()[1]), "disp_xhi_y");
+        value.RegisterIntegratedVariable(&(value.disp_hi[1].data()[0]), "disp_yhi_x");
+        value.RegisterIntegratedVariable(&(value.disp_hi[1].data()[1]), "disp_yhi_y");
         value.RegisterIntegratedVariable(&(value.trac_hi[0].data()[0]), "trac_xhi_x");
+        value.RegisterIntegratedVariable(&(value.trac_hi[0].data()[1]), "trac_xhi_y");
+        value.RegisterIntegratedVariable(&(value.trac_hi[1].data()[0]), "trac_yhi_x");
+        value.RegisterIntegratedVariable(&(value.trac_hi[1].data()[1]), "trac_yhi_y");
 
         // Maximum multigrid coarsening level (default - none, maximum coarsening)
         pp.query("max_coarsening_level", value.m_max_coarsening_level);
@@ -274,7 +280,8 @@ protected:
 
         //Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 #if AMREX_SPACEDIM == 2
-        Set::Vector da(DX[1], 0);
+        Set::Vector da0(DX[1], 0);
+        Set::Vector da1(0, DX[0]);
 #elif AMREX_SPACEDIM == 3
         Set::Vector da(DX[1] * DX[2], 0, 0);
 #endif
@@ -289,8 +296,13 @@ protected:
 #if AMREX_SPACEDIM == 2
             if (i == hi.x && j < boxhi.y)
             {
-                trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da);
+                trac_hi[0] += (0.5 * (stress(i, j, k) + stress(i, j + 1, k)) * da0);
                 disp_hi[0] = disp(i, j, k);
+            }
+            if (j == hi.y && i < boxhi.x)
+            {
+                trac_hi[1] += (0.5 * (stress(i, j, k) + stress(i + 1, j, k)) * da1);
+                disp_hi[1] = disp(i, j, k);
             }
 #elif AMREX_SPACEDIM == 3
             if (i == hi.x && (j < boxhi.y && k < boxhi.z))
