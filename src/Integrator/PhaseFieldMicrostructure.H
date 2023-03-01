@@ -195,6 +195,24 @@ public:
             value.disconnection.rand_num_gen.seed(amrex::ParallelDescriptor::MyProc());
         }
 
+        // Shear coupling matrices
+        value.shearcouple.Fgb.resize(value.number_of_grains * value.number_of_grains, Set::Matrix::Zero());
+        for (int i = 0 ; i < value.number_of_grains ; i++)
+        for (int j = 0 ; j < value.number_of_grains ; j++)
+        {
+            std::string name    = "shearcouple.Fgb."+std::to_string(i)+"."+std::to_string(j);
+            std::string namerev = "shearcouple.Fgb."+std::to_string(j)+"."+std::to_string(i);
+            if ( i==j && pp.contains(name.data())) 
+                Util::Abort(INFO,"Cannot specify self FGB ", name);
+            if (pp.contains(name.data()) && pp.contains(namerev.data())) 
+                Util::Abort(INFO,"Cannot specify both ",name," and ",namerev);
+            if (pp.contains(name.data())) 
+            {
+                pp.queryarr(name.data(),value.shearcouple.Fgb[i*value.number_of_grains + j]);
+                value.shearcouple.Fgb[j*value.number_of_grains + i] = - value.shearcouple.Fgb[i*value.number_of_grains + j];
+            }
+        }
+
         // Boundary conditions for Etas
         std::string bc_type = "constant";
         pp.query("bc.eta.type",bc_type);  // Type (constnat)
@@ -242,6 +260,7 @@ protected:
     void Integrate(int amrlev, Set::Scalar time, int step,
                     const amrex::MFIter &mfi, const amrex::Box &box) override;
 
+    void UpdateEigenstrain(int lev);
 
     virtual void UpdateModel(int /*a_step*/);
 
@@ -340,6 +359,11 @@ private:
             std::vector<bool> done;
         } fixed;
     } disconnection;
+
+    struct {
+        int on = 0;
+        std::vector<Set::Matrix> Fgb;
+    } shearcouple;
 
     std::string gb_type, filename;
 

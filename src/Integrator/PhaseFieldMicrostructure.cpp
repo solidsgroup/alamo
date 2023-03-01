@@ -179,42 +179,104 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
     }
 
     // if (time < disconnection.tstart) return;
+    
+    UpdateEigenstrain(lev);
 
+//    eta_new_mf[lev]->FillBoundary();
+//
+//    Set::Matrix F0 = Set::Matrix::Zero();
+//
+//    Set::Scalar beta = 0.2;
+//    Set::Scalar phi = -Set::Constant::Pi * 0.15;
+//    F0(0, 0) = - beta * sin(phi) * cos(phi);
+//    F0(0, 1) = - beta * cos(phi) * cos(phi);
+//    F0(1, 0) = beta * sin(phi) * sin(phi);
+//    F0(1, 1) = beta * sin(phi) * cos(phi);
+//
+//    amrex::Box domain = this->geom[lev].Domain();
+//    domain.convert(amrex::IntVect::TheNodeVector());
+//    for (amrex::MFIter mfi(*this->model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
+//    {
+//        const amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
+//        amrex::Array4<const Set::Scalar> const& etaold = (*eta_old_mf[lev]).array(mfi);
+//        amrex::Array4<const Set::Scalar> const& etanew = (*eta_new_mf[lev]).array(mfi);
+//        amrex::Array4<Set::Scalar> const& disc = (*disc_mf[lev]).array(mfi);
+//        amrex::Array4<model_type> const& model = this->model_mf[lev]->array(mfi);
+//        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+//        {
+//            auto sten = Numeric::GetStencil(i, j, k, bx);
+//            Set::Scalar e0new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 0, sten);
+//            Set::Scalar e0old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 0, sten);
+//            Set::Scalar e1new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 1, sten);
+//            Set::Scalar e1old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 1, sten);
+//
+//            Set::Scalar g0new = (e0new * e0new) / (e0new * e0new + e1new * e1new);
+//            Set::Scalar g0old = (e0old * e0old) / (e0old * e0old + e1old * e1old);
+//
+//            model(i, j, k).F0 += (g0new - g0old) * F0;
+//        });
+//    }
+//    Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
+}
+
+template <class model_type>
+void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
+{
+    if (this->m_type == Mechanics<model_type>::Disable) return;
     eta_new_mf[lev]->FillBoundary();
-
-    Set::Matrix F0 = Set::Matrix::Zero();
-
-    Set::Scalar beta = 0.2;
-    Set::Scalar phi = -Set::Constant::Pi * 0.15;
-    F0(0, 0) = - beta * sin(phi) * cos(phi);
-    F0(0, 1) = - beta * cos(phi) * cos(phi);
-    F0(1, 0) = beta * sin(phi) * sin(phi);
-    F0(1, 1) = beta * sin(phi) * cos(phi);
 
     amrex::Box domain = this->geom[lev].Domain();
     domain.convert(amrex::IntVect::TheNodeVector());
+
     for (amrex::MFIter mfi(*this->model_mf[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        const amrex::Box bx = mfi.grownnodaltilebox(); // & domain;
-        amrex::Array4<const Set::Scalar> const& etaold = (*eta_old_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& etanew = (*eta_new_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& disc = (*disc_mf[lev]).array(mfi);
-        amrex::Array4<model_type> const& model = this->model_mf[lev]->array(mfi);
+        //amrex::Box bx = mfi.grownnodaltilebox() & domain;
+        amrex::Box bx = mfi.nodaltilebox();
+        //bx = bx & domain;
+        amrex::Array4<const Set::Scalar> const &etaold = (*eta_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const &etanew = (*eta_new_mf[lev]).array(mfi);
+        //amrex::Array4<Set::Scalar> const &disc = (*disc_mf[lev]).array(mfi);
+        amrex::Array4<model_type> const &model = this->model_mf[lev]->array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             auto sten = Numeric::GetStencil(i, j, k, bx);
-            Set::Scalar e0new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 0, sten);
-            Set::Scalar e0old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 0, sten);
-            Set::Scalar e1new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 1, sten);
-            Set::Scalar e1old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 1, sten);
-
-            Set::Scalar g0new = (e0new * e0new) / (e0new * e0new + e1new * e1new);
-            Set::Scalar g0old = (e0old * e0old) / (e0old * e0old + e1old * e1old);
-
-            model(i, j, k).F0 += (g0new - g0old) * F0;
+            for (int m = 0; m < number_of_grains; m++)
+                for (int n = m+1; n < number_of_grains; n++)
+                {
+                    Set::Scalar emnew = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, m);//, sten);
+                    Set::Scalar emold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, m);//, sten);
+                    Set::Scalar ennew = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, n);//, sten);
+                    Set::Scalar enold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, n);//, sten);
+                    Set::Scalar gmnew = (emnew * emnew) / (emnew * emnew + ennew * ennew);
+                    Set::Scalar gmold = (emold * emold) / (emold * emold + enold * enold);
+                    model(i, j, k, m).F0 -= (gmnew - gmold) * shearcouple.Fgb[m*number_of_grains + n]; 
+                }
         });
+
+        // kludge: update boundaries to match
+        amrex::Dim3 domlo = amrex::lbound(domain), domhi = amrex::ubound(domain);
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+        {
+            //auto sten = Numeric::GetStencil(i, j, k, bx);
+            //for (int m = 0; m < number_of_grains; m++)
+            //    for (int n = m+1; n < number_of_grains; n++)
+            //    {
+            //        Set::Scalar emnew = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, m);//, sten);
+            //        Set::Scalar emold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, m);//, sten);
+            //        Set::Scalar ennew = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, n);//, sten);
+            //        Set::Scalar enold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, n);//, sten);
+            //        Set::Scalar gmnew = (emnew * emnew) / (emnew * emnew + ennew * ennew);
+            //        Set::Scalar gmold = (emold * emold) / (emold * emold + enold * enold);
+            //        model(i, j, k, m).F0 -= (gmnew - gmold) * shearcouple.Fgb[m*number_of_grains + n]; 
+            //    }
+        });
+
+
     }
-    Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
+
+    
+    Util::RealFillBoundary(*this->model_mf[lev],this->geom[lev]);
+
 }
 
 template <class model_type>
@@ -265,9 +327,7 @@ template<class model_type>
 void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step)
 {
     BL_PROFILE("PhaseFieldMicrostructure::UpdateModel");
-    return;
-    if (a_step % this->m_interval)
-        return;
+    if (a_step % this->m_interval) return;
 
     for (int lev = 0; lev <= this->finest_level; ++lev)
     {
@@ -285,10 +345,19 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step)
 
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
             {
-                //std::vector<Set::Scalar> etas(number_of_grains);
-                //for (int n = 0; n < number_of_grains; n++)
-                //    etas[n] = Numeric::Interpolate::CellToNodeAverage(eta, i, j, k, n);
-                //model(i, j, k) = model_type::Combine(mechanics.model, etas);
+                Set::Scalar sumsq = 0;
+                for (int n = 0; n < number_of_grains; n++) sumsq += eta(i,j,k,n)*eta(i,j,k,n);
+
+                model_type mix = model_type::Zero();
+                for (int n = 0; n < number_of_grains; n++)
+                {
+                    mix += eta(i,j,k,n)*eta(i,j,k,n)*mechanics.model[n];
+                }
+
+                if (a_step == 0) // If we are just starting, do a complete model initialization
+                    model(i,j,k) = mix;
+                else // Otherwise, we will set the modulus only and leave the eigenstrain alone
+                    model(i,j,k).ddw = mix.ddw;
             });
         }
 
@@ -301,22 +370,11 @@ template <class model_type>
 void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int iter)
 {
     BL_PROFILE("PhaseFieldMicrostructure::TimeStepBegin");
-    //Base::Mechanics<model_type>::TimeStepBegin(time, iter);
     for (int lev = 0; lev < totaldf_mf.size(); lev++) totaldf_mf[lev]->setVal(0.0);
 
     //
     // Manual Disconnection Nucleation
     //
-
-    Set::Matrix F0 = Set::Matrix::Zero();
-    Set::Scalar beta = 0.2;
-    Set::Scalar phi = -Set::Constant::Pi * 0.15;
-    F0(0, 0) = - beta * sin(phi) * cos(phi);
-    F0(0, 1) = - beta * cos(phi) * cos(phi);
-    F0(1, 0) = beta * sin(phi) * sin(phi);
-    F0(1, 1) = beta * sin(phi) * cos(phi);
-
-    //F0(0, 1) = 0.2;
 
     if (disconnection.on && time > disconnection.tstart && !(iter % disconnection.interval))
     {
@@ -421,20 +479,21 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
                         }
                         // Adjust eigenstrain
 
-                        Set::Scalar e0new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 0, sten);
-                        Set::Scalar e0old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 0, sten);
-                        Set::Scalar e1new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 1, sten);
-                        Set::Scalar e1old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 1, sten);
+                        //Set::Scalar e0new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 0, sten);
+                        //Set::Scalar e0old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 0, sten);
+                        //Set::Scalar e1new = Numeric::Interpolate::CellToNodeAverage(etanew, i, j, k, 1, sten);
+                        //Set::Scalar e1old = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, 1, sten);
 
-                        Set::Scalar g0new = (e0new * e0new) / (e0new * e0new + e1new * e1new);
+                        //Set::Scalar g0new = (e0new * e0new) / (e0new * e0new + e1new * e1new);
                         // Set::Scalar g1new = (e1new*e1new) / (e0new*e0new + e1new*e1new);
-                        Set::Scalar g0old = (e0old * e0old) / (e0old * e0old + e1old * e1old);
+                        //Set::Scalar g0old = (e0old * e0old) / (e0old * e0old + e1old * e1old);
                         // Set::Scalar g1old = (e1old*e1old) / (e0old*e0old + e1old*e1old);
 
                         // model(i,j,k).F0 += (etanew(i,j,k,0) - etaold(i,j,k,0))*F0;
-                        model(i, j, k).F0 += (g0new - g0old) * F0; });
+                        //model(i, j, k).F0 += (g0new - g0old) * F0; });
+                    });
                 }
-
+                UpdateEigenstrain(lev);
                 Util::RealFillBoundary(*this->model_mf[lev], this->geom[lev]);
             }
         }
@@ -469,20 +528,29 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
             {
                 auto sten = Numeric::GetStencil(i,j,k,bx);
                 Set::Matrix gradu = Numeric::Gradient(disp, i, j, k, DX,sten);
-                //for (int n = 0; n < number_of_grains; n++)
-                //    elasticdf(i, j, k, n) = model(i, j, k).DWDeta(gradu, n);
-
-                Set::Scalar eta0 = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,0);
-                Set::Scalar eta1 = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,1);
-
-                Set::Scalar sumsq = (eta0*eta0 + eta1*eta1);
-                sumsq = sumsq * sumsq;
-                Set::Scalar dg0 = 2.0*eta1*eta1*eta0 / sumsq;
-                Set::Scalar dg1 = 2.0*eta1*eta0*eta0 / sumsq;
-
                 Set::Matrix P = model(i,j,k).DW(gradu);
-                elasticdf(i,j,k,0) = -(P.transpose() * F0).trace() * dg0;
-                elasticdf(i,j,k,1) = (P.transpose() * F0).trace() * dg1;
+
+                for (int m = 0; m < number_of_grains; m++)
+                    for (int n = m+1; n < number_of_grains; n++)
+                    {
+                        Set::Scalar etam = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,m);
+                        Set::Scalar etan = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,n);
+
+                        Set::Scalar sumsq = (etam*etam + etan*etan);
+                sumsq = sumsq * sumsq;
+
+                        Set::Scalar dgm = 2.0*etan*etan*etam / sumsq;
+                        Set::Scalar dgn = 2.0*etan*etam*etam / sumsq;
+
+                        Set::Matrix Fgbm = shearcouple.Fgb[m*number_of_grains + n];
+                        Set::Matrix Fgbn = shearcouple.Fgb[n*number_of_grains + m];
+
+                        elasticdf(i,j,k,m) = (P.transpose() * Fgbm).trace() * dgm;
+                        elasticdf(i,j,k,n) = (P.transpose() * Fgbn).trace() * dgn;
+                    }
+                
+
+                
             });
         }
         Util::RealFillBoundary(*elasticdf_mf[lev], this->geom[lev]);
