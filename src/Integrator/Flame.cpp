@@ -342,8 +342,9 @@ namespace Integrator
 
 
 		// Constants
-		Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_0 / zeta;
-		Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_0 / zeta;
+		Set::Scalar zeta_1 = 0.000045 - pressure.P * 6.42e-6; 
+		Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_1 / zeta;
+		Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_1 / zeta;
 		Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0);
                 
 		
@@ -367,9 +368,9 @@ namespace Integrator
 		    Set::Scalar K = thermal.modeling_ap * thermal.k_ap * phi(i,j,k) + thermal.modeling_htpb * thermal.k_htpb * (1.0 - phi(i,j,k));
 		    Set::Scalar qflux = k1 * phi(i,j,k) +
 		                        k2 * (1.0 - phi(i,j,k)) +
-		                        (zeta_0 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
+		                        (zeta_1 / zeta) * exp(k3 * phi(i,j,k) * (1.0 - phi(i,j,k)));
 		    
-		    Set::Scalar mlocal = (thermal.mlocal_ap / pressure.P) * phi(i,j,k) + (thermal.mlocal_htpb) * (1.0 - phi(i,j,k)) + thermal.mlocal_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
+		    Set::Scalar mlocal = (thermal.mlocal_ap) * phi(i,j,k) + (thermal.mlocal_htpb) * (1.0 - phi(i,j,k)) + thermal.mlocal_comb * phi(i,j,k) * (1.0 - phi(i,j,k));
 
 		    Set::Scalar mdota = fabs(mdot(i,j,k));
 
