@@ -108,6 +108,7 @@ private:
       Set::Scalar c1 = 0.0;
       Set::Scalar E1, E2;
       int mob_ap = 1;
+      int dependency = 1; 
     } pressure;
 
 

@@ -71,6 +71,7 @@ namespace Integrator
             pp.query("pressure.E1", value.pressure.E1);
             pp.query("pressure.E2", value.pressure.E2);
 	    pp.query("pressure.mob_ap", value.pressure.mob_ap);
+	    pp.query("pressure.dependency", value.pressure.dependency);
         
         }
 
@@ -342,7 +343,10 @@ namespace Integrator
 
 
 		// Constants
-		Set::Scalar zeta_1 = 0.000045 - pressure.P * 6.42e-6; 
+		Set::Scalar zeta_2 = 0.000045 - pressure.P * 6.42e-6;
+		Set::Scalar zeta_1; 
+		if (pressure.dependency == 1) zeta_1 = zeta_2;
+		else zeta_1 = zeta_0; 
 		Set::Scalar k1 = pressure.a1 * pressure.P + pressure.b1 - zeta_1 / zeta;
 		Set::Scalar k2 = pressure.a2 * pressure.P + pressure.b2 - zeta_1 / zeta;
 		Set::Scalar k3 = 4.0 * log((pressure.c1 * pressure.P * pressure.P + pressure.a3 * pressure.P + pressure.b3) - k1 / 2.0 - k2 / 2.0);
