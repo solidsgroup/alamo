@@ -20,36 +20,63 @@ namespace Integrator
       ic_eta -> Initialize(lev, eta_mf);
       ic_eta -> Initialize(lev, eta_old_mf);
 
-      // Set::Scalar rho_solid = 1.2;
-      // Set::Scalar rho_fluid = 1.0;
-      // Set::Scalar E_solid = 5.0;
-      // Set::Scalar E_fluid = 0.25;
+      Density_fluid_mf[lev] -> setVal(rho_fluid);
+      Density_solid_mf[lev] -> setVal(rho_solid);
+
+      Energy_fluid_mf[lev] -> setVal(E_fluid);
+      Energy_solid_mf[lev] -> setVal(E_solid);
+
+      Momentum_solid_mf[lev] -> setVal(0.0);
 
       for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
 	const amrex::Box &bx = mfi.tilebox();
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+	/////
 	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &E_old = (*Energy_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Ef = (*Energy_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Es = (*Energy_solid_mf[lev]).array(mfi);
+	/////
 	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &rho_old = (*Density_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rhof = (*Density_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rhos = (*Density_solid_mf[lev]).array(mfi);
+	/////
+	amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &M_old = (*Momentum_old_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Mf = (*Momentum_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Ms = (*Momentum_solid_mf[lev]).array(mfi);
+	/////
 	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
 	amrex::Array4<Set::Scalar> const &p_old = (*Pressure_old_mf[lev]).array(mfi);
+	/////
+	amrex::Array4<Set::Scalar> const &v = (*Velocity_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &v_old = (*Velocity_old_mf[lev]).array(mfi);
+	
 	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
 	{
-	  rho(i,j,k) = rho_solid * (1 - eta(i,j,k)) + rho_fluid * eta(i,j,k);
+	  rho(i,j,k) = rhos(i,j,k) * (1 - eta(i,j,k)) + rhof(i,j,k) * eta(i,j,k);
 	  rho_old(i,j,k) = rho(i,j,k);
-	  E(i,j,k) = E_solid * (1 - eta(i,j,k)) + E_fluid * eta(i,j,k);
-	  E_old(i,j,k) = E(i,j,k);
-	  p(i,j,k) = (gamma - 1) * rho(i,j,k) * E(i,j,k);
-	  //if (p(i,j,k) < 0) {cout << p(i,j,k);};
-	  p_old(i,j,k) = p(i,j,k);
-	});}
-      
-      Momentum_mf[lev] -> setVal(0.0);
-      Momentum_old_mf[lev] -> setVal(0.0);
 
-      Velocity_mf[lev] -> setVal(0.0);
-      Velocity_old_mf[lev] -> setVal(0.0);
+	  Mf(i,j,k,0) = Mx_init;
+	  M(i,j,k,0) = Ms(i,j,k,0) * (1 - eta(i,j,k)) + Mf(i,j,k,0) * eta(i,j,k);
+	  M_old(i,j,k,0) = M(i,j,k,0);
+	  ///
+	  Mf(i,j,k,1) = My_init;
+	  M(i,j,k,1) = Ms(i,j,k,1) * (1 - eta(i,j,k)) + Mf(i,j,k,1) * eta(i,j,k);
+	  M_old(i,j,k,1) = M(i,j,k,1);
+	    
+	  E(i,j,k) = Es(i,j,k) * (1 - eta(i,j,k)) + Ef(i,j,k) * eta(i,j,k);
+	  E_old(i,j,k) = E(i,j,k);
+	  
+	  p(i,j,k) = (gamma - 1) * rho(i,j,k) * E(i,j,k);
+	  p_old(i,j,k) = p(i,j,k);
+
+	  v(i,j,k,0) = M(i,j,k,0) / rho(i,j,k);
+	  v_old(i,j,k,0) = v(i,j,k,0);
+	  v(i,j,k,1) = M(i,j,k,1) / rho(i,j,k);
+	  v_old(i,j,k,1) = v(i,j,k,1);
+	});}
       
       c_max = 0.0;
       vx_max = 0.0;
@@ -62,27 +89,42 @@ namespace Integrator
     }
 
   
-    void Hydro::TimeStepEnd(int lev)
+    void Hydro::TimeStepComplete(Set::Scalar , int lev) 
     {
       const Set::Scalar *DX = geom[lev].CellSize();
-      // Syncronize c_max between processors so that they all have the same minimum value
+      
       amrex::ParallelDescriptor::ReduceRealMax(c_max);
       amrex::ParallelDescriptor::ReduceRealMax(vx_max);
       amrex::ParallelDescriptor::ReduceRealMax(vy_max);
 
       Set::Scalar new_timestep = cfl / ((c_max + vx_max) / DX[0] + (c_max + vy_max) / DX[1]);
       
+      Util::Assert(INFO,TEST(AMREX_SPACEDIM == 2));
+      
       SetTimestep(new_timestep);
     }
+
+    
 
     void Hydro::Advance(int lev, Set::Scalar , Set::Scalar dt)
     {
       std::swap(eta_old_mf[lev], eta_mf[lev]);
+      ///
       std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
+      std::swap(Momentum_fluid_old_mf[lev], Momentum_fluid_mf[lev]);
+      ///
       std::swap(Velocity_old_mf[lev], Velocity_mf[lev]);
+      std::swap(Velocity_fluid_old_mf[lev], Velocity_fluid_mf[lev]);
+      ///
       std::swap(Energy_old_mf[lev], Energy_mf[lev]);
+      std::swap(Energy_fluid_old_mf[lev], Energy_fluid_mf[lev]);
+      ///
       std::swap(Density_old_mf[lev], Density_mf[lev]);
+      std::swap(Density_fluid_old_mf[lev], Density_fluid_mf[lev]);
+      ///
       std::swap(Pressure_old_mf[lev], Pressure_mf[lev]);
+      std::swap(Pressure_fluid_old_mf[lev], Pressure_fluid_mf[lev]);
+      
 
       const Set::Scalar *DX = geom[lev].CellSize();
 
@@ -91,10 +133,21 @@ namespace Integrator
 	const amrex::Box &bx = mfi.tilebox();
 
 	amrex::Array4<Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+	///
 	amrex::Array4<Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Ef = (*Energy_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Es = (*Energy_solid_mf[lev]).array(mfi);
+	///
 	amrex::Array4<Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rhof = (*Density_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &rhos = (*Density_solid_mf[lev]).array(mfi);
+	///
 	amrex::Array4<Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Mf = (*Momentum_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const &Ms = (*Momentum_solid_mf[lev]).array(mfi);
+	///
 	amrex::Array4<Set::Scalar> const &v = (*Velocity_mf[lev]).array(mfi);
+	///
 	amrex::Array4<Set::Scalar> const &p = (*Pressure_mf[lev]).array(mfi);
 	
         //Computes Velocity and Pressure over the domain
@@ -103,11 +156,11 @@ namespace Integrator
 	    v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
 	    v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
 
-	    Set::Scalar ke = v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1);
+	    Set::Scalar ke = 0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
 
 	    p(i,j,k) = (gamma - 1.0) * rho(i,j,k) * (E(i,j,k) / rho(i,j,k) - ke);
 
-	    if (p(i,j,k) < 0) {cout << "Negative Pressure";};
+	    //if (p(i,j,k) < 0) {cout << "Negative Pressure";};
 
 	    Set::Scalar c = sqrt(gamma * p(i,j,k) / rho(i,j,k) );
 
@@ -144,7 +197,7 @@ namespace Integrator
 	    vy_right  = v(i,j,k,1) + 0.5 * vy_slope_right - dvy[0] * DX[0];
 	    p_right   = p(i,j,k)   + 0.5 * p_slope_right - dp[0] * DX[0];
 
-	    if (p_right < 0) {cout << "Negative Pressure";};
+	    //if (p_right < 0) {cout << "Negative Pressure";};
 
 	    // left interface: left state
 	    rho_slope_left = (-v(i-1,j,k,0) * drho[0] - dvx[0] * rho(i-1,j,k)) * dt      + (-v(i-1,j,k,1) * drho[1] - dvy[1] * rho(i-1,j,k)) * dt;
@@ -217,35 +270,62 @@ namespace Integrator
 	    // swap flux_y components
 	    std::swap(flux_y[2], flux_y[3]);
 
-	    // update hydro array
-	    E(i-1,j,k)   += -flux_x[1] * dt / DX[0];
-	    E(i,j,k)     += flux_x[1] * dt / DX[0];
-	    E(i,j-1,k)   += -flux_y[1] * dt / DX[1];
-	    E(i,j,k)     += flux_y[1] * dt / DX[1];
+	    // update fluid values - Godunov fluxes
+	    Ef(i-1,j,k)   += -flux_x[1] * dt / DX[0];
+	    Ef(i,j,k)     += flux_x[1] * dt / DX[0];
+	    Ef(i,j-1,k)   += -flux_y[1] * dt / DX[1];
+	    Ef(i,j,k)     += flux_y[1] * dt / DX[1];
+	    //Ef(i,j,k)     += source[3];
 	  
-	    rho(i-1,j,k) += -flux_x[0] * dt / DX[0];
-	    rho(i,j,k)   += flux_x[0] * dt / DX[0];
-	    rho(i,j-1,k) += -flux_y[0] * dt / DX[1];
-	    rho(i,j,k)   += flux_y[0] * dt / DX[1];
+	    rhof(i-1,j,k) += -flux_x[0] * dt / DX[0];
+	    rhof(i,j,k)   += flux_x[0] * dt / DX[0];
+	    rhof(i,j-1,k) += -flux_y[0] * dt / DX[1];
+	    rhof(i,j,k)   += flux_y[0] * dt / DX[1];
+	    //rhof(i,j,k)   += source[0];
 	  
-	    M(i-1,j,k,0) += -flux_x[2] * dt / DX[0];
-	    M(i,j,k,0)   += flux_x[2] * dt / DX[0];
-	    M(i,j-1,k,0) += -flux_y[2] * dt / DX[1];
-	    M(i,j,k,0)   += flux_y[2] * dt / DX[1];
+	    Mf(i-1,j,k,0) += -flux_x[2] * dt / DX[0];
+	    Mf(i,j,k,0)   += flux_x[2] * dt / DX[0];
+	    Mf(i,j-1,k,0) += -flux_y[2] * dt / DX[1];
+	    Mf(i,j,k,0)   += flux_y[2] * dt / DX[1];
+	    //Mf(i,j,k,0)   += source[1]; 
 
-	    M(i-1,j,k,1) += -flux_x[3] * dt / DX[0];
-	    M(i,j,k,1)   += flux_x[3] * dt / DX[0];
-	    M(i,j-1,k,1) += -flux_y[3] * dt / DX[1];
-	    M(i,j,k,1)   += flux_y[3] * dt / DX[1];
+	    Mf(i-1,j,k,1) += -flux_x[3] * dt / DX[0];
+	    Mf(i,j,k,1)   += flux_x[3] * dt / DX[0];
+	    Mf(i,j-1,k,1) += -flux_y[3] * dt / DX[1];
+	    Mf(i,j,k,1)   += flux_y[3] * dt / DX[1];
+	    //Mf(i,j,k,1)   += source[2];
+
+	    // update fluid values - viscous terms
+	    Set::Scalar lap_ux = Numeric::Laplacian(v, i, j, k, 0, DX);
+	    Set::Scalar lap_uy = Numeric::Laplacian(v, i, j, k, 1, DX);
+	    
+	    //Set::Scalar div_ux = Numeric::Divergence(v, i, j, k, 0, DX);
+	    //Set::Scalar div_uy = Numeric::Divergence(v, i, j, k, 1, DX);
+	    
+	    //Set::Vector grad_div_ux = Numeric::Gradient(div_ux, i, j, k, 0, DX);
+	    //Set::Vector grad_div_uy = Numeric::Gradient(div_uy, i, j, k, 0, DX);
+	    
+	    //M(i,j,k,0) += mu * lap_ux; // + mu * grad_div_u/3.;
+	    //M(i,j,k,1) += mu * lap_uy; // + mu * grad_div_u/3.;
 
 	    /// Diffuse Interface Source Terms
 	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
 	    Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-	  
-	    std::array<Set::Scalar,3> source;
-	    source[0] = grad_eta_mag * (rho0 * V);
-	    source[1] = grad_eta_mag * (rho0 * V*V) ;
-	    source[2] = grad_eta_mag * (0.5 * rho0 * V*V*V);
+	    
+	    // std::array<Set::Scalar,3> source;
+	    // source[0] = grad_eta_mag * (rho_solid * std::sqrt(V_cross*V_cross + V_norm*V_norm));
+	    // source[1] = grad_eta_mag * (rho_solid * (V_norm*V_norm));
+	    // source[2] = grad_eta_mag * (rho_solid * (V_cross*V_cross));
+	    // source[3] = grad_eta_mag * (0.5 * rho_solid * (V_cross*V_cross + V_norm*V_norm)*(V_cross*V_cross + V_norm*V_norm)*(V_cross*V_cross + V_norm*V_norm));
+
+	    // update total fields
+	    E(i,j,k)   = Es(i,j,k) * (1 - eta(i,j,k)) + Ef(i,j,k) * eta(i,j,k); //+ source[3];
+	    rho(i,j,k) = rhos(i,j,k) * (1 - eta(i,j,k)) + rhof(i,j,k) * eta(i,j,k); //+ source[0];
+	    M(i,j,k,0)   = Ms(i,j,k,0) * (1 - eta(i,j,k)) + Mf(i,j,k,0) * eta(i,j,k); //+ source[1];
+	    M(i,j,k,1)   = Ms(i,j,k,1) * (1 - eta(i,j,k)) + Mf(i,j,k,1) * eta(i,j,k); //+ source[2];
+
+	    //Advance eta
+
  	});
       }      
     }//end Advance

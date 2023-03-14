@@ -75,36 +75,29 @@ namespace Local
     rev(2, 3) = (-rho_RL / 2 / a_RL) * (h_RL - a_RL * vel_RL);
 
     // compute fluxes
-    Set::Scalar ue_left_state, ke_left_state, ue_right_state, ke_right_state;
-    ue_left_state = ue_l;
-    ke_left_state = 0.5 * left_state[0] * (left_state[1] * left_state[1] + left_state[2] * left_state[2]);
-
-    ue_right_state = ue_r;
-    ke_right_state = 0.5 * left_state[0] * (left_state[1] * left_state[1] + left_state[2] * left_state[2]);
-
     std::array<Set::Scalar,4> dynamic_flux_left; 
     dynamic_flux_left[0] = left_state[0] * left_state[1];
     dynamic_flux_left[2] = dynamic_flux_left[0] * left_state[1];
     dynamic_flux_left[3] = dynamic_flux_left[0] * left_state[1];
-    dynamic_flux_left[1] = left_state[1] * ke_left_state;
+    dynamic_flux_left[1] = left_state[1] * ke_l;
 
     std::array<Set::Scalar,4> static_flux_left; 
     static_flux_left[0] = 0.;
     static_flux_left[2] = left_state[3];
     static_flux_left[3] = 0.;
-    static_flux_left[1] = left_state[1] * (ue_left_state + left_state[3]);
+    static_flux_left[1] = left_state[1] * (ue_l + left_state[3]);
 
     std::array<Set::Scalar,4> dynamic_flux_right; 
     dynamic_flux_right[0] = right_state[0] * right_state[1];
     dynamic_flux_right[2] = dynamic_flux_right[0] * right_state[1];
     dynamic_flux_right[3] = dynamic_flux_right[0] * right_state[1];
-    dynamic_flux_right[1] = right_state[1] * ke_right_state;
+    dynamic_flux_right[1] = right_state[1] * ke_r;
 
     std::array<Set::Scalar,4> static_flux_right; 
     static_flux_right[0] = 0.;
     static_flux_right[2] = right_state[3];
     static_flux_right[3] = 0.;
-    static_flux_right[1] = right_state[1] * (ue_right_state + right_state[3]);
+    static_flux_right[1] = right_state[1] * (ue_r + right_state[3]);
         
     // flux
     std::array<Set::Scalar,4> fl;
