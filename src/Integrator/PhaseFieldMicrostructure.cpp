@@ -181,9 +181,19 @@ void PhaseFieldMicrostructure<model_type>::Advance(int lev, Set::Scalar time, Se
             for (int m = 0; m < number_of_grains; m++)
             {
                 if (driving_force_threshold(i,j,k,m) > pf.threshold.value)
-                    eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m) - pf.threshold.value);
+                {
+                    if (pf.threshold.type == ThresholdType::Continuous) 
+                        eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m) - pf.threshold.value);
+                    else if (pf.threshold.type == ThresholdType::Chop)
+                        eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m));
+                }
                 else if (driving_force_threshold(i,j,k,m) < -pf.threshold.value)
-                    eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m) + pf.threshold.value);
+                {
+                    if (pf.threshold.type == ThresholdType::Continuous) 
+                        eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m) + pf.threshold.value);
+                    else if (pf.threshold.type == ThresholdType::Chop)
+                        eta(i,j,k,m) -= pf.L * dt * (driving_force_threshold(i,j,k,m));
+                }
 
                 eta(i,j,k,m) -= pf.L * dt * driving_force(i,j,k,m);
             }

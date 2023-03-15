@@ -79,6 +79,13 @@ public:
         pp.query("pf.threshold.corner",value.pf.threshold.corner);      // Whether to include corner regularization in threshold
         pp.query("pf.threshold.lagrange",value.pf.threshold.lagrange);  // Whether to include lagrange multiplier in threshold
         pp.query("pf.threshold.mechanics",value.pf.threshold.mechanics);// Whether to include mechanical driving force in threshold
+        {
+            std::string type = "continuous";
+            pp.query("pf.threshold.type",type); // Type of thresholding to use
+            if (type == "continuous") value.pf.threshold.type = ThresholdType::Continuous;
+            else if (type == "chop") value.pf.threshold.type = ThresholdType::Chop;
+            else Util::Abort(INFO,"Invalid threshold type");
+        }
         
         value.pf.L = (4./3.)*value.pf.M / value.pf.l_gb;
     
@@ -212,6 +219,9 @@ private:
 
     //amrex::Real M, mu, gamma, sigma0, l_gb, beta;
     RegularizationType regularization = RegularizationType::K12;
+    enum ThresholdType {
+        Continuous = 0, Chop = 1
+    };
     struct {
         Set::Scalar M;
         Set::Scalar L;
@@ -228,6 +238,7 @@ private:
             bool lagrange = true;
             bool mechanics = true;
             Set::Scalar value = 0.0;
+            ThresholdType type = ThresholdType::Continuous;
         } threshold;
     } pf;
 
