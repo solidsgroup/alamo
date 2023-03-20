@@ -14,9 +14,24 @@ namespace IO
 ///
 class ParmParse : public amrex::ParmParse
 {
+private:
+    void Define() 
+    {
+        if (checked_for_input_files) return;
+        int k = 0;
+        std::string inputfile = "";
+        while (this->querykth("input",k,inputfile)) 
+        {
+            Util::Message(INFO,"Including inputs from "+inputfile);
+            this->addfile(inputfile);
+            k++;
+        }
+        checked_for_input_files = true;
+    }
+    static bool checked_for_input_files;
 public:
-    ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {} ;
-    ParmParse() : amrex::ParmParse::ParmParse() {} ;
+    ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {Define();} ;
+    ParmParse() : amrex::ParmParse::ParmParse() {Define();} ;
     int queryarr(std::string name, Set::Vector & value)
     {
         std::vector<Set::Scalar> vals;

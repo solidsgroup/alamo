@@ -153,7 +153,7 @@ public:
         else if (value.gb_type == "sin")    value.boundary = new Model::Interface::GB::Sin(pp,"anisotropy.sin");
         else if (value.gb_type == "read")   value.boundary = new Model::Interface::GB::Read(pp,"anisotropy.read");
         else if (value.gb_type == "sh")     value.boundary = new Model::Interface::GB::SH(pp,"anisotropy.sh");
-        else if (value.anisotropy.on)       Util::Abort(INFO,"A GB model must be specified");
+        else if (value.anisotropy.on)       Util::Abort(INFO,"Invalid gb type " + value.gb_type);
 
         // Boundary conditions for Etas
         std::string bc_type = "constant";
