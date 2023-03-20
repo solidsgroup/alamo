@@ -131,9 +131,9 @@ inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::Mult
             {
                 dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
             });
-        }
+}
     }    
 }
 
-
 #endif
+
