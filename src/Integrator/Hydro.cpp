@@ -124,7 +124,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
     std::swap(Density_fluid_old_mf[lev], Density_fluid_mf[lev]);
     ///
     std::swap(Pressure_old_mf[lev], Pressure_mf[lev]);
-    std::swap(Pressure_fluid_old_mf[lev], Pressure_fluid_mf[lev]);
 
 
     const Set::Scalar* DX = geom[lev].CellSize();
