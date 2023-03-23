@@ -249,7 +249,7 @@ void PhaseFieldMicrostructure<model_type>::UpdateEigenstrain(int lev)
                     Set::Scalar enold = Numeric::Interpolate::CellToNodeAverage(etaold, i, j, k, n);//, sten);
                     Set::Scalar gmnew = (emnew * emnew) / (emnew * emnew + ennew * ennew);
                     Set::Scalar gmold = (emold * emold) / (emold * emold + enold * enold);
-                    model(i, j, k, m).F0 -= (gmnew - gmold) * shearcouple.Fgb[m*number_of_grains + n]; 
+                    model(i, j, k).F0 -= (gmnew - gmold) * shearcouple.Fgb[m*number_of_grains + n]; 
                 }
         });
 
@@ -355,9 +355,9 @@ void PhaseFieldMicrostructure<model_type>::UpdateModel(int a_step)
                 }
 
                 if (a_step == 0) // If we are just starting, do a complete model initialization
-                    model(i,j,k) = mix;
+                    model(i,j,k) = (1./sumsq) * mix ;
                 else // Otherwise, we will set the modulus only and leave the eigenstrain alone
-                    model(i,j,k).ddw = mix.ddw;
+                    model(i,j,k).ddw = mix.ddw / sumsq;
             });
         }
 
@@ -537,20 +537,17 @@ void PhaseFieldMicrostructure<model_type>::TimeStepBegin(Set::Scalar time, int i
                         Set::Scalar etan = Numeric::Interpolate::CellToNodeAverage(eta,i,j,k,n);
 
                         Set::Scalar sumsq = (etam*etam + etan*etan);
-                sumsq = sumsq * sumsq;
+                        sumsq = sumsq * sumsq;
 
                         Set::Scalar dgm = 2.0*etan*etan*etam / sumsq;
                         Set::Scalar dgn = 2.0*etan*etam*etam / sumsq;
 
-                        Set::Matrix Fgbm = shearcouple.Fgb[m*number_of_grains + n];
                         Set::Matrix Fgbn = shearcouple.Fgb[n*number_of_grains + m];
+                        Set::Matrix Fgbm = shearcouple.Fgb[m*number_of_grains + n];
 
                         elasticdf(i,j,k,m) = (P.transpose() * Fgbm).trace() * dgm;
                         elasticdf(i,j,k,n) = (P.transpose() * Fgbn).trace() * dgn;
-                    }
-                
-
-                
+                    }                
             });
         }
         Util::RealFillBoundary(*elasticdf_mf[lev], this->geom[lev]);
