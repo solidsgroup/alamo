@@ -111,7 +111,8 @@ namespace Integrator
             pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
 
             pp.query("thermal.hc", value.thermal.hc);
-
+	    pp.query("thermal.massfraction", value.thermal.massfraction);
+	    
 	    pp.query("thermal.mlocal_ap", value.thermal.mlocal_ap);
 	    pp.query("thermal.mlocal_htpb", value.thermal.mlocal_htpb);
 	    pp.query("thermal.mlocal_comb", value.thermal.mlocal_comb);
@@ -217,6 +218,8 @@ namespace Integrator
 	thermal.w1 = 0.2 * pressure.P + 0.9;
 
 	ic_laser->Initialize(lev,laser_mf,0.0);
+
+	thermal.mlocal_htpb = 685000.0 - 850e3*thermal.massfraction;
 	/*
 	if(thermal.laseron == 0){
 	  laser_mf[lev] -> setVal(thermal.q0);

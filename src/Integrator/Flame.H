@@ -128,6 +128,7 @@ private:
       int controlj1 = 0, controlj2 = 0, laseron = 0;
       int lasershut = 1;
       Set::Scalar laseroff = 1.0;
+      Set::Scalar massfraction = 0.8;
     } thermal;
 
     struct {
