@@ -41,10 +41,7 @@ public:
 	pp.query("rho_fluid", value.rho_fluid);
 	pp.query("E_solid", value.E_solid);
 	pp.query("E_fluid", value.E_fluid);
-	//pp.query("rho0", value.rho0);
-	//pp.query("V", value.V);
-
-	//value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
+	
 	value.bc_eta = new BC::Constant(1, pp , "pf.eta.bc");
 	value.bc_rho = new BC::Constant(1, pp, "rho.bc");
 	value.bc_E   = new BC::Constant(1, pp, "E.bc");
@@ -78,8 +75,8 @@ public:
 	value.RegisterNewFab(value.Velocity_fluid_mf, value.bc_v, 2, 2, "Velocity_fluid", true);
 	value.RegisterNewFab(value.Velocity_solid_mf, value.bc_v, 2, 2, "Velocity_solid", true);
 	
-	value.RegisterNewFab(value.Pressure_fluid_mf, value.bc_p, 1, 2, "Pressure", true);
-	value.RegisterNewFab(value.Pressure_fluid_old_mf, value.bc_p, 1, 2, "Pressure_old", true);
+	value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, 2, "Pressure", true);
+	value.RegisterNewFab(value.Pressure_old_mf, value.bc_p, 1, 2, "Pressure_old", true);
       }
       {
       BL_PROFILE("Integrator::Hydro::Hydro()");

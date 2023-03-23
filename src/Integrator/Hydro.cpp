@@ -76,7 +76,8 @@ namespace Integrator
 	  v_old(i,j,k,0) = v(i,j,k,0);
 	  v(i,j,k,1) = M(i,j,k,1) / rho(i,j,k);
 	  v_old(i,j,k,1) = v(i,j,k,1);
-	});}
+	});
+      }
       
       c_max = 0.0;
       vx_max = 0.0;
