@@ -139,12 +139,69 @@ public:
                     Util::Message(INFO,"F \n",F);
                     Util::Message(INFO,"det(F) = ",F.determinant());
                     Util::Message(INFO,"ddw exact \n",ddw_exact);
-                    Util::Message(INFO,"ddw numeric \n",ddw_numeric);::
-                    Util::Message(INFO,"ddw difference \n",ddw_exact - ddw_numeric);::
+                    Util::Message(INFO,"ddw numeric \n",ddw_numeric);
+                    Util::Message(INFO,"ddw difference \n",ddw_exact - ddw_numeric);
                     Util::Message(INFO,"error norm \n",relnorm);
                 }
                 return 1;
             }   
+        }
+        return 0;
+    }
+
+    template <class T>
+    static int MaterialFrameIndifference(int verbose = 0)
+    {
+        if (T::kinvar != Model::Solid::KinematicVariable::F)
+            Util::Abort(INFO,"Attempting to test material frame indifference in a non-finite-kinematics model will fail");
+
+        for (int iter = 0; iter < 10; iter++)
+        {
+            T model = T::Random();
+
+            Set::Scalar tol = 1E-4;
+            Set::Matrix F = Set::Matrix::Random();
+            while (fabs(F.determinant()) < 0.0) F = Set::Matrix::Random(); // Ensure that F in GL(3)
+
+            Set::Scalar W_unrotated = model.W(F);
+
+            for (int jter = 0; jter < 10; jter++)
+            {
+                #if AMREX_SPACEDIM == 2
+                Set::Scalar theta = 2.0 * Set::Constant::Pi * Util::Random();
+                Set::Matrix R;
+                R(0,0) =  cos(theta);
+                R(0,1) =  sin(theta);
+                R(1,0) = -sin(theta);
+                R(1,1) =  cos(theta);
+                #elif AMREX_SPACEDIM == 3
+                Set::Scalar phi1 = 2.0 * Set::Constant::Pi *(Util::Random() - 0.5);
+                Set::Scalar Phi  = Set::Constant::Pi * Util::Random();
+                Set::Scalar phi2 = 2.0 * Set::Constant::Pi *(Util::Random() - 0.5);
+                Eigen::Matrix3d R;
+                R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+                    Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+                #endif
+
+                Util::Assert(INFO,TEST( fabs(R.determinant() - 1.0) < tol ));
+                Util::Assert(INFO,TEST( fabs((R.transpose() * R - Set::Matrix::Identity()).norm()) < tol ));
+                
+                Set::Scalar W_rotated = model.W(R*F);
+                Set::Scalar error = fabs(W_rotated - W_unrotated);
+
+                if (error > tol)
+                {
+                    if (verbose)
+                    {
+                        Util::Message(INFO,"F = \n",F);
+                        Util::Message(INFO,"R = \n",R);
+                        Util::Message(INFO,"W unrotated = ",W_unrotated);
+                        Util::Message(INFO,"W rotated = ",W_rotated);
+                    }
+                    return 1;
+                }
+            }
         }
         return 0;
     }
