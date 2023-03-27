@@ -35,27 +35,20 @@ public:
 
     static constexpr Set::Sym sym = SYM;
 
-    AMREX_FORCE_INLINE
-    virtual Set::Matrix operator () (Set::Matrix &F, bool /*a_homogeneous=true*/=true) const
-    {
-        return ddw*F;
-    };
-
-    AMREX_FORCE_INLINE
-    virtual Set::Vector operator () (Set::Matrix3 &gradF, bool /*a_homogeneous=true*/=true)
-    {
-        return ddw*gradF;
-    };
-
-    virtual Set::Scalar W(const Set::Matrix &) const          {Util::Abort(INFO,"W not implemented"); return 0.0;};
-    virtual Set::Matrix DW(const Set::Matrix &) const         {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
-    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const {Util::Abort(INFO,"DDW not implemented"); return ddw;};
+    virtual Set::Scalar W(const Set::Matrix &) const      
+    {Util::Abort(INFO,"W not implemented"); return 0.0;};
+    virtual Set::Matrix DW(const Set::Matrix &) const         
+    {Util::Abort(INFO,"DW not implemented"); return Set::Matrix::Zero();};
+    virtual Set::Matrix4<AMREX_SPACEDIM,SYM> DDW(const Set::Matrix &) const 
+    {Util::Abort(INFO,"DDW not implemented"); return Set::Matrix4<AMREX_SPACEDIM,SYM>::Zero();};
     
     virtual void Advance(Set::Scalar, Set::Matrix, Set::Matrix) {}
 
+    // Todo: implement for all models and make this pure virtual
+    virtual bool ContainsNan() {return true;};
+
 
 public:
-    Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
     static const KinematicVariable kinvar = KinematicVariable::F;
 
 
@@ -70,6 +63,40 @@ public:
     }
 
 public: 
+    template <class T>
+    static int ArithmeticTest(int verbose = 0)
+    {
+        const T z = T::Zero();
+        if (!(z==z) && verbose) 
+        {
+            Util::Message(INFO,"Zero() failed: z = \n",z); return 1;
+        }
+        
+        const T a = T::Random();
+        if (!(a==a) && verbose) 
+        {
+            Util::Message(INFO,"Random() failed: a = \n",a); return 1;
+        }
+
+        const T b = T::Random();
+
+        T c = a;
+        if (!(c==a) && verbose) {Util::Message(INFO); return 1;}
+        c = 1.0 * a;
+        if (!(c==a) && verbose) {Util::Message(INFO); return 1;}
+        c = 0.0 * a;
+        if (!(c==z) && verbose) 
+        {
+            Util::Message(INFO,"0.0*a = \n",c); 
+            Util::Message(INFO,"Zero() returns \n",z); 
+            return 1;
+        }
+
+        // Todo: add some more arithmetic checks in here
+
+        return 0;
+    }
+
     template <class T>
     static int DerivativeTest1(int verbose = 0)
     {

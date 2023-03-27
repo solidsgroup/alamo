@@ -35,6 +35,7 @@ public:
     }
     friend Set::Matrix operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Matrix  &b);
     friend Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Matrix3 &b);
+    friend bool operator == (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator + (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator - (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b);
     friend Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Set::Scalar &b);
@@ -86,6 +87,12 @@ Set::Vector operator * (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, const Se
             ret(i) += a.A(i,j) * b(i,j,j);
 
     return ret;
+}
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+bool operator == (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, 
+                 const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &b)
+{
+    return a.A == b.A;
 }
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<AMREX_SPACEDIM,Sym::Diagonal> operator + (const Matrix4<AMREX_SPACEDIM,Sym::Diagonal> &a, 

@@ -16,7 +16,7 @@ class Hexagonal : public Linear::Hexagonal
 public:
 
     Hexagonal() {};
-    Hexagonal(Solid<Set::Sym::MajorMinor> base) : Linear::Hexagonal(base) {};
+    Hexagonal(Linear::Hexagonal base) : Linear::Hexagonal(base) {};
     virtual ~Hexagonal() {};
 
     void

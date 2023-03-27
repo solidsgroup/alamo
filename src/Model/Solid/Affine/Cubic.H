@@ -16,7 +16,7 @@ class Cubic : public Linear::Cubic
 public:
 
     Cubic() {};
-    Cubic(Solid<Set::Sym::MajorMinor> base) : Linear::Cubic(base) {};
+    Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
     virtual ~Cubic() {};
 
     void

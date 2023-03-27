@@ -14,7 +14,7 @@ class PseudoLinearCubic : public Solid<Set::Sym::Major>
 {
 public:
     PseudoLinearCubic() {};
-    PseudoLinearCubic(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
+    //PseudoLinearCubic(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
     virtual ~PseudoLinearCubic() {};
 
     Set::Scalar W(const Set::Matrix & F) const override
@@ -34,7 +34,7 @@ public:
         {
             dw(i,J) += 0.5 * F(i,A)*CC(J,A,R,S) * (C(R,S) - ((R==S) ? 1.0 : 0.0));
         }
-        return dw;
+        return dw;      
     }
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
     {
@@ -53,10 +53,11 @@ public:
                 {
                     ddw(i,J,k,L) += 0.5*I(i,k)*CC(J,L,A,B) * (C(A,B) - I(A,B));
                     ddw(i,J,k,L) += F(i,A)*F(k,B)*CC(A,J,B,L);
+                    if (std::isnan(ddw(i,J,k,L))) Util::Abort(INFO);
                 }
         }
 
-        return ddw;
+        return ddw;   
     }
     virtual void Print(std::ostream &out) const override 
     {
@@ -71,7 +72,7 @@ public:
     static PseudoLinearCubic Zero()
     {
         PseudoLinearCubic ret;
-        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
+        ret.CC = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         return ret;
     }
     static PseudoLinearCubic Random()
@@ -82,9 +83,10 @@ public:
     {
         PseudoLinearCubic ret;
         Set::Scalar phi1 = 2.0*Set::Constant::Pi * Util::Random();
-        Set::Scalar Phi  = 2.0*Set::Constant::Pi * Util::Random();
+        Set::Scalar Phi  =     Set::Constant::Pi * Util::Random();
         Set::Scalar phi2 = 2.0*Set::Constant::Pi * Util::Random();
         ret.CC = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Cubic(C11,C12,C44,phi1,Phi,phi2);
+        if (ret.CC.contains_nan()) Util::Abort(INFO);
         return ret;
     }
     static void Parse(PseudoLinearCubic & value, IO::ParmParse & pp)
@@ -97,6 +99,7 @@ public:
         if (pp.contains("random"))
         {
             value = PseudoLinearCubic::Random(C11,C12,C44);
+            if (value.CC.contains_nan()) Util::Abort(INFO);
             return;
         }
 
