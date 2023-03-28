@@ -49,7 +49,12 @@ public:
     {
         out << "lambda="<<ddw.Lambda()<<", mu="<<ddw.Mu()<< ", F0=\n" << F0;
     }
-
+    virtual bool ContainsNan()
+    {
+        if (F0.hasNaN()) return true;
+        if (ddw.contains_nan()) return true;
+        else return false;
+    }
 public:
     static Isotropic Zero()
     {

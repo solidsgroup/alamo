@@ -77,6 +77,15 @@ public:
         zero.data[4] = 0.0;
         return zero;
     }
+    bool contains_nan() const
+    {
+        if (std::isnan(data[0])) return true;
+        if (std::isnan(data[1])) return true;
+        if (std::isnan(data[2])) return true;
+        if (std::isnan(data[3])) return true;
+        if (std::isnan(data[4])) return true;
+        return false;
+    }
 };
     
 template<>
@@ -210,6 +219,27 @@ public:
         for (int i = 0 ; i < 15; i++) ret.data[i] = 0.0;
         return ret;
     }
+
+    bool contains_nan() const
+    {
+        if (std::isnan(data[ 0])) return true;
+        if (std::isnan(data[ 1])) return true;
+        if (std::isnan(data[ 2])) return true;
+        if (std::isnan(data[ 3])) return true;
+        if (std::isnan(data[ 4])) return true;
+        if (std::isnan(data[ 5])) return true;
+        if (std::isnan(data[ 6])) return true;
+        if (std::isnan(data[ 7])) return true;
+        if (std::isnan(data[ 8])) return true;
+        if (std::isnan(data[ 9])) return true;
+        if (std::isnan(data[10])) return true;
+        if (std::isnan(data[11])) return true;
+        if (std::isnan(data[12])) return true;
+        if (std::isnan(data[13])) return true;
+        if (std::isnan(data[14])) return true;
+        return false;
+    }
+
 };
 std::ostream&
 operator<< (std::ostream& os, const Matrix4<3,Sym::Full>& b);

@@ -328,7 +328,7 @@ protected:
             Solver::Nonlocal::Newton<brittle_fracture_model_type_test>  solver(op_b);
             //Solver::Nonlocal::Linear<brittle_fracture_model_type_test>  solver(op_b);
             pp.queryclass("solver",solver);
-            solver.solve(elastic.disp_mf, elastic.rhs_mf, material.model_mf);
+            solver.solve(elastic.disp_mf, elastic.rhs_mf, material.model_mf,1E-8,1E-8);
             solver.compResidual(elastic.residual_mf,elastic.disp_mf,elastic.rhs_mf,material.model_mf);
         }
         

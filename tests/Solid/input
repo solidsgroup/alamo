@@ -70,6 +70,15 @@
 #@  benchmark-statler = 8.17
 #@  benchmark-github = 11.35
 #@ 
+#@  [pseudolinear-cubic]
+#@  dim = 3
+#@  check-file = reference/pseudolinear-cubic.dat
+#@  args = alamo.program.mechanics.model=elastic.pseudolinearcubic
+#@  args = model1.C11=168.3
+#@  args = model1.C12=1.221
+#@  args = model1.C44=0.757
+#@  ignore = model1.E model1.nu
+#@
 
 alamo.program = mechanics
 
