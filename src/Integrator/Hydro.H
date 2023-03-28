@@ -58,29 +58,26 @@ public:
             value.RegisterNewFab(value.Density_mf, value.bc_rho, 1, 2, "Density", true);
             value.RegisterNewFab(value.Density_old_mf, value.bc_rho, 1, 2, "rho_old", false);
             value.RegisterNewFab(value.Density_fluid_mf, value.bc_rho, 1, 2, "Density_fluid", true);
-            value.RegisterNewFab(value.Density_fluid_old_mf, value.bc_rho, 1, 2, "Density_fluid old", false);
+            value.RegisterNewFab(value.Density_fluid_old_mf, value.bc_rho, 1, 2, "rhof_old", false);
             value.RegisterNewFab(value.Density_solid_mf, value.bc_rho, 1, 2, "Density_solid", true);
 
             value.RegisterNewFab(value.Energy_mf, value.bc_E, 1, 2, "Energy", true);
             value.RegisterNewFab(value.Energy_old_mf, value.bc_E, 1, 2, "E_old", false);
             value.RegisterNewFab(value.Energy_fluid_mf, value.bc_E, 1, 2, "Energy_fluid", true);
-            value.RegisterNewFab(value.Energy_fluid_old_mf, value.bc_E, 1, 2, "Energy_fluid old", false);
+            value.RegisterNewFab(value.Energy_fluid_old_mf, value.bc_E, 1, 2, "Ef_old", false);
             value.RegisterNewFab(value.Energy_solid_mf, value.bc_E, 1, 2, "Energy_solid", true);
 
             value.RegisterNewFab(value.Momentum_mf, value.bc_M, 2, 2, "Momentum", true);
             value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 2, 2, "M_old", false);
             value.RegisterNewFab(value.Momentum_fluid_mf, value.bc_M, 2, 2, "Momentum_fluid", true);
-            value.RegisterNewFab(value.Momentum_fluid_old_mf, value.bc_M, 2, 2, "Momentum_fluid old", false);
+            value.RegisterNewFab(value.Momentum_fluid_old_mf, value.bc_M, 2, 2, "Mf_old", false);
             value.RegisterNewFab(value.Momentum_solid_mf, value.bc_M, 2, 2, "Momentum_solid", true);
 
             value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, 2, "Velocity", true);
-            value.RegisterNewFab(value.Velocity_old_mf, value.bc_v, 2, 2, "Velocity_old", true);
-            value.RegisterNewFab(value.Velocity_fluid_mf, value.bc_v, 2, 2, "Velocity_fluid", true);
-            value.RegisterNewFab(value.Velocity_fluid_old_mf, value.bc_v, 2, 2, "Velocity_fluid old", false);
-            value.RegisterNewFab(value.Velocity_solid_mf, value.bc_v, 2, 2, "Velocity_solid", true);
+            value.RegisterNewFab(value.Velocity_old_mf, value.bc_v, 2, 2, "v_old", true);
 
             value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, 2, "Pressure", true);
-            value.RegisterNewFab(value.Pressure_old_mf, value.bc_p, 1, 2, "Pressure_old", true);
+            value.RegisterNewFab(value.Pressure_old_mf, value.bc_p, 1, 2, "P_old", true);
         }
         {
             BL_PROFILE("Integrator::Hydro::Hydro()");

@@ -21,9 +21,11 @@ void Hydro::Initialize(int lev)
     ic_eta->Initialize(lev, eta_old_mf);
 
     Density_fluid_mf[lev]->setVal(rho_fluid);
+    rhof_old_mf[lev]->setVal(rho_fluid);
     Density_solid_mf[lev]->setVal(rho_solid);
 
     Energy_fluid_mf[lev]->setVal(E_fluid);
+    Ef_mf[lev]->setVal(E_fluid);
     Energy_solid_mf[lev]->setVal(E_solid);
 
     Momentum_solid_mf[lev]->setVal(0.0);
@@ -33,25 +35,28 @@ void Hydro::Initialize(int lev)
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& E_old = (*Energy_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& E_old = (*E_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& Ef = (*Energy_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const& Ef_old = (*Ef_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& Es = (*Energy_solid_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& rho = (*Density_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& rho_old = (*Density_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& rho_old = (*rho_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& rhof = (*Density_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const& rhof_old = (*rhof_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& rhos = (*Density_solid_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& M = (*Momentum_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& M_old = (*Momentum_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& Mf = (*Momentum_fluid_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const& Mf_old = (*Mf_old_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& Ms = (*Momentum_solid_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& p_old = (*Pressure_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& p_old = (*P_old_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& v_old = (*Velocity_old_mf[lev]).array(mfi);
+        amrex::Array4<Set::Scalar> const& v_old = (*v_old_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
@@ -111,19 +116,18 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 {
     std::swap(eta_old_mf[lev], eta_mf[lev]);
     ///
-    std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
-    std::swap(Momentum_fluid_old_mf[lev], Momentum_fluid_mf[lev]);
+    std::swap(M_old_mf[lev], Momentum_mf[lev]);
+    std::swap(Mf_old_mf[lev], Momentum_fluid_mf[lev]);
     ///
-    std::swap(Velocity_old_mf[lev], Velocity_mf[lev]);
-    std::swap(Velocity_fluid_old_mf[lev], Velocity_fluid_mf[lev]);
+    std::swap(v_old_mf[lev], Velocity_mf[lev]);
     ///
-    std::swap(Energy_old_mf[lev], Energy_mf[lev]);
-    std::swap(Energy_fluid_old_mf[lev], Energy_fluid_mf[lev]);
+    std::swap(E_old_mf[lev], Energy_mf[lev]);
+    std::swap(Ef_old_mf[lev], Energy_fluid_mf[lev]);
     ///
-    std::swap(Density_old_mf[lev], Density_mf[lev]);
-    std::swap(Density_fluid_old_mf[lev], Density_fluid_mf[lev]);
+    std::swap(rho_old_mf[lev], Density_mf[lev]);
+    std::swap(rhof_old_mf[lev], Density_fluid_mf[lev]);
     ///
-    std::swap(Pressure_old_mf[lev], Pressure_mf[lev]);
+    std::swap(P_old_mf[lev], Pressure_mf[lev]);
 
 
     const Set::Scalar* DX = geom[lev].CellSize();
