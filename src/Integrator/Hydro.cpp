@@ -30,8 +30,8 @@ void Hydro::Initialize(int lev)
 
     Momentum_solid_mf[lev]->setVal(0.0);
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
-        const amrex::Box& bx = mfi.tilebox();
+    for (amrex::MFIter mfi(*eta_mf[lev],  true); mfi.isValid(); ++mfi) {
+      const amrex::Box& bx = mfi.growntilebox(); // todo replace with tilebox
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
@@ -94,6 +94,8 @@ void Hydro::TimeStepBegin(Set::Scalar, int)
 
 void Hydro::TimeStepComplete(Set::Scalar, int lev)
 {
+  return;
+    
     const Set::Scalar* DX = geom[lev].CellSize();
 
     amrex::ParallelDescriptor::ReduceRealMax(c_max);
@@ -129,9 +131,9 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
-    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.tilebox();
+        const amrex::Box& bx = mfi.validbox();
 
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
         ///
@@ -300,12 +302,12 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	    //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
             //Set::Scalar div_u   = grad_ux(0) + grad_uy(1);
 
-	    Set::Scalar div_u = Numeric::Divergence(v, i, j, k, DX); //Brandon - could you help me take the divergence of a multi-component scalar field?
+	    //Set::Scalar div_u = Numeric::Divergence(v, i, j, k, DX); 
 
-            Set::Vector grad_div_u = Numeric::Gradient(div_u, i, j, k, 0, DX);
+            Set::Matrix grad_div_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            M(i,j,k,0) += mu * lap_ux + mu * grad_div_u(0)/3.;
-            M(i,j,k,1) += mu * lap_uy + mu * grad_div_u(1)/3.;
+            M(i,j,k,0) += (mu * lap_ux + mu * grad_div_u(0)/3.);
+            M(i,j,k,1) += (mu * lap_uy + mu * grad_div_u(1)/3.);
 
             /// Diffuse Interface Source Terms
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
