@@ -56,7 +56,7 @@ if sys.version_info.minor < 5:
 #
 # This is the current Alamo-supported version of AMReX. 
 #
-amrex_current_version = "22.10"
+amrex_current_version = "23.04"
 
 parser = argparse.ArgumentParser(description='Configure ALAMO');
 parser.add_argument('--dim', default=3, type=int, help='Spatial dimension [3]')
@@ -153,6 +153,9 @@ if args.buildamrex and not args.amrex:
                                  stderr=subprocess.PIPE,stdout=subprocess.PIPE,cwd="ext/")
         for line in iter(p.stderr.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
         for line in iter(p.stdout.readline,b''): print (''.ljust(width)+ ">>> " + line.decode('ascii').replace('\n',''))
+    else:
+        message("AMReX-Update","Updating",False)
+        p = subprocess.Popen("git -C ext/amrex pull".split(),stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     
     if not args.offline:
         if args.buildamrextag:
