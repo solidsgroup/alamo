@@ -6,7 +6,7 @@ plot_file = ./output
 
 ### MESHING ###
 
-#amr.plot_dt = 0.01
+#amr.plot_dt = 0.1
 amr.plot_int = 1
 amr.max_level = 0 
 amr.max_grid_size = 500000
@@ -16,12 +16,12 @@ amr.grid_eff = 0.8
 #amr.refinement_criterion = 0.001
 #amr.refinement_criterion_temp = 275.16
 #amr.refinement_restriction = 0.1
-amr.n_cell = 100 100 0
+amr.n_cell = 400 400 0
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -1.0 -1.0 0.0 # [ m ] 
-geometry.prob_hi = 1.0 1.0 0.0 # [ m ]
+geometry.prob_lo = -0.5 -0.5 0.0 # [ m ] 
+geometry.prob_hi = 0.5 0.5 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -36,10 +36,10 @@ small = 1.0e-5
 eta.ic.type = laminate
 eta.ic.laminate.number_of_inclusions = 1
 eta.ic.laminate.center = 0 0 0
-eta.ic.laminate.thickness = 1.0
+eta.ic.laminate.thickness = 0.25
 eta.ic.laminate.orientation = 1 0
 eta.ic.laminate.mollifier = gaussian
-eta.ic.laminate.eps = 0.1
+eta.ic.laminate.eps = 0.05
 eta.ic.laminate.singlefab = 1
 eta.ic.laminate.invert = 0
 

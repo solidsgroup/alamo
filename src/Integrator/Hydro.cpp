@@ -30,8 +30,8 @@ void Hydro::Initialize(int lev)
 
     Momentum_solid_mf[lev]->setVal(0.0);
 
-    for (amrex::MFIter mfi(*eta_mf[lev],  true); mfi.isValid(); ++mfi) {
-      const amrex::Box& bx = mfi.growntilebox(); // todo replace with tilebox
+        for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
@@ -156,6 +156,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         //Computes Velocity and Pressure over the domain
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+	    
+	    
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
 
@@ -273,7 +275,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             // swap flux_y components
             std::swap(flux_y[2], flux_y[3]);
 
-            // update fluid values - Godunov fluxes
+	    //UPDATE FLUID VALUES
+	    //if (i==0 || j==0 || k==0) {;}
+
+            //Godunov fluxes
             Ef(i - 1, j, k) += -flux_x[1] * dt / DX[0];
             Ef(i, j, k) += flux_x[1] * dt / DX[0];
             Ef(i, j - 1, k) += -flux_y[1] * dt / DX[1];
@@ -294,22 +299,16 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Mf(i, j - 1, k, 1) += -flux_y[3] * dt / DX[1];
             Mf(i, j, k, 1) += flux_y[3] * dt / DX[1];
 
-            // update fluid values - viscous terms
+            //Viscous terms
             Set::Scalar lap_ux  = Numeric::Laplacian(v, i, j, k, 0, DX);
             Set::Scalar lap_uy  = Numeric::Laplacian(v, i, j, k, 1, DX);
-
-	    //Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
-	    //Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
-            //Set::Scalar div_u   = grad_ux(0) + grad_uy(1);
-
-	    //Set::Scalar div_u = Numeric::Divergence(v, i, j, k, DX); 
 
             Set::Matrix grad_div_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
             M(i,j,k,0) += (mu * lap_ux + mu * grad_div_u(0)/3.);
             M(i,j,k,1) += (mu * lap_uy + mu * grad_div_u(1)/3.);
 
-            /// Diffuse Interface Source Terms
+            ///Diffuse interface source terms
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
