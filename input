@@ -1,0 +1,78 @@
+#@ 
+#@ [2d-serial]
+#@ dim=2
+#@ benchmark-beaker = 65.12
+#@ benchmark-github = 70.39
+#@
+#@ [2d-parallel]
+#@ dim=2
+#@ nprocs=4
+#@ benchmark-beaker=19.99
+#@
+
+alamo.program			= mechanics
+alamo.program.mechanics.model = linear.cubic
+plot_file		        = output
+
+timestep		        = 0.00000001
+stop_time		        = 0.1
+
+amr.plot_int = 10
+amr.plot_dt			= 0.01
+amr.max_level		        = 2
+amr.n_cell		        = 64 64 64
+amr.max_grid_size = 8
+
+amr.blocking_factor	        = 8
+amr.base_regrid_int		= 100
+amr.grid_eff		        = 1.0
+amr.ref_threshold		= 0.1
+amr.cell.all = 1
+amr.max_grid_size = 8
+
+ic.type			        = voronoi
+ic.voronoi.number_of_grains	= 40
+
+#psi.ic.type        = ellipse                                                                               
+#psi.ic.ellipse.a   =  0.5 0.5 0.5 # ellipse radius                                                         
+#psi.ic.ellipse.x0  = 2.5 2.5 2.5 # location of ellipse center 
+#psi.ic.ellipse.eps = 0.2                                                                                   
+#psi.ic.ellipse.invert = 1
+psi.ic.type = ps
+
+geometry.prob_lo	        = 0 0 0
+geometry.prob_hi	        = 5 5 5
+geometry.is_periodic		= 0 0 0
+
+nmodels = 10
+
+interval		= 10
+type			= static
+bc.type               = constant
+bc.constant.type.xlo     = disp disp disp
+bc.constant.type.xhi	   = disp disp disp
+bc.constant.type.xloyhi  = disp disp disp
+bc.constant.type.xhiyhi  = disp disp disp
+bc.constant.type.ylo		= neumann neumann neumann
+bc.constant.type.yhi		= neumann neumann neumann
+bc.constant.val.xhi           = 0.0 0.01 0.0
+bc.constant.val.xlo           = 0.0 0.0 0.0
+bc.constant.val.xhiyhi        = 0.0 0.01 0.0
+bc.constant.val.xloyhi        = 0.0 0.0 0.0
+bc.constant.val.xhiylo        = 0.0 0.01 0.0
+bc.constant.val.xloylo        = 0.0 0.0 0.0
+bc.constant.val.yhi		= 0.0 0.0 0.0
+bc.constant.val.ylo		= 0.0 0.0 0.0
+model.C11             = 1.68
+model.C12             = 1.21
+model.C44             = 0.75
+model.random          = 1
+solver.verbose        = 3
+print_model = 1
+print_residual = 1
+solver.tol_rel = 1E-8
+solver.tol_abs = 1E-8
+solver.average_down_coeffs = 0
+time_evolving = 0
+
+elasticop.small=1E-16
