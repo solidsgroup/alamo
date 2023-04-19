@@ -79,6 +79,16 @@ public:
     {
         return std::sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2] + data[3]*data[3] + data[4]*data[4] + data[5]*data[5]);
     }
+    bool contains_nan() const
+    {
+        if (std::isnan(data[ 0])) return true;
+        if (std::isnan(data[ 1])) return true;
+        if (std::isnan(data[ 2])) return true;
+        if (std::isnan(data[ 3])) return true;
+        if (std::isnan(data[ 4])) return true;
+        if (std::isnan(data[ 5])) return true;
+        return false;
+    }
 
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] += a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator -= (Matrix4<2,Sym::MajorMinor> a) {for (int i = 0; i < 6; i++) data[i] -= a.data[i];}
@@ -105,13 +115,60 @@ public:
         for (int i = 0 ; i < 6; i++) ret.data[i] = 0.0;
         return ret;
     }
+    static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    {
+        Set::Matrix4<2,Sym::MajorMinor> ret;
+        Set::Scalar Ctmp[3][3][3][3];
+
+        for(int i = 0; i < 3; i++) 
+            for(int j = 0; j < 3; j++) 
+                for(int k = 0; k < 3; k++) 
+                    for(int l = 0; l < 3; l++)
+                    {
+                        if(i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11;
+                        else if (i==k && j==l) Ctmp[i][j][k][l] = C44;
+                        else if (i==j && k==l) Ctmp[i][j][k][l] = C12;
+                        else Ctmp[i][j][k][l] = 0.0;
+                    }
+        for(int p = 0; p < 2; p++) 
+            for(int q = 0; q < 2; q++) 
+                for(int s = 0; s < 2; s++) 
+                    for(int t = 0; t < 2; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++) 
+                            for(int j = 0; j < 3; j++) 
+                                for(int k = 0; k < 3; k++) 
+                                    for(int l = 0; l < 3; l++) 
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }                
+        return ret;
+    }
+    static Matrix4<2,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    {
+        Eigen::Matrix3d R;
+        R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+        return Matrix4<2,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
+    }
+
     friend Eigen::Matrix<Set::Scalar,2,2> operator * (Matrix4<2,Sym::MajorMinor> a, Eigen::Matrix<Set::Scalar,2,2> b);
+    friend bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator - (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b);
     friend Matrix4<2,Sym::MajorMinor> operator * (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
     friend Matrix4<2,Sym::MajorMinor> operator / (Matrix4<2,Sym::MajorMinor> a, Set::Scalar b);
     friend Set::Vector operator * (Matrix4<2,Sym::MajorMinor> a, Set::Matrix3 b);
 };
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+bool operator == (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
+{
+    for (int i = 0 ; i < 6 ; i++) if (a.data[i] != b.data[i]) return false;
+    return true;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<2,Sym::MajorMinor> operator + (Matrix4<2,Sym::MajorMinor> a, Matrix4<2,Sym::MajorMinor> b)
 {
@@ -318,6 +375,31 @@ public:
         for (int i = 0; i < 21; i++) retsq += data[i];
         return std::sqrt(retsq);
     }
+    bool contains_nan() const
+    {
+        if (std::isnan(data[ 0])) return true;
+        if (std::isnan(data[ 1])) return true;
+        if (std::isnan(data[ 2])) return true;
+        if (std::isnan(data[ 3])) return true;
+        if (std::isnan(data[ 4])) return true;
+        if (std::isnan(data[ 5])) return true;
+        if (std::isnan(data[ 6])) return true;
+        if (std::isnan(data[ 7])) return true;
+        if (std::isnan(data[ 8])) return true;
+        if (std::isnan(data[ 9])) return true;
+        if (std::isnan(data[10])) return true;
+        if (std::isnan(data[11])) return true;
+        if (std::isnan(data[12])) return true;
+        if (std::isnan(data[13])) return true;
+        if (std::isnan(data[14])) return true;
+        if (std::isnan(data[15])) return true;
+        if (std::isnan(data[16])) return true;
+        if (std::isnan(data[17])) return true;
+        if (std::isnan(data[18])) return true;
+        if (std::isnan(data[19])) return true;
+        if (std::isnan(data[20])) return true;
+        return false;
+    }
 
     //AMREX_GPU_HOST_DEVICE void operator  = (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] = a.data[i];}
     AMREX_GPU_HOST_DEVICE void operator += (Matrix4<3,Sym::MajorMinor> a) {for (int i = 0; i < 21; i++) data[i] += a.data[i];}
@@ -345,6 +427,47 @@ public:
         for (int i = 0 ; i < 21; i++) ret.data[i] = 0.0;
         return ret;
     }
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Eigen::Matrix3d R = Eigen::Matrix3d::Identity())
+    {
+        Set::Matrix4<3,Sym::MajorMinor> ret;
+        Set::Scalar Ctmp[3][3][3][3];
+
+        for(int i = 0; i < 3; i++) 
+            for(int j = 0; j < 3; j++) 
+                for(int k = 0; k < 3; k++) 
+                    for(int l = 0; l < 3; l++)
+                    {
+                        if(i == j && j == k && k == l)  Ctmp[i][j][k][l] = C11;
+                        else if (i==k && j==l) Ctmp[i][j][k][l] = C44;
+                        else if (i==j && k==l) Ctmp[i][j][k][l] = C12;
+                        else Ctmp[i][j][k][l] = 0.0;
+                    }
+        for(int p = 0; p < 3; p++) 
+            for(int q = 0; q < 3; q++) 
+                for(int s = 0; s < 3; s++) 
+                    for(int t = 0; t < 3; t++)
+                    {
+                        ret(p,q,s,t) = 0.0;
+                        for(int i = 0; i < 3; i++) 
+                            for(int j = 0; j < 3; j++) 
+                                for(int k = 0; k < 3; k++) 
+                                    for(int l = 0; l < 3; l++) 
+                                        ret(p,q,s,t) += R(p,i)*R(s,k)*Ctmp[i][j][k][l]*R(q,j)*R(t,l);
+                    }                
+        return ret;
+    }
+    static Matrix4<3,Sym::MajorMinor> Cubic(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, 
+                                            Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2)
+    {
+        Eigen::Matrix3d R;
+        R = Eigen::AngleAxisd(phi2, Eigen::Vector3d::UnitX()) *
+            Eigen::AngleAxisd(Phi,  Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(phi1, Eigen::Vector3d::UnitX());
+        return Matrix4<3,Sym::MajorMinor>::Cubic(C11,C12,C44,R);
+    }
+
+    friend bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator - (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b);
     friend Matrix4<3,Sym::MajorMinor> operator * (Matrix4<3,Sym::MajorMinor> a, Set::Scalar b);
@@ -352,6 +475,12 @@ public:
     friend Set::Vector operator * (Matrix4<3,Sym::MajorMinor> a, Set::Matrix3 b);
     friend Eigen::Matrix<amrex::Real,3,3> operator * (Matrix4<3,Sym::MajorMinor> a, Eigen::Matrix<amrex::Real,3,3> b);
 };
+AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
+bool operator == (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
+{
+    for (int i = 0 ; i < 21 ; i++) if (a.data[i] != b.data[i]) return false;
+    return true;
+}
 AMREX_FORCE_INLINE AMREX_GPU_HOST_DEVICE 
 Matrix4<3,Sym::MajorMinor> operator + (Matrix4<3,Sym::MajorMinor> a, Matrix4<3,Sym::MajorMinor> b)
 {
