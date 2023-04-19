@@ -24,7 +24,6 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
-#include "IC/PS.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
@@ -87,12 +86,10 @@ class Mechanics : virtual public Base::Mechanics<MODEL>
             if (type=="ellipse")         value.ic_psi = new IC::Ellipse(value.geom,pp,"psi.ic.ellipse");
             else if (type=="constant")   value.ic_psi = new IC::Constant(value.geom,pp,"psi.ic.constant");
             else if (type=="expression") value.ic_psi = new IC::Expression(value.geom,pp,"psi.ic.expression");
-            else if (type=="ps")         value.ic_psi = new IC::PS(value.geom,20,1,0);
             else Util::Abort(INFO,"Invalid value for psi.ic.type: ",type);
             
             value.bc_psi = new BC::Nothing();
             value.RegisterNewFab(value.psi_mf,value.bc_psi,1,2,"psi",true);
-            value.RegisterNewFab(value.psi_old_mf,value.bc_psi,1,2,"psi",true);
             value.psi_on = true;
         }
     }
@@ -105,7 +102,6 @@ class Mechanics : virtual public Base::Mechanics<MODEL>
         else eta_mf[lev]->setVal(1.0);
 
         if (psi_on) ic_psi->Initialize(lev,psi_mf);
-        if (psi_on) ic_psi->Initialize(lev,psi_old_mf);
     }
 
     virtual void UpdateModel(int a_step) override
@@ -179,40 +175,6 @@ class Mechanics : virtual public Base::Mechanics<MODEL>
         }
     }
 
-    void Advance(int lev, Real time, Real dt) override
-    {
-
-        BL_PROFILE("PhaseFieldMicrostructure::Advance");
-        Base::Mechanics<MODEL>::Advance(lev, time, dt);
-        /// TODO Make this optional
-        // if (lev != max_level) return;
-        std::swap(psi_old_mf[lev], psi_mf[lev]);
-        const Set::Scalar *DX = geom[lev].CellSize();
-
-        for (amrex::MFIter mfi(*psi_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-        {
-            amrex::Box bx = mfi.tilebox();
-            amrex::Array4<const Set::Scalar> const &psi = (*psi_old_mf[lev]).array(mfi);
-            amrex::Array4<Set::Scalar> const &psinew = (*psi_mf[lev]).array(mfi);
-            amrex::Array4<const Set::Matrix> const &sigma = (*stress_mf[lev]).array(mfi);
-
-            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-                               {
-            Set::Scalar df = 0.0;
-
-            df += spall.cp * 2.0 * psi(i,j,k)*(1.0 - 2.0*psi(i,j,k))*(1.0 - psi(i,j,k));
-            df += spall.kappa * Numeric::Laplacian(psi,i,j,k,0,DX);
-
-            Set::Matrix sig = Numeric::Interpolate::NodeToCellAverage(sigma,i,j,k,0);
-
-            Set::Scalar p = 0.5 * sig.trace();
-            
-            if (p > spall.po)
-                df += spall.elastic_mult*(p - spall.po);
-
-            psinew(i,j,k) = psi(i,j,k) - spall.M * dt * df; });
-        }
-    }
 
     protected:
     Set::Field<Set::Scalar> eta_mf;
@@ -227,18 +189,7 @@ class Mechanics : virtual public Base::Mechanics<MODEL>
     using Base::Mechanics<MODEL>::geom;
     using Base::Mechanics<MODEL>::model_mf;
     using Base::Mechanics<MODEL>::psi_mf;
-    Set::Field<Set::Scalar> psi_old_mf;
     using Base::Mechanics<MODEL>::psi_on;
-    using Base::Mechanics<MODEL>::stress_mf;
-
-    struct {
-        IC::IC *ic;
-        Set::Scalar M = 1.0;
-        Set::Scalar kappa = 1.0;
-        Set::Scalar po = 1.0;
-        Set::Scalar cp = 1.0;
-        Set::Scalar elastic_mult = 1.0;
-    } spall;    
 };
 
 
