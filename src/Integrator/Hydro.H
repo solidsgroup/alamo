@@ -197,7 +197,7 @@ private:
     Set::Scalar r_refinement_criterion = 0.1;
     Set::Scalar e_refinement_criterion = 0.1;
     Set::Scalar m_refinement_criterion = 0.1;
-    Set::Scalar n_refinement_criterion = 0.1;
+    Set::Scalar eta_refinement_criterion = 0.11;
 };
 }
 

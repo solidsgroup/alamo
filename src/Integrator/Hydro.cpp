@@ -17,8 +17,8 @@ void Hydro::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Hydro::Initialize");
 
-    ic_eta->Initialize(lev, eta_mf);
-    ic_eta->Initialize(lev, eta_old_mf);
+    //ic_eta->Initialize(lev, eta_mf);
+    //ic_eta->Initialize(lev, eta_old_mf);
 
     Density_fluid_mf[lev]->setVal(rho_fluid);
     Density_fluid_old_mf[lev]->setVal(rho_fluid);
@@ -33,6 +33,7 @@ void Hydro::Initialize(int lev)
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const& eta_old = (*eta_old_mf[lev]).array(mfi);
         /////
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E_old = (*Energy_old_mf[lev]).array(mfi);
@@ -57,6 +58,18 @@ void Hydro::Initialize(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+	  Set::Scalar epsilon = 0.025;
+	  Set::Scalar radius = 0.1;
+	  //Set::Vector x = Set::Position(i,j,k,geom[lev], ixType());
+	  const Set::Scalar* DX = geom[lev].CellSize();
+	  Set::Scalar pos_x = (i - 100)*DX[0];
+	  Set::Scalar pos_y = (j - 100)*DX[0];
+	  Set::Scalar r_xy = std::sqrt(pos_x*pos_x + pos_y*pos_y);
+      
+	  eta(i,j,k) = 1 - 0.5*std::erf((r_xy + radius)/epsilon) + 0.5*std::erf((r_xy - radius)/epsilon);
+	  eta_old(i,j,k) = eta(i,j,k);
+
+	    
             rho(i, j, k) = rhos(i, j, k) * (1 - eta(i, j, k)) + rhof(i, j, k) * eta(i, j, k);
             rho_old(i, j, k) = rho(i, j, k);
 
@@ -344,60 +357,24 @@ void Hydro::Regrid(int lev, Set::Scalar /* time */)
 }//end regrid
 
 //void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar time, int ngrow)
-void Hydro::TagCellsForRefinement(int, amrex::TagBoxArray&, Set::Scalar, int)
+void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar, int)
 {
-    //   BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
+      BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
 
-    //   const Set::Scalar *DX = geom[lev].CellSize();
-    //   Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
+      const Set::Scalar *DX = geom[lev].CellSize();
+      Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
-    //   // Eta criterion for refinement
-    //   for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
-    //     const amrex::Box &bx = mfi.tilebox();
-    //     amrex::Array4<char> const &tags = a_tags.array(mfi);
-    //     amrex::Array4<const Set::Scalar> const &Eta = (*eta_mf[lev]).array(mfi);
-
-    //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-    // 		Set::Vector gradeta = Numeric::Gradient(Eta, i, j, k, 0, DX);
-    //               if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET; });
-    //   }
-      /*
-      // Energy criterion
-      for (amrex::MFIter mfi(*Energy_mf[lev], true), mfi.isValid(), ++mfi)
-      {
+      // Eta criterion for refinement
+      for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi){
         const amrex::Box &bx = mfi.tilebox();
         amrex::Array4<char> const &tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const &E = (*Energy_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const &eta = (*eta_mf[lev]).array(mfi);
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-      Set::Vector grad_E = Numeric::Gradient(E, i, j, k, 0, DX);
-      if(grad_E.lpNorm<2>() * dr > e_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
-      });
+    		Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
+                  if (grad_eta.lpNorm<2>() * dr * 2 > eta_refinement_criterion) tags(i, j, k) = amrex::TagBox::SET; });
       }
-
-      // Density criterion
-      for (amrex::MFIter mfi(*Density_mf[lev] , true), mfi.isValid(), ++mfi)
-      {
-        const amrex::Box &bx = mfi.tilebox();
-        amrex::Array4<char> const &tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const &rho = (*Density_mf[lev]).array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-      Set::Vector grad_rho = Numeric::Gradient(rho, i, j, k, 0, DX);
-      if (grad_rho.lpNorm<2>() * dr > r_refinment_criterion) tags(i,j,k) = amrex::TagBox::SET;
-        });
-      }
-
-      // Momentum criterion
-      for (amrex:::MFIter mfi(*Momentum_mf[lev], true), mfi.isValid(), ++mfi)
-      {
-        const amrex::Box &bx = mfi.tilebox();
-        amrex::Array4<char> const &tags = a_tags.array(mfi);
-        amrex::Array<const Set::Scalar> const &M = (*Momentum_mf[lev]).array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k, int m){
-      Set::Vector grad_M = Numeric::Gradient(M, i, j, k, m);
-      if (grad_M.lpNorm<2>() * dr > m_refinement_criterion) tags(i,j,k) = amrex::TagBox::SET;
-        });
-      }
-      */
+      
 
 
 }//end TagCells
@@ -449,4 +426,3 @@ void Hydro::TagCellsForRefinement(int, amrex::TagBoxArray&, Set::Scalar, int)
 
 
 }//end code
-
