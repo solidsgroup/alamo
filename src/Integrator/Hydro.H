@@ -180,10 +180,10 @@ private:
     Set::Scalar E_fluid = 1.0;
 
     Set::Scalar Mx_init = 0.0;
-    Set::Scalar My_init = 0.001;
+    Set::Scalar My_init = 0.0;
 
-    Set::Scalar V_cross = 1.0; //cross flow velocity at interface
-    Set::Scalar V_norm = 0.0; //normal velocity at interface
+    Set::Scalar V_x = 0.0; //x velocity at interface
+    Set::Scalar V_y = 1.0; //y velocity at interface
 
     Set::Scalar gamma = 1.4;
     Set::Scalar mu = 0.1;
