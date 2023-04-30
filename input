@@ -8,7 +8,7 @@ plot_file = ./output
 
 #amr.plot_dt = 0.1
 amr.plot_int = 1
-amr.max_level = 5
+amr.max_level = 0
 amr.max_grid_size = 500000
 amr.blocking_factor = 2
 #amr.regrid_int = 100
@@ -33,15 +33,15 @@ small = 1.0e-5
 
 ### ETA IC ###
 
-# eta.ic.type = laminate
-# eta.ic.laminate.number_of_inclusions = 1
-# eta.ic.laminate.center = 0 0 0
-# eta.ic.laminate.thickness = 0.25
-# eta.ic.laminate.orientation = 1 0
-# eta.ic.laminate.mollifier = gaussian
-# eta.ic.laminate.eps = 0.1
-# eta.ic.laminate.singlefab = 1
-# eta.ic.laminate.invert = 0
+eta.ic.type = laminate
+eta.ic.laminate.number_of_inclusions = 1
+eta.ic.laminate.center = 0 0 0
+eta.ic.laminate.thickness = 0.2
+eta.ic.laminate.orientation = 0 1
+eta.ic.laminate.mollifier = gaussian
+eta.ic.laminate.eps = 0.05
+eta.ic.laminate.singlefab = 1
+eta.ic.laminate.invert = 0
 
 ### ETA BC  ###
 
