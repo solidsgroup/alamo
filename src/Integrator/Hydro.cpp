@@ -271,18 +271,18 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
 
-            M(i,j,k,0) += (mu * lap_ux + mu * hess_u(0)/3.);
-            M(i,j,k,1) += (mu * lap_uy + mu * hess_u(1)/3.);
+            M(i,j,k,0) += mu * (lap_ux + hess_u(0)/3.);
+            M(i,j,k,1) += mu * (lap_uy + hess_u(1)/3.);
 
 	    E(i,j,k) += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
             ///Diffuse interface source terms
 
             std::array<Set::Scalar,3> source;
-            source[0] = grad_eta_mag * (rho_solid * std::sqrt(V_cross*V_cross + V_norm*V_norm));
-            source[1] = grad_eta_mag * (rho_solid * (V_norm*V_norm));
-            source[2] = grad_eta_mag * (rho_solid * (V_cross*V_cross));
-            source[3] = grad_eta_mag * (0.5 * rho_solid * (V_cross*V_cross + V_norm*V_norm)*(V_cross*V_cross + V_norm*V_norm)*(V_cross*V_cross + V_norm*V_norm));
+            source[0] = 0.0;
+            source[1] = grad_eta_mag * mu * symgrad_u;
+            source[2] = grad_eta_mag * mu * symgrad_u;
+            source[3] = 0.0;
 
 	    E(i,j,k)   += source[3];
 	    rho(i,j,k) += source[0];
