@@ -115,6 +115,7 @@ private:
 
     Set::Field<Set::Scalar> Pressure_mf;
     Set::Field<Set::Scalar> Pressure_old_mf;
+
     /////
 
     Set::Field<Set::Scalar> eta_mf;
@@ -136,30 +137,30 @@ private:
 
     Set::Scalar rho_solid = 1.2;
     Set::Scalar rho_fluid = 1.0;
-    Set::Scalar E_solid = 1.0;
+    Set::Scalar E_solid = 5.0;
     Set::Scalar E_fluid = 1.0;
 
-    Set::Scalar Mx_init = 0.0;
+    Set::Scalar Mx_init = 0.1;
     Set::Scalar My_init = 0.0;
 
-    Set::Scalar V_x = 0.0; //x velocity at interface
-    Set::Scalar V_y = 0.0; //y velocity at interface
- 
+    Set::Scalar V_cross = 0.0; //cross flow velocity at interface
+    Set::Scalar V_norm = 0.0; //normal velocity at interface
+
     Set::Scalar gamma = 1.4;
-    Set::Scalar mu = 0.1;
-    
+    Set::Scalar mu = 0.01;
+
     Set::Scalar cfl = 0.4;
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-    Set::Scalar epsilon = 0.1;
+    Set::Scalar epsilon = 0.05;
 
     //refinement criterion variables
     Set::Scalar r_refinement_criterion = 0.1;
     Set::Scalar e_refinement_criterion = 0.1;
     Set::Scalar m_refinement_criterion = 0.1;
-    Set::Scalar eta_refinement_criterion = 0.1;
+    Set::Scalar eta_refinement_criterion = 0.11;
 };
 }
 

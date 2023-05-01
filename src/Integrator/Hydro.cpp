@@ -1,4 +1,4 @@
-#include "Hydro.H"
+ #include "Hydro.H"
 #include "IO/ParmParse.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
@@ -42,18 +42,14 @@ void Hydro::Initialize(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-	  Set::Scalar radius = 0.2;
+	  Set::Scalar radius = 0.1;
+	  //Set::Vector x = Set::Position(i,j,k,geom[lev], ixType());
 	  const Set::Scalar* DX = geom[lev].CellSize();
-	  //Set::Scalar pos_x = (i - 100)*DX[0];
+	  Set::Scalar pos_x = (i - 100)*DX[0];
 	  Set::Scalar pos_y = (j - 100)*DX[0];
-	  //Set::Scalar r_xy = std::sqrt(pos_x*pos_x + pos_y*pos_y);
+	  Set::Scalar r_xy = std::sqrt(pos_x*pos_x + pos_y*pos_y);
       
-	  //CHANNEL
-	  //eta(i,j,k) = 0.5*std::erf((pos_y + radius)/epsilon) - 0.5*std::erf((pos_y - radius)/epsilon);
-	  //eta_old(i,j,k) = eta(i,j,k);
-
-	  //PLATE
-	  eta(i,j,k) = (1 + std::erf((pos_y + radius)/epsilon)) * 0.5;
+	  eta(i,j,k) = 1 - 0.5*std::erf((r_xy + radius)/epsilon) + 0.5*std::erf((r_xy - radius)/epsilon);
 	  eta_old(i,j,k) = eta(i,j,k);
 
 	    
@@ -69,7 +65,7 @@ void Hydro::Initialize(int lev)
             E(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_fluid * eta(i, j, k);
             E_old(i, j, k) = E(i, j, k);
 
-            p(i, j, k) = (gamma - 1) * rho(i, j, k) * E(i, j, k) * eta(i, j, k);
+            p(i, j, k) = (gamma - 1) * rho(i, j, k) * E(i, j, k);
             p_old(i, j, k) = p(i, j, k);
 
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
@@ -131,27 +127,16 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         const amrex::Box& bx = mfi.validbox();
 
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-        /////
         amrex::Array4<Set::Scalar> const& E = (*Energy_mf[lev]).array(mfi);
-        /////
         amrex::Array4<Set::Scalar> const& rho = (*Density_mf[lev]).array(mfi);
-        /////
         amrex::Array4<Set::Scalar> const& M = (*Momentum_mf[lev]).array(mfi);
-        /////
-        amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
-        /////
         amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
-
-        //Computes Velocity and Pressure over the domain
+        amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-
-	    //if (i < 199 && j < 198 && k < 198) {
-				 
 	    Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
-	    Set::Vector n = grad_eta/grad_eta_mag;
-	    Set::Scalar udotn = V_x*n(0) + V_y*n(1);
+	    Set::Vector n = grad_eta/grad_eta_mag; 
 	    
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
@@ -197,8 +182,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             vy_right = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy[0] * DX[0];
             p_right = p(i, j, k) + 0.5 * p_slope_right - dp[0] * DX[0];
 
-            //if (p_right < 0) {cout << "Negative Pressure";};
-
             // left interface: left state
             rho_slope_left = (-v(i - 1, j, k, 0) * drho[0] - dvx[0] * rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * drho[1] - dvy[1] * rho(i - 1, j, k)) * dt;
             vx_slope_left = (-v(i - 1, j, k, 0) * dvx[0] - dp[0] / rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dvy[1]) * dt;
@@ -208,9 +191,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             rho_left = rho(i - 1, j, k) + 0.5 * rho_slope_left + drho_n[0] * DX[0];
             vx_left = v(i - 1, j, k, 0) + 0.5 * vx_slope_left + dvx_n[0] * DX[0];
             vy_left = v(i - 1, j, k, 1) + 0.5 * vy_slope_left + dvy_n[0] * DX[0];
-            p_left = p(i - 1, j, k) + 0.5 * p_slope_left + dp_n[0]* DX[0];
-
-            //if (p_left < 0) { cout << "Negative Pressure"; };
+            p_left = p(i - 1, j, k) + 0.5 * p_slope_left + dp_n[0] * DX[0];
 
             double left_state[5] = { rho_left, vx_left, vy_left, p_left, eta(i - 1, j, k) };
             double right_state[5] = { rho_right, vx_right, vy_right, p_right, eta(i, j, k) };
@@ -234,8 +215,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             vy_right = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy[1] * DX[1];
             p_right = p(i, j, k) + 0.5 * p_slope_right - dp[1] * DX[1];
 
-            //if (p_right < 0) { cout << "Negative Pressure"; };
-
             // left interface: left state
             rho_slope_left = (-v(i, j - 1, k, 0) * drho[0] - dvx[0] * rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * drho[1] - dvy[1] * rho(i, j - 1, k)) * dt;
             vx_slope_left = (-v(i, j - 1, k, 0) * dvx[0] - dp[0] / rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dvy[1]) * dt;
@@ -246,12 +225,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             vx_left = v(i, j - 1, k, 0) + 0.5 * vx_slope_left + dvx_n[1] * DX[1];
             vy_left = v(i, j - 1, k, 1) + 0.5 * vy_slope_left + dvy_n[1] * DX[1];
             p_left = p(i, j - 1, k) + 0.5 * p_slope_left + dp_n[1] * DX[1];
-
-            //if (p_left < 0) { cout << "Negative Pressure"; };
-
-            // x, y permutations
-            std::swap(vx_left, vy_left);
-            std::swap(vx_right, vy_right);
 
             left_state[0] = rho_left;
             left_state[1] = vx_left;
@@ -266,12 +239,6 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             right_state[4] = eta(i, j - 1, k);
 
             flux_y = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
-
-            // swap flux_y components
-            std::swap(flux_y[2], flux_y[3]);
-
-	    //UPDATE FLUID VALUES
-	    //if (i==0 || j==0 || k==0) {;}
 
             //Godunov fluxes
             E(i - 1, j, k) += -flux_x[1] * dt / DX[0];
@@ -295,37 +262,40 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             M(i, j, k, 1) += flux_y[3] * dt / DX[1];
 
             //Viscous terms
-
-            Set::Scalar lap_ux  = Numeric::Laplacian(v, i, j, k, 0, DX);
+	    Set::Scalar lap_ux  = Numeric::Laplacian(v, i, j, k, 0, DX);
             Set::Scalar lap_uy  = Numeric::Laplacian(v, i, j, k, 1, DX);
 	    Set::Vector grad_ux = Numeric::Gradient(v, i, j, k, 0, DX);
 	    Set::Vector grad_uy = Numeric::Gradient(v, i, j, k, 1, DX);
 	    Set::Scalar div_u   = 0.0; //grad_ux(0) + grad_uy(1);
-	    Set::Scalar symgrad_u  = 0.0; //grad_ux(1) + grad_uy(0);
+	    Set::Scalar symgrad_u  = grad_ux(1) + grad_uy(0);
+
             Set::Matrix hess_u = Numeric::Hessian(v, i, j, k, 0, DX);
-	    Set::Scalar sigman_x  = 0.0; //lap_ux*n(0) + symgrad_u*n(1);
-            Set::Scalar sigman_y  = 0.0; //symgrad_u*n(0) + lap_uy*n(1);
 
-            //M(i,j,k,0) += (mu * lap_ux) * eta(i,j,k) + (mu * hess_u(0)/3.) * eta(i,j,k);
-	    //M(i,j,k,1) += (mu * lap_uy) * eta(i,j,k) + (mu * hess_u(1)/3.) * eta(i,j,k);
+            M(i,j,k,0) += (mu * lap_ux + mu * hess_u(0)/3.);
+            M(i,j,k,1) += (mu * lap_uy + mu * hess_u(1)/3.);
 
-	    //E(i,j,k) += (2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u) * eta(i,j,k);
+	    E(i,j,k) += 2. * mu * (div_u * div_u + div_u * symgrad_u) - 2./3. * mu * div_u * div_u;
 
             ///Diffuse interface source terms
-	    
+
             std::array<Set::Scalar,3> source;
-            source[0] = grad_eta_mag * (rho_solid * udotn);
-            source[1] = grad_eta_mag * (rho_solid * (V_x*V_x + V_y*V_y) - sigman_x);//- (2*div_u*n(0) + symgrad_u*n(1)));
-            source[2] = grad_eta_mag * (rho_solid * (V_x*V_x + V_y*V_y) - sigman_y);//- (2*div_u*n(1) + symgrad_u*n(0)));
-            source[3] = grad_eta_mag * ((0.5 * rho_solid * (V_x*V_x + V_y*V_y) * udotn));// + (gamma/(gamma-1))*p(i,j,k) - (2*div_u*n(0) + symgrad_u*n(1))*n(0) - (2*div_u*n(1) + symgrad_u*n(0))*n(1));
+            source[0] = grad_eta_mag * (rho_solid * std::sqrt(V_cross*V_cross + V_norm*V_norm));
+            source[1] = grad_eta_mag * (rho_solid * (V_norm*V_norm));
+            source[2] = grad_eta_mag * (rho_solid * (V_cross*V_cross));
+            source[3] = grad_eta_mag * (0.5 * rho_solid * (V_cross*V_cross + V_norm*V_norm)*(V_cross*V_cross + V_norm*V_norm)*(V_cross*V_cross + V_norm*V_norm));
 
 	    E(i,j,k)   += source[3];
 	    rho(i,j,k) += source[0];
 	    M(i,j,k,0) += source[1];
 	    M(i,j,k,1) += source[2];
 
+	    //Advance total fields
+	    rho(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho(i, j, k) * eta(i, j, k);
+            M(i, j, k, 0) = 0.0 * (1 - eta(i, j, k)) + M(i, j, k, 0) * eta(i, j, k);
+            M(i, j, k, 1) = 0.0 * (1 - eta(i, j, k)) + M(i, j, k, 1) * eta(i, j, k);
+            E(i, j, k) = E_solid * (1 - eta(i, j, k)) + E(i, j, k) * eta(i, j, k);
+
             //Advance eta
-	    //}
 
         });
     }
