@@ -37,7 +37,7 @@ eta.ic.type = constant #laminate
 phi.ic.type = psread
 phi.zeta_0 = 0.00001
 phi.ic.psread.eps = 0.00001
-phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/NewPacks/pack3d.out
+phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/NewPacks/80/pack3d_500.out
 
 pf.kappa = 1.0
 pf.gamma = 0.02726
