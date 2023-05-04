@@ -3,22 +3,99 @@
 #include "IC/IC.H"
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
+#include "AMReX_Parser.H"
 
+//
+// TODO - remove the ALAMO_JIT defintion check. See below for more explanation
+//
 #ifndef ALAMO_JIT
 namespace IC 
 {
     class Expression: public IC
     {
+        private:
+        enum CoordSys {Cartesian, Polar, Spherical};
+        std::vector<amrex::Parser> parser;
+        std::vector<amrex::ParserExecutor<3>> f;
+        Expression::CoordSys coord = Expression::CoordSys::Cartesian;
         public:
-        Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {Util::Abort(INFO,"To use IC::Expression, you must compile with the JIT option!");}
+        Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
         Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom)
         {pp.queryclass(name,*this);}
-        void Add(const int &, Set::Field<Set::Scalar> &) {};
-        static void Parse(Expression &, IO::ParmParse &) {};
+        void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+        {
+            Util::Assert(INFO,TEST(a_field[lev]->nComp() == (int)f.size()));
+            for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                amrex::Box bx;// = mfi.tilebox();
+                //bx.grow(a_field[lev]->nGrow());
+                amrex::IndexType type = a_field[lev]->ixType();
+                if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+                else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+                else Util::Abort(INFO,"Unkonwn index type");
+
+                amrex::Array4<Set::Scalar> const &field = a_field[lev]->array(mfi);
+                for (unsigned int n = 0; n < f.size(); n++)
+                {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                    {
+                        Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                        if (coord == Expression::CoordSys::Cartesian)
+                        {
+                            field(i,j,k,n) = f[n](x(0),x(1),x(2));
+                        }
+                        #if AMREX_SPACEDIM>1
+                        else if (coord == Expression::CoordSys::Polar)
+                        {
+                            field(i,j,k,n) = f[n](sqrt(x(0)*x(0) + x(1)*x(1)),   std::atan2(x(1),x(0)), x(2));
+                        }
+                        #endif
+                    });
+                }
+            }
+            a_field[lev]->FillBoundary();
+        };
+        static void Parse(Expression & value, IO::ParmParse & pp) 
+        {
+            for (int i = 0; true; i++)
+            {
+                std::string coordstr = "cartesian";
+                pp.query("coord",coordstr);
+                if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
+                else if (coordstr == "polar") value.coord= Expression::CoordSys::Polar;
+                else Util::Abort(INFO,"unsupported coordinates ",coordstr);
+
+                std::string func = "0.0";
+                std::string name = "region" + std::to_string(i);
+                
+                if (!pp.contains(name.data())) break;
+                pp.query(name.data(),func);
+
+                value.parser.push_back(amrex::Parser(func));
+
+                if (value.coord == Expression::CoordSys::Cartesian)
+                {
+                    value.parser.back().registerVariables({"x","y","z"});
+                    value.f.push_back(value.parser.back().compile<3>());
+                }
+                else if (value.coord == Expression::CoordSys::Polar)
+                {
+                    value.parser.back().registerVariables({"x","y","z"});
+                    value.f.push_back(value.parser.back().compile<3>());
+                }
+            }
+
+        };
     };
 }
-#else
 
+//
+// TODO: Remove this code. The old version of parser relied on the libmesh fparser library, but
+//       we are replacing this with the new AMReX parser class.
+//       This will slightly break some backwards compatibility (e.g. 'and' instead of '&' is needed)
+//       but will also mean that you don't have to compile all of libmesh either :)
+//
+#else
 #include "libmesh/fparser_ad.hh"
 /// \class Expression
 /// \brief Use JIT math expression parsing to read arbitrary domain description
@@ -32,7 +109,7 @@ namespace IC
         Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) 
         {pp.queryclass(name,*this);}
 
-      void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar time)
+        void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
         {
             Util::Assert(INFO,TEST(a_field[lev]->nComp() == (int)fparser.size()));
             for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -46,7 +123,7 @@ namespace IC
                 {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                         Set::Vector x = Set::Position(i, j, k, geom[lev], type);
-                        double loc[4];
+                        double loc[AMREX_SPACEDIM];
                         if (coord == Expression::CoordSys::Cartesian)
                         {
                             AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
@@ -81,7 +158,7 @@ namespace IC
         // Each region should be a string that represents a function in terms of 
         // x, y, z, and t. 
         // It can be a boolean expression (returning 1 or 0) or it can return a 
-        // value.  
+        // value. 
         static void Parse(Expression &value, IO::ParmParse &pp)
         {
             for (int i = 0; true; i++)

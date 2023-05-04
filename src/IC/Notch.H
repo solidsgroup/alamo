@@ -22,7 +22,7 @@ public:
         eps = 1e-5;
     }
     
-  void Add(const int &lev, Set::Field<Set::Scalar> &a_field,Set::Scalar=0)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar pi = std::atan(1.0)*4;

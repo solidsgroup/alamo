@@ -1,8 +1,8 @@
-#ifndef MODEL_SOLID_AFFINE_CUBIC_H_
-#define MODEL_SOLID_AFFINE_CUBIC_H_
+#ifndef MODEL_SOLID_AFFINE_HEXAGONAL_H_
+#define MODEL_SOLID_AFFINE_HEXAGONAL_H_
 
 #include "Model/Solid/Solid.H"
-#include "Model/Solid/Linear/Cubic.H"
+#include "Model/Solid/Linear/Hexagonal.H"
 #include "IO/ParmParse.H"
 
 namespace Model
@@ -11,37 +11,37 @@ namespace Solid
 {
 namespace Affine
 {
-class Cubic : public Linear::Cubic
+class Hexagonal : public Linear::Hexagonal
 {
 public:
 
-    Cubic() {};
-    Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
-    virtual ~Cubic() {};
+    Hexagonal() {};
+    Hexagonal(Linear::Hexagonal base) : Linear::Hexagonal(base) {};
+    virtual ~Hexagonal() {};
 
     void
-    Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2,Set::Matrix a_F0=Set::Matrix::Zero())
+    Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Set::Scalar phi1, Set::Scalar Phi, Set::Scalar phi2,Set::Matrix a_F0=Set::Matrix::Zero())
     {
-        Linear::Cubic::Define(C11,C12,C44,phi1,Phi,phi2);
+        Linear::Hexagonal::Define(C11,C12,C13,C33,C44,phi1,Phi,phi2);
         F0 = a_F0;
     }
     void
-    Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44, Eigen::Matrix3d R, Set::Matrix a_F0=Set::Matrix::Zero())
+    Define(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44, Eigen::Matrix3d R, Set::Matrix a_F0=Set::Matrix::Zero())
     {
-        Linear::Cubic::Define(C11,C12,C44,R);
+        Linear::Hexagonal::Define(C11,C12,C13,C33,C44,R);
         F0 = a_F0;
     }
     Set::Scalar W(const Set::Matrix & gradu) const override
     {
-        return Linear::Cubic::W(gradu - F0);
+        return Linear::Hexagonal::W(gradu - F0);
     }
     Set::Matrix DW(const Set::Matrix & gradu) const override
     {
-        return Linear::Cubic::DW(gradu - F0);
+        return Linear::Hexagonal::DW(gradu - F0);
     }
     Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> DDW(const Set::Matrix & gradu) const override
     {
-        return Linear::Cubic::DDW(gradu - F0);
+        return Linear::Hexagonal::DDW(gradu - F0);
     }
     virtual void Print(std::ostream &out) const //override 
     {
@@ -54,34 +54,32 @@ public:
     Set::Matrix F0 = Set::Matrix::Zero();
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
-    static Cubic Zero()
+    static Hexagonal Zero()
     {
-        Cubic ret = Linear::Cubic::Zero();
+        Hexagonal ret = Linear::Hexagonal::Zero();
         ret.F0 = Set::Matrix::Zero();
         return ret;
     }
-    static Cubic Random()
+    static Hexagonal Random()
     {
-        return Random(Util::Random(), Util::Random(), Util::Random());
+        return Random(Util::Random(), Util::Random(), Util::Random(),Util::Random(),Util::Random());
     }
-    static Cubic Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C44)
+    static Hexagonal Random(Set::Scalar C11, Set::Scalar C12, Set::Scalar C13, Set::Scalar C33, Set::Scalar C44)
     {
-        Cubic ret = Linear::Cubic::Random(C11,C12,C44);
+        Hexagonal ret = Linear::Hexagonal::Random(C11,C12,C13,C33,C44);
         ret.F0 = Set::Matrix::Random();
         return ret;
     }
-    // This class extends :ref:`Model::Solid::Linear::Cubic` by adding
-    // an eigenstrain. (See the Linear::Cubic class for more inputs for this model)
-    static void Parse(Cubic & value, IO::ParmParse & pp)
+    static void Parse(Hexagonal & value, IO::ParmParse & pp)
     {
-        Linear::Cubic::Parse(value,pp);
+        Linear::Hexagonal::Parse(value,pp);
         if (pp.contains("F0")) pp.queryarr("F0",value.F0); // Eigenstrain
     }
 
     AMREX_FORCE_INLINE
-    static Cubic Combine(const std::vector<Cubic> &models, const std::vector<Set::Scalar> &eta)
+    static Hexagonal Combine(const std::vector<Hexagonal> &models, const std::vector<Set::Scalar> &eta)
     {
-        Cubic ret;
+        Hexagonal ret;
         ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor>::Zero();
         ret.F0 = Set::Matrix::Zero();
         Set::Scalar etasum = 0.;
@@ -94,7 +92,7 @@ public:
         return ret;
     }
 
-    #define OP_CLASS Cubic
+    #define OP_CLASS Hexagonal
     #define OP_VARS  X(ddw) X(F0)
     #include "Model/Solid/InClassOperators.H"
 };
@@ -105,35 +103,35 @@ public:
 }
 
 template<>
-inline int Set::Field<Model::Solid::Affine::Cubic>::NComp() const 
+inline int Set::Field<Model::Solid::Affine::Hexagonal>::NComp() const 
 {
     return 1;
 }
 
 template<>
-inline std::string Set::Field<Model::Solid::Affine::Cubic>::Name(int i) const 
+inline std::string Set::Field<Model::Solid::Affine::Hexagonal>::Name(int i) const 
 {
     if (i==0) return name + ".Cxxxx";
     return name;
 }
 
 template<>
-inline void Set::Field<Model::Solid::Affine::Cubic>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
+inline void Set::Field<Model::Solid::Affine::Hexagonal>::Copy(int a_lev, amrex::MultiFab &a_dst, int a_dstcomp, int a_nghost) const
 {
     for (amrex::MFIter mfi(a_dst, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
         const amrex::Box& bx = mfi.growntilebox(amrex::IntVect(a_nghost));
         if (bx.ok())
         {
-            amrex::Array4<const Model::Solid::Affine::Cubic> const & src = ((*this)[a_lev])->array(mfi);
+            amrex::Array4<const Model::Solid::Affine::Hexagonal> const & src = ((*this)[a_lev])->array(mfi);
             amrex::Array4<Set::Scalar> const & dst = a_dst.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
             {
                 dst(i,j,k,a_dstcomp + 0) = src(i,j,k).ddw(0,0,0,0);
             });
-}
+        }
     }    
 }
 
-#endif
 
+#endif

@@ -11,30 +11,36 @@ def integrate(x,y):
     for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
     return ret
 
+def load(datafile):
+    with open(datafile) as f:
+        headers = f.readline().split()
+    raw = numpy.loadtxt(datafile,skiprows=1)
+    data = dict()
+    for i in range(len(headers)):
+        data[headers[i]] = raw[:,i]
+    return data
+    
 
+ref  = load(ref.format(outdir))
+data = load("{}/thermo.dat".format(outdir))
 
+sig_diff = numpy.interp(data['time'], ref['time'], ref['trac_xhi_x']) - data['trac_xhi_x']
+sig_norm = numpy.sqrt(integrate(ref['time'],ref['trac_xhi_x']*ref['trac_xhi_x']))
 
-ref  = numpy.loadtxt(ref.format(outdir),skiprows=1)
-data = numpy.loadtxt("{}/thermo.dat".format(outdir),skiprows=1)
-
-
-sig_diff = numpy.interp(data[:,0], ref[:,0], ref[:,2]) - data[:,2]
-sig_norm = numpy.sqrt(integrate(ref[:,0],ref[:,2]*ref[:,2]))
-
-error = numpy.sqrt(integrate(data[:,0],sig_diff**2)) / sig_norm
+error = numpy.sqrt(integrate(data['time'],sig_diff**2)) / sig_norm
 
 
 pylab.clf()
-pylab.plot(ref[:,0],ref[:,2],marker='o',label="reference")
-pylab.plot(data[:,0],data[:,2],label="test")
+pylab.plot(ref['time'],ref['trac_xhi_x'],marker='o',label="reference")
+pylab.plot(data['time'],data['trac_xhi_x'],label="test")
 pylab.legend()
 pylab.xlabel("time")
 pylab.ylabel("stress")
 pylab.savefig("{}/stress_time.png".format(outdir))
 
 pylab.clf()
-pylab.plot(ref[:,1],ref[:,2],marker='o',label="reference")
-pylab.plot(data[:,1],data[:,2],label="test")
+pylab.plot(ref['disp_xhi_x'],ref['trac_xhi_x'],marker='o',label="reference")
+pylab.plot(data['disp_xhi_x'],data['trac_xhi_x'],label="test")
 pylab.legend()
 pylab.xlabel("strain")
 pylab.ylabel("stress")

@@ -217,7 +217,7 @@ namespace Integrator
 
 	thermal.w1 = 0.2 * pressure.P + 0.9;
 
-	ic_laser->Initialize(lev,laser_mf,0.0);
+	ic_laser->Initialize(lev,laser_mf);
 
 	thermal.mlocal_htpb = 685000.0 - 850e3*thermal.massfraction;
 	/*
@@ -295,7 +295,7 @@ namespace Integrator
         BL_PROFILE("Integrator::Flame::TimeStepBegin");
         Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
         for (int lev = 0; lev <= finest_level; ++lev)
-	  ic_laser->Initialize(lev,laser_mf,a_time);
+	  ic_laser->Initialize(lev,laser_mf);
     }
 
 

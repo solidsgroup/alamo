@@ -33,8 +33,8 @@ class Flame : virtual public Integrator::Integrator,
     using model_type = Model::Solid::Affine::Isotropic;
 
 public:
-    Flame ();
-    Flame (IO::ParmParse &pp);
+    Flame();
+    Flame(IO::ParmParse &pp);
 
     static void Parse(Flame &value, IO::ParmParse &pp);
 

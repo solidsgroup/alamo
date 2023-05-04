@@ -3,6 +3,7 @@
 #@  dim = 2
 #@  check = true
 #@  benchmark-beaker = 29.49
+#@  benchmark-statler = 20.54
 #@  
 
 alamo.program = microstructure

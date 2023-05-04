@@ -45,6 +45,7 @@ public:
     }
 
 public:
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic> ddw;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
 public:

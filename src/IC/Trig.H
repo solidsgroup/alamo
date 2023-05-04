@@ -44,7 +44,7 @@ public:
     }
 
 
-  void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
 

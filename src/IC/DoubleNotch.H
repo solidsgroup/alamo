@@ -17,7 +17,7 @@ public:
     }
 
     
-  void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field, Set::Scalar)
+    void Add(const int lev, amrex::Vector<amrex::MultiFab * > &a_field)
     {
         Set::Vector DX(geom[lev].CellSize());
         amrex::IndexType type = a_field[lev]->ixType();
