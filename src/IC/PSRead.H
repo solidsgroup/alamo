@@ -33,7 +33,7 @@ public:
 
     };
 
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_phi)
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {
         Set::Vector size;
         AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,

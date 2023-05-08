@@ -16,7 +16,7 @@ public:
     Ellipse (amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : Ellipse(_geom)
     {pp.queryclass(name,*this);}
     
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Set::Vector DX(geom[lev].CellSize());
         amrex::IndexType type = a_field[lev]->ixType();
