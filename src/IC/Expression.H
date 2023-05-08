@@ -16,13 +16,13 @@ namespace IC
         private:
         enum CoordSys {Cartesian, Polar, Spherical};
         std::vector<amrex::Parser> parser;
-        std::vector<amrex::ParserExecutor<3>> f;
+        std::vector<amrex::ParserExecutor<4>> f;
         Expression::CoordSys coord = Expression::CoordSys::Cartesian;
         public:
         Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
         Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom)
         {pp.queryclass(name,*this);}
-        void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+        void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar a_time = 0.0)
         {
             Util::Assert(INFO,TEST(a_field[lev]->nComp() == (int)f.size()));
             for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -42,12 +42,12 @@ namespace IC
                         Set::Vector x = Set::Position(i, j, k, geom[lev], type);
                         if (coord == Expression::CoordSys::Cartesian)
                         {
-                            field(i,j,k,n) = f[n](x(0),x(1),x(2));
+                            field(i,j,k,n) = f[n](x(0),x(1),x(2),a_time);
                         }
                         #if AMREX_SPACEDIM>1
                         else if (coord == Expression::CoordSys::Polar)
                         {
-                            field(i,j,k,n) = f[n](sqrt(x(0)*x(0) + x(1)*x(1)),   std::atan2(x(1),x(0)), x(2));
+                            field(i,j,k,n) = f[n](sqrt(x(0)*x(0) + x(1)*x(1)),   std::atan2(x(1),x(0)), x(2), a_time);
                         }
                         #endif
                     });
@@ -75,13 +75,13 @@ namespace IC
 
                 if (value.coord == Expression::CoordSys::Cartesian)
                 {
-                    value.parser.back().registerVariables({"x","y","z"});
-                    value.f.push_back(value.parser.back().compile<3>());
+                    value.parser.back().registerVariables({"x","y","z","t"});
+                    value.f.push_back(value.parser.back().compile<4>());
                 }
                 else if (value.coord == Expression::CoordSys::Polar)
                 {
-                    value.parser.back().registerVariables({"x","y","z"});
-                    value.f.push_back(value.parser.back().compile<3>());
+                    value.parser.back().registerVariables({"r","t","z","t"});
+                    value.f.push_back(value.parser.back().compile<4>());
                 }
             }
 

@@ -17,6 +17,11 @@ class ParmParse : public amrex::ParmParse
 public:
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {} ;
     ParmParse() : amrex::ParmParse::ParmParse() {} ;
+    void ignore(std::string name)
+    {
+        int ret = amrex::ParmParse::contains(name.c_str());
+        ret = ret; // This is to supporess unused input warnings
+    }
     int queryarr(std::string name, Set::Vector & value)
     {
         std::vector<Set::Scalar> vals;
