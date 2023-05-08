@@ -107,7 +107,7 @@ thermal.mlocal_comb = 0.0
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
 #pressure.P = 2.0  ## Pressure is to be inputed in MPa units.
-#pressure.mob_ap = 0
+pressure.mob_ap = 0
 
 
 pressure.a3 = 2.797
@@ -126,4 +126,5 @@ elastic.type = disable
 
 laser.ic.type = "expression"
 #laser.ic.constant.value = 1.0e6
-laser.ic.expression.region0 = "(t<0.02)*1.0e6"
+laser.ic.expression.value = 1.0e6
+laser.ic.expression.region0 = "t < 0.02"

@@ -149,7 +149,29 @@ pressure.c1 = -0.09906
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 
-elastic.type = disable
+elastic.type = static
+elastic.interval = 100
+elastic.ic.type = ellipse
+elastic.ic.ellipse.a = 3.0 3.0 3.0 # elipse radii
+elastic.ic.ellipse.x0 = 0 0 0 # elipse center
+elastic.ic.eps = 0.8 # diffuse boundary
+
+elatic.elastic.nmodels = 2
+elastic.model1.E = 210
+elastic.elastic.model1.nu = 0.3
+elastic.elastic.model1.F0 = 0 0 0 0 0 0 0 0 0
+elastic.elastic.model2.E = 210
+elastic.elastic.model2.nu = 0.3
+elastic.elastic.model2.F0 = 0 0 0 0 0 0 0 0 0 ## Eigenstrain
+
+elastic.elastic.verbose = 4
+elastic.elastic.nriters = 1
+elastic.elastic.red_threshold = 5E-5
+elastic.elastic.eta_ref_threshold = 10
+
+
+## Laser Variable #############################################################
+
 
 laser.ic.type = expression  # constant
 #laser.ic.constant.value = 0.0

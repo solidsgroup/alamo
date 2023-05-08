@@ -118,5 +118,6 @@ pressure.c1 = -0.09906
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 
 elastic.type = disable
+
 laser.ic.type = "expression"
 laser.ic.expression.region0 = "(t<0.025)*5.0e7"
