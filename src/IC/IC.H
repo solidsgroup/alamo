@@ -21,7 +21,7 @@ public:
     {
         Add(lev,field,0.0);
     }
-    virtual void Add(const int &, Set::Field<Set::Vector> &, Set::Scalar = 0.0) 
+    virtual void Add(const int &, Set::Field<Set::Vector> &, Set::Scalar) 
     {Util::Abort(INFO,"Not yet implemented");};
     void Initialize(const int &a_lev,
                     Set::Field<Set::Scalar> &a_field,
