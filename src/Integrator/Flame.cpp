@@ -295,7 +295,7 @@ namespace Integrator
         BL_PROFILE("Integrator::Flame::TimeStepBegin");
         Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time,a_iter);
         for (int lev = 0; lev <= finest_level; ++lev)
-	  ic_laser->Initialize(lev,laser_mf);
+	    ic_laser->Initialize(lev,laser_mf,a_time);
     }
 
 
@@ -478,7 +478,7 @@ namespace Integrator
         BL_PROFILE("Integrator::Flame::Regrid");
         if (lev < finest_level) return;
         phi_mf[lev]->setVal(0.0);
-        ic_phi->Initialize(lev, phi_mf);
+        ic_phi->Initialize(lev, phi_mf,time);
     } 
 
     void Flame::Integrate(int amrlev, Set::Scalar /*time*/, int /*step*/,
