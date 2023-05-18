@@ -22,7 +22,7 @@ conditional.round = 1000.0
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 2.0e-5 # 0.00005 # [s]
-stop_time = 0.05
+stop_time = 0.01
 small = 1.0e-8
 pf.min_eta = 0.1
 
@@ -117,7 +117,7 @@ pressure.c1 = -0.09906
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 
-elastic.interval = 1
+elastic.interval = 10
 
 #elastic.ic.type = constant # lame, shear, E, nu, F0
 #elastic.type = ellipse
@@ -130,12 +130,6 @@ model_ap.F0   = 1E-10 0 0 1E-10 #eigenstrain
 model_htpb.E  = 210
 model_htpb.nu = 0.3
 model_htpb.F0 = 0 0 0 0 0 0 0 0 0 #eigenstrain
-
-model_void.E  = 2.10
-model_void.nu = 0.3
-model_void.F0 = 0 0 0 0 0 0 0 0 0 #eigenstrain
-
-
 
 elastic.solver.verbose = 4
 elastic.solver.fixed_iter=40
@@ -172,16 +166,12 @@ elastic.bc.type = constant
 #elastic.bc.constant.val.xloylo = 0.0001 0.0 0.0
 #elastic.bc.constant.val.xloyhi = 0.0001 0.0 0.0
 
-elastic.bc.constant.type.xlo = trac trac trac
+elastic.bc.constant.type.xlo = disp trac trac
 elastic.bc.constant.type.xhi = disp trac trac
 elastic.bc.constant.type.ylo = trac disp trac
 elastic.bc.constant.type.yhi = trac trac trac
-elastic.bc.constant.type.xloylo = trac trac trac
-elastic.bc.constant.type.xloyhi = trac trac trac
+elastic.bc.constant.type.xloylo = disp trac trac
+elastic.bc.constant.type.xloyhi = disp trac trac
 elastic.bc.constant.type.xhiylo = disp trac trac
 elastic.bc.constant.type.xhiyhi = disp trac trac
 
-#amr.n_cell = 8 8 2
-#geometry.prob_lo = 0.0 -0.002 -0.0005 # [ m ] 
-#geometry.prob_hi = 0.004 0.002 0.0005 # [ m ]
-#amr.max_level = 1

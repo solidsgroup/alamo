@@ -41,8 +41,6 @@ namespace Integrator
             value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 2, "eta", true);
             value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf, 1, "mdot", true);
-	    value.RegisterNewFab(value.deta_mf, 1, "deta", true);
-	    value.RegisterNewFab(value.deta2_mf, 1, "deta2", true);
 
             std::string eta_bc_str = "constant";
             pp.query("pf.eta.ic.type",eta_bc_str);
@@ -73,20 +71,6 @@ namespace Integrator
 	    pp.query("pressure.dependency", value.pressure.dependency);
         
         }
-
-        {
-	  //pp.query("mass.on", value.mass.on);          
-          //  pp.query("mass.ref_htpb", value.mass.ref_htpb);
-          //  pp.query("mass.a_ap", value.mass.a_ap);
-          //  pp.query("mass.b_ap", value.mass.b_ap);
-
-        }
-
-        {// IO::ParmParse pp(conditional);
-          pp.query("conditional.evolve", value.conditional.evolve);
-	  pp.query("conditional.round", value.conditional.round);
-        }
-
         
         {
             //IO::ParmParse pp("thermal");
@@ -110,14 +94,14 @@ namespace Integrator
             pp.query("thermal.E_ap", value.thermal.E_ap); // AP Activation Energy for Arrhenius Law
             pp.query("thermal.E_htpb", value.thermal.E_htpb); // HTPB Activation Energy for Arrhenius Law
 
-            pp.query("thermal.hc", value.thermal.hc);
-	    pp.query("thermal.massfraction", value.thermal.massfraction);
+            pp.query("thermal.hc", value.thermal.hc); // Used to change heat flux units
+	    pp.query("thermal.massfraction", value.thermal.massfraction); // Systen AP mass fraction
 	    
 	    pp.query("thermal.mlocal_ap", value.thermal.mlocal_ap);
 	    pp.query("thermal.mlocal_htpb", value.thermal.mlocal_htpb);
 	    pp.query("thermal.mlocal_comb", value.thermal.mlocal_comb);
 
-	    pp.query("thermal.T_fluid", value.thermal.T_fluid);
+	    pp.query("thermal.T_fluid", value.thermal.T_fluid); // Temperature of the Standin Fluid 
 
 	    pp.query("thermal.modeling_ap", value.thermal.modeling_ap);
 	    pp.query("thermal.modeling_htpb", value.thermal.modeling_htpb);
@@ -140,11 +124,6 @@ namespace Integrator
 	    else if (laser_ic_type == "constant") value.ic_laser = new IC::Constant(value.geom, pp, "laser.ic.constant");
 	    else Util::Abort(INFO, "Invalid eta IC type", laser_ic_type);
 
-	    pp.query("thermal.controlj1", value.thermal.controlj1);
-	    pp.query("thermal.controlj2", value.thermal.controlj2);
-	    pp.query("thermal.laseron", value.thermal.laseron);
-	    pp.query("thermal.laseroff", value.thermal.laseroff);
-	    pp.query("thermal.lasershut", value.thermal.lasershut);
         }
 
 
@@ -213,8 +192,6 @@ namespace Integrator
         mdot_mf[lev]->setVal(0.0);
 
         heatflux_mf[lev] -> setVal(0.0);
-        deta_mf[lev] -> setVal(0.0);
-	deta2_mf[lev] -> setVal(0.0);
 
         ic_phi->Initialize(lev, phi_mf);
 	thermal.T_fluid = thermal.bound;

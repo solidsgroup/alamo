@@ -59,8 +59,6 @@ private:
     Set::Field<Set::Scalar> eta_old_mf;
     Set::Field<Set::Scalar> mob_mf; 
     Set::Field<Set::Scalar> mdot_mf;
-    Set::Field<Set::Scalar> deta_mf;
-    Set::Field<Set::Scalar> deta2_mf; 
 
     Set::Field<Set::Scalar> phi_mf;
     Set::Field<Set::Scalar> field;
@@ -84,12 +82,6 @@ private:
     Set::Scalar base_time =1.0e-4;
     IC::IC *ic_eta;
    
-    struct {
-      Set::Scalar evolve = 1;
-      Set::Scalar round = 1.0;
-    } conditional; 
-
-  
    struct {
       Set::Scalar gamma = 1.0;
       Set::Scalar eps = 0.0;
@@ -107,7 +99,7 @@ private:
       Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
       Set::Scalar c1 = 0.0;
       Set::Scalar E1, E2;
-      int mob_ap = 1;
+      int mob_ap = 0;
       int dependency = 1; 
     } pressure;
 
@@ -125,9 +117,6 @@ private:
       Set::Scalar modeling_ap = 1.0, modeling_htpb = 1.0;
       Set::Scalar mlocal_ap = 0.0, mlocal_htpb = 0.0, mlocal_comb = 0.0;
       Set::Scalar T_fluid = 300.0;
-      int controlj1 = 0, controlj2 = 0, laseron = 0;
-      int lasershut = 1;
-      Set::Scalar laseroff = 1.0;
       Set::Scalar massfraction = 0.8;
     } thermal;
 
@@ -142,7 +131,7 @@ private:
 
     BC::BC<Set::Scalar> *bc_psi = nullptr;
 
-  Set::Scalar T0;
+    Set::Scalar T0;
 
 };
 }
