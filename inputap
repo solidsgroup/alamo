@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = /home/mmeierdo/solidphase/zeropressure/output
+plot_file = /home/mmeierdo/solidphase/elastic/output
 amr.plot_dt = 0.001
 #amr.plot_int = 1
 amr.max_level = 7
@@ -15,7 +15,7 @@ amr.n_cell = 8 2 2
 geometry.prob_lo = 0.0 -0.0005 -0.0005 # [ m ] 
 geometry.prob_hi = 0.004 0.0005 0.0005 # [ m ]
 
-geometry.is_periodic = 0 1 1
+geometry.is_periodic = 0 0 0
 
 conditional.round = 1000.0
 
@@ -44,10 +44,10 @@ pf.w0 = 0.0
 
 pf.eta.bc.type.xlo = dirichlet
 pf.eta.bc.type.xhi = dirichlet
-pf.eta.bc.type.ylo = periodic
-pf.eta.bc.type.yhi = periodic
-pf.eta.bc.type.zlo = periodic
-pf.eta.bc.type.zhi = periodic
+pf.eta.bc.type.ylo = neumann
+pf.eta.bc.type.yhi = neumann
+pf.eta.bc.type.zlo = neumann
+pf.eta.bc.type.zhi = neumann
 
 pf.eta.bc.val.xlo = 0.0
 pf.eta.bc.val.xhi = 1.0
@@ -117,7 +117,71 @@ pressure.c1 = -0.09906
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 
-elastic.type = disable
+elastic.interval = 1
 
-laser.ic.type = "expression"
-laser.ic.expression.region0 = "(t<0.025)*5.0e7"
+#elastic.ic.type = constant # lame, shear, E, nu, F0
+#elastic.type = ellipse
+
+#elastic.nmodels = 1
+model_ap.E    = 210
+model_ap.nu   = 0.3
+model_ap.F0   = 1E-10 0 0 1E-10 #eigenstrain
+
+model_htpb.E  = 210
+model_htpb.nu = 0.3
+model_htpb.F0 = 0 0 0 0 0 0 0 0 0 #eigenstrain
+
+model_void.E  = 2.10
+model_void.nu = 0.3
+model_void.F0 = 0 0 0 0 0 0 0 0 0 #eigenstrain
+
+
+
+elastic.solver.verbose = 4
+elastic.solver.fixed_iter=40
+#elastic.solver.nriters = 1
+
+#elastic.ref_threshold = 5E-5
+#elastic.eta_ref_threshold = 10
+
+
+###### Laser #########################################################
+laser.ic.type = "constant"
+laser.ic.constant.value = 1.0e6
+#laser.ic.expression.region0 = "(t<0.025)*5.0e7"
+
+#elastic.bc.type = tension_test
+#elastic.bc.tension_test.type = uniaxial_stress
+#elastic.bc.tension_test.disp=0.0001
+amr.plot_int = 1
+amr.node.all = 1
+
+T0 = 300
+
+### --- Faces
+elastic.bc.type = constant
+#elastic.bc.constant.type.xlo = disp trac trac
+#elastic.bc.constant.type.xhi = disp trac trac
+#elastic.bc.constant.val.xlo = 0.0001 0.0 0.0
+#elastic.bc.constant.type.ylo = trac disp trac
+#elastic.bc.constant.type.yhi = trac trac trac
+#elastic.bc.constant.type.xloylo = disp trac trac
+#elastic.bc.constant.type.xloyhi = disp trac trac
+#elastic.bc.constant.type.xhiylo = disp trac trac
+#elastic.bc.constant.type.xhiyhi = disp trac trac
+#elastic.bc.constant.val.xloylo = 0.0001 0.0 0.0
+#elastic.bc.constant.val.xloyhi = 0.0001 0.0 0.0
+
+elastic.bc.constant.type.xlo = trac trac trac
+elastic.bc.constant.type.xhi = disp trac trac
+elastic.bc.constant.type.ylo = trac disp trac
+elastic.bc.constant.type.yhi = trac trac trac
+elastic.bc.constant.type.xloylo = trac trac trac
+elastic.bc.constant.type.xloyhi = trac trac trac
+elastic.bc.constant.type.xhiylo = disp trac trac
+elastic.bc.constant.type.xhiyhi = disp trac trac
+
+#amr.n_cell = 8 8 2
+#geometry.prob_lo = 0.0 -0.002 -0.0005 # [ m ] 
+#geometry.prob_hi = 0.004 0.002 0.0005 # [ m ]
+#amr.max_level = 1

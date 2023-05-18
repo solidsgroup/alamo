@@ -1,5 +1,5 @@
 alamo.program = flame
-#plot_file = /home/mmeierdo/solidphase/SMPACK/output 
+#plot_file = /home/mmeierdo/solidphase/test/output 
 amr.plot_dt = 0.001
 #amr.plot_int = 1
 amr.max_level = 7
@@ -22,7 +22,7 @@ conditional.round = 1000.0
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1.0e-5 # 0.00005 # [s]
-stop_time = 0.05
+stop_time = 0.1
 small = 1.0e-8
 pf.min_eta = 0.1
 
@@ -38,7 +38,7 @@ phi.ic.type = psread
 phi.zeta_0 = 0.00001
 phi.ic.psread.eps = 0.00001
 #phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/NewPacks/pack3d.out
-#phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/NewPacks/1/0.xyr
+#phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/NewPacks/60/1.xyr
 
 pf.kappa = 1.0
 pf.gamma = 0.02726
@@ -101,7 +101,7 @@ thermal.temp.bc.val.zhi = 0.0
 thermal.hc = 1.0e7
 
 thermal.mlocal_ap = 1000.0
-#thermal.mlocal_htpb = 20000.0
+thermal.mlocal_htpb = 20000.0
 thermal.mlocal_comb = 0.0
 
 ## PRESSURE VARIABLES ######################################################### PRESSURE
@@ -126,5 +126,5 @@ elastic.type = disable
 
 laser.ic.type = "expression"
 #laser.ic.constant.value = 1.0e6
-laser.ic.expression.value = 1.0e6
-laser.ic.expression.region0 = "t < 0.02"
+#laser.ic.expression.value = 1.0e6
+laser.ic.expression.region0 = "(t < 0.02)*1.0e7"

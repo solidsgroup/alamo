@@ -38,12 +38,11 @@ namespace Integrator
             
             value.bc_eta = new BC::Constant(1);
             pp.queryclass("pf.eta.bc", *static_cast<BC::Constant *>(value.bc_eta)); // See :ref:`BC::Constant`
-            value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 1, "eta", true);
-            value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 1, "eta_old", false);
+            value.RegisterNewFab(value.eta_mf,     value.bc_eta, 1, 2, "eta", true);
+            value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, 2, "eta_old", false);
             value.RegisterNewFab(value.mdot_mf, 1, "mdot", true);
 	    value.RegisterNewFab(value.deta_mf, 1, "deta", true);
 	    value.RegisterNewFab(value.deta2_mf, 1, "deta2", true);
-	    
 
             std::string eta_bc_str = "constant";
             pp.query("pf.eta.ic.type",eta_bc_str);
@@ -92,6 +91,7 @@ namespace Integrator
         {
             //IO::ParmParse pp("thermal");
             pp.query("thermal.on",value.thermal.on); // Whether to use the Thermal Transport Model
+	    pp.query("elastic.on", value.elastic.on);
 
             pp.query("thermal.rho_ap",value.thermal.rho_ap); // AP Density
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
@@ -177,7 +177,7 @@ namespace Integrator
             else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid IC type ",type);
             
-            value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 1, "phi", true);
+            value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 2, "phi", true);
         }
 
         pp.queryclass<Base::Mechanics<Model::Solid::Affine::Isotropic>>("elastic",value);
@@ -185,8 +185,12 @@ namespace Integrator
         {
             pp.queryclass("model_ap",value.elastic.model_ap);
             pp.queryclass("model_htpb",value.elastic.model_htpb);
-            pp.queryclass("model_void",value.elastic.model_void);
+
+	    value.bc_psi = new BC::Nothing();
+	    value.RegisterNewFab(value.psi_mf,value.bc_psi,1,2,"psi",true);
+	    value.psi_on = false;
         }
+	pp.query("T0",value.T0);
     }
 
     void Flame::Initialize(int lev)
@@ -218,35 +222,20 @@ namespace Integrator
 	thermal.w1 = 0.2 * pressure.P + 0.9;
 
 	ic_laser->Initialize(lev,laser_mf);
+	
+	if (elastic.on) psi_mf[lev]->setVal(1.0);
 
 	thermal.mlocal_htpb = 685000.0 - 850e3*thermal.massfraction;
-	/*
-	if(thermal.laseron == 0){
-	  laser_mf[lev] -> setVal(thermal.q0);
-	}
-	else{
-	  for (amrex::MFIter mfi(*laser_mf[lev], true); mfi.isValid(); ++mfi){
-	  const amrex::Box &bx = mfi.tilebox();
-	  amrex::Array4<Set::Scalar> const &laser = (*laser_mf[lev]).array(mfi);
-	  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
-	  {
-	    if (j > thermal.controlj1 && j < thermal.controlj2){
-	      laser(i,j,k) = thermal.q0;
-	    }
-	    else {
-	      laser(i,j,k) = 0.0;
-	    }
-	  }); 
-	}}
-	*/	
     }
     
     void Flame::UpdateModel(int /*a_step*/)
     {
         if (m_type == Base::Mechanics<Model::Solid::Affine::Isotropic>::Type::Disable) return;
 
+
         for (int lev = 0; lev <= finest_level; ++lev)
         {
+	  //	  psi_mf[lev]->setVal(1.0);
             phi_mf[lev]->FillBoundary();
             eta_mf[lev]->FillBoundary();
             temp_mf[lev]->FillBoundary();
@@ -254,9 +243,11 @@ namespace Integrator
             for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.nodaltilebox();
+		bx.grow(1);
                 amrex::Array4<model_type>        const &model = model_mf[lev]->array(mfi);
                 amrex::Array4<const Set::Scalar> const &phi = phi_mf[lev]->array(mfi);
-                if (thermal.on)
+ 
+                if (elastic.on)
                 {
                     amrex::Array4<const Set::Scalar> const &temp = temp_mf[lev]->array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
@@ -264,9 +255,10 @@ namespace Integrator
                         Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi,i,j,k,0);
                         Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
                         model_type model_ap = elastic.model_ap;
-                        model_ap.F0 *= temp_avg;
+                        model_ap.F0 *= (temp_avg-T0);
+
                         model_type model_htpb = elastic.model_htpb;
-                        model_htpb.F0 *= temp_avg;
+                        model_htpb.F0 *= (temp_avg-T0);
                         model(i,j,k) = model_ap*phi_avg + model_htpb*(1.-phi_avg);
                     });
                 }

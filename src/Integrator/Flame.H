@@ -77,8 +77,8 @@ private:
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     Set::Scalar t_refinement_restriction = 0.1;
-    Set::Scalar zeta = 0.05;
-    Set::Scalar zeta_0 = 0.05;
+    Set::Scalar zeta = 1.0e-5;
+    Set::Scalar zeta_0 = 1.0e-5;
     Set::Scalar small = 1.0e-8;
     Set::Scalar small2 = 0.5;
     Set::Scalar base_time =1.0e-4;
@@ -132,12 +132,18 @@ private:
     } thermal;
 
     struct {
-      Model::Solid::Affine::Isotropic model_ap, model_htpb, model_void;
+      Model::Solid::Affine::Isotropic model_ap, model_htpb;
+      int on = 0;
     } elastic;
 
     // Integrated variables
     Set::Scalar volume = 0.0;
     Set::Scalar area = 0.0;
+
+    BC::BC<Set::Scalar> *bc_psi = nullptr;
+
+  Set::Scalar T0;
+
 };
 }
 
