@@ -153,6 +153,11 @@ namespace Integrator
                 pp.query("phi.ic.laminate.eps", value.zeta);
                 pp.query("phi.zeta_0", value.zeta_0);
                 }
+	    else if (type == "expression"){
+	        value.ic_phi = new IC::Expression(value.geom,pp,"phi.ic.expression");
+		pp.query("phi.zeta_0", value.zeta_0);
+	    }
+	    
             else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom,pp,"phi.ic.constant");
             else Util::Abort(INFO,"Invalid IC type ",type);
             
