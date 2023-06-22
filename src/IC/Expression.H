@@ -42,7 +42,13 @@ namespace IC
                         Set::Vector x = Set::Position(i, j, k, geom[lev], type);
                         if (coord == Expression::CoordSys::Cartesian)
                         {
+                            #if AMREX_SPACEDIM == 1
+			    field(i,j,k,n) = f[n](x(0),0.0,0.0,a_time);
+			    #elif AMREX_SPACEDIM == 2
+			    field(i,j,k,n) = f[n](x(0),x(1),0.0,a_time);
+			    #elif AMREX_SPACEDIM == 3
                             field(i,j,k,n) = f[n](x(0),x(1),x(2),a_time);
+			    #endif
                         }
                         #if AMREX_SPACEDIM>1
                         else if (coord == Expression::CoordSys::Polar)
