@@ -172,7 +172,7 @@ namespace Integrator
 
 	    value.bc_psi = new BC::Nothing();
 	    value.RegisterNewFab(value.psi_mf,value.bc_psi,1,2,"psi",true);
-	    value.psi_on = false;
+	    value.psi_on = true;
         }
 	pp.query("T0",value.T0);
     }
@@ -260,6 +260,7 @@ namespace Integrator
 
             Util::RealFillBoundary(*model_mf[lev], geom[lev]);
             
+            psi_mf[lev]->setVal(1.0);
             amrex::MultiFab::Copy(*psi_mf[lev],*eta_mf[lev],0,0,1,psi_mf[lev]->nGrow());
         }
     }
