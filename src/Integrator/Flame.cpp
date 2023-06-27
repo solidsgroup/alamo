@@ -451,8 +451,8 @@ namespace Integrator
     void Flame::Regrid(int lev, Set::Scalar time)
     {
         BL_PROFILE("Integrator::Flame::Regrid");
-        if (lev < finest_level) return;
-        phi_mf[lev]->setVal(0.0);
+        //if (lev < finest_level) return;
+        //phi_mf[lev]->setVal(0.0);
         ic_phi->Initialize(lev, phi_mf,time);
     } 
 
