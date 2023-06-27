@@ -91,6 +91,41 @@ public:
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
+	else if (pp.contains("E") && pp.contains("shear"))
+        {
+	  Set::Scalar E;
+	  pp.query("E",E);
+	  pp.query("shear", mu);
+	  lambda = mu * ( E - 2.0 * mu) / (3.0 * mu - E);
+	}
+	else if (pp.contains("E") && pp.contains("lame"))
+	{
+	  Set::Scalar E;
+	  pp.query("E", E);
+	  pp.query("lame", lambda);
+	  mu = (E - 3.0 * lambda + sqrt(E * E + 9.0 * lambda * lambda + 2.0 * E * lambda)) / 4.0;
+	}
+	else if (pp.contains("nu") && pp.contains("shear"))
+	{
+	  Set::Scalar nu;
+	  pp.query("nu", nu);
+	  pp.query("shear", mu);
+	  lambda = 2.0 * mu * nu / (1.0 - 2.0 * nu); 
+	}
+	else if (pp.contains("lambda") && pp.contains("nu"))
+	{
+	  Set::Scalar nu;
+	  pp.query("lambda", lambda);
+	  pp.query("nu", nu);
+	  mu = lambda * (1.0 - 2.0 * nu) / 2.0 / nu;	   
+	}
+	else if (pp.contains("bulk") && pp.contains("shear"))
+	{
+	  Set::Scalar K;
+	  pp.query("bulk", K);
+	  pp.query("shear", mu);
+	  lambda = K - (2.0 * mu / 3.0); 
+	}
         else
         {
             Util::Abort(INFO,"Model parameters not specified with either (lame, shear), or (E, nu)");
@@ -98,7 +133,7 @@ public:
         if (pp.contains("F0"))
         {
             pp.queryarr("F0",F0);
-        }
+       }
         value.Define(mu,lambda,F0);
     }
     #define OP_CLASS Isotropic

@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = output
+plot_file = /home/meier/solidphase/box/output
 #amr.plot_dt = 0.001
 amr.plot_int = 10
 amr.max_level = 7
