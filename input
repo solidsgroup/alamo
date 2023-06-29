@@ -98,19 +98,19 @@ E.bc.val.yhi = 0.0
 E.bc.val.zlo = 0.0 
 E.bc.val.zhi = 0.0
 
-# p.bc.type.xlo = neumann
-# p.bc.type.xhi = neumann
-# p.bc.type.ylo = neumann
-# p.bc.type.yhi = neumann
-# p.bc.type.zlo = neumann
-# p.bc.type.zhi = neumann
+p.bc.type.xlo = neumann
+p.bc.type.xhi = neumann
+p.bc.type.ylo = neumann
+p.bc.type.yhi = neumann
+p.bc.type.zlo = neumann
+p.bc.type.zhi = neumann
 
-# p.bc.val.xlo = 0.0
-# p.bc.val.xhi = 0.0
-# p.bc.val.ylo = 0.0 
-# p.bc.val.yhi = 0.0
-# p.bc.val.zlo = 0.0 
-# p.bc.val.zhi = 0.0
+p.bc.val.xlo = 0.0
+p.bc.val.xhi = 0.0
+p.bc.val.ylo = 0.0 
+p.bc.val.yhi = 0.0
+p.bc.val.zlo = 0.0 
+p.bc.val.zhi = 0.0
 
 M.bc.type.xlo = neumann
 M.bc.type.xhi = neumann
@@ -126,19 +126,19 @@ M.bc.val.yhi = 0.0
 M.bc.val.zlo = 0.0 
 M.bc.val.zhi = 0.0
 
-# v.bc.type.xlo = neumann
-# v.bc.type.xhi = neumann
-# v.bc.type.ylo = neumann
-# v.bc.type.yhi = neumann
-# v.bc.type.zlo = neumann
-# v.bc.type.zhi = neumann
+v.bc.type.xlo = neumann
+v.bc.type.xhi = neumann
+v.bc.type.ylo = neumann
+v.bc.type.yhi = neumann
+v.bc.type.zlo = neumann
+v.bc.type.zhi = neumann
 
-# v.bc.val.xlo = 0.0
-# v.bc.val.xhi = 0.0
-# v.bc.val.ylo = 0.0 
-# v.bc.val.yhi = 0.0
-# v.bc.val.zlo = 0.0 
-# v.bc.val.zhi = 0.0
+v.bc.val.xlo = 0.0
+v.bc.val.xhi = 0.0
+v.bc.val.ylo = 0.0 
+v.bc.val.yhi = 0.0
+v.bc.val.zlo = 0.0 
+v.bc.val.zhi = 0.0
 
 ### HYDRO REFINEMENT CRITERIA ###
 
