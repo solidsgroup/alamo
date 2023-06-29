@@ -32,6 +32,9 @@ public:
         BL_PROFILE("Integrator::Hydro::Hydro()");
         //General Variables Input Read:
         {
+            //pp.query("r_refinement_criterion", value.r_refinement_criterion);
+            //pp.query("e_refinement_criterion", value.e_refinement_criterion);
+            //pp.query("m_refinement_criterion", value.m_refinement_criterion);
             pp.query("gamma", value.gamma);
             pp.query("cfl", value.cfl);
             pp.query("rho_solid", value.rho_solid);
@@ -63,10 +66,8 @@ public:
             value.RegisterNewFab(value.Momentum_old_mf, value.bc_M, 2, nghost, "M_old", false);
 
             value.RegisterNewFab(value.Velocity_mf, value.bc_v, 2, nghost, "Velocity", true);
-            value.RegisterNewFab(value.Velocity_old_mf, value.bc_v, 2, nghost, "v_old", true);
 
             value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, nghost, "Pressure", true);
-            value.RegisterNewFab(value.Pressure_old_mf, value.bc_p, 1, nghost, "P_old", true);
         }
         {
             BL_PROFILE("Integrator::Hydro::Hydro()");
@@ -93,27 +94,15 @@ private:
     Set::Field<Set::Scalar> Density_mf;
     Set::Field<Set::Scalar> Density_old_mf;
 
-    /////
-
     Set::Field<Set::Scalar> Energy_mf;
     Set::Field<Set::Scalar> Energy_old_mf;
-
-    /////
 
     Set::Field<Set::Scalar> Momentum_mf;
     Set::Field<Set::Scalar> Momentum_old_mf;
 
-    /////
-
     Set::Field<Set::Scalar> Velocity_mf;
-    Set::Field<Set::Scalar> Velocity_old_mf;
-
-    /////
 
     Set::Field<Set::Scalar> Pressure_mf;
-    Set::Field<Set::Scalar> Pressure_old_mf;
-
-    /////
 
     Set::Field<Set::Scalar> eta_mf;
     Set::Field<Set::Scalar> eta_old_mf;
@@ -133,25 +122,24 @@ private:
     IC::IC* ic_eta;
 
     Set::Scalar rho_solid = 1.2;
-    Set::Scalar rho_fluid = 1.0;
-    Set::Scalar E_solid = 5.0;
+    Set::Scalar rho_fluid = 0.1;
+    Set::Scalar E_solid = 1.0;
     Set::Scalar E_fluid = 1.0;
 
-    Set::Scalar Mx_init = 0.5;
+    Set::Scalar Mx_init = 0.0;
     Set::Scalar My_init = 0.0;
 
-    Set::Scalar V_x = 0.0; //cross flow velocity at interface
-    Set::Scalar V_y = 0.0; //normal velocity at interface
+    Set::Scalar V_x = 0.0;
+    Set::Scalar V_y = 0.0;
 
     Set::Scalar gamma = 1.4;
-    Set::Scalar mu = 0.001;
 
-    Set::Scalar cfl = 0.4;
+    Set::Scalar cfl = 0.6;
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-    Set::Scalar epsilon = 0.025;
+    Set::Scalar epsilon = 0.1;
 
     //refinement criterion variables
     Set::Scalar r_refinement_criterion = 0.1;
