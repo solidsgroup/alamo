@@ -22,6 +22,7 @@
 #include "IC/Ellipse.H"
 #include "IC/Voronoi.H"
 #include "IC/Constant.H"
+#include "IC/Expression.H"
 #include "IC/BMP.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
@@ -82,8 +83,9 @@ class Mechanics : virtual public Base::Mechanics<MODEL>
         {
             std::string type;
             pp.query("psi.ic.type",type); // Read IC type for the eta field
-            if (type=="ellipse") value.ic_psi = new IC::Ellipse(value.geom,pp,"psi.ic.ellipse");
-            else if (type=="constant") value.ic_psi = new IC::Constant(value.geom,pp,"psi.ic.constant");
+            if (type=="ellipse")         value.ic_psi = new IC::Ellipse(value.geom,pp,"psi.ic.ellipse");
+            else if (type=="constant")   value.ic_psi = new IC::Constant(value.geom,pp,"psi.ic.constant");
+            else if (type=="expression") value.ic_psi = new IC::Expression(value.geom,pp,"psi.ic.expression");
             else Util::Abort(INFO,"Invalid value for psi.ic.type: ",type);
             
             value.bc_psi = new BC::Nothing();

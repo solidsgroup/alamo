@@ -28,7 +28,7 @@ public:
     virtual void SetFinestLevel(const int a_finestlevel) = 0;
     virtual void FillPatch(const int lev, const Set::Scalar time)=0;
     virtual void FillBoundary(const int lev, Set::Scalar time)=0;
-    virtual void AverageDownNodal(const int lev, amrex::IntVect refRatio) = 0;
+    virtual void AverageDown(const int lev, amrex::IntVect refRatio) = 0;
 
     virtual int NComp() = 0;
     virtual void Copy(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) = 0;
@@ -36,6 +36,9 @@ public:
     virtual std::string Name(int) = 0;
     virtual void setName(std::string a_name) = 0;
     bool evolving = true;
+    virtual void setBC(void * a_bc) = 0;
+    virtual void * getBC() = 0;
+    Set::Hypercube m_gridtype;
 };
 
 template<class T>
@@ -73,10 +76,20 @@ public:
             smf.push_back(source_mf[lev].get());
             amrex::Vector<amrex::Real> stime;
             stime.push_back(time);
-            //physbc.define(m_geom[lev]);
-            amrex::FillPatchSingleLevel(destination_mf, time, smf, stime,
-                                        0, icomp, destination_mf.nComp(), m_geom[lev],
-                                        physbc, 0);
+
+            if (m_gridtype == Set::Hypercube::Cell)
+            {
+                m_bc->define(m_geom[lev]);
+                amrex::FillPatchSingleLevel(destination_mf, time, smf, stime,
+                                            0, icomp, destination_mf.nComp(), m_geom[lev],
+                                            *m_bc, 0);
+            }
+            else if (m_gridtype == Set::Hypercube::Node)
+            {
+                amrex::FillPatchSingleLevel(destination_mf, time, smf, stime,
+                                0, icomp, destination_mf.nComp(), m_geom[lev],
+                                physbc, 0);
+            }
         } 
         else
         {
@@ -87,31 +100,41 @@ public:
             ctime.push_back(time);
             ftime.push_back(time);
 
-            //physbc.define(m_geom[lev]);
-
-            Numeric::Interpolator::NodeBilinear<T> *mapper; 
+            amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); 
 
             if (destination_mf.boxArray().ixType() == amrex::IndexType::TheNodeType())
-                mapper = new Numeric::Interpolator::NodeBilinear<T>();
-            else
-                Util::Abort(INFO,"Currently works for node-based templated fabs only!");
-            //mapper = &amrex::cell_cons_interp;
+            {
+                Numeric::Interpolator::NodeBilinear<T> *mapper
+                    = new Numeric::Interpolator::NodeBilinear<T>();
+            
+                amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
+                                        0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
+                                        physbc, 0,
+                                        physbc, 0,
+                                        m_refRatio[lev-1],
+                                        mapper, bcs, 0);
 
-            amrex::Vector<amrex::BCRec> bcs(destination_mf.nComp(), physbc.GetBCRec()); 
-            amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
-                                    0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
-                                    physbc, 0,
-                                    physbc, 0,
-                                    m_refRatio[lev-1],
-                                    mapper, bcs, 0);
+            }
+            else
+            {
+                Util::Abort(INFO,"This implementation is not yet complete.");
+                /*
+                Numeric::Interpolator::CellBilinear<T> *mapper 
+                    = new Numeric::Interpolator::CellBilinear<T>();
+                m_bc->define(m_geom[lev]);
+                amrex::FillPatchTwoLevels(destination_mf, time, cmf, ctime, fmf, ftime,
+                                        0, icomp, destination_mf.nComp(), m_geom[lev-1], m_geom[lev],
+                                        *m_bc, 0,
+                                        *m_bc, 0,
+                                        m_refRatio[lev-1],
+                                        mapper, bcs, 0);
+                */
+            }
         }
 
     }
     void 
-    FillPatch (int lev, amrex::Real time//,
-                //amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> &source_mf,
-                //amrex::FabArray<amrex::BaseFab<T>> &destination_mf, 
-                /*int icomp*/)
+    FillPatch (int lev, amrex::Real time)
     {
         this->FillPatch(lev,time,m_field,*(m_field[lev]),0);
     }
@@ -121,26 +144,47 @@ public:
                     int icomp,
                     int ncomp)
     {
-        EmptyBC physbc;
-
         BL_PROFILE("Integrator::FillCoarsePatch");
         AMREX_ASSERT(lev > 0);
-        amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
-        cmf.push_back(m_field[lev-1].get());
-        amrex::Vector<amrex::Real> ctime;
-        ctime.push_back(time);
-    
-        //physbc.define(geom[lev]);
-        //amrex::Interpolater* mapper = &amrex::cell_cons_interp;
-        Numeric::Interpolator::NodeBilinear<T> *mapper = new Numeric::Interpolator::NodeBilinear<T>();
 
-        amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
-        amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
-                                    m_geom[lev-1], m_geom[lev],
-                                    physbc, 0,
-                                    physbc, 0,
-                                    m_refRatio[lev-1],
-                                    mapper, bcs, 0);
+        if (m_gridtype == Set::Hypercube::Node)
+        {
+            Util::Assert(INFO, TEST(m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType()));
+            EmptyBC physbc;
+            amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
+            cmf.push_back(m_field[lev-1].get());
+            amrex::Vector<amrex::Real> ctime;
+            ctime.push_back(time);
+            Numeric::Interpolator::NodeBilinear<T> *mapper = new Numeric::Interpolator::NodeBilinear<T>();
+            amrex::Vector<amrex::BCRec> bcs(ncomp, physbc.GetBCRec());
+            amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
+                                        m_geom[lev-1], m_geom[lev],
+                                        physbc, 0,
+                                        physbc, 0,
+                                        m_refRatio[lev-1],
+                                        mapper, bcs, 0);
+        }
+        else if (m_gridtype == Set::Hypercube::Cell)
+        {
+            Util::Abort(INFO,"This implementation is not yet complete");
+            /*
+            amrex::Vector<amrex::FabArray<amrex::BaseFab<T>> *> cmf;
+            cmf.push_back(m_field[lev-1].get());
+            amrex::Vector<amrex::Real> ctime;
+            ctime.push_back(time);
+            m_bc->define(m_geom[lev]);
+            Numeric::Interpolator::CellBilinear<T> *mapper = new Numeric::Interpolator::CellBilinear<T>();
+            amrex::Vector<amrex::BCRec> bcs(ncomp, m_bc->GetBCRec());
+            amrex::InterpFromCoarseLevel(*m_field[lev], time, *cmf[0], 0, icomp, ncomp, 
+                                        m_geom[lev-1], m_geom[lev],
+                                        *m_bc, 0,
+                                        *m_bc, 0,
+                                        m_refRatio[lev-1],
+                                        mapper, bcs, 0);
+            */
+        }
+        else
+            Util::Abort(INFO,"Invalid grid");
     }
 
 
@@ -149,21 +193,23 @@ public:
                             const amrex::BoxArray& cgrids, 
                             const amrex::DistributionMapping& dm) override
     {
-        if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
+        if (m_gridtype == Set::Hypercube::Node)
         {
+            Util::Assert(INFO, TEST(m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType()));
             amrex::BoxArray ngrids = cgrids;
             ngrids.convert(amrex::IntVect::TheNodeVector());
             amrex::FabArray<amrex::BaseFab<T>> new_state(ngrids, dm, m_ncomp, m_nghost);
             this->FillPatch(lev, time, m_field, new_state, 0);
             std::swap(new_state, *m_field[lev]);
         }
-        else
+        else if (m_gridtype == Set::Hypercube::Cell)
         {
-            Util::Abort(INFO,"Not implemented yet");
-            //amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
-            //this->FillPatch(lev, time, m_field, new_state, 0);
-            //std::swap(new_state, *m_field[lev]);
+            amrex::FabArray<amrex::BaseFab<T>> new_state(cgrids, dm, m_ncomp, m_nghost);
+            this->FillPatch(lev, time, m_field, new_state, 0);
+            std::swap(new_state, *m_field[lev]);
         }
+        else
+            Util::Abort(INFO,"Invalid grid");
     }
 
     virtual void MakeNewLevelFromCoarse (int lev, 
@@ -171,19 +217,20 @@ public:
                                         const amrex::BoxArray& cgrids, 
                                         const amrex::DistributionMapping& dm) override
     {
-        if (m_field[0]->boxArray().ixType() == amrex::IndexType::TheNodeType())
+        if (m_gridtype == Set::Hypercube::Node)
         {
             amrex::BoxArray ngrids = cgrids;
             ngrids.convert(amrex::IntVect::TheNodeVector());
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
             FillCoarsePatch(lev,time,0,m_ncomp);
         }
-        else
+        else if (m_gridtype == Set::Hypercube::Cell)
         {
-            Util::Abort(INFO,"Not implemented yet");
-            //m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
-            //FillCoarsePatch(lev,time,0,m_ncomp);
+            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
+            FillCoarsePatch(lev,time,0,m_ncomp);
         }
+        else
+            Util::Abort(INFO,"Invalid grid");
     }
 
     virtual void MakeNewLevelFromScratch (int lev, 
@@ -191,18 +238,20 @@ public:
                                         const amrex::BoxArray& cgrids,
                                         const amrex::DistributionMapping& dm)
     {
-        //if (m_field[lev]->boxArray().ixType() == amrex::IndexType::TheNodeType())
-        //{
+        if (m_gridtype == Set::Hypercube::Node)
+        {
             amrex::BoxArray ngrids = cgrids;
             ngrids.convert(amrex::IntVect::TheNodeVector());
             m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(ngrids,dm,m_ncomp,m_nghost));
             m_field[lev]->setVal(T::Zero());
-        //}
-        //else
-        //{
-        //    Util::Abort(INFO,"Not implemented yet");
-        //    //m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
-        //}
+        }
+        else if (m_gridtype == Set::Hypercube::Cell)
+        {
+            m_field[lev].reset(new amrex::FabArray<amrex::BaseFab<T>>(cgrids,dm,m_ncomp,m_nghost));
+            m_field[lev]->setVal(T::Zero());
+        }
+        else
+            Util::Abort(INFO,"Invalid grid");
     }                                 
 
     virtual void SetFinestLevel(const int a_finestlevel)
@@ -210,14 +259,32 @@ public:
         m_field.finest_level = a_finestlevel;
     }
 
-    virtual void FillBoundary(const int lev, Set::Scalar /*time*/) override
+    virtual void FillBoundary(const int lev, Set::Scalar time) override
     {
         Util::RealFillBoundary(*m_field[lev],m_geom[lev]);
+        if (m_gridtype == Set::Hypercube::Cell)
+        {
+            m_bc->define(m_geom[lev]);
+            for (amrex::MFIter mfi(*m_field[lev],true); mfi.isValid(); ++mfi)
+            {
+                const amrex::Box& box = mfi.tilebox();
+                amrex::BaseFab<T>  &patch = (*(m_field[lev]))[mfi];
+                m_bc->FillBoundary(patch,box,m_nghost,0,m_ncomp,time);
+            }
+            //
+        }
     }
     
-    virtual void AverageDownNodal(const int lev, amrex::IntVect refRatio) override
+    virtual void AverageDown(const int lev, amrex::IntVect refRatio) override
     {
-        amrex::average_down_nodal(*m_field[lev+1],*m_field[lev],refRatio);
+        if (m_gridtype == Set::Hypercube::Node)
+            amrex::average_down_nodal(*m_field[lev+1],*m_field[lev],refRatio);
+        else if (m_gridtype == Set::Hypercube::Cell)
+            Util::Abort(INFO,"This is not yet working");
+            //amrex::average_down(*m_field[lev+1],*m_field[lev],0,m_ncomp,refRatio);
+            //amrex::average_down(*m_field[lev+1],*m_field[lev],0,m_ncomp,refRatio);
+        else
+            Util::Abort(INFO,"Incorrect grid");
     }
     
 private:
@@ -226,6 +293,7 @@ private:
     const amrex::Vector<amrex::Geometry>  &m_geom;
     const amrex::Vector<amrex::IntVect> &m_refRatio;
     const int m_ncomp, m_nghost;
+    BC::BC<T> *m_bc;
     
 public:
     virtual int NComp() override {
@@ -241,6 +309,13 @@ public:
     virtual std::string Name(int i) override {
         return m_field.Name(i);
     }
+    virtual void setBC(void * a_bc) {
+        m_bc = (BC::BC<T> *)(a_bc);
+    }
+    virtual void * getBC() {
+        return (void*)m_bc;
+    }
+
 };
 
 }

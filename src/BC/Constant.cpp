@@ -56,7 +56,7 @@ Constant::Constant (int a_ncomp,
 
 //amrex::Mask& m
 void
-Constant::FillBoundary (amrex::FArrayBox &a_in,
+Constant::FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             const amrex::Box &a_box,
             int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real time,
             Orientation face, const amrex::Mask * /*mask*/)

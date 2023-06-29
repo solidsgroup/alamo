@@ -44,6 +44,28 @@ Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry 
     return Set::Vector::Zero(); 
 }
 
+AMREX_FORCE_INLINE
+Vector Volume(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
+{
+    (void)k;
+    if (ixType == amrex::IndexType::TheNodeType())
+    {
+        return Vector(AMREX_D_DECL(
+                geom.ProbLo()[0] + ((amrex::Real)(i)) * geom.CellSize()[0],
+                geom.ProbLo()[1] + ((amrex::Real)(j)) * geom.CellSize()[1],
+                geom.ProbLo()[2] + ((amrex::Real)(k)) * geom.CellSize()[2]));
+    }
+    else if (ixType == amrex::IndexType::TheCellType())
+    {
+        return Vector(AMREX_D_DECL(
+                geom.ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom.CellSize()[0],
+                geom.ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom.CellSize()[1],
+                geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
+    }
+    Util::Abort(INFO,"Unsupported index type");
+    return Set::Vector::Zero(); 
+}
+
 enum Sym {None,Major,Minor,MajorMinor,Diagonal,Full,Isotropic};
 template<int dim,int sym> class Matrix4{};
 template<int dim, int sym>

@@ -10,6 +10,13 @@
 
 namespace Set
 {
+
+enum Hypercube {
+    Node = 0, Edge = 1, Face = 2, Cell = 3
+};
+
+using HC = Hypercube;
+
 //class Field : public amrex::MultiFab
 //{
 
