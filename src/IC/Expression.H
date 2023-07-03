@@ -86,7 +86,7 @@ namespace IC
                 }
                 else if (value.coord == Expression::CoordSys::Polar)
                 {
-                    value.parser.back().registerVariables({"r","t","z","t"});
+                    value.parser.back().registerVariables({"r","theta","z","t"});
                     value.f.push_back(value.parser.back().compile<4>());
                 }
             }

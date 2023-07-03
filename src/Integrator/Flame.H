@@ -15,6 +15,7 @@
 #include "IC/Wedge.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
+#include "IC/PSRead.H" 
 #include "Set/Set.H"
 #include "Model/Solid/Affine/Isotropic.H"
 #include "IO/ParmParse.H"
@@ -93,19 +94,22 @@ private:
     } pf;
 
     struct{
-
       Set::Scalar P=1.0;
-      Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
-      Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
-      Set::Scalar c1 = 0.0;
-      Set::Scalar E1, E2;
-      int mob_ap = 0;
-      int dependency = 1; 
+      struct {
+        Set::Scalar a1 = 0.0, a2 = 0.0, a3 = 0.0;
+        Set::Scalar b1 = 0.0, b2 = 0.0, b3 = 0.0;
+        Set::Scalar c1 = 0.0;
+        int mob_ap = 0;
+        int dependency = 1;
+      } arrhenius;
+      struct {
+        Set::Scalar r_ap, r_htpb, r_comb;
+        Set::Scalar n_ap, n_htpb, n_comb;
+      } power;
     } pressure;
 
-
     struct {
-      int on = 0;
+      bool on = 0;
       Set::Scalar rho_ap, rho_htpb;         
       Set::Scalar k_ap , k_htpb;
       Set::Scalar cp_ap, cp_htpb;           
@@ -130,8 +134,6 @@ private:
     Set::Scalar area = 0.0;
 
     BC::BC<Set::Scalar> *bc_psi = nullptr;
-
-    Set::Scalar T0;
 
 };
 }

@@ -30,8 +30,8 @@ stop_time		    = 0.1
 
 # amr parameters
 amr.plot_int		    = 1
-amr.max_level		    = 5
-amr.n_cell		    = 32 32 32
+amr.max_level		    = 0
+amr.n_cell		    = 2056 2056 2056
 amr.blocking_factor	    = 8
 amr.regrid_int		    = 1
 amr.grid_eff		    = 1.0
@@ -50,13 +50,13 @@ ic.ellipse.eps = 0.1 # diffuse boundary
 
 # elastic moduli
 nmodels = 2
-model1.E = 210 
-model1.nu = 0.3
-model1.F0  = 0.001 0 0 0 0.001 0 0 0 0.001 # eigenstrain
-model2.E = 210 
-model2.nu = 0.3
+model1.E = 32446.99 
+model1.nu = 0.143305
+model1.F0  = 1.6e-1 0 0 0 1.6e-1 0 0 0 1.6e-1 # eigenstrain
+model2.E = 2.4 
+model2.nu = 0.49944
 model2.F0  = 0 0 0 0 0 0 0 0 0 # eigenstrain
 
 solver.verbose = 3
 solver.nriters = 1
-solver.max_iter = 20
+solver.max_iter = 800
