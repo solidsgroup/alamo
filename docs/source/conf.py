@@ -28,7 +28,7 @@ import Inputs
 
 
 project = u'alamo'
-copyright = u'2018, Brandon Runnels'
+copyright = u'2023, Brandon Runnels'
 author = u'Brandon Runnels'
 
 # The short X.Y version
@@ -204,8 +204,44 @@ todo_include_todos = True
 html_logo = "alamo.svg"
 
 html_css_files = [
-    'custom.css'
+    'custom.css',
+    'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined'
 ]
+
+
+# This will appear at the beginning of each page. Use for formatting or to add universal action items.
+rst_prolog = """
+
+
+.. raw:: html
+
+    <style> .red {color:red} </style>
+    <style> .blue {color:blue} </style>
+    <style> .green {color:green} </style>
+    <style> .gray {color:gray} </style>
+    <style> .orange {color:orange} </style>
+
+.. role:: icon
+   :class: material-symbols-outlined
+
+.. role:: icon-red
+   :class: material-symbols-outlined red
+
+.. role:: icon-blue
+   :class: material-symbols-outlined blue
+
+.. role:: icon-green
+   :class: material-symbols-outlined green
+
+.. role:: icon-gray
+   :class: material-symbols-outlined gray
+
+.. role:: icon-orange
+   :class: material-symbols-outlined orange
+
+"""
+
+
 
 import os
 os.system("ls")
