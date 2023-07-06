@@ -40,15 +40,15 @@ void Hydro::Initialize(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-	  Set::Scalar radius = 0.1;
+	  //Set::Scalar radius = 0.1;
 	  //Set::Vector x = Set::Position(i,j,k,geom[lev], ixType());
 	  const Set::Scalar* DX = geom[lev].CellSize();
-	  Set::Scalar pos_x = (i - 100)*DX[0];
-	  Set::Scalar pos_y = (j - 100)*DX[0];
-	  Set::Scalar r_xy = std::sqrt(pos_x*pos_x + pos_y*pos_y);
+	  Set::Scalar pos_x0 = (i - 100)*DX[0];
+	  //Set::Scalar pos_y0 = (j - 100)*DX[0];
+	  //Set::Scalar r_xy = std::sqrt(pos_x*pos_x + pos_y*pos_y);
       
 	  //eta(i,j,k) = 1 - 0.5*std::erf((r_xy + radius)/epsilon) + 0.5*std::erf((r_xy - radius)/epsilon);
-	  eta(i,j,k) = 1.0;
+	  eta(i,j,k) = 0.5 - 0.5*std::erf(pos_x0/epsilon);
 	  eta_new(i,j,k) = eta(i,j,k);
 
 	  rho(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho_fluid * eta(i, j, k);
@@ -63,10 +63,10 @@ void Hydro::Initialize(int lev)
 	  E(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_fluid * eta(i, j, k);
 	  E_new(i, j, k) = E(i, j, k);
 
-	  p(i, j, k) = 0.0;
+	  //p(i, j, k) = 0.0;
 
-	  v(i, j, k, 0) = 0.0;
-	  v(i, j, k, 1) = 0.0;
+	  //v(i, j, k, 0) = 0.0;
+	  //v(i, j, k, 1) = 0.0;
         });
     }
 
@@ -163,6 +163,9 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         {
 	Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
         Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
+
+	Set::Scalar interface_pos_x = (i - 100)*DX[0];//0.5 - V_x * time;
+	Set::Scalar detadt = 0.0;//0.5 - 0.5*std::erf(interface_pos_x/epsilon);
 
 	// slopes in current cell
 	Set::Vector drho = Numeric::Gradient(rho, i, j, k, 0, DX);
@@ -287,10 +290,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	source[2] = grad_eta(1) * (rho_solid * (V_y*V_y));
 	source[3] = grad_eta_mag * (0.5 * rho_solid * (V_y*V_y + V_x*V_x)*(V_y*V_y + V_x*V_x)*(V_y*V_y + V_x*V_x));
 
-	E_new(i,j,k)   += source[3];
-	rho_new(i,j,k) += source[0];
-	M_new(i,j,k,0) += source[1];
-	M_new(i,j,k,1) += source[2];
+	E_new(i,j,k)   += source[3] + E(i,j,k) * detadt;
+	rho_new(i,j,k) += source[0] + rho(i,j,k) * detadt;
+	M_new(i,j,k,0) += source[1] + M(i,j,k,0) * detadt;
+	M_new(i,j,k,1) += source[2] + M(i,j,k,1) * detadt;
 
 	//Advance total fields
 	rho_new(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho_new(i, j, k) * eta(i, j, k);
@@ -300,7 +303,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
         //Advance eta
 
-
+	interface_pos_x = (i - 100)*DX[0];
+	eta_new(i, j, k) = 0.5 + 0.5 * std::erf((interface_pos_x)/epsilon);
 
 	//Advance counter
 

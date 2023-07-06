@@ -129,7 +129,7 @@ private:
     Set::Scalar Mx_init = 0.0;
     Set::Scalar My_init = 0.0;
 
-    Set::Scalar V_x = 0.0;
+    Set::Scalar V_x = -0.001;
     Set::Scalar V_y = 0.0;
 
     Set::Scalar gamma = 1.4;
@@ -139,7 +139,7 @@ private:
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-    Set::Scalar epsilon = 0.1;
+    Set::Scalar epsilon = 0.5;
 
     //refinement criterion variables
     Set::Scalar r_refinement_criterion = 0.1;
