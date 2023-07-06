@@ -22,6 +22,7 @@ import os, subprocess
 import sys
 sys.path.append(os.path.abspath('.'))
 import Inputs
+import Tests
 
 # -- Project information ----------------------------------------------------
 
