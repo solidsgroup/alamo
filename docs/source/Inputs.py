@@ -5,6 +5,18 @@ from os import listdir
 from os.path import isfile, join
 
 
+def geticon(classname):
+    if classname.startswith("BC"): return ":icon:`border_outer` "
+    if classname.startswith("IC"): return ":icon:`start` "
+    if classname.startswith("Integrator"): return ":icon:`settings` "
+    if classname.startswith("Model"): return ":icon:`vrpano` "
+    if classname.startswith("Numeric"): return ":icon:`full_stacked_bar_chart` "
+    if classname.startswith("Util"): return ":icon:`settings` "
+    if classname.startswith("Solver"): return ":icon:`directions` "
+    if classname.startswith("IO"): return ":icon:`print` "
+    if classname.startswith("Operator"): return ":icon:`rebase` "
+    else: return ""
+
 def getdocumentation(filename):
     sourcefile = open(filename+".H")
     ret = ""
@@ -147,8 +159,12 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
             for i in range(len(classname.split('::'))):
                 subhdr = '::'.join(classname.split('::')[:i])
                 if subhdr not in written_headers:
-                    docfile.write(subhdr+"\n")
-                    docfile.write("".ljust(len(subhdr),headerchar[i-1]))
+                    if '::' not in subhdr:
+                        docfile.write(geticon(subhdr) + subhdr+"\n")
+                        docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
+                    else:
+                        docfile.write(subhdr+"\n")
+                        docfile.write("".ljust(len(subhdr),headerchar[i-1]))
                     docfile.write("\n\n\n")
                     written_headers.append(subhdr)
 
@@ -162,6 +178,7 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
             
             if not len(inputs): continue
 
+            docfile.write("\n\n")
             docfile.write(".. flat-table:: \n")
             docfile.write("    :widths: 20 10 70\n")
             docfile.write("    :header-rows: 1\n\n")

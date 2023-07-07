@@ -80,14 +80,14 @@ public:
         Set::Matrix F0 = Set::Matrix::Zero();
         if (pp.contains("lame") && pp.contains("shear"))
         {
-            pp.query("lame",lambda);
-            pp.query("shear",mu);
+            pp.query("lame",lambda); // Lame modulus
+            pp.query("shear",mu); // Shear modulus
         }
         else if (pp.contains("E") && pp.contains("nu"))
         {
             Set::Scalar E, nu;
-            pp.query("E",E);
-            pp.query("nu",nu);
+            pp.query("E",E); // Elastic modulus
+            pp.query("nu",nu); // Poisson's ratio
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
@@ -97,7 +97,7 @@ public:
         }
         if (pp.contains("F0"))
         {
-            pp.queryarr("F0",F0);
+            pp.queryarr("F0",F0); // Eigendeformation gradient
         }
         value.Define(mu,lambda,F0);
     }

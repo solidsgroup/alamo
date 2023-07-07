@@ -216,6 +216,7 @@ rst_prolog = """
 
 .. raw:: html
 
+    <style> .material-symbols-outlined {display:inline-flex;vertical-align:middle} </style>
     <style> .red {color:red} </style>
     <style> .blue {color:blue} </style>
     <style> .green {color:green} </style>
