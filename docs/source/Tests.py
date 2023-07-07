@@ -120,6 +120,9 @@ for testdirname in sorted(glob.glob("../../tests/*")):
         testdocfile.write(testname + "\n")
         testdocfile.write("="*len(testname) + "\n")
 
+        if os.path.isfile(testdirname+"/Readme.rst"):
+            testdocfile.write(".. include:: ../{}/Readme.rst\n\n\n".format(testdirname))
+
         for c in config:
             if c == "DEFAULT": continue
             testdocfile.write(c+"\n")
@@ -155,10 +158,10 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             #
             if not os.path.isfile("{}/test".format(testdirname)) or ("checK" in config[c] and config[c]["check"] in {"no","No","false","False","0"}):
                 testdocfile.write("    * - :icon:`report_off`\n")
-                testdocfile.write("      - No testing\n")
+                testdocfile.write("      - No testing script\n")
             else:
                 testdocfile.write("    * - :icon:`verified`\n")
-                testdocfile.write("      - Testing\n")
+                testdocfile.write("      - Testing script present\n")
 
             #
             # BENCHMARK TIME
@@ -172,7 +175,10 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                 testdocfile.write("\n")
 
             testdocfile.write("    * - :icon:`play_circle`\n")
-            cmd = "./bin/alamo-{}d-g++".format(config[c]["dim"])
+            cmd = ""
+            if "nprocs" in config[c] and int(config[c]["nprocs"]) > 1:
+                cmd += "mpiexec -np {} ".format(config[c]["nprocs"])
+            cmd += "./bin/alamo-{}d-g++".format(config[c]["dim"])
             cmd += " {}/input".format(testdirname.replace("../../",""))
             if "args" in config[c]:
                 cmd += " "

@@ -202,7 +202,7 @@ texinfo_documents = [
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-html_logo = "alamo.svg"
+html_logo = "alamo.png"
 
 html_css_files = [
     'custom.css',
