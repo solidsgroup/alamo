@@ -74,6 +74,7 @@ public:
 
 public:
     Set::Scalar mu = NAN, kappa = NAN;
+    Set::Matrix F0;
     static constexpr KinematicVariable kinvar = KinematicVariable::F;
 
 public:

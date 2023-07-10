@@ -280,7 +280,7 @@ void Flame::UpdateModel(int /*a_step*/)
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
-    Base::Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time, a_iter);
+    Base::Mechanics<Model::Solid::Elastic::NeoHookean>::TimeStepBegin(a_time, a_iter);
     for (int lev = 0; lev <= finest_level; ++lev)
         ic_laser->Initialize(lev, laser_mf, a_time);
 }
@@ -289,7 +289,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
-    Base::Mechanics<Model::Solid::Affine::Isotropic>::Advance(lev, time, dt);
+    Base::Mechanics<Model::Solid::Elastic::NeoHookean>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
 
     if (true) // (lev == finest_level) //(true)
@@ -435,7 +435,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar time, int ngrow)
 {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
-    Base::Mechanics<Model::Solid::Affine::Isotropic>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+    Base::Mechanics<Model::Solid::Elastic::NeoHookean>::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
