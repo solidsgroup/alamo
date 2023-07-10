@@ -93,22 +93,23 @@ public:
     }
     static void Parse(NeoHookean& value, IO::ParmParse& pp)
     {
+        //Set::Scalar mu = NAN, kappa = NAN;
         if (pp.contains("mu") && pp.contains("kappa")) {
             pp.query("mu", value.mu);
             pp.query("kappa", value.kappa);
         }
-        else if (pp.constains("lame") && pp.constains("mu")) {
+        else if (pp.contains("lame") && pp.contains("mu")) {
             Set::Scalar lame;
             pp.query("mu", value.mu);
             pp.query("lame", lame);
-            kappa = lame + (2.0 * mu) / 3.0;
+            value.kappa = lame + (2.0 * mu) / 3.0;
         }
-        else if (pp.constains("E") && pp.constains("nu")) {
+        else if (pp.contains("E") && pp.contains("nu")) {
             Set::Scalar E, nu;
             pp.query("E", E);
             pp.query("nu", nu);
-            kappa = E / (3.0 - 6.0 * nu);
-            mu = E / (2.0 + 2.0 * nu);
+            value.kappa = E / (3.0 - 6.0 * nu);
+            value.mu = E / (2.0 + 2.0 * nu);
         }
     }
 
