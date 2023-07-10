@@ -125,7 +125,7 @@ private:
     } thermal;
 
     struct {
-        Model::Solid::Affine::Isotropic model_ap, model_htpb;
+        model_type model_ap, model_htpb;
         int on = 0;
     } elastic;
 

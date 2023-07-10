@@ -102,7 +102,7 @@ public:
             Set::Scalar lame;
             pp.query("mu", value.mu);
             pp.query("lame", lame);
-            value.kappa = lame + (2.0 * mu) / 3.0;
+            value.kappa = lame + (2.0 * value.mu) / 3.0;
         }
         else if (pp.contains("E") && pp.contains("nu")) {
             Set::Scalar E, nu;
