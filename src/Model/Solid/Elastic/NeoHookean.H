@@ -17,61 +17,61 @@ public:
     NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
     virtual ~NeoHookean() {};
 
-    Set::Scalar W(const Set::Matrix & F) const override
+    Set::Scalar W(const Set::Matrix& F) const override
     {
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(fabs(J),2./3.);
+        Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
         Set::Scalar w = 0.0;
-        w += 0.5 * mu * ((F*F.transpose()).trace() / J23 - 3.);
+        w += 0.5 * mu * ((F * F.transpose()).trace() / J23 - 3.);
         w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
         return w;
     }
-    Set::Matrix DW(const Set::Matrix & F) const override
+    Set::Matrix DW(const Set::Matrix& F) const override
     {
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(fabs(J),2./3.);
+        Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
         Set::Matrix FinvT = F.inverse().transpose();
 
         Set::Matrix dw = Set::Matrix::Zero();
 
-        dw += mu * (F/J23 - (F*F.transpose()).trace()*FinvT / (3.*J23));
-        dw += kappa*(J-1)*J*FinvT;
+        dw += mu * (F / J23 - (F * F.transpose()).trace() * FinvT / (3. * J23));
+        dw += kappa * (J - 1) * J * FinvT;
 
         return dw;
     }
-    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> DDW(const Set::Matrix & F) const override
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
     {
-        Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Major> ddw;
+        Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw;
         Set::Scalar J = F.determinant();
-        Set::Scalar J23 = std::pow(fabs(J),2./3.);
+        Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
         Set::Matrix FinvT = F.inverse().transpose();
         for (int i = 0; i < 3; i++)
             for (int j = 0; j < 3; j++)
                 for (int k = 0; k < 3; k++)
                     for (int l = 0; l < 3; l++)
                     {
-                        ddw(i,j,k,l) = 0.0;
+                        ddw(i, j, k, l) = 0.0;
 
                         Set::Scalar t1 = 0.0, t2 = 0.0;
 
-                        if (i==k && j==l) t1 += 1.0;
-                        t1 -= (2./3.) * F(i,j)*FinvT(k,l);
-                        t1 -= (2./3.) * FinvT(i,j)*F(k,l);
-                        t1 += (2./9.) * (F*F.transpose()).trace() * FinvT(i,j) * FinvT(k,l);
-                        t1 += (1./3.) * (F*F.transpose()).trace() * FinvT(i,l) * FinvT(k,j);
+                        if (i == k && j == l) t1 += 1.0;
+                        t1 -= (2. / 3.) * F(i, j) * FinvT(k, l);
+                        t1 -= (2. / 3.) * FinvT(i, j) * F(k, l);
+                        t1 += (2. / 9.) * (F * F.transpose()).trace() * FinvT(i, j) * FinvT(k, l);
+                        t1 += (1. / 3.) * (F * F.transpose()).trace() * FinvT(i, l) * FinvT(k, j);
 
-                        t2 += (2.*J - 1.) * FinvT(i,j)*FinvT(k,l);
-                        t2 += (1. - J) * FinvT(i,l) * FinvT(k,j);
+                        t2 += (2. * J - 1.) * FinvT(i, j) * FinvT(k, l);
+                        t2 += (1. - J) * FinvT(i, l) * FinvT(k, j);
 
-                        ddw(i,j,k,l) = (mu/J23)*t1 + kappa*J*t2;
+                        ddw(i, j, k, l) = (mu / J23) * t1 + kappa * J * t2;
                     }
         return ddw;
     }
-    virtual void Print(std::ostream &out) const override 
+    virtual void Print(std::ostream& out) const override
     {
         out << "mu = " << mu << " kappa = " << kappa;
     }
-    
+
 public:
     Set::Scalar mu = NAN, kappa = NAN;
     static constexpr KinematicVariable kinvar = KinematicVariable::F;
@@ -91,10 +91,25 @@ public:
         ret.kappa = Util::Random();
         return ret;
     }
-    static void Parse(NeoHookean & value, IO::ParmParse & pp)
+    static void Parse(NeoHookean& value, IO::ParmParse& pp)
     {
-        pp.query("mu",value.mu);
-        pp.query("kappa",value.kappa);
+        if (pp.contains("mu") && pp.contains("kappa")) {
+            pp.query("mu", value.mu);
+            pp.query("kappa", value.kappa);
+        }
+        else if (pp.constains("lame") && pp.constains("mu")) {
+            Set::Scalar lame;
+            pp.query("mu", value.mu);
+            pp.query("lame", lame);
+            kappa = lame + (2.0 * mu) / 3.0;
+        }
+        else if (pp.constains("E") && pp.constains("nu")) {
+            Set::Scalar E, nu;
+            pp.query("E", E);
+            pp.query("nu", nu);
+            kappa = E / (3.0 - 6.0 * nu);
+            mu = E / (2.0 + 2.0 * nu);
+        }
     }
 
 #define OP_CLASS NeoHookean
