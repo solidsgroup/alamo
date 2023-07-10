@@ -14,7 +14,7 @@ def geticon(classname):
     if classname.startswith("Util"): return ":icon:`settings` "
     if classname.startswith("Solver"): return ":icon:`directions` "
     if classname.startswith("IO"): return ":icon:`print` "
-    if classname.startswith("Operator"): return ":icon:`rebase` "
+    if classname.startswith("Operator"): return ":icon:`rebase_edit` "
     else: return ""
 
 def getdocumentation(filename):

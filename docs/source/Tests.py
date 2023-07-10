@@ -24,9 +24,9 @@ class MultiOrderedDict(OrderedDict):
 
 docfile    = open("Tests.rst","w")
 docfile.write(r"""
-=====
-Tests
-=====
+=====================
+:icon:`Science` Tests
+=====================
 
 """)
 

@@ -22,3 +22,7 @@ cpp_indent_namespace_contents = false
 indent_style = tab
 indent_size = 4
 
+# Restructuredtext (documentation) files
+[*.rst]
+indent_style = space
+indent_size = 4
