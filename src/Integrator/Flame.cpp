@@ -170,7 +170,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //    }
         //else if (type == "sphere"){
         //    value.ic_phi = new IC::Sphere(value.geom, pp, "phi.ic.sphere");
-        //    } 	    
+        //}   
         else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
         else Util::Abort(INFO, "Invalid IC type ", type);
         value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 2, "phi", true);
