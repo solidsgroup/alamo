@@ -82,6 +82,7 @@ public:
         NeoHookean ret;
         ret.mu = 0.0;
         ret.kappa = 0.0;
+        ret.F0 = Set::Matrix::Zero();
         return ret;
     }
     static NeoHookean Random()
@@ -89,6 +90,7 @@ public:
         NeoHookean ret;
         ret.mu = Util::Random();
         ret.kappa = Util::Random();
+        ret.F0 = Set::Matrix::Random();
         return ret;
     }
     static void Parse(NeoHookean& value, IO::ParmParse& pp)
@@ -110,6 +112,9 @@ public:
             pp.query("nu", nu);
             value.kappa = E / (3.0 - 6.0 * nu);
             value.mu = E / (2.0 + 2.0 * nu);
+        }
+        if (pp.contains("F0")){
+            pp.queryarr("F0",value.F0);
         }
     }
 

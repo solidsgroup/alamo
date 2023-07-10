@@ -13,7 +13,7 @@ using namespace std;
 
 namespace IC
 {
-class PSRead: public IC
+class PSRead : public IC
 {
 public:
     enum Type
@@ -22,9 +22,9 @@ public:
         Values
     };
 
-    PSRead(amrex::Vector<amrex::Geometry>& _geom): IC(_geom) {}
+    PSRead(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
 
-    PSRead(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name): IC(_geom)
+    PSRead(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
         pp.queryclass(name, *this);
     }

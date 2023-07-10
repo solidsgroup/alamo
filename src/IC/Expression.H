@@ -9,90 +9,92 @@
 // TODO - remove the ALAMO_JIT defintion check. See below for more explanation
 //
 #ifndef ALAMO_JIT
-namespace IC 
+namespace IC
 {
-    class Expression: public IC
+class Expression : public IC
+{
+private:
+    enum CoordSys { Cartesian, Polar, Spherical };
+    std::vector<amrex::Parser> parser;
+    std::vector<amrex::ParserExecutor<4>> f;
+    Expression::CoordSys coord = Expression::CoordSys::Cartesian;
+public:
+    Expression(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
+    Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
-        private:
-        enum CoordSys {Cartesian, Polar, Spherical};
-        std::vector<amrex::Parser> parser;
-        std::vector<amrex::ParserExecutor<4>> f;
-        Expression::CoordSys coord = Expression::CoordSys::Cartesian;
-        public:
-        Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-        Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom)
-        {pp.queryclass(name,*this);}
-        void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar a_time = 0.0)
+        pp.queryclass(name, *this);
+    }
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar a_time = 0.0)
+    {
+        Util::Assert(INFO, TEST(a_field[lev]->nComp() == (int)f.size()));
+        for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            Util::Assert(INFO,TEST(a_field[lev]->nComp() == (int)f.size()));
-            for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            {
-                amrex::Box bx;// = mfi.tilebox();
-                //bx.grow(a_field[lev]->nGrow());
-                amrex::IndexType type = a_field[lev]->ixType();
-                if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
-                else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
-                else Util::Abort(INFO,"Unkonwn index type");
+            amrex::Box bx;// = mfi.tilebox();
+            //bx.grow(a_field[lev]->nGrow());
+            amrex::IndexType type = a_field[lev]->ixType();
+            if (type == amrex::IndexType::TheCellType())      bx = mfi.growntilebox();
+            else if (type == amrex::IndexType::TheNodeType()) bx = mfi.grownnodaltilebox();
+            else Util::Abort(INFO, "Unkonwn index type");
 
-                amrex::Array4<Set::Scalar> const &field = a_field[lev]->array(mfi);
-                for (unsigned int n = 0; n < f.size(); n++)
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            for (unsigned int n = 0; n < f.size(); n++)
+            {
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
                 {
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) 
+                    Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                    if (coord == Expression::CoordSys::Cartesian)
                     {
-                        Set::Vector x = Set::Position(i, j, k, geom[lev], type);
-                        if (coord == Expression::CoordSys::Cartesian)
-                        {
-                            #if AMREX_SPACEDIM == 1
-			    field(i,j,k,n) = f[n](x(0),0.0,0.0,a_time);
-			    #elif AMREX_SPACEDIM == 2
-			    field(i,j,k,n) = f[n](x(0),x(1),0.0,a_time);
-			    #elif AMREX_SPACEDIM == 3
-                            field(i,j,k,n) = f[n](x(0),x(1),x(2),a_time);
-			    #endif
-                        }
-                        #if AMREX_SPACEDIM>1
-                        else if (coord == Expression::CoordSys::Polar)
-                        {
-                            field(i,j,k,n) = f[n](sqrt(x(0)*x(0) + x(1)*x(1)),   std::atan2(x(1),x(0)), x(2), a_time);
-                        }
-                        #endif
-                    });
-                }
+#if AMREX_SPACEDIM == 1
+                        field(i, j, k, n) = f[n](x(0), 0.0, 0.0, a_time);
+#elif AMREX_SPACEDIM == 2
+                        field(i, j, k, n) = f[n](x(0), x(1), 0.0, a_time);
+#elif AMREX_SPACEDIM == 3
+                        field(i, j, k, n) = f[n](x(0), x(1), x(2), a_time);
+#endif
+                    }
+#if AMREX_SPACEDIM>1
+                    else if (coord == Expression::CoordSys::Polar)
+                    {
+                        field(i, j, k, n) = f[n](sqrt(x(0)* x(0) + x(1) * x(1)), std::atan2(x(1), x(0)), x(2), a_time);
+                    }
+#endif
+                });
             }
-            a_field[lev]->FillBoundary();
-        };
-        static void Parse(Expression & value, IO::ParmParse & pp) 
-        {
-            for (int i = 0; true; i++)
-            {
-                std::string coordstr = "cartesian";
-                pp.query("coord",coordstr);
-                if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
-                else if (coordstr == "polar") value.coord= Expression::CoordSys::Polar;
-                else Util::Abort(INFO,"unsupported coordinates ",coordstr);
-
-                std::string func = "0.0";
-                std::string name = "region" + std::to_string(i);
-                
-                if (!pp.contains(name.data())) break;
-                pp.query(name.data(),func);
-
-                value.parser.push_back(amrex::Parser(func));
-
-                if (value.coord == Expression::CoordSys::Cartesian)
-                {
-                    value.parser.back().registerVariables({"x","y","z","t"});
-                    value.f.push_back(value.parser.back().compile<4>());
-                }
-                else if (value.coord == Expression::CoordSys::Polar)
-                {
-                    value.parser.back().registerVariables({"r","theta","z","t"});
-                    value.f.push_back(value.parser.back().compile<4>());
-                }
-            }
-
-        };
+        }
+        a_field[lev]->FillBoundary();
     };
+    static void Parse(Expression& value, IO::ParmParse& pp)
+    {
+        for (int i = 0; true; i++)
+        {
+            std::string coordstr = "cartesian";
+            pp.query("coord", coordstr);
+            if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
+            else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
+            else Util::Abort(INFO, "unsupported coordinates ", coordstr);
+
+            std::string func = "0.0";
+            std::string name = "region" + std::to_string(i);
+
+            if (!pp.contains(name.data())) break;
+            pp.query(name.data(), func);
+
+            value.parser.push_back(amrex::Parser(func));
+
+            if (value.coord == Expression::CoordSys::Cartesian)
+            {
+                value.parser.back().registerVariables({ "x","y","z","t" });
+                value.f.push_back(value.parser.back().compile<4>());
+            }
+            else if (value.coord == Expression::CoordSys::Polar)
+            {
+                value.parser.back().registerVariables({ "r","theta","z","t" });
+                value.f.push_back(value.parser.back().compile<4>());
+            }
+        }
+
+    };
+};
 }
 
 //
@@ -107,117 +109,119 @@ namespace IC
 /// \brief Use JIT math expression parsing to read arbitrary domain description
 namespace IC
 {
-    class Expression : public IC
+class Expression : public IC
+{
+public:
+    enum CoordSys { Cartesian, Polar, Spherical };
+    Expression(amrex::Vector<amrex::Geometry>& _geom) : IC(_geom) {}
+    Expression(amrex::Vector<amrex::Geometry>& _geom, IO::ParmParse& pp, std::string name) : IC(_geom)
     {
-    public:
-        enum CoordSys {Cartesian, Polar, Spherical};
-        Expression(amrex::Vector<amrex::Geometry> &_geom) : IC(_geom) {}
-        Expression(amrex::Vector<amrex::Geometry> &_geom, IO::ParmParse &pp, std::string name) : IC(_geom) 
-        {pp.queryclass(name,*this);}
+        pp.queryclass(name, *this);
+    }
 
-        void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_field)
+    {
+        Util::Assert(INFO, TEST(a_field[lev]->nComp() == (int)fparser.size()));
+        for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            Util::Assert(INFO,TEST(a_field[lev]->nComp() == (int)fparser.size()));
-            for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            amrex::Box bx = mfi.tilebox();
+            bx.grow(a_field[lev]->nGrow());
+            amrex::IndexType type = a_field[lev]->ixType();
+
+            amrex::Array4<Set::Scalar> const& field = a_field[lev]->array(mfi);
+            for (unsigned int n = 0; n < fparser.size(); n++)
             {
-                amrex::Box bx = mfi.tilebox();
-                bx.grow(a_field[lev]->nGrow());
-                amrex::IndexType type = a_field[lev]->ixType();
-
-                amrex::Array4<Set::Scalar> const &field = a_field[lev]->array(mfi);
-                for (unsigned int n = 0; n < fparser.size(); n++)
-                {
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
-                        Set::Vector x = Set::Position(i, j, k, geom[lev], type);
-                        double loc[AMREX_SPACEDIM];
-                        if (coord == Expression::CoordSys::Cartesian)
-                        {
-                            AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
-			    loc[3] = time;
-                            field(i,j,k,n) = fparser[n].Eval(loc);
-                        }
-                        #if AMREX_SPACEDIM>1
-                        else if (coord == Expression::CoordSys::Polar)
-                        {
-                            AMREX_D_TERM(loc[0] = sqrt(x(0)*x(0) + x(1)*x(1));, loc[1] = std::atan2(x(1),x(0));, loc[2] = x(2));
-			    loc[3] = time;
-                            field(i,j,k,n) = fparser[n].Eval(loc);
-                        }
-                        #endif
-                    });
-                }
-            }
-            a_field[lev]->FillBoundary();
-        };
-
-    private:
-        std::vector<FunctionParserAD> fparser;
-        Expression::CoordSys coord = Expression::CoordSys::Cartesian;
-
-    public:
-        // This is an extremely general IC that uses JIT fparser to compile an
-        // IC based on a mathematical expression at runtime. Eventually we will
-        // probably replace all ICs with this one. 
-        // 
-        // This can be used with an arbitrary number of components, named `region1`,
-        // `region2`, etc. You do not need to specify a number ahead of time.
-        // Each region should be a string that represents a function in terms of 
-        // x, y, z, and t. 
-        // It can be a boolean expression (returning 1 or 0) or it can return a 
-        // value. 
-        static void Parse(Expression &value, IO::ParmParse &pp)
-        {
-            for (int i = 0; true; i++)
-            {
-                std::string coordstr = "cartesian";
-                pp.query("coord",coordstr);
-                if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
-                else if (coordstr == "polar") value.coord= Expression::CoordSys::Polar;
-                else Util::Abort(INFO,"unsupported coordinates ",coordstr);
-
-                std::string func = "0.0";
-                std::string name = "region" + std::to_string(i);
-                
-                if (!pp.contains(name.data())) break;
-                pp.query(name.data(),func);
-
-                FunctionParserAD fparser;
-
-                if (value.coord == Expression::CoordSys::Cartesian)
-                {
-                    fparser.AddVariable("x");
-                    fparser.AddVariable("y");
-                    fparser.AddVariable("z");
-                    fparser.AddVariable("t");
-                    if (fparser.Parse(func.c_str(), "x,y,z,t") != -1)
+                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+                    Set::Vector x = Set::Position(i, j, k, geom[lev], type);
+                    double loc[AMREX_SPACEDIM];
+                    if (coord == Expression::CoordSys::Cartesian)
                     {
-                        std::cout << "Parsing failed for " << func << '\n';
-                        exit(1);
+                        AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
+                        loc[3] = time;
+                        field(i, j, k, n) = fparser[n].Eval(loc);
                     }
-                }
-                else if (value.coord == Expression::CoordSys::Polar)
-                {
-                    fparser.AddVariable("r");
-                    fparser.AddVariable("theta");
-                    fparser.AddVariable("z");
-                    fparser.AddVariable("t");
-                    if (fparser.Parse(func.c_str(), "r,theta,z") != -1)
+#if AMREX_SPACEDIM>1
+                    else if (coord == Expression::CoordSys::Polar)
                     {
-                        std::cout << "Parsing failed for " << func << '\n';
-                        exit(1);
+                        AMREX_D_TERM(loc[0] = sqrt(x(0) * x(0) + x(1) * x(1));, loc[1] = std::atan2(x(1), x(0));, loc[2] = x(2));
+                        loc[3] = time;
+                        field(i, j, k, n) = fparser[n].Eval(loc);
                     }
-                }
-
-                fparser.Optimize();
-                if (!fparser.JITCompile())
-                {
-                    std::cout << "JIT compile failed for " << func << '\n';
-                    exit(1);
-                }
-                value.fparser.push_back(fparser);
+#endif
+                });
             }
         }
+        a_field[lev]->FillBoundary();
     };
+
+private:
+    std::vector<FunctionParserAD> fparser;
+    Expression::CoordSys coord = Expression::CoordSys::Cartesian;
+
+public:
+    // This is an extremely general IC that uses JIT fparser to compile an
+    // IC based on a mathematical expression at runtime. Eventually we will
+    // probably replace all ICs with this one. 
+    // 
+    // This can be used with an arbitrary number of components, named `region1`,
+    // `region2`, etc. You do not need to specify a number ahead of time.
+    // Each region should be a string that represents a function in terms of 
+    // x, y, z, and t. 
+    // It can be a boolean expression (returning 1 or 0) or it can return a 
+    // value. 
+    static void Parse(Expression& value, IO::ParmParse& pp)
+    {
+        for (int i = 0; true; i++)
+        {
+            std::string coordstr = "cartesian";
+            pp.query("coord", coordstr);
+            if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
+            else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
+            else Util::Abort(INFO, "unsupported coordinates ", coordstr);
+
+            std::string func = "0.0";
+            std::string name = "region" + std::to_string(i);
+
+            if (!pp.contains(name.data())) break;
+            pp.query(name.data(), func);
+
+            FunctionParserAD fparser;
+
+            if (value.coord == Expression::CoordSys::Cartesian)
+            {
+                fparser.AddVariable("x");
+                fparser.AddVariable("y");
+                fparser.AddVariable("z");
+                fparser.AddVariable("t");
+                if (fparser.Parse(func.c_str(), "x,y,z,t") != -1)
+                {
+                    std::cout << "Parsing failed for " << func << '\n';
+                    exit(1);
+                }
+            }
+            else if (value.coord == Expression::CoordSys::Polar)
+            {
+                fparser.AddVariable("r");
+                fparser.AddVariable("theta");
+                fparser.AddVariable("z");
+                fparser.AddVariable("t");
+                if (fparser.Parse(func.c_str(), "r,theta,z") != -1)
+                {
+                    std::cout << "Parsing failed for " << func << '\n';
+                    exit(1);
+                }
+            }
+
+            fparser.Optimize();
+            if (!fparser.JITCompile())
+            {
+                std::cout << "JIT compile failed for " << func << '\n';
+                exit(1);
+            }
+            value.fparser.push_back(fparser);
+        }
+    }
+};
 } // namespace IC
 #endif
 #endif
