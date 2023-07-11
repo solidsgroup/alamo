@@ -24,9 +24,12 @@ class MultiOrderedDict(OrderedDict):
 
 docfile    = open("Tests.rst","w")
 docfile.write(r"""
-=====
-Tests
-=====
+
+.. _tests:
+
+=====================
+:icon:`Science` Tests
+=====================
 
 """)
 
@@ -125,8 +128,9 @@ for testdirname in sorted(glob.glob("../../tests/*")):
 
         for c in config:
             if c == "DEFAULT": continue
-            testdocfile.write(c+"\n")
-            testdocfile.write("-"*len(c)+"\n")
+            testsectionname = "[{}] {}".format(testname,c)
+            testdocfile.write(testsectionname+"\n")
+            testdocfile.write("-"*len(testsectionname)+"\n")
 
             testdocfile.write(".. flat-table:: \n")
             testdocfile.write("    :widths: 10 90\n")
@@ -171,6 +175,8 @@ for testdirname in sorted(glob.glob("../../tests/*")):
                 testdocfile.write("      - ")
                 for key in config[c]:
                     if "benchmark-" in key:
+                        if "\n" in config[c][key]:
+                            raise Exception("Error reading benchmark time for test {} section {}".format(testname,c))
                         testdocfile.write(config[c][key] + "s ({}) ".format(key.replace("benchmark-","")))
                 testdocfile.write("\n")
 

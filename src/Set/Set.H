@@ -1,3 +1,20 @@
+//
+// The Set namespace defines the Alamo datatypes.
+// This includes scalars (:code:`Set::Scalar`), vectors (:code:`Set::Vector`), and nD tensors (:code:`Set::Tensor`).
+// Scalars are an alias for AMReX :code:`Real`.
+// Vectors and tensors are an alias for the Tuxfamily Eigen vectors and matrices, and so you can use
+// Eigen operations on them (like :code:`A.determinant()`, etc.)
+// See the Eigen documentation for more.
+//
+// The Set namespace defines the :code:`Matrix4` datatype for fourth order tensors.
+// These can have isotropic, major, minor, majorminor, etc., symmetries.
+//
+// The Set namespace also defines the :code:`Field` datatype, which is where most data is stored.
+// It is templated so that :code:`Set::Field<Set::Scalar>` is a field of scalars, :code:`Set::Field<Set::Vector>`
+// is a vector field, etc.
+// One can also have, for instance, a field of models, like :code:`Set::Field<Model::Solid::Linear::Iostropic>`.
+//
+
 #ifndef SET_SET_
 #define SET_SET_
 
