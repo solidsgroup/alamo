@@ -1,9 +1,9 @@
 .. role:: cpp(code)
    :language: c++
 
-===================================
-Simulation Browser Analysis (SimBA)
-===================================
+==================
+:icon:`pets` SimBA
+==================
 
 .. toctree::
    :maxdepth: 2

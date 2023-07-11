@@ -54,8 +54,53 @@ and included in the Inputs section of the documentation.
 Header comments
 ---------------
 
+General comments to document a class, or collection of methods, goes at the top of the associated 
+header file.
+Use standard C++ comments (:code:`//`).
+These comments will get scraped by the autodoc system, and will be formatted along with the rest
+of the inputs.
+
+For example, consider the documentation for the linear isotropic material model class.
+The following leading comment is formatted at :ref:`Model::Solid::Linear::Isotropic`
+
+.. literalinclude:: ../../src/Model/Solid/Linear/Isotropic.H
+    :language: cpp
+    :lines: 1-50
 
 
+ReStructuredText
+----------------
+
+All comments are formatted using 
+`restructuredtext <https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html>`_
+markup.
+You can make use of this is if you like, but it is not required for good documentation.
+
+Documentation generation
+------------------------
+
+To generate this documentation, complete with the scraped markup, run
+
+.. code:: bash
+
+    make docs
+
+in the alamo root directory.
+The file :code:`alamo/docs/requirements.txt` contains a list of the necessary packages.
+You can install them using pip.
+Once the documenation generation is complete, you can view it by
+
+.. code:: bash
+
+    google-chrome docs/build/html/index.html
 
 
+Autotest system
+===============
+
+Alamo contains a complete regression testing system to ensure that established capabilities
+do not get lost during further development.
+Regression tests are run automatically by github, and must all pass prior to merge into the
+development or master branches.
+For information on how to run the regression tests, see :ref:`Testing`.
 

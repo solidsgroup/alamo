@@ -14,7 +14,7 @@
 // 
 // .. math::
 // 
-//     \mathbb{C}_{ijkl} = \lambda \delta_{ij}\varpeilon_{kk} + 2\mu\varepsilon_{ij}
+//     \mathbb{C}_{ijkl} = \lambda \delta_{ij}\varepsilon_{kk} + 2\mu\varepsilon_{ij}
 // 
 // where :math:`\lambda` and :math:`\mu` are the Lame constant and shear modulus, respectively.
 // Users can specify these either through (:code:`lame` and :code:`shear`)
