@@ -100,9 +100,98 @@ Once the documenation generation is complete, you can view it by
 Autotest system
 ===============
 
-Alamo contains a complete regression testing system to ensure that established capabilities
-do not get lost during further development.
-Regression tests are run automatically by github, and must all pass prior to merge into the
-development or master branches.
+Alamo contains a complete regression testing system to ensure that established capabilities do not get lost during subsequent development.
+Regression tests are run automatically by github, and must all pass prior to merge into the development or master branches.
 For information on how to run the regression tests, see :ref:`Testing`.
+
+Test requirements
+-----------------
+
+Remember that your test will be run automatically on GitHub and by other users, so avoid creating long, memory-intensive tests.
+Instead, design your tests so that they run long enough to identify errors, but short enough so that they can be performed tractable.
+Make sure that your tests are not redundant with existing tests as well.
+
+Creating a test
+---------------
+
+#. Create a subdirectory in the :code:`./tests` with your test name, e.g. "MyTest" [:code:`./tests/MyTest`]
+#. Place your test input file in this directory and name it `input` [:code:`./tests/input`].
+#. At the top of the test input file, add
+
+   .. code-block:: cpp
+
+      #@ [sectionname]
+
+   where :code:`sectionname` can be any unique handle name.
+   The :code:`#@` directive is ignored by alamo, but all comments beginning with it will be parsed by the autotest system.
+
+#. Test your test by running
+
+   .. code-block:: bash
+
+      ./scripts/runtests ./tests/MyTest
+
+   If alamo has been compiled in 3D, this should cause your test to run.
+   The output of your test will be stored in
+
+   .. code-block:: bash
+
+      ./tests/MyTest/output_YYYY-MM-DD_HH.MM.SS_hostname_sectionname
+
+   
+Once you have done this, your test will be executed along with all other regression tests by GitHub.
+If your test fails to complete - for instance, it segfaults or aborts abnormally - this will trigger a "failed test"
+
+Input file directives
+---------------------
+
+There are several directives that you can use for your inputs.
+These are written using the #@ comments at the top of the input file.
+
+.. code-block:: make
+
+	#@  [2D-serial-5levels]        | each [...] specifies a run of the test 
+	#@  dim    = 2                 | specify two dimensions
+	#@  nprocs = 1                 | specify running in serial (the default)
+	#@  check  = false             | for this test we do not want to run the verification
+	#@   
+	#@  [3D-parallel-4levels]      | another test
+	#@  dim    = 3                 | specify running in 3D (the default)
+	#@  nprocs = 4                 | specify run in parallel with 4 processors
+	#@  args   = amr.max_level=4   | specify an additional argument to be added to input file
+	#@  benchmark-beaker = 16.10   | timing test: benchmark-id record current average time to
+	#@  benchmark-statler = 11.36  |     run on platform "id". The autotest system will let you 
+	#@  benchmark-github = 22.75   |     know if future changes slow the test down.
+	#@  ignore = myargument        | tell alamo to ignore certain arguments
+
+For additional examples, see the Tests section.
+
+Test verification
+-----------------
+
+Successfully running a test does not tell you much unless you know that the correct answer was produced.
+To automatically verify your test, add an executable file called :code:`test` to the test directory:
+
+.. code-block:: bash
+
+   ./tests/MyTest/test
+
+The test script must be executable, and can be written in a language of your choice, as long as you have the appropriate shebang at the top.
+There are two requirements on the test script:
+
+#. It must take a single argument, the test directory name.
+#. It produces a zero error code if the test passes, and a nonzero error code if the test fails.
+
+It is up to you to make sure that the test accurately assesses the output.
+You can store reference data inside the test directory; e.g.
+
+.. code-block:: bash
+
+   ./tests/MyTest/reference/stress_xx.dat
+   ./tests/MyTest/reference/stress_xy.dat
+   ....
+
+as long as the data files are reasonably small in size and, of course, are text-based.
+For example tests, see the existing tests in the repository.
+
 
