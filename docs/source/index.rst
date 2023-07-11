@@ -1,9 +1,12 @@
 Documentation for alamo
 =======================
 
+
 .. grid:: 2
    
-    .. grid-item-card::  
+    .. grid-item-card::
+        :link: getting-started
+	:link-type: ref
         
         :icon:`start` :ref:`Getting Started`
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -15,9 +18,11 @@ Documentation for alamo
         For brand new users
 
     .. grid-item-card::  
+        :link: tests
+	:link-type: ref
 
-        :icon:`science` Running :ref:`Tests`
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        :icon:`science` Running Tests
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Explore the set of examples and regression tests that demonstrate Alamo functionality.
 
@@ -27,8 +32,10 @@ Documentation for alamo
 .. grid:: 2
 
     .. grid-item-card:: 
+        :link: simba
+	:link-type: ref
 
-        :icon:`settings` :ref:`SimBA`
+        :icon:`settings` SimBA
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Use the Alamo **Sim**\ ulation **B**\ rowser **A**\ nalysis system to manage Alamo simulations for regression tests or your own projects.
@@ -37,8 +44,10 @@ Documentation for alamo
         Optional but useful for regular users
         
     .. grid-item-card:: 
+        :link: inputs
+	:link-type: ref
 
-        :icon:`api` API and :ref:`Inputs`
+        :icon:`api` API and Inputs
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Browse the auto-generated documentation for Alamo classes and input file input specifications.
@@ -49,6 +58,8 @@ Documentation for alamo
 .. grid:: 2
 
     .. grid-item-card:: 
+        :link: developers
+	:link-type: ref
 
         :icon:`developer_guide` Developer Instructions
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -60,6 +71,8 @@ Documentation for alamo
         For all new Alamo developers
         
     .. grid-item-card:: 
+        :link: autodoc
+	:link-type: ref
 
         :icon:`play_lesson` Alamo's autodoc system
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -80,15 +93,11 @@ Documentation for alamo
         :caption: Contents:
 
         GettingStarted
-        Running
-        Python
         Simba
-        Convention
-        Examples/Examples
         AutoDocAutoTest
         Tests
         Inputs
-
+	Developers
 
 
 

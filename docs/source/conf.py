@@ -222,9 +222,9 @@ rst_prolog = """
 
 
     <style> .material-symbols-outlined {display:inline-flex;vertical-align:middle} </style>
+    <style> title .material-symbols-outlined {display:none;} </style>
     <style> h1 .material-symbols-outlined {font-size:1.3em;vertical-align:middle} </style>
     <style> h2 .material-symbols-outlined {font-size:1.3em;vertical-align:middle;padding-bottom:5px;} </style>
-    <style> .material-symbols-two-tone {display:inline-flex;vertical-align:middle} </style>
     <style> .red {color:red} </style>
     <style> .blue {color:blue} </style>
     <style> .green {color:green} </style>

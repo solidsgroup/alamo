@@ -131,6 +131,8 @@ def extract(basefilename):
 
 docfile    = open("Inputs.rst","w")
 docfile.write(r"""
+.. _inputs: 
+
 ==================
 :icon:`api` Inputs
 ==================

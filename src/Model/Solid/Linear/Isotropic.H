@@ -36,9 +36,9 @@
 //    Returns elastic free energy density
 // #. :code:`Set::Matrix DW(const Set::Matrix & gradu) const override`
 //    Returns first derivative of free energy, the stress tensor
-// #. :code:`Set::Matrix4<...> DDW(const Set::Matrix & /*gradu*/) const override`
+// #. :code:`Set::Matrix4<...> DDW(const Set::Matrix & ) const override`
 //    Returns second derivative of free energy, the modulus tensor
-// #. :code:`virtual void Print(std::ostream &out) const override `
+// #. :code:`virtual void Print(std::ostream &out) const override`
 //    Prints the modulus tensor object to output stream (usually the terminal)
 // #. :code:`static Isotropic Random()`
 //    Static method that generates a random yet acceptable model.

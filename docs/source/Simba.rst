@@ -1,6 +1,8 @@
 .. role:: cpp(code)
    :language: c++
 
+.. _simba:
+
 ==================
 :icon:`pets` SimBA
 ==================

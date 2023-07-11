@@ -1,3 +1,5 @@
+.. _autodoc:
+
 ========================================
 :icon:`play_lesson` Autodoc and Autotest
 ========================================
@@ -14,7 +16,7 @@ Autodoc system
 ==============
 
 The autodoc system parses the source files stored in :code:`./src/` to generate the content of the
-:ref:`Inputs` portion of this documentation.
+Inputs portion of this documentation.
 There are two ways to create compliant documentation: via parser comments, and via header file 
 comments.
 

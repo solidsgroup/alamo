@@ -1,8 +1,8 @@
 .. getting-started:
 
-===============
-Getting Started
-===============
+=============================
+:icon:`start` Getting Started
+=============================
 
 Note: this README page is also the Doxygen main page, the Github readme page, 
 and the Docs main page.
