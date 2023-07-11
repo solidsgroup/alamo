@@ -113,7 +113,7 @@ thermal.mlocal_comb = 0.0
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
 pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
-#pressure.mob_ap = 0
+pressure.mob_ap = 0
 
 pressure.a1 = 1.114 
 pressure.a2 = 0.46  
@@ -138,8 +138,6 @@ model_ap.F0   = 1.6e-7 0.0 0.0 0.0 1.6e-7 0.0 0.0 0.0 1.6e-7
 model_htpb.shear = 0.8003e0
 model_htpb.lame  = 710.85e0
 model_htpb.F0 = 6.5e-8 0.0 0.0 0.0 6.5e-8 0.0 0.0 0.0 6.5e-8
-
-T0 = 300 
 
 elastic.solver.verbose = 4
 elastic.solver.fixed_iter = 80
