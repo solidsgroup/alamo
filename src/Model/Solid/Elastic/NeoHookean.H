@@ -74,7 +74,7 @@ public:
 
 public:
     Set::Scalar mu = NAN, kappa = NAN;
-    Set::Matrix F0;
+    Set::Matrix F0 = Set::Matrix::Zero();
     static constexpr KinematicVariable kinvar = KinematicVariable::F;
 
 public:
@@ -97,13 +97,13 @@ public:
     static void Parse(NeoHookean& value, IO::ParmParse& pp)
     {
         //Set::Scalar mu = NAN, kappa = NAN;
-        if (pp.contains("mu") && pp.contains("kappa")) {
-            pp.query("mu", value.mu);
+        if (pp.contains("shear") && pp.contains("kappa")) {
+            pp.query("shear", value.mu);
             pp.query("kappa", value.kappa);
         }
-        else if (pp.contains("lame") && pp.contains("mu")) {
+        else if (pp.contains("lame") && pp.contains("shear")) {
             Set::Scalar lame;
-            pp.query("mu", value.mu);
+            pp.query("shear", value.mu);
             pp.query("lame", lame);
             value.kappa = lame + (2.0 * value.mu) / 3.0;
         }

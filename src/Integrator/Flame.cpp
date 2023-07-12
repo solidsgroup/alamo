@@ -62,7 +62,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         //IO::ParmParse pp("thermal");
         pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
         pp.query("elastic.on", value.elastic.on);
-        pp.query("", value.thermal.bound); // System Initial Temperature
+        pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
         {
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density

@@ -36,7 +36,7 @@ phi.ic.type = laminate
 phi.ic.number_of_inclusions = 1
 phi.ic.laminate.center = 0.0 0.0 0.0 
 phi.ic.laminate.thickness = 0.0001
-phi.ic.laminate.orientation = 0 1 
+phi.ic.laminate.orientation = 0 1 0
 phi.ic.laminate.singlefab = 1 
 phi.ic.laminate.invert = 1
 phi.ic.laminate.eps = 0.00002
@@ -134,10 +134,12 @@ elastic.interval = 10
 model_ap.shear = 14190.0e0
 model_ap.lame  = 5700.95e0
 model_ap.F0   = 1.6e-7 0.0 0.0 0.0 1.6e-7 0.0 0.0 0.0 1.6e-7
+#model_ap.F0   = 1.6e-7 0.0 0.0 1.6e-7
 
 model_htpb.shear = 0.8003e0
 model_htpb.lame  = 710.85e0
 model_htpb.F0 = 6.5e-8 0.0 0.0 0.0 6.5e-8 0.0 0.0 0.0 6.5e-8
+#model_htpb.F0 = 6.5e-8 0.0 0.0 6.5e-8 
 
 elastic.solver.verbose = 4
 elastic.solver.fixed_iter = 80
