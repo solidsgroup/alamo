@@ -60,7 +60,8 @@ extensions = [
 #    'breathe',
     'linuxdoc.rstFlatTable',
 #    'm2r'
-    'sphinx_design'
+    'sphinx_design',
+    'sphinx_copybutton'
 ]
 
 #breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
@@ -206,10 +207,10 @@ todo_include_todos = True
 html_logo = "alamo.png"
 
 html_css_files = [
-    'custom.css',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Two+Tone',
-    'https://fonts.googleapis.com/css2?family=Material+Icons'
+    'https://fonts.googleapis.com/css2?family=Material+Icons',
+    'custom.css',
 ]
 
 

@@ -188,12 +188,13 @@ for testdirname in sorted(glob.glob("../../tests/*")):
             cmd += " {}/input".format(testdirname.replace("../../",""))
             if "args" in config[c]:
                 cmd += " "
-                cmd += " ".join([arg for arg in config[c]["args"].split()])
+                cmdargs = [s.replace("= ","=").replace(" =","=") for s in config[c]["args"].split("\n")]
+                cmd += " ".join(['{}="{}"'.format(s.split('=')[0], s.split('=')[1]) for s in cmdargs])
+                print(cmd)
             if "ignore" in config[c]:
-                cmd += " ignore={}".format(config[c]["ignore"])
+                cmd += ' ignore="{}"'.format(config[c]["ignore"])
 
-            testdocfile.write("      - :code:`{}`\n".format(cmd))
-
+            testdocfile.write("      - .. code-block:: bash \n\n             {}\n".format(cmd))
 
 
             testdocfile.write("\n\n")
