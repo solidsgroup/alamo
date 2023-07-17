@@ -17,8 +17,16 @@ public:
     NeoHookean(Solid<Set::Sym::Major> base) : Solid<Set::Sym::Major>(base) {};
     virtual ~NeoHookean() {};
 
-    Set::Scalar W(const Set::Matrix& F) const override
+    Set::Scalar W(const Set::Matrix& a_F) const override
     {
+        #if AMREX_SPACEDIM == 2
+        Set::Matrix F = Set::Matrix::Identity();
+        F(0,0) = a_F(0,0); F(0,1) = a_F(0,1);
+        F(1,0) = a_F(1,0); F(1,1) = a_F(1,1);
+        #elif AMREX_SPACEDIM == 3
+        Set::Matrix F = a_F; 
+        #endif 
+
         Set::Matrix Ft = F * F0.inverse();
         Set::Scalar J = Ft.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
@@ -27,8 +35,16 @@ public:
         w += 0.5 * kappa * (J - 1.0) * (J - 1.0);
         return w;
     }
-    Set::Matrix DW(const Set::Matrix& F) const override
+    Set::Matrix DW(const Set::Matrix& a_F) const override
     {
+        #if AMREX_SPACEDIM == 2
+        Set::Matrix F = Set::Matrix::Identity();
+        F(0,0) = a_F(0,0); F(0,1) = a_F(0,1);
+        F(1,0) = a_F(1,0); F(1,1) = a_F(1,1);
+        #elif AMREX_SPACEDIM == 3
+        Set::Matrix F = a_F; 
+        #endif
+
         Set::Matrix Ft = F * F0.inverse();
         Set::Scalar J = Ft.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
@@ -39,10 +55,23 @@ public:
         dw += mu * (Ft / J23 - (Ft * Ft.transpose()).trace() * FinvT / (3. * J23));
         dw += kappa * (J - 1) * J * FinvT;
 
+        #if AMREX_SPACEDIM == 2
+        Set::Matrix r_dw ; 
+        r_dw(0,0) = dw(0,0); r_dw(0,1) = dw(0,1);
+        r_dw(1,0) = dw(1,0); r_dw(1,1) = dw(1,1);
+        #elif AMREX_SPACEDIM == 3        
+        #endif 
         return dw;
     }
-    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& F) const override
+    Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& a_F) const override
     {
+        #if AMREX_SPACEDIM == 2
+        Set::Matrix F = Set::Matrix::Identity();
+        F(0,0) = a_F(0,0); F(0,1) = a_F(0,1);
+        F(1,0) = a_F(1,0); F(1,1) = a_F(1,1);
+        #elif AMREX_SPACEDIM == 3
+        Set::Matrix F = a_F; 
+        #endif
         Set::Matrix Ft = F * F0.inverse();
         Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw;
         Set::Scalar J = Ft.determinant();
@@ -68,6 +97,17 @@ public:
 
                         ddw(i, j, k, l) = (mu / J23) * t1 + kappa * J * t2;
                     }
+        #if AMREX_SPACEDIM == 2
+        Set::Matrix4<2,Set::Sym::Major> r_ddw;
+        for (int i = 0; i < 2 ; i++)
+            for (int j = 0; j < 2; j++)
+                for (int k = 0; k < 2; k++)
+                    for (int l = 0; l < 2; l++){
+                        r_ddw(i,j,k,l) = ddw(i,j,k,l);
+                    }
+        return r_ddw;
+        #elif AMREX_SPACEDIM == 3
+        #endif
         return ddw;
     }
     virtual void Print(std::ostream& out) const override
