@@ -64,7 +64,7 @@ public:
         r_dw(1, 0) = dw(1, 0);
         r_dw(1, 1) = dw(1, 1);
         return r_dw;
-#elif AMREX_SPACDEIM==3
+#elif AMREX_SPACEDIM==3
         return dw;
 #endif
     }
