@@ -248,11 +248,14 @@ void Flame::UpdateModel(int /*a_step*/)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
+                    Set::Matrix Idn = Set::Matrix::Identity();
+                    
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 *= (temp_avg - thermal.bound);
-
+                    model_ap.F0 += Idn;
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 *= (temp_avg - thermal.bound);
+                    model_htpb.F0 += Idn;
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
                 });
             }
