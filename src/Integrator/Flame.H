@@ -17,7 +17,7 @@
 #include "IC/PSRead.H" 
 #include "Set/Set.H"
 #include "Model/Solid/Affine/Isotropic.H"
-#include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Elastic/NeoHookeanPredeformed.H"
 #include "IO/ParmParse.H"
 #include "BC/Operator/Elastic/Constant.H"
 #include "Solver/Nonlocal/Newton.H"
@@ -28,10 +28,10 @@ namespace Integrator
 {
 
 class Flame : virtual public Integrator::Integrator,
-    virtual public Base::Mechanics<Model::Solid::Elastic::NeoHookean>
+    virtual public Base::Mechanics<Model::Solid::Elastic::NeoHookeanPredeformed>
 {
 
-    using model_type = Model::Solid::Elastic::NeoHookean;
+    using model_type = Model::Solid::Elastic::NeoHookeanPredeformed;
 
 public:
     Flame();

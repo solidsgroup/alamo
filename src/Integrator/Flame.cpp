@@ -14,7 +14,7 @@
 namespace Integrator
 {
 
-Flame::Flame() : Base::Mechanics<Model::Solid::Elastic::NeoHookean>() {}
+Flame::Flame() : Base::Mechanics<model_type>() {}
 
 Flame::Flame(IO::ParmParse& pp) : Flame()
 {
@@ -176,7 +176,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 2, "phi", true);
     }
 
-    pp.queryclass<Base::Mechanics<Model::Solid::Elastic::NeoHookean>>("elastic", value);
+    pp.queryclass<Base::Mechanics<model_type>>("elastic", value);
     if (value.m_type != Type::Disable)
     {
         pp.queryclass("model_ap", value.elastic.model_ap);
@@ -193,7 +193,7 @@ void Flame::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Flame::Initialize");
     Util::Message(INFO, m_type);
-    Base::Mechanics<Model::Solid::Elastic::NeoHookean>::Initialize(lev);
+    Base::Mechanics<model_type>::Initialize(lev);
 
     temp_mf[lev]->setVal(thermal.bound);
     temp_old_mf[lev]->setVal(thermal.bound);
@@ -224,7 +224,7 @@ void Flame::Initialize(int lev)
 
 void Flame::UpdateModel(int /*a_step*/)
 {
-    if (m_type == Base::Mechanics<Model::Solid::Elastic::NeoHookean>::Type::Disable) return;
+    if (m_type == Base::Mechanics<model_type>::Type::Disable) return;
 
 
     for (int lev = 0; lev <= finest_level; ++lev)
@@ -283,7 +283,7 @@ void Flame::UpdateModel(int /*a_step*/)
 void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
-    Base::Mechanics<Model::Solid::Elastic::NeoHookean>::TimeStepBegin(a_time, a_iter);
+    Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
     for (int lev = 0; lev <= finest_level; ++lev)
         ic_laser->Initialize(lev, laser_mf, a_time);
 }
@@ -292,7 +292,7 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 {
     BL_PROFILE("Integrador::Flame::Advance");
-    Base::Mechanics<Model::Solid::Elastic::NeoHookean>::Advance(lev, time, dt);
+    Base::Mechanics<model_type>::Advance(lev, time, dt);
     const Set::Scalar* DX = geom[lev].CellSize();
 
     if (true) // (lev == finest_level) //(true)
@@ -438,7 +438,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
 void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar time, int ngrow)
 {
     BL_PROFILE("Integrator::Flame::TagCellsForRefinement");
-    Base::Mechanics<Model::Solid::Elastic::NeoHookean>::TagCellsForRefinement(lev, a_tags, time, ngrow);
+    Base::Mechanics<model_type>::TagCellsForRefinement(lev, a_tags, time, ngrow);
 
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));

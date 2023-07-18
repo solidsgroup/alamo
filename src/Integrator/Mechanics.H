@@ -1,3 +1,16 @@
+//
+// This is a general purpose integrator that focuses on solving 
+// elasticity/mechanics equations in the absence of other multiphysics
+// simulation
+// 
+// It is enabled by :code:`alamo.program=mechanics` if used on its own, in
+// which case there is no prefix.
+//
+// If it is being used by another integrator, see that integrator to determine
+// the value of :code:`[prefix]` (often equal to :code:`elastic`).
+//
+
+
 #ifndef INTEGRATOR_MECHANICS_H
 #define INTEGRATOR_MECHANICS_H
 #include <iostream>
@@ -47,8 +60,7 @@ public:
         Parse(*this, pp);
     }
 
-    // The mechanics integrator manages the solution of an elastic 
-    // solve using the MLMG solver. 
+    // Mechanics inputs. See also :ref:`Integrator::Base::Mechanics`
     static void Parse(Mechanics& value, IO::ParmParse& pp)
     {
         Base::Mechanics<MODEL>::Parse(value, pp);

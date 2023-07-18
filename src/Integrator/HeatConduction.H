@@ -1,3 +1,17 @@
+//
+// This implements a basic heat conduction method in Alamo.
+// The partial differential equation to be solved is
+//
+// .. math::
+//
+//    \frac{\partial T}{\partial t} = \alpha\,\Delta T
+//
+// where :math:`T` is temperature, :math:`t` is time, and :math:`alpha` 
+// is the thermal diffusivity.
+// Integration is performed explicitly in time using forward Euler, and
+// differentiation is performed using the finite difference method.
+//
+
 #ifndef INTEGRATOR_HEATCONDUCTION_H
 #define INTEGRATOR_HEATCONDUCTION_H
 #include <iostream>

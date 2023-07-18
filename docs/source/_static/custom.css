@@ -2,3 +2,13 @@
 .wy-table-responsive table th {
     white-space: normal;
 }
+
+table pre 
+{
+    white-space:pre-wrap !important;
+}
+
+table .notranslate
+{
+    margin:0px !important;
+}
