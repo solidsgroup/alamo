@@ -20,14 +20,14 @@ public:
     Set::Scalar W(const Set::Matrix& a_F) const override
     {
         #if AMREX_SPACEDIM == 2
-        Set::Matrix F = Set::Matrix::Identity();
+        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
         F(0,0) = a_F(0,0); F(0,1) = a_F(0,1);
         F(1,0) = a_F(1,0); F(1,1) = a_F(1,1);
         #elif AMREX_SPACEDIM == 3
-        Set::Matrix F = a_F; 
+        Eigen::Matrix3d F = a_F; 
         #endif 
 
-        Set::Matrix Ft = F * F0.inverse();
+        Eigen::Matrix3d Ft = F * F0.inverse();
         Set::Scalar J = Ft.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
         Set::Scalar w = 0.0;
@@ -38,45 +38,45 @@ public:
     Set::Matrix DW(const Set::Matrix& a_F) const override
     {
         #if AMREX_SPACEDIM == 2
-        Set::Matrix F = Set::Matrix::Identity();
+        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
         F(0,0) = a_F(0,0); F(0,1) = a_F(0,1);
         F(1,0) = a_F(1,0); F(1,1) = a_F(1,1);
         #elif AMREX_SPACEDIM == 3
-        Set::Matrix F = a_F; 
+        Eigen::Matrix3d F = a_F; 
         #endif
 
-        Set::Matrix Ft = F * F0.inverse();
+        Eigen::Matrix3d Ft = F * F0.inverse();
         Set::Scalar J = Ft.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
-        Set::Matrix FinvT = Ft.inverse().transpose();
+        Eigen::Matrix3d FinvT = Ft.inverse().transpose();
 
-        Set::Matrix dw = Set::Matrix::Zero();
+        Eigen::Matrix3d dw = Set::Matrix::Zero();
 
         dw += mu * (Ft / J23 - (Ft * Ft.transpose()).trace() * FinvT / (3. * J23));
         dw += kappa * (J - 1) * J * FinvT;
 
         #if AMREX_SPACEDIM == 2
-        Set::Matrix r_dw ; 
+        Eigen::Matrix3d r_dw ; 
         r_dw(0,0) = dw(0,0); r_dw(0,1) = dw(0,1);
         r_dw(1,0) = dw(1,0); r_dw(1,1) = dw(1,1);
-        #elif AMREX_SPACEDIM == 3        
+        //#elif AMREX_SPACEDIM == 3        
         #endif 
         return dw;
     }
     Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> DDW(const Set::Matrix& a_F) const override
     {
         #if AMREX_SPACEDIM == 2
-        Set::Matrix F = Set::Matrix::Identity();
+        Eigen::Matrix3d F = Eigen::Matrix3d::Identity();
         F(0,0) = a_F(0,0); F(0,1) = a_F(0,1);
         F(1,0) = a_F(1,0); F(1,1) = a_F(1,1);
         #elif AMREX_SPACEDIM == 3
-        Set::Matrix F = a_F; 
+        Eigen::Matrix3d F = a_F; 
         #endif
-        Set::Matrix Ft = F * F0.inverse();
+        Eigen::Matrix3d Ft = F * F0.inverse();
         Set::Matrix4<AMREX_SPACEDIM, Set::Sym::Major> ddw;
         Set::Scalar J = Ft.determinant();
         Set::Scalar J23 = std::pow(fabs(J), 2. / 3.);
-        Set::Matrix FinvT = Ft.inverse().transpose();
+        Eigen::Matrix3d FinvT = Ft.inverse().transpose();
         for (int i = 0; i < 3; i++)
             for (int j = 0; j < 3; j++)
                 for (int k = 0; k < 3; k++)
@@ -106,7 +106,7 @@ public:
                         r_ddw(i,j,k,l) = ddw(i,j,k,l);
                     }
         return r_ddw;
-        #elif AMREX_SPACEDIM == 3
+        //#elif AMREX_SPACEDIM == 3
         #endif
         return ddw;
     }
