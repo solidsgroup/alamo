@@ -47,7 +47,6 @@ public:
     };
   
 private:
-    int dim = AMREX_SPACEDIM;
     Set::Scalar in_value = 0.0, out_value = 1.0;
     amrex::Vector<Set::Vector> center; 
     amrex::Vector<Set::Scalar> eps;

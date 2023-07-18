@@ -96,7 +96,7 @@ void FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
     }
 
 private:
-    Set::Scalar m_h1 = NAN, m_h2 = NAN, m_val1 = NAN, m_val2=NAN;
+    Set::Scalar m_h1 = NAN, m_h2 = NAN;
 
 public:
     static void Parse(Step & value, amrex::ParmParse & pp)

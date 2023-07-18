@@ -139,7 +139,7 @@ public:
     virtual void
     Init(amrex::MultiFab * a_rhs,
         const amrex::Geometry &a_geom,
-        bool a_homogeneous = false) const
+        bool a_homogeneous = false) const override
     {
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
@@ -228,7 +228,7 @@ public:
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,
                 const int &i, const int &j, const int &k,
-                const amrex::Box &domain)
+                const amrex::Box &domain) override
     {
         (void)i; (void)j; (void)k; // Suppress "unused variable" warnings
         //Set::Vector f;

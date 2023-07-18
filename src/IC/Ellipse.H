@@ -85,11 +85,6 @@ private:
     amrex::Vector<Set::Scalar> eps;
     int invert = 0;
 
-    // Set::Vector x0 = Set::Vector::Zero();
-    // Set::Scalar eps = 0.01, eps_sq = eps*eps;
-    // Set::Scalar window = 6.0*eps;
-    // Set::Matrix A = Set::Matrix::Identity();    
-    Mollifier moll = Mollifier::Gaussian;
 public:
     // If :code:`number_of_inclusions` is specified, then multiple ellipses are specified.
     // In this case, each parameter must have number_of_inclusion*M values, where M is the
