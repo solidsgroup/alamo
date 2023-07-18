@@ -1,8 +1,8 @@
 alamo.program = flame
-plot_file = /home/meier/solidphase/el/output
+plot_file = /home/meier/solidphase/box/output
 amr.plot_dt = 0.001
 #amr.plot_int = 1
-amr.max_level = 7
+amr.max_level = 6
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
@@ -11,9 +11,9 @@ amr.refinement_criterion = 0.01
 amr.refinement_criterion_temp = 10.1
 amr.refinement_restriction = 0.1
 
-amr.n_cell = 8 2 2
+amr.n_cell = 2 2 2 
 geometry.prob_lo = 0.0 -0.0005 -0.0005 # [ m ] 
-geometry.prob_hi = 0.004 0.0005 0.0005 # [ m ]
+geometry.prob_hi = 0.001 0.0005 0.0005 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
@@ -22,7 +22,7 @@ conditional.round = 1000.0
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 2.0e-5 # 0.00005 # [s]
-stop_time = 0.01
+stop_time = 0.1
 small = 1.0e-8
 pf.min_eta = 0.1
 
@@ -117,61 +117,38 @@ pressure.c1 = -0.09906
 
 ## ELASTIC VARIABLES ######################################################### ELASTIC
 
-elastic.interval = 10
-
-#elastic.ic.type = constant # lame, shear, E, nu, F0
-#elastic.type = ellipse
-
-#elastic.nmodels = 1
-model_ap.E    = 210
-model_ap.nu   = 0.3
-model_ap.F0   = 1E-10 0 0 1E-10 #eigenstrain
-
-model_htpb.E  = 210
-model_htpb.nu = 0.3
-model_htpb.F0 = 0 0 0 0 0 0 0 0 0 #eigenstrain
-
-elastic.solver.verbose = 4
-elastic.solver.fixed_iter=40
-#elastic.solver.nriters = 1
-
-#elastic.ref_threshold = 5E-5
-#elastic.eta_ref_threshold = 10
-
 
 ###### Laser #########################################################
 laser.ic.type = "constant"
-laser.ic.constant.value = 1.0e6
+laser.ic.constant.value = 2.0e6
 #laser.ic.expression.region0 = "(t<0.025)*5.0e7"
 
-#elastic.bc.type = tension_test
-#elastic.bc.tension_test.type = uniaxial_stress
-#elastic.bc.tension_test.disp=0.0001
-amr.plot_int = 1
 amr.node.all = 1
+elastic.on = 1
+elastic.interval = 10
+model_ap.shear = 14190.0e0
+model_ap.lame = 5700.95
+model_ap.F0 = 1.6e-7 0.0 0.0 0.0 1.6e-7 0.0 0.0 0.0 1.6e-7
+model_htpb.shear = 0.8003
+model_htpb.lame = 710.85
+model_htpb.F0 = 6.5e-8 0.0 0.0 0.0 6.5e-8 0.0 0.0 0.0 6.5e-8
 
-T0 = 300
+elastic.solver.verbose = 4
+#elastic.solver.fixed_iter = 200 
 
 ### --- Faces
 elastic.bc.type = constant
-#elastic.bc.constant.type.xlo = disp trac trac
-#elastic.bc.constant.type.xhi = disp trac trac
-#elastic.bc.constant.val.xlo = 0.0001 0.0 0.0
-#elastic.bc.constant.type.ylo = trac disp trac
-#elastic.bc.constant.type.yhi = trac trac trac
-#elastic.bc.constant.type.xloylo = disp trac trac
-#elastic.bc.constant.type.xloyhi = disp trac trac
-#elastic.bc.constant.type.xhiylo = disp trac trac
-#elastic.bc.constant.type.xhiyhi = disp trac trac
-#elastic.bc.constant.val.xloylo = 0.0001 0.0 0.0
-#elastic.bc.constant.val.xloyhi = 0.0001 0.0 0.0
-
 elastic.bc.constant.type.xlo = disp trac trac
 elastic.bc.constant.type.xhi = disp trac trac
+#elastic.bc.constant.val.xlo = 0.0001 0.0 0.0
 elastic.bc.constant.type.ylo = trac disp trac
 elastic.bc.constant.type.yhi = trac trac trac
 elastic.bc.constant.type.xloylo = disp trac trac
 elastic.bc.constant.type.xloyhi = disp trac trac
 elastic.bc.constant.type.xhiylo = disp trac trac
 elastic.bc.constant.type.xhiyhi = disp trac trac
+#elastic.bc.constant.val.xloylo = 0.0001 0.0 0.0
+#elastic.bc.constant.val.xloyhi = 0.0001 0.0 0.0
+
+
 

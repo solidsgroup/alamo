@@ -11,7 +11,7 @@ amr.refinement_criterion = 0.1
 amr.refinement_criterion_temp = 10.0
 amr.refinement_restriction = 0.1
 
-amr.n_cell = 128 128 128 
+amr.n_cell = 80 80 80 
 geometry.prob_lo = 0.0 -0.0005 -0.0005 # [ m ] 
 geometry.prob_hi = 0.001 0.0005 0.0005 # [ m ]
 
@@ -36,7 +36,7 @@ phi.ic.type = laminate
 phi.ic.number_of_inclusions = 1
 phi.ic.laminate.center = 0.0 0.0 0.0 
 phi.ic.laminate.thickness = 0.0001
-phi.ic.laminate.orientation = 0 1 #0
+phi.ic.laminate.orientation = 0 1 0
 phi.ic.laminate.singlefab = 1 
 phi.ic.laminate.invert = 1
 phi.ic.laminate.eps = 0.00002
@@ -162,3 +162,4 @@ amr.node.all = 1
 laser.ic.type = "constant"
 laser.ic.constant.value = 3.0e6
 #laser.ic.expression.region0 = "(t>0.1)*(t/5.0)*1.0e7"
+
