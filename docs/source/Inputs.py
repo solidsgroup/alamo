@@ -146,7 +146,7 @@ written_headers = []
 num_tot = 0
 num_doc = 0
 
-for dirname, subdirlist, filelist in os.walk("../../src/"):
+for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
     hdrname = dirname.replace("../../src/","").replace("/","::")
     depth = len(hdrname.split("::")) 
 
