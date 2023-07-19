@@ -24,10 +24,12 @@ class Hydro: virtual public Integrator::Integrator
 {
 public:
 
-    //Hydro();
-    //Hydro (IO::ParmParse &pp);  
-    Hydro(IO::ParmParse& pp) { pp.queryclass(*this); }
-    static void Parse(Hydro& value, IO::ParmParse& pp)
+    Hydro();
+    Hydro (IO::ParmParse &pp);  
+    static void Parse(Hydro& value, IO::ParmParse& pp);
+    //Hydro(IO::ParmParse& pp) { pp.queryclass(*this); }
+    /*
+    static void Parse(Hydro& value, IO::ParmParse& pp);
     {
         BL_PROFILE("Integrator::Hydro::Hydro()");
         //General Variables Input Read:
@@ -84,7 +86,7 @@ public:
             else Util::Abort(INFO, "Invalid eta.ic: ", type);
         }
 
-    }
+    }*/
 
 protected:
     void Initialize(int lev) override;
@@ -147,6 +149,12 @@ private:
     Set::Scalar e_refinement_criterion = 0.1;
     Set::Scalar m_refinement_criterion = 0.1;
     Set::Scalar eta_refinement_criterion = 0.1;
+
+    Set::Scalar cfl = 1.0;
+    Set::Scalar gamma = 1.0; 
+    Set::Scalar num_cells_x = 1.0;
+    Set::Scalar eps = 1.0; 
+    
 };
 }
 
