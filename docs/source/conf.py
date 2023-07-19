@@ -207,6 +207,7 @@ todo_include_todos = True
 html_logo = "alamo.png"
 
 html_css_files = [
+    'custom.css',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Two+Tone',
     'https://fonts.googleapis.com/css2?family=Material+Icons',

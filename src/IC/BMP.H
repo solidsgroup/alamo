@@ -1,3 +1,10 @@
+// 
+// Initialize a field using a bitmap image. (2D only)
+//
+// Note that in GIMP, you must select "do not write color space information"
+// and "24 bit R8 G8 B8" when exporting the BMP file.
+//
+
 #ifndef IC_BMP_H
 #define IC_BMP_H
 #include <cmath>
@@ -160,21 +167,18 @@ public:
     static void Parse(BMP & value, IO::ParmParse & pp)
     {
         std::string filename;
-        // BMP filename.
-        // Note that in GIMP, you must select "do not write color space information"
-        // and "24 bit R8 G8 B8" when exporting the BMP file.
-        pp.query("filename",filename);
+        pp.query("filename",filename); // BMP filename.
         value.bmp.Define(filename);
 
         std::string fit = "stretch";
-        pp.query("fit",fit);
+        pp.query("fit",fit); // How to fit. (options: stretch, fitheight, fitwidth)
         if (fit=="stretch")        value.fit = Fit::Stretch;
         else if (fit=="fitheight") value.fit = Fit::FitHeight;
         else if (fit=="fitwidth")  value.fit = Fit::FitWidth;
         else Util::Abort(INFO,"Invalid value for bmp fit - should be stretch/fitheight/fitwidth but received '",fit,"'");
 
         std::string channel = "g";
-        pp.query("channel",channel);
+        pp.query("channel",channel); // Color channel to use (options: r, R, g, G, b, B)
         if      (channel=="r" || channel=="R") value.channel = Channel::R;
         else if (channel=="g" || channel=="G") value.channel = Channel::G;
         else if (channel=="b" || channel=="B") value.channel = Channel::B;
@@ -182,8 +186,8 @@ public:
 
         value.min = (Set::Scalar) value.bmp.min()[value.channel];
         value.max = (Set::Scalar) value.bmp.max()[value.channel];
-        pp.query("min",value.min);
-        pp.query("max",value.max);
+        pp.query("min",value.min); // Scaling value - minimum (default: 0.0)
+        pp.query("max",value.max); // Scaling value - maximum (default: 255.0)
 }    
 };
 }

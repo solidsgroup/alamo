@@ -150,14 +150,21 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
     hdrname = dirname.replace("../../src/","").replace("/","::")
     depth = len(hdrname.split("::")) 
 
-    write_header = True
-    
-    srcfilelist = set()
+    srcfileset = set()
     for f in filelist:
-        if f.endswith(".cpp"): srcfilelist.add(f.replace(".cpp",""))
-        if f.endswith(".H"): srcfilelist.add(f.replace(".H",""))
+        if f.endswith(".cpp"): srcfileset.add(f.replace(".cpp",""))
+        if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
+    srcfilelist = list(srcfileset)
     
-    for f in sorted(srcfilelist):
+    #
+    # This function makes sure pure abstract classes get
+    # listed first.
+    #
+    def alphabetize_with_abstract_first(key):
+        if key == hdrname.split("::")[-1]:
+            return "0"
+        return(key[0])
+    for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
         
         if True: 
             try:
@@ -178,11 +185,10 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
                         docfile.write(geticon(subhdr) + subhdr+"\n")
                         docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
                     else:
-                        docfile.write(subhdr+"\n")
+                        docfile.write("\n" + subhdr+"\n")
                         docfile.write("".ljust(len(subhdr),headerchar[i-1]))
                     docfile.write("\n\n\n")
                     written_headers.append(subhdr)
-
 
             if classname.split("::")[-1] != classname.split("::")[-2]:
                 docfile.write(classname + "\n")
@@ -195,6 +201,7 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
             if not len(inputs): continue
 
             docfile.write("\n\n")
+            docfile.write(".. rst-class:: api-inputs-table\n\n")
             docfile.write(".. flat-table:: \n")
             docfile.write("    :widths: 20 10 70\n")
             docfile.write("    :header-rows: 1\n\n")

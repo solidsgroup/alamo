@@ -1,3 +1,10 @@
+//
+// .. warning::
+//    This will be replaced by the more general :code:`BC::Expression`
+//
+
+
+
 #ifndef BC_STEP_H_
 #define BC_STEP_H_
 
@@ -101,8 +108,8 @@ private:
 public:
     static void Parse(Step & value, amrex::ParmParse & pp)
     {
-        pp.query("h1",value.m_h1);
-        pp.query("h2",value.m_h2);
+        pp.query("h1",value.m_h1); // Location of the step on the xlo edge/face
+        pp.query("h2",value.m_h2); // Location of the step on the xhi edge/face
     }
 
 };

@@ -1,3 +1,73 @@
+//
+// This is the most commonly used standard boundary condition implementation.
+// The name "Constant" refers to the invariance of the BC value or character along each face
+// of the simulation domain; however, you may cause a change in the value with time by using a
+// :ref:`Numeric::Interpolator::Linear` string.
+// 
+// The BC on each face is specified with a :code:`type` string that specifies the nature of 
+// the BC, and a :code:`val` that specifies the value.
+// By default, all types are Dirichlet and all values are 0.0.
+// The complete list of BC types are below:
+//
+// +--------------------------+-----------------------------------------------------------------+
+// | BC Type                  | Description                                                     |
+// +==========================+=================================================================+
+// | :code:`Dirichlet`        | Standard Dirichlet boundary condition                           |                          
+// +--------------------------+ (https://en.wikipedia.org/wiki/Dirichlet_boundary_condition).   |
+// | :code:`dirichlet`        | Fixes the value of the **function** at the boundary.            |                          
+// +--------------------------+                                                                 +
+// | :code:`EXT_DIR`          |                                                                 |                        
+// +--------------------------+-----------------------------------------------------------------+
+// | :code:`Neumann`          | Standard Neumann boundary condition                             |                        
+// +--------------------------+ (https://en.wikipedia.org/wiki/Neumann_boundary_condition)      +
+// | :code:`neumann`          |                                                                 |                        
+// +--------------------------+-----------------------------------------------------------------+
+// | :code:`Periodic`         | Standard periodic boundary condition.                           |                         
+// +--------------------------+ (https://en.wikipedia.org/wiki/Periodic_boundary_conditions).   |
+// | :code:`periodic`         | **Important**: Ensure that your geometry is specified to be     |                        
+// +--------------------------+ periodic using :code:`geometry.is_periodic`. For instance, if   |
+// | :code:`INT_DIR`          | periodic in x, set to :code:`1 0 0`                             |                                
+// +--------------------------+-----------------------------------------------------------------+
+// | :code:`REFLECT_ODD`      | Effectively the same as dirichlet but with value fixed to 0     |
+// +--------------------------+                                                                 +
+// | :code:`reflect_odd`      |                                                                 |                            
+// +--------------------------+-----------------------------------------------------------------+
+// | :code:`REFLECT_EVEN`     | Effectively the same as neumann but with value fixed to 0       |
+// +--------------------------+-----------------------------------------------------------------+
+// | :code:`BOGUS_BC`         | Used for internal operations - not for general use              |
+// +--------------------------+-----------------------------------------------------------------+
+// | :code:`FOEXTRAP`         | These are BC types inherited from AMReX and not yet implemented |                         
+// +--------------------------+ in Alamo. If you need BCs of this type, you will need to        +
+// | :code:`HOEXTRAP`         | implement them yourself.                                        |                         
+// +--------------------------+                                                                 +
+// | :code:`Interior`         |                                                                 |                         
+// +--------------------------+                                                                 +
+// | :code:`Inflow`           |                                                                 |                       
+// +--------------------------+                                                                 +
+// | :code:`Outflow`          |                                                                 |                        
+// +--------------------------+                                                                 +
+// | :code:`Symmetry`         |                                                                 |                         
+// +--------------------------+                                                                 +
+// | :code:`SlipWall`         |                                                                 |                         
+// +--------------------------+                                                                 +
+// | :code:`NoSlipWall`       |                                                                 |                           
+// +--------------------------+                                                                 +
+// | :code:`interior`         |                                                                 |                         
+// +--------------------------+                                                                 +
+// | :code:`Marshak`          |                                                                 |                        
+// +--------------------------+                                                                 +
+// | :code:`SanchezPomraning` |                                                                 |                          
+// +--------------------------+                                                                 +
+// | :code:`inflow`           |                                                                 |                       
+// +--------------------------+-----------------------------------------------------------------+
+//
+// The BC values can be specified either as a number (e.g. :code:`1.0`) or using a linear interpolator
+// string (e.g. :code:`(0,1:2.3,-0.1)`).
+//
+// The number of values and types must be either 0 (for defaults), 1 (to set the same for all field components)
+// or N (where N=number of field components).
+//
+
 #ifndef BC_CONSTANT_H_
 #define BC_CONSTANT_H_
 
@@ -130,34 +200,34 @@ public:
         // TYPES
         
         std::vector<std::string> str;
-        pp.queryarr("type.xlo",str); 
+        pp.queryarr("type.xlo",str);  // BC type on the lower x edge (2d) face (3d)
             for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
             if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XLO].push_back(bcmap[str[i]]); 
             else if (str.size() == 1) value.m_bc_type[Face::XLO].resize(value.m_ncomp,bcmap[str[0]]);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.xhi",str);
+        pp.queryarr("type.xhi",str);  // BC type on the upper x edge (2d) face (3d)
             for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
             if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::XHI].push_back(bcmap[str[i]]); 
             else if (str.size() == 1) value.m_bc_type[Face::XHI].resize(value.m_ncomp,bcmap[str[0]]);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.ylo",str);
+        pp.queryarr("type.ylo",str);  // BC type on the lower y edge (2d) face (3d)
             for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
             if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YLO].push_back(bcmap[str[i]]); 
             else if (str.size() == 1) value.m_bc_type[Face::YLO].resize(value.m_ncomp,bcmap[str[0]]);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.yhi",str);
+        pp.queryarr("type.yhi",str);  // BC type on the upper y edge (2d) face (3d)
             for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
             if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::YHI].push_back(bcmap[str[i]]); 
             else if (str.size() == 1) value.m_bc_type[Face::YHI].resize(value.m_ncomp,bcmap[str[0]]);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
-        pp.queryarr("type.zlo",str);
+        pp.queryarr("type.zlo",str);  // BC type on the lower z face (processed but ignored in 2d to prevent unused input errors)
         #if AMREX_SPACEDIM==3
             for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
             if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZLO].push_back(bcmap[str[i]]); 
             else if (str.size() == 1) value.m_bc_type[Face::ZLO].resize(value.m_ncomp,bcmap[str[0]]);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC type args: expected ", value.m_ncomp, " or 1 but got ", str.size());
         #endif
-        pp.queryarr("type.zhi",str);
+        pp.queryarr("type.zhi",str);  // BC type on the upper z face (processed but ignored in 2d to prevent unused input errors)
         #if AMREX_SPACEDIM==3
             for (unsigned int i = 0; i < str.size(); i++) if (!bcmap.count(str[i])) Util::Abort(INFO,"Invalid BC: ", str[i]);
             if (str.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_type[Face::ZHI].push_back(bcmap[str[i]]); 
@@ -168,30 +238,30 @@ public:
         // VALS
         std::vector<std::string> val;
         value.m_bc_val[Face::XLO].clear();
-        pp.queryarr("val.xlo",val); 
+        pp.queryarr("val.xlo",val);  // BC value on the lower x edge (2d) face (3d)
             if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
             else if (val.size() == 1) value.m_bc_val[Face::XLO].resize(value.m_ncomp,Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
             else if (val.size() == 0) value.m_bc_val[Face::XLO].resize(value.m_ncomp,0.0);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());        
         value.m_bc_val[Face::XHI].clear();
-        pp.queryarr("val.xhi",val); 
+        pp.queryarr("val.xhi",val); // BC value on the upper x edge (2d) face (3d)
             if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::XHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
             else if (val.size() == 1) value.m_bc_val[Face::XHI].resize(value.m_ncomp,Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
             else if (val.size() == 0) value.m_bc_val[Face::XHI].resize(value.m_ncomp,0.0);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());        
         value.m_bc_val[Face::YLO].clear();
-        pp.queryarr("val.ylo",val); 
+        pp.queryarr("val.ylo",val);  // BC value on the lower y edge (2d) face (3d)
             if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
             else if (val.size() == 1) value.m_bc_val[Face::YLO].resize(value.m_ncomp,Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
             else if (val.size() == 0) value.m_bc_val[Face::YLO].resize(value.m_ncomp,0.0);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());        
         value.m_bc_val[Face::YHI].clear();
-        pp.queryarr("val.yhi",val); 
+        pp.queryarr("val.yhi",val); // BC value on the upper y edge (2d) face (3d)
             if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::YHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
             else if (val.size() == 1) value.m_bc_val[Face::YHI].resize(value.m_ncomp,Numeric::Interpolator::Linear<Set::Scalar>(val[0]));
             else if (val.size() == 0) value.m_bc_val[Face::YHI].resize(value.m_ncomp,0.0);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());        
-        pp.queryarr("val.zlo",val); 
+        pp.queryarr("val.zlo",val);  // BC value on the lower z face (processed but ignored in 2d to prevent unused input errors)
         #if AMREX_SPACEDIM==3
             value.m_bc_val[Face::ZLO].clear();
             if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZLO].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
@@ -199,7 +269,7 @@ public:
             else if (val.size() == 0) value.m_bc_val[Face::ZLO].resize(value.m_ncomp,0.0);
             else Util::Abort(INFO,"Incorrect number of ",pp.prefix()," BC value args: expected ", value.m_ncomp, " or 0 or 1 but got ", val.size());        
         #endif
-        pp.queryarr("val.zhi",val); 
+        pp.queryarr("val.zhi",val); // BC value on the upper z face (processed but ignored in 2d to prevent unused input errors)
         #if AMREX_SPACEDIM==3
             value.m_bc_val[Face::ZHI].clear();
             if (val.size() == value.m_ncomp) for (unsigned int i = 0; i < value.m_ncomp; i++) value.m_bc_val[Face::ZHI].push_back(Numeric::Interpolator::Linear<Set::Scalar>(val[i])); 
