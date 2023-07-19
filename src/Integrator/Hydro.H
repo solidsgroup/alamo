@@ -35,12 +35,17 @@ public:
             //pp.query("r_refinement_criterion", value.r_refinement_criterion);
             //pp.query("e_refinement_criterion", value.e_refinement_criterion);
             //pp.query("m_refinement_criterion", value.m_refinement_criterion);
-            pp.query("gamma", value.gamma);
-            pp.query("cfl", value.cfl);
+            pp.query("gamma", value.hydro.gamma);
+            pp.query("cfl", value.hydro.cfl);
+	    
             pp.query("rho_solid", value.rho_solid);
             pp.query("rho_fluid", value.rho_fluid);
             pp.query("E_solid", value.E_solid);
             pp.query("E_fluid", value.E_fluid);
+	    
+	    pp.query("num_cells_x", value.num_cells_x);
+
+	    pp.query("epsilon", value.pf.eps);
 
             value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
             value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -54,7 +59,8 @@ public:
         {
 	  int nghost = 2;
             value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, nghost, "eta", true);
-            value.RegisterNewFab(value.eta_old_mf, value.bc_eta, 1, nghost, "eta_old", false);
+	    
+            value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", false);
 
             value.RegisterNewFab(value.Density_mf, value.bc_rho, 1, nghost, "Density", true);
             value.RegisterNewFab(value.Density_old_mf, value.bc_rho, 1, nghost, "rho_old", false);
@@ -105,7 +111,7 @@ private:
     Set::Field<Set::Scalar> Pressure_mf;
 
     Set::Field<Set::Scalar> eta_mf;
-    Set::Field<Set::Scalar> eta_old_mf;
+    Set::Field<Set::Scalar> etadot_mf;
 
     BC::BC<Set::Scalar>* bc_rho;
     BC::BC<Set::Scalar>* bc_E;
@@ -129,23 +135,18 @@ private:
     Set::Scalar Mx_init = 0.0;
     Set::Scalar My_init = 0.0;
 
-    Set::Scalar V_x = -0.001;
+    Set::Scalar V_x = 0.0;
     Set::Scalar V_y = 0.0;
-
-    Set::Scalar gamma = 1.4;
-
-    Set::Scalar cfl = 0.6;
+  
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
-
-    Set::Scalar epsilon = 0.5;
 
     //refinement criterion variables
     Set::Scalar r_refinement_criterion = 0.1;
     Set::Scalar e_refinement_criterion = 0.1;
     Set::Scalar m_refinement_criterion = 0.1;
-    Set::Scalar eta_refinement_criterion = 0.11;
+    Set::Scalar eta_refinement_criterion = 0.1;
 };
 }
 

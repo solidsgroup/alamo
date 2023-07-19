@@ -18,38 +18,29 @@ void Hydro::Initialize(int lev)
     BL_PROFILE("Integrator::Hydro::Initialize");
 
     //ic_eta->Initialize(lev, eta_mf);
-    //ic_eta->Initialize(lev, eta_old_mf);
 
         for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
-	amrex::Array4<Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
-        /////
+        amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+
+	amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+        
         amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
-        /////
+        
         amrex::Array4<Set::Scalar> const& rho_new = (*Density_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
-        /////
+        
         amrex::Array4<Set::Scalar> const& M_new = (*Momentum_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& M = (*Momentum_old_mf[lev]).array(mfi);
-        /////
-        amrex::Array4<Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
-        /////
-        amrex::Array4<Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-	  //Set::Scalar radius = 0.1;
-	  //Set::Vector x = Set::Position(i,j,k,geom[lev], ixType());
 	  const Set::Scalar* DX = geom[lev].CellSize();
-	  Set::Scalar pos_x0 = (i - 100)*DX[0];
-	  //Set::Scalar pos_y0 = (j - 100)*DX[0];
-	  //Set::Scalar r_xy = std::sqrt(pos_x*pos_x + pos_y*pos_y);
-      
-	  //eta(i,j,k) = 1 - 0.5*std::erf((r_xy + radius)/epsilon) + 0.5*std::erf((r_xy - radius)/epsilon);
+	  Set::Scalar pos_x0 = (i - num_cells_x/2.)*DX[0];
+	  
 	  eta(i,j,k) = 0.5 - 0.5*std::erf(pos_x0/epsilon);
-	  eta_new(i,j,k) = eta(i,j,k);
+	  etadot(i,j,k) = 0.0;
 
 	  rho(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho_fluid * eta(i, j, k);
 	  rho_new(i, j, k) = rho(i, j, k);
@@ -62,11 +53,6 @@ void Hydro::Initialize(int lev)
 
 	  E(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_fluid * eta(i, j, k);
 	  E_new(i, j, k) = E(i, j, k);
-
-	  //p(i, j, k) = 0.0;
-
-	  //v(i, j, k, 0) = 0.0;
-	  //v(i, j, k, 1) = 0.0;
         });
     }
 
@@ -102,8 +88,6 @@ void Hydro::TimeStepComplete(Set::Scalar, int lev)
 
 void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 {
-    std::swap(eta_old_mf[lev], eta_mf[lev]);
-    ///
     std::swap(Momentum_old_mf[lev], Momentum_mf[lev]);
     ///
     std::swap(Energy_old_mf[lev], Energy_mf[lev]);
@@ -146,26 +130,36 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
     {
         const amrex::Box& bx = mfi.validbox();
 
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_old_mf[lev]).array(mfi);
+	Set::Scalar step_int = 0;
+
+        amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+	amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+	
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& M = (*Momentum_old_mf[lev]).array(mfi);
 	
         amrex::Array4<const Set::Scalar> const& v = (*Velocity_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& p = (*Pressure_mf[lev]).array(mfi);
-
-        amrex::Array4<Set::Scalar> const& eta_new = (*eta_mf[lev]).array(mfi);
+	
         amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& rho_new = (*Density_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& M_new = (*Momentum_mf[lev]).array(mfi);
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
+
+	//Advance eta
 	Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
         Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
-	Set::Scalar interface_pos_x = (i - 100)*DX[0];//0.5 - V_x * time;
-	Set::Scalar detadt = 0.0;//0.5 - 0.5*std::erf(interface_pos_x/epsilon);
+	Set::Scalar interface_pos_x = (i - num_cells_x/2.)*DX[0];
+	eta(i, j, k) = 0.5 + 0.5 * std::erf((interface_pos_x)/epsilon);
+	etadot(i,j,k) = 0.0; 
+	
+	///////////////////////////
+	/////GODUNOV ADVECTION/////
+	///////////////////////////
 
 	// slopes in current cell
 	Set::Vector drho = Numeric::Gradient(rho, i, j, k, 0, DX);
@@ -282,7 +276,9 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	M_new(i, j - 1, k, 1) = M(i, j - 1, k, 1) - flux_y[3] * dt / DX[1];
 	M_new(i, j, k, 1)     = M(i, j, k, 1)     + flux_y[3] * dt / DX[1];
 
-	///Diffuse interface source terms
+	///////////////////////////
+	//////DIFFUSE SOURCES//////
+	///////////////////////////
 
 	std::array<Set::Scalar,3> source;
 	source[0] = grad_eta_mag * (rho_solid * std::sqrt(V_x*V_x + V_y*V_y));
@@ -290,10 +286,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	source[2] = grad_eta(1) * (rho_solid * (V_y*V_y));
 	source[3] = grad_eta_mag * (0.5 * rho_solid * (V_y*V_y + V_x*V_x)*(V_y*V_y + V_x*V_x)*(V_y*V_y + V_x*V_x));
 
-	E_new(i,j,k)   += source[3] + E(i,j,k) * detadt;
-	rho_new(i,j,k) += source[0] + rho(i,j,k) * detadt;
-	M_new(i,j,k,0) += source[1] + M(i,j,k,0) * detadt;
-	M_new(i,j,k,1) += source[2] + M(i,j,k,1) * detadt;
+	E_new(i,j,k)   += source[3] + E(i,j,k) * etadot(i,j,k);
+	rho_new(i,j,k) += source[0] + rho(i,j,k) * etadot(i,j,k);
+	M_new(i,j,k,0) += source[1] + M(i,j,k,0) * etadot(i,j,k);
+	M_new(i,j,k,1) += source[2] + M(i,j,k,1) * etadot(i,j,k);
 
 	//Advance total fields
 	rho_new(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho_new(i, j, k) * eta(i, j, k);
@@ -301,15 +297,9 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	M_new(i, j, k, 1) = 0.0 * (1 - eta(i, j, k)) + M_new(i, j, k, 1) * eta(i, j, k);
 	E_new(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_new(i, j, k) * eta(i, j, k);
 
-        //Advance eta
-
-	interface_pos_x = (i - 100)*DX[0];
-	eta_new(i, j, k) = 0.5 + 0.5 * std::erf((interface_pos_x)/epsilon);
-
-	//Advance counter
-
-	    
         });
+
+	step_int += 1;
     }
 }//end Advance
 
