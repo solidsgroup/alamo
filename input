@@ -35,7 +35,7 @@ small = 1.0e-5
 
 ### ETA IC ###
 
-pf.epsilon = 0.1
+epsilon = 0.1
 
 eta.ic.type = laminate
 eta.ic.laminate.number_of_inclusions = 1
