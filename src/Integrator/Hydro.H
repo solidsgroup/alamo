@@ -24,7 +24,7 @@ class Hydro: virtual public Integrator::Integrator
 {
 public:
 
-  Hydro();
+  Hydro() {};
   Hydro(IO::ParmParse& pp);
   static void Parse(Hydro& value, IO::ParmParse& pp);
   
