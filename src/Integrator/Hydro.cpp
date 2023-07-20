@@ -9,12 +9,16 @@
 
 namespace Integrator
 {
+  
+  Hydro::Hydro(IO::ParmParse& pp) : Hydro()
+  {
+    pp.queryclass(*this);
+  }
 
-Hydro::Hydro(IO::ParmParse& pp) : Hydro() { pp.queryclass(*this); }
-void Hydro::Parse(Hydro& value, IO::ParmParse& pp)
+void
+Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Hydro::Hydro()");
-    //General Variables Input Read:
     {
         //pp.query("r_refinement_criterion", value.r_refinement_criterion);
         //pp.query("e_refinement_criterion", value.e_refinement_criterion);
@@ -37,7 +41,7 @@ void Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.bc_M = new BC::Constant(2, pp, "M.bc");
         value.bc_v = new BC::Constant(2, pp, "v.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
-
+	
     }
     // Register FabFields:
     {

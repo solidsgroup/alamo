@@ -24,10 +24,16 @@ class Hydro: virtual public Integrator::Integrator
 {
 public:
 
-    Hydro();
-    Hydro (IO::ParmParse &pp);  
-    static void Parse(Hydro& value, IO::ParmParse& pp);
-    //Hydro(IO::ParmParse& pp) { pp.queryclass(*this); }
+  Hydro();
+  Hydro(IO::ParmParse& pp);
+  static void Parse(Hydro& value, IO::ParmParse& pp);
+  
+  //Hydro();
+  //Hydro::Hydro(IO::ParmParse& pp) : Hydro() { pp.queryclass(*this); }
+  //void Hydro::Parse(Hydro& value, IO::ParmParse& pp)
+  //Hydro (IO::ParmParse &pp);  
+  //static void Parse(Hydro& value, IO::ParmParse& pp);
+  //Hydro(IO::ParmParse& pp) { pp.queryclass(*this); }
     /*
     static void Parse(Hydro& value, IO::ParmParse& pp);
     {
