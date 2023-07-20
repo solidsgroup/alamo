@@ -69,6 +69,8 @@ public:
         ret.sigma0 = 0.0;
         return ret;
     }
+
+    // See also inputs to :ref:`Model::Solid::Affine::Isotropic`
     static void Parse(J2 & value, IO::ParmParse & pp)
     {
         Isotropic::Parse(value,pp);

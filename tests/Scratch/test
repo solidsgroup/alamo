@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+import numpy, yt, pylab, os, pandas, sys, math
+
+outdir = sys.argv[1]
+
+generate_ref_data = False  # Change to True if you need to generate new reference data
+tolerance = 1E-4
+
+path = "{}/00120cell/".format(outdir)
+ds = yt.load(path)
+dim = int(ds.domain_dimensions[0] > 1) + int(ds.domain_dimensions[1] > 1) + int(ds.domain_dimensions[2] > 1)
+
+if dim != 2:
+    raise(Exception("Not implemented in 3d"))
+
+def integrate(x,y):
+    ret = 0
+    for i in range(len(x)-1): ret = ret + 0.5*(y[i+1]+y[i]) * (x[i+1]-x[i])
+    return ret
+
+prof = ds.ray([-8,6,0],[8,6,0])
+
+df = prof.to_dataframe([("gas","x"),("gas","y"),"stress_xx"])
+
+if generate_ref_data:
+    df.to_csv('reference/reference-{}d.csv'.format(dim))
+
+df_ref = pandas.read_csv('reference/reference-{}d.csv'.format(dim))
+
+class new:
+    ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+        df["x"],df["y"],df["stress_xx"])))]
+    x = ret[0]
+    y = ret[1]
+    stress = ret[2]
+class ref:
+    ret = [numpy.array(_x) for _x in zip(*sorted(zip(
+        df_ref["x"],df_ref["y"],df_ref["stress_xx"])))]
+    x = ret[0]
+    y = ret[1]
+    stress = ret[2]
+
+pylab.clf()
+pylab.plot(ref.x,ref.stress,color='C0',label='reference')
+pylab.plot(new.x,new.stress,color='C1',label='new',linestyle='--')
+pylab.savefig("{}/Sig_xx.png".format(outdir))
+
+err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.stress) - ref.stress)**2))
+mag = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.stress) + ref.stress)**2))
+print("stress error",err/mag)
+if err/mag > tolerance: raise(Exception("Error in stress"))
+if math.isnan(err/mag): raise(Exception("temp is nan"))
+
+exit(0)
+
+
+    
+
+

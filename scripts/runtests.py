@@ -61,6 +61,7 @@ parser.add_argument('--debug',default=False,action='store_true',help='Use the de
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
+parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 args=parser.parse_args()
 
 class DryRunException(Exception):
@@ -166,10 +167,10 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             
-            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-g++".format(dim)
-            elif args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
-            elif args.profile: exe = "./bin/alamo-{}d-profile-g++".format(dim)
-            else: exe = "./bin/alamo-{}d-g++".format(dim)
+            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
+            elif args.debug: exe = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
+            elif args.profile: exe = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
+            else: exe = "./bin/alamo-{}d-{}".format(dim,args.comp)
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue

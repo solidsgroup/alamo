@@ -22,13 +22,14 @@ import os, subprocess
 import sys
 sys.path.append(os.path.abspath('.'))
 import Inputs
+import Tests
 
 # -- Project information ----------------------------------------------------
 
 
 
 project = u'alamo'
-copyright = u'2018, Brandon Runnels'
+copyright = u'2023, Brandon Runnels'
 author = u'Brandon Runnels'
 
 # The short X.Y version
@@ -59,6 +60,8 @@ extensions = [
 #    'breathe',
     'linuxdoc.rstFlatTable',
 #    'm2r'
+    'sphinx_design',
+    'sphinx_copybutton'
 ]
 
 #breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
@@ -81,7 +84,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -201,11 +204,62 @@ texinfo_documents = [
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-html_logo = "alamo.svg"
+html_logo = "alamo.png"
 
 html_css_files = [
-    'custom.css'
+    'custom.css',
+    'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined',
+    'https://fonts.googleapis.com/css2?family=Material+Symbols+Two+Tone',
+    'https://fonts.googleapis.com/css2?family=Material+Icons',
+    'custom.css',
 ]
+
+
+# This will appear at the beginning of each page. Use for formatting or to add universal action items.
+rst_prolog = """
+
+
+
+.. raw:: html
+
+
+    <style> .material-symbols-outlined {display:inline-flex;vertical-align:middle} </style>
+    <style> title .material-symbols-outlined {display:none;} </style>
+    <style> h1 .material-symbols-outlined {font-size:1.3em;vertical-align:middle} </style>
+    <style> h2 .material-symbols-outlined {font-size:1.3em;vertical-align:middle;padding-bottom:5px;} </style>
+    <style> .red {color:red} </style>
+    <style> .blue {color:blue} </style>
+    <style> .green {color:green} </style>
+    <style> .gray {color:gray} </style>
+    <style> .orange {color:orange} </style>
+    <style> .small {size:1em} </style>
+    <style> .medium {size:2em} </style>
+    <style> .large {size:4em} </style>
+
+.. role:: icon
+   :class: material-symbols-outlined
+
+.. role:: icon-twotone
+   :class: material-symbols-twotone
+
+.. role:: icon-red
+   :class: material-symbols-outlined red
+
+.. role:: icon-blue
+   :class: material-symbols-outlined blue
+
+.. role:: icon-green
+   :class: material-symbols-outlined green
+
+.. role:: icon-gray
+   :class: material-symbols-outlined gray
+
+.. role:: icon-orange
+   :class: material-symbols-outlined orange
+
+"""
+
+
 
 import os
 os.system("ls")

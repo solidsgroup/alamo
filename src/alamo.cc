@@ -35,7 +35,7 @@ int main (int argc, char* argv[])
     pp.query("alamo.program",program);
     srand(2);
 
-    Integrator::Integrator *integrator;
+    Integrator::Integrator *integrator = nullptr;
     if (program == "microstructure")
     {
         std::string model = "affine.cubic";

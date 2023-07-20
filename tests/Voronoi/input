@@ -3,7 +3,7 @@
 #@ nprocs = 4
 #@ dim = 2
 #@ benchmark-beaker = 16.04
-#@ benchmark-beaker = 11.58
+#@ benchmark-statler = 11.58
 #@ 
 #@ [2D-100grain-serial]
 #@ nprocs = 1

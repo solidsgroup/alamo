@@ -5,6 +5,19 @@ from os import listdir
 from os.path import isfile, join
 
 
+def geticon(classname):
+    if classname.startswith("BC"): return ":icon:`border_outer` "
+    if classname.startswith("IC"): return ":icon:`start` "
+    if classname.startswith("Integrator"): return ":icon:`settings` "
+    if classname.startswith("Model"): return ":icon:`vrpano` "
+    if classname.startswith("Numeric"): return ":icon:`full_stacked_bar_chart` "
+    if classname.startswith("Util"): return ":icon:`tune` "
+    if classname.startswith("Solver"): return ":icon:`directions` "
+    if classname.startswith("Set"): return ":icon:`apps` "
+    if classname.startswith("IO"): return ":icon:`print` "
+    if classname.startswith("Operator"): return ":icon:`rebase_edit` "
+    else: return ""
+
 def getdocumentation(filename):
     sourcefile = open(filename+".H")
     ret = ""
@@ -105,11 +118,25 @@ def extract(basefilename):
                 raise
     return rets
 
+    
+#    if classname.startswith("BC"): return ":icon:`border_outer` "
+#    if classname.startswith("IC"): return ":icon:`start` "
+#    if classname.startswith("Integrator"): return ":icon:`settings` "
+#    if classname.startswith("Model"): return ":icon:`vrpano` "
+#    if classname.startswith("Numeric"): return ":icon:`full_stacked_bar_chart` "
+#    if classname.startswith("Util"): return ":icon:`settings` "
+#    if classname.startswith("Solver"): return ":icon:`directions` "
+#    if classname.startswith("IO"): return ":icon:`print` "
+#    if classname.startswith("Operator"): return ":icon:`rebase_edit` "    
+
 docfile    = open("Inputs.rst","w")
 docfile.write(r"""
-======
-Inputs
-======
+.. _inputs: 
+
+==================
+:icon:`api` Inputs
+==================
+
 
 """)
 
@@ -119,18 +146,25 @@ written_headers = []
 num_tot = 0
 num_doc = 0
 
-for dirname, subdirlist, filelist in os.walk("../../src/"):
+for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
     hdrname = dirname.replace("../../src/","").replace("/","::")
     depth = len(hdrname.split("::")) 
 
-    write_header = True
-    
-    srcfilelist = set()
+    srcfileset = set()
     for f in filelist:
-        if f.endswith(".cpp"): srcfilelist.add(f.replace(".cpp",""))
-        if f.endswith(".H"): srcfilelist.add(f.replace(".H",""))
+        if f.endswith(".cpp"): srcfileset.add(f.replace(".cpp",""))
+        if f.endswith(".H"): srcfileset.add(f.replace(".H",""))
+    srcfilelist = list(srcfileset)
     
-    for f in sorted(srcfilelist):
+    #
+    # This function makes sure pure abstract classes get
+    # listed first.
+    #
+    def alphabetize_with_abstract_first(key):
+        if key == hdrname.split("::")[-1]:
+            return "0"
+        return(key[0])
+    for f in sorted(srcfilelist,key=alphabetize_with_abstract_first):
         
         if True: 
             try:
@@ -147,21 +181,27 @@ for dirname, subdirlist, filelist in os.walk("../../src/"):
             for i in range(len(classname.split('::'))):
                 subhdr = '::'.join(classname.split('::')[:i])
                 if subhdr not in written_headers:
-                    docfile.write(subhdr+"\n")
-                    docfile.write("".ljust(len(subhdr),headerchar[i-1]))
+                    if '::' not in subhdr:
+                        docfile.write(geticon(subhdr) + subhdr+"\n")
+                        docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
+                    else:
+                        docfile.write("\n" + subhdr+"\n")
+                        docfile.write("".ljust(len(subhdr),headerchar[i-1]))
                     docfile.write("\n\n\n")
                     written_headers.append(subhdr)
 
-
-            docfile.write(classname + "\n")
-            lev = len(classname.split('::'))-1
-            docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
+            if classname.split("::")[-1] != classname.split("::")[-2]:
+                docfile.write(classname + "\n")
+                lev = len(classname.split('::'))-1
+                docfile.write("".ljust(len(classname),headerchar[lev])+"\n\n")
             
             if documentation:
                 docfile.write(documentation)
             
             if not len(inputs): continue
 
+            docfile.write("\n\n")
+            docfile.write(".. rst-class:: api-inputs-table\n\n")
             docfile.write(".. flat-table:: \n")
             docfile.write("    :widths: 20 10 70\n")
             docfile.write("    :header-rows: 1\n\n")

@@ -1,3 +1,20 @@
+//
+// The Set namespace defines the Alamo datatypes.
+// This includes scalars (:code:`Set::Scalar`), vectors (:code:`Set::Vector`), and nD tensors (:code:`Set::Tensor`).
+// Scalars are an alias for AMReX :code:`Real`.
+// Vectors and tensors are an alias for the Tuxfamily Eigen vectors and matrices, and so you can use
+// Eigen operations on them (like :code:`A.determinant()`, etc.)
+// See the Eigen documentation for more.
+//
+// The Set namespace defines the :code:`Matrix4` datatype for fourth order tensors.
+// These can have isotropic, major, minor, majorminor, etc., symmetries.
+//
+// The Set namespace also defines the :code:`Field` datatype, which is where most data is stored.
+// It is templated so that :code:`Set::Field<Set::Scalar>` is a field of scalars, :code:`Set::Field<Set::Vector>`
+// is a vector field, etc.
+// One can also have, for instance, a field of models, like :code:`Set::Field<Model::Solid::Linear::Iostropic>`.
+//
+
 #ifndef SET_SET_
 #define SET_SET_
 
@@ -22,10 +39,11 @@ using HC = Hypercube;
 
 //};
 template <class T>
-class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>
+class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> 
 {
 public:
     Field() {} 
+    //~Field() {}
     Field(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost) 
     {
         Define(a_levs,a_grids,a_dmap,a_ncomp,a_nghost);
@@ -52,7 +70,7 @@ public:
     void Add(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) const {}
     void AddFrom(int /*a_lev*/, amrex::MultiFab &/*a_src*/, int /*a_srccomp*/, int /*a_nghost*/) const {}
     int NComp() const {return 0;}
-    virtual std::string Name(int) const {return name;}
+    std::string Name(int) const {return name;}
     std::string name;    
 };
 

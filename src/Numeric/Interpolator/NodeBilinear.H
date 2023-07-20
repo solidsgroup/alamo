@@ -69,6 +69,9 @@ public:
     {
         Util::Abort("The version of this Interpolater for face-based data is not implemented or does not apply. Call 'interp' instead.");
     }
+private:
+    using amrex::NodeBilinear::interp;
+    using amrex::NodeBilinear::interp_face;
 
 };
 }

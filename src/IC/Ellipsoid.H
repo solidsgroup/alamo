@@ -1,3 +1,19 @@
+// This IC initializes a single-component fab using the formula
+// 
+// .. math::
+//
+//    \phi = \begin{cases} 
+//                \alpha_{in}  & (\mathbf{x}-\mathbf{x}_0)^T\mathbf{A}(\mathbf{x}-\mathbf{x}_0) \le r  \\
+//                \alpha_{out} & \text{else} 
+//           \end{cases}
+//
+// The boundary can be mollified using an error function with parameter :math:`\varepsilon`
+//
+// .. WARNING::
+//
+//    This IC is redundant with :ref:`IC::Ellipse` and :ref:`IC::Expression` and will probably be consolidated
+//
+
 #ifndef IC_ELLIPSOID_H_
 #define IC_ELLIPSOID_H_
 
@@ -47,7 +63,6 @@ public:
     };
   
 private:
-    int dim = AMREX_SPACEDIM;
     Set::Scalar in_value = 0.0, out_value = 1.0;
     amrex::Vector<Set::Vector> center; 
     amrex::Vector<Set::Scalar> eps;
@@ -55,12 +70,6 @@ private:
     Mollifier moll = Mollifier::Dirac;
 
 public:
-    // This IC initializes a single-component fab using the formula
-    // 
-    // :math:`\phi = \begin{cases} \alpha_{in}  & (\mathbf{x}-\mathbf{x}_0)^T\mathbf{A}(\mathbf{x}-\mathbf{x}_0) \le r /
-    //                          \\ \alpha_{out} & \text{else} \end{cases}`
-    //
-    // The boundary can be mollified using an error function with parameter :math:`\varepsilon`
     static void Parse(Ellipsoid & value, IO::ParmParse & pp)
     {
         amrex::Vector<Set::Scalar> center;
@@ -76,7 +85,7 @@ public:
         amrex::Vector<Set::Scalar> A;
         if (pp.contains("A"))
         {
-            pp.queryarr("A", A);  
+            pp.queryarr("A", A); // Matrix defining elipse radii and orientation  
             if(A.size() < AMREX_SPACEDIM*AMREX_SPACEDIM) value.A.push_back(Set::Matrix::Identity());
             else
             {
@@ -98,7 +107,7 @@ public:
         if (pp.contains("radius"))
         { 
             amrex::Vector<Set::Scalar> a_radius; 
-            pp.queryarr("radius",a_radius);  
+            pp.queryarr("radius",a_radius); // "Vector of radii (use instead of A)"
 
             if (a_radius.size() < AMREX_SPACEDIM) value.A.push_back(Set::Matrix::Identity());
             else
@@ -113,7 +122,7 @@ public:
         }
 
         amrex::Vector<Set::Scalar> eps;
-        pp.queryarr("eps", eps);
+        pp.queryarr("eps", eps); // Mollifying value for erf
 
         if(eps.size() < 1) value.eps.push_back(1.e-5);
         for (int i =0; i < value.A.size(); i++)
@@ -123,11 +132,11 @@ public:
         }
         //if(value.eps <= 0.) value.eps = 1.e-5;
 
-        pp.query("in_value", value.in_value);
-        pp.query("out_value", value.out_value);
+        pp.query("in_value", value.in_value); // Value of field inside ellipse (default: 0)
+        pp.query("out_value", value.out_value); // Value of field outside ellipse (default: 1)
 
         std::string mollifier;
-        pp.query("mollifier",mollifier);
+        pp.query("mollifier",mollifier); // Type of mollifier to use (options: dirac, [gaussian])
         if(mollifier == "Dirac" || mollifier == "dirac") 
             value.moll = Mollifier::Dirac;
         else 

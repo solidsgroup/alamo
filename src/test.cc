@@ -46,9 +46,9 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Affine::Cubic);
     MODELTEST(Model::Solid::Linear::Hexagonal);
     MODELTEST(Model::Solid::Affine::Hexagonal);
+    MODELTEST(Model::Solid::Elastic::NeoHookean);
     
     #if AMREX_SPACEDIM == 3
-    MODELTEST(Model::Solid::Elastic::NeoHookean);
     MODELTEST(Model::Solid::Elastic::PseudoLinearCubic);
     #endif
 

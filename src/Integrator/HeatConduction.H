@@ -1,3 +1,17 @@
+//
+// This implements a basic heat conduction method in Alamo.
+// The partial differential equation to be solved is
+//
+// .. math::
+//
+//    \frac{\partial T}{\partial t} = \alpha\,\Delta T
+//
+// where :math:`T` is temperature, :math:`t` is time, and :math:`alpha` 
+// is the thermal diffusivity.
+// Integration is performed explicitly in time using forward Euler, and
+// differentiation is performed using the finite difference method.
+//
+
 #ifndef INTEGRATOR_HEATCONDUCTION_H
 #define INTEGRATOR_HEATCONDUCTION_H
 #include <iostream>
@@ -14,31 +28,12 @@
 #include "IC/IC.H"
 #include "BC/Constant.H"
 
-#include "IC/Cylinder.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 
 #include "Numeric/Stencil.H"
 
-#define TEMP_OLD(i, j, k) Temp_old_box(amrex::IntVect(AMREX_D_DECL(i, j, k)))
-#define TEMP(i, j, k) Temp_box(amrex::IntVect(AMREX_D_DECL(i, j, k)))
-
-/// \class HeatConduction::Integrator
-/// \brief Solve the heat diffusion equation in 2D or 3D.
-///
-/// This is a nontrivial example class that demonstrates how to write an explicit AMR
-/// code using the #Integrator virtual class that abstracts the AmrBase class
-/// from Amrex.
-///
-/// For more details:
-///    - See documentation on #Initialize for input parameters
-///    - See documentation on #Advance for equations and discretization
-///    - See documentation on #TagCellsForRefinement for cell refinement criteria
-/// For boundary conditions:
-///    - See #BC
-/// For initial conditions:
-///    - See #Cylinder or #Constant
 namespace Integrator
 {
 class HeatConduction : virtual public Integrator
