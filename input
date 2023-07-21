@@ -1,0 +1,116 @@
+alamo.program = microstructure
+alamo.program.microstructure.model = affine.hexagonal
+timestep = 0.01 #0.001
+stop_time = 50.0
+
+plot_file = output # Name of output directory [probably should not change]
+
+amr.plot_dt = 0.1  #0.5
+amr.max_level = 3 # Number of AMR levels (max_level=3 == 4 total levels)
+amr.n_cell = 64 64 64 # Resolution of coarsest grid
+amr.blocking_factor = 8 # AMR parameter 
+amr.regrid_int = 10 # How frequently to regrid
+amr.grid_eff = 1.0 # Regrid efficiency
+amr.max_grid_size = 8 # Largest patch size
+amr.node.all = 1 # Whether to output all data as nodal
+
+amr.thermo.plot_dt = 0.1 # How frequently to dump output
+
+# Geometry of domain
+geometry.prob_lo = -38.5 -38.5 -2.575  # [nm]
+geometry.prob_hi =  38.5  38.5  2.575  # [nm]
+geometry.is_periodic= 0 0 0
+
+# Specify initial condition for eta
+ic.type=sphere
+ic.sphere.center = 0 0 0  #[nm]
+ic.sphere.radius = 8 #[nm]
+
+# Boundary conditions for eta
+bc.eta.type.xlo = neumann
+bc.eta.type.xhi = neumann
+bc.eta.type.ylo = neumann
+bc.eta.type.yhi = neumann
+
+# Phase field parameters
+pf.number_of_grains = 2 # Only consider two grains
+pf.M = 1.0  # Mobility 
+pf.mu = 10.0 # mu parameter [no need to change]
+pf.gamma = 1.0 # gamma parameter [no need to change]
+pf.l_gb= 4.0 # diffuse gb width [nm]
+pf.sigma0=1.2 # GB energy when anisotropy is turned off
+pf.threshold.value=5.0 # Thresholding value
+pf.threshold.chempot=0 # Indicate that chem. pot. is not considered in thresholding
+
+# GB Anisotropy
+anisotropy.on=0 # 1=anisotropy 0=no anisotropy
+anisotropy.timestep=0.00005 # Reduce timestep when doing anisotropy
+anisotropy.tstart= 1.0 # Time to start considering anisotropy
+# GB Anisotropy if using a sinusoidal GBE function 
+##anisotropy.gb_type=sin
+##anisotropy.sin.sigma0=0.5
+##anisotropy.sin.sigma1=2.0
+##anisotropy.sin.theta0=45 # degrees
+##anisotropy.sin.n = 4
+# GB Anisotropy if reading in from a file
+anisotropy.gb_type=read
+anisotropy.read.filename=../gbe.dat # the relative path to the file containing GBE data
+anisotropy.beta= 1.0 # Corner regularization parameter
+
+#
+# ELASTIC SOLVER
+#
+
+## Modulus units:
+#    1GPa = 6.242 eV/nm^3
+## Magnesium
+#     C11 = 59.3 GPa = 370.2  eV/nm^3
+#     C33 = 61.5 GPa = 383.9  eV/nm^3
+#     C44 = 16.4 GPa = 102.4  eV/nm^3
+#     C12 = 25.7 GPa = 160.4  eV/nm^3
+#     C13 = 21.4 GPa = 133.6  eV/nm^3
+
+pf.elastic_df = 1 # include elasticity in PF driving force
+pf.elastic_mult = 4.0 # multiplier for elastic contribution
+mechanics.type			= static # specify elastic solve not dynamic
+mechanics.interval		= 10 # Run solver every 10 timesteps
+mechanics.model1.C11             = 370.2  # [eV/nm^3]
+mechanics.model1.C33             = 383.9  # [eV/nm^3]
+mechanics.model1.C44             = 102.4  # [eV/nm^3]
+mechanics.model1.C12             = 160.4  # [eV/nm^3]
+mechanics.model1.C13             = 133.6  # [eV/nm^3]
+mechanics.model1.F0 = 0 0 0.1289 0
+mechanics.model2.C11             = 370.2  # [eV/nm^3]
+mechanics.model2.C33             = 383.9  # [eV/nm^3]
+mechanics.model2.C44             = 102.4  # [eV/nm^3]
+mechanics.model2.C12             = 160.4  # [eV/nm^3]
+mechanics.model2.C13             = 133.6  # [eV/nm^3]
+mechanics.model2.F0 = 0 0 0.0 0
+mechanics.bc.type                  = constant        # Constant BCs
+mechanics.bc.constant.type.xlo     = disp disp disp  # Displacement boundary conditions on top
+mechanics.bc.constant.type.xhi	= disp disp disp  #
+mechanics.bc.constant.type.xloyhi  = disp disp disp  #
+mechanics.bc.constant.type.xhiyhi  = disp disp disp  #
+mechanics.bc.constant.type.ylo	= neumann neumann neumann
+mechanics.bc.constant.type.yhi	= neumann neumann neumann
+mechanics.bc.constant.val.xlo      = 0.0 0.0 0.0
+mechanics.bc.constant.val.xloyhi   = 0.0 0.0 0.0
+mechanics.bc.constant.val.xloylo   = 0.0 0.0 0.0
+mechanics.bc.constant.val.yhi		= 0.0 0.0 0.0
+mechanics.bc.constant.val.ylo		= 0.0 0.0 0.0
+
+mechanics.bc.constant.val.xhi      = 0.0 1.54 0.0    #2.1 (0,10:0,8.0) 
+mechanics.bc.constant.val.xhiyhi   = 0.0 1.54 0.0
+mechanics.bc.constant.val.xhiylo   = 0.0 1.54 0.0
+
+
+mechanics.solver.verbose=3
+
+
+#lagrange.on = 1
+#lagrange.lambda = 2.0
+#lagrange.tstart = 1.0
+#lagrange.vol0 = 4.0
+
+
+
