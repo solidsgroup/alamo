@@ -122,7 +122,17 @@ public:
 
         linop->SetHomogeneous(true);
         PrepareMLMG(*mlmg);
-        return mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(rhs_tmp),a_tol_rel,a_tol_abs,checkpoint_file);
+        Set::Scalar retval = NAN;
+        try
+        {
+            retval = mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(rhs_tmp),a_tol_rel,a_tol_abs,checkpoint_file);
+        }
+        catch (const std::exception& e)
+        {
+            if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(rhs_tmp));
+            if (m_abort_on_fail) Util::Abort(INFO,e.what());
+        }
+        return retval;
     };
 
     Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
@@ -130,13 +140,33 @@ public:
                         Real a_tol_rel, Real a_tol_abs, const char* checkpoint_file = nullptr)
     {
         PrepareMLMG(*mlmg);
-        return mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
+        Set::Scalar retval = NAN;
+        try
+        {
+            retval = mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),a_tol_rel,a_tol_abs,checkpoint_file);
+        }
+        catch (const std::exception& e)
+        {
+            if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs));
+            if (m_abort_on_fail) Util::Abort(INFO,e.what());
+        }
+        return retval;
     };
     Set::Scalar solve (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol, 
                         amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs)
     {
         PrepareMLMG(*mlmg);
-        return mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),tol_rel,tol_abs);
+        Set::Scalar retval = NAN;
+        try
+        {
+            retval = mlmg->solve(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs),tol_rel,tol_abs);
+        }
+        catch (const std::exception& e)
+        {
+            if (m_dump_on_fail) dumpOnConvergenceFail(GetVecOfPtrs(a_sol),GetVecOfConstPtrs(a_rhs));
+            if (m_abort_on_fail) Util::Abort(INFO,e.what());
+        }
+        return retval;
     };
     void apply (amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_rhs, 
                         amrex::Vector<std::unique_ptr<amrex::MultiFab> > & a_sol)
@@ -154,6 +184,50 @@ public:
     void setVerbose(const int a_verbose) {verbose = a_verbose;}
     void setPreSmooth(const int a_pre_smooth) {pre_smooth = a_pre_smooth;}
     void setPostSmooth(const int a_post_smooth) {post_smooth = a_post_smooth;}
+
+    void dumpOnConvergenceFail(const amrex::Vector<amrex::MultiFab *> &a_sol_mf, 
+                               const amrex::Vector<amrex::MultiFab const*> &a_rhs_mf)
+    {
+        int nlevs = a_sol_mf.size();
+        int ncomps = a_sol_mf[0]->nComp();
+
+        amrex::Vector<amrex::Geometry> geom;
+        amrex::Vector<int> iter;
+        amrex::Vector<amrex::IntVect> refratio;
+        amrex::Vector<std::string> names;
+        for (int i=0; i < nlevs; i++) 
+        {
+            geom.push_back(linop->Geom(i));
+            iter.push_back(0);
+            if (i>0) refratio.push_back(amrex::IntVect(2));
+        }
+        for (int n = 0; n < ncomps; n++)
+        {
+            names.push_back("var" + std::to_string(n));
+        }
+
+        std::string outputdir = Util::GetFileName();
+        WriteMultiLevelPlotfile(outputdir+"/mlmg_sol", nlevs, 
+                                amrex::GetVecOfConstPtrs(a_sol_mf), 
+                                names, geom, 0, iter, refratio);
+        WriteMultiLevelPlotfile(outputdir+"/mlmg_rhs", nlevs, 
+                                amrex::GetVecOfConstPtrs(a_rhs_mf), 
+                                names, geom, 0, iter, refratio);
+                                
+        Set::Field<Set::Scalar> res_mf(nlevs);
+        for (int lev = 0; lev < nlevs; lev++)
+        {
+            res_mf.Define(lev, a_sol_mf[lev]->boxArray(), a_sol_mf[lev]->DistributionMap(), 
+                          ncomps, a_sol_mf[lev]->nGrow());
+        }
+
+        mlmg->compResidual(amrex::GetVecOfPtrs(res_mf),a_sol_mf,a_rhs_mf);
+                                
+        WriteMultiLevelPlotfile(outputdir+"/mlmg_res", nlevs, 
+                                amrex::GetVecOfConstPtrs(res_mf), 
+                                names, geom, 0, iter, refratio);
+                                
+    }
 
     //using MLMG::solve;
 protected:
@@ -290,9 +364,34 @@ public:
         // This is primarily used when DDW is near-singular - like when there
         // is a "void" region or when doing phase field fracture.
         pp.query("normalize_ddw",value.normalize_ddw);
+
+        // [false] 
+        // If set to true, output diagnostic multifab information 
+        // whenever the MLMG solver fails to converge.
+        // (Note: you must also set :code:`amrex.signalhandling=0`
+        // and :code:`amrex.throw_exception=1` for this to work.)
+        pp.query("dump_on_fail",value.m_dump_on_fail);
+
+        // [true]
+        // If set to false, MLMG will not die if convergence criterion
+        // is not reached.
+        // (Note: you must also set :code:`amrex.signalhandling=0`
+        // and :code:`amrex.throw_exception=1` for this to work.)
+        pp.query("abort_on_fail",value.m_abort_on_fail);
+
+        if (value.m_dump_on_fail || !value.m_abort_on_fail)
+        {
+            IO::ParmParse pp("amrex");
+            pp.add("signal_handling",0);
+            pp.add("throw_exception",1);
+        }
+
     }
 protected:
     bool m_defined = false;
+
+    bool m_dump_on_fail = false;
+    bool m_abort_on_fail = true;
     
 };
 }
