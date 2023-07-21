@@ -54,7 +54,7 @@ anisotropy.tstart= 1.0 # Time to start considering anisotropy
 ##anisotropy.sin.n = 4
 # GB Anisotropy if reading in from a file
 anisotropy.gb_type=read
-anisotropy.read.filename=../gbe.dat # the relative path to the file containing GBE data
+anisotropy.read.filename=gbe.dat # the relative path to the file containing GBE data
 anisotropy.beta= 1.0 # Corner regularization parameter
 
 #
