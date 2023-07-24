@@ -14,8 +14,8 @@ Documentation for alamo
         Initial step-by-step instructions for downloading, building, and running Alamo.
         Basic instructions on troubleshooting.
 
-        +++++++++++++++++++
-        For brand new users
+        ++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-success-line:`Start here if you're brand new` 
 
     .. grid-item-card::  
         :link: tests
@@ -26,8 +26,9 @@ Documentation for alamo
 
         Explore the set of examples and regression tests that demonstrate Alamo functionality.
 
-        +++++++++++++++++++++++++++++++++++++
-        For new users who have compiled Alamo
+        ++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-success-line:`Next steps after compiling Alamo` 
+        
         
 .. grid:: 2
 
@@ -40,8 +41,9 @@ Documentation for alamo
 
         Use the Alamo **Sim**\ ulation **B**\ rowser **A**\ nalysis system to manage Alamo simulations for regression tests or your own projects.
         
-        +++++++++++++++++++++++++++++++++++++++++++++
-        Optional but useful for regular users
+        +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-warning-line:`Optional but useful for regular users` 
+        
         
     .. grid-item-card:: 
         :link: inputs
@@ -52,8 +54,9 @@ Documentation for alamo
 
         Browse the auto-generated documentation for Alamo classes and input file input specifications.
         
-        +++
-        For users who are using **existing code** to run **new siulations**.
+        ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-warning-line:`For those using existing code to run new siulations.` 
+        
 
 .. grid:: 2
 
@@ -67,8 +70,9 @@ Documentation for alamo
         Basics of Alamo design philosophy and practice.
         How to create branches, implement new models, run tests, and avoid breaking the repository.
         
-        +++++++++++++++++++++++++++++++++++++++++++++
-        For all new Alamo developers
+        ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-danger-line:`Starting point for all new alamo developers`
+        
         
     .. grid-item-card:: 
         :link: autodoc
@@ -80,9 +84,8 @@ Documentation for alamo
         Alamo's custom auto-documentation and test system designed to enforce documentation and 
         testing standards, while preventing stagnant/depricated content.
         
-        ++++++++++++++++++++++++
-        For all Alamo developers
-
+        +++++++++++++++++++++++++++++++++++
+        :bdg-danger-line:`Required reading for all developers`
         
 
 .. dropdown:: Table of contents

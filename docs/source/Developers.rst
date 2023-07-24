@@ -7,13 +7,181 @@
 :icon:`developer_guide` Developer Guide
 =======================================
 
-.. NOTE::
+:icon:`rocket_launch` Set-by-step development guide
+===================================================
 
-    This page is a work in progress and is not yet comprehensive.
+#. Create Github credentials.
+    #. If you do not have one already, create a new GitHub account, and email your username to brunnels@iastate.edu to request push access
+    #. Follow `these Github instructions <https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account>`__ 
+       to add an SSH key to your account.
+    #. :bdg-danger:`important` Make sure your repository points to the SSH version of Alamo. 
+      You can check this with the command
 
+      .. code-block:: bash
+         
+          git remote show origin
+      
+      If the output begins with
 
-Conventions
-===========
+      .. code-block:: bash
+
+         Fetch URL: git@github.com:solidsgroup/alamo.git
+         Push  URL: git@github.com:solidsgroup/alamo.git
+
+      then you have configured correctly :icon:`check`.
+      However, if the output begins with
+
+      .. code-block:: bash
+
+         Fetch URL: https://github.com/solidsuccs/alamo.git
+         Push  URL: https://github.com/solidsuccs/alamo.git
+
+      this means that you are using HTTPS authentication, which will not allow you to push.
+      To fix, run
+
+      .. code-block:: bash
+
+         git remote remove origin
+         git remote add origin git@github.com:solidsgroup/alamo.git
+
+      Run a quick :code:`git pull` to make sure that you still have access.
+      If you get an authentication error, this likely means that your SSH key is not configured correctly.
+      
+#. **Create a new branch.**
+   You can create a branch `from the terminal <https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging>`_, 
+   or you can `use the Github online interface <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-and-deleting-branches-within-your-repository>`_.
+   Follow these guidlines when naming your branch
+
+   - Use combinations of lowercase letters and hyphens, avoid mixed case, numbers, and underscores (:code:`gas-combustion` good, :code:`GasCombustion2` bad).
+   - Be as descriptive as possible and avoid overly general names (:code:`gb-damage-model` good, :code:`model1` / :code:`mymodel` /  :code:`foo` bad). Long is ok.
+   - Keep it professional. No profanity or excessive whimsy in branch names.
+
+   If you have created a branch (e.g. :code:`mytestbranch`) locally, make sure to run
+
+   .. code-block:: bash
+
+      git push --set-upstream origin mytestbranch
+
+   to make pushing easier.
+
+#. **Create a capability input file**.
+   This is an input file that is designed to demonstrate the functionality of your new code.
+   The capability input file should always be located in the alamo root directory.
+   The :code:`plot_file` should always be :code:`output`.
+   Once you are ready to merge your code into development, convert your input file to a regression test and remove it from the root. 
+   (See the Autodoc and Autotest section).
+
+#. **Use an EditorConfig-compliant text editor.**
+   Alamo uses `EditorConfig <https://editorconfig.org/>`_ to maintain code formatting standards.
+   `VS Code <https://code.visualstudio.com/>`_ is recommended, as it supports multiple keybinding schemes and automatically
+   supports editorconfig.
+
+#. **Write your code.**
+   As you are writing, keep the following in mind:
+
+   ======================== ===================================================================================================
+   :bdg-success:`always`    Commit your code - at least once per day you are coding, even if the code is not working.
+                            There are `multiple great tutorials <https://www.atlassian.com/git/tutorials/saving-changes>`_
+                            if you are not sure how to commit your code.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-success:`always`    Write meaningful commit messages. This will help you more than you may realize when you are 
+                            trying to debug your code later.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-success:`always`    Follow the development guide below and stick to the specified convention.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-primary:`regularly` Merge the latest development into your code (see below for more details).
+                            The more frequently you do this, the less painful your life will be later.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-primary:`regularly` Run the regression test suite with :code:`make test`.
+                            This helps to ensure that you are not breaking your (or someone else's) code.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-primary:`regularly` Ensure that your commits pass the `commit tests <https://github.com/solidsgroup/alamo/actions>`_.
+                            Sometimes this is not possible, especially if your code is in active development, but the more you
+                            keep your code up to standard, the easier your life will be later.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-primary:`regularly` Document your code.
+                            Use the autodoc system to ensure a base level of documentation.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-warning:`rarely`    Break backwards compatibility.
+                            If you are implementing an improved version of a model that is better than the legacy model,
+                            leave the option to run using the existing model.
+                            This is important because publications may have used the legacy model, and may need the legacy
+                            model to reproduce important results.
+                            Backwards compatibility should only be broken when implementing fundamental new features.
+                            Even then, changes required to reproduce legacy results should be kept minimal.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-danger:`never`      Modify the GitHub actions to get your branch to pass the tests.
+                            Email failure notifications may be annoying, but they are there for a reason.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-danger:`never`      Commit large or unnecessary files to the repository.
+                            Use :code:`git status` liberally, before and after :code:`git commit`, before you push.
+                            Edit your `gitignore <https://www.atlassian.com/git/tutorials/saving-changes/gitignore>`_ file
+                            as needed.
+   ------------------------ ---------------------------------------------------------------------------------------------------
+   :bdg-danger:`never`      Commit sensitive content to the repository.
+                            This is usually an issue only if your project is export controlled, which is rare.
+                            But when in doubt, ask.
+   ======================== ===================================================================================================
+
+#. **Merge your branch into development**
+   To include your changes into the development branch, submit a
+   `pull request <https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request>`_
+   from your branch into development.
+   This will trigger a review before the merge can be approved.
+   (Note that all tests must pass before the merge will be reviewed.)
+   The more frequently you merge in the latest from development, the easier your merge will be.   
+   
+   :bdg-primary-line:`How do I know my code is ready to merge?` 
+   You should always merge your code once you know that it works, but sometimes this is a gray area.
+   You should always merge your code if you are submitting a publication, or if you are a PhD student about to graduate.
+   
+
+:icon:`integration_instructions` Tutorial: A new Integrator
+===========================================================
+
+Integrators are the basic workhorse in Alamo.
+They are called Integrators because they usually (although not always) are intended to integrate a PDE in time.
+In this tutorial, we will create a new integrator based on the existing HeatConduction integrator.
+
+#. Create a copy of :code:`./src/Integrator/HeatConduction.H` inside the same directory, called `MyPDE.H`
+   (We will use the working name "MyPDE" here - you can replace with your own name.)
+
+#. Rename all instances of HeatConduction with MyPDE inside :code:`./src/Integrator/MyPDE.H`.
+   This includes the names throughout the code as well as the `include guard <https://en.wikipedia.org/wiki/Include_guard>`__
+   in the first two lines.
+
+#. Include the file in :code:`./src/alamo.cc`
+
+   .. code-block:: cpp
+
+      #include "Integrator/MyPDE.H"
+
+   and add a caller inside the main function:
+
+   .. code-block:: cpp
+
+      //existing
+      else if (program == "thermoelastic")integrator = new Integrator::ThermoElastic(pp);
+      //new
+      else if (program == "mypde")        integrator = new Integrator::MyPDE(pp);
+   
+#. Finally copy the Heat Conduction example file to the root directory
+
+   .. code-block:: bash
+
+      cp ./tests/HeatConduction/input ./input
+   
+   In the input file change the :code:`plot_file` to `output` and :code:`alamo.program` to :code:`mypde`.
+
+#. You should now be able to compile and run the code.
+   The result will be the same as for the heat conduction example, but will be based on the newly copied integrator.
+
+#. You can now begin alternating the code to achieve different outputs.
+   The HeatConduction integrator has extensive, line-by-line documentation.
+      
+
+:icon:`fact_check` Conventions
+==============================
 
 .. toctree::
    :maxdepth: 2

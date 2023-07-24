@@ -4,5 +4,9 @@
 
 .. _getting-started:
 
+=============================
+:icon:`start` Getting Started
+=============================
+
 .. include:: ../../Readme.rst
  
