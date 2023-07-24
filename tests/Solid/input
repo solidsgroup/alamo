@@ -92,18 +92,18 @@
 #@
 
 alamo.program = mechanics
-
+alamo.program.mechanics.model = elastic.neohookean
 
 plot_file		    = /home/meier/solidphase/Solid/outputhtpb
 
 type=static
 
-timestep		    = 0.01
-stop_time		    = 10.0
+timestep		    = 0.0001
+stop_time		    = 0.1
 
 # amr parameters
 amr.plot_dt		    = 0.1
-amr.max_level		    = 0
+amr.max_level		    = 6
 amr.n_cell		    = 4 4 4
 amr.blocking_factor         = 2
 
@@ -115,9 +115,9 @@ geometry.prob_lo	    = 0 0 0
 geometry.prob_hi	    = 1 1 1
 
 nmodels = 1
-#model1.E= 32446.99 
+#model1.E= 3244.699 
 #model1.nu=0.143305
-model1.E = 2.4
+model1.E = 25.61
 model1.nu = 0.4994
 
 solver.verbose = 3
