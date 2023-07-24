@@ -7,15 +7,17 @@
 :icon:`developer_guide` Developer Guide
 =======================================
 
-:icon:`rocket_launch` Set-by-step development guide
-===================================================
+:icon:`rocket_launch` Step-by-step development guide
+====================================================
 
-#. Create Github credentials.
+This is a quick tutorial intended for new Alamo developers to get up to speed with contributing to the Alamo code base.
+
+#. **Create Github credentials.**
     #. If you do not have one already, create a new GitHub account, and email your username to brunnels@iastate.edu to request push access
     #. Follow `these Github instructions <https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account>`__ 
        to add an SSH key to your account.
     #. :bdg-danger:`important` Make sure your repository points to the SSH version of Alamo. 
-      You can check this with the command
+       You can check this with the command
 
       .. code-block:: bash
          
