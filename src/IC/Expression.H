@@ -1,3 +1,22 @@
+//
+// Initialize a field using a mathematical expression.
+// Expressions are imported as strings and are compiled real-time using the
+// `AMReX Parser <https://amrex-codes.github.io/amrex/docs_html/Basics.html#parser>`_.
+//
+// Works for single or multiple-component fields.
+// Use the :code:`regionN` (N=0,1,2, etc. up to number of components) to pass expression.
+// For example:
+//
+// .. code-block:: bash
+// 
+//    ic.region0 = "sin(x*y*z)"
+//    ic.region1 = "3.0*(x > 0.5 and y > 0.5)"
+//
+// for a two-component field. It is up to you to make sure your expressions are parsed
+// correctly; otherwise you will get undefined behavior.
+//
+
+
 #ifndef IC_EXPRESSION_H_
 #define IC_EXPRESSION_H_
 #include "IC/IC.H"
@@ -64,7 +83,9 @@ public:
         for (int i = 0; true; i++)
         {
             std::string coordstr = "cartesian";
-            pp.query("coord", coordstr);
+            // coordinate system to use: "cartesian" (for x,y,z,t) and 
+            // "polar" (for r, theta, z, t)
+            pp.query("coord", coordstr); 
             if (coordstr == "cartesian") value.coord = Expression::CoordSys::Cartesian;
             else if (coordstr == "polar") value.coord = Expression::CoordSys::Polar;
             else Util::Abort(INFO, "unsupported coordinates ", coordstr);

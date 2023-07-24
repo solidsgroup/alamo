@@ -39,10 +39,11 @@ using HC = Hypercube;
 
 //};
 template <class T>
-class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>>
+class Field : public amrex::Vector<std::unique_ptr<amrex::FabArray<amrex::BaseFab<T>>>> 
 {
 public:
     Field() {} 
+    //~Field() {}
     Field(int a_levs, const amrex::Vector<amrex::BoxArray> & a_grids, const amrex::Vector<amrex::DistributionMapping> & a_dmap, int a_ncomp, int a_nghost) 
     {
         Define(a_levs,a_grids,a_dmap,a_ncomp,a_nghost);
@@ -69,7 +70,7 @@ public:
     void Add(int /*a_lev*/, amrex::MultiFab &/*a_dst*/, int /*a_dstcomp*/, int /*a_nghost*/) const {}
     void AddFrom(int /*a_lev*/, amrex::MultiFab &/*a_src*/, int /*a_srccomp*/, int /*a_nghost*/) const {}
     int NComp() const {return 0;}
-    virtual std::string Name(int) const {return name;}
+    std::string Name(int) const {return name;}
     std::string name;    
 };
 

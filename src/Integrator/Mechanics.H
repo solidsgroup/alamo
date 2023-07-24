@@ -54,7 +54,9 @@ class Mechanics : virtual public Base::Mechanics<MODEL>
 {
 public:
 
-    Mechanics() : Base::Mechanics<MODEL>() {}
+    Mechanics() : Base::Mechanics<MODEL>() {
+        Util::Message(INFO);
+    }
     Mechanics(IO::ParmParse& pp) : Base::Mechanics<MODEL>()
     {
         Parse(*this, pp);

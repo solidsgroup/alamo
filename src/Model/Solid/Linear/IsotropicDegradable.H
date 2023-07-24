@@ -65,7 +65,7 @@ public:
 public:
     static void Parse(IsotropicDegradable & value, IO::ParmParse & pp)
     {
-        Set::Scalar mu, lambda;
+        Set::Scalar mu=NAN, lambda=NAN;
         if (pp.contains("lambda") && pp.contains("mu"))
         {
             pp.query("lambda",lambda);
@@ -73,13 +73,16 @@ public:
         }
         else if (pp.contains("E") && pp.contains("nu"))
         {
-            Set::Scalar E, nu;
+            Set::Scalar E=NAN, nu=NAN;
             pp.query("E",E);
             pp.query("nu",nu);
             lambda = E * nu / (1.0 + nu) / (1.0 - 2.0*nu);
             mu = E / 2.0 / (1.0 + nu);
         }
-        //Util::Message(INFO, "lambda = ", lambda, ", mu = ", mu);
+        else
+        {
+            Util::Abort(INFO,"Must define (lambda,mu) or (E,nu)");
+        }
         value.Define(mu,mu,lambda,lambda);
     }
     static IsotropicDegradable Zero()

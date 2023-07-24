@@ -4,6 +4,7 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Integrator/Mechanics.H"
 #include "Integrator/HeatConduction.H"
+#include "Numeric/Stencil.H"
 
 namespace Integrator
 {
@@ -40,7 +41,7 @@ protected:
         Mechanics<Model::Solid::Affine::Isotropic>::Initialize(lev);
     }
 
-    void UpdateModel(int a_step)
+    void UpdateModel(int a_step) override
     {
         Mechanics<Model::Solid::Affine::Isotropic>::UpdateModel(a_step);
 
@@ -57,10 +58,10 @@ protected:
                 amrex::Array4<const Set::Scalar> const& temp = temp_old_mf[lev]->array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
                     Set::Matrix F0 = Set::Matrix::Zero();
+                    Set::Scalar tempavg = Numeric::Interpolate::CellToNodeAverage(temp,i,j,k,0);
                     for (int n = 0; n < eta.nComp(); n++)
                     {
-                        Set::Scalar etaavg = 0.25 * (eta(i, j, k, n) + eta(i, j - 1, k, n) + eta(i - 1, j, k, n) + eta(i - 1, j - 1, k, n));
-                        F0 += (etaavg * alpha[n]) * temp(i, j, k) * Set::Matrix::Identity();
+                        F0 += (eta(i,j,k,n) * alpha[n]) * tempavg * Set::Matrix::Identity();
                     }
                     model(i, j, k).F0 = F0;
                 });
@@ -77,7 +78,7 @@ protected:
         Mechanics<Model::Solid::Affine::Isotropic>::TimeStepBegin(a_time, a_step);
     }
 
-    void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt)
+    void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt) override
     {
         HeatConduction::Advance(a_lev, a_time, a_dt);
         Mechanics<Model::Solid::Affine::Isotropic>::Advance(a_lev, a_time, a_dt);

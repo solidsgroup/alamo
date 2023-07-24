@@ -19,8 +19,7 @@ public:
     ParmParse() : amrex::ParmParse::ParmParse() {} ;
     void ignore(std::string name)
     {
-        int ret = amrex::ParmParse::contains(name.c_str());
-        ret = ret; // This is to supporess unused input warnings
+        (void)amrex::ParmParse::contains(name.c_str());
     }
     int queryarr(std::string name, Set::Vector & value)
     {

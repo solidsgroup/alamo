@@ -1,3 +1,19 @@
+//
+// This BC defines boundary conditions that are constant with respect to space.
+// However they may change in time using the :ref:`Numeric::Interpolator::Linear` method.
+// 
+// In 2D, BCs are prescribed for each edge (4) and corner (4) on the boundary, for a total of 8 possible regions.
+// In 3D, BCs are prescribed for each face (6), each edge (12), and each corner (8), for a total of 26 possible regions.
+// Care must be taken to define BCs for edges/corners consistently with the faces/edges, or you will get poor 
+// convergence and inaccurate behavior.
+// (See :ref:`BC::Operator::Elastic::TensionTest` for a reduced BC with streamlined load options.)
+//
+// To define a boundary condition, you must define both a "type" and a "value" in each direction.
+// The type can be "displacement", "disp", "neumann", "traction", "trac".
+// The value is the corresponding value.
+// All BCs are, by default, dirichlet (displacement) with a value of zero.
+//
+
 #ifndef BC_OPERATOR_ELASTIC_CONSTANT_H
 #define BC_OPERATOR_ELASTIC_CONSTANT_H
 
@@ -330,21 +346,6 @@ protected:
     std::array<std::array<Numeric::Interpolator::Linear<Set::Scalar>,AMREX_SPACEDIM>, m_nfaces> m_bc_val; 
 
 public:
-    //
-    // This BC defines boundary conditions that are constant with respect to space.
-    // However they may change in time using the :ref:`Numeric::Interpolator::Linear` method.
-    // 
-    // In 2D, BCs are prescribed for each edge (4) and corner (4) on the boundary, for a total of 8 possible regions.
-    // In 3D, BCs are prescribed for each face (6), each edge (12), and each corner (8), for a total of 26 possible regions.
-    // Care must be taken to define BCs for edges/corners consistently with the faces/edges, or you will get poor 
-    // convergence and inaccurate behavior.
-    // (See :ref:`BC::Operator::Elastic::TensionTest` for a reduced BC with streamlined load options.)
-    //
-    // To define a boundary condition, you must define both a "type" and a "value" in each direction.
-    // The type can be "displacement", "disp", "neumann", "traction", "trac".
-    // The value is the corresponding value.
-    // All BCs are, by default, dirichlet (displacement) with a value of zero.
-    //
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
         std::map<std::string, Type> bcmap;

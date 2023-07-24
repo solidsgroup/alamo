@@ -125,7 +125,7 @@ public:
 private:
     amrex::IntVect ncells;
     const Set::Scalar L = 1.0;
-    const int nlevels = 1, ref_ratio = 1, ncomp = 1, nghost = 2;
+    const int ncomp = 1, nghost = 2;
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;
     amrex::Vector<amrex::DistributionMapping> dmap;

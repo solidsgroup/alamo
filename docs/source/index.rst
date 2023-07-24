@@ -8,7 +8,7 @@ Documentation for alamo
         :link: getting-started
 	:link-type: ref
         
-        :icon:`start` :ref:`Getting Started`
+        :icon:`start` Getting Started
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Initial step-by-step instructions for downloading, building, and running Alamo.
