@@ -16,31 +16,32 @@ amr.grid_eff = 0.8
 #amr.refinement_criterion = 0.001
 #amr.refinement_criterion_temp = 275.16
 #amr.refinement_restriction = 0.1
-amr.n_cell = 400 400 0
+amr.n_cell = 1600 200 0
 
-num_cells_x = 400
+num_cells_x = 800
 
 ### DIMENSIONS ###
 
-geometry.prob_lo = -0.5 -0.5 0.0 # [ m ] 
-geometry.prob_hi = 0.5 0.5 0.0 # [ m ]
+geometry.prob_lo = -0.002 -0.002 0.0 # [ m ] 
+geometry.prob_hi = 0.0005 0.0005 0.0 # [ m ]
 
 geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep = 1.0e-5 # 0.00005 # [s]
+timestep = 1.0e-6 # 0.00005 # [s]
 stop_time = 1.0
 small = 1.0e-5
 
 ### ETA IC ###
 
-eps = 0.1
+eps = 0.0001
 
 mdot = 0.0
-Pdot_x = 0.1
+Pdot_x = 0.00016
 Pdot_y = 0.0
-Qdot = 0.0
+Qdot = 0.00000032
+V = -0.004
 
 eta.ic.type = laminate
 eta.ic.laminate.number_of_inclusions = 1
@@ -73,10 +74,10 @@ pf.eta.bc.val.zhi = 0.0
 gamma = 1.4
 cfl = 0.4
 
-rho_solid = 1.2
-rho_fluid = 0.1
-E_solid = 0.0
-E_fluid = 0.0
+rho_solid = 1500 #kg/m^3
+rho_fluid = 10 #kg/m^3
+E_solid = 75000000
+E_fluid = 75000000
 Mx_init = 0.0
 My_init = 0.0
 
