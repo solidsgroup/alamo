@@ -112,7 +112,7 @@ void Hydro::Initialize(int lev)
             const Set::Scalar* DX = geom[lev].CellSize();
             Set::Scalar pos_x0 = (i - num_cells_x / 2.) * DX[0];
 
-            eta(i, j, k) = 0.5 - 0.5 * std::erf(pos_x0 / eps);
+            eta(i, j, k) = 0.5 + 0.5 * std::erf((pos_x0) / eps);
             etadot(i, j, k) = 0.0;
 
             rho(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho_fluid * eta(i, j, k);
@@ -204,6 +204,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         const amrex::Box& bx = mfi.validbox();
 
         Set::Scalar step_int = 0;
+	cout << step_int;
 
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
@@ -226,7 +227,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
-            Set::Scalar interface_pos_x = (i - num_cells_x / 2.) * DX[0]; //- V * dt * step_int;
+            Set::Scalar interface_pos_x = (i - num_cells_x / 2.) * DX[0] - V * dt * step_int;
             eta(i, j, k) = 0.5 + 0.5 * std::erf((interface_pos_x) / eps);
             etadot(i, j, k) = 0.0;
 
@@ -371,8 +372,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             E_new(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_new(i, j, k) * eta(i, j, k);
 
         });
-
-        step_int += 1;
+	step_int += 1;
     }
 }//end Advance
 
