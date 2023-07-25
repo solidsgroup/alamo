@@ -19,13 +19,13 @@
 
 namespace Integrator
 {
-class Hydro: virtual public Integrator::Integrator
+class Hydro : virtual public Integrator::Integrator
 {
 public:
 
-  Hydro() {};
-  Hydro(IO::ParmParse& pp);
-  static void Parse(Hydro& value, IO::ParmParse& pp);
+    Hydro() {};
+    Hydro(IO::ParmParse& pp);
+    static void Parse(Hydro& value, IO::ParmParse& pp);
 
 protected:
     void Initialize(int lev) override;
@@ -67,16 +67,16 @@ private:
     IC::IC* ic_M;
 
     IC::IC* ic_eta;
-  
+
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;
     Set::Scalar vy_max = 0.0;
 
-  Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion;
-  Set::Scalar gamma, cfl;
-  Set::Scalar rho_solid, rho_fluid, E_solid, E_fluid, Mx_init, My_init;
-  Set::Scalar num_cells_x, eps, mdot, Pdot_x, Pdot_y, Qdot;
-  
+    Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion;
+    Set::Scalar gamma, cfl;
+    Set::Scalar rho_solid = 1.2, rho_fluid = 0.1, E_solid = 0.0, E_fluid = 0.0, Mx_init = 0.0, My_init = 0.0;
+    Set::Scalar num_cells_x = 400, eps = 0.1, mdot = 0.0, Pdot_x = 1.0, Pdot_y = 0.0, Qdot = 0.0;
+
 };
 }
 
