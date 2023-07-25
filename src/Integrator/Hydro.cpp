@@ -9,22 +9,22 @@
 
 namespace Integrator
 {
-  
-  Hydro::Hydro(IO::ParmParse& pp) : Hydro()
-  {
+
+Hydro::Hydro(IO::ParmParse& pp) : Hydro()
+{
     pp.queryclass(*this);
-  }
+}
 
 void
 Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Hydro::Hydro()");
     {
-      pp.query("r_refinement_criterion", value.r_refinement_criterion);
-      pp.query("e_refinement_criterion", value.e_refinement_criterion);
-      pp.query("m_refinement_criterion", value.m_refinement_criterion);
-      pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
-	
+        pp.query("r_refinement_criterion", value.r_refinement_criterion);
+        pp.query("e_refinement_criterion", value.e_refinement_criterion);
+        pp.query("m_refinement_criterion", value.m_refinement_criterion);
+        pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
+
         pp.query("gamma", value.gamma);
         pp.query("cfl", value.cfl);
 
@@ -33,17 +33,17 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("E_solid", value.E_solid);
         pp.query("E_fluid", value.E_fluid);
 
-	pp.query("Mx_init", value.Mx_init);
-	pp.query("My_init", value.My_init);
+        pp.query("Mx_init", value.Mx_init);
+        pp.query("My_init", value.My_init);
 
         pp.query("num_cells_x", value.num_cells_x);
 
         pp.query("eps", value.eps);
 
-	pp.query("mdot", value.mdot);
-	pp.query("Pdot_x", value.Pdot_x);
-	pp.query("Pdot_y", value.Pdot_y);
-	pp.query("Qdot", value.Qdot);
+        pp.query("mdot", value.mdot);
+        pp.query("Pdot_x", value.Pdot_x);
+        pp.query("Pdot_y", value.Pdot_y);
+        pp.query("Qdot", value.Qdot);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -51,7 +51,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.bc_M = new BC::Constant(2, pp, "M.bc");
         value.bc_v = new BC::Constant(2, pp, "v.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
-	
+
     }
     // Register FabFields:
     {
