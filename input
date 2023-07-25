@@ -38,7 +38,7 @@ small = 1.0e-5
 eps = 0.1
 
 mdot = 0.0
-Pdot_x = 1.0
+Pdot_x = 0.1
 Pdot_y = 0.0
 Qdot = 0.0
 
