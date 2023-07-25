@@ -20,9 +20,11 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Hydro::Hydro()");
     {
-        //pp.query("r_refinement_criterion", value.r_refinement_criterion);
-        //pp.query("e_refinement_criterion", value.e_refinement_criterion);
-        //pp.query("m_refinement_criterion", value.m_refinement_criterion);
+      pp.query("r_refinement_criterion", value.r_refinement_criterion);
+      pp.query("e_refinement_criterion", value.e_refinement_criterion);
+      pp.query("m_refinement_criterion", value.m_refinement_criterion);
+      pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
+	
         pp.query("gamma", value.gamma);
         pp.query("cfl", value.cfl);
 
@@ -31,9 +33,17 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("E_solid", value.E_solid);
         pp.query("E_fluid", value.E_fluid);
 
+	pp.query("Mx_init", value.Mx_init);
+	pp.query("My_init", value.My_init);
+
         pp.query("num_cells_x", value.num_cells_x);
 
-        pp.query("epsilon", value.eps);
+        pp.query("eps", value.eps);
+
+	pp.query("mdot", value.mdot);
+	pp.query("Pdot_x", value.Pdot_x);
+	pp.query("Pdot_y", value.Pdot_y);
+	pp.query("Qdot", value.Qdot);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -343,10 +353,10 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             ///////////////////////////
 
             std::array<Set::Scalar, 3> source;
-            source[0] = grad_eta_mag * (rho_solid * std::sqrt(V_x * V_x + V_y * V_y));
-            source[1] = grad_eta(0) * (rho_solid * (V_x * V_x));
-            source[2] = grad_eta(1) * (rho_solid * (V_y * V_y));
-            source[3] = grad_eta_mag * (0.5 * rho_solid * (V_y * V_y + V_x * V_x) * (V_y * V_y + V_x * V_x) * (V_y * V_y + V_x * V_x));
+            source[0] = mdot * grad_eta_mag;
+            source[1] = Pdot_x * grad_eta_mag;
+            source[2] = Pdot_y * grad_eta_mag;
+            source[3] = Qdot * grad_eta_mag;
 
             E_new(i, j, k) += source[3] + E(i, j, k) * etadot(i, j, k);
             rho_new(i, j, k) += source[0] + rho(i, j, k) * etadot(i, j, k);
