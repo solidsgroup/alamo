@@ -63,7 +63,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
         pp.query("elastic.on", value.elastic.on);
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
-        {
+        if (value.thermal.on) {
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
             pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
@@ -195,31 +195,28 @@ void Flame::Initialize(int lev)
     Util::Message(INFO, m_type);
     Base::Mechanics<model_type>::Initialize(lev);
 
-    temp_mf[lev]->setVal(thermal.bound);
-    temp_old_mf[lev]->setVal(thermal.bound);
-    temps_mf[lev]->setVal(thermal.bound);
-    temps_old_mf[lev]->setVal(thermal.bound);
-
-    alpha_mf[lev]->setVal(0.0);
-    mob_mf[lev]->setVal(0.0);
-
     ic_eta->Initialize(lev, eta_mf);
     ic_eta->Initialize(lev, eta_old_mf);
 
-    mdot_mf[lev]->setVal(0.0);
-
-    heatflux_mf[lev]->setVal(0.0);
-
     ic_phi->Initialize(lev, phi_mf);
-    thermal.T_fluid = thermal.bound;
-
-    thermal.w1 = 0.2 * pressure.P + 0.9;
-
-    ic_laser->Initialize(lev, laser_mf);
 
     if (elastic.on) psi_mf[lev]->setVal(1.0);
 
-    thermal.mlocal_htpb = 685000.0 - 850e3 * thermal.massfraction;
+    if (thermal.on) {
+        thermal.w1 = 0.2 * pressure.P + 0.9;
+        thermal.mlocal_htpb = 685000.0 - 850e3 * thermal.massfraction;
+        temp_mf[lev]->setVal(thermal.bound);
+        temp_old_mf[lev]->setVal(thermal.bound);
+        temps_mf[lev]->setVal(thermal.bound);
+        temps_old_mf[lev]->setVal(thermal.bound);
+        alpha_mf[lev]->setVal(0.0);
+        mob_mf[lev]->setVal(0.0);
+        mdot_mf[lev]->setVal(0.0);
+        heatflux_mf[lev]->setVal(0.0);
+        thermal.T_fluid = thermal.bound;
+        ic_laser->Initialize(lev, laser_mf);
+
+    }
 }
 
 void Flame::UpdateModel(int /*a_step*/)
@@ -249,7 +246,7 @@ void Flame::UpdateModel(int /*a_step*/)
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     Set::Matrix Idn = Set::Matrix::Identity();
-                    
+
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 *= (temp_avg - thermal.bound);
                     model_ap.F0 += Idn;
@@ -284,8 +281,10 @@ void Flame::TimeStepBegin(Set::Scalar a_time, int a_iter)
 {
     BL_PROFILE("Integrator::Flame::TimeStepBegin");
     Base::Mechanics<model_type>::TimeStepBegin(a_time, a_iter);
-    for (int lev = 0; lev <= finest_level; ++lev)
-        ic_laser->Initialize(lev, laser_mf, a_time);
+    if (thermal.on) {
+        for (int lev = 0; lev <= finest_level; ++lev)
+            ic_laser->Initialize(lev, laser_mf, a_time);
+    }
 }
 
 
@@ -393,7 +392,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                 });
             } // MFi For loop 
         } // thermal IF
-        else
+        else if (thermal.on == 0)
         {
             std::swap(eta_old_mf[lev], eta_mf[lev]);
             Numeric::Function::Polynomial<4> w(pf.w0,
@@ -458,19 +457,21 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         });
     }
 
-    // Thermal criterion for refinement          
-    for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
-    {
-        const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<char> const& tags = a_tags.array(mfi);
-        amrex::Array4<const Set::Scalar> const& temp = (*temp_mf[lev]).array(mfi);
-        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+    // Thermal criterion for refinement 
+    if (thermal.on) {
+        for (amrex::MFIter mfi(*temp_mf[lev], true); mfi.isValid(); ++mfi)
         {
-            Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
-            if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
-                tags(i, j, k) = amrex::TagBox::SET;
-        });
+            const amrex::Box& bx = mfi.tilebox();
+            amrex::Array4<char> const& tags = a_tags.array(mfi);
+            amrex::Array4<const Set::Scalar> const& temp = (*temp_mf[lev]).array(mfi);
+            amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
+            {
+                Set::Vector tempgrad = Numeric::Gradient(temp, i, j, k, 0, DX);
+                if (tempgrad.lpNorm<2>() * dr > t_refinement_criterion && eta(i, j, k) >= t_refinement_restriction)
+                    tags(i, j, k) = amrex::TagBox::SET;
+            });
+        }
     }
 }
 
