@@ -98,6 +98,22 @@ public:
 
             value.parser.push_back(amrex::Parser(func));
 
+            //
+            // Read in user-defined constants and add them to the parser
+            //
+            std::string prefix = pp.getPrefix();
+            std::set<std::string> entries = pp.getEntries(prefix + ".constant");//"constant");
+            std::set<std::string>::iterator entry;
+            for (entry = entries.begin(); entry != entries.end(); entry++)
+            {
+                IO::ParmParse pp;
+                std::string fullname = *entry;
+                Set::Scalar val  = NAN;
+                pp.query(fullname.data(),val);
+                std::string name = Util::String::Split(fullname,'.').back();
+                value.parser.back().setConstant(name,val);
+            }
+
             if (value.coord == Expression::CoordSys::Cartesian)
             {
                 value.parser.back().registerVariables({ "x","y","z","t" });

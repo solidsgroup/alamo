@@ -59,7 +59,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         int nghost = 2;
         value.RegisterNewFab(value.eta_mf, value.bc_eta, 1, nghost, "eta", true);
 
-        value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", false);
+        value.RegisterNewFab(value.etadot_mf, value.bc_eta, 1, nghost, "etadot", true);
 
         value.RegisterNewFab(value.Density_mf, value.bc_rho, 1, nghost, "Density", true);
         value.RegisterNewFab(value.Density_old_mf, value.bc_rho, 1, nghost, "rho_old", false);
@@ -75,14 +75,21 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.RegisterNewFab(value.Pressure_mf, value.bc_p, 1, nghost, "Pressure", true);
     }
     {
-        BL_PROFILE("Integrator::Hydro::Hydro()");
         std::string type = "constant";
         pp.query("eta.ic.type", type);
         if (type == "constant") value.ic_eta = new IC::Constant(value.geom, pp, "eta.ic.constant");
         else if (type == "laminate") value.ic_eta = new IC::Laminate(value.geom, pp, "eta.ic.laminate");
+        else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "eta.ic.expression");
         else Util::Abort(INFO, "Invalid eta.ic: ", type);
     }
-
+    {
+        std::string type = "constant";
+        pp.query("etadot.ic.type", type);
+        if (type == "constant") value.ic_etadot = new IC::Constant(value.geom, pp, "etadot.ic.constant");
+        else if (type == "laminate") value.ic_etadot = new IC::Laminate(value.geom, pp, "etadot.ic.laminate");
+        else if (type == "expression") value.ic_etadot = new IC::Expression(value.geom, pp, "etadot.ic.expression");
+        else Util::Abort(INFO, "Invalid eta.ic: ", type);
+    }
 }
 
 
@@ -134,9 +141,14 @@ void Hydro::Initialize(int lev)
     vy_max = 0.0;
 }
 
-void Hydro::TimeStepBegin(Set::Scalar, int)
+void Hydro::TimeStepBegin(Set::Scalar time, int)
 {
     BL_PROFILE("Integrator::Hydro::TimeStepBegin");
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        ic_eta->Initialize(lev,eta_mf,time);
+        ic_etadot->Initialize(lev,etadot_mf,time);
+    }
 }
 
 
@@ -206,8 +218,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         Set::Scalar step_int = 0;
         cout << step_int;
 
-        amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-        amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
@@ -228,8 +240,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
             Set::Scalar interface_pos_x = (i - num_cells_x / 2.) * DX[0] - V * dt * step_int;
-            eta(i, j, k) = 0.5 + 0.5 * std::erf((interface_pos_x) / eps);
-            etadot(i, j, k) = 0.0;
+            //eta(i, j, k) = 0.5 + 0.5 * std::erf((interface_pos_x) / eps);
+            //etadot(i, j, k) = 0.0;
 
             ///////////////////////////
             /////GODUNOV ADVECTION/////

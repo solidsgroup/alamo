@@ -67,6 +67,7 @@ private:
     IC::IC* ic_M;
 
     IC::IC* ic_eta;
+    IC::IC* ic_etadot;
 
     Set::Scalar c_max = 0.0;
     Set::Scalar vx_max = 0.0;

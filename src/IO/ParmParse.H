@@ -17,6 +17,7 @@ class ParmParse : public amrex::ParmParse
 public:
     ParmParse(std::string arg) : amrex::ParmParse::ParmParse(arg) {} ;
     ParmParse() : amrex::ParmParse::ParmParse() {} ;
+    std::string getPrefix() const {return amrex::ParmParse::getPrefix();};
     void ignore(std::string name)
     {
         (void)amrex::ParmParse::contains(name.c_str());
