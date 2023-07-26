@@ -147,6 +147,10 @@ public:
             pp.query("shear", value.mu);
             pp.query("kappa", value.kappa);
         }
+        else if (pp.contains("mu") && pp.contains("kappa")) {
+            pp.query("mu", value.mu);
+            pp.query("kappa", value.kappa);
+        }
         else if (pp.contains("lame") && pp.contains("shear")) {
             Set::Scalar lame;
             pp.query("shear", value.mu);
