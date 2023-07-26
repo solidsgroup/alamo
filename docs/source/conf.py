@@ -139,6 +139,7 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
+sd_fontawesome_latex = True
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -211,6 +212,7 @@ html_css_files = [
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Two+Tone',
     'https://fonts.googleapis.com/css2?family=Material+Icons',
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css",
     'custom.css',
 ]
 

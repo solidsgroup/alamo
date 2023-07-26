@@ -9,22 +9,22 @@
 
 namespace Integrator
 {
-  
-  Hydro::Hydro(IO::ParmParse& pp) : Hydro()
-  {
+
+Hydro::Hydro(IO::ParmParse& pp) : Hydro()
+{
     pp.queryclass(*this);
-  }
+}
 
 void
 Hydro::Parse(Hydro& value, IO::ParmParse& pp)
 {
     BL_PROFILE("Integrator::Hydro::Hydro()");
     {
-      pp.query("r_refinement_criterion", value.r_refinement_criterion);
-      pp.query("e_refinement_criterion", value.e_refinement_criterion);
-      pp.query("m_refinement_criterion", value.m_refinement_criterion);
-      pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
-	
+        pp.query("r_refinement_criterion", value.r_refinement_criterion);
+        pp.query("e_refinement_criterion", value.e_refinement_criterion);
+        pp.query("m_refinement_criterion", value.m_refinement_criterion);
+        pp.query("eta_refinement_criterion", value.eta_refinement_criterion);
+
         pp.query("gamma", value.gamma);
         pp.query("cfl", value.cfl);
 
@@ -33,18 +33,18 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         pp.query("E_solid", value.E_solid);
         pp.query("E_fluid", value.E_fluid);
 
-	pp.query("Mx_init", value.Mx_init);
-	pp.query("My_init", value.My_init);
+        pp.query("Mx_init", value.Mx_init);
+        pp.query("My_init", value.My_init);
 
         pp.query("num_cells_x", value.num_cells_x);
 
         pp.query("eps", value.eps);
 
-	pp.query("mdot", value.mdot);
-	pp.query("Pdot_x", value.Pdot_x);
-	pp.query("Pdot_y", value.Pdot_y);
-	pp.query("Qdot", value.Qdot);
-	pp.query("V", value.V);
+        pp.query("mdot", value.mdot);
+        pp.query("Pdot_x", value.Pdot_x);
+        pp.query("Pdot_y", value.Pdot_y);
+        pp.query("Qdot", value.Qdot);
+        pp.query("V", value.V);
 
         value.bc_eta = new BC::Constant(1, pp, "pf.eta.bc");
         value.bc_rho = new BC::Constant(1, pp, "rho.bc");
@@ -52,7 +52,7 @@ Hydro::Parse(Hydro& value, IO::ParmParse& pp)
         value.bc_M = new BC::Constant(2, pp, "M.bc");
         value.bc_v = new BC::Constant(2, pp, "v.bc");
         value.bc_p = new BC::Constant(1, pp, "p.bc");
-	
+
     }
     // Register FabFields:
     {
@@ -204,7 +204,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
         const amrex::Box& bx = mfi.validbox();
 
         Set::Scalar step_int = 0;
-	cout << step_int;
+        cout << step_int;
 
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
@@ -372,7 +372,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             E_new(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_new(i, j, k) * eta(i, j, k);
 
         });
-	step_int += 1;
+        step_int += 1;
     }
 }//end Advance
 
@@ -415,11 +415,11 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //   Set::Scalar dv = AMREX_D_TERM(DX[0], *DX[1], *DX[2]);
 //   amrex::Array4<amrex::Real> const &eta = (*eta_mf[amrlev]).array(mfi);
 //   amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//   	volume += eta(i, j, k, 0) * dv;
-//   	Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
-//   	Set::Scalar normgrad = grad.lpNorm<2>();
-//   	Set::Scalar da = normgrad * dv;
-//   	area += da;
+//   volume += eta(i, j, k, 0) * dv;
+//   Set::Vector grad = Numeric::Gradient(eta, i, j, k, 0, DX);
+//   Set::Scalar normgrad = grad.lpNorm<2>();
+//   Set::Scalar da = normgrad * dv;
+//   area += da;
 //   });
 
 
@@ -436,13 +436,13 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //      
 //      for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
 //      {
-//	amrex::Box bx = mfi.nodaltilebox();
-//	amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
+//  amrex::Box bx = mfi.nodaltilebox();
+//  amrex::Array4<model_type> const &model = model_mf[lev]->array(mfi);
 //
-//	amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
-//	  // TODO
+//  amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k){
+//  // TODO
 //
-//	});
+//  });
 //
 //
 //     } // end For2
@@ -450,8 +450,8 @@ void Hydro::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
 //     Util::RealFillBoundary(*model_mf[lev], geom[lev]);
 //     amrex::MultiFab::Copy(*psi_mf[lev], *eta_mf[lev], 0, 0, 1, psi_mf[lev]-> nGrow());
 
-  //    } //end For1
-  //}//end update
+//    } //end For1
+//}//end update
 
 
 }//end code

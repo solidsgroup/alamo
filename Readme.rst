@@ -1,9 +1,5 @@
 .. getting-started:
 
-=============================
-:icon:`start` Getting Started
-=============================
-
 Note: this README page is also the Doxygen main page, the Github readme page, 
 and the Docs main page.
 You can view it by running :code:`make docs` in the root directory, then opening 

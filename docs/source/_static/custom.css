@@ -3,7 +3,12 @@
     white-space: normal;
 }
 
-table pre 
+table pre /*Wrap text in tables*/
+{
+    white-space:pre-wrap !important;
+}
+
+span.sd-badge /*Wrap long text inside badges*/
 {
     white-space:pre-wrap !important;
 }
