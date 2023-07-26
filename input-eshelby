@@ -7,8 +7,8 @@ alamo.program.mechanics.model = elastic.neohookeanpre
 
 # [Mike] Please use RELATIVE paths in your filenames (i.e. not /home/mmeier/)
 plot_file		    = output-eshelby  
-
-timestep		    = 0.001
+plot_file = /home/meier/solidphase/EshelbyNeo
+timestep		    = 0.1
 stop_time		    = 1.0
 
 amr.plot_int		    = 1
@@ -26,7 +26,7 @@ geometry.is_periodic	= 0 0 0
 ic.type        = ellipse
 ic.ellipse.a   = 5.0 1.5 0.5
 ic.ellipse.x0  = 0 0 0
-ic.ellipse.eps = 2.0
+ic.ellipse.eps = 0.5
 
 nmodels = 2
 
@@ -40,22 +40,17 @@ nmodels = 2
 #        It helps the solver to use units with magnitude on the order of 10 or so.
 
 model1.mu    = 14
-model1.kappa = 8
-model1.F0 = 1.5 0 0 0 1.5 0 0 0 1.5
+model1.kappa = 15
+#model1.F0 = 1.5 0 0 0 1.5 0 0 0 1.5
+model1.F0  = 1.3e-5 0 0 0 1.3e-5 0 0 0 1.3e-5 # eigenstrain
 model2.mu = 8
-model2.kappa = 4
-#model2.E = 25.00061 
-#model2.nu = 0.49944
-#model2.E = 32446.99 
-#model2.nu = 0.143305
-#model2.F0  = 2.6e5 0 0 0 2.6e5 0 0 0 2.6e5 # eigenstrain
-#model2.F0  = 38461 0 0 0 38461 0 0 0 38461 # eigenstrain
-#model2.F0  = 15000 0 0 0 15000 0 0 0 15000
-#model2.F0  = 3.9e-5 0 0 0 3.9e-5 0 0 0 3.9e-5 # eigenstrain
+model2.kappa = 710
+#model2.F0 = 1 0 0 0 1 0 0 0 1
+model2.F0  = 3.9e-5 0 0 0 3.9e-5 0 0 0 3.9e-5 # eigenstrain
 #model2.F0  = 9.5e-5 0 0 0 9.5e-5 0 0 0 9.5e-5
 #model2.F0  = 5.85e-5 0 0 0 5.85e-5 0 0 0 5.85e-5 # eigenstrain
 #model2.F0  = 8.45e-5 0 0 0 8.45e-5 0 0 0 8.45e-5 # eigenstrain
-model2.F0 = 1 0 0 0 1 0 0 0 1
+
 
 solver.verbose = 3
 solver.max_iter = 5000
