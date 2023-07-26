@@ -2,7 +2,7 @@ alamo.program = hydro
 
 ### OUTPUT ###
 
-plot_file = ./output
+plot_file = /home/meier/solidphase/hydro/output
 
 ### MESHING ###
 
