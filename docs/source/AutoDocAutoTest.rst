@@ -1,8 +1,8 @@
 .. _autodoc:
 
-========================================
-:icon:`play_lesson` Autodoc and Autotest
-========================================
+============================================
+:fas:`swatchbook;fa-fw` Autodoc and Autotest
+============================================
 
 Alamo includes a self-contained automatic documentation (autodoc) and automatic test (autotest) 
 system.

@@ -6,16 +6,16 @@ from os.path import isfile, join
 
 
 def geticon(classname):
-    if classname.startswith("BC"): return ":icon:`border_outer` "
-    if classname.startswith("IC"): return ":icon:`start` "
-    if classname.startswith("Integrator"): return ":icon:`settings` "
-    if classname.startswith("Model"): return ":icon:`vrpano` "
-    if classname.startswith("Numeric"): return ":icon:`full_stacked_bar_chart` "
-    if classname.startswith("Util"): return ":icon:`tune` "
-    if classname.startswith("Solver"): return ":icon:`directions` "
-    if classname.startswith("Set"): return ":icon:`apps` "
-    if classname.startswith("IO"): return ":icon:`print` "
-    if classname.startswith("Operator"): return ":icon:`rebase_edit` "
+    if classname.startswith("BC"): return ":fas:`border-top-left;fa-fw` "
+    if classname.startswith("IC"): return ":fas:`circle-right;fa-fw` "
+    if classname.startswith("IO"): return ":fas:`print;fa-fw` "
+    if classname.startswith("Integrator"): return ":fas:`gear;fa-fw` "
+    if classname.startswith("Model"): return ":fas:`panorama;fa-fw` "
+    if classname.startswith("Numeric"): return ":fas:`calculator;fa-fw` "
+    if classname.startswith("Operator"): return ":far:`map;fa-fw` "
+    if classname.startswith("Set"): return ":fas:`braille;fa-fw` "
+    if classname.startswith("Solver"): return ":fas:`diamond-turn-right;fa-fw` "
+    if classname.startswith("Util"): return ":fas:`sliders;fa-fw` "
     else: return ""
 
 def getdocumentation(filename):
@@ -133,9 +133,9 @@ docfile    = open("Inputs.rst","w")
 docfile.write(r"""
 .. _inputs: 
 
-==================
-:icon:`api` Inputs
-==================
+=============================
+:fas:`cube;fa-fw` Inputs
+=============================
 
 
 """)

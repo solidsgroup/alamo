@@ -5,7 +5,7 @@
 .. _getting-started:
 
 =============================
-:icon:`start` Getting Started
+:fas:`forward;fa-fw` Getting Started
 =============================
 
 .. include:: ../../Readme.rst

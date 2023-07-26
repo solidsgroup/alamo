@@ -3,11 +3,11 @@
 
 .. _developers:
 
-=======================================
-:icon:`developer_guide` Developer Guide
-=======================================
+=================================
+:fas:`code;fa-fw` Developer Guide
+=================================
 
-:icon:`rocket_launch` Step-by-step development guide
+:fas:`rocket;fa-fw` Step-by-step development guide
 ====================================================
 
 This is a quick tutorial intended for new Alamo developers to get up to speed with contributing to the Alamo code base.
@@ -138,7 +138,7 @@ This is a quick tutorial intended for new Alamo developers to get up to speed wi
    You should always merge your code if you are submitting a publication, or if you are a PhD student about to graduate.
    
 
-:icon:`integration_instructions` Tutorial: A new Integrator
+:fas:`user-graduate;fa-fw` Tutorial: A new Integrator
 ===========================================================
 
 Integrators are the basic workhorse in Alamo.
@@ -182,8 +182,8 @@ In this tutorial, we will create a new integrator based on the existing HeatCond
    The HeatConduction integrator has extensive, line-by-line documentation.
       
 
-:icon:`fact_check` Conventions
-==============================
+:fas:`rectangle-list;fa-fw` Conventions
+=======================================
 
 .. toctree::
    :maxdepth: 2
@@ -237,8 +237,8 @@ For instance:
 
 
 
-Python (In development)
-=======================
+:fab:`python;fa-fw` Python (In development)
+===========================================
 
 Alamo supports a (currently limited) Python interface.
 It can be run as simply as
