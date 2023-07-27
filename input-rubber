@@ -13,7 +13,7 @@
 
 alamo.program = mechanics
 alamo.program.mechanics.model = elastic.neohookeanpre
-plot_file = ../solidphase/RubberWithInclusion/output
+plot_file = output
 type = static
 timestep = 0.1
 stop_time = 1.0
