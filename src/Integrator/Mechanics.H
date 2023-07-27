@@ -37,6 +37,7 @@
 #include "IC/Constant.H"
 #include "IC/Expression.H"
 #include "IC/BMP.H"
+#include "IC/PSRead.H"
 #include "BC/Constant.H"
 #include "Numeric/Stencil.H"
 
@@ -90,6 +91,7 @@ public:
             if (type == "ellipse") value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
             if (type == "voronoi") value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
             if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
+            if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
         }
 
         // Read in IC for psi
@@ -100,6 +102,7 @@ public:
             if (type == "ellipse")         value.ic_psi = new IC::Ellipse(value.geom, pp, "psi.ic.ellipse");
             else if (type == "constant")   value.ic_psi = new IC::Constant(value.geom, pp, "psi.ic.constant");
             else if (type == "expression") value.ic_psi = new IC::Expression(value.geom, pp, "psi.ic.expression");
+            else if (type == "psread")     value.ic_eta = new IC::PSRead(value.geom, pp, "psi.ic.psread");
             else Util::Abort(INFO, "Invalid value for psi.ic.type: ", type);
 
             value.bc_psi = new BC::Nothing();
