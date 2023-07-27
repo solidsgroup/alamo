@@ -36,7 +36,7 @@ geometry.prob_hi = 0.004 0.001 0.001
 #ic.ellipse.eps = 0.05
 
 ic.type = psread
-ic.psread.filename = /home/meier/alamo/2d.xyzr
+ic.psread.filename = 2d.xyzr
 ic.psread.eps = 0.00001
 
 nmodels = 2
@@ -50,7 +50,7 @@ model1.F0  = 0.00255 0 0 0 0.0000255 0 0 0 0.00255  # alpha = 51e-6 # eigenstrai
 solver.verbose = 3
 solver.max_iter = 1000000
 solver.nriters = 1000
-solver.nrtolerance = 1E-5
+solver.nrtolerance = 1E-2
 
 
 ref_threshold = 100
