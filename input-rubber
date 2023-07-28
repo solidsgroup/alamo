@@ -27,7 +27,7 @@ amr.thermo.int = 1
 amr.thermo.plot_int = 1
 
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 2 1 1
+geometry.prob_hi = 4 2 2
 #geometry.prob_lo = 0 0 0
 #geometry.prob_hi = 0.004 0.001 0.001
 
@@ -40,11 +40,18 @@ geometry.prob_hi = 2 1 1
 #ic.psread.filename = 2d.xyzr
 #ic.psread.eps = 0.00001
 
+#ic.type = ellipse
+#ic.ellipse.number_of_inclusions = 2
+#ic.ellipse.radius = 0.15 0.15
+#ic.ellipse.x0 = 0.5 1.0 1.5 1.0
+#ic.ellipse.eps = 0.05 
+
 ic.type = ellipse
-ic.ellipse.number_of_inclusions = 2
-ic.ellipse.radius = 0.2 0.2
-ic.ellipse.x0 = 0.5 0.5 1.5 0.5
-ic.ellipse.eps = 0.05 
+ic.ellipse.number_of_inclusions = 12
+ic.ellipse.eps = 0.05
+ic.ellipse.x0     = 0.40 0.40 0.50 1.50 0.90 0.70 1.50 1.00 2.00 0.25 3.00 1.60 3.50 1.20 2.50 1.50 2.00 0.90 2.80 0.50 3.20 0.80 1.50 1.50 
+ic.ellipse.radius = 0.20 0.20 0.15 0.15 0.10 0.10 0.15 0.15 0.20 0.20 0.20 0.20 0.10 0.10 0.10 0.10 0.15 0.15 0.10 0.10 0.20 0.20 0.15 0.15
+
 
 nmodels = 2
 model2.mu    = 140
