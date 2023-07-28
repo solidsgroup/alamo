@@ -181,7 +181,8 @@ for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
             for i in range(len(classname.split('::'))):
                 subhdr = '::'.join(classname.split('::')[:i])
                 if subhdr not in written_headers:
-                    if '::' not in subhdr:
+                    if '::' not in subhdr and subhdr != "":
+                        docfile.write("--------------------\n\n\n")
                         docfile.write(geticon(subhdr) + subhdr+"\n")
                         docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
                     else:
@@ -199,6 +200,8 @@ for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
                 docfile.write(documentation)
             
             if not len(inputs): continue
+            if len(inputs) == 1 and not list(inputs)[0]: continue
+
 
             docfile.write("\n\n")
             docfile.write(".. rst-class:: api-inputs-table\n\n")
