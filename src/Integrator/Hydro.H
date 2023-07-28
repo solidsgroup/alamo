@@ -76,8 +76,8 @@ private:
     Set::Scalar r_refinement_criterion, e_refinement_criterion, m_refinement_criterion, eta_refinement_criterion;
     Set::Scalar gamma, cfl;
     Set::Scalar rho_solid, rho_fluid, E_solid, E_fluid, Mx_init, My_init;
-    Set::Scalar num_cells_x, eps, mdot, Pdot_x, Pdot_y, Qdot, V;
-
+    Set::Scalar eps, mdot, Pdot_x, Pdot_y, Qdot;
+    int step_count;
 };
 }
 

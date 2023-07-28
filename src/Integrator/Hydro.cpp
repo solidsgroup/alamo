@@ -121,6 +121,8 @@ void Hydro::Initialize(int lev)
 	  
 	  E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k);
 	  E_new(i, j, k) = E(i, j, k);
+
+	  step_count = 0;
         });
     }
 
@@ -136,6 +138,8 @@ void Hydro::TimeStepBegin(Set::Scalar time, int)
     {
         ic_eta->Initialize(lev,eta_mf,time);
         ic_etadot->Initialize(lev,etadot_mf,time);
+
+	step_count += 1;
     }
 }
 
@@ -248,7 +252,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	    Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
             Set::Scalar rho_rightx, vx_rightx, vy_rightx, p_rightx;
 	    Set::Scalar rho_righty, vx_righty, vy_righty, p_righty;
-            Set::Scalar rho_slope_left, vx_slope_left, vy_slope_left, p_slope_left;
+            Set::Scalar rho_slope_leftx, vx_slope_leftx, vy_slope_leftx, p_slope_leftx;
+	    Set::Scalar rho_slope_lefty, vx_slope_lefty, vy_slope_lefty, p_slope_lefty;
             Set::Scalar rho_leftx, vx_leftx, vy_leftx, p_leftx;
 	    Set::Scalar rho_lefty, vx_lefty, vy_lefty, p_lefty;
             std::array<Set::Scalar, 4> flux_x, flux_y;
@@ -269,66 +274,66 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             vy_slope_right = (-v(i, j, k, 0) * dvy[0]) * dt + (-v(i, j, k, 1) * dvy[1] - dp[1] / rho(i, j, k)) * dt;
             p_slope_right = (-v(i, j, k, 0) * dp[0] - dvx[0] * gamma * p(i, j, k)) * dt + (-v(i, j, k, 1) * dp[1] - dvy[1] * gamma * p(i, j, k)) * dt;
 
-	    //
-            // left interface along x direction
-            //
-	    
-            // compute reconstructed states at left interface along x in current cell
+	    // left interface: left state --x
+            rho_slope_leftx = (-v(i - 1, j, k, 0) * drho[0] - dvx[0] * rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * drho[1] - dvy[1] * rho(i - 1, j, k)) * dt;
+            vx_slope_leftx = (-v(i - 1, j, k, 0) * dvx[0] - dp[0] / rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dvy[1]) * dt;
+            vy_slope_leftx = (-v(i - 1, j, k, 0) * dvy[0]) * dt + (-v(i - 1, j, k, 1) * dvy[1] - dp[1] / rho(i - 1, j, k)) * dt;
+            p_slope_leftx = (-v(i - 1, j, k, 0) * dp[0] - dvx[0] * gamma * p(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dp[1] - dvy[1] * gamma * p(i - 1, j, k)) * dt;
+
+            rho_leftx = rho(i - 1, j, k) + 0.5 * rho_slope_leftx + drho_nx[0] * DX[0];
+            vx_leftx = v(i - 1, j, k, 0) + 0.5 * vx_slope_leftx + dvx_nx[0] * DX[0];
+            vy_leftx = v(i - 1, j, k, 1) + 0.5 * vy_slope_leftx + dvy_nx[0] * DX[0];
+            p_leftx = p(i - 1, j, k) + 0.5 * p_slope_leftx + dp_nx[0] * DX[0];
+
+	    // left interface: left state --y
+            rho_slope_lefty = (-v(i, j - 1, k, 0) * drho[0] - dvx[0] * rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * drho[1] - dvy[1] * rho(i, j - 1, k)) * dt;
+            vx_slope_lefty = (-v(i, j - 1, k, 0) * dvx[0] - dp[0] / rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dvy[1]) * dt;
+            vy_slope_lefty = (-v(i, j - 1, k, 0) * dvy[0]) * dt + (-v(i, j - 1, k, 1) * dvy[1] - dp[1] / rho(i, j - 1, k)) * dt;
+            p_slope_lefty = (-v(i, j - 1, k, 0) * dp[0] - dvx[0] * gamma * p(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dp[1] - dvy[1] * gamma * p(i, j - 1, k)) * dt;
+
+            rho_lefty = rho(i, j - 1, k) + 0.5 * rho_slope_lefty + drho_ny[1] * DX[1];
+            vx_lefty = v(i, j - 1, k, 0) + 0.5 * vx_slope_lefty + dvx_ny[1] * DX[1];
+            vy_lefty = v(i, j - 1, k, 1) + 0.5 * vy_slope_lefty + dvy_ny[1] * DX[1];
+            p_lefty = p(i, j - 1, k) + 0.5 * p_slope_lefty + dp_ny[1] * DX[1];
+
+            // compute reconstructed states at left interface in current cell
 
             rho_rightx = rho(i, j, k) + 0.5 * rho_slope_right - drho[0] * DX[0];
             vx_rightx = v(i, j, k, 0) + 0.5 * vx_slope_right - dvx[0] * DX[0];
             vy_rightx = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy[0] * DX[0];
             p_rightx = p(i, j, k) + 0.5 * p_slope_right - dp[0] * DX[0];
 
-            // left interface: left state
-            rho_slope_left = (-v(i - 1, j, k, 0) * drho[0] - dvx[0] * rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * drho[1] - dvy[1] * rho(i - 1, j, k)) * dt;
-            vx_slope_left = (-v(i - 1, j, k, 0) * dvx[0] - dp[0] / rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dvy[1]) * dt;
-            vy_slope_left = (-v(i - 1, j, k, 0) * dvy[0]) * dt + (-v(i - 1, j, k, 1) * dvy[1] - dp[1] / rho(i - 1, j, k)) * dt;
-            p_slope_left = (-v(i - 1, j, k, 0) * dp[0] - dvx[0] * gamma * p(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dp[1] - dvy[1] * gamma * p(i - 1, j, k)) * dt;
-
-            rho_leftx = rho(i - 1, j, k) + 0.5 * rho_slope_left + drho_nx[0] * DX[0];
-            vx_leftx = v(i - 1, j, k, 0) + 0.5 * vx_slope_left + dvx_nx[0] * DX[0];
-            vy_leftx = v(i - 1, j, k, 1) + 0.5 * vy_slope_left + dvy_nx[0] * DX[0];
-            p_leftx = p(i - 1, j, k) + 0.5 * p_slope_left + dp_nx[0] * DX[0];
-
-            double left_statex[5] = { rho_leftx, vx_leftx, vy_leftx, p_leftx, eta(i - 1, j, k) };
-            double right_statex[5] = { rho_rightx, vx_rightx, vy_rightx, p_rightx, eta(i, j, k) };
-
-            flux_x = Solver::Local::Riemann_ROE(left_statex, right_statex, gamma);
-
-	    //
-            // left interface along y direction
-            //
-
-            // compute reconstructed states at left interface along y in current cell
-            // left interface: right state
             rho_righty = rho(i, j, k) + 0.5 * rho_slope_right - drho[1] * DX[1];
             vx_righty = v(i, j, k, 0) + 0.5 * vx_slope_right - dvx[1] * DX[1];
             vy_righty = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy[1] * DX[1];
             p_righty = p(i, j, k) + 0.5 * p_slope_right - dp[1] * DX[1];
 
-            // left interface: left state
-            rho_slope_left = (-v(i, j - 1, k, 0) * drho[0] - dvx[0] * rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * drho[1] - dvy[1] * rho(i, j - 1, k)) * dt;
-            vx_slope_left = (-v(i, j - 1, k, 0) * dvx[0] - dp[0] / rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dvy[1]) * dt;
-            vy_slope_left = (-v(i, j - 1, k, 0) * dvy[0]) * dt + (-v(i, j - 1, k, 1) * dvy[1] - dp[1] / rho(i, j - 1, k)) * dt;
-            p_slope_left = (-v(i, j - 1, k, 0) * dp[0] - dvx[0] * gamma * p(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dp[1] - dvy[1] * gamma * p(i, j - 1, k)) * dt;
+	    //left and right states in x
 
-            rho_lefty = rho(i, j - 1, k) + 0.5 * rho_slope_left + drho_ny[1] * DX[1];
-            vx_lefty = v(i, j - 1, k, 0) + 0.5 * vx_slope_left + dvx_ny[1] * DX[1];
-            vy_lefty = v(i, j - 1, k, 1) + 0.5 * vy_slope_left + dvy_ny[1] * DX[1];
-            p_lefty = p(i, j - 1, k) + 0.5 * p_slope_left + dp_ny[1] * DX[1];
+            double left_statex[5] = { rho_leftx, vx_leftx, vy_leftx, p_leftx, eta(i - 1, j, k) };
+            double right_statex[5] = { rho_rightx, vx_rightx, vy_rightx, p_rightx, eta(i, j, k) };
 
-            // x, y permutations -> y direction flux is computed
-	    std::swap(vx_lefty, vy_lefty);
-	    std::swap(vx_righty, vy_righty);
+	    //left and right states in y
+	    
+	    std::swap(vx_lefty, vy_lefty); // x, y permutations -> y direction flux is computed
+	    std::swap(vx_righty, vy_righty); // x, y permutations -> y direction flux is computed
 
 	    double left_statey[5] = { rho_lefty, vx_lefty, vy_lefty, p_lefty, eta(i, j - 1, k) };
             double right_statey[5] = { rho_righty, vx_righty, vy_righty, p_righty, eta(i, j, k) };
 
-            flux_y = Solver::Local::Riemann_ROE(left_statey, right_statey, gamma);
+	    // call riemann solver and strang splitting
 
-            // swap flux_y components 
-            std::swap(flux_y[2], flux_y[3]);
+	    if (step_count % 2 != 0) {
+	      flux_x = Solver::Local::Riemann_ROE(left_statex, right_statex, gamma);
+	      flux_y = Solver::Local::Riemann_ROE(left_statey, right_statey, gamma);
+	    }
+	    else {
+	      flux_y = Solver::Local::Riemann_ROE(left_statey, right_statey, gamma);
+	      flux_x = Solver::Local::Riemann_ROE(left_statex, right_statex, gamma);
+	    };
+
+	    // swap flux_y components 
+	    std::swap(flux_y[2], flux_y[3]);
 
             //Godunov fluxes
             E_new(i - 1, j, k) = E(i - 1, j, k) - flux_x[1] * dt / DX[0];
