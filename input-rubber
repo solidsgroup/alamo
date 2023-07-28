@@ -20,24 +20,31 @@ stop_time = 1.0
 
 amr.plot_int = 1
 amr.max_level = 5 
-amr.n_cell = 512 128 128 # 64 64 # 32 32  
+#amr.n_cell = 512 128 128 # 64 64 # 32 32  
+amr.n_cell = 32 32 32 
 amr.blocking_factor = 2
 amr.thermo.int = 1
 amr.thermo.plot_int = 1
 
-#geometry.prob_lo = 0 0 0
-#geometry.prob_hi = 1 1 1
 geometry.prob_lo = 0 0 0
-geometry.prob_hi = 0.004 0.001 0.001
+geometry.prob_hi = 2 1 1
+#geometry.prob_lo = 0 0 0
+#geometry.prob_hi = 0.004 0.001 0.001
 
 #ic.type = ellipse
 #ic.ellipse.a = 0.25 0.25 0.25
 #ic.ellipse.x0 = 0.5 0.5 0.5
 #ic.ellipse.eps = 0.05
 
-ic.type = psread
-ic.psread.filename = 2d.xyzr
-ic.psread.eps = 0.00001
+#ic.type = psread
+#ic.psread.filename = 2d.xyzr
+#ic.psread.eps = 0.00001
+
+ic.type = ellipse
+ic.ellipse.number_of_inclusions = 2
+ic.ellipse.radius = 0.2 0.2
+ic.ellipse.x0 = 0.5 0.5 1.5 0.5
+ic.ellipse.eps = 0.05 
 
 nmodels = 2
 model2.mu    = 140
