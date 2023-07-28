@@ -85,13 +85,15 @@ public:
 
 
         // Read in IC for eta
+        if (nmodels>1)
         {
             std::string type;
             pp.query("ic.type", type); // Read IC type for the eta field
             if (type == "ellipse") value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
-            if (type == "voronoi") value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
-            if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
-            if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
+            else if (type == "voronoi") value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
+            else if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
+            else if (type == "psread") value.ic_eta = new IC::PSRead(value.geom, pp, "ic.psread");
+            else Util::Abort(INFO,"Invalid value for ic.type: ",type);
         }
 
         // Read in IC for psi
