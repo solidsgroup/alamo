@@ -20,8 +20,6 @@ amr.grid_eff = 0.8
 #amr.n_cell = 800 800 200
 amr.n_cell = 400 100 0
 
-num_cells_x = 800
-
 ### DIMENSIONS ###
 
 geometry.prob_lo = -0.002 -0.0005 0.0 # [ m ] 
@@ -31,7 +29,7 @@ geometry.is_periodic = 0 0 0
 
 ### TIME STEP ###
 
-timestep = 1.0e-10 # 0.00005 # [s]
+timestep = 1.0e-8
 stop_time = 1.0
 small = 1.0e-5
 
@@ -40,10 +38,9 @@ small = 1.0e-5
 eps = 0.0001
 
 mdot = 0.0
-Pdot_x = 0.00016
+Pdot_x = 0.0 #0.00016
 Pdot_y = 0.0
-Qdot = 0.00000032
-V = -0.004
+Qdot = 0.0 #0.00000032
 
 #eta.ic.type = laminate
 #eta.ic.laminate.number_of_inclusions = 1
@@ -57,12 +54,12 @@ V = -0.004
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.0001
-eta.ic.expression.constant.vel = 100000
-eta.ic.expression.region0 =    "0.5 + 0.5*tanh((x-vel*t)/eps)"
+eta.ic.expression.constant.vel = -0.004
+eta.ic.expression.region0 =  "1.0" #"0.5 + 0.5*tanh((x-vel*t)/eps)"
 etadot.ic.type = expression
 etadot.ic.expression.constant.eps = 0.0001 # must match above!
-etadot.ic.expression.constant.vel = 100000 # must match above!
-etadot.ic.expression.region0 = "0.5*(1 - (tanh((x-vel*t)/eps)**2)*(-vel/eps))" # Derivative by hand
+etadot.ic.expression.constant.vel = -0.004 # must match above!
+etadot.ic.expression.region0 = "0.0" #"0.5*(1 - (tanh((x-vel*t)/eps)**2)*(-vel/eps))" # Derivative by hand
 
 
 
