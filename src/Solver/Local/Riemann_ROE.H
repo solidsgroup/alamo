@@ -22,6 +22,8 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
     ue_l = p_l / (gamma - 1.0);
     h_l = (ke_l + ue_l + p_l) / rho_l;
 
+    //if (rho_l < 0.0) {std::cout << "rho_l is negative" << '\n';};
+
     rho_r = right_state[0];
     vel_r = right_state[1];
     p_r = right_state[3];
@@ -31,6 +33,8 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
     ue_r = p_r / (gamma - 1.0);
     h_r = (ke_r + ue_r + p_r) / rho_r;
 
+    //if (rho_r < 0.0) {std::cout << "rho_r is negative" << '\n';};
+
     // roe averages
     Set::Scalar rho_RL, vel_RL, h_RL, a_RL;
     rho_RL = std::sqrt(rho_l) * std::sqrt(rho_r);
@@ -38,6 +42,8 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
     h_RL = (std::sqrt(rho_r) * h_r + std::sqrt(rho_l) * h_l) / (std::sqrt(rho_l) + std::sqrt(rho_r));
     a_RL = std::sqrt((gamma - 1) * (h_RL - 0.5 * vel_RL * vel_RL));
     eta_RL = (std::sqrt(rho_r) * eta_r + std::sqrt(rho_l) * eta_l) / (std::sqrt(rho_l) + std::sqrt(rho_r));
+
+    //if (vel_l != 0.0) {std::cout << "vel_l is " << vel_l << '\n';};
 
     // eigenvalues
     std::array<Set::Scalar, 4> ev;

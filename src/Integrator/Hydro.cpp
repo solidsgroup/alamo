@@ -196,15 +196,15 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	  
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
-
-	    if (std::isnan(v(i, j, k, 0)) == 1) {std::cout << "u is " << v(i, j, k, 0) << '\n';};
-	    if (std::isnan(v(i, j, k, 1)) == 1) {std::cout << "v is " << v(i, j, k, 1) << '\n';};
+	    
+	    if (v(i, j, k, 0) != 0.0) {std::cout << "u is " << v(i, j, k, 0) << '\n';};
+	    if (v(i, j, k, 0) != 0.0) {std::cout << "v is " << v(i, j, k, 1) << '\n';};
 
             Set::Scalar ke = 0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
 
             p(i, j, k, 0) = (gamma - 1.0) * rho(i, j, k) * (E(i, j, k) / rho(i, j, k) - ke);
 
-	    if (std::isnan(p(i, j, k)) == 1) {std::cout << "pressure is " << p(i, j, k) << '\n';};
+	    //std::cout << "pressure is " << p(i, j, k) << '\n';
 
             // Set::Scalar c = sqrt(gamma * p(i, j, k) / rho(i, j, k));
 
@@ -245,7 +245,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             // slopes in current cell
             Set::Vector drho = Numeric::Gradient(rho, i, j, k, 0, DX);
-            Set::Vector dp = Numeric::Gradient(p, i, j, k, 0, DX);
+            Set::Vector dp = Numeric::Gradient(rho, i, j, k, 0, DX);
             Set::Vector dvx = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector dvy = Numeric::Gradient(v, i, j, k, 0, DX);
 
@@ -267,6 +267,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Vector dvx_ny = Numeric::Gradient(v, i, j - 1, k, 0, DX);
             Set::Vector dvy_ny = Numeric::Gradient(v, i, j - 1, k, 1, DX);
             Set::Vector dp_ny = Numeric::Gradient(p, i, j - 1, k, 0, DX);
+
+	    if (dp[1] != 0.0) {std::cout << "dp is " << dp[1] << '\n';};
 
 	    // left interface: right state
             rho_slope_right = (-v(i, j, k, 0) * drho[0] - dvx[0] * rho(i, j, k)) * dt + (-v(i, j, k, 1) * drho[1] - dvy[1] * rho(i, j, k)) * dt;
@@ -331,6 +333,9 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	      flux_y = Solver::Local::Riemann_ROE(left_statey, right_statey, gamma);
 	      flux_x = Solver::Local::Riemann_ROE(left_statex, right_statex, gamma);
 	    };
+
+	    //std::cout << "flux_x is " << flux_x[0] << '\n';
+	    //std::cout << "flux_y is " << flux_y[0] << '\n';
 
 	    // swap flux_y components 
 	    std::swap(flux_y[2], flux_y[3]);
