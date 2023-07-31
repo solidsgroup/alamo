@@ -90,7 +90,7 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
 
     std::array<Set::Scalar, 4> static_flux_left;
     static_flux_left[0] = 0.;
-    static_flux_left[2] = p_l;
+    static_flux_left[2] = p_r - p_l;
     static_flux_left[3] = 0.;
     static_flux_left[1] = vel_l * (ue_l + p_l);
 
@@ -102,7 +102,7 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
 
     std::array<Set::Scalar, 4> static_flux_right;
     static_flux_right[0] = 0.;
-    static_flux_right[2] = p_l;
+    static_flux_right[2] = p_r - p_l;
     static_flux_right[3] = 0.;
     static_flux_right[1] = vel_r * (ue_r + p_l);
 

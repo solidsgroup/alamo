@@ -97,7 +97,7 @@ void Hydro::Initialize(int lev)
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
         amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-	//amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+        //amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
         amrex::Array4<Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
@@ -110,19 +110,19 @@ void Hydro::Initialize(int lev)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-	  rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k);
-	  rho_new(i, j, k) = rho(i, j, k);
+            rho(i, j, k) = rho_solid * (1.0 - eta(i, j, k)) + rho_fluid * eta(i, j, k);
+            rho_new(i, j, k) = rho(i, j, k);
 
-	  M(i, j, k, 0) = 0.0 * (1.0 - eta(i, j, k)) + Mx_init * eta(i, j, k);
-	  M_new(i, j, k, 0) = M(i, j, k, 0);
-	  ///
-	  M(i, j, k, 1) = 0.0 * (1.0 - eta(i, j, k)) + My_init * eta(i, j, k);
-	  M_new(i, j, k, 1) = M(i, j, k, 1);
-	  
-	  E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k);
-	  E_new(i, j, k) = E(i, j, k);
+            M(i, j, k, 0) = 0.0 * (1.0 - eta(i, j, k)) + Mx_init * eta(i, j, k);
+            M_new(i, j, k, 0) = M(i, j, k, 0);
+            ///
+            M(i, j, k, 1) = 0.0 * (1.0 - eta(i, j, k)) + My_init * eta(i, j, k);
+            M_new(i, j, k, 1) = M(i, j, k, 1);
 
-	  step_count = 0;
+            E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k);
+            E_new(i, j, k) = E(i, j, k);
+
+            step_count = 0;
         });
     }
 
@@ -136,10 +136,10 @@ void Hydro::TimeStepBegin(Set::Scalar time, int)
     BL_PROFILE("Integrator::Hydro::TimeStepBegin");
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        ic_eta->Initialize(lev,eta_mf,time);
-        ic_etadot->Initialize(lev,etadot_mf,time);
+        ic_eta->Initialize(lev, eta_mf, time);
+        ic_etadot->Initialize(lev, etadot_mf, time);
 
-	step_count += 1;
+        step_count += 1;
     }
 }
 
@@ -177,8 +177,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
     {
         const amrex::Box& bx = mfi.growntilebox();
 
-	//amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-	//amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
+        //amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+        //amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
@@ -191,26 +191,26 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-	  //if (std::isnan(eta(i,j,k)) == 1) {std::cout << "eta is " << eta(i,j,k) << '\n';};
-	  //if (std::isnan(etadot(i,j,k)) == 1) {std::cout << "etadot is " << etadot(i,j,k) << '\n';};
-	  
+            //if (std::isnan(eta(i,j,k)) == 1) {std::cout << "eta is " << eta(i,j,k) << '\n';};
+            //if (std::isnan(etadot(i,j,k)) == 1) {std::cout << "etadot is " << etadot(i,j,k) << '\n';};
+
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
-	    
-	    //if (v(i, j, k, 0) != 0.0) {std::cout << "u is " << v(i, j, k, 0) << '\n';};
-	    //if (v(i, j, k, 0) != 0.0) {std::cout << "v is " << v(i, j, k, 1) << '\n';};
+
+            //if (v(i, j, k, 0) != 0.0) {std::cout << "u is " << v(i, j, k, 0) << '\n';};
+            //if (v(i, j, k, 0) != 0.0) {std::cout << "v is " << v(i, j, k, 1) << '\n';};
 
             Set::Scalar ke = 0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
 
             p(i, j, k, 0) = (gamma - 1.0) * rho(i, j, k) * (E(i, j, k) / rho(i, j, k) - ke);
 
-	    //std::cout << "pressure is " << p(i, j, k) << '\n';
+            //std::cout << "pressure is " << p(i, j, k) << '\n';
 
-            // Set::Scalar c = sqrt(gamma * p(i, j, k) / rho(i, j, k));
+                // Set::Scalar c = sqrt(gamma * p(i, j, k) / rho(i, j, k));
 
-            // if (c > c_max) { c_max = c; }
-            // if (v(i, j, k, 0) > vx_max) { vx_max = v(i, j, k, 0); }
-            // if (v(i, j, k, 1) > vy_max) { vy_max = v(i, j, k, 1); }
+                // if (c > c_max) { c_max = c; }
+                // if (v(i, j, k, 0) > vx_max) { vx_max = v(i, j, k, 0); }
+                // if (v(i, j, k, 1) > vy_max) { vy_max = v(i, j, k, 1); }
         });
     }
     Pressure_mf[lev]->FillBoundary();
@@ -246,168 +246,172 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             ///////////////////////////
 
             // slopes in current cell
-            Set::Vector drho = Numeric::Gradient(rho, i, j, k, 0, DX);
-            Set::Vector dp = Numeric::Gradient(p, i, j, k, 0, DX);
-            Set::Vector dvx = Numeric::Gradient(v, i, j, k, 0, DX);
-            Set::Vector dvy = Numeric::Gradient(v, i, j, k, 1, DX);
+            //Set::Vector drho = Numeric::Gradient(rho, i, j, k, 0, DX);
+            //Set::Vector dp = Numeric::Gradient(p, i, j, k, 0, DX);
+            //Set::Vector dvx = Numeric::Gradient(v, i, j, k, 0, DX);
+            //Set::Vector dvy = Numeric::Gradient(v, i, j, k, 1, DX);
 
-	    Util::Message(INFO, "gradient of pressure is " , dp[0] , " " , dp[1] );
+            Set::Scalar drho_xhi = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(rho, i, j, k, 0, DX,Numeric::XHi);
+            Set::Scalar dvx_xhi = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(v, i, j, k, 0, DX,Numeric::XHi);
+            Set::Scalar dvy_xhi = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(v, i, j, k, 1, DX,Numeric::XHi);
+            Set::Scalar dp_xhi = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(p, i, j, k, 0, DX,Numeric::XHi);
 
-	    Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
+            Set::Scalar drho_yhi = Numeric::Stencil<Set::Scalar,0,1,0>::D(rho, i, j, k, 0, DX,Numeric::YHi);
+            Set::Scalar dvx_yhi  = Numeric::Stencil<Set::Scalar,0,1,0>::D(v, i, j, k, 0, DX,Numeric::YHi);
+            Set::Scalar dvy_yhi  = Numeric::Stencil<Set::Scalar,0,1,0>::D(v, i, j, k, 1, DX,Numeric::YHi);
+            Set::Scalar dp_yhi   = Numeric::Stencil<Set::Scalar,0,1,0>::D(p, i, j, k, 0, DX,Numeric::YHi);
+
+            //Util::Message(INFO, "gradient of pressure is ", dp_xhi, " ", dp_yhi);
+
+            Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
             Set::Scalar rho_rightx, vx_rightx, vy_rightx, p_rightx;
-	    Set::Scalar rho_righty, vx_righty, vy_righty, p_righty;
+            Set::Scalar rho_righty, vx_righty, vy_righty, p_righty;
             Set::Scalar rho_slope_leftx, vx_slope_leftx, vy_slope_leftx, p_slope_leftx;
-	    Set::Scalar rho_slope_lefty, vx_slope_lefty, vy_slope_lefty, p_slope_lefty;
+            Set::Scalar rho_slope_lefty, vx_slope_lefty, vy_slope_lefty, p_slope_lefty;
             Set::Scalar rho_leftx, vx_leftx, vy_leftx, p_leftx;
-	    Set::Scalar rho_lefty, vx_lefty, vy_lefty, p_lefty;
+            Set::Scalar rho_lefty, vx_lefty, vy_lefty, p_lefty;
             std::array<Set::Scalar, 4> flux_x, flux_y;
 
-	    Set::Vector drho_nx = Numeric::Gradient(rho, i - 1, j, k, 0, DX);
-            Set::Vector dvx_nx = Numeric::Gradient(v, i - 1, j, k, 0, DX);
-            Set::Vector dvy_nx = Numeric::Gradient(v, i - 1, j, k, 1, DX);
-            Set::Vector dp_nx = Numeric::Gradient(p, i - 1, j, k, 0, DX);
+            Set::Scalar drho_xlo = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(rho, i - 1, j, k, 0, DX,Numeric::XLo);
+            Set::Scalar dvx_xlo = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(v, i - 1, j, k, 0, DX,Numeric::XLo);
+            Set::Scalar dvy_xlo = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(v, i - 1, j, k, 1, DX,Numeric::XLo);
+            Set::Scalar dp_xlo = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(p, i - 1, j, k, 0, DX,Numeric::XLo);
 
-	    //Util::Message(INFO, "dp in (i-1,j) is " , dp_nx[0] , " " , dp_nx[1] );
+            //Util::Message(INFO, "dp in (i-1,j) is " , dp_xlo[0] , " " , dp_xlo[1] );
 
-	    Set::Vector drho_ny = Numeric::Gradient(rho, i, j - 1, k, 0, DX);
-            Set::Vector dvx_ny = Numeric::Gradient(v, i, j - 1, k, 0, DX);
-            Set::Vector dvy_ny = Numeric::Gradient(v, i, j - 1, k, 1, DX);
-            Set::Vector dp_ny = Numeric::Gradient(p, i, j - 1, k, 0, DX);
+            Set::Scalar drho_ylo = Numeric::Stencil<Set::Scalar,0,1,0>::D(rho, i, j - 1, k, 0, DX,Numeric::YLo);
+            Set::Scalar dvx_ylo  = Numeric::Stencil<Set::Scalar,0,1,0>::D(v, i, j - 1, k, 0, DX,Numeric::YLo);
+            Set::Scalar dvy_ylo  = Numeric::Stencil<Set::Scalar,0,1,0>::D(v, i, j - 1, k, 1, DX,Numeric::YLo);
+            Set::Scalar dp_ylo   = Numeric::Stencil<Set::Scalar,0,1,0>::D(p, i, j - 1, k, 0, DX,Numeric::YLo);
 
-	    //Util::Message(INFO, "dp in (i,j-1) is " , dp_ny[0] , " " , dp_ny[1] );
-	    
-	    // left interface: right state
-            rho_slope_right = (-v(i, j, k, 0) * drho[0] - dvx[0] * rho(i, j, k)) * dt + (-v(i, j, k, 1) * drho[1] - dvy[1] * rho(i, j, k)) * dt;
-            vx_slope_right = (-v(i, j, k, 0) * dvx[0] - dp[0] / rho(i, j, k)) * dt + (-v(i, j, k, 1) * dvy[1]) * dt / DX[1];
-            vy_slope_right = (-v(i, j, k, 0) * dvy[0]) * dt + (-v(i, j, k, 1) * dvy[1] - dp[1] / rho(i, j, k)) * dt;
-            p_slope_right = (-v(i, j, k, 0) * dp[0] - dvx[0] * gamma * p(i, j, k)) * dt + (-v(i, j, k, 1) * dp[1] - dvy[1] * gamma * p(i, j, k)) * dt;
+            //Util::Message(INFO, "dp in (i,j-1) is " , dp_ylo[0] , " " , dp_ylo[1] );
 
-	    // left interface: left state --x
-            rho_slope_leftx = (-v(i - 1, j, k, 0) * drho[0] - dvx[0] * rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * drho[1] - dvy[1] * rho(i - 1, j, k)) * dt;
-            vx_slope_leftx = (-v(i - 1, j, k, 0) * dvx[0] - dp[0] / rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dvy[1]) * dt;
-            vy_slope_leftx = (-v(i - 1, j, k, 0) * dvy[0]) * dt + (-v(i - 1, j, k, 1) * dvy[1] - dp[1] / rho(i - 1, j, k)) * dt;
-            p_slope_leftx = (-v(i - 1, j, k, 0) * dp[0] - dvx[0] * gamma * p(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dp[1] - dvy[1] * gamma * p(i - 1, j, k)) * dt;
+            // left interface: right state
+            rho_slope_right = (-v(i, j, k, 0) * drho_xhi - dvx_xhi * rho(i, j, k)) * dt + (-v(i, j, k, 1) * drho_yhi - dvy_yhi * rho(i, j, k)) * dt;
+            vx_slope_right = (-v(i, j, k, 0) * dvx_xhi - dp_xhi / rho(i, j, k)) * dt + (-v(i, j, k, 1) * dvy_yhi) * dt / DX[1];
+            vy_slope_right = (-v(i, j, k, 0) * dvy_xhi) * dt + (-v(i, j, k, 1) * dvy_yhi - dp_yhi / rho(i, j, k)) * dt;
+            p_slope_right = (-v(i, j, k, 0) * dp_xhi - dvx_xhi * gamma * p(i, j, k)) * dt + (-v(i, j, k, 1) * dp_yhi - dvy_yhi * gamma * p(i, j, k)) * dt;
 
-            rho_leftx = rho(i - 1, j, k) + 0.5 * rho_slope_leftx + drho_nx[0] * DX[0];
-            vx_leftx = v(i - 1, j, k, 0) + 0.5 * vx_slope_leftx + dvx_nx[0] * DX[0];
-            vy_leftx = v(i - 1, j, k, 1) + 0.5 * vy_slope_leftx + dvy_nx[0] * DX[0];
-            p_leftx = p(i - 1, j, k) + 0.5 * p_slope_leftx + dp_nx[0] * DX[0];
+            // left interface: left state --x
+            rho_slope_leftx = (-v(i - 1, j, k, 0) * drho_xhi - dvx_xhi * rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * drho_yhi - dvy_yhi * rho(i - 1, j, k)) * dt;
+            vx_slope_leftx = (-v(i - 1, j, k, 0) * dvx_xhi - dp_xhi / rho(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dvy_yhi) * dt;
+            vy_slope_leftx = (-v(i - 1, j, k, 0) * dvy_xhi) * dt + (-v(i - 1, j, k, 1) * dvy_yhi - dp_yhi / rho(i - 1, j, k)) * dt;
+            p_slope_leftx = (-v(i - 1, j, k, 0) * dp_xhi - dvx_xhi * gamma * p(i - 1, j, k)) * dt + (-v(i - 1, j, k, 1) * dp_xhi - dvy_yhi * gamma * p(i - 1, j, k)) * dt;
 
-	    // left interface: left state --y
-            rho_slope_lefty = (-v(i, j - 1, k, 0) * drho[0] - dvx[0] * rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * drho[1] - dvy[1] * rho(i, j - 1, k)) * dt;
-            vx_slope_lefty = (-v(i, j - 1, k, 0) * dvx[0] - dp[0] / rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dvy[1]) * dt;
-            vy_slope_lefty = (-v(i, j - 1, k, 0) * dvy[0]) * dt + (-v(i, j - 1, k, 1) * dvy[1] - dp[1] / rho(i, j - 1, k)) * dt;
-            p_slope_lefty = (-v(i, j - 1, k, 0) * dp[0] - dvx[0] * gamma * p(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dp[1] - dvy[1] * gamma * p(i, j - 1, k)) * dt;
+            rho_leftx = rho(i - 1, j, k) + 0.5 * rho_slope_leftx + drho_xlo * DX[0];
+            vx_leftx = v(i - 1, j, k, 0) + 0.5 * vx_slope_leftx + dvx_xlo * DX[0];
+            vy_leftx = v(i - 1, j, k, 1) + 0.5 * vy_slope_leftx + dvy_xlo * DX[0];
+            p_leftx = p(i - 1, j, k) + 0.5 * p_slope_leftx + dp_xlo * DX[0];
 
-            rho_lefty = rho(i, j - 1, k) + 0.5 * rho_slope_lefty + drho_ny[1] * DX[1];
-            vx_lefty = v(i, j - 1, k, 0) + 0.5 * vx_slope_lefty + dvx_ny[1] * DX[1];
-            vy_lefty = v(i, j - 1, k, 1) + 0.5 * vy_slope_lefty + dvy_ny[1] * DX[1];
-            p_lefty = p(i, j - 1, k) + 0.5 * p_slope_lefty + dp_ny[1] * DX[1];
+            // left interface: left state --y
+            rho_slope_lefty = (-v(i, j - 1, k, 0) * drho_xhi - dvx_xhi * rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * drho_yhi - dvy_yhi * rho(i, j - 1, k)) * dt;
+            vx_slope_lefty = (-v(i, j - 1, k, 0) * dvx_xhi - dp_xhi / rho(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dvy_yhi) * dt;
+            vy_slope_lefty = (-v(i, j - 1, k, 0) * dvy_xhi) * dt + (-v(i, j - 1, k, 1) * dvy_yhi - dp_yhi / rho(i, j - 1, k)) * dt;
+            p_slope_lefty = (-v(i, j - 1, k, 0) * dp_xhi - dvx_xhi * gamma * p(i, j - 1, k)) * dt + (-v(i, j - 1, k, 1) * dp_yhi - dvy_yhi * gamma * p(i, j - 1, k)) * dt;
+
+            rho_lefty = rho(i, j - 1, k) + 0.5 * rho_slope_lefty + drho_ylo * DX[1];
+            vx_lefty = v(i, j - 1, k, 0) + 0.5 * vx_slope_lefty + dvx_ylo * DX[1];
+            vy_lefty = v(i, j - 1, k, 1) + 0.5 * vy_slope_lefty + dvy_ylo * DX[1];
+            p_lefty = p(i, j - 1, k) + 0.5 * p_slope_lefty + dp_ylo * DX[1];
 
             // compute reconstructed states at left interface in current cell
 
-            rho_rightx = rho(i, j, k) + 0.5 * rho_slope_right - drho[0] * DX[0];
-            vx_rightx = v(i, j, k, 0) + 0.5 * vx_slope_right - dvx[0] * DX[0];
-            vy_rightx = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy[0] * DX[0];
-            p_rightx = p(i, j, k) + 0.5 * p_slope_right - dp[0] * DX[0];
+            rho_rightx = rho(i, j, k) + 0.5 * rho_slope_right - drho_xhi * DX[0];
+            vx_rightx = v(i, j, k, 0) + 0.5 * vx_slope_right - dvx_xhi * DX[0];
+            vy_rightx = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy_xhi * DX[0];
+            p_rightx = p(i, j, k) + 0.5 * p_slope_right - dp_xhi * DX[0];
 
-            rho_righty = rho(i, j, k) + 0.5 * rho_slope_right - drho[1] * DX[1];
-            vx_righty = v(i, j, k, 0) + 0.5 * vx_slope_right - dvx[1] * DX[1];
-            vy_righty = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy[1] * DX[1];
-            p_righty = p(i, j, k) + 0.5 * p_slope_right - dp[1] * DX[1];
+            rho_righty = rho(i, j, k) + 0.5 * rho_slope_right - drho_yhi * DX[1];
+            vx_righty = v(i, j, k, 0) + 0.5 * vx_slope_right - dvx_yhi * DX[1];
+            vy_righty = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy_yhi * DX[1];
+            p_righty = p(i, j, k) + 0.5 * p_slope_right - dp_yhi * DX[1];
 
-	    // if (rho_slope_right != 0.0) {std::cout << "nonzero density slope" << '\n';};
-	    // if (rho_slope_leftx != 0.0) {std::cout << "nonzero density slope" << '\n';};
-	    // if (rho_slope_lefty != 0.0) {std::cout << "nonzero density slope" << '\n';};
+            // if (rho_slope_right != 0.0) {std::cout << "nonzero density slope" << '\n';};
+            // if (rho_slope_leftx != 0.0) {std::cout << "nonzero density slope" << '\n';};
+            // if (rho_slope_lefty != 0.0) {std::cout << "nonzero density slope" << '\n';};
 
-	    // if (vx_slope_right != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
-	    // if (vx_slope_leftx != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
-	    // if (vx_slope_lefty != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+            // if (vx_slope_right != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+            // if (vx_slope_leftx != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+            // if (vx_slope_lefty != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
 
-	    // if (vy_slope_right != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
-	    // if (vy_slope_leftx != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
-	    // if (vy_slope_lefty != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+            // if (vy_slope_right != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+            // if (vy_slope_leftx != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+            // if (vy_slope_lefty != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
 
-	    //left and right states in x
+            //left and right states in x
 
-            double left_statex[5] = { rho_leftx, vx_leftx, vy_leftx, p_leftx, eta(i - 1, j, k) };
-            double right_statex[5] = { rho_rightx, vx_rightx, vy_rightx, p_rightx, eta(i, j, k) };
+            double lo_statex[5] = { rho_leftx, vx_leftx, vy_leftx, p_leftx, eta(i - 1, j, k) };
+            double hi_statex[5] = { rho_rightx, vx_rightx, vy_rightx, p_rightx, eta(i, j, k) };
 
-	    //left and right states in y
-	    
-	    std::swap(vx_lefty, vy_lefty); // x, y permutations -> y direction flux is computed
-	    std::swap(vx_righty, vy_righty); // x, y permutations -> y direction flux is computed
+            //left and right states in y
 
-	    double left_statey[5] = { rho_lefty, vx_lefty, vy_lefty, p_lefty, eta(i, j - 1, k) };
-            double right_statey[5] = { rho_righty, vx_righty, vy_righty, p_righty, eta(i, j, k) };
+            //std::swap(vx_lefty, vy_lefty); // x, y permutations -> y direction flux is computed
+            //std::swap(vx_righty, vy_righty); // x, y permutations -> y direction flux is computed
 
-	    //std::cout << "x left state is " << left_statex[3] << "," << left_statex[4] << '\n';
-	    //std::cout << "x right state is " << right_statex[3] << "," << right_statex[4] << '\n';
-	    //std::cout << "y left state is " << left_statey[3] << "," << left_statey[4] << '\n';
-	    //std::cout << "y right state is " << right_statey[3] << "," << right_statey[4] << '\n';
+            double lo_statey[5] = { rho_lefty, vy_lefty, vx_lefty, p_lefty, eta(i, j - 1, k) };
+            double hi_statey[5] = { rho_righty, vy_righty, vx_righty, p_righty, eta(i, j, k) };
 
-	    // call riemann solver and strang splitting
+            //std::cout << "x left state is " << left_statex[3] << "," << left_statex[4] << '\n';
+            //std::cout << "x right state is " << right_statex[3] << "," << right_statex[4] << '\n';
+            //std::cout << "y left state is " << left_statey[3] << "," << left_statey[4] << '\n';
+            //std::cout << "y right state is " << right_statey[3] << "," << right_statey[4] << '\n';
 
-	    if (step_count % 2 != 0) {
-	      flux_x = Solver::Local::Riemann_ROE(left_statex, right_statex, gamma);
-	      flux_y = Solver::Local::Riemann_ROE(left_statey, right_statey, gamma);
-	    }
-	    else {
-	      flux_y = Solver::Local::Riemann_ROE(left_statey, right_statey, gamma);
-	      flux_x = Solver::Local::Riemann_ROE(left_statex, right_statex, gamma);
-	    };
+            // call riemann solver and strang splitting
 
-	    //std::cout << "flux_x is " << flux_x[0] << "," << flux_x[1] << "," << flux_x[2] << "," << flux_x[3] << '\n';
-	    //std::cout << "flux_y is " << flux_y[0] << "," << flux_x[1] << "," << flux_x[2] << "," << flux_x[3] << '\n';
+            flux_x = Solver::Local::Riemann_ROE(lo_statex, hi_statex, gamma);
+            flux_y = Solver::Local::Riemann_ROE(lo_statey, hi_statey, gamma);
 
-	    // swap flux_y components 
-	    std::swap(flux_y[2], flux_y[3]);
+            //std::cout << "flux_x is " << flux_x[0] << "," << flux_x[1] << "," << flux_x[2] << "," << flux_x[3] << '\n';
+            //std::cout << "flux_y is " << flux_y[0] << "," << flux_x[1] << "," << flux_x[2] << "," << flux_x[3] << '\n';
 
-            //Godunov fluxes
-            E_new(i - 1, j, k) = E(i - 1, j, k) - flux_x[1] * dt / DX[0];
+            // swap flux_y components 
+    //	    std::swap(flux_y[2], flux_y[3]);
+
+                //Godunov fluxes
+            E_new(i - 1, j, k) -= flux_x[1] * dt / DX[0];
             E_new(i, j, k) = E(i, j, k) + flux_x[1] * dt / DX[0];
-            E_new(i, j - 1, k) = E(i, j - 1, k) - flux_y[1] * dt / DX[1];
+            E_new(i, j - 1, k) -= flux_y[1] * dt / DX[1];
             E_new(i, j, k) = E(i, j, k) + flux_y[1] * dt / DX[1];
 
-            rho_new(i - 1, j, k) = rho(i - 1, j, k) - flux_x[0] * dt / DX[0];
+            rho_new(i - 1, j, k) -= flux_x[0] * dt / DX[0];
             rho_new(i, j, k) = rho(i, j, k) + flux_x[0] * dt / DX[0];
-            rho_new(i, j - 1, k) = rho(i, j - 1, k) - flux_y[0] * dt / DX[1];
+            rho_new(i, j - 1, k) -= flux_y[0] * dt / DX[1];
             rho_new(i, j, k) = rho(i, j, k) + flux_y[0] * dt / DX[1];
 
-            M_new(i - 1, j, k, 0) = M(i - 1, j, k, 0) - flux_x[2] * dt / DX[0];
-            M_new(i, j, k, 0) = M(i, j, k, 0) + flux_x[2] * dt / DX[0];
-            M_new(i, j - 1, k, 0) = M(i, j - 1, k, 0) - flux_y[2] * dt / DX[1];
-            M_new(i, j, k, 0) = M(i, j, k, 0) + flux_y[2] * dt / DX[1];
+            M_new(i - 1, j, k, 0) -=                 flux_x[2] * dt / DX[0];
+            M_new(i, j,     k, 0)  = M(i, j, k, 0) + flux_x[2] * dt / DX[0];
+            M_new(i, j - 1, k, 0) -=                 flux_y[3] * dt / DX[1];
+            M_new(i, j,     k, 0)  = M(i, j, k, 0) + flux_y[3] * dt / DX[1];
 
-            M_new(i - 1, j, k, 1) = M(i - 1, j, k, 1) - flux_x[3] * dt / DX[0];
-            M_new(i, j, k, 1) = M(i, j, k, 1) + flux_x[3] * dt / DX[0];
-            M_new(i, j - 1, k, 1) = M(i, j - 1, k, 1) - flux_y[3] * dt / DX[1];
-            M_new(i, j, k, 1) = M(i, j, k, 1) + flux_y[3] * dt / DX[1];
+            M_new(i - 1, j, k, 1) -=                 flux_x[3] * dt / DX[0];
+            M_new(i, j,     k, 1)  = M(i, j, k, 1) + flux_x[3] * dt / DX[0];
+            M_new(i, j - 1, k, 1) -=                 flux_y[2] * dt / DX[1];
+            M_new(i, j,     k, 1)  = M(i, j, k, 1) + flux_y[2] * dt / DX[1];
 
-	    //if (std::isnan(rho_new(i, j, k)) == 1) {std::cout << "density is " << rho_new(i, j, k) << '\n';};
+            //if (std::isnan(rho_new(i, j, k)) == 1) {std::cout << "density is " << rho_new(i, j, k) << '\n';};
 
-            ///////////////////////////
-            //////DIFFUSE SOURCES//////
-            ///////////////////////////
+                ///////////////////////////
+                //////DIFFUSE SOURCES//////
+                ///////////////////////////
 
             std::array<Set::Scalar, 3> source;
             source[0] = mdot * grad_eta_mag;
-	    source[1] = Pdot_x * grad_eta_mag;
-	    source[2] = Pdot_y * grad_eta_mag;
-	    source[3] = Qdot * grad_eta_mag;
+            source[1] = Pdot_x * grad_eta_mag;
+            source[2] = Pdot_y * grad_eta_mag;
+            source[3] = Qdot * grad_eta_mag;
 
-	    //if (std::isnan(etadot(i, j, k)) == 1) {std::cout << "etadot is " << etadot(i, j, k) << '\n';};
+            //if (std::isnan(etadot(i, j, k)) == 1) {std::cout << "etadot is " << etadot(i, j, k) << '\n';};
 
-	    E_new(i, j, k) += source[3] + E(i, j, k) * etadot(i, j, k);
+            E_new(i, j, k) += source[3] + E(i, j, k) * etadot(i, j, k);
             rho_new(i, j, k) += source[0] + rho(i, j, k) * etadot(i, j, k);
             M_new(i, j, k, 0) += source[1] + M(i, j, k, 0) * etadot(i, j, k);
             M_new(i, j, k, 1) += source[2] + M(i, j, k, 1) * etadot(i, j, k);
 
             //Advance total fields
-            // rho_new(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho_new(i, j, k) * eta(i, j, k);
-            // M_new(i, j, k, 0) = 0.0 * (1 - eta(i, j, k)) + M_new(i, j, k, 0) * eta(i, j, k);
-            // M_new(i, j, k, 1) = 0.0 * (1 - eta(i, j, k)) + M_new(i, j, k, 1) * eta(i, j, k);
-            // E_new(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_new(i, j, k) * eta(i, j, k);
+             rho_new(i, j, k) = rho_solid * (1 - eta(i, j, k)) + rho_new(i, j, k) * eta(i, j, k);
+             M_new(i, j, k, 0) = 0.0 * (1 - eta(i, j, k)) + M_new(i, j, k, 0) * eta(i, j, k);
+             M_new(i, j, k, 1) = 0.0 * (1 - eta(i, j, k)) + M_new(i, j, k, 1) * eta(i, j, k);
+             E_new(i, j, k) = E_solid * (1 - eta(i, j, k)) + E_new(i, j, k) * eta(i, j, k);
 
         });
     }

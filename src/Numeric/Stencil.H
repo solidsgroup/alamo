@@ -10,8 +10,26 @@ namespace Numeric
 {
 
 enum StencilType { Lo, Hi, Central };
+
 static std::array<StencilType, AMREX_SPACEDIM>
 DefaultType = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XLo         = { AMREX_D_DECL(StencilType::Lo,      StencilType::Central, StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+XHi         = { AMREX_D_DECL(StencilType::Hi,      StencilType::Central, StencilType::Central) };
+#if AMREX_SPACEDIM>1
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Lo,      StencilType::Central) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+YHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Hi,      StencilType::Central) };
+#endif
+#if AMREX_SPACEDIM>2
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZLo         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Lo     ) };
+[[maybe_unused]] static std::array<StencilType, AMREX_SPACEDIM>
+ZHi         = { AMREX_D_DECL(StencilType::Central, StencilType::Central, StencilType::Hi     ) };
+#endif
+
 
 static
 AMREX_FORCE_INLINE
@@ -505,8 +523,8 @@ CenterSlope(const amrex::Array4<const Set::Scalar>& f,
     if (i > 2 && j > 2 && k > 2) {
         if (dir == 0) ret = Numeric::Stencil<Set::Scalar, 1, 0, 0>::D(f, i, j, k, m, dx);
         else ret = Numeric::Stencil<Set::Scalar, 0, 1, 0>::D(f, i, j, k, m, dx);
-        return ret;    
-}
+        return ret;
+    }
     else {
         return 0;
     };
