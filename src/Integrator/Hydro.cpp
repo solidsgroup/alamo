@@ -191,14 +191,14 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
-	  if (std::isnan(eta(i,j,k)) == 1) {std::cout << "eta is " << eta(i,j,k) << '\n';};
-	  if (std::isnan(etadot(i,j,k)) == 1) {std::cout << "etadot is " << etadot(i,j,k) << '\n';};
+	  //if (std::isnan(eta(i,j,k)) == 1) {std::cout << "eta is " << eta(i,j,k) << '\n';};
+	  //if (std::isnan(etadot(i,j,k)) == 1) {std::cout << "etadot is " << etadot(i,j,k) << '\n';};
 	  
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = M(i, j, k, 1) / rho(i, j, k);
 	    
-	    if (v(i, j, k, 0) != 0.0) {std::cout << "u is " << v(i, j, k, 0) << '\n';};
-	    if (v(i, j, k, 0) != 0.0) {std::cout << "v is " << v(i, j, k, 1) << '\n';};
+	    //if (v(i, j, k, 0) != 0.0) {std::cout << "u is " << v(i, j, k, 0) << '\n';};
+	    //if (v(i, j, k, 0) != 0.0) {std::cout << "v is " << v(i, j, k, 1) << '\n';};
 
             Set::Scalar ke = 0.5 * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
 
@@ -249,6 +249,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Vector dvx = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector dvy = Numeric::Gradient(v, i, j, k, 0, DX);
 
+	    std::cout << "gradient of pressure is " << dp[0] << " " << dp[1] << '\n';
+
 	    Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
             Set::Scalar rho_rightx, vx_rightx, vy_rightx, p_rightx;
 	    Set::Scalar rho_righty, vx_righty, vy_righty, p_righty;
@@ -263,13 +265,15 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Vector dvy_nx = Numeric::Gradient(v, i - 1, j, k, 1, DX);
             Set::Vector dp_nx = Numeric::Gradient(p, i - 1, j, k, 0, DX);
 
+	    std::cout << "dp in (i-1,j) is " << dp_nx[0] << " " << dp_nx[1] << '\n';
+
 	    Set::Vector drho_ny = Numeric::Gradient(rho, i, j - 1, k, 0, DX);
             Set::Vector dvx_ny = Numeric::Gradient(v, i, j - 1, k, 0, DX);
             Set::Vector dvy_ny = Numeric::Gradient(v, i, j - 1, k, 1, DX);
             Set::Vector dp_ny = Numeric::Gradient(p, i, j - 1, k, 0, DX);
 
-	    if (dp[1] != 0.0) {std::cout << "dp is " << dp[1] << '\n';};
-
+	    std::cout << "dp in (i,j-1) is " << dp_ny[0] << " " << dp_ny[1] << '\n';
+	    
 	    // left interface: right state
             rho_slope_right = (-v(i, j, k, 0) * drho[0] - dvx[0] * rho(i, j, k)) * dt + (-v(i, j, k, 1) * drho[1] - dvy[1] * rho(i, j, k)) * dt;
             vx_slope_right = (-v(i, j, k, 0) * dvx[0] - dp[0] / rho(i, j, k)) * dt + (-v(i, j, k, 1) * dvy[1]) * dt / DX[1];
@@ -310,6 +314,18 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             vy_righty = v(i, j, k, 1) + 0.5 * vy_slope_right - dvy[1] * DX[1];
             p_righty = p(i, j, k) + 0.5 * p_slope_right - dp[1] * DX[1];
 
+	    // if (rho_slope_right != 0.0) {std::cout << "nonzero density slope" << '\n';};
+	    // if (rho_slope_leftx != 0.0) {std::cout << "nonzero density slope" << '\n';};
+	    // if (rho_slope_lefty != 0.0) {std::cout << "nonzero density slope" << '\n';};
+
+	    // if (vx_slope_right != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+	    // if (vx_slope_leftx != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+	    // if (vx_slope_lefty != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+
+	    // if (vy_slope_right != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+	    // if (vy_slope_leftx != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+	    // if (vy_slope_lefty != 0.0) {std::cout << "nonzero velocity slope" << '\n';};
+
 	    //left and right states in x
 
             double left_statex[5] = { rho_leftx, vx_leftx, vy_leftx, p_leftx, eta(i - 1, j, k) };
@@ -323,6 +339,11 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	    double left_statey[5] = { rho_lefty, vx_lefty, vy_lefty, p_lefty, eta(i, j - 1, k) };
             double right_statey[5] = { rho_righty, vx_righty, vy_righty, p_righty, eta(i, j, k) };
 
+	    //std::cout << "x left state is " << left_statex[3] << "," << left_statex[4] << '\n';
+	    //std::cout << "x right state is " << right_statex[3] << "," << right_statex[4] << '\n';
+	    //std::cout << "y left state is " << left_statey[3] << "," << left_statey[4] << '\n';
+	    //std::cout << "y right state is " << right_statey[3] << "," << right_statey[4] << '\n';
+
 	    // call riemann solver and strang splitting
 
 	    if (step_count % 2 != 0) {
@@ -334,8 +355,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	      flux_x = Solver::Local::Riemann_ROE(left_statex, right_statex, gamma);
 	    };
 
-	    //std::cout << "flux_x is " << flux_x[0] << '\n';
-	    //std::cout << "flux_y is " << flux_y[0] << '\n';
+	    //std::cout << "flux_x is " << flux_x[0] << "," << flux_x[1] << "," << flux_x[2] << "," << flux_x[3] << '\n';
+	    //std::cout << "flux_y is " << flux_y[0] << "," << flux_x[1] << "," << flux_x[2] << "," << flux_x[3] << '\n';
 
 	    // swap flux_y components 
 	    std::swap(flux_y[2], flux_y[3]);
@@ -373,7 +394,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 	    source[2] = Pdot_y * grad_eta_mag;
 	    source[3] = Qdot * grad_eta_mag;
 
-	    if (std::isnan(etadot(i, j, k)) == 1) {std::cout << "etadot is " << etadot(i, j, k) << '\n';};
+	    //if (std::isnan(etadot(i, j, k)) == 1) {std::cout << "etadot is " << etadot(i, j, k) << '\n';};
 
 	    E_new(i, j, k) += source[3] + E(i, j, k) * etadot(i, j, k);
             rho_new(i, j, k) += source[0] + rho(i, j, k) * etadot(i, j, k);

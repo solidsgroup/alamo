@@ -18,7 +18,7 @@ amr.grid_eff = 0.8
 #amr.refinement_restriction = 0.1
 #amr.n_cell = 1600 200 0
 #amr.n_cell = 800 800 200
-amr.n_cell = 400 100 0
+amr.n_cell = 16 4 0
 
 ### DIMENSIONS ###
 
@@ -31,7 +31,7 @@ geometry.is_periodic = 0 0 0
 
 timestep = 1.0e-8
 stop_time = 1.0e-8
-small = 1.0e-5
+#small = 1.0e-5
 
 ### ETA IC ###
 
@@ -86,8 +86,8 @@ cfl = 0.4
 
 rho_solid = 1500 #kg/m^3
 rho_fluid = 10 #kg/m^3
-E_solid = 75000000
-E_fluid = 75000000
+E_solid = 7500000
+E_fluid = 7500000
 Mx_init = 0.0
 My_init = 0.0
 
