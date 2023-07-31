@@ -173,9 +173,9 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
     const Set::Scalar* DX = geom[lev].CellSize();
 
-    for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
+    for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
-        const amrex::Box& bx = mfi.validbox();
+        const amrex::Box& bx = mfi.growntilebox();
 
 	amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
 	amrex::Array4<const Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
@@ -213,6 +213,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             // if (v(i, j, k, 1) > vy_max) { vy_max = v(i, j, k, 1); }
         });
     }
+    Pressure_mf[lev]->FillBoundary();
+    Velocity_mf[lev]->FillBoundary();
 
     for (amrex::MFIter mfi(*eta_mf[lev], false); mfi.isValid(); ++mfi)
     {
@@ -245,11 +247,11 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             // slopes in current cell
             Set::Vector drho = Numeric::Gradient(rho, i, j, k, 0, DX);
-            Set::Vector dp = Numeric::Gradient(rho, i, j, k, 0, DX);
+            Set::Vector dp = Numeric::Gradient(p, i, j, k, 0, DX);
             Set::Vector dvx = Numeric::Gradient(v, i, j, k, 0, DX);
             Set::Vector dvy = Numeric::Gradient(v, i, j, k, 0, DX);
 
-	    std::cout << "gradient of pressure is " << dp[0] << " " << dp[1] << '\n';
+	    Util::Message(INFO, "gradient of pressure is " , dp[0] , " " , dp[1] );
 
 	    Set::Scalar rho_slope_right, vx_slope_right, vy_slope_right, p_slope_right;
             Set::Scalar rho_rightx, vx_rightx, vy_rightx, p_rightx;
@@ -265,14 +267,14 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Vector dvy_nx = Numeric::Gradient(v, i - 1, j, k, 1, DX);
             Set::Vector dp_nx = Numeric::Gradient(p, i - 1, j, k, 0, DX);
 
-	    std::cout << "dp in (i-1,j) is " << dp_nx[0] << " " << dp_nx[1] << '\n';
+	    Util::Message(INFO, "dp in (i-1,j) is " , dp_nx[0] , " " , dp_nx[1] );
 
 	    Set::Vector drho_ny = Numeric::Gradient(rho, i, j - 1, k, 0, DX);
             Set::Vector dvx_ny = Numeric::Gradient(v, i, j - 1, k, 0, DX);
             Set::Vector dvy_ny = Numeric::Gradient(v, i, j - 1, k, 1, DX);
             Set::Vector dp_ny = Numeric::Gradient(p, i, j - 1, k, 0, DX);
 
-	    std::cout << "dp in (i,j-1) is " << dp_ny[0] << " " << dp_ny[1] << '\n';
+	    Util::Message(INFO, "dp in (i,j-1) is " , dp_ny[0] , " " , dp_ny[1] );
 	    
 	    // left interface: right state
             rho_slope_right = (-v(i, j, k, 0) * drho[0] - dvx[0] * rho(i, j, k)) * dt + (-v(i, j, k, 1) * drho[1] - dvy[1] * rho(i, j, k)) * dt;
