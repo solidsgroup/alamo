@@ -90,7 +90,11 @@ inline std::string Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Nam
     if (i == 4) return name + "_F0yx";
     if (i == 5) return name + "_F0yy";
 #elif AMREX_SPACEDIM==3
-    Util::Abort(INFO, "Not implemented yet");
+    //Util::Abort(INFO, "Not implemented yet");
+    if (i == 2) return name + "_F0xx";
+    if (i == 3) return name + "_F0xy";
+    if (i == 4) return name + "_F0yx";
+    if (i == 5) return name + "_F0yy";
 #endif
     return name;
 }
@@ -115,7 +119,11 @@ inline void Set::Field<Model::Solid::Elastic::NeoHookeanPredeformed>::Copy(int a
                 dst(i, j, k, a_dstcomp + 4) = src(i, j, k).F0(1, 0);
                 dst(i, j, k, a_dstcomp + 5) = src(i, j, k).F0(1, 1);
 #elif AMREX_SPACEDIM==3
-                Util::Abort(INFO, "Not implemented");
+                dst(i, j, k, a_dstcomp + 2) = src(i, j, k).F0(0, 0);
+                dst(i, j, k, a_dstcomp + 3) = src(i, j, k).F0(0, 1);
+                dst(i, j, k, a_dstcomp + 4) = src(i, j, k).F0(1, 0);
+                dst(i, j, k, a_dstcomp + 5) = src(i, j, k).F0(1, 1);
+                //Util::Abort(INFO, "Not implemented");
 #endif
 
                 //dst(i, j, k, a_dstcomp + 0) = src(i, j, k).ddw(0, 0, 0, 0);
