@@ -8,7 +8,7 @@ namespace Solver
 namespace Local
 {
 /// Roe Riemann Solver based on Gas Dynamics - Culbert B. Laney
-std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], Set::Scalar gamma) {
+  std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], Set::Scalar eta, Set::Scalar gamma) {
     Set::Scalar rho_l, vel_l, p_l, ke_l, ue_l, h_l;
     Set::Scalar rho_r, vel_r, p_r, ke_r, ue_r, h_r;
     Set::Scalar eta_r, eta_l, eta_RL;
@@ -43,8 +43,6 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
     a_RL = std::sqrt((gamma - 1) * (h_RL - 0.5 * vel_RL * vel_RL));
     eta_RL = (std::sqrt(rho_r) * eta_r + std::sqrt(rho_l) * eta_l) / (std::sqrt(rho_l) + std::sqrt(rho_r));
 
-    //if (vel_l != 0.0) {std::cout << "vel_l is " << vel_l << '\n';};
-
     // eigenvalues
     std::array<Set::Scalar, 4> ev;
     ev[0] = vel_RL;
@@ -59,7 +57,6 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
     dv[2] = (vel_r * eta_r - vel_l * eta_l) - (p_r - p_l) * eta_RL/ (rho_RL * a_RL);
 
     // right_state characteristic eigenvectors
-    //std::array<Set::Scalar,4> rev;
     Eigen::Matrix<Set::Scalar, 4, 4> rev;
     rev(0, 0) = 1;
     rev(0, 1) = vel_RL;
@@ -90,7 +87,7 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
 
     std::array<Set::Scalar, 4> static_flux_left;
     static_flux_left[0] = 0.;
-    static_flux_left[2] = p_r - p_l;
+    static_flux_left[2] = p_l;
     static_flux_left[3] = 0.;
     static_flux_left[1] = vel_l * (ue_l + p_l);
 
@@ -102,7 +99,7 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
 
     std::array<Set::Scalar, 4> static_flux_right;
     static_flux_right[0] = 0.;
-    static_flux_right[2] = p_r - p_l;
+    static_flux_right[2] = p_r;
     static_flux_right[3] = 0.;
     static_flux_right[1] = vel_r * (ue_r + p_l);
 
@@ -110,7 +107,7 @@ std::array<double, 4> Riemann_ROE(double left_state[5], double right_state[5], S
     std::array<Set::Scalar, 4> fl;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-            fl[j] = 0.5 * (dynamic_flux_left[j] * left_state[4] + dynamic_flux_right[j] * right_state[4] + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta_r);
+	  fl[j] = 0.5 * (dynamic_flux_left[j] * left_state[4] + dynamic_flux_right[j] * right_state[4]) + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta;
             fl[j] += -0.5 * rev(i, j) * std::abs(ev[i]) * dv[i];
         };
 
