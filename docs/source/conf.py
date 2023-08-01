@@ -92,7 +92,8 @@ language = 'en'
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+#pygments_style = 'sphinx'
+pygments_style = 'default'
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -110,7 +111,7 @@ html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
 #    'canonical_url': '',
 #    'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
-    'logo_only': True,
+    'logo_only': False,
 #    'display_version': True,
 #    'prev_next_buttons_location': 'bottom',
 #    'style_external_links': False,
@@ -139,6 +140,7 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
+sd_fontawesome_latex = True
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -204,13 +206,14 @@ texinfo_documents = [
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-html_logo = "alamo.png"
+html_logo = "alamo2.png"
 
 html_css_files = [
     'custom.css',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Two+Tone',
     'https://fonts.googleapis.com/css2?family=Material+Icons',
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css",
     'custom.css',
 ]
 

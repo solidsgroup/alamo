@@ -6,16 +6,16 @@ from os.path import isfile, join
 
 
 def geticon(classname):
-    if classname.startswith("BC"): return ":icon:`border_outer` "
-    if classname.startswith("IC"): return ":icon:`start` "
-    if classname.startswith("Integrator"): return ":icon:`settings` "
-    if classname.startswith("Model"): return ":icon:`vrpano` "
-    if classname.startswith("Numeric"): return ":icon:`full_stacked_bar_chart` "
-    if classname.startswith("Util"): return ":icon:`tune` "
-    if classname.startswith("Solver"): return ":icon:`directions` "
-    if classname.startswith("Set"): return ":icon:`apps` "
-    if classname.startswith("IO"): return ":icon:`print` "
-    if classname.startswith("Operator"): return ":icon:`rebase_edit` "
+    if classname.startswith("BC"): return ":fas:`border-top-left;fa-fw` "
+    if classname.startswith("IC"): return ":fas:`circle-right;fa-fw` "
+    if classname.startswith("IO"): return ":fas:`print;fa-fw` "
+    if classname.startswith("Integrator"): return ":fas:`gear;fa-fw` "
+    if classname.startswith("Model"): return ":fas:`panorama;fa-fw` "
+    if classname.startswith("Numeric"): return ":fas:`calculator;fa-fw` "
+    if classname.startswith("Operator"): return ":far:`map;fa-fw` "
+    if classname.startswith("Set"): return ":fas:`braille;fa-fw` "
+    if classname.startswith("Solver"): return ":fas:`diamond-turn-right;fa-fw` "
+    if classname.startswith("Util"): return ":fas:`sliders;fa-fw` "
     else: return ""
 
 def getdocumentation(filename):
@@ -133,9 +133,9 @@ docfile    = open("Inputs.rst","w")
 docfile.write(r"""
 .. _inputs: 
 
-==================
-:icon:`api` Inputs
-==================
+=============================
+:fas:`cube;fa-fw` Inputs
+=============================
 
 
 """)
@@ -181,7 +181,8 @@ for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
             for i in range(len(classname.split('::'))):
                 subhdr = '::'.join(classname.split('::')[:i])
                 if subhdr not in written_headers:
-                    if '::' not in subhdr:
+                    if '::' not in subhdr and subhdr != "":
+                        docfile.write("--------------------\n\n\n")
                         docfile.write(geticon(subhdr) + subhdr+"\n")
                         docfile.write("".ljust(len(geticon(subhdr)+subhdr),headerchar[i-1]))
                     else:
@@ -199,13 +200,15 @@ for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
                 docfile.write(documentation)
             
             if not len(inputs): continue
+            if len(inputs) == 1 and not list(inputs)[0]: continue
+
 
             docfile.write("\n\n")
             docfile.write(".. rst-class:: api-inputs-table\n\n")
             docfile.write(".. flat-table:: \n")
             docfile.write("    :widths: 20 10 70\n")
             docfile.write("    :header-rows: 1\n\n")
-            docfile.write("    * - Parameter name\n")
+            docfile.write("    * - Parameter\n")
             docfile.write("      - Type\n")
             docfile.write("      - Description\n")
 

@@ -8,26 +8,27 @@ Documentation for alamo
         :link: getting-started
 	:link-type: ref
         
-        :icon:`start` Getting Started
+        :fas:`forward;fa-fw` Getting Started
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Initial step-by-step instructions for downloading, building, and running Alamo.
         Basic instructions on troubleshooting.
 
-        +++++++++++++++++++
-        For brand new users
+        ++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-success-line:`Start here if you're brand new` 
 
     .. grid-item-card::  
         :link: tests
 	:link-type: ref
 
-        :icon:`science` Running Tests
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        :fas:`flask;fa-fw` Running Tests
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Explore the set of examples and regression tests that demonstrate Alamo functionality.
 
-        +++++++++++++++++++++++++++++++++++++
-        For new users who have compiled Alamo
+        ++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-success-line:`Next steps after compiling Alamo` 
+        
         
 .. grid:: 2
 
@@ -35,25 +36,27 @@ Documentation for alamo
         :link: simba
 	:link-type: ref
 
-        :icon:`settings` SimBA
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        :fas:`paw;fa-fw` SimBA
+        ^^^^^^^^^^^^^^^^^^^^^^
 
         Use the Alamo **Sim**\ ulation **B**\ rowser **A**\ nalysis system to manage Alamo simulations for regression tests or your own projects.
         
-        +++++++++++++++++++++++++++++++++++++++++++++
-        Optional but useful for regular users
+        +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-warning-line:`Optional but useful for regular users` 
+        
         
     .. grid-item-card:: 
         :link: inputs
 	:link-type: ref
 
-        :icon:`api` API and Inputs
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        :fas:`cube;fa-fw` API and Inputs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Browse the auto-generated documentation for Alamo classes and input file input specifications.
         
-        +++
-        For users who are using **existing code** to run **new siulations**.
+        ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-warning-line:`For those using existing code to run new siulations.` 
+        
 
 .. grid:: 2
 
@@ -61,28 +64,28 @@ Documentation for alamo
         :link: developers
 	:link-type: ref
 
-        :icon:`developer_guide` Developer Instructions
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        :fas:`code;fa-fw` Developer Instructions
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Basics of Alamo design philosophy and practice.
         How to create branches, implement new models, run tests, and avoid breaking the repository.
         
-        +++++++++++++++++++++++++++++++++++++++++++++
-        For all new Alamo developers
+        ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        :bdg-danger-line:`Starting point for all new alamo developers`
+        
         
     .. grid-item-card:: 
         :link: autodoc
 	:link-type: ref
 
-        :icon:`play_lesson` Alamo's autodoc system
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        :fas:`swatchbook;fa-fw` Alamo's autodoc system
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         Alamo's custom auto-documentation and test system designed to enforce documentation and 
         testing standards, while preventing stagnant/depricated content.
         
-        ++++++++++++++++++++++++
-        For all Alamo developers
-
+        +++++++++++++++++++++++++++++++++++
+        :bdg-danger-line:`Required reading for all developers`
         
 
 .. dropdown:: Table of contents

@@ -1,3 +1,11 @@
+//
+// Provide an interpolator function that can work with templated fields.
+//
+// :bdg-danger-line:`Warning: This is a low-level class used to add templating functionality to unerlying AMReX classes. Edit at your own risk!`
+//    
+//
+
+
 #ifndef NUMERIC_INTERPOLATOR_NODEBILINEAR_H
 #define NUMERIC_INTERPOLATOR_NODEBILINEAR_H
 

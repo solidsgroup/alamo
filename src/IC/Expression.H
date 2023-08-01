@@ -15,7 +15,22 @@
 // for a two-component field. It is up to you to make sure your expressions are parsed
 // correctly; otherwise you will get undefined behavior.
 //
-
+// :bdg-primary-line:`Constants`
+// You can add constants to your expressions using the :code:`constant` directive.
+// For instance, in the following code
+// 
+// .. code-block:: bash
+//
+//    psi.ic.type=expression
+//    psi.ic.expression.constant.eps = 0.05
+//    psi.ic.expression.constant.R   = 0.25
+//    psi.ic.expression.region0 = "0.5 + 0.5*tanh((x^2 + y^2 - R)/eps)"
+//    
+// the constants :code:`eps` and :code:`R` are defined by the user and then used
+// in the subsequent expression.
+// The variables can have any name made up of characters that is not reserved.
+// However, if multiple ICs are used, they must be defined each time for each IC.
+//
 
 #ifndef IC_EXPRESSION_H_
 #define IC_EXPRESSION_H_
@@ -97,6 +112,22 @@ public:
             pp.query(name.data(), func);
 
             value.parser.push_back(amrex::Parser(func));
+
+            //
+            // Read in user-defined constants and add them to the parser
+            //
+            std::string prefix = pp.getPrefix();
+            std::set<std::string> entries = pp.getEntries(prefix + ".constant");//"constant");
+            std::set<std::string>::iterator entry;
+            for (entry = entries.begin(); entry != entries.end(); entry++)
+            {
+                IO::ParmParse pp;
+                std::string fullname = *entry;
+                Set::Scalar val  = NAN;
+                pp.query(fullname.data(),val);
+                std::string name = Util::String::Split(fullname,'.').back();
+                value.parser.back().setConstant(name,val);
+            }
 
             if (value.coord == Expression::CoordSys::Cartesian)
             {

@@ -12,26 +12,27 @@
 // differentiation is performed using the finite difference method.
 //
 
-#ifndef INTEGRATOR_HEATCONDUCTION_H
-#define INTEGRATOR_HEATCONDUCTION_H
+#ifndef INTEGRATOR_HEATCONDUCTION_H // Include guards
+#define INTEGRATOR_HEATCONDUCTION_H // 
+
+// Standard library includes
 #include <iostream>
 #include <fstream>
 #include <iomanip>
 
+// AMReX Includes
 #include "AMReX.H"
 #include "AMReX_ParallelDescriptor.H"
 #include "AMReX_ParmParse.H"
 
+// Alamo Includes
 #include "IO/ParmParse.H"
 #include "Integrator/Integrator.H"
-
-#include "IC/IC.H"
 #include "BC/Constant.H"
-
+#include "IC/IC.H"
 #include "IC/Sphere.H"
 #include "IC/Constant.H"
 #include "IC/Expression.H"
-
 #include "Numeric/Stencil.H"
 
 namespace Integrator
@@ -39,51 +40,65 @@ namespace Integrator
 class HeatConduction : virtual public Integrator
 {
 public:
-    /// \brief Read in parameters and register field variables
+    // Empty constructor
     HeatConduction() : Integrator()
     {}
+
+    // Constructor that triggers parse
     HeatConduction(IO::ParmParse& pp) : HeatConduction()
-    {        
-Parse(*this, pp);
+    {
+        Parse(*this, pp);
     }
 
+    // The Parse function initializes the HeatConduction object using
+    // a parser, pp. 
+    // Note that this is a static function, which means it does not have
+    // direct access to member variables. Instead, it initializes the variables
+    // inside the argument, "value", and so all references to member items are
+    // prefixed by "value."
     static void Parse(HeatConduction& value, IO::ParmParse& pp)
     {
+        // Diffusion coefficient [1.0]
         pp.query("heat.alpha", value.alpha);
+        // Criterion for mesh refinement [0.01]
         pp.query("heat.refinement_threshold", value.refinement_threshold);
 
         std::string type = "sphere";
+        // Initial condition type ([sphere], constant, expression)
         pp.query("ic.type", type);
         if (type == "sphere")          value.ic = new IC::Sphere(value.geom, pp, "ic.sphere");
         else if (type == "constant")   value.ic = new IC::Constant(value.geom, pp, "ic.constant");
         else if (type == "expression") value.ic = new IC::Expression(value.geom, pp, "ic.expression");
         else  Util::Abort(INFO, "Invalid ic.type ", type);
 
-
+        // Use a constant BC object for temperature
         value.bc = new BC::Constant(1);
+        // :ref:`BC::Constant` parameters with prefix bc.temp
         pp.queryclass("bc.temp", *static_cast<BC::Constant*>(value.bc));
 
+        // Register the temperature and old temperature fields.
+        // temp_mf and temp_old_mf are defined near the bottom of this Header file.
         value.RegisterNewFab(value.temp_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp", true);
         value.RegisterNewFab(value.temp_old_mf, value.bc, value.number_of_components, value.number_of_ghost_cells, "Temp_old", false);
     }
 
 protected:
 
-    /// \brief Use the #ic object to initialize #Temp
+    // Use the ic object to initialize the temperature field
     void Initialize(int lev)
     {
         ic->Initialize(lev, temp_old_mf);
     }
 
-    /// \brief Integrate the heat equation
-    void Advance(int lev, amrex::Real /*time*/, amrex::Real dt)
+    // Integrate the heat equation
+    void Advance(int lev, Set::Scalar /*time*/, Set::Scalar dt)
     {
         // Swap the old temp fab and the new temp fab so we use
         // the new one.
         std::swap(*temp_mf[lev], *temp_old_mf[lev]);
 
         // Get the cell size corresponding to this level
-        const amrex::Real* DX = geom[lev].CellSize();
+        const Set::Scalar* DX = geom[lev].CellSize();
 
         // Iterate over all of the patches on this level
         for (amrex::MFIter mfi(*temp_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
@@ -106,8 +121,8 @@ protected:
         }
     }
 
-    /// \brief Tag cells for mesh refinement based on temperature gradient
-    void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, amrex::Real /*time*/, int /*ngrow*/)
+    // Tag cells for mesh refinement based on temperature gradient
+    void TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scalar /*time*/, int /*ngrow*/)
     {
         // Get cell dimensions as done above.
         const Set::Scalar* DX = geom[lev].CellSize();
@@ -137,19 +152,19 @@ protected:
     }
 
 protected:
-    Set::Field<Set::Scalar> temp_mf;         ///< Temperature field variable (current timestep)
-    Set::Field<Set::Scalar> temp_old_mf;     ///< Temperature field variable (previous timestep)
+    Set::Field<Set::Scalar> temp_mf;         // Temperature field variable (current timestep)
+    Set::Field<Set::Scalar> temp_old_mf;     // Temperature field variable (previous timestep)
 
 private:
-    int number_of_components = 1;            ///< Number of components
-    int number_of_ghost_cells = 2;           ///< Number of ghost cells
+    int number_of_components = 1;            // Number of components
+    int number_of_ghost_cells = 2;           // Number of ghost cells
 
 
-    Set::Scalar alpha = 1.0;                 ///< Thermal diffusivity
-    Set::Scalar refinement_threshold = 0.01; ///< Criterion for cell refinement
+    Set::Scalar alpha = 1.0;                 // Thermal diffusivity
+    Set::Scalar refinement_threshold = 0.01; // Criterion for cell refinement
 
-    IC::IC* ic;                              ///< Object used to initialize temperature field
-    BC::BC<Set::Scalar>* bc;                 ///< Object used to update temp field boundary ghost cells
+    IC::IC* ic;                              // Object used to initialize temperature field
+    BC::BC<Set::Scalar>* bc;                 // Object used to update temp field boundary ghost cells
 };
 } // namespace Integrator
 #endif
