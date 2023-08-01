@@ -95,7 +95,7 @@ namespace Local
     dynamic_flux_right[0] = rho_r * vel_r * eta_r;
     dynamic_flux_right[2] = dynamic_flux_right[0] * vel_r * eta_r;
     dynamic_flux_right[3] = dynamic_flux_right[0] * vel_r * eta_r;
-    dynamic_flux_right[1] = vel_r * ke_r;
+    dynamic_flux_right[1] = vel_r * ke_r * eta_r;
 
     std::array<Set::Scalar, 4> static_flux_right;
     static_flux_right[0] = 0.;
@@ -108,7 +108,7 @@ namespace Local
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
 	  fl[j] = 0.5 * (dynamic_flux_left[j] + dynamic_flux_right[j]) + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta;
-            fl[j] += -0.5 * rev(i, j) * std::abs(ev[i]) * dv[i];
+	  //fl[j] += -0.5 * rev(i, j) * std::abs(ev[i]) * dv[i];
         };
 
     };
