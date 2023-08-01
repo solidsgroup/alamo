@@ -129,12 +129,15 @@ public:
 
 
         // Read in IC for eta
+        if (pp.contains("ic.type"))
         {
             std::string type;
             pp.query("ic.type", type); // Read IC type for the eta field
-            if (type == "ellipse") value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
-            if (type == "voronoi") value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
-            if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
+            if (type == "ellipse")    value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
+            else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
+            else if (type == "bmp")        value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
+            else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
+            else Util::Abort(INFO,"Invalid valud for ic.type: ",type);
             
             value.eta_reset_on_regrid = true;
             // Whether to re-initialize eta when re-gridding occurs.
@@ -158,7 +161,6 @@ public:
             value.psi_on = true;
             
             value.psi_reset_on_regrid = true;
-
             // Whether to re-initialize psi when re-gridding occurs.
             // Default is false unless a psi ic is set, then default is
             // true.
@@ -249,7 +251,7 @@ public:
 
     void Regrid(int lev, Set::Scalar time) override
     {
-        if (eta_reset_on_regrid) ic_eta->Initialize(lev, eta_mf, time);
+        if (eta_reset_on_regrid && models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf, time);
         if (psi_reset_on_regrid) ic_psi->Initialize(lev, psi_mf, time);
     }
 
