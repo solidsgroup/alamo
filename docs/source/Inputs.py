@@ -208,7 +208,7 @@ for dirname, subdirlist, filelist in sorted(os.walk("../../src/")):
             docfile.write(".. flat-table:: \n")
             docfile.write("    :widths: 20 10 70\n")
             docfile.write("    :header-rows: 1\n\n")
-            docfile.write("    * - Parameter name\n")
+            docfile.write("    * - Parameter\n")
             docfile.write("      - Type\n")
             docfile.write("      - Description\n")
 

@@ -18,7 +18,11 @@ table .notranslate
     margin:0px !important;
 }
 
-
+p
+{
+    line-height: 20px;   /* within paragraph */
+    margin-bottom: 10px; /* between paragraphs */    
+}
 
 
 table.api-inputs-table
