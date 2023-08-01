@@ -4,5 +4,9 @@
 
 .. _getting-started:
 
+====================================
+:fas:`forward;fa-fw` Getting Started
+====================================
+
 .. include:: ../../Readme.rst
  

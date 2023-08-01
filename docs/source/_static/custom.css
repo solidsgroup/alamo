@@ -3,7 +3,12 @@
     white-space: normal;
 }
 
-table pre 
+table pre /*Wrap text in tables*/
+{
+    white-space:pre-wrap !important;
+}
+
+span.sd-badge /*Wrap long text inside badges*/
 {
     white-space:pre-wrap !important;
 }
@@ -13,80 +18,51 @@ table .notranslate
     margin:0px !important;
 }
 
+p
+{
+    line-height: 20px;   /* within paragraph */
+    margin-bottom: 10px; /* between paragraphs */    
+}
+
+
 table.api-inputs-table
 {
     width:100%;
+    border-spacing: 0px!important;
+    border-collapse:separate!important;
+    border-radius:7px!important;
+    border: 2px solid #f3f3f3!important;
+    overflow: hidden;
 }
 
 table.api-inputs-table th
 {
-    background-color:darkslategray;
-    color:white;
+    background-color:#b1b6b9;
+    color:rgb(30, 30, 30);
     border:none!important;
 }
-
-
 table.api-inputs-table tr.row-odd td
 {
-    background:#CCCCCC;
+    background:#f3f3f3;
     padding:3px;
     border:none!important;
-}
-table.api-inputs-table tr.row-odd:hover td
-{
-    background:slategray;
-    color:white;
-    padding:3px;
-    border:none!important;
-}
-
-table.api-inputs-table tr.row-odd td:nth-child(1)
-{
-    background:#1F77B4;
-    color:white;
-}
-
-table.api-inputs-table tr.row-odd:hover td:nth-child(1)
-{
-    background:#FF7F0E;
 }
 
 table.api-inputs-table tr.row-even td
 {
-    background-color:#BBBBBB !important;
+    background-color:#f8f8f8 !important;
     padding:3px;
     border:none!important;
 }
-table.api-inputs-table tr.row-even:hover td
-{
-    color:white;
-    background-color:slategray !important;
-    padding:3px;
-    border:none!important;
-}
-
-table.api-inputs-table tr.row-even td:nth-child(1)
-{
-    width:25%;
-    color:white;
-    background:#1F77B4 !important;
-}
-table.api-inputs-table tr.row-even td:nth-child(2)
-{
-    width:10%;
-}
-
-table.api-inputs-table tr.row-even:hover td:nth-child(1)
-{
-    color:white;
-    background:#FF7F0E !important;
-}
-
 .api-inputs-table code.code
 {
     background-color:transparent !important;
     border-color:transparent !important;
-    color:white !important;
     font-weight:bold !important;
 }
 
+
+img.logo
+{
+    width:50%!important;
+}
