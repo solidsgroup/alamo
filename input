@@ -20,6 +20,10 @@ amr.grid_eff = 0.8
 #amr.n_cell = 800 800 200
 amr.n_cell = 400 160 0
 
+# Uncomment to test AMR
+#amr.max_level = 2
+#amr.n_cell = 128 32 0
+
 ### DIMENSIONS ###
 
 geometry.prob_lo = -0.002 -0.0005 0.0 # [ m ] 
