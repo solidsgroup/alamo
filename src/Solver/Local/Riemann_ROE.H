@@ -107,7 +107,7 @@ namespace Local
     std::array<Set::Scalar, 4> fl;
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
-	  fl[j] = 0.5 * (dynamic_flux_left[j] * left_state[4] + dynamic_flux_right[j] * right_state[4]) + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta_RL;
+	  fl[j] = 0.5 * (dynamic_flux_left[j] + dynamic_flux_right[j]) + 0.5 * (static_flux_left[j] + static_flux_right[j]) * eta;
             fl[j] += -0.5 * rev(i, j) * std::abs(ev[i]) * dv[i];
         };
 
