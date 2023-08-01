@@ -1,6 +1,7 @@
 #@
 #@ [serial-2d]
 #@ dim=2
+#@ check=false
 #@
 
 alamo.program = mechanics
