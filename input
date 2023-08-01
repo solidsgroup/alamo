@@ -19,6 +19,7 @@ amr.grid_eff = 0.8
 #amr.n_cell = 1600 200 0
 #amr.n_cell = 800 800 200
 amr.n_cell = 400 100 0
+#amr.n_cell = 16 4 0
 
 # Uncomment to test AMR
 #amr.max_level = 2
@@ -37,14 +38,18 @@ timestep = 1.0e-8
 stop_time = 1.0
 #small = 1.0e-5
 
+
 ### ETA IC ###
 
 eps = 0.0001
 
-mdot = 0.0
-Pdot_x = 0.0 #0.00016
+
+# rho0 = 10
+# V0 = 0.1
+mdot = 1.0       # = rho0 * V0 where rho0 is the fluid density  (rho0 = 10)
+Pdot_x = 0.1  # = rho0 * V0 * V0
 Pdot_y = 0.0
-Qdot = 0.0 #0.00000032
+Qdot = 0.01 #0.0000032
 
 #eta.ic.type = laminate
 #eta.ic.laminate.number_of_inclusions = 1
@@ -58,11 +63,11 @@ Qdot = 0.0 #0.00000032
 
 eta.ic.type = expression
 eta.ic.expression.constant.eps = 0.0001
-eta.ic.expression.constant.vel = 0.0 #-0.004
+eta.ic.expression.constant.vel = 0.0 #-0.04
 eta.ic.expression.region0 =  "0.5 + 0.5*tanh((x-vel*t)/eps)"
 etadot.ic.type = expression
 etadot.ic.expression.constant.eps = 0.0001 # must match above!
-etadot.ic.expression.constant.vel = 0.0 #-0.004 # must match above!
+etadot.ic.expression.constant.vel = 0.0 #-0.04 # must match above!
 etadot.ic.expression.region0 = "0.0" #"0.5*(1 - (tanh((x-vel*t)/eps)**2)*(-vel/eps))" # Derivative by hand
 
 

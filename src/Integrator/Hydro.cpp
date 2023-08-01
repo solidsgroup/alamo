@@ -198,11 +198,11 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             p(i, j, k, 0) = (gamma - 1.0) * rho(i, j, k) * (E(i, j, k) / rho(i, j, k) - ke);
 
-	    // Set::Scalar c = sqrt(gamma * p(i, j, k) / rho(i, j, k));
-	    
-	    // if (c > c_max) { c_max = c; }
-	    // if (v(i, j, k, 0) > vx_max) { vx_max = v(i, j, k, 0); }
-	    // if (v(i, j, k, 1) > vy_max) { vy_max = v(i, j, k, 1); }
+            // Set::Scalar c = sqrt(gamma * p(i, j, k) / rho(i, j, k));
+
+            // if (c > c_max) { c_max = c; }
+            // if (v(i, j, k, 0) > vx_max) { vx_max = v(i, j, k, 0); }
+            // if (v(i, j, k, 1) > vy_max) { vy_max = v(i, j, k, 1); }
         });
     }
     Pressure_mf[lev]->FillBoundary();
@@ -233,40 +233,60 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
             Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>();
 
-	    double state[5] = { rho(i, j, k), v(i, j, k, 0), v(i, j, k, 1), p(i, j, k), eta(i, j, k) };
+            double state[5] = { rho(i, j, k), v(i, j, k, 0), v(i, j, k, 1), p(i, j, k), eta(i, j, k) };
 
-            double lo_statex[5]  = { rho(i - 1, j, k), v(i - 1, j, k, 0), v(i - 1, j, k, 1), p(i - 1, j, k), eta(i - 1, j, k) };
-            double hi_statex[5]  = { rho(i + 1, j, k), v(i + 1, j, k, 0), v(i + 1, j, k, 1), p(i + 1, j, k), eta(i + 1, j, k) };
+            double lo_statex[5] = { rho(i - 1, j, k), v(i - 1, j, k, 0), v(i - 1, j, k, 1), p(i - 1, j, k), eta(i - 1, j, k) };
+            double hi_statex[5] = { rho(i + 1, j, k), v(i + 1, j, k, 0), v(i + 1, j, k, 1), p(i + 1, j, k), eta(i + 1, j, k) };
 
-            double lo_statey[5]  = { rho(i, j - 1, k), v(i, j - 1, k, 1), v(i, j - 1, k, 0), p(i, j - 1, k), eta(i, j - 1, k) }; //veloctiy input is always normal, then tangential to interface
-            double hi_statey[5]  = { rho(i, j + 1, k), v(i, j + 1, k, 1), v(i, j + 1, k, 0), p(i, j + 1, k), eta(i, j + 1, k) }; //veloctiy input is always normal, then tangential to interface
+            double lo_statey[5] = { rho(i, j - 1, k), v(i, j - 1, k, 1), v(i, j - 1, k, 0), p(i, j - 1, k), eta(i, j - 1, k) }; //veloctiy input is always normal, then tangential to interface
+            double hi_statey[5] = { rho(i, j + 1, k), v(i, j + 1, k, 1), v(i, j + 1, k, 0), p(i, j + 1, k), eta(i, j + 1, k) }; //veloctiy input is always normal, then tangential to interface
 
-	    std::array<Set::Scalar, 4> flux_xlo, flux_ylo, flux_xhi, flux_yhi;
+            std::array<Set::Scalar, 4> flux_xlo, flux_ylo, flux_xhi, flux_yhi;
 
-	    //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann_ROE(lo_statex, state, eta(i,j,k), gamma);
-            flux_ylo = Solver::Local::Riemann_ROE(lo_statey, state, eta(i,j,k), gamma);
+            //lo interface fluxes
+            flux_xlo = Solver::Local::Riemann_ROE(lo_statex, state, eta(i, j, k), gamma);
+            flux_ylo = Solver::Local::Riemann_ROE(lo_statey, state, eta(i, j, k), gamma);
 
-	    //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann_ROE(state, hi_statex, eta(i,j,k), gamma);
-            flux_yhi = Solver::Local::Riemann_ROE(state, hi_statey, eta(i,j,k), gamma);
-	   
-	    //Godunov fluxes
-            E_new(i, j, k) = E(i, j, k) + (flux_xlo[1] - flux_xhi[1]) * dt / DX[0];
-            E_new(i, j, k) = E(i, j, k) + (flux_ylo[1] - flux_yhi[1]) * dt / DX[1];
+            //hi interface fluxes
+            flux_xhi = Solver::Local::Riemann_ROE(state, hi_statex, eta(i, j, k), gamma);
+            flux_yhi = Solver::Local::Riemann_ROE(state, hi_statey, eta(i, j, k), gamma);
 
-            rho_new(i, j, k) = rho(i, j, k) + (flux_xlo[0] - flux_xhi[0]) * dt / DX[0];
-            rho_new(i, j, k) = rho(i, j, k) + (flux_ylo[0] - flux_yhi[0]) * dt / DX[1];
-	    
-            M_new(i, j,     k, 0)  = M(i, j, k, 0) + (flux_xlo[2] - flux_xhi[2]) * dt / DX[0];
-            M_new(i, j,     k, 0)  = M(i, j, k, 0) + (flux_ylo[3] - flux_yhi[3]) * dt / DX[1];
+            //if (i==0&&j==0) Util::Message(INFO,flux_xlo[0]," ",flux_xlo[1]," ",flux_xlo[2]," ",flux_xlo[3]);
+            //if (i==0&&j==0) Util::Message(INFO,flux_xhi[0]," ",flux_xhi[1]," ",flux_xhi[2]," ",flux_xhi[3]);
 
-            M_new(i, j,     k, 1)  = M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0];
-            M_new(i, j,     k, 1)  = M(i, j, k, 1) + (flux_ylo[2] - flux_yhi[2]) * dt / DX[1];
 
-	    ///////////////////////////
-	    //////DIFFUSE SOURCES//////
-	    ///////////////////////////
+            //Godunov fluxes
+            E_new(i, j, k) = 
+                E(i, j, k) 
+                + (flux_xlo[1] - flux_xhi[1]) * dt / DX[0]
+                + (flux_ylo[1] - flux_yhi[1]) * dt / DX[1];
+
+            rho_new(i, j, k) = 
+                rho(i, j, k) 
+                + (flux_xlo[0] - flux_xhi[0]) * dt / DX[0]
+                + (flux_ylo[0] - flux_yhi[0]) * dt / DX[1];
+
+            M_new(i, j, k, 0) =
+                M(i, j, k, 0) 
+                + (flux_xlo[2] - flux_xhi[2]) * dt / DX[0]
+                + (flux_ylo[3] - flux_yhi[3]) * dt / DX[1];
+
+            M_new(i, j, k, 1) = 
+                M(i, j, k, 1) 
+                + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]
+                + (flux_ylo[2] - flux_yhi[2]) * dt / DX[1];
+
+            //if (i==0&&j==0) 
+            //{
+            //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
+            //    Util::Message(INFO,M_new(i, j, k, 1));
+            //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
+            //    Util::Message(INFO,M_new(i, j, k, 1));
+            //}
+
+            ///////////////////////////
+            //////DIFFUSE SOURCES//////
+            ///////////////////////////
 
             std::array<Set::Scalar, 3> source;
             source[0] = mdot * grad_eta_mag;
