@@ -94,9 +94,11 @@ void Hydro::Initialize(int lev)
 {
     BL_PROFILE("Integrator::Hydro::Initialize");
 
+    UpdateEta(0.0);
+
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi) {
         const amrex::Box& bx = mfi.tilebox();
-        amrex::Array4<Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
         //amrex::Array4<Set::Scalar> const& etadot = (*etadot_mf[lev]).array(mfi);
 
         amrex::Array4<Set::Scalar> const& E_new = (*Energy_mf[lev]).array(mfi);
@@ -122,7 +124,6 @@ void Hydro::Initialize(int lev)
             E(i, j, k) = E_solid * (1.0 - eta(i, j, k)) + E_fluid * eta(i, j, k);
             E_new(i, j, k) = E(i, j, k);
 
-            step_count = 0;
         });
     }
 
@@ -131,16 +132,18 @@ void Hydro::Initialize(int lev)
     vy_max = 0.0;
 }
 
-void Hydro::TimeStepBegin(Set::Scalar time, int)
+void Hydro::UpdateEta(Set::Scalar time)
 {
-    BL_PROFILE("Integrator::Hydro::TimeStepBegin");
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         ic_eta->Initialize(lev, eta_mf, time);
         ic_etadot->Initialize(lev, etadot_mf, time);
-
-        step_count += 1;
     }
+}
+
+void Hydro::TimeStepBegin(Set::Scalar time, int /*iter*/)
+{
+    UpdateEta(time);
 }
 
 

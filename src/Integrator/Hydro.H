@@ -36,6 +36,8 @@ protected:
     void Regrid(int lev, Set::Scalar time) override;
     //void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &box) override;
     //virtual void UpdateModel(int a_step);
+
+    virtual void UpdateEta(Set::Scalar time);
 private:
 
     Set::Field<Set::Scalar> Density_mf;
@@ -77,7 +79,6 @@ private:
     Set::Scalar gamma, cfl;
     Set::Scalar rho_solid, rho_fluid, E_solid, E_fluid, Mx_init, My_init;
     Set::Scalar eps, mdot, Pdot_x, Pdot_y, Qdot;
-    int step_count;
 };
 }
 
