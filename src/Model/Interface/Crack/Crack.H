@@ -1,3 +1,43 @@
+//
+// This model implements the base class for Crack models.
+// The class provides various options for degradation functions :math:`g(c)` and :math:`w(c)`.
+// See `this link <https://www.sciencedirect.com/science/article/pii/S0927025615003602?via%3Dihub>`_
+// for more information on degradation functions.
+//
+//
+// Class methods:
+// 
+// #. :code:`Crack()`: 
+//    Basic constructor. Does nothing, and leaves all values initiated as NAN.
+// #. :code:`virtual Set::Scalar w_phi(Set::Scalar c, Set::Scalar /*p=0.*/)`
+//    Returns the value for :math:`w(c)`
+// #. :code:`virtual Set::Scalar g_phi(Set::Scalar c, Set::Scalar p=0.)`
+//    Returns the value of :math:`g(c)` given the value of crack field :math:`c` and plastic strain :math:`p`.
+// #. :code:`virtual Set::Scalar Dw_phi(Set::Scalar c, Set::Scalar /*p=0.*/)`
+//    Returns the value of the first derivative of :math:`w(c)`
+// #. :code:`virtual Set::Scalar Dg_phi(Set::Scalar c, Set::Scalar p=0.)`
+//    Returns the value of the first derivative of :math:`g(c)`
+// #. :code:`virtual Set::Scalar Gc(Set::Scalar theta) = 0;`
+//    Virtual function to return the value of fracture energy :math:`G(c)`
+// #. :code:`virtual Set::Scalar DGc(Set::Scalar theta) = 0;`
+//    Virtual function to return the value of the derivative of fracture energy :math:`G(c)` with angle :math:`\theta`
+// #. :code:`virtual Set::Scalar DDGc(Set::Scalar theta) = 0;`
+//    Virtual function to return the value of the second derivative of fracture energy :math:`G(c)` with angle :math:`\theta`
+// #. :code:`virtual Set::Scalar Zeta(Set::Scalar theta) = 0;`
+//    Virtual function to return the crack length scale :math:`\xi`
+// #. :code:`virtual Set::Scalar Mobility(Set::Scalar theta) = 0;`
+//    Virtual function to return the crack mobility :math:`M`
+// #. :code:`virtual Set::Scalar DrivingForceThreshold(Set::Scalar theta) = 0;`
+//    Virtual function to return the driving force threshold.
+// #. :code:`void ExportToFile(std::string filename, amrex::Real dTheta)`
+//    Writes :math:`G_c(\theta)` as a function of :math:`\theta` to a file.
+// #. :code:`void SetGType(const GType a_type)`
+//    Sets the type of the degradation function :math:`g(c)`
+// #. :code:`void SetWType(const WType a_type)`
+//    Sets the type of the interpolation function :math:`w(c)`
+// #. :code:`void SetDuctileExponent(const Set::Scalar m)`
+//    Sets exponent :math:`m` for functions involving plastic strains.
+//
 #ifndef MODEL_INTERFACE_CRACK_H
 #define MODEL_INTERFACE_CRACK_H
 

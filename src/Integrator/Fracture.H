@@ -1,3 +1,48 @@
+//
+// This class implements second and fourth order phase field brittle fracture with near singular solver.
+// This class inherits from the base class :code:`Base/Mechanics.H`.
+// See `this link <https://doi.org/10.1007/s00466-023-02325-8>`_
+// for more information on this implementation.
+//
+// The energy functional for a second order model is given by
+// .. math::
+//
+//      \mathcal{L}= \int_\Omega \left[\left(g(c) + \eta \right)W_0^+ + W_0^-\right] dV + \int_\Omega G_c \left[ \frac{w(c)}{4\xi} + \xi |\nabla c|^2\right] dV
+//
+// where :math:`g(c)` and :math:`w(c)` are interpolation functions specified by the user. 
+// The fracture energy :math:`G_c` and crack length scale :math:`xi` are also read from input file.
+// The tension compression asymmetry is accounted by splitting the strain energy :math:`W_0` as
+// .. math::
+//
+// W_0^\pm = \frac{1}{2} \lambda (\operatorname{tr}\bm{\varepsilon}_\pm)^2 + \mu \operatorname{tr}\left(\bm{\varepsilon}_\pm^2\right), \quad \bm{\varepsilon_\pm} = \sum_{i=1}^d \left(\varepsilon_i \right)_\pm \hat{\bm{v}}_i\otimes\hat{\bm{v}}_i
+//
+// where :math:`\lambda` and :math:`\mu` are material models for linear elastic isotropic material, :math:`\bm{\varepsilon}_\pm` are the positive and negative components of the strain tensor :math:`\bm{\varepsilon}` computed through eigenvalue decomposition.
+// The fourth order model adds a laplacian term to the free energy functional. 
+// The code performs a staggered solve where it solves the elastic problem implicitly and crack problem explicitly.
+//
+// Class methods:
+// 
+// #. :code:`Fracture()`: 
+//    Basic constructor. Does nothing, and leaves all values initiated as NAN.
+// #. :code:`Fracture(IO::ParmParse &pp)`: 
+//    Calls the parser.
+// #. :code:`static void Parse(Fracture &value, IO::ParmParse &pp)`
+//    Parses input file, ICs, BCs, and sets up multifabs appropriately
+// #. :code:`void Initialize(int lev) override`
+//    Calls IC and sets up the initial crack geometry.
+// #. :code:`virtual void UpdateModel(int a_step) override`
+//    Performs degradation by updating the :math:`\psi` field using :math:`g(c)`.
+// #. :code:`void TimeStepBegin(Set::Scalar a_time, int a_step) override`
+//    Solves the elastic problem, performs eigen value decomposition of strain, and computes the positive part of the strain energy.
+// #. :code:`void Advance(int a_lev, amrex::Real a_time, amrex::Real a_dt)`
+//    Advances the crack field by computing the variational derivative of energy functional with :math:`c`.
+// #. :code:`void TagCellsForRefinement(int lev, amrex::TagBoxArray &a_tags, Set::Scalar a_time, int a_ngrow) override`
+//    Refines the grid based on the crack field.
+// #. :code:`void Integrate(int amrlev, Set::Scalar time, int step, const amrex::MFIter &mfi, const amrex::Box &a_box) override`
+//    Performs spatial integration of the driving force to check for convergence of crack problem
+// #. :code:`void TimeStepComplete(Set::Scalar /*time*/, int /* iter*/)`
+//    Checks whether the solver should work on crack problem or elastic problem.
+//
 #ifndef INTEGRATOR_FRACTURE_H
 #define INTEGRATOR_FRACTURE_H
 
@@ -42,12 +87,12 @@ public:
 
         // Let's figure out if we are doing multi-material simulations.
         std::string mat_ic_type;
-        pp.query("material.ic.type", mat_ic_type);
+        pp.query("material.ic.type", mat_ic_type); // type of material - single material vs multimaterial
         if(mat_ic_type == "laminate")
         {
             IC::Laminate *tmpic = new IC::Laminate(value.geom);
-            pp.queryclass("material.ic.laminate", *tmpic);
-            pp.query("material.ic.laminate.number_of_inclusions", value.material.num_mat);
+            pp.queryclass("material.ic.laminate", *tmpic);  // get parameters of a laminate inclusion
+            pp.query("material.ic.laminate.number_of_inclusions", value.material.num_mat); // number of laminate inclusions
             value.material.num_mat++;
             value.material.ic = tmpic;
             value.material.is_ic = true;
@@ -55,7 +100,7 @@ public:
         else if(mat_ic_type == "ellipse")
         {
             IC::Ellipse *tmpic = new IC::Ellipse(value.geom);
-            pp.queryclass("material.ic.ellipse", *tmpic);
+            pp.queryclass("material.ic.ellipse", *tmpic);   // get parameters of elliptical inclusion
             value.material.num_mat = 2;
             value.material.ic = tmpic;
             value.material.is_ic = true;
@@ -63,7 +108,7 @@ public:
         else if(mat_ic_type == "perturbed_interface")
         {
             IC::PerturbedInterface *tmpic = new IC::PerturbedInterface(value.geom);
-            pp.queryclass("material.ic.perturbed_interface", *tmpic);
+            pp.queryclass("material.ic.perturbed_interface", *tmpic);   // get parameters of a wavy interface composite
             value.material.num_mat = 2;
             value.material.ic = tmpic;
             value.material.is_ic = true;
@@ -71,7 +116,7 @@ public:
         else if(mat_ic_type == "bmp")
         {
             IC::BMP *tmpic = new IC::BMP(value.geom);
-            pp.queryclass("material.ic.bmp", *tmpic);
+            pp.queryclass("material.ic.bmp", *tmpic);   // get parameters for image based material initialization
             value.material.num_mat = 2;
             value.material.ic = tmpic;
             value.material.is_ic = true;
@@ -89,13 +134,13 @@ public:
             std::string name = "material.model" + std::to_string(i+1);
             std::string name_type = "material.model" + std::to_string(i+1) + ".type";
             std::string mat_model_type;
-            pp.query(name_type.c_str(),mat_model_type);
+            pp.query(name_type.c_str(),mat_model_type); // read type of material - isotropic is the only option for now.
             
             // For now we only have isotropic implemented. 
             if(mat_model_type == "isotropic")
             {
                 brittle_model tmp_model;
-                pp.queryclass(std::string((name+".isotropic").data()), tmp_model);
+                pp.queryclass(std::string((name+".isotropic").data()), tmp_model);  // read values of isotropic model
                 value.material.models.push_back(tmp_model);
             }
             else
@@ -108,16 +153,16 @@ public:
         value.RegisterNodalFab(value.material.eta_mf, value.material.num_mat, 2, "eta", true);
 
         // Crack related parsing
-        //pp.query("crack.modulus_scaling_max", value.crack.scaleModulusMax);
-        pp.query("crack.refinement_threshold",value.crack.refinement_threshold);
-        pp.query("crack.beta", value.crack.beta);
-        pp.query("crack.df.tol_rel",value.crack.tol_rel);
-        pp.query("crack.df.tol_abs",value.crack.tol_abs);
-        pp.query("crack.df.mult_Gc", value.crack.mult_Gc);
-        pp.query("crack.df.el_mult", value.crack.el_mult);
+        pp.query("crack.refinement_threshold",value.crack.refinement_threshold); // mesh refinement criteria
+        pp.query("crack.beta", value.crack.beta);   // constant multiplier for fourth orther model with bilaplacian
+        pp.query("crack.df.tol_rel",value.crack.tol_rel); // relative tolerance for convergence of driving force
+        pp.query("crack.df.tol_abs",value.crack.tol_abs);   // absolute tolerance for convergence of driving force
+        pp.query("crack.df.mult_Gc", value.crack.mult_Gc);  // constant multiplier for controlling fracture energy of interface
+        pp.query("crack.df.mult_lap", value.crack.mult_lap);    // constant multiplier for second order model with laplacian
+        pp.query("crack.df.el_mult", value.crack.el_mult);  // unit conversion multiplier between elastic problem and crack problem
 
         // Let's figure out if there is an initial crack or void
-        pp.queryarr("crack.ic.type",value.crack.ic_type);
+        pp.queryarr("crack.ic.type",value.crack.ic_type);   // IC for initial crack
         if(value.crack.ic_type.size() == 0) value.crack.is_ic = false;
         else
         {
@@ -127,19 +172,19 @@ public:
                 if(value.crack.ic_type[i] == "notch")
                 {
                     IC::Notch *tmpic = new IC::Notch(value.geom);
-                    pp.queryclass("crack.ic.notch",*tmpic);
+                    pp.queryclass("crack.ic.notch",*tmpic); // get parameters of notch type crack
                     value.crack.ic.push_back(tmpic);
                 }
                 else if(value.crack.ic_type[i] == "ellipsoid")
                 {
                     IC::Ellipsoid *tmpic = new IC::Ellipsoid(value.geom);
-                    pp.queryclass("crack.ic.ellipsoid",*tmpic);
+                    pp.queryclass("crack.ic.ellipsoid",*tmpic); // get parameters of ellipsoidal crack
                     value.crack.ic.push_back(tmpic);
                 }
                 else if(value.crack.ic_type[i] == "lshape")
                 {
                     IC::LShape *tmpic = new IC::LShape(value.geom);
-                    pp.queryclass("crack.ic.lshape",*tmpic);
+                    pp.queryclass("crack.ic.lshape",*tmpic);    // get parameters of a rectangular hole.
                     value.crack.ic.push_back(tmpic);
                 }
                 else
@@ -156,27 +201,21 @@ public:
         
         // By default the psi variable will be on for fracture simulations
         value.psi_on = true;
-        value.bc_psi = new BC::Constant(1,pp,"crack.bc");
+        value.bc_psi = new BC::Constant(1,pp,"crack.bc");   // boundary conditions for crack
         value.RegisterNewFab(value.psi_mf,value.bc_psi,1,2,"psi",true);
-        // value.RegisterNewFab(value.crack.c_mf,value.bc_psi, 1, 2, "crack", true);
-        // value.RegisterNewFab(value.crack.c_old_mf,value.bc_psi, 1, 2, "crack_old", true);
-
-        // BC::BC<Set::Scalar> *bc_df = nullptr;
-        // bc_df = new BC::Constant(5,pp,"crack.bc");
-        // value.RegisterNewFab(value.crack.driving_force_mf,bc_df, 5, 2, "driving_force", true);
-
+        
         // This is needed for the specific crack model we are implementing
         for (int i = 0; i<value.material.num_mat; i++)
         {
             std::string name = "crack.model" + std::to_string(i+1);
             std::string name_type = "crack.model" + std::to_string(i+1) + ".type";
             std::string mat_model_type;
-            pp.query(name_type.c_str(),mat_model_type);
+            pp.query(name_type.c_str(),mat_model_type); // type of crack model - only constant so far
             // For now we only have a crack of constant Gc implemented
             if(mat_model_type == "constant")
             {
                 crack_type tmp_model;
-                pp.queryclass(std::string((name+".constant").data()), tmp_model);
+                pp.queryclass(std::string((name+".constant").data()), tmp_model);   // get parameters for a constant crack model.
                 value.crack.cracktype.push_back(tmp_model);
             }
             else
@@ -348,22 +387,22 @@ public:
                 #endif
 
                 // First we are taking care of zero gradient BC
-                if      (i == lo.x && j == lo.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i+1,j+1,k) - 0.5*c(i+2,j+2,k));
-                else if (i == lo.x && j == hi.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i+1,j-1,k) - 0.5*c(i+2,j-2,k));
-                else if (i == hi.x && j == lo.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i-1,j+1,k) - 0.5*c(i-2,j+2,k));
-                else if (i == hi.x && j == hi.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i-1,j-1,k) - 0.5*c(i-2,j-2,k));
-                else if (i == lo.x) c(i,j,k) = (2.0/3.0)*(2.0*c(i+1,j,k) - 0.5*c(i+2,j,k));
-                else if (j == lo.y) c(i,j,k) = (2.0/3.0)*(2.0*c(i,j+1,k) - 0.5*c(i,j+2,k));
-                else if (i == hi.x) c(i,j,k) = (2.0/3.0)*(2.0*c(i-1,j,k) - 0.5*c(i-2,j,k));
-                else if (j == hi.y) c(i,j,k) = (2.0/3.0)*(2.0*c(i,j-1,k) - 0.5*c(i,j-2,k));
-                // if      (i == lo.x && j == lo.y) c(i,j,k,0) = c(i+1,j+1,k,0);
-                // else if (i == lo.x && j == hi.y) c(i,j,k,0) = c(i+1,j-1,k,0);
-                // else if (i == hi.x && j == lo.y) c(i,j,k,0) = c(i-1,j+1,k,0);
-                // else if (i == hi.x && j == hi.y) c(i,j,k,0) = c(i-1,j-1,k,0);
-                // else if (i == lo.x) c(i,j,k) = c(i+1,j,k,0);
-                // else if (j == lo.y) c(i,j,k) = c(i,j+1,k,0);
-                // else if (i == hi.x) c(i,j,k) = c(i-1,j,k,0);
-                // else if (j == hi.y) c(i,j,k) = c(i,j-1,k,0);
+                // if      (i == lo.x && j == lo.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i+1,j+1,k) - 0.5*c(i+2,j+2,k));
+                // else if (i == lo.x && j == hi.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i+1,j-1,k) - 0.5*c(i+2,j-2,k));
+                // else if (i == hi.x && j == lo.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i-1,j+1,k) - 0.5*c(i-2,j+2,k));
+                // else if (i == hi.x && j == hi.y) c(i,j,k,0) = (2.0/3.0)*(2.0*c(i-1,j-1,k) - 0.5*c(i-2,j-2,k));
+                // else if (i == lo.x) c(i,j,k) = (2.0/3.0)*(2.0*c(i+1,j,k) - 0.5*c(i+2,j,k));
+                // else if (j == lo.y) c(i,j,k) = (2.0/3.0)*(2.0*c(i,j+1,k) - 0.5*c(i,j+2,k));
+                // else if (i == hi.x) c(i,j,k) = (2.0/3.0)*(2.0*c(i-1,j,k) - 0.5*c(i-2,j,k));
+                // else if (j == hi.y) c(i,j,k) = (2.0/3.0)*(2.0*c(i,j-1,k) - 0.5*c(i,j-2,k));
+                if      (i == lo.x && j == lo.y) c(i,j,k,0) = c(i+1,j+1,k,0);
+                else if (i == lo.x && j == hi.y) c(i,j,k,0) = c(i+1,j-1,k,0);
+                else if (i == hi.x && j == lo.y) c(i,j,k,0) = c(i-1,j+1,k,0);
+                else if (i == hi.x && j == hi.y) c(i,j,k,0) = c(i-1,j-1,k,0);
+                else if (i == lo.x) c(i,j,k) = c(i+1,j,k,0);
+                else if (j == lo.y) c(i,j,k) = c(i,j+1,k,0);
+                else if (i == hi.x) c(i,j,k) = c(i-1,j,k,0);
+                else if (j == hi.y) c(i,j,k) = c(i,j-1,k,0);
 
                 // Next, we are doing crack evolution
                 else
@@ -399,12 +438,12 @@ public:
                     df(i,j,k,1) = Gc*crack.cracktype[0].Dw_phi(c_old(i,j,k,0),0.0)/(4.0*Zeta);
                     rhs += df(i,j,k,1);
 
-                    df(i,j,k,2) = 2.0*Zeta*Gc*laplacian;
+                    df(i,j,k,2) = Zeta*Gc*laplacian * crack.mult_lap;
                     rhs -= df(i,j,k,2);
 
                     df(i,j,k,3) = crack.beta*(0.5*Gc*Zeta*Zeta*Zeta)*bilap;
                     rhs += df(i,j,k,3);
-                    
+                   
                     df(i,j,k,4) =                    std::max(0.,rhs - Threshold);
                     c(i,j,k,0) = c_old(i,j,k,0) - a_dt*df(i,j,k,4)*Mobility; //*(4.*c_old(i,j,k,0) - 4.*c_old(i,j,k,0)*c_old(i,j,k,0));
 
@@ -486,6 +525,7 @@ protected:
 
         Set::Scalar scaleModulusMax = 0.02;
         Set::Scalar refinement_threshold = 0.0001;
+        Set::Scalar mult_lap = 1.0;
         Set::Scalar mult_Gc = 1.0;
         Set::Scalar el_mult = 1.0;
 

@@ -1,3 +1,29 @@
+//
+// This class implements an isotropic model of crack.
+// This class inherits from the base class :code:`Crack.H`.
+// See `this link <https://doi.org/10.1016/j.cma.2021.114011>`_
+// for more information on the constant crack model.
+//
+//
+// Class methods:
+// 
+// #. :code:`Constant()`: 
+//    Basic constructor. Does nothing, and leaves all values initiated as NAN.
+// #. :code:`Set::Scalar Gc (Set::Scalar /*theta*/)`
+//    Returns the value of fracture energy :math:`G(c)`
+// #. :code:`Set::Scalar DGc (Set::Scalar /*theta*/)`
+//    Returns zero for the constant isotropic crack model
+// #. :code:`Set::Scalar DDGc (Set::Scalar /*theta*/)`
+//    Returns zero for the constant isotropic crack model
+// #. :code:`Set::Scalar Zeta(Set::Scalar /*theta*/)`
+//    Returns the crack length scale :math:`\xi`
+// #. :code:`Set::Scalar Mobility(Set::Scalar /*theta*/)`
+//    Returns the crack mobility :math:`M`
+// #. :code:`Set::Scalar DrivingForceThreshold(Set::Scalar /*theta*/)`
+//    Returns the driving force threshold.
+// #. :code:`static void Parse(Constant & value, IO::ParmParse & pp)`
+//    Parses the input file to get model parameters
+//
 #ifndef MODEL_INTERFACE_CRACK_CONSTANT_H
 #define MODEL_INTERFACE_CRACK_CONSTANT_H
 
@@ -32,15 +58,15 @@ private:
 public:
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
-        pp.query("G_c",value._Gc);
-        pp.query("zeta",value.zeta);
-        pp.query("mobility",value.mobility);
-        pp.query("threshold", value.threshold);
+        pp.query("G_c",value._Gc);  // crack fracture energy :math:`G_c`
+        pp.query("zeta",value.zeta);    // crack length scale :math:`\xi`
+        pp.query("mobility",value.mobility);    // crack mobility :math:`M`
+        pp.query("threshold", value.threshold); // crack driving force threshold
         
         std::string gtype = "";
         std::string wtype = "";
-        pp.query("gtype", gtype);
-        pp.query("wtype", wtype);
+        pp.query("gtype", gtype);   // choice of degradation function :math:`g(c)`
+        pp.query("wtype", wtype);   // choice of interpolation function :math:`w(c)`
 
         Set::Scalar ductile_exponent = 1.;
         if(gtype == "squarepexp"|| gtype == "cubicm") pp.query("exponent",ductile_exponent);
