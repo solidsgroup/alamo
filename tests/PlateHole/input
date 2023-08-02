@@ -7,11 +7,16 @@
 #@  dim    = 3
 #@  nprocs = 4
 #@  check  = false
+#@  benchmark-beaker = 13.52
+#@  benchmark-statler = 11.48
 #@
 #@  [3D-serial]
 #@  dim    = 3
 #@  nprocs = 1
 #@  check  = false
+#@  benchmark-beaker = 42.00
+
+
 
 
 alamo.program = mechanics
@@ -77,7 +82,7 @@ model1.gam0dot = 0.001
 
 solver.verbose = 4
 solver.nriters = 1
-solver.fixed_iter = 500
+solver.max_iter = 20
 solver.bottom_solver = smoother
 solver.tol_abs = 1E-16 # This is very important for near-singular problems!!!
 #solver.tol_rel = 1E-16

@@ -65,7 +65,6 @@ protected:
 private:
 
     int number_of_ghost_cells = 3;
-    int number_of_ghost_nodes = 2;
 
     // Degradation variable
     Set::Field<Set::Scalar> eta_new;         ///< Degradation variable for the __current__timestep
@@ -145,13 +144,13 @@ private:
     } damage_w;
 
     // Damage model: temperature
-    struct{
-        Set::Scalar c0;
-        Set::Scalar c1;
-        Set::Scalar c2;
-        Set::Scalar c3;
-        Set::Scalar tau_T;
-    } damage_T;
+    //struct{
+    //    Set::Scalar c0;
+    //    Set::Scalar c1;
+    //    Set::Scalar c2;
+    //    Set::Scalar c3;
+    //    Set::Scalar tau_T;
+    //} damage_T;
 
     // Elasticity parameters
     struct{

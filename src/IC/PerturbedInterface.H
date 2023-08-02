@@ -1,3 +1,20 @@
+// Initialize a perturbed interface using Fourier Modes
+///
+// Notes:
+// 1. \todo Extend this class to allow for 3D perturbations, currently only 2D are allowed
+// 2. \todo Allow for cosine (or complex exponential) expansions rather than just sin.
+// 3. \note This is a **two grain only** initial condition.
+// 4. \note This replaces the depricated "perturbed_bar" initial condition from previous versions
+//
+// The interface is defined as the :math:`x=0` plane (2D), or the :math:`x=0,z=0` plane (3D).
+// The equation for the interface is given by
+// :math:`y(x,z) = \sum_{n\in \{n_1,\ldots,n_N\}} A_n \sin(n\pi x/L_x)`
+// where :math:`A_n` are the amplitudes (stored in #wave_amplitudes),
+// :math:`n_1,\ldots,n_N\subset\mathbb{Z}_+` are wave numbers (stored in #wave_numbers),
+// and :math:`L_x` is the length in the x direction (obtained using the #geom object).
+//
+// Grain 1 is defined as being above :math:`y(x,z)`, Grain 2 is defined as being below.
+
 #ifndef IC_PERTURBEDINTERFACE_H_
 #define IC_PERTURBEDINTERFACE_H_
 
@@ -5,22 +22,6 @@
 #include "Util/Util.H"
 #include "IO/ParmParse.H"
 
-/// \class PerturbedInterface
-/// \brief Initialize a perturbed interface using Fourier Modes
-///
-/// \todo Extend this class to allow for 3D perturbations, currently only 2D are allowed
-/// \todo Allow for cosine (or complex exponential) expansions rather than just sin.
-/// \note This is a **two grain only** initial condition.
-/// \note This replaces the depricated "perturbed_bar" initial condition from previous versions
-///
-/// The interface is defined as the \f$x=0\f$ plane (2D), or the \f$x=0,z=0\f$ plane (3D).
-/// The equation for the interface is given by
-/// \f[y(x,z) = \sum_{n\in \{n_1,\ldots,n_N\}} A_n \sin(n\pi x/L_x) \f]
-/// where \f$A_n\f$ are the amplitudes (stored in #wave_amplitudes),
-/// \f$n_1,\ldots,n_N\subset\mathbb{Z}_+\f$ are wave numbers (stored in #wave_numbers),
-/// and \f$L_x\f$ is the length in the x direction (obtained using the #geom object).
-///
-/// Grain 1 is defined as being above \f$y(x,z)\f$, Grain 2 is defined as being below.
 namespace IC
 {
 class PerturbedInterface : public IC
@@ -35,7 +36,7 @@ public:
     PerturbedInterface(amrex::Vector<amrex::Geometry> &_geom,IO::ParmParse &pp) : IC(_geom)
     {pp.queryclass(*this);}
   
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Set::Scalar AMREX_D_DECL(L1 = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0],
                                 L2 = geom[lev].ProbHi()[1] - geom[lev].ProbLo()[1],
@@ -95,13 +96,13 @@ public:
                         (normal == Direction::Y && x(1) < bdry + offset)||
                         (normal == Direction::Z && x(2) < bdry + offset))
                     {
-                        field(i,j,k,0) = 1.;     
-                        field(i,j,k,1) = 0.;     
+                        field(i,j,k,reverse) = 1.;     
+                        field(i,j,k,1-reverse) = 0.;     
                     }
                     else
                     {
-                        field(i,j,k,0) = 0.;     
-                        field(i,j,k,1) = 1.;     
+                        field(i,j,k,reverse) = 0.;     
+                        field(i,j,k,1-reverse) = 1.;     
                     }
                 }
                 else
@@ -113,13 +114,13 @@ public:
 
                     Set::Scalar value = 0.5 + 0.5*std::erf(t/eps);
                     // Util::Message(INFO, "value = ", value);
-                    field(i,j,k,0) = value;
-                    field(i,j,k,1) = 1. - value;
+                    field(i,j,k,reverse) = value;
+                    field(i,j,k,1-reverse) = 1. - value;
 
-                    if (field(i,j,k,0) < 0.0) field(i,j,k,0) = 0.0;
-                    if (field(i,j,k,0) > 1.0) field(i,j,k,0) = 1.0;
-                    if (field(i,j,k,1) < 0.0) field(i,j,k,1) = 0.0;
-                    if (field(i,j,k,1) > 1.0) field(i,j,k,1) = 1.0;
+                    if (field(i,j,k,0) < 0.0) field(i,j,k,reverse) = 0.0;
+                    if (field(i,j,k,0) > 1.0) field(i,j,k,reverse) = 1.0;
+                    if (field(i,j,k,1) < 0.0) field(i,j,k,1-reverse) = 0.0;
+                    if (field(i,j,k,1) > 1.0) field(i,j,k,1-reverse) = 1.0;
                 }
             });
         }
@@ -134,33 +135,37 @@ private:
     amrex::Vector<Set::Scalar> wave_amplitudes;
     std::vector<Set::Scalar> phis;
     Mollifier mol = Mollifier::Gaussian;
-    Set::Scalar eps = 0.0;
+    Set::Scalar eps;
+    int reverse = 0;
 
 public:
     static void Parse(PerturbedInterface & value, IO::ParmParse & pp)
     {
         std::vector<std::string> wave_numbers_str;
-        pp.queryarr("wave_numbers",wave_numbers_str);
+        pp.queryarr("wave_numbers",wave_numbers_str); // Wave numbers
         for (unsigned int i = 0; i<wave_numbers_str.size(); ++i)
         {
             value.wave_numbers.push_back(Util::String::Parse<std::complex<int> >(wave_numbers_str[i]));
             value.phis.push_back(std::atan2(value.wave_numbers[i].imag(),value.wave_numbers[i].real()));
         }
-        pp.queryarr("wave_amplitudes",value.wave_amplitudes);
+        pp.queryarr("wave_amplitudes",value.wave_amplitudes); // Wave amplitudes
 
         std::string normal_str;
-        pp.query("normal",normal_str);
+        pp.query("normal",normal_str); // Which axis is normal to the interface (x,y,z)
         if (normal_str == "x") value.normal = Direction::X;
         if (normal_str == "y") value.normal = Direction::Y;
         if (normal_str == "z") value.normal = Direction::Z;
         std::string offset_str;
-        pp.query("offset",value.offset);
+        pp.query("offset",value.offset); // Interface offset from origin
         
+        pp.query("reverse",value.reverse); // If true, flip the interface (default:false)
+        Util::Assert(INFO,TEST(value.reverse==0 || value.reverse==1));
+
         if (value.wave_numbers.size() != value.wave_amplitudes.size())
             Util::Abort(INFO, "Number of wave numbers and amplitudes must match");
 
         std::string mollifier = "dirac";
-        pp.query("mollifier", mollifier);
+        pp.query("mollifier", mollifier); // Mollifier (options: dirac, [gaussian])
 
         if(mollifier == "dirac")
         {
@@ -170,7 +175,7 @@ public:
         else
         {
             value.mol = Mollifier::Gaussian;
-            pp.query("eps",value.eps);
+            pp.query("eps",value.eps); // Magnitude of mollifier
             Util::Message(INFO, "eps = ", value.eps);
         }
     }

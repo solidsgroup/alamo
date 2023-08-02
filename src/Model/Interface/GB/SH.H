@@ -55,7 +55,7 @@ public:
         sigma0 = Util::Random();
         sigma1 = Util::Random();
     };
-    amrex::Real W(const Set::Scalar a_theta, const Set::Scalar a_phi) const
+    Set::Scalar W(const Set::Scalar a_theta, const Set::Scalar a_phi) const
     {
         return sigma0 + sigma1*(1.0 - (cos(2*(a_phi))*cos(2*(a_phi)) * sin(2*(a_theta))*sin(2*(a_theta))));
     };
@@ -84,12 +84,12 @@ public:
     };
 
 
-    amrex::Real W(const amrex::Real ) const   {return NAN;};
-    amrex::Real DW(const amrex::Real ) const  {return NAN;};
-    amrex::Real DDW(const amrex::Real ) const {return NAN;};
+    Set::Scalar W(const Set::Scalar ) const override   {return NAN;};
+    Set::Scalar DW(const Set::Scalar ) const override  {return NAN;};
+    Set::Scalar DDW(const Set::Scalar ) const override {return NAN;};
   
 private:
-    amrex::Real theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;
+    Set::Scalar theta0 = NAN, phi0 = NAN, sigma0 = NAN, sigma1 = NAN;
     
 public:
     static void Parse(SH & value, amrex::ParmParse & pp)

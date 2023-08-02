@@ -37,10 +37,10 @@ model.nu = 0.22
 #
 alpha = 200.
 beta = 0.05 
-gamma = -50000.0
+gamma = 50000.0
 L.str = 0.005 
 volume0 = 0.5
-lambda = 400.0
+lambda.str = 400.0
 
 #
 # BCs for psi variable

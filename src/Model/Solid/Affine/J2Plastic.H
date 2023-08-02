@@ -66,7 +66,7 @@ public:
     
     Set::Scalar OriginalYieldSurface()
     {
-        YieldSurface();
+        return YieldSurface();
         // return yield_strength0 + F0.norm()*hardening_modulus0;
     }
 
@@ -77,7 +77,7 @@ public:
 
     Set::Scalar OriginalPlasticEnergy()
     {
-        PlasticEnergy();
+        return PlasticEnergy();
         // return (yield_strength0*F0.norm() + 0.5*hardening_modulus0*F0.norm()*F0.norm());
     }
     
@@ -154,7 +154,6 @@ public:
     #define OP_CLASS J2Plastic
     #define OP_VARS X(m_lambda) X(m_mu) X(F0) X(beta) X(theta) X(yield_strength) X(hardening_modulus) X(strain_prev) X(alpha) //X(m_lambda0) X(m_mu0)  X(yield_strength0) X(hardening_modulus0) 
     #include "Model/Solid/InClassOperators.H"
-
 };
 #include "Model/Solid/ExtClassOperators.H"
 }

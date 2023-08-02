@@ -22,14 +22,32 @@ using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
-using Vector_3D   = Eigen::Matrix<amrex::Real,3,1>;
-using Covector_3D = Eigen::Matrix<amrex::Real,1,3>;
-using Matrix_3D   = Eigen::Matrix<amrex::Real,3,3>;
-
-using Quaternion = Eigen::Quaterniond;
+static Scalar Garbage = NAN;
 
 AMREX_FORCE_INLINE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
+{
+    (void)k;
+    if (ixType == amrex::IndexType::TheNodeType())
+    {
+        return Vector(AMREX_D_DECL(
+                geom.ProbLo()[0] + ((amrex::Real)(i)) * geom.CellSize()[0],
+                geom.ProbLo()[1] + ((amrex::Real)(j)) * geom.CellSize()[1],
+                geom.ProbLo()[2] + ((amrex::Real)(k)) * geom.CellSize()[2]));
+    }
+    else if (ixType == amrex::IndexType::TheCellType())
+    {
+        return Vector(AMREX_D_DECL(
+                geom.ProbLo()[0] + ((amrex::Real)(i) + 0.5) * geom.CellSize()[0],
+                geom.ProbLo()[1] + ((amrex::Real)(j) + 0.5) * geom.CellSize()[1],
+                geom.ProbLo()[2] + ((amrex::Real)(k) + 0.5) * geom.CellSize()[2]));
+    }
+    Util::Abort(INFO,"Unsupported index type");
+    return Set::Vector::Zero(); 
+}
+
+AMREX_FORCE_INLINE
+Vector Volume(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
 {
     (void)k;
     if (ixType == amrex::IndexType::TheNodeType())

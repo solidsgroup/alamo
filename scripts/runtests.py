@@ -60,7 +60,12 @@ parser.add_argument('--sections',default=None, nargs='*', help='Specific sub-tes
 parser.add_argument('--debug',default=False,action='store_true',help='Use the debug version of the code')
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
+parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
+parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
 args=parser.parse_args()
+
+class DryRunException(Exception):
+    pass
 
 def test(testdir):
     """
@@ -162,10 +167,10 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             
-            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-g++".format(dim)
-            elif args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
-            elif args.profile: exe = "./bin/alamo-{}d-profile-g++".format(dim)
-            else: exe = "./bin/alamo-{}d-g++".format(dim)
+            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
+            elif args.debug: exe = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
+            elif args.profile: exe = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
+            else: exe = "./bin/alamo-{}d-{}".format(dim,args.comp)
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
@@ -186,6 +191,7 @@ def test(testdir):
         print("  │      Running test............................................",end="",flush=True)
         # Spawn the process and wait for it to finish before continuing.
         try:
+            if args.dryrun: raise DryRunException()
             timeStarted = time.time()
             p = subprocess.run(command.split(),capture_output=True,check=True)
             executionTime = time.time() - timeStarted
@@ -215,6 +221,9 @@ def test(testdir):
             for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             fails += 1
             continue
+        except DryRunException as e:
+            print("[----]")
+            
         # Catch-all handling so that if something else odd happens we'll still continue running.
         except Exception as e:
             print("[{}FAIL{}]".format(color.red,color.reset))
@@ -229,6 +238,7 @@ def test(testdir):
         if check:
             print("  │      Checking result.........................................",end="",flush=True)
             try:
+                if args.dryrun: raise DryRunException()
                 cmd = ["./test","{}_{}".format(testid,desc)]
                 if "check-file" in config[desc].keys():
                     cmd.append(config[desc]['check-file'])
@@ -236,6 +246,7 @@ def test(testdir):
                     print("  ├      " + ' '.join(cmd))
                 p = subprocess.check_output(cmd,cwd=testdir,stderr=subprocess.PIPE)
                 checks += 1
+                print("[{}PASS{}]".format(color.boldgreen,color.reset))
             except subprocess.CalledProcessError as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
@@ -243,13 +254,13 @@ def test(testdir):
                 for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
+            except DryRunException as e:
+                  print("[----]")
             except Exception as e:
                 print("[{}FAIL{}]".format(color.red,color.reset))
                 for line in str(e).split('\n'): print("  │      {}{}{}".format(color.red,line,color.reset))
                 fails += 1
                 continue
-
-            print("[{}PASS{}]".format(color.boldgreen,color.reset))
     
     # Print a quick summary for this test family.
     if fails: print("  └ {}{} tests failed{}".format(color.red,fails,color.reset),end="")

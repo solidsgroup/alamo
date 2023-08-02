@@ -56,7 +56,7 @@ public:
         Set::Scalar J2 = sqrt(1.5 * (sig_dev.transpose() * sig_dev).trace());
         if (J2 < sigma0) return; // No plasticity happens.
         Set::Matrix dsigp = (1. - sigma0/J2) * sig_dev;
-        F0 += DDW(eps).Inverse() * dsigp;
+        F0 += ddw.Inverse() * dsigp;
     }
 
     Set::Scalar sigma0 = 1.0;
@@ -64,13 +64,13 @@ public:
     static J2 Zero()
     {
         J2 ret;
-        // ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>::Zero();
-        ret.m_lambda = 0.0;
-        ret.m_mu = 0.0;
+        ret.ddw = Set::Matrix4<AMREX_SPACEDIM,Set::Sym::Isotropic>::Zero();
         ret.F0 = Set::Matrix::Zero();
         ret.sigma0 = 0.0;
         return ret;
     }
+
+    // See also inputs to :ref:`Model::Solid::Affine::Isotropic`
     static void Parse(J2 & value, IO::ParmParse & pp)
     {
         Isotropic::Parse(value,pp);
@@ -79,7 +79,7 @@ public:
     }
 
     #define OP_CLASS J2
-    #define OP_VARS  X(m_mu) X(m_lambda) X(F0) X(sigma0)
+    #define OP_VARS  X(ddw) X(F0) X(sigma0)
     #include "Model/Solid/InClassOperators.H"
 };
 #include "Model/Solid/ExtClassOperators.H"

@@ -313,9 +313,6 @@ PolymerDegradation::Advance (int lev, amrex::Real time, amrex::Real dt)
     if(water.on) std::swap(*water_conc_old[lev],*water_conc[lev]);
     if(thermal.on) std::swap(*Temp_old[lev], *Temp[lev]);
 
-    static amrex::IntVect AMREX_D_DECL(    dx(AMREX_D_DECL(1,0,0)),
-                        dy(AMREX_D_DECL(0,1,0)),
-                        dz(AMREX_D_DECL(0,0,1)));
     const amrex::Real* DX = geom[lev].CellSize();
 
     if(water.on)
@@ -510,9 +507,6 @@ PolymerDegradation::DegradeMaterial(int lev, amrex::FabArray<amrex::BaseFab<pd_m
     */
     if(damage.anisotropy) Util::Abort(__FILE__,"DegradeModulus",__LINE__,"Not implemented yet");
 
-    static amrex::IntVect AMREX_D_DECL(dx(AMREX_D_DECL(1,0,0)),
-                        dy(AMREX_D_DECL(0,1,0)),
-                        dz(AMREX_D_DECL(0,0,1)));
     eta_new[lev]->FillBoundary();
 
     for (amrex::MFIter mfi(model,true); mfi.isValid(); ++mfi)

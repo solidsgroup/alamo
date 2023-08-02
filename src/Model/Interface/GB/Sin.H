@@ -39,19 +39,19 @@ public:
     };
     Set::Scalar W(const Set::Scalar theta) const
     {
-        return sigma0 + 0.5*sigma1*(1.0 - cos(4.0*(theta-theta0)));
+        return sigma0 + 0.5*sigma1*(1.0 - cos(n*(theta-theta0)));
     };
     Set::Scalar DW(const Set::Scalar theta) const
     {
-        return 2.0*sigma1*sin(4.0*(theta-theta0));
+        return 2.0*sigma1*sin(n*(theta-theta0));
     };
     Set::Scalar DDW(const Set::Scalar theta) const
     {
-        return 8.0*sigma1*cos(4.0*(theta-theta0));
+        return 8.0*sigma1*cos(n*(theta-theta0));
     };
   
 private:
-    amrex::Real theta0 = NAN, sigma0 = NAN, sigma1 = NAN;
+    Set::Scalar theta0 = NAN, sigma0 = NAN, sigma1 = NAN, n = 4.0;
 
 public:    
     static void Parse(Sin & value, amrex::ParmParse & pp)
@@ -60,6 +60,7 @@ public:
         value.theta0 *= 0.01745329251; // convert degrees into radians
         pp.query("sigma0",value.sigma0);
         pp.query("sigma1",value.sigma1);
+        pp.query("n",value.n);
     }
     
 };

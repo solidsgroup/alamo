@@ -57,7 +57,7 @@
 #include "IC/Laminate.H"
 #include "IC/PerturbedInterface.H"
 #include "IC/BMP.H"
-#include "IC/LShape.H"
+//#include "IC/LShape.H"
 
 #include <eigen3/Eigen/Dense>
 
@@ -183,9 +183,10 @@ public:
                 }
                 else if(value.crack.ic_type[i] == "lshape")
                 {
-                    IC::LShape *tmpic = new IC::LShape(value.geom);
-                    pp.queryclass("crack.ic.lshape",*tmpic);    // get parameters of a rectangular hole.
-                    value.crack.ic.push_back(tmpic);
+                    Util::Abort(INFO,"Use expressions instead...");
+                    //IC::LShape *tmpic = new IC::LShape(value.geom);
+                    //pp.queryclass("crack.ic.lshape",*tmpic);    // get parameters of a rectangular hole.
+                    //value.crack.ic.push_back(tmpic);
                 }
                 else
                     Util::Abort(INFO, "This IC hasn't been implemented yet");
@@ -235,7 +236,7 @@ public:
 
         if(crack.is_ic)
         {
-            for (int i=0; i < crack.ic.size(); i++)
+            for (unsigned int i=0; i < crack.ic.size(); i++)
             {
                 // This initializes the crack field.
                 crack.ic[i]->Add(lev,crack.c_mf);
@@ -319,7 +320,7 @@ public:
             amrex::Box domain = geom[lev].Domain();
             domain.convert(amrex::IntVect::TheNodeVector());
 
-            const amrex::Real* DX = geom[lev].CellSize();
+            //const amrex::Real* DX = geom[lev].CellSize();
             for (MFIter mfi(*disp_mf[lev], false); mfi.isValid(); ++mfi)
             {
                 amrex::Box bx = mfi.grownnodaltilebox(); // & domain;

@@ -51,10 +51,10 @@ public:
 
     Set::Scalar YieldSurface()
     {
-        Set::Matrix_3D R_crystal;
+        Eigen::Matrix3d R_crystal;
         R_crystal = Model::Solid::Linear::Cubic::q.normalized().toRotationMatrix();
 
-        Set::Matrix_3D yield = Set::Matrix_3D::Zero(), R = Set::Matrix_3D::Zero();
+        Eigen::Matrix3d yield = Eigen::Matrix3d::Zero(), R = Eigen::Matrix3d::Zero();
         for (int i=0; i<4; i++)
         {
             for (int j=0; j<3; j++)
@@ -72,10 +72,10 @@ public:
 
     Set::Scalar PlasticEnergy()
     {
-        Set::Matrix_3D R_crystal;
+        Eigen::Matrix3d R_crystal;
         R_crystal = Model::Solid::Linear::Cubic::q.normalized().toRotationMatrix();
 
-        Set::Matrix_3D yield_3D = Set::Matrix_3D::Zero(), R = Set::Matrix_3D::Zero();
+        Eigen::Matrix3d yield_3D = Eigen::Matrix3d::Zero(), R = Eigen::Matrix3d::Zero();
         for (int i=0; i<4; i++)
         {
             for (int j=0; j<3; j++)
@@ -109,11 +109,11 @@ public:
 
     Set::Scalar OriginalYieldSurface()
     {
-        YieldSurface();
-        // Set::Matrix_3D R_crystal;
+        return YieldSurface();
+        // Eigen::Matrix3d R_crystal;
         // R_crystal = Model::Solid::Linear::Cubic::q.normalized().toRotationMatrix();
 
-        // Set::Matrix_3D yield = Set::Matrix_3D::Zero(), R = Set::Matrix_3D::Zero();
+        // Eigen::Matrix3d yield = Eigen::Matrix3d::Zero(), R = Eigen::Matrix3d::Zero();
         // for (int i=0; i<4; i++)
         // {
         //     for (int j=0; j<3; j++)
@@ -131,11 +131,11 @@ public:
 
     Set::Scalar OriginalPlasticEnergy()
     {
-        PlasticEnergy();
-        // Set::Matrix_3D R_crystal;
+        return PlasticEnergy();
+        // Eigen::Matrix3d R_crystal;
         // R_crystal = Model::Solid::Linear::Cubic::q.normalized().toRotationMatrix();
 
-        // Set::Matrix_3D yield = Set::Matrix_3D::Zero(), R = Set::Matrix_3D::Zero();
+        // Eigen::Matrix3d yield = Eigen::Matrix3d::Zero(), R = Eigen::Matrix3d::Zero();
         // for (int i=0; i<4; i++)
         // {
         //     for (int j=0; j<3; j++)
@@ -159,10 +159,10 @@ public:
     // qh_{\alpha\beta} = 1 (if \alpha,\beta coplanar), qh (else)
     void Advance(Set::Scalar dt, Set::Matrix /*eps*/, Set::Matrix sig) override
     {
-        Set::Matrix_3D sig_3D = Set::Matrix_3D::Zero();
+        Eigen::Matrix3d sig_3D = Eigen::Matrix3d::Zero();
         sig_3D(Eigen::seq(0,AMREX_SPACEDIM-1),Eigen::seq(0,AMREX_SPACEDIM-1)) = sig;
     
-        Set::Matrix_3D R_crystal;
+        Eigen::Matrix3d R_crystal;
         R_crystal = Model::Solid::Linear::Cubic::q.normalized().toRotationMatrix();
 
         std::array<Set::Scalar, 12> gamdot;
@@ -182,7 +182,7 @@ public:
                 incr_abs = std::min(incr_abs,1.e4);
                 gamdot[3*i + j] = tau>0 ? +incr_abs : -incr_abs;
                 
-                Set::Matrix_3D dir_rot = ((R_crystal*dir[i][j]) * (R_crystal*plane[i]).transpose());
+                Eigen::Matrix3d dir_rot = ((R_crystal*dir[i][j]) * (R_crystal*plane[i]).transpose());
                 F0 += dt * gamdot[3*i + j] * dir_rot(Eigen::seq(0,AMREX_SPACEDIM-1),Eigen::seq(0,AMREX_SPACEDIM-1));
                 m_gam_bar += dt*std::abs(gamdot[3*i + j]);
 
@@ -218,19 +218,19 @@ public:
 public:
 
     // For now FCC is hardcoded in here.
-    inline static const std::array<Set::Vector_3D, 4> plane = 
+    inline static const std::array<Eigen::Vector3d, 4> plane = 
     {
-        Set::Vector_3D(1,1,1).normalized(),
-        Set::Vector_3D(-1,-1,1).normalized(),
-        Set::Vector_3D(-1,1,1).normalized(),
-        Set::Vector_3D(1,-1,1).normalized()
+        Eigen::Vector3d(1,1,1).normalized(),
+        Eigen::Vector3d(-1,-1,1).normalized(),
+        Eigen::Vector3d(-1,1,1).normalized(),
+        Eigen::Vector3d(1,-1,1).normalized()
     };
-    inline static const std::array<std::array<Set::Vector_3D,3>,4> dir = 
+    inline static const std::array<std::array<Eigen::Vector3d,3>,4> dir = 
     {
-        Set::Vector_3D(0,-1,1).normalized(), Set::Vector_3D(1,0,-1).normalized(), Set::Vector_3D(-1,1,0).normalized(),
-        Set::Vector_3D(0,1,1).normalized(), Set::Vector_3D(-1,0,-1).normalized(), Set::Vector_3D(1,-1,0).normalized(),
-        Set::Vector_3D(0,-1,1).normalized(), Set::Vector_3D(-1,0,-1).normalized(), Set::Vector_3D(1,1,0).normalized(),
-        Set::Vector_3D(0,1,1).normalized(), Set::Vector_3D(1,0,-1).normalized(), Set::Vector_3D(-1,-1,0).normalized()
+        Eigen::Vector3d(0,-1,1).normalized(), Eigen::Vector3d(1,0,-1).normalized(),  Eigen::Vector3d(-1,1,0).normalized(),
+        Eigen::Vector3d(0,1,1).normalized(),  Eigen::Vector3d(-1,0,-1).normalized(), Eigen::Vector3d(1,-1,0).normalized(),
+        Eigen::Vector3d(0,-1,1).normalized(), Eigen::Vector3d(-1,0,-1).normalized(), Eigen::Vector3d(1,1,0).normalized(),
+        Eigen::Vector3d(0,1,1).normalized(),  Eigen::Vector3d(1,0,-1).normalized(),  Eigen::Vector3d(-1,-1,0).normalized()
     };
 
     static std::array<Set::Scalar, 12> m_exp;

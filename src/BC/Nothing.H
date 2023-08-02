@@ -14,7 +14,7 @@ class Nothing
 
 public:
     Nothing () {};
-    virtual void FillBoundary (amrex::FArrayBox&,
+    virtual void FillBoundary (amrex::BaseFab<Set::Scalar>&,
                     const amrex::Box &,
                     int, int, int,
                     amrex::Real,

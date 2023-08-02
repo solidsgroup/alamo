@@ -1,3 +1,19 @@
+//
+// This BC defines boundary conditions that are constant with respect to space.
+// However they may change in time using the :ref:`Numeric::Interpolator::Linear` method.
+// 
+// In 2D, BCs are prescribed for each edge (4) and corner (4) on the boundary, for a total of 8 possible regions.
+// In 3D, BCs are prescribed for each face (6), each edge (12), and each corner (8), for a total of 26 possible regions.
+// Care must be taken to define BCs for edges/corners consistently with the faces/edges, or you will get poor 
+// convergence and inaccurate behavior.
+// (See :ref:`BC::Operator::Elastic::TensionTest` for a reduced BC with streamlined load options.)
+//
+// To define a boundary condition, you must define both a "type" and a "value" in each direction.
+// The type can be "displacement", "disp", "neumann", "traction", "trac".
+// The value is the corresponding value.
+// All BCs are, by default, dirichlet (displacement) with a value of zero.
+//
+
 #ifndef BC_OPERATOR_ELASTIC_CONSTANT_H
 #define BC_OPERATOR_ELASTIC_CONSTANT_H
 
@@ -330,21 +346,6 @@ protected:
     std::array<std::array<Numeric::Interpolator::Linear<Set::Scalar>,AMREX_SPACEDIM>, m_nfaces> m_bc_val; 
 
 public:
-    //
-    // This BC defines boundary conditions that are constant with respect to space.
-    // However they may change in time using the :ref:`Numeric::Interpolator::Linear` method.
-    // 
-    // In 2D, BCs are prescribed for each edge (4) and corner (4) on the boundary, for a total of 8 possible regions.
-    // In 3D, BCs are prescribed for each face (6), each edge (12), and each corner (8), for a total of 26 possible regions.
-    // Care must be taken to define BCs for edges/corners consistently with the faces/edges, or you will get poor 
-    // convergence and inaccurate behavior.
-    // (See :ref:`BC::Operator::Elastic::TensionTest` for a reduced BC with streamlined load options.)
-    //
-    // To define a boundary condition, you must define both a "type" and a "value" in each direction.
-    // The type can be "displacement", "disp", "neumann", "traction", "trac".
-    // The value is the corresponding value.
-    // All BCs are, by default, dirichlet (displacement) with a value of zero.
-    //
     static void Parse(Constant & value, IO::ParmParse & pp)
     {
         std::map<std::string, Type> bcmap;
@@ -369,8 +370,8 @@ public:
         if (pp.contains("type.xhiyhizlo")) { pp.queryarr("type.xhiyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZLO][i] = bcmap[str[i]]; } // 3D Corner
         if (pp.contains("type.xhiyhizhi")) { pp.queryarr("type.xhiyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZHI][i] = bcmap[str[i]]; } // 3D Corner
         #else // ignore unused inputs
-        pp.contains("type.xloylozlo"); pp.contains("type.xloylozhi"); pp.contains("type.xloyhizlo"); pp.contains("type.xloyhizhi"); 
-        pp.contains("type.xhiylozlo"); pp.contains("type.xhiylozhi"); pp.contains("type.xhiyhizlo"); pp.contains("type.xhiyhizhi");  
+        pp.ignore("type.xloylozlo"); pp.ignore("type.xloylozhi"); pp.ignore("type.xloyhizlo"); pp.ignore("type.xloyhizhi"); 
+        pp.ignore("type.xhiylozlo"); pp.ignore("type.xhiylozhi"); pp.ignore("type.xhiyhizlo"); pp.ignore("type.xhiyhizhi");  
         #endif
 
         #if AMREX_SPACEDIM==3
@@ -383,8 +384,8 @@ public:
         if (pp.contains("type.zhixlo")) { pp.queryarr("type.zhixlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XLO][i] = bcmap[str[i]]; } // 3D Edge
         if (pp.contains("type.zhixhi")) { pp.queryarr("type.zhixhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XHI][i] = bcmap[str[i]]; } // 3D Edge
         #else 
-        pp.contains("type.ylozlo"); pp.contains("type.ylozhi"); pp.contains("type.yhizlo"); pp.contains("type.yhizhi"); 
-        pp.contains("type.zloxlo"); pp.contains("type.zloxhi"); pp.contains("type.zhixlo"); pp.contains("type.zhixhi"); 
+        pp.ignore("type.ylozlo"); pp.ignore("type.ylozhi"); pp.ignore("type.yhizlo"); pp.ignore("type.yhizhi"); 
+        pp.ignore("type.zloxlo"); pp.ignore("type.zloxhi"); pp.ignore("type.zhixlo"); pp.ignore("type.zhixhi"); 
         #endif
         
         if (pp.contains("type.xloylo")) { pp.queryarr("type.xloylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
@@ -400,7 +401,7 @@ public:
         if (pp.contains("type.zlo")) { pp.queryarr("type.zlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO][i] = bcmap[str[i]]; } // 3D Face
         if (pp.contains("type.zhi")) { pp.queryarr("type.zhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI][i] = bcmap[str[i]]; } // 3D Face
         #else
-        pp.contains("type.zlo"); pp.contains("type.zhi");
+        pp.ignore("type.zlo"); pp.ignore("type.zhi");
         #endif
 
         // VALS
@@ -417,8 +418,8 @@ public:
         if (pp.contains("val.xhiyhizlo")) { pp.queryarr("val.xhiyhizlo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YHI_ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Corner
         if (pp.contains("val.xhiyhizhi")) { pp.queryarr("val.xhiyhizhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XHI_YHI_ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Corner
         #else
-        pp.contains("val.xloylozlo"); pp.contains("val.xloylozhi"); pp.contains("val.xloyhizlo"); pp.contains("val.xloyhizhi"); 
-        pp.contains("val.xhiylozlo"); pp.contains("val.xhiylozhi"); pp.contains("val.xhiyhizlo"); pp.contains("val.xhiyhizhi");  
+        pp.ignore("val.xloylozlo"); pp.ignore("val.xloylozhi"); pp.ignore("val.xloyhizlo"); pp.ignore("val.xloyhizhi"); 
+        pp.ignore("val.xhiylozlo"); pp.ignore("val.xhiylozhi"); pp.ignore("val.xhiyhizlo"); pp.ignore("val.xhiyhizhi");  
         #endif
 
         #if AMREX_SPACEDIM==3
@@ -431,8 +432,8 @@ public:
         if (pp.contains("val.zhixlo")) { pp.queryarr("val.zhixlo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI_XLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Edge
         if (pp.contains("val.zhixhi")) { pp.queryarr("val.zhixhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI_XHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Edge
         #else
-        pp.contains("val.ylozlo"); pp.contains("val.ylozhi"); pp.contains("val.yhizlo"); pp.contains("val.yhizhi"); 
-        pp.contains("val.zloxlo"); pp.contains("val.zloxhi"); pp.contains("val.zhixlo"); pp.contains("val.zhixhi"); 
+        pp.ignore("val.ylozlo"); pp.ignore("val.ylozhi"); pp.ignore("val.yhizlo"); pp.ignore("val.yhizhi"); 
+        pp.ignore("val.zloxlo"); pp.ignore("val.zloxhi"); pp.ignore("val.zhixlo"); pp.ignore("val.zhixhi"); 
         #endif
         if (pp.contains("val.xloylo")) { pp.queryarr("val.xloylo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Edge / 2D Corner
         if (pp.contains("val.xloyhi")) { pp.queryarr("val.xloyhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::XLO_YHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Edge / 2D Corner
@@ -447,7 +448,7 @@ public:
         if (pp.contains("val.zlo")) { pp.queryarr("val.zlo",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZLO][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Face
         if (pp.contains("val.zhi")) { pp.queryarr("val.zhi",val); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_val[Face::ZHI][i] = Numeric::Interpolator::Linear<Set::Scalar>(val[i]); } // 3D Face
         #else
-        pp.contains("val.zlo"); pp.contains("val.zhi");
+        pp.ignore("val.zlo"); pp.ignore("val.zhi");
         #endif
 
     }

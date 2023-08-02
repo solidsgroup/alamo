@@ -34,10 +34,11 @@ template<Set::Sym SYM>
 class Affine : public Solid<SYM>
 {
 public:
+    Set::Matrix4<AMREX_SPACEDIM,SYM> ddw;
     Set::Matrix F0;
     void SetF0(Set::Matrix a_F0) { F0 = a_F0; }
 public:
-    KinematicVariable kinvar = KinematicVariable::gradu;
+    static const KinematicVariable kinvar = KinematicVariable::gradu;
 };
 }
 }

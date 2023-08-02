@@ -48,7 +48,6 @@ public:
             std::vector<std::string> dat = Util::String::Split(line);
             theta.push_back(std::stof(dat[0]));
             w.push_back(std::stof(dat[1]));
-            Util::Message(INFO,theta[theta.size()-1]," ",w[theta.size()-1]);
         }
         for (unsigned int i = 1; i < theta.size()-1; i++)
         {
@@ -67,6 +66,7 @@ public:
                 std::isinf(w) || std::isinf(dw) || std::isinf(ddw)) 
                 Util::Abort(INFO,"Error in GB Read: t=",t," w=",w," dw=",dw," ddw=",ddw);
         }
+        Util::CopyFileToOutputDir(filename);
     };
     Set::Scalar W(const Set::Scalar theta) const
     {

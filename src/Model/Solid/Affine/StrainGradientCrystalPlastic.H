@@ -67,14 +67,14 @@ public:
         // This means that gradX.gamdotalpha[i] is the gradient of gamma_dot in the x direction for the i^{th} slip system.
         // Along the same lines gradY.gamalpha[i] is the gradient of gamma in the y direction for the i^{th} slip system.
 
-        Set::Matrix_3D sig_3D = Set::Matrix_3D::Zero();
+        Eigen::Matrix3d sig_3D = Eigen::Matrix3d::Zero();
         sig_3D(Eigen::seq(0,AMREX_SPACEDIM-1),Eigen::seq(0,AMREX_SPACEDIM-1)) = sig;
 
-        Set::Matrix_3D R_crystal;
+        Eigen::Matrix3d R_crystal;
         R_crystal = Model::Solid::Linear::Cubic::q.normalized().toRotationMatrix();
 
-        std::array<Set::Vector_3D, 4> plane_rot;
-        std::array<Set::Vector_3D, 12> dir_rot;
+        std::array<Eigen::Vector3d, 4> plane_rot;
+        std::array<Eigen::Vector3d, 12> dir_rot;
 
         for (int i=0; i<4; i++)
         {
@@ -100,23 +100,23 @@ public:
                 Set::Scalar anisotropic_rho = 0.0;
                 for (int k=0; k<12; k++) anisotropic_rho += (m_w1 + (k == alpha ? 1.0 : 0.0)*(1.0-m_w2))*m_h*(rho_se[k] + rho_ss[k] + std::abs(rho_gen[k]) + std::abs(rho_get[k]) + std::abs(rho_gsm[k]));
                 
-                Set::Vector_3D t_alpha = (dir_rot[alpha]).cross(plane_rot[i]);
+                Eigen::Vector3d t_alpha = (dir_rot[alpha]).cross(plane_rot[i]);
 
                 Set::Scalar rho_se_dot = ((m_Ke/m_b)*std::sqrt(anisotropic_rho) - m_de*rho_se[alpha]/m_b)*std::abs(gamdot[alpha]);
 
                 Set::Scalar rho_ss_dot = (((2.0*m_Ke) - (Set::Constant::Pi*m_ds*m_ds*rho_ss[alpha]*0.25))*(1.0/m_b)*std::sqrt(anisotropic_rho) - m_ds*rho_ss[alpha]/m_b)*std::abs(gamdot[alpha]);
 
-                Set::Vector_3D curlTerm = Set::Vector_3D::Zero();
+                Eigen::Vector3d curlTerm = Eigen::Vector3d::Zero();
 
-                Set::Vector_3D gamdotgradalpha(gradX.gamdot[alpha],gradY.gamdot[alpha],gradZ.gamdot[alpha]);
+                Eigen::Vector3d gamdotgradalpha(gradX.gamdot[alpha],gradY.gamdot[alpha],gradZ.gamdot[alpha]);
                 for (int bi=0; bi<4; bi++)
                 {
                     for (int bj=0; bj<3; bj++)
                     {
                         int beta = 3*bi + bj;
-                        Set::Vector_3D gamgradbeta(gradX.gam[beta],gradY.gam[beta],gradZ.gam[beta]);
+                        Eigen::Vector3d gamgradbeta(gradX.gam[beta],gradY.gam[beta],gradZ.gam[beta]);
                         
-                        Set::Vector_3D temp1 = (gamdotgradalpha*gam[beta] + gamdot[alpha]*gamgradbeta);
+                        Eigen::Vector3d temp1 = (gamdotgradalpha*gam[beta] + gamdot[alpha]*gamgradbeta);
                         curlTerm += temp1.cross(dir_rot[beta])*((plane_rot[i]).dot(plane_rot[bi]));
                     }
                 }
@@ -161,7 +161,7 @@ public:
 
     void Advance(Set::Scalar dt, Set::Matrix /*eps*/, Set::Matrix /*sig*/) override
     {
-        Set::Matrix_3D R_crystal;
+        Eigen::Matrix3d R_crystal;
         R_crystal = Model::Solid::Linear::Cubic::q.normalized().toRotationMatrix();
 
         //std::array<Set::Scalar, 12> gamdot;
@@ -170,7 +170,7 @@ public:
         {
             for (int j=0; j<3; j++)
             {
-                Set::Matrix_3D dir_rot = ((R_crystal*dir[i][j]) * (R_crystal*plane[i]).transpose());
+                Eigen::Matrix3d dir_rot = ((R_crystal*dir[i][j]) * (R_crystal*plane[i]).transpose());
                 F0 += dt * gamdot[3*i + j] * dir_rot(Eigen::seq(0,AMREX_SPACEDIM-1),Eigen::seq(0,AMREX_SPACEDIM-1));
                 gam[3*i + j] += dt*gamdot[3*i + j];
             }
@@ -183,19 +183,19 @@ public:
     static const bool gradient_required = true;
 
     // For now FCC is hardcoded in here.
-    inline static const std::array<Set::Vector_3D, 4> plane = 
+    inline static const std::array<Eigen::Vector3d, 4> plane = 
     {
-        Set::Vector_3D(1,1,1).normalized(),
-        Set::Vector_3D(-1,-1,1).normalized(),
-        Set::Vector_3D(-1,1,1).normalized(),
-        Set::Vector_3D(1,-1,1).normalized()
+        Eigen::Vector3d(1,1,1).normalized(),
+        Eigen::Vector3d(-1,-1,1).normalized(),
+        Eigen::Vector3d(-1,1,1).normalized(),
+        Eigen::Vector3d(1,-1,1).normalized()
     };
-    inline static const std::array<std::array<Set::Vector_3D,3>,4> dir = 
+    inline static const std::array<std::array<Eigen::Vector3d,3>,4> dir = 
     {
-        Set::Vector_3D(0,-1,1).normalized(), Set::Vector_3D(1,0,-1).normalized(), Set::Vector_3D(-1,1,0).normalized(),
-        Set::Vector_3D(0,1,1).normalized(), Set::Vector_3D(-1,0,-1).normalized(), Set::Vector_3D(1,-1,0).normalized(),
-        Set::Vector_3D(0,-1,1).normalized(), Set::Vector_3D(-1,0,-1).normalized(), Set::Vector_3D(1,1,0).normalized(),
-        Set::Vector_3D(0,1,1).normalized(), Set::Vector_3D(1,0,-1).normalized(), Set::Vector_3D(-1,-1,0).normalized()
+        Eigen::Vector3d(0,-1,1).normalized(), Eigen::Vector3d(1,0,-1).normalized(), Eigen::Vector3d(-1,1,0).normalized(),
+        Eigen::Vector3d(0,1,1).normalized(), Eigen::Vector3d(-1,0,-1).normalized(), Eigen::Vector3d(1,-1,0).normalized(),
+        Eigen::Vector3d(0,-1,1).normalized(), Eigen::Vector3d(-1,0,-1).normalized(), Eigen::Vector3d(1,1,0).normalized(),
+        Eigen::Vector3d(0,1,1).normalized(), Eigen::Vector3d(1,0,-1).normalized(), Eigen::Vector3d(-1,-1,0).normalized()
     };
 
     std::array<Set::Scalar,12> gam;

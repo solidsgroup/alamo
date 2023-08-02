@@ -1,3 +1,10 @@
+//
+// .. warning::
+//    This will be replaced by the more general :code:`BC::Expression`
+//
+
+
+
 #ifndef BC_STEP_H_
 #define BC_STEP_H_
 
@@ -20,7 +27,7 @@ Step () {}
 Step (IO::ParmParse &pp,std::string name)
 {pp.queryclass(name,*this);}
 
-void FillBoundary (amrex::FArrayBox &a_in,
+void FillBoundary (amrex::BaseFab<Set::Scalar> &a_in,
             const amrex::Box &a_box,
             int ngrow, int /*dcomp*/, int /*ncomp*/, amrex::Real /*time*/,
             Orientation face, const amrex::Mask * /*mask*/) override
@@ -96,13 +103,13 @@ void FillBoundary (amrex::FArrayBox &a_in,
     }
 
 private:
-    Set::Scalar m_h1 = NAN, m_h2 = NAN, m_val1 = NAN, m_val2=NAN;
+    Set::Scalar m_h1 = NAN, m_h2 = NAN;
 
 public:
     static void Parse(Step & value, amrex::ParmParse & pp)
     {
-        pp.query("h1",value.m_h1);
-        pp.query("h2",value.m_h2);
+        pp.query("h1",value.m_h1); // Location of the step on the xlo edge/face
+        pp.query("h2",value.m_h2); // Location of the step on the xhi edge/face
     }
 
 };

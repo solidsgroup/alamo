@@ -38,6 +38,7 @@ std::complex<int> Parse(std::string);
 }
 
 std::string GetFileName();
+void CopyFileToOutputDir(std::string a_path, bool fullpath = true);
 
 std::pair<std::string,std::string> GetOverwrittenFile();
 

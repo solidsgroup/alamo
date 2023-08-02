@@ -61,7 +61,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
 
     AMREX_FORCE_INLINE
@@ -80,7 +80,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
     void Print(std::ostream &os)
     {
@@ -149,6 +149,20 @@ public:
         Set::Scalar normsq = 0.0;
         for (int i = 0; i < 10; i++) normsq += data[i]*data[i];
         return std::sqrt(normsq);
+    }
+    bool contains_nan() const
+    {
+        if (std::isnan(data[ 0])) return true;
+        if (std::isnan(data[ 1])) return true;
+        if (std::isnan(data[ 2])) return true;
+        if (std::isnan(data[ 3])) return true;
+        if (std::isnan(data[ 4])) return true;
+        if (std::isnan(data[ 5])) return true;
+        if (std::isnan(data[ 6])) return true;
+        if (std::isnan(data[ 7])) return true;
+        if (std::isnan(data[ 8])) return true;
+        if (std::isnan(data[ 9])) return true;
+        return false;
     }
 
     friend Matrix4<2, Sym::Major> operator+(const Matrix4<2, Sym::Major> &a, const Matrix4<2, Sym::Major> &b);
@@ -292,7 +306,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
     
 
@@ -348,7 +362,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
 
     Set::Scalar Norm()
@@ -429,6 +443,12 @@ public:
         Set::Scalar normsq = 0.0;
         for (int i = 0; i < 45; i++) normsq += data[i]*data[i];
         return std::sqrt(normsq);
+    }
+    bool contains_nan() const
+    {
+        for (int i = 0; i < 45; i++)
+            if (std::isnan(data[i])) return true;
+        return false;
     }
 
     friend Matrix4<3, Sym::Major> operator-(const Matrix4<3, Sym::Major> &a, const Matrix4<3, Sym::Major> &b);

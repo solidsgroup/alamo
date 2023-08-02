@@ -58,18 +58,21 @@ if dim == 2:
     pylab.savefig("{}/sig.png".format(outdir))
 
     err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.eta) - ref.eta)**2))
-    print("eta error",err)
-    if err > tolerance: raise(Exception("Error in eta"))
-    if math.isnan(err): raise(Exception("eta is nan"))
+    mag = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.eta) + ref.eta)**2))
+    print("eta error",err/mag)
+    if err/mag > tolerance: raise(Exception("Error in eta"))
+    if math.isnan(err/mag): raise(Exception("eta is nan"))
 
     err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.u) - ref.u)**2))
-    print("u error",err)
-    if err > tolerance: raise(Exception("Error in displacement"))
-    if math.isnan(err): raise(Exception("displacement is nan"))
+    mag = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.u) + ref.u)**2))
+    print("u error",err/mag)
+    if err/mag > tolerance: raise(Exception("Error in displacement"))
+    if math.isnan(err/mag): raise(Exception("displacement is nan"))
 
     err = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sig) - ref.sig)**2))
-    print("sig error",err)
-    if err > tolerance: raise(Exception("Error in sigma"))
+    mag = numpy.sqrt(integrate(ref.x, (numpy.interp(ref.x, new.x, new.sig) + ref.sig)**2))
+    print("sig error",err/mag)
+    if err/mag > tolerance: raise(Exception("Error in sigma"))
     if math.isnan(err): raise(Exception("sigma is nan"))
 
 if dim == 3:
