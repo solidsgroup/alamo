@@ -93,10 +93,10 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
             value.bc_temp = new BC::Constant(1);
             pp.queryclass("thermal.temp.bc", *static_cast<BC::Constant*>(value.bc_temp));
-            value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 2, "temp", true);
-            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 2, "temp_old", false);
-            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 2, "temps", true);
-            value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 2, "temps_old", false);
+            value.RegisterNewFab(value.temp_mf, value.bc_temp, 1, 3, "temp", true);
+            value.RegisterNewFab(value.temp_old_mf, value.bc_temp, 1, 3, "temp_old", false);
+            value.RegisterNewFab(value.temps_mf, value.bc_temp, 1, 3, "temps", true);
+            value.RegisterNewFab(value.temps_old_mf, value.bc_temp, 1, 3, "temps_old", false);
 
             value.RegisterNewFab(value.mob_mf, 1, "mob", true);
             value.RegisterNewFab(value.alpha_mf, 1, "alpha", true);
@@ -231,8 +231,9 @@ void Flame::UpdateModel(int /*a_step*/)
 
         for (MFIter mfi(*model_mf[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-            amrex::Box bx = mfi.nodaltilebox();
-            bx.grow(1);
+            amrex::Box bx = mfi.grownnodaltilebox();
+            //amrex::Box bx = mfi.nodaltilebox();
+            //bx.grow(1);
             amrex::Array4<model_type>        const& model = model_mf[lev]->array(mfi);
             amrex::Array4<const Set::Scalar> const& phi = phi_mf[lev]->array(mfi);
 
@@ -245,9 +246,13 @@ void Flame::UpdateModel(int /*a_step*/)
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
                     
                     model_type model_ap = elastic.model_ap;
+                    model_ap.F0 -= Set::Matrix::Identity();
                     model_ap.F0 *= (temp_avg - thermal.bound);
+                    model_ap.F0 += Set::Matrix::Identity();
                     model_type model_htpb = elastic.model_htpb;
+                    model_htpb.F0 -= Set::Matrix::Identity();
                     model_htpb.F0 *= (temp_avg - thermal.bound);
+                    model_htpb.F0 += Set::Matrix::Identity();
                     
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
                 });

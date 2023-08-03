@@ -143,17 +143,26 @@ elastic.solver.nriters = 200
 elastic.solver.nrtolerance = 1E-4
 elastic.print_model = 1
 
+elastic.solver.dump_on_fail = 1
+amrex.signalhandling=0
+amrex.throw_exception=1
+
+#elastic.bc.type = tension_test
+#elastic.bc.tension_test.type = uniaxial_stress
+#elastic.bc.tension_test.disp = 0.00001
 
 elastic.bc.type = constant
-elastic.bc.constant.type.xlo = disp trac trac
-elastic.bc.constant.type.xhi = trac trac trac
-elastic.bc.constant.type.ylo = trac trac trac
-elastic.bc.constant.type.yhi = trac trac trac 
-elastic.bc.constant.type.xloylo = disp trac trac 
-elastic.bc.constant.type.xloyhi = disp trac trac 
-elastic.bc.constant.type.xhiylo = trac trac trac 
-elastic.bc.constant.type.xhiyhi = trac trac trac
+elastic.bc.constant.type.xlo = trac trac trac
+#elastic.bc.constant.type.xhi = trac trac trac
+#elastic.bc.constant.type.ylo = trac trac trac
+#elastic.bc.constant.type.yhi = trac trac trac 
+#elastic.bc.constant.type.xloylo = disp trac trac 
+#elastic.bc.constant.type.xloyhi = disp trac trac 
+#elastic.bc.constant.type.xhiylo = trac trac trac 
+#elastic.bc.constant.type.xhiyhi = trac trac trac
 #elastic.bc.constant.val.xlo = 0.000000001 0.0 0.0
+
+solver.verbose = 4
 
 amr.node.all = 1
 
