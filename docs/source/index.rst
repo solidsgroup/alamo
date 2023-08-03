@@ -100,6 +100,7 @@ Documentation for alamo
         AutoDocAutoTest
         Tests
         Inputs
+        InputsSearch
 	Developers
 
 

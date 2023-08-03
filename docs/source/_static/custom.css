@@ -27,12 +27,14 @@ p
 
 table.api-inputs-table
 {
-    width:100%;
+    width:100%!important;
+    max-width:100%!important;
     border-spacing: 0px!important;
     border-collapse:separate!important;
     border-radius:7px!important;
     border: 2px solid #f3f3f3!important;
     overflow: hidden;
+    white-space:pre-wrap !important;
 }
 
 table.api-inputs-table th
@@ -66,3 +68,12 @@ img.logo
 {
     width:50%!important;
 }
+
+li[class="toctree-l1"] a:hover
+{
+    color:white!important;
+}
+
+h1 {font-size:xx-large!important;}
+h2 {font-size:x-large!important;}
+h3 {font-size:large!important;}
