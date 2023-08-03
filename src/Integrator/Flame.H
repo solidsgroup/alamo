@@ -125,8 +125,8 @@ private:
     } thermal;
 
     struct {
-        model_type model_ap, model_htpb;
         int on = 0;
+        model_type model_ap, model_htpb;
     } elastic;
 
     // Integrated variables

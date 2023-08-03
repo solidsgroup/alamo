@@ -63,7 +63,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
         pp.query("elastic.on", value.elastic.on);
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
-        {
+
+        if(value.thermal.on){
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
             pp.query("thermal.rho_htpb", value.thermal.rho_htpb); // HTPB Density
             pp.query("thermal.k_ap", value.thermal.k_ap); // AP Thermal Conductivity
@@ -112,7 +113,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
 
     {
         pp.query("pressure.P", value.pressure.P);
-        //if (thermal.on == true)
+        if (value.thermal.on == true)
         {
             pp.query("pressure.a1", value.pressure.arrhenius.a1);
             pp.query("pressure.a2", value.pressure.arrhenius.a2);
@@ -124,7 +125,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             pp.query("pressure.mob_ap", value.pressure.arrhenius.mob_ap);
             pp.query("pressure.dependency", value.pressure.arrhenius.dependency);
         }
-        //else if (thermal.on == false)
+        else 
         {
             pp.query("pressure.r_ap", value.pressure.power.r_ap);
             pp.query("pressure.r_htpb", value.pressure.power.r_htpb);
@@ -164,13 +165,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
             value.ic_phi = new IC::Expression(value.geom, pp, "phi.ic.expression");
             pp.query("phi.zeta_0", value.zeta_0);
             pp.query("phi.zeta", value.zeta);
-        }
-        //else if (type == "cuboid"){
-        //    value.ic_phi = new IC::Cuboid(value.geom, pp, "phi.ic.cuboid");
-        //    }
-        //else if (type == "sphere"){
-        //    value.ic_phi = new IC::Sphere(value.geom, pp, "phi.ic.sphere");
-        //}   
+        }  
         else if (type == "constant")  value.ic_phi = new IC::Constant(value.geom, pp, "phi.ic.constant");
         else Util::Abort(INFO, "Invalid IC type ", type);
         value.RegisterNewFab(value.phi_mf, value.bc_eta, 1, 2, "phi", true);
@@ -248,14 +243,12 @@ void Flame::UpdateModel(int /*a_step*/)
                 {
                     Set::Scalar phi_avg = Numeric::Interpolate::CellToNodeAverage(phi, i, j, k, 0);
                     Set::Scalar temp_avg = Numeric::Interpolate::CellToNodeAverage(temp, i, j, k, 0);
-                    Set::Matrix Idn = Set::Matrix::Identity();
                     
                     model_type model_ap = elastic.model_ap;
                     model_ap.F0 *= (temp_avg - thermal.bound);
-                    model_ap.F0 += Idn;
                     model_type model_htpb = elastic.model_htpb;
                     model_htpb.F0 *= (temp_avg - thermal.bound);
-                    model_htpb.F0 += Idn;
+                    
                     model(i, j, k) = model_ap * phi_avg + model_htpb * (1. - phi_avg);
                 });
             }
