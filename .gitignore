@@ -38,3 +38,4 @@ amrex.build.log
 .diff
 eigen3
 IAMR
+obj

@@ -22,6 +22,8 @@ using Covector = Eigen::Matrix<amrex::Real,1,AMREX_SPACEDIM>;
 using Matrix   = Eigen::Matrix<amrex::Real,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 using iMatrix  = Eigen::Matrix<int,AMREX_SPACEDIM,AMREX_SPACEDIM>;
 
+static Scalar Garbage = NAN;
+
 AMREX_FORCE_INLINE
 Vector Position(const int &i, const int &j, const int &k, const amrex::Geometry &geom, const amrex::IndexType &ixType)
 {

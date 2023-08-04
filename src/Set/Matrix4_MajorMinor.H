@@ -32,7 +32,7 @@ public:
         else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[4]; // [0111] [1011] [1101] [1110]
         else if (uid==15 )                                 return data[5]; // [1111]
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage;
     }
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
@@ -45,7 +45,7 @@ public:
         else if (uid==14 || uid==13 || uid==11 || uid==7 ) return data[4]; // [0111] [1011] [1101] [1110]
         else if (uid==15 )                                 return data[5]; // [1111]
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage; 
     }
     void Print (std::ostream& os)
     {
@@ -287,7 +287,7 @@ public:
         // [2222]
         else if (uid==80 ) return data[20];
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage; 
     }
     AMREX_FORCE_INLINE
     Scalar & operator () (const int i, const int j, const int k, const int l)
@@ -336,7 +336,7 @@ public:
         // [2222]
         else if (uid==80 ) return data[20];
         else Util::Abort(INFO,"Index out of range");
-        return data[-1]; 
+        return Set::Garbage; 
     }
     void Print (std::ostream& os)
     {

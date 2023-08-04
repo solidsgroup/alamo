@@ -65,8 +65,6 @@ private:
     IC::IC* ic_eta;
     IC::IC* ic_phi;
 
-    int fs_number = 1;
-
     Set::Scalar m_refinement_criterion = 0.001;
     Set::Scalar t_refinement_criterion = 0.001;
     Set::Scalar t_refinement_restriction = 0.1;

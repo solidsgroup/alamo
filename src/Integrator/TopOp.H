@@ -118,7 +118,7 @@ public:
     }
 
 
-    void Advance(int lev, Set::Scalar time, Set::Scalar dt)
+    void Advance(int lev, Set::Scalar time, Set::Scalar dt) override
     {
         BL_PROFILE("TopOp::Advance");
         Base::Mechanics<MODEL>::Advance(lev, time, dt);
@@ -161,7 +161,7 @@ public:
     }
 
     void Integrate(int amrlev, Set::Scalar time, int step,
-        const amrex::MFIter& mfi, const amrex::Box& box)
+        const amrex::MFIter& mfi, const amrex::Box& box) override
     {
         BL_PROFILE("TopOp::Integrate");
         Base::Mechanics<MODEL>::Integrate(amrlev, time, step, mfi, box);

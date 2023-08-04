@@ -1,5 +1,5 @@
 #@
-#@  [inclusion]
+#@  [2d-serial]
 #@  dim = 2
 #@  check = true
 #@  benchmark-beaker = 29.49
