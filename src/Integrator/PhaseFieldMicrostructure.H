@@ -26,6 +26,7 @@
 #include "IC/Voronoi.H"
 #include "IC/Sphere.H"
 #include "IC/Expression.H"
+#include "IC/Ellipse.H"
 
 #include "Model/Interface/GB/GB.H"
 #include "Model/Interface/GB/Sin.H"
@@ -170,7 +171,24 @@ public:
         else if (ic_type == "voronoi")             value.ic = new IC::Voronoi(value.geom, pp, "ic.voronoi");
         else if (ic_type == "expression")          value.ic = new IC::Expression(value.geom,pp,"ic.expression");
         else if (ic_type == "sphere")              value.ic = new IC::Sphere(value.geom,pp,"ic.sphere"); 
+        else if (ic_type == "ellipse")             value.ic = new IC::Ellipse(value.geom,pp,"ic.ellipse");
         else Util::Abort(INFO, "No valid initial condition specified");
+
+        // Anisotropic mobility
+        pp.query("anisotropic_kinetics.on",value.anisotropic_kinetics.on);
+        if (value.anisotropic_kinetics.on)
+        {
+            pp.query("anisotropic_kinetics.tstart",value.anisotropic_kinetics.tstart);
+            std::string mobility_filename, threshold_filename;
+            pp.query("anisotropic_kinetics.mobility",mobility_filename);
+            value.anisotropic_kinetics.mobility = Numeric::Interpolator::Linear<Set::Scalar>::Read(mobility_filename);
+            pp.query("anisotropic_kinetics.threshold",threshold_filename);
+            value.anisotropic_kinetics.threshold = Numeric::Interpolator::Linear<Set::Scalar>::Read(threshold_filename);
+            value.RegisterNewFab(value.anisotropic_kinetics.L_mf, value.mybc, value.number_of_grains, 0, "mobility",true);
+            value.RegisterNewFab(value.anisotropic_kinetics.threshold_mf, value.mybc, value.number_of_grains, 0, "theshold",true);
+        }
+
+
 
 
         value.RegisterNewFab(value.eta_mf, value.mybc, value.number_of_grains, value.number_of_ghost_cells, "Eta",true);
@@ -241,6 +259,15 @@ private:
             ThresholdType type = ThresholdType::Continuous;
         } threshold;
     } pf;
+
+    struct {
+        int on = 0;
+        Set::Scalar tstart = 0.0;
+        Numeric::Interpolator::Linear<Set::Scalar> mobility;
+        Numeric::Interpolator::Linear<Set::Scalar> threshold;
+        Set::Field<Set::Scalar> L_mf;
+        Set::Field<Set::Scalar> threshold_mf;
+    } anisotropic_kinetics;
 
     struct {
         int on = 0;
