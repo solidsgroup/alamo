@@ -42,12 +42,12 @@ public:
             Util::Abort(INFO,"Cannot specify both trac and disp");
         else if (pp.contains("disp"))
         {
-            pp.query("disp",disp); // Displacement of the test
+            pp.query("disp",disp); // Applied displacement (can be interpolator)
             mode = LoadingMode::DISP;
         }
         else if (pp.contains("trac"))
         {
-            pp.query("trac",trac);
+            pp.query("trac",trac); // Applied traction (can be interpolator)
             mode = LoadingMode::TRAC;
         }
         else

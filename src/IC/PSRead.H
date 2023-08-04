@@ -1,3 +1,8 @@
+//
+// Fill a domain (region where field=0) with packed spheres (regions where field=1).
+// Sphere locations and radii are determined from an xyzr file.
+//
+
 #ifndef IC_PSREAD_H_
 #define IC_PSREAD_H_
 
@@ -33,7 +38,7 @@ public:
 
     };
 
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_phi)
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {
         Set::Vector size;
         AMREX_D_TERM(size(0) = geom[lev].ProbHi()[0] - geom[lev].ProbLo()[0];,
@@ -99,8 +104,8 @@ public:
     static void Parse(PSRead& value, IO::ParmParse& pp)
     {
         std::string filename;
-        pp.query("eps", value.eps);
-        pp.query("filename", filename);
+        pp.query("eps", value.eps); // Diffuseness of the sphere boundary
+        pp.query("filename", filename); // Location of .xyzr file
         std::ifstream datafile(filename);
         std::string line;
         if (datafile.is_open())

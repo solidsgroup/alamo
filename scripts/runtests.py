@@ -61,6 +61,8 @@ parser.add_argument('--debug',default=False,action='store_true',help='Use the de
 parser.add_argument('--profile',default=False,action='store_true',help='Use the profiling version of the code')
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
+parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
+parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
 args=parser.parse_args()
 
 class DryRunException(Exception):
@@ -85,6 +87,7 @@ def test(testdir):
     checks = 0
     fasters = 0
     slowers = 0
+    timeouts = 0
 
     # Parse the input file ./tests/MyTest/input containing #@ comments.
     # Everything commeneted with #@ will be interpreted as a "config" file
@@ -109,7 +112,7 @@ def test(testdir):
     # (Eventually, everything in ./tests should be tested!)
     if not len(sections):
         print("{}IGNORE {}{}".format(color.darkgray,testdir,color.reset))
-        return 0,0,0,0,0,0
+        return 0,0,0,0,0,0,0
         
     # Otherwise let the user know that we are in this directory
     print("RUN    {}{}{}".format(color.bold,testdir,color.reset))
@@ -127,6 +130,10 @@ def test(testdir):
                 check = True
             else:
                 raise(Exception("Invalid value for check: {}".format(config[desc]['check'])))
+
+        timeout = int(args.timeout)
+        if 'timeout' in config[desc].keys():
+            timeout = int(config[desc]['timeout'])
 
         dobenchmark = False
         benchmark = None
@@ -166,10 +173,10 @@ def test(testdir):
             if nprocs > 1: command += "mpirun -np {} ".format(nprocs)
             # Specify alamo command.
             
-            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-g++".format(dim)
-            elif args.debug: exe = "./bin/alamo-{}d-debug-g++".format(dim)
-            elif args.profile: exe = "./bin/alamo-{}d-profile-g++".format(dim)
-            else: exe = "./bin/alamo-{}d-g++".format(dim)
+            if args.debug and args.profile: exe = "./bin/alamo-{}d-profile-debug-{}".format(dim,args.comp)
+            elif args.debug: exe = "./bin/alamo-{}d-debug-{}".format(dim,args.comp)
+            elif args.profile: exe = "./bin/alamo-{}d-profile-{}".format(dim,args.comp)
+            else: exe = "./bin/alamo-{}d-{}".format(dim,args.comp)
             # If we specified a CLI dimension that is different, quietly ignore.
             if args.dim and not args.dim == dim:
                 continue
@@ -192,7 +199,7 @@ def test(testdir):
         try:
             if args.dryrun: raise DryRunException()
             timeStarted = time.time()
-            p = subprocess.run(command.split(),capture_output=True,check=True)
+            p = subprocess.run(command.split(),capture_output=True,check=True,timeout=timeout)
             executionTime = time.time() - timeStarted
             fstdout = open("{}/{}_{}/stdout".format(testdir,testid,desc),"w")
             fstdout.write(ansi_escape.sub('',p.stdout.decode('ascii')))
@@ -219,6 +226,25 @@ def test(testdir):
             for line in e.stdout.decode('ascii').split('\n'): print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
             for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
             fails += 1
+            continue
+        # If an error is thrown, we'll go here. We will print stdout and stderr to the screen, but 
+        # we will continue with running other tests. (Script will return an error)
+        except subprocess.TimeoutExpired as e:
+            print("[{}TIMEOUT{}]".format(color.red,color.reset))
+            print("  │      {}CMD   : {}{}".format(color.red,' '.join(e.cmd),color.reset))
+            try:
+                stdoutlines = e.stdout.decode('ascii').split('\n')
+                if len(stdoutlines) < 10:
+                    for line in stdoutlines: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                else:
+                    for line in stdoutlines[:5]:  print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                    for i in range(3):            print("  │      {}        {}{}".format(color.red,"............",color.reset))
+                    for line in stdoutlines[-5:]: print("  │      {}STDOUT: {}{}".format(color.red,line,color.reset))
+                #for line in e.stderr.decode('ascii').split('\n'): print("  │      {}STDERR: {}{}".format(color.red,line,color.reset))
+            except Exception as e1:
+                for line in str(e1).split('\n'):
+                    print("  │      {}EXCEPT: {}{}".format(color.red,line,color.reset))
+            timeouts += 1
             continue
         except DryRunException as e:
             print("[----]")
@@ -264,9 +290,10 @@ def test(testdir):
     # Print a quick summary for this test family.
     if fails: print("  └ {}{} tests failed{}".format(color.red,fails,color.reset),end="")
     else: print("  └ {}{} tests failed{}".format(color.boldgreen,0,color.reset),end="")
-    if skips: print(", {}{} tests skipped{}".format(color.boldyellow,skips,color.reset))
-    else: print("")
-    return fails, checks, tests, skips, fasters, slowers
+    if skips: print(", {}{} tests skipped{}".format(color.boldyellow,skips,color.reset),end="")
+    if timeouts: print(", {}{} tests timed out{}".format(color.red,timeouts,color.reset),end="")
+    print("")
+    return fails, checks, tests, skips, fasters, slowers, timeouts
 
 # We may wish to pass in specific test directories. If we do, then test those only.
 # Otherwise look at everything in ./tests/
@@ -280,6 +307,7 @@ class stats:
     tests = 0   # Number of successful checks
     fasters = 0
     slowers = 0
+    timeouts = 0
 
 # Iterate through all test directories, running the above "test" function
 # for each.
@@ -287,13 +315,14 @@ for testdir in tests:
     if (not os.path.isdir(testdir)) or (not os.path.isfile(testdir + "/input")):
         print("{}IGNORE {} (no input){}".format(color.darkgray,testdir,color.reset))
         continue
-    f, c, t, s, fa, sl = test(testdir)
+    f, c, t, s, fa, sl, to = test(testdir)
     stats.fails += f
     stats.tests += t
     stats.checks += c
     stats.skips += s
     stats.fasters += fa
     stats.slowers += sl
+    stats.timeouts += to
     
 
 # Print a quick summary of all tests
@@ -305,6 +334,7 @@ else:         print("{}{} tests failed{}".format(color.red,stats.fails,color.res
 if stats.skips: print("{}{} tests skipped{}".format(color.boldyellow,stats.skips,color.reset))
 if stats.fasters: print("{}{} tests ran faster".format(color.blue,stats.fasters,color.reset))
 if stats.slowers: print("{}{} tests ran slower".format(color.magenta,stats.slowers,color.reset))
+if stats.timeouts: print("{}{} tests timed out".format(color.red,stats.timeouts,color.reset))
 print("")
 
 # Return nonzero only if no tests failed or were unexpectedly skipped

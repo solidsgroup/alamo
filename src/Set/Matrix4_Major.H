@@ -61,7 +61,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
 
     AMREX_FORCE_INLINE
@@ -80,7 +80,7 @@ public:
         else if (uid==15 )            return data[9]; // [1111] 
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
     void Print(std::ostream &os)
     {
@@ -306,7 +306,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
     
 
@@ -362,7 +362,7 @@ public:
         else if (uid == 80)              return data[44]; // [2222]
         else
             Util::Abort(INFO, "Index out of range");
-        return data[-1];
+        return Set::Garbage;
     }
 
     Set::Scalar Norm()

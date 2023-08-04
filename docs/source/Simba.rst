@@ -1,9 +1,11 @@
 .. role:: cpp(code)
    :language: c++
 
-===================================
-Simulation Browser Analysis (SimBA)
-===================================
+.. _simba:
+
+======================
+:fas:`paw;fa-fw` SimBA
+======================
 
 .. toctree::
    :maxdepth: 2

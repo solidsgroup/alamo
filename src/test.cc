@@ -16,6 +16,9 @@
 #include "Model/Solid/Affine/Isotropic.H"
 #include "Model/Solid/Affine/Cubic.H"
 #include "Model/Solid/Elastic/NeoHookean.H"
+#include "Model/Solid/Elastic/PseudoLinearCubic.H"
+#include "Model/Solid/Linear/Hexagonal.H"
+#include "Model/Solid/Affine/Hexagonal.H"
 
 int main (int argc, char* argv[])
 {
@@ -27,8 +30,13 @@ int main (int argc, char* argv[])
         Util::Test::Message(#TYPE); \
         { \
             int subfailed = 0; \
+            subfailed += Util::Test::SubMessage("ArithmeticTest",  TYPE::ArithmeticTest<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("DerivativeTest1", TYPE::DerivativeTest1<TYPE>(true)); \
             subfailed += Util::Test::SubMessage("DerivativeTest2", TYPE::DerivativeTest2<TYPE>(true)); \
+            if (TYPE::kinvar == Model::Solid::KinematicVariable::F) \
+            { \
+                subfailed += Util::Test::SubMessage("MaterialFrameIndifference", TYPE::MaterialFrameIndifference<TYPE>(true)); \
+            } \
             failed += Util::Test::SubFinalMessage(subfailed); \
         }
     MODELTEST(Model::Solid::Linear::Isotropic);
@@ -36,8 +44,12 @@ int main (int argc, char* argv[])
     MODELTEST(Model::Solid::Linear::Laplacian);
     MODELTEST(Model::Solid::Affine::Isotropic);
     MODELTEST(Model::Solid::Affine::Cubic);
-    #if AMREX_SPACEDIM == 3
+    MODELTEST(Model::Solid::Linear::Hexagonal);
+    MODELTEST(Model::Solid::Affine::Hexagonal);
     MODELTEST(Model::Solid::Elastic::NeoHookean);
+    
+    #if AMREX_SPACEDIM == 3
+    MODELTEST(Model::Solid::Elastic::PseudoLinearCubic);
     #endif
 
     Util::Test::Message("Set::Matrix4");

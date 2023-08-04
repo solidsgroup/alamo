@@ -1,3 +1,7 @@
+//
+// Create a single laminate with specified orientation, thickness, and offset.
+//
+
 #ifndef IC_LAMINATE_H_
 #define IC_LAMINATE_H_
 
@@ -20,7 +24,7 @@ public:
         pp.queryclass(name, *this);
     }
 
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_field)
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
         for (amrex::MFIter mfi(*a_field[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -178,7 +182,7 @@ public:
         }
 
         std::string mollifier;
-        pp.query("mollifier", mollifier);
+        pp.query("mollifier", mollifier); // Type of mollifer to use (options: dirac, [gaussian])
         if (mollifier == "Dirac" || mollifier == "dirac")
             value.moll = Mollifier::Dirac;
         else

@@ -16,7 +16,7 @@ class Cubic : public Linear::Cubic
 public:
 
     Cubic() {};
-    Cubic(Solid<Set::Sym::MajorMinor> base) : Linear::Cubic(base) {};
+    Cubic(Linear::Cubic base) : Linear::Cubic(base) {};
     virtual ~Cubic() {};
 
     void
@@ -43,7 +43,7 @@ public:
     {
         return Linear::Cubic::DDW(gradu - F0);
     }
-    virtual void Print(std::ostream &out) const //override 
+    virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }

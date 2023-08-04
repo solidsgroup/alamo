@@ -6,9 +6,7 @@
 #include "Numeric/Interpolator/Linear.H"
 #include "BC/Operator/Elastic/Elastic.H"
 
-#ifdef ALAMO_JIT
-#include "libmesh/fparser_ad.hh"
-#endif
+#include "AMReX_Parser.H"
 
 namespace BC
 {
@@ -18,18 +16,6 @@ namespace Elastic
 {
 class Expression : public Elastic
 {
-#ifndef ALAMO_JIT
-public:
-    Expression(){ Util::Abort(INFO,"You need to compile with JIT to use this BC"); }
-    virtual void Init(amrex::MultiFab * ,const amrex::Geometry &,bool) 
-    const override
-    {};
-    virtual void Init(amrex::FabArray<amrex::BaseFab<Set::Vector>> *,const amrex::Geometry &,bool) 
-    const override
-    {}
-    static void Parse(Expression &, IO::ParmParse & ) {} ;
-    Set::Vector operator () (const Set::Vector &, const Set::Matrix &, const Set::Matrix &, const int &, const int &, const int &, const amrex::Box &) {return Set::Vector::Zero();};
-#else
 public:
     //static constexpr const char* const Elastic::strings[];
     #if AMREX_SPACEDIM==2
@@ -48,7 +34,15 @@ public:
     };
     #endif
 
-    Expression() {};
+    Expression()
+    {
+        // By default, all boundary conditions are displacement
+        for (int face = 0; face < m_nfaces; face++)
+            for (int direction = 0; direction < AMREX_SPACEDIM; direction++)
+            {
+                m_bc_type[face][direction] = Type::Displacement;
+            }
+    };
     ~Expression() {};
 
 
@@ -127,11 +121,13 @@ public:
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
-                            double loc[4];
-                            AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
-                            loc[3] = m_time; 
-                            FunctionParserAD & func = const_cast<FunctionParserAD&>(m_bc_func[face][dir]);
-                            rhs(i,j,k)(dir) = func.Eval(loc);
+                            #if AMREX_SPACEDIM==1
+                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),0.0,0.0,m_time);
+                            #elif AMREX_SPACEDIM==2
+                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),0.0,m_time);
+                            #elif AMREX_SPACEDIM==3
+                            rhs(i,j,k)(dir) = m_bc_func[face][dir](x(0),x(1),x(2),m_time);
+                            #endif
                         }
                     }
                 }
@@ -143,7 +139,7 @@ public:
     virtual void
     Init(amrex::MultiFab * a_rhs,
         const amrex::Geometry &a_geom,
-        bool a_homogeneous = false) const
+        bool a_homogeneous = false) const override
     {
             amrex::Box domain(a_geom.Domain());
             domain.convert(amrex::IntVect::TheNodeVector());
@@ -213,11 +209,13 @@ public:
                         else 
                         {
                             Set::Vector x = Set::Position(i, j, k, a_geom, type);
-                            double loc[4];
-                            AMREX_D_TERM(loc[0] = x(0);, loc[1] = x(1);, loc[2] = x(2););
-                            loc[3] = m_time; 
-                            FunctionParserAD & func = const_cast<FunctionParserAD&>(m_bc_func[face][dir]);
-                            rhs(i,j,k,dir) = func.Eval(loc);
+                            #if AMREX_SPACEDIM==1
+                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),0.0,0.0,m_time);
+                            #elif AMREX_SPACEDIM==2
+                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),0.0,m_time);
+                            #elif AMREX_SPACEDIM==3
+                            rhs(i,j,k,dir) = (m_bc_func[face][dir])(x(0),x(1),x(2),m_time);
+                            #endif
                         }
                     }
                 }
@@ -230,7 +228,7 @@ public:
                 const Set::Matrix &gradu,
                 const Set::Matrix &sigma,
                 const int &i, const int &j, const int &k,
-                const amrex::Box &domain)
+                const amrex::Box &domain) override
     {
         (void)i; (void)j; (void)k; // Suppress "unused variable" warnings
         //Set::Vector f;
@@ -317,7 +315,9 @@ protected:
     #endif
 
     std::array<std::array<Type,            AMREX_SPACEDIM>, m_nfaces> m_bc_type; 
-    std::array<std::array<FunctionParserAD,AMREX_SPACEDIM>, m_nfaces> m_bc_func; 
+    //std::array<std::array<FunctionParserAD,AMREX_SPACEDIM>, m_nfaces> m_bc_func; 
+    std::array<std::array<amrex::Parser,AMREX_SPACEDIM>, m_nfaces> m_bc_func_parser; 
+    std::array<std::array<amrex::ParserExecutor<4>,AMREX_SPACEDIM>, m_nfaces> m_bc_func; 
 
 public:
 
@@ -342,38 +342,38 @@ public:
         // TYPES
         
         #if AMREX_SPACEDIM==3
-        if (pp.contains("type.xloylozlo")) { pp.queryarr("type.xloylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZLO][i] = bcmap[str[i]]; } // 3D Corners
-        if (pp.contains("type.xloylozhi")) { pp.queryarr("type.xloylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZHI][i] = bcmap[str[i]]; } // 3D Corners
-        if (pp.contains("type.xloyhizlo")) { pp.queryarr("type.xloyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZLO][i] = bcmap[str[i]]; } // 3D Corners
-        if (pp.contains("type.xloyhizhi")) { pp.queryarr("type.xloyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZHI][i] = bcmap[str[i]]; } // 3D Corners
-        if (pp.contains("type.xhiylozlo")) { pp.queryarr("type.xhiylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZLO][i] = bcmap[str[i]]; } // 3D Corners
-        if (pp.contains("type.xhiylozhi")) { pp.queryarr("type.xhiylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZHI][i] = bcmap[str[i]]; } // 3D Corners
-        if (pp.contains("type.xhiyhizlo")) { pp.queryarr("type.xhiyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZLO][i] = bcmap[str[i]]; } // 3D Corners
-        if (pp.contains("type.xhiyhizhi")) { pp.queryarr("type.xhiyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZHI][i] = bcmap[str[i]]; } // 3D Corners
+        if (pp.contains("type.xloylozlo")) { pp.queryarr("type.xloylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZLO][i] = bcmap[str[i]]; } // 3D Corner
+        if (pp.contains("type.xloylozhi")) { pp.queryarr("type.xloylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO_ZHI][i] = bcmap[str[i]]; } // 3D Corner
+        if (pp.contains("type.xloyhizlo")) { pp.queryarr("type.xloyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZLO][i] = bcmap[str[i]]; } // 3D Corner
+        if (pp.contains("type.xloyhizhi")) { pp.queryarr("type.xloyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI_ZHI][i] = bcmap[str[i]]; } // 3D Corner
+        if (pp.contains("type.xhiylozlo")) { pp.queryarr("type.xhiylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZLO][i] = bcmap[str[i]]; } // 3D Corner
+        if (pp.contains("type.xhiylozhi")) { pp.queryarr("type.xhiylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO_ZHI][i] = bcmap[str[i]]; } // 3D Corner
+        if (pp.contains("type.xhiyhizlo")) { pp.queryarr("type.xhiyhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZLO][i] = bcmap[str[i]]; } // 3D Corner
+        if (pp.contains("type.xhiyhizhi")) { pp.queryarr("type.xhiyhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI_ZHI][i] = bcmap[str[i]]; } // 3D Corner
         #endif
 
         #if AMREX_SPACEDIM==3
-        if (pp.contains("type.ylozlo")) { pp.queryarr("type.ylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZLO][i] = bcmap[str[i]]; } // 3D Edges
-        if (pp.contains("type.ylozhi")) { pp.queryarr("type.ylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZHI][i] = bcmap[str[i]]; } // 3D Edges
-        if (pp.contains("type.yhizlo")) { pp.queryarr("type.yhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZLO][i] = bcmap[str[i]]; } // 3D Edges
-        if (pp.contains("type.yhizhi")) { pp.queryarr("type.yhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZHI][i] = bcmap[str[i]]; } // 3D Edges
-        if (pp.contains("type.zloxlo")) { pp.queryarr("type.zloxlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XLO][i] = bcmap[str[i]]; } // 3D Edges
-        if (pp.contains("type.zloxhi")) { pp.queryarr("type.zloxhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XHI][i] = bcmap[str[i]]; } // 3D Edges
-        if (pp.contains("type.zhixlo")) { pp.queryarr("type.zhixlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XLO][i] = bcmap[str[i]]; } // 3D Edges
-        if (pp.contains("type.zhixhi")) { pp.queryarr("type.zhixhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XHI][i] = bcmap[str[i]]; } // 3D Edges
+        if (pp.contains("type.ylozlo")) { pp.queryarr("type.ylozlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZLO][i] = bcmap[str[i]]; } // 3D Edge
+        if (pp.contains("type.ylozhi")) { pp.queryarr("type.ylozhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO_ZHI][i] = bcmap[str[i]]; } // 3D Edge
+        if (pp.contains("type.yhizlo")) { pp.queryarr("type.yhizlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZLO][i] = bcmap[str[i]]; } // 3D Edge
+        if (pp.contains("type.yhizhi")) { pp.queryarr("type.yhizhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI_ZHI][i] = bcmap[str[i]]; } // 3D Edge
+        if (pp.contains("type.zloxlo")) { pp.queryarr("type.zloxlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XLO][i] = bcmap[str[i]]; } // 3D Edge
+        if (pp.contains("type.zloxhi")) { pp.queryarr("type.zloxhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO_XHI][i] = bcmap[str[i]]; } // 3D Edge
+        if (pp.contains("type.zhixlo")) { pp.queryarr("type.zhixlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XLO][i] = bcmap[str[i]]; } // 3D Edge
+        if (pp.contains("type.zhixhi")) { pp.queryarr("type.zhixhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI_XHI][i] = bcmap[str[i]]; } // 3D Edge
         #endif
-        if (pp.contains("type.xloylo")) { pp.queryarr("type.xloylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO][i] = bcmap[str[i]]; } // 3D Edges / 2D Corners
-        if (pp.contains("type.xloyhi")) { pp.queryarr("type.xloyhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI][i] = bcmap[str[i]]; } // 3D Edges / 2D Corners
-        if (pp.contains("type.xhiylo")) { pp.queryarr("type.xhiylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO][i] = bcmap[str[i]]; } // 3D Edges / 2D Corners
-        if (pp.contains("type.xhiyhi")) { pp.queryarr("type.xhiyhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI][i] = bcmap[str[i]]; } // 3D Edges / 2D Corners
+        if (pp.contains("type.xloylo")) { pp.queryarr("type.xloylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YLO][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
+        if (pp.contains("type.xloyhi")) { pp.queryarr("type.xloyhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO_YHI][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
+        if (pp.contains("type.xhiylo")) { pp.queryarr("type.xhiylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YLO][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
+        if (pp.contains("type.xhiyhi")) { pp.queryarr("type.xhiyhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI_YHI][i] = bcmap[str[i]]; } // 3D Edge / 2D Corner
 
-        if (pp.contains("type.xlo")) { pp.queryarr("type.xlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO][i] = bcmap[str[i]]; } // 3D Faces / 2D Edges
-        if (pp.contains("type.xhi")) { pp.queryarr("type.xhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI][i] = bcmap[str[i]]; } // 3D Faces / 2D Edges
-        if (pp.contains("type.ylo")) { pp.queryarr("type.ylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO][i] = bcmap[str[i]]; } // 3D Faces / 2D Edges
-        if (pp.contains("type.yhi")) { pp.queryarr("type.yhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI][i] = bcmap[str[i]]; } // 3D Faces / 2D Edges
+        if (pp.contains("type.xlo")) { pp.queryarr("type.xlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XLO][i] = bcmap[str[i]]; } // 3D Face  2D Edge
+        if (pp.contains("type.xhi")) { pp.queryarr("type.xhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::XHI][i] = bcmap[str[i]]; } // 3D Face  2D Edge
+        if (pp.contains("type.ylo")) { pp.queryarr("type.ylo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YLO][i] = bcmap[str[i]]; } // 3D Face  2D Edge
+        if (pp.contains("type.yhi")) { pp.queryarr("type.yhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::YHI][i] = bcmap[str[i]]; } // 3D Face  2D Edge
         #if AMREX_SPACEDIM==3
-        if (pp.contains("type.zlo")) { pp.queryarr("type.zlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO][i] = bcmap[str[i]]; } // 3D Faces
-        if (pp.contains("type.zhi")) { pp.queryarr("type.zhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI][i] = bcmap[str[i]]; } // 3D Faces
+        if (pp.contains("type.zlo")) { pp.queryarr("type.zlo",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZLO][i] = bcmap[str[i]]; } // 3D Face
+        if (pp.contains("type.zhi")) { pp.queryarr("type.zhi",str); for (int i = 0; i < AMREX_SPACEDIM; i++) value.m_bc_type[Face::ZHI][i] = bcmap[str[i]]; } // 3D Face
         #endif
 
         // VALS
@@ -387,23 +387,12 @@ public:
             
             for (int i = 0 ; i < AMREX_SPACEDIM; i++)
             {
-                value.m_bc_func[face][i].AddVariable("x");
-                value.m_bc_func[face][i].AddVariable("y");
-                value.m_bc_func[face][i].AddVariable("z");
-                value.m_bc_func[face][i].AddVariable("t");
-                if (value.m_bc_func[face][i].Parse(val[i].c_str(),"x,y,z,t") != -1)
-                {
-                    Util::Abort(INFO,"Parsing failed");
-                }
-                value.m_bc_func[face][i].Optimize();
-                if (!value.m_bc_func[face][i].JITCompile())
-                {
-                    Util::Abort(INFO,"JIT compile failed");
-                }                
+                value.m_bc_func_parser[face][i] = amrex::Parser(val[i].c_str());
+                value.m_bc_func_parser[face][i].registerVariables({"x","y","z","t"});
+                value.m_bc_func[face][i] = value.m_bc_func_parser[face][i].compile<4>();
             }
         }        
     }
-#endif
     Expression(IO::ParmParse &pp, std::string name): Expression()
     {pp.queryclass(name,*this);}
 };

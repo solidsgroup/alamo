@@ -22,13 +22,14 @@ import os, subprocess
 import sys
 sys.path.append(os.path.abspath('.'))
 import Inputs
+import Tests
 
 # -- Project information ----------------------------------------------------
 
 
 
 project = u'alamo'
-copyright = u'2018, Brandon Runnels'
+copyright = u'2023, Brandon Runnels'
 author = u'Brandon Runnels'
 
 # The short X.Y version
@@ -59,6 +60,8 @@ extensions = [
 #    'breathe',
     'linuxdoc.rstFlatTable',
 #    'm2r'
+    'sphinx_design',
+    'sphinx_copybutton'
 ]
 
 #breathe_projects = {"alamo":"../doxygen/doxygen_xml/"}
@@ -81,7 +84,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -89,7 +92,8 @@ language = None
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'sphinx'
+#pygments_style = 'sphinx'
+pygments_style = 'default'
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -107,7 +111,7 @@ html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
 #    'canonical_url': '',
 #    'analytics_id': 'UA-XXXXXXX-1',  #  Provided by Google in your dashboard
-    'logo_only': True,
+    'logo_only': False,
 #    'display_version': True,
 #    'prev_next_buttons_location': 'bottom',
 #    'style_external_links': False,
@@ -116,7 +120,7 @@ html_theme_options = {
 #    # Toc options
 #    'collapse_navigation': True,
 #    'sticky_navigation': True,
-    'navigation_depth': -1,
+    'navigation_depth': 10,
 #    'includehidden': True,
 #    'titles_only': False
 }
@@ -136,6 +140,7 @@ html_static_path = ['_static']
 #
 # html_sidebars = {}
 
+sd_fontawesome_latex = True
 
 # -- Options for HTMLHelp output ---------------------------------------------
 
@@ -201,11 +206,64 @@ texinfo_documents = [
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-html_logo = "alamo.svg"
+html_logo = "alamo2.png"
 
 html_css_files = [
-    'custom.css'
+    'custom.css',
+    'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined',
+    'https://fonts.googleapis.com/css2?family=Material+Symbols+Two+Tone',
+    'https://fonts.googleapis.com/css2?family=Material+Icons',
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css",
+    'custom.css',
+    "https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css",
 ]
+
+
+# This will appear at the beginning of each page. Use for formatting or to add universal action items.
+rst_prolog = """
+
+
+
+.. raw:: html
+
+
+    <style> .material-symbols-outlined {display:inline-flex;vertical-align:middle} </style>
+    <style> title .material-symbols-outlined {display:none;} </style>
+    <style> h1 .material-symbols-outlined {font-size:1.3em;vertical-align:middle} </style>
+    <style> h2 .material-symbols-outlined {font-size:1.3em;vertical-align:middle;padding-bottom:5px;} </style>
+    <style> .red {color:red} </style>
+    <style> .blue {color:blue} </style>
+    <style> .green {color:green} </style>
+    <style> .gray {color:gray} </style>
+    <style> .orange {color:orange} </style>
+    <style> .small {size:1em} </style>
+    <style> .medium {size:2em} </style>
+    <style> .large {size:4em} </style>
+
+.. role:: icon
+   :class: material-symbols-outlined
+
+.. role:: icon-twotone
+   :class: material-symbols-twotone
+
+.. role:: icon-red
+   :class: material-symbols-outlined red
+
+.. role:: icon-blue
+   :class: material-symbols-outlined blue
+
+.. role:: icon-green
+   :class: material-symbols-outlined green
+
+.. role:: icon-gray
+   :class: material-symbols-outlined gray
+
+.. role:: icon-orange
+   :class: material-symbols-outlined orange
+
+"""
+
+
 
 import os
 os.system("ls")

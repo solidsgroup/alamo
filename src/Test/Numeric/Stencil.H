@@ -48,7 +48,7 @@ public:
         // Initial function is
         //   cos(2*pi*x/L) * cos(2*pi*y/L) * cos(2*pi*z / L)
         IC::Trig2 ic(geom,1.0,AMREX_D_DECL(0.0,0.0,0.0),AMREX_D_DECL(1,1,1));
-        ic.Add(0,phi);
+        ic.Add(0,phi,0.0);
     }
     void Define(int _ncells)
     {
@@ -76,7 +76,7 @@ public:
                 for (int q = 0; q < j; q++) fac *= 1.0*Set::Constant::Pi / L;,
                 for (int r = 0; r < k; r++) fac *= 1.0*Set::Constant::Pi / L;);
         IC::Trig2 ic(geom,fac,AMREX_D_DECL(theta1,theta2,theta3),AMREX_D_DECL(1,1,1));
-        ic.Add(0,DphiExact);
+        ic.Add(0,DphiExact,0.0);
 
 
         //
@@ -125,7 +125,7 @@ public:
 private:
     amrex::IntVect ncells;
     const Set::Scalar L = 1.0;
-    const int nlevels = 1, ref_ratio = 1, ncomp = 1, nghost = 2;
+    const int ncomp = 1, nghost = 2;
     amrex::Vector<amrex::Geometry> geom;
     amrex::Vector<amrex::BoxArray> grids;
     amrex::Vector<amrex::DistributionMapping> dmap;

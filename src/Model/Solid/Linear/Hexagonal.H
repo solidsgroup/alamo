@@ -89,12 +89,13 @@ public:
     {
         return ddw;
     }
-    virtual void Print(std::ostream &out) const //override 
+    virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }
 
 public:
+    Set::Matrix4<AMREX_SPACEDIM,Set::Sym::MajorMinor> ddw;
     static const KinematicVariable kinvar = KinematicVariable::gradu;
 
     AMREX_FORCE_INLINE

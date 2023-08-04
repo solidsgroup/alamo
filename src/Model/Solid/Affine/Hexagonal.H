@@ -16,7 +16,7 @@ class Hexagonal : public Linear::Hexagonal
 public:
 
     Hexagonal() {};
-    Hexagonal(Solid<Set::Sym::MajorMinor> base) : Linear::Hexagonal(base) {};
+    Hexagonal(Linear::Hexagonal base) : Linear::Hexagonal(base) {};
     virtual ~Hexagonal() {};
 
     void
@@ -43,7 +43,7 @@ public:
     {
         return Linear::Hexagonal::DDW(gradu - F0);
     }
-    virtual void Print(std::ostream &out) const //override 
+    virtual void Print(std::ostream &out) const override 
     {
         out << ddw;
     }

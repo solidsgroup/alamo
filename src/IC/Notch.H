@@ -1,3 +1,8 @@
+//
+// Create a simple notch in an otherwise uniformly filled region.
+// (This was created for, and mostly used for, Mode II fracture tests.)
+//
+
 #ifndef IC_NOTCH_H_
 #define IC_NOTCH_H_
 
@@ -22,7 +27,7 @@ public:
         eps = 1e-5;
     }
     
-    void Add(const int &lev, Set::Field<Set::Scalar> &a_field)
+    void Add(const int &lev, Set::Field<Set::Scalar> &a_field, Set::Scalar)
     {
         Set::Vector DX(geom[lev].CellSize());
         Set::Scalar pi = std::atan(1.0)*4;
@@ -274,7 +279,7 @@ public:
         value.nLength.clear();
     
         amrex::Vector<Set::Scalar> center;
-        pp.queryarr("center",center);
+        pp.queryarr("center",center); // Center of notch
         
         if(center.size() >= AMREX_SPACEDIM)
         {
@@ -286,7 +291,7 @@ public:
             Util::Abort(INFO, "Insufficient values in center");
         
         amrex::Vector<Set::Scalar> orientation;
-        pp.queryarr("orientation",orientation);
+        pp.queryarr("orientation",orientation); // Vector describing notch orientation
 
         if(orientation.size()>=AMREX_SPACEDIM && orientation.size() == center.size())
         {
@@ -300,10 +305,10 @@ public:
         for (int i =0; i < value.nOrientation.size(); i++)
             if(value.nOrientation[i].lpNorm<2>() <= 0.) value.nOrientation[i] = Set::Vector::Random();
 
-        pp.queryarr("thickness", value.nThickness);
-        pp.queryarr("length", value.nLength);
-        pp.queryarr("radius", value.nRadius);
-        pp.query("eps", value.eps);
+        pp.queryarr("thickness", value.nThickness); // Thickness of notch
+        pp.queryarr("length", value.nLength); // Length of notch
+        pp.queryarr("radius", value.nRadius); // Radius of notch ends
+        pp.query("eps", value.eps); // Magnitude of mollifier
         
         if(value.nThickness.size() == 0)
         {

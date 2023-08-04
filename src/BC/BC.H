@@ -1,3 +1,17 @@
+//
+// This is the mechanism for impositing boundary conditions on :code:`Set::Field` objects of 
+// scalar type.
+// Typical convention is for :code:`[prefix]` to be given by the field name. For instance,
+// 
+// .. code-block:: make
+// 
+//                 bc.temp.type.xhi = dirichlet dirichlet dirichlet
+//                 bc.temp.val.xhi  = 0.0 1.0 0.0
+//
+// corresponds to the boundary condition for temperature. See the specific integrator
+// for details.
+//
+
 #ifndef BC_BC_H_
 #define BC_BC_H_
 

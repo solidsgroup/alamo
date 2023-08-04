@@ -52,7 +52,7 @@ public:
         alpha_out = a_alpha_out;
     }
 
-    void Add(const int& lev, Set::Field<Set::Scalar>& a_field)
+    void Add(const int& lev, Set::Field<Set::Scalar>& a_field, Set::Scalar)
     {
         bool cellcentered = (a_field[0]->boxArray().ixType() == amrex::IndexType(amrex::IntVect::TheCellVector()));
         int ncomp = a_field[0]->nComp();
@@ -149,7 +149,6 @@ public:
     }
 
 private:
-    int dim = AMREX_SPACEDIM;
     Set::Vector center = Set::Vector::Zero();
     Set::Scalar radius = 1.0;
     Set::Scalar alpha_in = 1.0;

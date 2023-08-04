@@ -70,6 +70,26 @@
 #@  benchmark-statler = 8.17
 #@  benchmark-github = 11.35
 #@ 
+#@  [neo-hookean-2d]
+#@  dim=2
+#@  check-file = reference/neo-hookean-2d.dat
+#@  args = timestep=0.01
+#@  args = alamo.program.mechanics.model=elastic.neohookean
+#@  args = model1.mu=3.0
+#@  args = model1.kappa=6.5
+#@  args = bc.tension_test.disp=(0,1:0,1)
+#@  args = solver.nriters=10
+#@  ignore = model1.E model1.nu
+#@
+#@  [pseudolinear-cubic]
+#@  dim = 3
+#@  check-file = reference/pseudolinear-cubic.dat
+#@  args = alamo.program.mechanics.model=elastic.pseudolinearcubic
+#@  args = model1.C11=168.3
+#@  args = model1.C12=1.221
+#@  args = model1.C44=0.757
+#@  ignore = model1.E model1.nu
+#@
 
 alamo.program = mechanics
 
