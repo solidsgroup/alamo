@@ -1,5 +1,5 @@
 alamo.program = flame
-plot_file = /home/mmeierdo/solidphase/sand/output
+plot_file = /home/meier/solidphase/sand/output
 amr.plot_dt = 0.001
 #amr.plot_int = 1
 amr.max_level = 7
