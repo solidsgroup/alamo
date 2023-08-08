@@ -41,6 +41,7 @@ public:
     void Add(const int& lev, Set::Field<Set::Scalar>& a_phi, Set::Scalar)
     {
         Set::Vector size = Set::Size(geom[lev]);
+        int ncomp = a_phi[lev]->nComp();
 
         for (amrex::MFIter mfi(*a_phi[lev], amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
@@ -94,7 +95,7 @@ public:
                 }
 
                 phi(i, j, k, 0) = min_grain_id;
-                phi(i, j, k, 1) = 1.0 - min_grain_id;
+                if (ncomp > 1) phi(i, j, k, 1) = 1.0 - min_grain_id;
             });
         }
     }
