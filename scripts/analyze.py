@@ -45,6 +45,7 @@ print('{:>20}'.format("Volume"),end="")
 print('{:>20}'.format("% Volume"),end="")
 print()
 
+totalnodes = 0
 for amrlev in range(0,namrlevs+1):
     leveldir = rootdir+"/Level_"+str(amrlev)+"/"
     #print(leveldir)
@@ -71,7 +72,8 @@ for amrlev in range(0,namrlevs+1):
             dimz = int(res[0][5])-int(res[0][2])
             volume += dimx*dx[amrlev][0] * dimy*dx[amrlev][1] * dimz*dx[amrlev][2]
             nodes += dimx*dimy*dimz
-        patches +=1 
+        patches +=1
+    totalnodes += nodes 
         
     print('{:>10}'.format(amrlev),end="")
     print('{:>15}'.format(nodes),end="")
@@ -79,6 +81,6 @@ for amrlev in range(0,namrlevs+1):
     print('{:>20.5}'.format(volume),end="")
     print('{:>20.5}'.format(100*volume/rootvolume),end="")
     print()
-
+print("total nodes = " + str(totalnodes))
 
 
