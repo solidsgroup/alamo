@@ -143,7 +143,7 @@ public:
         for (int i = 0; i < 10; i++)
         {
 
-            State hi, lo;
+            State hi, lo, fixed;
             hi.rho = Util::Random();
             hi.momentum = Set::Vector::Random();
             hi.energy = Util::Random();
@@ -154,11 +154,16 @@ public:
             lo.energy = Util::Random();
             lo.eta = Util::Random();
 
+            lo.rho = Util::Random();
+            lo.momentum = Set::Vector::Zero();
+            lo.energy = Util::Random();
+            lo.eta = Util::Random();
+
             // 
             // Zero flux test: if the state is the same on both sides,
             //                 the flux should be zero.
             // 
-            Flux zero = Solve(hi,hi,1.4);
+            Flux zero = Solve(fixed,fixed,1.4);
             if (fabs(zero.mass) > 1E-10)  {Util::Warning(INFO,"Nonzero mass flux ", zero.mass); failed++;}
             if (fabs(zero.momentum(0)) > 1E-10)  {Util::Warning(INFO,"Nonzero x momentum flux ", zero.momentum(0)); failed++;}
             if (fabs(zero.momentum(1)) > 1E-10)  {Util::Warning(INFO,"Nonzero y momentum flux ", zero.momentum(1)); failed++;}
