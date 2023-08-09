@@ -1,15 +1,60 @@
 //
 // This is a general purpose integrator that focuses on solving 
 // elasticity/mechanics equations in the absence of other multiphysics
-// simulation
-// 
+// simulations.
 // It is enabled by :code:`alamo.program=mechanics` if used on its own, in
 // which case there is no prefix.
-//
 // If it is being used by another integrator, see that integrator to determine
 // the value of :code:`[prefix]` (often equal to :code:`elastic`).
 //
-
+// This integrator inherits from :ref:`Integrator::Base::Mechanics`; see 
+// documentation for that integrator for additional parameters.
+//
+// :bdg-primary-line:`Model setup`
+// There are two basic tools for setting up a mechanics problem in this
+// integrator.
+//
+// 1. The :code:`eta` field: this is used to mix models of different types.
+//    Use :code:`nmodels` to specify how many material models to use, and then
+//    specify each model as :code:`model1`, :code:`model2`, etc.
+//    The type of moel is specified using the :code:`alamo.program.mechanics.model`
+//    input.
+// 
+//    Once you have done this, you must determine the spatial distribution of each
+//    model. This is done by choosing an IC for the eta field with :code:`ic.type`.
+//    The :code:`IC::Expression` is the most general and recommended.
+//    The models are then mixed linearly, i.e.
+//
+//    .. math::
+//
+//       W_{\textrm{eff}} = \sum_{i=1}^N W_i\,\eta_i(\mathbf{x})
+// 
+//    See the :ref:`Eshelby` test for an example of model mixing.
+// 
+// 2. The :code:`psi` field: this is used specifically for cases where a "void" region
+//    is desired. Its usage is similar to the :code:`eta` case, and is conceptually
+//    similar in that it scales the model field to near-zero in order to mimic the
+//    (lack of) mechanical behavior in an empty region.
+//    It is important to use :code:`psi` here, for reasons that are discussed in detail
+//    in
+//    `this paper <https://doi.org/10.1007/s00466-023-02325-8>`_.
+//    The initialization of :code:`psi` is similar to that for :code:`eta`.
+//    
+//    See the :ref:`PlateHole` and :ref:`RubberPlateHole` for canonical exmaples.
+//    The :ref:`Integrator::Fracture` and :ref:`Integrator::TopOp` integrators are examples
+//    of integrators that leverage the psi property.
+//
+// :bdg-primary-line:`Body forces` 
+// currently have limited support due to the relatively low number of 
+// times they are needed. See the :ref:`Integrator::Base::Mechanics` documentation for 
+// detail. 
+// See the :ref:`TrigTest` test for examples of current body force implementation.
+//
+// :bdg-primary-line:`Boundary conditions` 
+// are implemented using the :ref:`BC::Operator::Elastic` classes.
+// See the documentation on these classes for more detail.
+// See any of the mechanics-based tests for examples of boundary condition application.
+//
 
 #ifndef INTEGRATOR_MECHANICS_H
 #define INTEGRATOR_MECHANICS_H
@@ -84,12 +129,21 @@ public:
 
 
         // Read in IC for eta
+        if (pp.contains("ic.type"))
         {
             std::string type;
             pp.query("ic.type", type); // Read IC type for the eta field
-            if (type == "ellipse") value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
-            if (type == "voronoi") value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
-            if (type == "bmp") value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
+            if (type == "ellipse")    value.ic_eta = new IC::Ellipse(value.geom, pp, "ic.ellipse");
+            else if (type == "voronoi")    value.ic_eta = new IC::Voronoi(value.geom, pp, "ic.voronoi");
+            else if (type == "bmp")        value.ic_eta = new IC::BMP(value.geom, pp, "ic.bmp");
+            else if (type == "expression") value.ic_eta = new IC::Expression(value.geom, pp, "ic.expression");
+            else Util::Abort(INFO,"Invalid valud for ic.type: ",type);
+            
+            value.eta_reset_on_regrid = true;
+            // Whether to re-initialize eta when re-gridding occurs.
+            // Default is false unless eta ic is set, then default is.
+            // true.
+            pp.query("eta.reset_on_regrid",value.eta_reset_on_regrid);
         }
 
         // Read in IC for psi
@@ -105,6 +159,12 @@ public:
             value.bc_psi = new BC::Nothing();
             value.RegisterNewFab(value.psi_mf, value.bc_psi, 1, 2, "psi", true);
             value.psi_on = true;
+            
+            value.psi_reset_on_regrid = true;
+            // Whether to re-initialize psi when re-gridding occurs.
+            // Default is false unless a psi ic is set, then default is
+            // true.
+            pp.query("psi.reset_on_regrid",value.psi_reset_on_regrid);
         }
     }
 
@@ -189,6 +249,11 @@ public:
         }
     }
 
+    void Regrid(int lev, Set::Scalar time) override
+    {
+        if (eta_reset_on_regrid && models.size() > 1 && ic_eta) ic_eta->Initialize(lev, eta_mf, time);
+        if (psi_reset_on_regrid) ic_psi->Initialize(lev, psi_mf, time);
+    }
 
 protected:
     Set::Field<Set::Scalar> eta_mf;
@@ -197,6 +262,8 @@ protected:
     IC::IC* ic_eta = nullptr;
     IC::IC* ic_psi = nullptr;
     BC::BC<Set::Scalar>* bc_psi = nullptr;
+    bool psi_reset_on_regrid = false;
+    bool eta_reset_on_regrid = false;
 
     using Base::Mechanics<MODEL>::m_type;
     using Base::Mechanics<MODEL>::finest_level;

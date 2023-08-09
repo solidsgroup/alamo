@@ -1,3 +1,15 @@
+//
+// This is a thin wrapper to the amrex::ParmParse class
+// This class exists to add some additional parsing capability, 
+// e.g. parsing Set::Matrix and Set::Vector data types.
+//
+// :ref:`IO::ParmParse` uses static :code:`Parse()` functions to 
+// perform cascading class-based input parsing.
+// See the :ref:`autodoc` section for instructions on adding documentation.
+// 
+// :bdg-warning-line:`This is standard infrastructure code; make sure you know what you ard doing before you change it.`
+//
+
 #ifndef IO_PARMPARSE
 #define IO_PARMPARSE
 #include "Set/Set.H"
@@ -5,13 +17,6 @@
 
 namespace IO
 {
-///
-/// \brief This is a thin wrapper to the amrex::ParmParse class
-///
-/// This class exists to add some additional parsing capability, 
-/// e.g. parsing Set::Matrix and Set::Vector data types.
-/// Otherwise, it is used in exactly the same way as amrex::ParmParse
-///
 class ParmParse : public amrex::ParmParse
 {
 public:
