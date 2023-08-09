@@ -49,7 +49,7 @@ pf.w0 = 0.0
 pf.eta.bc.type.xlo = dirichlet
 pf.eta.bc.type.xhi = dirichlet
 pf.eta.bc.type.ylo = periodic
-pf.eta.bc.type.yhi = periodic
+pf.eta.bc.type.yhi = periodic 
 pf.eta.bc.type.zlo = periodic
 pf.eta.bc.type.zhi = periodic
 
