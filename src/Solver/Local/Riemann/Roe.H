@@ -164,8 +164,24 @@ public:
             if (fabs(zero.momentum(1)) > 1E-10)  {Util::Warning(INFO,"Nonzero y momentum flux ", zero.momentum(1)); failed++;}
             if (fabs(zero.energy) > 1E-10)  {Util::Warning(INFO,"Nonzero energy flux ", zero.energy); failed++;}
 
-            //Flux up = Solve(hi, lo, 1.4);
-            //Flux down = Solve(lo, hi, 1.4);
+            // 
+            // Antisymmetry test: reversing hi and lo should produce the same
+            //                    output but negative
+            // 
+
+            Flux plus = Solve(hi, lo, 1.4);
+            Flux minus = Solve(lo, hi, 1.4);
+
+            if (fabs(plus.mass + minus.mass) > 1E-10)  
+            {Util::Warning(INFO,"mass flux error: plus=", plus.mass, " minus=",minus.mass); failed++;}
+            if (fabs(plus.momentum(0) + minus.momentum(0)) > 1E-10)  
+            {Util::Warning(INFO,"momentum x flux error: plus=", plus.momentum(0), " minus=",minus.momentum(0)); failed++;}
+            if (fabs(plus.momentum(1) + minus.momentum(1)) > 1E-10)  
+            {Util::Warning(INFO,"momentum y flux error: plus=", plus.momentum(1), " minus=",minus.momentum(1)); failed++;}
+            if (fabs(plus.energy + minus.energy) > 1E-10)  
+            {Util::Warning(INFO,"energy flux error: plus=", plus.energy, " minus=",minus.energy); failed++;}
+
+
         }
 
         return failed;
