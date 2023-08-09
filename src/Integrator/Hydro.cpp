@@ -5,7 +5,7 @@
 #include "IC/Laminate.H"
 #include "IC/PSRead.H"
 #include "IC/Expression.H"
-#include "Solver/Local/Riemann_ROE.H"
+#include "Solver/Local/Riemann/Roe.H"
 
 namespace Integrator
 {
@@ -276,7 +276,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             double left_state[5] = { rho_left, vx_left, vy_left, p_left, eta(i - 1, j, k) };
             double right_state[5] = { rho_right, vx_right, vy_right, p_right, eta(i, j, k) };
 
-            flux_x = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
+            flux_x = Solver::Local::Riemann::Roe(left_state, right_state, eta(i, j, k), gamma);
 
             //
             // left interface along y direction
@@ -322,7 +322,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             right_state[3] = p_right;
             right_state[4] = eta(i, j - 1, k);
 
-            flux_y = Solver::Local::Riemann_ROE(left_state, right_state, eta(i, j, k), gamma);
+            flux_y = Solver::Local::Riemann::Roe(left_state, right_state, eta(i, j, k), gamma);
 
             // swap flux_y components 
             std::swap(flux_y[2], flux_y[3]);
