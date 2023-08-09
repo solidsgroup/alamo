@@ -7,8 +7,10 @@ namespace Solver
 /// Local solvers
 namespace Local
 {
+namespace Riemann
+{
 /// Roe Riemann Solver based on Gas Dynamics - Culbert B. Laney
-  std::array<double,4> Riemann_ROE(double left_state[5], double right_state[5], Set::Scalar eta, Set::Scalar gamma) {
+  std::array<double,4> Roe(double left_state[5], double right_state[5], Set::Scalar eta, Set::Scalar gamma) {
     Set::Scalar rho_l, vel_l, p_l, ke_l, ue_l, h_l;
     Set::Scalar rho_r, vel_r, p_r, ke_r, ue_r, h_r;
     Set::Scalar eta_r, eta_l;
@@ -113,5 +115,6 @@ namespace Local
 
     return fl;
   }
+}
 }
 }

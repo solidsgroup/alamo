@@ -5,6 +5,8 @@ root = true
 [*]
 end_of_line = lf
 insert_final_newline = true
+cpp_new_line_before_open_brace_lambda = next_line
+cpp_indent_namespace_contents = false
 
 # 4 space space indentation
 [*.py]
