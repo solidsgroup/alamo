@@ -22,8 +22,9 @@ public:
         Set::Scalar energy;
         Set::Scalar eta;
         // Construtor for convenience
+        State() {rho=0.0; momentum=Set::Vector::Zero(); energy = 0.0; eta = 0.0;} 
         State(Set::Scalar a_rho, Set::Scalar a_mx, Set::Scalar a_my, Set::Scalar a_energy, Set::Scalar a_eta)
-        : rho(a_rho), momentum(a_mx,a_my), energy(a_energy), eta(a_eta) {}
+            : rho(a_rho), momentum(a_mx, a_my), energy(a_energy), eta(a_eta) {}
     };
 
     struct Flux {
@@ -32,26 +33,26 @@ public:
         Set::Vector momentum;
     };
 
-    
+
     // todo: convert to static functor by replacing with static () when c++23 is released
-    static Flux Solve (State left, State right, Set::Scalar gamma) {
+    static Flux Solve(State left, State right, Set::Scalar gamma) {
         Set::Scalar rho_l = left.rho;
-        Set::Scalar u_l   = left.momentum(0) / left.rho;
-        Set::Scalar e_l   = left.energy;
-        Set::Scalar ke_l  = 0.5 * rho_l * u_l * u_l;
-        Set::Scalar ue_l  = e_l - ke_l;
-        Set::Scalar p_l   = (gamma - 1) * ue_l;
+        Set::Scalar u_l = left.momentum(0) / left.rho;
+        Set::Scalar e_l = left.energy;
+        Set::Scalar ke_l = 0.5 * rho_l * u_l * u_l;
+        Set::Scalar ue_l = e_l - ke_l;
+        Set::Scalar p_l = (gamma - 1) * ue_l;
         Set::Scalar eta_l = left.eta;
-        Set::Scalar h_l   = (e_l + p_l) / rho_l;
+        Set::Scalar h_l = (e_l + p_l) / rho_l;
 
         Set::Scalar rho_r = right.rho;
-        Set::Scalar u_r   = right.momentum(0) / right.rho;
-        Set::Scalar e_r   = right.energy;
-        Set::Scalar ke_r  = 0.5 * rho_r * u_r * u_r;
-        Set::Scalar ue_r  = e_r - ke_r;
-        Set::Scalar p_r   = (gamma - 1) * ue_r;
+        Set::Scalar u_r = right.momentum(0) / right.rho;
+        Set::Scalar e_r = right.energy;
+        Set::Scalar ke_r = 0.5 * rho_r * u_r * u_r;
+        Set::Scalar ue_r = e_r - ke_r;
+        Set::Scalar p_r = (gamma - 1) * ue_r;
         Set::Scalar eta_r = right.eta;
-        Set::Scalar h_r   = (e_r + p_r) / rho_r;
+        Set::Scalar h_r = (e_r + p_r) / rho_r;
 
         //Util::Message()
 
@@ -111,34 +112,63 @@ public:
         // flux
         //std::array<Set::Scalar, 4> fl;
         Flux fl;
-        fl.mass        = 0.5 * (rho_l * u_l * eta_l + rho_r * u_r * eta_r);
+        fl.mass = 0.5 * (rho_l * u_l * eta_l + rho_r * u_r * eta_r);
         fl.momentum(0) = 0.5 * (rho_l * u_l * u_l * eta_l + rho_r * u_r * u_r * eta_r) + 0.5 * (p_l + p_r) * eta_RL;
         fl.momentum(1) = 0.0;
-        fl.energy      = 0.5 * (u_l * ke_l * eta_l + u_r * ke_r * eta_r) + 0.5 * (u_l * (ue_l + p_l) + u_r * (ue_r + p_r)) * eta_RL;
+        fl.energy = 0.5 * (u_l * ke_l * eta_l + u_r * ke_r * eta_r) + 0.5 * (u_l * (ue_l + p_l) + u_r * (ue_r + p_r)) * eta_RL;
 
         // upwinding
 
-        fl.mass        += -0.5 * rev_0[0] * std::abs(ev[0]) * dv[0];
-        fl.mass        += -0.5 * rev_1[0] * std::abs(ev[0]) * dv[0];
-        fl.mass        += -0.5 * rev_2[0] * std::abs(ev[0]) * dv[0];
-        fl.mass        += -0.5 * rev_3[0] * std::abs(ev[0]) * dv[0];
+        fl.mass += -0.5 * rev_0[0] * std::abs(ev[0]) * dv[0];
+        fl.mass += -0.5 * rev_1[0] * std::abs(ev[0]) * dv[0];
+        fl.mass += -0.5 * rev_2[0] * std::abs(ev[0]) * dv[0];
+        fl.mass += -0.5 * rev_3[0] * std::abs(ev[0]) * dv[0];
 
         fl.momentum(1) += -0.5 * rev_0[2] * std::abs(ev[2]) * dv[2];
         fl.momentum(1) += -0.5 * rev_1[2] * std::abs(ev[2]) * dv[2];
         fl.momentum(1) += -0.5 * rev_2[2] * std::abs(ev[2]) * dv[2];
         fl.momentum(1) += -0.5 * rev_3[2] * std::abs(ev[2]) * dv[2];
 
-        fl.energy      += -0.5 * rev_0[1] * std::abs(ev[1]) * dv[1];
-        fl.energy      += -0.5 * rev_1[1] * std::abs(ev[1]) * dv[1];
-        fl.energy      += -0.5 * rev_2[1] * std::abs(ev[1]) * dv[1];
-        fl.energy      += -0.5 * rev_3[1] * std::abs(ev[1]) * dv[1];
+        fl.energy += -0.5 * rev_0[1] * std::abs(ev[1]) * dv[1];
+        fl.energy += -0.5 * rev_1[1] * std::abs(ev[1]) * dv[1];
+        fl.energy += -0.5 * rev_2[1] * std::abs(ev[1]) * dv[1];
+        fl.energy += -0.5 * rev_3[1] * std::abs(ev[1]) * dv[1];
 
         return fl;
     }
 
-    static bool Test()
+    static int Test()
     {
-        
+        int failed = 0;
+        for (int i = 0; i < 10; i++)
+        {
+
+            State hi, lo;
+            hi.rho = Util::Random();
+            hi.momentum = Set::Vector::Random();
+            hi.energy = Util::Random();
+            hi.eta = Util::Random();
+
+            lo.rho = Util::Random();
+            lo.momentum = Set::Vector::Random();
+            lo.energy = Util::Random();
+            lo.eta = Util::Random();
+
+            // 
+            // Zero flux test: if the state is the same on both sides,
+            //                 the flux should be zero.
+            // 
+            Flux zero = Solve(hi,hi,1.4);
+            if (fabs(zero.mass) > 1E-10)  {Util::Warning(INFO,"Nonzero mass flux ", zero.mass); failed++;}
+            if (fabs(zero.momentum(0)) > 1E-10)  {Util::Warning(INFO,"Nonzero x momentum flux ", zero.momentum(0)); failed++;}
+            if (fabs(zero.momentum(1)) > 1E-10)  {Util::Warning(INFO,"Nonzero y momentum flux ", zero.momentum(1)); failed++;}
+            if (fabs(zero.energy) > 1E-10)  {Util::Warning(INFO,"Nonzero energy flux ", zero.energy); failed++;}
+
+            //Flux up = Solve(hi, lo, 1.4);
+            //Flux down = Solve(lo, hi, 1.4);
+        }
+
+        return failed;
     }
 };
 }

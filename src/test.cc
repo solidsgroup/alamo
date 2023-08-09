@@ -20,6 +20,8 @@
 #include "Model/Solid/Linear/Hexagonal.H"
 #include "Model/Solid/Affine/Hexagonal.H"
 
+#include "Solver/Local/Riemann/Roe.H"
+
 int main (int argc, char* argv[])
 {
     Util::Initialize(argc, argv);
@@ -109,6 +111,13 @@ int main (int argc, char* argv[])
         subfailed += Util::Test::SubMessage("1-2-1",test.Derivative<1,2,1>(0));
         subfailed += Util::Test::SubMessage("1-1-2",test.Derivative<1,1,2>(0));
 #endif
+        failed += Util::Test::SubFinalMessage(subfailed);
+    }
+
+    Util::Test::Message("Solver::Nonlocal::Riemann::Roe test");
+    {
+        int subfailed = 0;
+        subfailed += Util::Test::SubMessage("Test",Solver::Local::Riemann::Roe::Test());
         failed += Util::Test::SubFinalMessage(subfailed);
     }
 
