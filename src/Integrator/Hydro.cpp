@@ -240,10 +240,16 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             double lo_statey[5] = { rho(i, j - 1, k), M(i, j - 1, k, 1), M(i, j - 1, k, 0), E(i, j - 1, k), eta(i, j - 1, k) }; //veloctiy input is always normal, then tangential to interface
             double hi_statey[5] = { rho(i, j + 1, k), M(i, j + 1, k, 1), M(i, j + 1, k, 0), E(i, j + 1, k), eta(i, j + 1, k) }; //veloctiy input is always normal, then tangential to interface
 
-            std::array<Set::Scalar, 4> flux_xlo, flux_ylo, flux_xhi, flux_yhi;
+            std::array<Set::Scalar, 4> flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 
             //lo interface fluxes
             flux_xlo = Solver::Local::Riemann_ROE(lo_statex, state, gamma);
+	    flux_test = Solver::Local::Riemann_ROE(state, lo_statex, gamma);
+	    Util::Message(INFO, "mass flux ", flux_xlo[0], " ", flux_test[0]);
+	    Util::Message(INFO, "energy flux ", flux_xlo[1], " ", flux_test[1]);
+	    Util::Message(INFO, "momentum x flux ", flux_xlo[2], " ", flux_test[2]);
+	    Util::Message(INFO, "momentum y flux ", flux_xlo[3], " ", flux_test[3]);
+	    
             flux_ylo = Solver::Local::Riemann_ROE(lo_statey, state, gamma);
 
             //hi interface fluxes
