@@ -5,7 +5,7 @@
 #include "IC/Laminate.H"
 #include "IC/PSRead.H"
 #include "IC/Expression.H"
-#include "Solver/Local/Riemann_ROE.H"
+#include "Solver/Local/Riemann/Roe.H"
 
 namespace Integrator
 {
@@ -178,8 +178,8 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
     {
         const amrex::Box& bx = mfi.growntilebox();
 
-	amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
-	
+        amrex::Array4<const Set::Scalar> const& eta = (*eta_mf[lev]).array(mfi);
+
         amrex::Array4<const Set::Scalar> const& E = (*Energy_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& rho = (*Density_old_mf[lev]).array(mfi);
         amrex::Array4<const Set::Scalar> const& M = (*Momentum_old_mf[lev]).array(mfi);
@@ -194,7 +194,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             v(i, j, k, 0) = M(i, j, k, 0) / rho(i, j, k);
             v(i, j, k, 1) = 0.0; //M(i, j, k, 1) / rho(i, j, k);
 
-            Set::Scalar ke = 0.5 * rho(i, j, k) *(v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
+            Set::Scalar ke = 0.5 * rho(i, j, k) * (v(i, j, k, 0) * v(i, j, k, 0) + v(i, j, k, 1) * v(i, j, k, 1));
 
             p(i, j, k, 0) = (gamma - 1.0) * (E(i, j, k) - ke);
 
@@ -204,7 +204,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             // if (v(i, j, k, 0) > vx_max) { vx_max = v(i, j, k, 0); }
             // if (v(i, j, k, 1) > vy_max) { vy_max = v(i, j, k, 1); }
 
-            if (eta(i,j,k) > eta_max) { eta_max = eta(i,j,k); }
+            if (eta(i, j, k) > eta_max) { eta_max = eta(i, j, k); }
         });
     }
     Pressure_mf[lev]->FillBoundary();
@@ -230,7 +230,7 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
 
             //Advance eta
             Set::Vector grad_eta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>()/eta_max;
+            Set::Scalar grad_eta_mag = grad_eta.lpNorm<2>() / eta_max;
 
             double state[5] = { rho(i, j, k), M(i, j, k, 0), M(i, j, k, 1), E(i, j, k), eta(i, j, k) };
 
@@ -243,56 +243,56 @@ void Hydro::Advance(int lev, Set::Scalar, Set::Scalar dt)
             std::array<Set::Scalar, 4> flux_xlo, flux_ylo, flux_xhi, flux_yhi, flux_test;
 
             //lo interface fluxes
-            flux_xlo = Solver::Local::Riemann_ROE(lo_statex, state, gamma);
-	    flux_test = Solver::Local::Riemann_ROE(state, lo_statex, gamma);
-	    Util::Message(INFO, "mass flux ", flux_xlo[0], " ", flux_test[0]);
-	    Util::Message(INFO, "energy flux ", flux_xlo[1], " ", flux_test[1]);
-	    Util::Message(INFO, "momentum x flux ", flux_xlo[2], " ", flux_test[2]);
-	    Util::Message(INFO, "momentum y flux ", flux_xlo[3], " ", flux_test[3]);
-	    
-            flux_ylo = Solver::Local::Riemann_ROE(lo_statey, state, gamma);
+            flux_xlo = Solver::Local::Riemann::Roe(lo_statex, state, gamma);
+            flux_test = Solver::Local::Riemann::Roe(state, lo_statex, gamma);
+            Util::Message(INFO, "mass flux ", flux_xlo[0], " ", flux_test[0]);
+            Util::Message(INFO, "energy flux ", flux_xlo[1], " ", flux_test[1]);
+            Util::Message(INFO, "momentum x flux ", flux_xlo[2], " ", flux_test[2]);
+            Util::Message(INFO, "momentum y flux ", flux_xlo[3], " ", flux_test[3]);
+
+            flux_ylo = Solver::Local::Riemann::Roe(lo_statey, state, gamma);
 
             //hi interface fluxes
-            flux_xhi = Solver::Local::Riemann_ROE(state, hi_statex, gamma);
-            flux_yhi = Solver::Local::Riemann_ROE(state, hi_statey, gamma);
+            flux_xhi = Solver::Local::Riemann::Roe(state, hi_statex, gamma);
+            flux_yhi = Solver::Local::Riemann::Roe(state, hi_statey, gamma);
 
             //if (i==0&&j==0) Util::Message(INFO,flux_xlo[0]," ",flux_xlo[1]," ",flux_xlo[2]," ",flux_xlo[3]);
             //if (i==0&&j==0) Util::Message(INFO,flux_xhi[0]," ",flux_xhi[1]," ",flux_xhi[2]," ",flux_xhi[3]);
-	    //Util::Message(INFO, M(i, j - 1, k, 1), " ", M(i, j, k, 1)," ",M(i, j + 1, k, 1));
-	    
+        //Util::Message(INFO, M(i, j - 1, k, 1), " ", M(i, j, k, 1)," ",M(i, j + 1, k, 1));
+
 
             //Godunov fluxes
-            E_new(i, j, k) = 
-                E(i, j, k) 
-	      - (flux_xhi[1] - flux_xlo[1]) * dt / DX[0]
-	      - (flux_yhi[1] - flux_ylo[1]) * dt / DX[1];
+            E_new(i, j, k) =
+                E(i, j, k)
+                - (flux_xhi[1] - flux_xlo[1]) * dt / DX[0]
+                - (flux_yhi[1] - flux_ylo[1]) * dt / DX[1];
 
-            rho_new(i, j, k) = 
-                rho(i, j, k) 
-	      - (flux_xhi[0] - flux_xlo[0]) * dt / DX[0]
-	      - (flux_yhi[0] - flux_ylo[0]) * dt / DX[1];
+            rho_new(i, j, k) =
+                rho(i, j, k)
+                - (flux_xhi[0] - flux_xlo[0]) * dt / DX[0]
+                - (flux_yhi[0] - flux_ylo[0]) * dt / DX[1];
 
             M_new(i, j, k, 0) =
-                M(i, j, k, 0) 
-	      - (flux_xhi[2] - flux_xlo[2]) * dt / DX[0]
-	      - (flux_yhi[3] - flux_ylo[3]) * dt / DX[1];
+                M(i, j, k, 0)
+                - (flux_xhi[2] - flux_xlo[2]) * dt / DX[0]
+                - (flux_yhi[3] - flux_ylo[3]) * dt / DX[1];
 
-            M_new(i, j, k, 1) = 
-	        M(i, j, k, 1) 
-	      - (flux_xhi[3] - flux_xlo[3]) * dt / DX[0];
-	    //- (flux_yhi[2] - flux_ylo[2]) * dt / DX[1];
+            M_new(i, j, k, 1) =
+                M(i, j, k, 1)
+                - (flux_xhi[3] - flux_xlo[3]) * dt / DX[0];
+            //- (flux_yhi[2] - flux_ylo[2]) * dt / DX[1];
 
-            //if (i==0&&j==0) 
-            //{
-            //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
-            //    Util::Message(INFO,M_new(i, j, k, 1));
-            //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
-            //    Util::Message(INFO,M_new(i, j, k, 1));
-            //}
+                //if (i==0&&j==0) 
+                //{
+                //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
+                //    Util::Message(INFO,M_new(i, j, k, 1));
+                //    Util::Message(INFO,M(i, j, k, 1) + (flux_xlo[3] - flux_xhi[3]) * dt / DX[0]);
+                //    Util::Message(INFO,M_new(i, j, k, 1));
+                //}
 
-            ///////////////////////////
-            //////DIFFUSE SOURCES//////
-            ///////////////////////////
+                ///////////////////////////
+                //////DIFFUSE SOURCES//////
+                ///////////////////////////
 
             std::array<Set::Scalar, 3> source;
             source[0] = mdot * grad_eta_mag;
