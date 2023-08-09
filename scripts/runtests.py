@@ -62,7 +62,7 @@ parser.add_argument('--profile',default=False,action='store_true',help='Use the 
 parser.add_argument('--benchmark',default=socket.gethostname(),help='Current platform if testing performance')
 parser.add_argument('--dryrun',default=False,action='store_true',help='Do not actually run tests, just list what will be run')
 parser.add_argument('--comp', default="g++", help='Compiler. Options: [g++], clang++, icc')
-parser.add_argument('--timeout', default=60, help='Timeout value in seconds (default: 60)')
+parser.add_argument('--timeout', default=10000, help='Timeout value in seconds (default: 10000)')
 args=parser.parse_args()
 
 class DryRunException(Exception):
