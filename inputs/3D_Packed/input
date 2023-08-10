@@ -108,7 +108,7 @@ thermal.mlocal_comb = 0.0
 
 ## PRESSURE VARIABLES ######################################################### PRESSURE
 
-pressure.P = 4.0  ## Pressure is to be inputed in MPa units.
+pressure.P = 3.0  ## Pressure is to be inputed in MPa units.
 pressure.mob_ap = 0
 
 
