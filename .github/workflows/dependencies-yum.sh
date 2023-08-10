@@ -4,7 +4,7 @@ set -eu -o pipefail
 sudo yum install -y gcc gcc-c++ make
 
 # Install mpich
-sudo yum install -y mpich2 mpich2-devel mpich-autoload
+sudo yum install -y mpich mpich-devel mpich-autoload
 
 # Install eigen
 sudo yum install -y eigen3-devel

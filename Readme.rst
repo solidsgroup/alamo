@@ -47,12 +47,20 @@ If you are using Ubuntu (or a debian-based distribution) you can install all nec
 If you are using a non-debian based system such as RedHat, you can install the corresponding packages in :code:`dependencies.sh`. 
 Windows and Mac OS are not supported.
 
-:fab:`ubuntu;fa-fw` Ubuntu
---------------------------
 
+
+:fab:`ubuntu;fa-fw` Ubuntu / Debian / Mint
+------------------------------------------
+
+.. literalinclude:: ../../.github/workflows/dependencies.sh
 
 :fab:`fedora;fa-fw` Fedora
 --------------------------
+
+.. literalinclude:: ../../.github/workflows/dependencies-yum.sh
+
+:fab:`redhat;fa-fw` Redhat / :fab:`centos;fa-fw` CentOS
+-------------------------------------------------------
 
 
 Setting MPICH as default MPI
