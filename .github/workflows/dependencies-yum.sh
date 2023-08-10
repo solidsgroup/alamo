@@ -2,9 +2,9 @@ set -eu -o pipefail
 
 sudo yum install -y gcc gcc-c++ make
 
-sudo yum install mpich2 mpich2-devel mpich-autoload
+sudo yum install -y mpich2 mpich2-devel mpich-autoload
 
-sudo yum install rh-python36 npm
+sudo yum install -u rh-python36 npm
 
 sudo python3 -m pip install pip
 
