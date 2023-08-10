@@ -4,7 +4,7 @@ sudo yum install -y gcc gcc-c++ make
 
 sudo yum install -y mpich2 mpich2-devel mpich-autoload
 
-sudo yum install -u rh-python36 npm
+sudo yum install -y rh-python36 npm
 
 sudo python3 -m pip install pip
 
