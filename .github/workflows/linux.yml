@@ -53,7 +53,7 @@ jobs:
     name: Build on Fedora (latest)
     runs-on: ubuntu-latest
     container:
-      image: redhat:latest
+      image: fedora:latest
     steps:
       - name: install git and sudo
         run: yum install -y sudo git
