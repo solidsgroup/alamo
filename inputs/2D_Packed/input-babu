@@ -37,7 +37,7 @@ eta.ic.type = constant #laminate
 phi.ic.type = psread
 #phi.zeta_0 = 0.00001
 phi.ic.psread.eps = 0.00001
-phi.ic.psread.filename = pack3d.out # 2d.xyzr
+phi.ic.psread.filename = ../2d.xyzr
 #phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/NewPacks/60/1.xyr
 
 pf.kappa = 1.0

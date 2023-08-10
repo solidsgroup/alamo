@@ -2,7 +2,7 @@ alamo.program = flame
 plot_file = output 
 amr.plot_dt = 0.001
 #amr.plot_int = 1
-amr.max_level = 7
+amr.max_level = 6
 amr.max_grid_size = 50
 amr.blocking_factor = 2
 amr.base_regrid_int = 10
@@ -22,7 +22,7 @@ conditional.round = 1000.0
 ## TIME EPS ############################################################ TIME EPS
 
 timestep = 1.0e-5 # 0.00005 # [s]
-stop_time = 0.01
+stop_time = 0.1
 small = 1.0e-8
 pf.min_eta = 0.1
 
@@ -37,8 +37,7 @@ eta.ic.type = constant #laminate
 phi.ic.type = psread
 phi.zeta_0 = 0.00001
 phi.ic.psread.eps = 0.00001
-phi.ic.psread.filename = 2d.xyzr
-#phi.ic.psread.filename = /home/mmeierdo/SpherePackTools/NewPacks/60/1.xyr
+phi.ic.psread.filename = ../2d.xyzr
 
 pf.kappa = 1.0
 pf.gamma = 0.02726

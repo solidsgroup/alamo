@@ -79,7 +79,8 @@ private:
     Set::Scalar zeta = 1.0e-5;
     Set::Scalar zeta_0 = 1.0e-5;
     Set::Scalar small = 1.0e-8;
-    Set::Scalar small2 = 0.5;
+    Set::Scalar small_ = 0.001;
+    Set::Scalar _small = 0.01;
     Set::Scalar base_time = 1.0e-4;
     IC::IC* ic_eta;
 

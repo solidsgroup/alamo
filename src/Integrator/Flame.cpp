@@ -63,6 +63,7 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
         pp.query("thermal.on", value.thermal.on); // Whether to use the Thermal Transport Model
         pp.query("elastic.on", value.elastic.on);
         pp.query("thermal.bound", value.thermal.bound); // System Initial Temperature
+        
 
         if (value.thermal.on) {
             pp.query("thermal.rho_ap", value.thermal.rho_ap); // AP Density
@@ -145,6 +146,8 @@ Flame::Parse(Flame& value, IO::ParmParse& pp)
     pp.query("amr.refinament_restriction", value.t_refinement_restriction);
     // small value
     pp.query("small", value.small);
+    pp.query("_small", value._small);
+    pp.query("small_", value.small_);
 
     {
         // The material field is referred to as :math:`\phi(\mathbf{x})` and is 
@@ -348,6 +351,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar cp = thermal.cp_ap * phi(i, j, k) + thermal.cp_htpb * (1.0 - phi(i, j, k));
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
+                    //if (etanew(i,j,k) < _small && etanew(i,j,k) > small) etanew(i,j,k) -= small;
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt
                 });
@@ -446,6 +450,8 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
     const Set::Scalar* DX = geom[lev].CellSize();
     Set::Scalar dr = sqrt(AMREX_D_TERM(DX[0] * DX[0], +DX[1] * DX[1], +DX[2] * DX[2]));
 
+    
+
     // Eta criterion for refinement
     for (amrex::MFIter mfi(*eta_mf[lev], true); mfi.isValid(); ++mfi)
     {
@@ -456,8 +462,9 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion)
-                tags(i, j, k) = amrex::TagBox::SET;
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion){
+                if (eta(i,j,k) >= 0.1){
+                tags(i, j, k) = amrex::TagBox::SET;}}
         });
     }
 
