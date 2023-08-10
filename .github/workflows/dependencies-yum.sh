@@ -7,10 +7,7 @@ sudo yum install -y gcc gcc-c++ make
 sudo yum install -y mpich2 mpich2-devel mpich-autoload
 
 # Install python and node.js
-sudo yum install -y python3 npm
-
-# Install pip
-sudo python3 -m pip install pip
+sudo yum install -y python3 python3-pip npm
 
 # Requirements for regression test scripts
 pip3 install yt matplotlib numpy pandas 
