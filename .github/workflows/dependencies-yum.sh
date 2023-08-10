@@ -1,11 +1,15 @@
 set -eu -o pipefail
 
+# Install basic C++ compilers and build tools
 sudo yum install -y gcc gcc-c++ make
 
+# Install mpich
 sudo yum install -y mpich2 mpich2-devel mpich-autoload
 
-sudo yum install -y rh-python36 npm
+# Install python and node.js
+sudo yum install -y python3 npm
 
+# Install pip
 sudo python3 -m pip install pip
 
 # Requirements for regression test scripts
