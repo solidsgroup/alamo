@@ -351,7 +351,7 @@ void Flame::Advance(int lev, Set::Scalar time, Set::Scalar dt)
                     Set::Scalar cp = thermal.cp_ap * phi(i, j, k) + thermal.cp_htpb * (1.0 - phi(i, j, k));
                     Set::Scalar df_deta = ((pf.lambda / pf.eps) * dw(eta(i, j, k)) - pf.eps * pf.kappa * eta_lap);
                     etanew(i, j, k) = eta(i, j, k) - mob(i, j, k) * dt * df_deta;
-                    //if (etanew(i,j,k) < _small && etanew(i,j,k) > small) etanew(i,j,k) -= small;
+                    if (etanew(i,j,k) < _small && etanew(i,j,k) > small) etanew(i,j,k) -= small;
                     alpha(i, j, k) = K / rho / cp; // Calculate thermal diffusivity and store in fiel
                     mdot(i, j, k) = rho * fabs(eta(i, j, k) - etanew(i, j, k)) / dt; // deta/dt
                 });
@@ -462,7 +462,7 @@ void Flame::TagCellsForRefinement(int lev, amrex::TagBoxArray& a_tags, Set::Scal
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k)
         {
             Set::Vector gradeta = Numeric::Gradient(eta, i, j, k, 0, DX);
-            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion)
+            if (gradeta.lpNorm<2>() * dr * 2 > m_refinement_criterion && eta(i,j,k) > _small)
                 tags(i, j, k) = amrex::TagBox::SET;
         });
     }
