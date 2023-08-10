@@ -34,7 +34,7 @@ jobs:
     name: Build on RHEL UBI 8
     runs-on: ubuntu-latest
     container:
-      image: redhat/ub8
+      image: redhat/ubi8
     steps:
       - name: install git and sudo
         run: yum install -y sudo git
